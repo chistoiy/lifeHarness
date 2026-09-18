@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="">
+<html lang="zh-CN" class="" data-theme="minimal">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,6 +17,22 @@ tailwind.config = {
 </script>
 <style>
   html,body{height:100%;background:#0f172a;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;}
+  /* ---- 设计令牌 & 4套主题：简约minimal / 小清新fresh / 复古retro / 轻拟态neumorph ---- */
+  :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;--page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);--nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0}
+  html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b}
+  html[data-theme="fresh"]{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88)}
+  html[data-theme="fresh"].dark{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);--nav-bd:#16321f}
+  html[data-theme="retro"]{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9}
+  html[data-theme="retro"] #phone{font-family:Georgia,'Songti SC','STSong','SimSun',serif;letter-spacing:.01em}
+  html[data-theme="retro"] .grad{background:linear-gradient(135deg,#b45309 0%,#7c2d12 100%)}
+  html[data-theme="retro"] .card{border-width:2px}
+  html[data-theme="retro"].dark{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722}
+  html[data-theme="neumorph"]{--accent:#5b7cfa;--accent-l:#93a7ff;--g1:#7c93f5;--g2:#6272e8;--g3:#5565e0;--page:#e9eef5;--card:#e9eef5;--card-bd:transparent;--card-r:22px;--card-sh:8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff;--nav-bg:#e9eef5;--nav-bd:#d7dfec}
+  html[data-theme="neumorph"] .card{border-width:0}
+  html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
+  html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+  #phone{background:var(--page)!important}
+  nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important}
   .no-scrollbar::-webkit-scrollbar{display:none}
   .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
   .page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -30,49 +46,48 @@ tailwind.config = {
   .q-drop.drag-over{outline:2px dashed #6366f1;outline-offset:-4px;background:rgba(99,102,241,.06)}
   .ripple{position:relative;overflow:hidden}
   input[type=range]{accent-color:#6366f1}
-  .grad{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 55%,#d946ef 100%)}
+  .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
   .safe-pb{padding-bottom:96px}
   .blur-bd{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
   /* ---- 组件类 ---- */
-  .card{background:#fff;border:1px solid #f1f5f9;border-radius:20px;padding:14px 16px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-  .dark .card{background:#0f172a;border-color:#1e293b}
+  .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:14px 16px;box-shadow:var(--card-sh)}
   .row-title{font-size:13px;font-weight:800}
   button.mood{font-size:22px;opacity:.5;filter:grayscale(.4);transition:.15s}
   button.mood:active{transform:scale(1.15)}
   .mood-on{opacity:1!important;transform:scale(1.25);filter:none!important}
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .seg-on{background:#fff;color:#4f46e5;box-shadow:0 1px 4px rgba(15,23,42,.12)}
-  .dark .seg-on{background:#334155;color:#a5b4fc}
+  .seg-on{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12)}
+  .dark .seg-on{color:var(--accent-l)}
   .nav-arrow{width:32px;height:32px;border-radius:50%;font-size:18px;color:#94a3b8;line-height:1}
   .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:600}
   .dark .chip{background:#1e293b;color:#94a3b8}
-  .chip-on{background:#6366f1;color:#fff!important}
+  .chip-on{background:var(--accent);color:#fff!important}
   .chk{width:22px;height:22px;border-radius:50%;border:2px solid #cbd5e1;font-size:12px;color:transparent;flex-shrink:0;line-height:1}
   .dark .chk{border-color:#475569}
-  .chk-on{background:#6366f1;border-color:#6366f1;color:#fff}
+  .chk-on{background:var(--accent);border-color:var(--accent);color:#fff}
   .qbadge{width:20px;height:20px;border-radius:6px;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .mini-btn{font-size:11px;font-weight:700;color:#4f46e5;background:rgba(99,102,241,.1);padding:6px 10px;border-radius:10px}
-  .dark .mini-btn{color:#a5b4fc;background:rgba(99,102,241,.18)}
-  .link-act{color:#6366f1;font-weight:700}
+  .mini-btn{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 10px;border-radius:10px}
+  .dark .mini-btn{color:var(--accent-l)}
+  .link-act{color:var(--accent);font-weight:700}
   .qtag{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-  .quote-line{border-left:3px solid #6366f1;padding-left:10px;font-size:12px;line-height:1.7;color:#475569}
+  .quote-line{border-left:3px solid var(--accent);padding-left:10px;font-size:12px;line-height:1.7;color:#475569}
   .dark .quote-line{color:#94a3b8}
   .border-l-peach{border-left-color:#fb7185!important}.border-l-mint{border-left-color:#2dd4bf!important}
   .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px}
   .dark .grabber{background:#475569}
   .toggle{width:40px;height:23px;border-radius:99px;background:#cbd5e1;position:relative;transition:.2s;flex-shrink:0;display:inline-block;cursor:pointer}
   .toggle::after{content:'';position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
-  .toggle.on{background:#6366f1}
+  .toggle.on{background:var(--accent)}
   .toggle.on::after{left:19px}
-  .dark .toggle{background:#475569}.dark .toggle.on{background:#6366f1}
+  .dark .toggle{background:#475569}
   .set-ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
   .vchip{font-size:9px;background:#e2e8f0;color:#64748b;border-radius:6px;padding:1px 5px;vertical-align:middle}
   .dark .vchip{background:#334155;color:#94a3b8}
   .navtab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#94a3b8;font-weight:600;padding-top:6px}
   .navtab svg{width:22px;height:22px}
-  .navtab.on{color:#6366f1}
-  .navtab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:#6366f1}
-  .dark .navtab{color:#64748b}.dark .navtab.on{color:#818cf8}.dark .navtab.on::after{background:#818cf8}
+  .navtab.on{color:var(--accent)}
+  .navtab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:var(--accent)}
+  .dark .navtab{color:#64748b}.dark .navtab.on{color:var(--accent-l)}.dark .navtab.on::after{background:var(--accent-l)}
   .setnav svg{width:16px;height:16px;color:#94a3b8}
   .pw-ic-btn{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:inherit;flex-shrink:0}
   .pw-ic-btn:active{background:rgba(120,110,90,.12)}
@@ -90,7 +105,7 @@ tailwind.config = {
   .dark .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
   .tag-chip{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:99px;background:#f1f5f9;color:#64748b;font-weight:600}
   .dark .tag-chip{background:#1e293b;color:#94a3b8}
-  .tag-chip.on{background:#6366f1;color:#fff}
+  .tag-chip.on{background:var(--accent);color:#fff}
   .pick-chip{padding:8px 0;border-radius:12px;border:1.5px solid #e2e8f0;color:#64748b;font-weight:700;text-align:center}
   .dark .pick-chip{border-color:#334155;color:#94a3b8}
   .pick-chip.on{border-color:#fb7185;color:#fb7185;background:rgba(251,113,133,.08)}
@@ -98,14 +113,14 @@ tailwind.config = {
   .dark .tri{background:#1e293b;color:#94a3b8}
   .imp-dot{width:22px;height:22px;border-radius:50%;background:#e2e8f0;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
   .dark .imp-dot{background:#1e293b;color:#64748b}
-  .imp-on{background:#6366f1;color:#fff}.imp-done{background:#2dd4bf;color:#fff}
+  .imp-on{background:var(--accent);color:#fff}.imp-done{background:#2dd4bf;color:#fff}
   .q-ask{border:1.5px dashed #cbd5e1;border-radius:14px;padding:10px;font-size:12px;font-weight:700;color:#64748b;text-align:left;line-height:1.4}
   .dark .q-ask{border-color:#334155;color:#94a3b8}
-  .q-ask-on{border-color:#6366f1;border-style:solid;background:rgba(99,102,241,.08);color:#4f46e5}
-  .dark .q-ask-on{color:#a5b4fc}
+  .q-ask-on{border-color:var(--accent);border-style:solid;background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--accent)}
+  .dark .q-ask-on{color:var(--accent-l)}
   .q-move{padding:8px 0;border-radius:12px;border:1.5px solid #e2e8f0;font-weight:700;color:#64748b;font-size:11px}
   .dark .q-move{border-color:#334155;color:#94a3b8}
-  .q-move.on{background:#6366f1;border-color:#6366f1;color:#fff}
+  .q-move.on{background:var(--accent);border-color:var(--accent);color:#fff}
   .tl-dot{position:absolute;left:-23px;top:3px;width:9px;height:9px;border-radius:50%;border:2px solid #fff}
   .dark .tl-dot{border-color:#0f172a}
   .life-btn{border-radius:16px;padding:12px 0;font-size:12px;font-weight:800;line-height:1.6}
@@ -114,8 +129,8 @@ tailwind.config = {
   .task-row{transition:transform .1s}
   .task-row:active{transform:scale(.99)}
   .seg-pill{background:#e2e8f0;color:#64748b;padding:6px 14px;border-radius:999px;white-space:nowrap;font-weight:700;font-size:12px}
-  .seg-pill.on{background:#6366f1;color:#fff}
-  .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:#6366f1;color:#fff}
+  .seg-pill.on{background:var(--accent);color:#fff}
+  .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:var(--accent);color:#fff}
   .fmt-btn{width:30px;height:28px;border-radius:8px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
   .fmt-btn:active{background:#e2e8f0}
   .dark .fmt-btn:active{background:#334155}
@@ -131,9 +146,10 @@ tailwind.config = {
   <div class="text-xs leading-6 text-left max-w-[220px]">
     · 仅 UI 占位模拟，无真实业务数据<br>
     · 底部导航 + 悬浮球 + 各模块入口均可点击<br>
-    · 拖拽四象限卡片 / 深色模式 / 心情打卡等交互可用<br>
-    · 手机窄屏直接全屏运行
+    · 拖拽四象限 / 格子时间块 / 深色模式可用<br>
+    · 下方按钮切换 4 套整体主题风格
   </div>
+  <div class="grid grid-cols-2 gap-2 w-[220px]" id="sideThemes"></div>
 </div>
 
 <div id="phone" class="relative w-full h-screen md:w-[400px] md:h-[840px] md:rounded-[44px] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 shadow-2xl overflow-hidden md:border-8 md:border-slate-800">
@@ -774,8 +790,10 @@ tailwind.config = {
       <div class="card mt-4">
         <div class="row-title">🎨 外观</div>
         <div class="mt-2 space-y-3 text-sm">
-          <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">当前：跟随系统 · 点击实时预览</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
-          <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
+          <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🖌</span><div class="flex-1"><b>主题风格</b><div class="text-[11px] text-slate-400">小清新 · 简约 · 复古 · 轻拟态 · 全局实时换肤</div></div></div>
+          <div class="grid grid-cols-4 gap-2" id="themeStyleRow"></div>
+          <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">当前：跟随系统 · 与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
+          <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
             <div class="flex gap-2" id="themeDots"></div></div>
           <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3 text-xs text-slate-500"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
         </div>
@@ -1130,6 +1148,18 @@ function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.clas
 function closeSheet(id){ const s=$('#'+id); s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
 function toggleDark(el){ tgl(el); document.documentElement.classList.toggle('dark'); toast(document.documentElement.classList.contains('dark')?'已切换深色模式（实时预览）':'已切换浅色模式'); }
+/* ================= 主题风格系统（简约/小清新/复古/轻拟态） ================= */
+const THEMES=[['minimal','简约 · 默认','#6366f1','#8b5cf6','#d946ef'],['fresh','小清新','#34d399','#22d3ee','#60a5fa'],['retro','复古','#d97706','#b45309','#7c2d12'],['neumorph','轻拟态','#cfd9ea','#5b7cfa','#f8fafc']];
+let curTheme='minimal';
+function themeSwatch(t){return `linear-gradient(135deg,${t[2]} 0%,${t[3]} 55%,${t[4]} 100%)`;}
+function setTheme(k){curTheme=k;document.documentElement.dataset.theme=k;renderThemeRow();renderSideThemes();
+  const t=THEMES.find(x=>x[0]===k);toast('已切换主题风格：'+t[1].split(' · ')[0]+'（模拟持久化）');}
+function renderThemeRow(){
+  $('#themeStyleRow').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="rounded-2xl p-1.5 border-2 transition active:scale-95" style="border-color:${t[0]===curTheme?'var(--accent)':'transparent'}">
+    <span class="block h-9 rounded-xl ${t[0]==='neumorph'?'':''}" style="background:${themeSwatch(t)};${t[0]==='neumorph'?'box-shadow:inset 2px 2px 4px rgba(0,0,0,.12),-2px -2px 4px #fff':''}"></span>
+    <span class="text-[10px] font-bold block mt-1" style="color:${t[0]===curTheme?'var(--accent)':'#94a3b8'}">${t[1].split(' · ')[0]}</span></button>`).join('');}
+function renderSideThemes(){if(!$('#sideThemes'))return;
+  $('#sideThemes').innerHTML=THEMES.map(t=>`<button onclick="setTheme('${t[0]}')" class="px-2 py-2 rounded-xl text-[11px] font-bold transition ${t[0]===curTheme?'text-white ring-2 ring-white/60':'text-slate-400'}" style="background:${t[0]===curTheme?themeSwatch(t):'#1e293b'}">${t[1].split(' · ')[0]}</button>`).join('');}
 
 /* ================= 仪表盘 ================= */
 function renderDash(){
@@ -1405,7 +1435,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW();
+renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); renderThemeRow(); renderSideThemes();
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 </script>
 </body>
