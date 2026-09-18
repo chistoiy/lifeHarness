@@ -158,6 +158,14 @@ tailwind.config = {
   .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
   .pw-tool:active{background:color-mix(in srgb,var(--pw-fg) 12%,transparent);opacity:1}
   .seg-pill{background:#e2e8f0;color:#64748b;padding:6px 14px;border-radius:999px;white-space:nowrap;font-weight:700;font-size:12px}
+  /* ---- 主页自由编排模式 ---- */
+  .dash-card{position:relative}
+  .dash-handle{display:none;position:absolute;top:8px;right:8px;z-index:20;gap:4px}
+  .dash-edit .dash-card{outline:2px dashed var(--accent);outline-offset:5px}
+  .dash-edit .dash-card{cursor:grab}
+  .dash-edit .dash-handle{display:flex}
+  .dash-card.dragging{opacity:.35}
+  .mv-btn{width:26px;height:26px;border-radius:8px;background:var(--card);box-shadow:0 2px 8px rgba(15,23,42,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);border:none}
   .seg-pill.on{background:var(--accent);color:#fff}
   .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:var(--accent);color:#fff}
   .fmt-btn{width:30px;height:28px;border-radius:8px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
@@ -235,8 +243,12 @@ tailwind.config = {
           <div class="flex-1 bg-white/15 rounded-2xl p-3">
             <div class="text-[11px] opacity-80">今日持有成本</div>
             <div class="text-xl font-extrabold mt-1">¥ 47.2<span class="text-xs font-medium opacity-80">/天</span></div>
-            <div class="text-[10px] opacity-70">12 件物品在计费中</div>
+            <div class="text-[10px] opacity-70">12 件物品计费中</div>
           </div>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[10px] text-white/75">
+          <span>主页卡片可自由编排顺序</span>
+          <button id="dashEditBtn" onclick="dashToggle()" class="bg-white/25 rounded-full px-3 py-1 font-extrabold text-white active:scale-95 transition">⇄ 编排</button>
         </div>
       </div>
 
@@ -294,7 +306,7 @@ tailwind.config = {
         <div class="grid grid-cols-4 gap-y-4 mt-3 text-center text-[11px] font-medium" id="appGrid"></div>
       </div>
 
-      <div class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-6 pb-2">LifeHaness 原型 · 页面底部可切换主导航</div>
+      <div id="dashFooter" class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-6 pb-2">LifeHaness 原型 · 页面底部可切换主导航</div>
     </section>
 
     <!-- ===== P2 待办 ===== -->
@@ -957,6 +969,7 @@ tailwind.config = {
         <div class="flex items-center justify-between"><div class="row-title">🧭 底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
         <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」为固定栏目；开关状态随设置持久化（模拟）</div>
         <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
+        <div class="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs"><span class="font-semibold">🧩 主页模块顺序</span><button class="mini-btn" onclick="gotoDashEdit()">去编排</button></div>
       </div>
 
       <div class="card mt-4">
@@ -1364,6 +1377,35 @@ function renderDash(){
   $$('.mood').forEach(b=>b.onclick=()=>{ $$('.mood').forEach(x=>x.classList.remove('mood-on')); b.classList.add('mood-on');
     $('#moodTip').innerHTML=`已记录：<b>${b.dataset.m}</b> · 将进入今晚日记与心情趋势（联动 L4）`; });
 }
+/* ================= 主页自由编排（拖拽/上下移动/保存） ================= */
+const DASH_IDS=['greeting','mood','events','inboxBar','chart','grid'];
+let dashEditing=false,dragCard=null;
+function initDashOrder(){const p=$('#p-dashboard');
+  const tip=document.createElement('div');tip.id='dashTip';tip.className='hidden mb-3 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 px-3 py-2 text-[11px] text-brand-600 dark:text-brand-400 font-bold';
+  tip.textContent='⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调 · 「完成」保存布局';p.insertBefore(tip,p.firstChild);
+  [...p.children].filter(c=>!c.classList.contains('dash-card')&&c.id!=='dashTip'&&c.id!=='dashFooter').forEach((c,i)=>{
+    const w=document.createElement('div');w.className='dash-card';w.dataset.id=DASH_IDS[i]||('x'+i);
+    p.insertBefore(w,c);w.appendChild(c);
+    w.setAttribute('draggable','false');
+    w.addEventListener('dragstart',e=>{if(!dashEditing){e.preventDefault();return}dragCard=w;w.classList.add('dragging')});
+    w.addEventListener('dragend',()=>{w.classList.remove('dragging');dragCard=null});
+    w.addEventListener('dragover',e=>{if(dragCard&&dragCard!==w)e.preventDefault()});
+    w.addEventListener('drop',e=>{if(!dragCard||dragCard===w)return;e.preventDefault();const r=w.getBoundingClientRect();
+      p.insertBefore(dragCard,e.clientY>r.top+r.height/2?w.nextSibling:w);
+      dragCard.classList.remove('dragging');dragCard=null;toast('顺序已调整 · 布局已保存（模拟持久化）')});
+    const h=document.createElement('div');h.className='dash-handle';
+    h.innerHTML='<button class="mv-btn" title="上移" onclick="dashMove(this,-1)">↑</button><button class="mv-btn" title="下移" onclick="dashMove(this,1)">↓</button><span class="mv-btn cursor-grab" title="拖动">⾿</span>';
+    w.appendChild(h);});}
+function dashMove(btn,dir){const c=btn.closest('.dash-card');const ref=dir<0?c.previousElementSibling:c.nextElementSibling;
+  if(!ref||!ref.classList.contains('dash-card')){toast(dir<0?'已在第一位':'已在最后一位');return}
+  c.parentNode.insertBefore(dir<0?c:ref,dir<0?ref:c);toast('顺序已调整 · 布局已保存（模拟持久化）');}
+function dashToggle(){dashEditing=!dashEditing;
+  $('#p-dashboard').classList.toggle('dash-edit',dashEditing);
+  $('#dashTip').classList.toggle('hidden',!dashEditing);
+  $('#dashEditBtn').textContent=dashEditing?'✓ 完成':'⇄ 编排';
+  $$('.dash-card').forEach(c=>c.setAttribute('draggable',dashEditing?'true':'false'));
+  if(!dashEditing)toast('主页布局已保存 · 下次启动保持此顺序（模拟）');}
+function gotoDashEdit(){stack.length=0;setPage('p-dashboard');window.scrollTo(0,0);if(!dashEditing)dashToggle();}
 /* ================= 待办 ================= */
 let todoFilter=0, askState={imp:null,urg:null};
 function renderChips(){ $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
@@ -1811,7 +1853,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts();
+renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts();
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
