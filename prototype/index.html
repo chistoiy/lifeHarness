@@ -128,6 +128,35 @@ tailwind.config = {
   .dark .fin-add{background:#0f172a;border-color:#1e293b;color:#cbd5e1}
   .task-row{transition:transform .1s}
   .task-row:active{transform:scale(.99)}
+  /* ---- Markdown 实时渲染视图 ---- */
+  .md-p{margin:0 0 .9em;line-height:2.05;font-size:15px;letter-spacing:.03em}
+  .md-h1{font-size:22px;font-weight:800;margin:.5em 0 .45em;line-height:1.4}
+  .md-h2{font-size:18px;font-weight:800;margin:1em 0 .45em;line-height:1.4}
+  .md-h3{font-size:16px;font-weight:800;margin:.9em 0 .4em}
+  .md-h4{font-size:14.5px;font-weight:800;margin:.8em 0 .35em}
+  .md-quote{border-left:3px solid var(--accent);padding:3px 0 3px 13px;margin:0 0 1.1em;color:#64748b;font-size:14px;line-height:1.95}
+  .dark .md-quote{color:#94a3b8}
+  .md-ul,.md-ol{margin:0 0 1.1em 1.4em;font-size:14.5px;line-height:2}
+  .md-hr{border:none;border-top:1.5px dashed rgba(120,110,90,.4);margin:1.5em 0}
+  .md-table{border-collapse:collapse;margin:0 0 1.1em;font-size:12.5px;width:100%}
+  .md-table th,.md-table td{border:1px solid rgba(120,110,90,.32);padding:5px 9px;text-align:left}
+  .md-table th{background:rgba(120,110,90,.09);font-weight:800}
+  .md-pre{background:rgba(120,110,90,.09);border-radius:10px;padding:10px 12px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.7;overflow-x:auto;margin:0 0 1.1em;white-space:pre}
+  .md-view code{background:rgba(120,110,90,.12);border-radius:5px;padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:.85em}
+  .md-task{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;margin:0 0 .5em;line-height:1.8}
+  .md-task input{accent-color:var(--accent);margin-top:5px;flex-shrink:0}
+  .md-done{opacity:.5;text-decoration:line-through}
+  .md-tasks{margin:0 0 1.1em}
+  .texi{font-family:Georgia,'Times New Roman',serif;background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:5px;padding:0 5px;white-space:nowrap}
+  .tex-block{font-family:Georgia,'Times New Roman',serif;text-align:center;font-size:17px;margin:1.1em 0;padding:12px 8px;background:rgba(120,110,90,.07);border-radius:12px;border:1px dashed rgba(120,110,90,.35);line-height:2.4;overflow-x:auto}
+  .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.8em;line-height:1.2;margin:0 2px}
+  .frac em{font-style:normal;display:block;padding:0 4px}
+  .frac em:first-child{border-bottom:1.2px solid currentColor}
+  .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.9;letter-spacing:.02em}
+  .pw-mode-btn{font-size:11px;font-weight:800;padding:4px 9px;border-radius:9px;opacity:.55;flex-shrink:0}
+  .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
+  .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
+  .pw-tool:active{background:color-mix(in srgb,var(--pw-fg) 12%,transparent);opacity:1}
   .seg-pill{background:#e2e8f0;color:#64748b;padding:6px 14px;border-radius:999px;white-space:nowrap;font-weight:700;font-size:12px}
   .seg-pill.on{background:var(--accent);color:#fff}
   .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:var(--accent);color:#fff}
@@ -427,27 +456,61 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- ===== P4d 笔记编辑器（纯纯写作风） ===== -->
+    <!-- ===== P4d 笔记编辑器（纯纯写作风 · 四模式） ===== -->
     <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
-      <div class="px-4 py-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
+      <div class="px-4 pt-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
         <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
-        <div class="flex-1 min-w-0" style="color:var(--pw-fg)">
+        <div class="flex-1 min-w-0">
           <div class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
           <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
         </div>
-        <button onclick="toast('已切换 Markdown 源码模式（模拟）')" class="pw-ic-btn text-xs font-extrabold" style="color:var(--pw-fg)">M↓</button>
-        <button onclick="openSheet('sheetSnapshot')" class="pw-ic-btn text-sm" style="color:var(--pw-fg)">🕘</button>
-        <button onclick="toast('导出：TXT / Markdown / PDF · 也可存入笔记文件夹')" class="pw-ic-btn" style="color:var(--pw-fg)">⋯</button>
+        <button onclick="openSheet('sheetSnapshot')" class="pw-ic-btn text-sm">🕘</button>
+        <button onclick="toast('导出：TXT / Markdown / PDF · 也可存入笔记文件夹')" class="pw-ic-btn">⋯</button>
       </div>
+      <!-- 模式切换 + MD 语法快捷操作栏 -->
+      <div class="px-3 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar sticky top-[52px] z-10" style="background:var(--pw-bg);border-bottom:1px solid rgba(120,110,90,.1)">
+        <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
+          <button class="pw-mode-btn on" data-m="focus" onclick="pwSetMode('focus')">🖊 专注</button>
+          <button class="pw-mode-btn" data-m="src" onclick="pwSetMode('src')">⌨️ MD源码</button>
+          <button class="pw-mode-btn" data-m="split" onclick="pwSetMode('split')">🔀 分屏</button>
+          <button class="pw-mode-btn" data-m="view" onclick="pwSetMode('view')">👁 预览</button>
+        </div>
+        <span class="w-px h-4 flex-shrink-0" style="background:rgba(120,110,90,.25);margin:0 4px"></span>
+        <div class="flex gap-0.5 flex-shrink-0">
+          <button class="pw-tool" onclick="pwMd('h')" title="标题">H</button>
+          <button class="pw-tool" onclick="pwMd('bold')" title="加粗"><b>B</b></button>
+          <button class="pw-tool" onclick="pwMd('ital')" title="斜体"><i>I</i></button>
+          <button class="pw-tool" onclick="pwMd('strike')" title="删除线"><s>S</s></button>
+          <button class="pw-tool" onclick="pwMd('code')" title="行内代码">&lt;&gt;</button>
+          <button class="pw-tool" onclick="pwMd('quote')" title="引用">❝</button>
+          <button class="pw-tool" onclick="pwMd('ul')" title="无序列表">≡</button>
+          <button class="pw-tool" onclick="pwMd('task')" title="待办项">☑</button>
+          <button class="pw-tool" onclick="pwMd('table')" title="表格">▦</button>
+          <button class="pw-tool" onclick="pwMd('img')" title="图片">🖼</button>
+          <button class="pw-tool" onclick="pwMd('link')" title="链接">🔗</button>
+          <button class="pw-tool" style="font-family:Georgia,serif" onclick="pwMd('math')" title="行内公式">ƒx</button>
+          <button class="pw-tool" style="font-family:Georgia,serif" onclick="pwMd('mathb')" title="块级公式 LaTeX">∑</button>
+          <button class="pw-tool" onclick="pwMd('hr')" title="分割线">—</button>
+        </div>
+      </div>
+      <!-- 模式① 专注写作（现有段落） -->
       <div class="px-7 pt-5 pb-28 pw-body" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
         <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
         <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
         <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
         <p>克制不等于简陋。自动保存、版本快照、断点续写，这些防丢稿的地基应该平时看不见，塌了才知道它重要。</p>
         <p>☑ 待办行样式：勾选后自动同步为任务列表新任务（联动 L3，与日记同构）</p>
-        <p>下一步：把段落聚焦（dim）模式也移植到日记编辑器里，让两个写作场景拥有一致的体验。</p>
+        <p>Markdown、LaTeX 公式、实时渲染、分屏预览——都在，但只在你需要时才出现。点击顶栏 🔀 分屏 试试。</p>
         <p class="opacity-60">（点击任意段落试试聚焦模式 · 本段以下为演示占位）字距、行距、纸色，是中文写作工具被低估的三件套。行高 2.15、字距 0.03em，是长时间盯屏不累的经验值。</p>
       </div>
+      <!-- 模式②③④：源码 / 分屏 / 预览 -->
+      <div id="pwSrcWrap" class="hidden px-5 pt-3 pb-28"><div id="pwSrcBox"></div></div>
+      <div id="pwSplitWrap" class="hidden px-3 pt-3 pb-28 grid grid-cols-2 gap-3">
+        <div id="pwSplitBox" class="min-w-0"></div>
+        <div id="pwPrev" class="md-view min-w-0 overflow-x-auto px-1" style="font-size:14px"></div>
+      </div>
+      <div id="pwViewWrap" class="hidden px-7 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
+        <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
       <div class="sticky bottom-0 px-4 py-2.5 flex items-center gap-2.5 text-[11px] blur-bd" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12);color:var(--pw-fg)">
         <span class="opacity-45 flex-shrink-0">字号</span><input type="range" min="13" max="19" value="15" oninput="pwFont(this.value)" class="w-14 flex-shrink-0">
         <span class="opacity-45 ml-1 flex-shrink-0">纸色</span>
@@ -641,7 +704,78 @@ tailwind.config = {
         <div class="mt-3 space-y-2.5 text-xs" id="finBars"></div>
       </div>
       <div class="mt-5 flex items-center justify-between"><div class="row-title !mb-0">本月流水</div><span class="text-[10px] text-slate-400">仅本地存储 🔒</span></div>
+      <button onclick="billGo()" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
+        <span class="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-500/15 flex items-center justify-center">🧾</span>
+        <div class="flex-1"><div class="text-sm font-bold">导入支付宝 / 微信账单</div><div class="text-[11px] text-slate-400">CSV 导出自动解析 · 本地处理不上传 · 交易号去重</div></div>
+        <span class="text-slate-300">›</span></button>
       <div id="txList" class="mt-2 space-y-2"></div>
+    </section>
+
+    <!-- ===== P6b 账单导入向导 ===== -->
+    <section id="p-billImport" class="page px-5 safe-pb no-scrollbar">
+      <div id="billStep" class="flex items-center gap-2 text-[11px] font-bold text-slate-400"></div>
+      <!-- 步骤1 选平台 -->
+      <div id="bill1" class="mt-4 space-y-3">
+        <div class="text-sm font-extrabold mb-1">选择账单平台</div>
+        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="支付宝">
+          <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/15 flex items-center justify-center text-lg">🅰️</span>
+          <div class="flex-1"><div class="text-sm font-bold">支付宝</div><div class="text-[11px] text-slate-400 leading-4">我的 → 账单 → ⋯ → 开具账单 → 明细 CSV（zip）</div></div><span class="text-slate-300">›</span></button>
+        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="微信支付">
+          <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-lg">💚</span>
+          <div class="flex-1"><div class="text-sm font-bold">微信支付</div><div class="text-[11px] text-slate-400 leading-4">服务→钱包→账单→常见问题→下载账单（CSV 为 zip 加密包）</div></div><span class="text-slate-300">›</span></button>
+        <div class="card !bg-slate-100 dark:!bg-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-6">🔒 隐私承诺：账单文件<b>仅在本机解析</b>，不上传不联网；自动识别支付宝 18 行表头 / 微信 17 行表头前缀与列结构。</div>
+      </div>
+      <!-- 步骤2 选文件 -->
+      <div id="bill2" class="hidden mt-4">
+        <div class="text-sm font-extrabold"><span id="billPlatName">支付宝</span> · 选择导出文件</div>
+        <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
+          <div class="text-3xl">🗂</div>
+          <div class="text-sm font-bold mt-2" id="billFileName">alipay_record_202608.csv</div>
+          <div class="text-[11px] text-slate-400 mt-1">214 KB · 点击重新选择（模拟）</div>
+        </div>
+        <div class="mt-3 card text-xs space-y-2.5" id="billOpts"></div>
+      </div>
+      <!-- 步骤3 预览 -->
+      <div id="bill3" class="hidden mt-4">
+        <div class="text-sm font-extrabold">解析预览 · 去重确认</div>
+        <div class="mt-2 flex gap-3 text-center text-[11px]">
+          <div class="flex-1 card !py-2"><b class="text-sky-500 text-sm">128</b><div class="text-slate-400">解析流水</div></div>
+          <div class="flex-1 card !py-2"><b class="text-sun text-sm">41</b><div class="text-slate-400">重复跳过</div></div>
+          <div class="flex-1 card !py-2"><b class="text-mint text-sm">87</b><div class="text-slate-400">将写入</div></div>
+        </div>
+        <div class="mt-3 card">
+          <div class="row-title">分类自动映射（92% 命中 · 其余进「其他」可改）</div>
+          <div class="mt-2 space-y-1.5 text-[11px]">
+            <div class="flex justify-between"><span class="text-slate-400">商业服务-餐饮美食 →</span><b>🍜 餐饮</b></div>
+            <div class="flex justify-between"><span class="text-slate-400">交通出行-打车 →</span><b>🚇 交通</b></div>
+            <div class="flex justify-between"><span class="text-slate-400">数码电器 →</span><b>💻 数码（可升级为物品档案 📦 · 联动 L12）</b></div>
+            <div class="flex justify-between"><span class="text-slate-400">退款冲抵 →</span><b>负支出流水</b></div>
+          </div>
+        </div>
+        <div class="mt-3 card">
+          <div class="row-title">写入示例（前 3 条）</div>
+          <div class="mt-2 space-y-1.5 text-[11px]">
+            <div class="flex justify-between"><span>08-31 12:24 · 张记快餐</span><b class="text-rose-400">−¥32.00</b></div>
+            <div class="flex justify-between"><span>08-30 09:10 · T3 打车</span><b class="text-rose-400">−¥23.50</b></div>
+            <div class="flex justify-between"><span>08-29 21:02 · 退款-某宝店铺</span><b class="text-emerald-500">+¥89.00</b></div>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销</div>
+        </div>
+      </div>
+      <!-- 步骤4 完成 -->
+      <div id="bill4" class="hidden mt-10 text-center">
+        <div class="text-6xl">✅</div>
+        <div class="text-lg font-extrabold mt-4">导入完成</div>
+        <div class="text-xs text-slate-400 mt-1 leading-6">已写入 87 条流水 · 跳过重复 41 条<br>月度报表与分类占比已自动更新（联动 L8：订阅项已生成续费提醒）</div>
+        <div class="mt-6 flex gap-3 justify-center">
+          <button onclick="stack.length=0;setPage('p-finance')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看账本</button>
+          <button onclick="billReset()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一份</button>
+        </div>
+      </div>
+      <div id="billNav" class="mt-6 flex gap-3">
+        <button id="billPrev" onclick="billStep(-1)" class="hidden flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">上一步</button>
+        <button id="billNext" onclick="billStep(1)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">下一步</button>
+      </div>
     </section>
 
     <!-- ===== P7 物品价值 ===== -->
@@ -1153,7 +1287,7 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['日程','时间块 · 冲突检测'],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
- 'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],
+ 'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
  'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
@@ -1403,6 +1537,85 @@ function exitNoteEdit(){toast('已保存 ✓ 并生成版本快照');stack.lengt
 function newNote(){toast('已新建空白笔记 · 进入纯写作模式');navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
+/* ================= 笔记 · Markdown 引擎与四模式（专注/源码/分屏/预览） ================= */
+const PW_MD='# 论写作工具的克制设计\n\n**写作工具的第一要务**，是让人 *忘记* 工具的存在。\n\n- [x] 自动保存，与纯纯写作对齐\n- [ ] 打字机居中跟随\n- [ ] 段落级拖拽重排\n\n> 纸不会建议你写什么，但会诚实地接住你写下的一切——包括那些只写了一半的句子。\n\n行内公式 $E=mc^2$ ，以及二次方程求根：\n\n$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$\n\n| 模式 | 用途 |\n| --- | --- |\n| 🖊 专注 | 沉浸式写作 |\n| ⌨️ 源码 | Markdown 语法 |\n| 🔀 分屏 | 实时渲染 |\n\n`行内代码`、~~删除线~~、[官方博客](https://example.com)。\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n';
+const TEX_G={alpha:'α',beta:'β',gamma:'γ',delta:'δ',Delta:'Δ',epsilon:'ε',theta:'θ',lambda:'λ',mu:'μ',pi:'π',sigma:'σ',Sigma:'Σ',tau:'τ',phi:'φ',omega:'ω',Omega:'Ω',infty:'∞',cdots:'⋯',cdot:'·',times:'×',div:'÷',pm:'±',mp:'∓',le:'≤',ge:'≥',ne:'≠',approx:'≈',equiv:'≡',sum:'∑',prod:'∏',int:'∫',partial:'∂',nabla:'∇',to:'→',rightarrow:'→',langle:'⟨',rangle:'⟩',degree:'°',circ:'∘',propto:'∝'};
+function latexMini(s){
+ s=s.replace(/\\sqrt\{([^{}]*)\}/g,'√($1)');
+ s=s.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g,'<span class="frac"><em>$1</em><em>$2</em></span>');
+ s=s.replace(/\\(?:left|right)/g,'');
+ s=s.replace(/\\([a-zA-Z]+)/g,function(m,w){return TEX_G[w]!==undefined?TEX_G[w]:w;});
+ s=s.replace(/\^\{([^{}]*)\}/g,'<sup>$1</sup>').replace(/\^([0-9A-Za-z+\-])/g,'<sup>$1</sup>');
+ s=s.replace(/_\{([^{}]*)\}/g,'<sub>$1</sub>').replace(/_([0-9A-Za-z+\-])/g,'<sub>$1</sub>');
+ return s;}
+function mdInline(s){s=esc2(s);
+ s=s.replace(/\$([^$]+)\$/g,function(m,x){return '<span class="texi">'+latexMini(x)+'</span>';});
+ s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+ s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+ s=s.replace(/~~([^~]+)~~/g,'<s>$1</s>');
+ s=s.replace(/\*([^*]+)\*/g,'<i>$1</i>');
+ s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" class="underline" style="color:var(--accent)">$1</a>');
+ return s;}
+function mdRender(src){const L=src.split('\n');let out='',i=0;
+ const special=s=>/^(#{1,4}\s|>|\||```|\$\$|\s*[-*]\s|\s*\d+\.\s|---\s*$)/.test(s);
+ while(i<L.length){const ln=L[i];
+  const bm=ln.trim().match(/^\$\$(.+)\$\$$/);if(bm){out+='<div class="tex-block">'+latexMini(bm[1])+'</div>';i++;continue}
+  if(ln.trim()==='$$'){let b='';i++;while(i<L.length&&L[i].trim()!=='$$'){b+=(b?' ':'')+L[i];i++}i++;out+='<div class="tex-block">'+latexMini(b)+'</div>';continue}
+  if(/^```/.test(ln)){let b='';i++;while(i<L.length&&!/^```/.test(L[i])){b+=(b?'\n':'')+L[i];i++}i++;out+='<pre class="md-pre">'+esc2(b)+'</pre>';continue}
+  const hm=ln.match(/^(#{1,4})\s+(.*)/);if(hm){const tg='h'+hm[1].length;out+='<'+tg+' class="md-h'+hm[1].length+'">'+mdInline(hm[2])+'</'+tg+'>';i++;continue}
+  if(/^-{3,}$/.test(ln.trim())){out+='<hr class="md-hr">';i++;continue}
+  if(/^>\s?/.test(ln)){let q='';while(i<L.length&&/^>\s?/.test(L[i])){q+=(q?'<br>':'')+L[i].replace(/^>\s?/,'');i++}out+='<blockquote class="md-quote">'+mdInline(q)+'</blockquote>';continue}
+  if(/^\|/.test(ln)){const rows=[];while(i<L.length&&/^\|/.test(L[i])){rows.push(L[i]);i++}
+   const cells=r=>r.split('|').slice(1,-1).map(c=>c.trim());
+   let t='<table class="md-table"><thead><tr>'+cells(rows[0]).map(c=>'<th>'+mdInline(c)+'</th>').join('')+'</tr></thead><tbody>';
+   rows.slice(2).forEach(r=>{t+='<tr>'+cells(r).map(c=>'<td>'+mdInline(c)+'</td>').join('')+'</tr>'});out+=t+'</tbody></table>';continue}
+  if(/^- \[[ xX]\]\s/.test(ln)){let li='';while(i<L.length&&/^- \[[ xX]\]\s/.test(L[i])){const ck=/\[[xX]\]/.test(L[i]);li+='<label class="md-task'+(ck?' md-done':'')+'"><input type="checkbox" '+(ck?'checked':'')+' onchange="toast(\'待办行同步任务列表（联动 L3 · 模拟）\')">'+mdInline(L[i].replace(/^- \[[ xX]\]\s/,''))+'</label>';i++}out+='<div class="md-tasks">'+li+'</div>';continue}
+  if(/^[-*]\s/.test(ln)){let li='';while(i<L.length&&/^[-*]\s/.test(L[i])){li+='<li>'+mdInline(L[i].replace(/^[-*]\s/,''))+'</li>';i++}out+='<ul class="md-ul">'+li+'</ul>';continue}
+  if(/^\d+\.\s/.test(ln)){let li='';while(i<L.length&&/^\d+\.\s/.test(L[i])){li+='<li>'+mdInline(L[i].replace(/^\d+\.\s/,''))+'</li>';i++}out+='<ol class="md-ol">'+li+'</ol>';continue}
+  if(ln.trim()===''){i++;continue}
+  let p='';while(i<L.length&&L[i].trim()!==''&&!special(L[i])){p+=(p?'<br>':'')+L[i];i++}
+  if(p===''){p=L[i];i++}out+='<p class="md-p">'+mdInline(p)+'</p>';}
+ return out;}
+let PW_TA=null,pwMode='focus';
+function initPW2(){PW_TA=document.createElement('textarea');PW_TA.id='pwTa';PW_TA.className='pw-ta';PW_TA.value=PW_MD;PW_TA.spellcheck=false;PW_TA.oninput=pwSync;
+ PW_TA.style.color='var(--pw-fg)';PW_TA.style.background='transparent';$('#pwSrcBox').appendChild(PW_TA);}
+function pwSetMode(m){pwMode=m;$$('#pwModes .pw-mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+ $('#pwBody').classList.toggle('hidden',m!=='focus');$('#pwSrcWrap').classList.toggle('hidden',m!=='src');
+ $('#pwSplitWrap').classList.toggle('hidden',m!=='split');$('#pwViewWrap').classList.toggle('hidden',m!=='view');
+ if(m==='src'&&!PW_TA.closest('#pwSrcBox'))$('#pwSrcBox').appendChild(PW_TA);
+ if(m==='split'&&!PW_TA.closest('#pwSplitBox'))$('#pwSplitBox').appendChild(PW_TA);
+ pwSync();
+ if(m==='src'||m==='split')setTimeout(()=>PW_TA.focus(),60);
+ if(m==='view')toast('渲染预览：排版/表格/待办/LaTeX 公式');
+ if(m==='split')toast('分屏：上（左）源码 · 下（右）实时渲染，输入即变');}
+function pwSync(){if(!PW_TA)return;const html=mdRender(PW_TA.value);
+ const p=$('#pwPrev');if(p)p.innerHTML=html;const vb=$('#pwViewBox');if(vb)vb.innerHTML=html;
+ const n=PW_TA.value.replace(/\s/g,'').length;$('#pwCount').textContent=n+' 字 · 约 '+Math.max(1,Math.round(n/300))+' 分钟';}
+function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');return;}
+ const map={bold:['**','**'],ital:['*','*'],strike:['~~','~~'],code:['`','`'],math:['$','$'],h:['## ',''],quote:['> ',''],ul:['- ',''],task:['- [ ] ',''],hr:['\n---\n',''],table:['\n| 列 | 列 |\n| --- | --- |\n| 内容 | 内容 |\n',''],link:['[','](https://)'],img:['![图片说明](','https://)'],mathb:['\n$$','$$\n']};
+ const w=map[k]||['',''];const ta=PW_TA,s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
+ ta.value=v.slice(0,s)+w[0]+sel+w[1]+v.slice(e);ta.focus();
+ const pos=s+w[0].length+(sel?sel.length:0);ta.setSelectionRange(pos,pos);pwSync();toast('已插入 '+k+' 语法（选中文本被包裹）');}
+/* ================= 账单导入向导（支付宝/微信） ================= */
+let billN=1,billPlat='支付宝';
+function billGo(){billN=1;billOpts();renderBill();navTo('p-billImport');}
+function billReset(){billN=1;renderBill();}
+function billOpts(){const wx=billPlat==='微信支付';
+ $('#billOpts').innerHTML=`
+  <label class="flex items-center justify-between"><span>${wx?'微信 zip 加密包 · 自动用申请密码解压':'支付宝 zip 加密包 · 自动用申请密码解压'}</span><span class="toggle on" onclick="tgl(this)"></span></label>
+  <label class="flex items-center justify-between"><span>跳过「帮人代付 / 零钱通转入」等非支出流水</span><span class="toggle on" onclick="tgl(this)"></span></label>
+  <label class="flex items-center justify-between"><span>退款冲抵记为负支出</span><span class="toggle on" onclick="tgl(this)"></span></label>
+  <label class="flex items-center justify-between"><span>分类未命中时 AI 辅助归类（需 Key）</span><span class="toggle" onclick="tgl(this)"></span></label>`;}
+function renderBill(){
+ $('#billStep').innerHTML=[1,2,3,4].map(n=>`<span class="imp-dot ${n<billN?'imp-done':''} ${n===billN?'imp-on':''}">${n<billN?'✓':n}</span>${n<4?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<billN?' !bg-brand-500':'')+'"></span>':''}`).join('');
+ [1,2,3,4].forEach(n=>$('#bill'+n).classList.toggle('hidden',n!==billN));
+ $('#billNav').classList.toggle('hidden',billN===4);
+ $('#billPrev').classList.toggle('hidden',billN===1);
+ $('#billNext').textContent=billN===3?'确认导入 87 条':'下一步';}
+function billStep(d){if(d>0&&billN===1)toast('解析中… 识别到'+(billPlat==='微信支付'?'微信 17 行':'支付宝 18 行')+'表头前缀（模拟）');
+ if(d>0&&billN===2)toast('解析完成：128 条 · 按交易单号命中重复 41 条');
+ billN=Math.min(4,Math.max(1,billN+d));renderBill();
+ if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销');}
 /* 导入向导 */
 let impN=1;
 function renderImp(){
@@ -1598,7 +1811,9 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins();
+renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts();
+$("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
+document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 </script>
 </body>
