@@ -182,9 +182,13 @@ tailwind.config = {
   .dark .fmt-btn:active{background:#334155}
   .grid-cell{height:100%;min-height:0;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;cursor:pointer}
   .cell-sel{outline:2px solid #6366f1;outline-offset:-2px}
-  #gridCells{height:min(46vh,440px);grid-auto-rows:1fr;overflow:hidden;align-content:start}
+  #gridCells{height:min(52vh,470px);grid-auto-rows:1fr;overflow:hidden;align-content:start}
   .live-card{border:1.5px solid #fb7185;animation:livePulse 1.6s infinite}
   @keyframes livePulse{0%,100%{box-shadow:0 0 0 2px rgba(251,113,133,.12)}50%{box-shadow:0 0 0 7px rgba(251,113,133,.22)}}
+  /* 切天平滑过渡动画 */
+  @keyframes stripL{from{transform:translateX(16px);opacity:.25}to{transform:none;opacity:1}}
+  @keyframes stripR{from{transform:translateX(-16px);opacity:.25}to{transform:none;opacity:1}}
+  .strip-l{animation:stripL .26s ease}.strip-r{animation:stripR .26s ease}
 </style>
 </head>
 <body class="flex items-center justify-center">
@@ -372,6 +376,7 @@ tailwind.config = {
       <div id="monthPanel" class="mt-2 card !p-3">
         <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
         <div class="grid grid-cols-7 text-center gap-y-0.5" id="monthGrid"></div>
+        <div class="flex justify-center gap-3 text-[9px] text-slate-400 mt-1.5"><span><i class="dot bg-emerald-400"></i>已完成</span><span><i class="dot bg-brand-400"></i>计划中</span><span><i class="dot bg-rose-400"></i>进行中</span><span>同日多态取最高优先级</span></div>
       </div>
       <!-- 收起态：单周行（左右滑动切天，滑动幅度超阈值即换天） -->
       <div id="weekStrip" class="hidden mt-2 card !p-2 select-none" style="touch-action:pan-y">
@@ -1655,30 +1660,35 @@ function resetAsk(id,hint){ const b=$('#'+id); b.classList.remove('q-ask-on');
   b.innerHTML=b.textContent.split('？')[0]+'？<span class="block text-[10px] font-normal text-slate-400 mt-1">'+hint+'</span>'; }
 
 /* ================= 日历 ================= */
-/* ================= 日历 ================= */
-let calDay=19, monthExpanded=true, liveEv=null;
+let calDay=19, monthExpanded=true, liveEv=null, endedEvs=[];
 const EVENT_DAYS=[3,9,15,19,22,28];const WDS=['日','一','二','三','四','五','六'];
-function dayHasEv(d){return EVENT_DAYS.includes(d)||(liveEv&&d===19)||(d===19&&D.events.length>0)}
+const DAY_STATUS={3:'done',9:'done',15:'done',22:'done',28:'plan',19:'plan'}; /* 圆点状态：done绿/plan蓝/live红脉冲 */
+function dayHasEv(d){return !!DAY_STATUS[d]||(liveEv&&d===19)||(d===19&&D.events.length>0)}
+function dotCls(d){if(liveEv&&d===19)return 'bg-rose-400 animate-pulse';return DAY_STATUS[d]==='done'?'bg-emerald-400':'bg-brand-400'}
 function renderCal(){renderMonthGrid();renderWeekStrip();renderTimeline();updateDayLabel()}
 function renderMonthGrid(){let c='';for(let i=0;i<2;i++)c+='<span></span>';
  for(let d=1;d<=30;d++){const ev=dayHasEv(d),sel=d===calDay;
-  c+=`<button class="relative py-1.5 rounded-xl text-[11px] ${sel?'bg-brand-500 text-white font-extrabold':'text-slate-600 dark:text-slate-300'}" onclick="setDay(${d})">${d}${ev?`<span class="absolute right-1 bottom-1 w-1.5 h-1.5 rounded-full ${liveEv&&d===19?'bg-rose-400 animate-pulse':sel?'bg-white':'bg-brand-400'}"></span>`:''}</button>`}
+  c+=`<button class="relative py-1.5 rounded-xl text-[11px] ${sel?'bg-brand-500 text-white font-extrabold':'text-slate-600 dark:text-slate-300'}" onclick="setDay(${d})">${d}${ev?`<span class="absolute right-1 bottom-1 w-1.5 h-1.5 rounded-full ${sel?'bg-white/90':dotCls(d)}"></span>`:''}</button>`}
  for(let i=30;i<42;i++)c+='<span></span>'; /* 固定 6 行 42 格，收起/展开不跳版 */
  $('#monthGrid').innerHTML=c;}
 function renderWeekStrip(){let c='';
  for(let d=calDay-3;d<=calDay+3;d++){const inM=d>=1&&d<=30,ev=inM&&dayHasEv(d),sel=d===calDay;
-  c+=`<button class="relative py-1 rounded-xl ${sel?'bg-brand-500 text-white':'text-slate-600 dark:text-slate-300'}" onclick="stripTap(${d})"><div class="text-[8px] opacity-60">${inM?WDS[(d+1)%7]:''}</div><div class="text-[12px] font-bold">${inM?d:(d<1?'·':'+')}</div>${ev?`<span class="absolute right-1.5 bottom-1 w-1 h-1 rounded-full ${sel?'bg-white':'bg-brand-400'}"></span>`:''}</button>`}
+  c+=`<button class="relative py-1 rounded-xl ${sel?'bg-brand-500 text-white':'text-slate-600 dark:text-slate-300'}" onclick="stripTap(${d})"><div class="text-[8px] opacity-60">${inM?WDS[(d+1)%7]:''}</div><div class="text-[12px] font-bold">${inM?d:(d<1?'·':'+')}</div>${ev?`<span class="absolute right-1.5 bottom-1 w-1 h-1 rounded-full ${sel?'bg-white/90':dotCls(d)}"></span>`:''}</button>`}
  $('#weekStripCells').innerHTML=c;}
-function stripTap(d){if(d===calDay){expandMonth();return}if(d<1||d>30){toast('跨月请点「展开」后用 ‹ › 切月');return}setDay(d)}
-function setDay(d){calDay=d;renderMonthGrid();renderWeekStrip();renderTimeline();updateDayLabel()}
+function stripTap(d){if(d===calDay){expandMonth();return}if(d<1||d>30){toast('跨月请点「展开」后用 ‹ › 切月');return}setDay(d,d>calDay?1:-1)}
+function setDay(d,dir){calDay=d;renderMonthGrid();renderWeekStrip();renderTimeline();updateDayLabel();
+ if(dir){const w=$('#weekStrip');w.classList.remove('strip-l','strip-r');void w.offsetWidth;w.classList.add(dir>0?'strip-l':'strip-r');
+  const dv=$('#calDayView');if(dv){dv.classList.remove('strip-l','strip-r');void dv.offsetWidth;dv.classList.add(dir>0?'strip-l':'strip-r')} if(dayMode==='grid'){const g=$('#calGridMode');if(g){g.classList.remove('strip-l','strip-r');void g.offsetWidth;g.classList.add(dir>0?'strip-l':'strip-r')}}}}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
 function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');$('#calSub').textContent='已收起为周 · 左右滑动切换天';renderWeekStrip()}
 function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');$('#calSub').textContent='月视图展开 · 在下方开始操作将自动收起';renderMonthGrid()}
-function calShift(n){if(monthExpanded){toast('切换上/下一月（模拟）');return}setDay(Math.min(30,Math.max(1,calDay+n)))}
+function calShift(n){if(monthExpanded){toast('切换上/下一月（模拟）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
 function initCalSwipe(){const el=$('#weekStrip');let x0=null;
  el.addEventListener('pointerdown',e=>{x0=e.clientX});
  el.addEventListener('pointerup',e=>{if(x0===null)return;const dx=e.clientX-x0;x0=null;
-  if(Math.abs(dx)>40){const nd=Math.min(30,Math.max(1,calDay+(dx<0?1:-1)));if(nd!==calDay){setDay(nd);toast('已切到 9月'+nd+'日')}}});
+  if(Math.abs(dx)>40){const nd=Math.min(30,Math.max(1,calDay+(dx<0?1:-1)));if(nd!==calDay){setDay(nd,dx<0?1:-1);toast('已切到 9月'+nd+'日')}}});
+ // 页面向下滚动超阈也自动收起（智能折叠）
+ const pg=$('#p-calendar');if(pg)pg.addEventListener('scroll',()=>{if(pg.scrollTop>24)collapseMonth()},{passive:true});
  ['#calDayView','#calGridMode','#conflictTip','#calDayMode'].forEach(s=>{const t=$(s);if(t)t.addEventListener('pointerdown',e=>{if(e.target.closest('button,a,input,select,.toggle,.grid-cell'))return;collapseMonth()},{passive:true})})}
 /* —— 进行中事项：现在就开始 / 结束 —— */
 function startNow(){const t=(($('#evTitle')&&$('#evTitle').value.trim())||'正在处理一件事');closeSheet('sheetAddEvent');
@@ -1689,7 +1699,8 @@ function startNow(){const t=(($('#evTitle')&&$('#evTitle').value.trim())||'正�
  renderCal();renderGrid();toast('▶ 已开始：'+t+' · 开始时间 '+fmt(nm)+' · 完成后点「■ 结束」');}
 function endNow(){if(!liveEv)return;const now=new Date();const nm=now.getHours()*60+now.getMinutes();const dur=Math.max(1,nm-liveEv.s);
  blocks=blocks.filter(b=>b.live!==1);blocks.push({s:Math.max(360,liveEv.s),e:Math.min(1440,nm),cat:'工作',note:liveEv.t});
- liveEv=null;renderCal();renderGrid();toast('✔ 结束时间 '+fmt(nm)+' · 耗时 '+dur+' 分钟 · 实际耗时已回填（L1）· 写入时间账本（L4）')}
+ endedEvs.push({t:liveEv.t,tm:fmt(Math.max(360,liveEv.s)),e:fmt(Math.min(1439,nm)),dur:dur}); /* 进行中 → 已完成态 */
+ liveEv=null;renderCal();renderGrid();toast('✔ 结束时间 '+fmt(nm)+' · 耗时 '+dur+' 分钟 · 实际耗时已回填（L1）· 写入时间账本（L4）· 可用于周报复盘')}
 function renderTimeline(){const el=$('#timeAxis');if(!el)return;
  if(calDay!==19){el.innerHTML='<div class="card !py-6 text-center text-xs text-slate-400">当天暂无安排 · 点上方「+ 新建日程」或试试格子滑选标记</div>';return}
  let h='';
@@ -1700,6 +1711,8 @@ function renderTimeline(){const el=$('#timeAxis');if(!el)return;
     <span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full ${e.c}"></span>
     <div class="card !py-2.5 !px-3 border-l-4 ${['border-brand-500','border-violet-500','border-mint','border-sun'][D.events.indexOf(e)%4]}">
       <div class="text-sm font-bold">${e.t}</div><div class="text-[10px] text-slate-400 mt-0.5">${e.tm} – ${e.e} · 提醒 10 分前</div></div></div>`).join('')
+    +endedEvs.map(e=>`<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-slate-400">${e.tm}</span><span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full bg-emerald-400"></span>
+  <div class="card !py-2.5 !px-3 border-l-4 border-emerald-400 opacity-75"><div class="text-sm font-bold line-through decoration-slate-300">${e.t}</div><div class="text-[10px] text-emerald-500 mt-0.5">✓ 已完成 · ${e.tm} – ${e.e} · 实际耗时 ${e.dur} 分钟 · 已回填 L1 · 入时间账本 L4（供周报/复盘）</div></div></div>`).join('')
     +`<div class="relative"><span class="absolute -left-14 w-12 text-right text-[10px] font-mono text-slate-400">17:00</span><div class="text-xs text-slate-300 dark:text-slate-600 py-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">空闲 · 拖入时间块试试</div></div>`;
  el.innerHTML=h;}
 function renderCalWeekLanes(){const el=$('#calWeekView');if(!el)return;
@@ -1713,7 +1726,7 @@ function switchCalView(v){ calView=v;
   $('#dayLabel').classList.toggle('hidden',v!=='day');
   if(v==='week'){renderCalWeekLanes(); $('#conflictTip').classList.remove('hidden'); toast('已模拟：周三两事件重叠 30 分钟'); } else $('#conflictTip').classList.add('hidden');
   if(v==='month'){const mc=$('#monthCells');if(mc)mc.innerHTML=Array.from({length:30},(_,i)=>i+1).map(n=>{const has=dayHasEv(n);
-    return `<div class="py-1.5 relative">${n===calDay?`<b class="text-white bg-brand-500 w-6 h-6 inline-flex items-center justify-center rounded-full text-[11px]">${n}</b>`:`<span class="inline-block w-6 text-[11px] ${has?'font-bold':''}">${n}</span>`}${has?'<span class="absolute right-1 bottom-1 w-1.5 h-1.5 rounded-full bg-brand-400"></span>':''}</div>`}).join('')}
+    return `<div class="py-1.5 relative">${n===calDay?`<b class="text-white bg-brand-500 w-6 h-6 inline-flex items-center justify-center rounded-full text-[11px]">${n}</b>`:`<span class="inline-block w-6 text-[11px] ${has?'font-bold':''}">${n}</span>`}${has?`<span class="absolute right-1 bottom-1 w-1.5 h-1.5 rounded-full ${n===calDay?'bg-white/90':dotCls(n)}"></span>`:''}</div>`}).join('')}
 }
 /* ================= 日视图·格子时间块模式 ================= */
 let calView='day', dayMode='line', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
