@@ -166,6 +166,12 @@ tailwind.config = {
   .dash-edit .dash-handle{display:flex}
   .dash-card.dragging{opacity:.35}
   .mv-btn{width:26px;height:26px;border-radius:8px;background:var(--card);box-shadow:0 2px 8px rgba(15,23,42,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--accent);border:none}
+  /* ---- 阅读/观影计时与目录 ---- */
+  .toc-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(148,163,184,.15);font-size:12px;font-weight:600}
+  .toc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .prog-chip{padding:6px 14px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:11px;font-weight:700;color:#64748b}
+  .dark .prog-chip{border-color:#334155;color:#94a3b8}
+  .prog-chip.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent)}
   .seg-pill.on{background:var(--accent);color:#fff}
   .dark .seg-pill{background:#1e293b;color:#94a3b8}.dark .seg-pill.on{background:var(--accent);color:#fff}
   .fmt-btn{width:30px;height:28px;border-radius:8px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
@@ -217,6 +223,13 @@ tailwind.config = {
 
   <!-- ========== 页面容器 ========== -->
   <main class="h-[calc(100%-148px)] overflow-hidden relative">
+    <!-- 阅读/观影计时悬浮条 -->
+    <div id="timerBar" class="hidden absolute top-2 left-4 right-4 z-40 blur-bd bg-slate-900/92 text-white rounded-2xl px-3.5 py-2.5 flex items-center gap-2 shadow-xl">
+      <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0"></span>
+      <div class="flex-1 min-w-0 text-[11px] leading-4"><b id="timerKind">阅读计时</b> <span id="timerTarget" class="opacity-75"></span></div>
+      <b id="timerSec" class="font-mono text-sm">0:00</b>
+      <button onclick="endTimer()" class="text-[11px] font-extrabold bg-white/15 rounded-lg px-2.5 py-1.5 ml-1">■ 结束</button>
+    </div>
 
     <!-- ===== P1 今日仪表盘 ===== -->
     <section id="p-dashboard" class="page active px-5 safe-pb no-scrollbar">
@@ -544,6 +557,9 @@ tailwind.config = {
         <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Kindle">
           <span class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center text-lg">🟠</span>
           <div class="flex-1"><div class="text-sm font-bold">Kindle</div><div class="text-[11px] text-slate-400">解析 My Clippings.txt 剪藏格式</div></div><span class="text-slate-300">›</span></button>
+        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="豆瓣清单">
+          <span class="w-10 h-10 rounded-xl bg-lime-50 dark:bg-lime-500/15 flex items-center justify-center text-lg">🫎</span>
+          <div class="flex-1"><div class="text-sm font-bold">豆瓣 · 书单/片单</div><div class="text-[11px] text-slate-400">已读/在读/想读（想看/已看）标记 + 评分 + 日期，导出文件自动解析</div></div><span class="text-slate-300">›</span></button>
         <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Notion">
           <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">⚫</span>
           <div class="flex-1"><div class="text-sm font-bold">Notion / Obsidian / 通用</div><div class="text-[11px] text-slate-400">Markdown、TXT、HTML、CSV/JSON 导入</div></div><span class="text-slate-300">›</span></button>
@@ -556,7 +572,7 @@ tailwind.config = {
         <div class="text-sm font-extrabold">选择导出文件 · <span id="impSrcName" class="text-brand-500"></span></div>
         <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
           <div class="text-3xl">📄</div>
-          <div class="text-sm font-bold mt-2">weread_思考快与慢_导出.md</div>
+          <div class="text-sm font-bold mt-2" id="impFileNm">weread_思考快与慢_导出.md</div>
           <div class="text-[11px] text-slate-400 mt-1">486 KB · 点击重新选择（模拟）</div>
         </div>
         <div class="mt-3 card text-xs space-y-2">
@@ -619,15 +635,30 @@ tailwind.config = {
           </div>
         </div>
       </div>
-      <div class="mt-4 grid grid-cols-3 text-center text-[11px]">
+      <div class="mt-4 grid grid-cols-4 text-center text-[11px]">
         <div class="card !py-2.5"><b class="text-base">59</b><div class="text-slate-400">摘录/感想</div></div>
-        <div class="card !py-2.5"><b class="text-base">4h32m</b><div class="text-slate-400">累计笔记</div></div>
+        <div class="card !py-2.5"><b class="text-base" id="bkTotal">4h32m</b><div class="text-slate-400">累计阅读</div></div>
+        <div class="card !py-2.5"><b class="text-base">12</b><div class="text-slate-400">计时次数</div></div>
         <div class="card !py-2.5"><b class="text-base">3</b><div class="text-slate-400">关联日记</div></div>
       </div>
-      <div class="mt-4 flex gap-2 text-xs font-bold">
+      <!-- 阅读计时卡 -->
+      <div class="mt-3 card">
+        <div class="flex items-center justify-between"><div class="row-title">⏱ 阅读计时</div><button id="readTimerBtn" class="mini-btn !text-xs !py-2" onclick="timerTap('read','《思考，快与慢》')">▶ 开始阅读</button></div>
+        <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-5">已读 62% · 均速 <b>3.8 分钟/页</b> · 本周 52 分钟<br>预计剩余 <b class="text-brand-500">2h24m</b> · 约 <b class="text-brand-500">4 天</b>读完（按当前节奏）</div>
+        <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:62%"></span></div>
+        <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="openProgress('read','《思考，快与慢》')">✍ 手动记进度</button><button class="mini-btn" onclick="toast('阅读轨迹：时间分布/节奏曲线（入周报 L4）')">📈 轨迹</button></div>
+      </div>
+      <div class="mt-4 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
         <button id="btQuote" class="seg-pill on" onclick="switchBookTab('q')">💬 划线</button>
         <button id="btThink" class="seg-pill" onclick="switchBookTab('i')">💭 想法</button>
+        <button id="btToc" class="seg-pill" onclick="switchBookTab('c')">📑 目录</button>
         <button id="btSum" class="seg-pill" onclick="switchBookTab('s')">📋 一页总结</button>
+      </div>
+      <div id="bookToc" class="hidden mt-3 card">
+        <div class="flex items-center justify-between"><div class="row-title">目录 · 20 章</div>
+          <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocAI()">🤖 AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">📥 导入目录</button></span></div>
+        <div class="mt-2" id="tocList"></div>
+        <div class="text-[10px] text-slate-400 mt-2">目录节点标记状态与对应摘录数，点击直达笔记；支持微信读书导出/calibre/MD·TXT 目录自动解析</div>
       </div>
       <div id="bookQuotes" class="mt-3 space-y-3">
         <div class="card quote-line !block">「任何事物只要通过一个人人都能读懂的话语相互联系，就能形成一套信念体系。」
@@ -922,6 +953,24 @@ tailwind.config = {
         </div>
       </div>
       <div class="mt-3 card opacity-70"><div class="row-title">🪞 季度复盘引导 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">KPT 模板：做对了什么 / 做错了什么 / 下季度怎么改</div></div>
+    </section>
+
+    <!-- ===== P10b 影音游 · 观影笔记（与阅读同构） ===== -->
+    <section id="p-media" class="page px-5 safe-pb no-scrollbar">
+      <div class="grad rounded-3xl p-4 text-white">
+        <div class="text-sm font-extrabold">🎬 影音游 · 观影笔记</div>
+        <div class="text-[11px] opacity-85 mt-0.5 leading-5">与阅读笔记同构：观影计时 · 多方式进度 · 评分短评</div>
+        <div class="mt-2 flex gap-4 text-[11px]"><span>本年观影 <b>86h · 41 部</b></span><span>均速 <b>1.2 倍速</b></span><span>片单 <b>想看 12</b></span></div>
+      </div>
+      <div id="mediaList" class="mt-3 space-y-3"></div>
+      <button onclick="toast('豆瓣片单导入：与书单共用导入向导（已读/在看/想看 + 评分 + 日期）')" class="mt-4 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
+        <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">📥</span>
+        <div class="flex-1"><div class="text-sm font-bold">导入豆瓣片单 / 书单</div><div class="text-[11px] text-slate-400">想看·在看·已看 + 豆瓣评分 + 标记日期 · 自动去重</div></div>
+        <span class="text-slate-300">›</span></button>
+      <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
+        <div class="card opacity-60" onclick="toast('游戏时长自动同步 V1.x')"><b>🎮 游戏</b><div class="text-[10px] text-slate-400 mt-1">存档时长同步 · V1.x</div></div>
+        <div class="card opacity-60" onclick="toast('剧集更新追踪 V1.x')"><b>📺 剧集追更</b><div class="text-[10px] text-slate-400 mt-1">更新提醒 · V1.x</div></div>
+      </div>
     </section>
 
     <!-- ===== P11 我的 / 设置 ===== -->
@@ -1226,6 +1275,35 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 阅读/观影进度录入（多方式） ===== -->
+  <div id="sheetProgress" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetProgress')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold" id="progTitle">记录阅读进度</div>
+      <div class="text-[11px] text-slate-400 mt-0.5" id="progTimerLine">本次未计时 · 手动记录</div>
+      <div id="progChips" class="mt-3 flex gap-2 text-xs"></div>
+      <div id="progInputWrap" class="mt-3 flex gap-2 items-center"></div>
+      <div id="progCalc" class="mt-2 text-xs text-brand-500 font-bold min-h-[18px]"></div>
+      <button onclick="saveProgress()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存记录 · 累计总耗时</button>
+      <div class="mt-2 text-[10px] text-slate-400 text-center leading-5">保存后：写入时间账本（L4）· 更新目标进度（L7）· 重算预计读完时间 · 运动/观影同理入对应分类</div>
+    </div>
+  </div>
+
+  <!-- ===== 目录导入格式说明 ===== -->
+  <div id="sheetTocImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTocImport')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">📥 导入目录 · 支持格式</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="tri-row card !py-2.5 !px-3 flex justify-between items-center"><span>微信读书导出的 Markdown（含目录节）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
+        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>calibre .epub/.mobi 内嵌 toc.ncx</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
+        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>纯文本/MD 手打目录（每行一章）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
+        <div class="card !py-2.5 !px-3 flex justify-between items-center opacity-60"><span>按 ISBN 查询在线书目库</span><span class="vchip">V1.x</span></div>
+      </div>
+      <button onclick="tocImportDemo()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">选择文件并解析（演示）</button>
+    </div>
+  </div>
+
   <!-- ===== 加载插件 ===== -->
   <div id="sheetPlugin" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetPlugin')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -1292,7 +1370,7 @@ const D = {
          {t:'日记素材：今晚的晚霞是橘粉色的',age:'昨天 21:40'}],
   grid:[['✅','待办','p-todo'],['📅','日程','p-calendar'],['📔','日记','p-records'],['📝','笔记','p-records'],['📚','阅读','p-records'],
         ['⚡','收集箱','p-inbox'],['💰','记账','p-finance'],['📦','物品','p-items'],['🎂','日子','p-days'],['🏃','健康','p-health'],
-        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
+        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🎬','影音游','p-media'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
 };
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
@@ -1301,7 +1379,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['日程','时间块 · 冲突检测'],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -1315,8 +1393,9 @@ const ICONS={
  'p-health':'<path d="M12 20.4S4.2 15.6 3 10C2.2 6.3 5.1 3.9 8 4.8c1.6.5 2.9 1.8 4 3.2 1.1-1.4 2.4-2.7 4-3.2 2.9-.9 5.8 1.5 5 5.2-1.2 5.6-9 10.4-9 10.4z"/>',
  'p-goals':'<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/>',
  'p-profile':'<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.7 3.9-5.4 7.5-5.4s6.3 1.7 7.5 5.4"/>',
- 'p-tools':'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M8.5 8V6.5A2.5 2.5 0 0 1 11 4h2a2.5 2.5 0 0 1 2.5 2.5V8"/><path d="M3 13h18"/>'};
-const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','日程',''],['p-records','记录',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-goals','目标',''],['p-tools','工具',''],['p-profile','我的','fix']];
+ 'p-tools':'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M8.5 8V6.5A2.5 2.5 0 0 1 11 4h2a2.5 2.5 0 0 1 2.5 2.5V8"/><path d="M3 13h18"/>',
+ 'p-media':'<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M7.5 5.5v13M16.5 5.5v13M3 9.5h4.5M3 14.5h4.5M16.5 9.5H21M16.5 14.5H21"/>'};
+const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','日程',''],['p-records','记录',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-goals','目标',''],['p-tools','工具',''],['p-media','影游',''],['p-profile','我的','fix']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
@@ -1561,7 +1640,7 @@ function renderRecords(){
 }
 function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('chip-on')); el.classList.add('chip-on'); }
 function pickMoodEdit(el){ $$('#editMood .mood').forEach(m=>m.classList.remove('mood-on')); el.classList.add('mood-on'); }
-function switchBookTab(k){ [['q','btQuote','bookQuotes'],['i','btThink','bookThinks'],['s','btSum','bookSumm']].forEach(([id,b,v])=>{ $('#'+v).classList.toggle('hidden',id!==k); $('#'+b).classList.toggle('on',id===k); }); }
+function switchBookTab(k){ [['q','btQuote','bookQuotes'],['i','btThink','bookThinks'],['c','btToc','bookToc'],['s','btSum','bookSumm']].forEach(([id,b,v])=>{ $('#'+v).classList.toggle('hidden',id!==k); $('#'+b).classList.toggle('on',id===k); }); }
 function insertSummary(){ $('#diaryText').value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ' ; $('#wordCount').textContent=$('#diaryText').value.length; toast('已插入自动概览，继续书写吧（联动 L2）'); }
 function saveDiary(){ toast('日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
 /* ================= 心情迷你月历 & 纯写作编辑器 ================= */
@@ -1669,7 +1748,9 @@ function renderImp(){
 }
 function impStep(d){ if(d>0&&impN===2){ toast('解析中… 识别出 59 条记录（模拟）'); } impN=Math.min(4,Math.max(1,impN+d)); renderImp(); }
 function resetImport(){ impN=1; renderImp(); }
-document.addEventListener('click',e=>{ const s=e.target.closest('.src-pick'); if(s){ $('#impSrcName').textContent=s.dataset.src; impN=1; impStep(1); } });
+document.addEventListener('click',e=>{ const s=e.target.closest('.src-pick'); if(s){ $('#impSrcName').textContent=s.dataset.src;
+  const FN={'微信读书':'weread_思考快与慢_导出.md','Kindle':'My Clippings.txt','豆瓣清单':'douban_我的书影音_导出.csv','Notion':'notion_export.zip'};
+  const fn=$('#impFileNm');if(fn)fn.textContent=FN[s.dataset.src]||'export_file.md'; impN=1; impStep(1); } });
 
 /* ================= 收集箱 ================= */
 function renderInbox(){
@@ -1846,6 +1927,52 @@ async function aiTest(mock){const box=$('#aiRes');
   box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
 }
 
+/* ================= 阅读/观影计时 · 多方式进度 · 目录 ================= */
+let timer=null,timerT0=0,timerKind='read',timerTarget='';
+const KIND_TXT={read:'阅读计时',watch:'观影计时'};
+function timerTap(kind,target){
+  if(timer&&timerTarget===target){endTimer();return;}
+  if(timer){toast('请先结束「'+timerTarget+'」的计时');return;}
+  timer=setInterval(tickTimer,500);timerT0=Date.now();timerKind=kind;timerTarget=target;
+  $('#timerKind').textContent=KIND_TXT[kind];$('#timerTarget').textContent=target;$('#timerSec').textContent='0:00';
+  const tb=$('#timerBar');tb.classList.remove('hidden');tb.classList.add('flex');
+  const rb=$('#readTimerBtn');if(rb)rb.textContent='■ 点击结束计时';renderMedia();
+  toast('⏱ 计时开始 · 可离开本页，悬浮计时条常驻');}
+function tickTimer(){if(!timer)return;const s=Math.floor((Date.now()-timerT0)/1000);$('#timerSec').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function timerSecs(){return timer?Math.floor((Date.now()-timerT0)/1000):0;}
+function stopTimerUI(){if(timer){clearInterval(timer);timer=null;}const tb=$('#timerBar');tb.classList.add('hidden');tb.classList.remove('flex');
+  const rb=$('#readTimerBtn');if(rb)rb.textContent='▶ 开始阅读';renderMedia();}
+function endTimer(){openProgress(timerKind,timerTarget,true);}
+const PROG_WAYS={read:[['page','页数'],['pct','百分比'],['chap','章节']],watch:[['min','时间点'],['pct','百分比'],['epi','集数']]};
+let progMode='read',progWay='page',progFromTimer=false,progTarget='';
+function openProgress(mode,target,fromTimer){progMode=mode;progTarget=target||'';progFromTimer=!!fromTimer;progWay=PROG_WAYS[mode][0][0];
+  $('#progTitle').textContent=mode==='read'?'📖 记录阅读进度':'🎬 记录观影进度';
+  $('#progTimerLine').textContent=fromTimer?('本次计时 '+$('#timerSec').textContent+' · '+target):'本次未计时 · 手动补记'+(target?(' · '+target):'');
+  $('#progChips').innerHTML=PROG_WAYS[mode].map((w,i)=>`<button class="prog-chip ${i===0?'on':''}" data-w="${w[0]}" onclick="progWayPick(this)">${w[1]}</button>`).join('');
+  progWayRender();openSheet('sheetProgress');}
+function progWayPick(el){progWay=el.dataset.w;$$('#progChips .prog-chip').forEach(c=>c.classList.toggle('on',c===el));progWayRender();}
+function progWayRender(){const W={page:'<input id="pIn1" class="inp w-24 !py-2 text-xs" type="number" placeholder="132"><span class="text-[11px] text-slate-400">→</span><input id="pIn2" class="inp w-24 !py-2 text-xs" type="number" placeholder="320"><span class="text-[11px] text-slate-400">页（总页数）</span>',
+ pct:'<input id="pIn1" class="inp w-24 !py-2 text-xs" type="number" placeholder="68"><span class="text-[11px] text-slate-400">%</span>',
+ chap:'<input id="pIn1" class="inp w-32 !py-2 text-xs" placeholder="第 8 章 · 时间折扣"><span class="text-[11px] text-slate-400">自动匹配目录</span>',
+ min:'<input id="pIn1" class="inp w-24 !py-2 text-xs" type="number" placeholder="74"><span class="text-[11px] text-slate-400">/ 166 分钟</span>',
+ epi:'<input id="pIn1" class="inp w-20 !py-2 text-xs" type="number" placeholder="5"><span class="text-[11px] text-slate-400">集 / 12 集</span>'};
+ $('#progInputWrap').innerHTML=W[progWay];$('#progCalc').textContent='';}
+function saveProgress(){const v=$('#pIn1')&&$('#pIn1').value;if(!v){toast('请先填写进度');return;}
+  const sec=timerSecs();stopTimerUI();closeSheet('sheetProgress');
+  const bk=progMode==='read';
+  $('#progCalc').textContent='';toast('✔ 进度已存（'+v+(progWay==='page'?' 页':progWay==='pct'?' %':progWay==='chap'?' 章':'')+'）'+(sec?(' · 本次计时 '+Math.max(1,Math.round(sec/60))+' 分钟'):'')+' · 累计 '+(bk?'5h18m':'2h14m')+' · 预计'+(bk?'剩余 2h24m（约 4 天）':'剩 92 分钟')+' · 已入时间账本 L4');
+  const el=$('#bkTotal');if(el&&bk&&sec)el.textContent='5h04m';}
+const BOOK_TOC=[['1 两位主角：系统1与系统2','done',5],['2 多任务','done',3],['3 懒惰的大脑','done',4],['4 联想思维','done',2],['5 系统1擅长天真轻信','done',6],['6 常态与异常','done',1],['7 确定效应','done',4],['8 时间折扣','read',2],['9 损失厌恶',null,3],['10 禀赋效应',null,1],['11 认知偏误',null,0],['12 事前验尸法',null,0],['15 社会偏好',null,0],['20 结论：两种自我',null,0]];
+function renderToc(){$('#tocList').innerHTML=BOOK_TOC.map(([t,st,q])=>`<div class="toc-row" onclick="toast('跳转至该章笔记/摘录')"><span class="toc-dot ${st==='done'?'bg-emerald-400':st==='read'?'bg-brand-500 animate-pulse':'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${st?'':'text-slate-400'}">${t}</span>${q?`<span class="text-[10px] text-brand-500 font-bold">💬${q}</span>`:''}${st==='done'?'<span class="text-[10px] text-emerald-500">✓</span>':st==='read'?'<span class="text-[10px] text-brand-500 font-bold">在读</span>':''}</div>`).join('');}
+function tocAI(){toast('🤖 AI 根据书名/作者补全剩余章节中…（需先在设置验证 Key · 模拟插入 9 章待确认）');}
+function tocImportDemo(){closeSheet('sheetTocImport');renderToc();toast('✔ 解析成功：20 章/2 级 · 匹配 8 章 · 5 章自动标记摘录分布');}
+const MEDIA=[{n:'沙丘 2',t:'电影 · 2024 · 豆瓣 8.6',st:'在看',p:72,info:'72% · 累计 46min',g:'from-amber-600 to-orange-800',tm:'继续观影 · 上次 8min'},{n:'漫长的季节',t:'剧集 · 12 集 · 豆瓣 9.4',st:'在看',p:42,info:'第 5/12 集',g:'from-sky-500 to-indigo-700',tm:'第 6 集未看'},{n:'宇宙探索编辑部',t:'电影 · 想看 · 来自豆瓣',st:'想看',p:0,info:'',g:'from-slate-500 to-slate-800',tm:''}];
+function renderMedia(){const el=$('#mediaList');if(!el)return;
+  el.innerHTML=MEDIA.map(x=>`<div class="card flex gap-3 items-center"><div class="w-11 h-16 rounded-lg bg-gradient-to-br ${x.g} shrink-0"></div>
+   <div class="flex-1 min-w-0"><b class="text-sm">${x.n}</b><div class="text-[10px] text-slate-400 mt-0.5">${x.t}</div>
+   ${x.st==='在看'?`<div class="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full bg-mint" style="width:${x.p}%"></span></div><div class="text-[10px] text-slate-400 mt-0.5">${x.info}</div>`:`<div class="text-[10px] text-slate-400 mt-1.5">🫎 来自豆瓣片单导入</div>`}</div>
+   <div class="text-right shrink-0">${x.st==='在看'?`<button class="mini-btn !text-[10px]" onclick="timerTap('watch','《${x.n}》')">${timer&&timerTarget==='《'+x.n+'》'?'■ 结束':'▶ 观影'}</button>`:`<button class="mini-btn !text-[10px]" onclick="toast('已标记在看 · 开始观影计时')">👀 开始看</button>`}<div class="text-[9px] text-slate-400 mt-1">${timer&&timerTarget==='《'+x.n+'》'?'计时中…':(x.tm.split(' · ')[0]||'')}</div></div></div>`).join('');}
+
 /* ================= 其他 ================= */
 function tick(){ const d=new Date(); $('#clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
 setInterval(tick,10000);
@@ -1853,7 +1980,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts();
+renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia();
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
