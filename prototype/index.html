@@ -1103,6 +1103,27 @@ tailwind.config = {
       </div>
     </section>
 
+    <!-- ===== P10d 插件中心（大模块按需安装） ===== -->
+    <section id="p-pstore" class="page px-5 safe-pb no-scrollbar">
+      <div class="grad rounded-3xl p-4 text-white relative overflow-hidden">
+        <div class="absolute -right-2 -top-5 text-[80px] opacity-15">🧩</div>
+        <div class="text-sm font-extrabold">插件中心 · 大模块按需安装</div>
+        <div class="text-[11px] opacity-85 mt-1 leading-5">GitHub Release ZIP / raw URL · SHA-256 签名校验 · 本地缓存断网可运行<br>基础包因此瘦身：38MB → 15MB（-61%）</div>
+      </div>
+      <div class="flex gap-1 mt-3 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+        <button id="psT0" class="seg-on flex-1 rounded-lg py-1.5" onclick="psTabSet('discover')">发现</button>
+        <button id="psT1" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="psTabSet('inst')">已安装</button>
+        <button id="psT2" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="psTabSet('upd')">更新 <span id="psUpdBadge" class="text-amber-500"></span></button>
+      </div>
+      <div class="mt-3 text-[10px] text-slate-400 px-1 leading-5">⚖️ 挂载冲突仲裁链：用户手动排序 &gt; 插件声明权重 &gt; 安装时序；单槽位挂载取最高权重，多槽位按序排布。</div>
+      <div id="psList" class="mt-2 space-y-3"></div>
+      <div class="card mt-4 text-[11px] text-slate-400 leading-6">
+        <b class="text-slate-600 dark:text-slate-300 text-xs">自定义源</b><br>
+        可指向任意兼容仓库的插件索引：<input class="inp w-full mt-1.5 !py-2 text-xs font-mono" value="https://github.com/lifeharness/plugins/releases/latest/download/index.json">
+        <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="toast('✓ index.json 已拉取 · 哈希清单比对 · 收录 12 个插件（模拟）')">拉取索引</button><button class="mini-btn" onclick="toast('从 GitHub Release 页复制任意 plugin.zip 直链粘贴即可安装（演示见各插件详情）')">直链安装</button></div>
+      </div>
+    </section>
+
     <!-- ===== P11 我的 / 设置 ===== -->
     <section id="p-profile" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center gap-4">
@@ -1128,6 +1149,9 @@ tailwind.config = {
           <span class="text-[10px] text-slate-400 mr-1">默认关闭</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-tools')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800">🧰</span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">11 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
+        <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧩</span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
+          <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
       </div>
 
       <div class="card mt-4">
@@ -1567,6 +1591,14 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 插件详情弹层 ===== -->
+  <div id="sheetPSDetail" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetPSDetail')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto">
+      <div class="grabber"></div>
+      <div id="psdBody"></div>
+    </div>
+  </div>
+
   <!-- ===== 新建习惯 ===== -->
   <div id="sheetAddHabit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddHabit')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -1654,7 +1686,7 @@ const D = {
   grid:[['✅','待办','p-todo'],['📅','日程','p-calendar'],['📔','日记','p-records'],['📝','笔记','p-records'],['📚','阅读','p-records'],
         ['⚡','收集箱','p-inbox'],['💰','记账','p-finance'],['📦','物品','p-items'],['🎂','日子','p-days'],['🏃','健康','p-health'],
         ['🔁','习惯','p-habits'],
-        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🎬','影音游','p-media'],['🍼','母婴','p-care'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
+        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🎬','影音游','p-media'],['🍼','母婴','p-care'],['🧩','插件中心','p-pstore'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
 };
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
@@ -1663,7 +1695,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['日程','时间块 · 冲突检测'],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -1680,8 +1712,9 @@ const ICONS={
  'p-tools':'<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M8.5 8V6.5A2.5 2.5 0 0 1 11 4h2a2.5 2.5 0 0 1 2.5 2.5V8"/><path d="M3 13h18"/>',
  'p-media':'<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M7.5 5.5v13M16.5 5.5v13M3 9.5h4.5M3 14.5h4.5M16.5 9.5H21M16.5 14.5H21"/>',
  'p-care':'<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/>',
- 'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>'};
-const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','日程',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-tools','工具',''],['p-media','影游',''],['p-profile','我的','fix']];
+ 'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
+ 'p-pstore':'<path d="M3.5 9 5 4h14l1.5 5"/><path d="M5 9v10a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V9"/><path d="M9.5 20.5V14h5v6.5"/>'};
+const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','日程',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-tools','工具',''],['p-media','影游',''],['p-pstore','插件',''],['p-profile','我的','fix']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
@@ -2472,6 +2505,53 @@ function hsTrigger(i){const h=HABITS[i];if(!h.w[6]){toast('今日已记录为触
 function addHabit(){const v=$('#hbTitle').value.trim();if(!v){toast('先给习惯起个名字');return}
  HABITS.unshift(hbNewType==='pos'?{n:(v.length>10?v.slice(0,10)+'…':v),type:'pos',streak:0,w:[0,0,0,0,0,0,0],mDone:0}:{n:v,type:'neg',target:+$('#hbTarget').value||2,triggers:0,w:[1,1,1,1,1,1,1],mAvoid:0});
  $('#hbTitle').value='';closeSheet('sheetAddHabit');renderHabits();toast('🔁 已创建'+(hbNewType==='pos'?'正向':'负向')+'习惯 · 提醒已加入「提醒通知→习惯」子页（联动 L10）')}
+/* ================= 插件中心（大模块插件化） ================= */
+const PS=[
+ {id:'care',ic:'🍼',n:'母婴呵护',cat:'家庭',ver:'1.1.0',host:'1.0',size:'2.8 MB',rating:'★ 4.9 · 8.2k',state:'inst',weight:60,mount:['首页宫格','导航池','详情页'],tbl:'plugin_care',desc:'周期记录 + 宝宝八类喂养记录',long:'包含：生理周期/排卵预测着色日历、宝宝八类一键记录、WHO 生长曲线、疫苗计划。计时能力复用宿主悬浮计时条基础设施，插件自身不申请后台常驻。',perm:['隔离表空间 plugin_care（SQLite）','通知（预约类）'],hist:['1.1.0 新增生长曲线偏离预警','1.0.0 首发']},
+ {id:'habits',ic:'🔁',n:'习惯打卡 · 成就增强包',cat:'效率',ver:'1.2.0',newVer:'1.3.0',host:'1.0',size:'1.2 MB',rating:'★ 4.7 · 5.6k',state:'upd',weight:70,mount:['首页宫格','仪表盘卡片'],tbl:'plugin_habits',desc:'正负向打卡 + 成就体系/赛季制',long:'在基础打卡上增加：成就徽章、赛季目标、同伴监督卡。与「仪表盘装饰包」同时声明首页宫格挂载点——将展示仲裁演示。',perm:['隔离表空间 plugin_habits'],hist:['1.3.0 新增赛季模板','1.2.0 新增负向习惯晚确认流']},
+ {id:'billparser',ic:'🧾',n:'账单解析包（支付宝/微信）',cat:'效率',ver:'2.0.1',host:'1.1',size:'380 KB',rating:'★ 4.8 · 3.1k',state:'inst',weight:40,mount:['记账页功能区'],tbl:'—（无独立表，写宿主流水表需宿主代理）',desc:'平台 CSV 格式库随版本热更新',long:'解析规则纯数据包：支付宝/微信表头版本变更时无需升级 App，插件更新即适配。演示了最轻量的插件形态（无 UI，仅能力注入）。',perm:['读用户选定的导入文件'],hist:['2.0.1 适配微信 2026-08 表头','2.0.0 支持 zip 加密包直解']},
+ {id:'items',ic:'📦',n:'物品价值 · 每日成本',cat:'生活',ver:'1.2.0',host:'1.0',size:'2.4 MB',rating:'★ 4.8 · 2.1k',state:'idle',weight:50,mount:['首页宫格','导航池','仪表盘卡片'],tbl:'plugin_items',desc:'摊薄引擎 + 回收/报废生命周期 + 决算分享卡',long:'资产摊销引擎（直线法/按次/预估止损）、二次付费/回收/报废流、与记账 L12 双向联动（通过宿主事件总线，插件不直接读写他插件表）。',perm:['隔离表空间 plugin_items','相机（录物品照片）'],hist:['1.2.0 按次均摊','1.1.0 决算分享卡','1.0.0 首发']},
+ {id:'media',ic:'🎬',n:'影音游 · 观影笔记',cat:'生活',ver:'1.0.3',host:'1.0',size:'1.9 MB',rating:'★ 4.6 · 4.3k',state:'idle',weight:45,mount:['首页宫格','导航池'],tbl:'plugin_media',desc:'与阅读同构：计时/进度/片单导入',long:'复用宿主阅读笔记同构数据层（宿主提供 Shelf/Timer 能力 API），插件仅含展示与豆瓣片单解析。体现“宿主能力 API + 插件薄层”设计。',perm:['隔离表空间 plugin_media','网络（限豆瓣域名白名单）'],hist:['1.0.3 豆瓣导出格式适配','1.0.0 首发']},
+ {id:'okr',ic:'🧭',n:'目标 OKR',cat:'效率',ver:'1.0.2',host:'1.0',size:'0.9 MB',rating:'★ 4.5 · 1.8k',state:'off',weight:35,mount:['首页宫格','仪表盘卡片'],tbl:'plugin_okr',desc:'O/KR + 复盘引导 + 进度汇聚',long:'当前处于停用态：挂载点已释放、导航项隐藏、表 plugin_okr  detach 保留——重新启用即无损恢复。',perm:['隔离表空间 plugin_okr'],hist:['1.0.2 复盘模板 KPT','1.0.0 首发']},
+ {id:'deco',ic:'🎨',n:'仪表盘装饰包',cat:'个性化',ver:'0.9.4',host:'1.2',size:'1.5 MB',rating:'★ 4.4 · 990',state:'idle',weight:45,mount:['仪表盘卡片（多槽）'],tbl:'plugin_deco',desc:'季节卡片/渐变组件/纪念日自动装饰',long:'与「习惯成就包」同时申请首页宫格与仪表盘卡位，是典型挂载冲突场景：仲裁后各自按权重占位，用户可在设置拖拽改变序。',perm:['无存储（纯展示）'],hist:['0.9.4 秋叶纹理组件','0.9.0 首发']},
+ {id:'readingimport',ic:'📚',n:'阅读导入解析包（微信读书/豆瓣）',cat:'效率',ver:'1.4.0',host:'1.1',size:'520 KB',rating:'★ 4.9 · 6.7k',state:'idle',weight:40,mount:['阅读页导入向导源列表'],tbl:'—（解析结果经宿主写入）',desc:'新平台格式适配不需升级 App',long:'导出格式变更频发场景下的“解析器即插件”策略：社区可持续贡献新平台适配，宿主审核签名后上架索引。',perm:['读用户选定文件'],hist:['1.4.0 豆瓣片单适配','1.0.0 微信读书解析器']}];
+let psCur='discover',psSel=null;
+function psTabSet(k){psCur=k;
+ ['discover','inst','upd'].forEach((t,i)=>{const b=$('#psT'+i);b.className=(t===k?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500')+' flex-1 rounded-lg py-1.5';});renderPstore();}
+function psIcon(p){return '<span class="w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0" style="background:color-mix(in srgb,var(--accent) 10%,transparent)">'+p.ic+'</span>'}
+function renderPstore(){const n=PS.filter(p=>p.state==='upd').length;const bdg=$('#psUpdBadge');if(bdg)bdg.textContent=n?'('+n+')':'';
+ const el=$('#psList');if(!el)return;
+ let list=psCur==='discover'?PS:psCur==='inst'?PS.filter(p=>['inst','off'].includes(p.state)):PS.filter(p=>p.state==='upd');
+ el.innerHTML=list.map(p=>{const btn=p.state==='idle'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();psInstall(\''+p.id+'\')">⬇ 安装</button>':p.state==='inst'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();openPS(\''+p.id+'\')">管理</button>':p.state==='upd'?'<button class="mini-btn flex-shrink-0 !bg-sun/20 !text-amber-600" onclick="event.stopPropagation();psInstall(\''+p.id+'\',1)">⬆ 更新</button>':p.state==='off'?'<button class="mini-btn flex-shrink-0" onclick="event.stopPropagation();psEnable(\''+p.id+'\')">启用</button>':p.state==='busy'?'<span class="text-[10px] text-brand-500 font-bold flex-shrink-0">安装中…</span>':'';
+  return '<div class="card flex gap-3 items-center cursor-pointer" onclick="openPS(\''+p.id+'\')">'+psIcon(p)
+   +'<div class="flex-1 min-w-0"><b class="text-[13px]">'+p.n+'</b> <span class="text-[9px] text-slate-400">v'+p.ver+' · '+p.size+'</span>'+(p.state==='upd'?' <span class="text-[9px] text-amber-500 font-bold">可升 v'+p.newVer+'</span>':'')+(p.state==='off'?' <span class="text-[9px] text-slate-400">已停用·资源已释放</span>':'')
+   +'<div class="text-[10px] text-slate-400 truncate mt-0.5">'+p.desc+'</div><div class="text-[9px] mt-0.5 text-slate-400">'+p.rating+' · 挂载：'+p.mount.join('、')+'</div></div>'+btn+'</div>'}).join('')||'<div class="text-center text-xs text-slate-400 py-8">此分类暂无插件</div>'}
+function mountConflicts(p){return PS.filter(x=>x.id!==p.id&&['inst','upd'].includes(x.state)&&x.mount.some(m=>p.mount.includes(m)))}
+function openPS(id){psSel=id;const p=PS.find(x=>x.id===id);const cf=mountConflicts(p);
+ $('#psdBody').innerHTML='<div class="flex gap-3 items-center">'+psIcon(p).replace('w-11 h-11','w-14 h-14 text-2xl')+'<div class="flex-1 min-w-0"><b>'+p.n+'</b> <span class="text-[10px] text-slate-400">v'+p.ver+(p.newVer?' → <b class="text-amber-500">v'+p.newVer+'</b>':'')+'</span><div class="text-[10px] text-slate-400">'+p.size+' · 需宿主 ≥ '+p.host+' · 发布者 <b class="text-brand-500">lifeharness-io</b>（已认证）</div></div></div>'
+ +'<div class="mt-3 text-xs leading-6 text-slate-500 dark:text-slate-400">'+p.long+'</div>'
+ +'<div class="mt-3 text-[11px] font-bold">SHA-256 与签名</div><div class="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5 mt-1 break-all leading-5">sha256: 3a9f7c21e8b4d0a5…9d2c4f6ab7e2<br><span class="text-emerald-500 font-bold">✓ 与 index.json 清单一致 · minisign 发布者签名校验通过</span></div>'
+ +'<div class="mt-3 text-[11px] font-bold">沙箱权限声明（'+p.perm.length+' 项，逐项可拒）</div><div class="mt-1 space-y-1 text-[11px]">'+p.perm.map(x=>'<div class="flex justify-between bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-1.5"><span>'+x+'</span><span class="text-slate-400">受限于插件目录</span></div>').join('')+'</div>'
+ +'<div class="mt-3 text-[11px] font-bold">UI 挂载点与冲突仲裁</div><div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 leading-5">'+p.mount.join(' · ')+'（权重 '+p.weight+'）<br>'+(cf.length?'⚠ 与已安装的「'+cf.map(c=>c.n+'(权重'+c.weight+')').join('、')+'」共享挂载点 → 仲裁：'+(p.weight>Math.max(...cf.map(c=>c.weight))?'本插件占第 1 位':'本插件排其后第 '+(1+cf.filter(c=>c.weight>=p.weight).length+1)+' 位')+'，用户可在设置拖拽改变最终序':'✓ 当前无挂载冲突')+'</div>'
+ +'<div class="mt-3 text-[11px] font-bold">版本历史 / 回滚点</div><div class="mt-1 space-y-1 text-[11px] text-slate-500 dark:text-slate-400">'+p.hist.map((x,i)=>'<div class="flex justify-between items-center"><span>'+x+'</span>'+(i===(p.state==='upd'?1:0)&&['inst','off','upd'].includes(p.state)&&p.hist.length>1?'<button class="text-rose-400 font-bold" onclick="psRollback()">回滚至此</button>':'')+'</div>').join('')+'</div><div class="text-[10px] text-slate-400 mt-1">N-1 版本包本地保留 · 增量更新（bsdiff）省流约 78% · 卸载后数据快照保留 30 天</div>'
+ +'<div id="psProgW" class="hidden mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><span id="psProgBar" class="block h-full grad rounded-full" style="width:0"></span></div><div id="psStage" class="hidden mt-1.5 text-[10px] text-brand-500 font-mono leading-5"></div>'
+ +'<div class="mt-4 flex gap-2">'+(p.state==='idle'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psInstall(\''+id+'\')">⬇ 下载并安装</button>':p.state==='upd'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psInstall(\''+id+'\',1)">⬆ 增量更新</button>':p.state==='inst'?'<button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="psDisable(\''+id+'\')">停用</button><button class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold" onclick="psUninstall(\''+id+'\')">卸载</button>':p.state==='off'?'<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="psEnable(\''+id+'\')">重新启用</button><button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold text-rose-400" onclick="psUninstall(\''+id+'\')">卸载</button>':'')+'</div>'
+ +(p.state!=='busy'?'<div class="mt-2 text-[10px] text-slate-400 text-center">浏览：'+p.rating+' · 分类 '+p.cat+'</div>':'');
+ openSheet('sheetPSDetail');}
+function psInstall(id,isUpd){const p=PS.find(x=>x.id===id);if(p.state==='busy')return;p.state='busy';renderPstore();openPS(id);
+ const st=$('#psStage'),bar=$('#psProgBar');st.classList.remove('hidden');$('#psProgW').classList.remove('hidden');
+ const seq=isUpd?['拉取 bsdiff 增量包 '+p.newVer+'…','SHA-256 差异校验 ✓','合并 → v'+p.newVer,'plugin_'+p.id+' 表迁移（数据无损·回滚点已存）','热替换完成 · N-1 包保留可回滚']
+ :['连接 github.com/lifeharness/plugins/releases','下载 '+p.id+'-v'+p.ver+'.zip（'+p.size+'）','SHA-256 校验 ✓ 3a9f…b7e2','发布者签名 lifeharness-io ✓','权限审阅（'+p.perm.length+' 项）→ 沙箱策略生成','创建隔离表空间 plugin_'+p.id,'挂载 '+p.mount[0]+' · 写入本地缓存（断网可运行）'];
+ let i=0,w=0;const t=setInterval(()=>{w+=100/seq.length;bar.style.width=Math.min(100,w)+'%';if(i<seq.length)st.textContent='▸ '+seq[i++];
+  if(w>=100){clearInterval(t);p.state='inst';if(isUpd){p.ver=p.newVer;p.hist.unshift(p.ver+' 增量更新（自动）');p.newVer=null}
+   renderPstore();setTimeout(()=>{openPS(id);toast('🧩 '+p.n+(isUpd?' 已增量更新至 v'+p.ver+'，可回滚':' 安装完成并已启用 · 挂载点/导航池已更新，可在设置停用'))},600)}},520)}
+function psDisable(id){const p=PS.find(x=>x.id===id);p.state='off';closeSheet('sheetPSDetail');renderPstore();
+ toast('⏸ 已停用 '+p.n+'：挂载点释放 · 导航项移除 · 缓存保留 · 表 plugin_'+p.id+' detach 保留（数据不删）')}
+function psEnable(id){const p=PS.find(x=>x.id===id);p.state='inst';renderPstore();toast('▶ 已启用 '+p.n+'：重新挂载 · detach 表无损恢复')}
+function psUninstall(id){const p=PS.find(x=>x.id===id);p.state='idle';closeSheet('sheetPSDetail');renderPstore();
+ toast('🗑 已卸载 '+p.n+'：程序与缓存清除 · 数据快照按政策保留 30 天可恢复')}
+function psRollback(){const p=PS.find(x=>x.id===psSel);toast('↩ 已回滚 '+p.n+' 至 N-1 版本（表迁移反向脚本执行 · 数据无损）');closeSheet('sheetPSDetail')}
+
 /* ================= 日记 INS 风格 ================= */
 let dwLayout='doc',dlLayout='list';
 const DI_LIKE=D.diary.map((d,i)=>({like:false,star:false,n:[42,28,17][i%3]||i*7+13}));
@@ -2507,7 +2587,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt();
+renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
 setInterval(()=>{if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
