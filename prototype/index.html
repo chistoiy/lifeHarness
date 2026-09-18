@@ -414,7 +414,7 @@ tailwind.config = {
       <div class="mt-3 card">
         <div class="row-title">今日概览草稿（自动生成 · 联动L2）</div>
         <div class="text-xs text-slate-500 dark:text-slate-400 leading-6 mt-1">✅ 完成「提交周报」等 3 项待办 ｜ 📅 参加「产品评审」10:00-11:00<br>📖 阅读《思考，快与慢》12 分钟，新增 2 条摘录<br>💰 今日支出 ¥86.00（餐饮 2 笔）</div>
-        <button class="mt-2 text-xs text-brand-500 font-bold" onclick="insertSummary()">插入正文 ↑</button>
+        <div class="flex gap-3 mt-2"><button class="text-xs text-brand-500 font-bold" onclick="insertSummary()">插入正文 ↑</button><button class="text-xs text-rose-400 font-bold" onclick="toast('AI 今日反思草稿已生成，请审阅后插入（需 Key 验证）')">🤖 AI 生成反思草稿</button></div>
       </div>
       <div class="mt-3 flex gap-2">
         <div class="flex-1 aspect-square rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 text-xs">+ 拍照</div>
@@ -579,7 +579,7 @@ tailwind.config = {
           <div><b>🧩 核心观点：</b><br>① 系统1快、直觉；系统2慢、费力<br>② 损失厌恶与锚定效应无处不在<br>③ 直觉判断需满足两个可信条件</div>
           <div><b>✍️ 我的收获：</b>3 条感想已在 9 月日记中引用</div>
         </div>
-        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('已导出为 Markdown（模拟）')">导出 MD</button><button class="mini-btn" onclick="toast('已存为笔记（联动L5）')">转存笔记</button></div>
+        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('已导出为 Markdown（模拟）')">导出 MD</button><button class="mini-btn" onclick="toast('已存为笔记（联动L5）')">转存笔记</button><button class="mini-btn !bg-peach/15 !text-rose-500" onclick="toast('AI 基于 59 条摘录深化总结：补全论证链与反例（需 Key）')">🤖 AI 深化</button></div>
       </div>
     </section>
 
@@ -614,7 +614,7 @@ tailwind.config = {
           </div>
         </div>
       </div>
-      <div class="flex items-center justify-between mt-4 text-xs text-slate-400"><b class="text-slate-600 dark:text-slate-300 text-sm">未整理 · <span id="inboxCount">3</span></b><button class="text-brand-500 font-bold" onclick="toast('已进入批量整理模式（模拟）')">批量整理</button></div>
+      <div class="flex items-center justify-between mt-4 text-xs text-slate-400"><b class="text-slate-600 dark:text-slate-300 text-sm">未整理 · <span id="inboxCount">3</span></b><span class="flex gap-3 items-center"><button class="text-brand-500 font-bold" onclick="toast('AI 逐条给出分流建议与理由（需验证 API Key）')">🤖 AI 一键分流</button><button class="text-brand-500 font-bold" onclick="toast('已进入批量整理模式（模拟）')">批量整理</button></span></div>
       <div id="inboxList" class="mt-2 space-y-3"></div>
       <div class="mt-6 card opacity-80">
         <div class="row-title">🗓 整理节律（设置模拟）</div>
@@ -834,10 +834,30 @@ tailwind.config = {
         </div>
       </div>
 
+      <div class="card mt-4">
+        <div class="flex items-center justify-between"><div class="row-title">🤖 AI 增强（默认关闭 · 可选）</div><span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'AI 总开关已开启：各能力仍按下方矩阵逐项授权':'AI 总开关已关闭：任何模块不再发送 AI 请求')"></span></div>
+        <div class="text-[11px] text-slate-400 mt-1 leading-5">配置 API Key 后按需解锁能力；请求仅发往你所配置的服务端，不经过任何第三方；Key 存系统级加密区（secure storage）；每次调用前展示发送内容（数据最小化）。</div>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+          <select class="inp"><option>DeepSeek</option><option>OpenAI</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地·全离线）</option><option>自定义（OpenAI 兼容）</option></select>
+          <input class="inp" placeholder="模型名，如 deepseek-chat">
+        </div>
+        <input class="inp mt-2 w-full text-xs !py-2.5" type="password" placeholder="API Key · sk-••••••••••••（掩码加密存储）">
+        <div class="mt-2.5 text-[11px] font-bold text-slate-500">能力矩阵（逐项授权）</div>
+        <div class="mt-1 text-xs space-y-2">
+          <div class="flex items-center justify-between"><span>✅ 待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>📔 日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>📚 阅读：观点提炼 / 总结深化</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>⚡ 收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>📊 周报 AI 点评（只发聚合数据不发原文）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between opacity-50"><span>💰📦 记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
+        </div>
+        <button onclick="openTool('aiapi')" class="mt-3 w-full py-2.5 rounded-xl grad text-white text-xs font-bold">🔌 前往小工具配置并验证 API 连通性 ›</button>
+      </div>
+
       <div class="card mt-4 text-[11px] text-slate-400 leading-6">
         <b class="text-slate-600 dark:text-slate-300 text-xs">关于</b><br>
-        LifeHaness 原型 · 需求 V1.3 · 全模块导航演示<br>
-        仅中文 ｜ 纯本地无账号 ｜ Android 8.0+ ｜ 离线优先<br>
+        LifeHaness 原型 · 需求 V1.8 · 全模块导航演示<br>
+        仅中文 ｜ 纯本地无账号 ｜ Android 8.0+ ｜ 离线优先 ｜ AI 能力可选增强<br>
         <span class="text-slate-300 dark:text-slate-600">习惯打卡 / 番茄钟等 V1.x 功能入口均带灰显 + 版本角标演示</span>
       </div>
     </section>
@@ -885,7 +905,8 @@ tailwind.config = {
         <div class="flex-1"><label class="text-slate-400">提醒</label><select class="sel w-full mt-1 !py-2"><option>当天 09:00</option><option>不提醒</option><option>提前1小时</option></select></div>
       </div>
       <div class="mt-3 text-xs text-slate-400">重复：不重复 <b class="text-brand-500 mx-1 cursor-pointer" onclick="toast('周期规则面板（模拟）')">›</b>　子任务：<b class="text-brand-500 cursor-pointer" onclick="toast('可添加 2 级子任务（模拟）')">+ 添加</b></div>
-      <div class="mt-4 flex gap-3">
+      <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
+      <div class="mt-3 flex gap-3">
         <button onclick="closeSheet('sheetAddTask')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
         <button onclick="addTask()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">存入四象限</button>
       </div>
@@ -1124,7 +1145,7 @@ const D = {
          {t:'日记素材：今晚的晚霞是橘粉色的',age:'昨天 21:40'}],
   grid:[['✅','待办','p-todo'],['📅','日程','p-calendar'],['📔','日记','p-records'],['📝','笔记','p-records'],['📚','阅读','p-records'],
         ['⚡','收集箱','p-inbox'],['💰','记账','p-finance'],['📦','物品','p-items'],['🎂','日子','p-days'],['🏃','健康','p-health'],
-        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['⚙️','设置','p-profile']]
+        ['🧭','目标','p-goals'],['🧰','小工具','p-tools'],['🤖','AI 验证','p-tools'],['⚙️','设置','p-profile']]
 };
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
@@ -1484,9 +1505,17 @@ const TOOLS={
  pick:{ic:'💧',nm:'取色盘',html:()=>`<div class="flex items-center gap-3"><input type="color" id="cpk" value="#6366f1" oninput="cpkShow(this.value)" class="w-14 h-14 rounded-xl cursor-pointer bg-transparent border-0"><div class="text-xs space-y-1 flex-1"><div id="cpHex" class="font-mono font-extrabold text-sm"></div><div id="cpRgb" class="font-mono text-slate-400"></div><div id="cpHsl" class="font-mono text-slate-400"></div></div><span id="cpBig" class="w-16 h-16 rounded-2xl shadow-inner flex-shrink-0"></span></div><button class="mt-3 mini-btn" onclick="cpkEye()">🔍 从屏幕取色（EyeDropper·限桌面 Chrome）</button><div class="mt-3 text-[11px] text-slate-400">最近取色（点击复用）：</div><div id="cpRecent" class="mt-1 flex gap-1.5 flex-wrap"></div>`,mount(){cpkShow($('#cpk').value);cpkRenderRecent();}},
  comp:{ic:'🌈',nm:'互补色方案',html:()=>`<div class="flex items-center gap-3"><input type="color" id="cmp" value="#6366f1" oninput="cmpShow(this.value)" class="w-14 h-14 rounded-xl"><div class="text-xs text-slate-400 leading-5">选一个主色，实时生成互补 / 类似 / 三角配色盘，点击复制 HEX</div></div><div id="cmpOut" class="mt-3 space-y-2"></div>`,mount(){cmpShow($('#cmp').value);}},
  datec:{ic:'🗓️',nm:'日期计算',html:()=>`<div class="text-xs font-bold mb-1.5">① 两日期间隔</div><div class="flex gap-2 items-center"><input type="date" id="dA" class="inp flex-1 !py-2 text-xs" value="2026-01-01"><span class="text-slate-400">→</span><input type="date" id="dB" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><button class="mini-btn" onclick="dCalcDiff()">算</button></div><div id="dDiff" class="mt-1.5 text-xs text-brand-500 font-bold min-h-[18px]"></div><div class="text-xs font-bold mt-4 mb-1.5">② 日期 ± 天数</div><div class="flex gap-2 items-center"><input type="date" id="dC" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><span class="text-slate-400">+</span><input type="number" id="dN" class="inp w-20 !py-2 text-xs" value="100"><button class="mini-btn" onclick="dCalcAdd()">算</button></div><div id="dAdd" class="mt-1.5 text-xs font-bold min-h-[18px]" style="color:#0d9488"></div><div class="mt-3 text-[10px] text-slate-400">正式版：结果可一键生成「重要日子」倒数日（联动 L10）</div>`},
- imgz:{ic:'🖼️',nm:'图片缩小',html:()=>`<label class="block card text-center cursor-pointer !bg-slate-50 dark:!bg-slate-800/60"><input type="file" accept="image/*" onchange="imgzLoad(this)" class="hidden"><div class="text-2xl">📥</div><div class="text-xs mt-1 font-semibold">选择图片（全程本地 canvas 处理，不上传）</div></label><div id="imgzBox" class="hidden mt-3"><img id="imgzPrev" class="w-full max-h-40 object-contain rounded-xl bg-slate-100 dark:bg-slate-800 p-2"><div class="mt-2 flex items-center gap-2 text-xs"><span class="text-slate-400">质量</span><input type="range" id="imgzQ" min="20" max="90" value="60" class="flex-1" oninput="imgzGo()"><b id="imgzQL" class="w-6">60</b></div><div id="imgzInfo" class="mt-2 text-xs leading-6"></div><a id="imgzDl" class="hidden mt-1 mini-btn inline-block" download="compressed.jpg">💾 保存压缩结果</a></div>`}
+ imgz:{ic:'🖼️',nm:'图片缩小',html:()=>`<label class="block card text-center cursor-pointer !bg-slate-50 dark:!bg-slate-800/60"><input type="file" accept="image/*" onchange="imgzLoad(this)" class="hidden"><div class="text-2xl">📥</div><div class="text-xs mt-1 font-semibold">选择图片（全程本地 canvas 处理，不上传）</div></label><div id="imgzBox" class="hidden mt-3"><img id="imgzPrev" class="w-full max-h-40 object-contain rounded-xl bg-slate-100 dark:bg-slate-800 p-2"><div class="mt-2 flex items-center gap-2 text-xs"><span class="text-slate-400">质量</span><input type="range" id="imgzQ" min="20" max="90" value="60" class="flex-1" oninput="imgzGo()"><b id="imgzQL" class="w-6">60</b></div><div id="imgzInfo" class="mt-2 text-xs leading-6"></div><a id="imgzDl" class="hidden mt-1 mini-btn inline-block" download="compressed.jpg">💾 保存压缩结果</a></div>`},
+ aiapi:{ic:'🔌',nm:'AI API 验证',html:()=>`<div class="text-[11px] text-slate-400 leading-5 mb-2">供「设置 → AI 增强」使用：验证服务商 / Key / 模型是否可用。默认采用 OpenAI 兼容 Chat Completions 协议，请求仅发往下方填写的地址。</div>
+ <select id="aiProvider" onchange="aiPick()" class="inp w-full text-xs"><option>DeepSeek</option><option>OpenAI</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地）</option><option>自定义</option></select>
+ <input id="aiUrl" class="inp mt-2 w-full text-xs" value="https://api.deepseek.com/v1" placeholder="Base URL，如 https://api.xxx.com/v1">
+ <div class="mt-2 grid grid-cols-2 gap-2"><input id="aiKey" type="password" class="inp text-xs" placeholder="API Key · sk-..."><input id="aiModel" class="inp text-xs" value="deepseek-chat" placeholder="模型名"></div>
+ <textarea id="aiPrompt" rows="2" class="inp mt-2 w-full text-xs" placeholder="验证提示词">请只回复四个字：连接成功</textarea>
+ <div class="mt-2 flex gap-2"><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(0)">🚀 发送真实验证请求</button><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(1)">🎭 模拟演示</button></div>
+ <div id="aiRes" class="mt-3 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[74px] text-[11px] font-mono leading-5 break-all"><div class="opacity-50">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 / 429 限流 / 404 模型名 / CORS 网络）。</div></div>
+ <div class="mt-2 text-[10px] text-slate-400 leading-5">⚠️ 浏览器原型环境下部分 API 会被 CORS 拦截而显示「网络/CORS 失败」，这是原型限制而非 Key 错误；正式 Flutter 版为原生 HTTP 请求，无此限制。验证通过后，设置页 AI 能力矩阵方可逐项开启。</div>`}
 };
-const TOOL_CATS=[['🌐 网络',['ping','speed']],['📏 长度',['ruler','dist']],['🎲 随机',['wheel','rand']],['🎨 色彩',['pick','comp']],['🧮 计算',['datec']],['🖼 图片',['imgz']]];
+const TOOL_CATS=[['🌐 网络',['ping','speed']],['📏 长度',['ruler','dist']],['🎲 随机',['wheel','rand']],['🎨 色彩',['pick','comp']],['🧮 计算',['datec']],['🖼 图片',['imgz']],['🤖 智能',['aiapi']]];
 let PLUGINS=[{n:'摩斯电码',src:'本地 · plugins/morse.h5.zip'},{n:'分贝计',src:'GitHub · lifehaness/lh-plugin-decibel v0.3'}];
 let curTool=null,wheelRot=0,wheelBusy=false,pingT=null,DIST=[],IMGO=null,CP_RECENT=['#6366f1','#2dd4bf','#fb7185'];
 function renderTools(){$('#toolGrid').innerHTML=TOOL_CATS.map(([c,ks])=>`<div class="text-xs font-extrabold text-slate-500 mt-5 mb-2">${c}</div><div class="grid grid-cols-4 gap-3">${ks.map(k=>{const t=TOOLS[k];return `<button class="card !p-2.5 flex flex-col items-center gap-1.5 active:scale-95 transition" onclick="openTool('${k}')"><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">${t.ic}</span><span class="text-[10px] font-bold">${t.nm}</span></button>`}).join('')}</div>`).join('');}
@@ -1540,6 +1569,27 @@ function imgzGo(){if(!IMGO)return;const q=+$('#imgzQ').value;$('#imgzQL').textCo
   const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(im,0,0,cv.width,cv.height);
   cv.toBlob(b=>{const pct=((1-b.size/size)*100).toFixed(1);$('#imgzInfo').innerHTML=`原图 ${im.width}×${im.height} · ${(size/1024).toFixed(0)} KB　→　<b style="color:#0d9488">${(b.size/1024).toFixed(0)} KB</b>${sc<1?' · 缩至 '+(sc*100).toFixed(0)+'%':''} · 体积减少 <b style="color:#0d9488">${pct}%</b>`;
     const a=$('#imgzDl');a.href=URL.createObjectURL(b);a.classList.remove('hidden');},'image/jpeg',q/100);}
+/* —— AI API 验证 —— */
+const esc2=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-chat'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
+function aiPick(){const p=AI_PROVIDERS[$('#aiProvider').value];if(!p)return;if(p[0])$('#aiUrl').value=p[0];if(p[1])$('#aiModel').value=p[1];}
+async function aiTest(mock){const box=$('#aiRes');
+ if(mock){box.innerHTML='<div style="color:#94a3b8">⚤ 模拟请求中…</div>';setTimeout(()=>{box.innerHTML='<div style="color:#86efac">✔ 200 OK（模拟）· 812ms</div><div>模型回复：连接成功</div><div style="color:#94a3b8">usage: prompt 9 + completion 4 tokens</div><div style="color:#86efac">验证通过 · 设置页 AI 能力矩阵已可开启（模拟不校验真实 Key）</div>'},900);return;}
+ const base=$('#aiUrl').value.trim().replace(/\/+$/,'');const key=$('#aiKey').value.trim();const model=$('#aiModel').value.trim();const url=base+'/chat/completions';
+ if(!base){box.innerHTML='<div style="color:#fb7185">✖ 请填写 Base URL</div>';return;}
+ if(!key){box.innerHTML='<div style="color:#fb7185">✖ 请先填入 API Key（或使用模拟演示查看交互效果）</div>';return;}
+ box.innerHTML='<div style="color:#94a3b8">⚤ POST '+esc2(url)+' · model='+esc2(model||'default')+' …</div>';
+ const t0=Date.now();const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+ try{
+  const r=await fetch(url,{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||undefined,messages:[{role:'user',content:$('#aiPrompt').value.trim()||'请只回复四个字：连接成功'}],max_tokens:30})});
+  clearTimeout(to);const ms=Date.now()-t0;
+  if(!r.ok){const txt=esc2((await r.text().catch(()=>'')).slice(0,180));
+   box.innerHTML=`<div style="color:#fb7185">✖ HTTP ${r.status} · ${ms}ms</div><div>${r.status===401?'Key 无效或无权限 —— 请核对 Key 与服务商是否匹配':r.status===403?'无权访问该模型 / 地区限制':r.status===404?'模型名或路径错误 —— 检查 Model 与 Base URL':r.status===429?'限流或余额不足':'服务端错误'}${txt?`<div style="color:#94a3b8">${txt}</div>`:''}</div>`;return;}
+  const j=await r.json();const c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||(j.output_text||JSON.stringify(j).slice(0,200));
+  box.innerHTML=`<div style="color:#86efac">✔ 200 OK · ${ms}ms</div><div>模型回复：${esc2(c)}</div><div style="color:#94a3b8">usage: ${(j.usage&&j.usage.prompt_tokens!=null)?(j.usage.prompt_tokens+' + '+(j.usage.completion_tokens||'?')+' tokens'):'n/a'} · endpoint 与 Key 有效，验证通过</div><div style="color:#86efac">→ 可前往设置页逐项开启 AI 能力矩阵</div>`;
+ }catch(err){clearTimeout(to);
+  box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
+}
 
 /* ================= 其他 ================= */
 function tick(){ const d=new Date(); $('#clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
