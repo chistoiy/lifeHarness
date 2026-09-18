@@ -109,6 +109,8 @@ tailwind.config = {
   .fmt-btn{width:30px;height:28px;border-radius:8px;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
   .fmt-btn:active{background:#e2e8f0}
   .dark .fmt-btn:active{background:#334155}
+  .grid-cell{height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;cursor:pointer}
+  .cell-sel{outline:2px solid #6366f1;outline-offset:-2px}
 </style>
 </head>
 <body class="flex items-center justify-center">
@@ -289,6 +291,24 @@ tailwind.config = {
       </div>
       <button onclick="openSheet('sheetAddEvent')" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-brand-400 text-sm text-brand-500 font-bold active:bg-brand-50 dark:active:bg-brand-500/10">+ 新建日程（09:30 - 10:30）</button>
       <div id="conflictTip" class="mt-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 p-3 text-xs hidden">⏱ <b>时间冲突：</b>「产品评审」与「与客户午餐」重叠 30 分钟，点击调整 ›</div>
+      <!-- 日视图子模式：时间轴 / 格子 -->
+      <div id="calDayMode" class="mt-4 flex items-center gap-2 flex-wrap">
+        <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+          <button id="dmLine" class="seg-on px-3 rounded-lg py-1" onclick="switchDayMode('line')">时间轴</button>
+          <button id="dmGrid" class="px-3 rounded-lg py-1 text-slate-500" onclick="switchDayMode('grid')">格子·时间块</button>
+        </div>
+        <span id="granWrap" class="hidden items-center gap-1 text-[10px] text-slate-400">粒度
+          <select id="granSel" onchange="setGran(+this.value)" class="sel !py-1.5">
+            <option value="1">1 分钟</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15" selected>15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option>
+          </select>
+        </span>
+      </div>
+      <!-- 格子视图（1-60分钟粒度，按住拖选多格→标记记录） -->
+      <div id="calGridMode" class="hidden mt-2 select-none" style="touch-action:none">
+        <div class="text-[10px] text-slate-400 mb-2">🖐 按住并拖动滑选多格（1 格 = <b id="granLabel">15</b> 分钟）· 展示 06:00–24:00 时段 · 点已标记格可查看/取消</div>
+        <div id="gridCells" class="grid gap-1" style="grid-template-columns:repeat(6,1fr)"></div>
+        <div id="gridSelInfo" class="mt-2 text-xs font-bold text-brand-500 min-h-[20px]"></div>
+      </div>
       <!-- 日视图时间轴 -->
       <div id="calDayView" class="mt-4 relative pl-14">
         <div class="absolute left-12 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
@@ -801,6 +821,25 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 格子标记时间块 ===== -->
+  <div id="sheetGridMark" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetGridMark')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">标记时间块</div>
+      <div id="markRange" class="text-xs text-slate-400 mt-0.5"></div>
+      <div class="mt-3 text-xs font-bold text-slate-500">选择分类（分类可在设置中自定义）</div>
+      <div id="markCats" class="mt-2 grid grid-cols-4 gap-2 text-center text-[11px]"></div>
+      <input id="markNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="备注（可选），如：专注报销单">
+      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 同步在时间轴生成对应日程/时间块</label>
+      <label class="mt-1 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 计入时间账本统计（联动 L4）</label>
+      <div class="mt-4 flex gap-3">
+        <button id="markDelBtn" onclick="delMark()" class="hidden px-5 py-3 rounded-xl border border-rose-300 text-rose-500 text-sm font-bold">取消标记</button>
+        <button onclick="closeSheet('sheetGridMark')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">关闭</button>
+        <button onclick="doMark()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确认标记</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 任务详情 ===== -->
   <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -1065,12 +1104,64 @@ function renderCal(){
   $('#monthCells').innerHTML=Array.from({length:30},(_,i)=>i+1).map(n=>{const has=[3,9,15,19,22,28].includes(n);
     return `<div class="py-1.5 relative">${n===19?'<b class="text-white bg-brand-500 w-6 h-6 inline-flex items-center justify-center rounded-full text-[11px]">19</b>':`<span class="inline-block w-6 text-[11px] ${has?'font-bold':''}">${n}</span>`}${has?'<span class="absolute left-1/2 -translate-x-1/2 bottom-0 w-1 h-1 rounded-full bg-brand-500"></span>':''}</div>`}).join('');
 }
-function switchCalView(v){
+function switchCalView(v){ calView=v;
   [['day','calDayView'],['week','calWeekView'],['month','calMonthView']].forEach(([k,id])=>{
-    $('#'+id).classList.toggle('hidden',k!==v);
+    $('#'+id).classList.toggle('hidden',k!==v||(k==='day'&&dayMode==='grid'));
     const b=$('#cv'+k[0].toUpperCase()+k.slice(1)); b.className=(k===v?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(k===v?'':' text-slate-500');});
+  $('#calDayMode').classList.toggle('hidden',v!=='day');
+  $('#calGridMode').classList.toggle('hidden',!(v==='day'&&dayMode==='grid'));
   if(v==='week'){ $('#conflictTip').classList.remove('hidden'); toast('已模拟：周三两事件重叠 30 分钟'); } else $('#conflictTip').classList.add('hidden');
 }
+/* ================= 日视图·格子时间块模式 ================= */
+let calView='day', dayMode='line', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
+const CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','餐饮':'bg-orange-300','娱乐':'bg-peach','睡眠':'bg-indigo-800','清洁':'bg-mint','其他':'bg-slate-400'};
+let blocks=[{s:540,e:585,cat:'工作',note:'晨间规划'},{s:1170,e:1230,cat:'运动',note:'腿日'}];
+const fmt=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(Math.round(m%60)).padStart(2,'0');
+function cellMin(i){return 360+i*gran;}
+function blockAt(m){return blocks.find(b=>m>=b.s&&m<b.e);}
+function renderCats(){$('#markCats').innerHTML=Object.keys(CATS).map((k,i)=>`<button data-c="${k}" class="tag-chip justify-center ${i===0?'on':''}" onclick="pickCat(this)"><i style="width:9px;height:9px;border-radius:3px" class="${CATS[k]}"></i>${k}</button>`).join('');}
+function pickCat(el){$$('#markCats .tag-chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');markCat=el.dataset.c;}
+function renderGrid(){
+  const n=Math.floor((1440-360)/gran);
+  $('#granLabel').textContent=gran;
+  $('#gridCells').innerHTML=Array.from({length:n},(_,i)=>{
+    const m=cellMin(i),b=blockAt(m),hour=m%60===0;
+    return `<div data-i="${i}" class="grid-cell ${b?CATS[b.cat]:'bg-slate-100 dark:bg-slate-800'}" title="${b?b.cat+' '+fmt(b.s)+'-'+fmt(b.e)+(b.note?' · '+b.note:''):'空格 '+fmt(m)}">${hour?`<span class="pointer-events-none ${b?'text-white/90':'text-slate-400'}">${String(Math.floor(m/60)).padStart(2,'0')}</span>`:''}</div>`;
+  }).join('');
+  paintSel();
+}
+function setGran(g){gran=g;selA=selB=null;renderGrid();toast(`粒度已切换为 ${g} 分钟 · 共 ${Math.floor(1080/g)} 格`);}
+function switchDayMode(m){dayMode=m;
+  $('#dmLine').className=(m==='line'?'seg-on':'px-3')+' rounded-lg py-1'+(m==='line'?'':' text-slate-500');
+  $('#dmGrid').className=(m==='grid'?'seg-on':'px-3')+' rounded-lg py-1'+(m==='grid'?'':' text-slate-500');
+  $('#calDayView').classList.toggle('hidden',m!=='line'||calView!=='day');
+  $('#calGridMode').classList.toggle('hidden',!(calView==='day'&&m==='grid'));
+  $('#granWrap').classList.toggle('hidden',m!=='grid');
+  $('#granWrap').classList.toggle('flex',m==='grid');
+  if(m==='grid'){renderGrid();toast('按住并拖动滑选多格 → 松手即可标记时间块');}
+}
+function cellFromEv(e){const el=document.elementFromPoint(e.clientX,e.clientY);return el&&el.dataset&&el.dataset.i!==undefined?+el.dataset.i:null;}
+function paintSel(){const cells=$$('.grid-cell');cells.forEach(c=>c.classList.remove('cell-sel'));
+  if(selA===null||!cells.length){$('#gridSelInfo').textContent='';return;}
+  const a=Math.min(selA,selB),b=Math.max(selA,selB);
+  for(let i=a;i<=b;i++)cells[i]&&cells[i].classList.add('cell-sel');
+  $('#gridSelInfo').textContent=`已选 ${fmt(cellMin(a))} - ${fmt(cellMin(b)+gran)} · ${b-a+1} 格 = ${(b-a+1)*gran} 分钟`;}
+function initGrid(){const gc=$('#gridCells');
+  gc.addEventListener('pointerdown',e=>{const i=cellFromEv(e);if(i===null)return;e.preventDefault();selecting=true;selA=selB=i;paintSel();});
+  gc.addEventListener('pointermove',e=>{if(!selecting)return;const i=cellFromEv(e);if(i!==null&&i!==selB){selB=i;paintSel();}});
+  window.addEventListener('pointerup',()=>{if(!selecting)return;selecting=false;
+    const a=Math.min(selA,selB),b=Math.max(selA,selB);markSel={a,b};
+    const hit=(a===b)?blockAt(cellMin(a)):null;
+    $('#markDelBtn').classList.toggle('hidden',!hit);
+    $('#markRange').textContent=hit?`${fmt(hit.s)} - ${fmt(hit.e)} · ${hit.cat}${hit.note?' · '+hit.note:''}（点击已标记格，可取消标记或覆盖新标记）`
+      :`${fmt(cellMin(a))} - ${fmt(cellMin(b)+gran)}（${(b-a+1)*gran} 分钟 · 粒度 ${gran} 分钟）`;
+    openSheet('sheetGridMark');});}
+function doMark(){if(!markSel)return;const a=Math.min(markSel.a,markSel.b),b=Math.max(markSel.a,markSel.b);
+  blocks.push({s:cellMin(a),e:cellMin(b)+gran,cat:markCat,note:$('#markNote').value.trim()});
+  $('#markNote').value='';selA=selB=null;renderGrid();closeSheet('sheetGridMark');
+  toast('✔ 已标记 '+fmt(cellMin(a))+'-'+fmt(cellMin(b)+gran)+' · '+markCat+' → 已写入时间账本（联动 L4）');}
+function delMark(){if(!markSel)return;const blk=blockAt(cellMin(markSel.a));if(blk)blocks=blocks.filter(x=>x!==blk);
+  selA=selB=null;renderGrid();closeSheet('sheetGridMark');toast('标记已取消，格子恢复空闲');}
 
 /* ================= 记录 ================= */
 function switchRecord(k){
@@ -1191,7 +1282,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick();
+renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid();
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 </script>
 </body>
