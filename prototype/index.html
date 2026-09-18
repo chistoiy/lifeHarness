@@ -68,10 +68,20 @@ tailwind.config = {
   .set-ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
   .vchip{font-size:9px;background:#e2e8f0;color:#64748b;border-radius:6px;padding:1px 5px;vertical-align:middle}
   .dark .vchip{background:#334155;color:#94a3b8}
-  .navtab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;color:#94a3b8;font-weight:700;padding-top:8px}
-  .navtab .ico{font-size:20px;line-height:1;filter:grayscale(1);opacity:.65}
-  .navtab.on{color:#6366f1}.navtab.on .ico{filter:none;opacity:1}
-  .dark .navtab{color:#64748b}.dark .navtab.on{color:#818cf8}
+  .navtab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#94a3b8;font-weight:600;padding-top:6px}
+  .navtab svg{width:22px;height:22px}
+  .navtab.on{color:#6366f1}
+  .navtab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:#6366f1}
+  .dark .navtab{color:#64748b}.dark .navtab.on{color:#818cf8}.dark .navtab.on::after{background:#818cf8}
+  .setnav svg{width:16px;height:16px;color:#94a3b8}
+  .pw-ic-btn{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:inherit;flex-shrink:0}
+  .pw-ic-btn:active{background:rgba(120,110,90,.12)}
+  .pw-ic-btn.on{background:rgba(99,102,241,.18);color:#6366f1}
+  .pw-body{font-size:15px;line-height:2.15;letter-spacing:.03em}
+  .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
+  .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
+  .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
+  .pw-focus p:not(.pw-cur){opacity:.22}
   .fab-act{display:block;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 12px;box-shadow:0 4px 12px rgba(15,23,42,.12);text-align:left}
   .dark .fab-act{background:#1e293b;border-color:#334155;color:#e2e8f0}
   .inp{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff;outline:none;font-size:13px;width:100%}
@@ -332,19 +342,31 @@ tailwind.config = {
       </div>
 
       <!-- 日记 tab -->
-      <div id="recDiary" class="mt-4 space-y-4">
-        <button onclick="navTo('p-diaryEdit')" class="w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
+      <div id="recDiary" class="mt-4">
+        <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
+          <div class="flex items-center justify-between"><b class="text-sm">九月 · 已记录 18 篇</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1" onclick="toast('打开心情月历 / 词云回顾（模拟）')">📊 回顾</button></div>
+          <div class="mt-2.5 flex items-end gap-[3px] h-9" id="moodMini"></div>
+          <div class="text-[10px] opacity-75 mt-1.5">连续记录 55 天 · 本月心情以 😌 平静居多 · 点色条看当天</div>
+        </div>
+        <button onclick="navTo('p-diaryEdit')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
           <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-brand-500/15 flex items-center justify-center text-lg">✍️</span>
-          <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已为你生成今日概览草稿（联动 · 模拟）</div></div>
+          <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
           <span class="text-slate-300">›</span>
         </button>
-        <div id="diaryList"></div>
+        <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar" id="diaryFilter"></div>
+        <div id="diaryList" class="mt-3"></div>
       </div>
 
-      <!-- 笔记 tab -->
+      <!-- 笔记 tab（纯纯写作风） -->
       <div id="recNote" class="hidden mt-4">
-        <div class="flex gap-2 overflow-x-auto no-scrollbar" id="noteTags"></div>
-        <div class="mt-3 space-y-3" id="noteList"></div>
+        <div class="flex items-center gap-2">
+          <div class="flex-1 relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span><input class="w-full !pl-8 rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs outline-none" placeholder="搜索标题或全文…" oninput="if(this.value)toast('全文搜索：'+this.value+'（模拟）')"></div>
+          <button onclick="toast('排序：更新时间 ↓（可切创建时间/字数）')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">↕</button>
+          <button onclick="newNote()" class="px-3.5 py-2.5 rounded-xl grad text-white text-xs font-bold whitespace-nowrap">✎ 写笔记</button>
+        </div>
+        <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar items-center" id="noteTags"></div>
+        <div id="noteList"></div>
+        <div class="mt-2 text-[10px] text-slate-400 text-center">共 23 篇 · 长按列表项可置顶 / 归档 / 移入回收站（模拟）</div>
       </div>
 
       <!-- 阅读 tab -->
@@ -386,6 +408,36 @@ tailwind.config = {
       <div class="mt-4 flex gap-3">
         <select class="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs px-3 py-2.5 outline-none"><option>模板：自由书写</option><option>模板：感恩三件事</option><option>模板：KPT 复盘</option></select>
         <button onclick="saveDiary()" class="px-6 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">保存</button>
+      </div>
+    </section>
+
+    <!-- ===== P4d 笔记编辑器（纯纯写作风） ===== -->
+    <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
+      <div class="px-4 py-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
+        <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
+        <div class="flex-1 min-w-0" style="color:var(--pw-fg)">
+          <div class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
+          <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
+        </div>
+        <button onclick="toast('已切换 Markdown 源码模式（模拟）')" class="pw-ic-btn text-xs font-extrabold" style="color:var(--pw-fg)">M↓</button>
+        <button onclick="openSheet('sheetSnapshot')" class="pw-ic-btn text-sm" style="color:var(--pw-fg)">🕘</button>
+        <button onclick="toast('导出：TXT / Markdown / PDF · 也可存入笔记文件夹')" class="pw-ic-btn" style="color:var(--pw-fg)">⋯</button>
+      </div>
+      <div class="px-7 pt-5 pb-28 pw-body" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
+        <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
+        <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
+        <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
+        <p>克制不等于简陋。自动保存、版本快照、断点续写，这些防丢稿的地基应该平时看不见，塌了才知道它重要。</p>
+        <p>☑ 待办行样式：勾选后自动同步为任务列表新任务（联动 L3，与日记同构）</p>
+        <p>下一步：把段落聚焦（dim）模式也移植到日记编辑器里，让两个写作场景拥有一致的体验。</p>
+        <p class="opacity-60">（点击任意段落试试聚焦模式 · 本段以下为演示占位）字距、行距、纸色，是中文写作工具被低估的三件套。行高 2.15、字距 0.03em，是长时间盯屏不累的经验值。</p>
+      </div>
+      <div class="sticky bottom-0 px-4 py-2.5 flex items-center gap-2.5 text-[11px] blur-bd" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12);color:var(--pw-fg)">
+        <span class="opacity-45 flex-shrink-0">字号</span><input type="range" min="13" max="19" value="15" oninput="pwFont(this.value)" class="w-14 flex-shrink-0">
+        <span class="opacity-45 ml-1 flex-shrink-0">纸色</span>
+        <div class="flex gap-1.5 flex-shrink-0" id="pwPapers"></div>
+        <span class="ml-auto opacity-55 flex-shrink-0" id="pwCount">312 字 · 约 1 分钟</span>
+        <button id="pwFocusBtn" onclick="pwFocus(this)" class="pw-ic-btn !w-auto !px-2.5 text-[11px] font-bold flex-shrink-0">🎯 聚焦</button>
       </div>
     </section>
 
@@ -730,6 +782,12 @@ tailwind.config = {
       </div>
 
       <div class="card mt-4">
+        <div class="flex items-center justify-between"><div class="row-title">🧭 底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
+        <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」为固定栏目；开关状态随设置持久化（模拟）</div>
+        <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
+      </div>
+
+      <div class="card mt-4">
         <div class="row-title">🔔 提醒</div>
         <div class="mt-2 space-y-3 text-sm">
           <div class="flex items-center gap-3"><span class="set-ic bg-brand-50 dark:bg-brand-500/15">🌅</span><div class="flex-1"><b>早间日程简报</b><div class="text-[11px] text-slate-400">每天 08:00</div></div><span class="toggle on" onclick="tgl(this)"></span></div>
@@ -760,13 +818,7 @@ tailwind.config = {
 
   <!-- ===== 底部导航 ===== -->
   <nav class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
-    <div class="grid grid-cols-5 h-full pb-2">
-      <button class="navtab on" data-p="p-dashboard" onclick="navTab('p-dashboard')"><span class="ico">🏠</span>今天</button>
-      <button class="navtab" data-p="p-todo" onclick="navTab('p-todo')"><span class="ico">✅</span>待办</button>
-      <button class="navtab" data-p="p-calendar" onclick="navTab('p-calendar')"><span class="ico">📅</span>日程</button>
-      <button class="navtab" data-p="p-records" onclick="navTab('p-records')"><span class="ico">🗂</span>记录</button>
-      <button class="navtab" data-p="p-profile" onclick="navTab('p-profile')"><span class="ico">👤</span>我的</button>
-    </div>
+    <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
 
   <!-- ===== 全局搜索弹层 ===== -->
@@ -953,6 +1005,21 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 版本快照（纯纯写作式防丢稿） ===== -->
+  <div id="sheetSnapshot" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSnapshot')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">🕘 版本快照</div>
+      <div class="text-[11px] text-slate-400 mb-3 mt-0.5">停止输入 30 秒 / 每 500 字自动留存，回溯不覆盖当前稿</div>
+      <div class="space-y-2 text-xs max-h-64 overflow-y-auto">
+        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>今天 15:42</b><div class="text-[10px] text-slate-400">289 字 · +64 字 · 完成一段论述</div></div><button class="mini-btn" onclick="toast('已预览该版本（模拟）')">预览</button><button class="mini-btn" onclick="toast('已恢复为副本，当前稿不受影响')">恢复</button></div>
+        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>今天 15:18</b><div class="text-[10px] text-slate-400">225 字 · 修改标题</div></div><button class="mini-btn">预览</button><button class="mini-btn">恢复</button></div>
+        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>昨天 23:05</b><div class="text-[10px] text-slate-400">148 字 · 初稿</div></div><button class="mini-btn">预览</button><button class="mini-btn">恢复</button></div>
+      </div>
+      <button onclick="closeSheet('sheetSnapshot')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
+    </div>
+  </div>
+
   <!-- ===== Toast ===== -->
   <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
 </div><!-- /phone -->
@@ -974,11 +1041,16 @@ const D = {
     {name:'重要且紧急',act:'立即做',cls:'bg-rose-500'},{name:'重要不紧急',act:'计划做',cls:'bg-brand-500'},
     {name:'紧急不重要',act:'快速处理',cls:'bg-sun'},{name:'不紧急不重要',act:'考虑淘汰',cls:'bg-slate-400'}],
   events:[{tm:'09:00',e:'09:40',t:'晨间规划 · 时间块排布',c:'bg-brand-500'},{tm:'10:00',e:'11:00',t:'产品评审',c:'bg-violet-500'},{tm:'14:00',e:'15:00',t:'专注块：季度报销单',c:'bg-mint'},{tm:'19:30',e:'20:30',t:'健身房 · 腿日',c:'bg-sun'}],
-  diary:[{d:'09-18',emo:'😪',m:'疲惫',txt:'连续加班第三天，把报销单拖到了今天。睡前写了感恩三件事，好了一些。',tags:['加班','复盘'],img:3},
-         {d:'09-17',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》。',tags:['跑步','电影'],img:5},
-         {d:'09-16',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。',tags:['复盘'],img:0}],
-  noteTags:['全部','📖 知识','💡 灵感','🧭 方法论','🔗 关联任务'],
-  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程…',tag:'方法论',ref:'关联：O1-KR2 · 《思考快与慢》'},{t:'App 命名候选清单',txt:'LifeHaness / 日子 Value / 每一天 … 商标检索情况',tag:'灵感',ref:'关联待办：确定产品名'}],
+  diary:[{d:'09-18',wd:'周五',wx:'🌧 18℃',emo:'😪',m:'疲惫',txt:'连续加班第三天，把报销单拖到了今天。睡前写了感恩三件事，好了一些。',tags:['加班','复盘'],img:3,linked:2,tm:'23:12'},
+         {d:'09-17',wd:'周四',wx:'☀️ 24℃',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》，镰仓的雨路四姐妹，镜头语言比文字克制。',tags:['运动','电影'],img:5,linked:1,tm:'22:40'},
+         {d:'09-16',wd:'周三',wx:'⛅ 22℃',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。把 SPACED 框架整理成了笔记并关联了目标。',tags:['复盘','方法论'],img:0,linked:3,tm:'21:05'}],
+  noteTags:['全部','方法论','灵感','工作','关联阅读'],
+  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',pin:1,md:1},
+         {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',pin:0,md:0},
+         {t:'App 命名候选清单',txt:'LifeHaness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',pin:0,md:0},
+         {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',pin:0,md:1},
+         {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',pin:0,md:0},
+         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',pin:0,md:1}],
   books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
          {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}],
   tx:[{d:'09-19',k:'🍜 餐饮',n:'午餐 · 公司楼下',a:-32.00},{d:'09-19',k:'🚇 交通',n:'地铁通勤',a:-6.00},
@@ -1008,8 +1080,34 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['日程','时间块 · 冲突检测'],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导'],'p-bookDetail':['书籍详情','思考，快与慢']};
-const TABS=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存']};
+/* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
+const ICONS={
+ 'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
+ 'p-todo':'<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="m8.5 12 2.4 2.4L15.5 9.5"/>',
+ 'p-calendar':'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+ 'p-records':'<path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/>',
+ 'p-inbox':'<path d="M3.5 12.5h5l1.5 3h4l1.5-3h5"/><path d="M5.2 12.5 7.3 5h9.4l2.1 7.5V19a1.7 1.7 0 0 1-1.7 1.7H6.9a1.7 1.7 0 0 1-1.7-1.7z"/>',
+ 'p-finance':'<rect x="3" y="6" width="18" height="13" rx="2.8"/><path d="M3 10.2h18M16.2 14.7h2"/>',
+ 'p-items':'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>',
+ 'p-days':'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M12 11.3c.9-1.8 3.7-1 2.9 1L12 16.4l-2.9-4.1c-.8-2 2-2.8 2.9-1z"/>',
+ 'p-health':'<path d="M12 20.4S4.2 15.6 3 10C2.2 6.3 5.1 3.9 8 4.8c1.6.5 2.9 1.8 4 3.2 1.1-1.4 2.4-2.7 4-3.2 2.9-.9 5.8 1.5 5 5.2-1.2 5.6-9 10.4-9 10.4z"/>',
+ 'p-goals':'<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/>',
+ 'p-profile':'<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.7 3.9-5.4 7.5-5.4s6.3 1.7 7.5 5.4"/>'};
+const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','日程',''],['p-records','记录',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-goals','目标',''],['p-profile','我的','fix']];
+let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
+function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
+function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
+  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span></button>`}).join('');}
+function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label,fix])=>{const on=activeTabs.includes(p);
+  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span><span class="toggle ${on?'on':''}" onclick="navToggle('${p}',this)"></span></div>`}).join('');
+  $('#navCount').textContent=activeTabs.length;}
+function navToggle(p,el){const on=el.classList.contains('on');
+  if(!on){if(activeTabs.length>=5){toast('底部导航最多同时显示 5 个栏目，请先关闭一个');renderNavSet();return;}
+    activeTabs.push(p);activeTabs.sort((a,b)=>NAV_MODS.findIndex(m=>m[0]===a)-NAV_MODS.findIndex(m=>m[0]===b));}
+  else{if(p==='p-dashboard'||p==='p-profile'){toast('「今天」与「我的」为固定栏目，不可关闭');renderNavSet();return;}
+    activeTabs=activeTabs.filter(x=>x!==p);}
+  renderNav();renderNavSet();toast('导航栏已更新（模拟持久化）');}
 function setPage(p){
   $$('.page').forEach(s=>s.classList.remove('active'));
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
@@ -1017,6 +1115,7 @@ function setPage(p){
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
   curPage=p;
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
+  renderNav();
 }
 function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
 function goBack(){ if(stack.length){ setPage(stack.pop()); } }
@@ -1038,7 +1137,7 @@ function renderDash(){
     <span class="w-1 self-stretch rounded-full ${e.c}"></span>
     <div class="flex-1 text-sm font-semibold">${e.t}</div><div class="text-[11px] text-slate-400 font-mono">${e.tm}-${e.e}</div></div>`).join('');
   $('#appGrid').innerHTML = D.grid.map(g=>{
-    const act = TABS.includes(g[2]) ? `navTab('${g[2]}')` : `stack.length=0;setPage('${g[2]}')`;
+    const act = activeTabs.includes(g[2]) ? `navTab('${g[2]}')` : `stack.length=0;setPage('${g[2]}')`;
     return `<button class="flex flex-col items-center gap-1 active:scale-95 transition" onclick="${act}">
     <span class="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xl">${g[0]}</span><span>${g[1]}</span></button>`;}).join('');
   $$('.mood').forEach(b=>b.onclick=()=>{ $$('.mood').forEach(x=>x.classList.remove('mood-on')); b.classList.add('mood-on');
@@ -1169,14 +1268,23 @@ function switchRecord(k){
     $('#'+w).classList.toggle('hidden',id!==k); const btn=$('#'+b); btn.className=(id===k?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500'); if(id===k)btn.classList.add('flex-1','rounded-lg','py-1.5');});
 }
 function renderRecords(){
-  $('#diaryList').innerHTML=D.diary.map(d=>`<div class="card">
-    <div class="flex items-center gap-2 text-xs"><b class="text-sm">${d.d}</b><span class="text-lg">${d.emo}</span><span class="text-slate-400">${d.m}</span>
-      ${d.img?`<span class="ml-auto text-slate-400">🖼 ×${d.img}</span>`:''}</div>
+  /* —— 日记：筛选 + 时间线卡片 —— */
+  $('#diaryFilter').innerHTML=['全部','🖼 有图片','#加班','#复盘','🏃 运动'].map((f,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this);toast('已按「${f}」筛选（模拟）')">${f}</button>`).join('');
+  $('#diaryList').innerHTML=D.diary.map(d=>`<div class="card mb-3" onclick="navTo('p-diaryEdit')">
+    <div class="flex items-center gap-2"><b class="text-sm">${d.d}</b><span class="text-[10px] text-slate-400">${d.wd} · ${d.wx}</span>
+      <span class="ml-auto flex items-center gap-1"><span class="text-lg">${d.emo}</span><span class="text-[10px] text-slate-400">${d.m}</span></span></div>
     <div class="text-sm leading-6 mt-1.5 text-slate-600 dark:text-slate-300">${d.txt}</div>
-    <div class="mt-2 flex gap-1 text-[10px]">${d.tags.map(t=>`<span class="chip !text-[10px]">#${t}</span>`).join('')}</div></div>`).join('')
-    +`<div class="mt-4 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 text-xs text-center text-slate-500 dark:text-slate-400">🗓 那年今日 · 1 年前 09-19<br><b>「今天和室友约了球…」</b> 点击查看</div>`;
-  $('#noteTags').innerHTML=D.noteTags.map((t,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${t}</button>`).join('');
-  $('#noteList').innerHTML=D.notes.map(n=>`<div class="card"><div class="text-sm font-bold">${n.t}</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5">${n.txt}</div><div class="text-[10px] text-brand-500 mt-2">🔗 ${n.ref}</div></div>`).join('');
+    ${d.img?`<div class="mt-2 flex gap-1.5">${Array.from({length:Math.min(4,d.img)},(_,i)=>`<span class="w-14 h-14 rounded-xl bg-gradient-to-br ${DI_IMG[i%3]}"></span>`).join('')}${d.img>4?`<span class="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-400">+${d.img-4}</span>`:''}</div>`:''}
+    <div class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">${d.tags.map(t=>`<span class="chip !text-[9px] !py-0.5">#${t}</span>`).join('')}<span class="ml-auto">☑ 关联 ${d.linked} · ${d.tm} 保存</span></div></div>`).join('')
+    +`<div class="mt-4 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 text-xs text-center text-slate-500 dark:text-slate-400" onclick="toast('打开 2025-09-19 日记')">🗓 那年今日 · 1 年前 09-19<br><b>「今天和室友约了球…」</b> 点击查看</div>`;
+  renderMoodMini();
+  /* —— 笔记：纯纯写作风列表 —— */
+  $('#noteTags').innerHTML=D.noteTags.map((t,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${i===0?'📂 ':'📁 '}${t}</button>`).join('')
+    +`<button class="chip whitespace-nowrap" onclick="toast('文件夹管理：新建/重命名/删除（模拟）')">⋯ 管理</button>`;
+  $('#noteList').innerHTML=D.notes.map(n=>`<div class="card mb-2.5" onclick="navTo('p-noteEdit')">
+    <div class="flex items-center gap-2"><b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
+    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div>
+    <div class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400"><span class="chip !text-[9px] !py-0.5">📁 ${n.folder}</span><span>${n.words} 字</span>${n.md?'<span class="chip !text-[9px] !py-0.5">M↓</span>':''}<span class="ml-auto text-emerald-500">● 已保存</span></div></div>`).join('');
   const sts=['在读','想读','已读','全部'];
   $('#bookStatusChips').innerHTML=sts.map((s,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${s}${s==='在读'?' 2':s==='已读'?' 1':''}</button>`).join('');
   $('#bookList').innerHTML=D.books.map(b=>`<div class="card flex gap-3 items-center" onclick="navTo('p-bookDetail')">
@@ -1193,6 +1301,21 @@ function pickMoodEdit(el){ $$('#editMood .mood').forEach(m=>m.classList.remove('
 function switchBookTab(k){ [['q','btQuote','bookQuotes'],['i','btThink','bookThinks'],['s','btSum','bookSumm']].forEach(([id,b,v])=>{ $('#'+v).classList.toggle('hidden',id!==k); $('#'+b).classList.toggle('on',id===k); }); }
 function insertSummary(){ $('#diaryText').value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ' ; $('#wordCount').textContent=$('#diaryText').value.length; toast('已插入自动概览，继续书写吧（联动 L2）'); }
 function saveDiary(){ toast('日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
+/* ================= 心情迷你月历 & 纯写作编辑器 ================= */
+const DI_IMG=['from-orange-300 to-rose-400','from-sky-300 to-indigo-400','from-emerald-300 to-teal-500'];
+function renderMoodMini(){const hs=['#6366f1','#2dd4bf','#f59e0b','#fb7185','#8b5cf6','#0ea5e9'];
+  $('#moodMini').innerHTML=Array.from({length:30},(_,i)=>`<button class="flex-1 rounded-t-sm" style="height:${25+((i*53)%4)*23}%;background:${hs[(i*7)%6]};opacity:.9" onclick="event.stopPropagation();toast('查看 09-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`).join('');}
+const PW_PAPERS=[['#fbf8f1','#403a31'],['#ffffff','#334155'],['#edf3ea','#37412f'],['#1e1d1b','#cfc9bd']];
+let pwPaper=0;
+function renderPapers(){$('#pwPapers').innerHTML=PW_PAPERS.map((p,i)=>`<button class="w-5 h-5 rounded-full border ${i===0?'border-brand-500':'border-slate-300 dark:border-slate-600'}" style="background:${p[0]}" onclick="pwSetPaper(${i})"></button>`).join('');}
+function pwSetPaper(i){pwPaper=i;const e=$('#p-noteEdit');e.style.setProperty('--pw-bg',PW_PAPERS[i][0]);e.style.setProperty('--pw-fg',PW_PAPERS[i][1]);
+  $$('#pwPapers button').forEach((b,j)=>b.className=`w-5 h-5 rounded-full border ${j===i?'border-brand-500':'border-slate-300 dark:border-slate-600'}`);}
+function pwFont(v){$('#pwBody').style.fontSize=v+'px';}
+function pwFocus(btn){const on=$('#pwBody').classList.toggle('pw-focus');btn.classList.toggle('on',on);toast(on?'聚焦模式：当前段高亮，其余段落淡出':'已关闭聚焦模式');}
+function exitNoteEdit(){toast('已保存 ✓ 并生成版本快照');stack.length?goBack():navTab('p-records');}
+function newNote(){toast('已新建空白笔记 · 进入纯写作模式');navTo('p-noteEdit');}
+function initPW(){renderPapers();
+  $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
 /* 导入向导 */
 let impN=1;
 function renderImp(){
@@ -1282,7 +1405,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid();
+renderDash(); renderChips(); renderTodos(); renderQuad(); renderCal(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); initPW();
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 </script>
 </body>
