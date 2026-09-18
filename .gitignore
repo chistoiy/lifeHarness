@@ -1,0 +1,27 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+.metadata
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+
+# 备份与临时产物（永不入库）
+*.lhbak
+*.bak
+tmp/
+backup/
+
+# 密钥/配置（WebDAV 凭据等，若后续生成本地配置文件）
+secrets/
+*.local.json
