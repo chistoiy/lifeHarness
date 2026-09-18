@@ -841,11 +841,11 @@ tailwind.config = {
         <div class="mt-3 card">
           <div class="row-title">写入示例（前 3 条）</div>
           <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between"><span>08-31 12:24 · 张记快餐</span><b class="text-rose-400">−¥32.00</b></div>
+            <div class="flex justify-between cursor-pointer" onclick="billCatCycle(this)"><span>08-31 12:24 · 张记快餐</span><span class="text-right"><b class="text-rose-400">−¥32.00</b><div class="text-[9px] text-slate-400">分类：<b class="bc">🍜 餐饮</b> · 点击手动修改</div></span></div>
             <div class="flex justify-between"><span>08-30 09:10 · T3 打车</span><b class="text-rose-400">−¥23.50</b></div>
             <div class="flex justify-between"><span>08-29 21:02 · 退款-某宝店铺</span><b class="text-emerald-500">+¥89.00</b></div>
           </div>
-          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销</div>
+          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销 · 逐笔点击可手动改分类</div>
         </div>
       </div>
       <!-- 步骤4 完成 -->
@@ -970,6 +970,12 @@ tailwind.config = {
         </div>
         <div class="flex justify-between text-[10px] text-slate-400 mt-1.5"><span>23:12 入睡</span><span>06:24 醒来</span><span>质量 82 分</span></div>
       </div>
+      <div class="mt-3 card">
+        <div class="row-title">🏃 运动记录 · 多模进度（与阅读/观影同构）</div>
+        <div class="mt-2 flex gap-2 text-xs items-center"><input id="spKm" class="inp w-20 !py-2" type="number" step="0.1" value="5"><span class="text-slate-400">km</span><input id="spMin" class="inp w-20 !py-2" type="number" value="32"><span class="text-slate-400">min</span><button class="mini-btn" onclick="sportCalc()">算配速</button><button class="mini-btn" onclick="sportSave()">保存并计时</button></div>
+        <div id="spOut" class="mt-1.5 text-xs font-bold min-h-[16px]" style="color:var(--accent)"></div>
+        <div class="text-[10px] text-slate-400 mt-1">支持三模：距离 / 时长 / 配速互算；保存后写入时间账本「运动」分类并自动重算均配速趋势（联动 L11）</div>
+      </div>
       <div class="mt-3 grid grid-cols-2 gap-3">
         <div class="card opacity-60" onclick="toast('运动记录排期 V1.x')"><div class="row-title">🏃 运动 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">跑步 32min · 将自动写入时间账本（联动 L11）</div></div>
         <div class="card opacity-60" onclick="toast('用药提醒排期 V1.x')"><div class="row-title">💊 用药 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">定时提醒 + 服药打卡日历</div></div>
@@ -1089,6 +1095,7 @@ tailwind.config = {
             <span id="growthTabs" class="flex gap-1"><button class="gc on" data-k="w" onclick="drawGrowth('w')">体重</button><button class="gc" data-k="h" onclick="drawGrowth('h')">身高</button><button class="gc" data-k="head" onclick="drawGrowth('head')">头围</button></span></div>
           <svg id="growthSvg" viewBox="0 0 320 142" class="w-full mt-2"></svg>
           <div class="text-[10px] text-slate-400" id="growthInfo"></div>
+          <div class="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400">显示模式<button class="mini-btn !text-[9px]" id="gModeBtn" onclick="gCycle()">百分位 P</button><span id="gValHint"></span></div>
         </div>
         <div class="card mt-3">
           <div class="row-title">💉 疫苗计划表</div>
@@ -1177,7 +1184,7 @@ tailwind.config = {
 
       <div class="card mt-4 text-[11px] text-slate-400 leading-6">
         <b class="text-slate-600 dark:text-slate-300 text-xs">关于</b><br>
-        LifeHarness 原型 · 需求 V1.14 · 全模块导航演示<br>
+        LifeHarness 原型 · 需求 V1.17 · 全模块导航演示<br>
         仅中文 ｜ 纯本地无账号 ｜ Android 8.0+ ｜ 离线优先 ｜ AI 能力可选增强<br>
         <span class="text-slate-300 dark:text-slate-600">习惯打卡已提前落地演示 · 番茄钟等其余 V1.x 功能入口带灰显 + 版本角标</span>
       </div>
@@ -1281,7 +1288,8 @@ tailwind.config = {
         <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="toast('添加自定义 OpenAI 兼容端点（模拟）')">+ 添加</button></div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>🐋 DeepSeek · <span class="font-mono text-[10px]">api.deepseek.com/v1</span></span><span class="flex items-center gap-2"><b class="text-emerald-500 text-[10px]">● 当前</b><span class="toggle on" onclick="tgl(this)"></span></span></div>
-          <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🦙 Ollama 本地 · <span class="font-mono text-[10px]">127.0.0.1:11434/v1</span>（全离线）</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🟤 Anthropic claude · <span class="font-mono text-[10px]">api.anthropic.com/v1</span>（Messages 协议适配，Key 独立存储）</span><span class="toggle" onclick="tgl(this)"></span></div>
+                 <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🦙 Ollama 本地 · <span class="font-mono text-[10px]">127.0.0.1:11434/v1</span>（全离线）</span><span class="toggle" onclick="tgl(this)"></span></div>
           <div class="text-[10px] text-slate-400">协议：OpenAI 兼容 Chat Completions · 请求仅发往已配置端点，应用自身零埋点</div>
         </div>
       </div>
@@ -1836,7 +1844,13 @@ function initDashOrder(){const p=$('#p-dashboard');
       dragCard.classList.remove('dragging');dragCard=null;toast('顺序已调整 · 布局已保存（模拟持久化）')});
     const h=document.createElement('div');h.className='dash-handle';
     h.innerHTML='<button class="mv-btn" title="上移" onclick="dashMove(this,-1)">↑</button><button class="mv-btn" title="下移" onclick="dashMove(this,1)">↓</button><span class="mv-btn cursor-grab" title="拖动">⾿</span>';
-    w.appendChild(h);});}
+    w.appendChild(h);});
+ applyDashOrder();}
+function saveDashOrder(){try{const ord=[...$$('#p-dashboard .dash-card')].map(c=>c.dataset.id);localStorage.setItem('lh_dash_order',JSON.stringify(ord))}catch(e){}}
+function applyDashOrder(){let ord=null;try{ord=JSON.parse(localStorage.getItem('lh_dash_order')||'null')}catch(e){}
+ if(!ord||!ord.length)return;const p=$('#p-dashboard');
+ ord.forEach(id=>{const c=$(`.dash-card[data-id="${id}"]`);if(c)p.appendChild(c)});
+ const f=$('#dashFooter');if(f)p.appendChild(f);}
 function dashMove(btn,dir){const c=btn.closest('.dash-card');const ref=dir<0?c.previousElementSibling:c.nextElementSibling;
   if(!ref||!ref.classList.contains('dash-card')){toast(dir<0?'已在第一位':'已在最后一位');return}
   c.parentNode.insertBefore(dir<0?c:ref,dir<0?ref:c);toast('顺序已调整 · 布局已保存（模拟持久化）');}
@@ -1845,7 +1859,7 @@ function dashToggle(){dashEditing=!dashEditing;
   $('#dashTip').classList.toggle('hidden',!dashEditing);
   $('#dashEditBtn').textContent=dashEditing?'✓ 完成':'⇄ 编排';
   $$('.dash-card').forEach(c=>c.setAttribute('draggable',dashEditing?'true':'false'));
-  if(!dashEditing)toast('主页布局已保存 · 下次启动保持此顺序（模拟）');}
+  if(!dashEditing){saveDashOrder();toast('主页布局已保存（localStorage 持久化）· 下次启动保持此顺序，刷新页面验证');}}
 function gotoDashEdit(){stack.length=0;setPage('p-dashboard');window.scrollTo(0,0);if(!dashEditing)dashToggle();}
 /* ================= 待办 ================= */
 let todoFilter=0, askState={imp:null,urg:null};
@@ -2084,7 +2098,7 @@ function mdInline(s){s=esc2(s);
  s=s.replace(/\*([^*]+)\*/g,'<i>$1</i>');
  s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" class="underline" style="color:var(--accent)">$1</a>');
  return s;}
-function mdRender(src){const L=src.split('\n');let out='',i=0;
+function mdRender(src){src=String(src).replace(/\\\[/g,'$$').replace(/\\\]/g,'$$');const L=src.split('\n');let out='',i=0;
  const special=s=>/^(#{1,4}\s|>|\||```|\$\$|\s*[-*]\s|\s*\d+\.\s|---\s*$)/.test(s);
  while(i<L.length){const ln=L[i];
   const bm=ln.trim().match(/^\$\$(.+)\$\$$/);if(bm){out+='<div class="tex-block">'+latexMini(bm[1])+'</div>';i++;continue}
@@ -2120,6 +2134,10 @@ function pwSync(){if(!PW_TA)return;const html=mdRender(PW_TA.value);
  const p=$('#pwPrev');if(p)p.innerHTML=html;const vb=$('#pwViewBox');if(vb)vb.innerHTML=html;
  const n=PW_TA.value.replace(/\s/g,'').length;$('#pwCount').textContent=n+' 字 · 约 '+Math.max(1,Math.round(n/300))+' 分钟';}
 function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');return;}
+ if(k==='h'){const ta=PW_TA,s=ta.selectionStart,v=ta.value,ls=v.lastIndexOf('\n',s-1)+1;let ne=v.indexOf('\n',ls);if(ne===-1)ne=v.length;const line=v.slice(ls,ne);
+  const m=line.match(/^(#{1,6})\s/);const lv=m?(m[1].length>=6?0:m[1].length+1):1;
+  const rest=line.replace(/^#{1,6}\s?/,'');const nl=lv?'#'.repeat(lv)+' '+rest:rest;
+  ta.value=v.slice(0,ls)+nl+v.slice(ne);ta.focus();ta.setSelectionRange(ls+nl.length,ls+nl.length);pwSync();toast('标题级别：'+(lv?('h'+lv):'正文')+'（再点循环升级至 h6）');return;}
  const map={bold:['**','**'],ital:['*','*'],strike:['~~','~~'],code:['`','`'],math:['$','$'],h:['## ',''],quote:['> ',''],ul:['- ',''],task:['- [ ] ',''],hr:['\n---\n',''],table:['\n| 列 | 列 |\n| --- | --- |\n| 内容 | 内容 |\n',''],link:['[','](https://)'],img:['![图片说明](','https://)'],mathb:['\n$$','$$\n']};
  const w=map[k]||['',''];const ta=PW_TA,s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
  ta.value=v.slice(0,s)+w[0]+sel+w[1]+v.slice(e);ta.focus();
@@ -2133,7 +2151,8 @@ function billOpts(){const wx=billPlat==='微信支付';
   <label class="flex items-center justify-between"><span>${wx?'微信 zip 加密包 · 自动用申请密码解压':'支付宝 zip 加密包 · 自动用申请密码解压'}</span><span class="toggle on" onclick="tgl(this)"></span></label>
   <label class="flex items-center justify-between"><span>跳过「帮人代付 / 零钱通转入」等非支出流水</span><span class="toggle on" onclick="tgl(this)"></span></label>
   <label class="flex items-center justify-between"><span>退款冲抵记为负支出</span><span class="toggle on" onclick="tgl(this)"></span></label>
-  <label class="flex items-center justify-between"><span>分类未命中时 AI 辅助归类（需 Key）</span><span class="toggle" onclick="tgl(this)"></span></label>`;}
+  <label class="flex items-center justify-between"><span>分类未命中时 AI 辅助归类（需 Key）</span><span class="toggle" onclick="tgl(this)"></span></label>
+  <div class="flex items-center justify-between text-slate-400"><span>CSV 编码自适应（UTF-8 含 BOM / GBK 兜底转码）</span><b class="text-emerald-500">自动 ✓</b></div>`;}
 function renderBill(){
  $('#billStep').innerHTML=[1,2,3,4].map(n=>`<span class="imp-dot ${n<billN?'imp-done':''} ${n===billN?'imp-on':''}">${n<billN?'✓':n}</span>${n<4?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<billN?' !bg-brand-500':'')+'"></span>':''}`).join('');
  [1,2,3,4].forEach(n=>$('#bill'+n).classList.toggle('hidden',n!==billN));
@@ -2143,7 +2162,8 @@ function renderBill(){
 function billStep(d){if(d>0&&billN===1)toast('解析中… 识别到'+(billPlat==='微信支付'?'微信 17 行':'支付宝 18 行')+'表头前缀（模拟）');
  if(d>0&&billN===2)toast('解析完成：128 条 · 按交易单号命中重复 41 条');
  billN=Math.min(4,Math.max(1,billN+d));renderBill();
- if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销');}
+ if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销 · 大额数码支出可一键升级物品建档（L12）');}
+function billCatCycle(el){const b=el.querySelector('.bc');if(!b)return;const seq=['🍜 餐饮','🧾 其他','🥤 饮品','💻 数码→可升级物品建档'];b.textContent=seq[(seq.indexOf(b.textContent)+1)%seq.length];toast('逐笔手动改分类演示 · 确认后将按修改值写入')}
 /* 导入向导 */
 let impN=1;
 function renderImp(){
@@ -2250,13 +2270,13 @@ const TOOLS={
  datec:{ic:'🗓️',nm:'日期计算',html:()=>`<div class="text-xs font-bold mb-1.5">① 两日期间隔</div><div class="flex gap-2 items-center"><input type="date" id="dA" class="inp flex-1 !py-2 text-xs" value="2026-01-01"><span class="text-slate-400">→</span><input type="date" id="dB" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><button class="mini-btn" onclick="dCalcDiff()">算</button></div><div id="dDiff" class="mt-1.5 text-xs text-brand-500 font-bold min-h-[18px]"></div><div class="text-xs font-bold mt-4 mb-1.5">② 日期 ± 天数</div><div class="flex gap-2 items-center"><input type="date" id="dC" class="inp flex-1 !py-2 text-xs" value="2026-09-19"><span class="text-slate-400">+</span><input type="number" id="dN" class="inp w-20 !py-2 text-xs" value="100"><button class="mini-btn" onclick="dCalcAdd()">算</button></div><div id="dAdd" class="mt-1.5 text-xs font-bold min-h-[18px]" style="color:#0d9488"></div><div class="mt-3 text-[10px] text-slate-400">正式版：结果可一键生成「重要日子」倒数日（联动 L10）</div>`},
  imgz:{ic:'🖼️',nm:'图片缩小',html:()=>`<label class="block card text-center cursor-pointer !bg-slate-50 dark:!bg-slate-800/60"><input type="file" accept="image/*" onchange="imgzLoad(this)" class="hidden"><div class="text-2xl">📥</div><div class="text-xs mt-1 font-semibold">选择图片（全程本地 canvas 处理，不上传）</div></label><div id="imgzBox" class="hidden mt-3"><img id="imgzPrev" class="w-full max-h-40 object-contain rounded-xl bg-slate-100 dark:bg-slate-800 p-2"><div class="mt-2 flex items-center gap-2 text-xs"><span class="text-slate-400">质量</span><input type="range" id="imgzQ" min="20" max="90" value="60" class="flex-1" oninput="imgzGo()"><b id="imgzQL" class="w-6">60</b></div><div id="imgzInfo" class="mt-2 text-xs leading-6"></div><a id="imgzDl" class="hidden mt-1 mini-btn inline-block" download="compressed.jpg">💾 保存压缩结果</a></div>`},
  aiapi:{ic:'🔌',nm:'AI API 验证',html:()=>`<div class="text-[11px] text-slate-400 leading-5 mb-2">供「设置 → AI 增强」使用：验证服务商 / Key / 模型是否可用。默认采用 OpenAI 兼容 Chat Completions 协议，请求仅发往下方填写的地址。</div>
- <select id="aiProvider" onchange="aiPick()" class="inp w-full text-xs"><option>DeepSeek</option><option>OpenAI</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地）</option><option>自定义</option></select>
+ <select id="aiProvider" onchange="aiPick()" class="inp w-full text-xs"><option>DeepSeek</option><option>OpenAI</option><option>Anthropic</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地）</option><option>自定义</option></select>
  <input id="aiUrl" class="inp mt-2 w-full text-xs" value="https://api.deepseek.com/v1" placeholder="Base URL，如 https://api.xxx.com/v1">
  <div class="mt-2 grid grid-cols-2 gap-2"><input id="aiKey" type="password" class="inp text-xs" placeholder="API Key · sk-..."><input id="aiModel" class="inp text-xs" value="deepseek-chat" placeholder="模型名"></div>
  <textarea id="aiPrompt" rows="2" class="inp mt-2 w-full text-xs" placeholder="验证提示词">请只回复四个字：连接成功</textarea>
  <div class="mt-2 flex gap-2"><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(0)">🚀 发送真实验证请求</button><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(1)">🎭 模拟演示</button></div>
  <div id="aiRes" class="mt-3 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[74px] text-[11px] font-mono leading-5 break-all"><div class="opacity-50">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 / 429 限流 / 404 模型名 / CORS 网络）。</div></div>
- <div class="mt-2 text-[10px] text-slate-400 leading-5">⚠️ 浏览器原型环境下部分 API 会被 CORS 拦截而显示「网络/CORS 失败」，这是原型限制而非 Key 错误；正式 Flutter 版为原生 HTTP 请求，无此限制。验证通过后，设置页 AI 能力矩阵方可逐项开启。</div>`}
+ <div class="mt-2 text-[10px] text-slate-400 leading-5">支持两套协议适配：OpenAI 兼容（默认）与 Anthropic Messages API（x-api-key + anthropic-version）。⚠️ 浏览器原型环境下部分 API 会被 CORS 拦截而显示「网络/CORS 失败」，这是原型限制而非 Key 错误；正式 Flutter 版为原生 HTTP 请求，无此限制。验证通过后，设置页 AI 能力矩阵方可逐项开启。</div>`}
 };
 const TOOL_CATS=[['🌐 网络',['ping','speed']],['📏 长度',['ruler','dist']],['🎲 随机',['wheel','rand']],['🎨 色彩',['pick','comp']],['🧮 计算',['datec']],['🖼 图片',['imgz']],['🤖 智能',['aiapi']]];
 let PLUGINS=[{n:'摩斯电码',src:'本地 · plugins/morse.h5.zip'},{n:'分贝计',src:'GitHub · lifeharness/lh-plugin-decibel v0.3'}];
@@ -2314,22 +2334,25 @@ function imgzGo(){if(!IMGO)return;const q=+$('#imgzQ').value;$('#imgzQL').textCo
     const a=$('#imgzDl');a.href=URL.createObjectURL(b);a.classList.remove('hidden');},'image/jpeg',q/100);}
 /* —— AI API 验证 —— */
 const esc2=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-chat'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
+const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-chat'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Anthropic':['https://api.anthropic.com/v1','claude-3-5-haiku-latest'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
 function aiPick(){const p=AI_PROVIDERS[$('#aiProvider').value];if(!p)return;if(p[0])$('#aiUrl').value=p[0];if(p[1])$('#aiModel').value=p[1];}
 async function aiTest(mock){const box=$('#aiRes');
  if(mock){box.innerHTML='<div style="color:#94a3b8">⚤ 模拟请求中…</div>';setTimeout(()=>{box.innerHTML='<div style="color:#86efac">✔ 200 OK（模拟）· 812ms</div><div>模型回复：连接成功</div><div style="color:#94a3b8">usage: prompt 9 + completion 4 tokens</div><div style="color:#86efac">验证通过 · 设置页 AI 能力矩阵已可开启（模拟不校验真实 Key）</div>'},900);return;}
- const base=$('#aiUrl').value.trim().replace(/\/+$/,'');const key=$('#aiKey').value.trim();const model=$('#aiModel').value.trim();const url=base+'/chat/completions';
+ const base=$('#aiUrl').value.trim().replace(/\/+$/,'');const prov=(($('#aiProvider')&&$('#aiProvider').value)||'').trim();const anth=prov==='Anthropic';const key=$('#aiKey').value.trim();const model=$('#aiModel').value.trim();const url=base+(anth?'/messages':'/chat/completions');
  if(!base){box.innerHTML='<div style="color:#fb7185">✖ 请填写 Base URL</div>';return;}
  if(!key){box.innerHTML='<div style="color:#fb7185">✖ 请先填入 API Key（或使用模拟演示查看交互效果）</div>';return;}
- box.innerHTML='<div style="color:#94a3b8">⚤ POST '+esc2(url)+' · model='+esc2(model||'default')+' …</div>';
+ box.innerHTML='<div style="color:#94a3b8">⚤ POST '+esc2(url)+' · '+esc2(anth?'Anthropic Messages API（协议适配）':'OpenAI 兼容')+' · model='+esc2(model||'default')+' …</div>';
  const t0=Date.now();const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
  try{
-  const r=await fetch(url,{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||undefined,messages:[{role:'user',content:$('#aiPrompt').value.trim()||'请只回复四个字：连接成功'}],max_tokens:30})});
+  const pTxt=$('#aiPrompt').value.trim()||'请只回复四个字：连接成功';
+  const hdr=anth?{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'}:{'Content-Type':'application/json','Authorization':'Bearer '+key};
+  const payload=anth?{model:model||undefined,max_tokens:64,messages:[{role:'user',content:pTxt}]}:{model:model||undefined,messages:[{role:'user',content:pTxt}],max_tokens:30};
+  const r=await fetch(url,{method:'POST',signal:ctl.signal,headers:hdr,body:JSON.stringify(payload)});
   clearTimeout(to);const ms=Date.now()-t0;
   if(!r.ok){const txt=esc2((await r.text().catch(()=>'')).slice(0,180));
    box.innerHTML=`<div style="color:#fb7185">✖ HTTP ${r.status} · ${ms}ms</div><div>${r.status===401?'Key 无效或无权限 —— 请核对 Key 与服务商是否匹配':r.status===403?'无权访问该模型 / 地区限制':r.status===404?'模型名或路径错误 —— 检查 Model 与 Base URL':r.status===429?'限流或余额不足':'服务端错误'}${txt?`<div style="color:#94a3b8">${txt}</div>`:''}</div>`;return;}
-  const j=await r.json();const c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||(j.output_text||JSON.stringify(j).slice(0,200));
-  box.innerHTML=`<div style="color:#86efac">✔ 200 OK · ${ms}ms</div><div>模型回复：${esc2(c)}</div><div style="color:#94a3b8">usage: ${(j.usage&&j.usage.prompt_tokens!=null)?(j.usage.prompt_tokens+' + '+(j.usage.completion_tokens||'?')+' tokens'):'n/a'} · endpoint 与 Key 有效，验证通过</div><div style="color:#86efac">→ 可前往设置页逐项开启 AI 能力矩阵</div>`;
+  const j=await r.json();const c=(anth&&j.content&&j.content[0]&&j.content[0].text)||(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||(j.output_text||JSON.stringify(j).slice(0,200));
+  box.innerHTML=`<div style="color:#86efac">✔ 200 OK · ${ms}ms</div><div>模型回复：${esc2(c)}</div><div style="color:#94a3b8">usage: ${(j.usage&&j.usage.prompt_tokens!=null)?(j.usage.prompt_tokens+' + '+(j.usage.completion_tokens!=null?j.usage.completion_tokens:j.usage.output_tokens)+' tokens'):(j.usage&&j.usage.input_tokens!=null?j.usage.input_tokens+' + '+j.usage.output_tokens+' tokens':'n/a')} · endpoint 与 Key 有效，验证通过</div><div style="color:#86efac">→ 可前往设置页逐项开启 AI 能力矩阵</div>`;
  }catch(err){clearTimeout(to);
   box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
 }
@@ -2424,7 +2447,7 @@ function endFeed(){if(!ftTimer)return;const s=Math.floor((Date.now()-ftT0)/1000)
 const GROWTH={w:{pts:[3.3,4.5,5.6,6.3,6.9,7.4,7.8,8.3,8.9],info:'体重 8.9kg · 近 P62 · 上月 +0.6kg · 曲线平滑正常',col:'#6366f1'},
  h:{pts:[49.9,54.7,58.4,61.4,63.9,65.9,67.6,69.2,71],info:'身高 71cm · 近 P75 · 遗传目标身高预测 172±5cm',col:'#2dd4bf'},
  head:{pts:[34.2,36.3,38.1,39.5,40.8,41.9,42.8,43.7,44.5],info:'头围 44.5cm · 近 P85 · 连续跟随自身曲线',col:'#f59e0b'}};
-function drawGrowth(k){const g=GROWTH[k],el=$('#growthSvg');if(!el)return;const xs=16,xe=304;const vs=g.pts;const lo=Math.min(...vs)*.78,hi=Math.max(...vs)*1.1;
+function drawGrowth(k){gCur=k;const g=GROWTH[k],el=$('#growthSvg');if(!el)return;const xs=16,xe=304;const vs=g.pts;const lo=Math.min(...vs)*.78,hi=Math.max(...vs)*1.1;
  const X=i=>xs+i*((xe-xs)/(vs.length-1)),Y=v=>126-((v-lo)/(hi-lo))*108;
  const line=f=>vs.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+','+Y(v*f).toFixed(1)).join(' ');
  el.innerHTML=`<path d="${line(1.13)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
@@ -2435,7 +2458,15 @@ function drawGrowth(k){const g=GROWTH[k],el=$('#growthSvg');if(!el)return;const 
   ${vs.map((v,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3" fill="${g.col}"/>`).join('')}
   ${vs.map((v,i)=>`<text x="${X(i).toFixed(1)}" y="138" font-size="7" fill="#94a3b8" text-anchor="middle">${i}m</text>`).join('')}
   <text x="300" y="14" font-size="7" fill="#94a3b8" text-anchor="end">P97 · P50 · P3（虚线带）</text>`;
- $$('#growthTabs .gc').forEach(b=>b.classList.toggle('on',b.dataset.k===k));$('#growthInfo').textContent=g.info;}
+ $$('#growthTabs .gc').forEach(b=>b.classList.toggle('on',b.dataset.k===k));$('#growthInfo').textContent=g.info;gPaint();}
+let gCur='w',gMode=0;
+const GVALS={w:['处于 P62 百分位','高于均值 +0.9 SD','Z 分数 +0.35'],h:['处于 P75 百分位','高于均值 +1.2 SD','Z 分数 +0.47'],head:['处于 P85 百分位','高于均值 +1.6 SD','Z 分数 +0.62']};
+function gPaint(){const b=$('#gModeBtn');if(!b)return;const names=['百分位 P','标准差 SD','Z 分数 Z'];b.textContent=names[gMode];const h=$('#gValHint');if(h)h.textContent=GVALS[gCur][gMode]+' · 点击切换';}
+function gCycle(){gMode=(gMode+1)%3;gPaint();const names=['百分位（对照 WHO P3/P50/P97 带）','标准差（SD，偏离均值倍数）','Z 分数（=SD 的同义学术表达）'];toast('显示模式：'+names[gMode])}
+function sportCalc(){const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;const el=$('#spOut');if(!km||!mn){el.textContent='请填写距离与时长';return}
+ const p=mn/km,pm=Math.floor(p),sec=Math.round((p-pm)*60);el.textContent=`配速 ${pm}′${String(sec).padStart(2,'0')}″/km · ${km}km=${mn}min 三模互算 ✓`;}
+function sportCalc0(){sportCalc()}
+function sportSave(){sportCalc();const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;if(!km||!mn)return;toast('🏃 已存：运动 '+km+'km / '+mn+'min → 写入时间账本「运动」（L11）· 可发起运动计时（复用悬浮计时条）')}
 let VAX=[{n:'手足口病灭活疫苗 第1剂',due:'2026-10-12',st:'plan'},{n:'流脑 A群多糖 第1剂',due:'2026-11-02',st:'plan'},{n:'乙脑减毒 第1剂',due:'2026-09-08',st:'done'},{n:'乙肝第3剂',due:'2026-07-15',st:'done'}];
 function renderVax(){const el=$('#vaxList');if(!el)return;
  el.innerHTML=VAX.map((x,i)=>`<div class="flex items-center gap-2.5 ${x.st==='done'?'opacity-55':''} bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>${x.st==='done'?'✅':'💉'}</span><div class="flex-1 min-w-0"><b>${x.n}</b><div class="text-[9px] text-slate-400">${x.st==='done'?'已接种 · 接种记录可拍照归档':'计划 '+x.due+' · 提前 7 天提醒'}</div></div>${x.st==='plan'?`<button class="mini-btn !text-[10px]" onclick="vaxDone(${i})">完成</button>`:`<button class="text-[10px] text-slate-400 font-bold" onclick="toast('查看接种凭证照片（本地图档）')">凭证</button>`}</div>`).join('');}
