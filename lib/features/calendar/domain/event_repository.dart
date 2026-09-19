@@ -1,7 +1,9 @@
 import '../../../core/host/event_bus.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../data/event_dao.dart';
+import '../data/time_block_dao.dart';
 import '../domain/cal_event.dart';
+import 'time_block.dart';
 
 /// 冲突对（同区间重叠的两条计划中日程）。
 class EventConflict {
@@ -13,10 +15,11 @@ class EventConflict {
 
 /// 日程仓库：两态流（▶开始/■结束 + 耗时回填 L1/L4）与冲突检测。
 class EventRepository {
-  EventRepository(this._dao, this._bus);
+  EventRepository(this._dao, this._bus, {TimeBlockDao? tbDao}) : _tbDao = tbDao;
 
   final EventDao _dao;
   final EventBus _bus;
+  final TimeBlockDao? _tbDao;
 
   Future<List<CalEvent>> listAll() => _dao.listAll();
 
@@ -55,6 +58,23 @@ class EventRepository {
     final now = DateTime.now();
     final dur = now.difference(active.start).inMinutes.clamp(1, 1 << 30);
     await _dao.setStatus(active.id!, EventStatus.done, durationMin: dur, endAt: now);
+    // L4：回填为格子时间块（工作分类，原型 endNow 行为），覆盖同区间旧手动标记。
+    final tb = _tbDao;
+    if (tb != null && active.id != null) {
+      final day0 = DateTime(active.start.year, active.start.month, active.start.day);
+      final sMin = active.start.hour * 60 + active.start.minute;
+      final eMin = (now.difference(day0).inMinutes).clamp(sMin + 1, 1440);
+      await tb.removeOverlapping(day0, sMin, eMin);
+      await tb.insert(TimeBlock(
+        day: day0,
+        startMin: sMin,
+        endMin: eMin,
+        category: BlockCat.work,
+        note: active.title,
+        source: 'event',
+        eventId: active.id,
+      ));
+    }
     _bus.publish(TimeTrackingEvent(active.id!, false, now.millisecondsSinceEpoch));
     return active.copyWith(status: EventStatus.done, durationMin: dur, end: now);
   }

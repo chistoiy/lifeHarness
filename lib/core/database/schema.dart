@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 2;
+  static const int version = 3;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -21,6 +21,8 @@ class DbSchema {
   static const String tHealth = 'health_records';
   static const String tFinance = 'finance_txns';
   static const String tItems = 'items';
+  // v3：格子时间块标记（需求 V1.4，L4 时间账本数据源）
+  static const String tTimeBlocks = 'time_blocks';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -148,10 +150,46 @@ class DbSchema {
       meta TEXT
     )
     ''',
+
+    // v3 格子时间块标记（day=当日 00:00 epoch ms；start/end=分钟 0-1440；
+    // source: mark=手动标记 event=日程回填；L4 时间账本数据源）
+    '''
+    CREATE TABLE $tTimeBlocks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      day INTEGER NOT NULL,
+      start_min INTEGER NOT NULL,
+      end_min INTEGER NOT NULL,
+      category TEXT NOT NULL DEFAULT '其他',
+      note TEXT,
+      source TEXT NOT NULL DEFAULT 'mark',
+      event_id INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX idx_blocks_day ON $tTimeBlocks(day)',
   ];
 
-  /// 逐级迁移：key = 升级前版本（from）。v2：todos 增 tag 标签列（保真对齐包）。
+  /// 逐级迁移：key = 升级前版本（from）。v2：todos 增 tag 标签列（保真对齐包）；
+  /// v3：新增 time_blocks 格子标记表（业务②b）。
   static const Map<int, List<String>> migrations = {
     1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
+    2: [
+      '''
+      CREATE TABLE IF NOT EXISTS $tTimeBlocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day INTEGER NOT NULL,
+        start_min INTEGER NOT NULL,
+        end_min INTEGER NOT NULL,
+        category TEXT NOT NULL DEFAULT '其他',
+        note TEXT,
+        source TEXT NOT NULL DEFAULT 'mark',
+        event_id INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+      ''',
+      'CREATE INDEX IF NOT EXISTS idx_blocks_day ON $tTimeBlocks(day)',
+    ],
   };
 }

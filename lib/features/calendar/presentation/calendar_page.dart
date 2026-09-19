@@ -6,6 +6,7 @@ import '../domain/cal_event.dart';
 import '../domain/event_repository.dart';
 import 'calendar_providers.dart';
 import 'widgets/event_sheet.dart';
+import 'widgets/grid_day_view.dart';
 
 /// 模块1 日程（M0 业务② · 对齐原型 p-calendar）。
 /// 月历 42 格固定不跳版 / 三色圆点 / 智能折叠周行+滑动切天 / 日·周·月三视图 /
@@ -139,8 +140,14 @@ class CalendarPage extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 12),
+            if (view == 'day') ...[
+              const _DayModeBar(),
+              const SizedBox(height: 8),
+            ],
             switch (view) {
-              'day' => _DayTimeline(selected: selected, events: events),
+              'day' => ref.watch(dayModeProvider) == 'grid'
+                  ? GridDayView(day: selected)
+                  : _DayTimeline(selected: selected, events: events),
               'week' => _WeekLanes(wds: _wds, selected: selected, events: events),
               _ => _MonthList(monthStart: monthStart, events: events),
             },
@@ -394,6 +401,72 @@ class _WeekStrip extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 日视图子模式条：时间轴 / 格子·时间块 + 粒度下拉（原型 calDayMode）。
+class _DayModeBar extends ConsumerWidget {
+  const _DayModeBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final mode = ref.watch(dayModeProvider);
+    final gran = ref.watch(granularityProvider);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: scheme.onSurface.withValues(alpha: .06),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (m, label) in const [('line', '时间轴'), ('grid', '格子·时间块')])
+                GestureDetector(
+                  onTap: () => ref.read(dayModeProvider.notifier).state = m,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: mode == m ? scheme.surface : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: mode == m ? tokens.cardShadow : null,
+                    ),
+                    child: Text(label,
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: mode == m ? scheme.onSurface : scheme.onSurfaceVariant)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (mode == 'grid') ...[
+          const SizedBox(width: 10),
+          Text('粒度', style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
+          const SizedBox(width: 4),
+          DropdownButton<int>(
+            value: gran,
+            isDense: true,
+            underline: const SizedBox.shrink(),
+            items: const [
+              DropdownMenuItem(value: 1, child: Text('1 分钟', style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(value: 5, child: Text('5 分钟', style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(value: 10, child: Text('10 分钟', style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(value: 15, child: Text('15 分钟', style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(value: 30, child: Text('30 分钟', style: TextStyle(fontSize: 12))),
+              DropdownMenuItem(value: 60, child: Text('60 分钟', style: TextStyle(fontSize: 12))),
+            ],
+            onChanged: (v) => ref.read(granularityProvider.notifier).state = v ?? 15,
+          ),
+        ],
+      ],
     );
   }
 }
