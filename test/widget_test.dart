@@ -23,9 +23,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 今天页 hero 与底栏五个栏目。
+    // 今天页问候卡与底栏五个栏目（原型保真版）。
     expect(find.text('今天'), findsWidgets);
-    expect(find.textContaining('LifeHarness · 你的生活'), findsOneWidget);
+    expect(find.textContaining('今天有'), findsOneWidget);
+    expect(find.textContaining('第 '), findsOneWidget); // 副标题记录天数
     for (final label in ['今天', '待办', '日程', '日记', '我的']) {
       expect(find.text(label), findsWidgets, reason: '底栏应含 $label');
     }
@@ -37,10 +38,12 @@ void main() {
     expect(find.text('四象限'), findsWidgets);
     expect(find.byIcon(Icons.add), findsWidgets);
 
-    // 切到我的/设置，主题选择器存在。
+    // 切到我的/设置：首屏资料卡 + 滚动到主题预览网格。
     await tester.tap(find.text('我的').last);
     await tester.pumpAndSettle();
-    expect(find.text('主题风格'), findsOneWidget);
+    expect(find.textContaining('本地模式 · 无账号'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('🎨 主题风格'), 120,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('海洋深蓝'), findsOneWidget);
   });
 }

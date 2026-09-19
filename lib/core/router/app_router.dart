@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../nav/nav_module.dart';
 import '../providers.dart';
 import '../theme/app_theme.dart';
 import '../../features/calendar/presentation/calendar_page.dart';
@@ -36,7 +37,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// 底部导航骨架：根据用户设置的可配置栏目渲染（今天/我的固定，≤5）。
+/// 底部导航（原型规范：线性图标 + 文字在下 + 选中态主题色 + 顶部小横条；
+/// 栏目可配置，今天/我的固定，≤5）。
 class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.currentPath, required this.child});
 
@@ -53,23 +55,80 @@ class HomeShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: tokens.navBg,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: tokens.accent.withValues(alpha: 0.14),
-        elevation: 0,
-        selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-        onDestinationSelected: (i) {
-          final m = navModules[i];
-          if (m.path != currentPath) context.go(m.path);
-        },
-        destinations: [
-          for (final m in navModules)
-            NavigationDestination(
-              icon: Icon(m.icon),
-              selectedIcon: Icon(m.iconActive),
-              label: m.label,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: tokens.navBg,
+          border: Border(top: BorderSide(color: tokens.navBorder)),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 62,
+            child: Row(
+              children: [
+                for (var i = 0; i < navModules.length; i++)
+                  Expanded(
+                    child: _NavTab(
+                      module: navModules[i],
+                      selected: i == selectedIndex,
+                      accent: tokens.accent,
+                      onTap: () {
+                        final m = navModules[i];
+                        if (m.path != currentPath) context.go(m.path);
+                      },
+                    ),
+                  ),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTab extends StatelessWidget {
+  const _NavTab({
+    required this.module,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final NavModule module;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).colorScheme.onSurface;
+    final color = selected ? accent : base.withValues(alpha: .62);
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 选中态顶部小横条指示
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 16,
+            height: 3,
+            decoration: BoxDecoration(
+              color: selected ? accent : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Icon(selected ? module.iconActive : module.icon, size: 22, color: color),
+          const SizedBox(height: 2),
+          Text(
+            module.label,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: color,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
