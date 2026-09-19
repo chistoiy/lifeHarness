@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../nav/nav_module.dart';
 import '../providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/timer_bar.dart';
 import '../../features/calendar/presentation/calendar_page.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
@@ -54,7 +55,7 @@ class HomeShell extends ConsumerWidget {
     final selectedIndex = navModules.indexWhere((m) => m.path == currentPath);
 
     return Scaffold(
-      body: child,
+      body: TimerBarOverlay(child: child),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: tokens.navBg,

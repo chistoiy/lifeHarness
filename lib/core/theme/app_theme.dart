@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'theme_tokens.dart';
 
+export 'theme_tokens.dart' show ThemeTokens, ThemeMeta;
+
 /// 通过 [ThemeExtension] 把设计令牌注入 widget 树，页面可 `context.tokens` 取用。
 @immutable
 class AppTokens extends ThemeExtension<AppTokens> {

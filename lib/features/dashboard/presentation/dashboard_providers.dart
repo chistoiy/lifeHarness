@@ -1,11 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../calendar/presentation/calendar_providers.dart';
+import '../../todo/presentation/todo_providers.dart';
 
 /// 仪表盘聚合查询（骨架阶段直查 DB；M1 起按计划书迁 shared/linkage 服务）。
+/// 各 provider watch 对应源列表，源变更后自动重算。
 
 /// 今日日程数（start_at 落在今日）。
 final todayEventCountProvider = FutureProvider<int>((ref) async {
+  ref.watch(eventsProvider);
   final db = AppDatabase.instance.db;
   final now = DateTime.now();
   final dayStart = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
@@ -26,6 +30,8 @@ final inboxPendingCountProvider = FutureProvider<int>((ref) async {
 
 /// 连续记录天数（todos/journal/events 任一有活动的自然日去重计数，骨架近似）。
 final streakDaysProvider = FutureProvider<int>((ref) async {
+  ref.watch(todosProvider);
+  ref.watch(eventsProvider);
   final db = AppDatabase.instance.db;
   final rows = await db.rawQuery('''
     SELECT COUNT(DISTINCT (created_at / 86400000)) c FROM (
@@ -39,6 +45,7 @@ final streakDaysProvider = FutureProvider<int>((ref) async {
 
 /// 已完成任务总数（我的页统计宫格）。
 final doneTaskCountProvider = FutureProvider<int>((ref) async {
+  ref.watch(todosProvider);
   final db = AppDatabase.instance.db;
   final rows =
       await db.rawQuery('SELECT COUNT(*) c FROM todos WHERE done = 1');
