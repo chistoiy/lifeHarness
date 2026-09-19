@@ -389,7 +389,6 @@ tailwind.config = {
             <span id="hdY" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
             <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
             <span id="hdD" class="cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
-            <span class="text-[9px] font-normal text-slate-400 ml-1" id="calSub">操作下方自动收起 · 点年月日跳转</span>
           </div>
         </div>
         <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
@@ -401,7 +400,6 @@ tailwind.config = {
             <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="day" onclick="switchCalView('day');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">◫</span>日 · 小时</button>
             <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="week" onclick="switchCalView('week');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">▤</span>周 · 7×24</button>
           </div>
-          <button class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-[15px]" onclick="toast('全局搜索（M1 上线）')">🔍</button>
         </div>
       </div>
       <!-- 展开态：迷你月历（有事项的天右下角显圆点） -->
@@ -413,10 +411,9 @@ tailwind.config = {
       </div>
       <!-- 收起态：单周行（左右滑动切天，滑动幅度超阈值即换天） -->
       <div id="weekStrip" class="hidden mt-2 card !p-2 select-none" style="touch-action:pan-y">
-        <div class="flex items-center text-[9px] text-slate-400 px-1 mb-1"><span>👆 左右滑动切换天 · 点当前日展开月历</span><span class="ml-auto text-brand-500 font-bold cursor-pointer" onclick="expandMonth()">展开 ▾</span></div>
+        <div class="flex justify-end px-1 mb-0.5"><span class="text-[9px] text-brand-500 font-bold cursor-pointer" onclick="expandMonth()">展开 ▾</span></div>
         <div class="grid grid-cols-7 text-center gap-x-1" id="weekStripCells"></div>
       </div>
-      <button onclick="openTimePick(calDay,(new Date().getHours()+1)%24,0)" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-brand-400 text-sm text-brand-500 font-bold active:bg-brand-50 dark:active:bg-brand-500/10">+ 新建日程（9月19日 · 09:00 - 10:00）</button>
       <div id="conflictTip" class="mt-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 p-3 text-xs hidden">⏱ <b>时间冲突：</b>「产品评审」与「与客户午餐」重叠 30 分钟，点击调整 ›</div>
       <!-- ① 轴视图：竖向时间轴（V1.22.1 去右侧分类栏·速记仅在块视图） -->
       <div id="calAxisView" class="hidden mt-3">
@@ -979,6 +976,17 @@ tailwind.config = {
           </svg>
           <div class="text-[10px] text-slate-400">近 7 天 · 达标线 7h ↗ 连续 3 天改善</div>
         </div>
+      </div>
+      <div class="mt-3 card">
+        <div class="row-title">⚖️ 身体数据 · 体重 / 身高 / BMI</div>
+        <div class="mt-2 grid grid-cols-3 text-center gap-2">
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdW">—</b><span class="text-[9px] text-slate-400 block" id="bdWd">kg</span></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg">175</b><span class="text-[9px] text-slate-400 block">cm 身高</span></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdB">—</b><span class="text-[9px] block" id="bdBm">BMI</span></div>
+        </div>
+        <div class="mt-2.5 flex items-center justify-between"><span class="text-[10px] text-slate-400">近 30 天体重曲线 · 单位 kg</span><button class="mini-btn" onclick="bodyRec()">＋ 记录</button></div>
+        <svg id="bdSvg" viewBox="0 0 300 64" class="w-full h-16 mt-1"></svg>
+        <div class="text-[9px] text-slate-400 mt-0.5">身高体重手动记录 · BMI 自动计算分级 · 曲线随记录更新（联动 L11 健康趋势）</div>
       </div>
       <div class="mt-3 card">
         <div class="row-title">🌙 昨晚睡眠详情（模拟）</div>
@@ -1912,7 +1920,7 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
 /* ================= 路由与导航 ================= */
 const stack=[]; let curPage='p-dashboard';
-const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间','四视图 · 记录每段时间在做什么'],
+const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
  'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签']};
@@ -2176,8 +2184,8 @@ function dpOk(){const m=WHEELS.dpM.items[WHEELS.dpM.i],d=+WHEELS.dpD.items[WHEEL
   if(m!=='09'){toast('已选 2026年'+m+'月（原型演示 · 真实版月历/时间轴跨月联动跳转）');return}
   setDay(d,d>calDay?1:-1);toast('已跳转到 9月'+d+'日')}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
-function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');$('#calSub').textContent='已收起为周 · 左右滑动切换天';renderWeekStrip()}
-function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');$('#calSub').textContent='月视图展开 · 在下方开始操作将自动收起';renderMonthGrid()}
+function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');renderWeekStrip()}
+function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');renderMonthGrid()}
 function calShift(n){if(monthExpanded){toast('切换上/下一月（模拟）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
 function initCalSwipe(){const el=$('#weekStrip');let x0=null;
  el.addEventListener('pointerdown',e=>{x0=e.clientX});
@@ -2198,7 +2206,7 @@ function endNow(){if(!liveEv)return;const now=new Date();const nm=now.getHours()
  endedEvs.push({t:liveEv.t,tm:fmt(Math.min(liveEv.s,nm)),e:fmt(Math.max(liveEv.s,nm)),dur:dur}); /* 进行中 → 已完成态（仍可查/改/删） */
  liveEv=null;renderCal();toast('✔ 结束时间 '+fmt(nm)+' · 耗时 '+dur+' 分钟 · 实际耗时已回填（L1）· 写入时间账本（L4）· 可用于周报复盘')}
 function renderTimeline(){const el=$('#timeAxis');if(!el)return;
- if(calDay!==19){el.innerHTML='<div class="card !py-6 text-center text-xs text-slate-400">当天暂无安排 · 点上方「+ 新建日程」补录（默认落在选中日）</div>';return}
+ if(calDay!==19){el.innerHTML='<div class="card !py-6 text-center text-xs text-slate-400">当天暂无安排 · 点空行或右下角 ＋ 补录</div>';return}
  let h='';
  if(liveEv){h+=`<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-rose-500 font-bold">${fmt(liveEv.s)}</span><span class="absolute -left-[9px] top-1 w-2.5 h-2.5 rounded-full bg-rose-400 animate-pulse"></span>
   <div class="card !py-2.5 !px-3 live-card flex items-center gap-2 cursor-pointer" onclick="openEventDetail('live')"><div class="flex-1"><div class="text-sm font-bold">${liveEv.t}</div><div class="text-[10px] text-rose-400 mt-0.5">● 进行中 · ${fmt(liveEv.s)} 开始 · 已 <b id="liveDur">0 分钟</b> · 点卡片可管理</div></div><button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="event.stopPropagation();endNow()">■ 结束</button></div></div>`}
@@ -2687,7 +2695,24 @@ function renderDays(){
     <div class="text-[10px] opacity-80 mt-1">${d.l}${d.d<0?' · 去处理 ›':''}</div></div>`).join('');
 }
 let waterN=5;
-function renderHealth(){
+let WEIGHTS=[69.2,69.1,69.3,69.0,68.8,69.1,69.0,68.9,69.2,68.8,68.7,69.0,68.6,68.9,68.5,68.8,68.6,68.4,68.7,68.5,68.3,68.6,68.4,68.2,68.5,68.3,68.1,68.4,68.2,68.5];
+function bmiOf(w){return w/Math.pow(1.75,2)}
+function bmiTag(b){return b<18.5?['偏瘦','text-sky-500']:b<24?['正常','text-emerald-500']:b<28?['超重','text-amber-500']:['肥胖','text-rose-500']}
+function renderBody(){const el=$('#bdSvg');if(!el)return;
+  const w=WEIGHTS,n=w.length,mn=Math.min(...w)-.3,mx=Math.max(...w)+.3;
+  const pts=w.map((v,i)=>[8+i*(284/(n-1)),56-(v-mn)/(mx-mn)*44]);
+  el.innerHTML=`<polyline points="${pts.map(x=>x[0].toFixed(1)+','+x[1].toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>`+
+   pts.map((x,i)=>i%7===0||i===n-1?`<circle cx="${x[0].toFixed(1)}" cy="${x[1].toFixed(1)}" r="2.2" fill="var(--accent)"/>`:'').join('')+
+   `<text x="4" y="10" font-size="8" fill="#94a3b8">${mx.toFixed(1)}</text><text x="4" y="62" font-size="8" fill="#94a3b8">${mn.toFixed(1)}</text><text x="${pts[n-1][0]-24}" y="${(pts[n-1][1]-6).toFixed(1)}" font-size="9" font-weight="700" fill="var(--accent)">${w[n-1].toFixed(1)}</text>`;
+  const cur=w[n-1],b=bmiOf(cur),tag=bmiTag(b);
+  $('#bdW').textContent=cur.toFixed(1);
+  $('#bdWd').textContent='kg · 周'+(cur>=w[n-8]?'+'+(cur-w[n-8]).toFixed(1):(cur-w[n-8]).toFixed(1));
+  $('#bdB').textContent=b.toFixed(1);
+  $('#bdBm').textContent='BMI '+tag[0];$('#bdBm').className='text-[9px] block '+tag[1]}
+function bodyRec(){const v=+(WEIGHTS[WEIGHTS.length-1]+(Math.random()*.6-.3)).toFixed(1);
+  WEIGHTS.push(v);if(WEIGHTS.length>30)WEIGHTS.shift();renderBody();
+  toast('⚖️ 已记录体重 '+v+' kg · BMI '+bmiOf(v).toFixed(1)+' · 曲线更新（联动 L11）')}
+function renderHealth(){renderBody();
   $('#waterRow').innerHTML=Array.from({length:8},(_,i)=>`<button onclick="setWater(${i+1})" class="flex-1 h-7 rounded-md text-[10px] ${i<waterN?'bg-sky-400 text-white':'bg-slate-200 dark:bg-slate-800'}">${i<waterN?'💧':''}</button>`).join('');
   $('#waterN').textContent=waterN;
   $('#heatCal').innerHTML=Array.from({length:28},(_,i)=>{const lv=[0,1,2,3][ (i*7+3)%4===0?0:(i%5===0?3:(i%3)) ];
@@ -2944,7 +2969,7 @@ const FAB_CFG={
  'p-dashboard':{ico:'＋',menu:true},
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
  'p-todo':{ico:'＋',act:()=>openSheet('sheetAddTask')},
- 'p-calendar':{ico:'📅',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
+ 'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
