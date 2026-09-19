@@ -245,6 +245,9 @@ tailwind.config = {
     <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
     </button>
+    <button id="btnTodoFilter" class="hidden w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleTodoFilter()" title="智能筛选">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4"/></svg>
+    </button>
   </header>
 
   <!-- ========== 页面容器 ========== -->
@@ -358,10 +361,15 @@ tailwind.config = {
         <button onclick="openSheet('sheetAddTask')" class="w-9 h-9 rounded-xl grad text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/30">+</button>
       </div>
 
+      <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · 清单视图只留列表防臃肿） -->
+      <div id="todoFilterPanel" class="hidden mt-3 card !p-3">
+        <div class="text-[10px] font-bold text-slate-400 mb-2">智能筛选 · 选择后自动收起</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="smartChips"></div>
+      </div>
+
       <!-- 清单视图 -->
       <div id="todoListWrap" class="mt-4">
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="smartChips"></div>
-        <div class="mt-3 space-y-2" id="todoList"></div>
+        <div class="space-y-2" id="todoList"></div>
         <button onclick="openSheet('sheetAddTask')" class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400 active:bg-slate-100 dark:active:bg-slate-900">+ 快速添加任务（支持自然语言·模拟）</button>
         <!-- 过期提示 -->
         <div class="mt-4 rounded-2xl bg-peach/10 border border-peach/30 p-3 flex gap-2 items-start">
@@ -1496,11 +1504,11 @@ tailwind.config = {
           </span>
         </div>
         <div id="tkPointRow" class="hidden mt-2 flex items-center gap-2 text-xs">
-          <span class="text-slate-400">时间点</span><select id="tkH" class="sel !py-1 flex-1"></select>:<select id="tkM" class="sel !py-1 flex-1"></select>
+          <span class="text-slate-400">时间点</span><button class="sel flex-1 text-center" id="tkPointBtn" onclick="openTimeWheel('point','时间点')">--:--</button>
         </div>
         <div id="tkRangeRow" class="hidden mt-2 flex items-center gap-2 text-xs">
-          <span class="text-slate-400">起始</span><select id="tkS" class="sel !py-1 flex-1"></select>
-          <span class="text-slate-400">结束</span><select id="tkE" class="sel !py-1 flex-1"></select>
+          <span class="text-slate-400">起始</span><button class="sel flex-1 text-center" id="tkStartBtn" onclick="openTimeWheel('start','起始时间')">--:--</button>
+          <span class="text-slate-400">结束</span><button class="sel flex-1 text-center" id="tkEndBtn" onclick="openTimeWheel('end','结束时间')">--:--</button>
         </div>
         <div id="tkAllRow" class="hidden mt-2 text-[10px] text-slate-400">全天 · 在日程视图顶部以横幅展示；时间段起止相同将自动转为全天</div>
         <div class="mt-2 flex items-center justify-between text-[11px]">
@@ -1556,6 +1564,23 @@ tailwind.config = {
         <button id="markDelBtn" onclick="delMark()" class="hidden px-5 py-3 rounded-xl border border-rose-300 text-rose-500 text-sm font-bold">取消标记</button>
         <button onclick="closeSheet('sheetGridMark')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">关闭</button>
         <button onclick="doMark()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确认标记</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 轮式时间选择（V1.26 · 与时间模块同款 · 待办时间点/段共用） ===== -->
+  <div id="sheetTimeWheel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTimeWheel')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="text-center font-extrabold" id="twTitle">时间</div>
+      <div class="mt-3 grid grid-cols-2 text-center">
+        <div><div id="twH"></div><span class="text-[9px] text-slate-400">时</span></div>
+        <div><div id="twM"></div><span class="text-[9px] text-slate-400">分</span></div>
+      </div>
+      <div class="mt-1 text-[10px] text-slate-400 text-center">上下滑动滚轮（原型以点选上/下项模拟）· 5 分一档</div>
+      <div class="mt-4 flex gap-3">
+        <button onclick="closeSheet('sheetTimeWheel')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+        <button onclick="twOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
       </div>
     </div>
   </div>
@@ -2000,6 +2025,8 @@ function setPage(p){
   if(_th)_th.classList.toggle('hidden',p==='p-calendar'&&stack.length===0);
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
+  $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
+  if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
 }
@@ -2121,7 +2148,8 @@ function dashToggle(){dashEditing=!dashEditing;
 function gotoDashEdit(){stack.length=0;setPage('p-dashboard');window.scrollTo(0,0);if(!dashEditing)dashToggle();}
 /* ================= 待办 ================= */
 let todoFilter=0, askState={imp:null,urg:null};
-function renderChips(){ $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
+function renderChips(){ $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();$('#todoFilterPanel').classList.add('hidden');toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
+function toggleTodoFilter(){const el=$('#todoFilterPanel');el.classList.toggle('hidden');if(!el.classList.contains('hidden'))el.scrollIntoView({behavior:'smooth',block:'nearest'})}
 function renderTodos(){
   $('#todoList').innerHTML=D.todos.map((t,i)=>`<div class="task-row card !py-3 flex items-center gap-3">
     <button onclick="tkToggle(${i})" class="chk ${t.done?'chk-on':''}">${t.done?'✓':''}</button>
@@ -2146,7 +2174,7 @@ function renderQuad(){
     ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="quadDrop(event,${i})">
     <div class="flex items-center gap-1.5 text-xs font-extrabold"><span class="w-2 h-2 rounded-full ${q.cls}"></span>${q.name}</div>
     <div class="text-[9px] text-slate-400 mb-2 ml-3.5">${q.act} · ${D.todos.filter(t=>t.q===i&&!t.done).length} 待办</div>
-    ${D.todos.map((t,ti)=>t.q===i?`<div draggable="true" ondragstart="quadDrag(event,${ti})" ondragend="this.classList.remove('dragging')" class="q-card mb-2 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 px-2.5 py-2 text-xs font-semibold cursor-grab active:cursor-grabbing ${t.done?'opacity-40 line-through':''}">${t.t}</div>`:'').join('')}
+    ${D.todos.map((t,ti)=>t.q===i?`<div draggable="true" ondragstart="quadDrag(event,${ti})" ondragend="this.classList.remove('dragging')" class="q-card mb-2 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 px-2.5 py-2 text-xs font-semibold cursor-grab active:cursor-grabbing flex items-center gap-1 ${t.done?'opacity-40 line-through':''}"><span class="flex-1 min-w-0 truncate">${t.t}</span><span class="shrink-0 w-5 h-5 -mr-1 rounded-full text-slate-300 hover:text-rose-500 text-center leading-5" title="关闭该待办" onclick="event.stopPropagation();tkToggle(${ti})">✕</span></div>`:'').join('')}
     <button class="text-[10px] text-slate-400 hover:text-brand-500" onclick="openSheet('sheetAddTask')">+ 添加</button></div>`).join('');
 }
 let dragIdx=null;
@@ -2159,14 +2187,16 @@ function addTask(){
   const v=$('#ntTitle').value.trim(); if(!v){ toast('请先输入任务标题'); return; }
   const imp=askState.imp??false, urg=askState.urg??false;
   const q=(imp&&urg)?0:imp?1:(urg?2:3);
+  if(tkSel.mode==='point'&&!tkTimes.point)tkTimes.point=curHM();
+  if(tkSel.mode==='range'){if(!tkTimes.start)tkTimes.start=curHM();if(!tkTimes.end)tkTimes.end=curHM();}
   const rec={t:v,tag:'',q,due:'今天',done:tsSel==='done',dropped:tsSel==='drop',imp,urg};
  if(tySel==='pomo')rec.pomo={mode:pmSel,min:pmSel==='down'?+$('#pmMin').value:0};
  if(tsSel==='drop')rec.tag='放弃';
  if($('#tsColor').value!=='默认')rec.color=$('#tsColor').value;
- if(tkSel.mode==='point'){rec.timeMode='point';rec.tm=String(+$('#tkH').value).padStart(2,'0')+':'+String(+$('#tkM').value).padStart(2,'0')}
- else if(tkSel.mode==='range'){const a=+$('#tkS').value,b=+$('#tkE').value;
-   if(a===b){rec.timeMode='all';toast('起止相同 · 已自动设为全天')}
-   else{rec.timeMode='range';rec.tm=String(a).padStart(2,'0')+':00';rec.te=String(b).padStart(2,'0')+':00'}}
+ if(tkSel.mode==='point'){rec.timeMode='point';rec.tm=hmStr(tkTimes.point)}
+ else if(tkSel.mode==='range'){
+   if(tkTimes.start.h===tkTimes.end.h&&tkTimes.start.m===tkTimes.end.m){rec.timeMode='all';toast('起止相同 · 已自动设为全天')}
+   else{rec.timeMode='range';rec.tm=hmStr(tkTimes.start);rec.te=hmStr(tkTimes.end)}}
  else if(tkSel.mode==='all'){rec.timeMode='all'}
  if(rec.timeMode&&$('#tkLink').checked){rec.linkCat=$('#tkCat').value}
  const hb=$('#tkHabit').value;if(hb!=='不绑定')rec.habit=hb;
@@ -2483,16 +2513,35 @@ function caSave(keep){const name=$('#caName').value.trim();if(!name){toast('请�
   if(!keep)goBack()}
 /* —— 待办设置时间三态（V1.19 · 图8-10 · 时间点/时间段/全天 → 落入日程视图） —— */
 let tkSel={mode:'none'};
+/* V1.26 · 时间选择统一轮式（与时间模块添加弹层同款）· 默认当前时间 */
+const TW_HRS=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+const TW_MINS=Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));
+let tkTimes={point:null,start:null,end:null}, twKey='point';
+function curHM(){const n=new Date();return {h:n.getHours(),m:Math.floor(n.getMinutes()/5)*5}}
+function hmStr(t){return String(t.h).padStart(2,'0')+':'+String(t.m).padStart(2,'0')}
 function tkMode(m){tkSel={mode:m};
+  if(m==='point'&&!tkTimes.point){tkTimes.point=curHM();$('#tkPointBtn').textContent=hmStr(tkTimes.point)}
+  if(m==='range'){if(!tkTimes.start){tkTimes.start=curHM()}if(!tkTimes.end){tkTimes.end=curHM()}
+    $('#tkStartBtn').textContent=hmStr(tkTimes.start);$('#tkEndBtn').textContent=hmStr(tkTimes.end)}
   [['none','tkNoneB'],['point','tkPointB'],['range','tkRangeB'],['all','tkAllB']].forEach(([k,b])=>{$('#'+b).className=(k===m?'seg-on':'')+' px-2.5 py-1 rounded-md'+(k===m?'':' text-slate-500')});
   $('#tkPointRow').classList.toggle('hidden',m!=='point');$('#tkPointRow').classList.toggle('flex',m==='point');
   $('#tkRangeRow').classList.toggle('hidden',m!=='range');$('#tkRangeRow').classList.toggle('flex',m==='range');
   $('#tkAllRow').classList.toggle('hidden',m!=='all')}
-function initTk(){const hs=Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}</option>`).join('');
-  const ms=Array.from({length:12},(_,i)=>`<option value="${i*5}">${String(i*5).padStart(2,'0')}</option>`).join('');
-  $('#tkH').innerHTML=hs;$('#tkM').innerHTML=ms;$('#tkS').innerHTML=hs;$('#tkE').innerHTML=hs;
-  $('#tkCat').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
+function initTk(){$('#tkCat').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
   $('#tkLink').onchange=e=>$('#tkCat').classList.toggle('hidden',!e.target.checked)}
+function openTimeWheel(key,title){twKey=key;
+  const t=tkTimes[key]||curHM();tkTimes[key]=t;
+  $('#twTitle').dataset.t=title;
+  $('#twTitle').textContent=title+' · '+hmStr(t);
+  wReg('twH',TW_HRS,t.h,twUpd);wReg('twM',TW_MINS,t.m/5,twUpd);
+  openSheet('sheetTimeWheel')}
+function twUpd(){$('#twTitle').textContent=(document.getElementById('twTitle').dataset.t||'')+'';const h=+WHEELS.twH.items[WHEELS.twH.i],m=+WHEELS.twM.items[WHEELS.twM.i];
+  $('#twTitle').textContent=$('#twTitle').dataset.t+' · '+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+function twOk(){const h=+WHEELS.twH.items[WHEELS.twH.i],m=+WHEELS.twM.items[WHEELS.twM.i];
+  tkTimes[twKey]={h,m};closeSheet('sheetTimeWheel');
+  const btn=twKey==='point'?'#tkPointBtn':twKey==='start'?'#tkStartBtn':'#tkEndBtn';
+  $(btn).textContent=hmStr(tkTimes[twKey]);
+  if(tkSel.mode==='range'&&tkTimes.start&&tkTimes.end&&tkTimes.start.h===tkTimes.end.h&&tkTimes.start.m===tkTimes.end.m)toast('提示：起止相同将自动设为全天')}
 let tsSel='open', tySel='norm', pmSel='up', pomoRun=null;
 function tyMode(m){tySel=m;
   $('#tyNormB').className=(m==='norm'?'seg-on ':'')+'flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800'+(m==='norm'?'':' text-slate-500');
