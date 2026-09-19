@@ -1428,6 +1428,18 @@ tailwind.config = {
         <button id="gImp" class="q-ask" onclick="askTap(this,'imp')">这件事重要吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">对目标/价值有贡献</span></button>
         <button id="gUrg" class="q-ask" onclick="askTap(this,'urg')">这件事紧急吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">有明确近期期限</span></button>
       </div>
+      <div class="mt-3 flex items-center justify-between text-xs">
+        <b class="text-slate-500">状态</b>
+        <span class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-[10px] font-bold">
+          <button id="tsOpenB" class="seg-on px-3 py-1 rounded-md" onclick="tsMode('open')">未完成</button>
+          <button id="tsDoneB" class="px-3 py-1 rounded-md text-emerald-500/70" onclick="tsMode('done')">完成</button>
+          <button id="tsDropB" class="px-3 py-1 rounded-md text-rose-400/80" onclick="tsMode('drop')">放弃</button>
+        </span>
+      </div>
+      <div class="mt-2 flex gap-3 text-xs items-center">
+        <div class="flex-1 flex items-center justify-between"><span class="font-bold">颜色<span class="text-slate-400 font-normal">(体现在日程视图)</span></span><select id="tsColor" class="sel !py-1.5"></select></div>
+        <div class="flex-1 flex items-center justify-between"><span class="font-bold">分组</span><b class="text-brand-500 cursor-pointer" onclick="toast('分组管理（模拟）· 默认未分组')">未分组 ›</b></div>
+      </div>
       <div class="mt-3 flex gap-3 text-xs">
         <div class="flex-1"><label class="text-slate-400">截止日期</label><input type="date" value="2026-09-20" class="sel w-full mt-1 !py-2"></div>
         <div class="flex-1"><label class="text-slate-400">提醒</label><select class="sel w-full mt-1 !py-2"><option>当天 09:00</option><option>不提醒</option><option>提前1小时</option></select></div>
@@ -2039,7 +2051,9 @@ function addTask(){
   const v=$('#ntTitle').value.trim(); if(!v){ toast('请先输入任务标题'); return; }
   const imp=askState.imp??false, urg=askState.urg??false;
   const q=(imp&&urg)?0:imp?1:(urg?2:3);
-  const rec={t:v,tag:'',q,due:'今天',done:false,imp,urg};
+  const rec={t:v,tag:'',q,due:'今天',done:tsSel==='done',dropped:tsSel==='drop',imp,urg};
+ if(tsSel==='drop')rec.tag='放弃';
+ if($('#tsColor').value!=='默认')rec.color=$('#tsColor').value;
  if(tkSel.mode==='point'){rec.timeMode='point';rec.tm=String(+$('#tkH').value).padStart(2,'0')+':'+String(+$('#tkM').value).padStart(2,'0')}
  else if(tkSel.mode==='range'){const a=+$('#tkS').value,b=+$('#tkE').value;
    if(a===b){rec.timeMode='all';toast('起止相同 · 已自动设为全天')}
@@ -2233,20 +2247,29 @@ function renderDayHours(){const el=$('#calDayHourView');if(!el)return;
    h+=`<div class="flex gap-2 border-b border-slate-100 dark:border-slate-800 min-h-[38px] cursor-pointer" onclick="addEventAtHour(${hr})"><span class="w-9 shrink-0 text-[10px] font-mono text-slate-400 pt-1.5">${hr}:00</span><div class="flex-1 py-1 pr-1">${chips}</div></div>`}
   el.innerHTML=h;}
 function addEventAtHour(hr){openTimePick(calDay,hr,0)}
-/* —— 日程视图 agenda（图5 · 按天分组 · 空天给「添加一个【N点】的时间段日程」） —— */
+/* —— 日程视图（V1.19.2 修正 · 竞品图1）：单日小时日程板 · 每行一小时 · 事件块挂小时位 · 空行+添加事件 · 当前时间红线游标 —— */
 function renderAgenda(){const el=$('#calAgendaView');if(!el)return;
-  const days=[13,14,15,16,17,18,19,20];
-  el.innerHTML=days.map(d=>{
-   const evs=d===19?D.events:[],ed=d===19?endedEvs:[];
-   const td=d===19?D.todos.filter(t=>t.timeMode):[];
-   const n=evs.length+ed.length+td.length+(liveEv&&d===19?1:0);
-   let body=(liveEv&&d===19?`<div onclick="openEventDetail('live')" class="mt-1.5 rounded-lg bg-rose-500/10 border border-rose-300 px-2.5 py-1.5 text-[11px] font-bold text-rose-500 animate-pulse cursor-pointer">● ${liveEv.t} · 进行中 ›</div>`:'')
-    +evs.map((e,i)=>`<div onclick="openEventDetail('plan',${i})" class="mt-1.5 flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-[11px] cursor-pointer"><b class="font-mono text-slate-400">${e.tm}</b><span class="flex-1 font-bold">${e.t}</span><span class="text-slate-400">›</span></div>`).join('')
-    +ed.map((e,i)=>`<div onclick="openEventDetail('ended',${i})" class="mt-1.5 flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1.5 text-[11px] cursor-pointer"><b class="font-mono text-slate-400">${e.tm}</b><span class="flex-1 font-bold line-through opacity-70">${e.t}</span><span class="text-emerald-500">✓ ${e.dur}分</span></div>`).join('');
-   body+=td.map((t,i)=>`<div class="mt-1.5 flex items-center gap-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 text-[11px]"><input type="checkbox" ${t.done?'checked':''} onclick="tglTodo('${t.t}')"><b class="font-mono text-slate-400">${t.timeMode==='all'?'全天':t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</b><span class="flex-1 font-bold ${t.done?'line-through opacity-60':''}">🔘 ${t.t}</span><span class="text-[9px] text-violet-500 shrink-0">待办·${D.quads[t.q]?D.quads[t.q].name:''}</span></div>`).join('');
-   if(!n)body=`<div class="text-[10px] text-slate-400 mt-1">还没有日程 / 待办</div><div class="mt-1.5 flex gap-2"><button class="flex-1 py-2 rounded-xl bg-brand-500/10 text-brand-500 text-[11px] font-bold" onclick="agendaAdd(${d})">＋ 日程【9点】</button><button class="flex-1 py-2 rounded-xl bg-violet-500/10 text-violet-500 text-[11px] font-bold" onclick="openSheet('sheetAddTask');toast('待办可设 时间点/时间段/全天 · 保存后落入日程视图（联动 L1）')">＋ 待办项</button></div>`;
-   return `<div class="card !py-3"><div class="flex items-center gap-2"><b class="text-xs">9月${d}日 · 周${WDS[(d+1)%7]}</b>${d===19?'<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-500 text-white font-bold">今天</span>':''}<span class="ml-auto text-[10px] text-slate-400">${n} 项</span></div>${body}</div>`}).join('')}
-function agendaAdd(d){switchCalView('day');setDay(d);openTimePick(d,9,0)}
+  const is19=calDay===19;
+  const all=is19?allBlocks():[];
+  const td=is19?D.todos.filter(t=>t.timeMode&&t.timeMode!=='all'):[];
+  const allD=is19?D.todos.filter(t=>t.timeMode==='all'):[];
+  const now=new Date();const nowH=now.getHours();
+  let h=`<div class="flex items-center gap-2 mb-1.5"><div class="text-[10px] text-slate-400 flex-1">📅 9月${calDay}日 · 每行 1 小时 · 点空行加日程 · 点事件管理</div><button class="tag-chip justify-center !text-[10px]" onclick="openSheet('sheetAddTask');toast('待办可设时间点/时间段/全天 · 落入本视图（联动 L1）')">＋ 待办项</button></div>`;
+  h+=allD.map(t=>`<div class="mb-1 flex items-center gap-2 rounded-lg bg-violet-500/10 border border-violet-400/50 px-2.5 py-1.5 text-[11px]"><input type="checkbox" ${t.done?'checked':''} onclick="tglTodo('${t.t}')"><span class="flex-1 font-bold ${t.done?'line-through opacity-60':''}">🔘 ${t.t}</span><span class="text-[9px] text-violet-500 shrink-0">全天 · 待办</span></div>`).join('');
+  for(let hr=0;hr<24;hr++){
+    let row='';
+    all.filter(b=>Math.floor(b.s/60)===hr).forEach(b=>{
+      const nm=b.note||b.cat;
+      const bg=b.done!==undefined?'bg-emerald-400/85':b.ev!==undefined?'bg-brand-500/85':b.live?'bg-rose-500 animate-pulse':(CATS[b.cat]||'bg-slate-400');
+      const click=b.ev!==undefined?`openEventDetail('plan',${b.ev})`:b.done!==undefined?`openEventDetail('ended',${b.done})`:b.live?`openEventDetail('live')`:`toast('时间块「${nm}」${fmt(b.s)}-${fmt(b.e)} · 块视图点该格可取消标记')`;
+      row+=`<div onclick="event.stopPropagation();${click}" class="mb-1 rounded-lg ${bg} text-white text-[10px] font-bold px-2 py-1.5 cursor-pointer truncate">${nm}${b.live?' ●':''}</div>`});
+    td.filter(t=>Math.floor(hm2min(t.tm)/60)===hr).forEach(t=>{
+      row+=`<div onclick="event.stopPropagation();tglTodo('${t.t}')" class="mb-1 rounded-lg border-2 border-violet-400/70 bg-violet-50 dark:bg-violet-500/10 text-[10px] font-bold px-2 py-1.5 cursor-pointer truncate ${t.done?'line-through opacity-60':''}">🔘 ${t.t} · ${t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</div>`});
+    const isNow=is19&&hr===nowH;
+    h+=`<div class="flex gap-2 border-b border-slate-100 dark:border-slate-800 min-h-[36px] cursor-pointer" onclick="openTimePick(${calDay},${hr},0)"><span class="w-7 shrink-0 text-[10px] font-mono text-slate-400 pt-1.5">${hr}</span><div class="flex-1 py-1 pr-1">${row||(isNow?'':'<div class="rounded-lg bg-brand-400/70 text-white text-[10px] font-bold px-2 py-1.5 text-center">＋ 添加事件</div>')}</div>${isNow?`<span class="shrink-0 text-[8px] font-mono text-white bg-slate-500/80 rounded px-1 self-center" id="schNow">${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}</span>`:''}</div>`;
+    if(isNow)h+='<div class="flex items-center -mt-0.5 mb-1"><span class="text-rose-500 text-[10px]">▼</span><div class="flex-1 h-[2px] bg-rose-400 rounded"></div></div>'}
+  el.innerHTML=h;}
+function agendaAdd(d){switchCalView('agenda');setDay(d);openTimePick(d,9,0)}
 /* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加） —— */
 function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   const days=[13,14,15,16,17,18,19];
@@ -2331,6 +2354,10 @@ function initTk(){const hs=Array.from({length:24},(_,i)=>`<option value="${i}">$
   $('#tkH').innerHTML=hs;$('#tkM').innerHTML=ms;$('#tkS').innerHTML=hs;$('#tkE').innerHTML=hs;
   $('#tkCat').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
   $('#tkLink').onchange=e=>$('#tkCat').classList.toggle('hidden',!e.target.checked)}
+let tsSel='open';
+function tsMode(m){tsSel=m;
+  [['open','tsOpenB'],['done','tsDoneB'],['drop','tsDropB']].forEach(([k,b])=>{$('#'+b).className=(k===m?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md '+(k==='done'?'text-emerald-500/70':k==='drop'?'text-rose-400/80':'text-slate-500'))});}
+function initTs(){$('#tsColor').innerHTML=['默认'].concat(CAT_COLORS.map(c=>c[0])).map(n=>`<option>${n}</option>`).join('')}
 function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done=!t.done;
   renderTodos();renderQuad();renderAgenda();
   toast(t.done?'✔ 待办完成 · 日程视图同步划线':'已恢复未完成')}
@@ -2922,8 +2949,8 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
-setInterval(()=>{if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
+renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
+setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
