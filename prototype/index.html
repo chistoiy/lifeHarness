@@ -1623,6 +1623,38 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 记一条影音游（V1.25.1 · 影音游 tab 专属 FAB） ===== -->
+  <div id="sheetAddMedia" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddMedia')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">🎬 记一条影音游</div>
+      <input id="mdTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称，如：沙丘 2 / 漫长的季节 / 黑神话·悟空">
+      <div class="mt-3 flex gap-2 text-xs items-center">
+        <span class="text-slate-400 shrink-0">类型</span>
+        <button class="tag-chip justify-center md-type on" data-t="电影">电影</button>
+        <button class="tag-chip justify-center md-type" data-t="剧集">剧集</button>
+        <button class="tag-chip justify-center md-type" data-t="综艺">综艺</button>
+        <button class="tag-chip justify-center md-type" data-t="游戏">游戏</button>
+      </div>
+      <div class="mt-2 flex gap-2 text-xs items-center">
+        <span class="text-slate-400 shrink-0">状态</span>
+        <button class="tag-chip justify-center md-st on" data-s="在看">在看</button>
+        <button class="tag-chip justify-center md-st" data-s="想看">想看</button>
+        <button class="tag-chip justify-center md-st" data-s="完成">完成</button>
+      </div>
+      <div class="mt-3 flex gap-3 text-xs items-center">
+        <div class="flex-1"><label class="text-slate-400">评分（豆瓣可选）</label><input id="mdRate" class="sel w-full mt-1 !py-2" placeholder="如 8.6"></div>
+        <div class="flex-1"><label class="text-slate-400">时长/集数</label><input id="mdLen" class="sel w-full mt-1 !py-2" placeholder="124min / 12集"></div>
+      </div>
+      <input id="mdNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="一句话短评（可选）">
+      <div class="mt-4 flex gap-3">
+        <button onclick="closeSheet('sheetAddMedia')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+        <button onclick="addMedia()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存 · 可开始计时</button>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">保存后进入影音游列表 · 点「▶ 观影/游戏」接入全局悬浮计时条（与阅读同构）</div>
+    </div>
+  </div>
+
   <!-- ===== 任务详情 ===== -->
   <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2889,6 +2921,14 @@ function renderToc(){$('#tocList').innerHTML=BOOK_TOC.map(([t,st,q])=>`<div clas
 function tocAI(){toast('🤖 AI 根据书名/作者补全剩余章节中…（需先在设置验证 Key · 模拟插入 9 章待确认）');}
 function tocImportDemo(){closeSheet('sheetTocImport');renderToc();toast('✔ 解析成功：20 章/2 级 · 匹配 8 章 · 5 章自动标记摘录分布');}
 const MEDIA=[{n:'沙丘 2',t:'电影 · 2024 · 豆瓣 8.6',st:'在看',p:72,info:'72% · 累计 46min',g:'from-amber-600 to-orange-800',tm:'继续观影 · 上次 8min'},{n:'漫长的季节',t:'剧集 · 12 集 · 豆瓣 9.4',st:'在看',p:42,info:'第 5/12 集',g:'from-sky-500 to-indigo-700',tm:'第 6 集未看'},{n:'宇宙探索编辑部',t:'电影 · 想看 · 来自豆瓣',st:'想看',p:0,info:'',g:'from-slate-500 to-slate-800',tm:''}];
+function pickChip(sel,el){$$(sel).forEach(b=>b.classList.remove('on'));el.classList.add('on')}
+function addMedia(){const v=$('#mdTitle').value.trim();if(!v){toast('先起个名字');return}
+  const t=document.querySelector('.md-type.on').dataset.t, st=document.querySelector('.md-st.on').dataset.s;
+  const rate=$('#mdRate').value.trim(), len=$('#mdLen').value.trim();
+  MEDIA.unshift({n:v,t:t+(rate?' · 豆瓣 '+rate:'')+(len?' · '+len:''),st:st,p:st==='在看'?0:0,info:st==='在看'?'0% · 点 ▶ 开始计时':'',g:t==='游戏'?'from-violet-600 to-fuchsia-800':t==='剧集'?'from-sky-500 to-indigo-700':'from-amber-600 to-orange-800',tm:''});
+  $('#mdTitle').value='';$('#mdRate').value='';$('#mdLen').value='';$('#mdNote').value='';
+  closeSheet('sheetAddMedia');renderMedia();
+  toast('🎬 已记录「'+v+'」· '+(st==='在看'?'点条目 ▶ 开始观影计时':'已入片单'))}
 function renderMedia(){const el=$('#mediaList');if(!el)return;
   el.innerHTML=MEDIA.map(x=>`<div class="card flex gap-3 items-center"><div class="w-11 h-16 rounded-lg bg-gradient-to-br ${x.g} shrink-0"></div>
    <div class="flex-1 min-w-0"><b class="text-sm">${x.n}</b><div class="text-[10px] text-slate-400 mt-0.5">${x.t}</div>
@@ -2976,7 +3016,7 @@ const FAB_CFG={
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
  'p-todo':{ico:'＋',act:()=>openSheet('sheetAddTask')},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
- 'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else openSheet('sheetAddExcerpt')}},
+ 'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
  'p-days':{ico:'🎂',act:()=>openSheet('sheetAddDay')},
