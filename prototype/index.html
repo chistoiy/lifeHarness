@@ -1172,6 +1172,8 @@ tailwind.config = {
         <button onclick="navTo('p-sub-ai')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-violet-50 dark:bg-violet-500/15">🤖</span><div class="flex-1"><b class="text-sm">AI 增强</b><div class="text-[11px] text-slate-400">服务商 · Key · 能力矩阵 · API 验证</div></div>
           <span class="text-[10px] text-slate-400 mr-1">默认关闭</span><span class="text-slate-300">›</span></button>
+        <button onclick="navTo('p-sub-cats')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <span class="set-ic bg-orange-50 dark:bg-orange-500/15">🏷</span><div class="flex-1"><b class="text-sm">分类管理</b><div class="text-[11px] text-slate-400">时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-tools')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800">🧰</span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">11 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
@@ -1336,6 +1338,58 @@ tailwind.config = {
       </div>
     </section>
 
+    <!-- ===== P12d 二级：分类管理（V1.19 · 两级分类树 · 拖拽换父组 · 全局唯一分类表） ===== -->
+    <section id="p-sub-cats" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between">
+        <div class="text-[10px] text-slate-400">🖐 长按拖拽 = 调整顺序 / 拖入其他父级换组 · 分类供 轴/块/日/日程/周 与时间账本共用</div>
+      </div>
+      <div class="flex gap-2 mt-2 text-sm font-bold">
+        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="catsCollapseAll()">⏷ 全部折叠</button>
+        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" id="catsSortBtn" onclick="catsSortMode()">⇅ 排序</button>
+        <button class="flex-1 py-2 rounded-xl grad text-white" onclick="openCatAdd()">＋ 添加分类</button>
+      </div>
+      <div id="catTree" class="mt-3 space-y-1"></div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">计数 = 该分类下时间块/日程数（L4 账本引用同一表）</div>
+    </section>
+
+    <!-- ===== P12e 二级：添加分类（V1.19 · 一级/次级 · 名称/描述/标签/颜色） ===== -->
+    <section id="p-sub-catAdd" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex justify-end">
+        <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+          <button id="caPriBtn" class="seg-on px-4 rounded-lg py-1.5" onclick="caMode('pri')">一级分类</button>
+          <button id="caSubBtn" class="px-4 rounded-lg py-1.5 text-slate-500" onclick="caMode('sub')">次级分类</button>
+        </div>
+      </div>
+      <div class="card mt-3 !p-0 overflow-hidden text-sm">
+        <div id="caParentRow" class="hidden flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold">上级分类</span>
+          <select id="caParent" class="sel !py-1.5"></select>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold shrink-0">分类名称</span>
+          <input id="caName" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入标题">
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold shrink-0">默认描述</span>
+          <input id="caDesc" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入描述">
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
+          <span class="font-bold shrink-0">默认标签</span>
+          <select id="caTag" class="sel !py-1.5"><option>无</option><option>#工作</option><option>#开会</option><option>#加班</option><option>#睡觉</option><option>#摸鱼</option></select>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <span class="font-bold shrink-0">颜色</span>
+          <span class="flex items-center gap-2"><span id="caSwatch" class="w-10 h-6 rounded-full bg-yellow-700"></span>
+          <select id="caColor" class="sel !py-1.5" onchange="caColorPrev()"></select></span>
+        </div>
+      </div>
+      <div class="mt-4 flex gap-3">
+        <button onclick="caSave(1)" class="flex-1 py-3 rounded-xl bg-brand-100 dark:bg-brand-500/15 text-brand-500 text-sm font-bold">继续添加</button>
+        <button onclick="caSave(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保 存</button>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
+    </section>
+
   </main>
 
   <!-- ===== 悬浮球（快速记录） ===== -->
@@ -1379,6 +1433,30 @@ tailwind.config = {
         <div class="flex-1"><label class="text-slate-400">提醒</label><select class="sel w-full mt-1 !py-2"><option>当天 09:00</option><option>不提醒</option><option>提前1小时</option></select></div>
       </div>
       <div class="mt-3 text-xs text-slate-400">重复：不重复 <b class="text-brand-500 mx-1 cursor-pointer" onclick="toast('周期规则面板（模拟）')">›</b>　子任务：<b class="text-brand-500 cursor-pointer" onclick="toast('可添加 2 级子任务（模拟）')">+ 添加</b></div>
+      <!-- V1.19 · 待办设置时间三态（时间点/时间段/全天）→ 落入日程视图（联动 L1） -->
+      <div class="mt-3 rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
+        <div class="flex items-center justify-between text-xs">
+          <b>设置时间</b>
+          <span class="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 text-[10px] font-bold">
+            <button id="tkNoneB" class="seg-on px-2.5 py-1 rounded-md" onclick="tkMode('none')">无</button>
+            <button id="tkPointB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('point')">时间点</button>
+            <button id="tkRangeB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('range')">时间段</button>
+            <button id="tkAllB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('all')">全天</button>
+          </span>
+        </div>
+        <div id="tkPointRow" class="hidden mt-2 flex items-center gap-2 text-xs">
+          <span class="text-slate-400">时间点</span><select id="tkH" class="sel !py-1 flex-1"></select>:<select id="tkM" class="sel !py-1 flex-1"></select>
+        </div>
+        <div id="tkRangeRow" class="hidden mt-2 flex items-center gap-2 text-xs">
+          <span class="text-slate-400">起始</span><select id="tkS" class="sel !py-1 flex-1"></select>
+          <span class="text-slate-400">结束</span><select id="tkE" class="sel !py-1 flex-1"></select>
+        </div>
+        <div id="tkAllRow" class="hidden mt-2 text-[10px] text-slate-400">全天 · 在日程视图顶部以横幅展示；时间段起止相同将自动转为全天</div>
+        <div class="mt-2 flex items-center justify-between text-[11px]">
+          <label class="flex items-center gap-1.5"><input type="checkbox" id="tkLink" class="accent-indigo-500"> 关联计时分类（完成后按实际耗时入 L4 账本）</label>
+          <select id="tkCat" class="sel !py-1 hidden"></select>
+        </div>
+      </div>
       <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
       <div class="mt-3 flex gap-3">
         <button onclick="closeSheet('sheetAddTask')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
@@ -1438,25 +1516,39 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ===== 周视图拾取：日期时间 + 分类 + 继续添加（图6） ===== -->
-  <div id="sheetWeekPick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetWeekPick')">
+  <!-- ===== 统一添加事件/时间块弹层（V1.19 · 轴/块/日/周共用 · 滚轮日期时间+两级分类+标签+继续添加） ===== -->
+  <div id="sheetTimePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTimePick')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="font-extrabold">添加时间段日程</div>
-      <div id="wkRange" class="text-xs text-slate-400 mt-0.5"></div>
-      <div class="mt-3 flex gap-2 text-xs items-center">
-        <select id="wkDay" class="sel flex-1"></select>
-        <select id="wkHour" class="sel flex-1"></select>
-        <span class="text-[10px] text-slate-400">时长 1 小时</span>
+      <div class="flex items-center"><div class="font-extrabold flex-1">添加事件 / 时间块</div><span id="tpRange" class="text-[10px] text-slate-400"></span></div>
+      <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
+          <span class="text-slate-400 shrink-0">上尾/当前</span>
+          <select id="tpDay" class="sel !py-1 flex-1"></select>
+        </div>
+        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
+          <select id="tpH" class="sel !py-1 flex-1"></select><span>:</span>
+          <select id="tpM" class="sel !py-1 flex-1"></select>
+        </div>
+        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
+          <span class="text-slate-400 shrink-0">时长</span>
+          <select id="tpDur" class="sel !py-1 flex-1"><option value="0">0 分钟</option><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60" selected>1 小时</option><option value="90">1.5 小时</option><option value="120">2 小时</option></select>
+        </div>
+        <div class="flex items-center justify-end gap-1">
+          <button class="tag-chip" onclick="toast('标签选择面板（模拟）· 默认带分类默认标签')">标签 ›</button>
+          <button class="tag-chip" onclick="closeSheet('sheetTimePick');navTo('p-sub-cats')">无分类 ›</button>
+        </div>
       </div>
-      <div class="mt-3 text-xs font-bold text-slate-500">分类（与块视图/账本同步）</div>
-      <div id="wkCats" class="mt-2 grid grid-cols-4 gap-2 text-center text-[11px]"></div>
-      <textarea id="wkNote" rows="2" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="备注（可选）"></textarea>
-      <div class="mt-4 flex gap-3">
-        <button onclick="wkAdd(1)" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">继续添加</button>
-        <button onclick="wkAdd(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">添加</button>
+      <div class="mt-3 text-xs font-bold text-slate-500">分类（点一级选中 · 有次级再点次级精确到子项）</div>
+      <div id="tpCats" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
+      <div id="tpSubs" class="mt-2 flex flex-wrap gap-2 text-[11px] min-h-[26px]"></div>
+      <textarea id="tpNote" rows="2" maxlength="5000" oninput="$('#tpNoteC').textContent=$('#tpNote').value.length+'/5000'" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="请输入备注"></textarea>
+      <div class="flex justify-end text-[9px] text-slate-400"><span id="tpNoteC">0/5000</span></div>
+      <div class="mt-2 flex gap-3">
+        <button onclick="tpAdd(1)" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">继续添加</button>
+        <button onclick="tpAdd(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">添加</button>
       </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">滚轮式日期·时间选择（原型以下拉模拟）· 添加后轴/块/日/日程/周五视图同步</div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">滚轮式日期·时间（原型以下拉模拟）· 添加后 轴/块/日/日程/周 与时间账本同步（L4）</div>
     </div>
   </div>
 
@@ -1752,7 +1844,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['日程','五视图 · 统一CRUD · 事件↔时间块同步'],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-media':['影音游','观影计时 · 进度 · 豆瓣片单'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -1947,10 +2039,17 @@ function addTask(){
   const v=$('#ntTitle').value.trim(); if(!v){ toast('请先输入任务标题'); return; }
   const imp=askState.imp??false, urg=askState.urg??false;
   const q=(imp&&urg)?0:imp?1:(urg?2:3);
-  D.todos.unshift({t:v,tag:'',q,due:'今天',done:false,imp,urg});
+  const rec={t:v,tag:'',q,due:'今天',done:false,imp,urg};
+ if(tkSel.mode==='point'){rec.timeMode='point';rec.tm=String(+$('#tkH').value).padStart(2,'0')+':'+String(+$('#tkM').value).padStart(2,'0')}
+ else if(tkSel.mode==='range'){const a=+$('#tkS').value,b=+$('#tkE').value;
+   if(a===b){rec.timeMode='all';toast('起止相同 · 已自动设为全天')}
+   else{rec.timeMode='range';rec.tm=String(a).padStart(2,'0')+':00';rec.te=String(b).padStart(2,'0')+':00'}}
+ else if(tkSel.mode==='all'){rec.timeMode='all'}
+ if(rec.timeMode&&$('#tkLink').checked){rec.linkCat=$('#tkCat').value}
+ D.todos.unshift(rec);
   askState={imp:null,urg:null}; $('#ntTitle').value='';
   resetAsk('gImp','对目标/价值有贡献'); resetAsk('gUrg','有明确近期期限');
-  closeSheet('sheetAddTask'); renderTodos(); renderQuad();
+  closeSheet('sheetAddTask'); renderTodos(); renderQuad(); renderAgenda(); tkMode('none');
   toast('已存入「'+D.quads[q].name+'」象限 ✓');
 }
 function resetAsk(id,hint){ const b=$('#'+id); b.classList.remove('q-ask-on');
@@ -2022,7 +2121,10 @@ function switchCalView(v){ calView=v; collapseMonth();
 }
 /* ================= 块视图·全天格子时间块（V1.19 · 0-24 全天） ================= */
 let calView='block', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
-const CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','餐饮':'bg-orange-300','娱乐':'bg-peach','睡眠':'bg-indigo-800','清洁':'bg-mint','其他':'bg-slate-400'};
+let CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','餐饮':'bg-orange-300','娱乐':'bg-peach','睡眠':'bg-indigo-800','清洁':'bg-mint','其他':'bg-slate-400','吃饭':'bg-orange-400','休息':'bg-amber-700','路上':'bg-slate-500'};
+const SUBS={'工作':{'开会':'#开会','不在工位':'#加班'},'休息':{'午休':'','睡觉':'#睡觉'},'路上':{'上班':'#工作','下班':'#工作','出行':''},'娱乐':{'摸鱼':'#摸鱼','躺平':'','旅行':'','逛街':''}};
+const CAT_COLORS=[['亚麻色','bg-yellow-700'],['品牌蓝','bg-brand-500'],['天青','bg-sky-400'],['橙','bg-orange-400'],['玫瑰','bg-rose-400'],['薄荷','bg-mint'],['紫罗兰','bg-violet-500'],['石墨','bg-slate-500'],['靛夜','bg-indigo-800']];
+const catsCollapsed={};
 let blocks=[{s:540,e:585,cat:'工作',note:'晨间规划'},{s:1170,e:1230,cat:'运动',note:'腿日'}];
 const fmt=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(Math.round(m%60)).padStart(2,'0');
 const hm2min=s=>{const[a,b]=s.split(':').map(Number);return a*60+b};
@@ -2066,6 +2168,7 @@ function initGrid(){const gc=$('#gridCells');
     if(hit&&hit.ev!==undefined){markSel=null;selA=selB=null;renderGrid();openEventDetail('plan',hit.ev);return}
     if(hit&&hit.done!==undefined){markSel=null;selA=selB=null;renderGrid();openEventDetail('ended',hit.done);return}
     if(hit&&hit.live){markSel=null;selA=selB=null;renderGrid();openEventDetail('live');return}
+    if(a===b&&!hit){markSel=null;selA=selB=null;renderGrid();openTimePick(19,Math.floor(cellMin(a)/60),cellMin(a)%60);return}
     markSel={a,b};
     $('#markDelBtn').classList.toggle('hidden',!hit);
     $('#markRange').textContent=hit?`${fmt(hit.s)} - ${fmt(hit.e)} · ${hit.cat}${hit.note?' · '+hit.note:''}（点击已标记格，可取消标记或覆盖新标记）`
@@ -2129,22 +2232,22 @@ function renderDayHours(){const el=$('#calDayHourView');if(!el)return;
    }
    h+=`<div class="flex gap-2 border-b border-slate-100 dark:border-slate-800 min-h-[38px] cursor-pointer" onclick="addEventAtHour(${hr})"><span class="w-9 shrink-0 text-[10px] font-mono text-slate-400 pt-1.5">${hr}:00</span><div class="flex-1 py-1 pr-1">${chips}</div></div>`}
   el.innerHTML=h;}
-function addEventAtHour(hr){const dl=$('#evDateLbl');if(dl)dl.textContent='9月'+calDay+'日';openSheet('sheetAddEvent');
-  toast('已预填 9月'+calDay+'日 '+String(hr).padStart(2,'0')+':00 – +1小时（补录·模拟）')}
+function addEventAtHour(hr){openTimePick(calDay,hr,0)}
 /* —— 日程视图 agenda（图5 · 按天分组 · 空天给「添加一个【N点】的时间段日程」） —— */
 function renderAgenda(){const el=$('#calAgendaView');if(!el)return;
   const days=[13,14,15,16,17,18,19,20];
   el.innerHTML=days.map(d=>{
    const evs=d===19?D.events:[],ed=d===19?endedEvs:[];
-   const n=evs.length+ed.length+(liveEv&&d===19?1:0);
+   const td=d===19?D.todos.filter(t=>t.timeMode):[];
+   const n=evs.length+ed.length+td.length+(liveEv&&d===19?1:0);
    let body=(liveEv&&d===19?`<div onclick="openEventDetail('live')" class="mt-1.5 rounded-lg bg-rose-500/10 border border-rose-300 px-2.5 py-1.5 text-[11px] font-bold text-rose-500 animate-pulse cursor-pointer">● ${liveEv.t} · 进行中 ›</div>`:'')
     +evs.map((e,i)=>`<div onclick="openEventDetail('plan',${i})" class="mt-1.5 flex items-center gap-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-[11px] cursor-pointer"><b class="font-mono text-slate-400">${e.tm}</b><span class="flex-1 font-bold">${e.t}</span><span class="text-slate-400">›</span></div>`).join('')
     +ed.map((e,i)=>`<div onclick="openEventDetail('ended',${i})" class="mt-1.5 flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1.5 text-[11px] cursor-pointer"><b class="font-mono text-slate-400">${e.tm}</b><span class="flex-1 font-bold line-through opacity-70">${e.t}</span><span class="text-emerald-500">✓ ${e.dur}分</span></div>`).join('');
-   if(!n)body=`<div class="text-[10px] text-slate-400 mt-1">还没有日程</div><button class="mt-1.5 w-full py-2 rounded-xl bg-brand-500/10 text-brand-500 text-[11px] font-bold" onclick="agendaAdd(${d})">＋ 添加一个【9点】的时间段日程</button>`;
+   body+=td.map((t,i)=>`<div class="mt-1.5 flex items-center gap-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1.5 text-[11px]"><input type="checkbox" ${t.done?'checked':''} onclick="tglTodo('${t.t}')"><b class="font-mono text-slate-400">${t.timeMode==='all'?'全天':t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</b><span class="flex-1 font-bold ${t.done?'line-through opacity-60':''}">🔘 ${t.t}</span><span class="text-[9px] text-violet-500 shrink-0">待办·${D.quads[t.q]?D.quads[t.q].name:''}</span></div>`).join('');
+   if(!n)body=`<div class="text-[10px] text-slate-400 mt-1">还没有日程 / 待办</div><div class="mt-1.5 flex gap-2"><button class="flex-1 py-2 rounded-xl bg-brand-500/10 text-brand-500 text-[11px] font-bold" onclick="agendaAdd(${d})">＋ 日程【9点】</button><button class="flex-1 py-2 rounded-xl bg-violet-500/10 text-violet-500 text-[11px] font-bold" onclick="openSheet('sheetAddTask');toast('待办可设 时间点/时间段/全天 · 保存后落入日程视图（联动 L1）')">＋ 待办项</button></div>`;
    return `<div class="card !py-3"><div class="flex items-center gap-2"><b class="text-xs">9月${d}日 · 周${WDS[(d+1)%7]}</b>${d===19?'<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-500 text-white font-bold">今天</span>':''}<span class="ml-auto text-[10px] text-slate-400">${n} 项</span></div>${body}</div>`}).join('')}
-function agendaAdd(d){switchCalView('day');setDay(d);addEventAtHour(9)}
+function agendaAdd(d){switchCalView('day');setDay(d);openTimePick(d,9,0)}
 /* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加） —— */
-let wkPick={d:19,h:9,cat:'工作'};
 function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   const days=[13,14,15,16,17,18,19];
   let h='<div class="text-[10px] text-slate-400 mb-1">🗓 9/13 - 9/19 · 点任意格子 → 添加时间段日程（日期时间+分类+继续添加）</div>';
@@ -2153,23 +2256,84 @@ function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   for(let hr=0;hr<24;hr++){h+=`<span class="text-slate-400 text-right text-[8px] font-mono pr-0.5 pt-0.5">${hr}</span>`;
    for(const d of days){const m=hr*60;const b=d===19?blockAt(m):null;
     const cls=b?(b.done!==undefined?'bg-emerald-400':b.ev!==undefined?'bg-brand-500/80':(b.live?'animate-pulse ':'')+CATS[b.cat]):'bg-slate-100 dark:bg-slate-800';
-    h+=`<div class="wk-cell ${cls}" title="${b?(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e):'9月'+d+'日 '+hr+':00 空'}" onclick="openWeekPick(${d},${hr})"></div>`}}
+    h+=`<div class="wk-cell ${cls}" title="${b?(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e):'9月'+d+'日 '+hr+':00 空'}" onclick="openTimePick(${d},${hr},0)"></div>`}}
   el.innerHTML=h+'</div>';}
-function wkRangeTxt(){return '9月'+wkPick.d+'日 · 周'+WDS[(wkPick.d+1)%7]+' · '+String(wkPick.h).padStart(2,'0')+':00 - '+String((wkPick.h+1)%24).padStart(2,'0')+':00'}
-function openWeekPick(d,h){wkPick={d:d,h:h,cat:'工作'};
-  $('#wkRange').textContent=wkRangeTxt();
-  $('#wkDay').innerHTML=[13,14,15,16,17,18,19,20].map(x=>`<option value="${x}" ${x===d?'selected':''}>9月${x}日</option>`).join('');
-  $('#wkHour').innerHTML=Array.from({length:24},(_,x)=>`<option value="${x}" ${x===h?'selected':''}>${String(x).padStart(2,'0')}:00</option>`).join('');
-  $('#wkDay').onchange=e=>{wkPick.d=+e.target.value;$('#wkRange').textContent=wkRangeTxt()};
-  $('#wkHour').onchange=e=>{wkPick.h=+e.target.value;$('#wkRange').textContent=wkRangeTxt()};
-  $('#wkCats').innerHTML=Object.entries(CATS).map(([k,v])=>`<button data-c="${k}" class="tag-chip justify-center ${k==='工作'?'on':''}" onclick="wkCat(this)"><i style="width:9px;height:9px;border-radius:3px" class="${v}"></i>${k}</button>`).join('');
-  openSheet('sheetWeekPick');}
-function wkCat(el){$$('#wkCats .tag-chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');wkPick.cat=el.dataset.c;}
-function wkAdd(keep){const s=wkPick.h*60,e=Math.min(1439,s+60);
-  blocks.push({s:s,e:e,cat:wkPick.cat,note:$('#wkNote').value.trim()||('周视图添加 · 9月'+wkPick.d+'日')});
+
+
+/* —— 统一添加事件/时间块弹层（V1.19 · 轴/块/日/周共用 · 两级分类 · 继续添加） —— */
+let tpSel={d:19,h:15,m:0,dur:60,cat:'工作',sub:null};
+function openTimePick(d,h,m){tpSel={d:d,h:h||0,m:m||0,dur:60,cat:'工作',sub:null};
+  $('#tpDay').innerHTML=[13,14,15,16,17,18,19,20].map(x=>`<option value="${x}" ${x===d?'selected':''}>9月${x}日</option>`).join('');
+  $('#tpH').innerHTML=Array.from({length:24},(_,x)=>`<option value="${x}" ${x===tpSel.h?'selected':''}>${String(x).padStart(2,'0')}</option>`).join('');
+  $('#tpM').innerHTML=Array.from({length:12},(_,x)=>`<option value="${x*5}" ${x*5===tpSel.m?'selected':''}>${String(x*5).padStart(2,'0')}</option>`).join('');
+  $('#tpDur').value='60';$('#tpNote').value='';$('#tpNoteC').textContent='0/5000';
+  $('#tpDay').onchange=e=>{tpSel.d=+e.target.value;tpUpd()};$('#tpH').onchange=e=>{tpSel.h=+e.target.value;tpUpd()};
+  $('#tpM').onchange=e=>{tpSel.m=+e.target.value;tpUpd()};$('#tpDur').onchange=e=>{tpSel.dur=+e.target.value;tpUpd()};
+  tpCats();tpSubsRender();tpUpd();openSheet('sheetTimePick');}
+function tpUpd(){const s=tpSel.h*60+tpSel.m,e=s+tpSel.dur;
+  $('#tpRange').textContent='9月'+tpSel.d+'日 '+String(tpSel.h).padStart(2,'0')+':'+String(tpSel.m).padStart(2,'0')+' → '+(tpSel.dur?fmt(Math.min(e,1439)):'瞬时')+(e>1440?' · 跨天':'')}
+function tpCats(){$('#tpCats').innerHTML=Object.entries(CATS).map(([k,c])=>`<button data-c="${k}" class="tag-chip justify-center ${tpSel.cat===k?'on':''}" onclick="tpCat('${k}')"><i style="width:9px;height:9px;border-radius:3px" class="${c}"></i>${k}</button>`).join('')}
+function tpSubsRender(){const subs=Object.entries(SUBS[tpSel.cat]||{});
+  $('#tpSubs').innerHTML=subs.length?subs.map(([sn,t])=>`<button class="tag-chip justify-center ${tpSel.sub===sn?'on':''}" onclick="tpSub('${sn}')"><i style="width:9px;height:9px;border-radius:3px" class="${CATS[tpSel.cat]} opacity-60"></i>${sn}${t?' · '+t:''}</button>`).join(''):'<span class="text-[10px] text-slate-400 self-center">该分类无次级 · 可直接添加</span>'}
+function tpCat(k){tpSel.cat=k;tpSel.sub=null;tpCats();tpSubsRender()}
+function tpSub(sn){tpSel.sub=tpSel.sub===sn?null:sn;tpSubsRender()}
+function tpAdd(keep){const st=tpSel.h*60+tpSel.m,en=Math.min(1439,st+(tpSel.dur||1));const name=tpSel.sub||tpSel.cat;
+  blocks.push({s:st,e:Math.max(en,st+1),cat:tpSel.cat,note:$('#tpNote').value.trim()||(name+(tpSel.sub?' · '+tpSel.cat:''))});
   renderCal();
-  if(keep){$('#wkNote').value='';toast('✔ 已添加 '+fmt(s)+'-'+fmt(e)+' · '+wkPick.cat+'（9月'+wkPick.d+'日）· 继续选时间')}
-  else{closeSheet('sheetWeekPick');toast('✔ 已添加 · 轴/块/日/日程/周五视图与时间账本同步（L4）')}}
+  const cross=tpSel.d!==19?'（模拟：演示仅展示 9/19 · 真实版按所选日期落库）':'';
+  if(keep){$('#tpNote').value='';toast('✔ 已添加 '+fmt(st)+'-'+fmt(Math.max(en,st+1))+' · '+name+'（9月'+tpSel.d+'日）'+cross)}
+  else{closeSheet('sheetTimePick');toast('✔ 已添加 · 轴/块/日/日程/周五视图与时间账本同步（L4）'+cross)}}
+/* —— 分类管理（V1.19 · 两级树 · 长按拖拽换父组/排序 · 添加分类页） —— */
+function renderCatTree(){const el=$('#catTree');if(!el)return;
+  el.innerHTML=Object.entries(CATS).map(([k,c])=>{
+    const subs=Object.entries(SUBS[k]||{});const col=catsCollapsed[k];
+    let h=`<div class="card !py-2.5 !px-3 flex items-center gap-3 cursor-grab" draggable="true" ondragstart="catDrag(event,'${k}')" ondragover="event.preventDefault()" ondrop="catDrop(event,'${k}')">
+      <span class="w-5 h-5 rounded-full ${c} shrink-0"></span><b class="text-sm flex-1">${k}</b>
+      ${subs.length?`<span class="text-[10px] w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center font-bold">${subs.length}</span><button class="text-slate-400 text-xs" onclick="catsCollapsed['${k}']=!catsCollapsed['${k}'];renderCatTree()">${col?'▾':'▴'}</button>`:''}</div>`;
+    if(!col)h+=subs.map(([sn,t])=>`<div class="flex items-center gap-3 pl-10 pr-3 py-2 cursor-grab" draggable="true" ondragstart="catDrag(event,'${k}|${sn}')" ondragover="event.preventDefault()" ondrop="catDrop(event,'${k}')">
+      <span class="w-4 h-4 rounded-full ${c} opacity-60 shrink-0"></span><span class="text-[13px] font-semibold flex-1">${sn}</span>${t?`<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-700 text-white font-bold">${t}</span>`:''}</div>`).join('');
+    return h}).join('')}
+function catDrag(e,p){e.dataTransfer.setData('text/plain',p)}
+function catDrop(e,pk){const from=e.dataTransfer.getData('text/plain');e.preventDefault();if(!from||from===pk)return;
+  if(from.includes('|')){const[fk,sn]=from.split('|');const v=SUBS[fk][sn];delete SUBS[fk][sn];SUBS[pk]=SUBS[pk]||{};SUBS[pk][sn]=v;
+    toast('「'+sn+'」已移入「'+pk+'」（长按拖拽换父组）')}
+  else if(from!==pk){const ks=Object.keys(CATS);ks.splice(ks.indexOf(from),1);const j=ks.indexOf(pk);ks.splice(j,0,from);
+    const o={};ks.forEach(k=>o[k]=CATS[k]);CATS=o;toast('「'+from+'」已移动到「'+pk+'」位置')}
+  renderCatTree();renderCatRail();}
+function catsCollapseAll(){Object.keys(CATS).forEach(k=>catsCollapsed[k]=!catsCollapsed[k]);renderCatTree();toast('已切换全部折叠态')}
+function catsSortMode(){toast('排序模式：长按条目拖动调整顺序 / 拖入其他父级换组（模拟）')}
+let caSel='pri';
+function openCatAdd(){caMode(caSel);
+  $('#caColor').innerHTML=CAT_COLORS.map((cc,i)=>`<option value="${i}" ${i===0?'selected':''}>${cc[0]}</option>`).join('');caColorPrev();
+  $('#caParent').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
+  navTo('p-sub-catAdd')}
+function caMode(m){caSel=m;
+  $('#caPriBtn').className=(m==='pri'?'seg-on':'')+' px-4 rounded-lg py-1.5'+(m==='pri'?'':' text-slate-500');
+  $('#caSubBtn').className=(m==='sub'?'seg-on':'')+' px-4 rounded-lg py-1.5'+(m==='sub'?'':' text-slate-500');
+  $('#caParentRow').classList.toggle('hidden',m!=='sub');$('#caParentRow').classList.toggle('flex',m==='sub')}
+function caColorPrev(){$('#caSwatch').className='w-10 h-6 rounded-full '+CAT_COLORS[+$('#caColor').value][1]}
+function caSave(keep){const name=$('#caName').value.trim();if(!name){toast('请先输入分类名称');return}
+  const col=CAT_COLORS[+$('#caColor').value][1];const tag=$('#caTag').value==='无'?'':$('#caTag').value;
+  if(caSel==='pri'){CATS[name]=col;SUBS[name]=SUBS[name]||{}}
+  else{const pk=$('#caParent').value;SUBS[pk]=SUBS[pk]||{};SUBS[pk][name]=tag}
+  renderCatTree();renderCatRail();$('#caName').value='';$('#caDesc').value='';
+  toast('✔ 已保存分类「'+name+'」· 速记列/标记面板/添加弹层/账本同源生效');
+  if(!keep)goBack()}
+/* —— 待办设置时间三态（V1.19 · 图8-10 · 时间点/时间段/全天 → 落入日程视图） —— */
+let tkSel={mode:'none'};
+function tkMode(m){tkSel={mode:m};
+  [['none','tkNoneB'],['point','tkPointB'],['range','tkRangeB'],['all','tkAllB']].forEach(([k,b])=>{$('#'+b).className=(k===m?'seg-on':'')+' px-2.5 py-1 rounded-md'+(k===m?'':' text-slate-500')});
+  $('#tkPointRow').classList.toggle('hidden',m!=='point');$('#tkPointRow').classList.toggle('flex',m==='point');
+  $('#tkRangeRow').classList.toggle('hidden',m!=='range');$('#tkRangeRow').classList.toggle('flex',m==='range');
+  $('#tkAllRow').classList.toggle('hidden',m!=='all')}
+function initTk(){const hs=Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}</option>`).join('');
+  const ms=Array.from({length:12},(_,i)=>`<option value="${i*5}">${String(i*5).padStart(2,'0')}</option>`).join('');
+  $('#tkH').innerHTML=hs;$('#tkM').innerHTML=ms;$('#tkS').innerHTML=hs;$('#tkE').innerHTML=hs;
+  $('#tkCat').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
+  $('#tkLink').onchange=e=>$('#tkCat').classList.toggle('hidden',!e.target.checked)}
+function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done=!t.done;
+  renderTodos();renderQuad();renderAgenda();
+  toast(t.done?'✔ 待办完成 · 日程视图同步划线':'已恢复未完成')}
 
 /* ================= 记录 ================= */
 function switchRecord(k){ recTab=k;
@@ -2758,7 +2922,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
+renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
 setInterval(()=>{if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
