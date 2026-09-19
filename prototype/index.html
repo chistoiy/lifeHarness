@@ -419,7 +419,7 @@ tailwind.config = {
             </div>
           </div>
           <div class="w-[70px] shrink-0">
-            <div class="text-[9px] text-slate-400 text-center mb-1">点=记到此刻</div>
+            <div class="text-[9px] text-slate-400 text-center mb-1">选中=标记 · 未选=记到此刻</div>
             <div id="catRail" class="space-y-1.5"></div>
           </div>
         </div>
@@ -429,7 +429,7 @@ tailwind.config = {
         <div class="flex gap-2 items-start">
           <div class="flex-1 min-w-0 select-none" style="touch-action:none">
             <div class="flex items-center justify-between mb-1.5 gap-2">
-              <div class="text-[10px] text-slate-400">🖐 滑选标记 · 1格=<b id="granLabel">15</b>分 · <b>全天 0-24</b> · 事件块⚡/完成块✓ 点击可管理</div>
+              <div class="text-[10px] text-slate-400">🖐 滑选 → 点右列分类=直接标记 · 1格=<b id="granLabel">15</b>分 · 全天0-24 · ⚡事件/✓块点击可管理</div>
               <span class="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">粒度
                 <select id="granSel" onchange="setGran(+this.value)" class="sel !py-1">
                   <option value="1">1 分钟</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15" selected>15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option>
@@ -440,7 +440,7 @@ tailwind.config = {
             <div id="gridSelInfo" class="mt-2 text-xs font-bold text-brand-500 min-h-[20px]"></div>
           </div>
           <div class="w-[70px] shrink-0">
-            <div class="text-[9px] text-slate-400 text-center mb-1">点=记到此刻</div>
+            <div class="text-[9px] text-slate-400 text-center mb-1">选中=标记 · 未选=记到此刻</div>
             <div id="catRail2" class="space-y-1.5"></div>
           </div>
         </div>
@@ -1399,6 +1399,23 @@ tailwind.config = {
     <button class="fab-act" onclick="fabGo('p-items','打开录入物品（模拟）')">📦 记物品</button>
   </div>
 
+  <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
+  <div id="pomoStage" class="hidden absolute inset-0 z-[60] flex-col items-center text-white" style="background:linear-gradient(180deg,#41618c 0%,#7d93b5 55%,#d8a9a2 100%)">
+    <div class="mt-10 self-start text-3xl opacity-80 ml-6">❝</div>
+    <div class="px-10 text-center text-[15px] leading-6 opacity-95" id="pomoQuote">没有过不去的坎，只有回不去的昨天。向前看，路就在脚下。</div>
+    <div class="relative mt-14 w-52 h-52">
+      <svg viewBox="0 0 100 100" class="w-full h-full" style="transform:rotate(-90deg)"><circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.5"/><circle id="pomoRing" cx="50" cy="50" r="46" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="0"/></svg>
+      <div class="absolute inset-0 flex items-center justify-center"><span class="text-[44px] font-extrabold tracking-wide" id="pomoClock">25:00</span></div>
+    </div>
+    <div class="mt-8 text-base font-bold" id="pomoTitle">任务</div>
+    <div class="text-[11px] opacity-80 mt-0.5"><span id="pomoState">进行中</span> · <span id="pomoModeLbl">倒计时</span></div>
+    <div class="mt-auto mb-10 flex items-center gap-12 text-[26px]">
+      <button class="opacity-90" onclick="pomoPause()" id="pomoPauseB">⏸</button>
+      <button class="opacity-90" onclick="pomoReset()">↺</button>
+      <button class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-xl" onclick="pomoFinish()">■</button>
+    </div>
+  </div>
+
   <!-- ===== 底部导航 ===== -->
   <nav class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
@@ -2031,7 +2048,7 @@ function renderTodos(){
     <button onclick="tkToggle(${i})" class="chk ${t.done?'chk-on':''}">${t.done?'✓':''}</button>
     <div class="flex-1 min-w-0" onclick="openTask(${i})"><div class="text-sm font-semibold ${t.done?'line-through text-slate-400':''} truncate">${t.pomo?'🍅 ':''}${t.t}</div>
       <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>◉ ${D.quads[t.q].name}</span><span>⏰ ${t.due}</span>${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
-    ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="pomoStop()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 🍅</button>`):''}
+    ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 🍅</button>`):''}
     <span class="qbadge ${D.quads[t.q].cls}">${'①②③④'[t.q]}</span></div>`).join('');
 }
 function tkToggle(i){ D.todos[i].done=!D.todos[i].done; renderTodos(); renderQuad(); if(D.todos[i].done)toast('完成 ✓ 已计入今日小结（联动 L2）'); }
@@ -2138,7 +2155,7 @@ function renderTimeline(){const el=$('#timeAxis');if(!el)return;
       const run=pomoRun&&pomoRun.i===i;
       return `<div class="relative mb-4"><span class="absolute -left-14 top-0 w-12 text-right text-[10px] font-mono text-violet-400">${t.timeMode==='point'?t.tm:t.tm+'-'+t.te}</span><span class="absolute -left-[9px] top-1 w-2 h-2 rounded-full bg-violet-400"></span>
       <div class="card !py-2.5 !px-3 border-l-4 border-violet-400 flex items-center gap-2"><div class="flex-1 min-w-0"><div class="text-sm font-bold ${t.done?'line-through text-slate-400':''} truncate">🔘 ${t.t}${t.pomo?' 🍅':''}</div><div class="text-[10px] text-slate-400 mt-0.5">定时待办 · ${D.quads[t.q].name}${t.pomo?' · 番茄'+(t.pomo.mode==='down'?t.pomo.min+'分倒计时':'正计时'):''}</div></div>
-      ${t.pomo?(run?`<button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="pomoStop()">■ 结束</button>`:`<button class="px-3 py-2 rounded-xl bg-rose-500/90 text-white text-[11px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 番茄</button>`)
+      ${t.pomo?(run?`<button class="px-3 py-2 rounded-xl bg-rose-500 text-white text-[11px] font-extrabold shrink-0" onclick="pomoFinish()">■ 结束</button>`:`<button class="px-3 py-2 rounded-xl bg-rose-500/90 text-white text-[11px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 番茄</button>`)
         :`<button onclick="tglTodo('${t.t}')" class="chk ${t.done?'chk-on':''} shrink-0">${t.done?'✓':''}</button>`}</div></div>`}).join('')
     +`<div class="relative cursor-pointer" onclick="addEventAtHour(17)"><span class="absolute -left-14 w-12 text-right text-[10px] font-mono text-slate-400">17:00</span><div class="text-xs text-slate-300 dark:text-slate-600 py-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">空闲 · 点此补录该时段日程</div></div>`;
  el.innerHTML=h;}
@@ -2199,12 +2216,23 @@ function initGrid(){const gc=$('#gridCells');
     if(hit&&hit.ev!==undefined){markSel=null;selA=selB=null;renderGrid();openEventDetail('plan',hit.ev);return}
     if(hit&&hit.done!==undefined){markSel=null;selA=selB=null;renderGrid();openEventDetail('ended',hit.done);return}
     if(hit&&hit.live){markSel=null;selA=selB=null;renderGrid();openEventDetail('live');return}
-    if(a===b&&!hit){markSel=null;selA=selB=null;renderGrid();openTimePick(19,Math.floor(cellMin(a)/60),cellMin(a)%60);return}
     markSel={a,b};
-    $('#markDelBtn').classList.toggle('hidden',!hit);
-    $('#markRange').textContent=hit?`${fmt(hit.s)} - ${fmt(hit.e)} · ${hit.cat}${hit.note?' · '+hit.note:''}（点击已标记格，可取消标记或覆盖新标记）`
-      :`${fmt(cellMin(a))} - ${fmt(cellMin(b)+gran)}（${(b-a+1)*gran} 分钟 · 粒度 ${gran} 分钟）`;
-    openSheet('sheetGridMark');});}
+    $('#gridSelInfo').innerHTML=`已选 <b>${fmt(cellMin(a))} - ${fmt(cellMin(b)+gran)}</b> · ${(b-a+1)*gran} 分钟 → <b class="text-brand-500">点右侧分类直接标记</b>（覆盖已有块自动拆分同步） · <span class="text-slate-400 font-normal" onclick="clearSel()">✕ 取消</span> · <span class="text-brand-500" onclick="openTimePick(19,${Math.floor(cellMin(a)/60)},${cellMin(a)%60})">弹层精细›</span>`;});}
+function clearSel(){selA=selB=null;markSel=null;renderGrid()}
+/* 选区+分类 = 直接标记：覆盖已有手动块的交叠部分，剩余自动保留（拆分同步） */
+function markRange(st,en,cat){
+  const keep=[];blocks.forEach(b=>{
+    if(b.live||b.qs===1||b.e<=st||b.s>=en){keep.push(b);return}
+    if(b.s<st)keep.push(Object.assign({},b,{e:st}));
+    if(b.e>en)keep.push(Object.assign({},b,{s:en}))});
+  keep.push({s:st,e:en,cat:cat,note:cat});
+  keep.sort((x,y)=>x.s-y.s);
+  const out=[];keep.forEach(b=>{const l=out[out.length-1];
+    if(l&&l.cat===b.cat&&l.e===b.s&&!l.live&&l.qs===undefined&&l.note===b.note){l.e=b.e}else out.push(b)});
+  blocks=out;renderCal();
+  toast('✔ 已标记 '+fmt(st)+'-'+fmt(en)+' · '+cat+'（块即时间·免弹层 · 原块交叠部分被拆分覆盖 · L4 同步）')}
+function railTap(cat){if(markSel){const a=Math.min(markSel.a,markSel.b),b=Math.max(markSel.a,markSel.b);const st=cellMin(a),en=cellMin(b)+gran;markSel=null;selA=selB=null;markRange(st,en,cat);return}
+  quickMark(cat)}
 function doMark(){if(!markSel)return;const a=Math.min(markSel.a,markSel.b),b=Math.max(markSel.a,markSel.b);
   blocks.push({s:cellMin(a),e:cellMin(b)+gran,cat:markCat,note:$('#markNote').value.trim()});
   $('#markNote').value='';selA=selB=null;renderCal();closeSheet('sheetGridMark');
@@ -2213,7 +2241,7 @@ function delMark(){if(!markSel)return;const blk=blockAt(cellMin(markSel.a));if(b
   selA=selB=null;renderCal();closeSheet('sheetGridMark');toast('标记已取消，格子恢复空闲（五视图同步）');}
 /* —— 右侧分类速记列（图2/图3 · 点=记到此刻 · 自动接龙） —— */
 function renderCatRail(){if(!$('#catRail'))return;
-  const h=Object.entries(CATS).map(([k,v])=>`<button class="cat-btn ${v}" onclick="quickMark('${k}')">${k}</button>`).join('');
+  const h=Object.entries(CATS).map(([k,v])=>`<button class="cat-btn ${v}" onclick="railTap('${k}')">${k}</button>`).join('');
   $('#catRail').innerHTML=h;$('#catRail2').innerHTML=h;}
 function quickMark(cat){const now=new Date();const nm=now.getHours()*60+now.getMinutes();
   const prev=blocks.filter(b=>b.qs===1);prev.forEach(b=>{b.e=Math.max(b.s,nm)});
@@ -2358,13 +2386,29 @@ function pmMode(m){pmSel=m;
   $('#pmDownB').className=(m==='down'?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md text-slate-500');
   $('#pmMinWrap').classList.toggle('hidden',m!=='down');$('#pmMinWrap').classList.toggle('flex',m==='down')}
 function pomoStart(i){if(pomoRun){toast('已有番茄进行中 · 请先结束（单活约束）');return}
-  pomoRun={i:i,t0:Date.now()};renderTodos();renderQuad();renderTimeline();
-  const t=D.todos[i];toast('🍅 开始番茄「'+t.t+'」· '+(t.pomo.mode==='down'?t.pomo.min+' 分钟倒计时':'正计时')+' · 结束自动入时间模块')}
-function pomoStop(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const mins=Math.max(1,Math.round((Date.now()-pomoRun.t0)/60000));pomoRun=null;
+  const t=D.todos[i];pomoRun={i:i,t0:Date.now(),paused:0,pauseAt:0};
+  $('#pomoTitle').textContent=t.t;$('#pomoModeLbl').textContent=t.pomo.mode==='down'?('倒计时 '+t.pomo.min+' 分'):'正计时';
+  $('#pomoStage').classList.remove('hidden');$('#pomoStage').classList.add('flex');$('#pomoPauseB').textContent='⏸';
+  pomoTick();renderTodos();renderQuad();renderTimeline()}
+function pomoElapsedMin(){return Math.max(1,Math.round((Date.now()-pomoRun.t0-(pomoRun.paused||0))/60000))}
+function pomoPause(){if(!pomoRun)return;
+  if(pomoRun.pauseAt){pomoRun.paused+=Date.now()-pomoRun.pauseAt;pomoRun.pauseAt=0;$('#pomoPauseB').textContent='⏸';$('#pomoState').textContent='进行中'}
+  else{pomoRun.pauseAt=Date.now();$('#pomoPauseB').textContent='▶';$('#pomoState').textContent='已暂停'}}
+function pomoReset(){if(!pomoRun)return;pomoRun.t0=Date.now();pomoRun.paused=0;pomoRun.pauseAt=0;$('#pomoPauseB').textContent='⏸';$('#pomoState').textContent='进行中';pomoTick()}
+function pomoTick(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const el=(Date.now()-pomoRun.t0-(pomoRun.paused||0))/1000;
+  const down=t.pomo.mode==='down';const C=289;
+  let sec,prog;
+  if(down){sec=Math.max(0,t.pomo.min*60-el);prog=1-sec/(t.pomo.min*60);if(el>=t.pomo.min*60){pomoFinish();return}}
+  else{sec=Math.floor(el);prog=(sec%600)/600}
+  $('#pomoClock').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(Math.floor(sec%60)).padStart(2,'0');
+  $('#pomoRing').setAttribute('stroke-dashoffset',(C*prog).toFixed(1))}
+function pomoStop(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const mins=pomoElapsedMin();pomoRun=null;
+  $('#pomoStage').classList.add('hidden');$('#pomoStage').classList.remove('flex');
   t.done=true;const now=new Date();const nm=now.getHours()*60+now.getMinutes();
   blocks.push({s:Math.max(0,nm-mins),e:nm,cat:t.linkCat||'工作',note:'🍅 '+t.t+' · 番茄'});
   renderCal();renderTodos();renderQuad();
   toast('🍅 完成「'+t.t+'」· 实际 '+mins+' 分钟 → 自动写入时间模块（L4 · 轴/块/日/周同步）· 已计入今日小结（L2）')}
+function pomoFinish(){pomoStop()}
 function tsMode(m){tsSel=m;
   [['open','tsOpenB'],['done','tsDoneB'],['drop','tsDropB']].forEach(([k,b])=>{$('#'+b).className=(k===m?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md '+(k==='done'?'text-emerald-500/70':k==='drop'?'text-rose-400/80':'text-slate-500'))});}
 function initTs(){$('#tsColor').innerHTML=['默认'].concat(CAT_COLORS.map(c=>c[0])).map(n=>`<option>${n}</option>`).join('')}
@@ -2960,7 +3004,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
 
 /* ================= 启动 ================= */
 renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
-setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
+setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
 $("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
