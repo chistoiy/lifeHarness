@@ -386,12 +386,11 @@ tailwind.config = {
       <div class="flex items-center justify-between gap-2">
         <div id="hdWrap" style="position:relative">
           <div class="flex items-baseline gap-1.5 text-xl font-extrabold">
-            <span id="hdY" class="text-brand-500 cursor-pointer active:opacity-60" onclick="toggleYm('y')" title="点选年份">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
-            <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="toggleYm('m')" title="点选月份">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
-            <span id="hdD" class="cursor-pointer active:opacity-60" onclick="pickDay()" title="展开月历点选日期">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
+            <span id="hdY" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
+            <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
+            <span id="hdD" class="cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
             <span class="text-[9px] font-normal text-slate-400 ml-1" id="calSub">操作下方自动收起 · 点年月日跳转</span>
           </div>
-          <div id="ymMenu" class="hidden absolute left-0 top-10 z-40 w-56 card !p-2 flex flex-wrap gap-1.5 text-[11px] font-bold shadow-xl"></div>
         </div>
         <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
           <button id="btnToday" class="hidden w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 font-extrabold text-[15px]" onclick="goToday()" title="回到今天">今</button>
@@ -417,7 +416,7 @@ tailwind.config = {
         <div class="flex items-center text-[9px] text-slate-400 px-1 mb-1"><span>👆 左右滑动切换天 · 点当前日展开月历</span><span class="ml-auto text-brand-500 font-bold cursor-pointer" onclick="expandMonth()">展开 ▾</span></div>
         <div class="grid grid-cols-7 text-center gap-x-1" id="weekStripCells"></div>
       </div>
-      <button onclick="openSheet('sheetAddEvent')" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-brand-400 text-sm text-brand-500 font-bold active:bg-brand-50 dark:active:bg-brand-500/10">+ 新建日程（9月19日 · 09:00 - 10:00）</button>
+      <button onclick="openTimePick(calDay,(new Date().getHours()+1)%24,0)" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-brand-400 text-sm text-brand-500 font-bold active:bg-brand-50 dark:active:bg-brand-500/10">+ 新建日程（9月19日 · 09:00 - 10:00）</button>
       <div id="conflictTip" class="mt-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 p-3 text-xs hidden">⏱ <b>时间冲突：</b>「产品评审」与「与客户午餐」重叠 30 分钟，点击调整 ›</div>
       <!-- ① 轴视图：竖向时间轴（V1.22.1 去右侧分类栏·速记仅在块视图） -->
       <div id="calAxisView" class="hidden mt-3">
@@ -1415,7 +1414,7 @@ tailwind.config = {
     <div class="mt-auto mb-10 flex items-end gap-9">
       <button class="flex flex-col items-center gap-1.5" onclick="pomoPause()"><span id="pomoPauseIco" class="w-12 h-12 rounded-full bg-white/15 border border-white/25 flex items-center justify-center"></span><span id="pomoPauseLbl" class="text-[9px] opacity-70">暂停</span></button>
       <button class="flex flex-col items-center gap-1.5" onclick="pomoReset()"><span class="w-12 h-12 rounded-full bg-white/15 border border-white/25 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></span><span class="text-[9px] opacity-70">重置</span></button>
-      <button class="flex flex-col items-center gap-1.5" onclick="pomoFinish()"><span class="w-14 h-14 rounded-full bg-white/25 border border-white/40 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></span><span class="text-[9px] opacity-70">停止 · 入账</span></button>
+      <button class="flex flex-col items-center gap-1.5" onclick="pomoFinish()"><span class="w-12 h-12 rounded-full bg-white/15 border border-white/25 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></span><span class="text-[9px] opacity-70">停止 · 入账</span></button>
     </div>
   </div>
 
@@ -1497,6 +1496,7 @@ tailwind.config = {
           <label class="flex items-center gap-1.5"><input type="checkbox" id="tkLink" class="accent-indigo-500"> 关联计时分类（完成后按实际耗时入 L4 账本）</label>
           <select id="tkCat" class="sel !py-1 hidden"></select>
         </div>
+        <div class="mt-2 flex items-center justify-between text-[11px]"><span>绑定习惯打卡（完成即回写）</span><select id="tkHabit" class="sel !py-1"><option>不绑定</option></select></div>
       </div>
       <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
       <div class="mt-3 flex gap-3">
@@ -1562,23 +1562,23 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="flex items-center"><div class="font-extrabold flex-1">添加事件 / 时间块</div><span id="tpRange" class="text-[10px] text-slate-400"></span></div>
-      <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
-          <span class="text-slate-400 shrink-0">上尾/当前</span>
-          <select id="tpDay" class="sel !py-1 flex-1"></select>
+      <div class="mt-3 flex gap-2 text-xs">
+        <div class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-2">
+          <span class="inline-block px-2 py-0.5 rounded-md bg-slate-900 text-white text-[9px] font-bold dark:bg-white dark:text-slate-900">上尾 · 起始</span>
+          <div class="flex items-center justify-center mt-1"><div id="tpSd"></div><span class="text-slate-300 mx-0.5">/</span><div id="tpSh"></div><span class="text-slate-400 font-bold mx-0.5">:</span><div id="tpSm"></div></div>
         </div>
-        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
-          <select id="tpH" class="sel !py-1 flex-1"></select><span>:</span>
-          <select id="tpM" class="sel !py-1 flex-1"></select>
+        <div class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-2">
+          <span class="inline-block px-2 py-0.5 rounded-md bg-slate-900 text-white text-[9px] font-bold dark:bg-white dark:text-slate-900">当前 · 结束</span>
+          <div class="flex items-center justify-center mt-1"><div id="tpEd"></div><span class="text-slate-300 mx-0.5">/</span><div id="tpEh"></div><span class="text-slate-400 font-bold mx-0.5">:</span><div id="tpEm"></div></div>
         </div>
-        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2.5">
-          <span class="text-slate-400 shrink-0">时长</span>
-          <select id="tpDur" class="sel !py-1 flex-1"><option value="0">0 分钟</option><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60" selected>1 小时</option><option value="90">1.5 小时</option><option value="120">2 小时</option></select>
-        </div>
-        <div class="flex items-center justify-end gap-1">
-          <button class="tag-chip" onclick="toast('标签选择面板（模拟）· 默认带分类默认标签')">标签 ›</button>
-          <button class="tag-chip" onclick="closeSheet('sheetTimePick');navTo('p-sub-cats')">无分类 ›</button>
-        </div>
+      </div>
+      <div class="mt-2 flex items-center gap-1.5 text-[10px] font-bold flex-wrap">时长
+        <button class="tag-chip justify-center" onclick="tpDur(0)">0分</button>
+        <button class="tag-chip justify-center" onclick="tpDur(15)">15分</button>
+        <button class="tag-chip justify-center" onclick="tpDur(30)">30分</button>
+        <button class="tag-chip justify-center" onclick="tpDur(60)">1时</button>
+        <button class="tag-chip justify-center" onclick="tpDur(120)">2时</button>
+        <span class="ml-auto flex gap-1"><button class="tag-chip" onclick="toast('标签选择面板（模拟）· 默认带分类默认标签')">标签 ›</button><button class="tag-chip" onclick="closeSheet('sheetTimePick');navTo('p-sub-cats')">无分类 ›</button></span>
       </div>
       <div class="mt-3 text-xs font-bold text-slate-500">分类（点一级选中 · 有次级再点次级精确到子项）</div>
       <div id="tpCats" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
@@ -1593,6 +1593,25 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 轮式日期选择（V1.23 恢复 · 图1 样式） ===== -->
+  <div id="sheetDatePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDatePick')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="text-center font-extrabold">选择日期</div>
+      <div class="mt-1 text-center text-xs text-slate-400" id="dpHint"></div>
+      <div class="mt-3 grid grid-cols-3 text-center">
+        <div><div id="dpY"></div><span class="text-[9px] text-slate-400">年</span></div>
+        <div><div id="dpM"></div><span class="text-[9px] text-slate-400">月</span></div>
+        <div><div id="dpD"></div><span class="text-[9px] text-slate-400">日</span></div>
+      </div>
+      <div class="mt-1 text-[10px] text-slate-400 text-center">上下滑动滚轮（原型以点选上/下项模拟）</div>
+      <div class="mt-4 flex gap-3">
+        <button onclick="closeSheet('sheetDatePick')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+        <button onclick="dpOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 任务详情 ===== -->
   <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -1601,7 +1620,7 @@ tailwind.config = {
         <button onclick="toast('完成状态已切换（模拟）')" class="w-6 h-6 rounded-full border-2 border-brand-500 shrink-0 mt-0.5"></button>
         <div class="flex-1"><div id="stTitle" class="font-extrabold">整理季度报销单</div>
         <div class="text-[11px] text-slate-400 mt-0.5">⏰ 逾期 1 天 · 提醒 09-18 09:00</div></div>
-        <button class="text-slate-400" onclick="toast('更多操作（模拟）')">⋯</button>
+        <button class="text-rose-500 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-rose-300 shrink-0" onclick="delTaskFromSheet()">🗑 删除</button>
       </div>
       <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]">
         <button class="q-move on" onclick="qMove(this,0)">立即做</button><button class="q-move" onclick="qMove(this,1)">计划做</button>
@@ -1801,6 +1820,17 @@ tailwind.config = {
         <button id="hbNeg" class="tag-chip justify-center" onclick="hbType('neg',this)">🚯 负向 · 坏习惯要减少</button>
       </div>
       <div id="hbTargetWrap" class="mt-3 hidden items-center justify-between text-xs"><span>目标不出现次数上限（次/周）</span><select id="hbTarget" class="sel"><option>2</option><option>1</option><option>3</option><option>5</option></select></div>
+      <div class="mt-3 text-xs font-bold text-slate-500">打卡周期</div>
+      <div class="mt-1 flex gap-2 text-xs">
+        <button id="hbCycD" class="tag-chip justify-center on" onclick="hbCyc('day',this)">每天</button>
+        <button id="hbCycW" class="tag-chip justify-center" onclick="hbCyc('week',this)">每周 · 选固定日</button>
+      </div>
+      <div id="hbWdWrap" class="hidden mt-2 flex-wrap gap-1.5 text-[11px]"><span class="text-slate-400 self-center">固定日：</span><span class="flex gap-1.5 flex-wrap"><button class="tag-chip justify-center hb-wd" data-d="一" onclick="this.classList.toggle('on')">一</button><button class="tag-chip justify-center hb-wd" data-d="二" onclick="this.classList.toggle('on')">二</button><button class="tag-chip justify-center hb-wd" data-d="三" onclick="this.classList.toggle('on')">三</button><button class="tag-chip justify-center hb-wd" data-d="四" onclick="this.classList.toggle('on')">四</button><button class="tag-chip justify-center hb-wd" data-d="五" onclick="this.classList.toggle('on')">五</button><button class="tag-chip justify-center hb-wd" data-d="六" onclick="this.classList.toggle('on')">六</button><button class="tag-chip justify-center hb-wd" data-d="日" onclick="this.classList.toggle('on')">日</button></span></div>
+      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">自动生成关联待办<br><span class="text-[9px] font-normal text-slate-400">完成待办即回写打卡 · 时间段型走番茄</span></span><span class="toggle on" id="hbTodoT" onclick="tgl(this)"></span></div>
+      <div class="mt-2 text-xs"><div class="font-bold text-slate-500 mb-1">待办形态</div><div class="flex gap-2">
+        <button id="hbTkN" class="tag-chip justify-center on" onclick="hbTkMode('norm',this)">✅ 常规（勾选完成）</button>
+        <button id="hbTkP" class="tag-chip justify-center" onclick="hbTkMode('pomo',this)">🍅 时间段 · 番茄</button>
+      </div></div>
       <div class="mt-3 flex items-center justify-between text-xs"><span class="text-slate-400">提醒时间</span><select class="sel"><option>07:00</option><option>20:00</option><option>21:30 晚确认</option></select></div>
       <button onclick="addHabit()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">创建习惯</button>
     </div>
@@ -2050,13 +2080,15 @@ function renderTodos(){
   $('#todoList').innerHTML=D.todos.map((t,i)=>`<div class="task-row card !py-3 flex items-center gap-3">
     <button onclick="tkToggle(${i})" class="chk ${t.done?'chk-on':''}">${t.done?'✓':''}</button>
     <div class="flex-1 min-w-0" onclick="openTask(${i})"><div class="text-sm font-semibold ${t.done?'line-through text-slate-400':''} truncate">${t.pomo?'🍅 ':''}${t.t}</div>
-      <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>◉ ${D.quads[t.q].name}</span><span>⏰ ${t.due}</span>${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
+      <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>◉ ${D.quads[t.q].name}</span><span>⏰ ${t.due}</span>${t.habit?`<span class="text-violet-500 font-bold">🔁 ${t.habit}</span>`:''}${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
     ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 🍅</button>`):''}
     <span class="qbadge ${D.quads[t.q].cls}">${'①②③④'[t.q]}</span></div>`).join('');
 }
-function tkToggle(i){ D.todos[i].done=!D.todos[i].done; renderTodos(); renderQuad(); if(D.todos[i].done)toast('完成 ✓ 已计入今日小结（联动 L2）'); }
-function openTask(i){ $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
+function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
+function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}
+function openTask(i){ stIdx=i; $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
 function qMove(btn,q){ $$('.q-move').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); toast('已改判为「'+D.quads[q].name+'」（拖拽同样可用）'); }
+let stIdx=0;
 function switchTodoView(v){
   const list=v==='list'; $('#todoListWrap').classList.toggle('hidden',!list); $('#quadWrap').classList.toggle('hidden',list);
   $('#tvList').className = (list?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(list?'':' text-slate-500');
@@ -2091,6 +2123,7 @@ function addTask(){
    else{rec.timeMode='range';rec.tm=String(a).padStart(2,'0')+':00';rec.te=String(b).padStart(2,'0')+':00'}}
  else if(tkSel.mode==='all'){rec.timeMode='all'}
  if(rec.timeMode&&$('#tkLink').checked){rec.linkCat=$('#tkCat').value}
+ const hb=$('#tkHabit').value;if(hb!=='不绑定')rec.habit=hb;
  D.todos.unshift(rec);
   askState={imp:null,urg:null}; $('#ntTitle').value='';
   resetAsk('gImp','对目标/价值有贡献'); resetAsk('gUrg','有明确近期期限');
@@ -2127,16 +2160,21 @@ function renderHeadDate(){const y=$('#hdY');if(!y)return;
   $('#hdD').className=calDay===19?'':'text-brand-500';
   $('#btnToday').classList.toggle('hidden',calDay===19)}
 function goToday(){if(calDay!==19){setDay(19,1);toast('已回到今天 9月19日')}}
-let ymOpen='';
-function toggleYm(kind){const m=$('#ymMenu');
-  if(ymOpen===kind&&!m.classList.contains('hidden')){m.classList.add('hidden');ymOpen='';return}
-  ymOpen=kind;m.classList.remove('hidden');
-  m.innerHTML=kind==='y'
-    ?'<div class="w-full text-[9px] text-slate-400 px-1">选择年份</div>'+[2024,2025,2026,2027,2028].map(y=>`<button class="tag-chip justify-center ${y===2026?'on':''}" onclick="pickY(${y})">${y}</button>`).join('')
-    :'<div class="w-full text-[9px] text-slate-400 px-1">选择月份</div>'+Array.from({length:12},(_,i)=>`<button class="tag-chip justify-center ${i+1===9?'on':''}" onclick="pickM(${i+1})">${i+1}月</button>`).join('')}
-function pickY(y){$('#ymMenu').classList.add('hidden');ymOpen='';toast('已选 '+y+'年（真实版：月历/时间轴跳至该年）')}
-function pickM(m){$('#ymMenu').classList.add('hidden');ymOpen='';toast('已选 2026年'+m+'月（真实版：月历切至该月）')}
-function pickDay(){$('#ymMenu').classList.add('hidden');ymOpen='';expandMonth();const pg=$('#p-calendar');if(pg)pg.scrollTo({top:0,behavior:'smooth'});toast('已展开月历 · 点选日期即跳转')}
+/* 轮式选择器（V1.23 · 图1/图2 · 上下滑=点选上下项模拟） */
+const WHEELS={};
+function wReg(id,items,i,onch){WHEELS[id]={items,i:Math.max(0,i||0),onch};renderW(id)}
+function renderW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!el)return;const n=w.items.length;const at=k=>w.items[((w.i+k)%n+n)%n];
+  el.innerHTML=`<div class="text-[12px] text-slate-300 py-1 cursor-pointer select-none" onclick="wShift('${id}',-1)">${at(-1)}</div><div class="text-[19px] font-extrabold text-brand-500 leading-7 select-none">${at(0)}</div><div class="text-[12px] text-slate-300 py-1 cursor-pointer select-none" onclick="wShift('${id}',1)">${at(1)}</div>`}
+function wShift(id,d){const w=WHEELS[id];w.i=((w.i+d)%w.items.length+w.items.length)%w.items.length;renderW(id);if(w.onch)w.onch()}
+function openDatePick(){
+  wReg('dpY',['2024','2025','2026','2027','2028'],2,dpHint);
+  wReg('dpM',['01','02','03','04','05','06','07','08','09','10','11','12'],8,dpHint);
+  wReg('dpD',Array.from({length:30},(_,i)=>String(i+1).padStart(2,'0')),calDay-1,dpHint);
+  dpHint();openSheet('sheetDatePick')}
+function dpHint(){const d=+WHEELS.dpD.items[WHEELS.dpD.i];$('#dpHint').innerHTML=WHEELS.dpM.items[WHEELS.dpM.i]+'月'+WHEELS.dpD.items[WHEELS.dpD.i]+'日 周'+WDS[(d+1)%7]+(d===19?' · <b class="text-brand-500">今天</b>':'')}
+function dpOk(){const m=WHEELS.dpM.items[WHEELS.dpM.i],d=+WHEELS.dpD.items[WHEELS.dpD.i];closeSheet('sheetDatePick');
+  if(m!=='09'){toast('已选 2026年'+m+'月（原型演示 · 真实版月历/时间轴跨月联动跳转）');return}
+  setDay(d,d>calDay?1:-1);toast('已跳转到 9月'+d+'日')}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
 function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');$('#calSub').textContent='已收起为周 · 左右滑动切换天';renderWeekStrip()}
 function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');$('#calSub').textContent='月视图展开 · 在下方开始操作将自动收起';renderMonthGrid()}
@@ -2193,8 +2231,7 @@ function switchCalView(v){ calView=v; collapseMonth();
  $('#conflictTip').classList.add('hidden');
 }
 function toggleViewMenu(e){e.stopPropagation();$('#viewMenu').classList.toggle('hidden')}
-document.addEventListener('pointerdown',e=>{const m=$('#viewMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#calTools'))m.classList.add('hidden');
-  const y=$('#ymMenu');if(y&&!y.classList.contains('hidden')&&!e.target.closest('#hdWrap')){y.classList.add('hidden');ymOpen=''}},true);
+document.addEventListener('pointerdown',e=>{const m=$('#viewMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#calTools'))m.classList.add('hidden')},true);
 /* ================= 块视图·全天格子时间块（V1.19 · 0-24 全天） ================= */
 let calView='block', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
 let CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','餐饮':'bg-orange-300','娱乐':'bg-peach','睡眠':'bg-indigo-800','清洁':'bg-mint','其他':'bg-slate-400','吃饭':'bg-orange-400','休息':'bg-amber-700','路上':'bg-slate-500'};
@@ -2332,29 +2369,36 @@ function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   el.innerHTML=h+'</div>';}
 
 
-/* —— 统一添加事件/时间块弹层（V1.19 · 轴/块/日/周共用 · 两级分类 · 继续添加） —— */
-let tpSel={d:19,h:15,m:0,dur:60,cat:'工作',sub:null};
-function openTimePick(d,h,m){tpSel={d:d,h:h||0,m:m||0,dur:60,cat:'工作',sub:null};
-  $('#tpDay').innerHTML=[13,14,15,16,17,18,19,20].map(x=>`<option value="${x}" ${x===d?'selected':''}>9月${x}日</option>`).join('');
-  $('#tpH').innerHTML=Array.from({length:24},(_,x)=>`<option value="${x}" ${x===tpSel.h?'selected':''}>${String(x).padStart(2,'0')}</option>`).join('');
-  $('#tpM').innerHTML=Array.from({length:12},(_,x)=>`<option value="${x*5}" ${x*5===tpSel.m?'selected':''}>${String(x*5).padStart(2,'0')}</option>`).join('');
-  $('#tpDur').value='60';$('#tpNote').value='';$('#tpNoteC').textContent='0/5000';
-  $('#tpDay').onchange=e=>{tpSel.d=+e.target.value;tpUpd()};$('#tpH').onchange=e=>{tpSel.h=+e.target.value;tpUpd()};
-  $('#tpM').onchange=e=>{tpSel.m=+e.target.value;tpUpd()};$('#tpDur').onchange=e=>{tpSel.dur=+e.target.value;tpUpd()};
-  tpCats();tpSubsRender();tpUpd();openSheet('sheetTimePick');}
-function tpUpd(){const s=tpSel.h*60+tpSel.m,e=s+tpSel.dur;
-  $('#tpRange').textContent='9月'+tpSel.d+'日 '+String(tpSel.h).padStart(2,'0')+':'+String(tpSel.m).padStart(2,'0')+' → '+(tpSel.dur?fmt(Math.min(e,1439)):'瞬时')+(e>1440?' · 跨天':'')}
+/* —— 统一添加事件/时间块弹层（V1.23 · 双滚轮日期时间 · 图2 · 轴/块/日/周共用） —— */
+const TP_DAYS=['09/13','09/14','09/15','09/16','09/17','09/18','09/19','09/20'];
+const TP_HRS=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+const TP_MINS=Array.from({length:12},(_,i)=>String(i*5).padStart(2,'0'));
+let tpSel={cat:'工作',sub:null};
+function tpMin(wid){return +WHEELS[wid].items[WHEELS[wid].i]}
+function openTimePick(d,h,m){tpSel={cat:'工作',sub:null};
+  $('#tpNote').value='';$('#tpNoteC').textContent='0/5000';
+  const di=Math.max(0,Math.min(7,(d||19)-13));
+  wReg('tpSd',TP_DAYS,di,tpUpd);wReg('tpSh',TP_HRS,h||0,tpUpd);wReg('tpSm',TP_MINS,Math.floor((m||0)/5),tpUpd);
+  wReg('tpEd',TP_DAYS,di,tpUpd);wReg('tpEh',TP_HRS,Math.min(23,(h||0)+1),tpUpd);wReg('tpEm',TP_MINS,Math.floor((m||0)/5),tpUpd);
+  tpCats();tpSubsRender();tpUpd();openSheet('sheetTimePick')}
+function tpUpd(){const s=tpMin('tpSh')*60+tpMin('tpSm'),e=tpEd();
+  $('#tpRange').textContent=WHEELS.tpSd.items[WHEELS.tpSd.i]+' '+String(tpMin('tpSh')).padStart(2,'0')+':'+String(tpMin('tpSm')).padStart(2,'0')+' → '+WHEELS.tpEd.items[WHEELS.tpEd.i]+' '+String(Math.floor(e/60)%24).padStart(2,'0')+':'+String(e%60).padStart(2,'0')+' · '+(e<s?e+1440-s:e-s)+' 分钟'+(e<s?' · 跨天':'')}
+function tpEd(){return tpMin('tpEh')*60+tpMin('tpEm')}
+function tpDur(min){const s=tpMin('tpSh')*60+tpMin('tpSm');const e=s+min;
+  WHEELS.tpEh.i=Math.floor(e/60)%24;WHEELS.tpEm.i=Math.min(11,Math.floor((e%60)/5));renderW('tpEh');renderW('tpEm');tpUpd()}
+function tpAdd(keep){const sd=+WHEELS.tpSd.items[WHEELS.tpSd.i].slice(3);
+  let s=tpMin('tpSh')*60+tpMin('tpSm');let e=tpEd();if(e<=s)e=Math.min(s+60,1439);
+  const name=tpSel.sub||tpSel.cat;
+  blocks.push({s:s,e:Math.min(1439,e),cat:tpSel.cat,note:$('#tpNote').value.trim()||(name+(tpSel.sub?' · '+tpSel.cat:''))});
+  renderCal();
+  const cross=sd!==19?'（模拟：演示仅展示 9/19 · 真实版按所选日期落库）':'';
+  if(keep){$('#tpNote').value='';toast('✔ 已添加 '+fmt(s)+'-'+fmt(Math.min(1439,e))+' · '+name+'（9月'+sd+'日）'+cross)}
+  else{closeSheet('sheetTimePick');toast('✔ 已添加 · 轴/块/日/周四视图与时间账本同步（L4）'+cross)}}
 function tpCats(){$('#tpCats').innerHTML=Object.entries(CATS).map(([k,c])=>`<button data-c="${k}" class="tag-chip justify-center ${tpSel.cat===k?'on':''}" onclick="tpCat('${k}')"><i style="width:9px;height:9px;border-radius:3px" class="${c}"></i>${k}</button>`).join('')}
 function tpSubsRender(){const subs=Object.entries(SUBS[tpSel.cat]||{});
   $('#tpSubs').innerHTML=subs.length?subs.map(([sn,t])=>`<button class="tag-chip justify-center ${tpSel.sub===sn?'on':''}" onclick="tpSub('${sn}')"><i style="width:9px;height:9px;border-radius:3px" class="${CATS[tpSel.cat]} opacity-60"></i>${sn}${t?' · '+t:''}</button>`).join(''):'<span class="text-[10px] text-slate-400 self-center">该分类无次级 · 可直接添加</span>'}
 function tpCat(k){tpSel.cat=k;tpSel.sub=null;tpCats();tpSubsRender()}
 function tpSub(sn){tpSel.sub=tpSel.sub===sn?null:sn;tpSubsRender()}
-function tpAdd(keep){const st=tpSel.h*60+tpSel.m,en=Math.min(1439,st+(tpSel.dur||1));const name=tpSel.sub||tpSel.cat;
-  blocks.push({s:st,e:Math.max(en,st+1),cat:tpSel.cat,note:$('#tpNote').value.trim()||(name+(tpSel.sub?' · '+tpSel.cat:''))});
-  renderCal();
-  const cross=tpSel.d!==19?'（模拟：演示仅展示 9/19 · 真实版按所选日期落库）':'';
-  if(keep){$('#tpNote').value='';toast('✔ 已添加 '+fmt(st)+'-'+fmt(Math.max(en,st+1))+' · '+name+'（9月'+tpSel.d+'日）'+cross)}
-  else{closeSheet('sheetTimePick');toast('✔ 已添加 · 轴/块/日/日程/周五视图与时间账本同步（L4）'+cross)}}
 /* —— 分类管理（V1.19 · 两级树 · 长按拖拽换父组/排序 · 添加分类页） —— */
 function renderCatTree(){const el=$('#catTree');if(!el)return;
   el.innerHTML=Object.entries(CATS).map(([k,c])=>{
@@ -2437,11 +2481,13 @@ function pomoStop(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const mins=pom
   t.done=true;const now=new Date();const nm=now.getHours()*60+now.getMinutes();
   blocks.push({s:Math.max(0,nm-mins),e:nm,cat:t.linkCat||'工作',note:'🍅 '+t.t+' · 番茄'});
   renderCal();renderTodos();renderQuad();
-  toast('🍅 完成「'+t.t+'」· 实际 '+mins+' 分钟 → 自动写入时间模块（L4 · 轴/块/日/周同步）· 已计入今日小结（L2）')}
+  toast('🍅 完成「'+t.t+'」· 实际 '+mins+' 分钟 → 自动写入时间模块（L4 · 轴/块/日/周同步）· 已计入今日小结（L2）');
+  if(t.habit)syncHabit(t.habit)}
 function pomoFinish(){pomoStop()}
 function tsMode(m){tsSel=m;
   [['open','tsOpenB'],['done','tsDoneB'],['drop','tsDropB']].forEach(([k,b])=>{$('#'+b).className=(k===m?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md '+(k==='done'?'text-emerald-500/70':k==='drop'?'text-rose-400/80':'text-slate-500'))});}
-function initTs(){$('#tsColor').innerHTML=['默认'].concat(CAT_COLORS.map(c=>c[0])).map(n=>`<option>${n}</option>`).join('')}
+function initTs(){$('#tsColor').innerHTML=['默认'].concat(CAT_COLORS.map(c=>c[0])).map(n=>`<option>${n}</option>`).join('');
+  $('#tkHabit').innerHTML='<option>不绑定</option>'+HABITS.map(h=>`<option>${h.n}</option>`).join('')}
 function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done=!t.done;
   renderTodos();renderQuad();renderTimeline();
   toast(t.done?'✔ 待办完成 · 时间·轴视图同步划线（联动 L2）':'已恢复未完成')}
@@ -2898,7 +2944,7 @@ const FAB_CFG={
  'p-dashboard':{ico:'＋',menu:true},
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
  'p-todo':{ico:'＋',act:()=>openSheet('sheetAddTask')},
- 'p-calendar':{ico:'📅',act:()=>openSheet('sheetAddEvent')},
+ 'p-calendar':{ico:'📅',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
@@ -2948,9 +2994,26 @@ function renderHabits(){const el=$('#habList');if(!el)return;
 function hsCheck(i){const h=HABITS[i];h.w[6]=h.w[6]?0:1;if(h.w[6]){h.streak++;toast('✅ '+h.n+' 已打卡 · 连续 '+h.streak+' 天 · 写入周报（L4）')}else{h.streak=Math.max(0,h.streak-1);toast('已撤销今日打卡')}renderHabits()}
 function hsAvoid(i){const h=HABITS[i];if(h.w[6]){toast('今日已计入积累');return}h.w[6]=1;h.mAvoid++;toast('🛡 今日未触发 → 正向积累 +1 · 已坚持 '+h.mAvoid+' 天');renderHabits()}
 function hsTrigger(i){const h=HABITS[i];if(!h.w[6]){toast('今日已记录为触发');return}h.w[6]=0;h.triggers++;h.mAvoid=Math.max(0,h.mAvoid-1);toast('⚠️ 已记录触发 · 扣减积累 · 第 '+(h.triggers)+'/'+h.target+' 次（不批判，观察即改变）');renderHabits()}
+let hbCycV='day',hbTkV='norm';
+function hbCyc(k,el){hbCycV=k;$$('#hbCycD,#hbCycW').forEach(b=>b.classList.remove('on'));el.classList.add('on');
+ const w=$('#hbWdWrap');w.classList.toggle('hidden',k!=='week');w.classList.toggle('flex',k==='week')}
+function hbTkMode(k,el){hbTkV=k;$$('#hbTkN,#hbTkP').forEach(b=>b.classList.remove('on'));el.classList.add('on')}
 function addHabit(){const v=$('#hbTitle').value.trim();if(!v){toast('先给习惯起个名字');return}
- HABITS.unshift(hbNewType==='pos'?{n:(v.length>10?v.slice(0,10)+'…':v),type:'pos',streak:0,w:[0,0,0,0,0,0,0],mDone:0}:{n:v,type:'neg',target:+$('#hbTarget').value||2,triggers:0,w:[1,1,1,1,1,1,1],mAvoid:0});
- $('#hbTitle').value='';closeSheet('sheetAddHabit');renderHabits();toast('🔁 已创建'+(hbNewType==='pos'?'正向':'负向')+'习惯 · 提醒已加入「提醒通知→习惯」子页（联动 L10）')}
+ const short=v.length>10?v.slice(0,10)+'…':v;
+ const h=hbNewType==='pos'?{n:short,type:'pos',streak:0,w:[0,0,0,0,0,0,0],mDone:0}:{n:short,type:'neg',target:+$('#hbTarget').value||2,triggers:0,w:[1,1,1,1,1,1,1],mAvoid:0};
+ h.cycle=hbCycV;h.days=[...$$('.hb-wd.on')].map(b=>b.dataset.d);
+ HABITS.unshift(h);
+ let extra='';
+ if($('#hbTodoT').classList.contains('on')){
+   const rec={t:'🔁 打卡：'+short,tag:'习惯',q:1,due:'今天',done:false,habit:short};
+   if(hbTkV==='pomo'){rec.pomo={mode:'down',min:30};rec.timeMode='range';rec.tm='07:00';rec.te='07:30'}
+   D.todos.unshift(rec);renderTodos();renderQuad();renderTimeline();
+   extra=hbTkV==='pomo'?' · 已生成 🍅 时间段待办（07:00-07:30 番茄）':' · 已生成关联待办（勾选即打卡）'}
+ $('#hbTitle').value='';closeSheet('sheetAddHabit');renderHabits();
+ toast('🔁 已创建'+(hbNewType==='pos'?'正向':'负向')+'习惯（'+(h.cycle==='week'?'每周 '+(h.days.join('、')||'整周'):'每天')+'）'+extra+' · 联动 L10')}
+function syncHabit(name){const h=HABITS.find(x=>x.n.includes((name||'').replace('🔁 打卡：','').slice(0,6)));if(!h)return;
+ h.w[6]=1;h.streak=(h.streak||0)+1;renderHabits();
+ toast('🔁 已回写习惯打卡 ✓ · 「'+h.n+'」连续 '+h.streak+' 天')}
 /* ================= 插件中心（大模块插件化） ================= */
 const PS=[
  {id:'care',ic:'🍼',n:'母婴呵护',cat:'家庭',ver:'1.1.0',host:'1.0',size:'2.8 MB',rating:'★ 4.9 · 8.2k',state:'inst',weight:60,mount:['首页宫格','导航池','详情页'],tbl:'plugin_care',desc:'周期记录 + 宝宝八类喂养记录',long:'包含：生理周期/排卵预测着色日历、宝宝八类一键记录、WHO 生长曲线、疫苗计划。计时能力复用宿主悬浮计时条基础设施，插件自身不申请后台常驻。',perm:['隔离表空间 plugin_care（SQLite）','通知（预约类）'],hist:['1.1.0 新增生长曲线偏离预警','1.0.0 首发']},
