@@ -6,7 +6,7 @@ import '../../../core/providers.dart';
 import '../../../core/settings/user_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
-import '../../dashboard/presentation/dashboard_providers.dart';
+import '../../../shared/linkage/stats_providers.dart';
 
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/主题/深色/底栏配置。

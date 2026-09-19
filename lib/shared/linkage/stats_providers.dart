@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/database/app_database.dart';
-import '../../calendar/presentation/calendar_providers.dart';
-import '../../todo/presentation/todo_providers.dart';
+import '../../core/database/app_database.dart';
+import '../../features/calendar/presentation/calendar_providers.dart';
+import '../../features/todo/presentation/todo_providers.dart';
 
-/// 仪表盘聚合查询（骨架阶段直查 DB；M1 起按计划书迁 shared/linkage 服务）。
+// 跨模块聚合出口：仪表盘/设置等只 import 本文件，不直接 import 其他 feature。
+export '../../features/todo/presentation/todo_providers.dart' show todosProvider;
+export '../../features/calendar/presentation/calendar_providers.dart' show eventsProvider;
+
+/// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。
 
 /// 今日日程数（start_at 落在今日）。

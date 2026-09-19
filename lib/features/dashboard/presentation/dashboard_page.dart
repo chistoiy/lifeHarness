@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/nav/nav_module.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../todo/presentation/todo_providers.dart';
-import 'dashboard_providers.dart';
+import '../../../shared/linkage/stats_providers.dart';
 
 /// 模块6 今日仪表盘（M0 · 对齐原型 p-dashboard）。
 /// 真数据：待办数/进度环/今日日程数/收集箱未整理/连续记录天。
