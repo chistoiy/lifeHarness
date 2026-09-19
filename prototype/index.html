@@ -384,15 +384,14 @@ tailwind.config = {
     <!-- ===== P3 日程/日历 ===== -->
     <section id="p-calendar" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-1">
-          <div class="flex items-baseline gap-1.5 text-xl font-extrabold cursor-pointer active:opacity-70" onclick="openDatePick()" title="点年月日 · 轮式选择跳转">
-            <span id="hdY" class="text-brand-500">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
-            <span id="hdM" class="text-brand-500">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
-            <span id="hdD">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
-            <span class="text-[10px] text-slate-400">▾</span>
+        <div id="hdWrap" style="position:relative">
+          <div class="flex items-baseline gap-1.5 text-xl font-extrabold">
+            <span id="hdY" class="text-brand-500 cursor-pointer active:opacity-60" onclick="toggleYm('y')" title="点选年份">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
+            <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="toggleYm('m')" title="点选月份">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
+            <span id="hdD" class="cursor-pointer active:opacity-60" onclick="pickDay()" title="展开月历点选日期">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
+            <span class="text-[9px] font-normal text-slate-400 ml-1" id="calSub">操作下方自动收起 · 点年月日跳转</span>
           </div>
-          <button class="nav-arrow !w-6 !h-6 text-sm" onclick="calShift(-1)">‹</button>
-          <button class="nav-arrow !w-6 !h-6 text-sm" onclick="calShift(1)">›</button>
+          <div id="ymMenu" class="hidden absolute left-0 top-10 z-40 w-56 card !p-2 flex flex-wrap gap-1.5 text-[11px] font-bold shadow-xl"></div>
         </div>
         <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
           <button id="btnToday" class="hidden w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 font-extrabold text-[15px]" onclick="goToday()" title="回到今天">今</button>
@@ -404,12 +403,11 @@ tailwind.config = {
             <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="week" onclick="switchCalView('week');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">▤</span>周 · 7×24</button>
           </div>
           <button class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-[15px]" onclick="toast('全局搜索（M1 上线）')">🔍</button>
-          <button class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-[15px]" onclick="toast('更多：导出 · 合并 · 设置（模拟）')">⋮</button>
         </div>
       </div>
-      <div class="text-[10px] text-slate-400 mt-0.5" id="calSub">月视图展开 · 操作下方自动收起 · 点顶栏年月日可跳转</div>
       <!-- 展开态：迷你月历（有事项的天右下角显圆点） -->
       <div id="monthPanel" class="mt-2 card !p-3">
+        <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mb-1"><button class="px-2 py-0.5" onclick="calShift(-1)">‹ 上月</button><span class="text-[11px] font-extrabold text-slate-500">2026年9月</span><button class="px-2 py-0.5" onclick="calShift(1)">下月 ›</button></div>
         <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
         <div class="grid grid-cols-7 text-center gap-y-0.5" id="monthGrid"></div>
         <div class="flex justify-center gap-3 text-[9px] text-slate-400 mt-1.5"><span><i class="dot bg-emerald-400"></i>已完成</span><span><i class="dot bg-brand-400"></i>计划中</span><span><i class="dot bg-rose-400"></i>进行中</span><span>同日多态取最高优先级</span></div>
@@ -421,20 +419,12 @@ tailwind.config = {
       </div>
       <button onclick="openSheet('sheetAddEvent')" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-brand-400 text-sm text-brand-500 font-bold active:bg-brand-50 dark:active:bg-brand-500/10">+ 新建日程（9月19日 · 09:00 - 10:00）</button>
       <div id="conflictTip" class="mt-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 p-3 text-xs hidden">⏱ <b>时间冲突：</b>「产品评审」与「与客户午餐」重叠 30 分钟，点击调整 ›</div>
-      <!-- ① 轴视图：竖向时间轴 + 右侧分类速记列（图2） -->
+      <!-- ① 轴视图：竖向时间轴（V1.22.1 去右侧分类栏·速记仅在块视图） -->
       <div id="calAxisView" class="hidden mt-3">
-        <div class="flex gap-2 items-start">
-          <div class="flex-1 min-w-0">
-            <div id="dayLabel" class="text-xs font-extrabold text-brand-500 mb-1"></div>
-            <div id="calDayView" class="relative pl-14">
-              <div class="absolute left-12 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
-              <div id="timeAxis" class="space-y-0"></div>
-            </div>
-          </div>
-          <div class="w-[70px] shrink-0">
-            <div class="text-[9px] text-slate-400 text-center mb-1">选中=标记 · 未选=记到此刻</div>
-            <div id="catRail" class="space-y-1.5"></div>
-          </div>
+        <div id="dayLabel" class="text-xs font-extrabold text-brand-500 mb-1"></div>
+        <div id="calDayView" class="relative pl-14">
+          <div class="absolute left-12 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
+          <div id="timeAxis" class="space-y-0"></div>
         </div>
       </div>
       <!-- ② 块视图：全天 0-24 格子（总面积固定·粒度滑选）+ 分类速记列（图1/图3） -->
@@ -1415,17 +1405,17 @@ tailwind.config = {
   <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
   <div id="pomoStage" class="hidden absolute inset-0 z-[60] flex-col items-center text-white" style="background:linear-gradient(180deg,#41618c 0%,#7d93b5 55%,#d8a9a2 100%)">
     <div class="mt-10 self-start text-3xl opacity-80 ml-6">❝</div>
-    <div class="px-10 text-center text-[15px] leading-6 opacity-95" id="pomoQuote">没有过不去的坎，只有回不去的昨天。向前看，路就在脚下。</div>
+    <div class="px-10 text-center text-[15px] leading-6 opacity-95" id="pomoQuote"></div>
     <div class="relative mt-14 w-52 h-52">
       <svg viewBox="0 0 100 100" class="w-full h-full" style="transform:rotate(-90deg)"><circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.5"/><circle id="pomoRing" cx="50" cy="50" r="46" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="0"/></svg>
       <div class="absolute inset-0 flex items-center justify-center"><span class="text-[44px] font-extrabold tracking-wide" id="pomoClock">25:00</span></div>
     </div>
     <div class="mt-8 text-base font-bold" id="pomoTitle">任务</div>
     <div class="text-[11px] opacity-80 mt-0.5"><span id="pomoState">进行中</span> · <span id="pomoModeLbl">倒计时</span></div>
-    <div class="mt-auto mb-10 flex items-center gap-12 text-[26px]">
-      <button class="opacity-90" onclick="pomoPause()" id="pomoPauseB">⏸</button>
-      <button class="opacity-90" onclick="pomoReset()">↺</button>
-      <button class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-xl" onclick="pomoFinish()">■</button>
+    <div class="mt-auto mb-10 flex items-end gap-9">
+      <button class="flex flex-col items-center gap-1.5" onclick="pomoPause()"><span id="pomoPauseIco" class="w-12 h-12 rounded-full bg-white/15 border border-white/25 flex items-center justify-center"></span><span id="pomoPauseLbl" class="text-[9px] opacity-70">暂停</span></button>
+      <button class="flex flex-col items-center gap-1.5" onclick="pomoReset()"><span class="w-12 h-12 rounded-full bg-white/15 border border-white/25 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></span><span class="text-[9px] opacity-70">重置</span></button>
+      <button class="flex flex-col items-center gap-1.5" onclick="pomoFinish()"><span class="w-14 h-14 rounded-full bg-white/25 border border-white/40 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></span><span class="text-[9px] opacity-70">停止 · 入账</span></button>
     </div>
   </div>
 
@@ -1600,25 +1590,6 @@ tailwind.config = {
         <button onclick="tpAdd(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">添加</button>
       </div>
       <div class="mt-2 text-[10px] text-slate-400 text-center">滚轮式日期·时间（原型以下拉模拟）· 添加后 轴/块/日/日程/周 与时间账本同步（L4）</div>
-    </div>
-  </div>
-
-  <!-- ===== 轮式日期选择（V1.22 · 图1 · 顶栏年月日点击弹出） ===== -->
-  <div id="sheetDatePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDatePick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="text-center font-extrabold">选择日期</div>
-      <div class="mt-1 text-center text-xs text-slate-400"><b class="text-brand-500 cursor-pointer" onclick="dpQuick('today')">今天</b> · <b class="text-brand-500 cursor-pointer" onclick="dpQuick('sat')">本周六</b></div>
-      <div class="mt-4 grid grid-cols-3 text-center text-sm font-bold">
-        <div><select id="dpY" class="sel w-full !py-2 text-center"></select><span class="text-[9px] text-slate-400">年</span></div>
-        <div><select id="dpM" class="sel w-full !py-2 text-center"></select><span class="text-[9px] text-slate-400">月</span></div>
-        <div><select id="dpD" class="sel w-full !py-2 text-center"></select><span class="text-[9px] text-slate-400">日</span></div>
-      </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">滚轮式年月日（原型以下拉模拟 · 上下滑=滚轮）</div>
-      <div class="mt-4 flex gap-3">
-        <button onclick="closeSheet('sheetDatePick')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="dpOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
-      </div>
     </div>
   </div>
 
@@ -2156,15 +2127,16 @@ function renderHeadDate(){const y=$('#hdY');if(!y)return;
   $('#hdD').className=calDay===19?'':'text-brand-500';
   $('#btnToday').classList.toggle('hidden',calDay===19)}
 function goToday(){if(calDay!==19){setDay(19,1);toast('已回到今天 9月19日')}}
-function openDatePick(){
-  $('#dpY').innerHTML=[2025,2026,2027].map(x=>`<option ${x===2026?'selected':''}>${x}</option>`).join('');
-  $('#dpM').innerHTML=Array.from({length:12},(_,i)=>`<option value="${i+1}" ${i+1===9?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('');
-  $('#dpD').innerHTML=Array.from({length:30},(_,i)=>`<option value="${i+1}" ${i+1===calDay?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('');
-  openSheet('sheetDatePick')}
-function dpQuick(n){$('#dpD').value='19';toast(n==='today'?'已定位 今天 · 9月19日':'已定位 本周六 · 9月19日（今天即周六·模拟）')}
-function dpOk(){const d=+$('#dpD').value;closeSheet('sheetDatePick');
-  if(d>=1&&d<=30){setDay(d,d>calDay?1:-1);toast('已跳转到 2026年9月'+d+'日（年月轮为演示 · 真实版跨月联动月历）')}
-  else toast('日期超出范围')}
+let ymOpen='';
+function toggleYm(kind){const m=$('#ymMenu');
+  if(ymOpen===kind&&!m.classList.contains('hidden')){m.classList.add('hidden');ymOpen='';return}
+  ymOpen=kind;m.classList.remove('hidden');
+  m.innerHTML=kind==='y'
+    ?'<div class="w-full text-[9px] text-slate-400 px-1">选择年份</div>'+[2024,2025,2026,2027,2028].map(y=>`<button class="tag-chip justify-center ${y===2026?'on':''}" onclick="pickY(${y})">${y}</button>`).join('')
+    :'<div class="w-full text-[9px] text-slate-400 px-1">选择月份</div>'+Array.from({length:12},(_,i)=>`<button class="tag-chip justify-center ${i+1===9?'on':''}" onclick="pickM(${i+1})">${i+1}月</button>`).join('')}
+function pickY(y){$('#ymMenu').classList.add('hidden');ymOpen='';toast('已选 '+y+'年（真实版：月历/时间轴跳至该年）')}
+function pickM(m){$('#ymMenu').classList.add('hidden');ymOpen='';toast('已选 2026年'+m+'月（真实版：月历切至该月）')}
+function pickDay(){$('#ymMenu').classList.add('hidden');ymOpen='';expandMonth();const pg=$('#p-calendar');if(pg)pg.scrollTo({top:0,behavior:'smooth'});toast('已展开月历 · 点选日期即跳转')}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
 function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');$('#calSub').textContent='已收起为周 · 左右滑动切换天';renderWeekStrip()}
 function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');$('#calSub').textContent='月视图展开 · 在下方开始操作将自动收起';renderMonthGrid()}
@@ -2209,6 +2181,9 @@ function renderTimeline(){const el=$('#timeAxis');if(!el)return;
  el.innerHTML=h;}
 /* V1.19 五视图切换：轴/块/日/日程/周（月浏览由顶部迷你月历承担） */
 const VLBL={axis:'轴',block:'块',day:'日',week:'周'};
+const POMO_QUOTES=['没有过不去的坎，只有回不去的昨天。向前看，路就在脚下。','种一棵树最好的时间是十年前，其次是现在。','慢慢来，比较快。','自律即自由。','星光不问赶路人，时光不负有心人。','把每一件简单的事做好，就是不简单。','你专注的样子，很好看。','不积跬步，无以至千里。','既然选择了远方，便只顾风雨兼程。','今天的拖延，是明天的负债。','心之所向，素履以往。','每一次专注，都是对未来的投资。','流水不争先，争的是滔滔不绝。','你只管努力，其余的交给时间。','千里始足下，高山起微尘。','日日行，不怕千万里；常常做，不怕千万事。','别慌，月亮也正在大海某处迷茫。','关关难过关关过，前路漫漫亦灿灿。','专注当下，未来自会清晰。','所有坚持，终有回响。'];
+const ICO_PAUSE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5.5v13M15 5.5v13"/></svg>';
+const ICO_PLAY='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5.2v13.6L19 12z"/></svg>';
 function switchCalView(v){ calView=v; collapseMonth();
  [['axis','calAxisView'],['block','calBlockView'],['day','calDayHourView'],['week','calWeekGrid']].forEach(([k,id])=>{
    $('#'+id).classList.toggle('hidden',k!==v);});
@@ -2218,7 +2193,8 @@ function switchCalView(v){ calView=v; collapseMonth();
  $('#conflictTip').classList.add('hidden');
 }
 function toggleViewMenu(e){e.stopPropagation();$('#viewMenu').classList.toggle('hidden')}
-document.addEventListener('pointerdown',e=>{const m=$('#viewMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#calTools'))m.classList.add('hidden')},true);
+document.addEventListener('pointerdown',e=>{const m=$('#viewMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#calTools'))m.classList.add('hidden');
+  const y=$('#ymMenu');if(y&&!y.classList.contains('hidden')&&!e.target.closest('#hdWrap')){y.classList.add('hidden');ymOpen=''}},true);
 /* ================= 块视图·全天格子时间块（V1.19 · 0-24 全天） ================= */
 let calView='block', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
 let CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','餐饮':'bg-orange-300','娱乐':'bg-peach','睡眠':'bg-indigo-800','清洁':'bg-mint','其他':'bg-slate-400','吃饭':'bg-orange-400','休息':'bg-amber-700','路上':'bg-slate-500'};
@@ -2292,9 +2268,8 @@ function doMark(){if(!markSel)return;const a=Math.min(markSel.a,markSel.b),b=Mat
 function delMark(){if(!markSel)return;const blk=blockAt(cellMin(markSel.a));if(blk)blocks=blocks.filter(x=>x!==blk);
   selA=selB=null;renderCal();closeSheet('sheetGridMark');toast('标记已取消，格子恢复空闲（五视图同步）');}
 /* —— 右侧分类速记列（图2/图3 · 点=记到此刻 · 自动接龙） —— */
-function renderCatRail(){if(!$('#catRail'))return;
-  const h=Object.entries(CATS).map(([k,v])=>`<button class="cat-btn ${v}" onclick="railTap('${k}')">${k}</button>`).join('');
-  $('#catRail').innerHTML=h;$('#catRail2').innerHTML=h;}
+function renderCatRail(){const el=$('#catRail2');if(!el)return;
+  el.innerHTML=Object.entries(CATS).map(([k,v])=>`<button class="cat-btn ${v}" onclick="railTap('${k}')">${k}</button>`).join('');}
 function quickMark(cat){const now=new Date();const nm=now.getHours()*60+now.getMinutes();
   const prev=blocks.filter(b=>b.qs===1);prev.forEach(b=>{b.e=Math.max(b.s,nm)});
   blocks.push({s:nm,e:1439,cat:cat,qs:1,note:'速记 · '+cat});
@@ -2440,14 +2415,17 @@ function pmMode(m){pmSel=m;
 function pomoStart(i){if(pomoRun){toast('已有番茄进行中 · 请先结束（单活约束）');return}
   const t=D.todos[i];pomoRun={i:i,t0:Date.now(),paused:0,pauseAt:0};
   $('#pomoTitle').textContent=t.t;$('#pomoModeLbl').textContent=t.pomo.mode==='down'?('倒计时 '+t.pomo.min+' 分'):'正计时';
-  $('#pomoStage').classList.remove('hidden');$('#pomoStage').classList.add('flex');$('#pomoPauseB').textContent='⏸';
+  $('#pomoQuote').textContent=POMO_QUOTES[Math.floor(Math.random()*POMO_QUOTES.length)];
+  $('#pomoStage').classList.remove('hidden');$('#pomoStage').classList.add('flex');
+  $('#pomoPauseIco').innerHTML=ICO_PAUSE;$('#pomoPauseLbl').textContent='暂停';
   pomoTick();renderTodos();renderQuad();renderTimeline()}
-function pomoElapsedMin(){return Math.max(1,Math.round((Date.now()-pomoRun.t0-(pomoRun.paused||0))/60000))}
+function pomoSecs(){if(!pomoRun)return 0;const pa=pomoRun.pauseAt?Date.now()-pomoRun.pauseAt:0;return Math.max(0,(Date.now()-pomoRun.t0-(pomoRun.paused||0)-pa)/1000)}
+function pomoElapsedMin(){return Math.max(1,Math.round(pomoSecs()/60))}
 function pomoPause(){if(!pomoRun)return;
-  if(pomoRun.pauseAt){pomoRun.paused+=Date.now()-pomoRun.pauseAt;pomoRun.pauseAt=0;$('#pomoPauseB').textContent='⏸';$('#pomoState').textContent='进行中'}
-  else{pomoRun.pauseAt=Date.now();$('#pomoPauseB').textContent='▶';$('#pomoState').textContent='已暂停'}}
-function pomoReset(){if(!pomoRun)return;pomoRun.t0=Date.now();pomoRun.paused=0;pomoRun.pauseAt=0;$('#pomoPauseB').textContent='⏸';$('#pomoState').textContent='进行中';pomoTick()}
-function pomoTick(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const el=(Date.now()-pomoRun.t0-(pomoRun.paused||0))/1000;
+  if(pomoRun.pauseAt){pomoRun.paused+=Date.now()-pomoRun.pauseAt;pomoRun.pauseAt=0;$('#pomoPauseIco').innerHTML=ICO_PAUSE;$('#pomoPauseLbl').textContent='暂停';$('#pomoState').textContent='进行中'}
+  else{pomoRun.pauseAt=Date.now();$('#pomoPauseIco').innerHTML=ICO_PLAY;$('#pomoPauseLbl').textContent='继续';$('#pomoState').textContent='已暂停'}}
+function pomoReset(){if(!pomoRun)return;pomoRun.t0=Date.now();pomoRun.paused=0;pomoRun.pauseAt=0;$('#pomoPauseIco').innerHTML=ICO_PAUSE;$('#pomoPauseLbl').textContent='暂停';$('#pomoState').textContent='进行中';pomoTick()}
+function pomoTick(){if(!pomoRun)return;const t=D.todos[pomoRun.i];const el=pomoSecs();
   const down=t.pomo.mode==='down';const C=289;
   let sec,prog;
   if(down){sec=Math.max(0,t.pomo.min*60-el);prog=1-sec/(t.pomo.min*60);if(el>=t.pomo.min*60){pomoFinish();return}}
