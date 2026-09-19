@@ -9,6 +9,9 @@ class AppTokens extends ThemeExtension<AppTokens> {
 
   final ThemeTokens tokens;
 
+  /// 无扩展时的兜底（内置默认主题/测试环境）。
+  static const AppTokens fallback = AppTokens(tokens: ThemeTokens.defaults);
+
   @override
   AppTokens copyWith({ThemeTokens? tokens}) =>
       AppTokens(tokens: tokens ?? this.tokens);
@@ -73,7 +76,8 @@ class AppTheme {
 
 /// 便捷访问：`context.tokens.page` 等。
 extension AppTokensContext on BuildContext {
-  ThemeTokens get tokens => Theme.of(this).extension<AppTokens>()!.tokens;
+  ThemeTokens get tokens =>
+      Theme.of(this).extension<AppTokens>()?.tokens ?? AppTokens.fallback.tokens;
 
   /// 卡片统一外观（圆角 + 描边 + 令牌阴影）。
   BoxDecoration get cardDecoration => BoxDecoration(

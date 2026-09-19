@@ -64,6 +64,25 @@ class ThemeTokens {
   /// 可选全局字体族提示（复古/衬线主题用）。骨架阶段仅记录，不强制注入字体文件。
   final String? appFont;
 
+  /// 内置兜底令牌（= 简约亮态），主题缺失或测试环境使用。
+  static const ThemeTokens defaults = ThemeTokens(
+    id: 'minimal',
+    meta: ThemeMeta(name: '简约'),
+    forceDark: false,
+    accent: Color(0xFF6366F1),
+    accentLight: Color(0xFF818CF8),
+    g1: Color(0xFF6366F1),
+    g2: Color(0xFF8B5CF6),
+    g3: Color(0xFFD946EF),
+    page: Color(0xFFF8FAFC),
+    card: Color(0xFFFFFFFF),
+    cardBorder: Color(0xFFF1F5F9),
+    cardRadius: 20,
+    cardShadow: [],
+    navBg: Color(0xFFFFFFFF),
+    navBorder: Color(0xFFE2E8F0),
+  );
+
   /// hero/按钮用渐变。
   LinearGradient get gradient => LinearGradient(
         begin: Alignment.topLeft,
