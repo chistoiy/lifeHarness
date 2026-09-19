@@ -30,9 +30,16 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
   bool _allDay = false;
   int _color = 0;
 
-  _EventSheetState() {
+  @override
+  void initState() {
+    super.initState();
     final now = DateTime.now();
-    _start = DateTime(now.year, now.month, now.day, now.hour + 1, 0);
+    // 日历页选中的日期必须作为默认日期（否则点17号新建会落到今天 = 事件补录 bug）。
+    final d = widget.presetDay ?? now;
+    final isToday = d.year == now.year && d.month == now.month && d.day == now.day;
+    // 今天 → 下一整点（23 点封顶防溢出次日）；其他日期 → 上午 9 点。
+    final h = isToday ? (now.hour + 1).clamp(0, 23) : 9;
+    _start = DateTime(d.year, d.month, d.day, h, 0);
   }
 
   Future<void> _pickTime() async {
@@ -136,6 +143,7 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
                   width: 110,
                   child: DropdownButtonFormField<int>(
                     initialValue: _durMin,
+                    isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
                     items: const [
                       DropdownMenuItem(value: 30, child: Text('30 分钟')),

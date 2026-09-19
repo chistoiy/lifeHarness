@@ -8,6 +8,7 @@ import 'package:lifeharness/features/calendar/domain/cal_event.dart';
 import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
+import 'package:lifeharness/features/calendar/presentation/widgets/event_sheet.dart';
 import 'package:lifeharness/shared/linkage/linkage_events.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -134,4 +135,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('月视图展开'), findsOneWidget);
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  testWidgets('事件补录：presetDay 决定新建日程的日期（点17号不落到今天）', (tester) async {
+    final preset = DateTime(2026, 3, 17);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [eventRepositoryProvider.overrideWithValue(repo)],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Consumer(
+              builder: (context, ref, _) => ElevatedButton(
+                onPressed: () => showEventSheet(context, ref, presetDay: preset),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('新建日程'), findsOneWidget);
+    expect(find.text('开始 09:00'), findsOneWidget); // 非今天 → 默认上午9点
+
+    await tester.enterText(find.byType(TextField), '补录事项');
+    await tester.tap(find.text('创建（预约）'));
+    await tester.pumpAndSettle();
+
+    final all = await repo.listAll();
+    expect(all.single.start, DateTime(2026, 3, 17, 9));
+    expect(all.single.end, DateTime(2026, 3, 17, 10));
+  });
 }
