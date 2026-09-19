@@ -1,0 +1,34 @@
+{
+  "id": "retro",
+  "meta": { "name": "复古", "ver": "1.0", "author": "LifeHarness Team", "license": "MIT" },
+  "tokens": {
+    "--accent": "#b45309",
+    "--accent-l": "#d97706",
+    "--g1": "#b45309",
+    "--g2": "#92400e",
+    "--g3": "#7c2d12",
+    "--page": "#f4ecdc",
+    "--card": "#fdf6e9",
+    "--card-bd": "#e0cfa9",
+    "--card-r": "12px",
+    "--card-sh": "3px 3px 0 #e2d3b1",
+    "--nav-bg": "#f4ecd9",
+    "--nav-bd": "#e0cfa9",
+    "--app-font": "serif"
+  },
+  "dark": {
+    "--accent": "#b45309",
+    "--accent-l": "#d97706",
+    "--g1": "#b45309",
+    "--g2": "#92400e",
+    "--g3": "#7c2d12",
+    "--page": "#171008",
+    "--card": "#241a0e",
+    "--card-bd": "#4a3722",
+    "--card-r": "12px",
+    "--card-sh": "3px 3px 0 #0c0702",
+    "--nav-bg": "#211709",
+    "--nav-bd": "#4a3722",
+    "--app-font": "serif"
+  }
+}

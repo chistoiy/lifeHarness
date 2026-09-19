@@ -1,0 +1,32 @@
+{
+  "id": "fresh",
+  "meta": { "name": "小清新", "ver": "1.0", "author": "LifeHarness Team", "license": "MIT" },
+  "tokens": {
+    "--accent": "#10b981",
+    "--accent-l": "#34d399",
+    "--g1": "#34d399",
+    "--g2": "#22d3ee",
+    "--g3": "#60a5fa",
+    "--page": "#f1faf4",
+    "--card": "#ffffff",
+    "--card-bd": "#e2f2e9",
+    "--card-r": "26px",
+    "--card-sh": "0 1px 3px rgba(15,23,42,.05)",
+    "--nav-bg": "rgba(255,255,255,.88)",
+    "--nav-bd": "#e2e8f0"
+  },
+  "dark": {
+    "--accent": "#10b981",
+    "--accent-l": "#34d399",
+    "--g1": "#34d399",
+    "--g2": "#22d3ee",
+    "--g3": "#60a5fa",
+    "--page": "#07130e",
+    "--card": "#0c1a13",
+    "--card-bd": "#16321f",
+    "--card-r": "26px",
+    "--card-sh": "0 1px 3px rgba(0,0,0,.4)",
+    "--nav-bg": "rgba(7,19,14,.88)",
+    "--nav-bd": "#16321f"
+  }
+}

@@ -1,11 +1,22 @@
 # Flutter/Dart
 .dart_tool/
-.packages
-build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
-.metadata
+packages/
+build/
+*.lproj
+
+# Android
+android/.gradle/
+android/app/.cxx/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+
+# 符号/构建产物
+*.symbol
+app.*.map.json
 
 # IDE
 .idea/

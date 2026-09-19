@@ -1,0 +1,87 @@
+import 'package:flutter/material.dart';
+
+import 'theme_tokens.dart';
+
+/// 通过 [ThemeExtension] 把设计令牌注入 widget 树，页面可 `context.tokens` 取用。
+@immutable
+class AppTokens extends ThemeExtension<AppTokens> {
+  const AppTokens({required this.tokens});
+
+  final ThemeTokens tokens;
+
+  @override
+  AppTokens copyWith({ThemeTokens? tokens}) =>
+      AppTokens(tokens: tokens ?? this.tokens);
+
+  @override
+  AppTokens lerp(ThemeExtension<AppTokens>? other, double t) {
+    if (other is! AppTokens) return this;
+    // 令牌为离散主题，不做逐值插值，直接切换。
+    return t < 0.5 ? this : other;
+  }
+}
+
+/// 由设计令牌构建 [ThemeData]（Material 3）。
+class AppTheme {
+  const AppTheme._();
+
+  static ThemeData build(ThemeTokens tokens, {required bool isDark}) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: tokens.accent,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      primary: tokens.accent,
+    );
+
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: tokens.page,
+      splashFactory: InkSparkle.splashFactory,
+    );
+
+    return base.copyWith(
+      extensions: <ThemeExtension<dynamic>>[AppTokens(tokens: tokens)],
+      appBarTheme: AppBarTheme(
+        backgroundColor: tokens.page,
+        foregroundColor: scheme.onSurface,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+          fontFamily: tokens.appFont,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: tokens.card,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.cardRadius),
+          side: tokens.cardBorder == Colors.transparent
+              ? BorderSide.none
+              : BorderSide(color: tokens.cardBorder),
+        ),
+      ),
+      scaffoldBackgroundColor: tokens.page,
+      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      dividerColor: tokens.cardBorder,
+    );
+  }
+}
+
+/// 便捷访问：`context.tokens.page` 等。
+extension AppTokensContext on BuildContext {
+  ThemeTokens get tokens => Theme.of(this).extension<AppTokens>()!.tokens;
+
+  /// 卡片统一外观（圆角 + 描边 + 令牌阴影）。
+  BoxDecoration get cardDecoration => BoxDecoration(
+        color: tokens.card,
+        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        border: tokens.cardBorder == Colors.transparent
+            ? null
+            : Border.all(color: tokens.cardBorder),
+        boxShadow: tokens.cardShadow,
+      );
+}

@@ -1,0 +1,52 @@
+name: lifeharness
+description: "LifeHarness —— 纯本地一体式生活记录 App（时间/日记笔记/待办/收集箱等）。"
+publish_to: 'none'
+
+# 语义化版本 V主.次.修；M0 骨架对应 V0.1
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 状态管理（编译安全、可测试、DI 清晰）
+  flutter_riverpod: ^2.6.1
+  # 路由（go_router）
+  go_router: ^14.6.2
+  # 本地数据库（决策：直接用 sqflite，Repository 层隔离，见计划书「技术选型」）
+  sqflite: ^2.4.1
+  # 数据库/附件文件路径 + 路径拼接（app_database 直接使用，显式声明避免依赖传递）
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  # 设置项键值存储（主题/导航配置等）
+  shared_preferences: ^2.3.3
+  # 日期/数字格式化
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # sqflite 单元测试的内存库平台适配
+  sqflite_common_ffi: ^2.3.3
+  flutter_lints: ^6.0.0
+
+# sqlite3 原生库：本环境 GitHub 不可达，构建钩子改从 tools/sqlite3/ 本地目录读取
+# 各平台预置产物（Windows DLL + Android arm/arm64 .so，见该目录 README）。
+# 网络恢复后可删除本段回落官方下载。
+hooks:
+  user_defines:
+    sqlite3:
+      source: test-sqlite3
+      directory: tools/sqlite3/
+
+flutter:
+  uses-material-design: true
+
+  # 主题设计令牌配置（与原型 themes/ 同构，运行时热加载换肤）
+  assets:
+    - assets/themes/

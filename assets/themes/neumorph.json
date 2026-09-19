@@ -1,0 +1,32 @@
+{
+  "id": "neumorph",
+  "meta": { "name": "轻拟态", "ver": "1.0", "author": "LifeHarness Team", "license": "MIT" },
+  "tokens": {
+    "--accent": "#5b7cfa",
+    "--accent-l": "#93a7ff",
+    "--g1": "#7c93f5",
+    "--g2": "#6272e8",
+    "--g3": "#5565e0",
+    "--page": "#e9eef5",
+    "--card": "#e9eef5",
+    "--card-bd": "transparent",
+    "--card-r": "22px",
+    "--card-sh": "8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff",
+    "--nav-bg": "#e9eef5",
+    "--nav-bd": "#d7dfec"
+  },
+  "dark": {
+    "--accent": "#5b7cfa",
+    "--accent-l": "#93a7ff",
+    "--g1": "#7c93f5",
+    "--g2": "#6272e8",
+    "--g3": "#5565e0",
+    "--page": "#232936",
+    "--card": "#232936",
+    "--card-bd": "transparent",
+    "--card-r": "22px",
+    "--card-sh": "8px 8px 18px #161a23,-8px -8px 18px #303748",
+    "--nav-bg": "#232936",
+    "--nav-bd": "#2c3342"
+  }
+}
