@@ -58,6 +58,11 @@ tailwind.config = {
   .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
   .seg-on{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12)}
   .dark .seg-on{color:var(--accent-l)}
+  .wheelbox{height:96px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .wheelbox::-webkit-scrollbar{display:none}
+  .witem{height:32px;line-height:32px;scroll-snap-align:center;text-align:center;font-size:12px;color:#94a3b8;font-weight:600;user-select:none;transition:color .15s}
+  .witem.on{font-size:19px;font-weight:800;color:var(--accent)}
+  .dark .witem.on{color:var(--accent-l)}
   .nav-arrow{width:32px;height:32px;border-radius:50%;font-size:18px;color:#94a3b8;line-height:1}
   .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:600}
   .dark .chip{background:#1e293b;color:#94a3b8}
@@ -1577,7 +1582,6 @@ tailwind.config = {
         <div><div id="twH"></div><span class="text-[9px] text-slate-400">时</span></div>
         <div><div id="twM"></div><span class="text-[9px] text-slate-400">分</span></div>
       </div>
-      <div class="mt-1 text-[10px] text-slate-400 text-center">上下滑动滚轮（原型以点选上/下项模拟）· 5 分一档</div>
       <div class="mt-4 flex gap-3">
         <button onclick="closeSheet('sheetTimeWheel')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
         <button onclick="twOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
@@ -1625,7 +1629,7 @@ tailwind.config = {
         <button onclick="tpAdd(1)" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">继续添加</button>
         <button onclick="tpAdd(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">添加</button>
       </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">滚轮式日期·时间（原型以下拉模拟）· 添加后 轴/块/日/日程/周 与时间账本同步（L4）</div>
+      <div class="mt-1 text-[10px] text-slate-400 text-center">5 分一档</div>
     </div>
   </div>
 
@@ -1640,7 +1644,6 @@ tailwind.config = {
         <div><div id="dpM"></div><span class="text-[9px] text-slate-400">月</span></div>
         <div><div id="dpD"></div><span class="text-[9px] text-slate-400">日</span></div>
       </div>
-      <div class="mt-1 text-[10px] text-slate-400 text-center">上下滑动滚轮（原型以点选上/下项模拟）</div>
       <div class="mt-4 flex gap-3">
         <button onclick="closeSheet('sheetDatePick')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
         <button onclick="dpOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
@@ -2236,11 +2239,31 @@ function renderHeadDate(){const y=$('#hdY');if(!y)return;
   $('#hdD').className=calDay===19?'':'text-brand-500';
   $('#btnToday').classList.toggle('hidden',calDay===19)}
 function goToday(){if(calDay!==19){setDay(19,1);toast('已回到今天 9月19日')}}
-/* 轮式选择器（V1.23 · 图1/图2 · 上下滑=点选上下项模拟） */
+/* 轮式选择器（V1.26.1 · 真滚轮：直接在列上上下滑动 · scroll-snap 逐档吸中 · 桌面端支持鼠标拖拽/滚轮） */
 const WHEELS={};
+const WI_H=32;
 function wReg(id,items,i,onch){WHEELS[id]={items,i:Math.max(0,i||0),onch};renderW(id)}
-function renderW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!el)return;const n=w.items.length;const at=k=>w.items[((w.i+k)%n+n)%n];
-  el.innerHTML=`<div class="text-[12px] text-slate-300 py-1 cursor-pointer select-none" onclick="wShift('${id}',-1)">${at(-1)}</div><div class="text-[19px] font-extrabold text-brand-500 leading-7 select-none">${at(0)}</div><div class="text-[12px] text-slate-300 py-1 cursor-pointer select-none" onclick="wShift('${id}',1)">${at(1)}</div>`}
+function renderW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!el)return;const n=w.items.length;
+  if(!w._bx||!w._bx.isConnected){const rep=Math.max(6,Math.ceil(120/n));let h='<div style="height:32px"></div>';
+    for(let k=0;k<rep*n;k++)h+=`<div class="witem">${w.items[k%n]}</div>`;
+    h+='<div style="height:32px"></div>';el.innerHTML=`<div class="wheelbox">${h}</div>`;
+    const bx=w._bx=el.firstElementChild;w._rep=rep;
+    bx.addEventListener('scroll',()=>{syncW(id);clearTimeout(w._tm);w._tm=setTimeout(()=>commitW(id),130)});
+    let py=null,st=0;
+    bx.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'){py=e.clientY;st=bx.scrollTop;bx.setPointerCapture(e.pointerId);bx.style.scrollSnapType='none'}});
+    const mv=e=>{if(py!==null)bx.scrollTop=st-(e.clientY-py)};
+    const up=e=>{if(py===null)return;py=null;bx.style.scrollSnapType='';
+      const tgt=Math.round(bx.scrollTop/WI_H)*WI_H,t0=bx.scrollTop,d=tgt-t0,t1=performance.now();
+      const step=now=>{const p=Math.min(1,(now-t1)/150);bx.scrollTop=t0+d*(1-Math.pow(1-p,3));if(p<1&&py===null)requestAnimationFrame(step)};
+      requestAnimationFrame(step)};
+    bx.addEventListener('pointermove',mv);bx.addEventListener('pointerup',up);bx.addEventListener('pointercancel',up);}
+  w._bx.scrollTop=(Math.floor(w._rep/2)*n+w.i)*WI_H;syncW(id);if(el.offsetParent===null)posW(id);}
+function posW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!w._bx||!el)return;
+  if(el.offsetParent===null){requestAnimationFrame(()=>posW(id));return}
+  w._bx.scrollTop=(Math.floor(w._rep/2)*w.items.length+w.i)*WI_H;syncW(id)}
+function wAbs(id){const w=WHEELS[id];return Math.max(0,Math.round(w._bx.scrollTop/WI_H))}
+function syncW(id){const w=WHEELS[id];if(!w._bx)return;const c=wAbs(id);w._bx.querySelectorAll('.witem').forEach((d,k)=>d.classList.toggle('on',k===c))}
+function commitW(id){const w=WHEELS[id];const n=w.items.length;const i=((wAbs(id)%n)+n)%n;if(i!==w.i){w.i=i;if(w.onch)w.onch()}}
 function wShift(id,d){const w=WHEELS[id];w.i=((w.i+d)%w.items.length+w.items.length)%w.items.length;renderW(id);if(w.onch)w.onch()}
 function openDatePick(){
   wReg('dpY',['2024','2025','2026','2027','2028'],2,dpHint);
