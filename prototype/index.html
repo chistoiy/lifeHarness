@@ -234,7 +234,7 @@ tailwind.config = {
   </div>
 
   <!-- 顶栏 -->
-  <header class="px-5 pb-2 pt-1 flex items-center gap-2 relative z-20">
+  <header id="topHead" class="px-5 pb-2 pt-1 flex items-center gap-2 relative z-20">
     <button id="btnBack" onclick="goBack()" class="hidden w-9 h-9 -ml-2 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
     </button>
@@ -1961,6 +1961,9 @@ function setPage(p){
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
   const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
+  const _th=$('#topHead'),_pc=$('#p-calendar');
+  if(_th)_th.classList.toggle('hidden',p==='p-calendar'&&stack.length===0);
+  if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
