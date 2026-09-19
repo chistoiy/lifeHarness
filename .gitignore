@@ -28,6 +28,7 @@ Thumbs.db
 .DS_Store
 
 # 备份与临时产物（永不入库）
+*.apk
 *.lhbak
 *.bak
 tmp/
