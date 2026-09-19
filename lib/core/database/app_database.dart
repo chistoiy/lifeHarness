@@ -49,8 +49,15 @@ class AppDatabase {
   }
 
   Future<void> _runMigrations(Database d, int from, int to) async {
-    // 示例：if (from < 2) { await d.execute('ALTER TABLE ...'); }
-    // v1 为首版，暂无历史迁移。
+    // 逐级执行 DbSchema.migrations；迁移自检（需求 8.3）留行数核对接入点。
+    for (var v = from; v < to; v++) {
+      final stmts = DbSchema.migrations[v] ?? const [];
+      final batch = d.batch();
+      for (final sql in stmts) {
+        batch.execute(sql);
+      }
+      await batch.commit(noResult: true);
+    }
   }
 
   Future<void> close() async {

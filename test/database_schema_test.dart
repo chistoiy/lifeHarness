@@ -72,4 +72,35 @@ void main() {
       expect(t.startsWith(DbSchema.pluginPrefix), isFalse);
     }
   });
+
+  test('v1→v2 迁移：todos 增 tag 列且数据保留', () async {
+    // 手工构造 v1 结构（无 tag 列）+ 一条数据。
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    await db.execute('''
+      CREATE TABLE ${DbSchema.tTodos} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        note TEXT,
+        quadrant INTEGER NOT NULL DEFAULT 4,
+        due_at INTEGER,
+        remind_at INTEGER,
+        done INTEGER NOT NULL DEFAULT 0,
+        priority INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.insert(DbSchema.tTodos, {'title': '旧任务', 'created_at': now, 'updated_at': now});
+
+    for (final sql in DbSchema.migrations[1]!) {
+      await db.execute(sql);
+    }
+    final row = (await db.query(DbSchema.tTodos)).single;
+    expect(row['title'], '旧任务');
+    expect(row.containsKey('tag'), isTrue);
+    expect(row['tag'], isNull);
+    await db.close();
+  });
 }

@@ -22,3 +22,6 @@ final overdueCountProvider = FutureProvider<int>((ref) {
 
 /// 列表 / 四象限视图切换（页面级临时状态）。
 final todoViewModeProvider = StateProvider<bool>((ref) => false); // false=清单 true=四象限
+
+/// 清单智能筛选（原型 todoChips）：all/today/week/scheduled/done/overdue。
+final todoFilterProvider = StateProvider<String>((ref) => 'all');

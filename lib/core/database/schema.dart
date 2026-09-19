@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 1;
+  static const int version = 2;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -28,7 +28,7 @@ class DbSchema {
   /// v1 全量建表 DDL。时间字段统一存 epoch 毫秒（INTEGER），日界线固定自然日 00:00
   /// （ADR D13），跨天由「开始日归属 + 跨天标记」处理。
   static const List<String> createStatements = [
-    // 模块2 待办 + 四象限（quadrant: 1~4；priority 预留）
+    // 模块2 待办 + 四象限（quadrant: 1~4；priority 预留；tag 标签，v2 起）
     '''
     CREATE TABLE $tTodos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,6 +40,7 @@ class DbSchema {
       done INTEGER NOT NULL DEFAULT 0,
       priority INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
+      tag TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -148,4 +149,9 @@ class DbSchema {
     )
     ''',
   ];
+
+  /// 逐级迁移：key = 升级前版本（from）。v2：todos 增 tag 标签列（保真对齐包）。
+  static const Map<int, List<String>> migrations = {
+    1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
+  };
 }

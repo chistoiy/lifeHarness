@@ -30,12 +30,12 @@ void main() {
       expect(find.text(label), findsWidgets, reason: '底栏应含 $label');
     }
 
-    // 切到待办页（M0 业务页：清单/四象限切换 + FAB）。
+    // 切到待办页（M0 业务页：清单/四象限切换 + 顶部与 FAB 双新建入口）。
     await tester.tap(find.text('待办').last);
     await tester.pumpAndSettle();
-    expect(find.text('清单'), findsOneWidget);
-    expect(find.text('四象限'), findsOneWidget);
-    expect(find.byIcon(Icons.add), findsOneWidget);
+    expect(find.text('清单视图'), findsOneWidget);
+    expect(find.text('四象限'), findsWidgets);
+    expect(find.byIcon(Icons.add), findsWidgets);
 
     // 切到我的/设置，主题选择器存在。
     await tester.tap(find.text('我的').last);
