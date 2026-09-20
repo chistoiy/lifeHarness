@@ -2,12 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../data/journal_dao.dart';
+import '../data/note_dao.dart';
 import '../domain/journal_entry.dart';
 import '../domain/journal_repository.dart';
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(JournalDao(AppDatabase.instance.db));
 });
+
+/// 笔记 DAO（M0 最小集：收集箱分流写入；M1 编辑器接管）。
+final noteDaoProvider =
+    Provider<NoteDao>((ref) => NoteDao(AppDatabase.instance.db));
 
 /// 全部日记（新→旧；保存/回望操作后 invalidate 刷新）。
 final journalsProvider = FutureProvider<List<JournalEntry>>(

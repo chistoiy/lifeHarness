@@ -48,6 +48,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     switch (i) {
       case 0:
         context.go(NavModule.inbox.path);
+        // 到达收集箱后聚焦输入框（原型 fabGo 行为；跨页经事件总线，守 R1）。
+        Future.delayed(const Duration(milliseconds: 350),
+            () => ref.read(eventBusProvider).publish(const QuickAddEvent('inbox')));
       case 1:
         context.go(NavModule.todo.path);
         // 到达待办页后请求直接打开新建弹层（跨模块经事件总线，守 R1）。

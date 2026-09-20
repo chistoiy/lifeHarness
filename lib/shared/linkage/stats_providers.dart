@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/app_database.dart';
 import '../../features/calendar/presentation/calendar_providers.dart';
+import '../../features/inbox/presentation/inbox_providers.dart';
 import '../../features/todo/presentation/todo_providers.dart';
 
 // 跨模块聚合出口：仪表盘/设置等只 import 本文件，不直接 import 其他 feature。
@@ -13,8 +14,10 @@ export '../../features/calendar/domain/cal_event.dart' show CalEvent, EventStatu
 export '../../features/calendar/domain/time_block.dart' show TimeBlock;
 export '../../features/calendar/presentation/calendar_providers.dart' show categoriesProvider;
 export '../../features/calendar/domain/category.dart' show Category;
-export '../../features/journal/presentation/journal_providers.dart' show journalRepositoryProvider, journalsProvider;
+export '../../features/journal/presentation/journal_providers.dart' show journalRepositoryProvider, journalsProvider, noteDaoProvider;
 export '../../features/journal/domain/journal_entry.dart' show JournalEntry, kJournalMoods, moodEmoji, moodLabel;
+export '../../features/journal/domain/note.dart' show Note;
+export '../../features/inbox/presentation/inbox_providers.dart' show inboxItemsProvider;
 
 /// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。
@@ -32,8 +35,9 @@ final todayEventCountProvider = FutureProvider<int>((ref) async {
   return (rows.first['c'] as int?) ?? 0;
 });
 
-/// 收集箱未整理条数（routed_to 为空）。
+/// 收集箱未整理条数（routed_to 为空；watch 列表源，分流后自动重算）。
 final inboxPendingCountProvider = FutureProvider<int>((ref) async {
+  ref.watch(inboxItemsProvider);
   final db = AppDatabase.instance.db;
   final rows = await db
       .rawQuery('SELECT COUNT(*) c FROM inbox_items WHERE routed_to IS NULL');
