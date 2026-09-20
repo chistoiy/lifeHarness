@@ -306,8 +306,7 @@ tailwind.config = {
           </div>
         </div>
         <div class="mt-3 flex items-center justify-between text-[10px] text-white/75">
-          <span>主页卡片可自由编排顺序</span>
-          <button id="dashEditBtn" onclick="dashToggle()" class="bg-white/25 rounded-full px-3 py-1 font-extrabold text-white active:scale-95 transition">⇄ 编排</button>
+          <span>长按任意卡片可编排顺序</span>
         </div>
       </div>
 
@@ -370,24 +369,21 @@ tailwind.config = {
 
     <!-- ===== P2 待办 ===== -->
     <section id="p-todo" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-2 items-center">
-        <div class="flex-1 flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-          <button id="tvList" class="seg-on flex-1 rounded-lg py-1.5" onclick="switchTodoView('list')">清单视图</button>
-          <button id="tvQuad" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="switchTodoView('quad')">四象限</button>
-        </div>
-        <button onclick="openSheet('sheetAddTask')" class="w-9 h-9 rounded-xl grad text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/30">+</button>
+      <!-- V1.27：右上切换钮（清单⇄四象限）· 顶栏添加钮移除（与右下 FAB 重复） -->
+      <div class="flex items-center justify-end">
+        <button id="tvToggle" onclick="switchTodoView(todoView==='list'?'quad':'list')" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-lg font-extrabold" title="切换 清单/四象限">⇄</button>
       </div>
 
-      <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · 清单视图只留列表防臃肿） -->
+      <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · V1.27 清单与四象限两视图均生效） -->
       <div id="todoFilterPanel" class="hidden mt-3 card !p-3">
-        <div class="text-[10px] font-bold text-slate-400 mb-2">智能筛选 · 选择后自动收起</div>
+        <div class="text-[10px] font-bold text-slate-400 mb-2">智能筛选 · 选择后自动收起 · 对清单与四象限同时生效</div>
         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="smartChips"></div>
       </div>
 
       <!-- 清单视图 -->
       <div id="todoListWrap" class="mt-4">
+        <div class="text-[10px] text-slate-400 mb-1">长按条目可拖拽排序</div>
         <div class="space-y-2" id="todoList"></div>
-        <button onclick="openSheet('sheetAddTask')" class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400 active:bg-slate-100 dark:active:bg-slate-900">+ 快速添加任务（支持自然语言·模拟）</button>
         <!-- 过期提示 -->
         <div class="mt-4 rounded-2xl bg-peach/10 border border-peach/30 p-3 flex gap-2 items-start">
           <span>⚠️</span><div class="text-xs leading-5"><b>2 项任务已逾期</b>，其中 1 项标记为「重要且紧急」。<div class="text-slate-500">临近截止的任务会被自动建议升入紧急象限</div></div>
@@ -397,7 +393,6 @@ tailwind.config = {
 
       <!-- 四象限视图 -->
       <div id="quadWrap" class="hidden mt-4">
-        <div class="text-[11px] text-slate-400 mb-2 flex items-center gap-1">💡 长按卡片可拖到其他象限（演示可用）</div>
         <div class="grid grid-cols-2 gap-3" id="quadBoard"></div>
         <div class="mt-3 rounded-2xl bg-sun/10 border border-sun/30 p-3 text-xs flex items-center gap-2">
           <span>🧭</span><div class="flex-1"><b>失衡提醒：</b>「重要不紧急」象限已 3 天空置，长期如此容易陷入救火模式。</div>
@@ -411,12 +406,14 @@ tailwind.config = {
       <div class="flex items-center justify-between gap-2">
         <div id="hdWrap" style="position:relative">
           <div class="flex items-baseline gap-1.5 text-xl font-extrabold">
-            <span id="hdY" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
+            <span id="hdY" class="hidden text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
             <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
             <span id="hdD" class="cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
           </div>
         </div>
         <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
+          <!-- V1.27：全局顶栏在日历页隐藏后，搜索入口下移到本行 -->
+          <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center" title="搜索"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg></button>
           <button id="btnToday" class="hidden w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 font-extrabold text-[15px]" onclick="goToday()" title="回到今天">今</button>
           <button class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-[15px] font-extrabold" onclick="toggleViewMenu(event)" title="切换视图"><span id="viewIco">块</span></button>
           <div id="viewMenu" class="hidden absolute right-0 top-11 z-40 w-32 card !p-1.5 text-xs font-bold space-y-1 shadow-xl">
@@ -1216,24 +1213,16 @@ tailwind.config = {
           <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
       </div>
 
-      <div class="card mt-4">
-        <div class="flex items-center justify-between"><div class="row-title">🎨 主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">🛍 更多主题 ›</button></div>
-        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
-        <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
-        <div class="mt-3 space-y-3 text-sm">
-          <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
-          <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
-            <div class="flex gap-2" id="themeDots"></div></div>
-          <div class="flex items-center gap-3 text-xs text-slate-500"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
-        </div>
-      </div>
+      <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
+      <button onclick="navTo('p-sub-appearance')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-indigo-50 dark:bg-indigo-500/15">🎨</span><div class="flex-1"><b class="text-sm">外观</b><div class="text-[11px] text-slate-400">主题风格 · 深色模式 · 主题色 · 字体大小</div></div><span class="text-slate-300">›</span></button>
 
       <div class="card mt-4">
         <div class="flex items-center justify-between"><div class="row-title">🧭 底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
         <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」固定；新增「习惯」栏目可在下方启用</div>
         <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
         <div class="mt-2.5 flex gap-2">
-          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">🧩 主页编排直达 ›</button>
+          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">🧩 主页编排直达（或长按卡片）›</button>
         </div>
       </div>
 
@@ -1403,7 +1392,9 @@ tailwind.config = {
       <div class="card mt-3 !p-0 overflow-hidden text-sm">
         <div id="caParentRow" class="hidden flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold">上级分类</span>
-          <select id="caParent" class="sel !py-1.5"></select>
+          <!-- V1.27：改底部弹层选择，与全局滚轮/弹层风格统一（隐藏 select 仅作数据位） -->
+          <b class="text-brand-500 cursor-pointer text-sm" onclick="openCatParentPick()"><span id="caParentLbl">请选择上级分类</span> ›</b>
+          <select id="caParent" class="hidden"></select>
         </div>
         <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
           <span class="font-bold shrink-0">分类名称</span>
@@ -1430,13 +1421,28 @@ tailwind.config = {
       <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
     </section>
 
+    <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
+    <section id="p-sub-appearance" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><div class="row-title">🎨 主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">🛍 更多主题 ›</button></div>
+        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
+        <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
+      </div>
+      <div class="card mt-4 space-y-3 text-sm">
+        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
+        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
+          <div class="flex gap-2" id="themeDots"></div></div>
+        <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ===== 悬浮球（快速记录） ===== -->
   <button id="fab" onclick="fabTap()" class="hidden absolute right-5 bottom-[86px] z-40 w-14 h-14 rounded-full grad text-white text-2xl shadow-xl shadow-indigo-500/40 items-center justify-center transition-transform"><span id="fabIco">＋</span></button>
   <div id="fabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
     <button class="fab-act" onclick="fabGo('p-inbox','已聚焦收集箱输入框（模拟）')">⚡ 记一条想法</button>
-    <button class="fab-act" onclick="fabGo('p-todo','打开新建待办（模拟）')">✅ 记待办</button>
+    <button class="fab-act" onclick="fabGo('p-todo','选择要添加的待办类型');setTimeout(()=>openSheet('sheetAddChoice'),260)">✅ 记待办</button>
     <button class="fab-act" onclick="fabGo('p-diaryEdit','打开写日记（模拟）')">📔 记日记</button>
     <button class="fab-act" onclick="fabGo('p-finance','打开快速记账（模拟）')">💰 记一笔</button>
     <button class="fab-act" onclick="fabGo('p-items','打开录入物品（模拟）')">📦 记物品</button>
@@ -1478,20 +1484,31 @@ tailwind.config = {
   <div id="sheetAddTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="font-extrabold">新建待办</div>
-      <div class="mt-2 flex gap-2 text-[11px] font-bold">
-        <button id="tyNormB" class="seg-on flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="tyMode('norm')">✅ 常规待办（勾选完成）</button>
-        <button id="tyPomoB" class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500" onclick="tyMode('pomo')">🍅 番茄计时</button>
+      <div class="font-extrabold" id="ntSheetTitle">新建待办</div>
+      <!-- V1.27：类型改由右下 FAB 前置选择（sheetAddChoice），弹层内不再显示类型切换；名称置顶 -->
+      <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水" autofocus>
+      <div id="tyPomoRow" class="hidden mt-3 rounded-xl bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 p-3">
+        <div class="flex items-center justify-between text-xs">
+          <b class="text-rose-500">🍅 番茄计时</b>
+          <span class="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 text-[10px] font-bold">
+            <button id="pmUpB" class="seg-on px-3 py-1 rounded-md" onclick="pmMode('up')">正计时</button>
+            <button id="pmDownB" class="px-3 py-1 rounded-md text-slate-500" onclick="pmMode('down')">倒计时</button>
+          </span>
+        </div>
+        <!-- V1.27：倒计时=横向进度条 · 5/15/30/45 快捷点 · 可拖拽 1~60 分钟 -->
+        <div id="pmBarWrap" class="hidden mt-3">
+          <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1"><span>1 分</span><b id="pmMinLbl" class="text-rose-500 text-xs">25 分钟</b><span>60 分</span></div>
+          <div class="relative h-1.5 rounded-full bg-rose-100 dark:bg-rose-500/15">
+            <div id="pmBarFill" class="absolute left-0 top-0 h-full rounded-full grad" style="width:41.6%"></div>
+            <input id="pmRange" type="range" min="1" max="60" value="25" class="absolute -inset-y-2 inset-x-0 w-full opacity-0 cursor-pointer" oninput="pmSet(+this.value)">
+          </div>
+          <div class="mt-2 flex gap-1.5 justify-center">
+            <button class="tag-chip" onclick="pmSet(5)">5′</button><button class="tag-chip" onclick="pmSet(15)">15′</button>
+            <button class="tag-chip" onclick="pmSet(30)">30′</button><button class="tag-chip" onclick="pmSet(45)">45′</button>
+          </div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2">完成后自动写入时间模块（L4）· 上限 60 分钟</div>
       </div>
-      <div id="tyPomoRow" class="hidden mt-2 items-center gap-2 text-xs">
-        <span class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-[10px] font-bold">
-          <button id="pmUpB" class="seg-on px-3 py-1 rounded-md" onclick="pmMode('up')">正计时</button>
-          <button id="pmDownB" class="px-3 py-1 rounded-md text-slate-500" onclick="pmMode('down')">倒计时</button>
-        </span>
-        <span id="pmMinWrap" class="hidden items-center gap-1">分钟 <select id="pmMin" class="sel !py-1"><option>5</option><option>15</option><option selected>25</option><option>45</option></select></span>
-        <span class="text-slate-400">完成后自动写入时间模块（L4）</span>
-      </div>
-      <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水">
       <div class="mt-3 text-xs font-bold text-slate-500">引导式判象限（推荐）</div>
       <div class="mt-2 grid grid-cols-2 gap-3">
         <button id="gImp" class="q-ask" onclick="askTap(this,'imp')">这件事重要吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">对目标/价值有贡献</span></button>
@@ -1510,8 +1527,11 @@ tailwind.config = {
         <div class="flex-1 flex items-center justify-between"><span class="font-bold">分组</span><b class="text-brand-500 cursor-pointer" onclick="toast('分组管理（模拟）· 默认未分组')">未分组 ›</b></div>
       </div>
       <div class="mt-3 flex gap-3 text-xs">
-        <div class="flex-1"><label class="text-slate-400">截止日期</label><input type="date" value="2026-09-20" class="sel w-full mt-1 !py-2"></div>
-        <div class="flex-1"><label class="text-slate-400">提醒</label><select class="sel w-full mt-1 !py-2"><option>当天 09:00</option><option>不提醒</option><option>提前1小时</option></select></div>
+        <!-- V1.27：截止日期改滑动滚轮（复用时间模块 sheetDatePick 三列轮） -->
+        <div class="flex-1"><label class="text-slate-400">截止日期</label>
+          <div class="sel w-full mt-1 !py-2 flex items-center justify-between cursor-pointer" onclick="ntDatePick()"><span id="ntDueLbl">📅 2026-09-21</span><span class="text-slate-400">›</span></div></div>
+        <div class="flex-1"><label class="text-slate-400">提醒（默认当天 09:00 · 可改）</label>
+          <select id="ntRemind" class="sel w-full mt-1 !py-2" onchange="ntRemindChg(this)"><option>当天 09:00</option><option>自定义时间…</option><option>提前1小时</option><option>不提醒</option></select></div>
       </div>
       <div class="mt-3 text-xs text-slate-400">重复：不重复 <b class="text-brand-500 mx-1 cursor-pointer" onclick="toast('周期规则面板（模拟）')">›</b>　子任务：<b class="text-brand-500 cursor-pointer" onclick="toast('可添加 2 级子任务（模拟）')">+ 添加</b></div>
       <!-- V1.19 · 待办设置时间三态（时间点/时间段/全天）→ 落入日程视图（联动 L1） -->
@@ -1545,7 +1565,7 @@ tailwind.config = {
       <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
       <div class="mt-3 flex gap-3">
         <button onclick="closeSheet('sheetAddTask')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="addTask()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">存入四象限</button>
+        <button onclick="addTask()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
       </div>
     </div>
   </div>
@@ -1624,9 +1644,10 @@ tailwind.config = {
         <button class="tag-chip justify-center" onclick="tpDur(120)">2时</button>
         <span class="ml-auto flex gap-1"><button class="tag-chip" onclick="toast('标签选择面板（模拟）· 默认带分类默认标签')">标签 ›</button><button class="tag-chip" onclick="closeSheet('sheetTimePick');navTo('p-sub-cats')">无分类 ›</button></span>
       </div>
-      <div class="mt-3 text-xs font-bold text-slate-500">分类（点一级选中 · 有次级再点次级精确到子项）</div>
+      <div class="mt-3 text-xs font-bold text-slate-500">一级分组</div>
       <div id="tpCats" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
-      <div id="tpSubs" class="mt-2 flex flex-wrap gap-2 text-[11px] min-h-[26px]"></div>
+      <div class="mt-3 pt-3 border-t-2 border-dashed border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500">子分组<span class="font-normal text-[10px] text-slate-400 ml-1">属于上方选中的一级分组 · 再点可取消</span></div>
+      <div id="tpSubs" class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 p-2.5 flex flex-wrap gap-2 text-[11px] min-h-[38px]"></div>
       <textarea id="tpNote" rows="2" maxlength="5000" oninput="$('#tpNoteC').textContent=$('#tpNote').value.length+'/5000'" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="请输入备注"></textarea>
       <div class="flex justify-end text-[9px] text-slate-400"><span id="tpNoteC">0/5000</span></div>
       <div class="mt-2 flex gap-3">
@@ -1688,6 +1709,32 @@ tailwind.config = {
   </div>
 
   <!-- ===== 任务详情 ===== -->
+  <!-- V1.27 上级分类选择弹层（底部列表 · 与全局弹层风格统一） -->
+  <div id="sheetCatParent" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetCatParent')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">选择上级分类</div>
+      <div class="text-[10px] text-slate-400 mt-0.5">次级分类将挂在所选一级分组下</div>
+      <div id="catParentList" class="mt-3 space-y-1 max-h-[300px] overflow-y-auto"></div>
+      <button onclick="closeSheet('sheetCatParent')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+    </div>
+  </div>
+
+  <!-- V1.27 添加类型前置选择（右下 FAB 弹出 · 选后直达对应新建表单） -->
+  <div id="sheetAddChoice" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddChoice')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">添加待办</div>
+      <div class="mt-3 grid grid-cols-2 gap-3">
+        <button onclick="closeSheet('sheetAddChoice');openAddTask('norm')" class="rounded-2xl border-2 border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/10 p-4 text-left active:scale-95 transition">
+          <div class="text-2xl">✅</div><div class="font-extrabold text-sm mt-1">普通待办</div><div class="text-[10px] text-slate-400 mt-0.5">勾选完成 · 四象限归类</div></button>
+        <button onclick="closeSheet('sheetAddChoice');openAddTask('pomo')" class="rounded-2xl border-2 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 text-left active:scale-95 transition">
+          <div class="text-2xl">🍅</div><div class="font-extrabold text-sm mt-1">番茄钟</div><div class="text-[10px] text-slate-400 mt-0.5">正/倒计时 · 专注入账</div></button>
+      </div>
+      <button onclick="closeSheet('sheetAddChoice')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+    </div>
+  </div>
+
   <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
@@ -1695,6 +1742,7 @@ tailwind.config = {
         <button onclick="toast('完成状态已切换（模拟）')" class="w-6 h-6 rounded-full border-2 border-brand-500 shrink-0 mt-0.5"></button>
         <div class="flex-1"><div id="stTitle" class="font-extrabold">整理季度报销单</div>
         <div class="text-[11px] text-slate-400 mt-0.5">⏰ 逾期 1 天 · 提醒 09-18 09:00</div></div>
+        <button class="text-brand-500 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-brand-300 shrink-0 mr-1" onclick="editTaskFromSheet()" title="复用新建表单修改时间等数据">✏️ 编辑</button>
         <button class="text-rose-500 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-rose-300 shrink-0" onclick="delTaskFromSheet()">🗑 删除</button>
       </div>
       <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]">
@@ -1990,7 +2038,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2123,7 +2171,7 @@ const DASH_IDS=['greeting','mood','events','inboxBar','chart','grid'];
 let dashEditing=false,dragCard=null;
 function initDashOrder(){const p=$('#p-dashboard');
   const tip=document.createElement('div');tip.id='dashTip';tip.className='hidden mb-3 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 px-3 py-2 text-[11px] text-brand-600 dark:text-brand-400 font-bold';
-  tip.textContent='⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调 · 「完成」保存布局';p.insertBefore(tip,p.firstChild);
+  tip.innerHTML='<span>⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调</span><button class="ml-auto bg-brand-500 text-white rounded-full px-3 py-0.5 font-extrabold" onclick="dashToggle()">✓ 完成</button>';tip.className+=' flex items-center';p.insertBefore(tip,p.firstChild);
   [...p.children].filter(c=>!c.classList.contains('dash-card')&&c.id!=='dashTip'&&c.id!=='dashFooter').forEach((c,i)=>{
     const w=document.createElement('div');w.className='dash-card';w.dataset.id=DASH_IDS[i]||('x'+i);
     p.insertBefore(w,c);w.appendChild(c);
@@ -2134,6 +2182,12 @@ function initDashOrder(){const p=$('#p-dashboard');
     w.addEventListener('drop',e=>{if(!dragCard||dragCard===w)return;e.preventDefault();const r=w.getBoundingClientRect();
       p.insertBefore(dragCard,e.clientY>r.top+r.height/2?w.nextSibling:w);
       dragCard.classList.remove('dragging');dragCard=null;toast('顺序已调整 · 布局已保存（模拟持久化）')});
+    /* 长按卡片进入编排（V1.27：移除右上角编排按钮，改长按触发） */
+    let lpT=null;
+    const lpStart=()=>{if(dashEditing)return;lpT=setTimeout(()=>{dashToggle();toast('已进入编排模式 · 拖动或 ↑↓ 调整')},550)};
+    const lpEnd=()=>{if(lpT){clearTimeout(lpT);lpT=null}};
+    w.addEventListener('touchstart',lpStart,{passive:true});w.addEventListener('touchend',lpEnd);w.addEventListener('touchmove',lpEnd);
+    w.addEventListener('mousedown',lpStart);w.addEventListener('mouseup',lpEnd);w.addEventListener('mouseleave',lpEnd);
     const h=document.createElement('div');h.className='dash-handle';
     h.innerHTML='<button class="mv-btn" title="上移" onclick="dashMove(this,-1)">↑</button><button class="mv-btn" title="下移" onclick="dashMove(this,1)">↓</button><span class="mv-btn cursor-grab" title="拖动">⾿</span>';
     w.appendChild(h);});
@@ -2149,7 +2203,6 @@ function dashMove(btn,dir){const c=btn.closest('.dash-card');const ref=dir<0?c.p
 function dashToggle(){dashEditing=!dashEditing;
   $('#p-dashboard').classList.toggle('dash-edit',dashEditing);
   $('#dashTip').classList.toggle('hidden',!dashEditing);
-  $('#dashEditBtn').textContent=dashEditing?'✓ 完成':'⇄ 编排';
   $$('.dash-card').forEach(c=>c.setAttribute('draggable',dashEditing?'true':'false'));
   if(!dashEditing){saveDashOrder();toast('主页布局已保存（localStorage 持久化）· 下次启动保持此顺序，刷新页面验证');}}
 function gotoDashEdit(){stack.length=0;setPage('p-dashboard');window.scrollTo(0,0);if(!dashEditing)dashToggle();}
@@ -2158,22 +2211,30 @@ let todoFilter=0, askState={imp:null,urg:null};
 function renderChips(){ $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();$('#todoFilterPanel').classList.add('hidden');toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
 function toggleTodoFilter(){const el=$('#todoFilterPanel');el.classList.toggle('hidden');if(!el.classList.contains('hidden'))el.scrollIntoView({behavior:'smooth',block:'nearest'})}
 function renderTodos(){
-  $('#todoList').innerHTML=D.todos.map((t,i)=>`<div class="task-row card !py-3 flex items-center gap-3">
-    <button onclick="tkToggle(${i})" class="chk ${t.done?'chk-on':''}">${t.done?'✓':''}</button>
-    <div class="flex-1 min-w-0" onclick="openTask(${i})"><div class="text-sm font-semibold ${t.done?'line-through text-slate-400':''} truncate">${t.pomo?'🍅 ':''}${t.t}</div>
-      <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>◉ ${D.quads[t.q].name}</span><span>⏰ ${t.due}</span>${t.habit?`<span class="text-violet-500 font-bold">🔁 ${t.habit}</span>`:''}${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
-    ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="pomoStart(${i})">▶ 🍅</button>`):''}
-    <span class="qbadge ${D.quads[t.q].cls}">${'①②③④'[t.q]}</span></div>`).join('');
+  $('#todoList').innerHTML=D.todos.map((t,i)=>`<div class="task-row card !py-3 flex items-center gap-3" draggable="true" ondragstart="listDrag(event,${i})" ondragover="event.preventDefault()" ondrop="listDrop(event,${i})">
+    <button onclick="event.stopPropagation();tkToggle(${i})" class="w-5 h-5 shrink-0 rounded-[6px] border-2 text-[12px] leading-none flex items-center justify-center ${t.done?'bg-brand-500 border-brand-500 text-white':'border-slate-300 dark:border-slate-600 text-transparent'}">${t.done?'✓':''}</button>
+    <div class="flex-1 min-w-0" onclick="openTask(${i})"><div class="text-sm font-semibold ${t.done?'line-through text-slate-400':''} truncate">${t.t}</div>
+      <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>⏰ ${t.due}</span>${t.habit?`<span class="text-violet-500 font-bold">🔁 ${t.habit}</span>`:''}${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
+    ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoStart(${i})">▶ 专注</button>`):''}
+    <span class="w-3 h-3 rounded-full ${D.quads[t.q].cls} shrink-0" title="${D.quads[t.q].name}"></span></div>`).join('');
 }
+/* V1.27 清单长按拖拽排序 */
+let ldIdx=null;
+function listDrag(e,i){ldIdx=i;e.target.classList.add('dragging')}
+function listDrop(e,i){e.preventDefault();if(ldIdx===null||ldIdx===i)return;
+  const rec=D.todos.splice(ldIdx,1)[0];D.todos.splice(i,0,rec);ldIdx=null;renderTodos();toast('清单顺序已调整（模拟持久化）')}
 function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
 function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}
+/* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
+function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm');toast('编辑模式 · 保存后覆盖原条目（模拟）')}
 function openTask(i){ stIdx=i; $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
 function qMove(btn,q){ $$('.q-move').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); toast('已改判为「'+D.quads[q].name+'」（拖拽同样可用）'); }
 let stIdx=0;
+let todoView='list';
 function switchTodoView(v){
+  todoView=v;
   const list=v==='list'; $('#todoListWrap').classList.toggle('hidden',!list); $('#quadWrap').classList.toggle('hidden',list);
-  $('#tvList').className = (list?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(list?'':' text-slate-500');
-  $('#tvQuad').className = (!list?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(!list?'':' text-slate-500');
+  const tb=$('#tvToggle');tb.title=list?'切换到四象限':'切换到清单';
   if(!list) renderQuad();
 }
 function renderQuad(){
@@ -2181,8 +2242,8 @@ function renderQuad(){
     ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="quadDrop(event,${i})">
     <div class="flex items-center gap-1.5 text-xs font-extrabold"><span class="w-2 h-2 rounded-full ${q.cls}"></span>${q.name}</div>
     <div class="text-[9px] text-slate-400 mb-2 ml-3.5">${q.act} · ${D.todos.filter(t=>t.q===i&&!t.done).length} 待办</div>
-    ${D.todos.map((t,ti)=>t.q===i?`<div draggable="true" ondragstart="quadDrag(event,${ti})" ondragend="this.classList.remove('dragging')" class="q-card mb-2 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 px-2.5 py-2 text-xs font-semibold cursor-grab active:cursor-grabbing flex items-center gap-1 ${t.done?'opacity-40 line-through':''}"><span class="flex-1 min-w-0 truncate">${t.t}</span><span class="shrink-0 w-5 h-5 -mr-1 rounded-full text-slate-300 hover:text-rose-500 text-center leading-5" title="关闭该待办" onclick="event.stopPropagation();tkToggle(${ti})">✕</span></div>`:'').join('')}
-    <button class="text-[10px] text-slate-400 hover:text-brand-500" onclick="openSheet('sheetAddTask')">+ 添加</button></div>`).join('');
+    ${D.todos.map((t,ti)=>t.q===i?`<div draggable="true" ondragstart="quadDrag(event,${ti})" ondragend="this.classList.remove('dragging')" onclick="openTask(${ti})" class="q-card mb-2 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 px-2.5 py-2 text-xs font-semibold cursor-grab active:cursor-grabbing flex items-center gap-2 ${t.done?'opacity-40 line-through':''}"><button onclick="event.stopPropagation();tkToggle(${ti})" class="w-[18px] h-[18px] shrink-0 rounded-[5px] border-2 text-[10px] leading-none flex items-center justify-center ${t.done?'bg-brand-500 border-brand-500 text-white':'border-slate-300 dark:border-slate-600 text-transparent'}">${t.done?'✓':''}</button><span class="flex-1 min-w-0 truncate">${t.t}</span></div>`:'').join('')}
+    <button class="text-[10px] text-slate-400 hover:text-brand-500" onclick="openAddTask('norm')">+ 添加</button></div>`).join('');
 }
 let dragIdx=null;
 function quadDrag(e,i){ dragIdx=i; e.target.classList.add('dragging'); }
@@ -2195,7 +2256,7 @@ function addTask(){
   const imp=askState.imp??false, urg=askState.urg??false;
   const q=(imp&&urg)?0:imp?1:(urg?2:3);
   const rec={t:v,tag:'',q,due:'今天',done:tsSel==='done',dropped:tsSel==='drop',imp,urg};
- if(tySel==='pomo')rec.pomo={mode:pmSel,min:pmSel==='down'?+$('#pmMin').value:0};
+ if(tySel==='pomo')rec.pomo={mode:pmSel,min:pmSel==='down'?pmVal:0};
  if(tsSel==='drop')rec.tag='放弃';
  if($('#tsColor').value!=='默认')rec.color=$('#tsColor').value;
  if(tkSel.mode==='point'){rec.timeMode='point';rec.tm=hmStr(tkHM('tkP'))}
@@ -2273,9 +2334,14 @@ function openDatePick(){
   wReg('dpD',Array.from({length:30},(_,i)=>String(i+1).padStart(2,'0')),calDay-1,dpHint);
   dpHint();openSheet('sheetDatePick')}
 function dpHint(){const d=+WHEELS.dpD.items[WHEELS.dpD.i];$('#dpHint').innerHTML=WHEELS.dpM.items[WHEELS.dpM.i]+'月'+WHEELS.dpD.items[WHEELS.dpD.i]+'日 周'+WDS[(d+1)%7]+(d===19?' · <b class="text-brand-500">今天</b>':'')}
-function dpOk(){const m=WHEELS.dpM.items[WHEELS.dpM.i],d=+WHEELS.dpD.items[WHEELS.dpD.i];closeSheet('sheetDatePick');
-  if(m!=='09'){toast('已选 2026年'+m+'月（原型演示 · 真实版月历/时间轴跨月联动跳转）');return}
+function dpOk(){const y=WHEELS.dpY.items[WHEELS.dpY.i],m=WHEELS.dpM.items[WHEELS.dpM.i],d=+WHEELS.dpD.items[WHEELS.dpD.i];closeSheet('sheetDatePick');
+  if(dpTarget==='task'){dpTarget='cal';$('#ntDueLbl').textContent='📅 '+y+'-'+m+'-'+String(d).padStart(2,'0');toast('截止日期已更新（模拟）');return}
+  if(m!=='09'){toast('已选 '+y+'年'+m+'月（原型演示 · 真实版月历/时间轴跨月联动跳转）');return}
   setDay(d,d>calDay?1:-1);toast('已跳转到 9月'+d+'日')}
+/* V1.27：待办新建弹层复用同款三列滚轮选截止日期；提醒默认 09:00 可自定义 */
+let dpTarget='cal';
+function ntDatePick(){dpTarget='task';openDatePick()}
+function ntRemindChg(sel){if(sel.value==='自定义时间…'){sel.value='当天 09:00';toast('时/分双列滚轮选择提醒时刻（模拟 · 默认 09:00 可直接改）')}}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
 function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');renderWeekStrip()}
 function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');renderMonthGrid()}
@@ -2522,8 +2588,13 @@ function catsSortMode(){toast('排序模式：长按条目拖动调整顺序 / �
 let caSel='pri';
 function openCatAdd(){caMode(caSel);
   $('#caColor').innerHTML=CAT_COLORS.map((cc,i)=>`<option value="${i}" ${i===0?'selected':''}>${cc[0]}</option>`).join('');caColorPrev();
-  $('#caParent').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
+  $('#caParent').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');caParentLblSync();
   navTo('p-sub-catAdd')}
+/* V1.27：上级分类改底部弹层（隐藏 select 仍作数据位） */
+function caParentLblSync(){const el=$('#caParentLbl');if(el)el.textContent=$('#caParent').value||'请选择上级分类'}
+function openCatParentPick(){$('#catParentList').innerHTML=Object.keys(CATS).map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold active:bg-slate-100 dark:active:bg-slate-800 ${$('#caParent').value===k?'text-brand-500':''}" onclick="caParentPick('${k}')"><span>${k}</span>${$('#caParent').value===k?'✓':''}</button>`).join('');
+  openSheet('sheetCatParent')}
+function caParentPick(k){$('#caParent').value=k;caParentLblSync();closeSheet('sheetCatParent');toast('上级分类已设为「'+k+'」（模拟）')}
 function caMode(m){caSel=m;
   $('#caPriBtn').className=(m==='pri'?'seg-on':'')+' px-4 rounded-lg py-1.5'+(m==='pri'?'':' text-slate-500');
   $('#caSubBtn').className=(m==='sub'?'seg-on':'')+' px-4 rounded-lg py-1.5'+(m==='sub'?'':' text-slate-500');
@@ -2555,15 +2626,18 @@ function tkMode(m){tkSel={mode:m};
   if(m==='range'){wReg('tkSh',TW_HRS,t.h);wReg('tkSm',TW_MINS,Math.floor(t.m/5));wReg('tkEh',TW_HRS,t.h);wReg('tkEm',TW_MINS,Math.floor(t.m/5))}}
 function initTk(){$('#tkCat').innerHTML=Object.keys(CATS).map(k=>`<option>${k}</option>`).join('');
   $('#tkLink').onchange=e=>$('#tkCat').classList.toggle('hidden',!e.target.checked)}
-let tsSel='open', tySel='norm', pmSel='up', pomoRun=null;
+let tsSel='open', tySel='norm', pmSel='up', pomoRun=null, pmVal=25;
 function tyMode(m){tySel=m;
-  $('#tyNormB').className=(m==='norm'?'seg-on ':'')+'flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800'+(m==='norm'?'':' text-slate-500');
-  $('#tyPomoB').className=(m==='pomo'?'seg-on ':'')+'flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800'+(m==='pomo'?'':' text-slate-500');
-  $('#tyPomoRow').classList.toggle('hidden',m!=='pomo');$('#tyPomoRow').classList.toggle('flex',m==='pomo')}
+  $('#tyPomoRow').classList.toggle('hidden',m!=='pomo');$('#tyPomoRow').classList.toggle('block',m==='pomo');
+  if(m==='pomo')pmMode(pmSel)}
 function pmMode(m){pmSel=m;
   $('#pmUpB').className=(m==='up'?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md text-slate-500');
   $('#pmDownB').className=(m==='down'?'seg-on px-3 py-1 rounded-md':'px-3 py-1 rounded-md text-slate-500');
-  $('#pmMinWrap').classList.toggle('hidden',m!=='down');$('#pmMinWrap').classList.toggle('flex',m==='down')}
+  $('#pmBarWrap').classList.toggle('hidden',m!=='down');pmSet(pmVal)}
+function pmSet(v){pmVal=Math.max(1,Math.min(60,v));
+  const f=$('#pmBarFill'),r=$('#pmRange'),l=$('#pmMinLbl');
+  if(f)f.style.width=(pmVal/60*100)+'%';if(r)r.value=pmVal;if(l)l.textContent=pmVal+' 分钟'}
+function openAddTask(type){tyMode(type||'norm');openSheet('sheetAddTask');setTimeout(()=>{const el=$('#ntTitle');if(el)el.focus()},80)}
 function pomoStart(i){if(pomoRun){toast('已有番茄进行中 · 请先结束（单活约束）');return}
   const t=D.todos[i];pomoRun={i:i,t0:Date.now(),paused:0,pauseAt:0};
   $('#pomoTitle').textContent=t.t;$('#pomoModeLbl').textContent=t.pomo.mode==='down'?('倒计时 '+t.pomo.min+' 分'):'正计时';
@@ -3076,7 +3150,7 @@ let recTab='diary';
 const FAB_CFG={
  'p-dashboard':{ico:'＋',menu:true},
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
- 'p-todo':{ico:'＋',act:()=>openSheet('sheetAddTask')},
+ 'p-todo':{ico:'＋',act:()=>openSheet('sheetAddChoice')},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
