@@ -369,9 +369,10 @@ tailwind.config = {
 
     <!-- ===== P2 待办 ===== -->
     <section id="p-todo" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.27：右上切换钮（清单⇄四象限）· 顶栏添加钮移除（与右下 FAB 重复） -->
-      <div class="flex items-center justify-end">
+      <!-- V1.27：右上=视图切换+智能筛选 同行（筛选钮从全局顶栏下移至此） -->
+      <div class="flex items-center justify-end gap-2">
         <button id="tvToggle" onclick="switchTodoView(todoView==='list'?'quad':'list')" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-lg font-extrabold" title="切换 清单/四象限">⇄</button>
+        <button onclick="toggleTodoFilter()" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center" title="智能筛选"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4"/></svg></button>
       </div>
 
       <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · V1.27 清单与四象限两视图均生效） -->
@@ -2080,13 +2081,20 @@ function setPage(p){
   if(_th)_th.classList.toggle('hidden',p==='p-calendar'&&stack.length===0);
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
-  $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
+  $('#btnTodoFilter').classList.add('hidden'); // V1.27：筛选钮移至待办页内与切换钮同行
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
 }
 function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
-function goBack(){ if(stack.length){ setPage(stack.pop()); } }
+/* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
+function goBack(){
+  if(stack.length){ setPage(stack.pop()); return; }
+  if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
+  const now=Date.now();
+  if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
+  else{ window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
+}
 function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); }
 function renderFab(){const f=$('#fab'),c=FAB_CFG[curPage];
  if(!c){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
