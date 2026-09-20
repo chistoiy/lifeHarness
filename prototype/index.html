@@ -262,6 +262,9 @@ tailwind.config = {
     <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
     </button>
+    <button id="btnTodoViewToggle" class="hidden w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="switchTodoView(todoView==='list'?'quad':'list')" title="切换 清单/四象限">
+      <span class="text-lg font-extrabold">⇄</span>
+    </button>
     <button id="btnTodoFilter" class="hidden w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleTodoFilter()" title="智能筛选">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4"/></svg>
     </button>
@@ -369,11 +372,7 @@ tailwind.config = {
 
     <!-- ===== P2 待办 ===== -->
     <section id="p-todo" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.27：右上=视图切换+智能筛选 同行（筛选钮从全局顶栏下移至此） -->
-      <div class="flex items-center justify-end gap-2">
-        <button id="tvToggle" onclick="switchTodoView(todoView==='list'?'quad':'list')" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-lg font-extrabold" title="切换 清单/四象限">⇄</button>
-        <button onclick="toggleTodoFilter()" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center" title="智能筛选"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M10 18h4"/></svg></button>
-      </div>
+      <!-- V1.27：⇄切换与漏斗筛选均在全局顶栏（与搜索同行），页内不放工具行 -->
 
       <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · V1.27 清单与四象限两视图均生效） -->
       <div id="todoFilterPanel" class="hidden mt-3 card !p-3">
@@ -426,8 +425,8 @@ tailwind.config = {
         </div>
       </div>
       <!-- 展开态：迷你月历（有事项的天右下角显圆点） -->
-      <div id="monthPanel" class="mt-2 card !p-3">
-        <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold mb-1"><button class="px-2 py-0.5" onclick="calShift(-1)">‹ 上月</button><span class="text-[11px] font-extrabold text-slate-500">2026年9月</span><button class="px-2 py-0.5" onclick="calShift(1)">下月 ›</button></div>
+      <div id="monthPanel" class="mt-2 card !p-3" style="touch-action:pan-y">
+        <!-- V1.27：去「‹上月 2026年9月 下月›」行；展开态左右滑动切月（initCalSwipe） -->
         <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
         <div class="grid grid-cols-7 text-center gap-y-0.5" id="monthGrid"></div>
         <div class="flex justify-center gap-3 text-[9px] text-slate-400 mt-1.5"><span><i class="dot bg-emerald-400"></i>已完成</span><span><i class="dot bg-brand-400"></i>计划中</span><span><i class="dot bg-rose-400"></i>进行中</span><span>同日多态取最高优先级</span></div>
@@ -2081,7 +2080,10 @@ function setPage(p){
   if(_th)_th.classList.toggle('hidden',p==='p-calendar'&&stack.length===0);
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
-  $('#btnTodoFilter').classList.add('hidden'); // V1.27：筛选钮移至待办页内与切换钮同行
+  $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
+  $('#btnTodoFilter').classList.toggle('flex',p==='p-todo');
+  $('#btnTodoViewToggle').classList.toggle('hidden',p!=='p-todo');
+  $('#btnTodoViewToggle').classList.toggle('flex',p==='p-todo');
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
@@ -2242,7 +2244,7 @@ let todoView='list';
 function switchTodoView(v){
   todoView=v;
   const list=v==='list'; $('#todoListWrap').classList.toggle('hidden',!list); $('#quadWrap').classList.toggle('hidden',list);
-  const tb=$('#tvToggle');tb.title=list?'切换到四象限':'切换到清单';
+  const tb=$('#btnTodoViewToggle');if(tb)tb.title=list?'切换到四象限':'切换到清单';
   if(!list) renderQuad();
 }
 function renderQuad(){
@@ -2299,7 +2301,7 @@ function renderWeekStrip(){let c='';
  for(let d=calDay-3;d<=calDay+3;d++){const inM=d>=1&&d<=30,ev=inM&&dayHasEv(d),sel=d===calDay;
   c+=`<button class="relative py-1 rounded-xl ${sel?'bg-brand-500 text-white':'text-slate-600 dark:text-slate-300'}" onclick="stripTap(${d})"><div class="text-[8px] opacity-60">${inM?WDS[(d+1)%7]:''}</div><div class="text-[12px] font-bold">${inM?d:(d<1?'·':'+')}</div>${ev?`<span class="absolute right-1.5 bottom-1 w-1 h-1 rounded-full ${sel?'bg-white/90':dotCls(d)}"></span>`:''}</button>`}
  $('#weekStripCells').innerHTML=c;}
-function stripTap(d){if(d===calDay){expandMonth();return}if(d<1||d>30){toast('跨月请点「展开」后用 ‹ › 切月');return}setDay(d,d>calDay?1:-1)}
+function stripTap(d){if(d===calDay){expandMonth();return}if(d<1||d>30){toast('跨月请展开月历后左右滑动切换');return}setDay(d,d>calDay?1:-1)}
 function setDay(d,dir){calDay=d;renderCal();
  if(dir){const w=$('#weekStrip');w.classList.remove('strip-l','strip-r');void w.offsetWidth;w.classList.add(dir>0?'strip-l':'strip-r');
   ['#calDayView','#calBlockView','#calDayHourView','#calWeekGrid'].forEach(s=>{const t=$(s);if(t){t.classList.remove('strip-l','strip-r');void t.offsetWidth;t.classList.add(dir>0?'strip-l':'strip-r')}})}}
@@ -2353,11 +2355,16 @@ function ntRemindChg(sel){if(sel.value==='自定义时间…'){sel.value='当天
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
 function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');renderWeekStrip()}
 function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');renderMonthGrid()}
-function calShift(n){if(monthExpanded){toast('切换上/下一月（模拟）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
+function calShift(n){if(monthExpanded){toast('已切换'+(n>0?'下':'上')+'一月（模拟 · 月历左右滑动切月）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
 function initCalSwipe(){const el=$('#weekStrip');let x0=null;
  el.addEventListener('pointerdown',e=>{x0=e.clientX});
  el.addEventListener('pointerup',e=>{if(x0===null)return;const dx=e.clientX-x0;x0=null;
   if(Math.abs(dx)>40){const nd=Math.min(30,Math.max(1,calDay+(dx<0?1:-1)));if(nd!==calDay){setDay(nd,dx<0?1:-1);toast('已切到 9月'+nd+'日')}}});
+ /* V1.27：展开态月历同样支持左右滑动（切月） */
+ const mp=$('#monthPanel');let mx=null;
+ if(mp){mp.addEventListener('pointerdown',e=>{mx=e.clientX});
+  mp.addEventListener('pointerup',e=>{if(mx===null)return;const dx=e.clientX-mx;mx=null;
+   if(Math.abs(dx)>40)calShift(dx<0?1:-1)});}
  // 页面向下滚动超阈也自动收起（智能折叠）
  const pg=$('#p-calendar');if(pg)pg.addEventListener('scroll',()=>{if(pg.scrollTop>24)collapseMonth()},{passive:true});
  ['#calAxisView','#calBlockView','#calDayHourView','#calWeekGrid','#conflictTip'].forEach(s=>{const t=$(s);if(t)t.addEventListener('pointerdown',e=>{if(e.target.closest('button,a,input,select,.toggle,.grid-cell,.wk-cell'))return;collapseMonth()},{passive:true})})}
