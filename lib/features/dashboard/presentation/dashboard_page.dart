@@ -89,7 +89,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             () => ref.read(eventBusProvider).publish(const QuickAddEvent('inbox')));
       case 1:
         context.go(NavModule.todo.path);
-        // 到达待办页后请求直接打开新建弹层（跨模块经事件总线，守 R1）。
+        // 到达待办页后自动展开其 FAB 类型菜单（同款行卡；跨模块经事件总线，守 R1）。
         Future.delayed(const Duration(milliseconds: 350),
             () => ref.read(eventBusProvider).publish(const QuickAddEvent('todo')));
       case 2:

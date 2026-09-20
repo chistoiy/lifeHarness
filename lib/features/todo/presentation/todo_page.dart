@@ -19,13 +19,16 @@ class TodoPage extends ConsumerStatefulWidget {
 }
 
 class _TodoPageState extends ConsumerState<TodoPage> {
+  /// V1.27 追加：FAB 类型二选一=首页快捷记录同款行卡菜单（页面风格统一）。
+  bool _fabMenu = false;
+
   @override
   void initState() {
     super.initState();
-    // 仪表盘 FAB「✅ 记待办」跨页直达添加选择弹层（事件总线解耦，守 R1）。
+    // 仪表盘 FAB「✅ 记待办」跨页直达本页 FAB 类型菜单（事件总线解耦，守 R1）。
     ref.read(eventBusProvider).on<QuickAddEvent>().listen((e) {
       if (!mounted || e.target != 'todo') return;
-      showTodoTypeChooser(context, ref);
+      setState(() => _fabMenu = true);
     });
   }
 
@@ -114,11 +117,44 @@ class _TodoPageState extends ConsumerState<TodoPage> {
           ),
         ],
       ),
-      // T4：FAB 先选类型（普通待办/番茄钟），再进对应表单
-      floatingActionButton: GradFab(
-        tooltip: '添加待办',
-        icon: const Icon(Icons.add, color: Colors.white, size: 26),
-        onTap: () => showTodoTypeChooser(context, ref),
+      // 原型同款：FAB 展开行卡菜单（✅ 普通待办 / 🍅 番茄计时），与首页快捷记录风格统一
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_fabMenu)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final (type, label) in const [
+                    ('norm', '✅ 普通待办'),
+                    ('pomo', '🍅 番茄计时'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: FabActionCard(
+                          key: ValueKey('fab-$type'),
+                          label: label,
+                          onTap: () {
+                            setState(() => _fabMenu = false);
+                            showTodoAddSheet(context, ref, type: type);
+                          }),
+                    ),
+                ],
+              ),
+            ),
+          AnimatedRotation(
+            duration: const Duration(milliseconds: 180),
+            turns: _fabMenu ? 1 / 8 : 0,
+            child: GradFab(
+              tooltip: '添加待办',
+              icon: const Icon(Icons.add, color: Colors.white, size: 26),
+              onTap: () => setState(() => _fabMenu = !_fabMenu),
+            ),
+          ),
+        ],
       ),
     );
   }

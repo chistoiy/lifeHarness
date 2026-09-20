@@ -7,97 +7,6 @@ import '../todo_providers.dart';
 import '../../../../core/widgets/wheel_time.dart';
 import '../../../../shared/linkage/stats_providers.dart';
 
-/// V1.27 T4：右下 FAB 前置二选一（原型 sheetAddChoice）→ 选后直达对应新建表单。
-Future<void> showTodoTypeChooser(BuildContext context, WidgetRef ref) {
-  return showModalBottomSheet(
-    context: context,
-    builder: (bc) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('添加待办',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ChoiceTile(
-                      emoji: '✅',
-                      label: '普通待办',
-                      sub: '勾选完成 · 四象限归类',
-                      border: const Color(0xFFC7D2FE),
-                      bg: const Color(0xFFEEF2FF),
-                      onTap: () {
-                        Navigator.of(bc).pop();
-                        showTodoAddSheet(context, ref, type: 'norm');
-                      }),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ChoiceTile(
-                      emoji: '🍅',
-                      label: '番茄钟',
-                      sub: '正/倒计时 · 专注入账',
-                      border: const Color(0xFFFECDD3),
-                      bg: const Color(0xFFFFF1F2),
-                      onTap: () {
-                        Navigator.of(bc).pop();
-                        showTodoAddSheet(context, ref, type: 'pomo');
-                      }),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _ChoiceTile extends StatelessWidget {
-  const _ChoiceTile(
-      {required this.emoji,
-      required this.label,
-      required this.sub,
-      required this.border,
-      required this.bg,
-      required this.onTap});
-  final String emoji, label, sub;
-  final Color border, bg;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(bg.withValues(alpha: .5), scheme.surface),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border, width: 1.6),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 26)),
-            const SizedBox(height: 8),
-            Text(label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 2),
-            Text(sub, style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 打开新建弹层（原型 sheetAddTask）。
 /// [type] norm/pomo（FAB 前置选择决定，弹层内不再显示类型切换）；
 /// [preset] 预置两问答案（失衡提醒「去规划」= Quadrant.q2）；
@@ -554,6 +463,27 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                 ),
               ],
             ),
+            // V1.27 追加：预置两问答案的直观落点预览（保存后进入对应象限，可随时改点）
+            if (_imp != null && _urg != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _derived.colorOf(tokens.accent)),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('保存后进入「${_derived.label}」象限',
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: _derived.colorOf(tokens.accent))),
+                ],
+              ),
+            ],
             const SizedBox(height: 10),
             // ===== 状态三态（原型 tsOpenB/tsDoneB/tsDropB） =====
             Row(

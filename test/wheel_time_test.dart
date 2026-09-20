@@ -104,7 +104,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('普通待办'));
+    await tester.tap(find.text('✅ 普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
 
@@ -113,16 +113,18 @@ void main() {
     await tester.pumpAndSettle();
     expectSettled(tester, '切到「时间点」后');
 
-    // 读控件初值 → 上滑一格 → 期望"时 +1、分不变"（不依赖墙上时钟，可确定断言）
+    // 读控件初值 → 滑一格 → 期望"时 ±1、分不变"。CupertinoPicker 时柱 0~23 不换行，
+    // 23 点向上/0 点向下滑不动，故按初值自适应方向（深夜/凌晨跑测均可确定断言）。
     final wheel = find.byKey(const ValueKey('tk-point'));
     expect(wheel, findsOneWidget);
     final initial = tester.widget<InlineWheelTime>(wheel).initial;
+    final dir = initial.hour >= 23 ? -1 : 1;
 
-    await tester.drag(find.byType(CupertinoPicker).first, const Offset(0, -32));
+    await tester.drag(find.byType(CupertinoPicker).first, Offset(0, -32.0 * dir));
     await tester.pumpAndSettle();
     expectSettled(tester, '「时间点」滚轮滑动后');
 
-    final wantHour = (initial.hour + 1) % 24;
+    final wantHour = (initial.hour + dir + 24) % 24;
     final wantMin = wantHour * 60 + initial.minute;
 
     await tester.ensureVisible(find.text('保存'));
@@ -134,7 +136,7 @@ void main() {
     expect(saved.single.title, '带时间点的任务');
     expect(saved.single.timeMode, 'point');
     expect(saved.single.startMin, wantMin,
-        reason: '滚轮选中的时间必须落库（初值 ${initial.hour}:${initial.minute} 上滑一格 → $wantMin 分）');
+        reason: '滚轮选中的时间必须落库（初值 ${initial.hour}:${initial.minute} 滑一格 → $wantMin 分）');
   });
 
   // ------------------------------------------------------- 真实入口：待办「时间段」
@@ -150,7 +152,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('普通待办'));
+    await tester.tap(find.text('✅ 普通待办'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '带时间段的任务');
     await tester.tap(find.text('时间段'));
@@ -164,18 +166,20 @@ void main() {
     expect(find.byType(InlineWheelTime), findsNWidgets(2));
 
     final startInit = tester.widget<InlineWheelTime>(startWheel).initial;
+    // 时柱 0~23 不换行：需要 +2 格，22/23 点改向下（凌晨 0/1 点恒可向上）。
+    final dir = startInit.hour >= 22 ? -1 : 1;
 
     // V1.27 表单变高：先把「止」轮滚入视口，否则 drag 落点被裁切、手势丢失。
     await tester.ensureVisible(endWheel);
     await tester.pumpAndSettle();
 
-    // 「起」上滑一格 → 时 +1；「止」上滑两格 → 时 +2。
+    // 「起」滑一格 → 时 dir；「止」滑两格 → 时 2*dir。
     // 两者起点相同，因此最终差值直接证明两只滚轮互不串味。
-    await tester.drag(find.byType(CupertinoPicker).at(0), const Offset(0, -32));
+    await tester.drag(find.byType(CupertinoPicker).at(0), Offset(0, -32.0 * dir));
     await tester.pumpAndSettle();
     expectSettled(tester, '「起」滑动后');
     for (var i = 0; i < 2; i++) {
-      await tester.drag(find.byType(CupertinoPicker).at(2), const Offset(0, -32));
+      await tester.drag(find.byType(CupertinoPicker).at(2), Offset(0, -32.0 * dir));
       await tester.pumpAndSettle();
     }
     expectSettled(tester, '「止」滑动后');
@@ -188,8 +192,8 @@ void main() {
 
     final saved = await todoRepo.list();
     expect(saved.single.timeMode, 'range');
-    final rawStart = ((startInit.hour + 1) % 24) * 60 + startInit.minute;
-    final rawEnd = ((startInit.hour + 2) % 24) * 60 + startInit.minute;
+    final rawStart = ((startInit.hour + dir) % 24 + 24) % 24 * 60 + startInit.minute;
+    final rawEnd = ((startInit.hour + 2 * dir) % 24 + 24) % 24 * 60 + startInit.minute;
     expect(saved.single.startMin, rawStart);
     // 表单既有约定：止≤起（跨零点回绕，深夜 22~23 点跑测时出现）→ endMin 归 0。
     // 「止」轮独立性守护：未回绕时必须=起+1 小时；回绕时也必须≠起（证明两轮不串味）。

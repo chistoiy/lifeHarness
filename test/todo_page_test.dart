@@ -52,9 +52,9 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一（T4）
     await tester.pumpAndSettle();
-    expect(find.text('普通待办'), findsOneWidget);
-    expect(find.text('番茄钟'), findsOneWidget);
-    await tester.tap(find.text('普通待办'));
+    expect(find.text('✅ 普通待办'), findsOneWidget);
+    expect(find.text('🍅 番茄计时'), findsOneWidget);
+    await tester.tap(find.text('✅ 普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
     expect(find.text('引导式判象限（推荐）'), findsOneWidget);
@@ -170,7 +170,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('番茄钟'));
+    await tester.tap(find.text('🍅 番茄计时'));
     await tester.pumpAndSettle();
 
     expect(find.text('🍅 番茄计时'), findsOneWidget);
@@ -192,5 +192,34 @@ void main() {
     final saved = await repo.list();
     expect(saved.single.pomoMode, 'down');
     expect(saved.single.pomoMin, 30);
+  });
+
+  testWidgets('V1.27 追加：象限格内＋添加 → 预置两问+落点预览·可改·保存直达象限',
+      (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('btn-view-toggle')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('+ 添加').first); // Q1「重要且紧急」格
+    await tester.pumpAndSettle();
+    expect(find.text('新建待办'), findsOneWidget);
+    // 预置直观可见：两卡均「是 ✓」+ 落点预览
+    expect(find.text('是 ✓'), findsNWidgets(2));
+    expect(find.text('保存后进入「重要且紧急」象限'), findsOneWidget);
+
+    // 手动改「重要=否」→ 落点即时跟随
+    await tester.tap(find.text('这件事重要吗？'));
+    await tester.pump();
+    expect(find.text('保存后进入「紧急不重要」象限'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '象限预置任务');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.list();
+    expect(saved.single.title, '象限预置任务');
+    expect(saved.single.quadrant, Quadrant.q3);
   });
 }

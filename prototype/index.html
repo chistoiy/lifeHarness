@@ -1442,10 +1442,16 @@ tailwind.config = {
   <button id="fab" onclick="fabTap()" class="hidden absolute right-5 bottom-[86px] z-40 w-14 h-14 rounded-full grad text-white text-2xl shadow-xl shadow-indigo-500/40 items-center justify-center transition-transform"><span id="fabIco">＋</span></button>
   <div id="fabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
     <button class="fab-act" onclick="fabGo('p-inbox','已聚焦收集箱输入框（模拟）')">⚡ 记一条想法</button>
-    <button class="fab-act" onclick="fabGo('p-todo','选择要添加的待办类型');setTimeout(()=>openSheet('sheetAddChoice'),260)">✅ 记待办</button>
+    <button class="fab-act" onclick="fabGo('p-todo','选择要添加的待办类型');setTimeout(()=>showTodoFabMenu(),300)">✅ 记待办</button>
     <button class="fab-act" onclick="fabGo('p-diaryEdit','打开写日记（模拟）')">📔 记日记</button>
     <button class="fab-act" onclick="fabGo('p-finance','打开快速记账（模拟）')">💰 记一笔</button>
     <button class="fab-act" onclick="fabGo('p-items','打开录入物品（模拟）')">📦 记物品</button>
+  </div>
+
+  <!-- V1.27：待办页 FAB 类型二选一 · 与首页快捷记录菜单同款样式（fab-act 行卡） -->
+  <div id="todoFabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
+    <button class="fab-act" onclick="fabPick('norm')">✅ 普通待办</button>
+    <button class="fab-act" onclick="fabPick('pomo')">🍅 番茄计时</button>
   </div>
 
   <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
@@ -1485,7 +1491,7 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold" id="ntSheetTitle">新建待办</div>
-      <!-- V1.27：类型改由右下 FAB 前置选择（sheetAddChoice），弹层内不再显示类型切换；名称置顶 -->
+      <!-- V1.27：类型由右下 FAB 行卡菜单二选一（与首页快捷记录同款样式），弹层内不再显示类型切换；名称置顶 -->
       <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水" autofocus>
       <div id="tyPomoRow" class="hidden mt-3 rounded-xl bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 p-3">
         <div class="flex items-center justify-between text-xs">
@@ -1514,6 +1520,7 @@ tailwind.config = {
         <button id="gImp" class="q-ask" onclick="askTap(this,'imp')">这件事重要吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">对目标/价值有贡献</span></button>
         <button id="gUrg" class="q-ask" onclick="askTap(this,'urg')">这件事紧急吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">有明确近期期限</span></button>
       </div>
+      <div id="ntLand" class="hidden mt-2 text-[11px] font-extrabold"></div>
       <div class="mt-3 flex items-center justify-between text-xs">
         <b class="text-slate-500">状态</b>
         <span class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-[10px] font-bold">
@@ -1720,20 +1727,6 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- V1.27 添加类型前置选择（右下 FAB 弹出 · 选后直达对应新建表单） -->
-  <div id="sheetAddChoice" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddChoice')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">添加待办</div>
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <button onclick="closeSheet('sheetAddChoice');openAddTask('norm')" class="rounded-2xl border-2 border-brand-200 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/10 p-4 text-left active:scale-95 transition">
-          <div class="text-2xl">✅</div><div class="font-extrabold text-sm mt-1">普通待办</div><div class="text-[10px] text-slate-400 mt-0.5">勾选完成 · 四象限归类</div></button>
-        <button onclick="closeSheet('sheetAddChoice');openAddTask('pomo')" class="rounded-2xl border-2 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 text-left active:scale-95 transition">
-          <div class="text-2xl">🍅</div><div class="font-extrabold text-sm mt-1">番茄钟</div><div class="text-[10px] text-slate-400 mt-0.5">正/倒计时 · 专注入账</div></button>
-      </div>
-      <button onclick="closeSheet('sheetAddChoice')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-    </div>
-  </div>
 
   <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2097,14 +2090,19 @@ function goBack(){
   if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
   else{ window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
 }
-function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); }
+function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); }
 function renderFab(){const f=$('#fab'),c=FAB_CFG[curPage];
+ if(curPage!=='p-todo')hideTodoFabMenu();
  if(!c){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
  f.classList.remove('hidden');f.classList.add('flex');$('#fabIco').textContent=c.ico;$('#fab').classList.toggle('glow-btn',curTheme==='cyber');}
 function fabTap(){const c=FAB_CFG[curPage];if(!c)return;
  if(c.menu){$('#fab').style.transform=$('#fabMenu').classList.contains('hidden')?'rotate(45deg)':'';$('#fabMenu').classList.toggle('hidden');return}
  $('#fabMenu').classList.add('hidden');$('#fab').style.transform='';c.act&&c.act();}
 function fabGo(p,msg){ $('#fabMenu').classList.add('hidden'); $('#fab').style.transform=''; stack.length=0; setPage(p); toast(msg); }
+/* V1.27：待办 FAB 类型二选一 = 首页快捷记录菜单同款行卡（页面风格统一） */
+function showTodoFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#todoFabMenu').classList.remove('hidden')}
+function hideTodoFabMenu(){const m=$('#todoFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
+function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 
 /* ================= 通用交互 ================= */
 let toastTimer;
@@ -2236,7 +2234,7 @@ function listDrop(e,i){e.preventDefault();if(ldIdx===null||ldIdx===i)return;
 function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
 function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
-function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm');toast('编辑模式 · 保存后覆盖原条目（模拟）')}
+function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
 function openTask(i){ stIdx=i; $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
 function qMove(btn,q){ $$('.q-move').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); toast('已改判为「'+D.quads[q].name+'」（拖拽同样可用）'); }
 let stIdx=0;
@@ -2253,14 +2251,19 @@ function renderQuad(){
     <div class="flex items-center gap-1.5 text-xs font-extrabold"><span class="w-2 h-2 rounded-full ${q.cls}"></span>${q.name}</div>
     <div class="text-[9px] text-slate-400 mb-2 ml-3.5">${q.act} · ${D.todos.filter(t=>t.q===i&&!t.done).length} 待办</div>
     ${D.todos.map((t,ti)=>t.q===i?`<div draggable="true" ondragstart="quadDrag(event,${ti})" ondragend="this.classList.remove('dragging')" onclick="openTask(${ti})" class="q-card mb-2 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 px-2.5 py-2 text-xs font-semibold cursor-grab active:cursor-grabbing flex items-center gap-2 ${t.done?'opacity-40 line-through':''}"><button onclick="event.stopPropagation();tkToggle(${ti})" class="w-[18px] h-[18px] shrink-0 rounded-[5px] border-2 text-[10px] leading-none flex items-center justify-center ${t.done?'bg-brand-500 border-brand-500 text-white':'border-slate-300 dark:border-slate-600 text-transparent'}">${t.done?'✓':''}</button><span class="flex-1 min-w-0 truncate">${t.t}</span></div>`:'').join('')}
-    <button class="text-[10px] text-slate-400 hover:text-brand-500" onclick="openAddTask('norm')">+ 添加</button></div>`).join('');
+    <button class="text-[10px] text-slate-400 hover:text-brand-500" onclick="openAddTask('norm',${i})">+ 添加</button></div>`).join('');
 }
 let dragIdx=null;
 function quadDrag(e,i){ dragIdx=i; e.target.classList.add('dragging'); }
 function quadDrop(e,q){ e.preventDefault(); $$('.q-drop').forEach(d=>d.classList.remove('drag-over'));
   if(dragIdx===null) return; const old=D.todos[dragIdx].q; if(old!==q){ D.todos[dragIdx].q=q; renderQuad(); renderTodos();
     toast(q<2?'好的，已标记为重要 ✓':'已移出「重要」区，注意别逃避重要事哦'); } dragIdx=null; }
-function askTap(el,k){ askState[k]=askState[k]===null?true: !askState[k]; el.classList.toggle('q-ask-on',askState[k]); el.querySelector('span').textContent=askState[k]?'是 ✓':'否'; }
+function askTap(el,k){ askState[k]=askState[k]===null?true: !askState[k]; askPaint(el.id,askState[k]); landUpd(); }
+function askPaint(id,v){ const el=$('#'+id); el.classList.toggle('q-ask-on',!!v); el.querySelector('span').textContent=v?'是 ✓':'否'; }
+function landUpd(){ const el=$('#ntLand'); if(!el)return; const imp=askState.imp,urg=askState.urg;
+  if(imp===null||urg===null){el.classList.add('hidden');el.innerHTML='';return}
+  const q=(imp&&urg)?0:imp?1:(urg?2:3); el.classList.remove('hidden'); el.style.color=getComputedStyle(document.documentElement).getPropertyValue('--accent')||'#6366f1';
+  el.innerHTML=`<i class="dot ${D.quads[q].cls}"></i>保存后进入「${D.quads[q].name}」象限`; }
 function addTask(){
   const v=$('#ntTitle').value.trim(); if(!v){ toast('请先输入任务标题'); return; }
   const imp=askState.imp??false, urg=askState.urg??false;
@@ -2278,7 +2281,7 @@ function addTask(){
  const hb=$('#tkHabit').value;if(hb!=='不绑定')rec.habit=hb;
  D.todos.unshift(rec);
   askState={imp:null,urg:null}; $('#ntTitle').value='';
-  resetAsk('gImp','对目标/价值有贡献'); resetAsk('gUrg','有明确近期期限');
+  resetAsk('gImp','对目标/价值有贡献'); resetAsk('gUrg','有明确近期期限'); landUpd();
   closeSheet('sheetAddTask'); renderTodos(); renderQuad(); renderTimeline(); tkMode('none'); tyMode('norm');
   toast('已存入「'+D.quads[q].name+'」象限 ✓');
 }
@@ -2652,7 +2655,11 @@ function pmMode(m){pmSel=m;
 function pmSet(v){pmVal=Math.max(1,Math.min(60,v));
   const f=$('#pmBarFill'),r=$('#pmRange'),l=$('#pmMinLbl');
   if(f)f.style.width=(pmVal/60*100)+'%';if(r)r.value=pmVal;if(l)l.textContent=pmVal+' 分钟'}
-function openAddTask(type){tyMode(type||'norm');openSheet('sheetAddTask');setTimeout(()=>{const el=$('#ntTitle');if(el)el.focus()},80)}
+function openAddTask(type,q){tyMode(type||'norm');
+ /* V1.27：四象限格内＋添加 → 预置两问答案（可改点）+ 落点预览 */
+ askState={imp:null,urg:null}; resetAsk('gImp','对目标/价值有贡献'); resetAsk('gUrg','有明确近期期限');
+ if(typeof q==='number'){askState={imp:q<2,urg:(q===0||q===2)};askPaint('gImp',askState.imp);askPaint('gUrg',askState.urg);}
+ landUpd();openSheet('sheetAddTask');setTimeout(()=>{const el=$('#ntTitle');if(el)el.focus()},80)}
 function pomoStart(i){if(pomoRun){toast('已有番茄进行中 · 请先结束（单活约束）');return}
   const t=D.todos[i];pomoRun={i:i,t0:Date.now(),paused:0,pauseAt:0};
   $('#pomoTitle').textContent=t.t;$('#pomoModeLbl').textContent=t.pomo.mode==='down'?('倒计时 '+t.pomo.min+' 分'):'正计时';
@@ -3165,7 +3172,7 @@ let recTab='diary';
 const FAB_CFG={
  'p-dashboard':{ico:'＋',menu:true},
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
- 'p-todo':{ico:'＋',act:()=>openSheet('sheetAddChoice')},
+ 'p-todo':{ico:'＋',act:()=>{$('#fabMenu').classList.add('hidden');const m=$('#todoFabMenu');if(m.classList.contains('hidden')){showTodoFabMenu()}else{hideTodoFabMenu()}}},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')newNote();else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
