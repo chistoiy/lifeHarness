@@ -4,18 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/cal_event.dart';
+import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
-import 'block_mark_sheet.dart';
+import 'event_detail_sheet.dart';
+import 'time_pick_sheet.dart';
 
-/// 日视图·格子时间块模式（需求 V1.4/V1.12 · 原型 calGridMode）。
+/// 块视图·格子时间块（V1.19~V1.21 · 原型 calBlockView）。
 ///
-/// 核心规则（与原型一致）：
-/// G1 覆盖 06:00-24:00，1 格 = 粒度分钟（1/5/10/15/30/60）；
-/// G2 **总面积固定**：cols=max(6,√(n*0.82))，格子随粒度自动伸缩，任意粒度全天一屏无需滚动；
-/// G3 按住拖动滑选多格 → 松手弹标记面板；点已标记单格可取消/覆盖；
-/// G4 整点标小时数（仅 cols≤12 时显示，防小格拥挤）；
-/// G5 进行中事项区间红色脉冲。
+/// 规则：
+/// G1 **全天 0-24**（V1.19.2 起，替代 06:00 起点），1 格 = 粒度分钟；
+/// G2 总面积固定：cols=max(6,√(n*0.82))，任意粒度全天一屏；
+/// G3 **选块即标记**：滑选（含单格）后点右侧分类=直接标记（块即时间，免弹层）；
+///     未选中时点分类=记到此刻（接龙速记）；
+/// G4 重复标记=拆分覆盖同步（markRange 事务，原块非交叠段保留）；
+/// G5 事件投影块：计划⚡/进行中●红脉冲/完成✓绿，点击=统一事件详情（全状态 CRUD）。
 class GridDayView extends ConsumerStatefulWidget {
   const GridDayView({super.key, required this.day});
 
@@ -32,13 +36,12 @@ class _GridDayViewState extends ConsumerState<GridDayView>
   bool _selecting = false;
   late final AnimationController _pulse;
 
-  static const _startMin = 360; // 06:00
-  static const _endMin = 1440; // 24:00
+  static const _startMin = 0; // V1.19.2 全天起点 00:00
+  static const _endMin = 1440;
 
   @override
   void initState() {
     super.initState();
-    // 脉冲仅在存在进行中事项时运转（避免无谓永动动画干扰 pumpAndSettle/省电）。
     _pulse = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
   }
@@ -56,13 +59,67 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     return row * cols + col;
   }
 
+  void _clearSel() => setState(() => _selA = _selB = null);
+
+  /// 分类速记列点击：有选区=标记选区（拆分覆盖）；无选区=记到此刻（接龙）。
+  Future<void> _railTap(Category c, int gran) async {
+    final now = DateTime.now();
+    final isToday = widget.day.year == now.year &&
+        widget.day.month == now.month &&
+        widget.day.day == now.day;
+    int s, e;
+    if (_selA != null && _selB != null) {
+      final a = math.min(_selA!, _selB!), b = math.max(_selA!, _selB!);
+      s = _startMin + a * gran;
+      e = math.min(_startMin + b * gran + gran, _endMin);
+    } else if (isToday) {
+      // 记到此刻：上一段速记（今日最后一段 mark 块）截止到 now，新段从 now 到 24:00。
+      final nm = now.hour * 60 + now.minute;
+      s = nm;
+      e = _endMin;
+      final blocks = ref.read(dayBlocksProvider(widget.day)).valueOrNull ?? const [];
+      final lastMark = blocks.where((b) => b.source == 'mark' && b.endMin == _endMin).toList()
+        ..sort((a, b) => a.startMin.compareTo(b.startMin));
+      if (lastMark.isNotEmpty) {
+        await ref.read(timeBlockDaoProvider).updateEnd(lastMark.last.id!, nm);
+      }
+    } else {
+      s = 540;
+      e = 600;
+    }
+    _clearSel();
+    await ref.read(timeBlockDaoProvider).markRange(widget.day, s, math.max(e, s + 1),
+        catId: c.id, catName: c.name, note: c.tag == null ? c.name : '${c.name} ${c.tag}');
+    ref.invalidate(dayBlocksProvider(widget.day));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Text('✔ 已标记 ${_fmt(s)}-${_fmt(math.min(e, 1439))} · ${c.name}（块即时间·免弹层 · L4 同步）'),
+            duration: const Duration(milliseconds: 1400)));
+    }
+  }
+
+  static String _fmt(int m) =>
+      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final gran = ref.watch(granularityProvider);
     final blocks = ref.watch(dayBlocksProvider(widget.day)).valueOrNull ?? const [];
-    final active = ref.watch(activeEventProvider).valueOrNull;
+    final events = ref.watch(eventsProvider).valueOrNull ?? const [];
+    final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
+    final catColors = ref.watch(catColorsByNameProvider);
+    final primaryCats = cats.where((c) => c.isPrimary).toList();
+
+    final dayEvents = events
+        .where((e) =>
+            DateTime(e.start.year, e.start.month, e.start.day) ==
+            DateTime(widget.day.year, widget.day.month, widget.day.day))
+        .toList();
+    final live = dayEvents.where((e) => e.status == EventStatus.active).toList();
 
     final n = (_endMin - _startMin) ~/ gran;
     final cols = math.max(6, (math.sqrt(n * 0.82)).round());
@@ -72,14 +129,11 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     final cellH = (height - gap * (rows - 1)) / rows;
     final showHour = cols <= 12;
 
-    // 进行中事项 → 分钟区间（仅当天）。
     int? liveS, liveE;
-    if (active != null &&
-        active.start.year == widget.day.year &&
-        active.start.month == widget.day.month &&
-        active.start.day == widget.day.day) {
-      liveS = active.start.hour * 60 + active.start.minute;
-      liveE = DateTime.now().hour * 60 + DateTime.now().minute;
+    if (live.isNotEmpty) {
+      final now = DateTime.now();
+      liveS = live.first.start.hour * 60 + live.first.start.minute;
+      liveE = now.hour * 60 + now.minute;
       if (liveE <= liveS) liveE = liveS + 1;
     }
     if (liveS != null) {
@@ -96,139 +150,210 @@ class _GridDayViewState extends ConsumerState<GridDayView>
       return null;
     }
 
-    final selLo = _selA == null || _selB == null
-        ? null
-        : math.min(_selA!, _selB!);
+    CalEvent? eventAt(int minute) {
+      for (final e in dayEvents) {
+        if (e.allDay || e.end == null) continue;
+        final s = e.start.hour * 60 + e.start.minute;
+        final en = e.end!.hour * 60 + e.end!.minute;
+        if (minute >= s && minute < math.max(en, s + 1)) return e;
+      }
+      return null;
+    }
+
+    final selLo = _selA == null || _selB == null ? null : math.min(_selA!, _selB!);
     final selHi = selLo == null ? null : math.max(_selA!, _selB!);
 
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '🖐 拖动滑选 · 1 格 = $gran 分钟 · 总面积固定：任意粒度全天一屏概览 · 进行中块红色脉冲',
-          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, c) {
-            final cellW = (c.maxWidth - gap * (cols - 1)) / cols;
-            return Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (e) {
-                final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
-                if (i < 0 || i >= n) return;
-                setState(() {
-                  _selecting = true;
-                  _selA = _selB = i;
-                });
-              },
-              onPointerMove: (e) {
-                if (!_selecting) return;
-                final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
-                if (i < 0 || i >= n || i == _selB) return;
-                setState(() => _selB = i);
-              },
-              onPointerUp: (e) {
-                if (!_selecting || _selA == null || _selB == null) {
-                  _selecting = false;
-                  return;
-                }
-                _selecting = false;
-                final a = math.min(_selA!, _selB!);
-                final b = math.max(_selA!, _selB!);
-                final hit = (a == b) ? blockAt(_startMin + a * gran) : null;
-                showBlockMarkSheet(
-                  context,
-                  ref,
-                  day: widget.day,
-                  gran: gran,
-                  startMin: _startMin + a * gran,
-                  endMin: _startMin + b * gran + gran,
-                  existing: hit,
-                ).then((_) {
-                  if (mounted) {
-                    setState(() {
-                      _selA = _selB = null;
-                    });
-                    ref.invalidate(dayBlocksProvider(widget.day));
-                  }
-                });
-              },
-              child: SizedBox(
-                height: height,
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: cols,
-                    mainAxisSpacing: gap,
-                    crossAxisSpacing: gap,
-                    childAspectRatio: cellW / cellH,
-                  ),
-                  itemCount: n,
-                  itemBuilder: (context, i) {
-                    final m = _startMin + i * gran;
-                    final blk = blockAt(m);
-                    final isLive = liveS != null && m >= liveS && m < (liveE ?? liveS + 1);
-                    final selected = selLo != null && i >= selLo && i <= selHi!;
-                    final hour = m % 60 == 0;
-                    Color bg;
-                    if (isLive) {
-                      bg = const Color(0xFFF43F5E);
-                    } else if (blk != null) {
-                      bg = blk.category.colorOf(tokens.accent);
-                    } else {
-                      bg = scheme.onSurface.withValues(alpha: .06);
-                    }
-                    final cell = AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(6),
-                        border: selected
-                            ? Border.all(color: tokens.accent, width: 2)
-                            : null,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '🖐 滑选 → 点右列分类=直接标记 · 1格=$gran分 · 全天0-24 · ⚡事件/✓完成块点击可管理',
+                style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              LayoutBuilder(
+                builder: (context, c) {
+                  final cellW = (c.maxWidth - gap * (cols - 1)) / cols;
+                  return Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (e) {
+                      final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
+                      if (i < 0 || i >= n) return;
+                      setState(() {
+                        _selecting = true;
+                        _selA = _selB = i;
+                      });
+                    },
+                    onPointerMove: (e) {
+                      if (!_selecting) return;
+                      final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
+                      if (i < 0 || i >= n || i == _selB) return;
+                      setState(() => _selB = i);
+                    },
+                    onPointerUp: (e) {
+                      if (!_selecting || _selA == null || _selB == null) {
+                        _selecting = false;
+                        return;
+                      }
+                      _selecting = false;
+                      final a = math.min(_selA!, _selB!);
+                      final b = math.max(_selA!, _selB!);
+                      final m = _startMin + a * gran;
+                      final hitEv = (a == b) ? eventAt(m) : null;
+                      if (hitEv != null) {
+                        _clearSel();
+                        showEventDetailSheet(context, ref, hitEv);
+                        return;
+                      }
+                      final hit = (a == b) ? blockAt(m) : null;
+                      if (hit != null && hit.source == 'mark') {
+                        _clearSel();
+                        showBlockDetailSheet(context, ref, widget.day, hit);
+                        return;
+                      }
+                      // 保持选区，等右侧分类点选（V1.21 选块即标记）
+                      setState(() {});
+                    },
+                    child: SizedBox(
+                      height: height,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: cols,
+                          mainAxisSpacing: gap,
+                          crossAxisSpacing: gap,
+                          childAspectRatio: cellW / cellH,
+                        ),
+                        itemCount: n,
+                        itemBuilder: (context, i) {
+                          final m = _startMin + i * gran;
+                          final blk = blockAt(m);
+                          final ev = eventAt(m);
+                          final isLive = liveS != null && m >= liveS && m < (liveE ?? liveS + 1);
+                          final selected = selLo != null && i >= selLo && i <= selHi!;
+                          Color bg;
+                          if (isLive) {
+                            bg = const Color(0xFFF43F5E);
+                          } else if (ev != null) {
+                            bg = ev.status == EventStatus.done
+                                ? const Color(0xFF34D399)
+                                : tokens.accent;
+                          } else if (blk != null) {
+                            bg = blockColor(blk, catColors, tokens.accent);
+                          } else {
+                            bg = scheme.onSurface.withValues(alpha: .06);
+                          }
+                          final label = isLive
+                              ? '●进行中'
+                              : (ev != null
+                                  ? (ev.status == EventStatus.done ? '✓完成' : '⚡事件')
+                                  : (blk?.catName ?? ''));
+                          final cell = AnimatedContainer(
+                            duration: const Duration(milliseconds: 120),
+                            decoration: BoxDecoration(
+                              color: bg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: selected
+                                  ? Border.all(color: tokens.accent, width: 2)
+                                  : null,
+                            ),
+                            alignment: Alignment.center,
+                            child: showHour && m % 60 == 0
+                                ? Text(
+                                    '${m ~/ 60}'.padLeft(2, '0'),
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                      color: (blk != null || isLive || ev != null)
+                                          ? Colors.white.withValues(alpha: .9)
+                                          : scheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                : null,
+                          );
+                          final tip = isLive
+                              ? '$label ${_fmt(liveS)}-${_fmt(liveE ?? liveS + 1)}'
+                              : (ev != null
+                                  ? '$label ${ev.title} ${_fmt(ev.start.hour * 60 + ev.start.minute)}-${ev.end == null ? '' : _fmt(ev.end!.hour * 60 + ev.end!.minute)}'
+                                  : (blk != null
+                                      ? '${blk.catName} ${_fmt(blk.startMin)}-${_fmt(blk.endMin)}${blk.note == null ? '' : ' · ${blk.note}'}'
+                                      : '空格 ${_fmt(m)}'));
+                          return Tooltip(message: tip, child: cell);
+                        },
                       ),
-                      alignment: Alignment.center,
-                      child: showHour && hour
-                          ? Text(
-                              '${m ~/ 60}'.padLeft(2, '0'),
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: blk != null || isLive
-                                    ? Colors.white.withValues(alpha: .9)
-                                    : scheme.onSurfaceVariant,
-                              ),
-                            )
-                          : null,
-                    );
-                    if (!isLive) return Tooltip(message: blk != null ? '${blk.category.label} ${_fmt(blk.startMin)}-${_fmt(blk.endMin)}${blk.note == null ? '' : ' · ${blk.note}'}' : '空格 ${_fmt(m)}', child: cell);
-                    return FadeTransition(opacity: _pulse.drive(_LiveTween()), child: cell);
-                  },
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              if (selLo != null)
+                Text(
+                  '已选 ${_fmt(_startMin + selLo * gran)} - ${_fmt(math.min(_startMin + selHi! * gran + gran, 1440))} · ${(selHi - selLo + 1) * gran} 分钟 → 点右侧分类直接标记',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tokens.accent),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 右侧分类速记列（V1.19 · 选中=标记 / 未选=记到此刻）
+        SizedBox(
+          width: 64,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('选中=标记\n未选=记到此刻',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant, height: 1.3)),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: height - 24,
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (final c in primaryCats)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => _railTap(c, gran),
+                          child: Container(
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: c.name == '工作' ? tokens.accent : catColors[c.name],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(c.name,
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+                          ),
+                        ),
+                      ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => showTimePickSheet(context, ref, day: widget.day),
+                      child: Container(
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: scheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('精细＋', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
-        ),
-        const SizedBox(height: 6),
-        if (selLo != null)
-          Text(
-            '已选 ${_fmt(_startMin + selLo * gran)} - ${_fmt(_startMin + selHi! * gran + gran)} · ${selHi - selLo + 1} 格 = ${(selHi - selLo + 1) * gran} 分钟',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: tokens.accent),
+            ],
           ),
+        ),
       ],
     );
   }
-
-  static String _fmt(int minute) =>
-      '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
-}
-
-/// 脉冲只淡出到 55% 保持可读。
-class _LiveTween extends Tween<double> {
-  _LiveTween() : super(begin: 1.0, end: 0.55);
 }

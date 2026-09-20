@@ -16,6 +16,7 @@ class TodoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final quadrantMode = ref.watch(todoViewModeProvider);
+    final filterOpen = ref.watch(todoFilterOpenProvider);
     final todosAsync = ref.watch(todosProvider);
     final overdue = ref.watch(overdueCountProvider).valueOrNull ?? 0;
 
@@ -53,6 +54,19 @@ class TodoPage extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
+        // V1.26 漏斗筛选按钮：清单视图显，筛选 chips 收进面板防页面臃肿
+        actions: [
+          if (!quadrantMode)
+            IconButton(
+              tooltip: '智能筛选',
+              icon: Icon(filterOpen
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined),
+              onPressed: () => ref
+                  .read(todoFilterOpenProvider.notifier)
+                  .state = !filterOpen,
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -73,9 +87,10 @@ class TodoPage extends ConsumerWidget {
                           icon: Icon(Icons.grid_view_outlined, size: 16)),
                     ],
                     selected: {quadrantMode},
-                    onSelectionChanged: (s) => ref
-                        .read(todoViewModeProvider.notifier)
-                        .state = s.first,
+                    onSelectionChanged: (s) {
+                      ref.read(todoViewModeProvider.notifier).state = s.first;
+                      ref.read(todoFilterOpenProvider.notifier).state = false;
+                    },
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -93,6 +108,8 @@ class TodoPage extends ConsumerWidget {
               ],
             ),
           ),
+          if (filterOpen && !quadrantMode)
+            SmartFilterBar(todos: todosAsync.valueOrNull ?? const []),
           Expanded(
             child: todosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),

@@ -162,6 +162,30 @@ class _QuadrantCell extends ConsumerWidget {
                               if (t.overdue)
                                 const Icon(Icons.error_outline,
                                     size: 14, color: Color(0xFFF43F5E)),
+                              // V1.26 条目 ✕ 直接完成/关闭（与列表勾选同联动）
+                              InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () {
+                                  final wasDone = t.done;
+                                  ref.read(todoRepositoryProvider).toggleDone(t);
+                                  ref.invalidate(todosProvider);
+                                  ref.invalidate(overdueCountProvider);
+                                  if (!wasDone) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(const SnackBar(
+                                          content: Text(
+                                              '完成 ✓ 已计入今日小结（联动 L2）'),
+                                          duration: Duration(milliseconds: 1400)));
+                                  }
+                                },
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 2),
+                                  child: Icon(Icons.close,
+                                      size: 16, color: Color(0xFFCBD5E1)),
+                                ),
+                              ),
                             ],
                           ),
                         ),

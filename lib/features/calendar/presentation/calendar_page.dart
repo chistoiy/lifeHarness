@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/linkage/stats_providers.dart';
 import '../domain/cal_event.dart';
 import '../domain/event_repository.dart';
+import '../domain/time_block.dart';
 import 'calendar_providers.dart';
-import 'widgets/event_sheet.dart';
+import 'widgets/event_detail_sheet.dart';
 import 'widgets/grid_day_view.dart';
+import 'widgets/time_pick_sheet.dart';
+import 'widgets/wheel_date.dart';
 
-/// 模块1 日程（M0 业务② · 对齐原型 p-calendar）。
-/// 月历 42 格固定不跳版 / 三色圆点 / 智能折叠周行+滑动切天 / 日·周·月三视图 /
-/// ▶开始·■结束两态流 / 冲突提示。格子时间块模式为 M0 业务②b（下一步）。
+/// 模块1 时间（V1.19~V1.24 · 原「日程」改名）。
+/// 定位=记录用户在各个时间段做了什么事情：四视图（轴/块/日/周）同一数据不同投影，
+/// 操作逻辑统一 CRUD；顶栏年月日轮式跳转 + 非今天显「今」；添加统一 sheetTimePick。
+/// 当月天数（避开 DateTime(y,m+1,0)：day-0 归一化在 FakeAsync 时区解析下会挂死）。
+int daysInMonthOf(int y, int m) {
+  const dm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (m != 2) return dm[m - 1];
+  return (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 29 : 28;
+}
 class CalendarPage extends ConsumerWidget {
   const CalendarPage({super.key});
 
@@ -20,180 +31,237 @@ class CalendarPage extends ConsumerWidget {
   static bool sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  static List<CalEvent> onDay(List<CalEvent> all, DateTime d) =>
+      all.where((e) => sameDay(e.start, d)).toList();
+
+  /// 某天圆点状态色（进行中红 > 计划主题色 > 完成绿）。
+  static Color? dotColorFor(List<CalEvent> dayEvents, Color accent) {
+    if (dayEvents.any((e) => e.status == EventStatus.active)) {
+      return const Color(0xFFF43F5E);
+    }
+    if (dayEvents.any((e) => e.status == EventStatus.planning)) return accent;
+    if (dayEvents.any((e) => e.status == EventStatus.done)) {
+      return const Color(0xFF34D399);
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final selected = ref.watch(calSelectedProvider);
+    final view = ref.watch(calViewModeProvider);
+    final events = ref.watch(eventsProvider).valueOrNull ?? const [];
+    final conflicts =
+        EventRepository.conflictsOf(onDay(events, selected));
+    final now = DateTime.now();
+    final isToday = sameDay(selected, now);
+
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _TimeHeader(selected: selected, isToday: isToday),
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  // 智能折叠：用户向下拖滚超阈收起月历为周行。
+                  // 仅认 drag 驱动的通知——否则点「展开」后重建产生的 ScrollEnd（滚动位仍>24）会立刻再收起。
+                  if (ref.read(monthExpandedProvider) &&
+                      n.metrics.axis == Axis.vertical &&
+                      n.metrics.pixels > 24 &&
+                      n is ScrollUpdateNotification &&
+                      n.dragDetails != null) {
+                    ref.read(monthExpandedProvider.notifier).state = false;
+                  }
+                  return false;
+                },
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
+                  children: [
+                    if (ref.watch(monthExpandedProvider))
+                      _MonthPanel(selected: selected, events: events)
+                    else
+                      _WeekStrip(selected: selected, events: events),
+                    if (conflicts.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF43F5E).withValues(alpha: .07),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: const Color(0xFFF43F5E).withValues(alpha: .3)),
+                        ),
+                        child: Text(
+                          '⏱ 时间冲突：「${conflicts.first.a.title}」与「${conflicts.first.b.title}」'
+                          '重叠 ${conflicts.first.overlapMin} 分钟',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    if (view == 'block') const _BlockToolbar(),
+                    if (view == 'block') const SizedBox(height: 8),
+                    switch (view) {
+                      'axis' => _AxisView(selected: selected, events: events),
+                      'block' => GridDayView(day: selected),
+                      'day' => _DayHoursView(selected: selected, events: events),
+                      _ => _WeekBoard(selected: selected, events: events),
+                    },
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: tokens.accent,
+        heroTag: 'time-fab',
+        onPressed: () => showTimePickSheet(context, ref, day: selected),
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+}
+
+/// 顶栏（V1.22/V1.22.1）：年月日分段轮式跳转 + 非今天显「今」+ 视图收进单按钮。
+class _TimeHeader extends ConsumerWidget {
+  const _TimeHeader({required this.selected, required this.isToday});
+  final DateTime selected;
+  final bool isToday;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final selected = ref.watch(calSelectedProvider);
-    final expanded = ref.watch(monthExpandedProvider);
     final view = ref.watch(calViewModeProvider);
-    final events = ref.watch(eventsProvider).valueOrNull ?? const [];
-    final monthStart = DateTime(selected.year, selected.month, 1);
-    final conflicts = EventRepository.conflictsOf(
-        events.where((e) => sameDay(e.start, selected)).toList());
+    const labels = {'axis': '轴', 'block': '块', 'day': '日', 'week': '周'};
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+    Future<void> jump() async {
+      final d = await showWheelDatePick(context, selected);
+      if (d != null && context.mounted) {
+        ref.read(calSelectedProvider.notifier).state = d;
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: jump,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, size: 20),
-                  onPressed: () => expanded
-                      ? _shiftMonth(ref, selected, -1)
-                      : _shiftDay(ref, selected, -1),
-                ),
-                Expanded(
-                  child: Center(
-                    child: Text('${selected.year}年${selected.month}月',
-                        style: const TextStyle(fontSize: 16)),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, size: 20),
-                  onPressed: () => expanded
-                      ? _shiftMonth(ref, selected, 1)
-                      : _shiftDay(ref, selected, 1),
-                ),
+                Text('${selected.year}',
+                    style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w900, color: tokens.accent)),
+                const Text('年', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                const SizedBox(width: 6),
+                Text(selected.month.toString().padLeft(2, '0'),
+                    style: TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w900, color: tokens.accent)),
+                const Text('月', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                const SizedBox(width: 6),
+                Text('${selected.day}',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: isToday ? scheme.onSurface : tokens.accent)),
+                const Text('日', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                const SizedBox(width: 8),
+                Icon(Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
               ],
             ),
-            Center(
-              child: Text(
-                expanded ? '月视图展开 · 在下方开始操作将自动收起' : '已收起为周 · 左右滑动切换天',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.normal,
-                    color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          // 智能折叠：页面向下滚动超阈收起月历为周行。
-          if (expanded &&
-              n.metrics.axis == Axis.vertical &&
-              n.metrics.pixels > 24) {
-            ref.read(monthExpandedProvider.notifier).state = false;
-          }
-          return false;
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-          children: [
-            if (expanded)
-              _MonthPanel(
-                  headers: _wdHeaders,
-                  monthStart: monthStart,
-                  selected: selected,
-                  events: events)
-            else
-              _WeekStrip(wds: _wds, selected: selected, events: events),
-            const SizedBox(height: 12),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                    value: 'day',
-                    label: Text('日视图'),
-                    icon: Icon(Icons.today_outlined, size: 16)),
-                ButtonSegment(
-                    value: 'week',
-                    label: Text('周视图'),
-                    icon: Icon(Icons.view_week_outlined, size: 16)),
-                ButtonSegment(
-                    value: 'month',
-                    label: Text('月视图'),
-                    icon: Icon(Icons.grid_on_outlined, size: 16)),
-              ],
-              selected: {view},
-              onSelectionChanged: (s) =>
-                  ref.read(calViewModeProvider.notifier).state = s.first,
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => showEventSheet(context, ref, presetDay: selected),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
-                foregroundColor: tokens.accent,
-              ),
-              child: Text('+ 新建日程（${view == 'day' ? '${selected.month}月${selected.day}日' : '安排时间'}）',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            ),
-            if (conflicts.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF43F5E).withValues(alpha: .07),
-                  borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: const Color(0xFFF43F5E).withValues(alpha: .3)),
-                ),
-                child: Text(
-                  '⏱ 时间冲突：「${conflicts.first.a.title}」与「${conflicts.first.b.title}」'
-                  '重叠 ${conflicts.first.overlapMin} 分钟',
-                  style: const TextStyle(fontSize: 12),
+          ),
+          const Spacer(),
+          if (!isToday)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                tooltip: '回到今天',
+                onPressed: () {
+                  final n = DateTime.now();
+                  ref.read(calSelectedProvider.notifier).state =
+                      DateTime(n.year, n.month, n.day);
+                },
+                icon: Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: tokens.accent.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text('今',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w900, color: tokens.accent)),
                 ),
               ),
-            const SizedBox(height: 12),
-            if (view == 'day') ...[
-              const _DayModeBar(),
-              const SizedBox(height: 8),
+            ),
+          PopupMenuButton<String>(
+            tooltip: '切换视图',
+            icon: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: tokens.accent.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Text(labels[view] ?? '块',
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w900, color: tokens.accent)),
+            ),
+            onSelected: (v) => ref.read(calViewModeProvider.notifier).state = v,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'axis', child: Text('☰ 轴 · 时间轴')),
+              PopupMenuItem(value: 'block', child: Text('▦ 块 · 时间块')),
+              PopupMenuItem(value: 'day', child: Text('◫ 日 · 小时')),
+              PopupMenuItem(value: 'week', child: Text('▤ 周 · 7×24')),
             ],
-            switch (view) {
-              'day' => ref.watch(dayModeProvider) == 'grid'
-                  ? GridDayView(day: selected)
-                  : _DayTimeline(selected: selected, events: events),
-              'week' => _WeekLanes(wds: _wds, selected: selected, events: events),
-              _ => _MonthList(monthStart: monthStart, events: events),
-            },
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  void _shiftDay(WidgetRef ref, DateTime sel, int n) {
-    ref.read(calSelectedProvider.notifier).state =
-        DateTime(sel.year, sel.month, sel.day + n);
-  }
+/// 块视图工具条：粒度下拉（V1.12 总面积固定规则保留）。
+class _BlockToolbar extends ConsumerWidget {
+  const _BlockToolbar();
 
-  void _shiftMonth(WidgetRef ref, DateTime sel, int n) {
-    final m = sel.month + n;
-    ref.read(calSelectedProvider.notifier).state =
-        DateTime(sel.year + (m - 1) ~/ 12, (m - 1) % 12 + 1, 1);
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gran = ref.watch(granularityProvider);
+    return Row(
+      children: [
+        const Spacer(),
+        Text('粒度',
+            style: TextStyle(
+                fontSize: 10.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(width: 4),
+        DropdownButton<int>(
+          value: gran,
+          isDense: true,
+          underline: const SizedBox.shrink(),
+          items: const [
+            DropdownMenuItem(value: 5, child: Text('5 分钟', style: TextStyle(fontSize: 12))),
+            DropdownMenuItem(value: 10, child: Text('10 分钟', style: TextStyle(fontSize: 12))),
+            DropdownMenuItem(value: 15, child: Text('15 分钟', style: TextStyle(fontSize: 12))),
+            DropdownMenuItem(value: 30, child: Text('30 分钟', style: TextStyle(fontSize: 12))),
+            DropdownMenuItem(value: 60, child: Text('60 分钟', style: TextStyle(fontSize: 12))),
+          ],
+          onChanged: (v) => ref.read(granularityProvider.notifier).state = v ?? 15,
+        ),
+      ],
+    );
   }
 }
 
-/// 某天圆点状态色（优先级：进行中红 > 计划蓝(主题色) > 完成绿，原型 dotCls）。
-Color? dotColorFor(List<CalEvent> dayEvents, Color accent) {
-  if (dayEvents.any((e) => e.status == EventStatus.active)) {
-    return const Color(0xFFF43F5E);
-  }
-  if (dayEvents.any((e) => e.status == EventStatus.planning)) return accent;
-  if (dayEvents.any((e) => e.status == EventStatus.done)) {
-    return const Color(0xFF34D399);
-  }
-  return null;
-}
-
-List<CalEvent> _onDay(List<CalEvent> all, DateTime d) =>
-    all.where((e) => CalendarPage.sameDay(e.start, d)).toList();
-
-/// 展开态：迷你月历（固定 6 行 42 格不跳版）。
+/// 展开态：迷你月历（固定 42 格不跳版 · 三色圆点 · 内部上月/下月）。
 class _MonthPanel extends ConsumerWidget {
-  const _MonthPanel(
-      {required this.headers,
-      required this.monthStart,
-      required this.selected,
-      required this.events});
-
-  final List<String> headers;
-  final DateTime monthStart;
+  const _MonthPanel({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
 
@@ -201,9 +269,16 @@ class _MonthPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final daysInMonth = DateTime(monthStart.year, monthStart.month + 1, 0).day;
-    final leading = monthStart.weekday % 7; // 周日起
+    final monthStart = DateTime(selected.year, selected.month, 1);
+    final daysInMonth = daysInMonthOf(selected.year, selected.month);
+    final leading = monthStart.weekday % 7;
     final now = DateTime.now();
+
+    void shiftMonth(int n) {
+      final m = selected.month + n;
+      ref.read(calSelectedProvider.notifier).state =
+          DateTime(selected.year + (m - 1) ~/ 12, (m - 1) % 12 + 1, 1);
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -211,8 +286,23 @@ class _MonthPanel extends ConsumerWidget {
       child: Column(
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              for (final h in headers)
+              IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.chevron_left, size: 18),
+                  onPressed: () => shiftMonth(-1)),
+              Text('${selected.year}年${selected.month}月',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+              IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                  onPressed: () => shiftMonth(1)),
+            ],
+          ),
+          Row(
+            children: [
+              for (final h in CalendarPage._wdHeaders)
                 Expanded(
                     child: Center(
                         child: Text(h,
@@ -231,19 +321,17 @@ class _MonthPanel extends ConsumerWidget {
               itemCount: 42,
               itemBuilder: (context, i) {
                 final day = i - leading + 1;
-                if (day < 1 || day > daysInMonth) {
-                  return const SizedBox.shrink();
-                }
-                final date = DateTime(monthStart.year, monthStart.month, day);
+                if (day < 1 || day > daysInMonth) return const SizedBox.shrink();
+                final date = DateTime(selected.year, selected.month, day);
                 final isSel = CalendarPage.sameDay(date, selected);
                 final isToday = CalendarPage.sameDay(date, now);
-                final dot = dotColorFor(_onDay(events, date), tokens.accent);
+                final dot = CalendarPage.dotColorFor(
+                    CalendarPage.onDay(events, date), tokens.accent);
                 return InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: () {
                     ref.read(calSelectedProvider.notifier).state = date;
                     if (isSel) {
-                      // 点当前日：展开/收起切换（原型 stripTap）。
                       ref.read(monthExpandedProvider.notifier).state =
                           !ref.read(monthExpandedProvider);
                     }
@@ -260,8 +348,9 @@ class _MonthPanel extends ConsumerWidget {
                         Text('$day',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight:
-                                  isSel || isToday ? FontWeight.w800 : FontWeight.w500,
+                              fontWeight: isSel || isToday
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
                               color: isSel
                                   ? Colors.white
                                   : isToday
@@ -323,10 +412,7 @@ class _MonthPanel extends ConsumerWidget {
 
 /// 收起态：单周行（点当前日展开；左右滑动切天）。
 class _WeekStrip extends ConsumerWidget {
-  const _WeekStrip(
-      {required this.wds, required this.selected, required this.events});
-
-  final List<String> wds;
+  const _WeekStrip({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
 
@@ -336,383 +422,312 @@ class _WeekStrip extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final days = List.generate(7, (i) => selected.add(Duration(days: i - 3)));
 
-    return GestureDetector(
-      onHorizontalDragEnd: (d) {
-        final v = d.primaryVelocity ?? 0;
-        if (v.abs() < 100) return;
-        ref.read(calSelectedProvider.notifier).state =
-            DateTime(selected.year, selected.month, selected.day + (v < 0 ? 1 : -1));
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: context.cardDecoration,
-        child: Row(
-          children: [
-            for (final d in days)
-              Expanded(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    if (CalendarPage.sameDay(d, selected)) {
-                      ref.read(monthExpandedProvider.notifier).state = true;
-                    } else {
-                      ref.read(calSelectedProvider.notifier).state = d;
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color:
-                          CalendarPage.sameDay(d, selected) ? tokens.accent : null,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(wds[d.weekday % 7],
-                            style: TextStyle(
-                                fontSize: 8.5,
-                                color: CalendarPage.sameDay(d, selected)
-                                    ? Colors.white70
-                                    : scheme.onSurfaceVariant)),
-                        Text('${d.day}',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: CalendarPage.sameDay(d, selected)
-                                    ? Colors.white
-                                    : scheme.onSurface)),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.only(top: 2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: CalendarPage.sameDay(d, selected)
-                                ? Colors.white
-                                : (dotColorFor(_onDay(events, d), tokens.accent) ??
-                                    Colors.transparent),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: context.cardDecoration,
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: GestureDetector(
+              onTap: () => ref.read(monthExpandedProvider.notifier).state = true,
+              child: Text('展开 ▾',
+                  style: TextStyle(
+                      fontSize: 9.5, fontWeight: FontWeight.w800, color: tokens.accent)),
+            ),
+          ),
+          Row(
+            children: [
+              for (final d in days)
+                Expanded(
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (drag) {
+                      final v = drag.primaryVelocity ?? 0;
+                      if (v.abs() < 100) return;
+                      ref.read(calSelectedProvider.notifier).state = DateTime(
+                          selected.year,
+                          selected.month,
+                          selected.day + (v < 0 ? 1 : -1));
+                    },
+                    onTap: () {
+                      if (CalendarPage.sameDay(d, selected)) {
+                        ref.read(monthExpandedProvider.notifier).state = true;
+                      } else {
+                        ref.read(calSelectedProvider.notifier).state = d;
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      decoration: BoxDecoration(
+                        color: CalendarPage.sameDay(d, selected)
+                            ? tokens.accent
+                            : null,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(CalendarPage._wds[d.weekday % 7],
+                              style: TextStyle(
+                                  fontSize: 8.5,
+                                  color: CalendarPage.sameDay(d, selected)
+                                      ? Colors.white70
+                                      : scheme.onSurfaceVariant)),
+                          Text('${d.day}',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: CalendarPage.sameDay(d, selected)
+                                      ? Colors.white
+                                      : scheme.onSurface)),
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin: const EdgeInsets.only(top: 2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: CalendarPage.sameDay(d, selected)
+                                  ? Colors.white
+                                  : (CalendarPage.dotColorFor(
+                                          CalendarPage.onDay(events, d),
+                                          tokens.accent) ??
+                                      Colors.transparent),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-/// 日视图子模式条：时间轴 / 格子·时间块 + 粒度下拉（原型 calDayMode）。
-class _DayModeBar extends ConsumerWidget {
-  const _DayModeBar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
-    final scheme = Theme.of(context).colorScheme;
-    final mode = ref.watch(dayModeProvider);
-    final gran = ref.watch(granularityProvider);
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: scheme.onSurface.withValues(alpha: .06),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final (m, label) in const [('line', '时间轴'), ('grid', '格子·时间块')])
-                GestureDetector(
-                  onTap: () => ref.read(dayModeProvider.notifier).state = m,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 140),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: mode == m ? scheme.surface : Colors.transparent,
-                      borderRadius: BorderRadius.circular(9),
-                      boxShadow: mode == m ? tokens.cardShadow : null,
-                    ),
-                    child: Text(label,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: mode == m ? scheme.onSurface : scheme.onSurfaceVariant)),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (mode == 'grid') ...[
-          const SizedBox(width: 10),
-          Text('粒度', style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
-          const SizedBox(width: 4),
-          DropdownButton<int>(
-            value: gran,
-            isDense: true,
-            underline: const SizedBox.shrink(),
-            items: const [
-              DropdownMenuItem(value: 1, child: Text('1 分钟', style: TextStyle(fontSize: 12))),
-              DropdownMenuItem(value: 5, child: Text('5 分钟', style: TextStyle(fontSize: 12))),
-              DropdownMenuItem(value: 10, child: Text('10 分钟', style: TextStyle(fontSize: 12))),
-              DropdownMenuItem(value: 15, child: Text('15 分钟', style: TextStyle(fontSize: 12))),
-              DropdownMenuItem(value: 30, child: Text('30 分钟', style: TextStyle(fontSize: 12))),
-              DropdownMenuItem(value: 60, child: Text('60 分钟', style: TextStyle(fontSize: 12))),
-            ],
-            onChanged: (v) => ref.read(granularityProvider.notifier).state = v ?? 15,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// 日视图时间轴：进行中脉冲卡 → 计划卡 → 已完成划线卡。
-class _DayTimeline extends ConsumerWidget {
-  const _DayTimeline({required this.selected, required this.events});
-
+/// 轴视图：竖向时间轴（进行中脉冲卡 → 计划卡 → 已完成划线卡，全部可点=统一详情）。
+class _AxisView extends ConsumerWidget {
+  const _AxisView({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
-    final scheme = Theme.of(context).colorScheme;
-    final dayEvents = List<CalEvent>.from(_onDay(events, selected))
-      ..sort((a, b) => a.start.compareTo(b.start));
-    final active = dayEvents.where((e) => e.status == EventStatus.active).toList();
-    final planning =
-        dayEvents.where((e) => e.status == EventStatus.planning).toList();
-    final done = dayEvents.where((e) => e.status == EventStatus.done).toList();
-
-    if (dayEvents.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        decoration: context.cardDecoration,
-        child: Center(
-          child: Text('当天暂无安排 · 点上方「+ 新建日程」或试试「▶ 现在就开始」',
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final e in active) _ActiveCard(e: e),
-        for (final e in planning) _EventCard(e: e, tokens: tokens),
-        for (final e in done) _DoneCard(e: e, tokens: tokens),
-      ],
-    );
-  }
-}
-
-class _EventCard extends ConsumerWidget {
-  const _EventCard({required this.e, required this.tokens});
-
-  final CalEvent e;
-  final ThemeTokens tokens;
 
   static String _hm(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+  static String _hm2(int m) =>
+      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final c = e.colorOf(tokens.accent);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border(left: BorderSide(color: c, width: 4)),
-          boxShadow: tokens.cardShadow,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(e.title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(
-                    e.allDay
-                        ? '全天'
-                        : '${_hm(e.start)} – ${e.end != null ? _hm(e.end!) : ''}${e.crossDay ? ' · 跨天' : ''}',
-                    style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.more_horiz, size: 18),
-              onPressed: () => _showActions(context, ref, e),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    final dayEvents = List<CalEvent>.from(CalendarPage.onDay(events, selected))
+      ..sort((a, b) => a.start.compareTo(b.start));
+    final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
+    final sched = todos
+        .where((t) => t.timeMode != null && !t.dropped)
+        .toList();
+    final active =
+        dayEvents.where((e) => e.status == EventStatus.active).toList();
+    final planning =
+        dayEvents.where((e) => e.status == EventStatus.planning).toList();
+    final done = dayEvents.where((e) => e.status == EventStatus.done).toList();
 
-  void _showActions(BuildContext context, WidgetRef ref, CalEvent e) {
-    showModalBottomSheet(
-      context: context,
-      builder: (bc) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-                title: Text(e.title,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(e.allDay ? '全天 · 计划中' : '计划中')),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.play_arrow),
-              title: const Text('▶ 现在就开始'),
+    Widget card(CalEvent e, {required bool isLive, required bool isDone}) {
+      final c = isDone
+          ? const Color(0xFF34D399)
+          : (isLive ? const Color(0xFFF43F5E) : e.colorOf(tokens.accent));
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => showEventDetailSheet(context, ref, e),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isLive
+                  ? const Color(0xFFF43F5E).withValues(alpha: .06)
+                  : scheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: isLive
+                  ? Border.all(color: c.withValues(alpha: .6))
+                  : Border(left: BorderSide(color: c, width: 4)),
+              boxShadow: isLive ? null : tokens.cardShadow,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(e.title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            decoration:
+                                isDone ? TextDecoration.lineThrough : null,
+                            color: isDone ? Colors.grey : scheme.onSurface,
+                          )),
+                      const SizedBox(height: 2),
+                      Text(
+                        isLive
+                            ? '● 进行中 · ${_hm(e.start)} 开始 · 点卡片管理'
+                            : (isDone
+                                ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可编辑/删除'
+                                : '${e.allDay ? '全天' : '${_hm(e.start)} – ${e.end == null ? '' : _hm(e.end!)}'}${e.crossDay ? ' · 跨天' : ''} · 点卡片查看/编辑/删除'),
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            color: isLive
+                                ? const Color(0xFFF43F5E)
+                                : (isDone
+                                    ? const Color(0xFF10B981)
+                                    : scheme.onSurfaceVariant)),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isLive)
+                  FilledButton(
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final repo = ref.read(eventRepositoryProvider);
+                      final ended = await repo.endActive();
+                      ref.invalidate(eventsProvider);
+                      ref.invalidate(activeEventProvider);
+                      if (ended != null) {
+                        messenger.showSnackBar(SnackBar(
+                            content: Text(
+                                '✔ 耗时 ${ended.durationMin} 分钟 · 回填 L1 · 写入时间账本 L4')));
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFF43F5E)),
+                    child: const Text('■ 结束', style: TextStyle(fontSize: 12)),
+                  ),
+                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+            '${selected.month}月${selected.day}日 · 周${CalendarPage._wds[selected.weekday % 7]}',
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w800, color: tokens.accent)),
+        const SizedBox(height: 8),
+        for (final e in active) card(e, isLive: true, isDone: false),
+        for (final e in planning) card(e, isLive: false, isDone: false),
+        for (final e in done) card(e, isLive: false, isDone: true),
+        for (final t in sched)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
               onTap: () async {
-                Navigator.pop(bc);
-                final repo = ref.read(eventRepositoryProvider);
-                if (await repo.activeEvent() != null) {
-                  if (bc.mounted) {
-                    ScaffoldMessenger.of(bc).showSnackBar(
-                        const SnackBar(content: Text('已有进行中的事项，请先结束当前事项')));
+                if (t.isPomo && !t.done) {
+                  final cur = ref.read(activePomoProvider);
+                  if (cur != null && cur.todoId != t.id) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
+                    return;
                   }
+                  final s = (cur != null && cur.todoId == t.id)
+                      ? cur
+                      : PomoSession(
+                          todoId: t.id!,
+                          title: t.title,
+                          mode: t.pomoMode ?? 'up',
+                          minutes: t.pomoMin);
+                  if (cur == null) ref.read(activePomoProvider.notifier).state = s;
+                  if (context.mounted) context.push('/pomo', extra: s);
                   return;
                 }
-                await repo.update(e.copyWith(
-                    status: EventStatus.active, start: DateTime.now()));
-                ref.invalidate(eventsProvider);
-                ref.invalidate(activeEventProvider);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
-              title: const Text('删除', style: TextStyle(color: Color(0xFFEF4444))),
-              onTap: () async {
-                Navigator.pop(bc);
-                await ref.read(eventRepositoryProvider).remove(e);
-                ref.invalidate(eventsProvider);
-                ref.invalidate(activeEventProvider);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 进行中脉冲卡（时间轴顶部，红框 + 实时耗时 + ■ 结束）。
-class _ActiveCard extends ConsumerWidget {
-  const _ActiveCard({required this.e});
-
-  final CalEvent e;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(calendarTickerProvider); // 每秒刷新耗时
-    final mins = DateTime.now().difference(e.start).inMinutes;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF43F5E).withValues(alpha: .06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF43F5E).withValues(alpha: .6)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(e.title,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                  Text('● 进行中 · 已 $mins 分钟 · 做完点结束',
-                      style: const TextStyle(
-                          fontSize: 10.5, color: Color(0xFFF43F5E))),
-                ],
-              ),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final repo = ref.read(eventRepositoryProvider);
-                final ended = await repo.endActive();
-                ref.invalidate(eventsProvider);
-                ref.invalidate(activeEventProvider);
-                if (ended != null) {
-                  messenger.showSnackBar(SnackBar(
-                      content: Text(
-                          '✔ 耗时 ${ended.durationMin} 分钟 · 实际耗时已回填（L1）· 写入时间账本（L4）'),
-                      duration: const Duration(seconds: 3)));
+                final wasDone = t.done;
+                await ref.read(todoRepositoryProvider).toggleDone(t);
+                ref.invalidate(todosProvider);
+                if (context.mounted && !wasDone) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('✔ 定时待办完成 · 轴视图同步划线（联动 L2）')));
                 }
               },
-              style:
-                  FilledButton.styleFrom(backgroundColor: const Color(0xFFF43F5E)),
-              child: const Text('■ 结束', style: TextStyle(fontSize: 12)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: .07),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: .4)),
+                ),
+                child: Row(
+                  children: [
+                    Text(t.done ? '☑' : '☐',
+                        style: const TextStyle(fontSize: 16, color: Color(0xFF8B5CF6))),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${t.isPomo ? '🍅 ' : ''}${t.title}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  decoration:
+                                      t.done ? TextDecoration.lineThrough : null,
+                                  color: t.done ? Colors.grey : scheme.onSurface)),
+                          Text(
+                            '${t.timeMode == 'all' ? '全天' : (t.timeMode == 'point' ? _hm2(t.startMin ?? 0) : '${_hm2(t.startMin ?? 0)} - ${_hm2(t.endMin ?? 0)}')} · 定时待办 · ${t.quadrant.label}',
+                            style: const TextStyle(
+                                fontSize: 10, color: Color(0xFF8B5CF6)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (t.isPomo && !t.done)
+                      Text(
+                          ref.watch(activePomoProvider)?.todoId == t.id ? '■ 番茄中' : '▶ 番茄',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFF43F5E))),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
+        InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => showTimePickSheet(context, ref, day: selected, startMin: 17 * 60),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Center(
+              child: Text(
+                dayEvents.isEmpty
+                    ? '当天暂无安排 · 点此处补录这段时间做了什么'
+                    : '＋ 添加一段（点空白时段补录）',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// 已完成划线卡（绿框 + 实际耗时回填文案）。
-class _DoneCard extends StatelessWidget {
-  const _DoneCard({required this.e, required this.tokens});
-
-  final CalEvent e;
-  final ThemeTokens tokens;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border:
-              const Border(left: BorderSide(color: Color(0xFF34D399), width: 4)),
-          boxShadow: tokens.cardShadow,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(e.title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    decoration: TextDecoration.lineThrough,
-                    decorationColor: Colors.grey)),
-            Text(
-              '✓ 已完成 · 实际耗时 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入时间账本 L4',
-              style: const TextStyle(fontSize: 10.5, color: Color(0xFF10B981)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 周视图：选中日起 7 天真实安排条带。
-class _WeekLanes extends ConsumerWidget {
-  const _WeekLanes(
-      {required this.wds, required this.selected, required this.events});
-
-  final List<String> wds;
+/// 日视图：0-23 小时行（V1.19.2 定义迁移至此——点空行补录 / 点事件管理）。
+class _DayHoursView extends ConsumerWidget {
+  const _DayHoursView({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
 
@@ -720,45 +735,98 @@ class _WeekLanes extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final days = List.generate(7, (i) => DateTime(selected.year, selected.month, selected.day + i));
+    final blocks =
+        ref.watch(dayBlocksProvider(selected)).valueOrNull ?? const <TimeBlock>[];
+    final catColors = ref.watch(catColorsByNameProvider);
+    final dayEvents = CalendarPage.onDay(events, selected);
+    final now = DateTime.now();
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final d in days)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+        for (var h = 0; h < 24; h++)
+          InkWell(
+            onTap: () => showTimePickSheet(context, ref, day: selected, startMin: h * 60),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: context.cardDecoration,
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: .5)))),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${d.day} ${wds[d.weekday % 7]}',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 10),
+                  SizedBox(
+                      width: 40,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text('$h:00',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontFamily: 'monospace',
+                                color: h == now.hour && CalendarPage.sameDay(selected, now)
+                                    ? const Color(0xFFF43F5E)
+                                    : scheme.onSurfaceVariant)),
+                      )),
                   Expanded(
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (final e in _onDay(events, d))
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: e.colorOf(tokens.accent).withValues(alpha: .15),
-                              borderRadius: BorderRadius.circular(8),
+                        for (final e in dayEvents.where((e) => e.start.hour == h))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: InkWell(
+                              onTap: () => showEventDetailSheet(context, ref, e),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: e.status == EventStatus.done
+                                      ? const Color(0xFF34D399).withValues(alpha: .8)
+                                      : (e.status == EventStatus.active
+                                          ? const Color(0xFFF43F5E)
+                                          : e.colorOf(tokens.accent)),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '⚡ ')}${e.title}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white),
+                                ),
+                              ),
                             ),
-                            child: Text(
-                              '${e.allDay ? '全天' : '${e.start.hour}点'} ${e.title}',
-                              style: TextStyle(
-                                  fontSize: 10.5, color: e.colorOf(tokens.accent)),
+                          ),
+                        for (final b in blocks.where((b) => b.startMin ~/ 60 == h))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: InkWell(
+                              onTap: () => showBlockDetailSheet(context, ref, selected, b),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: blockColor(b, catColors, tokens.accent)
+                                      .withValues(alpha: .85),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${b.catName} ${(b.startMin ~/ 60).toString().padLeft(2, '0')}:${(b.startMin % 60).toString().padLeft(2, '0')}-${(b.endMin ~/ 60).clamp(0, 23).toString().padLeft(2, '0')}:${(b.endMin % 60).toString().padLeft(2, '0')}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white),
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  if (_onDay(events, d).isEmpty)
-                    Text('—',
-                        style: TextStyle(fontSize: 11, color: scheme.outlineVariant)),
                 ],
               ),
             ),
@@ -768,79 +836,86 @@ class _WeekLanes extends ConsumerWidget {
   }
 }
 
-/// 月视图：全月按天分组事件列表。
-class _MonthList extends StatelessWidget {
-  const _MonthList({required this.monthStart, required this.events});
-
-  final DateTime monthStart;
+/// 周视图：7×24 网格（点格子 → 统一添加弹层预选该日该时）。
+class _WeekBoard extends ConsumerWidget {
+  const _WeekBoard({required this.selected, required this.events});
+  final DateTime selected;
   final List<CalEvent> events;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final daysInMonth = DateTime(monthStart.year, monthStart.month + 1, 0).day;
-    final byDay = <DateTime, List<CalEvent>>{};
-    for (final e in events) {
-      if (e.start.year == monthStart.year && e.start.month == monthStart.month) {
-        byDay
-            .putIfAbsent(DateTime(e.start.year, e.start.month, e.start.day), () => [])
-            .add(e);
-      }
-    }
-    final keys = byDay.keys.toList()..sort();
-    if (keys.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        decoration: context.cardDecoration,
-        child: Center(
-            child: Text('本月暂无安排（$daysInMonth 天）',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant))),
-      );
-    }
+    final days = List.generate(7, (i) => DateTime(selected.year, selected.month, selected.day - 3 + i));
+    final blocksByDay = <DateTime, List<TimeBlock>>{};
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final day in keys)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: context.cardDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      '${day.month}/${day.day} 周${['一', '二', '三', '四', '五', '六', '日'][day.weekday - 1]} · ${byDay[day]!.length} 项',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  for (final e in byDay[day]!)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: e.colorOf(tokens.accent))),
-                          const SizedBox(width: 8),
-                          Expanded(
-                              child: Text(e.title,
-                                  style: const TextStyle(fontSize: 12.5),
-                                  overflow: TextOverflow.ellipsis)),
-                          Text(
-                              e.allDay
-                                  ? '全天'
-                                  : '${e.start.hour}:${e.start.minute.toString().padLeft(2, '0')}',
-                              style: TextStyle(
-                                  fontSize: 11, color: scheme.onSurfaceVariant)),
-                        ],
-                      ),
-                    ),
-                ],
+        Text('点任意格子 → 添加那段时间（与块/轴/日视图同步）',
+            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            const SizedBox(width: 26),
+            for (final d in days)
+              Expanded(
+                child: Center(
+                  child: Text(CalendarPage.sameDay(d, DateTime.now()) ? '今' : CalendarPage._wds[d.weekday % 7],
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: CalendarPage.sameDay(d, DateTime.now())
+                              ? tokens.accent
+                              : scheme.onSurfaceVariant)),
+                ),
               ),
+          ],
+        ),
+        for (var h = 0; h < 24; h++)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Row(
+              children: [
+                SizedBox(
+                    width: 26,
+                    child: Text('$h',
+                        style: TextStyle(
+                            fontSize: 8,
+                            fontFamily: 'monospace',
+                            color: scheme.onSurfaceVariant))),
+                for (final d in days)
+                  Expanded(
+                    child: Builder(builder: (context) {
+                      final blocks = blocksByDay.putIfAbsent(
+                          d, () => ref.watch(dayBlocksProvider(d)).valueOrNull ?? const []);
+                      final m = h * 60;
+                      final b = blocks.where((x) => x.covers(m)).firstOrNull;
+                      final e = CalendarPage.onDay(events, d)
+                          .where((x) => !x.allDay && x.start.hour == h)
+                          .firstOrNull;
+                      final color = e != null
+                          ? (e.status == EventStatus.done
+                              ? const Color(0xFF34D399)
+                              : (e.status == EventStatus.active
+                                  ? const Color(0xFFF43F5E)
+                                  : tokens.accent))
+                          : (b != null
+                              ? blockColor(b, ref.watch(catColorsByNameProvider), tokens.accent)
+                              : scheme.onSurface.withValues(alpha: .06));
+                      return InkWell(
+                        onTap: () => showTimePickSheet(
+                            context, ref, day: d, startMin: h * 60),
+                        child: Container(
+                          height: 17,
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          decoration: BoxDecoration(
+                              color: color, borderRadius: BorderRadius.circular(4)),
+                        ),
+                      );
+                    }),
+                  ),
+              ],
             ),
           ),
       ],

@@ -8,7 +8,7 @@ enum NavModule {
   today('today', '今天', Icons.home_outlined, Icons.home, '/'),
   todo('todo', '待办', Icons.check_circle_outline, Icons.check_circle, '/todo'),
   calendar(
-      'calendar', '日程', Icons.calendar_month_outlined, Icons.calendar_month, '/calendar'),
+      'calendar', '时间', Icons.schedule, Icons.calendar_month, '/calendar'),
   journal('journal', '日记', Icons.book_outlined, Icons.book, '/journal'),
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');

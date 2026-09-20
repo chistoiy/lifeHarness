@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 /// R1 `features/<mod>/**` 不得 import 其他 feature（跨模块只经 shared/linkage 或事件总线）。
 /// R2 `core/**` 不得 import `features/**`（组合根白名单除外）。
 /// R3 feature 的 domain/data 层不得 import 任何 presentation（模型/仓库层纯净，可单测）。
+/// R4 `for` 循环的增量子句必须有副作用（防空增量静默死循环，见 2026-09-20 事故）。
 /// 违反任何一条即测试失败——新增跨模块依赖必须先过架构评审并更新本白名单。
 void main() {
   const libDir = 'lib';
@@ -93,6 +94,105 @@ void main() {
     }
     expect(violations, isEmpty,
         reason: 'domain/data 是模块对外稳定层，依赖 UI 层会阻碍仓库级单测与后续插件化。');
+  });
+
+  test('R4 for 循环增量子句必须有副作用（防空增量静默死循环）', () {
+    /// 去掉字符串字面量/注释，避免把 `for` 出现在文案或注释里误判。
+    String strip(String src) {
+      final out = StringBuffer();
+      var i = 0;
+      while (i < src.length) {
+        final c = src[i];
+        if (c == '/' && i + 1 < src.length && src[i + 1] == '/') {
+          while (i < src.length && src[i] != '\n') {
+            i++;
+          }
+          continue;
+        }
+        if (c == '/' && i + 1 < src.length && src[i + 1] == '*') {
+          i += 2;
+          while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
+            i++;
+          }
+          i += 2;
+          continue;
+        }
+        if (c == "'" || c == '"') {
+          final triple = src.startsWith(c * 3, i);
+          final q = triple ? c * 3 : c;
+          i += q.length;
+          while (i < src.length) {
+            if (src[i] == r'\') {
+              i += 2;
+              continue;
+            }
+            if (src.startsWith(q, i)) {
+              i += q.length;
+              break;
+            }
+            i++;
+          }
+          out.write('S'); // 占位，保持结构
+          continue;
+        }
+        out.write(c);
+        i++;
+      }
+      return out.toString();
+    }
+
+    /// 取出 `for (...)` 的括号内容（含跨行），返回 [内容, 结束下标]。
+    List<Object>? header(String s, int open) {
+      var depth = 0;
+      for (var i = open; i < s.length; i++) {
+        if (s[i] == '(') depth++;
+        if (s[i] == ')') {
+          depth--;
+          if (depth == 0) return [s.substring(open + 1, i), i];
+        }
+      }
+      return null;
+    }
+
+    final violations = <String>[];
+    for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      final rel = p.posix.joinAll(p.split(p.relative(f.path, from: libDir)));
+      final src = strip(f.readAsStringSync());
+      for (final m in RegExp(r'\bfor\s*\(').allMatches(src)) {
+        final open = src.indexOf('(', m.start);
+        final h = header(src, open);
+        if (h == null) continue;
+        final head = h[0] as String;
+        final parts = <String>[];
+        var depth = 0;
+        var start = 0;
+        for (var i = 0; i < head.length; i++) {
+          final c = head[i];
+          if (c == '(' || c == '[' || c == '{') depth++;
+          if (c == ')' || c == ']' || c == '}') depth--;
+          if (c == ';' && depth == 0) {
+            parts.add(head.substring(start, i));
+            start = i + 1;
+          }
+        }
+        parts.add(head.substring(start));
+        if (parts.length != 3) continue; // for-in / for (;;)
+        final inc = parts[2].trim();
+        if (inc.isEmpty) continue;
+        // 裸标识符或数字字面量 = 无副作用 = 条件永远不变 → 死循环。
+        if (RegExp(r'^[A-Za-z_$][\w$]*$').hasMatch(inc) ||
+            RegExp(r'^[0-9]+$').hasMatch(inc)) {
+          final line = '\n'.allMatches(src.substring(0, m.start)).length + 1;
+          violations.add('$rel:$line  `for (...; ...; $inc )`');
+        }
+      }
+    }
+    expect(violations, isEmpty,
+        reason: 'for 的增量子句若是裸变量/字面量（如把 `h++` 写成 `h`）就没有副作用，'
+            '条件恒真 → 同帧同步死循环：单核 100%、列表无界增长直至 OOM，'
+            '且不让出事件循环所以 --timeout 也杀不掉。'
+            '请写 `i++` / `i += n`，构建列表优先用 List.generate。');
   });
 
   test('守护自身有效性：确认真实扫到了文件', () {

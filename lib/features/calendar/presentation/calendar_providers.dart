@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart';
+import '../data/category_dao.dart';
 import '../data/event_dao.dart';
 import '../data/time_block_dao.dart';
 import '../domain/cal_event.dart';
+import '../domain/category.dart';
 import '../domain/event_repository.dart';
 import '../domain/time_block.dart';
 
@@ -18,6 +21,25 @@ final eventRepositoryProvider = Provider<EventRepository>((ref) {
 
 final timeBlockDaoProvider = Provider<TimeBlockDao>(
     (ref) => TimeBlockDao(AppDatabase.instance.db));
+
+/// 两级分类（V1.19.1 · 全局唯一分类源）。
+final categoryDaoProvider =
+    Provider<CategoryDao>((ref) => CategoryDao(AppDatabase.instance.db));
+
+final categoriesProvider = FutureProvider<List<Category>>(
+    (ref) => ref.watch(categoryDaoProvider).list());
+
+/// 分类名→颜色（次级继承父级；「工作」由 blockColor 特判随主题 accent）。
+final catColorsByNameProvider = Provider<Map<String, Color>>((ref) {
+  final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
+  final byId = {for (final c in cats) c.id: c};
+  final m = <String, Color>{};
+  for (final c in cats) {
+    final src = c.isPrimary ? c : (byId[c.parentId] ?? c);
+    m[c.name] = src.colorHex == null ? const Color(0xFF94A3B8) : src.color(const Color(0xFF94A3B8));
+  }
+  return m;
+});
 
 /// 全部日程（变更后 invalidate）。
 final eventsProvider = FutureProvider<List<CalEvent>>((ref) {
@@ -43,8 +65,8 @@ final calSelectedProvider = StateProvider<DateTime>((ref) {
   return DateTime(n.year, n.month, n.day);
 });
 
-/// 视图模式：day/week/month。
-final calViewModeProvider = StateProvider<String>((ref) => 'day');
+/// 视图模式（V1.19 · 四视图）：axis=时间轴 block=格子时间块 day=小时日板 week=7×24。
+final calViewModeProvider = StateProvider<String>((ref) => 'block');
 
 /// 月历展开/收起（智能折叠：滚动或点内容区收起为周行）。
 final monthExpandedProvider = StateProvider<bool>((ref) => true);

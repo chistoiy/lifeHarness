@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
@@ -86,6 +87,13 @@ class SettingsPage extends ConsumerWidget {
                     sub: 'WebDAV · 备份 · 加密 · 同步历史',
                     trailing: '未配置',
                     onTap: () => _toast(context, '数据与同步 M1 上线')),
+                _EntryRow(
+                    emoji: '🏷',
+                    bg: const Color(0xFFF97316).withValues(alpha: .12),
+                    title: '分类管理',
+                    sub: '时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组',
+                    trailing: '',
+                    onTap: () => context.push('/categories')),
                 _EntryRow(
                     emoji: '🔔',
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),

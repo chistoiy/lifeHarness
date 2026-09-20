@@ -27,7 +27,7 @@ void main() {
     expect(find.text('今天'), findsWidgets);
     expect(find.textContaining('今天有'), findsOneWidget);
     expect(find.textContaining('第 '), findsOneWidget); // 副标题记录天数
-    for (final label in ['今天', '待办', '日程', '日记', '我的']) {
+    for (final label in ['今天', '待办', '时间', '日记', '我的']) {
       expect(find.text(label), findsWidgets, reason: '底栏应含 $label');
     }
 

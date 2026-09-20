@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/todo.dart';
 import '../todo_providers.dart';
+import '../../../../core/widgets/wheel_time.dart';
 
 /// 打开新建弹层（原型 sheetAddTask）。
 Future<void> showTodoAddSheet(BuildContext context, WidgetRef ref) {
@@ -59,6 +60,34 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   DateTime? _due;
   int _remind = 0; // 0 不提醒 1 当天09:00 2 提前1小时
 
+  // ===== V1.19~V1.25 扩展字段 =====
+  String _type = 'normal'; // normal | pomo
+  String _pomoMode = 'up'; // up 正计时 | down 倒计时
+  int _pomoMin = 25;
+  String _status = 'open'; // open | done | drop
+  String _timeMode = 'none'; // none | point | range | all
+  late TimeOfDay _tStart;
+  late TimeOfDay _tEnd;
+  int? _colorIdx;
+
+  @override
+  void initState() {
+    super.initState();
+    // V1.26 时间点/段默认当前时间（5 分一档），用户滑动修改
+    final n = DateTime.now();
+    final t = TimeOfDay(hour: n.hour, minute: ((n.minute / 5).round() * 5) % 60);
+    _tStart = t;
+    _tEnd = t;
+  }
+
+  static const _palette = <String>[
+    '#6366F1', '#8B5CF6', '#F59E0B', '#F97316',
+    '#F472B6', '#3730A3', '#34D399', '#B45309', '#64748B',
+  ];
+
+  int get _sMin => _tStart.hour * 60 + _tStart.minute;
+  int get _eMin => _tEnd.hour * 60 + _tEnd.minute;
+
   Quadrant get _derived =>
       (_imp == true && _urg == true) ? Quadrant.q1
           : _imp == true ? Quadrant.q2
@@ -80,12 +109,27 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
       }
     }
     final q = _derived;
+    final tagTxt = _tag.text.trim();
     await ref.read(todoRepositoryProvider).add(Todo(
           title: title,
           quadrant: q,
           dueAt: _due,
           remindAt: remindAt,
-          tag: _tag.text.trim().isEmpty ? null : _tag.text.trim(),
+          tag: tagTxt.isEmpty
+              ? (_status == 'drop' ? '放弃' : null)
+              : (_status == 'drop' ? '$tagTxt 放弃' : tagTxt),
+          done: _status == 'done' || _status == 'drop',
+          dropped: _status == 'drop',
+          pomoMode: _type == 'pomo' ? _pomoMode : null,
+          pomoMin: _type == 'pomo' && _pomoMode == 'down' ? _pomoMin : null,
+          timeMode: _timeMode == 'none' ? null : _timeMode,
+          startMin: _timeMode == 'point' || _timeMode == 'range'
+              ? _sMin
+              : (_timeMode == 'all' ? 0 : null),
+          endMin: _timeMode == 'range'
+              ? (_eMin <= _sMin ? 0 : _eMin)
+              : (_timeMode == 'all' ? 1440 : null),
+          colorIdx: _colorIdx,
         ));
     ref.invalidate(todosProvider);
     ref.invalidate(overdueCountProvider);
@@ -146,6 +190,172 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                     onTap: () => setState(() => _urg = _urg == true ? false : true),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // ===== V1.20 两型 + 状态三态 =====
+            Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'normal', label: Text('常规', style: TextStyle(fontSize: 11))),
+                      ButtonSegment(value: 'pomo', label: Text('番茄', style: TextStyle(fontSize: 11))),
+                    ],
+                    selected: {_type},
+                    onSelectionChanged: (v) => setState(() => _type = v.first),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'open', label: Text('未完成', style: TextStyle(fontSize: 10.5))),
+                      ButtonSegment(value: 'done', label: Text('完成', style: TextStyle(fontSize: 10.5))),
+                      ButtonSegment(value: 'drop', label: Text('放弃', style: TextStyle(fontSize: 10.5))),
+                    ],
+                    selected: {_status},
+                    onSelectionChanged: (v) => setState(() => _status = v.first),
+                  ),
+                ),
+              ],
+            ),
+            if (_type == 'pomo') ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('计时', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  for (final m in const [('up', '正计时'), ('down', '倒计时')])
+                    ChoiceChip(
+                      label: Text(m.$2, style: const TextStyle(fontSize: 12)),
+                      selected: _pomoMode == m.$1,
+                      onSelected: (_) => setState(() => _pomoMode = m.$1),
+                    ),
+                  if (_pomoMode == 'down')
+                    DropdownButton<int>(
+                      value: _pomoMin,
+                      isDense: true,
+                      underline: const SizedBox.shrink(),
+                      items: const [
+                        DropdownMenuItem(value: 5, child: Text('5 分', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: 15, child: Text('15 分', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: 25, child: Text('25 分', style: TextStyle(fontSize: 12))),
+                        DropdownMenuItem(value: 45, child: Text('45 分', style: TextStyle(fontSize: 12))),
+                      ],
+                      onChanged: (v) => setState(() => _pomoMin = v ?? 25),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('时间', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                for (final m in const [('none', '无'), ('point', '时间点'), ('range', '时间段'), ('all', '全天')])
+                  ChoiceChip(
+                    label: Text(m.$2, style: const TextStyle(fontSize: 12)),
+                    selected: _timeMode == m.$1,
+                    onSelected: (_) => setState(() {
+                      _timeMode = m.$1;
+                      // V1.26 默认当前时间（每次进入模式重置，滚轮 key 随模式变化重建）
+                      final n = DateTime.now();
+                      final t = TimeOfDay(hour: n.hour, minute: ((n.minute / 5).round() * 5) % 60);
+                      if (m.$1 == 'point' || m.$1 == 'range') _tStart = t;
+                      if (m.$1 == 'range') _tEnd = t;
+                    }),
+                  ),
+              ],
+            ),
+            // V1.26.2 内嵌滚轮：就地上下滑动选时分，无二次弹层
+            if (_timeMode == 'point') ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  SizedBox(
+                      width: 40,
+                      child: Text('时间',
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurfaceVariant))),
+                  Expanded(
+                    child: InlineWheelTime(
+                      key: const ValueKey('tk-point'),
+                      initial: _tStart,
+                      onChanged: (h, m) => _tStart = TimeOfDay(hour: h, minute: m),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (_timeMode == 'range') ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  SizedBox(
+                      width: 40,
+                      child: Text('起',
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurfaceVariant))),
+                  Expanded(
+                    child: InlineWheelTime(
+                      key: const ValueKey('tk-start'),
+                      initial: _tStart,
+                      onChanged: (h, m) => _tStart = TimeOfDay(hour: h, minute: m),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  SizedBox(
+                      width: 40,
+                      child: Text('止',
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurfaceVariant))),
+                  Expanded(
+                    child: InlineWheelTime(
+                      key: const ValueKey('tk-end'),
+                      initial: _tEnd,
+                      onChanged: (h, m) => _tEnd = TimeOfDay(hour: h, minute: m),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (_timeMode == 'range')
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('起止相同将自动设为全天',
+                    style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+              ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('颜色', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                for (var i = 0; i < _palette.length; i++)
+                  GestureDetector(
+                    onTap: () => setState(() => _colorIdx = _colorIdx == i ? null : i),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF000000 | (int.tryParse(_palette[i].substring(1), radix: 16) ?? 0)),
+                        border: _colorIdx == i
+                            ? Border.all(color: scheme.onSurface, width: 2)
+                            : null,
+                      ),
+                      child: _colorIdx == i
+                          ? const Icon(Icons.check, size: 13, color: Colors.white)
+                          : null,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 10),

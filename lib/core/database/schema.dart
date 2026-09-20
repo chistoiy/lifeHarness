@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 3;
+  static const int version = 4;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -23,6 +23,8 @@ class DbSchema {
   static const String tItems = 'items';
   // v3：格子时间块标记（需求 V1.4，L4 时间账本数据源）
   static const String tTimeBlocks = 'time_blocks';
+  // v4：两级分类表（需求 V1.19.1，全局唯一分类源：速记列/标记/账本/统计共用）
+  static const String tCategories = 'categories';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -43,6 +45,16 @@ class DbSchema {
       priority INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       tag TEXT,
+      time_mode TEXT,
+      start_min INTEGER,
+      end_min INTEGER,
+      pomo_mode TEXT,
+      pomo_min INTEGER,
+      dropped INTEGER NOT NULL DEFAULT 0,
+      color INTEGER,
+      grp TEXT,
+      habit_id INTEGER,
+      link_cat INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -62,6 +74,7 @@ class DbSchema {
       status INTEGER NOT NULL DEFAULT 0,
       cross_day INTEGER NOT NULL DEFAULT 0,
       duration_min INTEGER,
+      cat_id INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -163,15 +176,59 @@ class DbSchema {
       note TEXT,
       source TEXT NOT NULL DEFAULT 'mark',
       event_id INTEGER,
+      cat_id INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
     ''',
     'CREATE INDEX idx_blocks_day ON $tTimeBlocks(day)',
+
+    // v4 两级分类表：parent_id NULL=一级；color 十六进制（次级留空=继承父级）；
+    // tag 默认标签（如 #开会）；sort 同级排序（拖拽换组/排序写回）
+    '''
+    CREATE TABLE $tCategories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_id INTEGER,
+      name TEXT NOT NULL,
+      color TEXT,
+      tag TEXT,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    ...categorySeed,
+  ];
+
+  /// 内置分类种子（id 固定；一级 1-10，次级 11-21）。
+  static const List<String> categorySeed = [
+    "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
+        "(1,NULL,'工作','#6366F1',NULL,1),"
+        "(2,NULL,'学习','#8B5CF6',NULL,2),"
+        "(3,NULL,'运动','#F59E0B',NULL,3),"
+        "(4,NULL,'吃饭','#F97316',NULL,4),"
+        "(5,NULL,'娱乐','#F472B6',NULL,5),"
+        "(6,NULL,'睡眠','#3730A3',NULL,6),"
+        "(7,NULL,'清洁','#34D399',NULL,7),"
+        "(8,NULL,'休息','#B45309',NULL,8),"
+        "(9,NULL,'路上','#64748B',NULL,9),"
+        "(10,NULL,'其他','#94A3B8',NULL,10)",
+    "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
+        "(11,1,'开会',NULL,'#开会',1),"
+        "(12,1,'不在工位',NULL,'#加班',2),"
+        "(13,8,'午休',NULL,NULL,1),"
+        "(14,8,'睡觉',NULL,'#睡觉',2),"
+        "(15,9,'上班',NULL,'#工作',1),"
+        "(16,9,'下班',NULL,'#工作',2),"
+        "(17,9,'出行',NULL,NULL,3),"
+        "(18,5,'摸鱼',NULL,'#摸鱼',1),"
+        "(19,5,'躺平',NULL,NULL,2),"
+        "(20,5,'旅行',NULL,NULL,3),"
+        "(21,5,'逛街',NULL,NULL,4)",
   ];
 
   /// 逐级迁移：key = 升级前版本（from）。v2：todos 增 tag 标签列（保真对齐包）；
-  /// v3：新增 time_blocks 格子标记表（业务②b）。
+  /// v3：新增 time_blocks 格子标记表（业务②b）；
+  /// v4：categories 两级分类表+种子；events/time_blocks 加 cat_id；
+  ///     todos 扩 10 列（时间三态/番茄/放弃/颜色/分组/习惯绑定/关联计时分类，V1.19~V1.25）。
   static const Map<int, List<String>> migrations = {
     1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
     2: [
@@ -190,6 +247,31 @@ class DbSchema {
       )
       ''',
       'CREATE INDEX IF NOT EXISTS idx_blocks_day ON $tTimeBlocks(day)',
+    ],
+    3: [
+      '''
+      CREATE TABLE IF NOT EXISTS $tCategories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        color TEXT,
+        tag TEXT,
+        sort INTEGER NOT NULL DEFAULT 0
+      )
+      ''',
+      ...categorySeed,
+      'ALTER TABLE $tEvents ADD COLUMN cat_id INTEGER',
+      'ALTER TABLE $tTimeBlocks ADD COLUMN cat_id INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN time_mode TEXT',
+      'ALTER TABLE $tTodos ADD COLUMN start_min INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN end_min INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN pomo_mode TEXT',
+      'ALTER TABLE $tTodos ADD COLUMN pomo_min INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN dropped INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tTodos ADD COLUMN color INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN grp TEXT',
+      'ALTER TABLE $tTodos ADD COLUMN habit_id INTEGER',
+      'ALTER TABLE $tTodos ADD COLUMN link_cat INTEGER',
     ],
   };
 }

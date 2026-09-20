@@ -14,6 +14,7 @@ class CalEvent {
     this.colorIdx = 0,
     this.status = EventStatus.planning,
     this.durationMin,
+    this.catId,
   });
 
   final int? id;
@@ -28,6 +29,9 @@ class CalEvent {
 
   /// 完成后回填的实际耗时（L1 联动）。
   final int? durationMin;
+
+  /// 两级分类表引用（V1.19.1）。
+  final int? catId;
 
   bool get crossDay =>
       end != null &&
@@ -54,6 +58,7 @@ class CalEvent {
     int? colorIdx,
     EventStatus? status,
     int? durationMin,
+    int? catId,
   }) =>
       CalEvent(
         id: id ?? this.id,
@@ -64,6 +69,7 @@ class CalEvent {
         colorIdx: colorIdx ?? this.colorIdx,
         status: status ?? this.status,
         durationMin: durationMin ?? this.durationMin,
+        catId: catId ?? this.catId,
       );
 
   Map<String, Object?> toRow() => {
@@ -76,6 +82,7 @@ class CalEvent {
         'status': status.index,
         'cross_day': crossDay ? 1 : 0,
         'duration_min': durationMin,
+        'cat_id': catId,
         'created_at': DateTime.now().millisecondsSinceEpoch,
         'updated_at': DateTime.now().millisecondsSinceEpoch,
       };
@@ -91,5 +98,6 @@ class CalEvent {
         colorIdx: int.tryParse('${r['color_tag'] ?? 0}') ?? 0,
         status: EventStatus.values[(r['status'] as int? ?? 0).clamp(0, 2)],
         durationMin: r['duration_min'] as int?,
+        catId: r['cat_id'] as int?,
       );
 }

@@ -32,6 +32,16 @@ class Todo {
     this.remindAt,
     this.tag,
     this.done = false,
+    this.timeMode,
+    this.startMin,
+    this.endMin,
+    this.pomoMode,
+    this.pomoMin,
+    this.dropped = false,
+    this.colorIdx,
+    this.grp,
+    this.habitId,
+    this.linkCat,
     this.createdAt,
     this.updatedAt,
   });
@@ -44,6 +54,29 @@ class Todo {
   final DateTime? remindAt;
   final String? tag;
   final bool done;
+
+  /// V1.19~V1.25 扩展：时间三态 none(=null)/point/range/all（分钟 0-1440）。
+  final String? timeMode;
+  final int? startMin;
+  final int? endMin;
+
+  /// 番茄待办：up=正计时 / down=倒计时（pomoMin 分钟）；null=常规待办。
+  final String? pomoMode;
+  final int? pomoMin;
+
+  /// 放弃态（状态三态：未完成/完成/放弃）。
+  final bool dropped;
+
+  /// 颜色索引（体现在时间模块，命名色板共用）与分组。
+  final int? colorIdx;
+  final String? grp;
+
+  /// 绑定习惯 id（V1.25 · 习惯模块落地后启用）与关联计时分类 id（L4）。
+  final int? habitId;
+  final int? linkCat;
+
+  bool get isPomo => pomoMode != null;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -59,6 +92,16 @@ class Todo {
     DateTime? remindAt,
     String? tag,
     bool? done,
+    String? timeMode,
+    int? startMin,
+    int? endMin,
+    String? pomoMode,
+    int? pomoMin,
+    bool? dropped,
+    int? colorIdx,
+    String? grp,
+    int? habitId,
+    int? linkCat,
   }) =>
       Todo(
         id: id ?? this.id,
@@ -69,6 +112,16 @@ class Todo {
         remindAt: remindAt ?? this.remindAt,
         tag: tag ?? this.tag,
         done: done ?? this.done,
+        timeMode: timeMode ?? this.timeMode,
+        startMin: startMin ?? this.startMin,
+        endMin: endMin ?? this.endMin,
+        pomoMode: pomoMode ?? this.pomoMode,
+        pomoMin: pomoMin ?? this.pomoMin,
+        dropped: dropped ?? this.dropped,
+        colorIdx: colorIdx ?? this.colorIdx,
+        grp: grp ?? this.grp,
+        habitId: habitId ?? this.habitId,
+        linkCat: linkCat ?? this.linkCat,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -82,6 +135,16 @@ class Todo {
         'remind_at': remindAt?.millisecondsSinceEpoch,
         'tag': tag,
         'done': done ? 1 : 0,
+        'time_mode': timeMode,
+        'start_min': startMin,
+        'end_min': endMin,
+        'pomo_mode': pomoMode,
+        'pomo_min': pomoMin,
+        'dropped': dropped ? 1 : 0,
+        'color': colorIdx,
+        'grp': grp,
+        'habit_id': habitId,
+        'link_cat': linkCat,
         'created_at': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
         'updated_at': (updatedAt ?? DateTime.now()).millisecondsSinceEpoch,
       };
@@ -99,6 +162,16 @@ class Todo {
             : DateTime.fromMillisecondsSinceEpoch(r['remind_at'] as int),
         tag: r['tag'] as String?,
         done: (r['done'] as int? ?? 0) == 1,
+        timeMode: r['time_mode'] as String?,
+        startMin: r['start_min'] as int?,
+        endMin: r['end_min'] as int?,
+        pomoMode: r['pomo_mode'] as String?,
+        pomoMin: r['pomo_min'] as int?,
+        dropped: (r['dropped'] as int? ?? 0) == 1,
+        colorIdx: r['color'] as int?,
+        grp: r['grp'] as String?,
+        habitId: r['habit_id'] as int?,
+        linkCat: r['link_cat'] as int?,
         createdAt: DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(r['updated_at'] as int),
       );

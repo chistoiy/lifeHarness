@@ -303,7 +303,7 @@ class _TodayScheduleCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(
-              count == 0 ? '今天还没有安排 · 日程模块 M0 后段上线' : '今日 $count 项安排',
+              count == 0 ? '今天还没有安排 · 点右下角 ＋ 记录这段时间' : '今日 $count 项安排',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           ),
@@ -406,7 +406,7 @@ class _AllModulesCard extends StatelessWidget {
 
   static const _mods = <(String, IconData, String?, String?)>[
     ('待办', Icons.check_circle_outline, '/todo', null),
-    ('日程', Icons.calendar_month_outlined, '/calendar', null),
+    ('时间', Icons.schedule, '/calendar', null),
     ('日记', Icons.book_outlined, '/journal', null),
     ('收集箱', Icons.inbox_outlined, '/inbox', null),
     ('我的', Icons.person_outline, '/settings', null),

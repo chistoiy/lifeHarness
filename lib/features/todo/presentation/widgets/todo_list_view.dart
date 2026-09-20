@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/todo.dart';
 import '../todo_providers.dart';
+import 'pomo_screen.dart';
 import 'todo_edit_sheet.dart';
 
 /// 智能筛选定义（原型 todoChips：今天/最近7天/四象限入口/已安排/已完成/已过期）。
-const _chips = <(String, String)>[
+const todoChips = <(String, String)>[
   ('all', '全部'),
   ('today', '📅 今天'),
   ('week', '🗓 最近7天'),
@@ -16,7 +17,7 @@ const _chips = <(String, String)>[
   ('overdue', '⏰ 已过期'),
 ];
 
-bool _match(Todo t, String f) {
+bool matchTodo(Todo t, String f) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   switch (f) {
@@ -37,7 +38,47 @@ bool _match(Todo t, String f) {
   }
 }
 
-/// 清单视图（原型 p-todo listWrap）：筛选 chips + 任务卡 + 逾期提示大卡 + 快速添加。
+/// V1.26 智能筛选 chips（收进顶栏漏斗面板 · 点选后自动收起）。
+class SmartFilterBar extends ConsumerWidget {
+  const SmartFilterBar({super.key, required this.todos});
+
+  final List<Todo> todos;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(todoFilterProvider);
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          for (final (id, label) in todoChips)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(
+                  id == 'all' || id == 'scheduled'
+                      ? label
+                      : '$label ${todos.where((t) => matchTodo(t, id)).length}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                visualDensity: VisualDensity.compact,
+                selected: filter == id,
+                onSelected: (_) {
+                  ref.read(todoFilterProvider.notifier).state = id;
+                  ref.read(todoFilterOpenProvider.notifier).state = false;
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 清单视图（原型 p-todo listWrap · V1.26 筛选移入顶栏面板后只留列表）：
+/// 任务卡 + 逾期提示大卡 + 快速添加。
 class TodoListView extends ConsumerWidget {
   const TodoListView({super.key, required this.todos});
 
@@ -47,38 +88,13 @@ class TodoListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final filter = ref.watch(todoFilterProvider);
-    final shown = todos.where((t) => _match(t, filter)).toList();
+    final shown = todos.where((t) => matchTodo(t, filter)).toList();
     final overdueCount = todos.where((t) => t.overdue).length;
     final overdueImportant = todos.where((t) => t.overdue && (t.quadrant == Quadrant.q1 || t.quadrant == Quadrant.q2)).length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
-        SizedBox(
-          height: 34,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (final (id, label) in _chips)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(
-                      id == 'all' || id == 'scheduled'
-                          ? label
-                          : '$label ${todos.where((t) => _match(t, id)).length}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    selected: filter == id,
-                    onSelected: (_) =>
-                        ref.read(todoFilterProvider.notifier).state = id,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
         for (final t in shown) _TodoTile(todo: t),
         if (shown.isEmpty)
           const Padding(
@@ -195,7 +211,7 @@ class _TodoTile extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        todo.title,
+                        '${todo.isPomo ? '🍅 ' : ''}${todo.title}',
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
@@ -218,6 +234,24 @@ class _TodoTile extends ConsumerWidget {
                 ),
               ),
             ),
+            if (todo.isPomo && !todo.done)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => startPomoFromList(context, ref, todo),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFF43F5E),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      ref.watch(activePomoProvider)?.todoId == todo.id ? '■' : '▶ 🍅',
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(width: 6),
             Container(
               width: 26,
@@ -235,4 +269,24 @@ class _TodoTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// 列表直启番茄：单活约束（同日程「进行中」规则），已有其他番茄则提示。
+void startPomoFromList(BuildContext context, WidgetRef ref, Todo todo) {
+  final cur = ref.read(activePomoProvider);
+  if (cur != null && cur.todoId != todo.id) {
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
+    return;
+  }
+  final s = (cur != null && cur.todoId == todo.id)
+      ? cur
+      : PomoSession(
+          todoId: todo.id!,
+          title: todo.title,
+          mode: todo.pomoMode ?? 'up',
+          minutes: todo.pomoMin);
+  if (cur == null) ref.read(activePomoProvider.notifier).state = s;
+  Navigator.of(context).push(MaterialPageRoute(
+      fullscreenDialog: true, builder: (_) => PomoScreen(session: s)));
 }

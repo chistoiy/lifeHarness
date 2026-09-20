@@ -7,6 +7,8 @@ import '../providers.dart';
 import '../theme/app_theme.dart';
 import '../../shared/linkage/timer_bar_overlay.dart';
 import '../../features/calendar/presentation/calendar_page.dart';
+import '../../features/calendar/presentation/category_page.dart';
+import '../../features/todo/presentation/widgets/pomo_screen.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
@@ -32,6 +34,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/journal', builder: (_, _) => const JournalPage()),
           GoRoute(path: '/inbox', builder: (_, _) => const InboxPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
+          GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
+          GoRoute(path: '/pomo', builder: (_, s) => PomoScreen(session: s.extra as dynamic)),
         ],
       ),
     ],

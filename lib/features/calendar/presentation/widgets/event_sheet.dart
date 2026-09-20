@@ -2,104 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/wheel_time.dart';
 import '../../domain/cal_event.dart';
-import '../../domain/event_repository.dart';
+import '../../domain/category.dart';
 import '../calendar_providers.dart';
+import 'wheel_date.dart';
 
-Future<void> showEventSheet(BuildContext context, WidgetRef ref, {DateTime? presetDay}) {
+/// 编辑事件表单（V1.23 起 sheetAddEvent 仅保留编辑用途；添加统一走 sheetTimePick）。
+Future<void> showEventEditSheet(BuildContext context, WidgetRef ref, CalEvent e) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _EventSheet(presetDay: presetDay),
+    builder: (_) => _EventEdit(e: e),
   );
 }
 
-class _EventSheet extends ConsumerStatefulWidget {
-  const _EventSheet({this.presetDay});
-
-  final DateTime? presetDay;
+class _EventEdit extends ConsumerStatefulWidget {
+  const _EventEdit({required this.e});
+  final CalEvent e;
 
   @override
-  ConsumerState<_EventSheet> createState() => _EventSheetState();
+  ConsumerState<_EventEdit> createState() => _EventEditState();
 }
 
-class _EventSheetState extends ConsumerState<_EventSheet> {
-  final _title = TextEditingController();
-  late DateTime _start;
-  int _durMin = 60;
-  bool _allDay = false;
-  int _color = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    // 日历页选中的日期必须作为默认日期（否则点17号新建会落到今天 = 事件补录 bug）。
-    final d = widget.presetDay ?? now;
-    final isToday = d.year == now.year && d.month == now.month && d.day == now.day;
-    // 今天 → 下一整点（23 点封顶防溢出次日）；其他日期 → 上午 9 点。
-    final h = isToday ? (now.hour + 1).clamp(0, 23) : 9;
-    _start = DateTime(d.year, d.month, d.day, h, 0);
-  }
-
-  Future<void> _pickTime() async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_start),
-    );
-    if (t != null) {
-      setState(() => _start = DateTime(_start.year, _start.month, _start.day, t.hour, t.minute));
-    }
-  }
-
-  CalEvent _draft() => CalEvent(
-        title: _title.text.trim().isEmpty ? '未命名日程' : _title.text.trim(),
-        start: _start,
-        end: _allDay ? null : _start.add(Duration(minutes: _durMin)),
-        allDay: _allDay,
-        colorIdx: _color,
-      );
-
-  Future<void> _create() async {
-    final repo = ref.read(eventRepositoryProvider);
-    final saved = await repo.create(_draft());
-    _afterSave();
-    final conflicts = EventRepository.conflictsOf(
-        [...(await repo.listAll())]).where((c) => c.a.id == saved.id || c.b.id == saved.id);
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    if (conflicts.isNotEmpty) {
-      final c = conflicts.first;
-      messenger.showSnackBar(SnackBar(
-          content: Text('⏱ 时间冲突：「${c.a.title}」与「${c.b.title}」重叠 ${c.overlapMin} 分钟'),
-          duration: const Duration(seconds: 3)));
-    } else {
-      messenger.showSnackBar(const SnackBar(content: Text('日程已创建 ✓')));
-    }
-  }
-
-  Future<void> _startNow() async {
-    final repo = ref.read(eventRepositoryProvider);
-    try {
-      final e = await repo.startNow(_draft());
-      _afterSave();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('▶ 已开始：${e.title} · 做完点悬浮条「■ 结束」'),
-          duration: const Duration(seconds: 3)));
-    } on StateError {
-      _afterSave();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已有进行中的事项，请先结束当前事项')));
-    }
-  }
-
-  void _afterSave() {
-    ref.invalidate(eventsProvider);
-    ref.invalidate(activeEventProvider);
-    Navigator.of(context).pop();
-  }
+class _EventEditState extends ConsumerState<_EventEdit> {
+  late final TextEditingController _title = TextEditingController(text: widget.e.title);
+  late DateTime _start = widget.e.start;
+  late int _durMin = widget.e.durationMin ??
+      (widget.e.end != null ? widget.e.end!.difference(widget.e.start).inMinutes : 60);
+  late bool _allDay = widget.e.allDay;
+  late int? _catId = widget.e.catId;
 
   @override
   void dispose() {
@@ -107,13 +39,40 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
     super.dispose();
   }
 
-  String get _timeLabel =>
-      '${_start.hour.toString().padLeft(2, '0')}:${_start.minute.toString().padLeft(2, '0')}';
+  Future<void> _pickDate() async {
+    final d = await showWheelDatePick(context, _start);
+    if (d != null) {
+      setState(() => _start = DateTime(d.year, d.month, d.day, _start.hour, _start.minute));
+    }
+  }
+
+  Future<void> _save() async {
+    final repo = ref.read(eventRepositoryProvider);
+    final title = _title.text.trim().isEmpty ? widget.e.title : _title.text.trim();
+    await repo.update(widget.e.copyWith(
+      title: title,
+      start: _start,
+      end: _allDay ? null : _start.add(Duration(minutes: _durMin)),
+      allDay: _allDay,
+      catId: _catId,
+    ));
+    ref.invalidate(eventsProvider);
+    ref.invalidate(activeEventProvider);
+    if (!mounted) return;
+    final day0 = DateTime(_start.year, _start.month, _start.day);
+    ref.invalidate(dayBlocksProvider(day0));
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('已保存 · 四视图与时间账本同步更新')));
+  }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
+    final primary = cats.where((c) => c.isPrimary).toList();
+    final catColors = ref.watch(catColorsByNameProvider);
     return SafeArea(
       top: false,
       child: SingleChildScrollView(
@@ -122,7 +81,8 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('新建日程', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            Text('编辑事件（${widget.e.title}）',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
             TextField(
               controller: _title,
@@ -133,14 +93,14 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _allDay ? null : _pickTime,
-                    icon: const Icon(Icons.schedule, size: 16),
-                    label: Text(_allDay ? '全天' : '开始 $_timeLabel'),
+                    onPressed: _allDay ? null : _pickDate,
+                    icon: const Icon(Icons.calendar_today, size: 15),
+                    label: Text('${_start.month}月${_start.day}日'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 SizedBox(
-                  width: 110,
+                  width: 100,
                   child: DropdownButtonFormField<int>(
                     initialValue: _durMin,
                     isExpanded: true,
@@ -156,69 +116,62 @@ class _EventSheetState extends ConsumerState<_EventSheet> {
                 ),
               ],
             ),
+            // V1.26.2 内嵌滚轮：就地上下滑动选开始时分，无二次弹层
+            if (!_allDay)
+              Row(
+                children: [
+                  SizedBox(
+                      width: 40,
+                      child: Text('开始',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant))),
+                  Expanded(
+                    child: InlineWheelTime(
+                      initial: TimeOfDay.fromDateTime(_start),
+                      onChanged: (h, m) => _start =
+                          DateTime(_start.year, _start.month, _start.day, h, m),
+                    ),
+                  ),
+                ],
+              ),
             Row(
               children: [
                 const Text('全天', style: TextStyle(fontSize: 13)),
                 Switch(value: _allDay, onChanged: (v) => setState(() => _allDay = v)),
-                const Spacer(),
-                const Text('色标 ', style: TextStyle(fontSize: 13)),
-                for (var i = 0; i < 4; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6),
-                    child: InkWell(
-                      onTap: () => setState(() => _color = i),
-                      child: Container(
-                        width: 22,
-                        height: 22,
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('分类', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final c in primary)
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    selected: _catId == c.id,
+                    onSelected: (_) => setState(() => _catId = c.id),
+                    avatar: Container(
+                        width: 9, height: 9,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: CalEvent.palette(tokens.accent, i),
-                          border: _color == i
-                              ? Border.all(color: scheme.onSurface, width: 2)
-                              : null,
-                        ),
-                        child: _color == i
-                            ? const Icon(Icons.check, size: 13, color: Colors.white)
-                            : null,
-                      ),
-                    ),
+                            borderRadius: BorderRadius.circular(3),
+                            color: c.name == '工作' ? tokens.accent : catColors[c.name])),
+                    label: Text(c.name, style: const TextStyle(fontSize: 11)),
                   ),
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 46,
-                    child: FilledButton.icon(
-                      onPressed: _startNow,
-                      style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFF43F5E)),
-                      icon: const Icon(Icons.play_arrow, size: 18),
-                      label: const Text('▶ 现在就开始'),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 46,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: tokens.gradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: TextButton(
-                        onPressed: _create,
-                        child: const Text('创建（预约）',
-                            style: TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: tokens.accent, minimumSize: const Size.fromHeight(46)),
+                onPressed: _save,
+                child: const Text('保存'),
+              ),
             ),
           ],
         ),
