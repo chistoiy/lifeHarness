@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeHarness · 主页风格试衣间 V3 · 四款设计语言并排</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ============ 通用骨架 ============ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#101114;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;color:#ddd;min-height:100vh}
+.intro{max-width:1760px;margin:0 auto;padding:34px 28px 6px}
+.intro h1{font-size:22px;font-weight:900;letter-spacing:-.01em}
+.intro p{font-size:13px;color:#9a9aa2;margin-top:6px;line-height:1.8}
+.intro b{color:#fff}
+.row{display:flex;gap:34px;padding:24px 28px 60px;overflow-x:auto;max-width:1760px;margin:0 auto;align-items:flex-start}
+.stage{flex:none;width:392px}
+.tag{display:flex;align-items:baseline;gap:8px;margin:0 2px 12px}
+.tag .nm{font-size:16px;font-weight:800;color:#fff}
+.tag .ds{font-size:11.5px;color:#8b8b93}
+.pick{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid #4a4a52;color:#cfcfd6;cursor:pointer;user-select:none}
+.pick:hover{border-color:#fff;color:#fff}
+/* ============ 手机壳（公共结构，皮肤靠 --变量与 .st-x 覆盖） ============ */
+.phone{position:relative;width:392px;height:768px;border-radius:40px;overflow:hidden;background:var(--pg);color:var(--ink);font-size:14px;line-height:1.5}
+.st-a .phone{border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.st-b .phone{border:1px solid #eadfcf;box-shadow:0 26px 60px rgba(160,120,80,.25)}
+.st-c .phone{border:1px solid #d8d4c8;box-shadow:0 26px 60px rgba(60,50,30,.22)}
+.st-d .phone{border:3px solid #000;box-shadow:10px 10px 0 rgba(0,0,0,.55);border-radius:14px}
+.st-d .phone{height:768px}
+.scr{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding-bottom:104px}
+.scr::-webkit-scrollbar{display:none}
+.sts{display:flex;justify-content:space-between;padding:14px 22px 4px;font-size:11px;font-weight:700}
+/* ============ A · 暗色极光玻璃 ============ */
+.st-a{--pg:#0b0f1e;--ink:#eef1ff;--sub:#8f96b8;--card:rgba(255,255,255,.065);--bd:rgba(255,255,255,.13);--r:22px;--acc:#22d3ee;--acc2:#8b5cf6;--tb:rgba(10,13,28,.72);--chipOn:#fff}
+.st-a .phone::before{content:'';position:absolute;inset:-20%;pointer-events:none;z-index:0;filter:blur(50px);opacity:.6;background:radial-gradient(38% 30% at 20% 8%,#7c5cff88 0%,transparent 65%),radial-gradient(34% 26% at 88% 22%,#22d3ee66 0%,transparent 60%),radial-gradient(40% 30% at 60% 96%,#f472b655 0%,transparent 65%),radial-gradient(30% 22% at 8% 70%,#16a34a33 0%,transparent 60%)}
+.st-a .scr,.st-a .tb,.st-a .fab,.st-a .tbar{z-index:1}
+.st-a .hd,.st-a .card{position:relative}
+.st-a .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.09)}
+.st-a .greet{background:linear-gradient(92deg,#a78bfa,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.st-a .eyebrow{color:#7f87ae}
+.st-a .num{font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.st-a .tb{background:var(--tb);backdrop-filter:blur(18px);border-top:1px solid var(--bd)}
+.st-a .tb .on{color:#fff}.st-a .tb .on::before{background:linear-gradient(90deg,var(--acc2),var(--acc))}
+.st-a .fab{background:linear-gradient(135deg,#7c5cff,#22d3ee);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 10px 26px rgba(124,92,255,.45)}
+.st-a .chip.on{background:#fff;color:#0b0f1e;border-color:#fff}
+.st-a .mood div{filter:grayscale(1) brightness(2.2);opacity:.55}.st-a .mood div.sel{filter:none;opacity:1;box-shadow:0 0 0 2px #8b5cf6,0 0 22px #22d3ee88}
+.st-a .bar{background:rgba(255,255,255,.1)}.st-a .bar i{background:linear-gradient(90deg,#7c5cff,#22d3ee)}
+.st-a .inp{background:rgba(255,255,255,.05);border:1px solid var(--bd)}
+.st-a .ststap{background:rgba(255,255,255,.55)}
+/* ============ B·黏土柔和生活 ============ */
+.st-b{--pg:#f6efe3;--ink:#4a3f35;--sub:#a2917c;--r:30px;--acc:#ff8a5c;--bd:#eaddc9}
+.st-b .phone{font-weight:600}
+.st-b .card{border-radius:var(--r);border:0;color:#514538;box-shadow:inset 5px 6px 10px rgba(255,255,255,.85),inset -6px -8px 12px rgba(176,145,110,.18),0 14px 22px rgba(150,118,84,.16)}
+.st-b .c-mint{background:#cdebd8}.st-b .c-peach{background:#ffe3d2}.st-b .c-lav{background:#e2dcf5}.st-b .c-sun{background:#ffedc2}.st-b .c-sky{background:#d7e9f7}.st-b .c-pink{background:#fbdfe6}.st-b .c-base{background:#fbf6ec}
+.st-b .eyebrow{color:#a08a72;font-weight:800}
+.st-b .num{font-weight:900;letter-spacing:-.03em}
+.st-b .greet{color:#e2703a}
+.st-b .tb{background:#fbf4e8;border-top:1px solid #ecdfcb}
+.st-b .tb .on{color:#e2703a}
+.st-b .tb .on::before{background:#ff8a5c;box-shadow:0 0 0 3px #ffd9c9}
+.st-b .fab{background:#ff8a5c;color:#fff;border:0;box-shadow:inset 0 -5px 0 rgba(0,0,0,.12),0 10px 18px rgba(226,112,58,.35)}
+.st-b .chip{border:0;background:#efe4d2;box-shadow:inset 2px 2px 4px rgba(170,140,110,.25),inset -2px -2px 4px rgba(255,255,255,.9)}
+.st-b .chip.on{background:#7fb08f;color:#fff}
+.st-b .mood div{filter:grayscale(.9);opacity:.6}.st-b .mood div.sel{filter:none;opacity:1;transform:scale(1.3);background:#ffedc2;border-radius:50%}
+.st-b .bar{background:#e9dcc6}.st-b .bar i{background:#7fb08f;border-radius:99px}
+.st-b .inp{background:#fbf6ec;border:0;box-shadow:inset 3px 3px 6px rgba(170,140,110,.28),inset -3px -3px 6px rgba(255,255,255,.95)}
+.st-b .sts{color:#a2917c}
+.st-b .tile{border-radius:18px;box-shadow:inset 3px 3px 6px rgba(255,255,255,.7),inset -3px -4px 7px rgba(160,130,100,.25)}
+/* ============ C·编辑部纸墨 ============ */
+.st-c{--pg:#faf8f2;--ink:#16150f;--sub:#8a8574;--card:#fff;--bd:#16150f;--r:2px;--acc:#b33a3a}
+.st-c .phone{font-family:Georgia,'Songti SC','STSong','SimSun',serif;color:var(--ink);background:var(--pg)}
+.st-c .card{background:var(--card);border:1px solid #ddd8ca;border-radius:2px;box-shadow:none}
+.st-c .card+.card,.st-c .grid2 .card{border-top-width:1px}
+.st-c .eyebrow{font-family:Inter,Georgia,serif;font-weight:700;letter-spacing:.22em;color:#8a8574}
+.st-c .num{font-family:Georgia,'Songti SC',serif;font-weight:700;letter-spacing:-.01em}
+.st-c .greet{font-size:34px;font-weight:700;font-style:italic;border-bottom:2.5px solid #16150f;display:inline-block;padding:0 2px 0 0}
+.st-c .hd .big{font-size:64px;line-height:1;font-weight:700}
+.st-c .tb{background:#fffdf7;border-top:2.5px solid #16150f}
+.st-c .tb .on{color:#b33a3a;font-weight:700}
+.st-c .tb .on::before{background:#b33a3a;width:18px;height:2.5px;border-radius:0}
+.st-c .tb span{letter-spacing:.08em}
+.st-c .fab{background:#16150f;color:#faf8f2;border:0;border-radius:0;box-shadow:4px 4px 0 #b33a3a}
+.st-c .chip{border:1px solid #cfc9b8;background:#fff;letter-spacing:.05em;font-size:11px}
+.st-c .chip.on{background:#16150f;color:#faf8f2;border-color:#16150f}
+.st-c .mood div{filter:sepia(1) contrast(.8);opacity:.5}.st-c .mood div.sel{filter:none;opacity:1;outline:1.5px solid #b33a3a;outline-offset:3px}
+.st-c .rule{height:2.5px;background:#16150f;margin:16px 0 0}
+.st-c .bar{background:#e9e4d4;height:3px}.st-c .bar i{background:#b33a3a}
+.st-c .inp{background:#fff;border:1px solid #cfc9b8;border-radius:0}
+.st-c .dropcap::first-letter{font-size:26px;font-weight:700;color:#b33a3a}
+.st-c .tile{background:#fff;border:1px solid #ddd8ca}
+/* ============ D· Bold 色块新粗野 ============ */
+.st-d{--pg:#fdf3d8;--ink:#000;--sub:#5b5b5b;--card:#fff;--bd:#000;--r:0px;--acc:#2d6bff}
+.st-d .phone{font-family:Inter,system-ui;font-weight:700}
+.st-d .card{background:var(--card);border:3px solid #000;border-radius:0;box-shadow:6px 6px 0 #000}
+.st-d .d-blue{background:#b8d4ff}.st-d .d-yellow{background:#ffd400}.st-d .d-green{background:#06d6a0}.st-d .d-pink{background:#ff9ec4}.st-d .d-violet{background:#c9b6ff}
+.st-d .eyebrow{font-weight:900;letter-spacing:.14em;color:#000}
+.st-d .num{font-weight:900;letter-spacing:-.03em}
+.st-d .greet{background:#000;color:#fdf3d8;display:inline-block;padding:2px 10px 2px 6px;transform:rotate(-1deg)}
+.st-d .tb{background:#fff;border-top:3px solid #000}
+.st-d .tb .on{background:#ffd400;border:2px solid #000;margin:2px 4px;border-radius:0;box-shadow:3px 3px 0 #000;padding-top:4px}
+.st-d .tb .on::before{display:none}
+.st-d .fab{background:#ff4747;color:#fff;border:3px solid #000;border-radius:0;box-shadow:5px 5px 0 #000}
+.st-d .chip{border:2.5px solid #000;background:#fff;box-shadow:3px 3px 0 #000;font-weight:800}
+.st-d .chip.on{background:#2d6bff;color:#fff;box-shadow:3px 3px 0 #000 translate:2px 2px}
+.st-d .mood div{filter:grayscale(1) contrast(1.4);opacity:.45}.st-d .mood div.sel{filter:none;opacity:1;background:#ffd400;border:2.5px solid #000;box-shadow:3px 3px 0 #000;padding:2px 6px}
+.st-d .bar{background:#fff;border:2.5px solid #000;height:14px;border-radius:0}.st-d .bar i{background:repeating-linear-gradient(45deg,#2d6bff 0 8px,#1a4ecb 8px 14px)}
+.st-d .inp{background:#fff;border:3px solid #000;border-radius:0;box-shadow:4px 4px 0 #000}
+.st-d .sts{font-weight:900}
+.st-d .tile{border:2.5px solid #000;background:#fff}
+/* ============ 屏内公共版式 ============ */
+.pad{padding:0 16px}
+.hd{padding:8px 18px 14px}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--sub)}
+.num{font-variant-numeric:tabular-nums}
+.greet{font-size:27px;font-weight:800;letter-spacing:-.02em}
+.sub{font-size:12px;color:var(--sub)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.span2{grid-column:span 2}
+.card{padding:13px;border-radius:var(--r);border:1px solid var(--bd)}
+.rowl{display:flex;align-items:center;gap:8px}
+.ring{position:relative;width:52px;height:52px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .v{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.line{flex:1;min-width:0}
+.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:7px;border-radius:99px;overflow:hidden;background:var(--bd)}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--acc)}
+.mood{display:flex;justify-content:space-between;font-size:20px;padding:2px 2px 0}
+.mood div{cursor:pointer;transition:all .15s;border-radius:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--bd);font-size:11.5px;font-weight:600;cursor:pointer;color:var(--sub);user-select:none}
+.inp{width:100%;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;color:var(--ink);font-family:inherit}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.tile{aspect-ratio:1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;font-weight:700;color:var(--ink)}
+.tile svg{width:19px;height:19px}
+.tb{position:absolute;left:0;right:0;bottom:0;display:flex;padding:7px 8px 18px;background:var(--pg);border-top:1px solid var(--bd)}
+.tb .bi{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);cursor:pointer;position:relative;padding:4px 0;border-radius:8px}
+.tb .bi.on{color:var(--ink)}
+.tb .bi.on::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:14px;height:3px;border-radius:99px;background:var(--acc)}
+.fab{position:absolute;right:14px;bottom:96px;width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff}
+.ststap{width:100px;height:5px;border-radius:99px;margin:0 auto}
+.hint{margin:10px 16px 0;font-size:11px;text-align:center;padding:7px;border-radius:99px}
+.donut{width:74px;height:74px;border-radius:50%;position:relative;flex:none}
+.donut::after{content:'';position:absolute;inset:26%;border-radius:50%;background:var(--card)}
+.st-a .donut::after{background:#151a30}
+.st-b .donut::after{background:#ffe3d2}
+.st-d .donut::after{background:#fff}
+.lgd{font-size:10.5px;color:var(--sub);display:flex;align-items:center;gap:5px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);background:#111;color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;z-index:99;font-family:Inter}
+.note{max-width:1760px;margin:0 auto;padding:0 28px 70px;font-size:12px;color:#8a8a92;line-height:2}
+.note b{color:#e8e8ee}
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>LifeHarness · V3 主页风格试衣间</h1>
+  <p>同一份「今日仪表盘」内容（需求 V1.27 · 模块 6），四种全新设计语言并排呈现。与现有 V1 原型（简约）、V2 原型（新瑞士便当格）均不重复。<br>点每张卡右上角 <b>「选这个」</b> 或直接告诉我字母；选定后我再把该风格做成<b>全量 14 模块</b>原型。卡片可点（心情选择、快速记录、宫格均为真交互演示）。</p>
+</div>
+<div class="row" id="row"></div>
+<div class="note"><b>各款一句话：</b>A 暗色极光玻璃＝氛围系夜间感，磨砂层叠、渐变发光；B 黏土柔和生活＝手作温度，马卡龙分区色 + 内外双柔影；C 编辑部纸墨＝杂志排版，衬线大字号 + 栏线秩序，日记本气质；D 大色块新粗野＝高饱和撞色 + 黑粗描边 + 硬偏移影，最有张力与记忆点。<br>数据均为占位演示；正式版按需求接入仪表盘自由编排（长按卡片拖拽）、周/月报、今日小结分享卡等。</div>
+<div id="toast"></div>
+<script>
+const HOME=(st)=>{
+ const ev=[['10:00','11:00','产品评审会','#8b5cf6'],['14:00','15:00','午间健身房','#06d6a0'],['19:00','20:00','写周报','#ffb454']];
+ const lg=[['睡眠',31,'#8B7CC8'],['工作',38,'#5B8A72'],['学习',17,'#B5915C'],['娱乐',14,'#7D95B5']];
+ const conic=lg.map((x,i,a)=>{const s=a.slice(0,i).reduce((t,y)=>t+y[1],0);return x[2]+' '+s+'% '+(s+x[1])+'%'}).join(',');
+ const tiles=[['⚡','收集箱'],['💰','记账'],['📦','物品'],['🎂','日子'],['💧','健康'],['🎯','目标'],['🔁','习惯'],['👶','母婴'],['🧰','工具'],['🧩','插件']];
+ return '<div class="scr"><div class="sts"><span>23:59</span><span>LifeHarness</span><span>5G ▮</span></div>'+
+ '<div class="hd"><div class="eyebrow">'+st.eyebrow+'</div>'+
+ '<div class="greet">晚上好</div>'+
+ '<div class="sub">9月20日 · 周日 · 连续记录 <b class="num">128</b> 天</div></div>'+
+ '<div class="grid2">'+
+   '<div class="card span2 rowl"><div class="ring"><svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--bd)" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(2*Math.PI*22*3/8).toFixed(1)+' '+(2*Math.PI*22).toFixed(1)+'"/></svg><div class="v num">3/8</div></div>'+
+   '<div class="line"><div class="eyebrow">今日待办</div><div class="rowl" style="margin-top:5px"><div class="bar"><i style="width:37%"></i></div></div></div><div class="sub num" style="margin-top:4px">3 完成 · 2 逾期 · 番茄 ×1</div></div></div>'+
+   '<div class="card span2 '+st.tone('c-mint','d-yellow','sun','mint')+'"><div class="eyebrow" style="margin-bottom:4px">今日心情 · 一键打卡</div><div class="mood" data-mood>'+['😮','🙂','😊','😌','😪'].map((m,i)=>'<div class="'+(i===2?'sel':'')+'">'+m+'</div>').join('')+'</div></div>'+
+   '<div class="card span2"><div class="rowl" style="justify-content:space-between"><div class="eyebrow">今日日程 · 3 项</div><span class="chip">打开时间 ›</span></div>'+
+     ev.map(e=>'<div class="rowl" style="padding:7px 0;border-top:1px solid var(--bd)"><span class="num" style="font-size:11px;color:var(--sub);width:76px">'+e[0]+'–'+e[1]+'</span><span class="dot" style="background:'+e[3]+'"></span><span class="line trunc" style="font-weight:600">'+e[2]+'</span>'+(e[2]==='写周报'?'<span class="chip">● 进行中</span>':'')+'</div>').join('')+'</div>'+
+   '<div class="card '+st.tone('c-peach','d-blue','pink','blue')+'"><div class="eyebrow">今日持有成本</div><div class="num" style="font-size:27px;margin-top:2px">¥12.47</div><div class="sub" style="margin-top:2px">MacBook ¥4.61 ›</div></div>'+
+   '<div class="card '+st.tone('c-lav','d-pink','lav','pink')+'"><div class="eyebrow">倒数日</div><div class="num" style="font-size:27px;margin-top:2px">6<span style="font-size:11px"> 天后</span></div><div class="sub" style="margin-top:2px">妈妈生日 · 农历</div></div>'+
+   '<div class="card span2"><div class="eyebrow" style="margin-bottom:6px">时间去向 · 今日</div><div class="rowl" style="gap:12px"><div class="donut" style="background:conic-gradient('+conic+')"></div><div class="line">'+lg.map(x=>'<div class="lgd" style="margin:2.5px 0"><span class="dot" style="background:'+x[2]+'"></span>'+x[0]+'<span class="num" style="margin-left:auto">'+x[1]+'%</span></div>').join('')+'</div></div></div>'+
+   '<div class="card span2"><div class="eyebrow" style="margin-bottom:6px">收集箱 · 3 秒记录</div><input class="inp" placeholder="想到什么记什么…" data-qadd value=""><div class="sub" style="margin-top:6px">3 条待分流 · <b>去分流 ›</b></div></div>'+
+   '<div class="card span2"><div class="eyebrow" style="margin-bottom:8px">全部模块 · 宫格</div><div class="tiles">'+tiles.map(t=>'<div class="tile"><span style="font-size:16px">'+t[0]+'</span>'+t[1]+'</div>').join('')+'</div></div>'+
+ '</div>'+
+ '<div class="hint '+st.tone('c-base','d-green','','')+'" style="color:var(--sub)">长按卡片可拖拽编排 · 完成后自动保存</div>'+
+ '<div style="height:26px"></div></div>'+
+ '<div class="tb">'+[['A','今天'],['B','待办'],['C','时间'],['D','记录'],['E','我的']].map((x,i)=>'<div class="bi '+(i===0?'on':'')+'"><span style="font-size:17px">'+['☀','☑','◔','✎','◍'][i]+'</span><span>'+x[1]+'</span></div>').join('')+'</div>'+
+ '<div class="fab"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>'};
+const STYLES=[
+ {id:'a',nm:'A · 暗色极光玻璃',ds:'磨砂玻璃卡 + 极光渐变光斑 · 氛围夜间系',eyebrow:'SATURDAY · 09/20',tone:()=>'',pick:'选这个'},
+ {id:'b',nm:'B · 黏土柔和生活',ds:'马卡龙分区色 + 内外双柔影 · 手作温度',eyebrow:'september 20 · sun',tone:c=>c},
+ {id:'c',nm:'C · 编辑部纸墨',ds:'衬线大字号 + 栏线秩序 · 杂志日记本气质',eyebrow:'THE DAY · MMXXVI.IX.XX',tone:(x,w,d,e)=>'d-c'},
+ {id:'d',nm:'D · 大色块新粗野',ds:'黑粗描边 + 硬偏移影 + 高饱和撞色',eyebrow:'TODAY!!',tone:(x,y)=>y}];
+const row=document.getElementById('row');
+STYLES.forEach(s=>{
+ const sec=document.createElement('section');sec.className='stage st-'+s.id;
+ sec.innerHTML='<div class="tag"><span class="nm">'+s.nm+'</span><span class="ds">'+s.ds+'</span><span class="pick" data-pick="'+s.id+'">选这个</span></div><div class="phone">'+HOME(s)+'</div>';
+ row.appendChild(sec)});
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;t.style.transform='translateX(-50%) translateY(0)';clearTimeout(toast._x);toast._x=setTimeout(()=>{t.style.opacity=0;t.style.transform='translateX(-50%) translateY(10px)'},1800)}
+document.addEventListener('click',e=>{
+ const p=e.target.closest('[data-pick]');if(p){toast('已记录选择：'+p.closest('.stage').querySelector('.nm').textContent+' —— 请告诉我做全量');return}
+ const m=e.target.closest('.mood div');if(m){m.parentNode.querySelectorAll('div').forEach(x=>x.classList.remove('sel'));m.classList.add('sel');toast('今日心情 '+m.textContent);return}
+ const q=e.target.closest('[data-qadd]');if(q&&q.value.trim()){toast('已收入收集箱（演示）· 实际共 '+(STYLES.length)+' 个页面');q.value='';return}
+ const t=e.target.closest('.tile');if(t){toast('「'+t.textContent+'」模块 · 选定风格后在全量原型中呈现');return}
+ const f=e.target.closest('.fab');if(f){toast('语境 FAB：当前页=添加');return}
+ const b=e.target.closest('.tb .bi');if(b){const sc=b.closest('.phone').querySelector('.tb');sc.querySelectorAll('.bi').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(!b.classList.contains('on')||true)toast(b.textContent.trim()+' · 仅主页演示（V3 风格试衣间）');}});
+</script>
+</body>
+</html>
