@@ -273,13 +273,14 @@ class _TimePickState extends ConsumerState<_TimePick> {
                 ),
               ],
             ),
+            // ===== V1.27 C5：一级分组 / 子分组 双标题 + 虚线分隔 + 子组底色卡（原型同构） =====
             const SizedBox(height: 10),
-            Text('分类（点一级 · 有次级再点次级精确到子项）',
+            Text('一级分组',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -303,24 +304,53 @@ class _TimePickState extends ConsumerState<_TimePick> {
                   ),
               ],
             ),
-            if (subs.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final sc in subs)
-                    ChoiceChip(
-                      visualDensity: VisualDensity.compact,
-                      selected: _subName == sc.name,
-                      onSelected: (_) =>
-                          setState(() => _subName = _subName == sc.name ? null : sc.name),
-                      label: Text('${sc.name}${sc.tag == null ? '' : ' ${sc.tag}'}',
-                          style: const TextStyle(fontSize: 11)),
-                    ),
-                ],
+            const SizedBox(height: 12),
+            const DashedDivider(),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text('子分组',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text('属于上方选中的一级分组 · 再点可取消',
+                      style: TextStyle(
+                          fontSize: 9.5, color: scheme.onSurfaceVariant)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 38),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.onSurface.withValues(alpha: .05),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
+              child: subs.isEmpty
+                  ? Text('该分组暂无子分组',
+                      style: TextStyle(
+                          fontSize: 10.5, color: scheme.onSurfaceVariant))
+                  : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final sc in subs)
+                          ChoiceChip(
+                            visualDensity: VisualDensity.compact,
+                            selected: _subName == sc.name,
+                            onSelected: (_) => setState(
+                                () => _subName = _subName == sc.name ? null : sc.name),
+                            label: Text('${sc.name}${sc.tag == null ? '' : ' ${sc.tag}'}',
+                                style: const TextStyle(fontSize: 11)),
+                          ),
+                      ],
+                    ),
+            ),
             const SizedBox(height: 10),
             TextField(
               controller: _note,
@@ -503,6 +533,37 @@ class _WheelState extends State<_Wheel> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// 虚线分隔（原型 border-t-2 border-dashed · V1.27 C5 分组区隔）。
+class DashedDivider extends StatelessWidget {
+  const DashedDivider({super.key, this.color});
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ??
+        Theme.of(context).colorScheme.outlineVariant.withValues(alpha: .8);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dash = 5.0, gap = 4.0;
+        final count = (constraints.maxWidth / (dash + gap)).floor();
+        return SizedBox(
+          height: 2,
+          child: Row(
+            children: [
+              for (var i = 0; i < count; i++)
+                Container(
+                    width: dash,
+                    height: 2,
+                    margin: const EdgeInsets.only(right: gap),
+                    color: c),
+            ],
+          ),
+        );
+      },
     );
   }
 }

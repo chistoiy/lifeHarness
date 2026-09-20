@@ -112,6 +112,54 @@ void main() {
     expect(find.text('产品评审'), findsOneWidget);
   });
 
+  testWidgets('V1.27 C1/C6：日历无「时间」标题行·月历去切月按钮行·展开态左右滑动切月',
+      (tester) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        eventRepositoryProvider.overrideWithValue(repo),
+        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+      ],
+      child: const MaterialApp(home: CalendarPage()),
+    ));
+    await tester.pumpAndSettle();
+
+    // C1：页内标题行删除（不再渲染「时间」大字标题），搜索在本行不丢
+    expect(find.text('时间'), findsNothing);
+    expect(find.byIcon(Icons.search), findsOneWidget);
+    // C1：左上默认只显月日（当年不显年）
+    expect(find.text('年'), findsNothing);
+    // C6：切月按钮行已删
+    expect(find.byIcon(Icons.chevron_left), findsNothing);
+    expect(find.byIcon(Icons.chevron_right), findsNothing);
+
+    // C6：展开态月历左滑 → 切到下月（分段移动手势保证 HorizontalDrag 过 slop+速度阈值）
+    Future<void> swipeMonthPanel(int dx) async {
+      final g = await tester.startGesture(
+          tester.getCenter(find.byKey(const ValueKey('month-panel'))));
+      await g.moveBy(Offset(dx / 4, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+      await g.moveBy(Offset(dx / 2, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+      await g.moveBy(Offset(dx / 4, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+      await g.up();
+      await tester.pumpAndSettle();
+    }
+
+    await swipeMonthPanel(-200);
+    final nm = now.month + 1;
+    final wantMonth = ((nm - 1) % 12 + 1).toString().padLeft(2, '0');
+    expect(tester.widget<Text>(find.byKey(const ValueKey('hd-month'))).data,
+        wantMonth,
+        reason: '头部月份应为下月 $wantMonth');
+
+    // 右滑切回
+    await swipeMonthPanel(200);
+    expect(tester.widget<Text>(find.byKey(const ValueKey('hd-month'))).data,
+        now.month.toString().padLeft(2, '0'));
+  });
+
   testWidgets('智能折叠：下滚收起月历为周行 · 点展开 ▾ 回切', (tester) async {
     final now = DateTime.now();
     for (var i = 0; i < 14; i++) {

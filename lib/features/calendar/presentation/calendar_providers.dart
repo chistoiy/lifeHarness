@@ -81,3 +81,9 @@ final granularityProvider = StateProvider<int>((ref) => 15);
 final dayBlocksProvider = FutureProvider.family<List<TimeBlock>, DateTime>((ref, day) {
   return ref.watch(timeBlockDaoProvider).listByDay(day);
 });
+
+/// V1.27 C3：月内有手动标记块的日集合（月历圆点=事件/块任一存在）。
+final monthBlockDaysProvider =
+    FutureProvider.family<Set<int>, (int, int)>((ref, ym) {
+  return ref.watch(timeBlockDaoProvider).daysWithBlocks(ym.$1, ym.$2);
+});

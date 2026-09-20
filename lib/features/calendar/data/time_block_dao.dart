@@ -24,6 +24,18 @@ class TimeBlockDao {
     return TimeBlock.fromRow({...b.toRow(), 'id': id});
   }
 
+  /// V1.27 C3：某月内有块的「日」集合（月历点=事件/块任一存在，四视图同一数据源）。
+  Future<Set<int>> daysWithBlocks(int y, int m) async {
+    final start = DateTime(y, m, 1).millisecondsSinceEpoch;
+    final end = DateTime(y, m + 1, 1).millisecondsSinceEpoch;
+    final rows = await db.rawQuery(
+        'SELECT DISTINCT day FROM $table WHERE day >= ? AND day < ?',
+        [start, end]);
+    return rows
+        .map((r) => DateTime.fromMillisecondsSinceEpoch(r['day'] as int).day)
+        .toSet();
+  }
+
   Future<void> remove(int id) => db.delete(table, where: 'id = ?', whereArgs: [id]);
 
   /// 速记接龙：上一段"记到此刻"块截止到新时刻。

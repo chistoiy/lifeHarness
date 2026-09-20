@@ -52,6 +52,14 @@ void main() {
       expect(await dao.listByDay(day), hasLength(1));
     });
 
+    test('V1.27 C3 daysWithBlocks：返回月内有块的日集合（跨月不计）', () async {
+      await dao.insert(TimeBlock(day: day, startMin: 540, endMin: 585, catName: '工作'));
+      await dao.insert(TimeBlock(day: DateTime(2026, 9, 25), startMin: 600, endMin: 660));
+      await dao.insert(TimeBlock(day: DateTime(2026, 10, 2), startMin: 600, endMin: 660));
+      expect(await dao.daysWithBlocks(2026, 9), {19, 25});
+      expect(await dao.daysWithBlocks(2026, 12), isEmpty); // 12月边界不炸
+    });
+
     test('removeOverlapping 只删手动标记，不动 event 回填块', () async {
       await dao.insert(TimeBlock(day: day, startMin: 540, endMin: 600));
       await dao.insert(TimeBlock(day: day, startMin: 700, endMin: 760, source: 'event'));
@@ -133,11 +141,16 @@ void main() {
         title: '产品评审',
         start: DateTime(now.year, now.month, now.day, 10),
         end: DateTime(now.year, now.month, now.day, 11)));
+    // V1.27 C3：轴视图=事件+标记块同一数据源投影
+    await dao.markRange(DateTime(now.year, now.month, now.day), 660, 720,
+        catName: '休息', note: '午休');
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     // 默认块视图（V1.19 四视图，月历/周行在上方）。
     expect(find.textContaining('全天0-24'), findsOneWidget);
+    // V1.27 C6：月历不再显示「‹年 月 月›」切月行
+    expect(find.textContaining('年'), findsNothing);
     // 顶栏视图菜单 → 轴视图。
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
@@ -145,6 +158,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('产品评审'), findsOneWidget);
     expect(find.textContaining('点卡片查看/编辑/删除'), findsOneWidget);
+    // 块投影出现在时间轴（▦ 分类 起止）
+    expect(find.textContaining('▦ 休息'), findsOneWidget);
   });
 
   testWidgets('块视图：拖选保持选区 → 点右列分类=直接标记（免弹层）', (tester) async {
@@ -178,5 +193,60 @@ void main() {
 
     final blocks = await dao.listByDay(DateTime.now());    expect(blocks.where((b) => b.catName == '学习'), hasLength(1));
     expect(blocks.first.endMin - blocks.first.startMin, greaterThan(15)); // 至少跨2格
+  });
+
+  testWidgets('V1.27 C4：块视图重复点击事件卡=只开详情，不扩散修改其他块', (tester) async {
+    final now = DateTime.now();
+    final d0 = DateTime(now.year, now.month, now.day);
+    await repo.create(CalEvent(
+        title: '事件A',
+        start: DateTime(now.year, now.month, now.day, 9),
+        end: DateTime(now.year, now.month, now.day, 10)));
+    await dao.markRange(d0, 660, 720, catName: '休息');
+    await dao.markRange(d0, 840, 900, catName: '工作');
+    final before = (await dao.listByDay(d0))
+        .map((b) => '${b.catName}:${b.startMin}-${b.endMin}')
+        .toList();
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: ProviderContainer(overrides: [
+        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(dao),
+        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+      ]),
+      child: MaterialApp(home: Scaffold(body: GridDayView(day: now))),
+    ));
+    await tester.pumpAndSettle();
+
+    // 事件A 09:00-10:00 → 粒度15 时格 36~39，取格 37（09:15）中心点击。
+    Future<void> tapEventCell() async {
+      final rect = tester.getRect(find.byType(GridView));
+      const gran = 15, cols = 9, gap = 3.0;
+      final n = 1440 ~/ gran, rows = (n / cols).ceil();
+      final cellW = (rect.width - gap * (cols - 1)) / cols;
+      final cellH = (rect.height - gap * (rows - 1)) / rows;
+      const i = 37;
+      final c = Offset(rect.left + (i % cols) * (cellW + gap) + cellW / 2,
+          rect.top + (i ~/ cols) * (cellH + gap) + cellH / 2);
+      await tester.tapAt(c);
+      await tester.pumpAndSettle();
+    }
+
+    await tapEventCell();
+    expect(find.text('事件A'), findsWidgets); // 详情弹层打开
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
+
+    // 第二次点击（此时无选块）→ 仍只开详情，库内块不受任何影响
+    await tapEventCell();
+    expect(find.text('关闭'), findsOneWidget);
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
+
+    final after = (await dao.listByDay(d0))
+        .map((b) => '${b.catName}:${b.startMin}-${b.endMin}')
+        .toList();
+    expect(after, before); // 其他区域未被"事件A"改写
+    expect(find.textContaining('已选'), findsNothing); // 选区不残留
   });
 }

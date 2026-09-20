@@ -61,26 +61,7 @@ class CalendarPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
-            // 原型全局顶栏：页面标题「时间」+ 搜索常驻
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-              child: Row(
-                children: [
-                  const Expanded(
-                      child: Text('时间',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
-                  IconButton(
-                    tooltip: '搜索',
-                    icon: const Icon(Icons.search),
-                    onPressed: () => ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(
-                          content: Text('全局搜索 · 即将开放'),
-                          duration: Duration(milliseconds: 1500))),
-                  ),
-                ],
-              ),
-            ),
+            // V1.27 C1/C4：去「时间+搜索」标题行省一行；搜索下移到日期行工具区
             _TimeHeader(selected: selected, isToday: isToday),
             Expanded(
               child: NotificationListener<ScrollNotification>(
@@ -159,6 +140,7 @@ class _TimeHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
     final view = ref.watch(calViewModeProvider);
     const labels = {'axis': '轴', 'block': '块', 'day': '日', 'week': '周'};
 
@@ -173,17 +155,23 @@ class _TimeHeader extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 0),
       child: Row(
         children: [
+          // V1.27 C1：左上只显「月日」（跨年才显年份），点击仍开年月日三列滚轮可改
           GestureDetector(
             onTap: jump,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('${selected.year}',
-                    style: TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.w900, color: tokens.accent)),
-                const Text('年', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                const SizedBox(width: 6),
+                if (selected.year != now.year) ...[
+                  Text('${selected.year}',
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: tokens.accent)),
+                  const Text('年', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  const SizedBox(width: 6),
+                ],
                 Text(selected.month.toString().padLeft(2, '0'),
+                    key: const ValueKey('hd-month'),
                     style: TextStyle(
                         fontSize: 22, fontWeight: FontWeight.w900, color: tokens.accent)),
                 const Text('月', style: TextStyle(fontSize: 10, color: Colors.grey)),
@@ -200,6 +188,16 @@ class _TimeHeader extends ConsumerWidget {
             ),
           ),
           const Spacer(),
+          // V1.27 C4：搜索入口下移到本行（全局顶栏标题行已删）
+          IconButton(
+            tooltip: '搜索',
+            icon: const Icon(Icons.search),
+            onPressed: () => ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                  content: Text('全局搜索 · 即将开放'),
+                  duration: Duration(milliseconds: 1500))),
+          ),
           if (!isToday)
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -297,34 +295,39 @@ class _MonthPanel extends ConsumerWidget {
     final daysInMonth = daysInMonthOf(selected.year, selected.month);
     final leading = monthStart.weekday % 7;
     final now = DateTime.now();
+    // V1.27 C3：月历点=事件/块任一存在
+    final blockDays = ref
+            .watch(monthBlockDaysProvider((selected.year, selected.month)))
+            .valueOrNull ??
+        const <int>{};
 
-    void shiftMonth(int n) {
-      final m = selected.month + n;
+    // V1.27 C6：展开态左右滑动切月（保日序，超出目标月天数则夹到月末）。
+    // 位移累计判定而非 primaryVelocity：合成手势速度恒 0，真机慢滑同样不该漏切。
+    var swipeDx = 0.0;
+    void swipeMonth(int dir) {
+      final m = selected.month + dir;
+      final y = selected.year + (m - 1) ~/ 12;
+      final mm = (m - 1) % 12 + 1;
       ref.read(calSelectedProvider.notifier).state =
-          DateTime(selected.year + (m - 1) ~/ 12, (m - 1) % 12 + 1, 1);
+          DateTime(y, mm, selected.day.clamp(1, daysInMonthOf(y, mm)));
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: context.cardDecoration,
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.chevron_left, size: 18),
-                  onPressed: () => shiftMonth(-1)),
-              Text('${selected.year}年${selected.month}月',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-              IconButton(
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.chevron_right, size: 18),
-                  onPressed: () => shiftMonth(1)),
-            ],
-          ),
-          Row(
+    return GestureDetector(
+      // key：拖拽手势落在月历卡上（外层 GridView.first 命中的是月历网格）
+      key: const ValueKey('month-panel'),
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (d) => swipeDx = 0,
+      onHorizontalDragUpdate: (d) => swipeDx += d.delta.dx,
+      onHorizontalDragEnd: (d) {
+        if (swipeDx.abs() > 40) swipeMonth(swipeDx < 0 ? 1 : -1);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: context.cardDecoration,
+        child: Column(
+          children: [
+            // V1.27 C6：删「‹ 2026年9月 ›」切月行（切月=滑动 / 跳月=点左上日期轮）
+            Row(
             children: [
               for (final h in CalendarPage._wdHeaders)
                 Expanded(
@@ -350,7 +353,10 @@ class _MonthPanel extends ConsumerWidget {
                 final isSel = CalendarPage.sameDay(date, selected);
                 final isToday = CalendarPage.sameDay(date, now);
                 final dot = CalendarPage.dotColorFor(
-                    CalendarPage.onDay(events, date), tokens.accent);
+                        CalendarPage.onDay(events, date), tokens.accent) ??
+                    (blockDays.contains(day)
+                        ? const Color(0xFF6366F1)
+                        : null);
                 return InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: () {
@@ -431,7 +437,8 @@ class _MonthPanel extends ConsumerWidget {
                       fontSize: 9, color: scheme.onSurfaceVariant)),
             ],
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -448,6 +455,11 @@ class _WeekStrip extends ConsumerWidget {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final days = List.generate(7, (i) => selected.add(Duration(days: i - 3)));
+    // V1.27 C3：周行圆点同样并入块存在性（跨月格按当月计）。
+    final blockDays = ref
+            .watch(monthBlockDaysProvider((selected.year, selected.month)))
+            .valueOrNull ??
+        const <int>{};
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -463,19 +475,30 @@ class _WeekStrip extends ConsumerWidget {
                       fontSize: 9.5, fontWeight: FontWeight.w800, color: tokens.accent)),
             ),
           ),
-          Row(
-            children: [
-              for (final d in days)
-                Expanded(
-                  child: GestureDetector(
-                    onHorizontalDragEnd: (drag) {
-                      final v = drag.primaryVelocity ?? 0;
-                      if (v.abs() < 100) return;
-                      ref.read(calSelectedProvider.notifier).state = DateTime(
-                          selected.year,
-                          selected.month,
-                          selected.day + (v < 0 ? 1 : -1));
-                    },
+          // V1.27 C2：LayoutBuilder 7 格等宽自适应，小屏不裁切（轴视图周行显示全周）。
+          // V1.27 C6：滑动切天=位移累计（与展开态切月同判定，慢滑不漏切）。
+          Builder(builder: (context) {
+            var dx = 0.0;
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: (_) => dx = 0,
+              onHorizontalDragUpdate: (d) => dx += d.delta.dx,
+              onHorizontalDragEnd: (_) {
+                if (dx.abs() <= 40) return;
+                ref.read(calSelectedProvider.notifier).state = DateTime(
+                    selected.year,
+                    selected.month,
+                    selected.day + (dx < 0 ? 1 : -1));
+              },
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  final cellW = (c.maxWidth - 16 - 6) / 7;
+                  return Row(
+                    children: [
+                      for (final d in days)
+                        SizedBox(
+                          width: cellW,
+                          child: GestureDetector(
                     onTap: () {
                       if (CalendarPage.sameDay(d, selected)) {
                         ref.read(monthExpandedProvider.notifier).state = true;
@@ -517,6 +540,10 @@ class _WeekStrip extends ConsumerWidget {
                                   : (CalendarPage.dotColorFor(
                                           CalendarPage.onDay(events, d),
                                           tokens.accent) ??
+                                      (d.month == selected.month &&
+                                              blockDays.contains(d.day)
+                                          ? const Color(0xFF6366F1)
+                                          : null) ??
                                       Colors.transparent),
                             ),
                           ),
@@ -524,9 +551,13 @@ class _WeekStrip extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+                    ),
+                    ],
+                  );
+                },
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -552,8 +583,17 @@ class _AxisView extends ConsumerWidget {
     final dayEvents = List<CalEvent>.from(CalendarPage.onDay(events, selected))
       ..sort((a, b) => a.start.compareTo(b.start));
     final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
-    final sched = todos
-        .where((t) => t.timeMode != null && !t.dropped)
+    // V1.27 C3：定时待办随所选日同步（归属日=截止日，无截止日=创建日）
+    final selDay = DateTime(selected.year, selected.month, selected.day);
+    final sched = todos.where((t) {
+      if (t.timeMode == null || t.dropped) return false;
+      final base = t.dueAt ?? t.createdAt ?? DateTime.now();
+      return selDay == DateTime(base.year, base.month, base.day);
+    }).toList();
+    // V1.27 C3：轴视图并入手动标记块投影（事件回填块由事件卡表达，不重复列示）
+    final markBlocks = (ref.watch(dayBlocksProvider(selected)).valueOrNull ??
+            const <TimeBlock>[])
+        .where((b) => b.source == 'mark')
         .toList();
     final active =
         dayEvents.where((e) => e.status == EventStatus.active).toList();
@@ -680,6 +720,7 @@ class _AxisView extends ConsumerWidget {
 
     final rose = const Color(0xFFF43F5E);
     final violet = const Color(0xFF8B5CF6);
+    final catColors = ref.watch(catColorsByNameProvider);
     final items = <Widget>[
       for (final e in active)
         rail(_hm(e.start), rose, content(e, isLive: true, isDone: false),
@@ -690,6 +731,33 @@ class _AxisView extends ConsumerWidget {
       for (final e in done)
         rail(_hm(e.start), const Color(0xFF34D399),
             content(e, isLive: false, isDone: true)),
+      // V1.27 C3：标记块投影（分类色点 · 点击=块详情取消标记）
+      for (final b in markBlocks)
+        rail(_hm2(b.startMin),
+            blockColor(b, catColors, tokens.accent),
+            InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => showBlockDetailSheet(context, ref, selected, b),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: blockColor(b, catColors, tokens.accent)
+                      .withValues(alpha: .07),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: blockColor(b, catColors, tokens.accent)
+                          .withValues(alpha: .4)),
+                ),
+                child: Text(
+                  '▦ ${b.catName} ${_hm2(b.startMin)}-${_hm2(b.endMin)}'
+                  '${b.note == null || b.note == b.catName ? '' : ' · ${b.note}'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            )),
     ];
 
     for (final t in sched) {
