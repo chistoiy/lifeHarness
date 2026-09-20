@@ -3,207 +3,337 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LifeHarness · 主页风格试衣间 V3 · 四款设计语言并排</title>
+<title>LifeHarness · V3 主页风格试衣间 R2 · 四款结构级设计语言</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* ============ 通用骨架 ============ */
+/* ============ 试衣间外框 ============ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:#101114;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;color:#ddd;min-height:100vh}
-.intro{max-width:1760px;margin:0 auto;padding:34px 28px 6px}
+body{background:#0d0e11;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;color:#ddd;min-height:100vh}
+.intro{max-width:1780px;margin:0 auto;padding:34px 28px 6px}
 .intro h1{font-size:22px;font-weight:900;letter-spacing:-.01em}
 .intro p{font-size:13px;color:#9a9aa2;margin-top:6px;line-height:1.8}
 .intro b{color:#fff}
-.row{display:flex;gap:34px;padding:24px 28px 60px;overflow-x:auto;max-width:1760px;margin:0 auto;align-items:flex-start}
+.row{display:flex;gap:36px;padding:24px 28px 60px;overflow-x:auto;max-width:1780px;margin:0 auto;align-items:flex-start}
 .stage{flex:none;width:392px}
 .tag{display:flex;align-items:baseline;gap:8px;margin:0 2px 12px}
 .tag .nm{font-size:16px;font-weight:800;color:#fff}
-.tag .ds{font-size:11.5px;color:#8b8b93}
-.pick{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid #4a4a52;color:#cfcfd6;cursor:pointer;user-select:none}
+.tag .ds{font-size:11px;color:#8b8b93}
+.pick{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid #4a4a52;color:#cfcfd6;cursor:pointer;user-select:none;flex:none}
 .pick:hover{border-color:#fff;color:#fff}
-/* ============ 手机壳（公共结构，皮肤靠 --变量与 .st-x 覆盖） ============ */
-.phone{position:relative;width:392px;height:768px;border-radius:40px;overflow:hidden;background:var(--pg);color:var(--ink);font-size:14px;line-height:1.5}
-.st-a .phone{border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 90px rgba(0,0,0,.6)}
-.st-b .phone{border:1px solid #eadfcf;box-shadow:0 26px 60px rgba(160,120,80,.25)}
-.st-c .phone{border:1px solid #d8d4c8;box-shadow:0 26px 60px rgba(60,50,30,.22)}
-.st-d .phone{border:3px solid #000;box-shadow:10px 10px 0 rgba(0,0,0,.55);border-radius:14px}
-.st-d .phone{height:768px}
-.scr{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding-bottom:104px}
-.scr::-webkit-scrollbar{display:none}
-.sts{display:flex;justify-content:space-between;padding:14px 22px 4px;font-size:11px;font-weight:700}
-/* ============ A · 暗色极光玻璃 ============ */
-.st-a{--pg:#0b0f1e;--ink:#eef1ff;--sub:#8f96b8;--card:rgba(255,255,255,.065);--bd:rgba(255,255,255,.13);--r:22px;--acc:#22d3ee;--acc2:#8b5cf6;--tb:rgba(10,13,28,.72);--chipOn:#fff}
-.st-a .phone::before{content:'';position:absolute;inset:-20%;pointer-events:none;z-index:0;filter:blur(50px);opacity:.6;background:radial-gradient(38% 30% at 20% 8%,#7c5cff88 0%,transparent 65%),radial-gradient(34% 26% at 88% 22%,#22d3ee66 0%,transparent 60%),radial-gradient(40% 30% at 60% 96%,#f472b655 0%,transparent 65%),radial-gradient(30% 22% at 8% 70%,#16a34a33 0%,transparent 60%)}
-.st-a .scr,.st-a .tb,.st-a .fab,.st-a .tbar{z-index:1}
-.st-a .hd,.st-a .card{position:relative}
-.st-a .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.09)}
-.st-a .greet{background:linear-gradient(92deg,#a78bfa,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
-.st-a .eyebrow{color:#7f87ae}
-.st-a .num{font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.st-a .tb{background:var(--tb);backdrop-filter:blur(18px);border-top:1px solid var(--bd)}
-.st-a .tb .on{color:#fff}.st-a .tb .on::before{background:linear-gradient(90deg,var(--acc2),var(--acc))}
-.st-a .fab{background:linear-gradient(135deg,#7c5cff,#22d3ee);color:#fff;border:1px solid rgba(255,255,255,.3);box-shadow:0 10px 26px rgba(124,92,255,.45)}
-.st-a .chip.on{background:#fff;color:#0b0f1e;border-color:#fff}
-.st-a .mood div{filter:grayscale(1) brightness(2.2);opacity:.55}.st-a .mood div.sel{filter:none;opacity:1;box-shadow:0 0 0 2px #8b5cf6,0 0 22px #22d3ee88}
-.st-a .bar{background:rgba(255,255,255,.1)}.st-a .bar i{background:linear-gradient(90deg,#7c5cff,#22d3ee)}
-.st-a .inp{background:rgba(255,255,255,.05);border:1px solid var(--bd)}
-.st-a .ststap{background:rgba(255,255,255,.55)}
-/* ============ B·黏土柔和生活 ============ */
-.st-b{--pg:#f6efe3;--ink:#4a3f35;--sub:#a2917c;--r:30px;--acc:#ff8a5c;--bd:#eaddc9}
-.st-b .phone{font-weight:600}
-.st-b .card{border-radius:var(--r);border:0;color:#514538;box-shadow:inset 5px 6px 10px rgba(255,255,255,.85),inset -6px -8px 12px rgba(176,145,110,.18),0 14px 22px rgba(150,118,84,.16)}
-.st-b .c-mint{background:#cdebd8}.st-b .c-peach{background:#ffe3d2}.st-b .c-lav{background:#e2dcf5}.st-b .c-sun{background:#ffedc2}.st-b .c-sky{background:#d7e9f7}.st-b .c-pink{background:#fbdfe6}.st-b .c-base{background:#fbf6ec}
-.st-b .eyebrow{color:#a08a72;font-weight:800}
-.st-b .num{font-weight:900;letter-spacing:-.03em}
-.st-b .greet{color:#e2703a}
-.st-b .tb{background:#fbf4e8;border-top:1px solid #ecdfcb}
-.st-b .tb .on{color:#e2703a}
-.st-b .tb .on::before{background:#ff8a5c;box-shadow:0 0 0 3px #ffd9c9}
-.st-b .fab{background:#ff8a5c;color:#fff;border:0;box-shadow:inset 0 -5px 0 rgba(0,0,0,.12),0 10px 18px rgba(226,112,58,.35)}
-.st-b .chip{border:0;background:#efe4d2;box-shadow:inset 2px 2px 4px rgba(170,140,110,.25),inset -2px -2px 4px rgba(255,255,255,.9)}
-.st-b .chip.on{background:#7fb08f;color:#fff}
-.st-b .mood div{filter:grayscale(.9);opacity:.6}.st-b .mood div.sel{filter:none;opacity:1;transform:scale(1.3);background:#ffedc2;border-radius:50%}
-.st-b .bar{background:#e9dcc6}.st-b .bar i{background:#7fb08f;border-radius:99px}
-.st-b .inp{background:#fbf6ec;border:0;box-shadow:inset 3px 3px 6px rgba(170,140,110,.28),inset -3px -3px 6px rgba(255,255,255,.95)}
-.st-b .sts{color:#a2917c}
-.st-b .tile{border-radius:18px;box-shadow:inset 3px 3px 6px rgba(255,255,255,.7),inset -3px -4px 7px rgba(160,130,100,.25)}
-/* ============ C·编辑部纸墨 ============ */
-.st-c{--pg:#faf8f2;--ink:#16150f;--sub:#8a8574;--card:#fff;--bd:#16150f;--r:2px;--acc:#b33a3a}
-.st-c .phone{font-family:Georgia,'Songti SC','STSong','SimSun',serif;color:var(--ink);background:var(--pg)}
-.st-c .card{background:var(--card);border:1px solid #ddd8ca;border-radius:2px;box-shadow:none}
-.st-c .card+.card,.st-c .grid2 .card{border-top-width:1px}
-.st-c .eyebrow{font-family:Inter,Georgia,serif;font-weight:700;letter-spacing:.22em;color:#8a8574}
-.st-c .num{font-family:Georgia,'Songti SC',serif;font-weight:700;letter-spacing:-.01em}
-.st-c .greet{font-size:34px;font-weight:700;font-style:italic;border-bottom:2.5px solid #16150f;display:inline-block;padding:0 2px 0 0}
-.st-c .hd .big{font-size:64px;line-height:1;font-weight:700}
-.st-c .tb{background:#fffdf7;border-top:2.5px solid #16150f}
-.st-c .tb .on{color:#b33a3a;font-weight:700}
-.st-c .tb .on::before{background:#b33a3a;width:18px;height:2.5px;border-radius:0}
-.st-c .tb span{letter-spacing:.08em}
-.st-c .fab{background:#16150f;color:#faf8f2;border:0;border-radius:0;box-shadow:4px 4px 0 #b33a3a}
-.st-c .chip{border:1px solid #cfc9b8;background:#fff;letter-spacing:.05em;font-size:11px}
-.st-c .chip.on{background:#16150f;color:#faf8f2;border-color:#16150f}
-.st-c .mood div{filter:sepia(1) contrast(.8);opacity:.5}.st-c .mood div.sel{filter:none;opacity:1;outline:1.5px solid #b33a3a;outline-offset:3px}
-.st-c .rule{height:2.5px;background:#16150f;margin:16px 0 0}
-.st-c .bar{background:#e9e4d4;height:3px}.st-c .bar i{background:#b33a3a}
-.st-c .inp{background:#fff;border:1px solid #cfc9b8;border-radius:0}
-.st-c .dropcap::first-letter{font-size:26px;font-weight:700;color:#b33a3a}
-.st-c .tile{background:#fff;border:1px solid #ddd8ca}
-/* ============ D· Bold 色块新粗野 ============ */
-.st-d{--pg:#fdf3d8;--ink:#000;--sub:#5b5b5b;--card:#fff;--bd:#000;--r:0px;--acc:#2d6bff}
-.st-d .phone{font-family:Inter,system-ui;font-weight:700}
-.st-d .card{background:var(--card);border:3px solid #000;border-radius:0;box-shadow:6px 6px 0 #000}
-.st-d .d-blue{background:#b8d4ff}.st-d .d-yellow{background:#ffd400}.st-d .d-green{background:#06d6a0}.st-d .d-pink{background:#ff9ec4}.st-d .d-violet{background:#c9b6ff}
-.st-d .eyebrow{font-weight:900;letter-spacing:.14em;color:#000}
-.st-d .num{font-weight:900;letter-spacing:-.03em}
-.st-d .greet{background:#000;color:#fdf3d8;display:inline-block;padding:2px 10px 2px 6px;transform:rotate(-1deg)}
-.st-d .tb{background:#fff;border-top:3px solid #000}
-.st-d .tb .on{background:#ffd400;border:2px solid #000;margin:2px 4px;border-radius:0;box-shadow:3px 3px 0 #000;padding-top:4px}
-.st-d .tb .on::before{display:none}
-.st-d .fab{background:#ff4747;color:#fff;border:3px solid #000;border-radius:0;box-shadow:5px 5px 0 #000}
-.st-d .chip{border:2.5px solid #000;background:#fff;box-shadow:3px 3px 0 #000;font-weight:800}
-.st-d .chip.on{background:#2d6bff;color:#fff;box-shadow:3px 3px 0 #000 translate:2px 2px}
-.st-d .mood div{filter:grayscale(1) contrast(1.4);opacity:.45}.st-d .mood div.sel{filter:none;opacity:1;background:#ffd400;border:2.5px solid #000;box-shadow:3px 3px 0 #000;padding:2px 6px}
-.st-d .bar{background:#fff;border:2.5px solid #000;height:14px;border-radius:0}.st-d .bar i{background:repeating-linear-gradient(45deg,#2d6bff 0 8px,#1a4ecb 8px 14px)}
-.st-d .inp{background:#fff;border:3px solid #000;border-radius:0;box-shadow:4px 4px 0 #000}
-.st-d .sts{font-weight:900}
-.st-d .tile{border:2.5px solid #000;background:#fff}
-/* ============ 屏内公共版式 ============ */
-.pad{padding:0 16px}
-.hd{padding:8px 18px 14px}
-.eyebrow{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--sub)}
-.num{font-variant-numeric:tabular-nums}
-.greet{font-size:27px;font-weight:800;letter-spacing:-.02em}
-.sub{font-size:12px;color:var(--sub)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
-.span2{grid-column:span 2}
-.card{padding:13px;border-radius:var(--r);border:1px solid var(--bd)}
-.rowl{display:flex;align-items:center;gap:8px}
-.ring{position:relative;width:52px;height:52px;flex:none}
-.ring svg{transform:rotate(-90deg)}
-.ring .v{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px}
-.dot{width:8px;height:8px;border-radius:50%;flex:none}
-.line{flex:1;min-width:0}
-.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar{height:7px;border-radius:99px;overflow:hidden;background:var(--bd)}
-.bar i{display:block;height:100%;border-radius:99px;background:var(--acc)}
-.mood{display:flex;justify-content:space-between;font-size:20px;padding:2px 2px 0}
-.mood div{cursor:pointer;transition:all .15s;border-radius:12px}
-.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--bd);font-size:11.5px;font-weight:600;cursor:pointer;color:var(--sub);user-select:none}
-.inp{width:100%;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;color:var(--ink);font-family:inherit}
-.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.tile{aspect-ratio:1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;font-weight:700;color:var(--ink)}
-.tile svg{width:19px;height:19px}
-.tb{position:absolute;left:0;right:0;bottom:0;display:flex;padding:7px 8px 18px;background:var(--pg);border-top:1px solid var(--bd)}
-.tb .bi{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);cursor:pointer;position:relative;padding:4px 0;border-radius:8px}
-.tb .bi.on{color:var(--ink)}
-.tb .bi.on::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:14px;height:3px;border-radius:99px;background:var(--acc)}
-.fab{position:absolute;right:14px;bottom:96px;width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff}
-.ststap{width:100px;height:5px;border-radius:99px;margin:0 auto}
-.hint{margin:10px 16px 0;font-size:11px;text-align:center;padding:7px;border-radius:99px}
-.donut{width:74px;height:74px;border-radius:50%;position:relative;flex:none}
-.donut::after{content:'';position:absolute;inset:26%;border-radius:50%;background:var(--card)}
-.st-a .donut::after{background:#151a30}
-.st-b .donut::after{background:#ffe3d2}
-.st-d .donut::after{background:#fff}
-.lgd{font-size:10.5px;color:var(--sub);display:flex;align-items:center;gap:5px}
-#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);background:#111;color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;z-index:99;font-family:Inter}
-.note{max-width:1760px;margin:0 auto;padding:0 28px 70px;font-size:12px;color:#8a8a92;line-height:2}
+.note{max-width:1780px;margin:0 auto;padding:0 28px 70px;font-size:12px;color:#8a8a92;line-height:2}
 .note b{color:#e8e8ee}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px);background:#111;color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;z-index:99;font-family:Inter}
+/* ============ 手机壳（仅壳，内部结构四款各不相同） ============ */
+.phone{position:relative;width:392px;height:768px;border-radius:40px;overflow:hidden}
+.scr{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.sts{display:flex;justify-content:space-between;padding:14px 22px 2px;font-size:11px;font-weight:700}
+
+/* ============================================================
+   A · 极光卡组 Deck —— 堆叠翻卡：一屏只答一个问题
+   结构语言：全幅卡片堆叠、点卡上翻、指示点跳卡、悬浮胶囊 dock、FAB 融进 dock
+============================================================ */
+.st-a{background:#070a16;color:#eef1ff;font-family:Inter}
+.st-a .phone{border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.st-a .scr{padding-bottom:120px}
+.st-a .glow{position:absolute;inset:-20%;pointer-events:none;z-index:0;filter:blur(56px);opacity:.62;background:radial-gradient(38% 28% at 18% 6%,#7c5cff99 0%,transparent 65%),radial-gradient(34% 26% at 86% 20%,#22d3ee77 0%,transparent 60%),radial-gradient(40% 30% at 62% 98%,#f472b666 0%,transparent 65%)}
+.st-a .top{position:relative;z-index:2;padding:6px 22px 10px}
+.st-a .date{font-size:10px;font-weight:800;letter-spacing:.24em;color:#7f87ae}
+.st-a .hi{font-size:30px;font-weight:900;letter-spacing:-.02em;margin-top:2px;background:linear-gradient(92deg,#a78bfa,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.st-a .streak{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:700;color:#c9d0f5;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:3px 10px;background:rgba(255,255,255,.05)}
+.st-a .deck{position:relative;z-index:2;height:458px;margin:6px 16px 0}
+.st-a .dcard{position:absolute;left:0;right:0;top:0;height:414px;border-radius:26px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 18px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1);padding:18px;transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .3s;overflow:hidden}
+.st-a .dcard .q{font-size:10px;font-weight:800;letter-spacing:.2em;color:#7f87ae;text-transform:uppercase}
+.st-a .dcard .t{font-size:19px;font-weight:800;margin:3px 0 14px;letter-spacing:-.01em}
+.st-a .big{font-size:62px;font-weight:900;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+.st-a .big small{font-size:15px;font-weight:700;color:#8f96b8;letter-spacing:0}
+.st-a .r24{position:relative;width:172px;height:172px;margin:10px auto 8px}
+.st-a .r24 .v{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:34px;font-variant-numeric:tabular-nums}
+.st-a .r24 .v i{font-style:normal;font-size:10px;font-weight:700;color:#8f96b8;letter-spacing:.14em}
+.st-a .li{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid rgba(255,255,255,.09);font-size:13px}
+.st-a .li .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.st-a .li .tm{font-size:11px;color:#8f96b8;font-variant-numeric:tabular-nums;width:74px}
+.st-a .li .tag{margin-left:auto;font-size:9.5px;font-weight:800;letter-spacing:.08em;color:#22d3ee;border:1px solid #22d3ee55;border-radius:999px;padding:2px 8px}
+.st-a .pips{display:flex;gap:12px;font-size:11px;color:#8f96b8;margin-top:8px}
+.st-a .hbar{height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.st-a .hbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7c5cff,#22d3ee)}
+.st-a .pg{position:relative;z-index:2;display:flex;justify-content:center;gap:7px;margin-top:8px}
+.st-a .pg b{width:7px;height:7px;border-radius:99px;background:rgba(255,255,255,.22);cursor:pointer;transition:all .25s}
+.st-a .pg b.on{width:22px;background:linear-gradient(90deg,#a78bfa,#22d3ee)}
+.st-a .dock{position:absolute;z-index:5;left:50%;transform:translateX(-50%);bottom:20px;display:flex;align-items:center;gap:3px;padding:7px;border-radius:999px;background:rgba(12,16,34,.78);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(20px);box-shadow:0 16px 40px rgba(0,0,0,.55)}
+.st-a .dock span{display:flex;flex-direction:column;align-items:center;gap:1px;width:56px;padding:6px 0;font-size:9px;font-weight:700;color:#8f96b8;cursor:pointer;border-radius:999px}
+.st-a .dock span em{font-style:normal;font-size:16px}
+.st-a .dock span.on{color:#fff;background:rgba(255,255,255,.12)}
+.st-a .dock .plus{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c5cff,#22d3ee);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;cursor:pointer;box-shadow:0 8px 22px rgba(124,92,255,.5);margin-left:4px}
+
+/* ============================================================
+   B · 黏土贴贴簿 Scrapbook —— 不对称手作风
+   结构语言：旋转气泡卡、胶带/贴纸/图钉、盖章心情、非均分导航（大钮+小点+上浮圆钮）
+============================================================ */
+.st-b{background:#f4ead8;color:#4a3f35;font-family:Inter;font-weight:600}
+.st-b .phone{border:1px solid #e6d7bd;box-shadow:0 26px 60px rgba(160,120,80,.28)}
+.st-b .paperdots{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#d9c9ab 1.1px,transparent 1.1px);background-size:22px 22px;opacity:.5}
+.st-b .scr{padding:0 16px 150px}
+.st-b .corner{position:absolute;width:74px;height:26px;background:#f8c86a88;top:34px;right:-18px;transform:rotate(38deg);border-radius:3px}
+.st-b .hello{position:relative;margin:26px 6px 18px;transform:rotate(-1.6deg)}
+.st-b .hello .t{font-size:30px;font-weight:900;letter-spacing:-.02em;color:#e2703a}
+.st-b .hello .s{font-size:12.5px;color:#a2917c;margin-top:2px}
+.st-b .bubble{position:relative;border-radius:30px;padding:16px 18px;margin:0 0 18px;box-shadow:inset 5px 6px 10px rgba(255,255,255,.85),inset -6px -8px 12px rgba(176,145,110,.16),0 14px 22px rgba(150,118,84,.16)}
+.st-b .r1{transform:rotate(1.4deg);margin-left:22px}
+.st-b .r2{transform:rotate(-1.8deg);margin-right:26px}
+.st-b .r3{transform:rotate(.8deg)}
+.st-b .c-mint{background:#cdebd8}.st-b .c-peach{background:#ffe3d2}.st-b .c-lav{background:#e2dcf5}.st-b .c-sun{background:#ffedc2}.st-b .c-sky{background:#d7e9f7}
+.st-b .tape{position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(-3deg);width:96px;height:24px;background:rgba(255,255,255,.5);border-left:1px dashed rgba(0,0,0,.12);border-right:1px dashed rgba(0,0,0,.12);box-shadow:0 2px 4px rgba(150,118,84,.2)}
+.st-b .pin{position:absolute;top:-8px;left:24px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff9d7a,#c8452a);box-shadow:0 3px 5px rgba(0,0,0,.28)}
+.st-b .label{font-size:11px;font-weight:900;letter-spacing:.1em;color:#a08a72}
+.st-b .n{font-size:38px;font-weight:900;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.05}
+.st-b .n small{font-size:13px;font-weight:800;color:#a2917c}
+.st-b .mood{display:flex;justify-content:space-between;margin-top:10px}
+.st-b .mood div{width:47px;height:47px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:23px;cursor:pointer;background:#fff8;transition:all .16s;box-shadow:inset 2px 2px 5px rgba(170,140,110,.25)}
+.st-b .mood div.sel{background:#ffedc2;transform:scale(1.28) rotate(-6deg);box-shadow:0 6px 14px rgba(150,118,84,.3)}
+.st-b .stamp{position:absolute;right:14px;top:10px;font-size:10.5px;font-weight:900;letter-spacing:.14em;color:#d94f2b;border:2.5px solid #d94f2b;border-radius:6px;padding:2px 6px;transform:rotate(9deg);opacity:0;transition:opacity .2s}
+.st-b .stamp.on{opacity:.9}
+.st-b .mini{display:flex;gap:10px;margin:0 0 18px}
+.st-b .mini .b{flex:1;border-radius:24px;padding:13px 14px;box-shadow:inset 4px 5px 8px rgba(255,255,255,.85),inset -5px -6px 10px rgba(176,145,110,.16),0 10px 18px rgba(150,118,84,.14)}
+.st-b .mini .b:first-child{transform:rotate(-1.2deg)}
+.st-b .mini .b:last-child{transform:rotate(1.6deg)}
+.st-b .donutb{width:74px;height:74px;border-radius:50%;position:relative;flex:none;margin:8px auto 0;box-shadow:inset 0 0 0 3px rgba(255,255,255,.55)}
+.st-b .donutb::after{content:'';position:absolute;inset:27%;border-radius:50%;background:#ffedc2;box-shadow:inset 2px 3px 6px rgba(176,145,110,.3)}
+.st-b .evr{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:2px dashed rgba(160,138,114,.35);font-size:13px}
+.st-b .evr .tm{font-size:11px;font-weight:800;color:#a08a72;width:72px;font-variant-numeric:tabular-nums}
+.st-b .sticker{position:absolute;right:-8px;bottom:-10px;font-size:27px;transform:rotate(14deg);filter:drop-shadow(0 3px 3px rgba(0,0,0,.2))}
+.st-b .stickrow{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+.st-b .stick{display:inline-flex;align-items:center;gap:5px;background:#fff9;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:inset 2px 2px 4px rgba(170,140,110,.2),0 3px 6px rgba(150,118,84,.12)}
+.st-b .stick:nth-child(odd){transform:rotate(-2deg)}
+.st-b .stick:nth-child(even){transform:rotate(1.6deg)}
+.st-b .inpb{width:100%;border:0;border-radius:18px;padding:12px 14px;font-size:13.5px;font-family:inherit;font-weight:600;color:#4a3f35;background:#fbf6ec;box-shadow:inset 3px 3px 6px rgba(170,140,110,.28),inset -3px -3px 6px rgba(255,255,255,.95);outline:none}
+.st-b .nav{position:absolute;left:14px;right:14px;bottom:14px;z-index:6;display:flex;align-items:flex-end;gap:8px;background:#fffdf6;border-radius:34px;padding:9px 12px;box-shadow:0 16px 30px rgba(150,118,84,.3),inset 3px 3px 6px rgba(255,255,255,.9)}
+.st-b .nav .maj{flex:1.4;text-align:center;font-size:12px;font-weight:900;color:#e2703a}
+.st-b .nav .maj em{display:block;font-style:normal;font-size:19px}
+.st-b .nav .mid{flex:.9;text-align:center;font-size:10px;color:#a2917c;cursor:pointer}
+.st-b .nav .mid em{display:block;font-style:normal;font-size:16px}
+.st-b .nav .plus{width:52px;height:52px;flex:none;border-radius:50%;background:#ff8a5c;color:#fff;font-size:26px;font-weight:300;display:flex;align-items:center;justify-content:center;margin-bottom:-14px;box-shadow:inset 0 -5px 0 rgba(0,0,0,.12),0 10px 18px rgba(226,112,58,.4);cursor:pointer}
+
+/* ============================================================
+   C · 编辑部跨版 Editorial —— 报纸对开页
+   结构语言：双线报头、跨版巨号日期+竖排、双栏文字流、目录点线编号、纯文字导航、零图表零图标
+============================================================ */
+.st-c{background:#f7f4ea;color:#16150f;font-family:Georgia,'Songti SC','STSong','SimSun',serif}
+.st-c .phone{border:1px solid #d8d4c8;box-shadow:0 26px 60px rgba(60,50,30,.25)}
+.st-c .scr{padding:0 20px 90px}
+.st-c .masthead{text-align:center;padding:16px 0 8px;border-bottom:3px solid #16150f;position:relative}
+.st-c .masthead::after{content:'';display:block;height:1px;background:#16150f;margin:0 -20px 0}
+.st-c .paper{font-size:26px;font-weight:900;letter-spacing:.34em;text-indent:.34em}
+.st-c .meta{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:.12em;color:#6a6558;margin-top:6px;padding-bottom:7px}
+.st-c .spread{display:flex;gap:14px;padding:18px 0 14px;border-bottom:1px solid #cfc9b8}
+.st-c .bignum{font-size:96px;line-height:.85;font-weight:900;letter-spacing:-.05em}
+.st-c .vert{writing-mode:vertical-rl;font-size:15px;letter-spacing:.42em;font-weight:700;color:#b33a3a;padding-top:6px}
+.st-c .lede{flex:1;font-size:13.5px;line-height:1.75}
+.st-c .lede .k{font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:.18em;color:#b33a3a;display:block;margin-bottom:5px}
+.st-c .lede .dropcap::first-letter{font-size:30px;font-weight:900;color:#b33a3a;float:left;line-height:1;padding-right:5px}
+.st-c .toc{padding:2px 0 0}
+.st-c .toc h4{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.22em;color:#6a6558;font-weight:700;margin:14px 0 4px;border-bottom:1px solid #16150f;padding-bottom:4px}
+.st-c .it{display:flex;align-items:baseline;gap:6px;padding:7px 0;font-size:13.5px;cursor:pointer}
+.st-c .it .no{font-family:'Space Mono',monospace;font-size:10px;color:#b33a3a;flex:none;width:26px}
+.st-c .it .lead{flex:1;overflow:hidden;white-space:nowrap}
+.st-c .it .dots{flex:1;border-bottom:1.5px dotted #a49d8a;min-width:14px;transform:translateY(-3px)}
+.st-c .it .pgn{font-family:'Space Mono',monospace;font-size:11px;color:#6a6558;flex:none}
+.st-c .cols{column-count:2;column-gap:18px;column-rule:1px solid #cfc9b8;margin-top:14px;font-size:12.5px;line-height:1.8}
+.st-c .cols p{margin:0 0 10px;break-inside:avoid}
+.st-c .cols .h{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.16em;color:#b33a3a;margin-bottom:4px}
+.st-c .frac{font-size:12.5px}
+.st-c .frac div{display:flex;justify-content:space-between;border-bottom:1px solid #e4dfd0;padding:5px 0;font-variant-numeric:tabular-nums}
+.st-c .pull{border-top:3px solid #16150f;border-bottom:3px solid #16150f;margin:16px 0;padding:13px 2px;font-size:19px;font-style:italic;line-height:1.5;text-align:center}
+.st-c .inpc{width:100%;border:0;border-bottom:1.5px solid #16150f;background:transparent;font-family:Georgia,serif;font-size:14px;font-style:italic;padding:6px 2px;outline:none;color:#16150f}
+.st-c .inpc::placeholder{color:#a49d8a}
+.st-c .sig{display:flex;justify-content:space-between;margin-top:22px;padding-top:8px;border-top:3px double #16150f;font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#6a6558}
+.st-c .foot{position:absolute;left:0;right:0;bottom:0;z-index:6;background:#f2eee1;border-top:3px solid #16150f;padding:9px 14px 16px;display:flex;justify-content:space-between;font-size:12px;letter-spacing:.06em}
+.st-c .foot span{cursor:pointer;color:#6a6558}
+.st-c .foot span.on{color:#b33a3a;font-weight:700;border-bottom:2px solid #b33a3a}
+.st-c .addline{margin-top:16px;text-align:right;font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.14em;color:#16150f;cursor:pointer;border:1.5px solid #16150f;display:inline-block;padding:6px 12px;float:right}
+.st-c .addline:hover{background:#16150f;color:#f7f4ea}
+
+/* ============================================================
+   D · 全景马赛克 Mosaic —— 满格色块即功能
+   结构语言：四列拼贴网格、色块尺寸=优先级、顶部跑马灯、反色格导航、无卡片无FAB（＋格代替）
+============================================================ */
+.st-d{background:#fdf3d8;color:#000;font-family:Inter;font-weight:800}
+.st-d .phone{border:3px solid #000;box-shadow:10px 10px 0 rgba(0,0,0,.6);border-radius:14px}
+.st-d .ticker{background:#000;color:#ffd400;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.06em;padding:6px 0;overflow:hidden;white-space:nowrap;border-bottom:3px solid #000}
+.st-d .ticker span{display:inline-block;padding-left:100%;animation:tick 22s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+.st-d .scr{padding-bottom:0}
+.st-d .mg{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:96px;border-bottom:3px solid #000}
+.st-d .cell{border-right:3px solid #000;border-bottom:3px solid #000;padding:9px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;transition:transform .08s}
+.st-d .cell:active{transform:scale(.96)}
+.st-d .cell:visited{border-left:0}
+.st-d .c2x2{grid-column:span 2;grid-row:span 2;background:#b8d4ff}
+.st-d .c2x1{grid-column:span 2}
+.st-d .yy{background:#ffd400}.st-d .gg{background:#06d6a0}.st-d .pp{background:#ff9ec4}.st-d .vv{background:#c9b6ff}.st-d .wh{background:#fff}.st-d .bk{background:#000;color:#fdf3d8}
+.st-d .k{font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+.st-d .v{font-size:26px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.st-d .c2x2 .v{font-size:64px}
+.st-d .v small{font-size:11px;font-weight:800}
+.st-d .emoji{font-size:30px}
+.st-d .stripe{background:repeating-linear-gradient(45deg,#000 0 10px,#ffd400 10px 20px)}
+.st-d .hbar{height:12px;border:2.5px solid #000;background:#fff}.st-d .hbar i{display:block;height:100%;background:repeating-linear-gradient(45deg,#2d6bff 0 8px,#1a4ecb 8px 14px)}
+.st-d .nav{position:sticky;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:3px solid #000;z-index:6}
+.st-d .nav div{text-align:center;padding:8px 0 12px;font-size:9.5px;letter-spacing:.04em;cursor:pointer;border-right:3px solid #000}
+.st-d .nav div:last-child{border-right:0}
+.st-d .nav .on{background:#000;color:#ffd400}
+.st-d .nav em{display:block;font-style:normal;font-size:15px;font-weight:900}
 </style>
 </head>
 <body>
 <div class="intro">
-  <h1>LifeHarness · V3 主页风格试衣间</h1>
-  <p>同一份「今日仪表盘」内容（需求 V1.27 · 模块 6），四种全新设计语言并排呈现。与现有 V1 原型（简约）、V2 原型（新瑞士便当格）均不重复。<br>点每张卡右上角 <b>「选这个」</b> 或直接告诉我字母；选定后我再把该风格做成<b>全量 14 模块</b>原型。卡片可点（心情选择、快速记录、宫格均为真交互演示）。</p>
+  <h1>LifeHarness · V3 主页风格试衣间 <span style="color:#ffd400">R2</span> · 四款「结构级」设计语言</h1>
+  <p>上一版四款只差配色边框，这版重做：四款各自用<b>完全不同的布局骨架、导航形态、信息表达方式</b>来组织同一份「今日仪表盘」（需求 V1.27 · 模块 6）。<br>
+  <b>A 卡组式</b>：一屏只答一个问题，堆叠翻卡 + 悬浮胶囊 dock；<b>B 贴贴簿式</b>：不对称旋转气泡 + 胶带贴纸 + 盖章心情 + 非均分导航；<b>C 编辑部式</b>：报纸跨版，竖排大日期 + 双栏文字流 + 目录点线编号，零图表零图标；<b>D 马赛克式</b>：满格色块即功能，跑马灯 + 反色格导航，无卡片无 FAB。</p>
 </div>
 <div class="row" id="row"></div>
-<div class="note"><b>各款一句话：</b>A 暗色极光玻璃＝氛围系夜间感，磨砂层叠、渐变发光；B 黏土柔和生活＝手作温度，马卡龙分区色 + 内外双柔影；C 编辑部纸墨＝杂志排版，衬线大字号 + 栏线秩序，日记本气质；D 大色块新粗野＝高饱和撞色 + 黑粗描边 + 硬偏移影，最有张力与记忆点。<br>数据均为占位演示；正式版按需求接入仪表盘自由编排（长按卡片拖拽）、周/月报、今日小结分享卡等。</div>
+<div class="note"><b>怎么试：</b>A 点卡片翻到下一张（或点指示点）；B 点表情盖章心情；C 点目录行 / 右下 ＋ADD；D 点任意色块。选定字母后我把该风格做成<b>全量 14 模块</b>原型（可混搭，如「A 的导航 + B 的质感」）。数据均为占位演示。</div>
 <div id="toast"></div>
+
 <script>
-const HOME=(st)=>{
- const ev=[['10:00','11:00','产品评审会','#8b5cf6'],['14:00','15:00','午间健身房','#06d6a0'],['19:00','20:00','写周报','#ffb454']];
- const lg=[['睡眠',31,'#8B7CC8'],['工作',38,'#5B8A72'],['学习',17,'#B5915C'],['娱乐',14,'#7D95B5']];
+/* ============ A · 极光卡组 ============ */
+const hbar=(p,extra)=>'<div class="hbar" style="margin-top:8px"><i style="width:'+p+'%"></i></div>'+(extra||'');
+function htmlA(){return ''+
+ '<div class="glow"></div>'+
+ '<div class="sts" style="position:relative;z-index:2"><span>23:59</span><span>LifeHarness</span><span>5G ▮</span></div>'+
+ '<div class="top"><div class="date">SUN · 09 / 20</div><div class="hi">晚上好，阿哲</div><div class="streak">✦ 连续记录 128 天 · 全对</div></div>'+
+ '<div class="deck" id="deckA"></div>'+
+ '<div class="pg" id="pgA"></div>'+
+ '<div class="dock">'+[['☀','今天',1],['☑','待办'],['◔','时间'],['✎','记录']].map(x=>'<span class="'+(x[2]?'on':'')+'"><em>'+x[0]+'</em>'+x[1]+'</span>').join('')+'<div class="plus">+</div></div>'}
+const CARDS=[
+ ()=>{const r=2*Math.PI*44;return '<div class="q">CARD 01 · PROGRESS</div><div class="t">今天完成得怎么样？</div>'+
+  '<div class="r24"><svg width="172" height="172"><circle cx="86" cy="86" r="44" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/><circle cx="86" cy="86" r="44" fill="none" stroke="url(#ga)" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(r*0.62).toFixed(1)+' '+r.toFixed(1)+'"/><defs><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs></svg><div class="v">62%<i>ALL DONE</i></div></div>'+
+  hbar(37)+'<div class="pips"><span>待办 3/8 · 逾期 2</span><span>习惯 2/3</span><span>番茄 ×1</span></div>'},
+ ()=>'<div class="q">CARD 02 · TODAY&#39;S TIME</div><div class="t">时间都花在哪了？</div>'+
+  '<div class="big" style="margin:2px 0 4px">31<small> h 本周已记录</small></div>'+
+  [['睡眠',31,'#8B7CC8'],['工作',38,'#5B8A72'],['学习',17,'#B5915C'],['娱乐',14,'#7D95B5']].map(x=>'<div style="margin-top:11px"><div style="display:flex;font-size:12px"><span>'+x[0]+'</span><span style="margin-left:auto;font-variant-numeric:tabular-nums;color:#8f96b8">'+x[1]+'%</span></div><div class="hbar"><i style="width:'+x[1]+'%;background:'+x[2]+'"></i></div></div>').join('')+'<div class="pips"><span>持有成本 ¥12.47/日 ›</span></div>',
+ ()=>'<div class="q">CARD 03 · AGENDA</div><div class="t">接下来做什么？</div>'+
+  '<div class="li"><span class="tm">10:00–11:00</span><span class="dot" style="background:#8b5cf6"></span>产品评审会</div>'+
+  '<div class="li"><span class="tm">14:00–15:00</span><span class="dot" style="background:#06d6a0"></span>午间健身房</div>'+
+  '<div class="li"><span class="tm">19:00–20:00</span><span class="dot" style="background:#ffb454"></span>写周报<span class="tag">● LIVE</span></div>'+
+  '<div class="li" style="border-bottom:1px solid rgba(255,255,255,.09)"><span class="tm">明天 09:30</span><span class="dot" style="background:#f472b6"></span>牙医复诊</div>'+
+  '<div class="pips"><span>6 天后 · 妈妈生日（农历）›</span></div>',
+ ()=>'<div class="q">CARD 04 · INBOX</div><div class="t">现在想到什么？</div>'+
+  '<div class="big" style="margin:2px 0 4px">3<small> 条待分流</small></div>'+
+  '<div class="li"><span class="dot" style="background:#22d3ee"></span><span class="line" style="flex:1">给新书拟章节目录</span></div>'+
+  '<div class="li"><span class="dot" style="background:#f472b6"></span><span class="line" style="flex:1">周末菜seed清单</span></div>'+
+  '<div class="li" style="border-bottom:1px solid rgba(255,255,255,.09)"><span class="dot" style="background:#ffd400"></span><span class="line" style="flex:1">保险续费提醒</span></div>'+
+  '<input class="inp" data-qadd placeholder="想到什么记什么…" value="" style="width:100%;margin-top:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:11px 13px;font-size:13px;color:#eef1ff;outline:none;font-family:inherit">'+
+  '<div class="pips"><span>⚙ 长按卡片可拖拽编排 · 真交互演示</span></div>'];
+let curA=0;
+function paintA(){const stage=document.getElementById('sa');const d=stage.querySelector('#deckA');
+ let h='';for(let i=0;i<CARDS.length;i++){const off=(i-curA+CARDS.length)%CARDS.length;
+  h+='<div class="dcard" data-card style="z-index:'+(9-off)+';transform:translateY('+(off*15)+'px) scale('+(1-off*.055)+');opacity:'+(off>2?0:1)+';pointer-events:'+(off===0?'auto':'none')+'">'+CARDS[i]()+'</div>'}
+ d.innerHTML=h;
+ stage.querySelector('#pgA').innerHTML=CARDS.map((x,i)=>'<b class="'+(i===curA?'on':'')+'" data-pg="'+i+'"></b>').join('')}
+
+/* ============ B · 黏土贴贴簿 ============ */
+function htmlB(){const lg=[['睡眠',31,'#8B7CC8'],['工作',38,'#5B8A72'],['学习',17,'#B5915C'],['娱乐',14,'#7D95B5']];
  const conic=lg.map((x,i,a)=>{const s=a.slice(0,i).reduce((t,y)=>t+y[1],0);return x[2]+' '+s+'% '+(s+x[1])+'%'}).join(',');
- const tiles=[['⚡','收集箱'],['💰','记账'],['📦','物品'],['🎂','日子'],['💧','健康'],['🎯','目标'],['🔁','习惯'],['👶','母婴'],['🧰','工具'],['🧩','插件']];
- return '<div class="scr"><div class="sts"><span>23:59</span><span>LifeHarness</span><span>5G ▮</span></div>'+
- '<div class="hd"><div class="eyebrow">'+st.eyebrow+'</div>'+
- '<div class="greet">晚上好</div>'+
- '<div class="sub">9月20日 · 周日 · 连续记录 <b class="num">128</b> 天</div></div>'+
- '<div class="grid2">'+
-   '<div class="card span2 rowl"><div class="ring"><svg width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--bd)" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(2*Math.PI*22*3/8).toFixed(1)+' '+(2*Math.PI*22).toFixed(1)+'"/></svg><div class="v num">3/8</div></div>'+
-   '<div class="line"><div class="eyebrow">今日待办</div><div class="rowl" style="margin-top:5px"><div class="bar"><i style="width:37%"></i></div></div></div><div class="sub num" style="margin-top:4px">3 完成 · 2 逾期 · 番茄 ×1</div></div></div>'+
-   '<div class="card span2 '+st.tone('c-mint','d-yellow','sun','mint')+'"><div class="eyebrow" style="margin-bottom:4px">今日心情 · 一键打卡</div><div class="mood" data-mood>'+['😮','🙂','😊','😌','😪'].map((m,i)=>'<div class="'+(i===2?'sel':'')+'">'+m+'</div>').join('')+'</div></div>'+
-   '<div class="card span2"><div class="rowl" style="justify-content:space-between"><div class="eyebrow">今日日程 · 3 项</div><span class="chip">打开时间 ›</span></div>'+
-     ev.map(e=>'<div class="rowl" style="padding:7px 0;border-top:1px solid var(--bd)"><span class="num" style="font-size:11px;color:var(--sub);width:76px">'+e[0]+'–'+e[1]+'</span><span class="dot" style="background:'+e[3]+'"></span><span class="line trunc" style="font-weight:600">'+e[2]+'</span>'+(e[2]==='写周报'?'<span class="chip">● 进行中</span>':'')+'</div>').join('')+'</div>'+
-   '<div class="card '+st.tone('c-peach','d-blue','pink','blue')+'"><div class="eyebrow">今日持有成本</div><div class="num" style="font-size:27px;margin-top:2px">¥12.47</div><div class="sub" style="margin-top:2px">MacBook ¥4.61 ›</div></div>'+
-   '<div class="card '+st.tone('c-lav','d-pink','lav','pink')+'"><div class="eyebrow">倒数日</div><div class="num" style="font-size:27px;margin-top:2px">6<span style="font-size:11px"> 天后</span></div><div class="sub" style="margin-top:2px">妈妈生日 · 农历</div></div>'+
-   '<div class="card span2"><div class="eyebrow" style="margin-bottom:6px">时间去向 · 今日</div><div class="rowl" style="gap:12px"><div class="donut" style="background:conic-gradient('+conic+')"></div><div class="line">'+lg.map(x=>'<div class="lgd" style="margin:2.5px 0"><span class="dot" style="background:'+x[2]+'"></span>'+x[0]+'<span class="num" style="margin-left:auto">'+x[1]+'%</span></div>').join('')+'</div></div></div>'+
-   '<div class="card span2"><div class="eyebrow" style="margin-bottom:6px">收集箱 · 3 秒记录</div><input class="inp" placeholder="想到什么记什么…" data-qadd value=""><div class="sub" style="margin-top:6px">3 条待分流 · <b>去分流 ›</b></div></div>'+
-   '<div class="card span2"><div class="eyebrow" style="margin-bottom:8px">全部模块 · 宫格</div><div class="tiles">'+tiles.map(t=>'<div class="tile"><span style="font-size:16px">'+t[0]+'</span>'+t[1]+'</div>').join('')+'</div></div>'+
+ return '<div class="paperdots"></div><div class="corner"></div>'+
+ '<div class="sts" style="position:relative"><span>23:59</span><span>LifeHarness</span><span>5G ▮</span></div>'+
+ '<div class="hello"><div class="t">周日，晚上好 ☀︎</div><div class="s">9月20日 · 已经一起走了 128 天</div></div>'+
+ '<div class="scr" style="position:relative">'+
+  '<div class="bubble r2 c-sun" style="padding-bottom:14px"><div class="tape"></div><div class="label">今天心情如何？</div><div class="mood" data-mood>'+['😮','🙂','😊','😌','😪'].map((m,i)=>'<div class="'+(i===2?'sel':'')+'">'+m+'</div>').join('')+'</div><div class="stamp" id="stampB">TODAY ✓</div></div>'+
+  '<div class="bubble r1 c-mint" style="padding-bottom:14px"><div class="pin"></div><div class="label">今日待办</div><div class="n">3<small> / 8 已勾掉</small></div><div class="bar" style="height:9px;border-radius:99px;background:#00000018;overflow:hidden;margin-top:8px"><i style="display:block;width:37%;height:100%;border-radius:99px;background:#7fb08f"></i></div><div class="label" style="margin-top:7px;color:#c8452a">还有 2 项逾期 · 1 个番茄 🍅</div><div class="sticker">🍅</div></div>'+
+  '<div class="bubble r3 c-peach" style="padding-bottom:14px"><div class="label">今天的时间都去哪了</div><div class="donutb" style="background:conic-gradient('+conic+')"></div>'+
+   '<div style="display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:10px;font-size:11px;color:#7d6c58">'+lg.map(x=>'<span>● '+x[0]+' '+x[1]+'%</span>').join('')+'</div></div>'+
+  '<div class="mini">'+
+   '<div class="b c-lav"><div class="label">持有成本</div><div class="n" style="font-size:26px">¥12.47</div><div class="label" style="margin-top:3px;color:#a2917c">MacBook ›</div></div>'+
+   '<div class="b c-sky"><div class="label">倒数日</div><div class="n" style="font-size:26px">6<small> 天</small></div><div class="label" style="margin-top:3px;color:#a2917c">妈妈生日 🎂</div></div>'+
+  '</div>'+
+  '<div class="bubble r2 c-sky" style="padding-bottom:12px"><div class="label">接下来的安排</div>'+
+   '<div class="evr"><span class="tm">14:00</span>🏋️ 午间健身房</div><div class="evr"><span class="tm">19:00</span>✍️ 写周报 <b style="margin-left:auto;color:#e2703a;font-size:11px">● 进行中</b></div><div class="evr" style="border-bottom:2px dashed rgba(160,138,114,.35)"><span class="tm">明 09:30</span>🦷 牙医复诊</div>'+
+   '<div class="stickrow"><span class="stick">📥 收集箱 · 3 条待分流</span><span class="stick">🔁 习惯 2/3</span><span class="stick">＋ 贴一张</span></div></div>'+
+  '<div class="bubble r1 c-base" style="background:#fbf6ec"><div class="label">收集箱 · 3 秒记一条</div><input class="inpb" data-qadd placeholder="想到什么记什么…" value="" style="margin-top:8px"></div>'+
+  '<div class="label" style="text-align:center;margin:4px 0 10px;color:#a2917c">按 住 卡 片 可 以 拖 着 重 排 · 就 像 真 贴 帖</div>'+
  '</div>'+
- '<div class="hint '+st.tone('c-base','d-green','','')+'" style="color:var(--sub)">长按卡片可拖拽编排 · 完成后自动保存</div>'+
- '<div style="height:26px"></div></div>'+
- '<div class="tb">'+[['A','今天'],['B','待办'],['C','时间'],['D','记录'],['E','我的']].map((x,i)=>'<div class="bi '+(i===0?'on':'')+'"><span style="font-size:17px">'+['☀','☑','◔','✎','◍'][i]+'</span><span>'+x[1]+'</span></div>').join('')+'</div>'+
- '<div class="fab"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>'};
-const STYLES=[
- {id:'a',nm:'A · 暗色极光玻璃',ds:'磨砂玻璃卡 + 极光渐变光斑 · 氛围夜间系',eyebrow:'SATURDAY · 09/20',tone:()=>'',pick:'选这个'},
- {id:'b',nm:'B · 黏土柔和生活',ds:'马卡龙分区色 + 内外双柔影 · 手作温度',eyebrow:'september 20 · sun',tone:c=>c},
- {id:'c',nm:'C · 编辑部纸墨',ds:'衬线大字号 + 栏线秩序 · 杂志日记本气质',eyebrow:'THE DAY · MMXXVI.IX.XX',tone:(x,w,d,e)=>'d-c'},
- {id:'d',nm:'D · 大色块新粗野',ds:'黑粗描边 + 硬偏移影 + 高饱和撞色',eyebrow:'TODAY!!',tone:(x,y)=>y}];
+ '<div class="nav"><div class="maj"><em>☀</em>今天</div><div class="mid"><em>☑</em>待办</div><div class="mid"><em>◔</em>时间</div><div class="mid"><em>✎</em>记录</div><div class="mid"><em>◍</em>我的</div><div class="plus">+</div></div>'}
+
+/* ============ C · 编辑部跨版 ============ */
+function htmlC(){return ''+
+ '<div class="sts" style="font-family:\'Space Mono\',monospace"><span>23:59</span><span>SUN</span><span>5G</span></div>'+
+ '<div class="masthead"><div class="paper">LifeHarness 日报</div><div class="meta"><span>第一四〇期 · 连续记录第 128 天</span><span>贰零贰陆年九月二十日</span></div></div>'+
+ '<div class="scr">'+
+ '<div class="spread"><div class="bignum">20</div><div class="vert">星期日 · 晴</div>'+
+  '<div class="lede"><span class="k">TODAY AT A GLANCE</span><p class="dropcap">今天已经走完六成二。八件待办勾掉三件，其中两件逾期已经顺延；一个番茄在写周报里跑完，时间账本自动记下了那二十五分钟。</p></div></div>'+
+ '<div class="toc">'+
+  '<h4>一 · 今日待办</h4>'+
+  '<div class="it"><span class="no">01</span><span class="lead">完成 3 / 8 · 逾期 2 · 番茄 ×1</span><span class="dots"></span><span class="pgn">37%</span></div>'+
+  '<h4>二 · 时间去向</h4>'+
+  '<div class="frac"><div><span>工作</span><span>38%</span></div><div><span>睡眠</span><span>31%</span></div><div><span>学习</span><span>17%</span></div><div><span>娱乐</span><span>14%</span></div></div>'+
+  '<h4>三 · 日程</h4>'+
+  '<div class="it"><span class="no">02</span><span class="lead">10:00 产品评审会 · 已结束</span><span class="dots"></span><span class="pgn">✔</span></div>'+
+  '<div class="it"><span class="no">03</span><span class="lead">14:00 午间健身房 · 已结束</span><span class="dots"></span><span class="pgn">✔</span></div>'+
+  '<div class="it"><span class="no">04</span><span class="lead">19:00 写周报 · 进行中</span><span class="dots"></span><span class="pgn">▶</span></div>'+
+ '</div>'+
+ '<div class="pull">「记录本身，就是一种抵抗遗忘的方式。」</div>'+
+ '<div class="cols">'+
+  '<div><p class="h">资产</p><p>今日持有成本 ¥12.47。MacBook 独占 ¥4.61，已摊薄至第 412 天；相机本周入账后日均上浮两毛。</p></div>'+
+  '<div><p class="h">倒数</p><p>距离母亲生日还有 6 天——农历八月初十，提醒已设在提前三日。去年同日你写下的是「饺子要韭菜馅」。</p></div>'+
+  '<div><p class="h">收集箱</p><p>三条待分流：新书章节目录、周末买菜清单、保险续费。<input class="inpc" data-qadd placeholder="记一笔新的…" value="" style="margin-top:6px"></p></div>'+
+  '<div><p class="h">习惯</p><p>「早睡」连续 21 天，「戒糖」昨晚破功一次——按规则它明天会自己补一个确认问句。</p></div>'+
+ '</div>'+
+ '<div style="clear:both"><span class="addline" data-add>＋ ADD 记一笔</span></div>'+
+ '<div class="sig" style="clear:both"><span>第 6 版 · 今日仪表盘</span><span>数据占位演示</span></div>'+
+ '</div>'+
+ '<div class="foot">'+['今天','待办','时间','记录','我的'].map((x,i)=>'<span class="'+(i===0?'on':'')+'">'+(i===0?'■ ':'')+x+'</span>').join('')+'</div>'}
+
+/* ============ D · 全景马赛克 ============ */
+function htmlD(){return ''+
+ '<div class="ticker"><span>TODAY · 待办 3/8 · 逾期 2 件 · 番茄 ×1 完成 · 持有成本 ¥12.47/日 · 妈妈生日还有 6 天 · 早睡连 21 天 · 收集箱 3 条待分流 · 本周记录 31 小时 ·&nbsp;&nbsp;</span></div>'+
+ '<div class="sts"><span>23:59</span><span>LifeHarness</span><span>5G ▮</span></div>'+
+ '<div class="scr">'+
+ '<div class="mg">'+
+  '<div class="cell c2x2" data-cell="今天 · 进度"><div class="k">Progress / 今天</div><div class="v">62%<small><br>待办 3/8 · 逾期 2</small></div><div class="hbar"><i style="width:62%"></i></div><div class="k" style="text-align:right">→</div></div>'+
+  '<div class="cell c2x1 bk" data-cell="时间去向"><div class="k" style="color:#8f96b8">Time / 本周</div><div class="v" style="color:#fff">31h<small style="color:#8f96b8"> · 工作38</small></div><div class="k" style="color:#ffd400">睡眠31 学习17</div></div>'+
+  '<div class="cell yy" data-cell="收集箱"><div class="k">Inbox</div><div class="v">3</div></div>'+
+  '<div class="cell wh" data-cell="日程"><div class="k">Agenda</div><div class="v">2<small> 剩</small></div></div>'+
+  '<div class="cell gg" data-cell="习惯 · 早睡连21天"><div class="emoji">🔁</div><div class="k"> streak 21</div></div>'+
+  '<div class="cell pp" data-cell="心情 · 打卡"><div class="emoji">😊</div><div class="k">Mood</div></div>'+
+  '<div class="cell c2x1 wh" data-cell="持有成本 ¥12.47/日"><div class="k">Cost / 今日</div><div class="v">¥12.47</div><div class="k">MacBook ¥4.61</div></div>'+
+  '<div class="cell vv" data-cell="倒数日 · 妈妈生日"><div class="v">6<small>天</small></div><div class="k">Birthday</div></div>'+
+  '<div class="cell wh" data-cell="健康"><div class="emoji">💧</div><div class="k">Water</div></div>'+
+  '<div class="cell bk" data-cell="记账"><div class="emoji" style="filter:none">💰</div><div class="k" style="color:#ffd400">Money</div></div>'+
+  '<div class="cell wh add" data-cell="＋ 新增（代替 FAB）"><div class="v" style="font-size:44px">＋</div><div class="k">ADD</div></div>'+
+  '<div class="cell stripe" style="grid-column:span 2"></div>'+
+  '<div class="cell wh" data-cell="目标"><div class="emoji">🎯</div><div class="k">Goals</div></div>'+
+  '<div class="cell yy" data-cell="工具箱"><div class="emoji">🧰</div><div class="k">Tools</div></div>'+
+ '</div>'+
+ '<div style="padding:14px 12px 90px;font-size:11px;color:#5b5b5b;text-align:center">色块大小 = 你打开它的次数 · 长按可重排 · 无 FAB，＋ 就是一格</div>'+
+ '</div>'+
+ '<div class="nav">'+[['☀','今天',1],['☑','待办'],['◔','时间'],['✎','记录'],['◍','我的']].map(x=>'<div class="'+(x[2]?'on':'')+'"><em>'+x[0]+'</em>'+x[1]+'</div>').join('')+'</div>'}
+
+/* ============ 组装 ============ */
+const STAGES=[['a','A · 极光卡组 Deck','堆叠翻卡 · 一屏一问 · 悬浮胶囊 dock',htmlA],
+ ['b','B · 黏土贴贴簿','不对称旋转 · 胶带贴纸 · 非均分导航',htmlB],
+ ['c','C · 编辑部跨版','报纸对开 · 双栏 + 目录编号 · 零图表',htmlC],
+ ['d','D · 全景马赛克','满格色块即功能 · 跑马灯 · 无卡片无 FAB',htmlD]];
 const row=document.getElementById('row');
-STYLES.forEach(s=>{
- const sec=document.createElement('section');sec.className='stage st-'+s.id;
- sec.innerHTML='<div class="tag"><span class="nm">'+s.nm+'</span><span class="ds">'+s.ds+'</span><span class="pick" data-pick="'+s.id+'">选这个</span></div><div class="phone">'+HOME(s)+'</div>';
+STAGES.forEach(s=>{const sec=document.createElement('section');sec.className='stage st-'+s[0];sec.id='s'+s[0];
+ sec.innerHTML='<div class="tag"><span class="nm">'+s[1]+'</span><span class="ds">'+s[2]+'</span><span class="pick" data-pick="'+s[0]+'">选这个</span></div><div class="phone" style="position:relative">'+s[3]()+'</div>';
  row.appendChild(sec)});
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;t.style.transform='translateX(-50%) translateY(0)';clearTimeout(toast._x);toast._x=setTimeout(()=>{t.style.opacity=0;t.style.transform='translateX(-50%) translateY(10px)'},1800)}
+paintA();
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;t.style.transform='translateX(-50%) translateY(0)';clearTimeout(toast._x);toast._x=setTimeout(()=>{t.style.opacity=0;t.style.transform='translateX(-50%) translateY(10px)'},1900)}
 document.addEventListener('click',e=>{
- const p=e.target.closest('[data-pick]');if(p){toast('已记录选择：'+p.closest('.stage').querySelector('.nm').textContent+' —— 请告诉我做全量');return}
- const m=e.target.closest('.mood div');if(m){m.parentNode.querySelectorAll('div').forEach(x=>x.classList.remove('sel'));m.classList.add('sel');toast('今日心情 '+m.textContent);return}
- const q=e.target.closest('[data-qadd]');if(q&&q.value.trim()){toast('已收入收集箱（演示）· 实际共 '+(STYLES.length)+' 个页面');q.value='';return}
- const t=e.target.closest('.tile');if(t){toast('「'+t.textContent+'」模块 · 选定风格后在全量原型中呈现');return}
- const f=e.target.closest('.fab');if(f){toast('语境 FAB：当前页=添加');return}
- const b=e.target.closest('.tb .bi');if(b){const sc=b.closest('.phone').querySelector('.tb');sc.querySelectorAll('.bi').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(!b.classList.contains('on')||true)toast(b.textContent.trim()+' · 仅主页演示（V3 风格试衣间）');}});
+ const p=e.target.closest('[data-pick]');if(p){toast('已记录选择：'+p.closest('.stage').querySelector('.nm').textContent+' —— 告诉我字母即做全量');return}
+ const c=e.target.closest('[data-card]');if(c&&e.target.closest('#deckA')){curA=(curA+1)%CARDS.length;paintA();return}
+ const pg=e.target.closest('[data-pg]');if(pg){curA=+pg.getAttribute('data-pg');paintA();return}
+ const m=e.target.closest('.mood div');if(m){const sc=m.parentNode;sc.querySelectorAll('div').forEach(x=>x.classList.remove('sel'));m.classList.add('sel');
+   const st=m.closest('.st-b')&&m.closest('.phone').querySelector('#stampB');if(st){st.classList.add('on');st.textContent='心情 '+m.textContent+' 已盖章'}return}
+ const qi=e.target.closest('[data-qadd]');if(qi&&qi.value.trim()){toast('已收入收集箱（演示）');qi.value='';return}
+ const ab=e.target.closest('[data-add]');if(ab){toast('记一笔 → 与 A 卡组第 4 页 / D 的＋格同源');return}
+ const cl=e.target.closest('[data-cell]');if(cl){toast(cl.getAttribute('data-cell')+' · 选定风格后在全量原型展开');return}
+ const dk=e.target.closest('.st-a .dock span');if(dk){dk.parentNode.querySelectorAll('span').forEach(x=>x.classList.remove('on'));dk.classList.add('on');toast(dk.textContent+' · V3 仅主页演示');return}
+ const fv=e.target.closest('.st-c .foot span');if(fv){fv.parentNode.querySelectorAll('span').forEach(x=>{x.classList.remove('on');x.textContent=x.textContent.replace('■ ','')});fv.classList.add('on');fv.textContent='■ '+fv.textContent.replace('■ ','');toast(fv.textContent.replace('■ ','')+' · V3 仅主页演示');return}
+ const nv=e.target.closest('.st-d .nav div');if(nv){nv.parentNode.querySelectorAll('div').forEach(x=>x.classList.remove('on'));nv.classList.add('on');toast(nv.textContent+' · V3 仅主页演示');return}
+ const pl=e.target.closest('.st-a .dock .plus,.st-b .nav .plus');if(pl){toast('＋ 新增：待办/记录二选一（语境入口）');return}
+});
 </script>
 </body>
 </html>
