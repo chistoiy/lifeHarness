@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/todo.dart';
 import '../todo_providers.dart';
 import '../../../../core/widgets/wheel_time.dart';
 import '../../../../shared/linkage/stats_providers.dart';

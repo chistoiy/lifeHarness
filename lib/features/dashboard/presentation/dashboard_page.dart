@@ -54,7 +54,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         Future.delayed(const Duration(milliseconds: 350),
             () => ref.read(eventBusProvider).publish(const QuickAddEvent('todo')));
       case 2:
-        context.go(NavModule.journal.path);
+        context.push('/journal/edit');
       case 3:
         _toastOf(context, '「记账」· 规划 V0.5');
       case 4:
@@ -100,7 +100,15 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         children: [
           _HeroCard(greet: '$greet，CHIST $emoji'),
           const SizedBox(height: 14),
-          _MoodCard(mood: _mood, onPick: (m) => setState(() => _mood = m)),
+          _MoodCard(mood: _mood, onPick: (m) {
+            setState(() => _mood = m);
+            // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
+            final idx = _moods.indexWhere((e) => e.$2 == m) + 1;
+            if (idx > 0) {
+              ref.read(journalRepositoryProvider).setMoodOfDay(DateTime.now(), idx);
+              ref.invalidate(journalsProvider);
+            }
+          }),
           const SizedBox(height: 14),
           const _TodayScheduleCard(),
           const SizedBox(height: 14),

@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 4;
+  static const int version = 5;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -81,7 +81,7 @@ class DbSchema {
     ''',
     'CREATE INDEX idx_events_start ON $tEvents(start_at)',
 
-    // 模块3 日记（mood 1~5；tags 逗号分隔）
+    // 模块3 日记（mood 1~7 对应原型 7 表情；tags 逗号分隔；v5 起 INS 回望字段）
     '''
     CREATE TABLE $tJournal (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +90,10 @@ class DbSchema {
       content TEXT NOT NULL,
       tags TEXT,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      starred INTEGER NOT NULL DEFAULT 0,
+      liked INTEGER NOT NULL DEFAULT 0,
+      view_count INTEGER NOT NULL DEFAULT 0
     )
     ''',
     'CREATE INDEX idx_journal_date ON $tJournal(entry_date)',
@@ -229,6 +232,7 @@ class DbSchema {
   /// v3：新增 time_blocks 格子标记表（业务②b）；
   /// v4：categories 两级分类表+种子；events/time_blocks 加 cat_id；
   ///     todos 扩 10 列（时间三态/番茄/放弃/颜色/分组/习惯绑定/关联计时分类，V1.19~V1.25）。
+  /// v5：journal_entries 加 INS 回望三列（starred/liked/view_count，业务③）。
   static const Map<int, List<String>> migrations = {
     1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
     2: [
@@ -272,6 +276,11 @@ class DbSchema {
       'ALTER TABLE $tTodos ADD COLUMN grp TEXT',
       'ALTER TABLE $tTodos ADD COLUMN habit_id INTEGER',
       'ALTER TABLE $tTodos ADD COLUMN link_cat INTEGER',
+    ],
+    4: [
+      'ALTER TABLE $tJournal ADD COLUMN starred INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tJournal ADD COLUMN liked INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tJournal ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0',
     ],
   };
 }

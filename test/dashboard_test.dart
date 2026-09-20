@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/dashboard/presentation/dashboard_page.dart';
+import 'package:lifeharness/features/journal/data/journal_dao.dart';
+import 'package:lifeharness/features/journal/domain/journal_repository.dart';
+import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
@@ -20,8 +23,12 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
-    final container = ProviderContainer(
-        overrides: [todoRepositoryProvider.overrideWithValue(repo)]);
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
+      journalRepositoryProvider
+          .overrideWithValue(JournalRepository(JournalDao(db))),
+    ]);
     addTearDown(container.dispose);
 
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -45,8 +52,12 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
-    final container = ProviderContainer(
-        overrides: [todoRepositoryProvider.overrideWithValue(repo)]);
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
+      journalRepositoryProvider
+          .overrideWithValue(JournalRepository(JournalDao(db))),
+    ]);
     addTearDown(container.dispose);
 
     await tester.pumpWidget(UncontrolledProviderScope(
@@ -70,8 +81,12 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
-    final container = ProviderContainer(
-        overrides: [todoRepositoryProvider.overrideWithValue(repo)]);
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
+      journalRepositoryProvider
+          .overrideWithValue(JournalRepository(JournalDao(db))),
+    ]);
     addTearDown(container.dispose);
 
     await tester.pumpWidget(UncontrolledProviderScope(
