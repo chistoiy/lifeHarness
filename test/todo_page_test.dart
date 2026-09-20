@@ -89,7 +89,7 @@ void main() {
 
   testWidgets('四象限视图：提示条/格内计数/逾期图标', (tester) async {
     final now = DateTime.now();
-    await repo.add(Todo(title: '逾期任务', quadrant: Quadrant.q1, dueAt: now.subtract(const Duration(hours: 2))));
+    await repo.add(Todo(title: '逾期任务', quadrant: Quadrant.q1, dueAt: now.subtract(const Duration(days: 1))));
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 

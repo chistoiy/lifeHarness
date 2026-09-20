@@ -65,13 +65,26 @@ void main() {
       expect(await dao.list(), isEmpty);
     });
 
-    test('逾期计数只统计未完成且过 due_at', () async {
+    test('逾期计数只统计未完成且过截止日当天（自然日粒度）', () async {
       final now = DateTime.now();
-      await dao.insert(Todo(title: '逾期1', dueAt: now.subtract(const Duration(hours: 1))));
-      await dao.insert(Todo(title: '逾期2', dueAt: now.subtract(const Duration(days: 1))));
+      await dao.insert(Todo(title: '逾期1', dueAt: now.subtract(const Duration(days: 1))));
+      await dao.insert(Todo(title: '逾期2', dueAt: now.subtract(const Duration(days: 2))));
       await dao.insert(Todo(title: '未来', dueAt: now.add(const Duration(days: 1))));
       await dao.insert(Todo(title: '逾期但已完成', dueAt: now.subtract(const Duration(days: 1)), done: true));
+      // 回归（2026-09-20 用户实测）：截止日=今天，即使隐藏时刻 18:00 已过也不算逾期
+      await dao.insert(Todo(title: '今天18点', dueAt: DateTime(now.year, now.month, now.day, 18)));
       expect(await dao.countOverdue(), 2);
+    });
+
+    test('Todo.overdue 按日粒度：今天到期≠逾期，昨天到期=逾期', () {
+      final now = DateTime.now();
+      final today18 = Todo(title: 'a', dueAt: DateTime(now.year, now.month, now.day, 18));
+      final today0 = Todo(title: 'b', dueAt: DateTime(now.year, now.month, now.day));
+      final yesterday = Todo(title: 'c', dueAt: DateTime(now.year, now.month, now.day - 1, 23));
+      expect(today18.overdue, isFalse);
+      expect(today0.overdue, isFalse);
+      expect(yesterday.overdue, isTrue);
+      expect(Todo(title: 'd').overdue, isFalse); // 无截止日
     });
   });
 

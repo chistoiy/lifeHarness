@@ -50,10 +50,12 @@ class TodoDao {
 
   Future<void> remove(int id) => db.delete(table, where: 'id = ?', whereArgs: [id]);
 
+  /// 逾期计数（与 [Todo.overdue] 同口径：按自然日，截止日当天不算逾期）。
   Future<int> countOverdue() async {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
     final rows = await db
-        .rawQuery('SELECT COUNT(*) c FROM $table WHERE done = 0 AND due_at IS NOT NULL AND due_at < ?', [now]);
+        .rawQuery('SELECT COUNT(*) c FROM $table WHERE done = 0 AND due_at IS NOT NULL AND due_at < ?', [todayStart]);
     return (rows.first['c'] as int?) ?? 0;
   }
 }

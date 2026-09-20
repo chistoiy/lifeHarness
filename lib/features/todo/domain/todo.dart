@@ -80,8 +80,15 @@ class Todo {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  bool get overdue =>
-      !done && dueAt != null && dueAt!.isBefore(DateTime.now());
+  /// 逾期=过了截止日的**当天**（自然日粒度，与原型 dueLabel「今天≠逾期」一致）。
+  /// due_at 携带的隐藏时刻（默认 18:00）只用于「提前1小时」类提醒锚点，不参与逾期判定；
+  /// 计划执行时间点（start_min）是独立字段，同样不参与。
+  bool get overdue {
+    if (done || dueAt == null) return false;
+    final now = DateTime.now();
+    final dueDay = DateTime(dueAt!.year, dueAt!.month, dueAt!.day);
+    return dueDay.isBefore(DateTime(now.year, now.month, now.day));
+  }
 
   Todo copyWith({
     int? id,
