@@ -38,4 +38,53 @@ void main() {
     expect(find.text('1'), findsWidgets, reason: '待办数应从 0 变 1');
     await db.close();
   });
+
+  testWidgets('心情行为原型 7 表情全量（V1.26 对齐：修 😪/😢 空位）', (tester) async {
+    final db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    final repo = TodoRepository(TodoDao(db), EventBus());
+    final container = ProviderContainer(
+        overrides: [todoRepositoryProvider.overrideWithValue(repo)]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DashboardPage())));
+    await tester.pumpAndSettle();
+
+    for (final e in ['😄', '😌', '😐', '😪', '😰', '😢', '😡']) {
+      expect(find.text(e), findsOneWidget, reason: '原型 moodRow 应有 7 个表情');
+    }
+    // 点选 → 记录反馈文案（原型 mood-on + moodTip）
+    await tester.tap(find.text('😌'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('已记录：平静'), findsOneWidget);
+    await db.close();
+  });
+
+  testWidgets('仪表盘 FAB = 原型快捷记录菜单（5 项）', (tester) async {
+    final db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    final repo = TodoRepository(TodoDao(db), EventBus());
+    final container = ProviderContainer(
+        overrides: [todoRepositoryProvider.overrideWithValue(repo)]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DashboardPage())));
+    await tester.pumpAndSettle();
+
+    expect(find.text('⚡ 记一条想法'), findsNothing); // 未展开
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    for (final item in ['⚡ 记一条想法', '✅ 记待办', '📔 记日记', '💰 记一笔', '📦 记物品']) {
+      expect(find.text(item), findsOneWidget);
+    }
+    await db.close();
+  });
 }

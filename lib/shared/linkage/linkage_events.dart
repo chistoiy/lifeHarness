@@ -32,3 +32,10 @@ class ThemeChangedEvent {
   const ThemeChangedEvent(this.themeId);
   final String themeId;
 }
+
+/// 快捷记录请求（仪表盘 FAB 菜单 → 目标模块自行打开新增弹层）。
+/// target: 'todo' | 'inbox' | 'journal' | 'event'。
+class QuickAddEvent {
+  const QuickAddEvent(this.target);
+  final String target;
+}

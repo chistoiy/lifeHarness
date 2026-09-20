@@ -9,6 +9,10 @@ export '../../features/todo/presentation/todo_providers.dart' show todosProvider
 export '../../features/todo/domain/todo.dart' show Todo;
 export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider;
 export '../../features/calendar/presentation/calendar_providers.dart' show eventsProvider;
+export '../../features/calendar/domain/cal_event.dart' show CalEvent, EventStatus;
+export '../../features/calendar/domain/time_block.dart' show TimeBlock;
+export '../../features/calendar/presentation/calendar_providers.dart' show categoriesProvider;
+export '../../features/calendar/domain/category.dart' show Category;
 
 /// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。

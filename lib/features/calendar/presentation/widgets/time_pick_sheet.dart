@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/category.dart';
@@ -53,7 +54,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
   late final List<String> _minItems;
   late final ValueNotifier<int> _dayN;
   late final ValueNotifier<int> _sMinN;
-  late final ValueNotifier<int> _durN;
+  late final ValueNotifier<int> _eDayN;
+  late final ValueNotifier<int> _eMinN;
   late final Listenable _all;
   int? _catId;
   String _catName = '工作';
@@ -72,8 +74,9 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final sm = widget.startMin ?? (DateTime.now().hour * 60 ~/ 5 * 5);
     _dayN = ValueNotifier<int>(_date.day);
     _sMinN = ValueNotifier<int>(sm);
-    _durN = ValueNotifier<int>(60);
-    _all = Listenable.merge([_dayN, _sMinN, _durN]);
+    _eDayN = ValueNotifier<int>(_date.day);
+    _eMinN = ValueNotifier<int>((sm + 60).clamp(0, 1440));
+    _all = Listenable.merge([_dayN, _sMinN, _eDayN, _eMinN]);
   }
 
   @override
@@ -81,11 +84,17 @@ class _TimePickState extends ConsumerState<_TimePick> {
     _note.dispose();
     _dayN.dispose();
     _sMinN.dispose();
-    _durN.dispose();
+    _eDayN.dispose();
+    _eMinN.dispose();
     super.dispose();
   }
 
-  int get _eMin => (_sMinN.value + _durN.value).clamp(0, 1440);
+  int get _durMin => _eMinN.value - _sMinN.value;
+
+  void _setDur(int min) {
+    // 时长快捷：结束=起始+时长（封顶当日 24:00），驱动结束滚轮同步跳转。
+    setState(() => _eMinN.value = (_sMinN.value + min).clamp(0, 1440));
+  }
 
   static String _fmt(int m) =>
       '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
@@ -99,19 +108,34 @@ class _TimePickState extends ConsumerState<_TimePick> {
             .firstOrNull
         : _catId;
     final date = DateTime(_date.year, _date.month, _dayN.value);
+    final eDate = DateTime(_date.year, _date.month, _eDayN.value);
     final s = _sMinN.value;
-    await ref
-        .read(timeBlockDaoProvider)
-        .markRange(date, s, _eMin <= s ? s + 1 : _eMin,
-            catId: id,
-            catName: _subName ?? _catName,
-            note: _note.text.trim().isEmpty ? null : _note.text.trim());
-    ref.invalidate(dayBlocksProvider(date));
+    final e = _eMinN.value;
+    final dao = ref.read(timeBlockDaoProvider);
+    if (eDate == date) {
+      await dao.markRange(date, s, e <= s ? s + 1 : e,
+          catId: id,
+          catName: _subName ?? _catName,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim());
+      ref.invalidate(dayBlocksProvider(date));
+    } else {
+      // 跨天：拆两段（起始日到 24:00 + 结束日 00:00 到结束时刻）
+      await dao.markRange(date, s, 1440,
+          catId: id,
+          catName: _subName ?? _catName,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim());
+      await dao.markRange(eDate, 0, e <= 0 ? 1 : e,
+          catId: id,
+          catName: _subName ?? _catName,
+          note: _note.text.trim().isEmpty ? null : _note.text.trim());
+      ref.invalidate(dayBlocksProvider(date));
+      ref.invalidate(dayBlocksProvider(eDate));
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-          content: Text('✔ 已添加 ${_fmt(s)}-${_fmt(_eMin)} · ${_subName ?? _catName}'
+          content: Text('✔ 已添加 ${_fmt(s)}-${_fmt(e)} · ${_subName ?? _catName}'
               '（四视图与时间账本同步 L4）')));
   }
 
@@ -141,7 +165,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
                 AnimatedBuilder(
                   animation: _all,
                   builder: (context, _) => Text(
-                      '${_date.month}/${_dayN.value} ${_fmt(_sMinN.value)} → ${_fmt(_eMin)} · ${_durN.value} 分钟',
+                      '${_date.month}/${_dayN.value} ${_fmt(_sMinN.value)} → '
+                      '${_date.month}/${_eDayN.value} ${_fmt(_eMinN.value)} · $_durMin 分钟',
                       style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
                 ),
               ],
@@ -174,25 +199,77 @@ class _TimePickState extends ConsumerState<_TimePick> {
                   child: _WheelGroup(
                     label: '当前 · 结束',
                     children: [
-                      SizedBox(
-                        height: 96,
-                        child: Center(
-                          child: AnimatedBuilder(
-                            animation: _all,
-                            builder: (context, _) => Text(_fmt(_eMin),
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: tokens.accent)),
-                          ),
-                        ),
-                      ),
                       _Wheel(
-                          items: const ['0分', '15分', '30分', '1时', '2时'],
-                          initialIndex: _durs.indexOf(_durN.value).clamp(0, 4),
-                          onSel: (i) => _durN.value = _durs[i]),
+                          items: _dayItems,
+                          initialIndex: _eDayN.value - 1,
+                          onSel: (i) => _eDayN.value = i + 1),
+                      _Wheel(
+                          items: _hourItems,
+                          initialIndex: _eMinN.value ~/ 60,
+                          onSel: (i) => _eMinN.value = i * 60 + _eMinN.value % 60),
+                      _Wheel(
+                          items: _minItems,
+                          initialIndex: (_eMinN.value % 60) ~/ 5,
+                          onSel: (i) => _eMinN.value = _eMinN.value ~/ 60 * 60 + i * 5),
                     ],
                   ),
+                ),
+              ],
+            ),
+            // 时长快捷 + 标签 / 无分类入口（原型 tpDur chips 行）
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('时长',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant)),
+                const SizedBox(width: 6),
+                for (final d in _durs)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: () => _setDur(d),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _durMin == d
+                              ? tokens.accent
+                              : scheme.onSurface.withValues(alpha: .08),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          d < 60 ? '$d分' : '${d ~/ 60}时',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: _durMin == d
+                                  ? Colors.white
+                                  : scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('标签将取所选分类的默认标签'))),
+                  child: Text('标签 ›',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant)),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => context.push('/categories'),
+                  child: Text('无分类 ›',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
@@ -249,12 +326,11 @@ class _TimePickState extends ConsumerState<_TimePick> {
               controller: _note,
               maxLength: 5000,
               decoration: const InputDecoration(
-                  hintText: '备注（可选）',
+                  hintText: '请输入备注',
                   isDense: true,
-                  counterText: '',
                   border: OutlineInputBorder()),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 2),
             Row(
               children: [
                 Expanded(
@@ -290,6 +366,11 @@ class _TimePickState extends ConsumerState<_TimePick> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Center(
+                child: Text('5 分一档',
+                    style:
+                        TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))),
           ],
         ),
       ),
@@ -371,6 +452,13 @@ class _WheelState extends State<_Wheel> {
   void didUpdateWidget(_Wheel old) {
     super.didUpdateWidget(old);
     if (!identical(old.items, widget.items)) _rebuildBase();
+    // 外部取值变化（如时长快捷 chip）驱动滚轮同步跳转；同值不动，避免自激。
+    if (widget.initialIndex != old.initialIndex &&
+        _ctl.hasClients &&
+        _ctl.selectedItem != widget.initialIndex) {
+      _ctl.jumpToItem(widget.initialIndex);
+      if (_selN.value != widget.initialIndex) _selN.value = widget.initialIndex;
+    }
   }
 
   @override

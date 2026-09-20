@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/linkage_events.dart';
 import 'todo_providers.dart';
 import 'widgets/quadrant_board.dart';
 import 'widgets/todo_edit_sheet.dart';
@@ -9,11 +12,26 @@ import 'widgets/todo_list_view.dart';
 
 /// 模块2 待办 + 四象限（M0 · 已对齐高保真原型 p-todo）：
 /// 清单/四象限双视图、引导式两问单表单、拖拽换象限、智能筛选 chips、逾期提示卡。
-class TodoPage extends ConsumerWidget {
+class TodoPage extends ConsumerStatefulWidget {
   const TodoPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodoPage> createState() => _TodoPageState();
+}
+
+class _TodoPageState extends ConsumerState<TodoPage> {
+  @override
+  void initState() {
+    super.initState();
+    // 仪表盘 FAB「✅ 记待办」跨页直达新建弹层（事件总线解耦，守 R1）。
+    ref.read(eventBusProvider).on<QuickAddEvent>().listen((e) {
+      if (!mounted || e.target != 'todo') return;
+      showTodoAddSheet(context, ref);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = context.tokens;
     final quadrantMode = ref.watch(todoViewModeProvider);
     final filterOpen = ref.watch(todoFilterOpenProvider);
@@ -54,8 +72,17 @@ class TodoPage extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
-        // V1.26 漏斗筛选按钮：清单视图显，筛选 chips 收进面板防页面臃肿
+        // 原型全局顶栏：搜索常驻 + 待办页漏斗筛选（清单视图显）
         actions: [
+          IconButton(
+            tooltip: '搜索',
+            icon: const Icon(Icons.search),
+            onPressed: () => ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                  content: Text('全局搜索 · 即将开放'),
+                  duration: Duration(milliseconds: 1500))),
+          ),
           if (!quadrantMode)
             IconButton(
               tooltip: '智能筛选',
@@ -121,10 +148,10 @@ class TodoPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: tokens.accent,
-        onPressed: () => showTodoAddSheet(context, ref),
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: GradFab(
+        tooltip: '新建待办',
+        icon: const Icon(Icons.add, color: Colors.white, size: 26),
+        onTap: () => showTodoAddSheet(context, ref),
       ),
     );
   }

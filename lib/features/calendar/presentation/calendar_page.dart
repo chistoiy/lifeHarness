@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
-import '../domain/cal_event.dart';
 import '../domain/event_repository.dart';
 import '../domain/time_block.dart';
 import 'calendar_providers.dart';
@@ -48,7 +48,6 @@ class CalendarPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
     final selected = ref.watch(calSelectedProvider);
     final view = ref.watch(calViewModeProvider);
     final events = ref.watch(eventsProvider).valueOrNull ?? const [];
@@ -62,6 +61,26 @@ class CalendarPage extends ConsumerWidget {
         bottom: false,
         child: Column(
           children: [
+            // 原型全局顶栏：页面标题「时间」+ 搜索常驻
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+              child: Row(
+                children: [
+                  const Expanded(
+                      child: Text('时间',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
+                  IconButton(
+                    tooltip: '搜索',
+                    icon: const Icon(Icons.search),
+                    onPressed: () => ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(
+                          content: Text('全局搜索 · 即将开放'),
+                          duration: Duration(milliseconds: 1500))),
+                  ),
+                ],
+              ),
+            ),
             _TimeHeader(selected: selected, isToday: isToday),
             Expanded(
               child: NotificationListener<ScrollNotification>(
@@ -85,19 +104,24 @@ class CalendarPage extends ConsumerWidget {
                     else
                       _WeekStrip(selected: selected, events: events),
                     if (conflicts.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(top: 10),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF43F5E).withValues(alpha: .07),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: const Color(0xFFF43F5E).withValues(alpha: .3)),
-                        ),
-                        child: Text(
-                          '⏱ 时间冲突：「${conflicts.first.a.title}」与「${conflicts.first.b.title}」'
-                          '重叠 ${conflicts.first.overlapMin} 分钟',
-                          style: const TextStyle(fontSize: 12),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () =>
+                            showEventDetailSheet(context, ref, conflicts.first.a),
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF43F5E).withValues(alpha: .07),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: const Color(0xFFF43F5E).withValues(alpha: .3)),
+                          ),
+                          child: Text(
+                            '⏱ 时间冲突：「${conflicts.first.a.title}」与「${conflicts.first.b.title}」'
+                            '重叠 ${conflicts.first.overlapMin} 分钟，点击调整 ›',
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                       ),
                     const SizedBox(height: 10),
@@ -116,11 +140,10 @@ class CalendarPage extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: tokens.accent,
-        heroTag: 'time-fab',
-        onPressed: () => showTimePickSheet(context, ref, day: selected),
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: GradFab(
+        tooltip: '添加事件 / 时间块',
+        icon: const Icon(Icons.add, color: Colors.white, size: 26),
+        onTap: () => showTimePickSheet(context, ref, day: selected),
       ),
     );
   }
@@ -246,6 +269,7 @@ class _BlockToolbar extends ConsumerWidget {
           isDense: true,
           underline: const SizedBox.shrink(),
           items: const [
+            DropdownMenuItem(value: 1, child: Text('1 分钟', style: TextStyle(fontSize: 12))),
             DropdownMenuItem(value: 5, child: Text('5 分钟', style: TextStyle(fontSize: 12))),
             DropdownMenuItem(value: 10, child: Text('10 分钟', style: TextStyle(fontSize: 12))),
             DropdownMenuItem(value: 15, child: Text('15 分钟', style: TextStyle(fontSize: 12))),
@@ -402,6 +426,9 @@ class _MonthPanel extends ConsumerWidget {
                     ],
                   ),
                 ),
+              Text('· 同日多态取最高优先级',
+                  style: TextStyle(
+                      fontSize: 9, color: scheme.onSurfaceVariant)),
             ],
           ),
         ],
@@ -534,83 +561,251 @@ class _AxisView extends ConsumerWidget {
         dayEvents.where((e) => e.status == EventStatus.planning).toList();
     final done = dayEvents.where((e) => e.status == EventStatus.done).toList();
 
-    Widget card(CalEvent e, {required bool isLive, required bool isDone}) {
+    Widget content(CalEvent e, {required bool isLive, required bool isDone}) {
       final c = isDone
           ? const Color(0xFF34D399)
           : (isLive ? const Color(0xFFF43F5E) : e.colorOf(tokens.accent));
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => showEventDetailSheet(context, ref, e),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: isLive
-                  ? const Color(0xFFF43F5E).withValues(alpha: .06)
-                  : scheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: isLive
-                  ? Border.all(color: c.withValues(alpha: .6))
-                  : Border(left: BorderSide(color: c, width: 4)),
-              boxShadow: isLive ? null : tokens.cardShadow,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(e.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            decoration:
-                                isDone ? TextDecoration.lineThrough : null,
-                            color: isDone ? Colors.grey : scheme.onSurface,
-                          )),
-                      const SizedBox(height: 2),
-                      Text(
-                        isLive
-                            ? '● 进行中 · ${_hm(e.start)} 开始 · 点卡片管理'
-                            : (isDone
-                                ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可编辑/删除'
-                                : '${e.allDay ? '全天' : '${_hm(e.start)} – ${e.end == null ? '' : _hm(e.end!)}'}${e.crossDay ? ' · 跨天' : ''} · 点卡片查看/编辑/删除'),
+      return InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => showEventDetailSheet(context, ref, e),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isLive
+                ? const Color(0xFFF43F5E).withValues(alpha: .06)
+                : scheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: isLive
+                ? Border.all(color: c.withValues(alpha: .6))
+                : Border(left: BorderSide(color: c, width: 4)),
+            boxShadow: isLive ? null : tokens.cardShadow,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.title,
                         style: TextStyle(
-                            fontSize: 10.5,
-                            color: isLive
-                                ? const Color(0xFFF43F5E)
-                                : (isDone
-                                    ? const Color(0xFF10B981)
-                                    : scheme.onSurfaceVariant)),
-                      ),
-                    ],
-                  ),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          decoration: isDone ? TextDecoration.lineThrough : null,
+                          color: isDone ? Colors.grey : scheme.onSurface,
+                        )),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLive
+                          ? '● 进行中 · ${_hm(e.start)} 开始 · 点卡片管理'
+                          : (isDone
+                              ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可编辑/删除'
+                              : '${e.allDay ? '全天' : '${_hm(e.start)} – ${e.end == null ? '' : _hm(e.end!)}'}${e.crossDay ? ' · 跨天' : ''} · 点卡片查看/编辑/删除'),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          color: isLive
+                              ? const Color(0xFFF43F5E)
+                              : (isDone
+                                  ? const Color(0xFF10B981)
+                                  : scheme.onSurfaceVariant)),
+                    ),
+                  ],
                 ),
-                if (isLive)
-                  FilledButton(
-                    onPressed: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      final repo = ref.read(eventRepositoryProvider);
-                      final ended = await repo.endActive();
-                      ref.invalidate(eventsProvider);
-                      ref.invalidate(activeEventProvider);
-                      if (ended != null) {
-                        messenger.showSnackBar(SnackBar(
-                            content: Text(
-                                '✔ 耗时 ${ended.durationMin} 分钟 · 回填 L1 · 写入时间账本 L4')));
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFF43F5E)),
-                    child: const Text('■ 结束', style: TextStyle(fontSize: 12)),
-                  ),
-                const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-              ],
-            ),
+              ),
+              if (isLive)
+                FilledButton(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final repo = ref.read(eventRepositoryProvider);
+                    final ended = await repo.endActive();
+                    ref.invalidate(eventsProvider);
+                    ref.invalidate(activeEventProvider);
+                    if (ended != null) {
+                      messenger.showSnackBar(SnackBar(
+                          content: Text(
+                              '✔ 耗时 ${ended.durationMin} 分钟 · 回填 L1 · 写入时间账本 L4')));
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF43F5E)),
+                  child: const Text('■ 结束', style: TextStyle(fontSize: 12)),
+                ),
+            ],
           ),
         ),
       );
+    }
+
+    // 原型时间轴行：左时间列 + 轴上圆点 + 内容卡（竖线由外层 Stack 绘制）
+    Widget rail(String time, Color dot, Widget child, {Color? timeColor}) =>
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: 42,
+                  child: Text(time,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: timeColor ?? scheme.onSurfaceVariant))),
+              SizedBox(
+                  width: 18,
+                  child: Container(
+                      width: 9,
+                      height: 9,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: dot))),
+              Expanded(child: child),
+            ],
+          ),
+        );
+
+    Widget railContent(List<Widget> items) => Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+                left: 46,
+                top: 4,
+                bottom: 12,
+                child: Container(
+                    width: 1,
+                    color: scheme.outlineVariant)),
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: items),
+          ],
+        );
+
+    final rose = const Color(0xFFF43F5E);
+    final violet = const Color(0xFF8B5CF6);
+    final items = <Widget>[
+      for (final e in active)
+        rail(_hm(e.start), rose, content(e, isLive: true, isDone: false),
+            timeColor: rose),
+      for (final e in planning)
+        rail(e.allDay ? '全天' : _hm(e.start),
+            e.colorOf(tokens.accent), content(e, isLive: false, isDone: false)),
+      for (final e in done)
+        rail(_hm(e.start), const Color(0xFF34D399),
+            content(e, isLive: false, isDone: true)),
+    ];
+
+    for (final t in sched) {
+      items.add(rail(
+          t.timeMode == 'all'
+              ? '全天'
+              : (t.timeMode == 'point'
+                  ? _hm2(t.startMin ?? 0)
+                  : '${_hm2(t.startMin ?? 0)}-${_hm2(t.endMin ?? 0)}'),
+          violet,
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () async {
+              if (t.isPomo && !t.done) {
+                final cur = ref.read(activePomoProvider);
+                if (cur != null && cur.todoId != t.id) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
+                  return;
+                }
+                final s = (cur != null && cur.todoId == t.id)
+                    ? cur
+                    : PomoSession(
+                        todoId: t.id!,
+                        title: t.title,
+                        mode: t.pomoMode ?? 'up',
+                        minutes: t.pomoMin);
+                if (cur == null) ref.read(activePomoProvider.notifier).state = s;
+                if (context.mounted) context.push('/pomo', extra: s);
+                return;
+              }
+              final wasDone = t.done;
+              await ref.read(todoRepositoryProvider).toggleDone(t);
+              ref.invalidate(todosProvider);
+              if (context.mounted && !wasDone) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('✔ 定时待办完成 · 轴视图同步划线（联动 L2）')));
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: violet.withValues(alpha: .07),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: violet.withValues(alpha: .4)),
+              ),
+              child: Row(
+                children: [
+                  Text(t.done ? '☑' : '☐',
+                      style: TextStyle(fontSize: 16, color: violet)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${t.isPomo ? '🍅 ' : ''}${t.title}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                decoration:
+                                    t.done ? TextDecoration.lineThrough : null,
+                                color: t.done ? Colors.grey : scheme.onSurface)),
+                        Text(
+                          '定时待办 · ${t.quadrant.label}${t.pomoMode == 'down' ? ' · 番茄${t.pomoMin ?? 25}分倒计时' : (t.isPomo ? ' · 番茄正计时' : '')}',
+                          style: TextStyle(
+                              fontSize: 10, color: violet),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (t.isPomo && !t.done)
+                    Text(
+                        ref.watch(activePomoProvider)?.todoId == t.id ? '■ 番茄中' : '▶ 番茄',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: rose)),
+                ],
+              ),
+            ),
+          ),
+          timeColor: violet));
+    }
+    if (items.isNotEmpty) {
+      // 末尾空行提示（原型：空闲时段虚线补录行 · 带下一整点时间标）
+      final isToday = CalendarPage.sameDay(selected, DateTime.now());
+      final nextHour =
+          isToday ? '${(DateTime.now().hour + 1) % 24}:00' : '09:00';
+      final nextMin = isToday ? ((DateTime.now().hour + 1) % 24) * 60 : 9 * 60;
+      items.add(rail(
+          nextHour,
+          scheme.surface,
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () =>
+                showTimePickSheet(context, ref, day: selected, startMin: nextMin),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 22),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                    color: scheme.outlineVariant),
+              ),
+              child: Center(
+                child: Text(
+                  dayEvents.isEmpty
+                      ? '当天暂无安排 · 点空行或右下角 ＋ 补录'
+                      : '空闲 · 点此补录该时段日程',
+                  style: TextStyle(
+                      fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ),
+          )));
     }
 
     return Column(
@@ -621,105 +816,23 @@ class _AxisView extends ConsumerWidget {
             style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w800, color: tokens.accent)),
         const SizedBox(height: 8),
-        for (final e in active) card(e, isLive: true, isDone: false),
-        for (final e in planning) card(e, isLive: false, isDone: false),
-        for (final e in done) card(e, isLive: false, isDone: true),
-        for (final t in sched)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () async {
-                if (t.isPomo && !t.done) {
-                  final cur = ref.read(activePomoProvider);
-                  if (cur != null && cur.todoId != t.id) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
-                    return;
-                  }
-                  final s = (cur != null && cur.todoId == t.id)
-                      ? cur
-                      : PomoSession(
-                          todoId: t.id!,
-                          title: t.title,
-                          mode: t.pomoMode ?? 'up',
-                          minutes: t.pomoMin);
-                  if (cur == null) ref.read(activePomoProvider.notifier).state = s;
-                  if (context.mounted) context.push('/pomo', extra: s);
-                  return;
-                }
-                final wasDone = t.done;
-                await ref.read(todoRepositoryProvider).toggleDone(t);
-                ref.invalidate(todosProvider);
-                if (context.mounted && !wasDone) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('✔ 定时待办完成 · 轴视图同步划线（联动 L2）')));
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: .07),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: .4)),
-                ),
-                child: Row(
-                  children: [
-                    Text(t.done ? '☑' : '☐',
-                        style: const TextStyle(fontSize: 16, color: Color(0xFF8B5CF6))),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${t.isPomo ? '🍅 ' : ''}${t.title}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                  decoration:
-                                      t.done ? TextDecoration.lineThrough : null,
-                                  color: t.done ? Colors.grey : scheme.onSurface)),
-                          Text(
-                            '${t.timeMode == 'all' ? '全天' : (t.timeMode == 'point' ? _hm2(t.startMin ?? 0) : '${_hm2(t.startMin ?? 0)} - ${_hm2(t.endMin ?? 0)}')} · 定时待办 · ${t.quadrant.label}',
-                            style: const TextStyle(
-                                fontSize: 10, color: Color(0xFF8B5CF6)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (t.isPomo && !t.done)
-                      Text(
-                          ref.watch(activePomoProvider)?.todoId == t.id ? '■ 番茄中' : '▶ 番茄',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFF43F5E))),
-                  ],
-                ),
+        if (items.isEmpty)
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => showTimePickSheet(context, ref, day: selected, startMin: 9 * 60),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 22),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: scheme.outlineVariant),
               ),
+              child: Text('当天暂无安排 · 点此处补录这段时间做了什么',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-          ),
-        InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => showTimePickSheet(context, ref, day: selected, startMin: 17 * 60),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 22),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Center(
-              child: Text(
-                dayEvents.isEmpty
-                    ? '当天暂无安排 · 点此处补录这段时间做了什么'
-                    : '＋ 添加一段（点空白时段补录）',
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ),
-        ),
+          )
+        else
+          railContent(items),
       ],
     );
   }
@@ -788,7 +901,8 @@ class _DayHoursView extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '⚡ ')}${e.title}',
+                                  '${e.start.hour.toString().padLeft(2, '0')}:${e.start.minute.toString().padLeft(2, '0')} '
+                                  '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '')}${e.title} ›',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(

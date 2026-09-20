@@ -67,7 +67,8 @@ class HomeShell extends ConsumerWidget {
         ),
         child: SafeArea(
           child: SizedBox(
-            height: 62,
+            // 原型 nav 高度 70px
+            height: 70,
             child: Row(
               children: [
                 for (var i = 0; i < navModules.length; i++)

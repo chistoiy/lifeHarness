@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/cal_event.dart';
+import '../../domain/category.dart';
+import '../../domain/event_repository.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
 import 'event_sheet.dart';
@@ -32,6 +34,19 @@ class _EventDetail extends ConsumerWidget {
       EventStatus.active => ('进行中', const Color(0xFFF43F5E)),
       EventStatus.done => ('已完成', const Color(0xFF10B981)),
     };
+    // 原型详情行：🏷 分类 · 备注 · 冲突检测
+    final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
+    final catName =
+        cats.where((c) => c.id == e.catId).map((c) => c.name).firstOrNull;
+    final allEvents = ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[];
+    final dayList = allEvents
+        .where((x) =>
+            x.start.year == e.start.year &&
+            x.start.month == e.start.month &&
+            x.start.day == e.start.day &&
+            x.id != e.id)
+        .toList();
+    final hasConflict = EventRepository.conflictsOf([e, ...dayList]).isNotEmpty;
     return SafeArea(
       top: false,
       child: Padding(
@@ -60,6 +75,12 @@ class _EventDetail extends ConsumerWidget {
               '${e.allDay ? '全天' : '${_hm(e.start)} – ${e.end == null ? '' : _hm(e.end!)}'}'
               '${e.crossDay ? ' · 跨天' : ''}'
               '${e.status == EventStatus.done && e.durationMin != null ? ' · 实际 ${e.durationMin} 分钟（回填L1·入L4）' : ''}',
+              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '🏷 分类：${catName ?? '未分类'} · 备注：— · '
+              '冲突检测 ${hasConflict ? '⚠ 有重叠' : '✓ 无冲突'}',
               style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 14),

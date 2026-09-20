@@ -28,7 +28,7 @@ class SettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 资料卡
+          // 资料卡（原型 p-profile：渐变字母头像 + 昵称 + 本地模式副行 + 编辑）
           Row(
             children: [
               Container(
@@ -37,7 +37,7 @@ class SettingsPage extends ConsumerWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle, gradient: tokens.gradient),
-                child: const Text('L',
+                child: const Text('C',
                     style: TextStyle(
                         color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
               ),
@@ -46,7 +46,7 @@ class SettingsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('LifeHarness',
+                    const Text('CHIST',
                         style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 3),
                     Text('本地模式 · 无账号 🔒 · 已记录 $streak 天',
@@ -55,7 +55,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
               TextButton(
-                onPressed: () => _toast(context, '编辑资料（随用户体系评估）'),
+                onPressed: () => _toast(context, '编辑资料 · 敬请期待'),
                 child: Text('编辑',
                     style: TextStyle(
                         color: tokens.accent, fontWeight: FontWeight.w700)),
@@ -74,7 +74,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // 二级入口列表（占位）
+          // 二级入口列表（原型 p-profile 顺序：数据与同步/提醒通知/AI/分类/工具/插件）
           Container(
             decoration: context.cardDecoration,
             clipBehavior: Clip.antiAlias,
@@ -85,8 +85,23 @@ class SettingsPage extends ConsumerWidget {
                     bg: const Color(0xFF10B981).withValues(alpha: .12),
                     title: '数据与同步',
                     sub: 'WebDAV · 备份 · 加密 · 同步历史',
-                    trailing: '未配置',
-                    onTap: () => _toast(context, '数据与同步 M1 上线')),
+                    trailing: '● 未配置',
+                    trailingColor: Colors.grey,
+                    onTap: () => _toast(context, '数据与同步 · 敬请期待')),
+                _EntryRow(
+                    emoji: '🔔',
+                    bg: const Color(0xFF6366F1).withValues(alpha: .12),
+                    title: '提醒通知',
+                    sub: '日程 · 日记复盘 · 收集箱清理 · 习惯',
+                    trailing: '未开启',
+                    onTap: () => _toast(context, '提醒通知 · 敬请期待')),
+                _EntryRow(
+                    emoji: '🤖',
+                    bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
+                    title: 'AI 增强',
+                    sub: '服务商 · Key · 能力矩阵 · API 验证',
+                    trailing: '默认关闭',
+                    onTap: () => _toast(context, 'AI 增强 · 敬请期待')),
                 _EntryRow(
                     emoji: '🏷',
                     bg: const Color(0xFFF97316).withValues(alpha: .12),
@@ -95,34 +110,20 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     onTap: () => context.push('/categories')),
                 _EntryRow(
-                    emoji: '🔔',
-                    bg: const Color(0xFF6366F1).withValues(alpha: .12),
-                    title: '提醒通知',
-                    sub: '日程 · 任务 · 收集箱清理',
-                    trailing: 'M1',
-                    onTap: () => _toast(context, '提醒通知 M1 上线（remind_at 已入库）')),
-                _EntryRow(
-                    emoji: '🤖',
-                    bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
-                    title: 'AI 增强',
-                    sub: '服务商 · Key · 能力矩阵',
-                    trailing: '默认关闭',
-                    onTap: () => _toast(context, 'AI 增强 M3 上线')),
-                _EntryRow(
                     emoji: '🧰',
                     bg: Colors.grey.withValues(alpha: .12),
                     title: '小工具合集',
                     sub: '本地工具 · 插件拓展',
-                    trailing: 'V1.x',
-                    onTap: () => _toast(context, '小工具合集 V1.x 上线')),
+                    trailing: '',
+                    onTap: () => _toast(context, '小工具合集 · 敬请期待')),
                 _EntryRow(
                     emoji: '🧩',
                     bg: Colors.grey.withValues(alpha: .12),
                     title: '插件中心',
                     sub: '大模块按需安装 · 更新 · 回滚',
-                    trailing: 'M4',
+                    trailing: '',
                     last: true,
-                    onTap: () => _toast(context, '插件中心 M4（宿主 API v0 已预埋）')),
+                    onTap: () => _toast(context, '插件中心 · 敬请期待')),
               ],
             ),
           ),
@@ -152,31 +153,32 @@ class SettingsPage extends ConsumerWidget {
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 10),
                 _ThemeGrid(registry: registry, selectedId: settings.themeId),
+                // 深色模式（原型：单 toggle · 与主题正交）
                 Row(
                   children: [
+                    _SetIc(emoji: '🌙'),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('🌙 深色模式',
+                          const Text('深色模式',
                               style: TextStyle(
                                   fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          Text(
-                            settings.mode == ThemeModeOption.system
-                                ? '当前：跟随系统'
-                                : settings.mode == ThemeModeOption.dark
-                                    ? '当前：强制深色'
-                                    : '当前：强制浅色',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(settingsControllerProvider.notifier)
+                                .setMode(ThemeModeOption.system),
+                            child: Text(
+                              settings.mode == ThemeModeOption.system
+                                  ? '与任意主题风格叠加生效 · 当前跟随系统（点此锁定/解锁）'
+                                  : '与任意主题风格叠加生效 · ${settings.mode == ThemeModeOption.dark ? '已锁定深色' : '已锁定浅色'}（点此跟随系统）',
+                              style: const TextStyle(
+                                  fontSize: 10.5, color: Colors.grey),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => ref
-                          .read(settingsControllerProvider.notifier)
-                          .setMode(ThemeModeOption.system),
-                      child: const Text('跟随系统', style: TextStyle(fontSize: 11)),
                     ),
                     Switch(
                       value: _isDarkNow(context, settings),
@@ -186,19 +188,67 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ],
                 ),
+                // 主题色（原型 themeDots：一排色点，点击=切对应主题）
                 Row(
                   children: [
+                    _SetIc(emoji: '🎨'),
+                    const SizedBox(width: 12),
                     const Expanded(
-                        child: Text('Aa 字体大小',
+                        child: Text('主题色',
+                            style:
+                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final b in registry.all)
+                          Builder(builder: (context) {
+                            final t = b.pick(
+                                Theme.of(context).brightness == Brightness.dark);
+                            final on = b.id == settings.themeId;
+                            return GestureDetector(
+                              onTap: () {
+                                ref
+                                    .read(settingsControllerProvider.notifier)
+                                    .setTheme(b.id);
+                                ref
+                                    .read(eventBusProvider)
+                                    .publish(ThemeChangedEvent(b.id));
+                              },
+                              child: Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: t.gradient,
+                                  border: Border.all(
+                                      color: on
+                                          ? t.accent
+                                          : Colors.black.withValues(alpha: .12),
+                                      width: on ? 2.5 : 1),
+                                ),
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ],
+                ),
+                // 字体大小（原型默认第 2 档）
+                Row(
+                  children: [
+                    _SetIc(emoji: 'Aa', text: true),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                        child: Text('字体大小',
                             style:
                                 TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
                     SizedBox(
                       width: 120,
                       child: Slider(
-                        value: 1,
+                        value: 2,
                         max: 3,
                         onChanged: (_) =>
-                            _toast(context, '字号调节 V1.x（无障碍）上线'),
+                            _toast(context, '字号调节 · 敬请期待（无障碍）'),
                       ),
                     ),
                   ],
@@ -235,7 +285,7 @@ class SettingsPage extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => _toast(context, '主页编排 M0 末接入'),
+                    onPressed: () => _toast(context, '主页编排 · 敬请期待'),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: tokens.accent.withValues(alpha: .06),
                       foregroundColor: tokens.accent,
@@ -255,9 +305,9 @@ class SettingsPage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             decoration: context.cardDecoration,
             child: const Text(
-              '关于\n\nLifeHarness V0.1（M0）· 需求 V1.18 基线\n'
+              '关于\n\nLifeHarness · 全模块本地优先的生活记录台\n'
               '仅中文 ｜ 纯本地无账号 ｜ Android 8.0+ ｜ 离线优先 ｜ AI 能力可选增强\n'
-              '数据库 sqflite（v2）· 7 套主题设计令牌 · 宿主能力 API v0 已预埋',
+              '7 套内置主题 · 设计令牌热加载 · 未开放模块入口灰显 + 版本角标',
               style: TextStyle(fontSize: 11.5, height: 1.7, color: Colors.grey),
             ),
           ),
@@ -296,6 +346,32 @@ class _Card extends StatelessWidget {
   }
 }
 
+/// 设置行图标块（原型 .set-ic：36px 圆角浅底）。
+class _SetIc extends StatelessWidget {
+  const _SetIc({required this.emoji, this.text = false});
+
+  final String emoji;
+  final bool text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.onSurface.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(emoji,
+          style: TextStyle(
+              fontSize: text ? 13 : 16,
+              fontWeight: text ? FontWeight.w800 : FontWeight.normal)),
+    );
+  }
+}
+
 class _StatCell extends StatelessWidget {
   const _StatCell({required this.value, required this.label, required this.color});
 
@@ -330,6 +406,7 @@ class _EntryRow extends StatelessWidget {
     required this.sub,
     required this.trailing,
     this.last = false,
+    this.trailingColor,
     required this.onTap,
   });
 
@@ -339,6 +416,7 @@ class _EntryRow extends StatelessWidget {
   final String sub;
   final String trailing;
   final bool last;
+  final Color? trailingColor;
   final VoidCallback onTap;
 
   @override
@@ -370,7 +448,9 @@ class _EntryRow extends StatelessWidget {
                 ],
               ),
             ),
-            Text(trailing, style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+            Text(trailing,
+                style: TextStyle(
+                    fontSize: 10.5, color: trailingColor ?? Colors.grey)),
             const Text(' ›', style: TextStyle(color: Colors.grey)),
           ],
         ),

@@ -9,7 +9,6 @@ import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
 import 'event_detail_sheet.dart';
-import 'time_pick_sheet.dart';
 
 /// 块视图·格子时间块（V1.19~V1.21 · 原型 calBlockView）。
 ///
@@ -253,28 +252,39 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                               : (ev != null
                                   ? (ev.status == EventStatus.done ? '✓完成' : '⚡事件')
                                   : (blk?.catName ?? ''));
-                          final cell = AnimatedContainer(
-                            duration: const Duration(milliseconds: 120),
-                            decoration: BoxDecoration(
-                              color: bg,
-                              borderRadius: BorderRadius.circular(6),
-                              border: selected
-                                  ? Border.all(color: tokens.accent, width: 2)
-                                  : null,
-                            ),
-                            alignment: Alignment.center,
-                            child: showHour && m % 60 == 0
-                                ? Text(
-                                    '${m ~/ 60}'.padLeft(2, '0'),
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w700,
-                                      color: (blk != null || isLive || ev != null)
-                                          ? Colors.white.withValues(alpha: .9)
-                                          : scheme.onSurfaceVariant,
-                                    ),
-                                  )
-                                : null,
+                          final cell = AnimatedBuilder(
+                            animation: _pulse,
+                            builder: (context, _) {
+                              // 原型 .animate-pulse：进行中块红色脉冲
+                              final liveBg = isLive
+                                  ? Color.lerp(const Color(0xFFF43F5E),
+                                      const Color(0xFFF43F5E).withValues(alpha: .4),
+                                      _pulse.value)!
+                                  : bg;
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                decoration: BoxDecoration(
+                                  color: liveBg,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: selected
+                                      ? Border.all(color: tokens.accent, width: 2)
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: showHour && m % 60 == 0
+                                    ? Text(
+                                        '${m ~/ 60}'.padLeft(2, '0'),
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w700,
+                                          color: (blk != null || isLive || ev != null)
+                                              ? Colors.white.withValues(alpha: .9)
+                                              : scheme.onSurfaceVariant,
+                                        ),
+                                      )
+                                    : null,
+                              );
+                            },
                           );
                           final tip = isLive
                               ? '$label ${_fmt(liveS)}-${_fmt(liveE ?? liveS + 1)}'
@@ -334,19 +344,6 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                           ),
                         ),
                       ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => showTimePickSheet(context, ref, day: widget.day),
-                      child: Container(
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: scheme.outlineVariant),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text('精细＋', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
-                      ),
-                    ),
                   ],
                 ),
               ),

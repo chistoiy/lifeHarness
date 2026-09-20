@@ -12,6 +12,7 @@ const todoChips = <(String, String)>[
   ('all', '全部'),
   ('today', '📅 今天'),
   ('week', '🗓 最近7天'),
+  ('quad', '⭐ 四象限'),
   ('scheduled', '🗃 已安排'),
   ('done', '☑️ 已完成'),
   ('overdue', '⏰ 已过期'),
@@ -38,7 +39,7 @@ bool matchTodo(Todo t, String f) {
   }
 }
 
-/// V1.26 智能筛选 chips（收进顶栏漏斗面板 · 点选后自动收起）。
+/// V1.26 智能筛选 chips（收进顶栏漏斗面板 · 点选后自动收起 · 原型 todoFilterPanel 卡）。
 class SmartFilterBar extends ConsumerWidget {
   const SmartFilterBar({super.key, required this.todos});
 
@@ -47,30 +48,62 @@ class SmartFilterBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(todoFilterProvider);
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: context.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final (id, label) in todoChips)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  id == 'all' || id == 'scheduled'
-                      ? label
-                      : '$label ${todos.where((t) => matchTodo(t, id)).length}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                visualDensity: VisualDensity.compact,
-                selected: filter == id,
-                onSelected: (_) {
-                  ref.read(todoFilterProvider.notifier).state = id;
-                  ref.read(todoFilterOpenProvider.notifier).state = false;
-                },
-              ),
+          Text('智能筛选 · 选择后自动收起',
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final (id, label) in todoChips)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(
+                        id == 'all' || id == 'scheduled' || id == 'quad'
+                            ? label
+                            : '$label ${todos.where((t) => matchTodo(t, id)).length}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: filter == id ? Colors.white : scheme.onSurfaceVariant),
+                      backgroundColor: scheme.onSurface.withValues(alpha: .08),
+                      selectedColor: tokens.accent,
+                      showCheckmark: false,
+                      shape: const StadiumBorder(),
+                      visualDensity: VisualDensity.compact,
+                      selected: filter == id,
+                      onSelected: (_) {
+                        if (id == 'quad') {
+                          // 原型「⭐ 四象限」chip = 切换四象限视图
+                          ref.read(todoViewModeProvider.notifier).state = true;
+                          ref.read(todoFilterOpenProvider.notifier).state = false;
+                          return;
+                        }
+                        ref.read(todoFilterProvider.notifier).state = id;
+                        ref.read(todoFilterOpenProvider.notifier).state = false;
+                      },
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -111,7 +144,7 @@ class TodoListView extends ConsumerWidget {
             foregroundColor: scheme.onSurfaceVariant,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          child: const Text('+ 快速添加任务（支持自然语言·V1.x）'),
+          child: const Text('+ 快速添加任务'),
         ),
         if (overdueCount > 0)
           Container(
@@ -133,7 +166,7 @@ class TodoListView extends ConsumerWidget {
                     children: [
                       Text('$overdueCount 项任务已逾期${overdueImportant > 0 ? '，其中 $overdueImportant 项标记为「重要」象限' : ''}。',
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      Text('临近截止的任务会被自动建议升入紧急象限（M0 末智能规则）',
+                      Text('临近截止的任务会被自动建议升入紧急象限',
                           style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                     ],
                   ),
@@ -185,10 +218,11 @@ class _TodoTile extends ConsumerWidget {
         decoration: context.cardDecoration,
         child: Row(
           children: [
-            Checkbox(
-              value: todo.done,
-              activeColor: qc,
-              onChanged: (_) {
+            // 原型 .chk：22px 圆形勾选（选中=主题色底白勾）
+            InkWell(
+              key: ValueKey('chk-${todo.id}'),
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
                 final wasDone = todo.done;
                 ref.read(todoRepositoryProvider).toggleDone(todo);
                 ref.invalidate(todosProvider);
@@ -201,6 +235,19 @@ class _TodoTile extends ConsumerWidget {
                         duration: Duration(milliseconds: 1400)));
                 }
               },
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: todo.done ? qc : Colors.transparent,
+                  border: Border.all(
+                      color: todo.done ? qc : const Color(0xFFCBD5E1), width: 2),
+                ),
+                child: todo.done
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : null,
+              ),
             ),
             Expanded(
               child: InkWell(
@@ -253,14 +300,16 @@ class _TodoTile extends ConsumerWidget {
                 ),
               ),
             const SizedBox(width: 6),
+            // 原型 .qbadge：20px 圆角方块象限角标
             Container(
-              width: 26,
-              height: 26,
+              width: 20,
+              height: 20,
               alignment: Alignment.center,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: qc),
+              decoration: BoxDecoration(
+                  color: qc, borderRadius: BorderRadius.circular(6)),
               child: Text(
                 '①②③④'[todo.quadrant.value - 1],
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: const TextStyle(color: Colors.white, fontSize: 11),
               ),
             ),
             const SizedBox(width: 4),

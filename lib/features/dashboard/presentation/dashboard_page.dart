@@ -1,26 +1,75 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/nav/nav_module.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 
-/// 模块6 今日仪表盘（M0 · 对齐原型 p-dashboard）。
-/// 真数据：待办数/进度环/今日日程数/收集箱未整理/连续记录天。
-/// 占位（灰显/提示）：心情打卡、时间分布、持有成本、主页编排、全局搜索——随模块上线替换。
-class DashboardPage extends ConsumerWidget {
+/// 模块6 今日仪表盘（对齐原型 p-dashboard）。
+/// 真数据：待办数/进度环/今日日程列表/收集箱未整理/连续记录天/本周时间分布。
+class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
 
+  @override
+  ConsumerState<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends ConsumerState<DashboardPage> {
   static const _weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
+  /// 心情（原型 moodRow：emoji + data-m 标签）。
+  static const _moods = [
+    ('😄', '开心'), ('😌', '平静'), ('😐', '一般'), ('😪', '疲惫'),
+    ('😰', '焦虑'), ('😢', '低落'), ('😡', '愤怒'),
+  ];
+
+  static const _moodTips = {
+    '开心': '状态满分，继续保持 ✨',
+    '平静': '平稳的一天，也很珍贵',
+    '一般': '没什么波澜，记录就是意义',
+    '疲惫': '辛苦了，今晚早点休息',
+    '焦虑': '把担心的事写进收集箱，拆小它',
+    '低落': '允许自己低落一会儿，会过去的',
+    '愤怒': '深呼吸，晚点再处理这件事',
+  };
+
+  String? _mood;
+  bool _fabMenu = false;
+
+  /// FAB 菜单动作（原型 fabGo：跳转目标模块；未开放模块给出版本提示）。
+  void _fabAction(int i) {
+    setState(() => _fabMenu = false);
+    switch (i) {
+      case 0:
+        context.go(NavModule.inbox.path);
+      case 1:
+        context.go(NavModule.todo.path);
+        // 到达待办页后请求直接打开新建弹层（跨模块经事件总线，守 R1）。
+        Future.delayed(const Duration(milliseconds: 350),
+            () => ref.read(eventBusProvider).publish(const QuickAddEvent('todo')));
+      case 2:
+        context.go(NavModule.journal.path);
+      case 3:
+        _toastOf(context, '「记账」· 规划 V0.5');
+      case 4:
+        _toastOf(context, '「物品」· 规划 V1.0');
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final now = DateTime.now();
     final hour = now.hour;
     final greet = hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
     final emoji = hour < 18 ? '☀️' : '🌙';
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
+    final tokens = context.tokens;
 
     return Scaffold(
       appBar: AppBar(
@@ -40,18 +89,18 @@ class DashboardPage extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            tooltip: '全局搜索（M1 上线）',
+            tooltip: '搜索',
             icon: const Icon(Icons.search),
-            onPressed: () => _toast(context, '全局搜索框架 M1 接入'),
+            onPressed: () => _toastOf(context, '全局搜索 · 即将开放'),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
         children: [
           _HeroCard(greet: '$greet，CHIST $emoji'),
           const SizedBox(height: 14),
-          const _MoodCard(),
+          _MoodCard(mood: _mood, onPick: (m) => setState(() => _mood = m)),
           const SizedBox(height: 14),
           const _TodayScheduleCard(),
           const SizedBox(height: 14),
@@ -68,18 +117,53 @@ class DashboardPage extends ConsumerWidget {
           ),
         ],
       ),
+      // 原型 p-dashboard FAB：＋ 点开快捷记录菜单
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_fabMenu)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final (i, label) in const [
+                    (0, '⚡ 记一条想法'),
+                    (1, '✅ 记待办'),
+                    (2, '📔 记日记'),
+                    (3, '💰 记一笔'),
+                    (4, '📦 记物品'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: FabActionCard(
+                          label: label, onTap: () => _fabAction(i)),
+                    ),
+                ],
+              ),
+            ),
+          AnimatedRotation(
+            duration: const Duration(milliseconds: 180),
+            turns: _fabMenu ? 1 / 8 : 0,
+            child: GradFab(
+              tooltip: '快速记录',
+              icon: const Icon(Icons.add, color: Colors.white, size: 26),
+              onTap: () => setState(() => _fabMenu = !_fabMenu),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      extendBody: false,
+      backgroundColor: tokens.page,
     );
   }
 }
 
-void _toast(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-        SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1500)));
-}
+/// 旋转角度等共享组件见 core/widgets/grad_fab.dart。
 
-/// 问候卡：今日待办/安排真数 + 进度环 + 持有成本与编排占位。
+/// 问候卡：今日待办/安排真数 + 重要象限精力胶囊 + 进度环 x/y + 持有成本占位。
 class _HeroCard extends ConsumerWidget {
   const _HeroCard({required this.greet});
 
@@ -95,19 +179,26 @@ class _HeroCard extends ConsumerWidget {
     final doneToday = todos.where((t) => t.done).length;
     final total = todos.length;
     final ratio = total == 0 ? 0.0 : doneToday / total;
+    // 本周精力「重要」象限占比（原型 62% 胶囊 · 用真实象限分布计算）
+    final counted = todos.where((t) => !t.dropped).toList();
+    final important =
+        counted.where((t) => t.quadrant.value <= 2).length;
+    final impPct = counted.isEmpty
+        ? null
+        : (important * 100 / counted.length).round();
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: tokens.gradient,
-        borderRadius: BorderRadius.circular(tokens.cardRadius),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: tokens.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(greet, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.end,
             children: [
@@ -123,6 +214,31 @@ class _HeroCard extends ConsumerWidget {
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
             ],
           ),
+          if (impPct != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                          shape: BoxShape.circle, color: Color(0xFF6EE7B7))),
+                  const SizedBox(width: 8),
+                  Text(
+                      '本周 $impPct% 精力在「重要」象限'
+                      '${impPct >= 50 ? '，状态不错' : '，试试把重心挪回重要的事'}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11.5)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
@@ -152,8 +268,9 @@ class _HeroCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text('已完成',
-                          style: TextStyle(color: Colors.white, fontSize: 11)),
+                      Text('$doneToday/$total\n已完成',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 11, height: 1.35)),
                     ],
                   ),
                 ),
@@ -168,7 +285,7 @@ class _HeroCard extends ConsumerWidget {
                       Text('¥ —',
                           style: TextStyle(
                               color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                      Text('物品模块 V1.0 上线',
+                      Text('物品模块规划 V1.0',
                           style: TextStyle(color: Colors.white70, fontSize: 10)),
                     ],
                   ),
@@ -185,7 +302,7 @@ class _HeroCard extends ConsumerWidget {
               ),
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => _toast(context, '主页编排 M0 末接入（挂载点已就绪）'),
+                onTap: () => _toastOf(context, '主页编排 · 敬请期待'),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
@@ -203,6 +320,12 @@ class _HeroCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _toastOf(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1500)));
 }
 
 class _MiniGlass extends StatelessWidget {
@@ -231,14 +354,16 @@ class _MiniGlass extends StatelessWidget {
   }
 }
 
-/// 今日心情（占位：随日记模块 M0 末接入 journal.mood）。
+/// 今日心情（原型 moodRow：点选放大 + 记录反馈文案）。
 class _MoodCard extends StatelessWidget {
-  const _MoodCard();
+  const _MoodCard({required this.mood, required this.onPick});
 
-  static const _moods = ['😄', '😌', '😐', '', '😰', '', '😡'];
+  final String? mood;
+  final ValueChanged<String> onPick;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: context.cardDecoration,
@@ -246,25 +371,39 @@ class _MoodCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('今日心情', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              for (final m in _moods)
+              for (final (e, label) in _DashboardPageState._moods)
                 InkWell(
                   borderRadius: BorderRadius.circular(20),
-                  onTap: () => _toast(context, '心情打卡随日记模块上线（M0 末）'),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Text(m, style: const TextStyle(fontSize: 24)),
+                  onTap: () => onPick(label),
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 150),
+                    scale: mood == label ? 1.25 : 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: Opacity(
+                        opacity: mood == null || mood == label ? 1 : .45,
+                        child: Text(e, style: const TextStyle(fontSize: 23)),
+                      ),
+                    ),
                   ),
                 ),
             ],
           ),
           const SizedBox(height: 4),
           Center(
-            child: Text('点一下，记录今天的心情（待接入）',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+            child: Text(
+              mood == null
+                  ? '点一下，记录今天的心情'
+                  : '已记录：$mood · ${_DashboardPageState._moodTips[mood]}（将进入今晚日记）',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: mood == null ? Colors.grey.shade400 : tokens.accent),
+            ),
           ),
         ],
       ),
@@ -272,13 +411,24 @@ class _MoodCard extends StatelessWidget {
   }
 }
 
-/// 今日日程（数据随日程模块接入，当前空态 + 查看全部）。
+/// 今日日程（原型 dashEvents：色条 + 标题 + 起止时间卡列表）。
 class _TodayScheduleCard extends ConsumerWidget {
   const _TodayScheduleCard();
 
+  static String _hm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(todayEventCountProvider).valueOrNull ?? 0;
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final events = (ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[])
+        .where((e) =>
+            e.start.year == now.year && e.start.month == now.month && e.start.day == now.day)
+        .toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: context.cardDecoration,
@@ -295,18 +445,58 @@ class _TodayScheduleCard extends ConsumerWidget {
                 child: Text('查看全部 ›',
                     style: TextStyle(
                         fontSize: 12,
-                        color: context.tokens.accent,
+                        color: tokens.accent,
                         fontWeight: FontWeight.w700)),
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              count == 0 ? '今天还没有安排 · 点右下角 ＋ 记录这段时间' : '今日 $count 项安排',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          if (events.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text('今天还没有安排',
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-          ),
+          for (final e in events.take(4))
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.onSurface.withValues(alpha: .04),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: e.colorOf(tokens.accent),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                      child: Text(e.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600))),
+                  Text(
+                      e.allDay
+                          ? '全天'
+                          : '${_hm(e.start)}-${e.end == null ? '' : _hm(e.end!)}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                          color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          if (events.length > 4)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text('还有 ${events.length - 4} 项…',
+                  style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            ),
         ],
       ),
     );
@@ -358,12 +548,50 @@ class _InboxBar extends ConsumerWidget {
   }
 }
 
-/// 本周时间分布（占位卡：统计随 M2 上线）。
-class _TimeDistCard extends StatelessWidget {
+/// 本周时间分布（原型四色 donut + 图例；数据=近 7 天时间块按分类聚合）。
+class _TimeDistCard extends ConsumerWidget {
   const _TimeDistCard();
 
+  static const _palette = [
+    Color(0xFF6366F1), // 随主题的 brand 位（实际用 accent 覆盖第一个）
+    Color(0xFF2DD4BF),
+    Color(0xFFF59E0B),
+    Color(0xFFFB7185),
+  ];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+
+    // 近 7 天（含今日）时间块聚合：分类 → 分钟
+    final minutesByCat = <String, int>{};
+    var loading = false;
+    for (var i = 6; i >= 0; i--) {
+      final d = DateTime(now.year, now.month, now.day - i);
+      final blocks = ref.watch(dayBlocksProvider(d)).valueOrNull;
+      if (blocks == null) {
+        loading = true;
+        continue;
+      }
+      for (final TimeBlock b in blocks) {
+        minutesByCat[b.catName] =
+            (minutesByCat[b.catName] ?? 0) + math.max(0, b.endMin - b.startMin);
+      }
+    }
+    final entries = minutesByCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    var top = [for (final e in entries.take(4)) (e.key, e.value)];
+    final restMin = entries.skip(4).fold<int>(0, (s, e) => s + e.value);
+    if (restMin > 0) top = [...top, ('其他', restMin)];
+    final totalMin = top.fold<int>(0, (s, e) => s + e.$2);
+
+    final colors = [
+      tokens.accent,
+      for (final c in _palette.skip(1)) c,
+    ];
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: context.cardDecoration,
@@ -372,25 +600,55 @@ class _TimeDistCard extends StatelessWidget {
         children: [
           const Text('本周时间分布',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               SizedBox(
-                width: 72,
-                height: 72,
-                child: CircularProgressIndicator(
-                  value: 0,
-                  strokeWidth: 14,
-                  color: Colors.grey.shade200,
-                  backgroundColor: Colors.grey.shade200,
+                width: 96,
+                height: 96,
+                child: CustomPaint(
+                  painter: _DonutPainter(
+                    values: totalMin == 0 ? const [] : [for (final e in top) e.$2],
+                    colors: colors,
+                    empty: totalMin == 0 && !loading,
+                    emptyColor: scheme.onSurface.withValues(alpha: .08),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
-                child: Text(
-                  '工作学习 / 睡眠休息 / 运动健康 / 娱乐休闲\n\n数据积累后自动绘制（M2 统计上线）',
-                  style: TextStyle(fontSize: 11.5, height: 1.5, color: Colors.grey),
-                ),
+              Expanded(
+                child: totalMin == 0
+                    ? Text(
+                        loading ? '加载中…' : '暂无时间记录\n在「时间」块视图滑选标记后自动统计',
+                        style: TextStyle(
+                            fontSize: 11.5, height: 1.5, color: scheme.onSurfaceVariant))
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (var i = 0; i < top.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                children: [
+                                  Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: colors[i % colors.length])),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                      child: Text(top[i].$1,
+                                          style: const TextStyle(fontSize: 12))),
+                                  Text(
+                                      '${(top[i].$2 * 100 / totalMin).round()}%',
+                                      style: const TextStyle(
+                                          fontSize: 12, fontWeight: FontWeight.w700)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -400,32 +658,78 @@ class _TimeDistCard extends StatelessWidget {
   }
 }
 
-/// 全部功能宫格：已建可点，未建灰显 + 版本角标（原型规范）。
+class _DonutPainter extends CustomPainter {
+  _DonutPainter(
+      {required this.values, required this.colors, required this.empty, required this.emptyColor});
+
+  final List<int> values;
+  final List<Color> colors;
+  final bool empty;
+  final Color emptyColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 8;
+    final total = values.fold<int>(0, (s, v) => s + v);
+    if (empty || total == 0) {
+      canvas.drawCircle(
+          c,
+          r,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 14
+            ..color = emptyColor);
+      return;
+    }
+    var start = -math.pi / 2;
+    for (var i = 0; i < values.length; i++) {
+      final sweep = values[i] / total * 2 * math.pi;
+      canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r),
+        start,
+        math.max(0.001, sweep - 0.03), // 分段留细缝（原型 dasharray 间效果）
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 14
+          ..color = colors[i % colors.length],
+      );
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutPainter old) =>
+      old.values != values || old.colors != colors || old.empty != empty;
+}
+
+/// 全部功能宫格（原型 D.grid：emoji + 浅灰圆角底块 17 项 · 未建灰显 + 版本角标）。
 class _AllModulesCard extends StatelessWidget {
   const _AllModulesCard();
 
-  static const _mods = <(String, IconData, String?, String?)>[
-    ('待办', Icons.check_circle_outline, '/todo', null),
-    ('时间', Icons.schedule, '/calendar', null),
-    ('日记', Icons.book_outlined, '/journal', null),
-    ('收集箱', Icons.inbox_outlined, '/inbox', null),
-    ('我的', Icons.person_outline, '/settings', null),
-    ('笔记', Icons.edit_note_outlined, null, 'V0.5'),
-    ('阅读', Icons.menu_book_outlined, null, 'V0.5'),
-    ('记账', Icons.payments_outlined, null, 'V0.5'),
-    ('物品', Icons.inventory_2_outlined, null, 'V1.0'),
-    ('日子', Icons.cake_outlined, null, 'V1.0'),
-    ('健康', Icons.monitor_heart_outlined, null, 'V1.0'),
-    ('目标', Icons.flag_outlined, null, 'V1.0'),
-    ('习惯', Icons.local_fire_department_outlined, null, 'V1.0'),
-    ('工具', Icons.construction_outlined, null, 'V1.x'),
-    ('母婴', Icons.child_care_outlined, null, 'V1.x'),
-    ('插件', Icons.extension_outlined, null, 'V1.x'),
+  static const _mods = <(String, String, String?, String?)>[
+    ('✅', '待办', '/todo', null),
+    ('⏱️', '时间', '/calendar', null),
+    ('📔', '日记', '/journal', null),
+    ('📝', '笔记', null, 'V0.5'),
+    ('📚', '阅读', null, 'V0.5'),
+    ('⚡', '收集箱', '/inbox', null),
+    ('💰', '记账', null, 'V0.5'),
+    ('📦', '物品', null, 'V1.0'),
+    ('🎂', '日子', null, 'V1.0'),
+    ('🏃', '健康', null, 'V1.0'),
+    ('🔁', '习惯', null, 'V1.0'),
+    ('🧭', '目标', null, 'V1.0'),
+    ('🧰', '小工具', null, 'V1.x'),
+    ('🍼', '母婴', null, 'V1.x'),
+    ('🧩', '插件中心', null, 'V1.x'),
+    ('🤖', 'AI 验证', null, 'V1.x'),
+    ('⚙️', '设置', '/settings', null),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
@@ -444,39 +748,56 @@ class _AllModulesCard extends StatelessWidget {
                 spacing: gap,
                 runSpacing: gap,
                 children: [
-                  for (final (label, icon, route, ver) in _mods)
+                  for (final (ic, label, route, ver) in _mods)
                     SizedBox(
                       width: w,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: route == null
-                            ? () => _toast(context, '「$label」计划 $ver 上线')
+                            ? () => _toastOf(context, '「$label」· 规划 $ver')
                             : () => context.go(route),
                         child: Opacity(
                           opacity: route == null ? .45 : 1,
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Column(
                               children: [
                                 Stack(
                                   clipBehavior: Clip.none,
                                   children: [
-                                    Icon(icon,
-                                        size: 24,
-                                        color: route == null ? Colors.grey : tokens.accent),
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: scheme.onSurface.withValues(alpha: .06),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Text(ic, style: const TextStyle(fontSize: 20)),
+                                    ),
                                     if (ver != null)
                                       Positioned(
-                                        right: -14,
-                                        top: -6,
-                                        child: Text(ver,
-                                            style: const TextStyle(
-                                                fontSize: 7.5, color: Colors.grey)),
+                                        right: -6,
+                                        top: -4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: scheme.onSurface.withValues(alpha: .08),
+                                            borderRadius: BorderRadius.circular(5),
+                                          ),
+                                          child: Text(ver,
+                                              style: TextStyle(
+                                                  fontSize: 7,
+                                                  color: scheme.onSurfaceVariant)),
+                                        ),
                                       ),
                                   ],
                                 ),
                                 const SizedBox(height: 5),
                                 Text(label,
-                                    style: TextStyle(fontSize: 11, color: scheme.onSurface)),
+                                    style: TextStyle(
+                                        fontSize: 11, color: scheme.onSurface)),
                               ],
                             ),
                           ),

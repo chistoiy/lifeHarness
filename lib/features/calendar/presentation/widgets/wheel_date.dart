@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// 轮式日期选择（V1.22.1 · 图1 · 顶栏年/月/日点击跳转）。
+/// 形态=底部弹层（原型 sheetDatePick：居中标题+周几提示+三列滚轮+取消/确定大按钮）。
 /// 当月天数（避开 DateTime(y,m+1,0)：day-0 归一化在 FakeAsync 时区解析下会挂死）。
 int daysInMonthOf(int y, int m) {
   const dm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (m != 2) return dm[m - 1];
   return (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 29 : 28;
 }
+
 Future<DateTime?> showWheelDatePick(BuildContext context, DateTime initial) async {
-  return showDialog<DateTime>(
+  return showModalBottomSheet<DateTime>(
     context: context,
     builder: (bc) => _WheelDate(initial: initial),
   );
@@ -46,37 +48,86 @@ class _WheelDateState extends State<_WheelDate> {
     final scheme = Theme.of(context).colorScheme;
     final clampedD = _d.clamp(1, _daysInMonth);
     final preview = DateTime(_y, _m, clampedD);
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Column(
-        children: [
-          const Text('选择日期', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 2),
-          Text(
-              '${_m.toString().padLeft(2, '0')}月${clampedD.toString().padLeft(2, '0')}日 周${_wd[preview.weekday - 1]}'
-              '${preview == DateTime.now().copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0) ? ' · 今天' : ''}',
-              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-        ],
-      ),
-      content: SizedBox(
-        height: 170,
-        child: Row(
+    final isToday = preview == DateTime.now().withoutTime;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _col(_years.map((y) => '$y').toList(), _years.indexOf(_y), (i) => _setY(_years[i]), '年'),
-            _col([for (var m = 1; m <= 12; m++) m.toString().padLeft(2, '0')], _m - 1, (i) => _setM(i + 1), '月'),
-            _col([for (var d = 1; d <= _daysInMonth; d++) d.toString().padLeft(2, '0')], clampedD - 1, (i) => _setD(i + 1), '日'),
+            const Text('选择日期',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text.rich(
+              TextSpan(
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                children: [
+                  TextSpan(text:
+                      '${_m.toString().padLeft(2, '0')}月${clampedD.toString().padLeft(2, '0')}日 周${_wd[preview.weekday - 1]}'),
+                  if (isToday)
+                    const TextSpan(
+                        text: ' · 今天',
+                        style: TextStyle(
+                            color: Color(0xFF6366F1),
+                            fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 136,
+              child: Row(
+                children: [
+                  _col(_years.map((y) => '$y').toList(), _years.indexOf(_y),
+                      (i) => _setY(_years[i]), '年'),
+                  _col(
+                      [for (var m = 1; m <= 12; m++) m.toString().padLeft(2, '0')],
+                      _m - 1,
+                      (i) => _setM(i + 1),
+                      '月'),
+                  _col(
+                      [
+                    for (var d = 1; d <= _daysInMonth; d++)
+                      d.toString().padLeft(2, '0')
+                  ], clampedD - 1, (i) => _setD(i + 1), '日'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style:
+                        OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 42,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                          gradient: tokens.gradient,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: TextButton(
+                        onPressed: () =>
+                            Navigator.pop(context, DateTime(_y, _m, clampedD)),
+                        child: const Text('确定',
+                            style: TextStyle(
+                                color: Colors.white, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: tokens.accent),
-          onPressed: () => Navigator.pop(context, DateTime(_y, _m, clampedD)),
-          child: const Text('确定'),
-        ),
-      ],
-      actionsPadding: const EdgeInsets.fromLTRB(12, 0, 16, 12),
     );
   }
 
@@ -98,6 +149,10 @@ class _WheelDateState extends State<_WheelDate> {
       ),
     );
   }
+}
+
+extension on DateTime {
+  DateTime get withoutTime => DateTime(year, month, day);
 }
 
 /// 单列滚轮：StatefulWidget 自持 controller（build 内 new 会导致重挂循环触发
@@ -135,7 +190,6 @@ class _ColWheelState extends State<_ColWheel> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final scheme = Theme.of(context).colorScheme;
     return CupertinoPicker(
       scrollController: _ctl,
       itemExtent: 34,
@@ -147,9 +201,9 @@ class _ColWheelState extends State<_ColWheel> {
           Center(
             child: Text(widget.items[i],
                 style: TextStyle(
-                  fontSize: i == widget.index ? 18 : 13,
-                  fontWeight: FontWeight.w800,
-                  color: i == widget.index ? tokens.accent : scheme.onSurfaceVariant.withValues(alpha: .5),
+                  fontSize: i == widget.index ? 19 : 12,
+                  fontWeight: i == widget.index ? FontWeight.w800 : FontWeight.w600,
+                  color: i == widget.index ? tokens.accent : const Color(0xFF94A3B8),
                 )),
           ),
       ],

@@ -64,11 +64,12 @@ void main() {
   });
 
   testWidgets('勾选完成 → L2 联动 toast，任务划线保留', (tester) async {
-    await repo.add(Todo(title: '待办A', quadrant: Quadrant.q2));
+    final t = await repo.add(Todo(title: '待办A', quadrant: Quadrant.q2));
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(Checkbox));
+    // 原型 .chk 圆形勾选（key='chk-<id>'）
+    await tester.tap(find.byKey(ValueKey('chk-${t.id}')));
     await tester.pumpAndSettle();
 
     final saved = await repo.list();
@@ -94,22 +95,24 @@ void main() {
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
   });
 
-  testWidgets('详情弹层改判象限并持久化', (tester) async {
+  testWidgets('详情弹层改判象限并持久化（原型 sheetTask q-move 即点即存）',
+      (tester) async {
     final t = await repo.add(Todo(title: '改判任务', quadrant: Quadrant.q4));
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('改判任务'));
     await tester.pumpAndSettle();
-    expect(find.text('改判象限'), findsOneWidget);
+    // 原型 q-move 四短钮：立即做/计划做/委托/淘汰
+    expect(find.text('委托'), findsOneWidget);
+    expect(find.text('淘汰'), findsOneWidget);
 
-    await tester.tap(find.text('紧急不重要'));
-    await tester.pump();
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('委托'));
     await tester.pumpAndSettle();
 
     final list = await repo.list();
     expect(list.first.quadrant, Quadrant.q3);
     expect(t.id, isNotNull);
+    expect(find.text('已改判为「紧急不重要」（拖拽同样可用）'), findsOneWidget);
   });
 }
