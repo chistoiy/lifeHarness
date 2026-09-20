@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/widgets/wheel_time.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
@@ -16,6 +17,7 @@ import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_page.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 内嵌滚轮（InlineWheelTime）专项守护。
@@ -35,6 +37,7 @@ void main() {
   late TodoRepository todoRepo;
   late EventRepository eventRepo;
   late EventBus bus;
+  late SharedPreferences prefs;
 
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
@@ -44,6 +47,9 @@ void main() {
     bus = EventBus();
     todoRepo = TodoRepository(TodoDao(db), bus);
     eventRepo = EventRepository(EventDao(db), bus);
+    // TodoListView 监听 settingsControllerProvider（临期升紧急开关），需 prefs 桩
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async {
@@ -88,7 +94,10 @@ void main() {
   // ------------------------------------------------------- 真实入口：待办「时间点」
   testWidgets('待办添加弹层「时间点」：滚轮不挂死，选中值一路落库', (tester) async {
     await tester.pumpWidget(ProviderScope(
-      overrides: [todoRepositoryProvider.overrideWithValue(todoRepo)],
+      overrides: [
+        todoRepositoryProvider.overrideWithValue(todoRepo),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
       child: const MaterialApp(home: TodoPage()),
     ));
     await tester.pumpAndSettle();
@@ -129,7 +138,10 @@ void main() {
   // ------------------------------------------------------- 真实入口：待办「时间段」
   testWidgets('待办添加弹层「时间段」：两只滚轮并存不挂死，起止均可落库', (tester) async {
     await tester.pumpWidget(ProviderScope(
-      overrides: [todoRepositoryProvider.overrideWithValue(todoRepo)],
+      overrides: [
+        todoRepositoryProvider.overrideWithValue(todoRepo),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
       child: const MaterialApp(home: TodoPage()),
     ));
     await tester.pumpAndSettle();

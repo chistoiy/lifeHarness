@@ -8,6 +8,7 @@ import '../../features/todo/presentation/todo_providers.dart';
 // 跨模块聚合出口：仪表盘/设置等只 import 本文件，不直接 import 其他 feature。
 export '../../features/todo/presentation/todo_providers.dart' show todosProvider, todoRepositoryProvider, activePomoProvider, PomoSession;
 export '../../features/todo/domain/todo.dart' show Todo, Quadrant;
+export '../../features/todo/domain/todo_insights.dart' show energyCaption;
 export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider;
 export '../../features/calendar/presentation/calendar_providers.dart' show eventsProvider;
 export '../../features/calendar/domain/cal_event.dart' show CalEvent, EventStatus;

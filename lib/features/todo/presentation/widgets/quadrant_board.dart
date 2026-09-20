@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/todo.dart';
+import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
 import 'todo_edit_sheet.dart';
 
@@ -46,6 +47,57 @@ class QuadrantBoard extends ConsumerWidget {
                 ],
               ),
             ),
+          // M0末B 失衡提醒（原型 quadWrap 底部 amber 卡 · Q2 连续空置 ≥3 天才出现）
+          _ImbalanceCard(todos: todos),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「重要不紧急」象限失衡提醒卡：🧭 + 空置天数 + 去规划（直开 Q2 预置新建）。
+class _ImbalanceCard extends ConsumerWidget {
+  const _ImbalanceCard({required this.todos});
+
+  final List<Todo> todos;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final empty = q2EmptyDays(todos);
+    if (empty == null || empty < kImbalanceThresholdDays) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    const sun = Color(0xFFF59E0B);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: sun.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: sun.withValues(alpha: .3)),
+      ),
+      child: Row(
+        children: [
+          const Text('🧭', style: TextStyle(fontSize: 15)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurface, height: 1.35),
+                children: [
+                  const TextSpan(text: '失衡提醒：', style: TextStyle(fontWeight: FontWeight.w800)),
+                  TextSpan(
+                      text: '「重要不紧急」象限已 $empty 天空置，长期如此容易陷入救火模式。'
+                          '先安排一件只属于未来的事。'),
+                ],
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => showTodoAddSheet(context, ref, preset: Quadrant.q2),
+            style: TextButton.styleFrom(foregroundColor: sun),
+            child: const Text('去规划', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );

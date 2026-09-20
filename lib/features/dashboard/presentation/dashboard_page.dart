@@ -42,6 +42,42 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   String? _mood;
   bool _fabMenu = false;
 
+  // ===== M0末C 主页卡片自由编排（原型 dashToggle/dashMove/drop 排序） =====
+  bool _editing = false;
+  List<String>? _draft; // 编排期工作副本，「完成」才落 settings
+
+  void _toggleEdit() {
+    if (_editing) {
+      ref.read(settingsControllerProvider.notifier).setHomeOrder(_draft!);
+      setState(() {
+        _editing = false;
+        _draft = null;
+      });
+      _toastOf(context, '主页布局已保存 · 下次启动保持此顺序');
+    } else {
+      setState(() {
+        _draft = [...ref.read(settingsControllerProvider).homeCardOrder];
+        _editing = true;
+      });
+    }
+  }
+
+  void _moveCard(int i, int dir) {
+    final to = i + dir;
+    if (to < 0 || to >= _draft!.length) {
+      _toastOf(context, dir < 0 ? '已在第一位' : '已在最后一位');
+      return;
+    }
+    setState(() => _draft!.insert(to, _draft!.removeAt(i)));
+  }
+
+  void _reorder(int oldI, int newI) {
+    setState(() {
+      if (newI > oldI) newI--;
+      _draft!.insert(newI, _draft!.removeAt(oldI));
+    });
+  }
+
   /// FAB 菜单动作（原型 fabGo：跳转目标模块；未开放模块给出版本提示）。
   void _fabAction(int i) {
     setState(() => _fabMenu = false);
@@ -74,6 +110,90 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final tokens = context.tokens;
 
+    final order = _editing ? _draft! : ref.watch(settingsControllerProvider).homeCardOrder;
+
+    Widget card(String id) => switch (id) {
+          'greeting' => _HeroCard(
+              greet: '$greet，CHIST $emoji', onEdit: _toggleEdit, editing: _editing),
+          'mood' => _MoodCard(mood: _mood, onPick: (m) {
+              setState(() => _mood = m);
+              // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
+              final idx = _moods.indexWhere((e) => e.$2 == m) + 1;
+              if (idx > 0) {
+                ref.read(journalRepositoryProvider).setMoodOfDay(DateTime.now(), idx);
+                ref.invalidate(journalsProvider);
+              }
+            }),
+          'events' => const _TodayScheduleCard(),
+          'inboxBar' => const _InboxBar(),
+          'chart' => const _TimeDistCard(),
+          'grid' => const _AllModulesCard(),
+          _ => const SizedBox.shrink(),
+        };
+
+    // 编排模式：ReorderableListView 拖拽 + ↑↓ 微调；「完成」落盘（原型 dash-edit）
+    final body = _editing
+        ? ReorderableListView(
+            key: const ValueKey('dash-reorder'),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+            onReorder: _reorder,
+            header: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: tokens.accent.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: tokens.accent.withValues(alpha: .3)),
+              ),
+              child: const Text('⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调 · 「完成」保存布局',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+            ),
+            children: [
+              for (final (i, id) in order.indexed)
+                Padding(
+                  key: ValueKey('card-$id'),
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Stack(
+                    children: [
+                      card(id),
+                      Positioned(
+                        right: 2,
+                        top: 34,
+                        child: Column(
+                          children: [
+                            _ArrowBtn(
+                                key: ValueKey('up-$id'),
+                                label: '↑',
+                                onTap: () => _moveCard(i, -1)),
+                            const SizedBox(height: 6),
+                            _ArrowBtn(
+                                key: ValueKey('down-$id'),
+                                label: '↓',
+                                onTap: () => _moveCard(i, 1)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          )
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+            children: [
+              for (final id in order) ...[
+                card(id),
+                const SizedBox(height: 14),
+              ],
+              Center(
+                child: Text(
+                  'LifeHarness · 纯本地 · 离线可用',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                ),
+              ),
+            ],
+          );
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -91,6 +211,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ],
         ),
         actions: [
+          TextButton(
+            key: const ValueKey('dash-edit-btn'),
+            onPressed: _toggleEdit,
+            child: Text(_editing ? '✓ 完成' : '⇄ 编排',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+          ),
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -98,36 +224,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-        children: [
-          _HeroCard(greet: '$greet，CHIST $emoji'),
-          const SizedBox(height: 14),
-          _MoodCard(mood: _mood, onPick: (m) {
-            setState(() => _mood = m);
-            // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
-            final idx = _moods.indexWhere((e) => e.$2 == m) + 1;
-            if (idx > 0) {
-              ref.read(journalRepositoryProvider).setMoodOfDay(DateTime.now(), idx);
-              ref.invalidate(journalsProvider);
-            }
-          }),
-          const SizedBox(height: 14),
-          const _TodayScheduleCard(),
-          const SizedBox(height: 14),
-          const _InboxBar(),
-          const SizedBox(height: 14),
-          const _TimeDistCard(),
-          const SizedBox(height: 14),
-          const _AllModulesCard(),
-          Center(
-            child: Text(
-              'LifeHarness · 纯本地 · 离线可用',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-            ),
-          ),
-        ],
-      ),
+      body: body,
       // 原型 p-dashboard FAB：＋ 点开快捷记录菜单
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
@@ -172,13 +269,47 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 }
 
+/// 编排模式 ↑↓ 微调圆钮（原型 .mv-btn）。
+class _ArrowBtn extends StatelessWidget {
+  const _ArrowBtn({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Material(
+      color: tokens.card,
+      shape: CircleBorder(side: BorderSide(color: tokens.cardBorder)),
+      elevation: 2,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Center(
+            child: Text(label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 旋转角度等共享组件见 core/widgets/grad_fab.dart。
 
 /// 问候卡：今日待办/安排真数 + 重要象限精力胶囊 + 进度环 x/y + 持有成本占位。
 class _HeroCard extends ConsumerWidget {
-  const _HeroCard({required this.greet});
+  const _HeroCard({required this.greet, required this.onEdit, required this.editing});
 
   final String greet;
+
+  /// 「⇄ 编排 / ✓ 完成」开关（M0末C，与 AppBar 同一动作）。
+  final VoidCallback onEdit;
+  final bool editing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -243,8 +374,7 @@ class _HeroCard extends ConsumerWidget {
                           shape: BoxShape.circle, color: Color(0xFF6EE7B7))),
                   const SizedBox(width: 8),
                   Text(
-                      '本周 $impPct% 精力在「重要」象限'
-                      '${impPct >= 50 ? '，状态不错' : '，试试把重心挪回重要的事'}',
+                      '本周 $impPct% 精力在「重要」象限${energyCaption(impPct)}',
                       style: const TextStyle(color: Colors.white, fontSize: 11.5)),
                 ],
               ),
@@ -313,15 +443,15 @@ class _HeroCard extends ConsumerWidget {
               ),
               InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => _toastOf(context, '主页编排 · 敬请期待'),
+                onTap: onEdit, // 与 AppBar「⇄ 编排」同一开关（M0末C 落地，替换占位 toast）
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white24,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text('⇄ 编排',
-                      style: TextStyle(
+                  child: Text(editing ? '✓ 完成' : '⇄ 编排',
+                      style: const TextStyle(
                           color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
                 ),
               ),

@@ -27,6 +27,11 @@ dependencies:
   shared_preferences: ^2.3.3
   # 日期/数字格式化
   intl: ^0.20.2
+  # 通知与定时提醒（M0末A：待办 remind_at / 每日整理与复盘提醒）
+  flutter_local_notifications: ^19.0.0
+  timezone: ^0.10.0
+  # 读取系统 IANA 时区（timezone 包调度需要）
+  flutter_timezone: ^4.1.0
 
 dev_dependencies:
   flutter_test:

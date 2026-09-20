@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_page.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -17,6 +19,7 @@ void main() {
   late Database db;
   late TodoRepository repo;
   late EventBus bus;
+  late SharedPreferences prefs;
 
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
@@ -25,6 +28,9 @@ void main() {
     }
     bus = EventBus();
     repo = TodoRepository(TodoDao(db), bus);
+    // 清单视图监听 settingsControllerProvider（临期升紧急开关），需 prefs 桩
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async {
@@ -33,7 +39,10 @@ void main() {
   });
 
   Widget app() => ProviderScope(
-        overrides: [todoRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          todoRepositoryProvider.overrideWithValue(repo),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
         child: const MaterialApp(home: TodoPage()),
       );
 

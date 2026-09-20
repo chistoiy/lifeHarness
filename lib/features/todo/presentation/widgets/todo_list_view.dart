@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/todo.dart';
+import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
 import 'pomo_screen.dart';
 import 'todo_edit_sheet.dart';
@@ -124,6 +126,10 @@ class TodoListView extends ConsumerWidget {
     final shown = todos.where((t) => matchTodo(t, filter)).toList();
     final overdueCount = todos.where((t) => t.overdue).length;
     final overdueImportant = todos.where((t) => t.overdue && (t.quadrant == Quadrant.q1 || t.quadrant == Quadrant.q2)).length;
+    // M0末B 临期升紧急建议（受设置「逾期/临期升级建议」开关控制）
+    final escalateOn =
+        ref.watch(settingsControllerProvider).notify.overdueEscalate;
+    final escalate = escalateOn ? escalateSuggestions(todos) : <Todo>[];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
@@ -175,6 +181,55 @@ class TodoListView extends ConsumerWidget {
                   onPressed: () => ref.read(todoViewModeProvider.notifier).state = true,
                   style: TextButton.styleFrom(foregroundColor: const Color(0xFFF43F5E)),
                   child: const Text('处理', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        // M0末B 临期升紧急建议卡：Q2 任务已逾期/24h 内到期 → 一键升入「重要且紧急」
+        if (escalate.isNotEmpty)
+          Container(
+            key: const ValueKey('escalate-card'),
+            margin: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: .3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('📌', style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${escalate.length} 项「重要不紧急」已临近截止。',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      Text('再不动手就会变成救火任务，建议升入紧急象限排优先。',
+                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  key: const ValueKey('escalate-go'),
+                  onPressed: () async {
+                    final repo = ref.read(todoRepositoryProvider);
+                    for (final t in escalate) {
+                      await repo.moveQuadrant(t, Quadrant.q1);
+                    }
+                    ref.invalidate(todosProvider);
+                    ref.invalidate(overdueCountProvider);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(
+                          content: Text('已升入「重要且紧急」，先救最要紧的火'),
+                          duration: Duration(milliseconds: 1600)));
+                  },
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFFB45309)),
+                  child: const Text('一键升紧急', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ],
             ),

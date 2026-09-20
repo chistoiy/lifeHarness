@@ -7,11 +7,13 @@ import '../../../../core/widgets/wheel_time.dart';
 import '../../../../shared/linkage/stats_providers.dart';
 
 /// 打开新建弹层（原型 sheetAddTask）。
-Future<void> showTodoAddSheet(BuildContext context, WidgetRef ref) {
+/// [preset] 预置两问答案（失衡提醒「去规划」= Quadrant.q2 → 重要已答"是"）。
+Future<void> showTodoAddSheet(BuildContext context, WidgetRef ref,
+    {Quadrant? preset}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => const _TodoAddSheet(),
+    builder: (_) => _TodoAddSheet(preset: preset),
   );
 }
 
@@ -64,7 +66,10 @@ Color catColorOf(int idx, Color accent) => idx == 1
         (int.tryParse(catColorNames[idx].$2.substring(1), radix: 16) ?? 0));
 
 class _TodoAddSheet extends ConsumerStatefulWidget {
-  const _TodoAddSheet();
+  const _TodoAddSheet({this.preset});
+
+  /// 预置判象限两问（null=不预置，走原型未答态）。
+  final Quadrant? preset;
 
   @override
   ConsumerState<_TodoAddSheet> createState() => _TodoAddSheetState();
@@ -72,8 +77,12 @@ class _TodoAddSheet extends ConsumerStatefulWidget {
 
 class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   final _title = TextEditingController();
-  bool? _imp; // null=未答
-  bool? _urg;
+  late bool? _imp = widget.preset == null
+      ? null
+      : widget.preset!.value <= 2; // q1/q2=重要
+  late bool? _urg = widget.preset == null
+      ? null
+      : (widget.preset == Quadrant.q1 || widget.preset == Quadrant.q3);
   DateTime? _due;
   int _remind = 1; // 0 不提醒 1 当天09:00（原型默认） 2 提前1小时
 

@@ -13,6 +13,7 @@ import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
+import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/todo/presentation/todo_page.dart';
 
@@ -43,6 +44,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/journal/edit',
         builder: (_, s) => DiaryEditPage(day: s.extra as DateTime?),
+      ),
+      // 提醒通知二级页（原型 p-sub-notify）。
+      GoRoute(
+        path: '/settings/notify',
+        builder: (_, _) => const NotifySettingsPage(),
       ),
     ],
   );

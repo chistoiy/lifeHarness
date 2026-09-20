@@ -10,6 +10,8 @@ import 'package:lifeharness/features/journal/presentation/journal_providers.dart
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
+import 'package:lifeharness/core/providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -23,11 +25,15 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(overrides: [
       todoRepositoryProvider.overrideWithValue(repo),
       // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
       journalRepositoryProvider
           .overrideWithValue(JournalRepository(JournalDao(db))),
+      // 主页卡片顺序读自 settingsControllerProvider（M0末C 编排）
+      sharedPreferencesProvider.overrideWithValue(prefs),
     ]);
     addTearDown(container.dispose);
 
@@ -52,11 +58,15 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(overrides: [
       todoRepositoryProvider.overrideWithValue(repo),
       // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
       journalRepositoryProvider
           .overrideWithValue(JournalRepository(JournalDao(db))),
+      // 主页卡片顺序读自 settingsControllerProvider（M0末C 编排）
+      sharedPreferencesProvider.overrideWithValue(prefs),
     ]);
     addTearDown(container.dispose);
 
@@ -81,11 +91,15 @@ void main() {
       await db.execute(sql);
     }
     final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(overrides: [
       todoRepositoryProvider.overrideWithValue(repo),
       // 心情打卡写今晚日记（L4），仪表盘测试需真实 journal 仓库。
       journalRepositoryProvider
           .overrideWithValue(JournalRepository(JournalDao(db))),
+      // 主页卡片顺序读自 settingsControllerProvider（M0末C 编排）
+      sharedPreferencesProvider.overrideWithValue(prefs),
     ]);
     addTearDown(container.dispose);
 

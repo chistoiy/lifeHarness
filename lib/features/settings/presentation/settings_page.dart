@@ -93,8 +93,13 @@ class SettingsPage extends ConsumerWidget {
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),
                     title: '提醒通知',
                     sub: '日程 · 日记复盘 · 收集箱清理 · 习惯',
-                    trailing: '未开启',
-                    onTap: () => _toast(context, '提醒通知 · 敬请期待')),
+                    trailing: ref
+                            .watch(settingsControllerProvider.select(
+                                (s) => s.notify.todoEvent || s.notify.inboxClean || s.notify.diaryReview))
+                        ? '已开启'
+                        : '未开启',
+                    trailingColor: Colors.grey,
+                    onTap: () => context.push('/settings/notify')),
                 _EntryRow(
                     emoji: '🤖',
                     bg: const Color(0xFF8B5CF6).withValues(alpha: .12),

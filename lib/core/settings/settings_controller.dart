@@ -48,5 +48,18 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 主页卡片自由编排顺序（M0末C；仪表盘「⇄ 编排」保存时写入）。
+  Future<void> setHomeOrder(List<String> order) async {
+    state = state.copyWith(homeCardOrder: order);
+    await _persist();
+  }
+
+  /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
+  /// core 不触达 feature（R2）。
+  Future<void> setNotify(NotifySettings n) async {
+    state = state.copyWith(notify: n);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }
