@@ -46,20 +46,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   bool _editing = false;
   List<String>? _draft; // 编排期工作副本，「完成」才落 settings
 
-  void _toggleEdit() {
-    if (_editing) {
-      ref.read(settingsControllerProvider.notifier).setHomeOrder(_draft!);
-      setState(() {
-        _editing = false;
-        _draft = null;
-      });
-      _toastOf(context, '主页布局已保存 · 下次启动保持此顺序');
-    } else {
-      setState(() {
-        _draft = [...ref.read(settingsControllerProvider).homeCardOrder];
-        _editing = true;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    // V1.27 P3：设置页「主页编排直达」→ 本页直接进编排模式（事件总线，守 R1）。
+    ref.read(eventBusProvider).on<EnterDashEditEvent>().listen((_) {
+      if (mounted) _enterEdit();
+    });
+  }
+
+  /// V1.27 H1：长按卡片 / P3 编排直达 共用入口。
+  void _enterEdit() {
+    if (_editing) return;
+    setState(() {
+      _draft = [...ref.read(settingsControllerProvider).homeCardOrder];
+      _editing = true;
+    });
+    if (mounted) _toastOf(context, '已进入编排模式 · 拖动或 ↑↓ 调整');
+  }
+
+  void _finishEdit() {
+    ref.read(settingsControllerProvider.notifier).setHomeOrder(_draft!);
+    setState(() {
+      _editing = false;
+      _draft = null;
+    });
+    _toastOf(context, '主页布局已保存 · 下次启动保持此顺序');
   }
 
   void _moveCard(int i, int dir) {
@@ -113,8 +125,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final order = _editing ? _draft! : ref.watch(settingsControllerProvider).homeCardOrder;
 
     Widget card(String id) => switch (id) {
-          'greeting' => _HeroCard(
-              greet: '$greet，CHIST $emoji', onEdit: _toggleEdit, editing: _editing),
+          'greeting' => _HeroCard(greet: '$greet，CHIST $emoji'),
           'mood' => _MoodCard(mood: _mood, onPick: (m) {
               setState(() => _mood = m);
               // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
@@ -145,8 +156,31 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: tokens.accent.withValues(alpha: .3)),
               ),
-              child: const Text('⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调 · 「完成」保存布局',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('⇅ 编排模式：拖动卡片调整顺序，或用 ↑↓ 微调',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  ),
+                  // V1.27 H1：✓ 完成从 AppBar 移进提示条（AppBar 编排钮已删，长按进入）
+                  InkWell(
+                    key: const ValueKey('dash-done-btn'),
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: _finishEdit,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: tokens.accent,
+                          borderRadius: BorderRadius.circular(20)),
+                      child: const Text('✓ 完成',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
             ),
             children: [
               for (final (i, id) in order.indexed)
@@ -181,8 +215,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         : ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
             children: [
+              // V1.27 H1：长按任意卡片 550ms → 进入编排模式（原型 dashLongPress）
               for (final id in order) ...[
-                card(id),
+                GestureDetector(
+                  key: ValueKey('card-press-$id'),
+                  onLongPress: _enterEdit,
+                  child: card(id),
+                ),
                 const SizedBox(height: 14),
               ],
               Center(
@@ -211,12 +250,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ],
         ),
         actions: [
-          TextButton(
-            key: const ValueKey('dash-edit-btn'),
-            onPressed: _toggleEdit,
-            child: Text(_editing ? '✓ 完成' : '⇄ 编排',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-          ),
+          // V1.27 H1：右上角「⇄ 编排」按钮移除（长按卡片进入编排，✓完成在提示条内）
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -303,13 +337,9 @@ class _ArrowBtn extends StatelessWidget {
 
 /// 问候卡：今日待办/安排真数 + 重要象限精力胶囊 + 进度环 x/y + 持有成本占位。
 class _HeroCard extends ConsumerWidget {
-  const _HeroCard({required this.greet, required this.onEdit, required this.editing});
+  const _HeroCard({required this.greet});
 
   final String greet;
-
-  /// 「⇄ 编排 / ✓ 完成」开关（M0末C，与 AppBar 同一动作）。
-  final VoidCallback onEdit;
-  final bool editing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -435,25 +465,12 @@ class _HeroCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
+          // V1.27 H1：删「⇄ 编排」按钮，长按任意卡片进入编排（原型同款提示行）
+          const Row(
             children: [
-              const Expanded(
-                child: Text('主页卡片可自由编排顺序',
+              Expanded(
+                child: Text('长按任意卡片可编排顺序',
                     style: TextStyle(color: Colors.white70, fontSize: 10.5)),
-              ),
-              InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: onEdit, // 与 AppBar「⇄ 编排」同一开关（M0末C 落地，替换占位 toast）
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(editing ? '✓ 完成' : '⇄ 编排',
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-                ),
               ),
             ],
           ),

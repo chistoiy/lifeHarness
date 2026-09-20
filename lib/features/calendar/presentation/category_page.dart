@@ -305,6 +305,40 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
         SnackBar(content: Text('✔ 已保存分类「$n」· 速记列/添加弹层/账本同源生效')));
   }
 
+  /// 上级分类底部弹层（原型 sheetCatParent：列表 + 选中 ✓）。
+  void _pickParent(List<Category> primaries) {
+    final tokens = context.tokens;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (bc) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+              child: const Text('选择上级分类',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            ),
+            for (final p in primaries)
+              ListTile(
+                dense: true,
+                title: Text(p.name,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                trailing: '${p.id}' == _parent
+                    ? Icon(Icons.check, color: tokens.accent)
+                    : null,
+                onTap: () {
+                  Navigator.of(bc).pop();
+                  setState(() => _parent = '${p.id}');
+                },
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
@@ -335,11 +369,34 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
             ),
             if (!_primary) ...[
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _parent,
-                decoration: const InputDecoration(labelText: '上级分类', isDense: true),
-                items: [for (final p in primaries) DropdownMenuItem(value: '${p.id}', child: Text(p.name))],
-                onChanged: (v) => setState(() => _parent = v),
+              // V1.27 P1：上级分类改底部弹层列表（原型 sheetCatParent · 与全局弹层风格统一）
+              InkWell(
+                key: const ValueKey('cat-parent-row'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _pickParent(primaries),
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                      labelText: '上级分类', isDense: true),
+                  child: Row(
+                    children: [
+                      Expanded(
+                          child: Text(
+                              primaries
+                                      .where((p) => '${p.id}' == _parent)
+                                      .map((p) => p.name)
+                                      .firstOrNull ??
+                                  '未选择',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _parent == null
+                                      ? Colors.grey
+                                      : Theme.of(context).colorScheme.onSurface))),
+                      Icon(Icons.expand_more,
+                          size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 12),

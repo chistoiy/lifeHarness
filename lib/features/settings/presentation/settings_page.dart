@@ -19,7 +19,6 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final settings = ref.watch(settingsControllerProvider);
-    final registry = ref.watch(themeRegistryProvider);
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final doneTasks = ref.watch(doneTaskCountProvider).valueOrNull ?? 0;
 
@@ -133,133 +132,17 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 14),
-          // 主题风格卡
+          // V1.27 P2：主题风格/深色/主题色/字号 收进「外观」二级页，主页只留一行入口
           _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                        child: Text('🎨 主题风格',
-                            style:
-                                TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
-                    TextButton(
-                      onPressed: () => _toast(context, '主题市场（GitHub 热加载）V1.x 上线'),
-                      child: Text('🛍 更多主题 ›',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: tokens.accent,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-                Text('${registry.ids.length} 套内置 · 配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 10),
-                _ThemeGrid(registry: registry, selectedId: settings.themeId),
-                // 深色模式（原型：单 toggle · 与主题正交）
-                Row(
-                  children: [
-                    _SetIc(emoji: '🌙'),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('深色模式',
-                              style: TextStyle(
-                                  fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(settingsControllerProvider.notifier)
-                                .setMode(ThemeModeOption.system),
-                            child: Text(
-                              settings.mode == ThemeModeOption.system
-                                  ? '与任意主题风格叠加生效 · 当前跟随系统（点此锁定/解锁）'
-                                  : '与任意主题风格叠加生效 · ${settings.mode == ThemeModeOption.dark ? '已锁定深色' : '已锁定浅色'}（点此跟随系统）',
-                              style: const TextStyle(
-                                  fontSize: 10.5, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: _isDarkNow(context, settings),
-                      onChanged: (v) => ref
-                          .read(settingsControllerProvider.notifier)
-                          .setMode(v ? ThemeModeOption.dark : ThemeModeOption.light),
-                    ),
-                  ],
-                ),
-                // 主题色（原型 themeDots：一排色点，点击=切对应主题）
-                Row(
-                  children: [
-                    _SetIc(emoji: '🎨'),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                        child: Text('主题色',
-                            style:
-                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final b in registry.all)
-                          Builder(builder: (context) {
-                            final t = b.pick(
-                                Theme.of(context).brightness == Brightness.dark);
-                            final on = b.id == settings.themeId;
-                            return GestureDetector(
-                              onTap: () {
-                                ref
-                                    .read(settingsControllerProvider.notifier)
-                                    .setTheme(b.id);
-                                ref
-                                    .read(eventBusProvider)
-                                    .publish(ThemeChangedEvent(b.id));
-                              },
-                              child: Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: t.gradient,
-                                  border: Border.all(
-                                      color: on
-                                          ? t.accent
-                                          : Colors.black.withValues(alpha: .12),
-                                      width: on ? 2.5 : 1),
-                                ),
-                              ),
-                            );
-                          }),
-                      ],
-                    ),
-                  ],
-                ),
-                // 字体大小（原型默认第 2 档）
-                Row(
-                  children: [
-                    _SetIc(emoji: 'Aa', text: true),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                        child: Text('字体大小',
-                            style:
-                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
-                    SizedBox(
-                      width: 120,
-                      child: Slider(
-                        value: 2,
-                        max: 3,
-                        onChanged: (_) =>
-                            _toast(context, '字号调节 · 敬请期待（无障碍）'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            child: _EntryRow(
+                    key: const ValueKey('entry-appearance'),
+                    emoji: '🎨',
+                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
+                    title: '外观',
+                    sub: '主题风格 · 深色模式 · 主题色 · 字体大小',
+                    trailing: '',
+                    last: true,
+                    onTap: () => context.push('/settings/appearance')),
           ),
           const SizedBox(height: 14),
           // 底部导航自定义卡
@@ -290,13 +173,20 @@ class SettingsPage extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => _toast(context, '主页编排 · 敬请期待'),
+                    // V1.27 P3：编排直达 = 回今天页并进入长按编排模式（与 H1 同一实现）
+                    onPressed: () {
+                      context.go(NavModule.today.path);
+                      Future.delayed(const Duration(milliseconds: 350),
+                          () => ref
+                              .read(eventBusProvider)
+                              .publish(const EnterDashEditEvent()));
+                    },
                     style: OutlinedButton.styleFrom(
                       backgroundColor: tokens.accent.withValues(alpha: .06),
                       foregroundColor: tokens.accent,
                       side: BorderSide(color: tokens.accent.withValues(alpha: .3)),
                     ),
-                    child: const Text('🧩 主页编排直达 ›',
+                    child: const Text('🧩 主页编排直达（或长按卡片）›',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ),
@@ -405,6 +295,7 @@ class _StatCell extends StatelessWidget {
 
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
+    super.key,
     required this.emoji,
     required this.bg,
     required this.title,
@@ -622,6 +513,154 @@ class _NavToggleGrid extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// V1.27 P2 外观二级页（原型 p-sub-appearance）：主题风格/深色模式/主题色/字体大小 收拢。
+class AppearanceSettingsPage extends ConsumerWidget {
+  const AppearanceSettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final settings = ref.watch(settingsControllerProvider);
+    final registry = ref.watch(themeRegistryProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('外观')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                        child: Text('🎨 主题风格',
+                            style:
+                                TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
+                    TextButton(
+                      onPressed: () => _toast(context, '主题市场（GitHub 热加载）V1.x 上线'),
+                      child: Text('🛍 更多主题 ›',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: tokens.accent,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                Text('${registry.ids.length} 套内置 · 配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                const SizedBox(height: 10),
+                _ThemeGrid(registry: registry, selectedId: settings.themeId),
+                // 深色模式（原型：单 toggle · 与主题正交）
+                Row(
+                  children: [
+                    _SetIc(emoji: '🌙'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('深色模式',
+                              style: TextStyle(
+                                  fontSize: 13.5, fontWeight: FontWeight.w700)),
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(settingsControllerProvider.notifier)
+                                .setMode(ThemeModeOption.system),
+                            child: Text(
+                              settings.mode == ThemeModeOption.system
+                                  ? '与任意主题风格叠加生效 · 当前跟随系统（点此锁定/解锁）'
+                                  : '与任意主题风格叠加生效 · ${settings.mode == ThemeModeOption.dark ? '已锁定深色' : '已锁定浅色'}（点此跟随系统）',
+                              style: const TextStyle(
+                                  fontSize: 10.5, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: SettingsPage._isDarkNow(context, settings),
+                      onChanged: (v) => ref
+                          .read(settingsControllerProvider.notifier)
+                          .setMode(v ? ThemeModeOption.dark : ThemeModeOption.light),
+                    ),
+                  ],
+                ),
+                // 主题色（原型 themeDots：一排色点，点击=切对应主题）
+                Row(
+                  children: [
+                    _SetIc(emoji: '🎨'),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                        child: Text('主题色',
+                            style:
+                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final b in registry.all)
+                          Builder(builder: (context) {
+                            final t = b.pick(
+                                Theme.of(context).brightness == Brightness.dark);
+                            final on = b.id == settings.themeId;
+                            return GestureDetector(
+                              key: ValueKey('theme-dot-${b.id}'),
+                              onTap: () {
+                                ref
+                                    .read(settingsControllerProvider.notifier)
+                                    .setTheme(b.id);
+                                ref
+                                    .read(eventBusProvider)
+                                    .publish(ThemeChangedEvent(b.id));
+                              },
+                              child: Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: t.gradient,
+                                  border: Border.all(
+                                      color: on
+                                          ? t.accent
+                                          : Colors.black.withValues(alpha: .12),
+                                      width: on ? 2.5 : 1),
+                                ),
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ],
+                ),
+                // 字体大小（原型默认第 2 档）
+                Row(
+                  children: [
+                    _SetIc(emoji: 'Aa', text: true),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                        child: Text('字体大小',
+                            style:
+                                TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
+                    SizedBox(
+                      width: 120,
+                      child: Slider(
+                        value: 2,
+                        max: 3,
+                        onChanged: (_) =>
+                            _toast(context, '字号调节 · 敬请期待（无障碍）'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

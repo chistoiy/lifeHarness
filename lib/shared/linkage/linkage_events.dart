@@ -39,3 +39,8 @@ class QuickAddEvent {
   const QuickAddEvent(this.target);
   final String target;
 }
+
+/// V1.27 P3：设置页「主页编排直达」→ 跳今天页并直接进入卡片编排模式。
+class EnterDashEditEvent {
+  const EnterDashEditEvent();
+}

@@ -70,7 +70,7 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
         ]);
 
-    testWidgets('⇄ 编排进入编辑态：提示条 + 每卡 ↑↓ 钮；✓ 完成持久化并提示',
+    testWidgets('V1.27 H1 长按卡片进入编排：提示条+每卡↑↓钮；条内✓完成持久化并提示',
         (tester) async {
       final container = boot();
       addTearDown(container.dispose);
@@ -78,22 +78,24 @@ void main() {
           container: container, child: const MaterialApp(home: DashboardPage())));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('dash-edit-btn')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('dash-edit-btn')));
+      // 右上「⇄ 编排」钮已删；问候卡底部有长按提示行
+      expect(find.text('⇄ 编排'), findsNothing);
+      expect(find.text('长按任意卡片可编排顺序'), findsOneWidget);
+
+      // V1.27 H1：长按任意卡片 → 进入编排模式
+      await tester.longPress(find.byKey(const ValueKey('card-press-greeting')));
       await tester.pumpAndSettle();
+      expect(find.text('已进入编排模式 · 拖动或 ↑↓ 调整'), findsOneWidget);
 
       expect(find.textContaining('编排模式：拖动卡片调整顺序'), findsOneWidget);
       expect(find.byKey(const ValueKey('up-greeting')), findsOneWidget);
       expect(find.byKey(const ValueKey('down-mood')), findsOneWidget);
-      expect(
-          find.descendant(
-              of: find.byType(AppBar), matching: find.text('✓ 完成')),
-          findsOneWidget);
+      expect(find.byKey(const ValueKey('dash-done-btn')), findsOneWidget);
 
-      // 顶卡下移一位 → 保存
+      // 顶卡下移一位 → 提示条内 ✓ 完成 保存
       await tester.tap(find.byKey(const ValueKey('down-greeting')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('dash-edit-btn')));
+      await tester.tap(find.byKey(const ValueKey('dash-done-btn')));
       await tester.pumpAndSettle();
 
       expect(find.text('主页布局已保存 · 下次启动保持此顺序'), findsOneWidget);
@@ -122,7 +124,7 @@ void main() {
       await tester.pumpWidget(UncontrolledProviderScope(
           container: container, child: const MaterialApp(home: DashboardPage())));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('dash-edit-btn')));
+      await tester.longPress(find.byKey(const ValueKey('card-press-greeting')));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('up-greeting')));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -54,9 +55,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings/notify',
         builder: (_, _) => const NotifySettingsPage(),
       ),
+      // V1.27 P2 外观二级页（原型 p-sub-appearance：主题/深色/主题色/字号）。
+      GoRoute(
+        path: '/settings/appearance',
+        builder: (_, _) => const AppearanceSettingsPage(),
+      ),
     ],
   );
 });
+
+/// V1.27 G1 返回语义（纯函数便于守护）：
+/// 非主页 → goToday（逐级返回最终落主页）；主页 2s 内二次返回 → exit；首次 → remind。
+String shellBackAction(String currentPath, {DateTime? lastBackAt, DateTime? at}) {
+  if (currentPath != NavModule.today.path) return 'goToday';
+  final n = at ?? DateTime.now();
+  if (lastBackAt != null &&
+      n.difference(lastBackAt) < const Duration(seconds: 2)) {
+    return 'exit';
+  }
+  return 'remind';
+}
 
 /// 底部导航（原型规范：线性图标 + 文字在下 + 选中态主题色 + 顶部小横条；
 /// 栏目可配置，今天/我的固定，≤5）。
@@ -66,6 +84,9 @@ class HomeShell extends ConsumerWidget {
   final String currentPath;
   final Widget child;
 
+  /// G1：今天页二次返回退出计时（原型 _lastBackTs 2s 窗口）。
+  static DateTime? _lastBackAt;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final navModules =
@@ -74,32 +95,54 @@ class HomeShell extends ConsumerWidget {
 
     final selectedIndex = navModules.indexWhere((m) => m.path == currentPath);
 
-    return Scaffold(
-      body: TimerBarOverlay(child: child),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: tokens.navBg,
-          border: Border(top: BorderSide(color: tokens.navBorder)),
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            // 原型 nav 高度 70px
-            height: 70,
-            child: Row(
-              children: [
-                for (var i = 0; i < navModules.length; i++)
-                  Expanded(
-                    child: _NavTab(
-                      module: navModules[i],
-                      selected: i == selectedIndex,
-                      accent: tokens.accent,
-                      onTap: () {
-                        final m = navModules[i];
-                        if (m.path != currentPath) context.go(m.path);
-                      },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // V1.27 G1：返回=最终回主页；今天页二次返回退出（SnackBar 全局同款风格）
+        switch (shellBackAction(currentPath, lastBackAt: _lastBackAt)) {
+          case 'goToday':
+            _lastBackAt = null;
+            context.go(NavModule.today.path);
+          case 'exit':
+            _lastBackAt = null;
+            SystemNavigator.pop();
+          default:
+            _lastBackAt = DateTime.now();
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                  content: Text('再按一次返回键退出 LifeHarness'),
+                  duration: Duration(milliseconds: 2000)));
+        }
+      },
+      child: Scaffold(
+        body: TimerBarOverlay(child: child),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: tokens.navBg,
+            border: Border(top: BorderSide(color: tokens.navBorder)),
+          ),
+          child: SafeArea(
+            child: SizedBox(
+              // 原型 nav 高度 70px
+              height: 70,
+              child: Row(
+                children: [
+                  for (var i = 0; i < navModules.length; i++)
+                    Expanded(
+                      child: _NavTab(
+                        module: navModules[i],
+                        selected: i == selectedIndex,
+                        accent: tokens.accent,
+                        onTap: () {
+                          final m = navModules[i];
+                          if (m.path != currentPath) context.go(m.path);
+                        },
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
