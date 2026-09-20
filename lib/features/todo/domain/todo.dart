@@ -42,6 +42,7 @@ class Todo {
     this.grp,
     this.habitId,
     this.linkCat,
+    this.sortOrder = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -74,6 +75,9 @@ class Todo {
   /// 绑定习惯 id（V1.25 · 习惯模块落地后启用）与关联计时分类 id（L4）。
   final int? habitId;
   final int? linkCat;
+
+  /// 长按拖拽排序位（V1.27 T6；默认 0=未参与手动排序，列表按到期/更新智能序）。
+  final int sortOrder;
 
   bool get isPomo => pomoMode != null;
 
@@ -109,6 +113,7 @@ class Todo {
     String? grp,
     int? habitId,
     int? linkCat,
+    int? sortOrder,
   }) =>
       Todo(
         id: id ?? this.id,
@@ -129,6 +134,7 @@ class Todo {
         grp: grp ?? this.grp,
         habitId: habitId ?? this.habitId,
         linkCat: linkCat ?? this.linkCat,
+        sortOrder: sortOrder ?? this.sortOrder,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -152,6 +158,7 @@ class Todo {
         'grp': grp,
         'habit_id': habitId,
         'link_cat': linkCat,
+        'sort_order': sortOrder,
         'created_at': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
         'updated_at': (updatedAt ?? DateTime.now()).millisecondsSinceEpoch,
       };
@@ -179,6 +186,7 @@ class Todo {
         grp: r['grp'] as String?,
         habitId: r['habit_id'] as int?,
         linkCat: r['link_cat'] as int?,
+        sortOrder: (r['sort_order'] as int?) ?? 0,
         createdAt: DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(r['updated_at'] as int),
       );

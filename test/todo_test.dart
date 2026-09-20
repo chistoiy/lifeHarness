@@ -86,6 +86,26 @@ void main() {
       expect(yesterday.overdue, isTrue);
       expect(Todo(title: 'd').overdue, isFalse); // 无截止日
     });
+
+    test('V1.27 T6 reorder 手动序持久化；新任务追加尾位不打乱用户序', () async {
+      final a = await dao.insert(Todo(title: 'A', quadrant: Quadrant.q1));
+      final b = await dao.insert(Todo(title: 'B', quadrant: Quadrant.q2));
+      final c = await dao.insert(Todo(title: 'C', quadrant: Quadrant.q3));
+      // 未手动排序=智能序（updated_at 倒序 → 新在前）
+      expect((await dao.list()).map((t) => t.title).toList(), ['C', 'B', 'A']);
+
+      await dao.reorder([c.id!, a.id!, b.id!]);
+      expect((await dao.list()).map((t) => t.title).toList(), ['C', 'A', 'B']);
+
+      final d = await dao.insert(Todo(title: 'D'));
+      expect(d.sortOrder, 4); // 手动序存在 → 追加尾位
+      expect((await dao.list()).map((t) => t.title).toList(), ['C', 'A', 'B', 'D']);
+
+      // 已完成仍沉底（done ASC 优先于 sort_order）
+      await dao.setDone(a.id!, true);
+      expect((await dao.list()).first.title, 'C');
+      expect((await dao.list()).last.title, 'A');
+    });
   });
 
   group('TodoRepository 与事件总线', () {

@@ -12,7 +12,7 @@ import 'package:lifeharness/features/calendar/domain/cal_event.dart';
 import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/calendar/presentation/widgets/event_sheet.dart';
-import 'package:lifeharness/features/calendar/presentation/widgets/wheel_date.dart';
+import 'package:lifeharness/core/widgets/wheel_date.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_page.dart';
@@ -102,7 +102,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.add).last); // FAB
+    await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
 
@@ -123,9 +125,9 @@ void main() {
     final wantHour = (initial.hour + 1) % 24;
     final wantMin = wantHour * 60 + initial.minute;
 
-    await tester.ensureVisible(find.text('存入四象限'));
+    await tester.ensureVisible(find.text('保存'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('存入四象限'));
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
     final saved = await todoRepo.list();
@@ -146,7 +148,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.add).last);
+    await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '带时间段的任务');
     await tester.tap(find.text('时间段'));
@@ -161,6 +165,10 @@ void main() {
 
     final startInit = tester.widget<InlineWheelTime>(startWheel).initial;
 
+    // V1.27 表单变高：先把「止」轮滚入视口，否则 drag 落点被裁切、手势丢失。
+    await tester.ensureVisible(endWheel);
+    await tester.pumpAndSettle();
+
     // 「起」上滑一格 → 时 +1；「止」上滑两格 → 时 +2。
     // 两者起点相同，因此最终差值直接证明两只滚轮互不串味。
     await tester.drag(find.byType(CupertinoPicker).at(0), const Offset(0, -32));
@@ -173,17 +181,21 @@ void main() {
     expectSettled(tester, '「止」滑动后');
 
     // 时间段模式表单更高，保存按钮会被挤出视口，先滚到可见再点。
-    await tester.ensureVisible(find.text('存入四象限'));
+    await tester.ensureVisible(find.text('保存'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('存入四象限'));
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
     final saved = await todoRepo.list();
     expect(saved.single.timeMode, 'range');
-    expect(saved.single.startMin, ((startInit.hour + 1) % 24) * 60 + startInit.minute);
-    expect(saved.single.endMin,
-        ((startInit.hour + 2) % 24) * 60 + startInit.minute,
+    final rawStart = ((startInit.hour + 1) % 24) * 60 + startInit.minute;
+    final rawEnd = ((startInit.hour + 2) % 24) * 60 + startInit.minute;
+    expect(saved.single.startMin, rawStart);
+    // 表单既有约定：止≤起（跨零点回绕，深夜 22~23 点跑测时出现）→ endMin 归 0。
+    // 「止」轮独立性守护：未回绕时必须=起+1 小时；回绕时也必须≠起（证明两轮不串味）。
+    expect(saved.single.endMin, rawEnd <= rawStart ? 0 : rawEnd,
         reason: '「止」轮独立于「起」轮，两轮不能串味');
+    expect(saved.single.endMin, isNot(rawStart));
   });
 
   // ------------------------------------------------------- 真实入口：日程编辑弹层

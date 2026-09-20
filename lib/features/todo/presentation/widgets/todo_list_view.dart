@@ -131,29 +131,32 @@ class TodoListView extends ConsumerWidget {
         ref.watch(settingsControllerProvider).notify.overdueEscalate;
     final escalate = escalateOn ? escalateSuggestions(todos) : <Todo>[];
 
-    return ListView(
+    return ReorderableListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      // T6：清单长按拖拽排序（仅「全部」筛选下持久化，避免子集写序污染全表）
+      onReorder: (oldIndex, newIndex) async {
+        if (oldIndex >= shown.length) return;
+        var to = newIndex > oldIndex ? newIndex - 1 : newIndex;
+        if (to >= shown.length) to = shown.length - 1;
+        if (to == oldIndex || filter != 'all') return;
+        final ids = shown.map((t) => t.id!).toList();
+        ids.insert(to, ids.removeAt(oldIndex));
+        await ref.read(todoRepositoryProvider).reorder(ids);
+        ref.invalidate(todosProvider);
+      },
       children: [
-        for (final t in shown) _TodoTile(todo: t),
+        for (final t in shown) _TodoTile(key: ValueKey('todo-${t.id}'), todo: t),
         if (shown.isEmpty)
           const Padding(
+            key: ValueKey('todo-empty'),
             padding: EdgeInsets.symmetric(vertical: 48),
             child: Center(
               child: Text('该筛选下暂无任务', style: TextStyle(color: Colors.grey)),
             ),
           ),
-        OutlinedButton(
-          onPressed: () => showTodoAddSheet(context, ref),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(46),
-            side: BorderSide(color: Colors.grey.withValues(alpha: .45)),
-            foregroundColor: scheme.onSurfaceVariant,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          child: const Text('+ 快速添加任务'),
-        ),
         if (overdueCount > 0)
           Container(
+            key: const ValueKey('overdue-card'),
             margin: const EdgeInsets.only(top: 14),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -240,7 +243,7 @@ class TodoListView extends ConsumerWidget {
 }
 
 class _TodoTile extends ConsumerWidget {
-  const _TodoTile({required this.todo});
+  const _TodoTile({super.key, required this.todo});
 
   final Todo todo;
 
@@ -251,7 +254,7 @@ class _TodoTile extends ConsumerWidget {
     final qc = todo.quadrant.colorOf(accent);
 
     return Dismissible(
-      key: ValueKey('todo-${todo.id}'),
+      key: ValueKey('dismiss-${todo.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
@@ -273,10 +276,10 @@ class _TodoTile extends ConsumerWidget {
         decoration: context.cardDecoration,
         child: Row(
           children: [
-            // 原型 .chk：22px 圆形勾选（选中=主题色底白勾）
+            // 原型 task-row：方框 chk（18~20px 圆角6 描边2 · 点方框=完成此待办）
             InkWell(
               key: ValueKey('chk-${todo.id}'),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(8),
               onTap: () {
                 final wasDone = todo.done;
                 ref.read(todoRepositoryProvider).toggleDone(todo);
@@ -291,10 +294,10 @@ class _TodoTile extends ConsumerWidget {
                 }
               },
               child: Container(
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(6),
                   color: todo.done ? qc : Colors.transparent,
                   border: Border.all(
                       color: todo.done ? qc : const Color(0xFFCBD5E1), width: 2),
@@ -308,12 +311,12 @@ class _TodoTile extends ConsumerWidget {
               child: InkWell(
                 onTap: () => showTodoDetailSheet(context, ref, todo),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${todo.isPomo ? '🍅 ' : ''}${todo.title}',
+                        todo.title,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
@@ -324,11 +327,13 @@ class _TodoTile extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '◉ ${todo.quadrant.label} · ⏰ ${dueLabel(todo)}${todo.tag != null ? ' · #${todo.tag}' : ''}',
+                        '⏰ ${dueLabel(todo)}${todo.tag != null ? ' · #${todo.tag}' : ''}',
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10.5,
-                          color: todo.overdue ? const Color(0xFFF43F5E) : scheme.onSurfaceVariant,
+                          color: todo.overdue
+                              ? const Color(0xFFF43F5E)
+                              : scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -348,24 +353,24 @@ class _TodoTile extends ConsumerWidget {
                         color: const Color(0xFFF43F5E),
                         borderRadius: BorderRadius.circular(10)),
                     child: Text(
-                      ref.watch(activePomoProvider)?.todoId == todo.id ? '■' : '▶ 🍅',
-                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Colors.white),
+                      ref.watch(activePomoProvider)?.todoId == todo.id
+                          ? '■ 结束'
+                          : '▶ 专注',
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white),
                     ),
                   ),
                 ),
               ),
             const SizedBox(width: 6),
-            // 原型 .qbadge：20px 圆角方块象限角标
+            // 原型 V1.27：象限=12px 圆点标识（不再显示数字角标）
             Container(
-              width: 20,
-              height: 20,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: qc, borderRadius: BorderRadius.circular(6)),
-              child: Text(
-                '①②③④'[todo.quadrant.value - 1],
-                style: const TextStyle(color: Colors.white, fontSize: 11),
-              ),
+              key: ValueKey('qdot-${todo.id}'),
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: qc),
             ),
             const SizedBox(width: 4),
           ],
@@ -391,6 +396,7 @@ void startPomoFromList(BuildContext context, WidgetRef ref, Todo todo) {
           mode: todo.pomoMode ?? 'up',
           minutes: todo.pomoMin);
   if (cur == null) ref.read(activePomoProvider.notifier).state = s;
-  Navigator.of(context).push(MaterialPageRoute(
+  // T7：rootNavigator 直推全屏专注页（覆盖壳层·无底部导航）
+  Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
       fullscreenDialog: true, builder: (_) => PomoScreen(session: s)));
 }

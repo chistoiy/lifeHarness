@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import 'todo_providers.dart';
@@ -23,16 +22,15 @@ class _TodoPageState extends ConsumerState<TodoPage> {
   @override
   void initState() {
     super.initState();
-    // 仪表盘 FAB「✅ 记待办」跨页直达新建弹层（事件总线解耦，守 R1）。
+    // 仪表盘 FAB「✅ 记待办」跨页直达添加选择弹层（事件总线解耦，守 R1）。
     ref.read(eventBusProvider).on<QuickAddEvent>().listen((e) {
       if (!mounted || e.target != 'todo') return;
-      showTodoAddSheet(context, ref);
+      showTodoTypeChooser(context, ref);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.tokens;
     final quadrantMode = ref.watch(todoViewModeProvider);
     final filterOpen = ref.watch(todoFilterOpenProvider);
     final todosAsync = ref.watch(todosProvider);
@@ -72,8 +70,25 @@ class _TodoPageState extends ConsumerState<TodoPage> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ),
-        // 原型全局顶栏：搜索常驻 + 待办页漏斗筛选（清单视图显）
+        // T12：顶行 = 视图切换 ⇄ + 智能筛选漏斗 + 搜索（漏斗两视图均生效）
         actions: [
+          IconButton(
+            key: const ValueKey('btn-view-toggle'),
+            tooltip: quadrantMode ? '切换到清单' : '切换到四象限',
+            icon: const Icon(Icons.swap_horiz),
+            onPressed: () {
+              ref.read(todoViewModeProvider.notifier).state = !quadrantMode;
+              ref.read(todoFilterOpenProvider.notifier).state = false;
+            },
+          ),
+          IconButton(
+            key: const ValueKey('btn-filter'),
+            tooltip: '智能筛选',
+            icon: Icon(
+                filterOpen ? Icons.filter_alt : Icons.filter_alt_outlined),
+            onPressed: () =>
+                ref.read(todoFilterOpenProvider.notifier).state = !filterOpen,
+          ),
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -83,60 +98,11 @@ class _TodoPageState extends ConsumerState<TodoPage> {
                   content: Text('全局搜索 · 即将开放'),
                   duration: Duration(milliseconds: 1500))),
           ),
-          if (!quadrantMode)
-            IconButton(
-              tooltip: '智能筛选',
-              icon: Icon(filterOpen
-                  ? Icons.filter_alt
-                  : Icons.filter_alt_outlined),
-              onPressed: () => ref
-                  .read(todoFilterOpenProvider.notifier)
-                  .state = !filterOpen,
-            ),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                          value: false,
-                          label: Text('清单视图'),
-                          icon: Icon(Icons.check_circle_outline, size: 16)),
-                      ButtonSegment(
-                          value: true,
-                          label: Text('四象限'),
-                          icon: Icon(Icons.grid_view_outlined, size: 16)),
-                    ],
-                    selected: {quadrantMode},
-                    onSelectionChanged: (s) {
-                      ref.read(todoViewModeProvider.notifier).state = s.first;
-                      ref.read(todoFilterOpenProvider.notifier).state = false;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: tokens.gradient,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    tooltip: '新建待办',
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    onPressed: () => showTodoAddSheet(context, ref),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (filterOpen && !quadrantMode)
-            SmartFilterBar(todos: todosAsync.valueOrNull ?? const []),
+          if (filterOpen) SmartFilterBar(todos: todosAsync.valueOrNull ?? const []),
           Expanded(
             child: todosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -148,10 +114,11 @@ class _TodoPageState extends ConsumerState<TodoPage> {
           ),
         ],
       ),
+      // T4：FAB 先选类型（普通待办/番茄钟），再进对应表单
       floatingActionButton: GradFab(
-        tooltip: '新建待办',
+        tooltip: '添加待办',
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
-        onTap: () => showTodoAddSheet(context, ref),
+        onTap: () => showTodoTypeChooser(context, ref),
       ),
     );
   }

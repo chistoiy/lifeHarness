@@ -95,19 +95,13 @@ class _PomoScreenState extends ConsumerState<PomoScreen> {
     });
   }
 
+  /// T7：重置=正计时清零 / 倒计时恢复初始（页内原地重置，不退出全屏页）。
   void _reset() {
-    setState(() {
-      final s = widget.session;
-      s.pausedMs = 0;
-      s.pauseStarted = null;
-    });
-    // 重置=重新开始计时（改 startedAt 需重建会话）。
-    ref.read(activePomoProvider.notifier).state = PomoSession(
-        todoId: widget.session.todoId,
-        title: widget.session.title,
-        mode: widget.session.mode,
-        minutes: widget.session.minutes);
-    Navigator.of(context).pop();
+    final s = widget.session;
+    s.startedAt = DateTime.now();
+    s.pausedMs = 0;
+    s.pauseStarted = null;
+    setState(() {});
   }
 
   @override

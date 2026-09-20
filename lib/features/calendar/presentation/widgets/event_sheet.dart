@@ -6,7 +6,7 @@ import '../../../../core/widgets/wheel_time.dart';
 import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
 import '../calendar_providers.dart';
-import 'wheel_date.dart';
+import '../../../../core/widgets/wheel_date.dart';
 
 /// 编辑事件表单（V1.23 起 sheetAddEvent 仅保留编辑用途；添加统一走 sheetTimePick）。
 Future<void> showEventEditSheet(BuildContext context, WidgetRef ref, CalEvent e) {

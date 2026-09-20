@@ -2,18 +2,112 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/wheel_date.dart';
 import '../todo_providers.dart';
 import '../../../../core/widgets/wheel_time.dart';
 import '../../../../shared/linkage/stats_providers.dart';
 
+/// V1.27 T4：右下 FAB 前置二选一（原型 sheetAddChoice）→ 选后直达对应新建表单。
+Future<void> showTodoTypeChooser(BuildContext context, WidgetRef ref) {
+  return showModalBottomSheet(
+    context: context,
+    builder: (bc) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('添加待办',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _ChoiceTile(
+                      emoji: '✅',
+                      label: '普通待办',
+                      sub: '勾选完成 · 四象限归类',
+                      border: const Color(0xFFC7D2FE),
+                      bg: const Color(0xFFEEF2FF),
+                      onTap: () {
+                        Navigator.of(bc).pop();
+                        showTodoAddSheet(context, ref, type: 'norm');
+                      }),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ChoiceTile(
+                      emoji: '🍅',
+                      label: '番茄钟',
+                      sub: '正/倒计时 · 专注入账',
+                      border: const Color(0xFFFECDD3),
+                      bg: const Color(0xFFFFF1F2),
+                      onTap: () {
+                        Navigator.of(bc).pop();
+                        showTodoAddSheet(context, ref, type: 'pomo');
+                      }),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ChoiceTile extends StatelessWidget {
+  const _ChoiceTile(
+      {required this.emoji,
+      required this.label,
+      required this.sub,
+      required this.border,
+      required this.bg,
+      required this.onTap});
+  final String emoji, label, sub;
+  final Color border, bg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(bg.withValues(alpha: .5), scheme.surface),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: border, width: 1.6),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 8),
+            Text(label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(sub, style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 打开新建弹层（原型 sheetAddTask）。
-/// [preset] 预置两问答案（失衡提醒「去规划」= Quadrant.q2 → 重要已答"是"）。
+/// [type] norm/pomo（FAB 前置选择决定，弹层内不再显示类型切换）；
+/// [preset] 预置两问答案（失衡提醒「去规划」= Quadrant.q2）；
+/// [editing] 非空=编辑态（V1.27 T3 详情复用本表单，保存覆盖原条目）。
 Future<void> showTodoAddSheet(BuildContext context, WidgetRef ref,
-    {Quadrant? preset}) {
+    {String type = 'norm', Quadrant? preset, Todo? editing}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _TodoAddSheet(preset: preset),
+    builder: (_) => _TodoAddSheet(type: type, preset: preset, editing: editing),
   );
 }
 
@@ -66,28 +160,43 @@ Color catColorOf(int idx, Color accent) => idx == 1
         (int.tryParse(catColorNames[idx].$2.substring(1), radix: 16) ?? 0));
 
 class _TodoAddSheet extends ConsumerStatefulWidget {
-  const _TodoAddSheet({this.preset});
+  const _TodoAddSheet({required this.type, this.preset, this.editing});
+
+  /// norm | pomo（FAB 前置选择传入；编辑态按条目是否番茄取）。
+  final String type;
 
   /// 预置判象限两问（null=不预置，走原型未答态）。
   final Quadrant? preset;
+
+  /// 非空=编辑已有条目（V1.27 T3）。
+  final Todo? editing;
 
   @override
   ConsumerState<_TodoAddSheet> createState() => _TodoAddSheetState();
 }
 
 class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
-  final _title = TextEditingController();
-  late bool? _imp = widget.preset == null
-      ? null
-      : widget.preset!.value <= 2; // q1/q2=重要
-  late bool? _urg = widget.preset == null
-      ? null
-      : (widget.preset == Quadrant.q1 || widget.preset == Quadrant.q3);
+  late final TextEditingController _title =
+      TextEditingController(text: widget.editing?.title ?? '');
+  late bool? _imp = widget.editing != null
+      ? widget.editing!.quadrant.value <= 2
+      : widget.preset == null
+          ? null
+          : widget.preset!.value <= 2; // q1/q2=重要
+  late bool? _urg = widget.editing != null
+      ? (widget.editing!.quadrant == Quadrant.q1 ||
+          widget.editing!.quadrant == Quadrant.q3)
+      : widget.preset == null
+          ? null
+          : (widget.preset == Quadrant.q1 || widget.preset == Quadrant.q3);
   DateTime? _due;
-  int _remind = 1; // 0 不提醒 1 当天09:00（原型默认） 2 提前1小时
+  int _remind = 1; // 0 不提醒 1 当天HH:MM(默认09:00) 2 提前1小时 3 自定义时刻
+  TimeOfDay _remindAt = const TimeOfDay(hour: 9, minute: 0); // 自定义提醒时刻
 
   // ===== 原型 sheetAddTask 扩展字段 =====
-  String _type = 'norm'; // norm | pomo
+  late final String _type = widget.editing != null
+      ? (widget.editing!.isPomo ? 'pomo' : 'norm')
+      : widget.type; // norm | pomo
   String _pomoMode = 'up'; // up 正计时 | down 倒计时
   int _pomoMin = 25;
   String _status = 'open'; // open | done | drop
@@ -99,15 +208,44 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   String? _linkCatName; // 选中的计时分类名（保存时解析为 id）
   String _bindHabit = '不绑定';
 
+  bool get _isEdit => widget.editing != null;
+
   @override
   void initState() {
     super.initState();
-    // 原型截止日期默认明天；时间点/段默认当前时间（5 分一档）。
     final n = DateTime.now();
+    // 原型截止日期默认明天；时间点/段默认当前时间（5 分一档）。
     _due = DateTime(n.year, n.month, n.day + 1, 18);
     final t = TimeOfDay(hour: n.hour, minute: ((n.minute / 5).round() * 5) % 60);
     _tStart = t;
     _tEnd = t;
+    final e = widget.editing;
+    if (e != null) {
+      // 编辑态回填（V1.27 T3 复用新建表单）
+      _due = e.dueAt;
+      _status = e.dropped ? 'drop' : (e.done ? 'done' : 'open');
+      _pomoMode = e.pomoMode ?? 'up';
+      _pomoMin = (e.pomoMin ?? 25).clamp(1, 60);
+      _timeMode = e.timeMode ?? 'none';
+      if (e.startMin != null) {
+        _tStart = TimeOfDay(hour: e.startMin! ~/ 60, minute: e.startMin! % 60);
+      }
+      if (e.endMin != null) {
+        _tEnd = TimeOfDay(hour: e.endMin! ~/ 60, minute: e.endMin! % 60);
+      }
+      _colorIdx = e.colorIdx;
+      _linkOn = e.linkCat != null;
+      if (e.remindAt != null) {
+        _remindAt = TimeOfDay(hour: e.remindAt!.hour, minute: e.remindAt!.minute);
+        _remind = 3;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
   }
 
   int get _sMin => _tStart.hour * 60 + _tStart.minute;
@@ -122,16 +260,75 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
               : Quadrant.q4;
 
   Future<void> _pickDue() async {
+    // V1.27 T5：截止日期复用时间模块三列滚轮弹层（年/月/日）。
     final now = DateTime.now();
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _due ?? now.add(const Duration(days: 1)),
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
-    );
+    final d = await showWheelDatePick(context, _due ?? now.add(const Duration(days: 1)));
     if (d != null) {
       setState(() => _due = DateTime(d.year, d.month, d.day, 18));
     }
+  }
+
+  /// 自定义提醒时刻（时/分双列滚轮，原型「自定义时间…」）。
+  Future<void> _pickRemindTime() async {
+    var h = _remindAt.hour, m = _remindAt.minute;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      builder: (bc) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('提醒时刻',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 120,
+                child: InlineWheelTime(
+                    initial: _remindAt, onChanged: (hh, mm) { h = hh; m = mm; }),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(bc).pop(false),
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(42)),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 42,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                            gradient: bc.tokens.gradient,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: TextButton(
+                          onPressed: () => Navigator.of(bc).pop(true),
+                          child: const Text('确定',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok == true) setState(() => _remindAt = TimeOfDay(hour: h, minute: m));
+  }
+
+  DateTime get _remindDateTime {
+    final base = _due ?? DateTime.now();
+    return DateTime(base.year, base.month, base.day, _remindAt.hour, _remindAt.minute);
   }
 
   Future<void> _save() async {
@@ -141,17 +338,16 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
       return;
     }
     DateTime? remindAt;
-    if (_remind != 0) {
-      if (_due != null) {
-        if (_remind == 1) {
-          remindAt = DateTime(_due!.year, _due!.month, _due!.day, 9);
-        } else if (_remind == 2) {
-          remindAt = _due!.subtract(const Duration(hours: 1));
-        }
-      } else if (_remind == 1) {
-        final n = DateTime.now();
-        remindAt = DateTime(n.year, n.month, n.day, 9);
-      }
+    if (_remind == 1) {
+      remindAt = DateTime(
+          (_due ?? DateTime.now()).year,
+          (_due ?? DateTime.now()).month,
+          (_due ?? DateTime.now()).day,
+          9);
+    } else if (_remind == 2) {
+      remindAt = _due?.subtract(const Duration(hours: 1));
+    } else if (_remind == 3) {
+      remindAt = _remindDateTime;
     }
     // 关联计时分类：按名称解析为全局分类表 id（V1.19.1 同源）。
     int? linkCat;
@@ -161,37 +357,57 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
       linkCat = cats.where((c) => _linkOn && c.name == want).map((c) => c.id).firstOrNull;
     }
     final q = _derived;
-    await ref.read(todoRepositoryProvider).add(Todo(
-          title: title,
-          quadrant: q,
-          dueAt: _due,
-          remindAt: remindAt,
-          done: _status == 'done' || _status == 'drop',
-          dropped: _status == 'drop',
-          tag: _status == 'drop' ? '放弃' : null,
-          pomoMode: _type == 'pomo' ? _pomoMode : null,
-          pomoMin: _type == 'pomo' && _pomoMode == 'down' ? _pomoMin : null,
-          timeMode: _timeMode == 'none' ? null : _timeMode,
-          startMin: _timeMode == 'point' || _timeMode == 'range'
-              ? _sMin
-              : (_timeMode == 'all' ? 0 : null),
-          endMin: _timeMode == 'range'
-              ? (_eMin <= _sMin ? 0 : _eMin)
-              : (_timeMode == 'all' ? 1440 : null),
-          colorIdx: _colorIdx,
-          linkCat: linkCat,
-        ));
+    final repo = ref.read(todoRepositoryProvider);
+    if (_isEdit) {
+      // V1.27 T3：编辑态覆盖原条目（保留 id/sort_order/时间字段回填）。
+      final e = widget.editing!;
+      await repo.edit(e.copyWith(
+        title: title,
+        quadrant: q,
+        dueAt: _due,
+        remindAt: remindAt,
+        done: _status == 'done' || _status == 'drop',
+        dropped: _status == 'drop',
+        tag: _status == 'drop' ? '放弃' : (e.tag == '收集箱' || e.tag == '日记' ? e.tag : null),
+        pomoMode: _type == 'pomo' ? _pomoMode : null,
+        pomoMin: _type == 'pomo' && _pomoMode == 'down' ? _pomoMin : null,
+        timeMode: _timeMode == 'none' ? null : _timeMode,
+        startMin: _timeMode == 'point' || _timeMode == 'range'
+            ? _sMin
+            : (_timeMode == 'all' ? 0 : null),
+        endMin: _timeMode == 'range'
+            ? (_eMin <= _sMin ? 0 : _eMin)
+            : (_timeMode == 'all' ? 1440 : null),
+        colorIdx: _colorIdx,
+        linkCat: linkCat,
+      ));
+    } else {
+      await repo.add(Todo(
+        title: title,
+        quadrant: q,
+        dueAt: _due,
+        remindAt: remindAt,
+        done: _status == 'done' || _status == 'drop',
+        dropped: _status == 'drop',
+        tag: _status == 'drop' ? '放弃' : null,
+        pomoMode: _type == 'pomo' ? _pomoMode : null,
+        pomoMin: _type == 'pomo' && _pomoMode == 'down' ? _pomoMin : null,
+        timeMode: _timeMode == 'none' ? null : _timeMode,
+        startMin: _timeMode == 'point' || _timeMode == 'range'
+            ? _sMin
+            : (_timeMode == 'all' ? 0 : null),
+        endMin: _timeMode == 'range'
+            ? (_eMin <= _sMin ? 0 : _eMin)
+            : (_timeMode == 'all' ? 1440 : null),
+        colorIdx: _colorIdx,
+        linkCat: linkCat,
+      ));
+    }
     ref.invalidate(todosProvider);
     ref.invalidate(overdueCountProvider);
     if (!mounted) return;
     Navigator.of(context).pop();
-    _toast(context, '已存入「${q.label}」象限 ✓');
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    super.dispose();
+    _toast(context, _isEdit ? '修改已保存 ✓' : '已保存到「${q.label}」象限 ✓');
   }
 
   @override
@@ -209,67 +425,108 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('新建待办',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+            Text(_isEdit ? '编辑待办' : '新建待办',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
-            // ===== 两型切换（原型 tyNormB/tyPomoB） =====
-            Row(
-              children: [
-                Expanded(
-                    child: _PickTile(
-                        label: '✅ 常规待办',
-                        sub: '勾选完成',
-                        on: _type == 'norm',
-                        accent: tokens.accent,
-                        onTap: () => setState(() => _type = 'norm'))),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _PickTile(
-                        label: '🍅 番茄计时',
-                        sub: '专注计时入账',
-                        on: _type == 'pomo',
-                        accent: tokens.accent,
-                        onTap: () => setState(() => _type = 'pomo'))),
-              ],
-            ),
-            if (_type == 'pomo') ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _MiniSeg(
-                    options: const [('up', '正计时'), ('down', '倒计时')],
-                    value: _pomoMode,
-                    onChanged: (v) => setState(() => _pomoMode = v),
-                  ),
-                  if (_pomoMode == 'down') ...[
-                    const SizedBox(width: 8),
-                    DropdownButton<int>(
-                      value: _pomoMin,
-                      isDense: true,
-                      underline: const SizedBox.shrink(),
-                      items: const [
-                        DropdownMenuItem(value: 5, child: Text('5 分', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: 15, child: Text('15 分', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: 25, child: Text('25 分', style: TextStyle(fontSize: 12))),
-                        DropdownMenuItem(value: 45, child: Text('45 分', style: TextStyle(fontSize: 12))),
-                      ],
-                      onChanged: (v) => setState(() => _pomoMin = v ?? 25),
-                    ),
-                  ],
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text('完成后自动写入时间模块（L4）',
-                          style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant))),
-                ],
-              ),
-            ],
-            const SizedBox(height: 10),
+            // V1.27 T4：类型由 FAB 前置二选一决定，弹层内不再放类型段；名称置顶。
             TextField(
               controller: _title,
+              autofocus: !_isEdit,
               decoration: const InputDecoration(
                   hintText: '任务标题，如：给绿植浇水', isDense: true),
               textInputAction: TextInputAction.next,
             ),
+            // ===== V1.27 T5：番茄配置卡（倒计时=横向进度条 1~60 分 + 5/15/30/45 快捷点） =====
+            if (_type == 'pomo') ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF43F5E).withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: const Color(0xFFF43F5E).withValues(alpha: .25)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('🍅 番茄计时',
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFE11D48))),
+                        const Spacer(),
+                        _MiniSeg(
+                          options: const [('up', '正计时'), ('down', '倒计时')],
+                          value: _pomoMode,
+                          onChanged: (v) => setState(() => _pomoMode = v),
+                        ),
+                      ],
+                    ),
+                    if (_pomoMode == 'down') ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text('$_pomoMin 分钟',
+                              key: const ValueKey('pomo-min-label'),
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFE11D48))),
+                        ],
+                      ),
+                      Slider(
+                        key: const ValueKey('pomo-min'),
+                        value: _pomoMin.toDouble().clamp(1, 60),
+                        min: 1,
+                        max: 60,
+                        activeColor: const Color(0xFFF43F5E),
+                        onChanged: (v) => setState(() => _pomoMin = v.round()),
+                      ),
+                      Row(
+                        children: [
+                          for (final m in const [5, 15, 30, 45])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: InkWell(
+                                key: ValueKey('pomo-quick-$m'),
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => setState(() => _pomoMin = m),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: _pomoMin == m
+                                        ? const Color(0xFFF43F5E)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                        color: const Color(0xFFF43F5E)
+                                            .withValues(alpha: .5)),
+                                  ),
+                                  child: Text('$m′',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: _pomoMin == m
+                                              ? Colors.white
+                                              : const Color(0xFFE11D48))),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Text('完成后自动写入时间模块（L4）· 上限 60 分钟',
+                        style: TextStyle(
+                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Text('引导式判象限（推荐）',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
@@ -408,12 +665,25 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                         isDense: true,
                         isExpanded: true,
                         borderRadius: BorderRadius.circular(12),
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text('提醒 · 当天 09:00', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 0, child: Text('提醒 · 不提醒', style: TextStyle(fontSize: 12))),
-                          DropdownMenuItem(value: 2, child: Text('提醒 · 提前1小时', style: TextStyle(fontSize: 12))),
+                        items: [
+                          const DropdownMenuItem(value: 1, child: Text('提醒 · 当天 09:00', style: TextStyle(fontSize: 12))),
+                          DropdownMenuItem(
+                              value: 3,
+                              child: Text(
+                                  '提醒 · 当天 ${_remindAt.hour.toString().padLeft(2, '0')}:${_remindAt.minute.toString().padLeft(2, '0')}',
+                                  style: const TextStyle(fontSize: 12))),
+                          const DropdownMenuItem(value: 2, child: Text('提醒 · 提前1小时', style: TextStyle(fontSize: 12))),
+                          const DropdownMenuItem(value: 0, child: Text('提醒 · 不提醒', style: TextStyle(fontSize: 12))),
                         ],
-                        onChanged: (v) => setState(() => _remind = v ?? 0),
+                        onChanged: (v) async {
+                          if (v == 3) {
+                            // 选中「自定义」即开滚轮改时刻（V1.27 T5 提醒默认9点可改）
+                            setState(() => _remind = 3);
+                            await _pickRemindTime();
+                          } else {
+                            setState(() => _remind = v ?? 0);
+                          }
+                        },
                       ),
                     ),
                   ),
@@ -633,8 +903,8 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                           borderRadius: BorderRadius.circular(12)),
                       child: TextButton(
                         onPressed: _save,
-                        child: const Text('存入四象限',
-                            style: TextStyle(
+                        child: Text(_isEdit ? '保存修改' : '保存',
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14)),
@@ -644,56 +914,6 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 两型选择瓦片（原型 seg-on 风格：选中=白底主题色+阴影）。
-class _PickTile extends StatelessWidget {
-  const _PickTile({
-    required this.label,
-    required this.sub,
-    required this.on,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final String label;
-  final String sub;
-  final bool on;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: on ? scheme.surface : scheme.onSurface.withValues(alpha: .05),
-          borderRadius: BorderRadius.circular(12),
-          border: on
-              ? Border.all(color: accent.withValues(alpha: .55), width: 1.4)
-              : Border.all(color: Colors.transparent),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: on ? accent : scheme.onSurface)),
-            Text(sub,
-                style: TextStyle(
-                    fontSize: 10, color: on ? accent : scheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -914,6 +1134,28 @@ class _TodoDetailSheetState extends ConsumerState<_TodoDetailSheet> {
                               fontSize: 11.5, color: scheme.onSurfaceVariant)),
                     ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                // ✏️ 编辑（T3：复用新建弹层编辑态回填）
+                OutlinedButton(
+                  onPressed: () {
+                    final navigator = Navigator.of(context);
+                    final bc = context;
+                    navigator.pop();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (bc.mounted) {
+                        showTodoAddSheet(bc, ref,
+                            type: t.pomoMode == null ? 'norm' : 'pomo',
+                            editing: t);
+                      }
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: tokens.accent,
+                      side: BorderSide(color: tokens.accent.withValues(alpha: .4)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6)),
+                  child: const Text('✏️ 编辑', style: TextStyle(fontSize: 11)),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(

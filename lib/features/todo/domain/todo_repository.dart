@@ -44,6 +44,9 @@ class TodoRepository {
   /// 拖拽改象限（AC：<300ms 持久化，直接 await 单条 UPDATE）。
   Future<void> moveQuadrant(Todo t, Quadrant q) => _dao.setQuadrant(t.id!, q);
 
+  /// 长按拖拽排序（V1.27 T6）：按新展示序持久化 sort_order。
+  Future<void> reorder(List<int> ids) => _dao.reorder(ids);
+
   Future<void> remove(Todo t) async {
     await _dao.remove(t.id!);
     await NotificationService.cancel(t.id!);

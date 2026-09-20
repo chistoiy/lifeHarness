@@ -31,12 +31,15 @@ void main() {
       expect(find.text(label), findsWidgets, reason: '底栏应含 $label');
     }
 
-    // 切到待办页（M0 业务页：清单/四象限切换 + 顶部与 FAB 双新建入口）。
+    // 切到待办页（V1.27：顶行 ⇄ 视图切换 + 漏斗 + 搜索，FAB 进类型二选一）。
     await tester.tap(find.text('待办').last);
     await tester.pumpAndSettle();
-    expect(find.text('清单视图'), findsOneWidget);
-    expect(find.text('四象限'), findsWidgets);
-    expect(find.byIcon(Icons.add), findsWidgets);
+    expect(find.byKey(const ValueKey('btn-view-toggle')), findsOneWidget);
+    expect(find.byKey(const ValueKey('btn-filter')), findsOneWidget);
+    // 漏斗面板打开（不依赖 DB 数据；四象限看板内容在 todo_page_test 有真实库守护）
+    await tester.tap(find.byKey(const ValueKey('btn-filter')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('智能筛选'), findsOneWidget);
 
     // 切到我的/设置：首屏资料卡 + 滚动到主题预览网格。
     await tester.tap(find.text('我的').last);

@@ -5,6 +5,7 @@ import '../../domain/todo.dart';
 import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
 import 'todo_edit_sheet.dart';
+import 'todo_list_view.dart' show matchTodo;
 
 /// 2×2 四象限看板（原型 quadWrap）：拖拽卡片跨象限流转（AC <300ms 持久化），
 /// 格内 + 添加、拖拽反馈 toast、文案「立即做/计划做/快速处理/考虑淘汰」。
@@ -15,7 +16,9 @@ class QuadrantBoard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
+    // T10：智能筛选在四象限视图同样生效
+    final filter = ref.watch(todoFilterProvider);
+    final shown = todos.where((t) => matchTodo(t, filter)).toList();
     final rows = [
       [Quadrant.q1, Quadrant.q2],
       [Quadrant.q3, Quadrant.q4],
@@ -24,12 +27,6 @@ class QuadrantBoard extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
       child: Column(
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('💡 长按卡片可拖到其他象限',
-                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-          ),
-          const SizedBox(height: 6),
           for (final row in rows)
             Expanded(
               child: Row(
@@ -40,7 +37,7 @@ class QuadrantBoard extends ConsumerWidget {
                         padding: const EdgeInsets.all(4),
                         child: _QuadrantCell(
                           quadrant: q,
-                          todos: todos.where((t) => t.quadrant == q).toList(),
+                          todos: shown.where((t) => t.quadrant == q).toList(),
                         ),
                       ),
                     ),
@@ -187,58 +184,80 @@ class _QuadrantCell extends ConsumerWidget {
                           ),
                         ),
                         childWhenDragging: const SizedBox(height: 36),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 3),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: scheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: qc.withValues(alpha: .25)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  t.title,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: t.done ? Colors.grey : scheme.onSurface,
-                                    decoration:
-                                        t.done ? TextDecoration.lineThrough : null,
+                        child: GestureDetector(
+                          // T8：点击卡片 → 查看详情（可编辑）
+                          onTap: () => showTodoDetailSheet(context, ref, t),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: qc.withValues(alpha: .25)),
+                            ),
+                            child: Row(
+                              children: [
+                                // T11：方框＋标题（点方框=结束此待办 · 原型 q-card chk）
+                                InkWell(
+                                  key: ValueKey('qchk-${t.id}'),
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () {
+                                    final wasDone = t.done;
+                                    ref
+                                        .read(todoRepositoryProvider)
+                                        .toggleDone(t);
+                                    ref.invalidate(todosProvider);
+                                    ref.invalidate(overdueCountProvider);
+                                    if (!wasDone) {
+                                      ScaffoldMessenger.of(context)
+                                        ..hideCurrentSnackBar()
+                                        ..showSnackBar(const SnackBar(
+                                            content: Text(
+                                                '完成 ✓ 已计入今日小结（联动 L2）'),
+                                            duration:
+                                                Duration(milliseconds: 1400)));
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(5),
+                                      color: t.done ? qc : Colors.transparent,
+                                      border: Border.all(
+                                          color: t.done
+                                              ? qc
+                                              : const Color(0xFFCBD5E1),
+                                          width: 2),
+                                    ),
+                                    child: t.done
+                                        ? const Icon(Icons.check,
+                                            size: 12, color: Colors.white)
+                                        : null,
                                   ),
                                 ),
-                              ),
-                              if (t.overdue)
-                                const Icon(Icons.error_outline,
-                                    size: 14, color: Color(0xFFF43F5E)),
-                              // V1.26 条目 ✕ 直接完成/关闭（与列表勾选同联动）
-                              InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () {
-                                  final wasDone = t.done;
-                                  ref.read(todoRepositoryProvider).toggleDone(t);
-                                  ref.invalidate(todosProvider);
-                                  ref.invalidate(overdueCountProvider);
-                                  if (!wasDone) {
-                                    ScaffoldMessenger.of(context)
-                                      ..hideCurrentSnackBar()
-                                      ..showSnackBar(const SnackBar(
-                                          content: Text(
-                                              '完成 ✓ 已计入今日小结（联动 L2）'),
-                                          duration: Duration(milliseconds: 1400)));
-                                  }
-                                },
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 4, vertical: 2),
-                                  child: Icon(Icons.close,
-                                      size: 16, color: Color(0xFFCBD5E1)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    t.title,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          t.done ? Colors.grey : scheme.onSurface,
+                                      decoration: t.done
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                if (t.overdue)
+                                  const Icon(Icons.error_outline,
+                                      size: 14, color: Color(0xFFF43F5E)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -246,7 +265,8 @@ class _QuadrantCell extends ConsumerWidget {
                 ),
               ),
               InkWell(
-                onTap: () => showTodoAddSheet(context, ref),
+                onTap: () => showTodoAddSheet(context, ref,
+                    type: 'norm', preset: quadrant),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text('+ 添加',

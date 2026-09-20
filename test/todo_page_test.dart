@@ -50,7 +50,11 @@ void main() {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.add).last); // FAB
+    await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一（T4）
+    await tester.pumpAndSettle();
+    expect(find.text('普通待办'), findsOneWidget);
+    expect(find.text('番茄钟'), findsOneWidget);
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
     expect(find.text('引导式判象限（推荐）'), findsOneWidget);
@@ -63,13 +67,13 @@ void main() {
     expect(find.text('是 ✓'), findsNWidgets(2));
 
     await tester.enterText(find.byType(TextField).first, '救火任务');
-    await tester.tap(find.text('存入四象限'));
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
     final saved = await repo.list();
     expect(saved.single.title, '救火任务');
     expect(saved.single.quadrant, Quadrant.q1);
-    expect(find.text('已存入「重要且紧急」象限 ✓'), findsOneWidget);
+    expect(find.text('已保存到「重要且紧急」象限 ✓'), findsOneWidget);
   });
 
   testWidgets('勾选完成 → L2 联动 toast，任务划线保留', (tester) async {
@@ -95,13 +99,15 @@ void main() {
 
     expect(find.text('⏰ 1'), findsOneWidget); // AppBar 角标
 
-    await tester.tap(find.text('四象限'));
+    await tester.tap(find.byKey(const ValueKey('btn-view-toggle')));
     await tester.pumpAndSettle();
-    expect(find.text('💡 长按卡片可拖到其他象限'), findsOneWidget);
+    expect(find.text('💡 长按卡片可拖到其他象限'), findsNothing); // T8 已移除
     expect(find.text('重要且紧急'), findsOneWidget);
     expect(find.text('立即做 · 1 待办'), findsOneWidget);
     expect(find.text('逾期任务'), findsOneWidget);
     expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    // T11：象限卡片=方框＋标题
+    expect(find.byKey(ValueKey('qchk-1')), findsOneWidget);
   });
 
   testWidgets('详情弹层改判象限并持久化（原型 sheetTask q-move 即点即存）',
@@ -123,5 +129,68 @@ void main() {
     expect(list.first.quadrant, Quadrant.q3);
     expect(t.id, isNotNull);
     expect(find.text('已改判为「紧急不重要」（拖拽同样可用）'), findsOneWidget);
+  });
+
+  testWidgets('V1.27 T3 详情→编辑：复用表单回填并覆盖保存', (tester) async {
+    final t = await repo.add(Todo(
+        title: '原始标题',
+        quadrant: Quadrant.q2,
+        tag: '收集箱',
+        dueAt: DateTime.now().add(const Duration(days: 2))));
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    // 点条目 → 详情弹层 → ✏️ 编辑
+    await tester.tap(find.text('原始标题'));
+    await tester.pumpAndSettle();
+    expect(find.text('✏️ 编辑'), findsOneWidget);
+    await tester.tap(find.text('✏️ 编辑'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('编辑待办'), findsOneWidget);
+    // 标题回填（表单输入框初值；列表页同款文本在弹层后仍可见）
+    expect(tester.widget<TextField>(find.byType(TextField).first).controller?.text,
+        '原始标题');
+    // 不重答两问直接改标题保存 → 象限/标签保持不变
+    await tester.enterText(find.byType(TextField).first, '改后标题');
+    await tester.tap(find.text('保存修改'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.list();
+    expect(saved.single.title, '改后标题');
+    expect(saved.single.quadrant, Quadrant.q2);
+    expect(saved.single.tag, '收集箱');
+    expect(saved.single.id, t.id); // 覆盖原条目而非新增
+    expect(find.text('修改已保存 ✓'), findsOneWidget);
+  });
+
+  testWidgets('V1.27 T4 番茄钟路径：类型卡+进度条快捷点渲染', (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add).last); // FAB → 二选一
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('番茄钟'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('🍅 番茄计时'), findsOneWidget);
+    expect(find.text('倒计时'), findsOneWidget);
+    // 切倒计时 → 进度条 + 快捷点（5/15/30/45）出现
+    await tester.tap(find.text('倒计时'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pomo-min')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pomo-quick-30')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pomo-quick-30')));
+    await tester.pump();
+    expect(find.text('30 分钟'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '专注任务');
+    await tester.ensureVisible(find.text('保存'));
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final saved = await repo.list();
+    expect(saved.single.pomoMode, 'down');
+    expect(saved.single.pomoMin, 30);
   });
 }

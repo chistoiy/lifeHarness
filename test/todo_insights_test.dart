@@ -137,7 +137,7 @@ void main() {
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('四象限'));
+      await tester.tap(find.byKey(const ValueKey('btn-view-toggle')));
       await tester.pumpAndSettle();
       expect(find.textContaining('失衡提醒：'), findsOneWidget);
       expect(find.textContaining('天空置'), findsOneWidget);
@@ -148,7 +148,7 @@ void main() {
       // 预置两问答案：重要=是 ✓、紧急=否 → 落点即「重要不紧急」
       expect(find.text('是 ✓'), findsOneWidget);
       expect(find.text('否'), findsOneWidget);
-      expect(find.text('存入四象限'), findsOneWidget);
+      expect(find.text('保存'), findsOneWidget);
     });
 
     testWidgets('Q2 有空置不足阈值任务时不显示提醒卡', (tester) async {
@@ -157,7 +157,7 @@ void main() {
           createdAt: DateTime.now(), updatedAt: DateTime.now()));
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
-      await tester.tap(find.text('四象限'));
+      await tester.tap(find.byKey(const ValueKey('btn-view-toggle')));
       await tester.pumpAndSettle();
       // 空置 <3 天（今日创建）→ 不提醒
       expect(find.textContaining('失衡提醒：'), findsNothing);

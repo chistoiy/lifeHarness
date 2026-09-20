@@ -36,7 +36,9 @@ class PomoSession {
   /// up=正计时 / down=倒计时。
   final String mode;
   final int? minutes;
-  final DateTime startedAt;
+
+  /// T7：页内「重置」需原地重设起点，故可变。
+  DateTime startedAt;
 
   /// 累计暂停毫秒与本次暂停起点（V1.22.1：暂停期间时钟冻结，不计耗时）。
   int pausedMs = 0;
