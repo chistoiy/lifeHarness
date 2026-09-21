@@ -4,10 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/md_shortcut.dart';
-import '../domain/note.dart';
 import 'journal_providers.dart';
+import 'widgets/md_view.dart';
 
 /// 编辑器四模式（原型 p-noteEdit · 批1b）：专注段落 / MD 源码 / 分屏 / 预览。
 enum NoteEditMode { focus, src, split, view }
@@ -298,7 +299,10 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _debounce?.cancel();
     if (_mode == NoteEditMode.focus) _flushParas();
     if (_dirty) await _persist();
-    if (mounted) Navigator.of(context).pop();
+    final n = await _syncTodoLines();
+    if (!mounted) return;
+    if (n > 0) AppToast.show(context, '已保存 ✓ · ☑ 待办已同步（$n 条）');
+    Navigator.of(context).pop();
   }
 
   int get _words {
@@ -416,29 +420,85 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     );
   }
 
-  /// 预览占位（批1c 接 markdown + flutter_math_fork 渲染层）。
+  /// 渲染预览（批1c · MdView：GFM + flutter_math_fork 公式）。
   Widget _preview({double fontSize = 14}) {
-    final paras =
-        _bodyCtl.text.isEmpty ? const <String>[] : _bodyCtl.text.split('\n\n');
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final p in paras)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(p,
-                  style: TextStyle(
-                      fontSize: fontSize, height: 1.9, color: _fg)),
-            ),
-          if (paras.isEmpty)
-            Text('（空白）',
-                style: TextStyle(
-                    fontSize: fontSize, color: _fg.withValues(alpha: .4))),
+          MdView(
+            key: const ValueKey('md-view'),
+            source: _bodyCtl.text,
+            fg: _fg,
+            fontSize: fontSize,
+            onToggleTask: _toggleTask,
+          ),
         ],
       ),
     );
+  }
+
+  /// ☑ 勾选回写源码第 idx 个任务行；勾上即联动 L3 完成同名待办。
+  void _toggleTask(int idx, bool check) {
+    final text = _bodyCtl.text;
+    var i = -1;
+    final out = text.replaceAllMapped(
+        RegExp(r'^(\s*[-*]\s+)\[( |x|X)\]', multiLine: true), (m) {
+      i++;
+      return i == idx ? '${m[1]!}[${check ? 'x' : ' '}]' : m[0]!;
+    });
+    if (i < idx) return;
+    _bodyCtl.value = TextEditingValue(
+        text: out, selection: TextSelection.collapsed(offset: out.length));
+    _onChanged(out);
+    if (check) {
+      final title = RegExp(r'^\s*[-*]\s+\[[xX]\]\s+(.+)$', multiLine: true)
+          .allMatches(out)
+          .map((m) => m[1]!.trim())
+          .elementAtOrNull(idx);
+      _completeTodo(title);
+    } else {
+      AppToast.show(context, '已取消勾选 ☐');
+    }
+  }
+
+  /// L3 联动：勾选的待办行 → 完成同名未完成待办（与日记 ☐ 同构）。
+  Future<void> _completeTodo(String? title) async {
+    if (title == null || title.isEmpty) return;
+    final repo = ref.read(todoRepositoryProvider);
+    final match = (await repo.list())
+        .where((t) => t.title == title && !t.done)
+        .firstOrNull;
+    if (!mounted) return;
+    if (match == null) {
+      AppToast.show(context, '已勾选 ☑ · 保存后同步至待办');
+      return;
+    }
+    await repo.toggleDone(match);
+    ref.invalidate(todosProvider);
+    if (mounted) {
+      AppToast.show(context, '已勾选 ☑ · 待办「$title」已完成');
+    }
+  }
+
+  /// L3：源码中未勾选的 - [ ] 行 → 新待办（按标题去重，默认「重要不紧急」）。
+  Future<int> _syncTodoLines() async {
+    final titles = RegExp(r'^\s*[-*]\s+\[ \]\s+(.+)$', multiLine: true)
+        .allMatches(_bodyCtl.text)
+        .map((m) => m[1]!.trim())
+        .toSet();
+    if (titles.isEmpty) return 0;
+    final repo = ref.read(todoRepositoryProvider);
+    final existing = (await repo.list()).map((t) => t.title).toSet();
+    var created = 0;
+    for (final t in titles) {
+      if (existing.contains(t)) continue;
+      await repo.add(Todo(title: t, quadrant: Quadrant.q2, tag: '笔记'));
+      created++;
+    }
+    if (created > 0) ref.invalidate(todosProvider);
+    return created;
   }
 
   Widget _bodyArea() {
@@ -479,11 +539,11 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                 width: 1,
                 color: _fg.withValues(alpha: .12),
                 margin: const EdgeInsets.symmetric(vertical: 10)),
-            Expanded(child: _preview()),
+            Expanded(child: _preview(fontSize: 13)),
           ],
         );
       case NoteEditMode.view:
-        return _preview();
+        return _preview(fontSize: _font);
     }
   }
 

@@ -3,20 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:lifeharness/features/journal/presentation/note_edit_page.dart';
 import 'package:lifeharness/features/journal/presentation/note_tab.dart';
+import 'package:lifeharness/features/todo/data/todo_dao.dart';
+import 'package:lifeharness/features/todo/domain/todo.dart';
+import 'package:lifeharness/features/todo/domain/todo_repository.dart';
+import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// M1 批1a · 笔记列表与管理 + 基础编辑页（原型 recNote / p-noteEdit）。
+/// M1 批1a/1b/1c · 笔记列表与管理 + 编辑器（原型 recNote / p-noteEdit）。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database db;
   late NoteDao dao;
+  late TodoRepository trepo;
 
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
@@ -24,12 +30,16 @@ void main() {
       await db.execute(sql);
     }
     dao = NoteDao(db);
+    trepo = TodoRepository(TodoDao(db), EventBus());
   });
 
   tearDown(() async => db.close());
 
   ProviderScope scope(Widget home) => ProviderScope(
-        overrides: [noteDaoProvider.overrideWithValue(dao)],
+        overrides: [
+          noteDaoProvider.overrideWithValue(dao),
+          todoRepositoryProvider.overrideWithValue(trepo),
+        ],
         child: MaterialApp(
             home: home is NoteTab ? Scaffold(body: home) : home),
       );
@@ -284,6 +294,78 @@ void main() {
       await tester.pumpAndSettle();
       final list = await dao.list();
       expect(list.single.content, '**克制**设计');
+    });
+  });
+
+  group('笔记渲染层（批1c · MdView + ☑L3）', () {
+    const blockTex = r'x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}';
+    final rich = '# 论克制\n\n**写作工具**的第一要务，行内公式 \$E=mc^2\$ 与 '
+        '`行内码`。\n\n- [ ] 回复邮件\n- [x] 自动保存\n\n'
+        '| 模式 | 用途 |\n| --- | --- |\n| 专注 | 沉浸 |\n\n'
+        '\$\$$blockTex\$\$\n\n> 纸会接住你\n\n~~删除线~~\n\n'
+        '```\ncode block\n```\n';
+
+    testWidgets('预览模式全要素渲染：标题/公式/表格/任务行/引用/代码块',
+        (tester) async {
+      final n = await dao.save(note('富文本', content: rich));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await settle5(tester);
+
+      expect(find.byKey(const ValueKey('md-view')), findsOneWidget);
+      expect(find.byKey(const ValueKey('md-h1-论克制')), findsOneWidget);
+      expect(find.byKey(const ValueKey('md-math-E=mc^2')), findsOneWidget); // 行内公式
+      expect(find.byKey(const ValueKey('md-math-$blockTex')),
+          findsOneWidget); // 块级公式 flutter_math_fork
+      expect(find.byKey(const ValueKey('md-table')), findsOneWidget);
+      expect(find.byKey(const ValueKey('md-pre-code block')), findsOneWidget);
+      expect(find.text('☐'), findsOneWidget); // 未勾选任务行
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('md-task-1')),
+              matching: find.text('☑')),
+          findsOneWidget); // 已勾选任务行（避开快捷栏 ☑ 字面）
+      expect(find.textContaining('回复邮件'), findsWidgets);
+      expect(find.textContaining('纸会接住你'), findsOneWidget); // 引用
+      expect(find.textContaining('删除线'), findsOneWidget); // 删除线
+    });
+
+    testWidgets('预览勾选 ☑ → 回写源码 - [x] 并联动 L3', (tester) async {
+      final n =
+          await dao.save(note('任务', content: '- [ ] 回复邮件\n- [ ] 买菜'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await settle5(tester);
+
+      await tester.tap(find.byKey(const ValueKey('md-task-0')));
+      expect(
+          await pollText(tester, '已勾选 ☑ · 保存后同步至待办'), isTrue); // 无同名待办=提示保存同步
+      await tester.pump(const Duration(seconds: 2));
+
+      await tester.tap(find.byKey(const ValueKey('note-mode-src')));
+      await tester.pumpAndSettle();
+      final ctl = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-body')))
+          .controller!;
+      expect(ctl.text, startsWith('- [x] 回复邮件'));
+      expect(ctl.text, contains('- [ ] 买菜')); // 只翻第 0 个
+    });
+
+    testWidgets('返回保存：未勾选任务行 → 新待办（q2·tag 笔记）；已勾选不建',
+        (tester) async {
+      final n =
+          await dao.save(note('任务', content: '- [ ] 整理书架\n- [x] 已办的'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await settle5(tester);
+
+      final todos = await trepo.list();
+      expect(todos.map((t) => t.title), ['整理书架']);
+      expect(todos.first.quadrant, Quadrant.q2);
+      expect(todos.first.tag, '笔记');
     });
   });
 }
