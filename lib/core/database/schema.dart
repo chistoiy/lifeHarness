@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 8;
+  static const int version = 9;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -144,7 +144,8 @@ class DbSchema {
     "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(1,0,'感恩 ①','小事也可以'),(1,1,'感恩 ②',NULL),(1,2,'感恩 ③',NULL)",
     "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(2,0,'Keep · 做对了什么',NULL),(2,1,'Problem · 哪里不顺',NULL),(2,2,'Try · 下一步怎么改',NULL)",
 
-    // 模块3 笔记（kind: plain/rich/md；folder 分组；pinned 置顶；v7 archived/deleted_at）
+    // 模块3 笔记（kind: plain/rich/md；folder 分组；pinned 置顶；v7 archived/deleted_at；
+    // v9 paper 纸色 hex·''=默认米纸·仅卡片视图条目底色跟随）
     '''
     CREATE TABLE $tNotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,6 +156,7 @@ class DbSchema {
       pinned INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
       deleted_at INTEGER,
+      paper TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -409,6 +411,10 @@ class DbSchema {
         sort INTEGER NOT NULL DEFAULT 0
       )
       ''',
+    ],
+    // v9（V1.29轮9n）：笔记纸色按篇独立（hex·''=默认米纸·仅卡片视图条目底色跟随）
+    8: [
+      "ALTER TABLE $tNotes ADD COLUMN paper TEXT NOT NULL DEFAULT ''",
     ],
   };
 }

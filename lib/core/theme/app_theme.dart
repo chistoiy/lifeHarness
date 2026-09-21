@@ -85,6 +85,20 @@ class AppTheme {
         width: 320,
       ),
       dividerColor: tokens.cardBorder,
+      // V1.29轮9f：全局统一滚动条（细 4px · 全圆角 · 半透明 onSurface），
+      // 替换 Flutter 3.38 Android 默认粗滚动条风格。
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(false),
+        thickness: const WidgetStatePropertyAll(4),
+        radius: const Radius.circular(4),
+        interactive: true,
+        minThumbLength: 28,
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => scheme.onSurface
+              .withValues(alpha: states.contains(WidgetState.hovered) ? .45 : .28),
+        ),
+        trackColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
     );
   }
 }

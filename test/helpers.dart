@@ -27,6 +27,18 @@ Future<bool> pollText(WidgetTester tester, String text,
   return find.text(text).evaluate().isNotEmpty;
 }
 
+/// 等所有 SnackBar 自动消失。fake 时间下**单次大 pump 不会触发 SnackBar 关闭
+/// 定时器**（只有小步循环 pump 才会）；浮层 SnackBar 会挡住底栏命中测试，
+/// 需在再点底部按钮前清场。
+Future<void> clearToasts(WidgetTester tester, {int ms = 100}) async {
+  for (var i = 0;
+      i < 40 && find.byType(SnackBar).evaluate().isNotEmpty;
+      i++) {
+    await tester.pump(Duration(milliseconds: ms));
+  }
+  await tester.pumpAndSettle();
+}
+
 /// 加高视口让懒构建 ListView 的深部长尾子项全部入树（模板行/保存钮等），
 /// 自动 tearDown 还原。默认 800×2400。
 Future<void> useSurface(WidgetTester tester,

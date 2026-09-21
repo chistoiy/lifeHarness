@@ -185,6 +185,37 @@ void main() {
       expect(await db2.query('note_snapshots'), hasLength(1));
       await db2.close();
     });
+
+    test('v9 迁移：旧 notes 表升级后 paper 列可用（轮9n·空=默认米纸）', () async {
+      await databaseFactoryFfiNoIsolate.deleteDatabase('ntest_v9.db');
+      final db2 =
+          await databaseFactoryFfiNoIsolate.openDatabase('ntest_v9.db');
+      await db2.execute('''
+        CREATE TABLE notes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          content TEXT NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'plain',
+          folder TEXT,
+          pinned INTEGER NOT NULL DEFAULT 0,
+          archived INTEGER NOT NULL DEFAULT 0,
+          deleted_at INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await db2.insert('notes', {
+        'title': '老笔记',
+        'content': 'x',
+        'created_at': 1,
+        'updated_at': 1,
+      });
+      await db2.execute(DbSchema.migrations[8]!.single); // v8→v9：ADD COLUMN paper
+      final row = (await db2.query('notes')).single;
+      expect(row['paper'], '');
+      expect(Note.fromRow(row).paper, '');
+      await db2.close();
+    });
   });
 
   group('笔记 tab（原型 recNote · V1.29轮6 重构）', () {
@@ -411,7 +442,8 @@ void main() {
   });
 
   group('笔记编辑页（原型 p-noteEdit · 批1a 基础形态）', () {
-    testWidgets('新建：输入标题正文 → 返回即落库', (tester) async {
+    testWidgets('新建：输入标题正文 → 返回即落库；统计在 ⋯ 弹层标题行（轮9q）',
+        (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage()));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -419,7 +451,15 @@ void main() {
       await tester.enterText(
           find.byKey(const ValueKey('note-para-0')), '写作工具的第一要务');
       await tester.pump();
-      expect(find.textContaining('12 字 · 约 1 分钟'), findsOneWidget);
+      // 轮9d：新建页无灰盒输入·无教学 hint·无「标题」占位。
+      expect(find.textContaining('写下第一个字'), findsNothing);
+      expect(find.text('标题'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      expect(find.text('笔记选项'), findsOneWidget); // 轮9q：标题去「⋯」前缀
+      expect(find.textContaining('字 · 约 '), findsOneWidget); // 统计移至标题右侧
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('note-back')));
       await tester.pumpAndSettle();
 
@@ -429,18 +469,27 @@ void main() {
       expect(list.single.content, '写作工具的第一要务');
     });
 
-    testWidgets('打开既有：回填 + 置顶切换持久化', (tester) async {
+    testWidgets('打开既有：回填 + ⋯ 弹层行号开关（轮9p·仅纯文本）落库设置位',
+        (tester) async {
       final n = await dao.save(note('已存在', content: '原稿'));
       await tester
           .pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
       expect(find.text('已存在'), findsWidgets); // 顶栏小标题+标题框
       expect(find.text('原稿'), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-ln-0')), findsNothing); // 默认关
 
-      await tester.tap(find.byKey(const ValueKey('note-pin')));
-      await tester.pump(const Duration(milliseconds: 1100));
-      await tester.pumpAndSettle();
-      expect((await dao.byId(n.id!))!.pinned, isTrue);
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('kit-ln')), findsOneWidget); // plain 出行号行
+      await tester.tap(find.byKey(const ValueKey('kit-ln')));
+      await settle5(tester);
+      await clearToasts(tester); // 行号 toast 会盖住弹层底部「收起」钮
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-ln-0')), findsOneWidget);
+      expect(find.text('1'), findsWidgets);
+      expect(prefs.getBool('lh.note_plain_linenum'), isTrue); // 持久化
     });
   });
 
@@ -452,9 +501,10 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('note-md-bold')));
       await tester.pump();
-      expect(find.textContaining('当前为专注模式'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 2));
-      await tester.pumpAndSettle();
+      expect(find.textContaining('当前为写作视图'), findsOneWidget);
+      // 守卫 toast 需完全退场再点底部条（floating SnackBar 盖住工具条命中区·
+      // fake 时间下单次大 pump 不触发其关闭定时器 → helpers.clearToasts）
+      await clearToasts(tester);
 
       await tester.tap(find.byKey(const ValueKey('note-mode-src')));
       await tester.pumpAndSettle();
@@ -470,7 +520,7 @@ void main() {
           .controller!;
       expect(ctl.text, '## 标题');
       expect(await pollText(tester, '标题级别：h2'), isTrue);
-      await tester.pump(const Duration(seconds: 2));
+      await clearToasts(tester);
       await tester.tap(find.byKey(const ValueKey('note-sub-close')));
       await tester.pump();
       expect(find.byKey(const ValueKey('note-h-2')), findsNothing);
@@ -486,30 +536,76 @@ void main() {
       expect(ctl.text, '## 标题****');
     });
 
-    testWidgets('分屏：源码输入实时同步右侧预览区与字数', (tester) async {
+    testWidgets('轮9e/9o：模式钮入顶行纯图标·去分屏去专注钮·再点当前项回落写作',
+        (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('note-mode-split')));
+      // 专注/分屏钮已移除；顶行仅 源码/预览 两钮（纯文本页整行不出现=另有用例）。
+      expect(find.byKey(const ValueKey('note-mode-split')), findsNothing);
+      expect(find.byKey(const ValueKey('note-mode-focus')), findsNothing);
+      expect(find.byKey(const ValueKey('note-mode-src')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-mode-view')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('note-mode-src')));
       await tester.pumpAndSettle();
-      await tester.enterText(
-          find.byKey(const ValueKey('note-body')), '一二三四');
-      await tester.pump();
-      expect(find.text('一二三四'), findsWidgets); // 源码+预览两处
-      expect(find.textContaining('4 字 · 约 1 分钟'), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-body')), findsOneWidget);
+      // 再点当前激活项=回落写作视图（段落形态）。
+      await tester.tap(find.byKey(const ValueKey('note-mode-src')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-body')), findsNothing);
+      expect(find.byKey(const ValueKey('note-para-0')), findsOneWidget);
+      // 预览钮同构：点开→再点回落。
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('md-view')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('md-view')), findsNothing);
     });
 
-    testWidgets('纸色四选：切深夜米黑底墨色反转', (tester) async {
+    testWidgets('轮9n：纸色四选入 ⋯ 弹层·切深夜即生效·按笔记落库 paper',
+        (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage()));
       await tester.pumpAndSettle();
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
           const Color(0xFFFBF8F1));
-      await tester.tap(find.byKey(const ValueKey('note-paper-3')));
-      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-paper-3')));
+      await settle5(tester);
+      expect(find.text('深夜'), findsOneWidget); // 纸色名跟随
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
           const Color(0xFF1E1D1B));
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+      expect((await dao.list()).single.paper, 'p3');
     });
 
-    testWidgets('专注段落：空段成段·输入空行拆段·聚焦淡出其余段', (tester) async {
+    testWidgets('轮9n：卡片视图条目底色随纸色·列表视图不体现', (tester) async {
+      final n = await dao.save(note('深稿件', content: 'x').copyWith(paper: 'p3'));
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      BoxDecoration decoOf(int id) {
+        final c = tester.widget<Container>(find.descendant(
+            of: find.byKey(ValueKey('note-card-$id')),
+            matching: find.byWidgetPredicate((w) =>
+                w is Container &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).borderRadius != null)));
+        return c.decoration! as BoxDecoration;
+      }
+      // 列表视图：不体现纸色（底色仍为主题卡色）。
+      expect(decoOf(n.id!).color, isNot(const Color(0xFF1E1D1B)));
+      // 切 2 列卡片视图 → 底色=深夜。
+      mutate(tester, (c) => c.read(noteViewColsProvider.notifier).state = 2);
+      await tester.pumpAndSettle();
+      expect(decoOf(n.id!).color, const Color(0xFF1E1D1B));
+    });
+
+    testWidgets('专注段落：空段成段·输入空行拆段·聚焦默认开淡出其余（⋯ 可关）',
+        (tester) async {
       final n = await dao.save(note('两段', content: '甲段\n\n乙段'));
       await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
@@ -523,13 +619,25 @@ void main() {
       expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
       expect(find.byKey(const ValueKey('note-para-2')), findsOneWidget); // 丙|丁|乙
 
-      await tester.tap(find.byKey(const ValueKey('note-focus')));
-      await tester.pump();
-      expect(find.textContaining('聚焦模式：当前段高亮'), findsOneWidget);
+      // 轮9j补正2：聚焦=纸面默认开（当前段=最后编辑段，其余 .22 淡出）。
       final dim = tester
           .widget<TextField>(find.byKey(const ValueKey('note-para-2')))
           .style!;
-      expect(dim.color!.a, closeTo(.22, .01)); // 非当前段淡出
+      expect(dim.color!.a, closeTo(.22, .01));
+
+      // ⋯ 内关闭聚焦 → 全段正常显示 + toast。
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-focus')));
+      await settle5(tester);
+      expect(await pollText(tester, '聚焦关：全部段落正常显示'), isTrue);
+      await clearToasts(tester); // 清场后才能点到底部「收起」钮
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
+      final norm = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-para-2')))
+          .style!;
+      expect(norm.color!.a, closeTo(1, .01));
     });
 
     testWidgets('源码模式编辑后返回：内容落库', (tester) async {
@@ -555,8 +663,9 @@ void main() {
         '\$\$$blockTex\$\$\n\n> 纸会接住你\n\n~~删除线~~\n\n'
         '```\ncode block\n```\n';
 
-    testWidgets('预览模式全要素渲染：标题/公式/表格/任务行/引用/代码块',
+    testWidgets('预览模式全要素渲染：标题/公式/表格/任务行/引用/代码块（LaTeX 开·轮9k）',
         (tester) async {
+      await prefs.setBool('lh.note_latex', true); // 记录管理开关默认关·本用例显式开
       final n = await dao.save(note('富文本', content: rich, kind: 'md'));
       await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
@@ -579,6 +688,21 @@ void main() {
       expect(find.textContaining('回复邮件'), findsWidgets);
       expect(find.textContaining('纸会接住你'), findsOneWidget); // 引用
       expect(find.textContaining('删除线'), findsOneWidget); // 删除线
+    });
+
+    testWidgets('轮9k：LaTeX 默认关=预览按原文显示 \$..\$/\$\$..\$\$ 不渲染公式',
+        (tester) async {
+      final n = await dao.save(
+          note('公式稿', content: '行内 \$E=mc^2\$ 与\n\n'
+              '\$\$x^2\$\$\n\n完成', kind: 'md'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('md-view')), findsOneWidget);
+      expect(find.byKey(const ValueKey('md-math-E=mc^2')), findsNothing);
+      expect(find.textContaining(r'$E=mc^2$'), findsOneWidget); // 原文显示
+      expect(find.textContaining(r'$$x^2$$'), findsOneWidget);
     });
 
     testWidgets('预览勾选 ☑ → 回写源码 - [x] 并联动 L3', (tester) async {
@@ -644,7 +768,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('note-export')));
       await settle5(tester);
       expect(find.text('笔记选项'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('exp-snap')));
+      await tester.tap(find.byKey(const ValueKey('kit-snap')));
       await settle5(tester);
       expect(find.byKey(const ValueKey('snap-row-0')), findsOneWidget);
       expect(find.textContaining('恢复默认直接替换当前正文'), findsOneWidget);
@@ -674,7 +798,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('note-export')));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('exp-snap')));
+      await tester.tap(find.byKey(const ValueKey('kit-snap')));
       await settle5(tester);
       expect(find.textContaining('恢复=新增一条副本笔记'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
@@ -711,7 +835,8 @@ void main() {
           isTrue);
     });
 
-    testWidgets('⋯ 导出弹层：复制全文（TXT）入剪贴板', (tester) async {
+    testWidgets('轮9r：⋯ 标题行分享钮 → 分享弹层 导出TXT/Markdown/复制全文/以图片形式分享',
+        (tester) async {
       final n = await dao.save(note('可复制', content: '全文内容在此'));
       String? copied;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -728,8 +853,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-export')));
       await settle5(tester);
-      expect(find.byKey(const ValueKey('exp-md')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('exp-copy')));
+      // ⋯ 弹层=笔记选项本体（无 导出/置顶 行·导出改由标题行分享钮承载）。
+      expect(find.text('笔记选项'), findsOneWidget);
+      expect(find.byKey(const ValueKey('kit-share')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('kit-share')));
+      await settle5(tester);
+      expect(find.text('分享'), findsOneWidget);
+      for (final k in ['share-txt', 'share-md', 'share-copy', 'share-img']) {
+        expect(find.byKey(ValueKey(k)), findsOneWidget);
+      }
+      await tester.tap(find.byKey(const ValueKey('share-copy')));
       await settle5(tester);
       expect(copied, contains('全文内容在此'));
       expect(await pollText(tester, '已复制全文到剪贴板'), isTrue);
@@ -808,6 +941,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('直接替换正文'), findsOneWidget);
     });
+
+    testWidgets('轮9k：LaTeX 公式渲染开关（笔记段·默认关·点击持久化 lh.note_latex）',
+        (tester) async {
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const RecmgSettingsPage()));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(RecmgSettingsPage)));
+      expect(container.read(settingsControllerProvider).noteLatex, isFalse);
+      await tester.tap(find.byKey(const ValueKey('latex-tgl')));
+      await tester.pumpAndSettle();
+      expect(container.read(settingsControllerProvider).noteLatex, isTrue);
+      expect(prefs.getBool('lh.note_latex'), isTrue);
+    });
   });
 
   group('V1.29批B · 富文本（flutter_quill · 原型 pwRichBar）', () {
@@ -870,35 +1017,53 @@ void main() {
       expect(jsonEncode(ctl.document.toDelta().toJson()), isNot(contains('"list"')));
     });
 
-    testWidgets('note-kind 三态循环 纯文本→MD→富文本→纯文本（内容往返不丢）',
+    testWidgets('轮9j：⋯ 类型三 chip 直选 纯文本⇄MD⇄富文本（内容往返不丢·入口收进弹层）',
         (tester) async {
       final n = await dao.save(note('三态', content: '正文在'));
       await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
-      expect(find.text('🖊 纯文本'), findsOneWidget);
+      // 底部状态条已移除（字号/纸色/聚焦/文件夹/置顶/类型全部进 ⋯）。
+      expect(find.byKey(const ValueKey('note-kind')), findsNothing);
+      expect(find.byKey(const ValueKey('note-font')), findsNothing);
+      expect(find.byKey(const ValueKey('note-pin')), findsNothing);
+      expect(find.byKey(const ValueKey('note-folder')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('note-kind')));
-      await tester.pumpAndSettle();
-      expect(find.text('⌨️ MD'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      expect(find.text('富文本'), findsOneWidget);
+      expect(find.text('纯文本'), findsOneWidget);
+      expect(find.text('MD 文档'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('note-kind')));
+      await tester.tap(find.byKey(const ValueKey('kit-kind-md')));
       await tester.pumpAndSettle();
-      expect(find.text('📝 富文本'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-mode-src')), findsOneWidget); // MD=顶行两钮
+
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-kind-rich')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
       expect(find.byKey(const ValueKey('note-rich-editor')), findsOneWidget);
-      // 纯文本被包成 Delta 文档
       final ctl = tester
           .widget<QuillEditor>(
               find.byKey(const ValueKey('note-rich-editor')))
           .controller;
       expect(ctl.document.toPlainText(), contains('正文在'));
 
-      await tester.tap(find.byKey(const ValueKey('note-kind')));
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-kind-plain')));
       await tester.pumpAndSettle();
-      expect(find.text('🖊 纯文本'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('kit-close')));
+      await settle5(tester);
       expect(find.byKey(const ValueKey('note-rich-editor')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('note-back')));
       await settle5(tester);
       expect((await dao.byId(n.id!))!.content, '正文在'); // 无 JSON 残留
+      expect((await dao.byId(n.id!))!.kind, 'plain');
     });
 
     test('Note.richToPlain：Delta JSON→纯文本；图片嵌入→🖼；非 JSON 容错回退', () {
@@ -927,7 +1092,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('note-export')));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('exp-snap')));
+      await tester.tap(find.byKey(const ValueKey('kit-snap')));
       await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
       expect(await pollText(tester, '已恢复 · 当前正文已替换（替换前已留快照）'), isTrue);
@@ -1089,6 +1254,14 @@ void main() {
       // 8b：图片=独立图片段缩略图卡（原型 ins-img），不露原始语法；✕ 可移除
       expect(find.byKey(const ValueKey('note-img-del-1')), findsOneWidget);
       expect(find.textContaining('![🖼]('), findsNothing);
+      // 轮9c：点缩略图看大图（全屏黑底层·再点关闭）。
+      expect(find.byKey(const ValueKey('note-img-view-1')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-img-view-1')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-img-light')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-img-light')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-img-light')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('note-img-del-1')));
       await tester.pump();
       expect(find.byKey(const ValueKey('note-para-1')), findsNothing);

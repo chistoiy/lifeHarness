@@ -14,13 +14,16 @@ class SettingsRepository {
   static const _kNotify = 'lh.notify';
   static const _kHomeOrder = 'lh.home_order';
   static const _kNoteRestore = 'lh.note_restore_mode';
+  static const _kNoteLatex = 'lh.note_latex';
+  static const _kNoteLineNum = 'lh.note_plain_linenum';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
     final themeId = _prefs.getString(_kTheme);
     final mode = _prefs.getString(_kMode);
     final nav = _prefs.getString(_kNav);
-    if (themeId == null && mode == null && nav == null) {
+    final latex = _prefs.getBool(_kNoteLatex);
+    if (themeId == null && mode == null && nav == null && latex == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -30,6 +33,8 @@ class SettingsRepository {
       'notify': ?_prefs.getString(_kNotify),
       'homeOrder': ?_prefs.getString(_kHomeOrder),
       'noteRestoreMode': ?_prefs.getString(_kNoteRestore),
+      'noteLatex': ?_prefs.getBool(_kNoteLatex),
+      'notePlainLineNum': ?_prefs.getBool(_kNoteLineNum),
     });
   }
 
@@ -41,5 +46,7 @@ class SettingsRepository {
     await _prefs.setString(_kNotify, m['notify']! as String);
     await _prefs.setString(_kHomeOrder, m['homeOrder']! as String);
     await _prefs.setString(_kNoteRestore, m['noteRestoreMode']! as String);
+    await _prefs.setBool(_kNoteLatex, m['noteLatex']! as bool);
+    await _prefs.setBool(_kNoteLineNum, m['notePlainLineNum']! as bool);
   }
 }

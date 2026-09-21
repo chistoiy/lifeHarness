@@ -109,6 +109,8 @@ class UserSettings {
     this.notify = const NotifySettings(),
     this.homeCardOrder = kHomeCardIds,
     this.noteRestoreMode = 'replace',
+    this.noteLatex = false,
+    this.notePlainLineNum = false,
   });
 
   final String themeId;
@@ -122,6 +124,12 @@ class UserSettings {
   /// 笔记快照恢复方式（V1.29轮1·记录管理）：
   /// replace=直接替换当前正文（替换前自动留快照）· copy=新增为副本笔记。
   final String noteRestoreMode;
+
+  /// V1.29轮9k·记录管理：MD 预览 LaTeX 公式渲染开关（默认关=按原文显示 $..$/$$..$$）。
+  final bool noteLatex;
+
+  /// V1.29轮9p·笔记⋯弹层：纯文本行号开关（仅 kind=plain 生效，默认关）。
+  final bool notePlainLineNum;
 
   /// 可编排卡片 id 全集（顺序之外新增卡片按此兜底补齐）。
   static const List<String> kHomeCardIds = [
@@ -149,6 +157,8 @@ class UserSettings {
     NotifySettings? notify,
     List<String>? homeCardOrder,
     String? noteRestoreMode,
+    bool? noteLatex,
+    bool? notePlainLineNum,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -157,6 +167,8 @@ class UserSettings {
         notify: notify ?? this.notify,
         homeCardOrder: homeCardOrder ?? this.homeCardOrder,
         noteRestoreMode: noteRestoreMode ?? this.noteRestoreMode,
+        noteLatex: noteLatex ?? this.noteLatex,
+        notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
       );
 
   Map<String, Object> toMap() => {
@@ -166,6 +178,8 @@ class UserSettings {
         'notify': jsonEncode(notify.toMap()),
         'homeOrder': homeCardOrder.join(','),
         'noteRestoreMode': noteRestoreMode,
+        'noteLatex': noteLatex,
+        'notePlainLineNum': notePlainLineNum,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -177,6 +191,8 @@ class UserSettings {
         homeCardOrder: _sanitizeHomeOrder(m['homeOrder'] as String?),
         noteRestoreMode:
             (m['noteRestoreMode'] as String?) == 'copy' ? 'copy' : 'replace',
+        noteLatex: m['noteLatex'] as bool? ?? false,
+        notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

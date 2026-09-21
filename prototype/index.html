@@ -1966,7 +1966,7 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ===== 笔记 · 右上角 ⋯ 二级子项（V1.29：字号/纸色/聚焦/分类/置顶/类型/统计 全部收进来） ===== -->
+  <!-- ===== 笔记 · 右上角 ⋯ 二级子项（V1.29：字号/纸色/聚焦/文件夹/类型 等收进来·轮9r 置顶移除+导出改分享钮） ===== -->
   <div id="sheetImgSrc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetImgSrc')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
@@ -1993,7 +1993,10 @@ tailwind.config = {
     <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
       <div class="grabber"></div>
       <!-- V1.29轮9q：标题去「⋯」前缀（入口钮已有）·统计信息上移至标题右侧，原统计行移除 -->
-      <div class="flex items-center justify-between"><div class="font-extrabold">笔记选项</div><b class="text-xs opacity-60" id="pwCount">312 字 · 约 1 分钟</b></div>
+      <!-- V1.29轮9r：置顶行移除（置顶走列表批量操作）·导出行改为标题行统计右侧分享钮 -->
+      <div class="flex items-center justify-between"><div class="font-extrabold">笔记选项</div>
+        <div class="flex items-center gap-1.5"><b class="text-xs opacity-60" id="pwCount">312 字 · 约 1 分钟</b>
+        <button class="pw-ic-btn" title="分享 / 导出" onclick="closeSheet('sheetNoteKit');openSheet('sheetNoteShare')"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div></div>
       <div class="mt-3 space-y-2 text-xs">
         <!-- V1.29轮9j：行内去 emoji（纯文字简约风） -->
         <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">类型</span>
@@ -2009,12 +2012,26 @@ tailwind.config = {
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><span id="pwFocusTgl" class="toggle on ml-auto" onclick="pwFocusToggle(this)"></span></div>
         <!-- V1.29轮9p：行号开关（仅纯文本类型显示本行·默认关） -->
         <div class="card !py-3 px-4 flex items-center hidden" id="pwLnRow"><span class="opacity-50 w-14 flex-shrink-0">行号</span><span id="pwLnTgl" class="toggle ml-auto" onclick="pwLnToggle(this)"></span></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">分类</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">置顶</span><span class="toggle ml-auto" onclick="tgl(this);toast('置顶状态已切换')"></span></div>
+        <!-- V1.29轮9t：「分类」改口「文件夹」=同一 folder 字段（管理入口在列表 📂 树抽屉） -->
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">文件夹</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
+        <!-- V1.29轮9r：置顶行移除（置顶=列表批量操作）·导出行移除（改标题行分享钮→sheetNoteShare） -->
         <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">导出</span><span class="ml-auto text-slate-400">TXT / Markdown / 复制全文 ›</span></div>
       </div>
       <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">收起</button>
+    </div>
+  </div>
+  <!-- V1.29轮9r：分享/导出弹层（笔记选项标题行分享钮唤起·原导出三项+图片分享） -->
+  <div id="sheetNoteShare" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteShare')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">分享</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已导出 TXT（真实版=系统分享面板）')">导出 TXT</div>
+        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已导出 Markdown（真实版=系统分享面板）')">导出 Markdown</div>
+        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已复制全文到剪贴板')">复制全文</div>
+        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已生成笔记图片卡片 · 可分享到微信/小红书（真实版=RenderToImage+系统分享）')">以图片形式分享</div>
+      </div>
+      <button onclick="closeSheet('sheetNoteShare')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
     </div>
   </div>
 
@@ -2164,7 +2181,9 @@ const D = {
          {t:'App 命名候选清单',txt:'LifeHarness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',cre:'09-16',pin:0,md:0},
          {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',cre:'09-07',pin:0,md:1},
          {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',cre:'09-12',pin:0,md:0},
-         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1}],
+         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1},
+         /* V1.29轮9s：跨年笔记=时间显示完整年月日（今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD） */
+         {t:'去年翻出的旧书笔记',txt:'《思考，快与慢》读后残稿：系统1的自动联想值得单独整理成方法论条目。',folder:'关联阅读',words:97,time:'2025-03-05',cre:'2025-03-05',pin:0,md:0}],
   books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
          {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}],
   tx:[{d:'09-19',k:'🍜 餐饮',n:'午餐 · 公司楼下',a:-32.00},{d:'09-19',k:'🚇 交通',n:'地铁通勤',a:-6.00},
@@ -3069,7 +3088,7 @@ let noteView='list',noteCols=2,noteFolder='';
 let noteSort='upd',noteAsc=false;
 function sortLabel(k){return k==='title'?(noteAsc?'标题 Z→A':'标题 A→Z'):k==='cre'?(noteAsc?'创建时间 ↑':'创建时间 ↓'):(noteAsc?'最后修改 ↑':'最后修改 ↓');}
 function noteSortClick(k){if(noteSort===k){noteAsc=!noteAsc;renderNoteSortMenu();}else{noteSort=k;noteAsc=false;$('#noteSortMenu').classList.add('hidden');}renderNotes();toast('排序：'+sortLabel(k));}
-function nkey(s){return s&&s.startsWith('今天')?'09-19':(s||'');}
+function nkey(s){if(!s)return '';if(s.startsWith('今天'))return '2026-09-19';return /^\d{4}-/.test(s)?s:'2026-'+s;} /* 轮9s：跨年样本归一化排序 */
 function toggleNoteSortMenu(e){e.stopPropagation();renderNoteSortMenu();$('#noteSortMenu').classList.toggle('hidden');}
 function renderNoteSortMenu(){const m=$('#noteSortMenu');
   m.innerHTML=['upd','cre','title'].map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSortClick('${k}')">${sortLabel(k)}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
@@ -3182,7 +3201,7 @@ function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
   toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
 function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');}
-function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'无分类'}（可改）`);navTo('p-noteEdit');}
+function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
 /* ================= 笔记 · Markdown 引擎与视图（写作=默认·顶行源码/预览可切换回落 · 轮9o 去专注钮） ================= */

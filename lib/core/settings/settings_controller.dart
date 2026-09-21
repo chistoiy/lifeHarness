@@ -60,6 +60,18 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// MD 预览 LaTeX 公式渲染（V1.29轮9k·记录管理，默认关）。
+  Future<void> setNoteLatex(bool on) async {
+    state = state.copyWith(noteLatex: on);
+    await _persist();
+  }
+
+  /// 纯文本行号（V1.29轮9p·笔记⋯弹层，仅 kind=plain，默认关）。
+  Future<void> setNotePlainLineNum(bool on) async {
+    state = state.copyWith(notePlainLineNum: on);
+    await _persist();
+  }
+
   /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
   /// core 不触达 feature（R2）。
   Future<void> setNotify(NotifySettings n) async {

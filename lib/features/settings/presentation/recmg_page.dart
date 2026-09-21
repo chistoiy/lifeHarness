@@ -13,6 +13,7 @@ class RecmgSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final restore = ref.watch(settingsControllerProvider).noteRestoreMode;
+    final latex = ref.watch(settingsControllerProvider).noteLatex;
     return Scaffold(
       appBar: AppBar(title: const Text('记录管理')),
       body: ListView(
@@ -59,6 +60,23 @@ class RecmgSettingsPage extends ConsumerWidget {
                 title: '自动快照节奏',
                 trailing: '停输 30 秒 / 每 500 字',
                 onTap: () => _soon(context, '自动快照节奏')),
+            // V1.29轮9k：LaTeX 公式渲染开关（默认关·预览按原文显示 $..$/$$..$$）。
+            _SwitchRow(
+                keyName: 'latex-tgl',
+                title: 'LaTeX 公式渲染',
+                value: latex,
+                onChanged: (v) async {
+                  await ref
+                      .read(settingsControllerProvider.notifier)
+                      .setNoteLatex(v);
+                  if (context.mounted) {
+                    AppToast.show(
+                        context,
+                        v
+                            ? '已开启 LaTeX 渲染：\$..\$ 与 \$\$..\$\$ 显示为公式'
+                            : '已关闭 LaTeX 渲染：公式按原文显示');
+                  }
+                }),
             _Row(
                 title: '🗂 文件夹管理',
                 trailing: '记录 › 笔记 › 📂',
@@ -141,6 +159,36 @@ class _Card extends StatelessWidget {
                 color: Theme.of(context).colorScheme.outlineVariant),
         ),
         child: Column(children: children),
+      );
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow(
+      {this.keyName, required this.title, required this.value, required this.onChanged});
+
+  final String? keyName;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0x14000000)))),
+        child: Row(
+          children: [
+            Expanded(
+                child: Text(title,
+                    style:
+                        const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700))),
+            Switch(
+              key: keyName == null ? null : ValueKey<String>(keyName!),
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
       );
 }
 

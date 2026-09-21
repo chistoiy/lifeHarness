@@ -11,6 +11,7 @@ class Note {
     this.pinned = false,
     this.archived = false,
     this.deletedAt,
+    this.paper = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -23,6 +24,9 @@ class Note {
   final bool pinned;
   final bool archived;
   final DateTime? deletedAt;
+
+  /// V1.29轮9n：按篇纸色 hex（0xFFRRGGBB）；''=默认米纸。仅卡片视图条目底色跟随。
+  final String paper;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -82,6 +86,7 @@ class Note {
         deletedAt: row['deleted_at'] == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row['deleted_at'] as int),
+        paper: (row['paper'] as String?) ?? '',
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
         updatedAt:
@@ -97,6 +102,7 @@ class Note {
         'pinned': pinned ? 1 : 0,
         'archived': archived ? 1 : 0,
         'deleted_at': deletedAt?.millisecondsSinceEpoch,
+        'paper': paper,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
       };
@@ -110,6 +116,7 @@ class Note {
     bool? pinned,
     bool? archived,
     DateTime? deletedAt,
+    String? paper,
     DateTime? updatedAt,
   }) =>
       Note(
@@ -121,6 +128,7 @@ class Note {
         pinned: pinned ?? this.pinned,
         archived: archived ?? this.archived,
         deletedAt: deletedAt ?? this.deletedAt,
+        paper: paper ?? this.paper,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

@@ -7,6 +7,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/note_dao.dart';
 import '../domain/note.dart';
 import 'journal_providers.dart';
+import 'note_paper.dart';
 import 'widgets/note_tree_drawer.dart';
 
 /// 笔记 tab（原型 recNote · V1.29轮9）：卡片三行=标题1/正文(列表1行·卡片≤4行)/时间行
@@ -334,6 +335,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final scheme = Theme.of(context).colorScheme;
     final selMode = !inTrash && sel.isNotEmpty;
     final selected = sel.contains(n.id);
+    // 轮9n修正：纸色仅在卡片视图体现条目底色（列表视图不体现）·按笔记独立。
+    final paperOn = cardMode && n.paper.isNotEmpty;
+    final pFg = paperOn ? paperFg(n.paper) : null;
 
     Widget card = GestureDetector(
       key: ValueKey('note-card-${n.id}'),
@@ -354,7 +358,13 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       },
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: context.cardDecoration,
+        decoration: paperOn
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(tokens.cardRadius),
+                border: Border.all(color: tokens.cardBorder),
+                color: paperBg(n.paper),
+              )
+            : context.cardDecoration,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -367,8 +377,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                     n.title.isEmpty ? '未命名笔记' : n.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: pFg),
                   ),
                   const SizedBox(height: 6),
                   // 行2 正文：列表 1 行 / 卡片 ≤4 行（轮9b 最大6行=1+4+1）
@@ -378,7 +390,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                       style: TextStyle(
                           fontSize: 12,
                           height: 1.6,
-                          color: scheme.onSurfaceVariant)),
+                          color: paperOn
+                              ? pFg!.withValues(alpha: .78)
+                              : scheme.onSurfaceVariant)),
                   const SizedBox(height: 6),
                   // 行3 时间 + 置顶黄小钉（时间右侧·线性非 emoji）
                   Row(
@@ -392,7 +406,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                                 fontSize: 10,
-                                color: scheme.onSurfaceVariant)),
+                                color: paperOn
+                                    ? pFg!.withValues(alpha: .6)
+                                    : scheme.onSurfaceVariant)),
                       ),
                       if (n.pinned && !inTrash) ...[
                         const SizedBox(width: 6),

@@ -27,6 +27,7 @@ class MdView extends StatelessWidget {
     required this.fg,
     this.fontSize = 14,
     this.onToggleTask,
+    this.enableLatex = false,
   });
 
   final String source;
@@ -34,35 +35,42 @@ class MdView extends StatelessWidget {
   final double fontSize;
   final MdTaskToggle? onToggleTask;
 
+  /// V1.29轮9k：LaTeX 公式渲染开关（记录管理·默认关=按原文显示 $..$/$$..$$）。
+  final bool enableLatex;
+
   static const _brand = Color(0xFF6366F1);
 
   /// 摘除代码与公式 → 占位符（避免 markdown 语法吃掉 `\`、`_`、`**`）。
-  static (String, List<_Tok>) _extract(String src) {
+  static (String, List<_Tok>) _extract(String src, bool latex) {
     final toks = <_Tok>[];
     String hold(String kind, String text) {
       toks.add(_Tok(kind, text));
       return '$_mark${toks.length - 1}$_mark';
     }
 
-    var s = src
-        .replaceAllMapped(
-            RegExp(r'\\\((.+?)\\\)'), (m) => '\$${m[1]}\$')
-        .replaceAllMapped(
-            RegExp(r'\\\[([\s\S]+?)\\\]'), (m) => '\n\$\$${m[1]}\$\$\n');
+    var s = src;
+    if (latex) {
+      s = s
+          .replaceAllMapped(RegExp(r'\\\((.+?)\\\)'), (m) => '\$${m[1]}\$')
+          .replaceAllMapped(
+              RegExp(r'\\\[([\s\S]+?)\\\]'), (m) => '\n\$\$${m[1]}\$\$\n');
+    }
     s = s.replaceAllMapped(RegExp(r'```\w*\n([\s\S]*?)```'),
         (m) => '\n${hold('pre', m[1]!.replaceAll(RegExp(r'\n$'), ''))}\n');
     s = s.replaceAllMapped(
         RegExp(r'`([^`\n]+)`'), (m) => hold('code', m[1]!));
-    s = s.replaceAllMapped(
-        RegExp(r'\$\$([\s\S]+?)\$\$'), (m) => '\n${hold('mathb', m[1]!.trim())}\n');
-    s = s.replaceAllMapped(
-        RegExp(r'\$([^$\n]+?)\$'), (m) => hold('math', m[1]!));
+    if (latex) {
+      s = s.replaceAllMapped(RegExp(r'\$\$([\s\S]+?)\$\$'),
+          (m) => '\n${hold('mathb', m[1]!.trim())}\n');
+      s = s.replaceAllMapped(
+          RegExp(r'\$([^$\n]+?)\$'), (m) => hold('math', m[1]!));
+    }
     return (s, toks);
   }
 
   @override
   Widget build(BuildContext context) {
-    final (src, toks) = _extract(source);
+    final (src, toks) = _extract(source, enableLatex);
     final nodes = md
         .Document(extensionSet: md.ExtensionSet.gitHubFlavored)
         .parseLines(const LineSplitter().convert(src));
