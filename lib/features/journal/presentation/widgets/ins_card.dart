@@ -80,7 +80,7 @@ class InsDiaryCard extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
             child: Text(
-              entry.content.isEmpty ? '（今天还没写正文）' : entry.content,
+              entry.content.isEmpty ? '（今天还没写正文）' : entry.previewText,
               maxLines: 6,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 13, height: 1.75),

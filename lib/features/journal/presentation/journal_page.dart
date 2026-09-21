@@ -353,7 +353,7 @@ class _DiaryTab extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          e.content.isEmpty ? '（只打了心情卡）' : e.content,
+                          e.content.isEmpty ? '（只打了心情卡）' : e.previewText,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13, height: 1.6),
@@ -401,7 +401,7 @@ class _DiaryTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(16)),
                   child: Text(
                     '🗓 那年今日 · ${old.day.year}-${_two(old.day.month)}-${_two(old.day.day)}\n'
-                    '「${old.content.replaceAll('\n', ' ').clampText(24)}」点击查看',
+                    '「${old.previewText.replaceAll('\n', ' ').clampText(24)}」点击查看',
                     style: const TextStyle(fontSize: 11, height: 1.6),
                   ),
                 ),

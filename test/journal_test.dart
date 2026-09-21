@@ -179,6 +179,22 @@ void main() {
       expect(saved.tags, containsAll(['复盘', '运动']));
     });
 
+    test('previewText：结构化快照渲染为「标题：首行」串联·自由书写原样', () {
+      final e = JournalEntry(
+          day: DateTime.now(),
+          content: '## Keep · 做对了什么\n坚持了晨跑\n\n## Problem · 哪里不顺\n熬夜半小时',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now());
+      expect(e.previewText,
+          'Keep · 做对了什么：坚持了晨跑 · Problem · 哪里不顺：熬夜半小时');
+      final plain = JournalEntry(
+          day: DateTime.now(),
+          content: '普通正文',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now());
+      expect(plain.previewText, '普通正文');
+    });
+
     test('v5 迁移：旧表（无回望列）升级后默认值可读', () async {
       await databaseFactoryFfiNoIsolate.deleteDatabase('jtest_migration_v5.db');
       final db2 = await databaseFactoryFfiNoIsolate

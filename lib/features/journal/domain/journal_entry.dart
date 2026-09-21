@@ -61,6 +61,24 @@ class JournalEntry {
 
   bool get structured => sections.isNotEmpty;
 
+  /// 列表预览：结构化快照（`## 标题` 分节）渲染为「标题：首行」串联，
+  /// 自由书写原样返回——避免条目卡/那年今日露出 markdown 痕迹。
+  String get previewText {
+    if (!content.contains('## ')) return content;
+    final parts = content
+        .split(RegExp(r'^## ', multiLine: true))
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return content;
+    return parts.map((p) {
+      final lines = p.trim().split('\n');
+      final title = lines.first.trim();
+      final body = lines.skip(1).join(' ').trim();
+      if (body.isEmpty) return title;
+      return '$title：${body.length <= 20 ? body : '${body.substring(0, 20)}…'}';
+    }).join(' · ');
+  }
+
   static JournalEntry fromRow(Map<String, Object?> row) => JournalEntry(
         id: row['id'] as int?,
         day: DateTime.fromMillisecondsSinceEpoch(row['entry_date'] as int),
