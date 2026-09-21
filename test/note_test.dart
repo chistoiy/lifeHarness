@@ -199,15 +199,18 @@ void main() {
       expect(find.textContaining('共 '), findsNothing); // 轮9l：底部教学文案已删
       expect(find.textContaining('工作 · '), findsNothing); // 卡片已去目录/字数行
 
-      // 长按=进入批量选择（toast 会盖住底部操作条，先让其退场）
+      // 长按=进入批量选择（轮9②：不再 toast；顶部「已选择 x 项」+底部条）
       await tester.longPress(find.byKey(const ValueKey('note-card-1')));
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
+      expect(find.text('批量模式 · 点选卡片可多选'), findsNothing);
+      expect(find.byKey(const ValueKey('note-sel-top')), findsOneWidget);
+      expect(find.text('已选择 1 项'), findsOneWidget);
       expect(find.byKey(const ValueKey('note-sel-bar')), findsOneWidget);
-      expect(find.text('已选 1'), findsOneWidget);
+      expect(find.text('置顶'), findsOneWidget); // 未置顶笔记→钮=置顶
 
       // 批量删除 → 回收站（toast 会临时盖住底部条，直接触发回调验证逻辑）
-      tester.widget<TextButton>(find.byKey(const ValueKey('sel-del'))).onPressed!();
+      tester.widget<InkWell>(find.byKey(const ValueKey('sel-del'))).onTap!();
       await settle5(tester);
       expect((await dao.trash()).map((n) => n.title), ['WebDAV 选型']); // 先验 DB
       expect(find.textContaining('WebDAV 选型'), findsNothing); // 再验 UI
@@ -221,14 +224,16 @@ void main() {
       expect(find.textContaining('WebDAV 选型'), findsOneWidget);
       await tester.longPress(find.byKey(const ValueKey('note-card-1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('♻️ 恢复'));
+      await tester.tap(find.text('恢复'));
       await tester.pumpAndSettle();
       expect((await dao.trash()), isEmpty);
     });
 
-    testWidgets('排序菜单三方式（当前项✓）与视图循环 列表→2→3→4→列表', (tester) async {
-      await dao.save(note('乙笔记'));
-      await dao.save(note('甲笔记'));
+    testWidgets('排序菜单三方式（当前项✓）与视图循环 列表→2→3→列表（轮9b 去4列·瀑布流）',
+        (tester) async {
+      await useSurface(tester);
+      await dao.save(note('乙笔记', content: '短'));
+      await dao.save(note('甲笔记', content: '长正文。' * 60));
       await tester.pumpWidget(scope(const NoteTab()));
       await tester.pumpAndSettle();
 
@@ -243,17 +248,78 @@ void main() {
           .widgetList<Widget>(find.byKey(const ValueKey('note-card-1')))
           .isNotEmpty, isTrue);
 
-      // 视图循环
+      // 轮9b：循环收为 列表→2列→3列→列表（无 4 列）
       int cols() => ProviderScope.containerOf(tester.element(find.byType(NoteTab)))
           .read(noteViewColsProvider);
-      for (final _ in [1, 2, 3]) {
-        await tester.tap(find.byKey(const ValueKey('note-view')));
-        await tester.pumpAndSettle();
-      }
-      expect(cols(), 4);
+      await tester.tap(find.byKey(const ValueKey('note-view')));
+      await tester.pumpAndSettle();
+      expect(cols(), 2);
+      // 瀑布流：两列卡片都在（非 GridView 行对齐）
+      expect(find.byKey(const ValueKey('note-card-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-card-2')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-view')));
+      await tester.pumpAndSettle();
+      expect(cols(), 3);
       await tester.tap(find.byKey(const ValueKey('note-view')));
       await tester.pumpAndSettle();
       expect(cols(), 0);
+    });
+
+    testWidgets('轮9① 批量置顶钮智能切换：混合→置顶·全置顶→取消置顶',
+        (tester) async {
+      await dao.save(note('钉一', content: 'a', pinned: true));
+      await dao.save(note('钉二', content: 'b'));
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+
+      // 混合态（一钉一未钉）→ 钮=置顶 → 点击后全部置顶
+      await tester.longPress(find.byKey(const ValueKey('note-card-1')));
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-card-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('置顶'), findsOneWidget);
+      tester.widget<InkWell>(find.byKey(const ValueKey('sel-pin'))).onTap!();
+      await settle5(tester);
+      expect((await dao.list()).every((n) => n.pinned), isTrue);
+
+      // 全置顶态 → 钮=取消置顶 → 点击后全部未置顶
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.byKey(const ValueKey('note-card-1')));
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-card-2')));
+      await tester.pumpAndSettle();
+      expect(find.text('取消置顶'), findsOneWidget);
+      tester.widget<InkWell>(find.byKey(const ValueKey('sel-pin'))).onTap!();
+      await settle5(tester);
+      expect((await dao.list()).every((n) => !n.pinned), isTrue);
+    });
+
+    testWidgets('轮9s 时间三档：今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD',
+        (tester) async {
+      final now = DateTime.now();
+      await dao.save(Note(
+          title: '今天篇',
+          content: 'a',
+          createdAt: now.subtract(const Duration(hours: 1)),
+          updatedAt: now.subtract(const Duration(hours: 1))));
+      await dao.save(Note(
+          title: '今年篇',
+          content: 'b',
+          createdAt: DateTime(now.year, 5, 1),
+          updatedAt: DateTime(now.year, 5, 1)));
+      await dao.save(Note(
+          title: '跨年篇',
+          content: 'c',
+          createdAt: DateTime(now.year - 1, 3, 5),
+          updatedAt: DateTime(now.year - 1, 3, 5)));
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('今天 '), findsOneWidget);
+      expect(find.text('05-01'), findsOneWidget);
+      expect(find.text('${now.year - 1}-03-05'), findsOneWidget);
     });
 
     testWidgets('轮8④ 再点当前排序项=方向翻转·菜单保持打开·列表反序',

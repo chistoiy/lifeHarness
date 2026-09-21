@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
@@ -195,11 +196,13 @@ class _DiaryTab extends ConsumerWidget {
     final insMode = ref.watch(journalInsProvider);
     final entries = entriesAsync.valueOrNull ?? const <JournalEntry>[];
 
-    final shown = filter == 'all'
-        ? entries
-        : entries
-            .where((e) => e.tags.any((t) => t == filter || t == filter.replaceFirst('#', '')))
-            .toList();
+    final shown = switch (filter) {
+      'all' => entries,
+      'todo' => entries.where((e) => e.todoLines().isNotEmpty).toList(),
+      _ => entries
+          .where((e) => e.tags.any((t) => t == filter || '#$t' == filter))
+          .toList(),
+    };
 
     final tags = <String>{
       for (final e in entries) ...e.tags,
@@ -327,48 +330,30 @@ class _DiaryTab extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        // V1.29轮7：筛选 + 列表/INS 切换合并为一行右侧双钮
+        // V1.29轮9g：本行=列表⇄INS 切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            PopupMenuButton<String>(
-              key: const ValueKey('diary-filter'),
-              tooltip: '筛选',
-              color: tokens.card,
-              icon: Icon(
-                Icons.filter_alt_outlined,
-                size: 22,
-                color: filter == 'all'
-                    ? Theme.of(context).colorScheme.onSurfaceVariant
-                    : tokens.accent,
-              ),
-              onSelected: (f) =>
-                  ref.read(journalFilterProvider.notifier).state = f,
-              itemBuilder: (_) => [
-                for (final f in ['all', ...tags])
-                  PopupMenuItem(
-                    value: f,
-                    child: Row(
-                      children: [
-                        Text(f == 'all' ? '全部' : f,
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: f == filter ? tokens.accent : null)),
-                        if (f == filter) ...[
-                          const Spacer(),
-                          Icon(Icons.check, size: 18, color: tokens.accent),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
-            ),
             IconButton(
               key: const ValueKey('diary-view'),
               tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
               onPressed: () => ref.read(journalInsProvider.notifier).state =
                   !insMode,
               icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
+            ),
+            IconButton(
+              key: const ValueKey('diary-filter'),
+              tooltip: '筛选',
+              onPressed: () => _diaryFilterSheet(context, ref, filter, tags),
+              icon: Icon(
+                filter == 'all'
+                    ? Icons.filter_alt_outlined
+                    : Icons.filter_alt,
+                size: 22,
+                color: filter == 'all'
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    : tokens.accent,
+              ),
             ),
           ],
         ),
@@ -524,6 +509,63 @@ class _DiaryTab extends ConsumerWidget {
     if (counts.isEmpty) return '本月还没有心情记录';
     final top = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
     return '本月心情以 ${moodEmoji(top)} ${moodLabel(top)} 居多';
+  }
+
+  /// V1.29轮9g：筛选=底部浮层选择（全部/☐待办/标签·当前项✓）。
+  Future<void> _diaryFilterSheet(
+      BuildContext context, WidgetRef ref, String cur, List<String> tags) async {
+    final opts = ['全部', '☐ 待办', ...tags];
+    String valOf(String o) => switch (o) {
+          '全部' => 'all',
+          '☐ 待办' => 'todo',
+          _ => o,
+        };
+    String labelOf(String v) => switch (v) {
+          'all' => '全部',
+          'todo' => '☐ 待办',
+          _ => v,
+        };
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      builder: (bc) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Row(
+                children: [
+                  Text('筛选',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+            for (final o in opts)
+              ListTile(
+                key: ValueKey('df-opt-$o'),
+                title: Row(
+                  children: [
+                    Text(o,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: valOf(o) == cur
+                                ? bc.tokens.accent
+                                : null)),
+                    if (valOf(o) == cur) ...[
+                      const Spacer(),
+                      Icon(Icons.check, size: 18, color: bc.tokens.accent),
+                    ],
+                  ],
+                ),
+                onTap: () => Navigator.of(bc).pop(o),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (pick == null) return;
+    ref.read(journalFilterProvider.notifier).state = valOf(pick);
+    if (context.mounted) AppToast.show(context, '筛选：${labelOf(pick)}');
   }
 
   Widget _card(BuildContext context, {required Widget child}) {

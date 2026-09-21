@@ -36,7 +36,7 @@ final noteFilterProvider =
 /// 回收站特殊文件夹值。
 const kNoteTrash = '__trash__';
 
-/// 笔记视图（0=列表；2/3/4=卡片每行列数 · 原型 ☰/▦ 循环）。
+/// 笔记视图（0=列表；2/3=卡片每行列数 · 轮9b 循环收为 列表→2→3·瀑布流错落）。
 final noteViewColsProvider = StateProvider<int>((ref) => 0);
 
 /// 批量选择中的笔记 id 集（空=普通模式；长按卡片进入）。

@@ -9,9 +9,10 @@ import '../domain/note.dart';
 import 'journal_providers.dart';
 import 'widgets/note_tree_drawer.dart';
 
-/// 笔记 tab（原型 recNote · V1.29轮6）：页内搜索移除（全局搜索承接）·
-/// 右侧行=排序三方式/📂文件夹树/视图循环；卡片精简=📌标题+时间+两行预览；
-/// 左滑=入回收站；长按=批量选择（置顶/移动到/删除）。
+/// 笔记 tab（原型 recNote · V1.29轮9）：卡片三行=标题1/正文(列表1行·卡片≤4行)/时间行
+/// （时间右=置顶黄色小钉·线性图标非 emoji）；多选圈在条目右侧；长按进入批量无 toast；
+/// 顶部「已选择 x 项」+底部线性图标三钮（置顶钮随所选全置顶=「取消置顶」智能切换）；
+/// 视图循环 列表→2列→3列（卡片=瀑布流错落·非行对齐）；时间三档 今天/今年MM-DD/跨年YYYY-MM-DD。
 class NoteTab extends ConsumerStatefulWidget {
   const NoteTab({super.key});
 
@@ -26,21 +27,24 @@ class _NoteTabState extends ConsumerState<NoteTab> {
   /// 轮8④：翻转当前排序项后重开菜单（等效原型的「菜单保持打开」）。
   final _sortKey = GlobalKey<PopupMenuButtonState<NoteSort>>();
 
+  static const double _gap = 10;
+
   static String _sortLabel(NoteSort s, bool asc) => switch (s) {
         NoteSort.updated => asc ? '最后修改 ↑' : '最后修改 ↓',
         NoteSort.created => asc ? '创建时间 ↑' : '创建时间 ↓',
         NoteSort.title => asc ? '标题 Z→A' : '标题 A→Z',
       };
 
+  /// 轮9s：时间三档=今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD（回收站「删于」同规则）。
   static String _timeLabel(DateTime d) {
     final now = DateTime.now();
-    final hm = '${d.hour.toString().padLeft(2, '0')}:'
-        '${d.minute.toString().padLeft(2, '0')}';
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
     if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return '今天 $hm';
+      return '今天 ${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}';
     }
-    return '${d.month.toString().padLeft(2, '0')}-'
-        '${d.day.toString().padLeft(2, '0')}';
+    return d.year == now.year ? '$mm-$dd' : '${d.year}-$mm-$dd';
   }
 
   @override
@@ -54,12 +58,28 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final cols = ref.watch(noteViewColsProvider);
     final sel = ref.watch(noteSelProvider);
     final inTrash = filter.folder == kNoteTrash;
+    final selMode = !inTrash && sel.isNotEmpty;
 
     final list = Column(
       children: [
-        // V1.29轮6：右侧一行三钮 = 排序 / 文件夹树 / 视图循环
+        // 轮9：多选态顶部「已选择 x 项」（原型 noteSelTop）
+        if (selMode)
+          Padding(
+            key: const ValueKey('note-sel-top'),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+            child: Row(
+              children: [
+                Text('已选择 ${sel.length} 项',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: scheme.onSurface)),
+              ],
+            ),
+          ),
+        // V1.29轮6：右侧一行三钮 = 排序 / 文件夹树 / 视图循环（轮9i 行距收紧）
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -77,8 +97,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                     final asc = flip ? !cur.asc : false;
                     ref.read(noteFilterProvider.notifier).state =
                         (folder: cur.folder, sort: s, asc: asc);
-                    AppToast.show(
-                        context, '排序：${_sortLabel(s, asc)}');
+                    AppToast.show(context, '排序：${_sortLabel(s, asc)}');
                     if (flip) {
                       WidgetsBinding.instance.addPostFrameCallback(
                           (_) => _sortKey.currentState?.showButtonMenu());
@@ -90,14 +109,18 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                         value: s,
                         child: Row(
                           children: [
-                            Text(_sortLabel(s, s == filter.sort ? filter.asc : false),
+                            Text(
+                                _sortLabel(
+                                    s, s == filter.sort ? filter.asc : false),
                                 style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    color:
-                                        s == filter.sort ? tokens.accent : null)),
+                                    color: s == filter.sort
+                                        ? tokens.accent
+                                        : null)),
                             if (s == filter.sort) ...[
                               const Spacer(),
-                              Icon(Icons.check, size: 18, color: tokens.accent),
+                              Icon(Icons.check,
+                                  size: 18, color: tokens.accent),
                             ],
                           ],
                         ),
@@ -117,10 +140,22 @@ class _NoteTabState extends ConsumerState<NoteTab> {
               ),
               IconButton(
                 key: const ValueKey('note-view'),
-                tooltip: cols == 0 ? '切换到卡片' : '切换到列表',
-                onPressed: () => ref.read(noteViewColsProvider.notifier).state =
-                    cols == 0 ? 2 : (cols >= 4 ? 0 : cols + 1),
-                icon: Icon(cols == 0 ? Icons.menu : Icons.grid_view, size: 22),
+                // 轮9b：循环收为 列表→2列→3列（4列内容不可读）
+                tooltip: cols == 0
+                    ? '卡片视图 · 每行 2 个'
+                    : cols == 2
+                        ? '卡片视图 · 每行 3 个'
+                        : '列表视图',
+                onPressed: () =>
+                    ref.read(noteViewColsProvider.notifier).state =
+                        cols == 0 ? 2 : (cols >= 3 ? 0 : cols + 1),
+                icon: Icon(
+                    cols == 0
+                        ? Icons.menu
+                        : cols == 2
+                            ? Icons.grid_view
+                            : Icons.view_week,
+                    size: 22),
               ),
             ],
           ),
@@ -142,34 +177,28 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                         for (final n in notes)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _card(context, ref, n, inTrash, sel),
+                            child: _card(context, ref, n, inTrash, sel,
+                                cardMode: false),
                           ),
                         // V1.29轮9l：底部「共 N 篇 · 左滑删除 · 长按批量」教学文案移除（无价值）。
                       ],
                     )
-                  : GridView.count(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                      crossAxisCount: cols,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: .92,
-                      shrinkWrap: true,
-                      children: [
-                        for (final n in notes) _card(context, ref, n, inTrash, sel),
-                      ],
-                    ),
+                  : LayoutBuilder(builder: (context, box) =>
+                      _masonry(context, ref, notes, cols, inTrash, sel,
+                          box.maxWidth - 32)),
         ),
       ],
     );
 
-    if (inTrash || sel.isEmpty) return list;
-    // 批量操作条（原型 noteSelBar：已选 N · 置顶 / 移动到 / 删除 / ✕）
+    if (inTrash || !selMode) return list;
+    // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
+    final byId = {for (final n in notes) n.id: n};
+    final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
     return Column(
       children: [
         Expanded(child: list),
         Container(
           key: const ValueKey('note-sel-bar'),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
               color: tokens.card,
               border: Border(top: BorderSide(color: tokens.cardBorder))),
@@ -177,27 +206,28 @@ class _NoteTabState extends ConsumerState<NoteTab> {
             top: false,
             child: Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('已选 ${sel.length}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: tokens.accent)),
-                ),
-                TextButton(
-                    key: const ValueKey('sel-pin'),
-                    onPressed: () => _batch(context, ref, sel, 'pin'),
-                    child: const Text('📌 置顶', style: TextStyle(fontSize: 12))),
-                TextButton(
-                    key: const ValueKey('sel-move'),
-                    onPressed: () => _batch(context, ref, sel, 'move'),
-                    child: const Text('📂 移动到', style: TextStyle(fontSize: 12))),
-                TextButton(
-                    key: const ValueKey('sel-del'),
-                    onPressed: () => _batch(context, ref, sel, 'del'),
-                    child: const Text('🗑 删除',
-                        style: TextStyle(fontSize: 12, color: Color(0xFFF43F5E)))),
+                Expanded(
+                    child: _barBtn(
+                        'sel-pin',
+                        Icons.push_pin_outlined,
+                        allPinned ? '取消置顶' : '置顶',
+                        () => _batch(context, ref, sel, 'pin'),
+                        scheme)),
+                Expanded(
+                    child: _barBtn(
+                        'sel-move',
+                        Icons.folder_outlined,
+                        '移动到',
+                        () => _batch(context, ref, sel, 'move'),
+                        scheme)),
+                Expanded(
+                    child: _barBtn(
+                        'sel-del',
+                        Icons.delete_outline,
+                        '删除',
+                        () => _batch(context, ref, sel, 'del'),
+                        scheme,
+                        color: const Color(0xFFF43F5E))),
                 IconButton(
                     key: const ValueKey('sel-exit'),
                     onPressed: () =>
@@ -211,16 +241,104 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     );
   }
 
+  /// 底部条按钮：上=线性图标 下=文字（原型 noteSelBar flex-col）。
+  Widget _barBtn(String key, IconData icon, String label, VoidCallback onTap,
+      ColorScheme scheme,
+      {Color? color}) {
+    return InkWell(
+        key: ValueKey(key),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: color ?? scheme.onSurface),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: color ?? scheme.onSurface)),
+            ],
+          ),
+        ));
+  }
+
+  /// 轮9b：卡片视图=瀑布流错落（按最短列分配·非 GridView 行对齐）。
+  Widget _masonry(BuildContext context, WidgetRef ref, List<Note> notes,
+      int cols, bool inTrash, Set<int> sel, double width) {
+    final colW = (width - _gap * (cols - 1)) / cols;
+    final buckets = List.generate(cols, (_) => <int>[]);
+    final totals = List.filled(cols, 0.0);
+    for (var i = 0; i < notes.length; i++) {
+      var t = 0;
+      for (var c = 1; c < cols; c++) {
+        if (totals[c] < totals[t]) t = c;
+      }
+      buckets[t].add(i);
+      totals[t] += _estHeight(notes[i], colW) + _gap;
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var c = 0; c < cols; c++) ...[
+            if (c > 0) const SizedBox(width: _gap),
+            Expanded(
+              child: Column(
+                children: [
+                  for (final i in buckets[c])
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: _gap),
+                      child: _card(context, ref, notes[i], inTrash, sel,
+                          cardMode: true),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 瀑布流分列用的卡片高度估算（标题1行+正文≤4行+时间行+内边距）。
+  static double _estHeight(Note n, double colW) {
+    final inner = colW - 28;
+    double blockH(String text, double fs, double lh, int maxLines) {
+      if (text.isEmpty) return fs * lh;
+      final tp = TextPainter(
+          text: TextSpan(
+              text: text, style: TextStyle(fontSize: fs, height: lh)),
+          textDirection: TextDirection.ltr)
+        ..layout(maxWidth: inner);
+      final lines = tp.computeLineMetrics().length.clamp(1, maxLines);
+      tp.dispose();
+      return lines * fs * lh;
+    }
+
+    return 28 +
+        blockH(n.title.isEmpty ? '未命名笔记' : n.title, 14, 1.4, 1) +
+        6 +
+        blockH(n.preview, 12, 1.6, 4) +
+        6 +
+        14;
+  }
+
   Widget _card(BuildContext context, WidgetRef ref, Note n, bool inTrash,
-      Set<int> sel) {
+      Set<int> sel,
+      {required bool cardMode}) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final selMode = !inTrash && sel.isNotEmpty;
     final selected = sel.contains(n.id);
 
     Widget card = GestureDetector(
       key: ValueKey('note-card-${n.id}'),
       onTap: () {
-        if (sel.isNotEmpty && !inTrash) {
+        if (selMode) {
           _toggleSel(ref, n.id!);
           return;
         }
@@ -230,64 +348,81 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         if (inTrash) {
           _trashActions(context, ref, n);
         } else {
+          // 轮9②：进入批量不再 toast 提示
           ref.read(noteSelProvider.notifier).state = {n.id!};
-          AppToast.show(context, '批量模式 · 点选卡片可多选');
         }
       },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: context.cardDecoration,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                if (sel.isNotEmpty && !inTrash) ...[
-                  Icon(
-                      selected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      key: ValueKey('note-sel-${n.id}'),
-                      size: 18,
-                      color: selected
-                          ? tokens.accent
-                          : scheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                ],
-                if (n.pinned && !inTrash) ...[
-                  const Text('📌', style: TextStyle(fontSize: 12)),
-                  const SizedBox(width: 4),
-                ],
-                Expanded(
-                  child: Text(
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 行1 标题
+                  Text(
                     n.title.isEmpty ? '未命名笔记' : n.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w800),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Text(inTrash ? '删于 ${_timeLabel(n.deletedAt!)}' : _timeLabel(n.updatedAt),
-                    style: TextStyle(
-                        fontSize: 10, color: scheme.onSurfaceVariant)),
-              ],
+                  const SizedBox(height: 6),
+                  // 行2 正文：列表 1 行 / 卡片 ≤4 行（轮9b 最大6行=1+4+1）
+                  Text(n.preview,
+                      maxLines: cardMode ? 4 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: 6),
+                  // 行3 时间 + 置顶黄小钉（时间右侧·线性非 emoji）
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                            inTrash
+                                ? '删于 ${_timeLabel(n.deletedAt!)}'
+                                : _timeLabel(n.updatedAt),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: scheme.onSurfaceVariant)),
+                      ),
+                      if (n.pinned && !inTrash) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.push_pin,
+                            size: 13, color: const Color(0xFFF59E0B)),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(n.preview,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12,
-                    height: 1.6,
-                    color: scheme.onSurfaceVariant)),
+            // 轮9③：多选圈在条目右侧
+            if (selMode) ...[
+              const SizedBox(width: 8),
+              Icon(
+                  selected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  key: ValueKey('note-sel-${n.id}'),
+                  size: 18,
+                  color:
+                      selected ? tokens.accent : scheme.onSurfaceVariant),
+            ],
           ],
         ),
       ),
     );
 
-    if (inTrash || sel.isNotEmpty) return card;
-    // 左滑入回收站（原型 note-sw：红色 🗑 跟手露出）
+    if (inTrash || selMode) return card;
+    // 左滑入回收站（原型 note-sw：红色删除区跟手露出）
     return Dismissible(
       key: ValueKey('note-swipe-${n.id}'),
       direction: DismissDirection.endToStart,
@@ -329,9 +464,14 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       return;
     }
     if (act == 'pin') {
-      await dao.setPinnedMany(ids, true);
+      // 轮9①：所选全置顶=取消置顶，否则=置顶（按钮标签已在 build 内联动）
+      final notes = ref.read(notesProvider).valueOrNull ?? const <Note>[];
+      final byId = {for (final n in notes) n.id: n};
+      final un = ids.every((id) => byId[id]?.pinned ?? false);
+      await dao.setPinnedMany(ids, !un);
       if (!context.mounted) return;
-      _finishBatch(context, ref, '已置顶 ${ids.length} 篇');
+      _finishBatch(context, ref,
+          un ? '已取消置顶 ${ids.length} 篇' : '已置顶 ${ids.length} 篇');
       return;
     }
     await dao.softDeleteMany(ids);
@@ -356,10 +496,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-                title: const Text('♻️ 恢复'),
+                title: const Text('恢复'),
                 onTap: () => Navigator.of(bc).pop('restore')),
             ListTile(
-                title: const Text('❌ 彻底删除',
+                title: const Text('彻底删除',
                     style: TextStyle(color: Color(0xFFF43F5E))),
                 onTap: () => Navigator.of(bc).pop('purge')),
           ],

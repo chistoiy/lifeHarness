@@ -16,6 +16,8 @@ import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
+import '../../features/journal/presentation/journal_providers.dart'
+    show noteSelProvider;
 import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
@@ -130,6 +132,11 @@ class HomeShell extends ConsumerWidget {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        // V1.29轮9：笔记批量多选态下返回=先退出多选（不导航不退出 app）
+        if (ref.read(noteSelProvider).isNotEmpty) {
+          ref.read(noteSelProvider.notifier).state = const {};
+          return;
+        }
         // V1.27 G1：返回=最终回主页；今天页二次返回退出（SnackBar 全局同款风格）
         switch (shellBackAction(currentPath,
             dashEditing: dashEditing, lastBackAt: _lastBackAt)) {

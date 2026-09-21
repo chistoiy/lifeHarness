@@ -1,3 +1,4 @@
+import 'helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -272,6 +273,47 @@ void main() {
       await tester.tap(find.text('日记'));
       await tester.pumpAndSettle();
       expect(find.text('记录 · 日记'), findsOneWidget);
+    });
+
+    testWidgets('轮9g 筛选钮=切换钮右侧·底部浮层 全部/☐待办/标签 生效',
+        (tester) async {
+      await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '买猫粮\n☐ 预约疫苗',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await jrepo.save(JournalEntry(
+          day: DateTime.now().subtract(const Duration(days: 1)),
+          content: '普通一天',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await tester.pumpWidget(scope(const JournalPage()));
+      await tester.pumpAndSettle();
+
+      // 行内顺序：切换钮在左、筛选钮在右
+      final vx = tester.getRect(find.byKey(const ValueKey('diary-view'))).center.dx;
+      final fx = tester
+          .getRect(find.byKey(const ValueKey('diary-filter')))
+          .center
+          .dx;
+      expect(fx, greaterThan(vx));
+
+      await tester.tap(find.byKey(const ValueKey('diary-filter')));
+      await tester.pumpAndSettle();
+      expect(find.text('筛选'), findsOneWidget);
+      expect(find.byKey(const ValueKey('df-opt-全部')), findsOneWidget);
+      expect(find.byKey(const ValueKey('df-opt-☐ 待办')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('df-opt-☐ 待办')));
+      await settle5(tester);
+      // 仅含 ☐ 待办行的那篇可见
+      expect(find.textContaining('买猫粮'), findsOneWidget);
+      expect(find.textContaining('普通一天'), findsNothing);
+      // 再开浮层：当前项✓ + 可回全部
+      await tester.tap(find.byKey(const ValueKey('diary-filter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('df-opt-全部')));
+      await settle5(tester);
+      expect(find.textContaining('普通一天'), findsOneWidget);
     });
 
     testWidgets('INS 卡片流切换键：点 ❤️ 落库 liked', (tester) async {
