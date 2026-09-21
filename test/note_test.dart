@@ -196,7 +196,7 @@ void main() {
       expect(find.byKey(const ValueKey('note-search')), findsNothing);
       expect(find.text('✎ 写笔记'), findsNothing);
       expect(find.textContaining('WebDAV 选型'), findsOneWidget);
-      expect(find.textContaining('共 1 篇'), findsOneWidget);
+      expect(find.textContaining('共 '), findsNothing); // 轮9l：底部教学文案已删
       expect(find.textContaining('工作 · '), findsNothing); // 卡片已去目录/字数行
 
       // 长按=进入批量选择（toast 会盖住底部操作条，先让其退场）

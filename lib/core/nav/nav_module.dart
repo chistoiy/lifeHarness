@@ -9,7 +9,7 @@ enum NavModule {
   todo('todo', '待办', Icons.check_circle_outline, Icons.check_circle, '/todo'),
   calendar(
       'calendar', '时间', Icons.schedule, Icons.calendar_month, '/calendar'),
-  journal('journal', '日记', Icons.book_outlined, Icons.book, '/journal'),
+  journal('journal', '记录', Icons.book_outlined, Icons.book, '/journal'),
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');
 

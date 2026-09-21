@@ -144,15 +144,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _card(context, ref, n, inTrash, sel),
                           ),
-                        Center(
-                          child: Text(
-                            inTrash
-                                ? '共 ${notes.length} 篇 · 长按可恢复或彻底删除'
-                                : '共 ${notes.length} 篇 · 左滑删除 · 长按批量选择',
-                            style: TextStyle(
-                                fontSize: 10, color: scheme.onSurfaceVariant),
-                          ),
-                        ),
+                        // V1.29轮9l：底部「共 N 篇 · 左滑删除 · 长按批量」教学文案移除（无价值）。
                       ],
                     )
                   : GridView.count(
