@@ -517,7 +517,6 @@ tailwind.config = {
           <div class="flex-1 relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span><input class="w-full !pl-8 rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs outline-none" placeholder="搜索标题或全文…" oninput="if(this.value)toast('全文搜索：'+this.value+'（模拟）')"></div>
           <button onclick="toast('排序：更新时间 ↓（可切创建时间/字数）')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">↕</button>
           <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
-          <button onclick="openSheet('sheetNoteType')" class="px-3.5 py-2.5 rounded-xl grad text-white text-xs font-bold whitespace-nowrap">✎ 写笔记</button>
         </div>
         <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar items-center" id="noteTags"></div>
         <div id="noteList"></div>
@@ -594,7 +593,6 @@ tailwind.config = {
           <div class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
           <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
         </div>
-        <button onclick="openSheet('sheetSnapshot')" class="pw-ic-btn text-sm">🕘</button>
         <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn">⋯</button>
       </div>
       <!-- 模式切换 + MD 语法快捷操作栏（V1.29：仅 MD 文档类型显示 · 富文本用 B/≡/☑/🖼/❝ · 纯文本无工具栏） -->
@@ -1458,6 +1456,13 @@ tailwind.config = {
     <button class="fab-act" onclick="fabPick('pomo')">🍅 番茄计时</button>
   </div>
 
+  <!-- V1.29：笔记 tab FAB 三选一（与首页快捷记录菜单同款·替代顶部写笔记按钮） -->
+  <div id="noteFabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
+    <button class="fab-act" onclick="hideNoteFabMenu();newNote('rich')">📝 添加富文本</button>
+    <button class="fab-act" onclick="hideNoteFabMenu();newNote('plain')">📃 添加纯文本</button>
+    <button class="fab-act" onclick="hideNoteFabMenu();newNote('md')">⌨️ 添加 MD 文档</button>
+  </div>
+
   <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
   <div id="pomoStage" class="hidden absolute inset-0 z-[60] flex-col items-center text-white" style="background:linear-gradient(180deg,#41618c 0%,#7d93b5 55%,#d8a9a2 100%)">
     <div class="mt-10 self-start text-3xl opacity-80 ml-6">❝</div>
@@ -1476,7 +1481,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== 底部导航 ===== -->
-  <nav class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
+  <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
 
@@ -1903,25 +1908,13 @@ tailwind.config = {
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">分类</span><span class="ml-auto">📁 灵感</span><span class="text-slate-400 ml-1">▾</span></div>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">置顶</span><span class="toggle ml-auto" onclick="tgl(this);toast('📌 置顶状态已切换')"></span></div>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">统计</span><b class="ml-auto" id="pwCount">312 字 · 约 1 分钟</b></div>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">🕘 快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">导出</span><span class="ml-auto text-slate-400">TXT / Markdown / 复制全文 ›</span></div>
       </div>
       <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
     </div>
   </div>
 
-  <!-- ===== 笔记 · 新建类型三选一（V1.29：FAB/写笔记拆分） ===== -->
-  <div id="sheetNoteType" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteType')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">新建笔记 · 选择类型</div>
-      <div class="mt-3 space-y-2 text-xs">
-        <button class="card w-full !py-3.5 px-4 flex items-center gap-3 text-left" onclick="closeSheet('sheetNoteType');newNote('rich')"><span class="text-lg">📝</span><div class="flex-1"><b class="text-sm">富文本</b><div class="text-[10px] text-slate-400 mt-0.5">编辑即渲染 · 加粗/列表/待办勾选/图片</div></div><span class="text-slate-300">›</span></button>
-        <button class="card w-full !py-3.5 px-4 flex items-center gap-3 text-left" onclick="closeSheet('sheetNoteType');newNote('plain')"><span class="text-lg">📃</span><div class="flex-1"><b class="text-sm">纯文本</b><div class="text-[10px] text-slate-400 mt-0.5">极致安静 · 只有纸和字（专注段落）</div></div><span class="text-slate-300">›</span></button>
-        <button class="card w-full !py-3.5 px-4 flex items-center gap-3 text-left" onclick="closeSheet('sheetNoteType');newNote('md')"><span class="text-lg">⌨️</span><div class="flex-1"><b class="text-sm">MD 文档</b><div class="text-[10px] text-slate-400 mt-0.5">四模式 + 14 键语法栏 + 公式/表格</div></div><span class="text-slate-300">›</span></button>
-        <div class="text-[10px] text-slate-400 text-center pt-1">在「⋯ 笔记选项」里可随时切换类型</div>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== 阅读/观影进度录入（多方式） ===== -->
   <div id="sheetProgress" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetProgress')">
@@ -2099,7 +2092,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['笔记','纯写作模式 · 自动保存'],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2137,8 +2130,10 @@ function setPage(p){
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
   const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
-  const _th=$('#topHead'),_pc=$('#p-calendar');
-  if(_th)_th.classList.toggle('hidden',p==='p-calendar'&&stack.length===0);
+  const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
+  const _imm=p==='p-noteEdit'; /* V1.29：笔记编辑页全屏沉浸·隐藏全局头部与底栏 */
+  if(_th)_th.classList.toggle('hidden',_imm||(p==='calendar'&&stack.length===0)||(p==='p-calendar'&&stack.length===0));
+  if(_tn)_tn.classList.toggle('hidden',_imm);
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
   $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
@@ -2159,7 +2154,7 @@ function goBack(){
   if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
   else{ window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
 }
-function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); }
+function navTab(p){ stack.length=0; setPage(p); $('#fab').style.transform=''; $('#fabMenu').classList.add('hidden'); hideTodoFabMenu(); hideNoteFabMenu(); }
 function renderFab(){const f=$('#fab'),c=FAB_CFG[curPage];
  if(curPage!=='p-todo')hideTodoFabMenu();
  if(!c){f.classList.add('hidden');f.classList.remove('flex');$('#fabMenu').classList.add('hidden');return}
@@ -2171,6 +2166,8 @@ function fabGo(p,msg){ $('#fabMenu').classList.add('hidden'); $('#fab').style.tr
 /* V1.27：待办 FAB 类型二选一 = 首页快捷记录菜单同款行卡（页面风格统一） */
 function showTodoFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#todoFabMenu').classList.remove('hidden')}
 function hideTodoFabMenu(){const m=$('#todoFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
+function showNoteFabMenu(){$('#fabMenu').classList.add('hidden');$('#fab').style.transform='rotate(45deg)';$('#noteFabMenu').classList.remove('hidden')}
+function hideNoteFabMenu(){const m=$('#noteFabMenu');if(m)m.classList.add('hidden');const f=$('#fab');if(f&&$('#fabMenu').classList.contains('hidden'))f.style.transform=''}
 function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 
 /* ================= 通用交互 ================= */
@@ -2767,7 +2764,7 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
   toast(t.done?'✔ 待办完成 · 时间·轴视图同步划线（联动 L2）':'已恢复未完成')}
 
 /* ================= 记录 ================= */
-function switchRecord(k){ recTab=k;
+function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu();
   [['diary','recDiary','rtDiary'],['note','recNote','rtNote'],['book','recBook','rtBook'],['media','recMedia','rtMedia']].forEach(([id,w,b])=>{
     $('#'+w).classList.toggle('hidden',id!==k); const btn=$('#'+b); btn.className=(id===k?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500'); if(id===k)btn.classList.add('flex-1','rounded-lg','py-1.5');});
 }
@@ -3290,7 +3287,7 @@ const FAB_CFG={
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
  'p-todo':{ico:'＋',act:()=>{$('#fabMenu').classList.add('hidden');const m=$('#todoFabMenu');if(m.classList.contains('hidden')){showTodoFabMenu()}else{hideTodoFabMenu()}}},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
- 'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note')openSheet('sheetNoteType');else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
+ 'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note'){const m=$('#noteFabMenu');if(m.classList.contains('hidden')){showNoteFabMenu()}else{hideNoteFabMenu()}}else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
  'p-finance':{ico:'💰',act:()=>{$$('.fin-add')[0].scrollIntoView({behavior:'smooth',block:'center'});toast('点上方分类快速记一笔（演示）')}},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
  'p-days':{ico:'🎂',act:()=>openSheet('sheetAddDay')},
