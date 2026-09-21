@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
+import 'package:lifeharness/features/journal/data/note_folder_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:lifeharness/features/journal/presentation/note_edit_page.dart';
@@ -444,6 +445,64 @@ void main() {
       await settle5(tester);
       expect(copied, contains('全文内容在此'));
       expect(await pollText(tester, '已复制全文到剪贴板'), isTrue);
+    });
+  });
+
+  group('NoteFolderDao（V1.29 批A1 · 多层文件夹树）', () {
+    late NoteFolderDao fdao;
+    setUp(() => fdao = NoteFolderDao(db));
+
+    test('create 顶层与子级；sort 同级顺延；list 全量', () async {
+      final a = await fdao.create('方法论');
+      final b = await fdao.create('灵感');
+      final c = await fdao.create('工作', parentId: b.id);
+      expect(a.parentId, isNull);
+      expect(c.parentId, b.id);
+      expect((await fdao.list()).map((f) => f.name).toList(),
+          ['方法论', '工作', '灵感']); // 全局 sort,id：顶层 方法论1/灵感2，工作=灵感下同级1
+      expect(a.sort, 1);
+      expect(b.sort, 2); // 与方法论同为顶层·同级顺延
+      expect(c.sort, 1); // 灵感下首子级
+    });
+
+    test('rename 改名；move 换父级', () async {
+      final a = await fdao.create('旧名');
+      final b = await fdao.create('另一夹');
+      await fdao.rename(a.id!, '新名');
+      await fdao.move(a.id!, b.id);
+      final moved = (await fdao.list()).firstWhere((f) => f.name == '新名');
+      expect(moved.parentId, b.id);
+    });
+
+    test('deleteTree：子夹上移到父级、本夹笔记 folder 置空、笔记不删', () async {
+      final root = await fdao.create('灵感');
+      await fdao.create('速记', parentId: root.id);
+      await dao.save(note('夹内篇', folder: '灵感'));
+      await dao.save(note('子夹篇', folder: '速记'));
+      await fdao.deleteTree(root.id!);
+      // 子夹上移（root 的 parentId=null → 子夹变顶层）
+      final left = await fdao.list();
+      expect(left.map((f) => f.name).toList(), ['速记']);
+      expect(left.single.parentId, isNull);
+      // root 内笔记 folder 置空；子夹笔记不动；都不被删除
+      expect((await dao.byId((await dao.list(query: '夹内篇')).single.id!))!.folder,
+          isNull);
+      expect((await dao.list(query: '子夹篇')).single.folder, '速记');
+    });
+
+    test('subtreeNames 含全部后代；buildTree 组树+计数', () async {
+      final a = await fdao.create('灵感');
+      final b = await fdao.create('工作', parentId: a.id);
+      await fdao.create('速记', parentId: b.id);
+      expect(await fdao.subtreeNames(a.id!), {'灵感', '工作', '速记'});
+      await dao.save(note('x', folder: '速记'));
+      await dao.save(note('y', folder: '速记'));
+      final tree = NoteFolderDao.buildTree(await fdao.list(),
+          noteCounts: await dao.folderCounts());
+      expect(tree.single.name, '灵感');
+      final gong = tree.single.children.single;
+      expect(gong.name, '工作');
+      expect(gong.children.single.noteCount, 2);
     });
   });
 }

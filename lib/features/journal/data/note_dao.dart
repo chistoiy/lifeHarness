@@ -62,6 +62,14 @@ class NoteDao {
     return rows.map((r) => r['folder'] as String).toList();
   }
 
+  /// 各文件夹活跃笔记数（树抽屉节点计数）。
+  Future<Map<String, int>> folderCounts() async {
+    final rows = await db.rawQuery(
+        'SELECT folder, COUNT(*) c FROM $table WHERE folder IS NOT NULL AND folder != \'\' '
+        'AND archived = 0 AND deleted_at IS NULL GROUP BY folder');
+    return {for (final r in rows) r['folder'] as String: r['c'] as int};
+  }
+
   Future<Note?> byId(int id) async {
     final rows = await db.query(table, where: 'id = ?', whereArgs: [id], limit: 1);
     return rows.isEmpty ? null : Note.fromRow(rows.first);

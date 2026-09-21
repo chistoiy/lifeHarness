@@ -4,10 +4,12 @@ import '../../../core/database/app_database.dart';
 import '../data/diary_template_dao.dart';
 import '../data/journal_dao.dart';
 import '../data/note_dao.dart';
+import '../data/note_folder_dao.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import '../domain/journal_repository.dart';
 import '../domain/note.dart';
+import '../domain/note_folder.dart';
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(JournalDao(AppDatabase.instance.db));
@@ -46,6 +48,22 @@ final notesProvider = FutureProvider<List<Note>>((ref) async {
 /// 笔记文件夹 chips 行（含去重来源）。
 final noteFoldersProvider =
     FutureProvider<List<String>>((ref) => ref.watch(noteDaoProvider).folders());
+
+/// 笔记文件夹树 DAO（V1.29 批A1 · note_folders 多层嵌套）。
+final noteFolderDaoProvider =
+    Provider<NoteFolderDao>((ref) => NoteFolderDao(AppDatabase.instance.db));
+
+/// 文件夹原始列表（增删改后 invalidate）。
+final noteFolderListProvider = FutureProvider<List<NoteFolder>>(
+    (ref) => ref.watch(noteFolderDaoProvider).list());
+
+/// 渲染树（含各夹直属笔记数；随笔记与文件夹变化刷新）。
+final noteTreeProvider = FutureProvider<List<FolderNode>>((ref) async {
+  final all = ref.watch(noteFolderListProvider).valueOrNull ?? const [];
+  ref.watch(notesProvider); // 笔记增删/移动后计数刷新
+  final counts = await ref.watch(noteDaoProvider).folderCounts();
+  return NoteFolderDao.buildTree(all, noteCounts: counts);
+});
 
 /// 全部日记（新→旧；保存/回望操作后 invalidate 刷新）。
 final journalsProvider = FutureProvider<List<JournalEntry>>(

@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 7;
+  static const int version = 8;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -21,6 +21,8 @@ class DbSchema {
   static const String tNotes = 'notes';
   // v7：笔记归档/回收站 + 版本快照（M1 批1 · 需求 模块3 纯纯写作风）
   static const String tNoteSnapshots = 'note_snapshots';
+  // v8：笔记多层文件夹树（需求 V1.29 · notes.folder 存文件夹名，本表管层级）
+  static const String tNoteFolders = 'note_folders';
   static const String tInbox = 'inbox_items';
   static const String tSettings = 'settings';
   // 预留表（V0.1 建表，业务 M2/M3 填充）
@@ -166,6 +168,15 @@ class DbSchema {
     )
     ''',
     'CREATE INDEX idx_snap_note ON $tNoteSnapshots(note_id)',
+    // v8（V1.29）：笔记多层文件夹树；parent_id NULL=顶层；sort 同级排序
+    '''
+    CREATE TABLE IF NOT EXISTS $tNoteFolders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_id INTEGER,
+      name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
 
     // 模块5 收集箱（routed_to: null=未分流, todo/event/note/journal；routed_ref 目标行 id）
     '''
@@ -387,6 +398,17 @@ class DbSchema {
       )
       ''',
       'CREATE INDEX IF NOT EXISTS idx_snap_note ON $tNoteSnapshots(note_id)',
+    ],
+    // v8（V1.29）：笔记多层文件夹树表
+    7: [
+      '''
+      CREATE TABLE IF NOT EXISTS $tNoteFolders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        sort INTEGER NOT NULL DEFAULT 0
+      )
+      ''',
     ],
   };
 }
