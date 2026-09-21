@@ -198,6 +198,14 @@ tailwind.config = {
   @keyframes stripL{from{transform:translateX(16px);opacity:.25}to{transform:none;opacity:1}}
   @keyframes stripR{from{transform:translateX(-16px);opacity:.25}to{transform:none;opacity:1}}
   .strip-l{animation:stripL .26s ease}.strip-r{animation:stripR .26s ease}
+  /* V1.28 月历切月/展开收起平滑动画 */
+  @keyframes mShiftL{from{transform:translateX(30px);opacity:.2}to{transform:none;opacity:1}}
+  @keyframes mShiftR{from{transform:translateX(-30px);opacity:.2}to{transform:none;opacity:1}}
+  .mshift-l{animation:mShiftL .3s cubic-bezier(.22,.61,.36,1)}.mshift-r{animation:mShiftR .3s cubic-bezier(.22,.61,.36,1)}
+  @keyframes mExpand{from{transform:translateY(-12px) scaleY(.9);opacity:0;transform-origin:top center}to{transform:none;opacity:1}}
+  .mexpand{animation:mExpand .3s cubic-bezier(.22,.61,.36,1)}
+  @keyframes wReveal{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+  .wreveal{animation:wReveal .26s ease}
   /* ---- INS 风格卡片流 & 习惯 & 主题市场 ---- */
   .ins-card{background:var(--card);border-radius:22px;overflow:hidden;margin-bottom:18px;color:var(--ink);box-shadow:0 4px 24px rgba(15,23,42,.12)}
   .ins-hd{display:flex;align-items:center;gap:9px;padding:11px 14px}
@@ -543,7 +551,7 @@ tailwind.config = {
     <!-- ===== P4a 日记编辑页 ===== -->
     <section id="p-diaryEdit" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center justify-between text-xs text-slate-400">
-        <span>2026-09-19 周六 · 晴 ☀️ 22℃</span><span class="flex gap-3 items-center"><b id="wordCount">0</b> 字<span class="text-emerald-500">● 已自动保存草稿</span></span>
+        <span>2026-09-19 周六 · 晴 ☀️ 22℃ · <b id="diaryEntryTag" class="text-brand-600">第 3 篇</b></span><span class="flex gap-3 items-center"><b id="wordCount">0</b> 字<span class="text-emerald-500">● 已自动保存草稿</span></span>
       </div>
       <div class="mt-2 flex gap-2 items-center text-[11px]">
         <button id="dwBtnDoc" class="chip chip-on" onclick="dwMode('doc')">📖 文档模式</button>
@@ -552,14 +560,7 @@ tailwind.config = {
       </div>
       <div id="dwDoc">
       <div class="mt-3 flex gap-2 text-lg" id="editMood"></div>
-      <div class="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
-        <div class="flex gap-1 px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">
-          <button class="fmt-btn" title="加粗"><b>B</b></button><button class="fmt-btn" title="列表">≡</button>
-          <button class="fmt-btn" title="待办勾选">☑</button><button class="fmt-btn" title="图片">🖼</button><button class="fmt-btn" title="引用">❝</button>
-          <span class="flex-1"></span><button class="fmt-btn" title="Markdown切换" onclick="toast('已切换 Markdown 源码模式（模拟）')">M↓</button>
-        </div>
-        <textarea id="diaryText" class="w-full h-64 p-4 text-sm leading-7 bg-transparent outline-none resize-none" placeholder="今天发生了什么？&#10;&#10;提示：输入 ☐ 可插入待办；草稿中的待办会自动同步…"></textarea>
-      </div>
+      <div id="diaryBody"></div>
       <div class="mt-3 card">
         <div class="row-title">今日概览草稿（自动生成 · 联动L2）</div>
         <div class="text-xs text-slate-500 dark:text-slate-400 leading-6 mt-1">✅ 完成「提交周报」等 3 项待办 ｜ 📅 参加「产品评审」10:00-11:00<br>📖 阅读《思考，快与慢》12 分钟，新增 2 条摘录<br>💰 今日支出 ¥86.00（餐饮 2 笔）</div>
@@ -571,7 +572,7 @@ tailwind.config = {
         <div class="flex-1 aspect-square rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-300 text-xs">🎙<br>语音<br>V1.x</div>
       </div>
       <div class="mt-4 flex gap-3">
-        <select class="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs px-3 py-2.5 outline-none"><option>模板：自由书写</option><option>模板：感恩三件事</option><option>模板：KPT 复盘</option></select>
+        <button id="diaryTplBtn" onclick="openSheet('sheetDiaryTpl')" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs px-3 py-2.5 text-left">📋 模板：自由书写 ▾</button>
         <button onclick="saveDiary()" class="px-6 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">保存</button>
       </div>
       </div>
@@ -1715,6 +1716,31 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== V1.28 日记模板管理（编辑页弹层） ===== -->
+  <div id="sheetDiaryTpl" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTpl')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">📋 日记模板</div>
+      <div class="mt-3" id="diaryTplList"></div>
+      <button onclick="openTplEdit()" class="mt-2 w-full py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 dark:border-brand-500/40 text-sm font-bold">＋ 新建模板</button>
+    </div>
+  </div>
+  <!-- ===== V1.28 新建/编辑模板（分节结构） ===== -->
+  <div id="sheetDiaryTplEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTplEdit')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">新建模板</div>
+      <input id="tplName" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="模板名称，如：每日三省">
+      <div class="mt-3 text-xs font-bold text-slate-400">分节</div>
+      <div id="tplSecs" class="mt-2"></div>
+      <button onclick="addTplSec()" class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400">＋ 添加分节</button>
+      <div class="mt-4 flex gap-3">
+        <button onclick="closeSheet('sheetDiaryTplEdit')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+        <button onclick="saveTplEdit()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存模板</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 任务详情 ===== -->
   <!-- V1.27 上级分类选择弹层（底部列表 · 与全局弹层风格统一） -->
   <div id="sheetCatParent" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetCatParent')">
@@ -1992,6 +2018,7 @@ const D = {
     {name:'紧急不重要',act:'快速处理',cls:'bg-sun'},{name:'不紧急不重要',act:'考虑淘汰',cls:'bg-slate-400'}],
   events:[{tm:'09:00',e:'09:40',t:'晨间规划 · 时间块排布',c:'bg-brand-500'},{tm:'10:00',e:'11:00',t:'产品评审',c:'bg-violet-500'},{tm:'14:00',e:'15:00',t:'专注块：季度报销单',c:'bg-mint'},{tm:'19:30',e:'20:30',t:'健身房 · 腿日',c:'bg-sun'}],
   diary:[{d:'09-18',wd:'周五',wx:'🌧 18℃',emo:'😪',m:'疲惫',txt:'连续加班第三天，把报销单拖到了今天。睡前写了感恩三件事，好了一些。',tags:['加班','复盘'],img:3,linked:2,tm:'23:12'},
+         {d:'09-18',wd:'周五',wx:'🌧 18℃',emo:'😌',m:'平静',txt:'午休记录了晨间页面：三节都写完了，第三节「今日意图」卡了很久——想写的太多，反而一个字没落。',tags:['晨间页'],img:0,linked:0,tm:'12:30'},
          {d:'09-17',wd:'周四',wx:'☀️ 24℃',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》，镰仓的雨路四姐妹，镜头语言比文字克制。',tags:['运动','电影'],img:5,linked:1,tm:'22:40'},
          {d:'09-16',wd:'周三',wx:'⛅ 22℃',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。把 SPACED 框架整理成了笔记并关联了目标。',tags:['复盘','方法论'],img:0,linked:3,tm:'21:05'}],
   noteTags:['全部','方法论','灵感','工作','关联阅读'],
@@ -2086,6 +2113,7 @@ function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
 function goBack(){
   if(stack.length){ setPage(stack.pop()); return; }
   if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
+  if(dashEditing){ dashToggle(); return; }
   const now=Date.now();
   if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
   else{ window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
@@ -2107,7 +2135,7 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
-function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch')setTimeout(()=>$('#searchInput').focus(),80); }
+function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch')setTimeout(()=>$('#searchInput').focus(),80); if(id==='sheetDiaryTpl')renderDiaryTpls(); }
 function closeSheet(id){ const s=$('#'+id); s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
 function toggleDark(el){ tgl(el); document.documentElement.classList.toggle('dark'); if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);
@@ -2356,9 +2384,9 @@ let dpTarget='cal';
 function ntDatePick(){dpTarget='task';openDatePick()}
 function ntRemindChg(sel){if(sel.value==='自定义时间…'){sel.value='当天 09:00';toast('时/分双列滚轮选择提醒时刻（模拟 · 默认 09:00 可直接改）')}}
 function updateDayLabel(){const el=$('#dayLabel');if(el)el.textContent=`9月${calDay}日 · 周${WDS[(calDay+1)%7]}${calDay===19?' · 今天':''}${liveEv&&calDay===19?' · 1 项进行中':''}`}
-function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');$('#weekStrip').classList.remove('hidden');renderWeekStrip()}
-function expandMonth(){monthExpanded=true;$('#monthPanel').classList.remove('hidden');$('#weekStrip').classList.add('hidden');renderMonthGrid()}
-function calShift(n){if(monthExpanded){toast('已切换'+(n>0?'下':'上')+'一月（模拟 · 月历左右滑动切月）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
+function collapseMonth(){if(!monthExpanded)return;monthExpanded=false;$('#monthPanel').classList.add('hidden');const ws=$('#weekStrip');ws.classList.remove('hidden');ws.classList.remove('wreveal');void ws.offsetWidth;ws.classList.add('wreveal');renderWeekStrip()}
+function expandMonth(){monthExpanded=true;const mp=$('#monthPanel');mp.classList.remove('hidden');mp.classList.remove('mexpand');void mp.offsetWidth;mp.classList.add('mexpand');$('#weekStrip').classList.add('hidden');renderMonthGrid()}
+function calShift(n){if(monthExpanded){const mp=$('#monthPanel');mp.classList.remove('mshift-l','mshift-r');void mp.offsetWidth;mp.classList.add(n>0?'mshift-l':'mshift-r');toast('已切换'+(n>0?'下':'上')+'一月（模拟 · 月历左右滑动切月）');return}setDay(Math.min(30,Math.max(1,calDay+n)),n)}
 function initCalSwipe(){const el=$('#weekStrip');let x0=null;
  el.addEventListener('pointerdown',e=>{x0=e.clientX});
  el.addEventListener('pointerup',e=>{if(x0===null)return;const dx=e.clientX-x0;x0=null;
@@ -2544,13 +2572,14 @@ function addEventAtHour(hr){openTimePick(calDay,hr,0)}
 /* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加） —— */
 function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   const days=[13,14,15,16,17,18,19];
-  let h='<div class="text-[10px] text-slate-400 mb-1">🗓 9/13 - 9/19 · 点任意格子 → 添加时间段日程（日期时间+分类+继续添加）</div>';
+  let h='<div class="text-[10px] text-slate-400 mb-1">🗓 9/13 - 9/19 · 空格子 → 添加时间段 · 已添加 → 点进去查看/编辑</div>';
   h+='<div class="grid" style="grid-template-columns:26px repeat(7,1fr);gap:2px">';
   h+='<span></span>'+days.map(d=>`<span class="text-center text-[9px] ${d===19?'text-brand-500 font-extrabold':'text-slate-400'}">${d===19?'今':WDS[(d+1)%7]}</span>`).join('');
   for(let hr=0;hr<24;hr++){h+=`<span class="text-slate-400 text-right text-[8px] font-mono pr-0.5 pt-0.5">${hr}</span>`;
    for(const d of days){const m=hr*60;const b=d===19?blockAt(m):null;
     const cls=b?(b.done!==undefined?'bg-emerald-400':b.ev!==undefined?'bg-brand-500/80':(b.live?'animate-pulse ':'')+CATS[b.cat]):'bg-slate-100 dark:bg-slate-800';
-    h+=`<div class="wk-cell ${cls}" title="${b?(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e):'9月'+d+'日 '+hr+':00 空'}" onclick="openTimePick(${d},${hr},0)"></div>`}}
+    const act=b?(b.ev!==undefined?`openEventDetail('plan',${b.ev})`:b.done!==undefined?`openEventDetail('ended',${b.done})`:`openEventDetail('live')`):`openTimePick(${d},${hr},0)`;
+    h+=`<div class="wk-cell ${cls}" title="${b?(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e):'9月'+d+'日 '+hr+':00 空'}" onclick="${act}"></div>`}}
   el.innerHTML=h+'</div>';}
 
 
@@ -2722,13 +2751,31 @@ function renderRecords(){
     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${b.st==='在读'?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':b.st==='想读'?'bg-sun/10 text-amber-600':'bg-mint/10 text-teal-600'}">${b.st}</span></div>`).join('');
   const ems=['😄','😌','😐','😪','😰','😢','😡'];
   $('#editMood').innerHTML=ems.map((e,i)=>`<button class="mood ${i===1?'mood-on':''}" onclick="pickMoodEdit(this)">${e}</button>`).join('');
-  const dt=$('#diaryText'); dt.addEventListener('input',()=>$('#wordCount').textContent=dt.value.length);
+  renderDiaryBody();
+  $('#diaryBody').addEventListener('input',()=>$('#wordCount').textContent=[...$$('#diaryBody textarea')].reduce((a,x)=>a+x.value.length,0));
 }
 function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('chip-on')); el.classList.add('chip-on'); }
 function pickMoodEdit(el){ $$('#editMood .mood').forEach(m=>m.classList.remove('mood-on')); el.classList.add('mood-on'); }
 function switchBookTab(k){ [['q','btQuote','bookQuotes'],['i','btThink','bookThinks'],['c','btToc','bookToc'],['s','btSum','bookSumm']].forEach(([id,b,v])=>{ $('#'+v).classList.toggle('hidden',id!==k); $('#'+b).classList.toggle('on',id===k); }); }
-function insertSummary(){ $('#diaryText').value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ' ; $('#wordCount').textContent=$('#diaryText').value.length; toast('已插入自动概览，继续书写吧（联动 L2）'); }
-function saveDiary(){ toast('日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
+function insertSummary(){ const t=DI_TPLS[curTpl]; if(t.s.length){const el=$('#diaryBody textarea');if(el){el.value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ';el.dispatchEvent(new Event('input',{bubbles:true}))}} else { $('#diaryText').value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ' ; $('#wordCount').textContent=$('#diaryText').value.length;} toast('已插入自动概览，继续书写吧（联动 L2）'); }
+function saveDiary(){ const t=DI_TPLS[curTpl]; toast(t.s.length?`日记已保存 · 今天${$('#diaryEntryTag').textContent} · ${t.n}（${t.s.length} 节）· 文中 ☐ 待办已同步（联动 L3）`:'日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
+/* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
+let DI_TPLS=[{n:'自由书写',b:1,s:[]},
+ {n:'感恩三件事',b:1,s:[{t:'感恩 ①',ph:'小事也可以'},{t:'感恩 ②',ph:''},{t:'感恩 ③',ph:''}]},
+ {n:'KPT 复盘',b:1,s:[{t:'Keep · 做对了什么',ph:''},{t:'Problem · 哪里不顺',ph:''},{t:'Try · 下一步怎么改',ph:''}]},
+ {n:'晨间页',b:0,s:[{t:'梦到的 / 最先想到的',ph:''},{t:'今天在意的事',ph:''},{t:'今日意图',ph:'一句话'}]}];
+let curTpl=0,tplDraft=[];
+function diaryToolbar(){return `<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="flex gap-1 px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400"><button class="fmt-btn" title="加粗"><b>B</b></button><button class="fmt-btn" title="列表">≡</button><button class="fmt-btn" title="待办勾选">☑</button><button class="fmt-btn" title="图片">🖼</button><button class="fmt-btn" title="引用">❝</button><span class="flex-1"></span><button class="fmt-btn" title="Markdown切换" onclick="toast('已切换 Markdown 源码模式（模拟）')">M↓</button></div>`}
+function renderDiaryBody(){const t=DI_TPLS[curTpl],el=$('#diaryBody');if(!el)return;
+ if(!t.s.length){el.innerHTML=`<div class="mt-3">${diaryToolbar()}<textarea id="diaryText" class="w-full h-64 p-4 text-sm leading-7 bg-transparent outline-none resize-none" placeholder="今天发生了什么？&#10;&#10;提示：输入 ☐ 可插入待办；草稿中的待办会自动同步…"></textarea></div>`;return}
+ el.innerHTML=`<div class="mt-3 text-xs font-bold text-brand-600">📋 ${t.n} · ${t.s.length} 节 · 各节独立保存</div>`+t.s.map(s=>`<div class="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="px-4 pt-3 text-xs font-extrabold text-slate-500 dark:text-slate-400">${s.t}</div><textarea class="w-full min-h-[64px] px-4 pb-3 pt-1 text-sm leading-6 bg-transparent outline-none resize-none" placeholder="${s.ph||'写点什么…'}"></textarea></div>`).join('')}
+function renderDiaryTpls(){const el=$('#diaryTplList');if(!el)return;el.innerHTML=DI_TPLS.map((t,i)=>`<div class="card mb-2 flex items-center gap-2 ${i===curTpl?'ring-2 ring-brand-500':''}" onclick="applyTpl(${i})"><div class="flex-1 min-w-0"><b class="text-sm">${t.n}</b><div class="text-[10px] text-slate-400 mt-0.5">${t.s.length?t.s.length+' 节 · 结构化分节':'单文本 · 自由书写'}</div></div>${t.b?`<span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 shrink-0">内置</span>`:`<button class="text-xs text-rose-400 font-bold px-2 shrink-0" onclick="event.stopPropagation();delTpl(${i})">删除</button>`}${i===curTpl?'<span class="text-brand-500 font-black shrink-0">✓</span>':''}</div>`).join('')}
+function applyTpl(i){curTpl=i;const b=$('#diaryTplBtn');if(b)b.textContent='📋 模板：'+DI_TPLS[i].n+' ▾';renderDiaryBody();renderDiaryTpls();closeSheet('sheetDiaryTpl');toast(DI_TPLS[i].s.length?`模板已应用 · 正文按 ${DI_TPLS[i].s.length} 节书写`:'模板已应用 · 回到单文本')}
+function delTpl(i){DI_TPLS.splice(i,1);if(curTpl===i){curTpl=0;applyTpl(0)}else renderDiaryTpls();toast('模板已删除')}
+function openTplEdit(){tplDraft=[{t:'',ph:''},{t:'',ph:''}];$('#tplName').value='';renderTplEdit();openSheet('sheetDiaryTplEdit')}
+function renderTplEdit(){const el=$('#tplSecs');el.innerHTML=tplDraft.map((s,j)=>`<div class="card mb-2"><div class="flex gap-2 items-center"><input value="${s.t}" oninput="tplDraft[${j}].t=this.value" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 text-sm outline-none font-bold" placeholder="分节 ${j+1} 标题，如：今日高光"><button class="text-rose-400 text-base px-1.5" onclick="tplDraft.splice(${j},1);renderTplEdit()">✕</button></div><input value="${s.ph}" oninput="tplDraft[${j}].ph=this.value" class="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-xs outline-none" placeholder="占位提示（可选）"></div>`).join('')}
+function addTplSec(){tplDraft.push({t:'',ph:''});renderTplEdit()}
+function saveTplEdit(){const n=$('#tplName').value.trim();const secs=tplDraft.filter(s=>s.t.trim());if(!n||!secs.length){toast('请填写模板名称与至少一个分节');return}DI_TPLS.push({n,b:0,s:secs});renderDiaryTpls();closeSheet('sheetDiaryTplEdit');toast('模板已创建 · '+n)}
 /* ================= 心情迷你月历 & 纯写作编辑器 ================= */
 const DI_IMG=['from-orange-300 to-rose-400','from-sky-300 to-indigo-400','from-emerald-300 to-teal-500'];
 function renderMoodMini(){const hs=['#6366f1','#2dd4bf','#f59e0b','#fb7185','#8b5cf6','#0ea5e9'];
