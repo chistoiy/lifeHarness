@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/linkage/stats_providers.dart';
@@ -103,6 +104,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_onGlobalKey);
     _kind = widget.initialKind;
     _folder = widget.initialFolder;
     _resetParas('');
@@ -136,6 +138,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onGlobalKey);
     _debounce?.cancel();
     _snapIdle?.cancel();
     _titleCtl.dispose();
@@ -171,6 +174,35 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         if (idx != -1 && idx != _curPara) setState(() => _curPara = idx);
       });
     return node;
+  }
+
+  // V1.29轮1①：专注模式段首退格=并入上一段。EditableText 内部 Shortcuts
+  // 会先吞掉冒泡的退格键，故用 HardwareKeyboard 全局前置拦截。
+  bool _onGlobalKey(KeyEvent event) {
+    if (_mode != NoteEditMode.focus || !mounted) return false;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    if (event.logicalKey != LogicalKeyboardKey.backspace) return false;
+    final i = _curPara;
+    if (i <= 0 || i >= _paras.length) return false;
+    final ctl = _paras[i];
+    final s = ctl.selection;
+    if (!s.isCollapsed || s.start != 0) return false;
+    if (!_paraNodes[i].hasFocus) return false;
+    final prev = _paras[i - 1];
+    final at = prev.text.length;
+    prev.value = TextEditingValue(
+        text: prev.text + ctl.text,
+        selection: TextSelection.collapsed(offset: at));
+    final old = <Object>[_paras[i], _paraNodes[i]];
+    _paras.removeAt(i);
+    _paraNodes.removeAt(i);
+    _disposeLater(old);
+    setState(() => _curPara = i - 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _paraNodes[_curPara].requestFocus();
+    });
+    _flushParas();
+    return true;
   }
 
   void _resetParas(String text) {
@@ -276,8 +308,17 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     AppToast.show(context, r.label);
   }
 
-  void _toggleFocus() {
-    if (_mode != NoteEditMode.focus) {
+  /// 🕘 快照弹层（经 ⋯ 菜单进入）：恢复=按记录管理设置替换正文或新增副本。
+  void _openSnap() => showSnapshotSheet(context, ref, _existing, _bg, _fg,
+      currentBody: _bodyCtl.text,
+      onReplace: (content) {
+        setState(() {
+          _resetParas(content);
+        });
+        _flushParas();
+      });
+
+  void _toggleFocus() {    if (_mode != NoteEditMode.focus) {
       AppToast.show(context, '🎯 聚焦在「🖊 专注」模式下可用');
       return;
     }
@@ -648,18 +689,13 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      key: const ValueKey('note-snap-open'),
-                      tooltip: '版本快照',
-                      onPressed: () =>
-                          showSnapshotSheet(context, ref, _existing, _bg, _fg),
-                      icon: const Text('🕘', style: TextStyle(fontSize: 16)),
-                    ),
+                    // V1.29轮2②：头部只剩 ‹ + ⋯（🕘 快照并入 ⋯ 菜单）
                     IconButton(
                       key: const ValueKey('note-export'),
-                      tooltip: '导出',
+                      tooltip: '选项',
                       onPressed: () => showExportSheet(context,
-                          _titleCtl.text.trim(), _bodyCtl.text, _bg, _fg),
+                          _titleCtl.text.trim(), _bodyCtl.text, _bg, _fg,
+                          onSnap: _openSnap),
                       icon: Icon(Icons.more_horiz, color: _fg),
                     ),
                   ],

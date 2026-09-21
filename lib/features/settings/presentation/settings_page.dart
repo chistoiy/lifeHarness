@@ -145,6 +145,19 @@ class SettingsPage extends ConsumerWidget {
                     onTap: () => context.push('/settings/appearance')),
           ),
           const SizedBox(height: 14),
+          // V1.29批A4：记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）
+          _Card(
+            child: _EntryRow(
+                    key: const ValueKey('entry-recmg'),
+                    emoji: '📔',
+                    bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
+                    title: '记录管理',
+                    sub: '版本恢复 · 快照 · 回收站清理',
+                    trailing: '',
+                    last: true,
+                    onTap: () => context.push('/settings/recmg')),
+          ),
+          const SizedBox(height: 14),
           // 底部导航自定义卡
           _Card(
             child: Column(

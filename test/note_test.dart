@@ -5,16 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/data/note_folder_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:lifeharness/features/journal/presentation/note_edit_page.dart';
 import 'package:lifeharness/features/journal/presentation/note_tab.dart';
+import 'package:lifeharness/features/settings/presentation/recmg_page.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// M1 批1a/1b/1c · 笔记列表与管理 + 编辑器（原型 recNote / p-noteEdit）。
@@ -25,6 +28,7 @@ void main() {
   late Database db;
   late NoteDao dao;
   late TodoRepository trepo;
+  late SharedPreferences prefs;
 
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
@@ -33,6 +37,9 @@ void main() {
     }
     dao = NoteDao(db);
     trepo = TodoRepository(TodoDao(db), EventBus());
+    // V1.29批A4：恢复方式读 settingsControllerProvider，需 prefs 桩
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async => db.close());
@@ -42,6 +49,7 @@ void main() {
           noteDaoProvider.overrideWithValue(dao),
           noteFolderDaoProvider.overrideWithValue(NoteFolderDao(db)),
           todoRepositoryProvider.overrideWithValue(trepo),
+          sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: MaterialApp(
             home: home is NoteTab ? Scaffold(body: home) : home),
@@ -460,7 +468,7 @@ void main() {
   });
 
   group('笔记快照与导出（批1d）', () {
-    testWidgets('停输 30s 自动快照；🕘 弹层列表；恢复=新建副本不动当前稿',
+    testWidgets('停输 30s 自动快照；⋯ 笔记选项进快照；恢复(默认替换)=替换当前正文+替换前留快照',
         (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage()));
       await tester.pumpAndSettle();
@@ -474,19 +482,59 @@ void main() {
       expect(list, hasLength(1));
       expect(await dao.snapshotsOf(list.single.id!), hasLength(1));
 
-      await tester.tap(find.byKey(const ValueKey('note-snap-open')));
+      // 再改当前稿：恢复应把它替换回快照内容
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-0')), '改到一半的当前稿');
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      // 头部 🕘 钮已收进 ⋯ 笔记选项（V1.29轮2②）
+      expect(find.byKey(const ValueKey('note-snap-open')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      expect(find.text('笔记选项'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('exp-snap')));
       await settle5(tester);
       expect(find.byKey(const ValueKey('snap-row-0')), findsOneWidget);
-      expect(find.textContaining('恢复为副本不覆盖当前稿'), findsOneWidget);
+      expect(find.textContaining('恢复默认直接替换当前正文'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
+      expect(await pollText(tester, '已恢复 · 当前正文已替换（替换前已留快照）'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      await settle5(tester);
+      await tester.pump(const Duration(milliseconds: 1200)); // 替换后自动保存
+
+      final after = await dao.list();
+      expect(after, hasLength(1)); // 替换模式不新增笔记
+      expect(after.single.content, '第一段完整的论述');
+      expect(await dao.snapshotsOf(after.single.id!), hasLength(2)); // 替换前自动留快照
+    });
+
+    testWidgets('记录管理切「新增为副本」后恢复=新建副本不动当前稿', (tester) async {
+      final n = await dao.save(note('正主', content: '当前稿'));
+      await dao.snapshot(n.id!, '旧稿内容');
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(NoteEditPage)));
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setNoteRestoreMode('copy');
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('exp-snap')));
+      await settle5(tester);
+      expect(find.textContaining('恢复=新增一条副本笔记'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
+      expect(await pollText(tester, '已恢复为一条副本笔记，当前正文不动'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
       await settle5(tester);
 
       final after = await dao.list();
       expect(after, hasLength(2)); // 原稿 + 副本
-      expect(after.map((e) => e.title), contains('未命名笔记（副本）'));
+      expect(after.map((e) => e.title), contains('正主（副本）'));
       expect(
-          after.firstWhere((e) => !e.title.endsWith('（副本）')).content,
-          '第一段完整的论述'); // 当前稿未被覆盖
+          after.firstWhere((e) => e.title == '正主').content, '当前稿'); // 当前稿未动
     });
 
     testWidgets('每 +500 字 → 里程碑快照（不必等停输）', (tester) async {
@@ -533,6 +581,80 @@ void main() {
       await settle5(tester);
       expect(copied, contains('全文内容在此'));
       expect(await pollText(tester, '已复制全文到剪贴板'), isTrue);
+    });
+  });
+
+  group('V1.29批A4 · 段首退格并段 + 记录管理页', () {
+    testWidgets('专注模式：光标在段首退格 → 与上一段合并并聚焦合并处', (tester) async {
+      final n = await dao.save(note('两段', content: '甲段\n\n乙段'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+
+      // 直接置段2 光标于段首并聚焦（等价于用户退格键位前状态）
+      final tf = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-para-1')));
+      tf.focusNode!.requestFocus();
+      tf.controller!.value = const TextEditingValue(
+          text: '乙段', selection: TextSelection.collapsed(offset: 0));
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('note-para-1')), findsNothing); // 两段并一段
+      final merged = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-para-0')))
+          .controller!;
+      expect(merged.text, '甲段乙段');
+      expect(merged.selection.baseOffset, 2); // 光标停在拼接处
+
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await settle5(tester);
+      expect((await dao.byId(n.id!))!.content, '甲段乙段');
+    });
+
+    testWidgets('段中有文本时退格不触发并段（正常删除）', (tester) async {
+      final n = await dao.save(note('两段', content: '甲段\n\n乙段'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+
+      final tf = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-para-1')));
+      final ctl = tf.controller!;
+      tf.focusNode!.requestFocus();
+      ctl.value = const TextEditingValue(
+          text: '乙段', selection: TextSelection.collapsed(offset: 2));
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
+      expect(ctl.text, '乙');
+    });
+
+    testWidgets('记录管理页：五段分组渲染；nr-mode 行切换持久化', (tester) async {
+      await useSurface(tester); // 五段较长，加高视口让懒构建全部入树
+      await tester.pumpWidget(scope(const RecmgSettingsPage()));
+      await tester.pumpAndSettle();
+
+      for (final label in ['📔 日记', '📝 笔记', '📚 阅读', '🎬 影音游', '⚙️ 通用']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(find.text('回收站自动清理'), findsOneWidget);
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(RecmgSettingsPage)));
+      expect(container.read(settingsControllerProvider).noteRestoreMode,
+          'replace');
+
+      await tester.tap(find.byKey(const ValueKey('nr-mode')));
+      await tester.pumpAndSettle();
+      expect(find.text('新增为副本'), findsOneWidget);
+      expect(container.read(settingsControllerProvider).noteRestoreMode, 'copy');
+      expect(prefs.getString('lh.note_restore_mode'), 'copy'); // 已持久化
+
+      await tester.tap(find.byKey(const ValueKey('nr-mode')));
+      await tester.pumpAndSettle();
+      expect(find.text('直接替换正文'), findsOneWidget);
     });
   });
 

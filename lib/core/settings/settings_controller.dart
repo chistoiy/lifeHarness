@@ -54,6 +54,12 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 笔记快照恢复方式（V1.29 记录管理）：'replace' ⇄ 'copy'。
+  Future<void> setNoteRestoreMode(String mode) async {
+    state = state.copyWith(noteRestoreMode: mode);
+    await _persist();
+  }
+
   /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
   /// core 不触达 feature（R2）。
   Future<void> setNotify(NotifySettings n) async {

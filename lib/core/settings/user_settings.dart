@@ -108,6 +108,7 @@ class UserSettings {
     required this.navIds,
     this.notify = const NotifySettings(),
     this.homeCardOrder = kHomeCardIds,
+    this.noteRestoreMode = 'replace',
   });
 
   final String themeId;
@@ -117,6 +118,10 @@ class UserSettings {
 
   /// 主页卡片顺序（原型 DASH_IDS；M0末C 自由编排持久化）。
   final List<String> homeCardOrder;
+
+  /// 笔记快照恢复方式（V1.29轮1·记录管理）：
+  /// replace=直接替换当前正文（替换前自动留快照）· copy=新增为副本笔记。
+  final String noteRestoreMode;
 
   /// 可编排卡片 id 全集（顺序之外新增卡片按此兜底补齐）。
   static const List<String> kHomeCardIds = [
@@ -143,6 +148,7 @@ class UserSettings {
     List<String>? navIds,
     NotifySettings? notify,
     List<String>? homeCardOrder,
+    String? noteRestoreMode,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -150,6 +156,7 @@ class UserSettings {
         navIds: navIds ?? this.navIds,
         notify: notify ?? this.notify,
         homeCardOrder: homeCardOrder ?? this.homeCardOrder,
+        noteRestoreMode: noteRestoreMode ?? this.noteRestoreMode,
       );
 
   Map<String, Object> toMap() => {
@@ -158,6 +165,7 @@ class UserSettings {
         'navIds': navIds.join(','),
         'notify': jsonEncode(notify.toMap()),
         'homeOrder': homeCardOrder.join(','),
+        'noteRestoreMode': noteRestoreMode,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -167,6 +175,8 @@ class UserSettings {
             defaults.navIds,
         notify: _decodeNotify(m['notify'] as String?),
         homeCardOrder: _sanitizeHomeOrder(m['homeOrder'] as String?),
+        noteRestoreMode:
+            (m['noteRestoreMode'] as String?) == 'copy' ? 'copy' : 'replace',
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

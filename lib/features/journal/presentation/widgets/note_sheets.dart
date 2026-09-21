@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/providers.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note.dart';
 import '../journal_providers.dart';
@@ -23,12 +24,15 @@ String _snapTimeLabel(int ms) {
   return DateFormat('M月d日 HH:mm').format(t);
 }
 
-/// 🕘 版本快照弹层（原型 sheetSnapshot）：列表=时间·字数·预览·恢复为副本。
-Future<void> showSnapshotSheet(
-    BuildContext context, WidgetRef ref, Note? note, Color bg, Color fg) async {
+/// 🕘 版本快照弹层（原型 sheetSnapshot · V1.29轮1③）：
+/// 恢复方式默认=直接替换当前正文（替换前自动留快照），可在 记录管理 切为新增副本。
+Future<void> showSnapshotSheet(BuildContext context, WidgetRef ref, Note? note,
+    Color bg, Color fg,
+    {String currentBody = '', void Function(String content)? onReplace}) async {
   final snaps = note?.id == null
       ? const <Map<String, Object?>>[]
       : await ref.read(noteDaoProvider).snapshotsOf(note!.id!);
+  final mode = ref.read(settingsControllerProvider).noteRestoreMode;
   if (!context.mounted) return;
   await showModalBottomSheet<void>(
     context: context,
@@ -58,7 +62,9 @@ Future<void> showSnapshotSheet(
                     color: fg)),
             Padding(
               padding: const EdgeInsets.only(top: 3, bottom: 10),
-              child: Text('停止输入 30 秒 / 每 500 字自动留存 · 恢复为副本不覆盖当前稿',
+              child: Text(
+                  '停止输入 30 秒 / 每 500 字自动留存 · '
+                  '${mode == 'replace' ? '恢复默认直接替换当前正文（替换前自动留快照），恢复方式可在记录管理切换' : '恢复=新增一条副本笔记，当前正文不动'}',
                   style: TextStyle(
                       fontSize: 10.5, color: fg.withValues(alpha: .45))),
             ),
@@ -74,7 +80,10 @@ Future<void> showSnapshotSheet(
                 shrinkWrap: true,
                 children: [
                   for (var i = 0; i < snaps.length; i++)
-                    _snapRow(bc, snaps[i], i, bg, fg, note, ref),
+                    _snapRow(bc, snaps[i], i, bg, fg, note, ref,
+                        mode: mode,
+                        currentBody: currentBody,
+                        onReplace: onReplace),
                 ],
               ),
             ),
@@ -100,7 +109,10 @@ Future<void> showSnapshotSheet(
 }
 
 Widget _snapRow(BuildContext bc, Map<String, Object?> row, int i, Color bg,
-    Color fg, Note? note, WidgetRef ref) {
+    Color fg, Note? note, WidgetRef ref,
+    {required String mode,
+    String currentBody = '',
+    void Function(String content)? onReplace}) {
   final content = (row['content'] as String?) ?? '';
   final words = content.replaceAll(RegExp(r'\s'), '').length;
   return Container(
@@ -145,6 +157,16 @@ Widget _snapRow(BuildContext bc, Map<String, Object?> row, int i, Color bg,
             final dao = ref.read(noteDaoProvider);
             final now = DateTime.now();
             final t = (note?.title ?? '').trim();
+            if (mode == 'replace' && note?.id != null && onReplace != null) {
+              // 直接替换当前正文：替换前自动留快照，可反悔。
+              await dao.snapshot(note!.id!, currentBody);
+              onReplace(content);
+              ref.invalidate(notesProvider);
+              if (!bc.mounted) return;
+              Navigator.of(bc).pop();
+              AppToast.show(bc, '已恢复 · 当前正文已替换（替换前已留快照）');
+              return;
+            }
             await dao.save(Note(
                 title: '${t.isEmpty ? '未命名笔记' : t}（副本）',
                 content: content,
@@ -153,7 +175,9 @@ Widget _snapRow(BuildContext bc, Map<String, Object?> row, int i, Color bg,
                 createdAt: now,
                 updatedAt: now));
             ref.invalidate(notesProvider);
-            if (bc.mounted) Navigator.of(bc).pop();
+            if (!bc.mounted) return;
+            Navigator.of(bc).pop();
+            AppToast.show(bc, '已恢复为一条副本笔记，当前正文不动');
           },
           style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF6366F1),
@@ -215,9 +239,10 @@ extension on String {
   String clampLength() => length > 40 ? substring(0, 40) : this;
 }
 
-/// ⋯ 导出弹层：复制全文（TXT）/ 导出 Markdown / 导出 TXT。
+/// ⋯ 弹层（V1.29轮2②： 快照并入此处）：快照 / 复制全文 / 导出 MD / 导出 TXT。
 Future<void> showExportSheet(
-    BuildContext context, String title, String body, Color bg, Color fg) async {
+    BuildContext context, String title, String body, Color bg, Color fg,
+    {VoidCallback? onSnap}) async {
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: bg,
@@ -227,12 +252,23 @@ Future<void> showExportSheet(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-            child: Text('导出',
+            child: Text('笔记选项',
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                     color: fg)),
           ),
+          if (onSnap != null)
+            ListTile(
+              key: const ValueKey('exp-snap'),
+              title: Text('🕘 快照 · 版本快照·恢复',
+                  style: TextStyle(fontSize: 13.5, color: fg)),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () {
+                Navigator.of(bc).pop();
+                onSnap();
+              },
+            ),
           ListTile(
             key: const ValueKey('exp-copy'),
             title: Text('📋 复制全文（TXT）',

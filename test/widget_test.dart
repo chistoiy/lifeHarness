@@ -67,5 +67,27 @@ void main() {
     await settle(tester);
     expect(find.text('🎨 主题风格'), findsOneWidget);
     expect(find.text('海洋深蓝'), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+
+    // V1.29批A4：「记录管理」二级页入口（外观卡下方一行）。
+    final recmg = find.byKey(const ValueKey('entry-recmg'));
+    for (var i = 0; i < 12 && recmg.evaluate().isEmpty; i++) {
+      await tester.drag(settingsList.first, const Offset(0, -200));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.ensureVisible(recmg);
+    await settle(tester);
+    await tester.tap(recmg);
+    await settle(tester);
+    expect(find.descendant(of: find.byType(AppBar), matching: find.text('记录管理')),
+        findsOneWidget); // AppBar 标题
+    for (var i = 0;
+        i < 8 && find.text('回收站自动清理').evaluate().isEmpty;
+        i++) {
+      await tester.drag(find.byType(ListView).last, const Offset(0, -220));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('回收站自动清理'), findsOneWidget);
   });
 }

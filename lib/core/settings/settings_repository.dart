@@ -13,6 +13,7 @@ class SettingsRepository {
   static const _kNav = 'lh.nav_ids';
   static const _kNotify = 'lh.notify';
   static const _kHomeOrder = 'lh.home_order';
+  static const _kNoteRestore = 'lh.note_restore_mode';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
@@ -28,6 +29,7 @@ class SettingsRepository {
       'navIds': ?nav,
       'notify': ?_prefs.getString(_kNotify),
       'homeOrder': ?_prefs.getString(_kHomeOrder),
+      'noteRestoreMode': ?_prefs.getString(_kNoteRestore),
     });
   }
 
@@ -38,5 +40,6 @@ class SettingsRepository {
     await _prefs.setString(_kNav, m['navIds']! as String);
     await _prefs.setString(_kNotify, m['notify']! as String);
     await _prefs.setString(_kHomeOrder, m['homeOrder']! as String);
+    await _prefs.setString(_kNoteRestore, m['noteRestoreMode']! as String);
   }
 }
