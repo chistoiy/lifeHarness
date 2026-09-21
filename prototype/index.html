@@ -99,10 +99,13 @@ tailwind.config = {
   .pw-ic-btn:active{background:rgba(120,110,90,.12)}
   .pw-ic-btn.on{background:rgba(99,102,241,.18);color:#6366f1}
   .pw-body{font-size:15px;line-height:2.15;letter-spacing:.03em}
+  /* V1.29轮9m：⋯ 笔记选项弹层行卡=透明底+随纸色描边（配色跟随纸色） */
+  #sheetNoteKit .card{background:transparent;border:1px solid color-mix(in srgb,var(--pw-fg) 14%,transparent)}
   .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
   .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
   .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
-  .pw-focus p:not(.pw-cur){opacity:.22}
+  /* V1.29轮9j补正2：聚焦=纸面默认开（当前段高亮·其余淡出）·开关在 ⋯ 笔记选项内 */
+  .pw-body.pw-focus p:not(.pw-cur){opacity:.22}
   .fab-act{display:block;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 12px;box-shadow:0 4px 12px rgba(15,23,42,.12);text-align:left}
   .dark .fab-act{background:#1e293b;border-color:#334155;color:#e2e8f0}
   .inp{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff;outline:none;font-size:13px;width:100%}
@@ -159,7 +162,8 @@ tailwind.config = {
   .frac em{font-style:normal;display:block;padding:0 4px}
   .frac em:first-child{border-bottom:1.2px solid currentColor}
   .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.9;letter-spacing:.02em}
-  .pw-mode-btn{font-size:11px;font-weight:800;padding:4px 9px;border-radius:9px;opacity:.55;flex-shrink:0}
+  .pw-mode-btn{padding:5px;border-radius:9px;opacity:.45;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:inherit}
+  .pw-mode-btn svg{width:19px;height:19px}
   .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
   .note-sw{position:relative;overflow:hidden;border-radius:var(--card-r)}
   .note-del{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 var(--card-r) var(--card-r) 0;opacity:0;transition:opacity .15s}
@@ -225,6 +229,11 @@ tailwind.config = {
   .ins-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
   .ins-imgs{display:grid;grid-template-columns:1fr 1fr;gap:2px}
   .ins-img{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:22px}
+  /* V1.29轮9b：笔记卡片视图=瀑布流错落（非行对齐 grid） */
+  .note-masonry{column-gap:10px}
+  .note-masonry .note-sw{break-inside:avoid;margin-bottom:10px}
+  /* V1.29轮9c：纯文本插图=文末正方形缩略卡·右上✕删除·点图看大图 */
+  .pw-img-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;z-index:1}
   .ins-act{display:flex;gap:14px;padding:9px 14px 2px;font-size:19px}
   .ins-act button{opacity:.85;transition:transform .12s}
   .ins-act button:active{transform:scale(1.25)}
@@ -509,19 +518,16 @@ tailwind.config = {
           <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
           <span class="text-slate-300">›</span>
         </button>
-        <!-- V1.29轮7：筛选行+视图行合并为一行 = 筛选钮（下拉选条件）+ 切换键（列表 ⇄ INS 风） -->
-        <div class="mt-3 flex items-center justify-end gap-2 relative">
-          <button id="diaryFilterBtn" onclick="toggleDiaryFilterMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="筛选">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
-          </button>
-          <div id="diaryFilterMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
+        <!-- V1.29轮9g修正：本行=列表⇄INS切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签 -->
+        <div class="mt-2 flex items-center justify-end gap-2 relative">
           <button id="diaryViewBtn" onclick="diaryLayout(dlLayout==='list'?'ins':'list')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="切换 列表/INS 卡片流">☰</button>
+          <button id="diaryFilterBtn" onclick="openSheet('sheetDiaryFilter')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
         </div>
         <div id="diaryList" class="mt-3"></div>
       </div>
 
       <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
-      <div id="recNote" class="hidden mt-4">
+      <div id="recNote" class="hidden mt-1.5">
         <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
         <div class="flex items-center justify-end gap-2 relative">
           <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
@@ -530,7 +536,6 @@ tailwind.config = {
           <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
         </div>
         <div id="noteList" class="mt-3"></div>
-        <div class="mt-2 text-[10px] text-slate-400 text-center">共 23 篇 · 左滑卡片删除 · 长按进入批量选择（置顶 / 移动到 / 删除）</div>
       </div>
 
       <!-- 阅读 tab -->
@@ -595,7 +600,7 @@ tailwind.config = {
       <div id="dwIns" class="hidden mt-3"></div>
     </section>
 
-    <!-- ===== P4d 笔记编辑器（纯纯写作风 · 四模式） ===== -->
+    <!-- ===== P4d 笔记编辑器（纯纯写作风 · 写作视图+源码/预览切换 · V1.29轮9e 去分屏 · 轮9o 去专注钮） ===== -->
     <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
       <div class="px-4 pt-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
         <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
@@ -603,36 +608,30 @@ tailwind.config = {
           <div id="pwTitle" class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
           <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
         </div>
+        <!-- V1.29轮9h/9o：MD 顶行=写作(默认·无钮)+源码+预览 两个可再点回落的切换图标 · 段落聚焦由 ⋯ 笔记选项开关管 -->
+        <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
+          <button class="pw-mode-btn" data-m="src" onclick="pwSetMode(pwMode==='src'?'focus':'src')" title="MD 源码">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5m8-10 5 5-5 5"/></svg></button>
+          <button class="pw-mode-btn" data-m="view" onclick="pwSetMode(pwMode==='view'?'focus':'view')" title="预览">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
         <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn">⋯</button>
       </div>
-      <!-- 模式切换 + MD 语法快捷操作栏（V1.29：仅 MD 文档类型显示 · 富文本用 B/≡/☑/🖼/❝ · 纯文本无工具栏） -->
-      <div id="pwBar" class="px-3 py-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar sticky top-[52px] z-10" style="background:var(--pw-bg);border-bottom:1px solid rgba(120,110,90,.1)">
-        <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
-          <button class="pw-mode-btn on" data-m="focus" onclick="pwSetMode('focus')">🖊 专注</button>
-          <button class="pw-mode-btn" data-m="src" onclick="pwSetMode('src')">⌨️ MD源码</button>
-          <button class="pw-mode-btn" data-m="split" onclick="pwSetMode('split')">🔀 分屏</button>
-          <button class="pw-mode-btn" data-m="view" onclick="pwSetMode('view')">👁 预览</button>
-        </div>
-      </div>
 
-      <!-- 模式① 专注写作（现有段落） -->
-      <div class="px-7 pt-5 pb-28 pw-body" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
+      <!-- 写作视图（默认态·现有段落·无模式钮） -->
+      <div class="px-7 pt-5 pb-28 pw-body pw-focus" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
         <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
         <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
         <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
         <p>克制不等于简陋。自动保存、版本快照、断点续写，这些防丢稿的地基应该平时看不见，塌了才知道它重要。</p>
         <p>☑ 待办行样式：勾选后自动同步为任务列表新任务（联动 L3，与日记同构）</p>
-        <p>Markdown、LaTeX 公式、实时渲染、分屏预览——都在，但只在你需要时才出现。点击顶栏 🔀 分屏 试试。</p>
+        <p>Markdown、LaTeX 公式、实时渲染——都在，但只在你需要时才出现。</p>
         <p class="opacity-60">（点击任意段落试试聚焦模式 · 本段以下为演示占位）字距、行距、纸色，是中文写作工具被低估的三件套。行高 2.15、字距 0.03em，是长时间盯屏不累的经验值。</p>
         <!-- V1.29轮8①：纯文本也可插图=正文尾部「＋」附件卡 → 图库/拍照 -->
         <button id="pwAttach" class="hidden mt-4 w-24 h-24 rounded-2xl items-center justify-center text-2xl active:scale-95 transition" style="background:rgba(120,110,90,.12);color:var(--pw-fg)" onclick="openSheet('sheetImgSrc')">＋</button>
       </div>
-      <!-- 模式②③④：源码 / 分屏 / 预览 -->
+      <!-- 模式②③：源码 / 预览（V1.29轮9e：分屏移除·手机屏太小用不起来） -->
       <div id="pwSrcWrap" class="hidden px-5 pt-3 pb-28"><div id="pwSrcBox"></div></div>
-      <div id="pwSplitWrap" class="hidden px-3 pt-3 pb-28 grid grid-cols-2 gap-3">
-        <div id="pwSplitBox" class="min-w-0"></div>
-        <div id="pwPrev" class="md-view min-w-0 overflow-x-auto px-1" style="font-size:14px"></div>
-      </div>
       <div id="pwViewWrap" class="hidden px-7 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
         <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
       <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
@@ -655,6 +654,8 @@ tailwind.config = {
           <button id="nrMode" onclick="tglNoteRestore()" class="mini-btn">直接替换正文</button></div>
         <div class="text-[11px] text-slate-400">恢复快照时：直接替换当前正文（替换前自动留快照，可反悔）⇄ 新增为一条副本笔记</div>
         <div class="flex items-center justify-between"><span>自动快照节奏</span><b class="text-xs text-slate-400">停输 30 秒 / 每 500 字</b></div>
+        <!-- V1.29轮9k：LaTeX 语法渲染开关（默认关·关=预览/分屏按原文显示 $..$/$$..$$） -->
+        <div class="flex items-center justify-between"><span>LaTeX 公式渲染</span><span id="latexTgl" class="toggle" onclick="tgl(this);PW_LATEX=!PW_LATEX;pwSync();toast(PW_LATEX?'已开启 LaTeX 渲染：$..$ 与 $$..$$ 显示为公式':'已关闭 LaTeX 渲染：公式按原文显示')"></span></div>
         <div class="flex items-center justify-between"><span>🗂 文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 点 📂 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
       </div>
       <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📚 阅读</div>
@@ -1972,27 +1973,42 @@ tailwind.config = {
       </div>
     </div>
   </div>
-  <div id="sheetNoteKit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteKit')">
+  <!-- V1.29轮9g：日记筛选底部浮层（顶栏漏斗钮唤起） -->
+  <div id="sheetDiaryFilter" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryFilter')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">筛选</div>
+      <div id="dfList" class="mt-2 space-y-1"></div>
+    </div>
+  </div>
+  <!-- V1.29轮9c：点缩略图看大图（全屏黑底 · 再点任意处关闭） -->
+  <div id="imgLight" class="hidden fixed md:absolute inset-0 z-[60] items-center justify-center bg-black/85" onclick="this.classList.add('hidden');this.classList.remove('flex')">
+    <span class="ins-img" style="width:76%;border-radius:16px;background:linear-gradient(135deg,#7dd3fc,#818cf8);font-size:64px">🌇</span>
+  </div>
+  <div id="sheetNoteKit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteKit')">
+    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
       <div class="grabber"></div>
       <div class="font-extrabold">⋯ 笔记选项</div>
       <div class="mt-3 space-y-2 text-xs">
+        <!-- V1.29轮9j：行内去 emoji（纯文字简约风） -->
         <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">类型</span>
           <div class="flex gap-1.5 flex-1" id="pwTypes">
-            <button class="chip !py-1" data-t="rich" onclick="pwSetType('rich')">📝 富文本</button>
-            <button class="chip !py-1" data-t="plain" onclick="pwSetType('plain')">📃 纯文本</button>
-            <button class="chip chip-on !py-1" data-t="md" onclick="pwSetType('md')">⌨️ MD 文档</button>
+            <button class="chip !py-1" data-t="rich" onclick="pwSetType('rich')">富文本</button>
+            <button class="chip !py-1" data-t="plain" onclick="pwSetType('plain')">纯文本</button>
+            <button class="chip chip-on !py-1" data-t="md" onclick="pwSetType('md')">MD 文档</button>
           </div></div>
         <div class="card !py-3 px-4 flex items-center gap-2.5"><span class="opacity-50 w-14 flex-shrink-0">字号</span><input type="range" min="13" max="19" value="15" oninput="pwFont(this.value)" class="flex-1"><span class="opacity-50 w-14 text-right flex-shrink-0" id="pwKitFont">15 px</span></div>
-        <div class="card !py-3 px-4 flex items-center gap-2.5"><span class="opacity-50 w-14 flex-shrink-0">纸色</span><div class="flex gap-1.5" id="pwPapers"></div><span class="ml-auto opacity-55" id="pwPaperName">米纸</span></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><b id="pwFocusBtn" class="ml-auto cursor-pointer" onclick="pwFocus(this)">🎯 当前段高亮 · 开/关</b></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">分类</span><span class="ml-auto">📁 灵感</span><span class="text-slate-400 ml-1">▾</span></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">置顶</span><span class="toggle ml-auto" onclick="tgl(this);toast('📌 置顶状态已切换')"></span></div>
+        <!-- V1.29轮9n修正：纸色一行一体=预置4点+自定义色条+当前名（纸色仅对当前笔记生效·仅卡片视图条目底色跟随） -->
+        <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">纸色</span><div class="flex gap-1.5 flex-shrink-0" id="pwPapers"></div><input type="range" min="0" max="359" value="40" id="pwHue" oninput="pwSetPaperHue(this.value)" class="flex-1 min-w-0" style="background:linear-gradient(to right,hsl(0,60%,88%),hsl(60,60%,88%),hsl(120,60%,88%),hsl(180,60%,88%),hsl(240,60%,88%),hsl(300,60%,88%),hsl(359,60%,88%));border-radius:999px;height:14px;appearance:none;-webkit-appearance:none;outline:none"><span class="opacity-55 flex-shrink-0 text-right w-10" id="pwPaperName">米纸</span></div>
+        <!-- V1.29轮9j补正2/9o：聚焦=纸面默认开·开关在此（当前段高亮其余淡出·写作视图不再有专注钮）·开关靠右对齐 -->
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><span id="pwFocusTgl" class="toggle on ml-auto" onclick="pwFocusToggle(this)"></span></div>
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">分类</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
+        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">置顶</span><span class="toggle ml-auto" onclick="tgl(this);toast('置顶状态已切换')"></span></div>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">统计</span><b class="ml-auto" id="pwCount">312 字 · 约 1 分钟</b></div>
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">🕘 快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">导出</span><span class="ml-auto text-slate-400">TXT / Markdown / 复制全文 ›</span></div>
       </div>
-      <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
+      <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">收起</button>
     </div>
   </div>
 
@@ -2260,7 +2276,7 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
-function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); }
+function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2874,6 +2890,7 @@ function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRe
   if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
   [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
   const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
+  syncDiaryFilterBtn();
   renderRecSwitch();
 }
 function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
@@ -2883,7 +2900,7 @@ function hideRecSwitchMenu(){const m=$('#recSwitchMenu');if(m)m.classList.add('h
 function renderRecords(){
   /* —— 日记：筛选 + 时间线卡片 —— */
   /* V1.29轮7：筛选改为一行内的筛选钮下拉 */
-  renderDiaryFilterMenu();
+  syncDiaryFilterBtn();
   renderDiaryList();
   renderMoodMini();
   /* —— 笔记：纯纯写作风列表（V1.29：文件夹 chips+回收站/新建 · 列表/卡片视图 · 左滑🗑） —— */
@@ -2930,21 +2947,34 @@ const PW_PAPERS=[['#fbf8f1','#403a31'],['#ffffff','#334155'],['#edf3ea','#37412f
 let pwPaper=0;
 function renderPapers(){$('#pwPapers').innerHTML=PW_PAPERS.map((p,i)=>`<button class="w-5 h-5 rounded-full border ${i===0?'border-brand-500':'border-slate-300 dark:border-slate-600'}" style="background:${p[0]}" onclick="pwSetPaper(${i})"></button>`).join('');}
 const PW_PAPER_NM=['米纸','纯白','护眼绿','深夜'];
-function pwSetPaper(i){pwPaper=i;const e=$('#p-noteEdit');e.style.setProperty('--pw-bg',PW_PAPERS[i][0]);e.style.setProperty('--pw-fg',PW_PAPERS[i][1]);
-  $$('#pwPapers button').forEach((b,j)=>b.className=`w-5 h-5 rounded-full border ${j===i?'border-brand-500':'border-slate-300 dark:border-slate-600'}`);
-  const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[i];}
+/* V1.29轮9n：纸色按笔记独立生效（NOTE_PAPER 映射·仅卡片视图条目底色跟随，列表视图不体现） */
+const NOTE_PAPER={};
+function pwApplyPaperVars(bg,fg){const e=$('#p-noteEdit');e.style.setProperty('--pw-bg',bg);e.style.setProperty('--pw-fg',fg);
+ const k=$('#sheetNoteKit');if(k){k.style.setProperty('--pw-bg',bg);k.style.setProperty('--pw-fg',fg);}}
+function pwSetPaper(i){pwPaper=i;const p=PW_PAPERS[i];pwApplyPaperVars(p[0],p[1]);
+ if(pwNote)NOTE_PAPER[pwNote]={bg:p[0],fg:p[1]};
+ $$('#pwPapers button').forEach((b,j)=>b.className=`w-5 h-5 rounded-full border ${j===i?'border-brand-500':'border-slate-300 dark:border-slate-600'}`);
+ const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[i];}
+function pwSetPaperHue(h){const bg=`hsl(${h},60%,88%)`;pwApplyPaperVars(bg,'#403a31');
+ if(pwNote)NOTE_PAPER[pwNote]={bg:bg,fg:'#403a31'};
+ $$('#pwPapers button').forEach(b=>b.className='w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600');
+ const nm=$('#pwPaperName');if(nm)nm.textContent='自定义';}
+function pwLoadNotePaper(t){const p=NOTE_PAPER[t];
+ if(p){pwApplyPaperVars(p.bg,p.fg);const i=PW_PAPERS.findIndex(x=>x[0]===p.bg);const nm=$('#pwPaperName');if(nm)nm.textContent=i>=0?PW_PAPER_NM[i]:'自定义';}
+ else{pwApplyPaperVars(PW_PAPERS[0][0],PW_PAPERS[0][1]);const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[0];}}
 function pwFont(v){$('#pwBody').style.fontSize=v+'px';const l=$('#pwKitFont');if(l)l.textContent=v+' px';}
-function pwFocus(btn){const on=$('#pwBody').classList.toggle('pw-focus');btn.classList.toggle('on',on);toast(on?'聚焦模式：当前段高亮，其余段落淡出':'已关闭聚焦模式');}
+/* V1.29轮9j补正2：聚焦开关（默认开·⋯ 笔记选项内）·纯文本/富文本/MD 通用 */
+function pwFocusToggle(el){const on=$('#pwBody').classList.toggle('pw-focus');if(el)el.classList.toggle('on',on);
+ toast(on?'聚焦开：当前段高亮，其余淡出':'聚焦关：全部段落正常显示');}
 function exitNoteEdit(){toast('已保存 ✓ 并生成版本快照');stack.length?goBack():navTab('p-records');}
 /* ================= V1.29 笔记批：类型 / 视图 / 文件夹 / 左滑回收站 ================= */
 let pwType='md',pwNote='';
 function pwSetType(t){pwType=t;
   $$('#pwTypes .chip').forEach(b=>b.classList.toggle('chip-on',b.dataset.t===t));
-  $('#pwModes').classList.toggle('hidden',t!=='md');
-  $('#pwBar').classList.toggle('hidden',t!=='md');
+  const md=$('#pwModes');md.classList.toggle('hidden',t!=='md');md.classList.toggle('flex',t==='md');
   const at=$('#pwAttach');at.classList.toggle('hidden',t!=='plain');at.classList.toggle('flex',t==='plain');
   renderPwBar();
-  toast(t==='rich'?'📝 富文本：选中文本点键立即生效（Word 式·与 MD 无关）·可插图':t==='plain'?'📃 纯文本：纸和字 + 尾部「＋」插图':'⌨️ MD 文档：四模式 · 语法栏在底部');}
+  toast(t==='rich'?'富文本：选中文本点键立即生效（Word 式·与 MD 无关）·可插图':t==='plain'?'纯文本：纸和字 + 尾部「＋」插图':'MD 文档：写作视图 + 顶行源码/预览切换 · 语法栏在底部');}
 function pwRich(k){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)return;
   if(k==='b'){cur.style.fontWeight=cur.style.fontWeight==='800'?'400':'800';toast(cur.style.fontWeight==='800'?'已加粗（所见即所得·不留语法痕迹）':'已取消加粗');}
   else if(k==='i'){cur.style.fontStyle=cur.style.fontStyle==='italic'?'normal':'italic';toast(cur.style.fontStyle==='italic'?'已斜体':'已取消斜体');}
@@ -3000,9 +3030,17 @@ function pwRichHead(n){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)r
   cur.style.fontSize=['','20px','18px','16px'][n]||'';cur.style.fontWeight=n?'900':'400';
   toast(n?'已设为标题 H'+n+'（所见即所得·零语法痕迹）':'已还原正文 N');}
 function pwPickImg(src){closeSheet('sheetImgSrc');
+  /* V1.29轮9c：纯文本插图 = 文末直接渲染正方形缩略卡（不显示 MD 语法）·点图看大图·右上✕删 */
+  if(pwType==='plain'){const at=$('#pwAttach');
+    if(at){const c=document.createElement('div');
+      c.className='pw-img-card';c.style.cssText='position:relative;width:120px;margin-top:12px';
+      c.innerHTML=`<span class="ins-img" style="width:120px;height:120px;border-radius:14px;background:linear-gradient(135deg,#7dd3fc,#818cf8)" onclick="pwImgView()">🌇</span><button class="pw-img-del" onclick="event.stopPropagation();this.parentElement.remove()">✕</button>`;
+      at.insertAdjacentElement('beforebegin',c);}
+    toast(src==='camera'?'已拍照插入 · 文末显示缩略图':'已从图库插入 · 文末显示缩略图');return;}
   const cur=$('#pwBody p.pw-cur')||$('#pwBody p');
   if(cur)cur.insertAdjacentHTML('beforeend','<span class="ins-img" style="width:120px;height:80px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;margin:6px 0 0 6px;background:linear-gradient(135deg,#7dd3fc,#818cf8)">🌇</span>');
   toast(src==='camera'?'已拍照插入（真实版=系统相机）':'已从图库插入（真实版=相册选图·本地存储）');}
+function pwImgView(){const l=$('#imgLight');l.classList.remove('hidden');l.classList.add('flex');}
 /* V1.29轮8③：编辑页左右滑动=按当前排序切换上/下一篇（免回列表） */
 function pwSwipe(dir){const list=noteSorted();if(!list.length)return;
   let i=list.findIndex(n=>n.t===pwNote);if(i<0)i=0;
@@ -3024,8 +3062,8 @@ function renderNoteSortMenu(){const m=$('#noteSortMenu');
   m.innerHTML=['upd','cre','title'].map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSortClick('${k}')">${sortLabel(k)}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
 document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
 let noteSelMode=false,noteSel=new Set();
-function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<4){noteCols++;}else{noteView='list';}
-  $('#noteViewBtn').textContent=noteView==='list'?'☰':'';
+function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<3){noteCols++;}else{noteView='list';}
+  $('#noteViewBtn').textContent=noteView==='list'?'☰':(noteCols===2?'▦':'▤');
   toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
 function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
   list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
@@ -3035,13 +3073,18 @@ function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteF
   return list;}
 function renderNotes(){const L=$('#noteList');
   const list=noteSorted();
-  L.className=noteView==='list'?'':'mt-2 grid gap-2.5 grid-cols-'+noteCols;
+  /* V1.29轮9b：卡片视图=瀑布流错落（CSS columns）·卡片 1 标题 + 最多 4 行正文 + 1 时间行 */
+  const card=noteView==='card';
+  L.className=card?'mt-2 note-masonry':'';
+  L.style.columnCount=card?noteCols:'';
   L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
-    return `<div class="note-sw min-w-0 ${noteView==='list'?'mb-2.5':''}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
-    <div class="note-card card" onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
+    const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${n.txt}</div>`
+      :`<div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>`;
+    return `<div class="note-sw min-w-0 ${card?'':'mb-2.5'}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
+    <div class="note-card card" ${card&&NOTE_PAPER[n.t]?'style="background:'+NOTE_PAPER[n.t].bg+'"':''} onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
     <div class="flex items-center gap-2.5"><div class="flex-1 min-w-0">
     <b class="text-sm block truncate">${n.t}</b>
-    <div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>
+    ${body}
     <div class="flex items-center gap-1.5 mt-1.5"><span class="text-[10px] text-slate-400">${n.time}</span>${n.pin?`<span class="inline-flex text-amber-500" style="transform:rotate(45deg);width:13px;height:13px">${NT_IC.pin.replace(/width="15" height="15"/,'width="13" height="13"')}</span>`:''}</div>
     </div>${noteSelMode?`<span class="nchk ${sel?'on':''} flex-shrink-0">✓</span>`:''}</div></div></div>`;}).join('');
   $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
@@ -3051,7 +3094,7 @@ function renderNotes(){const L=$('#noteList');
 function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}
   if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
     if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
-  pwNote=t;navTo('p-noteEdit');}
+  pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
 function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);}
   else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
   updateNoteSelBar();renderNotes();}
@@ -3129,8 +3172,9 @@ function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'无分类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
-/* ================= 笔记 · Markdown 引擎与四模式（专注/源码/分屏/预览） ================= */
-const PW_MD='# 论写作工具的克制设计\n\n**写作工具的第一要务**，是让人 *忘记* 工具的存在。\n\n- [x] 自动保存，与纯纯写作对齐\n- [ ] 打字机居中跟随\n- [ ] 段落级拖拽重排\n\n> 纸不会建议你写什么，但会诚实地接住你写下的一切——包括那些只写了一半的句子。\n\n行内公式 $E=mc^2$ ，以及二次方程求根：\n\n$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$\n\n| 模式 | 用途 |\n| --- | --- |\n| 🖊 专注 | 沉浸式写作 |\n| ⌨️ 源码 | Markdown 语法 |\n| 🔀 分屏 | 实时渲染 |\n\n`行内代码`、~~删除线~~、[官方博客](https://example.com)。\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n';
+/* ================= 笔记 · Markdown 引擎与视图（写作=默认·顶行源码/预览可切换回落 · 轮9o 去专注钮） ================= */
+let PW_LATEX=false; /* V1.29轮9k：LaTeX 语法渲染开关（记录管理·笔记段·默认关） */
+const PW_MD='# 论写作工具的克制设计\n\n**写作工具的第一要务**，是让人 *忘记* 工具的存在。\n\n- [x] 自动保存，与纯纯写作对齐\n- [ ] 打字机居中跟随\n- [ ] 段落级拖拽重排\n\n> 纸不会建议你写什么，但会诚实地接住你写下的一切——包括那些只写了一半的句子。\n\n行内公式 $E=mc^2$ ，以及二次方程求根：\n\n$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$\n\n| 模式 | 用途 |\n| --- | --- |\n| ✍️ 写作 | 沉浸式写作 |\n| ⌨️ 源码 | Markdown 语法 |\n| 👁 预览 | 渲染阅读 |\n\n`行内代码`、~~删除线~~、[官方博客](https://example.com)。\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n';
 const TEX_G={alpha:'α',beta:'β',gamma:'γ',delta:'δ',Delta:'Δ',epsilon:'ε',theta:'θ',lambda:'λ',mu:'μ',pi:'π',sigma:'σ',Sigma:'Σ',tau:'τ',phi:'φ',omega:'ω',Omega:'Ω',infty:'∞',cdots:'⋯',cdot:'·',times:'×',div:'÷',pm:'±',mp:'∓',le:'≤',ge:'≥',ne:'≠',approx:'≈',equiv:'≡',sum:'∑',prod:'∏',int:'∫',partial:'∂',nabla:'∇',to:'→',rightarrow:'→',langle:'⟨',rangle:'⟩',degree:'°',circ:'∘',propto:'∝'};
 function latexMini(s){
  s=s.replace(/\\sqrt\{([^{}]*)\}/g,'√($1)');
@@ -3141,7 +3185,7 @@ function latexMini(s){
  s=s.replace(/_\{([^{}]*)\}/g,'<sub>$1</sub>').replace(/_([0-9A-Za-z+\-])/g,'<sub>$1</sub>');
  return s;}
 function mdInline(s){s=esc2(s);
- s=s.replace(/\$([^$]+)\$/g,function(m,x){return '<span class="texi">'+latexMini(x)+'</span>';});
+ if(PW_LATEX)s=s.replace(/\$([^$]+)\$/g,function(m,x){return '<span class="texi">'+latexMini(x)+'</span>';});
  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
  s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
  s=s.replace(/~~([^~]+)~~/g,'<s>$1</s>');
@@ -3151,8 +3195,8 @@ function mdInline(s){s=esc2(s);
 function mdRender(src){src=String(src).replace(/\\\[/g,'$$').replace(/\\\]/g,'$$');const L=src.split('\n');let out='',i=0;
  const special=s=>/^(#{1,4}\s|>|\||```|\$\$|\s*[-*]\s|\s*\d+\.\s|---\s*$)/.test(s);
  while(i<L.length){const ln=L[i];
-  const bm=ln.trim().match(/^\$\$(.+)\$\$$/);if(bm){out+='<div class="tex-block">'+latexMini(bm[1])+'</div>';i++;continue}
-  if(ln.trim()==='$$'){let b='';i++;while(i<L.length&&L[i].trim()!=='$$'){b+=(b?' ':'')+L[i];i++}i++;out+='<div class="tex-block">'+latexMini(b)+'</div>';continue}
+  const bm=ln.trim().match(/^\$\$(.+)\$\$$/);if(bm){out+=PW_LATEX?'<div class="tex-block">'+latexMini(bm[1])+'</div>':'<p class="md-p">'+esc2(bm[0])+'</p>';i++;continue}
+  if(ln.trim()==='$$'){let b='';i++;while(i<L.length&&L[i].trim()!=='$$'){b+=(b?' ':'')+L[i];i++}i++;out+=PW_LATEX?'<div class="tex-block">'+latexMini(b)+'</div>':'<p class="md-p">$$'+esc2(b)+'$$</p>';continue}
   if(/^```/.test(ln)){let b='';i++;while(i<L.length&&!/^```/.test(L[i])){b+=(b?'\n':'')+L[i];i++}i++;out+='<pre class="md-pre">'+esc2(b)+'</pre>';continue}
   const hm=ln.match(/^(#{1,4})\s+(.*)/);if(hm){const tg='h'+hm[1].length;out+='<'+tg+' class="md-h'+hm[1].length+'">'+mdInline(hm[2])+'</'+tg+'>';i++;continue}
   if(/^-{3,}$/.test(ln.trim())){out+='<hr class="md-hr">';i++;continue}
@@ -3173,17 +3217,15 @@ function initPW2(){PW_TA=document.createElement('textarea');PW_TA.id='pwTa';PW_T
  PW_TA.style.color='var(--pw-fg)';PW_TA.style.background='transparent';$('#pwSrcBox').appendChild(PW_TA);}
 function pwSetMode(m){pwMode=m;$$('#pwModes .pw-mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
  $('#pwBody').classList.toggle('hidden',m!=='focus');$('#pwSrcWrap').classList.toggle('hidden',m!=='src');
- $('#pwSplitWrap').classList.toggle('hidden',m!=='split');$('#pwViewWrap').classList.toggle('hidden',m!=='view');
+ $('#pwViewWrap').classList.toggle('hidden',m!=='view');
  if(m==='src'&&!PW_TA.closest('#pwSrcBox'))$('#pwSrcBox').appendChild(PW_TA);
- if(m==='split'&&!PW_TA.closest('#pwSplitBox'))$('#pwSplitBox').appendChild(PW_TA);
  pwSync();
- if(m==='src'||m==='split')setTimeout(()=>PW_TA.focus(),60);
- if(m==='view')toast('渲染预览：排版/表格/待办/LaTeX 公式');
- if(m==='split')toast('分屏：上（左）源码 · 下（右）实时渲染，输入即变');}
+ if(m==='src')setTimeout(()=>PW_TA.focus(),60);
+ if(m==='view')toast('渲染预览：排版/表格/待办/LaTeX 公式');}
 function pwSync(){if(!PW_TA)return;const html=mdRender(PW_TA.value);
- const p=$('#pwPrev');if(p)p.innerHTML=html;const vb=$('#pwViewBox');if(vb)vb.innerHTML=html;
+ const vb=$('#pwViewBox');if(vb)vb.innerHTML=html;
  const n=PW_TA.value.replace(/\s/g,'').length;$('#pwCount').textContent=n+' 字 · 约 '+Math.max(1,Math.round(n/300))+' 分钟';}
-function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');return;}
+function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为写作视图 · 切源码后可用 MD 快捷栏');return;}
  if(k==='h'){const ta=PW_TA,s=ta.selectionStart,v=ta.value,ls=v.lastIndexOf('\n',s-1)+1;let ne=v.indexOf('\n',ls);if(ne===-1)ne=v.length;const line=v.slice(ls,ne);
   const m=line.match(/^(#{1,6})\s/);const lv=m?(m[1].length>=6?0:m[1].length+1):1;
   const rest=line.replace(/^#{1,6}\s?/,'');const nl=lv?'#'.repeat(lv)+' '+rest:rest;
@@ -3694,14 +3736,15 @@ function dwMode(k){dwLayout=k;$('#dwDoc').classList.toggle('hidden',k!=='doc');$
 function openInsFull(i){$('#insFullBody').innerHTML=insCardHtml(i);$('#insFull').classList.remove('hidden')}
 function diaryLayout(k){dlLayout=k;const b=$('#diaryViewBtn');if(b)b.textContent=k==='list'?'☰':'▦';renderDiaryList();
   toast(k==='ins'?'INS 卡片流预览':'列表视图');}
-/* V1.29轮7：日记筛选钮下拉（当前条件高亮✓） */
+/* V1.29轮9g：日记筛选=顶栏漏斗钮 + 底部浮层选择（全部/☐待办/标签·当前项✓） */
 let diaryFilter='全部';
-const DIARY_FILTERS=['全部','🖼 有图片','#加班','#复盘','🏃 运动'];
-function toggleDiaryFilterMenu(e){e.stopPropagation();renderDiaryFilterMenu();$('#diaryFilterMenu').classList.toggle('hidden');}
-function renderDiaryFilterMenu(){const m=$('#diaryFilterMenu');if(!m)return;
-  m.innerHTML=DIARY_FILTERS.map(f=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${f===diaryFilter?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diaryFilter='${f}';$('#diaryFilterMenu').classList.add('hidden');renderDiaryFilterMenu();toast('已按「${f}」筛选（模拟）')">${f}<span class="text-[11px]">${f===diaryFilter?'✓':''}</span></button>`).join('');
-  const b=$('#diaryFilterBtn');if(b)b.classList.toggle('text-brand-500',diaryFilter!=='全部');}
-document.addEventListener('pointerdown',e=>{const m=$('#diaryFilterMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recDiary'))m.classList.add('hidden')},true);
+const DIARY_FILTERS=['全部','☐ 待办','#加班','#复盘'];
+function renderDiaryFilterSheet(){const m=$('#dfList');if(!m)return;
+  m.innerHTML=DIARY_FILTERS.map(f=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${f===diaryFilter?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diaryFilterSet('${f}')">${f}<span class="text-[11px]">${f===diaryFilter?'✓':''}</span></button>`).join('');
+  syncDiaryFilterBtn();}
+function diaryFilterSet(f){diaryFilter=f;closeSheet('sheetDiaryFilter');renderDiaryFilterSheet();toast('已按「'+f+'」筛选（模拟）');}
+function syncDiaryFilterBtn(){const b=$('#diaryFilterBtn');if(!b)return;
+  b.classList.toggle('text-brand-500',diaryFilter!=='全部');b.classList.toggle('text-slate-500',diaryFilter==='全部');}
 function renderDiaryList(){const el=$('#diaryList');if(!el)return;
  if(dlLayout==='ins'){renderInsInto('#diaryList',false);return}
  el.innerHTML=D.diary.map(d=>`<div class="card mb-3" onclick="navTo('p-diaryEdit')">
@@ -3722,7 +3765,6 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
 renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
-$("#pwPrev")&&($('#pwPrev').innerHTML=mdRender(PW_MD));
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 
