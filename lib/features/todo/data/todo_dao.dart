@@ -19,9 +19,10 @@ class TodoDao {
     final manual = await _maxSort() > 0;
     final rows = await db.query(
       table,
+      // 次级键 id 兜底：同毫秒 updated_at 并列时保持新在前（确定性，防抖动）。
       orderBy: manual
-          ? 'done ASC, sort_order ASC'
-          : 'done ASC, due_at IS NULL, due_at ASC, updated_at DESC',
+          ? 'done ASC, sort_order ASC, id ASC'
+          : 'done ASC, due_at IS NULL, due_at ASC, updated_at DESC, id DESC',
     );
     return rows.map(fromRow).toList();
   }
