@@ -1,5 +1,6 @@
 import 'helpers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
@@ -366,6 +367,83 @@ void main() {
       expect(todos.map((t) => t.title), ['整理书架']);
       expect(todos.first.quadrant, Quadrant.q2);
       expect(todos.first.tag, '笔记');
+    });
+  });
+
+  group('笔记快照与导出（批1d）', () {
+    testWidgets('停输 30s 自动快照；🕘 弹层列表；恢复=新建副本不动当前稿',
+        (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-0')), '第一段完整的论述');
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存拿到 id
+      await tester.pump(const Duration(seconds: 31)); // 停输 30s → 快照
+      await tester.pump();
+
+      final list = await dao.list();
+      expect(list, hasLength(1));
+      expect(await dao.snapshotsOf(list.single.id!), hasLength(1));
+
+      await tester.tap(find.byKey(const ValueKey('note-snap-open')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('snap-row-0')), findsOneWidget);
+      expect(find.textContaining('恢复为副本不覆盖当前稿'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
+      await settle5(tester);
+
+      final after = await dao.list();
+      expect(after, hasLength(2)); // 原稿 + 副本
+      expect(after.map((e) => e.title), contains('未命名笔记（副本）'));
+      expect(
+          after.firstWhere((e) => !e.title.endsWith('（副本）')).content,
+          '第一段完整的论述'); // 当前稿未被覆盖
+    });
+
+    testWidgets('每 +500 字 → 里程碑快照（不必等停输）', (tester) async {
+      final n = await dao.save(note('长文', content: '起手'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-0')), '一' * 520);
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump();
+      expect(await dao.snapshotsOf(n.id!), hasLength(1));
+    });
+
+    testWidgets('快照比当前稿完整 → 打开时草稿提醒 toast', (tester) async {
+      final n = await dao.save(note('断点', content: '只剩半句'));
+      await dao.snapshot(n.id!, '前半句加后半句一共二十三个字刚刚好');
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      expect(
+          await pollText(tester,
+              '🕘 有比当前更完整的快照（+13 字）· 可从版本快照恢复'),
+          isTrue);
+    });
+
+    testWidgets('⋯ 导出弹层：复制全文（TXT）入剪贴板', (tester) async {
+      final n = await dao.save(note('可复制', content: '全文内容在此'));
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('exp-md')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('exp-copy')));
+      await settle5(tester);
+      expect(copied, contains('全文内容在此'));
+      expect(await pollText(tester, '已复制全文到剪贴板'), isTrue);
     });
   });
 }

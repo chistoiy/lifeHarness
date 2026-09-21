@@ -9,6 +9,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/md_shortcut.dart';
 import 'journal_providers.dart';
 import 'widgets/md_view.dart';
+import 'widgets/note_sheets.dart';
 
 /// 编辑器四模式（原型 p-noteEdit · 批1b）：专注段落 / MD 源码 / 分屏 / 预览。
 enum NoteEditMode { focus, src, split, view }
@@ -70,6 +71,11 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   bool _saved = false;
   Timer? _debounce;
 
+  // 版本快照（批1d · 原型 sheetSnapshot）：停输 30s / 每 +500 字自动留存。
+  Timer? _snapIdle;
+  String _lastSnapText = '';
+  int _snapBaseWords = 0;
+
   NoteEditMode _mode = NoteEditMode.focus;
   int _paperIdx = 0;
   double _font = 15;
@@ -97,13 +103,24 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       _folder = n.folder ?? '';
       _pinned = n.pinned;
       _kind = n.kind;
+      _snapBaseWords = n.wordCount;
       _resetParas(n.content);
     });
+    // 断点续写（草稿提醒）：最近快照比当前稿更完整时提示可从 🕘 恢复。
+    final snaps = await ref.read(noteDaoProvider).snapshotsOf(n.id!);
+    if (snaps.isEmpty || !mounted) return;
+    final latest = (snaps.first['content'] as String?) ?? '';
+    final gain = latest.replaceAll(RegExp(r'\s'), '').length -
+        n.content.replaceAll(RegExp(r'\s'), '').length;
+    if (gain > 0 && latest != n.content) {
+      AppToast.show(context, '🕘 有比当前更完整的快照（+$gain 字）· 可从版本快照恢复');
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _snapIdle?.cancel();
     _titleCtl.dispose();
     _bodyCtl.dispose();
     _bodyFocus.dispose();
@@ -261,6 +278,22 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     });
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 900), _autoSave);
+    _snapIdle?.cancel();
+    _snapIdle = Timer(const Duration(seconds: 30), () => _maybeSnap(idle: true));
+  }
+
+  /// 停输 30s 或每 +500 字 → 自动留存快照（恢复为副本，不动当前稿）。
+  Future<void> _maybeSnap({required bool idle}) async {
+    final text = _bodyCtl.text;
+    final words = text.replaceAll(RegExp(r'\s'), '').length;
+    if (text.trim().isEmpty || text == _lastSnapText) return;
+    if (!idle && words - _snapBaseWords < 500) return;
+    if (_existing == null && _dirty) await _persist();
+    final id = _existing?.id;
+    if (id == null) return;
+    await ref.read(noteDaoProvider).snapshot(id, text);
+    _lastSnapText = text;
+    _snapBaseWords = words;
   }
 
   Future<Note> _persist() async {
@@ -292,11 +325,14 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   Future<void> _autoSave() async {
     if (!_dirty || !mounted) return;
     await _persist();
-    if (mounted) setState(() => _saved = true);
+    if (!mounted) return;
+    setState(() => _saved = true);
+    await _maybeSnap(idle: false); // 每 +500 字里程碑留存
   }
 
   Future<void> _saveAndExit() async {
     _debounce?.cancel();
+    _snapIdle?.cancel();
     if (_mode == NoteEditMode.focus) _flushParas();
     if (_dirty) await _persist();
     final n = await _syncTodoLines();
@@ -596,15 +632,17 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                       ),
                     ),
                     IconButton(
+                      key: const ValueKey('note-snap-open'),
                       tooltip: '版本快照',
-                      onPressed: () => AppToast.show(
-                          context, '暂无快照 · 停输后自动创建（批1d）'),
+                      onPressed: () =>
+                          showSnapshotSheet(context, ref, _existing, _bg, _fg),
                       icon: const Text('🕘', style: TextStyle(fontSize: 16)),
                     ),
                     IconButton(
+                      key: const ValueKey('note-export'),
                       tooltip: '导出',
-                      onPressed: () => AppToast.show(
-                          context, '导出 TXT / Markdown / PDF · 批1d 开放'),
+                      onPressed: () => showExportSheet(context,
+                          _titleCtl.text.trim(), _bodyCtl.text, _bg, _fg),
                       icon: Icon(Icons.more_horiz, color: _fg),
                     ),
                   ],
