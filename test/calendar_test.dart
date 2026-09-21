@@ -160,6 +160,26 @@ void main() {
         now.month.toString().padLeft(2, '0'));
   });
 
+  testWidgets('V1.28 回归：月历末行日期完整可见（修复行高随屏宽放大被裁切）',
+      (tester) async {
+    final now = DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        eventRepositoryProvider.overrideWithValue(repo),
+        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+      ],
+      child: const MaterialApp(home: CalendarPage()),
+    ));
+    await tester.pumpAndSettle();
+
+    final panel = tester.getRect(find.byKey(const ValueKey('month-panel')));
+    final cell = tester.getRect(find.text('$lastDay').last);
+    expect(cell.top, greaterThanOrEqualTo(panel.top));
+    expect(cell.bottom, lessThanOrEqualTo(panel.bottom + 0.5),
+        reason: '末行（$lastDay 号）超出月历卡=被裁切，宽屏下曾必现');
+  });
+
   testWidgets('智能折叠：下滚收起月历为周行 · 点展开 ▾ 回切', (tester) async {
     final now = DateTime.now();
     for (var i = 0; i < 14; i++) {

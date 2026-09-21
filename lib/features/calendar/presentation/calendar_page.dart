@@ -343,8 +343,10 @@ class _MonthPanel extends ConsumerWidget {
             height: 6 * 36,
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
+              // 固定行高 36：若用 childAspectRatio 行高随屏宽放大（~62px），
+              // 6 行超出容器被裁切，月历只显示 3.5 行（真机取证 2026-09-21）。
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7, childAspectRatio: 0.72),
+                  crossAxisCount: 7, mainAxisExtent: 36),
               itemCount: 42,
               itemBuilder: (context, i) {
                 final day = i - leading + 1;
