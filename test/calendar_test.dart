@@ -208,6 +208,93 @@ void main() {
     expect(find.text('展开 ▾'), findsNothing);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
+  testWidgets('V1.28⑧ 周视图：点已添加格子→详情可编辑 · 空格子才开补录弹层', (tester) async {
+    final now = DateTime.now();
+    await repo.create(CalEvent(
+        title: '周视图评审',
+        start: DateTime(now.year, now.month, now.day, 10),
+        end: DateTime(now.year, now.month, now.day, 11)));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+      ],
+      child: const MaterialApp(home: CalendarPage()),
+    ));
+    await tester.pumpAndSettle();
+
+    // 切周视图（7×24）
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('▤ 周 · 7×24'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('空格子 → 添加时间段'), findsOneWidget);
+
+    // 中间列=选中日（di=3），10 点格被事件覆盖 → 点它开详情而非添加
+    final used = find.byKey(const ValueKey('wk-cell-3-10'));
+    await tester.ensureVisible(used);
+    await tester.pumpAndSettle();
+    await tester.tap(used);
+    await tester.pumpAndSettle();
+    expect(find.text('✎ 编辑'), findsOneWidget);
+    expect(find.text('添加事件 / 时间块'), findsNothing);
+
+    // 关详情（点遮罩）后点 4 点空格子 → 才应开补录弹层
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+    final empty = find.byKey(const ValueKey('wk-cell-3-4'));
+    await tester.ensureVisible(empty);
+    await tester.pumpAndSettle();
+    await tester.tap(empty);
+    await tester.pumpAndSettle();
+    expect(find.text('添加事件 / 时间块'), findsOneWidget);
+  });
+
+  testWidgets('V1.28⑤ 展开↔收起与切月动画：过渡后布局收敛，月历/周行各自就位',
+      (tester) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+      ],
+      child: const MaterialApp(home: CalendarPage()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('month-panel')), findsOneWidget);
+
+    // 点选中日=收起为周行（AnimatedSize+Switcher 接管），settle 后无月历。
+    // 限定月历卡内：块视图小时格也显「21」，全树 .last 会点错。
+    await tester.tap(find.descendant(
+        of: find.byKey(const ValueKey('month-panel')),
+        matching: find.text('${now.day}')));
+    await tester.pumpAndSettle();
+    expect(find.text('展开 ▾'), findsOneWidget);
+    expect(find.byKey(const ValueKey('month-panel')), findsNothing);
+
+    // 周行左右滑动切天（动画后仍收敛），再点展开回月历
+    final g = await tester.startGesture(
+        tester.getCenter(find.text('展开 ▾')).translate(0, 20));
+    await g.moveBy(const Offset(-30, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await g.moveBy(const Offset(-60, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+    await g.up();
+    await tester.pumpAndSettle();
+    expect(find.text('展开 ▾'), findsOneWidget); // 未挂死/未溢出
+
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('展开 ▾'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('month-panel')), findsOneWidget);
+  });
+
   testWidgets('统一添加弹层：预选选中日时段 → 添加落库（补录·四视图同步）', (tester) async {
     final tbDao = TimeBlockDao(db);
     final preset = DateTime(2026, 3, 17);

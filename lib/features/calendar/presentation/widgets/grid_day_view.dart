@@ -202,7 +202,18 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                       final a = math.min(_selA!, _selB!);
                       final b = math.max(_selA!, _selB!);
                       final m = _startMin + a * gran;
+                      // V1.28⑧：进行中事件 end=null 不进 eventAt 覆盖判定，单独按 live 区命中 → 详情
+                      final hitLive = (a == b && liveS != null &&
+                              m >= liveS &&
+                              m < (liveE ?? liveS + 1))
+                          ? live.first
+                          : null;
                       final hitEv = (a == b) ? eventAt(m) : null;
+                      if (hitLive != null && hitEv == null) {
+                        _clearSel();
+                        showEventDetailSheet(context, ref, hitLive);
+                        return;
+                      }
                       if (hitEv != null) {
                         _clearSel();
                         showEventDetailSheet(context, ref, hitEv);

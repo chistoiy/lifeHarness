@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -80,10 +82,7 @@ class CalendarPage extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                   children: [
-                    if (ref.watch(monthExpandedProvider))
-                      _MonthPanel(selected: selected, events: events)
-                    else
-                      _WeekStrip(selected: selected, events: events),
+                    _CalendarRegion(selected: selected, events: events),
                     if (conflicts.isNotEmpty)
                       InkWell(
                         borderRadius: BorderRadius.circular(16),
@@ -125,6 +124,99 @@ class CalendarPage extends ConsumerWidget {
         tooltip: '添加事件 / 时间块',
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         onTap: () => showTimePickSheet(context, ref, day: selected),
+      ),
+    );
+  }
+}
+
+/// V1.28⑤ 日历区动画容器：
+/// · 切月/切天（左右滑动）=横向滑入+淡入（原型 mshift 0.3s cubic-bezier(.22,.61,.36,1)）；
+/// · 展开/收起（mexpand/wreveal）=AnimatedSize 高度过渡 + 月历↔周行交叉淡切。
+class _CalendarRegion extends ConsumerStatefulWidget {
+  const _CalendarRegion({required this.selected, required this.events});
+  final DateTime selected;
+  final List<CalEvent> events;
+
+  @override
+  ConsumerState<_CalendarRegion> createState() => _CalendarRegionState();
+}
+
+class _CalendarRegionState extends ConsumerState<_CalendarRegion>
+    with SingleTickerProviderStateMixin {
+  static const _curve = Cubic(0.22, 0.61, 0.36, 1.0);
+
+  late final AnimationController _shift = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 300))
+    ..value = 1;
+  int _dir = 1;
+  late int _key;
+  late bool _lastExpanded;
+
+  static int _monthKey(DateTime d) => d.year * 12 + d.month;
+  static int _dayKey(DateTime d) => d.year * 372 + d.month * 31 + d.day;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastExpanded = ref.read(monthExpandedProvider);
+    _key = _lastExpanded ? _monthKey(widget.selected) : _dayKey(widget.selected);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CalendarRegion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final expanded = ref.read(monthExpandedProvider);
+    if (expanded != _lastExpanded) {
+      // 展开/收起由 AnimatedSize+Switcher 接管，不叠加横移动画。
+      _lastExpanded = expanded;
+      _key = expanded ? _monthKey(widget.selected) : _dayKey(widget.selected);
+      return;
+    }
+    final nk = expanded ? _monthKey(widget.selected) : _dayKey(widget.selected);
+    if (nk != _key) {
+      _dir = nk > _key ? 1 : -1; // 向后翻=从右侧滑入
+      _key = nk;
+      _shift.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _shift.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final expanded = ref.watch(monthExpandedProvider);
+    final anim = CurvedAnimation(parent: _shift, curve: _curve);
+    final slide = Tween<Offset>(
+            begin: Offset(_dir * .3, 0), end: Offset.zero)
+        .animate(anim);
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: _curve,
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.hardEdge,
+      child: SlideTransition(
+        position: slide,
+        child: FadeTransition(
+          opacity: Tween<double>(begin: .35, end: 1).animate(anim),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: _curve,
+            switchOutCurve: _curve,
+            child: expanded
+                ? KeyedSubtree(
+                    key: const ValueKey('region-month'),
+                    child: _MonthPanel(
+                        selected: widget.selected, events: widget.events))
+                : KeyedSubtree(
+                    key: const ValueKey('region-week'),
+                    child: _WeekStrip(
+                        selected: widget.selected, events: widget.events)),
+          ),
+        ),
       ),
     );
   }
@@ -1020,11 +1112,19 @@ class _DayHoursView extends ConsumerWidget {
   }
 }
 
-/// 周视图：7×24 网格（点格子 → 统一添加弹层预选该日该时）。
+/// 周视图：7×24 网格。V1.28⑧：格子有事件/块=点开详情（→编辑），空格子才开补录。
 class _WeekBoard extends ConsumerWidget {
   const _WeekBoard({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
+
+  /// 事件是否覆盖该整点分钟（进行中 end=null 视为覆盖到当天 24:00）。
+  static bool _coversHour(CalEvent e, int m0) {
+    if (e.allDay) return e.start.hour * 60 == m0;
+    final s = e.start.hour * 60 + e.start.minute;
+    final en = e.end == null ? 1440 : e.end!.hour * 60 + e.end!.minute;
+    return m0 >= s && m0 < math.max(en, s + 1);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1032,11 +1132,12 @@ class _WeekBoard extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final days = List.generate(7, (i) => DateTime(selected.year, selected.month, selected.day - 3 + i));
     final blocksByDay = <DateTime, List<TimeBlock>>{};
+    String md(DateTime d) => '${d.month}/${d.day}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('点任意格子 → 添加那段时间（与块/轴/日视图同步）',
+        Text('🗓 ${md(days.first)} - ${md(days.last)} · 空格子 → 添加时间段 · 已添加 → 点进去查看/编辑',
             style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
         const SizedBox(height: 6),
         Row(
@@ -1068,16 +1169,19 @@ class _WeekBoard extends ConsumerWidget {
                             fontSize: 8,
                             fontFamily: 'monospace',
                             color: scheme.onSurfaceVariant))),
-                for (final d in days)
+                for (var di = 0; di < days.length; di++)
                   Expanded(
                     child: Builder(builder: (context) {
+                      final d = days[di];
                       final blocks = blocksByDay.putIfAbsent(
                           d, () => ref.watch(dayBlocksProvider(d)).valueOrNull ?? const []);
                       final m = h * 60;
-                      final b = blocks.where((x) => x.covers(m)).firstOrNull;
                       final e = CalendarPage.onDay(events, d)
-                          .where((x) => !x.allDay && x.start.hour == h)
+                          .where((x) => _coversHour(x, m))
                           .firstOrNull;
+                      final b = e == null
+                          ? blocks.where((x) => x.covers(m)).firstOrNull
+                          : null;
                       final color = e != null
                           ? (e.status == EventStatus.done
                               ? const Color(0xFF34D399)
@@ -1088,8 +1192,17 @@ class _WeekBoard extends ConsumerWidget {
                               ? blockColor(b, ref.watch(catColorsByNameProvider), tokens.accent)
                               : scheme.onSurface.withValues(alpha: .06));
                       return InkWell(
-                        onTap: () => showTimePickSheet(
-                            context, ref, day: d, startMin: h * 60),
+                        key: ValueKey('wk-cell-$di-$h'),
+                        onTap: () {
+                          // V1.28⑧：先查该时间的信息 → 详情（可编辑），空格子才开添加。
+                          if (e != null) {
+                            showEventDetailSheet(context, ref, e);
+                          } else if (b != null) {
+                            showBlockDetailSheet(context, ref, d, b);
+                          } else {
+                            showTimePickSheet(context, ref, day: d, startMin: m);
+                          }
+                        },
                         child: Container(
                           height: 17,
                           margin: const EdgeInsets.symmetric(horizontal: 1),
