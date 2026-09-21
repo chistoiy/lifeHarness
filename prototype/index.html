@@ -522,6 +522,7 @@ tailwind.config = {
 
       <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
       <div id="recNote" class="hidden mt-4">
+        <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
         <div class="flex items-center justify-end gap-2 relative">
           <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
           <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
@@ -1528,11 +1529,16 @@ tailwind.config = {
   </div>
 
   <!-- V1.29轮6：笔记长按批量选择操作条（删除 / 移动到 / 置顶） -->
-  <div id="noteSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-2 items-center gap-1 text-xs font-bold shadow-xl">
-    <b id="noteSelCount" class="px-1.5 text-brand-500 shrink-0">已选 1</b>
-    <button onclick="noteBatchPin()" class="flex-1 py-2 rounded-xl active:bg-slate-100 dark:active:bg-slate-700">📌 置顶</button>
-    <button onclick="noteBatchMove()" class="flex-1 py-2 rounded-xl active:bg-slate-100 dark:active:bg-slate-700">📂 移动到</button>
-    <button onclick="noteBatchTrash()" class="flex-1 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">🗑 删除</button>
+  <div id="noteSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-stretch gap-1 text-[10px] font-bold shadow-xl">
+    <button onclick="noteBatchPin()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V3H9v7.76Z"/></svg>
+      <span id="notePinLabel">置顶</span></button>
+    <button onclick="noteBatchMove()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>
+      <span>移动到</span></button>
+    <button onclick="noteBatchTrash()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
+      <span>删除</span></button>
     <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
   <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
@@ -2227,6 +2233,7 @@ function setPage(p){
 function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
 function goBack(){
+  if(curPage==='p-records'&&noteSelMode){noteExitSel();return;} /* 轮9：多选态返回=退出多选 */
   if(stack.length){ setPage(stack.pop()); return; }
   if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
   if(dashEditing){ dashToggle(); return; }
@@ -3032,8 +3039,11 @@ function renderNotes(){const L=$('#noteList');
   L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
     return `<div class="note-sw min-w-0 ${noteView==='list'?'mb-2.5':''}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
     <div class="note-card card" onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
-    <div class="flex items-center gap-2">${noteSelMode?`<span class="nchk ${sel?'on':''}">✓</span>`:''}<b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
-    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div></div></div>`;}).join('');
+    <div class="flex items-center gap-2.5"><div class="flex-1 min-w-0">
+    <b class="text-sm block truncate">${n.t}</b>
+    <div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>
+    <div class="flex items-center gap-1.5 mt-1.5"><span class="text-[10px] text-slate-400">${n.time}</span>${n.pin?`<span class="inline-flex text-amber-500" style="transform:rotate(45deg);width:13px;height:13px">${NT_IC.pin.replace(/width="15" height="15"/,'width="13" height="13"')}</span>`:''}</div>
+    </div>${noteSelMode?`<span class="nchk ${sel?'on':''} flex-shrink-0">✓</span>`:''}</div></div></div>`;}).join('');
   $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
     c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
     c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
@@ -3042,14 +3052,19 @@ function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('op
   if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
     if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
   pwNote=t;navTo('p-noteEdit');}
-function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);toast('批量模式 · 点选卡片可多选');}
+function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);}
   else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
   updateNoteSelBar();renderNotes();}
+function noteAllPinned(){return [...noteSel].every(t=>{const x=D.notes.find(y=>y.t===t);return x&&x.pin;});}
 function updateNoteSelBar(){const b=$('#noteSelBar');if(!b)return;
   if(!noteSelMode||!noteSel.size){noteExitSel();return;}
-  b.classList.remove('hidden');b.classList.add('flex');$('#noteSelCount').textContent='已选 '+noteSel.size;}
-function noteExitSel(){noteSelMode=false;noteSel.clear();const b=$('#noteSelBar');if(b){b.classList.add('hidden');b.classList.remove('flex');}renderNotes();}
-function noteBatchPin(){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=1;});noteExitSel();toast(`已置顶 ${n} 篇`);}
+  b.classList.remove('hidden');b.classList.add('flex');
+  const top=$('#noteSelTop');top.classList.remove('hidden');top.classList.add('flex');
+  $('#noteSelTopN').textContent=noteSel.size;
+  $('#notePinLabel').textContent=noteAllPinned()?'取消置顶':'置顶';}
+function noteExitSel(){noteSelMode=false;noteSel.clear();const b=$('#noteSelBar');if(b){b.classList.add('hidden');b.classList.remove('flex');}
+  const top=$('#noteSelTop');if(top){top.classList.add('hidden');top.classList.remove('flex');}renderNotes();}
+function noteBatchPin(){const n=noteSel.size,un=noteAllPinned();D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=un?0:1;});noteExitSel();toast(un?`已取消置顶 ${n} 篇`:`已置顶 ${n} 篇`);}
 function noteBatchTrash(){const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
 function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
 function noteBatchMove(){if(!noteSel.size)return;$('#nmCount').textContent=noteSel.size;
@@ -3067,6 +3082,8 @@ const NT_IC={
  sort:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M4 12h7M4 18h4M17 8v11m0 0 3-3m-3 3-3-3"/></svg>',
  expand:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8 7l4 4 4-4-4-4ZM12 21l4-4-4-4-4 4 4 4Z"/></svg>',
  close:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ pin:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V3H9v7.76Z"/></svg>',
+ folderMove:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>',
  caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
 const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',c:[]}];
