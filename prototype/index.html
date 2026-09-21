@@ -167,6 +167,8 @@ tailwind.config = {
   .note-card{position:relative;transition:transform .18s ease;background:var(--card-bg,#fff)}
   .dark .note-card{background:#0f172a}
   .note-card.open{transform:translateX(-84px)}
+  .nchk{width:17px;height:17px;border-radius:50%;border:1.6px solid #94a3b8;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:transparent;flex-shrink:0;transition:all .12s}
+  .nchk.on{background:#6366f1;border-color:#6366f1;color:#fff}
   .nt-row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
   .nt-row:active{background:rgba(99,102,241,.08)}
   .nt-row.nt-on{background:rgba(99,102,241,.14);color:#6366f1}
@@ -435,16 +437,13 @@ tailwind.config = {
           </div>
         </div>
         <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
-          <!-- V1.27：全局顶栏在日历页隐藏后，搜索入口下移到本行 -->
-          <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center" title="搜索"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg></button>
-          <button id="btnToday" class="hidden w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 font-extrabold text-[15px]" onclick="goToday()" title="回到今天">今</button>
-          <button class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-[15px] font-extrabold" onclick="toggleViewMenu(event)" title="切换视图"><span id="viewIco">块</span></button>
-          <div id="viewMenu" class="hidden absolute right-0 top-11 z-40 w-32 card !p-1.5 text-xs font-bold space-y-1 shadow-xl">
-            <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="axis" onclick="switchCalView('axis');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">☰</span>轴 · 时间轴</button>
-            <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="block" onclick="switchCalView('block');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">▦</span>块 · 时间块</button>
-            <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="day" onclick="switchCalView('day');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">◫</span>日 · 小时</button>
-            <button class="vm-item w-full flex items-center gap-2 px-2.5 py-2 rounded-xl" data-v="week" onclick="switchCalView('week');$('#viewMenu').classList.add('hidden')"><span class="w-5 text-center text-slate-400">▤</span>周 · 7×24</button>
-          </div>
+          <!-- V1.29轮6：搜索/视图按钮与全局顶栏同款线性风格·视图切换改⇄钮+同款下拉菜单 -->
+          <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" title="搜索"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg></button>
+          <button id="btnToday" class="hidden w-9 h-9 rounded-full font-extrabold text-[15px] items-center justify-center active:bg-slate-200 dark:active:bg-slate-800 text-brand-500" onclick="goToday()" title="回到今天">今</button>
+          <button class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleViewMenu(event)" title="切换 轴/块/日/周">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.5 20 7.5l-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/></svg>
+          </button>
+          <div id="viewMenu" class="hidden absolute right-0 top-11 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
         </div>
       </div>
       <!-- 展开态：迷你月历（有事项的天右下角显圆点） -->
@@ -515,16 +514,16 @@ tailwind.config = {
         <div id="diaryList" class="mt-3"></div>
       </div>
 
-      <!-- 笔记 tab（纯纯写作风 · V1.29：视图切换/左滑回收站/文件夹 chips 含回收站） -->
+      <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
       <div id="recNote" class="hidden mt-4">
-        <div class="flex items-center gap-2">
-          <div class="flex-1 relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span><input class="w-full !pl-8 rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs outline-none" placeholder="搜索标题或全文…" oninput="if(this.value)toast('全文搜索：'+this.value+'（模拟）')"></div>
-          <button onclick="toast('排序：更新时间 ↓（可切创建时间/字数）')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">↕</button>
+        <div class="flex items-center justify-end gap-2 relative">
+          <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
+          <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
           <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
           <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
         </div>
         <div id="noteList" class="mt-3"></div>
-        <div class="mt-2 text-[10px] text-slate-400 text-center">共 23 篇 · 左滑卡片露出 🗑 入回收站 · 长按可置顶 / 归档（模拟）</div>
+        <div class="mt-2 text-[10px] text-slate-400 text-center">共 23 篇 · 左滑卡片删除 · 长按进入批量选择（置顶 / 移动到 / 删除）</div>
       </div>
 
       <!-- 阅读 tab -->
@@ -660,16 +659,38 @@ tailwind.config = {
       <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
     </section>
 
-    <!-- ===== P12g 二级：记录管理（V1.29 三轮：笔记版本恢复方式等记录类设置收拢） ===== -->
+    <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
     <section id="p-sub-recmg" class="page px-5 safe-pb no-scrollbar">
+      <div class="text-xs font-extrabold text-slate-400 mt-2 mb-1.5">📔 日记</div>
       <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>🕘 笔记版本恢复方式</span>
+        <div class="flex items-center justify-between"><span>默认新建模板</span>
+          <button class="mini-btn" onclick="cycleRecSet(this,'tpl',['纯文本','KPT 复盘','晨间三问'])">纯文本</button></div>
+        <div class="flex items-center justify-between"><span>连续记录提醒</span><b class="text-xs text-slate-400">断签 2 天时提醒</b></div>
+      </div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📝 笔记</div>
+      <div class="card space-y-3 text-sm">
+        <div class="flex items-center justify-between"><span>🕘 版本恢复方式</span>
           <button id="nrMode" onclick="tglNoteRestore()" class="mini-btn">直接替换正文</button></div>
         <div class="text-[11px] text-slate-400">恢复快照时：直接替换当前正文（替换前自动留快照，可反悔）⇄ 新增为一条副本笔记</div>
-        <div class="h-px bg-slate-100 dark:bg-slate-800"></div>
         <div class="flex items-center justify-between"><span>自动快照节奏</span><b class="text-xs text-slate-400">停输 30 秒 / 每 500 字</b></div>
-        <div class="flex items-center justify-between"><span>回收站保留期</span><b class="text-xs text-slate-400">30 天</b></div>
         <div class="flex items-center justify-between"><span>🗂 文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 点 📂 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
+      </div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📚 阅读</div>
+      <div class="card space-y-3 text-sm">
+        <div class="flex items-center justify-between"><span>默认进度方式</span>
+          <button class="mini-btn" onclick="cycleRecSet(this,'pg',['页数','百分比','章节'])">页数</button></div>
+        <div class="flex items-center justify-between"><span>阅读计时</span><b class="text-xs text-slate-400">开始阅读时询问</b></div>
+      </div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">🎬 影音游</div>
+      <div class="card space-y-3 text-sm">
+        <div class="flex items-center justify-between"><span>默认进度方式</span>
+          <button class="mini-btn" onclick="cycleRecSet(this,'mg',['集数','百分比','时间点'])">集数</button></div>
+      </div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">⚙️ 通用</div>
+      <div class="card space-y-3 text-sm">
+        <div class="flex items-center justify-between"><span>回收站自动清理</span>
+          <button class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
+        <div class="text-[11px] text-slate-400">日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除</div>
       </div>
     </section>
 
@@ -1525,6 +1546,23 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- V1.29轮6：笔记长按批量选择操作条（删除 / 移动到 / 置顶） -->
+  <div id="noteSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-2 items-center gap-1 text-xs font-bold shadow-xl">
+    <b id="noteSelCount" class="px-1.5 text-brand-500 shrink-0">已选 1</b>
+    <button onclick="noteBatchPin()" class="flex-1 py-2 rounded-xl active:bg-slate-100 dark:active:bg-slate-700">📌 置顶</button>
+    <button onclick="noteBatchMove()" class="flex-1 py-2 rounded-xl active:bg-slate-100 dark:active:bg-slate-700">📂 移动到</button>
+    <button onclick="noteBatchTrash()" class="flex-1 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">🗑 删除</button>
+    <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
+  </div>
+  <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">移动到文件夹</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">将所选 <b id="nmCount" class="text-brand-500">0</b> 篇笔记移入（嵌套夹缩进展示）</div>
+      <div id="nmList" class="mt-3 space-y-1"></div>
+    </div>
+  </div>
+
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
@@ -1533,7 +1571,9 @@ tailwind.config = {
   <div id="sheetSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSearch')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <input id="searchInput" oninput="doSearch(this.value)" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="🔍 搜索日程 / 待办 / 日记 / 笔记 / 摘录…">
+      <input id="searchInput" oninput="doSearch(this.value)" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="🔍 搜索…">
+      <!-- V1.29轮6：默认范围标签=从哪个页面出发就搜哪类 -->
+      <div class="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="searchScopeChips"></div>
       <div id="searchResult" class="mt-4 space-y-2 text-sm"></div>
       <div class="mt-3 text-[10px] text-slate-400">一个入口搜遍全模块 · 结果为模拟数据</div>
     </div>
@@ -2100,12 +2140,12 @@ const D = {
          {d:'09-17',wd:'周四',wx:'☀️ 24℃',emo:'😄',m:'开心',txt:'跑进 54:01！里程碑。晚上重看了《海街日记》，镰仓的雨路四姐妹，镜头语言比文字克制。',tags:['运动','电影'],img:5,linked:1,tm:'22:40'},
          {d:'09-16',wd:'周三',wx:'⛅ 22℃',emo:'😌',m:'平静',txt:'周复盘：本周「重要不紧急」时间占比 21%，比上周 +6%。继续。把 SPACED 框架整理成了笔记并关联了目标。',tags:['复盘','方法论'],img:0,linked:3,tm:'21:05'}],
   noteTags:['全部','方法论','灵感','工作','关联阅读'],
-  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',pin:1,md:1},
-         {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',pin:0,md:0},
-         {t:'App 命名候选清单',txt:'LifeHarness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',pin:0,md:0},
-         {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',pin:0,md:1},
-         {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',pin:0,md:0},
-         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',pin:0,md:1}],
+  notes:[{t:'SPACED 输出式学习框架',txt:'学习→复述→输出→反馈的闭环。可套用到读书摘录流程，每条摘录要求自己用三句话改写。',folder:'方法论',words:1268,time:'今天 14:20',cre:'09-02',pin:1,md:1},
+         {t:'论写作工具的克制设计',txt:'写作工具的第一要务，是让人忘记工具的存在。自动保存、版本快照、断点续写，应该像地基一样平时看不见。',folder:'灵感',words:312,time:'今天 15:42',cre:'09-15',pin:0,md:0},
+         {t:'App 命名候选清单',txt:'LifeHarness / 日子值 / 每一天 … 商标检索情况与域名可用性对比。',folder:'工作',words:86,time:'09-16',cre:'09-16',pin:0,md:0},
+         {t:'周复盘模板（KPT）',txt:'Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改，配合季度目标回顾使用。',folder:'方法论',words:420,time:'09-14',cre:'09-07',pin:0,md:1},
+         {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',cre:'09-12',pin:0,md:0},
+         {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1}],
   books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
          {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}],
   tx:[{d:'09-19',k:'🍜 餐饮',n:'午餐 · 公司楼下',a:-32.00},{d:'09-19',k:'🚇 交通',n:'地铁通勤',a:-6.00},
@@ -2188,6 +2228,7 @@ function setPage(p){
   $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
   $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
   hideRecSwitchMenu(); renderRecSwitch();
+  if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}}
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
@@ -2221,7 +2262,22 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
-function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch')setTimeout(()=>$('#searchInput').focus(),80); if(id==='sheetDiaryTpl')renderDiaryTpls(); }
+function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); }
+/* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
+const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
+let searchScope='全部';
+function scopeForPage(){const p=curPage;
+  if(p==='p-calendar')return '日程';
+  if(p==='p-todo')return '待办';
+  if(p==='p-inbox')return '收集箱';
+  if(p==='p-finance'||p==='p-billImport'||p==='p-billImport2')return '记账';
+  if(p==='p-diaryEdit')return '日记';
+  if(p==='p-records')return REC_TABS[recTab]||'全部';
+  if(p==='p-noteEdit')return '笔记';
+  return '全部';}
+function renderSearchScope(){$('#searchScopeChips').innerHTML=SEARCH_SCOPES.map(s=>`<button class="chip whitespace-nowrap ${s===searchScope?'chip-on':''}" onclick="pickSearchScope('${s}')">${s==='全部'?'🔍 全部范围':'范围 · '+s}</button>`).join('');
+  $('#searchInput').placeholder=searchScope==='全部'?'🔍 搜索日程 / 待办 / 日记 / 笔记 / 摘录…':'🔍 在「'+searchScope+'」内搜索…';}
+function pickSearchScope(s){searchScope=s;renderSearchScope();$('#searchInput').focus();}
 function closeSheet(id){ const s=$('#'+id); s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
 function toggleDark(el){ tgl(el); document.documentElement.classList.toggle('dark'); if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);
@@ -2516,20 +2572,22 @@ function renderTimeline(){const el=$('#timeAxis');if(!el)return;
         :`<button onclick="tglTodo('${t.t}')" class="chk ${t.done?'chk-on':''} shrink-0">${t.done?'✓':''}</button>`}</div></div>`}).join('')
     +`<div class="relative cursor-pointer" onclick="addEventAtHour(17)"><span class="absolute -left-14 w-12 text-right text-[10px] font-mono text-slate-400">17:00</span><div class="text-xs text-slate-300 dark:text-slate-600 py-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">空闲 · 点此补录该时段日程</div></div>`;
  el.innerHTML=h;}
-/* V1.19 五视图切换：轴/块/日/日程/周（月浏览由顶部迷你月历承担） */
+/* V1.19 五视图切换：轴/块/日/日程/周（月浏览由顶部迷你月历承担）· V1.29轮6：菜单与记录页切换钮同款 */
 const VLBL={axis:'轴',block:'块',day:'日',week:'周'};
+const CAL_VIEWS={axis:['☰','轴 · 时间轴'],block:['▦','块 · 时间块'],day:['◫','日 · 小时'],week:['▤','周 · 7×24']};
 const POMO_QUOTES=['没有过不去的坎，只有回不去的昨天。向前看，路就在脚下。','种一棵树最好的时间是十年前，其次是现在。','慢慢来，比较快。','自律即自由。','星光不问赶路人，时光不负有心人。','把每一件简单的事做好，就是不简单。','你专注的样子，很好看。','不积跬步，无以至千里。','既然选择了远方，便只顾风雨兼程。','今天的拖延，是明天的负债。','心之所向，素履以往。','每一次专注，都是对未来的投资。','流水不争先，争的是滔滔不绝。','你只管努力，其余的交给时间。','千里始足下，高山起微尘。','日日行，不怕千万里；常常做，不怕千万事。','别慌，月亮也正在大海某处迷茫。','关关难过关关过，前路漫漫亦灿灿。','专注当下，未来自会清晰。','所有坚持，终有回响。'];
 const ICO_PAUSE='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 5.5v13M15 5.5v13"/></svg>';
 const ICO_PLAY='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5.2v13.6L19 12z"/></svg>';
+function renderCalViewMenu(){const m=$('#viewMenu');if(!m)return;
+  m.innerHTML=Object.entries(CAL_VIEWS).map(([v,[ico,label]])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${v===calView?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="switchCalView('${v}');$('#viewMenu').classList.add('hidden')">${ico} ${label}<span class="text-[11px]">${v===calView?'✓':''}</span></button>`).join('');}
 function switchCalView(v){ calView=v; collapseMonth();
  [['axis','calAxisView'],['block','calBlockView'],['day','calDayHourView'],['week','calWeekGrid']].forEach(([k,id])=>{
    $('#'+id).classList.toggle('hidden',k!==v);});
- $$('#viewMenu .vm-item').forEach(b=>b.className=(b.dataset.v===v?'vm-item seg-on':'vm-item')+' w-full flex items-center gap-2 px-2.5 py-2 rounded-xl');
- $('#viewIco').textContent=VLBL[v];
+ const _m=$('#viewMenu'); if(_m&&!_m.classList.contains('hidden'))renderCalViewMenu();
  if(v==='block')renderGrid();
  $('#conflictTip').classList.add('hidden');
 }
-function toggleViewMenu(e){e.stopPropagation();$('#viewMenu').classList.toggle('hidden')}
+function toggleViewMenu(e){e.stopPropagation();renderCalViewMenu();$('#viewMenu').classList.toggle('hidden')}
 document.addEventListener('pointerdown',e=>{const m=$('#viewMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#calTools'))m.classList.add('hidden')},true);
 /* ================= 块视图·全天格子时间块（V1.19 · 0-24 全天） ================= */
 let calView='block', gran=15, selA=null, selB=null, selecting=false, markSel=null, markCat='工作';
@@ -2815,6 +2873,7 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
 /* V1.29轮5：四段切换行移除 · 段名进入标题「记录 · X」+ 右上切换钮菜单 */
 const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
 function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
+  if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
   [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
   const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
   renderRecSwitch();
@@ -2898,21 +2957,51 @@ function pwRich(k){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)retur
   else if(k==='img'){cur.insertAdjacentHTML('beforeend','<span class="ins-img bg-gradient-to-br from-sky-300 to-indigo-400" style="width:120px;height:80px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;margin-top:6px">🌇</span>');toast('已插入图片（真实版=相册/拍照·图文混排）');}
   else toast(k==='undo'?'已撤销':'已重做');}
 let noteView='list',noteCols=2,noteFolder='';
+/* V1.29轮6：排序三方式（标题/创建时间/最后修改）+ 长按批量选择（删除/移动到/置顶） */
+let noteSort='upd';const NOTE_SORTS={upd:'最后修改 ↓',cre:'创建时间 ↓',title:'标题 A→Z'};
+function nkey(s){return s&&s.startsWith('今天')?'09-19':(s||'');}
+function toggleNoteSortMenu(e){e.stopPropagation();renderNoteSortMenu();$('#noteSortMenu').classList.toggle('hidden');}
+function renderNoteSortMenu(){const m=$('#noteSortMenu');
+  m.innerHTML=Object.entries(NOTE_SORTS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSort='${k}';$('#noteSortMenu').classList.add('hidden');renderNotes();toast('排序：'+NOTE_SORTS['${k}'])">${label}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
+document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
+let noteSelMode=false,noteSel=new Set();
 function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<4){noteCols++;}else{noteView='list';}
-  $('#noteViewBtn').textContent=noteView==='list'?'☰':'▦';
+  $('#noteViewBtn').textContent=noteView==='list'?'☰':'';
   toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
-function renderNotes(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);const L=$('#noteList');
+function renderNotes(){const L=$('#noteList');
+  const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
+  list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
+    if(noteSort==='title')return String(a.t).localeCompare(String(b.t),'en');
+    return nkey(noteSort==='cre'?b.cre:b.time).localeCompare(nkey(noteSort==='cre'?a.cre:a.time));});
   L.className=noteView==='list'?'':'mt-2 grid gap-2.5 grid-cols-'+noteCols;
-  L.innerHTML=list.map(n=>`<div class="note-sw min-w-0 ${noteView==='list'?'mb-2.5':''}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
-    <div class="note-card card" onclick="noteTap(this)" oncontextmenu="event.preventDefault();noteLongpress('${n.t}')">
-    <div class="flex items-center gap-2"><b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
-    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div></div></div>`).join('');
+  L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
+    return `<div class="note-sw min-w-0 ${noteView==='list'?'mb-2.5':''}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
+    <div class="note-card card" onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
+    <div class="flex items-center gap-2">${noteSelMode?`<span class="nchk ${sel?'on':''}">✓</span>`:''}<b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
+    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div></div></div>`;}).join('');
   $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
     c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
-    c.addEventListener('touchmove',e=>{dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
-    c.addEventListener('touchend',()=>{c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c){o.classList.remove('open');o.parentElement.classList.remove('show-del')}});c.classList.add('open');w.classList.add('show-del');}else{c.classList.remove('open');w.classList.remove('show-del');}});});}
-function noteTap(el){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}navTo('p-noteEdit');}
-function noteLongpress(t){toast(`长按菜单：📌 置顶 / 📦 归档 / 🗑 移入回收站（${t}）`);}
+    c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
+    c.addEventListener('touchend',()=>{if(noteSelMode)return;c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c){o.classList.remove('open');o.parentElement.classList.remove('show-del')}});c.classList.add('open');w.classList.add('show-del');}else{c.classList.remove('open');w.classList.remove('show-del');}});});}
+function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}
+  if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
+    if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
+  navTo('p-noteEdit');}
+function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);toast('批量模式 · 点选卡片可多选');}
+  else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
+  updateNoteSelBar();renderNotes();}
+function updateNoteSelBar(){const b=$('#noteSelBar');if(!b)return;
+  if(!noteSelMode||!noteSel.size){noteExitSel();return;}
+  b.classList.remove('hidden');b.classList.add('flex');$('#noteSelCount').textContent='已选 '+noteSel.size;}
+function noteExitSel(){noteSelMode=false;noteSel.clear();const b=$('#noteSelBar');if(b){b.classList.add('hidden');b.classList.remove('flex');}renderNotes();}
+function noteBatchPin(){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=1;});noteExitSel();toast(`已置顶 ${n} 篇`);}
+function noteBatchTrash(){const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
+function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
+function noteBatchMove(){if(!noteSel.size)return;$('#nmCount').textContent=noteSel.size;
+  $('#nmList').innerHTML=ntFlat().map(f=>`<button class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold active:bg-slate-100 dark:active:bg-slate-700" style="padding-left:${12+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span>${f.n}</button>`).join('');
+  openSheet('sheetNoteMove');}
+function noteMoveTo(f){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.folder=f;});closeSheet('sheetNoteMove');noteExitSel();toast(`已移动 ${n} 篇到「${f}」`);}
+function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});toast(`已移入回收站 · 30 天内可在 🗑 回收站恢复（${t}）`);}
 /* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
 const NT_IC={
  all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
@@ -2926,25 +3015,37 @@ const NT_IC={
  caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
 const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',c:[]}];
-let ntOpen={};
-function ntAdd(){const n=prompt('新建文件夹名称（顶层 · 长按节点选「＋新建子夹」可建子级）');if(n){NTREE.push({n,c:[]});renderNt();toast('已新建文件夹「'+n+'」');}}
-function ntRename(){toast('重命名：先点选树中文件夹，再按此键（模拟）');}
+let ntOpen={},ntSel='';
+/* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
+function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';
+  for(let i=0;i<list.length;i++){const n=list[i],k=key===''?String(i):key+'.'+i;
+    if(n.n===name)return{arr:list,i:i,k:k};
+    const r=ntFindPath(name,n.c||[],path.concat([k]),k);if(r)return r;}
+  return null;}
+function ntAdd(){const target=ntSel;
+  const n=prompt(target?'新建文件夹名称（将创建在「'+target+'」下）':'新建文件夹名称（创建在顶层）');
+  if(!n)return;
+  let arr=NTREE;
+  if(target){const p=ntFindPath(target);if(!p){toast('未找到目标文件夹');return;}arr=p.arr[p.i].c;ntOpen[p.k]=true;}
+  arr.push({n:n,c:[]});renderNt();toast(target?'已在「'+target+'」下新建「'+n+'」':'已新建顶层文件夹「'+n+'」');}
+function ntRename(){toast(ntSel?'重命名「'+ntSel+'」（模拟）':'先点选树中的文件夹，再按此键');}
 let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
 function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortMode]);}
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
 function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
-function ntPick(n){noteFolder=n;ntClose();renderNotes();toast('已切换到「'+n+'」');}
-function ntLong(n){toast('长按「'+n+'」：重命名 / ＋新建子夹 / 拖动排序（拖入另一夹=变子级）/ 删除（内有笔记时提示迁移）');}
+function ntPick(n,has){ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
+function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
+function ntLong(n){toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
 function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
-  return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}')" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
-    <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${i})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
+  return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
+    <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
     <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
     +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
-function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="noteFolder='';ntClose();renderNotes()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
+function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
   +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
   +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
-  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹</span></div>`;}
+  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`;}
 function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
 (function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.add;$('#ntBtSort').innerHTML=NT_IC.sort;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
@@ -2952,7 +3053,7 @@ let noteRestore='replace';
 function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
   toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
-function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});toast(`已移入回收站 · 30 天内可在 🗑 回收站恢复（${t}）`);}
+function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');}
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'无分类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
