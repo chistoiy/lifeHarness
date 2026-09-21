@@ -46,12 +46,27 @@ const _mdTools = <(String, String, String)>[
 /// 900ms 自动保存（输入即存）· 字数与阅读时长 · 文件夹/置顶/plain·MD；
 /// 渲染层=批1c，快照与导出=批1d。
 class NoteEditPage extends ConsumerStatefulWidget {
-  const NoteEditPage({super.key, this.noteId});
+  const NoteEditPage(
+      {super.key, this.noteId, this.initialKind = 'plain', this.initialFolder = ''});
 
   final int? noteId;
 
+  /// 新建时的笔记类型与归属文件夹（V1.29 FAB 三选 · 当前选中目录）。
+  final String initialKind;
+  final String initialFolder;
+
   @override
   ConsumerState<NoteEditPage> createState() => _NoteEditPageState();
+}
+
+/// /note/edit 路由参数：打开既有篇或按类型新建（V1.29轮2 FAB 竖排三选）。
+class NoteEditArg {
+  const NoteEditArg(
+      {this.noteId, this.kind = 'plain', this.folder = ''});
+
+  final int? noteId;
+  final String kind;
+  final String folder;
 }
 
 class _NoteEditPageState extends ConsumerState<NoteEditPage> {
@@ -88,6 +103,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   @override
   void initState() {
     super.initState();
+    _kind = widget.initialKind;
+    _folder = widget.initialFolder;
     _resetParas('');
     _load();
   }

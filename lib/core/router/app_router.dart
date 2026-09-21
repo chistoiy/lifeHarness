@@ -61,7 +61,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // M1 批1a 笔记编辑页：全屏纸感（原型 p-noteEdit），extra=noteId（null=新建）。
       GoRoute(
         path: '/note/edit',
-        builder: (_, s) => NoteEditPage(noteId: s.extra as int?),
+        builder: (_, s) {
+          final x = s.extra;
+          if (x is NoteEditArg) {
+            return NoteEditPage(
+                noteId: x.noteId, initialKind: x.kind, initialFolder: x.folder);
+          }
+          return NoteEditPage(noteId: x as int?);
+        },
       ),
       // 提醒通知二级页（原型 p-sub-notify）。
       GoRoute(

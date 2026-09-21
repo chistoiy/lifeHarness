@@ -26,13 +26,20 @@ final diaryTemplatesProvider = FutureProvider<List<DiaryTemplate>>(
 final noteDaoProvider =
     Provider<NoteDao>((ref) => NoteDao(AppDatabase.instance.db));
 
-/// 笔记列表筛选（folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名）。
+/// 笔记列表筛选（V1.29轮6：页内搜索移除·query 恒空由全局搜索承接；
+/// folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名）。
 final noteFilterProvider =
-    StateProvider<({String folder, String query, NoteSort sort})>(
-        (ref) => (folder: '', query: '', sort: NoteSort.updated));
+    StateProvider<({String folder, NoteSort sort})>(
+        (ref) => (folder: '', sort: NoteSort.updated));
 
 /// 回收站特殊文件夹值。
 const kNoteTrash = '__trash__';
+
+/// 笔记视图（0=列表；2/3/4=卡片每行列数 · 原型 ☰/▦ 循环）。
+final noteViewColsProvider = StateProvider<int>((ref) => 0);
+
+/// 批量选择中的笔记 id 集（空=普通模式；长按卡片进入）。
+final noteSelProvider = StateProvider<Set<int>>((ref) => const {});
 
 /// 笔记列表（随筛选刷新；保存/置顶/归档/删除后 invalidate）。
 final notesProvider = FutureProvider<List<Note>>((ref) async {
@@ -40,9 +47,7 @@ final notesProvider = FutureProvider<List<Note>>((ref) async {
   final dao = ref.watch(noteDaoProvider);
   if (f.folder == kNoteTrash) return dao.trash();
   return dao.list(
-      folder: f.folder.isEmpty ? null : f.folder,
-      query: f.query,
-      sort: f.sort);
+      folder: f.folder.isEmpty ? null : f.folder, sort: f.sort);
 });
 
 /// 笔记文件夹 chips 行（含去重来源）。

@@ -3,8 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/schema.dart';
 import '../domain/note.dart';
 
-/// 排序（原型 ↕：更新时间↓ / 创建时间 / 字数）。
-enum NoteSort { updated, created, words }
+/// 排序（V1.29轮6 原型三方式：最后修改↓ / 创建时间↓ / 标题 A→Z）。
+enum NoteSort { updated, created, title }
 
 /// notes 表数据访问（M1 批1：列表/搜索/管理 + 版本快照）。
 class NoteDao {
@@ -33,8 +33,8 @@ class NoteDao {
     final order = switch (sort) {
       NoteSort.updated => 'pinned DESC, updated_at DESC',
       NoteSort.created => 'pinned DESC, created_at DESC',
-      // 字数排序在应用层算（content 长度近似=字符数）
-      NoteSort.words => 'pinned DESC, LENGTH(REPLACE(content, \' \', \'\')) DESC',
+      // V1.29轮6：标题 A→Z（英文不区分大小写；中文按码位近似笔画序）
+      NoteSort.title => 'pinned DESC, title COLLATE NOCASE ASC',
     };
     return (await db.query(table,
             where: where.join(' AND '), whereArgs: args, orderBy: order))
@@ -94,6 +94,25 @@ class NoteDao {
   Future<void> setArchived(int id, bool archived) => db.update(table,
       {'archived': archived ? 1 : 0, 'updated_at': _now()},
       where: 'id = ?', whereArgs: [id]);
+
+  // ---- V1.29批A3：批量选择操作（置顶 / 移动到 / 删除） ----
+
+  String _ph(List<int> ids) => ids.map((_) => '?').join(',');
+
+  Future<void> setPinnedMany(List<int> ids, bool pinned) => db.transaction((txn) async {
+        for (final id in ids) {
+          await txn.update(table, {'pinned': pinned ? 1 : 0, 'updated_at': _now()},
+              where: 'id = ?', whereArgs: [id]);
+        }
+      });
+
+  Future<void> setFolderMany(List<int> ids, String? folder) => db.update(table,
+      {'folder': folder?.isEmpty == true ? null : folder, 'updated_at': _now()},
+      where: 'id IN (${_ph(ids)})', whereArgs: ids);
+
+  Future<void> softDeleteMany(List<int> ids) => db.update(table,
+      {'deleted_at': _now(), 'updated_at': _now()},
+      where: 'id IN (${_ph(ids)})', whereArgs: ids);
 
   /// 进回收站（软删）。
   Future<void> softDelete(int id) => db.update(table,

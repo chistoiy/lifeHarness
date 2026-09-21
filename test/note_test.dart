@@ -40,11 +40,17 @@ void main() {
   ProviderScope scope(Widget home) => ProviderScope(
         overrides: [
           noteDaoProvider.overrideWithValue(dao),
+          noteFolderDaoProvider.overrideWithValue(NoteFolderDao(db)),
           todoRepositoryProvider.overrideWithValue(trepo),
         ],
         child: MaterialApp(
             home: home is NoteTab ? Scaffold(body: home) : home),
       );
+
+  /// 经 NoteTab 元素拿到容器：切筛选/读视图状态（V1.29批A3 用例）。
+  void mutate(WidgetTester tester, void Function(ProviderContainer c) fn) {
+    fn(ProviderScope.containerOf(tester.element(find.byType(NoteTab))));
+  }
 
   Note note(String title,
           {String content = '正文', String? folder, bool pinned = false}) =>
@@ -78,8 +84,8 @@ void main() {
       expect((await dao.list(folder: '工作')).single.title, '写作');
       expect((await dao.list(query: '读')).single.title, '读书');
       expect(
-          (await dao.list(sort: NoteSort.words)).map((n) => n.title).toList(),
-          ['读书', '写作']); // 置顶仍优先，其后字数多在前
+          (await dao.list(sort: NoteSort.title)).map((n) => n.title).toList(),
+          ['读书', '写作']); // 置顶仍优先，其后标题序
       expect((await dao.archived()).single.title, '归档件');
       expect((await dao.trash()).single.title, '回收件');
       expect(await dao.folders(), ['工作', '生活']);
@@ -141,38 +147,120 @@ void main() {
     });
   });
 
-  group('笔记 tab（原型 recNote）', () {
-    testWidgets('渲染搜索行+chips+真实卡；长按移入回收站后列表清空', (tester) async {
+  group('笔记 tab（原型 recNote · V1.29轮6 重构）', () {
+    testWidgets('无页内搜索与写笔记钮；精简卡；长按批量→删除入回收站；回收站长按恢复', (tester) async {
       await dao.save(note('WebDAV 选型', folder: '工作', content: '坚果云应用密码模式'));
       await tester.pumpWidget(scope(const NoteTab()));
       await tester.pumpAndSettle();
 
-      expect(find.text('✎ 写笔记'), findsOneWidget);
-      expect(find.text('全部'), findsOneWidget);
-      expect(find.text('🗑 回收站'), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-search')), findsNothing);
+      expect(find.text('✎ 写笔记'), findsNothing);
       expect(find.textContaining('WebDAV 选型'), findsOneWidget);
       expect(find.textContaining('共 1 篇'), findsOneWidget);
+      expect(find.textContaining('工作 · '), findsNothing); // 卡片已去目录/字数行
 
+      // 长按=进入批量选择（toast 会盖住底部操作条，先让其退场）
       await tester.longPress(find.byKey(const ValueKey('note-card-1')));
+      await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('🗑 移入回收站'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('WebDAV 选型'), findsNothing);
+      expect(find.byKey(const ValueKey('note-sel-bar')), findsOneWidget);
+      expect(find.text('已选 1'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('note-f-trash')));
+      // 批量删除 → 回收站（toast 会临时盖住底部条，直接触发回调验证逻辑）
+      tester.widget<TextButton>(find.byKey(const ValueKey('sel-del'))).onPressed!();
+      await settle5(tester);
+      expect((await dao.trash()).map((n) => n.title), ['WebDAV 选型']); // 先验 DB
+      expect(find.textContaining('WebDAV 选型'), findsNothing); // 再验 UI
+
+      // 回收站视图：长按=恢复
+      mutate(tester, (c) => c.read(noteFilterProvider.notifier).state =
+          (folder: kNoteTrash, sort: c.read(noteFilterProvider).sort));
       await tester.pumpAndSettle();
       expect(find.textContaining('WebDAV 选型'), findsOneWidget);
+      await tester.longPress(find.byKey(const ValueKey('note-card-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('♻️ 恢复'));
+      await tester.pumpAndSettle();
+      expect((await dao.trash()), isEmpty);
     });
 
-    testWidgets('搜索过滤：不匹配时显空态', (tester) async {
+    testWidgets('排序菜单三方式（当前项✓）与视图循环 列表→2→3→4→列表', (tester) async {
+      await dao.save(note('乙笔记'));
       await dao.save(note('甲笔记'));
       await tester.pumpWidget(scope(const NoteTab()));
       await tester.pumpAndSettle();
-      await tester.enterText(
-          find.byKey(const ValueKey('note-search')), '乙');
+
+      await tester.tap(find.byKey(const ValueKey('note-sort')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('甲笔记'), findsNothing);
-      expect(find.textContaining('没有匹配'), findsOneWidget);
+      expect(find.text('最后修改 ↓'), findsOneWidget);
+      expect(find.text('创建时间 ↓'), findsOneWidget);
+      expect(find.text('标题 A→Z'), findsOneWidget);
+      await tester.tap(find.text('标题 A→Z'));
+      await tester.pumpAndSettle();
+      expect(tester
+          .widgetList<Widget>(find.byKey(const ValueKey('note-card-1')))
+          .isNotEmpty, isTrue);
+
+      // 视图循环
+      int cols() => ProviderScope.containerOf(tester.element(find.byType(NoteTab)))
+          .read(noteViewColsProvider);
+      for (final _ in [1, 2, 3]) {
+        await tester.tap(find.byKey(const ValueKey('note-view')));
+        await tester.pumpAndSettle();
+      }
+      expect(cols(), 4);
+      await tester.tap(find.byKey(const ValueKey('note-view')));
+      await tester.pumpAndSettle();
+      expect(cols(), 0);
+    });
+
+    testWidgets('左滑卡片 → 直接入回收站', (tester) async {
+      await dao.save(note('滑动删除我'));
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      await tester.fling(find.byKey(const ValueKey('note-card-1')),
+          const Offset(-400, 0), 1200);
+      await tester.pump();
+      await settle5(tester);
+      expect((await dao.trash()).single.title, '滑动删除我');
+    });
+
+    testWidgets('文件夹树抽屉：顶层新建→点选目录（不关抽屉）→在其下建子夹', (tester) async {
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('note-folder')));
+      await tester.pumpAndSettle();
+      expect(find.text('文件夹'), findsOneWidget);
+      expect(find.text('全部笔记'), findsOneWidget);
+      expect(find.textContaining('添加文件夹 · 顶层'), findsOneWidget);
+
+      // 顶层新建「灵感」
+      await tester.tap(find.byKey(const ValueKey('nt-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('nt-name-input')), '灵感');
+      await tester.tap(find.byKey(const ValueKey('nt-name-ok')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('nt-灵感')), findsOneWidget);
+
+      // 点选「灵感」=选中目录，抽屉保持打开，添加目标联动
+      await tester.tap(find.byKey(const ValueKey('nt-灵感')));
+      await tester.pumpAndSettle();
+      expect(find.text('文件夹'), findsOneWidget); // 未关闭
+      expect(find.textContaining('添加文件夹 · 灵感'), findsOneWidget);
+      mutate(tester, (c) =>
+          expect(c.read(noteFilterProvider).folder, '灵感'));
+
+      // 在灵感下建子夹「工作」
+      await tester.tap(find.byKey(const ValueKey('nt-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('nt-name-input')), '工作');
+      await tester.tap(find.byKey(const ValueKey('nt-name-ok')));
+      await tester.pumpAndSettle();
+      final folders = await NoteFolderDao(db).list();
+      final g = folders.firstWhere((f) => f.name == '灵感');
+      final w = folders.firstWhere((f) => f.name == '工作');
+      expect(w.parentId, g.id);
     });
   });
 

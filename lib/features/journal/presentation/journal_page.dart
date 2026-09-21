@@ -7,8 +7,74 @@ import '../../../core/widgets/grad_fab.dart';
 import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
+import 'note_edit_page.dart';
 import 'note_tab.dart';
 import 'widgets/ins_card.dart';
+
+/// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选
+/// 📝富文本 / 📃纯文本 / ⌨️MD 文档；新建默认归属当前选中文件夹。
+class _NoteFab extends ConsumerStatefulWidget {
+  const _NoteFab();
+
+  @override
+  ConsumerState<_NoteFab> createState() => _NoteFabState();
+}
+
+class _NoteFabState extends ConsumerState<_NoteFab> {
+  bool _open = false;
+
+  static const _acts = [
+    ('📝', '添加富文本笔记', 'rich'),
+    ('📃', '添加纯文本笔记', 'plain'),
+    ('⌨️', '添加 MD 文档', 'md'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final (ico, label, kind) in _acts)
+          if (_open)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                key: ValueKey('note-fab-$kind'),
+                borderRadius: BorderRadius.circular(999),
+                onTap: () {
+                  setState(() => _open = false);
+                  final folder = ref.read(noteFilterProvider).folder;
+                  context.push('/note/edit',
+                      extra: NoteEditArg(
+                          kind: kind,
+                          folder: folder == kNoteTrash ? '' : folder));
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: tokens.card,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: tokens.cardBorder),
+                      boxShadow: tokens.cardShadow),
+                  child: Text('$ico $label',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ),
+        GradFab(
+          tooltip: '添加笔记',
+          icon: Icon(_open ? Icons.close : Icons.add,
+              color: Colors.white, size: 26),
+          onTap: () => setState(() => _open = !_open),
+        ),
+      ],
+    );
+  }
+}
 
 /// 模块3 记录页（原型 p-records · V1.29轮5）：无段切换行，
 /// 标题随当前段显「记录 · X」，右上 ⇄ 钮开四能力菜单。
@@ -69,11 +135,14 @@ class JournalPage extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: GradFab(
-        tooltip: '写今天的日记',
-        icon: const Icon(Icons.add, color: Colors.white, size: 26),
-        onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
-      ),
+      floatingActionButton: tab == 'note'
+          ? const _NoteFab()
+          : GradFab(
+              tooltip: '写今天的日记',
+              icon: const Icon(Icons.add, color: Colors.white, size: 26),
+              onTap: () =>
+                  context.push('/journal/edit', extra: const DiaryEditArg()),
+            ),
       body: switch (tab) {
         'diary' => const _DiaryTab(),
         'note' => const NoteTab(),
