@@ -301,7 +301,12 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _flushParas();
   }
 
+  /// 纯文本图片段：整段=一行 MD 图片语法时以缩略图块呈现（原型 ins-img）。
+  static final _imgPara = RegExp(r'^!\[[^\]]*\]\(([^)]*)\)$');
+
   Widget _paraField(int i) {
+    final img = _imgPara.firstMatch(_paras[i].text.trim());
+    if (img != null) return _paraImage(i, img.group(1)!);
     final dimmed = _focusOn && _curPara != i;
     final isCur = _curPara == i;
     return TextField(
@@ -327,6 +332,79 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       ),
       onChanged: (v) => _paraChanged(i, v),
     );
+  }
+
+  /// 图片段呈现=缩略图卡（✕ 移除该段；存储仍是 ![🖼](路径) 行，导出/预览兼容）。
+  Widget _paraImage(int i, String path) {
+    return Align(
+      key: ValueKey('note-para-$i'),
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                File(path),
+                width: 160,
+                height: 120,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  width: 160,
+                  height: 120,
+                  alignment: Alignment.center,
+                  color: _fg.withValues(alpha: .08),
+                  child: Text('🖼 图片已丢失',
+                      style: TextStyle(
+                          fontSize: 11, color: _fg.withValues(alpha: .45))),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -6,
+              right: -6,
+              child: GestureDetector(
+                key: ValueKey('note-img-del-$i'),
+                onTap: () => _removePara(i),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _bg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _fg.withValues(alpha: .3)),
+                  ),
+                  child: Text('✕',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: _fg.withValues(alpha: .7))),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _removePara(int i) {
+    if (i < 0 || i >= _paras.length) return;
+    if (_paras.length == 1) {
+      _paras[i].clear();
+      _flushParas();
+      return;
+    }
+    final old = <Object>[_paras[i], _paraNodes[i]];
+    _paras.removeAt(i);
+    _paraNodes.removeAt(i);
+    _disposeLater(old);
+    _curPara = i.clamp(0, _paras.length - 1);
+    setState(() {});
+    _flushParas();
   }
 
   // ---------- V1.29批B · 富文本（原型 pwRichBar · flutter_quill WYSIWYG） ----------
@@ -589,16 +667,22 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     AppToast.show(context, '🖼 已插入图片');
   }
 
-  /// 轮8①：纯文本「＋」附件卡 → 走同一插图链 → 当前段尾插 MD 图片语法。
+  /// 轮8①：纯文本「＋」附件卡 → 走同一插图链 → 当前段后插**独立图片段**
+  /// （以缩略图块呈现，不露出原始 MD 语法文本）。
   Future<void> _plainAttach() async {
     final dest = await _pickImage();
     if (dest == null || !mounted) return;
     final i = _curPara.clamp(0, _paras.length - 1);
-    final ctl = _paras[i];
-    final text =
-        '${ctl.text}${ctl.text.isEmpty || ctl.text.endsWith('\n') ? '' : '\n'}![🖼]($dest)';
-    ctl.value = TextEditingValue(
-        text: text, selection: TextSelection.collapsed(offset: text.length));
+    if (_paras[i].text.trim().isEmpty) {
+      _paras[i].value = TextEditingValue(
+          text: '![🖼]($dest)',
+          selection: TextSelection.collapsed(offset: 8 + dest.length));
+    } else {
+      _paras.insert(i + 1, TextEditingController(text: '![🖼]($dest)'));
+      _paraNodes.insert(i + 1, _newParaNode());
+      _curPara = i + 1;
+    }
+    setState(() {});
     _flushParas();
     AppToast.show(context, '🖼 已插入图片');
   }
@@ -1343,7 +1427,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
 
   Widget _bodyArea() {
     if (_isRich) return _richEditor();
-    switch (_mode) {
+    // 四模式=MD 文档专属；纯文本恒为专注段落形态（原型 pwModes 仅 md 渲染）。
+    final m = _kind == 'md' ? _mode : NoteEditMode.focus;
+    switch (m) {
       case NoteEditMode.focus:
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
@@ -1368,7 +1454,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             ),
             Divider(color: _fg.withValues(alpha: .1), height: 28),
             for (var i = 0; i < _paras.length; i++) _paraField(i),
-            // 轮8①（原型 pwAttach）：纯文本正文尾部「＋」附件卡 → 插图入当前段。
+            // 轮8①（原型 pwAttach）：纯文本正文尾部「＋」附件卡 → 插独立图片段。
             if (_kind == 'plain')
               Align(
                 alignment: Alignment.centerLeft,
@@ -1478,9 +1564,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                   ],
                 ),
               ),
-              // 轮8②⑥：顶部只留四模式行（rich 无模式概念整行隐藏）；
-              // MD/富文本快捷条全部移到底部 _toolBarArea()。
-              if (!_isRich)
+              // 轮8②⑥+批1收口：顶部四模式行=MD 文档专属（原型 pwModes 仅 md 显示，
+              // 纯文本/富文本整行隐藏）；快捷条全部在底部 _toolBarArea()。
+              if (_kind == 'md')
                 Container(
                   decoration: BoxDecoration(
                     color: _bg,
@@ -1640,6 +1726,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                                 _kind = next;
                                 _dirty = true;
                                 _pwSub = '';
+                                // 模式行=MD 专属：切到纯文本回专注段落形态。
+                                if (next == 'plain') _mode = NoteEditMode.focus;
                               });
                               if (next == 'rich') {
                                 _rebuildRich(text);

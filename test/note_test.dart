@@ -421,7 +421,7 @@ void main() {
     });
 
     testWidgets('分屏：源码输入实时同步右侧预览区与字数', (tester) async {
-      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-mode-split')));
       await tester.pumpAndSettle();
@@ -467,7 +467,7 @@ void main() {
     });
 
     testWidgets('源码模式编辑后返回：内容落库', (tester) async {
-      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-mode-src')));
       await tester.pumpAndSettle();
@@ -491,7 +491,7 @@ void main() {
 
     testWidgets('预览模式全要素渲染：标题/公式/表格/任务行/引用/代码块',
         (tester) async {
-      final n = await dao.save(note('富文本', content: rich));
+      final n = await dao.save(note('富文本', content: rich, kind: 'md'));
       await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-mode-view')));
@@ -516,8 +516,8 @@ void main() {
     });
 
     testWidgets('预览勾选 ☑ → 回写源码 - [x] 并联动 L3', (tester) async {
-      final n =
-          await dao.save(note('任务', content: '- [ ] 回复邮件\n- [ ] 买菜'));
+      final n = await dao
+          .save(note('任务', content: '- [ ] 回复邮件\n- [ ] 买菜', kind: 'md'));
       await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-mode-view')));
@@ -990,6 +990,8 @@ void main() {
       expect(find.byKey(const ValueKey('note-attach')), findsOneWidget);
       expect(find.byKey(const ValueKey('note-md-bold')),
           findsNothing); // plain 无底部快捷条
+      expect(find.byKey(const ValueKey('note-mode-src')),
+          findsNothing); // 8b：模式行=MD 专属，plain 顶部不出现
 
       await tester.enterText(
           find.byKey(const ValueKey('note-para-0')), '正文一段');
@@ -1017,6 +1019,15 @@ void main() {
       expect(list.single.content, contains('![🖼]('));
       expect(list.single.preview, contains('🖼')); // 预览只留占位符
       expect(list.single.preview, isNot(contains(docs.path)));
+
+      // 8b：图片=独立图片段缩略图卡（原型 ins-img），不露原始语法；✕ 可移除
+      expect(find.byKey(const ValueKey('note-img-del-1')), findsOneWidget);
+      expect(find.textContaining('![🖼]('), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('note-img-del-1')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-para-1')), findsNothing);
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+      expect((await dao.list()).single.content, '正文一段');
     });
   });
 
