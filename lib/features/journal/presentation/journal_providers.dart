@@ -7,6 +7,7 @@ import '../data/note_dao.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import '../domain/journal_repository.dart';
+import '../domain/note.dart';
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(JournalDao(AppDatabase.instance.db));
@@ -19,9 +20,32 @@ final diaryTemplateDaoProvider =
 final diaryTemplatesProvider = FutureProvider<List<DiaryTemplate>>(
     (ref) => ref.watch(diaryTemplateDaoProvider).list());
 
-/// 笔记 DAO（M0 最小集：收集箱分流写入；M1 编辑器接管）。
+/// 笔记 DAO（M0 收集箱分流写入；M1 批1 列表/管理/编辑器接管）。
 final noteDaoProvider =
     Provider<NoteDao>((ref) => NoteDao(AppDatabase.instance.db));
+
+/// 笔记列表筛选（folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名）。
+final noteFilterProvider =
+    StateProvider<({String folder, String query, NoteSort sort})>(
+        (ref) => (folder: '', query: '', sort: NoteSort.updated));
+
+/// 回收站特殊文件夹值。
+const kNoteTrash = '__trash__';
+
+/// 笔记列表（随筛选刷新；保存/置顶/归档/删除后 invalidate）。
+final notesProvider = FutureProvider<List<Note>>((ref) async {
+  final f = ref.watch(noteFilterProvider);
+  final dao = ref.watch(noteDaoProvider);
+  if (f.folder == kNoteTrash) return dao.trash();
+  return dao.list(
+      folder: f.folder.isEmpty ? null : f.folder,
+      query: f.query,
+      sort: f.sort);
+});
+
+/// 笔记文件夹 chips 行（含去重来源）。
+final noteFoldersProvider =
+    FutureProvider<List<String>>((ref) => ref.watch(noteDaoProvider).folders());
 
 /// 全部日记（新→旧；保存/回望操作后 invalidate 刷新）。
 final journalsProvider = FutureProvider<List<JournalEntry>>(

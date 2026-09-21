@@ -7,10 +7,11 @@ import '../../../core/widgets/grad_fab.dart';
 import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
+import 'note_tab.dart';
 import 'widgets/ins_card.dart';
 
 /// 模块3 记录页（原型 p-records）：日记/笔记/阅读/影音游四段 tab。
-/// 本里程碑仅「日记」为真实数据（M0 业务③），其余三段留 M1 占位。
+/// 日记（M0/V1.28）与笔记列表管理（M1 批1a）为真实数据；阅读/影音游留占位。
 class JournalPage extends ConsumerWidget {
   const JournalPage({super.key});
 
@@ -78,7 +79,7 @@ class JournalPage extends ConsumerWidget {
           Expanded(
             child: switch (tab) {
               'diary' => const _DiaryTab(),
-              'note' => const _TabSoon('📝', '笔记 · 纯写作与 Markdown', '规划 V0.5 · M1'),
+              'note' => const NoteTab(),
               'book' => const _TabSoon('📚', '阅读 · 书架/摘录/目录计时', '规划 V0.5 · M1'),
               _ => const _TabSoon('🎬', '影音游 · 与阅读同构', '规划 V1.1 · M3'),
             },

@@ -16,6 +16,7 @@ import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
+import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import '../../features/todo/presentation/todo_page.dart';
@@ -56,6 +57,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ? DiaryEditPage(day: a.day, entryId: a.entryId)
               : DiaryEditPage(day: a as DateTime?);
         },
+      ),
+      // M1 批1a 笔记编辑页：全屏纸感（原型 p-noteEdit），extra=noteId（null=新建）。
+      GoRoute(
+        path: '/note/edit',
+        builder: (_, s) => NoteEditPage(noteId: s.extra as int?),
       ),
       // 提醒通知二级页（原型 p-sub-notify）。
       GoRoute(

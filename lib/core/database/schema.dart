@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 6;
+  static const int version = 7;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -19,6 +19,8 @@ class DbSchema {
   static const String tDiaryTemplates = 'diary_templates';
   static const String tTemplateSections = 'template_sections';
   static const String tNotes = 'notes';
+  // v7：笔记归档/回收站 + 版本快照（M1 批1 · 需求 模块3 纯纯写作风）
+  static const String tNoteSnapshots = 'note_snapshots';
   static const String tInbox = 'inbox_items';
   static const String tSettings = 'settings';
   // 预留表（V0.1 建表，业务 M2/M3 填充）
@@ -140,7 +142,7 @@ class DbSchema {
     "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(1,0,'感恩 ①','小事也可以'),(1,1,'感恩 ②',NULL),(1,2,'感恩 ③',NULL)",
     "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(2,0,'Keep · 做对了什么',NULL),(2,1,'Problem · 哪里不顺',NULL),(2,2,'Try · 下一步怎么改',NULL)",
 
-    // 模块3 笔记（kind: plain/rich/md；folder 分组；pinned 置顶）
+    // 模块3 笔记（kind: plain/rich/md；folder 分组；pinned 置顶；v7 archived/deleted_at）
     '''
     CREATE TABLE $tNotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,10 +151,21 @@ class DbSchema {
       kind TEXT NOT NULL DEFAULT 'plain',
       folder TEXT,
       pinned INTEGER NOT NULL DEFAULT 0,
+      archived INTEGER NOT NULL DEFAULT 0,
+      deleted_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
     ''',
+    '''
+    CREATE TABLE $tNoteSnapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      note_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX idx_snap_note ON $tNoteSnapshots(note_id)',
 
     // 模块5 收集箱（routed_to: null=未分流, todo/event/note/journal；routed_ref 目标行 id）
     '''
@@ -360,6 +373,20 @@ class DbSchema {
       "INSERT OR IGNORE INTO $tDiaryTemplates(id,name,builtin,sort) VALUES(2,'KPT 复盘',1,2)",
       "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(1,0,'感恩 ①','小事也可以'),(1,1,'感恩 ②',NULL),(1,2,'感恩 ③',NULL)",
       "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(2,0,'Keep · 做对了什么',NULL),(2,1,'Problem · 哪里不顺',NULL),(2,2,'Try · 下一步怎么改',NULL)",
+    ],
+    // v7（M1 批1）：笔记管理列 + 版本快照表
+    6: [
+      'ALTER TABLE $tNotes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tNotes ADD COLUMN deleted_at INTEGER',
+      '''
+      CREATE TABLE IF NOT EXISTS $tNoteSnapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+      ''',
+      'CREATE INDEX IF NOT EXISTS idx_snap_note ON $tNoteSnapshots(note_id)',
     ],
   };
 }
