@@ -339,9 +339,9 @@ void main() {
   });
 
   group('笔记编辑页（批1b · 四模式+快捷栏+字号纸色）', () {
-    testWidgets('专注模式快捷栏=守卫 toast；切 MD源码 后 H 循环标题级、加粗包裹',
+    testWidgets('轮8底部 MD 条：专注守卫；源码态 H# 开二级直选 H2；↺ 撤销',
         (tester) async {
-      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('note-md-bold')));
@@ -354,16 +354,30 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const ValueKey('note-body')), '# 标题');
+      // 轮8⑥：H 折叠为 H#，点开后二级行在下方展开 H1~H6+✕
       await tester.tap(find.byKey(const ValueKey('note-md-h')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-h-4')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-h-2')));
       final ctl = tester
           .widget<TextField>(find.byKey(const ValueKey('note-body')))
           .controller!;
       expect(ctl.text, '## 标题');
-      expect(await pollText(tester, '标题级别：h2（再点循环升级至 h6）'), isTrue);
+      expect(await pollText(tester, '标题级别：h2'), isTrue);
       await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.byKey(const ValueKey('note-sub-close')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-h-2')), findsNothing);
+      // 加粗包裹（空选区=光标处插成对标记）→ ↺ 回到操作前
       await tester.tap(find.byKey(const ValueKey('note-md-bold')));
       await tester.pump();
-      expect(ctl.text, '## 标题****'); // 空选区=在光标处插入成对标记
+      expect(ctl.text, '## 标题****');
+      await tester.tap(find.byKey(const ValueKey('note-md-undo')));
+      await tester.pump();
+      expect(ctl.text, '## 标题');
+      await tester.tap(find.byKey(const ValueKey('note-md-redo')));
+      await tester.pump();
+      expect(ctl.text, '## 标题****');
     });
 
     testWidgets('分屏：源码输入实时同步右侧预览区与字数', (tester) async {
@@ -691,14 +705,16 @@ void main() {
   });
 
   group('V1.29批B · 富文本（flutter_quill · 原型 pwRichBar）', () {
-    testWidgets('rich 新建：Quill 编辑器+九键工具栏；输入→Delta JSON 落库',
+    testWidgets('rich 新建：Quill 编辑器+底部主条（轮8②）；输入→Delta JSON 落库',
         (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'rich')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('note-rich-editor')), findsOneWidget);
-      for (final k in ['bold', 'ital', 'under', 'h', 'ul', 'task', 'img',
-        'undo', 'redo']) {
+      for (final k in [
+        'undo', 'redo', 'tt', 'lay', 'bold', 'ital', 'under', 'strike',
+        'code', 'quote', 'task', 'table', 'link', 'img',
+      ]) {
         expect(find.byKey(ValueKey('note-rich-$k')), findsOneWidget);
       }
       expect(find.byKey(const ValueKey('note-md-h')), findsNothing); // MD 栏隐藏
@@ -861,6 +877,106 @@ void main() {
       final list = await dao.list();
       expect(list.single.content, contains('"image"'));
       expect(Note.richToPlain(list.single.content), contains('🖼')); // 预览无路径
+    });
+  });
+
+  group('V1.29轮8-C1 · 底部条二级行 + 纯文本插图', () {
+    testWidgets('rich Tt/≡ 二级行：H1 直选与 N 还原；lay 居中/有序/缩进',
+        (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'rich')));
+      await tester.pumpAndSettle();
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('note-rich-editor')))
+          .controller;
+      ctl.replaceText(
+          0, 0, '段落字', const TextSelection(baseOffset: 0, extentOffset: 3));
+      await tester.pump();
+
+      // Tt 二级：H1 直选 → N 还原（二级行不自动关，✕ 退役在末尾）
+      await tester.tap(find.byKey(const ValueKey('note-rich-tt')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-rich-tt-h1')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-rich-tt-h1')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"header":1'));
+      await tester.tap(find.byKey(const ValueKey('note-rich-tt-plain')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          isNot(contains('"header"')));
+      // Aa = 字号滑杆弹层
+      await tester.tap(find.byKey(const ValueKey('note-rich-tt-font')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-font-sheet')), findsOneWidget);
+      await tester.binding.handlePopRoute(); // 系统返回收起弹层
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-font-sheet')), findsNothing);
+
+      // ≡ 排版二级：居中 / 有序列表 / 缩进
+      await tester.tap(find.byKey(const ValueKey('note-rich-lay')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('note-rich-lay-center')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"align":"center"'));
+      await tester.tap(find.byKey(const ValueKey('note-rich-lay-ol')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"list":"ordered"'));
+      await tester.tap(find.byKey(const ValueKey('note-rich-lay-indent')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"indent":1'));
+      await tester.tap(find.byKey(const ValueKey('note-sub-close')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-rich-lay-ol')), findsNothing);
+    });
+
+    testWidgets('轮8① 纯文本「＋」附件卡：弹层→落盘→段尾插 ![🖼](路径) 并预览去径',
+        (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lh_img_p');
+      final docs = Directory.systemTemp.createTempSync('lh_docs_p');
+      addTearDown(() {
+        tmp.deleteSync(recursive: true);
+        docs.deleteSync(recursive: true);
+      });
+      File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
+      ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
+      PathProviderPlatform.instance = _FakePathProvider(docs.path);
+
+      await tester.pumpWidget(scope(const NoteEditPage())); // plain·专注
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-attach')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-md-bold')),
+          findsNothing); // plain 无底部快捷条
+
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-0')), '正文一段');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('note-attach')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('img-gallery')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('img-gallery')));
+      await tester.pumpAndSettle();
+      for (var i = 0;
+          i < 10 &&
+              find.textContaining('🖼 已插入图片').evaluate().isEmpty;
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.textContaining('🖼 已插入图片'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await settle5(tester);
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+
+      final list = await dao.list();
+      expect(list.single.content, contains('正文一段'));
+      expect(list.single.content, contains('![🖼]('));
+      expect(list.single.preview, contains('🖼')); // 预览只留占位符
+      expect(list.single.preview, isNot(contains(docs.path)));
     });
   });
 

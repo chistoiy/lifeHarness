@@ -51,14 +51,25 @@ class Note {
   /// 面向展示/计数/导出的正文（rich 去 Delta JSON 痕迹）。
   String get plainBody => kind == 'rich' ? richToPlain(content) : content;
 
+  /// 展示/计数用正文：rich 去 JSON，非 rich 去 Markdown 图片本地语法（→alt/🖼）。
+  String get displayBody =>
+      kind == 'rich' ? richToPlain(content) : stripMdImages(content);
+
+  /// 图片本地语法 ![alt](path) → alt（无 alt 则 🖼），避免长路径进预览/字数。
+  static String stripMdImages(String s) => s
+      .replaceAllMapped(RegExp(r'!\[([^\]]*)\]\([^)]*\)'), (m) {
+        final alt = m.group(1) ?? '';
+        return alt.isEmpty ? '🖼' : alt;
+      });
+
   /// 列表预览：去标题行与换行，截 40 字。
   String get preview {
-    final body = plainBody.replaceAll('\r', '').trim();
+    final body = displayBody.replaceAll('\r', '').trim();
     if (body.isEmpty) return '（空白笔记）';
     return body.length <= 40 ? body : '${body.substring(0, 40)}…';
   }
 
-  int get wordCount => plainBody.replaceAll(RegExp(r'\s'), '').length;
+  int get wordCount => displayBody.replaceAll(RegExp(r'\s'), '').length;
 
   static Note fromRow(Map<String, Object?> row) => Note(
         id: row['id'] as int?,

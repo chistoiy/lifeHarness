@@ -29,9 +29,12 @@ const notePapers = <(Color, Color)>[
   (Color(0xFF1E1D1B), Color(0xFFCFC9BD)),
 ];
 
-/// 14 键 MD 快捷栏（原型 pw-tool 顺序与图形）。
+/// MD 底部主条（原型轮8 renderPwBar · pw-tool 顺序与图形）：
+/// ↺↻ | H#（点开二级 H1~H6）B I S <> ❝ ≡ ☑ ▦ 🖼 🔗 ƒx ∑ —
 const _mdTools = <(String, String, String)>[
-  ('h', 'H', '标题'),
+  ('undo', '↺', '撤销'),
+  ('redo', '↻', '重做'),
+  ('h', 'H#', '标题（点开后在下方选 H1~H6）'),
   ('bold', 'B', '加粗'),
   ('ital', 'I', '斜体'),
   ('strike', 'S', '删除线'),
@@ -110,6 +113,11 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   String _lastRichJson = '';
   final _richFocus = FocusNode();
   final _richScroll = ScrollController();
+
+  // V1.29轮8 · 底部快捷栏：二级行展开态（''/h/tt/lay）与 MD 工具级撤销栈。
+  String _pwSub = '';
+  final List<({String text, int caret})> _mdUndo = [];
+  final List<({String text, int caret})> _mdRedo = [];
 
   bool get _isRich => _kind == 'rich';
 
@@ -359,18 +367,117 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     c.formatSelection(has ? Attribute.clone(attr, null) : attr);
   }
 
-  /// H 键：与 MD 快捷栏同款循环 无→h1→h2→h3→无（原型 pwRich-h）。
-  void _richHeading() {
+  /// tt 二级（原型 pwRichHead）：N 还原正文 / H1~H3 直选标题级。
+  void _richSetHeader(int level) {
     final c = _richCtl;
     if (c == null) return;
-    final cur = c.getSelectionStyle().attributes['header'];
-    final level = cur is HeaderAttribute ? (cur.value ?? 0) : 0;
-    const steps = [Attribute.h1, Attribute.h2, Attribute.h3];
-    if (level >= 3) {
+    if (level == 0) {
       c.formatSelection(Attribute.clone(Attribute.h1, null));
     } else {
-      c.formatSelection(steps[level]); // 无→h1→h2→h3
+      c.formatSelection([Attribute.h1, Attribute.h2, Attribute.h3][level - 1]);
     }
+  }
+
+  /// lay 二级（原型 pwRich）：ol/ul/居中 在「已是该型」时还原，其余直切。
+  void _richListAs(Attribute target) {
+    final c = _richCtl;
+    if (c == null) return;
+    final cur = c.getSelectionStyle().attributes['list'];
+    c.formatSelection(cur == target ? Attribute.clone(target, null) : target);
+  }
+
+  void _richCenter() {
+    final c = _richCtl;
+    if (c == null) return;
+    const attr = Attribute.centerAlignment;
+    final has = c.getSelectionStyle().attributes.containsKey(attr.key);
+    c.formatSelection(has ? Attribute.clone(attr, null) : attr);
+  }
+
+  /// 🔗 链接：底部轻输入框 → LinkAttribute 作用于选区。
+  Future<void> _richLink() async {
+    final c = _richCtl;
+    if (c == null) return;
+    final urlCtl = TextEditingController();
+    final url = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _bg,
+      isScrollControlled: true,
+      builder: (bc) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 12, 16, MediaQuery.of(bc).viewInsets.bottom + 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('note-link-input'),
+                controller: urlCtl,
+                autofocus: true,
+                keyboardType: TextInputType.url,
+                style: TextStyle(fontSize: 13.5, color: _fg),
+                decoration: InputDecoration(
+                  labelText: 'https://…',
+                  labelStyle: TextStyle(color: _fg.withValues(alpha: .55)),
+                  enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: _fg.withValues(alpha: .3))),
+                  focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: _brand)),
+                ),
+              ),
+            ),
+            TextButton(
+              key: const ValueKey('note-link-ok'),
+              onPressed: () => Navigator.of(bc).pop(urlCtl.text.trim()),
+              child: const Text('确定', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ],
+        ),
+      ),
+    );
+    urlCtl.dispose();
+    if (url == null || url.isEmpty || !mounted) return;
+    c.formatSelection(LinkAttribute(url));
+    AppToast.show(context, '🔗 已添加链接');
+  }
+
+  /// Aa 字号：滑杆弹层（与底栏字号滑杆同一状态源）。
+  Future<void> _openFontSheet() async {
+    setState(() => _pwSub = '');
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _bg,
+      builder: (bc) => SafeArea(
+        child: StatefulBuilder(
+          builder: (bc, setSheet) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            child: Row(
+              children: [
+                Text('字号',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: _fg)),
+                Expanded(
+                  child: Slider(
+                    key: const ValueKey('note-font-sheet'),
+                    value: _font,
+                    min: 13,
+                    max: 19,
+                    divisions: 6,
+                    activeColor: _brand,
+                    inactiveColor: _fg.withValues(alpha: .2),
+                    onChanged: (v) {
+                      setSheet(() {});
+                      setState(() => _font = v);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   /// ☑ 键：无列表→待办(未勾)→已勾→清；其他列表型→待办。
@@ -389,10 +496,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     }
   }
 
-  /// 🖼 插图（原型 pwRichBar 🖼）：相册/拍照 → 拷贝应用目录 → Delta image 嵌入。
-  /// 不引 flutter_quill_extensions（其 super_native_extensions 原生链在本机
-  /// 网络受限环境构建风险大），渲染由本页 _NoteImageEmbedBuilder 承担。
-  Future<void> _richImage() async {
+  /// 🖼 插图共享链（原型 sheetImgSrc）：相册/拍照弹层 → 拷贝应用目录 →
+  /// 返回落盘路径（任一步取消/失败=null）。rich 嵌 Delta，plain 插 MD 语法。
+  Future<String?> _pickImage() async {
     final src = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: _bg,
@@ -417,7 +523,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         ),
       ),
     );
-    if (src == null || !mounted) return;
+    if (src == null || !mounted) return null;
     XFile? picked;
     try {
       picked = await ImagePicker().pickImage(
@@ -426,9 +532,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
           imageQuality: 88);
     } catch (e) {
       if (mounted) AppToast.show(context, '📷 相机/相册暂不可用');
-      return;
+      return null;
     }
-    if (picked == null || !mounted) return;
+    if (picked == null || !mounted) return null;
     try {
       final dir = await getApplicationDocumentsDirectory();
       final outDir = Directory(p.join(dir.path, 'note_images'));
@@ -438,18 +544,41 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       final dest = p.join(
           outDir.path, '${DateTime.now().millisecondsSinceEpoch}.$ext');
       await File(picked.path).copy(dest);
-      if (!mounted) return;
-      final c = _richCtl;
-      if (c == null) return;
-      final idx = c.selection.baseOffset < 0
-          ? c.document.length - 1
-          : c.selection.baseOffset;
-      c.replaceText(idx, 0, BlockEmbed.image(dest),
-          TextSelection.collapsed(offset: idx + 1));
-      AppToast.show(context, '🖼 已插入图片');
+      return mounted ? dest : null;
     } catch (_) {
       if (mounted) AppToast.show(context, '插图失败 · 请重试');
+      return null;
     }
+  }
+
+  /// rich 插图：Delta image 嵌入当前选区处。
+  /// 不引 flutter_quill_extensions（其 super_native_extensions 原生链在本机
+  /// 网络受限环境构建风险大），渲染由本页 _NoteImageEmbedBuilder 承担。
+  Future<void> _richImage() async {
+    final dest = await _pickImage();
+    if (dest == null || !mounted) return;
+    final c = _richCtl;
+    if (c == null) return;
+    final idx = c.selection.baseOffset < 0
+        ? c.document.length - 1
+        : c.selection.baseOffset;
+    c.replaceText(idx, 0, BlockEmbed.image(dest),
+        TextSelection.collapsed(offset: idx + 1));
+    AppToast.show(context, '🖼 已插入图片');
+  }
+
+  /// 轮8①：纯文本「＋」附件卡 → 走同一插图链 → 当前段尾插 MD 图片语法。
+  Future<void> _plainAttach() async {
+    final dest = await _pickImage();
+    if (dest == null || !mounted) return;
+    final i = _curPara.clamp(0, _paras.length - 1);
+    final ctl = _paras[i];
+    final text =
+        '${ctl.text}${ctl.text.isEmpty || ctl.text.endsWith('\n') ? '' : '\n'}![🖼]($dest)';
+    ctl.value = TextEditingValue(
+        text: text, selection: TextSelection.collapsed(offset: text.length));
+    _flushParas();
+    AppToast.show(context, '🖼 已插入图片');
   }
 
   /// 纸感样式：正文/三级标题/列表/引用/占位符随 _fg 与字号滑杆。
@@ -542,56 +671,158 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     );
   }
 
-  /// pwRichBar 九键（原型轮3⑥）：B I U H ≡ ☑ 🖼 ↺ ↻ · 即时生效零 MD 痕迹。
-  Widget _richBar() {
-    final c = _richCtl;
-    Widget btn(String k, Widget glyph, VoidCallback onTap, String tip) {
-      return Tooltip(
-        message: tip,
-        child: GestureDetector(
-          key: ValueKey('note-rich-$k'),
-          onTap: onTap,
-          child: Container(
-            width: 30,
-            height: 28,
-            margin: const EdgeInsets.only(right: 2),
-            decoration:
-                BoxDecoration(borderRadius: BorderRadius.circular(8)),
-            alignment: Alignment.center,
-            child: glyph,
-          ),
+  /// 底部快捷栏通用按钮（原型 pw-tool 30×28 · 纯符号，中文只进悬停提示）。
+  Widget _pwBtn(String key, String glyph, VoidCallback onTap, String tip,
+      {FontWeight w = FontWeight.w800,
+      FontStyle? f,
+      TextDecoration? d,
+      String? fontFamily}) {
+    return Tooltip(
+      message: tip,
+      child: GestureDetector(
+        key: ValueKey(key),
+        onTap: onTap,
+        child: Container(
+          width: 30,
+          height: 28,
+          margin: const EdgeInsets.only(right: 2),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          alignment: Alignment.center,
+          child: Text(glyph,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: w,
+                  fontStyle: f,
+                  fontFamily: fontFamily,
+                  decoration: d,
+                  color: _fg.withValues(alpha: .75))),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    Widget g(String text,
-            {FontWeight w = FontWeight.w800,
-            FontStyle? f,
-            TextDecoration? d}) =>
-        Text(text,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: w,
-                fontStyle: f,
-                decoration: d,
-                color: _fg.withValues(alpha: .75)));
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Row(
+  Widget _pwSep() => Container(
+      width: 1,
+      height: 16,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: _fg.withValues(alpha: .25));
+
+  /// 轮8②⑥：主条+二级行整体贴底（拇指热区）；plain 无条（＋附件卡承担插图）。
+  Widget _toolBarArea() {
+    final rich = _isRich;
+    if (!rich && _kind != 'md') return const SizedBox.shrink();
+    return Container(
+      decoration: BoxDecoration(
+        color: _bg,
+        border: Border(top: BorderSide(color: _fg.withValues(alpha: .12))),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          btn('bold', g('B'), () => _richToggle(Attribute.bold), '加粗'),
-          btn('ital', g('I', f: FontStyle.italic),
-              () => _richToggle(Attribute.italic), '斜体'),
-          btn('under', g('U', d: TextDecoration.underline),
-              () => _richToggle(Attribute.underline), '下划线'),
-          btn('h', g('H'), _richHeading, '标题（点按循环 h1→h3）'),
-          btn('ul', g('≡'), () => _richToggle(Attribute.ul), '无序列表'),
-          btn('task', g('☑'), _richTask, '待办勾选行'),
-          btn('img', g('🖼', w: FontWeight.w400), _richImage, '插图'),
-          btn('undo', g('↺'), () => c?.undo(), '撤销'),
-          btn('redo', g('↻'), () => c?.redo(), '重做'),
+          if (_pwSub.isNotEmpty) _pwSubRow(rich),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              children: rich
+                  ? [
+                      _pwBtn('note-rich-undo', '↺', () => _richCtl?.undo(), '撤销'),
+                      _pwBtn('note-rich-redo', '↻', () => _richCtl?.redo(), '重做'),
+                      _pwSep(),
+                      _pwBtn('note-rich-tt', 'Tt',
+                          () => setState(
+                              () => _pwSub = _pwSub == 'tt' ? '' : 'tt'),
+                          '字号·标题（点开二级）'),
+                      _pwBtn('note-rich-lay', '≡',
+                          () => setState(
+                              () => _pwSub = _pwSub == 'lay' ? '' : 'lay'),
+                          '排版（点开二级）'),
+                      _pwBtn('note-rich-bold', 'B',
+                          () => _richToggle(Attribute.bold), '加粗'),
+                      _pwBtn('note-rich-ital', 'I',
+                          () => _richToggle(Attribute.italic), '斜体',
+                          f: FontStyle.italic),
+                      _pwBtn('note-rich-under', 'U',
+                          () => _richToggle(Attribute.underline), '下划线',
+                          d: TextDecoration.underline),
+                      _pwBtn('note-rich-strike', 'S',
+                          () => _richToggle(Attribute.strikeThrough), '删除线',
+                          d: TextDecoration.lineThrough),
+                      _pwBtn('note-rich-code', '<>',
+                          () => _richToggle(Attribute.inlineCode), '行内代码',
+                          fontFamily: 'monospace'),
+                      _pwBtn('note-rich-quote', '❝',
+                          () => _richToggle(Attribute.blockQuote), '引用'),
+                      _pwBtn('note-rich-task', '☑', _richTask, '待办行'),
+                      _pwBtn('note-rich-table', '▦',
+                          () => AppToast.show(context, '表格 · 富文本版即将开放'),
+                          '表格'),
+                      _pwBtn('note-rich-link', '🔗', _richLink, '链接',
+                          w: FontWeight.w400),
+                      _pwBtn('note-rich-img', '🖼', _richImage, '插图',
+                          w: FontWeight.w400),
+                    ]
+                  : [
+                      for (final (k, glyph, tip) in _mdTools) ...[
+                        if (k == 'h') _pwSep(),
+                        _mdToolBtn(k, glyph, tip),
+                      ],
+                    ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  /// 二级行（原型 pwSubRow）：纯符号 pw-tool 同款；滑到尾部自动收起。
+  Widget _pwSubRow(bool rich) {
+    final items = <Widget>[
+      if (_pwSub == 'h' && !rich)
+        for (var lv = 1; lv <= 6; lv++)
+          _pwBtn('note-h-$lv', 'H$lv', () => _mdSetHeading(lv), 'H$lv'),
+      if (_pwSub == 'tt' && rich) ...[
+        _pwBtn('note-rich-tt-plain', 'N', () => _richSetHeader(0), '正文'),
+        _pwBtn('note-rich-tt-h1', 'H1', () => _richSetHeader(1), 'H1'),
+        _pwBtn('note-rich-tt-h2', 'H2', () => _richSetHeader(2), 'H2'),
+        _pwBtn('note-rich-tt-h3', 'H3', () => _richSetHeader(3), 'H3'),
+        _pwBtn('note-rich-tt-font', 'Aa', _openFontSheet, '字号滑杆',
+            f: FontStyle.italic),
+      ],
+      if (_pwSub == 'lay' && rich) ...[
+        _pwBtn('note-rich-lay-ol', '1.', () => _richListAs(Attribute.ol),
+            '有序列表'),
+        _pwBtn('note-rich-lay-ul', '•', () => _richListAs(Attribute.ul),
+            '无序列表'),
+        _pwBtn('note-rich-lay-task', '☑', _richTask, '任务行'),
+        _pwBtn('note-rich-lay-center', '↔', _richCenter, '居中'),
+        _pwBtn('note-rich-lay-indent', '⇥', () => _richCtl?.indentSelection(true),
+            '缩进'),
+        _pwBtn('note-rich-lay-outdent', '⇤',
+            () => _richCtl?.indentSelection(false), '取消缩进'),
+      ],
+    ];
+    if (items.isEmpty) return const SizedBox.shrink();
+    return NotificationListener<ScrollUpdateNotification>(
+      onNotification: (n) {
+        if (n.metrics.axis == Axis.horizontal &&
+            n.metrics.maxScrollExtent > 0 &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - 6) {
+          setState(() => _pwSub = '');
+          AppToast.show(context, '已收起二级栏');
+        }
+        return false;
+      },
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(10, 3, 10, 1),
+        child: Row(
+          children: [
+            ...items,
+            _pwBtn('note-sub-close', '✕', () => setState(() => _pwSub = ''),
+                '收起'),
+          ],
+        ),
       ),
     );
   }
@@ -617,6 +848,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       AppToast.show(context, '当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');
       return;
     }
+    _mdPushUndo();
     final sel = _bodyCtl.selection;
     final r = applyMdShortcut(
         k, _bodyCtl.text, sel.isValid ? sel.start : _bodyCtl.text.length,
@@ -626,6 +858,87 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _onChanged(r.text);
     _bodyFocus.requestFocus();
     AppToast.show(context, r.label);
+  }
+
+  /// 底部 MD 主条路由：h 开二级行，↺↻ 走工具级撤销栈，其余即插语法。
+  void _mdBarTap(String k) {
+    if (k == 'h') {
+      setState(() => _pwSub = _pwSub == 'h' ? '' : 'h');
+      return;
+    }
+    if (k == 'undo') return _mdUndoStep();
+    if (k == 'redo') return _mdRedoStep();
+    _tool(k);
+  }
+
+  void _mdPushUndo() {
+    final s = _bodyCtl.selection;
+    _mdUndo.add((
+      text: _bodyCtl.text,
+      caret: s.isValid ? s.start : _bodyCtl.text.length
+    ));
+    if (_mdUndo.length > 60) _mdUndo.removeAt(0);
+    _mdRedo.clear();
+  }
+
+  void _mdApply(({String text, int caret}) r) {
+    _bodyCtl.value = TextEditingValue(
+        text: r.text, selection: TextSelection.collapsed(offset: r.caret));
+    _onChanged(r.text);
+    _bodyFocus.requestFocus();
+  }
+
+  void _mdUndoStep() {
+    if (_mode == NoteEditMode.focus) {
+      AppToast.show(context, '当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');
+      return;
+    }
+    if (_mdUndo.isEmpty) {
+      AppToast.show(context, '已无更早的快捷操作');
+      return;
+    }
+    final s = _bodyCtl.selection;
+    _mdRedo.add((
+      text: _bodyCtl.text,
+      caret: s.isValid ? s.start : _bodyCtl.text.length
+    ));
+    _mdApply(_mdUndo.removeLast());
+  }
+
+  void _mdRedoStep() {
+    if (_mode == NoteEditMode.focus) {
+      AppToast.show(context, '当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');
+      return;
+    }
+    if (_mdRedo.isEmpty) {
+      AppToast.show(context, '已无更晚的快捷操作');
+      return;
+    }
+    final s = _bodyCtl.selection;
+    _mdUndo.add((
+      text: _bodyCtl.text,
+      caret: s.isValid ? s.start : _bodyCtl.text.length
+    ));
+    _mdApply(_mdRedo.removeLast());
+  }
+
+  /// 二级行 H1~H6 直选（原型 pwMdHead）：光标行行首 # 数置为 lv。
+  void _mdSetHeading(int lv) {
+    if (_mode == NoteEditMode.focus) {
+      AppToast.show(context, '当前为专注模式 · 切 ⌨️源码 或 🔀分屏 后可用 MD 快捷栏');
+      return;
+    }
+    _mdPushUndo();
+    final text = _bodyCtl.text;
+    final sel = _bodyCtl.selection;
+    final start = sel.isValid ? sel.start : text.length;
+    final ls = text.lastIndexOf('\n', start - 1) + 1;
+    var ne = text.indexOf('\n', ls);
+    if (ne == -1) ne = text.length;
+    final rest = text.substring(ls, ne).replaceFirst(RegExp(r'^#{1,6}\s?'), '');
+    final nl = '${'#' * lv} $rest';
+    _mdApply((text: text.substring(0, ls) + nl + text.substring(ne), caret: ls + nl.length));
+    AppToast.show(context, '标题级别：h$lv');
   }
 
   /// 🕘 快照弹层（经 ⋯ 菜单进入）：恢复=按记录管理设置替换正文或新增副本。
@@ -725,7 +1038,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   }
 
   int get _words {
-    final body = _isRich ? Note.richToPlain(_bodyCtl.text) : _bodyCtl.text;
+    final body = _isRich
+        ? Note.richToPlain(_bodyCtl.text)
+        : Note.stripMdImages(_bodyCtl.text);
     final t = '${_titleCtl.text}$body'.replaceAll(RegExp(r'\s'), '');
     return t.length;
   }
@@ -784,12 +1099,12 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     );
   }
 
-  Widget _toolBtn(String k, String glyph, String tip) {
+  Widget _mdToolBtn(String k, String glyph, String tip) {
     return Tooltip(
       message: tip,
       child: GestureDetector(
         key: ValueKey('note-md-$k'),
-        onTap: () => _tool(k),
+        onTap: () => _mdBarTap(k),
         child: Container(
           width: 30,
           height: 28,
@@ -800,12 +1115,10 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
           child: Text(glyph,
               style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: k == 'ital' ? FontWeight.w800 : FontWeight.w800,
-                  fontStyle: k == 'ital'
+                  fontWeight: FontWeight.w800,
+                  fontStyle: k == 'ital' || k == 'math' || k == 'mathb'
                       ? FontStyle.italic
-                      : k == 'math' || k == 'mathb'
-                          ? FontStyle.italic
-                          : FontStyle.normal,
+                      : FontStyle.normal,
                   decoration: k == 'strike' ? TextDecoration.lineThrough : null,
                   color: _fg.withValues(alpha: .75),
                   fontFamily: k == 'math' || k == 'mathb' ? 'Georgia' : null)),
@@ -947,6 +1260,29 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             ),
             Divider(color: _fg.withValues(alpha: .1), height: 28),
             for (var i = 0; i < _paras.length; i++) _paraField(i),
+            // 轮8①（原型 pwAttach）：纯文本正文尾部「＋」附件卡 → 插图入当前段。
+            if (_kind == 'plain')
+              Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  key: const ValueKey('note-attach'),
+                  onTap: _plainAttach,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    margin: const EdgeInsets.only(top: 16),
+                    decoration: BoxDecoration(
+                      color: _fg.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('＋',
+                        style: TextStyle(
+                            fontSize: 26,
+                            color: _fg.withValues(alpha: .6))),
+                  ),
+                ),
+              ),
           ],
         );
       case NoteEditMode.src:
@@ -1034,36 +1370,29 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                   ],
                 ),
               ),
-              Container(
-                decoration: BoxDecoration(
-                  color: _bg,
-                  border: Border(bottom: BorderSide(color: _fg.withValues(alpha: .1))),
+              // 轮8②⑥：顶部只留四模式行（rich 无模式概念整行隐藏）；
+              // MD/富文本快捷条全部移到底部 _toolBarArea()。
+              if (!_isRich)
+                Container(
+                  decoration: BoxDecoration(
+                    color: _bg,
+                    border: Border(bottom: BorderSide(color: _fg.withValues(alpha: .1))),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    child: Row(
+                      children: [
+                        _modeBtn(NoteEditMode.focus, '🖊 专注'),
+                        _modeBtn(NoteEditMode.src, '⌨️ MD源码'),
+                        _modeBtn(NoteEditMode.split, '🔀 分屏'),
+                        _modeBtn(NoteEditMode.view, '👁 预览'),
+                      ],
+                    ),
+                  ),
                 ),
-                child: _isRich
-                    ? _richBar()
-                    : SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        child: Row(
-                          children: [
-                            _modeBtn(NoteEditMode.focus, '🖊 专注'),
-                            _modeBtn(NoteEditMode.src, '⌨️ MD源码'),
-                            _modeBtn(NoteEditMode.split, '🔀 分屏'),
-                            _modeBtn(NoteEditMode.view, '👁 预览'),
-                            Container(
-                                width: 1,
-                                height: 16,
-                                margin: const EdgeInsets.symmetric(
-                                    horizontal: 6),
-                                color: _fg.withValues(alpha: .25)),
-                            for (final (k, glyph, tip) in _mdTools)
-                              _toolBtn(k, glyph, tip),
-                          ],
-                        ),
-                      ),
-              ),
               Expanded(child: _bodyArea()),
+              _toolBarArea(),
               Container(
                 decoration: BoxDecoration(
                   color: _bg,
@@ -1194,6 +1523,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                               setState(() {
                                 _kind = next;
                                 _dirty = true;
+                                _pwSub = '';
                               });
                               if (next == 'rich') {
                                 _rebuildRich(text);
