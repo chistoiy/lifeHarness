@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import 'dashboard_providers.dart';
 
 /// 模块6 今日仪表盘（对齐原型 p-dashboard）。
@@ -491,11 +492,8 @@ class _HeroCard extends ConsumerWidget {
   }
 }
 
-void _toastOf(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1500)));
-}
+void _toastOf(BuildContext context, String msg) =>
+    AppToast.show(context, msg, ms: 1500);
 
 class _MiniGlass extends StatelessWidget {
   const _MiniGlass({required this.label, required this.child});
