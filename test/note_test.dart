@@ -980,6 +980,82 @@ void main() {
     });
   });
 
+  group('V1.29轮8-C2 · 编辑页左右滑动切换笔记', () {
+    testWidgets('滑动按当前排序切上下篇·切换前落库·边界 toast 提示',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      await dao.save(Note(
+          title: '甲', content: '甲文', createdAt: t0, updatedAt: t0));
+      final b = await dao.save(Note(
+          title: '乙',
+          content: '乙文',
+          createdAt: t0.add(const Duration(minutes: 1)),
+          updatedAt: t0.add(const Duration(minutes: 1))));
+      // updated 降序 = [乙, 甲]；打开首篇 乙
+      await tester.pumpWidget(scope(NoteEditPage(noteId: b.id)));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('note-para-0')), '乙文改');
+      await tester.pump();
+
+      // 左滑（dx<0）→ 下一篇 甲（2/2）
+      await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
+      expect(await pollText(tester, '⇄ 已切换 2/2 · 甲'), isTrue);
+      expect((await dao.byId(b.id!))!.content, '乙文改'); // 切换前已落库
+      expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('note-title')))
+              .controller!
+              .text,
+          '甲'); // 头部标题跟随
+      await tester.pump(const Duration(seconds: 2));
+
+      // 尾篇再左滑 → 已是最后一篇
+      await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
+      expect(await pollText(tester, '已是最后一篇'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
+
+      // 右滑 → 回首篇 乙；再右滑 → 已是第一篇
+      await tester.dragFrom(const Offset(400, 280), const Offset(220, 0));
+      expect(await pollText(tester, '⇄ 已切换 1/2 · 乙'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.dragFrom(const Offset(400, 280), const Offset(220, 0));
+      expect(await pollText(tester, '已是第一篇'), isTrue);
+    });
+
+    testWidgets('桌面 ←/→：无输入焦点切换；焦点在正文时归光标不拦截',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final a = await dao.save(Note(
+          title: '甲', content: '甲文', createdAt: t0, updatedAt: t0));
+      final b = await dao.save(Note(
+          title: '乙',
+          content: '乙文',
+          createdAt: t0.add(const Duration(minutes: 1)),
+          updatedAt: t0.add(const Duration(minutes: 1))));
+      expect(b.id, isNotNull); // updated 降序 = [乙, 甲]
+      await tester.pumpWidget(scope(NoteEditPage(noteId: a.id)));
+      await tester.pumpAndSettle();
+
+      // 焦点在段落：→ 只移动光标，不切篇
+      await tester.tap(find.byKey(const ValueKey('note-para-0')));
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await settle5(tester);
+      expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('note-title')))
+              .controller!
+              .text,
+          '甲');
+
+      // 失焦后 ← = 上一篇（updated 降序 [乙,甲] → 乙 1/2）
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      expect(await pollText(tester, '⇄ 已切换 1/2 · 乙'), isTrue);
+    });
+  });
+
   group('NoteFolderDao（V1.29 批A1 · 多层文件夹树）', () {
     late NoteFolderDao fdao;
     setUp(() => fdao = NoteFolderDao(db));

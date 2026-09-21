@@ -83,6 +83,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   static const _brand = Color(0xFF6366F1);
 
   final _titleCtl = TextEditingController();
+  final _titleFocus = FocusNode();
   final _bodyCtl = TextEditingController();
   final _bodyFocus = FocusNode();
   final List<TextEditingController> _paras = [];
@@ -118,6 +119,18 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   String _pwSub = '';
   final List<({String text, int caret})> _mdUndo = [];
   final List<({String text, int caret})> _mdRedo = [];
+
+  // 轮8③：编辑页左右滑动=按当前排序+筛选切上/下一篇（原型 pwSwipe）。
+  // Listener 旁路追踪（不参与竞技场·不与文本选择/滚动互斥），一次按下只触发一回。
+  Offset? _swDown;
+  bool _swFired = false;
+  bool _swiping = false;
+
+  bool get _hasTextFocus =>
+      _bodyFocus.hasFocus ||
+      _richFocus.hasFocus ||
+      _titleFocus.hasFocus ||
+      _paraNodes.any((f) => f.hasFocus);
 
   bool get _isRich => _kind == 'rich';
 
@@ -167,6 +180,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _debounce?.cancel();
     _snapIdle?.cancel();
     _titleCtl.dispose();
+    _titleFocus.dispose();
     _bodyCtl.dispose();
     _bodyFocus.dispose();
     _richCtl?.removeListener(_onRichChanged);
@@ -209,9 +223,16 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   // V1.29轮1①：专注模式段首退格=并入上一段。EditableText 内部 Shortcuts
   // 会先吞掉冒泡的退格键，故用 HardwareKeyboard 全局前置拦截。
   bool _onGlobalKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    // 轮8③：桌面 ←/→ 切上/下一篇（有输入焦点时归光标移动，不拦截）。
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      if (_hasTextFocus) return false;
+      _switchNote(event.logicalKey == LogicalKeyboardKey.arrowRight ? 1 : -1);
+      return true;
+    }
     if (_isRich) return false; // 富文本段落结构由 Quill 自管
     if (_mode != NoteEditMode.focus || !mounted) return false;
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
     if (event.logicalKey != LogicalKeyboardKey.backspace) return false;
     final i = _curPara;
     if (i <= 0 || i >= _paras.length) return false;
@@ -250,13 +271,14 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   }
 
   /// 段落全文 → _bodyCtl（单一真源·自动保存与持久层都读它）。
+  /// 文本无变化时整体跳过：避免打开即切篇等无编辑场景误标脏、
+  /// 重写 updated_at 导致列表顺序被悄悄打乱（轮8③）。
   void _flushParas() {
     final joined = _paras.map((c) => c.text).join('\n\n');
-    if (_bodyCtl.text != joined) {
-      _bodyCtl.value = TextEditingValue(
-          text: joined,
-          selection: TextSelection.collapsed(offset: joined.length));
-    }
+    if (_bodyCtl.text == joined) return;
+    _bodyCtl.value = TextEditingValue(
+        text: joined,
+        selection: TextSelection.collapsed(offset: joined.length));
     _onChanged(joined);
   }
 
@@ -625,6 +647,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       child: TextField(
         key: const ValueKey('note-title'),
         controller: _titleCtl,
+        focusNode: _titleFocus,
         onChanged: _onChanged,
         style: TextStyle(
             fontSize: _font + 6,
@@ -1037,6 +1060,88 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     Navigator.of(context).pop();
   }
 
+  // ---------- 轮8③ · 左右滑动/←→ 按当前排序+筛选切换笔记 ----------
+
+  /// 原型 pwSwipe：dx>70 且 |dx|>2|dy| 才认横向滑动（纵向留给滚动）。
+  void _onSwipeDown(PointerDownEvent e) {
+    _swDown = e.position;
+    _swFired = false;
+  }
+
+  void _onSwipeMove(PointerMoveEvent e) {
+    final down = _swDown;
+    if (_swFired || down == null) return;
+    final d = e.position - down;
+    if (d.dx.abs() > 70 && d.dx.abs() > 2 * d.dy.abs()) {
+      _swFired = true;
+      _switchNote(d.dx < 0 ? 1 : -1);
+    }
+  }
+
+  /// 切换前先把当前稿落库（输入即存不丢稿），再按列表序进邻篇。
+  Future<void> _switchNote(int dir) async {
+    if (_swiping) return;
+    _swiping = true;
+    try {
+      _debounce?.cancel();
+      _snapIdle?.cancel();
+      if (_mode == NoteEditMode.focus) _flushParas();
+      if (_dirty) await _persist();
+      if (!mounted) return;
+      final f = ref.read(noteFilterProvider);
+      final dao = ref.read(noteDaoProvider);
+      final list = f.folder == kNoteTrash
+          ? await dao.trash()
+          : await dao.list(
+              folder: f.folder.isEmpty ? null : f.folder, sort: f.sort);
+      if (!mounted) return;
+      if (list.isEmpty) {
+        AppToast.show(context, '当前筛选下暂无笔记');
+        return;
+      }
+      final i = list.indexWhere((n) => n.id == _existing?.id);
+      final j = i + dir;
+      if (i >= 0 && j < 0) {
+        AppToast.show(context, '已是第一篇');
+        return;
+      }
+      if (j >= list.length) {
+        AppToast.show(context, '已是最后一篇');
+        return;
+      }
+      final target = list[j < 0 ? 0 : j];
+      await _loadNote(target);
+      if (!mounted) return;
+      final title =
+          target.title.trim().isEmpty ? '未命名笔记' : target.title.trim();
+      AppToast.show(
+          context, '⇄ 已切换 ${j + 1}/${list.length} · $title');
+    } finally {
+      _swiping = false;
+    }
+  }
+
+  /// 就地换稿载入（不重开路由）：标题/正文/kind/文件夹/置顶全部跟随。
+  Future<void> _loadNote(Note n) async {
+    setState(() {
+      _existing = n;
+      _titleCtl.text = n.title;
+      _bodyCtl.text = n.content;
+      _folder = n.folder ?? '';
+      _pinned = n.pinned;
+      _kind = n.kind;
+      _dirty = false;
+      _saved = true;
+      _pwSub = '';
+      _mdUndo.clear();
+      _mdRedo.clear();
+      _lastSnapText = '';
+      _snapBaseWords = n.wordCount;
+      _resetParas(n.content);
+    });
+    if (n.kind == 'rich') _rebuildRich(n.content);
+  }
+
   int get _words {
     final body = _isRich
         ? Note.richToPlain(_bodyCtl.text)
@@ -1244,6 +1349,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             TextField(
               key: const ValueKey('note-title'),
               controller: _titleCtl,
+              focusNode: _titleFocus,
               onChanged: _onChanged,
               style: TextStyle(
                   fontSize: _font + 6,
@@ -1391,7 +1497,15 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                     ),
                   ),
                 ),
-              Expanded(child: _bodyArea()),
+              Expanded(
+                // 轮8③： Listener 旁路追踪横滑（文本选择与滚动不受影响）。
+                child: Listener(
+                  key: const ValueKey('note-swipe'),
+                  onPointerDown: _onSwipeDown,
+                  onPointerMove: _onSwipeMove,
+                  child: _bodyArea(),
+                ),
+              ),
               _toolBarArea(),
               Container(
                 decoration: BoxDecoration(
