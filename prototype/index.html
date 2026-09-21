@@ -161,8 +161,9 @@ tailwind.config = {
   .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.9;letter-spacing:.02em}
   .pw-mode-btn{font-size:11px;font-weight:800;padding:4px 9px;border-radius:9px;opacity:.55;flex-shrink:0}
   .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
-  .note-sw{position:relative;overflow:hidden;border-radius:18px}
-  .note-del{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 18px 18px 0}
+  .note-sw{position:relative;overflow:hidden;border-radius:var(--card-r)}
+  .note-del{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 var(--card-r) var(--card-r) 0;opacity:0;transition:opacity .15s}
+  .note-sw.show-del .note-del{opacity:1}
   .note-card{position:relative;transition:transform .18s ease;background:var(--card-bg,#fff)}
   .dark .note-card{background:#0f172a}
   .note-card.open{transform:translateX(-84px)}
@@ -277,9 +278,13 @@ tailwind.config = {
       <div id="pageTitle" class="text-xl font-extrabold tracking-tight truncate">今天</div>
       <div id="pageSub" class="text-[11px] text-slate-400 -mt-0.5 truncate">9月19日 周六 · 第55天记录</div>
     </div>
+    <button id="btnRecSwitch" class="hidden w-9 h-9 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleRecSwitchMenu()" title="切换 日记/笔记/阅读/影音游">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.5 20 7.5l-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/></svg>
+    </button>
     <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
     </button>
+    <div id="recSwitchMenu" class="hidden absolute right-4 top-full w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5 z-40"></div>
     <button id="btnTodoViewToggle" class="hidden w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="switchTodoView(todoView==='list'?'quad':'list')" title="切换 清单/四象限">
       <span class="text-lg font-extrabold">⇄</span>
     </button>
@@ -492,13 +497,7 @@ tailwind.config = {
 
     <!-- ===== P4 记录（日记/笔记/阅读） ===== -->
     <section id="p-records" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-        <button id="rtDiary" class="seg-on flex-1 rounded-lg py-1.5" onclick="switchRecord('diary')">📔 日记</button>
-        <button id="rtNote" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="switchRecord('note')">📝 笔记</button>
-        <button id="rtBook" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="switchRecord('book')">📚 阅读</button>
-        <button id="rtMedia" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="switchRecord('media')">🎬 影音游</button>
-      </div>
-
+      <!-- V1.29轮5：四段切换行移除 · 标题即「记录 · X」+ 右上切换钮 -->
       <!-- 日记 tab -->
       <div id="recDiary" class="mt-4">
         <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
@@ -2135,7 +2134,7 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 /* ================= 路由与导航 ================= */
 const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
- 'p-records':['记录','日记 · 笔记 · 阅读'],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
+ 'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
  'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
@@ -2174,6 +2173,7 @@ function setPage(p){
   $$('.page').forEach(s=>s.classList.remove('active'));
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
   const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
+  if(p==='p-records')$('#pageTitle').textContent='记录 · '+REC_TABS[recTab]; /* V1.29轮5 */
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
   const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
   const _imm=p==='p-noteEdit'; /* V1.29：笔记编辑页全屏沉浸·隐藏全局头部与底栏 */
@@ -2185,6 +2185,9 @@ function setPage(p){
   $('#btnTodoFilter').classList.toggle('flex',p==='p-todo');
   $('#btnTodoViewToggle').classList.toggle('hidden',p!=='p-todo');
   $('#btnTodoViewToggle').classList.toggle('flex',p==='p-todo');
+  $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
+  $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
+  hideRecSwitchMenu(); renderRecSwitch();
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
@@ -2809,10 +2812,17 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
   toast(t.done?'✔ 待办完成 · 时间·轴视图同步划线（联动 L2）':'已恢复未完成')}
 
 /* ================= 记录 ================= */
-function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu();
-  [['diary','recDiary','rtDiary'],['note','recNote','rtNote'],['book','recBook','rtBook'],['media','recMedia','rtMedia']].forEach(([id,w,b])=>{
-    $('#'+w).classList.toggle('hidden',id!==k); const btn=$('#'+b); btn.className=(id===k?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500'); if(id===k)btn.classList.add('flex-1','rounded-lg','py-1.5');});
+/* V1.29轮5：四段切换行移除 · 段名进入标题「记录 · X」+ 右上切换钮菜单 */
+const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
+function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
+  [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
+  const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
+  renderRecSwitch();
 }
+function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
+  m.innerHTML=Object.entries(REC_TABS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===recTab?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="switchRecord('${k}')">${label}<span class="text-[11px]">${k===recTab?'✓':''}</span></button>`).join('');}
+function toggleRecSwitchMenu(){hideNoteFabMenu();hideTodoFabMenu();$('#recSwitchMenu').classList.toggle('hidden');}
+function hideRecSwitchMenu(){const m=$('#recSwitchMenu');if(m)m.classList.add('hidden');}
 function renderRecords(){
   /* —— 日记：筛选 + 时间线卡片 —— */
   $('#diaryFilter').innerHTML=['全部','🖼 有图片','#加班','#复盘','🏃 运动'].map((f,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this);toast('已按「${f}」筛选（模拟）')">${f}</button>`).join('');
@@ -2893,15 +2903,15 @@ function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else
   toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
 function renderNotes(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);const L=$('#noteList');
   L.className=noteView==='list'?'':'mt-2 grid gap-2.5 grid-cols-'+noteCols;
-  L.innerHTML=list.map(n=>`<div class="note-sw min-w-0"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
-    <div class="note-card card ${noteView==='list'?'mb-2.5':''}" onclick="noteTap(this)" oncontextmenu="event.preventDefault();noteLongpress('${n.t}')">
+  L.innerHTML=list.map(n=>`<div class="note-sw min-w-0 ${noteView==='list'?'mb-2.5':''}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
+    <div class="note-card card" onclick="noteTap(this)" oncontextmenu="event.preventDefault();noteLongpress('${n.t}')">
     <div class="flex items-center gap-2"><b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
     <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div></div></div>`).join('');
-  $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;
+  $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
     c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
-    c.addEventListener('touchmove',e=>{dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6)c.style.transform=`translateX(${dx}px)`;},{passive:true});
-    c.addEventListener('touchend',()=>{c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c)o.classList.remove('open')});c.classList.add('open');}else{c.classList.remove('open');}});});}
-function noteTap(el){if(el.classList.contains('open')){el.classList.remove('open');return;}navTo('p-noteEdit');}
+    c.addEventListener('touchmove',e=>{dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
+    c.addEventListener('touchend',()=>{c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c){o.classList.remove('open');o.parentElement.classList.remove('show-del')}});c.classList.add('open');w.classList.add('show-del');}else{c.classList.remove('open');w.classList.remove('show-del');}});});}
+function noteTap(el){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}navTo('p-noteEdit');}
 function noteLongpress(t){toast(`长按菜单：📌 置顶 / 📦 归档 / 🗑 移入回收站（${t}）`);}
 /* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
 const NT_IC={
@@ -2942,7 +2952,7 @@ let noteRestore='replace';
 function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
   toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
-function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>o.classList.remove('open'));toast(`已移入回收站 · 30 天内可在 🗑 回收站恢复（${t}）`);}
+function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});toast(`已移入回收站 · 30 天内可在 🗑 回收站恢复（${t}）`);}
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'无分类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
