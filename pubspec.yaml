@@ -3,7 +3,7 @@ description: "LifeHarness —— 纯本地一体式生活记录 App（时间/日
 publish_to: 'none'
 
 # 语义化版本 V主.次.修；M0 骨架对应 V0.1
-version: 0.1.0+1
+version: 0.1.4+1
 
 environment:
   sdk: ^3.10.8
