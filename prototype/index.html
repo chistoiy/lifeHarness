@@ -2947,6 +2947,10 @@ function pwRich(k){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)retur
   else if(k==='task'){cur.textContent=(cur.textContent.startsWith('☐')?'':cur.textContent.startsWith('☑')?'☐ ':'☑ ')+cur.textContent.replace(/^[☐☑]\s*/,'');toast('待办行切换（勾选同步任务列表 L3）');}
   else if(k==='quote'){cur.style.borderLeft=cur.style.borderLeft?'':'3px solid #6366f1';cur.style.paddingLeft=cur.style.paddingLeft?'':'10px';toast('引用切换');}
   else if(k==='img'){cur.insertAdjacentHTML('beforeend','<span class="ins-img bg-gradient-to-br from-sky-300 to-indigo-400" style="width:120px;height:80px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;margin-top:6px">🌇</span>');toast('已插入图片（真实版=相册/拍照·图文混排）');}
+  else if(k==='strike'){cur.style.textDecoration=cur.style.textDecoration.includes('line-through')?cur.style.textDecoration.replace('line-through','').trim():((cur.style.textDecoration&&cur.style.textDecoration!=='none')?cur.style.textDecoration+' line-through':'line-through');toast(cur.style.textDecoration.includes('line-through')?'已删除线':'已取消删除线');}
+  else if(k==='code'){const on=cur.style.fontFamily==='monospace';cur.style.fontFamily=on?'':'monospace';cur.style.background=on?'':'rgba(120,110,90,.14)';toast(on?'已取消行内代码':'已设为行内代码');}
+  else if(k==='link'){const on=cur.style.color==='rgb(99, 102, 241)';cur.style.color=on?'':'#6366f1';toast(on?'已取消链接样式':'已设为链接样式');}
+  else if(k==='table'){toast('表格：真实版插入 3×3 可编辑表格（所见即所得）');}
   else if(k==='ol'){cur.textContent=(cur.textContent.startsWith('1.')?cur.textContent.slice(3):'1. '+cur.textContent);toast('有序列表切换');}
   else if(k==='center'){cur.style.textAlign=cur.style.textAlign==='center'?'left':'center';toast(cur.style.textAlign==='center'?'已居中':'已恢复左对齐');}
   else if(k==='indent'){cur.style.marginLeft=cur.style.marginLeft==='24px'?'':'24px';toast('缩进切换');}
@@ -2970,14 +2974,16 @@ function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)re
     :[_pwb('↺',"pwUndo('undo')","撤销"),_pwb('↻',"pwUndo('redo')","重做"),_pwSep,
       _pwb('Tt',"pwSubToggle('tt')",'字号·标题（点开二级）'),
       _pwb('≡',"pwSubToggle('lay')",'排版（点开二级）'),
-      _pwb('<b>B</b>',"pwRich('b')"),_pwb('<i>I</i>',"pwRich('i')"),_pwb('U',"pwRich('u')"),
-      _pwb('☑',"pwRich('task')"),_pwb('❝',"pwRich('quote')"),_pwb('🖼',"pwRich('img')")].join('');
+      _pwb('<b>B</b>',"pwRich('b')","加粗"),_pwb('<i>I</i>',"pwRich('i')","斜体"),_pwb('U',"pwRich('u')","下划线"),
+      _pwb('<s>S</s>',"pwRich('strike')","删除线"),_pwb('&lt;&gt;',`pwRich('code')`,"行内代码"),
+      _pwb('❝',"pwRich('quote')","引用"),_pwb('☑',"pwRich('task')","待办行"),
+      _pwb('▦',"pwRich('table')","表格"),_pwb('🔗',"pwRich('link')","链接"),_pwb('🖼',"pwRich('img')","插图")].join('');
   if(!pwSub){sub.classList.add('hidden');sub.classList.remove('flex');return;}
   const items=pwSub==='h'?[['H1',"pwMdHead(1)"],['H2',"pwMdHead(2)"],['H3',"pwMdHead(3)"],['H4',"pwMdHead(4)"],['H5',"pwMdHead(5)"],['H6',"pwMdHead(6)"]]
-    :pwSub==='tt'?[['N 正文',"pwRichHead(0)"],['H1',"pwRichHead(1)"],['H2',"pwRichHead(2)"],['H3',"pwRichHead(3)"],['字号 ▾',"openSheet('sheetNoteKit')"]]
-    :[['有序',"pwRich('ol')"],['无序',"pwRich('ul')"],['任务',"pwRich('task')"],['居中',"pwRich('center')"],['缩进',"pwRich('indent')"],['取消缩进',"pwRich('outdent')"]];
+    :pwSub==='tt'?[['N',"pwRichHead(0)","正文"],['H1',"pwRichHead(1)"],['H2',"pwRichHead(2)"],['H3',"pwRichHead(3)"],['Aa',"openSheet('sheetNoteKit')","字号滑杆（⋯ 面板）"]]
+    :[['1.',"pwRich('ol')","有序列表"],['•',"pwRich('ul')","无序列表"],['☑',"pwRich('task')","任务行"],['↔',"pwRich('center')","居中"],['⇥',"pwRich('indent')","缩进"],['⇤',"pwRich('outdent')","取消缩进"]];
   sub.classList.remove('hidden');sub.classList.add('flex');
-  sub.innerHTML=items.map(x=>`<button class="pw-tool flex-shrink-0 !px-3 !h-8 text-[11px] font-extrabold" onclick="${x[1]}">${x[0]}</button>`).join('')+`<button class="pw-tool flex-shrink-0" onclick="pwSub='';renderPwBar()">✕</button>`;
+  sub.innerHTML=items.map(x=>`<button class="pw-tool flex-shrink-0" ${x[2]?`title="${x[2]}"`:''} onclick="${x[1]}">${x[0]}</button>`).join('')+`<button class="pw-tool flex-shrink-0" onclick="pwSub='';renderPwBar()">✕</button>`;
   sub.onscroll=()=>{if(sub.scrollWidth-sub.scrollLeft-sub.clientWidth<6){pwSub='';renderPwBar();toast('已收起二级栏');}};
 }
 function pwSubToggle(k){pwSub=pwSub===k?'':k;renderPwBar();}
