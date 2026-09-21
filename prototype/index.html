@@ -101,6 +101,10 @@ tailwind.config = {
   .pw-body{font-size:15px;line-height:2.15;letter-spacing:.03em}
   /* V1.29轮9m：⋯ 笔记选项弹层行卡=透明底+随纸色描边（配色跟随纸色） */
   #sheetNoteKit .card{background:transparent;border:1px solid color-mix(in srgb,var(--pw-fg) 14%,transparent)}
+  /* V1.29轮9p：纯文本行号=纸面左侧段序号（⋯ 内开关·默认关·仅纯文本显示该行） */
+  #pwBody.pw-ln{counter-reset:pwl}
+  #pwBody.pw-ln p{position:relative;padding-left:2.4em}
+  #pwBody.pw-ln p::before{counter-increment:pwl;content:counter(pwl);position:absolute;left:0;top:.2em;font-size:10px;opacity:.35;font-variant-numeric:tabular-nums}
   .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
   .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
   .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
@@ -1988,7 +1992,8 @@ tailwind.config = {
   <div id="sheetNoteKit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteKit')">
     <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
       <div class="grabber"></div>
-      <div class="font-extrabold">⋯ 笔记选项</div>
+      <!-- V1.29轮9q：标题去「⋯」前缀（入口钮已有）·统计信息上移至标题右侧，原统计行移除 -->
+      <div class="flex items-center justify-between"><div class="font-extrabold">笔记选项</div><b class="text-xs opacity-60" id="pwCount">312 字 · 约 1 分钟</b></div>
       <div class="mt-3 space-y-2 text-xs">
         <!-- V1.29轮9j：行内去 emoji（纯文字简约风） -->
         <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">类型</span>
@@ -2002,9 +2007,10 @@ tailwind.config = {
         <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">纸色</span><div class="flex gap-1.5 flex-shrink-0" id="pwPapers"></div><input type="range" min="0" max="359" value="40" id="pwHue" oninput="pwSetPaperHue(this.value)" class="flex-1 min-w-0" style="background:linear-gradient(to right,hsl(0,60%,88%),hsl(60,60%,88%),hsl(120,60%,88%),hsl(180,60%,88%),hsl(240,60%,88%),hsl(300,60%,88%),hsl(359,60%,88%));border-radius:999px;height:14px;appearance:none;-webkit-appearance:none;outline:none"><span class="opacity-55 flex-shrink-0 text-right w-10" id="pwPaperName">米纸</span></div>
         <!-- V1.29轮9j补正2/9o：聚焦=纸面默认开·开关在此（当前段高亮其余淡出·写作视图不再有专注钮）·开关靠右对齐 -->
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><span id="pwFocusTgl" class="toggle on ml-auto" onclick="pwFocusToggle(this)"></span></div>
+        <!-- V1.29轮9p：行号开关（仅纯文本类型显示本行·默认关） -->
+        <div class="card !py-3 px-4 flex items-center hidden" id="pwLnRow"><span class="opacity-50 w-14 flex-shrink-0">行号</span><span id="pwLnTgl" class="toggle ml-auto" onclick="pwLnToggle(this)"></span></div>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">分类</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">置顶</span><span class="toggle ml-auto" onclick="tgl(this);toast('置顶状态已切换')"></span></div>
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">统计</span><b class="ml-auto" id="pwCount">312 字 · 约 1 分钟</b></div>
         <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
         <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">导出</span><span class="ml-auto text-slate-400">TXT / Markdown / 复制全文 ›</span></div>
       </div>
@@ -2966,6 +2972,10 @@ function pwFont(v){$('#pwBody').style.fontSize=v+'px';const l=$('#pwKitFont');if
 /* V1.29轮9j补正2：聚焦开关（默认开·⋯ 笔记选项内）·纯文本/富文本/MD 通用 */
 function pwFocusToggle(el){const on=$('#pwBody').classList.toggle('pw-focus');if(el)el.classList.toggle('on',on);
  toast(on?'聚焦开：当前段高亮，其余淡出':'聚焦关：全部段落正常显示');}
+/* V1.29轮9p：纯文本行号开关（默认关·仅对纯文本有效） */
+let pwLnOn=false;
+function pwLnToggle(el){pwLnOn=!pwLnOn;$('#pwBody').classList.toggle('pw-ln',pwLnOn&&pwType==='plain');
+ if(el)el.classList.toggle('on',pwLnOn);toast(pwLnOn?'已显示行号':'已隐藏行号');}
 function exitNoteEdit(){toast('已保存 ✓ 并生成版本快照');stack.length?goBack():navTab('p-records');}
 /* ================= V1.29 笔记批：类型 / 视图 / 文件夹 / 左滑回收站 ================= */
 let pwType='md',pwNote='';
@@ -2973,6 +2983,9 @@ function pwSetType(t){pwType=t;
   $$('#pwTypes .chip').forEach(b=>b.classList.toggle('chip-on',b.dataset.t===t));
   const md=$('#pwModes');md.classList.toggle('hidden',t!=='md');md.classList.toggle('flex',t==='md');
   const at=$('#pwAttach');at.classList.toggle('hidden',t!=='plain');at.classList.toggle('flex',t==='plain');
+  /* V1.29轮9p：行号行仅纯文本显示；行号效果也只作用于纯文本（切走即隐藏·切回恢复开关态） */
+  const lr=$('#pwLnRow');lr.classList.toggle('hidden',t!=='plain');
+  $('#pwBody').classList.toggle('pw-ln',t==='plain'&&pwLnOn);
   renderPwBar();
   toast(t==='rich'?'富文本：选中文本点键立即生效（Word 式·与 MD 无关）·可插图':t==='plain'?'纯文本：纸和字 + 尾部「＋」插图':'MD 文档：写作视图 + 顶行源码/预览切换 · 语法栏在底部');}
 function pwRich(k){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)return;
