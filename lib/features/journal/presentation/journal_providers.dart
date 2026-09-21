@@ -27,10 +27,11 @@ final noteDaoProvider =
     Provider<NoteDao>((ref) => NoteDao(AppDatabase.instance.db));
 
 /// 笔记列表筛选（V1.29轮6：页内搜索移除·query 恒空由全局搜索承接；
-/// folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名）。
+/// folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名；
+/// 轮8④ asc=方向翻转·再点当前排序项切换 降⇄升/ A→Z⇄Z→A）。
 final noteFilterProvider =
-    StateProvider<({String folder, NoteSort sort})>(
-        (ref) => (folder: '', sort: NoteSort.updated));
+    StateProvider<({String folder, NoteSort sort, bool asc})>(
+        (ref) => (folder: '', sort: NoteSort.updated, asc: false));
 
 /// 回收站特殊文件夹值。
 const kNoteTrash = '__trash__';
@@ -47,7 +48,7 @@ final notesProvider = FutureProvider<List<Note>>((ref) async {
   final dao = ref.watch(noteDaoProvider);
   if (f.folder == kNoteTrash) return dao.trash();
   return dao.list(
-      folder: f.folder.isEmpty ? null : f.folder, sort: f.sort);
+      folder: f.folder.isEmpty ? null : f.folder, sort: f.sort, asc: f.asc);
 });
 
 /// 笔记文件夹 chips 行（含去重来源）。

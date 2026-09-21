@@ -34,8 +34,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
   final Set<int> _open = {};
 
   void _pick(String folder, {bool hasKids = false, int? id}) {
-    ref.read(noteFilterProvider.notifier).state =
-        (folder: folder, sort: ref.read(noteFilterProvider).sort);
+    ref.read(noteFilterProvider.notifier).state = (folder: folder,
+        sort: ref.read(noteFilterProvider).sort,
+        asc: ref.read(noteFilterProvider).asc);
     if (hasKids && id != null) _open.add(id);
     setState(() {});
   }
@@ -94,8 +95,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       await dao.deleteTree(node.id);
       final sel = ref.read(noteFilterProvider).folder;
       if (sel == node.name) {
-        ref.read(noteFilterProvider.notifier).state =
-            (folder: '', sort: ref.read(noteFilterProvider).sort);
+        ref.read(noteFilterProvider.notifier).state = (folder: '',
+            sort: ref.read(noteFilterProvider).sort,
+            asc: ref.read(noteFilterProvider).asc);
       }
     }
     ref.invalidate(noteFolderListProvider);
@@ -159,10 +161,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                           depth: 0,
                           selected: selName == kNoteTrash,
                           onTap: () {
-                            ref.read(noteFilterProvider.notifier).state = (
-                              folder: kNoteTrash,
-                              sort: ref.read(noteFilterProvider).sort
-                            );
+                            final cur = ref.read(noteFilterProvider);
+                            ref.read(noteFilterProvider.notifier).state =
+                                (folder: kNoteTrash, sort: cur.sort, asc: cur.asc);
                             Navigator.of(context).pop();
                           }),
                       _row(context,

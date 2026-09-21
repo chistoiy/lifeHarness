@@ -15,10 +15,12 @@ class NoteDao {
   String get table => DbSchema.tNotes;
 
   /// 活跃列表（排除归档与回收站）：置顶优先，按排序模式。
+  /// asc=轮8④ 方向翻转（默认降序；title 默认 A→Z）。
   Future<List<Note>> list({
     String? folder,
     String? query,
     NoteSort sort = NoteSort.updated,
+    bool asc = false,
   }) async {
     final where = <String>['archived = 0', 'deleted_at IS NULL'];
     final args = <Object?>[];
@@ -30,11 +32,14 @@ class NoteDao {
       where.add('(title LIKE ? OR content LIKE ?)');
       args.addAll(['%$query%', '%$query%']);
     }
+    final dir = asc ? 'ASC' : 'DESC';
     final order = switch (sort) {
-      NoteSort.updated => 'pinned DESC, updated_at DESC',
-      NoteSort.created => 'pinned DESC, created_at DESC',
+      NoteSort.updated => 'pinned DESC, updated_at $dir',
+      NoteSort.created => 'pinned DESC, created_at $dir',
       // V1.29轮6：标题 A→Z（英文不区分大小写；中文按码位近似笔画序）
-      NoteSort.title => 'pinned DESC, title COLLATE NOCASE ASC',
+      // 轮8④：翻转=A→Z⇄Z→A（asc 时 DESC）
+      NoteSort.title =>
+        'pinned DESC, title COLLATE NOCASE ${asc ? 'DESC' : 'ASC'}',
     };
     return (await db.query(table,
             where: where.join(' AND '), whereArgs: args, orderBy: order))

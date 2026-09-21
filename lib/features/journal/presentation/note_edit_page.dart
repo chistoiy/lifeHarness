@@ -1093,7 +1093,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       final list = f.folder == kNoteTrash
           ? await dao.trash()
           : await dao.list(
-              folder: f.folder.isEmpty ? null : f.folder, sort: f.sort);
+              folder: f.folder.isEmpty ? null : f.folder,
+              sort: f.sort,
+              asc: f.asc);
       if (!mounted) return;
       if (list.isEmpty) {
         AppToast.show(context, '当前筛选下暂无笔记');

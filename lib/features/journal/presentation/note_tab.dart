@@ -23,6 +23,15 @@ class _NoteTabState extends ConsumerState<NoteTab> {
   /// 已左滑移除的 id：立即隐藏，避免异步刷新前 Dismissible 重建报错。
   final Set<int> _gone = {};
 
+  /// 轮8④：翻转当前排序项后重开菜单（等效原型的「菜单保持打开」）。
+  final _sortKey = GlobalKey<PopupMenuButtonState<NoteSort>>();
+
+  static String _sortLabel(NoteSort s, bool asc) => switch (s) {
+        NoteSort.updated => asc ? '最后修改 ↑' : '最后修改 ↓',
+        NoteSort.created => asc ? '创建时间 ↑' : '创建时间 ↓',
+        NoteSort.title => asc ? '标题 Z→A' : '标题 A→Z',
+      };
+
   static String _timeLabel(DateTime d) {
     final now = DateTime.now();
     final hm = '${d.hour.toString().padLeft(2, '0')}:'
@@ -54,35 +63,47 @@ class _NoteTabState extends ConsumerState<NoteTab> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              PopupMenuButton<NoteSort>(
+              // 轮8④：再点当前项=方向翻转（菜单保持打开·箭头变化可见）；
+              // 选其他项=切换并回默认方向。
+              KeyedSubtree(
                 key: const ValueKey('note-sort'),
-                tooltip: '排序',
-                icon: const Icon(Icons.swap_vert, size: 22),
-                onSelected: (s) => ref.read(noteFilterProvider.notifier)
-                    .state = (folder: filter.folder, sort: s),
-                itemBuilder: (_) => [
-                  for (final e in const {
-                    NoteSort.updated: '最后修改 ↓',
-                    NoteSort.created: '创建时间 ↓',
-                    NoteSort.title: '标题 A→Z',
-                  }.entries)
-                    PopupMenuItem(
-                      value: e.key,
-                      child: Row(
-                        children: [
-                          Text(e.value,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color:
-                                      e.key == filter.sort ? tokens.accent : null)),
-                          if (e.key == filter.sort) ...[
-                            const Spacer(),
-                            Icon(Icons.check, size: 18, color: tokens.accent),
+                child: PopupMenuButton<NoteSort>(
+                  key: _sortKey,
+                  tooltip: '排序',
+                  icon: const Icon(Icons.swap_vert, size: 22),
+                  onSelected: (s) {
+                    final cur = ref.read(noteFilterProvider);
+                    final flip = s == cur.sort;
+                    final asc = flip ? !cur.asc : false;
+                    ref.read(noteFilterProvider.notifier).state =
+                        (folder: cur.folder, sort: s, asc: asc);
+                    AppToast.show(
+                        context, '排序：${_sortLabel(s, asc)}');
+                    if (flip) {
+                      WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _sortKey.currentState?.showButtonMenu());
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    for (final s in NoteSort.values)
+                      PopupMenuItem(
+                        value: s,
+                        child: Row(
+                          children: [
+                            Text(_sortLabel(s, s == filter.sort ? filter.asc : false),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color:
+                                        s == filter.sort ? tokens.accent : null)),
+                            if (s == filter.sort) ...[
+                              const Spacer(),
+                              Icon(Icons.check, size: 18, color: tokens.accent),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               IconButton(
                 key: const ValueKey('note-folder'),

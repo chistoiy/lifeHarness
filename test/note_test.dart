@@ -214,7 +214,9 @@ void main() {
 
       // 回收站视图：长按=恢复
       mutate(tester, (c) => c.read(noteFilterProvider.notifier).state =
-          (folder: kNoteTrash, sort: c.read(noteFilterProvider).sort));
+          (folder: kNoteTrash,
+              sort: c.read(noteFilterProvider).sort,
+              asc: c.read(noteFilterProvider).asc));
       await tester.pumpAndSettle();
       expect(find.textContaining('WebDAV 选型'), findsOneWidget);
       await tester.longPress(find.byKey(const ValueKey('note-card-1')));
@@ -252,6 +254,44 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('note-view')));
       await tester.pumpAndSettle();
       expect(cols(), 0);
+    });
+
+    testWidgets('轮8④ 再点当前排序项=方向翻转·菜单保持打开·列表反序',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      await dao.save(Note(
+          title: '甲', content: 'a', createdAt: t0, updatedAt: t0));
+      await dao.save(Note(
+          title: '乙',
+          content: 'b',
+          createdAt: t0.add(const Duration(minutes: 1)),
+          updatedAt: t0.add(const Duration(minutes: 1))));
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      final c = ProviderScope.containerOf(
+          tester.element(find.byType(NoteTab)));
+      List<String> titles() =>
+          (c.read(notesProvider).valueOrNull ?? []).map((n) => n.title).toList();
+      expect(titles(), ['乙', '甲']); // 默认 最后修改 ↓
+
+      await tester.tap(find.byKey(const ValueKey('note-sort')));
+      await tester.pumpAndSettle();
+      // 再点当前项：方向翻转且菜单重开（新箭头可见）
+      await tester.tap(find.text('最后修改 ↓'));
+      await settle5(tester);
+      expect(titles(), ['甲', '乙']);
+      expect(find.text('最后修改 ↑'), findsOneWidget);
+      // 再点一次翻回来
+      await tester.tap(find.text('最后修改 ↑'));
+      await settle5(tester);
+      expect(titles(), ['乙', '甲']);
+      expect(find.text('最后修改 ↓'), findsOneWidget);
+      // 选其他项：切换排序+回默认方向，菜单关闭
+      await tester.tap(find.text('标题 A→Z'));
+      await settle5(tester);
+      expect(find.text('标题 A→Z'), findsNothing);
+      expect(c.read(noteFilterProvider).sort, NoteSort.title);
+      expect(c.read(noteFilterProvider).asc, false);
     });
 
     testWidgets('左滑卡片 → 直接入回收站', (tester) async {
