@@ -169,7 +169,8 @@ tailwind.config = {
   .nt-row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
   .nt-row:active{background:rgba(99,102,241,.08)}
   .nt-row.nt-on{background:rgba(99,102,241,.14);color:#6366f1}
-  .nt-caret{width:14px;flex-shrink:0;font-size:10px;color:#94a3b8;text-align:center}
+  .nt-caret{width:14px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#94a3b8}
+  .nt-ic{display:inline-flex;align-items:center;justify-content:center}
   .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
   .pw-tool:active{background:color-mix(in srgb,var(--pw-fg) 12%,transparent);opacity:1}
   .seg-pill{background:#e2e8f0;color:#64748b;padding:6px 14px;border-radius:999px;white-space:nowrap;font-weight:700;font-size:12px}
@@ -520,11 +521,10 @@ tailwind.config = {
         <div class="flex items-center gap-2">
           <div class="flex-1 relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span><input class="w-full !pl-8 rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs outline-none" placeholder="搜索标题或全文…" oninput="if(this.value)toast('全文搜索：'+this.value+'（模拟）')"></div>
           <button onclick="toast('排序：更新时间 ↓（可切创建时间/字数）')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">↕</button>
-          <button onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="文件夹管理">📂</button>
+          <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
           <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
         </div>
-        <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar items-center" id="noteTags"></div>
-        <div id="noteList"></div>
+        <div id="noteList" class="mt-3"></div>
         <div class="mt-2 text-[10px] text-slate-400 text-center">共 23 篇 · 左滑卡片露出 🗑 入回收站 · 长按可置顶 / 归档（模拟）</div>
       </div>
 
@@ -1515,14 +1515,14 @@ tailwind.config = {
   <!-- V1.29 三轮：文件夹树状侧边栏抽屉（参考 Obsidian：顶部入口·左滑出树·底部操作条） -->
   <div id="ntMask" class="hidden fixed md:absolute inset-0 z-40 bg-black/40" onclick="ntClose()"></div>
   <div id="noteTree" class="hidden fixed md:absolute left-0 top-0 bottom-0 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col">
-    <div class="px-4 pt-10 pb-2 flex items-center gap-2"><b class="text-sm flex-1">🗂 文件夹</b><button class="pw-ic-btn" onclick="ntClose()">✕</button></div>
+    <div class="px-4 pt-10 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
     <div class="px-2 pb-2 overflow-y-auto no-scrollbar flex-1" id="ntList"></div>
     <div class="border-t border-slate-100 dark:border-slate-800 px-3 py-2.5 flex items-center justify-around text-slate-500 dark:text-slate-400">
-      <button class="pw-ic-btn text-base" title="重命名选中夹" onclick="ntRename()">✏️</button>
-      <button class="pw-ic-btn text-base" title="添加文件夹" onclick="ntAdd()">📁＋</button>
-      <button class="pw-ic-btn text-base" title="排序：名称/创建/手动（长按节点可拖动，拖入另一夹=子级）" onclick="ntSort()">↑≡</button>
-      <button class="pw-ic-btn text-base" title="全部展开/折叠" onclick="ntExpandAll()">🗄</button>
-      <button class="pw-ic-btn text-base" title="关闭" onclick="ntClose()">✕</button>
+      <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
+      <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
+      <button class="pw-ic-btn nt-ic" title="排序：名称/创建/手动（长按节点可拖动，拖入另一夹=子级）" onclick="ntSort()" id="ntBtSort"></button>
+      <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
+      <button class="pw-ic-btn nt-ic" title="关闭" onclick="ntClose()" id="ntBtClose"></button>
     </div>
   </div>
 
@@ -2819,7 +2819,7 @@ function renderRecords(){
   renderDiaryList();
   renderMoodMini();
   /* —— 笔记：纯纯写作风列表（V1.29：文件夹 chips+回收站/新建 · 列表/卡片视图 · 左滑🗑） —— */
-  renderNoteTags();renderNotes();
+  renderNotes();
   const sts=['在读','想读','已读','全部'];
   $('#bookStatusChips').innerHTML=sts.map((s,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${s}${s==='在读'?' 2':s==='已读'?' 1':''}</button>`).join('');
   $('#bookList').innerHTML=D.books.map(b=>`<div class="card flex gap-3 items-center" onclick="navTo('p-bookDetail')">
@@ -2891,12 +2891,9 @@ let noteView='list',noteCols=2,noteFolder='';
 function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<4){noteCols++;}else{noteView='list';}
   $('#noteViewBtn').textContent=noteView==='list'?'☰':'▦';
   toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
-function renderNoteTags(){$('#noteTags').innerHTML=D.noteTags.map((t,i)=>`<button class="chip ${(noteFolder===''?i===0:t===noteFolder)?'chip-on':''} whitespace-nowrap" onclick="noteFolder='${t==='全部'?'':t}';renderNoteTags();renderNotes();toast('${t==='全部'?'显示所有笔记':'已切换到「'+t+'」· 新建笔记默认归属（可在 ⋯ 里改）'}')">${i===0?'📂 ':'📁 '}${t}</button>`).join('')
-    +`<button class="chip whitespace-nowrap" onclick="toast('🗑 回收站：恢复 / 彻底删除（模拟）')">🗑 回收站</button>`
-    +`<button class="chip whitespace-nowrap" onclick="ntAdd()">＋ 文件夹</button>`;}
 function renderNotes(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);const L=$('#noteList');
   L.className=noteView==='list'?'':'mt-2 grid gap-2.5 grid-cols-'+noteCols;
-  L.innerHTML=list.map(n=>`<div class="note-sw min-w-0"><div class="note-del" onclick="event.stopPropagation();noteTrash('${n.t}')">🗑</div>
+  L.innerHTML=list.map(n=>`<div class="note-sw min-w-0"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
     <div class="note-card card ${noteView==='list'?'mb-2.5':''}" onclick="noteTap(this)" oncontextmenu="event.preventDefault();noteLongpress('${n.t}')">
     <div class="flex items-center gap-2"><b class="text-sm flex-1 truncate">${n.pin?'📌 ':''}${n.t}</b><span class="text-[9px] text-slate-400 flex-shrink-0">${n.time}</span></div>
     <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${n.txt}</div></div></div>`).join('');
@@ -2906,29 +2903,41 @@ function renderNotes(){const list=D.notes.filter(n=>!noteFolder||n.folder===note
     c.addEventListener('touchend',()=>{c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c)o.classList.remove('open')});c.classList.add('open');}else{c.classList.remove('open');}});});}
 function noteTap(el){if(el.classList.contains('open')){el.classList.remove('open');return;}navTo('p-noteEdit');}
 function noteLongpress(t){toast(`长按菜单：📌 置顶 / 📦 归档 / 🗑 移入回收站（${t}）`);}
-/* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（📂 管理入口） —— */
+/* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
+const NT_IC={
+ all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
+ folder:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/></svg>',
+ trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>',
+ add:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/></svg>',
+ sort:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M4 12h7M4 18h4M17 8v11m0 0 3-3m-3 3-3-3"/></svg>',
+ expand:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8 7l4 4 4-4-4-4ZM12 21l4-4-4-4-4 4 4 4Z"/></svg>',
+ close:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+ caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+ caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
 const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',c:[]}];
 let ntOpen={};
-function ntAdd(){const n=prompt('新建文件夹名称（顶层 · 长按节点选「＋新建子夹」可建子级）');if(n){NTREE.push({n,c:[]});renderNoteTags();renderNt();toast('已新建文件夹「'+n+'」');}}
-function ntRename(){toast('✏️ 重命名：先点选树中文件夹，再按此键（模拟）');}
+function ntAdd(){const n=prompt('新建文件夹名称（顶层 · 长按节点选「＋新建子夹」可建子级）');if(n){NTREE.push({n,c:[]});renderNt();toast('已新建文件夹「'+n+'」');}}
+function ntRename(){toast('重命名：先点选树中文件夹，再按此键（模拟）');}
 let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
 function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortMode]);}
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
 function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
-function ntPick(n){noteFolder=n;ntClose();renderNoteTags();renderNotes();toast('已切换到「'+n+'」');}
-function ntLong(n){toast('长按「'+n+'」：✏️ 重命名 / ＋新建子夹 / ⇅ 拖动排序（拖入另一夹=变子级）/ 🗑 删除（内有笔记时提示迁移）');}
+function ntPick(n){noteFolder=n;ntClose();renderNotes();toast('已切换到「'+n+'」');}
+function ntLong(n){toast('长按「'+n+'」：重命名 / ＋新建子夹 / 拖动排序（拖入另一夹=变子级）/ 删除（内有笔记时提示迁移）');}
 function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
-  return `<div class="nt-row" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}')" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
-    ${has?`<span class="nt-caret" onclick="event.stopPropagation();ntToggle(${i})">${ntOpen[i]?'▾':'▸'}</span>`:'<span class="nt-caret"></span>'}
-    <span class="flex-1 truncate">${d===0?'📁':'└'} ${n.n}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
+  return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}')" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
+    <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${i})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
+    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
     +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
-function renderNt(){$('#ntList').innerHTML=`<div class="nt-row nt-on" onclick="noteFolder='';ntClose();renderNoteTags();renderNotes()"><span class="nt-caret"></span><span class="flex-1">📂 全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
+function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="noteFolder='';ntClose();renderNotes()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
   +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
-  +`<div class="nt-row" onclick="ntClose();toast('🗑 回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="flex-1">🗑 回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
-  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="flex-1">📁＋ 添加文件夹</span></div>`;}
+  +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
+  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹</span></div>`;}
 function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
+(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.add;$('#ntBtSort').innerHTML=NT_IC.sort;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
 let noteRestore='replace';
 function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
