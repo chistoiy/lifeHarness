@@ -509,8 +509,14 @@ tailwind.config = {
           <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
           <span class="text-slate-300">›</span>
         </button>
-        <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar" id="diaryFilter"></div>
-        <div class="mt-2 flex gap-2 text-[11px]"><button id="dlBtnList" class="chip chip-on" onclick="diaryLayout('list')">☰ 列表</button><button id="dlBtnIns" class="chip" onclick="diaryLayout('ins')">📱 INS 卡片流预览</button></div>
+        <!-- V1.29轮7：筛选行+视图行合并为一行 = 筛选钮（下拉选条件）+ 切换键（列表 ⇄ INS 风） -->
+        <div class="mt-3 flex items-center justify-end gap-2 relative">
+          <button id="diaryFilterBtn" onclick="toggleDiaryFilterMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="筛选">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          </button>
+          <div id="diaryFilterMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
+          <button id="diaryViewBtn" onclick="diaryLayout(dlLayout==='list'?'ins':'list')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="切换 列表/INS 卡片流">☰</button>
+        </div>
         <div id="diaryList" class="mt-3"></div>
       </div>
 
@@ -2884,7 +2890,8 @@ function toggleRecSwitchMenu(){hideNoteFabMenu();hideTodoFabMenu();$('#recSwitch
 function hideRecSwitchMenu(){const m=$('#recSwitchMenu');if(m)m.classList.add('hidden');}
 function renderRecords(){
   /* —— 日记：筛选 + 时间线卡片 —— */
-  $('#diaryFilter').innerHTML=['全部','🖼 有图片','#加班','#复盘','🏃 运动'].map((f,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this);toast('已按「${f}」筛选（模拟）')">${f}</button>`).join('');
+  /* V1.29轮7：筛选改为一行内的筛选钮下拉 */
+  renderDiaryFilterMenu();
   renderDiaryList();
   renderMoodMini();
   /* —— 笔记：纯纯写作风列表（V1.29：文件夹 chips+回收站/新建 · 列表/卡片视图 · 左滑🗑） —— */
@@ -3620,7 +3627,16 @@ function renderInsInto(sel,tip){$(sel).innerHTML=D.diary.map((d,i)=>insCardHtml(
 function dwMode(k){dwLayout=k;$('#dwDoc').classList.toggle('hidden',k!=='doc');$('#dwIns').classList.toggle('hidden',k!=='ins');
  $('#dwBtnDoc').classList.toggle('chip-on',k==='doc');$('#dwBtnIns').classList.toggle('chip-on',k==='ins');if(k==='ins')renderInsInto('#dwIns',true)}
 function openInsFull(i){$('#insFullBody').innerHTML=insCardHtml(i);$('#insFull').classList.remove('hidden')}
-function diaryLayout(k){dlLayout=k;$('#dlBtnList').classList.toggle('chip-on',k==='list');$('#dlBtnIns').classList.toggle('chip-on',k==='ins');renderDiaryList()}
+function diaryLayout(k){dlLayout=k;const b=$('#diaryViewBtn');if(b)b.textContent=k==='list'?'☰':'▦';renderDiaryList();
+  toast(k==='ins'?'INS 卡片流预览':'列表视图');}
+/* V1.29轮7：日记筛选钮下拉（当前条件高亮✓） */
+let diaryFilter='全部';
+const DIARY_FILTERS=['全部','🖼 有图片','#加班','#复盘','🏃 运动'];
+function toggleDiaryFilterMenu(e){e.stopPropagation();renderDiaryFilterMenu();$('#diaryFilterMenu').classList.toggle('hidden');}
+function renderDiaryFilterMenu(){const m=$('#diaryFilterMenu');if(!m)return;
+  m.innerHTML=DIARY_FILTERS.map(f=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${f===diaryFilter?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diaryFilter='${f}';$('#diaryFilterMenu').classList.add('hidden');renderDiaryFilterMenu();toast('已按「${f}」筛选（模拟）')">${f}<span class="text-[11px]">${f===diaryFilter?'✓':''}</span></button>`).join('');
+  const b=$('#diaryFilterBtn');if(b)b.classList.toggle('text-brand-500',diaryFilter!=='全部');}
+document.addEventListener('pointerdown',e=>{const m=$('#diaryFilterMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recDiary'))m.classList.add('hidden')},true);
 function renderDiaryList(){const el=$('#diaryList');if(!el)return;
  if(dlLayout==='ins'){renderInsInto('#diaryList',false);return}
  el.innerHTML=D.diary.map(d=>`<div class="card mb-3" onclick="navTo('p-diaryEdit')">
