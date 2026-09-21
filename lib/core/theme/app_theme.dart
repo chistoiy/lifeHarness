@@ -70,7 +70,17 @@ class AppTheme {
         ),
       ),
       scaffoldBackgroundColor: tokens.page,
-      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+      // V1.28⑥ 全局统一 toast 风格（原型 #toast：深 slate 半透明胶囊 · 白小字 · 浮起）。
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Color(0xE60F172A),
+        contentTextStyle:
+            TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(28))),
+        elevation: 6,
+        width: 320,
+      ),
       dividerColor: tokens.cardBorder,
     );
   }

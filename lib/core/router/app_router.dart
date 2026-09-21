@@ -12,6 +12,7 @@ import '../../features/calendar/presentation/category_page.dart';
 import '../../features/todo/presentation/widgets/pomo_screen.dart';
 import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
+import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
@@ -71,9 +72,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 /// V1.27 G1 返回语义（纯函数便于守护）：
+/// 主页编排态 → endEdit（V1.28⑥：返回=退出编排并保存，不退 app）；
 /// 非主页 → goToday（逐级返回最终落主页）；主页 2s 内二次返回 → exit；首次 → remind。
-String shellBackAction(String currentPath, {DateTime? lastBackAt, DateTime? at}) {
+String shellBackAction(String currentPath,
+    {bool dashEditing = false, DateTime? lastBackAt, DateTime? at}) {
   if (currentPath != NavModule.today.path) return 'goToday';
+  if (dashEditing) return 'endEdit';
   final n = at ?? DateTime.now();
   if (lastBackAt != null &&
       n.difference(lastBackAt) < const Duration(seconds: 2)) {
@@ -100,16 +104,27 @@ class HomeShell extends ConsumerWidget {
     final tokens = context.tokens;
 
     final selectedIndex = navModules.indexWhere((m) => m.path == currentPath);
+    // V1.28⑥：主页编排态下返回键=退出编排并保存（不进二次退出判定）。
+    final dashEditing = ref.watch(dashDraftProvider) != null;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         // V1.27 G1：返回=最终回主页；今天页二次返回退出（SnackBar 全局同款风格）
-        switch (shellBackAction(currentPath, lastBackAt: _lastBackAt)) {
+        switch (shellBackAction(currentPath,
+            dashEditing: dashEditing, lastBackAt: _lastBackAt)) {
           case 'goToday':
             _lastBackAt = null;
             context.go(NavModule.today.path);
+          case 'endEdit':
+            _lastBackAt = null;
+            ref.read(dashDraftProvider.notifier).commit();
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(
+                  content: Text('主页布局已保存 · 下次启动保持此顺序'),
+                  duration: Duration(milliseconds: 1600)));
           case 'exit':
             _lastBackAt = null;
             SystemNavigator.pop();

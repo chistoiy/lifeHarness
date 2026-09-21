@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import 'dashboard_providers.dart';
 
 /// 模块6 今日仪表盘（对齐原型 p-dashboard）。
 /// 真数据：待办数/进度环/今日日程列表/收集箱未整理/连续记录天/本周时间分布。
@@ -43,8 +44,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   bool _fabMenu = false;
 
   // ===== M0末C 主页卡片自由编排（原型 dashToggle/dashMove/drop 排序） =====
-  bool _editing = false;
-  List<String>? _draft; // 编排期工作副本，「完成」才落 settings
+  // V1.28⑥：编排态上移 dashDraftProvider（非 null=编排中），壳层返回键可拦截为
+  // 「退出编排并保存」而非退出 app；「✓ 完成」与返回键共用 commitDashEdit 落库。
 
   @override
   void initState() {
@@ -57,37 +58,34 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   /// V1.27 H1：长按卡片 / P3 编排直达 共用入口。
   void _enterEdit() {
-    if (_editing) return;
-    setState(() {
-      _draft = [...ref.read(settingsControllerProvider).homeCardOrder];
-      _editing = true;
-    });
+    if (ref.read(dashDraftProvider) != null) return;
+    ref.read(dashDraftProvider.notifier)
+        .enter([...ref.read(settingsControllerProvider).homeCardOrder]);
     if (mounted) _toastOf(context, '已进入编排模式 · 拖动或 ↑↓ 调整');
   }
 
   void _finishEdit() {
-    ref.read(settingsControllerProvider.notifier).setHomeOrder(_draft!);
-    setState(() {
-      _editing = false;
-      _draft = null;
-    });
-    _toastOf(context, '主页布局已保存 · 下次启动保持此顺序');
+    if (ref.read(dashDraftProvider.notifier).commit() && mounted) {
+      _toastOf(context, '主页布局已保存 · 下次启动保持此顺序');
+    }
   }
 
   void _moveCard(int i, int dir) {
+    final draft = [...ref.read(dashDraftProvider)!];
     final to = i + dir;
-    if (to < 0 || to >= _draft!.length) {
+    if (to < 0 || to >= draft.length) {
       _toastOf(context, dir < 0 ? '已在第一位' : '已在最后一位');
       return;
     }
-    setState(() => _draft!.insert(to, _draft!.removeAt(i)));
+    draft.insert(to, draft.removeAt(i));
+    ref.read(dashDraftProvider.notifier).set(draft);
   }
 
   void _reorder(int oldI, int newI) {
-    setState(() {
-      if (newI > oldI) newI--;
-      _draft!.insert(newI, _draft!.removeAt(oldI));
-    });
+    final draft = [...ref.read(dashDraftProvider)!];
+    if (newI > oldI) newI--;
+    draft.insert(newI, draft.removeAt(oldI));
+    ref.read(dashDraftProvider.notifier).set(draft);
   }
 
   /// FAB 菜单动作（原型 fabGo：跳转目标模块；未开放模块给出版本提示）。
@@ -122,7 +120,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final tokens = context.tokens;
 
-    final order = _editing ? _draft! : ref.watch(settingsControllerProvider).homeCardOrder;
+    final draft = ref.watch(dashDraftProvider);
+    final editing = draft != null;
+    final order =
+        draft ?? ref.watch(settingsControllerProvider).homeCardOrder;
 
     Widget card(String id) => switch (id) {
           'greeting' => _HeroCard(greet: '$greet，CHIST $emoji'),
@@ -142,8 +143,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _ => const SizedBox.shrink(),
         };
 
-    // 编排模式：ReorderableListView 拖拽 + ↑↓ 微调；「完成」落盘（原型 dash-edit）
-    final body = _editing
+    // 编排模式：长按卡片拖拽 + 右侧 ⠿ 把手即拖 + ↑↓ 微调；「完成」落盘（原型 dash-edit）
+    final body = editing
         ? ReorderableListView(
             key: const ValueKey('dash-reorder'),
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
@@ -195,6 +196,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         top: 34,
                         child: Column(
                           children: [
+                            // V1.28⑥ ⠿ 把手=按下即拖（ReorderableDragStartListener）；
+                            // 卡片任意处长按 300ms 也可起拖（默认 mobile 拖拽柄）。
+                            ReorderableDragStartListener(
+                              index: i,
+                              child: _ArrowBtn(
+                                  key: ValueKey('grip-$id'),
+                                  label: '⠿',
+                                  onTap: null),
+                            ),
+                            const SizedBox(height: 6),
                             _ArrowBtn(
                                 key: ValueKey('up-$id'),
                                 label: '↑',
@@ -303,12 +314,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 }
 
-/// 编排模式 ↑↓ 微调圆钮（原型 .mv-btn）。
+/// 编排模式右侧圆钮（↑↓ 微调 / ⠿ 拖拽把手，原型 .mv-btn）。
 class _ArrowBtn extends StatelessWidget {
-  const _ArrowBtn({super.key, required this.label, required this.onTap});
+  const _ArrowBtn({super.key, required this.label, this.onTap});
 
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

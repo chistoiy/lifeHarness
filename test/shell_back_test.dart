@@ -17,5 +17,9 @@ void main() {
         shellBackAction('/',
             lastBackAt: t0, at: t0.add(const Duration(seconds: 3))),
         'remind');
+    // V1.28⑥：主页编排态优先=endEdit（退出编排并保存，不落入提醒/退出判定）
+    expect(shellBackAction('/', dashEditing: true, lastBackAt: t0, at: t0),
+        'endEdit');
+    expect(shellBackAction('/todo', dashEditing: true), 'goToday');
   });
 }
