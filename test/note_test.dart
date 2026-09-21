@@ -1,3 +1,4 @@
+import 'helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -170,7 +171,7 @@ void main() {
       await tester.enterText(
           find.byKey(const ValueKey('note-title')), '论克制');
       await tester.enterText(
-          find.byKey(const ValueKey('note-body')), '写作工具的第一要务');
+          find.byKey(const ValueKey('note-para-0')), '写作工具的第一要务');
       await tester.pump();
       expect(find.textContaining('12 字 · 约 1 分钟'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('note-back')));
@@ -194,6 +195,95 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1100));
       await tester.pumpAndSettle();
       expect((await dao.byId(n.id!))!.pinned, isTrue);
+    });
+  });
+
+  group('笔记编辑页（批1b · 四模式+快捷栏+字号纸色）', () {
+    testWidgets('专注模式快捷栏=守卫 toast；切 MD源码 后 H 循环标题级、加粗包裹',
+        (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('note-md-bold')));
+      await tester.pump();
+      expect(find.textContaining('当前为专注模式'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('note-mode-src')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('note-body')), '# 标题');
+      await tester.tap(find.byKey(const ValueKey('note-md-h')));
+      final ctl = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-body')))
+          .controller!;
+      expect(ctl.text, '## 标题');
+      expect(await pollText(tester, '标题级别：h2（再点循环升级至 h6）'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.byKey(const ValueKey('note-md-bold')));
+      await tester.pump();
+      expect(ctl.text, '## 标题****'); // 空选区=在光标处插入成对标记
+    });
+
+    testWidgets('分屏：源码输入实时同步右侧预览区与字数', (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-split')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('note-body')), '一二三四');
+      await tester.pump();
+      expect(find.text('一二三四'), findsWidgets); // 源码+预览两处
+      expect(find.textContaining('4 字 · 约 1 分钟'), findsOneWidget);
+    });
+
+    testWidgets('纸色四选：切深夜米黑底墨色反转', (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+          const Color(0xFFFBF8F1));
+      await tester.tap(find.byKey(const ValueKey('note-paper-3')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+          const Color(0xFF1E1D1B));
+    });
+
+    testWidgets('专注段落：空段成段·输入空行拆段·聚焦淡出其余段', (tester) async {
+      final n = await dao.save(note('两段', content: '甲段\n\n乙段'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-para-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
+
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-0')), '丙段\n\n丁段');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('note-para-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-para-2')), findsOneWidget); // 丙|丁|乙
+
+      await tester.tap(find.byKey(const ValueKey('note-focus')));
+      await tester.pump();
+      expect(find.textContaining('聚焦模式：当前段高亮'), findsOneWidget);
+      final dim = tester
+          .widget<TextField>(find.byKey(const ValueKey('note-para-2')))
+          .style!;
+      expect(dim.color!.a, closeTo(.22, .01)); // 非当前段淡出
+    });
+
+    testWidgets('源码模式编辑后返回：内容落库', (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-src')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.byKey(const ValueKey('note-body')), '**克制**设计');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await tester.pumpAndSettle();
+      final list = await dao.list();
+      expect(list.single.content, '**克制**设计');
     });
   });
 }
