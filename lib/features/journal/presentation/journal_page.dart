@@ -10,11 +10,18 @@ import 'journal_providers.dart';
 import 'note_tab.dart';
 import 'widgets/ins_card.dart';
 
-/// 模块3 记录页（原型 p-records）：日记/笔记/阅读/影音游四段 tab。
+/// 模块3 记录页（原型 p-records · V1.29轮5）：无段切换行，
+/// 标题随当前段显「记录 · X」，右上 ⇄ 钮开四能力菜单。
 /// 日记（M0/V1.28）与笔记列表管理（M1 批1a）为真实数据；阅读/影音游留占位。
 class JournalPage extends ConsumerWidget {
   const JournalPage({super.key});
 
+  static const kRecordLabels = {
+    'diary': '日记',
+    'note': '笔记',
+    'book': '阅读',
+    'media': '影音游',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,19 +30,34 @@ class JournalPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('记录'),
-            Text('日记 · 笔记 · 阅读',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.normal,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          ],
-        ),
+        title: Text('记录 · ${kRecordLabels[tab]}'),
         actions: [
+          // ⇄ 四能力切换（仅记录页；当前项高亮✓）
+          PopupMenuButton<String>(
+            key: const ValueKey('rec-switch'),
+            tooltip: '切换 日记/笔记/阅读/影音游',
+            icon: const Icon(Icons.sync_alt),
+            onSelected: (v) =>
+                ref.read(recordTabProvider.notifier).state = v,
+            itemBuilder: (_) => [
+              for (final e in kRecordLabels.entries)
+                PopupMenuItem(
+                  value: e.key,
+                  child: Row(
+                    children: [
+                      Text(e.value,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: e.key == tab ? tokens.accent : null)),
+                      if (e.key == tab) ...[
+                        const Spacer(),
+                        Icon(Icons.check, size: 18, color: tokens.accent),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -52,40 +74,12 @@ class JournalPage extends ConsumerWidget {
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'diary', label: Text('📔 日记')),
-                ButtonSegment(value: 'note', label: Text('📝 笔记')),
-                ButtonSegment(value: 'book', label: Text('📚 阅读')),
-                ButtonSegment(value: 'media', label: Text('🎬 影音游')),
-              ],
-              selected: {tab},
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                      TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: tokens.accent))),
-              onSelectionChanged: (s) =>
-                  ref.read(recordTabProvider.notifier).state = s.first,
-            ),
-          ),
-          Expanded(
-            child: switch (tab) {
-              'diary' => const _DiaryTab(),
-              'note' => const NoteTab(),
-              'book' => const _TabSoon('📚', '阅读 · 书架/摘录/目录计时', '规划 V0.5 · M1'),
-              _ => const _TabSoon('🎬', '影音游 · 与阅读同构', '规划 V1.1 · M3'),
-            },
-          ),
-        ],
-      ),
+      body: switch (tab) {
+        'diary' => const _DiaryTab(),
+        'note' => const NoteTab(),
+        'book' => const _TabSoon('📚', '阅读 · 书架/摘录/目录计时', '规划 V0.5 · M1'),
+        _ => const _TabSoon('🎬', '影音游 · 与阅读同构', '规划 V1.1 · M3'),
+      },
     );
   }
 }
@@ -264,38 +258,52 @@ class _DiaryTab extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        // 筛选 chips（真实标签）
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final f in ['all', ...tags])
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _chip(context,
-                      label: f == 'all' ? '全部' : f,
-                      on: filter == f,
-                      onTap: () =>
-                          ref.read(journalFilterProvider.notifier).state = f),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
+        // V1.29轮7：筛选 + 列表/INS 切换合并为一行右侧双钮
         Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _chip(context,
-                label: '☰ 列表',
-                on: !insMode,
-                onTap: () => ref.read(journalInsProvider.notifier).state = false),
-            const SizedBox(width: 8),
-            _chip(context,
-                label: '📱 INS 卡片流',
-                on: insMode,
-                onTap: () => ref.read(journalInsProvider.notifier).state = true),
+            PopupMenuButton<String>(
+              key: const ValueKey('diary-filter'),
+              tooltip: '筛选',
+              color: tokens.card,
+              icon: Icon(
+                Icons.filter_alt_outlined,
+                size: 22,
+                color: filter == 'all'
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    : tokens.accent,
+              ),
+              onSelected: (f) =>
+                  ref.read(journalFilterProvider.notifier).state = f,
+              itemBuilder: (_) => [
+                for (final f in ['all', ...tags])
+                  PopupMenuItem(
+                    value: f,
+                    child: Row(
+                      children: [
+                        Text(f == 'all' ? '全部' : f,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: f == filter ? tokens.accent : null)),
+                        if (f == filter) ...[
+                          const Spacer(),
+                          Icon(Icons.check, size: 18, color: tokens.accent),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            IconButton(
+              key: const ValueKey('diary-view'),
+              tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
+              onPressed: () => ref.read(journalInsProvider.notifier).state =
+                  !insMode,
+              icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
+            ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2),
         if (shown.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 30),

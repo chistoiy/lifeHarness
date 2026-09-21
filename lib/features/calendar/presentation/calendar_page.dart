@@ -234,7 +234,6 @@ class _TimeHeader extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     final view = ref.watch(calViewModeProvider);
-    const labels = {'axis': '轴', 'block': '块', 'day': '日', 'week': '周'};
 
     Future<void> jump() async {
       final d = await showWheelDatePick(context, selected);
@@ -291,47 +290,45 @@ class _TimeHeader extends ConsumerWidget {
                   duration: Duration(milliseconds: 1500))),
           ),
           if (!isToday)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: IconButton(
-                tooltip: '回到今天',
-                onPressed: () {
-                  final n = DateTime.now();
-                  ref.read(calSelectedProvider.notifier).state =
-                      DateTime(n.year, n.month, n.day);
-                },
-                icon: Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      color: tokens.accent.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Text('今',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w900, color: tokens.accent)),
-                ),
-              ),
-            ),
-          PopupMenuButton<String>(
-            tooltip: '切换视图',
-            icon: Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: tokens.accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Text(labels[view] ?? '块',
+            IconButton(
+              tooltip: '回到今天',
+              onPressed: () {
+                final n = DateTime.now();
+                ref.read(calSelectedProvider.notifier).state =
+                    DateTime(n.year, n.month, n.day);
+              },
+              icon: Text('今',
                   style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w900, color: tokens.accent)),
+                      fontSize: 17, fontWeight: FontWeight.w900, color: tokens.accent)),
             ),
+          // V1.29轮6：与记录页同款 ⇄ 线性钮 + 菜单当前项高亮✓
+          PopupMenuButton<String>(
+            key: const ValueKey('cal-view-switch'),
+            tooltip: '切换 轴/块/日/周',
+            icon: const Icon(Icons.sync_alt),
             onSelected: (v) => ref.read(calViewModeProvider.notifier).state = v,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'axis', child: Text('☰ 轴 · 时间轴')),
-              PopupMenuItem(value: 'block', child: Text('▦ 块 · 时间块')),
-              PopupMenuItem(value: 'day', child: Text('◫ 日 · 小时')),
-              PopupMenuItem(value: 'week', child: Text('▤ 周 · 7×24')),
+            itemBuilder: (_) => [
+              for (final e in const {
+                'axis': '☰ 轴 · 时间轴',
+                'block': '▦ 块 · 时间块',
+                'day': '◫ 日 · 小时',
+                'week': '▤ 周 · 7×24',
+              }.entries)
+                PopupMenuItem(
+                  value: e.key,
+                  child: Row(
+                    children: [
+                      Text(e.value,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: e.key == view ? tokens.accent : null)),
+                      if (e.key == view) ...[
+                        const Spacer(),
+                        Icon(Icons.check, size: 18, color: tokens.accent),
+                      ],
+                    ],
+                  ),
+                ),
             ],
           ),
         ],

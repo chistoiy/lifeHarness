@@ -239,8 +239,8 @@ void main() {
     });
   });
 
-  group('记录页（原型 p-records 日记 tab）', () {
-    testWidgets('渲染四段 tab + 心情月历卡 + 写今天入口 + 真实条目卡', (tester) async {
+  group('记录页（原型 p-records · V1.29轮5 记录·X 标题+⇄菜单）', () {
+    testWidgets('标题随段变化 · ⇄ 菜单切段 · 心情月历卡 + 写今天入口 + 真实条目卡', (tester) async {
       await jrepo.save(JournalEntry(
           day: DateTime.now(),
           mood: 2,
@@ -250,21 +250,31 @@ void main() {
       await tester.pumpWidget(scope(const JournalPage()));
       await tester.pumpAndSettle();
 
-      expect(find.text('📔 日记'), findsOneWidget);
-      expect(find.text('📝 笔记'), findsOneWidget);
+      expect(find.text('记录 · 日记'), findsOneWidget);
+      expect(find.text('📔 日记'), findsNothing); // 段切换行已移除
+      expect(find.byKey(const ValueKey('rec-switch')), findsOneWidget);
       expect(find.text('写今天的日记'), findsOneWidget);
       expect(find.textContaining('已记录 1 篇'), findsOneWidget);
       expect(find.textContaining('连续记录 1 天'), findsOneWidget);
       expect(find.textContaining('今天跑了 5 公里'), findsOneWidget);
-      expect(find.text('#运动'), findsWidgets);
 
-      // 其余 tab 占位。
-      await tester.tap(find.text('📚 阅读'));
+      // ⇄ 菜单：当前项带✓，切「阅读」→ 标题与占位联动。
+      await tester.tap(find.byKey(const ValueKey('rec-switch')));
       await tester.pumpAndSettle();
+      expect(find.text('影音游'), findsOneWidget);
+      await tester.tap(find.text('阅读'));
+      await tester.pumpAndSettle();
+      expect(find.text('记录 · 阅读'), findsOneWidget);
       expect(find.textContaining('规划 V0.5'), findsWidgets);
+      // 回日记段
+      await tester.tap(find.byKey(const ValueKey('rec-switch')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('日记'));
+      await tester.pumpAndSettle();
+      expect(find.text('记录 · 日记'), findsOneWidget);
     });
 
-    testWidgets('INS 卡片流：点 ❤️ 落库 liked', (tester) async {
+    testWidgets('INS 卡片流切换键：点 ❤️ 落库 liked', (tester) async {
       final e = await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '回望测试',
@@ -273,7 +283,7 @@ void main() {
       await tester.pumpWidget(scope(const JournalPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('📱 INS 卡片流'));
+      await tester.tap(find.byKey(const ValueKey('diary-view')));
       await tester.pumpAndSettle();
       expect(find.text('CHIST · ${_two(DateTime.now().month)}-${_two(DateTime.now().day)}'),
           findsOneWidget);
