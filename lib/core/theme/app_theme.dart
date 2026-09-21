@@ -51,6 +51,9 @@ class AppTheme {
         foregroundColor: scheme.onSurface,
         elevation: 0,
         centerTitle: false,
+        // V1.29轮8：对齐原型 topHead 紧凑头部（pt-1 pb-2 + 20px 标题），
+        // 默认 56 会在标题与内容行间留下大片空白。
+        toolbarHeight: 48,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,

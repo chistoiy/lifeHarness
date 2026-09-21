@@ -34,6 +34,8 @@ dependencies:
   flutter_timezone: ^4.1.0
   markdown: ^7.3.1
   flutter_math_fork: ^0.7.4
+  image_picker: ^1.2.3
+  flutter_quill: ^11.5.0
 
 dev_dependencies:
   flutter_test:
@@ -41,6 +43,8 @@ dev_dependencies:
   # sqflite 单元测试的内存库平台适配
   sqflite_common_ffi: ^2.3.3
   flutter_lints: ^6.0.0
+  image_picker_platform_interface: ^2.11.1
+  path_provider_platform_interface: ^2.1.3
 
 # sqlite3 原生库：本环境 GitHub 不可达，构建钩子改从 tools/sqlite3/ 本地目录读取
 # 各平台预置产物（Windows DLL + Android arm/arm64 .so，见该目录 README）。

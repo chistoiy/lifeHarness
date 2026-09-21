@@ -1,8 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
@@ -17,8 +22,31 @@ import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+/// 1×1 有效 PNG（插图测试用真实可解码字节）。
+const _png1x1 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+class _FakeImagePicker extends ImagePickerPlatform {
+  _FakeImagePicker(this.path);
+  final String path;
+  @override
+  Future<XFile?> getImageFromSource(
+          {required ImageSource source,
+          ImagePickerOptions options = const ImagePickerOptions()}) async =>
+      XFile(path);
+}
+
+class _FakePathProvider extends PathProviderPlatform {
+  _FakePathProvider(this.dir);
+  final String dir;
+  @override
+  Future<String?> getApplicationDocumentsPath() async => dir;
+}
 
 /// M1 批1a/1b/1c · 笔记列表与管理 + 编辑器（原型 recNote / p-noteEdit）。
 void main() {
@@ -61,10 +89,14 @@ void main() {
   }
 
   Note note(String title,
-          {String content = '正文', String? folder, bool pinned = false}) =>
+          {String content = '正文',
+          String? folder,
+          bool pinned = false,
+          String kind = 'plain'}) =>
       Note(
           title: title,
           content: content,
+          kind: kind,
           folder: folder,
           pinned: pinned,
           createdAt: DateTime.now(),
@@ -655,6 +687,180 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('nr-mode')));
       await tester.pumpAndSettle();
       expect(find.text('直接替换正文'), findsOneWidget);
+    });
+  });
+
+  group('V1.29批B · 富文本（flutter_quill · 原型 pwRichBar）', () {
+    testWidgets('rich 新建：Quill 编辑器+九键工具栏；输入→Delta JSON 落库',
+        (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'rich')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('note-rich-editor')), findsOneWidget);
+      for (final k in ['bold', 'ital', 'under', 'h', 'ul', 'task', 'img',
+        'undo', 'redo']) {
+        expect(find.byKey(ValueKey('note-rich-$k')), findsOneWidget);
+      }
+      expect(find.byKey(const ValueKey('note-md-h')), findsNothing); // MD 栏隐藏
+      expect(find.byKey(const ValueKey('note-mode-focus')), findsNothing);
+
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('note-rich-editor')))
+          .controller;
+      ctl.replaceText(0, 0, '富文本第一段', const TextSelection.collapsed(offset: 6));
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+
+      final list = await dao.list();
+      expect(list.single.kind, 'rich');
+      expect(list.single.content, contains('"insert"')); // Delta JSON 存储
+      expect(Note.richToPlain(list.single.content), contains('富文本第一段'));
+      expect(list.single.preview, contains('富文本第一段')); // 列表预览无 JSON 痕迹
+    });
+
+    testWidgets('B 键加粗作用于选区；☑ 键循环 待办→已勾→清', (tester) async {
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'rich')));
+      await tester.pumpAndSettle();
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('note-rich-editor')))
+          .controller;
+      ctl.replaceText(0, 0, '加粗我', const TextSelection.collapsed(offset: 3));
+      ctl.replaceText(0, 0, '', const TextSelection(baseOffset: 0, extentOffset: 3));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('note-rich-bold')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()), contains('"bold":true'));
+
+      ctl.replaceText(3, 0, '', const TextSelection.collapsed(offset: 3));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('note-rich-task')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"list":"unchecked"'));
+      await tester.tap(find.byKey(const ValueKey('note-rich-task')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"list":"checked"'));
+      await tester.tap(find.byKey(const ValueKey('note-rich-task')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()), isNot(contains('"list"')));
+    });
+
+    testWidgets('note-kind 三态循环 纯文本→MD→富文本→纯文本（内容往返不丢）',
+        (tester) async {
+      final n = await dao.save(note('三态', content: '正文在'));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      expect(find.text('🖊 纯文本'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('note-kind')));
+      await tester.pumpAndSettle();
+      expect(find.text('⌨️ MD'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('note-kind')));
+      await tester.pumpAndSettle();
+      expect(find.text('📝 富文本'), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-rich-editor')), findsOneWidget);
+      // 纯文本被包成 Delta 文档
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('note-rich-editor')))
+          .controller;
+      expect(ctl.document.toPlainText(), contains('正文在'));
+
+      await tester.tap(find.byKey(const ValueKey('note-kind')));
+      await tester.pumpAndSettle();
+      expect(find.text('🖊 纯文本'), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-rich-editor')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await settle5(tester);
+      expect((await dao.byId(n.id!))!.content, '正文在'); // 无 JSON 残留
+    });
+
+    test('Note.richToPlain：Delta JSON→纯文本；图片嵌入→🖼；非 JSON 容错回退', () {
+      expect(
+          Note.richToPlain(jsonEncode([
+            {'insert': '甲\n'},
+            {'insert': {'image': '/x/y.png'}},
+            {'insert': '\n'},
+          ])),
+          '甲\n🖼\n');
+      expect(Note.richToPlain('不是JSON'), '不是JSON');
+    });
+
+    testWidgets('快照恢复（rich）：替换=重建 Delta 文档；字数按纯文本计', (tester) async {
+      final n = await dao.save(note('富稿',
+          kind: 'rich',
+          content: jsonEncode([
+            {'insert': '旧版内容\n'}
+          ])));
+      await dao.snapshot(n.id!, jsonEncode([
+        {'insert': '更完整的旧稿共十九个字啦\n'}
+      ]));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-rich-editor')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('exp-snap')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('snap-rest-0')));
+      expect(await pollText(tester, '已恢复 · 当前正文已替换（替换前已留快照）'), isTrue);
+      await tester.pump(const Duration(seconds: 2));
+      await settle5(tester);
+
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('note-rich-editor')))
+          .controller;
+      expect(ctl.document.toPlainText(), contains('更完整的旧稿共十九个字啦'));
+    });
+
+    testWidgets('🖼 插图：相册弹层→拷贝 note_images→Delta image 嵌入并落库',
+        (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lh_img');
+      final docs = Directory.systemTemp.createTempSync('lh_docs');
+      addTearDown(() {
+        tmp.deleteSync(recursive: true);
+        docs.deleteSync(recursive: true);
+      });
+      File(p.join(tmp.path, 'a.png'))
+          .writeAsBytesSync(base64Decode(_png1x1));
+      ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
+      PathProviderPlatform.instance = _FakePathProvider(docs.path);
+
+      await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'rich')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-rich-img')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('img-gallery')), findsOneWidget);
+      expect(find.byKey(const ValueKey('img-camera')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('img-gallery')));
+      await tester.pumpAndSettle(); // 弹层退场，续体推进到真实 IO 等待处
+      // 图片拷贝是真实磁盘 IO：FakeAsync 帧循环不驱动它；交替
+      // runAsync(真等) + pump(排 fake 微任务) 直到 toast 出现
+      for (var i = 0;
+          i < 10 &&
+              find.textContaining('🖼 已插入图片').evaluate().isEmpty;
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.textContaining('🖼 已插入图片'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await settle5(tester);
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+
+      final stored =
+          Directory(p.join(docs.path, 'note_images')).listSync();
+      expect(stored, hasLength(1)); // 已拷贝进应用目录
+      final list = await dao.list();
+      expect(list.single.content, contains('"image"'));
+      expect(Note.richToPlain(list.single.content), contains('🖼')); // 预览无路径
     });
   });
 

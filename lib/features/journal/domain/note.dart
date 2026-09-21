@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// 模块3 笔记条目（notes 表；M0 仅收集箱分流写入，M1 批1 开放编辑与管理）。
 class Note {
   const Note({
@@ -24,14 +26,39 @@ class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// 富文本(kind=rich)正文=Quill Delta JSON；其余类型原样返回。
+  /// 非 JSON（批B 前的占位/手输数据）容错回退原文；嵌入对象（图片）以 🖼 占位。
+  static String richToPlain(String content) {
+    try {
+      final ops = jsonDecode(content);
+      if (ops is! List) return content;
+      final sb = StringBuffer();
+      for (final op in ops) {
+        if (op is! Map) continue;
+        final insert = op['insert'];
+        if (insert is String) {
+          sb.write(insert);
+        } else if (insert is Map) {
+          sb.write(insert.containsKey('image') ? '🖼' : '▪');
+        }
+      }
+      return sb.toString();
+    } catch (_) {
+      return content;
+    }
+  }
+
+  /// 面向展示/计数/导出的正文（rich 去 Delta JSON 痕迹）。
+  String get plainBody => kind == 'rich' ? richToPlain(content) : content;
+
   /// 列表预览：去标题行与换行，截 40 字。
   String get preview {
-    final body = content.replaceAll('\r', '').trim();
+    final body = plainBody.replaceAll('\r', '').trim();
     if (body.isEmpty) return '（空白笔记）';
     return body.length <= 40 ? body : '${body.substring(0, 40)}…';
   }
 
-  int get wordCount => content.replaceAll(RegExp(r'\s'), '').length;
+  int get wordCount => plainBody.replaceAll(RegExp(r'\s'), '').length;
 
   static Note fromRow(Map<String, Object?> row) => Note(
         id: row['id'] as int?,
