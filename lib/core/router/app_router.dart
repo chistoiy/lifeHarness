@@ -45,10 +45,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/pomo',
           builder: (_, s) => PomoScreen(session: s.extra as PomoSession)),
-      // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页），extra 传 DateTime 指定日期。
+      // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
+      // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。
       GoRoute(
         path: '/journal/edit',
-        builder: (_, s) => DiaryEditPage(day: s.extra as DateTime?),
+        builder: (_, s) {
+          final a = s.extra;
+          return a is DiaryEditArg
+              ? DiaryEditPage(day: a.day, entryId: a.entryId)
+              : DiaryEditPage(day: a as DateTime?);
+        },
       ),
       // 提醒通知二级页（原型 p-sub-notify）。
       GoRoute(

@@ -6,7 +6,9 @@ import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
+import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
+import 'package:lifeharness/features/journal/domain/diary_template.dart';
 import 'package:lifeharness/features/journal/domain/journal_entry.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
 import 'package:lifeharness/features/journal/presentation/diary_edit_page.dart';
@@ -46,6 +48,7 @@ void main() {
         overrides: [
           journalRepositoryProvider.overrideWithValue(jrepo),
           todoRepositoryProvider.overrideWithValue(trepo),
+          diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
           eventRepositoryProvider
               .overrideWithValue(EventRepository(EventDao(db), bus)),
         ],
@@ -53,7 +56,7 @@ void main() {
       );
 
   group('JournalRepository（M0 业务③）', () {
-    test('save 新建后同日再 save = 更新（一天一篇）', () async {
+    test('V1.28 一天多篇：save 无 id=新增一篇；带 id=更新该篇', () async {
       final a = await jrepo.save(JournalEntry(
           day: DateTime(2026, 9, 20),
           content: '初稿',
@@ -66,23 +69,81 @@ void main() {
           mood: 2,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
-      expect(b.id, a.id);
-      expect(await jrepo.list(), hasLength(1));
-      final read = await jrepo.byDay(DateTime(2026, 9, 20));
-      expect(read!.content, '改稿');
-      expect(read.mood, 2);
+      expect(b.id, isNot(a.id)); // 新篇而非覆盖
+      final all = await jrepo.list();
+      expect(all, hasLength(2));
+      final day = await jrepo.listByDay(DateTime(2026, 9, 20));
+      expect(day.first.content, '改稿'); // 新→旧
+      // 带 id 更新指定篇
+      final a2 = await jrepo.save(a.copyWith(
+          id: a.id, content: '初稿·改', mood: 5, updatedAt: DateTime.now()));
+      expect(a2.id, a.id);
+      expect(await jrepo.list(), hasLength(2));
+      final re = await jrepo.open(a.id!);
+      expect(re!.content, '初稿·改');
+      expect(re.mood, 5);
     });
 
-    test('setMoodOfDay：无条目建空文；有条目只更新心情不覆盖正文（L4）', () async {
+    test('V1.28 结构化篇：分节落 journal_sections + content 快照 + 重写', () async {
+      final saved = await jrepo.save(JournalEntry(
+          day: DateTime(2026, 9, 20),
+          templateId: 1,
+          sections: const [
+            DiarySection(title: '感恩 ①', body: '阳光'),
+            DiarySection(title: '感恩 ②', body:'☐ 买牛奶'),
+          ],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      final open = await jrepo.open(saved.id!);
+      expect(open!.sections.map((s) => s.title), ['感恩 ①', '感恩 ②']);
+      expect(open.content, contains('## 感恩 ①\n阳光'));
+      // 快照里的 ☐ 行仍可被 L3 解析
+      expect(open.todoLines(), contains('买牛奶'));
+      // 更新：分节重写不残留
+      final upd = await jrepo.save(saved.copyWith(
+          sections: const [DiarySection(title: '感恩 ①', body: '晚风')],
+          updatedAt: DateTime.now()));
+      expect(upd.id, saved.id);
+      final again = await jrepo.open(saved.id!);
+      expect(again!.sections, hasLength(1));
+      expect(again.sections.first.body, '晚风');
+    });
+
+    test('V1.28 模板 DAO：内置种子 2 套 + 自定义增删', () async {
+      final dao = DiaryTemplateDao(db);
+      final list = await dao.list();
+      expect(list, hasLength(2));
+      expect(list.every((t) => t.builtin), isTrue);
+      expect(list.first.sections, hasLength(3));
+      final id = await dao.create(const DiaryTemplate(name: '每日三省', sections: [
+        TemplateSection(title: '早晨问自己'),
+        TemplateSection(title: '晚间问自己'),
+      ]));
+      final all = await dao.list();
+      expect(all, hasLength(3));
+      final custom = all.firstWhere((t) => t.id == id);
+      expect(custom.builtin, isFalse);
+      expect(custom.sections, hasLength(2));
+      await dao.remove(id);
+      expect(await dao.list(), hasLength(2));
+    });
+
+    test('setMoodOfDay（V1.28）：已有正文篇则新增仅心情篇；再点更新空白篇不叠加（L4）', () async {
       await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '正文保留',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
       await jrepo.setMoodOfDay(DateTime.now(), 3);
-      final e = await jrepo.byDay(DateTime.now());
-      expect(e!.mood, 3);
-      expect(e.content, '正文保留');
+      var entries = await jrepo.listByDay(DateTime.now());
+      expect(entries, hasLength(2));
+      expect(entries.first.mood, 3); // 最新=仅心情篇
+      expect(entries.first.content, '');
+      expect(entries.last.content, '正文保留'); // 原篇不动
+      await jrepo.setMoodOfDay(DateTime.now(), 4); // 复用空白篇
+      entries = await jrepo.listByDay(DateTime.now());
+      expect(entries, hasLength(2));
+      expect(entries.first.mood, 4);
 
       await jrepo.setMoodOfDay(DateTime(2020, 1, 1), 5);
       final n = await jrepo.byDay(DateTime(2020, 1, 1));
@@ -146,6 +207,18 @@ void main() {
       expect(e.starred, isFalse);
       expect(e.liked, isFalse);
       expect(e.viewCount, 0);
+
+      // V1.28 v6：模板/分节表 + template_id 列 + 内置种子
+      for (final sql in DbSchema.migrations[5]!) {
+        await db2.execute(sql);
+      }
+      final tpls = await db2.query('diary_templates');
+      expect(tpls, hasLength(2));
+      final secs = await db2.query('template_sections');
+      expect(secs, hasLength(6));
+      final cols =
+          await db2.rawQuery('PRAGMA table_info(journal_entries)');
+      expect(cols.map((c) => c['name']), contains('template_id'));
       await db2.close();
     });
   });
@@ -220,18 +293,23 @@ void main() {
       expect(todos.first.tag, '日记');
     });
 
-    testWidgets('再次打开同日 = 续写并累计浏览（view_count）', (tester) async {
-      await jrepo.save(JournalEntry(
+    testWidgets('V1.28 打开既有篇=回填+浏览计数；新建篇=空白且「第 N+1 篇」', (tester) async {
+      final e1 = await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '已有正文',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now()));
-      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), entryId: e1.id)));
       await tester.pumpAndSettle();
       expect(find.text('已有正文'), findsOneWidget); // 编辑器回填
+      expect(find.text('第 1 篇'), findsOneWidget);
+      final re = await jrepo.open(e1.id!);
+      expect(re!.viewCount, 1); // 打开累计浏览
 
-      final e = await jrepo.byDay(DateTime.now());
-      expect(e!.viewCount, 1);
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey())));
+      await tester.pumpAndSettle();
+      expect(find.text('第 2 篇'), findsOneWidget); // 写今天=新篇
+      expect(find.text('已有正文'), findsNothing); // 不再覆盖旧篇
     });
 
     testWidgets('今日概览草稿（L2 真数据）：完成/未完成与日程行 + 插入正文', (tester) async {
@@ -244,6 +322,45 @@ void main() {
       await tester.tap(find.text('插入正文 ↑'));
       await tester.pump();
       expect(find.textContaining('【今日概览 · 自动生成】'), findsOneWidget);
+    });
+
+    testWidgets('V1.28 模板弹层：应用 KPT → 3 分节卡 · 保存 toast 含节数', (tester) async {
+      // 加高视口：文档态 ListView 懒构建，保证模板行/分节卡/保存钮全部在树内。
+      await tester.binding.setSurfaceSize(const Size(800, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('tpl-open-sheet')));
+      await tester.pumpAndSettle();
+      expect(find.text('📋 日记模板'), findsOneWidget);
+      expect(find.byKey(const ValueKey('tpl-row-2')), findsOneWidget); // KPT 种子
+      expect(find.byKey(const ValueKey('tpl-row-free')), findsOneWidget);
+      expect(find.byKey(const ValueKey('tpl-del-1')), findsNothing); // 内置不可删
+      expect(find.byKey(const ValueKey('tpl-del-2')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('tpl-row-2')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('sec-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sec-2')), findsOneWidget);
+      expect(find.textContaining('3 节 · 各节独立保存'), findsOneWidget);
+      expect(find.text('📋 模板：KPT 复盘 ▾'), findsOneWidget);
+
+      await tester.enterText(
+          find.descendant(
+              of: find.byKey(const ValueKey('sec-0')),
+              matching: find.byType(TextField)),
+          '坚持了晨跑');
+      await tester.tap(find.byKey(const ValueKey('diary-save')));
+      // 单帧即可：toast 1600ms 自动消失，pumpAndSettle 会推进过其生命周期。
+      await tester.pump();
+      expect(find.textContaining('第 1 篇 · KPT 复盘（3 节）'), findsOneWidget);
+      await tester.pumpAndSettle();
+
+      final day = await jrepo.listByDay(DateTime.now());
+      expect(day.first.sections, hasLength(3));
+      expect(day.first.sections.first.body, '坚持了晨跑');
+      expect(day.first.content, contains('## Keep · 做对了什么\n坚持了晨跑'));
     });
   });
 }

@@ -1,14 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/diary_template_dao.dart';
 import '../data/journal_dao.dart';
 import '../data/note_dao.dart';
+import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import '../domain/journal_repository.dart';
 
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository(JournalDao(AppDatabase.instance.db));
 });
+
+/// 日记模板（V1.28 真结构：diary_templates + template_sections）。
+final diaryTemplateDaoProvider =
+    Provider<DiaryTemplateDao>((ref) => DiaryTemplateDao(AppDatabase.instance.db));
+
+final diaryTemplatesProvider = FutureProvider<List<DiaryTemplate>>(
+    (ref) => ref.watch(diaryTemplateDaoProvider).list());
 
 /// 笔记 DAO（M0 最小集：收集箱分流写入；M1 编辑器接管）。
 final noteDaoProvider =

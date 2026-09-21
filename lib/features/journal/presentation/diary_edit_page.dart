@@ -5,14 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../domain/diary_template.dart';
+import '../domain/journal_entry.dart';
+import 'journal_providers.dart';
 import 'widgets/ins_card.dart';
 
-/// 日记编辑页（原型 p-diaryEdit）：纯文本 + 7 表情心情 + 今日概览草稿（联动 L2）
-/// + ☐ 待办行保存同步（联动 L3）+ 模板 + 自动存草稿 + INS 卡片流预览。
+/// 路由参数：day=新建当天的第 N+1 篇；entryId=编辑既有某一篇（V1.28 一天多篇）。
+class DiaryEditArg {
+  const DiaryEditArg({this.day, this.entryId});
+  final DateTime? day;
+  final int? entryId;
+}
+
+/// 日记编辑页（原型 p-diaryEdit）：一天多篇 · 每篇各带心情 · 纯文本/真结构分节模板
+/// + 模板管理底部弹层（内置+自定义 · ＋新建）+ 今日概览草稿（L2）+ ☐ 待办同步（L3）
+/// + 自动存草稿 + INS 卡片流预览。
 class DiaryEditPage extends ConsumerStatefulWidget {
-  const DiaryEditPage({super.key, this.day});
+  const DiaryEditPage({super.key, this.day, this.entryId});
 
   final DateTime? day;
+  final int? entryId;
 
   @override
   ConsumerState<DiaryEditPage> createState() => _DiaryEditPageState();
@@ -30,7 +42,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   bool _dirty = false;
   bool _savedDraft = false;
   Timer? _debounce;
-  String _template = '模板：自由书写';
+
+  /// 本篇当日序号（1 起）；新建=当日篇数+1。
+  int _entryNo = 1;
+
+  /// 当前模板（null/自由书写=单文本；structured=分节卡）。
+  DiaryTemplate _tpl = DiaryTemplate.freeWrite;
+  List<TextEditingController> _secCtrls = const [];
 
   @override
   void initState() {
@@ -41,12 +59,28 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   Future<void> _load() async {
     final repo = ref.read(journalRepositoryProvider);
-    final e = await repo.byDay(_day);
+    final dayEntries = await repo.listByDay(_day); // 新→旧
+    JournalEntry? e;
+    var no = dayEntries.length + 1; // 新建=第 N+1 篇
+    if (widget.entryId != null) {
+      e = await repo.open(widget.entryId!); // 含分节装配
+      final asc = dayEntries.reversed.toList(); // 旧→新，最早=第 1 篇
+      no = asc.indexWhere((x) => x.id == widget.entryId) + 1;
+      if (no <= 0) no = 1;
+    }
     if (!mounted) return;
     setState(() {
       _existing = e;
       _ctl.text = e?.content ?? '';
       _mood = e?.mood;
+      _entryNo = no;
+      if (e != null && e.sections.isNotEmpty) {
+        _applySections(
+            e.sections.map((s) => TemplateSection(title: s.title)).toList(),
+            bodies: e.sections.map((s) => s.body).toList());
+        _tpl = DiaryTemplate(
+            id: e.templateId, name: '模板', sections: const []); // 名称由列表刷新回填
+      }
     });
     if (e != null && e.id != null) {
       await repo.markViewed(e.id!);
@@ -59,10 +93,330 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     _debounce?.cancel();
     _ctl.dispose();
     _focus.dispose();
+    for (final c in _secCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
+  /// 应用模板：structured=生成分节控制器；自由书写=回单文本（正文保留）。
+  void _applySections(List<TemplateSection> secs, {List<String>? bodies}) {
+    for (final c in _secCtrls) {
+      c.dispose();
+    }
+    _secCtrls = [
+      for (var i = 0; i < secs.length; i++)
+        TextEditingController(text: bodies != null && i < bodies.length ? bodies[i] : '')
+    ];
+  }
+
+  void _pickTemplate(DiaryTemplate t) {
+    setState(() {
+      _tpl = t;
+      if (t.structured) {
+        _applySections(t.sections);
+      } else {
+        for (final c in _secCtrls) {
+          c.dispose();
+        }
+        _secCtrls = const [];
+      }
+    });
+  }
+
+  /// 模板管理底部弹层（原型 sheetDiaryTpl）：应用/删除/＋新建。
+  Future<void> _openTplSheet() async {
+    final dao = ref.read(diaryTemplateDaoProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (bc) => StatefulBuilder(
+        builder: (bc2, setLocal) => FutureBuilder(
+          key: ValueKey(_tplListKey),
+          future: dao.list(),
+          builder: (ctx, snap) {
+            final tpls = <DiaryTemplate>[
+              DiaryTemplate.freeWrite,
+              ...?snap.data,
+            ];
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('📋 日记模板',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final t in tpls)
+                          GestureDetector(
+                            key: ValueKey('tpl-row-${t.id ?? 'free'}'),
+                            onTap: () {
+                              _pickTemplate(t);
+                              Navigator.of(bc2).pop();
+                            },
+                            child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: bc2.tokens.card,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: t.id == _tpl.id ||
+                                          (t.id == null && _tpl.id == null)
+                                      ? bc2.tokens.accent
+                                      : bc2.tokens.cardBorder,
+                                  width: t.id == _tpl.id ||
+                                          (t.id == null && _tpl.id == null)
+                                      ? 2
+                                      : 1),
+                            ),
+                            child: Row(children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(t.id == null ? '自由书写' : t.name,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800)),
+                                    Text(
+                                        t.structured
+                                            ? '${t.sections.length} 节 · 结构化分节'
+                                            : '单文本 · 自由书写',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Theme.of(bc2).colorScheme.onSurfaceVariant)),
+                                  ],
+                                ),
+                              ),
+                              if (t.id != null && !t.builtin)
+                                TextButton(
+                                  key: ValueKey('tpl-del-${t.id}'),
+                                  onPressed: () async {
+                                    await dao.remove(t.id!);
+                                    setLocal(() => _tplListKey++);
+                                    ref.invalidate(diaryTemplatesProvider);
+                                  },
+                                  child: const Text('删除',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFFF43F5E))),
+                                ),
+                              if (t.id == _tpl.id ||
+                                  (t.id == null && _tpl.id == null))
+                                Text('✓',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        color: bc2.tokens.accent)),
+                            ]),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    key: const ValueKey('tpl-new'),
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        Navigator.of(bc2).pop();
+                        await _openTplCreateSheet();
+                      },
+                      child: const Text('＋ 新建模板',
+                          style:
+                              TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    // 弹层关闭后同步当前模板快照（可能被删）
+    final kept = await dao.list();
+    if (!mounted) return;
+    if (_tpl.id != null && !kept.any((t) => t.id == _tpl.id)) {
+      _pickTemplate(DiaryTemplate.freeWrite);
+    }
+  }
+
+  int _tplListKey = 0;
+
+  /// 新建模板弹层（原型 sheetDiaryTplEdit）：名称 + 分节增删。
+  Future<DiaryTemplate?> _openTplCreateSheet() async {
+    final dao = ref.read(diaryTemplateDaoProvider);
+    final nameCtl = TextEditingController();
+    final secTitle = [TextEditingController(), TextEditingController()];
+    final secPh = [TextEditingController(), TextEditingController()];
+    final tokens = context.tokens;
+    var addTick = 0;
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (bc) => StatefulBuilder(
+        builder: (bc2, setLocal) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 14, 16,
+              24 + MediaQuery.viewInsetsOf(bc2).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('新建模板',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 10),
+              TextField(
+                key: const ValueKey('tpl-name'),
+                controller: nameCtl,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(
+                    isDense: true, hintText: '模板名称，如：每日三省'),
+              ),
+              const SizedBox(height: 10),
+              Text('分节',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: tokens.accent)),
+              const SizedBox(height: 6),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (var i = 0; i < secTitle.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          key: ValueKey('tpl-sec-$i-$addTick'),
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: secTitle[i],
+                                style: const TextStyle(fontSize: 12.5),
+                                decoration: InputDecoration(
+                                    isDense: true,
+                                    hintText: '分节 ${i + 1} 标题，如：今日高光'),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                if (secTitle.length <= 1) return;
+                                setLocal(() {
+                                  secTitle[i].dispose();
+                                  secPh[i].dispose();
+                                  secTitle.removeAt(i);
+                                  secPh.removeAt(i);
+                                  addTick++;
+                                });
+                              },
+                              icon: const Icon(Icons.close, size: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    TextButton(
+                      key: const ValueKey('tpl-add-sec'),
+                      onPressed: () => setLocal(() {
+                        secTitle.add(TextEditingController());
+                        secPh.add(TextEditingController());
+                        addTick++;
+                      }),
+                      child: const Text('＋ 添加分节',
+                          style:
+                              TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                        onPressed: () => Navigator.of(bc2).pop(false),
+                        child: const Text('取消')),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      key: const ValueKey('tpl-save'),
+                      onTap: () async {
+                        final name = nameCtl.text.trim();
+                        final secs = [
+                          for (var i = 0; i < secTitle.length; i++)
+                            if (secTitle[i].text.trim().isNotEmpty)
+                              TemplateSection(
+                                  title: secTitle[i].text.trim(),
+                                  placeholder: secPh[i].text.trim().isEmpty
+                                      ? null
+                                      : secPh[i].text.trim()),
+                        ];
+                        if (name.isEmpty || secs.isEmpty) {
+                          ScaffoldMessenger.of(bc2).showSnackBar(const SnackBar(
+                              content: Text('请填写模板名称与至少一个分节'),
+                              duration: Duration(milliseconds: 1400)));
+                          return;
+                        }
+                        final id = await dao
+                            .create(DiaryTemplate(name: name, sections: secs));
+                        if (!bc2.mounted) return;
+                        Navigator.of(bc2).pop(true);
+                        if (bc2.mounted) {
+                          ScaffoldMessenger.of(bc2)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(
+                                content: Text('模板已创建 · $name'),
+                                duration:
+                                    const Duration(milliseconds: 1400)));
+                        }
+                        // 直接应用新模板
+                        final all = await dao.list();
+                        final created2 = all.firstWhere((t) => t.id == id);
+                        _pickTemplate(created2);
+                      },
+                      child: Container(
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                            gradient: tokens.gradient,
+                            borderRadius: BorderRadius.circular(12)),
+                        child: const Text('保存模板',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (created == true) {
+      _tplListKey++;
+      ref.invalidate(diaryTemplatesProvider);
+    }
+    return null;
+  }
+
   bool get _isToday => JournalEntry.sameDay(_day, DateTime.now());
+
+  /// 字数：单文本=正文；结构化=各节合计。
+  int get _totalChars => _secCtrls.isEmpty
+      ? _ctl.text.length
+      : _secCtrls.fold(0, (a, c) => a + c.text.length);
 
   void _onChanged(String v) {
     setState(() {
@@ -80,10 +434,21 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   Future<JournalEntry> _persist({bool notify = true}) async {
     final repo = ref.read(journalRepositoryProvider);
+    final secs = [
+      for (var i = 0; i < _secCtrls.length; i++)
+        DiarySection(
+            title: i < _tpl.sections.length
+                ? _tpl.sections[i].title
+                : '分节 ${i + 1}',
+            body: _secCtrls[i].text),
+    ];
     final saved = await repo.save(JournalEntry(
+      id: _existing?.id,
       day: _day,
       mood: _mood,
       content: _ctl.text,
+      templateId: secs.isEmpty ? null : _tpl.id,
+      sections: secs,
       createdAt: _existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     ));
@@ -113,12 +478,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     final n = await _syncTodoLines(entry.todoLines());
     _dirty = false;
     if (!mounted) return;
+    final head = entry.structured
+        ? '日记已保存 · 今天第 $_entryNo 篇 · ${_tpl.name}（${entry.sections.length} 节）'
+        : '日记已保存 · 今天第 $_entryNo 篇';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-          content: Text(n > 0
-              ? '日记已保存 · 文中 ☐ 待办已同步至任务列表（$n 条）'
-              : '日记已保存'),
+          content: Text(n > 0 ? '$head · ☐ 待办已同步（$n 条）' : head),
           duration: const Duration(milliseconds: 1600)));
     Navigator.of(context).pop();
   }
@@ -175,8 +541,15 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           children: [
             Text('${_day.year}-${_two(_day.month)}-${_two(_day.day)} 周$wd',
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            const SizedBox(width: 8),
+            Text('第 $_entryNo 篇',
+                key: const ValueKey('entry-no'),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.accent)),
             const Spacer(),
-            Text('${_ctl.text.length} 字',
+            Text('$_totalChars 字',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.normal,
@@ -253,10 +626,11 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                       ),
                       const SizedBox(height: 4),
                       if (_mood != null)
-                        Text('心情：${moodLabel(_mood)}',
+                        Text('本篇心情：${moodLabel(_mood)}',
                             style: TextStyle(
                                 fontSize: 10, color: tokens.accent)),
                       const SizedBox(height: 10),
+                      if (_secCtrls.isEmpty) ...[
                       // 编辑器卡（工具条 + 纯文本）
                       Container(
                         decoration: BoxDecoration(
@@ -309,6 +683,59 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                           ],
                         ),
                       ),
+                      ] else ...[
+                      // 结构化模板：分节卡（各节独立保存 · 原型「N 节 · 各节独立保存」）
+                      Text('📋 ${_tpl.name} · ${_secCtrls.length} 节 · 各节独立保存',
+                          key: const ValueKey('tpl-applied'),
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: tokens.accent)),
+                      for (var i = 0; i < _secCtrls.length; i++)
+                        Container(
+                          key: ValueKey('sec-$i'),
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: tokens.card,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: tokens.cardBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                                child: Text(_tpl.sections[i].title,
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: scheme.onSurfaceVariant)),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                                child: TextField(
+                                  controller: _secCtrls[i],
+                                  minLines: 2,
+                                  maxLines: 6,
+                                  keyboardType: TextInputType.multiline,
+                                  style: const TextStyle(
+                                      fontSize: 13.5, height: 1.7),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: _tpl.sections[i].placeholder ??
+                                        '写点什么…',
+                                  ),
+                                  onChanged: (_) =>
+                                      setState(() => _dirty = true),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       // 今日概览草稿（联动 L2 · 仅今天生成）
                       if (_isToday) ...[
                         const SizedBox(height: 12),
@@ -401,45 +828,25 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: tokens.card,
-                                borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: tokens.cardBorder),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _template,
-                                  isExpanded: true,
+                            child: GestureDetector(
+                              key: const ValueKey('tpl-open-sheet'),
+                              onTap: _openTplSheet,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 15),
+                                decoration: BoxDecoration(
+                                  color: tokens.card,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border:
+                                      Border.all(color: tokens.cardBorder),
+                                ),
+                                child: Text(
+                                  '📋 模板：${_tpl.id == null ? '自由书写' : _tpl.name} ▾',
+                                  key: const ValueKey('tpl-label'),
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                       color: scheme.onSurface),
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: '模板：自由书写',
-                                        child: Text('模板：自由书写')),
-                                    DropdownMenuItem(
-                                        value: '模板：感恩三件事',
-                                        child: Text('模板：感恩三件事')),
-                                    DropdownMenuItem(
-                                        value: '模板：KPT 复盘',
-                                        child: Text('模板：KPT 复盘')),
-                                  ],
-                                  onChanged: (v) {
-                                    if (v == null) return;
-                                    setState(() => _template = v);
-                                    if (v.contains('感恩')) {
-                                      _insertAtCursor(
-                                          '感恩三件事：\n1. \n2. \n3. \n');
-                                    } else if (v.contains('KPT')) {
-                                      _insertAtCursor(
-                                          'K 保持：\nP 问题：\nT 尝试：\n');
-                                    }
-                                  },
                                 ),
                               ),
                             ),

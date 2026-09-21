@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../domain/journal_entry.dart';
+import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'widgets/ins_card.dart';
 
@@ -48,7 +49,7 @@ class JournalPage extends ConsumerWidget {
       floatingActionButton: GradFab(
         tooltip: '写今天的日记',
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
-        onTap: () => context.push('/journal/edit'),
+        onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
       ),
       body: Column(
         children: [
@@ -191,7 +192,7 @@ class _DiaryTab extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 1),
                           child: GestureDetector(
                             onTap: () => context
-                                .push('/journal/edit', extra: DateTime(now.year, now.month, d)),
+                                .push('/journal/edit', extra: DiaryEditArg(day: DateTime(now.year, now.month, d))),
                             child: Container(
                               height: 36 * _barHeight(now, d, entries),
                               decoration: BoxDecoration(
@@ -222,7 +223,7 @@ class _DiaryTab extends ConsumerWidget {
           context,
           child: InkWell(
             borderRadius: BorderRadius.circular(tokens.cardRadius),
-            onTap: () => context.push('/journal/edit'),
+            onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -309,7 +310,7 @@ class _DiaryTab extends ConsumerWidget {
         else if (insMode)
           for (final e in shown)
             InsDiaryCard(
-                entry: e, onOpen: () => context.push('/journal/edit', extra: e.day))
+                entry: e, onOpen: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id)))
         else
           for (final e in shown)
             Padding(
@@ -318,7 +319,7 @@ class _DiaryTab extends ConsumerWidget {
                 context,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(tokens.cardRadius),
-                  onTap: () => context.push('/journal/edit', extra: e.day),
+                  onTap: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id)),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -392,7 +393,7 @@ class _DiaryTab extends ConsumerWidget {
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: GestureDetector(
-                onTap: () => context.push('/journal/edit', extra: old.day),
+                onTap: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: old.id)),
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(

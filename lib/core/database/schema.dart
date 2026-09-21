@@ -8,12 +8,16 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 5;
+  static const int version = 6;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
   static const String tEvents = 'events';
   static const String tJournal = 'journal_entries';
+  // v6：日记真结构分节 + 模板（需求 V1.28）
+  static const String tJournalSections = 'journal_sections';
+  static const String tDiaryTemplates = 'diary_templates';
+  static const String tTemplateSections = 'template_sections';
   static const String tNotes = 'notes';
   static const String tInbox = 'inbox_items';
   static const String tSettings = 'settings';
@@ -93,10 +97,48 @@ class DbSchema {
       updated_at INTEGER NOT NULL,
       starred INTEGER NOT NULL DEFAULT 0,
       liked INTEGER NOT NULL DEFAULT 0,
-      view_count INTEGER NOT NULL DEFAULT 0
+      view_count INTEGER NOT NULL DEFAULT 0,
+      template_id INTEGER
     )
     ''',
     'CREATE INDEX idx_journal_date ON $tJournal(entry_date)',
+
+    // v6（需求 V1.28）：日记一天多篇 · 每篇各带心情 · 真结构分节与模板。
+    // journal_sections：结构化日记的正文分节（自由书写篇无行）。
+    '''
+    CREATE TABLE IF NOT EXISTS $tJournalSections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id INTEGER NOT NULL,
+      idx INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_jsections_entry ON $tJournalSections(entry_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tDiaryTemplates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      builtin INTEGER NOT NULL DEFAULT 0,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tTemplateSections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL,
+      idx INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      placeholder TEXT
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_tsections_tpl ON $tTemplateSections(template_id)',
+    // 内置模板种子（与原型 DI_TPLS 同构；id 固定 1/2）
+    "INSERT OR IGNORE INTO $tDiaryTemplates(id,name,builtin,sort) VALUES(1,'感恩三件事',1,1)",
+    "INSERT OR IGNORE INTO $tDiaryTemplates(id,name,builtin,sort) VALUES(2,'KPT 复盘',1,2)",
+    "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(1,0,'感恩 ①','小事也可以'),(1,1,'感恩 ②',NULL),(1,2,'感恩 ③',NULL)",
+    "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(2,0,'Keep · 做对了什么',NULL),(2,1,'Problem · 哪里不顺',NULL),(2,2,'Try · 下一步怎么改',NULL)",
 
     // 模块3 笔记（kind: plain/rich/md；folder 分组；pinned 置顶）
     '''
@@ -281,6 +323,43 @@ class DbSchema {
       'ALTER TABLE $tJournal ADD COLUMN starred INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE $tJournal ADD COLUMN liked INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE $tJournal ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0',
+    ],
+    // v6（V1.28）：一天多篇（无按日唯一约束，仅改应用层）+ 真结构分节 + 模板。
+    5: [
+      'ALTER TABLE $tJournal ADD COLUMN template_id INTEGER',
+      '''
+      CREATE TABLE IF NOT EXISTS $tJournalSections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entry_id INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL
+      )
+      ''',
+      'CREATE INDEX IF NOT EXISTS idx_jsections_entry ON $tJournalSections(entry_id)',
+      '''
+      CREATE TABLE IF NOT EXISTS $tDiaryTemplates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        builtin INTEGER NOT NULL DEFAULT 0,
+        sort INTEGER NOT NULL DEFAULT 0
+      )
+      ''',
+      '''
+      CREATE TABLE IF NOT EXISTS $tTemplateSections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        placeholder TEXT
+      )
+      ''',
+      'CREATE INDEX IF NOT EXISTS idx_tsections_tpl ON $tTemplateSections(template_id)',
+      "INSERT OR IGNORE INTO $tDiaryTemplates(id,name,builtin,sort) VALUES(1,'感恩三件事',1,1)",
+      "INSERT OR IGNORE INTO $tDiaryTemplates(id,name,builtin,sort) VALUES(2,'KPT 复盘',1,2)",
+      "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(1,0,'感恩 ①','小事也可以'),(1,1,'感恩 ②',NULL),(1,2,'感恩 ③',NULL)",
+      "INSERT OR IGNORE INTO $tTemplateSections(template_id,idx,title,placeholder) VALUES(2,0,'Keep · 做对了什么',NULL),(2,1,'Problem · 哪里不顺',NULL),(2,2,'Try · 下一步怎么改',NULL)",
     ],
   };
 }
