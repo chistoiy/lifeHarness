@@ -32,6 +32,8 @@ class Note {
 
   /// 富文本(kind=rich)正文=Quill Delta JSON；其余类型原样返回。
   /// 非 JSON（批B 前的占位/手输数据）容错回退原文；嵌入对象以「图片」文字占位（轮10 去 emoji）。
+  /// 批2b：带 list=todo/unchecked/checked 属性的行渲染为 ☐/☑ 前缀——
+  /// 日记/笔记 L3 待办同步（todoLines 解析 ☐）在富文本下继续成立。
   static String richToPlain(String content) {
     try {
       final ops = jsonDecode(content);
@@ -41,6 +43,12 @@ class Note {
         if (op is! Map) continue;
         final insert = op['insert'];
         if (insert is String) {
+          final attrs = op['attributes'];
+          final list = attrs is Map ? attrs['list'] : null;
+          final isTodo = list == 'todo' || list == 'unchecked' || list == 'checked';
+          if (isTodo && insert.endsWith('\n')) {
+            sb.write(list == 'checked' ? '☑ ' : '☐ ');
+          }
           sb.write(insert);
         } else if (insert is Map) {
           sb.write(insert.containsKey('image') ? '图片' : '▪');

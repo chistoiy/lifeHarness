@@ -50,6 +50,7 @@ class JournalRepository {
       'mood': e.mood,
       'template_id': e.templateId,
       'tags': tags.isEmpty ? null : jsonEncode(tags),
+      'kind': e.kind, // M1批2a：富文本类型随保存同步（笔记同款口径）
       'updated_at': now.millisecondsSinceEpoch,
     });
     await dao.replaceSections(

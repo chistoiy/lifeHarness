@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 9;
+  static const int version = 10;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -102,7 +102,8 @@ class DbSchema {
       starred INTEGER NOT NULL DEFAULT 0,
       liked INTEGER NOT NULL DEFAULT 0,
       view_count INTEGER NOT NULL DEFAULT 0,
-      template_id INTEGER
+      template_id INTEGER,
+      kind TEXT NOT NULL DEFAULT ''
     )
     ''',
     'CREATE INDEX idx_journal_date ON $tJournal(entry_date)',
@@ -415,6 +416,10 @@ class DbSchema {
     // v9（V1.29轮9n）：笔记纸色按篇独立（hex·''=默认米纸·仅卡片视图条目底色跟随）
     8: [
       "ALTER TABLE $tNotes ADD COLUMN paper TEXT NOT NULL DEFAULT ''",
+    ],
+    // v10（M1批2a）：日记自由书写富文本 kind（''=纯文本 · rich=Quill Delta JSON）
+    9: [
+      "ALTER TABLE $tJournal ADD COLUMN kind TEXT NOT NULL DEFAULT ''",
     ],
   };
 }

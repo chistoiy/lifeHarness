@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'helpers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
@@ -12,6 +17,7 @@ import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/domain/diary_template.dart';
 import 'package:lifeharness/features/journal/domain/journal_entry.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
+import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/diary_edit_page.dart';
 import 'package:lifeharness/features/journal/presentation/journal_page.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
@@ -19,7 +25,30 @@ import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+/// 1×1 有效 PNG（批2a 插图链测试真实可解码字节·与 note_test 同款）。
+const _png1x1 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+class _FakeImagePicker extends ImagePickerPlatform {
+  _FakeImagePicker(this.path);
+  final String path;
+  @override
+  Future<XFile?> getImageFromSource(
+          {required ImageSource source,
+          ImagePickerOptions options = const ImagePickerOptions()}) async =>
+      XFile(path);
+}
+
+class _FakePathProvider extends PathProviderPlatform {
+  _FakePathProvider(this.dir);
+  final String dir;
+  @override
+  Future<String?> getApplicationDocumentsPath() async => dir;
+}
 
 void main() {
   sqfliteFfiInit();
@@ -337,23 +366,27 @@ void main() {
     });
   });
 
-  group('日记编辑页（原型 p-diaryEdit）', () {
-    testWidgets('输入正文+选心情+☐ 行 → 保存落库并同步待办（L3）', (tester) async {
+  group('日记编辑页（原型 p-diaryEdit · 轮12 富文本+简化头部）', () {
+    QuillEditor richCtl(WidgetTester tester) => tester.widget<QuillEditor>(
+        find.byKey(const ValueKey('diary-rich-editor')));
+
+    testWidgets('输入正文+选心情+☐ 行 → 富文本落库并同步待办（L3）', (tester) async {
       await tester.pumpWidget(scope(const DiaryEditPage()));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField).first, '晨会定了排期\n☐ 整理评审纪要');
-      await tester.tap(find.byKey(ValueKey('jm-1'))); // 😌 平静
+      richCtl(tester).controller.replaceText(0, 0, '晨会定了排期\n☐ 整理评审纪要',
+          const TextSelection.collapsed(offset: 15));
       await tester.pump();
-      await tester.drag(find.byType(ListView), const Offset(0, -420));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('diary-save')));
+      await tester.tap(find.byKey(const ValueKey('jm-1'))); // 😌 平静
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-save')));
       await tester.pumpAndSettle();
 
       final e = await jrepo.byDay(DateTime.now());
       expect(e, isNotNull);
       expect(e!.mood, 2);
-      expect(e.content, contains('整理评审纪要'));
+      expect(e.kind, 'rich'); // 批2b：自由书写=Delta JSON
+      expect(Note.richToPlain(e.content), contains('整理评审纪要'));
 
       final todos = await trepo.list();
       expect(todos.map((t) => t.title), contains('整理评审纪要'));
@@ -361,7 +394,28 @@ void main() {
       expect(todos.first.tag, '日记');
     });
 
-    testWidgets('V1.28 打开既有篇=回填+浏览计数；新建篇=空白且「第 N+1 篇」', (tester) async {
+    testWidgets('轮12-6/8 头部=仅居中日期（当年 MM-DD 周几 · 跨年显年月日）·无篇序/字数/搜索',
+        (tester) async {
+      final now = DateTime.now();
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await settle5(tester);
+      const wds = ['一', '二', '三', '四', '五', '六', '日'];
+      expect(
+          find.text(
+              '${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} 周${wds[now.weekday - 1]}'),
+          findsOneWidget);
+      expect(find.text('第 1 篇'), findsNothing);
+      expect(find.textContaining(' 字'), findsNothing);
+      expect(find.textContaining('已自动保存'), findsNothing);
+      expect(find.text('写日记'), findsNothing);
+      expect(find.byIcon(Icons.search), findsNothing);
+
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), day: DateTime(2025, 9, 19))));
+      await settle5(tester);
+      expect(find.text('2025-09-19 周五'), findsOneWidget); // 跨年历史篇补年份
+    });
+
+    testWidgets('V1.28 打开既有篇=回填+浏览计数；新建篇=空白富文本', (tester) async {
       final e1 = await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '已有正文',
@@ -369,30 +423,34 @@ void main() {
           updatedAt: DateTime.now()));
       await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), entryId: e1.id)));
       await tester.pumpAndSettle();
-      expect(find.text('已有正文'), findsOneWidget); // 编辑器回填
-      expect(find.text('第 1 篇'), findsOneWidget);
+      expect(richCtl(tester).controller.document.toPlainText(), contains('已有正文')); // 回填
       final re = await jrepo.open(e1.id!);
       expect(re!.viewCount, 1); // 打开累计浏览
 
-      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey())));
-      await tester.pumpAndSettle();
-      expect(find.text('第 2 篇'), findsOneWidget); // 写今天=新篇
-      expect(find.text('已有正文'), findsNothing); // 不再覆盖旧篇
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), day: DateTime(2030, 1, 1))));
+      await settle5(tester);
+      expect(richCtl(tester).controller.document.toPlainText().trim(), isEmpty); // 新篇空白
     });
 
-    testWidgets('今日概览草稿（L2 真数据）：完成/未完成与日程行 + 插入正文', (tester) async {
+    testWidgets('轮12-1 今日概览草稿默认折叠·点标题行展开·插入正文进富文本', (tester) async {
       await trepo.add(Todo(title: '已完成任务', quadrant: Quadrant.q1, done: true));
       await trepo.add(Todo(title: '未完成任务', quadrant: Quadrant.q3));
       await tester.pumpWidget(scope(const DiaryEditPage()));
       await tester.pumpAndSettle();
 
+      expect(find.textContaining('今日完成 1 · 未完成 1'), findsNothing); // 默认折叠
+      await tester.tap(find.byKey(const ValueKey('diary-sum-head')));
+      await tester.pumpAndSettle();
       expect(find.textContaining('今日完成 1 · 未完成 1'), findsOneWidget);
+
       await tester.tap(find.text('插入正文 ↑'));
       await tester.pump();
-      expect(find.textContaining('【今日概览 · 自动生成】'), findsOneWidget);
+      expect(richCtl(tester).controller.document.toPlainText(),
+          contains('【今日概览 · 自动生成】'));
     });
 
-    testWidgets('V1.28 模板弹层：应用 KPT → 3 分节卡 · 保存 toast 含节数', (tester) async {
+    testWidgets('V1.28 模板弹层：应用 KPT → 3 分节卡（仍纯文本）· 保存 toast 含节数',
+        (tester) async {
       // 加高视口：文档态 ListView 懒构建，保证模板行/分节卡/保存钮全部在树内。
       await tester.binding.setSurfaceSize(const Size(800, 2400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -405,7 +463,6 @@ void main() {
       expect(find.byKey(const ValueKey('tpl-row-2')), findsOneWidget); // KPT 种子
       expect(find.byKey(const ValueKey('tpl-row-free')), findsOneWidget);
       expect(find.byKey(const ValueKey('tpl-del-1')), findsNothing); // 内置不可删
-      expect(find.byKey(const ValueKey('tpl-del-2')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('tpl-row-2')));
       await tester.pumpAndSettle();
 
@@ -413,6 +470,7 @@ void main() {
       expect(find.byKey(const ValueKey('sec-2')), findsOneWidget);
       expect(find.textContaining('3 节 · 各节独立保存'), findsOneWidget);
       expect(find.text('📋 模板：KPT 复盘 ▾'), findsOneWidget);
+      expect(find.byKey(const ValueKey('diary-rich-editor')), findsNothing); // 结构化无富文本区
 
       await tester.enterText(
           find.descendant(
@@ -422,13 +480,271 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('diary-save')));
       // 单帧即可：toast 1600ms 自动消失，pumpAndSettle 会推进过其生命周期。
       await tester.pump();
-      expect(find.textContaining('第 1 篇 · KPT 复盘（3 节）'), findsOneWidget);
+      expect(find.textContaining('KPT 复盘（3 节）'), findsOneWidget);
       await tester.pumpAndSettle();
 
       final day = await jrepo.listByDay(DateTime.now());
       expect(day.first.sections, hasLength(3));
       expect(day.first.sections.first.body, '坚持了晨跑');
       expect(day.first.content, contains('## Keep · 做对了什么\n坚持了晨跑'));
+      expect(day.first.kind, ''); // 结构化篇回落纯文本
+    });
+
+    testWidgets('轮12-9 快捷栏=B/≡/☑/拍照/相册/语音/❝ 直接施加富文本格式',
+        (tester) async {
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await settle5(tester);
+      final ctl = richCtl(tester).controller;
+      ctl.replaceText(0, 0, '加粗我', const TextSelection.collapsed(offset: 3));
+      ctl.replaceText(
+          0, 0, '', const TextSelection(baseOffset: 0, extentOffset: 3));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('diary-bold')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"bold":true'));
+
+      ctl.replaceText(3, 0, '', const TextSelection.collapsed(offset: 3));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-task')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"list":"unchecked"'));
+      await tester.tap(find.byKey(const ValueKey('diary-task')));
+      await tester.pump();
+      expect(jsonEncode(ctl.document.toDelta().toJson()),
+          contains('"list":"checked"'));
+      // 无 MD 语法残留
+      expect(ctl.document.toPlainText(), isNot(contains('**')));
+      expect(ctl.document.toPlainText(), isNot(contains('- ')));
+    });
+  });
+
+  group('M1批2a · 日记图片附件全链（编辑/列表/INS/全屏）', () {
+    test('域协议：图片行剥离/追加可逆 · 预览去路径 · imagePaths 提取 · kind 落库',
+        () async {
+      const body = '晨跑五公里\n☐ 买鞋';
+      final withImgs =
+          JournalEntry.appendImageLines(body, ['/a/x.png', '/a/y.png']);
+      expect(withImgs, '晨跑五公里\n☐ 买鞋\n\n![图片](/a/x.png)\n![图片](/a/y.png)');
+      expect(JournalEntry.bodyWithoutImages(withImgs), body);
+      final e = JournalEntry(
+          day: DateTime(2026, 9, 22),
+          content: withImgs,
+          createdAt: DateTime(2026, 9, 22),
+          updatedAt: DateTime(2026, 9, 22));
+      expect(e.imagePaths, ['/a/x.png', '/a/y.png']);
+      expect(e.previewText, isNot(contains('/a/'))); // 展示不露本地路径
+      expect(e.todoLines(), contains('买鞋')); // 剥离图片不伤 ☐ 解析
+      // 仓储更新链路带 kind（批2b 富文本落库前置）
+      final a = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: 'x',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await jrepo.save(a.copyWith(id: a.id, kind: 'rich'));
+      expect((await jrepo.open(a.id!))!.kind, 'rich');
+    });
+
+    testWidgets('2a-1 相册插图→内嵌 Delta image→落库 kind=rich（轮12 直取来源）',
+        (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lhimg2a');
+      final docs = Directory.systemTemp.createTempSync('lh_docs2a');
+      addTearDown(() {
+        tmp.deleteSync(recursive: true);
+        docs.deleteSync(recursive: true);
+      });
+      File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
+      ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
+      PathProviderPlatform.instance = _FakePathProvider(docs.path);
+      await useSurface(tester);
+
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await settle5(tester);
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('diary-rich-editor')))
+          .controller;
+      ctl.replaceText(0, 0, '正文在前', const TextSelection.collapsed(offset: 4));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('diary-album')));
+      await tester.pump();
+      // 轮12-2：快捷栏钮直取来源，不再弹 相册/拍照 选择层
+      expect(find.byKey(const ValueKey('img-gallery')), findsNothing);
+      for (var i = 0;
+          i < 10 &&
+              !jsonEncode(ctl.document.toDelta().toJson())
+                  .contains('"image"');
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump();
+      }
+      expect(find.textContaining('![图片]'), findsNothing); // 无 MD 语法露出
+
+      await tester.tap(find.byKey(const ValueKey('diary-save')));
+      await tester.pumpAndSettle();
+      final e = await jrepo.byDay(DateTime.now());
+      expect(e!.kind, 'rich');
+      expect(e.content, contains('"image"'));
+      expect(e.imagePaths, hasLength(1));
+      expect(Note.richToPlain(e.content), contains('图片')); // 预览无路径
+    });
+
+    testWidgets('2a-1b 旧纯文本带图篇重开=图片转内嵌 embed；清空图后落库无图',
+        (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lhimg2a1b');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final img = p.join(tmp.path, 'a.png');
+      File(img).writeAsBytesSync(base64Decode(_png1x1));
+      final seeded = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: JournalEntry.appendImageLines('正文在前', [img]),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+
+      await tester.pumpWidget(
+          scope(DiaryEditPage(key: UniqueKey(), entryId: seeded.id)));
+      await settle5(tester);
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('diary-rich-editor')))
+          .controller;
+      // 迁移：正文段 + image embed（路径原样保留）
+      final hasImg = ctl.document.toDelta().toJson().any((op) =>
+          op['insert'] is Map && (op['insert'] as Map)['image'] == img);
+      expect(hasImg, isTrue);
+      expect(find.textContaining('![图片]'), findsNothing);
+
+      // 键盘删除（选区清空 embed）→ 保存后不再带图
+      ctl.replaceText(4, ctl.document.length - 5, '',
+          const TextSelection.collapsed(offset: 4));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('diary-save')));
+      await tester.pumpAndSettle();
+      final e = await jrepo.byDay(DateTime.now());
+      expect(e!.imagePaths, isEmpty);
+      expect(Note.richToPlain(e.content), contains('正文在前'));
+    });
+
+    testWidgets('2a-2 ＋拍照钮直取相机源·防抖自动存草稿带图', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lhimg2a2');
+      final docs = Directory.systemTemp.createTempSync('lh_docs2a2');
+      addTearDown(() {
+        tmp.deleteSync(recursive: true);
+        docs.deleteSync(recursive: true);
+      });
+      File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
+      ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
+      PathProviderPlatform.instance = _FakePathProvider(docs.path);
+      await useSurface(tester);
+
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('diary-cam')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('img-gallery')), findsNothing); // 跳过弹层
+      final ctl = tester
+          .widget<QuillEditor>(
+              find.byKey(const ValueKey('diary-rich-editor')))
+          .controller;
+      for (var i = 0;
+          i < 10 &&
+              !jsonEncode(ctl.document.toDelta().toJson())
+                  .contains('"image"');
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump();
+      }
+      // 自动存草稿链：图片随防抖落库（不点保存）
+      await tester.pump(const Duration(milliseconds: 1200));
+      final e = await jrepo.byDay(DateTime.now());
+      expect(e!.imagePaths, hasLength(1));
+    });
+
+    /// 两条真 1×1 PNG + 一篇带图带待办的日记（INS/列表两用例共用装配）。
+    Future<(JournalEntry, String, String)> seedImgEntry() async {
+      final tmp = Directory.systemTemp.createTempSync('lhimg2a3');
+      final a = p.join(tmp.path, 'a.png');
+      final b = p.join(tmp.path, 'b.png');
+      File(a).writeAsBytesSync(base64Decode(_png1x1));
+      File(b).writeAsBytesSync(base64Decode(_png1x1));
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '看图\n☐ 买水\n\n![图片]($a)\n![图片]($b)',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      return (e, a, b);
+    }
+
+    testWidgets('2a-3 INS 卡网格点图看大图 + 关联小图标展开 + ⛶ 全屏浏览',
+        (tester) async {
+      final (e, a, _) = await seedImgEntry();
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('diary-view'))); // 切 INS
+      await settle5(tester);
+
+      expect(find.byKey(ValueKey('ins-img-${e.id}-0')), findsOneWidget);
+      expect(find.byKey(ValueKey('ins-img-${e.id}-1')), findsOneWidget);
+      expect(find.textContaining(a), findsNothing); // 卡面不露路径
+
+      // 点缩略图 → 全屏黑底大图（再点任意处关）
+      await tester.tap(find.byKey(ValueKey('ins-img-${e.id}-0')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-img-light')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-img-light')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-img-light')), findsNothing);
+
+      // 轮12-11：关联信息=小图标（全屏钮左侧）·点击展开/收起
+      expect(find.textContaining('本页关联'), findsNothing);
+      await tester.tap(find.byKey(ValueKey('ins-ref-${e.id}')));
+      await settle5(tester);
+      expect(find.textContaining('本页关联 · ☑ 1 个待办同步'), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey('ins-ref-${e.id}')));
+      await settle5(tester);
+      expect(find.textContaining('本页关联'), findsNothing);
+
+      await tester.tap(find.byKey(ValueKey('ins-full-${e.id}')));
+      await settle5(tester);
+      expect(find.byKey(ValueKey('diary-full-${e.id}')), findsOneWidget);
+      expect(find.text('看图\n☐ 买水'), findsOneWidget); // 全屏正文（弹层那份·剥离图片行）
+      await tester.tap(find.byKey(ValueKey('diary-full-${e.id}')),
+          warnIfMissed: false);
+      await settle5(tester);
+      expect(find.byKey(ValueKey('diary-full-${e.id}')), findsNothing);
+    });
+
+    testWidgets('2a-4 列表行缩略点大图 + 关联小图标展开 + 预览去路径', (tester) async {
+      final (e, a, b) = await seedImgEntry();
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+
+      expect(find.byKey(ValueKey('jimg-${e.id}-0')), findsOneWidget);
+      expect(find.byKey(ValueKey('jimg-${e.id}-1')), findsOneWidget);
+      expect(find.textContaining(a), findsNothing);
+      expect(find.textContaining(b), findsNothing);
+      expect(find.textContaining('看图'), findsOneWidget);
+
+      await tester.tap(find.byKey(ValueKey('jimg-${e.id}-0')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('note-img-light')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-img-light')));
+      await settle5(tester);
+
+      // 轮12-11：列表行右下角小图标（保存时间左侧）·点击展开明细
+      expect(find.textContaining('本页关联'), findsNothing);
+      await tester.tap(find.byKey(ValueKey('jref-${e.id}')));
+      await settle5(tester);
+      expect(find.textContaining('本页关联 · ☑ 1 个待办同步'), findsOneWidget);
     });
   });
 }

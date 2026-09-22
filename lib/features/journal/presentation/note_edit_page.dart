@@ -7,9 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/providers.dart';
 import '../../../shared/linkage/stats_providers.dart';
@@ -17,6 +14,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/md_shortcut.dart';
 import 'journal_providers.dart';
 import 'note_paper.dart';
+import 'widgets/image_attach.dart';
 import 'widgets/md_view.dart';
 import 'widgets/note_sheets.dart';
 
@@ -481,25 +479,8 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     );
   }
 
-  /// 轮9c：点缩略图看大图（原型 #imgLight：全屏黑底 · 再点任意处关闭）。
-  void _showImageFull(String path) {
-    showDialog<void>(
-      context: context,
-      barrierColor: const Color(0xD9000000),
-      builder: (bc) => GestureDetector(
-        key: const ValueKey('note-img-light'),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => Navigator.of(bc).pop(),
-        child: Center(
-          child: InteractiveViewer(
-            child: Image.file(File(path),
-                errorBuilder: (_, _, _) => const Text('图片已丢失',
-                    style: TextStyle(color: Colors.white54))),
-          ),
-        ),
-      ),
-    );
-  }
+  /// 轮9c：点缩略图看大图（M1批2a 起走公共链 showImageLightbox）。
+  void _showImageFull(String path) => showImageLightbox(context, path);
 
   void _removePara(int i) {
     if (i < 0 || i >= _paras.length) return;
@@ -706,64 +687,14 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     }
   }
 
-  /// 🖼 插图共享链（原型 sheetImgSrc）：相册/拍照弹层 → 拷贝应用目录 →
+  /// 🖼 插图共享链（M1批2a 起抽至 widgets/image_attach.dart 与日记共用）：
   /// 返回落盘路径（任一步取消/失败=null）。rich 嵌 Delta，plain 插 MD 语法。
-  Future<String?> _pickImage() async {
-    final src = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: _bg,
-      builder: (bc) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              key: const ValueKey('img-gallery'),
-              title: Text('从相册选择',
-                  style: TextStyle(fontSize: 13.5, color: _fg)),
-              onTap: () => Navigator.of(bc).pop('gallery'),
-            ),
-            ListTile(
-              key: const ValueKey('img-camera'),
-              title: Text('拍照',
-                  style: TextStyle(fontSize: 13.5, color: _fg)),
-              onTap: () => Navigator.of(bc).pop('camera'),
-            ),
-            const SizedBox(height: 6),
-          ],
-        ),
-      ),
-    );
-    if (src == null || !mounted) return null;
-    XFile? picked;
-    try {
-      picked = await ImagePicker().pickImage(
-          source: src == 'camera' ? ImageSource.camera : ImageSource.gallery,
-          maxWidth: 1600,
-          imageQuality: 88);
-    } catch (e) {
-      if (mounted) AppToast.show(context, '相机/相册暂不可用');
-      return null;
-    }
-    if (picked == null || !mounted) return null;
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final outDir = Directory(p.join(dir.path, 'note_images'));
-      if (!await outDir.exists()) await outDir.create(recursive: true);
-      final dot = picked.path.lastIndexOf('.');
-      final ext = dot > 0 ? picked.path.substring(dot + 1).toLowerCase() : 'jpg';
-      final dest = p.join(
-          outDir.path, '${DateTime.now().millisecondsSinceEpoch}.$ext');
-      await File(picked.path).copy(dest);
-      return mounted ? dest : null;
-    } catch (_) {
-      if (mounted) AppToast.show(context, '插图失败 · 请重试');
-      return null;
-    }
-  }
+  Future<String?> _pickImage() =>
+      pickAndStoreImage(context, bg: _bg, fg: _fg);
 
   /// rich 插图：Delta image 嵌入当前选区处。
   /// 不引 flutter_quill_extensions（其 super_native_extensions 原生链在本机
-  /// 网络受限环境构建风险大），渲染由本页 _NoteImageEmbedBuilder 承担。
+  /// 网络受限环境构建风险大），渲染由共享 NoteImageEmbedBuilder 承担。
   Future<void> _richImage() async {
     final dest = await _pickImage();
     if (dest == null || !mounted) return;
@@ -889,7 +820,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                 padding: EdgeInsets.zero,
                 expands: true,
                 customStyles: _richStyles(),
-                embedBuilders: const [_NoteImageEmbedBuilder()],
+                embedBuilders: const [NoteImageEmbedBuilder()],
               ),
             ),
           ),
@@ -1773,38 +1704,3 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   }
 }
 
-/// 本地图片嵌入渲染（image_picker 拷贝后的应用目录文件路径）。
-class _NoteImageEmbedBuilder extends EmbedBuilder {
-  const _NoteImageEmbedBuilder();
-
-  @override
-  String get key => BlockEmbed.imageType;
-
-  @override
-  String toPlainText(Embed node) => '图片';
-
-  @override
-  Widget build(BuildContext context, EmbedContext embedContext) {
-    final path = embedContext.node.value.data as String? ?? '';
-    final width = MediaQuery.sizeOf(context).width - 40;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(path),
-          width: width,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(
-            width: width,
-            height: 90,
-            alignment: Alignment.center,
-            color: const Color(0x11000000),
-            child: const Text('图片已丢失',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ),
-        ),
-      ),
-    );
-  }
-}

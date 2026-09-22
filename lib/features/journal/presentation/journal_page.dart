@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'note_edit_page.dart';
 import 'note_tab.dart';
+import 'widgets/image_attach.dart' show showImageLightbox;
 import 'widgets/ins_card.dart';
 
 /// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选
@@ -337,7 +340,7 @@ class _DiaryTab extends ConsumerWidget {
                         Text(
                           today == null
                               ? '开始今天的记录 · 输入 ☐ 可插入待办'
-                              : '今日已写 ${today.content.length} 字 · 继续编辑',
+                              : '今日已写 ${today.plainBody.length} 字 · 继续编辑',
                           style: TextStyle(
                               fontSize: 11,
                               color:
@@ -444,26 +447,14 @@ class _DiaryTab extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13, height: 1.6),
                         ),
+                        // 批2a：有图篇在预览下挂 4 缩略（>4 末格 +N）
+                        if (e.imagePaths.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _DiaryThumbs(entry: e),
+                        ],
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            for (final t in e.tags.take(3))
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: _chip(context, label: '#$t', on: false, onTap: () {}),
-                              ),
-                            const Spacer(),
-                            Text(
-                              '☑ ${e.todoLines().length} · '
-                              '${_two(e.updatedAt.hour)}:${_two(e.updatedAt.minute)} 保存',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant),
-                            ),
-                          ],
-                        ),
+                        // 轮12-11：关联信息=右下角小图标（保存时间左侧），点击展开
+                        _DiaryMeta(entry: e),
                       ],
                     ),
                   ),
@@ -604,35 +595,158 @@ class _DiaryTab extends ConsumerWidget {
     );
   }
 
-  Widget _chip(BuildContext context,
-      {required String label, required bool on, required VoidCallback onTap}) {
-    final tokens = context.tokens;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: on ? tokens.accent : tokens.card,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: on ? tokens.accent : tokens.cardBorder),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: on ? Colors.white : Theme.of(context).colorScheme.onSurface),
-        ),
-      ),
-    );
-  }
-
   void _soon(BuildContext context, String what) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
           content: Text('$what · 敬请期待'),
           duration: const Duration(milliseconds: 1500)));
+  }
+}
+
+/// 轮12-11 · 列表行底栏：标签 chips + 关联小图标（☑ N 收起态·点击展开明细）+ 保存时间。
+class _DiaryMeta extends StatefulWidget {
+  const _DiaryMeta({required this.entry});
+
+  final JournalEntry entry;
+
+  @override
+  State<_DiaryMeta> createState() => _DiaryMetaState();
+}
+
+class _DiaryMetaState extends State<_DiaryMeta> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.entry;
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final n = e.todoLines().length;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            for (final t in e.tags.take(3))
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: tokens.cardBorder),
+                  ),
+                  child: Text('#$t',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            const Spacer(),
+            if (n > 0)
+              IconButton(
+                key: ValueKey('jref-${e.id}'),
+                tooltip: '本页关联',
+                visualDensity: VisualDensity.compact,
+                constraints:
+                    const BoxConstraints(minWidth: 40, minHeight: 28),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                onPressed: () => setState(() => _open = !_open),
+                icon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.link,
+                        size: 14,
+                        color: _open ? tokens.accent : scheme.onSurfaceVariant),
+                    const SizedBox(width: 3),
+                    Text('$n',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            Text(
+              '${two(e.updatedAt.hour)}:${two(e.updatedAt.minute)} 保存',
+              style: TextStyle(
+                  fontSize: 10, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        if (_open && n > 0)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: tokens.accent.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(10),
+              border:
+                  Border(left: BorderSide(color: tokens.accent, width: 3)),
+            ),
+            child: Text('本页关联 · ☑ $n 个待办同步',
+                style: TextStyle(
+                    fontSize: 11, color: scheme.onSurfaceVariant)),
+          ),
+      ],
+    );
+  }
+}
+
+/// 批2a · 日记行缩略条：一行 4 枚 44×44（>4 末格盖 +N · 点图看大图）。
+class _DiaryThumbs extends StatelessWidget {
+  const _DiaryThumbs({required this.entry});
+
+  final JournalEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final paths = entry.imagePaths;
+    final shown = paths.take(4).toList();
+    return Row(
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          GestureDetector(
+            key: ValueKey('jimg-${entry.id}-$i'),
+            onTap: () => showImageLightbox(context, shown[i]),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.file(File(shown[i]),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                            color: Color(0x14000000),
+                            child: Center(
+                                child: Text('丢失',
+                                    style: TextStyle(fontSize: 9))))),
+                    if (i == 3 && paths.length > 4)
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: const Color(0x73000000),
+                          child: Center(
+                              child: Text('+${paths.length - 4}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12))),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+        const Spacer(),
+      ],
+    );
   }
 }
 
