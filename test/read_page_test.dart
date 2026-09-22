@@ -10,7 +10,9 @@ import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/presentation/book_detail.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
+import 'package:lifeharness/features/read/presentation/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
+import 'package:lifeharness/features/read/presentation/read_timer_page.dart';
 import 'package:lifeharness/features/read/presentation/shelf_page.dart';
 
 /// M1批3 · 阅读工作台与书架 widget 测试（独立文件防 isolate 污染）。
@@ -64,6 +66,12 @@ void main() {
           builder: (_, s) => BookDetailPage(
               bookId: s.pathParameters['id']!,
               initialTab: (s.extra as BookDetailArg?)?.tab ?? 'c')),
+      GoRoute(
+          path: '/read/info/:id',
+          builder: (_, s) => BookInfoPage(bookId: s.pathParameters['id']!)),
+      GoRoute(
+          path: '/read/timer/:id',
+          builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!)),
     ]);
     return ProviderScope(
       overrides: [readRepositoryProvider.overrideWithValue(repo)],
@@ -252,20 +260,144 @@ void main() {
       expect(qs.single.kind, BookQuoteKind.mark);
     });
 
-    testWidgets('R-9 详情页：沉浸头图 + 三 tab + 角标循环分区', (tester) async {
+    testWidgets('R-9 详情页：可点芯片 + 顶栏计时全屏形态跳计时页', (tester) async {
+      await repo.setKv('read.autoAsk', 'false'); // 结束不弹记进度，专注路由断言
       await seed5();
       await tester.pumpWidget(routed(const ShelfPage()));
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('sh-item-a')));
       await settle(tester);
-      expect(find.text('书A'), findsWidgets);
       expect(find.byKey(const ValueKey('seg-c')), findsOneWidget);
-      expect(find.byKey(const ValueKey('seg-q')), findsOneWidget);
-      expect(find.byKey(const ValueKey('seg-r')), findsOneWidget);
-      // 角标循环：在读 → 想读（不冒泡进其它页）
+      expect(find.byKey(const ValueKey('bd-min-chip')), findsOneWidget);
+      expect(find.byKey(const ValueKey('bd-pct-chip')), findsOneWidget);
+      // 顶栏计时（默认全屏形态）→ 跳 /read/timer/:id（周期 Timer 页不能用 settle）
+      await tester.tap(find.byKey(const ValueKey('bd-timer')));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.byKey(const ValueKey('rt-toggle')), findsOneWidget);
+      // 页内开始 → 计时中 → 页内结束
+      await tester.tap(find.byKey(const ValueKey('rt-toggle')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.text('计时中'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('rt-toggle')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      await clearToasts(tester);
+      // 胶囊形态：原地起停 + toast（页内返回先回详情页）
+      await repo.setKv('read.timerUI', '顶部胶囊');
+      await tester.tap(find.byKey(const ValueKey('rt-back')));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      await settle(tester);
       await tester.tap(find.byKey(const ValueKey('bd-timer')));
       await settle(tester);
       expect(find.textContaining('已为《书A》开始计时'), findsOneWidget);
+      await clearToasts(tester);
+      final sess = await repo.allSessions();
+      expect(sess.where((x) => x.running), hasLength(1));
+      await tester.tap(find.byKey(const ValueKey('bd-timer')));
+      await settle(tester);
+      expect(find.textContaining('已结束计时'), findsOneWidget);
+      await clearToasts(tester);
+    });
+
+    testWidgets('R-10 记进度四方式真实回写 + 计时明细差量', (tester) async {
+      await seed5();
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      // 进度芯片 → 记进度弹层（按页方式改到 70）
+      await tester.tap(find.byKey(const ValueKey('bd-pct-chip')));
+      await settle(tester);
+      expect(find.textContaining('记进度 · 《书A》'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('pgf-value')), '70');
+      await settle(tester);
+      await tester.tap(find.text('保存'));
+      await settle(tester);
+      final nb = (await repo.allBooks()).firstWhere((x) => x.id == 'a');
+      expect(nb.readPages, 70);
+      await clearToasts(tester);
+      // 累计时长芯片 → 计时明细：补记一次后次数 +1 且流水同增
+      await tester.tap(find.byKey(const ValueKey('bd-min-chip')));
+      await settle(tester);
+      expect(find.textContaining('计时明细'), findsOneWidget);
+      final sessBefore = (await repo.allSessions()).length;
+      await tester.tap(find.byKey(const ValueKey('sess-add')));
+      await settle(tester);
+      expect((await repo.allSessions()).length, sessBefore + 1);
+      final blocks = await db.query('time_blocks',
+          where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      expect(blocks, hasLength(1)); // 补记也入 L4（分类=阅读）
+      expect(blocks.single['category'], '阅读');
+      await tester.tap(find.byIcon(Icons.remove_circle_outline_rounded).first);
+      await settle(tester);
+      expect((await repo.allSessions()).length, sessBefore);
+      expect(
+          await db.query('time_blocks',
+              where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]),
+          isEmpty);
+      await clearToasts(tester);
+    });
+
+    testWidgets('R-11 目录：粘贴导入实时解析 + 只读渲染 + 编辑态', (tester) async {
+      await seed5();
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('toc-import')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('toe-text')),
+          '第一部\n  甲\n  乙\n第二部\n  丙');
+      await settle(tester);
+      expect(find.text('2 个部分 · 3 节'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('toe-ok')));
+      await settle(tester);
+      expect(find.text('甲'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('toc-edit')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('toc-addpart')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('toc-edit'))); // 完成（自动 prune）
+      await settle(tester);
+      expect((await repo.tocOf('a')).where((n) => n.isPart).length, 2);
+      await clearToasts(tester);
+    });
+
+    testWidgets('R-12 资料页：数据卡下钻 + 总结覆写', (tester) async {
+      await seed5();
+      await repo.addManualSession(
+          bookId: 'a', day: DateTime.now(), minutes: 30, toPage: 10);
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('cover-a')));
+      await settle(tester);
+      expect(find.text('书籍资料'), findsWidgets);
+      // 累计阅读卡 → 计时明细
+      await tester.tap(find.byKey(const ValueKey('bi-min')));
+      await settle(tester);
+      expect(find.textContaining('计时明细'), findsOneWidget);
+      await tester.tapAt(const Offset(12, 40)); // 点遮罩收起弹层
+      await settle(tester);
+      // 总结编辑落 sum_* 覆写（长列表卡先滚到手）
+      await tester.ensureVisible(find.byKey(const ValueKey('sum-edit')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sum-edit')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('sum-q')), '金句一');
+      await tester.ensureVisible(find.byKey(const ValueKey('sum-save')));
+      await tester.tap(find.byKey(const ValueKey('sum-save')));
+      await settle(tester);
+      final nb = (await repo.allBooks()).firstWhere((x) => x.id == 'a');
+      expect(nb.sumQuote, '金句一');
+      await clearToasts(tester);
     });
   });
 }

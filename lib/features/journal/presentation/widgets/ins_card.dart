@@ -7,7 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/weather/weather.dart';
 import '../../domain/journal_entry.dart';
 import '../journal_providers.dart';
-import 'image_attach.dart';
+import '../../../../shared/widgets/image_attach.dart';
 
 /// INS 卡片流单卡（原型 ins-card：头像行 · 正文 · 图片 2×2 · 回望操作 · 次数与标签）。
 class InsDiaryCard extends ConsumerStatefulWidget {

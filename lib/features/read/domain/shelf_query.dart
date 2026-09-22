@@ -31,36 +31,40 @@ class ShelfQuery {
     if (kw.isNotEmpty) {
       final k = kw.toLowerCase();
       out = out
-          .where((b) =>
-              b.title.toLowerCase().contains(k) ||
-              b.author.toLowerCase().contains(k))
+          .where(
+            (b) =>
+                b.title.toLowerCase().contains(k) ||
+                b.author.toLowerCase().contains(k),
+          )
           .toList();
     }
     if (dim != 'none' && dimVal.isNotEmpty) {
       out = out.where((b) => dimValuesOf(b).contains(dimVal)).toList();
     }
-    out.sort((a, b) => switch (sort) {
-          'prog' => b.percent.compareTo(a.percent),
-          'rate' => b.rating.compareTo(a.rating),
-          'added' => a.createdAt.compareTo(b.createdAt),
-          'name' => a.title.compareTo(b.title),
-          'pages' => b.pages.compareTo(a.pages),
-          _ => lastReadOf(b).compareTo(lastReadOf(a)),
-        });
+    out.sort(
+      (a, b) => switch (sort) {
+        'prog' => b.percent.compareTo(a.percent),
+        'rate' => b.rating.compareTo(a.rating),
+        'added' => a.createdAt.compareTo(b.createdAt),
+        'name' => a.title.compareTo(b.title),
+        'pages' => b.pages.compareTo(a.pages),
+        _ => lastReadOf(b).compareTo(lastReadOf(a)),
+      },
+    );
     return out;
   }
 
   /// 单本书在某维度下的归属值（tag 可多值；rate 归入整数星档）。
   List<String> dimValuesOf(Book b) => switch (dim) {
-        'st' => [b.state],
-        'tag' => b.tags,
-        'rate' => b.rating > 0 ? ['${b.rating.floor()} 星'] : const [],
-        'author' => [b.author],
-        'pub' => [if (b.publisher?.isNotEmpty ?? false) b.publisher!],
-        'src' => [if (b.source?.isNotEmpty ?? false) b.source!],
-        'grp' => [if (b.grp?.isNotEmpty ?? false) b.grp!],
-        _ => const [],
-      };
+    'st' => [b.state],
+    'tag' => b.tags,
+    'rate' => b.rating > 0 ? ['${b.rating.floor()} 星'] : const [],
+    'author' => [b.author],
+    'pub' => [if (b.publisher?.isNotEmpty ?? false) b.publisher!],
+    'src' => [if (b.source?.isNotEmpty ?? false) b.source!],
+    'grp' => [if (b.grp?.isNotEmpty ?? false) b.grp!],
+    _ => const [],
+  };
 
   /// 维度可选值列表（书架二级面板用；rate 降序，其余按书目聚合保序去重）。
   static List<String> dimValues(String dim, List<Book> all) {
@@ -92,7 +96,9 @@ BookSession? closeRunning(BookSession s, int nowMs) {
   if (nowMs < s.startedAt) return null; // 回拨：丢弃，由调用方删行
   final elapsed = nowMs - s.startedAt;
   return s.copyWith(
-      endedAt: nowMs, minutes: elapsed <= 0 ? 0 : (elapsed / 60000).ceil());
+    endedAt: nowMs,
+    minutes: elapsed <= 0 ? 0 : (elapsed / 60000).ceil(),
+  );
 }
 
 /// 摘录/会话/状态变更的统一「最后活动」时间（last_read_at 聚合口径 §3.2）。
@@ -123,8 +129,10 @@ Map<String, ({int minutes, int times})> sessionAggByBook(List<BookSession> ss) {
   for (final s in ss) {
     if (s.endedAt == null || s.endedAt! < s.startedAt) continue; // 回拨行不入账
     final cur = m[s.bookId];
-    m[s.bookId] = (minutes: (cur?.minutes ?? 0) + s.billedMinutes,
-        times: (cur?.times ?? 0) + 1);
+    m[s.bookId] = (
+      minutes: (cur?.minutes ?? 0) + s.billedMinutes,
+      times: (cur?.times ?? 0) + 1,
+    );
   }
   return m;
 }

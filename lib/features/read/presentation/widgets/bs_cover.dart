@@ -18,11 +18,11 @@ const kBsCov = <(Color, Color, Color)>[
 
 /// 分区徽标底色（原型 bsProgressBadge：已读 emerald/想读 amber/弃读 slate/在读 indigo%）。
 Color bsStateColor(String state) => switch (state) {
-      '已读' => const Color(0xFF10B981),
-      '想读' => const Color(0xFFF59E0B),
-      '弃读' => const Color(0xFF64748B),
-      _ => const Color(0xFF6366F1),
-    };
+  '已读' => const Color(0xFF10B981),
+  '想读' => const Color(0xFFF59E0B),
+  '弃读' => const Color(0xFF64748B),
+  _ => const Color(0xFF6366F1),
+};
 
 /// 分区徽标文案：在读显百分比，其余显分区名。
 String bsBadgeLabel(Book b) =>
@@ -40,6 +40,7 @@ class BsCover extends StatelessWidget {
     this.showAuthor = true,
     this.showBadge = true,
     this.onBadgeTap,
+    this.onTap,
   });
 
   final Book book;
@@ -50,65 +51,83 @@ class BsCover extends StatelessWidget {
   /// 可点状态角标（LH-K17：点按循环切分区，不冒泡进详情）。
   final VoidCallback? onBadgeTap;
 
+  /// 点封面本体（详情页：进书籍资料页 §3.3）。
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final pal = kBsCov[book.paletteIdx];
     final img = book.coverPath;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: img == null || !File(img).existsSync()
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [pal.$1, pal.$2])
-                : null,
-            image: img != null && File(img).existsSync()
-                ? DecorationImage(
-                    image: FileImage(File(img)), fit: BoxFit.cover)
-                : null,
-          ),
-          child: Stack(
-            children: [
-              if (showAuthor)
-                Positioned(
-                  left: 7,
-                  right: 7,
-                  bottom: 6,
-                  child: Text(book.author,
+    return GestureDetector(
+      key: onTap == null ? null : ValueKey('cover-${book.id}'),
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: img == null || !File(img).existsSync()
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [pal.$1, pal.$2],
+                    )
+                  : null,
+              image: img != null && File(img).existsSync()
+                  ? DecorationImage(
+                      image: FileImage(File(img)),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: Stack(
+              children: [
+                if (showAuthor)
+                  Positioned(
+                    left: 7,
+                    right: 7,
+                    bottom: 6,
+                    child: Text(
+                      book.author,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white.withValues(alpha: .78))),
-                ),
-              if (showBadge)
-                Positioned(
-                  top: 5,
-                  right: 5,
-                  child: GestureDetector(
-                    onTap: onBadgeTap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: bsStateColor(book.state),
-                        borderRadius: BorderRadius.circular(999),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: .78),
                       ),
-                      child: Text(bsBadgeLabel(book),
-                          style: TextStyle(
-                              fontSize: badgeSize,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white)),
                     ),
                   ),
-                ),
-            ],
+                if (showBadge)
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: GestureDetector(
+                      onTap: onBadgeTap,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bsStateColor(book.state),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          bsBadgeLabel(book),
+                          style: TextStyle(
+                            fontSize: badgeSize,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -144,8 +163,10 @@ class BkPctBar extends StatelessWidget {
         children: [
           Container(
             height: 14,
-            decoration:
-                BoxDecoration(borderRadius: BorderRadius.circular(999), color: base),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: base,
+            ),
           ),
           FractionallySizedBox(
             widthFactor: w.clamp(0.0, 1.0),
@@ -160,13 +181,16 @@ class BkPctBar extends StatelessWidget {
             ),
           ),
           Center(
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: w >= 0.62
-                        ? Colors.white
-                        : tokens.colorScheme.onSurfaceVariant)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: w >= 0.62
+                    ? Colors.white
+                    : tokens.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),

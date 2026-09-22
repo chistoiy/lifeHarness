@@ -7,6 +7,9 @@ import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_session.dart';
 import 'package:lifeharness/features/read/domain/shelf_query.dart';
+import 'package:lifeharness/features/read/domain/book_dict.dart';
+import 'package:lifeharness/features/read/domain/book_progress.dart';
+import 'package:lifeharness/features/read/domain/book_toc.dart';
 
 /// M1批3 阅读 · 数据层（计划 §2.1 / §8）。独立文件防 isolate 污染（既有踩坑）。
 void main() {
@@ -197,7 +200,7 @@ void main() {
 
     setUp(() async {
       db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
-      for (final sql in DbSchema.bookSchemaStatements) {
+      for (final sql in DbSchema.createStatements) {
         await db.execute(sql);
       }
       repo = ReadRepository(db);
@@ -335,6 +338,244 @@ void main() {
             updatedAt: t0,
             deletedAt: t0)]), {'b1': 1});
       expect((await repo.recentQuotes(5)).first.body, '原文');
+    });
+  });
+
+  group('批3-2 · v13 目录字典与计时明细', () {
+    late Database db;
+    late ReadRepository repo;
+    final t0 = DateTime(2026, 9, 22).millisecondsSinceEpoch;
+
+    setUp(() async {
+      db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      repo = ReadRepository(db);
+    });
+    tearDown(() => db.close());
+
+    test('3-0 migrations[12] 幂等 · 建 book_toc_nodes/book_dict · 阅读分类唯一',
+        () async {
+      for (var i = 0; i < 2; i++) {
+        for (final sql in DbSchema.migrations[12]!) {
+          await db.execute(sql);
+        }
+      }
+      final names = (await db.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('book_toc_nodes','book_dict')"))
+          .length;
+      expect(names, 2);
+      final rows = await db.query('categories', where: 'name = ?', whereArgs: ['阅读']);
+      expect(rows, hasLength(1)); // 全量段与迁移段同 INSERT OR IGNORE
+      expect(rows.single['id'], DbSchema.catReadingId);
+    });
+
+    test('3-1 parseTocText：第X部/Part/罗马数字=部分 · 缩进与编号行=小节', () {
+      final parts = parseTocText('第一部 混沌\n'
+          '  1.1 开端的失序\n'
+          '    第二章的暗线\n'
+          '第二篇 秩序\n'
+          'Part III 尾声\n'
+          'IV\n'
+          '未分章的独白\n'
+          '1.2 小节编号也归当前部分\n');
+      expect(parts.map((p) => p.title).toList(),
+          ['第一部 混沌', '第二篇 秩序', 'Part III 尾声', 'IV']);
+      expect(parts[0].sections, ['1.1 开端的失序', '第二章的暗线']);
+      expect(parts[3].sections, ['未分章的独白', '1.2 小节编号也归当前部分']);
+    });
+
+    test('3-2 parseTocText：小节先于部分 → 未命名部分承载不丢行', () {
+      final parts = parseTocText('前言\n第一章 起风\n');
+      expect(parts, hasLength(1));
+      expect(parts.single.title, '');
+      expect(parts.single.sections, ['前言', '第一章 起风']);
+    });
+
+    test('3-3 progressPatch 边界：pages=0 不折页 · pos>tot 夹 100% · pct 反写 loc', () {
+      final b0 = Book(id: 'x', title: 'x', createdAt: t0, updatedAt: t0);
+      expect(progressPatch(b0, Book.kWayPage, 50)['read_pages'], 50); // 无总页也收数值
+      final b = Book(
+          id: 'y',
+          title: 'y',
+          pages: 100,
+          totalLoc: 2000,
+          progressWay: Book.kWayPos,
+          createdAt: t0,
+          updatedAt: t0);
+      final pos = progressPatch(b, Book.kWayPos, 9999);
+      expect(pos['read_loc'], 2000); // 钳到总位置
+      expect(pos['read_pages'], 100);
+      final pct = progressPatch(b, Book.kWayPct, 37.5);
+      expect(pct['read_pages'], 38);
+      expect(pct['read_loc'], 750);
+      final chap = progressPatch(b, Book.kWayChap, null,
+          chapterTitle: '第三章', chapterStartPage: 60);
+      expect(chap['chapter'], '第三章');
+      expect(chap['read_pages'], 60);
+      // 位置↔页折算边界
+      expect(pageFromLoc(b, 1000), 50);
+      expect(locFromPage(b, 50), 1000);
+      expect(pageFromLoc(b0, 100), isNull);
+      expect(locFromPage(b0, 100), isNull);
+    });
+
+    test('3-4 saveProgress：想读自动转在读 · started_at 补当下 · 刷 last_read_at', () async {
+      final b = await repo.addBook(
+          Book(title: '进度书', pages: 100, createdAt: t0, updatedAt: t0));
+      await repo.saveProgress(b.id, Book.kWayPage, 42);
+      final nb = await repo.bookById(b.id);
+      expect(nb!.readPages, 42);
+      expect(nb.state, Book.kStateReading);
+      expect(nb.startedAt, isNotNull);
+      expect(nb.percent, 42);
+    });
+
+    test('3-5 结束计时入 L4：分类=阅读 cat_id=22 note=《书名》 txn_id 回填', () async {
+      final b = await repo.addBook(Book(
+          title: '入账书',
+          pages: 100,
+          state: Book.kStateReading,
+          createdAt: t0,
+          updatedAt: t0));
+      final s = await repo.startSession(b.id);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.update('book_sessions', {'started_at': now - 3600000},
+          where: 'id = ?', whereArgs: [s.id]);
+      final closed = await repo.endSession(b.id);
+      expect(closed, isNotNull);
+      final rows = await db.query('time_blocks',
+          where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      expect(rows, hasLength(1));
+      expect(rows.single['category'], '阅读');
+      expect(rows.single['note'], '《入账书》');
+      final sess = (await repo.sessionsOf(b.id)).single;
+      expect(sess.txnId, rows.single['id']);
+    });
+
+    test('3-6 计时明细改时长：同一条流水差量更新不新建 · 聚合回算', () async {
+      final b = await repo.addBook(Book(
+          title: '改时长',
+          pages: 100,
+          state: Book.kStateReading,
+          createdAt: t0,
+          updatedAt: t0));
+      final s = await repo.startSession(b.id);
+      await repo.endSession(b.id);
+      final before = await db.query('time_blocks',
+          where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      final txnId = before.single['id'] as int;
+      await repo.editSession(s.id!, minutes: 999, toPage: 40);
+      final after = await db.query('time_blocks',
+          where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      expect(after, hasLength(1)); // 复用不新建
+      expect(after.single['id'], txnId);
+      expect((await repo.sessionsOf(b.id)).single.minutes, 999);
+      final agg = sessionAggByBook(await repo.allSessions());
+      expect(agg[b.id]!.minutes, 999);
+      final nb = await repo.bookById(b.id);
+      expect(nb!.readPages, 40); // 最新 to_page 回写
+    });
+
+    test('3-7 删除计时：同流水删行 · 补记走 manual 且入账', () async {
+      final b = await repo.addBook(Book(title: '删流水', createdAt: t0, updatedAt: t0));
+      await repo.addManualSession(
+          bookId: b.id, day: DateTime(2026, 9, 20), minutes: 25, toPage: 9);
+      final manual = (await repo.sessionsOf(b.id)).single;
+      expect(manual.source, BookSession.kSrcManual);
+      expect(
+          await db.query('time_blocks',
+              where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]),
+          hasLength(1));
+      await repo.deleteSession(manual.id!);
+      expect(await repo.sessionsOf(b.id), isEmpty);
+      expect(
+          await db.query('time_blocks',
+              where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]),
+          isEmpty);
+    });
+
+    test('3-8 字典自动登记：addBook 落作者与出版社 · 改名联动书目与摘录标签', () async {
+      final b = await repo.addBook(Book(
+          title: '字典书',
+          author: '张三',
+          publisher: '某某社',
+          tags: ['经济'],
+          createdAt: t0,
+          updatedAt: t0));
+      final authors = await repo.dictOf(DictEntry.kAuthor);
+      expect(authors.map((e) => e.name), ['张三']);
+      expect((await repo.dictOf(DictEntry.kPublisher)).map((e) => e.name),
+          contains('某某社'));
+      await repo.dictRename(
+          authors.firstWhere((e) => e.name == '张三'), '李四');
+      expect((await repo.bookById(b.id))!.author, '李四');
+      // 标签改名联动 books.tags 与摘录 tags
+      await repo.dictAdd(DictEntry.kTag, '经济');
+      await repo.addQuote(BookQuote(
+          bookId: b.id,
+          kind: BookQuote.kKindMark,
+          body: '原文',
+          tags: ['经济'],
+          createdAt: t0,
+          updatedAt: t0));
+      final tags = await repo.dictOf(DictEntry.kTag);
+      await repo.dictRename(tags.firstWhere((e) => e.name == '经济'), '经济学');
+      expect((await repo.bookById(b.id))!.tags, ['经济学']);
+      expect((await repo.allQuotes()).single.tags, ['经济学']);
+      final cnt = await repo.dictRefCount(
+          DictEntry(kind: DictEntry.kAuthor, name: '李四'));
+      expect(cnt, 1);
+    });
+
+    test('3-9 目录 CRUD：替换/删节回落未分章/改名调序/空部分治理', () async {
+      final b = await repo.addBook(Book(title: '目录书', createdAt: t0, updatedAt: t0));
+      await repo.replaceToc(b.id, parseTocText('第一部\n  甲\n  乙\n第二部\n  丙'));
+      var nodes = await repo.tocOf(b.id);
+      expect(nodes.where((n) => n.isPart).length, 2);
+      expect(nodes.where((n) => !n.isPart).length, 3);
+      // 摘录挂在「甲」，删小节 → chapter 置空不删摘录
+      await repo.addQuote(BookQuote(
+          bookId: b.id,
+          kind: BookQuote.kKindMark,
+          body: 'x',
+          chapter: '甲',
+          createdAt: t0,
+          updatedAt: t0));
+      final jia = nodes.firstWhere((n) => n.title == '甲');
+      await repo.deleteToc(jia.id!);
+      nodes = await repo.tocOf(b.id);
+      expect(nodes.any((n) => n.title == '甲'), isFalse);
+      expect((await repo.allQuotes()).single.chapter, isNull);
+      // 改名 + 树序
+      final yi = nodes.firstWhere((n) => n.title == '乙');
+      await repo.renameToc(yi.id!, '乙改');
+      nodes = await repo.tocOf(b.id);
+      expect(tocTree(nodes).first.sections.single.title, '乙改');
+      // 加部分不治理时为空 → tocPrune 清掉
+      await repo.addTocPart(b.id);
+      expect((await repo.tocOf(b.id)).where((n) => n.isPart).length, 3);
+      await repo.tocPrune(b.id);
+      expect((await repo.tocOf(b.id)).where((n) => n.isPart).length, 2);
+      // 只读渲染不出现无小节部分
+      expect(tocTree(await repo.tocOf(b.id), hideEmptyParts: true).length, 2);
+    });
+
+    test('3-10 moveToc 同级调序 · deleteToc 部分连子节', () async {
+      final b = await repo.addBook(Book(title: '调序书', createdAt: t0, updatedAt: t0));
+      await repo.replaceToc(b.id, parseTocText('第一部\n  A\n  B\n  C\n'));
+      var nodes = await repo.tocOf(b.id);
+      final c = nodes.firstWhere((n) => n.title == 'C');
+      await repo.moveToc(c.id!, -1); // C 上移一位到 B 前
+      nodes = await repo.tocOf(b.id);
+      final part = nodes.firstWhere((n) => n.isPart);
+      expect(
+          tocTree(nodes).first.sections.map((s) => s.title).toList(),
+          ['A', 'C', 'B']);
+      await repo.deleteToc(part.id!); // 删部分连小节
+      expect(await repo.tocOf(b.id), isEmpty);
+      expect((await repo.allQuotes()), isEmpty);
     });
   });
 }

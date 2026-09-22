@@ -3,16 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
 import '../data/read_repository.dart';
 import '../domain/book.dart';
+import '../domain/book_dict.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
+import '../domain/book_toc.dart';
 import '../domain/shelf_query.dart' show sessionAggByBook;
 
 /// 阅读模块 providers（M1批3）。
 ///
 /// 写库后统一 `readTickProvider.state++` 触发全部数据重取（与 todosProvider 同法）。
 
-final readRepositoryProvider =
-    Provider<ReadRepository>((ref) => ReadRepository(AppDatabase.instance.db));
+final readRepositoryProvider = Provider<ReadRepository>(
+  (ref) => ReadRepository(AppDatabase.instance.db),
+);
 
 final readTickProvider = StateProvider<int>((ref) => 0);
 
@@ -24,6 +27,66 @@ final booksProvider = FutureProvider<List<Book>>((ref) {
 final runningSessionProvider = FutureProvider<BookSession?>((ref) {
   ref.watch(readTickProvider);
   return ref.watch(readRepositoryProvider).runningSession();
+});
+
+/// settings 表 read.* 键通用取值（带默认值即时反映，写后 readTick 失效）。
+final readKvProvider = FutureProvider.family<String, (String key, String def)>((
+  ref,
+  arg,
+) async {
+  ref.watch(readTickProvider);
+  final raw = await ref.watch(readRepositoryProvider).kv(arg.$1);
+  return raw ?? arg.$2;
+});
+
+/// 计时形态（计划 §6 read.timerUI：全屏 / 顶部胶囊，默认全屏）。
+final timerUIProvider = FutureProvider<String>(
+  (ref) => ref.watch(readKvProvider(('read.timerUI', '全屏')).future),
+);
+
+/// 悬浮计时条开关（read.floatBar，默认开）。
+final floatBarProvider = FutureProvider<bool>(
+  (ref) async =>
+      (await ref.watch(readKvProvider(('read.floatBar', 'true')).future)) ==
+      'true',
+);
+
+/// 结束计时即弹记进度（read.autoAsk，默认开）。
+final autoAskProvider = FutureProvider<bool>(
+  (ref) async =>
+      (await ref.watch(readKvProvider(('read.autoAsk', 'true')).future)) ==
+      'true',
+);
+
+/// 顶部长胶囊是否可见：有在跑会话 && read.floatBar 开（§3.3 两种形态都常驻）。
+final readTimerBarVisibleProvider = FutureProvider<bool>((ref) async {
+  final run = await ref.watch(runningSessionProvider.future);
+  if (run == null) return false;
+  return ref.watch(floatBarProvider).valueOrNull ?? true;
+});
+
+/// 单书会话明细（计时明细弹层 / 轨迹）。
+final sessionsOfProvider = FutureProvider.family<List<BookSession>, String>((
+  ref,
+  bookId,
+) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).sessionsOf(bookId);
+});
+
+/// 单书两级目录。
+final tocProvider = FutureProvider.family<List<TocNode>, String>((ref, bookId) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).tocOf(bookId);
+});
+
+/// 书架资料字典（按 kind）。
+final dictProvider = FutureProvider.family<List<DictEntry>, String>((
+  ref,
+  kind,
+) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).dictOf(kind);
 });
 
 final allQuotesProvider = FutureProvider<List<BookQuote>>((ref) {
@@ -60,7 +123,8 @@ class WorkbenchData {
   final Map<String, ({int minutes, int times})> agg;
 
   List<Book> get reading => ShelfSort.byLastRead(
-      books.where((b) => b.state == Book.kStateReading && !b.isDeleted).toList());
+    books.where((b) => b.state == Book.kStateReading && !b.isDeleted).toList(),
+  );
 
   /// 全部藏书按最近阅读倒序（封面轨道数据源 §3.3）。
   List<Book> get rail =>
@@ -68,11 +132,15 @@ class WorkbenchData {
 
   int get doneThisYear {
     final y = DateTime.now().year;
-    return books.where((b) =>
-        !b.isDeleted &&
-        b.state == Book.kStateDone &&
-        b.endedAt != null &&
-        DateTime.fromMillisecondsSinceEpoch(b.endedAt!).year == y).length;
+    return books
+        .where(
+          (b) =>
+              !b.isDeleted &&
+              b.state == Book.kStateDone &&
+              b.endedAt != null &&
+              DateTime.fromMillisecondsSinceEpoch(b.endedAt!).year == y,
+        )
+        .length;
   }
 
   /// 今日卡计时目标书：在读排序第一本（最近阅读那本 · §3.4）。
@@ -99,8 +167,10 @@ class WorkbenchData {
 /// 最近阅读倒序（last_read_at 聚合列口径 §3.2）。
 class ShelfSort {
   static List<Book> byLastRead(List<Book> inList) => [...inList]
-    ..sort((a, b) => (b.lastReadAt ?? b.updatedAt)
-        .compareTo(a.lastReadAt ?? a.updatedAt));
+    ..sort(
+      (a, b) =>
+          (b.lastReadAt ?? b.updatedAt).compareTo(a.lastReadAt ?? a.updatedAt),
+    );
 }
 
 final workbenchProvider = FutureProvider<WorkbenchData>((ref) async {
@@ -131,5 +201,5 @@ final workbenchProvider = FutureProvider<WorkbenchData>((ref) async {
 String bsFmt(int minutes) => minutes < 60
     ? '$minutes′'
     : (minutes % 60 == 0
-        ? '${minutes ~/ 60}h'
-        : '${minutes ~/ 60}h${minutes % 60}m');
+          ? '${minutes ~/ 60}h'
+          : '${minutes ~/ 60}h${minutes % 60}m');

@@ -47,34 +47,34 @@ class BookSession {
       speed != null && speed! > 0 ? (minutes * speed!).round() : minutes;
 
   static BookSession fromRow(Map<String, Object?> r) => BookSession(
-        id: r['id'] as int?,
-        bookId: r['book_id'] as String,
-        startedAt: r['started_at'] as int,
-        endedAt: r['ended_at'] as int?,
-        minutes: (r['minutes'] as int?) ?? 0,
-        speed: (r['speed'] as num?)?.toDouble(),
-        fromPage: r['from_page'] as int?,
-        toPage: r['to_page'] as int?,
-        fromLoc: (r['from_loc'] as num?)?.toDouble(),
-        toLoc: (r['to_loc'] as num?)?.toDouble(),
-        source: (r['source'] as String?) ?? kSrcTimer,
-        txnId: r['txn_id'] as int?,
-      );
+    id: r['id'] as int?,
+    bookId: r['book_id'] as String,
+    startedAt: r['started_at'] as int,
+    endedAt: r['ended_at'] as int?,
+    minutes: (r['minutes'] as int?) ?? 0,
+    speed: (r['speed'] as num?)?.toDouble(),
+    fromPage: r['from_page'] as int?,
+    toPage: r['to_page'] as int?,
+    fromLoc: (r['from_loc'] as num?)?.toDouble(),
+    toLoc: (r['to_loc'] as num?)?.toDouble(),
+    source: (r['source'] as String?) ?? kSrcTimer,
+    txnId: r['txn_id'] as int?,
+  );
 
   Map<String, Object?> toRow() => {
-        if (id != null) 'id': id,
-        'book_id': bookId,
-        'started_at': startedAt,
-        'ended_at': endedAt,
-        'minutes': minutes,
-        'speed': speed,
-        'from_page': fromPage,
-        'to_page': toPage,
-        'from_loc': fromLoc,
-        'to_loc': toLoc,
-        'source': source,
-        'txn_id': txnId,
-      };
+    if (id != null) 'id': id,
+    'book_id': bookId,
+    'started_at': startedAt,
+    'ended_at': endedAt,
+    'minutes': minutes,
+    'speed': speed,
+    'from_page': fromPage,
+    'to_page': toPage,
+    'from_loc': fromLoc,
+    'to_loc': toLoc,
+    'source': source,
+    'txn_id': txnId,
+  };
 
   BookSession copyWith({
     int? endedAt,
@@ -86,19 +86,18 @@ class BookSession {
     double? toLoc,
     String? source,
     int? txnId,
-  }) =>
-      BookSession(
-        id: id,
-        bookId: bookId,
-        startedAt: startedAt,
-        endedAt: endedAt ?? this.endedAt,
-        minutes: minutes ?? this.minutes,
-        speed: speed ?? this.speed,
-        fromPage: fromPage ?? this.fromPage,
-        toPage: toPage ?? this.toPage,
-        fromLoc: fromLoc ?? this.fromLoc,
-        toLoc: toLoc ?? this.toLoc,
-        source: source ?? this.source,
-        txnId: txnId ?? this.txnId,
-      );
+  }) => BookSession(
+    id: id,
+    bookId: bookId,
+    startedAt: startedAt,
+    endedAt: endedAt ?? this.endedAt,
+    minutes: minutes ?? this.minutes,
+    speed: speed ?? this.speed,
+    fromPage: fromPage ?? this.fromPage,
+    toPage: toPage ?? this.toPage,
+    fromLoc: fromLoc ?? this.fromLoc,
+    toLoc: toLoc ?? this.toLoc,
+    source: source ?? this.source,
+    txnId: txnId ?? this.txnId,
+  );
 }

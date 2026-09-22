@@ -15,7 +15,7 @@ import 'journal_providers.dart';
 import 'note_edit_page.dart';
 import 'note_tab.dart';
 import 'widgets/diary_review_sheet.dart';
-import 'widgets/image_attach.dart' show showImageLightbox;
+import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
 import 'widgets/ins_card.dart';
 
 /// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选

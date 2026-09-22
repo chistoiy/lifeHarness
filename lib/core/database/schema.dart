@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 12;
+  static const int version = 13;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -39,6 +39,11 @@ class DbSchema {
   static const String tBooks = 'books';
   static const String tBookSessions = 'book_sessions';
   static const String tBookQuotes = 'book_quotes';
+  // v13（M1批3·批2）：两级目录节点 + 书架资料字典（计划 §2.2）
+  static const String tBookTocNodes = 'book_toc_nodes';
+  static const String tBookDict = 'book_dict';
+  // v13 内置分类种子：阅读（L4 账本计时会话入账分类·计划 §7）
+  static const int catReadingId = 22;
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -290,9 +295,10 @@ class DbSchema {
     ''',
     ...categorySeed,
     ...bookSchemaStatements,
+    ...bookTocSchemaStatements,
   ];
 
-  /// 内置分类种子（id 固定；一级 1-10，次级 11-21）。
+  /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
   static const List<String> categorySeed = [
     "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
         "(1,NULL,'工作','#6366F1',NULL,1),"
@@ -317,6 +323,9 @@ class DbSchema {
         "(19,5,'躺平',NULL,NULL,2),"
         "(20,5,'旅行',NULL,NULL,3),"
         "(21,5,'逛街',NULL,NULL,4)",
+    // v13（M1批3·批2）：一级分类「阅读」（读书计时入 L4 账本用·计划 §7）
+    "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
+        "(22,NULL,'阅读','#0EA5E9',NULL,11)",
   ];
 
   /// 逐级迁移：key = 升级前版本（from）。v2：todos 增 tag 标签列（保真对齐包）；
@@ -436,13 +445,9 @@ class DbSchema {
       ''',
     ],
     // v9（V1.29轮9n）：笔记纸色按篇独立（hex·''=默认米纸·仅卡片视图条目底色跟随）
-    8: [
-      "ALTER TABLE $tNotes ADD COLUMN paper TEXT NOT NULL DEFAULT ''",
-    ],
+    8: ["ALTER TABLE $tNotes ADD COLUMN paper TEXT NOT NULL DEFAULT ''"],
     // v10（M1批2a）：日记自由书写富文本 kind（''=纯文本 · rich=Quill Delta JSON）
-    9: [
-      "ALTER TABLE $tJournal ADD COLUMN kind TEXT NOT NULL DEFAULT ''",
-    ],
+    9: ["ALTER TABLE $tJournal ADD COLUMN kind TEXT NOT NULL DEFAULT ''"],
     // v11（M1批2e）：日记天气快照（写当天抓一次落条目·历史天气不查）+ 每日缓存表
     10: [
       'ALTER TABLE $tJournal ADD COLUMN weather_code INTEGER',
@@ -461,8 +466,12 @@ class DbSchema {
       ''',
     ],
     // v12（M1批3·阅读）：books / book_sessions / book_quotes 三表（与 v1 全量段同文·幂等）。
-    11: [
-      ...bookSchemaStatements,
+    11: [...bookSchemaStatements],
+    // v13（M1批3·批2）：目录两级节点 + 书架资料字典；补「阅读」分类种子。
+    12: [
+      ...bookTocSchemaStatements,
+      "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
+          "(22,NULL,'阅读','#0EA5E9',NULL,11)",
     ],
   };
 
@@ -558,5 +567,39 @@ class DbSchema {
     'CREATE INDEX IF NOT EXISTS idx_bq_tag ON $tBookQuotes(tag)',
     'CREATE INDEX IF NOT EXISTS idx_bq_created ON $tBookQuotes(created_at)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash)',
+  ];
+
+  /// v13 目录与字典 DDL（建库与迁移共用，保两处永远同文）。
+  static const List<String> bookTocSchemaStatements = [
+    // 两级目录：parent_id NULL=部分；idx 同级序；state done|reading|NULL；
+    // 人工增删改后置 confirmed=1（计划 §2.2 / §3.3 目录可手动微调）。
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookTocNodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id TEXT NOT NULL,
+      parent_id INTEGER,
+      level INTEGER NOT NULL DEFAULT 1,
+      idx INTEGER NOT NULL DEFAULT 0,
+      title TEXT NOT NULL,
+      start_page INTEGER,
+      start_loc REAL,
+      state TEXT,
+      ai_generated INTEGER NOT NULL DEFAULT 0,
+      confirmed INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_btoc_book ON $tBookTocNodes(book_id)',
+    // 书架资料字典：kind ∈ source|group|tag|author|publisher；
+    // 改名在事务内回写 books（计划 §3.4 资料管理器行）。
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookDict (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0,
+      extra TEXT
+    )
+    ''',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_bdict_kind_name ON $tBookDict(kind, name)',
   ];
 }

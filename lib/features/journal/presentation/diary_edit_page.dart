@@ -14,7 +14,7 @@ import '../../../shared/weather/weather_visual.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import 'journal_providers.dart';
-import 'widgets/image_attach.dart';
+import '../../../shared/widgets/image_attach.dart';
 
 /// 路由参数：day=新建当天的第 N+1 篇；entryId=编辑既有某一篇（V1.28 一天多篇）。
 class DiaryEditArg {

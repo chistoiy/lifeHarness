@@ -20,6 +20,8 @@ import '../../features/journal/presentation/journal_providers.dart'
     show noteSelProvider;
 import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/read/presentation/book_detail.dart';
+import '../../features/read/presentation/book_info_page.dart';
+import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
@@ -50,8 +52,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // 番茄全屏专注页：全屏无底栏（V1.27 T7），extra 传会话。
       GoRoute(
-          path: '/pomo',
-          builder: (_, s) => PomoScreen(session: s.extra as PomoSession)),
+        path: '/pomo',
+        builder: (_, s) => PomoScreen(session: s.extra as PomoSession),
+      ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。
       GoRoute(
@@ -70,7 +73,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final x = s.extra;
           if (x is NoteEditArg) {
             return NoteEditPage(
-                noteId: x.noteId, initialKind: x.kind, initialFolder: x.folder);
+              noteId: x.noteId,
+              initialKind: x.kind,
+              initialFolder: x.folder,
+            );
           }
           return NoteEditPage(noteId: x as int?);
         },
@@ -86,16 +92,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const AppearanceSettingsPage(),
       ),
       // M1批3 阅读：书架与书籍详情（原型 p-bookshelf / p-bookDetail）。
-      GoRoute(
-        path: '/read/shelf',
-        builder: (_, _) => const ShelfPage(),
-      ),
+      GoRoute(path: '/read/shelf', builder: (_, _) => const ShelfPage()),
       GoRoute(
         path: '/read/book/:id',
         builder: (_, s) => BookDetailPage(
-            bookId: s.pathParameters['id']!,
-            initialTab:
-                (s.extra as BookDetailArg?)?.tab ?? 'c'),
+          bookId: s.pathParameters['id']!,
+          initialTab: (s.extra as BookDetailArg?)?.tab ?? 'c',
+        ),
+      ),
+      // M1批3·批2：书籍资料页（p-bookInfo）与沉浸计时页（p-readtimer·全屏形态）。
+      GoRoute(
+        path: '/read/info/:id',
+        builder: (_, s) => BookInfoPage(bookId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/read/timer/:id',
+        builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!),
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(
@@ -109,8 +121,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 /// V1.27 G1 返回语义（纯函数便于守护）：
 /// 主页编排态 → endEdit（V1.28⑥：返回=退出编排并保存，不退 app）；
 /// 非主页 → goToday（逐级返回最终落主页）；主页 2s 内二次返回 → exit；首次 → remind。
-String shellBackAction(String currentPath,
-    {bool dashEditing = false, DateTime? lastBackAt, DateTime? at}) {
+String shellBackAction(
+  String currentPath, {
+  bool dashEditing = false,
+  DateTime? lastBackAt,
+  DateTime? at,
+}) {
   if (currentPath != NavModule.today.path) return 'goToday';
   if (dashEditing) return 'endEdit';
   final n = at ?? DateTime.now();
@@ -134,8 +150,9 @@ class HomeShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final navModules =
-        ref.watch(settingsControllerProvider.select((s) => s.navModules));
+    final navModules = ref.watch(
+      settingsControllerProvider.select((s) => s.navModules),
+    );
     final tokens = context.tokens;
 
     final selectedIndex = navModules.indexWhere((m) => m.path == currentPath);
@@ -152,8 +169,11 @@ class HomeShell extends ConsumerWidget {
           return;
         }
         // V1.27 G1：返回=最终回主页；今天页二次返回退出（SnackBar 全局同款风格）
-        switch (shellBackAction(currentPath,
-            dashEditing: dashEditing, lastBackAt: _lastBackAt)) {
+        switch (shellBackAction(
+          currentPath,
+          dashEditing: dashEditing,
+          lastBackAt: _lastBackAt,
+        )) {
           case 'goToday':
             _lastBackAt = null;
             context.go(NavModule.today.path);
@@ -162,9 +182,12 @@ class HomeShell extends ConsumerWidget {
             ref.read(dashDraftProvider.notifier).commit();
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
+              ..showSnackBar(
+                const SnackBar(
                   content: Text('主页布局已保存 · 下次启动保持此顺序'),
-                  duration: Duration(milliseconds: 1600)));
+                  duration: Duration(milliseconds: 1600),
+                ),
+              );
           case 'exit':
             _lastBackAt = null;
             SystemNavigator.pop();
@@ -172,9 +195,12 @@ class HomeShell extends ConsumerWidget {
             _lastBackAt = DateTime.now();
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
+              ..showSnackBar(
+                const SnackBar(
                   content: Text('再按一次返回键退出 LifeHarness'),
-                  duration: Duration(milliseconds: 2000)));
+                  duration: Duration(milliseconds: 2000),
+                ),
+              );
         }
       },
       child: Scaffold(
@@ -245,7 +271,11 @@ class _NavTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
-          Icon(selected ? module.iconActive : module.icon, size: 22, color: color),
+          Icon(
+            selected ? module.iconActive : module.icon,
+            size: 22,
+            color: color,
+          ),
           const SizedBox(height: 2),
           Text(
             module.label,

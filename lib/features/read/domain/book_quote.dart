@@ -70,48 +70,50 @@ class BookQuote {
   final int updatedAt;
   final int? deletedAt;
 
-  int get colorInt => int.tryParse(colorHex[tag] ?? colorHex[kTagReso]!, radix: 16) ?? 0;
+  int get colorInt =>
+      int.tryParse(colorHex[tag] ?? colorHex[kTagReso]!, radix: 16) ?? 0;
 
   static BookQuote fromRow(Map<String, Object?> r) => BookQuote(
-        id: r['id'] as int?,
-        bookId: r['book_id'] as String,
-        kind: r['kind'] as String,
-        tag: (r['tag'] as String?) ?? kTagReso,
-        tags: splitTags(r['tags'] as String?),
-        body: (r['body'] as String?) ?? '',
-        thought: r['thought'] as String?,
-        chapter: r['chapter'] as String?,
-        page: r['page'] as int?,
-        loc: (r['loc'] as num?)?.toDouble(),
-        imagePaths: decodeStringList(r['image_paths'] as String?),
-        starred: ((r['starred'] as int?) ?? 0) == 1,
-        origin: r['origin'] as String?,
-        dedupHash: r['dedup_hash'] as String?,
-        createdAt: r['created_at'] as int,
-        updatedAt: r['updated_at'] as int,
-        deletedAt: r['deleted_at'] as int?,
-      );
+    id: r['id'] as int?,
+    bookId: r['book_id'] as String,
+    kind: r['kind'] as String,
+    tag: (r['tag'] as String?) ?? kTagReso,
+    tags: splitTags(r['tags'] as String?),
+    body: (r['body'] as String?) ?? '',
+    thought: r['thought'] as String?,
+    chapter: r['chapter'] as String?,
+    page: r['page'] as int?,
+    loc: (r['loc'] as num?)?.toDouble(),
+    imagePaths: decodeStringList(r['image_paths'] as String?),
+    starred: ((r['starred'] as int?) ?? 0) == 1,
+    origin: r['origin'] as String?,
+    dedupHash: r['dedup_hash'] as String?,
+    createdAt: r['created_at'] as int,
+    updatedAt: r['updated_at'] as int,
+    deletedAt: r['deleted_at'] as int?,
+  );
 
   Map<String, Object?> toRow() => {
-        if (id != null) 'id': id,
-        'book_id': bookId,
-        'kind': kind,
-        'tag': tag,
-        'tags': tags.join(','),
-        'body': body,
-        'thought': thought,
-        'chapter': chapter,
-        'page': page,
-        'loc': loc,
-        'image_paths':
-            imagePaths.isEmpty ? null : '[${imagePaths.map((e) => '"$e"').join(',')}]',
-        'starred': starred ? 1 : 0,
-        'origin': origin,
-        'dedup_hash': dedupHash,
-        'created_at': createdAt,
-        'updated_at': updatedAt,
-        'deleted_at': deletedAt,
-      };
+    if (id != null) 'id': id,
+    'book_id': bookId,
+    'kind': kind,
+    'tag': tag,
+    'tags': tags.join(','),
+    'body': body,
+    'thought': thought,
+    'chapter': chapter,
+    'page': page,
+    'loc': loc,
+    'image_paths': imagePaths.isEmpty
+        ? null
+        : '[${imagePaths.map((e) => '"$e"').join(',')}]',
+    'starred': starred ? 1 : 0,
+    'origin': origin,
+    'dedup_hash': dedupHash,
+    'created_at': createdAt,
+    'updated_at': updatedAt,
+    'deleted_at': deletedAt,
+  };
 
   BookQuote copyWith({
     String? kind,
@@ -129,24 +131,23 @@ class BookQuote {
     int? createdAt,
     int? updatedAt,
     int? deletedAt,
-  }) =>
-      BookQuote(
-        id: id,
-        bookId: bookId,
-        kind: kind ?? this.kind,
-        tag: tag ?? this.tag,
-        tags: tags ?? this.tags,
-        body: body ?? this.body,
-        thought: thought ?? this.thought,
-        chapter: chapter ?? this.chapter,
-        page: page ?? this.page,
-        loc: loc ?? this.loc,
-        imagePaths: imagePaths ?? this.imagePaths,
-        starred: starred ?? this.starred,
-        origin: origin ?? this.origin,
-        dedupHash: dedupHash ?? this.dedupHash,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        deletedAt: deletedAt ?? this.deletedAt,
-      );
+  }) => BookQuote(
+    id: id,
+    bookId: bookId,
+    kind: kind ?? this.kind,
+    tag: tag ?? this.tag,
+    tags: tags ?? this.tags,
+    body: body ?? this.body,
+    thought: thought ?? this.thought,
+    chapter: chapter ?? this.chapter,
+    page: page ?? this.page,
+    loc: loc ?? this.loc,
+    imagePaths: imagePaths ?? this.imagePaths,
+    starred: starred ?? this.starred,
+    origin: origin ?? this.origin,
+    dedupHash: dedupHash ?? this.dedupHash,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
 }

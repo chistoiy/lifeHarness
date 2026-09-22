@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
+import '../domain/book_toc.dart';
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
@@ -19,9 +20,14 @@ class BookDetailArg {
 }
 
 /// 详情页 = 沉浸阅读视图（原型 p-bookDetail · §3.2 拆两屏之阅读屏）。
-/// 资料页 / 目录导入 / 计时明细在批2 接；本批 = 头图 + 三分区角标 + 书摘/相关真实列表。
+/// 批2 接：可点信息芯片（计时明细/记进度）、封面→书籍资料页、
+/// 目录两级卡（只读 + 编辑就地微调 + 粘贴导入）、顶栏计时按 timerUI 分流。
 class BookDetailPage extends ConsumerStatefulWidget {
-  const BookDetailPage({super.key, required this.bookId, this.initialTab = 'c'});
+  const BookDetailPage({
+    super.key,
+    required this.bookId,
+    this.initialTab = 'c',
+  });
   final String bookId;
   final String initialTab;
 
@@ -31,6 +37,11 @@ class BookDetailPage extends ConsumerStatefulWidget {
 
 class _BookDetailPageState extends ConsumerState<BookDetailPage> {
   late String _tab = widget.initialTab;
+  bool _tocEdit = false;
+  String? _chapF; // 书摘按章节筛选（点目录节跳入）
+
+  Map<String, ({int minutes, int times})> get agg =>
+      ref.watch(workbenchProvider).valueOrNull?.agg ?? const {};
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +51,17 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     final b = books.where((e) => e.id == widget.bookId).firstOrNull;
     if (b == null) {
       return Scaffold(
-          appBar: AppBar(title: const Text('书籍')),
-          body: const SizedBox.shrink());
+        appBar: AppBar(title: const Text('书籍')),
+        body: const SizedBox.shrink(),
+      );
     }
-    final quotes = (ref.watch(allQuotesProvider).valueOrNull ??
-            const <BookQuote>[])
-        .where((q) => q.bookId == b.id)
-        .toList();
+    final allQ =
+        (ref.watch(allQuotesProvider).valueOrNull ?? const <BookQuote>[])
+            .where((q) => q.bookId == b.id)
+            .toList();
+    final quotes = _chapF == null
+        ? allQ
+        : allQ.where((q) => (q.chapter ?? '未分章') == _chapF).toList();
     final running = ref.watch(runningSessionProvider).valueOrNull;
     final onTimer = running != null && running.bookId == b.id;
     final pal = kBsCov[b.paletteIdx];
@@ -66,21 +81,24 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                         imageFilter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [pal.$1, pal.$2])),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [pal.$1, pal.$2],
+                            ),
+                          ),
                           child: const SizedBox.expand(),
                         ),
                       ),
                     ),
                     Positioned.fill(
-                        child: ColoredBox(
-                            color: Colors.black.withValues(alpha: .18))),
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: .18),
+                      ),
+                    ),
                     SafeArea(
                       child: Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 0, 16, 16),
+                        padding: const EdgeInsets.fromLTRB(20, 0, 16, 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -93,37 +111,77 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(b.title,
-                                          style: const TextStyle(
-                                              fontSize: 19,
-                                              fontWeight: FontWeight.w900,
-                                              color: Colors.white,
-                                              height: 1.35)),
+                                      Text(
+                                        b.title,
+                                        style: const TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          height: 1.35,
+                                        ),
+                                      ),
                                       const SizedBox(height: 6),
                                       Text(
-                                          '${b.author}'
-                                          '${b.translator != null && b.translator!.isNotEmpty ? ' · 译 ${b.translator}' : ''}'
-                                          '${b.publisher != null && b.publisher!.isNotEmpty ? '\n${b.publisher}' : ''}',
-                                          style: TextStyle(
-                                              fontSize: 11.5,
-                                              height: 1.5,
-                                              color: Colors.white
-                                                  .withValues(alpha: .85))),
+                                        '${b.author}'
+                                        '${b.translator != null && b.translator!.isNotEmpty ? ' · 译 ${b.translator}' : ''}'
+                                        '${b.publisher != null && b.publisher!.isNotEmpty ? '\n${b.publisher}' : ''}',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          height: 1.5,
+                                          color: Colors.white.withValues(
+                                            alpha: .85,
+                                          ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 8),
-                      // 信息行（LH-K15 可点芯片在批2 接计时明细/记进度弹层）
-                                      Row(children: [
-                                        _info('${quotes.length} 条',
-                                            BsIcons.quote),
-                                        _info(
+                                      // 信息行（LH-K15 可点芯片：条/页/时长/进度）
+                                      Row(
+                                        children: [
+                                          _chip(
+                                            '${allQ.length} 条',
+                                            BsIcons.quote,
+                                            'bd-quotes-chip',
+                                            () {
+                                              setState(() {
+                                                _tab = 'q';
+                                                _chapF = null;
+                                              });
+                                            },
+                                          ),
+                                          _chip(
                                             b.progressWay == Book.kWayPos
                                                 ? '${(b.readLoc ?? 0).round()} 位置'
                                                 : '${b.readPages} 页',
-                                            BsIcons.book),
-                                        _info(
-                                            bsFmt((agg[b.id]?.minutes ?? 0)),
-                                            BsIcons.time),
-                                        _info('${b.percent}%', BsIcons.pin),
-                                      ]),
+                                            BsIcons.book,
+                                            'bd-pages-chip',
+                                            () => showProgressSheet(
+                                              context,
+                                              ref,
+                                              b,
+                                            ),
+                                          ),
+                                          _chip(
+                                            bsFmt(agg[b.id]?.minutes ?? 0),
+                                            BsIcons.time,
+                                            'bd-min-chip',
+                                            () => showSessionsSheet(
+                                              context,
+                                              ref,
+                                              b,
+                                            ),
+                                          ),
+                                          _chip(
+                                            '${b.percent}%',
+                                            BsIcons.pin,
+                                            'bd-pct-chip',
+                                            () => showProgressSheet(
+                                              context,
+                                              ref,
+                                              b,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -131,18 +189,25 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                                 Column(
                                   children: [
                                     BsCover(
-                                        book: b,
-                                        width: 92,
-                                        height: 132,
-                                        radius: 12,
-                                        onBadgeTap: () =>
-                                            cycleBookState(context, ref, b)),
+                                      book: b,
+                                      width: 92,
+                                      height: 132,
+                                      radius: 12,
+                                      onTap: () =>
+                                          context.push('/read/info/${b.id}'),
+                                      onBadgeTap: () =>
+                                          cycleBookState(context, ref, b),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text('书籍资料',
-                                        style: TextStyle(
-                                            fontSize: 8.5,
-                                            color: Colors.white
-                                                .withValues(alpha: .75))),
+                                    Text(
+                                      '书籍资料',
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: Colors.white.withValues(
+                                          alpha: .75,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -157,16 +222,26 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                         child: Row(
                           children: [
                             IconButton(
-                                onPressed: () => context.pop(),
-                                icon: const Icon(Icons.arrow_back_rounded,
-                                    color: Colors.white)),
+                              onPressed: () => context.pop(),
+                              icon: const Icon(
+                                Icons.arrow_back_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
                             const Spacer(),
                             // 顶栏页内动作（LH-K13：36 圆·19px 线性·无文字）
-                            _hdrBtn('bd-timer', BsIcons.timer, onTimer, () =>
-                                readTimerTap(ref, context, target: b)),
+                            _hdrBtn(
+                              'bd-timer',
+                              BsIcons.timer,
+                              onTimer,
+                              () => readTimerEntry(ref, context, b),
+                            ),
                             _hdrBtn('bd-more', BsIcons.more, false, () async {
-                              final gone =
-                                  await showBookOpsSheet(context, ref, b);
+                              final gone = await showBookOpsSheet(
+                                context,
+                                ref,
+                                b,
+                              );
                               if (gone == true && context.mounted) {
                                 context.pop();
                               }
@@ -185,7 +260,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                     children: [
                       _seg('seg-c', '目录', 'c', b),
                       const SizedBox(width: 8),
-                      _seg('seg-q', '书摘 ${quotes.length}', 'q', b),
+                      _seg('seg-q', '书摘 ${allQ.length}', 'q', b),
                       const SizedBox(width: 8),
                       _seg('seg-r', '相关 ${_relOf(b, books).length}', 'r', b),
                     ],
@@ -194,14 +269,42 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: switch (_tab) {
-                    'c' => _tocEmpty(cs),
-                    'q' => quotes.isEmpty
-                        ? _noQuotes(cs, tokens)
-                        : Column(
-                            children: [
-                              for (final q in quotes) _quoteCard(cs, q),
-                            ],
+                    'c' => _tocTab(cs, tokens, b),
+                    'q' => Column(
+                      children: [
+                        if (_chapF != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  '章节 · $_chapF',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: tokens.accent,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  key: const ValueKey('qf-clear'),
+                                  onTap: () => setState(() => _chapF = null),
+                                  child: Text(
+                                    '清除',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: cs.onSurfaceVariant,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                        if (quotes.isEmpty) _noQuotes(cs, tokens, b),
+                        for (final q in quotes) _quoteCard(cs, q),
+                      ],
+                    ),
                     _ => _related(cs, tokens, b, books),
                   },
                 ),
@@ -213,20 +316,30 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     );
   }
 
-  Map<String, ({int minutes, int times})> get agg =>
-      ref.watch(workbenchProvider).valueOrNull?.agg ?? const {};
-
-  Widget _info(String t, IconData ic) => Padding(
+  /// 可点信息芯片（LH-K15：虚线下划线 · 可改数值不做纯文本）。
+  Widget _chip(String t, IconData ic, String key, VoidCallback onTap) =>
+      Padding(
         padding: const EdgeInsets.only(right: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(ic, size: 12, color: Colors.white.withValues(alpha: .85)),
-            const SizedBox(width: 3),
-            Text(t,
+        child: GestureDetector(
+          key: ValueKey(key),
+          onTap: onTap,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(ic, size: 12, color: Colors.white.withValues(alpha: .85)),
+              const SizedBox(width: 3),
+              Text(
+                t,
                 style: TextStyle(
-                    fontSize: 11, color: Colors.white.withValues(alpha: .85))),
-          ],
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: .85),
+                  decoration: TextDecoration.underline,
+                  decorationStyle: TextDecorationStyle.dotted,
+                  decorationColor: Colors.white.withValues(alpha: .6),
+                ),
+              ),
+            ],
+          ),
         ),
       );
 
@@ -241,126 +354,325 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active
-                  ? Colors.white.withValues(alpha: .28)
-                  : Colors.black.withValues(alpha: .18)),
-          child: Icon(ic,
-              size: 19, color: active ? tokens.g3 : Colors.white),
+            shape: BoxShape.circle,
+            color: active
+                ? Colors.white.withValues(alpha: .28)
+                : Colors.black.withValues(alpha: .18),
+          ),
+          child: Icon(ic, size: 19, color: active ? tokens.g3 : Colors.white),
         ),
       ),
     );
   }
 
   Widget _seg(String key, String label, String tab, Book b) => GestureDetector(
-        key: ValueKey(key),
-        onTap: () => setState(() => _tab = tab),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            color: _tab == tab
-                ? context.tokens.accent.withValues(alpha: .12)
-                : Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border.all(
-                color: _tab == tab ? context.tokens.accent : Colors.transparent),
-          ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: _tab == tab ? context.tokens.accent : null)),
+    key: ValueKey(key),
+    onTap: () => setState(() => _tab = tab),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: _tab == tab
+            ? context.tokens.accent.withValues(alpha: .12)
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(
+          color: _tab == tab ? context.tokens.accent : Colors.transparent,
         ),
-      );
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: _tab == tab ? context.tokens.accent : null,
+        ),
+      ),
+    ),
+  );
 
-  Widget _tocEmpty(ColorScheme cs) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 26),
-        decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: .4))),
-        child: Column(children: [
-          Text('还没有目录', style: TextStyle(fontSize: 12, color: cs.onSurface)),
-          const SizedBox(height: 4),
-          Text('导入目录后可按章节记摘录',
-              style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant)),
-        ]),
-      );
+  // ---- 目录卡（两级 · 只读 / 编辑就地微调 / 粘贴导入 · §3.3 §3.4） ----
 
-  Widget _noQuotes(ColorScheme cs, dynamic tokens) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 26),
-        decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: .4))),
-        child: Column(children: [
-          Text('还没有摘录', style: TextStyle(fontSize: 12, color: cs.onSurface)),
-          const SizedBox(height: 8),
-          GestureDetector(
-            key: const ValueKey('bd-add-quote'),
-            onTap: () => showQuoteSheet(context, ref, bookId: widget.bookId),
-            child: Text('记一条',
+  Widget _tocTab(ColorScheme cs, dynamic tokens, Book b) {
+    final nodes = ref.watch(tocProvider(b.id)).valueOrNull;
+    if (nodes == null) return const SizedBox(height: 60);
+    final groups = tocTree(nodes, hideEmptyParts: !_tocEdit);
+    final repo = ref.read(readRepositoryProvider);
+    Future<void> act(Future<void> Function() f) async {
+      await f();
+      if (!mounted) return;
+      ref.read(readTickProvider.notifier).state++;
+      setState(() {});
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '目录',
                 style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
+              ),
+              const Spacer(),
+              if (groups.isNotEmpty)
+                GestureDetector(
+                  key: const ValueKey('toc-edit'),
+                  onTap: () => setState(() {
+                    if (_tocEdit) {
+                      act(() => repo.tocPrune(b.id).then((_) {}));
+                    }
+                    _tocEdit = !_tocEdit;
+                  }),
+                  child: Text(
+                    _tocEdit ? '完成' : '编辑',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: tokens.accent,
+                    ),
+                  ),
+                ),
+              if (_tocEdit) const SizedBox(width: 12),
+              GestureDetector(
+                key: const ValueKey('toc-import'),
+                onTap: () =>
+                    showTocImportSheet(context, ref, b.id, bookTitle: b.title),
+                child: Text(
+                  '导入目录',
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
-                    color: tokens.accent as Color)),
+                    color: tokens.accent,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ]),
-      );
-
-  Widget _quoteCard(ColorScheme cs, BookQuote q) => Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: .4))),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-                width: 3.5,
-                height: q.body.length > 40 ? 60 : 34,
-                decoration: BoxDecoration(
-                    color: Color(0xFF000000 | q.colorInt),
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                      q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.55,
-                          color: cs.onSurface)),
-                  if (q.thought != null && q.thought!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(q.thought!,
-                          style: TextStyle(
+          const SizedBox(height: 8),
+          if (groups.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Text(
+                '还没有目录',
+                style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
+              ),
+            )
+          else if (_tocEdit)
+            for (final g in groups) ...[
+              TocEditRow(
+                node: g.part,
+                onRename: (v) => act(() => repo.renameToc(g.part.id!, v)),
+                onMove: (d) => act(() => repo.moveToc(g.part.id!, d)),
+                onDelete: () => act(() => repo.deleteToc(g.part.id!)),
+                onAddSection: () =>
+                    act(() => repo.addTocSection(g.part.id!).then((_) {})),
+              ),
+              for (final s in g.sections)
+                TocEditRow(
+                  node: s,
+                  onRename: (v) => act(() => repo.renameToc(s.id!, v)),
+                  onMove: (d) => act(() => repo.moveToc(s.id!, d)),
+                  onDelete: () => act(() => repo.deleteToc(s.id!)),
+                ),
+            ]
+          else
+            for (final g in groups) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 2),
+                child: Text(
+                  g.part.title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              for (final s in g.sections)
+                GestureDetector(
+                  key: ValueKey('toc-s-${s.id}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() {
+                    _chapF = s.title;
+                    _tab = 'q';
+                  }),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 14, top: 5, bottom: 5),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            s.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
                               fontSize: 11.5,
-                              height: 1.5,
-                              fontStyle: FontStyle.italic,
-                              color: cs.onSurfaceVariant)),
+                              color: cs.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (s.startPage != null)
+                          Text(
+                            '${s.startPage} 页',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        const SizedBox(width: 6),
+                        if (b.state == Book.kStateDone ||
+                            (b.pages > 0 &&
+                                s.startPage != null &&
+                                s.startPage! <= b.readPages))
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: bsStateColor(Book.kStateDone),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
                     ),
-                ],
+                  ),
+                ),
+            ],
+          if (_tocEdit)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: GestureDetector(
+                key: const ValueKey('toc-addpart'),
+                onTap: () => act(() => repo.addTocPart(b.id).then((_) {})),
+                child: Text(
+                  '＋ 加部分',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.accent,
+                  ),
+                ),
               ),
             ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _noQuotes(ColorScheme cs, dynamic tokens, Book b) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 26),
+    decoration: BoxDecoration(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+    ),
+    child: Column(
+      children: [
+        Text('还没有摘录', style: TextStyle(fontSize: 12, color: cs.onSurface)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          key: const ValueKey('bd-add-quote'),
+          onTap: () => showQuoteSheet(context, ref, bookId: b.id),
+          child: Text(
+            '记一条',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: tokens.accent as Color,
+            ),
+          ),
         ),
-      );
+      ],
+    ),
+  );
+
+  Widget _quoteCard(ColorScheme cs, BookQuote q) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+    decoration: BoxDecoration(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 3.5,
+          height: q.body.length > 40 ? 60 : 34,
+          decoration: BoxDecoration(
+            color: Color(0xFF000000 | q.colorInt),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.55,
+                  color: cs.onSurface,
+                ),
+              ),
+              if (q.thought != null && q.thought!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    q.thought!,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.5,
+                      fontStyle: FontStyle.italic,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: () {
+                  final d = DateTime.fromMillisecondsSinceEpoch(q.createdAt);
+                  return Text(
+                    [
+                      if ((q.chapter ?? '').isNotEmpty) q.chapter!,
+                      if (q.page != null) '${q.page} 页',
+                      '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                    ].join(' · '),
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                  );
+                }(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 
   List<Book> _relOf(Book b, List<Book> all) => all
-      .where((x) =>
-          !x.isDeleted &&
-          x.id != b.id &&
-          (x.author == b.author ||
-              x.tags.any((t) => b.tags.contains(t)) ||
-              (b.series != null && x.series == b.series)))
+      .where(
+        (x) =>
+            !x.isDeleted &&
+            x.id != b.id &&
+            (x.author == b.author ||
+                x.tags.any((t) => b.tags.contains(t)) ||
+                (b.series != null && x.series == b.series)),
+      )
       .toList();
 
   Widget _related(ColorScheme cs, dynamic tokens, Book b, List<Book> all) {
@@ -370,12 +682,15 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 26),
         decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: .4))),
-        child: Text('还没有同作者 / 同系列 / 同标签的书',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+        ),
+        child: Text(
+          '还没有同作者 / 同系列 / 同标签的书',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+        ),
       );
     }
     return Column(
@@ -388,38 +703,51 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: cs.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: .4))),
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: .4),
+                ),
+              ),
               child: Row(
                 children: [
                   BsCover(
-                      book: x,
-                      width: 28,
-                      height: 40,
-                      radius: 5,
-                      showAuthor: false,
-                      showBadge: false),
+                    book: x,
+                    width: 28,
+                    height: 40,
+                    radius: 5,
+                    showAuthor: false,
+                    showBadge: false,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(x.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800)),
-                        Text('${x.author} · ${x.state}',
-                            style: TextStyle(
-                                fontSize: 10, color: cs.onSurfaceVariant)),
+                        Text(
+                          x.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          '${x.author} · ${x.state}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      size: 16, color: cs.onSurfaceVariant),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ],
               ),
             ),

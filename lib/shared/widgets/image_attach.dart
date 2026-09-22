@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../../shared/widgets/ui_kit.dart';
+import 'ui_kit.dart';
 
 /// M1批2a · 插图公共链（笔记/日记共用·原型 sheetImgSrc）：
 /// 相册/拍照弹层 → ImagePicker → 拷贝应用目录 note_images/ → 返回落盘路径
