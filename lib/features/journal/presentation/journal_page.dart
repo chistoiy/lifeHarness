@@ -12,6 +12,7 @@ import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'note_edit_page.dart';
 import 'note_tab.dart';
+import 'widgets/diary_review_sheet.dart';
 import 'widgets/image_attach.dart' show showImageLightbox;
 import 'widgets/ins_card.dart';
 
@@ -323,7 +324,8 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
                           fontSize: 14)),
                   const Spacer(),
                   GestureDetector(
-                    onTap: () => _soon(context, '心情月历 / 词云回顾 · 规划 V1.x'),
+                    // 批2c：📊 回顾兑现=底部弹层（心情趋势柱+高频词云+去年本月）
+                    onTap: () => openDiaryReview(context, month: now),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -727,13 +729,6 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
     );
   }
 
-  void _soon(BuildContext context, String what) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text('$what · 敬请期待'),
-          duration: const Duration(milliseconds: 1500)));
-  }
 }
 
 /// 轮12-11 · 列表行底栏：标签 chips + 关联小图标（☑ N 收起态·点击展开明细）+ 保存时间。

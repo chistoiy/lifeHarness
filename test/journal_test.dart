@@ -836,6 +836,54 @@ void main() {
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
     });
   });
+
+  group('M1批2c · 回顾弹层（心情趋势+词云+去年本月）', () {
+    testWidgets('2c-1 📊 回顾钮开底部弹层：月标签/趋势/图例/摘要/词云/去年本月 + 切月',
+        (tester) async {
+      final now = DateTime.now();
+      // 本月 3 篇（带心情 + 高频词「跑步」重复）
+      for (var i = 0; i < 3; i++) {
+        await jrepo.save(JournalEntry(
+            day: DateTime(now.year, now.month, 1 + i),
+            mood: i + 1,
+            content: '今天跑步了\n跑步让我开心\n明天继续跑步',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now()));
+      }
+      // 去年同月 1 篇
+      await jrepo.save(JournalEntry(
+          day: DateTime(now.year - 1, now.month, 5),
+          content: '一年前的今天去爬山了',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+
+      await tester.tap(find.text('📊 回顾'));
+      await settle5(tester);
+      expect(find.text('回顾'), findsOneWidget);
+      expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+      expect(find.byKey(const ValueKey('dr-trend')), findsOneWidget);
+      expect(find.byKey(const ValueKey('dr-legend')), findsOneWidget);
+      expect(find.textContaining('本月记录 3 篇'), findsOneWidget);
+      // 词云：中文 2-gram 高频词（跑步=3 次 → 中号字）
+      expect(find.text('跑步'), findsOneWidget);
+      // 去年本月卡（弹层与背后列表各一份预览 → findsWidgets）
+      expect(find.text('去年${now.month}月 · 共 1 篇'), findsOneWidget);
+      expect(find.textContaining('一年前的今天'), findsWidgets);
+
+      // 切到上月再回来：月标签联动、空月摘要兜底
+      await tester.tap(find.byKey(const ValueKey('dr-prev')));
+      await settle5(tester);
+      final prev = DateTime(now.year, now.month - 1);
+      expect(find.text('${prev.year}年${prev.month}月'), findsOneWidget);
+      expect(find.textContaining('本月还没有记录'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('dr-next')));
+      await settle5(tester);
+      expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+    });
+  });
 }
 
 String _two(int v) => v.toString().padLeft(2, '0');
