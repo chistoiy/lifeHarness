@@ -53,34 +53,46 @@ class ReadRepository {
       b.copyWith(updatedAt: DateTime.now().millisecondsSinceEpoch).toRow(),
       where: 'id = ?', whereArgs: [b.id]);
 
+  /// 分区流转落库值（单本与批量共用同一语义）。
+  static Map<String, Object?> _stateValues(Book b, String state, int now) {
+    final v = <String, Object?>{
+      'state': state,
+      'updated_at': now,
+      'last_read_at': maxActivity(b, extra: now),
+    };
+    if (state == Book.kStateDone) {
+      if (b.pages > 0) v['read_pages'] = b.pages;
+      if (b.totalLoc != null) v['read_loc'] = b.totalLoc;
+      v['ended_at'] = now;
+      v['started_at'] = b.startedAt ?? now;
+    } else if (state == Book.kStateReading) {
+      v['started_at'] = b.startedAt ?? now;
+      v['ended_at'] = null;
+    }
+    return v;
+  }
+
   /// 分区流转（角标循环与批量移分区共用）：
   /// 已读 → 进度补满 + ended_at；在读 → started_at 补当下、清 ended_at。
   Future<void> setBookState(String id, String state) async {
     final b = await bookById(id);
     if (b == null) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    var nb = b.copyWith(state: state, lastReadAt: maxActivity(b, extra: now));
-    if (state == Book.kStateDone) {
-      nb = nb.copyWith(
-          readPages: b.pages > 0 ? b.pages : b.readPages,
-          readLoc: b.totalLoc != null ? b.totalLoc : b.readLoc,
-          endedAt: now,
-          startedAt: b.startedAt ?? now);
-    } else if (state == Book.kStateReading) {
-      nb = nb.copyWith(startedAt: b.startedAt ?? now, endedAt: null);
-    }
-    await updateBook(nb);
+    await db.update(DbSchema.tBooks,
+        _stateValues(b, state, DateTime.now().millisecondsSinceEpoch),
+        where: 'id = ?', whereArgs: [id]);
   }
 
-  /// 批量移分区（管理底部条）。
+  /// 批量移分区（管理底部条·与单本同语义：移入已读补满进度与读完时间）。
   Future<void> bulkSetState(List<String> ids, String state) =>
       db.transaction((txn) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
         for (final id in ids) {
-          await txn.update(
-              DbSchema.tBooks,
-              {'state': state, 'updated_at': DateTime.now().millisecondsSinceEpoch},
-              where: 'id = ?',
-              whereArgs: [id]);
+          final rows = await txn
+              .query(DbSchema.tBooks, where: 'id = ?', whereArgs: [id], limit: 1);
+          if (rows.isEmpty) continue;
+          await txn.update(DbSchema.tBooks,
+              _stateValues(Book.fromRow(rows.first), state, now),
+              where: 'id = ?', whereArgs: [id]);
         }
       });
 
@@ -260,6 +272,16 @@ class ReadRepository {
 
   // ---- 摘录（批3 全量；批1 仅工作台最近摘录）----
 
+  /// 新增摘录并刷新该书 last_read_at（摘录活动 §3.2）。
+  Future<void> addQuote(BookQuote q) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final row = q.toRow();
+    row['created_at'] = q.createdAt == 0 ? now : q.createdAt;
+    row['updated_at'] = now;
+    await db.insert(DbSchema.tBookQuotes, row);
+    await touchLastRead(q.bookId, q.createdAt == 0 ? now : q.createdAt);
+  }
+
   Future<List<BookQuote>> recentQuotes(int limit) async => (await db.query(
         DbSchema.tBookQuotes,
         where: 'deleted_at IS NULL',
@@ -276,4 +298,20 @@ class ReadRepository {
       ))
       .map(BookQuote.fromRow)
       .toList();
+
+  // ---- read.* 设置（settings 表 KV · 计划 §6）----
+
+  Future<String?> kv(String key) async {
+    final rows = await db.query(DbSchema.tSettings,
+        where: 'key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
+  Future<void> setKv(String key, String value) => db.insert(
+      DbSchema.tSettings,
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace);
+
+  Future<int> kvInt(String key, int def) async =>
+      int.tryParse(await kv(key) ?? '') ?? def;
 }

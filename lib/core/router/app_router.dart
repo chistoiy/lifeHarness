@@ -19,6 +19,8 @@ import '../../features/journal/presentation/journal_page.dart';
 import '../../features/journal/presentation/journal_providers.dart'
     show noteSelProvider;
 import '../../features/journal/presentation/note_edit_page.dart';
+import '../../features/read/presentation/book_detail.dart';
+import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -82,6 +84,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/appearance',
         builder: (_, _) => const AppearanceSettingsPage(),
+      ),
+      // M1批3 阅读：书架与书籍详情（原型 p-bookshelf / p-bookDetail）。
+      GoRoute(
+        path: '/read/shelf',
+        builder: (_, _) => const ShelfPage(),
+      ),
+      GoRoute(
+        path: '/read/book/:id',
+        builder: (_, s) => BookDetailPage(
+            bookId: s.pathParameters['id']!,
+            initialTab:
+                (s.extra as BookDetailArg?)?.tab ?? 'c'),
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(

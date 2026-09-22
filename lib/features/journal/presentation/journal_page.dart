@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/read_mounts.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/journal_entry.dart';
@@ -166,16 +167,21 @@ class JournalPage extends ConsumerWidget {
       ),
       floatingActionButton: tab == 'note'
           ? const _NoteFab()
-          : GradFab(
-              tooltip: '写今天的日记',
-              icon: const Icon(Icons.add, color: Colors.white, size: 26),
-              onTap: () =>
-                  context.push('/journal/edit', extra: const DiaryEditArg()),
-            ),
+          : tab == 'book'
+              ? GradFab(
+                  tooltip: '新增摘录',
+                  icon: const Icon(Icons.add, color: Colors.white, size: 26),
+                  onTap: () => readTabFabTap(context, ref))
+              : GradFab(
+                  tooltip: '写今天的日记',
+                  icon: const Icon(Icons.add, color: Colors.white, size: 26),
+                  onTap: () =>
+                      context.push('/journal/edit', extra: const DiaryEditArg()),
+                ),
       body: switch (tab) {
         'diary' => const _DiaryTab(),
         'note' => const NoteTab(),
-        'book' => const _TabSoon('📚', '阅读 · 书架/摘录/目录计时', '规划 V0.5 · M1'),
+        'book' => readWorkbench(),
         _ => const _TabSoon('🎬', '影音游 · 与阅读同构', '规划 V1.1 · M3'),
       },
     );
