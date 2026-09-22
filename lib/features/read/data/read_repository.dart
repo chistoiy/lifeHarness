@@ -45,14 +45,18 @@ class ReadRepository {
     return rows.isEmpty ? null : Book.fromRow(rows.first);
   }
 
-  /// 新增（read.newPos 插入位置由 UI 层列表序承载，库内不排序）。
+  /// 新增：read.newPos=末尾 时以 last_read_at 沉底实现插入位置（§6）。
   Future<Book> addBook(Book b) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final row = b.toRow();
     if (b.id.isEmpty) row['id'] = _newId();
     row['created_at'] = b.createdAt == 0 ? now : b.createdAt;
     row['updated_at'] = now;
-    row['last_read_at'] ??= now;
+    // read.newPos（§6 显示与排序）：末尾＝新书面包沉到最近阅读表下方。
+    row['last_read_at'] ??=
+        ((await kv('read.newPos')) == '末尾' && b.lastReadAt == null)
+            ? (row['created_at'] as int) - 1
+            : now;
     final book = Book.fromRow(row);
     await db.insert(
       DbSchema.tBooks,

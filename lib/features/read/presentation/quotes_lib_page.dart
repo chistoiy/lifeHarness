@@ -350,8 +350,21 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     child: Text(
                       '· ${b?.title ?? ''} · ${q.chapter ?? '未分章'}'
                       '${q.page == null ? '' : ' · P${q.page}'} · ${_fmtDate(q.createdAt)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      // read.fullCh（§6）：完整显示章节名＝过长换行不截断。
+                      maxLines:
+                          (ref.watch(readKvProvider(('read.fullCh', 'false')))
+                                          .valueOrNull ??
+                                      'false') ==
+                                  'true'
+                              ? null
+                              : 1,
+                      overflow:
+                          (ref.watch(readKvProvider(('read.fullCh', 'false')))
+                                          .valueOrNull ??
+                                      'false') ==
+                                  'true'
+                              ? TextOverflow.visible
+                              : TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
                     ),
                   ),
