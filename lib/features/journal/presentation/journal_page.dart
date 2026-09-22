@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart';
@@ -502,6 +503,20 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant)),
+                            // 批2e：天气快照副标题（晴 24°）
+                            if (e.weatherCode != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                  weatherText(e.weatherCode!,
+                                      tmax: e.tempMax,
+                                      tmin: e.tempMin,
+                                      compact: true),
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant)),
+                            ],
                             const Spacer(),
                             if (moodEmoji(e.mood) != null) ...[
                               Text(moodEmoji(e.mood)!,

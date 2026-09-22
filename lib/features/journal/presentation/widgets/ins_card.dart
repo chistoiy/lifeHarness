@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/weather/weather.dart';
 import '../../domain/journal_entry.dart';
 import '../journal_providers.dart';
 import 'image_attach.dart';
@@ -93,7 +94,9 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                             style: const TextStyle(
                                 fontSize: 12, fontWeight: FontWeight.w700)),
                         Text(
-                            '周$wd${emo == null ? '' : ' · 心情 $emo ${moodLabel(entry.mood)}'}',
+                            '周$wd'
+                            '${entry.weatherCode == null ? '' : ' · ${weatherText(entry.weatherCode!, tmax: entry.tempMax, tmin: entry.tempMin, compact: true)}'}'
+                            '${emo == null ? '' : ' · 心情 $emo ${moodLabel(entry.mood) ?? ''}'}',
                             style: TextStyle(
                                 fontSize: 10,
                                 color: Theme.of(context)

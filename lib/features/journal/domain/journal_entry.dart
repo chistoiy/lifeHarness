@@ -37,6 +37,10 @@ class JournalEntry {
     this.viewCount = 0,
     this.templateId,
     this.kind = '',
+    this.weatherCode,
+    this.tempMax,
+    this.tempMin,
+    this.weatherManual = false,
     this.sections = const [],
   });
 
@@ -59,6 +63,13 @@ class JournalEntry {
 
   /// M1批2a：自由书写富文本类型（''=纯文本 · rich=Quill Delta JSON·同笔记 kind）。
   final String kind;
+
+  /// M1批2e：天气快照（写日记当天抓一次落库·WMO 码+当日低/高温；
+  /// manual=用户在本篇手动覆盖过，不再自动更新）。
+  final int? weatherCode;
+  final double? tempMax;
+  final double? tempMin;
+  final bool weatherManual;
 
   /// 面向展示/计数/解析的正文（rich 去 Delta JSON 痕迹；纯文本去图片本地语法
   /// →「图片」，与笔记 displayBody 同口径·imagePaths 仍解析原 content）。
@@ -129,6 +140,10 @@ class JournalEntry {
         viewCount: row['view_count'] as int? ?? 0,
         templateId: row['template_id'] as int?,
         kind: (row['kind'] as String?) ?? '',
+        weatherCode: row['weather_code'] as int?,
+        tempMax: (row['temp_max'] as num?)?.toDouble(),
+        tempMin: (row['temp_min'] as num?)?.toDouble(),
+        weatherManual: (row['weather_manual'] as int? ?? 0) == 1,
       );
 
   Map<String, Object?> toRow() => {
@@ -144,6 +159,10 @@ class JournalEntry {
         'view_count': viewCount,
         'template_id': templateId,
         'kind': kind,
+        'weather_code': weatherCode,
+        'temp_max': tempMax,
+        'temp_min': tempMin,
+        'weather_manual': weatherManual ? 1 : 0,
       };
 
   static List<String> _decodeTags(String? raw) {
@@ -208,6 +227,10 @@ class JournalEntry {
     int? viewCount,
     int? templateId,
     String? kind,
+    int? weatherCode,
+    double? tempMax,
+    double? tempMin,
+    bool? weatherManual,
     List<DiarySection>? sections,
   }) =>
       JournalEntry(
@@ -223,6 +246,10 @@ class JournalEntry {
         viewCount: viewCount ?? this.viewCount,
         templateId: templateId ?? this.templateId,
         kind: kind ?? this.kind,
+        weatherCode: weatherCode ?? this.weatherCode,
+        tempMax: tempMax ?? this.tempMax,
+        tempMin: tempMin ?? this.tempMin,
+        weatherManual: weatherManual ?? this.weatherManual,
         sections: sections ?? this.sections,
       );
 }

@@ -17,6 +17,7 @@ class SettingsRepository {
   static const _kNoteLatex = 'lh.note_latex';
   static const _kNoteLineNum = 'lh.note_plain_linenum';
   static const _kNoteSwipe = 'lh.note_swipe';
+  static const _kWeatherCity = 'lh.weather_city';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
@@ -30,7 +31,8 @@ class SettingsRepository {
         nav == null &&
         latex == null &&
         _prefs.getBool(_kNoteLineNum) == null &&
-        _prefs.getBool(_kNoteSwipe) == null) {
+        _prefs.getBool(_kNoteSwipe) == null &&
+        _prefs.getString(_kWeatherCity) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -43,6 +45,7 @@ class SettingsRepository {
       'noteLatex': ?_prefs.getBool(_kNoteLatex),
       'notePlainLineNum': ?_prefs.getBool(_kNoteLineNum),
       'noteSwipe': ?_prefs.getBool(_kNoteSwipe),
+      'weatherCity': ?_prefs.getString(_kWeatherCity),
     });
   }
 
@@ -57,5 +60,6 @@ class SettingsRepository {
     await _prefs.setBool(_kNoteLatex, m['noteLatex']! as bool);
     await _prefs.setBool(_kNoteLineNum, m['notePlainLineNum']! as bool);
     await _prefs.setBool(_kNoteSwipe, m['noteSwipe']! as bool);
+    await _prefs.setString(_kWeatherCity, m['weatherCity']! as String);
   }
 }

@@ -6,8 +6,11 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../../../shared/weather/weather.dart';
+import '../../../shared/weather/weather_visual.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import 'journal_providers.dart';
@@ -56,6 +59,12 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   /// 轮12-1：今日概览草稿默认折叠，点标题行展开。
   bool _sumOpen = false;
 
+  /// 批2e：本篇天气快照（自动=当天抓一次落库 · 手动=覆盖后不再自动更新）。
+  int? _wxCode;
+  double? _wxMax;
+  double? _wxMin;
+  bool _wxManual = false;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +84,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     setState(() {
       _existing = e;
       _mood = e?.mood;
+      _wxCode = e?.weatherCode;
+      _wxMax = e?.tempMax;
+      _wxMin = e?.tempMin;
+      _wxManual = e?.weatherManual ?? false;
       if (e != null && e.sections.isNotEmpty) {
         _applySections(
             e.sections.map((s) => TemplateSection(title: s.title)).toList(),
@@ -90,6 +103,65 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       await repo.markViewed(e.id!);
       ref.invalidate(journalsProvider);
     }
+    _ensureTodayWeather();
+  }
+
+  /// 批2e：写日记当天自动抓一次天气（城市未设置/已手动/已有快照=跳过；
+  /// 无网由服务静默返回 null，不阻塞写作）。落库走 attachWeather 不打乱 updated_at。
+  Future<void> _ensureTodayWeather() async {
+    if (_wxManual || _wxCode != null || !_isToday || !mounted) return;
+    final city =
+        WeatherCity.decode(ref.read(settingsControllerProvider).weatherCity);
+    if (city == null) return;
+    final w = await ref.read(weatherServiceProvider).day(_day, city);
+    if (w == null || !mounted) return;
+    setState(() {
+      _wxCode = w.code;
+      _wxMax = w.tmax;
+      _wxMin = w.tmin;
+    });
+    final id = _existing?.id;
+    if (id != null) {
+      await ref
+          .read(journalRepositoryProvider)
+          .attachWeather(id, code: w.code, tmax: w.tmax, tmin: w.tmin);
+      if (!mounted) return;
+      ref.invalidate(journalsProvider);
+    } else {
+      await _persist(notify: false); // 新草稿：随首次落库带快照
+    }
+  }
+
+  /// chip 点按：手动覆盖七选项（选后本篇不再自动更新）/ 恢复自动。
+  Future<void> _openWxSheet() async {
+    final r = await showWeatherPickSheet(context,
+        current: _wxCode, manual: _wxManual, isToday: _isToday);
+    if (r == null || !mounted) return;
+    setState(() {
+      if (r.restore) {
+        _wxManual = false;
+        _wxCode = null; // 恢复自动：当天重抓（城市未设置则保持空）
+      } else {
+        _wxCode = r.code;
+        _wxManual = true;
+      }
+    });
+    final id = _existing?.id;
+    if (id != null) {
+      await ref.read(journalRepositoryProvider).attachWeather(id,
+          code: _wxCode, tmax: _wxMax, tmin: _wxMin, manual: _wxManual);
+    } else {
+      await _persist(notify: false);
+    }
+    if (!mounted) return;
+    ref.invalidate(journalsProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+          content: Text(
+              r.restore ? '已恢复自动获取' : '本篇天气已手动设置 · 不再自动更新'),
+          duration: const Duration(milliseconds: 1300)));
+    if (r.restore) _ensureTodayWeather();
   }
 
   /// 旧纯文本篇 → 富文本种子 Delta：正文一段 + 图片语法行逐个转内嵌 image。
@@ -482,6 +554,37 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         : '$ymd 周$wd';
   }
 
+  /// 批2e：心情行右侧天气 chip（线性图标+「晴 20~30°」·手动态加后缀；
+  /// 未设置且不可抓=以「天气」空壳入口保留可点性）。
+  Widget _wxChip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final txt = _wxCode == null
+        ? '天气'
+        : '${weatherText(_wxCode!, tmax: _wxMax, tmin: _wxMin)}${_wxManual ? ' ·手动' : ''}';
+    return InkWell(
+      key: const ValueKey('diary-wx-chip'),
+      borderRadius: BorderRadius.circular(999),
+      onTap: _openWxSheet,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(_wxCode == null ? Icons.add : weatherIcon(_wxCode!),
+              size: 14, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(txt,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant)),
+        ]),
+      ),
+    );
+  }
+
   void _onChanged(String v) {
     setState(() {
       _dirty = true;
@@ -520,6 +623,11 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       templateId: secs.isEmpty ? null : _tpl.id,
       sections: secs,
       kind: secs.isEmpty ? 'rich' : '',
+      // 批2e：天气快照随保存携带（自动抓取/手动覆盖的当前态）
+      weatherCode: _wxCode,
+      tempMax: _wxMax,
+      tempMin: _wxMin,
+      weatherManual: _wxManual,
       createdAt: _existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     ));
@@ -706,26 +814,34 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       ),
       body: Column(
         children: [
-          // 心情 7 表情（轮12-8：图标缩小）
+          // 心情 7 表情（轮12-8：图标缩小）+ 批2e 右侧天气小 chip
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                for (var i = 0; i < kJournalMoods.length; i++)
-                  GestureDetector(
-                    key: ValueKey('jm-$i'),
-                    onTap: () => setState(() => _mood = i + 1),
-                    child: AnimatedScale(
-                      scale: _mood == i + 1 ? 1.2 : 1,
-                      duration: const Duration(milliseconds: 150),
-                      child: Opacity(
-                        opacity: _mood == null || _mood == i + 1 ? 1 : .45,
-                        child: Text(kJournalMoods[i].$1,
-                            style: const TextStyle(fontSize: 17)),
-                      ),
-                    ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (var i = 0; i < kJournalMoods.length; i++)
+                        GestureDetector(
+                          key: ValueKey('jm-$i'),
+                          onTap: () => setState(() => _mood = i + 1),
+                          child: AnimatedScale(
+                            scale: _mood == i + 1 ? 1.2 : 1,
+                            duration: const Duration(milliseconds: 150),
+                            child: Opacity(
+                              opacity: _mood == null || _mood == i + 1 ? 1 : .45,
+                              child: Text(kJournalMoods[i].$1,
+                                  style: const TextStyle(fontSize: 17)),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                _wxChip(context),
               ],
             ),
           ),

@@ -8,6 +8,8 @@ import '../../../core/settings/user_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../../../shared/weather/weather.dart';
+import 'weather_city_sheet.dart';
 
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/主题/深色/底栏配置。
@@ -143,6 +145,21 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     last: true,
                     onTap: () => context.push('/settings/appearance')),
+          ),
+          const SizedBox(height: 14),
+          // 批2e：日记天气城市（一次选定 · 写日记当天自动抓快照 · 不申请定位权限）
+          _Card(
+            child: _EntryRow(
+                    key: const ValueKey('entry-weather'),
+                    emoji: '',
+                    iconWidget: const Icon(Icons.wb_sunny_outlined,
+                        size: 18, color: Color(0xFF0284C7)),
+                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
+                    title: '日记天气',
+                    sub: '城市 · ${WeatherCity.decode(ref.watch(settingsControllerProvider).weatherCity)?.name ?? '未设置'}',
+                    trailing: '',
+                    last: true,
+                    onTap: () => showWeatherCitySheet(context, ref)),
           ),
           const SizedBox(height: 14),
           // V1.29批A4：记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）
@@ -310,6 +327,7 @@ class _EntryRow extends StatelessWidget {
   const _EntryRow({
     super.key,
     required this.emoji,
+    this.iconWidget,
     required this.bg,
     required this.title,
     required this.sub,
@@ -320,6 +338,9 @@ class _EntryRow extends StatelessWidget {
   });
 
   final String emoji;
+
+  /// 批2e：新条目按「UI 禁 emoji」规范传线性图标，替换 emoji 文本位。
+  final Widget? iconWidget;
   final Color bg;
   final String title;
   final String sub;
@@ -344,7 +365,7 @@ class _EntryRow extends StatelessWidget {
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-              child: Text(emoji, style: const TextStyle(fontSize: 16)),
+              child: iconWidget ?? Text(emoji, style: const TextStyle(fontSize: 16)),
             ),
             const SizedBox(width: 12),
             Expanded(

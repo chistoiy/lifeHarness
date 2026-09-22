@@ -112,6 +112,7 @@ class UserSettings {
     this.noteLatex = false,
     this.notePlainLineNum = false,
     this.noteSwipe = false,
+    this.weatherCity = '',
   });
 
   final String themeId;
@@ -134,6 +135,9 @@ class UserSettings {
 
   /// V1.29轮10-2·记录管理：编辑页左右滑动切换上下篇开关（默认关=轮8②常开改为可选）。
   final bool noteSwipe;
+
+  /// M1批2e·设置页：日记天气城市（编码 `name|lat|lon`·''=未设置不抓取）。
+  final String weatherCity;
 
   /// 可编排卡片 id 全集（顺序之外新增卡片按此兜底补齐）。
   static const List<String> kHomeCardIds = [
@@ -164,6 +168,7 @@ class UserSettings {
     bool? noteLatex,
     bool? notePlainLineNum,
     bool? noteSwipe,
+    String? weatherCity,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -175,6 +180,7 @@ class UserSettings {
         noteLatex: noteLatex ?? this.noteLatex,
         notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
         noteSwipe: noteSwipe ?? this.noteSwipe,
+        weatherCity: weatherCity ?? this.weatherCity,
       );
 
   Map<String, Object> toMap() => {
@@ -187,6 +193,7 @@ class UserSettings {
         'noteLatex': noteLatex,
         'notePlainLineNum': notePlainLineNum,
         'noteSwipe': noteSwipe,
+        'weatherCity': weatherCity,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -201,6 +208,7 @@ class UserSettings {
         noteLatex: m['noteLatex'] as bool? ?? false,
         notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
         noteSwipe: m['noteSwipe'] as bool? ?? false,
+        weatherCity: m['weatherCity'] as String? ?? '',
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

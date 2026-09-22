@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
@@ -25,8 +26,13 @@ import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:lifeharness/shared/weather/weather.dart';
+import 'package:lifeharness/shared/weather/weather_dao.dart';
+import 'package:lifeharness/shared/weather/weather_service.dart';
+import 'package:lifeharness/shared/weather/weather_visual.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 1×1 有效 PNG（批2a 插图链测试真实可解码字节·与 note_test 同款）。
@@ -58,6 +64,7 @@ void main() {
   late JournalRepository jrepo;
   late TodoRepository trepo;
   late EventBus bus;
+  late SharedPreferences prefs;
 
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
@@ -67,6 +74,8 @@ void main() {
     bus = EventBus();
     jrepo = JournalRepository(JournalDao(db));
     trepo = TodoRepository(TodoDao(db), bus);
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async {
@@ -74,13 +83,15 @@ void main() {
     await bus.dispose();
   });
 
-  ProviderScope scope(Widget home) => ProviderScope(
+  ProviderScope scope(Widget home, {WeatherService? wx}) => ProviderScope(
         overrides: [
           journalRepositoryProvider.overrideWithValue(jrepo),
           todoRepositoryProvider.overrideWithValue(trepo),
           diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
           eventRepositoryProvider
               .overrideWithValue(EventRepository(EventDao(db), bus)),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          if (wx != null) weatherServiceProvider.overrideWithValue(wx),
         ],
         child: MaterialApp(home: home),
       );
@@ -882,6 +893,219 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('dr-next')));
       await settle5(tester);
       expect(find.text('${now.year}年${now.month}月'), findsOneWidget);
+    });
+  });
+
+  group('M1批2e · 天气快照（当天自动抓+缓存 · 手动覆盖 · 无网静默）', () {
+    const city = WeatherCity(name: '杭州', lat: 30.29, lon: 120.16);
+
+    Map<String, dynamic> wxJson(String day, {int code = 0}) => {
+          'daily': {
+            'time': [day],
+            'weather_code': [code],
+            'temperature_2m_max': [30.4],
+            'temperature_2m_min': [20.2],
+          },
+        };
+
+    Future<void> setCity(String? v) async {
+      SharedPreferences.setMockInitialValues(
+          v == null ? {} : {'lh.weather_city': v});
+      prefs = await SharedPreferences.getInstance();
+    }
+
+    // sqflite ffi 走真实事件循环：等某 finder 出现（60ms 步进·runAsync 放行）
+    Future<void> waitFinder(WidgetTester tester, Finder f,
+        {int times = 15}) async {
+      for (var i = 0; i < times; i++) {
+        if (f.evaluate().isNotEmpty) return;
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump();
+      }
+    }
+
+    test('2e-0 域：WeatherCity 编码往返 · weatherText 口径 · 七选项代表码', () {
+      expect(WeatherCity.decode(WeatherCity.encode(city))?.lat, 30.29);
+      expect(WeatherCity.decode(''), isNull);
+      expect(WeatherCity.decode('a|b|c'), isNull);
+      expect(weatherText(0, tmax: 30.4, tmin: 20.2), '晴 20~30°');
+      expect(weatherText(61, tmax: 18.2, compact: true), '小雨 18°');
+      expect(weatherText(2), '多云');
+      expect(kWeatherOptions.map(weatherLabel).join(),
+          '晴多云阴小雨小雪雾雷阵雨');
+    });
+
+    test('2e-0b WeatherService：只抓当天 · 缓存日一次 · 换城市重抓 · 无网 null', () async {
+      var calls = 0;
+      final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
+        calls++;
+        return wxJson(WeatherDao.dayKey(DateTime.now()));
+      });
+      final today = DateTime.now();
+      final w = await svc.day(today, city);
+      expect(w?.code, 0);
+      expect(w?.tmax, 30.4);
+      expect(calls, 1);
+      await svc.day(today, city); // 命中缓存
+      expect(calls, 1);
+      await svc.day(today, const WeatherCity(name: '北京', lat: 40, lon: 116));
+      expect(calls, 2); // 城市变更失效重抓
+      expect(await svc.day(today.subtract(const Duration(days: 1)), city), isNull);
+      expect(calls, 2); // 历史不查（只存当时）
+      final offline = WeatherService(WeatherDao(db), fetch: (u) async => null);
+      expect(await offline.day(DateTime(2020, 1, 1), city), isNull);
+      expect(await db.query('weather_daily'), hasLength(1)); // 换城市 replace 同日行
+    });
+
+    test('2e-0c searchCity：解析命中 · 空查询/无结果静默', () async {
+      final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
+        if (uri.host != 'geocoding-api.open-meteo.com') return null;
+        return {
+          'results': [
+            {'name': '杭州', 'latitude': 30.29, 'longitude': 120.16, 'admin1': '浙江', 'country': '中国'},
+            {'name': '杭州湾', 'latitude': 30.1, 'longitude': 121.0},
+          ]
+        };
+      });
+      final hits = await svc.searchCity('杭州');
+      expect(hits, hasLength(2));
+      expect(hits.first.label, '杭州 · 浙江');
+      expect(await svc.searchCity('  '), isEmpty);
+      final bad = WeatherService(WeatherDao(db), fetch: (u) async => null);
+      expect(await bad.searchCity('上海'), isEmpty);
+    });
+
+    test('2e-0d repo：save 落天气字段 · attachWeather 直写不打乱 updated_at', () async {
+      final u0 = DateTime(2026, 9, 22, 8);
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime(2026, 9, 20),
+          content: '正文',
+          weatherCode: 61,
+          tempMax: 18.5,
+          tempMin: 12.1,
+          createdAt: u0,
+          updatedAt: u0));
+      var re = await jrepo.open(e.id!);
+      expect(re!.weatherCode, 61);
+      expect(re.tempMax, 18.5);
+      expect(re.weatherManual, isFalse);
+      final before = re.updatedAt; // save 会把 updated_at 刷成 now，以落库值起算
+      await jrepo.attachWeather(e.id!, code: 0, tmax: 30.4, manual: true);
+      re = await jrepo.open(e.id!);
+      expect(re!.weatherCode, 0);
+      expect(re.weatherManual, isTrue);
+      expect(re.updatedAt, before); // 快照直写不碰更新时间
+    });
+
+    test('2e-0e v11 迁移：journal 加天气四列 + weather_daily 建表 · 旧行默认读', () async {
+      const name = 'jtest_migration_v11.db';
+      await databaseFactoryFfiNoIsolate.deleteDatabase(name);
+      final db2 = await databaseFactoryFfiNoIsolate.openDatabase(name);
+      await db2.execute('''
+        CREATE TABLE journal_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entry_date INTEGER NOT NULL,
+          mood INTEGER,
+          content TEXT NOT NULL,
+          tags TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          starred INTEGER NOT NULL DEFAULT 0,
+          liked INTEGER NOT NULL DEFAULT 0,
+          view_count INTEGER NOT NULL DEFAULT 0,
+          template_id INTEGER,
+          kind TEXT NOT NULL DEFAULT ''
+        )
+      ''');
+      await db2.insert('journal_entries',
+          {'entry_date': 1, 'content': '老数据', 'created_at': 1, 'updated_at': 1});
+      for (final sql in DbSchema.migrations[10]!) {
+        await db2.execute(sql);
+      }
+      final cols = await db2.rawQuery('PRAGMA table_info(journal_entries)');
+      expect(
+          cols.map((c) => c['name']),
+          containsAll(
+              ['weather_code', 'temp_max', 'temp_min', 'weather_manual']));
+      final e = JournalEntry.fromRow((await db2.query('journal_entries')).first);
+      expect(e.weatherCode, isNull);
+      expect(e.weatherManual, isFalse);
+      expect(await db2.query('weather_daily'), isEmpty); // 新表已建
+      await db2.close();
+    });
+
+    testWidgets('2e-1 当天开新篇=自动抓一次：chip 显「晴 20~30°」+条目落库+缓存行',
+        (tester) async {
+      await setCity(WeatherCity.encode(city));
+      var calls = 0;
+      final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
+        calls++;
+        return wxJson(WeatherDao.dayKey(DateTime.now()));
+      });
+      await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now()), wx: svc));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('diary-wx-chip')), findsOneWidget);
+      await waitFinder(tester, find.text('晴 20~30°')); // 自动抓链含 ffi 落库
+      expect(calls, 1);
+      final e = (await jrepo.listByDay(DateTime.now())).first;
+      expect(e.weatherCode, 0);
+      expect(e.tempMax, 30.4);
+      final cache = await db.query('weather_daily');
+      expect(cache, hasLength(1));
+      expect(cache.first['city'], '杭州');
+    });
+
+    testWidgets('2e-2 点 chip 手动覆盖：落库 manual=1 · 重开不再自动抓 · 恢复自动',
+        (tester) async {
+      await setCity(WeatherCity.encode(city));
+      var calls = 0;
+      WeatherService svc() => WeatherService(WeatherDao(db), fetch: (uri) async {
+            calls++;
+            return wxJson(WeatherDao.dayKey(DateTime.now()));
+          });
+      await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now()), wx: svc()));
+      await settle5(tester);
+      await waitFinder(tester, find.text('晴 20~30°')); // 先让自动抓落定
+      await tester.tap(find.byKey(const ValueKey('diary-wx-chip')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('wx-grid')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('wx-opt-3'))); // 阴
+      await settle5(tester);
+      expect(find.text('阴 20~30° ·手动'), findsOneWidget);
+      var e = (await jrepo.listByDay(DateTime.now())).first;
+      expect(e.weatherCode, 3);
+      expect(e.weatherManual, isTrue);
+      expect(calls, 1); // 手动后未被自动覆盖
+      // 恢复自动：弹层出现恢复钮 → 重抓落回
+      await tester.tap(find.byKey(const ValueKey('diary-wx-chip')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('wx-restore')));
+      await settle5(tester);
+      await waitFinder(tester, find.text('晴 20~30°'));
+      e = (await jrepo.listByDay(DateTime.now())).first;
+      expect(e.weatherCode, 0);
+      expect(e.weatherManual, isFalse);
+      expect(calls, 1); // 恢复自动命中当日缓存=不再触网
+    });
+
+    testWidgets('2e-3 城市未设置：不触网不抓，chip 留空壳不阻塞', (tester) async {
+      await setCity(null);
+      await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now())));
+      await settle5(tester);
+      expect(find.text('天气'), findsOneWidget); // 空壳入口仍在
+      expect(find.byKey(const ValueKey('diary-rich-editor')), findsOneWidget);
+    });
+
+    testWidgets('2e-3b 有城市但无网：假 fetch 返回 null=静默，chip 空壳不写缓存',
+        (tester) async {
+      await setCity(WeatherCity.encode(city));
+      await tester.pumpWidget(scope(
+          DiaryEditPage(day: DateTime.now()),
+          wx: WeatherService(WeatherDao(db), fetch: (u) async => null)));
+      await settle5(tester);
+      expect(find.text('天气'), findsOneWidget);
+      expect(await db.query('weather_daily'), isEmpty);
     });
   });
 }

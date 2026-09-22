@@ -60,6 +60,11 @@ class JournalRepository {
       'template_id': e.templateId,
       'tags': tags.isEmpty ? null : jsonEncode(tags),
       'kind': e.kind, // M1批2a：富文本类型随保存同步（笔记同款口径）
+      // M1批2e：天气快照随保存同步（页面持有当前值·含载入时自动抓取结果）
+      'weather_code': e.weatherCode,
+      'temp_max': e.tempMax,
+      'temp_min': e.tempMin,
+      'weather_manual': e.weatherManual ? 1 : 0,
       'updated_at': now.millisecondsSinceEpoch,
     });
     await dao.replaceSections(
@@ -85,6 +90,17 @@ class JournalRepository {
       dao.setFlags(id, starred: starred, liked: liked);
 
   Future<void> markViewed(int id) => dao.incView(id);
+
+  /// M1批2e：天气快照直写（自动抓取/手动覆盖即时落库·不动正文与 updated_at，
+  /// 避免打乱「更新时间」排序语义）。
+  Future<void> attachWeather(int id,
+          {int? code, double? tmax, double? tmin, bool manual = false}) =>
+      dao.updateById(id, {
+        'weather_code': code,
+        'temp_max': tmax,
+        'temp_min': tmin,
+        'weather_manual': manual ? 1 : 0,
+      });
 
   /// 连续记录天数（从今天或昨天往前数，活动日=有正文或心情）。
   Future<int> streak() async {

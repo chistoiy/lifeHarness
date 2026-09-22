@@ -39,6 +39,14 @@ void main() {
       expect(reloaded.mode, ThemeModeOption.dark);
     });
 
+    test('M1批2e setWeatherCity 持久化（编码 name|lat|lon · 重载可解）', () async {
+      await boot();
+      final c = container.read(settingsControllerProvider.notifier);
+      await c.setWeatherCity('杭州|30.29|120.16');
+      final reloaded = SettingsRepository(prefs).load();
+      expect(reloaded.weatherCity, '杭州|30.29|120.16');
+    });
+
     test('固定项不可关闭；开启第 6 个栏目被拒', () async {
       await boot();
       final c = container.read(settingsControllerProvider.notifier);

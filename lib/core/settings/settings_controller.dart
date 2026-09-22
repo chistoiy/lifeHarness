@@ -78,6 +78,12 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 日记天气城市（M1批2e·设置页一次选定；编码 `name|lat|lon`，''=未设置）。
+  Future<void> setWeatherCity(String city) async {
+    state = state.copyWith(weatherCity: city);
+    await _persist();
+  }
+
   /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
   /// core 不触达 feature（R2）。
   Future<void> setNotify(NotifySettings n) async {

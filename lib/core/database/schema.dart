@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 10;
+  static const int version = 11;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -33,6 +33,8 @@ class DbSchema {
   static const String tTimeBlocks = 'time_blocks';
   // v4：两级分类表（需求 V1.19.1，全局唯一分类源：速记列/标记/账本/统计共用）
   static const String tCategories = 'categories';
+  // v11（M1批2e）：每日天气缓存（Open-Meteo 抓取落库·当天只抓一次）
+  static const String tWeatherDaily = 'weather_daily';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -103,7 +105,11 @@ class DbSchema {
       liked INTEGER NOT NULL DEFAULT 0,
       view_count INTEGER NOT NULL DEFAULT 0,
       template_id INTEGER,
-      kind TEXT NOT NULL DEFAULT ''
+      kind TEXT NOT NULL DEFAULT '',
+      weather_code INTEGER,
+      temp_max REAL,
+      temp_min REAL,
+      weather_manual INTEGER NOT NULL DEFAULT 0
     )
     ''',
     'CREATE INDEX idx_journal_date ON $tJournal(entry_date)',
@@ -267,6 +273,17 @@ class DbSchema {
       sort INTEGER NOT NULL DEFAULT 0
     )
     ''',
+    // v11（M1批2e）：每日天气缓存（day=YYYY-MM-DD · 城市变更后旧缓存自然失效重抓）
+    '''
+    CREATE TABLE IF NOT EXISTS $tWeatherDaily (
+      day TEXT PRIMARY KEY,
+      city TEXT NOT NULL,
+      code INTEGER NOT NULL,
+      tmax REAL,
+      tmin REAL,
+      fetched_at INTEGER NOT NULL
+    )
+    ''',
     ...categorySeed,
   ];
 
@@ -420,6 +437,23 @@ class DbSchema {
     // v10（M1批2a）：日记自由书写富文本 kind（''=纯文本 · rich=Quill Delta JSON）
     9: [
       "ALTER TABLE $tJournal ADD COLUMN kind TEXT NOT NULL DEFAULT ''",
+    ],
+    // v11（M1批2e）：日记天气快照（写当天抓一次落条目·历史天气不查）+ 每日缓存表
+    10: [
+      'ALTER TABLE $tJournal ADD COLUMN weather_code INTEGER',
+      'ALTER TABLE $tJournal ADD COLUMN temp_max REAL',
+      'ALTER TABLE $tJournal ADD COLUMN temp_min REAL',
+      'ALTER TABLE $tJournal ADD COLUMN weather_manual INTEGER NOT NULL DEFAULT 0',
+      '''
+      CREATE TABLE IF NOT EXISTS $tWeatherDaily (
+        day TEXT PRIMARY KEY,
+        city TEXT NOT NULL,
+        code INTEGER NOT NULL,
+        tmax REAL,
+        tmin REAL,
+        fetched_at INTEGER NOT NULL
+      )
+      ''',
     ],
   };
 }
