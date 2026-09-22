@@ -276,6 +276,9 @@ tailwind.config = {
   .bk-grid .nm{font-size:10.5px;font-weight:800;line-height:1.3;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .bk-grid.c4 .nm{font-size:9.5px}
   .bk-pbar{height:4px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin-top:5px}
+  .bk-pbar.has-pct{position:relative;overflow:visible}
+  .bk-pct{position:absolute;right:0;top:-13px;font-size:8px;font-weight:800}
+  .bd-bg{position:absolute;left:-40%;right:-40%;top:-40%;bottom:-40%;z-index:-1;filter:blur(26px) saturate(1.5);opacity:.5;background-size:cover;background-position:center}
   .dark .bk-pbar{background:#1e293b}
   .bk-pbar i{display:block;height:100%;border-radius:99px;background:var(--accent)}
   .bk-pbar i.full{background:#10b981}.bk-pbar i.zero{background:transparent}
@@ -843,7 +846,6 @@ tailwind.config = {
         <button id="shBatchBtn" onclick="shBatchToggle()" class="text-[11px] font-extrabold px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 shrink-0">管理</button>
       </div>
       <div class="mt-2.5 flex gap-2 overflow-x-auto no-scrollbar pb-0.5" id="shChips"></div>
-      <div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-[10px]" id="shDims"></div>
       <div id="shDimVals" class="hidden mt-1.5"></div>
       <div class="hidden mt-1.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="shTags"></div>
       <div id="shBody" class="mt-3"></div>
@@ -856,6 +858,9 @@ tailwind.config = {
       </div>
       <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar" id="shTools"></div>
     </section>
+
+    <!-- ===== 书架专版 · P-B1b 书籍资料（点封面进入） ===== -->
+    <section id="p-bookInfo" class="page px-5 safe-pb no-scrollbar"><div id="biRoot"></div></section>
 
     <!-- ===== 书架专版 · P-B2 笔记库（跨书摘录与感想） ===== -->
     <section id="p-quotes" class="page px-5 safe-pb no-scrollbar">
@@ -945,7 +950,10 @@ tailwind.config = {
     </section>
 
     <!-- ===== 书架专版 · 阅读设置 ===== -->
-    <section id="p-readset" class="page px-5 safe-pb no-scrollbar"><div id="rsGroups" class="mt-3 space-y-3"></div></section>
+    <section id="p-readset" class="page px-5 safe-pb no-scrollbar">
+      <div class="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="rsTabs"></div>
+      <div id="rsGroups" class="mt-2.5 space-y-3"></div>
+    </section>
 
     <!-- ===== 书架专版 · 阅读数据导入 ===== -->
     <section id="p-readimport" class="page px-5 safe-pb no-scrollbar">
@@ -4509,7 +4517,7 @@ function shCycleView(){const seq=['wall','wall4','list','spine','time'],gl={wall
 function shResetFilter(){shSt='全部';shTag='';shKw='';shSort='recent';shDim='none';shDimVal='';const k=document.getElementById('shKw');if(k)k.value='';renderShelf();toast('筛选与维度已清空')}
 function shDimMatch(b){if(shDim==='none'||!shDimVal)return true;if(shDim==='tag')return (b.tags||[]).includes(shDimVal);return String(shDimOf(b,shDim))===String(shDimVal)}
 function shFiltered(){let a=BS_BOOKS.filter(b=>(shSt==='全部'||b.st===shSt)&&(!shTag||b.tags.includes(shTag))&&shDimMatch(b)&&(!shKw||(b.n+b.a+b.tags.join('')+(b.src||'')+(b.grp||'')+b.a+(b.pub||'')+bsQ(b.id).map(x=>x.x).join('')).toLowerCase().includes(shKw.toLowerCase())));
-  const cmp={recent:(x,y)=>(y.start||'').localeCompare(x.start||''),prog:(x,y)=>y.p-x.p,rate:(x,y)=>y.rate-x.rate,added:(x,y)=>BS_BOOKS.indexOf(x)-BS_BOOKS.indexOf(y),name:(x,y)=>x.n.localeCompare(y.n,'zh'),pages:(x,y)=>y.pg-x.pg}[shSort];
+  const cmp={recent:(x,y)=>bsLast(y).localeCompare(bsLast(x)),prog:(x,y)=>y.p-x.p,rate:(x,y)=>y.rate-x.rate,added:(x,y)=>BS_BOOKS.indexOf(x)-BS_BOOKS.indexOf(y),name:(x,y)=>x.n.localeCompare(y.n,'zh'),pages:(x,y)=>y.pg-x.pg}[shSort];
   return a.sort(cmp)}
 function bsGrad(b){return 'bg-gradient-to-br '+BS_COV[b.c][0]}
 function bsCovStyle(b){return b.img?'background-image:url('+b.img+')':''}
@@ -4576,7 +4584,7 @@ function shByDim(list){const key=b=>shDim==='tag'?((b.tags&&b.tags[0])||'未标�
   return Object.entries(map).sort((a,b)=>ord?ord.indexOf(a[0])-ord.indexOf(b[0]):b[1].length-a[1].length||a[0].localeCompare(b[0],'zh')).map(([k,ls])=>`<div class="mt-3" data-grp="${k}"><div class="flex items-center gap-2" onclick="shPickDimVal('${k.replace(/'/g,"\\'")}')"><span class="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-300 tracking-wide">${k}</span><span class="text-[9.5px] text-slate-400">${ls.length} 本</span><span class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></span></div>
    <div class="mt-1.5">${shView==='wall'?shWall(ls,BS_SET.wallCols||3):shView==='wall4'?shWall(ls,4):shView==='spine'?shSpine(ls):shView==='time'?shTimeline(ls):shListRows(ls)}</div></div>`).join('')}
 function renderSortSheet(){const el=document.getElementById('sortOpts');if(!el)return;
-  el.innerHTML=[['recent','最近打开'],['prog','按进度'],['rate','按评分'],['added','入架顺序'],['name','书名（拼音）'],['pages','总页数']].map(([k,t])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${shSort===k?'bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400':'text-slate-600 dark:text-slate-300'}" onclick="shSetSort('${k}')">${t}<span class="text-brand-500">${shSort===k?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':''}</span></button>`).join('');
+  el.innerHTML=[['recent','最近阅读'],['prog','按进度'],['rate','按评分'],['added','入架顺序'],['name','书名（拼音）'],['pages','总页数']].map(([k,t])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${shSort===k?'bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400':'text-slate-600 dark:text-slate-300'}" onclick="shSetSort('${k}')">${t}<span class="text-brand-500">${shSort===k?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':''}</span></button>`).join('');
   document.getElementById('groupByOpts').innerHTML=SH_DIMS.map(([k,t])=>`<button class="chip ${shDim===k?'chip-on':''}" onclick="shPickDim('${k}')">${t}</button>`).join('')}
 function shBatchToggle(force){shBatch=typeof force==='boolean'?force:!shBatch;shSel.clear();
   const b=document.getElementById('shBatchBtn');if(b){b.textContent=shBatch?'完成':'管理';b.classList.toggle('!text-white',shBatch);b.style.background=shBatch?'var(--accent)':'';b.style.borderColor=shBatch?'var(--accent)':''}
@@ -4590,7 +4598,7 @@ function shBatchTag(){if(!shSel.size)return;const t=BS_TAGS[(Math.random()*BS_TA
 function shBatchDel(){if(!shSel.size)return;const n=shSel.size;BS_BOOKS=BS_BOOKS.filter(b=>!shSel.has(b.id));toast('已移出书架 '+n+' 本（笔记与时长保留 30 天可恢复）');shBatchToggle(false)}
 function shStart(id){const b=bsBook(id);timerTap('read','《'+b.n+'》')}
 function shQuickTimer(){const b=BS_BOOKS.find(x=>x.st==='在读');if(!b)return toast('书架上暂时没有在读的书');shStart(b.id)}
-function shOpen(id){CURBK=id;bdTab='q';TITLES['p-bookDetail']=['书籍详情',bsBook(id).n];renderBookDetail();navTo('p-bookDetail')}
+function shOpen(id){CURBK=id;bdTab='c';bdChFilter='';TITLES['p-bookDetail']=['书籍详情',bsBook(id).n];renderBookDetail();navTo('p-bookDetail')}
 
 /* ---------- 书籍详情（JS 渲染 · 支持全部书籍） ---------- */
 function renderBookDetail(){const b=bsBook(CURBK),root=document.getElementById('bdRoot');if(!root)return;
@@ -5379,6 +5387,7 @@ function renderShTagRow() {
 
 /* ---------- 详情页：书摘 tab 合并 + 二级操作 ---------- */
 function bdQSegPick(k) { bdQSeg = k; renderBookDetail(); }
+let biTab = 'info';
 function bdQSegChips(b) {
   const all = bsQ(b.id);
   return [['all', '全部 ' + all.length], ['line', '划线 ' + all.filter(x => x.ty === '划线').length], ['think', '想法 ' + all.filter(x => x.ty === '感想').length], ['star', '星标 ' + all.filter(x => x.fav).length]]
@@ -5443,8 +5452,170 @@ function rsCtlLabel() { return rsYearCur + ' · ' + (rsMonth ? rsMonth + '月' :
 const BS_RS_OLD = renderReadStat;
 renderReadStat = function () { BS_RS_OLD(); const cl = document.getElementById('rsCtlLbl'); if (cl) cl.textContent = rsCtlLabel(); };
 
+/* ================================================================
+   批G：详情页拆成「沉浸阅读视图 + 书籍资料页」· 工作台收敛 · 按最近阅读排序
+   ================================================================ */
+/* ---------- 最近一次阅读（排序与计时目标共用） ---------- */
+function bsLast(b) {
+  let k = b.start || '';
+  if (b.end && b.end > k) k = b.end;
+  (BS_QUOTES || []).forEach(x => { if (x.b === b.id && x.dt > k) k = x.dt; });
+  const ss = bsSessions(b); if (ss.length && ss[ss.length - 1].dt > k) k = ss[ss.length - 1].dt;
+  return k;
+}
+function bsIng() { return BS_BOOKS.filter(b => b.st === '在读').sort((x, z) => bsLast(z).localeCompare(bsLast(x))); }
+function shQuickTimer() { const ing = bsIng(); if (!ing.length) return toast('书架上暂时没有在读的书'); shStart(ing[0].id); toast('已为最近阅读的《' + ing[0].n + '》开始计时'); }
+
+/* ---------- 封面卡：百分比进进度条 · 不显示页数与笔记数 ---------- */
+function shWall(list, cols) {
+  const bar = b => {
+    const w = b.st === '想读' ? 0 : b.p, cls = b.st === '已读' ? 'full' : b.st === '想读' ? 'zero' : b.st === '弃读' ? 'give' : '';
+    const lab = b.st === '已读' ? '读完' : b.st === '想读' ? '未开始' : b.st === '弃读' ? b.p + '%' : b.p + '%';
+    return `<div class="bk-pbar has-pct"><i class="${cls}" style="width:${w}%;${b.st === '弃读' ? 'background:#94a3b8' : ''}"></i><span class="bk-pct" style="color:${w >= 62 ? '#fff' : 'var(--text2,#64748b)'}">${lab}</span></div>`;
+  };
+  return `<div class="bk-grid ${cols === 4 || cols === 5 ? 'c' + cols : ''}">${list.map(b => `<div class="relative" onclick="${shBatch ? `shSelTap('${b.id}')` : `shOpen('${b.id}')`}" oncontextmenu="event.preventDefault();shLongMenu('${b.id}');return false">
+  <div class="bk-cov cov ${bsCovCls(b)} w-full" style="${bsCovStyle(b)}">${bsProgressBadge(b)}<div class="au">${b.a}</div>
+   ${shBatch ? `<span class="bsel ${shSel.has(b.id) ? 'on' : ''}">${shSel.has(b.id) ? '<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>' : ''}</span>` : ''}</div>
+  <div class="nm">${b.n}</div>${bar(b)}</div>`).join('')}</div>`;
+}
+
+/* ---------- 阅读工作台（记录页第三 tab） ---------- */
+function renderRecHub() {
+  const wl = document.getElementById('bookList'), ch = document.getElementById('bookStatusChips'), hub = document.getElementById('recHub');
+  if (!wl || !ch || !hub) return;
+  const ing = bsIng(), done = BS_BOOKS.filter(b => b.st === '已读').length;
+  const today = BS_LOG[262].m, week = BS_LOG.slice(256, 263).reduce((a, x) => a + x.m, 0);
+  let st = 0; for (let i = 262; i >= 0; i--) { if (BS_LOG[i].m > 0) st++; else break }
+  const cur = ing[0], on = cur && timer && timerTarget === '《' + cur.n + '》';
+  hub.innerHTML = `<div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
+    <div class="flex items-center gap-3">
+      <div class="relative w-[52px] h-[52px] shrink-0"><svg class="ring-progress" width="52" height="52"><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.26)" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(2 * Math.PI * 22 * Math.min(1, today / BS_GOAL.dayMin)).toFixed(1)} ${(2 * Math.PI * 22).toFixed(1)}"/></svg><div class="absolute inset-0 flex items-center justify-center text-[12px] font-black">${today}′</div></div>
+      <div class="flex-1 min-w-0"><div class="text-sm font-extrabold leading-6">今日阅读 ${today} / ${BS_GOAL.dayMin} 分钟 ${today >= BS_GOAL.dayMin ? '已达成' : '· 还差 ' + (BS_GOAL.dayMin - today) + ' 分钟'} · 连续 ${st} 天</div>
+        <div class="text-[10.5px] opacity-80 mt-0.5">在读 ${ing.length} 本 · 今年读完 ${done}/${BS_GOAL.books} 本 · 本周 ${Math.round(week / 60 * 10) / 10}h / 目标 ${Math.round(BS_GOAL.weekMin / 60)}h</div></div>
+      <button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1.5 font-bold shrink-0" onclick="shQuickTimer()">${on ? '结束计时' : '计时'}</button></div>
+    <div class="mt-2.5 flex gap-1.5">
+      ${[['书架', 'book', "navTo('p-bookshelf')"], ['新书', 'plus', 'shNewOpen()'], ['笔记库', 'quote', "navTo('p-quotes')"], ['统计', 'chart', "navTo('p-readstat')"]].map(t =>
+        `<button class="flex-1 rounded-xl bg-white/15 h-9 flex items-center justify-center text-white active:scale-[.97] transition" title="${t[0]}" aria-label="${t[0]}" onclick="${t[2]}">${bsi(t[1], 'w-[17px] h-[17px]')}</button>`).join('')}</div></div>
+  <div class="mt-3 flex items-center gap-2"><div class="text-[11px] font-extrabold text-slate-400 tracking-wider">在读</div><button class="ml-auto text-[10px] font-bold link-act" onclick="navTo('p-bookshelf')">全部 ${BS_BOOKS.length} 本 ›</button></div>`;
+  ch.innerHTML = BS_STS.map(s => `<button class="chip whitespace-nowrap ${s === '在读' ? 'chip-on' : ''}" onclick="navTo('p-bookshelf');shPick('${s}')">${s} ${BS_BOOKS.filter(b => b.st === s).length}</button>`).join('');
+  wl.className = 'mt-2.5';
+  wl.innerHTML = (ing.length ? shWall(ing.slice(0, 6), 3) : '<div class="card text-[11px] text-slate-400 text-center py-6">没有在读的书 · <button class="link-act" onclick="shNewOpen()">添加一本</button></div>')
+    + `<div class="card mt-3"><div class="row-title">最近摘录</div>${BS_QUOTES.slice(0, 3).map(x => `<div class="flex gap-2 mt-2 text-[11.5px] leading-6"><span class="qtag" style="background:${(BS_QTAGS.find(t => t[0] === x.tg) || ['', '', '#6366f1'])[2]}"></span><span class="flex-1 line-clamp-2">${x.ty === '划线' ? '「' + x.x + '」' : x.x}<span class="text-slate-400"> — ${bsBook(x.b).n}</span></span></div>`).join('')}<button class="link-act text-[10px] mt-2" onclick="navTo('p-quotes')">去笔记库</button></div>`;
+  const bt = document.getElementById('bkTotal'); if (bt && cur) bt.textContent = bsFmt(cur.min);
+}
+
+/* ---------- 详情页 = 沉浸阅读视图（目录 / 书摘 / 相关） ---------- */
+function renderBookDetail() {
+  const b = bsBook(CURBK), root = document.getElementById('bdRoot'); if (!root) return;
+  const qsAll = bsQ(b.id), nm = /^(\d+)/.exec(bdChFilter), key = nm ? nm[1] : bdChFilter;
+  const qs = bdChFilter ? qsAll.filter(x => (x.ch || '').includes(key)) : qsAll;
+  const cov = b.img ? `background-image:url(${b.img})` : '';
+  root.innerHTML = `
+  <div class="relative -mx-5 px-5 pt-3 pb-4 overflow-hidden">
+    <div class="bd-bg ${bsCovCls(b)}" style="${cov}"></div>
+    <div class="relative flex items-start gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[19px] leading-7">${b.n}</div>
+        <div class="mt-1.5 text-[11.5px] leading-5 opacity-80">${b.a}${b.tr ? ' · 译 ' + b.tr : ''}<br>${b.pub && b.pub !== '—' ? b.pub : ''}${b.pubDate ? ' · ' + b.pubDate : (b.yr && b.yr !== '—' ? ' · ' + b.yr : '')}</div>
+        <div class="mt-2 flex items-center gap-3 text-[11px] opacity-80">
+          <span class="flex items-center gap-1">${bsi('quote', 'w-[12px] h-[12px]')} ${qsAll.length} 条</span>
+          <span class="flex items-center gap-1">${bsi('book', 'w-[12px] h-[12px]')} ${b.pw === 'pos' ? (b.pos || 0) + ' 位置' : (b.rp || 0) + ' 页'}</span>
+          <span class="flex items-center gap-1">${bsi('track', 'w-[12px] h-[12px]')} ${b.p}%</span></div>
+      </div>
+      <div class="shrink-0 text-center" onclick="biOpen('${b.id}')">
+        <div class="relative w-[92px] shrink-0">
+          <div class="${bsCovCls(b)} w-[92px] h-[132px] rounded-lg bk-cov shadow-xl" style="${cov}"></div>
+          <span class="absolute -top-1.5 -right-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-white/90 text-slate-700 font-bold">${b.st}</span></div>
+        <div class="text-[8.5px] opacity-70 mt-1">书籍资料</div></div>
+    </div>
+  </div>
+  <div class="mt-1 flex items-center gap-2">
+    <button class="mini-btn ${timer && timerTarget === '《' + b.n + '》' ? '!grad !text-white' : ''}" onclick="rtOpen('${b.id}')">${timer && timerTarget === '《' + b.n + '》' ? '结束计时' : '读书计时'}</button>
+    <button class="mini-btn" onclick="qeOpen(null,'${b.id}')">记摘录</button>
+    <button class="mini-btn" onclick="openProgress('read','《${b.n}》')">记进度</button>
+    <button class="mini-btn ml-auto" onclick="bkOpsOpen()">操作</button></div>
+  ${bdChFilter ? `<div class="mt-3 flex items-center gap-2 text-[10px] text-slate-400"><span class="chip chip-on">章节：${bdChFilter} · ${qs.length} 条</span><button class="link-act" onclick="bdChFilter='';renderBookDetail()">显示全部 ${qsAll.length} 条</button></div>` : ''}
+  <div class="mt-3 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
+    <button id="btToc" class="seg-pill ${bdTab === 'c' ? 'on' : ''}" onclick="switchBookTab('c')">${bsi('toc')} 目录</button>
+    <button id="btQuote" class="seg-pill ${bdTab === 'q' ? 'on' : ''}" onclick="switchBookTab('q')">${bsi('quote')} 书摘 ${qsAll.length}</button>
+    <button id="btRel" class="seg-pill ${bdTab === 'rel' ? 'on' : ''}" onclick="switchBookTab('rel')">${bsi('rel')} 相关 ${bsRelGroups(b).reduce((t, g) => t + g.ls.length, 0)}</button></div>
+  <div id="bookToc" class="${bdTab === 'c' ? '' : 'hidden'} mt-3 card">
+    <div class="flex items-center justify-between"><div class="row-title">目录 · ${(BS_TOC[b.id] || []).reduce((t, g) => t + (g[2] || g[1]).length, 0)} 节</div>
+      <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocAI()">AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">导入目录</button></span></div>
+    <div class="mt-2" id="tocList"></div></div>
+  <div id="bookQuotes" class="${bdTab === 'q' ? '' : 'hidden'} mt-3">
+    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="bdQSeg">${bdQSegChips(b)}</div>
+    <div class="mt-2.5 space-y-3">${bdQuoteCards(b)}</div></div>
+  <div id="bookRel" class="${bdTab === 'rel' ? '' : 'hidden'} mt-3 space-y-2.5">
+    ${bsRelGroups(b).map(g => `<div class="card"><div class="row-title">${g.lbl} · ${g.ls.length} 本</div><div class="mt-2 space-y-2">
+      ${g.ls.map(x => `<div class="flex items-center gap-2.5" onclick="shOpen('${x.id}')"><div class="${bsCovCls(x)} w-7 h-10 rounded shrink-0 bk-cov" style="${bsCovStyle(x)}"></div>
+        <div class="flex-1 min-w-0"><b class="text-[12.5px] block truncate">${x.n}</b><span class="text-[10px] text-slate-400">${x.a} · ${x.st} · ${x.q} 条摘录</span></div><span class="text-[10px] text-slate-300">›</span></div>`).join('')}</div></div>`).join('')
+      || '<div class="card text-[11px] text-slate-400 text-center py-6">还没有同作者 / 同系列 / 同标签的书</div>'}</div>`;
+  renderToc();
+}
+
+/* ---------- 书籍资料页（点封面进入 · 承载全部档案与统计） ---------- */
+function biOpen(id) { if (id) CURBK = id; biTab = biTab || 'info'; navTo('p-bookInfo'); renderBookInfo(); }
+function renderBookInfo() {
+  const b = bsBook(CURBK), root = document.getElementById('biRoot'); if (!root) return;
+  const qs = bsQ(b.id), lines = qs.filter(x => x.ty === '划线'), thinks = qs.filter(x => x.ty === '感想');
+  const todayMin = BS_LOG[262].m;
+  root.innerHTML = `
+  <div class="mt-3 flex gap-3 items-start">
+    <div class="${bsCovCls(b)} w-[74px] h-[106px] rounded-xl bk-cov shrink-0 p-2" style="${b.img ? 'background-image:url(' + b.img + ');background-size:cover;background-position:center' : ''}" onclick="ebCovFromDetail()"></div>
+    <div class="flex-1 min-w-0"><div class="font-extrabold text-[15px] leading-6">${b.n}</div>
+      <div class="text-[11px] text-slate-400 mt-1 leading-5">${b.a}${b.tr ? ' 著 · ' + b.tr + ' 译' : ' 著'}<br>${b.pub && b.pub !== '—' ? b.pub : '出版社待补'}${b.pubDate ? ' · ' + b.pubDate : ''}${b.series ? '<br>' + b.series : ''}</div>
+      <div class="flex items-center gap-1 text-sun text-sm mt-1">${[1, 2, 3, 4, 5].map(i => `<span class="${b.rate >= i ? '' : 'text-slate-300 dark:text-slate-600'}">${b.rate >= i - .5 ? '<svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="currentColor"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg>' : '<svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg>'}</span>`).join('')}<span class="text-[10px] text-slate-400 ml-1">${b.rate || '未评'}</span></div></div></div>
+  <div class="mt-2 flex gap-1.5 flex-wrap">${b.tags.map(t => `<button class="chip !text-[10px]" onclick="shPickTag('${t}');navTo('p-bookshelf')">#${t}</button>`).join('')}${bsMetaChips(b)}</div>
+  <div class="mt-3 grid grid-cols-4 text-center text-[11px]">
+    <div class="card !py-2.5"><b class="text-base">${b.q}</b><div class="text-slate-400">摘录/感想</div></div>
+    <div class="card !py-2.5"><b class="text-base">${bsFmt(b.min)}</b><div class="text-slate-400">累计阅读</div></div>
+    <div class="card !py-2.5"><b class="text-base">${b.times}</b><div class="text-slate-400">计时次数</div></div>
+    <div class="card !py-2.5"><b class="text-base">${bsSpeed(b) || '—'}</b><div class="text-slate-400">分钟/页</div></div></div>
+  <div class="mt-3 card"><div class="row-title">阅读进度</div>
+    <div class="mt-2 flex items-center gap-2 text-[11.5px]"><span class="text-slate-400">进度方式</span><b>${(BS_PW.find(x => x[0] === b.pw) || ['', '页数'])[1]}</b>
+      <span class="ml-auto">${b.pw === 'pos' ? (b.pos || 0) + ' / ' + (b.tot || 0) + ' 位置' : b.rp + ' / ' + b.pg + ' 页'} · ${b.p}%</span></div>
+    <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${b.p}%"></span></div>
+    <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="openProgress('read','《${b.n}》')">记进度</button><button class="mini-btn" onclick="rtOpen('${b.id}')">读书计时</button><button class="mini-btn" onclick="shEditOpen('${b.id}')">编辑信息</button></div></div>
+  <div class="mt-3 card"><div class="row-title">书目信息</div>
+    <div class="mt-2 grid grid-cols-2 gap-y-1.5 text-[11px] leading-5">
+      <div class="text-slate-400">ISBN <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.isbn}</span></div>
+      <div class="text-slate-400">类型 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.fmt}</span></div>
+      <div class="text-slate-400">来源 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.src || '—'}</span></div>
+      <div class="text-slate-400">分组 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.grp || '—'}</span></div>
+      <div class="text-slate-400">购书 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.fee ? '¥' + b.fee : '—'}</span></div>
+      <div class="text-slate-400">${b.st === '已读' ? '读完' : '开始'} <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.st === '已读' ? (b.end || '—') : (b.start || '—')}</span></div>
+      <div class="text-slate-400">最近阅读 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${bsLast(b) || '—'}</span></div>
+      <div class="text-slate-400">时长 <span class="text-slate-600 dark:text-slate-300 ml-1.5">${bsFmt(b.min)} · ${b.times} 次</span></div></div>
+    ${b.intro ? `<div class="mt-2 text-[11px] leading-6 text-slate-500 dark:text-slate-400">${b.intro}</div>` : ''}</div>
+  <div class="mt-3 card"><div class="row-title">一页式总结</div>
+    <div class="text-xs leading-6 mt-2 space-y-2">
+      <div><b>金句 Top：</b>「${(lines[0] || { x: '—' }).x}」</div>
+      <div><b>核心观点：</b>${[...new Set(qs.map(x => x.tg))].join(' / ')} 共 ${qs.length} 条笔记</div>
+      <div><b>我的收获：</b>${thinks.length} 条想法，其中 ${thinks.filter(x => x.fav).length} 条标星</div></div>
+    <div class="flex gap-2 mt-3 flex-wrap"><button class="mini-btn" onclick="toast('已导出为 Markdown：《${b.n}》${b.q} 条笔记')">导出 MD</button><button class="mini-btn" onclick="toast('已存为笔记（联动 L5）')">转存笔记</button></div></div>
+  <div class="mt-3">${bsTrack(b)}</div>
+  <div class="mt-3 flex gap-2"><button class="mini-btn flex-1" onclick="bkOpsOpen()">更多操作</button><button class="mini-btn flex-1" onclick="navTo('p-bookDetail');renderBookDetail()">回阅读视图</button></div>`;
+}
+
+/* ---------- 最近一次阅读：可区分的时间 ---------- */
+BS_BOOKS.forEach((b, i) => { if (!b.last) b.last = ['09-20', '09-19', '09-14', '09-18', '09-12', '08-30', '06-11', '', '', '07-05', '05-20', '09-16'][i % 12] || ''; });
+const BS_LAST_OLD = bsLast;
+bsLast = function (b) { return b.last || BS_LAST_OLD(b); };
+
+/* ---------- 阅读设置：分组横向排列 ---------- */
+let rsSetTab = 0;
+function rsPickTab(i) { rsSetTab = +i; renderReadSet(); }
+function renderReadSet() {
+  const tabs = document.getElementById('rsTabs'), el = document.getElementById('rsGroups');
+  if (!el) return;
+  if (tabs) tabs.innerHTML = RS_SEC.map((s, i) => `<button class="chip whitespace-nowrap ${rsSetTab === i ? 'chip-on' : ''}" onclick="rsPickTab(${i})">${s[0]}</button>`).join('');
+  const sec = RS_SEC[Math.min(rsSetTab, RS_SEC.length - 1)];
+  el.innerHTML = `<div class="card"><div class="flex items-center gap-2"><div class="row-title">${sec[0]}</div><span class="ml-auto text-[10px] text-slate-400">${sec[1].length} 项</span></div><div class="mt-1">${sec[1].map(rsRow).join('')}</div></div>`;
+}
+
 /* ---------- 注册：标题 / FAB / 渲染钩子 ---------- */
-Object.assign(TITLES,{'p-bookshelf':['书架','2026 · 目标 '+BS_GOAL.books+' 本 / 每日 '+BS_GOAL.dayMin+'′'],'p-bkmgr':['书架资料','来源 / 分组 / 作者 / 出版社 / 标签'],'p-booklists':['书单','手动 · 年度 · 分享'],'p-booklist':['书单详情','分享长图与导出'],'p-readtimer':['阅读计时','开始即计时 · 结束即记进度'],'p-readset':['阅读设置','显示 · 计时 · 导入 · 存储'],'p-readimport':['数据导入','授权 / 文件 / 剪贴板 / API'],'p-quotes':['摘录笔记库','跨书记录 · 划线与感想'],'p-readstat':['阅读统计','时长 · 热力图 · 目标']});
+Object.assign(TITLES,{'p-bookshelf':['书架','2026 · 目标 '+BS_GOAL.books+' 本 / 每日 '+BS_GOAL.dayMin+'′'],'p-bkmgr':['书架资料','来源 / 分组 / 作者 / 出版社 / 标签'],'p-booklists':['书单','手动 · 年度 · 分享'],'p-booklist':['书单详情','分享长图与导出'],'p-readtimer':['阅读计时','开始即计时 · 结束即记进度'],'p-bookInfo':['书籍资料','档案 · 进度 · 总结 · 轨迹'],'p-readset':['阅读设置','显示 · 计时 · 导入 · 存储'],'p-readimport':['数据导入','授权 / 文件 / 剪贴板 / API'],'p-quotes':['摘录笔记库','跨书记录 · 划线与感想'],'p-readstat':['阅读统计','时长 · 热力图 · 目标']});
 Object.assign(FAB_CFG,{'p-bookshelf':{ico:'＋',act:()=>shNewOpen()},'p-booklists':{ico:'＋',act:()=>blCreate(false)},'p-readimport':{ico:'＋',act:()=>impRun()},'p-quotes':{ico:'＋',act:()=>qeOpen(null,CURBK)},'p-bookDetail':{ico:'＋',act:()=>qeOpen(null,CURBK)}});
 const BS_OLD_RR=renderRecords;
 renderRecords=function(){BS_OLD_RR();renderRecHub()};
