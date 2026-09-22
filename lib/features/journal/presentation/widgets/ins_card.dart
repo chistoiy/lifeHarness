@@ -10,10 +10,19 @@ import 'image_attach.dart';
 
 /// INS 卡片流单卡（原型 ins-card：头像行 · 正文 · 图片 2×2 · 回望操作 · 次数与标签）。
 class InsDiaryCard extends ConsumerStatefulWidget {
-  const InsDiaryCard({super.key, required this.entry, this.onOpen});
+  const InsDiaryCard(
+      {super.key,
+      required this.entry,
+      this.onOpen,
+      this.onLongPress,
+      this.selected = false});
 
   final JournalEntry entry;
   final VoidCallback? onOpen;
+
+  /// 轮13：长按进入批量选中；选中态点卡=切换勾选，右上显 ✓。
+  final VoidCallback? onLongPress;
+  final bool selected;
 
   @override
   ConsumerState<InsDiaryCard> createState() => _InsDiaryCardState();
@@ -44,14 +53,17 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
     }
 
     return GestureDetector(
-      // 卡片整体=打开该篇（⛶ 钮独立走全屏浏览）
+      // 卡片整体=打开该篇（⛶ 钮独立走全屏浏览；多选态由 onOpen 改传切换勾选）
       onTap: widget.onOpen,
+      onLongPress: widget.onLongPress,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: tokens.card,
           borderRadius: BorderRadius.circular(tokens.cardRadius),
-          border: Border.all(color: tokens.cardBorder),
+          border: Border.all(
+              color: widget.selected ? tokens.accent : tokens.cardBorder,
+              width: widget.selected ? 2 : 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,11 +102,24 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                       ],
                     ),
                   ),
-                  IconButton(
-                      onPressed: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(const SnackBar(
-                              content: Text('分享日记卡片 · 规划 V1.x'))),
-                      icon: const Icon(Icons.ios_share, size: 16)),
+                  // 轮13：多选态右上 ✓ 圆钮（替代分享钮）
+                  if (widget.selected)
+                    Container(
+                      key: ValueKey('insel-${entry.id}'),
+                      width: 22,
+                      height: 22,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle, color: tokens.accent),
+                      child: const Icon(Icons.check,
+                          size: 14, color: Colors.white),
+                    )
+                  else
+                    IconButton(
+                        onPressed: () => ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                                content: Text('分享日记卡片 · 规划 V1.x'))),
+                        icon: const Icon(Icons.ios_share, size: 16)),
                 ],
               ),
             ),

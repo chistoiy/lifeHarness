@@ -210,11 +210,65 @@ class _TabSoon extends StatelessWidget {
 }
 
 /// 日记 tab：心情月历卡 · 写今天入口 · 筛选 · 列表/INS 双布局 · 那年今日。
-class _DiaryTab extends ConsumerWidget {
+/// 轮13：长按条目/卡片进入批量选中（底部 已选N篇+删除+关闭 · 返回先退多选）。
+class _DiaryTab extends ConsumerStatefulWidget {
   const _DiaryTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DiaryTab> createState() => _DiaryTabState();
+}
+
+class _DiaryTabState extends ConsumerState<_DiaryTab> {
+  bool _selMode = false;
+  final Set<int> _sel = {};
+
+  void _enterSel(int id) => setState(() {
+        _selMode = true;
+        _sel.add(id);
+      });
+
+  void _toggleSel(int id) => setState(() {
+        _sel.contains(id) ? _sel.remove(id) : _sel.add(id);
+        if (_sel.isEmpty) _selMode = false;
+      });
+
+  void _exitSel() => setState(() {
+        _selMode = false;
+        _sel.clear();
+      });
+
+  /// 批量删除：确认弹层 → 逐篇删（分节随删）→ 刷新列表。
+  Future<void> _batchDelete() async {
+    final n = _sel.length;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (bc) => AlertDialog(
+        title: Text('删除选中的 $n 篇日记？'),
+        content: const Text('删除后不可恢复。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(bc).pop(false),
+              child: const Text('取消')),
+          TextButton(
+            key: const ValueKey('diary-del-batch-ok'),
+            onPressed: () => Navigator.of(bc).pop(true),
+            child:
+                const Text('删除', style: TextStyle(color: Color(0xFFF43F5E))),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    await ref.read(journalRepositoryProvider).removeAll(_sel);
+    if (!mounted) return;
+    _exitSel();
+    ref.invalidate(journalsProvider);
+    AppToast.show(context, '已删除 $n 篇日记');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final tokens = context.tokens;
     final entriesAsync = ref.watch(journalsProvider);
     final streak = ref.watch(journalStreakProvider).valueOrNull ?? 0;
@@ -239,7 +293,15 @@ class _DiaryTab extends ConsumerWidget {
     final monthEntries =
         entries.where((e) => e.day.year == now.year && e.day.month == now.month).toList();
 
-    return ListView(
+    return PopScope(
+      canPop: !_selMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exitSel(); // 轮13：多选态返回=先退出多选
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
         // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
@@ -399,7 +461,13 @@ class _DiaryTab extends ConsumerWidget {
         else if (insMode)
           for (final e in shown)
             InsDiaryCard(
-                entry: e, onOpen: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id)))
+                entry: e,
+                selected: _sel.contains(e.id),
+                onLongPress: () => _enterSel(e.id!),
+                onOpen: () => _selMode
+                    ? _toggleSel(e.id!)
+                    : context.push('/journal/edit',
+                        extra: DiaryEditArg(entryId: e.id)))
         else
           for (final e in shown)
             Padding(
@@ -408,10 +476,16 @@ class _DiaryTab extends ConsumerWidget {
                 context,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(tokens.cardRadius),
-                  onTap: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id)),
+                  onLongPress: () => _enterSel(e.id!),
+                  onTap: () => _selMode
+                      ? _toggleSel(e.id!)
+                      : context.push('/journal/edit',
+                          extra: DiaryEditArg(entryId: e.id)),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Column(
+                    child: Stack(
+                      children: [
+                        Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
@@ -456,6 +530,25 @@ class _DiaryTab extends ConsumerWidget {
                         // 轮12-11：关联信息=右下角小图标（保存时间左侧），点击展开
                         _DiaryMeta(entry: e),
                       ],
+                        ),
+                        // 轮13：多选态选中 ✓ 角标
+                        if (_sel.contains(e.id))
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              key: ValueKey('jsel-${e.id}'),
+                              width: 22,
+                              height: 22,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: tokens.accent),
+                              child: const Icon(Icons.check,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -487,6 +580,45 @@ class _DiaryTab extends ConsumerWidget {
           },
         ),
       ],
+            ),
+          ),
+          if (_selMode) _selBar(),
+        ],
+      ),
+    );
+  }
+
+  /// 轮13 · 批量选中底栏：已选 N 篇 + 删除（玫红线性图标）+ 关闭 ✕（与笔记同款简约图标）。
+  Widget _selBar() {
+    final tokens = context.tokens;
+    return Container(
+      key: const ValueKey('diary-sel-bar'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: tokens.card,
+        border: Border(top: BorderSide(color: tokens.cardBorder)),
+      ),
+      child: Row(
+        children: [
+          Text('已选 ${_sel.length} 篇',
+              key: const ValueKey('diary-sel-count'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          IconButton(
+            key: const ValueKey('diary-del-batch'),
+            tooltip: '删除',
+            onPressed: _batchDelete,
+            icon: const Icon(Icons.delete_outline,
+                size: 22, color: Color(0xFFF43F5E)),
+          ),
+          IconButton(
+            key: const ValueKey('diary-sel-exit'),
+            tooltip: '取消',
+            onPressed: _exitSel,
+            icon: const Icon(Icons.close, size: 20),
+          ),
+        ],
+      ),
     );
   }
 

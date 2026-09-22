@@ -436,6 +436,41 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     return null;
   }
 
+  /// 轮13：删除本篇（确认弹层；分节随删·图片文件保留应用目录）。
+  Future<void> _confirmDelete() async {
+    final id = _existing?.id;
+    if (id == null) return;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (bc) => AlertDialog(
+        title: const Text('删除这篇日记？'),
+        content: const Text('删除后不可恢复。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(bc).pop(false),
+              child: const Text('取消')),
+          TextButton(
+            key: const ValueKey('diary-del-ok'),
+            onPressed: () => Navigator.of(bc).pop(true),
+            child: const Text('删除',
+                style: TextStyle(color: Color(0xFFF43F5E))),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    _dirty = false;
+    await ref.read(journalRepositoryProvider).remove(id);
+    if (!mounted) return;
+    ref.invalidate(journalsProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+          content: Text('日记已删除'),
+          duration: Duration(milliseconds: 1400)));
+    Navigator.of(context).pop();
+  }
+
   bool get _isToday => JournalEntry.sameDay(_day, DateTime.now());
 
   /// 轮12-8：头部=居中「MM-DD 周几」；跨年历史篇补显年份。
@@ -658,6 +693,16 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         title: Text(_headerDate,
             key: const ValueKey('diary-head-date'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+        // 轮13：既有篇可删（确认弹层）；新篇未落库不显示
+        actions: [
+          if (_existing?.id != null)
+            IconButton(
+              key: const ValueKey('diary-del'),
+              tooltip: '删除本篇',
+              onPressed: _confirmDelete,
+              icon: const Icon(Icons.delete_outline, size: 22),
+            ),
+        ],
       ),
       body: Column(
         children: [

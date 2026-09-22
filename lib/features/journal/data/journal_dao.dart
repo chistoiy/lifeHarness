@@ -94,6 +94,13 @@ class JournalDao {
   Future<void> updateById(int id, Map<String, Object?> values) =>
       db.update(table, values, where: 'id = ?', whereArgs: [id]);
 
+  /// 轮13：删除某篇（分节随删·图片文件保留在应用目录，不级联清理）。
+  Future<void> remove(int id) async {
+    await db.delete(DbSchema.tJournalSections,
+        where: 'entry_id = ?', whereArgs: [id]);
+    await db.delete(table, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> setFlags(int id, {bool? starred, bool? liked}) => updateById(id, {
         if (starred != null) 'starred': starred ? 1 : 0,
         if (liked != null) 'liked': liked ? 1 : 0,

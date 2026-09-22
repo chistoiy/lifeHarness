@@ -235,7 +235,7 @@ tailwind.config = {
   @keyframes wReveal{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
   .wreveal{animation:wReveal .26s ease}
   /* ---- INS 风格卡片流 & 习惯 & 主题市场 ---- */
-  .ins-card{background:var(--card);border-radius:22px;overflow:hidden;margin-bottom:18px;color:var(--ink);box-shadow:0 4px 24px rgba(15,23,42,.12)}
+  .ins-card{position:relative;background:var(--card);border-radius:22px;overflow:hidden;margin-bottom:18px;color:var(--ink);box-shadow:0 4px 24px rgba(15,23,42,.12)}
   .ins-hd{display:flex;align-items:center;gap:9px;padding:11px 14px}
   .ins-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
   .ins-imgs{display:grid;grid-template-columns:1fr 1fr;gap:2px}
@@ -581,11 +581,13 @@ tailwind.config = {
 
     <!-- ===== P4a 日记编辑页（轮12：全屏沉浸自带返回头·去模式切换/媒体三格/hint/顶栏搜索） ===== -->
     <section id="p-diaryEdit" class="page px-5 safe-pb no-scrollbar">
-      <!-- 轮12-8：头部=仅返回钮+居中日期(跨年显年月日)周几，无标题 -->
+      <!-- 轮12-8：头部=仅返回钮+居中日期(跨年显年月日)周几，无标题；轮13：右侧删除本篇 -->
       <div class="sticky top-0 z-20 -mx-5 px-2 pt-1 pb-1 flex items-center bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur">
         <button onclick="goBack()" class="pw-ic-btn text-xl">‹</button>
         <div class="flex-1 text-center text-[14px] font-extrabold tracking-tight">09-19 周六</div>
-        <span class="w-10"></span>
+        <button onclick="dlDeleteCur()" class="pw-ic-btn text-slate-400" title="删除本篇">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
+        </button>
       </div>
       <div class="mt-1 flex gap-2" id="editMood"></div>
       <div id="diaryBody"></div>
@@ -1548,6 +1550,14 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
+  <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->
+  <div id="diarySelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
+    <span id="diarySelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 篇</span>
+    <button onclick="dlBatchDel()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
+      <span>删除</span></button>
+    <button onclick="dlExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
+  </div>
   <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
@@ -2294,7 +2304,8 @@ function setPage(p){
   $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
   $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
   hideRecSwitchMenu(); renderRecSwitch();
-  if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}}
+  if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}
+    const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
@@ -2303,6 +2314,7 @@ function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
 function goBack(){
   if(curPage==='p-records'&&noteSelMode){noteExitSel();return;} /* 轮9：多选态返回=退出多选 */
+  if(curPage==='p-records'&&dlSelMode){dlExitSel();return;} /* 轮13：日记多选态返回=退出多选 */
   if(stack.length){ setPage(stack.pop()); return; }
   if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
   if(dashEditing){ dashToggle(); return; }
@@ -2941,6 +2953,7 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
 const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
 function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
   if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
+  if(k!=='diary'&&dlSelMode){dlSelMode=false;dlSel.clear();const _d=$('#diarySelBar');if(_d){_d.classList.add('hidden');_d.classList.remove('flex');}} /* 轮13：离开日记段静默退出批量 */
   [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
   const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
   syncDiaryFilterBtn();
@@ -3802,7 +3815,8 @@ function psRollback(){const p=PS.find(x=>x.id===psSel);toast('↩ 已回滚 '+p.
 let dlLayout='list';
 const DI_LIKE=D.diary.map((d,i)=>({like:false,star:false,n:[42,28,17][i%3]||i*7+13}));
 function insCardHtml(i){const d=D.diary[i],lk=DI_LIKE[i];
- return `<div class="ins-card">
+ return `<div class="ins-card ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlInsTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
+ ${dlSelMode?`<span class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${dlSel.has(i)?'bg-brand-500 text-white':'border border-slate-300 text-transparent'}">✓</span>`:''}
  <div class="ins-hd"><span class="ins-av">C</span><div class="flex-1"><b class="text-xs">CHIST · 09-${d.d.split('-')[1]}</b><div class="text-[10px] text-slate-400">${d.wd} · ${d.wx} · 心情 ${d.emo} ${d.m}</div></div><button class="text-slate-400 px-1" onclick="toast('分享日记卡片（保存为图片·模拟）')">⤴</button><button class="text-slate-400" onclick="toast('更多操作（模拟）')">⋯</button></div>
  ${d.img?`<div class="ins-imgs">${Array.from({length:Math.min(4,d.img)},(_,k)=>`<span class="ins-img bg-gradient-to-br ${DI_IMG[k%3]}" onclick="insImgView(${i},${k})">${['🌇','🍰','🏃','📖'][k%4]}</span>`).join('')}</div>`:''}
  <div class="px-4 py-2 text-[13px] leading-7">${d.txt}</div>
@@ -3816,6 +3830,23 @@ function insRefToggle(i){const r=$('#insRef'+i);if(r)r.classList.toggle('hidden'
 function dlRefToggle(i){const r=$('#dlRef'+i);if(r)r.classList.toggle('hidden')}
 /* 大图查看：INS/列表缩略点图 → 与笔记同款全屏黑底 lightbox（再点任意处关） */
 function insImgView(i,k){pwImgView()}
+/* ===== V1.29轮13：日记删除 + 长按批量选中（与笔记 noteSel 同款范式） ===== */
+let dlSelMode=false,dlSel=new Set();
+function dlEnterSel(i){if(!dlSelMode){dlSelMode=true;dlSel=new Set();}
+  if(!dlSel.has(i))dlSel.add(i);updateDiarySelBar();renderDiaryList();}
+function dlRowTap(i){if(dlSelMode){dlToggle(i);return}navTo('p-diaryEdit')}
+function dlInsTap(i){if(dlSelMode)dlToggle(i)}
+function dlToggle(i){if(dlSel.has(i))dlSel.delete(i);else dlSel.add(i);
+  if(!dlSel.size){dlExitSel();return;}updateDiarySelBar();renderDiaryList();}
+function updateDiarySelBar(){const b=$('#diarySelBar');if(!b)return;
+  if(!dlSelMode||!dlSel.size){dlExitSel();return;}
+  $('#diarySelLbl').textContent='已选 '+dlSel.size+' 篇';
+  b.classList.remove('hidden');b.classList.add('flex');}
+function dlExitSel(){dlSelMode=false;dlSel.clear();const b=$('#diarySelBar');
+  if(b){b.classList.add('hidden');b.classList.remove('flex');}renderDiaryList();}
+function dlBatchDel(){const n=dlSel.size;[...dlSel].sort((a,b)=>b-a).forEach(i=>D.diary.splice(i,1));
+  dlExitSel();toast(`已删除 ${n} 篇日记`);}
+function dlDeleteCur(){toast('已删除本篇日记');stack.length?goBack():navTab('p-records');}
 function diaryReact(i,k){DI_LIKE[i][k]=!DI_LIKE[i][k];if(dlLayout==='ins')renderInsInto('#diaryList',false);toast(k==='like'?(DI_LIKE[i].like?'已收藏这页人生':'取消收藏'):(DI_LIKE[i].star?'已加亮':'取消加亮'))}
 function renderInsInto(sel,tip){$(sel).innerHTML=D.diary.map((d,i)=>insCardHtml(i)).join('')+(tip?'<div class="text-center text-[10px] text-slate-400 pb-4">📱 INS 卡片流</div>':'')}
 /* 轮12-4：编辑页不再有 文档/INS 模式切换（INS 浏览仅记录页保留·dlLayout 管列表⇄INS） */
@@ -3868,7 +3899,7 @@ function syncDiaryFilterBtn(){const b=$('#diaryFilterBtn');if(!b)return;
   b.classList.toggle('text-brand-500',diaryFilter!=='全部');b.classList.toggle('text-slate-500',diaryFilter==='全部');}
 function renderDiaryList(){const el=$('#diaryList');if(!el)return;
  if(dlLayout==='ins'){renderInsInto('#diaryList',false);return}
- el.innerHTML=D.diary.map((d,i)=>`<div class="card mb-3" onclick="navTo('p-diaryEdit')">
+ el.innerHTML=D.diary.map((d,i)=>`<div class="card mb-3 ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlRowTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
     <div class="flex items-center gap-2"><b class="text-sm">${d.d}</b><span class="text-[10px] text-slate-400">${d.wd} · ${d.wx}</span>
       <span class="ml-auto flex items-center gap-1"><span class="text-lg">${d.emo}</span><span class="text-[10px] text-slate-400">${d.m}</span></span></div>
     <div class="text-sm leading-6 mt-1.5 text-slate-600 dark:text-slate-300">${d.txt}</div>

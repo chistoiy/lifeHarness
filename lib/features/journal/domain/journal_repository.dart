@@ -25,6 +25,15 @@ class JournalRepository {
     return e == null ? null : dao.hydrate(e);
   }
 
+  /// 轮13：删除单篇 / 批量删除（编辑页与记录页长按多选共用）。
+  Future<void> remove(int id) => dao.remove(id);
+
+  Future<void> removeAll(Iterable<int> ids) async {
+    for (final id in ids) {
+      await dao.remove(id);
+    }
+  }
+
   Future<List<JournalEntry>> month(DateTime any) => dao.range(
         DateTime(any.year, any.month),
         DateTime(any.year, any.month + 1),

@@ -747,6 +747,95 @@ void main() {
       expect(find.textContaining('本页关联 · ☑ 1 个待办同步'), findsOneWidget);
     });
   });
+
+  group('V1.29轮13 · 日记删除 + 长按批量选中', () {
+    testWidgets('13-1 编辑页删除钮=确认弹层→落库删除→返回；新篇不显示钮',
+        (tester) async {
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '要删掉的一篇',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+
+      // 新建篇（未落库）无删除钮
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey())));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('diary-del')), findsNothing);
+
+      await tester.pumpWidget(
+          scope(DiaryEditPage(key: UniqueKey(), entryId: e.id)));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('diary-del')));
+      await settle5(tester);
+      expect(find.text('删除这篇日记？'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('diary-del-ok')));
+      await tester.pumpAndSettle();
+      expect(await jrepo.open(e.id!), isNull);
+      expect(await jrepo.list(), isEmpty);
+    });
+
+    testWidgets('13-2 列表长按→已选底栏→多选→批量删除确认落库', (tester) async {
+      final e1 = await jrepo.save(JournalEntry(
+          day: DateTime.now().subtract(const Duration(days: 1)),
+          content: '旧的一天',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      final e2 = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '今天的一篇',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+
+      expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
+      await tester.longPress(find.textContaining('旧的一天'));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('diary-sel-bar')), findsOneWidget);
+      expect(find.text('已选 1 篇'), findsOneWidget);
+      expect(find.byKey(ValueKey('jsel-${e1.id}')), findsOneWidget);
+
+      await tester.tap(find.textContaining('今天的一篇'));
+      await settle5(tester);
+      expect(find.text('已选 2 篇'), findsOneWidget);
+      expect(find.byKey(ValueKey('jsel-${e2.id}')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('diary-del-batch')));
+      await settle5(tester);
+      expect(find.text('删除选中的 2 篇日记？'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('diary-del-batch-ok')));
+      await tester.pumpAndSettle();
+      expect(await jrepo.open(e1.id!), isNull);
+      expect(await jrepo.open(e2.id!), isNull);
+      expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
+    });
+
+    testWidgets('13-3 INS 卡长按进多选·点卡切换勾选·✕退出', (tester) async {
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: 'INS 长按测试',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('diary-view')));
+      await settle5(tester);
+
+      await tester.longPress(find.text('CHIST · ${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}'));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('diary-sel-bar')), findsOneWidget);
+      expect(find.byKey(ValueKey('insel-${e.id}')), findsOneWidget);
+
+      // 取消勾选→空集自动退出多选
+      await tester.tap(find.byKey(ValueKey('insel-${e.id}')),
+          warnIfMissed: false);
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
+    });
+  });
 }
 
 String _two(int v) => v.toString().padLeft(2, '0');
