@@ -142,7 +142,7 @@ class ReadWorkbench extends ConsumerWidget {
                     'read-nav-quotes',
                     BsIcons.quote,
                     '笔记库',
-                    () => _soon(context, '笔记库'),
+                    () => context.push('/read/quotes'),
                   ),
                   _navBtn(
                     context,
@@ -213,7 +213,7 @@ class ReadWorkbench extends ConsumerWidget {
         const SizedBox(height: 12),
         _quotesCard(context, ref, data.quotes, data.books),
         const SizedBox(height: 12),
-        _reviewCard(context, ref, data.quotes.length),
+        _reviewCard(context, ref, data.quotesTotal, data.dueReviews),
       ],
     );
   }
@@ -341,7 +341,7 @@ class ReadWorkbench extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: GestureDetector(
-                onTap: () => readToast(context, '笔记库 · 即将开放'),
+                onTap: () => context.push('/read/quotes'),
                 child: Text(
                   '去笔记库',
                   style: TextStyle(
@@ -357,7 +357,7 @@ class ReadWorkbench extends ConsumerWidget {
     );
   }
 
-  Widget _reviewCard(BuildContext context, WidgetRef ref, int count) {
+  Widget _reviewCard(BuildContext context, WidgetRef ref, int total, int due) {
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       key: const ValueKey('read-review'),
@@ -396,7 +396,7 @@ class ReadWorkbench extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '共 $count 条 · 按遗忘曲线安排',
+                    '共 $total 条 · 今日到期 $due 条',
                     style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
                   ),
                 ],

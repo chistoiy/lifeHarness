@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -16,6 +17,7 @@ import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
 
 part 'read_sheets_b2.dart';
+part 'read_sheets_b3.dart';
 
 /// 阅读模块弹层集合（M1批3 · 原型 sheet* 系列）。
 /// 批1 落：新书 / 唯一摘录表单（最小字段版，批3 补章节/创建时间/标签/识图）/
@@ -173,118 +175,13 @@ Future<void> showAddBookSheet(
 }) => showBookFormSheet(context, ref, defaultState: defaultState);
 
 /// 唯一一张摘录录入表单（FAB 与详情页共用 · §3.3；默认书=在读最近那本）。
+/// 批3 起为完整字段版（书/章节/页码/创建时间/原文/想法/识图·加图·剪贴板/
+/// 颜色分类/标签多选），与「编辑笔记」共用同一张（read_sheets_b3.dart）。
 Future<void> showQuoteSheet(
   BuildContext context,
   WidgetRef ref, {
   String? bookId,
-}) {
-  final body = TextEditingController();
-  final thought = TextEditingController();
-  return _sheet<void>(
-    context,
-    Consumer(
-      builder: (sheetCtx, ref, _) {
-        final cs = Theme.of(sheetCtx).colorScheme;
-        final books = (ref.watch(booksProvider).valueOrNull ?? const <Book>[])
-            .where((b) => !b.isDeleted)
-            .toList();
-        final target = bookId != null
-            ? books.where((b) => b.id == bookId).toList()
-            : ShelfSort.byLastRead(
-                books.where((b) => b.state == Book.kStateReading).toList(),
-              );
-        var picked = (target.isEmpty ? books : target).firstOrNull?.id ?? '';
-        var tag = BookQuote.kTagReso;
-        if (picked.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const _SheetTitle('新增摘录'),
-                Text(
-                  '书架上还没有书 · 先添加一本',
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(sheetCtx).pop();
-                    showAddBookSheet(context, ref);
-                  },
-                  child: const Text('添加一本'),
-                ),
-              ],
-            ),
-          );
-        }
-        return StatefulBuilder(
-          builder: (_, setSt) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SheetTitle(
-                '新增摘录 · 《${books.firstWhere((b) => b.id == picked).title}》',
-                onSave: () async {
-                  if (body.text.trim().isEmpty && thought.text.trim().isEmpty) {
-                    readToast(sheetCtx, '原文与想法至少填一项');
-                    return;
-                  }
-                  final kind = body.text.trim().isEmpty
-                      ? BookQuote.kKindThought
-                      : BookQuote.kKindMark;
-                  await ref
-                      .read(readRepositoryProvider)
-                      .addQuote(
-                        BookQuote(
-                          bookId: picked,
-                          kind: kind,
-                          tag: tag,
-                          body: body.text.trim(),
-                          thought: thought.text.trim().isEmpty
-                              ? null
-                              : thought.text.trim(),
-                          createdAt: 0,
-                          updatedAt: 0,
-                        ),
-                      );
-                  ref.read(readTickProvider.notifier).state++;
-                  if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                  if (context.mounted) readToast(context, '已记录这条摘录');
-                },
-              ),
-              const SizedBox(height: 2),
-              _Chips(
-                items: books.map((b) => b.title).toList(),
-                selected: {books.firstWhere((b) => b.id == picked).title},
-                onPick: (t) => setSt(
-                  () => picked = books.firstWhere((b) => b.title == t).id,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _field(body, '原文', lines: 3, keyName: 'qsf-body'),
-              const SizedBox(height: 10),
-              _field(thought, '想法', lines: 2, keyName: 'qsf-thought'),
-              const SizedBox(height: 12),
-              Text(
-                '划线分类',
-                style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: 6),
-              _Chips(
-                items: BookQuote.colorTags,
-                selected: {tag},
-                keys: BookQuote.colorTags,
-                onPick: (v) => setSt(() => tag = v),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-}
+}) => showQuoteEditSheet(context, ref, bookId: bookId);
 
 /// 分区循环：在读→想读→已读→弃读（LH-K17 角标点按 · §3.3）。
 String nextState(String state) => switch (state) {
@@ -484,88 +381,6 @@ Future<void> showGoalSheet(BuildContext context, WidgetRef ref) {
               const SizedBox(height: 8),
             ],
           ),
-        );
-      },
-    ),
-  );
-}
-
-/// 摘录复习（qtReview 批1 简版：随机一条翻看；批3 接艾宾浩斯档位与想法翻面）。
-Future<void> showReviewSheet(BuildContext context, WidgetRef ref) {
-  return _sheet<void>(
-    context,
-    Consumer(
-      builder: (sheetCtx, ref, _) {
-        final quotes =
-            (ref.watch(allQuotesProvider).valueOrNull ?? const <BookQuote>[])
-                .where((q) => q.body.isNotEmpty)
-                .toList();
-        final books = ref.watch(booksProvider).valueOrNull ?? const <Book>[];
-        final cs = Theme.of(sheetCtx).colorScheme;
-        if (quotes.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 28),
-            child: Text(
-              '还没有可复习的摘录',
-              style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant),
-            ),
-          );
-        }
-        return StatefulBuilder(
-          builder: (_, setSt) {
-            final q = quotes[Random().nextInt(quotes.length)];
-            final bk = books.where((b) => b.id == q.bookId).firstOrNull;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _SheetTitle('摘录复习'),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(sheetCtx).colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Theme.of(
-                        sheetCtx,
-                      ).colorScheme.outlineVariant.withValues(alpha: .4),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        q.body,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (bk != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            '— ${bk.title}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  key: const ValueKey('rev-next'),
-                  onPressed: () => setSt(() {}),
-                  child: const Text('换一条'),
-                ),
-                const SizedBox(height: 14),
-              ],
-            );
-          },
         );
       },
     ),

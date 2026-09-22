@@ -598,71 +598,90 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     ),
   );
 
-  Widget _quoteCard(ColorScheme cs, BookQuote q) => Container(
-    margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-    decoration: BoxDecoration(
-      color: cs.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 3.5,
-          height: q.body.length > 40 ? 60 : 34,
-          decoration: BoxDecoration(
-            color: Color(0xFF000000 | q.colorInt),
-            borderRadius: BorderRadius.circular(2),
+  Widget _quoteCard(ColorScheme cs, BookQuote q) => GestureDetector(
+    key: ValueKey('bd-q-${q.id}'),
+    behavior: HitTestBehavior.opaque,
+    // §3.4：摘录卡 → 摘录操作弹层（收藏/编辑/转日记/转待办/转笔记/复制/删除）。
+    onTap: () => showQuoteOpsSheet(context, ref, q),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 3.5,
+            height: q.body.length > 40 ? 60 : 34,
+            decoration: BoxDecoration(
+              color: Color(0xFF000000 | q.colorInt),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.55,
-                  color: cs.onSurface,
-                ),
-              ),
-              if (q.thought != null && q.thought!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Text(
-                    q.thought!,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      height: 1.5,
-                      fontStyle: FontStyle.italic,
-                      color: cs.onSurfaceVariant,
-                    ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.55,
+                    color: cs.onSurface,
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(top: 5),
-                child: () {
-                  final d = DateTime.fromMillisecondsSinceEpoch(q.createdAt);
-                  return Text(
-                    [
-                      if ((q.chapter ?? '').isNotEmpty) q.chapter!,
-                      if (q.page != null) '${q.page} 页',
-                      '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-                    ].join(' · '),
-                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
-                  );
-                }(),
-              ),
-            ],
+                if (q.thought != null && q.thought!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Text(
+                      q.thought!,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.5,
+                        fontStyle: FontStyle.italic,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Row(
+                    children: [
+                      Expanded(child: _qMeta(cs, q)),
+                      // 只在已收藏时显示小星（§3.3 卡片平铺动作清空）。
+                      if (q.starred)
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Color(0xFFF59E0B),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
+
+  Widget _qMeta(ColorScheme cs, BookQuote q) {
+    final d = DateTime.fromMillisecondsSinceEpoch(q.createdAt);
+    return Text(
+      [
+        if ((q.chapter ?? '').isNotEmpty) q.chapter!,
+        if (q.page != null) '${q.page} 页',
+        '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+      ].join(' · '),
+      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+    );
+  }
 
   List<Book> _relOf(Book b, List<Book> all) => all
       .where(

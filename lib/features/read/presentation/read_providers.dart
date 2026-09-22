@@ -105,6 +105,8 @@ class WorkbenchData {
     required this.goalWeek,
     required this.goalBooks,
     required this.quotes,
+    required this.quotesTotal,
+    required this.dueReviews,
     required this.running,
     required this.agg,
   });
@@ -117,6 +119,10 @@ class WorkbenchData {
   final int goalWeek;
   final int goalBooks;
   final List<BookQuote> quotes;
+
+  /// 摘录总数 / 今日到期复习数（复习卡副标题 · §3.4）。
+  final int quotesTotal;
+  final int dueReviews;
   final BookSession? running;
 
   /// book_id → (累计分钟, 次数)
@@ -192,6 +198,8 @@ final workbenchProvider = FutureProvider<WorkbenchData>((ref) async {
     goalWeek: await repo.kvInt('read.goalWeekMin', 210),
     goalBooks: await repo.kvInt('read.goalBooks', 50),
     quotes: quotes,
+    quotesTotal: await repo.quoteCount(),
+    dueReviews: await repo.dueReviewCount(),
     running: running,
     agg: sessionAggByBook(await repo.allSessions()),
   );

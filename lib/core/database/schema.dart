@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 13;
+  static const int version = 14;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -44,6 +44,8 @@ class DbSchema {
   static const String tBookDict = 'book_dict';
   // v13 内置分类种子：阅读（L4 账本计时会话入账分类·计划 §7）
   static const int catReadingId = 22;
+  // v14（M1批3·批3）：摘录复习档位（艾宾浩斯 1/3/7/30 天·独立表防直升撞列）
+  static const String tBookReviews = 'book_reviews';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -296,6 +298,7 @@ class DbSchema {
     ...categorySeed,
     ...bookSchemaStatements,
     ...bookTocSchemaStatements,
+    ...bookReviewSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -473,6 +476,11 @@ class DbSchema {
       "INSERT OR IGNORE INTO $tCategories(id,parent_id,name,color,tag,sort) VALUES"
           "(22,NULL,'阅读','#0EA5E9',NULL,11)",
     ],
+    // v14（M1批3·批3）：摘录复习档位表（艾宾浩斯 1/3/7 天·计划 §4 批3）。
+    // 用独立表而非 ALTER book_quotes：v11→v14 直升时「建库同文段+迁移段」会撞重复列。
+    13: [
+      ...bookReviewSchemaStatements,
+    ],
   };
 
   /// v12 阅读三表 DDL（建库与迁移共用，保两处永远同文）。
@@ -567,6 +575,17 @@ class DbSchema {
     'CREATE INDEX IF NOT EXISTS idx_bq_tag ON $tBookQuotes(tag)',
     'CREATE INDEX IF NOT EXISTS idx_bq_created ON $tBookQuotes(created_at)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash)',
+  ];
+
+  /// v14 复习档位表 DDL（建库与迁移共用·幂等）。
+  static const List<String> bookReviewSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookReviews (
+      quote_id INTEGER PRIMARY KEY,
+      stage INTEGER NOT NULL DEFAULT 0,
+      next_at INTEGER
+    )
+    ''',
   ];
 
   /// v13 目录与字典 DDL（建库与迁移共用，保两处永远同文）。

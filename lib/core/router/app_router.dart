@@ -21,6 +21,7 @@ import '../../features/journal/presentation/journal_providers.dart'
 import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
+import '../../features/read/presentation/quotes_lib_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
@@ -108,6 +109,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/timer/:id',
         builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!),
+      ),
+      // M1批3·批3 笔记库（原型 p-quotes · 跨书摘录四视图，extra=入口书 id）。
+      GoRoute(
+        path: '/read/quotes',
+        builder: (_, s) => QuotesLibPage(bookId: s.extra as String?),
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(

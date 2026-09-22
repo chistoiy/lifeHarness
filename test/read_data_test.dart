@@ -578,4 +578,155 @@ void main() {
       expect((await repo.allQuotes()), isEmpty);
     });
   });
+
+  group('批3-3 · v14 摘录全量与复习分流', () {
+    late Database db;
+    late ReadRepository repo;
+    final t0 = DateTime(2026, 9, 23).millisecondsSinceEpoch;
+    const day = 24 * 60 * 60 * 1000;
+
+    setUp(() async {
+      db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      repo = ReadRepository(db);
+    });
+    tearDown(() => db.close());
+
+    Future<Book> seedBook([String t = '书A']) =>
+        repo.addBook(Book(title: t, createdAt: t0, updatedAt: t0));
+
+    BookQuote q(String body, String bookId,
+            {String? chap,
+            int? page,
+            String? thought,
+            List<String> tags = const [],
+            int? created}) =>
+        BookQuote(
+            bookId: bookId,
+            kind: BookQuote.kKindMark,
+            body: body,
+            thought: thought,
+            chapter: chap,
+            page: page,
+            tags: tags,
+            createdAt: created ?? t0,
+            updatedAt: t0);
+
+    test('4-0 migrations[13] 幂等 · v11→v14 直升不撞列', () async {
+      for (var i = 0; i < 2; i++) {
+        for (final sql in DbSchema.migrations[13]!) {
+          await db.execute(sql);
+        }
+      }
+      expect(await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='book_reviews'"), isNotEmpty);
+      // 模拟 v11 老库直升 v14：三段迁移顺序重放各自幂等
+      final db2 = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (var v = 11; v <= 13; v++) {
+        for (final sql in DbSchema.migrations[v]!) {
+          await db2.execute(sql);
+        }
+      }
+      final cols = (await db2.rawQuery('PRAGMA table_info(book_quotes)'))
+          .map((c) => c['name'] as String)
+          .toList();
+      expect(cols, containsAll(['tags', 'created_at', 'dedup_hash']));
+      await db2.close();
+    });
+
+    test('4-1 addQuote：查重跳过 · 标签自动登记 · 复习档位次日到期', () async {
+      final b = await seedBook();
+      final id = await repo.addQuote(q('同一句话', b.id, chap: '第一章', page: 10, tags: ['心理学']));
+      expect(id, isNotNull);
+      expect(await repo.addQuote(q('同一句话', b.id, chap: '第一章', page: 10)), isNull);
+      expect(await repo.allQuotes(), hasLength(1));
+      // 归一化后同键（空白差异仍算重复）
+      expect(await repo.addQuote(q('同一句话 ', b.id, chap: '第一章', page: 10)), isNull);
+      expect((await repo.dictOf('tag')).map((e) => e.name), contains('心理学'));
+      final r = await repo.reviewOf(id!);
+      expect(r!.stage, 0);
+      expect(r.nextAt, t0 + day);
+      expect(await repo.quoteCount(), 1);
+      expect(await repo.quoteTags(), contains('心理学'));
+    });
+
+    test('4-2 updateQuote：改写生效 · 撞他行返回 false · 创建时间可改', () async {
+      final b = await seedBook();
+      final id1 = (await repo.addQuote(q('甲句', b.id)))!;
+      await repo.addQuote(q('乙句', b.id));
+      var row = await repo.quoteById(id1);
+      final moved = t0 - 5 * day;
+      await repo.updateQuote(row!.copyWith(
+          body: '甲句改', thought: '新想法', createdAt: moved, tags: ['随笔']));
+      row = await repo.quoteById(id1);
+      expect(row!.body, '甲句改');
+      expect(row.thought, '新想法');
+      expect(row.createdAt, moved);
+      expect(row.tags, ['随笔']);
+      expect(await repo.updateQuote(row.copyWith(body: '乙句')), isFalse);
+      expect((await repo.quoteById(id1))!.body, '甲句改');
+    });
+
+    test('4-3 复习档位：记得逐级 1/3/7 → 已掌握 · 忘了回一档 · 模糊档不动', () async {
+      final b = await seedBook();
+      final id = (await repo.addQuote(q('待复习', b.id, created: t0 - day)))!;
+      expect(await repo.dueReviewCount(t0), 1);
+      expect(await repo.dueReviews(nowMs: t0), hasLength(1));
+      await repo.bumpReview(id, t0); // 1 天档 → 下一档 3 天
+      var r = await repo.reviewOf(id);
+      expect((r!.stage, r.nextAt), (1, t0 + 3 * day));
+      await repo.bumpReview(id, t0); // → 7 天
+      r = await repo.reviewOf(id);
+      expect((r!.stage, r.nextAt), (2, t0 + 7 * day));
+      await repo.bumpReview(id, t0); // 7 天走完 → 已掌握
+      r = await repo.reviewOf(id);
+      expect((r!.stage, r.nextAt), (3, null));
+      expect(await repo.dueReviewCount(t0), 0);
+      await repo.holdReview(id, 3, t0); // 模糊：档位不动
+      r = await repo.reviewOf(id);
+      expect((r!.stage, r.nextAt), (3, t0 + 3 * day));
+      await repo.resetReview(id, t0); // 忘了：回第一档
+      r = await repo.reviewOf(id);
+      expect((r!.stage, r.nextAt), (0, t0 + day));
+      // 无档位行的存量摘录（批1/2）兜底进到期队列
+      await db.delete('book_reviews', where: 'quote_id = ?', whereArgs: [id]);
+      expect(await repo.dueReviews(nowMs: t0), hasLength(1));
+    });
+
+    test('4-4 收藏与软删：软删后计数/队列/档位同退', () async {
+      final b = await seedBook();
+      final id = (await repo.addQuote(q('星句', b.id)))!;
+      await repo.setQuoteStarred(id, true);
+      expect((await repo.quoteById(id))!.starred, isTrue);
+      await repo.softDeleteQuote(id);
+      expect(await repo.allQuotes(), isEmpty);
+      expect(await repo.quoteCount(), 0);
+      expect(await db.query('book_reviews', where: 'quote_id = ?', whereArgs: [id]), isEmpty);
+    });
+
+    test('4-5 L5 分流：→日记今日行 · →待办无截止非紧急 · →笔记 MD', () async {
+      final b = await seedBook('万历十五年');
+      final row = q('当一个社会以道德代替技术', b.id, chap: '第二章', page: 88, thought: '细节无人负责');
+      final id = (await repo.addQuote(row))!;
+      final saved = (await repo.quoteById(id))!;
+      await repo.quoteToDiary(saved, b);
+      final d = DateTime.now();
+      final j = await db.query('journal_entries');
+      expect(j, hasLength(1));
+      expect(j.single['entry_date'], DateTime(d.year, d.month, d.day).millisecondsSinceEpoch);
+      expect(j.single['content'], contains('万历十五年'));
+      await repo.quoteToTodo(saved, b);
+      final t = (await db.query('todos')).single;
+      expect(t['quadrant'], 2);
+      expect(t['due_at'], isNull);
+      expect(t['note'], contains('书摘'));
+      await repo.quoteToNote(saved, b);
+      final n = (await db.query('notes')).single;
+      expect(n['kind'], 'md');
+      expect(n['title'], contains('万历十五年'));
+      expect(n['content'], startsWith('> '));
+    });
+  });
 }

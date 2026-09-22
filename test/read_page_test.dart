@@ -8,7 +8,9 @@ import 'helpers.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/presentation/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
@@ -72,6 +74,9 @@ void main() {
       GoRoute(
           path: '/read/timer/:id',
           builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!)),
+      GoRoute(
+          path: '/read/quotes',
+          builder: (_, s) => QuotesLibPage(bookId: s.extra as String?)),
     ]);
     return ProviderScope(
       overrides: [readRepositoryProvider.overrideWithValue(repo)],
@@ -248,10 +253,10 @@ void main() {
       await settle(tester);
       expect(find.textContaining('新增摘录 · 《书A》'), findsOneWidget);
       await tester.enterText(
-          find.byKey(const ValueKey('qsf-body')), '系统1慢，需要刻意练习');
+          find.byKey(const ValueKey('qef-body')), '系统1慢，需要刻意练习');
       await settle(tester);
-      // 保存按钮在弹层标题行
-      await tester.tap(find.text('保存'));
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
       await settle(tester);
       expect(find.text('已记录这条摘录'), findsOneWidget);
       await clearToasts(tester);
@@ -398,6 +403,181 @@ void main() {
       final nb = (await repo.allBooks()).firstWhere((x) => x.id == 'a');
       expect(nb.sumQuote, '金句一');
       await clearToasts(tester);
+    });
+  });
+
+  group('批3-5 摘录与笔记库', () {
+    int countByPrefix(WidgetTester tester, String prefix) =>
+        find
+            .byWidgetPredicate((w) =>
+                w.key is ValueKey<String> &&
+                (w.key as ValueKey<String>).value.startsWith(prefix))
+            .evaluate()
+            .length;
+
+    Future<void> seedQuotes() async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, rp: 40, last: ms(0)));
+      await repo.addBook(bk('qb', '书乙', Book.kStateWant, last: ms(5)));
+      for (var i = 0; i < 18; i++) {
+        await repo.addQuote(BookQuote(
+          bookId: i.isEven ? 'qa' : 'qb',
+          kind: BookQuote.kKindMark,
+          body: '摘录句子$i',
+          tag: i % 3 == 0 ? '重点' : '共鸣',
+          chapter: i % 2 == 0 ? '第一章' : null,
+          starred: i < 3,
+          createdAt: ms(i),
+          updatedAt: ms(i),
+        ));
+      }
+    }
+
+    testWidgets('R-13 笔记库：18 条四视图计数一致 · 标星/搜索筛选', (tester) async {
+      await seedQuotes();
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-view')));
+      // 三统计：15 划线 · 3 感想？全部为划线 → 摘录 18 感想 0 覆盖 2
+      expect(find.text('摘录'), findsOneWidget);
+      expect(find.text('感想'), findsOneWidget);
+      expect(find.text('覆盖'), findsOneWidget);
+      expect(countByPrefix(tester, 'ql-q-'), 18, reason: '卡片视图');
+      // 循环 行 → 按章节 → 图片墙，四视图计数一致
+      await tester.tap(find.byKey(const ValueKey('ql-view')));
+      await settle(tester);
+      expect(countByPrefix(tester, 'qlr-'), 18, reason: '行视图');
+      await tester.tap(find.byKey(const ValueKey('ql-view')));
+      await settle(tester);
+      expect(countByPrefix(tester, 'ql-q-'), 18, reason: '按章节分组内仍是卡');
+      expect(countByPrefix(tester, 'qlg-'), 2, reason: '甲·第一章 / 乙·未分章');
+      await tester.tap(find.byKey(const ValueKey('ql-view')));
+      await settle(tester);
+      expect(countByPrefix(tester, 'qli-'), 18, reason: '图片墙（无图回退全量）');
+      // 标星范围筛选
+      await tester.tap(find.byKey(const ValueKey('ql-view'))); // img → card
+      await settle(tester);
+      await tester.tap(find.text('标星'));
+      await settle(tester);
+      expect(countByPrefix(tester, 'ql-q-'), 3);
+      // 搜索
+      await tester.tap(find.text('全部书'));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('ql-kw')), '句子1');
+      await settle(tester);
+      expect(countByPrefix(tester, 'ql-q-'), 9); // 句子1 + 句子10..17
+    });
+
+    testWidgets('R-14 摘录表单：标签/查重提示/OCR 降级/→日记 →待办 落库',
+        (tester) async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, rp: 40, last: ms(0)));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-add')));
+
+      // 新建一条：原文 + 颜色分类 + 新标签
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      expect(find.textContaining('新增摘录 · 《书甲》'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '标签链路句');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-tag-重点')));
+      await tester.tap(find.byKey(const ValueKey('qef-tag-重点')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-tag-new')));
+      await tester.enterText(find.byKey(const ValueKey('qef-tag-new')), '方法论');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-tag-add')));
+      await tester.tap(find.byKey(const ValueKey('qef-tag-add')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
+      await settle(tester);
+      await clearToasts(tester);
+      final saved = (await repo.allQuotes()).single;
+      expect(saved.tag, '重点');
+      expect(saved.tags, ['方法论']);
+      expect((await repo.quoteTags()), contains('方法论'));
+
+      // 重复内容：查重提示、不阻塞、不重复入账
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '标签链路句');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
+      await settle(tester);
+      expect(find.text('这条摘录已存在 · 未重复入账'), findsOneWidget);
+      // 识图降级：仅提示，弹层不关不崩
+      await tester.tap(find.byKey(const ValueKey('qef-ocr')));
+      await settle(tester);
+      expect(find.text('未接入识图引擎 · 请用「读剪贴板」或手动粘贴'), findsOneWidget);
+      await clearToasts(tester);
+
+      // 表单底部快捷分流：改内容后 → 插今日日记 / 生成待办
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '分流句甲');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-diary')));
+      await tester.tap(find.byKey(const ValueKey('qef-diary')));
+      await settle(tester);
+      await clearToasts(tester);
+      final j = await db.query('journal_entries');
+      expect(j, hasLength(1));
+      expect(j.single['content'], contains('分流句甲'));
+      expect(await repo.allQuotes(), hasLength(2));
+
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '分流句乙');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-todo')));
+      await tester.tap(find.byKey(const ValueKey('qef-todo')));
+      await settle(tester);
+      await clearToasts(tester);
+      final t = await db.query('todos');
+      expect(t, hasLength(1));
+      expect(t.single['quadrant'], 2);
+      expect(t.single['due_at'], isNull);
+    });
+
+    testWidgets('R-15 工作台复习卡（到期优先·翻面·档位推进）与摘录操作弹层',
+        (tester) async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, last: ms(0)));
+      await repo.addQuote(BookQuote(
+        bookId: 'qa',
+        kind: BookQuote.kKindMark,
+        body: '复习句',
+        thought: '我的想法',
+        createdAt: ms(2),
+        updatedAt: ms(2),
+      )); // next = created+1d = 昨天 → 今日到期
+      await tester.pumpWidget(routed(const ReadWorkbench()));
+      await waitFinder(tester, find.byKey(const ValueKey('read-review')));
+      expect(find.text('共 1 条 · 今日到期 1 条'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('read-review')));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rv-card')));
+      expect(find.text('「复习句」'), findsNWidgets(2)); // 工作台最近摘录同款
+      expect(find.text('1 / 1'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('rv-card')));
+      await settle(tester);
+      expect(find.text('我的想法'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('rv-know')));
+      await settle(tester);
+      await clearToasts(tester);
+      // 记得 → 档位 0→1，队空后弹层收起
+      final r = await repo.reviewOf((await repo.allQuotes()).single.id!);
+      expect(r!.stage, 1);
+      expect(r.nextAt! > DateTime.now().millisecondsSinceEpoch, isTrue);
+
+      // 笔记库入口 + 摘录卡 → 操作弹层（收藏）
+      await tester.tap(find.byKey(const ValueKey('read-nav-quotes')));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-view')));
+      await tester.tap(find.byKey(const ValueKey('ql-q-1')));
+      await settle(tester);
+      expect(find.text('划线操作'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('qo-star')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect((await repo.allQuotes()).single.starred, isTrue);
     });
   });
 }
