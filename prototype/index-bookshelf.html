@@ -1057,6 +1057,28 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- ===== 书架专版 · 阅读轨迹（逐次计时 / 里程碑 / 时段分布） ===== -->
+    <div id="sheetTrack" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrack')">
+      <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+        <div class="grabber"></div>
+        <div class="flex items-center gap-2"><div class="font-extrabold text-sm" id="stTitle">阅读轨迹</div>
+          <button class="ml-auto mini-btn !text-[10px]" onclick="closeSheet('sheetTrack');bsSessOpen(CURBK)">改明细</button></div>
+        <div class="mt-1 text-[10px] text-slate-400" id="stSub"></div>
+        <div class="mt-2 space-y-3 max-h-[62vh] overflow-y-auto no-scrollbar" id="stBody"></div>
+      </div>
+    </div>
+
+    <!-- ===== 书架专版 · 计时明细（逐条可改日期/时长/页码） ===== -->
+    <div id="sheetSess" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSess')">
+      <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+        <div class="grabber"></div>
+        <div class="flex items-center gap-2"><div class="font-extrabold text-sm" id="ssTitle">计时明细</div><span class="ml-auto text-[10px] text-slate-400" id="ssSum"></span></div>
+        <div class="mt-1 text-[10px] text-slate-400">改日期 / 时长 / 页码即回写该书累计阅读与时间账本 L4</div>
+        <div class="mt-2 space-y-2 max-h-[46vh] overflow-y-auto no-scrollbar" id="ssList"></div>
+        <div class="mt-3 flex gap-2"><button class="mini-btn flex-1" onclick="bsSessAdd()">＋ 补记一次</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="closeSheet('sheetSess')">完成</button></div>
+      </div>
+    </div>
+
     <!-- ===== 书架专版 · 收敛：摘录操作 ===== -->
     <div id="sheetQuoteOps" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetQuoteOps')">
       <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -5449,7 +5471,7 @@ function bkOpsRun(k) {
   else if (k === '改分区') shStatusPick(b.id);
   else if (k === '标记读完') { b.st = '已读'; b.p = 100; b.rp = b.pg; if (!b.end) b.end = shFmtDate(); renderShelf(); renderBookDetail(); renderRecHub(); toast('《' + b.n + '》已标记读完 · 自动进年度书单'); }
   else if (k === '移入书单') blQuickPick(b.id);
-  else if (k === '阅读轨迹') switchBookTab('t');
+  else if (k === '阅读轨迹') bsTrackOpen(b.id);
   else if (k === '导出本书摘录') { const L = { nm: b.n + ' · 摘录', note: b.a }; blDown(L, 'md'); }
   else if (k === '从书架移除') { BS_BOOKS = BS_BOOKS.filter(x => x.id !== b.id); navTo('p-bookshelf'); renderShelf(); renderRecHub(); toast('已移出书架 · 笔记与时长保留 30 天'); }
 }
@@ -5573,6 +5595,7 @@ function renderBookDetail() {
         <div class="mt-2 flex items-center gap-3 text-[11px] opacity-80">
           <span class="flex items-center gap-1">${bsi('quote', 'w-[12px] h-[12px]')} ${qsAll.length} 条</span>
           <span class="flex items-center gap-1">${bsi('book', 'w-[12px] h-[12px]')} ${b.pw === 'pos' ? (b.pos || 0) + ' 位置' : (b.rp || 0) + ' 页'}</span>
+          <button class="flex items-center gap-1 font-bold decoration-dotted underline-offset-2 underline" title="查看并修改每次计时明细" onclick="bsSessOpen('${b.id}')">${bsi('time', 'w-[12px] h-[12px]')} ${bsFmt(b.min)}</button>
           <button class="flex items-center gap-1 font-bold decoration-dotted underline-offset-2 underline" title="点击修改进度" onclick="openProgress('read','《${b.n}》')">${bsi('pin', 'w-[12px] h-[12px]')} ${b.p}%</button></div>
       </div>
       <div class="shrink-0 text-center" onclick="biOpen('${b.id}')">
@@ -5617,14 +5640,13 @@ function renderBookInfo() {
   <div class="mt-2 flex gap-1.5 flex-wrap">${b.tags.map(t => `<button class="chip !text-[10px]" onclick="shPickTag('${t}');navTo('p-bookshelf')">#${t}</button>`).join('')}${bsMetaChips(b)}</div>
   <div class="mt-3 grid grid-cols-4 text-center text-[11px]">
     <div class="card !py-2.5"><b class="text-base">${b.q}</b><div class="text-slate-400">摘录/感想</div></div>
-    <div class="card !py-2.5"><b class="text-base">${bsFmt(b.min)}</b><div class="text-slate-400">累计阅读</div></div>
-    <div class="card !py-2.5"><b class="text-base">${b.times}</b><div class="text-slate-400">计时次数</div></div>
+    <div class="card !py-2.5 active:scale-[.98] transition" onclick="bsSessOpen('${b.id}')"><b class="text-base">${bsFmt(b.min)}</b><div class="text-slate-400">累计阅读</div></div>
+    <div class="card !py-2.5 active:scale-[.98] transition" onclick="bsSessOpen('${b.id}')"><b class="text-base">${b.times}</b><div class="text-slate-400">计时次数</div></div>
     <div class="card !py-2.5"><b class="text-base">${bsSpeed(b) || '—'}</b><div class="text-slate-400">分钟/页</div></div></div>
   <div class="mt-3 card"><div class="row-title">阅读进度</div>
     <div class="mt-2 flex items-center gap-2 text-[11.5px]"><span class="text-slate-400">进度方式</span><b>${(BS_PW.find(x => x[0] === b.pw) || ['', '页数'])[1]}</b>
-      <span class="ml-auto">${b.pw === 'pos' ? (b.pos || 0) + ' / ' + (b.tot || 0) + ' 位置' : b.rp + ' / ' + b.pg + ' 页'} · ${b.p}%</span></div>
-    <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${b.p}%"></span></div>
-    <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="openProgress('read','《${b.n}》')">记进度</button></div></div>
+      <button class="ml-auto font-bold decoration-dotted underline-offset-2 underline" title="点击修改进度" onclick="openProgress('read','《${b.n}》')">${b.pw === 'pos' ? (b.pos || 0) + ' / ' + (b.tot || 0) + ' 位置' : b.rp + ' / ' + b.pg + ' 页'} · ${b.p}%</button></div>
+    <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${b.p}%"></span></div></div>
   <div class="mt-3 card"><div class="row-title">书目信息</div>
     <div class="mt-2 grid grid-cols-2 gap-y-1.5 text-[11px] leading-5">
       <div class="text-slate-400">ISBN <span class="text-slate-600 dark:text-slate-300 ml-1.5">${b.isbn}</span></div>
@@ -5710,6 +5732,61 @@ function rtClose() { if (timer) toast('计时未结束 · 回到页面顶部胶�
 const RS_CHIP_OLD = rsChip;
 rsChip = function (k, o) { RS_CHIP_OLD(k, o); if (k !== 'timerUI') return; bsTimerUIsync();
   if (!BS_FULLTIMER && curPage === 'p-readtimer') goBack(); else if (curPage === 'p-readtimer') renderReadTimer() };
+
+/* ---------- 计时明细：逐条可改（日期 / 时长 / 页码）· 改完回写累计与轨迹 ---------- */
+const BS_SESS_CACHE = {};
+const BS_SESS_OLD = bsSessions;
+bsSessions = function (b) { return BS_SESS_CACHE[b.id] || BS_SESS_OLD(b) };
+function bsSessList(b) {
+  if (!BS_SESS_CACHE[b.id]) BS_SESS_CACHE[b.id] = BS_SESS_OLD(b).map(x => ({ dt: x.dt, min: x.min, from: x.from, to: x.to }));
+  return BS_SESS_CACHE[b.id];
+}
+function bsSessSync(b) {
+  const L = bsSessList(b); L.sort((x, z) => String(x.dt).localeCompare(String(z.dt)));
+  b.times = L.length; b.min = L.reduce((t, x) => t + (+x.min || 0), 0);
+  const last = L[L.length - 1];
+  if (last) { b.rp = Math.max(b.rp || 0, +last.to || 0); b.p = Math.min(100, Math.round(b.rp / Math.max(1, b.pg) * 100)) }
+  const dts = L.map(x => x.dt).filter(Boolean).sort();
+  if (dts.length) { b.start = dts[0]; if (b.st === '已读') b.end = dts[dts.length - 1] }
+}
+function bsSessOpen(id) { if (id) CURBK = id; const b = bsBook(CURBK); bsSessList(b); bsSessRender(); openSheet('sheetSess') }
+function bsSessRender() {
+  const b = bsBook(CURBK), L = bsSessList(b); bsSessSync(b);
+  document.getElementById('ssTitle').textContent = '《' + b.n + '》· 计时明细';
+  document.getElementById('ssSum').textContent = L.length + ' 次 · 共 ' + bsFmt(b.min) + ' · 均 ' + Math.round(b.min / Math.max(1, L.length)) + ' 分钟/次';
+  document.getElementById('ssList').innerHTML = L.map((s, i) => `<div class="card !py-2.5 !px-3">
+    <div class="flex items-center gap-1.5"><span class="w-4 text-[10px] text-slate-400 shrink-0">${i + 1}</span>
+      <input type="date" class="inp !py-1.5 flex-1 min-w-0 !text-[11px]" value="2026-${String(s.dt).padStart(5, '0')}" onchange="bsSessSet(${i},'dt',this.value.slice(5))">
+      <button class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0" title="删除这次" onclick="bsSessDel(${i})">${bsi('trash', 'w-[13px] h-[13px]')}</button></div>
+    <div class="mt-1.5 flex items-center gap-1.5 text-[11px]">
+      <input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.min}" onchange="bsSessSet(${i},'min',this.value)"><span class="text-slate-400 shrink-0">分钟</span>
+      <span class="ml-auto text-slate-400 shrink-0">P</span><input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.from}" onchange="bsSessSet(${i},'from',this.value)">
+      <span class="text-slate-400 shrink-0">→</span><input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.to}" onchange="bsSessSet(${i},'to',this.value)"></div></div>`).join('')
+    || '<div class="card text-[11px] text-slate-400 text-center !py-6">还没有计时记录 · 点下方补记一次</div>';
+}
+function bsSessSet(i, k, v) {
+  const b = bsBook(CURBK), s = bsSessList(b)[i]; if (!s) return;
+  if (k === 'dt') s.dt = v; else s[k] = Math.max(0, +v || 0);
+  bsSessSync(b); renderBookDetail(); renderShelf(); renderReadStat(); bsSessRender();
+  toast('第 ' + (i + 1) + ' 次已更新 · 累计 ' + bsFmt(b.min));
+}
+function bsSessDel(i) {
+  const b = bsBook(CURBK); bsSessList(b).splice(i, 1); bsSessSync(b);
+  renderBookDetail(); renderShelf(); renderReadStat(); bsSessRender(); toast('已删除该次记录 · 累计 ' + bsFmt(b.min));
+}
+function bsSessAdd() {  const b = bsBook(CURBK), L = bsSessList(b), last = L[L.length - 1];
+  L.push({ dt: shFmtDate(), min: 20, from: last ? last.to : 0, to: last ? Math.min(b.pg, last.to + 10) : 10 });
+  bsSessSync(b); renderBookDetail(); renderShelf(); renderReadStat(); bsSessRender(); toast('已补记一次 · 可直接改日期与时长');
+}
+
+/* ---------- 阅读轨迹：弹层承载（详情页 tab 已收敛，轨迹从操作菜单进入） ---------- */
+function bsTrackOpen(id) {
+  if (id) CURBK = id; const b = bsBook(CURBK);
+  document.getElementById('stTitle').textContent = '《' + b.n + '》· 阅读轨迹';
+  document.getElementById('stSub').textContent = bsSessList(b).length + ' 次计时 · 累计 ' + bsFmt(b.min) + ' · 进度 ' + b.p + '% · 摘录 ' + bsQ(b.id).length + ' 条';
+  document.getElementById('stBody').innerHTML = bsTrack(b);
+  openSheet('sheetTrack');
+}
 
 /* ---------- 一页式总结：可编辑（自动生成值为初值 · 保存后覆盖） ---------- */
 let biSumOn = false;
