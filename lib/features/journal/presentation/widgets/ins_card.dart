@@ -90,29 +90,45 @@ class InsDiaryCard extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
+                // 轮10-6：ins 风操作行去 emoji=简约线性图标（选中填色）。
                 IconButton(
                   key: ValueKey('ins-like-${entry.id}'),
                   onPressed: () => react(!entry.liked, entry.starred),
-                  icon: Text(entry.liked ? '❤️' : '🤍',
-                      style: const TextStyle(fontSize: 17)),
+                  icon: Icon(
+                      entry.liked ? Icons.favorite : Icons.favorite_border,
+                      size: 19,
+                      color: entry.liked
+                          ? const Color(0xFFE11D48)
+                          : null),
                 ),
                 IconButton(
                   key: ValueKey('ins-star-${entry.id}'),
                   onPressed: () => react(entry.liked, !entry.starred),
-                  icon: Text(entry.starred ? '⭐' : '☆',
-                      style: const TextStyle(fontSize: 17)),
+                  icon: Icon(
+                      entry.starred ? Icons.star : Icons.star_border,
+                      size: 19,
+                      color: entry.starred
+                          ? const Color(0xFFF59E0B)
+                          : null),
                 ),
                 IconButton(
                     onPressed: () => ScaffoldMessenger.of(context)
                         .showSnackBar(const SnackBar(
                             content: Text('评论/批注 · 规划 V1.x'))),
-                    icon: const Text('💬', style: TextStyle(fontSize: 17))),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 19)),
                 const Spacer(),
                 TextButton(
                   onPressed: onOpen,
-                  child: const Text('⛶ 全屏',
-                      style: TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w800)),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.fullscreen, size: 15),
+                      SizedBox(width: 4),
+                      Text('全屏',
+                          style: TextStyle(fontSize: 11,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
                 ),
               ],
             ),

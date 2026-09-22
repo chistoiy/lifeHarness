@@ -348,7 +348,8 @@ Future<void> showNoteKitSheet(
                         borderRadius: BorderRadius.circular(2)),
                   ),
                 ),
-                // 轮9q：标题去「⋯」前缀 · 统计信息上移至标题右侧；轮9r：分享钮进标题行
+                // 轮9q：标题去「⋯」前缀 · 统计信息上移至标题右侧；轮9r：分享钮进标题行。
+                // 轮10-7：统计+分享显式靠右（原型 justify-between·钮贴右缘）。
                 Row(
                   children: [
                     Expanded(
@@ -360,10 +361,12 @@ Future<void> showNoteKitSheet(
                     ),
                     Flexible(
                       child: Text(countText,
+                          textAlign: TextAlign.right,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                               fontSize: 11, color: fg.withValues(alpha: .6))),
                     ),
+                    const SizedBox(width: 4),
                     IconButton(
                       key: const ValueKey('kit-share'),
                       tooltip: '分享 / 导出',
@@ -371,7 +374,11 @@ Future<void> showNoteKitSheet(
                         Navigator.of(bc).pop();
                         onShare();
                       },
-                      icon: Icon(Icons.ios_share, size: 20, color: fg),
+                      visualDensity: VisualDensity.compact,
+                      style: IconButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(32, 32)),
+                      icon: Icon(Icons.ios_share, size: 19, color: fg),
                     ),
                   ],
                 ),
@@ -676,11 +683,22 @@ Future<void> showNoteShareSheet(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 轮10-8：与笔记选项同款 grabber+标题头（弹层语言统一）。
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 8),
+              decoration: BoxDecoration(
+                  color: fg.withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
             child: Text('分享',
                 style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w900, color: fg)),
+                    fontSize: 15, fontWeight: FontWeight.w900, color: fg)),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -741,12 +759,26 @@ Widget _shareRow(BuildContext bc, BuildContext pageCtx, String key, String label
     key: ValueKey(key),
     onTap: onTap,
     child: Container(
+      // 轮10-8：整行条目=与笔记选项同语言（全宽卡·名称左 · ›右）。
+      width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: fg.withValues(alpha: .18))),
-      child: Text(label, style: TextStyle(fontSize: 13, color: fg)),
+      child: Row(
+        children: [
+          Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: fg))),
+          Text('›',
+              style:
+                  TextStyle(fontSize: 14, color: fg.withValues(alpha: .4))),
+        ],
+      ),
     ),
   );
 }

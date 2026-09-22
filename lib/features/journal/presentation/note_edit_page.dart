@@ -901,6 +901,25 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     );
   }
 
+  /// 轮10-3b：工具条 emoji（🖼/）→ 简约线性图标（md/rich 共用·key 不变）。
+  Widget _pwIconBtn(String key, IconData icon, VoidCallback onTap, String tip) {
+    return Tooltip(
+      message: tip,
+      child: GestureDetector(
+        key: ValueKey(key),
+        onTap: onTap,
+        child: Container(
+          width: 30,
+          height: 28,
+          margin: const EdgeInsets.only(right: 2),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 15, color: _fg.withValues(alpha: .75)),
+        ),
+      ),
+    );
+  }
+
   Widget _pwSep() => Container(
       width: 1,
       height: 16,
@@ -957,15 +976,21 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                       _pwBtn('note-rich-table', '▦',
                           () => AppToast.show(context, '表格 · 富文本版即将开放'),
                           '表格'),
-                      _pwBtn('note-rich-link', '🔗', _richLink, '链接',
-                          w: FontWeight.w400),
-                      _pwBtn('note-rich-img', '🖼', _richImage, '插图',
-                          w: FontWeight.w400),
+                      _pwIconBtn('note-rich-link', Icons.link, _richLink, '链接'),
+                      _pwIconBtn('note-rich-img', Icons.image_outlined,
+                          _richImage, '插图'),
                     ]
                   : [
                       for (final (k, glyph, tip) in _mdTools) ...[
                         if (k == 'h') _pwSep(),
-                        _mdToolBtn(k, glyph, tip),
+                        if (k == 'img')
+                          _pwIconBtn('note-md-img', Icons.image_outlined,
+                              () => _mdBarTap(k), tip)
+                        else if (k == 'link')
+                          _pwIconBtn('note-md-link', Icons.link,
+                              () => _mdBarTap(k), tip)
+                        else
+                          _mdToolBtn(k, glyph, tip),
                       ],
                     ],
             ),

@@ -176,44 +176,41 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                   ),
                 ),
                 const Divider(height: 1),
-                // 底部操作条（原型五键：重命名/添加/排序/展开折叠/关闭）
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                        key: const ValueKey('nt-bt-rename'),
-                        tooltip: selNode == null ? '先点选文件夹' : '重命名「${selNode.name}」',
-                        onPressed: () => selNode == null
-                            ? AppToast.show(context, '先点选文件夹')
-                            : _nodeActions(selNode),
-                        icon: const Icon(Icons.edit_outlined, size: 20)),
-                    IconButton(
-                        key: const ValueKey('nt-bt-add'),
-                        tooltip: '添加文件夹',
-                        onPressed: () => _add(selNode),
-                        icon: const Icon(Icons.create_new_folder_outlined,
-                            size: 20)),
-                    IconButton(
-                        key: const ValueKey('nt-bt-expand'),
-                        tooltip: '全部展开/折叠',
-                        onPressed: () {
-                          final all = <int>[];
-                          void collect(List<FolderNode> ns) {
-                            for (final n in ns) {
-                              all.add(n.id);
-                              collect(n.children);
+                // 轮10-9：底部 4 图标条→轻文字钮行（与弹层同语言·添加=树内行）。
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _barBtn(context,
+                          keyName: 'nt-bt-rename',
+                          label: '重命名',
+                          tip: selNode == null ? '先点选文件夹' : '重命名「${selNode.name}」',
+                          onPressed: () => selNode == null
+                              ? AppToast.show(context, '先点选文件夹')
+                              : _nodeActions(selNode)),
+                      _barBtn(context,
+                          keyName: 'nt-bt-expand',
+                          label: '展开',
+                          tip: '全部展开/折叠',
+                          onPressed: () {
+                            final all = <int>[];
+                            void collect(List<FolderNode> ns) {
+                              for (final n in ns) {
+                                all.add(n.id);
+                                collect(n.children);
+                              }
                             }
-                          }
-                          collect(tree);
-                          setState(() => _open.addAll(all));
-                        },
-                        icon: const Icon(Icons.unfold_more, size: 20)),
-                    IconButton(
-                        key: const ValueKey('nt-bt-close'),
-                        tooltip: '关闭',
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close, size: 20)),
-                  ],
+                            collect(tree);
+                            setState(() => _open.addAll(all));
+                          }),
+                      _barBtn(context,
+                          keyName: 'nt-bt-close',
+                          label: '关闭',
+                          tip: '关闭',
+                          onPressed: () => Navigator.of(context).pop()),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -222,6 +219,25 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       ),
     );
   }
+
+  Widget _barBtn(BuildContext context,
+          {required String keyName,
+          required String label,
+          required String tip,
+          required VoidCallback onPressed}) =>
+      Tooltip(
+        message: tip,
+        child: TextButton(
+          key: ValueKey(keyName),
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant),
+          child: Text(label, style: const TextStyle(fontSize: 11.5)),
+        ),
+      );
 
   List<Widget> _nodes(List<FolderNode> nodes, int depth) => [
         for (final n in nodes) ...[
@@ -263,7 +279,12 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        color: selected ? tokens.accent.withValues(alpha: .10) : null,
+        // 轮10-9：行卡圆角化（与弹层条目同语言）。
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        decoration: BoxDecoration(
+          color: selected ? tokens.accent.withValues(alpha: .10) : null,
+          borderRadius: BorderRadius.circular(12),
+        ),
         padding: EdgeInsets.fromLTRB(10.0 + depth * 16, 11, 12, 11),
         child: Row(
           children: [

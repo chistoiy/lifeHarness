@@ -100,27 +100,42 @@ class JournalPage extends ConsumerWidget {
         title: Text('记录 · ${kRecordLabels[tab]}'),
         actions: [
           // ⇄ 四能力切换（仅记录页；当前项高亮✓）
+          // 轮10-9：菜单条目改圆角行卡+选中底色（与弹层/抽屉同语言·accent 随主题）。
           PopupMenuButton<String>(
             key: const ValueKey('rec-switch'),
             tooltip: '切换 日记/笔记/阅读/影音游',
             icon: const Icon(Icons.sync_alt),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18)),
             onSelected: (v) =>
                 ref.read(recordTabProvider.notifier).state = v,
             itemBuilder: (_) => [
               for (final e in kRecordLabels.entries)
-                PopupMenuItem(
+                PopupMenuItem<String>(
                   value: e.key,
-                  child: Row(
-                    children: [
-                      Text(e.value,
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: e.key == tab ? tokens.accent : null)),
-                      if (e.key == tab) ...[
+                  height: 46,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: e.key == tab
+                          ? tokens.accent.withValues(alpha: .12)
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(e.value,
+                            style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: e.key == tab ? tokens.accent : null)),
                         const Spacer(),
-                        Icon(Icons.check, size: 18, color: tokens.accent),
+                        if (e.key == tab)
+                          Icon(Icons.check, size: 17, color: tokens.accent),
                       ],
-                    ],
+                    ),
                   ),
                 ),
             ],

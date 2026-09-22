@@ -100,7 +100,7 @@ tailwind.config = {
   .pw-ic-btn.on{background:rgba(99,102,241,.18);color:#6366f1}
   .pw-body{font-size:15px;line-height:2.15;letter-spacing:.03em}
   /* V1.29轮9m：⋯ 笔记选项弹层行卡=透明底+随纸色描边（配色跟随纸色） */
-  #sheetNoteKit .card{background:transparent;border:1px solid color-mix(in srgb,var(--pw-fg) 14%,transparent)}
+  #sheetNoteKit .card,#sheetNoteShare .card{background:transparent;border:1px solid color-mix(in srgb,var(--pw-fg) 14%,transparent)}
   /* V1.29轮9p：纯文本行号=纸面左侧段序号（⋯ 内开关·默认关·仅纯文本显示该行） */
   #pwBody.pw-ln{counter-reset:pwl}
   #pwBody.pw-ln p{position:relative;padding-left:2.4em}
@@ -179,7 +179,7 @@ tailwind.config = {
   .nchk.on{background:#6366f1;border-color:#6366f1;color:#fff}
   .nt-row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
   .nt-row:active{background:rgba(99,102,241,.08)}
-  .nt-row.nt-on{background:rgba(99,102,241,.14);color:#6366f1}
+  .nt-row.nt-on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
   .nt-caret{width:14px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#94a3b8}
   .nt-ic{display:inline-flex;align-items:center;justify-content:center}
   .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
@@ -1524,12 +1524,12 @@ tailwind.config = {
   <div id="noteTree" class="hidden fixed md:absolute left-0 top-0 bottom-0 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col">
     <div class="px-4 pt-10 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
     <div class="px-2 pb-2 overflow-y-auto no-scrollbar flex-1" id="ntList"></div>
-    <div class="border-t border-slate-100 dark:border-slate-800 px-3 py-2.5 flex items-center justify-around text-slate-500 dark:text-slate-400">
-      <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
-      <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
-      <button class="pw-ic-btn nt-ic" title="排序：名称/创建/手动（长按节点可拖动，拖入另一夹=子级）" onclick="ntSort()" id="ntBtSort"></button>
-      <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
-      <button class="pw-ic-btn nt-ic" title="关闭" onclick="ntClose()" id="ntBtClose"></button>
+    <!-- V1.29轮10-9：底部 5 图标条改轻文字钮行（与弹层同语言·添加文件夹仍是树内行） -->
+    <div class="border-t border-slate-100 dark:border-slate-800 px-3 py-2.5 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="重命名选中夹" onclick="ntRename()">重命名</button>
+      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="排序：名称/创建/手动" onclick="ntSort()">排序</button>
+      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="全部展开/折叠" onclick="ntExpandAll()">展开</button>
+      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" onclick="ntClose()">关闭</button>
     </div>
   </div>
 
@@ -2021,17 +2021,18 @@ tailwind.config = {
     </div>
   </div>
   <!-- V1.29轮9r：分享/导出弹层（笔记选项标题行分享钮唤起·原导出三项+图片分享） -->
-  <div id="sheetNoteShare" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteShare')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+  <!-- V1.29轮10-8：分享弹层与笔记选项同语言=纸色面板+整行条目(名称左 · ›右) -->
+  <div id="sheetNoteShare" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteShare')">
+    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
       <div class="grabber"></div>
       <div class="font-extrabold">分享</div>
       <div class="mt-3 space-y-2 text-xs">
-        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已导出 TXT（真实版=系统分享面板）')">导出 TXT</div>
-        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已导出 Markdown（真实版=系统分享面板）')">导出 Markdown</div>
-        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已复制全文到剪贴板')">复制全文</div>
-        <div class="card !py-3 px-4 flex items-center cursor-pointer active:bg-slate-50" onclick="closeSheet('sheetNoteShare');toast('已生成笔记图片卡片 · 可分享到微信/小红书（真实版=RenderToImage+系统分享）')">以图片形式分享</div>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 TXT（真实版=系统分享面板）')"><b class="text-left">导出 TXT</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 Markdown（真实版=系统分享面板）')"><b class="text-left">导出 Markdown</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已复制全文到剪贴板')"><b class="text-left">复制全文</b><span class="ml-auto opacity-40">›</span></button>
+        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已生成笔记图片卡片 · 存至 exports（系统分享面板规划 V1.x）')"><b class="text-left">以图片形式分享</b><span class="ml-auto opacity-40">›</span></button>
       </div>
-      <button onclick="closeSheet('sheetNoteShare')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
+      <button onclick="closeSheet('sheetNoteShare')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">取消</button>
     </div>
   </div>
 
@@ -2919,7 +2920,7 @@ function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRe
   renderRecSwitch();
 }
 function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
-  m.innerHTML=Object.entries(REC_TABS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===recTab?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="switchRecord('${k}')">${label}<span class="text-[11px]">${k===recTab?'✓':''}</span></button>`).join('');}
+  m.innerHTML=Object.entries(REC_TABS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===recTab?'':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" ${k===recTab?`style="background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)"`:''} onclick="switchRecord('${k}')">${label}<span class="text-[11px]">${k===recTab?'✓':''}</span></button>`).join('');}
 function toggleRecSwitchMenu(){hideNoteFabMenu();hideTodoFabMenu();$('#recSwitchMenu').classList.toggle('hidden');}
 function hideRecSwitchMenu(){const m=$('#recSwitchMenu');if(m)m.classList.add('hidden');}
 function renderRecords(){
@@ -2953,7 +2954,7 @@ let DI_TPLS=[{n:'自由书写',b:1,s:[]},
  {n:'KPT 复盘',b:1,s:[{t:'Keep · 做对了什么',ph:''},{t:'Problem · 哪里不顺',ph:''},{t:'Try · 下一步怎么改',ph:''}]},
  {n:'晨间页',b:0,s:[{t:'梦到的 / 最先想到的',ph:''},{t:'今天在意的事',ph:''},{t:'今日意图',ph:'一句话'}]}];
 let curTpl=0,tplDraft=[];
-function diaryToolbar(){return `<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="flex gap-1 px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400"><button class="fmt-btn" title="加粗"><b>B</b></button><button class="fmt-btn" title="列表">≡</button><button class="fmt-btn" title="待办勾选">☑</button><button class="fmt-btn" title="图片">🖼</button><button class="fmt-btn" title="引用">❝</button><span class="flex-1"></span><button class="fmt-btn" title="Markdown切换" onclick="toast('已切换 Markdown 源码模式（模拟）')">M↓</button></div>`}
+function diaryToolbar(){return `<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="flex gap-1 px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400"><button class="fmt-btn" title="加粗"><b>B</b></button><button class="fmt-btn" title="列表">≡</button><button class="fmt-btn" title="待办勾选">☑</button><button class="fmt-btn" title="图片">${IC_IMG}</button><button class="fmt-btn" title="引用">❝</button><span class="flex-1"></span><button class="fmt-btn" title="Markdown切换" onclick="toast('已切换 Markdown 源码模式（模拟）')">M↓</button></div>`}
 function renderDiaryBody(){const t=DI_TPLS[curTpl],el=$('#diaryBody');if(!el)return;
  if(!t.s.length){el.innerHTML=`<div class="mt-3">${diaryToolbar()}<textarea id="diaryText" class="w-full h-64 p-4 text-sm leading-7 bg-transparent outline-none resize-none" placeholder="今天发生了什么？&#10;&#10;提示：输入 ☐ 可插入待办；草稿中的待办会自动同步…"></textarea></div>`;return}
  el.innerHTML=`<div class="mt-3 text-xs font-bold text-brand-600">📋 ${t.n} · ${t.s.length} 节 · 各节独立保存</div>`+t.s.map(s=>`<div class="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="px-4 pt-3 text-xs font-extrabold text-slate-500 dark:text-slate-400">${s.t}</div><textarea class="w-full min-h-[64px] px-4 pb-3 pt-1 text-sm leading-6 bg-transparent outline-none resize-none" placeholder="${s.ph||'写点什么…'}"></textarea></div>`).join('')}
@@ -2975,7 +2976,8 @@ const PW_PAPER_NM=['米纸','纯白','护眼绿','深夜'];
 /* V1.29轮9n：纸色按笔记独立生效（NOTE_PAPER 映射·仅卡片视图条目底色跟随，列表视图不体现） */
 const NOTE_PAPER={};
 function pwApplyPaperVars(bg,fg){const e=$('#p-noteEdit');e.style.setProperty('--pw-bg',bg);e.style.setProperty('--pw-fg',fg);
- const k=$('#sheetNoteKit');if(k){k.style.setProperty('--pw-bg',bg);k.style.setProperty('--pw-fg',fg);}}
+ const k=$('#sheetNoteKit');if(k){k.style.setProperty('--pw-bg',bg);k.style.setProperty('--pw-fg',fg);}
+ const sh=$('#sheetNoteShare');if(sh){sh.style.setProperty('--pw-bg',bg);sh.style.setProperty('--pw-fg',fg);}}
 function pwSetPaper(i){pwPaper=i;const p=PW_PAPERS[i];pwApplyPaperVars(p[0],p[1]);
  if(pwNote)NOTE_PAPER[pwNote]={bg:p[0],fg:p[1]};
  $$('#pwPapers button').forEach((b,j)=>b.className=`w-5 h-5 rounded-full border ${j===i?'border-brand-500':'border-slate-300 dark:border-slate-600'}`);
@@ -3028,6 +3030,16 @@ function pwRich(k){const cur=$('#pwBody p.pw-cur')||$('#pwBody p');if(!cur)retur
 /* V1.29轮8②⑥：快捷操作栏移到底部（拇指热区·横向滑动）；H#/Tt/≡ 二级行在下方展开，滑到尾部或 ✕ 收起 */
 let pwSub='';
 function _pwb(html,fn,tip){return `<button class="pw-tool flex-shrink-0" ${tip?`title="${tip}"`:''} onclick="${fn}">${html}</button>`;}
+/* V1.29轮10-3b/6：工具与 ins 操作统一线性 SVG（currentColor 随纸面墨色/主题） */
+const _pwSvg=(d)=>`<svg class="w-[17px] h-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const IC_LINK=_pwSvg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>');
+const IC_IMG=_pwSvg('<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.5"/><path d="m5 18 5.2-5.2a1.5 1.5 0 0 1 2.1 0L19 19"/>');
+const IC_HEART=_pwSvg('<path d="M12 20.3 4.6 13a4.8 4.8 0 0 1 6.8-6.8l.6.6.6-.6A4.8 4.8 0 0 1 19.4 13Z"/>');
+const IC_HEART_F='<svg class="w-[17px] h-[17px]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 20.3 4.6 13a4.8 4.8 0 0 1 6.8-6.8l.6.6.6-.6A4.8 4.8 0 0 1 19.4 13Z"/></svg>';
+const IC_STAR=_pwSvg('<path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z"/>');
+const IC_STAR_F='<svg class="w-[17px] h-[17px]" fill="currentColor" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.6 9.7l5.8-.8Z"/></svg>';
+const IC_CHAT=_pwSvg('<path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5Z"/>');
+const IC_FULL=_pwSvg('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>');
 const _pwSep='<span class="w-px h-4 flex-shrink-0" style="background:rgba(120,110,90,.25);margin:0 4px"></span>';
 function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)return;
   if(pwType==='plain'){bar.classList.add('hidden');bar.classList.remove('flex');sub.classList.add('hidden');sub.classList.remove('flex');pwSub='';return;}
@@ -3037,7 +3049,7 @@ function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)re
       _pwb('H#',"pwSubToggle('h')",'标题（点开后在下方选 H1~H6）'),
       _pwb('<b>B</b>',"pwMd('bold')"),_pwb('<i>I</i>',"pwMd('ital')"),_pwb('<s>S</s>',"pwMd('strike')"),
       _pwb('&lt;&gt;',`pwMd('code')`),_pwb('❝',"pwMd('quote')"),_pwb('≡',"pwMd('ul')"),_pwb('☑',"pwMd('task')"),
-      _pwb('▦',"pwMd('table')"),_pwb('🖼',"pwMd('img')"),_pwb('🔗',"pwMd('link')"),
+      _pwb('▦',"pwMd('table')"),_pwb(IC_IMG,"pwMd('img')","插图"),_pwb(IC_LINK,"pwMd('link')","链接"),
       _pwb('<span style="font-family:Georgia,serif;font-style:italic">ƒx</span>',"pwMd('math')"),
       _pwb('<span style="font-family:Georgia,serif">∑</span>',"pwMd('mathb')"),_pwb('—',"pwMd('hr')")].join('')
     :[_pwb('↺',"pwUndo('undo')","撤销"),_pwb('↻',"pwUndo('redo')","重做"),_pwSep,
@@ -3046,7 +3058,7 @@ function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)re
       _pwb('<b>B</b>',"pwRich('b')","加粗"),_pwb('<i>I</i>',"pwRich('i')","斜体"),_pwb('U',"pwRich('u')","下划线"),
       _pwb('<s>S</s>',"pwRich('strike')","删除线"),_pwb('&lt;&gt;',`pwRich('code')`,"行内代码"),
       _pwb('❝',"pwRich('quote')","引用"),_pwb('☑',"pwRich('task')","待办行"),
-      _pwb('▦',"pwRich('table')","表格"),_pwb('🔗',"pwRich('link')","链接"),_pwb('🖼',"pwRich('img')","插图")].join('');
+      _pwb('▦',"pwRich('table')","表格"),_pwb(IC_LINK,"pwRich('link')","链接"),_pwb(IC_IMG,"pwRich('img')","插图")].join('');
   if(!pwSub){sub.classList.add('hidden');sub.classList.remove('flex');return;}
   const items=pwSub==='h'?[['H1',"pwMdHead(1)"],['H2',"pwMdHead(2)"],['H3',"pwMdHead(3)"],['H4',"pwMdHead(4)"],['H5',"pwMdHead(5)"],['H6',"pwMdHead(6)"]]
     :pwSub==='tt'?[['N',"pwRichHead(0)","正文"],['H1',"pwRichHead(1)"],['H2',"pwRichHead(2)"],['H3',"pwRichHead(3)"],['Aa',"openSheet('sheetNoteKit')","字号滑杆（⋯ 面板）"]]
@@ -3758,10 +3770,10 @@ function insCardHtml(i){const d=D.diary[i],lk=DI_LIKE[i];
  ${d.img?`<div class="ins-imgs">${Array.from({length:Math.min(4,d.img)},(_,k)=>`<span class="ins-img bg-gradient-to-br ${DI_IMG[k%3]}">${['🌇','🍰','🏃','📖'][k%4]}</span>`).join('')}</div>`:''}
  <div class="px-4 py-2 text-[13px] leading-7">${d.txt}</div>
  ${d.linked?`<div class="ins-ref">🔗 本页关联 · ☑ ${d.linked} 个待办同步 · 📚 摘录「损失厌恶系数约为 2…」</div>`:''}
- <div class="ins-act"><button onclick="diaryReact(${i},'like')">${lk.like?'❤️':'🤍'}</button><button onclick="diaryReact(${i},'star')">${lk.star?'⭐':'☆'}</button><button onclick="toast('评论/批注（本地笔记式评论 V1.x）')">💬</button><button class="ml-auto !text-xs font-bold" onclick="openInsFull(${i})">⛶ 全屏</button></div>
+ <div class="ins-act"><button onclick="diaryReact(${i},'like')" style="${lk.like?'color:#e11d48':''}">${lk.like?IC_HEART_F:IC_HEART}</button><button onclick="diaryReact(${i},'star')" style="${lk.star?'color:#f59e0b':''}">${lk.star?IC_STAR_F:IC_STAR}</button><button onclick="toast('评论/批注（本地笔记式评论 V1.x）')">${IC_CHAT}</button><button class="ml-auto !text-[11px] font-bold flex items-center gap-1" onclick="openInsFull(${i})">${IC_FULL} 全屏</button></div>
  <div class="px-4 pb-3 text-[11px] text-slate-400">${lk.n+(lk.like?1:0)} 次回望 · ${d.tags.map(t=>'#'+t).join(' ')}</div>
 </div>`}
-function diaryReact(i,k){DI_LIKE[i][k]=!DI_LIKE[i][k];if(dwLayout==='ins')renderInsInto('#dwIns',true);if(dlLayout==='ins')renderInsInto('#diaryList',false);toast(k==='like'?(DI_LIKE[i].like?'❤️ 已收藏这页人生':'取消收藏'):(DI_LIKE[i].star?'⭐ 已加亮':'取消加亮'))}
+function diaryReact(i,k){DI_LIKE[i][k]=!DI_LIKE[i][k];if(dwLayout==='ins')renderInsInto('#dwIns',true);if(dlLayout==='ins')renderInsInto('#diaryList',false);toast(k==='like'?(DI_LIKE[i].like?'已收藏这页人生':'取消收藏'):(DI_LIKE[i].star?'已加亮':'取消加亮'))}
 function renderInsInto(sel,tip){$(sel).innerHTML=D.diary.map((d,i)=>insCardHtml(i)).join('')+(tip?'<div class="text-center text-[10px] text-slate-400 pb-4">📱 INS 卡片流 · 切回「📖 文档模式」继续编辑</div>':'')}
 function dwMode(k){dwLayout=k;$('#dwDoc').classList.toggle('hidden',k!=='doc');$('#dwIns').classList.toggle('hidden',k!=='ins');
  $('#dwBtnDoc').classList.toggle('chip-on',k==='doc');$('#dwBtnIns').classList.toggle('chip-on',k==='ins');if(k==='ins')renderInsInto('#dwIns',true)}
