@@ -1411,6 +1411,25 @@ void main() {
       expect((await dao.byId(n.id!))!.folder, '啊KKK');
     });
 
+    testWidgets('10-7 kit 标题行：统计+分享钮贴右缘（Flexible 平分陷阱回归守护）',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final n = await dao.save(Note(
+          title: '靠右', content: '正文一段', createdAt: t0, updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      final row = tester.getRect(find
+          .ancestor(
+              of: find.text('笔记选项'), matching: find.byType(Row))
+          .first);
+      final share =
+          tester.getRect(find.byKey(const ValueKey('kit-share')));
+      expect(row.right - share.right, lessThan(2),
+          reason: '统计/分享应贴弹层右缘，不得停在中间');
+    });
+
     testWidgets('10-2 滑动切换默认关：滑动不换篇；开关持久化 lh.note_swipe', (tester) async {
       final t0 = DateTime(2026, 9, 20, 10);
       await dao.save(

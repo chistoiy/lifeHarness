@@ -349,7 +349,8 @@ Future<void> showNoteKitSheet(
                   ),
                 ),
                 // 轮9q：标题去「⋯」前缀 · 统计信息上移至标题右侧；轮9r：分享钮进标题行。
-                // 轮10-7：统计+分享显式靠右（原型 justify-between·钮贴右缘）。
+                // 轮10-7：统计+分享贴右缘——统计必须是**非 flex** 子件：
+                // Flexible(flex:1) 会与 Expanded 标题平分剩余空间，把钮停在中间。
                 Row(
                   children: [
                     Expanded(
@@ -359,13 +360,12 @@ Future<void> showNoteKitSheet(
                               fontWeight: FontWeight.w900,
                               color: fg)),
                     ),
-                    Flexible(
-                      child: Text(countText,
-                          textAlign: TextAlign.right,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 11, color: fg.withValues(alpha: .6))),
-                    ),
+                    Text(countText,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 11, color: fg.withValues(alpha: .6))),
                     const SizedBox(width: 4),
                     IconButton(
                       key: const ValueKey('kit-share'),

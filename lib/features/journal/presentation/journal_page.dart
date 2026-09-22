@@ -24,10 +24,11 @@ class _NoteFab extends ConsumerStatefulWidget {
 class _NoteFabState extends ConsumerState<_NoteFab> {
   bool _open = false;
 
+  // 轮10-9：FAB 三选去 emoji=线性图标（与弹层/菜单同语言）。
   static const _acts = [
-    ('📝', '添加富文本笔记', 'rich'),
-    ('📃', '添加纯文本笔记', 'plain'),
-    ('⌨️', '添加 MD 文档', 'md'),
+    (Icons.edit_document, '添加富文本笔记', 'rich'),
+    (Icons.notes_outlined, '添加纯文本笔记', 'plain'),
+    (Icons.keyboard_outlined, '添加 MD 文档', 'md'),
   ];
 
   @override
@@ -60,9 +61,16 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: tokens.cardBorder),
                       boxShadow: tokens.cardShadow),
-                  child: Text('$ico $label',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w800)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(ico, size: 16),
+                      const SizedBox(width: 8),
+                      Text(label,
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
                 ),
               ),
             ),
