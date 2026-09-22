@@ -22,6 +22,8 @@ import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
+import '../../features/read/presentation/read_lists_page.dart';
+import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
@@ -114,6 +116,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/quotes',
         builder: (_, s) => QuotesLibPage(bookId: s.extra as String?),
+      ),
+      // M1批3·批4 统计与书单（原型 p-readstat / p-booklists / p-booklist）。
+      GoRoute(
+        path: '/read/stat',
+        builder: (_, _) => const ReadStatPage(),
+      ),
+      GoRoute(
+        path: '/read/lists',
+        builder: (_, _) => const BookListsPage(),
+      ),
+      GoRoute(
+        path: '/read/list/:id',
+        builder: (_, s) =>
+            BookListDetailPage(listId: int.parse(s.pathParameters['id']!)),
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(

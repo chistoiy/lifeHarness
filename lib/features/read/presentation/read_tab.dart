@@ -135,7 +135,7 @@ class ReadWorkbench extends ConsumerWidget {
                     'read-nav-list',
                     BsIcons.list,
                     '书单',
-                    () => _soon(context, '书单'),
+                    () => context.push('/read/lists'),
                   ),
                   _navBtn(
                     context,
@@ -149,7 +149,7 @@ class ReadWorkbench extends ConsumerWidget {
                     'read-nav-stat',
                     BsIcons.chart,
                     '统计',
-                    () => _soon(context, '阅读统计'),
+                    () => context.push('/read/stat'),
                   ),
                   _navBtn(
                     context,

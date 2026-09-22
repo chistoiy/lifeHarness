@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_list.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_session.dart';
 import 'package:lifeharness/features/read/domain/shelf_query.dart';
@@ -727,6 +728,126 @@ void main() {
       expect(n['kind'], 'md');
       expect(n['title'], contains('万历十五年'));
       expect(n['content'], startsWith('> '));
+    });
+  });
+
+  group('批3-4 · v15 书单与统计聚合', () {
+    late Database db;
+    late ReadRepository repo;
+    final t0 = DateTime(2026, 9, 23).millisecondsSinceEpoch;
+    final y = 2026;
+
+    setUp(() async {
+      db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      repo = ReadRepository(db);
+    });
+    tearDown(() => db.close());
+
+    test('5-0 migrations[14] 幂等 · 建 book_lists/book_list_items', () async {
+      for (var i = 0; i < 2; i++) {
+        for (final sql in DbSchema.migrations[14]!) {
+          await db.execute(sql);
+        }
+      }
+      final names = (await db.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'book_list%'"))
+          .map((r) => r['name'] as String)
+          .toList();
+      expect(names, containsAll(['book_lists', 'book_list_items']));
+    });
+
+    test('5-1 手动书单：建单/重排成员/移出/删单不伤书', () async {
+      final a = await repo.addBook(Book(title: '甲', createdAt: t0, updatedAt: t0));
+      final b = await repo.addBook(Book(title: '乙', createdAt: t0, updatedAt: t0));
+      final c = await repo.addBook(Book(title: '丙', createdAt: t0, updatedAt: t0));
+      final l = await repo.addList(BookList(name: '主题单', createdAt: 0, updatedAt: 0),
+          bookIds: [a.id, b.id, c.id]);
+      expect(l.name, '主题单');
+      expect((await repo.listMembers(l)).map((x) => x.title), ['甲', '乙', '丙']);
+      await repo.setListBooks(l.id!, [c.id, a.id]);
+      expect((await repo.listMembers(l)).map((x) => x.title), ['丙', '甲']);
+      await repo.removeBookFromList(l.id!, c.id);
+      expect((await repo.listMembers(l)).map((x) => x.title), ['甲']);
+      await repo.softDeleteList(l.id!);
+      expect(await repo.allLists(), isEmpty);
+      expect(await db.query('book_list_items'), isEmpty);
+      expect(await repo.allBooks(), hasLength(3)); // 书本身保留
+    });
+
+    test('5-2 年度书单：动态成员 · 读完自动进来 · 重复生成跳过', () async {
+      final a = await repo.addBook(Book(title: '甲', createdAt: t0, updatedAt: t0));
+      final l = await repo.addList(BookList(name: '$y 年度书单', createdAt: 0, updatedAt: 0),
+          autoYear: y);
+      expect(l.isAuto, isTrue);
+      expect(await repo.listMembers(l), isEmpty); // 还没读完
+      await repo.setBookState(a.id, Book.kStateDone); // ended_at=now 属今年
+      expect((await repo.listMembers(l)).map((x) => x.title), ['甲']);
+      // 重复生成同年 → findAutoYear 命中（UI 据此提示已存在）
+      expect((await repo.findAutoYear(y))!.id, l.id);
+      // 回退在读即自动移出成员
+      await repo.setBookState(a.id, Book.kStateReading);
+      expect(await repo.listMembers(l), isEmpty);
+    });
+
+    test('5-3 统计聚合：逐日补 0 · 跨日记开始日 · 时段 24 桶 · 字数折算',
+        () async {
+      final b = await repo.addBook(Book(title: '统计书', pages: 100, createdAt: t0, updatedAt: t0));
+      await repo.addManualSession(day: DateTime.now(), bookId: b.id, minutes: 30, fromPage: 0, toPage: 10);
+      final log = await repo.dayLogYear(y);
+      expect(log.length, 365);
+      expect(log.fold<int>(0, (t, d) => t + d.minutes), 30);
+      final hrs = await repo.hourHistogram(y);
+      expect(hrs.length, 24);
+      expect(hrs.fold<int>(0, (t, v) => t + v), 30);
+      await repo.setBookState(b.id, Book.kStateDone);
+      final w = await repo.doneWords();
+      expect(w.words, 100 * 520);
+      expect(w.rdMin, 30);
+      final fee = await repo.feeTotals();
+      expect((fee.fee, fee.paid), (0.0, 0));
+    });
+
+    test('5-4 购书费用 → 记账流水：入账/差量更新/清零删行/开关关闭不出账',
+        () async {
+      var b = await repo.addBook(Book(title: '付费书', fee: 59, createdAt: t0, updatedAt: t0));
+      b = (await repo.bookById(b.id))!;
+      expect(b.feeTxnId, isNotNull);
+      var rows = await db.query('finance_txns');
+      expect(rows, hasLength(1));
+      expect(rows.single['amount'], 59);
+      expect(rows.single['direction'], '支出');
+      expect(rows.single['category'], '阅读');
+      expect(rows.single['note'], '《付费书》购书');
+      // 改费用：同一条流水更新，不新建
+      await repo.updateBook(b.copyWith(fee: 88));
+      expect(await db.query('finance_txns'), hasLength(1));
+      expect((await db.query('finance_txns')).single['amount'], 88);
+      // 费用清零：删流水并回写 null
+      await repo.updateBook((await repo.bookById(b.id))!.copyWith(fee: 0));
+      expect(await db.query('finance_txns'), isEmpty);
+      expect((await repo.bookById(b.id))!.feeTxnId, isNull);
+      // read.feeTxn=false：只留字段不出账
+      await repo.setKv('read.feeTxn', 'false');
+      final c = await repo.addBook(Book(title: '免出账书', fee: 30, createdAt: t0, updatedAt: t0));
+      expect((await db.query('finance_txns')), isEmpty);
+      expect((await repo.bookById(c.id))!.fee, 30);
+      // 重新打开后编辑该书补出账
+      await repo.setKv('read.feeTxn', 'true');
+      await repo.updateBook((await repo.bookById(c.id))!);
+      final rows2 = await db.query('finance_txns');
+      expect(rows2, hasLength(1));
+      expect(rows2.single['note'], '《免出账书》购书');
+    });
+
+    test('5-5 本月摘录数（L7 第五路）', () async {
+      final b = await repo.addBook(Book(title: '甲', createdAt: t0, updatedAt: t0));
+      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '本月句', createdAt: t0, updatedAt: t0));
+      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '去年句', createdAt: DateTime(2025, 5, 5).millisecondsSinceEpoch, updatedAt: t0));
+      expect(await repo.quotesThisMonth(), 1);
+      expect(await repo.doneThisYear(), 0);
     });
   });
 }

@@ -10,6 +10,7 @@ import '../../../shared/widgets/image_attach.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
 import '../domain/book_progress.dart';
+import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
 import '../domain/book_toc.dart';
@@ -18,6 +19,7 @@ import 'widgets/bs_cover.dart';
 
 part 'read_sheets_b2.dart';
 part 'read_sheets_b3.dart';
+part 'read_sheets_b4.dart';
 
 /// 阅读模块弹层集合（M1批3 · 原型 sheet* 系列）。
 /// 批1 落：新书 / 唯一摘录表单（最小字段版，批3 补章节/创建时间/标签/识图）/
@@ -266,6 +268,16 @@ Future<bool?> showBookOpsSheet(BuildContext context, WidgetRef ref, Book b) =>
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
+                key: const ValueKey('ops-list'),
+                onPressed: () {
+                  Navigator.of(sheetCtx).pop();
+                  showMoveToListSheet(context, ref, b);
+                },
+                icon: const Icon(BsIcons.book, size: 17),
+                label: const Text('移入书单'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
                 key: const ValueKey('ops-del'),
                 onPressed: () async {
                   await ref.read(readRepositoryProvider).softDeleteBooks([
@@ -288,10 +300,12 @@ Future<bool?> showBookOpsSheet(BuildContext context, WidgetRef ref, Book b) =>
 /// 就地内嵌数字滚轮（反馈记忆「时间数值选择就地内嵌滚轮」·步长 5）。
 class _NumWheel extends StatefulWidget {
   const _NumWheel({
+    this.keyName,
     required this.value,
     required this.max,
     required this.onChanged,
   });
+  final String? keyName;
   final int value;
   final int max;
   final ValueChanged<int> onChanged;
@@ -308,6 +322,7 @@ class _NumWheelState extends State<_NumWheel> {
   @override
   Widget build(BuildContext context) {
     return ListWheelScrollView(
+      key: widget.keyName == null ? null : ValueKey(widget.keyName),
       controller: _ctl,
       itemExtent: 30,
       squeeze: 1.05,
@@ -327,62 +342,6 @@ class _NumWheelState extends State<_NumWheel> {
   }
 }
 
-/// 年度目标调整（sheetGoal · 就地滚轮）。
-Future<void> showGoalSheet(BuildContext context, WidgetRef ref) {
-  return _sheet<void>(
-    context,
-    Consumer(
-      builder: (sheetCtx, ref, _) {
-        final w = ref.watch(workbenchProvider).valueOrNull;
-        var books = w?.goalBooks ?? 50;
-        var dayMin = w?.goalDay ?? 30;
-        final cs = Theme.of(sheetCtx).colorScheme;
-        return StatefulBuilder(
-          builder: (_, setSt) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SheetTitle(
-                '阅读目标',
-                onSave: () async {
-                  final repo = ref.read(readRepositoryProvider);
-                  await repo.setKv('read.goalBooks', '$books');
-                  await repo.setKv('read.goalDayMin', '$dayMin');
-                  ref.read(readTickProvider.notifier).state++;
-                  if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                  if (context.mounted) readToast(context, '目标已更新');
-                },
-              ),
-              for (final (label, val, max, cb) in [
-                ('全年读完（本）', books, 200, (int v) => setSt(() => books = v)),
-                ('每日分钟', dayMin, 180, (int v) => setSt(() => dayMin = v)),
-              ])
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 96,
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: SizedBox(
-                        height: 92,
-                        child: _NumWheel(value: val, max: max, onChanged: cb),
-                      ),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-}
+/// 年度目标调整（sheetGoal · 就地滚轮 · 批4 起为五路 L7，见 read_sheets_b4.dart）。
+Future<void> showGoalSheet(BuildContext context, WidgetRef ref) =>
+    showGoalSheetV2(context, ref);

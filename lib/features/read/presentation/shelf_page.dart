@@ -1207,6 +1207,10 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                   Navigator.of(sheetCtx).pop();
                   cycleBookState(context, ref2, b);
                 }),
+                row('lp-list', '移书单', () {
+                  Navigator.of(sheetCtx).pop();
+                  showMoveToListSheet(context, ref2, b);
+                }),
                 row('lp-del', '移除书架', () async {
                   await ref2.read(readRepositoryProvider).softDeleteBooks([
                     b.id,

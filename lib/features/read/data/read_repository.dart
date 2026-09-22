@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/schema.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
+import '../domain/book_list.dart';
 import '../domain/book_progress.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
@@ -57,6 +58,7 @@ class ReadRepository {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     await _registerDictFor(book);
+    await _syncFeeTxn(book);
     return book;
   }
 
@@ -68,6 +70,7 @@ class ReadRepository {
       whereArgs: [b.id],
     );
     await _registerDictFor(b);
+    await _syncFeeTxn(b);
   }
 
   /// 作者/出版社自动登记字典（计划 §4 批2；INSERT OR IGNORE 依唯一索引去重）。
@@ -1173,6 +1176,310 @@ class ReadRepository {
   Future<void> dictDelete(DictEntry e) async {
     if (e.id == null) return;
     await db.delete(DbSchema.tBookDict, where: 'id = ?', whereArgs: [e.id]);
+  }
+
+  // ---- 书单（批4 · 计划 §2.3：手动 items / 年度 auto_year 动态成员）----
+
+  Future<List<BookList>> allLists() async => (await db.query(
+    DbSchema.tBookLists,
+    where: 'deleted_at IS NULL',
+    orderBy: 'sort ASC, id DESC',
+  )).map(BookList.fromRow).toList();
+
+  Future<BookList?> findAutoYear(int year) async {
+    final rows = await db.query(
+      DbSchema.tBookLists,
+      where: 'deleted_at IS NULL AND auto_year = ?',
+      whereArgs: [year],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : BookList.fromRow(rows.first);
+  }
+
+  /// 新建书单；[autoYear] 非空时该年已读成员无需写 items（动态求）。
+  Future<BookList> addList(
+    BookList l, {
+    List<String> bookIds = const [],
+    int? autoYear,
+  }) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final maxSort =
+        Sqflite.firstIntValue(
+              await db.rawQuery(
+                'SELECT COALESCE(MAX(sort),0) FROM ${DbSchema.tBookLists} WHERE deleted_at IS NULL',
+              ),
+            ) ??
+            0;
+    final id = await db.insert(DbSchema.tBookLists, {
+      'name': l.name,
+      'note': l.note,
+      'auto_year': autoYear,
+      'sort': maxSort + 1,
+      'created_at': now,
+      'updated_at': now,
+    });
+    if (bookIds.isNotEmpty) await setListBooks(id, bookIds);
+    return (await listById(id))!;
+  }
+
+  Future<BookList?> listById(int id) async {
+    final rows = await db.query(
+      DbSchema.tBookLists,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : BookList.fromRow(rows.first);
+  }
+
+  Future<void> updateList(BookList l) => db.update(
+    DbSchema.tBookLists,
+    {
+      'name': l.name,
+      'note': l.note,
+      'updated_at': DateTime.now().millisecondsSinceEpoch,
+    },
+    where: 'id = ?',
+    whereArgs: [l.id],
+  );
+
+  /// 整体重排成员（选书弹层保存共用；年度自动单不调用）。
+  Future<void> setListBooks(int listId, List<String> bookIds) => db.transaction(
+    (txn) async {
+      await txn.delete(
+        DbSchema.tBookListItems,
+        where: 'list_id = ?',
+        whereArgs: [listId],
+      );
+      for (var i = 0; i < bookIds.length; i++) {
+        await txn.insert(
+          DbSchema.tBookListItems,
+          {'list_id': listId, 'book_id': bookIds[i], 'pos': i},
+        );
+      }
+      await txn.update(
+        DbSchema.tBookLists,
+        {'updated_at': DateTime.now().millisecondsSinceEpoch},
+        where: 'id = ?',
+        whereArgs: [listId],
+      );
+    },
+  );
+
+  Future<void> addBookToList(int listId, String bookId) async {
+    final maxPos =
+        Sqflite.firstIntValue(
+              await db.rawQuery(
+                'SELECT COALESCE(MAX(pos),-1) FROM ${DbSchema.tBookListItems} WHERE list_id = ?',
+                [listId],
+              ),
+            ) ??
+            -1;
+    await db.insert(
+      DbSchema.tBookListItems,
+      {'list_id': listId, 'book_id': bookId, 'pos': maxPos + 1},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+  }
+
+  /// 移出书单＝只删成员行，书本身保留（原型 blRm 文案口径）。
+  Future<void> removeBookFromList(int listId, String bookId) => db.delete(
+    DbSchema.tBookListItems,
+    where: 'list_id = ? AND book_id = ?',
+    whereArgs: [listId, bookId],
+  );
+
+  Future<void> softDeleteList(int id) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.update(
+      DbSchema.tBookLists,
+      {'deleted_at': now, 'updated_at': now},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      DbSchema.tBookListItems,
+      where: 'list_id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// 成员解析：年度单按「已读 && ended_at∈该年」动态求（[desc]＝read.yearSort）；
+  /// 手动单按 items.pos 序，跳过已软删书。
+  Future<List<Book>> listMembers(BookList l, {bool desc = false}) async {
+    final books = await allBooks();
+    if (l.autoYear != null) {
+      final y = l.autoYear!;
+      final done = books.where((b) {
+        if (b.state != Book.kStateDone || b.isDeleted) return false;
+        if (b.endedAt == null) return false;
+        return DateTime.fromMillisecondsSinceEpoch(b.endedAt!).year == y;
+      }).toList()
+        ..sort(
+          (a, b) => desc
+              ? b.endedAt!.compareTo(a.endedAt!)
+              : a.endedAt!.compareTo(b.endedAt!),
+        );
+      return done;
+    }
+    final rows = await db.query(
+      DbSchema.tBookListItems,
+      where: 'list_id = ?',
+      whereArgs: [l.id],
+      orderBy: 'pos ASC',
+    );
+    final byId = {for (final b in books) b.id: b};
+    return rows
+        .map((r) => byId[r['book_id'] as String])
+        .whereType<Book>()
+        .where((b) => !b.isDeleted)
+        .toList();
+  }
+
+  // ---- 统计聚合（批4 · p-readstat 数据源）----
+
+  /// 全年逐日分钟账（缺失日补 0）。
+  Future<List<({DateTime day, int minutes})>> dayLogYear(int year) async {
+    final byDay = <DateTime, int>{};
+    for (final s in await allSessions()) {
+      if (s.endedAt == null) continue; // 在跑的会话不入历史账
+      final d = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
+      if (d.year != year) continue;
+      final key = DateTime(d.year, d.month, d.day);
+      byDay[key] = (byDay[key] ?? 0) + s.minutes;
+    }
+    final first = DateTime(year);
+    final days = DateTime(year, 12, 31).difference(first).inDays + 1;
+    return [
+      for (var i = 0; i < days; i++)
+        (
+          day: first.add(Duration(days: i)),
+          minutes:
+              byDay[first.add(Duration(days: i))] ?? 0,
+        ),
+    ];
+  }
+
+  /// 逐日摘录条数（当年）。
+  Future<Map<DateTime, int>> dayQuotesYear(int year) async {
+    final out = <DateTime, int>{};
+    for (final q in await allQuotes()) {
+      final d = DateTime.fromMillisecondsSinceEpoch(q.createdAt);
+      if (d.year != year) continue;
+      final key = DateTime(d.year, d.month, d.day);
+      out[key] = (out[key] ?? 0) + 1;
+    }
+    return out;
+  }
+
+  /// 时段分布（24 桶；会话分钟整体记在开始时段，原型 hrs 口径）。
+  Future<List<int>> hourHistogram(int year) async {
+    final hrs = List<int>.filled(24, 0);
+    for (final s in await allSessions()) {
+      if (s.endedAt == null) continue;
+      final d = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
+      if (d.year != year) continue;
+      hrs[d.hour] += s.minutes;
+    }
+    return hrs;
+  }
+
+  /// 购书支出合计（未删书 fee 求和）。
+  Future<({double fee, int paid})> feeTotals() async {
+    final rows = await db.rawQuery(
+      'SELECT COALESCE(SUM(fee),0) s, COUNT(*) c FROM ${DbSchema.tBooks} '
+      'WHERE deleted_at IS NULL AND fee > 0',
+    );
+    final m = rows.first;
+    return (fee: (m['s'] as num).toDouble(), paid: m['c'] as int);
+  }
+
+  /// 完读书字数（页数折算 · 原型 pg*520）与完读书累计分钟。
+  Future<({int words, int rdMin})> doneWords() async {
+    var words = 0;
+    var min = 0;
+    final agg = sessionAggByBook(await allSessions());
+    for (final b in await allBooks()) {
+      if (b.isDeleted || b.state != Book.kStateDone) continue;
+      words += b.pages * 520;
+      min += agg[b.id]?.minutes ?? 0;
+    }
+    return (words: words, rdMin: min);
+  }
+
+  /// 本月摘录数（L7 目标第五路）。
+  Future<int> quotesThisMonth() async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month).millisecondsSinceEpoch;
+    return Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM ${DbSchema.tBookQuotes} WHERE deleted_at IS NULL AND created_at >= ?',
+            [start],
+          ),
+        ) ??
+        0;
+  }
+
+  /// 本年读完本数（ended_at 落在今年）。
+  Future<int> doneThisYear() async {
+    final y = DateTime.now().year;
+    return (await allBooks())
+        .where(
+          (b) =>
+              !b.isDeleted &&
+              b.state == Book.kStateDone &&
+              b.endedAt != null &&
+              DateTime.fromMillisecondsSinceEpoch(b.endedAt!).year == y,
+        )
+        .length;
+  }
+
+  // ---- 购书费用 → L4/记账流水（read.feeTxn 默认开 · §9.5 已拍板③）----
+
+  /// 书保存后同步「阅读-购书」支出流水：新增或改费用→同条更新；清零→删行。
+  Future<void> _syncFeeTxn(Book b) async {
+    final enabled = ((await kv('read.feeTxn')) ?? 'true') == 'true';
+    if (b.fee <= 0) {
+      if (b.feeTxnId != null) {
+        await db.delete(
+          DbSchema.tFinance,
+          where: 'id = ?',
+          whereArgs: [b.feeTxnId],
+        );
+        await db.update(
+          DbSchema.tBooks,
+          {'fee_txn_id': null},
+          where: 'id = ?',
+          whereArgs: [b.id],
+        );
+      }
+      return;
+    }
+    final note = '《${b.title}》购书';
+    if (!enabled) return; // 关闭后只保留费用字段不出账
+    if (b.feeTxnId == null) {
+      final id = await db.insert(DbSchema.tFinance, {
+        'amount': b.fee,
+        'direction': '支出',
+        'category': '阅读',
+        'occurred_at': DateTime.now().millisecondsSinceEpoch,
+        'source': 'read',
+        'note': note,
+      });
+      await db.update(
+        DbSchema.tBooks,
+        {'fee_txn_id': id},
+        where: 'id = ?',
+        whereArgs: [b.id],
+      );
+    } else {
+      await db.update(
+        DbSchema.tFinance,
+        {'amount': b.fee, 'note': note},
+        where: 'id = ?',
+        whereArgs: [b.feeTxnId],
+      );
+    }
   }
 
   // ---- read.* 设置（settings 表 KV · 计划 §6）----

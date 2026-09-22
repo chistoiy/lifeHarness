@@ -4,6 +4,7 @@ import '../../../core/database/app_database.dart';
 import '../data/read_repository.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
+import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
 import '../domain/book_toc.dart';
@@ -94,6 +95,28 @@ final allQuotesProvider = FutureProvider<List<BookQuote>>((ref) {
   return ref.watch(readRepositoryProvider).allQuotes();
 });
 
+/// 书单列表（批4）。
+final bookListsProvider = FutureProvider<List<BookList>>((ref) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).allLists();
+});
+
+/// 书单成员（年度单动态求）。
+final listMembersProvider = FutureProvider.family<List<Book>, int>((
+  ref,
+  listId,
+) async {
+  ref.watch(readTickProvider);
+  final l = await ref.watch(readRepositoryProvider).listById(listId);
+  if (l == null) return const [];
+  final yearSort = await ref
+      .watch(readRepositoryProvider)
+      .kv('read.yearSort');
+  return ref
+      .watch(readRepositoryProvider)
+      .listMembers(l, desc: yearSort == '降序');
+});
+
 /// 工作台聚合数据（今日卡 + 轨道 + 最近摘录一次取齐）。
 class WorkbenchData {
   const WorkbenchData({
@@ -109,6 +132,11 @@ class WorkbenchData {
     required this.dueReviews,
     required this.running,
     required this.agg,
+    this.goalWeekDays = 5,
+    this.goalMonthQuotes = 20,
+    this.weekDays = 0,
+    this.monthQuotes = 0,
+    this.weekQuotes = 0,
   });
 
   final List<Book> books;
@@ -127,6 +155,13 @@ class WorkbenchData {
 
   /// book_id → (累计分钟, 次数)
   final Map<String, ({int minutes, int times})> agg;
+
+  /// L7 五路与本周/本月实况（统计页目标卡 · 计划批4）。
+  final int goalWeekDays;
+  final int goalMonthQuotes;
+  final int weekDays;
+  final int monthQuotes;
+  final int weekQuotes;
 
   List<Book> get reading => ShelfSort.byLastRead(
     books.where((b) => b.state == Book.kStateReading && !b.isDeleted).toList(),

@@ -8,9 +8,12 @@ import 'helpers.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_list.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/presentation/book_detail.dart';
 import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
+import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
+import 'package:lifeharness/features/read/presentation/read_stat_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
@@ -77,6 +80,16 @@ void main() {
       GoRoute(
           path: '/read/quotes',
           builder: (_, s) => QuotesLibPage(bookId: s.extra as String?)),
+      GoRoute(
+          path: '/read/stat',
+          builder: (_, _) => const ReadStatPage()),
+      GoRoute(
+          path: '/read/lists',
+          builder: (_, _) => const BookListsPage()),
+      GoRoute(
+          path: '/read/list/:id',
+          builder: (_, s) =>
+              BookListDetailPage(listId: int.parse(s.pathParameters['id']!))),
     ]);
     return ProviderScope(
       overrides: [readRepositoryProvider.overrideWithValue(repo)],
@@ -578,6 +591,105 @@ void main() {
       await settle(tester);
       await clearToasts(tester);
       expect((await repo.allQuotes()).single.starred, isTrue);
+    });
+  });
+
+  group('批3-6 统计与书单', () {
+    testWidgets('R-16 三本标已读 → 年度书单/读完宫格/目标卡三处同帧一致',
+        (tester) async {
+      await repo.addBook(bk('x1', '书一', Book.kStateReading));
+      await repo.addBook(bk('x2', '书二', Book.kStateReading));
+      await repo.addBook(bk('x3', '书三', Book.kStateReading));
+      final y = DateTime.now().year;
+      final list = await repo.addList(
+          BookList(name: '$y 年度书单', createdAt: 0, updatedAt: 0),
+          autoYear: y);
+      for (final id in ['x1', 'x2', 'x3']) {
+        await repo.setBookState(id, Book.kStateDone);
+      }
+      await tester.pumpWidget(routed(const BookListsPage()));
+      await settle(tester);
+      await waitFinder(
+          tester, find.byKey(ValueKey('bl-item-${list.id}')));
+      // 1) 书单卡成员数
+      expect(find.text('3 本'), findsOneWidget);
+      // 2) 详情页成员行（年度单不放「选书」与「移出」）
+      await tester.tap(find.byKey(ValueKey('bl-item-${list.id}')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('blm-x1')), findsOneWidget);
+      expect(find.byKey(const ValueKey('blm-x3')), findsOneWidget);
+      expect(find.byKey(const ValueKey('bld-pick')), findsNothing);
+      expect(find.byKey(const ValueKey('blm-rm-x1')), findsNothing);
+      // 3) 统计页目标卡：今年读完 3 / 50
+      final ctx = tester.element(find.byKey(const ValueKey('blm-x3')));
+      GoRouter.of(ctx).go('/read/stat');
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester);
+      await settle(tester);
+      // 3) 目标卡五路（读完宫格同帧 = 同一 tick）
+      final goalRow = find.byKey(const ValueKey('rs-goal-今年读完'));
+      await waitFinder(tester, goalRow);
+      expect(goalRow, findsOneWidget);
+      expect(find.text('3 / 50 本'), findsOneWidget);
+    });
+
+    testWidgets('R-17 统计页：热力 365 格 · 度量切换 · 购书支出卡联动流水',
+        (tester) async {
+      await repo.addBook(
+          bk('f1', '付费书', Book.kStateReading, rp: 20).copyWith(fee: 59));
+      final b = (await repo.allBooks()).single;
+      await repo.addManualSession(
+          day: DateTime.now(),
+          bookId: b.id,
+          minutes: 45,
+          fromPage: 0,
+          toPage: 20);
+      await tester.pumpWidget(routed(const ReadStatPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('rs-ctl')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('rs-panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('rs-heat-364')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('rs-met-day')));
+      await settle(tester);
+      expect(find.textContaining('是否读够'), findsWidgets);
+      expect(find.byKey(const ValueKey('rs-fee')), findsOneWidget);
+      expect(find.textContaining('¥59'), findsOneWidget);
+      final rows = await db.query('finance_txns');
+      expect(rows, hasLength(1));
+    });
+
+    testWidgets('R-18 手动建单 → 详情移出 → 书保留', (tester) async {
+      await repo.addBook(bk('m1', '甲书', Book.kStateReading));
+      await repo.addBook(bk('m2', '乙书', Book.kStateReading));
+      await tester.pumpWidget(routed(const BookListsPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('bl-new-manual')));
+      await tester.tap(find.byKey(const ValueKey('bl-new-manual')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('blf-name')), '主题单');
+      await tester.ensureVisible(find.byKey(const ValueKey('blf-pick-m1')));
+      await tester.tap(find.byKey(const ValueKey('blf-pick-m1')));
+      await tester.ensureVisible(find.byKey(const ValueKey('blf-pick-m2')));
+      await tester.tap(find.byKey(const ValueKey('blf-pick-m2')));
+      await tester.tap(find.text('保存'));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(find.text('主题单'), findsWidgets);
+      expect(find.text('2 本'), findsOneWidget);
+      // 进详情移出甲书：成员 1 · 书保留
+      await tester.tap(find.text('主题单'));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('blm-rm-m1')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(find.byKey(const ValueKey('blm-m1')), findsNothing);
+      expect(find.byKey(const ValueKey('blm-m2')), findsOneWidget);
+      expect((await repo.allBooks()), hasLength(2));
     });
   });
 }

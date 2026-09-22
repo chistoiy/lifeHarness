@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 14;
+  static const int version = 15;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -46,6 +46,9 @@ class DbSchema {
   static const int catReadingId = 22;
   // v14（M1批3·批3）：摘录复习档位（艾宾浩斯 1/3/7/30 天·独立表防直升撞列）
   static const String tBookReviews = 'book_reviews';
+  // v15（M1批3·批4）：书单两表（计划 §2.3；年度书单 auto_year 动态成员不落 items）
+  static const String tBookLists = 'book_lists';
+  static const String tBookListItems = 'book_list_items';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -299,6 +302,7 @@ class DbSchema {
     ...bookSchemaStatements,
     ...bookTocSchemaStatements,
     ...bookReviewSchemaStatements,
+    ...bookListSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -481,6 +485,10 @@ class DbSchema {
     13: [
       ...bookReviewSchemaStatements,
     ],
+    // v15（M1批3·批4）：书单两表（计划 §2.3 原编号 v14，被复习表占位顺延）。
+    14: [
+      ...bookListSchemaStatements,
+    ],
   };
 
   /// v12 阅读三表 DDL（建库与迁移共用，保两处永远同文）。
@@ -584,6 +592,32 @@ class DbSchema {
       quote_id INTEGER PRIMARY KEY,
       stage INTEGER NOT NULL DEFAULT 0,
       next_at INTEGER
+    )
+    ''',
+  ];
+
+  /// v15 书单两表 DDL（建库与迁移共用·幂等 · 计划 §2.3）。
+  /// auto_year 非空＝年度书单：成员由 state='已读' AND ended_at∈该年 动态求得，
+  /// items 不写库（原型 blIds 口径）。
+  static const List<String> bookListSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookLists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      note TEXT,
+      auto_year INTEGER,
+      sort INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookListItems (
+      list_id INTEGER NOT NULL,
+      book_id TEXT NOT NULL,
+      pos INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (list_id, book_id)
     )
     ''',
   ];
