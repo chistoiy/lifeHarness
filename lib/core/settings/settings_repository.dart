@@ -16,6 +16,7 @@ class SettingsRepository {
   static const _kNoteRestore = 'lh.note_restore_mode';
   static const _kNoteLatex = 'lh.note_latex';
   static const _kNoteLineNum = 'lh.note_plain_linenum';
+  static const _kNoteSwipe = 'lh.note_swipe';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
@@ -23,7 +24,13 @@ class SettingsRepository {
     final mode = _prefs.getString(_kMode);
     final nav = _prefs.getString(_kNav);
     final latex = _prefs.getBool(_kNoteLatex);
-    if (themeId == null && mode == null && nav == null && latex == null) {
+    // 轮10：任一独立开关位已落盘即视为有用户配置，防单键设置被 defaults 吞掉。
+    if (themeId == null &&
+        mode == null &&
+        nav == null &&
+        latex == null &&
+        _prefs.getBool(_kNoteLineNum) == null &&
+        _prefs.getBool(_kNoteSwipe) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -35,6 +42,7 @@ class SettingsRepository {
       'noteRestoreMode': ?_prefs.getString(_kNoteRestore),
       'noteLatex': ?_prefs.getBool(_kNoteLatex),
       'notePlainLineNum': ?_prefs.getBool(_kNoteLineNum),
+      'noteSwipe': ?_prefs.getBool(_kNoteSwipe),
     });
   }
 
@@ -48,5 +56,6 @@ class SettingsRepository {
     await _prefs.setString(_kNoteRestore, m['noteRestoreMode']! as String);
     await _prefs.setBool(_kNoteLatex, m['noteLatex']! as bool);
     await _prefs.setBool(_kNoteLineNum, m['notePlainLineNum']! as bool);
+    await _prefs.setBool(_kNoteSwipe, m['noteSwipe']! as bool);
   }
 }

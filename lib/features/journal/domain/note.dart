@@ -31,7 +31,7 @@ class Note {
   final DateTime updatedAt;
 
   /// 富文本(kind=rich)正文=Quill Delta JSON；其余类型原样返回。
-  /// 非 JSON（批B 前的占位/手输数据）容错回退原文；嵌入对象（图片）以 🖼 占位。
+  /// 非 JSON（批B 前的占位/手输数据）容错回退原文；嵌入对象以「图片」文字占位（轮10 去 emoji）。
   static String richToPlain(String content) {
     try {
       final ops = jsonDecode(content);
@@ -43,7 +43,7 @@ class Note {
         if (insert is String) {
           sb.write(insert);
         } else if (insert is Map) {
-          sb.write(insert.containsKey('image') ? '🖼' : '▪');
+          sb.write(insert.containsKey('image') ? '图片' : '▪');
         }
       }
       return sb.toString();
@@ -55,15 +55,15 @@ class Note {
   /// 面向展示/计数/导出的正文（rich 去 Delta JSON 痕迹）。
   String get plainBody => kind == 'rich' ? richToPlain(content) : content;
 
-  /// 展示/计数用正文：rich 去 JSON，非 rich 去 Markdown 图片本地语法（→alt/🖼）。
+  /// 展示/计数用正文：rich 去 JSON，非 rich 去 Markdown 图片本地语法（→alt/图片）。
   String get displayBody =>
       kind == 'rich' ? richToPlain(content) : stripMdImages(content);
 
-  /// 图片本地语法 ![alt](path) → alt（无 alt 则 🖼），避免长路径进预览/字数。
+  /// 图片本地语法 ![alt](path) → alt（无 alt 则「图片」），避免长路径进预览/字数。
   static String stripMdImages(String s) => s
       .replaceAllMapped(RegExp(r'!\[([^\]]*)\]\([^)]*\)'), (m) {
         final alt = m.group(1) ?? '';
-        return alt.isEmpty ? '🖼' : alt;
+        return alt.isEmpty ? '图片' : alt;
       });
 
   /// 列表预览：去标题行与换行，截 40 字。

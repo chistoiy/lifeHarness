@@ -517,8 +517,15 @@ Future<void> showNoteKitSheet(
                         ],
                             key: const ValueKey('kit-folder'),
                             onTap: () async {
-                              final folders = ref.read(noteFoldersProvider).valueOrNull ??
-                                  const <String>[];
+                              // 轮10-5：选项=外部文件夹树（note_folders·含空夹），
+                              // 而非仅「已有笔记的文件夹」；当前值兜底并入防旧值消失。
+                              final tree = await ref
+                                  .read(noteFolderListProvider.future);
+                              if (!bc.mounted) return;
+                              final names = <String>{
+                                ...tree.map((f) => f.name),
+                                if (sFolder.isNotEmpty) sFolder,
+                              };
                               final picked = await showModalBottomSheet<String>(
                                 context: bc,
                                 backgroundColor: bg,
@@ -526,10 +533,17 @@ Future<void> showNoteKitSheet(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      for (final f in ['未归类', ...folders])
+                                      for (final f in ['未归类', ...names])
                                         ListTile(
                                           key: ValueKey(
                                               'kit-folder-opt-${f == '未归类' ? '' : f}'),
+                                          trailing: (f == '未归类'
+                                                  ? ''
+                                                  : f) ==
+                                                  sFolder
+                                              ? Icon(Icons.check,
+                                                  size: 18, color: fg)
+                                              : null,
                                           title: Text(f,
                                               style: TextStyle(
                                                   fontSize: 13.5, color: fg)),

@@ -170,6 +170,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       _paper = n.paper;
       _snapBaseWords = n.wordCount;
       _resetParas(n.content);
+      _syncBodyAfterReset();
     });
     if (_kind == 'rich') _rebuildRich(n.content);
     // 断点续写（草稿提醒）：最近快照比当前稿更完整时提示可从 🕘 恢复。
@@ -179,7 +180,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     final gain = latest.replaceAll(RegExp(r'\s'), '').length -
         Note.richToPlain(n.content).replaceAll(RegExp(r'\s'), '').length;
     if (gain > 0 && latest != Note.richToPlain(n.content)) {
-      AppToast.show(context, '🕘 有比当前更完整的快照（+$gain 字）· 可从版本快照恢复');
+      AppToast.show(context, '有比当前更完整的快照（+$gain 字）· 可从版本快照恢复');
     }
   }
 
@@ -270,8 +271,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     final stale = <Object>[..._paras, ..._paraNodes];
     _paras
       ..clear()
-      ..addAll((text.isEmpty ? [''] : text.split('\n\n'))
-          .map((s) => TextEditingController(text: s)));
+      ..addAll(_splitParas(text).map((s) => TextEditingController(text: s)));
     _paraNodes
       ..clear()
       ..addAll(List.generate(_paras.length, (_) => _newParaNode()));
@@ -279,10 +279,52 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     _disposeLater(stale);
   }
 
+  /// 轮10-1：段内混入的图片语法行（文字+单换行+![..](..)）载入时拆回独立段，
+  /// 否则整段匹配失败→重开显示原始 md 语法（图片卡只在独占段呈现）。
+  static List<String> _splitParas(String text) {
+    final out = <String>[];
+    for (final seg in (text.isEmpty ? [''] : text.split('\n\n'))) {
+      final lines = seg.split('\n');
+      if (!lines.any((l) => _imgPara.hasMatch(l.trim()))) {
+        out.add(seg);
+        continue;
+      }
+      var buf = <String>[];
+      for (final l in lines) {
+        if (_imgPara.hasMatch(l.trim())) {
+          if (buf.isNotEmpty) {
+            out.add(buf.join('\n'));
+            buf = [];
+          }
+          out.add(l.trim());
+        } else {
+          buf.add(l);
+        }
+      }
+      if (buf.isNotEmpty) out.add(buf.join('\n'));
+    }
+    return out.isEmpty ? [''] : out;
+  }
+
+  /// 轮10-1：载入归一（图片行拆独立段）后同步 _bodyCtl，避免其后 _flushParas
+  /// 比对不等而误标脏、打开即重写 updated_at 打乱列表序（轮8③教训）。
+  void _syncBodyAfterReset() {
+    if (_isRich) return;
+    final joined = _paras.map((c) => c.text).join('\n\n');
+    if (_bodyCtl.text != joined) {
+      _bodyCtl.value = TextEditingValue(
+          text: joined,
+          selection: TextSelection.collapsed(offset: joined.length));
+    }
+  }
+
   /// 段落全文 → _bodyCtl（单一真源·自动保存与持久层都读它）。
   /// 文本无变化时整体跳过：避免打开即切篇等无编辑场景误标脏、
   /// 重写 updated_at 导致列表顺序被悄悄打乱（轮8③）。
+  /// 轮10-3a：rich 模式 _paras 是陈旧镜像（正文真源=Quill 文档→_onRichChanged），
+  /// 退出时若用其覆盖 _bodyCtl 会把刚插入的图片 embed 等编辑抹掉，直接跳过。
   void _flushParas() {
+    if (_isRich) return;
     final joined = _paras.map((c) => c.text).join('\n\n');
     if (_bodyCtl.text == joined) return;
     _bodyCtl.value = TextEditingValue(
@@ -686,7 +728,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
           maxWidth: 1600,
           imageQuality: 88);
     } catch (e) {
-      if (mounted) AppToast.show(context, '📷 相机/相册暂不可用');
+      if (mounted) AppToast.show(context, '相机/相册暂不可用');
       return null;
     }
     if (picked == null || !mounted) return null;
@@ -719,7 +761,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         : c.selection.baseOffset;
     c.replaceText(idx, 0, BlockEmbed.image(dest),
         TextSelection.collapsed(offset: idx + 1));
-    AppToast.show(context, '🖼 已插入图片');
+    AppToast.show(context, '已插入图片');
   }
 
   /// 轮8①：纯文本「＋」附件卡 → 走同一插图链 → 当前段后插**独立图片段**
@@ -730,16 +772,16 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     final i = _curPara.clamp(0, _paras.length - 1);
     if (_paras[i].text.trim().isEmpty) {
       _paras[i].value = TextEditingValue(
-          text: '![🖼]($dest)',
+          text: '![图片]($dest)',
           selection: TextSelection.collapsed(offset: 8 + dest.length));
     } else {
-      _paras.insert(i + 1, TextEditingController(text: '![🖼]($dest)'));
+      _paras.insert(i + 1, TextEditingController(text: '![图片]($dest)'));
       _paraNodes.insert(i + 1, _newParaNode());
       _curPara = i + 1;
     }
     setState(() {});
     _flushParas();
-    AppToast.show(context, '🖼 已插入图片');
+    AppToast.show(context, '已插入图片');
   }
 
   /// 纸感样式：正文/三级标题/列表/引用/占位符随 _fg 与字号滑杆。
@@ -1264,9 +1306,14 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   }
 
   // ---------- 轮8③ · 左右滑动/←→ 按当前排序+筛选切换笔记 ----------
+  // 轮10-2：滑动改为可选能力（lh.note_swipe·记录管理·默认关）；←→ 键仅桌面不受限。
 
   /// 原型 pwSwipe：dx>70 且 |dx|>2|dy| 才认横向滑动（纵向留给滚动）。
   void _onSwipeDown(PointerDownEvent e) {
+    if (!ref.read(settingsControllerProvider).noteSwipe) {
+      _swDown = null;
+      return;
+    }
     _swDown = e.position;
     _swFired = false;
   }
@@ -1345,6 +1392,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       _lastSnapText = '';
       _snapBaseWords = n.wordCount;
       _resetParas(n.content);
+      _syncBodyAfterReset();
     });
     if (n.kind == 'rich') _rebuildRich(n.content);
   }
@@ -1678,7 +1726,7 @@ class _NoteImageEmbedBuilder extends EmbedBuilder {
   String get key => BlockEmbed.imageType;
 
   @override
-  String toPlainText(Embed node) => '🖼';
+  String toPlainText(Embed node) => '图片';
 
   @override
   Widget build(BuildContext context, EmbedContext embedContext) {
@@ -1697,7 +1745,7 @@ class _NoteImageEmbedBuilder extends EmbedBuilder {
             height: 90,
             alignment: Alignment.center,
             color: const Color(0x11000000),
-            child: const Text('🖼 图片已丢失',
+            child: const Text('图片已丢失',
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
           ),
         ),

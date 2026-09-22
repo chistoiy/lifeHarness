@@ -14,6 +14,7 @@ class RecmgSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final restore = ref.watch(settingsControllerProvider).noteRestoreMode;
     final latex = ref.watch(settingsControllerProvider).noteLatex;
+    final swipe = ref.watch(settingsControllerProvider).noteSwipe;
     return Scaffold(
       appBar: AppBar(title: const Text('记录管理')),
       body: ListView(
@@ -75,6 +76,21 @@ class RecmgSettingsPage extends ConsumerWidget {
                         v
                             ? '已开启 LaTeX 渲染：\$..\$ 与 \$\$..\$\$ 显示为公式'
                             : '已关闭 LaTeX 渲染：公式按原文显示');
+                  }
+                }),
+            // V1.29轮10-2：编辑页左右滑动切换上下篇改为可选（默认关）。
+            _SwitchRow(
+                keyName: 'swipe-tgl',
+                title: '编辑页滑动切换笔记',
+                value: swipe,
+                onChanged: (v) async {
+                  await ref
+                      .read(settingsControllerProvider.notifier)
+                      .setNoteSwipe(v);
+                  if (context.mounted) {
+                    AppToast.show(
+                        context,
+                        v ? '已开启：编辑页左右滑动切换上/下一篇' : '已关闭滑动切换');
                   }
                 }),
             _Row(

@@ -831,7 +831,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           await pollText(tester,
-              '🕘 有比当前更完整的快照（+13 字）· 可从版本快照恢复'),
+              '有比当前更完整的快照（+13 字）· 可从版本快照恢复'),
           isTrue);
     });
 
@@ -1066,14 +1066,14 @@ void main() {
       expect((await dao.byId(n.id!))!.kind, 'plain');
     });
 
-    test('Note.richToPlain：Delta JSON→纯文本；图片嵌入→🖼；非 JSON 容错回退', () {
+    test('Note.richToPlain：Delta JSON→纯文本；图片嵌入→图片；非 JSON 容错回退', () {
       expect(
           Note.richToPlain(jsonEncode([
             {'insert': '甲\n'},
             {'insert': {'image': '/x/y.png'}},
             {'insert': '\n'},
           ])),
-          '甲\n🖼\n');
+          '甲\n图片\n');
       expect(Note.richToPlain('不是JSON'), '不是JSON');
     });
 
@@ -1106,7 +1106,7 @@ void main() {
       expect(ctl.document.toPlainText(), contains('更完整的旧稿共十九个字啦'));
     });
 
-    testWidgets('🖼 插图：相册弹层→拷贝 note_images→Delta image 嵌入并落库',
+    testWidgets('插图：相册弹层→拷贝 note_images→Delta image 嵌入并落库',
         (tester) async {
       final tmp = Directory.systemTemp.createTempSync('lh_img');
       final docs = Directory.systemTemp.createTempSync('lh_docs');
@@ -1131,13 +1131,13 @@ void main() {
       // runAsync(真等) + pump(排 fake 微任务) 直到 toast 出现
       for (var i = 0;
           i < 10 &&
-              find.textContaining('🖼 已插入图片').evaluate().isEmpty;
+              find.textContaining('已插入图片').evaluate().isEmpty;
           i++) {
         await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 60)));
         await tester.pump(const Duration(milliseconds: 60));
       }
-      expect(find.textContaining('🖼 已插入图片'), findsOneWidget);
+      expect(find.textContaining('已插入图片'), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
       await settle5(tester);
       await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
@@ -1147,7 +1147,7 @@ void main() {
       expect(stored, hasLength(1)); // 已拷贝进应用目录
       final list = await dao.list();
       expect(list.single.content, contains('"image"'));
-      expect(Note.richToPlain(list.single.content), contains('🖼')); // 预览无路径
+      expect(Note.richToPlain(list.single.content), contains('图片')); // 预览无路径
     });
   });
 
@@ -1204,7 +1204,7 @@ void main() {
       expect(find.byKey(const ValueKey('note-rich-lay-ol')), findsNothing);
     });
 
-    testWidgets('轮8① 纯文本「＋」附件卡：弹层→落盘→段尾插 ![🖼](路径) 并预览去径',
+    testWidgets('轮8① 纯文本「＋」附件卡：弹层→落盘→段尾插 ![图片](路径) 并预览去径',
         (tester) async {
       final tmp = Directory.systemTemp.createTempSync('lh_img_p');
       final docs = Directory.systemTemp.createTempSync('lh_docs_p');
@@ -1234,26 +1234,26 @@ void main() {
       await tester.pumpAndSettle();
       for (var i = 0;
           i < 10 &&
-              find.textContaining('🖼 已插入图片').evaluate().isEmpty;
+              find.textContaining('已插入图片').evaluate().isEmpty;
           i++) {
         await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 60)));
         await tester.pump(const Duration(milliseconds: 60));
       }
-      expect(find.textContaining('🖼 已插入图片'), findsOneWidget);
+      expect(find.textContaining('已插入图片'), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
       await settle5(tester);
       await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
 
       final list = await dao.list();
       expect(list.single.content, contains('正文一段'));
-      expect(list.single.content, contains('![🖼]('));
-      expect(list.single.preview, contains('🖼')); // 预览只留占位符
+      expect(list.single.content, contains('![图片]('));
+      expect(list.single.preview, contains('图片')); // 预览只留占位符
       expect(list.single.preview, isNot(contains(docs.path)));
 
       // 8b：图片=独立图片段缩略图卡（原型 ins-img），不露原始语法；✕ 可移除
       expect(find.byKey(const ValueKey('note-img-del-1')), findsOneWidget);
-      expect(find.textContaining('![🖼]('), findsNothing);
+      expect(find.textContaining('![图片]('), findsNothing);
       // 轮9c：点缩略图看大图（全屏黑底层·再点关闭）。
       expect(find.byKey(const ValueKey('note-img-view-1')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('note-img-view-1')));
@@ -1281,7 +1281,8 @@ void main() {
           content: '乙文',
           createdAt: t0.add(const Duration(minutes: 1)),
           updatedAt: t0.add(const Duration(minutes: 1))));
-      // updated 降序 = [乙, 甲]；打开首篇 乙
+      // updated 降序 = [乙, 甲]；打开首篇 乙（轮10-2：滑动改为可选·用例先开启）
+      await prefs.setBool('lh.note_swipe', true);
       await tester.pumpWidget(scope(NoteEditPage(noteId: b.id)));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const ValueKey('note-para-0')), '乙文改');
@@ -1343,6 +1344,106 @@ void main() {
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       expect(await pollText(tester, '⇄ 已切换 1/2 · 乙'), isTrue);
+    });
+  });
+
+  group('V1.29轮10 · 缺陷修复与开关', () {
+    testWidgets('10-1 纯文本：图片语法行混入文字段 → 载入拆回独立图片卡（不露原文）',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final n = await dao.save(Note(
+          title: '混段',
+          content: '继续学姐\n![图片](/data/x.png)',
+          createdAt: t0,
+          updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-img-view-1')), findsOneWidget);
+      expect(find.textContaining('![图片]('), findsNothing);
+      // 归一化不得误标脏：直接退出不应重写 updated_at（轮8③）。
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await tester.pumpAndSettle();
+      expect((await dao.byId(n.id!))!.updatedAt, t0);
+    });
+
+    testWidgets('10-3a rich：图片 embed 后编辑退出 → 落库仍含图片（不被旧段文覆盖）',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final delta = jsonEncode([
+        {'insert': '甲'},
+        {'insert': {'image': '/data/x.png'}},
+        {'insert': '\n'},
+      ]);
+      final n = await dao.save(Note(
+          title: '富', content: delta, kind: 'rich', createdAt: t0, updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      // 在编辑器输入一个字符触发 _onRichChanged（图片已在文档中）。
+      await tester.tap(find.byKey(const ValueKey('note-rich-editor')));
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
+      await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await tester.pumpAndSettle();
+      final saved = (await dao.byId(n.id!))!;
+      expect(saved.content, contains('"image"'),
+          reason: '退出路径 _flushParas 不得用陈旧段文覆盖 Delta JSON');
+      expect(saved.content, contains('甲'));
+    });
+
+    testWidgets('10-5 kit 文件夹弹层=树数据（含空夹）·选择后落库联动', (tester) async {
+      final fdao = NoteFolderDao(db);
+      await fdao.create('啊KKK'); // 空文件夹（旧实现只列「已有笔记」的夹→不可见）
+      final t0 = DateTime(2026, 9, 20, 10);
+      final n = await dao.save(
+          Note(title: '移我', content: '正文', createdAt: t0, updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-export')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-folder')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('kit-folder-opt-啊KKK')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('kit-folder-opt-啊KKK')));
+      await settle5(tester);
+      await clearToasts(tester);
+      await tester.pump(const Duration(seconds: 2)); // 自动保存
+      expect((await dao.byId(n.id!))!.folder, '啊KKK');
+    });
+
+    testWidgets('10-2 滑动切换默认关：滑动不换篇；开关持久化 lh.note_swipe', (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      await dao.save(
+          Note(title: '甲', content: '甲文', createdAt: t0, updatedAt: t0));
+      final b = await dao.save(Note(
+          title: '乙',
+          content: '乙文',
+          createdAt: t0.add(const Duration(minutes: 1)),
+          updatedAt: t0.add(const Duration(minutes: 1))));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: b.id)));
+      await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
+      await tester.pump();
+      expect(find.textContaining('已切换'), findsNothing);
+      expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('note-title')))
+              .controller!
+              .text,
+          '乙');
+
+      // 记录管理开关：点击持久化后滑动生效。
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const RecmgSettingsPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('swipe-tgl')));
+      await tester.pumpAndSettle();
+      expect(prefs.getBool('lh.note_swipe'), isTrue);
+      await useSurface(tester);
+      await tester.pumpWidget(scope(NoteEditPage(noteId: b.id)));
+      await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
+      expect(await pollText(tester, '⇄ 已切换 2/2 · 甲'), isTrue);
     });
   });
 

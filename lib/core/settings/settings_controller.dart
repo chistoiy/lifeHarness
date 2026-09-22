@@ -72,6 +72,12 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 编辑页左右滑动切换上下篇（V1.29轮10-2·记录管理，默认关）。
+  Future<void> setNoteSwipe(bool on) async {
+    state = state.copyWith(noteSwipe: on);
+    await _persist();
+  }
+
   /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
   /// core 不触达 feature（R2）。
   Future<void> setNotify(NotifySettings n) async {

@@ -111,6 +111,7 @@ class UserSettings {
     this.noteRestoreMode = 'replace',
     this.noteLatex = false,
     this.notePlainLineNum = false,
+    this.noteSwipe = false,
   });
 
   final String themeId;
@@ -130,6 +131,9 @@ class UserSettings {
 
   /// V1.29轮9p·笔记⋯弹层：纯文本行号开关（仅 kind=plain 生效，默认关）。
   final bool notePlainLineNum;
+
+  /// V1.29轮10-2·记录管理：编辑页左右滑动切换上下篇开关（默认关=轮8②常开改为可选）。
+  final bool noteSwipe;
 
   /// 可编排卡片 id 全集（顺序之外新增卡片按此兜底补齐）。
   static const List<String> kHomeCardIds = [
@@ -159,6 +163,7 @@ class UserSettings {
     String? noteRestoreMode,
     bool? noteLatex,
     bool? notePlainLineNum,
+    bool? noteSwipe,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -169,6 +174,7 @@ class UserSettings {
         noteRestoreMode: noteRestoreMode ?? this.noteRestoreMode,
         noteLatex: noteLatex ?? this.noteLatex,
         notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
+        noteSwipe: noteSwipe ?? this.noteSwipe,
       );
 
   Map<String, Object> toMap() => {
@@ -180,6 +186,7 @@ class UserSettings {
         'noteRestoreMode': noteRestoreMode,
         'noteLatex': noteLatex,
         'notePlainLineNum': notePlainLineNum,
+        'noteSwipe': noteSwipe,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -193,6 +200,7 @@ class UserSettings {
             (m['noteRestoreMode'] as String?) == 'copy' ? 'copy' : 'replace',
         noteLatex: m['noteLatex'] as bool? ?? false,
         notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
+        noteSwipe: m['noteSwipe'] as bool? ?? false,
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。
