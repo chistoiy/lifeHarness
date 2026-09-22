@@ -1524,12 +1524,12 @@ tailwind.config = {
   <div id="noteTree" class="hidden fixed md:absolute left-0 top-0 bottom-0 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col">
     <div class="px-4 pt-10 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
     <div class="px-2 pb-2 overflow-y-auto no-scrollbar flex-1" id="ntList"></div>
-    <!-- V1.29轮10-9：底部 5 图标条改轻文字钮行（与弹层同语言·添加文件夹仍是树内行） -->
-    <div class="border-t border-slate-100 dark:border-slate-800 px-3 py-2.5 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
-      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="重命名选中夹" onclick="ntRename()">重命名</button>
-      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="排序：名称/创建/手动" onclick="ntSort()">排序</button>
-      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" title="全部展开/折叠" onclick="ntExpandAll()">展开</button>
-      <button class="px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-700" onclick="ntClose()">关闭</button>
+    <!-- V1.29轮11-2：底部操作条恢复线性图标钮（重命名/添加文件夹/展开折叠/关闭） -->
+    <div class="border-t border-slate-100 dark:border-slate-800 px-2 py-1.5 flex items-center justify-around">
+      <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
+      <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
+      <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
+      <button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntBtClose"></button>
     </div>
   </div>
 
@@ -3165,6 +3165,7 @@ const NT_IC={
  folder:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/></svg>',
  trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>',
  add:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ folderAdd:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M14.5 12.5h5m-2.5-2.5v5"/></svg>',
  edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1Z"/></svg>',
  sort:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M4 12h7M4 18h4M17 8v11m0 0 3-3m-3 3-3-3"/></svg>',
  expand:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8 7l4 4 4-4-4-4ZM12 21l4-4-4-4-4 4 4 4Z"/></svg>',
@@ -3207,7 +3208,7 @@ function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?
   +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`;}
 function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
-(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.add;$('#ntBtSort').innerHTML=NT_IC.sort;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
+(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
 let noteRestore='replace';
 function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';

@@ -269,9 +269,12 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
 
   void _resetParas(String text) {
     final stale = <Object>[..._paras, ..._paraNodes];
+    final segs = _splitParas(text);
+    // 轮11-3：末段是图片（卡片不可写）时补空文本段，重开纯图片笔记也能直接写正文。
+    if (_imgPara.hasMatch(segs.last.trim())) segs.add('');
     _paras
       ..clear()
-      ..addAll(_splitParas(text).map((s) => TextEditingController(text: s)));
+      ..addAll(segs.map((s) => TextEditingController(text: s)));
     _paraNodes
       ..clear()
       ..addAll(List.generate(_paras.length, (_) => _newParaNode()));
@@ -306,11 +309,21 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     return out.isEmpty ? [''] : out;
   }
 
+  /// 轮11-3：段落联集——尾部空段只是插图后的光标落点，不落库（防内容被
+  /// `\n\n` 尾巴污染、字数统计虚增）。
+  String _joinedParas() {
+    final parts = _paras.map((c) => c.text).toList();
+    while (parts.length > 1 && parts.last.trim().isEmpty) {
+      parts.removeLast();
+    }
+    return parts.join('\n\n');
+  }
+
   /// 轮10-1：载入归一（图片行拆独立段）后同步 _bodyCtl，避免其后 _flushParas
   /// 比对不等而误标脏、打开即重写 updated_at 打乱列表序（轮8③教训）。
   void _syncBodyAfterReset() {
     if (_isRich) return;
-    final joined = _paras.map((c) => c.text).join('\n\n');
+    final joined = _joinedParas();
     if (_bodyCtl.text != joined) {
       _bodyCtl.value = TextEditingValue(
           text: joined,
@@ -325,7 +338,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   /// 退出时若用其覆盖 _bodyCtl 会把刚插入的图片 embed 等编辑抹掉，直接跳过。
   void _flushParas() {
     if (_isRich) return;
-    final joined = _paras.map((c) => c.text).join('\n\n');
+    final joined = _joinedParas();
     if (_bodyCtl.text == joined) return;
     _bodyCtl.value = TextEditingValue(
         text: joined,
@@ -433,7 +446,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                     height: 120,
                     alignment: Alignment.center,
                     color: _fg.withValues(alpha: .08),
-                    child: Text('🖼 图片已丢失',
+                    child: Text('图片已丢失',
                         style: TextStyle(
                             fontSize: 11, color: _fg.withValues(alpha: .45))),
                   ),
@@ -480,7 +493,7 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         child: Center(
           child: InteractiveViewer(
             child: Image.file(File(path),
-                errorBuilder: (_, _, _) => const Text('🖼 图片已丢失',
+                errorBuilder: (_, _, _) => const Text('图片已丢失',
                     style: TextStyle(color: Colors.white54))),
           ),
         ),
@@ -705,13 +718,13 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
           children: [
             ListTile(
               key: const ValueKey('img-gallery'),
-              title: Text('🖼 从相册选择',
+              title: Text('从相册选择',
                   style: TextStyle(fontSize: 13.5, color: _fg)),
               onTap: () => Navigator.of(bc).pop('gallery'),
             ),
             ListTile(
               key: const ValueKey('img-camera'),
-              title: Text('📷 拍照',
+              title: Text('拍照',
                   style: TextStyle(fontSize: 13.5, color: _fg)),
               onTap: () => Navigator.of(bc).pop('camera'),
             ),
@@ -770,16 +783,30 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
     final dest = await _pickImage();
     if (dest == null || !mounted) return;
     final i = _curPara.clamp(0, _paras.length - 1);
+    final md = '![图片]($dest)';
+    final int imgIdx;
     if (_paras[i].text.trim().isEmpty) {
+      // 轮11-3：图片段是卡片不可聚焦——若它落在末尾，补一个空文本段并聚焦，
+      // 否则新建笔记一打开先插图就没有写正文的位置（须删图才能写）。
       _paras[i].value = TextEditingValue(
-          text: '![图片]($dest)',
-          selection: TextSelection.collapsed(offset: 8 + dest.length));
+          text: md, selection: TextSelection.collapsed(offset: md.length));
+      imgIdx = i;
     } else {
-      _paras.insert(i + 1, TextEditingController(text: '![图片]($dest)'));
+      _paras.insert(i + 1, TextEditingController(text: md));
       _paraNodes.insert(i + 1, _newParaNode());
-      _curPara = i + 1;
+      imgIdx = i + 1;
     }
+    if (imgIdx == _paras.length - 1) {
+      _paras.add(TextEditingController(text: ''));
+      _paraNodes.add(_newParaNode());
+    }
+    _curPara = imgIdx + 1;
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _curPara < _paraNodes.length) {
+        _paraNodes[_curPara].requestFocus();
+      }
+    });
     _flushParas();
     AppToast.show(context, '已插入图片');
   }
@@ -1661,6 +1688,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
         backgroundColor: _bg,
         body: SafeArea(
           child: Column(
+            // 轮11-1（=轮10-4 真因）：默认 center + 视口横向 shrink-wrap 会让
+            // 短行（如标题）整体居中、看似「左右留白太多」→ 强制撑满宽度。
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),

@@ -1264,7 +1264,8 @@ void main() {
       expect(find.byKey(const ValueKey('note-img-light')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('note-img-del-1')));
       await tester.pump();
-      expect(find.byKey(const ValueKey('note-para-1')), findsNothing);
+      // 轮11-3：图片段后自动补的可写空段仍在（para-1·空文本），但不落库。
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 1200)); // 自动保存
       expect((await dao.list()).single.content, '正文一段');
     });
@@ -1463,6 +1464,100 @@ void main() {
       await tester.pumpAndSettle();
       await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
       expect(await pollText(tester, '⇄ 已切换 2/2 · 甲'), isTrue);
+    });
+  });
+
+  group('V1.29轮11 · 预览贴左/树底图标/插图后可写', () {
+    testWidgets('11-1 MD 预览短标题贴左（页面 Column stretch 回归守护）',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final n = await dao.save(Note(
+          title: '居中',
+          content: '## 步步高让人',
+          kind: 'md',
+          createdAt: t0,
+          updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-mode-view')));
+      await tester.pumpAndSettle();
+      // 真因=页面 Column 默认 center + 视口横向 shrink-wrap → 短行整体居中。
+      final r = tester.getRect(find.text('步步高让人'));
+      expect(r.left, lessThan(30),
+          reason: '预览内容须左对齐（20 内边距），不得居中留大片空白');
+    });
+
+    testWidgets('11-2 树抽屉底部=图标四钮（重命名/添加/展开/关闭）', (tester) async {
+      await tester.pumpWidget(scope(const NoteTab()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-folder')));
+      await tester.pumpAndSettle();
+      for (final k in [
+        'nt-bt-rename',
+        'nt-bt-add',
+        'nt-bt-expand',
+        'nt-bt-close'
+      ]) {
+        expect(find.byKey(ValueKey(k)), findsOneWidget, reason: k);
+        expect(tester.widget<IconButton>(find.byKey(ValueKey(k))),
+            isA<IconButton>(),
+            reason: '$k 应为图标钮（轮11 恢复图标样式）');
+      }
+    });
+
+    testWidgets('11-3 纯文本空稿先插图→图下即有可写段；末段图片重开也可写',
+        (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('lhimg11');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      File(p.join(tmp.path, 'x.png')).writeAsBytesSync(base64Decode(_png1x1));
+      PathProviderPlatform.instance = _FakePathProvider(tmp.path);
+      ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'x.png'));
+
+      await tester.pumpWidget(scope(const NoteEditPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('note-attach')));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('img-gallery')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('img-gallery')));
+      // 落盘拷贝走真实异步（fake 时间下 pumpAndSettle 不收敛·轮8①同款手法）
+      for (var i = 0;
+          i < 10 && find.textContaining('已插入图片').evaluate().isEmpty;
+          i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      await tester.pump(const Duration(seconds: 2));
+      await clearToasts(tester);
+      expect(find.byKey(const ValueKey('note-img-view-0')), findsOneWidget);
+      // 修复点：图片段后自动补空文本段并聚焦，无需先删图就能写正文。
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('note-para-1')), '正文在后');
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await tester.pumpAndSettle();
+      final saved = (await dao.list()).single;
+      expect(saved.content, startsWith('![图片]('));
+      expect(saved.content, endsWith('正文在后')); // 无尾部 \n\n（空段不落库）
+    });
+
+    testWidgets('11-3b 重开纯图片稿：末段图片自动补可写空段·不误标脏',
+        (tester) async {
+      final t0 = DateTime(2026, 9, 20, 10);
+      final n2 = await dao.save(Note(
+          title: '纯图',
+          content: '![图片](/data/x.png)',
+          createdAt: t0,
+          updatedAt: t0));
+      await tester.pumpWidget(scope(NoteEditPage(noteId: n2.id)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-img-view-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
+      // 补段属渲染辅助：不得误标脏（直接退出 updated_at 不变·轮8③）。
+      await tester.tap(find.byKey(const ValueKey('note-back')));
+      await tester.pumpAndSettle();
+      expect((await dao.byId(n2.id!))!.updatedAt, t0);
     });
   });
 
