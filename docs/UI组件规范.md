@@ -59,6 +59,15 @@
 - 原型：INS 风日记分享卡；代码 `journal/presentation/widgets/ins_card.dart:9`
 - 变体：DiaryCard（❤️⭐回望数）
 
+### LH-C06 书籍封面卡 book cover card（V1.30 新增）
+- 原型：`prototype/index-bookshelf.html` `.bk-cov` + `.bk-pbar.has-pct`（书架四视图 / 工作台轨道 / 书单详情共用）
+- 规格：色板封面（书脊渐变 + 左上高光 + 底部作者名）· 状态角标见 LH-K17 · **百分比写在进度条右端**（填充 ≥62% 用白字，否则灰字）· **不显示页数与「笔记 N 条」**
+- 列数：封面墙 3/4/5 列可调（`read.wallCols`），轨道固定 106px（LH-L07）
+
+### LH-C07 沉浸头图卡 immersive hero（V1.30 新增）
+- 原型：书籍详情页 `.bd-bg`（封面模糊 26px + saturate 1.5 作背景，内容浮于其上）
+- 规格：书名 19px / 作者·译者 / 出版社·出版日期 / 四枚信息芯片（LH-K15）· 右侧 92×132 封面点进资料页 · 页内**不放动作行**（动作在 LH-K13）
+
 ## 三、LH-S 弹层类（sheet 家族）
 
 **公共骨架**：showModalBottomSheet · isScrollControlled · 内边距 LTRB(16,14,16,24) · 标题 15 w900 · 行卡=LH-C01+选中描边 accent 2px+✓
@@ -73,6 +82,13 @@
 | LH-S06 | 日记模板管理弹层 | sheetDiaryTpl | diary_edit_page `_openTplSheet`（行 key tpl-row-*，删除 tpl-del-*，新建 tpl-new） |
 | LH-S07 | 新建模板弹层 | sheetDiaryTplEdit | diary_edit_page `_openTplCreateSheet`（tpl-name / tpl-sec-* / tpl-save） |
 | LH-S08 | 上级分组选择弹层 | sheetCatParent | category/settings 内 |
+| LH-S09 | 书籍操作弹层 | sheetBookOps（index-bookshelf.html） | 批3 规划 `features/reading/widgets/book_ops_sheet.dart`；标题=书名，行=线性图标+文字，动作集见计划 §3.4 |
+| LH-S10 | 摘录操作弹层 | sheetQuoteOps | 收藏/编辑/转日记/转待办/转笔记/复制/删除七行 |
+| LH-S11 | 摘录录入表单（**全模块唯一一张**） | sheetQuoteEdit | 书→章节下拉（取该书目录）+页码→创建时间→原文→想法→识图/加图/剪贴板→颜色分类→标签多选；换书三处联动 |
+| LH-S12 | 计时明细弹层 | sheetSess | 逐条 日期/时长/起始页→结束页 行内可改+删除+补记；改动回算聚合与轨迹 |
+| LH-S13 | 阅读轨迹弹层 | sheetTrack | 复用 bsTrack（柱状+时段分布+里程碑），顶部「改明细」跳 LH-S12 |
+| LH-S14 | 目录导入弹层 | sheetTocImport | 文件解析（演示）+ **粘贴文本实时解析**→预览「N 部分/M 节」→确认替换 |
+| LH-S15 | 书架维度 / 排序二级面板 | sheetShelfDim / sheetShelfSort | 触发条点开；8 维度 / 6 排序 |
 
 - 可调旋钮：标题字号、行卡高度、选中描边色——**弹层内字段结构变更走原型确认门**。
 
@@ -92,6 +108,11 @@
 | LH-K10 | 分类速记列 | rail 列 | grid_day_view.dart 右列（64 宽） | 选中=标记/未选=记到此刻；行高 34 r12 |
 | LH-K11 | 时长快捷 chips | 添加弹层 | time_pick_sheet 内 | 0/15/30/1h/2h |
 | LH-K12 | 待办勾选框 | .chk | todo_list_view `_TodoTile` | 20 方角 6 · 完成=accent 底白✓ |
+| LH-K13 | **顶栏页内动作图标钮**（V1.30） | `#hdrActs`（index-bookshelf） | 二级页顶栏右侧·36 圆·线性图标 19px·**只用图标不用文字**·带 title/tooltip；计时中该钮转 grad 高亮。规则：二级页高频动作上此钮，低频动作仍进 LH-S09 操作弹层 |
+| LH-K14 | **图标入口条**（V1.30） | `#recHub` 五枚 / `#shTools` | 36 高·圆角 12·bg-white/15·图标 17px 居中·**无文字标签**；书架=书脊架(shelf)、设置=齿轮(cog)、书单=列表(list)，禁用形似太阳的旧 gear |
+| LH-K15 | **可点信息芯片**（V1.30） | 详情页「4h32m」「62%」 | 12px 线性图标+数值+虚线下划线+title；点=开对应弹层（LH-S12 / 记进度）。规则：可改的数值不做成纯文本 |
+| LH-K16 | **就地编辑行**（V1.30） | 目录编辑态 `.toc-ed` / 计时明细行 | input 直接嵌在行内改（不跳二级页）；行右侧 24×24 圆钮 ↑ ↓ ⠿ 与删除；退出编辑自动清理空条目 |
+| LH-K17 | **可点状态角标**（V1.30） | 封面右上 `${b.st}` 角标 | 点=按 在读→想读→已读→弃读 循环（`stopPropagation` 不误触父级跳转）；切已读补 100% 与 `end` |
 
 ## 五、LH-L 列表条目类
 
@@ -103,6 +124,8 @@
 | LH-L04 | 空态补录行 | 虚线行 | ui_kit `EmptyDashRow`（轴视图/日视图/记录页同源化） | 描边 outlineVariant · r16 · 居中灰字 · 点击=补录 |
 | LH-L05 | 时间轴行 | 轴视图行 | calendar_page `_AxisView.rail` | 左 42 时间列+9 圆点+竖线（46 位）+内容卡 |
 | LH-L06 | 功能宫格块 | 宫格 | dashboard `_AllModulesCard` | 44 emoji 底块 r14+名 11px+版本角标 7px · 未建 45% 透明 |
+| LH-L07 | 封面横向滑动轨道 | `.bk-rail`（index-bookshelf） | 批3 规划 reading 工作台 | `grid-auto-flow:column`·列宽 106·`scroll-snap-type:x proximity`·左右各 20 出血（露半张作滑动暗示）·按**最近一次阅读**倒序·卡内复用 LH-C06 |
+| LH-L08 | 计时明细行 | `#ssList .card` | 批3 规划 LH-S12 内 | 上行=序号+日期+删除圆钮；下行=时长(分钟)+起始页→结束页；行内 input 直接改（LH-K16） |
 
 ## 六、微调指令写法（示例）
 
