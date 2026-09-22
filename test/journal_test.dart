@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/features/read/data/read_repository.dart';
+import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
@@ -91,6 +93,8 @@ void main() {
           eventRepositoryProvider
               .overrideWithValue(EventRepository(EventDao(db), bus)),
           sharedPreferencesProvider.overrideWithValue(prefs),
+          readRepositoryProvider
+              .overrideWithValue(ReadRepository(db)), // 阅读 tab 真实化后需库
           if (wx != null) weatherServiceProvider.overrideWithValue(wx),
         ],
         child: MaterialApp(home: home),
@@ -306,7 +310,8 @@ void main() {
       await tester.tap(find.text('阅读'));
       await tester.pumpAndSettle();
       expect(find.text('记录 · 阅读'), findsOneWidget);
-      expect(find.textContaining('规划 V0.5'), findsWidgets);
+      // M1批3 后阅读 tab=书架工作台（不再是占位）
+      expect(find.text('最近摘录'), findsOneWidget);
       // 回日记段
       await tester.tap(find.byKey(const ValueKey('rec-switch')));
       await tester.pumpAndSettle();
