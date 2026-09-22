@@ -9,7 +9,8 @@ import '../domain/inbox_item.dart';
 import 'inbox_providers.dart';
 
 /// 模块5 收集箱（原型 p-inbox）：秒记入口 + 未整理列表 + 10 秒四向分流（L6）。
-/// →待办 / →日记 / →笔记 真实落库；→摘录 与 AI 分流留版本占位。
+/// →待办 / →日记 / →笔记 / →摘录（选书落 book_quotes · origin=收集箱）全部真实落库；
+/// AI 分流留版本占位。
 class InboxPage extends ConsumerStatefulWidget {
   const InboxPage({super.key});
 
@@ -92,7 +93,49 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         await dao.route(item.id!, 'note', id);
         _toast('📝 已存为笔记（编辑器 M1 开放）');
       case 'excerpt':
-        _toast('📚 摘录 · 规划 V0.5（M1）');
+        final rrepo = ref.read(readRepositoryProvider);
+        final books = (await rrepo.allBooks()).where((b) => !b.isDeleted).toList()
+          ..sort((a, b) =>
+              (b.lastReadAt ?? 0).compareTo(a.lastReadAt ?? 0));
+        if (books.isEmpty) {
+          _toast('书架还没有书 · 先去阅读书架添加一本书');
+          return;
+        }
+        if (!mounted) return;
+        final picked = await showModalBottomSheet<String>(
+          context: context,
+          builder: (sheetCtx) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final b in books)
+                  ListTile(
+                    key: ValueKey('ibk-${b.id}'),
+                    title: Text('《${b.title}》 · ${b.state}',
+                        style: const TextStyle(fontSize: 13)),
+                    onTap: () => Navigator.of(sheetCtx).pop(b.id),
+                  ),
+              ],
+            ),
+          ),
+        );
+        if (picked == null) return;
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final qid = await rrepo.addQuote(BookQuote(
+          bookId: picked,
+          kind: BookQuote.kKindThought,
+          thought: item.rawText,
+          origin: '收集箱',
+          createdAt: nowMs,
+          updatedAt: nowMs,
+        ));
+        if (qid == null) {
+          _toast('这条摘录已存在 · 未重复入账');
+          return;
+        }
+        await dao.route(item.id!, 'quote', qid);
+        ref.read(readTickProvider.notifier).state++;
+        _toast('已存为阅读摘录');
         return;
     }
     ref.invalidate(inboxItemsProvider);

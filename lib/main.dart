@@ -8,6 +8,7 @@ import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/theme/theme_repository.dart';
+import 'features/read/data/read_repository.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
 
@@ -32,6 +33,12 @@ Future<void> main() async {
     inboxClean: settings.notify.inboxClean,
     diaryReview: settings.notify.diaryReview,
     diaryTime: settings.notify.diaryTime,
+  );
+  // 阅读晚间补记提醒（read.dailyQ · 默认开 · 计划 §6）。
+  await NotificationService.syncReadDaily(
+    on: ((await ReadRepository(AppDatabase.instance.db).kv('read.dailyQ')) ??
+            'true') ==
+        'true',
   );
   if (NotificationService.ready && settings.notify.todoEvent) {
     for (final Todo t in await TodoDao(AppDatabase.instance.db).list()) {

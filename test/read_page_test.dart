@@ -10,12 +10,16 @@ import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_list.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
+import 'package:lifeharness/features/read/domain/book_dict.dart';
 import 'package:lifeharness/features/read/presentation/book_detail.dart';
 import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
 import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
 import 'package:lifeharness/features/read/presentation/read_stat_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/book_info_page.dart';
+import 'package:lifeharness/features/read/presentation/book_mgr_page.dart';
+import 'package:lifeharness/features/read/presentation/read_import_page.dart';
+import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
 import 'package:lifeharness/features/read/presentation/read_timer_page.dart';
 import 'package:lifeharness/features/read/presentation/shelf_page.dart';
@@ -90,6 +94,14 @@ void main() {
           path: '/read/list/:id',
           builder: (_, s) =>
               BookListDetailPage(listId: int.parse(s.pathParameters['id']!))),
+      GoRoute(
+          path: '/read/import',
+          builder: (_, _) => const ReadImportPage()),
+      GoRoute(
+          path: '/read/settings',
+          builder: (_, _) => const ReadSettingsPage()),
+      GoRoute(
+          path: '/read/mgr', builder: (_, _) => const BookMgrPage()),
     ]);
     return ProviderScope(
       overrides: [readRepositoryProvider.overrideWithValue(repo)],
@@ -690,6 +702,128 @@ void main() {
       expect(find.byKey(const ValueKey('blm-m1')), findsNothing);
       expect(find.byKey(const ValueKey('blm-m2')), findsOneWidget);
       expect((await repo.allBooks()), hasLength(2));
+    });
+  });
+
+  group('批3-8 导入 / 设置 / 资料', () {
+    testWidgets('R-19 导入向导：示例解析 → 整批入账 → 二次全重复钮禁用 → 撤销本批',
+        (tester) async {
+      await tester.pumpWidget(routed(const ReadImportPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('imp-ch-kindle')));
+      await useSurface(tester);
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('imp-sample')));
+      await tester.tap(find.byKey(const ValueKey('imp-sample')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('imp-parse')));
+      await tester.tap(find.byKey(const ValueKey('imp-parse')));
+      await settle(tester);
+      expect(find.textContaining('3 条 · 重复 0 条'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('imp-run')));
+      await tester.tap(find.byKey(const ValueKey('imp-run')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(await repo.quoteCount(), 3);
+      expect((await repo.allBooks()).length, 3);
+      // 二次解析：全部已存在 → 导入钮禁用
+      await tester.ensureVisible(find.byKey(const ValueKey('imp-parse')));
+      await tester.tap(find.byKey(const ValueKey('imp-parse')));
+      await settle(tester);
+      expect(find.textContaining('3 条 · 重复 3 条'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('imp-run')))
+            .onPressed,
+        isNull,
+      );
+      // 撤销本批：摘录退、书保留
+      await tester.ensureVisible(find.byKey(const ValueKey('imp-undo')));
+      await tester.tap(find.byKey(const ValueKey('imp-undo')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(await repo.quoteCount(), 0);
+      expect((await repo.allBooks()).length, 3);
+    });
+
+    testWidgets('R-20 设置：wallCols=5 书架跟随 · 长按菜单编辑器项生效',
+        (tester) async {
+      await repo.addBook(bk('w1', '墙书', Book.kStateReading, last: ms(0)));
+      await tester.pumpWidget(routed(const ReadSettingsPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('set-wallCols-5')));
+      await tester.ensureVisible(find.byKey(const ValueKey('set-wallCols-5')));
+      await tester.tap(find.byKey(const ValueKey('set-wallCols-5')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(await repo.kv('read.wallCols'), '5');
+      await tester.ensureVisible(find.byKey(const ValueKey('set-tab-1')));
+      await tester.tap(find.byKey(const ValueKey('set-tab-1')));
+      await settle(tester);
+      await tester.ensureVisible(
+          find.byKey(const ValueKey('set-longPress-edit')));
+      await tester.tap(find.byKey(const ValueKey('set-longPress-edit')));
+      await settle(tester);
+      await waitFinder(
+          tester, find.byKey(const ValueKey('lpset-add-标记读完')));
+      await tester.tap(find.byKey(const ValueKey('lpset-add-标记读完')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('lpset-save')));
+      await settle(tester);
+      await clearToasts(tester);
+      expect(await repo.kv('read.longPress'), contains('标记读完'));
+      // 书架跟随：5 列封面墙 + 长按菜单出现「标记读完」并可点读完
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('sh-grid-5-')), findsOneWidget);
+      await tester.longPress(find.byKey(const ValueKey('sh-item-w1')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('lp-timer')), findsOneWidget);
+      expect(find.byKey(const ValueKey('lp-done')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('lp-done')));
+      await settle(tester);
+      await clearToasts(tester);
+      final w1 = (await repo.allBooks()).firstWhere((b) => b.id == 'w1');
+      expect(w1.state, Book.kStateDone);
+    });
+
+    testWidgets('R-21 书架资料：新增来源 · 改名回写 books · 删除引用守卫',
+        (tester) async {
+      await repo.dictAdd(DictEntry.kSource, '得到');
+      await repo.addBook(
+          bk('m9', '甲书', Book.kStateReading, last: ms(0))
+              .copyWith(source: '得到'));
+      await tester.pumpWidget(routed(const BookMgrPage()));
+      await settle(tester);
+      final entries = await repo.dictOf('source');
+      final de = entries.firstWhere((e) => e.name == '得到');
+      await waitFinder(tester, find.byKey(ValueKey('bkm-row-${de.id}')));
+      await tester.enterText(
+          find.byKey(const ValueKey('bkm-add-inp-source')), '手贴');
+      await tester.tap(find.byKey(const ValueKey('bkm-add-source')));
+      await settle(tester);
+      await clearToasts(tester);
+      final afterAdd = await repo.dictOf('source');
+      expect(afterAdd.map((e) => e.name), contains('手贴'));
+      // 改名 → 事务回写 books.source
+      await tester.tap(find.byKey(ValueKey('bkm-rename-${de.id}')));
+      await settle(tester);
+      await tester.enterText(
+          find.byKey(ValueKey('bkm-rn-inp-${de.id}')), '得到APP');
+      await tester.tap(find.byKey(ValueKey('bkm-rn-ok-${de.id}')));
+      await settle(tester);
+      await clearToasts(tester);
+      final m9 = (await repo.allBooks()).firstWhere((b) => b.id == 'm9');
+      expect(m9.source, '得到APP');
+      // 删除守卫：仍有 1 本在用
+      await tester.tap(find.byKey(ValueKey('bkm-del-${de.id}')));
+      await settle(tester);
+      expect(find.textContaining('还有 1 本在用'), findsOneWidget);
+      await clearToasts(tester);
+      final names = (await repo.dictOf('source')).map((e) => e.name);
+      expect(names, contains('得到APP'));
     });
   });
 }

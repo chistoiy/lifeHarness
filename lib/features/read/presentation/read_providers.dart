@@ -53,11 +53,22 @@ final floatBarProvider = FutureProvider<bool>(
 );
 
 /// 结束计时即弹记进度（read.autoAsk，默认开）。
-final autoAskProvider = FutureProvider<bool>(
-  (ref) async =>
+final autoAskProvider = FutureProvider<bool>((ref) async {
+  final v =
       (await ref.watch(readKvProvider(('read.autoAsk', 'true')).future)) ==
-      'true',
-);
+      'true';
+  return v;
+});
+
+/// 有声倍速折算开关（read.speedFold，默认开）：读取时同步静态桥，
+/// 使 domain 层纯 getter billedMinutes 生效（§6 阅读计时组）。
+final speedFoldProvider = FutureProvider<bool>((ref) async {
+  final v =
+      (await ref.watch(readKvProvider(('read.speedFold', 'true')).future)) ==
+      'true';
+  BookSession.speedFold = v;
+  return v;
+});
 
 /// 顶部长胶囊是否可见：有在跑会话 && read.floatBar 开（§3.3 两种形态都常驻）。
 final readTimerBarVisibleProvider = FutureProvider<bool>((ref) async {

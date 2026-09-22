@@ -24,6 +24,7 @@ class NotificationService {
   /// 固定 id 段：每日节律用保留区，待办提醒用 todo.id（<100 万）。
   static const int inboxDailyId = 900001;
   static const int diaryDailyId = 900002;
+  static const int readDailyId = 900003;
 
   static const _remindersCh = AndroidNotificationDetails(
     'reminders',
@@ -105,6 +106,13 @@ class NotificationService {
         '今天还有未整理的想法 · 每条 10 秒分流完成');
     await _syncDailyAt(diaryDailyId, diaryReview, diaryTime, '日记复盘',
         '到了回顾今天的时间，写几句吧');
+  }
+
+  /// 阅读晚间补记提醒（计划 §6 read.dailyQ · 21:30 · 默认开）。
+  static Future<void> syncReadDaily({required bool on}) async {
+    if (!ready) return;
+    await _syncDailyAt(readDailyId, on, '21:30', '阅读补记',
+        '今天还没有计时 · 想起一段也值得记一条摘录');
   }
 
   static Future<void> _syncDailyAt(

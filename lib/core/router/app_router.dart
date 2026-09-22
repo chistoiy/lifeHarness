@@ -21,8 +21,11 @@ import '../../features/journal/presentation/journal_providers.dart'
 import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
+import '../../features/read/presentation/book_mgr_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
+import '../../features/read/presentation/read_import_page.dart';
 import '../../features/read/presentation/read_lists_page.dart';
+import '../../features/read/presentation/read_settings_page.dart';
 import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
@@ -130,6 +133,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/read/list/:id',
         builder: (_, s) =>
             BookListDetailPage(listId: int.parse(s.pathParameters['id']!)),
+      ),
+      // M1批3·批5 导入向导与阅读设置（原型 p-readimport / p-readset）。
+      GoRoute(
+        path: '/read/import',
+        builder: (_, _) => const ReadImportPage(),
+      ),
+      GoRoute(
+        path: '/read/settings',
+        builder: (_, _) => const ReadSettingsPage(),
+      ),
+      GoRoute(
+        path: '/read/mgr',
+        builder: (_, _) => const BookMgrPage(),
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(

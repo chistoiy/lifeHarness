@@ -11,6 +11,10 @@ import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
+import 'package:lifeharness/features/read/data/read_repository.dart';
+import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_quote.dart';
+import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
@@ -51,6 +55,7 @@ void main() {
           todoRepositoryProvider.overrideWithValue(todoRepo),
           journalRepositoryProvider.overrideWithValue(journalRepo),
           noteDaoProvider.overrideWithValue(noteDao),
+          readRepositoryProvider.overrideWithValue(ReadRepository(db)),
         ],
         child: const MaterialApp(home: InboxPage()),
       );
@@ -141,15 +146,36 @@ void main() {
       expect(await inbox.listPending(), isEmpty);
     });
 
-    testWidgets('→摘录：版本占位，条目保留', (tester) async {
+    testWidgets('→摘录：无书提示条目保留；选书后落 book_quotes（origin=收集箱）',
+        (tester) async {
       await inbox.insert(InboxItem(rawText: '摘录素材', createdAt: DateTime.now()));
       await tester.pumpWidget(scope());
       await tester.pumpAndSettle();
 
+      // 书架为空：给出指引，条目保留。
       await tester.tap(find.byKey(const ValueKey('tri-→摘录')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('规划 V0.5'), findsOneWidget);
+      expect(find.textContaining('书架还没有书'), findsOneWidget);
       expect(await inbox.listPending(), hasLength(1));
+
+      // 有一本书：选书 → 感想型摘录入账 · 条目打标 quote。
+      final readRepo = ReadRepository(db);
+      await readRepo.addBook(Book(
+          id: 'ib1',
+          title: '素材书',
+          state: Book.kStateReading,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: DateTime.now().millisecondsSinceEpoch));
+      await tester.tap(find.byKey(const ValueKey('tri-→摘录')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ibk-ib1')));
+      await tester.pumpAndSettle();
+      final qs = await readRepo.quotesOf('ib1');
+      expect(qs, hasLength(1));
+      expect(qs.single.origin, '收集箱');
+      expect(qs.single.kind, BookQuote.kKindThought);
+      expect(qs.single.thought, '摘录素材');
+      expect(await inbox.listPending(), isEmpty);
     });
   });
 }

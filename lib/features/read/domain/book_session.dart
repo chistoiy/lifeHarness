@@ -42,9 +42,15 @@ class BookSession {
 
   bool get running => endedAt == null;
 
+  /// read.speedFold（计划 §6 阅读计时·默认开）：关闭后有声按墙钟时长入账。
+  /// 纯 getter 拿不到库内 KV，由 speedFoldProvider 在读取链路上同步此开关。
+  static bool speedFold = true;
+
   /// 折算入账分钟数：倍速设置生效时 = 墙钟分钟 × speed（有声）。
   int get billedMinutes =>
-      speed != null && speed! > 0 ? (minutes * speed!).round() : minutes;
+      speedFold && speed != null && speed! > 0
+      ? (minutes * speed!).round()
+      : minutes;
 
   static BookSession fromRow(Map<String, Object?> r) => BookSession(
     id: r['id'] as int?,

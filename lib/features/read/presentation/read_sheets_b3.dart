@@ -48,11 +48,26 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   bool _chapterLoaded = false;
   /// 手动改过页码后换书不再覆写（联动仅对未触碰字段生效）。
   late bool _pageTouched = widget.editing != null;
+  /// read.rateFmt（§6 书摘创建）：新建摘录是否自动带出当前进度页码。
+  bool _rateFmt = true;
+  /// read.clipAuto：读剪贴板时是否按来源模板自动识别书名/页码。
+  bool _clipAuto = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadChapters());
+    () async {
+      final repo = ref.read(readRepositoryProvider);
+      final fmt = (await repo.kv('read.rateFmt')) ?? 'true';
+      final clip = (await repo.kv('read.clipAuto')) ?? 'true';
+      if (mounted) {
+        setState(() {
+          _rateFmt = fmt == 'true';
+          _clipAuto = clip == 'true';
+        });
+      }
+    }();
   }
 
   @override
@@ -102,7 +117,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
 
   /// 换书联动：页码按当前进度带出（read.rateFmt 默认开 · §3.4 三处同步）。
   void _syncPageFromBook(Book b) {
-    if (_pageTouched) return;
+    if (_pageTouched || !_rateFmt) return;
     final v = b.progressWay == Book.kWayPos && b.readLoc != null
         ? b.readLoc!.round()
         : b.readPages;
@@ -120,6 +135,15 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   }
 
   Future<void> _ocr() async {
+    // read.ocr 关闭时直给设置指引（§6 书摘创建）。
+    final on =
+        ((await ref.read(readRepositoryProvider).kv('read.ocr')) ?? 'true') ==
+        'true';
+    if (!mounted) return;
+    if (!on) {
+      if (mounted) readToast(context, '识图取文已在阅读设置里关闭');
+      return;
+    }
     // 设备侧 OCR 未接入：入口保留、置灰降级为手动粘贴（§9 风险2 · 不阻塞保存）。
     readToast(context, '未接入识图引擎 · 请用「读剪贴板」或手动粘贴');
   }
@@ -131,10 +155,30 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
       if (mounted) readToast(context, '剪贴板没有文字');
       return;
     }
+    // read.clipAuto 开：按「——《书名》 + P页码」脚注模板识别来源并拆解。
+    final src = _clipAuto
+        ? RegExp(r'——《([^》\n]+)》').firstMatch(t)?.group(1)
+        : null;
+    var body = t;
+    if (src != null) {
+      body = t
+          .split('\n')
+          .where((l) => !l.contains('——《'))
+          .join('\n')
+          .trim();
+      final pg = RegExp(r'P(\d+)').firstMatch(t)?.group(1);
+      if (pg != null && !_pageTouched && _page.text.isEmpty) {
+        _page.text = pg;
+      }
+    }
+    if (!mounted) return;
     setState(
-      () => _body.text = _body.text.isEmpty ? t : '${_body.text}\n$t',
+      () => _body.text = _body.text.isEmpty ? body : '${_body.text}\n$body',
     );
-    if (mounted) readToast(context, '已读取剪贴板');
+    readToast(
+      context,
+      src == null ? '已读取剪贴板' : '已识别来源：$src · 页码自动带出',
+    );
   }
 
   Future<void> _addImage() async {

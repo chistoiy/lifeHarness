@@ -18,6 +18,8 @@ class ReadWorkbench extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final w = ref.watch(workbenchProvider);
+    // 读取链路上挂一次倍速开关，同步 BookSession.speedFold 静态桥（§6）。
+    ref.watch(speedFoldProvider);
     final data = w.valueOrNull;
     if (data == null) return const SizedBox.shrink();
     final tokens = context.tokens;
@@ -156,7 +158,7 @@ class ReadWorkbench extends ConsumerWidget {
                     'read-nav-set',
                     BsIcons.cog,
                     '设置',
-                    () => _soon(context, '阅读设置'),
+                    () => context.push('/read/settings'),
                   ),
                 ],
               ),
@@ -255,9 +257,6 @@ class ReadWorkbench extends ConsumerWidget {
       ),
     );
   }
-
-  void _soon(BuildContext context, String what) =>
-      readToast(context, '$what · 即将开放');
 
   Widget _quotesCard(
     BuildContext context,

@@ -102,6 +102,7 @@ class ShelfPage extends ConsumerStatefulWidget {
 
 class _ShelfPageState extends ConsumerState<ShelfPage> {
   final _kwCtl = TextEditingController();
+  bool _tabBooted = false;
 
   @override
   void dispose() {
@@ -112,6 +113,20 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
   @override
   Widget build(BuildContext context) {
     final ui = ref.watch(shelfUiProvider);
+    // read.openTab（§6 外观与启动）：进书架默认落到的分区；未设过保持「全部」。
+    if (!_tabBooted) {
+      _tabBooted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final t = await ref.read(readRepositoryProvider).kv('read.openTab');
+        if (t != null &&
+            mounted &&
+            ref.read(shelfUiProvider).st == null &&
+            Book.states.contains(t)) {
+          ref.read(shelfUiProvider.notifier).state =
+              ref.read(shelfUiProvider).copyWith(st: () => t);
+        }
+      });
+    }
     final tokens = context.tokens;
     final cs = Theme.of(context).colorScheme;
     final all = (ref.watch(booksProvider).valueOrNull ?? const <Book>[])
@@ -711,7 +726,14 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     dynamic tokens, {
     String pfx = '',
   }) {
-    final wallCols = ui.view == 'wall4' ? 4 : 3;
+    // read.wallCols（§6 外观与启动）：封面墙列数随设置 3/4/5；wall4 为固定 4 列紧凑态。
+    final wallKv =
+        int.tryParse(
+              ref.watch(readKvProvider(('read.wallCols', '3'))).valueOrNull ??
+              '3',
+            ) ??
+            3;
+    final wallCols = ui.view == 'wall4' ? 4 : wallKv;
     return switch (ui.view) {
       'spine' => _spineView(list, pfx),
       'time' => _timelineView(list, cs),
@@ -1017,6 +1039,27 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
       ));
     }
     events.sort((a, b) => b.$1.compareTo(a.$1));
+    // 时间线窗口（§6 read.tlRange 本月/近半年/全年 × read.tlDays 7/14/30 取交集）。
+    final range =
+        ref
+            .watch(readKvProvider(('read.tlRange', '近半年')))
+            .valueOrNull ??
+        '近半年';
+    final rangeDays = switch (range) {
+      '本月' => 31,
+      '近半年' => 183,
+      _ => 366,
+    };
+    final tlDays =
+        int.tryParse(
+              ref.watch(readKvProvider(('read.tlDays', '14'))).valueOrNull ??
+              '14',
+            ) ??
+            14;
+    final win = tlDays < rangeDays ? tlDays : rangeDays;
+    events.removeWhere(
+      (e) => e.$1.isBefore(DateTime.now().subtract(Duration(days: win))),
+    );
     final days = <String, List<String>>{};
     for (final (d, t) in events) {
       final k =
@@ -1158,7 +1201,11 @@ class GradShelfFab extends StatelessWidget {
   }
 }
 
-/// 长按书籍菜单（批1 固定项：计时 / 记摘录 / 改分区 / 移除）。
+/// 长按书籍菜单：项与顺序来自设置（read.longPress · §6 · sheetLongPress 弹层自带
+/// 「调整长按菜单」入口）。可选全集＝LP_ALL，未勾选项不渲染。
+const kLpAll = ['计时', '记摘录', '改分区', '移书单', '标记读完', '多选', '删除'];
+const kLpDefault = '计时,记摘录,改分区,移书单,删除';
+
 Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
   return showModalBottomSheet<void>(
     context: context,
@@ -1170,6 +1217,13 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
         child: Consumer(
           builder: (_, ref2, _) {
+            final raw =
+                ref2
+                    .watch(readKvProvider(('read.longPress', kLpDefault)))
+                    .valueOrNull ??
+                kLpDefault;
+            final items =
+                raw.split(',').where(kLpAll.contains).toList();
             Widget row(String key, String label, VoidCallback onTap) =>
                 ListTile(
                   key: ValueKey(key),
@@ -1183,7 +1237,53 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                   ),
                   onTap: onTap,
                 );
-            return Column(
+            Widget rowFor(String name) => switch (name) {
+              '计时' => row('lp-timer', '计时', () {
+                Navigator.of(sheetCtx).pop();
+                readTimerTap(ref2, context, target: b);
+              }),
+              '记摘录' => row('lp-quote', '记摘录', () {
+                Navigator.of(sheetCtx).pop();
+                showQuoteSheet(context, ref2, bookId: b.id);
+              }),
+              '改分区' => row('lp-state', '改分区 · ${b.state}', () {
+                Navigator.of(sheetCtx).pop();
+                cycleBookState(context, ref2, b);
+              }),
+              '移书单' => row('lp-list', '移书单', () {
+                Navigator.of(sheetCtx).pop();
+                showMoveToListSheet(context, ref2, b);
+              }),
+              '标记读完' => row('lp-done', '标记读完', () async {
+                await ref2.read(readRepositoryProvider).bulkSetState(
+                  [b.id],
+                  Book.kStateDone,
+                );
+                ref2.read(readTickProvider.notifier).state++;
+                if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+                if (context.mounted) {
+                  readToast(context, '《${b.title}》已标记读完 · 自动进年度书单');
+                }
+              }),
+              '多选' => row('lp-multi', '多选', () {
+                ref2.read(shelfUiProvider.notifier).state =
+                    ref2.read(shelfUiProvider).copyWith(
+                      batch: true,
+                      sel: {b.id},
+                    );
+                if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+              }),
+              _ => row('lp-del', '删除', () async {
+                await ref2.read(readRepositoryProvider).softDeleteBooks([
+                  b.id,
+                ]);
+                ref2.read(readTickProvider.notifier).state++;
+                if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+                if (context.mounted) readToast(context, '已移除《${b.title}》');
+              }),
+            };
+            return SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1195,31 +1295,23 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                   ),
                 ),
                 const SizedBox(height: 6),
-                row('lp-timer', '计时', () {
-                  Navigator.of(sheetCtx).pop();
-                  readTimerTap(ref2, context, target: b);
-                }),
-                row('lp-quote', '记摘录', () {
-                  Navigator.of(sheetCtx).pop();
-                  showQuoteSheet(context, ref2, bookId: b.id);
-                }),
-                row('lp-state', '改分区 · ${b.state}', () {
-                  Navigator.of(sheetCtx).pop();
-                  cycleBookState(context, ref2, b);
-                }),
-                row('lp-list', '移书单', () {
-                  Navigator.of(sheetCtx).pop();
-                  showMoveToListSheet(context, ref2, b);
-                }),
-                row('lp-del', '移除书架', () async {
-                  await ref2.read(readRepositoryProvider).softDeleteBooks([
-                    b.id,
-                  ]);
-                  ref2.read(readTickProvider.notifier).state++;
-                  if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                  if (context.mounted) readToast(context, '已移除《${b.title}》');
-                }),
+                for (final n in items) rowFor(n),
+                TextButton(
+                  key: const ValueKey('lp-edit-menu'),
+                  onPressed: () {
+                    Navigator.of(sheetCtx).pop();
+                    if (context.mounted) context.push('/read/settings');
+                  },
+                  child: Text(
+                    '调整长按菜单',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
               ],
+            ),
             );
           },
         ),

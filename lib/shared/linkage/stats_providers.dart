@@ -19,6 +19,9 @@ export '../../features/journal/presentation/journal_providers.dart' show journal
 export '../../features/journal/domain/journal_entry.dart' show JournalEntry, kJournalMoods, moodEmoji, moodLabel;
 export '../../features/journal/domain/note.dart' show Note;
 export '../../features/inbox/presentation/inbox_providers.dart' show inboxItemsProvider;
+// 批5 收集箱 → 阅读摘录分流（L6）：只经本文件透出，不直连 read feature。
+export '../../features/read/presentation/read_providers.dart' show readRepositoryProvider, readTickProvider;
+export '../../features/read/domain/book_quote.dart' show BookQuote;
 
 /// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。
