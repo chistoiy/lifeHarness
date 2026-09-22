@@ -2,9 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_session.dart';
+import 'package:lifeharness/features/read/domain/shelf_query.dart';
 
 /// M1批3 阅读 · 数据层（计划 §2.1 / §8）。独立文件防 isolate 污染（既有踩坑）。
 void main() {
@@ -165,6 +167,174 @@ void main() {
         'created_at': now, 'updated_at': now,
       });
       expect(bad.imagePaths, isEmpty); // 坏值回空不崩
+    });
+  });
+
+  group('批3-2 · 仓储层与书架查询', () {
+    late Database db;
+    late ReadRepository repo;
+    final t0 = DateTime(2026, 9, 22).millisecondsSinceEpoch;
+
+    Book mk(String id,
+            {String state = Book.kStateWant,
+            int? last,
+            String? title,
+            List<String> tags = const [],
+            int pages = 0,
+            int readPages = 0}) =>
+        Book(
+          id: id,
+          title: title ?? '书$id',
+          author: '作者$id',
+          state: state,
+          tags: tags,
+          pages: pages,
+          readPages: readPages,
+          lastReadAt: last ?? t0,
+          createdAt: t0,
+          updatedAt: t0,
+        );
+
+    setUp(() async {
+      db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.bookSchemaStatements) {
+        await db.execute(sql);
+      }
+      repo = ReadRepository(db);
+    });
+    tearDown(() => db.close());
+
+    test('2-1 addBook：空 id 自动生成 · 默认想读/纸质/page · last_read_at 兜底', () async {
+      final b = await repo.addBook(Book(
+          title: '新书', createdAt: 0, updatedAt: 0, tags: const ['小说']));
+      expect(b.id, isNotEmpty);
+      expect(b.state, Book.kStateWant);
+      expect(b.format, Book.kFormatPaper);
+      expect(b.lastReadAt, isNotNull);
+      final r = (await repo.allBooks()).single;
+      expect(r.title, '新书');
+      expect(r.tags, ['小说']);
+    });
+
+    test('2-2 setBookState 四态流转：已读补满进度与 ended · 回在读清 ended 补 started', () async {
+      await repo.addBook(mk('x1',
+          state: Book.kStateReading, pages: 320, readPages: 99, title: '原子习惯'));
+      await repo.setBookState('x1', Book.kStateDone);
+      var b = await repo.bookById('x1');
+      expect(b!.state, Book.kStateDone);
+      expect(b.readPages, 320); // 标记读完 → 进度补满
+      expect(b.endedAt, isNotNull);
+      await repo.setBookState('x1', Book.kStateDropped);
+      b = await repo.bookById('x1');
+      expect(b!.state, Book.kStateDropped); // 弃读不动进度
+      expect(b.readPages, 320);
+    });
+
+    test('2-3 ShelfQuery：软删排除 · recent 倒序 · kw/分区/标签维度过滤 · 计数', () async {
+      await repo.addBook(mk('a', state: Book.kStateReading, last: t0 + 3000, tags: const ['经济']));
+      await repo.addBook(mk('b', state: Book.kStateReading, last: t0 + 1000));
+      await repo.addBook(mk('c', state: Book.kStateDone, last: t0 + 2000, tags: const ['经济']));
+      final all = await repo.allBooks();
+      final q = ShelfQuery(sort: 'recent');
+      expect(q.apply(all).map((e) => e.id), ['a', 'c', 'b']);
+      expect(ShelfQuery(state: Book.kStateReading).apply(all).length, 2);
+      expect(ShelfQuery(kw: '书b').apply(all).map((e) => e.id), ['b']);
+      final tagQ = ShelfQuery(dim: 'tag', dimVal: '经济');
+      expect(tagQ.apply(all).map((e) => e.id), ['a', 'c']);
+      expect(ShelfQuery.countsByState(all),
+          {'在读': 2, '想读': 0, '已读': 1, '弃读': 0});
+      expect(ShelfQuery.dimValues('tag', all), ['经济']);
+      //  prog/pages 排序
+      await repo.addBook(mk('d', pages: 900, readPages: 450, last: t0 - 9999));
+      expect(ShelfQuery(sort: 'prog').apply(await repo.allBooks()).first.id, 'd');
+      expect(ShelfQuery(sort: 'pages').apply(await repo.allBooks()).first.id, 'd');
+      // 软删后全链路排除
+      await repo.softDeleteBooks(['d']);
+      expect(ShelfQuery().apply(await repo.allBooks()).map((e) => e.id), isNot(contains('d')));
+    });
+
+    test('2-4 批量操作：移分区 · 加标签并集去重', () async {
+      await repo.addBook(mk('a', tags: const ['小说']));
+      await repo.addBook(mk('b', tags: const ['小说', '历史']));
+      await repo.bulkSetState(['a', 'b'], Book.kStateWant);
+      await repo.bulkAddTags(['a', 'b'], const ['小说', '新标签']);
+      final all = await repo.allBooks();
+      expect(all.every((e) => e.state == Book.kStateWant), isTrue);
+      expect(all.firstWhere((e) => e.id == 'a').tags, ['小说', '新标签']);
+      expect(all.firstWhere((e) => e.id == 'b').tags, ['小说', '历史', '新标签']);
+    });
+
+    test('2-5 计时起停：单活会话 · 换书自动结旧 · endSession 书守卫', () async {
+      await repo.addBook(mk('r1', state: Book.kStateReading));
+      await repo.addBook(mk('r2', state: Book.kStateReading));
+      await repo.startSession('r1');
+      expect((await repo.runningSession())!.bookId, 'r1');
+      await repo.startSession('r2'); // 换书 → r1 自动结束
+      var rs = await repo.runningSession();
+      expect(rs!.bookId, 'r2');
+      final r1s = await repo.sessionsOf('r1');
+      expect(r1s.single.endedAt, isNotNull);
+      expect(await repo.endSession('r1'), isNull); // 不是它在跑 → 守卫
+      final closed = await repo.endSession('r2');
+      expect(closed, isNotNull);
+      expect(closed!.minutes, 1); // 不足 1 分钟按 1 入账
+      expect(await repo.runningSession(), isNull);
+      expect((await repo.bookById('r2'))!.lastReadAt! >= closed.endedAt!, isTrue);
+    });
+
+    test('2-6 时钟回拨：closeRunning 返 null · endSession 删行不入账', () async {
+      await repo.addBook(mk('w', state: Book.kStateReading));
+      final s = await repo.startSession('w');
+      // 模拟回拨：把 started_at 推到未来
+      await db.update(DbSchema.tBookSessions,
+          {'started_at': DateTime.now().millisecondsSinceEpoch + 3600000},
+          where: 'id = ?', whereArgs: [s.id]);
+      expect(await repo.endSession('w'), isNull);
+      expect(await repo.allSessions(), isEmpty); // 行已删
+      expect(closeRunning(BookSession(bookId: 'w', startedAt: 2000), 1000), isNull);
+    });
+
+    test('2-7 聚合：minutesOnDay/ThisWeek · sessionAggByBook 排除回拨行 · 补记入账', () async {
+      await repo.addBook(mk('g1', state: Book.kStateReading));
+      await repo.addBook(mk('g2', state: Book.kStateReading));
+      final today = DateTime.now();
+      await repo.addManualSession(
+          bookId: 'g1', day: DateTime(today.year, today.month, today.day, 8), minutes: 25);
+      await repo.addManualSession(
+          bookId: 'g2', day: DateTime(today.year, today.month, today.day, 9), minutes: 10);
+      expect(await repo.minutesOnDay(today), 35);
+      expect(await repo.minutesThisWeek(), greaterThanOrEqualTo(35));
+      // 手工塞一条回拨脏行：不入聚合
+      await db.insert(DbSchema.tBookSessions,
+          BookSession(bookId: 'g1', startedAt: 9000, endedAt: 8000, minutes: 500).toRow());
+      final agg = sessionAggByBook(await repo.allSessions());
+      expect(agg['g1']!.minutes, 25);
+      expect(agg['g1']!.times, 1);
+      expect(agg['g2']!.minutes, 10);
+      final days = await repo.readingDays();
+      expect(days.first, DateTime(today.year, today.month, today.day));
+    });
+
+    test('2-8 摘录聚合：quoteCountByBook 排除软删 · recentQuotes 倒序', () async {
+      final q = BookQuote(
+          bookId: 'b1',
+          kind: BookQuote.kKindMark,
+          body: '原文',
+          createdAt: t0,
+          updatedAt: t0);
+      await db.insert(DbSchema.tBookQuotes, q.toRow());
+      await db.insert(DbSchema.tBookQuotes,
+          {...q.toRow(), 'body': '第二条', 'created_at': t0 + 100, 'deleted_at': t0 + 200});
+      final qs = await repo.allQuotes();
+      expect(qs, hasLength(1)); // 软删被 where 排除
+      expect(quoteCountByBook([...qs, BookQuote(
+            bookId: 'b1',
+            kind: BookQuote.kKindMark,
+            body: 'x',
+            createdAt: t0,
+            updatedAt: t0,
+            deletedAt: t0)]), {'b1': 1});
+      expect((await repo.recentQuotes(5)).first.body, '原文');
     });
   });
 }
