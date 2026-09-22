@@ -4491,7 +4491,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,imgCols:5,openTab:'在读',longPress:['计时','记摘录','改分区','移书单','删除']};
+let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',longPress:['计时','记摘录','改分区','移书单','删除']};
 let shSel=new Set(),CURBK='b1',bdTab='q',qtKw='',qtTag='',qtScope='all',qtView='card',bdChFilter='',bdIntroOpen=false;
 const shFmtDate=()=>{const d=new Date(2026,8,20);return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 
@@ -4914,7 +4914,7 @@ function renderReadStat(){const el=document.getElementById('rsCards');if(!el)ret
   const words=BS_BOOKS.filter(b=>b.st==='已读').reduce((t,b)=>t+b.pg*520,0);
   const rdmin=BS_BOOKS.filter(b=>b.st==='已读').reduce((t,b)=>t+b.min,0);
   const mo=document.getElementById('rsMoney');
-  if(mo)mo.innerHTML=`<div class="card"><div class="text-[10px] text-slate-400">购书支出</div><b class="text-xl block mt-0.5">¥${fee}</b><div class="text-[10px] text-slate-400 mt-0.5">${paid} 本付费 · 可同步到记账「阅读」分类（L4）</div><button class="mini-btn !text-[10px] mt-2" onclick="navTo('p-finance')">看账本</button></div>
+  if(mo)mo.innerHTML=`<div class="card"><div class="text-[10px] text-slate-400">购书支出</div><b class="text-xl block mt-0.5">¥${fee}</b><div class="text-[10px] text-slate-400 mt-0.5">${paid} 本付费 · 已自动生成记账流水（L4）</div><button class="mini-btn !text-[10px] mt-2" onclick="navTo('p-finance')">看账本</button></div>
     <div class="card"><div class="text-[10px] text-slate-400">完读书籍字数</div><b class="text-xl block mt-0.5">${(words/10000).toFixed(1)} 万</b><div class="text-[10px] text-slate-400 mt-0.5">按页数折算 · 均速 ${rdmin?Math.round(words/rdmin):0} 字/分钟</div><button class="mini-btn !text-[10px] mt-2" onclick="blDetailYear()">年度书单</button></div>`;
   const span=rsMonth?30:365,rate=done/span*365;
   const rg=[['今年读完',done+' / '+BS_GOAL.books+' 本',Math.round(done/BS_GOAL.books*100)],
@@ -4971,7 +4971,7 @@ const RS_SEC=[
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
- ['数据与存储',[['import','导入渠道','go','授权 / 文件 / 剪贴板 / API'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
+ ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['import','导入渠道','go','授权 / 文件 / 剪贴板 / API'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}
@@ -4996,7 +4996,7 @@ function renderReadSet(){const el=document.getElementById('rsGroups');if(!el)ret
   el.innerHTML=RS_SEC.map(sec=>'<div class="card"><div class="row-title">'+sec[0]+'</div><div class="mt-1">'+sec[1].map(rsRow).join('')+'</div></div>').join('')}
 function rsFlip(k){BS_SET[k]=!BS_SET[k];renderReadSet();
   if(k==='simple'){renderQuotes();renderBookDetail()}
-  toast((BS_SET[k]?'已开启 · ':'已关闭 · ')+({floatBar:'悬浮计时条',speedFold:'倍速折算',autoAsk:'结束后问进度',dailyQ:'每日补记提醒',ocr:'识图取文',rateFmt:'默认带页码',clipAuto:'剪贴板识别',simple:'简洁浏览',fullCh:'完整章节名'}[k]||k))}
+  toast((BS_SET[k]?'已开启 · ':'已关闭 · ')+({floatBar:'悬浮计时条',speedFold:'倍速折算',autoAsk:'结束后问进度',dailyQ:'每日补记提醒',ocr:'识图取文',rateFmt:'默认带页码',clipAuto:'剪贴板识别',simple:'简洁浏览',fullCh:'完整章节名',feeTxn:'购书费用入账'}[k]||k))}
 function rsExport(k){const nm=k==='exportMd'?'全部书摘':'书架备份';
   const md=BS_BOOKS.map(b=>'## '+b.n+'（'+b.a+'）\n\n'+bsQ(b.id).map(x=>'> '+x.x+(x.th?'\n\n想法：'+x.th:'')+'\n\n— '+x.ch+(x.pg?' · P'+x.pg:'')+' · '+x.dt).join('\n\n')).join('\n\n');
   const js=JSON.stringify({app:'LifeHarness',kind:'bookshelf',year:BS_CUR_YEAR,books:BS_BOOKS,quotes:BS_QUOTES,lists:BS_LISTS,goal:BS_GOAL,settings:BS_SET},null,1);
