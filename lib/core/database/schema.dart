@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 11;
+  static const int version = 12;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -35,6 +35,10 @@ class DbSchema {
   static const String tCategories = 'categories';
   // v11（M1批2e）：每日天气缓存（Open-Meteo 抓取落库·当天只抓一次）
   static const String tWeatherDaily = 'weather_daily';
+  // v12（M1批3·阅读）：书与阅读行为三表（计划 §2.1；影音游后续另建 media_sessions 不共表）
+  static const String tBooks = 'books';
+  static const String tBookSessions = 'book_sessions';
+  static const String tBookQuotes = 'book_quotes';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -285,6 +289,7 @@ class DbSchema {
     )
     ''',
     ...categorySeed,
+    ...bookSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10，次级 11-21）。
@@ -455,5 +460,103 @@ class DbSchema {
       )
       ''',
     ],
+    // v12（M1批3·阅读）：books / book_sessions / book_quotes 三表（与 v1 全量段同文·幂等）。
+    11: [
+      ...bookSchemaStatements,
+    ],
   };
+
+  /// v12 阅读三表 DDL（建库与迁移共用，保两处永远同文）。
+  static const List<String> bookSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tBooks (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      author TEXT NOT NULL DEFAULT '佚名',
+      translator TEXT,
+      publisher TEXT,
+      pub_date TEXT,
+      series TEXT,
+      isbn TEXT,
+      cover_path TEXT,
+      color_idx INTEGER NOT NULL DEFAULT 0,
+      state TEXT NOT NULL DEFAULT '想读',
+      format TEXT NOT NULL DEFAULT '纸质',
+      progress_way TEXT NOT NULL DEFAULT 'page',
+      pages INTEGER NOT NULL DEFAULT 0,
+      read_pages INTEGER NOT NULL DEFAULT 0,
+      total_loc REAL,
+      read_loc REAL,
+      chapter TEXT,
+      rating REAL NOT NULL DEFAULT 0,
+      fee REAL NOT NULL DEFAULT 0,
+      fee_txn_id INTEGER,
+      source TEXT,
+      grp TEXT,
+      tags TEXT NOT NULL DEFAULT '',
+      started_at INTEGER,
+      ended_at INTEGER,
+      last_read_at INTEGER,
+      intro TEXT,
+      author_note TEXT,
+      note TEXT,
+      final_note TEXT,
+      sum_quote TEXT,
+      sum_view TEXT,
+      sum_gain TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_books_state ON $tBooks(state)',
+    'CREATE INDEX IF NOT EXISTS idx_books_author ON $tBooks(author)',
+    'CREATE INDEX IF NOT EXISTS idx_books_source ON $tBooks(source)',
+    'CREATE INDEX IF NOT EXISTS idx_books_grp ON $tBooks(grp)',
+    'CREATE INDEX IF NOT EXISTS idx_books_last ON $tBooks(last_read_at)',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn ON $tBooks(isbn) WHERE isbn IS NOT NULL AND isbn != \'\'',
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookSessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id TEXT NOT NULL,
+      started_at INTEGER NOT NULL,
+      ended_at INTEGER,
+      minutes INTEGER NOT NULL DEFAULT 0,
+      speed REAL,
+      from_page INTEGER,
+      to_page INTEGER,
+      from_loc REAL,
+      to_loc REAL,
+      source TEXT NOT NULL DEFAULT 'timer',
+      txn_id INTEGER
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_bsess_book ON $tBookSessions(book_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bsess_start ON $tBookSessions(started_at)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tBookQuotes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      tags TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL,
+      thought TEXT,
+      chapter TEXT,
+      page INTEGER,
+      loc REAL,
+      image_paths TEXT,
+      starred INTEGER NOT NULL DEFAULT 0,
+      origin TEXT,
+      dedup_hash TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_bq_book ON $tBookQuotes(book_id)',
+    'CREATE INDEX IF NOT EXISTS idx_bq_tag ON $tBookQuotes(tag)',
+    'CREATE INDEX IF NOT EXISTS idx_bq_created ON $tBookQuotes(created_at)',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash)',
+  ];
 }
