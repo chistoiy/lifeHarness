@@ -1093,57 +1093,59 @@ tailwind.config = {
       <div id="bill1" class="mt-4 space-y-3">
         <div class="text-sm font-extrabold mb-1">选择账单平台</div>
         <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="支付宝">
-          <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/15 flex items-center justify-center text-lg">🅰️</span>
+          <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/15 flex items-center justify-center text-[15px] font-black text-sky-500 shrink-0">支</span>
           <div class="flex-1"><div class="text-sm font-bold">支付宝</div><div class="text-[11px] text-slate-400 leading-4">我的 → 账单 → ⋯ → 开具账单 → 明细 CSV（zip）</div></div><span class="text-slate-300">›</span></button>
         <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="微信支付">
-          <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-lg">💚</span>
+          <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-[15px] font-black text-emerald-600 shrink-0">微</span>
           <div class="flex-1"><div class="text-sm font-bold">微信支付</div><div class="text-[11px] text-slate-400 leading-4">服务→钱包→账单→常见问题→下载账单（CSV 为 zip 加密包）</div></div><span class="text-slate-300">›</span></button>
-        <div class="card !bg-slate-100 dark:!bg-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-6">🔒 隐私承诺：账单文件<b>仅在本机解析</b>，不上传不联网；自动识别支付宝 18 行表头 / 微信 17 行表头前缀与列结构。</div>
+        <div class="card !bg-slate-100 dark:!bg-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-6">隐私承诺：账单文件<b>仅在本机解析</b>，不上传不联网；自动识别支付宝 18 行表头 / 微信 17 行表头前缀与列结构。</div>
       </div>
-      <!-- 步骤2 选文件 -->
+      <!-- 步骤2 选文件 + 解析选项 -->
       <div id="bill2" class="hidden mt-4">
         <div class="text-sm font-extrabold"><span id="billPlatName">支付宝</span> · 选择导出文件</div>
         <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
-          <div class="text-3xl">🗂</div>
+          <svg class="w-9 h-9 mx-auto text-brand-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h3.6l1.8 2.2h7.6A1.5 1.5 0 0 1 20 9.7v8.8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M8 13.5h8M8 16h5"/></svg>
           <div class="text-sm font-bold mt-2" id="billFileName">alipay_record_202608.csv</div>
           <div class="text-[11px] text-slate-400 mt-1">214 KB · 点击重新选择（模拟）</div>
         </div>
         <div class="mt-3 card text-xs space-y-2.5" id="billOpts"></div>
-        <div class="mt-3 card !py-3 text-xs flex items-center gap-2"><span class="text-slate-400 shrink-0">导入至账户</span>
-          <select id="billAcct" class="sel flex-1" onchange="toast('本批账单流水将记入该账户')"></select></div>
       </div>
-      <!-- 步骤3 预览 -->
+      <!-- 步骤3 账户匹配（V1.36 · 先对账户再对流水） -->
       <div id="bill3" class="hidden mt-4">
-        <div class="text-sm font-extrabold">解析预览 · 去重确认</div>
+        <div class="text-sm font-extrabold">账户匹配</div>
+        <div class="text-[10px] text-slate-400 mt-0.5 leading-4">从账单「付款方式」列识别出以下账户，逐一指定写入的本地账户；未对应的默认自动新建，已对应的也可改</div>
+        <div id="biAcctList" class="mt-3 space-y-2.5"></div>
+        <div id="biAcctSum" class="mt-3 card !py-2.5 !px-3.5 text-[11px] flex items-center"></div>
+      </div>
+      <!-- 步骤4 解析预览 · 勾选导入 -->
+      <div id="bill4" class="hidden mt-4">
+        <div class="text-sm font-extrabold">解析预览 · 勾选导入</div>
         <div class="mt-2 flex gap-3 text-center text-[11px]">
-          <div class="flex-1 card !py-2"><b class="text-sky-500 text-sm">128</b><div class="text-slate-400">解析流水</div></div>
-          <div class="flex-1 card !py-2"><b class="text-sun text-sm">41</b><div class="text-slate-400">重复跳过</div></div>
-          <div class="flex-1 card !py-2"><b class="text-mint text-sm">87</b><div class="text-slate-400">将写入</div></div>
+          <button class="flex-1 card !py-2" onclick="biJump('n')"><b id="biCntAll" class="text-sky-500 text-sm">0</b><div class="text-slate-400">解析流水 · 查看</div></button>
+          <button class="flex-1 card !py-2" onclick="biJump('d')"><b id="biCntDup" class="text-sun text-sm">0</b><div class="text-slate-400">重复命中 · 查看</div></button>
+          <div class="flex-1 card !py-2"><b id="biCntSel" class="text-mint text-sm">0</b><div class="text-slate-400">将写入（勾选）</div></div>
+        </div>
+        <div id="biGn" class="mt-3 card !p-0 overflow-hidden">
+          <button class="w-full flex items-center gap-2 px-3.5 py-2.5 text-[11px] font-extrabold" onclick="biFold('n')"><span class="flex-1 text-left">解析流水 · <span id="biGnCnt">0</span> 条</span><span class="text-[9px] font-bold text-slate-400" id="biGnSel">已选 0</span><span class="text-slate-400 text-[10px]" id="biGnArr">▾</span></button>
+          <div class="px-3 pb-1.5 flex items-center text-[9px] text-slate-400"><label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="biAllN" onchange="biAll('n',this.checked)">全选 / 取消全选</label><span class="ml-auto">点分类可改 · 未勾选不写入</span></div>
+          <div id="biLn" class="max-h-56 overflow-y-auto no-scrollbar px-2 pb-2 space-y-0.5"></div>
+        </div>
+        <div id="biGd" class="mt-3 card !p-0 overflow-hidden">
+          <button class="w-full flex items-center gap-2 px-3.5 py-2.5 text-[11px] font-extrabold" onclick="biFold('d')"><span class="flex-1 text-left">重复命中 · <span id="biGdCnt">0</span> 条</span><span class="text-[9px] font-bold text-slate-400" id="biGdSel">已选 0</span><span class="text-slate-400 text-[10px]" id="biGdArr">▾</span></button>
+          <div class="px-3 pb-1.5 flex items-center text-[9px] text-slate-400"><label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" id="biAllD" onchange="biAll('d',this.checked)">全选 / 取消全选</label><span class="ml-auto">与已有流水单号重复 · 默认不导入</span></div>
+          <div id="biLd" class="max-h-56 overflow-y-auto no-scrollbar px-2 pb-2 space-y-0.5"></div>
         </div>
         <div class="mt-3 card">
           <div class="row-title">分类自动映射（92% 命中 · 其余进「其他」可改）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between"><span class="text-slate-400">商业服务-餐饮美食 →</span><b>🍜 餐饮</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">交通出行-打车 →</span><b>🚇 交通</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">数码电器 →</span><b>💻 数码（可升级为物品档案 📦 · 联动 L12）</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">退款冲抵 →</span><b>负支出流水</b></div>
-          </div>
+          <div class="mt-2 space-y-1.5 text-[11px]" id="biMapRows"></div>
         </div>
-        <div class="mt-3 card">
-          <div class="row-title">写入示例（前 3 条）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between cursor-pointer" onclick="billCatCycle(this)"><span>08-31 12:24 · 张记快餐</span><span class="text-right"><b class="text-rose-400">−¥32.00</b><div class="text-[9px] text-slate-400">分类：<b class="bc">🍜 餐饮</b> · 点击手动修改</div></span></div>
-            <div class="flex justify-between"><span>08-30 09:10 · T3 打车</span><b class="text-rose-400">−¥23.50</b></div>
-            <div class="flex justify-between"><span>08-29 21:02 · 退款-某宝店铺</span><b class="text-emerald-500">+¥89.00</b></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销 · 逐笔点击可手动改分类</div>
-        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销</div>
       </div>
-      <!-- 步骤4 完成 -->
-      <div id="bill4" class="hidden mt-10 text-center">
-        <div class="text-6xl">✅</div>
+      <!-- 步骤5 完成 -->
+      <div id="bill5" class="hidden mt-10 text-center">
+        <svg class="w-14 h-14 mx-auto text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.2 2.8 2.8L16.2 9"/></svg>
         <div class="text-lg font-extrabold mt-4">导入完成</div>
-        <div class="text-xs text-slate-400 mt-1 leading-6">已写入 87 条流水 · 跳过重复 41 条<br>月度报表与分类占比已自动更新（联动 L8：订阅项已生成续费提醒）</div>
+        <div class="text-xs text-slate-400 mt-1 leading-6" id="biDoneTxt"></div>
         <div class="mt-6 flex gap-3 justify-center">
           <button onclick="stack.length=0;setPage('p-finance')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看账本</button>
           <button onclick="billReset()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一份</button>
@@ -3706,9 +3708,9 @@ function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为写作视
  ta.value=v.slice(0,s)+w[0]+sel+w[1]+v.slice(e);ta.focus();
  const pos=s+w[0].length+(sel?sel.length:0);ta.setSelectionRange(pos,pos);pwSync();toast('已插入 '+k+' 语法（选中文本被包裹）');}
 /* ================= 账单导入向导（支付宝/微信） ================= */
-let billN=1,billPlat='支付宝';
+let billN=1,billPlat='支付宝',biRows=null,biAccts=null,biSel=new Set(),biFoldS={n:true,d:false};
 function billGo(){billN=1;billOpts();renderBill();navTo('p-billImport');}
-function billReset(){billN=1;renderBill();}
+function billReset(){billN=1;biRows=null;biAccts=null;biSel=new Set();biFoldS={n:true,d:false};renderBill();}
 function billOpts(){const wx=billPlat==='微信支付';
  $('#billOpts').innerHTML=`
   <label class="flex items-center justify-between"><span>${wx?'微信 zip 加密包 · 自动用申请密码解压':'支付宝 zip 加密包 · 自动用申请密码解压'}</span><span class="toggle on" onclick="tgl(this)"></span></label>
@@ -3716,17 +3718,82 @@ function billOpts(){const wx=billPlat==='微信支付';
   <label class="flex items-center justify-between"><span>退款冲抵记为负支出</span><span class="toggle on" onclick="tgl(this)"></span></label>
   <label class="flex items-center justify-between"><span>分类未命中时 AI 辅助归类（需 Key）</span><span class="toggle" onclick="tgl(this)"></span></label>
   <div class="flex items-center justify-between text-slate-400"><span>CSV 编码自适应（UTF-8 含 BOM / GBK 兜底转码）</span><b class="text-emerald-500">自动 ✓</b></div>`;}
+/* 步骤3 账户匹配：从「付款方式」列识别出的账户 × 本地账户（V1.36） */
+function biAcctDefs(){return billPlat==='支付宝'?[
+  {src:'余额宝',cnt:63,guess:'fund',type:'invest'},
+  {src:'支付宝余额',cnt:38,guess:'ali',type:'ewallet'},
+  {src:'储蓄卡(招商 1234)',cnt:19,guess:'debit',type:'debit'},
+  {src:'花呗',cnt:8,guess:null,type:'credit'}]:[
+  {src:'零钱',cnt:71,guess:'wx',type:'ewallet'},
+  {src:'零钱通',cnt:24,guess:null,type:'invest'},
+  {src:'储蓄卡(招商 1234)',cnt:26,guess:'debit',type:'debit'},
+  {src:'信用卡(交通 6677)',cnt:7,guess:'credit',type:'credit'}]}
+function biRenderAccts(){
+ $('#biAcctList').innerHTML=biAccts.map((a,i)=>{
+  const nw=a.pick==='__new';
+  const opts=`<option value="__new" ${nw?'selected':''}>自动新建账户「${a.src}」</option>`+
+   L.accounts.map(x=>`<option value="${x.id}" ${a.pick===x.id?'selected':''}>${x.n}</option>`).join('');
+  return `<div class="card !py-2.5 !px-3.5">
+   <div class="flex items-center gap-2.5"><span class="fin-ico !w-8 !h-8 !rounded-lg shrink-0" style="background:${nw?'#f59e0b1a':'#6366f11a'};color:${nw?'#f59e0b':'#6366f1'}">${svgIco(nw?'plus':'link','w-4 h-4')}</span>
+    <div class="flex-1 min-w-0"><b class="text-[12px] block truncate">${a.src}</b><span class="text-[9px] text-slate-400">出现 ${a.cnt} 笔 · 来自付款方式列</span></div>
+    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${nw?'bg-amber-500/15 text-amber-500':'bg-emerald-500/15 text-emerald-500'}">${nw?'未对应 · 将新建':'已对应 · 可改'}</span></div>
+   <select class="sel w-full mt-2 text-[11px]" onchange="biPick(${i},this.value)">${opts}</select></div>`}).join('');
+ const nw=biAccts.filter(a=>a.pick==='__new').length;
+ $('#biAcctSum').innerHTML=`<span class="flex-1 text-slate-400">已对应本地账户 ${biAccts.length-nw} 个 · 将新建 ${nw} 个</span><b class="text-brand-500">确认后生效</b>`}
+function biPick(i,v){biAccts[i].pick=v;biRenderAccts()}
+/* 步骤4 解析流水（确定性模拟）：87 条新增 + 41 条重复命中 */
+function biGen(){let sd=88118899;const rn=()=>((sd=(sd*9301+49297)%233280)/233280);
+ const pool=[['张记快餐','food',32],['全家便利店','food',28],['美团外卖','food',45],['星巴克咖啡','food',38],['T3打车','trans',23.5],['滴滴出行','trans',18],['山姆会员店','shop',268],['某宝数码旗舰店','shop',1299],['中国移动话费','live',59],['猫眼电影','fun',49.9]];
+ const mk=(g,n0)=>{const out=[];for(let i=0;i<n0;i++){const[m,c,base]=pool[Math.floor(rn()*pool.length)];
+  const day=String(1+Math.floor(rn()*31)).padStart(2,'0'),hh=String(Math.floor(rn()*24)).padStart(2,'0'),mm=String(Math.floor(rn()*60)).padStart(2,'0');
+  const refund=rn()<0.08;
+  out.push({k:g+i,g,d:`2026-08-${day}`,tm:hh+':'+mm,n:m,cat:c,amt:+(base*(0.5+rn())).toFixed(2),kind:refund?'refund':'expense',ai:Math.floor(rn()*4)})}
+  return out};
+ const nR=mk('n',87),dR=mk('d',41);
+ biSel=new Set(nR.map(r=>r.k));biRows={n:nR,d:dR}}
+function biRowH(r){const on=biSel.has(r.k);const a=biAccts[r.ai];
+ return `<label class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11px] ${on?'':'opacity-55'}">
+  <input type="checkbox" ${on?'checked':''} onchange="biTog('${r.k}')">
+  <span class="w-[74px] shrink-0 text-slate-400 text-[9px]">${r.d.slice(5)} ${r.tm}</span>
+  <span class="flex-1 min-w-0 truncate">${r.n}</span>
+  <button class="text-[9px] text-slate-400 shrink-0 underline decoration-dotted" onclick="event.preventDefault();biCat('${r.k}')">${lcatN(r.cat)}</button>
+  <b class="w-[62px] text-right shrink-0 ${r.kind==='refund'?'text-emerald-500':'text-rose-400'}">${r.kind==='refund'?'+':'−'}${money(r.amt)}</b>
+  <span class="w-[52px] shrink-0 text-right text-[8px] text-slate-400 truncate">${a.pick==='__new'?'新建':a.src.slice(0,4)}</span></label>`}
+function biRenderPrev(){const N=biRows.n,D=biRows.d;
+ $('#biCntAll').textContent=N.length+D.length;$('#biCntDup').textContent=D.length;$('#biCntSel').textContent=biSel.size;
+ $('#biGnCnt').textContent=N.length;$('#biGdCnt').textContent=D.length;
+ $('#biGnSel').textContent='已选 '+N.filter(r=>biSel.has(r.k)).length;$('#biGdSel').textContent='已选 '+D.filter(r=>biSel.has(r.k)).length;
+ $('#biLn').innerHTML=N.map(biRowH).join('');$('#biLd').innerHTML=D.map(biRowH).join('');
+ $('#biAllN').checked=N.every(r=>biSel.has(r.k));$('#biAllD').checked=!!D.length&&D.every(r=>biSel.has(r.k));
+ $('#biGn').classList.toggle('hidden',!biFoldS.n);$('#biGd').classList.toggle('hidden',!biFoldS.d);
+ $('#biGnArr').textContent=biFoldS.n?'▾':'▸';$('#biGdArr').textContent=biFoldS.d?'▾':'▸';
+ $('#biMapRows').innerHTML=[['food','商业服务-餐饮美食'],['trans','交通出行-打车'],['shop','数码电器（可升级为物品档案 · 联动 L12）']].map(([id,from])=>{const c=lcat(id)||{n:'其他',c:'#94a3b8',i:'dots'};
+  return `<div class="flex justify-between items-center"><span class="text-slate-400">${from} →</span><b class="flex items-center gap-1.5"><span class="fin-ico !w-5 !h-5 !rounded-md" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-3 h-3')}</span>${c.n}</b></div>`}).join('')+
+  '<div class="flex justify-between"><span class="text-slate-400">退款冲抵 →</span><b>负支出流水</b></div>'}
+function biTog(k){biSel.has(k)?biSel.delete(k):biSel.add(k);biRenderPrev();$('#billNext').textContent='确认导入 '+biSel.size+' 条'}
+function biAll(g,on){biRows[g].forEach(r=>on?biSel.add(r.k):biSel.delete(r.k));biRenderPrev();$('#billNext').textContent='确认导入 '+biSel.size+' 条'}
+function biFold(g){biFoldS[g]=!biFoldS[g];biRenderPrev()}
+function biJump(g){biFoldS[g]=true;biRenderPrev();document.getElementById('biG'+g).scrollIntoView({behavior:'smooth',block:'center'});toast(g==='d'?'重复组默认不勾选 · 可逐笔强制导入':'逐笔勾选 · 仅写入勾选项')}
+function biCat(k){const r=[...biRows.n,...biRows.d].find(x=>x.k===k);if(!r)return;const ids=LCATS.expense.map(c=>c.id);r.cat=ids[(ids.indexOf(r.cat)+1)%ids.length];biRenderPrev();toast('该笔分类已改为「'+lcatN(r.cat)+'」· 确认后将按修改值写入')}
+function biCommit(){const nw=biAccts.filter(a=>a.pick==='__new');
+ nw.forEach(a=>{if(!L.accounts.some(x=>x.n===a.src))L.accounts.push({id:'imp_'+a.src,type:a.type,n:a.src,i:a.type==='credit'?'cardplus':'card',c:a.type==='credit'?'#fb7185':'#8b5cf6',base:0,limit:a.type==='credit'?10000:undefined})});
+ let cnt=0;for(const r of [...biRows.n,...biRows.d]){if(!biSel.has(r.k))continue;const a=biAccts[r.ai];
+  ledgerAdd({kind:r.kind,cat:r.cat,sub:'',n:r.n,amt:r.amt,a:a.pick,d:r.d,tags:[],src:'bill',note:billPlat+' · '+r.d+' '+r.tm});cnt++}
+ $('#biDoneTxt').innerHTML=`已写入 ${cnt} 条流水 · 未勾选 ${biRows.n.length+biRows.d.length-cnt} 条不导入${nw.length?` · 新建账户 ${nw.length} 个（${nw.map(a=>a.src).join('、')}）`:''}<br>月度报表、分类占比与资产页已自动更新 · 支持整批撤销`;
+ billN=5;renderBill();toast('✔ 已写入 '+cnt+' 条 · 支持整批撤销本批导入')}
 function renderBill(){
- $('#billStep').innerHTML=[1,2,3,4].map(n=>`<span class="imp-dot ${n<billN?'imp-done':''} ${n===billN?'imp-on':''}">${n<billN?'✓':n}</span>${n<4?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<billN?' !bg-brand-500':'')+'"></span>':''}`).join('');
- [1,2,3,4].forEach(n=>$('#bill'+n).classList.toggle('hidden',n!==billN));
- $('#billNav').classList.toggle('hidden',billN===4);
+ $('#billStep').innerHTML=[1,2,3,4,5].map(n=>`<span class="imp-dot ${n<billN?'imp-done':''} ${n===billN?'imp-on':''}">${n<billN?'✓':n}</span>${n<5?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<billN?' !bg-brand-500':'')+'"></span>':''}`).join('');
+ [1,2,3,4,5].forEach(n=>$('#bill'+n).classList.toggle('hidden',n!==billN));
+ $('#billNav').classList.toggle('hidden',billN===5);
  $('#billPrev').classList.toggle('hidden',billN===1);
- $('#billNext').textContent=billN===3?'确认导入 87 条':'下一步';}
+ if(billN===3&&biAccts)biRenderAccts();
+ if(billN===4&&biRows)biRenderPrev();
+ $('#billNext').textContent=billN===4?'确认导入 '+biSel.size+' 条':'下一步';}
 function billStep(d){if(d>0&&billN===1)toast('解析中… 识别到'+(billPlat==='微信支付'?'微信 17 行':'支付宝 18 行')+'表头前缀（模拟）');
- if(d>0&&billN===2)toast('解析完成：128 条 · 按交易单号命中重复 41 条');
- billN=Math.min(4,Math.max(1,billN+d));renderBill();
- if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销 · 大额数码支出可一键升级物品建档（L12）');}
-function billCatCycle(el){const b=el.querySelector('.bc');if(!b)return;const seq=['🍜 餐饮','🧾 其他','🥤 饮品','💻 数码→可升级物品建档'];b.textContent=seq[(seq.indexOf(b.textContent)+1)%seq.length];toast('逐笔手动改分类演示 · 确认后将按修改值写入')}
+ if(d>0&&billN===2){if(!biRows){biGen();biAccts=biAcctDefs().map(a=>({...a,pick:a.guess&&L.accounts.some(x=>x.id===a.guess)?a.guess:'__new'}))}
+  toast('解析完成：128 条 · 其中 41 条按交易单号命中重复');}
+ if(d>0&&billN===4)return biCommit();
+ billN=Math.min(5,Math.max(1,billN+d));renderBill();}
 /* 导入向导 */
 let impN=1;
 function renderImp(){
@@ -4745,7 +4812,7 @@ function txdRefund(){const t=L.txns.find(x=>x.id===txdId);
 let _delArm=0;
 function txdDel(){if(L.set.confirmDel&&Date.now()-_delArm>2600){_delArm=Date.now();return toast('再次点击删除以确认')}
  ledgerDel(txdId);toast('已删除该笔流水及其退款');goBack()}
-LED_RENDER['p-finance']=renderL1;LED_RENDER['p-txAdd']=renderTxAdd;LED_RENDER['p-txDetail']=renderTxDetail;
+LED_RENDER['p-finance']=renderL1;LED_RENDER['p-txAdd']=renderTxAdd;LED_RENDER['p-txDetail']=renderTxDetail;LED_RENDER['p-billImport']=renderBill;
 function openCatAddSheet(cat){toast('子分类添加见「分类管理」')}
 /* 调试/自检导出（词法作用域桥） */
 window.__ledger={get L(){return L},get txState(){return txState},get finMonth(){return finMonth},set finMonth(v){finMonth=v},LCATS,money,AMT,mStat,catStat,accBal,exprVal,wdOf,monthOf,get LD(){return typeof LED!=='undefined'?LED:null}};
@@ -5219,7 +5286,7 @@ function renderLset(){
   row('预算月起始日',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===1?'seg-on':''}" onclick="L.set.monthStart=1;renderLset()">每月 1 日</button><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===15?'seg-on':''}" onclick="L.set.monthStart=15;renderLset();toast('预算与日均分配将按 15 日周期重算（演示）')">每月 15 日</button></div>`)+
   row('预算超支提醒',`<span class="toggle on" onclick="tgl(this);toast('超支 80% / 100% 两档本地通知（演示）')"></span>`)+
   row('月度小结推送',`<span class="toggle" onclick="tgl(this);toast('每月 1 日 09:00 本地推送（演示）')"></span>`)+
-  row('导入支付宝 / 微信账单',`<button class="chip" onclick="billGo()">四步向导 · 本地解析 ›</button>`)+
+  row('导入支付宝 / 微信账单',`<button class="chip" onclick="billGo()">五步向导 · 账户匹配 + 勾选导入 ›</button>`)+
   row('数据导出',`<button class="chip" onclick="navTo('p-export')">CSV · JSON ›</button>`)+
   row('重置演示数据',`<button class="chip" onclick="location.reload()">重新载入</button>`);
 }
@@ -5246,10 +5313,6 @@ function renderExport(){
    <div class="mt-1.5 text-[11px] text-slate-400 leading-6">${ts.length} 条流水 · ${exp.fmt==='csv'?'字段：日期,类型,分类,子分类,金额,账户,备注,标签,来源':'字段：id, kind, cat, sub, amt, account, date, note, tags, source'}<br>不含账户完整卡号，仅本机构建摘要</div></div>
   <button class="w-full py-3.5 rounded-2xl grad text-white text-[14px] font-extrabold" onclick="toast('已导出 ${exp.scope==='month'?finMonth:'全量'} 流水 · lifeharness_ledger.${exp.fmt}（模拟写入下载目录）')">导出 ${ts.length} 条</button>`;
 }
-/* L14 账单导入：账户归属下拉填充 */
-const _billOpts0=billOpts;
-billOpts=function(){_billOpts0();const sel=document.getElementById('billAcct');
- if(sel&&!sel.options.length)sel.innerHTML=L.accounts.map(a=>`<option value="${a.id}">${a.n}</option>`).join('')};
 /* L1 到期横幅 */
 function renderFinDue(){const el=document.getElementById('finDue');if(!el)return;
  const due=L.recur.filter(r=>r.on&&r.next<=TODAY&&r.bk===curBook);
