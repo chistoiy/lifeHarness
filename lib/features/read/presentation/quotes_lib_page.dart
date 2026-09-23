@@ -461,7 +461,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
       key: ValueKey('ql-q-${q.id}'),
       behavior: HitTestBehavior.opaque,
       // 原型 4854：点卡片直接进编辑表单（操作弹层保留在书籍详情页入口）。
-      onTap: () => showQuoteEditSheet(context, ref, editing: q),
+      onTap: () => showQuoteEditPage(context, ref, editing: q),
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 10),
@@ -668,7 +668,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
       key: ValueKey('qlr-${q.id}'),
       behavior: HitTestBehavior.opaque,
       // 原型 4861：行视图点行同样直接进编辑表单。
-      onTap: () => showQuoteEditSheet(context, ref, editing: q),
+      onTap: () => showQuoteEditPage(context, ref, editing: q),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
@@ -780,7 +780,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
               GestureDetector(
                 key: ValueKey('qli-${q.id}'),
                 // 原型 4873：图片墙点格进编辑表单。
-                onTap: () => showQuoteEditSheet(context, ref, editing: q),
+                onTap: () => showQuoteEditPage(context, ref, editing: q),
                 child: Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(

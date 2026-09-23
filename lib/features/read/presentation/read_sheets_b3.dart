@@ -1,19 +1,20 @@
 part of 'read_sheets.dart';
 
-/// 批3 弹层：摘录表单（新增＝编辑同一张 · 书/章节/页码/创建时间/原文/想法/
-/// 识图·加图·剪贴板/颜色分类/标签多选 · §3.4 表单三处联动）/
+/// 批3 弹层：摘录表单（真机验收轮1d：半屏弹层改全屏页 · 新增＝编辑同一张 ·
+/// 书/章节/页码/创建时间/原文/想法/识图·加图·剪贴板/颜色分类/标签多选 · §3.4 表单三处联动）/
 /// 摘录操作弹层（sheetQuoteOps · L5 分流）/ 艾宾浩斯复习（sheetReview 翻面卡）。
 
-// ============================ 摘录表单（唯一一张 · 新增＝编辑） ============================
+// ============================ 摘录表单（唯一一张 · 新增＝编辑 · 全屏页） ============================
 
-Future<void> showQuoteEditSheet(
+Future<void> showQuoteEditPage(
   BuildContext context,
   WidgetRef ref, {
   String? bookId,
   BookQuote? editing,
-}) => _sheet<void>(
-  context,
-  _QuoteForm(bookId: bookId, editing: editing),
+}) => Navigator.of(context).push(
+  MaterialPageRoute<void>(
+    builder: (_) => _QuoteForm(bookId: bookId, editing: editing),
+  ),
 );
 
 class _QuoteForm extends ConsumerStatefulWidget {
@@ -85,6 +86,8 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     text: widget.editing?.thought ?? '',
   );
   final TextEditingController _newTag = TextEditingController();
+  /// 真机验收轮1d：⊕ 再记一条＝清空回新建态（AppBar ⊕ · 原型 qeClear）。
+  late BookQuote? _editing = widget.editing;
   /// 保真批D：页码/创建时间一律就地滚轮（铁律 · 禁键盘输入与日历二段弹层）。
   late int? _pageVal = widget.editing?.page;
   bool _pageOpen = false;
@@ -268,7 +271,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     }
     final page = _pageVal;
     return BookQuote(
-      id: widget.editing?.id,
+      id: _editing?.id,
       bookId: b.id,
       kind: bodyT.isEmpty ? BookQuote.kKindThought : BookQuote.kKindMark,
       tag: _tag,
@@ -278,9 +281,9 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
       chapter: (_chap == null || _chap!.isEmpty) ? null : _chap,
       page: (page == null || page <= 0) ? null : page,
       imagePaths: _imgs,
-      starred: widget.editing?.starred ?? false,
-      origin: widget.editing?.origin,
-      dedupHash: widget.editing?.dedupHash,
+      starred: _editing?.starred ?? false,
+      origin: _editing?.origin,
+      dedupHash: _editing?.dedupHash,
       createdAt: _date.millisecondsSinceEpoch,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
@@ -292,7 +295,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     if (q == null) return null;
     final b = _bookOf(books, q.bookId)!;
     final repo = ref.read(readRepositoryProvider);
-    if (widget.editing == null) {
+    if (_editing == null) {
       final id = await repo.addQuote(q);
       if (id == null) {
         if (mounted) readToast(context, '这条摘录已存在 · 未重复入账');
@@ -316,14 +319,14 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     if (r == null || !mounted) return;
     final (q, b) = r;
     final repo = ref.read(readRepositoryProvider);
-    final total = widget.editing == null
+    final total = _editing == null
         ? (await repo.quotesOf(b.id)).length
         : 0;
     if (!mounted) return;
     Navigator.of(context).pop();
     readToast(
       context,
-      widget.editing == null
+      _editing == null
           ? '已保存 · 《${b.title}》 现共 $total 条 · 可做日记素材（L5）'
           : '笔记已更新',
     );
@@ -350,6 +353,29 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     );
   }
 
+  /// ⊕ 再记一条（真机验收轮1d · 原型 qeClear）：清表单回新建态，书保持当前选择。
+  void _clear() {
+    _body.clear();
+    _thought.clear();
+    _newTag.clear();
+    setState(() {
+      _editing = null;
+      _imgs.clear();
+      _qtags.clear();
+      _tag = BookQuote.kTagKey;
+      _chap = null;
+      _chapterLoaded = false;
+      _chapters = const [];
+      _pageVal = null;
+      _pageTouched = false;
+      _date = DateTime.now();
+      _pageOpen = false;
+      _dateOpen = false;
+    });
+    _loadChapters();
+    readToast(context, '已清空 · 继续记下一条');
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -361,31 +387,33 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
         ref.watch(dictProvider(DictEntry.kTag)).valueOrNull ??
         const <DictEntry>[];
     if (books.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _SheetTitle('新增摘录'),
-            Text(
-              '书架上还没有书 · 先添加一本',
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                showAddBookSheet(context, ref);
-              },
-              child: const Text('添加一本'),
-            ),
-          ],
+      return Scaffold(
+        appBar: AppBar(title: const Text('新增摘录')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '书架上还没有书 · 先添加一本',
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                key: const ValueKey('qef-add-book'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  showAddBookSheet(context, ref);
+                },
+                child: const Text('添加一本'),
+              ),
+            ],
+          ),
         ),
       );
     }
     // 默认书：编辑态原书 ＞ 指定 bookId ＞ 在读最近阅读那本（§3.3）。
     _pickedId ??=
-        widget.editing?.bookId ??
+        _editing?.bookId ??
         widget.bookId ??
         ShelfSort.byLastRead(
           books.where((b) => b.state == Book.kStateReading).toList(),
@@ -394,12 +422,12 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final cur = _bookOf(books, _pickedId!) ?? books.first;
     if (!_chapterLoaded && _chapters.isEmpty) _loadChapters();
     // 新建时页码按当前进度带出（read.rateFmt 默认开）。
-    if (widget.editing == null && !_pageTouched && _pageVal == null) {
+    if (_editing == null && !_pageTouched && _pageVal == null) {
       _syncPageFromBook(cur);
     }
     final chapOpts = {..._chapters, ?_chap}.toList();
     final tagOpts = {...dictTags.map((t) => t.name), ..._qtags}.toList();
-    final adding = widget.editing == null;
+    final adding = _editing == null;
     // 真机验收轮1 · 原型 sheetQuoteEdit 同步重排：正文/想法置顶加大、快速录入，
     // 书/章节/页码/创建时间等非主要数据收进下方分隔区（metaBlocks）。
     final metaBlocks = <Widget>[
@@ -580,17 +608,26 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
               ),
             ),
     ];
-    final mq = MediaQuery.of(context);
-    final cap = mq.size.height * .86 - mq.viewInsets.bottom;
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: cap < 240 ? 240 : cap),
-      child: SingleChildScrollView(
+    // 真机验收轮1d：半屏弹层改全屏页（原型 p-quoteEdit），键盘由 Scaffold 避让。
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
+        actions: [
+          IconButton(
+            key: const ValueKey('qef-again'),
+            tooltip: '再记一条',
+            icon: const Icon(BsIcons.add, size: 18),
+            onPressed: _clear,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SheetTitle(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
-          // 正文/想法置顶加大：打开表单即可直接录入（键盘避让 · 弹层随 viewInsets 抬升）。
+          // 正文/想法置顶加大：打开表单即可直接录入（键盘避让 · Scaffold resize）。
           _field(_body, '原文摘录…', lines: 5, keyName: 'qef-body', autofocus: adding),
           const SizedBox(height: 10),
           _field(_thought, '我的想法（可选，与摘录同条存储）', lines: 3, keyName: 'qef-thought'),
@@ -844,7 +881,7 @@ Future<void> showQuoteOpsSheet(
 
       void edit() {
         Navigator.of(sheetCtx).pop();
-        showQuoteEditSheet(context, ref, editing: q);
+        showQuoteEditPage(context, ref, editing: q);
       }
 
       return Column(

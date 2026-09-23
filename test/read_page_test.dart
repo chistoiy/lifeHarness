@@ -1569,7 +1569,42 @@ void main() {
       await clearToasts(tester);
       final saved = (await repo.allQuotes()).single;
       expect(saved.tag, BookQuote.kTagKey); // 新建默认「重点」（原型 4890）
-      expect(saved.page, 10); // 两档 ×5（-60px / itemExtent30）
+      expect(saved.page, 15); // 两档 ×5（-60px / itemExtent30 · 全屏页滚轮完整可见）
+    });
+
+    testWidgets('R-36 摘录全屏页：AppBar 标题带书名 · ⊕ 再记一条清空回新建态不落库',
+        (tester) async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, last: ms(0)));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-add')));
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      // 真机验收轮1d：半屏弹层改全屏页 · 标题在 AppBar（原型 p-quoteEdit）。
+      expect(find.byKey(const ValueKey('qef-again')), findsOneWidget);
+      final bar = tester.widget<AppBar>(find.ancestor(
+        of: find.byKey(const ValueKey('qef-again')),
+        matching: find.byType(AppBar),
+      ).first);
+      expect(
+        (bar.title as Text).data,
+        '新增摘录 · 《书甲》',
+      );
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '记半句');
+      await tester.tap(find.byKey(const ValueKey('qef-again')));
+      await settle(tester);
+      expect(find.text('已清空 · 继续记下一条'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('qef-body')))
+            .controller!
+            .text,
+        isEmpty,
+      );
+      expect(await repo.allQuotes(), isEmpty); // 清空只回表单态，不写库
+      await clearToasts(tester);
     });
 
     testWidgets('R-30 复习：空池 toast 不开层 · 翻面空想法兜底逐字',

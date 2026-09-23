@@ -865,7 +865,7 @@ tailwind.config = {
       <div class="mt-3 flex items-center gap-2">
         <input id="qtKw" oninput="qtKw=this.value;renderQuotes()" class="flex-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-[13px] outline-none" placeholder="搜索全部摘录与感想">
         <button onclick="qtReview()" class="text-[11px] font-extrabold px-3 py-2.5 rounded-xl grad text-white shrink-0">复习</button>
-        <button onclick="openSheet('sheetQuoteEdit')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 shrink-0">+</button>
+        <button onclick="bsQuickQuote()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 shrink-0">+</button>
       </div>
       <div class="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar" id="qtTagChips"></div>
       <div class="mt-2 flex items-center gap-2">
@@ -882,6 +882,32 @@ tailwind.config = {
           <button class="mini-btn !bg-peach/15 !text-rose-500" onclick="toast('AI 正在把 27 条零散感想归并成 5 个主题（需 Key）')">AI 感想归并</button>
         </div>
       </div>
+    </section>
+
+    <!-- ===== 书架专版 · 新增/编辑摘录（真机验收轮1d：半屏弹层改全屏页 · 记一条直进） ===== -->
+    <section id="p-quoteEdit" class="page px-5 safe-pb no-scrollbar">
+      <div class="mt-1">
+        <textarea id="qeText" class="inp w-full min-h-[132px] leading-6" placeholder="原文摘录…" autofocus></textarea>
+        <textarea id="qeThink" class="inp w-full min-h-[86px] mt-2 leading-6" placeholder="我的想法（可选，与摘录同条存储）"></textarea>
+        <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="qeOcr()">识图取文</button><button class="mini-btn flex-1" onclick="qeImg()">加图片</button><button class="mini-btn flex-1" onclick="qeFromClip()">读剪贴板</button></div>
+        <div id="qeImgs" class="mt-2 hidden"></div>
+        <div class="mt-2.5 text-[10px] text-slate-400">划线颜色分类 <span id="qeTags"></span></div>
+        <div class="mt-2.5 text-[10px] text-slate-400">标签<span class="text-slate-300 dark:text-slate-600">（可多选 · 用于笔记库筛选）</span></div>
+        <div id="qeTagRow" class="mt-1 flex gap-1.5 flex-wrap"></div>
+        <div class="mt-3 border-t border-slate-100 dark:border-slate-800 pt-2">
+          <select id="qeBook" class="inp w-full" onchange="qeBookChange()"></select>
+          <div class="mt-2 flex gap-2">
+            <select id="qeCh" class="inp flex-1 min-w-0"></select>
+            <input id="qePg" class="inp w-20" type="number" placeholder="页码">
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-[10px] text-slate-400 shrink-0">创建时间</span>
+            <input id="qeDt" class="inp flex-1 min-w-0" type="date">
+            <button class="mini-btn shrink-0" onclick="qeDtToday()">今天</button>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeToDiary()">插今日日记</button><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeTodo()">生成待办</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="qeSave()">保存</button></div>
     </section>
 
     <!-- ===== 书架专版 · P-B3 阅读统计 ===== -->
@@ -2134,7 +2160,7 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- 新增摘录：统一复用 sheetQuoteEdit（书架专版同一入口），此处不再保留旧版 -->
+  <!-- 新增摘录：统一复用全屏页 p-quoteEdit（书架专版同一入口），此处不再保留旧版 -->
 
 
   <!-- ===== 物品：二次付费 / 回收 / 报废 ===== -->
@@ -2485,35 +2511,7 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- ===== 书架专版 · 摘录/感想编辑 ===== -->
-  <div id="sheetQuoteEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetQuoteEdit')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto no-scrollbar">
-      <div class="grabber"></div>
-      <div class="font-extrabold text-sm" id="qeTitle">新增摘录</div>
-      <div class="mt-3">
-        <textarea id="qeText" class="inp w-full min-h-[132px] leading-6" placeholder="原文摘录…" autofocus></textarea>
-        <textarea id="qeThink" class="inp w-full min-h-[86px] mt-2 leading-6" placeholder="我的想法（可选，与摘录同条存储）"></textarea>
-        <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="qeOcr()">识图取文</button><button class="mini-btn flex-1" onclick="qeImg()">加图片</button><button class="mini-btn flex-1" onclick="qeFromClip()">读剪贴板</button></div>
-        <div id="qeImgs" class="mt-2 hidden"></div>
-        <div class="mt-2.5 text-[10px] text-slate-400">划线颜色分类 <span id="qeTags"></span></div>
-        <div class="mt-2.5 text-[10px] text-slate-400">标签<span class="text-slate-300 dark:text-slate-600">（可多选 · 用于笔记库筛选）</span></div>
-        <div id="qeTagRow" class="mt-1 flex gap-1.5 flex-wrap"></div>
-        <div class="mt-3 border-t border-slate-100 dark:border-slate-800 pt-2">
-          <select id="qeBook" class="inp w-full" onchange="qeBookChange()"></select>
-          <div class="mt-2 flex gap-2">
-            <select id="qeCh" class="inp flex-1 min-w-0"></select>
-            <input id="qePg" class="inp w-20" type="number" placeholder="页码">
-          </div>
-          <div class="mt-2 flex items-center gap-2">
-            <span class="text-[10px] text-slate-400 shrink-0">创建时间</span>
-            <input id="qeDt" class="inp flex-1 min-w-0" type="date">
-            <button class="mini-btn shrink-0" onclick="qeDtToday()">今天</button>
-          </div>
-        </div>
-      </div>
-      <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeToDiary()">插今日日记</button><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeTodo()">生成待办</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="qeSave()">保存</button></div>
-    </div>
-  </div>
+  <!-- 新增/编辑摘录：已改全屏页 p-quoteEdit（真机验收轮1d · 记一条直进），旧半屏层移除 -->
 
   <!-- ===== 书架生态 · 收集箱存摘录选书（回画 · 联动 L6 真分流） ===== -->
   <div id="sheetInboxBook" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetInboxBook')">
@@ -2717,7 +2715,7 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 /* ================= 路由与导航 ================= */
 const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
- 'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
+ 'p-records':['记录',''],'p-quoteEdit':['新增摘录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
  'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
@@ -4891,7 +4889,8 @@ function rvPick(lv){rvAt=(rvAt+1)%rvList.length;toast(['排到今天重练','3 �
 /* 摘录编辑 */
 let qeCur=-1,qeTag='重点';
 function qeOpen(i,bid){qeCur=i==null?-1:i;const x=i==null?{b:bid||CURBK,ty:'划线',tg:'重点',ch:'',pg:'',x:'',th:''}:BS_QUOTES[i];
-  document.getElementById('qeTitle').textContent=i==null?'新增摘录 · 《'+bsBook(x.b).n+'》':'编辑笔记';
+  navTo('p-quoteEdit');/* 真机验收轮1d：半屏层改全屏页 · 记一条直进 */
+  $('#pageTitle').textContent=i==null?'新增摘录 · 《'+bsBook(x.b).n+'》':'编辑笔记';$('#pageSub').textContent='';
   document.getElementById('qeBook').innerHTML=BS_BOOKS.map(b=>`<option value="${b.id}" ${b.id===x.b?'selected':''}>${b.n} · ${b.a}</option>`).join('');
   const bk=bsBook(x.b);const auto=i==null&&BS_SET.rateFmt;
   qeFillCh(x.b,x.ch||(auto?(bk.pw==='chap'?'按章节':bk.chGuess||''):''));
@@ -4901,7 +4900,7 @@ function qeOpen(i,bid){qeCur=i==null?-1:i;const x=i==null?{b:bid||CURBK,ty:'划�
   document.getElementById('qeText').value=x.ty==='划线'?x.x:'';document.getElementById('qeThink').value=x.ty==='感想'?'':(x.th||x.ty==='感想'?x.x:'');
   if(x.ty==='感想'){document.getElementById('qeText').value='';document.getElementById('qeThink').value=x.x}
   qeTag=x.tg;document.getElementById('qeTags').innerHTML=BS_QTAGS.map(t=>`<button class="chip ${qeTag===t[0]?'chip-on':''}" onclick="qeSetTag('${t[0]}')"><i class="qtag" style="background:${t[2]}"></i>${t[0]}</button>`).join('');
-  openSheet('sheetQuoteEdit')}
+  const _qt=document.getElementById('qeText');if(_qt&&i==null)setTimeout(()=>_qt.focus(),60)}
 function qeSetTag(v){qeTag=v;qeRefreshChips()}
 function qeRefreshChips(){document.getElementById('qeTags').innerHTML=BS_QTAGS.map(t=>`<button class="chip ${qeTag===t[0]?'chip-on':''}" onclick="qeSetTag('${t[0]}')"><i class="qtag" style="background:${t[2]}"></i>${t[0]}</button>`).join('')}
 /* 章节下拉（取自本书目录）· 创建时间 · 标签多选 */
@@ -4916,7 +4915,7 @@ function qeFillCh(bid,cur){const el=document.getElementById('qeCh');if(!el)retur
 function qeBookChange(){const bid=document.getElementById('qeBook').value,bk=bsBook(bid);
   qeFillCh(bid,'');qeTitleSync(bid);
   const pg=document.getElementById('qePg');if(qeCur<0&&BS_SET.rateFmt&&pg)pg.value=Math.round(bk.pos||bk.rp||0)}
-function qeTitleSync(bid){if(qeCur>=0)return;const t=document.getElementById('qeTitle');if(t)t.textContent='新增摘录 · 《'+bsBook(bid||document.getElementById('qeBook').value).n+'》'}
+function qeTitleSync(bid){if(qeCur>=0)return;const t=$('#pageTitle');if(t)t.textContent='新增摘录 · 《'+bsBook(bid||document.getElementById('qeBook').value).n+'》'}
 function qeDtSet(v){const el=document.getElementById('qeDt');if(!el)return;
   el.value=/^\d{4}-/.test(v)?v:(v?`2026-${String(v).padStart(5,'0')}`:`2026-${shFmtDate()}`)}
 function qeDtToday(){qeDtSet('2026-'+shFmtDate())}
@@ -4929,10 +4928,10 @@ function qeSave(){const bid=document.getElementById('qeBook').value,txt=document
   if(!txt&&!th){toast('至少写一点什么');return}
   const o={b:bid,ty:txt?'划线':'感想',tg:qeTag,ch:document.getElementById('qeCh').value.trim()||'未分章',pg:+document.getElementById('qePg').value||0,dt:qeDtGet(),tgs:[...qeTags],x:txt||th,th:txt?th:''};
   if(qeCur>=0)BS_QUOTES[qeCur]=o;else BS_QUOTES.unshift(o);
-  const b=bsBook(bid);b.q=bsQ(bid).length;closeSheet('sheetQuoteEdit');renderQuotes();renderBookDetail();renderShelf();
+  const b=bsBook(bid);b.q=bsQ(bid).length;goBack();renderQuotes();renderBookDetail();renderShelf();
   toast(qeCur>=0?'笔记已更新':'已保存 · '+b.n+' 现共 '+b.q+' 条 · 可做日记素材（L5）')}
-function qeToDiary(){closeSheet('sheetQuoteEdit');toast('已插入今日日记草稿（联动 L5）')}
-function qeTodo(){closeSheet('sheetQuoteEdit');toast('已生成待办：查证该观点（联动 L5）')}
+function qeToDiary(){goBack();toast('已插入今日日记草稿（联动 L5）')}
+function qeTodo(){goBack();toast('已生成待办：查证该观点（联动 L5）')}
 /* ---------- 阅读统计 ---------- */
 function renderReadStat(){const el=document.getElementById('rsCards');if(!el)return;
   const L=rsLog(rsYearCur),R=rsMonth?L.slice((rsMonth-1)*30,(rsMonth-1)*30+30):L;
@@ -5726,6 +5725,9 @@ function hdrBtn(ic, tip, act, on) {
 }
 function renderHdrActs(p) {
   const el = document.getElementById('hdrActs'); if (!el) return;
+  if (p === 'p-quoteEdit') { /* 真机验收轮1d：全屏摘录页顶栏 ⊕＝清空再记一条 */
+    el.innerHTML = hdrBtn('add', '再记一条', 'qeClear()');
+    el.classList.remove('hidden'); el.classList.add('flex'); return }
   const b = (p === 'p-bookDetail' || p === 'p-bookInfo') ? bsBook(CURBK) : null;
   if (!b) { el.classList.add('hidden'); el.classList.remove('flex'); el.innerHTML = ''; return }
   el.innerHTML = p === 'p-bookDetail'
@@ -5733,6 +5735,7 @@ function renderHdrActs(p) {
     : hdrBtn('pen', '编辑信息', `shEditOpen('${b.id}')`) + hdrBtn('more', '操作', 'bkOpsOpen()');
   el.classList.remove('hidden'); el.classList.add('flex');
 }
+function qeClear() { qeOpen(null, document.getElementById('qeBook').value); toast('已清空 · 继续记下一条') }
 const BS_OLD_RBD2 = renderBookDetail;
 renderBookDetail = function () { BS_OLD_RBD2(); renderHdrActs(curPage) };
 

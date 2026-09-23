@@ -186,7 +186,7 @@ Future<void> showQuoteSheet(
   BuildContext context,
   WidgetRef ref, {
   String? bookId,
-}) => showQuoteEditSheet(context, ref, bookId: bookId);
+}) => showQuoteEditPage(context, ref, bookId: bookId);
 
 /// 分区循环：在读→想读→已读→弃读（LH-K17 角标点按 · §3.3）。
 String nextState(String state) => switch (state) {
