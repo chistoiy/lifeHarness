@@ -170,10 +170,8 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                                             bsFmt(agg[b.id]?.minutes ?? 0),
                                             BsIcons.time,
                                             'bd-min-chip',
-                                            () => showSessionsSheet(
-                                              context,
-                                              ref,
-                                              b,
+                                            () => context.push(
+                                              '/read/log/${b.id}',
                                             ),
                                           ),
                                           _chip(

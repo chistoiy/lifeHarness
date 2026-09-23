@@ -25,6 +25,7 @@ import '../../features/read/presentation/book_mgr_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
 import '../../features/read/presentation/read_import_page.dart';
 import '../../features/read/presentation/read_lists_page.dart';
+import '../../features/read/presentation/read_log_page.dart';
 import '../../features/read/presentation/read_settings_page.dart';
 import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
@@ -114,6 +115,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/timer/:id',
         builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!),
+      ),
+      // 真机验收轮1e：阅读记录页（原型 p-readlog · 计时明细改全屏页）。
+      GoRoute(
+        path: '/read/log/:id',
+        builder: (_, s) => ReadLogPage(bookId: s.pathParameters['id']!),
       ),
       // M1批3·批3 笔记库（原型 p-quotes · 跨书摘录四视图，extra=入口书 id）。
       GoRoute(

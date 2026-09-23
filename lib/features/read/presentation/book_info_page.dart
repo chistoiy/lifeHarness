@@ -216,7 +216,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                 'bi-min',
                 '累计阅读',
                 bsFmt(agg?.minutes ?? 0),
-                () => showSessionsSheet(context, ref, b),
+                () => context.push('/read/log/${b.id}'),
               ),
               const SizedBox(width: 8),
               _dataCard(
@@ -224,7 +224,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                 'bi-times',
                 '计时次数',
                 '${agg?.times ?? 0}',
-                () => showSessionsSheet(context, ref, b),
+                () => context.push('/read/log/${b.id}'),
               ),
               const SizedBox(width: 8),
               _dataCard(context, null, '分钟/页', _speedOf(b, agg?.minutes ?? 0), null),
@@ -582,7 +582,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                     const Spacer(),
                     GestureDetector(
                       key: const ValueKey('trk-detail'),
-                      onTap: () => showSessionsSheet(context, ref, b),
+                      onTap: () => context.push('/read/log/${b.id}'),
                       child: Text(
                         '改明细',
                         style: TextStyle(

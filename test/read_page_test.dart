@@ -24,6 +24,7 @@ import 'package:lifeharness/features/read/presentation/book_mgr_page.dart';
 import 'package:lifeharness/features/read/presentation/read_import_page.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
+import 'package:lifeharness/features/read/presentation/read_log_page.dart';
 import 'package:lifeharness/features/read/presentation/read_timer_page.dart';
 import 'package:lifeharness/features/read/presentation/shelf_page.dart';
 
@@ -84,6 +85,9 @@ void main() {
       GoRoute(
           path: '/read/timer/:id',
           builder: (_, s) => ReadTimerPage(bookId: s.pathParameters['id']!)),
+      GoRoute(
+          path: '/read/log/:id',
+          builder: (_, s) => ReadLogPage(bookId: s.pathParameters['id']!)),
       GoRoute(
           path: '/read/quotes',
           builder: (_, s) => QuotesLibPage(bookId: s.extra as String?)),
@@ -677,23 +681,33 @@ void main() {
           findsOneWidget);
       expect(find.textContaining('已入时间账本 L4'), findsOneWidget);
       await clearToasts(tester);
-      // 累计时长芯片 → 计时明细：补记一次后次数 +1 且流水同增
+      // 累计时长芯片 → 全屏阅读记录页（真机验收轮1e：计时明细半屏层改页）。
       await tester.tap(find.byKey(const ValueKey('bd-min-chip')));
       await settle(tester);
-      expect(find.text('《书A》· 计时明细'), findsOneWidget);
+      expect(find.text('阅读记录'), findsOneWidget);
+      expect(find.byKey(const ValueKey('rl-info')), findsOneWidget);
+      expect(find.byKey(const ValueKey('rl-min')), findsOneWidget);
       final sessBefore = (await repo.allSessions()).length;
-      await tester.ensureVisible(find.byKey(const ValueKey('sess-add')));
-      await tester.tap(find.byKey(const ValueKey('sess-add')));
+      await tester.tap(find.byKey(const ValueKey('rl-add')));
       await settle(tester);
       expect((await repo.allSessions()).length, sessBefore + 1);
-      // 汇总行「N 次 · 共 X · 均 M 分钟/次」+ 补记 toast 逐字（原型 5779/5802）
-      expect(find.textContaining('均 20 分钟/次'), findsOneWidget);
+      // 补记 toast 逐字（原型 bsSessAdd）+ 就地编辑器入口卡出现。
       expect(find.text('已补记一次 · 可直接改日期与时长'), findsOneWidget);
       final blocks = await db.query('time_blocks',
           where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
       expect(blocks, hasLength(1)); // 补记也入 L4（分类=阅读）
       expect(blocks.single['category'], '阅读');
-      await tester.tap(find.byIcon(Icons.remove_circle_outline_rounded).first);
+      await clearToasts(tester);
+      WidgetPredicate rlKey(String prefix) => (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith(prefix);
+      // 点时间线卡就地展开编辑器 → 删除这次（原型 rlToggle/rlDel）。
+      await tester.tap(
+          find.byWidgetPredicate(rlKey('rl-sess-')).first);
+      await settle(tester);
+      await tester.ensureVisible(
+          find.byWidgetPredicate(rlKey('rl-del-')).first);
+      await tester.tap(find.byWidgetPredicate(rlKey('rl-del-')).first);
       await settle(tester);
       expect((await repo.allSessions()).length, sessBefore);
       expect(
@@ -738,11 +752,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('cover-a')));
       await settle(tester);
       expect(find.text('书籍资料'), findsWidgets);
-      // 累计阅读卡 → 计时明细
+      // 累计阅读卡 → 全屏阅读记录页（真机验收轮1e：改页后返回档案页继续）
       await tester.tap(find.byKey(const ValueKey('bi-min')));
       await settle(tester);
-      expect(find.textContaining('计时明细'), findsOneWidget);
-      await tester.tapAt(const Offset(12, 40)); // 点遮罩收起弹层
+      expect(find.text('阅读记录'), findsOneWidget);
+      await tester.pageBack();
       await settle(tester);
       // 总结编辑落 sum_* 覆写（长列表卡先滚到手）
       await tester.ensureVisible(find.byKey(const ValueKey('sum-edit')));

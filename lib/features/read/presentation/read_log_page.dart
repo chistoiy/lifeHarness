@@ -1,0 +1,703 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../domain/book.dart';
+import '../domain/book_session.dart';
+import 'read_providers.dart';
+import 'read_sheets.dart' show readToast;
+import 'widgets/bs_cover.dart' show BsIcons;
+
+/// 阅读记录页（真机验收轮1e · 原型 p-readlog/renderReadLog）：
+/// 计时明细半屏层改全屏页＝书名/作者/出版社/出版时间信息卡 + 四数据卡
+/// （阅读进度/阅读时长/已读天数/开始日期）+ 按月分组（月份行+当月时长徽章）
+/// + 逐条时间线卡（日期周几/P起→止/分钟渐变条 · 点卡就地展开改日期时长页码/删除）
+/// + 右上 ⊕ 补记一次。入口：详情页「时长」、档案页累计卡与轨迹行、操作弹层、阅读轨迹「改明细」。
+class ReadLogPage extends ConsumerWidget {
+  const ReadLogPage({super.key, required this.bookId});
+  final String bookId;
+
+  static const _wd = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+  /// 已结束的会话按开始时间倒序（原型 renderReadLog 排序口径）。
+  static List<BookSession> endedDesc(List<BookSession> all) =>
+      (all.where((s) => s.endedAt != null).toList())
+        ..sort((x, y) => y.startedAt.compareTo(x.startedAt));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final b = (ref.watch(booksProvider).valueOrNull ?? const <Book>[])
+        .where((x) => x.id == bookId && !x.isDeleted)
+        .firstOrNull;
+    final sessions =
+        endedDesc(
+              ref.watch(sessionsOfProvider(bookId)).valueOrNull ??
+              const <BookSession>[],
+            );
+    final total = sessions.fold<int>(0, (t, s) => t + s.minutes);
+    final dayKeys = {
+      for (final s in sessions)
+        DateTime.fromMillisecondsSinceEpoch(s.startedAt).toIso8601String().substring(0, 10),
+    };
+    final startMs = b?.startedAt ??
+        (sessions.isEmpty
+            ? null
+            : sessions.map((s) => s.startedAt).reduce((a, x) => a < x ? a : x));
+    final maxMin = sessions.fold<int>(
+      1,
+      (m, s) => s.minutes > m ? s.minutes : m,
+    );
+    // 按月分组（键 yyyy-M · 组内倒序 · 月间倒序）。
+    final groups = <String, List<BookSession>>{};
+    for (final s in sessions) {
+      final d = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
+      groups.putIfAbsent('${d.year}-${d.month}', () => []).add(s);
+    }
+    final months = groups.keys.toList();
+    months.sort((x, y) {
+      final xy = x.split('-').map(int.parse).toList();
+      final yy = y.split('-').map(int.parse).toList();
+      return (yy[0] * 12 + yy[1]).compareTo(xy[0] * 12 + xy[1]);
+    });
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('阅读记录'),
+            if (b != null)
+              Text(
+                '《${b.title}》',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            key: const ValueKey('rl-add'),
+            tooltip: '补记一次',
+            icon: const Icon(BsIcons.add, size: 18),
+            onPressed: () async {
+              await ref.read(readRepositoryProvider).addManualSession(
+                bookId: bookId,
+                day: DateTime.now(),
+                minutes: 20,
+                fromPage: (b?.readPages ?? 0) > 0 ? b!.readPages : null,
+              );
+              if (!context.mounted) return;
+              ref.read(readTickProvider.notifier).state++;
+              readToast(context, '已补记一次 · 可直接改日期与时长');
+            },
+          ),
+        ],
+      ),
+      body: b == null
+          ? Center(
+              child: Text(
+                '这本书已不在书架',
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                // 书基本信息（书名 + 作者 · 出版社 · 出版时间）。
+                Container(
+                  key: const ValueKey('rl-info'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: _cardDeco(context),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        b.title,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          b.author,
+                          if ((b.publisher ?? '').isNotEmpty) b.publisher,
+                          if ((b.pubDate ?? '').isNotEmpty) b.pubDate,
+                        ].where((x) => (x ?? '').isNotEmpty).join(' · '),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // 四数据卡 2×2。
+                Row(
+                  children: [
+                    Expanded(
+                      child: _stat(
+                        context,
+                        'rl-prog',
+                        '阅读进度',
+                        b.pages > 0
+                            ? '${b.readPages}'
+                            : '${b.percent}',
+                        unit: b.pages > 0 ? ' / ${b.pages} 页 · ${b.percent}%' : '%',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _stat(context, 'rl-min', '阅读时长', bsFmt(total)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _stat(context, 'rl-days', '已读天数', '${dayKeys.length}', unit: '天'),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _stat(
+                        context,
+                        'rl-start',
+                        '开始日期',
+                        startMs == null
+                            ? '—'
+                            : () {
+                                final d = DateTime.fromMillisecondsSinceEpoch(startMs);
+                                return '${d.year}.${d.month.toString().padLeft(2, '0')}.'
+                                    '${d.day.toString().padLeft(2, '0')}';
+                              }(),
+                      ),
+                    ),
+                  ],
+                ),
+                if (sessions.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    decoration: _cardDeco(context),
+                    child: Center(
+                      child: Text(
+                        '还没有计时记录 · 点右上 ＋ 补记一次',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                for (final m in months) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 2),
+                    child: Row(
+                      key: ValueKey('rl-m-$m'),
+                      children: [
+                        Text(
+                          '${m.split('-')[0]}年${int.parse(m.split('-')[1])}月',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tokens.accent.withValues(alpha: .12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            bsFmt(
+                              groups[m]!.fold<int>(0, (t, s) => t + s.minutes),
+                            ),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: tokens.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  for (final s in groups[m]!)
+                    _LogCard(s: s, maxMin: maxMin, wd: _wd),
+                ],
+              ],
+            ),
+    );
+  }
+
+  BoxDecoration _cardDeco(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+    );
+  }
+
+  Widget _stat(
+    BuildContext context,
+    String key,
+    String label,
+    String value, {
+    String unit = '',
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      key: ValueKey(key),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: _cardDeco(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+                if (unit.isNotEmpty)
+                  TextSpan(
+                    text: unit,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单条记录卡：日期列 + 绿点 + 页区间/分钟渐变条；点卡就地展开编辑器（原型 rlToggle）。
+class _LogCard extends ConsumerStatefulWidget {
+  const _LogCard({required this.s, required this.maxMin, required this.wd});
+  final BookSession s;
+  final int maxMin;
+  final List<String> wd;
+
+  @override
+  ConsumerState<_LogCard> createState() => _LogCardState();
+}
+
+class _LogCardState extends ConsumerState<_LogCard> {
+  bool _open = false;
+  bool _dateOpen = false;
+
+  Future<void> _apply({int? minutes, int? fromPage, int? toPage, int? startedAtMs}) async {
+    await ref.read(readRepositoryProvider).editSession(
+      widget.s.id!,
+      startedAtMs: startedAtMs ?? widget.s.startedAt,
+      minutes: minutes ?? widget.s.minutes,
+      fromPage: fromPage,
+      toPage: toPage,
+    );
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    final s = widget.s;
+    final d = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
+    final frac = (s.minutes / widget.maxMin).clamp(.18, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        key: ValueKey('rl-sess-${s.id}'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 36,
+            child: Column(
+              children: [
+                Text(
+                  '${d.day}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                  ),
+                ),
+                Text(
+                  ReadLogPage._wd[d.weekday - 1],
+                  style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: tokens.accent,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _open = !_open),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: _cardDeco(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'P${s.fromPage ?? '—'} → P${s.toPage ?? '—'}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _open ? '收起' : '修改',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    LayoutBuilder(
+                      builder: (context, box) => Container(
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: tokens.accent.withValues(alpha: .1),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: box.maxWidth * frac,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      tokens.accent.withValues(alpha: .72),
+                                      tokens.accent,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Center(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: '${s.minutes}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const TextSpan(
+                                          text: '分钟',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_open)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            GestureDetector(
+                              key: ValueKey('rl-date-${s.id}'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () =>
+                                  setState(() => _dateOpen = !_dateOpen),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _dateOpen
+                                        ? tokens.accent
+                                        : cs.outlineVariant.withValues(
+                                            alpha: .4,
+                                          ),
+                                  ),
+                                ),
+                                child: Text(
+                                  '日期 ${d.year}-${d.month.toString().padLeft(2, '0')}-'
+                                  '${d.day.toString().padLeft(2, '0')}',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_dateOpen)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: SizedBox(
+                                  height: 92,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: _WheelCol(
+                                          keyName: 'rl-dw-${s.id}-y',
+                                          items: [
+                                            for (var y = 2015; y <= 2100; y++)
+                                              '$y 年',
+                                          ],
+                                          initialIndex: d.year - 2015,
+                                          onChanged: (i) => _applyDate(
+                                            y: 2015 + i,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: _WheelCol(
+                                          keyName: 'rl-dw-${s.id}-m',
+                                          items: [
+                                            for (var m = 1; m <= 12; m++)
+                                              '$m 月',
+                                          ],
+                                          initialIndex: d.month - 1,
+                                          onChanged: (i) =>
+                                              _applyDate(m: i + 1),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: _WheelCol(
+                                          keyName: 'rl-dw-${s.id}-d',
+                                          items: [
+                                            for (var dd = 1; dd <= 31; dd++)
+                                              '$dd 日',
+                                          ],
+                                          initialIndex: d.day - 1,
+                                          onChanged: (i) =>
+                                              _applyDate(day: i + 1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 64,
+                                  child: _num(
+                                    'rl-min-${s.id}',
+                                    '${s.minutes}',
+                                    '分',
+                                    (v) => _apply(minutes: v),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: _num(
+                                    'rl-from-${s.id}',
+                                    s.fromPage == null ? '' : '${s.fromPage}',
+                                    '起',
+                                    (v) => _apply(fromPage: v),
+                                  ),
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  child: Text('→', style: TextStyle(fontSize: 11)),
+                                ),
+                                Expanded(
+                                  child: _num(
+                                    'rl-to-${s.id}',
+                                    s.toPage == null ? '' : '${s.toPage}',
+                                    '止',
+                                    (v) => _apply(toPage: v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                key: ValueKey('rl-del-${s.id}'),
+                                tooltip: '删除这次',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () async {
+                                  await ref
+                                      .read(readRepositoryProvider)
+                                      .deleteSession(s.id!);
+                                  if (!context.mounted) return;
+                                  ref.read(readTickProvider.notifier).state++;
+                                },
+                                icon: Icon(
+                                  Icons.remove_circle_outline_rounded,
+                                  size: 17,
+                                  color: cs.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 就地滚轮改日期：保持原时刻，只换年月日（铁律 · 禁日历二段弹层）。
+  Future<void> _applyDate({int? y, int? m, int? day}) async {
+    final d = DateTime.fromMillisecondsSinceEpoch(widget.s.startedAt);
+    final ny = y ?? d.year;
+    final nm = m ?? d.month;
+    final maxDay = DateTime(ny, nm + 1, 0).day;
+    final nd = (day ?? d.day).clamp(1, maxDay);
+    await _apply(
+      startedAtMs: DateTime(ny, nm, nd, d.hour, d.minute).millisecondsSinceEpoch,
+    );
+  }
+
+  Widget _num(String key, String v, String hint, ValueChanged<int?> onDone) {
+    return TextField(
+      key: ValueKey(key),
+      controller: TextEditingController(text: v),
+      keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 11.5),
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 11),
+      ),
+      onSubmitted: (t) => onDone(int.tryParse(t.trim())),
+    );
+  }
+
+  BoxDecoration _cardDeco(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return BoxDecoration(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+    );
+  }
+}
+
+/// 就地滚轮列（与摘录表单 _ColWheel 同规格 · 跨文件独立一份）。
+class _WheelCol extends StatefulWidget {
+  const _WheelCol({
+    required this.keyName,
+    required this.items,
+    required this.initialIndex,
+    required this.onChanged,
+  });
+  final String keyName;
+  final List<String> items;
+  final int initialIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_WheelCol> createState() => _WheelColState();
+}
+
+class _WheelColState extends State<_WheelCol> {
+  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
+    initialItem: widget.initialIndex.clamp(0, widget.items.length - 1),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return ListWheelScrollView.useDelegate(
+      key: ValueKey<String>(widget.keyName),
+      controller: _ctl,
+      itemExtent: 30,
+      squeeze: 1.05,
+      diameterRatio: 2.4,
+      physics: const FixedExtentScrollPhysics(),
+      onSelectedItemChanged: widget.onChanged,
+      childDelegate: ListWheelChildBuilderDelegate(
+        childCount: widget.items.length,
+        builder: (context, i) => Center(
+          child: Text(
+            widget.items[i],
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
+  }
+}

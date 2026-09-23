@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/image_attach.dart';
@@ -12,7 +13,6 @@ import '../domain/book_dict.dart';
 import '../domain/book_progress.dart';
 import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
-import '../domain/book_session.dart';
 import '../domain/book_toc.dart';
 import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
@@ -264,7 +264,8 @@ Future<bool?> showBookOpsSheet(BuildContext context, WidgetRef ref, Book b) =>
                 key: const ValueKey('ops-sess'),
                 onPressed: () {
                   Navigator.of(sheetCtx).pop();
-                  showSessionsSheet(context, ref, b);
+                  // 真机验收轮1e：计时明细半屏层改全屏阅读记录页。
+                  GoRouter.of(context).push('/read/log/${b.id}');
                 },
                 icon: const Icon(BsIcons.time, size: 17),
                 label: const Text('计时明细'),
