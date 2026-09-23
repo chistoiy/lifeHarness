@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -887,7 +888,11 @@ class _HabitDaySheetState extends ConsumerState<_HabitDaySheet> {
 
   Future<void> _rowTap(Habit h) async {
     if (_back != 0) {
-      habitToast(context, '习惯详情页 · 批3交付');
+      // 原型 hbDayRowTap：历史日 → 进详情 + 指引补卡
+      final m = ScaffoldMessenger.of(context);
+      context.push('/habit/${h.id}');
+      Navigator.pop(context);
+      messengerToast(m, '查看 / 修改历史日期请用「去补卡 · 补量」');
       return;
     }
     final d = ref.read(habitDataProvider).requireValue;

@@ -424,6 +424,12 @@ class HabitRepository {
     return [for (final r in rows) HabitSlip.fromRow(r)];
   }
 
+  Future<void> deleteSlip(int slipId) => db.delete(
+    DbSchema.tHabitSlips,
+    where: 'id = ?',
+    whereArgs: [slipId],
+  );
+
   Future<int> slipCountIn(String habitId, String fromDay, String toDay) async =>
       Sqflite.firstIntValue(
         await db.rawQuery(

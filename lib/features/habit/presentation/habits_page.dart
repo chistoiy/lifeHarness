@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
@@ -137,7 +138,7 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
         );
 
     final actions = HabitActions(
-      open: (h) => _toast('习惯详情页 · 批3交付'),
+      open: (h) => context.push('/habit/${h.id}'),
       tap: (h) => _tap(h, d),
       avoid: (h) => _avoid(h, d),
       trigger: (h) => showHabitTriggerSheet(context, h),
