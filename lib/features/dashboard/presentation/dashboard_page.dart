@@ -886,7 +886,7 @@ class _AllModulesCard extends StatelessWidget {
     ('📦', '物品', null, 'V1.0'),
     ('🎂', '日子', null, 'V1.0'),
     ('🏃', '健康', null, 'V1.0'),
-    ('🔁', '习惯', null, 'V1.0'),
+    ('🔁', '习惯', '/habits', null),
     ('🧭', '目标', null, 'V1.0'),
     ('🧰', '小工具', null, 'V1.x'),
     ('🍼', '母婴', null, 'V1.x'),

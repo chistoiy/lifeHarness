@@ -10,6 +10,7 @@ enum NavModule {
   calendar(
       'calendar', '时间', Icons.schedule, Icons.calendar_month, '/calendar'),
   journal('journal', '记录', Icons.book_outlined, Icons.book, '/journal'),
+  habit('habit', '习惯', Icons.autorenew, Icons.loop, '/habits'),
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');
 

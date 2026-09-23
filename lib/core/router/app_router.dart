@@ -13,6 +13,7 @@ import '../../features/todo/presentation/widgets/pomo_screen.dart';
 import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/dashboard/presentation/dashboard_providers.dart';
+import '../../features/habit/presentation/habits_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
@@ -53,6 +54,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/todo', builder: (_, _) => const TodoPage()),
           GoRoute(path: '/calendar', builder: (_, _) => const CalendarPage()),
           GoRoute(path: '/journal', builder: (_, _) => const JournalPage()),
+          // M1·习惯批1：习惯主页（底部导航池栏目 · 计划 §3 /habits）。
+          GoRoute(path: '/habits', builder: (_, _) => const HabitsPage()),
           GoRoute(path: '/inbox', builder: (_, _) => const InboxPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
