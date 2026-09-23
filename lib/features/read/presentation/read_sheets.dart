@@ -322,7 +322,9 @@ class _NumWheelState extends State<_NumWheel> {
   @override
   Widget build(BuildContext context) {
     return ListWheelScrollView(
-      key: widget.keyName == null ? null : ValueKey(widget.keyName),
+      // 显式 ValueKey<String>：字段访问不经提升会推成 ValueKey<String?>，与 finder 的
+      // ValueKey<String> runtimeType 不同 → == 恒 false（Dart 泛型陷阱）。
+      key: widget.keyName == null ? null : ValueKey<String>(widget.keyName!),
       controller: _ctl,
       itemExtent: 30,
       squeeze: 1.05,

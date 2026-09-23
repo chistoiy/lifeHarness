@@ -672,6 +672,17 @@ class ReadRepository {
       ) ??
       0;
 
+  /// 指定时刻之后新增的摘录条数（统计页周报 toast · 批D）。
+  Future<int> quoteCountSince(int startMs) async =>
+      Sqflite.firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM ${DbSchema.tBookQuotes} '
+          'WHERE deleted_at IS NULL AND created_at >= ?',
+          [startMs],
+        ),
+      ) ??
+      0;
+
   Future<List<BookQuote>> recentQuotes(int limit) async => (await db.query(
     DbSchema.tBookQuotes,
     where: 'deleted_at IS NULL',
@@ -1150,18 +1161,50 @@ class ReadRepository {
     }
   }
 
+  /// 全值域批量引用计数（资料管理单类页 · 原型 bmCount 逐值口径）：
+  /// 直列走 GROUP BY，标签展开 books.tags 逗号列累加。
+  Future<Map<String, int>> dictRefCounts(String kind) async {
+    if (kind == DictEntry.kTag) {
+      final out = <String, int>{};
+      for (final b in (await allBooks()).where((b) => !b.isDeleted)) {
+        for (final t in b.tags) {
+          out[t] = (out[t] ?? 0) + 1;
+        }
+      }
+      return out;
+    }
+    final col = switch (kind) {
+      DictEntry.kAuthor => 'author',
+      DictEntry.kPublisher => 'publisher',
+      DictEntry.kSource => 'source',
+      _ => 'grp',
+    };
+    final rows = await db.rawQuery(
+      'SELECT $col AS v, COUNT(*) AS n FROM ${DbSchema.tBooks} '
+      'WHERE deleted_at IS NULL AND $col IS NOT NULL AND $col != \'\' '
+      'GROUP BY $col',
+    );
+    return {
+      for (final r in rows)
+        r['v'] as String: (r['n'] as int?) ?? 0,
+    };
+  }
+
   /// 改名联动（事务内回写）：作者/出版社/来源/分组直列覆盖；标签走行内重算，
   /// 同步书摘 tags（笔记库按标签筛选口径一致）。
+  /// e.id==null＝books 里已存在但字典缺行的合成项：只回写值域列并补登记字典。
   Future<void> dictRename(DictEntry e, String newName) async {
     final n = newName.trim();
-    if (e.id == null || n.isEmpty || n == e.name) return;
+    if (n.isEmpty || n == e.name) return;
     await db.transaction((txn) async {
-      await txn.update(
-        DbSchema.tBookDict,
-        {'name': n},
-        where: 'id = ?',
-        whereArgs: [e.id],
-      );
+      if (e.id != null) {
+        await txn.update(
+          DbSchema.tBookDict,
+          {'name': n},
+          where: 'id = ?',
+          whereArgs: [e.id],
+        );
+      }
       final col = switch (e.kind) {
         DictEntry.kAuthor => 'author',
         DictEntry.kPublisher => 'publisher',

@@ -52,6 +52,29 @@ String booklistTxt(BookList l, List<Book> ms) {
 
 // ============================ 书单列表页 ============================
 
+/// 年度书单：无则按 autoYear 生成后进入（原型 blDetailYear 4600）。
+Future<void> openYearBooklist(BuildContext context, WidgetRef ref) async {
+  final repo = ref.read(readRepositoryProvider);
+  final y = DateTime.now().year;
+  var l = await repo.findAutoYear(y);
+  if (l == null) {
+    l = await repo.addList(
+      BookList(
+        name: '$y 年度书单',
+        note: '以 $y 年处于「已读」的书为底稿，之后新增已读会自动进来',
+        createdAt: 0,
+        updatedAt: 0,
+      ),
+      autoYear: y,
+    );
+    ref.read(readTickProvider.notifier).state++;
+  }
+  if (!context.mounted) return;
+  context.push('/read/list/${l.id}');
+}
+
+/// 评分显示＝`bsRateLabel`（read_providers.dart · 与选书弹层共用）。
+
 class BookListsPage extends ConsumerWidget {
   const BookListsPage({super.key});
 
@@ -233,6 +256,7 @@ class BookListsPage extends ConsumerWidget {
             Row(
               children: [
                 OutlinedButton(
+                  key: ValueKey('bl-share-${l.id}'),
                   onPressed: () => showListShareSheet(context, ref, l),
                   child: const Text('分享', style: TextStyle(fontSize: 11.5)),
                 ),
@@ -382,7 +406,7 @@ class BookListDetailPage extends ConsumerWidget {
                     readToast(context, 'TXT 已导出到 ${f.path}');
                   }
                 },
-                child: const Text('导出 TXT', style: TextStyle(fontSize: 11.5)),
+                child: const Text('下载 TXT', style: TextStyle(fontSize: 11.5)),
               ),
               if (!l.isAuto) ...[
                 const Spacer(),
@@ -457,7 +481,10 @@ class BookListDetailPage extends ConsumerWidget {
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800)),
                               Text(
-                                '${b.author} · ${b.state} · ${qc[b.id] ?? 0} 条摘录',
+                                // 原型 5354：作者 · 状态 · 评分 · N 条摘录。
+                                '${b.author} · ${b.state}'
+                                '${bsRateLabel(b.rating).isEmpty ? '' : ' · ${bsRateLabel(b.rating)}'}'
+                                ' · ${qc[b.id] ?? 0} 条摘录',
                                 style: TextStyle(
                                     fontSize: 10,
                                     color: cs.onSurfaceVariant),
@@ -497,25 +524,31 @@ class BookListDetailPage extends ConsumerWidget {
   }
 }
 
-// ============================ 分享长图（RepaintBoundary · 1080 宽） ============================
+// ============================ 分享书单（原型 sheetListShare 1014-1030） ============================
 
 Future<void> showListShareSheet(
   BuildContext context,
   WidgetRef ref,
   BookList l,
 ) async {
-  final members =
-      await ref.read(readRepositoryProvider).listMembers(l,
-          desc: ((await ref.read(readRepositoryProvider).kv('read.yearSort')) ??
-                  '') ==
-              '降序');
-  final quotes = await ref.read(readRepositoryProvider).allQuotes();
+  final repo = ref.read(readRepositoryProvider);
+  final members = await repo.listMembers(l,
+      desc: ((await repo.kv('read.yearSort')) ?? '') == '降序');
+  final quotes = await repo.allQuotes();
   final qc = <String, int>{};
   for (final q in quotes) {
     qc[q.bookId] = (qc[q.bookId] ?? 0) + 1;
   }
   if (!context.mounted) return;
   final boundaryKey = GlobalKey();
+  Future<String> writeFileAt(String name, String content) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final f = File('${dir.path}${Platform.pathSeparator}share${Platform.pathSeparator}$name');
+    await f.parent.create(recursive: true);
+    await f.writeAsString(content);
+    return f.path;
+  }
+
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -525,62 +558,122 @@ Future<void> showListShareSheet(
     builder: (bc) {
       final cs = Theme.of(bc).colorScheme;
       return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('分享长图',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w800)),
-                  ),
-                  Text('${l.name} · ${members.length} 本',
-                      style: TextStyle(
-                          fontSize: 10.5, color: cs.onSurfaceVariant)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Center(
-                    child: RepaintBoundary(
-                      key: boundaryKey,
-                      child: ShareLongImage(
-                          list: l, members: members, qc: qc),
-                    ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('分享书单',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                Text('${l.name} · ${members.length} 本',
+                    style: TextStyle(
+                        fontSize: 10.5, color: cs.onSurfaceVariant)),
+                const SizedBox(height: 12),
+                Center(
+                  child: RepaintBoundary(
+                    key: boundaryKey,
+                    child: ShareLongImage(
+                        list: l, members: members, qc: qc),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                key: const ValueKey('bls-save'),
-                onPressed: () async {
-                  final ro =
-                      boundaryKey.currentContext?.findRenderObject();
-                  if (ro is! RenderRepaintBoundary) return;
-                  // 640 逻辑宽 × 1.6875 ≈ 1080 物理宽（验收：1080 宽不裁切）。
-                  final img = await ro.toImage(pixelRatio: 1080 / 640);
-                  final bytes = await img.toByteData(
-                      format: ui.ImageByteFormat.png);
-                  final dir = await getApplicationDocumentsDirectory();
-                  final f = File(
-                      '${dir.path}${Platform.pathSeparator}share${Platform.pathSeparator}${l.name}.png');
-                  await f.parent.create(recursive: true);
-                  await f.writeAsBytes(
-                      bytes!.buffer.asUint8List());
-                  if (bc.mounted) Navigator.of(bc).pop();
-                  if (context.mounted) {
-                    readToast(context, '分享长图已保存：${f.path}');
-                  }
-                },
-                child: const Text('保存长图 PNG'),
-              ),
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(height: 12),
+                // 原型 1022-1027：2×2 四钮（保存为图片 / 复制 Markdown / 下载 TXT / 下载 .md）。
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        key: const ValueKey('bls-img'),
+                        onPressed: () async {
+                          final ro =
+                              boundaryKey.currentContext?.findRenderObject();
+                          if (ro is! RenderRepaintBoundary) return;
+                          // 640 逻辑宽 × 1.6875 ≈ 1080 物理宽（验收：1080 宽不裁切）。
+                          final img = await ro.toImage(pixelRatio: 1080 / 640);
+                          final bytes = await img.toByteData(
+                              format: ui.ImageByteFormat.png);
+                          final dir =
+                              await getApplicationDocumentsDirectory();
+                          final f = File(
+                              '${dir.path}${Platform.pathSeparator}share${Platform.pathSeparator}${l.name}.png');
+                          await f.parent.create(recursive: true);
+                          await f.writeAsBytes(bytes!.buffer.asUint8List());
+                          if (bc.mounted) Navigator.of(bc).pop();
+                          if (context.mounted) {
+                            readToast(context, '分享长图已保存：${f.path}');
+                          }
+                        },
+                        child: const Text('保存为图片'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        key: const ValueKey('bls-md'),
+                        onPressed: () async {
+                          await Clipboard.setData(
+                              ClipboardData(
+                                  text: booklistMd(l, members, qc)));
+                          if (bc.mounted) {
+                            readToast(bc, 'Markdown 已复制到剪贴板');
+                          }
+                        },
+                        child: const Text('复制 Markdown',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        key: const ValueKey('bls-txt'),
+                        onPressed: () async {
+                          // .md 与 TXT 同物双钮按原型，实现同函数分后缀。
+                          await writeFileAt(
+                              '${l.name}.txt', booklistTxt(l, members));
+                          if (bc.mounted) {
+                            readToast(bc, '已下载 ${l.name}.txt');
+                          }
+                        },
+                        child: const Text('下载 TXT',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        key: const ValueKey('bls-mdfile'),
+                        onPressed: () async {
+                          await writeFileAt(
+                              '${l.name}.md', booklistMd(l, members, qc));
+                          if (bc.mounted) {
+                            readToast(bc, '已下载 ${l.name}.md');
+                          }
+                        },
+                        child: const Text('下载 .md',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+                // 原型 1028 脚注逐字。
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    '图片在前端即时绘制（canvas）· 长图适合发群/朋友圈；'
+                    'TXT 与 Markdown 便于贴进笔记或电子书店书单页',
+                    style: TextStyle(
+                        fontSize: 10,
+                        height: 1.6,
+                        color: cs.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

@@ -2,11 +2,11 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/shelf_query.dart' show sessionAggByBook;
+import 'read_lists_page.dart' show openYearBooklist;
 import 'read_providers.dart';
 import 'read_sheets.dart';
 
@@ -122,6 +122,20 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
   String _dim = 'tag'; // tag/src/st/grp/rate（原型 rsDim）
   bool _ctlOpen = false;
 
+  /// 目标卡提醒行：read.dailyQ（默认开）+ 提醒时刻（默认 21:30）。
+  bool get _remindOn =>
+      (ref.watch(readKvProvider(('read.dailyQ', 'true'))).valueOrNull ??
+          'true') ==
+      'true';
+  int get _remindMin =>
+      int.tryParse(
+        ref.watch(readKvProvider(('read.goalRemindMin', '1290'))).valueOrNull ??
+            '1290',
+      ) ??
+      1290;
+  static String _hhmm(int m) =>
+      '${m ~/ 60}:${(m % 60).toString().padLeft(2, '0')}';
+
   double _val(DateTime d, StatData s) => switch (_metric) {
     'q' => (s.dayQuotes[d] ?? 0).toDouble(),
     'day' => (s.dayMinutes[d] ?? 0) > 0 ? 1 : 0,
@@ -134,6 +148,36 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     _ => '时长（分钟）',
   };
 
+  /// 范围内每一天（0＝全年；月＝自然月）。
+  List<DateTime> _rangeDays(int year, int month) {
+    if (month == 0) {
+      final first = DateTime(year);
+      return List.generate(
+        DateTime(year, 12, 31).difference(first).inDays + 1,
+        (i) => first.add(Duration(days: i)),
+      );
+    }
+    final first = DateTime(year, month);
+    final last = DateTime(year, month + 1);
+    return List.generate(last.difference(first).inDays, (i) => first.add(Duration(days: i)));
+  }
+
+  /// 收起时摘要标签（原型 rsCtlLabel 5528：'2026 · 全年 · 时长 · 标签'）。
+  String _ctlLabel() =>
+      '$_year · ${_month == 0 ? '全年' : '$_month月'} · '
+      '${switch (_metric) {
+        'q' => '摘录',
+        'day' => '天数',
+        _ => '时长',
+      }} · '
+      '${switch (_dim) {
+        'src' => '来源',
+        'st' => '分区',
+        'grp' => '分组',
+        'rate' => '评分',
+        _ => '标签',
+      }}';
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -145,25 +189,57 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
       (i) => 2021 + i,
     );
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('阅读统计'),
-        actions: [
-          TextButton(
-            key: const ValueKey('rs-ctl'),
-            onPressed: () => setState(() => _ctlOpen = !_ctlOpen),
-            child: Text(
-              '范围 ▾',
-              style: TextStyle(fontSize: 12, color: tokens.accent),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('阅读统计')),
       body: s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
-                if (_ctlOpen) _panel(cs, tokens, years, s),
+                // 原型 889：页内 chip「范围 ▾」＋右侧灰字「点选范围与度量」。
+                Row(
+                  children: [
+                    GestureDetector(
+                      key: const ValueKey('rs-ctl'),
+                      onTap: () => setState(() => _ctlOpen = !_ctlOpen),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color:
+                              _ctlOpen
+                                  ? tokens.accent.withValues(alpha: .12)
+                                  : cs.surfaceContainerHighest,
+                          border: Border.all(
+                            color: _ctlOpen
+                                ? tokens.accent
+                                : cs.outlineVariant.withValues(alpha: .5),
+                          ),
+                        ),
+                        child: Text(
+                          '${_ctlLabel()} ▾',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                _ctlOpen ? tokens.accent : cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '点选范围与度量',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_ctlOpen) ...[const SizedBox(height: 8), _panel(cs, tokens, years, s)],
                 const SizedBox(height: 8),
                 _fourCards(cs, s, w),
                 const SizedBox(height: 12),
@@ -180,9 +256,9 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _speedCard(cs, tokens, s),
-                const SizedBox(height: 12),
                 _moneyRow(cs, tokens, s),
+                const SizedBox(height: 12),
+                _speedCard(cs, tokens, s),
                 const SizedBox(height: 12),
                 _goalCard(cs, tokens, s, w),
               ],
@@ -343,29 +419,32 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
   );
 
   Widget _fourCards(ColorScheme cs, StatData s, WorkbenchData? w) {
-    final first = DateTime(s.year);
-    final days = _month == 0
-        ? List.generate(
-            DateTime(s.year, 12, 31).difference(first).inDays + 1,
-            (i) => first.add(Duration(days: i)),
-          )
-        : List.generate(
-            DateTime(
-              s.year,
-              _month + 1 == 13 ? 1 : _month + 1,
-              _month + 1 == 13 ? 1 : 1,
-            ).difference(DateTime(s.year, _month)).inDays,
-            (i) => DateTime(s.year, _month).add(Duration(days: i)),
-          );
+    final days = _rangeDays(s.year, _month);
     final tot = days.fold<int>(0, (t, d) => t + (s.dayMinutes[d] ?? 0));
     final dayCount = days.where((d) => (s.dayMinutes[d] ?? 0) > 0).length;
+    final qn = days.fold<int>(0, (t, d) => t + (s.dayQuotes[d] ?? 0));
+    final today = w?.minutesToday ?? 0;
+    final week = w?.minutesWeek ?? 0;
+    final gDay = w?.goalDay ?? 30;
+    final gWeek = w?.goalWeek ?? 210;
+    // 原型 4941-4944：四卡副行带「已达成 / 差 X 分钟 / 达成 N%」后缀。
     final items = [
-      ('今天', '${w?.minutesToday ?? 0}′', '目标 ${w?.goalDay ?? 30}′'),
-      ('本周', bsFmt(w?.minutesWeek ?? 0), '目标 ${bsFmt(w?.goalWeek ?? 210)}'),
+      (
+        '今天',
+        bsFmt(today),
+        '目标 $gDay′ · '
+            '${today >= gDay ? '已达成' : '差 ${gDay - today} 分钟'}',
+      ),
+      (
+        '本周',
+        bsFmt(week),
+        '目标 ${(gWeek / 60).round()}h · '
+            '${week >= gWeek ? '已达成' : '达成 ${(week / gWeek * 100).round()}%'}',
+      ),
       (
         '${s.year}${_month == 0 ? ' 全年' : ' · $_month月'}',
         bsFmt(tot),
-        '$dayCount 天在读 · 摘录 ${s.quotesYear}${_month == 0 ? '' : '（全年）'} 条',
+        '$dayCount 天在读 · 摘录约 $qn 条',
       ),
       (
         '连续',
@@ -413,6 +492,8 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     );
   }
 
+  /// 热力图（原型 .hm CSS 296 + 渲染 4957：7 行×按周列流 · 横向可滚 ·
+  /// 格 title→Tooltip · 点格 toast「{年} 年第 {N} 天 · X 分钟 · 摘录约 Y 条」）。
   Widget _heatCard(ColorScheme cs, ThemeTokens tokens, StatData s) {
     final first = DateTime(s.year);
     final n = DateTime(s.year, 12, 31).difference(first).inDays + 1;
@@ -420,6 +501,12 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     for (var i = 0; i < n; i++) {
       mx = max(mx, _val(first.add(Duration(days: i)), s).round());
     }
+    // 原型 4961：右侧汇总随所选范围（月/全年）取值。
+    final range = _rangeDays(s.year, _month);
+    final tot = range.fold<int>(0, (t, d) => t + (s.dayMinutes[d] ?? 0));
+    final days = range.where((d) => (s.dayMinutes[d] ?? 0) > 0).length;
+    const cell = 13.0, gap = 3.0;
+    final cols = (n / 7).ceil();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: _deco(cs),
@@ -439,7 +526,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
               ),
               Text(
-                '每格＝一天',
+                '每格＝一天 · 色深＝${_metName()}',
                 style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
               ),
             ],
@@ -447,39 +534,25 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
           const SizedBox(height: 10),
           SizedBox(
             key: const ValueKey('rs-heat'),
-            // mainAxisExtent=10 + 行距 4 = 每行 14，与外层高度式一致，
-            // 保证 31 行全部落在网格视口内（默认 childAspectRatio 会撑出视口导致尾行不挂载）。
-            height: (n / 12).ceil() * 14,
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 12,
-                mainAxisExtent: 10,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
+            height: 7 * cell + 6 * gap,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var c = 0; c < cols; c++)
+                    Padding(
+                      padding: EdgeInsets.only(right: c == cols - 1 ? 0 : gap),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (var r = 0; r < 7; r++)
+                            _heatCell(first, c * 7 + r, n, mx, cs, s),
+                        ],
+                      ),
+                    ),
+                ],
               ),
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: n,
-              itemBuilder: (context, i) {
-                final d = first.add(Duration(days: i));
-                final v = _val(d, s).round();
-                final lvl = v == 0
-                    ? 0
-                    : v > mx * .7
-                    ? 4
-                    : v > mx * .45
-                    ? 3
-                    : v > mx * .22
-                    ? 2
-                    : 1;
-                final inM = _month == 0 || d.month == _month;
-                return Container(
-                  key: ValueKey('rs-heat-$i'),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(3),
-                    color: _heat[lvl].withValues(alpha: inM ? 1 : .34),
-                  ),
-                );
-              },
             ),
           ),
           const SizedBox(height: 8),
@@ -502,9 +575,21 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                     ),
                   ),
                 ),
-              const Spacer(),
               Text(
-                '${(s.dayMinutes.values.fold<int>(0, (t, v) => t + v) / 60).round()} 小时在读',
+                '多',
+                style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
+              ),
+              const Spacer(),
+              Text.rich(
+                TextSpan(
+                  text: '全年 ',
+                  children: [
+                    TextSpan(
+                      text: '${(tot / 60).round()} 小时 · $days 天在读',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
                 style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
               ),
             ],
@@ -514,13 +599,61 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     );
   }
 
+  Widget _heatCell(
+    DateTime first,
+    int i,
+    int n,
+    int mx,
+    ColorScheme cs,
+    StatData s,
+  ) {
+    if (i >= n) {
+      return const SizedBox(width: 13, height: 13);
+    }
+    final d = first.add(Duration(days: i));
+    final m = s.dayMinutes[d] ?? 0;
+    final v = _val(d, s).round();
+    final lvl = v == 0
+        ? 0
+        : v > mx * .7
+        ? 4
+        : v > mx * .45
+        ? 3
+        : v > mx * .22
+        ? 2
+        : 1;
+    final inM = _month == 0 || d.month == _month;
+    return Tooltip(
+      message: '$m 分钟',
+      child: GestureDetector(
+        key: ValueKey('rs-heat-$i'),
+        onTap: () => readToast(
+          context,
+          '${d.year} 年第 ${i + 1} 天 · $m 分钟 · 摘录约 ${s.dayQuotes[d] ?? 0} 条',
+        ),
+        child: Container(
+          width: 13,
+          height: 13,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2.5),
+            color: _heat[lvl].withValues(alpha: inM ? 1 : .34),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _monthCard(ColorScheme cs, ThemeTokens tokens, StatData s) {
     final first = DateTime(s.year);
+    // 原型 4962-4968：度量＝摘录时柱值切「条」，其余按小时。
+    final byQ = _metric == 'q';
     final byM = List<int>.filled(12, 0);
     for (var i = 0; i < 366; i++) {
       final d = first.add(Duration(days: i));
       if (d.year != s.year) break;
-      byM[d.month - 1] += s.dayMinutes[d] ?? 0;
+      byM[d.month - 1] += byQ
+          ? (s.dayQuotes[d] ?? 0)
+          : (s.dayMinutes[d] ?? 0);
     }
     final mx = byM.fold<int>(1, max);
 
@@ -533,7 +666,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
           Row(
             children: [
               Text(
-                '月度分布（小时）',
+                '月度分布与读完本数',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
@@ -542,7 +675,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
               ),
               const Spacer(),
               Text(
-                '${s.year}',
+                '${s.year} · ${byQ ? '条' : '小时'}',
                 style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
               ),
             ],
@@ -565,7 +698,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Text(
-                              '${(byM[m] / 60).round()}',
+                              byQ ? '${byM[m]}' : '${(byM[m] / 60).round()}',
                               style: TextStyle(
                                 fontSize: 7.5,
                                 color: _month == m + 1
@@ -872,6 +1005,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
   }
 
   Widget _moneyRow(ColorScheme cs, ThemeTokens tokens, StatData s) {
+    final avg = s.rdMin > 0 ? (s.words / s.rdMin).round() : 0;
     return Row(
       children: [
         Expanded(
@@ -897,6 +1031,22 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   '${s.paid} 本付费 · 已自动生成记账流水（L4）',
                   style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
                 ),
+                // 原型 4982「看账本」：/finance 路由未就绪 → 占位 toast。
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: GestureDetector(
+                    key: const ValueKey('rs-fee-book'),
+                    onTap: () => readToast(context, '账本模块规划中（V1.x）'),
+                    child: Text(
+                      '看账本',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: tokens.accent,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -921,11 +1071,23 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => context.push('/read/lists'),
-                  child: Text(
-                    '按页数折算 · 年度书单 ›',
-                    style: TextStyle(fontSize: 9.5, color: tokens.accent),
+                Text(
+                  '按页数折算 · 均速 $avg 字/分钟',
+                  style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: GestureDetector(
+                    key: const ValueKey('rs-words-year'),
+                    onTap: () => openYearBooklist(context, ref),
+                    child: Text(
+                      '年度书单',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: tokens.accent,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -961,7 +1123,9 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
       ),
       (
         '本周时长',
-        '${bsFmt(w?.minutesWeek ?? 0)} / ${bsFmt(gWeek)}',
+        // 原型 4987：'X.X / Y 小时'（小时一位小数）。
+        '${((w?.minutesWeek ?? 0) / 60 * 10).round() / 10} / '
+        '${(gWeek / 60).round()} 小时',
         (w?.minutesWeek ?? 0) / max(1, gWeek),
       ),
       (
@@ -982,7 +1146,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '目标与预测（L7 五路）',
+            '目标与预测',
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
@@ -1033,8 +1197,26 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
+              // 原型 4991：预测补「差 X 本，每周需多读 1 本」后半句。
               '全年折算 ${rate.toStringAsFixed(1)} 本 → '
-              '${rate >= gBooks ? '年度目标可达成' : '差 ${(gBooks - rate).toStringAsFixed(1)} 本'}',
+              '${rate >= gBooks ? '年度目标可达成' : '差 ${(gBooks - rate).toStringAsFixed(1)} 本，每周需多读 1 本'}',
+              style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              // 原型 4992：提醒时刻行（dailyQ 关＝只在周报体现）。
+              _remindOn
+                  ? '未达每日目标时将于 ${_hhmm(_remindMin)} 提醒（免打扰时段除外）'
+                  : '当前设置为不提醒，只在周报里体现',
+              style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '阅读时长自动写入时间账本「阅读」分类（L4），并计入周报与目标进度（L7）。',
               style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
             ),
           ),
@@ -1045,7 +1227,9 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 key: const ValueKey('rs-weekly'),
                 onPressed: () => readToast(
                   context,
-                  '周报：阅读 ${bsFmt(w?.minutesWeek ?? 0)} · 新增摘录 ${w?.weekQuotes ?? 0} 条',
+                  // 原型 926 逐字格式的真实数据版。
+                  '周报已生成：阅读 ${bsFmt(w?.minutesWeek ?? 0)} · '
+                  '新增摘录 ${w?.weekQuotes ?? 0} 条 · 已联动 L4/L7',
                 ),
                 child: const Text('生成周报', style: TextStyle(fontSize: 11.5)),
               ),
@@ -1053,7 +1237,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
               OutlinedButton(
                 key: const ValueKey('rs-goal-edit'),
                 onPressed: () => showGoalSheet(context, ref),
-                child: const Text('调整目标', style: TextStyle(fontSize: 11.5)),
+                child: const Text('调整年度目标', style: TextStyle(fontSize: 11.5)),
               ),
             ],
           ),

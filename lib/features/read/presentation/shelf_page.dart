@@ -2039,7 +2039,10 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                     key: const ValueKey('lp-edit-menu'),
                     onPressed: () {
                       Navigator.of(sheetCtx).pop();
-                      if (context.mounted) context.push('/read/settings');
+                      // 设置页就地内嵌长按编辑：直达「内容显示与排序」组（sec=1）。
+                      if (context.mounted) {
+                        context.push('/read/settings?sec=1');
+                      }
                     },
                     child: Text(
                       '调整长按菜单',

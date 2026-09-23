@@ -137,7 +137,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         ref.read(readTickProvider.notifier).state++;
         // excerpt 分支在 switch 内提前 return——这里必须自行 invalidate，否则分流后未整理列表不刷新。
         ref.invalidate(inboxItemsProvider);
-        _toast('已存为阅读摘录');
+        _toast('已存为阅读摘录（联动 L6）');
         return;
     }
     ref.invalidate(inboxItemsProvider);

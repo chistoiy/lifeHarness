@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,8 @@ import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
 import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
 import 'package:lifeharness/features/read/presentation/read_stat_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
+import 'package:lifeharness/features/read/presentation/read_sheets.dart'
+    show showMoveToListSheet;
 import 'package:lifeharness/features/read/presentation/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/book_mgr_page.dart';
 import 'package:lifeharness/features/read/presentation/read_import_page.dart';
@@ -390,9 +393,13 @@ void main() {
       await tester.ensureVisible(find.byKey(const ValueKey('sh-dim-mgr-author')));
       await tester.tap(find.byKey(const ValueKey('sh-dim-mgr-author')));
       await settle(tester);
-      expect(find.text('书架资料'), findsOneWidget);
-      // 默认 tab 跟随 kind 参数
+      // 批E：单类页标题＝「作者管理」（AppBar），hint 逐字「新增名称…」。
+      expect(
+          find.descendant(
+              of: find.byType(AppBar), matching: find.text('作者管理')),
+          findsOneWidget);
       expect(find.byKey(const ValueKey('bkm-add-inp-author')), findsOneWidget);
+      expect(find.text('新增名称…'), findsOneWidget);
     });
 
     testWidgets('R-7c 搜索：placeholder 与命中摘录原文/标签', (tester) async {
@@ -583,7 +590,9 @@ void main() {
       await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
       await tester.tap(find.byKey(const ValueKey('qef-save')));
       await settle(tester);
-      expect(find.text('已记录这条摘录'), findsOneWidget);
+      // 批D 保真：新建保存富 toast（原型 qeSave 4930 · 现共 N 条 · L5）。
+      expect(find.textContaining('已保存 · 《书A》 现共 1 条 · 可做日记素材（L5）'),
+          findsOneWidget);
       await clearToasts(tester);
       final qs = await repo.allQuotes();
       expect(qs.single.body, '系统1慢，需要刻意练习');
@@ -799,10 +808,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('ql-view')));
       await settle(tester);
       expect(countByPrefix(tester, 'qli-'), 18, reason: '图片墙（无图回退全量）');
-      // 标星范围筛选
+      // 标星范围筛选（批D：卡内快捷行也有「标星」钮，限定在分段控件内点选）。
       await tester.tap(find.byKey(const ValueKey('ql-view'))); // img → card
       await settle(tester);
-      await tester.tap(find.text('标星'));
+      await tester.tap(find.descendant(
+          of: find.byKey(const ValueKey('ql-scope')), matching: find.text('标星')));
       await settle(tester);
       expect(countByPrefix(tester, 'ql-q-'), 3);
       // 搜索
@@ -900,6 +910,7 @@ void main() {
       await waitFinder(tester, find.byKey(const ValueKey('rv-card')));
       expect(find.text('「复习句」'), findsNWidgets(2)); // 工作台最近摘录同款
       expect(find.text('1 / 1'), findsOneWidget);
+      // 复习 3D 翻面（批D：TweenAnimationBuilder 旋转，背面＝想法）。
       await tester.tap(find.byKey(const ValueKey('rv-card')));
       await settle(tester);
       expect(find.text('我的想法'), findsOneWidget);
@@ -911,16 +922,19 @@ void main() {
       expect(r!.stage, 1);
       expect(r.nextAt! > DateTime.now().millisecondsSinceEpoch, isTrue);
 
-      // 笔记库入口 + 摘录卡 → 操作弹层（收藏）
+      // 批D 保真：笔记库点卡直接进编辑表单（原型 4854 qeOpen），
+      // 卡内快捷行「标星」落库（sheetQuoteOps 保留在书籍详情页入口）。
+      final qid = (await repo.allQuotes()).single.id;
       await tester.tap(find.byKey(const ValueKey('read-nav-quotes')));
       await settle(tester);
       await waitFinder(tester, find.byKey(const ValueKey('ql-view')));
-      await tester.tap(find.byKey(const ValueKey('ql-q-1')));
+      await tester.tap(find.byKey(ValueKey('ql-q-$qid')));
       await settle(tester);
-      expect(find.text('划线操作'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('qo-star')));
+      expect(find.text('编辑笔记'), findsOneWidget);
+      await tester.tapAt(const Offset(12, 40)); // 点遮罩收起弹层
       await settle(tester);
-      await clearToasts(tester);
+      await tester.tap(find.byKey(ValueKey('qlq-star-$qid')));
+      await settle(tester);
       expect((await repo.allQuotes()).single.starred, isTrue);
     });
   });
@@ -965,7 +979,7 @@ void main() {
       expect(find.text('3 / 50 本'), findsOneWidget);
     });
 
-    testWidgets('R-17 统计页：热力 365 格 · 度量切换 · 购书支出卡联动流水',
+    testWidgets('R-17 统计页：热力图周列 365 格 · 点格 toast · 度量切换 · 支出卡联动',
         (tester) async {
       await repo.addBook(
           bk('f1', '付费书', Book.kStateReading, rp: 20).copyWith(fee: 59));
@@ -981,10 +995,27 @@ void main() {
       await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
       await useSurface(tester);
       await settle(tester);
+      // 批D 保真：筛选触发器为页内 chip（收起时摘要标签 '年 · 范围 · 度量 · 构成'）。
+      expect(find.textContaining('全年 · 时长 · 标签'), findsOneWidget);
+      expect(find.text('点选范围与度量'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('rs-ctl')));
       await settle(tester);
       expect(find.byKey(const ValueKey('rs-panel')), findsOneWidget);
+      // 原型 .hm：7 行×周列按列流 → 365 格全在（列内 day-index key 连续）。
       expect(find.byKey(const ValueKey('rs-heat-364')), findsOneWidget);
+      expect(find.text('每格＝一天 · 色深＝时长（分钟）'), findsOneWidget);
+      expect(find.text('少'), findsOneWidget);
+      expect(find.text('多'), findsOneWidget);
+      // 点今日格 → toast（{年} 年第 {N} 天 · X 分钟 · 摘录约 Y 条）。
+      final now = DateTime.now();
+      final doy = now.difference(DateTime(now.year)).inDays + 1;
+      final cell = find.byKey(ValueKey('rs-heat-${doy - 1}'));
+      await tester.ensureVisible(cell);
+      await tester.tap(cell);
+      await settle(tester);
+      expect(
+          find.textContaining('年第 $doy 天 · 45 分钟 · 摘录约 0 条'), findsOneWidget);
+      await clearToasts(tester);
       await tester.tap(find.byKey(const ValueKey('rs-met-day')));
       await settle(tester);
       expect(find.textContaining('是否读够'), findsWidgets);
@@ -1007,8 +1038,12 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('blf-pick-m1')));
       await tester.ensureVisible(find.byKey(const ValueKey('blf-pick-m2')));
       await tester.tap(find.byKey(const ValueKey('blf-pick-m2')));
-      await tester.tap(find.text('保存'));
+      // 批D 保真：底部主按钮逐字「创建书单」（原型 1009）。
+      await tester.ensureVisible(find.byKey(const ValueKey('blf-save')));
+      await tester.tap(find.byKey(const ValueKey('blf-save')));
       await settle(tester);
+      // 原型 blSave 5336 逐字（含 N 本，可生成分享图）。
+      expect(find.text('书单「主题单」已创建 · 2 本，可生成分享图'), findsOneWidget);
       await clearToasts(tester);
       expect(find.text('主题单'), findsWidgets);
       expect(find.text('2 本'), findsOneWidget);
@@ -1070,6 +1105,8 @@ void main() {
       await repo.addBook(bk('w1', '墙书', Book.kStateReading, last: ms(0)));
       await tester.pumpWidget(routed(const ReadSettingsPage()));
       await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
       await waitFinder(tester, find.byKey(const ValueKey('set-wallCols-5')));
       await tester.ensureVisible(find.byKey(const ValueKey('set-wallCols-5')));
       await tester.tap(find.byKey(const ValueKey('set-wallCols-5')));
@@ -1079,16 +1116,16 @@ void main() {
       await tester.ensureVisible(find.byKey(const ValueKey('set-tab-1')));
       await tester.tap(find.byKey(const ValueKey('set-tab-1')));
       await settle(tester);
-      await tester.ensureVisible(
-          find.byKey(const ValueKey('set-longPress-edit')));
-      await tester.tap(find.byKey(const ValueKey('set-longPress-edit')));
-      await settle(tester);
+      // 批E：长按菜单改就地内嵌（无「调整」钮、无弹层、无保存钮，点击即落库）。
+      expect(find.byKey(const ValueKey('set-longPress-edit')), findsNothing);
+      expect(find.byKey(const ValueKey('lpset-save')), findsNothing);
       await waitFinder(
           tester, find.byKey(const ValueKey('lpset-add-标记读完')));
+      await tester.ensureVisible(
+          find.byKey(const ValueKey('lpset-add-标记读完')));
       await tester.tap(find.byKey(const ValueKey('lpset-add-标记读完')));
-      await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('lpset-save')));
-      await settle(tester);
+      await waitFinder(
+          tester, find.byKey(const ValueKey('lpset-rm-标记读完')));
       await clearToasts(tester);
       expect(await repo.kv('read.longPress'), contains('标记读完'));
       // 书架跟随：5 列封面墙 + 长按菜单出现「标记读完」并可点读完
@@ -1126,20 +1163,23 @@ void main() {
       await clearToasts(tester);
       final afterAdd = await repo.dictOf('source');
       expect(afterAdd.map((e) => e.name), contains('手贴'));
-      // 改名 → 事务回写 books.source
+      // 改名 → 就地内嵌输入 + 「确定」（批E 逐字），事务回写 books.source
       await tester.tap(find.byKey(ValueKey('bkm-rename-${de.id}')));
       await settle(tester);
+      expect(find.text('确定'), findsOneWidget);
       await tester.enterText(
           find.byKey(ValueKey('bkm-rn-inp-${de.id}')), '得到APP');
       await tester.tap(find.byKey(ValueKey('bkm-rn-ok-${de.id}')));
-      await settle(tester);
+      // 批E：改名成功 toast 逐字「已改名为「X」」。
+      await waitFinder(tester, find.text('已改名为「得到APP」'));
       await clearToasts(tester);
       final m9 = (await repo.allBooks()).firstWhere((b) => b.id == 'm9');
       expect(m9.source, '得到APP');
-      // 删除守卫：仍有 1 本在用
+      // 删除守卫：仍有 1 本在用（置灰态仍可点，toast 逐字批E 新文案）
       await tester.tap(find.byKey(ValueKey('bkm-del-${de.id}')));
       await settle(tester);
-      expect(find.textContaining('还有 1 本在用'), findsOneWidget);
+      expect(find.textContaining('还有 1 本书在用，请先在这些书里改掉来源'),
+          findsOneWidget);
       await clearToasts(tester);
       final names = (await repo.dictOf('source')).map((e) => e.name);
       expect(names, contains('得到APP'));
@@ -1383,6 +1423,467 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('qseg-star')));
       await settle(tester);
       expect(find.text('「甲章句一」'), findsOneWidget);
+    });
+  });
+
+  group('批D 保真 · 笔记库 / 统计 / 目标 / 书单', () {
+    testWidgets('R-27 卡片点按进编辑 · 快捷行落库 · 搜索含书名 · 想法前缀 · 图片墙提示',
+        (tester) async {
+      await repo.addBook(
+          bk('qa', '书甲', Book.kStateReading, rp: 40, last: ms(0)));
+      final qid = await repo.addQuote(BookQuote(
+        bookId: 'qa',
+        kind: BookQuote.kKindMark,
+        body: '被划线的那句',
+        createdAt: ms(2),
+        updatedAt: ms(2),
+      ));
+      await repo.addQuote(BookQuote(
+        bookId: 'qa',
+        kind: BookQuote.kKindThought,
+        body: '这是读完想到的',
+        createdAt: ms(1),
+        updatedAt: ms(1),
+      ));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      // 感想卡正文前缀「想法：」（原型 4856）。
+      expect(find.text('想法：这是读完想到的'), findsOneWidget);
+      // 搜索命中含书名（原型 4828/4845）：书名都不在原文/想法里。
+      await tester.enterText(find.byKey(const ValueKey('ql-kw')), '书甲');
+      await settle(tester);
+      expect(
+          find
+              .byWidgetPredicate((w) =>
+                  w.key is ValueKey<String> &&
+                  (w.key as ValueKey<String>).value.startsWith('ql-q-'))
+              .evaluate()
+              .length,
+          2);
+      await tester.enterText(find.byKey(const ValueKey('ql-kw')), '');
+      await settle(tester);
+      // 点卡片＝直接进编辑表单（原型 4854 qeOpen）。
+      await tester.tap(find.byKey(ValueKey('ql-q-$qid')));
+      await settle(tester);
+      expect(find.text('编辑笔记'), findsOneWidget);
+      expect(find.text('被划线的那句'), findsWidgets);
+      await tester.tapAt(const Offset(12, 40)); // 收起弹层
+      await settle(tester);
+      // 卡内快捷行 →日记 真落库（联动 L5 · 原型 4859 逐字 toast）。
+      await tester.tap(find.byKey(ValueKey('qlq-diary-$qid')));
+      await settle(tester);
+      expect(find.text('已插入今日日记草稿（联动 L5）'), findsOneWidget);
+      await clearToasts(tester);
+      expect(await db.query('journal_entries'), hasLength(1));
+      // 图片墙空态提示行（原型 4876）。
+      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → line
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → chap
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('ql-view'))); // → img
+      await settle(tester);
+      expect(find.text('还没有带图片的摘录 · 记摘录时点「加图片」'), findsOneWidget);
+    });
+
+    testWidgets('R-28 「导出与分享」整卡：四钮逐字 + B 类占位 toast',
+        (tester) async {
+      await repo.addBook(
+          bk('qa', '书甲', Book.kStateReading, rp: 40, last: ms(0)));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      // 复习/＋钮与搜索框同行（原型 867-868），不再放 AppBar。
+      expect(find.byKey(const ValueKey('ql-review')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ql-add')), findsOneWidget);
+      expect(find.text('导出与分享'), findsOneWidget);
+      expect(find.text('联动 L5'), findsOneWidget);
+      expect(find.text('导出 MD'), findsOneWidget);
+      expect(find.text('书摘卡片'), findsOneWidget);
+      expect(find.text('摘录 → 待办'), findsOneWidget);
+      expect(find.text('AI 感想归并'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('qlx-card')));
+      await settle(tester);
+      expect(find.text('图片卡片规划中（V1.x）'), findsOneWidget);
+      await clearToasts(tester);
+      await tester.tap(find.byKey(const ValueKey('qlx-ai')));
+      await settle(tester);
+      expect(find.text('AI 能力规划中（V1.x）'), findsOneWidget);
+      await clearToasts(tester);
+    });
+
+    testWidgets('R-29 摘录表单：默认重点 · 空校验逐字 · 页码/创建时间就地滚轮',
+        (tester) async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, rp: 0, last: ms(0)));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-add')));
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      // 空校验（原型 qeSave 4926 逐字）。
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
+      await settle(tester);
+      expect(find.text('至少写一点什么'), findsOneWidget);
+      await clearToasts(tester);
+      // 页码就地滚轮：点框展开 → 拖动改值（禁键盘输入二段式）。
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-page')));
+      await tester.tap(find.byKey(const ValueKey('qef-page')));
+      await settle(tester);
+      final wheel = find.byKey(const ValueKey('qef-page-wheel'));
+      expect(wheel, findsOneWidget);
+      await tester.ensureVisible(wheel);
+      // 慢速拖动（逐步移动·零速度）避免 fling 吸附被甩速带偏一档。
+      final wheelG = await tester.startGesture(tester.getCenter(wheel));
+      for (var i = 0; i < 12; i++) {
+        await wheelG.moveBy(const Offset(0, -5),
+            timeStamp: const Duration(milliseconds: 25));
+      }
+      await wheelG.up();
+      await settle(tester);
+      await settle(tester);
+      // 创建时间就地滚轮：年/月/日 三列展开（禁 showDatePicker）。
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-date')));
+      await tester.tap(find.byKey(const ValueKey('qef-date')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('qef-date-y')), findsOneWidget);
+      expect(find.byKey(const ValueKey('qef-date-m')), findsOneWidget);
+      expect(find.byKey(const ValueKey('qef-date-d')), findsOneWidget);
+      expect(find.byKey(const ValueKey('qef-today')), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '滚轮句');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
+      await settle(tester);
+      await clearToasts(tester);
+      final saved = (await repo.allQuotes()).single;
+      expect(saved.tag, BookQuote.kTagKey); // 新建默认「重点」（原型 4890）
+      expect(saved.page, 10); // 两档 ×5（-60px / itemExtent30）
+    });
+
+    testWidgets('R-30 复习：空池 toast 不开层 · 翻面空想法兜底逐字',
+        (tester) async {
+      await repo.addBook(bk('qa', '书甲', Book.kStateReading, last: ms(0)));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-review')));
+      // 无到期队列 → 不开弹层直接 toast（原型 qtReview 4880）。
+      await tester.tap(find.byKey(const ValueKey('ql-review')));
+      await settle(tester);
+      expect(find.text('还没有到期的摘录'), findsOneWidget);
+      expect(find.byKey(const ValueKey('rv-card')), findsNothing);
+      await clearToasts(tester);
+      // 造一条今日到期：2 天前入账 → next=1 天后＝昨天。
+      await repo.addQuote(BookQuote(
+        bookId: 'qa',
+        kind: BookQuote.kKindMark,
+        body: '到期句',
+        createdAt: ms(2),
+        updatedAt: ms(2),
+      ));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('ql-review')));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rv-card')));
+      expect(find.text('「到期句」'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('rv-card'))); // 3D 翻面
+      await settle(tester);
+      // 背面空想法兜底（原型 rvRender 4885 逐字）。
+      expect(find.text('（这条还没写想法 · 现在补一句？）'), findsOneWidget);
+    });
+
+    testWidgets('R-31 目标弹层：滑杆+chips+滚轮+实时预览+保存富 toast',
+        (tester) async {
+      await tester.pumpWidget(routed(const ReadStatPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester);
+      await settle(tester);
+      // 目标卡标题逐字「目标与预测」；说明行/按钮对原型。
+      expect(find.text('目标与预测'), findsOneWidget);
+      expect(
+          find.textContaining('阅读时长自动写入时间账本「阅读」分类（L4）'),
+          findsOneWidget);
+      expect(find.text('生成周报'), findsOneWidget);
+      expect(find.text('调整年度目标'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('rs-goal-edit')));
+      await tester.tap(find.byKey(const ValueKey('rs-goal-edit')));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('goal-slider')));
+      expect(
+          find.textContaining('阅读目标 · ${DateTime.now().year}'),
+          findsOneWidget);
+      expect(find.text('联动 L7 目标 / L4 时间账本'), findsOneWidget);
+      // 时·分双滚轮就地展开（原型 glDH/glDM）。
+      expect(find.byKey(const ValueKey('goal-dh')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goal-wh')), findsOneWidget);
+      // 快捷 chip 选 80 → 滑杆值跟随 + 预览实时刷新。
+      await tester.ensureVisible(find.byKey(const ValueKey('goal-q-80')));
+      await tester.tap(find.byKey(const ValueKey('goal-q-80')));
+      await settle(tester);
+      expect(find.text('80 本'), findsWidgets); // goal-val + chip 双处
+      expect(find.textContaining('年度 80 本：已读 0 本'), findsOneWidget);
+      // 未读提醒开关 + 时刻滚轮。
+      expect(find.byKey(const ValueKey('goal-remind')), findsOneWidget);
+      expect(find.byKey(const ValueKey('goal-rh')), findsOneWidget);
+      // 每月摘录 chips 逐字（原型 4803）。
+      expect(find.text('40 条 · 标准'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('goal-save')));
+      await tester.tap(find.byKey(const ValueKey('goal-save')));
+      await settle(tester);
+      expect(
+          find.text('目标已保存 · 每日 30 分钟 · 每周 4 小时 · 全年 80 本'),
+          findsOneWidget);
+      await clearToasts(tester);
+      expect(await repo.kv('read.goalBooks'), '80');
+    });
+
+    testWidgets('R-31b 生成周报 toast：真实数字 + 原型格式逐字', (tester) async {
+      await repo.addBook(
+          bk('w1', '周报书', Book.kStateReading, rp: 20).copyWith());
+      await repo.addManualSession(
+          day: DateTime.now(), bookId: 'w1', minutes: 45, toPage: 20);
+      await repo.addQuote(BookQuote(
+        bookId: 'w1',
+        kind: BookQuote.kKindMark,
+        body: '本周新增的一条',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      await tester.pumpWidget(routed(const ReadStatPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester);
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('rs-weekly')));
+      await tester.tap(find.byKey(const ValueKey('rs-weekly')));
+      await settle(tester);
+      // 原型 926 格式真实版：阅读 45′ · 新增摘录 1 条 · 已联动 L4/L7。
+      expect(
+          find.text('周报已生成：阅读 45′ · 新增摘录 1 条 · 已联动 L4/L7'),
+          findsOneWidget);
+    });
+
+    testWidgets('R-32 书单：auto 选书提示逐字 · 分享弹层四钮+脚注 · 移书单空态',
+        (tester) async {
+      await repo.addBook(bk('m1', '甲书', Book.kStateReading));
+      final list = await repo.addList(
+          BookList(name: '主题单', createdAt: 0, updatedAt: 0),
+          bookIds: ['m1']);
+      await tester.pumpWidget(routed(const BookListsPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('bl-new-auto')));
+      // 选书弹层 auto 提示逐字（原型 blCreate 5325）。
+      await tester.tap(find.byKey(const ValueKey('bl-new-auto')));
+      await settle(tester);
+      expect(find.text('自动底稿：当年读完 0 本，无需勾选（勾选框已停用）'),
+          findsOneWidget);
+      // 「生成年度书单」三处合法共存：列表页卡片标题 + 弹层标题 + 弹层主钮（原型 blNew/blCreate）。
+      final sheet = find.byType(BottomSheet);
+      expect(
+          find.descendant(of: sheet, matching: find.text('生成年度书单')),
+          findsNWidgets(2));
+      tester.state<NavigatorState>(find.byType(Navigator).last).pop(); // 收弹层（此壳无返回钮）
+      await settle(tester);
+      // 分享弹层（原型 sheetListShare 1014-1030）。
+      await tester.tap(find.byKey(ValueKey('bl-share-${list.id}')));
+      await settle(tester);
+      expect(find.text('分享书单'), findsOneWidget);
+      expect(find.text('主题单 · 1 本'), findsWidgets);
+      expect(find.text('保存为图片'), findsOneWidget);
+      expect(find.text('复制 Markdown'), findsWidgets);
+      expect(find.text('下载 TXT'), findsWidgets);
+      expect(find.text('下载 .md'), findsOneWidget);
+      expect(
+          find.textContaining('图片在前端即时绘制（canvas）· 长图适合发群/朋友圈'),
+          findsOneWidget);
+      // 测试环境无真实剪贴板插件：Clipboard.setData 需 mock 平台通道才会完成。
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') return null;
+        return null;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance
+          .defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      await tester.ensureVisible(find.byKey(const ValueKey('bls-md')));
+      await tester.tap(find.byKey(const ValueKey('bls-md')));
+      await settle(tester);
+      expect(find.text('Markdown 已复制到剪贴板'), findsOneWidget);
+      await clearToasts(tester);
+      tester.state<NavigatorState>(find.byType(Navigator).last).pop(); // 收分享弹层
+      await settle(tester);
+      // 长按「移书单」空态逐字（原型 blQuickPick 5090）：先软删本例建的手动书单。
+      await repo.softDeleteList(list.id!);
+      await tester.pumpWidget(page(Scaffold(
+        body: Consumer(
+          builder: (c, ref, _) => ElevatedButton(
+            key: const ValueKey('go-mtl'),
+            onPressed: () => showMoveToListSheet(
+                c, ref, bk('m2', '乙书', Book.kStateReading)),
+            child: const Text('go'),
+          ),
+        ),
+      )));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('go-mtl')));
+      await settle(tester);
+      await waitFinder(tester, find.text('还没有手动书单 · 先去书单管理创建'));
+      expect(find.text('还没有手动书单 · 先去书单管理创建'), findsOneWidget);
+    });
+
+    testWidgets('R-33 剪贴板识别：来源+页码+章节自动带出 toast 逐字',
+        (tester) async {
+      await repo.addBook(
+          bk('qa', '书甲', Book.kStateReading, rp: 0, last: ms(0)));
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          return <String, String>{
+            'text':
+                '论持久战的三段论结构\n——《书甲》\n章节：第三章 · P42',
+          };
+        }
+        return null;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance
+          .defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      await tester.pumpWidget(page(const QuotesLibPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('ql-add')));
+      await tester.tap(find.byKey(const ValueKey('ql-add')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-clip')));
+      await tester.tap(find.byKey(const ValueKey('qef-clip')));
+      await settle(tester);
+      // 原型口径：章节也随模板带出（批D 拍板：模板行「章节：X」）。
+      expect(find.text('已识别来源：书甲 · 页码与章节自动带出'), findsOneWidget);
+      await clearToasts(tester);
+      await tester.enterText(find.byKey(const ValueKey('qef-body')), '剪贴板落库句');
+      await tester.ensureVisible(find.byKey(const ValueKey('qef-save')));
+      await tester.tap(find.byKey(const ValueKey('qef-save')));
+      await settle(tester);
+      await clearToasts(tester);
+      final saved = (await repo.allQuotes())
+          .firstWhere((q) => q.body == '剪贴板落库句');
+      expect(saved.page, 42);
+    });
+  });
+
+  group('保真批E · 文案与守卫清扫', () {
+    testWidgets('R-34 设置就地内嵌长按菜单 + 组头计数 + 配置/胶囊文案逐字',
+        (tester) async {
+      await tester.pumpWidget(routed(const ReadSettingsPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('set-tab-1')));
+      await tester.ensureVisible(find.byKey(const ValueKey('set-tab-1')));
+      await tester.tap(find.byKey(const ValueKey('set-tab-1')));
+      await settle(tester);
+      // 原型 5713：组卡头部右侧「N 项」＝内容显示与排序 5 行。
+      expect(find.byKey(const ValueKey('set-sec-count')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('set-sec-count'))).data,
+        '5 项',
+      );
+      // 就地内嵌：移除项即写库（无保存步骤），该行随即补回未选 chip。
+      await waitFinder(tester, find.byKey(const ValueKey('lpset-rm-移书单')));
+      await tester.ensureVisible(
+          find.byKey(const ValueKey('lpset-rm-移书单')));
+      await tester.tap(find.byKey(const ValueKey('lpset-rm-移书单')));
+      await waitFinder(tester, find.byKey(const ValueKey('lpset-add-移书单')));
+      expect(await repo.kv('read.longPress'), isNot(contains('移书单')));
+      await tester.ensureVisible(
+          find.byKey(const ValueKey('lpset-add-标记读完')));
+      await tester.tap(find.byKey(const ValueKey('lpset-add-标记读完')));
+      await waitFinder(tester, find.byKey(const ValueKey('lpset-rm-标记读完')));
+      expect(await repo.kv('read.longPress'), contains('标记读完'));
+      // 阅读计时组：timerUI 描述逐字含「隐藏顶栏与底栏」。
+      await tester.ensureVisible(find.byKey(const ValueKey('set-tab-3')));
+      await tester.tap(find.byKey(const ValueKey('set-tab-3')));
+      await settle(tester);
+      expect(
+          find.text('全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，'
+              '只在 app 顶部留一行胶囊计时'),
+          findsOneWidget);
+      // 数据与存储组：import 行右侧按钮文案＝「配置」。
+      await tester.ensureVisible(find.byKey(const ValueKey('set-tab-4')));
+      await tester.tap(find.byKey(const ValueKey('set-tab-4')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('set-open-import')), findsOneWidget);
+      expect(find.text('配置'), findsOneWidget);
+      await clearToasts(tester);
+    });
+
+    testWidgets('R-35 资料守卫链：概述/副行/守卫 toast/改名确定/点行回书架筛选',
+        (tester) async {
+      await repo.dictAdd(DictEntry.kSource, '得到APP');
+      await repo.addBook(bk('e1', '得到书', Book.kStateReading, last: ms(0))
+          .copyWith(source: '得到APP'));
+      await tester.pumpWidget(routed(const BookMgrPage()));
+      await settle(tester);
+      final entries = await repo.dictOf('source');
+      final de = entries.firstWhere((e) => e.name == '得到APP');
+      await waitFinder(tester, find.byKey(ValueKey('bkm-row-${de.id}')));
+      // 页头卡：标题 + 概述逐字「N 个来源 · 覆盖 M 本书」。
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('bkm-head')),
+              matching: find.text('书籍来源')),
+          findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('bkm-sum'))).data,
+        '1 个来源 · 覆盖 1 本书',
+      );
+      // 行副行逐字（n>0 态）。
+      expect(find.text('1 本 · 点行进书架筛选'), findsOneWidget);
+      // 删除守卫：置灰仍可点，toast 逐字。
+      await tester.ensureVisible(find.byKey(ValueKey('bkm-del-${de.id}')));
+      await tester.tap(find.byKey(ValueKey('bkm-del-${de.id}')));
+      await settle(tester);
+      expect(find.text('还有 1 本书在用，请先在这些书里改掉来源'), findsOneWidget);
+      await clearToasts(tester);
+      // 就地改名 → 「确定」→ toast 逐字 + books 回写。
+      await tester.ensureVisible(
+          find.byKey(ValueKey('bkm-rename-${de.id}')));
+      await tester.tap(find.byKey(ValueKey('bkm-rename-${de.id}')));
+      await settle(tester);
+      expect(find.text('确定'), findsOneWidget);
+      await tester.enterText(
+          find.byKey(ValueKey('bkm-rn-inp-${de.id}')), '得到');
+      await tester.tap(find.byKey(ValueKey('bkm-rn-ok-${de.id}')));
+      await waitFinder(tester, find.text('已改名为「得到」'));
+      final e1 = (await repo.allBooks()).firstWhere((b) => b.id == 'e1');
+      expect(e1.source, '得到');
+      await clearToasts(tester);
+      // 点行＝回书架并按该维度筛选（原型 bmFilter）+ toast 逐字。
+      final container = ProviderScope.containerOf(
+          tester.element(find.byType(BookMgrPage)));
+      await tester.ensureVisible(find.byKey(ValueKey('bkm-row-${de.id}')));
+      await tester.tap(find.byKey(ValueKey('bkm-row-${de.id}')));
+      await settle(tester);
+      final ui = container.read(shelfUiProvider);
+      expect(ui.dim, 'src');
+      expect(ui.dimVal, '得到');
+      expect(find.text('书架已筛选：来源 = 得到'), findsOneWidget);
+      expect(find.byType(ShelfPage), findsOneWidget);
+      await clearToasts(tester);
+      // 空态逐字：新 kind 无数据。
+      await tester.pumpWidget(
+          routed(const BookMgrPage(kind: DictEntry.kGroup)));
+      await settle(tester);
+      await waitFinder(tester, find.text('还没有条目，先在下方添加'));
     });
   });
 }

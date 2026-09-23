@@ -25,6 +25,58 @@ class _QuoteForm extends ConsumerStatefulWidget {
   ConsumerState<_QuoteForm> createState() => _QuoteFormState();
 }
 
+/// 就地内嵌通用滚轮列（原型 wReg 口径：任意标签序列 · 步长不强制 5）。
+/// 保真批D：页码/创建时间/目标时分双滚轮一律就地展开，禁二段弹层。
+class _ColWheel extends StatefulWidget {
+  const _ColWheel({
+    this.keyName,
+    required this.items,
+    required this.initialIndex,
+    required this.onChanged,
+  });
+  final String? keyName;
+  final List<String> items;
+  final int initialIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_ColWheel> createState() => _ColWheelState();
+}
+
+class _ColWheelState extends State<_ColWheel> {
+  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
+    initialItem: widget.initialIndex.clamp(0, widget.items.length - 1),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 92,
+      child: ListWheelScrollView.useDelegate(
+        key: widget.keyName == null ? null : ValueKey<String>(widget.keyName!),
+        controller: _ctl,
+        itemExtent: 30,
+        squeeze: 1.05,
+        diameterRatio: 2.4,
+        physics: const FixedExtentScrollPhysics(),
+        onSelectedItemChanged: widget.onChanged,
+        childDelegate: ListWheelChildBuilderDelegate(
+          childCount: widget.items.length,
+          builder: (context, i) => Center(
+            child: Text(
+              widget.items[i],
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _QuoteFormState extends ConsumerState<_QuoteForm> {
   late final TextEditingController _body = TextEditingController(
     text: widget.editing?.body ?? '',
@@ -32,15 +84,16 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   late final TextEditingController _thought = TextEditingController(
     text: widget.editing?.thought ?? '',
   );
-  late final TextEditingController _page = TextEditingController(
-    text: widget.editing?.page != null ? '${widget.editing!.page}' : '',
-  );
   final TextEditingController _newTag = TextEditingController();
-  /// 编辑既有摘录时创建时间原值；新建默认今天（表单可改 · §3.3）。
+  /// 保真批D：页码/创建时间一律就地滚轮（铁律 · 禁键盘输入与日历二段弹层）。
+  late int? _pageVal = widget.editing?.page;
+  bool _pageOpen = false;
   late DateTime _date = widget.editing != null
       ? DateTime.fromMillisecondsSinceEpoch(widget.editing!.createdAt)
       : DateTime.now();
-  late String _tag = widget.editing?.tag ?? BookQuote.kTagReso;
+  bool _dateOpen = false;
+  late String _tag =
+      widget.editing?.tag ?? BookQuote.kTagKey; // 新建默认「重点」（原型 qeOpen）
   late String? _chap = widget.editing?.chapter;
   late final List<String> _imgs = [...?widget.editing?.imagePaths];
   late final Set<String> _qtags = {...?widget.editing?.tags};
@@ -74,7 +127,6 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   void dispose() {
     _body.dispose();
     _thought.dispose();
-    _page.dispose();
     _newTag.dispose();
     super.dispose();
   }
@@ -121,17 +173,19 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final v = b.progressWay == Book.kWayPos && b.readLoc != null
         ? b.readLoc!.round()
         : b.readPages;
-    _page.text = v > 0 ? '$v' : '';
+    _pageVal = v > 0 ? v : null;
   }
 
-  Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2015),
-      lastDate: DateTime(2100),
-    );
-    if (d != null) setState(() => _date = d);
+  /// 创建时间就地滚轮（保真批D：禁 showDatePicker 二段弹层）。
+  void _setDate({int? y, int? m, int? d}) {
+    final days = DateTime(y ?? _date.year, (m ?? _date.month) + 1, 0).day;
+    setState(() {
+      _date = DateTime(
+        y ?? _date.year,
+        m ?? _date.month,
+        (d ?? _date.day).clamp(1, days),
+      );
+    });
   }
 
   Future<void> _ocr() async {
@@ -155,11 +209,12 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
       if (mounted) readToast(context, '剪贴板没有文字');
       return;
     }
-    // read.clipAuto 开：按「——《书名》 + P页码」脚注模板识别来源并拆解。
+    // read.clipAuto 开：按「——《书名》 + P页码（+ 章节：X）」脚注模板识别来源并拆解。
     final src = _clipAuto
         ? RegExp(r'——《([^》\n]+)》').firstMatch(t)?.group(1)
         : null;
     var body = t;
+    String? chapHit;
     if (src != null) {
       body = t
           .split('\n')
@@ -167,8 +222,13 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
           .join('\n')
           .trim();
       final pg = RegExp(r'P(\d+)').firstMatch(t)?.group(1);
-      if (pg != null && !_pageTouched && _page.text.isEmpty) {
-        _page.text = pg;
+      if (pg != null && !_pageTouched && _pageVal == null) {
+        _pageVal = int.tryParse(pg);
+        _pageTouched = true;
+      }
+      chapHit = RegExp(r'章节[:：]\s*([^\n\s]+)').firstMatch(t)?.group(1);
+      if (chapHit != null && (_chap == null || _chap!.isEmpty)) {
+        _chap = chapHit;
       }
     }
     if (!mounted) return;
@@ -177,7 +237,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     );
     readToast(
       context,
-      src == null ? '已读取剪贴板' : '已识别来源：$src · 页码自动带出',
+      src == null ? '已读取剪贴板' : '已识别来源：$src · 页码与章节自动带出',
     );
   }
 
@@ -187,7 +247,10 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
       bg: Theme.of(context).colorScheme.surfaceContainerLow,
       fg: Theme.of(context).colorScheme.onSurface,
     );
-    if (path != null && mounted) setState(() => _imgs.add(path));
+    if (path != null && mounted) {
+      setState(() => _imgs.add(path));
+      readToast(context, '已添加图片 · 随摘录一起导出');
+    }
   }
 
   /// 组一条摘录（保存与 L5 快捷动作共用）。
@@ -200,10 +263,10 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final bodyT = _body.text.trim();
     final th = _thought.text.trim();
     if (bodyT.isEmpty && th.isEmpty) {
-      readToast(context, '原文与想法至少填一项');
+      readToast(context, '至少写一点什么');
       return null;
     }
-    final page = int.tryParse(_page.text.trim());
+    final page = _pageVal;
     return BookQuote(
       id: widget.editing?.id,
       bookId: b.id,
@@ -251,12 +314,23 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final books = ref.read(booksProvider).valueOrNull ?? const <Book>[];
     final r = await _persist(books);
     if (r == null || !mounted) return;
+    final (q, b) = r;
+    final repo = ref.read(readRepositoryProvider);
+    final total = widget.editing == null
+        ? (await repo.quotesOf(b.id)).length
+        : 0;
+    if (!mounted) return;
     Navigator.of(context).pop();
-    readToast(context, widget.editing == null ? '已记录这条摘录' : '笔记已更新');
+    readToast(
+      context,
+      widget.editing == null
+          ? '已保存 · 《${b.title}》 现共 $total 条 · 可做日记素材（L5）'
+          : '笔记已更新',
+    );
   }
 
   Future<void> _quick(int to) async {
-    // 0=插今日日记 1=生成待办：先落库再分流（L5）。
+    // 0=插今日日记 1=生成待办：先落库再分流（L5 · 原型 toast 逐字）。
     final books = ref.read(booksProvider).valueOrNull ?? const <Book>[];
     final r = await _persist(books);
     if (r == null || !mounted) return;
@@ -270,7 +344,10 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     ref.read(readTickProvider.notifier).state++;
     if (!mounted) return;
     Navigator.of(context).pop();
-    readToast(context, to == 0 ? '已保存并插入今日日记' : '已保存并生成待办');
+    readToast(
+      context,
+      to == 0 ? '已插入今日日记草稿（联动 L5）' : '已生成待办：查证该观点（联动 L5）',
+    );
   }
 
   @override
@@ -317,7 +394,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final cur = _bookOf(books, _pickedId!) ?? books.first;
     if (!_chapterLoaded && _chapters.isEmpty) _loadChapters();
     // 新建时页码按当前进度带出（read.rateFmt 默认开）。
-    if (widget.editing == null && !_pageTouched && _page.text.isEmpty) {
+    if (widget.editing == null && !_pageTouched && _pageVal == null) {
       _syncPageFromBook(cur);
     }
     final chapOpts = {..._chapters, ?_chap}.toList();
@@ -328,10 +405,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SheetTitle(
-            adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记',
-            onSave: _save,
-          ),
+          _SheetTitle(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
           // 选书下拉：换书时 标题 / 章节 / 页码 三处联动（§3.4）。
           DropdownButtonFormField<String>(
             key: const ValueKey('qef-book'),
@@ -380,15 +454,56 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                width: 88,
-                child: _fieldNum(_page, '页码', keyName: 'qef-page',
-                    onChanged: (_) => _pageTouched = true),
+              // 页码：点框就地展开数字滚轮（铁律 · 禁键盘输入二段式）。
+              Expanded(
+                child: GestureDetector(
+                  key: const ValueKey('qef-page'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _pageOpen = !_pageOpen),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _pageOpen
+                            ? context.tokens.accent
+                            : cs.outlineVariant.withValues(alpha: .4),
+                      ),
+                    ),
+                    child: Text(
+                      _pageVal == null ? '页码' : 'P$_pageVal',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
+          if (_pageOpen)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                height: 92,
+                child: _NumWheel(
+                  keyName: 'qef-page-wheel',
+                  value: _pageVal ?? 5,
+                  max: (((cur.pages > 0 ? cur.pages : 300) + 24) ~/ 25) * 25,
+                  onChanged: (v) => setState(() {
+                    _pageVal = v;
+                    _pageTouched = true;
+                  }),
+                ),
+              ),
+            ),
           const SizedBox(height: 10),
-          // 创建时间：默认今天＋今天快捷键，可改（§3.3 补记场景）。
+          // 创建时间：默认今天＋今天快捷键；点框就地展开 年/月/日 三列滚轮。
           Row(
             children: [
               Text('创建时间', style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
@@ -396,7 +511,8 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
               Expanded(
                 child: GestureDetector(
                   key: const ValueKey('qef-date'),
-                  onTap: _pickDate,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _dateOpen = !_dateOpen),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -405,6 +521,11 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
                     decoration: BoxDecoration(
                       color: cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _dateOpen
+                            ? context.tokens.accent
+                            : cs.outlineVariant.withValues(alpha: .4),
+                      ),
                     ),
                     child: Text(
                       '${_date.year}-${_date.month.toString().padLeft(2, '0')}-'
@@ -425,10 +546,46 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
               ),
             ],
           ),
+          if (_dateOpen)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ColWheel(
+                      keyName: 'qef-date-y',
+                      items: [
+                        for (var y = 2015; y <= 2100; y++) '$y 年',
+                      ],
+                      initialIndex: _date.year - 2015,
+                      onChanged: (i) => _setDate(y: 2015 + i),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _ColWheel(
+                      keyName: 'qef-date-m',
+                      items: [for (var m = 1; m <= 12; m++) '$m 月'],
+                      initialIndex: _date.month - 1,
+                      onChanged: (i) => _setDate(m: i + 1),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _ColWheel(
+                      keyName: 'qef-date-d',
+                      items: [for (var d = 1; d <= 31; d++) '$d 日'],
+                      initialIndex: _date.day - 1,
+                      onChanged: (i) => _setDate(d: i + 1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 10),
           _field(_body, '原文摘录…', lines: 3, keyName: 'qef-body'),
           const SizedBox(height: 10),
-          _field(_thought, '我的想法（与原文同条存储）', lines: 2, keyName: 'qef-thought'),
+          _field(_thought, '我的想法（可选，与摘录同条存储）', lines: 2, keyName: 'qef-thought'),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -508,7 +665,18 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
             onPick: (v) => setState(() => _tag = v),
           ),
           const SizedBox(height: 12),
-          Text('标签', style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
+              children: const [
+                TextSpan(text: '标签'),
+                TextSpan(
+                  text: '（可多选 · 用于笔记库筛选）',
+                  style: TextStyle(fontSize: 10.5),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -617,27 +785,7 @@ InputDecoration _deco(String? label) => InputDecoration(
   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
 );
 
-TextField _fieldNum(
-  TextEditingController c,
-  String label, {
-  String? keyName,
-  ValueChanged<String>? onChanged,
-}) => TextField(
-  key: keyName == null ? null : ValueKey(keyName),
-  controller: c,
-  keyboardType: TextInputType.number,
-  onChanged: onChanged,
-  decoration: InputDecoration(
-    labelText: label,
-    labelStyle: const TextStyle(fontSize: 12.5),
-    filled: true,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-  ),
-);
+/// 就地数字滚轮已改用 _ColWheel / _NumWheel（read_sheets.dart）。
 
 // ============================ 摘录操作弹层（sheetQuoteOps · L5） ============================
 
@@ -822,10 +970,19 @@ class _OpRow extends StatelessWidget {
   }
 }
 
-// ============================ 摘录复习（艾宾浩斯 1/3/7 · 翻面卡） ============================
+// ============================ 摘录复习（艾宾浩斯 1/3/7 · 3D 翻面卡） ============================
 
-Future<void> showReviewSheet(BuildContext context, WidgetRef ref) =>
-    _sheet<void>(context, const _ReviewSheet());
+/// 原型 qtReview(4880)：到期队列为空不开弹层，直接 toast。
+Future<void> showReviewSheet(BuildContext context, WidgetRef ref) async {
+  final repo = ref.read(readRepositoryProvider);
+  final due = await repo.dueReviews();
+  if (!context.mounted) return;
+  if (due.isEmpty) {
+    readToast(context, '还没有到期的摘录');
+    return;
+  }
+  await _sheet<void>(context, const _ReviewSheet());
+}
 
 class _ReviewSheet extends ConsumerStatefulWidget {
   const _ReviewSheet();
@@ -930,6 +1087,70 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
         .where((x) => x.id == q.bookId)
         .firstOrNull;
     final md = DateTime.fromMillisecondsSinceEpoch(q.createdAt);
+    // 3D 翻面（原型 2529 .rv flip：RotationY 0→π，正面原文/背面想法）。
+    Widget face({required bool back}) => Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 188),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: back
+            ? context.tokens.accent.withValues(alpha: .07)
+            : cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+      ),
+      child: back
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  q.thought == null || q.thought!.isEmpty
+                      ? '（这条还没写想法 · 现在补一句？）'
+                      : q.thought!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12.5, height: 1.7),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '下次复习：${_label(_rv[q.id]?.nextAt)}',
+                  key: const ValueKey('rv-next'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.75,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${b?.title ?? ''} · ${q.chapter ?? '未分章'} · '
+                  '${md.month.toString().padLeft(2, '0')}-'
+                  '${md.day.toString().padLeft(2, '0')}',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '点卡片翻面看自己的想法',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurfaceVariant.withValues(alpha: .7),
+                  ),
+                ),
+              ],
+            ),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -949,75 +1170,24 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
         GestureDetector(
           key: const ValueKey('rv-card'),
           onTap: () => setState(() => _flip = !_flip),
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 188),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: _flip
-                  ? context.tokens.accent.withValues(alpha: .07)
-                  : cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: .4),
+          child: TweenAnimationBuilder<double>(
+            key: const ValueKey('rv-flip'),
+            tween: Tween(begin: 0, end: _flip ? 1 : 0),
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOut,
+            builder: (context, t, _) => Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.0015)
+                ..rotateY(pi * t),
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0015)
+                  ..rotateY(t > .5 ? pi : 0),
+                child: t > .5 ? face(back: true) : face(back: false),
               ),
             ),
-            child: _flip
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        q.thought == null || q.thought!.isEmpty
-                            ? '（这条还没写想法）'
-                            : q.thought!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 12.5, height: 1.7),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '下次复习：${_label(_rv[q.id]?.nextAt)}',
-                        key: const ValueKey('rv-next'),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        q.kind == BookQuote.kKindMark
-                            ? '「${q.body}」'
-                            : q.body,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.75,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${b?.title ?? ''} · ${q.chapter ?? '未分章'} · '
-                        '${md.month.toString().padLeft(2, '0')}-'
-                        '${md.day.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        '点卡片翻面看自己的想法',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: cs.onSurfaceVariant.withValues(alpha: .7),
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ),
         const SizedBox(height: 12),

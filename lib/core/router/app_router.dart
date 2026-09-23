@@ -141,9 +141,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/read/settings',
-        builder: (_, _) => const ReadSettingsPage(),
+        builder: (_, s) => ReadSettingsPage(
+          // ?sec= 定位组（书架长按菜单「调整长按菜单」→ 1＝内容显示与排序）。
+          initialSec: int.tryParse(s.uri.queryParameters['sec'] ?? '') ?? 0,
+        ),
       ),
-      // 书架资料管理：?kind= 决定默认 tab（书架维度行「管理标签/来源/…」入口）。
+      // 书架资料单类管理页：?kind= 决定类（书架维度行「管理X」入口；默认来源）。
       GoRoute(
         path: '/read/mgr',
         builder: (_, s) {

@@ -101,6 +101,15 @@ final dictProvider = FutureProvider.family<List<DictEntry>, String>((
   return ref.watch(readRepositoryProvider).dictOf(kind);
 });
 
+/// 书架资料全值域引用计数（单类管理页行副行 / 删除守卫批量取）。
+final dictCountsProvider = FutureProvider.family<Map<String, int>, String>((
+  ref,
+  kind,
+) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).dictRefCounts(kind);
+});
+
 final allQuotesProvider = FutureProvider<List<BookQuote>>((ref) {
   ref.watch(readTickProvider);
   return ref.watch(readRepositoryProvider).allQuotes();
@@ -233,6 +242,9 @@ final workbenchProvider = FutureProvider<WorkbenchData>((ref) async {
   final day = await repo.minutesOnDay(now);
   final week = await repo.minutesThisWeek();
   final days = await repo.readingDays();
+  final now2 = DateTime(now.year, now.month, now.day);
+  final weekStart = now2.subtract(Duration(days: now.weekday - 1));
+  final monthStart = DateTime(now.year, now.month);
   final quotes = await repo.recentQuotes(3);
   final running = await repo.runningSession();
   return WorkbenchData(
@@ -248,6 +260,16 @@ final workbenchProvider = FutureProvider<WorkbenchData>((ref) async {
     dueReviews: await repo.dueReviewCount(),
     running: running,
     agg: sessionAggByBook(await repo.allSessions()),
+    // L7 五路实况（统计页目标卡 · 批D）。
+    goalWeekDays: await repo.kvInt('read.goalWeekDays', 5),
+    goalMonthQuotes: await repo.kvInt('read.goalMonthQuotes', 20),
+    weekDays: days.where((d) => !d.isBefore(weekStart) && !d.isAfter(now2)).length,
+    monthQuotes: await repo.quoteCountSince(
+      ReadRepository.dayStartMs(monthStart),
+    ),
+    weekQuotes: await repo.quoteCountSince(
+      ReadRepository.dayStartMs(weekStart),
+    ),
   );
 });
 
@@ -276,3 +298,10 @@ String bsWayName(String way) => switch (way) {
   Book.kWayMin => '分钟',
   _ => '页数',
 };
+
+/// 评分显示（整数去尾零 · 原型 `${b.rate}分` 口径；0 分显空串）。
+String bsRateLabel(double rating) => rating <= 0
+    ? ''
+    : rating % 1 == 0
+    ? '${rating.toInt()}分'
+    : '$rating分';

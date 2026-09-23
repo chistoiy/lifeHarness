@@ -99,7 +99,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     setState(() => _lastBatch = null);
     _parse();
     ref.read(readTickProvider.notifier).state++;
-    readToast(context, '已撤销本批 $n 条摘录');
+    readToast(context, '已撤销本批 · 移除 $n 条摘录');
   }
 
   Future<void> _allBooks() async {
@@ -112,7 +112,10 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     if (!mounted) return;
     setState(() => _busy = false);
     ref.read(readTickProvider.notifier).state++;
-    readToast(context, '已按清单建 ${r.created} 本（想读）· 跳过重复 ${r.skipped} 条');
+    readToast(
+      context,
+      '已按清单建 ${r.created} 本（想读）· 跳过重复 ${r.skipped} 条 · 同名同 ISBN 不重复建',
+    );
   }
 
   @override
