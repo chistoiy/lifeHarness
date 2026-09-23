@@ -932,9 +932,9 @@ tailwind.config = {
           <div class="h-2 rounded-full bg-white/20 overflow-hidden flex"><span id="finBudgetBar" class="bg-white/90 rounded-full" style="width:0%"></span></div>
           <div class="mt-1.5 flex justify-between text-[10px] opacity-80"><span id="finBudgetL">月度预算 ¥0</span><span id="finBudgetR">已用 0%</span></div>
         </button>
+        <div class="mt-3 -mb-1 grid grid-cols-5 gap-1" id="finFuncRow"></div>
       </div>
       <div id="finDue" class="hidden mt-3 card !py-2.5 !px-3.5 flex items-center gap-2 text-[11px]"></div>
-      <div class="mt-4 grid grid-cols-5 gap-1" id="finFuncRow"></div>
       <div class="mt-3 card !px-3 !py-3">
         <div class="flex items-center justify-between"><span class="row-title !mb-0 !text-[11px] opacity-70">快速记一笔</span><button class="text-[10px] text-brand-500 font-bold" onclick="navTo('p-txAdd')">自定义分类 ›</button></div>
         <div class="mt-2 grid grid-cols-5 gap-1" id="finQuickCats"></div>
@@ -993,9 +993,12 @@ tailwind.config = {
       <div id="repCustom" class="hidden mt-2 gap-2"></div>
       <div class="card mt-3" id="repSum"></div>
       <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">收支趋势</div><div id="repBars" class="mt-3 flex items-end gap-1" style="height:132px"></div><div id="repBarsX" class="mt-1 flex gap-1 text-[8px] text-slate-400"></div></div>
+      <div class="card mt-3"><div class="flex items-center"><span class="row-title !mb-0 !text-[11px] opacity-70">支出趋势曲线</span><span id="repCurveTag" class="ml-auto text-[9px] text-slate-400"></span></div><div id="repCurve" class="mt-2"></div></div>
+      <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">收支概览</div><div id="repOverview" class="mt-2.5 grid grid-cols-3 gap-2 text-center"></div></div>
       <div class="card mt-3"><div class="flex items-center"><span class="row-title !mb-0 !text-[11px] opacity-70">分类排行</span><div class="ml-auto flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[9px] font-bold" id="repDimSeg"></div><span id="repDrillHint" class="text-[9px] text-slate-400 ml-2">按大类</span></div><div id="repCats" class="mt-2.5 space-y-2.5"></div></div>
       <div id="repDrillWrap" class="mt-3 hidden"></div>
       <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">Top 支出项目</div><div id="repTop" class="mt-2 space-y-1 text-xs"></div></div>
+      <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">消费洞察</div><div id="repInsights" class="mt-2 space-y-2.5"></div></div>
     </section>
 
     <!-- ===== L16 年度总结 ===== -->
@@ -4557,7 +4560,7 @@ function renderL1(){
  $('#finBudgetR').textContent=over?`已超支 ${money(st.exp-b.total)}`:b.total?`已用 ${pct.toFixed(0)}% · 日均可用 ${AMT(Math.max(0,(b.total-st.exp)/daysLeft))}`:'点击查看';
  /* 功能区 */
  $('#finFuncRow').innerHTML=[['assets','pie','资产','p-assets'],['budget','target','预算','p-budget'],['report','bars','报表','p-report'],['recur','repeat','周期','p-recur'],['more','grid2','更多',null]].map(([id,ic,n,pg])=>
-  `<button class="func-b" onclick="${pg?`navTo('${pg}')`:`openSheet('sheetLedgerMore')`}">${svgIco(ic,'w-5 h-5')}<span>${n}</span></button>`).join('');
+  `<button class="func-b !text-white/90 active:bg-white/10" onclick="${pg?`navTo('${pg}')`:`openSheet('sheetLedgerMore')`}">${svgIco(ic,'w-5 h-5')}<span>${n}</span></button>`).join('');
  $('#ledgerMoreGrid')&&($('#ledgerMoreGrid').innerHTML=[['p-cats','tag','分类管理'],['p-wish','star','心愿单'],['p-debt','arrows','借出·借入'],['p-txSearch','search','搜索筛选'],['p-billImport','dl','账单导入'],['p-export','copy','数据导出'],['p-yearly','cal','年度总结'],['p-lset','gear','记账设置']].map(([pg,ic,n])=>
   `<button class="func-b !min-h-[64px]" onclick="closeSheet('sheetLedgerMore');navTo('${pg}')">${svgIco(ic,'w-5 h-5')}<span>${n}</span></button>`).join(''));
  /* 快捷记一笔 5 格 */
@@ -4786,14 +4789,37 @@ function renderReport(){
   <div><div class="text-[10px] text-slate-400">收入</div><b class="text-xl text-emerald-500">${AMT(inc)}</b></div>
   <div class="ml-auto text-right"><div class="text-[10px] text-slate-400">环比上期</div><b class="text-[13px] ${cmp>0?'text-rose-400':'text-emerald-500'}">${cmp>0?'↑':'↓'} ${Math.abs(cmp).toFixed(0)}%</b></div></div>
   <div class="mt-2 flex gap-4 text-[10px] text-slate-400"><span>共 ${cnt} 笔</span>${big?`<span>最大单笔 ${big.n||lcatN(big.cat)} ${money(big.amt)}</span>`:''}<button class="ml-auto text-brand-500 font-bold" onclick="navTo('p-export')">导出 ›</button></div>`;
- /* 趋势柱 */
+ /* 趋势柱（V1.35：收支按堆叠总高归一，柱体不再溢出卡片） */
  const bs=r.buckets.map(b=>({l:b.label,e:sumExp(repTxs(b.s,b.e)),i:sumInc(repTxs(b.s,b.e))}));
- const mx=Math.max(1,...bs.map(b=>Math.max(b.e,b.i)));
- $('#repBars').innerHTML=bs.map(b=>`<div class="flex-1 flex flex-col justify-end items-center gap-0.5" title="${b.l}">
-  <i class="w-full max-w-[14px] rounded-t-sm bg-emerald-400/70" style="height:${Math.round(b.i/mx*110)}px"></i>
-  <i class="w-full max-w-[14px] rounded-t-sm bg-rose-400" style="height:${Math.round(b.e/mx*110)}px"></i></div>`).join('');
+ const mx=Math.max(1,...bs.map(b=>b.e+b.i));
+ $('#repBars').innerHTML=bs.map(b=>`<div class="flex-1 flex flex-col justify-end items-center gap-0.5 min-w-0" title="${b.l}">
+  <i class="w-full max-w-[14px] rounded-t-sm bg-emerald-400/70" style="height:${Math.round(b.i/mx*106)}px"></i>
+  <i class="w-full max-w-[14px] rounded-t-sm bg-rose-400" style="height:${Math.round(b.e/mx*106)}px"></i></div>`).join('');
  const step=r.buckets.length>14?Math.ceil(r.buckets.length/8):1;
- $('#repBarsX').innerHTML=r.buckets.map((b,i)=>`<span class="flex-1 text-center">${i%step===0?b.l:''}</span>`).join('');
+ $('#repBarsX').innerHTML=r.buckets.map((b,i)=>`<span class="flex-1 min-w-0 text-center truncate">${i%step===0?b.label:''}</span>`).join('');
+ /* 支出趋势曲线（V1.35 · 参考图2：峰值气泡标注 + 均值虚线） */
+ {const W=320,H=120,P=12,B=20,n=bs.length;
+  const emx=Math.max(1,...bs.map(b=>b.e));let pk=0;bs.forEach((b,i)=>{if(b.e>bs[pk].e)pk=i});
+  const px=i=>P+(n<2?(W-2*P)/2:i*(W-2*P)/(n-1)),py=v=>H-B-(v/emx)*(H-B-16);
+  const line=bs.map((b,i)=>(i?'L':'M')+px(i).toFixed(1)+' '+py(b.e).toFixed(1)).join('');
+  const area=line+`L${px(n-1).toFixed(1)} ${H-B}L${px(0).toFixed(1)} ${H-B}Z`;
+  const avg=n?exp/n:0,ay=py(Math.min(avg,emx));const al=rep.p==='year'?'月均':'日均';
+  $('#repCurveTag').textContent=n>1?`${al} ${AMT(avg)} · 峰值 ${bs[pk].l}`:'';
+  $('#repCurve').innerHTML=n<2?'<span class="text-[11px] text-slate-400">数据点不足</span>':`<svg viewBox="0 0 ${W} ${H}" class="w-full" fill="none">
+   <path d="${area}" fill="rgba(251,113,133,.12)"/><path d="${line}" stroke="#fb7185" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+   <line x1="${P}" y1="${ay.toFixed(1)}" x2="${W-P}" y2="${ay.toFixed(1)}" stroke="#94a3b8" stroke-width=".8" stroke-dasharray="3 3"/>
+   <text x="${W-P}" y="${(ay-3).toFixed(1)}" text-anchor="end" font-size="7" fill="#94a3b8">${al} ${AMT(avg)}</text>
+   <circle cx="${px(pk).toFixed(1)}" cy="${py(bs[pk].e).toFixed(1)}" r="3" fill="#fb7185"/>
+   <g transform="translate(${Math.min(Math.max(px(pk),54),W-54).toFixed(1)},${Math.max(py(bs[pk].e)-16,12).toFixed(1)})"><rect x="-54" y="-11" width="108" height="16" rx="8" fill="#fb7185"/><text text-anchor="middle" y="1" font-size="8" font-weight="700" fill="#fff">${bs[pk].l} · ${AMT(bs[pk].e)}</text></g>
+   <text x="${P}" y="${H-6}" font-size="7" fill="#94a3b8">${bs[0].l}</text>
+   <text x="${W-P}" y="${H-6}" font-size="7" fill="#94a3b8" text-anchor="end">${bs[n-1].l}</text></svg>`}
+ /* 收支概览（V1.35 · 参考图2：收入/结余/支出三列 + 环比） */
+ {const bal=inc-exp,pinc=sumInc(repTxs(ps,pe));
+  const mom=(v,pv)=>pv>0?`较上期 ${v>=pv?'↑':'↓'} ${Math.abs((v-pv)/pv*100).toFixed(0)}%`:'上期无数据';
+  const cells=[['本期收入',AMT(inc),'text-emerald-500',mom(inc,pinc)],
+   ['本期结余',(bal<0?'-':'')+AMT(Math.abs(bal)),'text-brand-500','收入 − 支出'],
+   ['本期支出',AMT(exp),'text-rose-400',prevExp>0?`较上期 ${cmp>0?'↑':'↓'} ${Math.abs(cmp).toFixed(0)}%`:'上期无数据']];
+  $('#repOverview').innerHTML=cells.map(([n,v,cl,s])=>`<div class="min-w-0"><div class="text-[10px] text-slate-400">${n}</div><b class="text-[15px] ${cl} block truncate">${v}</b><div class="text-[9px] text-slate-400 mt-0.5 truncate">${s}</div></div>`).join('')}
  /* 分类排行（V1.34 · 大类/小类维度） */
  $('#repDimSeg').innerHTML=[['cat','大类'],['sub','小类']].map(([k,n])=>`<button class="px-2.5 py-1 rounded-full ${rep.dim===k?'seg-on':''}" onclick="rep.dim='${k}';rep.drill=null;renderReport()">${n}</button>`).join('');
  const cs={};for(const t of all){const k=rep.dim==='sub'?t.cat+'|'+(t.sub||''):t.cat;
@@ -4807,6 +4833,20 @@ function renderReport(){
     <b class="flex-1 truncate">${lbl}</b><span class="text-slate-400">${(v/exp*100).toFixed(0)}%</span><b>${AMT(v)}</b></div>
    <div class="mt-1 ml-8 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full" style="width:${v/cmx*100}%;background:${c.c}"></span></div></button>`}).join('')
   :'<span class="text-[11px] text-slate-400">该区间暂无支出</span>';
+ /* 消费洞察（V1.35 · 参考图2：规则生成 · 合理/优秀/注意标签 · 无 AI 无 emoji） */
+ {const TC={'合理':'#6366f1','优秀':'#10b981','注意':'#f59e0b'};const ins=[];
+  if(rank.length){const[k,v]=rank[0],pc=v/Math.max(1,exp)*100;
+   const cn=rep.dim==='sub'?(lcat(k.split('|')[0])||{n:'其他'}).n+' · '+(k.split('|')[1]||'未细分'):(lcat(k)||{n:'其他'}).n;
+   ins.push([pc>=40?'注意':'合理','pie',`${cn}是主要支出`,`占比 ${pc.toFixed(0)}% · 共 ${AMT(v)}`])}
+  if(prevExp>0)ins.push(cmp<=-5?['优秀','down',`支出较上期减少 ${Math.abs(cmp).toFixed(0)}%`,'继续保持消费节奏']:cmp>=5?['注意','bars',`支出较上期增加 ${cmp.toFixed(0)}%`,'关注高频分类的变化']:['合理','scale','支出与上期基本持平',`环比 ${cmp>=0?'+':''}${cmp.toFixed(0)}%`]);
+  const bd=(L.budgets[curBook]||{})[finMonth];
+  if(bd&&bd.total){const bpct=exp/bd.total*100;
+   ins.push(exp>bd.total?['注意','target',`本期预算已超支 ${AMT(exp-bd.total)}`,'可到预算页调整额度']:bpct>=90?['注意','target',`预算已用 ${bpct.toFixed(0)}%`,`剩余 ${AMT(bd.total-exp)}`]:['合理','target','预算余量充足',`已用 ${bpct.toFixed(0)}% · 剩 ${AMT(bd.total-exp)}`])}
+  if(big)ins.push(['合理','receipt',`最大单笔 ${big.n||lcatN(big.cat)}`,AMT(big.amt)]);
+  $('#repInsights').innerHTML=ins.length?ins.map(([tg,ic,t,s])=>`<div class="flex items-center gap-2.5">
+   <span class="fin-ico !w-7 !h-7 shrink-0" style="background:${TC[tg]}1a;color:${TC[tg]}">${svgIco(ic,'w-4 h-4')}</span>
+   <div class="flex-1 min-w-0"><b class="text-[12px] block truncate">${t}</b><span class="text-[10px] text-slate-400 block truncate">${s}</span></div>
+   <span class="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full" style="background:${TC[tg]}1f;color:${TC[tg]}">${tg}</span></div>`).join(''):'<span class="text-[11px] text-slate-400">该区间数据不足</span>'}
  $('#repDrillHint').textContent=rep.drill?'钻取中 · 再点收起':(rep.dim==='sub'?'按小类':'按大类');
  const dw=$('#repDrillWrap');dw.classList.toggle('hidden',!rep.drill);
  if(rep.drill){const ts=all.filter(t=>{const k=rep.dim==='sub'?t.cat+'|'+(t.sub||''):t.cat;return k===rep.drill&&(t.kind==='expense'||t.kind==='refund')}).sort((a,b)=>a.d<b.d?1:-1);
