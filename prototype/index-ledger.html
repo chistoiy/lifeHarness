@@ -974,7 +974,56 @@ tailwind.config = {
     <section id="p-txDetail" class="page px-5 safe-pb no-scrollbar">
       <div id="txdBody"></div>
     </section>
+    <!-- ===== L4 统计报表 ===== -->
+    <section id="p-report" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold" id="repSeg"></div>
+      <div id="repCustom" class="hidden mt-2 gap-2"></div>
+      <div class="card mt-3" id="repSum"></div>
+      <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">收支趋势</div><div id="repBars" class="mt-3 flex items-end gap-1" style="height:132px"></div><div id="repBarsX" class="mt-1 flex gap-1 text-[8px] text-slate-400"></div></div>
+      <div class="card mt-3"><div class="flex items-center"><span class="row-title !mb-0 !text-[11px] opacity-70">分类排行</span><span id="repDrillHint" class="ml-auto text-[9px] text-slate-400">点击分类钻取流水</span></div><div id="repCats" class="mt-2.5 space-y-2.5"></div></div>
+      <div id="repDrillWrap" class="mt-3 hidden"></div>
+      <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">Top 支出项目</div><div id="repTop" class="mt-2 space-y-1 text-xs"></div></div>
+    </section>
+
+    <!-- ===== L16 年度总结 ===== -->
+    <section id="p-yearly" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between text-sm font-extrabold">
+        <button class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800" onclick="yearStep(-1)">‹</button>
+        <span id="yearLbl">2026</span>
+        <button class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800" onclick="yearStep(1)">›</button>
+      </div>
+      <div id="yrBody" class="mt-3 space-y-3"></div>
+    </section>
+    <!-- ===== L5 预算中心 ===== -->
+    <section id="p-budget" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between text-xs font-bold">
+        <button class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800" onclick="budMonthStep(-1)">‹</button>
+        <span id="budMonthLbl">2026年9月</span>
+        <button class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800" onclick="budMonthStep(1)">›</button>
+      </div>
+      <div id="budBody" class="mt-2 space-y-3"></div>
+    </section>
+
+    <!-- ===== L6 资产总览 ===== -->
+    <section id="p-assets" class="page px-5 safe-pb no-scrollbar">
+      <div id="astBody" class="space-y-3"></div>
+    </section>
+
+    <!-- ===== L7 账户详情 ===== -->
+    <section id="p-assetAcct" class="page px-5 safe-pb no-scrollbar">
+      <div id="acdBody" class="space-y-3"></div>
+    </section>
+    <!-- ===== L8 分类管理 ===== -->
+    <section id="p-cats" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold" id="catKindSeg"></div>
+      <div id="catList" class="mt-3 space-y-2"></div>
+      <button class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400 font-bold" onclick="openCatSheet()">＋ 新建分类</button>
+      <div class="mt-2 text-[9px] text-slate-400 text-center">时间账本分类沿用全局分类表（设置 › 分类管理）</div>
+    </section>
 <!--LEDGER_NEXT-->
+
+
+
 
     <!-- ===== P6b 账单导入向导 ===== -->
     <section id="p-billImport" class="page px-5 safe-pb no-scrollbar">
@@ -1652,6 +1701,60 @@ tailwind.config = {
       <div class="font-extrabold text-sm" id="ldAcctTitle">选择账户</div>
       <div class="mt-3 space-y-1.5" id="ldAcctList"></div>
       <button class="mt-3 w-full py-2.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400 font-bold" onclick="closeSheet('sheetLedgerAcct');navTo('p-assets')">管理账户 ›</button>
+    </div>
+  </div>
+
+  <!-- ===== S3 分类新建/编辑弹层 ===== -->
+  <div id="sheetLedgerCatAdd" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerCatAdd')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm" id="caTitle">新建分类</div>
+      <input id="caNameInp" class="inp mt-3" placeholder="分类名称">
+      <div class="mt-3 text-[11px] font-bold text-slate-400">图标</div>
+      <div id="lcIconGrid" class="mt-1.5 grid grid-cols-8 gap-1.5"></div>
+      <div class="mt-3 text-[11px] font-bold text-slate-400">颜色</div>
+      <div id="lcColorGrid" class="mt-1.5 flex flex-wrap gap-2.5"></div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetLedgerCatAdd')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="catSheetSave()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== S4 账户新建/编辑弹层 ===== -->
+  <div id="sheetLedgerAcctAdd" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerAcctAdd')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm" id="aaTitle">新建账户</div>
+      <div class="mt-3 grid grid-cols-3 gap-1.5" id="aaTypeGrid"></div>
+      <input id="aaName" class="inp mt-3" placeholder="账户名称">
+      <div class="mt-2 grid grid-cols-2 gap-2">
+        <input id="aaBal" class="inp" type="number" placeholder="余额">
+        <input id="aaLimit" class="inp hidden" type="number" placeholder="信用额度">
+      </div>
+      <div class="mt-2 grid grid-cols-2 gap-2 hidden" id="aaCreditRow">
+        <select id="aaBill" class="sel w-full"></select>
+        <select id="aaRepay" class="sel w-full"></select>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetLedgerAcctAdd')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="acctSheetSave()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== S5 金额滚轮弹层（预算/余额调整共用） ===== -->
+  <div id="sheetLedgerWheel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerWheel')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center">
+        <div class="font-extrabold text-sm" id="whTitle">设置金额</div>
+        <button class="ml-auto text-xs font-extrabold text-brand-500" onclick="wheelOk()">确定</button>
+      </div>
+      <div class="mt-3 relative rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-2">
+        <div class="wline !top-[90px]"></div>
+        <div class="wbox"><div class="wcol" id="whW"></div></div>
+      </div>
     </div>
   </div>
 
@@ -4620,6 +4723,304 @@ LED_RENDER['p-finance']=renderL1;LED_RENDER['p-txAdd']=renderTxAdd;LED_RENDER['p
 function openCatAddSheet(cat){toast('子分类添加见「分类管理」')}
 /* 调试/自检导出（词法作用域桥） */
 window.__ledger={get L(){return L},get txState(){return txState},get qkState(){return qkState},get finMonth(){return finMonth},set finMonth(v){finMonth=v},LCATS,money,AMT,mStat,catStat,accBal,exprVal,wdOf,monthOf,get LD(){return typeof LED!=='undefined'?LED:null}};
+/* ======================= L4 统计报表 ======================= */
+const rep={p:'month',drill:null,from:'',to:''};
+const pad2=n=>String(n).padStart(2,'0');
+const dstr=(y,m,d)=>`${y}-${pad2(m)}-${pad2(d)}`;
+function shiftDays(s,n){const[y,m,d]=s.split('-').map(Number);const t=new Date(y,m-1,d+n);return dstr(t.getFullYear(),t.getMonth()+1,t.getDate())}
+function repRange(){
+ if(rep.p==='week'){const b=[];
+  for(let i=0;i<7;i++){const ds=shiftDays(TODAY,-(6-i));b[i]={s:ds,e:ds,label:ds.slice(8)}}
+  return{s:b[0].s,e:b[6].e,buckets:b,label:'近 7 天'}}
+ if(rep.p==='year'){const y=+finMonth.slice(0,4),b=[];for(let m=1;m<=12;m++)b.push({s:dstr(y,m,1),e:dstr(y,m,new Date(y,m,0).getDate()),label:m+'月'});
+  return{s:dstr(y,1,1),e:dstr(y,12,31),buckets:b,label:y+'年'}}
+ if(rep.p==='custom'){const s=rep.from||finMonth+'-01',e=rep.to||TODAY;const b=[];let cur=s,i=0;
+  while(cur<=e&&i<62){b.push({s:cur,e:cur,label:cur.slice(8)});cur=shiftDays(cur,1);i++}
+  return{s,e,buckets:b,label:`${s.slice(5)} ~ ${e.slice(5)}`}}
+ const[y,mo]=finMonth.split('-').map(Number),last=new Date(y,mo,0).getDate(),b=[];
+ for(let d=1;d<=last;d++)b.push({s:dstr(y,mo,d),e:dstr(y,mo,d),label:d});
+ return{s:dstr(y,mo,1),e:dstr(y,mo,last),buckets:b,label:finLbl(finMonth)};
+}
+function repTxs(s,e){return L.txns.filter(t=>t.d>=s&&t.d<=e)}
+function sumExp(ts){return ts.reduce((s,t)=>s+(t.kind==='expense'?t.amt:t.kind==='refund'?-t.amt:0),0)}
+function sumInc(ts){return ts.reduce((s,t)=>s+(t.kind==='income'?t.amt:0),0)}
+function renderReport(){
+ if(!document.getElementById('repSeg'))return;
+ $('#repSeg').innerHTML=[['week','周'],['month','月'],['year','年'],['custom','自定义']].map(([k,n])=>
+  `<button class="flex-1 py-1.5 rounded-full ${rep.p===k?'seg-on':''}" onclick="rep.p='${k}';rep.drill=null;renderReport()">${n}</button>`).join('');
+ $('#repCustom').className=(rep.p==='custom'?'flex':'hidden')+' mt-2 gap-2';
+ if(rep.p==='custom'){const r0=repRange();
+  $('#repCustom').innerHTML=`<button class="chip" onclick="openLedgerDate(d=>{rep.from=d;renderReport()},'day')">起 ${rep.from||r0.s.slice(5)}</button>
+   <button class="chip" onclick="openLedgerDate(d=>{rep.to=d;renderReport()},'day')">止 ${rep.to||r0.e.slice(5)}</button>`}
+ const r=repRange(),all=repTxs(r.s,r.e);
+ const exp=sumExp(all),inc=sumInc(all),days=Math.round((new Date(r.e)-new Date(r.s))/864e5)+1;
+ const cnt=all.filter(t=>['expense','income'].includes(t.kind)).length;
+ const big=all.filter(t=>t.kind==='expense').sort((a,b)=>b.amt-a.amt)[0];
+ const ps=shiftDays(r.s,-days),pe=shiftDays(r.s,-1),prevExp=sumExp(repTxs(ps,pe));
+ const cmp=prevExp?((exp-prevExp)/prevExp*100):0;
+ $('#repSum').innerHTML=`<div class="text-[10px] text-slate-400">${r.label} · 日均支出 ${AMT(days?exp/days:0)}</div>
+  <div class="mt-1 flex items-end gap-5"><div><div class="text-[10px] text-slate-400">支出</div><b class="text-xl text-rose-400">${AMT(exp)}</b></div>
+  <div><div class="text-[10px] text-slate-400">收入</div><b class="text-xl text-emerald-500">${AMT(inc)}</b></div>
+  <div class="ml-auto text-right"><div class="text-[10px] text-slate-400">环比上期</div><b class="text-[13px] ${cmp>0?'text-rose-400':'text-emerald-500'}">${cmp>0?'↑':'↓'} ${Math.abs(cmp).toFixed(0)}%</b></div></div>
+  <div class="mt-2 flex gap-4 text-[10px] text-slate-400"><span>共 ${cnt} 笔</span>${big?`<span>最大单笔 ${big.n||lcatN(big.cat)} ${money(big.amt)}</span>`:''}<button class="ml-auto text-brand-500 font-bold" onclick="navTo('p-export')">导出 ›</button></div>`;
+ /* 趋势柱 */
+ const bs=r.buckets.map(b=>({l:b.label,e:sumExp(repTxs(b.s,b.e)),i:sumInc(repTxs(b.s,b.e))}));
+ const mx=Math.max(1,...bs.map(b=>Math.max(b.e,b.i)));
+ $('#repBars').innerHTML=bs.map(b=>`<div class="flex-1 flex flex-col justify-end items-center gap-0.5" title="${b.l}">
+  <i class="w-full max-w-[14px] rounded-t-sm bg-emerald-400/70" style="height:${Math.round(b.i/mx*110)}px"></i>
+  <i class="w-full max-w-[14px] rounded-t-sm bg-rose-400" style="height:${Math.round(b.e/mx*110)}px"></i></div>`).join('');
+ const step=r.buckets.length>14?Math.ceil(r.buckets.length/8):1;
+ $('#repBarsX').innerHTML=r.buckets.map((b,i)=>`<span class="flex-1 text-center">${i%step===0?b.l:''}</span>`).join('');
+ /* 分类排行 */
+ const cs={};for(const t of all){if(t.kind==='expense')cs[t.cat]=(cs[t.cat]||0)+t.amt;else if(t.kind==='refund')cs[t.cat]=(cs[t.cat]||0)-t.amt}
+ const rank=Object.entries(cs).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+ const cmx=rank.length?rank[0][1]:1;
+ $('#repCats').innerHTML=rank.length?rank.map(([id,v])=>{const c=lcat(id)||{n:'其他',c:'#94a3b8',i:'dots'};
+  return `<button class="w-full text-left" onclick="repDrill('${id}')">
+   <div class="flex items-center gap-2 text-[11px]"><span class="fin-ico !w-6 !h-6 !rounded-lg" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-3.5 h-3.5')}</span>
+    <b class="flex-1">${c.n}</b><span class="text-slate-400">${(v/exp*100).toFixed(0)}%</span><b>${AMT(v)}</b></div>
+   <div class="mt-1 ml-8 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full" style="width:${v/cmx*100}%;background:${c.c}"></span></div></button>`}).join('')
+  :'<span class="text-[11px] text-slate-400">该区间暂无支出</span>';
+ $('#repDrillHint').textContent=rep.drill?'钻取中 · 再点收起':'点击分类钻取流水';
+ const dw=$('#repDrillWrap');dw.classList.toggle('hidden',!rep.drill);
+ if(rep.drill){const ts=all.filter(t=>(t.cat===rep.drill)&&(t.kind==='expense'||t.kind==='refund')).sort((a,b)=>a.d<b.d?1:-1);
+  dw.innerHTML=`<div class="card !p-0 overflow-hidden"><div class="flex items-center px-3.5 pt-2.5 pb-1"><b class="text-[11px]">${lcatN(rep.drill)} · ${ts.length} 笔</b>
+   <button class="ml-auto text-[10px] text-slate-400 font-bold" onclick="rep.drill=null;renderReport()">收起 ✕</button></div>${ts.map(txRow).join('')}</div>`}
+ /* Top 项目 */
+ const agg={};for(const t of all)if(t.kind==='expense'){const k=t.n||lcatN(t.cat);agg[k]=(agg[k]||0)+t.amt}
+ $('#repTop').innerHTML=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>
+  `<div class="flex items-center"><span class="flex-1 truncate text-slate-500 dark:text-slate-400">${k}</span><b>${AMT(v)}</b></div>`).join('')||'<span class="text-[11px] text-slate-400">暂无</span>';
+}
+function repDrill(id){rep.drill=rep.drill===id?null:id;renderReport()}
+
+/* ======================= L16 年度总结 ======================= */
+let yearSel=2026;
+function yearStep(d){yearSel+=d;renderYearly()}
+function renderYearly(){
+ const y=String(yearSel),all=L.txns.filter(t=>t.d.slice(0,4)===y);
+ const exp=sumExp(all),inc=sumInc(all),cnt=all.filter(t=>['expense','income'].includes(t.kind)).length;
+ const actDays=new Set(all.filter(t=>t.kind==='expense').map(t=>t.d)).size;
+ const big=all.filter(t=>t.kind==='expense').sort((a,b)=>b.amt-a.amt)[0];
+ const cs={};for(const t of all){if(t.kind==='expense')cs[t.cat]=(cs[t.cat]||0)+t.amt;else if(t.kind==='refund')cs[t.cat]=(cs[t.cat]||0)-t.amt}
+ const rank=Object.entries(cs).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+ const mb=Array.from({length:12},(_,i)=>({m:i+1,e:sumExp(all.filter(t=>+t.d.slice(5,7)===i+1)),i:sumInc(all.filter(t=>+t.d.slice(5,7)===i+1))}));
+ const mx=Math.max(1,...mb.map(b=>Math.max(b.e,b.i)));
+ $('#yearLbl').textContent=y+' 年';
+ $('#yrBody').innerHTML=`
+  <div class="grad rounded-3xl p-5 text-white text-center shadow-lg shadow-indigo-500/20">
+   <div class="text-[11px] opacity-80">${y} 年 · 本地账本</div>
+   <div class="mt-1 text-3xl font-extrabold">${AMT(exp)}</div>
+   <div class="text-[11px] opacity-80 mt-1">全年支出 · 收入 ${AMT(inc)} · 结余 ${AMT(inc-exp)}</div>
+   <div class="mt-4 flex justify-center gap-6 text-[11px]"><span>${cnt} 笔流水</span><span>记账 ${actDays} 天</span><span>日均 ${AMT(exp/365)}</span></div>
+  </div>
+  <div class="card"><div class="row-title !text-[11px] opacity-70">月度收支</div>
+   <div class="mt-3 flex items-end gap-1.5" style="height:110px">${mb.map(b=>`<div class="flex-1 flex flex-col justify-end items-center gap-0.5"><i class="w-full max-w-[12px] rounded-t-sm bg-emerald-400/70" style="height:${Math.round(b.i/mx*90)}px"></i><i class="w-full max-w-[12px] rounded-t-sm bg-rose-400" style="height:${Math.round(b.e/mx*90)}px"></i></div>`).join('')}</div>
+   <div class="mt-1 flex gap-1.5 text-[8px] text-slate-400">${mb.map(b=>`<span class="flex-1 text-center">${b.m}</span>`).join('')}</div></div>
+  <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">年度分类 Top</div>
+   <div class="mt-2 space-y-2">${rank.slice(0,5).map(([id,v],i)=>{const c=lcat(id);
+    return `<div class="flex items-center gap-2 text-[12px]"><b class="w-4 text-slate-400">${i+1}</b><span class="fin-ico !w-6 !h-6 !rounded-lg" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-3.5 h-3.5')}</span><b class="flex-1">${c.n}</b><span>${AMT(v)}</span></div>`}).join('')||'<span class="text-[11px] text-slate-400">暂无数据</span>'}</div></div>
+  ${big?`<div class="card mt-3 flex items-center gap-3"><span class="fin-ico" style="background:#f59e0b1a;color:#f59e0b">${svgIco('star','w-[18px] h-[18px]')}</span>
+   <div class="flex-1"><div class="text-[12px] font-bold">年度最大单笔</div><div class="text-[10px] text-slate-400">${big.d} · ${big.n||lcatN(big.cat)}</div></div><b class="text-rose-400">${AMT(big.amt)}</b></div>`:''}
+  <div class="mt-4 flex gap-2"><button class="flex-1 py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="toast('已生成年度分享图（模拟）')">生成分享图</button>
+   <button class="py-3 px-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="navTo('p-report')">看明细 ›</button></div>`;
+}
+LED_RENDER['p-report']=renderReport;LED_RENDER['p-yearly']=renderYearly;
+/* ======================= L5 预算中心 ======================= */
+let budMonth='2026-09',budAddMode=false;
+function budMonthStep(d){const[y,m]=budMonth.split('-').map(Number);const n=m-1+d;
+ budMonth=`${y+Math.floor(n/12)}-${String(n%12+1).padStart(2,'0')}`;renderBudget()}
+function budOf(m){return L.budget[m]||(L.budget[m]={total:0,perCat:{},carry:false})}
+function renderBudget(){
+ if(!document.getElementById('budBody'))return;
+ const b=budOf(budMonth),st=mStat(budMonth);
+ $('#budMonthLbl').textContent=finLbl(budMonth);
+ const pct=b.total?Math.min(100,st.exp/b.total*100):0,over=b.total&&st.exp>b.total;
+ const daysInM=monthOf(budMonth).last,todayD=budMonth===TODAY.slice(0,7)?+TODAY.slice(8,10):daysInM;
+ const leftDays=Math.max(1,daysInM-todayD+1);
+ const R=52,C=2*Math.PI*R;
+ let html=`<div class="card text-center !py-5">
+  <svg viewBox="0 0 128 128" class="w-32 h-32 mx-auto">
+   <circle cx="64" cy="64" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="11" class="dark:opacity-20"/>
+   <circle cx="64" cy="64" r="${R}" fill="none" stroke="${over?'#f43f5e':'#6366f1'}" stroke-width="11" stroke-linecap="round"
+    stroke-dasharray="${pct/100*C} ${C}" transform="rotate(-90 64 64)"/>
+   <text x="64" y="58" text-anchor="middle" font-size="10" fill="#94a3b8">已用</text>
+   <text x="64" y="78" text-anchor="middle" font-size="20" font-weight="800" fill="${over?'#f43f5e':'currentColor'}">${pct.toFixed(0)}%</text>
+  </svg>
+  <div class="mt-1 text-[12px] font-bold">月度总预算 ${b.total?AMT(b.total):'未设置'}</div>
+  <div class="text-[10px] text-slate-400 mt-0.5">${over?`已超支 ${money(st.exp-b.total)} · 建议调整`:`剩余 ${AMT(Math.max(0,b.total-st.exp))} · 日均可用 ${AMT(b.total?Math.max(0,b.total-st.exp)/leftDays:0)}`}</div>
+  <button class="mt-3 mini-btn !text-[12px] !py-2 !px-4" onclick="openWheel('总预算金额',b.total,v=>{budOf(budMonth).total=v;renderBudget();renderL1()})">${b.total?'修改总预算':'设置总预算'}</button>
+ </div>`;
+ const prevMonth=(()=>{const[y,m]=budMonth.split('-').map(Number);const n=m-2;return `${y+Math.floor(n/12)}-${pad2(n%12+1)}`})();
+ const prevB=budOf(prevMonth),prevSt=mStat(prevMonth),carryAmt=prevB.total?Math.max(0,prevB.total-prevSt.exp):0;
+ html+=`<div class="card">
+  <div class="flex items-center"><span class="row-title !mb-0 flex items-center gap-1.5">${svgIco('repeat','w-4 h-4 text-brand-500')}月度结转</span>
+   <span class="toggle ${b.carry?'on':''} ml-auto" onclick="budOf(budMonth).carry=!budOf(budMonth).carry;renderBudget();toast(b.carry?'结转已开启：上月未用完滚入本月':'结转已关闭')"></span></div>
+  <div class="mt-2 text-[10px] text-slate-400 leading-5">上月（${finLbl(prevMonth)}）剩余 ${AMT(carryAmt)}${b.carry?' · 将自动滚入本月预算':' · 开启后滚入本月'}</div>
+  ${b.carry&&carryAmt?`<button class="mt-2 w-full py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-[11px] font-extrabold" onclick="budOf(budMonth).total+=${Math.round(carryAmt)};renderBudget();toast('已结转 ${money(carryAmt)} 至本月预算')">立即结转 +${money(carryAmt)}</button>`:''}
+ </div>`;
+ const rows=LCATS.expense.filter(c=>b.perCat[c.id]!=null||budAddMode);
+ html+=`<div class="card !p-0 overflow-hidden"><div class="flex items-center px-4 pt-3 pb-2"><span class="row-title !mb-0">分类预算</span>
+  <button class="ml-auto text-[10px] font-bold text-brand-500" onclick="budAddMode=!budAddMode;renderBudget()">${budAddMode?'完成':'＋ 添加分类'}</button></div>`;
+ html+=rows.length?rows.map(c=>{const lim=b.perCat[c.id]||0;const used=(catStat(budMonth).find(([id])=>id===c.id)||[0,0])[1];
+  const p=lim?Math.min(110,used/lim*100):0,cut=p>100;
+  return `<button class="w-full text-left px-4 py-2.5" onclick="openWheel('「${lq(c.n)}」分类预算',lim,v=>{budOf(budMonth).perCat['${c.id}']=v;renderBudget()})">
+   <div class="flex items-center gap-2 text-[12px]"><span class="fin-ico !w-6 !h-6 !rounded-lg" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-3.5 h-3.5')}</span>
+    <b class="flex-1">${c.n}</b><span class="text-slate-400">${AMT(used)} / ${lim?money(lim):'未设'}</span></div>
+   <div class="mt-1.5 ml-8 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full" style="width:${Math.min(100,p)}%;background:${cut?'#f43f5e':c.c}"></span></div>
+   ${cut?`<div class="mt-1 ml-8 text-[9px] text-rose-400 font-bold">已超支 ${money(used-lim)}</div>`:''}</button>`}).join('')
+  :'<div class="px-4 pb-3 text-[11px] text-slate-400">点击右上角「添加分类」为具体分类设限</div>';
+ html+='</div>';
+ $('#budBody').innerHTML=html;
+}
+/* S5 金额滚轮 */
+let _whCb=null,_whVal=0;
+function openWheel(title,val,cb){_whCb=cb;_whVal=Math.max(0,Math.round(val||0));
+ $('#whTitle').textContent=title;openSheet('sheetLedgerWheel');
+ const items=Array.from({length:201},(_,i)=>i*100),idx=Math.min(200,Math.round(_whVal/100));
+ wheel('#whW',items.map(v=>money(v).replace('¥','¥ ')),idx,i=>{_whVal=items[i]});
+}
+function wheelOk(){closeSheet('sheetLedgerWheel');_whCb&&_whCb(_whVal);_whCb=null;finTouch()}
+
+/* ======================= L6 资产总览 ======================= */
+function netAt(monthEnd){return L.accounts.reduce((s,a)=>s+a.base+L.txns.filter(t=>t.d<=monthEnd).reduce((x,t)=>x+eff(t,a.id),0),0)}
+function renderAssets(){
+ if(!document.getElementById('astBody'))return;
+ const act=L.accounts.filter(a=>!a.archived),arch=L.accounts.filter(a=>a.archived);
+ const assets=act.filter(a=>accBal(a.id)>=0).reduce((s,a)=>s+accBal(a.id),0);
+ const liab=act.filter(a=>accBal(a.id)<0).reduce((s,a)=>s-accBal(a.id),0);
+ const net=assets-liab;
+ let trend=[];const y=+TODAY.slice(0,4),m0=+TODAY.slice(5,7);
+ for(let i=5;i>=0;i--){const n=m0-1-i;const yy=y+Math.floor(n/12),mm=n%12+1;
+  const lastD=new Date(yy,mm,0).getDate();trend.push({l:mm+'月',v:netAt(`${yy}-${pad2(mm)}-${pad2(lastD)}`),cur:i===0})}
+ const tmin=Math.min(...trend.map(t=>t.v)),tmax=Math.max(...trend.map(t=>t.v));
+ $('#astBody').innerHTML=`
+  <div class="grad rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/20 text-center">
+   <div class="text-[11px] opacity-80 flex items-center justify-center gap-2">净资产 <button onclick="toggleHideAmounts()" class="opacity-80">${svgIco(L.set.hide?'eyeoff':'eye','w-3.5 h-3.5')}</button></div>
+   <div class="text-3xl font-extrabold mt-1">${AMT(net)}</div>
+   <div class="mt-2 flex justify-center gap-8 text-[11px] opacity-90"><span>资产 ${AMT(assets)}</span><span>负债 ${AMT(liab)}</span></div>
+  </div>
+  <div class="card"><div class="flex items-center"><span class="row-title !mb-0">近 6 月净资产</span><span class="ml-auto text-[9px] text-slate-400">${AMT(tmin)} ~ ${AMT(tmax)}</span></div>
+   <svg viewBox="0 0 300 70" class="w-full h-20 mt-2"><polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"
+    points="${trend.map((t,i)=>`${12+i*55},${62-(tmax>tmin?(t.v-tmin)/(tmax-tmin)*48:24)}`).join(' ')}"/>
+    ${trend.map((t,i)=>`<circle cx="${12+i*55}" cy="${62-(tmax>tmin?(t.v-tmin)/(tmax-tmin)*48:24)}" r="${t.cur?4:2.6}" fill="var(--accent)"/>`).join('')}
+   </svg><div class="flex text-[9px] text-slate-400">${trend.map(t=>`<span class="flex-1 text-center">${t.l}</span>`).join('')}</div></div>
+  <div class="space-y-2">${act.map(a=>{const bal=accBal(a.id);
+   return `<div class="card !py-3.5 flex items-center gap-3 active:scale-[.99] transition" onclick="openAcct('${a.id}')">
+    <span class="fin-ico !w-10 !h-10 !rounded-2xl" style="background:${a.c}1a;color:${a.c}">${svgIco(a.i,'w-5 h-5')}</span>
+    <div class="flex-1 min-w-0"><div class="text-[13px] font-bold truncate">${a.n}</div>
+     ${a.type==='credit'?`<div class="mt-1 w-32 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full bg-rose-400" style="width:${Math.max(2,(a.limit+bal)/a.limit*100)}%"></span></div><div class="text-[9px] text-slate-400 mt-0.5">已用 ${money(-bal>0?-bal:0)} / ${money(a.limit)}</div>`
+      :`<div class="text-[9px] text-slate-400">${a.type==='cash'?'现金':a.type==='ewallet'?'电子钱包':a.type==='debit'?'储蓄卡':'理财'} · 本月 ${mTx(finMonth).filter(t=>t.a===a.id||t.to===a.id).length} 笔</div>`}</div>
+    <b class="text-[14px] ${bal<0?'text-rose-400':''}">${AMT(bal)}</b>
+    <button class="text-slate-300 dark:text-slate-600" onclick="event.stopPropagation();openAcctSheet('${a.id}')">${svgIco('edit','w-4 h-4')}</button></div>`}).join('')}
+  </div>
+  <button class="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400 font-bold" onclick="openAcctSheet()">＋ 新建账户</button>
+  ${arch.length?`<div class="card !p-0 overflow-hidden"><div class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-400">已归档</div>
+   ${arch.map(a=>`<div class="flex items-center px-4 py-2 text-[12px] opacity-60"><b class="flex-1">${a.n}</b><button class="mini-btn" onclick="a.archived=false;renderAssets();toast('已恢复账户')">恢复</button><button class="ml-2 text-rose-400 text-[11px] font-bold" onclick="delAccount('${a.id}')">删除</button></div>`).join('')}</div>`:''}
+  <button class="w-full py-2.5 rounded-2xl bg-sky-50 dark:bg-sky-500/10 text-sky-500 text-[12px] font-extrabold" onclick="billGo()">导入支付宝 / 微信账单 ›</button>`;
+}
+function openAcct(id){astSel=id;navTo('p-assetAcct')}
+function delAccount(id){const a=LA(id);if(accBal(id)!==0)return toast('余额未清零 · 先转账归零再删除');
+ L.accounts=L.accounts.filter(x=>x.id!==id);renderAssets();toast('已删除账户')}
+/* S4 账户弹层 */
+let aaSel=null,aaType='debit';
+const AA_TYPES=[['cash','现金','wallet'],['debit','储蓄卡','card'],['credit','信用卡','cardplus'],['ewallet','电子钱包','chat'],['invest','理财','chart'],['other','其他','dots']];
+function openAcctSheet(id){aaSel=id||null;const a=id?LA(id):null;
+ $('#aaTitle').textContent=a?'编辑账户':'新建账户';
+ aaType=a?a.type:'debit';renderAA();
+ $('#aaName').value=a?a.n:'';$('#aaBal').value=a?+accBal(a.id).toFixed(2):'';$('#aaLimit').value=a&&a.limit?a.limit:'';
+ openSheet('sheetLedgerAcctAdd')}
+function renderAA(){
+ $('#aaTypeGrid').innerHTML=AA_TYPES.map(([k,n,i])=>`<button class="pick-chip !text-[11px] flex flex-col items-center gap-1 ${aaType===k?'!border-brand-400 text-brand-500':''}" onclick="aaType='${k}';renderAA()">${svgIco(i,'w-4 h-4')}${n}</button>`).join('');
+ $('#aaCreditRow').classList.toggle('hidden',aaType!=='credit');$('#aaLimit').classList.toggle('hidden',aaType!=='credit');
+ if(!$('#aaBill').options.length){$('#aaBill').innerHTML=Array.from({length:28},(_,i)=>`<option value="${i+1}">账单日 ${i+1} 号</option>`).join('');
+  $('#aaRepay').innerHTML=Array.from({length:28},(_,i)=>`<option value="${i+1}">还款日 ${i+1} 号</option>`).join('')}
+ if(aaSel){const a=LA(aaSel);if(a&&a.billDay)$('#aaBill').value=a.billDay;if(a&&a.repayDay)$('#aaRepay').value=a.repayDay}
+}
+function acctSheetSave(){const n=$('#aaName').value.trim()||AA_TYPES.find(t=>t[0]===aaType)[1];
+ const bal=+$('#aaBal').value||0,ic=AA_TYPES.find(t=>t[0]===aaType);
+ if(aaSel){const a=LA(aaSel);Object.assign(a,{n,type:aaType,i:ic[2]});
+  const adj=bal-accBal(aaSel);if(Math.abs(adj)>0.004)ledgerAdd({kind:'adjust',amt:+adj.toFixed(2),cat:'oe',sub:'',n:'余额调整',a:aaSel,d:TODAY,tags:[],src:'manual'});
+  if(aaType==='credit'){a.limit=+$('#aaLimit').value||a.limit||20000;a.billDay=+$('#aaBill').value;a.repayDay=+$('#aaRepay').value}}
+ else{const id='a'+Date.now()%1e6;
+  L.accounts.push({id,type:aaType,n,i:ic[2],c:aaType==='credit'?'#fb7185':'#0ea5e9',base:bal,limit:aaType==='credit'?(+$('#aaLimit').value||20000):undefined,billDay:aaType==='credit'?+$('#aaBill').value:undefined,repayDay:aaType==='credit'?+$('#aaRepay').value:undefined});
+  toast('已新建账户「'+n+'」')}
+ closeSheet('sheetLedgerAcctAdd');renderAssets();finTouch()}
+let astSel='debit';
+function renderAcctDetail(){const a=LA(astSel);if(!a||!document.getElementById('acdBody'))return;
+ const bal=accBal(a.id);
+ const ts=L.txns.filter(t=>t.a===a.id||t.to===a.id&&t.kind==='transfer').sort((x,y)=>x.d<y.d?1:-1).slice(0,40);
+ let creditHtml='';
+ if(a.type==='credit'){
+  const prev=`${finMonth}-${pad2(Math.max(1,a.billDay-1))}`;
+  const billed=L.txns.filter(t=>t.a===a.id&&t.kind==='expense'&&t.d<=prev&&t.d>=(()=>{const[y2,m2]=finMonth.split('-').map(Number);const n=m2-2;return dstr(y2+Math.floor(n/12),n%12+1,a.billDay)})());
+  const unbilled=L.txns.filter(t=>t.a===a.id&&t.kind==='expense'&&t.d>prev&&t.d<=finMonth+'-'+pad2(monthOf(finMonth).last));
+  creditHtml=`<div class="grid grid-cols-2 gap-2">
+   <div class="card !py-3 text-center"><div class="text-[10px] text-slate-400">已出账单 · ${a.billDay}号</div><b class="text-[16px]">${AMT(sumExp(billed))}</b></div>
+   <div class="card !py-3 text-center"><div class="text-[10px] text-slate-400">未出账单</div><b class="text-[16px]">${AMT(sumExp(unbilled))}</b></div>
+  </div><div class="mt-2 text-[9px] text-slate-400 text-center">每月 ${a.billDay} 日出账 · ${a.repayDay} 日还款 · 额度 ${money(a.limit)} · 可用 ${money(a.limit+bal)}</div>`}
+ $('#acdBody').innerHTML=`
+  <div class="card text-center !py-5">
+   <span class="inline-flex w-11 h-11 rounded-2xl items-center justify-center" style="background:${a.c}1a;color:${a.c}">${svgIco(a.i,'w-5 h-5')}</span>
+   <div class="mt-1.5 text-[12px] font-bold">${a.n}</div>
+   <div class="text-[26px] font-extrabold ${bal<0?'text-rose-400':''}">${AMT(bal)}</div>
+   <div class="mt-2 flex justify-center gap-2">
+    <button class="mini-btn" onclick="openWheel('调整为',${bal},v=>{ledgerAdd({kind:'adjust',amt:+(v-${bal}).toFixed(2),cat:'oe',sub:'',n:'余额调整',a:'${a.id}',d:'${TODAY}',tags:[],src:'manual'});renderAcctDetail();renderAssets()})">调整余额</button>
+    <button class="mini-btn" onclick="openAcctSheet('${a.id}')">编辑</button>
+    <button class="mini-btn !text-rose-400" onclick="LA('${a.id}').archived=!LA('${a.id}').archived;renderAssets();goBack()">归档</button>
+   </div>
+  </div>${creditHtml}
+  <div class="mt-1 flex items-center justify-between px-1"><b class="text-[12px]">最近流水</b><span class="text-[9px] text-slate-400">仅本机存储</span></div>
+  <div class="mt-1.5 space-y-1.5">${ts.length?ts.map(txRow).join(''):'<div class="text-center text-[11px] text-slate-400 py-8">暂无流水</div>'}</div>`;
+}
+
+/* ======================= L8 分类管理 ======================= */
+let catKind='expense',lcSel=null,lcIcon='dots',lcColor='#6366f1',lcParent=null;
+const CAT_ICONS=['food','car','bag','home','film','run','book','heart','plane','gift','phone','paw','repeat','cup','wallet','star','laptop','chart','receipt','redpack','target','cal','tag','dots'];
+const LC_COLORS=['#f97316','#0ea5e9','#fb7185','#6366f1','#a855f7','#22c55e','#8b5cf6','#ef4444','#06b6d4','#f59e0b','#14b8a6','#d946ef','#64748b','#94a3b8'];
+function renderLcats(){
+ if(!document.getElementById('catList'))return;
+ $('#catKindSeg').innerHTML=['expense','income'].map(k=>`<button class="flex-1 py-1.5 rounded-full ${catKind===k?'seg-on':''}" onclick="catKind='${k}';renderLcats()">${k==='expense'?'支出分类':'收入分类'}</button>`).join('');
+ const list=LCATS[catKind];
+ $('#catList').innerHTML=list.map((c,i)=>{
+  const n=L.txns.filter(t=>t.cat===c.id&&['expense','income','refund'].includes(t.kind)).length;
+  return `<div class="card !py-2.5 !px-3">
+   <div class="flex items-center gap-2.5">
+    <button class="fin-ico" style="background:${c.c}1a;color:${c.c}" onclick="openCatSheet('${c.id}')">${svgIco(c.i,'w-[18px] h-[18px]')}</button>
+    <b class="text-[13px] flex-1">${c.n}</b>
+    <span class="text-[9px] text-slate-400">${n} 笔</span>
+    <button class="text-slate-300" ${i===0?'disabled':''} onclick="catMove('${c.id}',-1)">↑</button>
+    <button class="text-slate-300" ${i===list.length-1?'disabled':''} onclick="catMove('${c.id}',1)">↓</button>
+    <button class="text-slate-400" onclick="delCat('${c.id}')">${svgIco('trash','w-4 h-4')}</button></div>
+   ${c.s.length?`<div class="mt-2 flex flex-wrap gap-1.5 pl-11">${c.s.map(sn=>`<span class="tag-chip !py-0.5 !text-[10px]">${sn}<button class="opacity-50" onclick="delSub('${c.id}','${lq(sn)}')">✕</button></span>`).join('')}
+    <button class="tag-chip !py-0.5 !text-[10px] !bg-transparent !border !border-dashed !border-slate-300 dark:!border-slate-600" onclick="openCatSheet(null,'${c.id}')">＋子分类</button></div>`
+    :`<div class="mt-2 pl-11"><button class="tag-chip !py-0.5 !text-[10px] !bg-transparent !border !border-dashed !border-slate-300 dark:!border-slate-600" onclick="openCatSheet(null,'${c.id}')">＋子分类</button></div>`}
+  </div>`}).join('');
+}
+function catMove(id,d){const list=LCATS[catKind],i=list.findIndex(c=>c.id===id);
+ if(i+d<0||i+d>=list.length)return;[list[i],list[i+d]]=[list[i+d],list[i]];renderLcats()}
+function delCat(id){const n=L.txns.filter(t=>t.cat===id).length;
+ if(id==='oe'||id==='oi')return toast('兜底分类不可删除');
+ if(n&&!window._catArm){window._catArm=Date.now();return toast(`该分类下有 ${n} 笔流水 · 再点删除并迁移至「其他」`)}
+ if(n){const fb=id==='oe'?'oi':'oe';L.txns.forEach(t=>{if(t.cat===id){t.cat=fb;t.sub=''}})}
+ LCATS[catKind]=LCATS[catKind].filter(c=>c.id!==id);window._catArm=0;renderLcats();finTouch();toast(n?'已删除并迁移流水至「其他」':'已删除分类')}
+function delSub(cid,sn){const c=LCATS[catKind].find(x=>x.id===cid);if(!c)return;c.s=c.s.filter(x=>x!==sn);L.txns.forEach(t=>{if(t.cat===cid&&t.sub===sn)t.sub=''});renderLcats();finTouch()}
+function openCatSheet(catId,parentId){lcSel=catId||null;lcParent=parentId||null;
+ const c=catId?LCATS[catKind].find(x=>x.id===catId):null;
+ $('#caTitle').textContent=c?'编辑分类':parentId?'新建子分类':'新建分类';
+ $('#caNameInp').value=c?c.n:'';
+ lcIcon=c?c.i:'dots';lcColor=c?c.c:LC_COLORS[0];
+ $('#lcIconGrid').innerHTML=CAT_ICONS.map(k=>`<button class="fin-ico !w-9 !h-9 ${lcIcon===k?'ring-2 ring-brand-500':''}" style="background:${lcColor}1a;color:${lcColor}" onclick="lcIcon='${k}';openCatSheet.refreshPrev()">${svgIco(k,'w-[18px] h-[18px]')}</button>`).join('');
+ $('#lcColorGrid').innerHTML=LC_COLORS.map(cc=>`<button class="w-7 h-7 rounded-full ${lcColor===cc?'ring-2 ring-offset-2 ring-brand-500':''}" style="background:${cc}" onclick="lcColor='${cc}';openCatSheet.refreshPrev();document.getElementById('lcColorGrid').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('ring-2',LC_COLORS[i]===cc)&&b.classList.toggle('ring-offset-2',LC_COLORS[i]===cc)&&b.classList.toggle('ring-brand-500',LC_COLORS[i]===cc))"></button>`).join('');
+ openSheet('sheetLedgerCatAdd')}
+openCatSheet.refreshPrev=function(){$('#lcIconGrid').querySelectorAll('button').forEach(b=>{b.style.background=lcColor+'1a';b.style.color=lcColor})};
+function catSheetSave(){const n=$('#caNameInp').value.trim();if(!n)return toast('请输入分类名称');
+ if(lcParent){const p=LCATS[catKind].find(x=>x.id===lcParent);if(p&&!p.s.includes(n))p.s.push(n);
+  toast('子分类「'+n+'」已添加');closeSheet('sheetLedgerCatAdd');renderLcats();if(curPage==='p-txAdd')renderTxAdd();return}
+ if(lcSel){const c=LCATS[catKind].find(x=>x.id===lcSel);Object.assign(c,{n,i:lcIcon,c:lcColor});toast('已更新分类')}
+ else{const id='c'+Date.now()%1e6;LCATS[catKind].push({id,n,i:lcIcon,c:lcColor,s:[]});toast('已新建分类「'+n+'」')}
+ closeSheet('sheetLedgerCatAdd');renderLcats();renderTxAdd();finTouch()}
+function openCatAddSheet(cat){lcParent=cat||null;catKind=(lcat(cat)||{}).kind||'expense';openCatSheet(null,cat)}
+LED_RENDER['p-budget']=renderBudget;LED_RENDER['p-assets']=renderAssets;LED_RENDER['p-assetAcct']=renderAcctDetail;LED_RENDER['p-cats']=renderLcats;
 //LEDGER_JS_END
 </script>
 </body>
