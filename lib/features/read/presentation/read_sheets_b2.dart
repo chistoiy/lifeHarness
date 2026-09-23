@@ -4,20 +4,114 @@ part of 'read_sheets.dart';
 /// 记进度四方式（openProgress）/ 计时明细可改（sheetSess）/
 /// 目录粘贴导入（sheetTocImport）。
 
-// ============================ 书籍表单（新增＝编辑同一张） ============================
+// ============================ 书籍表单（新增＝编辑同一张 · 原型 sheetNewBook / sheetEditBook 全量字段） ============================
 
 Future<void> showBookFormSheet(
   BuildContext context,
   WidgetRef ref, {
   Book? editing,
-  String defaultState = Book.kStateReading,
+  String defaultState = Book.kStateWant,
 }) => _sheet<void>(
   context,
   _BookForm(editing: editing, defaultState: defaultState),
 );
 
+/// 从作者列表选择（原型 sheetAuthorPick：标题+脚注+「作者名 N 本 ＋」行）。
+Future<void> _showAuthorPickSheet(
+  BuildContext context,
+  void Function(String name) onPick,
+) => _sheet<void>(
+  context,
+  Consumer(
+    builder: (bc, ref2, _) {
+      final cs = Theme.of(bc).colorScheme;
+      final authors =
+          ref2.watch(dictProvider(DictEntry.kAuthor)).valueOrNull ??
+          const <DictEntry>[];
+      final books = ref2.watch(booksProvider).valueOrNull ?? const <Book>[];
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 2),
+              child: Text(
+                '从作者列表选择',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              '直接输入新名字则保存时自动登记到作者管理',
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            for (final e in authors)
+              GestureDetector(
+                key: ValueKey('bap-${e.name}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.of(bc).pop();
+                  onPick(e.name);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: .35),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        e.name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${books.where((b) => !b.isDeleted && b.author == e.name).length} 本',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        BsIcons.add,
+                        size: 14,
+                        color: bc.tokens.accent,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (authors.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Text(
+                  '还没有登记作者 · 在表单里输入名字保存后自动登记',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  ),
+);
+
 class _BookForm extends ConsumerStatefulWidget {
-  const _BookForm({this.editing, this.defaultState = Book.kStateReading});
+  const _BookForm({this.editing, this.defaultState = Book.kStateWant});
   final Book? editing;
   final String defaultState;
 
@@ -26,68 +120,91 @@ class _BookForm extends ConsumerStatefulWidget {
 }
 
 class _BookFormState extends ConsumerState<_BookForm> {
+  late final Book? _b = widget.editing;
+  late final bool _isNew = _b == null;
+
   late final TextEditingController _title = TextEditingController(
-    text: widget.editing?.title ?? '',
+    text: _b?.title ?? '',
   );
   late final TextEditingController _author = TextEditingController(
-    text: widget.editing?.author ?? '',
-  );
-  late final TextEditingController _pages = TextEditingController(
-    text: (widget.editing?.pages ?? 0) > 0 ? '${widget.editing!.pages}' : '',
-  );
-  late final TextEditingController _translator = TextEditingController(
-    text: widget.editing?.translator ?? '',
+    text: _b?.author ?? '',
   );
   late final TextEditingController _publisher = TextEditingController(
-    text: widget.editing?.publisher ?? '',
+    text: _b?.publisher ?? '',
+  );
+  late final TextEditingController _translator = TextEditingController(
+    text: _b?.translator ?? '',
   );
   late final TextEditingController _pubDate = TextEditingController(
-    text: widget.editing?.pubDate ?? '',
+    text: _b?.pubDate ?? '',
   );
   late final TextEditingController _series = TextEditingController(
-    text: widget.editing?.series ?? '',
+    text: _b?.series ?? '',
   );
   late final TextEditingController _isbn = TextEditingController(
-    text: widget.editing?.isbn ?? '',
+    text: _b?.isbn ?? '',
   );
   late final TextEditingController _source = TextEditingController(
-    text: widget.editing?.source ?? '',
+    text: _b?.source ?? '',
   );
   late final TextEditingController _grp = TextEditingController(
-    text: widget.editing?.grp ?? '',
+    text: _b?.grp ?? '',
   );
   late final TextEditingController _fee = TextEditingController(
-    text: (widget.editing?.fee ?? 0) > 0 ? '${widget.editing!.fee}' : '',
+    text: (_b?.fee ?? 0) > 0 ? '${_b!.fee}' : '',
   );
   late final TextEditingController _totalLoc = TextEditingController(
-    text: widget.editing?.totalLoc != null ? '${widget.editing!.totalLoc}' : '',
+    text: _b?.totalLoc != null ? '${_b!.totalLoc}' : '',
+  );
+  late final TextEditingController _readLoc = TextEditingController(
+    text: _b?.readLoc != null ? '${_b!.readLoc}' : '',
+  );
+  late final TextEditingController _pages = TextEditingController(
+    text: (_b?.pages ?? 0) > 0 ? '${_b!.pages}' : '',
+  );
+  late final TextEditingController _readPages = TextEditingController(
+    text: (_b?.readPages ?? 0) > 0 ? '${_b!.readPages}' : '',
+  );
+  late final TextEditingController _pct = TextEditingController(
+    text: _b != null ? '${_b.percent}' : '',
   );
   late final TextEditingController _intro = TextEditingController(
-    text: widget.editing?.intro ?? '',
+    text: _b?.intro ?? '',
   );
-  late String _state = widget.editing?.state ?? widget.defaultState;
-  late String _format = widget.editing?.format ?? Book.kFormatPaper;
-  late String _way = widget.editing?.progressWay ?? Book.defaultWayFor(_format);
-  late bool _wayTouched = widget.editing != null;
-  late String? _cover = widget.editing?.coverPath;
+  late final TextEditingController _note = TextEditingController(
+    text: _b?.note ?? '',
+  );
+
+  late String _state = _b?.state ?? widget.defaultState;
+  late String _format = _b?.format ?? Book.kFormatPaper;
+  late String _way = _b?.progressWay ?? Book.defaultWayFor(_format);
+  late String? _cover = _b?.coverPath;
+  late int _colorIdx = _b?.colorIdx ?? Random().nextInt(kBsCov.length);
+  late final List<String> _tags = [...?_b?.tags];
+  late int _rate = (_b?.rating ?? 0).round();
   bool _moreOpen = false;
+  // F2 起由 ISBN 抓取流程写入（匹配中… / 已命中书目缓存）。
+  final String _isbnStatus = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // 输入即时联动：作者提示行、更多资料摘要、封面预览书名。
+    for (final c in [_author, _fee, _title]) {
+      c.addListener(_onEdit);
+    }
+  }
+
+  void _onEdit() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
     for (final c in [
-      _title,
-      _author,
-      _pages,
-      _translator,
-      _publisher,
-      _pubDate,
-      _series,
-      _isbn,
-      _source,
-      _grp,
-      _fee,
-      _totalLoc,
-      _intro,
+      _title, _author, _publisher, _translator, _pubDate, _series, _isbn,
+      _source, _grp, _fee, _totalLoc, _readLoc, _pages, _readPages, _pct,
+      _intro, _note,
     ]) {
       c.dispose();
     }
@@ -96,14 +213,49 @@ class _BookFormState extends ConsumerState<_BookForm> {
 
   static String? _nz(String s) => s.trim().isEmpty ? null : s.trim();
 
+  // 原型 BS_PW：页数 / 位置 / 章节 / 百分比 / 分钟。
+  static const _ways = <String, String>{
+    Book.kWayPage: '页数',
+    Book.kWayPos: '位置',
+    Book.kWayChap: '章节',
+    Book.kWayPct: '百分比',
+    Book.kWayMin: '分钟',
+  };
+
   Future<void> _save() async {
     if (_title.text.trim().isEmpty) {
-      readToast(context, '书名不能为空');
+      readToast(context, '书名必填');
       return;
     }
-    final b = widget.editing;
+    final b = _b;
     final now = DateTime.now().millisecondsSinceEpoch;
     final repo = ref.read(readRepositoryProvider);
+    final way = _way;
+    int pages;
+    int rp;
+    String state = _state;
+    double? totLoc = double.tryParse(_totalLoc.text.trim());
+    double? rdLoc = double.tryParse(_readLoc.text.trim());
+    if (b == null) {
+      // 原型 shSaveNew：pg＝总页数（空则 300）· rp＝min(pg, 已读页)。
+      pages = int.tryParse(_pages.text.trim()) ?? 300;
+      rp = (int.tryParse(_readPages.text.trim()) ?? 0).clamp(0, pages);
+    } else {
+      // 原型 shSaveEdit：pg 空则保留 · 进度%→rp · 100% 自动落「已读」。
+      pages = int.tryParse(_pages.text.trim()) ?? b.pages;
+      final p = (double.tryParse(_pct.text.trim()) ?? b.percent)
+          .clamp(0, 100)
+          .round();
+      rp = pages <= 0 ? b.readPages : (pages * p / 100).round();
+      if (p >= 100) state = Book.kStateDone;
+      if (way == Book.kWayPos) {
+        totLoc = totLoc ?? b.totalLoc;
+        rdLoc = rdLoc ?? b.readLoc;
+        if (totLoc != null && totLoc > 0 && rdLoc != null) {
+          rp = (rdLoc / totLoc * pages).round().clamp(0, pages);
+        }
+      }
+    }
     final book = Book(
       id: b?.id ?? '',
       title: _title.text.trim(),
@@ -116,27 +268,27 @@ class _BookFormState extends ConsumerState<_BookForm> {
       series: _nz(_series.text),
       isbn: _nz(_isbn.text),
       coverPath: _cover,
-      colorIdx: b?.colorIdx ?? Random().nextInt(8),
-      state: _state,
+      colorIdx: _colorIdx,
+      state: state,
       format: _format,
-      progressWay: _way,
-      pages: int.tryParse(_pages.text.trim()) ?? 0,
-      readPages: b?.readPages ?? 0,
-      totalLoc: double.tryParse(_totalLoc.text.trim()),
-      readLoc: b?.readLoc,
+      progressWay: way,
+      pages: pages,
+      readPages: rp,
+      totalLoc: totLoc,
+      readLoc: rdLoc,
       chapter: b?.chapter,
-      rating: b?.rating ?? 0,
+      rating: b == null ? 0 : _rate.toDouble(),
       fee: double.tryParse(_fee.text.trim()) ?? 0,
       feeTxnId: b?.feeTxnId,
       source: _nz(_source.text),
       grp: _nz(_grp.text),
-      tags: b?.tags ?? const [],
+      tags: _tags,
       startedAt: b?.startedAt,
       endedAt: b?.endedAt,
       lastReadAt: b?.lastReadAt,
       intro: _nz(_intro.text),
       authorNote: b?.authorNote,
-      note: b?.note,
+      note: _isNew ? _nz(_note.text) : b?.note,
       finalNote: b?.finalNote,
       sumQuote: b?.sumQuote,
       sumView: b?.sumView,
@@ -161,233 +313,692 @@ class _BookFormState extends ConsumerState<_BookForm> {
     );
   }
 
+  /// 移出书架（原型 shArchiveEdit：编辑页专用 · 移入弃读而非删除）。
+  Future<void> _archive() async {
+    final b = _b;
+    if (b == null) return;
+    await ref.read(readRepositoryProvider).setBookState(b.id, Book.kStateDropped);
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    Navigator.of(context).pop();
+    readToast(context, '《${b.title}》已移到弃读 · 笔记与时长保留');
+  }
+
+  // 真机验收 F1 占位：F2 提交接入相机扫码 / 豆瓣抓取后替换实现。
+  Future<void> _scanIsbn() async => readToast(context, 'ISBN 扫码补全 · 批F2 接入');
+  Future<void> _isbnCover() async => readToast(context, 'ISBN 扫码补全 · 批F2 接入');
+
+  Future<void> _pickCover({bool camera = false}) async {
+    final cs = Theme.of(context).colorScheme;
+    final path = await pickAndStoreImage(
+      context,
+      bg: cs.surfaceContainerLow,
+      fg: cs.onSurface,
+      direct: camera ? ImageSource.camera : ImageSource.gallery,
+    );
+    if (path != null && mounted) setState(() => _cover = path);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
     final srcs =
         ref.watch(dictProvider(DictEntry.kSource)).valueOrNull ??
         const <DictEntry>[];
     final grps =
         ref.watch(dictProvider(DictEntry.kGroup)).valueOrNull ??
         const <DictEntry>[];
-    final b = widget.editing;
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    final tagDict =
+        ref.watch(dictProvider(DictEntry.kTag)).valueOrNull ??
+        const <DictEntry>[];
+    final authors =
+        ref.watch(dictProvider(DictEntry.kAuthor)).valueOrNull ??
+        const <DictEntry>[];
+    final pubs =
+        ref.watch(dictProvider(DictEntry.kPublisher)).valueOrNull ??
+        const <DictEntry>[];
+    final aTxt = _author.text.trim();
+    final hasNewAuthor =
+        aTxt.isNotEmpty && !authors.any((e) => e.name == aTxt);
+
+    final header = Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
         children: [
-          _SheetTitle(b == null ? '新书上架' : '编辑信息', onSave: _save),
-          _field(_title, '书名', keyName: 'bkf-title'),
-          const SizedBox(height: 10),
-          _field(_author, '作者', keyName: 'bkf-author'),
-          const SizedBox(height: 12),
-          Text(
-            '分区',
-            style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: 6),
-          _Chips(
-            items: Book.states,
-            selected: {_state},
-            keys: Book.states,
-            onPick: (v) => setState(() => _state = v),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '类型',
-            style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: 6),
-          _Chips(
-            items: Book.formats,
-            selected: {_format},
-            keys: Book.formats,
-            onPick: (v) => setState(() {
-              _format = v;
-              if (!_wayTouched) _way = Book.defaultWayFor(v);
-            }),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '进度方式',
-            style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-          ),
-          const SizedBox(height: 6),
-          _Chips(
-            items: const ['按页', '按位置', '按章节', '按百分比'],
-            selected: {
-              switch (_way) {
-                Book.kWayPage => '按页',
-                Book.kWayPos => '按位置',
-                Book.kWayChap => '按章节',
-                _ => '按百分比',
-              },
-            },
-            keys: const [
-              'bkf-way-page',
-              'bkf-way-pos',
-              'bkf-way-chap',
-              'bkf-way-pct',
-            ],
-            onPick: (v) => setState(() {
-              _way = switch (v) {
-                '按页' => Book.kWayPage,
-                '按位置' => Book.kWayPos,
-                '按章节' => Book.kWayChap,
-                _ => Book.kWayPct,
-              };
-              _wayTouched = true;
-            }),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(child: _field(_pages, '总页数', keyName: 'bkf-pages')),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _field(_totalLoc, '总位置(loc)', keyName: 'bkf-loc'),
+          Expanded(
+            child: Text(
+              _isNew ? '添加新书到书架' : '编辑书籍信息',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 12),
-          // 封面（色板封面默认 · 可上传相册/拍照替换）
-          Row(
-            children: [
+          if (_isNew)
+            GestureDetector(
+              key: const ValueKey('bkf-scan'),
+              onTap: _scanIsbn,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: tokens.accent.withValues(alpha: .5),
+                  ),
+                ),
+                child: Text(
+                  '扫 ISBN',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.accent,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    final authorRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: _field(_author, '作者', keyName: 'bkf-author')),
+        const SizedBox(width: 8),
+        OutlinedButton(
+          key: const ValueKey('bkf-pick-author'),
+          onPressed: () => _showAuthorPickSheet(context, (a) {
+            setState(() => _author.text = a);
+            readToast(context, '已选作者：$a');
+          }),
+          child: const Text('从列表选', style: TextStyle(fontSize: 11)),
+        ),
+      ],
+    );
+    final authorHint = Wrap(
+      key: const ValueKey('bkf-author-hint'),
+      spacing: 0,
+      children: [
+        Text(
+          '作者库 ${authors.length} 位 · ',
+          style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+        ),
+        GestureDetector(
+          onTap: () => _showAuthorPickSheet(context, (a) {
+            setState(() => _author.text = a);
+            readToast(context, '已选作者：$a');
+          }),
+          child: Text(
+            '从列表选择',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: tokens.accent,
+            ),
+          ),
+        ),
+        if (hasNewAuthor)
+          Text(
+            ' · 保存时将自动登记新作者「$aTxt」',
+            style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          ),
+      ],
+    );
+    final pubHint = Text(
+      key: const ValueKey('bkf-pub-hint'),
+      '出版社库 ${pubs.length} 家 · 新名字保存后自动登记',
+      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+    );
+    final moreSum =
+        '$_format · ${_ways[_way] ?? '页数'}${_fee.text.trim().isNotEmpty ? ' · ¥${_fee.text.trim()}' : ''}';
+    final moreBtn = Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          GestureDetector(
+            key: const ValueKey('bkf-more'),
+            onTap: () => setState(() => _moreOpen = !_moreOpen),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: tokens.cardBorder),
+              ),
+              child: Text(
+                '更多资料',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              moreSum,
+              key: const ValueKey('bkf-more-sum'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+    final moreFields = [
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(child: _field(_translator, '译者', keyName: 'bkf-translator')),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _field(_pubDate, '出版日期（如 2015-06）', keyName: 'bkf-pubdate'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      _lbl('书籍类型'),
+      _Chips(
+        items: Book.formats,
+        selected: {_format},
+        keys: const ['bkf-fmt-纸质', 'bkf-fmt-电子书', 'bkf-fmt-有声'],
+        onPick: (v) => setState(() {
+          _format = v;
+          // 原型 ebxSet：仅新书联动默认进度方式，编辑保持已选。
+          if (_isNew) _way = Book.defaultWayFor(v);
+        }),
+      ),
+      const SizedBox(height: 10),
+      _lbl('进度方式'),
+      _Chips(
+        items: _ways.values.toList(),
+        selected: {_ways[_way] ?? '页数'},
+        keys: [for (final k in _ways.keys) 'bkf-way-$k'],
+        onPick: (v) => setState(
+          () => _way = _ways.entries.firstWhere((e) => e.value == v).key,
+        ),
+      ),
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          Expanded(
+            child: _field(_totalLoc, '总位置 / 总页', keyName: 'bkf-loc'),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _field(_readLoc, '已读位置', keyName: 'bkf-readloc'),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(width: 72, child: _field(_fee, '¥', keyName: 'bkf-fee')),
+        ],
+      ),
+      const SizedBox(height: 10),
+      _field(_series, '系列 / 套装', keyName: 'bkf-series'),
+      const SizedBox(height: 10),
+      _field(_intro, '书籍简介（导入源可自动带出）', lines: 2, keyName: 'bkf-intro'),
+    ];
+    final stChips = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _lbl('分区'),
+        _Chips(
+          items: Book.states,
+          selected: {_state},
+          keys: [for (final s in Book.states) 'bkf-st-$s'],
+          onPick: (v) => setState(() => _state = v),
+        ),
+      ],
+    );
+    final tagChips = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _lbl('标签（可多选）'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final e in tagDict)
               GestureDetector(
-                key: const ValueKey('bkf-cover'),
-                onTap: () async {
-                  final path = await pickAndStoreImage(
-                    context,
-                    bg: cs.surfaceContainerLow,
-                    fg: cs.onSurface,
-                  );
-                  if (path != null && mounted) setState(() => _cover = path);
-                },
-                child: ClipRRect(
+                key: ValueKey('bkf-tag-${e.name}'),
+                onTap: () => setState(
+                  () => _tags.contains(e.name)
+                      ? _tags.remove(e.name)
+                      : _tags.add(e.name),
+                ),
+                child: _pill(
+                  cs,
+                  tokens,
+                  '#${e.name}',
+                  _tags.contains(e.name),
+                ),
+              ),
+            if (tagDict.isEmpty)
+              Text(
+                '还没有标签 · 可在书架资料里新增',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+    final covBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _lbl(
+          _isNew
+              ? '封面（可上传 / 拍照 / 按 ISBN 取图，或直接选书脊色）'
+              : '书籍封面',
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: _cover != null && _cover!.isNotEmpty
                       ? Image.file(
                           File(_cover!),
-                          width: 40,
-                          height: 56,
+                          width: 44,
+                          height: 62,
                           fit: BoxFit.cover,
                         )
                       : BsCover(
-                          book:
-                              b ??
-                              Book(
-                                id: '',
-                                title: _title.text,
-                                createdAt: 0,
-                                updatedAt: 0,
-                              ),
-                          width: 40,
-                          height: 56,
+                          book: Book(
+                            id: '',
+                            title: _title.text,
+                            colorIdx: _colorIdx,
+                            createdAt: 0,
+                            updatedAt: 0,
+                          ),
+                          width: 44,
+                          height: 62,
                           radius: 6,
                           showAuthor: false,
                           showBadge: false,
                         ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _cover == null || _cover!.isEmpty
-                      ? '更换封面（相册 / 拍照）'
-                      : '已上传封面 · 点击更换',
-                  style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-                ),
-              ),
-              if (_cover != null && _cover!.isNotEmpty)
-                IconButton(
-                  key: const ValueKey('bkf-cover-reset'),
-                  onPressed: () => setState(() => _cover = null),
-                  icon: const Icon(BsIcons.trash, size: 16),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          GestureDetector(
-            key: const ValueKey('bkf-more'),
-            onTap: () => setState(() => _moreOpen = !_moreOpen),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    _moreOpen
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    size: 16,
-                    color: cs.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '更多资料',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurfaceVariant,
+                if (_cover != null && _cover!.isNotEmpty)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: GestureDetector(
+                      key: const ValueKey('bkf-cov-clear'),
+                      onTap: () {
+                        setState(() => _cover = null);
+                        readToast(context, '已改回书脊色封面');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _miniBtn(context, 'bkf-cov-file', '上传封面',
+                          () => _pickCover()),
+                      _miniBtn(context, 'bkf-cov-cam', '拍照',
+                          () => _pickCover(camera: true)),
+                      _miniBtn(context, 'bkf-cov-isbn', 'ISBN 取图',
+                          _isbnCover),
+                      if (!_isNew)
+                        _miniBtn(context, 'bkf-cov-clear2', '清除', () {
+                          if (_cover == null || _cover!.isEmpty) return;
+                          setState(() => _cover = null);
+                          readToast(context, '已改回书脊色封面');
+                        }),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      for (var i = 0; i < kBsCov.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: GestureDetector(
+                            key: ValueKey('bkf-cov-$i'),
+                            onTap: () => setState(() {
+                              _colorIdx = i;
+                              _cover = null;
+                            }),
+                            child: Container(
+                              width: 22,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [kBsCov[i].$1, kBsCov[i].$2],
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                                border: (_cover == null ||
+                                        _cover!.isEmpty) &&
+                                    _colorIdx == i
+                                ? Border.all(
+                                    color: tokens.accent,
+                                    width: 2,
+                                  )
+                                : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (!_isNew)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '无封面时用书脊色块；图片本地保存，超 2MB 自动压到长边 800px',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-          ),
-          if (_moreOpen) ...[
-            _field(_translator, '译者', keyName: 'bkf-translator'),
-            const SizedBox(height: 10),
-            _field(_publisher, '出版社', keyName: 'bkf-publisher'),
-            const SizedBox(height: 10),
-            _field(_pubDate, '出版日期', keyName: 'bkf-pubdate'),
-            const SizedBox(height: 10),
-            _field(_series, '系列', keyName: 'bkf-series'),
-            const SizedBox(height: 10),
-            _field(_isbn, 'ISBN', keyName: 'bkf-isbn'),
-            const SizedBox(height: 10),
-            _field(_source, '来源', keyName: 'bkf-source'),
-            if (srcs.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _Chips(
-                items: srcs.map((e) => e.name).toList(),
-                selected: {_source.text},
-                keys: [for (final e in srcs) 'bkf-src-${e.name}'],
-                onPick: (v) => setState(() => _source.text = v),
-              ),
-            ],
-            const SizedBox(height: 10),
-            _field(_grp, '分组', keyName: 'bkf-grp'),
-            if (grps.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _Chips(
-                items: grps.map((e) => e.name).toList(),
-                selected: {_grp.text},
-                keys: [for (final e in grps) 'bkf-grp-${e.name}'],
-                onPick: (v) => setState(() => _grp.text = v),
-              ),
-            ],
-            const SizedBox(height: 10),
-            _field(_fee, '购书费用', keyName: 'bkf-fee'),
-            const SizedBox(height: 10),
-            _field(_intro, '简介', lines: 3, keyName: 'bkf-intro'),
           ],
-          const SizedBox(height: 6),
-          FilledButton(
+        ),
+      ],
+    );
+    final footer = _isNew
+        ? FilledButton(
             key: const ValueKey('bkf-save'),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 13),
             ),
             onPressed: _save,
-            child: Text(b == null ? '加入书架' : '保存'),
+            child: const Text('加入书架'),
+          )
+        : Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('bkf-archive'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    foregroundColor: cs.error,
+                  ),
+                  onPressed: _archive,
+                  child: const Text('移出书架', style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('bkf-save'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _save,
+                  child: const Text('保存'),
+                ),
+              ),
+            ],
+          );
+
+    List<Widget> middle() {
+      if (_isNew) {
+        return [
+          _field(_title, '书名（必填）', keyName: 'bkf-title'),
+          const SizedBox(height: 10),
+          authorRow,
+          const SizedBox(height: 4),
+          authorHint,
+          const SizedBox(height: 6),
+          _field(_publisher, '出版社（可留空，保存后自动登记）',
+              keyName: 'bkf-publisher'),
+          const SizedBox(height: 10),
+          _lbl('来源'),
+          _dictChips('bkf-src', srcs, _source.text, (v) => setState(
+            () => _source.text = _source.text == v ? '' : v,
+          )),
+          const SizedBox(height: 10),
+          _lbl('分组'),
+          _dictChips('bkf-grp', grps, _grp.text, (v) => setState(
+            () => _grp.text = _grp.text == v ? '' : v,
+          )),
+          const SizedBox(height: 4),
+          pubHint,
+          moreBtn,
+          if (_moreOpen) ...moreFields,
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _field(_isbn, 'ISBN / 豆瓣 subject_id',
+                    keyName: 'bkf-isbn'),
+              ),
+              SizedBox(
+                width: 84,
+                child: Text(
+                  _isbnStatus,
+                  key: const ValueKey('bkf-isbn-status'),
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
-        ],
+          Row(
+            children: [
+              Expanded(child: _field(_pages, '总页数', keyName: 'bkf-pages')),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _field(_readPages, '已读页（可选）', keyName: 'bkf-read'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          stChips,
+          const SizedBox(height: 12),
+          tagChips,
+          const SizedBox(height: 12),
+          covBlock,
+          const SizedBox(height: 10),
+          _field(_note, '一句话：为什么想读（可选）',
+              lines: 2, keyName: 'bkf-note'),
+          const SizedBox(height: 10),
+          Text(
+            '录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（关闭或离线时留空待补）',
+            style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          footer,
+        ];
+      }
+      return [
+        covBlock,
+        const SizedBox(height: 12),
+        _field(_title, '书名', keyName: 'bkf-title'),
+        const SizedBox(height: 10),
+        authorRow,
+        const SizedBox(height: 4),
+        authorHint,
+        const SizedBox(height: 10),
+        _lbl('来源'),
+        _dictChips('bkf-src', srcs, _source.text, (v) => setState(
+          () => _source.text = _source.text == v ? '' : v,
+        )),
+        const SizedBox(height: 10),
+        _lbl('分组'),
+        _dictChips('bkf-grp', grps, _grp.text, (v) => setState(
+          () => _grp.text = _grp.text == v ? '' : v,
+        )),
+        const SizedBox(height: 4),
+        pubHint,
+        moreBtn,
+        if (_moreOpen) ...moreFields,
+        const SizedBox(height: 10),
+        _field(_publisher, '出版社', keyName: 'bkf-publisher'),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _field(_pages, '总页数', keyName: 'bkf-pages')),
+            const SizedBox(width: 8),
+            Expanded(child: _field(_pct, '进度 %', keyName: 'bkf-pct')),
+          ],
+        ),
+        const SizedBox(height: 12),
+        stChips,
+        const SizedBox(height: 12),
+        tagChips,
+        const SizedBox(height: 12),
+        _lbl('评分'),
+        Row(
+          children: [
+            for (var i = 1; i <= 5; i++)
+              GestureDetector(
+                key: ValueKey('bkf-rate-$i'),
+                onTap: () => setState(() => _rate = i),
+                child: Icon(
+                  Icons.star_rounded,
+                  size: 20,
+                  color: i <= _rate
+                      ? const Color(0xFFF5A623)
+                      : cs.outlineVariant,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        footer,
+      ];
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [header, ...middle(), const SizedBox(height: 10)],
       ),
     );
   }
-}
 
+  Widget _lbl(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      t,
+      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+    ),
+  );
+
+  Widget _pill(
+    ColorScheme cs,
+    ThemeTokens tokens,
+    String t,
+    bool on,
+  ) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(999),
+      color: on
+          ? tokens.accent.withValues(alpha: .12)
+          : cs.surfaceContainerHighest,
+      border: Border.all(color: on ? tokens.accent : tokens.cardBorder),
+    ),
+    child: Text(
+      t,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: on ? tokens.accent : cs.onSurfaceVariant,
+      ),
+    ),
+  );
+
+  /// 字典 chips 行 ＋ 尾随「＋管理…」入口（原型 renderEbx）。
+  Widget _dictChips(
+    String keyPrefix,
+    List<DictEntry> dict,
+    String current,
+    ValueChanged<String> onPick,
+  ) {
+    final kind = keyPrefix == 'bkf-src' ? 'source' : 'group';
+    final cs = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final e in dict)
+          GestureDetector(
+            key: ValueKey('$keyPrefix-${e.name}'),
+            onTap: () => onPick(e.name),
+            child: _pill(cs, tokens, e.name, current == e.name),
+          ),
+        GestureDetector(
+          key: ValueKey('$keyPrefix-mgr'),
+          onTap: () =>
+              GoRouter.of(context).push('/read/mgr?kind=$kind'),
+          child: _pill(
+            cs,
+            tokens,
+            kind == 'source' ? '＋管理来源' : '＋管理分组',
+            false,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniBtn(
+    BuildContext context,
+    String key,
+    String label,
+    VoidCallback onTap,
+  ) => GestureDetector(
+    key: ValueKey(key),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(9),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+      ),
+    ),
+  );
+}
 // ============================ 记进度（openProgress 四方式） ============================
 
 /// 记进度弹层（原型 sheetProgress 2325-2336 + bsSaveProgress 4517-4540）。

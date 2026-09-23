@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/image_attach.dart';
@@ -57,14 +58,12 @@ Future<T?> _sheet<T>(BuildContext context, Widget child) =>
     );
 
 class _SheetTitle extends StatelessWidget {
-  const _SheetTitle(this.text, {this.onSave});
+  const _SheetTitle(this.text);
   final String text;
-  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final accent = context.tokens.accent;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -79,14 +78,6 @@ class _SheetTitle extends StatelessWidget {
               ),
             ),
           ),
-          if (onSave != null)
-            TextButton(
-              onPressed: onSave,
-              child: Text(
-                '保存',
-                style: TextStyle(fontWeight: FontWeight.w800, color: accent),
-              ),
-            ),
         ],
       ),
     );
@@ -173,10 +164,11 @@ TextField _field(
 
 /// 新增书籍（书架 FAB＋ / 工作台空态「添加一本」）。
 /// 批2 起与「编辑信息」共用同一张完整表单（更多资料折叠＋封面上传）。
+/// 原型 shNewOpen：新书默认落「想读」分区。
 Future<void> showAddBookSheet(
   BuildContext context,
   WidgetRef ref, {
-  String defaultState = Book.kStateReading,
+  String defaultState = Book.kStateWant,
 }) => showBookFormSheet(context, ref, defaultState: defaultState);
 
 /// 唯一一张摘录录入表单（FAB 与详情页共用 · §3.3；默认书=在读最近那本）。

@@ -69,6 +69,9 @@ const _secs = [
   _Sec('数据与存储', [
     _Row('feeTxn', '购书费用记入账本', _T.bool,
         desc: '新增或修改费用时同步生成/更新一笔「阅读-购书」支出'),
+    _Row('isbnFill', 'ISBN 补全', _T.chips,
+        opts: ['仅填 ISBN', '抓豆瓣数据'],
+        desc: '扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'),
     _Row('import', '导入其他平台读书笔记', _T.go,
         route: '/read/import',
         desc: '微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'),
@@ -436,6 +439,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     'tlRange' => '近半年',
     'tlDays' => '14',
     'timerUI' => '全屏',
+    'isbnFill' => '仅填 ISBN',
     'longPress' => kLpDefault,
     // 原型 BS_SET 默认关的两键（其余 bool 键默认开）。
     'simple' => 'false',
