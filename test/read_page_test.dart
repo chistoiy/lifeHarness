@@ -908,7 +908,15 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('read-review')));
       await settle(tester);
       await waitFinder(tester, find.byKey(const ValueKey('rv-card')));
-      expect(find.text('「复习句」'), findsNWidgets(2)); // 工作台最近摘录同款
+      expect(find.text('「复习句」'), findsOneWidget); // 复习卡正面
+      // 工作台最近摘录＝RichText 正文+「 — 书名」灰尾段（原型 5600）。
+      expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is RichText &&
+                w.text.toPlainText() == '「复习句」 — 书甲',
+          ),
+          findsOneWidget);
       expect(find.text('1 / 1'), findsOneWidget);
       // 复习 3D 翻面（批D：TweenAnimationBuilder 旋转，背面＝想法）。
       await tester.tap(find.byKey(const ValueKey('rv-card')));

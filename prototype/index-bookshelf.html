@@ -2379,7 +2379,7 @@ tailwind.config = {
         <div class="cov-pick mt-1.5"><div id="nbCovBox" class="cov-box"></div><div class="flex-1"><div class="flex flex-wrap gap-1.5"><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovFile()">上传封面</button><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovCam()">拍照</button><button class="mini-btn !text-[10px]" onclick="ebCovFor='new';ebCovIsbn()">ISBN 取图</button></div><div class="mt-2 flex gap-1" id="nbCovColors"></div></div></div>
         <textarea id="nbNote" class="inp min-h-[52px]" placeholder="一句话：为什么想读（可选）"></textarea>
       </div>
-      <div class="mt-3 text-[10px] text-slate-400 leading-5">录入后可在详情页开计时；ISBN 命中本地缓存书目则自动补全封面、出版社与豆瓣评分（离线时留空待补）</div>
+      <div class="mt-3 text-[10px] text-slate-400 leading-5">录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（关闭或离线时留空待补）</div>
       <button class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold" onclick="shSaveNew()">加入书架</button>
     </div>
   </div>
@@ -5036,7 +5036,7 @@ const RS_SEC=[
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
- ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
+ ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}

@@ -314,14 +314,28 @@ class ReadWorkbench extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
+                      // 原型 5600：正文（划线带「」）+「 — 书名」灰尾段整体两行截断。
+                      child: RichText(
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.5,
-                          color: cs.onSurface,
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.5,
+                            color: cs.onSurface,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: q.kind == BookQuote.kKindMark
+                                  ? '「${q.body}」'
+                                  : q.body,
+                            ),
+                            TextSpan(
+                              text:
+                                  ' — ${books.firstWhere((b) => b.id == q.bookId, orElse: () => Book(id: q.bookId, title: '—', createdAt: 0, updatedAt: 0)).title}',
+                              style: TextStyle(color: cs.onSurfaceVariant),
+                            ),
+                          ],
                         ),
                       ),
                     ),

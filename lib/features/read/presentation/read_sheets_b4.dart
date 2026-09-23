@@ -805,12 +805,13 @@ Future<void> showMoveToListSheet(
 ) async {
   // 原型 blQuickPick 5090：无手动书单＝toast 提示且不开层（不进空态弹层）。
   final pre = await ref.read(readRepositoryProvider).allLists();
+  if (!context.mounted) return;
   if (pre.where((l) => !l.isAuto).isEmpty) {
     readToast(context, '还没有手动书单 · 先去书单管理创建');
     return;
   }
   return _sheet<void>(
-  context,
+    context,
   Consumer(
     builder: (sheetCtx, ref, _) {
       final cs = Theme.of(sheetCtx).colorScheme;
