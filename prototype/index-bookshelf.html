@@ -2512,6 +2512,15 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 书架生态 · 收集箱存摘录选书（回画 · 联动 L6 真分流） ===== -->
+  <div id="sheetInboxBook" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetInboxBook')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">存为阅读摘录 · 选一本书</div>
+      <div class="mt-3 space-y-2 max-h-[46vh] overflow-y-auto no-scrollbar" id="ibkList"></div>
+    </div>
+  </div>
+
   <!-- ===== 书架专版 · 摘录复习卡 ===== -->
   <div id="sheetReview" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetReview')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -3834,11 +3843,19 @@ function renderInbox(){
       <button class="tri" onclick="triage(${i},'✅ 已转为待办并进入四象限引导（联动 L6）')">→待办</button>
       <button class="tri" onclick="triage(${i},'📔 已插入今晚日记草稿（联动 L6）')">→日记</button>
       <button class="tri" onclick="triage(${i},'📝 已存为笔记（联动 L6）')">→笔记</button>
-      <button class="tri" onclick="triage(${i},'📚 已进入摘录导入队列（联动 L6）')">→摘录</button>
+      <button class="tri" onclick="triExcerpt(${i})">→摘录</button>
       <button class="tri !text-rose-400" onclick="triage(${i},'🗑 已删除')">✕</button></div></div>`).join('')||'<div class="text-center text-xs text-slate-400 py-10">🎉 收集箱已清空，保持住！</div>';
 }
 function addInbox(){ const v=$('#inboxInput').value.trim(); if(!v){toast('先写点什么吧');return;} D.inbox.unshift({t:v,age:'刚刚'}); $('#inboxInput').value=''; renderInbox(); toast('⚡ 已秒记入收集箱'); }
 function triage(i,msg){ D.inbox.splice(i,1); renderInbox(); toast(msg); }
+/* 收集箱→摘录（回画）：选书落库·origin=收集箱·kind=感想 */
+let ibxCur=-1;
+function triExcerpt(i){ibxCur=i;if(!BS_BOOKS.length)return toast('书架还没有书 · 先去阅读书架添加一本书');openSheet('sheetInboxBook');renderInboxBook()}
+function renderInboxBook(){const el=document.getElementById('ibkList');if(!el)return;const bs=[...BS_BOOKS].sort((a,b)=>(b.last||'').localeCompare(a.last||''));
+  el.innerHTML=bs.map(b=>'<button class="card !py-2.5 w-full text-left flex items-center gap-2 active:scale-[.99] transition" onclick="ibkPick(\''+b.id+'\')"><b class="text-[12px] flex-1 truncate">《'+b.n+'》</b><span class="text-[10px] text-slate-400">'+b.st+'</span></button>').join('')}
+function ibkPick(id){const b=bsBook(id),x=D.inbox[ibxCur];closeSheet('sheetInboxBook');if(!x)return;
+  BS_QUOTES.unshift({b:id,ty:'感想',tg:'重点',ch:'',pg:0,dt:shFmtDate(),x:x.t,th:'',src:'收集箱'});b.q=bsQ(id).length;
+  D.inbox.splice(ibxCur,1);ibxCur=-1;renderInbox();renderQuotes();renderShelf();renderBookDetail();toast('已存为阅读摘录（联动 L6）')}
 
 /* ================= 记账 ================= */
 function renderFin(){
@@ -4525,7 +4542,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',longPress:['计时','记摘录','改分区','移书单','删除']};
+let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,longPress:['计时','记摘录','改分区','移书单','删除']};
 let shSel=new Set(),CURBK='b1',bdTab='q',qtKw='',qtTag='',qtScope='all',qtView='card',bdChFilter='',bdIntroOpen=false;
 const shFmtDate=()=>{const d=new Date(2026,8,20);return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 
@@ -4859,7 +4876,8 @@ function qtImgWall(list){const withImg=list.filter(x=>x.img);const n=BS_SET.imgC
    +(withImg.length?'':'<div class="mt-2 text-[10px] text-slate-400 text-center">还没有带图片的摘录 · 记摘录时点「加图片」</div>')}
 function qtFav(i){BS_QUOTES[i].fav=BS_QUOTES[i].fav?0:1;renderQuotes()}
 let rvList=[],rvAt=0;
-function qtReview(){rvList=BS_QUOTES.filter(x=>x.th||x.ty==='感想');if(!rvList.length)return toast('还没有可复习的笔记');rvAt=0;openSheet('sheetReview');rvRender()}
+function rvDueNow(){return BS_QUOTES.filter((x,i)=>i%3===0)}/* 演示口径：到期队列以抽样近似·真实现按艾宾浩斯档位 next_at */
+function qtReview(){rvList=rvDueNow();if(!rvList.length)return toast('还没有到期的摘录');rvAt=0;openSheet('sheetReview');rvRender()}
 function rvRender(){const x=rvList[rvAt];if(!x)return;document.getElementById('rvCard').classList.remove('flip');
   document.getElementById('rvIdx').textContent=(rvAt+1)+' / '+rvList.length;
   document.getElementById('rvFront').textContent=x.ty==='划线'?'「'+x.x+'」':x.x;
@@ -5116,7 +5134,7 @@ const BS_IMP=[
  {k:'clip_ddao',cat:'clip',nm:'得到',fmt:'自动识别',key:'书名 + 页',f:''},
  {k:'clip_rigo',cat:'clip',nm:'Readigo',fmt:'自动识别',key:'书名 + 页',f:''}];
 const IMP_CAT=[['auth','授权导入'],['pc','电脑端'],['api','API'],['file','文件导入'],['clip','剪贴板']];
-let impCat='file',impCur='kindle',impPrev=null;
+let impCat='file',impCur='kindle',impPrev=null,impBatch=null;
 function impOpen(){navTo('p-readimport');renderReadImport()}
 function impParse(c){const n=6+(bsHash(c.k)%9),dup=bsHash(c.k+'d')%3;
   const rows=[['置身事内','第五章 地权与债务',188,'政府是经济发展的参与者，而不只是裁判员。'],['原子习惯','第2章',42,'你并没有 rise to the level of your goals，你只是 fall to the level of your systems。'],['万历十五年','四海',150,'当一个社会以道德代替技术，细节就无人负责。']].map(r=>({b:r[0],ch:r[1],pg:r[2],x:r[3]}));
@@ -5129,13 +5147,18 @@ function renderReadImport(){const cc=document.getElementById('impCats');if(!cc)r
   const c=BS_IMP.find(x=>x.k===impCur),p=impPrev||impParse(c);
   document.getElementById('impPrev').innerHTML='<div class="card"><div class="flex items-center gap-2"><div class="row-title">'+c.nm+' · 解析预览</div><span class="ml-auto text-[10px] text-slate-400">'+p.n+' 条 · 重复 '+p.dup+' 条</span></div>'
    +'<div class="mt-2 text-[10.5px] text-slate-400 leading-5">去重键：'+c.key+(c.f?' · 可带字段：'+c.f:'')+'</div>'
-   +'<div class="mt-2 space-y-2">'+p.rows.map((r,i)=>'<div class="rounded-xl bg-slate-50 dark:bg-slate-800 p-2.5"><div class="flex items-center gap-2 text-[10px] text-slate-400"><b class="text-slate-600 dark:text-slate-300 text-[11.5px]">'+r.b+'</b><span>'+r.ch+'</span><span class="ml-auto">'+(i<p.dup?'<span class="text-amber-600">已存在 · 跳过</span>':'<span class="text-teal-600">新增</span>')+'</span></div><div class="text-[11.5px] leading-5 mt-1">'+r.x+'</div></div>').join('')+'</div>'
-   +'<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="impRun()">导入 '+(p.n-p.dup)+' 条</button><button class="py-2.5 rounded-xl card !py-2.5 text-xs font-bold text-slate-500 px-3" onclick="impAll()">按清单建书</button></div>'
+   +'<div class="mt-2 space-y-2">'+p.rows.map((r,i)=>'<div class="rounded-xl bg-slate-50 dark:bg-slate-800 p-2.5"><div class="flex items-center gap-2 text-[10px] text-slate-400"><b class="text-slate-600 dark:text-slate-300 text-[11.5px]">'+r.b+'</b><span>'+r.ch+'</span><span class="ml-auto">'+(i<p.dup?'<span class="text-amber-600">已存在 · 跳过</span>':(BS_BOOKS.some(x=>x.n===r.b)?'<span class="text-teal-600">新增</span>':'<span class="text-violet-500">将建档 · 新增</span>'))+'</span></div><div class="text-[11.5px] leading-5 mt-1">'+r.x+'</div></div>').join('')+'</div>'
+   +'<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="impRun()">导入 '+(p.n-p.dup)+' 条</button><button class="py-2.5 rounded-xl card !py-2.5 text-xs font-bold text-slate-500 px-3" onclick="impAll()">按清单建书</button>'+(impBatch&&impBatch.length?'<button class="py-2.5 rounded-xl card !py-2.5 text-xs font-bold !text-rose-500 px-3" onclick="impUndo()">撤销本批</button>':'')+'</div>'
    +'<div class="mt-2 text-[10px] text-slate-400 leading-5">导入只写本地库；原文与想法分列存储，位置自动折算为百分比进度。</div></div>'}
-function impRun(){const c=BS_IMP.find(x=>x.k===impCur),p=impPrev||impParse(c);let add=0,skip=0;
-  p.rows.forEach((r,i)=>{if(i<p.dup){skip++;return}const b=BS_BOOKS.find(x=>x.n===r.b);if(!b){skip++;return}
-    BS_QUOTES.unshift({b:b.id,ty:'划线',tg:'重点',ch:r.ch,pg:r.pg,dt:shFmtDate(),x:r.x,th:'',src:c.nm});add++;b.q=bsQ(b.id).length});
-  renderQuotes();renderShelf();renderBookDetail();toast('已导入 '+add+' 条 · 跳过重复 '+skip+' 条 · 来源 '+c.nm)}
+function impRun(){const c=BS_IMP.find(x=>x.k===impCur),p=impPrev||impParse(c);let add=0,skip=0,created=0;impBatch=[];
+  p.rows.forEach((r,i)=>{if(i<p.dup){skip++;return}let b=BS_BOOKS.find(x=>x.n===r.b);
+    if(!b){b={id:'impn'+Date.now()+i,n:r.b,a:'待补',st:'想读',p:0,pg:200,rp:0,q:0,tags:[],c:bsHash(r.b)%8,rate:0,isbn:'—',pub:'—',yr:2024,src:c.nm,start:'',end:'',min:0,times:0,note:'',fin:'',fmt:'纸质',pw:'page',tot:200,pos:0,tr:'',pubDate:'2024-01',fee:0,series:'',intro:'由 '+c.nm+' 导入自动建档，缺作者与封面 · 点编辑补齐。'};BS_BOOKS.push(b);created++}
+    const q={b:b.id,ty:'划线',tg:'重点',ch:r.ch,pg:r.pg,dt:shFmtDate(),x:r.x,th:'',src:c.nm};BS_QUOTES.unshift(q);impBatch.push(q);add++;b.q=bsQ(b.id).length});
+  renderQuotes();renderShelf();renderBookDetail();renderReadImport();
+  toast('已导入 '+add+' 条 · 跳过重复 '+skip+' 条'+(created?' · 新建 '+created+' 本':'')+' · 来源 '+c.nm)}
+function impUndo(){if(!impBatch||!impBatch.length)return toast('本批没有可撤销的导入');const n=impBatch.length;
+  impBatch.forEach(q=>{const ix=BS_QUOTES.indexOf(q);if(ix>=0)BS_QUOTES.splice(ix,1);const b=BS_BOOKS.find(x=>x.id===q.b);if(b)b.q=bsQ(b.id).length});
+  impBatch=null;renderQuotes();renderShelf();renderBookDetail();renderReadImport();toast('已撤销本批 · 移除 '+n+' 条摘录')}
 function impAll(){['乡土中国','历史的温度','一天一朵云'].forEach((t,i)=>{if(!BS_BOOKS.some(b=>b.n===t))BS_BOOKS.push({id:'imp'+i,n:t,a:'待补',st:'想读',p:0,pg:200+i*60,rp:0,q:0,tags:['随笔'],c:i%8,rate:0,isbn:'—',pub:'—',yr:2024,src:'导入清单',start:'',end:'',min:0,times:0,note:'',fin:'',fmt:'纸质',pw:'page',tot:200+i*60,pos:0,tr:'',pubDate:'2024-01',fee:0,series:'',intro:'由书架清单导入，缺少作者与封面 · 点编辑补齐。'})});
   renderShelf();renderRecHub();toast('已按清单建 3 本（想读）· 同名同 ISBN 不重复建')}
 
@@ -5575,7 +5598,7 @@ function renderRecHub() {
   wl.className = 'mt-2.5';
   wl.innerHTML = (BS_BOOKS.length ? shWallRail(bsRecent()) : '<div class="card text-[11px] text-slate-400 text-center py-6">书架还是空的 · <button class="link-act" onclick="shNewOpen()">添加一本</button></div>')
     + `<div class="card mt-3"><div class="row-title">最近摘录</div>${BS_QUOTES.slice(0, 3).map(x => `<div class="flex gap-2 mt-2 text-[11.5px] leading-6 active:scale-[.99] transition" onclick="bsGotoQuotes('${x.b}')"><span class="qtag" style="background:${(BS_QTAGS.find(t => t[0] === x.tg) || ['', '', '#6366f1'])[2]}"></span><span class="flex-1 line-clamp-2">${x.ty === '划线' ? '「' + x.x + '」' : x.x}<span class="text-slate-400"> — ${bsBook(x.b).n}</span></span><span class="text-slate-300 dark:text-slate-600 shrink-0">›</span></div>`).join('')}<button class="link-act text-[10px] mt-2" onclick="navTo('p-quotes')">去笔记库</button></div>`
-    + `<div class="card mt-3 flex items-center gap-2.5 active:scale-[.99] transition" onclick="qtReview()"><span class="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-500/15 text-violet-500 flex items-center justify-center shrink-0">${bsi('think', 'w-[17px] h-[17px]')}</span><span class="flex-1 min-w-0"><span class="block text-[13px] font-bold">摘录复习</span><span class="block text-[10px] text-slate-400 mt-0.5">共 ${BS_QUOTES.length} 条 · 按遗忘曲线安排</span></span><span class="text-slate-300 dark:text-slate-600">›</span></div>`;
+    + `<div class="card mt-3 flex items-center gap-2.5 active:scale-[.99] transition" onclick="qtReview()"><span class="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-500/15 text-violet-500 flex items-center justify-center shrink-0">${bsi('think', 'w-[17px] h-[17px]')}</span><span class="flex-1 min-w-0"><span class="block text-[13px] font-bold">摘录复习</span><span class="block text-[10px] text-slate-400 mt-0.5">共 ${BS_QUOTES.length} 条 · 今日到期 ${rvDueNow().length} 条</span></span><span class="text-slate-300 dark:text-slate-600">›</span></div>`;
   const bt = document.getElementById('bkTotal'); if (bt && cur) bt.textContent = bsFmt(cur.min);
 }
 

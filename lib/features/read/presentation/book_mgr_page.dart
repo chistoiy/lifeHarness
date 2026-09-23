@@ -32,12 +32,24 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
   }
 
   Future<void> _add() async {
+    final repo = ref.read(readRepositoryProvider);
     final n = _addCtl.text.trim();
-    if (n.isEmpty) return;
-    await ref.read(readRepositoryProvider).dictAdd(_kind, n);
+    // 原型 bmAdd 三态文案：空＝「先起个名字」；撞字典＝「已存在「v」」（原 ignore 会静默误报成功）。
+    if (n.isEmpty) {
+      readToast(context, '先起个名字');
+      return;
+    }
+    final exist = await repo.dictOf(_kind);
+    if (exist.any((e) => e.name == n)) {
+      if (mounted) readToast(context, '已存在「$n」');
+      return;
+    }
+    await repo.dictAdd(_kind, n);
     _addCtl.clear();
     ref.read(readTickProvider.notifier).state++;
-    if (mounted) readToast(context, '已添加「$n」');
+    if (mounted) {
+      readToast(context, '已新增${DictEntry.label(_kind)}「$n」');
+    }
   }
 
   Future<void> _rename(DictEntry e) async {

@@ -320,6 +320,9 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     'tlDays' => '14',
     'timerUI' => '全屏',
     'longPress' => kLpDefault,
+    // 原型 BS_SET 默认关的两键（其余 bool 键默认开）。
+    'simple' => 'false',
+    'fullCh' => 'false',
     _ => 'true',
   };
 

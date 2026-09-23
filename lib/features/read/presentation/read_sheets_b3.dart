@@ -880,8 +880,8 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
       default:
         await repo.bumpReview(q.id!);
         final r = await repo.reviewOf(q.id!);
-        final l = _label(r?.nextAt);
-        msg = l == '已掌握' ? '已掌握 · 不再出现在复习' : '$l后延长';
+        // _label 已含「N 天后」后缀，直接拼「延长」（原型口径：7 天后延长）。
+        msg = r?.nextAt == null ? '已掌握 · 不再出现在复习' : '${_label(r!.nextAt)}延长';
     }
     if (!mounted) return;
     readToast(context, msg);

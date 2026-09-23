@@ -113,13 +113,13 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
   @override
   Widget build(BuildContext context) {
     final ui = ref.watch(shelfUiProvider);
-    // read.openTab（§6 外观与启动）：进书架默认落到的分区；未设过保持「全部」。
+    // read.openTab（§6 外观与启动）：进书架默认落到的分区；原型 BS_SET 默认「在读」，未设过同样生效。
     if (!_tabBooted) {
       _tabBooted = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final t = await ref.read(readRepositoryProvider).kv('read.openTab');
-        if (t != null &&
-            mounted &&
+        final t = await ref.read(readRepositoryProvider).kv('read.openTab') ??
+            '在读';
+        if (mounted &&
             ref.read(shelfUiProvider).st == null &&
             Book.states.contains(t)) {
           ref.read(shelfUiProvider.notifier).state =
@@ -445,7 +445,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$done / $goal 本 · 还差 $need 本',
+                      '$done / $goal 本 · ${need > 0 ? '还差 $need 本' : '目标已达成'}',
                       style: TextStyle(
                         fontSize: 10.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

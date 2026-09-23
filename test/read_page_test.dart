@@ -196,6 +196,9 @@ void main() {
       await settle(tester);
       await useSurface(tester);
       await settle(tester);
+      // openTab 原型默认「在读」→ 进书架先点「全部」再看五卡（批A 保真）。
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
       expect(find.text('在读 2'), findsOneWidget);
       expect(find.text('想读 1'), findsOneWidget);
       expect(find.text('已读 1'), findsOneWidget);
@@ -222,6 +225,9 @@ void main() {
       await tester.pumpWidget(page(const ShelfPage()));
       await settle(tester);
       await useSurface(tester);
+      await settle(tester);
+      // 同上：默认落「在读」，先回「全部」再批量（批A 保真）。
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('sh-manage')));
       await settle(tester);
