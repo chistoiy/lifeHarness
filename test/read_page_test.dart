@@ -1892,6 +1892,11 @@ void main() {
           routed(const BookMgrPage(kind: DictEntry.kGroup)));
       await settle(tester);
       await waitFinder(tester, find.text('还没有条目，先在下方添加'));
+      // 五类切换（原型 bmSwitch）：页内 chips 互切，增删改都在这一项。
+      await tester.tap(find.byKey(const ValueKey('bkm-k-tag')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('bkm-add-inp-tag')), findsOneWidget);
+      expect(find.text('标签管理'), findsWidgets);
     });
   });
 }

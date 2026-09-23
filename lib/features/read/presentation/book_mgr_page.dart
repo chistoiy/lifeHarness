@@ -9,8 +9,9 @@ import 'read_providers.dart';
 import 'read_sheets.dart';
 import 'shelf_page.dart' show shelfUiProvider, ShelfUI, kShelfDimDict;
 
-/// 书架资料单类管理页（原型 p-bkmgr 976-984 + renderBm 5263-5291）：
-/// kind 由构造参数决定（书架维度行「管理X」/ 阅读设置「书架资料」入口），
+/// 书架资料管理页（原型 p-bkmgr + renderBm + bmSwitch 五类切换）：
+/// kind 初始由路由 ?kind= 决定（书架维度行「管理X」/ 阅读设置「书架资料」入口），
+/// 页内五类 chips 可互切（来源/分组/作者/出版社/标签的增删改都在这一项）；
 /// 页头卡＝图标+标题+概述+回书架；行点按＝回书架并按该维度筛选（原型 bmFilter）；
 /// 就地改名事务回写 books（原型 bmEditOk）；删除按引用计数守卫（原型 bmDel）。
 class BookMgrPage extends ConsumerStatefulWidget {
@@ -27,7 +28,16 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
   String? _renamingName;
   final _renameCtl = TextEditingController();
 
-  String get _kind => widget.kind;
+  late String _kind = widget.kind;
+
+  /// 五类切换序（原型 bmKindChips：来源/分组/作者/出版社/标签）。
+  static const _kOrder = [
+    DictEntry.kSource,
+    DictEntry.kGroup,
+    DictEntry.kAuthor,
+    DictEntry.kPublisher,
+    DictEntry.kTag,
+  ];
 
   /// kind → 书架维度键（kShelfDimDict 反查：行点进书架筛选用）。
   String get _dim =>
@@ -203,6 +213,49 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 10),
+          // 五类切换（原型 bmKindChips/bmSwitch）：来源/分组/作者/出版社/标签互切。
+          Wrap(
+            key: const ValueKey('bkm-kinds'),
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final k in _kOrder)
+                GestureDetector(
+                  key: ValueKey('bkm-k-$k'),
+                  onTap: () => setState(() {
+                    _kind = k;
+                    _renamingName = null;
+                    _addCtl.clear();
+                  }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _kind == k
+                          ? tokens.accent.withValues(alpha: .12)
+                          : cs.surfaceContainerHighest.withValues(alpha: .4),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: _kind == k ? tokens.accent : Colors.transparent,
+                      ),
+                    ),
+                    child: Text(
+                      DictEntry.label(k),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: _kind == k
+                            ? tokens.accent
+                            : cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 10),
           Row(

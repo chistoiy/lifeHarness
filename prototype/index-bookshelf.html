@@ -979,6 +979,7 @@ tailwind.config = {
         <div class="flex-1 min-w-0"><div class="text-[13px] font-extrabold" id="bmName">书籍来源</div><div class="text-[10px] text-slate-400 mt-0.5" id="bmSum"></div></div>
         <button class="mini-btn !text-[10px]" onclick="navTo('p-bookshelf')">回书架</button>
       </div>
+      <div class="mt-2 flex gap-1.5 flex-wrap" id="bmKindChips"></div>
       <div class="mt-3 flex gap-2"><input id="bmAddInp" class="inp flex-1" placeholder="新增名称…" onkeydown="if(event.key==='Enter')bmAdd()"><button class="mini-btn self-stretch flex items-center px-4" onclick="bmAdd()">添加</button></div>
       <div id="bmList" class="mt-3"></div>
     </section>
@@ -5271,7 +5272,11 @@ function renderBm(){const el=document.getElementById('bmList');if(!el)return;con
     <button class="mini-btn !text-[10px] !bg-peach/15 !text-rose-500" onclick="event.stopPropagation();bmDel('${v.replace(/'/g,"\\'")}')" ${n?'disabled style="opacity:.3"':''}>删除</button>`}</div>`}).join('')
   ||'<div class="card text-[11px] text-slate-400 text-center py-6">还没有条目，先在下方添加</div>';
  document.getElementById('bmSum').textContent=bmVals(k).length+' 个'+BM_META[k][2]+' · 覆盖 '+BS_BOOKS.length+' 本书';
+ const kc=document.getElementById('bmKindChips');if(kc)kc.innerHTML=['src','grp','author','pub','tag'].map(x=>`<button class="chip !text-[10px] ${k===x?'chip-on':''}" onclick="bmSwitch('${x}')">${BM_META[x][2]}</button>`).join('');
  const old=document.getElementById('bmAddInp');if(old)old.value=''}
+function bmSwitch(k){if(k===bmKind)return;bmKind=k;bmEdit=null;
+ TITLES['p-bkmgr']=[BM_META[k][0],BM_META[k][1]];
+ document.getElementById('bmName').textContent=BM_META[k][0];document.getElementById('bmIcon').innerHTML=bsi(BM_IC_KEY[k]);renderBm()}
 function bmEditOk(){const inp=document.getElementById('bmEditInp');const nv=(inp.value||'').trim();const ov=bmEdit;bmEdit=null;
  if(!nv||nv===ov){renderBm();return}
  const k=bmKind;
