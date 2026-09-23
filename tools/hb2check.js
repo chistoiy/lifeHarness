@@ -15,4 +15,5 @@ for (let n = 1; n <= L.length; n++) {
     process.exit(1);
   }
 }
-console.log('SYNTAX OK js=' + js.length);
+try { new vm.Script(js); console.log('SYNTAX OK js=' + js.length) }
+catch (e) { console.log('FULL PARSE FAIL', e.message); process.exit(1) }

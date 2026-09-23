@@ -1,0 +1,9 @@
+function hbCardMini(h){const i=HABITS.indexOf(h),ok=!!h.w[6],rate=hbRate(h),val=hbValAt(h,0);
+ return `<div class="card !py-2 !px-2.5 flex items-center gap-2" onclick="hbOpen('${h.id}')">
+  <span class="w-7 h-7 rounded-lg ${h.type==='pos'?'bg-brand-50 dark:bg-brand-500/15 text-brand-500':'bg-rose-50 dark:bg-rose-500/15 text-rose-500'} flex items-center justify-center shrink-0">${hbi(h.ic,'w-[14px] h-[14px]')}</span>
+  <div class="flex-1 min-w-0"><b class="text-[12px] block truncate">${h.n}</b>
+   <div class="mt-1 flex items-center gap-1">${h.w.map(v=>`<i class="w-1.5 h-1.5 rounded-full ${v?(h.type==='pos'?'bg-emerald-400':'bg-teal-400'):'bg-slate-200 dark:bg-slate-700'}"></i>`).join('')}
+    <span class="text-[9px] text-slate-400 ml-1">${rate}%${val?' · '+val+(h.group?'项次':h.unit||''):''}</span></div></div>
+  ${h.type==='pos'?`<button class="w-8 h-8 rounded-xl ${ok?'bg-slate-100 dark:bg-slate-800 text-slate-400':'grad text-white'} flex items-center justify-center shrink-0" onclick="event.stopPropagation();hbTap(${i})">${hbi(ok?'check':'plus','w-[15px] h-[15px]')}</button>`
+   :`<button class="px-2.5 h-8 rounded-xl ${ok?'bg-slate-100 dark:bg-slate-800 text-slate-400':'bg-emerald-500 text-white'} text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();hbAvoid(${i})">${ok?'守住':'记触发'}</button>`}</div>`}
+function hbTileTap(i){const h=HABITS[i];if(h.type==='pos'&&!h.w[6]){hbTap(i);return}hbOpen(h.id)}

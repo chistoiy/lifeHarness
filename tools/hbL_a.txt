@@ -1,0 +1,9 @@
+let hbHeatMode=0;
+function hbHeatPick(m){hbHeatMode=m;hbHeatRender()}
+function hbHeatVal(h,back){const v=hbValAt(h,back);if(v)return v;const g=hbDayGet(h,back);
+ return h.group?((g.val||[]).filter((x,k)=>(+x||0)>=(h.subs[k].goal||0)).length):0}
+function hbHeatRender(){const el=document.getElementById('hstHeat');if(!el)return;
+ const book=hbScopeBook(),W=17,today=new Date(2026,8,19);
+ const sg=document.getElementById('hstHeatSeg');
+ if(sg)sg.innerHTML=[['达成数','按当天达成的习惯个数'],['记录量','按当天记录的数值合计'],['时段','按当天主要打卡时段']].map((x,i)=>'<button class="chip !text-[10px] flex-1 justify-center '+(hbHeatMode===i?'chip-on':'')+'" onclick="hbHeatPick('+i+')">'+x[0]+'</button>').join('');
+ const lead=(today.getDay()+6)%7;

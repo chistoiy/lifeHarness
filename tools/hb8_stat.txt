@@ -1,0 +1,76 @@
+function hbAgg(dim,off){const book=hbBook();let cnt=0,val=0,rec=0;const days=hbDimDays(dim);
+ book.forEach(h=>{const t=hbTot(h,dim,off);cnt+=t.cnt;val+=t.val;rec+=hbRecN(h,dim,off)});
+ return {cnt:cnt,val:val,rec:rec,days:days,n:book.length,rate:Math.min(100,Math.round(cnt/Math.max(1,book.length*days)*100))}}
+function hbDlt(cur,prev,betterUp){if(prev==null)return '<span class="text-slate-400">无数据</span>';
+ const d=cur-prev,p=prev?Math.round(d/prev*100):(d?100:0);
+ if(!p)return '<span class="text-slate-400">持平</span>';
+ const good=betterUp?d>0:d<0;
+ return '<span class="'+(good?'text-emerald-500':'text-rose-500')+' font-bold">'+(d>0?'+':'')+p+'%</span>'}
+function renderHabitStat(){const book=hbBook(),dim=hsDim,off=hsOffGet(dim),T2=hbBaseTxt(dim,off);
+ const A=hbAgg(dim,off),P=hbAgg(dim,off+1),Y=hbAgg(dim,off+(dim==='a'?1:dim==='m'?12:52));
+ const C=2*Math.PI*22,r=document.getElementById('hstRing');
+ if(r)r.setAttribute('stroke-dasharray',(C*Math.min(1,A.rate/100)).toFixed(1)+' '+C.toFixed(1));
+ const rt=document.getElementById('hstRate');if(rt)rt.textContent=A.rate+'%';
+ const ti=document.getElementById('hstTitle');if(ti)ti.textContent=T2+'总达成率';
+ const st=document.getElementById('hstSub');if(st)st.textContent=book.length+' 个跟踪中习惯 · 打卡 '+A.cnt+' 次 · 数值记录 '+A.rec+' 条 · 负向触发 '+book.filter(h=>h.type==='neg').reduce((a,h)=>a+hbCnt(h,dim,off),0)+' 次';
+ const pd=document.getElementById('hsPeriod');if(pd)pd.innerHTML=T2+'<span class="text-[9px] font-normal text-slate-400 ml-1">'+(dim==='w'?'按周':dim==='m'?'按月':'按年')+' · 点击选择</span>';
+ const nt=document.getElementById('hsNowTag');if(nt){nt.textContent=off?('第 '+off+' 期前'):'当前';nt.className='text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 '+(off?'bg-amber-100 text-amber-600 dark:bg-amber-500/15':'bg-white/20 text-slate-400 dark:bg-slate-800')}
+ const bn=document.getElementById('hsNext');if(bn)bn.className='w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0'+(off?'':' opacity-30');
+ const cards=document.getElementById('hstCards');
+ if(cards)cards.innerHTML=[['打卡次数',A.cnt,'次'],['数值记录',A.rec,'条'],['日均打卡',(A.days?Math.round(A.cnt/A.days*10)/10:0),'次/天']].map(x=>`<div class="rounded-2xl bg-white/15 py-2"><b class="text-base block">${x[1]}</b><span class="text-[9.5px] opacity-85">${x[0]}${x[2]}</span></div>`).join('');
+ const cmp=document.getElementById('hsCmp');
+ if(cmp)cmp.innerHTML=[['打卡次数',A.cnt,P.cnt,Y.cnt,true,'次'],['数值记录',A.rec,P.rec,Y.rec,true,'条'],['达成率',A.rate,P.rate,Y.rate,true,'%']].map(x=>`<div class="card !py-2 !px-2 text-center">
+   <div class="text-[9.5px] text-slate-400">${x[0]}</div><b class="text-[15px] block leading-6">${x[1]}${x[5]==='%'?'%':''}</b>
+   <div class="mt-0.5 space-y-0.5 text-[9.5px] leading-4">
+     <div><span class="text-slate-400">环比 ${x[2]}${x[5]==='%'?'%':''}</span> ${hbDlt(x[1],x[2],x[4])}</div>
+     <div><span class="text-slate-400">${dim==='a'?'上年':dim==='m'?'去年同月':'去年同周'}</span> ${hbDlt(x[1],x[3],x[4])}</div></div></div>`).join('');
+ const tip=document.getElementById('hsCmpTip');
+ if(tip)tip.textContent=off?('对比对象：'+hbBaseTxt(dim,off+1)+' / '+hbBaseTxt(dim,off+(dim==='a'?1:dim==='m'?12:52))):'环比=上一期 · 同比=去年同期';
+ const cats=document.getElementById('hstCats');
+ if(cats)cats.innerHTML=(hbCatF&&hbCatF!=='全部'?[hbCatF]:HB_CATS).map(c=>{const ls=book.filter(h=>h.cat===c);if(!ls.length)return '';const r2=Math.round(ls.reduce((a,h)=>a+hbRate(h),0)/ls.length);
+   return `<div class="flex items-center gap-2 text-[11.5px]"><span class="w-12 text-slate-400 shrink-0 truncate">${c}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${r2>=70?'bg-emerald-400':r2>=40?'bg-amber-400':'bg-rose-400'}" style="width:${r2}%"></span></div><b class="w-9 text-right ${r2>=70?'text-emerald-500':'text-slate-500'}">${r2}%</b><span class="w-8 text-right text-slate-400">${ls.length} 个</span></div>`}).join('')||'<div class="text-[11px] text-slate-400">暂无分类数据</div>';
+ const rk=document.getElementById('hstRank');
+ if(rk)rk.innerHTML=book.slice().sort((a,b)=>hbTot(b,dim,off).cnt-hbTot(a,dim,off).cnt||hbRate(b)-hbRate(a)).map((h,i)=>{const t=hbTot(h,dim,off),pv=hbTot(h,dim,off+1);
+   return `<div class="flex items-center gap-2.5 py-1.5 ${i?'border-t border-slate-100 dark:border-slate-800':''}" onclick="hbCur='${h.id}';hbOpen('${h.id}')"><span class="w-4 text-[10px] font-black text-slate-400">${i+1}</span><span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[13px] h-[13px]')}</span><span class="flex-1 min-w-0 text-[12px] truncate">${h.n}</span><span class="text-[10px] text-slate-400 shrink-0">${t.cnt} 次</span>${hbDlt(t.cnt,pv.cnt,h.type==='pos')}<b class="w-16 text-right text-[11.5px] text-brand-500">${hbHasVal(h)?t.val+' '+t.unit:hbRate(h)+'%'}</b></div>`}).join('');
+ const gs=document.getElementById('hstGroup');
+ if(gs){const grp=book.filter(h=>h.group);if(grp.length){gs.parentElement.classList.remove('hidden');
+   gs.innerHTML=grp.map(h=>{const subs=hbSubTot(h,dim,off);const mx=Math.max.apply(null,subs.map(s=>s.val))||1;
+     return `<div class="mb-2 last:mb-0"><div class="text-[10.5px] font-bold text-slate-500">${h.n} · ${T2}子项构成</div>${subs.map(s=>`<div class="flex items-center gap-2 text-[11px] mt-1"><span class="w-14 shrink-0 text-slate-400">${s.n}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${s.val/mx*100}%"></span></div><b class="w-20 text-right">${s.val} ${s.unit}</b></div>`).join('')}</div>`}).join('')}
+   else gs.parentElement.classList.add('hidden')}
+ const ng=document.getElementById('hstNeg');
+ if(ng){const negs=book.filter(h=>h.type==='neg');
+   ng.innerHTML=negs.length?negs.map(h=>{const trig=hbCnt(h,dim,off),prev=hbCnt(h,dim,off+1);
+     return `<div class="flex items-center gap-2 text-[11.5px]"><span class="flex-1 min-w-0 truncate">${h.n}</span><span class="text-slate-400 shrink-0">触发 ${trig} 次</span>${hbDlt(trig,prev,false)}<div class="w-14 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0"><span class="block h-full bg-rose-400" style="width:${Math.min(100,trig/Math.max(1,(h.target||1)*(dim==='w'?1:dim==='m'?4.3:52))*100)}%"></span></div><span class="w-14 text-right text-[10px] shrink-0 text-emerald-500">未做 ${(dim==='w'?h.w.filter(v=>v).length:dim==='m'?(h.mAvoid||0):(h.mAvoid||0)*12)} 天</span></div>`}).join(''):'<div class="text-[11px] text-slate-400">没有负向习惯在跟踪</div>'}
+ const wall=document.getElementById('hstWall');
+ if(wall)wall.innerHTML=book.slice().sort((a,b)=>(b.best||0)-(a.best||0)).slice(0,5).map(h=>`<div class="flex items-center gap-2"><span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[13px] h-[13px]')}</span><span class="flex-1 min-w-0 text-[11.5px] truncate">${h.n}</span><b class="text-[13px] text-sun">${h.best||0}</b><span class="text-[10px] text-slate-400">天</span></div>`).join('')}
+function hsStep(d){const dim=hsDim,cur=hsOffGet(dim),o=cur-d;
+ if(o<0){toast('已是当前周期');return}
+ if(dim==='w'&&o>160){toast('演示数据仅保留近 160 周');return}
+ hsOffSet(dim,o);hsWheelSync();renderHabitStat()}
+function hsTogglePick(){const w=document.getElementById('hsPickWrap');if(!w)return;
+ const on=w.classList.contains('flex');w.classList.toggle('hidden',on);w.classList.toggle('flex',!on);
+ if(!on)hsWheelBuild()}
+function hsYearList(){const y=hbCurAbs('a');return [y-2,y-1,y].map(String)}
+function hsWheelBuild(){const dim=hsDim,row=document.getElementById('hsPickRow');if(!row)return;
+ const off=hsOffGet(dim),abs=hbCurAbs(dim)-off,ys=hsYearList();
+ if(dim==='a')row.innerHTML='<div id="hsWy" style="width:110px"></div><span class="text-[11px] text-slate-400 ml-2">滚动选年</span>';
+ else if(dim==='m')row.innerHTML='<div id="hsWy" style="width:80px"></div><div id="hsWs" style="width:70px"></div><span class="text-[11px] text-slate-400 ml-2">滚动选年月</span>';
+ else row.innerHTML='<div id="hsWy" style="width:80px"></div><div id="hsWs" style="width:92px"></div><span class="text-[11px] text-slate-400 ml-2">滚动选年周</span>';
+ if(dim==='a'){wReg('hsWy',ys,Math.max(0,ys.indexOf(''+abs)),hsWheelChg);return}
+ const yy=dim==='m'?Math.floor(abs/12):(new Date(abs*7*864e5)).getUTCFullYear();
+ wReg('hsWy',ys,Math.max(0,ys.indexOf(''+yy)),hsWheelChg);
+ if(dim==='m')wReg('hsWs',['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],abs%12,hsWheelChg);
+ else{const wk=Math.floor((abs-Math.floor(Date.UTC(yy,0,4)/(7*864e5)))/7)+1;
+  wReg('hsWs',Array.from({length:53},(_,k)=>'第 '+(k+1)+' 周'),Math.max(0,Math.min(52,wk-1)),hsWheelChg)}}
+function hsWheelSync(){if(!document.getElementById('hsPickWrap'))return;
+ if(!document.getElementById('hsPickWrap').classList.contains('hidden'))hsWheelBuild()}
+function hsWheelChg(){const dim=hsDim,g=id=>{const w=WHEELS[id];return w?w.items[w.i]:null},y=+g('hsWy');
+ if(!y)return;let abs;
+ if(dim==='a')abs=y;
+ else if(dim==='m'){const m=(+String(g('hsWs')).replace('月',''))-1;abs=y*12+m}
+ else{const wk=+String(g('hsWs')).replace(/[^0-9]/g,'');abs=Math.floor(Date.UTC(y,0,4)/(7*864e5))+Math.max(0,wk-1)}
+ if(abs>hbCurAbs(dim)){toast('不能选到未来周期');hsWheelBuild();return}
+ hsOffSet(dim,hbCurAbs(dim)-abs);renderHabitStat()}
+function hsPick(k){hsDim=k;['W','M','A'].forEach(x=>{const b=document.getElementById('hsBtn'+x);if(b)b.classList.remove('on')});
+ const btn=document.getElementById('hsBtn'+(k==='w'?'W':k==='m'?'M':'A'));if(btn)btn.classList.add('on');
+ hsWheelSync();renderHabitStat()}

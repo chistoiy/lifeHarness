@@ -1,0 +1,44 @@
+function hbDimDays(dim){return dim==='w'?7:dim==='m'?30:365}
+function hbSeed(s){return (hbHash(String(s))%1000)/1000}
+function hbCurAbs(dim){const d=new Date(2026,8,19),y=d.getFullYear();
+ if(dim==='a')return y;
+ if(dim==='m')return y*12+d.getMonth();
+ return Math.floor(Date.UTC(y,d.getMonth(),d.getDate())/(7*864e5))}
+function hbAbsTxt(dim,abs){
+ if(dim==='a')return abs+'年';
+ if(dim==='m')return Math.floor(abs/12)+'年'+(abs%12+1)+'月';
+ const st=new Date(abs*7*864e5),en=new Date(st.getTime()+6*864e5),f=x=>(x.getUTCMonth()+1)+'-'+String(x.getUTCDate()).padStart(2,'0');
+ const wk=Math.floor((abs-Math.floor(Date.UTC(st.getUTCFullYear(),0,4)/(7*864e5)))/7)+1;
+ return '第 '+wk+' 周 · '+f(st)+' ~ '+f(en)}
+function hbAbsShort(dim,abs){
+ if(dim==='a')return ''+abs;
+ if(dim==='m')return Math.floor(abs/12)+'.'+(abs%12+1);
+ const st=new Date(abs*7*864e5);return st.getUTCFullYear()+' 年第'+(Math.floor((abs-Math.floor(Date.UTC(st.getUTCFullYear(),0,4)/(7*864e5)))/7)+1)+'周'}
+/* 周期偏移：off=0 当期（真实状态），off>0 历史周期（按当期基线 × 波动 × 趋势推算） */
+let hsOffW=0,hsOffM=0,hsOffA=0;
+function hsOffGet(dim){return dim==='w'?hsOffW:dim==='m'?hsOffM:hsOffA}
+function hsOffSet(dim,v){v=Math.max(0,Math.min(dim==='w'?160:dim==='m'?40:8,v|0));if(dim==='w')hsOffW=v;else if(dim==='m')hsOffM=v;else hsOffA=v}
+function hbAbsOf(dim,off){return hbCurAbs(dim)-off}
+function hbBaseTxt(dim,off){return off?hbAbsTxt(dim,hbAbsOf(dim,off)):{w:'本周',m:'本月',a:'本年',all:'累计'}[dim]||'本期'}
+function hbFactor(h,dim,off){if(!off)return 1;
+ const s=hbSeed(h.id+'|'+dim+'|'+off);
+ return (0.82+s*0.36)/(1+(dim==='w'?0.006:dim==='m'?0.022:0.05)*off)}
+function hbCnt(h,dim,off){off=off||0;const days=hbDimDays(dim);
+ const base=(function(){
+  if(h.type==='neg')return Math.round((h.triggers||0)*(dim==='w'?1:dim==='m'?4.3:52));
+  const wk=h.w.filter(v=>v).length;
+  const r=dim==='w'?wk/7:dim==='m'?Math.min(1,(h.mDone||0)/30):Math.max(.12,Math.min(1,wk/7-.06));
+  return Math.round(days*r)})();
+ return Math.max(0,Math.round(base*hbFactor(h,dim,off)))}
+function hbAvgPer(h,off){off=off||0;if(!off||!hbHasVal(h))return h.group?h.subs.reduce((a,s)=>a+(+s.goal||0),0):(+h.goal||0);
+ const p=hbAvgPer(h,0);return Math.max(1,Math.round(p*(0.9+hbSeed(h.id+'|avg|'+off)*0.22)))}
+function hbSubAvg(h,off){if(!h.group)return [];const rows=(h.sv||[]).filter(r=>r&&r.some(v=>+v));off=off||0;
+ return h.subs.map((s,k)=>{const cur=rows.length?Math.round(rows.reduce((a,r)=>a+(+r[k]||0),0)/rows.length):(+s.goal||0);
+  return off?Math.max(0,Math.round(cur*(0.86+hbSeed(h.id+'|s'+k+'|'+off)*0.32))):cur})}
+function hbSubTot(h,dim,off){if(!h.group)return [];const c=hbCnt(h,dim,off),a=hbSubAvg(h,off),days=hbDimDays(dim);
+ return h.subs.map((s,k)=>({n:s.n,unit:s.unit,val:c*a[k],goal:(+s.goal||0)*days}))}
+function hbTot(h,dim,off){off=off||0;const days=hbDimDays(dim),cnt=hbCnt(h,dim,off),per=hbAvgPer(h,off);
+ return {cnt:cnt,dayN:days,val:cnt*per,avg:per,rate:Math.min(100,Math.round(cnt/days*100)),
+   base:hbBaseTxt(dim,off),unit:h.group?'项次':(h.unit||'次')}}
+function hbRecN(h,dim,off){if(!hbHasVal(h))return 0;const c=hbCnt(h,dim,off);
+ return off?c:((h.group?(h.sv||[]).filter(r=>r&&r.some(v=>+v)).length:(h.v||[]).filter(v=>+v).length))}

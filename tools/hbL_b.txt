@@ -1,0 +1,8 @@
+   const dt=hbDateOf(back);let n=0,bf=0,tip='';
+   if(hbHeatMode===0){book.forEach(h=>{if(hbOkAt(h,back)){n++;if(hbIsBf(h,back))bf++}});tip=n+' 个习惯达成'+(bf?' · 含补记 '+bf:'')}
+   else if(hbHeatMode===1){let sum=0;book.forEach(h=>{if(hbOkAt(h,back)){sum+=hbHeatVal(h,back);if(hbIsBf(h,back))bf++}});
+     const mx=book.reduce((a,h)=>Math.max(a,hbHeatVal(h,back)),1);tip='记录量 '+sum+(bf?' · 含补记 '+bf:'');n=Math.min(4,Math.round(sum/mx*4))}
+   else{const bk=[0,0,0,0];book.forEach(h=>{if(hbOkAt(h,back)){const a=hbAtOf(h,back)||hbSeedAt(h,back);bk[hbBkIdx(+String(a).split(':')[0])]++}});
+     n=bk.indexOf(Math.max.apply(null,bk));tip='主要时段 '+HB_BKS[n][0]+' · 凌晨'+bk[0]+' 上午'+bk[1]+' 下午'+bk[2]+' 晚上'+bk[3]}
+   const cls=hbHeatMode===2?['bg-slate-100 dark:bg-slate-800','bg-violet-300 dark:bg-violet-500/35','bg-sky-300 dark:bg-sky-500/35','bg-amber-300 dark:bg-amber-500/35','bg-indigo-400 dark:bg-indigo-500/70'][n]:['bg-slate-100 dark:bg-slate-800','bg-emerald-200 dark:bg-emerald-500/25','bg-emerald-300 dark:bg-emerald-500/40','bg-emerald-400 dark:bg-emerald-500/60','bg-emerald-500'][n];
+   html+=`<button class="w-[11px] h-[11px] rounded-[3px] ${cls}${bf?' ring-1 ring-amber-400':''}" title="${hbMd(dt)} 周${'日一二三四五六'[dt.getDay()]} · ${tip}" onclick="toast('${hbMd(dt)} 周${'日一二三四五六'[dt.getDay()]} · ${tip}')"></button>`}

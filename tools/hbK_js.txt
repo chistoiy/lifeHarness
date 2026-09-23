@@ -1,0 +1,102 @@
+/* 宽限卡 */
+function hbGl(h){if(h.gl==null)h.gl=HB_SET.grace||0;return h.gl}
+function hbFreeze(i){const h=HABITS[i];if(hbGl(h)<=0){toast('本月宽限次数已用完');return}
+ if(h.w[6]){toast('今天已打卡 · 无需宽限');return}
+ h.gl=hbGl(h)-1;h.fz=h.fz||[0,0,0,0,0,0,0];h.fz[6]=1;h.w[6]=1;h.mDone=(h.mDone||0)+1;
+ h.nt=h.nt||{};h.nt[6]='使用宽限卡';
+ renderHabits();renderHabitStat();if(curPage==='p-habitDetail')renderHabitDetail();
+ toast('已用一张宽限 · 连续 '+h.streak+' 天未中断 · 本月剩 '+h.gl+' 张')}
+
+/* 自动达成待确认 */
+function hbPendOpen(){hbPendRender();openSheet('sheetHabitPend')}
+function hbPendRender(){const el=document.getElementById('hpList');if(!el)return;
+ const book=hbBook().filter(h=>(h.pend||[]).length);
+ el.innerHTML=book.length?book.map(h=>`<div class="card !py-2.5 !px-3">
+   <div class="flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-brand-50 dark:bg-brand-500/15 text-brand-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[14px] h-[14px]')}</span>
+    <div class="flex-1 min-w-0"><b class="text-[12.5px] block truncate">${h.n}</b>
+     <span class="text-[10px] text-slate-400">${h.pend.map(p=>p.src+' · '+p.t+(p.val?' · 量 '+p.val:'')).join(' / ')}</span></div></div>
+   <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="hbPendOk('${h.id}')">确认打卡</button>
+    <button class="mini-btn flex-1" onclick="hbPendNo('${h.id}')">忽略</button></div></div>`).join('')
+  :'<div class="card text-[11px] text-slate-400 text-center !py-8">没有待确认的自动打卡</div>';
+ const b=document.getElementById('hpAll');if(b)b.style.display=book.length?'':'none'}
+function hbPendOk(id){const h=HABITS.find(x=>x.id===id);if(!h||!h.pend)return;
+ const p=h.pend[0];h.pend.shift();h.w[6]=1;h.at=h.at||['','','','','','',''];h.at[6]=p.t;
+ h.streak=(h.streak||0)+1;h.mDone=(h.mDone||0)+1;if(h.streak>h.best)h.best=h.streak;
+ if(p.val){if(h.group){h.sv=h.sv||[[],[],[],[],[],[],[]];h.sv[6]=h.subs.map(()=>Math.round(p.val/h.subs.length));h.v[6]=p.val}
+  else{h.v=h.v||[0,0,0,0,0,0,0];h.v[6]=p.val}}
+ hbPendRender();renderHabits();renderHabitStat();toast('已确认「'+h.n+'」· 来源 '+p.src)}
+function hbPendNo(id){const h=HABITS.find(x=>x.id===id);if(!h||!h.pend)return;
+ const p=h.pend.shift();hbPendRender();renderHabits();toast('已忽略 · 来源 '+p.src+' 未计入打卡')}
+function hbPendAll(){const list=hbBook().filter(h=>(h.pend||[]).length).map(h=>h.id);
+ if(!list.length){toast('没有待确认项');return}
+ list.forEach(id=>{while((HABITS.find(x=>x.id===id).pend||[]).length)hbPendOk(id)});
+ hbPendRender();toast('已确认 '+list.length+' 个习惯的自动打卡')}
+function hbPendSim(){const h=hbBook().find(x=>(x.src||[]).some(s=>s!=='手动打卡'));
+ if(!h){toast('没有绑定自动达成源的习惯');return}
+ const src=(h.src||[]).find(s=>s!=='手动打卡');
+ syncHabit('打卡：'+h.n+'（'+src+'）');
+ closeSheet('sheetHabitSrc');toast('已模拟一次「'+src+'」达成')}
+
+/* 模板库 */
+const HB_TPL=[
+ {n:'晨间喝水',ic:'water',type:'pos',cat:'健康',cycle:'day',unit:'杯',goal:1,remind:'07:30'},
+ {n:'冥想',ic:'med',type:'pos',cat:'健康',cycle:'day',unit:'分钟',goal:10,remind:'22:00'},
+ {n:'跑步',ic:'run',type:'pos',cat:'健康',cycle:'week',days:['二','四','六'],unit:'公里',goal:3,remind:'06:30'},
+ {n:'阅读',ic:'book',type:'pos',cat:'学习',cycle:'day',unit:'页',goal:20,remind:'21:30'},
+ {n:'背单词',ic:'plan',type:'pos',cat:'成长',cycle:'day',unit:'词',goal:50,remind:'08:00'},
+ {n:'写日记',ic:'write',type:'pos',cat:'成长',cycle:'day',unit:'字',goal:100,remind:'22:30'},
+ {n:'早睡',ic:'sleep',type:'pos',cat:'健康',cycle:'day',unit:'点前',goal:23,remind:'22:30'},
+ {n:'记账',ic:'list',type:'pos',cat:'生活',cycle:'day',unit:'笔',goal:1,remind:'21:00'},
+ {n:'整理桌面',ic:'code',type:'pos',cat:'工作',cycle:'week',days:['五'],unit:'项',goal:1,remind:''},
+ {n:'运动组合',ic:'run',type:'pos',cat:'健康',cycle:'day',group:true,rule:'all',remind:'07:00',
+  subs:[{n:'深蹲',unit:'个',goal:20},{n:'平板支撑',unit:'秒',goal:60},{n:'拉伸',unit:'分钟',goal:5}]},
+ {n:'少喝含糖饮料',ic:'food',type:'neg',cat:'生活',cycle:'week',unit:'杯',goal:1,target:3,remind:'20:00'},
+ {n:'少刷手机',ic:'phone',type:'neg',cat:'生活',cycle:'week',unit:'分钟',goal:30,target:3,remind:'23:00'}];
+function hbTplOpen(){const el=document.getElementById('htList');
+ el.innerHTML=HB_TPL.map((t,i)=>`<button class="w-full text-left card !py-2.5 !px-3 flex items-center gap-2.5" onclick="hbTplUse(${i})">
+   <span class="w-8 h-8 rounded-xl ${t.type==='pos'?'bg-brand-50 dark:bg-brand-500/15 text-brand-500':'bg-rose-50 dark:bg-rose-500/15 text-rose-500'} flex items-center justify-center shrink-0">${hbi(t.ic,'w-[15px] h-[15px]')}</span>
+   <span class="flex-1 min-w-0"><b class="text-[12.5px] block truncate">${t.n}</b>
+    <span class="text-[10px] text-slate-400">${t.type==='pos'?'正向':'负向'} · ${t.cat} · ${t.cycle==='day'?'每天':t.cycle==='week'?'每周':'每月'}${t.group?' · 组 · '+t.subs.length+' 项':(t.goal||t.target||0)+(t.unit||'次')}</span></span>
+   <span class="text-[10px] text-slate-300 dark:text-slate-600 shrink-0">填充</span></button>`).join('');
+ openSheet('sheetHabitTpl')}
+function hbTplUse(i){const t=HB_TPL[i];
+ heName=t.n;heIcon=t.ic;heType=t.type;heCat=t.cat;heCycle=t.cycle;heDays=(t.days||[]).slice();
+ heValMode=t.group?'group':(t.unit?'one':'off');heUnit=t.unit||'分钟';heGoal=String(t.goal||1);
+ heRule=t.rule||'all';heSubs=(t.subs||[]).map(s=>({n:s.n,unit:s.unit,goal:String(s.goal)}));
+ heRemind=t.remind?'on':'off';if(t.remind)heRemindVal=t.remind;
+ closeSheet('sheetHabitTpl');heRender();
+ toast('已按模板填充「'+t.n+'」· 可继续修改')}
+
+/* 分享长图 */
+function hbShareOpen(){hbShareRender();openSheet('sheetHabitShare')}
+function hbShareRender(){const el=document.getElementById('hshImg');if(!el)return;
+ const dim=hsDim,off=hsOffGet(dim),A=hbAgg(dim,off),book=hbScopeBook(),T2=hbBaseTxt(dim,off);
+ const pos=book.filter(h=>h.type==='pos').sort((a,b)=>hbTot(b,dim,off).cnt-hbTot(a,dim,off).cnt).slice(0,5);
+ const negs=book.filter(h=>h.type==='neg');
+ el.innerHTML=`<div class="bg-gradient-to-b from-brand-500 to-fuchsia-500 text-white p-5">
+   <div class="text-[11px] opacity-85">LifeHarness · 习惯报告</div>
+   <div class="text-xl font-black mt-1">${T2}打卡报告</div>
+   <div class="text-[10.5px] opacity-85 mt-1">${hbMd(hbDateOf(hbDimDays(dim)-1+off*hbDimDays(dim)))} ~ ${hbMd(hbDateOf(off))} · 共 ${book.length} 个习惯</div>
+   <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+    ${[['打卡次数',A.cnt],['达成率',A.rate+'%'],['数值记录',A.rec]].map(x=>`<div class="rounded-2xl bg-white/15 py-2"><b class="text-lg block">${x[1]}</b><span class="text-[9px] opacity-85">${x[0]}</span></div>`).join('')}</div></div>
+  <div class="p-5 bg-white dark:bg-slate-900">
+   <div class="text-[11px] font-black text-slate-500">达成靠前</div>
+   ${pos.map((h,i)=>{const t=hbTot(h,dim,off);return `<div class="flex items-center gap-2 py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+     <span class="w-4 text-[10px] font-black text-slate-400">${i+1}</span>
+     <span class="w-6 h-6 rounded-lg bg-brand-50 dark:bg-brand-500/15 text-brand-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[13px] h-[13px]')}</span>
+     <span class="flex-1 min-w-0 text-[12px] truncate">${h.n}</span>
+     <span class="text-[10px] text-slate-400">${t.cnt} 次</span>
+     <b class="w-14 text-right text-[11px] text-brand-500">${h.group?'按子项':(hbHasVal(h)?t.val+' '+t.unit:hbRate(h)+'%')}</b></div>`}).join('')||'<div class="text-[11px] text-slate-400 py-2">暂无正向习惯</div>'}
+   ${negs.length?`<div class="text-[11px] font-black text-slate-500 mt-4">负向控制</div>${negs.map(h=>`<div class="flex items-center gap-2 py-1.5 text-[12px]"><span class="flex-1 min-w-0 truncate">${h.n}</span><span class="text-[10px] text-rose-500">触发 ${hbCnt(h,dim,off)} 次</span><span class="text-[10px] text-emerald-500">守住 ${h.w.filter(v=>v).length}/7 天</span></div>`).join('')}`:''}
+   <div class="mt-4 flex items-center gap-2 text-[9.5px] text-slate-400"><span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span>数据仅存本机 · 导出不含账号信息<span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span></div></div>`}
+function hbShareCopy(){const dim=hsDim,off=hsOffGet(dim),A=hbAgg(dim,off);
+ const txt=[hbBaseTxt(dim,off)+'习惯报告',
+  '打卡 '+A.cnt+' 次 · 达成率 '+A.rate+'% · 数值记录 '+A.rec+' 条',
+  hbScopeBook().filter(h=>h.type==='pos').map(h=>h.n+'：'+hbTot(h,dim,off).cnt+' 次').join('\n')].join('\n');
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>toast('文字版已复制'),()=>toast('复制失败 · 请在页面手动选择'));
+ else toast('当前环境不支持剪贴板 · 请手动截图')}
+
+/* 归档区 */
+function hbArchGoto(){hbSegPick('arch');navTo('p-habits');renderHabits();
+ toast('已切到归档筛选 · 共 '+HABITS.filter(h=>h.arch).length+' 个')}
+
