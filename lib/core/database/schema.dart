@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 15;
+  static const int version = 16;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -49,6 +49,13 @@ class DbSchema {
   // v15（M1批3·批4）：书单两表（计划 §2.3；年度书单 auto_year 动态成员不落 items）
   static const String tBookLists = 'book_lists';
   static const String tBookListItems = 'book_list_items';
+  // v16（M1·习惯批1）：习惯五表（计划 §2.1；按日流水为中心，
+  // slips/goal_hist/freezes/pend 四表由批2/批5 顺延版本建表）
+  static const String tHabits = 'habits';
+  static const String tHabitSubs = 'habit_subs';
+  static const String tHabitEntries = 'habit_entries';
+  static const String tHabitEntrySubs = 'habit_entry_subs';
+  static const String tHabitDict = 'habit_dict';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -303,6 +310,7 @@ class DbSchema {
     ...bookTocSchemaStatements,
     ...bookReviewSchemaStatements,
     ...bookListSchemaStatements,
+    ...habitSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -489,7 +497,106 @@ class DbSchema {
     14: [
       ...bookListSchemaStatements,
     ],
+    // v16（M1·习惯批1）：习惯五表（计划 §2.1 相对序号 v16；按日流水为中心，
+    // streak/best 为写入时重算的缓存列，派生统计不建物化表）。
+    15: [
+      ...habitSchemaStatements,
+    ],
   };
+
+  /// v16 习惯五表 DDL（建库与迁移共用，保两处永远同文·幂等 · 习惯计划 §2.1）。
+  /// 自然日一律 TEXT 'YYYY-MM-DD'（D13 日界线 00:00）；
+  /// habit_entries UNIQUE(habit_id,day)＝同日二次写为改值不新增（时钟篡改防护）。
+  static const List<String> habitSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabits (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL,
+      type TEXT NOT NULL,
+      cat TEXT,
+      cycle TEXT NOT NULL,
+      week_days TEXT,
+      month_target INTEGER,
+      neg_limit INTEGER NOT NULL DEFAULT 0,
+      unit TEXT,
+      goal REAL,
+      group_rule TEXT,
+      source_kinds TEXT,
+      remind_at TEXT,
+      todo_id TEXT,
+      todo_form TEXT,
+      start_date TEXT NOT NULL,
+      streak INTEGER NOT NULL DEFAULT 0,
+      best INTEGER NOT NULL DEFAULT 0,
+      archived_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_habits_cat ON $tHabits(cat)',
+    'CREATE INDEX IF NOT EXISTS idx_habits_type ON $tHabits(type)',
+    'CREATE INDEX IF NOT EXISTS idx_habits_arch ON $tHabits(archived_at)',
+    'CREATE INDEX IF NOT EXISTS idx_habits_todo ON $tHabits(todo_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitSubs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      unit TEXT,
+      goal REAL,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hsubs_habit ON $tHabitSubs(habit_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitEntries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      checked INTEGER NOT NULL DEFAULT 1,
+      value REAL,
+      origin TEXT NOT NULL,
+      check_at TEXT,
+      backfilled INTEGER NOT NULL DEFAULT 0,
+      frozen INTEGER NOT NULL DEFAULT 0,
+      note TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(habit_id, day)
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hent_habit ON $tHabitEntries(habit_id)',
+    'CREATE INDEX IF NOT EXISTS idx_hent_day ON $tHabitEntries(day)',
+    'CREATE INDEX IF NOT EXISTS idx_hent_bf ON $tHabitEntries(backfilled)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitEntrySubs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_id INTEGER NOT NULL,
+      sub_id INTEGER NOT NULL,
+      value REAL,
+      UNIQUE(entry_id, sub_id)
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hes_ent ON $tHabitEntrySubs(entry_id)',
+    // 分类/单位共用字典（kind ∈ cat|unit）：改名走事务迁移、删除前引用守卫（批2）。
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitDict (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_hdict_kind_name ON $tHabitDict(kind, name)',
+    // 默认字典种子（原型 HB_CATS / HB_UNITS 同序；用户可增删改）
+    "INSERT OR IGNORE INTO $tHabitDict(kind,name,sort) VALUES"
+        "('cat','健康',1),('cat','学习',2),('cat','工作',3),('cat','生活',4),('cat','成长',5)",
+    "INSERT OR IGNORE INTO $tHabitDict(kind,name,sort) VALUES"
+        "('unit','分钟',1),('unit','个',2),('unit','次',3),('unit','杯',4),('unit','页',5),"
+        "('unit','词',6),('unit','字',7),('unit','公里',8),('unit','组',9),('unit','篇',10),('unit','题',11)",
+  ];
 
   /// v12 阅读三表 DDL（建库与迁移共用，保两处永远同文）。
   static const List<String> bookSchemaStatements = [
