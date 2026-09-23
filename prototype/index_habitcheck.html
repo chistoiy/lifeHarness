@@ -4145,7 +4145,7 @@ function renderHabits(){const el=document.getElementById('hbList');if(!el)return
  const fh=document.getElementById('hbFilterHint');if(fh)fh.textContent='显示 '+list.length+' / '+book.length;
  el.className=hbView==='grid'?'mt-3 grid grid-cols-2 gap-2':'mt-3 space-y-2';el.innerHTML=(t.length&&t.every(h=>h.w[6])?'<div class="rounded-2xl grad text-white p-3 text-[12px] font-extrabold flex items-center gap-2">'+hbi('flame','w-[15px] h-[15px]')+' 今日应打卡 '+t.length+' 项全部达成 · 连续纪录继续推进</div>':'')+(list.length?(hbView==='grid'?list.map(h=>hbTile(h)).join(''):list.map(h=>hbView==='compact'?hbCardMini(h):hbCard(h)).join('')):'<div class="card text-[11px] text-slate-400 text-center !py-8">该筛选下暂无习惯 · <button class="link-act" onclick="heOpen()">新建一个</button></div>');
  renderHdrActs(curPage)}
-function hbDots(h){return `<div class="mt-2 flex gap-1">${h.w.map((v,i)=>`<span class="hb-dot ${h.fz&&h.fz[i]?'ring-1 ring-sky-400 ':''}${h.type==='pos'?(v?'bg-emerald-400 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'):(v?'bg-emerald-400/80 text-white':'bg-rose-100 dark:bg-rose-500/15 text-rose-400')}" title="周${HB_WD[i]}${h.v&&h.v[i]?' · '+hbValTxt(h,i):''}${(h.bf&&h.bf[i])?' · 补记':''}${h.at&&h.at[i]?' · '+h.at[i]:''}">${i===6+hbDayOff?'ring-1 ring-brand-500 ring-offset-1 dark:ring-offset-slate-900 ':''}${h.type==='pos'?(v?'✓':''):(v?'':'!')}</span>`).join('')}</div>`}
+function hbDots(h){return `<div class="mt-2 flex gap-1">${h.w.map((v,i)=>`<span class="hb-dot ${h.fz&&h.fz[i]?'ring-1 ring-sky-400 ':''}${h.type==='pos'?(v?'bg-emerald-400 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'):(v?'bg-emerald-400/80 text-white':'bg-rose-100 dark:bg-rose-500/15 text-rose-400')}${i===6+hbDayOff?' ring-1 ring-brand-500 ring-offset-1 dark:ring-offset-slate-900':''}" title="周${HB_WD[i]}${h.v&&h.v[i]?' · '+hbValTxt(h,i):''}${(h.bf&&h.bf[i])?' · 补记':''}${h.at&&h.at[i]?' · '+h.at[i]:''}">${h.type==='pos'?(v?'✓':''):(v?'':'!')}</span>`).join('')}</div>`}
 function hbSubChips(h){if(!h.group)return '';const vi=6+hbDayOff;const cur=(h.sv&&h.sv[vi]&&h.sv[vi].some(v=>v))?h.sv[vi]:null;
  return `<div class="mt-2 flex gap-1.5 flex-wrap">${h.subs.map((s,k)=>{const v=cur?cur[k]:0;
   return `<span class="text-[10px] px-2 py-1 rounded-lg ${v>=s.goal?'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400':v?'bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${s.n} <b>${v||0}</b>/${s.goal}${s.unit}</span>`}).join('')}<span class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400">${h.rule==='all'?'全部完成才算达成':h.rule==='any'?'任一完成即达成':'完成 ≥'+Math.ceil(h.subs.length/2)+' 项达成'}</span></div>`}
@@ -4251,7 +4251,7 @@ function renderHabitDetail(){const h=hbH(),el=document.getElementById('hdRoot');
    ${barHtml}
    ${h.group?`<div class="mt-2 space-y-1.5">${subs.map(s=>`<div class="flex items-center gap-2 text-[11.5px]"><span class="w-14 shrink-0">${s.n}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${Math.min(100,s.val/Math.max(1,s.goal)*100)}%"></span></div><b class="w-20 text-right text-[10.5px]">${s.val} ${s.unit}</b></div>`).join('')}</div>`:''}
    <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="hbLogOpen(${HABITS.indexOf(h)})">${h.w[6]?'修改今日记录量':'打卡并记量'}</button><button class="mini-btn flex-1" onclick="hbBackfillOpen('${h.id}')">补卡 / 补量</button></div></div>`:''}
- <div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">打卡日历</div><span class="ml-auto text-[10px] text-slate-400">${h.type==='pos'?'绿点=已打卡':'绿点=未触发'}</span></div>
+ <div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">打卡日历</div><span class="ml-auto text-[10px] text-slate-400">${h.type==='pos'?'绿点=已打卡':'绿点=未触发 · 红点=触发'}</span></div>
    <div class="mt-2 flex items-center gap-1.5">
      <button class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" onclick="hbDcStep(-1)" title="上一月"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
      <div class="flex-1 text-center text-[11.5px] font-extrabold">${hbMonthLabel(hbDcMonth)}${hbDcMonth===0?' · 本月':''}</div>
@@ -4503,9 +4503,9 @@ function hbDaySet(h,back,ok,v,meta){meta=meta||{};
    if(v!=null){if(h.group){e.sv=v.slice();e.v=v.reduce((a,x)=>a+(+x||0),0)}else e.v=+v||0}
    if(meta.at!=null)e.at=meta.at;if(meta.note!=null)e.note=meta.note;if(meta.bf)e.bf=1}}
 function hbValAt(h,back){const v=hbDayGet(h,back).val;return h.group?(v||[]).reduce((a,x)=>a+(+x||0),0):(+v||0)}
-function hbDayTip(h,back){const g=hbDayGet(h,back),d=hbDateOf(back);
- return hbMd(d)+' 周'+'日一二三四五六'[d.getDay()]+' · '+(g.ok?(h.type==='pos'?'已打卡':'未触发'):'未记录')
-  +(g.at?' '+g.at:'')+(hbValAt(h,back)?' · 数值 '+hbValAt(h,back):'')+(g.bf?' · 补记':'')}
+function hbDayTip(h,back){const g=hbDayGet(h,back),d=hbDateOf(back),v=hbValAt(h,back);
+ return hbMd(d)+' 周'+'日一二三四五六'[d.getDay()]+' · '+(g.ok?(h.type==='pos'?'已打卡':'未触发'):(h.type==='neg'&&v>0?'触发':'未记录'))
+  +(g.at?' '+g.at:'')+(v?' · 数值 '+v:'')+(g.bf?' · 补记':'')}
 /* monthOff：0 本月，-1 上月；返回 7 列格子（null 为空白） */
 function hbMonthCells(monthOff){const b=hbBase(),t=new Date(b.getFullYear(),b.getMonth()+(monthOff||0),1);
  const y=t.getFullYear(),m=t.getMonth(),last=new Date(y,m+1,0).getDate(),lead=hbWdIdx(new Date(y,m,1));
@@ -4516,11 +4516,12 @@ function hbMonthHtml(h,cells,sel,tap){const b=hbBase(),lim=new Date(b.getFullYea
  return cells.map(c=>{if(!c)return '<span></span>';
   const dt=new Date(c.y,c.m,c.d);if(dt>lim)return '<span></span>';
   const back=hbBackOf(dt),g=hbDayGet(h,back),val=hbValAt(h,back),isToday=back===0,on=sel&&sel.indexOf(back)>=0;
-  const bg=on?'bg-brand-50 dark:bg-brand-500/15 ring-2 ring-brand-500':(g.ok?(h.type==='pos'?'bg-emerald-50 dark:bg-emerald-500/15':'bg-teal-50 dark:bg-teal-500/15'):'bg-slate-100 dark:bg-slate-800');
-  const fg=isToday?'text-brand-500':(g.ok?(h.type==='pos'?'text-emerald-600 dark:text-emerald-400':'text-teal-600 dark:text-teal-400'):'text-slate-400');
+  const trig=h.type==='neg'&&!g.ok&&val>0;
+  const bg=on?'bg-brand-50 dark:bg-brand-500/15 ring-2 ring-brand-500':(g.ok?(h.type==='pos'?'bg-emerald-50 dark:bg-emerald-500/15':'bg-teal-50 dark:bg-teal-500/15'):trig?'bg-rose-50 dark:bg-rose-500/15':'bg-slate-100 dark:bg-slate-800');
+  const fg=isToday?'text-brand-500':(g.ok?(h.type==='pos'?'text-emerald-600 dark:text-emerald-400':'text-teal-600 dark:text-teal-400'):trig?'text-rose-500':'text-slate-400');
   return `<button class="h-[38px] rounded-[10px] flex flex-col items-center justify-center ${bg}" ${tap?`onclick="${tap}(${back})"`:''} data-b="${back}" title="${hbDayTip(h,back)}">
    <span class="text-[10.5px] font-bold leading-none ${fg}">${c.d}</span>
-   <span class="flex gap-0.5 mt-1 h-1 items-center">${g.ok?'<i class="w-1 h-1 rounded-full '+(h.type==='pos'?'bg-emerald-500':'bg-teal-500')+'"></i>':''}${val?'<i class="w-1 h-1 rounded-full bg-brand-500"></i>':''}</span></button>`}).join('')}
+   <span class="flex gap-0.5 mt-1 h-1 items-center">${g.ok?'<i class="w-1 h-1 rounded-full '+(h.type==='pos'?'bg-emerald-500':'bg-teal-500')+'"></i>':''}${val?'<i class="w-1 h-1 rounded-full '+(trig?'bg-rose-500':'bg-brand-500')+'"></i>':''}</span></button>`}).join('')}
 function hbMonthLabel(monthOff){const b=hbBase(),t=new Date(b.getFullYear(),b.getMonth()+(monthOff||0),1);
  return t.getFullYear()+' 年 '+(t.getMonth()+1)+' 月'}
 
@@ -4562,13 +4563,13 @@ function hbTimeRender(dim,off){const el=document.getElementById('hstTime');if(!e
    <div class="w-full rounded-t ${v===wmx?'grad':'bg-slate-100 dark:bg-slate-800'}" style="height:${v?Math.max(4,Math.round(v/wmx*30)):3}px"></div>
    <span class="text-[8px] text-slate-400">${'一二三四五六日'[i]}</span></div>`).join('')}</div>`}
 function hbFlowHtml(h){const rows=[];
- for(let back=0;back<14&&rows.length<8;back++){const g=hbDayGet(h,back);if(!g.ok)continue;
+ for(let back=0;back<14&&rows.length<8;back++){const g=hbDayGet(h,back);if(h.type==='pos'&&!g.ok)continue;
   const d=hbDateOf(back),at=g.at||hbSeedAt(h,back),val=hbValAt(h,back);
   rows.push(`<div class="flex items-center gap-2 text-[11px] py-1 ${rows.length?'border-t border-slate-100 dark:border-slate-800':''}">
    <span class="w-[46px] shrink-0 font-bold ${back===0?'text-brand-500':'text-slate-500'}">${hbMd(d)}</span>
    <span class="w-7 shrink-0 text-slate-400">周${'日一二三四五六'[d.getDay()]}</span>
    <span class="w-10 shrink-0 tabular-nums">${at}</span>
-   <span class="flex-1 min-w-0 truncate ${h.type==='neg'?'text-rose-500':'text-slate-500'}">${h.type==='neg'?'未触发':(val?val+' '+(h.group?'项次':(h.unit||'次')):'已打卡')}${g.note?' · '+g.note:''}</span>
+   <span class="flex-1 min-w-0 truncate ${h.type==='neg'?(g.ok?'text-teal-600 dark:text-teal-400':'text-rose-500 font-bold'):'text-slate-500'}">${h.type==='neg'?(g.ok?'未触发':('触发'+(val?' · '+val+' '+(h.unit||'次'):''))):(val?val+' '+(h.group?'项次':(h.unit||'次')):'已打卡')}${g.note?' · '+g.note:''}</span>
    ${g.bf?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/15 shrink-0">补记</span>':''}
    ${(h.src||[]).length&&h.src.some(s=>s!=='手动打卡')&&!g.bf?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">自动</span>':''}</div>`)}
  return rows.length?'<div class="mt-1">'+rows.join('')+'</div>':'<div class="mt-1 text-[11px] text-slate-400">近 14 天还没有打卡记录</div>'}
