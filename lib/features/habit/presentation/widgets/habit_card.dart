@@ -310,9 +310,9 @@ class HabitCardView extends StatelessWidget {
                   color: HK.sky400.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  '宽限',
-                  style: TextStyle(
+                child: Text(
+                  '宽限 $grace',
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: HK.sky600,

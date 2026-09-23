@@ -134,9 +134,9 @@ class HabitTile extends StatelessWidget {
                       Expanded(
                         child: GestureDetector(
                           onTap:
-                              enabled && _day(i).isBefore(dayStart(today))
-                                  ? () => actions.dotTap(habit, _day(i))
-                                  : null,
+                            enabled && !_day(i).isAfter(dayStart(today))
+                                ? () => actions.dotTap(habit, _day(i))
+                                : null,
                           child: Container(
                             height: 4,
                             decoration: BoxDecoration(

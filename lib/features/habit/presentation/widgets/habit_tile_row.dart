@@ -92,9 +92,9 @@ class HabitTileRow extends StatelessWidget {
             const SizedBox(width: 6),
             if (enabled)
               GestureDetector(
-                onTap: () => habit.isPos
-                    ? actions.tap(habit)
-                    : (ok ? actions.open(habit) : actions.avoid(habit)),
+                // 原型 hbCardMini：负向按钮 ok 态也走 hbAvoid（页面层 toast 守卫）
+                onTap: () =>
+                    habit.isPos ? actions.tap(habit) : actions.avoid(habit),
                 child: habit.isPos
                     ? Container(
                       width: 32,
