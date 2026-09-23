@@ -993,7 +993,7 @@ tailwind.config = {
       <div id="repCustom" class="hidden mt-2 gap-2"></div>
       <div class="card mt-3" id="repSum"></div>
       <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">收支趋势</div><div id="repBars" class="mt-3 flex items-end gap-1" style="height:132px"></div><div id="repBarsX" class="mt-1 flex gap-1 text-[8px] text-slate-400"></div></div>
-      <div class="card mt-3"><div class="flex items-center"><span class="row-title !mb-0 !text-[11px] opacity-70">分类排行</span><span id="repDrillHint" class="ml-auto text-[9px] text-slate-400">点击分类钻取流水</span></div><div id="repCats" class="mt-2.5 space-y-2.5"></div></div>
+      <div class="card mt-3"><div class="flex items-center"><span class="row-title !mb-0 !text-[11px] opacity-70">分类排行</span><div class="ml-auto flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[9px] font-bold" id="repDimSeg"></div><span id="repDrillHint" class="text-[9px] text-slate-400 ml-2">按大类</span></div><div id="repCats" class="mt-2.5 space-y-2.5"></div></div>
       <div id="repDrillWrap" class="mt-3 hidden"></div>
       <div class="card mt-3"><div class="row-title !text-[11px] opacity-70">Top 支出项目</div><div id="repTop" class="mt-2 space-y-1 text-xs"></div></div>
     </section>
@@ -1683,7 +1683,7 @@ tailwind.config = {
     <button class="fab-act" onclick="fabGo('p-inbox','已聚焦收集箱输入框（模拟）')">⚡ 记一条想法</button>
     <button class="fab-act" onclick="fabGo('p-todo','选择要添加的待办类型');setTimeout(()=>showTodoFabMenu(),300)">✅ 记待办</button>
     <button class="fab-act" onclick="fabGo('p-diaryEdit','打开写日记（模拟）')">📔 记日记</button>
-    <button class="fab-act flex items-center gap-2" onclick="fabGo('p-finance','');setTimeout(()=>window.ledgerQuickOpen&&ledgerQuickOpen(),150)"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.8"/><path d="M3 10.2h18M16.2 14.7h2"/></svg>记一笔</button>
+    <button class="fab-act flex items-center gap-2" onclick="fabGo('p-finance','');setTimeout(()=>openL2(),150)"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.8"/><path d="M3 10.2h18M16.2 14.7h2"/></svg>记一笔</button>
     <button class="fab-act" onclick="fabGo('p-items','打开录入物品（模拟）')">📦 记物品</button>
   </div>
 
@@ -1698,31 +1698,6 @@ tailwind.config = {
     <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('rich')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>添加富文本</button>
     <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('plain')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>添加纯文本</button>
     <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('md')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>添加 MD 文档</button>
-  </div>
-
-  <!-- ===== S1 速记半屏 ===== -->
-  <div id="sheetLedgerQuick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerQuick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="flex items-center">
-        <div class="font-extrabold text-sm">记一笔</div>
-        <div class="ml-auto flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[11px] font-bold">
-          <button id="qkSegExpense" class="px-3 py-1 rounded-full seg-on" onclick="qkKind('expense')">支出</button>
-          <button id="qkSegIncome" class="px-3 py-1 rounded-full" onclick="qkKind('income')">收入</button>
-        </div>
-        <button class="mini-btn ml-2" onclick="closeSheet('sheetLedgerQuick');navTo('p-txAdd')">全屏 ›</button>
-      </div>
-      <div class="mt-3 overflow-x-auto no-scrollbar -mx-5 px-5"><div class="flex gap-2 w-max" id="qkCatRail"></div></div>
-      <div class="mt-3 flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
-        <button class="flex items-center gap-1" onclick="openLedgerAcctPick(a=>{qkAcct=a;renderQuick()})" id="qkAcctBtn"></button>
-        <span id="qkAmtShow" class="text-lg font-extrabold text-slate-900 dark:text-white">0.00</span>
-      </div>
-      <div class="mt-2 grid grid-cols-4 gap-1.5" id="qkPad"></div>
-      <div class="mt-3 flex items-center gap-2 text-[11px]">
-        <input id="qkNote" class="inp flex-1 !py-2" placeholder="备注（可选）" oninput="qkState.note=this.value">
-        <button class="py-2 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300" onclick="closeSheet('sheetLedgerQuick');navTo('p-txAdd')">更多选项</button>
-      </div>
-    </div>
   </div>
 
   <!-- ===== S2 日期滚轮（日/年月模式） ===== -->
@@ -1765,7 +1740,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== S3 分类新建/编辑（V1.33 · 图3版式） ===== -->
-  <div id="sheetLedgerCatAdd" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerCatAdd')">
+  <div id="sheetLedgerCatAdd" style="z-index:70" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerCatAdd')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto no-scrollbar">
       <div class="grabber"></div>
       <div class="flex items-center">
@@ -1787,7 +1762,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== S3b 所属大类选择 ===== -->
-  <div id="sheetLedgerParent2" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerParent2')">
+  <div id="sheetLedgerParent2" style="z-index:80" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerParent2')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold text-sm">所属大类</div>
@@ -1804,7 +1779,7 @@ tailwind.config = {
         <div class="ml-auto flex items-center gap-4 text-slate-500">
           <button onclick="toast('搜索分类（模拟）')"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button>
           <button onclick="openCatSheet(null,cpSel)"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></svg></button>
-          <button onclick="closeSheet('sheetLedgerCatPick');navTo('p-cats')"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1"/></svg></button>
+          <button onclick="closeSheet('sheetLedgerCatPick');navTo('p-cats')"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
       <div class="mt-2 flex flex-1 min-h-0">
@@ -4087,7 +4062,7 @@ const FAB_CFG={
  'p-todo':{ico:'＋',act:()=>{$('#fabMenu').classList.add('hidden');const m=$('#todoFabMenu');if(m.classList.contains('hidden')){showTodoFabMenu()}else{hideTodoFabMenu()}}},
  'p-calendar':{ico:'＋',act:()=>openTimePick(calDay,(new Date().getHours()+1)%24,0)},
  'p-records':{ico:'✎',act:()=>{if(recTab==='diary')navTo('p-diaryEdit');else if(recTab==='note'){const m=$('#noteFabMenu');if(m.classList.contains('hidden')){showNoteFabMenu()}else{hideNoteFabMenu()}}else if(recTab==='media')openSheet('sheetAddMedia');else openSheet('sheetAddExcerpt')}},
- 'p-finance':{ico:'＋',act:()=>window.ledgerQuickOpen&&ledgerQuickOpen()},
+ 'p-finance':{ico:'＋',act:()=>openL2()},
  'p-items':{ico:'📦',act:()=>openSheet('sheetAddItem')},
  'p-days':{ico:'🎂',act:()=>openSheet('sheetAddDay')},
  'p-habits':{ico:'＋',act:()=>openSheet('sheetAddHabit')},
@@ -4374,7 +4349,7 @@ const LIC={
  tag:'<path d="M3.5 11V4.5a1 1 0 0 1 1-1H11l9.5 9.5a1.6 1.6 0 0 1 0 2.2l-6.8 6.8a1.6 1.6 0 0 1-2.2 0z"/><circle cx="7.8" cy="7.8" r="1.3"/>',
  back:'<path d="m14.5 5.5-7 6.5 7 6.5"/>',
  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
- gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1"/>',
+ gear:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
  dl:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 19.5h15"/>',
  link:'<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5l1.8-1.8a3.6 3.6 0 0 1 5.1 5.1L16 11.7M13 17.5l-1.8 1.8a3.6 3.6 0 0 1-5.1-5.1L8 12.3"/>',
  undo:'<path d="M4 9.5h9.5a5.5 5.5 0 1 1 0 11H8"/><path d="M7.5 5.5 3.7 9.5l3.8 4"/>',
@@ -4690,34 +4665,6 @@ function saveTx(){const s=txState,amt=exprVal(s.expr);
  if(L.set.afterSave==='back'){stack.length=0;setPage('p-finance')}
  else{txState.expr='';txState.note='';txState.tags=[];txState.editId=null;renderTxAdd()}}
 
-/* ======================= S1 速记半屏 ======================= */
-const qkState={kind:'expense',cat:'food',expr:'',note:''};let qkAcct='';
-function qkKind(k){qkState.kind=k;qkState.cat=k==='expense'?'food':'salary';renderQuick()}
-function qkKey(k){const s=qkState;
- if(k==='del')s.expr=s.expr.slice(0,-1);
- else if(k==='save')return qkSave();
- else if(/[0-9.]/.test(k)){const tail=s.expr.split(/[+−×÷]/).pop();if(k==='.'&&tail.includes('.'))return;if(tail.length>=9)return;s.expr+=k}
- else{if(!s.expr||/[+−×÷]$/.test(s.expr))s.expr+='0';s.expr+=k}
- renderQuick(true)}
-function qkSave(){const amt=exprVal(qkState.expr);if(!amt)return toast('请输入金额');
- ledgerAdd({kind:qkState.kind,cat:qkState.cat,sub:'',n:qkState.note.trim(),amt,a:qkAcct||L.set.defAcct,d:TODAY,tags:[],src:'manual'});
- closeSheet('sheetLedgerQuick');qkState.expr='';qkState.note='';qkState.cat='food';
- toast(`已记一笔 · ${money(amt)}`)}
-function ledgerQuickOpen(){if(curPage!=='p-finance'){stack.length=0;setPage('p-finance')}
- qkAcct=L.set.defAcct;openSheet('sheetLedgerQuick');renderQuick()}
-function renderQuick(showOnly){
- const s=qkState,list=LCATS[s.kind];
- $('#qkAcctBtn').innerHTML=`${svgIco('wallet','w-3.5 h-3.5')}${LA(qkAcct||L.set.defAcct).n}<span class="text-slate-400">${AMT(accBal(qkAcct||L.set.defAcct))}</span>`;
- if(showOnly){$('#qkAmtShow').textContent=L.set.hide?'••••':exprVal(s.expr).toFixed(2);return}
- $('#qkCatRail').innerHTML=list.map(c=>
-  `<button class="catcell ${s.cat===c.id?'on':''}" onclick="qkState.cat='${c.id}';renderQuick()"><span class="ci" style="background:${c.c}1f;color:${c.c}">${svgIco(c.i,'w-5 h-5')}</span><span>${c.n}</span></button>`).join('');
- const KEYS=['7','8','9','÷','4','5','6','×','1','2','3','−','.','0','del','+'];
- $('#qkPad').innerHTML=KEYS.map(k=>{const l={del:'⌫'}[k]||k;
-  return `<button class="kp !h-11 !text-base ${k==='del'?'op del':/[+−×÷]/.test(k)?'op':''}" onclick="qkKey('${k==='del'?'del':k}')">${l}</button>`}).join('')+
-  `<button class="kp save col-span-4 !h-11" onclick="qkKey('save')">保存</button>`;
- $('#qkAmtShow').textContent=L.set.hide?'••••':exprVal(s.expr).toFixed(2);
- $('#qkNote').value=s.note}
-
 /* ======================= S2 日期滚轮 ======================= */
 let ldMode='day',ldSel=[2026,9,23],ldCb=null;
 function openLedgerDate(cb,mode){ldCb=cb;ldMode=mode||'day';
@@ -4798,9 +4745,9 @@ function txdDel(){if(L.set.confirmDel&&Date.now()-_delArm>2600){_delArm=Date.now
 LED_RENDER['p-finance']=renderL1;LED_RENDER['p-txAdd']=renderTxAdd;LED_RENDER['p-txDetail']=renderTxDetail;
 function openCatAddSheet(cat){toast('子分类添加见「分类管理」')}
 /* 调试/自检导出（词法作用域桥） */
-window.__ledger={get L(){return L},get txState(){return txState},get qkState(){return qkState},get finMonth(){return finMonth},set finMonth(v){finMonth=v},LCATS,money,AMT,mStat,catStat,accBal,exprVal,wdOf,monthOf,get LD(){return typeof LED!=='undefined'?LED:null}};
+window.__ledger={get L(){return L},get txState(){return txState},get finMonth(){return finMonth},set finMonth(v){finMonth=v},LCATS,money,AMT,mStat,catStat,accBal,exprVal,wdOf,monthOf,get LD(){return typeof LED!=='undefined'?LED:null}};
 /* ======================= L4 统计报表 ======================= */
-const rep={p:'month',drill:null,from:'',to:''};
+const rep={p:'month',drill:null,from:'',to:'',dim:'cat'};
 const pad2=n=>String(n).padStart(2,'0');
 const dstr=(y,m,d)=>`${y}-${pad2(m)}-${pad2(d)}`;
 function shiftDays(s,n){const[y,m,d]=s.split('-').map(Number);const t=new Date(y,m-1,d+n);return dstr(t.getFullYear(),t.getMonth()+1,t.getDate())}
@@ -4847,20 +4794,23 @@ function renderReport(){
   <i class="w-full max-w-[14px] rounded-t-sm bg-rose-400" style="height:${Math.round(b.e/mx*110)}px"></i></div>`).join('');
  const step=r.buckets.length>14?Math.ceil(r.buckets.length/8):1;
  $('#repBarsX').innerHTML=r.buckets.map((b,i)=>`<span class="flex-1 text-center">${i%step===0?b.l:''}</span>`).join('');
- /* 分类排行 */
- const cs={};for(const t of all){if(t.kind==='expense')cs[t.cat]=(cs[t.cat]||0)+t.amt;else if(t.kind==='refund')cs[t.cat]=(cs[t.cat]||0)-t.amt}
- const rank=Object.entries(cs).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+ /* 分类排行（V1.34 · 大类/小类维度） */
+ $('#repDimSeg').innerHTML=[['cat','大类'],['sub','小类']].map(([k,n])=>`<button class="px-2.5 py-1 rounded-full ${rep.dim===k?'seg-on':''}" onclick="rep.dim='${k}';rep.drill=null;renderReport()">${n}</button>`).join('');
+ const cs={};for(const t of all){const k=rep.dim==='sub'?t.cat+'|'+(t.sub||''):t.cat;
+  if(t.kind==='expense')cs[k]=(cs[k]||0)+t.amt;else if(t.kind==='refund')cs[k]=(cs[k]||0)-t.amt}
+ const rank=Object.entries(cs).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,rep.dim==='sub'?15:99);
  const cmx=rank.length?rank[0][1]:1;
- $('#repCats').innerHTML=rank.length?rank.map(([id,v])=>{const c=lcat(id)||{n:'其他',c:'#94a3b8',i:'dots'};
-  return `<button class="w-full text-left" onclick="repDrill('${id}')">
+ $('#repCats').innerHTML=rank.length?rank.map(([k,v])=>{const cid=k.split('|')[0],sn=k.split('|')[1];const c=lcat(cid)||{n:'其他',c:'#94a3b8',i:'dots'};
+  const lbl=rep.dim==='sub'?c.n+' · '+(sn||'未细分'):c.n;
+  return `<button class="w-full text-left" onclick="repDrill('${lq(k)}')">
    <div class="flex items-center gap-2 text-[11px]"><span class="fin-ico !w-6 !h-6 !rounded-lg" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-3.5 h-3.5')}</span>
-    <b class="flex-1">${c.n}</b><span class="text-slate-400">${(v/exp*100).toFixed(0)}%</span><b>${AMT(v)}</b></div>
+    <b class="flex-1 truncate">${lbl}</b><span class="text-slate-400">${(v/exp*100).toFixed(0)}%</span><b>${AMT(v)}</b></div>
    <div class="mt-1 ml-8 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full" style="width:${v/cmx*100}%;background:${c.c}"></span></div></button>`}).join('')
   :'<span class="text-[11px] text-slate-400">该区间暂无支出</span>';
- $('#repDrillHint').textContent=rep.drill?'钻取中 · 再点收起':'点击分类钻取流水';
+ $('#repDrillHint').textContent=rep.drill?'钻取中 · 再点收起':(rep.dim==='sub'?'按小类':'按大类');
  const dw=$('#repDrillWrap');dw.classList.toggle('hidden',!rep.drill);
- if(rep.drill){const ts=all.filter(t=>(t.cat===rep.drill)&&(t.kind==='expense'||t.kind==='refund')).sort((a,b)=>a.d<b.d?1:-1);
-  dw.innerHTML=`<div class="card !p-0 overflow-hidden"><div class="flex items-center px-3.5 pt-2.5 pb-1"><b class="text-[11px]">${lcatN(rep.drill)} · ${ts.length} 笔</b>
+ if(rep.drill){const ts=all.filter(t=>{const k=rep.dim==='sub'?t.cat+'|'+(t.sub||''):t.cat;return k===rep.drill&&(t.kind==='expense'||t.kind==='refund')}).sort((a,b)=>a.d<b.d?1:-1);
+  dw.innerHTML=`<div class="card !p-0 overflow-hidden"><div class="flex items-center px-3.5 pt-2.5 pb-1"><b class="text-[11px]">${rep.dim==='sub'?lcatN(rep.drill.split('|')[0])+' · '+(rep.drill.split('|')[1]||'未细分'):lcatN(rep.drill)} · ${ts.length} 笔</b>
    <button class="ml-auto text-[10px] text-slate-400 font-bold" onclick="rep.drill=null;renderReport()">收起 ✕</button></div>${ts.map(txRow).join('')}</div>`}
  /* Top 项目 */
  const agg={};for(const t of all)if(t.kind==='expense'){const k=t.n||lcatN(t.cat);agg[k]=(agg[k]||0)+t.amt}
@@ -5307,7 +5257,7 @@ function eff(t,aid){switch(t.kind){
  default:return 0}}
 /* ---- L2 记一笔 V2（图1版式） ---- */
 function nowHM(){const d=new Date();return pad2(d.getHours())+':'+pad2(d.getMinutes())}
-function topSubChips(){const cnt={};for(const t of mTx(finMonth)){if(t.kind!=='expense'||!t.cat)continue;
+function topSubChips(){const cnt={};for(const t of mTx(finMonth)){if(t.kind!==txState.kind||!t.cat)continue;
   const k=t.cat+'|'+(t.sub||'');cnt[k]=(cnt[k]||0)+1}
  const favSet=new Set(L.fav);
  const recent=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([k])=>k).filter(k=>!favSet.has(k));
@@ -5331,8 +5281,11 @@ function renderTxAdd(){
  if(!isTr&&!isDbt){const c=lcat(s.cat)||LCATS[s.kind][0];
   $('#txCatIco').style.background=c.c+'1a';$('#txCatIco').style.color=c.c;$('#txCatIco').innerHTML=svgIco(c.i,'w-[18px] h-[18px]');
   $('#txCatName').textContent=c.n+(s.sub?' · '+s.sub:'');
-  $('#txFreqRail').innerHTML=topSubChips().map(k=>{const[cid,sn]=k.split('|');const c=lcat(cid);if(!c)return '';
-   return `<button class="tag-chip !text-[11px] whitespace-nowrap ${s.cat===cid&&s.sub===sn?'on':''}" onclick="txPick2('${cid}','${lq(sn)}')">${sn||c.n}</button>`}).join('')}
+  {const c0=lcat(s.cat)||LCATS[s.kind][0];
+   const subs=(c0.s&&c0.s.length)?c0.s.map(x=>[c0.id,x]):topSubChips().map(k=>k.split('|'));
+   $('#txFreqRail').innerHTML=`<button class="tag-chip !text-[11px] whitespace-nowrap ${!s.sub?'on':''}" onclick="txPick2('${c0.id}','')">${c0.n}</button>`+
+    subs.map(([cid,sn])=>{const c=lcat(cid);if(!c)return '';return `<button class="tag-chip !text-[11px] whitespace-nowrap ${s.cat===cid&&s.sub===(sn||'')?'on':''}" onclick="txPick2('${cid}','${lq(sn||'')}')">${sn||c.n}</button>`}).join('')}
+ }
  if(isDbt){$('#txDebtSeg').innerHTML=[['lend','借出 · 别人欠我'],['borrow','借入 · 我欠别人']].map(([k,n])=>
    `<button class="flex-1 py-1.5 rounded-xl ${s.debtDir===k?'seg-on':''}" onclick="txState.debtDir='${k}';renderTxAdd()">${n}</button>`).join('')}
  if(isTr){$('#txTransferWrap').innerHTML=['a','to'].map((f,idx)=>
@@ -5408,7 +5361,7 @@ function renderLcats(){
  $('#catMgmtTitle').textContent=(catKind==='expense'?'支出':'收入')+'分类管理';
  const list=LCATS[catKind];
  if(!cmSel||!list.find(c=>c.id===cmSel))cmSel=list[0]?.id||null;
- $('#catLeft').innerHTML=list.map(c=>`<button class="w-full text-left px-3 py-3.5 text-[12px] font-bold ${cmSel===c.id?'text-brand-500 bg-brand-50/70 dark:bg-brand-500/10 border-l-[3px] border-brand-500':'text-slate-500 dark:text-slate-400 border-l-[3px] border-transparent'}" onclick="cmTap('${c.id}')">${c.n}</button>`).join('')+
+ $('#catLeft').innerHTML=list.map(c=>`<button draggable="true" ondragstart="cmDragE(event,'${c.id}')" ondragover="event.preventDefault()" ondrop="cmDropE(event,'${c.id}')" class="w-full text-left px-3 py-3.5 text-[12px] font-bold ${cmSel===c.id?'text-brand-500 bg-brand-50/70 dark:bg-brand-500/10 border-l-[3px] border-brand-500':'text-slate-500 dark:text-slate-400 border-l-[3px] border-transparent'}" onclick="cmTap('${c.id}')">${c.n}</button>`).join('')+
   `<button class="w-full text-left px-3 py-3.5 text-[12px] font-bold text-slate-300 dark:text-slate-600" onclick="openCatSheet()">＋ 大类</button>`;
  const c=list.find(x=>x.id===cmSel);
  if(!c){$('#catRight').innerHTML='';return}
@@ -5430,6 +5383,10 @@ function renderLcats(){
     <button class="text-slate-400" onclick="delSub('${c.id}','${lq(sn)}')">${svgIco('trash','w-4 h-4')}</button></div>`}).join('')}
   <button class="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-[11px] text-slate-400 font-bold" onclick="openCatSheet(null,'${c.id}')">＋ 子分类</button>`;
 }
+function cmDragE(e,id){e.dataTransfer.setData('text/plain',id)}
+function cmDropE(e,id){const from=e.dataTransfer.getData('text/plain');e.preventDefault();if(!from||from===id)return;
+ const list=LCATS[catKind];list.splice(list.findIndex(c=>c.id===from),1);list.splice(list.findIndex(c=>c.id===id),0,from);
+ renderLcats();toast('大类顺序已调整（长按拖动）')}
 function cmTap(id){if(cmSel===id){const c=lcat(id);const n=prompt('大类名称',c.n);if(n){c.n=n;renderLcats();finTouch()}}
  else{cmSel=id;renderLcats()}}
 function toggleFav(k){L.fav=L.fav.includes(k)?L.fav.filter(x=>x!==k):[...L.fav,k];renderLcats()}

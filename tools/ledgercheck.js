@@ -7,7 +7,7 @@ const s = fs.readFileSync(F, 'utf8').replace(/\r\n/g, '\n');
 const EM = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{26FF}\u{27B0}-\u{27BF}\u{FE0F}]/gu;
 const ranges = [
   ['pages', s.indexOf('<!-- ===== 记账全家桶'), s.indexOf('<!-- ===== P6b')],
-  ['sheets', s.indexOf('<!-- ===== S1 速记半屏'), s.indexOf('<!-- ===== 番茄全屏专注页')],
+  ['sheets', s.indexOf('<!-- ===== S2 日期滚轮'), s.indexOf('<!-- ===== 番茄全屏专注页')],
   ['js', s.indexOf('记账全家桶 · 引擎核心'), s.indexOf('//LEDGER_JS_END')]
 ];
 let bad = 0;
