@@ -847,6 +847,25 @@ class ReadRepository {
     });
   }
 
+  /// 全书摘录 → 一条笔记（档案页「转存笔记」· 批C · 同 quoteToNote 裸 SQL 通道）。
+  Future<int> bookToNote(Book b) async {
+    final qs = await quotesOf(b.id);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final body = qs.isEmpty
+        ? ''
+        : qs.reversed.map((q) =>
+              '> ${q.body.replaceAll('\n', '\n> ')}'
+              '${(q.thought == null || q.thought!.isEmpty) ? '' : '\n\n想法：${q.thought}'}'
+              '\n\n—— ${q.chapter ?? ''}${q.page == null ? '' : ' · 第 ${q.page} 页'}').join('\n\n');
+    return db.insert(DbSchema.tNotes, {
+      'title': '书摘 · 《${b.title}》',
+      'content': body.isEmpty ? '《${b.title}》还没有摘录' : '$body\n',
+      'kind': 'md',
+      'created_at': now,
+      'updated_at': now,
+    });
+  }
+
   // ---- 目录（两级 · 计划 §2.2 / §3.3 手动微调与粘贴导入）----
 
   Future<List<TocNode>> tocOf(String bookId) async => (await db.query(
@@ -1723,6 +1742,29 @@ class ReadRepository {
         ].join(' · ');
         sb.write('\n— $meta\n');
       }
+    }
+    return sb.toString();
+  }
+
+  /// 单本书摘录 MD（档案页「导出MD」· 批C）。
+  Future<String> buildBookQuotesMd(Book b) async {
+    final qs = await quotesOf(b.id);
+    final sb = StringBuffer('# 《${b.title}》书摘（${b.author}）\n');
+    for (final q in qs.reversed) {
+      if (q.body.isNotEmpty) {
+        sb.write('\n> ${q.body.replaceAll('\n', '\n> ')}\n');
+      }
+      if (q.thought != null && q.thought!.isNotEmpty) {
+        sb.write('\n想法：${q.thought}\n');
+      }
+      final meta = [
+        if ((q.chapter ?? '').isNotEmpty) q.chapter,
+        if (q.page != null) 'P${q.page}',
+        DateTime.fromMillisecondsSinceEpoch(q.createdAt)
+            .toIso8601String()
+            .substring(0, 10),
+      ].join(' · ');
+      sb.write('\n— $meta\n');
     }
     return sb.toString();
   }

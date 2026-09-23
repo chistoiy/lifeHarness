@@ -152,7 +152,13 @@ class _BookFormState extends ConsumerState<_BookForm> {
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
     Navigator.of(context).pop();
-    readToast(context, b == null ? '已加入书架 · ${book.title}' : '已保存');
+    readToast(
+      context,
+      b == null
+          ? '《${book.title}》已加入书架 · '
+                '${_state == Book.kStateReading ? '可直接开始计时' : '在「$_state」分区'}'
+          : '书籍信息已保存',
+    );
   }
 
   @override
@@ -384,12 +390,19 @@ class _BookFormState extends ConsumerState<_BookForm> {
 
 // ============================ 记进度（openProgress 四方式） ============================
 
-Future<void> showProgressSheet(BuildContext context, WidgetRef ref, Book b) =>
-    _sheet<void>(context, _ProgressForm(b: b));
+/// 记进度弹层（原型 sheetProgress 2325-2336 + bsSaveProgress 4517-4540）。
+/// [timerMinutes]＝本次计时分钟数（非空即「本次计时…」上下文行；空＝手动补记）。
+Future<void> showProgressSheet(
+  BuildContext context,
+  WidgetRef ref,
+  Book b, {
+  int? timerMinutes,
+}) => _sheet<void>(context, _ProgressForm(b: b, timerMinutes: timerMinutes));
 
 class _ProgressForm extends ConsumerStatefulWidget {
-  const _ProgressForm({required this.b});
+  const _ProgressForm({required this.b, this.timerMinutes});
   final Book b;
+  final int? timerMinutes;
 
   @override
   ConsumerState<_ProgressForm> createState() => _ProgressFormState();
@@ -402,6 +415,7 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
   late final TextEditingController _value = TextEditingController(
     text: _initialValue(),
   );
+  late final TextEditingController _to = TextEditingController();
   String? _chapter;
 
   String _initialValue() {
@@ -413,23 +427,24 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
     };
   }
 
+  // 方式 chips 文案＝页数/位置/百分比/章节（原型 PROG_WAYS 4056，无「按」前缀）。
   static const _labels = {
-    Book.kWayPage: '按页',
-    Book.kWayPos: '按位置',
-    Book.kWayPct: '按百分比',
-    Book.kWayChap: '按章节',
+    Book.kWayPage: '页数',
+    Book.kWayPos: '位置',
+    Book.kWayPct: '百分比',
+    Book.kWayChap: '章节',
   };
 
   Future<void> _save() async {
     final repo = ref.read(readRepositoryProvider);
+    final b = widget.b;
     if (_way == Book.kWayChap) {
-      final toc = await repo.tocOf(widget.b.id);
+      final toc = await repo.tocOf(b.id);
       final secs = toc.where((n) => !n.isPart).toList();
       final pick =
           _chapter ??
-          (widget.b.chapter != null &&
-                  secs.any((s) => s.title == widget.b.chapter)
-              ? widget.b.chapter
+          (b.chapter != null && secs.any((s) => s.title == b.chapter)
+              ? b.chapter
               : secs.isNotEmpty
               ? secs.first.title
               : null);
@@ -439,27 +454,55 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
       }
       final node = secs.firstWhere((s) => s.title == pick);
       await repo.saveProgress(
-        widget.b.id,
+        b.id,
         _way,
         null,
         chapterTitle: pick,
         chapterStartPage: node.startPage,
       );
     } else {
-      final v = double.tryParse(_value.text.trim());
-      if (v == null) {
-        if (mounted) readToast(context, '请填写有效数值');
+      final v1 = double.tryParse(_value.text.trim());
+      final v2 = _to.text.trim().isEmpty
+          ? null
+          : double.tryParse(_to.text.trim());
+      // 原型 bsSaveProgress 4519：从/到都空 → 先填进度
+      if (v1 == null && v2 == null) {
+        if (mounted) readToast(context, '请先填写进度');
         return;
       }
-      await repo.saveProgress(widget.b.id, _way, v);
+      // 「到」抬高总页数/总位置（原型 v2 → max(pg/tot)），再落「从」。
+      if (v2 != null) {
+        if (_way == Book.kWayPage && v2.round() > b.pages) {
+          await repo.updateBook(b.copyWith(pages: v2.round()));
+        } else if (_way == Book.kWayPos && v2 > (b.totalLoc ?? 0)) {
+          await repo.updateBook(b.copyWith(totalLoc: v2));
+        }
+      }
+      await repo.saveProgress(b.id, _way, v1 ?? v2);
     }
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
-    Navigator.of(context).pop();
+    // pop 前取回最新书行并组富文案（pop 动画后 State 销毁，toast 走根 messenger）
     final nb = await repo.bookById(widget.b.id);
-    if (mounted && nb != null) {
-      readToast(context, '《${nb.title}》· ${nb.percent}%');
+    String toastMsg = '';
+    if (nb != null) {
+      // 原型 bsSaveProgress 4538 条件省略：均速段＝ mins>0 且有 startedAt 可折算；
+      // 预计剩段＝ p<100 且非弃读且均速可得；p≥100 → 恭喜读完。
+      final mins = widget.timerMinutes ?? 0;
+      final fc = ProgressForecast.of(nb);
+      final computable = nb.startedAt != null &&
+          nb.state != Book.kStateDropped &&
+          fc.pagesPerDay > 0;
+      toastMsg =
+          '已记录《${nb.title}》${nb.readPages}/${nb.pages} 页（${nb.percent}%）'
+          '· 本次 $mins 分钟'
+          '${mins > 0 && computable ? ' · 均速 ${fc.pagesPerDay.toStringAsFixed(1)} 页/天' : ''}'
+          '${nb.percent >= 100 ? ' · 恭喜读完' : computable ? ' · 预计剩 ${fc.etaDays ?? '—'} 天' : ''}'
+          ' · 已入时间账本 L4';
     }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    if (nb != null) readToast(context, toastMsg);
   }
 
   @override
@@ -470,12 +513,24 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
     final toc = ref.watch(tocProvider(b.id)).valueOrNull ?? const <TocNode>[];
     final secs = toc.where((n) => !n.isPart).toList();
     final fc = ProgressForecast.of(b);
+    final mins = widget.timerMinutes;
+    final totalMin =
+        ref.watch(workbenchProvider).valueOrNull?.agg[b.id]?.minutes ?? 0;
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SheetTitle('记进度 · 《${b.title}》', onSave: _save),
+          // 标题（原型 progTitle 2328）＋上下文行（progTimerLine 4060）
+          _SheetTitle('记录阅读进度'),
+          Text(
+            mins != null
+                ? '本次计时 $mins 分钟 · 《${b.title}》'
+                : '本次未计时 · 手动补记 · 《${b.title}》',
+            key: const ValueKey('pgf-line'),
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
           _Chips(
             items: _labels.values.toList(),
             selected: {_labels[_way]!},
@@ -485,12 +540,35 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
             }),
           ),
           const SizedBox(height: 12),
-          if (_way != Book.kWayChap)
-            _field(_value, switch (_way) {
-              Book.kWayPos => '当前位置（loc，共 ${b.totalLoc ?? 0}）',
-              Book.kWayPct => '百分比（0~100）',
-              _ => '当前页码（共 ${b.pages} 页）',
-            }, keyName: 'pgf-value')
+          if (_way == Book.kWayPage || _way == Book.kWayPos)
+            // 从→到双输入（原型 progWayRender 4064/4066）
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: _field(
+                    _value,
+                    _way == Book.kWayPos
+                        ? '从位置（共 ${b.totalLoc ?? 0}）'
+                        : '从页数（共 ${b.pages} 页）',
+                    keyName: 'pgf-value',
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 14, left: 6, right: 6),
+                  child: Text('→', style: TextStyle(fontSize: 13)),
+                ),
+                Expanded(
+                  child: _field(
+                    _to,
+                    _way == Book.kWayPos ? '到位置（可选）' : '到页数（可选）',
+                    keyName: 'pgf-to',
+                  ),
+                ),
+              ],
+            )
+          else if (_way == Book.kWayPct)
+            _field(_value, '百分比（0~100）', keyName: 'pgf-value')
           else if (secs.isEmpty)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 18),
@@ -558,9 +636,30 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
           Text(
             '均速 ${fc.pagesPerDay <= 0 ? '—' : fc.pagesPerDay.toStringAsFixed(1)} 页/天 · '
             '剩 ${fc.remainPages} 页 · ${forecastLabel(fc)}',
+            key: const ValueKey('pgf-calc'),
             style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 14),
+          // 保存钮（原型 2333：保存记录 · 累计总耗时）
+          FilledButton(
+            key: const ValueKey('pgf-save'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+            ),
+            onPressed: _save,
+            child: Text('保存记录 · 累计总耗时 ${bsFmt(totalMin)}'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '保存后：写入时间账本（L4）· 更新目标进度（L7）· 重算预计读完时间',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              height: 1.6,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -584,17 +683,20 @@ class _SessList extends ConsumerWidget {
                 const <BookSession>[])
             .where((s) => s.endedAt != null)
             .toList()
-            .reversed
-            .toList();
+          ..sort((x, y) => x.startedAt.compareTo(y.startedAt));
     final agg = ref.watch(workbenchProvider).valueOrNull?.agg[b.id];
+    final tot = agg?.minutes ?? 0;
     return Consumer(
       builder: (sheetCtx, ref, _) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SheetTitle('计时明细 · 《${b.title}》'),
+          _SheetTitle('《${b.title}》· 计时明细'),
+          // 汇总行（原型 bsSessRender 5779）：N 次 · 共 X · 均 M 分钟/次
           Text(
-            '${bsFmt(agg?.minutes ?? 0)} · ${agg?.times ?? 0} 次',
+            '${sessions.length} 次 · 共 ${bsFmt(tot)} · '
+            '均 ${sessions.isEmpty ? 0 : (tot / sessions.length).round()} 分钟/次',
+            key: const ValueKey('ss-sum'),
             style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
@@ -603,12 +705,13 @@ class _SessList extends ConsumerWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  for (final s in sessions) _SessRow(b: b, s: s),
+                  for (final (i, s) in sessions.indexed)
+                    _SessRow(b: b, s: s, seq: i + 1),
                   if (sessions.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       child: Text(
-                        '还没有计时记录',
+                        '还没有计时记录 · 点下方补记一次',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: cs.onSurfaceVariant,
@@ -620,23 +723,38 @@ class _SessList extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 6),
-          OutlinedButton.icon(
-            key: const ValueKey('sess-add'),
-            onPressed: () async {
-              await ref
-                  .read(readRepositoryProvider)
-                  .addManualSession(
-                    bookId: b.id,
-                    day: DateTime.now(),
-                    minutes: 20,
-                    fromPage: b.readPages > 0 ? b.readPages : null,
-                  );
-              if (!sheetCtx.mounted) return;
-              ref.read(readTickProvider.notifier).state++;
-              readToast(sheetCtx, '已补记一次 · 20 分钟');
-            },
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('补记一次'),
+          // 底部双钮（原型 sheetSess foot：＋补记一次 / 完成）
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('sess-add'),
+                  onPressed: () async {
+                    await ref
+                        .read(readRepositoryProvider)
+                        .addManualSession(
+                          bookId: b.id,
+                          day: DateTime.now(),
+                          minutes: 20,
+                          fromPage: b.readPages > 0 ? b.readPages : null,
+                        );
+                    if (!sheetCtx.mounted) return;
+                    ref.read(readTickProvider.notifier).state++;
+                    readToast(sheetCtx, '已补记一次 · 可直接改日期与时长');
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('补记一次'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('sess-done'),
+                  onPressed: () => Navigator.of(sheetCtx).pop(),
+                  child: const Text('完成'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
         ],
@@ -646,9 +764,12 @@ class _SessList extends ConsumerWidget {
 }
 
 class _SessRow extends ConsumerStatefulWidget {
-  const _SessRow({required this.b, required this.s});
+  const _SessRow({required this.b, required this.s, this.seq = 0});
   final Book b;
   final BookSession s;
+
+  /// 行序号（原型 bsSessRender 5781：每行行首带序号）。
+  final int seq;
 
   @override
   ConsumerState<_SessRow> createState() => _SessRowState();
@@ -700,6 +821,13 @@ class _SessRowState extends ConsumerState<_SessRow> {
       child: Row(
         key: ValueKey('sess-${widget.s.id}'),
         children: [
+          SizedBox(
+            width: 18,
+            child: Text(
+              '${widget.seq}',
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+          ),
           GestureDetector(
             key: ValueKey('sessd-${widget.s.id}'),
             onTap: () async {

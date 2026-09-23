@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
@@ -135,13 +139,43 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                         color: cs.onSurfaceVariant,
                       ),
                     ),
+                    // 星级评分（原型 renderBookInfo 页头 5 星 · 半分即实心）
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        key: const ValueKey('bi-rate'),
+                        children: [
+                          for (var i = 1; i <= 5; i++)
+                            Icon(
+                              b.rating >= i - .5
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              size: 14,
+                              color: b.rating >= i - .5
+                                  ? const Color(0xFFF59E0B)
+                                  : cs.onSurfaceVariant.withValues(alpha: .5),
+                            ),
+                          const SizedBox(width: 4),
+                          Text(
+                            b.rating > 0 ? _num(b.rating) : '未评',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
                       children: [
                         _tagChip(cs, b.state),
-                        _tagChip(cs, b.format),
+                        // 合并 chip（原型 bsMetaChips 4555：fmt · 进度口径）
+                        _tagChip(cs, '${b.format} · ${bsPosLabel(b)}'),
+                        // 购书 ¥fee（有 fee 才出）
+                        if (b.fee > 0) _tagChip(cs, '购书 ¥${_num(b.fee)}'),
                         for (final t in b.tags)
                           GestureDetector(
                             key: ValueKey('bi-tag-$t'),
@@ -171,9 +205,12 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
             ],
           ),
           const SizedBox(height: 14),
-          // 四数据卡（累计阅读 / 计时次数 可点下钻计时明细）
+          // 数据卡四格（原型 renderBookInfo 5664-5668 顺序：
+          // 摘录/感想 · 累计阅读 · 计时次数 · 分钟/页；后两卡可点下钻明细）
           Row(
             children: [
+              _dataCard(context, null, '摘录/感想', '${quotes.length}', null),
+              const SizedBox(width: 8),
               _dataCard(
                 context,
                 'bi-min',
@@ -186,23 +223,15 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                 context,
                 'bi-times',
                 '计时次数',
-                '${agg?.times ?? 0} 次',
+                '${agg?.times ?? 0}',
                 () => showSessionsSheet(context, ref, b),
               ),
               const SizedBox(width: 8),
-              _dataCard(context, null, '摘录', '${quotes.length} 条', null),
-              const SizedBox(width: 8),
-              _dataCard(
-                context,
-                null,
-                '评分',
-                b.rating > 0 ? '${b.rating} 星' : '—',
-                null,
-              ),
+              _dataCard(context, null, '分钟/页', _speedOf(b, agg?.minutes ?? 0), null),
             ],
           ),
           const SizedBox(height: 12),
-          // 进度行（可点芯片 · §3.3）
+          // 进度卡（原型 5669-5672：标题「阅读进度」+ 进度方式名 + 可点数值）
           GestureDetector(
             key: const ValueKey('bi-prog'),
             onTap: () => showProgressSheet(context, ref, b),
@@ -211,28 +240,47 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    '阅读进度',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Text(
-                        '进度',
+                        '进度方式',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        bsWayName(b.progressWay),
+                        style: const TextStyle(
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
-                          color: cs.onSurface,
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        b.progressWay == Book.kWayPos
-                            ? '${(b.readLoc ?? 0).round()} / ${b.totalLoc ?? 0} 位置 · ${b.percent}%'
-                            : '${b.readPages} / ${b.pages} 页 · ${b.percent}%',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: tokens.accent,
-                          decoration: TextDecoration.underline,
-                          decorationStyle: TextDecorationStyle.dotted,
-                          decorationColor: tokens.accent.withValues(alpha: .5),
+                      Flexible(
+                        child: Text(
+                          b.progressWay == Book.kWayMin
+                              ? '${b.percent}% · 有声'
+                              : '${bsPosLabel(b)} · ${b.percent}%',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.accent,
+                            decoration: TextDecoration.underline,
+                            decorationStyle: TextDecorationStyle.dotted,
+                            decorationColor: tokens.accent.withValues(alpha: .5),
+                          ),
                         ),
                       ),
                     ],
@@ -371,6 +419,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                           if (!mounted) return;
                           ref.read(readTickProvider.notifier).state++;
                           setState(() => _sumEdit = false);
+                          readToast(this.context, '已恢复自动生成');
                         },
                         child: Text(
                           '恢复自动生成',
@@ -457,6 +506,57 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                         fontWeight: FontWeight.w800,
                         color: tokens.accent,
                       ),
+                    ),
+                  ),
+                // 查看态双钮（原型 5695：导出 MD / 转存笔记·联动 L5）
+                if (!_sumEdit)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        OutlinedButton(
+                          key: const ValueKey('sum-export'),
+                          onPressed: () async {
+                            final repo = ref.read(readRepositoryProvider);
+                            final txt = await repo.buildBookQuotesMd(b);
+                            final dir = await getApplicationDocumentsDirectory();
+                            final f = File(
+                              p.join(
+                                dir.path,
+                                'share',
+                                '《${b.title}》书摘.md',
+                              ),
+                            );
+                            await f.parent.create(recursive: true);
+                            await f.writeAsString(txt);
+                            if (!mounted) return;
+                            readToast(
+                              this.context,
+                              '已导出为 Markdown：《${b.title}》${quotes.length} 条笔记',
+                            );
+                          },
+                          child: const Text(
+                            '导出 MD',
+                            style: TextStyle(fontSize: 11.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          key: const ValueKey('sum-to-note'),
+                          onPressed: () async {
+                            await ref
+                                .read(readRepositoryProvider)
+                                .bookToNote(b);
+                            if (!mounted) return;
+                            ref.read(readTickProvider.notifier).state++;
+                            readToast(this.context, '已存为笔记（联动 L5）');
+                          },
+                          child: const Text(
+                            '转存笔记',
+                            style: TextStyle(fontSize: 11.5),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],
@@ -569,6 +669,15 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
           final d = DateTime.fromMillisecondsSinceEpoch(ms);
           return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
         }();
+
+  /// 数值去尾（59.0 → '59'，6.5 → '6.5'·原型 bsSpeed/fee 直出观感）。
+  static String _num(num v) => v % 1 == 0 ? '${v.toInt()}' : '$v';
+
+  /// 分钟/页速度（原型 bsSpeed 4472：rp>0 → min/rp，一位小数；无数据 '—'）。
+  static String _speedOf(Book b, int minutes) =>
+      b.readPages > 0 && minutes > 0
+      ? _num((minutes / b.readPages * 10).roundToDouble() / 10)
+      : '—';
 
   Widget _sumRow(ColorScheme cs, dynamic tokens, String label, String v) =>
       Padding(

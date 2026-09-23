@@ -257,3 +257,22 @@ String bsFmt(int minutes) => minutes < 60
     : (minutes % 60 == 0
           ? '${minutes ~/ 60}h'
           : '${minutes ~/ 60}h${minutes % 60}m');
+
+/// 进度口径四态（原型 bsPosLabel 4551）：pos→「x/tot 位置」、
+/// min（有声）→「p% · 有声」、chap→「按章节」、else→「rp/pages 页」。
+String bsPosLabel(Book b) => switch (b.progressWay) {
+  Book.kWayPos =>
+    '${(b.readLoc ?? 0).round()} / ${(b.totalLoc ?? 0).round()} 位置',
+  Book.kWayMin => '${b.percent}% · 有声',
+  Book.kWayChap => '按章节',
+  _ => '${b.readPages} / ${b.pages} 页',
+};
+
+/// 进度方式中文名（原型 BS_PW 5235：page=页数 pos=位置 chap=章节 pct=百分比 min=分钟）。
+String bsWayName(String way) => switch (way) {
+  Book.kWayPos => '位置',
+  Book.kWayChap => '章节',
+  Book.kWayPct => '百分比',
+  Book.kWayMin => '分钟',
+  _ => '页数',
+};

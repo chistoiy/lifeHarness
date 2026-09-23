@@ -32,7 +32,9 @@ Future<void> readTimerTap(
     if (closed != null &&
         book != null &&
         await ref.read(autoAskProvider.future)) {
-      if (context.mounted) showProgressSheet(context, ref, book);
+      if (context.mounted) {
+        showProgressSheet(context, ref, book, timerMinutes: closed.minutes);
+      }
     }
     return;
   }
