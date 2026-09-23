@@ -1858,7 +1858,8 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl flex flex-col" style="height:72%">
       <div class="grabber"></div>
       <div class="px-5 flex items-center"><div class="font-extrabold text-[15px]">自定义顶部卡片</div><span class="ml-auto text-[10px] text-slate-400">选择后点保存生效</span></div>
-      <div class="mt-1 px-5 flex-1 overflow-y-auto no-scrollbar pb-4 space-y-3" id="heroSlots"></div>
+      <div class="px-5 pt-2 shrink-0" id="heroPrevBox"></div>
+      <div class="mt-2 px-5 flex-1 overflow-y-auto no-scrollbar pb-4 space-y-3" id="heroSlots"></div>
       <div class="px-5 pb-8 pt-2 flex gap-2">
         <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetLedgerHero');toast('未保存 · 顶部卡片保持原样')">取消</button>
         <button class="flex-[2] py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="heroSave()">保存</button>
@@ -5726,7 +5727,8 @@ function heroPrevH(){const d=heroDraft;
   <div class="text-2xl font-extrabold tracking-tight mt-0.5">${(finMetricVal(d.big)<0?'-':'')+AMT(Math.abs(finMetricVal(d.big)))}</div>
   <div class="mt-2.5 grid grid-cols-3 gap-1.5">${d.slots.map(k=>`<div class="rounded-xl bg-white/10 px-2.5 py-1.5 min-w-0"><span class="block text-[8px] opacity-75 truncate">${finMetricName(k)}</span><b class="text-[11px] block truncate">${finMetricTxt(k)}</b></div>`).join('')}</div></div>`}
 function renderHeroCfg(){const d=heroDraft;
- $('#heroSlots').innerHTML=`<div class="text-[10px] font-bold text-slate-400">预览 · 实时反映草稿</div>`+heroPrevH()+
+ $('#heroPrevBox').innerHTML=`<div class="text-[10px] font-bold text-slate-400 mb-1.5">预览 · 实时反映草稿</div>`+heroPrevH();
+ $('#heroSlots').innerHTML=
  [[0,d.big,'大数字 · 醒目位'],[1,d.slots[0],'数据位 2'],[2,d.slots[1],'数据位 3'],[3,d.slots[2],'数据位 4']].map(([i,cur,nm])=>{
  const groups=[['收支 · 日 / 周',FIN_METRICS.slice(0,6)],['收支 · 月 / 年',FIN_METRICS.slice(6,12)],['预算与日均',FIN_METRICS.slice(12,18)],['资产与全部',FIN_METRICS.slice(18)]];
  return `<div class="card !py-3 !px-4"><div class="text-[12px] font-extrabold">${nm} <span class="text-brand-500">· ${finMetricName(cur)} ${finMetricTxt(cur)}</span></div>
