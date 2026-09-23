@@ -610,6 +610,8 @@ void main() {
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('sh-item-a')));
       await settle(tester);
+      // 真机验收轮1：详情页右下「＋记摘录」FAB（原型 FAB_CFG p-bookDetail）。
+      expect(find.byKey(const ValueKey('bd-quote-fab')), findsOneWidget);
       expect(find.byKey(const ValueKey('seg-c')), findsOneWidget);
       expect(find.byKey(const ValueKey('bd-min-chip')), findsOneWidget);
       expect(find.byKey(const ValueKey('bd-pct-chip')), findsOneWidget);
@@ -1056,6 +1058,16 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('bl-new-manual')));
       await settle(tester);
       await tester.enterText(find.byKey(const ValueKey('blf-name')), '主题单');
+      // 真机验收轮1：选书行显示封面（原型 blRenderPick w-7 h-10 bk-cov）。
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('blf-pick-m1')),
+          matching: find.byWidgetPredicate(
+            (w) => w.runtimeType.toString() == 'BsCover',
+          ),
+        ),
+        findsOneWidget,
+      );
       await tester.ensureVisible(find.byKey(const ValueKey('blf-pick-m1')));
       await tester.tap(find.byKey(const ValueKey('blf-pick-m1')));
       await tester.ensureVisible(find.byKey(const ValueKey('blf-pick-m2')));
@@ -1386,6 +1398,8 @@ void main() {
       // 进度行标题与进度方式名
       expect(find.text('阅读进度'), findsOneWidget);
       expect(find.text('页数'), findsWidgets);
+      // 真机验收轮1：竖排档案字段改原型 5673 双列「书目信息」卡。
+      expect(find.text('书目信息'), findsOneWidget);
     });
 
     testWidgets('R-26 目录节数标题 + 划线角标 + AI 补全占位 + 书摘分段 chips',

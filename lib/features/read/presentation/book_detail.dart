@@ -75,6 +75,13 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     final pal = kBsCov[b.paletteIdx];
 
     return Scaffold(
+      // 真机验收轮1：详情页右下「＋记摘录」FAB（原型 FAB_CFG p-bookDetail 5898）。
+      floatingActionButton: FloatingActionButton(
+        key: const ValueKey('bd-quote-fab'),
+        tooltip: '记摘录',
+        onPressed: () => showQuoteSheet(context, ref, bookId: b.id),
+        child: const Icon(BsIcons.add, size: 20),
+      ),
       body: Column(
         children: [
           Expanded(

@@ -738,6 +738,19 @@ class _BooklistFormState extends ConsumerState<_BooklistForm> {
                             controlAffinity: ListTileControlAffinity.leading,
                             contentPadding: EdgeInsets.zero,
                             activeColor: context.tokens.accent,
+                            // 真机验收轮1：选书行显示封面（原型 blRenderPick w-7 h-10）。
+                            secondary: SizedBox(
+                              width: 28,
+                              height: 40,
+                              child: BsCover(
+                                book: b,
+                                width: 28,
+                                height: 40,
+                                radius: 5,
+                                showAuthor: false,
+                                showBadge: false,
+                              ),
+                            ),
                             value: auto
                                 ? _readInYear(books).any((x) => x.id == b.id)
                                 : _sel.contains(b.id),

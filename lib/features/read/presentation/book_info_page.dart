@@ -297,78 +297,74 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
             ),
           ),
           const SizedBox(height: 12),
-          // 档案字段
+          // 书目信息（真机验收轮1：竖排档案字段改原型 5673 双列版 + 简介并入同卡）。
           _card(
             context,
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final (k, v) in [
-                  ('ISBN', b.isbn),
-                  ('出版日期', b.pubDate),
-                  ('系列', b.series),
-                  ('购书费', b.fee > 0 ? '¥${b.fee}' : null),
-                  ('开始阅读', _d(b.startedAt)),
-                  ('读完', _d(b.endedAt)),
-                  ('最近阅读', _d(b.lastReadAt ?? b.updatedAt)),
-                ])
-                  if ((v ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 74,
-                            child: Text(
-                              k,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: cs.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              v!,
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-              ],
-            ),
-          ),
-          if ((b.intro ?? '').isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _card(
-              context,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '简介',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurface,
+                Text(
+                  '书目信息',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final pair in [
+                  (
+                    ('ISBN', (b.isbn ?? '').isEmpty ? '—' : b.isbn!),
+                    (
+                      '类型',
+                      b.format.isEmpty ? '—' : b.format,
                     ),
                   ),
+                  (
+                    ('来源', (b.source ?? '').isEmpty ? '—' : b.source!),
+                    ('分组', (b.grp ?? '').isEmpty ? '—' : b.grp!),
+                  ),
+                  (
+                    ('购书', b.fee > 0 ? '¥${b.fee}' : '—'),
+                    (
+                      b.state == Book.kStateDone ? '读完' : '开始',
+                      b.state == Book.kStateDone
+                          ? (_d(b.endedAt) ?? '—')
+                          : (_d(b.startedAt) ?? '—'),
+                    ),
+                  ),
+                  (
+                    ('最近阅读', _d(b.lastReadAt ?? b.updatedAt) ?? '—'),
+                    (
+                      '时长',
+                      '${bsFmt(agg?.minutes ?? 0)} · ${agg?.times ?? 0} 次',
+                    ),
+                  ),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _kv(cs, pair.$1.$1, pair.$1.$2)),
+                        Expanded(child: _kv(cs, pair.$2.$1, pair.$2.$2)),
+                      ],
+                    ),
+                  ),
+                if ((b.intro ?? '').isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     b.intro!,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       height: 1.6,
-                      color: cs.onSurface,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: 12),
           // 一页式总结（可编辑 · 恢复自动生成 · §3.3）
           _card(
@@ -777,5 +773,22 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
       ),
     ),
     child: child,
+  );
+
+  /// 书目信息双列格（原型 5674：灰标签 + 值同段）。
+  Widget _kv(ColorScheme cs, String k, String v) => RichText(
+    text: TextSpan(
+      style: const TextStyle(fontSize: 11, height: 1.5),
+      children: [
+        TextSpan(text: k, style: TextStyle(color: cs.onSurfaceVariant)),
+        TextSpan(
+          text: '  $v',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: cs.onSurface,
+          ),
+        ),
+      ],
+    ),
   );
 }

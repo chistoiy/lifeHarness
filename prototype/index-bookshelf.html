@@ -2760,8 +2760,8 @@ function setPage(p){
   $('#btnTodoFilter').classList.toggle('flex',p==='p-todo');
   $('#btnTodoViewToggle').classList.toggle('hidden',p!=='p-todo');
   $('#btnTodoViewToggle').classList.toggle('flex',p==='p-todo');
-  /* 书架专版：书籍详情/书籍资料两页顶栏 = 页内操作图标，撤掉全局搜索入口 */
-  const _bkHdr=(p==='p-bookDetail'||p==='p-bookInfo');
+  /* 书架专版：书籍详情/书籍资料两页顶栏 = 页内操作图标，撤掉全局搜索入口；真机验收轮1：书架页右上搜索钮移除（页内已有搜索框） */
+  const _bkHdr=(p==='p-bookDetail'||p==='p-bookInfo'||p==='p-bookshelf');
   const _hs=$('#btnHdrSearch');if(_hs)_hs.classList.toggle('hidden',_bkHdr);
   if(typeof renderHdrActs==='function')renderHdrActs(p);
   const _tb=$('#timerBar');if(_tb&&typeof timer!=='undefined'&&timer){_tb.classList.toggle('hidden',p==='p-readtimer');_tb.classList.toggle('flex',p!=='p-readtimer')}
