@@ -1,0 +1,9 @@
+ <div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">打卡日历</div><span class="ml-auto text-[10px] text-slate-400">${h.type==='pos'?'绿点=已打卡':'绿点=未触发'}</span></div>
+   <div class="mt-2 flex items-center gap-1.5">
+     <button class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" onclick="hbDcStep(-1)" title="上一月"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+     <div class="flex-1 text-center text-[11.5px] font-extrabold">${hbMonthLabel(hbDcMonth)}${hbDcMonth===0?' · 本月':''}</div>
+     <button class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0${hbDcMonth>=0?' opacity-30':''}" onclick="hbDcStep(1)" title="下一月"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button></div>
+   <div class="mt-2 grid grid-cols-7 gap-1 text-center text-[9px] text-slate-400">${['一','二','三','四','五','六','日'].map(d=>`<span>${d}</span>`).join('')}</div>
+   <div class="mt-1 grid grid-cols-7 gap-1">${hbMonthHtml(h,hbMonthCells(hbDcMonth),null,'hbDcTap')}</div>
+   <div class="mt-2 flex items-center gap-1.5 text-[9.5px] text-slate-400 flex-wrap"><i class="w-1.5 h-1.5 rounded-full bg-emerald-500"></i>有打卡<i class="w-1.5 h-1.5 rounded-full bg-brand-500 ml-1.5"></i>有数值<span class="ml-auto">点日期可补记 · 今天可直接打卡</span></div>
+   <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="hbSrcOpen()">自动达成源</button><button class="mini-btn flex-1" onclick="navTo('p-habitStat');renderHabitStat()">全局统计</button></div></div>

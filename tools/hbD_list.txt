@@ -1,0 +1,1 @@
+ el.className=hbView==='list'?'mt-3 space-y-3':'mt-3 grid grid-cols-2 gap-2';el.innerHTML=list.length?(hbView==='list'?list.map(h=>hbCard(h)).join(''):list.map(h=>hbTile(h)).join('')):'<div class="card text-[11px] text-slate-400 text-center !py-8">该筛选下暂无习惯 · <button class="link-act" onclick="heOpen()">新建一个</button></div>';

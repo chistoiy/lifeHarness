@@ -1,0 +1,10 @@
+      <div class="mt-2 card !py-2 !px-3">
+        <button class="w-full flex items-center gap-2 text-[11.5px] font-bold" onclick="hsScopeToggle()">
+          <span class="text-slate-400 font-normal shrink-0">统计范围</span>
+          <span class="flex-1 text-left truncate" id="hsScopeLbl">全部习惯</span>
+          <span id="hsScopeChev" class="text-slate-400 shrink-0 transition-transform"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div id="hsScopeWrap" class="hidden mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div class="flex gap-1.5 flex-wrap"><button class="chip !text-[10px]" onclick="hsScopePreset('all')">全选</button><button class="chip !text-[10px]" onclick="hsScopePreset('pos')">仅正向</button><button class="chip !text-[10px]" onclick="hsScopePreset('neg')">仅负向</button></div>
+          <div class="mt-2 flex gap-1.5 flex-wrap" id="hsScopeList"></div>
+          <div class="mt-1.5 text-[9.5px] text-slate-400">未选中的习惯不参与次数、记录量与时段分析</div></div>
+      </div>

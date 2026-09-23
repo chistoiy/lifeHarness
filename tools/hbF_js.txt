@@ -1,0 +1,19 @@
+/* 统计范围 */
+let hsScope=null,hsScopeOn=false;
+function hbScopeBook(){const b=hbBook();return hsScope?b.filter(h=>hsScope.indexOf(h.id)>=0):b}
+function hsScopeToggle(){hsScopeOn=!hsScopeOn;const w=document.getElementById('hsScopeWrap');
+ if(w)w.classList.toggle('hidden',!hsScopeOn);
+ const c=document.getElementById('hsScopeChev');if(c)c.style.transform=hsScopeOn?'rotate(180deg)':'';
+ if(hsScopeOn)hsScopeRender()}
+function hsScopeRender(){const el=document.getElementById('hsScopeList');if(!el)return;const book=hbBook();
+ el.innerHTML=book.map(h=>{const on=!hsScope||hsScope.indexOf(h.id)>=0;
+  return `<button class="chip !text-[10px] whitespace-nowrap ${on?'chip-on':''}" onclick="hsScopePick('${h.id}')">${hbi(h.ic,'w-[11px] h-[11px] inline -mt-0.5')} ${h.n}</button>`}).join('');
+ const lb=document.getElementById('hsScopeLbl');
+ if(lb)lb.textContent=hsScope?('已选 '+hbScopeBook().length+' / '+book.length+' 个'):'全部 '+book.length+' 个习惯'}
+function hsScopeApply(ids){const book=hbBook();
+ if(!ids.length){toast('至少保留一个习惯');return}
+ hsScope=ids.length===book.length?null:ids;hsScopeRender();renderHabitStat()}
+function hsScopePick(id){const book=hbBook(),cur=hsScope?hsScope.slice():book.map(h=>h.id);
+ hsScopeApply(cur.indexOf(id)>=0?cur.filter(x=>x!==id):cur.concat([id]))}
+function hsScopePreset(k){const book=hbBook();
+ hsScopeApply(k==='all'?book.map(h=>h.id):book.filter(h=>k==='neg'?h.type==='neg':h.type==='pos').map(h=>h.id))}

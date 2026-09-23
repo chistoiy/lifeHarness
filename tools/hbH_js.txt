@@ -1,0 +1,45 @@
+/* 日期速览（点日期标签弹出） */
+let hbDayBack=0,hbDayM=0;
+function hbDayRows(back){return hbBook().map(h=>{const g=hbDayGet(h,back);
+ return {h:h,ok:hbOkAt(h,back),val:hbValAt(h,back),at:g.at||hbSeedAt(h,back),bf:hbIsBf(h,back),auto:(h.src||[]).some(s=>s!=='手动打卡')}})}
+function hbDayOpen(){hbDayBack=Math.max(0,-hbDayOff);
+ const d=hbDateOf(hbDayBack),b=hbBase();
+ hbDayM=Math.min(0,(d.getFullYear()*12+d.getMonth())-(b.getFullYear()*12+b.getMonth()));
+ hbDayRender();openSheet('sheetHabitDay')}
+function hbDayMonth(d){hbDayM=Math.max(-11,Math.min(0,hbDayM+d));hbDayRender()}
+function hbDayPick(back){if(back<0)return;hbDayBack=back;
+ const d=hbDateOf(back),b=hbBase();
+ hbDayM=Math.min(0,(d.getFullYear()*12+d.getMonth())-(b.getFullYear()*12+b.getMonth()));
+ if(back<=6){hbDayOff=-back;renderHabits()}
+ hbDayRender()}
+function hbDayToBackfill(){const h=hbBook()[0];closeSheet('sheetHabitDay');
+ bfH=h?h.id:hbCur;bfSel=[hbDayBack];bfVk=null;bfMonth=hbDayM;bfRender();
+ toast('已选中 '+hbMd(hbDateOf(hbDayBack))+' · 选习惯后确认补记')}
+function hbDayRender(){const rows0=hbDayRows(hbDayBack);
+ const lb=document.getElementById('hdMonthLbl');if(lb)lb.textContent=hbMonthLabel(hbDayM);
+ const hd=document.getElementById('hdHead');if(hd)hd.innerHTML=hbWdHead().map(d=>`<span>${d}</span>`).join('');
+ const g=document.getElementById('hdGrid');
+ if(g)g.innerHTML=hbMonthCells(hbDayM).map(c=>{if(!c)return '<span></span>';
+  const dt=new Date(c.y,c.m,c.d),back=hbBackOf(dt);
+  if(back<0||dt>new Date(2026,8,19))return '<span></span>';
+  const rs=hbDayRows(back),ok=rs.filter(x=>x.ok).length,tot=rs.length,sel=back===hbDayBack;
+  const lv=ok===0?0:ok<=tot*.25?1:ok<=tot*.5?2:ok<=tot*.75?3:4;
+  const bg=['bg-slate-100 dark:bg-slate-800','bg-emerald-100 dark:bg-emerald-500/10','bg-emerald-200 dark:bg-emerald-500/20','bg-emerald-300 dark:bg-emerald-500/30','bg-emerald-400 dark:bg-emerald-500/45'][lv];
+  return `<button class="h-[38px] rounded-[10px] flex flex-col items-center justify-center ${bg}${sel?' ring-2 ring-brand-500':''}" onclick="hbDayPick(${back})" title="${hbMd(dt)} · ${ok}/${tot} 达成">
+   <span class="text-[10.5px] font-bold leading-none ${back===0?'text-brand-600':'text-slate-600 dark:text-slate-300'}">${c.d}</span>
+   <span class="text-[8px] mt-1 leading-none ${ok?'text-emerald-700 dark:text-emerald-300':'text-slate-300 dark:text-slate-600'}">${ok?ok+'/'+tot:'—'}</span></button>`}).join('');
+ const dl=document.getElementById('hdDayLbl');
+ if(dl)dl.textContent=(hbDayBack===0?'今天':hbDayBack===1?'昨天':hbDayBack+' 天前')+' · '+hbMd(hbDateOf(hbDayBack))+' 周'+'日一二三四五六'[hbDateOf(hbDayBack).getDay()];
+ const ok=rows0.filter(x=>x.ok).length,bf=rows0.filter(x=>x.ok&&x.bf).length;
+ const sm=document.getElementById('hdSum');if(sm)sm.textContent=ok+' / '+rows0.length+' 达成'+(bf?' · 含补记 '+bf:'');
+ const el=document.getElementById('hdRows');
+ if(el)el.innerHTML=rows0.length?rows0.map(x=>`<div class="flex items-center gap-2 text-[11.5px] card !py-2 !px-2.5" onclick="hbDayRowTap('${x.h.id}',${hbDayBack})">
+   <span class="w-6 h-6 rounded-lg ${x.h.type==='pos'?'bg-brand-50 dark:bg-brand-500/15 text-brand-500':'bg-rose-50 dark:bg-rose-500/15 text-rose-500'} flex items-center justify-center shrink-0">${hbi(x.h.ic,'w-[13px] h-[13px]')}</span>
+   <span class="flex-1 min-w-0 truncate font-bold">${x.h.n}</span>
+   <span class="text-[10px] text-slate-400 tabular-nums shrink-0">${x.ok?x.at:'—'}</span>
+   <span class="w-[74px] text-right shrink-0 text-[10px] ${x.val?'text-brand-500':'text-slate-300 dark:text-slate-600'}">${x.val?'量 '+x.val+' '+(x.h.group?'项次':(x.h.unit||'次')):(x.ok?'已打卡':'未打卡')}</span>
+   ${x.bf&&x.ok?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/15 shrink-0">补</span>':(x.auto&&x.ok?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">自动</span>':'<span class="w-[26px] shrink-0"></span>')}</div>`).join('')
+  :'<div class="text-[11px] text-slate-400">还没有习惯 · 先去新建一个</div>'}
+function hbDayRowTap(id,back){const h=HABITS.find(x=>x.id===id);if(!h)return;
+ if(back===0){hbTap(HABITS.indexOf(h));closeSheet('sheetHabitDay');return}
+ hbOpen(h.id);closeSheet('sheetHabitDay');toast('查看 / 修改历史日期请用「去补卡 · 补量」')}

@@ -1,0 +1,49 @@
+/* 热力图 */
+function hbSynOk(h,back){const i=29-back;
+ return (hbHash(h.id+'d'+i)%10)>(h.type==='neg'?6:4)?(h.type==='neg'?0:1):(h.type==='neg'?1:0)}
+function hbOkAt(h,back){if(back<=6)return !!h.w[6-back];
+ const e=(h.ex||{})[back];if(e)return !!e.ok;
+ if(back<30)return !!hbSynOk(h,back);
+ return hbSeed(h.id+'|H'+back)<(h.w.filter(v=>v).length/7)}
+function hbHeatRender(){const el=document.getElementById('hstHeat');if(!el)return;
+ const book=hbScopeBook(),W=17,today=new Date(2026,8,19);
+ const lead=(today.getDay()+6)%7,cells=W*7;
+ const col=[];for(let c=0;c<cells+lead;c++){const back=c-(cells+lead-1);col.push(back)}
+ let html='';
+ for(let w=0;w<W;w++){html+='<div class="flex flex-col gap-[3px]">';
+  for(let d=0;d<7;d++){const idx=w*7+d,back=idx-(cells+lead-1);
+   if(back>6&&back<0||back<0){html+='<span class="w-[11px] h-[11px]"></span>';continue}
+   if(back>140){html+='<span class="w-[11px] h-[11px]"></span>';continue}
+   const dt=hbDateOf(back);let n=0,bf=0;
+   book.forEach(h=>{if(hbOkAt(h,back)){n++;if(hbIsBf(h,back))bf++}});
+   const lv=n===0?0:n<=1?1:n<=2?2:n<=3?3:4;
+   const cls=['bg-slate-100 dark:bg-slate-800','bg-emerald-200 dark:bg-emerald-500/25','bg-emerald-300 dark:bg-emerald-500/40','bg-emerald-400 dark:bg-emerald-500/60','bg-emerald-500'][lv];
+   html+=`<button class="w-[11px] h-[11px] rounded-[3px] ${cls}${bf?' ring-1 ring-amber-400':''}" title="${hbMd(dt)} 周${'日一二三四五六'[dt.getDay()]} · ${n} 个习惯达成${bf?' · 含补记 '+bf:''}" onclick="toast('${hbMd(dt)} 周${'日一二三四五六'[dt.getDay()]} · '+(${n})+' 个习惯达成${bf?' · 含补记 '+bf+' 次':''}')"></button>`}
+  html+='</div>'}
+ el.innerHTML='<div class="flex gap-[3px]">'+html+'</div>';
+ const tip=document.getElementById('hstHeatTip');
+ if(tip)tip.textContent='近 '+W+' 周 · 每格为一天达成习惯数';
+ const lg=document.getElementById('hstHeatLegend');
+ if(lg)lg.innerHTML='<span>少</span><i class="w-[9px] h-[9px] rounded-[2px] bg-slate-100 dark:bg-slate-800"></i><i class="w-[9px] h-[9px] rounded-[2px] bg-emerald-200 dark:bg-emerald-500/25"></i><i class="w-[9px] h-[9px] rounded-[2px] bg-emerald-300 dark:bg-emerald-500/40"></i><i class="w-[9px] h-[9px] rounded-[2px] bg-emerald-400 dark:bg-emerald-500/60"></i><i class="w-[9px] h-[9px] rounded-[2px] bg-emerald-500"></i><span>多</span><i class="w-[9px] h-[9px] rounded-[2px] bg-emerald-500 ring-1 ring-amber-400 ml-2"></i><span>含补记</span>'}
+/* 补卡记录 */
+function bfLogList(h){const out=[];
+ for(let k=0;k<7;k++)if(h.bf&&h.bf[k])out.push(6-k);
+ Object.keys(h.ex||{}).forEach(b=>{if(h.ex[b]&&h.ex[b].ok)out.push(+b)});
+ return out.sort((a,b)=>a-b)}
+function bfLogRender(h){const el=document.getElementById('bfLogList');if(!el)return;const ds=bfLogList(h);
+ const n=document.getElementById('bfLogN');if(n)n.textContent=ds.length?ds.length+' 条':'暂无补记';
+ if(!ds.length){el.innerHTML='<div class="text-[10.5px] text-slate-400">还没有补卡记录 · 选日期后确认即生成</div>';return}
+ el.innerHTML=ds.map(b=>{const g=hbDayGet(h,b),d=hbDateOf(b),val=hbValAt(h,b);
+  return `<div class="flex items-center gap-2 text-[11px]">
+   <span class="w-[46px] shrink-0 font-bold ${b===0?'text-brand-500':'text-slate-500'}">${hbMd(d)}</span>
+   <span class="w-7 shrink-0 text-slate-400">周${'日一二三四五六'[d.getDay()]}</span>
+   <span class="w-10 shrink-0 tabular-nums">${g.at||'—'}</span>
+   <span class="flex-1 min-w-0 truncate text-slate-400">${val?'量 '+val+' '+(h.group?'项次':(h.unit||'次')):'仅打卡'}</span>
+   <button class="text-[10px] px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-500/15 text-rose-500 shrink-0" onclick="bfLogDel(${b})">撤销</button></div>`}).join('')}
+function bfLogDel(back){const h=bfHabit();if(!h)return;
+ if(back<=6){const k=6-back;h.w[k]=0;if(h.v)h.v[k]=0;if(h.sv)h.sv[k]=h.subs?h.subs.map(()=>0):[];if(h.at)h.at[k]='';if(h.bf)h.bf[k]=0}
+ else if(h.ex)delete h.ex[back];
+ h.mDone=Math.max(0,(h.mDone||0)-1);
+ bfSel=bfSel.filter(x=>x!==back);
+ renderHabits();renderHabitStat();if(curPage==='p-habitDetail')renderHabitDetail();bfRender();
+ toast('已撤销 '+hbMd(hbDateOf(back))+' 的补卡')}

@@ -1,0 +1,48 @@
+/* 打卡时刻 · 时段分析 */
+const HB_BKS=[['凌晨','0-5 点'],['上午','6-11 点'],['下午','12-17 点'],['晚上','18-23 点']];
+function hbNow(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function hbSeedAt(h,back){const base=h.remind?+String(h.remind).split(':')[0]:8;
+ const s=hbSeed(h.id+'|at|'+back),off=Math.round((s-0.45)*7);
+ let hr=base+off;if(hr<0)hr+=24;if(hr>23)hr-=24;
+ return String(hr).padStart(2,'0')+':'+String(Math.round(s*11)*5%60).padStart(2,'0')}
+function hbAtOf(h,back){const e=hbDayGet(h,back);if(!e.ok)return '';return e.at||hbSeedAt(h,back)}
+function hbIsBf(h,back){return !!hbDayGet(h,back).bf}
+function hbBkIdx(hr){return hr<6?0:hr<12?1:hr<18?2:3}
+function hbHours(h,dim,off){const out=[];if(h.type==='neg')return out;
+ if(!off&&dim==='w'){for(let k=0;k<7;k++){if(!h.w[k])continue;const back=6-k,d=hbDateOf(back),at=hbAtOf(h,back)||hbSeedAt(h,back);
+   out.push({hr:+String(at).split(':')[0],wd:hbWdIdx(d),bf:hbIsBf(h,back)})}return out}
+ const c=hbCnt(h,dim,off),maxBack=dim==='w'?6:dim==='m'?29:364;
+ for(let i=0;i<c;i++){const back=Math.min(maxBack,Math.floor(hbSeed(h.id+'|b'+dim+'|'+off+'|'+i)*(maxBack+1)));
+  const d=hbDateOf(back),at=hbSeedAt(h,back);
+  out.push({hr:+String(at).split(':')[0],wd:hbWdIdx(d),bf:off?false:hbIsBf(h,back)})}
+ return out}
+function hbTimeAgg(dim,off){const book=hbBook(),bk=[0,0,0,0],wd=[0,0,0,0,0,0,0];let sum=0,n=0,bf=0;
+ book.forEach(h=>hbHours(h,dim,off).forEach(x=>{bk[hbBkIdx(x.hr)]++;wd[x.wd]++;sum+=x.hr;n++;if(x.bf)bf++}));
+ return {bk:bk,wd:wd,n:n,avg:n?sum/n:0,bf:bf}}
+function hbClock(avg){const h=Math.floor(avg),m=Math.round((avg-h)*60/15)*15;return String((m===60?(h+1)%24:h)).padStart(2,'0')+':'+String(m===60?0:m).padStart(2,'0')}
+function hbTimeRender(dim,off){const el=document.getElementById('hstTime');if(!el)return;const A=hbTimeAgg(dim,off);
+ if(!A.n){el.innerHTML='<div class="text-[11px] text-slate-400">该周期还没有打卡时刻数据</div>';
+  const tp=document.getElementById('hstTimeTip');if(tp)tp.textContent='';return}
+ const mx=Math.max.apply(null,A.bk)||1,wmx=Math.max.apply(null,A.wd)||1;
+ const top=A.bk.indexOf(mx),wTop=A.wd.indexOf(wmx),wLow=A.wd.indexOf(Math.min.apply(null,A.wd));
+ const tip=document.getElementById('hstTimeTip');
+ if(tip)tip.textContent='样本 '+A.n+' 次 · 平均 '+hbClock(A.avg);
+ el.innerHTML=`<div class="text-[10.5px] leading-5"><b class="text-brand-500">${HB_BKS[top][0]}</b>最常打卡 · 平均时刻 <b>${hbClock(A.avg)}</b> · 周${'一二三四五六日'[wTop]}最稳 · 周${'一二三四五六日'[wLow]}最易断${A.bf?' · 含补记 '+A.bf+' 次':''}</div>
+ <div class="mt-2 grid grid-cols-4 gap-1.5">${A.bk.map((v,i)=>`<div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-1.5 text-center">
+   <div class="text-[9px] text-slate-400">${HB_BKS[i][0]}</div><b class="text-[13px] block leading-5 ${i===top?'text-brand-500':''}">${v}</b>
+   <div class="h-1 rounded-full bg-white dark:bg-slate-700 mx-2 overflow-hidden"><span class="block h-full ${i===top?'grad':'bg-slate-300'}" style="width:${Math.round(v/mx*100)}%"></span></div>
+   <div class="text-[8.5px] text-slate-400">${Math.round(v/A.n*100)}%</div></div>`).join('')}</div>
+ <div class="mt-2.5 flex items-end gap-1 h-[42px]">${A.wd.map((v,i)=>`<div class="flex-1 flex flex-col items-center gap-0.5">
+   <div class="w-full rounded-t ${v===wmx?'grad':'bg-slate-100 dark:bg-slate-800'}" style="height:${v?Math.max(4,Math.round(v/wmx*30)):3}px"></div>
+   <span class="text-[8px] text-slate-400">${'一二三四五六日'[i]}</span></div>`).join('')}</div>`}
+function hbFlowHtml(h){const rows=[];
+ for(let back=0;back<14&&rows.length<8;back++){const g=hbDayGet(h,back);if(!g.ok)continue;
+  const d=hbDateOf(back),at=g.at||hbSeedAt(h,back),val=hbValAt(h,back);
+  rows.push(`<div class="flex items-center gap-2 text-[11px] py-1 ${rows.length?'border-t border-slate-100 dark:border-slate-800':''}">
+   <span class="w-[46px] shrink-0 font-bold ${back===0?'text-brand-500':'text-slate-500'}">${hbMd(d)}</span>
+   <span class="w-7 shrink-0 text-slate-400">周${'日一二三四五六'[d.getDay()]}</span>
+   <span class="w-10 shrink-0 tabular-nums">${at}</span>
+   <span class="flex-1 min-w-0 truncate ${h.type==='neg'?'text-rose-500':'text-slate-500'}">${h.type==='neg'?'未触发':(val?val+' '+(h.group?'项次':(h.unit||'次')):'已打卡')}</span>
+   ${g.bf?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-500/15 shrink-0">补记</span>':''}
+   ${(h.src||[]).length&&h.src.some(s=>s!=='手动打卡')&&!g.bf?'<span class="text-[8.5px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">自动</span>':''}</div>`)}
+ return rows.length?'<div class="mt-1">'+rows.join('')+'</div>':'<div class="mt-1 text-[11px] text-slate-400">近 14 天还没有打卡记录</div>'}

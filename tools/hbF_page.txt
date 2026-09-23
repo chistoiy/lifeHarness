@@ -1,0 +1,11 @@
+    <!-- ===== 习惯专版 · P-H3 打卡设置 ===== -->
+    <section id="p-habitSet" class="page px-5 safe-pb no-scrollbar">
+      <div class="mt-3 text-[10px] text-slate-400">影响统计口径 · 提醒与日历分列 · 本机生效</div>
+      <div class="mt-2 space-y-2" id="hbSetList"></div>
+      <div class="mt-3 card !py-2.5 !px-3">
+        <div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px] block">恢复默认设置</b>
+          <span class="text-[10px] text-slate-400 leading-4 block mt-0.5">口径、提醒、周起始日回到初始值</span></div>
+          <button class="mini-btn !text-[10px] shrink-0" onclick="hbSetReset()">恢复</button></div></div>
+      <div class="mt-3 flex items-center gap-2 text-[10px] text-slate-400"><span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span>设置仅作用于习惯模块<span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span></div>
+    </section>
+

@@ -1,0 +1,211 @@
+let HABITS=[
+ {id:'h1',n:'健身组',ic:'run',type:'pos',cat:'健康',cycle:'day',days:[],streak:12,best:31,w:[1,1,0,1,1,1,0],mDone:19,remind:'07:00',src:['番茄完成','日程事件'],arch:false,
+  group:true,rule:'all',subs:[{n:'深蹲',unit:'个',goal:20},{n:'跑步',unit:'分钟',goal:20},{n:'俯卧撑',unit:'个',goal:30}],
+  v:[20,18,0,22,20,15,0],sv:[[20,20,30],[15,20,25],[0,0,0],[20,25,30],[20,20,35],[10,20,20],[0,0,0]]},
+ {id:'h2',n:'阅读 30 分钟',ic:'book',type:'pos',cat:'学习',cycle:'day',days:[],streak:5,best:22,w:[1,0,1,1,1,0,0],mDone:17,remind:'21:30',src:['阅读计时'],arch:false,unit:'分钟',goal:30,v:[35,0,28,41,22,0,0]},
+ {id:'h3',n:'睡前冥想',ic:'med',type:'pos',cat:'健康',cycle:'day',days:[],streak:2,best:9,w:[0,1,0,1,0,1,1],mDone:9,remind:'22:30',src:['手动打卡'],arch:false,unit:'分钟',goal:10,v:[0,12,0,10,0,8,15]},
+ {id:'h4',n:'喝水 8 杯',ic:'water',type:'pos',cat:'健康',cycle:'day',days:[],streak:8,best:26,w:[1,1,1,1,1,0,1],mDone:21,remind:'10:00',src:['手动打卡'],arch:false,unit:'杯',goal:8,v:[8,9,7,8,10,0,6]},
+ {id:'h5',n:'写周报',ic:'write',type:'pos',cat:'工作',cycle:'week',days:['五','日'],streak:3,best:6,w:[0,0,1,0,0,0,0],mDone:3,remind:'18:00',src:['待办勾选'],arch:false,unit:'字',goal:600,v:[0,0,1200,0,0,0,0]},
+ {id:'h6',n:'整理桌面与下载夹',ic:'code',type:'pos',cat:'工作',cycle:'month',days:[],targetM:6,streak:0,best:4,w:[0,0,0,0,0,0,0],mDone:2,remind:'',src:['待办勾选'],arch:false},
+ {id:'h7',n:'喝奶茶',ic:'food',type:'neg',cat:'生活',cycle:'week',days:[],target:2,triggers:1,streak:3,best:14,w:[1,1,1,0,1,1,1],mAvoid:19,remind:'21:00',src:['手动打卡'],arch:false,unit:'杯',goal:1,v:[0,0,0,1,0,0,0],slips:[{dt:'09-14',rs:'应酬',note:'加班后同事一起点',amt:'1 杯 · 大杯'}]},
+ {id:'h8',n:'深夜刷手机',ic:'phone',type:'neg',cat:'生活',cycle:'week',days:[],target:3,triggers:2,streak:1,best:9,w:[1,0,1,1,0,1,1],mAvoid:15,remind:'23:00',src:['手动打卡'],arch:false,unit:'分钟',goal:30,v:[0,55,0,0,70,0,0],slips:[{dt:'09-13',rs:'失眠',note:'',amt:'55 分钟'},{dt:'09-15',rs:'赶时间',note:'睡前回工作消息',amt:'70 分钟'}]},
+ {id:'h9',n:'抽烟',ic:'smoke',type:'neg',cat:'健康',cycle:'week',days:[],target:0,triggers:0,streak:66,best:66,w:[1,1,1,1,1,1,1],mAvoid:22,remind:'',src:[],arch:true,slips:[]},
+ {id:'h10',n:'英语单词',ic:'plan',type:'pos',cat:'成长',cycle:'day',days:[],streak:21,best:44,w:[1,1,1,1,0,1,1],mDone:24,remind:'08:00',src:['待办勾选'],arch:false,unit:'词',goal:50,v:[50,60,45,50,0,55,50]}];
+function hbBook(){return HABITS.filter(h=>!h.arch)}
+function hbToday(){const wd=HB_WD[(new Date().getDay()+6)%7];return HABITS.filter(h=>!h.arch&&(h.cycle==='day'||(h.cycle==='week'&&h.days.indexOf(wd)>=0)||(h.cycle==='month'&&(h.mDone||0)<(h.targetM||0))))}
+function hbDueOf(h){return h.cycle==='day'?'每天':h.cycle==='week'?('每周 '+(h.days.join('、')||'任意 1 天')):('每月 '+(h.targetM||0)+' 次')}
+function hbNegLeft(h){return Math.max(0,(h.target||0)-(h.triggers||0))}
+function hbRate(h){const tot=h.cycle==='month'?(h.targetM||1):7,ok=h.w.filter(v=>v).length;return h.type==='neg'?Math.round(h.w.filter(v=>v).length/7*100):Math.min(100,Math.round(ok/tot*100))}
+function hbHist(h){const out=[];for(let i=0;i<30;i++){out.push(i>=23?(h.w[i-23]||0):((hbHash(h.id+'d'+i)%10)>(h.type==='neg'?6:4)?(h.type==='neg'?0:1):(h.type==='neg'?1:0)))}return out}
+function hbV(h,i){return (h.v&&+h.v[i])||0}
+function hbHasVal(h){return h.group||!!h.unit}
+function hbValTxt(h,i){if(h.group&&h.sv&&h.sv[i]&&h.sv[i].some(v=>v)){const a=h.sv[i];return h.subs.map((s,k)=>s.n+' '+a[k]+s.unit).join(' · ')}
+  const v=hbV(h,i);return v?v+' '+(h.unit||'次'):'—'}
+function hbGoalTxt(h){if(h.group)return h.subs.map(s=>s.goal+s.unit).join(' / ');return h.unit?('目标 '+h.goal+' '+h.unit):''}
+function hbSubTot(h,dim){if(!h.group)return [];const f=dim==='w'?1:dim==='m'?4.3:12*4.3;
+  const base=(h.sv||[]).reduce((a,row)=>{row.forEach((v,k)=>a[k]=(a[k]||0)+v);return a},[]);
+  return h.subs.map((s,k)=>({n:s.n,unit:s.unit,val:Math.round((base[k]||0)*f),goal:s.goal*(dim==='w'?7:dim==='m'?30:365)}))}
+function hbTot(h,dim){const arr=dim==='w'?h.w:hbHist(h);const cnt=arr.filter(v=>v).length;
+  const f=dim==='w'?1:dim==='m'?4.3:12*4.3;
+  let val=0;
+  if(h.group){val=hbSubTot(h,dim).reduce((a,x)=>a+x.val,0)}
+  else if(h.unit){val=Math.round((h.v||[]).reduce((a,v)=>a+(+v||0),0)*f)}
+  const days=dim==='w'?7:dim==='m'?30:365;
+  const done=dim==='w'?cnt:Math.round(cnt*(dim==='m'?4.3:50));
+  return {cnt:done,dayN:days,val:val,avg:done?Math.round(val/done):0,rate:Math.round(done/days*100),
+    base:dim==='w'?'本周':dim==='m'?'本月':'本年',unit:h.group?'项次合计':(h.unit||'次')}}
+function hbYearBars(h){const out=[];for(let m=0;m<12;m++){const seed=hbHash(h.id+'y'+m);const cnt=10+seed%20;out.push({mo:m+1,cnt:cnt,val:Math.round(cnt*hbUnitGoal(h)*(m<9?1:.35)),now:m<9})}return out}
+let hbSeg='all',hbDayOff=0,hbCur='h1',hsDim='w',hdDim='w';
+function hbDayLabel(){if(hbDayOff===0)return '今天 · 09-19 周六';if(hbDayOff===-1)return '昨天 · 09-18 周五';if(hbDayOff===-2)return '前天 · 09-17 周四';return '回看 '+Math.abs(hbDayOff)+' 天前'}
+function hbDayShift(d){hbDayOff=Math.max(-6,Math.min(0,hbDayOff+d));renderHabits();if(hbDayOff!==0)toast('回看模式 · 仅今天可打卡')}
+function hbSegPick(k){hbSeg=k;renderHabits()}
+function renderHabits(){const el=document.getElementById('hbList');if(!el)return;
+ const book=hbBook(),t=hbToday(),done=t.filter(h=>h.w[6]).length;
+ const C=2*Math.PI*23,p=t.length?Math.round(done/t.length*100):0;
+ const rg=document.getElementById('hbRing');if(rg)rg.setAttribute('stroke-dasharray',(C*p/100).toFixed(1)+' '+C.toFixed(1));
+ const rt=document.getElementById('hbRingTxt');if(rt)rt.textContent=done+'/'+t.length;
+ const bar=document.getElementById('hbHeroBar');if(bar)bar.style.width=p+'%';
+ const tt=document.getElementById('hbHeroTitle');if(tt)tt.textContent=hbDayOff===0?(p===100&&t.length?'今日全部达成':p>=50?'今日进行中':'今日待开始'):'回看 '+hbDayLabel().split(' · ')[0];
+ const wk=book.reduce((a,h)=>a+hbTot(h,'w').val,0);
+ const hs=document.getElementById('hbHeroSub');if(hs)hs.textContent='已打卡 '+done+' / 应打卡 '+t.length+' · 本周记录量合计 '+wk+(book.some(h=>h.unit||h.group)?' 项次':'')+' · 负向剩余 '+book.filter(h=>h.type==='neg').reduce((a,h)=>a+hbNegLeft(h),0)+' 次';
+ const sc=document.getElementById('hbStreakChip');if(sc)sc.textContent='最长连击 '+Math.max.apply(null,book.map(h=>h.streak||0))+' 天';
+ const wc=document.getElementById('hbWeekChip');if(wc)wc.textContent='本周完成率 '+Math.round(book.reduce((a,h)=>a+hbRate(h),0)/Math.max(1,book.length))+'%';
+ const dl=document.getElementById('hbDayLabel');if(dl)dl.textContent=hbDayLabel();
+ const auto=book.filter(h=>(h.src||[]).some(s=>s!=='手动打卡'));
+ const ar=document.getElementById('hbAutoRow');if(ar)ar.innerHTML=auto.length?`<button class="bg-white/20 rounded-full px-2 py-1 font-bold" onclick="hbSrcOpen()">${hbi('flame','w-[11px] h-[11px] inline -mt-0.5')} 今日自动达成 ${auto.length} 项 · 查看来源</button>`:'<span class="opacity-70 px-1">全部为手动打卡 · 可绑定自动达成源</span>';
+ const segs=[['all','全部 '+book.length],['todo','待打卡 '+(t.length-done)],['ok','已达成 '+done],['grp','分组 '+book.filter(h=>h.group).length],['neg','负向 '+book.filter(h=>h.type==='neg').length],['arch','已归档 '+HABITS.filter(h=>h.arch).length]];
+ const sg=document.getElementById('hbSeg');if(sg)sg.innerHTML=segs.map(s=>`<button class="chip whitespace-nowrap ${hbSeg===s[0]?'chip-on':''}" onclick="hbSegPick('${s[0]}')">${s[1]}</button>`).join('');
+ let list=book.slice();
+ if(hbSeg==='todo')list=t.filter(h=>!h.w[6]);if(hbSeg==='ok')list=t.filter(h=>h.w[6]);
+ if(hbSeg==='grp')list=book.filter(h=>h.group);if(hbSeg==='neg')list=book.filter(h=>h.type==='neg');if(hbSeg==='arch')list=HABITS.filter(h=>h.arch);
+ el.innerHTML=list.length?list.map(h=>hbCard(h)).join(''):'<div class="card text-[11px] text-slate-400 text-center !py-8">该分组下暂无习惯 · <button class="link-act" onclick="heOpen()">新建一个</button></div>';
+ renderHdrActs(curPage)}
+function hbDots(h){return `<div class="mt-2 flex gap-1">${h.w.map((v,i)=>`<span class="hb-dot ${h.type==='pos'?(v?'bg-emerald-400 text-white':'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600'):(v?'bg-emerald-400/80 text-white':'bg-rose-100 dark:bg-rose-500/15 text-rose-400')}" title="周${HB_WD[i]}${h.v&&h.v[i]?' · '+hbValTxt(h,i):''}">${h.type==='pos'?(v?'✓':''):(v?'':'!')}</span>`).join('')}</div>`}
+function hbSubChips(h){if(!h.group)return '';const cur=(h.sv&&h.sv[6]&&h.sv[6].some(v=>v))?h.sv[6]:null;
+ return `<div class="mt-2 flex gap-1.5 flex-wrap">${h.subs.map((s,k)=>{const v=cur?cur[k]:0;
+  return `<span class="text-[10px] px-2 py-1 rounded-lg ${v>=s.goal?'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400':v?'bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400':'bg-slate-100 dark:bg-slate-800 text-slate-400'}">${s.n} <b>${v||0}</b>/${s.goal}${s.unit}</span>`}).join('')}<span class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400">${h.rule==='all'?'全部完成才算达成':h.rule==='any'?'任一完成即达成':'完成 ≥'+Math.ceil(h.subs.length/2)+' 项达成'}</span></div>`}
+function hbCard(h){const i=HABITS.indexOf(h),ok=!!h.w[6],rate=hbRate(h),tw=hbTot(h,'w');
+ return `<div class="card">
+  <div class="flex items-start gap-2.5" onclick="hbOpen('${h.id}')">
+    <span class="w-9 h-9 rounded-xl ${h.type==='pos'?'bg-brand-50 dark:bg-brand-500/15 text-brand-500':'bg-rose-50 dark:bg-rose-500/15 text-rose-500'} flex items-center justify-center shrink-0">${hbi(h.ic,'w-[18px] h-[18px]')}</span>
+    <div class="flex-1 min-w-0"><b class="text-[13.5px] block truncate">${h.n}${h.group?' <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-500 align-middle">组 · '+h.subs.length+' 项</span>':''}</b>
+      <div class="text-[10px] text-slate-400 mt-0.5">${hbDueOf(h)}${h.remind?' · 提醒 '+h.remind:''} · ${(h.src||[]).length?h.src.join('/'):'手动'}</div></div>
+    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${h.type==='pos'?'bg-mint/15 text-teal-600 dark:text-teal-400':'bg-rose-100 text-rose-500 dark:bg-rose-500/15'}">${h.type==='pos'?'坚持':'控制'}</span></div>
+  ${hbSubChips(h)}${hbDots(h)}
+  <div class="mt-2 flex items-center gap-2 text-[10.5px] text-slate-400">
+    <span>${h.type==='pos'?`连续 <b class="text-sun">${h.streak}</b> 天 · 本周 <b class="text-emerald-500">${h.w.filter(v=>v).length}/7</b>${hbHasVal(h)?` · 量 <b class="text-brand-500">${tw.val}</b>${tw.unit}`:''}`:`本周已用 <b class="${hbNegLeft(h)?'text-emerald-500':'text-rose-500'}">${h.triggers||0}/${h.target||0}</b> · 未触发 <b class="text-emerald-500">${h.w.filter(v=>v).length}/7</b> 天`}</span>
+    <span class="ml-auto font-extrabold ${rate>=70?'text-emerald-500':rate>=40?'text-sun':'text-rose-500'}">${rate}%</span></div>
+  <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full rounded-full ${h.type==='pos'?'grad':'bg-emerald-400'}" style="width:${rate}%"></span></div>
+  ${h.arch?'<div class="mt-2.5 flex gap-2"><button class="mini-btn flex-1 !py-2" onclick="event.stopPropagation();hbArchive('+i+',1)">已归档 · 恢复跟踪</button><button class="mini-btn !py-2" onclick="event.stopPropagation();hbOpen(\''+h.id+'\')">看纪录</button></div>'
+   :hbDayOff!==0?'<div class="mt-2.5 text-[10px] text-slate-400">回看模式 · 修改这天请用「补卡」</div>'
+   :h.type==='pos'?`<div class="mt-2.5 flex gap-2"><button class="flex-1 !py-2 rounded-xl text-xs font-extrabold ${ok?'bg-slate-100 dark:bg-slate-800 text-slate-400':'grad text-white shadow-md shadow-indigo-500/25'}" onclick="event.stopPropagation();hbTap(${i})">${ok?(ok&&hbHasVal(h)?'今日 '+hbValTxt(h,6)+' · 点击修改':'已打卡 · 点击撤销'):(hbHasVal(h)?'打卡并记量':'打卡')}</button><button class="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 flex items-center justify-center shrink-0" title="详情与统计" onclick="event.stopPropagation();hbOpen('${h.id}')">${hbi('chart','w-[15px] h-[15px]')}</button></div>`
+   :`<div class="mt-2.5 flex gap-2"><button class="flex-1 !py-2 rounded-xl text-xs font-extrabold ${ok?'bg-slate-100 dark:bg-slate-800 text-slate-400':'bg-emerald-500 text-white'}" onclick="event.stopPropagation();hbAvoid(${i})">${ok?'今天没做 ✓':'今天没做'}</button><button class="flex-1 !py-2 rounded-xl text-xs font-extrabold bg-rose-100 text-rose-500 dark:bg-rose-500/15" onclick="event.stopPropagation();hbTrigOpen(${i})">记一次触发</button></div>`}
+ </div>`}
+function hbTap(i){const h=HABITS[i];if(hbHasVal(h)){hbLogOpen(i);return}hbCheck(i)}
+function hbCheck(i){const h=HABITS[i];h.w[6]=h.w[6]?0:1;
+ if(h.w[6]){h.streak=(h.streak||0)+1;h.mDone=(h.mDone||0)+1;if(h.streak>h.best)h.best=h.streak;toast(h.n+' 已打卡 · 连续 '+h.streak+' 天 · 计入周报与目标（L7）')}
+ else{h.streak=Math.max(0,(h.streak||0)-1);h.mDone=Math.max(0,(h.mDone||0)-1);toast('已撤销今日打卡')}
+ renderHabits();renderDash()}
+function hbAvoid(i){const h=HABITS[i];if(h.w[6]){toast('今天已计入未触发');return}h.w[6]=1;h.mAvoid=(h.mAvoid||0)+1;h.streak=(h.streak||0)+1;if(h.streak>h.best)h.best=h.streak;toast('未触发 +1 · 已连续 '+h.streak+' 天守住');renderHabits()}
+function hbArchive(i,on){const h=HABITS[i];h.arch=!!on;renderHabits();toast(on?'已归档 · 纪录保留，不再出现在今日列表':'已恢复跟踪')}
+/* 打卡记量（组习惯逐子项 / 单值习惯一项） */
+let hlI=0,hlV=[];
+function hbLogOpen(i){hlI=i;const h=HABITS[i];
+ hlV=h.group?((h.sv&&h.sv[6]&&h.sv[6].some(v=>v))?h.sv[6].slice():h.subs.map(s=>s.goal)):[hbV(h,6)||h.goal||0];
+ document.getElementById('hlTitle').textContent='打卡记量 · '+h.n;
+ document.getElementById('hlSub').textContent=h.group?('组内 '+h.subs.length+' 项 · '+(h.rule==='all'?'全部达标才算打卡':h.rule==='any'?'任一达标即打卡':'过半达标即打卡')):('目标 '+(h.goal||0)+' '+(h.unit||'次')+' · 可直接改');
+ hbLogRender();openSheet('sheetHabitLog')}
+function hbLogRender(){const h=HABITS[hlI];
+ document.getElementById('hlRows').innerHTML=(h.group?h.subs.map((s,k)=>hbLogRow(k,s.n,s.unit,s.goal,[5,10,20,30,50].filter(v=>v!==s.goal).concat([s.goal]))) :
+   [hbLogRow(0,h.n,h.unit||'次',h.goal||0,[10,15,20,30,45,60].filter(v=>v!==h.goal))]).join('');
+ const all=h.group?hlV.reduce((a,v,k)=>a+(v>=(h.subs[k].goal?1:0)?1:0),0):(hlV[0]>=(h.goal||0)?1:0);
+ const rk=document.getElementById('hlRule');
+ if(rk)rk.innerHTML=h.group?`<span class="text-[10.5px] ${all===(h.rule==='all'?h.subs.length:1)?'text-emerald-500 font-bold':'text-slate-400'}">已达标 ${all}/${h.subs.length} 项${h.rule==='all'&&all<h.subs.length?' · 还差 '+(h.subs.length-all)+' 项':h.rule!=='all'?' · 满足达成条件':''}</span>`:'';
+ const bt=document.getElementById('hlSave');if(bt)bt.textContent=h.w[6]?'保存修改':'保存并打卡'}
+function hbLogRow(k,nm,unit,goal,quick){const v=hlV[k]||0;
+ return `<div class="card !py-2.5 !px-3"><div class="flex items-center gap-2">
+   <div class="flex-1 min-w-0"><b class="text-[12.5px] block truncate">${nm}</b><span class="text-[10px] text-slate-400">目标 ${goal} ${unit}</span></div>
+   <div class="flex items-center gap-1.5 shrink-0">
+     <button class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-black" onclick="hbLogStep(${k},-${Math.max(1,Math.round(goal/4))})">−</button>
+     <input class="inp !w-16 !py-1.5 text-center text-[13px] font-black" type="number" value="${v}" onchange="hbLogSet(${k},this.value)">
+     <button class="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-500/15 text-brand-500 font-black" onclick="hbLogStep(${k},${Math.max(1,Math.round(goal/4))})">＋</button>
+     <span class="text-[10px] text-slate-400 w-8">${unit}</span></div></div>
+   <div class="mt-1.5 flex gap-1.5 flex-wrap">${quick.map(q=>`<button class="chip !text-[10px] ${q===v?'chip-on':''}" onclick="hbLogSet(${k},${q})">${q}</button>`).join('')}<button class="chip !text-[10px]" onclick="hbLogSet(${k},0)">清零</button></div></div>`}
+function hbLogStep(k,d){hlV[k]=Math.max(0,(hlV[k]||0)+d);hbLogRender()}
+function hbLogSet(k,v){hlV[k]=Math.max(0,+v||0);hbLogRender()}
+function hbLogSave(){const h=HABITS[hlI];
+ if(h.group){h.sv=h.sv||[[],[],[],[],[],[],[]];h.sv[6]=hlV.slice();h.v[6]=hlV.reduce((a,v)=>a+v,0);
+   const got=hlV.filter((v,k)=>v>=(h.subs[k].goal||0)).length;
+   const okRule=h.rule==='all'?got===h.subs.length:h.rule==='any'?got>=1:got>=Math.ceil(h.subs.length/2);
+   if(!okRule){toast('未达组内达成条件（'+got+'/'+h.subs.length+' 项达标）· 可改为「任一即达成」');return}}
+ else{h.v=h.v||[0,0,0,0,0,0,0];h.v[6]=hlV[0]||0}
+ if(!h.w[6]){h.w[6]=1;h.streak=(h.streak||0)+1;h.mDone=(h.mDone||0)+1;if(h.streak>h.best)h.best=h.streak}
+ closeSheet('sheetHabitLog');renderHabits();if(curPage==='p-habitDetail')renderHabitDetail();
+ toast('已记录 · '+h.n+' 今日 '+hbValTxt(h,6)+' · 连续 '+h.streak+' 天')}
+/* 详情 */
+function hbOpen(id){const h=HABITS.find(x=>x.id===id);if(!h)return;hbCur=id;TITLES['p-habitDetail']=['习惯详情',h.n];renderHabitDetail();navTo('p-habitDetail')}
+function hbH(){return HABITS.find(x=>x.id===hbCur)||HABITS[0]}
+function hbUnitGoal(h){return h.group?(h.subs||[]).reduce((a,s)=>a+(+s.goal||0),0):(+h.goal||20)}
+function hbBars(h,dim){if(dim==='a')return hbYearBars(h).map(y=>({lab:''+y.mo,val:y.val}));
+ if(dim==='w')return h.w.map((v,i)=>({lab:HB_WD[i],val:hbV(h,i)}));
+ const out=[];for(let i=29;i>=0;i--){out.push({lab:i%10===0?''+(30-i):'',val:i>=23?hbV(h,i-23):(hbHash(h.id+'d'+i)%10>4?hbUnitGoal(h):0)})}return out}
+function hdPick(k){hdDim=k;renderHabitDetail()}
+function renderHabitDetail(){const h=hbH(),el=document.getElementById('hdRoot');if(!el)return;
+ const hist=hbHist(h),rate=hbRate(h),ms=[7,21,66,100,365],T=hbTot(h,hdDim),subs=hbSubTot(h,hdDim);
+ const bars=hbBars(h,hdDim),bmax=Math.max.apply(null,bars.map(b=>b.val).concat([1]));
+ const barHtml=`<div class="mt-2 flex items-end gap-1 h-[78px]">${bars.map(b=>`<div class="flex-1 flex flex-col items-center gap-0.5"><span class="text-[7px] text-slate-400">${b.val||""}</span><div class="w-full rounded-t ${b.val?'grad':'bg-slate-100 dark:bg-slate-800'}" style="height:${b.val?Math.max(4,Math.round(b.val/bmax*52)):3}px"></div><span class="text-[7px] text-slate-400 h-[9px]">${b.lab||""}</span></div>`).join("")}</div>`;
+ el.innerHTML=`
+ <div class="mt-3 card flex items-center gap-3">
+   <span class="w-12 h-12 rounded-2xl ${h.type==='pos'?'bg-brand-50 dark:bg-brand-500/15 text-brand-500':'bg-rose-50 dark:bg-rose-500/15 text-rose-500'} flex items-center justify-center shrink-0">${hbi(h.ic,'w-[22px] h-[22px]')}</span>
+   <div class="flex-1 min-w-0"><b class="text-[15px] block">${h.n}${h.group?' <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-500 align-middle">组 · '+h.subs.length+' 项</span>':''}</b>
+     <div class="text-[10.5px] text-slate-400 mt-1 leading-5">${h.type==='pos'?'正向 · 坚持':'负向 · 控制'} · ${hbDueOf(h)} · ${h.cat}${h.remind?' · 提醒 '+h.remind:' · 无提醒'}</div></div>
+   <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${h.arch?'bg-slate-100 text-slate-400':'bg-mint/15 text-teal-600 dark:text-teal-400'}">${h.arch?'已归档':'跟踪中'}</span></div>
+ <div class="mt-3 flex gap-2 text-xs font-bold">
+   <button class="seg-pill ${hdDim==='w'?'on':''}" onclick="hdPick('w')">周</button>
+   <button class="seg-pill ${hdDim==='m'?'on':''}" onclick="hdPick('m')">月</button>
+   <button class="seg-pill ${hdDim==='a'?'on':''}" onclick="hdPick('a')">年</button>
+   <button class="seg-pill ${hdDim==='all'?'on':''}" onclick="hdPick('all')">全部</button></div>
+ <div class="mt-3 grid grid-cols-4 text-center text-[11px]">
+   <div class="card !py-2.5"><b class="text-base">${h.type==='pos'?T.cnt:(hdDim==='w'?(h.triggers||0):Math.round((h.triggers||0)*4.3))}</b><div class="text-slate-400">${h.type==='pos'?'打卡次数':(hdDim==='w'?'本周触发':'触发次数')}</div></div>
+   <div class="card !py-2.5"><b class="text-base text-brand-500">${hbHasVal(h)?T.val:'—'}</b><div class="text-slate-400">${hbHasVal(h)?'总'+T.unit:'无记量'}</div></div>
+   <div class="card !py-2.5"><b class="text-base text-sun">${h.streak||0}</b><div class="text-slate-400">当前连续</div></div>
+   <div class="card !py-2.5"><b class="text-base ${rate>=70?'text-emerald-500':'text-sun'}">${rate}%</b><div class="text-slate-400">${hdDim==='w'?'本周达成':'近30天达成'}</div></div></div>
+ ${hbHasVal(h)?`<div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">记录量</div><span class="ml-auto text-[10px] text-slate-400">${T.base} · 日均 ${T.avg}${T.unit}</span></div>
+   ${barHtml}
+   ${h.group?`<div class="mt-2 space-y-1.5">${subs.map(s=>`<div class="flex items-center gap-2 text-[11.5px]"><span class="w-14 shrink-0">${s.n}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${Math.min(100,s.val/Math.max(1,s.goal)*100)}%"></span></div><b class="w-20 text-right text-[10.5px]">${s.val} ${s.unit}</b></div>`).join('')}</div>`:''}
+   <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="hbLogOpen(${HABITS.indexOf(h)})">${h.w[6]?'修改今日记录量':'打卡并记量'}</button><button class="mini-btn flex-1" onclick="hbBackfillOpen('${h.id}')">补卡 / 补量</button></div></div>`:''}
+ <div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">近 30 天</div><span class="ml-auto text-[10px] text-slate-400">${h.type==='pos'?'绿=已打卡':'绿=未触发 · 红=触发'}</span></div>
+   <div class="mt-2 grid grid-cols-10 gap-1">${hist.map((v,k)=>`<span class="hb-cell ${v?'bg-emerald-400':(h.type==='neg'?'bg-rose-100 dark:bg-rose-500/15':'bg-slate-100 dark:bg-slate-800')}" title="${30-k} 天前" onclick="hbCellTap('${h.id}',${30-k})"></span>`).join('')}</div>
+   <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="hbSrcOpen()">自动达成源</button><button class="mini-btn flex-1" onclick="navTo('p-habitStat');renderHabitStat()">全局统计</button></div></div>
+ <div class="mt-3 card"><div class="row-title">里程碑</div>
+   <div class="mt-2 flex gap-2 overflow-x-auto no-scrollbar">${ms.map(m=>{const got=(h.best||0)>=m;return `<div class="shrink-0 w-[74px] rounded-2xl border text-center !py-2.5 ${got?'border-transparent grad text-white':'border-slate-200 dark:border-slate-700 text-slate-400'}"><b class="text-[15px] block">${m}</b><span class="text-[9px]">${got?'已达成':'天 · 还差 '+(m-(h.best||0))}</span></div>`}).join('')}</div></div>
+ ${h.type==='neg'?`<div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">触发统计</div><span class="ml-auto text-[10px] text-slate-400">额度 ${h.triggers||0}/${h.target||0} · 未触发 ${h.w.filter(v=>v).length}/7 天</span></div>
+   <div class="mt-2 grid grid-cols-3 text-center text-[11px]"><div class="card !py-2"><b class="text-base text-rose-500">${h.triggers||0}</b><div class="text-slate-400">本周触发</div></div><div class="card !py-2"><b class="text-base">${(h.slips||[]).length}</b><div class="text-slate-400">累计记录</div></div><div class="card !py-2"><b class="text-base text-emerald-500">${h.mAvoid||0}</b><div class="text-slate-400">本月未触发</div></div></div>
+   <div class="mt-2 text-[10px] font-bold text-slate-500">情境分布</div>
+   <div class="mt-1 space-y-1.5">${HB_REASONS.map(r=>{const n=(h.slips||[]).filter(s=>s.rs===r).length;if(!n)return '';return `<div class="flex items-center gap-2 text-[11px]"><span class="w-12 shrink-0 text-slate-400">${r}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full bg-rose-400" style="width:${Math.min(100,n/Math.max(1,(h.slips||[]).length)*100)}%"></span></div><b class="w-6 text-right">${n}</b></div>`}).join('')||'<div class="text-[11px] text-slate-400">还没有触发记录</div>'}</div>
+   ${(h.slips||[]).length?`<div class="mt-2.5 text-[10px] font-bold text-slate-500">触发明细</div>${h.slips.map((s,k)=>`<div class="flex items-start gap-2 text-[11.5px] mt-1.5"><span class="mt-1 w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></span><div class="flex-1 min-w-0"><b>${s.dt}</b> · ${s.rs||'未填情境'}${s.amt?' · <span class="text-rose-500">'+s.amt+'</span>':''}${s.note?`<div class="text-[10.5px] text-slate-400 mt-0.5">${s.note}</div>`:''}</div><button class="text-[10px] text-slate-400" onclick="hbSlipDel(${k})">删除</button></div>`).join('')}`:''}
+   <button class="mt-2.5 w-full !py-2 rounded-xl bg-rose-50 dark:bg-rose-500/15 text-rose-500 text-xs font-extrabold" onclick="hbTrigOpen(${HABITS.indexOf(h)})">记一次触发</button></div>`:''}
+ ${h.group?`<div class="mt-3 card"><div class="flex items-center gap-2"><div class="row-title">组内子项</div><button class="ml-auto mini-btn !text-[10px]" onclick="heOpen('${h.id}')">编辑子项</button></div>
+   <div class="mt-1.5 space-y-1.5">${h.subs.map((s,k)=>`<div class="flex items-center gap-2 text-[11.5px]"><span class="w-6 text-[10px] text-slate-400">${k+1}</span><b class="flex-1 min-w-0 truncate">${s.n}</b><span class="text-slate-400">目标 ${s.goal} ${s.unit}</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">本周 ${hbSubTot(h,'w')[k].val}</span></div>`).join('')}</div>
+   <div class="mt-2 text-[10px] text-slate-400">达成规则：${h.rule==='all'?'全部子项达标':h.rule==='any'?'任一子项达标':'过半子项达标'}</div></div>`:''}
+ <div class="mt-3 card"><div class="row-title">规则与绑定</div>
+   <div class="mt-1 text-[11.5px] leading-7">
+     <div class="flex justify-between"><span class="text-slate-400">频率</span><b>${hbDueOf(h)}</b></div>
+     <div class="flex justify-between"><span class="text-slate-400">记录量</span><b>${hbHasVal(h)?(h.group?('组内 '+h.subs.length+' 项'):(h.goal+' '+h.unit)):'不记录'}</b></div>
+     <div class="flex justify-between"><span class="text-slate-400">提醒</span><b>${h.remind||'未设置'}</b></div>
+     <div class="flex justify-between"><span class="text-slate-400">自动达成源</span><b>${(h.src||[]).join(' / ')||'仅手动'}</b></div>
+     <div class="flex justify-between"><span class="text-slate-400">开始跟踪</span><b>${h.start||'2026-08'}</b></div></div>
+   <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="heOpen('${h.id}')">编辑习惯</button><button class="mini-btn flex-1" onclick="hbOpsOpen()">更多</button></div></div>`;
+ renderHdrActs(curPage)}
+function hbCellTap(id,d){const h=HABITS.find(x=>x.id===id);if(!h)return;toast(d<=0?'今天请在卡片上打卡或记量':'历史这天用「补卡 / 补量」修改')}
+function hbSlipDel(k){const h=hbH();h.slips.splice(k,1);h.triggers=Math.max(0,(h.triggers||0)-1);renderHabitDetail();toast('已删除该条触发记录')}
+/* 统计 */
+function renderHabitStat(){const book=hbBook(),dim=hsDim,T2={w:'本周',m:'本月',a:'本年'}[dim];
+ let cnt=0,val=0,days=dim==='w'?7:dim==='m'?30:365;
+ book.forEach(h=>{const t=hbTot(h,dim);cnt+=t.cnt;val+=t.val});
+ const C=2*Math.PI*22,rate=Math.round(cnt/Math.max(1,book.length*days)*100),r=document.getElementById('hstRing');
+ if(r)r.setAttribute('stroke-dasharray',(C*Math.min(1,rate/100)/1).toFixed(1)+' '+C.toFixed(1));
+ const rt=document.getElementById('hstRate');if(rt)rt.textContent=Math.min(999,rate)+'%';
+ const ti=document.getElementById('hstTitle');if(ti)ti.textContent=T2+'总达成率';
+ const st=document.getElementById('hstSub');if(st)st.textContent=book.length+' 个跟踪中习惯 · 打卡 '+cnt+' 次 · 记录量合计 '+val+' 项次 · 负向触发 '+book.filter(h=>h.type==='neg').reduce((a,h)=>a+(h.triggers||0),0)+' 次';
+ const cards=document.getElementById('hstCards');
+ if(cards)cards.innerHTML=[['打卡次数',cnt,'次'],['记录量合计',val,'项次'],['日均',Math.round(cnt/days),'次/天']].map(x=>`<div class="rounded-2xl bg-white/15 py-2"><b class="text-base block">${x[1]}</b><span class="text-[9.5px] opacity-85">${x[0]}${x[2]}</span></div>`).join('');
+ const cats=document.getElementById('hstCats');
+ if(cats)cats.innerHTML=HB_CATS.map(c=>{const ls=book.filter(h=>h.cat===c);if(!ls.length)return '';const r2=Math.round(ls.reduce((a,h)=>a+hbRate(h),0)/ls.length);
+   return `<div class="flex items-center gap-2 text-[11.5px]"><span class="w-9 text-slate-400 shrink-0">${c}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${r2>=70?'bg-emerald-400':r2>=40?'bg-amber-400':'bg-rose-400'}" style="width:${r2}%"></span></div><b class="w-9 text-right ${r2>=70?'text-emerald-500':'text-slate-500'}">${r2}%</b><span class="w-8 text-right text-slate-400">${ls.length} 个</span></div>`}).join('')||'<div class="text-[11px] text-slate-400">暂无分类数据</div>';
+ const rk=document.getElementById('hstRank');
+ if(rk)rk.innerHTML=book.slice().sort((a,b)=>hbTot(b,dim).val-hbTot(a,dim).val||hbRate(b)-hbRate(a)).map((h,i)=>{const t=hbTot(h,dim);
+   return `<div class="flex items-center gap-2.5 py-1.5 ${i?'border-t border-slate-100 dark:border-slate-800':''}" onclick="hbCur='${h.id}';hbOpen('${h.id}')"><span class="w-4 text-[10px] font-black text-slate-400">${i+1}</span><span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[13px] h-[13px]')}</span><span class="flex-1 min-w-0 text-[12px] truncate">${h.n}</span><span class="text-[10px] text-slate-400 shrink-0">${t.cnt} 次</span><b class="w-16 text-right text-[11.5px] text-brand-500">${hbHasVal(h)?t.val+' '+t.unit:rate+'%'}</b></div>`}).join('');
+ const gs=document.getElementById('hstGroup');
+ if(gs){const grp=book.filter(h=>h.group);if(grp.length){gs.parentElement.classList.remove('hidden');
+   gs.innerHTML=grp.map(h=>{const subs=hbSubTot(h,dim);const mx=Math.max.apply(null,subs.map(s=>s.val))||1;
+     return `<div class="mb-2 last:mb-0"><div class="text-[10.5px] font-bold text-slate-500">${h.n} · ${T2}子项构成</div>${subs.map(s=>`<div class="flex items-center gap-2 text-[11px] mt-1"><span class="w-14 shrink-0 text-slate-400">${s.n}</span><div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${s.val/mx*100}%"></span></div><b class="w-20 text-right">${s.val} ${s.unit}</b></div>`).join('')}</div>`}).join('')}
+   else gs.parentElement.classList.add('hidden')}
+ const ng=document.getElementById('hstNeg');
+ if(ng){const negs=book.filter(h=>h.type==='neg');
+   ng.innerHTML=negs.length?negs.map(h=>{const trig=dim==='w'?(h.triggers||0):Math.round((h.triggers||0)*(dim==='m'?4.3:52));
+     return `<div class="flex items-center gap-2 text-[11.5px]"><span class="flex-1 min-w-0 truncate">${h.n}</span><span class="text-slate-400 shrink-0">触发 ${trig} 次</span><div class="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0"><span class="block h-full bg-rose-400" style="width:${Math.min(100,trig/Math.max(1,(h.target||1)*(dim==='w'?1:4.3))*100)}%"></span></div><span class="w-12 text-right text-[10px] shrink-0 ${h.type==='neg'?'text-emerald-500':''}">未做 ${(dim==='w'?h.w.filter(v=>v).length:Math.round((h.mAvoid||0)*4.3))} 天</span></div>`}).join(''):'<div class="text-[11px] text-slate-400">没有负向习惯在跟踪</div>'}
+ const wall=document.getElementById('hstWall');
+ if(wall)wall.innerHTML=book.slice().sort((a,b)=>(b.best||0)-(a.best||0)).slice(0,5).map(h=>`<div class="flex items-center gap-2"><span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0">${hbi(h.ic,'w-[13px] h-[13px]')}</span><span class="flex-1 min-w-0 text-[11.5px] truncate">${h.n}</span><b class="text-[13px] text-sun">${h.best||0}</b><span class="text-[10px] text-slate-400">天</span></div>`).join('')}
+function hsPick(k){hsDim=k;['W','M','A'].forEach(x=>{const b=document.getElementById('hsBtn'+x);if(b)b.classList.remove('on')});
+ const btn=document.getElementById('hsBtn'+(k==='w'?'W':k==='m'?'M':'A'));if(btn)btn.classList.add('on');renderHabitStat()}

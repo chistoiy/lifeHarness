@@ -1,0 +1,80 @@
+  <!-- ===== 习惯专版 · 新建 / 编辑习惯 ===== -->
+  <div id="sheetHabitEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitEdit')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[88vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm" id="heTitle">新建习惯</div>
+      <input id="heName" class="inp w-full mt-3" placeholder="习惯名称，如：晨间跑步 30 分钟">
+      <div class="mt-3 text-[11px] font-bold text-slate-500">图标</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="heIcons"></div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">类型</div>
+      <div class="mt-1.5 flex gap-2" id="heTypes"></div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">分类</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="heCats"></div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">频率</div>
+      <div class="mt-1.5 flex gap-2" id="heCycles"></div>
+      <div id="heWeekWrap" class="hidden mt-2"><div class="flex gap-1.5 flex-wrap" id="heWdays"></div></div>
+      <div id="heTargetWrap" class="hidden mt-3 card !py-2.5 !px-3">
+        <div class="flex items-center gap-2 text-xs"><span class="flex-1">周期内允许出现上限</span><select id="heTarget" class="sel" onchange="heTargetChg()"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select><span class="text-slate-400" id="heTargetUnit">次 / 周</span></div>
+        <div class="mt-1 text-[10px] text-slate-400" id="heTargetHint">未触发日自动积累 · 达上限当周记为未守住</div>
+      </div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">提醒时间</div>
+      <div class="mt-1.5 flex gap-2" id="heRemindModes"></div>
+      <div id="heWheelWrap" class="hidden mt-2 card !py-2 !px-3">
+        <div class="flex items-center justify-center gap-1">
+          <div id="heWh" style="width:64px"></div><span class="text-slate-400 font-black">:</span><div id="heWm" style="width:64px"></div>
+          <span class="text-[11px] text-slate-400 ml-2">滚动选择</span>
+        </div>
+      </div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">自动达成源<span class="font-normal text-slate-400">（满足任一即自动打卡，无需手动）</span></div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="heSrcs"></div>
+      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">生成关联待办<br><span class="text-[9px] font-normal text-slate-400">勾选待办即回写打卡</span></span><span class="toggle on" id="heTodoT" onclick="tgl(this);heTodoChg()"></span></div>
+      <div id="heTodoWrap" class="mt-1.5 flex gap-2"></div>
+      <div class="mt-4 flex gap-2"><button class="flex-1 card !py-3 text-xs font-bold" onclick="closeSheet('sheetHabitEdit')">取消</button><button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="heSave()">保存</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 习惯专版 · 补卡 ===== -->
+  <div id="sheetHabitBackfill" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitBackfill')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2"><div class="font-extrabold text-sm" id="bfTitle">补卡</div><span class="ml-auto text-[10px] text-slate-400" id="bfN">已选 0 天</span></div>
+      <div class="mt-2 text-[10px] text-slate-400" id="bfSub">选择要补记的日期</div>
+      <div class="mt-2 grid grid-cols-7 gap-1 text-center text-[9px] text-slate-400" id="bfHead"></div>
+      <div class="mt-1 grid grid-cols-7 gap-1" id="bfGrid"></div>
+      <div class="mt-3 flex items-center justify-between text-xs"><span>补卡计入连续天数</span><span class="toggle" id="bfStreak" onclick="tgl(this)"></span></div>
+      <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="closeSheet('sheetHabitBackfill')">取消</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="bfSave()">确认补卡</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 习惯专版 · 记一次触发（负向） ===== -->
+  <div id="sheetHabitTrigger" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitTrigger')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm" id="tgTitle">记一次触发</div>
+      <div class="mt-1 text-[10.5px] text-slate-400" id="tgSub">如实记录即可 · 只统计，不评判</div>
+      <div class="mt-3 text-[11px] font-bold text-slate-500">当时情境</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="tgReasons"></div>
+      <textarea id="tgNote" class="inp w-full min-h-[62px] mt-3 leading-6 text-[12px]" placeholder="补一句（可选）"></textarea>
+      <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="closeSheet('sheetHabitTrigger')">取消</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="tgSave()">记录</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 习惯专版 · 操作菜单 ===== -->
+  <div id="sheetHabitOps" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitOps')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm" id="hoTitle">习惯操作</div>
+      <div class="mt-3 space-y-2" id="hoList"></div>
+    </div>
+  </div>
+
+  <!-- ===== 习惯专版 · 自动达成源 ===== -->
+  <div id="sheetHabitSrc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitSrc')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">自动达成源</div>
+      <div class="mt-1 text-[10.5px] text-slate-400">满足任一来源即自动打卡；来源明细可点进对应模块</div>
+      <div class="mt-3 space-y-2" id="hsSrcList"></div>
+      <button class="mt-4 w-full py-2.5 rounded-xl card text-xs font-bold" onclick="closeSheet('sheetHabitSrc')">完成</button>
+    </div>
+  </div>

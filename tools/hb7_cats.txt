@@ -1,0 +1,13 @@
+  <!-- ===== 习惯专版 · 分类 / 单位管理器 ===== -->
+  <div id="sheetHabitMgr" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetHabitMgr')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2"><div class="font-extrabold text-sm flex-1" id="hmTitle">习惯分类</div><button class="text-[10px] text-slate-400" onclick="closeSheet('sheetHabitMgr')">收起</button></div>
+      <div class="mt-1 text-[10px] text-slate-400" id="hmSub">改名即时同步 · 删除前需先安置其下习惯</div>
+      <div class="mt-3 space-y-2" id="hmList"></div>
+      <div class="mt-3 flex items-center gap-2"><input id="hmNew" class="inp flex-1" placeholder="新分类名称" onkeydown="if(event.key==='Enter')hbMgrAdd()"><button class="px-3.5 rounded-xl grad text-white text-xs font-bold" onclick="hbMgrAdd()">添加</button></div>
+      <div class="mt-2 text-[9.5px] text-slate-400">顺序影响筛选条与统计分类的排列</div>
+      <button class="mt-3 w-full py-2.5 rounded-xl card text-xs font-bold" onclick="closeSheet('sheetHabitMgr')">完成</button>
+    </div>
+  </div>
+
