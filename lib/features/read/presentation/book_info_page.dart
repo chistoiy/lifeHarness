@@ -56,7 +56,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
         .firstOrNull;
     if (b == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('书籍资料')),
+        appBar: AppBar(centerTitle: true, title: const Text('书籍资料')),
         body: const SizedBox.shrink(),
       );
     }
@@ -89,6 +89,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true, // 轮5：页面标题居中
         title: Text('书籍资料', style: const TextStyle(fontSize: 15)),
         actions: [
           IconButton(
@@ -383,22 +384,65 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      key: const ValueKey('sum-edit'),
-                      onTap: () {
-                        if (!_sumEdit) _fillSummary(b);
-                        setState(() => _sumEdit = !_sumEdit);
-                      },
-                      child: Text(
-                        _sumEdit ? '完成' : '编辑',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: tokens.accent,
+                    if (!_sumEdit)
+                      GestureDetector(
+                        key: const ValueKey('sum-edit'),
+                        onTap: () {
+                          _fillSummary(b);
+                          setState(() => _sumEdit = true);
+                        },
+                        child: Text(
+                          '编辑',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.accent,
+                          ),
+                        ),
+                      )
+                    else ...[
+                      // 轮3/5：编辑态保存+取消常驻卡头，不必滚到卡尾找钮。
+                      GestureDetector(
+                        key: const ValueKey('sum-save'),
+                        onTap: () async {
+                          await ref
+                              .read(readRepositoryProvider)
+                              .updateBook(
+                                b.copyWith(
+                                  sumQuote: _sq.text.trim(),
+                                  sumView: _sv.text.trim(),
+                                  sumGain: _sg.text.trim(),
+                                ),
+                              );
+                          if (!mounted) return;
+                          ref.read(readTickProvider.notifier).state++;
+                          setState(() => _sumEdit = false);
+                          readToast(this.context, '总结已保存');
+                        },
+                        child: Text(
+                          '保存',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: tokens.accent,
+                          ),
                         ),
                       ),
-                    ),
-                    if (_sumEdit) ...[
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        key: const ValueKey('sum-cancel'),
+                        onTap: () {
+                          _fillSummary(b);
+                          setState(() => _sumEdit = false);
+                        },
+                        child: Text(
+                          '取消',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       GestureDetector(
                         key: const ValueKey('sum-reset'),
@@ -477,33 +521,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                       ])
                         if ((v ?? '').isNotEmpty)
                           _sumRow(cs, tokens, label, v!),
-                if (_sumEdit)
-                  GestureDetector(
-                    key: const ValueKey('sum-save'),
-                    onTap: () async {
-                      await ref
-                          .read(readRepositoryProvider)
-                          .updateBook(
-                            b.copyWith(
-                              sumQuote: _sq.text.trim(),
-                              sumView: _sv.text.trim(),
-                              sumGain: _sg.text.trim(),
-                            ),
-                          );
-                      if (!mounted) return;
-                      ref.read(readTickProvider.notifier).state++;
-                      setState(() => _sumEdit = false);
-                      readToast(this.context, '总结已保存');
-                    },
-                    child: Text(
-                      '保存总结',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: tokens.accent,
-                      ),
-                    ),
-                  ),
+                // 轮3/5：保存钮已上移至卡头常驻，这里不再重复。
                 // 查看态双钮（原型 5695：导出 MD / 转存笔记·联动 L5）
                 if (!_sumEdit)
                   Padding(
@@ -691,8 +709,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
             Expanded(
               child: Text(
                 v,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                // 轮4：查看态长文全文展示（页面 ListView 可滚），不再两行截断。
                 style: const TextStyle(fontSize: 11.5, height: 1.5),
               ),
             ),

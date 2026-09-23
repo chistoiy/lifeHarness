@@ -50,6 +50,11 @@ Future<void> readTimerTap(
     if (context.mounted) readToast(context, '书架上暂时没有在读的书');
     return;
   }
+  // 全屏形态：起表在沉浸计时页内完成（顶栏不留胶囊，§3.3）
+  if (await ref.read(timerUIProvider.future) == '全屏') {
+    if (context.mounted) context.push('/read/timer/${book.id}');
+    return;
+  }
   await repo.startSession(book.id);
   ref.read(readTickProvider.notifier).state++;
   if (context.mounted) readToast(context, '已为《${book.title}》开始计时');

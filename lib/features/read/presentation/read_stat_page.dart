@@ -189,7 +189,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
       (i) => 2021 + i,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('阅读统计')),
+      appBar: AppBar(centerTitle: true, title: const Text('阅读统计')),
       body: s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -243,7 +243,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 const SizedBox(height: 8),
                 _fourCards(cs, s, w),
                 const SizedBox(height: 12),
-                _heatCard(cs, tokens, s),
+                _heatCard(cs, tokens, s, w?.goalDay ?? 30),
                 const SizedBox(height: 12),
                 _monthCard(cs, tokens, s),
                 const SizedBox(height: 12),
@@ -494,7 +494,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
 
   /// 热力图（原型 .hm CSS 296 + 渲染 4957：7 行×按周列流 · 横向可滚 ·
   /// 格 title→Tooltip · 点格 toast「{年} 年第 {N} 天 · X 分钟 · 摘录约 Y 条」）。
-  Widget _heatCard(ColorScheme cs, ThemeTokens tokens, StatData s) {
+  Widget _heatCard(ColorScheme cs, ThemeTokens tokens, StatData s, int goalDay) {
     final first = DateTime(s.year);
     final n = DateTime(s.year, 12, 31).difference(first).inDays + 1;
     var mx = 1;
@@ -547,7 +547,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           for (var r = 0; r < 7; r++)
-                            _heatCell(first, c * 7 + r, n, mx, cs, s),
+                            _heatCell(first, c * 7 + r, n, mx, cs, s, goalDay),
                         ],
                       ),
                     ),
@@ -606,12 +606,15 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     int mx,
     ColorScheme cs,
     StatData s,
+    int goalDay,
   ) {
     if (i >= n) {
       return const SizedBox(width: 13, height: 13);
     }
     final d = first.add(Duration(days: i));
     final m = s.dayMinutes[d] ?? 0;
+    // 轮3：日历视图体现打卡（当日分钟数 ≥ 每日目标＝已打卡 √）。
+    final ck = m > 0 && m >= goalDay;
     final v = _val(d, s).round();
     final lvl = v == 0
         ? 0
@@ -624,20 +627,33 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
         : 1;
     final inM = _month == 0 || d.month == _month;
     return Tooltip(
-      message: '$m 分钟',
+      message: '$m 分钟${ck ? ' · 已打卡' : ''}',
       child: GestureDetector(
         key: ValueKey('rs-heat-$i'),
         onTap: () => readToast(
           context,
-          '${d.year} 年第 ${i + 1} 天 · $m 分钟 · 摘录约 ${s.dayQuotes[d] ?? 0} 条',
+          '${d.year} 年第 ${i + 1} 天 · $m 分钟 · 摘录约 ${s.dayQuotes[d] ?? 0} 条'
+          '${ck ? ' · 已打卡' : ''}',
         ),
         child: Container(
           width: 13,
           height: 13,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(2.5),
             color: _heat[lvl].withValues(alpha: inM ? 1 : .34),
           ),
+          child: ck
+              ? const Text(
+                  '√',
+                  style: TextStyle(
+                    fontSize: 8,
+                    height: 1,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : null,
         ),
       ),
     );
@@ -1234,6 +1250,13 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 child: const Text('生成周报', style: TextStyle(fontSize: 11.5)),
               ),
               const SizedBox(width: 8),
+              // 轮4：补年度总结报告入口（原型 bsYearReport）。
+              OutlinedButton(
+                key: const ValueKey('rs-year'),
+                onPressed: () => _yearReport(cs, s, w),
+                child: const Text('年度总结报告', style: TextStyle(fontSize: 11.5)),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton(
                 key: const ValueKey('rs-goal-edit'),
                 onPressed: () => showGoalSheet(context, ref),
@@ -1242,6 +1265,76 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// 年度总结报告弹层（真实年度数据汇总 · 原型 sheetYearReport）。
+  void _yearReport(ColorScheme cs, StatData s, WorkbenchData? w) {
+    final top = s.minutesByBook.entries.isEmpty
+        ? null
+        : s.minutesByBook.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    final titleOf = {for (final b in s.books) b.id: b.title};
+    final lines = <String>[
+      '全年阅读 ${bsFmt(s.dayMinutes.values.fold(0, (t, m) => t + m))} · '
+          '今年有记录 ${s.dayMinutes.length} 天',
+      '读完 ${s.doneYear} 本 · 在读 ${s.readingNow} 本 · 收录 ${s.books.length} 本',
+      '新增摘录 ${s.quotesYear} 条',
+      if (top != null && top.value > 0 && titleOf[top.key] != null)
+        '花时间最多：《${titleOf[top.key]}》 ${bsFmt(top.value)}',
+      '购书支出 ¥${s.fee.toStringAsFixed(0)} · 读完书字数 ${s.rdMin >= 10000 ? '${(s.words / 10000).toStringAsFixed(1)} 万字' : '${s.words} 字'}',
+      '目标：年度 ${w?.goalBooks ?? 50} 本 · 日均 ${w?.goalDay ?? 30} 分钟（调整请回目标卡）',
+    ];
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bc) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${s.year} 年度总结报告',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    key: const ValueKey('yr-close'),
+                    onTap: () => Navigator.of(bc).pop(),
+                    child: Text(
+                      '关闭',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              for (var i = 0; i < lines.length; i++)
+                Padding(
+                  key: ValueKey('yr-line-$i'),
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text(
+                    '· ${lines[i]}',
+                    style: const TextStyle(fontSize: 12, height: 1.6),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -70,10 +70,12 @@ final speedFoldProvider = FutureProvider<bool>((ref) async {
   return v;
 });
 
-/// 顶部长胶囊是否可见：有在跑会话 && read.floatBar 开（§3.3 两种形态都常驻）。
+/// 顶部长胶囊是否可见：有在跑会话 && 计时形态为顶部胶囊 && read.floatBar 开。
+/// （全屏形态下计时走沉浸页，顶栏不再挂胶囊。）
 final readTimerBarVisibleProvider = FutureProvider<bool>((ref) async {
   final run = await ref.watch(runningSessionProvider.future);
   if (run == null) return false;
+  if (await ref.watch(timerUIProvider.future) != '顶部胶囊') return false;
   return ref.watch(floatBarProvider).valueOrNull ?? true;
 });
 

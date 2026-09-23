@@ -30,6 +30,65 @@ class ReadLogPage extends ConsumerStatefulWidget {
 class _ReadLogPageState extends ConsumerState<ReadLogPage> {
   static const _scopes = ['全部', '本月', '近3月'];
   int _scope = 0;
+  // 轮5：时长卡点按就地改累计（原型 rlMinOpen/rlMinSave）。
+  bool _minEdit = false;
+  final _minCtl = TextEditingController();
+
+  @override
+  void dispose() {
+    _minCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveTotalMin(int total, List<BookSession> all) async {
+    final v = (int.tryParse(_minCtl.text.trim()) ?? total).clamp(0, 1 << 31);
+    final d = v - total;
+    if (d != 0) {
+      final repo = ref.read(readRepositoryProvider);
+      if (all.isNotEmpty) {
+        // 差量记到最近一次会话上（时间线总量＝设定值）。
+        final last = all.first;
+        await repo.editSession(
+          last.id!,
+          minutes: (last.minutes + d).clamp(0, 1 << 31),
+        );
+      } else if (v > 0) {
+        await repo.addManualSession(
+          bookId: widget.bookId,
+          day: DateTime.now(),
+          minutes: v,
+        );
+      }
+      if (!mounted) return;
+      ref.read(readTickProvider.notifier).state++;
+      readToast(context, '累计时长已更新 · ${bsFmt(v)}');
+    }
+    setState(() => _minEdit = false);
+  }
+
+  Widget _minBtn(String key, String label, Color color, VoidCallback onTap) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: cs.surfaceContainerHighest.withValues(alpha: .5),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
 
   /// 按会话开始时间做自然月窗口筛选（0 全部 · 1 本月 · 2 近3月含本月）。
   bool _inScope(int ms) {
@@ -79,8 +138,9 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
     });
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true, // 轮5：标题居中
         title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text('阅读记录'),
             if (b != null)
@@ -178,7 +238,81 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _stat(context, 'rl-min', '阅读时长', bsFmt(total)),
+                      child: _minEdit
+                          ? Container(
+                              key: const ValueKey('rl-min'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: _cardDeco(context),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '阅读时长（分钟）',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 30,
+                                          child: TextField(
+                                            key: const ValueKey('rl-min-all'),
+                                            controller: _minCtl,
+                                            keyboardType: TextInputType.number,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 6,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      _minBtn(
+                                        'rl-min-save',
+                                        '保存',
+                                        tokens.accent as Color,
+                                        () => _saveTotalMin(total, all),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _minBtn(
+                                        'rl-min-cancel',
+                                        '取消',
+                                        cs.onSurfaceVariant,
+                                        () => setState(() => _minEdit = false),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            )
+                          : GestureDetector(
+                              key: const ValueKey('rl-min'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                _minCtl.text = '$total';
+                                setState(() => _minEdit = true);
+                              },
+                              child: _stat(
+                                context,
+                                null,
+                                '阅读时长',
+                                bsFmt(total),
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -302,7 +436,13 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
                     ),
                   ),
                   for (final s in groups[m]!)
-                    _LogCard(s: s, maxMin: maxMin, wd: ReadLogPage._wd),
+                    _LogCard(
+                      s: s,
+                      maxMin: maxMin,
+                      wd: ReadLogPage._wd,
+                      seq: all.indexOf(s) + 1,
+                      totalMin: total,
+                    ),
                 ],
               ],
             ),
@@ -320,14 +460,14 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
 
   Widget _stat(
     BuildContext context,
-    String key,
+    String? key,
     String label,
     String value, {
     String unit = '',
   }) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      key: ValueKey(key),
+      key: key == null ? null : ValueKey(key),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: _cardDeco(context),
       child: Column(
@@ -369,10 +509,18 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
 
 /// 单条记录卡：日期列 + 绿点 + 时间段·止页/分钟渐变条；点卡就地展开编辑器（原型 rlToggle）。
 class _LogCard extends ConsumerStatefulWidget {
-  const _LogCard({required this.s, required this.maxMin, required this.wd});
+  const _LogCard({
+    required this.s,
+    required this.maxMin,
+    required this.wd,
+    required this.seq,
+    required this.totalMin,
+  });
   final BookSession s;
   final int maxMin;
   final List<String> wd;
+  final int seq; // 第 N 次（按时间正序）
+  final int totalMin; // 全书累计分钟（保存回显用）
 
   @override
   ConsumerState<_LogCard> createState() => _LogCardState();
@@ -381,6 +529,46 @@ class _LogCard extends ConsumerStatefulWidget {
 class _LogCardState extends ConsumerState<_LogCard> {
   bool _open = false;
   bool _dateOpen = false;
+  final TextEditingController _min = TextEditingController();
+  final TextEditingController _from = TextEditingController();
+  final TextEditingController _to = TextEditingController();
+
+  @override
+  void dispose() {
+    _min.dispose();
+    _from.dispose();
+    _to.dispose();
+    super.dispose();
+  }
+
+  /// 展开时以当前库值回填三输入（轮3：编辑器带字段名＋保存/取消钮）。
+  void _syncCtl() {
+    final s = widget.s;
+    _min.text = '${s.minutes}';
+    _from.text = s.fromPage == null ? '' : '${s.fromPage}';
+    _to.text = s.toPage == null ? '' : '${s.toPage}';
+  }
+
+  Future<void> _saveRow() async {
+    final s = widget.s;
+    final minutes = int.tryParse(_min.text.trim()) ?? s.minutes;
+    final from = int.tryParse(_from.text.trim());
+    final to = int.tryParse(_to.text.trim());
+    await ref.read(readRepositoryProvider).editSession(
+      s.id!,
+      startedAtMs: s.startedAt,
+      minutes: minutes,
+      fromPage: from,
+      toPage: to,
+    );
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    readToast(
+      context,
+      '第 ${widget.seq} 次已更新 · 累计 '
+      '${bsFmt(widget.totalMin - s.minutes + minutes)}',
+    );
+  }
 
   static String _hhmm(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -445,7 +633,10 @@ class _LogCardState extends ConsumerState<_LogCard> {
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _open = !_open),
+              onTap: () => setState(() {
+                _open = !_open;
+                if (_open) _syncCtl();
+              }),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -619,62 +810,93 @@ class _LogCardState extends ConsumerState<_LogCard> {
                                 ),
                               ),
                             const SizedBox(height: 8),
+                            // 轮3：三输入带字段名（时长/起页/止页），改完点「保存」落库。
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                SizedBox(
-                                  width: 64,
-                                  child: _num(
-                                    'rl-min-${s.id}',
-                                    '${s.minutes}',
-                                    '分',
-                                    (v) => _apply(minutes: v),
+                                Text(
+                                  '时长',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Expanded(
-                                  child: _num(
-                                    'rl-from-${s.id}',
-                                    s.fromPage == null ? '' : '${s.fromPage}',
-                                    '起',
-                                    (v) => _apply(fromPage: v),
+                                SizedBox(
+                                  width: 56,
+                                  child: _num('rl-min-${s.id}', _min, ''),
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '分钟',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                 ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4,
+                                const SizedBox(width: 10),
+                                Text(
+                                  '起页',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: cs.onSurfaceVariant,
                                   ),
-                                  child: Text('→', style: TextStyle(fontSize: 11)),
                                 ),
+                                const SizedBox(width: 6),
+                                Expanded(child: _num('rl-from-${s.id}', _from, '')),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '止页',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(child: _num('rl-to-${s.id}', _to, '')),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
                                 Expanded(
-                                  child: _num(
-                                    'rl-to-${s.id}',
-                                    s.toPage == null ? '' : '${s.toPage}',
-                                    '止',
-                                    (v) => _apply(toPage: v),
+                                  child: _editBtn(
+                                    'rl-del-${s.id}',
+                                    '删除这次',
+                                    cs.error,
+                                  () async {
+                                    await ref
+                                        .read(readRepositoryProvider)
+                                        .deleteSession(s.id!);
+                                    if (!context.mounted) return;
+                                    ref.read(readTickProvider.notifier).state++;
+                                  }),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _editBtn(
+                                    'rl-cancel-${s.id}',
+                                    '取消',
+                                    cs.onSurfaceVariant,
+                                    () => setState(() {
+                                      _open = false;
+                                      _dateOpen = false;
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _editBtn(
+                                    'rl-save-${s.id}',
+                                    '保存',
+                                    tokens.accent,
+                                    _saveRow,
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 4),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: IconButton(
-                                key: ValueKey('rl-del-${s.id}'),
-                                tooltip: '删除这次',
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () async {
-                                  await ref
-                                      .read(readRepositoryProvider)
-                                      .deleteSession(s.id!);
-                                  if (!context.mounted) return;
-                                  ref.read(readTickProvider.notifier).state++;
-                                },
-                                icon: Icon(
-                                  Icons.remove_circle_outline_rounded,
-                                  size: 17,
-                                  color: cs.error,
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -701,10 +923,10 @@ class _LogCardState extends ConsumerState<_LogCard> {
     );
   }
 
-  Widget _num(String key, String v, String hint, ValueChanged<int?> onDone) {
+  Widget _num(String key, TextEditingController ctl, String hint) {
     return TextField(
       key: ValueKey(key),
-      controller: TextEditingController(text: v),
+      controller: ctl,
       keyboardType: TextInputType.number,
       style: const TextStyle(fontSize: 11.5),
       decoration: InputDecoration(
@@ -712,7 +934,32 @@ class _LogCardState extends ConsumerState<_LogCard> {
         hintText: hint,
         hintStyle: const TextStyle(fontSize: 11),
       ),
-      onSubmitted: (t) => onDone(int.tryParse(t.trim())),
+    );
+  }
+
+  /// 编辑区三钮（删除这次 / 取消 / 保存）。
+  Widget _editBtn(
+    String key,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: cs.surfaceContainerHighest.withValues(alpha: .5),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
+        ),
+      ),
     );
   }
 

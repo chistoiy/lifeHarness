@@ -165,7 +165,10 @@ void main() {
       expect(find.textContaining('在读 0 本'), findsOneWidget);
     });
 
-    testWidgets('R-2 今日卡计时钮：无在读书提示 · 有在读书起停', (tester) async {
+    testWidgets('R-2 今日卡计时钮：无在读书提示 · 有在读书起停（胶囊态）', (tester) async {
+      // 轮2：默认计时显示＝全屏 → 起表跳沉浸页；本例按「顶部胶囊」验起停语义。
+      await repo.setKv('read.timerUI', '顶部胶囊');
+      await settle(tester);
       await tester.pumpWidget(routed(const ReadWorkbench()));
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('read-timer')));
@@ -218,10 +221,11 @@ void main() {
       // openTab 原型默认「在读」→ 进书架先点「全部」再看五卡（批A 保真）。
       await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
       await settle(tester);
-      expect(find.text('在读 2'), findsOneWidget);
-      expect(find.text('想读 1'), findsOneWidget);
-      expect(find.text('已读 1'), findsOneWidget);
-      expect(find.text('弃读 1'), findsOneWidget);
+      // 轮2：分区 chips 不再带计数（原型 bsChipRow 无数字）。
+      for (final s in ['全部', '在读', '想读', '已读', '弃读']) {
+        expect(find.byKey(ValueKey('sh-chip-$s')), findsOneWidget);
+      }
+      expect(find.text('在读 2'), findsNothing);
       expect(find.byKey(const ValueKey('sh-item-a')), findsOneWidget);
       expect(find.text('5 本 · 全部'), findsOneWidget);
     });
@@ -261,8 +265,12 @@ void main() {
       await settle(tester);
       expect(find.text('已将 2 本移入「想读」'), findsOneWidget);
       await clearToasts(tester);
-      expect(find.text('在读 0'), findsOneWidget);
-      expect(find.text('想读 3'), findsOneWidget);
+      // 轮2：分区 chips 去数字 → 改按数据层核对同帧生效。
+      var bs = await repo.allBooks();
+      expect(bs.where((b) => b.state == Book.kStateReading), isEmpty);
+      expect(
+          bs.where((b) => b.state == Book.kStateWant).length,
+          3);
       // 再循环一次：想读 → 已读（数据层补满进度与 ended_at）
       await tester.tap(find.byKey(const ValueKey('sh-manage')));
       await settle(tester);
@@ -275,7 +283,8 @@ void main() {
       await settle(tester);
       await clearToasts(tester);
       await waitFinder(tester, find.textContaining('3 / 50 本'));
-      expect(find.text('已读 3'), findsOneWidget);
+      bs = await repo.allBooks();
+      expect(bs.where((b) => b.state == Book.kStateDone).length, 3);
       final a = (await repo.allBooks()).firstWhere((b) => b.id == 'a');
       expect(a.readPages, a.pages);
       expect(a.endedAt, isNotNull);
@@ -766,6 +775,9 @@ void main() {
       await settle(tester);
       expect(find.text('2 个部分 · 3 节'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('toe-ok')));
+      await settle(tester);
+      // 轮3：目录列表默认收起 → 点展开后再核对只读渲染
+      await tester.tap(find.byKey(const ValueKey('toc-fold')));
       await settle(tester);
       expect(find.text('甲'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('toc-edit')));
@@ -1468,6 +1480,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('toe-ok')));
       await settle(tester);
       expect(find.text('目录 · 3 节'), findsOneWidget);
+      // 轮3：目录列表默认收起 → 展开后核对节行划线角标
+      await tester.tap(find.byKey(const ValueKey('toc-fold')));
+      await settle(tester);
       // 节行右侧＝该书该章摘录数划线角标（甲 2 条）
       expect(find.text('2'), findsWidgets);
       // AI 补全＝B 类占位 toast
@@ -2029,14 +2044,20 @@ void main() {
       await settle(tester);
       expect(find.textContaining('作者库 1 位'), findsOneWidget);
       expect(find.textContaining('保存时将自动登记新作者「张三」'), findsOneWidget);
-      // 来源 / 分组 chips ＋ 管理入口（原型 renderEbx）。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-src-自购')));
-      await tester.tap(find.byKey(const ValueKey('bkf-src-自购')));
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-grp-精读')));
-      await tester.tap(find.byKey(const ValueKey('bkf-grp-精读')));
-      expect(find.byKey(const ValueKey('bkf-src-mgr')), findsOneWidget);
-      expect(find.text('＋管理来源'), findsOneWidget);
-      expect(find.text('＋管理分组'), findsOneWidget);
+      // 来源 / 分组下拉（轮2 改口：选一个 · 末项「＋ 新增…」进管理页 · 原型 ebPickSel）。
+      await tester.ensureVisible(find.byKey(const ValueKey('bkf-src-sel')));
+      await tester.tap(find.byKey(const ValueKey('bkf-src-sel')));
+      await settle(tester);
+      expect(find.text('＋ 新增来源…'), findsOneWidget);
+      await tester.tap(find.text('自购'));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('bkf-grp-sel')));
+      await tester.tap(find.byKey(const ValueKey('bkf-grp-sel')));
+      await settle(tester);
+      expect(find.text('＋ 新增分组…'), findsOneWidget);
+      await tester.tap(find.text('精读'));
+      await settle(tester);
+      expect(find.text('未选择来源'), findsNothing); // 选中后回填按钮文案
       expect(find.text('出版社库 0 家 · 新名字保存后自动登记'), findsOneWidget);
       // 更多资料折叠（原型 nbMore：类型/进度方式含分钟/位置/费用/系列/简介）。
       await tester.ensureVisible(find.byKey(const ValueKey('bkf-more')));
@@ -2063,7 +2084,7 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('bkf-note')), '先看两章');
       expect(find.textContaining('ISBN 命中后按阅读设置「ISBN 补全」开关'),
           findsOneWidget);
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-save')));
+      // 轮3：保存钮固定在弹层底部常驻，直接点击。
       await tester.tap(find.byKey(const ValueKey('bkf-save')));
       await settle(tester);
       expect(find.text('《思考，快与慢》已加入书架 · 在「想读」分区'), findsOneWidget);

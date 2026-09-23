@@ -388,7 +388,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
         const <DictEntry>[];
     if (books.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('新增摘录')),
+        appBar: AppBar(centerTitle: true, title: const Text('新增摘录')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -611,6 +611,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     // 真机验收轮1d：半屏弹层改全屏页（原型 p-quoteEdit），键盘由 Scaffold 避让。
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true, // 轮3：标题居中
         title: Text(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
         actions: [
           IconButton(

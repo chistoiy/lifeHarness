@@ -881,14 +881,14 @@ class _BookFormState extends ConsumerState<_BookForm> {
               keyName: 'bkf-publisher'),
           const SizedBox(height: 10),
           _lbl('来源'),
-          _dictChips('bkf-src', srcs, _source.text, (v) => setState(
-            () => _source.text = _source.text == v ? '' : v,
-          )),
+          _dictChips('bkf-src', srcs, _source.text, (
+            v,
+          ) => setState(() => _source.text = v)),
           const SizedBox(height: 10),
           _lbl('分组'),
-          _dictChips('bkf-grp', grps, _grp.text, (v) => setState(
-            () => _grp.text = _grp.text == v ? '' : v,
-          )),
+          _dictChips('bkf-grp', grps, _grp.text, (
+            v,
+          ) => setState(() => _grp.text = v)),
           const SizedBox(height: 4),
           pubHint,
           moreBtn,
@@ -939,8 +939,6 @@ class _BookFormState extends ConsumerState<_BookForm> {
             '录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（关闭或离线时留空待补）',
             style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
           ),
-          const SizedBox(height: 12),
-          footer,
         ];
       }
       return [
@@ -997,17 +995,26 @@ class _BookFormState extends ConsumerState<_BookForm> {
               ),
           ],
         ),
-        const SizedBox(height: 14),
-        footer,
       ];
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [header, ...middle(), const SizedBox(height: 10)],
-      ),
+    // 轮3：保存/移出钮固定在弹层底部，不随长表单滚动（钮永远可见可点）。
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [header, ...middle(), const SizedBox(height: 10)],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 4),
+          child: footer,
+        ),
+      ],
     );
   }
 
@@ -1043,7 +1050,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
     ),
   );
 
-  /// 字典 chips 行 ＋ 尾随「＋管理…」入口（原型 renderEbx）。
+  /// 来源/分组下拉（真机验收轮2：点选一个，末项「＋ 新增…」进对应添加页 · 原型 ebPickSel）。
   Widget _dictChips(
     String keyPrefix,
     List<DictEntry> dict,
@@ -1052,29 +1059,40 @@ class _BookFormState extends ConsumerState<_BookForm> {
   ) {
     final kind = keyPrefix == 'bkf-src' ? 'source' : 'group';
     final cs = Theme.of(context).colorScheme;
-    final tokens = context.tokens;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final e in dict)
-          GestureDetector(
-            key: ValueKey('$keyPrefix-${e.name}'),
-            onTap: () => onPick(e.name),
-            child: _pill(cs, tokens, e.name, current == e.name),
-          ),
-        GestureDetector(
-          key: ValueKey('$keyPrefix-mgr'),
-          onTap: () =>
-              GoRouter.of(context).push('/read/mgr?kind=$kind'),
-          child: _pill(
-            cs,
-            tokens,
-            kind == 'source' ? '＋管理来源' : '＋管理分组',
-            false,
-          ),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: DropdownButton<String>(
+        key: ValueKey('$keyPrefix-sel'),
+        isExpanded: true,
+        underline: const SizedBox.shrink(),
+        borderRadius: BorderRadius.circular(16),
+        value: dict.any((e) => e.name == current) ? current : '',
+        items: [
+          for (final (label, v) in [
+            (
+              kind == 'source' ? '未选择来源' : '未选择分组',
+              '',
+            ),
+            for (final e in dict) (e.name, e.name),
+            (
+              kind == 'source' ? '＋ 新增来源…' : '＋ 新增分组…',
+              '__add__',
+            ),
+          ])
+          DropdownMenuItem(value: v, child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ],
+        onChanged: (v) {
+          if (v == '__add__') {
+            GoRouter.of(context).push('/read/mgr?kind=$kind');
+            return;
+          }
+          onPick(v ?? '');
+        },
+      ),
     );
   }
 

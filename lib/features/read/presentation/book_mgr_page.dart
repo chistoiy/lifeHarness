@@ -151,7 +151,7 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
             .where((b) => !b.isDeleted)
             .length;
     return Scaffold(
-      appBar: AppBar(title: Text(DictEntry.title(_kind))),
+      appBar: AppBar(centerTitle: true, title: Text(DictEntry.title(_kind))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

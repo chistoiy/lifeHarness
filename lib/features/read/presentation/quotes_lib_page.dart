@@ -87,7 +87,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
     final thN = all.where((q) => q.kind == BookQuote.kKindThought).length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('笔记库')),
+      appBar: AppBar(centerTitle: true, title: const Text('笔记库')), // 轮5：标题居中
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
@@ -325,17 +325,23 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
   }
 
   Future<void> _exportMd(int markN, int thN) async {
-    final repo = ref.read(readRepositoryProvider);
-    final txt = await repo.buildQuotesMd();
-    final dir = await getApplicationDocumentsDirectory();
-    final f = File(p.join(dir.path, 'share', '全部书摘.md'));
-    await f.parent.create(recursive: true);
-    await f.writeAsString(txt);
-    if (!mounted) return;
-    readToast(
-      context,
-      '已导出 Markdown：$markN 条摘录 + $thN 条感想 · 按书名分章',
-    );
+    // 轮5：真机「点了没反应」——点击即回反馈，异常也要说出来。
+    readToast(context, '导出中…');
+    try {
+      final repo = ref.read(readRepositoryProvider);
+      final txt = await repo.buildQuotesMd();
+      final dir = await getApplicationDocumentsDirectory();
+      final f = File(p.join(dir.path, 'share', '全部书摘.md'));
+      await f.parent.create(recursive: true);
+      await f.writeAsString(txt);
+      if (!mounted) return;
+      readToast(
+        context,
+        '已导出 Markdown：$markN 条摘录 + $thN 条感想 · 按书名分章 · ${f.path}',
+      );
+    } catch (e) {
+      if (mounted) readToast(context, '导出失败：$e');
+    }
   }
 
   Widget _miniBtn({

@@ -134,16 +134,22 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
       ref.watch(readKvProvider(('read.$key', def))).valueOrNull ?? def;
 
   Future<void> _export(String key) async {
-    final repo = ref.read(readRepositoryProvider);
-    final md = key == 'exportMd';
-    final txt = md ? await repo.buildQuotesMd() : await repo.buildBackupJson();
-    final dir = await getApplicationDocumentsDirectory();
-    final name = md ? '全部书摘.md' : '书架备份.json';
-    final f = File(p.join(dir.path, 'share', name));
-    await f.parent.create(recursive: true);
-    await f.writeAsString(txt);
-    if (mounted) {
-      readToast(context, '已导出 $name · ${(txt.length / 1024).toStringAsFixed(1)} KB');
+    // 轮5：真机「点了没反应」——点击即回反馈，异常也要说出来。
+    readToast(context, '导出中…');
+    try {
+      final repo = ref.read(readRepositoryProvider);
+      final md = key == 'exportMd';
+      final txt = md ? await repo.buildQuotesMd() : await repo.buildBackupJson();
+      final dir = await getApplicationDocumentsDirectory();
+      final name = md ? '全部书摘.md' : '书架备份.json';
+      final f = File(p.join(dir.path, 'share', name));
+      await f.parent.create(recursive: true);
+      await f.writeAsString(txt);
+      if (mounted) {
+        readToast(context, '已导出 $name · ${(txt.length / 1024).toStringAsFixed(1)} KB · ${f.path}');
+      }
+    } catch (e) {
+      if (mounted) readToast(context, '导出失败：$e');
     }
   }
 
@@ -153,7 +159,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     final tokens = context.tokens;
     final sec = _secs[_sec];
     return Scaffold(
-      appBar: AppBar(title: const Text('阅读设置')),
+      appBar: AppBar(centerTitle: true, title: const Text('阅读设置')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

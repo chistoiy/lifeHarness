@@ -952,7 +952,7 @@ tailwind.config = {
       <div class="mt-3 card">
         <div class="row-title">目标与预测</div>
         <div id="rsGoal" class="text-xs leading-6 mt-2 text-slate-600 dark:text-slate-300"></div>
-        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('周报已生成：阅读 4h12m · 新增摘录 27 条 · 已联动 L4/L7')">生成周报</button><button class="mini-btn" onclick="openSheet('sheetGoal')">调整年度目标</button></div>
+        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('周报已生成：阅读 4h12m · 新增摘录 27 条 · 已联动 L4/L7')">生成周报</button><button class="mini-btn" onclick="bsYearReport()">年度总结报告</button><button class="mini-btn" onclick="openSheet('sheetGoal')">调整年度目标</button></div>
       </div>
     </section>
 
@@ -2368,6 +2368,15 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 书架专版 · 年度总结报告 ===== -->
+  <div id="sheetYearReport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetYearReport')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="flex items-center justify-between"><div class="font-extrabold text-sm" id="yrTitle">年度总结报告</div><button class="mini-btn !text-[10px]" onclick="closeSheet('sheetYearReport')">关闭</button></div>
+      <div class="mt-3 text-[12px] leading-7 text-slate-600 dark:text-slate-300 space-y-1.5" id="yrBody"></div>
+    </div>
+  </div>
+
   <!-- ===== 书架专版 · 新书录入 ===== -->
   <div id="sheetNewBook" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNewBook')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto no-scrollbar">
@@ -2379,9 +2388,9 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400" id="nbAuthorHint"></div>
         <input id="nbPub" class="inp" placeholder="出版社（可留空，保存后自动登记）">
         <div class="text-[10.5px] font-bold text-slate-500 mt-1">来源</div>
-        <div class="flex gap-1.5 flex-wrap" id="nbSrcChips"></div>
+        <select id="nbSrcChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('nb','src',this.value)"></select>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1.5">分组</div>
-        <div class="flex gap-1.5 flex-wrap" id="nbGrpChips"></div>
+        <select id="nbGrpChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('nb','grp',this.value)"></select>
         <div class="text-[10px] text-slate-400" id="nbPubHint"></div>
         <div class="flex items-center gap-2 mt-1.5"><button class="mini-btn !text-[10px]" onclick="ebxToggle('nb')" id="nbMoreBtn">更多资料</button><span class="text-[10px] text-slate-400" id="nbMoreSum"></span></div>
         <div id="nbMore" class="hidden space-y-2 pt-1">
@@ -2401,7 +2410,7 @@ tailwind.config = {
         <textarea id="nbNote" class="inp min-h-[52px]" placeholder="一句话：为什么想读（可选）"></textarea>
       </div>
       <div class="mt-3 text-[10px] text-slate-400 leading-5">录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（关闭或离线时留空待补）</div>
-      <button class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold" onclick="shSaveNew()">加入书架</button>
+      <div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 mt-4 bg-white dark:bg-slate-900"><button class="w-full py-3 rounded-xl grad text-white text-sm font-bold" onclick="shSaveNew()">加入书架</button></div>
     </div>
   </div>
 
@@ -2430,9 +2439,9 @@ tailwind.config = {
         <div class="flex gap-2"><input id="ebAuthor" class="inp flex-1" placeholder="作者"><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('eb')">从列表选</button></div>
         <div class="text-[10px] text-slate-400" id="ebAuthorHint"></div>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1">来源</div>
-        <div class="flex gap-1.5 flex-wrap" id="ebSrcChips"></div>
+        <select id="ebSrcChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('eb','src',this.value)"></select>
         <div class="text-[10.5px] font-bold text-slate-500 mt-1.5">分组</div>
-        <div class="flex gap-1.5 flex-wrap" id="ebGrpChips"></div>
+        <select id="ebGrpChips" class="inp !py-2 text-[11.5px]" onchange="ebPickSel('eb','grp',this.value)"></select>
         <div class="text-[10px] text-slate-400" id="ebPubHint"></div>
         <div class="flex items-center gap-2 mt-1.5"><button class="mini-btn !text-[10px]" onclick="ebxToggle('eb')" id="ebMoreBtn">更多资料</button><span class="text-[10px] text-slate-400" id="ebMoreSum"></span></div>
         <div id="ebMore" class="hidden space-y-2 pt-1">
@@ -2449,7 +2458,7 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400 -mt-1">标签 <span id="ebTagChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">评分 <span id="ebRate"></span></div>
       </div>
-      <div class="mt-4 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold !text-rose-500" onclick="shArchiveEdit()">移出书架</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="shSaveEdit()">保存</button></div>
+      <div class="sticky bottom-0 -mx-5 px-5 pt-3 pb-1 mt-4 bg-white dark:bg-slate-900 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold !text-rose-500" onclick="shArchiveEdit()">移出书架</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="shSaveEdit()">保存</button></div>
     </div>
   </div>
 
@@ -4708,7 +4717,7 @@ function renderBookDetail(){const b=bsBook(CURBK),root=document.getElementById('
   </div>
   <div id="bookToc" class="${bdTab==='c'?'':'hidden'} mt-3 card">
     <div class="flex items-center justify-between"><div class="row-title">目录 · ${(BS_TOC[b.id]||[]).reduce((t,g)=>t+(g[2]||g[1]).length,0)} 节</div>
-      <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocEditToggle()">${tocEdit ? '完成' : '编辑'}</button><button class="mini-btn !text-[10px]" onclick="tocAI()">AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">导入目录</button></span></div>
+      <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocEditToggle()">${tocEdit ? '完成' : '编辑'}</button><button class="mini-btn !text-[10px]" onclick="tocAI()">AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">导入目录</button><button class="mini-btn !text-[10px]" onclick="tocFold()">${bdTocOpen ? '收起' : '展开'}</button></span></div>
     <div class="mt-2" id="tocList"></div>
   </div>
   <div id="bookQuotes" class="${bdTab==='q'?'':'hidden'} mt-3">
@@ -4958,8 +4967,8 @@ function renderReadStat(){const el=document.getElementById('rsCards');if(!el)ret
   const HS=['#e2e8f0','#c7d2fe','#a5b4fc','#818cf8','#6366f1'];
   const mxv=Math.max.apply(null,L.map(rsVal))||1;
   document.getElementById('rsHeat').innerHTML=L.map((d,i2)=>{const v=rsVal(d);const lvl=v===0?0:v>mxv*.7?4:v>mxv*.45?3:v>mxv*.22?2:1;
-    const inM=!rsMonth||Math.floor(i2/30)+1===rsMonth;
-    return `<i style="background:${HS[lvl]};${inM?'':'opacity:.34'}" title="${d.m} 分钟" onclick="toast('${rsYearCur} 年第 ${i2+1} 天 · ${d.m} 分钟 · 摘录约 ${Math.round(d.m/12)} 条')"></i>`}).join('');
+    const inM=!rsMonth||Math.floor(i2/30)+1===rsMonth;const ck=v>0&&v>=BS_GOAL.dayMin;
+    return `<i style="background:${HS[lvl]};${inM?'':'opacity:.34'};color:#fff;font-size:8px;font-style:normal;display:flex;align-items:center;justify-content:center" title="${d.m} 分钟${ck?' · 已打卡':''}" onclick="toast('${rsYearCur} 年第 ${i2+1} 天 · ${d.m} 分钟 · 摘录约 ${Math.round(d.m/12)} 条${ck?' · 已打卡':''}')">${ck?'√':''}</i>`}).join('');
   document.getElementById('rsLegend').innerHTML=HS.map(c=>`<span class="w-3 h-3 rounded-[3px]" style="background:${c}"></span>`).join('');
   document.getElementById('rsYear').textContent=Math.round(tot/60)+' 小时 · '+days+' 天在读';
   const byM=rsMetric==='q'?'q':'min';
@@ -5392,9 +5401,10 @@ function blDown(id,kind){const L=BS_LISTS.find(x=>x.id===id);const txt=kind==='m
  a.href=URL.createObjectURL(blob);a.download=L.nm+'.'+kind;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);toast('已下载 '+L.nm+'.'+kind)}
 /* ---------- 录入 / 编辑弹层里的来源·分组·作者 ---------- */
 function renderEbx(){['eb','nb'].forEach(pre=>{const src=document.getElementById(pre+'SrcChips'),grp=document.getElementById(pre+'GrpChips');if(!src||!grp)return;
+ function opts(arr,cur,ph,add){return `<option value="">${ph}</option>`+arr.map(s=>`<option value="${s}" ${cur===s?'selected':''}>${s}</option>`).join('')+`<option value="__add__">${add}</option>`}
  const cur=pre==='eb'?bsBook(CURBK):null;
- src.innerHTML=BS_SRC.map(s=>`<button class="chip !text-[10px] ${(pre==='eb'?cur&&cur.src:nbSrc)===s?'chip-on':''}" onclick="ebPickSrc('${pre}','${s}')">${s}</button>`).join('')+`<button class="chip !text-[10px]" onclick="bmKind='src';bmOpen('src')">＋管理来源</button>`;
- grp.innerHTML=BS_GROUPS.map(s=>`<button class="chip !text-[10px] ${(pre==='eb'?cur&&cur.grp:nbGrp)===s?'chip-on':''}" onclick="ebPickGrp('${pre}','${s}')">${s}</button>`).join('')+`<button class="chip !text-[10px]" onclick="bmKind='grp';bmOpen('grp')">＋管理分组</button>`;
+ src.innerHTML=opts(BS_SRC,((pre==='eb'?cur&&cur.src:nbSrc)||''),'未选择来源','＋ 新增来源…');
+ grp.innerHTML=opts(BS_GROUPS,((pre==='eb'?cur&&cur.grp:nbGrp)||''),'未选择分组','＋ 新增分组…');
  const hint=document.getElementById(pre+'AuthorHint');
  if(hint){const inp=document.getElementById(pre==='eb'?'ebAuthor':'nbAuthor');const v=(inp.value||'').trim();
   hint.innerHTML='作者库 '+bsAuthors().length+' 位 · <button class="link-act" onclick="ebPickAuthor(\''+pre+'\')">从列表选择</button>'+(v&&!bsAuthors().includes(v)?' · 保存时将自动登记新作者「'+v+'」':'')}
@@ -5408,8 +5418,8 @@ function ebxChips(pre){const f=pre==='eb'?ebFmt:nbFmt,w=pre==='eb'?ebPw:nbPw;
   const pc=document.getElementById(pre+'PwChips');if(pc)pc.innerHTML=BS_PW.map(x=>`<button class="chip !text-[10px] ${w===x[0]?'chip-on':''}" onclick="ebxSet('${pre}','pw','${x[0]}')">${x[1]}</button>`).join('')}
 function ebxSet(pre,k,v){if(k==='fmt'){if(pre==='eb')ebFmt=v;else{nbFmt=v;nbPw=v==='电子书'?'pos':v==='有声'?'min':'page'}}else{if(pre==='eb')ebPw=v;else nbPw=v}
   ebxChips(pre);ebxSum(pre)}
-function ebPickSrc(pre,v){if(pre==='eb'){const b=bsBook(CURBK);b.src=b.src===v?'':v;renderBookDetail()}else nbSrc=nbSrc===v?'':v;renderEbx()}
-function ebPickGrp(pre,v){if(pre==='eb'){const b=bsBook(CURBK);b.grp=(b.grp||'')===v?'':v;renderBookDetail()}else nbGrp=nbGrp===v?'':v;renderEbx()}
+function ebPickSel(pre,kind,v){if(v==='__add__'){document.getElementById(pre+(kind==='src'?'SrcChips':'GrpChips')).value='';bmKind=kind;bmOpen(kind);return}
+ if(pre==='eb'){const b=bsBook(CURBK);if(kind==='src')b.src=v;else b.grp=v;renderBookDetail()}else{if(kind==='src')nbSrc=v;else nbGrp=v}renderEbx()}
 function ebPickAuthor(pre){document.getElementById('apList').innerHTML=bsAuthors().map(a=>{const n=BS_BOOKS.filter(b=>b.a===a).length;
  return `<div class="flex items-center gap-2 py-2.5 border-b border-slate-100 dark:border-slate-800" onclick="ebUseAuthor('${pre}','${a.replace(/'/g,"\\'")}')">
   <b class="text-[13px]">${a}</b><span class="text-[10px] text-slate-400">${n} 本</span><span class="ml-auto text-brand-500">${bsi('plus')}</span></div>`}).join('')}
@@ -5641,8 +5651,8 @@ function renderBookDetail() {
     <button id="btQuote" class="seg-pill ${bdTab === 'q' ? 'on' : ''}" onclick="switchBookTab('q')">${bsi('quote')} 书摘 ${qsAll.length}</button>
     <button id="btRel" class="seg-pill ${bdTab === 'rel' ? 'on' : ''}" onclick="switchBookTab('rel')">${bsi('rel')} 相关 ${bsRelGroups(b).reduce((t, g) => t + g.ls.length, 0)}</button></div>
   <div id="bookToc" class="${bdTab === 'c' ? '' : 'hidden'} mt-3 card">
-    <div class="flex items-center justify-between"><div class="row-title">目录 · ${(BS_TOC[b.id] || []).reduce((t, g) => t + (g[2] || g[1]).length, 0)} 节</div>
-      <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocEditToggle()">${tocEdit ? '完成' : '编辑'}</button><button class="mini-btn !text-[10px]" onclick="tocAI()">AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">导入目录</button></span></div>
+    <div class="flex items-center justify-between"><div class="row-title cursor-pointer select-none" onclick="tocFold()">目录 · ${(BS_TOC[b.id] || []).reduce((t, g) => t + (g[2] || g[1]).length, 0)} 节</div>
+      <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocEditToggle()">${tocEdit ? '完成' : '编辑'}</button><button class="mini-btn !text-[10px]" onclick="tocAI()">AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">导入目录</button><button class="mini-btn !text-[10px]" onclick="tocFold()">${bdTocOpen ? '收起' : '展开'}</button></span></div>
     <div class="mt-2" id="tocList"></div></div>
   <div id="bookQuotes" class="${bdTab === 'q' ? '' : 'hidden'} mt-3">
     <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="bdQSeg">${bdQSegChips(b)}</div>
@@ -5788,7 +5798,7 @@ function bsSessSync(b) {
 }
 function bsSessOpen(id) { if (id) CURBK = id; const b = bsBook(CURBK); bsSessList(b); navTo('p-readlog'); $('#pageTitle').textContent = '阅读记录'; $('#pageSub').textContent = '《' + b.n + '》'; rlEdit = -1; renderReadLog() }
 /* ---------- 阅读记录页（真机验收轮1e：图1样式 · 四基本信息+四数据卡+按月分组+逐条就地改；轮1g：时间段+全部筛选） ---------- */
-let rlEdit = -1;
+let rlEdit = -1, rlMinEdit = false; /* 轮5：时长卡点按就地改累计 */
 const RL_SCOPES = ['全部', '本月', '近3月'];
 let rlScopeV = 0;
 function rlCycleScope() { rlScopeV = (rlScopeV + 1) % RL_SCOPES.length; renderReadLog(); toast('筛选：' + RL_SCOPES[rlScopeV]) }
@@ -5811,7 +5821,8 @@ function renderReadLog() {
   </div>
   <div class="mt-2.5 grid grid-cols-2 gap-2.5">
     <div class="card !py-3"><div class="text-[10px] text-slate-400">阅读进度</div><div class="text-[19px] font-black mt-0.5">${b.rp}<span class="text-[10px] font-bold text-slate-400"> / ${b.pg} 页 · ${b.p}%</span></div></div>
-    <div class="card !py-3"><div class="text-[10px] text-slate-400">阅读时长</div><div class="text-[19px] font-black mt-0.5">${bsFmt(b.min)}</div></div>
+    ${rlMinEdit ? `<div class="card !py-3" id="rlMinCard"><div class="text-[10px] text-slate-400">阅读时长（分钟）</div><div class="flex items-center gap-1.5 mt-1"><input id="rlMinAll" type="number" class="inp !py-1.5 text-[15px] font-black flex-1 min-w-0" value="${b.min}"><button class="mini-btn !text-[10px]" onclick="rlMinSave()">保存</button><button class="mini-btn !text-[10px]" onclick="rlMinEdit=false;renderReadLog()">取消</button></div></div>`
+    : `<div class="card !py-3 cursor-pointer select-none" onclick="rlMinOpen()"><div class="text-[10px] text-slate-400">阅读时长</div><div class="text-[19px] font-black mt-0.5">${bsFmt(b.min)}</div></div>`}
     <div class="card !py-3"><div class="text-[10px] text-slate-400">已读天数</div><div class="text-[19px] font-black mt-0.5">${days.size}<span class="text-[10px] font-bold text-slate-400">天</span></div></div>
     <div class="card !py-3"><div class="text-[10px] text-slate-400">开始日期</div><div class="text-[19px] font-black mt-0.5">${b.start ? '2026.' + String(b.start).replace('-', '.') : '—'}</div></div>
   </div>
@@ -5831,14 +5842,48 @@ function renderReadLog() {
             <div class="flex items-center rounded-full px-2.5 py-1.5 text-white text-[11px] font-extrabold" style="width:${Math.max(18, Math.round((+s.min || 0) / maxM * 100))}%;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 72%,#fff),var(--accent))">${s.min}<span class="text-[9px] font-bold opacity-85">分钟</span></div></div>
           ${open ? `<div class="mt-2 space-y-1.5" onclick="event.stopPropagation()">
             <div class="flex items-center gap-1.5 text-[11px]"><span class="w-9 shrink-0 text-slate-400">日期</span><input type="date" class="inp !py-1.5 flex-1 min-w-0 !text-[11px]" value="2026-${String(s.dt).padStart(5, '0')}" onchange="bsSessSet(${i},'dt',this.value.slice(5))"></div>
-            <div class="flex items-center gap-1.5 text-[11px]"><span class="w-9 shrink-0 text-slate-400">时长</span><input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.min}" onchange="bsSessSet(${i},'min',this.value)"><span class="text-slate-400">分钟</span><span class="ml-1 text-slate-400">P</span><input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.from}" onchange="bsSessSet(${i},'from',this.value)"><span class="text-slate-400">→</span><input type="number" class="inp !py-1.5 w-14 !text-[11px]" value="${s.to}" onchange="bsSessSet(${i},'to',this.value)"></div>
-            <div class="flex gap-2"><button class="mini-btn flex-1 !text-rose-500" onclick="rlDel(${i})">删除这次</button></div></div>` : ''}
+            <div class="flex items-center gap-1.5 text-[11px]"><span class="w-9 shrink-0 text-slate-400">时长</span><input type="number" id="rlMin${i}" class="inp !py-1.5 w-14 !text-[11px]" value="${s.min}"><span class="text-slate-400">分钟</span><span class="ml-1 text-slate-400 shrink-0">起页</span><input type="number" id="rlFrom${i}" class="inp !py-1.5 w-14 !text-[11px]" value="${s.from}"><span class="text-slate-400">止页</span><input type="number" id="rlTo${i}" class="inp !py-1.5 w-14 !text-[11px]" value="${s.to}"></div>
+            <div class="flex gap-2"><button class="mini-btn flex-1 !text-rose-500" onclick="rlDel(${i})">删除这次</button><button class="mini-btn flex-1" onclick="rlEdit=-1;renderReadLog()">取消</button><button class="mini-btn flex-1" style="color:var(--accent)" onclick="rlSaveRow(${i})">保存</button></div></div>` : ''}
         </div></div>` }).join('') }).join('')
     : (L.length ? '<div class="card mt-4 text-[11px] text-slate-400 text-center !py-8">当前范围没有记录 · 点右上 ＋ 补记一次</div>'
                 : '<div class="card mt-4 text-[11px] text-slate-400 text-center !py-8">还没有计时记录 · 点右上 ＋ 补记一次</div>')}`;
 }
 function rlToggle(i) { rlEdit = rlEdit === i ? -1 : i; renderReadLog() }
+function rlSaveRow(i) {
+  const b = bsBook(CURBK), s = bsSessList(b)[i]; if (!s) return;
+  const g = id => Math.max(0, +(document.getElementById(id) || {}).value || 0);
+  s.min = g('rlMin' + i); s.from = g('rlFrom' + i); s.to = g('rlTo' + i);
+  bsSessSync(b); renderBookDetail(); renderShelf(); renderReadStat(); renderReadLog();
+  toast('第 ' + (i + 1) + ' 次已更新 · 累计 ' + bsFmt(b.min));
+}
 function rlDel(i) { bsSessDel(i); rlEdit = -1 }
+function rlMinOpen() { rlMinEdit = true; renderReadLog() }
+function rlMinSave() {
+  const b = bsBook(CURBK), L = bsSessList(b);
+  const v = Math.max(0, +document.getElementById('rlMinAll').value || 0);
+  const d = v - b.min;
+  if (L.length) { const s = L[L.length - 1]; s.min = Math.max(0, (+s.min || 0) + d) }
+  else if (v > 0) L.push({ dt: shFmtDate(), min: v, from: 0, to: 0 });
+  bsSessSync(b); rlMinEdit = false;
+  renderBookDetail(); renderShelf(); renderReadStat(); renderReadLog();
+  toast('累计时长已更新 · ' + bsFmt(b.min));
+}
+function bsYearReport() {
+  const Y = rsYearCur || BS_CUR_YEAR;
+  const books = BS_BOOKS, tot = books.reduce((t, b) => t + (+b.min || 0), 0);
+  const done = books.filter(b => b.st === '已读'), ing = books.filter(b => b.st === '在读');
+  const top = books.slice().sort((a, z) => (+z.min || 0) - (+a.min || 0))[0];
+  const qn = BS_QUOTES.length;
+  $('#yrTitle').textContent = Y + ' 年度总结报告';
+  $('#yrBody').innerHTML = [
+    '全年阅读 ' + bsFmt(tot) + ' · 计时 ' + books.reduce((t, b) => t + (b.times || 0), 0) + ' 次',
+    '读完 ' + done.length + ' 本 · 在读 ' + ing.length + ' 本 · 收录 ' + books.length + ' 本',
+    '新增摘录 ' + qn + ' 条',
+    top && +top.min > 0 ? '花时间最多：《' + top.n + '》 ' + bsFmt(top.min) : '今年还没开始计时阅读',
+    '目标：年度 ' + BS_GOAL.books + ' 本 · 日均 ' + BS_GOAL.dayMin + ' 分钟（调整请回目标卡）',
+  ].map(x => '<div>· ' + x + '</div>').join('');
+  openSheet('sheetYearReport');
+}
 function bsSessSet(i, k, v) {
   const b = bsBook(CURBK), s = bsSessList(b)[i]; if (!s) return;
   if (k === 'dt') s.dt = v; else s[k] = Math.max(0, +v || 0);
@@ -5876,7 +5921,10 @@ function biSumSave() { const b = bsBook(CURBK), g = i => (document.getElementByI
 function biSumReset() { delete bsBook(CURBK).sum; biSumOn = false; renderBookInfo(); toast('已恢复自动生成') }
 
 /* ---------- 目录：手动微调（改名 / 调序 / 删节 / 加节 / 加部分） ---------- */
-let tocEdit = false, tocPend = null;
+let tocEdit = false, tocPend = null, bdTocOpen = false; /* 轮3：目录列表默认收起 · 展开钮行尾 */
+const bdTocFold = {}; /* 轮3：部分行点击就地收起小节（key=书id#组下标） */
+function tocFoldPart(gi) { const k = CURBK + '#' + gi; bdTocFold[k] = !bdTocFold[k]; renderBookDetail() }
+function tocFold() { bdTocOpen = !bdTocOpen; renderBookDetail() }
 function tocAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') }
 function tocK(gi) { const g = BS_TOC[CURBK][gi]; if (!g[2]) { g[2] = g[1] || []; g[1] = null } return g[2] }
 function tocEditToggle() { tocEdit = !tocEdit; if (!tocEdit) tocPrune(); renderBookDetail(); toast(tocEdit ? '目录编辑：改标题 · 上下调序 · 删节 · 加节' : '已退出目录编辑' ) }
@@ -5893,21 +5941,24 @@ function renderToc() {
   const el = document.getElementById('tocList'); if (!el) return; const t = BS_TOC[CURBK];
   if (!t || !t.length) {
     el.innerHTML = `<div class="text-[11px] text-slate-400 py-3 text-center">这本书还没有目录 · <button class="link-act" onclick="tocAI()">AI 补全</button> 或 <button class="link-act" onclick="openSheet('sheetTocImport')">导入</button></div>`
-      + (tocEdit ? `<button class="mt-2 w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-400" onclick="tocAdd(0)">＋ 添加小节（先建一个部分）</button>` : ''); return;
+      + (tocEdit ? `<button class="mt-2 w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-400" onclick="tocAdd(0)">＋ 添加小节（先建一个部分）</button>` : '');
+    el.classList.remove('hidden'); return;
   }
   const ib = (ic, tip, fn) => `<button class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" title="${tip}" onclick="event.stopPropagation();${fn}">${bsi(ic, 'w-[12px] h-[12px]')}</button>`;
   el.innerHTML = t.map((g, gi) => {
     const kids = g[2] || g[1] || [], done = kids.filter(x => x[1] === 'done').length;
     if (!tocEdit && !kids.length) return '';
+    const fold = !tocEdit && bdTocFold[CURBK + '#' + gi];
     return `<div class="mt-2.5"><div class="flex items-center gap-1.5 text-[10px] font-extrabold text-slate-400 tracking-wide">
       ${tocEdit ? `<input class="toc-ed flex-1 min-w-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[10px] font-extrabold outline-none" value="${tocAttr(g[0])}" oninput="tocRenG(${gi},this.value)">${ib('plus', '添加小节', 'tocAdd(' + gi + ')')}${ib('trash', '删除整个部分', 'tocDelG(' + gi + ')')}`
-      : `<span>${g[0]}</span><span class="ml-auto">${done}/${kids.length}</span>`}</div>
-    ${kids.map((k, ki) => `<div class="toc-row" ${tocEdit ? '' : `onclick="tocJump('${String(k[0]).replace(/'/g, "\\'")}')"`}>
+      : `<span class="cursor-pointer select-none" onclick="tocFoldPart(${gi})">${fold ? '▸' : '▾'} ${g[0]}</span><span class="ml-auto">${done}/${kids.length}</span>`}</div>
+    ${fold ? '' : kids.map((k, ki) => `<div class="toc-row" ${tocEdit ? '' : `onclick="tocJump('${String(k[0]).replace(/'/g, "\\'")}')"`}>
       ${tocEdit ? `<input class="toc-ed flex-1 min-w-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[12px] outline-none" value="${tocAttr(k[0])}" oninput="tocRen(${gi},${ki},this.value)">`
         : `<span class="toc-dot ${k[1] === 'done' ? 'bg-emerald-400' : k[1] === 'read' ? 'bg-brand-500 animate-pulse' : 'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${k[1] ? '' : 'text-slate-400'}">${k[0]}</span>${k[2] ? `<span class="text-[10px] text-brand-500 font-bold"><span class="inline-flex items-center">${bsi('quote', 'w-[10px] h-[10px] mr-0.5')}${k[2]}</span></span>` : ''}${k[1] === 'done' ? '<span class="text-emerald-500"><svg class="w-[11px] h-[11px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg></span>' : k[1] === 'read' ? '<span class="text-[10px] text-brand-500 font-bold">在读</span>' : ''}`}
       ${tocEdit ? ib('up', '上移', `tocMove(${gi},${ki},-1)`) + ib('down', '下移', `tocMove(${gi},${ki},1)`) + ib('trash', '删除', `tocDel(${gi},${ki})`) : ''}</div>`).join('')}
     </div>`
   }).join('') + (tocEdit ? `<button class="mt-3 w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-400" onclick="tocAddG()">＋ 添加部分</button>` : '');
+  el.classList.toggle('hidden', !bdTocOpen && !tocEdit);
 }
 
 /* ---------- 目录导入：粘贴文本 → 解析预览 → 确认替换 ---------- */

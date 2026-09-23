@@ -201,7 +201,6 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         ? const <String>{}
         : (ref.watch(shelfQuoteIdsProvider(ui.kw)).valueOrNull ??
               const <String>{});
-    final counts = ShelfQuery.countsByState(all);
     final list = ui.toQuery(quoteIds: quoteIds).apply(all);
     final dimVals = ui.dim == 'none'
         ? const <String>[]
@@ -211,7 +210,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         : ShelfQuery.dimValueCounts(ui.dim, all);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('书架')),
+      appBar: AppBar(centerTitle: true, title: const Text('书架')),
       floatingActionButton: ui.batch
           ? null
           : GradShelfFab(onTap: () => showAddBookSheet(context, ref)),
@@ -315,7 +314,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                 ],
               ),
               const SizedBox(height: 10),
-              // 分区 chips（带计数·常驻一行）
+              // 分区 chips（原型 bsChipRow 无计数·常驻一行）
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -348,9 +347,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                               ),
                             ),
                             child: Text(
-                              s == '全部'
-                                  ? '全部 ${all.length}'
-                                  : '$s ${counts[s] ?? 0}',
+                              s,
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
@@ -824,19 +821,31 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
   void _openPanel(BuildContext context, ShelfUI ui) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      // ConstrainedBox 包 builder 会破坏 sheet 布局（按钮 hit-test 被 barrier 吸收）；限高走 constraints。
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            24,
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetCtx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-            child: Consumer(
-              builder: (_, ref2, _) {
-                void setUi(ShelfUI Function(ShelfUI) f) =>
-                    ref2.read(shelfUiProvider.notifier).state = f(
-                      ref2.read(shelfUiProvider),
-                    );
+      // 轮3：键盘弹出时面板上移且限高，「清空筛选/完成」双钮不再被输入法遮挡。
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom),
+        child: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                  child: Consumer(
+                    builder: (_, ref2, _) {
+                      // watch 当前 UI 态：面板内即时刷新选中态（不重开也对）
+                      final ui = ref2.watch(shelfUiProvider);
+                      void setUi(ShelfUI Function(ShelfUI) f) =>
+                          ref2.read(shelfUiProvider.notifier).state = f(
+                            ref2.read(shelfUiProvider),
+                          );
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -989,6 +998,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
           ),
         ),
       ),
+    ),
     );
   }
 

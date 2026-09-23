@@ -84,7 +84,7 @@ class BookListsPage extends ConsumerWidget {
     final tokens = context.tokens;
     final lists = ref.watch(bookListsProvider).valueOrNull ?? const <BookList>[];
     return Scaffold(
-      appBar: AppBar(title: const Text('书单')),
+      appBar: AppBar(centerTitle: true, title: const Text('书单')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
@@ -334,7 +334,7 @@ class BookListDetailPage extends ConsumerWidget {
     final l = lists.where((x) => x.id == listId).firstOrNull;
     if (l == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('书单')),
+        appBar: AppBar(centerTitle: true, title: const Text('书单')),
         body: const Center(child: Text('书单不存在或已删除')),
       );
     }
@@ -347,7 +347,7 @@ class BookListDetailPage extends ConsumerWidget {
       qc[q.bookId] = (qc[q.bookId] ?? 0) + 1;
     }
     return Scaffold(
-      appBar: AppBar(title: Text(l.name)),
+      appBar: AppBar(centerTitle: true, title: Text(l.name)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [

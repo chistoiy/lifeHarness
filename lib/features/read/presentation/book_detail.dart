@@ -38,6 +38,9 @@ class BookDetailPage extends ConsumerStatefulWidget {
 class _BookDetailPageState extends ConsumerState<BookDetailPage> {
   late String _tab = widget.initialTab;
   bool _tocEdit = false;
+  bool _tocOpen = false; // 轮3：目录列表默认收起（展开钮 toc-fold）
+  // 轮3：已收起的部分章节（key＝part id 字符串）。
+  final Set<String> _tocPartFold = {};
   String? _chapF; // 书摘按章节筛选（点目录节跳入）
   String _qSeg = 'all'; // 书摘 tab 分段 chips（原型 bdQSeg · 全部/划线/想法/星标）
 
@@ -52,7 +55,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     final b = books.where((e) => e.id == widget.bookId).firstOrNull;
     if (b == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('书籍')),
+        appBar: AppBar(centerTitle: true, title: const Text('书籍')),
         body: const SizedBox.shrink(),
       );
     }
@@ -513,16 +516,25 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
         children: [
           Row(
             children: [
-              Text(
-                '目录 · $secCount 节',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface,
+              // 轮3：标题「目录 · N 节」本身可点＝展开/收起列表。
+              GestureDetector(
+                key: const ValueKey('toc-title'),
+                behavior: HitTestBehavior.opaque,
+                onTap: groups.isEmpty
+                    ? null
+                    : () => setState(() => _tocOpen = !_tocOpen),
+                child: Text(
+                  '目录 · $secCount 节',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface,
+                  ),
                 ),
               ),
               const Spacer(),
-              if (groups.isNotEmpty)
+              // 原型行序：编辑 → AI 补全 → 导入目录，恒 12px 间隔防误触
+              if (groups.isNotEmpty) ...[
                 GestureDetector(
                   key: const ValueKey('toc-edit'),
                   onTap: () => setState(() {
@@ -540,7 +552,23 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                     ),
                   ),
                 ),
-              if (_tocEdit) const SizedBox(width: 12),
+                const SizedBox(width: 12),
+                if (!_tocEdit) ...[
+                  GestureDetector(
+                    key: const ValueKey('toc-ai'),
+                    onTap: () => readToast(context, 'AI 能力规划中（V1.x）'),
+                    child: Text(
+                      'AI 补全',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: tokens.accent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+              ],
               GestureDetector(
                 key: const ValueKey('toc-import'),
                 onTap: () =>
@@ -554,14 +582,14 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                   ),
                 ),
               ),
-              // AI 补全（B 类占位：AI 能力未接入）
-              if (!_tocEdit) ...[
+              // 轮3：目录与章间笔记列表默认收起，展开钮常驻行尾
+              if (groups.isNotEmpty) ...[
                 const SizedBox(width: 12),
                 GestureDetector(
-                  key: const ValueKey('toc-ai'),
-                  onTap: () => readToast(context, 'AI 能力规划中（V1.x）'),
+                  key: const ValueKey('toc-fold'),
+                  onTap: () => setState(() => _tocOpen = !_tocOpen),
                   child: Text(
-                    'AI 补全',
+                    _tocOpen ? '收起' : '展开',
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w800,
@@ -643,33 +671,51 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                   onDelete: () => act(() => repo.deleteToc(s.id!)),
                 ),
             ]
-          else
+          else if (_tocOpen)
             for (final g in groups) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 2),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        g.part.title,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
+              // 轮3：部分章节行点击＝就地展开/收起其小节。
+              GestureDetector(
+                key: ValueKey('toc-p-${g.part.id}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() {
+                  final k = '${g.part.id}';
+                  if (!_tocPartFold.remove(k)) _tocPartFold.add(k);
+                }),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _tocPartFold.contains('${g.part.id}')
+                            ? Icons.chevron_right_rounded
+                            : Icons.expand_more_rounded,
+                        size: 14,
+                        color: const Color(0xFF0F172A),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          g.part.title,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
                       ),
-                    ),
-                    Text(
-                      '${g.sections.where((s) => _tocDone(b, s, cur, curActive)).length}'
-                      '/${g.sections.length}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: cs.onSurfaceVariant,
+                      Text(
+                        '${g.sections.where((s) => _tocDone(b, s, cur, curActive)).length}'
+                        '/${g.sections.length}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              if (!_tocPartFold.contains('${g.part.id}'))
               for (final s in g.sections)
                 GestureDetector(
                   key: ValueKey('toc-s-${s.id}'),
