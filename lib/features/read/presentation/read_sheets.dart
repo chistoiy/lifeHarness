@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -9,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/image_attach.dart';
+import '../data/isbn_enrich.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
 import '../domain/book_progress.dart';
@@ -145,11 +147,13 @@ TextField _field(
   int? lines,
   String? keyName,
   bool autofocus = false,
+  ValueChanged<String>? onChanged,
 }) => TextField(
   key: keyName == null ? null : ValueKey(keyName),
   controller: c,
   maxLines: lines ?? 1,
   autofocus: autofocus,
+  onChanged: onChanged,
   decoration: InputDecoration(
     labelText: label,
     labelStyle: const TextStyle(fontSize: 12.5),

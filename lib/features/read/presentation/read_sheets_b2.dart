@@ -183,8 +183,11 @@ class _BookFormState extends ConsumerState<_BookForm> {
   late final List<String> _tags = [...?_b?.tags];
   late int _rate = (_b?.rating ?? 0).round();
   bool _moreOpen = false;
-  // F2 起由 ISBN 抓取流程写入（匹配中… / 已命中书目缓存）。
-  final String _isbnStatus = '';
+  // 批F2：ISBN 命中状态位（匹配中… / 已命中 · 自动填充 / 仅填 ISBN · 留空待补 / 离线或未命中 · 留空待补）。
+  String _isbnStatus = '';
+  Timer? _isbnT;
+  int _isbnSeq = 0;
+  bool _fillDouban = false; // 阅读设置 read.isbnFill＝「抓豆瓣数据」时联网补全。
 
   @override
   void initState() {
@@ -201,6 +204,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
 
   @override
   void dispose() {
+    _isbnT?.cancel();
     for (final c in [
       _title, _author, _publisher, _translator, _pubDate, _series, _isbn,
       _source, _grp, _fee, _totalLoc, _readLoc, _pages, _readPages, _pct,
@@ -324,9 +328,97 @@ class _BookFormState extends ConsumerState<_BookForm> {
     readToast(context, '《${b.title}》已移到弃读 · 笔记与时长保留');
   }
 
-  // 真机验收 F1 占位：F2 提交接入相机扫码 / 豆瓣抓取后替换实现。
-  Future<void> _scanIsbn() async => readToast(context, 'ISBN 扫码补全 · 批F2 接入');
-  Future<void> _isbnCover() async => readToast(context, 'ISBN 扫码补全 · 批F2 接入');
+  // ---- 批F2 · ISBN 扫码与豆瓣补全 ----
+
+  Future<void> _scanIsbn() async {
+    final code = await GoRouter.of(context).push<String>('/read/scan');
+    if (!mounted || code == null) return;
+    _isbn.text = code;
+    readToast(context, '已扫描书脊 ISBN');
+    _onIsbnChanged(fromScan: true);
+  }
+
+  Future<void> _isbnCover() async {
+    final v = (_isNew ? _isbn.text.trim() : (_b?.isbn ?? '')).trim();
+    if (v.length < 8) {
+      readToast(context, '先填 ISBN（至少 8 位）');
+      return;
+    }
+    setState(() => _isbnStatus = '取图中…');
+    await _lookupFill(v, coverOnly: true);
+  }
+
+  /// ISBN 输入即时反馈（原型 shIsbnHint）：设置关闭时只存码不联网。
+  void _onIsbnChanged({bool fromScan = false}) {
+    _isbnT?.cancel();
+    final v = _isbn.text.trim();
+    if (v.isEmpty) {
+      setState(() => _isbnStatus = '');
+      return;
+    }
+    if (v.length < 8) {
+      setState(() => _isbnStatus = '至少 8 位');
+      return;
+    }
+    if (!_fillDouban) {
+      setState(() => _isbnStatus = '仅填 ISBN · 留空待补');
+      return;
+    }
+    setState(() => _isbnStatus = '匹配中…');
+    _isbnT = Timer(
+      Duration(milliseconds: fromScan ? 0 : 520),
+      () => _lookupFill(v, coverOnly: false),
+    );
+  }
+
+  Future<void> _lookupFill(String code, {required bool coverOnly}) async {
+    final seq = ++_isbnSeq;
+    final meta = await IsbnEnrich.lookup(
+      code,
+      fetch: ref.read(isbnPageFetcherProvider),
+    );
+    if (!mounted || seq != _isbnSeq) return;
+    if (meta == null) {
+      setState(() => _isbnStatus = '离线或未命中 · 留空待补');
+      if (coverOnly) readToast(context, '未取到封面');
+      return;
+    }
+    String? coverPath;
+    if (meta.coverUrl != null &&
+        (coverOnly || _cover == null || _cover!.isEmpty)) {
+      coverPath = await IsbnEnrich.saveCover(
+        meta,
+        code,
+        fetchBytes: ref.read(isbnBytesFetcherProvider),
+      );
+      if (!mounted || seq != _isbnSeq) return;
+    }
+    setState(() {
+      if (coverPath != null) _cover = coverPath;
+      if (!coverOnly) {
+        // 只填空字段，不覆盖用户已敲内容。
+        if (_title.text.trim().isEmpty) _title.text = meta.title;
+        if (_author.text.trim().isEmpty && meta.author != null) {
+          _author.text = meta.author!;
+        }
+        if (_publisher.text.trim().isEmpty && meta.publisher != null) {
+          _publisher.text = meta.publisher!;
+        }
+        if (_pubDate.text.trim().isEmpty && meta.pubDate != null) {
+          _pubDate.text = meta.pubDate!;
+        }
+        if (_pages.text.trim().isEmpty && meta.pages != null) {
+          _pages.text = '${meta.pages}';
+        }
+        _isbnStatus = '已命中 · 自动填充';
+      } else {
+        _isbnStatus = coverPath != null ? '封面已取' : '未取到封面';
+      }
+    });
+    if (coverOnly && _isbnStatus != '封面已取') {
+      readToast(context, '未取到封面');
+    }
+  }
 
   Future<void> _pickCover({bool camera = false}) async {
     final cs = Theme.of(context).colorScheme;
@@ -361,6 +453,13 @@ class _BookFormState extends ConsumerState<_BookForm> {
     final aTxt = _author.text.trim();
     final hasNewAuthor =
         aTxt.isNotEmpty && !authors.any((e) => e.name == aTxt);
+    // 批F2：阅读设置「ISBN 补全」＝抓豆瓣数据 时才联网（默认仅填 ISBN）。
+    _fillDouban =
+        (ref.watch(
+                  readKvProvider(('read.isbnFill', '仅填 ISBN')),
+                ).valueOrNull ??
+                '仅填 ISBN') ==
+            '抓豆瓣数据';
 
     final header = Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -799,7 +898,8 @@ class _BookFormState extends ConsumerState<_BookForm> {
             children: [
               Expanded(
                 child: _field(_isbn, 'ISBN / 豆瓣 subject_id',
-                    keyName: 'bkf-isbn'),
+                    keyName: 'bkf-isbn',
+                    onChanged: (_) => _onIsbnChanged()),
               ),
               SizedBox(
                 width: 84,

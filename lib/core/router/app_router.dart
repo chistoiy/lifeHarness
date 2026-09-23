@@ -22,6 +22,7 @@ import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/book_mgr_page.dart';
+import '../../features/read/presentation/isbn_scan_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
 import '../../features/read/presentation/read_import_page.dart';
 import '../../features/read/presentation/read_lists_page.dart';
@@ -151,6 +152,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // ?sec= 定位组（书架长按菜单「调整长按菜单」→ 1＝内容显示与排序）。
           initialSec: int.tryParse(s.uri.queryParameters['sec'] ?? '') ?? 0,
         ),
+      ),
+      // 扫书脊 ISBN 全屏页（保真批F2 · 书籍表单「扫 ISBN」钮 push，命中 pop 回码值）。
+      GoRoute(
+        path: '/read/scan',
+        builder: (_, _) => const IsbnScanPage(),
       ),
       // 书架资料单类管理页：?kind= 决定类（书架维度行「管理X」入口；默认来源）。
       GoRoute(

@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
+import 'dart:io';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_list.dart';
@@ -69,7 +71,7 @@ void main() {
       );
 
   /// 带 /read/* 路由的壳（工作台 context.push 需要）。
-  Widget routed(Widget root) {
+  Widget routed(Widget root, {List<Override> extra = const []}) {
     final router = GoRouter(routes: [
       GoRoute(path: '/', builder: (_, _) => root),
       GoRoute(
@@ -113,7 +115,10 @@ void main() {
               kind: s.uri.queryParameters['kind'] ?? 'source')),
     ]);
     return ProviderScope(
-      overrides: [readRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        readRepositoryProvider.overrideWithValue(repo),
+        ...extra,
+      ],
       child: MaterialApp.router(
           routerConfig: router,
           builder: (_, child) => Scaffold(body: child)),
@@ -2123,6 +2128,125 @@ void main() {
       bx = (await repo.allBooks()).firstWhere((b) => b.id == 'x');
       expect(bx.state, Book.kStateDropped);
       expect(bx.isDeleted, isFalse);
+    });
+  });
+
+  group('保真批F2 · ISBN 扫码与豆瓣补全', () {
+    // 豆瓣书目页骨架（真实抓取页的关键节点结构）。
+    const doubanHtml = '''
+<html><head><title>被讨厌的勇气</title></head><body>
+<h1><span property="v:itemreviewed">被讨厌的勇气</span></h1>
+<div id="mainpic"><a href="https://book.douban.com/subject/26851771/"><img src="https://img3.doubanio.com/mpic26851771.jpg"></a></div>
+<div id="info">
+<span class="pl">作者</span>: <a href="https://book.douban.com/author/4516029/">[日] 岸见一郎</a> / <a>[日] 古贺史健</a><br/>
+<span class="pl">出版社:</span>&nbsp;<a href="https://book.douban.com/press/6412">中信出版社</a><br/>
+<span class="pl">出版年:</span> 2015-6<br/>
+<span class="pl">页数:</span> 288<br/>
+<span class="pl">定价:</span> 36.00元<br/>
+<span class="pl">ISBN:</span> 9787508662560<br/>
+<strong class="ll rating_num" property="v:average">8.6</strong>
+</div></body></html>''';
+
+    test('R-39 IsbnEnrich：解析全字段 · urlFor 双形态 · saveCover 落本地', () async {
+      final m = IsbnEnrich.parse(doubanHtml)!;
+      expect(m.title, '被讨厌的勇气');
+      expect(m.author, '岸见一郎'); // 去「[日] 」国别前缀。
+      expect(m.publisher, '中信出版社');
+      expect(m.pubDate, '2015-06');
+      expect(m.pages, 288);
+      expect(m.rating, 8.6);
+      expect(m.coverUrl, 'https://img3.doubanio.com/mpic26851771.jpg');
+      expect(IsbnEnrich.parse('<html>robot check</html>'), isNull);
+      expect(IsbnEnrich.urlFor('9787508662560').toString(),
+          'https://book.douban.com/isbn/9787508662560/');
+      expect(
+          IsbnEnrich.urlFor('26851771').toString(),
+          'https://book.douban.com/subject/26851771/');
+      // lookup：短码不发请求；假 fetcher 命中。
+      expect(await IsbnEnrich.lookup('123', fetch: (_) async => doubanHtml),
+          isNull);
+      final hit = await IsbnEnrich.lookup('9787508662560',
+          fetch: (u) async => u.toString().contains('/isbn/') ? doubanHtml : null);
+      expect(hit?.title, '被讨厌的勇气');
+      // saveCover：写应用私有目录（dirOverride 走临时目录 · 不碰 path_provider）。
+      final dir = Directory.systemTemp.createTempSync('lh_cov');
+      final path = await IsbnEnrich.saveCover(m, '9787508662560',
+          fetchBytes: (_) async => [1, 2, 3, 4], dirOverride: dir.path);
+      expect(path, isNotNull);
+      expect(File(path!).readAsBytesSync(), [1, 2, 3, 4]);
+      expect(await IsbnEnrich.saveCover(m, 'x',
+          fetchBytes: (_) async => null, dirOverride: dir.path), isNull);
+      dir.deleteSync(recursive: true);
+    });
+
+    testWidgets('R-40 表单 ISBN 输入：开「抓豆瓣数据」→ 匹配中→自动填充空字段', (tester) async {
+      await repo.setKv('read.isbnFill', '抓豆瓣数据');
+      var calls = 0;
+      await tester.pumpWidget(routed(const ReadWorkbench(), extra: [
+        isbnPageFetcherProvider.overrideWith(
+            (ref) => (uri) async {
+                  calls++;
+                  return doubanHtml;
+                }),
+        isbnBytesFetcherProvider.overrideWith((ref) => (_) async => null),
+      ]));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
+      await settle(tester);
+      await tester.enterText(
+          find.byKey(const ValueKey('bkf-isbn')), '9787508662560');
+      // 单帧断言「匹配中…」：settle 会把 520ms 防抖泵过去，直达最终态。
+      await tester.pump();
+      expect(find.text('匹配中…'), findsOneWidget);
+      // 520ms 防抖后抓取（假异步下 pump 时钟）。
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
+      expect(calls, 1);
+      expect(find.text('已命中 · 自动填充'), findsOneWidget);
+      // 出版日期字段在「更多资料」折叠内，先展开再断言。
+      await tester.ensureVisible(find.byKey(const ValueKey('bkf-more')));
+      await tester.tap(find.byKey(const ValueKey('bkf-more')));
+      await settle(tester);
+      String fieldText(String key) => tester
+          .widget<TextField>(find.byKey(ValueKey(key)))
+          .controller!
+          .text;
+      expect(fieldText('bkf-title'), '被讨厌的勇气');
+      expect(fieldText('bkf-author'), '岸见一郎');
+      expect(fieldText('bkf-publisher'), '中信出版社');
+      expect(fieldText('bkf-pubdate'), '2015-06');
+      expect(fieldText('bkf-pages'), '288');
+    });
+
+    testWidgets('R-41 设置默认「仅填 ISBN」：输入只存码不联网；离线未命中提示逐字',
+        (tester) async {
+      await tester.pumpWidget(routed(const ReadWorkbench(), extra: [
+        isbnPageFetcherProvider.overrideWith((ref) => (uri) async {
+              throw StateError('默认档不应联网');
+            }),
+      ]));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
+      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('bkf-isbn')), '123');
+      await settle(tester);
+      expect(find.text('至少 8 位'), findsOneWidget);
+      await tester.enterText(
+          find.byKey(const ValueKey('bkf-isbn')), '9787508662560');
+      await settle(tester);
+      expect(find.text('仅填 ISBN · 留空待补'), findsOneWidget);
+      // 手动点「ISBN 取图」仍会抓取（显式操作不受开关限制）：此 fake 抛错＝未命中。
+      await tester.ensureVisible(find.byKey(const ValueKey('bkf-cov-isbn')));
+      await tester.tap(find.byKey(const ValueKey('bkf-cov-isbn')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(find.text('离线或未命中 · 留空待补'), findsOneWidget);
+      expect(find.text('未取到封面'), findsOneWidget);
+      await clearToasts(tester);
     });
   });
 }
