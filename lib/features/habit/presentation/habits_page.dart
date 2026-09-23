@@ -7,6 +7,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
+import 'habit_aux_sheets.dart';
 import 'habit_edit_sheet.dart';
 import 'habit_providers.dart';
 import 'habit_sheets.dart';
@@ -138,8 +139,8 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
       open: (h) => _toast('习惯详情页 · 批3交付'),
       tap: (h) => _tap(h, d),
       avoid: (h) => _avoid(h, d),
-      trigger: (h) => _toast('记一次触发 · 批2交付'),
-      freeze: (h) => _toast('宽限卡 · 批5交付'),
+      trigger: (h) => showHabitTriggerSheet(context, h),
+      freeze: (h) => _freeze(h, d),
       archiveToggle: (h) async {
         final repo = ref.read(habitRepositoryProvider);
         await repo.setArchived(h.id, !h.isArchived);
@@ -273,7 +274,7 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
                       habit: h,
                       info: buildRowInfo(d, h, _today, _viewDay),
                       dayOff: _dayOff,
-                      grace: d.grace,
+                      grace: d.graceOf[h.id] ?? 0,
                       actions: actions,
                     ),
               ],
@@ -665,6 +666,25 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
   }
 
   /// 方块视图历史合格格就地打卡/撤销（§3.2）。
+  /// 用一张宽限（原型 hbFreeze 守卫链 + §5-6：frozen 只保连续不算达成）。
+  Future<void> _freeze(Habit h, HabitData d) async {
+    final repo = ref.read(habitRepositoryProvider);
+    final left = d.graceOf[h.id] ?? 0;
+    if (left <= 0) {
+      _toast('本月宽限次数已用完');
+      return;
+    }
+    final tKey = dayKey(_today);
+    if (d.okOn(h, tKey)) {
+      _toast('今天已打卡 · 无需宽限');
+      return;
+    }
+    await repo.useFreeze(h, day: tKey);
+    final after = await repo.habitById(h.id);
+    ref.read(habitTickProvider.notifier).state++;
+    _toast('已用一张宽限 · 连续 ${after?.streak ?? h.streak} 天未中断 · 本月剩 ${left - 1} 张');
+  }
+
   Future<void> _dotTap(Habit h, DateTime day, HabitData d) async {
     if (h.isArchived) return;
     final k = dayKey(day);

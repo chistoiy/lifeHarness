@@ -7,6 +7,7 @@ import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_dict.dart';
 import '../domain/habit_entry.dart';
+import '../domain/habit_slip.dart';
 
 /// 习惯模块仓储（习惯计划 §2.1/§4 批1）。
 ///
@@ -65,6 +66,7 @@ class HabitRepository {
   /// 新建/编辑（组子项整组替换写回）；返回带 id 的习惯。
   Future<Habit> saveHabit(Habit h) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    final prev = h.id.isEmpty ? null : await habitById(h.id);
     var row = h.toRow();
     if (h.id.isEmpty) {
       row['id'] = _newId();
@@ -92,6 +94,15 @@ class HabitRepository {
         });
       }
     });
+    // 改目标/单位 → 登记生效历史（统计按该日生效目标判定，不追改历史）。
+    if (prev != null && (prev.goal != h.goal || prev.unit != h.unit)) {
+      await addGoalHist(
+        saved.id,
+        goal: h.goal,
+        unit: h.unit,
+        effectiveFrom: dayKey(DateTime.now()),
+      );
+    }
     await recomputeStats(saved.id);
     return (await habitById(saved.id)) ?? saved;
   }
@@ -351,6 +362,296 @@ class HabitRepository {
     );
     return rows.isEmpty ? null : HabitDict.fromRow(rows.first);
   }
+
+  // ---- habit_slips（负向触发 · 批2）----
+
+  /// 记一次触发（原型 tgSave 口径）：当日流水 checked=0（一等数据，不剔除）、
+  /// 有单位时量累加；触发即断连（recomputeStats 自然归零）。
+  Future<void> recordTrigger(
+    String habitId, {
+    required String day,
+    double? amount,
+    String? amountText,
+    List<String> reasons = const [],
+    String? note,
+    String? checkAt,
+  }) async {
+    final prev = (await entriesOf(habitId))[day];
+    await upsertEntry(
+      habitId,
+      day: day,
+      checked: false,
+      value: amount == null ? null : (prev?.value ?? 0) + amount,
+      origin: HabitEntry.oManual,
+      checkAt: checkAt,
+      note: note,
+    );
+    await db.insert(DbSchema.tHabitSlips, {
+      'habit_id': habitId,
+      'day': day,
+      'check_at': checkAt,
+      'amount': amount,
+      'amount_text': amountText,
+      'reasons': reasons.join(','),
+      'note': note,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    });
+  }
+
+  /// 触发记录（新→旧）。
+  Future<List<HabitSlip>> slipsOf(String habitId) async {
+    final rows = await db.query(
+      DbSchema.tHabitSlips,
+      where: 'habit_id = ?',
+      whereArgs: [habitId],
+      orderBy: 'day DESC, id DESC',
+    );
+    return [for (final r in rows) HabitSlip.fromRow(r)];
+  }
+
+  Future<int> slipCountIn(String habitId, String fromDay, String toDay) async =>
+      Sqflite.firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM ${DbSchema.tHabitSlips} WHERE habit_id = ? AND day >= ? AND day <= ?',
+          [habitId, fromDay, toDay],
+        ),
+      ) ??
+      0;
+
+  // ---- habit_freezes（宽限卡 · 批2）----
+
+  /// 本月剩余宽限张数（计划 §2.1：余额按 月已用 计数推导，不存列）。
+  Future<int> graceLeft(Habit h) async {
+    final limit = await kvInt('habit.grace', 1);
+    if (limit <= 0) return 0;
+    final now = DateTime.now();
+    final used =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            "SELECT COUNT(*) FROM ${DbSchema.tHabitFreezes} WHERE habit_id = ? AND day LIKE ?",
+            [h.id, '${now.year}-${now.month.toString().padLeft(2, '0')}-%'],
+          ),
+        ) ??
+        0;
+    return (limit - used).clamp(0, limit);
+  }
+
+  /// 用一张宽限抵今日断签：frozen=1 只保连续、不算达成（§5-6）。
+  Future<void> useFreeze(Habit h, {required String day}) async {
+    await db.transaction((txn) async {
+      await txn.insert(DbSchema.tHabitFreezes, {
+        'habit_id': h.id,
+        'day': day,
+        'used_at': DateTime.now().millisecondsSinceEpoch,
+        'source': 'grace',
+      });
+      await txn.insert(
+        DbSchema.tHabitEntries,
+        {
+          'habit_id': h.id,
+          'day': day,
+          'checked': 0,
+          'origin': HabitEntry.oManual,
+          'backfilled': 0,
+          'frozen': 1,
+          'note': '使用宽限卡',
+          'created_at': DateTime.now().millisecondsSinceEpoch,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
+    await recomputeStats(h.id);
+  }
+
+  Future<List<String>> freezesOf(String habitId) async => [
+    for (final r in await db.query(
+      DbSchema.tHabitFreezes,
+      where: 'habit_id = ?',
+      whereArgs: [habitId],
+      orderBy: 'day ASC',
+    ))
+      r['day'] as String,
+  ];
+
+  // ---- habit_goal_hist（目标生效历史 · 表先建，批4 消费）----
+
+  /// 改目标时登记一条生效历史（goalHist 口径：不追改历史）。
+  Future<void> addGoalHist(
+    String habitId, {
+    required double? goal,
+    String? unit,
+    String? subGoal,
+    required String effectiveFrom,
+  }) => db.insert(DbSchema.tHabitGoalHist, {
+    'habit_id': habitId,
+    'goal': goal,
+    'unit': unit,
+    'sub_goal': subGoal,
+    'effective_from': effectiveFrom,
+  });
+
+  Future<List<Map<String, Object?>>> goalHistOf(String habitId) => db.query(
+    DbSchema.tHabitGoalHist,
+    where: 'habit_id = ?',
+    whereArgs: [habitId],
+    orderBy: 'effective_from ASC',
+  );
+
+  // ---- habit_dict 管理（改名事务迁移 / 引用守卫 / 迁移并删除 · 批2）----
+
+  /// 被引用处数：分类=habits.cat；单位=habits.unit + habit_subs.unit。
+  Future<int> dictRefCount(String kind, String name) async =>
+      kind == HabitDict.kUnit
+      ? Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT (SELECT COUNT(*) FROM ${DbSchema.tHabits} WHERE unit = ? AND deleted_at IS NULL)'
+            ' + (SELECT COUNT(*) FROM ${DbSchema.tHabitSubs} WHERE unit = ?)',
+            [name, name],
+          ),
+        ) ??
+        0
+      : Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM ${DbSchema.tHabits} WHERE cat = ? AND deleted_at IS NULL',
+            [name],
+          ),
+        ) ??
+        0;
+
+  /// 改名：事务内同步 habits / habit_subs / habit_goal_hist 引用（计划 §2.1）。
+  /// 同名或空名返回 false 不动库。
+  Future<bool> renameDict(String kind, int id, String newName) async {
+    final rows = await db.query(
+      DbSchema.tHabitDict,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return false;
+    final old = rows.first['name'] as String;
+    final n = newName.trim();
+    if (n.isEmpty || n == old) return false;
+    final dup = await db.query(
+      DbSchema.tHabitDict,
+      where: 'kind = ? AND name = ? AND id <> ?',
+      whereArgs: [kind, n, id],
+      limit: 1,
+    );
+    if (dup.isNotEmpty) return false;
+    await db.transaction((txn) async {
+      await txn.update(
+        DbSchema.tHabitDict,
+        {'name': n},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (kind == HabitDict.kUnit) {
+        await txn.update(
+          DbSchema.tHabits,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [old],
+        );
+        await txn.update(
+          DbSchema.tHabitSubs,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [old],
+        );
+        await txn.update(
+          DbSchema.tHabitGoalHist,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [old],
+        );
+      } else {
+        await txn.update(
+          DbSchema.tHabits,
+          {'cat': n},
+          where: 'cat = ?',
+          whereArgs: [old],
+        );
+      }
+    });
+    return true;
+  }
+
+  /// 把 from 的引用整体迁到 to（分类或单位），随后删除 from。
+  Future<int> mergeDict(String kind, String from, String to) async {
+    final n = to.trim();
+    if (n.isEmpty || n == from) return 0;
+    final cnt = await dictRefCount(kind, from);
+    await db.transaction((txn) async {
+      if (kind == HabitDict.kUnit) {
+        await txn.update(
+          DbSchema.tHabits,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [from],
+        );
+        await txn.update(
+          DbSchema.tHabitSubs,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [from],
+        );
+        await txn.update(
+          DbSchema.tHabitGoalHist,
+          {'unit': n},
+          where: 'unit = ?',
+          whereArgs: [from],
+        );
+      } else {
+        await txn.update(
+          DbSchema.tHabits,
+          {'cat': n},
+          where: 'cat = ?',
+          whereArgs: [from],
+        );
+      }
+      await txn.delete(
+        DbSchema.tHabitDict,
+        where: 'kind = ? AND name = ?',
+        whereArgs: [kind, from],
+      );
+    });
+    return cnt;
+  }
+
+  /// 上移/下移一位（与相邻交换 sort）。
+  Future<void> moveDict(String kind, int id, int delta) async {
+    final rows = await db.query(
+      DbSchema.tHabitDict,
+      where: 'kind = ?',
+      whereArgs: [kind],
+      orderBy: 'sort ASC',
+    );
+    final i = rows.indexWhere((r) => r['id'] == id);
+    final j = i + delta;
+    if (i < 0 || j < 0 || j >= rows.length) return;
+    await db.transaction((txn) async {
+      await txn.update(
+        DbSchema.tHabitDict,
+        {'sort': rows[j]['sort']},
+        where: 'id = ?',
+        whereArgs: [rows[i]['id']],
+      );
+      await txn.update(
+        DbSchema.tHabitDict,
+        {'sort': rows[i]['sort']},
+        where: 'id = ?',
+        whereArgs: [rows[j]['id']],
+      );
+    });
+  }
+
+  /// 删除字典项（调用方须先过 dictRefCount 引用守卫）。
+  Future<void> deleteDict(String kind, int id) => db.delete(
+    DbSchema.tHabitDict,
+    where: 'kind = ? AND id = ?',
+    whereArgs: [kind, id],
+  );
 
   // ---- habit.* 设置（settings 表 KV · 计划 §6）----
 

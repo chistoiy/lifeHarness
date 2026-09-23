@@ -34,6 +34,7 @@ class HabitData {
     required this.spanFromStart,
     required this.rateByTotalDays,
     required this.grace,
+    required this.graceOf,
   });
 
   final List<Habit> habits;
@@ -51,6 +52,9 @@ class HabitData {
   final bool spanFromStart;
   final bool rateByTotalDays;
   final int grace;
+
+  /// habitId → 本月剩余宽限张数（§2.1：余额按 月已用 推导）。
+  final Map<String, int> graceOf;
 
   /// 未归档（原型 hbBook）。
   List<Habit> get book => habits.where((h) => !h.isArchived).toList();
@@ -100,6 +104,9 @@ final habitDataProvider = FutureProvider<HabitData>((ref) async {
     spanFromStart: await repo.kvBool('habit.spanFromStart', true),
     rateByTotalDays: (await repo.kvInt('habit.rateBase', 0)) == 1,
     grace: await repo.kvInt('habit.grace', 1),
+    graceOf: {
+      for (final h in habits) h.id: await repo.graceLeft(h),
+    },
   );
 });
 

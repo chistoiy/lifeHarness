@@ -25,6 +25,12 @@ void messengerToast(ScaffoldMessengerState m, String msg) => m
     ),
   );
 
+/// 底部弹层骨架公开入口（供 habit_aux_sheets 等复用）。
+Future<T?> hBottomSheet<T>(
+  BuildContext context,
+  Widget Function(BuildContext) build,
+) => _hSheet<T>(context, build);
+
 /// 底部弹层骨架（真机验收轮2 同款：constraints 限高=屏高-状态栏-24，
 /// 作为 sheet 约束参与布局；builder 内 viewInsets 取弹层自身 context）。
 Future<T?> _hSheet<T>(BuildContext context, Widget Function(BuildContext) build) =>

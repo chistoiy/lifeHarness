@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 16;
+  static const int version = 17;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -56,6 +56,10 @@ class DbSchema {
   static const String tHabitEntries = 'habit_entries';
   static const String tHabitEntrySubs = 'habit_entry_subs';
   static const String tHabitDict = 'habit_dict';
+  static const String tHabitSlips = 'habit_slips';
+  static const String tHabitFreezes = 'habit_freezes';
+  static const String tHabitGoalHist = 'habit_goal_hist';
+  static const String tHabitPend = 'habit_pend';
 
   /// 插件表前缀约定：宿主建表/校验/清理时据此识别。
   static const String pluginPrefix = 'plugin_';
@@ -311,6 +315,7 @@ class DbSchema {
     ...bookReviewSchemaStatements,
     ...bookListSchemaStatements,
     ...habitSchemaStatements,
+    ...habitAuxSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -502,6 +507,11 @@ class DbSchema {
     15: [
       ...habitSchemaStatements,
     ],
+    // v17（M1·习惯批2）：九表补齐——触发/宽限/目标历史/待确认队列四张辅表。
+    // 一次建齐避免批4/批5 再抬版本；goal_hist 与 pend 批4/批5 才写入。
+    16: [
+      ...habitAuxSchemaStatements,
+    ],
   };
 
   /// v16 习惯五表 DDL（建库与迁移共用，保两处永远同文·幂等 · 习惯计划 §2.1）。
@@ -596,6 +606,60 @@ class DbSchema {
     "INSERT OR IGNORE INTO $tHabitDict(kind,name,sort) VALUES"
         "('unit','分钟',1),('unit','个',2),('unit','次',3),('unit','杯',4),('unit','页',5),"
         "('unit','词',6),('unit','字',7),('unit','公里',8),('unit','组',9),('unit','篇',10),('unit','题',11)",
+  ];
+
+  /// v17 习惯辅四表 DDL（建库与迁移共用同文·幂等 · 习惯计划 §2.1 九表补齐）。
+  static const List<String> habitAuxSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitSlips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      check_at TEXT,
+      amount REAL,
+      amount_text TEXT,
+      reasons TEXT,
+      note TEXT,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hslip_habit ON $tHabitSlips(habit_id)',
+    'CREATE INDEX IF NOT EXISTS idx_hslip_day ON $tHabitSlips(day)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitFreezes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      used_at INTEGER,
+      source TEXT NOT NULL DEFAULT 'grace'
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hfrz_habit ON $tHabitFreezes(habit_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitGoalHist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      goal REAL,
+      unit TEXT,
+      sub_goal TEXT,
+      effective_from TEXT NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hgh_habit ON $tHabitGoalHist(habit_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tHabitPend (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      src TEXT,
+      value REAL,
+      sub_values TEXT,
+      created_at INTEGER,
+      state TEXT NOT NULL DEFAULT 'pending'
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_hpend_habit ON $tHabitPend(habit_id)',
+    'CREATE INDEX IF NOT EXISTS idx_hpend_state ON $tHabitPend(state)',
   ];
 
   /// v12 阅读三表 DDL（建库与迁移共用，保两处永远同文）。

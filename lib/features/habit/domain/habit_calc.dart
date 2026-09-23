@@ -111,15 +111,23 @@ bool _keepsChain(Habit h, HabitEntry? e) =>
 
 /// 连续天数（当前 streak · §5-6）：自 today 沿日回溯，仅计划日计入；
 /// 计划日未达成即断；frozen=1（宽限日）与非计划日不断连也不计数。
-/// 今天（计划日）尚未打卡不判为断，从昨天起算（当日仍开放）。
-/// 注：week 无固定日/月周期不存在「日」粒度计划，streak 恒 0（原型同口径）。
+/// 今天（计划日）尚未打卡不判为断，从昨天起算（当日仍开放）；
+/// 但负向今日已有触发行（checked=0）＝事实断连，不适用开放豁免（§5-10）。
 int habitStreak(Habit h, Map<String, HabitEntry> entries, DateTime today) {
   final start = parseDay(h.startDate);
   var d = dayStart(today);
   if (d.isBefore(start)) return 0;
-  if (habitPlannedOn(h, d) && !_keepsChain(h, entries[dayKey(d)])) {
-    d = d.subtract(const Duration(days: 1));
+  final e0 = entries[dayKey(d)];
+  if (habitPlannedOn(h, d) && !_keepsChain(h, e0)) {
+    if (e0 == null || (!h.isNeg && e0.checked && !h.hasVal)) {
+      // 当日仍开放：无流水行，或正向无量今日未打卡（撤销态≠断签）。
+      d = d.subtract(const Duration(days: 1));
+    } else {
+      // 负向触发行（checked=0）＝事实断连，不适用开放豁免（§5-10）。
+      return 0;
+    }
   }
+  // 注：week 无固定日/月周期不存在「日」粒度计划，streak 恒 0（原型同口径）。
   var n = 0;
   while (!d.isBefore(start)) {
     if (habitPlannedOn(h, d)) {

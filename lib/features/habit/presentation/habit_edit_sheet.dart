@@ -8,6 +8,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_dict.dart';
+import 'habit_aux_sheets.dart';
 import 'habit_providers.dart';
 import 'habit_sheets.dart';
 import 'widgets/habit_kit.dart';
@@ -373,7 +374,7 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
                     ),
                   PillChip(
                     label: '＋ 自定义',
-                    onTap: () => habitToast(context, '分类管理 · 批2交付'),
+                    onTap: () => showHabitMgrSheet(context, HabitDict.kCat),
                   ),
                 ],
               ),
@@ -535,10 +536,8 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
                                     ),
                                   PillChip(
                                     label: '＋ 自定义',
-                                    onTap: () => habitToast(
-                                      context,
-                                      '单位管理 · 批2交付',
-                                    ),
+                                    onTap: () =>
+                                        showHabitMgrSheet(context, HabitDict.kUnit),
                                   ),
                                 ],
                               ),

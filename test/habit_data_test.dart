@@ -76,7 +76,11 @@ void main() {
 
     test('建库段与迁移段同文（共用 habitSchemaStatements）', () {
       expect(DbSchema.migrations[15], equals(DbSchema.habitSchemaStatements));
-      expect(DbSchema.version, 16);
+      expect(
+        DbSchema.migrations[16],
+        equals(DbSchema.habitAuxSchemaStatements),
+      );
+      expect(DbSchema.version, 17);
     });
   });
 

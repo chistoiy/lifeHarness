@@ -40,6 +40,7 @@ void main() {
     List<int> weekDays = const [],
     String? unit,
     double? goal,
+    int negLimit = 0,
     String? groupRule,
     List<HabitSub> subs = const [],
     List<String> src = const ['手动打卡'],
@@ -53,11 +54,11 @@ void main() {
         weekDays: weekDays,
         unit: unit,
         goal: goal,
+        negLimit: negLimit,
         groupRule: groupRule,
         subs: subs,
         sourceKinds: src,
         startDate: key(30),
-        negLimit: type == Habit.kNeg ? 2 : 0,
       ),
     );
     if (arch) await repo.setArchived(h.id, true);
@@ -179,19 +180,30 @@ void main() {
     expect((await repo.entriesOf(h.id)).length, 0);
   });
 
-  testWidgets('负向：今天没做落流水 checked=1；记一次触发为批2占位', (tester) async {
-    final h = await seed(name: '奶茶', type: Habit.kNeg);
+  testWidgets('负向：今天没做落流水 checked=1；记一次触发弹层落 slip 并断连', (tester) async {
+    final h = await seed(name: '奶茶', type: Habit.kNeg, unit: '杯', goal: 1, negLimit: 2);
     await useSurface(tester);
     await pump(tester);
     await tester.tap(find.text('今天没做'));
     await settle5(tester);
     expect(await pollText(tester, '未触发 +1 · 已连续 1 天守住'), isTrue);
-    final e = (await repo.entriesOf(h.id))[dayKey(DateTime.now())]!;
-    expect(e.checked, isTrue);
+    final e0 = (await repo.entriesOf(h.id))[dayKey(DateTime.now())]!;
+    expect(e0.checked, isTrue);
     await clearToasts(tester);
     await tester.tap(find.text('记一次触发'));
     await settle5(tester);
-    expect(await pollText(tester, '记一次触发 · 批2交付'), isTrue);
+    expect(find.text('记一次触发 · 奶茶'), findsOneWidget);
+    expect(find.text('如实记录即可 · 只统计，不评判'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('btn-htrig-save')));
+    expect(
+      await pollText(tester, '已记录 · 这次 1 杯 · 本周 1/2 · 还剩 1 次额度'),
+      isTrue,
+    );
+    // 触发日是一等数据：流水行 checked=0，slip 落表，连续归零
+    final e1 = (await repo.entriesOf(h.id))[dayKey(DateTime.now())]!;
+    expect(e1.checked, isFalse);
+    expect(await repo.slipsOf(h.id), hasLength(1));
+    expect((await repo.habitById(h.id))!.streak, 0);
   });
 
   testWidgets('回看模式：‹ 回退一天出提示、动作区替换', (tester) async {
