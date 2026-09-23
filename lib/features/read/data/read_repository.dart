@@ -685,6 +685,21 @@ class ReadRepository {
     orderBy: 'created_at ASC',
   )).map(BookQuote.fromRow).toList();
 
+  /// 书架搜索（原型 shFiltered 4549：匹配范围含该书摘录原文）：
+  /// kw 命中的 book_id 集合（原文/想法/多选标签 LIKE，未软删行）。
+  Future<Set<String>> quoteBookIdsMatching(String kw) async {
+    final k = kw.trim();
+    if (k.isEmpty) return const {};
+    final like = '%$k%';
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT book_id FROM ${DbSchema.tBookQuotes} '
+      'WHERE deleted_at IS NULL '
+      'AND (body LIKE ? OR thought LIKE ? OR tags LIKE ?)',
+      [like, like, like],
+    );
+    return rows.map((r) => r['book_id'] as String).toSet();
+  }
+
   /// 全部标签（笔记库筛选 chip 与表单多选共用）：字典优先、按使用频次排序兜底。
   Future<List<String>> quoteTags() async =>
       (await dictOf(DictEntry.kTag)).map((e) => e.name).toList();

@@ -101,7 +101,9 @@ void main() {
           path: '/read/settings',
           builder: (_, _) => const ReadSettingsPage()),
       GoRoute(
-          path: '/read/mgr', builder: (_, _) => const BookMgrPage()),
+          path: '/read/mgr',
+          builder: (_, s) => BookMgrPage(
+              kind: s.uri.queryParameters['kind'] ?? 'source')),
     ]);
     return ProviderScope(
       overrides: [readRepositoryProvider.overrideWithValue(repo)],
@@ -220,7 +222,8 @@ void main() {
       expect(find.byKey(const ValueKey('sh-grid-3-')), findsOneWidget);
     });
 
-    testWidgets('R-6 管理批量移已读：计数·目标卡·时间线同帧同步', (tester) async {
+    testWidgets('R-6 批量浮动条移分区（循环到下一分区）：计数·目标卡·时间线同帧同步',
+        (tester) async {
       await seed5();
       await tester.pumpWidget(page(const ShelfPage()));
       await settle(tester);
@@ -235,42 +238,333 @@ void main() {
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('sh-item-b')));
       await settle(tester);
-      expect(find.text('已选 2'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('bat-已读')));
+      expect(find.text('已选 2 本'), findsOneWidget);
+      // 原型 shBatchMove：首本当前分区（在读）→ 循环到下一分区（想读）
+      await tester.tap(find.byKey(const ValueKey('bat-move')));
+      await settle(tester);
+      expect(find.text('已将 2 本移入「想读」'), findsOneWidget);
+      await clearToasts(tester);
+      expect(find.text('在读 0'), findsOneWidget);
+      expect(find.text('想读 3'), findsOneWidget);
+      // 再循环一次：想读 → 已读（数据层补满进度与 ended_at）
+      await tester.tap(find.byKey(const ValueKey('sh-manage')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-b')));
+      await settle(tester);
+      expect(find.text('已选 2 本'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('bat-move')));
       await settle(tester);
       await clearToasts(tester);
       await waitFinder(tester, find.textContaining('3 / 50 本'));
-
-      // 计数：已读 3 · 在读 0；目标卡 3/50
-      expect(find.text('在读 0'), findsOneWidget);
       expect(find.text('已读 3'), findsOneWidget);
-      // 数据层：批量移已读补满进度与 ended_at
       final a = (await repo.allBooks()).firstWhere((b) => b.id == 'a');
       expect(a.readPages, a.pages);
       expect(a.endedAt, isNotNull);
-      // 时间线视图同步出现「读完《书A》」
-      for (var i = 0; i < 3; i++) {
+      // 时间线视图（墙→墙4→列表→书脊→时间线，第 4 次点）同步出现「读完《书A》」
+      for (var i = 0; i < 4; i++) {
         await tester.tap(find.byKey(const ValueKey('sh-view')));
         await settle(tester);
       }
-      await waitFinder(tester, find.text('读完《书A》'));
-      expect(find.text('读完《书B》'), findsOneWidget);
+      await waitFinder(tester, find.textContaining('读完《书A》'));
+      expect(find.textContaining('读完《书B》'), findsOneWidget);
     });
 
-    testWidgets('R-7 ⇅ 面板：切排序维度行出现并可回默认', (tester) async {
+    testWidgets('R-6b 批量浮动条：加标签落库 · 删除＝软删 30 天文案', (tester) async {
+      await seed5();
+      await repo.addQuote(BookQuote(
+        bookId: 'a',
+        kind: BookQuote.kKindMark,
+        body: '先有一条摘录',
+        createdAt: ms(2),
+        updatedAt: ms(2),
+      ));
+      await tester.pumpWidget(page(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-manage')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('bat-tag')));
+      await settle(tester);
+      await tester.enterText(
+          find.byKey(const ValueKey('bat-tag-new')), '方法论');
+      await tester.tap(find.byKey(const ValueKey('bat-tag-ok')));
+      await settle(tester);
+      await waitFinder(tester, find.text('已为 1 本加上 #方法论'));
+      final tagged = (await repo.allBooks()).firstWhere((b) => b.id == 'a');
+      expect(tagged.tags, contains('方法论'));
+      expect(await repo.quoteTags(), contains('方法论'));
+      await clearToasts(tester);
+      // 批量删除：软删 + 原型 4627 逐字文案（笔记与时长保留 30 天可恢复）
+      await tester.tap(find.byKey(const ValueKey('sh-manage')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-b')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('bat-del')));
+      await settle(tester);
+      await waitFinder(
+          tester, find.text('已移出书架 2 本（笔记与时长保留 30 天可恢复）'));
+      final left = (await repo.allBooks());
+      expect(left.firstWhere((b) => b.id == 'a').isDeleted, isTrue);
+      expect(left.firstWhere((b) => b.id == 'b').isDeleted, isTrue);
+      // 摘录与计时不随书删除（软删语义）
+      expect(await repo.allQuotes(), hasLength(1));
+    });
+
+    testWidgets('R-6c 批量浮动条「取消」退出多选且不写库', (tester) async {
       await seed5();
       await tester.pumpWidget(page(const ShelfPage()));
       await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-manage')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-item-a')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('bat-bar')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('bat-cancel')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('bat-bar')), findsNothing);
+      final a = (await repo.allBooks()).firstWhere((b) => b.id == 'a');
+      expect(a.state, Book.kStateReading);
+    });
+
+    testWidgets('R-7 ⇅ 面板「书架排序与筛选」：6 行竖排钮 · 清空筛选', (tester) async {
+      await seed5();
+      await tester.pumpWidget(page(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
       await tester.tap(find.byKey(const ValueKey('sh-panel')));
       await settle(tester);
+      expect(find.text('书架排序与筛选'), findsOneWidget);
+      // 原型 2339-2347：排序＝6 行全宽按钮
+      for (final (k, _) in kShelfSorts) {
+        expect(find.byKey(ValueKey('panel-sort-$k')), findsOneWidget,
+            reason: '排序项 $k');
+      }
+      await tester.ensureVisible(find.byKey(const ValueKey('panel-dim-author')));
       await tester.tap(find.byKey(const ValueKey('panel-dim-author')));
       await settle(tester);
-      // 维度值行出现（作者各异 → 5 组）
-      expect(find.text('回到默认'), findsOneWidget);
-      expect(find.textContaining('· 1 本'), findsWidgets);
-      await tester.tap(find.byKey(const ValueKey('sh-dim-reset')));
+      // 选中态：排序钮带 ✓（当前 recent 选中）
+      expect(find.text('书名（拼音）'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('panel-done')));
+      await tester.tap(find.byKey(const ValueKey('panel-done')));
       await settle(tester);
-      expect(find.text('回到默认'), findsNothing);
+      // 维度值行：值 chips 带「N 本」计数（原型 5389-5396）
+      expect(find.text('作者书A 1 本'), findsOneWidget);
+      expect(find.text('作者书E 1 本'), findsOneWidget);
+      // 清空筛选＝kw/维度/分区/排序全回默认
+      await tester.tap(find.byKey(const ValueKey('sh-panel')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('panel-reset')));
+      await tester.tap(find.byKey(const ValueKey('panel-reset')));
+      await settle(tester);
+      await clearToasts(tester);
+      await tester.tap(find.byKey(const ValueKey('panel-done')));
+      await settle(tester);
+      expect(find.text('作者书A 1 本'), findsNothing);
+      expect(find.text('5 本 · 全部'), findsOneWidget);
+    });
+
+    testWidgets('R-7b 维度行「管理作者」跳 /read/mgr?kind=author', (tester) async {
+      await seed5();
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-panel')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('panel-dim-author')));
+      await tester.tap(find.byKey(const ValueKey('panel-dim-author')));
+      await tester.tap(find.byKey(const ValueKey('panel-done')));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('sh-dim-mgr-author')));
+      await tester.tap(find.byKey(const ValueKey('sh-dim-mgr-author')));
+      await settle(tester);
+      expect(find.text('书架资料'), findsOneWidget);
+      // 默认 tab 跟随 kind 参数
+      expect(find.byKey(const ValueKey('bkm-add-inp-author')), findsOneWidget);
+    });
+
+    testWidgets('R-7c 搜索：placeholder 与命中摘录原文/标签', (tester) async {
+      await repo.addBook(bk('s1', '稀缺书', Book.kStateReading, last: ms(1))
+          .copyWith(tags: const ['稀缺标签']));
+      await repo.addBook(bk('s2', '另一本', Book.kStateReading, last: ms(1)));
+      await repo.addQuote(BookQuote(
+        bookId: 's1',
+        kind: BookQuote.kKindMark,
+        body: '只有摘录里出现的句子',
+        createdAt: ms(2),
+        updatedAt: ms(2),
+      ));
+      await tester.pumpWidget(page(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      // openTab 默认「在读」→ 先回「全部」（底行统计断言需要）。
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
+      expect(find.text('搜索书名 / 作者 / 标签 / 摘录'), findsOneWidget);
+      // 命中摘录：书名/作者都不含该串
+      await tester.enterText(find.byKey(const ValueKey('sh-kw')), '出现的句子');
+      await waitFinder(tester, find.text('1 本 · 全部'));
+      expect(find.byKey(const ValueKey('sh-item-s1')), findsOneWidget);
+      // 命中标签
+      await tester.enterText(find.byKey(const ValueKey('sh-kw')), '稀缺标签');
+      await waitFinder(tester, find.text('1 本 · 全部'));
+      expect(find.byKey(const ValueKey('sh-item-s2')), findsNothing);
+      await tester.enterText(find.byKey(const ValueKey('sh-kw')), '无此内容');
+      await settle(tester);
+      expect(find.textContaining('没有符合条件的书'), findsOneWidget);
+    });
+
+    testWidgets('R-7d 目标卡：剩天/预计达成/白进度条 · 编号格阵与年度书单',
+        (tester) async {
+      final y = DateTime.now().year;
+      final done1 = bk('g1', '今年第一本', Book.kStateDone, last: ms(3))
+          .copyWith(endedAt: DateTime(y, 3, 5).millisecondsSinceEpoch);
+      final done2 = bk('g2', '今年第二本', Book.kStateDone, last: ms(2))
+          .copyWith(endedAt: DateTime(y, 5, 9).millisecondsSinceEpoch);
+      await repo.addBook(done1);
+      await repo.addBook(done2);
+      await repo.addBook(bk('g3', '还在读', Book.kStateReading));
+      await tester.pumpWidget(routed(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.textContaining('读完 2 / 50 本'));
+      final now = DateTime.now();
+      final daysLeft =
+          DateTime(y, 12, 31).difference(DateTime(now.year, now.month, now.day)).inDays + 1;
+      // 原型 826：剩 N 天 · 节奏刚好（预计 MM-DD 达成）
+      expect(find.textContaining('剩 $daysLeft 天 · 节奏刚好（预计 '), findsOneWidget);
+      // 白色进度条（LinearProgressIndicator 值 = 2/50）
+      final bar = tester.widget<LinearProgressIndicator>(
+          find.byKey(const ValueKey('sh-goal-bar')));
+      expect(bar.value, closeTo(2 / 50, 1e-9));
+      // 编号格阵：min(goal,40) 格，前两格点亮、第三格为占位灰格
+      await tester.tap(find.byKey(const ValueKey('sh-yearbox-toggle')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('sh-yencell-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sh-yencell-39')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sh-yencell-40')), findsNothing);
+      // 点亮格跳该书详情（原型 blDetailYear → 详情）
+      final router = GoRouter.of(
+          tester.element(find.byKey(const ValueKey('sh-yencell-0'))));
+      await tester.tap(find.byKey(const ValueKey('sh-yencell-0')));
+      await settle(tester);
+      expect(find.text('今年第一本'), findsWidgets);
+      router.pop();
+      await settle(tester);
+      // 无年度单 → 「年度书单」触发生成并进入
+      await tester.tap(find.byKey(const ValueKey('sh-year-list')));
+      await settle(tester);
+      await clearToasts(tester);
+      final l = await repo.findAutoYear(y);
+      expect(l, isNotNull);
+      expect((await repo.listMembers(l!)).map((b) => b.id), ['g1', 'g2']);
+    });
+
+    testWidgets('R-7e 视图循环序＝墙3→墙4→列表→书脊→时间线（原型 4545）',
+        (tester) async {
+      await seed5();
+      await tester.pumpWidget(page(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('sh-grid-3-')), findsOneWidget);
+      final expectView = <String, Finder>{
+        'wall4': find.byKey(const ValueKey('sh-grid-4-')),
+        'rows': find.byKey(const ValueKey('sh-row-timer-a')),
+        'spine': find.text('书脊高度＝总页数 · 白点＝在读 · 点书脊看详情，长按进多选'),
+        'time': find.textContaining('读完《书D》'),
+      };
+      for (final key in ['wall4', 'rows', 'spine', 'time']) {
+        await tester.tap(find.byKey(const ValueKey('sh-view')));
+        await settle(tester);
+        await clearToasts(tester);
+        expect(expectView[key], findsOneWidget, reason: '切到 $key 视图');
+      }
+      await tester.tap(find.byKey(const ValueKey('sh-view')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('sh-grid-3-')), findsOneWidget);
+    });
+
+    testWidgets('R-7f 长按菜单尾行「查看书籍详情」· 工作台轨卡同弹层',
+        (tester) async {
+      await seed5();
+      await tester.pumpWidget(routed(const ReadWorkbench()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rail-a')));
+      await tester.longPress(find.byKey(const ValueKey('rail-a')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('lp-quote')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('lp-detail')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('seg-c')), findsOneWidget);
+    });
+
+    testWidgets('R-7g 时间线：读完+购书/评分/会话/摘录四类事件·日头·尾行',
+        (tester) async {
+      await repo.addBook(Book(
+          id: 't1',
+          title: '书T',
+          author: '作者T',
+          state: Book.kStateDone,
+          pages: 300,
+          readPages: 300,
+          startedAt: ms(5),
+          endedAt: ms(2),
+          lastReadAt: ms(2),
+          rating: 9,
+          fee: 59,
+          finalNote: '双系统理论的结构性梳理',
+          createdAt: ms(30),
+          updatedAt: ms(2)));
+      await repo.addQuote(BookQuote(
+          bookId: 't1',
+          kind: BookQuote.kKindMark,
+          body: '你并没有 rise to the level of your goals，你只是 fall to the level of your systems 而已啊真的很长',
+          createdAt: ms(2),
+          updatedAt: ms(2)));
+      await repo.addManualSession(
+          bookId: 't1',
+          day: DateTime.now().subtract(const Duration(days: 1)),
+          minutes: 40,
+          fromPage: 12,
+          toPage: 30);
+      await tester.pumpWidget(page(const ShelfPage()));
+      await settle(tester);
+      await useSurface(tester);
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('sh-chip-全部')));
+      await settle(tester);
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.byKey(const ValueKey('sh-view')));
+        await settle(tester);
+      }
+      await clearToasts(tester);
+      // 原型 bsEvents 文案：读完·页数·购书 ¥ / 评了 N 分：总结 / 读了 N 分钟·P起→P止 / 划线「原文46字」。
+      expect(
+          find.textContaining('读完《书T》· 300 页 · 购书 ¥59'), findsOneWidget);
+      expect(find.textContaining('评了 9 分：双系统理论的结构性梳理'), findsOneWidget);
+      expect(find.textContaining('读了 40 分钟 · P12→30'), findsOneWidget);
+      expect(find.textContaining('「你并没有 rise'), findsOneWidget);
+      // 书名·作者副行 + 日头计数 + 尾行说明（原型 shTimeline）。
+      expect(find.text('书T · 作者T'), findsWidgets);
+      expect(find.textContaining(' 条'), findsWidgets);
+      expect(find.textContaining('范围可在阅读设置里调'), findsOneWidget);
     });
 
     testWidgets('R-8 长按菜单 → 记摘录落库并回显最近摘录', (tester) async {

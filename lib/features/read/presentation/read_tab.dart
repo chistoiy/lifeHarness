@@ -9,6 +9,7 @@ import 'book_detail.dart' show BookDetailArg;
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
+import 'shelf_page.dart' show showLongPressSheet;
 import 'widgets/bs_cover.dart';
 
 /// 记录页·阅读 tab = 书架工作台（原型 renderRecHub · V1.30 §3.4）。
@@ -413,19 +414,21 @@ class ReadWorkbench extends ConsumerWidget {
   }
 }
 
-/// 封面横向滑动轨道卡（LH-L07：106px 列宽·露半张暗示·按最近阅读倒序）。
-class _RailCard extends StatelessWidget {
+/// 封面横向滑动轨道卡（LH-L07：106px 列宽·露半张暗示·按最近阅读倒序；
+/// 原型 5543 oncontextmenu＝长按与书架同一 showLongPressSheet）。
+class _RailCard extends ConsumerWidget {
   const _RailCard({required this.book});
   final Book book;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 106,
       child: GestureDetector(
         key: ValueKey('rail-${book.id}'),
         onTap: () => context.push('/read/book/${book.id}'),
+        onLongPress: () => showLongPressSheet(context, ref, book),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

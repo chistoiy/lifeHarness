@@ -14,30 +14,41 @@ class ShelfQuery {
     this.dim = 'none',
     this.dimVal = '',
     this.sort = 'recent',
+    this.quoteIds = const {},
   });
 
   final String? state; // 分区筛选；null=全部
-  final String kw; // 书名/作者 模糊
+  final String kw; // 书名/作者/标签/来源/分组/出版社/摘录原文 模糊（原型 4549）
   final String dim;
   final String dimVal;
   final String sort;
 
+  /// 摘录命中的 book_id 集合（repo.quoteBookIdsMatching 求得；kw 匹配范围之一）。
+  final Set<String> quoteIds;
+
   static int lastReadOf(Book b) =>
       b.lastReadAt ?? b.endedAt ?? b.startedAt ?? b.updatedAt;
+
+  /// 原型 shFiltered 的匹配串：书名+作者+标签+来源+分组+出版社+该书摘录原文。
+  bool matchesKw(Book b) {
+    if (kw.isEmpty) return true;
+    final k = kw.toLowerCase();
+    if (b.title.toLowerCase().contains(k) ||
+        b.author.toLowerCase().contains(k) ||
+        (b.source ?? '').toLowerCase().contains(k) ||
+        (b.grp ?? '').toLowerCase().contains(k) ||
+        (b.publisher ?? '').toLowerCase().contains(k) ||
+        b.tags.any((t) => t.toLowerCase().contains(k)) ||
+        quoteIds.contains(b.id)) {
+      return true;
+    }
+    return false;
+  }
 
   List<Book> apply(List<Book> all) {
     var out = all.where((b) => !b.isDeleted).toList();
     if (state != null) out = out.where((b) => b.state == state).toList();
-    if (kw.isNotEmpty) {
-      final k = kw.toLowerCase();
-      out = out
-          .where(
-            (b) =>
-                b.title.toLowerCase().contains(k) ||
-                b.author.toLowerCase().contains(k),
-          )
-          .toList();
-    }
+    if (kw.isNotEmpty) out = out.where(matchesKw).toList();
     if (dim != 'none' && dimVal.isNotEmpty) {
       out = out.where((b) => dimValuesOf(b).contains(dimVal)).toList();
     }
@@ -46,6 +57,8 @@ class ShelfQuery {
         'prog' => b.percent.compareTo(a.percent),
         'rate' => b.rating.compareTo(a.rating),
         'added' => a.createdAt.compareTo(b.createdAt),
+        // 原型 localeCompare(y.n,'zh')＝拼音序；Dart 无内置 zh collation，
+        // 工程现有依赖（intl 0.20.2）也不提供 Collator → 需引拼音库才能兑现，暂按码位序。
         'name' => a.title.compareTo(b.title),
         'pages' => b.pages.compareTo(a.pages),
         _ => lastReadOf(b).compareTo(lastReadOf(a)),
@@ -76,6 +89,18 @@ class ShelfQuery {
     final out = set.toList();
     if (dim == 'rate') out.sort((a, b) => b.compareTo(a));
     return out;
+  }
+
+  /// 维度值 → 引用该书数（原型 bsBindBtns 5391 值 chips 的 `bmCount` 计数徽标）。
+  static Map<String, int> dimValueCounts(String dim, List<Book> all) {
+    final q = ShelfQuery(dim: dim);
+    final m = <String, int>{};
+    for (final b in all.where((b) => !b.isDeleted)) {
+      for (final v in q.dimValuesOf(b)) {
+        m[v] = (m[v] ?? 0) + 1;
+      }
+    }
+    return m;
   }
 
   /// 分区计数（chips 带数）。

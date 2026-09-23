@@ -143,9 +143,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/read/settings',
         builder: (_, _) => const ReadSettingsPage(),
       ),
+      // 书架资料管理：?kind= 决定默认 tab（书架维度行「管理标签/来源/…」入口）。
       GoRoute(
         path: '/read/mgr',
-        builder: (_, _) => const BookMgrPage(),
+        builder: (_, s) {
+          const kinds = ['source', 'group', 'tag', 'author', 'publisher'];
+          final k = s.uri.queryParameters['kind'];
+          return BookMgrPage(kind: kinds.contains(k) ? k! : 'source');
+        },
       ),
       // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
       GoRoute(

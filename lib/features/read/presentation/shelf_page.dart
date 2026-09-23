@@ -1,24 +1,30 @@
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
+import '../domain/book_dict.dart';
+import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
+import '../domain/book_session.dart';
 import '../domain/shelf_query.dart';
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
 import 'widgets/bs_cover.dart';
 
-/// 书架视图循环 5 态（封面墙3 · 封面墙4 · 书脊 · 时间线 · 列表）。
-const kShelfViews = ['wall', 'wall4', 'spine', 'time', 'rows'];
+/// 书架视图循环 5 态（原型 shCycleView 4545 顺序：墙3 → 墙4 → 列表 → 书脊 → 时间线）。
+const kShelfViews = ['wall', 'wall4', 'rows', 'spine', 'time'];
 const kShelfViewLabels = {
   'wall': '封面墙',
   'wall4': '封面墙·4列',
+  'rows': '列表',
   'spine': '书脊',
   'time': '时间线',
-  'rows': '列表',
 };
 
 /// 排序 / 维度键（与原型 SH_SORTS / SH_DIMS 对齐）。
@@ -40,6 +46,48 @@ const kShelfDims = [
   ('src', '来源'),
   ('grp', '分组'),
 ];
+
+/// 维度 → 书架资料字典 kind（/read/mgr?kind= 用）。
+const kShelfDimDict = {
+  'tag': DictEntry.kTag,
+  'src': DictEntry.kSource,
+  'grp': DictEntry.kGroup,
+  'author': DictEntry.kAuthor,
+  'pub': DictEntry.kPublisher,
+};
+
+String kShelfDimLabel(String dim) =>
+    kShelfDims.firstWhere((e) => e.$1 == dim, orElse: () => ('none', '默认')).$2;
+
+/// 摘录命中集（原型 4549 搜索范围含该书摘录原文）。
+final shelfQuoteIdsProvider = FutureProvider.family<Set<String>, String>((
+  ref,
+  kw,
+) {
+  ref.watch(readTickProvider);
+  if (kw.trim().isEmpty) return const {};
+  return ref.watch(readRepositoryProvider).quoteBookIdsMatching(kw);
+});
+
+/// 时间线计时事件源（原型 bsSessions 逐书取最近 6 次会话）。
+final shelfSessionsProvider = FutureProvider<List<BookSession>>((ref) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).allSessions();
+});
+
+typedef _TlEv = (DateTime, IconData, String, Book);
+
+/// 近 30 天日均入账分钟（原型 bsYearETA 的 recent 口径：BS_LOG 近 30 天 / 30）。
+final shelfDaily30Provider = FutureProvider<double>((ref) async {
+  ref.watch(readTickProvider);
+  final sessions = await ref.watch(readRepositoryProvider).allSessions();
+  final from =
+      DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
+  final total = sessions
+      .where((s) => s.endedAt != null && s.endedAt! >= from)
+      .fold<int>(0, (t, s) => t + s.billedMinutes);
+  return total / 30;
+});
 
 class ShelfUI {
   const ShelfUI({
@@ -86,8 +134,23 @@ class ShelfUI {
     yearBoxOpen: yearBoxOpen ?? this.yearBoxOpen,
   );
 
-  ShelfQuery toQuery() =>
-      ShelfQuery(state: st, kw: kw, dim: dim, dimVal: dimVal, sort: sort);
+  /// 清空筛选（原型 shResetFilter 4547：分区 / kw / 维度 / 排序回默认）。
+  ShelfUI get cleared => copyWith(
+    st: () => null,
+    kw: '',
+    dim: 'none',
+    dimVal: '',
+    sort: 'recent',
+  );
+
+  ShelfQuery toQuery({Set<String> quoteIds = const {}}) => ShelfQuery(
+    state: st,
+    kw: kw,
+    dim: dim,
+    dimVal: dimVal,
+    sort: sort,
+    quoteIds: quoteIds,
+  );
 }
 
 final shelfUiProvider = StateProvider<ShelfUI>((ref) => const ShelfUI());
@@ -133,258 +196,318 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         .where((b) => !b.isDeleted)
         .toList();
     final w = ref.watch(workbenchProvider).valueOrNull;
+    final running = ref.watch(runningSessionProvider).valueOrNull;
+    final quoteIds = ui.kw.trim().isEmpty
+        ? const <String>{}
+        : (ref.watch(shelfQuoteIdsProvider(ui.kw)).valueOrNull ??
+              const <String>{});
     final counts = ShelfQuery.countsByState(all);
-    final list = ui.toQuery().apply(all);
+    final list = ui.toQuery(quoteIds: quoteIds).apply(all);
     final dimVals = ui.dim == 'none'
         ? const <String>[]
         : ShelfQuery.dimValues(ui.dim, all);
+    final dimCounts = ui.dim == 'none'
+        ? const <String, int>{}
+        : ShelfQuery.dimValueCounts(ui.dim, all);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('书架'),
-        actions: [
-          IconButton(
-            key: const ValueKey('sh-manage'),
-            tooltip: '管理',
-            onPressed: () => ref.read(shelfUiProvider.notifier).state = ui
-                .copyWith(batch: !ui.batch, sel: const {}),
-            icon: Icon(
-              ui.batch ? BsIcons.check : BsIcons.manage,
-              color: ui.batch ? tokens.accent : null,
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('书架')),
       floatingActionButton: ui.batch
           ? null
           : GradShelfFab(onTap: () => showAddBookSheet(context, ref)),
-      bottomNavigationBar: ui.batch ? _batchBar(ui, cs, tokens) : null,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
+      body: Stack(
         children: [
-          _goalCard(w, tokens),
-          const SizedBox(height: 10),
-          // 搜索行：输入 + 视图循环 + ⇅ 面板
-          Row(
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
             children: [
-              Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: TextField(
-                    key: const ValueKey('sh-kw'),
-                    controller: _kwCtl,
-                    style: const TextStyle(fontSize: 12.5),
-                    decoration: InputDecoration(
-                      hintText: '搜索书名 / 作者',
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      prefixIcon: const Icon(BsIcons.search, size: 17),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 36),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      filled: true,
-                      fillColor: cs.surfaceContainerHigh,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(999),
-                        borderSide: BorderSide.none,
+              _goalCard(w, tokens, all),
+              const SizedBox(height: 10),
+              // 搜索行：输入 + 视图循环 + ⇅ 面板 + 管理（原型 836-841）
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 38,
+                      child: TextField(
+                        key: const ValueKey('sh-kw'),
+                        controller: _kwCtl,
+                        style: const TextStyle(fontSize: 12.5),
+                        decoration: InputDecoration(
+                          hintText: '搜索书名 / 作者 / 标签 / 摘录',
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          prefixIcon: const Icon(BsIcons.search, size: 17),
+                          prefixIconConstraints: const BoxConstraints(
+                            minWidth: 36,
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                          ),
+                          filled: true,
+                          fillColor: cs.surfaceContainerHigh,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(999),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) =>
+                            ref.read(shelfUiProvider.notifier).state = ref
+                                .read(shelfUiProvider)
+                                .copyWith(kw: v),
                       ),
                     ),
-                    onChanged: (v) => ref.read(shelfUiProvider.notifier).state =
-                        ref.read(shelfUiProvider).copyWith(kw: v),
                   ),
+                  const SizedBox(width: 8),
+                  _roundBtn(
+                    'sh-view',
+                    BsIcons.view,
+                    kShelfViewLabels[ui.view]!,
+                    () {
+                      final next =
+                          kShelfViews[(kShelfViews.indexOf(ui.view) + 1) %
+                              kShelfViews.length];
+                      ref.read(shelfUiProvider.notifier).state = ref
+                          .read(shelfUiProvider)
+                          .copyWith(view: next);
+                      readToast(context, '书架视图：${kShelfViewLabels[next]}');
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _roundBtn(
+                    'sh-panel',
+                    BsIcons.swap,
+                    '排序与分组',
+                    () => _openPanel(context, ui),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    key: const ValueKey('sh-manage'),
+                    onTap: () =>
+                        ref.read(shelfUiProvider.notifier).state = ui.copyWith(
+                          batch: !ui.batch,
+                          sel: const {},
+                        ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: ui.batch ? tokens.gradient : null,
+                        color: ui.batch ? null : cs.surfaceContainerHigh,
+                      ),
+                      child: Text(
+                        ui.batch ? '完成' : '管理',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: ui.batch
+                              ? Colors.white
+                              : cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // 分区 chips（带计数·常驻一行）
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final s in ['全部', ...Book.states])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          key: ValueKey('sh-chip-$s'),
+                          onTap: () =>
+                              ref.read(shelfUiProvider.notifier).state = ref
+                                  .read(shelfUiProvider)
+                                  .copyWith(st: () => s == '全部' ? null : s),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              color:
+                                  (s == '全部' && ui.st == null) || ui.st == s
+                                  ? tokens.accent.withValues(alpha: .12)
+                                  : cs.surfaceContainerHigh,
+                              border: Border.all(
+                                color:
+                                    (s == '全部' && ui.st == null) || ui.st == s
+                                    ? tokens.accent
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Text(
+                              s == '全部'
+                                  ? '全部 ${all.length}'
+                                  : '$s ${counts[s] ?? 0}',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color:
+                                    (s == '全部' && ui.st == null) || ui.st == s
+                                    ? tokens.accent
+                                    : cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _roundBtn(
-                'sh-view',
-                BsIcons.view,
-                kShelfViewLabels[ui.view]!,
-                () {
-                  final next =
-                      kShelfViews[(kShelfViews.indexOf(ui.view) + 1) %
-                          kShelfViews.length];
-                  ref.read(shelfUiProvider.notifier).state = ref
-                      .read(shelfUiProvider)
-                      .copyWith(view: next);
-                },
-              ),
-              const SizedBox(width: 8),
-              _roundBtn(
-                'sh-panel',
-                BsIcons.swap,
-                '排序与分组',
-                () => _openPanel(context, ui),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // 分区 chips（带计数·常驻一行）
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final s in ['全部', ...Book.states])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      key: ValueKey('sh-chip-$s'),
-                      onTap: () =>
-                          ref.read(shelfUiProvider.notifier).state = ref
-                              .read(shelfUiProvider)
-                              .copyWith(st: () => s == '全部' ? null : s),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          color: (s == '全部' && ui.st == null) || ui.st == s
-                              ? tokens.accent.withValues(alpha: .12)
-                              : cs.surfaceContainerHigh,
-                          border: Border.all(
-                            color: (s == '全部' && ui.st == null) || ui.st == s
-                                ? tokens.accent
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: Text(
-                          s == '全部'
-                              ? '全部 ${all.length}'
-                              : '$s ${counts[s] ?? 0}',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
-                            color: (s == '全部' && ui.st == null) || ui.st == s
-                                ? tokens.accent
-                                : cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // 维度值行（只在维度≠默认时出现 §3.1-1）
-          if (ui.dim != 'none') ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final v in dimVals)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: GestureDetector(
-                              key: ValueKey('sh-dim-$v'),
-                              onTap: () =>
-                                  ref.read(shelfUiProvider.notifier).state = ref
-                                      .read(shelfUiProvider)
-                                      .copyWith(
-                                        dimVal: ui.dimVal == v ? '' : v,
-                                      ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 11,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(999),
+              // 维度值行（原型 bsBindBtns 5389-5396：值 chips 带「N 本」+ 管理入口）
+              if (ui.dim != 'none') ...[
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final v in dimVals)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            key: ValueKey('sh-dim-$v'),
+                            onTap: () =>
+                                ref.read(shelfUiProvider.notifier).state = ref
+                                    .read(shelfUiProvider)
+                                    .copyWith(dimVal: ui.dimVal == v ? '' : v),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                gradient: ui.dimVal == v
+                                    ? tokens.gradient
+                                    : null,
+                                color: ui.dimVal == v
+                                    ? null
+                                    : cs.surfaceContainerHigh,
+                              ),
+                              child: Text(
+                                '$v ${dimCounts[v] ?? 0} 本',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                   color: ui.dimVal == v
-                                      ? tokens.accent
-                                      : cs.surfaceContainerHigh,
-                                ),
-                                child: Text(
-                                  v,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: ui.dimVal == v
-                                        ? Colors.white
-                                        : cs.onSurfaceVariant,
-                                  ),
+                                      ? Colors.white
+                                      : cs.onSurfaceVariant,
                                 ),
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  key: const ValueKey('sh-dim-reset'),
-                  onTap: () => ref.read(shelfUiProvider.notifier).state = ref
-                      .read(shelfUiProvider)
-                      .copyWith(dim: 'none', dimVal: ''),
-                  child: Text(
-                    '回到默认',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: tokens.accent,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 12),
-          if (list.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 30),
-              decoration: _cardDeco(context),
-              child: Center(
-                child: Text.rich(
-                  TextSpan(
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    children: [
-                      const TextSpan(text: '没有符合条件的书 · '),
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.baseline,
-                        baseline: TextBaseline.alphabetic,
-                        child: GestureDetector(
-                          key: const ValueKey('sh-reset'),
-                          onTap: () {
-                            _kwCtl.clear();
-                            ref.read(shelfUiProvider.notifier).state =
-                                const ShelfUI();
-                          },
-                          child: Text(
-                            '清空筛选',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              color: tokens.accent,
+                        ),
+                      // 管理标签 / 来源 / 分组 / 作者 / 出版社 → 书架资料页
+                      if (kShelfDimDict.containsKey(ui.dim))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            key: ValueKey('sh-dim-mgr-${ui.dim}'),
+                            onTap: () => context.push(
+                              '/read/mgr?kind=${kShelfDimDict[ui.dim]}',
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: tokens.accent.withValues(alpha: .5),
+                                ),
+                              ),
+                              child: Text(
+                                '管理${kShelfDimLabel(ui.dim)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: tokens.accent,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
+              ],
+              const SizedBox(height: 12),
+              if (list.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 30),
+                  decoration: _cardDeco(context),
+                  child: Center(
+                    child: Text.rich(
+                      TextSpan(
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        children: [
+                          const TextSpan(text: '没有符合条件的书 · '),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.baseline,
+                            baseline: TextBaseline.alphabetic,
+                            child: GestureDetector(
+                              key: const ValueKey('sh-reset'),
+                              onTap: () {
+                                _kwCtl.clear();
+                                ref.read(shelfUiProvider.notifier).state = ref
+                                    .read(shelfUiProvider)
+                                    .copyWith(
+                                      st: () => null,
+                                      kw: '',
+                                      dim: 'none',
+                                      dimVal: '',
+                                      sort: 'recent',
+                                    );
+                              },
+                              child: Text(
+                                '清空筛选',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: tokens.accent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else if (ui.dim != 'none' && ui.dimVal.isEmpty)
+                ..._dimGroups(ui, list, running, cs, tokens)
+              else
+                _body(ui, list, running, cs, tokens),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  // 原型 4595：N 本 · 分区 · #标签 · 维度：值
+                  '${list.length} 本 · ${ui.st ?? '全部'}'
+                  '${ui.dimVal.isEmpty ? '' : ui.dim == 'tag' ? ' · #${ui.dimVal}' : ' · ${kShelfDimLabel(ui.dim)}：${ui.dimVal}'}',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                ),
               ),
-            )
-          else if (ui.dim != 'none' && ui.dimVal.isEmpty)
-            ..._dimGroups(ui, list, cs, tokens)
-          else
-            _body(ui, list, cs, tokens),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              '${list.length} 本 · ${ui.st ?? '全部'}',
-              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
-            ),
+            ],
           ),
+          // 批量管理浮动条（原型 shSelBar 849-855：已选 N 本 + 四钮）
+          if (ui.batch && ui.sel.isNotEmpty) _batchBar(ui, cs, tokens),
         ],
       ),
     );
@@ -399,14 +522,82 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     );
   }
 
-  Widget _goalCard(WorkbenchData? w, dynamic tokens) {
-    final done = w?.doneThisYear ?? 0;
+  // ---------------- 目标卡（原型 821-834 + renderYearBox 批F） ----------------
+
+  /// 当年读完（原型 bsReadInYear：已读 + ended 当年，按 yearSort 排）。
+  List<Book> _yearDone(List<Book> all) {
+    final y = DateTime.now().year;
+    final desc =
+        (ref.watch(readKvProvider(('read.yearSort', '升序'))).valueOrNull ??
+            '升序') ==
+        '降序';
+    final out = all
+        .where(
+          (b) =>
+              b.state == Book.kStateDone &&
+              b.endedAt != null &&
+              DateTime.fromMillisecondsSinceEpoch(b.endedAt!).year == y,
+        )
+        .toList()
+      ..sort(
+        (a, b) => desc
+            ? b.endedAt!.compareTo(a.endedAt!)
+            : a.endedAt!.compareTo(b.endedAt!),
+      );
+    return out;
+  }
+
+  /// 预计达成日（原型 bsYearETA 4582 口径：剩本数 × 单本均分钟 ÷ 近 30 天日均分钟）。
+  String _yearEta(WorkbenchData? w, int done, int goal) {
+    final need = max(0, goal - done);
+    if (need == 0) return '';
+    final books = w?.books ?? const <Book>[];
+    final agg = w?.agg ?? const <String, ({int minutes, int times})>{};
+    final per = books
+        .where(
+          (b) =>
+              !b.isDeleted &&
+              b.state == Book.kStateDone &&
+              (agg[b.id]?.minutes ?? 0) > 0,
+        )
+        .map((b) => (agg[b.id]?.minutes ?? 0).toDouble())
+        .toList();
+    final avg = per.isEmpty
+        ? 300.0
+        : per.reduce((a, b) => a + b) / per.length; // 原型兜底 300 分钟/本
+    final recent = (ref.watch(shelfDaily30Provider).valueOrNull ?? 0);
+    final daily = recent <= 0 ? 20.0 : recent; // 原型 recent||20
+    final d = (need * avg / daily).ceil();
+    final t = DateTime.now().add(Duration(days: d));
+    return '${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  }
+
+  Widget _goalCard(WorkbenchData? w, dynamic tokens, List<Book> all) {
+    final year = DateTime.now().year;
+    final done = _yearDone(all).length;
     final goal = w?.goalBooks ?? 50;
     final ui = ref.watch(shelfUiProvider);
-    final need = (goal - done).clamp(0, goal);
+    final need = max(0, goal - done);
+    final pct = goal == 0 ? 0 : (done / goal * 100).round();
+    final today = DateTime.now();
+    final daysLeft =
+        DateTime(year, 12, 31).difference(DateTime(today.year, today.month, today.day)).inDays +
+        1;
+    final eta = _yearEta(w, done, goal);
+
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDeco(context),
+      decoration: BoxDecoration(
+        gradient: tokens.gradient as Gradient,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: (tokens.accent as Color).withValues(alpha: .2),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Row(
@@ -417,15 +608,15 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                 child: CustomPaint(
                   painter: _GoalRingPainter(
                     frac: goal == 0 ? 0 : (done / goal).clamp(0.0, 1.0),
-                    color: (tokens as dynamic).accent,
+                    color: Colors.white,
                   ),
                   child: Center(
                     child: Text(
-                      '${goal == 0 ? 0 : (done / goal * 100).round()}%',
-                      style: TextStyle(
+                      '$pct%',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
-                        color: (tokens as dynamic).accent,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -437,139 +628,198 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '年度目标 · ${DateTime.now().year}',
+                      '$year 年度阅读目标',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '$done / $goal 本 · ${need > 0 ? '还差 $need 本' : '目标已达成'}',
+                      need > 0
+                          ? '读完 $done / $goal 本 · 剩 $daysLeft 天 · 节奏刚好（预计 $eta 达成）'
+                          : '读完 $done / $goal 本 · 剩 $daysLeft 天 · 目标已达成',
                       style: TextStyle(
                         fontSize: 10.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: Colors.white.withValues(alpha: .88),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // 白色进度条（原型 830：bg-white/25 + bg-white）
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        key: const ValueKey('sh-goal-bar'),
+                        value: pct / 100,
+                        minHeight: 6,
+                        backgroundColor: Colors.white.withValues(alpha: .25),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              GestureDetector(
-                key: const ValueKey('sh-goal-adjust'),
-                onTap: () => showGoalSheet(context, ref),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: (tokens as dynamic).accent),
-                  ),
-                  child: Text(
-                    '调整',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: (tokens as dynamic).accent,
-                    ),
-                  ),
-                ),
-              ),
+              const SizedBox(width: 10),
+              _pillBtn('sh-goal-adjust', '调整', () => showGoalSheet(context, ref)),
             ],
           ),
-          if (done > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  key: const ValueKey('sh-yearbox-toggle'),
-                  onTap: () => ref.read(shelfUiProvider.notifier).state = ui
-                      .copyWith(yearBoxOpen: !ui.yearBoxOpen),
-                  child: Text(
-                    ui.yearBoxOpen ? '今年读完 ▴' : '今年读完 ▾',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: (tokens as dynamic).accent,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (ui.yearBoxOpen && w != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final b
-                      in w.books
-                          .where(
-                            (b) =>
-                                !b.isDeleted &&
-                                b.state == Book.kStateDone &&
-                                b.endedAt != null &&
-                                DateTime.fromMillisecondsSinceEpoch(
-                                      b.endedAt!,
-                                    ).year ==
-                                    DateTime.now().year,
-                          )
-                          .toList())
-                    GestureDetector(
-                      onTap: () => context.push('/read/book/${b.id}'),
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              kBsCov[b.paletteIdx].$1,
-                              kBsCov[b.paletteIdx].$2,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Tooltip(
-                          message: b.title,
-                          child: const Icon(
-                            Icons.book_outlined,
-                            size: 13,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          _yearMini(ui, done, goal, need),
         ],
       ),
     );
   }
 
-  Widget _roundBtn(String key, IconData ic, String tip, VoidCallback onTap) {
-    final cs = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: tip,
-      child: GestureDetector(
+  /// 「今年读完」折叠块（原型批F renderYearBox 5412-5421：编号格阵 + 年度书单 + 调整目标）。
+  Widget _yearMini(ShelfUI ui, int done, int goal, int need) {
+    final rd = _yearDone(
+      (ref.watch(booksProvider).valueOrNull ?? const <Book>[]).where(
+        (b) => !b.isDeleted,
+      ).toList(),
+    );
+    final cells = min(goal, 40);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(
+            children: [
+              Text(
+                '$done',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '/ $goal 本',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: .85),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  need > 0 ? '· 还差 $need 本' : '· 目标已达成',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: .75),
+                  ),
+                ),
+              ),
+              _pillBtn(
+                'sh-yearbox-toggle',
+                ui.yearBoxOpen ? '收起' : '今年读完',
+                () => ref.read(shelfUiProvider.notifier).state =
+                    ui.copyWith(yearBoxOpen: !ui.yearBoxOpen),
+              ),
+            ],
+          ),
+        ),
+        if (ui.yearBoxOpen) ...[
+          const SizedBox(height: 8),
+          GridView.count(
+            key: const ValueKey('sh-yeargrid'),
+            crossAxisCount: 8,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 5,
+            crossAxisSpacing: 5,
+            children: [
+              for (var i = 0; i < cells; i++)
+                GestureDetector(
+                  key: ValueKey('sh-yencell-$i'),
+                  onTap: i < rd.length
+                      ? () => context.push('/read/book/${rd[i].id}')
+                      : null,
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: i < rd.length
+                          ? Colors.white.withValues(alpha: .85)
+                          : Colors.white.withValues(alpha: .15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        color: i < rd.length
+                            ? const Color(0xFF1E293B)
+                            : Colors.white.withValues(alpha: .55),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _pillBtn('sh-year-list', '年度书单', () => _openYearList()),
+              const SizedBox(width: 8),
+              _pillBtn(
+                'sh-goal-adjust-full',
+                '调整目标',
+                () => showGoalSheet(context, ref),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 年度书单：无则按 autoYear 生成后进入（原型 blDetailYear 5598：blCreate(true)+blSave+blDetail）。
+  Future<void> _openYearList() async {
+    final repo = ref.read(readRepositoryProvider);
+    final y = DateTime.now().year;
+    var l = await repo.findAutoYear(y);
+    if (l == null) {
+      final nm = '$y 年度书单';
+      l = await repo.addList(
+        BookList(
+          name: nm,
+          note: '以 $y 年处于「已读」的书为底稿，之后新增已读会自动进来',
+          createdAt: 0,
+          updatedAt: 0,
+        ),
+        autoYear: y,
+      );
+      ref.read(readTickProvider.notifier).state++;
+      if (mounted) readToast(context, '书单「$nm」已保存');
+    }
+    if (mounted) context.push('/read/list/${l.id}');
+  }
+
+  Widget _pillBtn(String key, String label, VoidCallback onTap) =>
+      GestureDetector(
         key: ValueKey(key),
         onTap: onTap,
         child: Container(
-          width: 38,
-          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(999),
+            color: Colors.white.withValues(alpha: .2),
           ),
-          child: Icon(ic, size: 17, color: cs.onSurface),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
         ),
-      ),
-    );
-  }
+      );
+
+  // ---------------- 排序与筛选面板 ----------------
 
   void _openPanel(BuildContext context, ShelfUI ui) {
     showModalBottomSheet<void>(
@@ -578,77 +828,164 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-          child: Consumer(
-            builder: (_, ref2, _) {
-              Widget section(String label) => Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 6),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              );
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '排序与分组',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(sheetCtx).colorScheme.onSurface,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+            child: Consumer(
+              builder: (_, ref2, _) {
+                void setUi(ShelfUI Function(ShelfUI) f) =>
+                    ref2.read(shelfUiProvider.notifier).state = f(
+                      ref2.read(shelfUiProvider),
+                    );
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '书架排序与筛选',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(sheetCtx).colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  section('排序'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final (k, t) in kShelfSorts)
-                        _panelChip(
-                          sheetCtx,
-                          'panel-sort-$k',
-                          t,
-                          ui.sort == k,
-                          () {
-                            ref2.read(shelfUiProvider.notifier).state = ref2
-                                .read(shelfUiProvider)
-                                .copyWith(sort: k);
+                    const SizedBox(height: 12),
+                    // 原型 2341：排序＝6 行竖排全宽按钮，选中显 ✓
+                    for (final (k, t) in kShelfSorts)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: GestureDetector(
+                          key: ValueKey('panel-sort-$k'),
+                          onTap: () {
+                            setUi((u) => u.copyWith(sort: k));
                             Navigator.of(sheetCtx).pop();
                           },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: ui.sort == k
+                                  ? context.tokens.accent.withValues(
+                                      alpha: .12,
+                                    )
+                                  : Theme.of(
+                                      sheetCtx,
+                                    ).colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: .5),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    t,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: ui.sort == k
+                                          ? context.tokens.accent
+                                          : Theme.of(
+                                              sheetCtx,
+                                            ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                if (ui.sort == k)
+                                  Icon(
+                                    BsIcons.check,
+                                    size: 14,
+                                    color: context.tokens.accent,
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                    ],
-                  ),
-                  section('分组维度'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final (k, t) in kShelfDims)
-                        _panelChip(
-                          sheetCtx,
-                          'panel-dim-$k',
-                          t,
-                          ui.dim == k,
-                          () {
-                            ref2.read(shelfUiProvider.notifier).state = ref2
-                                .read(shelfUiProvider)
-                                .copyWith(dim: k, dimVal: '');
-                            Navigator.of(sheetCtx).pop();
-                          },
+                      ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '分组方式',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(sheetCtx).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final (k, t) in kShelfDims)
+                          _panelChip(
+                            sheetCtx,
+                            'panel-dim-$k',
+                            t,
+                            ui.dim == k,
+                            () => setUi((u) => u.copyWith(dim: k, dimVal: '')),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // 原型 2344：清空筛选 / 完成 双钮
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            key: const ValueKey('panel-reset'),
+                            onTap: () {
+                              _kwCtl.clear();
+                              setUi((u) => u.cleared);
+                              readToast(context, '筛选与维度已清空');
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              alignment: Alignment.center,
+                              decoration: _cardDeco(context),
+                              child: Text(
+                                '清空筛选',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color:
+                                      Theme.of(
+                                        sheetCtx,
+                                      ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              );
-            },
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
+                            key: const ValueKey('panel-done'),
+                            onTap: () => Navigator.of(sheetCtx).pop(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                gradient: context.tokens.gradient,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Text(
+                                '完成',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -686,10 +1023,33 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     ),
   );
 
+  // ---------------- 主体五视图 ----------------
+
+  Widget _roundBtn(String key, IconData ic, String tip, VoidCallback onTap) {
+    final cs = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tip,
+      child: GestureDetector(
+        key: ValueKey(key),
+        onTap: onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Icon(ic, size: 17, color: cs.onSurface),
+        ),
+      ),
+    );
+  }
+
   /// 维度分组渲染（值 → 该组内容）。
   List<Widget> _dimGroups(
     ShelfUI ui,
     List<Book> list,
+    BookSession? running,
     ColorScheme cs,
     dynamic tokens,
   ) {
@@ -713,7 +1073,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
             ),
           ),
         ),
-        _body(ui, g.value, cs, tokens, pfx: '${g.key}-'),
+        _body(ui, g.value, running, cs, tokens, pfx: '${g.key}-'),
         const SizedBox(height: 8),
       ],
     ];
@@ -722,6 +1082,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
   Widget _body(
     ShelfUI ui,
     List<Book> list,
+    BookSession? running,
     ColorScheme cs,
     dynamic tokens, {
     String pfx = '',
@@ -738,7 +1099,10 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
       'spine' => _spineView(list, pfx),
       'time' => _timelineView(list, cs),
       'rows' => Column(
-        children: [for (final b in list) _rowItem(ui, b, cs, tokens, pfx: pfx)],
+        children: [
+          for (final b in list)
+            _rowItem(ui, b, running, cs, tokens, pfx: pfx),
+        ],
       ),
       _ => GridView.count(
         key: ValueKey('sh-grid-$wallCols-$pfx'),
@@ -843,9 +1207,16 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     ),
   );
 
+  String _md(int? ms) {
+    if (ms == null) return '';
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    return '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
   Widget _rowItem(
     ShelfUI ui,
     Book b,
+    BookSession? running,
     ColorScheme cs,
     dynamic tokens, {
     String pfx = '',
@@ -853,6 +1224,11 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     final qn = (ref.watch(allQuotesProvider).valueOrNull ?? const <BookQuote>[])
         .where((q) => q.bookId == b.id)
         .length;
+    // 原型 shListRows 4571：元信息补「读完 MM-DD / 开始 MM-DD」
+    final dateSeg = b.startedAt == null
+        ? ''
+        : ' · ${b.state == Book.kStateDone ? '读完 ${_md(b.endedAt)}' : '开始 ${_md(b.startedAt)}'}';
+    final showTimer = b.state == Book.kStateReading && !ui.batch;
     return _tapWrap(
       ui,
       b,
@@ -887,7 +1263,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${b.author} · ${b.pages} 页 · $qn 条笔记',
+                    '${b.author} · ${b.pages} 页 · $qn 条笔记$dateSeg',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
@@ -906,6 +1282,31 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                 ],
               ),
             ),
+            // 在读行「开始/结束」计时 mini 钮（原型 4573）
+            if (showTimer) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                key: ValueKey('sh-row-timer-$pfx${b.id}'),
+                onTap: () => readTimerTap(ref, context, target: b),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: cs.surfaceContainerHighest,
+                  ),
+                  child: Text(
+                    running?.bookId == b.id ? '结束' : '开始',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -935,144 +1336,213 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
       '弃读' => 78,
       _ => 96,
     };
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
       decoration: _cardDeco(context),
-      child: SizedBox(
-        height: 150,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (final b in list)
-                Padding(
-                  padding: const EdgeInsets.only(right: 5),
-                  child: _tapWrap(
-                    ref.watch(shelfUiProvider),
-                    b,
-                    pfx: pfx,
-                    child: GestureDetector(
-                      child: Container(
-                        width: 30,
-                        height: h(b),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              kBsCov[b.paletteIdx].$3,
-                              kBsCov[b.paletteIdx].$3.withValues(alpha: .8),
-                            ],
-                          ),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: RotatedBox(
-                                quarterTurns: 3,
-                                child: Text(
-                                  b.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 8.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 150,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final b in list)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 5),
+                      child: _tapWrap(
+                        ref.watch(shelfUiProvider),
+                        b,
+                        pfx: pfx,
+                        child: GestureDetector(
+                          child: Container(
+                            width: 30,
+                            height: h(b),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              image: _hasCover(b)
+                                  ? DecorationImage(
+                                      image: FileImage(File(b.coverPath!)),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              gradient: _hasCover(b)
+                                  ? null
+                                  : LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        kBsCov[b.paletteIdx].$3,
+                                        kBsCov[b.paletteIdx].$3.withValues(
+                                          alpha: .8,
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  child: RotatedBox(
+                                    quarterTurns: 3,
+                                    child: Text(
+                                      b.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 4,
-                              child: Container(
-                                width: 4,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: b.state == Book.kStateReading
-                                      ? Colors.white
-                                      : Colors.white38,
+                                Positioned(
+                                  bottom: 4,
+                                  child: Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: b.state == Book.kStateReading
+                                          ? Colors.white
+                                          : Colors.white38,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
+          // 原型 4569 说明行（照抄）
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '书脊高度＝总页数 · 白点＝在读 · 点书脊看详情，长按进多选',
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  bool _hasCover(Book b) =>
+      (b.coverPath?.isNotEmpty ?? false) && File(b.coverPath!).existsSync();
+
+  /// 时间线（原型 bsEvents 4614-4622 + shTimeline 4623-4631 全量口径：
+  /// 开始 / 读完（+页数+购书 ¥）/ 评分 / 摘录（划线「」·感想前缀·原文 46 字）/ 会话（最近 6 次）
+  /// 五类事件；日头「M月D日 · N 条」；每卡 图标 + 事件行 + 书名·作者副行、点卡进详情；
+  /// 尾行「共 N 条 · 显示最近 M 天 · 范围可在阅读设置里调」；空态「这段时间没有阅读事件」）。
   Widget _timelineView(List<Book> list, ColorScheme cs) {
     final quotes =
         ref.watch(allQuotesProvider).valueOrNull ?? const <BookQuote>[];
+    final sessions =
+        ref.watch(shelfSessionsProvider).valueOrNull ??
+        const <BookSession>[];
     final byId = {for (final b in list) b.id: b};
-    final events = <(DateTime, String)>[];
-    for (final b in list) {
-      if (b.startedAt != null) {
-        events.add((
-          DateTime.fromMillisecondsSinceEpoch(b.startedAt!),
-          '开始读《${b.title}》',
-        ));
-      }
-      if (b.state == Book.kStateDone && b.endedAt != null) {
-        events.add((
-          DateTime.fromMillisecondsSinceEpoch(b.endedAt!),
-          '读完《${b.title}》',
-        ));
-      }
-    }
-    for (final q in quotes.where((q) => byId.containsKey(q.bookId))) {
-      events.add((
-        DateTime.fromMillisecondsSinceEpoch(q.createdAt),
-        '摘录 · 《${byId[q.bookId]!.title}》',
-      ));
-    }
-    events.sort((a, b) => b.$1.compareTo(a.$1));
-    // 时间线窗口（§6 read.tlRange 本月/近半年/全年 × read.tlDays 7/14/30 取交集）。
     final range =
-        ref
-            .watch(readKvProvider(('read.tlRange', '近半年')))
-            .valueOrNull ??
+        ref.watch(readKvProvider(('read.tlRange', '近半年'))).valueOrNull ??
         '近半年';
-    final rangeDays = switch (range) {
-      '本月' => 31,
-      '近半年' => 183,
-      _ => 366,
-    };
     final tlDays =
         int.tryParse(
               ref.watch(readKvProvider(('read.tlDays', '14'))).valueOrNull ??
               '14',
             ) ??
             14;
-    final win = tlDays < rangeDays ? tlDays : rangeDays;
-    events.removeWhere(
-      (e) => e.$1.isBefore(DateTime.now().subtract(Duration(days: win))),
-    );
-    final days = <String, List<String>>{};
-    for (final (d, t) in events) {
+    // read.tlRange 窗口过滤 → 按日分组倒序 → 取最近 tlDays 天（原型 DS slice 口径）。
+    final winDays = switch (range) {
+      '本月' => 31,
+      '近半年' => 183,
+      _ => 366,
+    };
+    final fromT = DateTime.now().subtract(Duration(days: winDays));
+    final events = <_TlEv>[];
+    void add(int? ms, IconData ic, String t, Book b) {
+      if (ms == null) return;
+      final d = DateTime.fromMillisecondsSinceEpoch(ms);
+      if (d.isBefore(fromT)) return;
+      events.add((d, ic, t, b));
+    }
+    for (final b in list) {
+      add(b.startedAt, Icons.auto_stories_outlined, '开始读《${b.title}》', b);
+      if (b.state == Book.kStateDone) {
+        final fee = b.fee > 0
+            ? ' · 购书 ¥${b.fee % 1 == 0 ? b.fee.toInt() : b.fee}'
+            : '';
+        add(
+          b.endedAt,
+          Icons.check_circle_outline,
+          '读完《${b.title}》· ${b.pages} 页$fee',
+          b,
+        );
+      }
+      if (b.rating > 0) {
+        final fin = (b.finalNote ?? '').trim().isNotEmpty
+            ? b.finalNote!.trim()
+            : (b.authorNote ?? '');
+        add(
+          b.endedAt ?? b.startedAt ?? b.lastReadAt,
+          Icons.star_border,
+          '评了 ${b.rating % 1 == 0 ? b.rating.toInt() : b.rating} 分：$fin',
+          b,
+        );
+      }
+      for (final q in quotes.where((q) => byId.containsKey(q.bookId))) {
+        final t = q.body.length > 46 ? q.body.substring(0, 46) : q.body;
+        add(
+          q.createdAt,
+          Icons.format_quote_outlined,
+          q.kind == BookQuote.kKindMark ? '「$t」' : '想法：$t',
+          byId[q.bookId]!,
+        );
+      }
+      final closed = sessions
+          .where((s) => s.bookId == b.id && s.endedAt != null)
+          .toList();
+      for (final s in (closed.length > 6
+          ? closed.sublist(closed.length - 6)
+          : closed)) {
+        final pp = s.fromPage != null && s.toPage != null
+            ? ' · P${s.fromPage}→${s.toPage}'
+            : '';
+        add(
+          s.endedAt,
+          Icons.timer_outlined,
+          '读了 ${s.billedMinutes} 分钟$pp',
+          b,
+        );
+      }
+    }
+    events.sort((a, b) => b.$1.compareTo(a.$1));
+    final days = <String, List<_TlEv>>{};
+    for (final e in events) {
+      final d = e.$1;
       final k =
           '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-      (days[k] ??= []).add(t);
+      (days[k] ??= []).add(e);
     }
-    if (days.isEmpty) {
+    final shown = days.entries.take(tlDays < 1 ? 14 : tlDays).toList();
+    if (shown.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 30),
+        padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: _cardDeco(context),
         child: Text(
-          '还没有阅读事件',
+          '这段时间没有阅读事件',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
         ),
@@ -1081,89 +1551,343 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final g in days.entries)
+        for (final (gi, g) in shown.indexed)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
+            padding: EdgeInsets.only(top: gi == 0 ? 0 : 12),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 46,
-                  child: Text(
-                    g.key,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: cs.onSurfaceVariant,
+                // 日头行（原型：M月D日 · N 条 + 分隔线）
+                Row(
+                  key: ValueKey('sh-tl-day-${g.key}'),
+                  children: [
+                    Text(
+                      '${int.parse(g.key.substring(0, 2))}月${int.parse(g.key.substring(3))}日',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${g.value.length} 条',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        margin: const EdgeInsets.only(left: 8),
+                        color: cs.outlineVariant.withValues(alpha: .5),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: _cardDeco(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final t in g.value)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text(
-                              t,
-                              style: const TextStyle(fontSize: 11.5),
+                for (final (ei, e) in g.value.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: GestureDetector(
+                      key: ValueKey('sh-tl-ev-${g.key}-$ei'),
+                      onTap: () => context.push('/read/book/${e.$4.id}'),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: _cardDeco(context),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              margin: const EdgeInsets.only(right: 10),
+                              decoration: BoxDecoration(
+                                color: cs.primary.withValues(alpha: .08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                e.$2,
+                                size: 13,
+                                color: cs.primary,
+                              ),
                             ),
-                          ),
-                      ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    e.$3,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${e.$4.title} · ${e.$4.author}',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: Text(
+              '共 ${events.length} 条 · 显示最近 ${shown.length} 天 · 范围可在阅读设置里调',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget? _batchBar(ShelfUI ui, ColorScheme cs, dynamic tokens) {
-    if (!ui.batch) return null;
+  // ---------------- 批量管理浮动条（原型 849-855 / 4619-4628） ----------------
+
+  Widget _batchBar(ShelfUI ui, ColorScheme cs, dynamic tokens) {
     final ids = ui.sel.toList();
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
-          border: Border(top: BorderSide(color: cs.outlineVariant)),
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 22,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          key: const ValueKey('bat-bar'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+            boxShadow: tokens.cardShadow as List<BoxShadow>,
+          ),
+          child: Row(
+            children: [
+              Text(
+                '已选 ${ids.length} 本',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
+              ),
+              const SizedBox(width: 10),
+              _batBtn('bat-move', '移入分区', cs, () => _batMove(ids)),
+              const SizedBox(width: 6),
+              _batBtn('bat-tag', '加标签', cs, () => _batTag(ids)),
+              const SizedBox(width: 6),
+              _batBtn(
+                'bat-del',
+                '删除',
+                cs,
+                () => _batDel(ids),
+                danger: true,
+              ),
+              const Spacer(),
+              _batBtn(
+                'bat-cancel',
+                '取消',
+                cs,
+                () => ref.read(shelfUiProvider.notifier).state =
+                    ui.copyWith(batch: false, sel: const {}),
+              ),
+            ],
+          ),
         ),
-        child: Row(
-          children: [
-            Text(
-              '已选 ${ids.length}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: cs.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _batBtn(
+    String key,
+    String label,
+    ColorScheme cs,
+    VoidCallback onTap, {
+    bool danger = false,
+  }) => GestureDetector(
+    key: ValueKey(key),
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(9),
+        color: danger
+            ? const Color(0xFFFDBA74).withValues(alpha: .15)
+            : cs.surfaceContainerHighest,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: danger ? const Color(0xFFF43F5E) : cs.onSurfaceVariant,
+        ),
+      ),
+    ),
+  );
+
+  void _exitBatch() => ref.read(shelfUiProvider.notifier).state = ref
+      .read(shelfUiProvider)
+      .copyWith(batch: false, sel: const {});
+
+  /// 移入分区：以首本当前分区循环到下一分区（原型 shBatchMove 4619）。
+  Future<void> _batMove(List<String> ids) async {
+    final all = await ref.read(readRepositoryProvider).allBooks();
+    final cur = all.firstWhere((b) => b.id == ids.first, orElse: () => all.first);
+    final nx = Book.states[(Book.states.indexOf(cur.state) + 1) % 4];
+    await ref.read(readRepositoryProvider).bulkSetState(ids, nx);
+    ref.read(readTickProvider.notifier).state++;
+    _exitBatch();
+    if (mounted) readToast(context, '已将 ${ids.length} 本移入「$nx」');
+  }
+
+  /// 删除：软删（原型 shBatchDel 4627 的 30 天承诺＝softDeleteBooks）。
+  Future<void> _batDel(List<String> ids) async {
+    await ref.read(readRepositoryProvider).softDeleteBooks(ids);
+    ref.read(readTickProvider.notifier).state++;
+    _exitBatch();
+    if (mounted) {
+      readToast(context, '已移出书架 ${ids.length} 本（笔记与时长保留 30 天可恢复）');
+    }
+  }
+
+  /// 加标签：选一个标签批量并集写入（原型 shBatchTag 4625 ＝ 真落库）。
+  Future<void> _batTag(List<String> ids) async {
+    final repo = ref.read(readRepositoryProvider);
+    final tags = <String>{
+      ...await repo.quoteTags(),
+      ...[
+        for (final b in ref.read(booksProvider).valueOrNull ?? const <Book>[])
+          ...b.tags,
+      ],
+    }.where((t) => t.isNotEmpty).toList();
+    if (!mounted) return;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _BatchTagSheet(count: ids.length, tags: tags),
+    );
+    if (picked == null || picked.isEmpty || !mounted) return;
+    final exist = await repo.dictOf(DictEntry.kTag);
+    if (!exist.any((e) => e.name == picked)) {
+      await repo.dictAdd(DictEntry.kTag, picked);
+    }
+    await repo.bulkAddTags(ids, [picked]);
+    ref.read(readTickProvider.notifier).state++;
+    _exitBatch();
+    if (mounted) readToast(context, '已为 ${ids.length} 本加上 #$picked');
+  }
+}
+
+/// 批量加标签弹层（自持 controller，避免 pop 动画期间用到已 dispose 的控制器）。
+class _BatchTagSheet extends StatefulWidget {
+  const _BatchTagSheet({required this.count, required this.tags});
+  final int count;
+  final List<String> tags;
+
+  @override
+  State<_BatchTagSheet> createState() => _BatchTagSheetState();
+}
+
+class _BatchTagSheetState extends State<_BatchTagSheet> {
+  final _ctl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _pick(String t) => Navigator.of(context).pop(t);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '为 ${widget.count} 本加标签',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
               ),
-            ),
-            const Spacer(),
-            for (final s in Book.states)
-              TextButton(
-                key: ValueKey('bat-$s'),
-                onPressed: ids.isEmpty
-                    ? null
-                    : () async {
-                        await ref
-                            .read(readRepositoryProvider)
-                            .bulkSetState(ids, s);
-                        ref.read(readTickProvider.notifier).state++;
-                        if (mounted) {
-                          readToast(context, '已移入 $s');
-                          ref.read(shelfUiProvider.notifier).state = ui
-                              .copyWith(batch: false, sel: const {});
-                        }
-                      },
-                child: Text('→$s', style: const TextStyle(fontSize: 11.5)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final t in widget.tags)
+                    GestureDetector(
+                      key: ValueKey('bat-tag-pick-$t'),
+                      onTap: () => _pick(t),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: cs.surfaceContainerHighest,
+                        ),
+                        child: Text(
+                          '#$t',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('bat-tag-new'),
+                controller: _ctl,
+                onSubmitted: (v) => _pick(v.trim()),
+                decoration: InputDecoration(
+                  labelText: '新标签',
+                  labelStyle: const TextStyle(fontSize: 12),
+                  isDense: true,
+                  suffixIcon: IconButton(
+                    key: const ValueKey('bat-tag-ok'),
+                    icon: const Icon(BsIcons.add, size: 18),
+                    onPressed: () => _pick(_ctl.text.trim()),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1202,7 +1926,7 @@ class GradShelfFab extends StatelessWidget {
 }
 
 /// 长按书籍菜单：项与顺序来自设置（read.longPress · §6 · sheetLongPress 弹层自带
-/// 「调整长按菜单」入口）。可选全集＝LP_ALL，未勾选项不渲染。
+/// 「调整长按菜单」入口）。可选全集＝LP_ALL，未勾选项不渲染；尾行「查看书籍详情」（原型 5059）。
 const kLpAll = ['计时', '记摘录', '改分区', '移书单', '标记读完', '多选', '删除'];
 const kLpDefault = '计时,记摘录,改分区,移书单,删除';
 
@@ -1222,8 +1946,7 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                     .watch(readKvProvider(('read.longPress', kLpDefault)))
                     .valueOrNull ??
                 kLpDefault;
-            final items =
-                raw.split(',').where(kLpAll.contains).toList();
+            final items = raw.split(',').where(kLpAll.contains).toList();
             Widget row(String key, String label, VoidCallback onTap) =>
                 ListTile(
                   key: ValueKey(key),
@@ -1284,34 +2007,50 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
             };
             return SingleChildScrollView(
               child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '《${b.title}》',
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                for (final n in items) rowFor(n),
-                TextButton(
-                  key: const ValueKey('lp-edit-menu'),
-                  onPressed: () {
-                    Navigator.of(sheetCtx).pop();
-                    if (context.mounted) context.push('/read/settings');
-                  },
-                  child: Text(
-                    '调整长按菜单',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '《${b.title}》',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 6),
+                  for (final n in items) rowFor(n),
+                  // 原型 5059 尾行灰钮：查看书籍详情
+                  TextButton(
+                    key: const ValueKey('lp-detail'),
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      if (context.mounted) context.push('/read/book/${b.id}');
+                    },
+                    child: Text(
+                      '查看书籍详情',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey('lp-edit-menu'),
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      if (context.mounted) context.push('/read/settings');
+                    },
+                    child: Text(
+                      '调整长按菜单',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -1335,7 +2074,7 @@ class _GoalRingPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
-        ..color = color.withValues(alpha: .15),
+        ..color = color.withValues(alpha: .26),
     );
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
