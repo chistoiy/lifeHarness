@@ -44,9 +44,10 @@ Future<T?> _sheet<T>(BuildContext context, Widget child) =>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
+      // 真机验收轮1：viewInsets 必须取弹层自身 context（调用方 context 会把键盘高度定格为 0，输入法盖住输入框）。
+      builder: (sheetCtx) => Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.viewInsetsOf(sheetCtx).bottom,
           left: 20,
           right: 20,
           top: 14,
@@ -152,10 +153,12 @@ TextField _field(
   String label, {
   int? lines,
   String? keyName,
+  bool autofocus = false,
 }) => TextField(
   key: keyName == null ? null : ValueKey(keyName),
   controller: c,
   maxLines: lines ?? 1,
+  autofocus: autofocus,
   decoration: InputDecoration(
     labelText: label,
     labelStyle: const TextStyle(fontSize: 12.5),

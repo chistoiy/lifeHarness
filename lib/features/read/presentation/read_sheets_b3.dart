@@ -400,12 +400,9 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
     final chapOpts = {..._chapters, ?_chap}.toList();
     final tagOpts = {...dictTags.map((t) => t.name), ..._qtags}.toList();
     final adding = widget.editing == null;
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SheetTitle(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
+    // 真机验收轮1 · 原型 sheetQuoteEdit 同步重排：正文/想法置顶加大、快速录入，
+    // 书/章节/页码/创建时间等非主要数据收进下方分隔区（metaBlocks）。
+    final metaBlocks = <Widget>[
           // 选书下拉：换书时 标题 / 章节 / 页码 三处联动（§3.4）。
           DropdownButtonFormField<String>(
             key: const ValueKey('qef-book'),
@@ -582,10 +579,21 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
                 ],
               ),
             ),
+    ];
+    final mq = MediaQuery.of(context);
+    final cap = mq.size.height * .86 - mq.viewInsets.bottom;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: cap < 240 ? 240 : cap),
+      child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SheetTitle(adding ? '新增摘录 · 《${cur.title}》' : '编辑笔记'),
+          // 正文/想法置顶加大：打开表单即可直接录入（键盘避让 · 弹层随 viewInsets 抬升）。
+          _field(_body, '原文摘录…', lines: 5, keyName: 'qef-body', autofocus: adding),
           const SizedBox(height: 10),
-          _field(_body, '原文摘录…', lines: 3, keyName: 'qef-body'),
-          const SizedBox(height: 10),
-          _field(_thought, '我的想法（可选，与摘录同条存储）', lines: 2, keyName: 'qef-thought'),
+          _field(_thought, '我的想法（可选，与摘录同条存储）', lines: 3, keyName: 'qef-thought'),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -740,6 +748,22 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
             ],
           ),
           const SizedBox(height: 14),
+          // 非主要数据分隔区（原型 border-t pt-2）：书 / 章节·页码 / 创建时间。
+          Container(
+            padding: const EdgeInsets.only(top: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: cs.outlineVariant.withValues(alpha: .5),
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: metaBlocks,
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -769,6 +793,7 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
           ),
           const SizedBox(height: 18),
         ],
+      ),
       ),
     );
   }

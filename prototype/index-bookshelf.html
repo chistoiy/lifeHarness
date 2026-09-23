@@ -2487,27 +2487,29 @@ tailwind.config = {
 
   <!-- ===== 书架专版 · 摘录/感想编辑 ===== -->
   <div id="sheetQuoteEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetQuoteEdit')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto no-scrollbar">
       <div class="grabber"></div>
       <div class="font-extrabold text-sm" id="qeTitle">新增摘录</div>
       <div class="mt-3">
-        <select id="qeBook" class="inp w-full" onchange="qeBookChange()"></select>
-        <div class="mt-2 flex gap-2">
-          <select id="qeCh" class="inp flex-1 min-w-0"></select>
-          <input id="qePg" class="inp w-20" type="number" placeholder="页码">
-        </div>
-        <div class="mt-2 flex items-center gap-2">
-          <span class="text-[10px] text-slate-400 shrink-0">创建时间</span>
-          <input id="qeDt" class="inp flex-1 min-w-0" type="date">
-          <button class="mini-btn shrink-0" onclick="qeDtToday()">今天</button>
-        </div>
-        <textarea id="qeText" class="inp w-full min-h-[86px] mt-2 leading-6" placeholder="原文摘录…"></textarea>
-        <textarea id="qeThink" class="inp w-full min-h-[62px] mt-2 leading-6" placeholder="我的想法（可选，与摘录同条存储）"></textarea>
+        <textarea id="qeText" class="inp w-full min-h-[132px] leading-6" placeholder="原文摘录…" autofocus></textarea>
+        <textarea id="qeThink" class="inp w-full min-h-[86px] mt-2 leading-6" placeholder="我的想法（可选，与摘录同条存储）"></textarea>
         <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="qeOcr()">识图取文</button><button class="mini-btn flex-1" onclick="qeImg()">加图片</button><button class="mini-btn flex-1" onclick="qeFromClip()">读剪贴板</button></div>
         <div id="qeImgs" class="mt-2 hidden"></div>
         <div class="mt-2.5 text-[10px] text-slate-400">划线颜色分类 <span id="qeTags"></span></div>
         <div class="mt-2.5 text-[10px] text-slate-400">标签<span class="text-slate-300 dark:text-slate-600">（可多选 · 用于笔记库筛选）</span></div>
         <div id="qeTagRow" class="mt-1 flex gap-1.5 flex-wrap"></div>
+        <div class="mt-3 border-t border-slate-100 dark:border-slate-800 pt-2">
+          <select id="qeBook" class="inp w-full" onchange="qeBookChange()"></select>
+          <div class="mt-2 flex gap-2">
+            <select id="qeCh" class="inp flex-1 min-w-0"></select>
+            <input id="qePg" class="inp w-20" type="number" placeholder="页码">
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-[10px] text-slate-400 shrink-0">创建时间</span>
+            <input id="qeDt" class="inp flex-1 min-w-0" type="date">
+            <button class="mini-btn shrink-0" onclick="qeDtToday()">今天</button>
+          </div>
+        </div>
       </div>
       <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeToDiary()">插今日日记</button><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="qeTodo()">生成待办</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="qeSave()">保存</button></div>
     </div>
