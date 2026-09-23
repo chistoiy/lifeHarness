@@ -250,6 +250,12 @@ class HabitRepository {
         );
         entryId = prev.id;
       } else {
+        // 兼容 UNIQUE(habit_id,day) 冲突（如撤销宽限/覆盖补记行）：先清旧行再插。
+        await txn.delete(
+          DbSchema.tHabitEntries,
+          where: 'habit_id = ? AND day = ?',
+          whereArgs: [habitId, day],
+        );
         entryId = await txn.insert(DbSchema.tHabitEntries, row);
       }
       if (subValues != null) {
@@ -294,6 +300,15 @@ class HabitRepository {
     });
     await recomputeStats(habitId);
   }
+
+  /// 补记流水条数（hero「补卡 N」徽标 · 原型 h.bf 计数）。
+  Future<int> backfillCount(String habitId) async => Sqflite.firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM ${DbSchema.tHabitEntries} WHERE habit_id = ? AND backfilled = 1',
+          [habitId],
+        ),
+      ) ??
+      0;
 
   /// 全量重算 streak/best 缓存列（§2.3 导入后自检同入口）。
   /// 返回 (streak, best)，供「重算==缓存列」一致性断言。

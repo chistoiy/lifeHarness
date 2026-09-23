@@ -8,6 +8,7 @@ import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
 import 'habit_aux_sheets.dart';
+import 'habit_backfill_sheet.dart';
 import 'habit_edit_sheet.dart';
 import 'habit_providers.dart';
 import 'habit_sheets.dart';
@@ -396,8 +397,8 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
               HPill(text: '本周完成率 $weekRateAvg%'),
               const Spacer(),
               HPill(
-                text: '补卡',
-                onTap: () => _toast('补卡 · 批3交付'),
+                text: '补卡 ${d.bfTotal}',
+                onTap: () => showHabitBackfillSheet(context, ref),
               ),
             ],
           ),

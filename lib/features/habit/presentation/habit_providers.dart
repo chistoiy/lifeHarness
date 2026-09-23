@@ -35,6 +35,7 @@ class HabitData {
     required this.rateByTotalDays,
     required this.grace,
     required this.graceOf,
+    required this.bfTotal,
   });
 
   final List<Habit> habits;
@@ -55,6 +56,9 @@ class HabitData {
 
   /// habitId → 本月剩余宽限张数（§2.1：余额按 月已用 推导）。
   final Map<String, int> graceOf;
+
+  /// 全部补记流水条数（hero「补卡 N」徽标）。
+  final int bfTotal;
 
   /// 未归档（原型 hbBook）。
   List<Habit> get book => habits.where((h) => !h.isArchived).toList();
@@ -107,6 +111,9 @@ final habitDataProvider = FutureProvider<HabitData>((ref) async {
     graceOf: {
       for (final h in habits) h.id: await repo.graceLeft(h),
     },
+    bfTotal: {
+      for (final h in habits) h.id: await repo.backfillCount(h.id),
+    }.values.fold<int>(0, (a, b) => a + b),
   );
 });
 

@@ -230,7 +230,10 @@ void main() {
     expect(find.text('去补卡 / 补量'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('btn-hday-backfill')));
     await settle5(tester);
-    expect(await pollText(tester, '补卡 · 批3交付'), isTrue);
+    // 速览 → 补卡弹层（预选当前日）
+    expect(find.text('先选习惯 · 再点日期，可跨月补记'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('btn-hbf-save')));
+    expect(await pollText(tester, '先选要补记的日期'), isTrue);
   });
 
   testWidgets('新建表单：无名校验 → 填写保存入列', (tester) async {

@@ -6,6 +6,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
+import 'habit_backfill_sheet.dart';
 import 'habit_providers.dart';
 import 'widgets/habit_kit.dart';
 
@@ -805,9 +806,23 @@ class _HabitDaySheetState extends ConsumerState<_HabitDaySheet> {
               Expanded(
                 child: GestureDetector(
                   key: const ValueKey('btn-hday-backfill'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    habitToast(context, '补卡 · 批3交付');
+                  onTap: () async {
+                    // 原型 hbDayToBackfill：开补卡并预选当前日 → 关闭速览
+                    final m = ScaffoldMessenger.of(context);
+                    final dayK = dayKey(
+                      dayStart(DateTime.now())
+                          .subtract(Duration(days: _back)),
+                    );
+                    await showHabitBackfillSheet(
+                      context,
+                      ref,
+                      preselectDay: dayK,
+                    );
+                    messengerToast(
+                      m,
+                      '已选中 ${dayK.substring(5)} · 选习惯后确认补记',
+                    );
+                    if (context.mounted) Navigator.pop(context);
                   },
                   child: Container(
                     alignment: Alignment.center,
