@@ -8,6 +8,8 @@ import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/theme/theme_repository.dart';
+import 'features/habit/data/habit_repository.dart';
+import 'features/habit/domain/habit_calc.dart';
 import 'features/read/data/read_repository.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
@@ -40,6 +42,30 @@ Future<void> main() async {
             'true') ==
         'true',
   );
+  // 6) 习惯提醒注册（习惯计划 §6/§7：remindAll 总开关 × dnd 免打扰双门控；
+  //    逐习惯 remindAt 与晚间未打卡 nightAt 一并重排，可跨重启取消）。
+  final hRepo = HabitRepository(AppDatabase.instance.db);
+  final hRemindAll = await hRepo.kvBool('habit.remindAll', true);
+  final hDnd = await hRepo.kvInt('habit.dnd', 1);
+  final nightAt = kHabitNightAts[
+      (await hRepo.kvInt('habit.nightAt', 1)).clamp(0, kHabitNightAts.length - 1)];
+  await NotificationService.syncHabitNightly(
+    on: hRemindAll &&
+        await hRepo.kvBool('habit.nightRemind', true) &&
+        !habitInDnd(hDnd, nightAt),
+    at: nightAt,
+  );
+  for (final h in await hRepo.allHabits()) {
+    await NotificationService.registerHabitReminder(
+      habitId: h.id,
+      title: h.name,
+      hhmm: h.remindAt,
+      enabled: hRemindAll &&
+          !h.isArchived &&
+          (h.remindAt?.isNotEmpty ?? false) &&
+          !habitInDnd(hDnd, h.remindAt ?? ''),
+    );
+  }
   if (NotificationService.ready && settings.notify.todoEvent) {
     for (final Todo t in await TodoDao(AppDatabase.instance.db).list()) {
       if (!t.done && t.remindAt != null) {

@@ -61,6 +61,8 @@ flutter:
 
   # 主题设计令牌配置（与原型 themes/ 同构，运行时热加载换肤）
   # assets/read_import/：阅读导入渠道数据包（计划 §5 解析器数据包，格式变更不改码）
+  # assets/habit_templates/：习惯模板库资源包（习惯计划 §7，社区扩展不改码）
   assets:
     - assets/themes/
     - assets/read_import/
+    - assets/habit_templates/

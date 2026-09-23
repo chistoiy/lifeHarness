@@ -218,3 +218,27 @@ Map<int, double> habitSubTotals(
   }
   return out;
 }
+
+// ---- 提醒门控（批5 · 计划 §6/§7：remindAll × dnd 双重门控）----
+
+/// 晚间提醒时间档（habit.nightAt 下标 → HH:mm）。
+const kHabitNightAts = ['18:00', '20:00', '21:30', '22:30'];
+
+/// 免打扰时段档（habit.dnd 下标 → (起,止)，null=关闭）。
+const kHabitDndWindows = <(String, String)?>[
+  null,
+  ('22:00', '08:00'),
+  ('23:00', '07:00'),
+];
+
+/// 某时刻（HH:mm）是否落在 dnd 档内（跨零点窗口按 起..24 + 0..止 判定）。
+bool habitInDnd(int dnd, String hhmm) {
+  final w = dnd >= 0 && dnd < kHabitDndWindows.length ? kHabitDndWindows[dnd] : null;
+  if (w == null) return false;
+  int mins(String t) {
+    final p = t.split(':');
+    return (int.tryParse(p[0]) ?? 0) * 60 + (int.tryParse(p[1]) ?? 0);
+  }
+  final m = mins(hhmm), s = mins(w.$1), e = mins(w.$2);
+  return s > e ? (m >= s || m < e) : (m >= s && m < e);
+}

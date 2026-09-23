@@ -14,6 +14,7 @@ import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/habit/presentation/habit_detail_page.dart';
+import '../../features/habit/presentation/habit_settings_page.dart';
 import '../../features/habit/presentation/habit_stat_page.dart';
 import '../../features/habit/presentation/habits_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
@@ -115,6 +116,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/habit-stat',
         builder: (_, _) => const HabitStatPage(),
+      ),
+      GoRoute(
+        path: '/habit-set',
+        builder: (_, _) => const HabitSettingsPage(),
       ),
       GoRoute(
         path: '/read/book/:id',

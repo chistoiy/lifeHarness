@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/wheel_date.dart';
 import '../../../core/widgets/wheel_time.dart';
+import '../../../shared/linkage/habit_mounts.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_dict.dart';
+import '../domain/habit_template.dart';
 import 'habit_aux_sheets.dart';
+import 'habit_auto_sheets.dart';
 import 'habit_providers.dart';
 import 'habit_sheets.dart';
 import 'widgets/habit_kit.dart';
@@ -141,6 +145,41 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
     });
   }
 
+  /// 模板填充（原型 hbTplUse 同口径：只带出表单字段，额度保持默认，可继续修改）。
+  void _applyTpl(HabitTemplate t) {
+    setState(() {
+      _name.text = t.name;
+      _icon = t.icon;
+      _type = t.type;
+      _cat = t.cat;
+      _cycle = t.cycle;
+      _days
+        ..clear()
+        ..addAll(t.weekDays);
+      _valMode = t.isGroup
+          ? 'group'
+          : (t.unit?.isNotEmpty ?? false)
+          ? 'one'
+          : 'off';
+      _unit = t.unit?.isNotEmpty ?? false ? t.unit! : '分钟';
+      _goal.text = HabitSubChips.n(t.goal ?? 1);
+      _rule = t.groupRule ?? Habit.kRuleAll;
+      _subs
+        ..clear()
+        ..addAll([
+          for (final s in t.subs)
+            _SubDraft(
+              name: TextEditingController(text: s.name),
+              goal: TextEditingController(text: HabitSubChips.n(s.goal)),
+              unit: s.unit,
+            ),
+        ]);
+      _remindMode = t.remind != null ? 'on' : 'off';
+      if (t.remind != null) _remindVal = t.remind!;
+    });
+    habitToast(context, '已按模板填充「${t.name}」· 可继续修改');
+  }
+
   Future<void> _save() async {
     final n = _name.text.trim();
     if (n.isEmpty) {
@@ -170,6 +209,12 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
     final neg = _type == Habit.kNeg;
     final tgt = int.tryParse(_target) ?? (neg ? 2 : 6);
     final base = o;
+    // L10 自动生成关联待办（默认开 · 标题约定「打卡：<习惯名>」，todo_id 回写）。
+    var linkedTodoId = base?.todoId;
+    if (_srcs.contains('待办勾选') && _todoOn && linkedTodoId == null) {
+      final tid = await habitCreateLinkedTodo(ref, n, form: _todoForm);
+      linkedTodoId = tid?.toString();
+    }
     final habit = Habit(
       id: base?.id ?? '',
       name: n,
@@ -185,7 +230,7 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
       groupRule: grp ? _rule : null,
       sourceKinds: _srcs.toList(),
       remindAt: _remindMode == 'on' ? _remindVal : null,
-      todoId: base?.todoId,
+      todoId: linkedTodoId,
       todoForm: _srcs.contains('待办勾选') ? _todoForm : null,
       startDate: base?.startDate ?? _start,
       streak: base?.streak ?? 0,
@@ -196,6 +241,15 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
     );
     final repo = ref.read(habitRepositoryProvider);
     final saved = await repo.saveHabit(habit);
+    // 逐习惯提醒即时重排（remindAll × dnd 门控 · NotificationService 未就绪时 no-op）。
+    await NotificationService.registerHabitReminder(
+      habitId: saved.id,
+      title: saved.name,
+      hhmm: saved.remindAt,
+      enabled: saved.remindAt?.isNotEmpty == true &&
+          await repo.kvBool('habit.remindAll', true) &&
+          !habitInDnd(await repo.kvInt('habit.dnd', 1), saved.remindAt ?? ''),
+    );
     ref.read(habitTickProvider.notifier).state++;
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -205,7 +259,6 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
       '已保存「${saved.name}」· ${saved.dueText}'
       '${grp ? ' · 组内 ${subs.length} 项' : (_valMode == 'one' ? ' · 目标 ${saved.goal} ${saved.unit}' : '')}',
     );
-    // L10 关联待办自动生成随批5 联动收口（目标生效日历史 habit_goal_hist 同批登记）。
   }
 
   @override
@@ -297,7 +350,11 @@ class _HabitEditSheetState extends ConsumerState<_HabitEditSheet> {
                 children: [
                   PillChip(
                     label: '从模板填充',
-                    onTap: () => habitToast(context, '模板库 · 批5交付'),
+                    key: const ValueKey('btn-he-tpl'),
+                    onTap: () async {
+                      final t = await showHabitTplSheet(context);
+                      if (t != null && mounted) _applyTpl(t);
+                    },
                   ),
                   const SizedBox(width: 8),
                   Text(

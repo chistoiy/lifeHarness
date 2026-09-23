@@ -674,6 +674,95 @@ class HabitRepository {
     whereArgs: [kind, id],
   );
 
+  // ---- habit_pend（自动达成待确认队列 · 批5 · AC 杀进程重启仍在）----
+
+  Future<void> addPend(
+    String habitId, {
+    required String day,
+    required String src,
+    double? value,
+  }) => db.insert(DbSchema.tHabitPend, {
+    'habit_id': habitId,
+    'day': day,
+    'src': src,
+    'value': value,
+    'created_at': DateTime.now().millisecondsSinceEpoch,
+    'state': 'pending',
+  });
+
+  Future<List<Map<String, Object?>>> pends({String state = 'pending'}) => db
+      .query(
+        DbSchema.tHabitPend,
+        where: 'state = ?',
+        whereArgs: [state],
+        orderBy: 'id ASC',
+      );
+
+  Future<void> setPendState(int id, String state) => db.update(
+    DbSchema.tHabitPend,
+    {'state': state},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  /// 自动达成源 → origin 通道（§5-8 必写来源）。
+  static String originForSrc(String src) => switch (src) {
+    '待办勾选' => HabitEntry.oAutoTodo,
+    '番茄完成' => HabitEntry.oAutoPomo,
+    '阅读计时' => HabitEntry.oAutoRead,
+    '日程事件' => HabitEntry.oAutoSchedule,
+    _ => HabitEntry.oManual,
+  };
+
+  /// 确认一条待确认达成：出队 + 落流水（origin=来源 · check_at=回报时刻）。
+  Future<void> confirmPend(Map<String, Object?> p) async {
+    await setPendState(p['id'] as int, 'confirmed');
+    final at = p['created_at'] as int?;
+    await upsertEntry(
+      p['habit_id'] as String,
+      day: p['day'] as String,
+      checked: true,
+      value: (p['value'] as num?)?.toDouble(),
+      origin: originForSrc(p['src'] as String),
+      checkAt: at == null
+          ? null
+          : _hhmm(DateTime.fromMillisecondsSinceEpoch(at)),
+    );
+  }
+
+  /// 忽略一条待确认达成（只出队，不落流水）。
+  Future<void> ignorePend(int id) => setPendState(id, 'ignored');
+
+  /// 自动达成源回报一次达成（原型 syncHabit 三分叉）。
+  /// 返回 null＝已直接打卡/已入待确认队列；否则为拦截原因文案。
+  Future<String?> autoIngest(
+    Habit h, {
+    required String src,
+    String? day,
+    double? value,
+    String? at,
+  }) async {
+    if (!await kvBool('habit.autoChk', true)) {
+      return '自动打卡已关闭 · 请到习惯页手动打卡';
+    }
+    final d = day ?? dayKey(DateTime.now());
+    final e = (await entriesOf(h.id))[d];
+    if (e != null && habitOkAt(h, e)) return '今天已打卡 · 自动源未重复计入';
+    if ((await kvInt('habit.autoMode', 0)) == 1) {
+      await addPend(h.id, day: d, src: src, value: value);
+      return null;
+    }
+    await upsertEntry(
+      h.id,
+      day: d,
+      checked: true,
+      value: value,
+      origin: originForSrc(src),
+      checkAt: at,
+    );
+    return null;
+  }
+
   // ---- habit.* 设置（settings 表 KV · 计划 §6）----
 
   Future<String?> kv(String key) async {
@@ -701,8 +790,10 @@ class HabitRepository {
   }
 }
 
-extension on HabitEntry {
-  HabitEntry subValuesView(Map<int, double> v) => HabitEntry(
+String _hhmm(DateTime t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+extension on HabitEntry {  HabitEntry subValuesView(Map<int, double> v) => HabitEntry(
     id: id,
     habitId: habitId,
     day: day,

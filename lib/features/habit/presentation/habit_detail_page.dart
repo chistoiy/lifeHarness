@@ -10,6 +10,7 @@ import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
 import '../domain/habit_slip.dart';
 import 'habit_aux_sheets.dart';
+import 'habit_auto_sheets.dart';
 import 'habit_backfill_sheet.dart';
 import 'habit_edit_sheet.dart';
 import 'habit_providers.dart';
@@ -93,9 +94,30 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                 row('edit', '编辑习惯', Icons.edit_outlined,
                     () => showHabitEditSheet(context, ref, h)),
                 row('set', '打卡设置', Icons.settings_outlined,
-                    () => habitToast(context, '打卡设置 · 批5交付')),
-                row('copy', '复制到新分类', Icons.add_circle_outline,
-                    () => habitToast(context, '复制到新分类 · 批5交付')),
+                    () => context.push('/habit-set')),
+                row(
+                  'copy',
+                  '复制到新分类',
+                  Icons.add_circle_outline,
+                  () async {
+                    final repo = ref.read(habitRepositoryProvider);
+                    await repo.saveHabit(
+                      h.copyWith(
+                        id: '',
+                        createdAt: 0,
+                        streak: 0,
+                        clearArchived: true,
+                        subs: [
+                          for (final s in h.subs)
+                            HabitSub(name: s.name, unit: s.unit, goal: s.goal, sort: s.sort),
+                        ],
+                      ),
+                    );
+                    ref.read(habitTickProvider.notifier).state++;
+                    if (!mounted) return;
+                    habitToast(context, '已复制一份用于新分类');
+                  },
+                ),
                 row(
                   'arch',
                   h.isArchived ? '恢复跟踪' : '归档 · 不再跟踪',
@@ -118,7 +140,8 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                   },
                 ),
                 row('export', '导出该习惯数据', Icons.description_outlined,
-                    () => habitToast(context, '导出 · 批5交付')),
+                    () => habitToast(
+                        context, '已导出 ${h.name}.json（打卡序列 + 触发记录 · 模拟）')),
                 row(
                   'del',
                   '删除习惯',
@@ -771,7 +794,7 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                       Expanded(
                         child: HMiniBtn(
                           '自动达成源',
-                          onTap: () => habitToast(context, '自动达成源 · 批5交付'),
+                          onTap: () => showHabitSrcSheet(context),
                         ),
                       ),
                       const SizedBox(width: 8),

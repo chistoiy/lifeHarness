@@ -36,6 +36,8 @@ class HabitData {
     required this.grace,
     required this.graceOf,
     required this.bfTotal,
+    required this.autoMode,
+    required this.pends,
   });
 
   final List<Habit> habits;
@@ -59,6 +61,14 @@ class HabitData {
 
   /// 全部补记流水条数（hero「补卡 N」徽标）。
   final int bfTotal;
+
+  /// habit.autoMode（0=直接打卡 / 1=需我确认 → 待确认队列）。
+  final int autoMode;
+
+  /// 待确认自动达成队列（habit_pend 原始行，habitId/src/day/value 供弹层分组）。
+  final List<Map<String, Object?>> pends;
+
+  int get pendCount => pends.length;
 
   /// 未归档（原型 hbBook）。
   List<Habit> get book => habits.where((h) => !h.isArchived).toList();
@@ -108,6 +118,8 @@ final habitDataProvider = FutureProvider<HabitData>((ref) async {
     spanFromStart: await repo.kvBool('habit.spanFromStart', true),
     rateByTotalDays: (await repo.kvInt('habit.rateBase', 0)) == 1,
     grace: await repo.kvInt('habit.grace', 1),
+    autoMode: await repo.kvInt('habit.autoMode', 0),
+    pends: await repo.pends(),
     graceOf: {
       for (final h in habits) h.id: await repo.graceLeft(h),
     },

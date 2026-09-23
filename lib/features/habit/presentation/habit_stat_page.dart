@@ -2,11 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 
+import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
+import 'habit_auto_sheets.dart';
 import 'habit_providers.dart';
 import 'habit_sheets.dart';
 import 'widgets/habit_kit.dart';
@@ -177,6 +180,66 @@ class _HabitStatPageState extends ConsumerState<HabitStatPage> {
         '${book.length} 个跟踪中习惯（正向 ${posBook.length} · 负向 ${negBook.length}）'
         ' · 正向打卡 ${A.$1} 次 · 数值记录 ${A.$2} 条 · 负向触发 $negTrig 次';
 
+    // ---- 分享长图快照（原型 hbShareRender/hbShareCopy 口径）----
+    HabitShareSnapshot shareSnap() {
+      String md(DateTime x) =>
+          '${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+      int trig(Habit h) => d
+          .of(h.id)
+          .entries
+          .where(
+            (x) =>
+                x.key.compareTo(dayKey(from)) >= 0 &&
+                x.key.compareTo(dayKey(to)) <= 0 &&
+                !x.value.checked,
+          )
+          .length;
+      final top = [...posBook]
+        ..sort(
+          (a, b) =>
+              habitCountOkInRange(b, d.of(b.id), from, to) -
+              habitCountOkInRange(a, d.of(a.id), from, to),
+        );
+      return HabitShareSnapshot(
+        title: '$baseTxt打卡报告',
+        rangeTxt: '${md(from)} ~ ${md(to)} · 共 ${book.length} 个习惯',
+        cnt: A.$1,
+        rate: rate,
+        rec: A.$2,
+        pos: [
+          for (final h in top.take(5))
+            HabitShareRow(
+              icon: h.icon,
+              name: h.name,
+              cnt: habitCountOkInRange(h, d.of(h.id), from, to),
+              right: h.isGroup
+                  ? '按子项'
+                  : h.hasVal
+                  ? '${HabitSubChips.n(habitTotalValue(h, d.of(h.id), from, to) ?? 0)} ${h.unit ?? ''}'.trim()
+                  : '${habitRate(h, entries: d.of(h.id), from: from, to: to, spanFromStart: d.spanFromStart, rateByTotalDays: d.rateByTotalDays)}%',
+            ),
+        ],
+        neg: [
+          for (final h in negBook)
+            HabitShareRow(
+              icon: h.icon,
+              name: h.name,
+              cnt: trig(h),
+              right: '守住 ${7 - d.of(h.id).entries.where((x) {
+                final k = parseDay(x.key);
+                return !k.isBefore(today.subtract(const Duration(days: 6))) &&
+                    !k.isAfter(today) &&
+                    !x.value.checked;
+              }).length}/7 天',
+            ),
+        ],
+        habitCntLines: [
+          for (final h in posBook)
+            '${h.name}：${habitCountOkInRange(h, d.of(h.id), from, to)} 次',
+        ],
+      );
+    }
+
     String dlt(num cur, num prev, bool betterUp) {
       final diff = cur - prev;
       final p = prev == 0 ? (diff == 0 ? 0 : 100) : (diff * 100 / prev).round();
@@ -275,6 +338,21 @@ class _HabitStatPageState extends ConsumerState<HabitStatPage> {
             ),
           ],
         ),
+        // 原型 renderHdrActs(p-habitStat)：分享长图 + 打卡设置。
+        actions: [
+          IconButton(
+            key: const ValueKey('hs-share'),
+            tooltip: '分享长图',
+            icon: Icon(HIcons.resolve('doc'), size: 20),
+            onPressed: () => showHabitShareSheet(context, shareSnap()),
+          ),
+          IconButton(
+            key: const ValueKey('hs-set'),
+            tooltip: '打卡设置',
+            icon: Icon(HIcons.resolve('cog'), size: 20),
+            onPressed: () => context.push('/habit-set'),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

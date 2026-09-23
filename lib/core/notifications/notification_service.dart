@@ -115,6 +115,55 @@ class NotificationService {
         '今天还没有计时 · 想起一段也值得记一条摘录');
   }
 
+  static const int habitNightlyId = 900004;
+
+  /// 习惯文本 → 稳定通知 id（跨进程重启可取消重排；String.hashCode 不保证稳定）。
+  static int habitNotifId(String habitId) {
+    var h = 0x811c9dc5;
+    for (final c in habitId.codeUnits) {
+      h = ((h ^ c) * 0x01000193) & 0x7fffffff;
+    }
+    return 810000 + h % 80000;
+  }
+
+  /// 晚间未打卡提醒（habit.nightRemind × remindAll × dnd 三重门控后传入 on）。
+  static Future<void> syncHabitNightly({
+    required bool on,
+    required String at,
+  }) async {
+    if (!ready) return;
+    await _syncDailyAt(habitNightlyId, on, at, '习惯晚间打卡',
+        '到点仍有习惯未打卡 · 补一个，连续就还在');
+  }
+
+  /// 逐习惯提醒注册（remindAt 有值且门控开=排程；否则取消）。
+  static Future<void> registerHabitReminder({
+    required String habitId,
+    required String title,
+    String? hhmm,
+    bool enabled = true,
+  }) async {
+    if (!ready) return;
+    final id = habitNotifId(habitId);
+    await plugin.cancel(id);
+    if (!enabled || hhmm == null || hhmm.isEmpty) return;
+    final parts = hhmm.split(':');
+    final h = int.tryParse(parts[0]) ?? 8;
+    final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
+    final now = tz.TZDateTime.now(tz.local);
+    var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
+    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
+    await plugin.zonedSchedule(
+      id,
+      '习惯提醒',
+      '「$title」到点该打卡了',
+      next,
+      const NotificationDetails(android: _remindersCh),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
   static Future<void> _syncDailyAt(
       int id, bool on, String hhmm, String title, String body) async {
     await plugin.cancel(id);

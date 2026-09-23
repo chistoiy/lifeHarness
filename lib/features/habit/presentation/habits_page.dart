@@ -9,6 +9,7 @@ import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_entry.dart';
 import 'habit_aux_sheets.dart';
+import 'habit_auto_sheets.dart';
 import 'habit_backfill_sheet.dart';
 import 'habit_edit_sheet.dart';
 import 'habit_providers.dart';
@@ -86,7 +87,7 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
           IconButton(
             tooltip: '打卡设置',
             icon: Icon(HIcons.resolve('cog'), size: 20),
-            onPressed: () => _toast('打卡设置 · 批5交付'),
+            onPressed: () => context.push('/habit-set'),
           ),
         ],
       ),
@@ -404,11 +405,16 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
             ],
           ),
           const SizedBox(height: 8),
-          if (autoHabits > 0)
+          if (autoHabits > 0 || d.pendCount > 0)
             HPill(
-              text: '今日自动达成 $autoHabits 项 · 查看来源',
-              icon: HIcons.resolve('flame'),
-              onTap: () => _toast('自动达成源 · 批5交付'),
+              key: const ValueKey('hb-auto-row'),
+              text: d.autoMode == 1
+                  ? '待确认 ${d.pendCount} 项 · 逐条确认'
+                  : '今日自动达成 $autoHabits 项 · 查看来源',
+              icon: HIcons.resolve(d.autoMode == 1 ? 'undo' : 'flame'),
+              onTap: () => d.autoMode == 1
+                  ? showHabitPendSheet(context)
+                  : showHabitSrcSheet(context),
             )
           else
             const Padding(
