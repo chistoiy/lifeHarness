@@ -14,6 +14,7 @@ import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/habit/presentation/habit_detail_page.dart';
+import '../../features/habit/presentation/habit_stat_page.dart';
 import '../../features/habit/presentation/habits_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
@@ -57,12 +58,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/journal', builder: (_, _) => const JournalPage()),
           // M1·习惯批1：习惯主页（底部导航池栏目 · 计划 §3 /habits）。
           GoRoute(path: '/habits', builder: (_, _) => const HabitsPage()),
-          // 习惯详情（批3b · 计划 §3 /habit/:id，全屏无底栏）
-          GoRoute(
-            path: '/habit/:id',
-            builder: (_, s) =>
-                HabitDetailPage(habitId: s.pathParameters['id']!),
-          ),
           GoRoute(path: '/inbox', builder: (_, _) => const InboxPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
@@ -111,6 +106,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // M1批3 阅读：书架与书籍详情（原型 p-bookshelf / p-bookDetail）。
       GoRoute(path: '/read/shelf', builder: (_, _) => const ShelfPage()),
+      // 习惯二级页（批3b/批4 · 计划 §3）：详情与统计，全屏无底栏。
+      GoRoute(
+        path: '/habit/:id',
+        builder: (_, s) =>
+            HabitDetailPage(habitId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/habit-stat',
+        builder: (_, _) => const HabitStatPage(),
+      ),
       GoRoute(
         path: '/read/book/:id',
         builder: (_, s) => BookDetailPage(

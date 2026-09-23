@@ -81,7 +81,7 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
           IconButton(
             tooltip: '周 / 月 / 年统计',
             icon: Icon(HIcons.resolve('chart'), size: 20),
-            onPressed: () => _toast('习惯统计 · 批4交付'),
+            onPressed: () => context.push('/habit-stat'),
           ),
           IconButton(
             tooltip: '打卡设置',

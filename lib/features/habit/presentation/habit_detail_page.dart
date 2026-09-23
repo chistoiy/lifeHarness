@@ -778,7 +778,7 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
                       Expanded(
                         child: HMiniBtn(
                           '全局统计',
-                          onTap: () => habitToast(context, '习惯统计 · 批4交付'),
+                          onTap: () => context.push('/habit-stat'),
                         ),
                       ),
                     ],
