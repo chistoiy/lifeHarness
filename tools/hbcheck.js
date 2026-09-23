@@ -5,9 +5,9 @@ const s = fs.readFileSync(F, 'utf8').replace(/\r\n/g, '\n');
 // 1) emoji 扫描（只看习惯专版区域）
 const EM = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu;
 const ranges = [
-  ['pages', s.indexOf('<!-- ===== P12 习惯打卡'), s.indexOf('    <!-- ===== P12a 二级：数据与同步')],
-  ['sheets', s.indexOf('<!-- ===== 习惯专版 · 新建'), s.indexOf('  <!-- ===== 主题市场 -->')],
-  ['js', s.indexOf('/* ================= 习惯打卡'), s.indexOf('/* ================= 插件中心')]
+  ['pages', s.indexOf('<section id="p-habits"'), s.indexOf('<section id="p-sub-data"')],
+  ['sheets', s.indexOf('<!-- ===== 习惯专版 · 新建'), s.indexOf('<!-- ===== 主题市场 =====')],
+  ['js', s.indexOf('/* ================= 习惯专版'), s.indexOf('/* ================= 插件中心')]
 ];
 for (const [n, a, b] of ranges) {
   if (a < 0 || b < a) { console.log(n, 'RANGE FAIL'); continue }
