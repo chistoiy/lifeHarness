@@ -238,7 +238,7 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
           children: [
             const Text('习惯详情', style: TextStyle(fontSize: 16)),
             Text(
-              h.name,
+              '连续 · 里程碑 · 触发记录',
               style: TextStyle(
                 fontSize: 11,
                 color: scheme.onSurfaceVariant,
@@ -1429,8 +1429,9 @@ String _flowText(Habit h, HabitEntry e) {
   }
   final note = e.note != null && e.note!.isNotEmpty ? ' · ${e.note}' : '';
   if (h.isGroup) {
-    final n = e.subValues.values.where((x) => x > 0).length;
-    return n > 0 ? '$n 项达标$note' : '已打卡$note';
+    // 原型组流水＝按「项次」合计（达成判定仍按子项规则，禁跨单位仅约束汇总展示）
+    final sum = e.subValues.values.fold<double>(0, (a, b) => a + b);
+    return sum > 0 ? '${HabitSubChips.n(sum)} 项次$note' : '已打卡$note';
   }
   return v > 0 ? '${HabitSubChips.n(v)} ${h.unit ?? '次'}$note' : '已打卡$note';
 }
