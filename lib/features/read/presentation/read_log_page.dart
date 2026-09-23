@@ -9,11 +9,10 @@ import 'read_sheets.dart' show readToast;
 import 'widgets/bs_cover.dart' show BsIcons;
 
 /// 阅读记录页（真机验收轮1e · 原型 p-readlog/renderReadLog）：
-/// 计时明细半屏层改全屏页＝书名/作者/出版社/出版时间信息卡 + 四数据卡
-/// （阅读进度/阅读时长/已读天数/开始日期）+ 按月分组（月份行+当月时长徽章）
-/// + 逐条时间线卡（日期周几/P起→止/分钟渐变条 · 点卡就地展开改日期时长页码/删除）
-/// + 右上 ⊕ 补记一次。入口：详情页「时长」、档案页累计卡与轨迹行、操作弹层、阅读轨迹「改明细」。
-class ReadLogPage extends ConsumerWidget {
+/// 单条时间线卡（日期周几/时间段·止页/分钟渐变条 · 点卡就地展开改日期时长页码/删除）
+/// + 右上 ⊕ 补记一次 + 数据卡下方「全部 ▾」范围筛选（轮1g）。
+/// 入口：详情页「时长」、档案页累计卡与轨迹行、操作弹层、阅读轨迹「改明细」。
+class ReadLogPage extends ConsumerStatefulWidget {
   const ReadLogPage({super.key, required this.bookId});
   final String bookId;
 
@@ -25,27 +24,44 @@ class ReadLogPage extends ConsumerWidget {
         ..sort((x, y) => y.startedAt.compareTo(x.startedAt));
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReadLogPage> createState() => _ReadLogPageState();
+}
+
+class _ReadLogPageState extends ConsumerState<ReadLogPage> {
+  static const _scopes = ['全部', '本月', '近3月'];
+  int _scope = 0;
+
+  /// 按会话开始时间做自然月窗口筛选（0 全部 · 1 本月 · 2 近3月含本月）。
+  bool _inScope(int ms) {
+    if (_scope == 0) return true;
+    final d = DateTime.fromMillisecondsSinceEpoch(ms), now = DateTime.now();
+    final off = (now.year - d.year) * 12 + (now.month - d.month);
+    return _scope == 1 ? off == 0 : off >= 0 && off <= 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tokens = context.tokens;
     final b = (ref.watch(booksProvider).valueOrNull ?? const <Book>[])
-        .where((x) => x.id == bookId && !x.isDeleted)
+        .where((x) => x.id == widget.bookId && !x.isDeleted)
         .firstOrNull;
-    final sessions =
-        endedDesc(
-              ref.watch(sessionsOfProvider(bookId)).valueOrNull ??
-              const <BookSession>[],
-            );
-    final total = sessions.fold<int>(0, (t, s) => t + s.minutes);
+    final all = ReadLogPage.endedDesc(
+      ref.watch(sessionsOfProvider(widget.bookId)).valueOrNull ??
+          const <BookSession>[],
+    );
+    // 轮1g「全部 ▾」范围筛选：仅作用于时间线分组与已读天数；累计时长/进度/开始日期保持全书口径（原型一致）。
+    final sessions = all.where((s) => _inScope(s.startedAt)).toList();
+    final total = all.fold<int>(0, (t, s) => t + s.minutes);
     final dayKeys = {
       for (final s in sessions)
         DateTime.fromMillisecondsSinceEpoch(s.startedAt).toIso8601String().substring(0, 10),
     };
     final startMs = b?.startedAt ??
-        (sessions.isEmpty
+        (all.isEmpty
             ? null
-            : sessions.map((s) => s.startedAt).reduce((a, x) => a < x ? a : x));
-    final maxMin = sessions.fold<int>(
+            : all.map((s) => s.startedAt).reduce((a, x) => a < x ? a : x));
+    final maxMin = all.fold<int>(
       1,
       (m, s) => s.minutes > m ? s.minutes : m,
     );
@@ -84,11 +100,16 @@ class ReadLogPage extends ConsumerWidget {
             tooltip: '补记一次',
             icon: const Icon(BsIcons.add, size: 18),
             onPressed: () async {
+              // 原型 bsSessAdd：from=当前进度页，to=min(总页数, from+10)。
+              final fp = (b?.readPages ?? 0) > 0 ? b!.readPages : null;
               await ref.read(readRepositoryProvider).addManualSession(
-                bookId: bookId,
+                bookId: widget.bookId,
                 day: DateTime.now(),
                 minutes: 20,
-                fromPage: (b?.readPages ?? 0) > 0 ? b!.readPages : null,
+                fromPage: fp,
+                toPage: fp == null
+                    ? null
+                    : (b!.pages > 0 ? fp + 10 > b.pages ? b.pages : fp + 10 : fp + 10),
               );
               if (!context.mounted) return;
               ref.read(readTickProvider.notifier).state++;
@@ -184,6 +205,48 @@ class ReadLogPage extends ConsumerWidget {
                     ),
                   ],
                 ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      PopupMenuButton<int>(
+                        key: const ValueKey('rl-filter'),
+                        tooltip: '筛选范围',
+                        itemBuilder: (context) => [
+                          for (var i = 0; i < _scopes.length; i++)
+                            PopupMenuItem(
+                              value: i,
+                              child: Text(
+                                _scopes[i],
+                                style: const TextStyle(fontSize: 12.5),
+                              ),
+                            ),
+                        ],
+                        onSelected: (i) => setState(() => _scope = i),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: cs.outlineVariant.withValues(alpha: .6),
+                            ),
+                          ),
+                          child: Text(
+                            '${_scopes[_scope]} ▾',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 if (sessions.isEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 14),
@@ -191,7 +254,9 @@ class ReadLogPage extends ConsumerWidget {
                     decoration: _cardDeco(context),
                     child: Center(
                       child: Text(
-                        '还没有计时记录 · 点右上 ＋ 补记一次',
+                        all.isEmpty
+                            ? '还没有计时记录 · 点右上 ＋ 补记一次'
+                            : '当前范围没有记录 · 点右上 ＋ 补记一次',
                         style: TextStyle(
                           fontSize: 11,
                           color: cs.onSurfaceVariant,
@@ -237,7 +302,7 @@ class ReadLogPage extends ConsumerWidget {
                     ),
                   ),
                   for (final s in groups[m]!)
-                    _LogCard(s: s, maxMin: maxMin, wd: _wd),
+                    _LogCard(s: s, maxMin: maxMin, wd: ReadLogPage._wd),
                 ],
               ],
             ),
@@ -302,7 +367,7 @@ class ReadLogPage extends ConsumerWidget {
   }
 }
 
-/// 单条记录卡：日期列 + 绿点 + 页区间/分钟渐变条；点卡就地展开编辑器（原型 rlToggle）。
+/// 单条记录卡：日期列 + 绿点 + 时间段·止页/分钟渐变条；点卡就地展开编辑器（原型 rlToggle）。
 class _LogCard extends ConsumerStatefulWidget {
   const _LogCard({required this.s, required this.maxMin, required this.wd});
   final BookSession s;
@@ -316,6 +381,9 @@ class _LogCard extends ConsumerStatefulWidget {
 class _LogCardState extends ConsumerState<_LogCard> {
   bool _open = false;
   bool _dateOpen = false;
+
+  static String _hhmm(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   Future<void> _apply({int? minutes, int? fromPage, int? toPage, int? startedAtMs}) async {
     await ref.read(readRepositoryProvider).editSession(
@@ -390,7 +458,8 @@ class _LogCardState extends ConsumerState<_LogCard> {
                     Row(
                       children: [
                         Text(
-                          'P${s.fromPage ?? '—'} → P${s.toPage ?? '—'}',
+                          '${_hhmm(d)} - ${_hhmm(DateTime.fromMillisecondsSinceEpoch(s.endedAt ?? s.startedAt))}'
+                          ' · P${s.toPage ?? '—'}',
                           style: TextStyle(
                             fontSize: 11,
                             color: cs.onSurfaceVariant,

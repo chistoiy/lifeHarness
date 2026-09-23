@@ -703,6 +703,30 @@ void main() {
       WidgetPredicate rlKey(String prefix) => (w) =>
           w.key is ValueKey<String> &&
           (w.key as ValueKey<String>).value.startsWith(prefix);
+      // 轮1g：卡片首行显「时间段 · 止页」（HH:mm - HH:mm · P…）。
+      expect(
+          find.textContaining(
+              RegExp(r'\d{2}:\d{2} - \d{2}:\d{2} · P\d+')), findsOneWidget);
+      // 轮1g：数据卡下「全部 ▾」范围筛选 · 切本月再切回全部。
+      expect(find.text('全部 ▾'), findsOneWidget);
+      final nAll = find.byWidgetPredicate(rlKey('rl-sess-')).evaluate().length;
+      await tester.tap(find.byKey(const ValueKey('rl-filter')));
+      await settle(tester);
+      await tester.tap(find.text('本月').last);
+      await settle(tester);
+      expect(find.text('本月 ▾'), findsOneWidget);
+      expect(
+          find
+              .byWidgetPredicate(rlKey('rl-sess-'))
+              .evaluate()
+              .length,
+          greaterThanOrEqualTo(1)); // 刚补记的这次必在本月
+      await tester.tap(find.byKey(const ValueKey('rl-filter')));
+      await settle(tester);
+      await tester.tap(find.text('全部').last);
+      await settle(tester);
+      expect(
+          find.byWidgetPredicate(rlKey('rl-sess-')).evaluate().length, nAll);
       // 点时间线卡就地展开编辑器 → 删除这次（原型 rlToggle/rlDel）。
       await tester.tap(
           find.byWidgetPredicate(rlKey('rl-sess-')).first);
