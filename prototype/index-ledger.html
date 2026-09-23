@@ -929,6 +929,7 @@ tailwind.config = {
           <div class="mt-1.5 flex justify-between text-[10px] opacity-80"><span id="finBudgetL">月度预算 ¥0</span><span id="finBudgetR">已用 0%</span></div>
         </button>
       </div>
+      <div id="finDue" class="hidden mt-3 card !py-2.5 !px-3.5 flex items-center gap-2 text-[11px]"></div>
       <div class="mt-4 grid grid-cols-5 gap-1" id="finFuncRow"></div>
       <div class="mt-3 card !px-3 !py-3">
         <div class="flex items-center justify-between"><span class="row-title !mb-0 !text-[11px] opacity-70">快速记一笔</span><button class="text-[10px] text-brand-500 font-bold" onclick="navTo('p-txAdd')">自定义分类 ›</button></div>
@@ -1020,7 +1021,44 @@ tailwind.config = {
       <button class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400 font-bold" onclick="openCatSheet()">＋ 新建分类</button>
       <div class="mt-2 text-[9px] text-slate-400 text-center">时间账本分类沿用全局分类表（设置 › 分类管理）</div>
     </section>
+    <!-- ===== L9 周期账单/订阅 ===== -->
+    <section id="p-recur" class="page px-5 safe-pb no-scrollbar">
+      <div id="recBody" class="space-y-3"></div>
+    </section>
+
+    <!-- ===== L10 心愿单 ===== -->
+    <section id="p-wish" class="page px-5 safe-pb no-scrollbar">
+      <div id="wishBody" class="space-y-3"></div>
+    </section>
+
+    <!-- ===== L11 借出/借入 ===== -->
+    <section id="p-debt" class="page px-5 safe-pb no-scrollbar">
+      <div id="debtBody" class="space-y-3"></div>
+    </section>
+
+    <!-- ===== L12 搜索与筛选 ===== -->
+    <section id="p-txSearch" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-2 items-center">
+        <div class="inp flex flex-1 items-center gap-2 !py-2.5"><span class="text-slate-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span>
+          <input id="fsKw" class="flex-1 bg-transparent outline-none text-[13px]" placeholder="备注 / 商户名" oninput="fsRun()"></div>
+        <button class="mini-btn self-stretch" onclick="fsReset()">重置</button>
+      </div>
+      <div class="mt-3 card !py-3 space-y-3 text-[11px]" id="fsPanel"></div>
+      <div id="fsStat" class="mt-3 text-[11px] text-slate-400 px-1"></div>
+      <div id="fsList" class="mt-2 space-y-1.5"></div>
+    </section>
+
+    <!-- ===== L13 记账设置 ===== -->
+    <section id="p-lset" class="page px-5 safe-pb no-scrollbar">
+      <div id="lsetBody" class="space-y-3"></div>
+    </section>
+
+    <!-- ===== L15 数据导出 ===== -->
+    <section id="p-export" class="page px-5 safe-pb no-scrollbar">
+      <div id="expBody" class="space-y-3"></div>
+    </section>
 <!--LEDGER_NEXT-->
+
 
 
 
@@ -1048,6 +1086,8 @@ tailwind.config = {
           <div class="text-[11px] text-slate-400 mt-1">214 KB · 点击重新选择（模拟）</div>
         </div>
         <div class="mt-3 card text-xs space-y-2.5" id="billOpts"></div>
+        <div class="mt-3 card !py-3 text-xs flex items-center gap-2"><span class="text-slate-400 shrink-0">导入至账户</span>
+          <select id="billAcct" class="sel flex-1" onchange="toast('本批账单流水将记入该账户')"></select></div>
       </div>
       <!-- 步骤3 预览 -->
       <div id="bill3" class="hidden mt-4">
@@ -5021,6 +5061,211 @@ function catSheetSave(){const n=$('#caNameInp').value.trim();if(!n)return toast(
  closeSheet('sheetLedgerCatAdd');renderLcats();renderTxAdd();finTouch()}
 function openCatAddSheet(cat){lcParent=cat||null;catKind=(lcat(cat)||{}).kind||'expense';openCatSheet(null,cat)}
 LED_RENDER['p-budget']=renderBudget;LED_RENDER['p-assets']=renderAssets;LED_RENDER['p-assetAcct']=renderAcctDetail;LED_RENDER['p-cats']=renderLcats;
+/* ======================= L9 周期账单 / 订阅中心 ======================= */
+let recAddOpen=false;
+const FREQS=[['day','每天'],['week','每周'],['month','每月'],['year','每年']];
+function freqNext(d,f){const[y,m,dd]=d.split('-').map(Number);const t=new Date(y,m-1,dd+(f==='day'?1:f==='week'?7:f==='year'?365:0));
+ if(f==='month'){t.setMonth(t.getMonth()+1);const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();if(dd>last)t.setDate(last);else t.setDate(dd)}
+ return dstr(t.getFullYear(),t.getMonth()+1,t.getDate())}
+function recGen(r,quiet){ledgerAdd({kind:'expense',cat:r.cat,sub:r.sub||'',n:r.n,amt:r.amt,a:r.acct,d:r.next,tags:[],src:'recurring',recurringId:r.id});
+ r.next=freqNext(r.next,r.freq);if(!quiet){toast('已生成「'+r.n+'」流水 · 续费提醒日程已同步（L8）');renderRecur()}}
+function recGenDue(){const due=L.recur.filter(r=>r.on&&r.next<=TODAY);due.forEach(r=>recGen(r,true));
+ if(due.length){finTouch();renderRecur();toast(`已批量生成 ${due.length} 笔到期流水（L8 日程联动）`)}else toast('今日无到期账单')}
+function renderRecur(){
+ if(!document.getElementById('recBody'))return;
+ const due=L.recur.filter(r=>r.on&&r.next<=TODAY);
+ let h=`${due.length?`<div class="card !bg-amber-50 dark:!bg-amber-500/10 !border-amber-200 dark:!border-amber-500/30 flex items-center gap-3">
+   <span class="fin-ico" style="background:#f59e0b1a;color:#f59e0b">${svgIco('bell','w-[18px] h-[18px]')}</span>
+   <div class="flex-1"><div class="text-[13px] font-bold">今日到期 ${due.length} 笔 · 共 ${money(due.reduce((s,r)=>s+r.amt,0))}</div>
+    <div class="text-[10px] text-slate-400">${due.map(r=>r.n).join(' · ')}</div></div>
+   <button class="py-2 px-3.5 rounded-xl bg-amber-500 text-white text-[12px] font-extrabold" onclick="recGenDue()">生成</button></div>`:''}`;
+ h+=`<div class="space-y-2">`+L.recur.map(r=>{
+  const c=lcat(r.cat)||{n:'其他',c:'#94a3b8',i:'dots'};const days=Math.round((new Date(r.next)-new Date(TODAY))/864e5);
+  return `<div class="card !py-3 flex items-center gap-3">
+   <span class="fin-ico" style="background:${c.c}1a;color:${c.c}">${svgIco(c.i,'w-[18px] h-[18px]')}</span>
+   <div class="flex-1 min-w-0"><div class="text-[13px] font-bold flex items-center gap-1.5">${r.n}${r.on?'':'<span class="text-[8px] px-1.5 py-px rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 font-bold">已暂停</span>'}</div>
+    <div class="text-[9px] text-slate-400">${(FREQS.find(f=>f[0]===r.freq)||['','每周'])[1]}${r.sub?' · '+r.sub:''} · ${LA(r.acct)?.n||''} · ${r.next}${days<=0?' 已到期':` 还有 ${days} 天`}</div></div>
+   <b class="text-[13px]">${AMT(r.amt)}</b>
+   <span class="toggle ${r.on?'on':''}" onclick="L.recur.find(x=>x.id==='${r.id}').on=!L.recur.find(x=>x.id==='${r.id}').on;renderRecur();toast('周期账单已'+(L.recur.find(x=>x.id==='${r.id}').on?'恢复':'暂停'))"></span>
+   <button class="text-slate-400" onclick="recDel('${r.id}')">${svgIco('trash','w-4 h-4')}</button></div>`}).join('')+`</div>`;
+ h+=recAddOpen?`<div class="card"><div class="row-title !text-[12px]">新建周期账单</div>
+   <div class="mt-2 flex gap-2"><input id="raName" class="inp flex-1 !py-2" placeholder="名称 · 如 爱奇艺会员"><input id="raAmt" class="inp w-24 !py-2" type="number" placeholder="金额"></div>
+   <div class="mt-2 flex gap-2"><select id="raCat" class="sel flex-1">${LCATS.expense.map(c=>`<option value="${c.id}">${c.n}</option>`).join('')}</select>
+    <select id="raFreq" class="sel flex-1">${FREQS.map(f=>`<option value="${f[0]}">${f[1]}</option>`).join('')}</select>
+    <select id="raAcct" class="sel flex-1">${L.accounts.map(a=>`<option value="${a.id}">${a.n}</option>`).join('')}</select></div>
+   <div class="mt-2 flex gap-2"><input id="raNext" class="inp flex-1 !py-2" type="date" value="2026-10-01">
+    <button class="py-2 px-4 rounded-xl grad text-white text-[12px] font-extrabold" onclick="recAddSave()">保存</button>
+    <button class="py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[12px]" onclick="recAddOpen=false;renderRecur()">取消</button></div>
+  </div>`:`<button class="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400 font-bold" onclick="recAddOpen=true;renderRecur()">＋ 新建周期账单</button>`;
+ h+=`<div class="text-[9px] text-slate-400 text-center pt-1">周期账单不预生成流水，扣日当天确认后入账（可整月回看）· 自动关联续费提醒日程（L8）</div>`;
+ $('#recBody').innerHTML=h}
+function recDel(id){L.recur=L.recur.filter(r=>r.id!==id);renderRecur()}
+function recAddSave(){const n=$('#raName').value.trim(),amt=+$('#raAmt').value;
+ if(!n||!amt)return toast('请填写名称与金额');
+ L.recur.push({id:'r'+Date.now()%1e6,n,amt,cat:$('#raCat').value,sub:'',acct:$('#raAcct').value,freq:$('#raFreq').value,next:$('#raNext').value||TODAY,on:true});
+ recAddOpen=false;renderRecur();toast('周期账单已创建')}
+
+/* ======================= L10 心愿单 ======================= */
+function renderWish(){
+ if(!document.getElementById('wishBody'))return;
+ const open=L.wishes.filter(w=>!w.done),done=L.wishes.filter(w=>w.done);
+ const tt=open.reduce((s,w)=>s+w.target,0),ss=open.reduce((s,w)=>s+Math.min(w.saved,w.target),0);
+ $('#wishBody').innerHTML=`
+  <div class="card text-center !py-4"><div class="text-[10px] text-slate-400">心愿进度</div>
+   <div class="text-2xl font-extrabold mt-0.5">${AMT(ss)} <span class="text-[11px] font-bold text-slate-400">/ ${AMT(tt)}</span></div>
+   <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad rounded-full" style="width:${tt?Math.min(100,ss/tt*100):0}%"></span></div></div>
+  ${open.map(w=>{const p=Math.min(100,w.saved/w.target*100);
+   return `<div class="card">
+   <div class="flex items-center gap-3"><span class="fin-ico" style="background:#f59e0b1a;color:#f59e0b">${svgIco('star','w-[18px] h-[18px]')}</span>
+    <div class="flex-1"><div class="text-[13px] font-bold">${w.n}</div><div class="text-[9px] text-slate-400">目标 ${money(w.target)}${p>=100?' · 已达成，可兑换':''}</div></div>
+    <button class="text-slate-400" onclick="L.wishes=L.wishes.filter(x=>x.id!=='${w.id}');renderWish()">${svgIco('trash','w-4 h-4')}</button></div>
+   <div class="mt-2 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${p>=100?'bg-emerald-500':'bg-amber-400'}" style="width:${p}%"></span></div>
+   <div class="mt-1 flex justify-between text-[10px]"><b>${AMT(w.saved)}</b><span class="text-slate-400">${p.toFixed(0)}%</span></div>
+   <div class="mt-2.5 flex gap-2">
+    <button class="flex-1 py-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-extrabold" onclick="wishSave('${w.id}')">存入</button>
+    <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-[11px] font-bold" onclick="wishTake('${w.id}')">取出</button>
+    <button class="flex-1 py-2 rounded-xl grad text-white text-[11px] font-extrabold" ${p<100?'disabled style="opacity:.4"':''} onclick="wishRedeem('${w.id}')">兑换记账</button></div>
+  </div>`}).join('')}
+  <button class="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400 font-bold" onclick="wishAdd()">＋ 新建心愿</button>
+  ${done.length?`<div class="card !p-0 overflow-hidden"><div class="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-400">已实现</div>
+   ${done.map(w=>`<div class="flex items-center px-4 py-2 text-[12px]"><span class="text-emerald-500 mr-2">${'✓'}</span><b class="flex-1">${w.n}</b><span class="text-slate-400 text-[10px]">${w.doneDate||''}</span></div>`).join('')}</div>`:''}`;
+}
+function wishSave(id){const w=L.wishes.find(x=>x.id===id);openWheel(`「${lq(w.n)}」存入`,0,v=>{if(v){w.saved+=v;renderWish();toast(`已存入 ${money(v)}`)}})}
+function wishTake(id){const w=L.wishes.find(x=>x.id===id);openWheel(`「${lq(w.n)}」取出`,0,v=>{if(v){w.saved=Math.max(0,w.saved-v);renderWish();toast(`已取出 ${money(v)}`)}})}
+function wishAdd(){const n=prompt('心愿名称');if(!n)return;const t=+(prompt('目标金额')||0);if(!t)return;
+ L.wishes.push({id:'w'+Date.now()%1e6,n,target:t,saved:0});renderWish()}
+function wishRedeem(id){const w=L.wishes.find(x=>x.id===id);
+ openLedgerAcctPick(a=>{ledgerAdd({kind:'expense',cat:'shop',sub:'',n:'心愿兑现 · '+w.n,amt:w.target,a,d:TODAY,tags:[],src:'wish',wishId:w.id});
+  w.done=true;w.doneDate=TODAY;w.saved=0;toast('已生成支出流水并归档心愿');renderWish()},'兑换账户')}
+
+/* ======================= L11 借出 / 借入 ======================= */
+let debtSide='all';
+function renderDebt(){
+ if(!document.getElementById('debtBody'))return;
+ const f=L.debts.filter(d=>debtSide==='all'||d.side===debtSide);
+ const lend=L.debts.filter(d=>d.side==='lend'),bor=L.debts.filter(d=>d.side==='borrow');
+ const lOut=lend.reduce((s,d)=>s+d.total,0),lBack=lend.reduce((s,d)=>s+d.paid,0),bOut=bor.reduce((s,d)=>s+d.paid,0),bIn=bor.reduce((s,d)=>s+d.total,0);
+ $('#debtBody').innerHTML=`
+  <div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
+   ${[['all','全部'],['lend','借出 · 别人欠我'],['borrow','借入 · 我欠别人']].map(([k,n])=>`<button class="flex-1 py-1.5 rounded-full ${debtSide===k?'seg-on':''}" onclick="debtSide='${k}';renderDebt()">${n}</button>`).join('')}</div>
+  <div class="card grid grid-cols-2 gap-2 text-center !py-4">
+   <div><div class="text-[10px] text-slate-400">借出未收</div><b class="text-[17px] text-sky-500">${AMT(Math.max(0,lOut-lBack))}</b></div>
+   <div><div class="text-[10px] text-slate-400">借入未还</div><b class="text-[17px] text-rose-400">${AMT(Math.max(0,bIn-bOut))}</b></div></div>
+  ${f.map(d=>{const p=d.total?Math.min(100,d.paid/d.total*100):0;const left=d.total-d.paid;
+   return `<div class="card">
+   <div class="flex items-center gap-3"><span class="fin-ico" style="background:${d.side==='lend'?'#0ea5e91a':'#fb71851a'};color:${d.side==='lend'?'#0ea5e9':'#fb7185'}">${svgIco(d.side==='lend'?'arrows':'scale','w-[18px] h-[18px]')}</span>
+    <div class="flex-1"><div class="text-[13px] font-bold">${d.p} <span class="text-[9px] font-normal text-slate-400">${d.side==='lend'?'借出':'借入'} · ${d.note||''}</span></div>
+     <div class="text-[9px] text-slate-400">${left>0?`剩余 ${money(left)} 未${d.side==='lend'?'收':'还'}`:'已结清'}</div></div>
+    <b class="text-[13px]">${AMT(d.total)}</b></div>
+   <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${p>=100?'bg-emerald-500':''}" style="width:${p}%;background:${p>=100?'':(d.side==='lend'?'#0ea5e9':'#fb7185')}"></span></div>
+   <div class="mt-2 flex gap-2 text-[10px] font-bold">
+    <button class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="debtPay('${d.id}')">${d.side==='lend'?'记还款（收）':'记还款（还）'}</button>
+    <button class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800" ${left<=0?'disabled style="opacity:.4"':''} onclick="debtClose('${d.id}')">结清</button>
+    <button class="py-1.5 px-3 rounded-lg bg-slate-100 dark:bg-slate-800" onclick="L.debts=L.debts.filter(x=>x.id!=='${d.id}');renderDebt()">删</button></div>
+  </div>`}).join('')}
+  <button class="w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400 font-bold" onclick="debtAdd()">＋ 记一笔借出 / 借入</button>`;
+}
+function debtPay(id){const d=L.debts.find(x=>x.id===id);
+ openWheel(`「${lq(d.p)}」还款金额`,0,v=>{if(!v)return;d.paid=Math.min(d.total,d.paid+v);
+  ledgerAdd(d.side==='lend'?{kind:'income',cat:'oi',sub:'',n:`${d.p} 还款`,amt:v,a:L.set.defAcct,d:TODAY,tags:[],src:'debt',debtId:d.id}
+   :{kind:'expense',cat:'oe',sub:'',n:`还 ${d.p}`,amt:v,a:L.set.defAcct,d:TODAY,tags:[],src:'debt',debtId:d.id});
+  renderDebt();toast('已记还款流水 · 进度更新')},'还款金额')}
+function debtClose(id){const d=L.debts.find(x=>x.id===id);const left=d.total-d.paid;
+ openLedgerAcctPick(a=>{if(left>0)ledgerAdd(d.side==='lend'?{kind:'income',cat:'oi',sub:'',n:`${d.p} 结清`,amt:left,a,d:TODAY,tags:[],src:'debt',debtId:d.id}
+   :{kind:'expense',cat:'oe',sub:'',n:`结清 ${d.p}`,amt:left,a,d:TODAY,tags:[],src:'debt',debtId:d.id});
+  d.paid=d.total;renderDebt();toast('已结清')},'结清账户')}
+function debtAdd(){const side=prompt('借出（别人欠你）输入1 · 借入（你欠别人）输入2')==='1'?'lend':'borrow';
+ const p=prompt('对象');if(!p)return;const t=+(prompt('金额')||0);if(!t)return;
+ L.debts.push({id:'d'+Date.now()%1e6,side,p,total:t,paid:0,note:''});renderDebt()}
+
+/* ======================= L12 搜索与筛选 ======================= */
+const fs={kw:'',min:'',max:'',cat:'',acct:'',tag:'',from:'',to:''};
+function renderFsPanel(){
+ if(!document.getElementById('fsPanel'))return;
+ $('#fsPanel').innerHTML=`
+  <div class="flex items-center gap-2"><span class="w-10 text-slate-400">金额</span>
+   <input class="inp !py-1.5 flex-1" type="number" placeholder="最低" value="${fs.min}" oninput="fs.min=this.value;fsRun()">
+   <span class="text-slate-300">—</span>
+   <input class="inp !py-1.5 flex-1" type="number" placeholder="最高" value="${fs.max}" oninput="fs.max=this.value;fsRun()"></div>
+  <div class="flex items-center gap-2"><span class="w-10 text-slate-400">分类</span>
+   <select class="sel flex-1" onchange="fs.cat=this.value;fsRun()"><option value="">全部分类</option>${LCATS.expense.map(c=>`<option value="${c.id}" ${fs.cat===c.id?'selected':''}>${c.n}</option>`).join('')}</select>
+   <span class="w-10 text-slate-400 text-right">账户</span>
+   <select class="sel flex-1" onchange="fs.acct=this.value;fsRun()"><option value="">全部账户</option>${L.accounts.map(a=>`<option value="${a.id}" ${fs.acct===a.id?'selected':''}>${a.n}</option>`).join('')}</select></div>
+  <div class="flex items-center gap-2"><span class="w-10 text-slate-400">日期</span>
+   <input class="inp !py-1.5 flex-1" type="date" value="${fs.from}" onchange="fs.from=this.value;fsRun()">
+   <span class="text-slate-300">—</span>
+   <input class="inp !py-1.5 flex-1" type="date" value="${fs.to}" onchange="fs.to=this.value;fsRun()"></div>
+  <div class="flex items-center gap-1.5 flex-wrap"><span class="w-10 text-slate-400">标签</span>
+   ${L.tags.map(t=>`<button class="tag-chip !py-0.5 !text-[10px] ${fs.tag===t?'on':''}" onclick="fs.tag=fs.tag==='${lq(t)}'?'':'${lq(t)}';renderFsPanel();fsRun()">#${t}</button>`).join('')}</div>`;
+}
+function fsResults(){return L.txns.filter(t=>{
+ if(fs.kw&&!(t.n||'').includes(fs.kw)&&!(lcatN(t.cat)||'').includes(fs.kw))return false;
+ const isEx=t.kind==='expense';if(fs.min&&(isEx? t.amt<+fs.min : Math.abs(t.amt)<+fs.min))return false;
+ if(fs.max&&isEx&&t.amt>+fs.max)return false;
+ if(fs.cat&&t.cat!==fs.cat)return false;
+ if(fs.acct&&t.a!==fs.acct&&t.to!==fs.acct)return false;
+ if(fs.tag&&!(t.tags||[]).includes(fs.tag))return false;
+ if(fs.from&&t.d<fs.from)return false;
+ if(fs.to&&t.d>fs.to)return false;
+ return ['expense','income','transfer','refund'].includes(t.kind)}).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.id-a.id)}
+function fsRun(){const ts=fsResults();
+ const e=ts.filter(t=>t.kind==='expense').reduce((s,t)=>s+t.amt,0),i=ts.filter(t=>t.kind==='income').reduce((s,t)=>s+t.amt,0);
+ $('#fsStat').textContent=`共 ${ts.length} 条 · 支出 ${money(e)} · 收入 ${money(i)}`;
+ $('#fsList').innerHTML=ts.length?ts.map(txRow).join(''):'<div class="text-center text-xs text-slate-400 py-12">没有符合条件的流水</div>'}
+function fsReset(){Object.assign(fs,{kw:'',min:'',max:'',cat:'',acct:'',tag:'',from:'',to:''});$('#fsKw').value='';renderFsPanel();fsRun()}
+
+/* ======================= L13 记账设置 ======================= */
+function renderLset(){
+ if(!document.getElementById('lsetBody'))return;
+ const row=(t,ctrl,sub)=>`<div class="card !py-3 !px-4 flex items-center gap-3"><div class="flex-1"><div class="text-[13px] font-bold">${t}</div>${sub?`<div class="text-[9px] text-slate-400 mt-0.5">${sub}</div>`:''}</div>${ctrl}</div>`;
+ $('#lsetBody').innerHTML=
+  row('隐藏全部金额',`<span class="toggle ${L.set.hide?'on':''}" onclick="toggleHideAmounts();renderLset()"></span>`,'仪表盘与资产页同步生效')+
+  row('默认记账账户',`<button class="chip" onclick="openLedgerAcctPick(a=>{L.set.defAcct=a;renderLset();toast('默认账户已切换')})">${LA(L.set.defAcct)?.n||'选择'}</button>`)+
+  row('记一笔保存后',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.afterSave==='back'?'seg-on':''}" onclick="L.set.afterSave='back';renderLset()">回流水页</button><button class="px-2.5 py-1 rounded-full ${L.set.afterSave==='stay'?'seg-on':''}" onclick="L.set.afterSave='stay';renderLset()">继续记录</button></div>`)+
+  row('删除流水二次确认',`<span class="toggle ${L.set.confirmDel?'on':''}" onclick="L.set.confirmDel=!L.set.confirmDel;renderLset()"></span>`)+
+  row('预算月起始日',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===1?'seg-on':''}" onclick="L.set.monthStart=1;renderLset()">每月 1 日</button><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===15?'seg-on':''}" onclick="L.set.monthStart=15;renderLset();toast('预算与日均分配将按 15 日周期重算（演示）')">每月 15 日</button></div>`)+
+  row('预算超支提醒',`<span class="toggle on" onclick="tgl(this);toast('超支 80% / 100% 两档本地通知（演示）')"></span>`)+
+  row('月度小结推送',`<span class="toggle" onclick="tgl(this);toast('每月 1 日 09:00 本地推送（演示）')"></span>`)+
+  row('数据导出',`<button class="chip" onclick="navTo('p-export')">CSV · JSON ›</button>`)+
+  row('重置演示数据',`<button class="chip" onclick="location.reload()">重新载入</button>`);
+}
+
+/* ======================= L15 数据导出 ======================= */
+const exp={scope:'all',fmt:'csv',acct:'debit',cat:'food'};
+function renderExport(){
+ if(!document.getElementById('expBody'))return;
+ let ts=L.txns;
+ if(exp.scope==='month')ts=L.txns.filter(t=>t.d.slice(0,7)===finMonth);
+ if(exp.scope==='acct')ts=L.txns.filter(t=>t.a===exp.acct||t.to===exp.acct);
+ if(exp.scope==='cat')ts=L.txns.filter(t=>t.cat===exp.cat);
+ $('#expBody').innerHTML=`
+  <div class="card">
+   <div class="row-title !text-[12px]">导出范围</div>
+   <div class="mt-2 grid grid-cols-4 gap-1.5">${[['all','全部'],['month','按月'],['acct','按账户'],['cat','按分类']].map(([k,n])=>`<button class="pick-chip !text-[11px] ${exp.scope===k?'!border-brand-400 text-brand-500':''}" onclick="exp.scope='${k}';renderExport()">${n}</button>`).join('')}</div>
+   ${exp.scope==='acct'?`<select class="sel mt-2 w-full" onchange="exp.acct=this.value;renderExport()">${L.accounts.map(a=>`<option value="${a.id}" ${exp.acct===a.id?'selected':''}>${a.n}</option>`).join('')}</select>`:''}
+   ${exp.scope==='cat'?`<select class="sel mt-2 w-full" onchange="exp.cat=this.value;renderExport()">${LCATS.expense.map(c=>`<option value="${c.id}" ${exp.cat===c.id?'selected':''}>${c.n}</option>`).join('')}</select>`:''}
+   <div class="mt-3 flex rounded-full bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
+    <button class="flex-1 py-1.5 rounded-full ${exp.fmt==='csv'?'seg-on':''}" onclick="exp.fmt='csv';renderExport()">CSV · Excel 兼容</button>
+    <button class="flex-1 py-1.5 rounded-full ${exp.fmt==='json'?'seg-on':''}" onclick="exp.fmt='json';renderExport()">JSON · 完整字段</button></div>
+  </div>
+  <div class="card"><div class="row-title !text-[12px]">预览</div>
+   <div class="mt-1.5 text-[11px] text-slate-400 leading-6">${ts.length} 条流水 · ${exp.fmt==='csv'?'字段：日期,类型,分类,子分类,金额,账户,备注,标签,来源':'字段：id, kind, cat, sub, amt, account, date, note, tags, source'}<br>不含账户完整卡号，仅本机构建摘要</div></div>
+  <button class="w-full py-3.5 rounded-2xl grad text-white text-[14px] font-extrabold" onclick="toast('已导出 ${exp.scope==='month'?finMonth:'全量'} 流水 · lifeharness_ledger.${exp.fmt}（模拟写入下载目录）')">导出 ${ts.length} 条</button>`;
+}
+/* L14 账单导入：账户归属下拉填充 */
+const _billOpts0=billOpts;
+billOpts=function(){_billOpts0();const sel=document.getElementById('billAcct');
+ if(sel&&!sel.options.length)sel.innerHTML=L.accounts.map(a=>`<option value="${a.id}">${a.n}</option>`).join('')};
+/* L1 到期横幅 */
+function renderFinDue(){const el=document.getElementById('finDue');if(!el)return;
+ const due=L.recur.filter(r=>r.on&&r.next<=TODAY);
+ el.classList.toggle('hidden',!due.length);el.classList.toggle('flex',!!due.length);
+ if(due.length)el.innerHTML=`<span class="text-amber-500">${svgIco('bell','w-4 h-4')}</span><b class="flex-1">今日 ${due.length} 笔周期账单到期</b><button class="text-brand-500 font-extrabold" onclick="navTo('p-recur')">去生成 ›</button>`}
+const _renderL1b=renderL1;renderL1=function(){_renderL1b();renderFinDue()};LED_RENDER['p-finance']=renderL1;
+/* 铃铛图标补登 */
+LIC.bell='<path d="M6 9.5a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4s2-1.5 2-6.5z"/><path d="M10 19.5a2.2 2.2 0 0 0 4 0"/>';
+LED_RENDER['p-recur']=renderRecur;LED_RENDER['p-wish']=renderWish;LED_RENDER['p-debt']=renderDebt;
+LED_RENDER['p-txSearch']=function(){renderFsPanel();fsRun()};LED_RENDER['p-lset']=renderLset;LED_RENDER['p-export']=renderExport;
 //LEDGER_JS_END
 </script>
 </body>
