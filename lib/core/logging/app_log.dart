@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'file_log_sink.dart';
+
 /// 日志级别（【日志方案】R3：info/warn/error 三档）。
 enum LhLevel {
   info('I'),
@@ -22,7 +24,8 @@ class LhLogLine {
   final LhLevel level;
   final String text;
 
-  /// 关键路径日志标记（R13：本期只进缓冲，logcat 转发留待接 NativeLog）。
+  /// 关键路径日志标记（R13：sink 侧与 warn/error 同级「写后立即刷」，
+  /// 不做全量 logcat 镜像）。
   final bool key;
 
   /// `HH:mm:ss.SSS [级别] 文本`
@@ -58,13 +61,17 @@ class AppLog {
   /// 测试钩子：每次错误上报落一条后回调，用于注入重入/断言逻辑。
   static void Function(LhLogLine)? onReport;
 
+  /// 落盘挂点（Task 5）：`FileLogSink.init` 赋值、`dispose` 摘除。
+  /// 每条**已脱敏**的行入缓冲后回调一次；回调异常被吞掉，不影响主流程。
+  static void Function(LhLogLine)? onLine;
+
   static Timer? _flushTimer;
   static DateTime? _lastErrorLog;
   static bool _reporting = false;
 
   /// 普通记录。
   static void add(String text, {LhLevel level = LhLevel.info}) {
-    _push(LhLogLine(DateTime.now(), level, text));
+    _push(LhLogLine(DateTime.now(), level, sanitize(text)));
   }
 
   /// 堆栈记录：取前 14 行压单行（R10），级别 error。
@@ -73,14 +80,12 @@ class AppLog {
         .split('\n')
         .take(_stackKeepLines)
         .join(' | ');
-    _push(LhLogLine(DateTime.now(), LhLevel.error, flattened));
+    _push(LhLogLine(DateTime.now(), LhLevel.error, sanitize(flattened)));
   }
 
-  /// 关键路径记录：本期只进缓冲并打 key 标记。
-  /// // R13 接 NativeLog 的挂点（Android EventChannel 在 Task 5 一并接
-  /// file sink 时再评估，不做全量 logcat 镜像）。
+  /// 关键路径记录：进缓冲并打 key 标记（R13：warn/error 与 key 行落盘即刷）。
   static void addKey(String text) {
-    _push(LhLogLine(DateTime.now(), LhLevel.info, text, key: true));
+    _push(LhLogLine(DateTime.now(), LhLevel.info, sanitize(text), key: true));
   }
 
   /// 错误上报：防递归 + 500ms 合并限频（R9）。
@@ -94,7 +99,7 @@ class AppLog {
     _lastErrorLog = now;
     _reporting = true;
     try {
-      final line = LhLogLine(now, LhLevel.error, text);
+      final line = LhLogLine(now, LhLevel.error, sanitize(text));
       _push(line);
       onReport?.call(line);
     } finally {
@@ -126,6 +131,12 @@ class AppLog {
   static void _push(LhLogLine line) {
     lines.add(line);
     if (lines.length > _max) lines.removeRange(0, lines.length - _max);
+    // 落盘挂钩：入缓冲后同步交给 sink（sink 内部只进队列，绝不同步写文件）。
+    try {
+      onLine?.call(line);
+    } catch (_) {
+      // 日志基建的失败不能反噬业务调用栈。
+    }
     // R5 节流：300ms 内的突发合并成一次 version 通知。
     _flushTimer ??= Timer(const Duration(milliseconds: 300), () {
       _flushTimer = null;

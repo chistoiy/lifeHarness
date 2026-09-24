@@ -27,6 +27,8 @@ void installGlobalErrorLogging() {
   // 3) 出错 widget 的占位渲染（顺便记录，R12 给「详情见日志」指引）。
   ErrorWidget.builder = (FlutterErrorDetails d) {
     AppLog.reportError('‼️ WidgetError: ${d.exception}');
+    final stack = d.stack;
+    if (stack != null) AppLog.addStack(stack.toString());
     return Center(
       child: Text('页面局部错误（详情见日志）：${d.exception}'),
     );

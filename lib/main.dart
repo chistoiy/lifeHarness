@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/database/app_database.dart';
+import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
+import 'core/logging/file_log_sink.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
@@ -19,6 +23,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 0) 三处全局错误捕获先行挂上（R1 启动即记，先于一切初始化）。
   installGlobalErrorLogging();
+
+  // 0b) 日志落盘基建（设计稿 §2）：应用文档目录 logs/ 子目录，按天一个文件、
+  //     单文件封顶 5MB 滚动、默认保留 14 天；init 前已进环形缓冲的行（错误捕获
+  //     抢跑那段）在此补写一次，之后由 AppLog.onLine 自动续写。
+  final logDir = p.join((await getApplicationDocumentsDirectory()).path, 'logs');
+  await FileLogSink.init(logDir);
+  for (final line in AppLog.lines.toList()) {
+    FileLogSink.write(line);
+  }
+  await FileLogSink.flush();
 
   // 1) 设置键值（主题/导航/提醒）就绪。
   final prefs = await SharedPreferences.getInstance();
