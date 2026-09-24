@@ -24,6 +24,7 @@ import '../../features/journal/presentation/journal_providers.dart'
     show noteSelProvider;
 import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/ledger/presentation/ledger_add_page.dart';
+import '../../features/ledger/presentation/ledger_budget_page.dart';
 import '../../features/ledger/presentation/ledger_import_page.dart';
 import '../../features/ledger/presentation/ledger_page.dart';
 import '../../features/ledger/presentation/ledger_report_page.dart';
@@ -111,6 +112,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/yearly',
         builder: (_, _) => const LedgerYearlyPage(),
+      ),
+      // 记账批2b：L5 预算中心（含 L17 结转；全屏，同 p-budget 栈页）。
+      GoRoute(
+        path: '/ledger/budget',
+        builder: (_, _) => const LedgerBudgetPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

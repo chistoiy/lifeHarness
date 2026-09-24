@@ -172,3 +172,14 @@ final ledgerDataProvider = FutureProvider<LedgerData>((ref) async {
 
 /// 便捷：触发全模块重取（等价原型 finTouch）。
 void ledgerTouch(WidgetRef ref) => ref.read(ledgerTickProvider.notifier).state++;
+
+/// L5 预算中心（批2b）：任意查看月的预算行。原型 budMonth 独立于 finMonth，
+/// 故不复用 [LedgerData.budget]（那只跟 ledgerMonthProvider）；本 provider
+/// 走当前账本 bk，写后 tick 失效重取（同 [ledgerDataProvider] 机制）。
+final ledgerBudgetOfMonthProvider =
+    FutureProvider.family<LedgerBudget, String>((ref, month) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final bk = await repo.curBookId();
+  return repo.budgetOf(bk, month);
+});

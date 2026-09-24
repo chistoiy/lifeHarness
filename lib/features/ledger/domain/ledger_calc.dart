@@ -641,6 +641,35 @@ List<(String, double)> topNotes(
   return list.take(cap).toList();
 }
 
+// ---- L5 预算中心（批2b · 原型 renderBudget / L17 结转口径） ----
+
+/// L17 结转额（原型 carryAmt）：上月总预算>0 时为 max(0, 上月总预算−上月支出)，
+/// 上月未设总额恒 0；支出口径同 mStat（剔 nb、refund 冲抵）。
+double carryOf({required double prevTotal, required double prevExp}) =>
+    prevTotal > 0 ? math.max(0.0, prevTotal - prevExp) : 0;
+
+/// 「日均可用」剩余天数（§7 monthStart 仅作用于该口径，不改流水归属）：
+/// 原型 renderBudget：非当前查看月恒 1（历史/未来月按月末）；当前月且
+/// monthStart=1 → 自然月剩余（含今日，至少 1）；monthStart>1 → 预算周期
+/// （本月 monthStart 日 ~ 次月 monthStart−1 日，末日截断到次月天数）剩余。
+int budLeftDays({
+  required String month,
+  required String today,
+  int monthStart = 1,
+}) {
+  final dim = monthDayCount(month);
+  if (month != today.substring(0, 7)) return 1;
+  final tDay = dayNum(today);
+  final ms = math.max(1, math.min(monthStart, dim));
+  if (ms <= 1) return math.max(1, dim - tDay + 1);
+  final nextDim = monthDayCount(monthStep(month, 1));
+  // 显式 int 局部：避免 `int + math.min(…)` 位置把 T 向下推断为 num。
+  final int tail = math.min(ms - 1, nextDim);
+  final int cycleTotal = (dim - ms + 1) + tail;
+  if (tDay < ms) return cycleTotal; // 本预算周期尚未开始：整周期剩余
+  return math.max(1, cycleTotal - (tDay - ms + 1) + 1);
+}
+
 // ---- L16 年度总结（批2a · 原型 renderYearly 口径） ----
 
 /// 年度聚合值（渲染层只做排版，全部数值在此算好）。

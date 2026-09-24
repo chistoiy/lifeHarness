@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -206,6 +208,109 @@ class _LDateState extends State<_LDate> {
 }
 
 String p2(int v) => v.toString().padLeft(2, '0');
+
+// ============ S5 金额滚轮（原型 sheetLedgerWheel · openWheel，预算/余额调整共用） ============
+
+/// 单列金额滚轮：0~20000 步长 100（原型 items 201 格），初始定位
+/// min(200, round(val/100))；右上「确定」回传选中值，未滚动保持原值取整
+/// （原型 _whVal 语义）。返回 null=下滑/遮罩关闭（不落库）。
+Future<double?> showLAmountWheel(
+  BuildContext context, {
+  required String title,
+  required double value,
+}) =>
+    showModalBottomSheet<double>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _LAmountWheel(title: title, value: value),
+    );
+
+class _LAmountWheel extends StatefulWidget {
+  const _LAmountWheel({required this.title, required this.value});
+
+  final String title;
+  final double value;
+
+  @override
+  State<_LAmountWheel> createState() => _LAmountWheelState();
+}
+
+class _LAmountWheelState extends State<_LAmountWheel> {
+  /// 原型 items=0..200 步长 100；显示 money(v).replace('¥','¥ ')。
+  static final List<double> _items = [
+    for (var i = 0; i <= 200; i++) i * 100.0,
+  ];
+
+  late double _val = math.max(0, widget.value.roundToDouble());
+
+  @override
+  Widget build(BuildContext context) {
+    final idx = (_val / 100).round().clamp(0, _items.length - 1);
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context, _val),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
+                    child: Text(
+                      '确定',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: context.tokens.accent,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 170,
+              child: _WheelCol(
+                key: ValueKey(_items.length),
+                items: [
+                  for (final v in _items)
+                    money(v).replaceFirst('¥', '¥ '),
+                ],
+                index: idx,
+                onSel: (i) {
+                  final v = _items[i];
+                  if (v != _val) setState(() => _val = v);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 /// 单列滚轮（controller 自持 + didUpdateWidget 同步，同 wheel_date 先例）。
 class _WheelCol extends StatefulWidget {
