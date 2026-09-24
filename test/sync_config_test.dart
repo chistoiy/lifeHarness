@@ -103,8 +103,8 @@ void main() {
   });
 
   group('CredentialVault（内存版）', () {
-    test('键约定 service_secret_{serviceId}', () {
-      expect(CredentialVault.keyFor('s1'), 'service_secret_s1');
+    test('键约定 sync_secret_{serviceId}（设计稿 §4.3）', () {
+      expect(CredentialVault.keyFor('s1'), 'sync_secret_s1');
     });
 
     test('write→read 一致；delete 清干净', () async {
@@ -196,6 +196,25 @@ void main() {
             _cfg('a', cloudDirName: 'y'),
           ])),
           throwsStateError);
+    });
+
+    test('端点大小写/尾斜杠差异归一后仍同端点，目录重名被拒', () async {
+      final store = await _store(CredentialVault.inMemory());
+      await store.saveService(
+          _cfg('a', apiUrl: 'https://A.com/dav/', cloudDirName: 'photos'));
+      await expectLater(
+          store.saveService(
+              _cfg('c', apiUrl: 'https://a.com/dav', cloudDirName: 'photos')),
+          throwsStateError);
+      expect(store.load().services.map((c) => c.id), ['a']);
+    });
+
+    test('目录名尾斜杠判重互认（photos/ 与 photos 冲突）', () async {
+      final store = await _store(CredentialVault.inMemory());
+      await store.saveService(_cfg('a', cloudDirName: 'photos'));
+      await expectLater(store.saveService(_cfg('c', cloudDirName: 'photos/')),
+          throwsStateError);
+      expect(store.load().services.map((c) => c.id), ['a']);
     });
   });
 

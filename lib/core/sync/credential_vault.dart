@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// 凭据保险箱（协议口径 R11 / D1）：真实凭据只进这里，明文 prefs 不留。
 ///
-/// - 键约定 `service_secret_{serviceId}`（[keyFor]）。
+/// - 键约定 `sync_secret_{serviceId}`（[keyFor]，设计稿 §4.3 权威口径）。
 /// - [write] 失败返回 false，调用方保留原值——绝不能把服务变成「没有凭据」。
 /// - Android 侧按包默认最佳实践开 `encryptedSharedPreferences`（Keystore 支撑）。
 /// - [CredentialVault.inMemory] 为测试注入版：Map 后端 + [failNextWrite] 钩子
@@ -21,9 +21,9 @@ class CredentialVault {
 
   CredentialVault._(this._storage, this._mem);
 
-  static const _keyPrefix = 'service_secret_';
+  static const _keyPrefix = 'sync_secret_';
 
-  /// 凭据键约定：`service_secret_{serviceId}`（D1）。
+  /// 凭据键约定：`sync_secret_{serviceId}`（设计稿 §4.3）。
   static String keyFor(String serviceId) => '$_keyPrefix$serviceId';
 
   final FlutterSecureStorage? _storage;

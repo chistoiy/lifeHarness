@@ -60,9 +60,10 @@ class ServiceConfig {
   bool get isS3 => provider == StoreProviderKind.s3;
 
   /// 「同服务 id 下 cloudDirName 唯一」钉死后的判重端点键（见 task-11 报告）：
-  /// provider + apiUrl（去尾斜杠归一）+ bucket；跨 provider 天然不同键可同名。
+  /// provider + apiUrl（去尾斜杠 + 整串小写归一，主机名大小写不敏感）+ bucket；
+  /// 跨 provider 天然不同键可同名。
   String get endpointKey =>
-      '${provider.name}|${apiUrl.replaceAll(RegExp(r'/+$'), '')}|$bucket';
+      '${provider.name}|${_stripTrailingSlash(apiUrl).toLowerCase()}|$bucket';
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -99,6 +100,10 @@ class ServiceConfig {
           int.parse(s),
         _ => defaultRequestIntervalMs,
       };
+
+  /// 判重归一专用：去尾斜杠（存储字段本身保留用户原值，不归一）。
+  static String _stripTrailingSlash(String s) =>
+      s.replaceAll(RegExp(r'/+$'), '');
 }
 
 /// [SyncConfigStore.load] 的返回：服务列表 + 当前激活 id。
@@ -151,6 +156,8 @@ class SyncConfigStore {
 
   /// 校验并整表落盘（序列化即剔除任何 authCode 残留，D1）。冲突抛 [StateError]。
   Future<void> save(SyncConfigSnapshot snap) async {
+    // 有意偏差（评审已接受）：明文侧 authCode 整键剔除——较 brief 的「空串占位」
+    // 更严；读取侧对残留键仍容忍（R4），见 ServiceConfig.fromJson。
     _validate(snap.services);
     await _prefs.setString(
       servicesKey,
@@ -189,7 +196,8 @@ class SyncConfigStore {
     return true;
   }
 
-  /// 删除服务：同步清 `service_secret_{id}` 孤儿键（D1）；activeId 指向被删
+  /// 删除服务：同步清 `sync_secret_{id}` 孤儿键（D1，键名见设计稿 §4.3）；
+  /// activeId 指向被删
   /// 服务时回落第一条（列表空则 null）。
   Future<void> removeService(String id) async {
     final snap = load();
@@ -216,7 +224,8 @@ class SyncConfigStore {
       if (!ids.add(c.id)) {
         throw StateError('服务 id 重复：${c.id}');
       }
-      final key = '${c.endpointKey}|${c.cloudDirName}';
+      final key =
+          '${c.endpointKey}|${ServiceConfig._stripTrailingSlash(c.cloudDirName)}';
       if (!dirs.add(key)) {
         throw StateError('同端点下云端目录重复：${c.cloudDirName}（${c.endpointKey}）');
       }
