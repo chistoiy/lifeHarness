@@ -298,7 +298,10 @@ class WebDavStore implements RemoteStore {
   @override
   Future<void> get(
       ServiceConfig c, String cloudRelative, String localPath) async {
-    final uri = _uriFor(c, cloudRelative);
+    // 与 put/list/ensureDirectory 同一解析口径：cloudRelative 恒**相对
+    // cloudDirName**（list 产出的 FileEntry.relativePath 直喂 get 即正确，
+    // T17 下载链路依赖此对齐；曾走 _uriFor 不预置前缀取错路径）。
+    final uri = _uriSegments(c, _dirChain(c, cloudRelative));
     final label = 'GET ${uri.path}';
     final auth = await _authHeader(c);
     final res = await gate.send(
@@ -346,7 +349,7 @@ class WebDavStore implements RemoteStore {
   @override
   Future<VerifyResult> verify(ServiceConfig c) async {
     // 根目录一次 PROPFIND Depth:0（协议文档 §8 verify = 1 次极轻请求）。
-    final uri = _uriFor(c, '');
+    final uri = _uriFullInCloud(c, '');
     final auth = await _authHeader(c);
     final res = await gate.send(
       _ensureClient(),
@@ -476,8 +479,9 @@ class WebDavStore implements RemoteStore {
     return req;
   }
 
-  Future<void> _mkcol(ServiceConfig c, String relInDir, String memoKey) async {
-    final uri = _uriFor(c, relInDir);
+  Future<void> _mkcol(ServiceConfig c, String pathInCloud, String memoKey) async {
+    // pathInCloud 已是云内完整链（ensureDirectory 经 _dirChain 含 cloudDirName）。
+    final uri = _uriFullInCloud(c, pathInCloud);
     final auth = await _authHeader(c);
     final res = await gate.send(
       _ensureClient(),
@@ -558,9 +562,11 @@ class WebDavStore implements RemoteStore {
     );
   }
 
-  /// 字符串相对路径便捷入口（内部仍走段链构造）。
-  Uri _uriFor(ServiceConfig c, String relInCloud) =>
-      _uriSegments(c, _normSegments(relInCloud));
+  /// **云内完整路径**（已含 cloudDirName 前缀，如 verify 的 ''、_mkcol 的链）
+  /// → URL 的便捷入口。入参是 cloudRelative（相对 cloudDirName）的调用方
+  /// 必须先过 [_dirChain] 预置前缀，绝不把相对路径直接喂进来。
+  Uri _uriFullInCloud(ServiceConfig c, String pathInCloud) =>
+      _uriSegments(c, _normSegments(pathInCloud));
 
   bool _isSuccess(int status, Set<int> allowed) => allowed.contains(status);
 

@@ -70,9 +70,15 @@ abstract class RemoteStore {
       {bool force = false});
 
   /// 上传 [localPath] 到云端相对路径 [cloudRelative]（先逐级 MKCOL 再流式 PUT）。
+  ///
+  /// [cloudRelative] 一律**相对 [ServiceConfig.cloudDirName]**（与 [list] 产出
+  /// 的 [FileEntry.relativePath] 同一口径，可直接互喂）。
   Future<void> put(ServiceConfig c, String localPath, String cloudRelative);
 
   /// 下载 [cloudRelative] 到本地 [localPath]（流式落盘，临时文件+rename 原子放）。
+  ///
+  /// [cloudRelative] 同 [put]：相对 [ServiceConfig.cloudDirName]，实现方解析时
+  /// 必须预置该前缀（list→get 直喂是编排层的默认用法）。
   Future<void> get(ServiceConfig c, String cloudRelative, String localPath);
 
   /// 确保云端目录存在（相对 cloudDirName；S3 为空实现，R7）。

@@ -240,14 +240,15 @@ void main() {
     expect(calls, hasLength(1));
   });
 
-  test('get：URL 中文+空格+& 转义正确；流式落盘走临时文件+rename 原子放',
-      () async {
+  test('get：URL 中文+空格+& 转义正确、路径落在 cloudDirName 前缀下；'
+      '流式落盘走临时文件+rename 原子放', () async {
     final dir = Directory.systemTemp.createTempSync('lhw_get');
     addTearDown(() => dir.deleteSync(recursive: true));
     final target = '${dir.path}${Platform.pathSeparator}下载 结果 & ok.txt';
     final client = MockClient((req) async {
       expect(req.method, 'GET');
-      expect(req.url.pathSegments.last, '报告 副本&.txt');
+      expect(req.url.pathSegments, ['dav', 'sync', '中文 目录 &a', '报告 副本&.txt'],
+          reason: 'get 与 put 同口径：cloudRelative 相对 cloudDirName 解析');
       return http.Response.bytes(utf8.encode('content-中文'), 200);
     });
     final store = storeOf(client, vault: await vaultWith('svc1'));
@@ -259,6 +260,42 @@ void main() {
     expect(File('$target.part').existsSync(), isFalse,
         reason: '临时文件必须被 rename 消耗，不残留');
     expect(dir.listSync().map((e) => e.path), [target]);
+  });
+
+  test('get/list/put 目录语义统一：list 的 relativePath 直喂 get，'
+      '请求 URL 落在 cloudDirName 前缀下且内容落盘正确（T17 下载链路回归钉）',
+      () async {
+    final dir = Directory.systemTemp.createTempSync('lhw_rt');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final getPaths = <String>[];
+    final client = MockClient((req) async {
+      if (req.method == 'PROPFIND') {
+        return bytesXml207([
+          resXml('/dav/%E5%90%8C%E6%AD%A5', dir: true),
+          // href 编码态：/同步/文档 x&y.lhbak（中文+空格+&）
+          resXml('/dav/%E5%90%8C%E6%AD%A5/%E6%96%87%E6%A1%A3%20x%26y.lhbak',
+              size: 14),
+        ]);
+      }
+      expect(req.method, 'GET');
+      getPaths.add(req.url.path);
+      return http.Response.bytes(utf8.encode('roundtrip-内容'), 200);
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+    const dirName = '同步';
+    final c = cfg(dir: dirName);
+
+    final listing = await store.list(c, dirName);
+    final rel = listing.files.single.relativePath;
+    expect(rel, '文档 x&y.lhbak');
+
+    final target = '${dir.path}${Platform.pathSeparator}fetched.lhbak';
+    await store.get(c, rel, target); // 直喂：不经任何再归一
+
+    expect(getPaths, [pathOf([dirName, rel])],
+        reason: 'get 必须与 list/put 一致地按相对 cloudDirName 解析补前缀');
+    expect(File(target).readAsStringSync(), 'roundtrip-内容');
+    store.close();
   });
 
   test('ensureDirectory("a/b")：全链含末段——MKCOL 两级 /sync/a/ 与 /sync/a/b/ '
