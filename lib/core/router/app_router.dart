@@ -29,10 +29,12 @@ import '../../features/ledger/presentation/ledger_account_detail_page.dart';
 import '../../features/ledger/presentation/ledger_budget_page.dart';
 import '../../features/ledger/presentation/ledger_cats_page.dart';
 import '../../features/ledger/presentation/ledger_debt_page.dart';
+import '../../features/ledger/presentation/ledger_export_page.dart';
 import '../../features/ledger/presentation/ledger_import_page.dart';
 import '../../features/ledger/presentation/ledger_page.dart';
 import '../../features/ledger/presentation/ledger_recur_page.dart';
 import '../../features/ledger/presentation/ledger_report_page.dart';
+import '../../features/ledger/presentation/ledger_search_page.dart';
 import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
 import '../../features/ledger/presentation/ledger_wish_page.dart';
 import '../../features/ledger/presentation/ledger_yearly_page.dart';
@@ -152,6 +154,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/debt',
         builder: (_, _) => const LedgerDebtPage(),
+      ),
+      // 记账批3b：L12 搜索筛选与 L15 数据导出（条件即时 AND 过滤 / 流式落盘；
+      // 全屏，同 p-txSearch / p-export 栈页）。
+      GoRoute(
+        path: '/ledger/search',
+        builder: (_, _) => const LedgerSearchPage(),
+      ),
+      GoRoute(
+        path: '/ledger/export',
+        builder: (_, _) => const LedgerExportPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

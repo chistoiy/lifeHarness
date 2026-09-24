@@ -119,6 +119,11 @@ void main() {
                 builder: (_, _) =>
                     const Scaffold(body: Text('TX-STUB')),
               ),
+              GoRoute(
+                path: '/ledger/export',
+                builder: (_, _) =>
+                    const Scaffold(body: Text('EXPORT-STUB')),
+              ),
             ],
           ),
         ),
@@ -180,10 +185,10 @@ void main() {
     expect(find.text('最大单笔 请客吃饭'), findsOneWidget);
     expect(find.text('预算已用'), findsNothing);
     expect(find.text('该区间数据不足'), findsNothing);
-    // 导出入口（批3 未开放 → ledgerNav 占位 toast）
+    // 导出入口（批3b · ledgerNav 真实化 → 路由到 /ledger/export，本壳用桩页验证跳转）
     await tester.tap(find.text('导出 ›'));
-    expect(await pollText(tester, '数据导出 · 即将开放'), isTrue);
-    await clearToasts(tester);
+    await settle5(tester);
+    expect(find.text('EXPORT-STUB'), findsOneWidget);
   });
 
   testWidgets('分类排行双维度：小类 cat|sub 聚合 · 钻取展开与收起', (tester) async {

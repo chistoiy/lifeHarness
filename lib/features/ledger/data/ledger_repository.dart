@@ -530,6 +530,43 @@ class LedgerRepository {
     return [for (final r in rows) LedgerTxn.fromRow(r)];
   }
 
+  /// L15 导出分页查询（批3b·计划书 §5「导出流式落盘」）：按当前账本 bk + 可选
+  /// 范围条件（month=该月 · accountId=转入/转出双向 · catId=等值）以
+  /// date ASC, id ASC 稳定序 LIMIT/OFFSET 逐页取；写盘侧消费到不足一页为止，
+  /// 大流水不整表进内存。
+  Future<List<LedgerTxn>> exportTxnsPage(
+    int bk, {
+    String? month,
+    int? accountId,
+    int? catId,
+    int offset = 0,
+    int limit = 200,
+  }) async {
+    final where = ['bk = ?'];
+    final args = <Object?>[bk];
+    if (month != null) {
+      where.add('date LIKE ?');
+      args.add('$month-%');
+    }
+    if (accountId != null) {
+      where.add('(account_id = ? OR to_account_id = ?)');
+      args.addAll([accountId, accountId]);
+    }
+    if (catId != null) {
+      where.add('cat_id = ?');
+      args.add(catId);
+    }
+    final rows = await db.query(
+      DbSchema.tLedgerTxns,
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: 'date ASC, id ASC',
+      limit: limit,
+      offset: offset,
+    );
+    return [for (final r in rows) LedgerTxn.fromRow(r)];
+  }
+
   // ==================== 分类（独立两级树 ledger_categories） ====================
 
   /// 全部分类行（大类+子分类；UI 侧组树）。
