@@ -207,8 +207,8 @@ testWidgets('FlutterError 构建错误进日志', (tester) async {
 ### Task 7: 依赖引入与环境验证
 
 **Files:**
-- Modify: `pubspec.yaml`（`http: ^1.2.0`、`archive: ^3.6.1`、`cryptography: ^2.7.0`、`flutter_secure_storage: ^9.2.2`、`file_picker: ^8.1.3`，版本以 pub 镜像可解析的最新兼容为准）
-- Modify: `android/app/src/main/AndroidManifest.xml`（`<uses-permission android:name="android.permission.INTERNET"/>` 仅 release+debug 需要；离线策略记忆：除同步外无网络请求，权限注释写明）
+- Modify: `pubspec.yaml`（`http: ^1.2.0`、`archive: ^3.6.1`、`cryptography: ^2.7.0`、`flutter_secure_storage: ^9.2.2`、`file_picker: ^8.1.3`、`flutter_file_dialog: ^3.0.1`（SAF「另存为」，2026-09-25 增补需求），版本以 pub 镜像可解析的最新兼容为准）
+- Modify: `android/app/src/main/AndroidManifest.xml`（`<uses-permission android:name="android.permission.INTERNET"/>`；离线策略记忆：除同步外无网络请求，权限注释写明。另按 flutter_file_dialog 要求核对/补 FileProvider `<provider>` 声明与 `android/app/src/main/res/xml/` 配置文件——先查工程是否已有 provider，有则复用不重复声明）
 
 - [ ] **Step 1:** `flutter pub get`（tsinghua 镜像），失败则按解析器提示微调版本约束；**不许**为绕版本冲突升级既有依赖大版本。
 - [ ] **Step 2:** `flutter analyze` 0 新错误；`flutter test test/database_schema_test.dart` 冒烟确认工程仍绿。
@@ -263,12 +263,13 @@ testWidgets('FlutterError 构建错误进日志', (tester) async {
 - Produces:
   - `class BackupService({required String Function() exportDir, required Future<Database> Function() db})`（目录与库注入可测；`exportDir` 在同步快照场景由调用方覆盖）
   - `Future<LhBakCreateResult> exportBackup({bool withLogs = false, bool withAttachments = true, String? passphrase, List<String> excludeTables = const [], String? outDirOverride, String? nameTag})` — `nameTag:'auto_before_restore'` 产自动备份；批4 SnapshotService 经 `outDirOverride`+`excludeTables` 复用本函数产同步快照
+  - `Future<String?> saveCopyToUserLocation(String srcPath)` — **2026-09-25 增补**：经 `flutter_file_dialog.saveFile`（SAF 创建文档）把已生成的备份另存到用户自选位置；返回用户取消=null；测试注入 fake dialog 回调；上次成功目标提示串存 prefs `backup_last_save_hint`（仅展示用，不回写权限）。
   - `Future<RestoreReport> importBackup(String filePath, {String? passphrase})` — 内部顺序：verify → **当前库先 `exportBackup(autoTag:true)`（命名 `auto_before_restore_*.lhbak`，永不进同步目录）** → close → unpack → reopen → 报告（表数/行数/缺失排除表清单）
-  - `Future<String?> pickBackupFile()` — file_picker 包装；**测试环境注入 fake 选择器**；若 file_picker 在 CI/模拟器异常，降级路径 = 从导出目录列表选（UI 同时提供「本机导出记录」tab）。
+  - `Future<String?> pickBackupFile()` — file_picker 包装（SAF 选择自动缓存副本，按路径处理不整读内存）；**测试环境注入 fake 选择器**；若 file_picker 在 CI/模拟器异常，降级路径 = 从导出目录列表选（UI 同时提供「本机导出记录」tab）。
 
 - [ ] **Step 1:** 写 `backup_restore_test.dart`（ffi 内存库 + 临时目录）：导出→改数据→导入→断言数据回滚且 `auto_before_restore_` 文件存在；带口令包走 passphrase 参数链；坏包三类 code 冒泡为 `LhBakException` 不半恢复（恢复前置校验失败时现库不动）。
 - [ ] **Step 2:** 红→实现→绿。
-- [ ] **Step 3:** 写 UI 测试：S5 半屏含「包含附件」「附带日志」「口令（可空，二次输入一致才启用）」、导出成功 toast 文案「已导出：<文件名>」（无教学句）；导入选择→校验报告态→「恢复将替换当前数据」二次确认→确认后才调 `importBackup`（测试注入 fake 服务断言调用次数=0/1）。
+- [ ] **Step 3:** 写 UI 测试：S5 半屏含「包含附件」「附带日志」「口令（可空，二次输入一致才启用）」、目标位置两态（应用目录默认/「另存到…」触发 saveCopyToUserLocation，fake dialog 取消时不新增调用）、导出成功 toast 文案「已导出：<文件名>」（无教学句）；导入选择→校验报告态→「恢复将替换当前数据」二次确认→确认后才调 `importBackup`（测试注入 fake 服务断言调用次数=0/1）。
 - [ ] **Step 4:** 红→实现（对照原型 `s-backup`；恢复按钮置确认勾选之后）→绿。
 - [ ] **Step 5:** 全增量跑 `flutter test test/backup_lh_bak_test.dart test/backup_crypto_test.dart test/backup_restore_test.dart test/backup_sheet_ui_test.dart test/settings_controller_test.dart` 全绿；提交 `feat(backup): 导出/导入恢复全流程+S5半屏（含恢复前自动备份）`。
 
