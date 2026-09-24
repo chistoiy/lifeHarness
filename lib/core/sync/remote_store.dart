@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 
 import 'credential_vault.dart';
 import 'http_gate.dart';
+import 's3_store.dart';
 import 'service_config.dart';
 import 'webdav_store.dart';
 
@@ -97,10 +98,8 @@ abstract class RemoteStore {
   static RemoteStore forConfig(ServiceConfig c,
       {HttpGate? gate, CredentialVault? vault}) {
     if (c.isS3) {
-      // 【云盘】R2 合法分发位点：缤纷云 S3Store（手写 SigV4）由 Task 14
-      // （T14，s3_store.dart / s3_sigv4.dart）接入，此处为协议分发骨架占位。
-      throw UnimplementedError(
-          'S3 协议存储未实现：Task 14 接入缤纷云 S3Store（协议分发位点已预留）');
+      // 【云盘】R2 合法分发位点：缤纷云 S3Store（手写 SigV4，T14 收口）。
+      return S3Store(gate: gate, vault: vault);
     }
     return WebDavStore(gate: gate, vault: vault);
   }

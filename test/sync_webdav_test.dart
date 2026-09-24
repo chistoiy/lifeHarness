@@ -8,6 +8,7 @@ import 'package:lifeharness/core/logging/app_log.dart';
 import 'package:lifeharness/core/sync/credential_vault.dart';
 import 'package:lifeharness/core/sync/http_gate.dart';
 import 'package:lifeharness/core/sync/remote_store.dart';
+import 'package:lifeharness/core/sync/s3_store.dart';
 import 'package:lifeharness/core/sync/service_config.dart';
 import 'package:lifeharness/core/sync/webdav_store.dart';
 
@@ -487,17 +488,18 @@ void main() {
     store.close();
   });
 
-  test('RemoteStore.forConfig：webdav 分发到 WebDavStore；isS3 占位抛 '
-      'UnimplementedError（T14 接，R2 合法分发位点）', () async {
+  test('RemoteStore.forConfig：webdav→WebDavStore、isS3→S3Store'
+      '（T14 已接入，R2 合法分发位点收口）', () async {
     final s = RemoteStore.forConfig(cfg(),
         gate: HttpGate(sleeper: (d) async {}),
         vault: CredentialVault.inMemory());
     expect(s, isA<WebDavStore>());
     s.close();
-    expect(
-      () => RemoteStore.forConfig(ServiceConfig(
-          id: 'x', provider: StoreProviderKind.s3, bucket: 'b')),
-      throwsUnimplementedError,
-    );
+    final s3 = RemoteStore.forConfig(
+        ServiceConfig(id: 'x', provider: StoreProviderKind.s3, bucket: 'b'),
+        gate: HttpGate(sleeper: (d) async {}),
+        vault: CredentialVault.inMemory());
+    expect(s3, isA<S3Store>());
+    s3.close();
   });
 }
