@@ -19,6 +19,7 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/backup/lh_bak.dart';
+import 'package:lifeharness/core/database/app_database.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/logging/app_log.dart';
 import 'package:lifeharness/core/logging/file_log_sink.dart';
@@ -63,6 +64,9 @@ String spliceDbFrom(String basePkg, String donorPkg) {
 
 void main() {
   sqfliteFfiInit();
+  // AppDatabase.open() 走 sqflite 全局 openDatabase——测试环境把全局工厂
+  // 指到 ffi（生产由插件注册），句柄缓存回归用例需要。
+  databaseFactory = databaseFactoryFfi;
   LhBak.snapshotFactory = databaseFactoryFfi;
 
   late Directory tmp;
@@ -116,11 +120,18 @@ void main() {
       exportDir: () => outDir,
       db: openApp,
       attachDirs: [attachDir],
+      // 评审修复（Important）：documents 根直落文件（记账 lifeharness_ledger
+      // .csv/.json）浅扫白名单入包。tmp 即「documents 根」替身。
+      attachRootDirs: [tmp.path],
     );
     AppLog.reset();
   });
 
   tearDown(() async {
+    // AppDatabase 单例兜底复位（句柄缓存回归用例可能留有连接）。
+    try {
+      await AppDatabase.instance.close();
+    } catch (_) {}
     await FileLogSink.dispose();
     AppLog.reset();
     for (final d in opened) {
@@ -193,6 +204,32 @@ void main() {
       File('$attachDir/skip.png').writeAsBytesSync([9]);
       final res = await service.exportBackup(withAttachments: false);
       expect(res.manifest.members.any((m) => m.startsWith('attachments/')),
+          isFalse);
+    });
+
+    test('评审修复·documents 根记账导出（csv/json）入包，非白名单不收', () async {
+      await insertTodo('根导出1');
+      // ledger_export.dart:127 生产落点 = documents 根 · lifeharness_ledger.$fmt
+      File('${tmp.path}/lifeharness_ledger.csv').writeAsStringSync('a,b\n');
+      File('${tmp.path}/lifeharness_ledger.json').writeAsStringSync('[]');
+      // 干扰项：非白名单扩展名 + 子目录（浅扫只收根一层白名单文件）
+      File('${tmp.path}/notes.txt').writeAsStringSync('x');
+      File('$attachDir/sub/deep.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('y');
+
+      final res = await service.exportBackup();
+      expect(res.manifest.members,
+          containsAll(<String>[
+            'attachments/lifeharness_ledger.csv',
+            'attachments/lifeharness_ledger.json',
+          ]),
+          reason: '记账根目录导出必须入包（评审 Important 修复）');
+      expect(res.manifest.members, isNot(contains('attachments/notes.txt')));
+      expect(res.manifest.members, isNot(contains('attachments/deep.md')));
+      // withAttachments=false 同样关闭根浅扫通道
+      final off = await service.exportBackup(withAttachments: false);
+      expect(off.manifest.members.any((m) => m.startsWith('attachments/')),
           isFalse);
     });
   });
@@ -327,17 +364,27 @@ void main() {
 
       BackupService.unpackOverride =
           ({required String filePath, required Database targetDb, String? passphrase}) async {
-        // 模拟事务中途炸：先做一次无害读再抛。
-        await targetDb.rawQuery('SELECT 1');
-        throw StateError('unpack 中途失败');
+        // 评审修复（Minor）：仿真实 unpack 的事务结构——事务内先写入哨兵
+        // 数据再抛（transaction<Never> 回滚后重抛），让「原库未污染」断言
+        // 真正演练回滚路径。
+        await targetDb.transaction<Never>((txn) async {
+          await txn.insert(DbSchema.tTodos, {
+            'title': '污染哨兵',
+            'created_at': 1,
+            'updated_at': 1,
+          });
+          throw StateError('unpack 中途失败');
+        });
       };
 
       await expectLater(service.importBackup(res.file.path),
           throwsStateError);
       BackupService.unpackOverride = null;
 
-      // 失败路径已重开原库：数据未变、连接可查、后续导出照常。
+      // 失败路径已重开原库：数据未变（哨兵行随事务回滚）、连接可查、
+      // 后续导出照常。
       expect(await todoTitles(), unorderedEquals(['现场1', '现场2']));
+      expect(await todoTitles(), isNot(contains('污染哨兵')));
       final again = await service.exportBackup();
       expect(again.file.existsSync(), isTrue);
       expect(
@@ -362,6 +409,56 @@ void main() {
 
       final report = await service.importBackup(pkg.file.path, passphrase: 'pw');
       expect(report.skippedLarge, ['attachments/note_images/big.bin']);
+    });
+  });
+
+  group('AppDatabase 句柄缓存（评审 Critical 修复回归）', () {
+    test('open→close→再 open：_db 置空语义，死句柄不再被返回', () async {
+      final d1 = await AppDatabase.instance.open(pathOverride: tmp.path);
+      expect(d1.isOpen, isTrue);
+      await d1.insert(DbSchema.tTodos, {
+        'title': 'close 前写入',
+        'created_at': 1,
+        'updated_at': 1,
+      });
+      await AppDatabase.instance.close();
+      expect(d1.isOpen, isFalse);
+      // _db 已置空：db getter 抛 StateError，而不是返回缓存旧句柄。
+      expect(() => AppDatabase.instance.db, throwsStateError);
+      final d2 = await AppDatabase.instance.open(pathOverride: tmp.path);
+      expect(identical(d1, d2), isFalse); // 旧句柄不再被返回
+      expect(d2.isOpen, isTrue);
+      final rows = await d2.query(DbSchema.tTodos,
+          where: 'title = ?', whereArgs: ['close 前写入']);
+      expect(rows, hasLength(1)); // 新连接可用、数据仍在
+    });
+
+    test('生产接线 importBackup（db=instance.open + closeDb=instance.close）',
+        () async {
+      // 回归（评审 Critical）：修复前 importBackup 裸调 Database.close，
+      // AppDatabase.open() 对非空 _db 短路返回死句柄 → close 后 db() 拿到的
+      // 仍是已关连接，unpack 在死库上执行。现生产注入走 closeDb（close 后
+      // 置空 _db），db() 重开拿到可用新连接。
+      final svc = BackupService(
+        exportDir: () => outDir,
+        db: () => AppDatabase.instance.open(pathOverride: tmp.path),
+        closeDb: AppDatabase.instance.close,
+        attachDirs: [attachDir],
+      );
+      final live = await AppDatabase.instance.open(pathOverride: tmp.path);
+      Future<void> addTodo(String title) => live.insert(DbSchema.tTodos,
+          {'title': title, 'created_at': 1, 'updated_at': 1});
+      await addTodo('生产接线1');
+      final res = await svc.exportBackup();
+      await addTodo('恢复后应消失');
+
+      final report = await svc.importBackup(res.file.path);
+      expect(report.tableCount, greaterThan(0));
+      // 导入后实例连接是「重开的新句柄」且数据已回滚——死句柄场景此步即炸。
+      expect(AppDatabase.instance.isInitialized, isTrue);
+      expect(AppDatabase.instance.db.isOpen, isTrue);
+      final rows = await AppDatabase.instance.db.query(DbSchema.tTodos);
+      expect(rows.map((r) => r['title']), unorderedEquals(['生产接线1']));
     });
   });
 }

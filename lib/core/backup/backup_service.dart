@@ -47,6 +47,11 @@ const String kBackupLastSaveHintKey = 'backup_last_save_hint';
 /// 恢复前自动备份的 nameTag（命名 `auto_before_restore_*.lhbak`）。
 const String kAutoBeforeRestoreTag = 'auto_before_restore';
 
+/// [BackupService.attachRootDirs] 浅扫白名单扩展名（documents 根目录
+/// 直落文件才入包：记账导出 `lifeharness_ledger.csv/.json` 及未来同层
+/// 导出件；logs/backup 等子目录内容不在此通道，防误收）。
+const Set<String> kRootAttachExts = {'.csv', '.json', '.md'};
+
 /// [BackupService.importBackup] 成功后的恢复报告（UI 据此渲染，
 /// 含 skippedLarge——导入报告必须列出「N 个超大附件未入包」）。
 class RestoreReport {
@@ -80,19 +85,34 @@ class BackupService {
     required this.exportDir,
     required this.db,
     this.attachDirs = const [],
+    this.attachRootDirs = const [],
+    this.closeDb,
     this.prefs,
   });
 
   /// 应用导出目录（生产 = `<docs>/backup`，测试 = 临时目录）。
   final String Function() exportDir;
 
-  /// 当前库提供者（生产 = `AppDatabase.instance.open`：close 后再调即重开）。
+  /// 当前库提供者（生产 = `AppDatabase.instance.open`；配合 [closeDb]
+  /// 关闭清缓存后再调即拿到新可用连接）。
   final Future<Database> Function() db;
 
-  /// 附件根目录清单（成员名 `attachments/<目录名>/<相对路径>`）。
+  /// 库关闭器（生产 = `AppDatabase.instance.close`，close 后置空 _db）。
+  /// 评审修复（Critical）：裸 [Database.close] 不清 AppDatabase 缓存句柄，
+  /// 之后 db() 仍拿到死句柄。null = 测试注入路径（每次 db() 新开连接，
+  /// 直接关当次连接即可）。
+  final Future<void> Function()? closeDb;
+
+  /// 附件子目录清单（整目录递归，成员名 `attachments/<目录名>/<相对路径>`）。
   /// 取证 V1.41 Task 10：应用文档目录下实际落盘子目录 =
   /// note_images / book_covers / exports / share（见 task-10-report）。
   final List<String> attachDirs;
+
+  /// 附件「根目录浅扫」清单（评审修复：记账导出
+  /// `lifeharness_ledger.csv/.json` 直接落 documents 根，不在子目录）。
+  /// 收集口径：仅浅一层、仅白名单扩展名 [kRootAttachExts]，
+  /// 成员名 `attachments/<文件名>`。
+  final List<String> attachRootDirs;
 
   /// 仅用于记录「另存到…」上次成功目标提示串（可空 = 测试不关心）。
   final SharedPreferences? prefs;
@@ -143,6 +163,7 @@ class BackupService {
       db: await db(),
       outDirPath: out,
       attachDirs: withAttachments ? attachDirs : const [],
+      attachFiles: withAttachments ? collectRootAttachFiles() : const [],
       logFiles: logFiles,
       excludeTables: excludeTables,
       passphrase: passphrase,
@@ -159,6 +180,29 @@ class BackupService {
       res = LhBakCreateResult(await res.file.rename(target.path), res.manifest);
     }
     return res;
+  }
+
+  /// [attachRootDirs] 浅扫：仅一层文件、仅白名单扩展名 [kRootAttachExts]。
+  /// 记账导出 `lifeharness_ledger.csv/.json` 直落 documents 根，不在
+  /// attachDirs 子目录通道内（评审 Important 修复：附件取证遗漏）；
+  /// 浅扫+白名单防误收（backup/logs 子目录与 .db 等不入包）。
+  /// 目录不存在/读取异常 → 跳过，不阻塞导出。
+  List<String> collectRootAttachFiles() {
+    final found = <String>[];
+    for (final root in attachRootDirs) {
+      try {
+        for (final e in Directory(root).listSync(followLinks: false)) {
+          if (e is! File) continue;
+          if (kRootAttachExts.contains(p.extension(e.path).toLowerCase())) {
+            found.add(e.path);
+          }
+        }
+      } catch (_) {
+        // 根目录不可读：按无根附件处理。
+      }
+    }
+    found.sort((a, b) => a.compareTo(b));
+    return found;
   }
 
   /// 只读校验包（导入 UI 的「校验报告态」数据源）：坏包冒泡 [LhBakException]。
@@ -191,8 +235,17 @@ class BackupService {
     // 2) 恢复前自动备份：close 之前完成 → 原库文件此后不再被触碰。
     final auto = await exportBackup(nameTag: kAutoBeforeRestoreTag);
     // 3) close → unpack → reopen。
-    final current = await db();
-    await current.close();
+    //    close 必须走 [closeDb]（生产 = AppDatabase.instance.close：关连接
+    //    且置空 _db 缓存）——评审 Critical：裸 Database.close 后 AppDatabase
+    //    .open() 短路返回缓存死句柄，unpack 会在已关库上执行。
+    //    closeDb=null（测试注入路径）：db() 每次新开连接，关当次即可。
+    final closer = closeDb;
+    if (closer != null) {
+      await closer();
+    } else {
+      final current = await db();
+      await current.close();
+    }
     Database? working;
     LhBakManifest manifest;
     try {

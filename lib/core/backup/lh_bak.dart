@@ -249,6 +249,10 @@ class LhBak {
   ///
   /// - [attachDirs]：附件根目录，成员名 `attachments/<目录名>/<相对路径>`；
   ///   不存在则跳过。
+  /// - [attachFiles]：按文件名收集的散装附件（Task 10 评审修复：记账导出
+  ///   `lifeharness_ledger.csv/.json` 直落 documents 根，不在子目录）；
+  ///   成员名 `attachments/<文件名>`，加密/超限跳过口径与 [attachDirs] 一致；
+  ///   不存在则跳过。
   /// - [logFiles]：随包日志（成员名 `logs/<文件名>`），不存在则跳过。
   /// - [excludeTables]：从包中剔除的表（快照文件内直接 DROP，满足
   ///   「排表包快照里没有该表」口径）；清单写入 manifest.excludedTables。
@@ -262,6 +266,7 @@ class LhBak {
     required Database db,
     required String outDirPath,
     List<String> attachDirs = const [],
+    List<String> attachFiles = const [],
     List<String> logFiles = const [],
     List<String> excludeTables = const [],
     String? passphrase,
@@ -305,6 +310,21 @@ class LhBak {
       final dbMemberName = encrypted ? 'db.sqlite.enc' : 'db.sqlite';
       memberFiles[dbMemberName] = snapshotPath;
       if (encrypted) encryptNames.add(dbMemberName);
+      // 附件成员收口（目录递归 / 散文件共用）：加密档统一 .enc 命名与
+      // 单文件超限跳过口径。
+      void addAttachment(String memberName, File f) {
+        if (!encrypted) {
+          memberFiles[memberName] = f.path;
+          return;
+        }
+        if (f.lengthSync() > maxEncryptBytes) {
+          skippedLarge.add(memberName); // 记原始成员名（不含 .enc）
+          return;
+        }
+        memberFiles['$memberName.enc'] = f.path;
+        encryptNames.add('$memberName.enc');
+      }
+
       for (final dirPath in attachDirs) {
         final dir = Directory(dirPath);
         if (!dir.existsSync()) continue;
@@ -317,18 +337,14 @@ class LhBak {
         for (final f in files) {
           final rel = p.posix
               .joinAll(p.split(p.relative(f.path, from: dirPath)));
-          final baseName = 'attachments/$dirName/$rel';
-          if (!encrypted) {
-            memberFiles[baseName] = f.path;
-            continue;
-          }
-          if (f.lengthSync() > maxEncryptBytes) {
-            skippedLarge.add(baseName); // 记原始成员名（不含 .enc）
-            continue;
-          }
-          memberFiles['$baseName.enc'] = f.path;
-          encryptNames.add('$baseName.enc');
+          addAttachment('attachments/$dirName/$rel', f);
         }
+      }
+      // 根目录散文件（记账 lifeharness_ledger.csv/.json 等，评审修复）。
+      for (final fpath in attachFiles) {
+        final f = File(fpath);
+        if (!f.existsSync()) continue;
+        addAttachment('attachments/${p.basename(fpath)}', f);
       }
       for (final logPath in logFiles) {
         if (File(logPath).existsSync()) {

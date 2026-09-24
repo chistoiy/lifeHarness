@@ -102,16 +102,22 @@ Future<void> main() async {
         // V1.41 Task 10：备份服务组合根装配。attachDirs 取证 = 应用文档目录下
         // 实际落盘的附件子目录（note_images: shared/image_attach 日记/笔记插图；
         // book_covers: read isbn_enrich 封面；exports: journal note_sheets 导出；
-        // share: read 书摘/书单导出）。
+        // share: read 书摘/书单导出）。attachRootDirs = documents 根目录浅扫
+        // 白名单（评审修复：记账导出 lifeharness_ledger.csv/.json 直落根目录，
+        // ledger_export_page/ledger_export）。closeDb 走 AppDatabase.instance
+        // .close（评审 Critical 修复：close 后置空 _db 缓存，db() 重开才拿到
+        // 可用新连接，而非裸 Database.close 留下的死句柄）。
         backupServiceProvider.overrideWithValue(BackupService(
           exportDir: () => p.join(docsPath, 'backup'),
           db: () => AppDatabase.instance.open(),
+          closeDb: AppDatabase.instance.close,
           attachDirs: [
             p.join(docsPath, 'note_images'),
             p.join(docsPath, 'book_covers'),
             p.join(docsPath, 'exports'),
             p.join(docsPath, 'share'),
           ],
+          attachRootDirs: [docsPath],
           prefs: prefs,
         )),
       ],

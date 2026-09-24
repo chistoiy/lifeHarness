@@ -353,6 +353,28 @@ void main() {
     );
     await db.close();
   });
+
+  // Task 10 评审修复轮1（Important）：uniqueFileNameInDir 零测试补齐——
+  // 备份红线「同秒二次产包不覆盖」的去重命名口径要有回归锚点。
+  test('uniqueFileNameInDir：同名已存在 → -2；-2 也在 → -3', () {
+    final dir = Directory.systemTemp.createTempSync('lh_uniq_name_');
+    try {
+      const name = 'auto_before_restore_20260925_120000.lhbak';
+      // 无冲突：首名保持规范口径。
+      expect(uniqueFileNameInDir(dir.path, name), name);
+      // 已存在同名 → -2 后缀。
+      File('${dir.path}/$name').createSync();
+      expect(uniqueFileNameInDir(dir.path, name),
+          'auto_before_restore_20260925_120000-2.lhbak');
+      // -2 也已存在 → -3。
+      File('${dir.path}/auto_before_restore_20260925_120000-2.lhbak')
+          .createSync();
+      expect(uniqueFileNameInDir(dir.path, name),
+          'auto_before_restore_20260925_120000-3.lhbak');
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
 }
 
 /// 从 create 结果还原 manifest JSON（可按需改字段），供重打包造坏包用例。
