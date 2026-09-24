@@ -261,8 +261,8 @@ testWidgets('FlutterError 构建错误进日志', (tester) async {
 **Interfaces:**
 - Consumes: `LhBak.create/verify/unpack`、`FileLogSink.dayFiles`、`AppDatabase`
 - Produces:
-  - `class BackupService({required String Function() exportDir, required Future<Database> Function() db})`（目录与库注入可测）
-  - `Future<LhBakCreateResult> exportBackup({bool withLogs = false, bool withAttachments = true, String? passphrase})`
+  - `class BackupService({required String Function() exportDir, required Future<Database> Function() db})`（目录与库注入可测；`exportDir` 在同步快照场景由调用方覆盖）
+  - `Future<LhBakCreateResult> exportBackup({bool withLogs = false, bool withAttachments = true, String? passphrase, List<String> excludeTables = const [], String? outDirOverride, String? nameTag})` — `nameTag:'auto_before_restore'` 产自动备份；批4 SnapshotService 经 `outDirOverride`+`excludeTables` 复用本函数产同步快照
   - `Future<RestoreReport> importBackup(String filePath, {String? passphrase})` — 内部顺序：verify → **当前库先 `exportBackup(autoTag:true)`（命名 `auto_before_restore_*.lhbak`，永不进同步目录）** → close → unpack → reopen → 报告（表数/行数/缺失排除表清单）
   - `Future<String?> pickBackupFile()` — file_picker 包装；**测试环境注入 fake 选择器**；若 file_picker 在 CI/模拟器异常，降级路径 = 从导出目录列表选（UI 同时提供「本机导出记录」tab）。
 
@@ -299,14 +299,15 @@ testWidgets('FlutterError 构建错误进日志', (tester) async {
 - Test: `test/sync_http_gate_test.dart`
 
 **Interfaces:**
-- Produces（照【云盘】§8 签名）:
-  - `class HttpGate { HttpGate({required int Function() intervalMs, Future<void> Function(Duration)? sleeper, DateTime Function()? clock}); static Future<http.StreamedResponse> send(http.Client client, http.BaseRequest Function() build, {required ServiceConfig config, required String label, int maxAttempts = 3}); }` —— 实现用**实例注入**（生产全局单例 `httpGateProvider`），测试注入假 sleeper（不真等）+ 假 client。
-  - `Duration? waitForStatus(int statusCode, String? retryAfterHeader, int attempt, DateTime now)` 纯函数：非 429/503 → null；`Retry-After` 秒数与 HTTP-date 双形态；缺省 `2s<<attempt`；上限 30s。
+- Produces（【云盘】§8 签名，实例化为**实例方法**并导出全局单例 `final httpGate = HttpGate(...)`）:
+  - `class HttpGate { HttpGate({Future<void> Function(Duration)? sleeper, DateTime Function()? clock}); Future<http.StreamedResponse> send(http.Client client, http.BaseRequest Function() build, {required ServiceConfig config, required String label, int maxAttempts = 3}); }` —— 测试注入假 sleeper（不真等）+ 假 client；生产 sleeper 默认 `Future.delayed`。
+  按 `config.requestIntervalMs` 节流（间隔读取放在 `send` 内，经 `Throttle` 私有内部类按服务 id 记录上次请求时刻）。
+  - `Duration? waitForStatus(int statusCode, String? retryAfterHeader, int attempt, DateTime now)` 纯函数（顶层导出供单测）：非 429/503 → null；`Retry-After` 秒数与 HTTP-date 双形态；缺省 `2s<<attempt`；上限 30s。
 - [ ] **Step 1:** 写失败测试（`package:http/testing.dart` 的 `MockClient`）：
   - 429→200 两次尝试成功，且断言**请求工厂被调用 2 次**（build 计数）；
   - `Retry-After: 5` → 记录等待 5s（假 sleeper 捕获参数）；HTTP-date 形态按 `now` 差值；
   - 连 3 次 503 → 返回最后一个 503 响应给调用方（不吞）；
-  - 节流：连续两请求间隔取自 `intervalMs()`（假 sleeper 断言被喂 ~interval）；
+  - 节流：config.requestIntervalMs=800 时连续两请求，假 sleeper 断言第二次被喂 ~800ms 减已耗时（宽松下限断言 >0）；
   - 中文 label 透传日志 `AppLog.add` 的脱敏不在此层（已在 Task 5 统一）。
 - [ ] **Step 2:** 红→实现→绿。全局唯一性由架构守护补一条规则：`test/architecture_test.dart` R5：`lib/core/sync/**` 除 `http_gate.dart` 外不得出现 `.send(`/`http.Client(`（仿 R4 空增量守护的写法，先注入违例文件验证会变红——既定教训）。
 - [ ] **Step 3:** 跑绿 + 守护红→绿复验；提交 `feat(sync): HttpGate唯一出口（按服务节流+429退避重发重建）+R5绕行守护`。
@@ -358,9 +359,9 @@ testWidgets('FlutterError 构建错误进日志', (tester) async {
 **Interfaces:**
 - Produces:
   - `enum DiffStatus { onlyLocal, onlyRemote, modified, inSync }`
-  - `class FileDiff { String relativePath; DiffStatus status; FileEntry? local, remote; }`
+  - `class FileDiff { String relativePath; DiffStatus status; FileEntry? local, remote; bool staleHint; }`
   - `bool sameEntry(FileEntry l, FileEntry r)`（【云盘】§8 `same()` 逐字语义：size 不等→false；digest 且远端 32hex→摘要比对；双强 ETag→ETag 比对；否则默认档 true；**绝不 mtime**）
-  - `List<FileDiff> computeDiff({required List<FileEntry> local, required List<FileEntry> remote, required Set<String> ignorePatterns})`（忽略规则**两侧同时剔除**，D5；glob 只支持 `*.ext` 与前缀两类，够本期用）
+  - `List<FileDiff> computeDiff({required List<FileEntry> local, required List<FileEntry> remote, required Set<String> ignorePatterns, Set<String> ledgerKnown = const {}})`（忽略规则**两侧同时剔除**，D5；glob 只支持 `*.ext` 与前缀两类，够本期用；`onlyRemote` 且 `ledgerKnown.contains(path)` → `staleHint=true`，台账空=known 空=不报残留）
 
 - [ ] **Step 1:** 写失败测试：四态判定各一例；弱 ETag（`W/"abc"`）退回 size 档判 inSync；分片 ETag `d41…-7` 且 digest 已算→不误判；两侧各留一个 `.DS_Store` 仅云端版→被忽略规则剔除不报 onlyRemote；同路径大小写敏感性钉死（相对路径按原文匹配，不 lower）。
 - [ ] **Step 2:** 红→实现→绿。
