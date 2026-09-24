@@ -137,6 +137,35 @@ void main() {
     expect(waits.first.inMilliseconds, lessThanOrEqualTo(800));
   });
 
+  test('节流基准=「完成」时刻（假时钟钉死，区分「起始起算」误口径）', () async {
+    // 假时钟：MockClient 内把时钟推进 5s（模拟慢请求），请求结束后停在完成时刻。
+    // 若误以「请求起始」为基准：第二请求距起始已过 5s > 800ms → 不等待（gap 为负）；
+    // 正确口径以「完成」（响应头到达）起算：gap = 800ms - (now - doneAt) = 800ms，
+    // 喂满额等待——两种口径的断言值不同，本例即判别器。
+    var t = DateTime.utc(2026, 9, 25, 12);
+    final client = MockClient((_) async {
+      t = t.add(const Duration(seconds: 5));
+      return http.Response('ok', 200);
+    });
+    final waits = <Duration>[];
+    final gate = HttpGate(
+      sleeper: (d) async {
+        waits.add(d);
+      },
+      clock: () => t,
+    );
+    final c = cfg(intervalMs: 800);
+
+    await gate.send(client, () => get('/slow1'),
+        config: c, label: 'GET /slow1');
+    expect(waits, isEmpty, reason: '首请求无历史，不应等待');
+
+    await gate.send(client, () => get('/slow2'),
+        config: c, label: 'GET /slow2');
+    expect(waits, [const Duration(milliseconds: 800)],
+        reason: '间隔自上次「完成」（响应头到达）起算，慢请求自身耗时不计入');
+  });
+
   test('跨请求串行：并发水位 == 1（全局串行队列，【调度】R3）', () async {
     var inflight = 0;
     var peak = 0;
@@ -196,6 +225,20 @@ void main() {
       expect(waitForStatus(429, null, 2, now), const Duration(seconds: 8));
       expect(waitForStatus(429, '3600', 0, now), const Duration(seconds: 30),
           reason: '任何来源的等待都不超过 30s');
+    });
+
+    test('大 attempt 移位回绕防护：clamp(0,4) 后 62/63 仍是封顶 30s（评审修复轮1）',
+        () {
+      // 修复前：int64 下 `2<<62` 回绕为负、`2<<63` 回绕为 0，
+      // 被 waitForStatus 下游钳成 0s——超大 attempt 的退避被静默清零。
+      expect(waitForStatus(429, null, 62, now), const Duration(seconds: 30));
+      expect(waitForStatus(503, null, 63, now), const Duration(seconds: 30));
+      // 钳位后的缺省序列：2/4/8/16/30（2<<4=32s 再被 _maxBackoff 钳 30s）封顶；
+      // maxAttempts=3 的实际调用（attempt 0/1/2）行为不变。
+      expect(waitForStatus(429, null, 3, now), const Duration(seconds: 16));
+      expect(waitForStatus(429, null, 4, now), const Duration(seconds: 30));
+      expect(waitForStatus(429, null, -1, now), const Duration(seconds: 2),
+          reason: '负 attempt 钳回 0 档（2s），不得回绕出负值');
     });
 
     test('无法解析的 Retry-After 回落缺省退避', () {

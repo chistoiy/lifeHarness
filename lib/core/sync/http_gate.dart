@@ -12,8 +12,14 @@ const _throttledStatuses = {429, 503};
 /// 退避上限：任何来源（含超大 Retry-After）都不超过 30s。
 const _maxBackoff = Duration(seconds: 30);
 
-/// 缺省退避：`2s << attempt`（attempt 从 0 起 → 2s、4s、8s…）。
-Duration defaultBackoff(int attempt) => Duration(seconds: 2 << attempt);
+/// 缺省退避：`2s << attempt`，attempt 先钳进 [0,4] → 序列 2s/4s/8s/16s/30s 封顶。
+/// 钳位是防回绕：int64 下 `2 << 62` 回绕为负、`2 << 63` 回绕为 0，
+/// 不钳则超大 attempt 的等待被下游钳成 0s（退避静默消失，评审修复轮1）；
+/// 2<<4=32s 由 [waitForStatus] 的 30s 上限收口，maxAttempts=3 下行为不变。
+Duration defaultBackoff(int attempt) {
+  final a = attempt.clamp(0, 4);
+  return Duration(seconds: 2 << a);
+}
 
 /// 退避时长判定纯函数（顶层导出供单测，协议文档 §8 waitFor 的拆形版）：
 /// 非 429/503 返回 null（不等待）；否则优先解析 `Retry-After`
@@ -120,6 +126,9 @@ class HttpGate {
       await _throttle.wait(config, _clock, _sleeper);
       // 每次重建请求：流式体只读一遍 + 签名含日期。
       res = await client.send(build());
+      // 节流基准口径：「完成」= 响应头到达（`client.send` 在收到响应头时即
+      // resolve；body 字节流由调用方在 gate **外**按需消费，不计入基准），
+      // 间隔自此刻起算——单测「节流基准=完成时刻」例钉死该口径。
       _throttle.done(config.id, _clock());
       final wait = waitForStatus(
           res.statusCode, res.headers['retry-after'], attempt, _clock());
