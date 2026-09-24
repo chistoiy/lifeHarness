@@ -66,6 +66,7 @@ import '../../features/settings/presentation/log_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
+import '../../features/settings/presentation/sync_page.dart';
 import '../../features/todo/presentation/todo_page.dart';
 
 /// 全局导航 Key（Shell 内 Navigator 使用）。
@@ -360,6 +361,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/log',
         builder: (_, _) => const LogPage(),
+      ),
+      // V1.41 Task 10 /sync 空壳页（原型 p-sync 先占路由：备份半屏入口 +
+      // 「同步功能批5接入」标签行；批5 Task 18 完成主页）。
+      GoRoute(
+        path: '/sync',
+        builder: (_, _) => const SyncPage(),
       ),
     ],
   );

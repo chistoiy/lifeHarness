@@ -121,6 +121,34 @@ void main() {
     expect(a, matches(RegExp(r'^[0-9a-f]{32}$')));
   });
 
+  // Task 10 携带修复（T8 遗留 Minor）：值长度前缀化消除旧 `k=值;` 歧义。
+  test('tableChecksum 转义：文本"NULL"≠NULL · 值含分号/键含等号不碰撞', () {
+    // 旧口径两者都渲染 'a=NULL;' 碰撞；新口径 NULL→'N'，文本→'4:NULL'。
+    expect(tableChecksum([
+      {'a': null}
+    ]), isNot(tableChecksum([
+      {'a': 'NULL'}
+    ])));
+    // 值含分号：'x;y' 不得与拆成两列/两行的形态碰撞。
+    expect(tableChecksum([
+      {'a': 'x;y'}
+    ]), isNot(tableChecksum([
+      {'a': 'x', 'b': 'y'}
+    ])));
+    expect(tableChecksum([
+      {'a': 'x;y'}
+    ]), isNot(tableChecksum([
+      {'a': 'x'},
+      {'a': 'y'}
+    ])));
+    // 旧口径两行都渲染 'x=a=b;'（键含 = 与值含 = 碰撞）；长度前缀后区分。
+    expect(tableChecksum([
+      {'x=a': 'b'}
+    ]), isNot(tableChecksum([
+      {'x': 'a=b'}
+    ])));
+  });
+
   test('create→verify 往返：默认全量打包（含 care 表），manifest 表数==建表语句实表数', () async {
     final db = await dbWithTodos();
     final attachDir = Directory('${tmp.path}/attach')..createSync();
@@ -288,6 +316,42 @@ void main() {
     }
     await src.close();
     await target.close();
+  });
+
+  // Task 10 携带修复（Important）：解侧 KDF 参数封顶 + alg 白名单，
+  // 拒绝造 10^9 轮 manifest 的包（否则 verify 在 PBKDF2 派生处被拒绝服务）。
+  test('manifest.kdf 封顶：10^9 轮/非法 alg 的加密包 → badManifest 拒验', () async {
+    final db = await dbWithTodos();
+    final outDir = Directory('${tmp.path}/out')..createSync();
+    final res =
+        await LhBak.create(db: db, outDirPath: outDir.path, passphrase: 'p@ss');
+    // 原包（100000 轮，区间 [10_000, 1_000_000] 内）照常可验。
+    await LhBak.verify(res.file.path, passphrase: 'p@ss');
+
+    final tooBig = _manifestJson(res);
+    (tooBig['kdf'] as Map<String, dynamic>)['iterations'] = 1000000000;
+    expect(
+      LhBak.verify(rebuildWithManifest(res.file.path, tooBig),
+          passphrase: 'p@ss'),
+      throwsLhBak(LhBakException.codeBadManifest),
+    );
+
+    final belowMin = _manifestJson(res);
+    (belowMin['kdf'] as Map<String, dynamic>)['iterations'] = 9999;
+    expect(
+      LhBak.verify(rebuildWithManifest(res.file.path, belowMin),
+          passphrase: 'p@ss'),
+      throwsLhBak(LhBakException.codeBadManifest),
+    );
+
+    final badAlg = _manifestJson(res);
+    (badAlg['kdf'] as Map<String, dynamic>)['alg'] = 'scrypt';
+    expect(
+      LhBak.verify(rebuildWithManifest(res.file.path, badAlg),
+          passphrase: 'p@ss'),
+      throwsLhBak(LhBakException.codeBadManifest),
+    );
+    await db.close();
   });
 }
 

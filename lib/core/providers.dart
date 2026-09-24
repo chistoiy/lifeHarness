@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'backup/backup_service.dart';
 import 'host/event_bus.dart';
 import 'host/mount_point.dart';
 import 'host/module_registry.dart';
@@ -27,6 +28,12 @@ final themeRegistryProvider = Provider<ThemeRegistry>(
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => SettingsRepository(ref.watch(sharedPreferencesProvider)),
+);
+
+/// 备份服务（V1.41 Task 10）：目录/库/prefs 在 main 组合根装配并
+/// overrideWithValue；widget 测试注入 fake（如 /sync 半屏用例）。
+final backupServiceProvider = Provider<BackupService>(
+  (ref) => throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
 );
 
 final settingsControllerProvider =

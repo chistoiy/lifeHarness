@@ -26,9 +26,14 @@ import '../database/schema.dart';
 /// 收口批与 pubspec version 同步）。
 const String kAppVersion = '0.1.18';
 
-/// 口令加密参数（口径钉死于 T9 实施说明）。
+/// 口令加密参数（口径钉死于 T9 实施口径）。
 const int kPbkdf2Iterations = 100000;
 const int kMaxEncryptBytes = 64 * 1024 * 1024;
+
+/// 解侧 KDF 轮数封顶区间（Task 10 携带修复：坏 manifest 给 10^9 轮会让
+/// verify/unpack 在派生密钥处拒绝服务）——超界一律 badManifest 拒绝。
+const int kKdfIterationsMin = 10000;
+const int kKdfIterationsMax = 1000000;
 const int _saltLength = 16;
 const int _nonceLength = 12;
 const int _tagLength = 16; // AES-GCM 标准 tag 长
@@ -44,7 +49,14 @@ Uint8List _randomBytes(int length) {
 }
 
 /// 逐表校验和（纯函数，便于单测）：行按调用方给定顺序（本库口径 = rowid 升序）
-/// 逐行拼接 `k=值;`（列名排序保证跨读取稳定），MD5 hex；空表为 `'-'`。
+/// 逐行拼接 `k=编码值;`（列名排序保证跨读取稳定），MD5 hex；空表为 `'-'`。
+///
+/// 值编码长度前缀化（Task 10 携带修复，替代 T8 的裸 `k=值;`）：
+/// - NULL → `N`，文本 `'NULL'` → `4:NULL`——修复旧口径下两者同串的歧义；
+/// - 其余 → `<字符长度>:<值>`，值内含 `;` `=` 换行都不与分隔符/后续字段碰撞
+///   （旧口径 `x=a=b;` 与列名 `x=a` 值 `b` 可碰撞）；
+/// - BLOB → `0x<hex>`（前缀唯一不与长度前缀形态碰撞）。
+/// 注意：本改造改变校验和字节，V1.41 未发布无历史包袱，不做旧包兼容。
 String tableChecksum(List<Map<String, Object?>> rows) {
   if (rows.isEmpty) return '-';
   final sb = StringBuffer();
@@ -59,7 +71,7 @@ String tableChecksum(List<Map<String, Object?>> rows) {
 }
 
 String _checksumValue(Object? v) {
-  if (v == null) return 'NULL';
+  if (v == null) return 'N';
   if (v is Uint8List) {
     final hex = StringBuffer();
     for (final b in v) {
@@ -67,7 +79,8 @@ String _checksumValue(Object? v) {
     }
     return '0x$hex';
   }
-  return '$v';
+  final s = '$v';
+  return '${s.length}:$s';
 }
 
 /// 单表统计：行数 + 校验和（设计稿 §3 manifest「逐表行数+校验和」）。
@@ -343,7 +356,8 @@ class LhBak {
       // 4) zip 落盘（明文大文件成员走 InputFileStream 流式；密文成员整读
       //    加密后作为 ArchiveFile 写入，尺寸已受 maxEncryptBytes 约束）。
       Directory(outDirPath).createSync(recursive: true);
-      final outPath = p.join(outDirPath, _backupFileName(ts));
+      final outPath =
+          p.join(outDirPath, uniqueFileNameInDir(outDirPath, _backupFileName(ts)));
       final encoder = ZipFileEncoder();
       encoder.create(outPath);
       final cipher = passphrase != null ? _BlobCipher(passphrase) : null;
@@ -474,6 +488,10 @@ class LhBak {
       final missing = schemaDdl.keys.toSet().difference(snapTables).toList()
         ..sort();
 
+      // Task 10 携带修复（T8 遗留）：删旧表→重建→逐表 INSERT 期间表序任意，
+      // 未来 schema 引入 FK 表后单事务内会出现外键瞬时违规；defer_foreign_keys
+      // 把 FK 检查推迟到事务提交（对无 FK 的当前 schema 是无害空转）。
+      await targetDb.execute('PRAGMA defer_foreign_keys=ON');
       await targetDb.transaction((txn) async {
         for (final t in targetTables) {
           await txn.execute('DROP TABLE IF EXISTS main."$t"');
@@ -564,10 +582,21 @@ class LhBak {
       throw const LhBakException(LhBakException.codeBadManifest,
           '成员缺失：db.sqlite.enc');
     }
-    final iterations = manifest.kdf?['iterations'];
-    if (iterations is! int || iterations <= 0) {
+    // Task 10 携带修复：KDF 算法白名单 + 轮数封顶区间，坏 manifest 直接
+    // badManifest 拒绝，绝不拿超界轮数去派生密钥（拒绝服务防线）。
+    // alg 口径 = T9 写入值 'PBKDF2-HMAC-SHA256'（即 PBKDF2-SHA256 全称）。
+    final alg = manifest.kdf?['alg'];
+    if (alg != 'PBKDF2-HMAC-SHA256') {
       throw const LhBakException(LhBakException.codeBadManifest,
-          'manifest.kdf.iterations 缺失或非法');
+          'manifest.kdf.alg 非 PBKDF2-HMAC-SHA256');
+    }
+    final iterations = manifest.kdf?['iterations'];
+    if (iterations is! int ||
+        iterations < kKdfIterationsMin ||
+        iterations > kKdfIterationsMax) {
+      throw const LhBakException(LhBakException.codeBadManifest,
+          'manifest.kdf.iterations 缺失或超出合法区间 '
+          '[$kKdfIterationsMin, $kKdfIterationsMax]');
     }
     final blob = entry.content as List<int>;
     if (blob.length < _saltLength + _nonceLength + _tagLength) {
@@ -657,6 +686,20 @@ class LhBak {
     } catch (_) {
       // 临时目录清理失败不影响结果（Windows 偶发文件占用）。
     }
+  }
+}
+
+/// 目标目录内不重名的备份文件名：同秒二次导出（如导入恢复的
+/// `auto_before_restore` 紧跟手动导出）不覆盖既有包——覆盖 = 静默毁包，
+/// 属备份红线。首名保持规范口径，冲突依次 `-2`、`-3` 后缀。
+String uniqueFileNameInDir(String dirPath, String fileName) {
+  if (!File(p.join(dirPath, fileName)).existsSync()) return fileName;
+  final dot = fileName.lastIndexOf('.');
+  final stem = dot < 0 ? fileName : fileName.substring(0, dot);
+  final ext = dot < 0 ? '' : fileName.substring(dot);
+  for (var n = 2;; n++) {
+    final candidate = '$stem-$n$ext';
+    if (!File(p.join(dirPath, candidate)).existsSync()) return candidate;
   }
 }
 

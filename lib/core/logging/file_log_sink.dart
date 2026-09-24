@@ -165,6 +165,10 @@ class FileLogSink {
     return next;
   }
 
+  /// 当前落盘目录（未 init 为 null）。Task 10 导出「附带日志」按
+  /// [dayFiles] 文件名拼完整路径用；本类仍不碰平台通道。
+  static String? get dirPath => _dirPath;
+
   /// 落盘文件名列表（含 `.1/.2` 分卷），**新→旧**。未 init 返回空。
   static Future<List<String>> dayFiles() async {
     final dir = _dirPath;

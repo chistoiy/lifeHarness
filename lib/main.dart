@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/backup/backup_service.dart';
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
@@ -29,7 +30,8 @@ Future<void> main() async {
   //     日志页滚轮配置 · 默认 14 天）；init 前已进环形缓冲的行（错误捕获
   //     抢跑那段）在此补写一次，之后由 AppLog.onLine 自动续写。
   final prefs = await SharedPreferences.getInstance();
-  final logDir = p.join((await getApplicationDocumentsDirectory()).path, 'logs');
+  final docsPath = (await getApplicationDocumentsDirectory()).path;
+  final logDir = p.join(docsPath, 'logs');
   await FileLogSink.init(logDir,
       retentionDays: FileLogSink.readRetentionDays(prefs));
   for (final line in AppLog.lines.toList()) {
@@ -97,6 +99,21 @@ Future<void> main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         themeRegistryProvider.overrideWithValue(registry),
+        // V1.41 Task 10：备份服务组合根装配。attachDirs 取证 = 应用文档目录下
+        // 实际落盘的附件子目录（note_images: shared/image_attach 日记/笔记插图；
+        // book_covers: read isbn_enrich 封面；exports: journal note_sheets 导出；
+        // share: read 书摘/书单导出）。
+        backupServiceProvider.overrideWithValue(BackupService(
+          exportDir: () => p.join(docsPath, 'backup'),
+          db: () => AppDatabase.instance.open(),
+          attachDirs: [
+            p.join(docsPath, 'note_images'),
+            p.join(docsPath, 'book_covers'),
+            p.join(docsPath, 'exports'),
+            p.join(docsPath, 'share'),
+          ],
+          prefs: prefs,
+        )),
       ],
       child: const LifeHarnessApp(),
     ),

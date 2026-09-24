@@ -84,13 +84,15 @@ class SettingsPage extends ConsumerWidget {
             child: Column(
               children: [
                 _EntryRow(
+                    key: const ValueKey('entry-sync'),
                     emoji: '☁️',
                     bg: const Color(0xFF10B981).withValues(alpha: .12),
                     title: '数据与同步',
                     sub: 'WebDAV · 备份 · 加密 · 同步历史',
                     trailing: '● 未配置',
                     trailingColor: Colors.grey,
-                    onTap: () => _toast(context, '数据与同步 · 敬请期待')),
+                    // V1.41 Task 10：占位 toast 改真实 /sync 路由（空壳页）。
+                    onTap: () => context.go('/sync')),
                 // 批8收口：母婴敏感数据同步排除联动行（开关实体在呵护提醒页）。
                 const _CareSyncLink(),
                 // V1.41批1 Task 6：日志查看页入口（原型 index-sync p-log）。

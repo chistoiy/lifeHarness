@@ -1,0 +1,450 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+
+import '../../../core/backup/lh_bak.dart';
+import '../../../core/providers.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
+
+/// V1.41 Task 10 · S5「备份导出/导入」半屏（原型 index-sync.html s-backup）。
+///
+/// 口径：
+/// - 导出：范围勾选（附件/日志）+ 口令二次输入一致才启用 + 目标位置两态
+///   （应用目录默认 /「另存到…」导出成功后触发 saveCopyToUserLocation，
+///   系统弹层取消不追加任何后续调用）；成功 toast「已导出：<文件名>」。
+/// - 导入：pickBackupFile → inspect 校验报告态（含 skippedLarge「N 个超大
+///   附件未入包」行）→ 勾选「恢复将替换当前数据」二次确认 → 才可调
+///   importBackup（恢复按钮置于确认勾选之后）。
+/// - 文案一律功能标签式，无教学句（UI 规范）。
+Future<void> showBackupSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (_) => const BackupSheet(),
+  );
+}
+
+/// S5 弹层组件（/sync 空壳页与批5 同步主页共用入口）。
+class BackupSheet extends ConsumerStatefulWidget {
+  const BackupSheet({super.key});
+
+  @override
+  ConsumerState<BackupSheet> createState() => _BackupSheetState();
+}
+
+class _BackupSheetState extends ConsumerState<BackupSheet> {
+  bool _withAttach = true;
+  bool _withLogs = true;
+  bool _destSaf = false;
+  final TextEditingController _pass1 = TextEditingController();
+  final TextEditingController _pass2 = TextEditingController();
+  String? _passError;
+  bool _busy = false;
+
+  // 导入侧状态
+  final TextEditingController _importPass = TextEditingController();
+  String? _pickedPath;
+  LhBakManifest? _manifest;
+  String? _verifyError; // 非 needPassphrase 的校验失败 code
+  bool _needPass = false;
+  bool _confirmed = false;
+
+  @override
+  void dispose() {
+    _pass1.dispose();
+    _pass2.dispose();
+    _importPass.dispose();
+    super.dispose();
+  }
+
+  void _toast(String msg) {
+    if (mounted) AppToast.show(context, msg);
+  }
+
+  String? _exportPassphrase() {
+    final p1 = _pass1.text, p2 = _pass2.text;
+    if (p1.isEmpty && p2.isEmpty) return null;
+    if (p1 != p2) {
+      setState(() => _passError = '口令两次输入不一致');
+      return _invalid;
+    }
+    setState(() => _passError = null);
+    return p1;
+  }
+
+  /// 哨兵：口令校验不通过（空串是合法值，用 null 表达「未通过」会歧义）。
+  static const String _invalid = '\u0000invalid';
+
+  Future<void> _doExport() async {
+    final pass = _exportPassphrase();
+    if (pass == _invalid) return;
+    if (_busy) return;
+    setState(() => _busy = true);
+    final svc = ref.read(backupServiceProvider);
+    try {
+      final res = await svc.exportBackup(
+        withLogs: _withLogs,
+        withAttachments: _withAttach,
+        passphrase: pass,
+      );
+      _toast('已导出：${p.basename(res.file.path)}');
+      if (_destSaf) {
+        final saved = await svc.saveCopyToUserLocation(res.file.path);
+        _toast(saved == null
+            ? '另存已取消 · 包保留在应用导出目录'
+            : '已另存：${p.basename(saved)}');
+      }
+    } on LhBakException catch (e) {
+      _toast('导出失败：${e.code}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _doPick() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final svc = ref.read(backupServiceProvider);
+    try {
+      final path = await svc.pickBackupFile();
+      if (path == null) return; // 取消选择：静默回原态
+      setState(() {
+        _pickedPath = path;
+        _manifest = null;
+        _verifyError = null;
+        _needPass = false;
+        _confirmed = false;
+      });
+      await _verify();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _verify() async {
+    final path = _pickedPath;
+    if (path == null) return;
+    final svc = ref.read(backupServiceProvider);
+    final pass = _importPass.text.isEmpty ? null : _importPass.text;
+    try {
+      final m = await svc.inspect(path, passphrase: pass);
+      if (!mounted) return;
+      setState(() {
+        _manifest = m;
+        _verifyError = null;
+        _needPass = false;
+        _confirmed = false;
+      });
+    } on LhBakException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _manifest = null;
+        _needPass = e.code == LhBakException.codeNeedPassphrase;
+        _verifyError = _needPass ? null : e.code;
+      });
+    }
+  }
+
+  Future<void> _doRestore() async {
+    final path = _pickedPath;
+    final m = _manifest;
+    if (path == null || m == null || !_confirmed || _busy) return;
+    setState(() => _busy = true);
+    final svc = ref.read(backupServiceProvider);
+    try {
+      final report = await svc.importBackup(
+          path,
+          passphrase: _importPass.text.isEmpty ? null : _importPass.text);
+      _toast('恢复完成：${report.tableCount} 表 · ${report.totalRows} 行');
+    } on LhBakException catch (e) {
+      _toast('恢复失败：${e.code}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final svc = ref.read(backupServiceProvider);
+    final m = _manifest;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('备份导出/导入',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text('.lhbak 容器 · db.sqlite 一致性快照 · 附件 · 日志',
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 14),
+            // ---- 导出范围 ----
+            const Text('导出范围',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              value: true,
+              onChanged: null,
+              title: const Text('数据库快照 db.sqlite',
+                  style: TextStyle(fontSize: 13)),
+            ),
+            CheckboxListTile(
+              key: const ValueKey('chk-attach'),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              value: _withAttach,
+              onChanged: (v) => setState(() => _withAttach = v ?? true),
+              title: const Text('附件 attachments/',
+                  style: TextStyle(fontSize: 13)),
+            ),
+            CheckboxListTile(
+              key: const ValueKey('chk-logs'),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              value: _withLogs,
+              onChanged: (v) => setState(() => _withLogs = v ?? true),
+              title: const Text('附带日志 logs/', style: TextStyle(fontSize: 13)),
+            ),
+            // ---- 目标位置两态（原型 s-backup segBakDest 行为）----
+            const SizedBox(height: 6),
+            const Text('目标位置',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                _SegBtn(
+                    key: const ValueKey('dest-app'),
+                    label: '应用目录（默认）',
+                    on: !_destSaf,
+                    onTap: () => setState(() => _destSaf = false)),
+                const SizedBox(width: 8),
+                _SegBtn(
+                    key: const ValueKey('dest-saf'),
+                    label: '另存到…',
+                    on: _destSaf,
+                    onTap: () => setState(() => _destSaf = true)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _destSaf ? '目标位置：另存到…（系统保存弹层）' : '目标位置：应用目录（默认）',
+              style: TextStyle(fontSize: 11, color: tokens.accent),
+            ),
+            if (_destSaf && svc.lastSaveHint != null)
+              Text('上次另存：${p.basename(svc.lastSaveHint!)}',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+            // ---- 口令 ----
+            const SizedBox(height: 10),
+            const Text('口令 · 可选（二次输入一致才启用）',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            TextField(
+              key: const ValueKey('pass-1'),
+              controller: _pass1,
+              obscureText: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(labelText: '口令', isDense: true),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              key: const ValueKey('pass-2'),
+              controller: _pass2,
+              obscureText: true,
+              style: const TextStyle(fontSize: 13),
+              decoration:
+                  const InputDecoration(labelText: '确认口令', isDense: true),
+            ),
+            if (_passError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_passError!,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFFDC2626))),
+              ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('btn-export'),
+                onPressed: _busy ? null : _doExport,
+                child: const Text('导出备份'),
+              ),
+            ),
+            const Divider(height: 28),
+            // ---- 导入恢复 ----
+            const Text('导入恢复',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              key: const ValueKey('btn-pick-backup'),
+              onPressed: _busy ? null : _doPick,
+              child: const Text('选择 .lhbak 文件'),
+            ),
+            if (_verifyError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('校验失败：$_verifyError',
+                    style: const TextStyle(
+                        fontSize: 11.5, color: Color(0xFFDC2626))),
+              ),
+            if (_needPass) ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('加密包需口令',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFFF59E0B))),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('import-pass'),
+                      controller: _importPass,
+                      obscureText: true,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: const InputDecoration(
+                          labelText: '口令', isDense: true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    key: const ValueKey('btn-verify-import'),
+                    onPressed: _busy ? null : _verify,
+                    child: const Text('校验'),
+                  ),
+                ],
+              ),
+            ],
+            if (m != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: tokens.cardBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                              p.basename(_pickedPath ?? ''),
+                              style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'monospace')),
+                        ),
+                        const Text('manifest 校验通过',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF10B981))),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text('${m.tables.length} 表 · '
+                        '${m.tables.values.fold<int>(0, (a, t) => a + t.rows)} 行',
+                        style: const TextStyle(fontSize: 11.5)),
+                    if (m.excludedTables.isNotEmpty)
+                      Text('排除表：${m.excludedTables.join('、')}',
+                          style: const TextStyle(fontSize: 11.5)),
+                    if (m.encrypted)
+                      const Text('已加密', style: TextStyle(fontSize: 11.5)),
+                    if ((m.skippedLarge?.isNotEmpty ?? false))
+                      Text('${m.skippedLarge!.length} 个超大附件未入包',
+                          style: const TextStyle(
+                              fontSize: 11.5, color: Color(0xFFF59E0B))),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Checkbox(
+                          key: const ValueKey('confirm-restore'),
+                          value: _confirmed,
+                          onChanged: (v) =>
+                              setState(() => _confirmed = v ?? false),
+                        ),
+                        const Expanded(
+                          child: Text('恢复将替换当前数据',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            key: const ValueKey('btn-restore'),
+                            onPressed:
+                                (_confirmed && !_busy) ? _doRestore : null,
+                            child: const Text('恢复整库'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 目标位置分段按钮（原型 .seg-btn 两态）。
+class _SegBtn extends StatelessWidget {
+  const _SegBtn({
+    super.key,
+    required this.label,
+    required this.on,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(9),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: on ? tokens.accent.withValues(alpha: .12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+              color: on ? tokens.accent : tokens.cardBorder,
+              width: on ? 1.4 : 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: on ? FontWeight.w800 : FontWeight.w500,
+            color: on ? tokens.accent : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
