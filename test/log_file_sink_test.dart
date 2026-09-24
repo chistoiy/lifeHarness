@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/logging/app_log.dart';
 import 'package:lifeharness/core/logging/file_log_sink.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Task 5：FileLogSink 按天滚动落盘 + 凭据脱敏。
 ///
@@ -213,5 +214,26 @@ void main() {
     expect(AppLog.allText(), isNot(contains('TOPSECRET9999')));
     expect(AppLog.lines.length, 3);
     expect(AppLog.lines[1].key, isTrue); // 关键行标记保留
+  });
+
+  test('readRetentionDays 白名单钳制：非 7/14/30 历史脏值回落最近档（等距取小），'
+      '未配置默认 14，白名单值原样透传（评审修复轮1）', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    Future<int> readWith(Object? value) async {
+      SharedPreferences.setMockInitialValues(
+          value == null ? {} : {FileLogSink.retentionDaysKey: value});
+      return FileLogSink.readRetentionDays(
+          await SharedPreferences.getInstance());
+    }
+
+    expect(await readWith(7), 7); // 白名单原样
+    expect(await readWith(14), 14);
+    expect(await readWith(30), 30);
+    expect(await readWith(null), 14); // 未配置 → 默认档
+    expect(await readWith(0), 7); // 脏值 0 → 最近档 7
+    expect(await readWith(999), 30); // 脏值 999 → 最近档 30
+    expect(await readWith(10), 7); // 10 距 7 更近（3 < 4）
+    expect(await readWith(22), 14); // 22 等距（8/8）取小档 14
+    expect(await readWith(-5), 7); // 负值同样钳到最近档
   });
 }

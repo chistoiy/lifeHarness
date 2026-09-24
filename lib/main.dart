@@ -40,10 +40,10 @@ Future<void> main() async {
   // 1) 主题设计令牌全量载入（assets/themes/）。
   final registry = await const ThemeRepository().loadAll();
 
-  // 3) 数据库建库（验收：启动即建库；核心表+预留表+plugin_* 规范见 DbSchema）。
+  // 2) 数据库建库（验收：启动即建库；核心表+预留表+plugin_* 规范见 DbSchema）。
   await AppDatabase.instance.open();
 
-  // 4) 通知基建（M0末A）：初始化 + 恢复每日节律 + 重排未完成的待办提醒。
+  // 3) 通知基建（M0末A）：初始化 + 恢复每日节律 + 重排未完成的待办提醒。
   //    组合根允许触达 feature DAO（R2 白名单同 app_router）。
   await NotificationService.init();
   final settings = SettingsRepository(prefs).load();
@@ -59,7 +59,7 @@ Future<void> main() async {
             'true') ==
         'true',
   );
-  // 6) 习惯提醒注册（习惯计划 §6/§7：remindAll 总开关 × dnd 免打扰双门控；
+  // 4) 习惯提醒注册（习惯计划 §6/§7：remindAll 总开关 × dnd 免打扰双门控；
   //    逐习惯 remindAt 与晚间未打卡 nightAt 一并重排，可跨重启取消）。
   final hRepo = HabitRepository(AppDatabase.instance.db);
   final hRemindAll = await hRepo.kvBool('habit.remindAll', true);

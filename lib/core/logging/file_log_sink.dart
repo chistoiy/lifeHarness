@@ -90,15 +90,28 @@ class FileLogSink {
   /// 保留天数持久化键（SharedPreferences · 参考 settings_repository 用法）。
   static const String retentionDaysKey = 'log.retentionDays';
 
+  /// 保留天数合法档位白名单（日志页滚轮与此同源；非白名单历史值读侧回落）。
+  static const List<int> retentionOptions = [7, 14, 30];
+
   /// 保留天数默认值（未配置时）。
   static const int defaultRetentionDays = 14;
 
   /// 当前生效的保留天数（内存值；落盘清理按文件名日期比较时使用）。
   static int get retentionDays => _retentionDays;
 
-  /// 读持久化保留天数（未配置回落 [defaultRetentionDays]）。
-  static int readRetentionDays(SharedPreferences prefs) =>
-      prefs.getInt(retentionDaysKey) ?? defaultRetentionDays;
+  /// 读持久化保留天数：未配置回落 [defaultRetentionDays]；读到非白名单值
+  /// （历史脏数据 0/999 等）钳制到最近档位（等距取小档），保证页面文本
+  /// 与滚轮回显自洽（评审修复轮1）。
+  static int readRetentionDays(SharedPreferences prefs) {
+    final v = prefs.getInt(retentionDaysKey);
+    if (v == null) return defaultRetentionDays;
+    if (retentionOptions.contains(v)) return v;
+    var best = retentionOptions.first;
+    for (final o in retentionOptions) {
+      if ((o - v).abs() < (best - v).abs()) best = o;
+    }
+    return best;
+  }
 
   /// 写持久化保留天数并同步内存值（日志页滚轮改档即时生效，
   /// 下次启动由 main 经 [readRetentionDays] 传入 [init]）。

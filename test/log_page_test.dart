@@ -19,7 +19,8 @@ import 'helpers.dart';
 /// 纪律：①打开 `/log` 走本地极简 GoRouter（context.go 同款语义，不拉全 app）；
 /// ②剪贴板经 MockClipboard（`flutter/platform` channel 桩）断言全量行数；
 /// ③FileLogSink 一律临时目录 init + tearDown dispose，页面不碰 path_provider；
-/// ④注入 350 条用 AppLog.add 循环；SnackBar 场景先 pollText 再 clearToasts。
+/// ④注入 350 条用 AppLog.add 三级交错循环（保证窗口尾部三级混合，
+///   「警告+」档为真过滤断言——评审修复轮1）。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -93,16 +94,18 @@ void main() {
     await settle5(tester);
   }
 
-  /// 按级别注入 n 条（文本唯一可精确断言）。
+  /// 按级别**交错**注入（每轮 info→warn→error 各一条），总量 info+warn+error。
+  /// 交错保证环形缓冲尾部窗口内三级混合，「警告+」档才能真正验证 info 被过滤
+  /// （评审修复轮1：顺序注入下窗口内无 info，过滤断言形同虚设）。
   void inject(int info, int warn, int error) {
-    for (var i = 0; i < info; i++) {
-      AppLog.add('信息行$i', level: LhLevel.info);
-    }
-    for (var i = 0; i < warn; i++) {
-      AppLog.add('警告行$i', level: LhLevel.warn);
-    }
-    for (var i = 0; i < error; i++) {
-      AppLog.add('错误行$i', level: LhLevel.error);
+    var i = 0, w = 0, e = 0;
+    while (i < info || w < warn || e < error) {
+      if (i < info) AppLog.add('信息行$i', level: LhLevel.info);
+      if (w < warn) AppLog.add('警告行$w', level: LhLevel.warn);
+      if (e < error) AppLog.add('错误行$e', level: LhLevel.error);
+      i++;
+      w++;
+      e++;
     }
   }
 
@@ -118,34 +121,54 @@ void main() {
       tester.widget<Text>(find.byKey(const ValueKey('keep-days-current')));
 
   group('p-log 窗口/过滤/复制', () {
-    testWidgets('注入350条 → 窗口≤120 · 级别chip生效 · 复制全量=缓冲300行',
+    testWidgets('交错注入350条 → 窗口=120 三级混合 · 警告+/错误真过滤 · 复制全量=缓冲300行',
         (tester) async {
       await seedPrefs();
       inject(150, 100, 100);
-      // 环形缓冲丢最旧 50 条信息行：余 信息100+警告100+错误100。
+      // 交错注入 350 条，环形缓冲 300 丢最旧 50 条；尾部窗口（最近 120 条）
+      // 内 info/warn/error 三级混合，过滤档才有非平凡断言价值。
       expect(AppLog.lines.length, 300);
 
       await useSurface(tester, const Size(800, 3600));
       final copied = mockClipboard(tester);
       await openLogPage(tester);
 
-      // ① 渲染窗口=最近 120 条（警告行80..99 + 错误行0..99），高视口下全量入树。
+      // 渲染窗口口径的当前视图（页面同源：环形缓冲尾部 displayWindow 条）。
+      final win = AppLog.lines
+          .sublist(AppLog.lines.length - AppLog.displayWindow);
+      LhLogLine winFirst(LhLevel lv) => win.firstWhere((l) => l.level == lv);
+      LhLogLine winLast(LhLevel lv) => win.lastWhere((l) => l.level == lv);
+
+      // ① 渲染窗口=最近 120 条，高视口下全量入树；窗口边界精确。
       final total = logLineCount(tester);
       expect(total, lessThanOrEqualTo(AppLog.displayWindow));
       expect(total, 120);
-      expect(find.text(AppLog.lines[180].formatted), findsOneWidget); // 警告行80
+      expect(find.text(AppLog.lines[180].formatted), findsOneWidget); // 窗内首行
       expect(find.text(AppLog.lines[179].formatted), findsNothing); // 窗口外
 
-      // ② 级别过滤：警告+ = 20警告+100错误；错误 = 100；回全部 = 120。
+      // ② 级别过滤（评审修复轮1）：窗口内确有 info 行，「警告+」条数必须
+      // 等于窗口内 warn+error 实际条数（<120 的确定值），且树内查无 info 行。
+      final warnUpExpected =
+          win.where((l) => l.level != LhLevel.info).length;
+      expect(win.where((l) => l.level == LhLevel.info), isNotEmpty,
+          reason: '窗口内必须有 info 行，否则警告+ 档断言退化为恒真');
+      expect(warnUpExpected, lessThan(120));
       await tester.tap(find.text('警告+'));
       await settle5(tester);
-      expect(logLineCount(tester), 120);
-      expect(find.text(AppLog.lines[180].formatted), findsOneWidget);
+      expect(logLineCount(tester), warnUpExpected);
+      expect(find.text(winFirst(LhLevel.info).formatted), findsNothing);
+      expect(find.text(winLast(LhLevel.info).formatted), findsNothing);
+      expect(find.text(winFirst(LhLevel.warn).formatted), findsOneWidget);
+      expect(find.text(winLast(LhLevel.error).formatted), findsOneWidget);
+      // 错误档：只剩 error，warn 也不出现。
+      final errorExpected =
+          win.where((l) => l.level == LhLevel.error).length;
       await tester.tap(find.text('错误'));
       await settle5(tester);
-      expect(logLineCount(tester), 100);
-      expect(find.text(AppLog.lines[200].formatted), findsOneWidget); // 错误行0
-      expect(find.text(AppLog.lines[199].formatted), findsNothing); // 警告行99
+      expect(logLineCount(tester), errorExpected);
+      expect(find.text(winLast(LhLevel.error).formatted), findsOneWidget);
+      expect(find.text(winFirst(LhLevel.warn).formatted), findsNothing);
+      expect(find.text(winFirst(LhLevel.info).formatted), findsNothing);
       await tester.tap(find.text('全部'));
       await settle5(tester);
       expect(logLineCount(tester), 120);

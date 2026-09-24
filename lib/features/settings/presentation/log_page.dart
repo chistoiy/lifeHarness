@@ -26,7 +26,8 @@ class LogPage extends ConsumerStatefulWidget {
 }
 
 class _LogPageState extends ConsumerState<LogPage> {
-  static const List<int> _keepOptions = [7, 14, 30];
+  // 档位与 sink 白名单同源（readRetentionDays 读侧也按它钳制）。
+  static const List<int> _keepOptions = FileLogSink.retentionOptions;
   static const List<String> _keepLabels = ['7 天', '14 天', '30 天'];
 
   _LogFlt _flt = _LogFlt.all;
@@ -36,16 +37,24 @@ class _LogPageState extends ConsumerState<LogPage> {
   /// 落盘文件名清单（新→旧）。未 init 时 dayFiles 返回空列表。
   late final Future<List<String>> _dayFiles = FileLogSink.dayFiles();
 
-  /// 滚轮定位档：非 7/14/30 的历史值就近落到默认 14 档（index 1）。
+  /// 滚轮定位档：读侧已按白名单钳制（readRetentionDays），indexOf 必命中；
+  /// 仍保留异常值就近落默认 14 档（index 1）的守卫。
   int _keepIndex() {
     final i = _keepOptions.indexOf(_keep);
     return i < 0 ? 1 : i;
   }
 
-  void _setKeep(int days) {
+  Future<void> _setKeep(int days) async {
     if (days == _keep) return;
     setState(() => _keep = days);
-    FileLogSink.saveRetentionDays(ref.read(sharedPreferencesProvider), days);
+    try {
+      // 评审修复轮1：await 落盘 + 吞异常——保存失败仅记日志（UI 已本地回显，
+      // 下次启动仍以旧值生效），日志基建的异常绝不抛给页面。
+      await FileLogSink.saveRetentionDays(
+          ref.read(sharedPreferencesProvider), days);
+    } catch (e) {
+      AppLog.add('保留天数保存失败: $e', level: LhLevel.warn);
+    }
   }
 
   /// 当前过滤视图：环形缓冲取最近 [AppLog.displayWindow] 条窗口，再按级别过滤。
