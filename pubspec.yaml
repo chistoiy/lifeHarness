@@ -43,6 +43,8 @@ dependencies:
   http: ^1.2.0
   # ZIP 归档（备份容器 .lhak 打包/解包）
   archive: ^3.6.1
+  # MD5 表校验和（.lhbak manifest；archive/cryptography 的传递依赖，显式声明）
+  crypto: ^3.0.0
   # 加解密原语（AES-GCM 口令档、SHA-256 校验）
   cryptography: ^2.7.0
   # 凭据安全存储（WebDAV/S3 SecretKey 等，Keystore/EncryptedSharedPreferences）
