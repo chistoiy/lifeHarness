@@ -9,6 +9,17 @@ import '../theme/app_theme.dart';
 import '../../shared/linkage/timer_bar_overlay.dart';
 import '../../features/calendar/presentation/calendar_page.dart';
 import '../../features/calendar/presentation/category_page.dart';
+import '../../features/care/presentation/baby_day_page.dart';
+import '../../features/care/presentation/babies_page.dart';
+import '../../features/care/presentation/care_page.dart';
+import '../../features/care/presentation/care_remind_page.dart';
+import '../../features/care/presentation/care_stats_page.dart';
+import '../../features/care/presentation/growth_page.dart';
+import '../../features/care/presentation/milestone_page.dart';
+import '../../features/care/presentation/vaccine_page.dart';
+import '../../features/care/presentation/cycle_cal_page.dart';
+import '../../features/care/presentation/cycle_stats_page.dart';
+import '../../features/care/presentation/sym_history_page.dart';
 import '../../features/todo/presentation/widgets/pomo_screen.dart';
 import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
@@ -78,6 +89,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/inbox', builder: (_, _) => const InboxPage()),
           // 记账批1：主页入底栏导航池（NAV_MODS p-finance 同位）。
           GoRoute(path: '/ledger', builder: (_, _) => const LedgerPage()),
+          // 呵护批0：模块顶层壳（周期/宝宝点标题互切不落路由栈 · 红线 2）。
+          GoRoute(path: '/care', builder: (_, _) => const CarePage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
         ],
@@ -171,6 +184,52 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/set',
         builder: (_, _) => const LedgerSetPage(),
+      ),
+      // 呵护批0：照护汇总（原型 p-babyStats 栈页 · 批7 实装内容）。
+      GoRoute(
+        path: '/care/stats',
+        builder: (_, _) => const CareStatsPage(),
+      ),
+      // 呵护批1：她·周期四栈页（原型 p-cycleCal / p-cycleStats / p-symHistory / p-careRemind）。
+      GoRoute(
+        path: '/care/cycle/cal',
+        builder: (_, _) => const CycleCalPage(),
+      ),
+      GoRoute(
+        path: '/care/cycle/stats',
+        builder: (_, _) => const CycleStatsPage(),
+      ),
+      GoRoute(
+        path: '/care/sym',
+        builder: (_, _) => const SymHistoryPage(),
+      ),
+      GoRoute(
+        path: '/care/remind',
+        builder: (_, _) => const CareRemindPage(),
+      ),
+      // 呵护批2：宝宝档案（原型 p-babies 栈页）。
+      GoRoute(
+        path: '/care/babies',
+        builder: (_, _) => const BabiesPage(),
+      ),
+      // 呵护批4：全天记录（原型 p-babyDay 栈页；hero 数据位/今日时间线入口）。
+      GoRoute(
+        path: '/care/day',
+        builder: (_, _) => const CareBabyDayPage(),
+      ),
+      // 呵护批5：生长曲线（原型 p-growth 栈页）。
+      GoRoute(
+        path: '/care/growth',
+        builder: (_, _) => const GrowthPage(),
+      ),
+      // 呵护批6：疫苗计划 + 发育里程碑（原型 p-vaccine / p-milestones 栈页）。
+      GoRoute(
+        path: '/care/vaccine',
+        builder: (_, _) => const VaccinePage(),
+      ),
+      GoRoute(
+        path: '/care/milestones',
+        builder: (_, _) => const MilestonesPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

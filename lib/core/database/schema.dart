@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 18;
+  static const int version = 19;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -75,6 +75,19 @@ class DbSchema {
   static const String tLedgerWhos = 'ledger_whos';
   static const String tLedgerMerchants = 'ledger_merchants';
   static const String tLedgerImportBatches = 'ledger_import_batches';
+  // v19（M3·呵护批0）：母婴呵护十一表（交接 §3 按宝宝分档：记录/周期/预测存档/
+  // 测量/疫苗/里程碑/过敏史 + 档案/记录人/自定义事件/速记顺序）。
+  static const String tCareBabies = 'care_babies';
+  static const String tCareCarers = 'care_carers';
+  static const String tCareLogs = 'care_logs';
+  static const String tCareCycleDays = 'care_cycle_days';
+  static const String tCareCyclePred = 'care_cycle_pred';
+  static const String tCareMeasures = 'care_measures';
+  static const String tCareVaccines = 'care_vaccines';
+  static const String tCareMilestones = 'care_milestones';
+  static const String tCareAllergies = 'care_allergies';
+  static const String tCareCustomEvents = 'care_custom_events';
+  static const String tCareEventOrder = 'care_event_order';
 
   /// 记账兜底分类固定 id（删除大类时流水迁移目标 · 计划 §4「兜底分类不可删」）。
   static const int ledgerCatOtherExpense = 114; // 其他（支出树）
@@ -337,6 +350,7 @@ class DbSchema {
     ...habitSchemaStatements,
     ...habitAuxSchemaStatements,
     ...ledgerSchemaStatements,
+    ...careSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -538,6 +552,11 @@ class DbSchema {
     // 一次建齐（含批2/批3 的 recur/wishes/debts/import_batches），避免逐批抬版本。
     17: [
       ...ledgerSchemaStatements,
+    ],
+    // v19（M3·呵护批0）：母婴呵护十一表 + 记录人/速记顺序种子。
+    // 一次建齐（周期/宝宝两侧全部批次共用），避免逐批抬版本。
+    18: [
+      ...careSchemaStatements,
     ],
   };
 
@@ -1034,6 +1053,159 @@ class DbSchema {
     )
     ''',
     ..._ledgerSeeds(),
+  ];
+
+  /// v19 母婴呵护十一表 DDL + 种子（建库与迁移共用同文·幂等 · 交接 §3/§4）。
+  ///
+  /// 口径：
+  /// - 所有宝宝维度数据带 `baby_id` 分档（记录/曲线测量/疫苗/里程碑/过敏史），
+  ///   删除档案在仓储事务内级联清理（替代原型 shiftDict 字典重排）；
+  /// - care_logs 一行一事件（补剂多条=多行），字段与原型记录对象同构
+  ///   {k,s,e,dur,ml,tmp,seg,dia,color,tex,vol,name,unit,amt,note,rec,at}；
+  ///   展示文本/图标由数据在应用层生成，不落库（红线 6）；
+  /// - 周期日状态存 care_cycle_days（state ''|s|p1|p），经期区间与预测由
+  ///   p1 起点 + 平均周期在应用层推导；每次重算预测把旧预测行置 superseded
+  ///   并新增一行（「保留旧预测存档」红线）；
+  /// - 自定义事件键 `cus:名`，改名走事务键迁移 + care_logs.k 回写（红线 8）；
+  /// - care.* 设置 KV 走 settings 表（先例 habit.*/ledger.*）。
+  static const List<String> careSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareBabies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      sex TEXT NOT NULL DEFAULT '女',
+      birth TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT 'sky',
+      avatar TEXT NOT NULL DEFAULT '🧸',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareCarers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_care_carer_name ON $tCareCarers(name)',
+    "INSERT OR IGNORE INTO $tCareCarers(name,sort) VALUES('妈妈',1),('爸爸',2),('奶奶',3),('月嫂',4)",
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareLogs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      baby_id INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      k TEXT NOT NULL,
+      s TEXT NOT NULL,
+      e TEXT,
+      dur INTEGER,
+      ml REAL,
+      tmp REAL,
+      seg TEXT,
+      dia TEXT,
+      color TEXT,
+      tex TEXT,
+      vol TEXT,
+      name TEXT,
+      unit TEXT,
+      amt TEXT,
+      note TEXT,
+      rec TEXT,
+      at TEXT,
+      ala TEXT,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_carelog_baby_day ON $tCareLogs(baby_id, day)',
+    'CREATE INDEX IF NOT EXISTS idx_carelog_k ON $tCareLogs(k)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareCycleDays (
+      day TEXT PRIMARY KEY,
+      state TEXT NOT NULL DEFAULT '',
+      flow TEXT,
+      temp REAL,
+      ovu TEXT,
+      syms TEXT,
+      note TEXT,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareCyclePred (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      next_start TEXT NOT NULL,
+      ov_day TEXT,
+      made_at INTEGER NOT NULL,
+      superseded INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareMeasures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      baby_id INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      w REAL NOT NULL,
+      h REAL NOT NULL,
+      head REAL NOT NULL,
+      rec TEXT,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_caremsr_baby ON $tCareMeasures(baby_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareVaccines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      baby_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      dose TEXT NOT NULL DEFAULT '第1剂',
+      due TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT '免规',
+      lead INTEGER NOT NULL DEFAULT 7,
+      done_day TEXT,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_carevax_baby ON $tCareVaccines(baby_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareMilestones (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      baby_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      cat TEXT NOT NULL DEFAULT '大运动',
+      day TEXT,
+      done INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_caremile_baby ON $tCareMilestones(baby_id)',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareAllergies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      baby_id INTEGER NOT NULL,
+      food TEXT NOT NULL,
+      reaction TEXT,
+      created_at INTEGER NOT NULL,
+      UNIQUE(baby_id, food)
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareCustomEvents (
+      key TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT '✨',
+      unit TEXT NOT NULL DEFAULT 'ml'
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tCareEventOrder (
+      key TEXT PRIMARY KEY,
+      sort INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    // 速记区初始顺序种子（原型 EV_BASE 同序；用户排序后写回覆盖）。
+    "INSERT OR IGNORE INTO $tCareEventOrder(key,sort) VALUES"
+        "('nurse',1),('bmilk',2),('formula',3),('diaper',4),('sleep',5),('bath',6),"
+        "('play',7),('supp',8),('swim',9),('water',10),('solids',11),('pump',12),('custom',13)",
   ];
 
   /// 记账种子：默认账本 + 现金账户 + 两级分类树（原型 LCATS 同序同色）+

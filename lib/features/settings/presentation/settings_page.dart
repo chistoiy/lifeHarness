@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/database/app_database.dart';
+import '../../../core/database/schema.dart';
 import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/user_settings.dart';
@@ -89,6 +91,8 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '● 未配置',
                     trailingColor: Colors.grey,
                     onTap: () => _toast(context, '数据与同步 · 敬请期待')),
+                // 批8收口：母婴敏感数据同步排除联动行（开关实体在呵护提醒页）。
+                const _CareSyncLink(),
                 _EntryRow(
                     emoji: '🔔',
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),
@@ -694,6 +698,46 @@ class AppearanceSettingsPage extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 呵护敏感数据同步排除·联动行（红线 7）。
+/// 开关实体在「呵护提醒」页；此行只读展示状态并作为跳转入口，
+/// 与原型 p-sub-data 的灰字提示行对应（同步引擎落地前先可见可查）。
+final careSyncExcludedProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final rows = await AppDatabase.instance.db.query(DbSchema.tSettings,
+      where: 'key = ?', whereArgs: ['care.syncExcluded'], limit: 1);
+  final v = rows.isEmpty ? null : rows.first['value'] as String?;
+  return v == null || v == 'true'; // 默认开
+});
+
+class _CareSyncLink extends ConsumerWidget {
+  const _CareSyncLink();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(careSyncExcludedProvider).valueOrNull ?? true;
+    return GestureDetector(
+      key: const ValueKey('settings-care-sync'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/care/remind'),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(52, 0, 16, 12),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text('母婴等敏感数据排除同步（模块级）',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ),
+            Text(on ? '已开启 · 呵护内管理 ›' : '已关闭 · 呵护内管理 ›',
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: on ? const Color(0xFF10B981) : Colors.grey)),
+          ],
+        ),
       ),
     );
   }
