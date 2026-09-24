@@ -26,7 +26,9 @@ import '../../features/journal/presentation/note_edit_page.dart';
 import '../../features/ledger/presentation/ledger_add_page.dart';
 import '../../features/ledger/presentation/ledger_import_page.dart';
 import '../../features/ledger/presentation/ledger_page.dart';
+import '../../features/ledger/presentation/ledger_report_page.dart';
 import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
+import '../../features/ledger/presentation/ledger_yearly_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/book_mgr_page.dart';
@@ -100,6 +102,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/import',
         builder: (_, _) => const LedgerImportPage(),
+      ),
+      // 记账批2a：L4 统计报表与 L16 年度总结（全屏，同 p-report / p-yearly 栈页）。
+      GoRoute(
+        path: '/ledger/report',
+        builder: (_, _) => const LedgerReportPage(),
+      ),
+      GoRoute(
+        path: '/ledger/yearly',
+        builder: (_, _) => const LedgerYearlyPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

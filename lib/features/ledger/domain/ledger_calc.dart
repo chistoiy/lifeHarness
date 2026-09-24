@@ -446,3 +446,266 @@ List<(String, String, String, String)> spendingInsights({
   }
   return ins;
 }
+
+// ---- L4 统计报表（批2a · 原型 repRange/renderReport 口径；聚合统一剔 nb） ----
+
+/// 'YYYY-MM-DD' ± n 天（原型 shiftDays）。
+String shiftDays(String s, int n) => dayKey(parseDay(s).add(Duration(days: n)));
+
+/// 报表趋势桶（周7日 / 月各日 / 年12月 / 自定义按天）。
+class RepBucket {
+  const RepBucket(this.s, this.e, this.label);
+  final String s;
+  final String e;
+  final String label;
+}
+
+/// 报表周期区间（原型 repRange 返回体）。
+class RepRange {
+  const RepRange({
+    required this.s,
+    required this.e,
+    required this.label,
+    required this.buckets,
+    required this.monthlyAvg,
+  });
+
+  final String s;
+  final String e;
+  final String label;
+  final List<RepBucket> buckets;
+
+  /// 年视图=月均，其余=日均（九·补3 均值线口径）。
+  final bool monthlyAvg;
+
+  /// 区间天数（原型 days = (e-s)/864e5 + 1）。
+  int get days => parseDay(e).difference(parseDay(s)).inDays + 1;
+}
+
+/// L4 周期区间（原型 repRange 逐项对照）：
+/// week=近 7 天（weekOffset 供前后翻期，按 7 天平移）· month=finMonth 各日 ·
+/// year=finMonth 年份 12 月 · custom=起讫按天分桶（上限 62 桶，同原型截断）。
+RepRange repRange({
+  required String period,
+  required String today,
+  required String month,
+  String? from,
+  String? to,
+  int weekOffset = 0,
+}) {
+  switch (period) {
+    case 'week':
+      final end = shiftDays(today, weekOffset * 7);
+      final b = [
+        for (var i = 0; i < 7; i++) (() {
+          final ds = shiftDays(end, -(6 - i));
+          return RepBucket(ds, ds, ds.substring(8));
+        })(),
+      ];
+      final s = b.first.s, e = b.last.e;
+      return RepRange(
+        s: s,
+        e: e,
+        label: weekOffset == 0 ? '近 7 天' : '${s.substring(5)} ~ ${e.substring(5)}',
+        buckets: b,
+        monthlyAvg: false,
+      );
+    case 'year':
+      final y = int.parse(month.substring(0, 4));
+      return RepRange(
+        s: '$y-01-01',
+        e: '$y-12-31',
+        label: '$y年',
+        buckets: [
+          for (var m = 1; m <= 12; m++)
+            RepBucket(
+              dayKey(DateTime(y, m, 1)),
+              dayKey(DateTime(y, m + 1, 0)),
+              '$m月',
+            ),
+        ],
+        monthlyAvg: true,
+      );
+    case 'custom':
+      final s = from ?? '$month-01';
+      final e = to ?? today;
+      final b = <RepBucket>[];
+      var cur = s;
+      while (cur.compareTo(e) <= 0 && b.length < 62) {
+        b.add(RepBucket(cur, cur, cur.substring(8)));
+        cur = shiftDays(cur, 1);
+      }
+      return RepRange(
+        s: s,
+        e: e,
+        label: '${s.substring(5)} ~ ${e.substring(5)}',
+        buckets: b,
+        monthlyAvg: false,
+      );
+    default: // month
+      final dim = monthDayCount(month);
+      return RepRange(
+        s: '$month-01',
+        e: '$month-${dim.toString().padLeft(2, '0')}',
+        label: finLbl(month),
+        buckets: [
+          for (var dd = 1; dd <= dim; dd++)
+            RepBucket(
+              '$month-${dd.toString().padLeft(2, '0')}',
+              '$month-${dd.toString().padLeft(2, '0')}',
+              '$dd',
+            ),
+        ],
+        monthlyAvg: false,
+      );
+  }
+}
+
+/// 区间流水（当前账本集合内 s≤date≤e；bk 过滤在数据源侧已完成）。
+List<LedgerTxn> txnsBetween(Iterable<LedgerTxn> all, String s, String e) =>
+    all.where((t) => t.date.compareTo(s) >= 0 && t.date.compareTo(e) <= 0)
+        .toList();
+
+/// 趋势分桶聚合（柱与曲线共用同一 buckets，九·补3）：每桶 exp/inc（剔 nb、refund 冲抵）。
+List<({String label, double exp, double inc})> repTrend(
+  Iterable<LedgerTxn> all,
+  RepRange r,
+) =>
+    [
+      for (final b in r.buckets)
+        (() {
+          final s = mStat(txnsBetween(all, b.s, b.e));
+          return (label: b.label, exp: s.exp, inc: s.inc);
+        })(),
+    ];
+
+/// 环比上期窗口（原型 ps=s−days / pe=s−1）。
+(String, String) repPrevWindow(RepRange r) =>
+    (shiftDays(r.s, -r.days), shiftDays(r.s, -1));
+
+/// 环比百分比（上期无数据回 0，同原型 cmp 口径）。
+double momPct(double cur, double prevExp) =>
+    prevExp != 0 ? (cur - prevExp) / prevExp * 100 : 0;
+
+/// 排行键（九·补2④）：大类=按 cat、小类=按 cat|sub（sub 空串归「未细分」）。
+String rankKey(LedgerTxn t, {required bool bySub}) =>
+    bySub ? '${t.catId}|${t.sub}' : '${t.catId}';
+
+/// L4 分类排行双维度（九·补2④）：expense 累加、refund 冲抵；剔 nb 与无分类行；
+/// v>0 保留、降序；小类维度截 Top15（大类不截，同原型 slice(99)）。
+List<(String, double)> rankAgg(Iterable<LedgerTxn> all, {required bool bySub}) {
+  final m = <String, double>{};
+  for (final t in all) {
+    if (t.nb || t.catId == null) continue;
+    if (t.kind != LedgerTxn.kExpense && t.kind != LedgerTxn.kRefund) continue;
+    final k = rankKey(t, bySub: bySub);
+    m[k] = (m[k] ?? 0) + (t.kind == LedgerTxn.kExpense ? t.amt : -t.amt);
+  }
+  final list =
+      m.entries.where((e) => e.value > 0).map((e) => (e.key, e.value)).toList();
+  list.sort((a, b) => b.$2.compareTo(a.$2));
+  return bySub ? list.take(15).toList() : list;
+}
+
+/// L4 钻取（repDrill）：区间内该排行键的 expense/refund 流水，日期降序。
+List<LedgerTxn> drillTxns(
+  Iterable<LedgerTxn> rangeTxns, {
+  required String key,
+  required bool bySub,
+}) {
+  final out = rangeTxns
+      .where((t) =>
+          !t.nb &&
+          (t.kind == LedgerTxn.kExpense || t.kind == LedgerTxn.kRefund) &&
+          rankKey(t, bySub: bySub) == key)
+      .toList();
+  out.sort((a, b) => b.date.compareTo(a.date));
+  return out;
+}
+
+/// L4 Top 支出项目：expense 按备注聚合（空备注回落 [nameOf] 类目名），降序截 [cap]。
+List<(String, double)> topNotes(
+  Iterable<LedgerTxn> all, {
+  required String Function(LedgerTxn) nameOf,
+  int cap = 5,
+}) {
+  final m = <String, double>{};
+  for (final t in all) {
+    if (t.nb || t.kind != LedgerTxn.kExpense) continue;
+    final k = t.note.isNotEmpty ? t.note : nameOf(t);
+    m[k] = (m[k] ?? 0) + t.amt;
+  }
+  final list =
+      m.entries.map((e) => (e.key, e.value)).toList()
+        ..sort((a, b) => b.$2.compareTo(a.$2));
+  return list.take(cap).toList();
+}
+
+// ---- L16 年度总结（批2a · 原型 renderYearly 口径） ----
+
+/// 年度聚合值（渲染层只做排版，全部数值在此算好）。
+class YearStat {
+  const YearStat({
+    required this.exp,
+    required this.inc,
+    required this.cnt,
+    required this.actDays,
+    this.big,
+    required this.rank,
+    required this.months,
+  });
+
+  final double exp;
+  final double inc;
+
+  /// expense/income 笔数（剔 nb）。
+  final int cnt;
+
+  /// 有支出流水的自然日数（记账 N 天）。
+  final int actDays;
+
+  /// 年度最大单笔（仅 expense）。
+  final LedgerTxn? big;
+
+  /// 大类支出排行（catStat 同口径）。
+  final List<(int, double)> rank;
+
+  /// 12 个月 exp/inc。
+  final List<({int m, double exp, double inc})> months;
+
+  double get avgDaily => exp / 365;
+}
+
+/// L16 年度聚合：按年份过滤当前账本流水后 mStat/catStat 同口径聚合。
+YearStat yearStat(Iterable<LedgerTxn> all, String year) {
+  final ys = all.where((t) => t.date.startsWith('$year-')).toList();
+  final st = mStat(ys);
+  final actDates = <String>{};
+  LedgerTxn? big;
+  for (final t in ys) {
+    if (t.nb || t.kind != LedgerTxn.kExpense) continue;
+    actDates.add(t.date);
+    if (big == null || t.amt > big.amt) big = t;
+  }
+  final cnt = ys
+      .where((t) =>
+          !t.nb &&
+          (t.kind == LedgerTxn.kExpense || t.kind == LedgerTxn.kIncome))
+      .length;
+  return YearStat(
+    exp: st.exp,
+    inc: st.inc,
+    cnt: cnt,
+    actDays: actDates.length,
+    big: big,
+    rank: catStat(ys),
+    months: [
+      for (var m = 1; m <= 12; m++)
+        (() {
+          final s = mStat(
+              ys.where((t) => int.parse(t.date.substring(5, 7)) == m));
+          return (m: m, exp: s.exp, inc: s.inc);
+        })(),
+    ],
+  );
+}

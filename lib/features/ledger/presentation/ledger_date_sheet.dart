@@ -45,6 +45,12 @@ class _LDateState extends State<_LDate> {
   void initState() {
     super.initState();
     final now = DateTime.now();
+    // 全模式预置：_set 的等值守卫会读取全部字段，未初始化会 LateInitializationError。
+    _hh = now.hour;
+    _mm = now.minute;
+    _y = now.year;
+    _m = now.month;
+    _d = now.day;
     final v = widget.value;
     if (widget.mode == 'time') {
       final p = (v ?? '').split(':');
