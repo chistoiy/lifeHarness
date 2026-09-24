@@ -147,17 +147,22 @@ Future<int?> showLAcctPick(
 
 // ============ S10 角色选择/管理（原型 openWhoPick） ============
 
-Future<String?> showLWhoPick(BuildContext context, {required String value}) =>
-    showLSheet<String>(
-      context,
-      _WhoPick(value: value),
-      heightFactor: .56,
-    );
+/// [mg]=true 打开即管理态（原型 openWhoPick(true)·L13 设置页行入口）。
+Future<String?> showLWhoPick(
+  BuildContext context, {
+  required String value,
+  bool mg = false,
+}) => showLSheet<String>(
+  context,
+  _WhoPick(value: value, mg: mg),
+  heightFactor: .56,
+);
 
 class _WhoPick extends ConsumerStatefulWidget {
-  const _WhoPick({required this.value});
+  const _WhoPick({required this.value, this.mg = false});
 
   final String value;
+  final bool mg;
 
   @override
   ConsumerState<_WhoPick> createState() => _WhoPickState();
@@ -165,7 +170,7 @@ class _WhoPick extends ConsumerStatefulWidget {
 
 class _WhoPickState extends ConsumerState<_WhoPick> {
   late String _sel = widget.value;
-  bool _mg = false;
+  late bool _mg = widget.mg;
 
   LedgerRepository get _repo => ref.read(ledgerRepositoryProvider);
 
@@ -349,19 +354,22 @@ class _MgBtn extends StatelessWidget {
 
 // ============ S9 标签两级多选（原型 openTagPick） ============
 
+/// [mg]=true 打开即管理态（原型 openTagPick(true)·L13 设置页行入口）。
 Future<List<String>?> showLTagPick(
   BuildContext context, {
   required List<String> selected,
+  bool mg = false,
 }) => showLSheet<List<String>>(
   context,
-  _TagPick(selected: selected),
+  _TagPick(selected: selected, mg: mg),
   heightFactor: .62,
 );
 
 class _TagPick extends ConsumerStatefulWidget {
-  const _TagPick({required this.selected});
+  const _TagPick({required this.selected, this.mg = false});
 
   final List<String> selected;
+  final bool mg;
 
   @override
   ConsumerState<_TagPick> createState() => _TagPickState();
@@ -369,7 +377,7 @@ class _TagPick extends ConsumerStatefulWidget {
 
 class _TagPickState extends ConsumerState<_TagPick> {
   late final Set<String> _sel = {...widget.selected};
-  bool _mg = false;
+  late bool _mg = widget.mg;
   int _gi = 0;
 
   LedgerRepository get _repo => ref.read(ledgerRepositoryProvider);
@@ -707,24 +715,29 @@ class _TagPickState extends ConsumerState<_TagPick> {
 
 // ============ S8 商家选择/管理（原型 openMerchPick） ============
 
-Future<String?> showLMerchPick(BuildContext context, {String? value}) =>
-    showLSheet<String>(
-      context,
-      _MerchPick(value: value),
-      heightFactor: .56,
-    );
+/// [mg]=true 打开即管理态（原型 openMerchPick(true)·L13 设置页行入口）。
+Future<String?> showLMerchPick(
+  BuildContext context, {
+  String? value,
+  bool mg = false,
+}) => showLSheet<String>(
+  context,
+  _MerchPick(value: value, mg: mg),
+  heightFactor: .56,
+);
 
 class _MerchPick extends ConsumerStatefulWidget {
-  const _MerchPick({this.value});
+  const _MerchPick({this.value, this.mg = false});
 
   final String? value;
+  final bool mg;
 
   @override
   ConsumerState<_MerchPick> createState() => _MerchPickState();
 }
 
 class _MerchPickState extends ConsumerState<_MerchPick> {
-  bool _mg = false;
+  late bool _mg = widget.mg;
 
   LedgerRepository get _repo => ref.read(ledgerRepositoryProvider);
 

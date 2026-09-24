@@ -158,9 +158,12 @@ void main() {
     for (final n in ['分类管理', '心愿单', '借出·借入', '搜索筛选', '账单导入', '数据导出', '年度总结', '记账设置']) {
       expect(find.text(n), findsOneWidget);
     }
-    await tester.tap(find.text('记账设置'));
+    // 批3c 收口：lset 已真实化 → ledgerNav 走 context.push('/ledger/set')，
+    // 本用例无 GoRouter 树不可再点（路由行渲染守护见 ledger_l13_set_page_test）。
+    // 点弹层上方遮罩关闭（bottom sheet 无返回键）
+    await tester.tapAt(const Offset(400, 40));
     await settle5(tester);
-    expect(find.textContaining('即将开放'), findsOneWidget);
+    expect(find.text('记账管理'), findsNothing);
     await clearToasts(tester);
   });
 

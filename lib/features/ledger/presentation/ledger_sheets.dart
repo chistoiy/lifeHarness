@@ -9,12 +9,9 @@ import '../domain/ledger_models.dart';
 import 'ledger_providers.dart';
 import 'widgets/ledger_kit.dart';
 
-/// 记账后续批次入口的统一去向（保真：入口不删，未开放者仅提示）。
-/// 已开放：/ledger/import（批1d）、/ledger/report 与 /ledger/yearly（批2a）、
-/// /ledger/budget（批2b）、/ledger/assets（批2c·L6/L7）、
-/// /ledger/cats 与 /ledger/recur（批2d·L8/L9）、/ledger/wish 与 /ledger/debt
-/// （批3a·L10/L11）、/ledger/search 与 /ledger/export（批3b·L12/L15）；
-/// 其余按计划 §5 批3 落地后补映射。
+/// 记账后续批次入口的统一去向。批3c 收口：names 全部 12 键均已落地真实路由
+/// （import/report/yearly/budget/assets/cats/recur/wish/debt/search/export=
+/// 批1~批3b；lset=批3c /ledger/set）；「即将开放」toast 仅保留为未知键兜底。
 void ledgerNav(BuildContext context, String key) {
   const done = <String, String>{
     'import': '/ledger/import',
@@ -28,6 +25,7 @@ void ledgerNav(BuildContext context, String key) {
     'debt': '/ledger/debt',
     'search': '/ledger/search',
     'export': '/ledger/export',
+    'lset': '/ledger/set',
   };
   const names = {
     'cats': '分类管理',

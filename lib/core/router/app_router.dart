@@ -35,6 +35,7 @@ import '../../features/ledger/presentation/ledger_page.dart';
 import '../../features/ledger/presentation/ledger_recur_page.dart';
 import '../../features/ledger/presentation/ledger_report_page.dart';
 import '../../features/ledger/presentation/ledger_search_page.dart';
+import '../../features/ledger/presentation/ledger_set_page.dart';
 import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
 import '../../features/ledger/presentation/ledger_wish_page.dart';
 import '../../features/ledger/presentation/ledger_yearly_page.dart';
@@ -164,6 +165,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/export',
         builder: (_, _) => const LedgerExportPage(),
+      ),
+      // 记账批3c：L13 记账设置（设置 KV 全量落 DB settings 表 `ledger.` 前缀；
+      // 全屏，同 p-lset 栈页）。
+      GoRoute(
+        path: '/ledger/set',
+        builder: (_, _) => const LedgerSetPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。
