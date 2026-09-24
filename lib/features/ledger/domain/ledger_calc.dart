@@ -670,6 +670,39 @@ int budLeftDays({
   return math.max(1, cycleTotal - (tDay - ms + 1) + 1);
 }
 
+String _p2(int v) => v.toString().padLeft(2, '0');
+
+// ---- L6 资产总览 / L7 账户详情（批2c · 原型 renderAssets / renderAcctDetail 口径） ----
+
+/// 净资产三值（原型 renderAssets：资产=Σ正余额、负债=Σ|负余额|、净=资产−负债；
+/// 仅非归档账户，余额取 balance_cache 跨账本合并 accBal 口径）。
+({double assets, double liab, double net}) netWorthOf(Iterable<double> balances) {
+  final assets = balances.where((v) => v > 0).fold<double>(0, (x, v) => x + v);
+  final liab = balances.where((v) => v < 0).fold<double>(0, (x, v) => x - v);
+  return (assets: assets, liab: liab, net: assets - liab);
+}
+
+/// 信用卡账期两值（原型 renderAcctDetail：以查看月出账日前一天为界，
+/// 已出=上月出账日~本月前一天区间支出、未出=本月前一天~月末区间支出）。
+/// [expenses] 为该账户 kind=expense 且 account_id=本账户 的流水（跨账本合并）。
+({double billed, double unbilled}) creditBills({
+  required List<LedgerTxn> expenses,
+  required String finMonth,
+  required int billDay,
+}) {
+  final prev = '$finMonth-${_p2(math.max(1, billDay - 1))}'; // 本期结束=出账日前一天
+  final start = '${monthStep(finMonth, -1)}-${_p2(billDay)}'; // 上期出账日
+  final end = '$finMonth-${_p2(monthDayCount(finMonth))}'; // 查看月末
+  double sum(Iterable<LedgerTxn> ts) =>
+      ts.fold<double>(0, (s, t) => s + t.amt);
+  return (
+    billed: sum(expenses.where(
+        (t) => t.date.compareTo(start) >= 0 && t.date.compareTo(prev) <= 0)),
+    unbilled: sum(expenses.where(
+        (t) => t.date.compareTo(prev) > 0 && t.date.compareTo(end) <= 0)),
+  );
+}
+
 // ---- L16 年度总结（批2a · 原型 renderYearly 口径） ----
 
 /// 年度聚合值（渲染层只做排版，全部数值在此算好）。

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -436,3 +437,84 @@ class LSheetHead extends StatelessWidget {
     );
   }
 }
+
+/// 就地内嵌滚轮（UI 硬约束：数字选择器一律内嵌滚轮、禁两段式弹层）。
+/// 单列 CupertinoPicker，滚动即回调选中下标（不落弹层）；外部改值经
+/// didUpdateWidget 同步控制器，_last 守卫避免首帧/回环误触发。
+class LInlinePicker extends StatefulWidget {
+  const LInlinePicker({
+    super.key,
+    required this.labels,
+    required this.initialIndex,
+    required this.onSelect,
+    this.height = 130,
+  });
+
+  final List<String> labels;
+  final int initialIndex;
+  final ValueChanged<int> onSelect;
+  final double height;
+
+  @override
+  State<LInlinePicker> createState() => _LInlinePickerState();
+}
+
+class _LInlinePickerState extends State<LInlinePicker> {
+  late final FixedExtentScrollController _ctl = FixedExtentScrollController(
+    initialItem: widget.initialIndex.clamp(0, widget.labels.length - 1),
+  );
+  late int _last = widget.initialIndex;
+
+  @override
+  void didUpdateWidget(LInlinePicker old) {
+    super.didUpdateWidget(old);
+    final idx = widget.initialIndex.clamp(0, widget.labels.length - 1);
+    if (idx != _last) {
+      _last = idx;
+      if (_ctl.hasClients && _ctl.selectedItem != idx) {
+        _ctl.jumpToItem(idx);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return SizedBox(
+      height: widget.height,
+      child: CupertinoPicker(
+        scrollController: _ctl,
+        itemExtent: 32,
+        diameterRatio: 1.5,
+        backgroundColor: Colors.transparent,
+        onSelectedItemChanged: (i) {
+          _last = i;
+          widget.onSelect(i);
+        },
+        children: [
+          for (var i = 0; i < widget.labels.length; i++)
+            Center(
+              child: Text(
+                widget.labels[i],
+                style: TextStyle(
+                  fontSize: i == _last ? 16 : 11.5,
+                  fontWeight:
+                      i == _last ? FontWeight.w800 : FontWeight.w600,
+                  color: i == _last
+                      ? tokens.accent
+                      : const Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+

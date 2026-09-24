@@ -11,13 +11,14 @@ import 'widgets/ledger_kit.dart';
 
 /// 记账后续批次入口的统一去向（保真：入口不删，未开放者仅提示）。
 /// 已开放：/ledger/import（批1d）、/ledger/report 与 /ledger/yearly（批2a）、
-/// /ledger/budget（批2b）；其余按计划 §5 批2/批3 落地后补映射。
+/// /ledger/budget（批2b）、/ledger/assets（批2c·L6/L7）；其余按计划 §5 批3 落地后补映射。
 void ledgerNav(BuildContext context, String key) {
   const done = <String, String>{
     'import': '/ledger/import',
     'report': '/ledger/report',
     'yearly': '/ledger/yearly',
     'budget': '/ledger/budget',
+    'assets': '/ledger/assets',
   };
   const names = {
     'cats': '分类管理',

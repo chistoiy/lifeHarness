@@ -183,3 +183,31 @@ final ledgerBudgetOfMonthProvider =
   final bk = await repo.curBookId();
   return repo.budgetOf(bk, month);
 });
+
+/// L7 账户详情（批2c）：单账户流水（account 全局共用不带 bk，跨账本合并；
+/// date DESC·id DESC，取足量供账期聚合与「最近流水」前 40 条展示）。
+final ledgerAccountTxnsProvider =
+    FutureProvider.family<List<LedgerTxn>, int>((ref, id) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  return repo.acctTxns(id, limit: 5000);
+});
+
+/// L6 资产总览（批2c）：近 6 月净资产走势（原型 netAt 跨账本口径）。
+final ledgerNetWorthTrendProvider =
+    FutureProvider<List<({String label, double value})>>((ref) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  return repo.netWorthTrend();
+});
+
+/// L6 资产总览（批2c）：已归档账户（原型 renderAssets 归档分组·恢复/删除入口）。
+/// 主 [ledgerDataProvider].accounts 仅含未归档（供账户选择器），故单独取归档集，
+/// 不污染既有 provider 语义。
+final ledgerArchivedAccountsProvider =
+    FutureProvider<List<LedgerAccount>>((ref) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final all = await repo.accounts(includeArchived: true);
+  return [for (final a in all) if (a.archived) a];
+});

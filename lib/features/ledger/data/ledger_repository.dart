@@ -289,6 +289,45 @@ class LedgerRepository {
     return true;
   }
 
+  /// 删除守卫（§4 资产口径 · 原型 delAccount）：仅「余额未清零」拒删，
+  /// 清零即硬删账户（其历史流水保留，账户显示侧回落空名·同原型）。
+  /// 返回 ok=已删除；bal=拦截时的当前余额（供 toast 文案）。
+  Future<({bool ok, double bal})> delAccountGuarded(int id) async {
+    final a = await account(id);
+    if (a == null) return (ok: false, bal: 0.0);
+    if (a.balanceCache != 0) return (ok: false, bal: a.balanceCache);
+    await db.delete(DbSchema.tLedgerAccounts, where: 'id = ?', whereArgs: [id]);
+    return (ok: true, bal: 0.0);
+  }
+
+  /// 近 6 月净资产走势（原型 netAt：全部账户[含归档] base+Σeff(date≤月末)，跨账本）。
+  Future<List<({String label, double value})>> netWorthTrend({
+    String? endMonth,
+  }) async {
+    final cur = endMonth ?? monthKey(DateTime.now());
+    final accts = await accounts(includeArchived: true);
+    final rows = await db.query(DbSchema.tLedgerTxns, orderBy: 'date ASC, id ASC');
+    final txns = [for (final r in rows) LedgerTxn.fromRow(r)];
+    final out = <({String label, double value})>[];
+    for (var i = 5; i >= 0; i--) {
+      final mth = monthStep(cur, -i);
+      final cutoff = '$mth-${monthDayCount(mth).toString().padLeft(2, '0')}';
+      var total = 0.0;
+      for (final a in accts) {
+        var s = a.base;
+        for (final t in txns) {
+          if (t.date.compareTo(cutoff) <= 0) s += t.eff(a.id);
+        }
+        total += s;
+      }
+      out.add((
+        label: '${int.parse(mth.substring(5, 7))}月',
+        value: double.parse(total.toStringAsFixed(2)),
+      ));
+    }
+    return out;
+  }
+
   // ==================== 流水统一写路径（finTouch 等价物） ====================
 
   /// 记一笔/生成流水。返回新行 id。
