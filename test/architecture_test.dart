@@ -11,7 +11,9 @@ import 'package:path/path.dart' as p;
 /// R3 feature 的 domain/data 层不得 import 任何 presentation（模型/仓库层纯净，可单测）。
 /// R4 `for` 循环的增量子句必须有副作用（防空增量静默死循环，见 2026-09-20 事故）。
 /// R5 `lib/core/sync/**` 除 `http_gate.dart` 外不得直连 http
-///   （`http.Client(`/`.send(`/`package:http/` import 一律视为绕行唯一出口，R10）；
+///   （精化口径：违例 = `http.Client(` 实例化、`IOClient`、前驱标识符非
+///   httpGate/gate 的 `.send(`；`package:http` import 放行——store 需构造
+///   BaseRequest 交给 gate，出口唯一性由前两条保证，R10）；
 ///   附加断言：`x-bitiful-limit-rate`、`?stat` 在 lib/ 全库 0 命中（T14 前先行钉住）。
 /// 违反任何一条即测试失败——新增跨模块依赖必须先过架构评审并更新本白名单。
 void main() {
@@ -210,29 +212,42 @@ void main() {
   });
 
   test('R5 sync 层唯一出口：除 http_gate.dart 外禁直连 http（R10 绕行守护）', () {
-    // 判据（协议文档 §8 R10）：core/sync 下任何文件自行 new client、
-    // 自行 send 或 import package:http，都是绕过 HttpGate 的节流+退避。
-    final banned = RegExp(r'http\.Client\s*\(|\.send\s*\(');
-    final bannedImport = RegExp(r"""^import\s+['"]package:http/""");
+    // 精化裁决（T12 评审前修）：封的是「自建出口」，不是 http 类型本身——
+    // T13/T14 的 store 需要 import package:http 构造 BaseRequest 交给 gate，
+    // 一刀切禁 import 会误杀合法通道。违例收敛为三类：
+    // ① `http.Client(` 实例化（自建连接池）；② `IOClient`（自建底层 client）；
+    // ③ 前驱标识符 ∉ {httpGate, gate} 的 `.send(`（绕开节流+退避直发）。
+    final bannedInstantiate = RegExp(r'http\.Client\s*\(');
+    final bannedIoClient = RegExp(r'\bIOClient\b');
+    final bannedSend = RegExp(r'(\w*)\.send\s*\(');
+    const sendAllowPrefixes = {'httpGate', 'gate'}; // gate = 注入形参名白名单
     final violations = <String>[];
+    void report(String rel, String stripped, Match m, String what) {
+      final line = '\n'.allMatches(stripped.substring(0, m.start)).length + 1;
+      violations.add('$rel:$line $what');
+    }
+
     for (final entry in sources.entries) {
       final rel = entry.key;
       if (!rel.startsWith('core/sync/')) continue;
       if (rel.endsWith('http_gate.dart')) continue; // 唯一出口自身豁免
       final stripped = strip(entry.value); // 去字符串/注释，防文案误伤
-      for (final m in banned.allMatches(stripped)) {
-        final line = '\n'.allMatches(stripped.substring(0, m.start)).length + 1;
-        violations.add('$rel:$line ${m[0]}');
+      for (final m in bannedInstantiate.allMatches(stripped)) {
+        report(rel, stripped, m, m[0]!);
       }
-      for (final line in entry.value.split('\n')) {
-        if (bannedImport.hasMatch(line)) {
-          violations.add('$rel import package:http');
+      for (final m in bannedIoClient.allMatches(stripped)) {
+        report(rel, stripped, m, 'IOClient');
+      }
+      for (final m in bannedSend.allMatches(stripped)) {
+        if (!sendAllowPrefixes.contains(m[1])) {
+          report(rel, stripped, m, m[0]!);
         }
       }
     }
     expect(violations, isEmpty,
         reason: '所有云端请求必须经 httpGate.send 发出（按服务节流 + 429/503 退避）。'
-            '绕行会丢频控保护导致整目录同步被服务端限流打死。');
+            '绕行会丢频控保护导致整目录同步被服务端限流打死。'
+            '合法通道：import package:http 构造 BaseRequest，交给 httpGate.send。');
   });
 
   test('R5 附加：x-bitiful-limit-rate 与 ?stat 在 lib/ 全库 0 命中（T14 先行钉住）',
