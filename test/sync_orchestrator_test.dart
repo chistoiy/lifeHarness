@@ -322,6 +322,35 @@ void main() {
       expect(orch.state.value.running, isFalse);
     });
 
+    test('预检抛异常不卡死门闩：activeConfig 抛 StateError 后二次 run 正常进入',
+        () async {
+      final snap = _FakeSnap(syncDir: syncDir, docsDirRoot: docsDir);
+      final store = _FakeStore();
+      var noActive = true; // 首跑模拟组合根「无激活服务」
+      final orch = SyncOrchestrator(
+        snapshotService: snap,
+        prefs: prefs,
+        activeConfig: () {
+          if (noActive) throw StateError('无激活同步服务');
+          return cfg;
+        },
+        storeFactory: (_) => store,
+      );
+
+      await expectLater(
+          orch.run([localDiff('t.bin', 1, DiffStatus.onlyLocal)]),
+          throwsStateError);
+      expect(orch.state.value.running, isFalse,
+          reason: '预检异常发生在置位前：门闩未被点亮');
+
+      noActive = false;
+      final outcome =
+          await orch.run([localDiff('t.bin', 1, DiffStatus.onlyLocal)]);
+      expect(outcome.up, 1, reason: '二次 run 必须正常进入并跑完');
+      expect(store.putOrder, contains('t.bin'));
+      expect(orch.state.value.running, isFalse);
+    });
+
     test('inSync 条目混入勾选清单：不上传不计数', () async {
       final snap = _FakeSnap(syncDir: syncDir, docsDirRoot: docsDir);
       final store = _FakeStore();
@@ -363,6 +392,41 @@ void main() {
           AppLog.lines.any((l) => l.text.contains('导入')),
           isTrue,
           reason: '完成提示引导去 S5 导入（不自动覆盖本机库）');
+    });
+
+    test('下载 relPath 防 ../ 逃逸与绝对路径：非法条目计 failed、不落盘',
+        () async {
+      final snap = _FakeSnap(syncDir: syncDir, docsDirRoot: docsDir);
+      final store = _FakeStore();
+      FileDiff remote(String rel) => FileDiff(
+            relativePath: rel,
+            status: DiffStatus.onlyRemote,
+            remote: fe(rel, size: 4),
+          );
+      final outcome = await build(snap, store).run([
+        remote('../evil.lhbak'), // 直接上跳
+        remote('a/../../evil2.lhbak'), // 归一化后上跳
+        remote('C:/evil3.lhbak'), // Windows 盘符绝对形态
+        remote('/etc/evil4'), // POSIX 绝对
+        remote('safe.bin'), // 合法对照：正常落 exports
+      ]);
+
+      expect(outcome.failed, [
+        '../evil.lhbak',
+        'a/../../evil2.lhbak',
+        'C:/evil3.lhbak',
+        '/etc/evil4',
+      ]);
+      expect(outcome.down, 1);
+      expect(outcome.downloadedToExports, 1);
+      for (final bad in ['evil.lhbak', 'evil2.lhbak', 'evil3.lhbak']) {
+        expect(File(p.join(docsDir, bad)).existsSync(), isFalse,
+            reason: '逃逸目标（exports 上一级）不得落盘');
+      }
+      expect(File(p.join(docsDir, 'exports', 'safe.bin')).existsSync(), isTrue);
+      expect(AppLog.lines.any((l) =>
+          l.level == LhLevel.warn && l.text.contains('非法相对路径')), isTrue,
+          reason: 'R9：拒绝落盘也留痕');
     });
 
     test('上传+下载混选：先传后下；取消后下载段也不跑', () async {

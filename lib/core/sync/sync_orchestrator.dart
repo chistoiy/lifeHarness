@@ -235,6 +235,16 @@ class SyncOrchestrator {
   /// 下载落点：`<docs>/exports/`（与备份导出同目录族，S5 导入器可见）。
   String get exportsDir => p.join(snapshotService.docsDir(), 'exports');
 
+  /// 下载 relPath 防护（评审修复轮1）：拼接进 [exportsDir] 前拒绝可逃逸的
+  /// 形态——`../` 上跳（含归一化后上跳，如 `a/../../x`）、绝对路径、
+  /// Windows 盘符（`C:/…`、`C:\…`）与反斜杠分隔变体。
+  static bool _isSafeDownloadRelPath(String rel) {
+    if (rel.isEmpty || rel.contains(':') || rel.contains(r'\')) return false;
+    if (rel.startsWith('/')) return false;
+    final normalized = p.posix.normalize(rel);
+    return normalized != '..' && !normalized.startsWith('../');
+  }
+
   Set<String> _ignorePatterns() {
     final raw = prefs.getString(ignoreKey);
     if (raw == null || raw.trim().isEmpty) return const {};
@@ -280,58 +290,64 @@ class SyncOrchestrator {
     if (_running) {
       throw StateError('同步任务已在运行（单任务门闩，调度 R3）');
     }
-    _running = true;
-    _cancelRequested = false;
+    // 预检在置位之前跑：activeConfig/建 store/建 ledger 若抛异常，门闩尚未
+    // 置位、无需经 finally 复位，后续 run 不会被永久卡死（评审修复轮1）。
     final cfg = activeConfig();
     final store = _store(cfg);
     final ledger = _ledgerFactory(cfg);
 
-    // 「先附件→后DB」落法：稳定分区——非快照保勾选相对顺序在前，
-    // `.lhbak` 快照（同步目录里的最新 DB 载体）永远最后。
-    final actionable = selected
-        .where((d) => d.status != DiffStatus.inSync)
-        .toList(growable: false);
-    final uploads = actionable
-        .where((d) =>
-            d.status == DiffStatus.onlyLocal || d.status == DiffStatus.modified)
-        .toList();
-    final uploadsOrdered = [
-      ...uploads.where(
-          (d) => !SnapshotService.isSyncSnapshotName(p.basename(d.relativePath))),
-      ...uploads.where(
-          (d) => SnapshotService.isSyncSnapshotName(p.basename(d.relativePath))),
-    ];
-    final downloads =
-        actionable.where((d) => d.status == DiffStatus.onlyRemote).toList();
-
     final outcome = SyncOutcome();
     final errorTexts = <String>[];
     var done = 0;
-    final total = uploadsOrdered.length + downloads.length;
-    state.value = SyncTaskState(diffs: state.value.diffs, running: true, total: total);
+    var total = 0;
 
-    Future<void> step(FileDiff d, Future<int> Function() action) async {
-      state.value = SyncTaskState(
-        diffs: state.value.diffs,
-        running: true,
-        current: d,
-        done: done,
-        total: total,
-      );
-      final bytes = await action();
-      done++;
-      state.value = SyncTaskState(
-        diffs: state.value.diffs,
-        running: true,
-        current: null,
-        done: done,
-        total: total,
-      );
-      if (bytes > 0) outcome.bytes += bytes;
-      await _sleeper?.call(Duration.zero);
-    }
-
+    // 置位后立即进 try：保护区之外不留任何可抛语句，finally 必然执行。
+    _running = true;
+    _cancelRequested = false;
     try {
+      // 「先附件→后DB」落法：稳定分区——非快照保勾选相对顺序在前，
+      // `.lhbak` 快照（同步目录里的最新 DB 载体）永远最后。
+      final actionable = selected
+          .where((d) => d.status != DiffStatus.inSync)
+          .toList(growable: false);
+      final uploads = actionable
+          .where((d) =>
+              d.status == DiffStatus.onlyLocal || d.status == DiffStatus.modified)
+          .toList();
+      final uploadsOrdered = [
+        ...uploads.where(
+            (d) => !SnapshotService.isSyncSnapshotName(p.basename(d.relativePath))),
+        ...uploads.where(
+            (d) => SnapshotService.isSyncSnapshotName(p.basename(d.relativePath))),
+      ];
+      final downloads =
+          actionable.where((d) => d.status == DiffStatus.onlyRemote).toList();
+
+      total = uploadsOrdered.length + downloads.length;
+      state.value =
+          SyncTaskState(diffs: state.value.diffs, running: true, total: total);
+
+      Future<void> step(FileDiff d, Future<int> Function() action) async {
+        state.value = SyncTaskState(
+          diffs: state.value.diffs,
+          running: true,
+          current: d,
+          done: done,
+          total: total,
+        );
+        final bytes = await action();
+        done++;
+        state.value = SyncTaskState(
+          diffs: state.value.diffs,
+          running: true,
+          current: null,
+          done: done,
+          total: total,
+        );
+        if (bytes > 0) outcome.bytes += bytes;
+        await _sleeper?.call(Duration.zero);
+      }
+
       for (final d in uploadsOrdered) {
         if (_cancelRequested) {
           outcome.canceled = true;
@@ -343,6 +359,9 @@ class SyncOrchestrator {
             await store.put(cfg, p.join(snapshotService.syncDir, d.relativePath),
                 d.relativePath);
             // 成功标记（续传台账）：逐文件即时记，中断后下次 compare 判 inSync。
+            // 续传语义 = 靠下轮 compare 重算差异，任务内不保留增量状态；
+            // 60s 清单缓存窗内陈旧勾选可能对同一文件重复 put（幂等，
+            // 耗带宽不损数据）。
             await ledger.record([
               FileEntry(relativePath: d.relativePath, size: size),
             ]);
@@ -362,6 +381,16 @@ class SyncOrchestrator {
           break;
         }
         final size = d.remote?.size ?? 0;
+        if (!_isSafeDownloadRelPath(d.relativePath)) {
+          // 防 `../` 逃逸 exportsDir：非法条目计入 failed、绝不落盘
+          // （评审修复轮1）。
+          outcome.failed.add(d.relativePath);
+          errorTexts.add('${d.relativePath}: 非法相对路径（目录逃逸/绝对路径），已拒绝落盘');
+          AppLog.add('下载跳过（${d.relativePath}）：非法相对路径，未落盘',
+              level: LhLevel.warn);
+          done++; // 与异常文件同口径：占一格进度、不中断其余
+          continue;
+        }
         final dest = p.join(exportsDir, d.relativePath);
         try {
           await step(d, () async {
