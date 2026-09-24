@@ -146,6 +146,22 @@ void main() {
       expect(verify.tables.containsKey(DbSchema.tTodos), isTrue);
     });
 
+    test('T16 携带（端到端）：careExcluded=true 快照 → importBackup '
+        'RestoreReport.missingTables ⊇ careTables', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = buildService(prefs, careExcluded: () async => true);
+      final res = await svc.build(keepN: 5);
+      // verify → 自动备份 → unpack：排除表按当前 schema 建空表并进缺失清单，
+      // 导入报告据此向用户列「N 张表未随包恢复」（红线 7 的可观测证据）。
+      final report = await svc.backup.importBackup(res.file.path);
+      expect(report.missingTables, containsAll(<String>[...DbSchema.careTables]),
+          reason: '排表包恢复后呵护表必须出现在 missingTables');
+      expect(report.missingTables, isNot(contains(DbSchema.tTodos)),
+          reason: '未排除的表不在缺失清单');
+      expect(report.autoBackupPath, isNotNull);
+    });
+
     test('careExcluded=false → 全量（呵护表在包内，excludedTables 空）',
         () async {
       SharedPreferences.setMockInitialValues({});
