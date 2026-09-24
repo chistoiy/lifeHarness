@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/database/app_database.dart';
+import 'core/logging/error_capture.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
@@ -16,6 +17,8 @@ import 'features/todo/domain/todo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 0) 三处全局错误捕获先行挂上（R1 启动即记，先于一切初始化）。
+  installGlobalErrorLogging();
 
   // 1) 设置键值（主题/导航/提醒）就绪。
   final prefs = await SharedPreferences.getInstance();
