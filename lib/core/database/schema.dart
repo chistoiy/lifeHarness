@@ -89,6 +89,23 @@ class DbSchema {
   static const String tCareCustomEvents = 'care_custom_events';
   static const String tCareEventOrder = 'care_event_order';
 
+  /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
+  /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
+  /// 备份导出——同步快照剔除全部 care_* 表；本机直接备份不受影响（设计稿 §3）。
+  static const List<String> careTables = [
+    tCareBabies,
+    tCareCarers,
+    tCareLogs,
+    tCareCycleDays,
+    tCareCyclePred,
+    tCareMeasures,
+    tCareVaccines,
+    tCareMilestones,
+    tCareAllergies,
+    tCareCustomEvents,
+    tCareEventOrder,
+  ];
+
   /// 记账兜底分类固定 id（删除大类时流水迁移目标 · 计划 §4「兜底分类不可删」）。
   static const int ledgerCatOtherExpense = 114; // 其他（支出树）
   static const int ledgerCatOtherIncome = 207; // 其他（收入树）

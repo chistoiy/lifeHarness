@@ -50,6 +50,8 @@ final _md5Hex = RegExp(r'^[0-9a-f]{32}$');
 /// ① size 不等直接 false；② 本地已算 digest 且远端 etag 归一后为 32 位
 /// hex → 摘要比对（严格校验档）；③ 双端均为非 W/ 前缀强 ETag → ETag 比对；
 /// ④ 都不满足退回默认档：size 相等即 true。绝不引用 modified。
+/// 契约（T15 评审 Minor / T16 携带）：[FileEntry.digest] 必须为非空摘要串，
+/// 调用方不得传空串——空串会让摘要档误入 `digest != null` 分支恒判不等。
 bool sameEntry(FileEntry l, FileEntry r) {
   if (l.size != r.size) return false;
   final remote = normEtag(r.etag), local = normEtag(l.etag);
