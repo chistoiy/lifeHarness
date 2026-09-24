@@ -242,6 +242,76 @@ class LedgerRepository {
     whereArgs: [bk, today],
   );
 
+  // ==================== 周期账单（批2d L9 · 九·补1 表带 bk） ====================
+
+  /// 当前账本周期账单列表（原型 L.recur.filter(r=>r.bk===curBook)；插入序=id ASC）。
+  Future<List<LedgerRecur>> recurs(int bk) async {
+    final rows = await db.query(DbSchema.tLedgerRecur,
+        where: 'bk = ?', whereArgs: [bk], orderBy: 'id ASC');
+    return [for (final r in rows) LedgerRecur.fromRow(r)];
+  }
+
+  /// 到期行（横幅/L9 汇总同一查询）：active 且 next_date ≤ 今天。
+  Future<List<LedgerRecur>> dueRecurs(int bk, String today) async {
+    final rows = await db.query(
+      DbSchema.tLedgerRecur,
+      where: 'bk = ? AND active = 1 AND next_date <= ?',
+      whereArgs: [bk, today],
+      orderBy: 'id ASC',
+    );
+    return [for (final r in rows) LedgerRecur.fromRow(r)];
+  }
+
+  Future<int> addRecur(LedgerRecur r) =>
+      db.insert(DbSchema.tLedgerRecur, r.toRow());
+
+  /// 编辑落库（整行按 id 更新；不动流水，下次生成即取新参数——原型无编辑，
+  /// 计划 §4 启停/新建外补编辑入口，字段与新建一致）。
+  Future<void> updateRecur(int id, LedgerRecur r) => db.update(
+        DbSchema.tLedgerRecur,
+        r.toRow()..remove('id'),
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+  /// 启停开关（原型 row toggle：r.on=!r.on）。
+  Future<void> setRecurActive(int id, bool on) =>
+      db.update(DbSchema.tLedgerRecur, {'active': on ? 1 : 0},
+          where: 'id = ?', whereArgs: [id]);
+
+  /// 删除周期定义（原型 recDel：仅移除行，不动已生成流水）。
+  Future<void> delRecur(int id) =>
+      db.delete(DbSchema.tLedgerRecur, where: 'id = ?', whereArgs: [id]);
+
+  /// 到期批量生成（原型 recGenDue → 逐条 recGen）：每行经统一 [addTxn] 写路径
+  /// 落 expense 流水（source='recurring' + recurring_id，日期=next，备注=名称，
+  /// 同事务回算余额），随后 next=recurNext(next, freq) 推进一个周期。
+  /// 返回生成笔数；行内逐条原子（多行非单事务：与逐条点击生成语义一致）。
+  Future<int> genDueRecur(int bk, String today) async {
+    final due = await dueRecurs(bk, today);
+    for (final r in due) {
+      await addTxn(LedgerTxn(
+        kind: LedgerTxn.kExpense,
+        amt: r.amt,
+        catId: r.catId,
+        sub: r.sub,
+        accountId: r.accountId,
+        date: r.nextDate,
+        note: r.name,
+        source: LedgerTxn.kSourceRecurring,
+        recurringId: r.id,
+        bk: r.bk,
+      ));
+      await db.update(
+        DbSchema.tLedgerRecur,
+        {'next_date': recurNext(r.nextDate, r.freq)},
+        where: 'id = ?',
+        whereArgs: [r.id],
+      );
+    }
+    return due.length;
+  }
+
   // ==================== 账户（全局共用，不带 bk） ====================
 
   Future<List<LedgerAccount>> accounts({bool includeArchived = false}) async {
@@ -611,6 +681,42 @@ class LedgerRepository {
         where: 'cat_id = ? AND sub = ?', whereArgs: [catId, sub]);
     return false;
   }
+
+  // ---- L8 分类管理补充（批2d） ----
+
+  /// 分类引用流水数（删除守卫文案「该分类下有 N 笔流水」按当前账本口径，
+  /// 同原型 delCat 的 `t.cat===id && t.bk===curBook`）。
+  Future<int> catTxnCount(int catId, int bk) =>
+      _c(db, DbSchema.tLedgerTxns,
+          where: 'cat_id = ? AND bk = ?', whereArgs: [catId, bk]);
+
+  /// 隐藏/恢复（ledger_categories.hidden；种子恒 0，不影响既有选择器口径）。
+  Future<void> setCatHidden(int catId, bool on) => db.update(
+        DbSchema.tLedgerCategories,
+        {'hidden': on ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [catId],
+      );
+
+  /// 子分类行改名（批2d L8；大类用既有 [renameMajorCat]。历史流水 sub 与收藏
+  /// 同步走既有 [renameSubCat]，两者由页面按序组合调用）。
+  Future<void> renameCat(int id, String name) => db.update(
+        DbSchema.tLedgerCategories,
+        {'name': name.trim()},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+  /// 子分类同列表重排（九·补2 ③「大类/子分类均长按拖动排序，同列表内重排」；
+  /// 大类用既有 [reorderMajors]）。
+  Future<void> reorderSubs(int parentId, List<int> orderedIds) =>
+      db.transaction((txn) async {
+        for (var i = 0; i < orderedIds.length; i++) {
+          await txn.update(DbSchema.tLedgerCategories, {'sort': i + 1},
+              where: 'id = ? AND parent_id = ?',
+              whereArgs: [orderedIds[i], parentId]);
+        }
+      });
 
   // ==================== 预算（cat_id=0 行=总预算+结转位；bk 隔离） ====================
 

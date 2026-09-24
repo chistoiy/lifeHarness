@@ -771,3 +771,46 @@ YearStat yearStat(Iterable<LedgerTxn> all, String year) {
     ],
   );
 }
+
+// ---- L9 周期账单（批2d · 原型 FREQS/freqNext/renderRecur 口径） ----
+
+/// 周期频率目录（原型 FREQS 同序）：键/名。
+const recurFreqs = <(String, String)>[
+  ('day', '每天'),
+  ('week', '每周'),
+  ('month', '每月'),
+  ('year', '每年'),
+];
+
+/// 频率名（原型 `FREQS.find(...)||['','每周']` 回落：未知键回「每周」）。
+String recurFreqName(String f) =>
+    recurFreqs.firstWhere((e) => e.$1 == f, orElse: () => ('week', '每周')).$2;
+
+/// 周期 next 推进（原型 freqNext + 计划书 §4「生成即 next=freq+1周期，
+/// 月频按同日号、月末截断」）：
+/// - day +1 天 / week +7 天；
+/// - month：次月同日号，次月天数不足截到月末（1/31 → 2/28，闰年 → 2/29）；
+/// - year：次年同月同日，闰日 2/29 截到次年 2/28（日历语义；原型 JS 以
+///   +365 天近似、跨闰漂移，按计划书「同日号截断」口径取日历正确实现）。
+String recurNext(String date, String freq) {
+  final d = parseDay(date);
+  switch (freq) {
+    case 'day':
+      return dayKey(d.add(const Duration(days: 1)));
+    case 'year':
+      final ny = d.year + 1;
+      final dim = DateTime(ny, d.month + 1, 0).day;
+      return dayKey(DateTime(ny, d.month, d.day > dim ? dim : d.day));
+    case 'month':
+      final mth = monthStep(dayKey(d).substring(0, 7), 1);
+      final dim = monthDayCount(mth);
+      return '$mth-${(d.day > dim ? dim : d.day).toString().padLeft(2, '0')}';
+    case 'week':
+    default:
+      return dayKey(d.add(const Duration(days: 7)));
+  }
+}
+
+/// 距下次扣款天数（原型 `Math.round((next-TODAY)/864e5)`；≤0=已到期）。
+int recurDaysLeft(String today, String next) =>
+    parseDay(next).difference(parseDay(today)).inDays;

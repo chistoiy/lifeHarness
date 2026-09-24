@@ -211,3 +211,12 @@ final ledgerArchivedAccountsProvider =
   final all = await repo.accounts(includeArchived: true);
   return [for (final a in all) if (a.archived) a];
 });
+
+/// L9 周期账单（批2d）：当前账本周期定义列表（原型 L.recur.filter(bk)；
+/// 写后 tick 失效重取，同 [ledgerDataProvider] 机制）。
+final ledgerRecurProvider = FutureProvider<List<LedgerRecur>>((ref) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final bk = await repo.curBookId();
+  return repo.recurs(bk);
+});

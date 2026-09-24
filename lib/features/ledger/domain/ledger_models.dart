@@ -208,3 +208,62 @@ class LedgerMerchant {
         sort: (r['sort']! as int),
       );
 }
+
+/// ledger_recur（批2d L9 周期账单；九·补1 表带 bk）。
+/// freq：day/week/month/year（domain/ledger_calc.dart recurFreqs）；
+/// nextDate 'YYYY-MM-DD' 下次扣款日；active=原型 r.on 启停。
+class LedgerRecur {
+  const LedgerRecur({
+    this.id = 0,
+    required this.bk,
+    required this.name,
+    required this.amt,
+    this.catId,
+    this.sub = '',
+    required this.accountId,
+    required this.freq,
+    required this.nextDate,
+    this.active = true,
+    this.note,
+  });
+
+  final int id;
+  final int bk;
+  final String name;
+  final double amt;
+  final int? catId;
+  final String sub;
+  final int accountId;
+  final String freq;
+  final String nextDate;
+  final bool active;
+  final String? note;
+
+  static LedgerRecur fromRow(Map<String, Object?> r) => LedgerRecur(
+        id: r['id']! as int,
+        bk: r['bk']! as int,
+        name: r['name']! as String,
+        amt: (r['amt']! as num).toDouble(),
+        catId: r['cat_id'] as int?,
+        sub: (r['sub'] as String?) ?? '',
+        accountId: r['account_id']! as int,
+        freq: r['freq']! as String,
+        nextDate: r['next_date']! as String,
+        active: (r['active']! as int) != 0,
+        note: r['note'] as String?,
+      );
+
+  Map<String, Object?> toRow() => {
+        if (id != 0) 'id': id,
+        'bk': bk,
+        'name': name,
+        'amt': amt,
+        'cat_id': catId,
+        'sub': sub,
+        'account_id': accountId,
+        'freq': freq,
+        'next_date': nextDate,
+        'active': active ? 1 : 0,
+        'note': note,
+      };
+}

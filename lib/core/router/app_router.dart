@@ -27,8 +27,10 @@ import '../../features/ledger/presentation/ledger_add_page.dart';
 import '../../features/ledger/presentation/ledger_assets_page.dart';
 import '../../features/ledger/presentation/ledger_account_detail_page.dart';
 import '../../features/ledger/presentation/ledger_budget_page.dart';
+import '../../features/ledger/presentation/ledger_cats_page.dart';
 import '../../features/ledger/presentation/ledger_import_page.dart';
 import '../../features/ledger/presentation/ledger_page.dart';
+import '../../features/ledger/presentation/ledger_recur_page.dart';
 import '../../features/ledger/presentation/ledger_report_page.dart';
 import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
 import '../../features/ledger/presentation/ledger_yearly_page.dart';
@@ -130,6 +132,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, s) => LedgerAccountDetailPage(
           accountId: int.parse(s.pathParameters['id']!),
         ),
+      ),
+      // 记账批2d：L8 分类管理与 L9 周期账单（到期批量生成；全屏，同 p-cats / p-recur 栈页）。
+      GoRoute(
+        path: '/ledger/cats',
+        builder: (_, _) => const LedgerCatsPage(),
+      ),
+      GoRoute(
+        path: '/ledger/recur',
+        builder: (_, _) => const LedgerRecurPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。
