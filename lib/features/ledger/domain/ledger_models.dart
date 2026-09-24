@@ -1,6 +1,8 @@
 /// 记账实体模型（账户/账本/分类/预算/字典；计划 §3 与原型 L 对象对应）。
 library;
 
+import 'dart:math' as math;
+
 /// ledger_accounts（全局共用，不带 bk；余额=base+Σeff 跨账本合并）。
 class LedgerAccount {
   const LedgerAccount({
@@ -264,6 +266,129 @@ class LedgerRecur {
         'freq': freq,
         'next_date': nextDate,
         'active': active ? 1 : 0,
+        'note': note,
+      };
+}
+
+/// ledger_wishes（批3a L10 心愿单；九·补1 表带 bk）。
+/// 进度口径（原型 renderWish）：saved/target 达成即 p≥100 可兑换；
+/// 存入/取出仅改 saved 不落流水（§10 U-2），兑换由 repo 生成 expense 并归档。
+class LedgerWish {
+  const LedgerWish({
+    this.id = 0,
+    required this.bk,
+    required this.name,
+    required this.target,
+    this.saved = 0,
+    this.done = false,
+    this.doneDate,
+    this.doneTxn,
+  });
+
+  final int id;
+  final int bk;
+  final String name;
+
+  /// 目标金额（新建守卫 >0；兑换流水额=target，同原型 wishRedeem）。
+  final double target;
+
+  /// 已存金额（存入 +v / 取出 −v 且下限 0）。
+  final double saved;
+
+  /// 已实现（兑换归档）。
+  final bool done;
+  final String? doneDate;
+
+  /// 兑换生成的流水 id（done_txn 回写）。
+  final int? doneTxn;
+
+  /// 进度百分比（原型 `Math.min(100,saved/target*100)`；target≤0 归 0）。
+  double get progressPct =>
+      target > 0 ? math.min(100.0, saved / target * 100) : 0.0;
+
+  /// 达成（saved≥target 且目标有效）→ 可兑换。
+  bool get achieved => target > 0 && saved >= target;
+
+  static LedgerWish fromRow(Map<String, Object?> r) => LedgerWish(
+        id: r['id']! as int,
+        bk: r['bk']! as int,
+        name: r['name']! as String,
+        target: (r['target']! as num).toDouble(),
+        saved: (r['saved']! as num).toDouble(),
+        done: (r['done']! as int) != 0,
+        doneDate: r['done_date'] as String?,
+        doneTxn: r['done_txn'] as int?,
+      );
+
+  Map<String, Object?> toRow() => {
+        if (id != 0) 'id': id,
+        'bk': bk,
+        'name': name,
+        'target': target,
+        'saved': saved,
+        'done': done ? 1 : 0,
+        'done_date': doneDate,
+        'done_txn': doneTxn,
+      };
+}
+
+/// ledger_debts（批3a L11 借出/借入；九·补1 表带 bk）。
+/// side：'lend' 借出（别人欠我）/ 'borrow' 借入（我欠别人）。
+/// 记还款/结清生成实际流水（source=debt）并回写 paid（进度条），本金不落
+/// 流水、不计入净资产（§10 U-3）；L2 记一笔借贷 tab 与本表同表互认（addDebt）。
+class LedgerDebt {
+  const LedgerDebt({
+    this.id = 0,
+    required this.bk,
+    required this.side,
+    required this.person,
+    required this.total,
+    this.paid = 0,
+    this.note = '',
+  });
+
+  static const kLend = 'lend';
+  static const kBorrow = 'borrow';
+
+  final int id;
+  final int bk;
+  final String side;
+  final String person;
+  final double total;
+
+  /// 已还/已收金额（还款 = min(total, paid+v)）。
+  final double paid;
+  final String note;
+
+  bool get isLend => side == kLend;
+
+  /// 剩余未收/未还（原型 `left=total-paid`）。
+  double get left => total - paid;
+
+  /// 进度百分比（原型 `total?Math.min(100,paid/total*100):0`）。
+  double get progressPct =>
+      total > 0 ? math.min(100.0, paid / total * 100) : 0.0;
+
+  /// 已结清（left≤0；结清按钮禁用条件）。
+  bool get settled => left <= 0.005;
+
+  static LedgerDebt fromRow(Map<String, Object?> r) => LedgerDebt(
+        id: r['id']! as int,
+        bk: r['bk']! as int,
+        side: r['side']! as String,
+        person: r['person']! as String,
+        total: (r['total']! as num).toDouble(),
+        paid: (r['paid']! as num).toDouble(),
+        note: (r['note'] as String?) ?? '',
+      );
+
+  Map<String, Object?> toRow() => {
+        if (id != 0) 'id': id,
+        'bk': bk,
+        'side': side,
+        'person': person,
+        'total': total,
+        'paid': paid,
         'note': note,
       };
 }

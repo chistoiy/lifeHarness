@@ -28,11 +28,13 @@ import '../../features/ledger/presentation/ledger_assets_page.dart';
 import '../../features/ledger/presentation/ledger_account_detail_page.dart';
 import '../../features/ledger/presentation/ledger_budget_page.dart';
 import '../../features/ledger/presentation/ledger_cats_page.dart';
+import '../../features/ledger/presentation/ledger_debt_page.dart';
 import '../../features/ledger/presentation/ledger_import_page.dart';
 import '../../features/ledger/presentation/ledger_page.dart';
 import '../../features/ledger/presentation/ledger_recur_page.dart';
 import '../../features/ledger/presentation/ledger_report_page.dart';
 import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
+import '../../features/ledger/presentation/ledger_wish_page.dart';
 import '../../features/ledger/presentation/ledger_yearly_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
@@ -141,6 +143,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ledger/recur',
         builder: (_, _) => const LedgerRecurPage(),
+      ),
+      // 记账批3a：L10 心愿单与 L11 借出/借入（存入取出不落流水·兑换/还款走统一写路径；全屏，同 p-wish / p-debt 栈页）。
+      GoRoute(
+        path: '/ledger/wish',
+        builder: (_, _) => const LedgerWishPage(),
+      ),
+      GoRoute(
+        path: '/ledger/debt',
+        builder: (_, _) => const LedgerDebtPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

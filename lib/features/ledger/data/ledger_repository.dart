@@ -996,7 +996,95 @@ class LedgerRepository {
   Future<void> moveMerchant(int id, int delta) =>
       _moveBySort(DbSchema.tLedgerMerchants, id, delta);
 
-  // ==================== 借贷（§4 记一笔·借贷 tab 直写） ====================
+  // ==================== 心愿单（批3a L10 · 九·补1 表带 bk） ====================
+
+  /// 心愿兑换支出归类「购物」（原型 wishRedeem `cat:'shop'` → 种子大类 id 103）。
+  static const int _catShop = 103;
+
+  /// 当前账本心愿列表（原型 L.wishes.filter(bk)；UI 侧按 done 分实现/未实现组）。
+  Future<List<LedgerWish>> wishes(int bk) async {
+    final rows = await db.query(DbSchema.tLedgerWishes,
+        where: 'bk = ?', whereArgs: [bk], orderBy: 'id ASC');
+    return [for (final r in rows) LedgerWish.fromRow(r)];
+  }
+
+  Future<LedgerWish?> wishById(int id) async {
+    final rows = await db.query(DbSchema.tLedgerWishes,
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : LedgerWish.fromRow(rows.first);
+  }
+
+  /// 新建心愿（原型 wishAdd：saved 恒 0；守卫 target>0 由 UI 侧把关）。
+  Future<int> addWish({
+    required int bk,
+    required String name,
+    required double target,
+  }) =>
+      db.insert(DbSchema.tLedgerWishes, {
+        'bk': bk,
+        'name': name.trim(),
+        'target': target,
+        'saved': 0,
+        'done': 0,
+      });
+
+  /// 编辑心愿名称/目标（原型无编辑入口，本批按交付物补；不动 saved/done）。
+  Future<void> updateWish(int id, {required String name, required double target}) =>
+      db.update(
+        DbSchema.tLedgerWishes,
+        {'name': name.trim(), 'target': target},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+  /// 存入/取出进度（原型 wishSave/wishTake：仅改 saved，**不落流水** §10 U-2）。
+  /// [delta] 正=存入、负=取出；saved 下限 0（原型 `Math.max(0,saved-v)`）。
+  Future<void> bumpWishSaved(int id, double delta) async {
+    final w = await wishById(id);
+    if (w == null) return;
+    final next = w.saved + delta;
+    await db.update(
+      DbSchema.tLedgerWishes,
+      {'saved': next < 0 ? 0.0 : next},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// 删除心愿（原型卡片 trash：仅移除行，不动已生成流水）。
+  Future<void> delWish(int id) =>
+      db.delete(DbSchema.tLedgerWishes, where: 'id = ?', whereArgs: [id]);
+
+  /// 兑换归档（原型 wishRedeem + §4「saved≥target 才可用；选账户生成 expense
+  /// 并归档」）：走统一 [addTxn] 写路径落 expense（source='wish'+wish_id、
+  /// 归类购物、金额=target、账户=所选），随后回写 done/done_date/done_txn 且
+  /// saved 归零（原型 w.saved=0）。守卫未达成直接拒绝、不生成流水。返回 true=已兑换。
+  Future<bool> redeemWish(int id, {required int accountId}) async {
+    final w = await wishById(id);
+    if (w == null || !w.achieved) return false; // saved<target 拒绝（§4 守卫）
+    final today = dayKey(DateTime.now());
+    final txnId = await addTxn(LedgerTxn(
+      kind: LedgerTxn.kExpense,
+      amt: w.target,
+      catId: _catShop,
+      sub: '',
+      accountId: accountId,
+      date: today,
+      note: '心愿兑现 · ${w.name}',
+      source: LedgerTxn.kSourceWish,
+      wishId: w.id,
+      bk: w.bk,
+    ));
+    await db.update(
+      DbSchema.tLedgerWishes,
+      {'done': 1, 'done_date': today, 'done_txn': txnId, 'saved': 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return true;
+  }
+
+  // ==================== 借贷（§4 记一笔·借贷 tab 直写 / 批3a L11） ====================
 
   /// side：'lend' 借出（别人欠我）/ 'borrow' 借入（我欠别人）。
   Future<int> addDebt({
@@ -1014,6 +1102,91 @@ class LedgerRepository {
         'paid': 0,
         'note': note,
       });
+
+  /// 当前账本借贷列表（原型 L.debts.filter(bk)；UI 侧按 side 分组/筛选）。
+  Future<List<LedgerDebt>> debts(int bk) async {
+    final rows = await db.query(DbSchema.tLedgerDebts,
+        where: 'bk = ?', whereArgs: [bk], orderBy: 'id ASC');
+    return [for (final r in rows) LedgerDebt.fromRow(r)];
+  }
+
+  Future<LedgerDebt?> debtById(int id) async {
+    final rows = await db.query(DbSchema.tLedgerDebts,
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : LedgerDebt.fromRow(rows.first);
+  }
+
+  /// 删除借贷行（原型卡片「删」：仅移除行，不动已生成流水）。
+  Future<void> delDebt(int id) =>
+      db.delete(DbSchema.tLedgerDebts, where: 'id = ?', whereArgs: [id]);
+
+  /// 借贷流水归类/方向（原型 debtPay/debtClose）：
+  /// - 借出收还款=实际收款 → income，归类「其他收入」(oi→种子 207)；
+  /// - 借入还欠款=实际付款 → expense，归类「其他支出」(oe→种子 114)；
+  /// [settle] true 生成「结清」备注，false 生成「还款」备注。
+  Future<int> _debtFlow(
+    LedgerDebt d, {
+    required double amt,
+    required int accountId,
+    required bool settle,
+  }) {
+    final lend = d.isLend;
+    return addTxn(LedgerTxn(
+      kind: lend ? LedgerTxn.kIncome : LedgerTxn.kExpense,
+      amt: amt,
+      catId: lend
+          ? DbSchema.ledgerCatOtherIncome
+          : DbSchema.ledgerCatOtherExpense,
+      sub: '',
+      accountId: accountId,
+      date: dayKey(DateTime.now()),
+      note: settle
+          ? (lend ? '${d.person} 结清' : '结清 ${d.person}')
+          : (lend ? '${d.person} 还款' : '还 ${d.person}'),
+      source: LedgerTxn.kSourceDebt,
+      debtId: d.id,
+      bk: d.bk,
+    ));
+  }
+
+  /// 记还款（原型 debtPay：金额滚轮 → 生成实际流水 + paid 回写进度）。
+  /// 账户=默认账户（原型 `a:L.set.defAcct`，非选择器）；paid=min(total,paid+v)，
+  /// 流水金额=滚轮 v 全额（原型 amt:v，即使超出剩余）。v≤0 拒绝、不落库。返回 true=已记。
+  Future<bool> payDebt(int id, double v, {int? accountId}) async {
+    if (v <= 0) return false; // 原型 if(!v)return
+    final d = await debtById(id);
+    if (d == null) return false;
+    final acct = accountId ?? await defAcctId();
+    if (acct == null) return false;
+    final np = d.paid + v;
+    await _debtFlow(d, amt: v, accountId: acct, settle: false);
+    await db.update(
+      DbSchema.tLedgerDebts,
+      {'paid': np > d.total ? d.total : np},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return true;
+  }
+
+  /// 结清（原型 debtClose：选账户；剩余 left>0 才补一笔实际流水，随后 paid=total）。
+  /// 账户=所选（openLedgerAcctPick '结清账户'）。返回 true=已结清。
+  Future<bool> settleDebt(int id, {required int accountId}) async {
+    final d = await debtById(id);
+    if (d == null) return false;
+    final left = d.left;
+    if (left > 0.005) {
+      // 原型 if(left>0)：已结清行不再补流水，仅重置 paid=total。
+      await _debtFlow(d, amt: left, accountId: accountId, settle: true);
+    }
+    await db.update(
+      DbSchema.tLedgerDebts,
+      {'paid': d.total},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return true;
+  }
 
   /// 同表相邻交换 sort（管理态 ↑↓ 钮通用实现）。
   Future<void> _moveBySort(String table, int id, int delta) =>

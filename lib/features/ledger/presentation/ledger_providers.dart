@@ -220,3 +220,21 @@ final ledgerRecurProvider = FutureProvider<List<LedgerRecur>>((ref) async {
   final bk = await repo.curBookId();
   return repo.recurs(bk);
 });
+
+/// L10 心愿单（批3a）：当前账本心愿列表（原型 L.wishes.filter(bk)；UI 侧按
+/// done 分「未实现 / 已实现」两组，进度头按未实现集合聚合）。写后 tick 重取。
+final ledgerWishProvider = FutureProvider<List<LedgerWish>>((ref) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final bk = await repo.curBookId();
+  return repo.wishes(bk);
+});
+
+/// L11 借出/借入（批3a）：当前账本借贷列表（原型 L.debts.filter(bk)；与 L2 记
+/// 一笔借贷 tab 同表互认）。写后 tick 重取。
+final ledgerDebtProvider = FutureProvider<List<LedgerDebt>>((ref) async {
+  ref.watch(ledgerTickProvider);
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final bk = await repo.curBookId();
+  return repo.debts(bk);
+});

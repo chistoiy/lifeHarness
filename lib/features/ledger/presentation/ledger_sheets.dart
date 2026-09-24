@@ -22,6 +22,8 @@ void ledgerNav(BuildContext context, String key) {
     'assets': '/ledger/assets',
     'cats': '/ledger/cats',
     'recur': '/ledger/recur',
+    'wish': '/ledger/wish',
+    'debt': '/ledger/debt',
   };
   const names = {
     'cats': '分类管理',
