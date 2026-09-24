@@ -8,8 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app_log.dart';
 
 /// 脱敏模式（Dart 的 RegExp 不支持行内 `(?i)`，故统一 `caseSensitive: false`）。
+///
+/// Authorization 值形态三类（T5 评审 I-1，HttpGate 落日志前的红线前提）：
+/// ① 裸头/`=` 形态 `Authorization: Bearer xyz`（值到空白止）；
+/// ② JSON 引号形态 `"Authorization": "Bearer tok"`（值到闭合引号止）；
+/// ③ Map/List toString 形态 `{authorization: [Bearer tok]}`（方括号整值）。
+/// 值字符类排除 `"` `,` `]` `}`，防止吃掉后续字段。
 final _reAuth = RegExp(
-    r'(authorization\s*[:=]\s*)(?:(?:bearer|basic|token|digest)\s+)?\S+',
+    r'''(authorization\s*["']?\s*[:=]\s*)'''
+    r'''(?:"[^"]*"|'[^']*'|\[[^\]]*\]|'''
+    r'''(?:bearer|basic|token|digest)\s+\S+|[^"\s,\]}]+)''',
     caseSensitive: false);
 final _reAmzSignature =
     RegExp(r'(x-amz-signature[=:])([^&;\s]+)', caseSensitive: false);

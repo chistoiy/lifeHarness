@@ -10,6 +10,9 @@ import 'package:path/path.dart' as p;
 /// R2 `core/**` 不得 import `features/**`（组合根白名单除外）。
 /// R3 feature 的 domain/data 层不得 import 任何 presentation（模型/仓库层纯净，可单测）。
 /// R4 `for` 循环的增量子句必须有副作用（防空增量静默死循环，见 2026-09-20 事故）。
+/// R5 `lib/core/sync/**` 除 `http_gate.dart` 外不得直连 http
+///   （`http.Client(`/`.send(`/`package:http/` import 一律视为绕行唯一出口，R10）；
+///   附加断言：`x-bitiful-limit-rate`、`?stat` 在 lib/ 全库 0 命中（T14 前先行钉住）。
 /// 违反任何一条即测试失败——新增跨模块依赖必须先过架构评审并更新本白名单。
 void main() {
   const libDir = 'lib';
@@ -18,14 +21,68 @@ void main() {
     'core/router/app_router.dart',
   };
 
-  // 文件 → 其 import 解析出的 lib 相对路径列表。
-  Map<String, List<String>> collectImports() {
-    final result = <String, List<String>>{};
+  /// 去掉字符串字面量/注释，避免把关键词出现在文案或注释里误判（R4/R5 共用）。
+  String strip(String src) {
+    final out = StringBuffer();
+    var i = 0;
+    while (i < src.length) {
+      final c = src[i];
+      if (c == '/' && i + 1 < src.length && src[i + 1] == '/') {
+        while (i < src.length && src[i] != '\n') {
+          i++;
+        }
+        continue;
+      }
+      if (c == '/' && i + 1 < src.length && src[i + 1] == '*') {
+        i += 2;
+        while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
+          i++;
+        }
+        i += 2;
+        continue;
+      }
+      if (c == "'" || c == '"') {
+        final triple = src.startsWith(c * 3, i);
+        final q = triple ? c * 3 : c;
+        i += q.length;
+        while (i < src.length) {
+          if (src[i] == r'\') {
+            i += 2;
+            continue;
+          }
+          if (src.startsWith(q, i)) {
+            i += q.length;
+            break;
+          }
+          i++;
+        }
+        out.write('S'); // 占位，保持结构
+        continue;
+      }
+      out.write(c);
+      i++;
+    }
+    return out.toString();
+  }
+
+  /// lib 下全部 .dart 文件（rel → 源码原文）。
+  Map<String, String> collectSources() {
+    final result = <String, String>{};
     for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart')) continue;
       final rel = p.posix.joinAll(p.split(p.relative(f.path, from: libDir)));
+      result[rel] = f.readAsStringSync();
+    }
+    return result;
+  }
+
+  // 文件 → 其 import 解析出的 lib 相对路径列表。
+  Map<String, List<String>> collectImports() {
+    final result = <String, List<String>>{};
+    for (final entry in collectSources().entries) {
+      final rel = entry.key;
       final imports = <String>[];
-      for (final line in f.readAsLinesSync()) {
+      for (final line in entry.value.split('\n')) {
         final m = RegExp(r"""^import\s+['"]([^'"]+)['"]""").firstMatch(line);
         if (m == null) continue;
         final uri = m.group(1)!;
@@ -46,6 +103,7 @@ void main() {
   }
 
   final imports = collectImports();
+  final sources = collectSources();
 
   test('R1 features 不得互相 import（跨模块必须走 shared/linkage）', () {
     final violations = <String>[];
@@ -97,50 +155,6 @@ void main() {
   });
 
   test('R4 for 循环增量子句必须有副作用（防空增量静默死循环）', () {
-    /// 去掉字符串字面量/注释，避免把 `for` 出现在文案或注释里误判。
-    String strip(String src) {
-      final out = StringBuffer();
-      var i = 0;
-      while (i < src.length) {
-        final c = src[i];
-        if (c == '/' && i + 1 < src.length && src[i + 1] == '/') {
-          while (i < src.length && src[i] != '\n') {
-            i++;
-          }
-          continue;
-        }
-        if (c == '/' && i + 1 < src.length && src[i + 1] == '*') {
-          i += 2;
-          while (i + 1 < src.length && !(src[i] == '*' && src[i + 1] == '/')) {
-            i++;
-          }
-          i += 2;
-          continue;
-        }
-        if (c == "'" || c == '"') {
-          final triple = src.startsWith(c * 3, i);
-          final q = triple ? c * 3 : c;
-          i += q.length;
-          while (i < src.length) {
-            if (src[i] == r'\') {
-              i += 2;
-              continue;
-            }
-            if (src.startsWith(q, i)) {
-              i += q.length;
-              break;
-            }
-            i++;
-          }
-          out.write('S'); // 占位，保持结构
-          continue;
-        }
-        out.write(c);
-        i++;
-      }
-      return out.toString();
-    }
-
     /// 取出 `for (...)` 的括号内容（含跨行），返回 [内容, 结束下标]。
     List<Object>? header(String s, int open) {
       var depth = 0;
@@ -195,9 +209,52 @@ void main() {
             '请写 `i++` / `i += n`，构建列表优先用 List.generate。');
   });
 
+  test('R5 sync 层唯一出口：除 http_gate.dart 外禁直连 http（R10 绕行守护）', () {
+    // 判据（协议文档 §8 R10）：core/sync 下任何文件自行 new client、
+    // 自行 send 或 import package:http，都是绕过 HttpGate 的节流+退避。
+    final banned = RegExp(r'http\.Client\s*\(|\.send\s*\(');
+    final bannedImport = RegExp(r"""^import\s+['"]package:http/""");
+    final violations = <String>[];
+    for (final entry in sources.entries) {
+      final rel = entry.key;
+      if (!rel.startsWith('core/sync/')) continue;
+      if (rel.endsWith('http_gate.dart')) continue; // 唯一出口自身豁免
+      final stripped = strip(entry.value); // 去字符串/注释，防文案误伤
+      for (final m in banned.allMatches(stripped)) {
+        final line = '\n'.allMatches(stripped.substring(0, m.start)).length + 1;
+        violations.add('$rel:$line ${m[0]}');
+      }
+      for (final line in entry.value.split('\n')) {
+        if (bannedImport.hasMatch(line)) {
+          violations.add('$rel import package:http');
+        }
+      }
+    }
+    expect(violations, isEmpty,
+        reason: '所有云端请求必须经 httpGate.send 发出（按服务节流 + 429/503 退避）。'
+            '绕行会丢频控保护导致整目录同步被服务端限流打死。');
+  });
+
+  test('R5 附加：x-bitiful-limit-rate 与 ?stat 在 lib/ 全库 0 命中（T14 先行钉住）',
+      () {
+    // 缤纷云频控头/统计查询串在 S3 实现（T14）落地前不允许任何地方出现；
+    // T14 若确需引入，须走架构评审更新本守护而不是直接删断言。
+    final hits = <String>[];
+    final reLimit = RegExp(r'x-bitiful-limit-rate', caseSensitive: false);
+    for (final entry in sources.entries) {
+      // 原文扫描（不 strip）：这两串只会出现在字符串字面量/URL 拼接里，
+      // 去字符串后就查不到了；代价是注释提及也算命中——本期正是要求零提及。
+      if (reLimit.hasMatch(entry.value)) hits.add('${entry.key} x-bitiful-limit-rate');
+      if (entry.value.contains('?stat')) hits.add('${entry.key} ?stat');
+    }
+    expect(hits, isEmpty, reason: '未过架构评审的缤纷云专用口径不得提前进入 lib/');
+  });
+
   test('守护自身有效性：确认真实扫到了文件', () {
     expect(imports.length, greaterThan(20));
     expect(imports.keys.where((k) => k.startsWith('features/')).length,
         greaterThan(10));
+    expect(sources.containsKey('core/sync/http_gate.dart'), isTrue,
+        reason: 'R5 的豁免文件必须真实存在，否则守护退化为空转');
   });
 }

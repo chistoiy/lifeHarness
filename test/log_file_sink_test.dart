@@ -152,6 +152,29 @@ void main() {
     );
   });
 
+  test('sanitize：引号 JSON 形态 "Authorization": "Bearer tok" 不漏网（T5 评审 I-1）',
+      () {
+    const raw =
+        '{"Authorization": "Bearer tok123", "Content-Type": "text/plain"}';
+    final out = sanitize(raw);
+    expect(out, isNot(contains('tok123')), reason: '凭据值必须被打码：$out');
+    expect(
+      out,
+      '{"Authorization": ***(已脱敏)***, "Content-Type": "text/plain"}',
+      reason: '相邻无害字段不得被吃掉',
+    );
+    expect(sanitize(out), out, reason: '幂等：二次 sanitize 不回改已打码段');
+  });
+
+  test('sanitize：Map/List toString 形态 {authorization: [Bearer tok]} 整值打码',
+      () {
+    const raw = 'headers={authorization: [Bearer tok456], x: 1}';
+    final out = sanitize(raw);
+    expect(out, isNot(contains('tok456')), reason: '方括号 List 值必须整体打码：$out');
+    expect(out, 'headers={authorization: ***(已脱敏)***, x: 1}');
+    expect(sanitize(out), out, reason: '幂等：已打码段不再二次处理');
+  });
+
   test('sanitize：X-Amz-Signature 与 credential= 命中且不吃掉后续参数', () {
     expect(
       sanitize('...&X-Amz-Signature=1a2b3c4d5e6f&other=1'),
