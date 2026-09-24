@@ -20,6 +20,7 @@ class FileEntry {
     required this.size,
     this.etag,
     this.modified,
+    this.digest,
   });
 
   String relativePath;
@@ -28,6 +29,10 @@ class FileEntry {
   /// 已去引号；弱 ETag 保留 `W/` 前缀原样（R8 判定侧再区分强弱）。
   String? etag;
   DateTime? modified;
+
+  /// 本地文件内容 MD5（32 位小写 hex，R8 第③档严格校验用；T15 裁决归差异层
+  /// 填充：store 构造条目时不填、默认 null 即校验档不启用）。
+  String? digest;
 }
 
 /// [RemoteStore.list] 结果：目录树拉平后的文件清单（目录占位不入列）。
