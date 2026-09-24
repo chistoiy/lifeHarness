@@ -176,6 +176,11 @@
   .v-ic svg{width:13px;height:13px}
   /* ---- toast ---- */
   #toast{position:absolute;left:20px;right:20px;bottom:84px;z-index:80;background:rgba(15,23,42,.92);color:#f1f5f9;font-size:12px;font-weight:700;line-height:1.6;padding:11px 14px;border-radius:14px;display:none;backdrop-filter:blur(8px)}
+  /* ---- SAF「保存为」静态 mock 弹层（s-backup 另存到… 唤起 · 示意不真调系统） ---- */
+  #safMock{position:absolute;inset:0;z-index:70;background:rgba(2,6,23,.55);display:none;align-items:center;justify-content:center;padding:22px}
+  #safMock.open{display:flex}
+  #safMock .saf-panel{width:100%;background:var(--card);border-radius:18px;padding:15px 16px 16px;box-shadow:0 14px 44px rgba(2,6,23,.45)}
+  #safMock .d-row{cursor:pointer}
   .hide{display:none!important}
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
 </style>
@@ -519,15 +524,22 @@
       <div class="d-row"><span class="chk on" onclick="tgChk(this)"></span><span class="fn">附件 attachments/</span><span class="fs">86.7 MB · 217 项</span></div>
       <div class="d-row"><span class="chk on" onclick="tgChk(this)"></span><span class="fn">附带日志 logs/</span><span class="fs">11.8 MB · 14 天</span></div>
       <div class="field">
+        <label>目标位置</label>
+        <div class="seg" id="segBakDest">
+          <button class="seg-btn on" onclick="pickBakDest(this,'app')">应用目录（默认）</button>
+          <button class="seg-btn" onclick="pickBakDest(this,'saf')">另存到…</button>
+        </div>
+      </div>
+      <div class="field">
         <label>口令 · 可选（AES-GCM · PBKDF2 参数写入 manifest）</label>
         <div style="display:flex;gap:8px">
           <input type="password" value="••••••••" style="flex:1">
           <button class="mini-btn" style="align-self:center" onclick="toast('口令已应用 · 导出包加密')">设置口令</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span class="kv">文件名 lifeharness_20260924_083512.lhbak · 应用导出目录</span></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span class="kv">文件名 lifeharness_20260924_083512.lhbak · <b id="bakDestNow" style="color:var(--accent)">应用导出目录</b></span></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span class="kv">呵护模块排除仅作用于同步 · 本机直接导出的备份含全量数据</span></div>
-      <button class="btn-main grad" style="margin-top:12px;padding:11px 0;font-size:13px" onclick="toast('已导出 lifeharness_20260924_083512.lhbak · 加密 · 校验和已写入 manifest')">导出备份</button>
+      <button class="btn-main grad" style="margin-top:12px;padding:11px 0;font-size:13px" onclick="toast('已导出 lifeharness_20260924_083512.lhbak · 加密 · 校验和已写入 manifest · ' + bakDestText())">导出备份</button>
 
       <div class="sectitle">导入恢复</div>
       <div class="card" style="background:var(--field-bg);box-shadow:none">
@@ -597,6 +609,28 @@
       <div class="row" style="border-bottom:none;padding-top:2px">
         <span class="r-t" style="font-size:12px;color:var(--mut)">缓存<div class="r-s">同目录清单 60s · 容量 5min · MKCOL 进程内记忆</div></span>
         <span class="kv">列举超时 30s · 传输 10min</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= S7 · safMock 「保存为」系统弹层静态 mock（s-backup 另存到… 唤起） ================= -->
+  <div id="safMock" onclick="if(event.target===this)safCancel()">
+    <div class="saf-panel">
+      <div class="sh-title" style="font-size:14px">保存为</div>
+      <div class="sh-sub">系统「保存为」弹层示意 · SAF OpenDocumentTree · 仅原型 mock 不真调系统</div>
+      <div style="margin-top:8px">
+        <div class="d-row" onclick="safPick(this,'/storage/emulated/0/Download')"><span class="rd"></span><span class="fn">下载</span><span class="fs">内部存储</span></div>
+        <div class="d-row" onclick="safPick(this,'/storage/emulated/0/Documents/LifeHarness')"><span class="rd on"></span><span class="fn">文档 · LifeHarness</span><span class="fs">内部存储</span></div>
+        <div class="d-row" onclick="safPick(this,'/storage/5B3D-1A02/备份')"><span class="rd"></span><span class="fn">U 盘 · 备份</span><span class="fs">USB 存储</span></div>
+        <div class="d-row" style="border-bottom:none" onclick="safPick(this,'content://com.android.externalstorage')"><span class="rd"></span><span class="fn">显示所有存储</span><span class="fs">SAF</span></div>
+      </div>
+      <div class="field">
+        <label>文件名</label>
+        <input type="text" value="lifeharness_20260924_083512.lhbak">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn2" style="flex:1" onclick="safCancel()">取消</button>
+        <button class="btn-main grad" style="flex:1;padding:8px 0;font-size:12.5px;box-shadow:none" onclick="safConfirm()">保存到此目录</button>
       </div>
     </div>
   </div>
@@ -841,6 +875,33 @@ function pickThrottle(el, ms){
   toast('请求间隔已设为 ' + ms + 'ms · 仅作用于该服务的 HttpGate 排队');
 }
 function tglWifi(el){ el.classList.toggle('on'); toast(el.classList.contains('on') ? '自动同步 · 仅 Wi-Fi · 每天节流' : '自动同步已关 · 手动同步不受限'); }
+
+/* ================= s-backup 目标位置（应用目录 / 另存到… SAF mock 弹层） ================= */
+var safDirPath = '/storage/emulated/0/Documents/LifeHarness';
+function bakDestText(){ return $('#bakDestNow').textContent; }
+function pickBakDest(el, k){
+  if(k==='saf'){ openSafMock(); return; }
+  $$('#segBakDest .seg-btn').forEach(function(b){ b.classList.remove('on'); });
+  el.classList.add('on');
+  $('#bakDestNow').textContent = '应用导出目录';
+  toast('导出目标位置 · 应用目录（默认）');
+}
+function openSafMock(){ $('#safMock').classList.add('open'); }
+function safCancel(){
+  $('#safMock').classList.remove('open');
+  toast('未选定目录 · 导出目标位置保持 ' + bakDestText());
+}
+function safPick(el, path){
+  safDirPath = path;
+  $$('#safMock .rd').forEach(function(r){ r.classList.remove('on'); });
+  el.querySelector('.rd').classList.add('on');
+}
+function safConfirm(){
+  $$('#segBakDest .seg-btn').forEach(function(b,i){ b.classList.toggle('on', i===1); });
+  $('#bakDestNow').textContent = safDirPath;
+  $('#safMock').classList.remove('open');
+  toast('导出目标位置已选定 · ' + safDirPath);
+}
 
 /* ================= 初始化 ================= */
 renderSvcCard(); renderSvcForm(); renderVerify(); renderHist(); computeDiff();

@@ -60,9 +60,18 @@ const TEXTS = [
   ['PROPFIND Depth:0', 'S2 WebDAV 探针'],
   ['list-type=2&max-keys=1', 'S2 S3 探针'],
   [/\['凭据错误'/, 'S2 凭据错误态'],
-  [/\['网络失败'/, 'S2 网络失败态']
+  [/\['网络失败'/, 'S2 网络失败态'],
+  ['目标位置', 's-backup 导出目标位置选择行（V1.41 增补）'],
+  ['另存到…', 's-backup 目标位置「另存到…」态'],
+  ['保存为', 'SAF「保存为」静态 mock 弹层标题'],
+  [/id="safMock"[\s\S]{0,220}保存为/, 'mock 弹层容器 #safMock 含「保存为」标题']
 ];
 for (const [t, label] of TEXTS) ok(typeof t === 'string' ? s.includes(t) : t.test(s), '文案: ' + label);
+
+/* ---------- 2b) s-backup 目标位置两态（V1.41 增补） ---------- */
+ok(s.indexOf('<label>目标位置</label>') < s.indexOf('口令 · 可选'), '目标位置行位于「口令」区之前');
+ok(/class="seg-btn on" onclick="pickBakDest\(this,'app'\)">应用目录（默认）<\/button>/.test(s), '目标位置默认态选中「应用目录（默认）」');
+ok(/class="seg-btn" onclick="pickBakDest\(this,'saf'\)">另存到…<\/button>/.test(s), '目标位置第二态「另存到…」未选中');
 
 /* ---------- 3) provider 切 S3 表单标签静态映射 ---------- */
 const formMap = s.match(/var PROVIDER_FORMS = \{[\s\S]*?\n\};/);
@@ -115,6 +124,9 @@ try {
   const d = dom.window.document;
   for (const id of SCREENS.concat(SHEETS)) ok(!!d.getElementById(id), 'jsdom DOM id: ' + id);
   ok(d.querySelectorAll('#s-diff .d-row [data-dir="up"]').length >= 2 && d.querySelectorAll('#s-diff .d-row [data-dir="down"]').length >= 2, 'jsdom 差异四态示例条目充足');
+  var destBtns = Array.prototype.slice.call(d.querySelectorAll('#s-backup #segBakDest .seg-btn'));
+  ok(destBtns.length === 2 && destBtns[0].classList.contains('on') && /应用目录/.test(destBtns[0].textContent), 'jsdom 目标位置两态单选且默认选中应用目录');
+  ok(!!d.getElementById('safMock') && /保存为/.test(d.getElementById('safMock').textContent), 'jsdom #safMock「保存为」弹层存在');
   console.log('jsdom: 已启用真 DOM 断言');
 } catch (e) {
   console.log('jsdom 不可用（' + e.code + '），已退化为正则断言');
