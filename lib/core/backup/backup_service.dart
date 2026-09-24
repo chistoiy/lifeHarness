@@ -254,13 +254,21 @@ class BackupService {
       manifest = await unpack(
           filePath: filePath, targetDb: working, passphrase: passphrase);
     } catch (_) {
-      // 恢复失败路径：现库已被本次流程 close——重开原库恢复现场后冒泡
-      // （unpack 全在事务内，失败即回滚，原库文件未受污染）。
+      // 恢复失败路径：清理必须与成功路径同一注入通道——closeDb 非空
+      // （生产）时调 closer（= AppDatabase.instance.close：关连接且置空
+      // _db 缓存），裸 working.close() 会留下缓存死句柄让 db() 短路返回、
+      // 「重开原库恢复现场」失效；closer=null（测试注入路径）关当次连接。
+      // 之后 db() 重开原库（unpack 全在事务内，失败即回滚，原库文件未受
+      // 污染）后冒泡异常。
       try {
-        await working?.close();
+        if (closer != null) {
+          await closer();
+        } else {
+          await working?.close();
+        }
       } catch (_) {}
       try {
-        await db(); // 生产 = AppDatabase.instance.open() 重开并保持实例可用
+        await db(); // 重开并保持实例可用（生产 = _db 已置空 → 新开连接）
       } catch (_) {
         // 重开失败不掩盖原始异常。
       }

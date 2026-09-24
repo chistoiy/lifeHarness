@@ -460,5 +460,59 @@ void main() {
       final rows = await AppDatabase.instance.db.query(DbSchema.tTodos);
       expect(rows.map((r) => r['title']), unorderedEquals(['生产接线1']));
     });
+
+    test('生产接线 importBackup 失败路径（closeDb 注入）：重开是新可用句柄',
+        () async {
+      // 回归（评审修复轮2 · Important）：失败分支曾裸调 working.close()——
+      // AppDatabase._db 仍缓存已关句柄，其后 db() 的 open() 对非空 _db
+      // 短路返回死句柄，「重开原库恢复现场」失效。现失败分支与成功路径
+      // 同走 closeDb（置空缓存）后再 db() 重开。
+      final svc = BackupService(
+        exportDir: () => outDir,
+        db: () => AppDatabase.instance.open(pathOverride: tmp.path),
+        closeDb: AppDatabase.instance.close,
+        attachDirs: [attachDir],
+      );
+      final live = await AppDatabase.instance.open(pathOverride: tmp.path);
+      Future<void> addTodo(String title) => live.insert(DbSchema.tTodos,
+          {'title': title, 'created_at': 1, 'updated_at': 1});
+      await addTodo('失败接线1');
+      final res = await svc.exportBackup();
+      await addTodo('失败接线2');
+
+      Database? unpackTarget;
+      BackupService.unpackOverride =
+          ({required String filePath, required Database targetDb, String? passphrase}) async {
+        unpackTarget = targetDb;
+        // 仿真实 unpack 事务结构：写入哨兵再抛（回滚重抛）。
+        await targetDb.transaction<Never>((txn) async {
+          await txn.insert(DbSchema.tTodos, {
+            'title': '污染哨兵',
+            'created_at': 1,
+            'updated_at': 1,
+          });
+          throw StateError('unpack 中途失败');
+        });
+      };
+
+      await expectLater(svc.importBackup(res.file.path), throwsStateError);
+      BackupService.unpackOverride = null;
+
+      // 失败分支重开走 closeDb：原 unpack 目标（已关）被换掉，实例持有的
+      // 是新可用句柄且原库数据完好——修复前 instance.db 即该死句柄，查询即炸。
+      expect(AppDatabase.instance.isInitialized, isTrue);
+      expect(unpackTarget, isNotNull);
+      expect(unpackTarget!.isOpen, isFalse);
+      expect(identical(AppDatabase.instance.db, unpackTarget), isFalse);
+      expect(AppDatabase.instance.db.isOpen, isTrue);
+      final rows = await AppDatabase.instance.db.query(DbSchema.tTodos,
+          orderBy: 'id');
+      expect(rows.map((r) => r['title']),
+          unorderedEquals(['失败接线1', '失败接线2']));
+      expect(rows.map((r) => r['title']), isNot(contains('污染哨兵')));
+      // 现场恢复后服务照常可用：再导出成功。
+      final again = await svc.exportBackup();
+      expect(again.file.existsSync(), isTrue);
+    });
   });
 }
