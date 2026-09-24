@@ -93,6 +93,17 @@ class SettingsPage extends ConsumerWidget {
                     onTap: () => _toast(context, '数据与同步 · 敬请期待')),
                 // 批8收口：母婴敏感数据同步排除联动行（开关实体在呵护提醒页）。
                 const _CareSyncLink(),
+                // V1.41批1 Task 6：日志查看页入口（原型 index-sync p-log）。
+                _EntryRow(
+                    key: const ValueKey('entry-log'),
+                    emoji: '',
+                    iconWidget: const Icon(Icons.receipt_long_outlined,
+                        size: 18, color: Color(0xFF0891B2)),
+                    bg: const Color(0xFF06B6D4).withValues(alpha: .12),
+                    title: '运行日志',
+                    sub: '环形缓冲 300 · 级别过滤 · 复制全量 · 保留天数',
+                    trailing: '',
+                    onTap: () => context.go('/log')),
                 _EntryRow(
                     emoji: '🔔',
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),

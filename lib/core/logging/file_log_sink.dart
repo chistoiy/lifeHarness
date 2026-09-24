@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_log.dart';
 
@@ -83,6 +84,30 @@ class FileLogSink {
 
   /// 最近一次落盘失败原因（仅供诊断展示；落盘失败绝不影响主流程）。
   static String? lastError;
+
+  // ---- 保留天数持久化（Task 6 · 设计稿 §2「保留天数在日志设置页配置」）----
+
+  /// 保留天数持久化键（SharedPreferences · 参考 settings_repository 用法）。
+  static const String retentionDaysKey = 'log.retentionDays';
+
+  /// 保留天数默认值（未配置时）。
+  static const int defaultRetentionDays = 14;
+
+  /// 当前生效的保留天数（内存值；落盘清理按文件名日期比较时使用）。
+  static int get retentionDays => _retentionDays;
+
+  /// 读持久化保留天数（未配置回落 [defaultRetentionDays]）。
+  static int readRetentionDays(SharedPreferences prefs) =>
+      prefs.getInt(retentionDaysKey) ?? defaultRetentionDays;
+
+  /// 写持久化保留天数并同步内存值（日志页滚轮改档即时生效，
+  /// 下次启动由 main 经 [readRetentionDays] 传入 [init]）。
+  static Future<void> saveRetentionDays(
+      SharedPreferences prefs, int days) async {
+    final d = days < 0 ? 0 : days;
+    _retentionDays = d;
+    await prefs.setInt(retentionDaysKey, d);
+  }
 
   /// 打开落盘：建目录 → 清过期 → 挂 [AppLog.onLine] → 起周期定时器。
   static Future<void> init(

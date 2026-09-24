@@ -62,6 +62,7 @@ import '../../features/read/presentation/read_settings_page.dart';
 import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
+import '../../features/settings/presentation/log_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -353,6 +354,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/recmg',
         builder: (_, _) => const RecmgSettingsPage(),
+      ),
+      // V1.41批1 Task 6 日志查看页（原型 p-log：120 条窗口/级别过滤/复制全量/
+      // 保留天数滚轮；全屏栈页，设置页与将来同步历史均 context.go 跳入）。
+      GoRoute(
+        path: '/log',
+        builder: (_, _) => const LogPage(),
       ),
     ],
   );

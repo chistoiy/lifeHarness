@@ -25,19 +25,19 @@ Future<void> main() async {
   installGlobalErrorLogging();
 
   // 0b) 日志落盘基建（设计稿 §2）：应用文档目录 logs/ 子目录，按天一个文件、
-  //     单文件封顶 5MB 滚动、默认保留 14 天；init 前已进环形缓冲的行（错误捕获
+  //     单文件封顶 5MB 滚动、保留天数读 SharedPreferences 持久化值（Task 6
+  //     日志页滚轮配置 · 默认 14 天）；init 前已进环形缓冲的行（错误捕获
   //     抢跑那段）在此补写一次，之后由 AppLog.onLine 自动续写。
+  final prefs = await SharedPreferences.getInstance();
   final logDir = p.join((await getApplicationDocumentsDirectory()).path, 'logs');
-  await FileLogSink.init(logDir);
+  await FileLogSink.init(logDir,
+      retentionDays: FileLogSink.readRetentionDays(prefs));
   for (final line in AppLog.lines.toList()) {
     FileLogSink.write(line);
   }
   await FileLogSink.flush();
 
-  // 1) 设置键值（主题/导航/提醒）就绪。
-  final prefs = await SharedPreferences.getInstance();
-
-  // 2) 主题设计令牌全量载入（assets/themes/）。
+  // 1) 主题设计令牌全量载入（assets/themes/）。
   final registry = await const ThemeRepository().loadAll();
 
   // 3) 数据库建库（验收：启动即建库；核心表+预留表+plugin_* 规范见 DbSchema）。
