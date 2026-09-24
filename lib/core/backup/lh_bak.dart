@@ -2,16 +2,21 @@
 ///
 /// 容器 = ZIP：`manifest.json` + `db.sqlite`（sqflite `VACUUM INTO` 一致性快照，
 /// 不拷活文件）+ `attachments/<相对路径>` + `logs/<文件名>`。
-/// 本任务不做加密（T9 扩展 encrypted/口令档）；文件名
+/// T9 口令档：create 传 [passphrase] 时 `db.sqlite.enc`、`attachments/**.enc`
+/// 为密文 blob `salt(16B)|nonce(12B)|密文+tag`（PBKDF2-HMAC-SHA256 + AES-GCM，
+/// KDF 参数记入 manifest.kdf）；manifest 本体与 logs/ 保持明文（恢复需先读
+/// manifest 拿 KDF 参数；日志无敏感数据且同步侧需明文可查，设计稿 §2/§3）。
 /// 文件名 `lifeharness_YYYYMMDD_HHmmss.lhbak`。
 library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -20,6 +25,23 @@ import '../database/schema.dart';
 /// App 版本常量（工程无 package_info_plus 依赖，直接常量注入；
 /// 收口批与 pubspec version 同步）。
 const String kAppVersion = '0.1.18';
+
+/// 口令加密参数（口径钉死于 T9 实施说明）。
+const int kPbkdf2Iterations = 100000;
+const int kMaxEncryptBytes = 64 * 1024 * 1024;
+const int _saltLength = 16;
+const int _nonceLength = 12;
+const int _tagLength = 16; // AES-GCM 标准 tag 长
+
+final Random _secureRandom = Random.secure();
+
+Uint8List _randomBytes(int length) {
+  final b = Uint8List(length);
+  for (var i = 0; i < length; i++) {
+    b[i] = _secureRandom.nextInt(256);
+  }
+  return b;
+}
 
 /// 逐表校验和（纯函数，便于单测）：行按调用方给定顺序（本库口径 = rowid 升序）
 /// 逐行拼接 `k=值;`（列名排序保证跨读取稳定），MD5 hex；空表为 `'-'`。
@@ -88,6 +110,8 @@ class LhBakManifest {
     required this.encrypted,
     required this.members,
     this.missingTables = const [],
+    this.kdf,
+    this.skippedLarge,
   });
 
   int dbVersion;
@@ -100,11 +124,19 @@ class LhBakManifest {
   /// 打包时排除的表清单（T9/同步快照按 care.syncExcluded 写入）。
   List<String> excludedTables;
 
-  /// 是否加密（本任务恒 false；T9 AES-GCM 口令档扩展）。
+  /// 是否口令加密档（create 传 passphrase 时 true，成员含 .enc 密文 blob）。
   bool encrypted;
 
   /// zip 成员清单（含 manifest.json 自身，按打包顺序）。
   List<String> members;
+
+  /// KDF 参数（仅 encrypted=true 写入）：
+  /// `{'alg': 'PBKDF2-HMAC-SHA256', 'iterations': 100000}`。
+  Map<String, Object>? kdf;
+
+  /// 加密档因超 [kMaxEncryptBytes]/[LhBak.create] maxEncryptBytes 被跳过的
+  /// 附件成员名（不含 .enc 后缀）；明文包恒 null。
+  List<String>? skippedLarge;
 
   /// unpack 时填充（不参与 manifest.json 序列化）：当前 schema 有而包内没有
   /// 的表——unpack 会按当前 schema 建空表并在恢复报告中列出。
@@ -118,6 +150,8 @@ class LhBakManifest {
         'excludedTables': excludedTables,
         'encrypted': encrypted,
         'members': members,
+        if (kdf != null) 'kdf': kdf,
+        if (skippedLarge != null) 'skippedLarge': skippedLarge,
       };
 
   factory LhBakManifest.fromJson(Map<String, dynamic> json) {
@@ -128,6 +162,8 @@ class LhBakManifest {
     final excluded = json['excludedTables'];
     final encrypted = json['encrypted'];
     final members = json['members'];
+    final kdf = json['kdf'];
+    final skippedLarge = json['skippedLarge'];
     if (dbVersion is! int || appVersion is! String || createdAt is! String) {
       throw const FormatException('manifest 缺 dbVersion/appVersion/createdAt');
     }
@@ -136,6 +172,12 @@ class LhBakManifest {
         encrypted is! bool ||
         members is! List) {
       throw const FormatException('manifest 缺 tables/excludedTables/encrypted/members');
+    }
+    if (kdf != null && kdf is! Map<String, dynamic>) {
+      throw const FormatException('manifest.kdf 类型错误');
+    }
+    if (skippedLarge != null && skippedLarge is! List) {
+      throw const FormatException('manifest.skippedLarge 类型错误');
     }
     return LhBakManifest(
       dbVersion: dbVersion,
@@ -148,11 +190,15 @@ class LhBakManifest {
       excludedTables: excluded.cast<String>().toList(),
       encrypted: encrypted,
       members: members.cast<String>().toList(),
+      kdf: kdf == null ? null : Map<String, Object>.from(kdf),
+      skippedLarge:
+          skippedLarge == null ? null : (skippedLarge as List).cast<String>().toList(),
     );
   }
 }
 
-/// 容器校验/操作异常。code ∈ {badZip, badManifest, versionMismatch, checksumMismatch}。
+/// 容器校验/操作异常。code ∈ {badZip, badManifest, versionMismatch,
+/// checksumMismatch, needPassphrase, wrongPassphrase}。
 class LhBakException implements Exception {
   const LhBakException(this.code, [this.message = '']);
 
@@ -160,6 +206,8 @@ class LhBakException implements Exception {
   static const String codeBadManifest = 'badManifest';
   static const String codeVersionMismatch = 'versionMismatch';
   static const String codeChecksumMismatch = 'checksumMismatch';
+  static const String codeNeedPassphrase = 'needPassphrase';
+  static const String codeWrongPassphrase = 'wrongPassphrase';
 
   final String code;
   final String message;
@@ -191,14 +239,23 @@ class LhBak {
   /// - [logFiles]：随包日志（成员名 `logs/<文件名>`），不存在则跳过。
   /// - [excludeTables]：从包中剔除的表（快照文件内直接 DROP，满足
   ///   「排表包快照里没有该表」口径）；清单写入 manifest.excludedTables。
+  /// - [passphrase]：口令加密档（T9）。给出口令时 `db.sqlite.enc` 与
+  ///   `attachments/**.enc` 逐文件加密为 blob `salt(16)|nonce(12)|密文+tag`；
+  ///   manifest 本体与 logs/ 保持明文；KDF 参数写入 manifest.kdf。
+  ///   为空则与 T8 明文包行为一致。
+  /// - [maxEncryptBytes]：加密档下单个附件超过该字节数则不打包，成员名
+  ///   （不含 .enc）记入 manifest.skippedLarge；默认 [kMaxEncryptBytes]。
   static Future<LhBakCreateResult> create({
     required Database db,
     required String outDirPath,
     List<String> attachDirs = const [],
     List<String> logFiles = const [],
     List<String> excludeTables = const [],
+    String? passphrase,
+    int maxEncryptBytes = kMaxEncryptBytes,
     DateTime? now,
   }) async {
+    final encrypted = passphrase != null;
     final ts = now ?? DateTime.now();
     final temp = Directory.systemTemp.createTempSync('lhbak_create_');
     try {
@@ -226,8 +283,15 @@ class LhBak {
         await snap?.close();
       }
 
-      // 3) 成员表：db.sqlite + attachments/* + logs/*（确定序）。
-      final memberFiles = <String, String>{'db.sqlite': snapshotPath};
+      // 3) 成员表：db.sqlite(.enc) + attachments/*(.enc) + logs/*（确定序）。
+      //    加密档：db 与附件成员名带 .enc 并整文件读入加密（GCM 单块上限远
+      //    大于本项目文件尺寸）；logs 与 manifest 恒明文。
+      final memberFiles = <String, String>{}; // 成员名 → 磁盘路径
+      final encryptNames = <String>{};
+      final skippedLarge = <String>[];
+      final dbMemberName = encrypted ? 'db.sqlite.enc' : 'db.sqlite';
+      memberFiles[dbMemberName] = snapshotPath;
+      if (encrypted) encryptNames.add(dbMemberName);
       for (final dirPath in attachDirs) {
         final dir = Directory(dirPath);
         if (!dir.existsSync()) continue;
@@ -240,7 +304,17 @@ class LhBak {
         for (final f in files) {
           final rel = p.posix
               .joinAll(p.split(p.relative(f.path, from: dirPath)));
-          memberFiles['attachments/$dirName/$rel'] = f.path;
+          final baseName = 'attachments/$dirName/$rel';
+          if (!encrypted) {
+            memberFiles[baseName] = f.path;
+            continue;
+          }
+          if (f.lengthSync() > maxEncryptBytes) {
+            skippedLarge.add(baseName); // 记原始成员名（不含 .enc）
+            continue;
+          }
+          memberFiles['$baseName.enc'] = f.path;
+          encryptNames.add('$baseName.enc');
         }
       }
       for (final logPath in logFiles) {
@@ -255,22 +329,37 @@ class LhBak {
         createdAt: ts,
         tables: tables,
         excludedTables: excluded,
-        encrypted: false,
+        encrypted: encrypted,
         members: ['manifest.json', ...memberFiles.keys],
+        kdf: encrypted
+            ? {
+                'alg': 'PBKDF2-HMAC-SHA256',
+                'iterations': kPbkdf2Iterations,
+              }
+            : null,
+        skippedLarge: skippedLarge.isEmpty ? null : skippedLarge,
       );
 
-      // 4) zip 落盘（大文件成员走 InputFileStream 流式，不整读内存）。
+      // 4) zip 落盘（明文大文件成员走 InputFileStream 流式；密文成员整读
+      //    加密后作为 ArchiveFile 写入，尺寸已受 maxEncryptBytes 约束）。
       Directory(outDirPath).createSync(recursive: true);
       final outPath = p.join(outDirPath, _backupFileName(ts));
       final encoder = ZipFileEncoder();
       encoder.create(outPath);
+      final cipher = passphrase != null ? _BlobCipher(passphrase) : null;
       try {
         final mBytes = utf8.encode(
             const JsonEncoder.withIndent('  ').convert(manifest.toJson()));
         encoder.addArchiveFile(
             ArchiveFile('manifest.json', mBytes.length, mBytes));
         for (final e in memberFiles.entries) {
-          await encoder.addFile(File(e.value), e.key);
+          if (encryptNames.contains(e.key)) {
+            final plain = await File(e.value).readAsBytes();
+            final blob = await cipher!.encrypt(plain);
+            encoder.addArchiveFile(ArchiveFile(e.key, blob.length, blob));
+          } else {
+            await encoder.addFile(File(e.value), e.key);
+          }
         }
       } finally {
         await encoder.close();
@@ -281,13 +370,23 @@ class LhBak {
     }
   }
 
-  /// 校验包：zip 结构 → manifest → 版本 → 成员清单 → 快照逐表重算校验和。
-  /// 坏包抛 [LhBakException]，code 见四类。
-  static Future<LhBakManifest> verify(String filePath) async {
+  /// 校验包：zip 结构 → manifest → 口令档检查 → 版本 → 成员清单 →
+  /// 快照逐表重算校验和（加密档先解密 db.sqlite.enc 到临时文件再开快照库）。
+  ///
+  /// - 加密包（manifest.encrypted=true）未给 [passphrase] → needPassphrase；
+  ///   口令错（GCM tag 校验失败）→ wrongPassphrase。
+  /// - 明文包给了 [passphrase] → 忽略口令，正常校验（幂等）。
+  /// 坏包抛 [LhBakException]，code 见六类。
+  static Future<LhBakManifest> verify(String filePath,
+      {String? passphrase}) async {
     final zip = _openZip(filePath);
     try {
       final archive = zip.archive;
       final manifest = _parseManifest(archive);
+      if (manifest.encrypted && passphrase == null) {
+        throw const LhBakException(LhBakException.codeNeedPassphrase,
+            '加密包需口令才能校验/恢复');
+      }
       if (manifest.dbVersion > DbSchema.version) {
         throw LhBakException(
           LhBakException.codeVersionMismatch,
@@ -304,7 +403,7 @@ class LhBak {
       Database? snap;
       try {
         final snapPath = p.join(temp.path, 'db.sqlite');
-        _extractMember(archive, 'db.sqlite', snapPath);
+        await _materializeDbMember(archive, manifest, passphrase, snapPath);
         snap = await snapshotFactory.openDatabase(snapPath,
             options: OpenDatabaseOptions(singleInstance: false));
         final snapTables = (await _tableNames(snap)).toSet();
@@ -340,19 +439,22 @@ class LhBak {
   /// 解包恢复到 [targetDb]（整库替换，不做记录级合并，设计稿 §3 口径）：
   /// 删旧表 → 按快照 sqlite_master 重建 → ATTACH 快照 → 逐表 INSERT → DETACH。
   ///
+  /// 加密档需给 [passphrase]（口径同 [verify]）：db.sqlite.enc 先解密写入
+  /// 临时文件再 ATTACH，临时目录随本方法结束删除。
   /// 包内缺失（excludeTables 产物）的当前 schema 表按 DDL 建空表，
   /// 列在返回 manifest 的 [LhBakManifest.missingTables]。
   /// 附件/日志的落盘恢复属导入 UI 任务（T10），此处只恢复 DB。
   static Future<LhBakManifest> unpack({
     required String filePath,
     required Database targetDb,
+    String? passphrase,
   }) async {
-    final manifest = await verify(filePath);
+    final manifest = await verify(filePath, passphrase: passphrase);
     final zip = _openZip(filePath);
     final temp = Directory.systemTemp.createTempSync('lhbak_unpack_');
     final snapPath = p.join(temp.path, 'db.sqlite');
     try {
-      _extractMember(zip.archive, 'db.sqlite', snapPath);
+      await _materializeDbMember(zip.archive, manifest, passphrase, snapPath);
     } finally {
       zip.close();
     }
@@ -448,6 +550,50 @@ class LhBak {
     }
   }
 
+  /// 把包内 db 成员还原为可用 sqlite 文件 [outPath]：明文包直接落盘；
+  /// 加密包读 `db.sqlite.enc` blob（salt|nonce|密文+tag）解密后落盘。
+  /// 口令错 → GCM tag 校验失败 → wrongPassphrase。
+  static Future<void> _materializeDbMember(Archive archive,
+      LhBakManifest manifest, String? passphrase, String outPath) async {
+    if (!manifest.encrypted) {
+      _extractMember(archive, 'db.sqlite', outPath);
+      return;
+    }
+    final entry = archive.findFile('db.sqlite.enc');
+    if (entry == null) {
+      throw const LhBakException(LhBakException.codeBadManifest,
+          '成员缺失：db.sqlite.enc');
+    }
+    final iterations = manifest.kdf?['iterations'];
+    if (iterations is! int || iterations <= 0) {
+      throw const LhBakException(LhBakException.codeBadManifest,
+          'manifest.kdf.iterations 缺失或非法');
+    }
+    final blob = entry.content as List<int>;
+    if (blob.length < _saltLength + _nonceLength + _tagLength) {
+      throw const LhBakException(
+          LhBakException.codeBadManifest, '加密成员长度非法');
+    }
+    final salt = blob.sublist(0, _saltLength);
+    final nonce = blob.sublist(_saltLength, _saltLength + _nonceLength);
+    final cipherText =
+        blob.sublist(_saltLength + _nonceLength, blob.length - _tagLength);
+    final mac = Uint8List.fromList(blob.sublist(blob.length - _tagLength));
+    final key = await Pbkdf2.hmacSha256(iterations: iterations, bits: 256)
+        .deriveKeyFromPassword(password: passphrase!, nonce: salt);
+    final List<int> plain;
+    try {
+      plain = await AesGcm.with256bits().decrypt(
+        SecretBox(cipherText, nonce: nonce, mac: Mac(mac)),
+        secretKey: key,
+      );
+    } on SecretBoxAuthenticationError {
+      throw const LhBakException(LhBakException.codeWrongPassphrase,
+          '口令错误或包被篡改（GCM tag 校验失败）');
+    }
+    File(outPath).writeAsBytesSync(plain);
+  }
+
   /// 活库/快照库的实表名（排除 sqlite_ 内部表）。
   static Future<List<String>> _tableNames(Database db) async {
     final rows = await db.rawQuery(
@@ -527,5 +673,41 @@ class _OpenedZip {
     } catch (_) {
       // 已关闭则忽略。
     }
+  }
+}
+
+/// 一次 create 的加密器：全包共用一个随机 salt（PBKDF2 派生只做一次并缓存），
+/// 每个成员用独立随机 nonce；blob = salt(16)|nonce(12)|密文+tag(16)。
+class _BlobCipher {
+  _BlobCipher(this._passphrase) : _salt = _randomBytes(_saltLength);
+
+  final String _passphrase;
+  final Uint8List _salt;
+  SecretKey? _key;
+
+  Future<SecretKey> _deriveKey() async {
+    return _key ??= await Pbkdf2.hmacSha256(
+      iterations: kPbkdf2Iterations,
+      bits: 256,
+    ).deriveKeyFromPassword(password: _passphrase, nonce: _salt);
+  }
+
+  Future<Uint8List> encrypt(List<int> plain) async {
+    final key = await _deriveKey();
+    final nonce = _randomBytes(_nonceLength);
+    final box = await AesGcm.with256bits()
+        .encrypt(plain, secretKey: key, nonce: nonce);
+    final mac = box.mac.bytes;
+    final out = Uint8List(
+        _saltLength + _nonceLength + box.cipherText.length + mac.length);
+    var o = 0;
+    out.setRange(o, o + _saltLength, _salt);
+    o += _saltLength;
+    out.setRange(o, o + _nonceLength, nonce);
+    o += _nonceLength;
+    out.setRange(o, o + box.cipherText.length, box.cipherText);
+    o += box.cipherText.length;
+    out.setRange(o, o + mac.length, mac);
+    return out;
   }
 }

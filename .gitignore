@@ -33,6 +33,8 @@ Thumbs.db
 *.bak
 tmp/
 backup/
+# 反向规则：`backup/` 是为备份产物目录设的，误伤了源码目录 lib/core/backup/
+!lib/core/backup/
 
 # 密钥/配置（WebDAV 凭据等，若后续生成本地配置文件）
 secrets/
