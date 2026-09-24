@@ -80,7 +80,8 @@ void main() {
         DbSchema.migrations[16],
         equals(DbSchema.habitAuxSchemaStatements),
       );
-      expect(DbSchema.version, 17);
+      // 版本随后续模块批次递增（记账批1 起 v18），本用例只保证 ≥ 习惯批5 的 v17。
+      expect(DbSchema.version, greaterThanOrEqualTo(17));
     });
   });
 

@@ -23,6 +23,10 @@ import '../../features/journal/presentation/journal_page.dart';
 import '../../features/journal/presentation/journal_providers.dart'
     show noteSelProvider;
 import '../../features/journal/presentation/note_edit_page.dart';
+import '../../features/ledger/presentation/ledger_add_page.dart';
+import '../../features/ledger/presentation/ledger_import_page.dart';
+import '../../features/ledger/presentation/ledger_page.dart';
+import '../../features/ledger/presentation/ledger_tx_detail_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/book_mgr_page.dart';
@@ -60,6 +64,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // M1·习惯批1：习惯主页（底部导航池栏目 · 计划 §3 /habits）。
           GoRoute(path: '/habits', builder: (_, _) => const HabitsPage()),
           GoRoute(path: '/inbox', builder: (_, _) => const InboxPage()),
+          // 记账批1：主页入底栏导航池（NAV_MODS p-finance 同位）。
+          GoRoute(path: '/ledger', builder: (_, _) => const LedgerPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
         ],
@@ -68,6 +74,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pomo',
         builder: (_, s) => PomoScreen(session: s.extra as PomoSession),
+      ),
+      // 记账批1：记一笔（?kind/cat/date/note/edit/copy · 原型 openL2(opt)）与
+      // 流水详情（全屏无底栏，同 p-txDetail 为 stack 页）。
+      GoRoute(
+        path: '/ledger/add',
+        builder: (_, s) {
+          final q = s.uri.queryParameters;
+          return LedgerAddPage(
+            editId: int.tryParse(q['edit'] ?? ''),
+            copyId: int.tryParse(q['copy'] ?? ''),
+            kind: q['kind'],
+            catId: int.tryParse(q['cat'] ?? ''),
+            date: q['date'],
+            note: q['note'],
+          );
+        },
+      ),
+      GoRoute(
+        path: '/ledger/tx/:id',
+        builder: (_, s) =>
+            LedgerTxDetailPage(txnId: int.parse(s.pathParameters['id']!)),
+      ),
+      // 记账批1d：账单导入五步向导（全屏，同 p-billImport 栈页）。
+      GoRoute(
+        path: '/ledger/import',
+        builder: (_, _) => const LedgerImportPage(),
       ),
       // 日记编辑页：全屏无底栏（原型 p-diaryEdit 为 stack 页）。
       // V1.28 一天多篇：extra=DiaryEditArg(day 新建当天的第 N+1 篇 | entryId 编辑既有篇)。

@@ -12,6 +12,8 @@ enum NavModule {
   journal('journal', '记录', Icons.book_outlined, Icons.book, '/journal'),
   habit('habit', '习惯', Icons.autorenew, Icons.loop, '/habits'),
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
+  ledger('ledger', '记账', Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet, '/ledger'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');
 
   const NavModule(this.id, this.label, this.icon, this.iconActive, this.path);

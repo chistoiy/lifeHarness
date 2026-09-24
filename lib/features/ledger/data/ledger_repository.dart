@@ -226,6 +226,22 @@ class LedgerRepository {
   Future<int> bookTxnCount(int id) =>
       _c(db, DbSchema.tLedgerTxns, where: 'bk = ?', whereArgs: [id]);
 
+  /// 各账本流水数（S7 账本列表「N 笔流水」一次取齐）。
+  Future<Map<int, int>> bookTxnCounts() async {
+    final rows = await db.rawQuery(
+      'SELECT bk, COUNT(*) AS n FROM ${DbSchema.tLedgerTxns} GROUP BY bk',
+    );
+    return {for (final r in rows) r['bk']! as int: r['n']! as int};
+  }
+
+  /// L1 到期横幅：当前账本启用中且 next_date ≤ 今天 的周期账单数（批2 前恒 0）。
+  Future<int> dueRecurCount(int bk, String today) => _c(
+    db,
+    DbSchema.tLedgerRecur,
+    where: 'bk = ? AND active = 1 AND next_date <= ?',
+    whereArgs: [bk, today],
+  );
+
   // ==================== 账户（全局共用，不带 bk） ====================
 
   Future<List<LedgerAccount>> accounts({bool includeArchived = false}) async {
@@ -485,7 +501,7 @@ class LedgerRepository {
 
   Future<void> setCatStyle(int id, {String? icon, String? color}) => db.update(
         DbSchema.tLedgerCategories,
-        {if (icon != null) 'icon': icon, if (color != null) 'color': color},
+        {if (icon != null) 'icon': icon, if (color != null) 'color': color}, // ignore: use_null_aware_elements
         where: 'id = ?',
         whereArgs: [id],
       );
@@ -834,6 +850,25 @@ class LedgerRepository {
 
   Future<void> moveMerchant(int id, int delta) =>
       _moveBySort(DbSchema.tLedgerMerchants, id, delta);
+
+  // ==================== 借贷（§4 记一笔·借贷 tab 直写） ====================
+
+  /// side：'lend' 借出（别人欠我）/ 'borrow' 借入（我欠别人）。
+  Future<int> addDebt({
+    required int bk,
+    required String side,
+    required String person,
+    required double total,
+    String note = '',
+  }) =>
+      db.insert(DbSchema.tLedgerDebts, {
+        'bk': bk,
+        'side': side,
+        'person': person.trim(),
+        'total': total,
+        'paid': 0,
+        'note': note,
+      });
 
   /// 同表相邻交换 sort（管理态 ↑↓ 钮通用实现）。
   Future<void> _moveBySort(String table, int id, int delta) =>

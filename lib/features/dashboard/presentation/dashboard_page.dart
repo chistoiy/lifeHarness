@@ -106,7 +106,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       case 2:
         context.push('/journal/edit');
       case 3:
-        _toastOf(context, '「记账」· 规划 V0.5');
+        // 记账批1：直达记一笔全屏页（原型 fabGo→openL2）。
+        context.push('/ledger/add');
       case 4:
         _toastOf(context, '「物品」· 规划 V1.0');
     }
@@ -882,7 +883,7 @@ class _AllModulesCard extends StatelessWidget {
     ('📝', '笔记', null, 'V0.5'),
     ('📚', '阅读', null, 'V0.5'),
     ('⚡', '收集箱', '/inbox', null),
-    ('💰', '记账', null, 'V0.5'),
+    ('💰', '记账', '/ledger', null),
     ('📦', '物品', null, 'V1.0'),
     ('🎂', '日子', null, 'V1.0'),
     ('🏃', '健康', null, 'V1.0'),
