@@ -261,6 +261,93 @@ void main() {
     expect(dir.listSync().map((e) => e.path), [target]);
   });
 
+  test('ensureDirectory("a/b")：全链含末段——MKCOL 两级 /sync/a/ 与 /sync/a/b/ '
+      '（回归：剥末段致嵌套目录漏建）', () async {
+    final calls = <String>[];
+    final client = MockClient((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      return http.Response('', 405); // 405 = 已存在，亦成功（R7）
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+
+    await store.ensureDirectory(cfg(), 'a/b');
+
+    expect(calls, [
+      'MKCOL ${pathOf(['sync'])}',
+      'MKCOL ${pathOf(['sync', 'a'])}',
+      'MKCOL ${pathOf(['sync', 'a', 'b'])}',
+    ], reason: '目录路径的末段是目录本身，必须建（含两级 a、a/b）');
+    store.close();
+  });
+
+  test('put("x/y/z.lhbak")：MKCOL 只发父目录链——含 /sync/x/、/sync/x/y/，'
+      '不含文件路径；PUT 命中三级目标', () async {
+    final calls = <String>[];
+    http.Request? putReq;
+    final tmp = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}lhw_fix_put.lhbak');
+    tmp.writeAsStringSync('payload');
+    addTearDown(() => tmp.deleteSync());
+    final client = MockClient((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      if (req.method == 'PUT') {
+        putReq = req;
+        return http.Response('', 200);
+      }
+      return http.Response('', 405);
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+
+    await store.put(cfg(), tmp.path, 'x/y/z.lhbak');
+
+    final mkcols = calls.where((l) => l.startsWith('MKCOL')).toList();
+    expect(mkcols, [
+      'MKCOL ${pathOf(['sync'])}',
+      'MKCOL ${pathOf(['sync', 'x'])}',
+      'MKCOL ${pathOf(['sync', 'x', 'y'])}',
+    ], reason: 'R7：文件直接父目录 /x/y/ 也必须在 MKCOL 链内');
+    expect(mkcols.any((l) => l.contains('z.lhbak')), isFalse,
+        reason: '末段是文件名，绝不对其发 MKCOL');
+    expect(putReq!.url.pathSegments, ['dav', 'sync', 'x', 'y', 'z.lhbak']);
+    store.close();
+  });
+
+  test('本地文件名含字面 %20 往返：入参是逻辑路径不再解码，'
+      'URL 构造把 % 转义为 %25，解码回读即原名', () async {
+    final calls = <String>[];
+    http.Request? putReq;
+    final dir = Directory.systemTemp.createTempSync('lhw_fix_pct');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final tmp = File('${dir.path}${Platform.pathSeparator}src.bin');
+    tmp.writeAsStringSync('pct-payload');
+    final client = MockClient((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      if (req.method == 'PUT') {
+        putReq = req;
+        return http.Response('', 200);
+      }
+      return http.Response('', 405);
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+    const rel = '目录a%20b/报告%20final.lhbak'; // %20 是名字的一部分，非空格转义
+
+    await store.put(cfg(), tmp.path, rel);
+
+    // 判别器：若入参被误解码，'a%20b' 会变成 'a b'（编码里只剩单个 %25）；
+    // 正确行为是 % 本身转义（%2520），字面 %20 原样进 URL 再原样解回。
+    expect(calls, [
+      'MKCOL ${pathOf(['sync'])}',
+      'MKCOL ${pathOf(['sync', '目录a%20b'])}',
+      'PUT ${pathOf(['sync', '目录a%20b', '报告%20final.lhbak'])}',
+    ]);
+    expect(calls[2], contains('%25'),
+        reason: '字面 % 必须转义为 %25（逻辑名与编码形态不混排）');
+    expect(putReq!.url.pathSegments,
+        ['dav', 'sync', '目录a%20b', '报告%20final.lhbak'],
+        reason: 'URL 解码回读 == 本地逻辑名（往返一致，%20 未被吞成空格）');
+    store.close();
+  });
+
   test('verify：207→ok；401→凭据错文案（WebDAV 提示应用密码）', () async {
     var status = 207;
     final client = MockClient((req) async {

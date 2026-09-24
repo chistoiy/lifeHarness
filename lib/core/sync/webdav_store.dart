@@ -265,7 +265,8 @@ class WebDavStore implements RemoteStore {
     if (fileName.isEmpty) {
       throw StateError('PUT 目标必须是文件相对路径，收到：$cloudRelative');
     }
-    final uri = _uriSegments(c, [..._dirChain(c, cloudRelative), fileName]);
+    final uri = _uriSegments(
+        c, [..._dirChain(c, cloudRelative, includeLast: false), fileName]);
     final label = 'PUT ${uri.path}';
     final size = await File(localPath).length();
     final auth = await _authHeader(c);
@@ -520,18 +521,22 @@ class WebDavStore implements RemoteStore {
     return segs;
   }
 
-  /// 相对路径归一（去前导/空段）；逐段宽容解码（[safeDecode] 语义），
-  /// 字面 `%`/未编码中文等非法转义形态原样保留。
+  /// 相对路径归一（去前导/空段）。入参恒为**逻辑路径**（段名即真实字符，
+  /// 字面 `%20` 不是空格），故不解码；百分号解码只出现在远端返回值解析链路
+  /// （[_hrefToPath] / [normalizeCollectionHref]）。逻辑名 → URL 的编码由
+  /// [_uriSegments] 的 pathSegments 构造器统一负责，往返不会二次解码错位。
   List<String> _normSegments(String rel) => rel
       .split('/')
       .where((s) => s.isNotEmpty && s != '.')
-      .map(_safeDecode)
       .toList();
 
-  /// 云内链：cloudDirName + 相对路径的目录段（不含文件名）。
-  List<String> _dirChain(ServiceConfig c, String cloudRelative) {
+  /// 云内链：cloudDirName + 相对路径的段链。[includeLast] 区分两个调用形态：
+  /// - true（缺省，ensureDirectory 用）：整条路径都是目录，全链**含末段**；
+  /// - false（put 拼目标 URL 用）：末段是文件名，只保留**父目录链**。
+  List<String> _dirChain(ServiceConfig c, String cloudRelative,
+      {bool includeLast = true}) {
     final segs = _normSegments(cloudRelative);
-    if (segs.length > 1) segs.removeLast(); // 末段视为文件名
+    if (!includeLast && segs.isNotEmpty) segs.removeLast();
     if (c.cloudDirName.isNotEmpty) segs.insert(0, c.cloudDirName);
     return segs;
   }
