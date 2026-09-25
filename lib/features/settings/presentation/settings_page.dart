@@ -92,7 +92,9 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '● 未配置',
                     trailingColor: Colors.grey,
                     // V1.41 Task 10：占位 toast 改真实 /sync 路由（空壳页）。
-                    onTap: () => context.go('/sync')),
+                    // R2 项④：go→push——push 压栈保留设置页，系统返回回设置页；
+                    // go 会替换整栈致返回直接退出 app。
+                    onTap: () => context.push('/sync')),
                 // 批8收口：母婴敏感数据同步排除联动行（开关实体在呵护提醒页）。
                 const _CareSyncLink(),
                 // V1.41批1 Task 6：日志查看页入口（原型 index-sync p-log）。
@@ -105,7 +107,8 @@ class SettingsPage extends ConsumerWidget {
                     title: '运行日志',
                     sub: '环形缓冲 300 · 级别过滤 · 复制全量 · 保留天数',
                     trailing: '',
-                    onTap: () => context.go('/log')),
+                    // R2 项④：go→push，从设置页进日志后返回回设置页而非退出 app。
+                    onTap: () => context.push('/log')),
                 _EntryRow(
                     emoji: '🔔',
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),

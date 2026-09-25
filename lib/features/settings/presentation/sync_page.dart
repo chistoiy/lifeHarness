@@ -334,7 +334,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   icon: Icons.history,
                   title: '同步历史',
                   sub: _histSummary(history),
-                  onTap: () => context.go('/sync/history'),
+                  // R2 项④：go→push，从 /sync 进历史页后返回回 /sync 而非退出 app。
+                  onTap: () => context.push('/sync/history'),
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),
                 _EntryRow(
@@ -342,7 +343,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   icon: Icons.article_outlined,
                   title: '日志',
                   sub: '环形缓冲 300 · 按日落盘',
-                  onTap: () => context.go('/log'),
+                  // R2 项④：go→push，从 /sync 进日志后返回回 /sync 而非退出 app。
+                  onTap: () => context.push('/log'),
                 ),
               ],
             ),

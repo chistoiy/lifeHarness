@@ -217,8 +217,9 @@ void main() {
       GoRoute(path: '/sync/history', builder: (_, _) => const SyncHistoryPage()),
       GoRoute(
           path: '/log',
-          builder: (_, _) =>
-              const Scaffold(body: Center(child: Text('LOG-STUB')))),
+          builder: (_, _) => Scaffold(
+              appBar: AppBar(title: const Text('LOG')),
+              body: const Center(child: Text('LOG-STUB')))),
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
@@ -482,6 +483,40 @@ void main() {
       await clearToasts(tester);
       expect(inkWellOf(tester, 'btn-sync-now').onTap, isNotNull,
           reason: '异常也要经 finally 复位，不许永久置灰');
+    });
+  });
+
+  group('导航返回退出修复（R2 项④：go→push）', () {
+    testWidgets('从 /sync 进 /log：系统返回回 /sync 而非退出 app', (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      expect(find.byKey(const ValueKey('svc-card')), findsOneWidget);
+
+      await openSheetVia(tester, 'sync-log-entry');
+      await settle5(tester);
+      expect(find.text('LOG-STUB'), findsOneWidget);
+
+      await tester.pageBack();
+      await settle5(tester);
+      expect(find.text('LOG-STUB'), findsNothing);
+      expect(find.byKey(const ValueKey('svc-card')), findsOneWidget,
+          reason: 'push 保留 /sync 在栈：返回回 /sync，非退出 app');
+    });
+
+    testWidgets('从 /sync 进 /sync/history：系统返回回 /sync', (tester) async {
+      seedServices(prefs);
+      seedHistory(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+
+      await openSheetVia(tester, 'sync-history-entry');
+      await settle5(tester);
+      expect(find.textContaining('上传 3 · 下载 2'), findsOneWidget);
+
+      await tester.pageBack();
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('svc-card')), findsOneWidget);
     });
   });
 
