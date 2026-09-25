@@ -11,6 +11,7 @@ import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
 import 'core/logging/file_log_sink.dart';
+import 'core/media/media_hash_migrator.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
@@ -95,6 +96,21 @@ Future<void> main() async {
         await NotificationService.scheduleTodo(
             id: t.id!, title: t.title, remindAt: t.remindAt);
       }
+    }
+  }
+
+  // 4.5) R5b：note_images 存量一次性收编为 SHA256 内容寻址命名（幂等标志，
+  //    失败不阻断启动——迁移器内部逐文件 try，整体异常只 warn）。
+  if (prefs.getBool('media.hashMigrate.v1') != true) {
+    try {
+      await MediaHashMigrator(
+        db: AppDatabase.instance.db,
+        noteImagesDir: p.join(docsPath, 'note_images'),
+      ).migrate();
+      await prefs.setBool('media.hashMigrate.v1', true);
+    } catch (e) {
+      AppLog.add('⚠️ 图片哈希迁移整体失败（下次启动重试）：$e',
+          level: LhLevel.warn);
     }
   }
 

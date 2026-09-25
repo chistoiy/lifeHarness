@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
@@ -57,9 +58,13 @@ Future<String?> pickAndStoreImage(BuildContext context,
     if (!await outDir.exists()) await outDir.create(recursive: true);
     final dot = picked.path.lastIndexOf('.');
     final ext = dot > 0 ? picked.path.substring(dot + 1).toLowerCase() : 'jpg';
-    final dest =
-        p.join(outDir.path, '${DateTime.now().millisecondsSinceEpoch}.$ext');
-    await File(picked.path).copy(dest);
+    // R5b：SHA256 内容寻址命名——同图全局只存一份（去重），文件名即内容
+    // 指纹（孤儿判定/差异比对零读二进制）；毫秒时间戳旧名由启动迁移服务收编。
+    final bytes = await File(picked.path).readAsBytes();
+    final hash = crypto.sha256.convert(bytes).toString();
+    final dest = p.join(outDir.path, '$hash.$ext');
+    final f = File(dest);
+    if (!await f.exists()) await f.writeAsBytes(bytes);
     return context.mounted ? dest : null;
   } catch (_) {
     if (context.mounted) AppToast.show(context, '插图失败 · 请重试');
