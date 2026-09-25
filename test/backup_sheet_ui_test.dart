@@ -176,7 +176,7 @@ void main() {
   });
 
   group('S5 导出', () {
-    testWidgets('半屏含附件/日志勾选 · 口令二次输入 · 目标位置两态行',
+    testWidgets('半屏含附件/日志勾选 · 口令二次输入 · 导出/另存并列动作钮（R6）',
         (tester) async {
       await useSurface(tester, const Size(800, 2400));
       await openSheet(tester);
@@ -186,10 +186,11 @@ void main() {
       expect(find.text('附件 attachments/'), findsOneWidget);
       expect(find.text('附带日志 logs/'), findsOneWidget);
       expect(find.text('口令 · 可选（二次输入一致才启用）'), findsOneWidget);
-      expect(find.text('应用目录（默认）'), findsOneWidget);
+      expect(find.byKey(const ValueKey('btn-export')), findsOneWidget);
       expect(find.text('另存到…'), findsOneWidget);
-      // 目标位置两态行（默认态）
-      expect(find.text('目标位置：应用目录（默认）'), findsOneWidget);
+      expect(find.byKey(const ValueKey('btn-export-save')), findsOneWidget);
+      // R6：目标位置两态选择行已删（点钮即动作）
+      expect(find.text('目标位置'), findsNothing);
 
       // 勾选参数透传：取消「附带日志」→ withLogs=false
       await tester.tap(find.byKey(const ValueKey('chk-logs')));
@@ -200,7 +201,7 @@ void main() {
       expect(fake.lastWithLogs, isFalse);
       expect(fake.lastWithAttachments, isTrue);
       expect(fake.lastPassphrase, isNull);
-      expect(fake.saveCopyCalls, 0); // 应用目录模式不触发改存对话
+      expect(fake.saveCopyCalls, 0); // 「导出备份」钮不触发改存对话
       await clearToasts(tester);
     });
 
@@ -225,25 +226,23 @@ void main() {
       await clearToasts(tester);
     });
 
-    testWidgets('另存到…：fake dialog 取消 → 不再新增任何后续调用', (tester) async {
+    testWidgets('R6 另存到…钮一步到位：点即导出+弹层；取消 → 不触发任何后续调用',
+        (tester) async {
       await useSurface(tester, const Size(800, 2400));
       await openSheet(tester);
-      await tester.tap(find.text('另存到…'));
-      await settle5(tester);
-      expect(find.text('目标位置：另存到…（系统保存弹层）'), findsOneWidget);
 
       fake.saveCopyResult = null; // fake dialog 取消
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
       await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
       expect(find.text('另存已取消 · 包保留在应用导出目录'), findsOneWidget);
       expect(fake.exportCalls, 1);
-      expect(fake.saveCopyCalls, 1);
+      expect(fake.saveCopyCalls, 1); // 无需再点「导出备份」
       expect(fake.importCalls, 0); // 取消不触发任何恢复类调用
       await clearToasts(tester);
 
       // 另存成功：展示落点文件名
       fake.saveCopyResult = r'/storage/emulated/0/Download/saved.lhbak';
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
       await pollText(tester, '已另存：saved.lhbak');
       expect(fake.saveCopyCalls, 2);
       await clearToasts(tester);

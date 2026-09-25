@@ -547,22 +547,18 @@
       <div class="d-row"><span class="chk on" onclick="tgChk(this)"></span><span class="fn">附件 attachments/</span><span class="fs">86.7 MB · 217 项</span></div>
       <div class="d-row"><span class="chk on" onclick="tgChk(this)"></span><span class="fn">附带日志 logs/</span><span class="fs">11.8 MB · 14 天</span></div>
       <div class="field">
-        <label>目标位置</label>
-        <div class="seg" id="segBakDest">
-          <button class="seg-btn on" onclick="pickBakDest(this,'app')">应用目录（默认）</button>
-          <button class="seg-btn" onclick="pickBakDest(this,'saf')">另存到…</button>
-        </div>
-      </div>
-      <div class="field">
         <label>口令 · 可选（AES-GCM · PBKDF2 参数写入 manifest）</label>
         <div style="display:flex;gap:8px">
           <input type="password" value="••••••••" style="flex:1">
           <button class="mini-btn" style="align-self:center" onclick="toast('口令已应用 · 导出包加密')">设置口令</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span class="kv">文件名 lifeharness_20260924_083512.lhbak · <b id="bakDestNow" style="color:var(--accent)">应用导出目录</b></span></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span class="kv">文件名 lifeharness_20260924_083512.lhbak · 落应用导出目录</span></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span class="kv">呵护模块排除仅作用于同步 · 本机直接导出的备份含全量数据</span></div>
-      <button class="btn-main grad" style="margin-top:12px;padding:11px 0;font-size:13px" onclick="toast('已导出 lifeharness_20260924_083512.lhbak · 加密 · 校验和已写入 manifest · ' + bakDestText())">导出备份</button>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-main grad" style="flex:1;padding:11px 0;font-size:13px" onclick="toast('已导出 lifeharness_20260924_083512.lhbak · 加密 · 校验和已写入 manifest · 应用导出目录')">导出备份</button>
+        <button class="btn-main" style="flex:1;padding:11px 0;font-size:13px;background:var(--field-bg);color:var(--ink);box-shadow:none" onclick="openSafMock()">另存到…</button>
+      </div>
 
       <div class="sectitle">导入恢复</div>
       <div class="card" style="background:var(--field-bg);box-shadow:none">
@@ -953,20 +949,12 @@ function pickThrottle(el, ms){
 }
 function tglWifi(el){ el.classList.toggle('on'); toast(el.classList.contains('on') ? '自动同步 · 仅 Wi-Fi · 每天节流' : '自动同步已关 · 手动同步不受限'); }
 
-/* ================= s-backup 目标位置（应用目录 / 另存到… SAF mock 弹层） ================= */
+/* ================= s-backup 另存到…（R6：一步动作钮 · SAF mock 弹层） ================= */
 var safDirPath = '/storage/emulated/0/Documents/LifeHarness';
-function bakDestText(){ return $('#bakDestNow').textContent; }
-function pickBakDest(el, k){
-  if(k==='saf'){ openSafMock(); return; }
-  $$('#segBakDest .seg-btn').forEach(function(b){ b.classList.remove('on'); });
-  el.classList.add('on');
-  $('#bakDestNow').textContent = '应用导出目录';
-  toast('导出目标位置 · 应用目录（默认）');
-}
 function openSafMock(){ $('#safMock').classList.add('open'); }
 function safCancel(){
   $('#safMock').classList.remove('open');
-  toast('未选定目录 · 导出目标位置保持 ' + bakDestText());
+  toast('另存已取消 · 包保留在应用导出目录');
 }
 function safPick(el, path){
   safDirPath = path;
@@ -974,10 +962,8 @@ function safPick(el, path){
   el.querySelector('.rd').classList.add('on');
 }
 function safConfirm(){
-  $$('#segBakDest .seg-btn').forEach(function(b,i){ b.classList.toggle('on', i===1); });
-  $('#bakDestNow').textContent = safDirPath;
   $('#safMock').classList.remove('open');
-  toast('导出目标位置已选定 · ' + safDirPath);
+  toast('已导出并另存：' + safDirPath + '/lifeharness_20260924_083512.lhbak');
 }
 
 /* ================= 初始化 ================= */

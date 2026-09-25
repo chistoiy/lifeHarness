@@ -9,10 +9,11 @@ import '../../../shared/widgets/ui_kit.dart';
 
 /// V1.41 Task 10 · S5「备份导出/导入」半屏（原型 index-sync.html s-backup）。
 ///
-/// 口径：
-/// - 导出：范围勾选（附件/日志）+ 口令二次输入一致才启用 + 目标位置两态
-///   （应用目录默认 /「另存到…」导出成功后触发 saveCopyToUserLocation，
-///   系统弹层取消不追加任何后续调用）；成功 toast「已导出：<文件名>」。
+/// 口径（R6 真机反馈修正：「另存到…」从两段选择改为并列动作按钮——点即导出并
+/// 弹系统保存框，一步到位；此前只切换模式不弹层，被判定「点击没有反应」）：
+/// - 导出：范围勾选（附件/日志）+ 口令二次输入一致才启用；
+///   「导出备份」= 落应用目录；「另存到…」= 先导出再经 saveCopyToUserLocation
+///   弹系统保存层，取消不追加任何后续调用；成功 toast「已导出：<文件名>」。
 /// - 导入：pickBackupFile → inspect 校验报告态（含 skippedLarge「N 个超大
 ///   附件未入包」行）→ 勾选「恢复将替换当前数据」二次确认 → 才可调
 ///   importBackup（恢复按钮置于确认勾选之后）。
@@ -38,7 +39,6 @@ class BackupSheet extends ConsumerStatefulWidget {
 class _BackupSheetState extends ConsumerState<BackupSheet> {
   bool _withAttach = true;
   bool _withLogs = true;
-  bool _destSaf = false;
   final TextEditingController _pass1 = TextEditingController();
   final TextEditingController _pass2 = TextEditingController();
   String? _passError;
@@ -78,7 +78,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   /// 哨兵：口令校验不通过（空串是合法值，用 null 表达「未通过」会歧义）。
   static const String _invalid = '\u0000invalid';
 
-  Future<void> _doExport() async {
+  Future<void> _doExport({bool alsoSave = false}) async {
     final pass = _exportPassphrase();
     if (pass == _invalid) return;
     if (_busy) return;
@@ -91,7 +91,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
         passphrase: pass,
       );
       _toast('已导出：${p.basename(res.file.path)}');
-      if (_destSaf) {
+      if (alsoSave) {
         final saved = await svc.saveCopyToUserLocation(res.file.path);
         _toast(saved == null
             ? '另存已取消 · 包保留在应用导出目录'
@@ -216,32 +216,9 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
               onChanged: (v) => setState(() => _withLogs = v ?? true),
               title: const Text('附带日志 logs/', style: TextStyle(fontSize: 13)),
             ),
-            // ---- 目标位置两态（原型 s-backup segBakDest 行为）----
+            // ---- 上次另存目标（仅展示，R6：目标位置两态行已并入按钮语义）----
             const SizedBox(height: 6),
-            const Text('目标位置',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                _SegBtn(
-                    key: const ValueKey('dest-app'),
-                    label: '应用目录（默认）',
-                    on: !_destSaf,
-                    onTap: () => setState(() => _destSaf = false)),
-                const SizedBox(width: 8),
-                _SegBtn(
-                    key: const ValueKey('dest-saf'),
-                    label: '另存到…',
-                    on: _destSaf,
-                    onTap: () => setState(() => _destSaf = true)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _destSaf ? '目标位置：另存到…（系统保存弹层）' : '目标位置：应用目录（默认）',
-              style: TextStyle(fontSize: 11, color: tokens.accent),
-            ),
-            if (_destSaf && svc.lastSaveHint != null)
+            if (svc.lastSaveHint != null)
               Text('上次另存：${p.basename(svc.lastSaveHint!)}',
                   style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
             // ---- 口令 ----
@@ -273,13 +250,25 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                         fontSize: 11, color: Color(0xFFDC2626))),
               ),
             const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const ValueKey('btn-export'),
-                onPressed: _busy ? null : _doExport,
-                child: const Text('导出备份'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey('btn-export'),
+                    onPressed: _busy ? null : _doExport,
+                    child: const Text('导出备份'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('btn-export-save'),
+                    onPressed:
+                        _busy ? null : () => _doExport(alsoSave: true),
+                    child: const Text('另存到…'),
+                  ),
+                ),
+              ],
             ),
             const Divider(height: 28),
             // ---- 导入恢复 ----
@@ -402,47 +391,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 目标位置分段按钮（原型 .seg-btn 两态）。
-class _SegBtn extends StatelessWidget {
-  const _SegBtn({
-    super.key,
-    required this.label,
-    required this.on,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool on;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(9),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: on ? tokens.accent.withValues(alpha: .12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(
-              color: on ? tokens.accent : tokens.cardBorder,
-              width: on ? 1.4 : 1),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: on ? FontWeight.w800 : FontWeight.w500,
-            color: on ? tokens.accent : null,
-          ),
         ),
       ),
     );

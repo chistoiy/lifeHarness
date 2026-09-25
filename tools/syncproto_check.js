@@ -61,17 +61,17 @@ const TEXTS = [
   ['list-type=2&max-keys=1', 'S2 S3 探针'],
   [/\['凭据错误'/, 'S2 凭据错误态'],
   [/\['网络失败'/, 'S2 网络失败态'],
-  ['目标位置', 's-backup 导出目标位置选择行（V1.41 增补）'],
-  ['另存到…', 's-backup 目标位置「另存到…」态'],
+  ['导出备份', 's-backup 导出动作钮'],
+  ['另存到…', 's-backup 另存动作钮（R6 一步到位）'],
   ['保存为', 'SAF「保存为」静态 mock 弹层标题'],
   [/id="safMock"[\s\S]{0,220}保存为/, 'mock 弹层容器 #safMock 含「保存为」标题']
 ];
 for (const [t, label] of TEXTS) ok(typeof t === 'string' ? s.includes(t) : t.test(s), '文案: ' + label);
 
-/* ---------- 2b) s-backup 目标位置两态（V1.41 增补） ---------- */
-ok(s.indexOf('<label>目标位置</label>') < s.indexOf('口令 · 可选'), '目标位置行位于「口令」区之前');
-ok(/class="seg-btn on" onclick="pickBakDest\(this,'app'\)">应用目录（默认）<\/button>/.test(s), '目标位置默认态选中「应用目录（默认）」');
-ok(/class="seg-btn" onclick="pickBakDest\(this,'saf'\)">另存到…<\/button>/.test(s), '目标位置第二态「另存到…」未选中');
+/* ---------- 2b) s-backup R6 一步动作钮（导出备份 / 另存到… 并列） ---------- */
+ok(s.indexOf('id="segBakDest"') < 0, 'R6 目标位置两态选择行已删除');
+ok(/onclick="openSafMock\(\)">另存到…<\/button>/.test(s), 'R6「另存到…」钮直连 openSafMock（点即弹系统保存层）');
+ok(s.indexOf('>导出备份</button>') < s.indexOf('>另存到…</button>'), 'R6 导出备份在左、另存到…在右并列');
 
 /* ---------- 2c) R2⑤：s-svc-edit 眼睛钮+协议锁定 / p-sync 常驻添加服务 ---------- */
 ok(/\.pill\.locked\{opacity:\.45;cursor:not-allowed\}/.test(s), 'R2⑤b pill 置灰锁定样式 .pill.locked 存在');
@@ -137,8 +137,10 @@ try {
   const d = dom.window.document;
   for (const id of SCREENS.concat(SHEETS)) ok(!!d.getElementById(id), 'jsdom DOM id: ' + id);
   ok(d.querySelectorAll('#s-diff .d-row [data-dir="up"]').length >= 2 && d.querySelectorAll('#s-diff .d-row [data-dir="down"]').length >= 2, 'jsdom 差异四态示例条目充足');
-  var destBtns = Array.prototype.slice.call(d.querySelectorAll('#s-backup #segBakDest .seg-btn'));
-  ok(destBtns.length === 2 && destBtns[0].classList.contains('on') && /应用目录/.test(destBtns[0].textContent), 'jsdom 目标位置两态单选且默认选中应用目录');
+  var bakBtns = Array.prototype.slice.call(d.querySelectorAll('#s-backup button'))
+      .filter(function (b) { return /导出备份|另存到…/.test(b.textContent); });
+  ok(bakBtns.length === 2 && /openSafMock/.test(bakBtns[1].getAttribute('onclick') || ''),
+      'jsdom R6 导出/另存两动作钮存在且另存钮接 openSafMock');
   ok(!!d.getElementById('safMock') && /保存为/.test(d.getElementById('safMock').textContent), 'jsdom #safMock「保存为」弹层存在');
   var addRow = d.getElementById('rowAddSvc');
   ok(!!addRow && !!d.querySelector('#p-sync #rowAddSvc') && /添加服务/.test(addRow.textContent), 'jsdom 常驻「添加服务」行位于 #p-sync');
