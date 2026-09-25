@@ -304,6 +304,7 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
   late final TextEditingController _dir;
   final TextEditingController _secret = TextEditingController();
   bool _hasSecret = false;
+  bool _secretVisible = false;
   String? _error;
   bool _busy = false;
 
@@ -322,11 +323,18 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
     _loadSecretState();
   }
 
+  /// 编辑已有服务时从 vault 读回密钥填入 _secret（R2 项⑤a——过去只显状态点、
+  /// 不回填，用户看不到已存值、易误清空重填）；新增服务无回填。默认掩码显示，
+  /// 行尾眼睛钮切显隐；保存逻辑不变（非空即写 vault）。
   Future<void> _loadSecretState() async {
     final id = widget.config?.id;
     if (id == null) return;
     final secret = await ref.read(credentialVaultProvider).read(id);
-    if (mounted) setState(() => _hasSecret = (secret ?? '').isNotEmpty);
+    if (!mounted) return;
+    setState(() {
+      _hasSecret = (secret ?? '').isNotEmpty;
+      _secret.text = secret ?? '';
+    });
   }
 
   void _setProvider(StoreProviderKind kind) {
@@ -451,124 +459,157 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
   @override
   Widget build(BuildContext context) {
     final isS3 = _prov == StoreProviderKind.s3;
+    // R2 项⑤d 输入法遮挡：showModalBottomSheet 在本工程 Flutter(3.38.9) 无
+    // resizeToAvoidBottomInset 形参，改在内容外层用 viewInsets.bottom 兜底抬升
+    // （与滚动视图配合即等效于「键盘弹起内容不被遮」）。
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('服务配置',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 2),
-            const Text('字段随协议联动 · 凭据读写仅走本机加密区',
-                style: TextStyle(fontSize: 11, color: Colors.grey)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                PillChip(
-                  key: const ValueKey('edit-pill-webdav'),
-                  label: '坚果云 · WebDAV',
-                  selected: !isS3,
-                  onTap: () => _setProvider(StoreProviderKind.webdav),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: SingleChildScrollView(
+          key: const ValueKey('svc-edit-scroll'),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('服务配置',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              const Text('字段随协议联动 · 凭据读写仅走本机加密区',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  PillChip(
+                    key: const ValueKey('edit-pill-webdav'),
+                    label: '坚果云 · WebDAV',
+                    selected: !isS3,
+                    // R2 项⑤b 协议锁定：编辑已建服务时禁改协议（改协议会覆盖同
+                    // 一条服务致「列表只剩一个」），仅新增可选。
+                    enabled: _isNew,
+                    onTap: () => _setProvider(StoreProviderKind.webdav),
+                  ),
+                  const SizedBox(width: 8),
+                  PillChip(
+                    key: const ValueKey('edit-pill-s3'),
+                    label: '缤纷云 · S3',
+                    selected: isS3,
+                    enabled: _isNew,
+                    onTap: () => _setProvider(StoreProviderKind.s3),
+                  ),
+                ],
+              ),
+              _field('地址', 'Endpoint', _url, 'edit-apiurl'),
+              _field('账户', 'Access Key', _account, 'edit-account',
+                  hintWebDav: '邮箱 / 手机号'),
+              if (isS3) ...[
+                _field('Region', 'Region', _region, 'edit-region',
+                    hintWebDav: 'cn-east-1'),
+                _field('Bucket', 'Bucket', _bucket, 'edit-bucket',
+                    hintWebDav: '私有桶名'),
+              ],
+              _field(
+                  '应用密码', 'Secret Key', _secret, 'edit-secret',
+                  obscure: !_secretVisible,
+                  secret: true,
+                  // R2 项⑤a：默认掩码，行尾线性眼睛钮切显隐。
+                  trailing: IconButton(
+                    key: const ValueKey('edit-secret-eye'),
+                    iconSize: 18,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                    tooltip: _secretVisible ? '隐藏密钥' : '显示密钥',
+                    onPressed: () =>
+                        setState(() => _secretVisible = !_secretVisible),
+                    icon: Icon(_secretVisible
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined),
+                  )),
+              _field('远程目录', '远程目录', _dir, 'edit-dir'),
+              if (isS3)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text('缤纷云密钥来自控制台子账户 · 主账户密钥不可直连',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text('坚果云「安全信任 → 应用密码」，非登录密码',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
                 ),
-                const SizedBox(width: 8),
-                PillChip(
-                  key: const ValueKey('edit-pill-s3'),
-                  label: '缤纷云 · S3',
-                  selected: isS3,
-                  onTap: () => _setProvider(StoreProviderKind.s3),
+              if (_hasSecret)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: const [
+                      _LockDot(),
+                      SizedBox(width: 6),
+                      Text('已存入本机加密区',
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF047857))),
+                    ],
+                  ),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(_error!,
+                      key: const ValueKey('edit-error'),
+                      style:
+                          const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
+                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('edit-save'),
+                      onPressed: _busy ? null : () => _save(),
+                      child: const Text('保存'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('edit-verify'),
+                      onPressed: _busy ? null : () => _save(thenVerify: true),
+                      child: const Text('验证连接'),
+                    ),
+                  ),
+                ],
+              ),
+              if (!_isNew) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    key: const ValueKey('edit-delete'),
+                    onPressed: _busy ? null : _delete,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                    ),
+                    child: const Text('删除服务 · 连带清除保险箱密钥'),
+                  ),
                 ),
               ],
-            ),
-            _field('地址', 'Endpoint', _url, 'edit-apiurl'),
-            _field('账户', 'Access Key', _account, 'edit-account',
-                hintWebDav: '邮箱 / 手机号'),
-            if (isS3) ...[
-              _field('Region', 'Region', _region, 'edit-region', hintWebDav: 'cn-east-1'),
-              _field('Bucket', 'Bucket', _bucket, 'edit-bucket', hintWebDav: '私有桶名'),
             ],
-            _field('应用密码', 'Secret Key', _secret, 'edit-secret', obscure: true,
-                secret: true),
-            _field('远程目录', '远程目录', _dir, 'edit-dir'),
-            if (isS3)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text('缤纷云密钥来自控制台子账户 · 主账户密钥不可直连',
-                    style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text('坚果云「安全信任 → 应用密码」，非登录密码',
-                    style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-              ),
-            if (_hasSecret)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: const [
-                    _LockDot(),
-                    SizedBox(width: 6),
-                    Text('已存入本机加密区',
-                        style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF047857))),
-                  ],
-                ),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(_error!,
-                    key: const ValueKey('edit-error'),
-                    style: const TextStyle(fontSize: 11, color: Color(0xFFDC2626))),
-              ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    key: const ValueKey('edit-save'),
-                    onPressed: _busy ? null : () => _save(),
-                    child: const Text('保存'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    key: const ValueKey('edit-verify'),
-                    onPressed: _busy ? null : () => _save(thenVerify: true),
-                    child: const Text('验证连接'),
-                  ),
-                ),
-              ],
-            ),
-            if (!_isNew) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  key: const ValueKey('edit-delete'),
-                  onPressed: _busy ? null : _delete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFDC2626),
-                    side: const BorderSide(color: Color(0xFFFCA5A5)),
-                  ),
-                  child: const Text('删除服务 · 连带清除保险箱密钥'),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 
   /// 单字段：标签随协议切换（webDavLabel ↔ s3Label），凭据类字段带保险箱点。
+  /// [trailing] 行尾动作位（密钥眼睛钮）；聚焦经 [Scrollable.ensureVisible]
+  /// 把输入框抬进可视区（R2 项⑤d 输入法遮挡）。
   Widget _field(String webDavLabel, String s3Label, TextEditingController ctl, String key,
-      {bool obscure = false, bool secret = false, String? hintWebDav}) {
+      {bool obscure = false, bool secret = false, String? hintWebDav, Widget? trailing}) {
     final label = _prov == StoreProviderKind.s3 ? s3Label : webDavLabel;
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -584,20 +625,28 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
                 const SizedBox(width: 6),
                 const _LockDot(),
               ],
+              const Spacer(),
+              ?trailing,
             ],
           ),
           const SizedBox(height: 4),
-          TextField(
+          Builder(builder: (fieldContext) => TextField(
             key: ValueKey(key),
             controller: ctl,
             obscureText: obscure,
             style: const TextStyle(fontSize: 12.5),
+            onTap: () => Scrollable.ensureVisible(
+              fieldContext,
+              alignment: 0.1,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+            ),
             decoration: InputDecoration(
               isDense: true,
               hintText: hintWebDav,
               border: const OutlineInputBorder(),
             ),
-          ),
+          )),
         ],
       ),
     );

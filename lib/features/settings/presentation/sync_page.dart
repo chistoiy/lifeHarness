@@ -405,6 +405,18 @@ class _SyncPageState extends ConsumerState<SyncPage> {
               ],
             ),
           ),
+          // R2 项⑤c：切换服务区底部常驻「添加服务」钮——过去仅空态有入口，用户
+          // 想用另一协议新增只能改已建服务协议（覆盖同一服务，致列表只剩一个）。
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('btn-add-svc-persistent'),
+              onPressed: () => _openEdit(),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('添加服务'),
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             children: const [

@@ -26,6 +26,7 @@ class PillChip extends StatelessWidget {
     this.selected = false,
     this.onTap,
     this.icon,
+    this.enabled = true,
   });
 
   final String label;
@@ -33,24 +34,33 @@ class PillChip extends StatelessWidget {
   final VoidCallback? onTap;
   final String? icon;
 
+  /// 置灰不可点（协议锁定态——编辑已建服务时禁改协议，见 R2 项⑤b）。
+  final bool enabled;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final tap = enabled ? onTap : null;
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? tokens.accent : tokens.card,
-          borderRadius: BorderRadius.circular(999),
-          border: selected ? null : Border.all(color: tokens.cardBorder),
-        ),
-        child: Text(
-          icon == null ? label : '$icon $label',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+      onTap: tap,
+      child: Opacity(
+        opacity: enabled ? 1 : .45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? tokens.accent : tokens.card,
+            borderRadius: BorderRadius.circular(999),
+            border: selected ? null : Border.all(color: tokens.cardBorder),
+          ),
+          child: Text(
+            icon == null ? label : '$icon $label',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ),
       ),

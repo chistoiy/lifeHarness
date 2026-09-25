@@ -28,6 +28,7 @@ import 'package:lifeharness/core/sync/sync_orchestrator.dart';
 import 'package:lifeharness/core/sync/sync_providers.dart';
 import 'package:lifeharness/features/settings/presentation/sync_history_page.dart';
 import 'package:lifeharness/features/settings/presentation/sync_page.dart';
+import 'package:lifeharness/shared/widgets/ui_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers.dart';
@@ -317,12 +318,13 @@ void main() {
   });
 
   group('S1 服务配置编辑（s-svc-edit）', () {
-    testWidgets('provider 切 S3 表单标签联动「账户/应用密码」→「Access Key/Secret Key」',
+    testWidgets('新增态 provider 切 S3 表单标签联动「账户/应用密码」→「Access Key/Secret Key」',
         (tester) async {
       seedServices(prefs);
       await useSurface(tester, const Size(800, 2400));
       await boot(tester);
-      await openSheetVia(tester, 'btn-edit-svc');
+      // 协议切换只在「新增服务」态可用（编辑态锁协议——R2⑤b），故走常驻添加钮。
+      await openSheetVia(tester, 'btn-add-svc-persistent');
 
       // WebDAV 形态初始态。
       expect(find.text('服务配置'), findsOneWidget);
@@ -402,6 +404,102 @@ void main() {
       expect(snap.services.map((c) => c.id), isNot(contains('svcW')));
       // activeId 悬空回落第一条（svcS）。
       expect(snap.activeId, 'svcS');
+    });
+
+    testWidgets('R2⑤a 编辑态回填 SK：默认掩码有值 · 眼睛钮切显隐 · 保存后 vault 不变',
+        (tester) async {
+      seedServices(prefs);
+      await vault.write('svcW', 'apppw-9');
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openSheetVia(tester, 'btn-edit-svc');
+
+      final sk = find.byKey(const ValueKey('edit-secret'));
+      expect(sk, findsOneWidget);
+      var field = tester.widget<TextField>(sk);
+      expect(field.controller!.text, 'apppw-9', reason: '编辑态从 vault 回填密钥');
+      expect(field.obscureText, isTrue, reason: '默认掩码');
+
+      // 点眼睛 → 变可见。
+      await tester.tap(find.byKey(const ValueKey('edit-secret-eye')));
+      await settle5(tester);
+      field = tester.widget<TextField>(sk);
+      expect(field.obscureText, isFalse, reason: '切显隐后不再掩码');
+
+      // 保存（未改动密钥）→ 仍成功，vault 值不变（非空即写回同值）。
+      await tester.tap(find.byKey(const ValueKey('edit-save')));
+      expect(await pollText(tester, '已保存 · 凭据已存入本机加密区'), isTrue);
+      expect(await vault.read('svcW'), 'apppw-9');
+    });
+
+    testWidgets('R2⑤a 新增服务无回填（SK 空）', (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openSheetVia(tester, 'btn-add-svc-persistent');
+      final field = tester.widget<TextField>(find.byKey(const ValueKey('edit-secret')));
+      expect(field.controller!.text, isEmpty, reason: '新增态无历史密钥可回填');
+    });
+
+    testWidgets('R2⑤b 编辑态协议 pill 置灰不可点（无切换）· 新增态可切换',
+        (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      // 编辑态：初始 WebDAV（标签「账户」），点 S3 pill 无反应。
+      await openSheetVia(tester, 'btn-edit-svc');
+      expect(find.text('账户'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('edit-pill-s3')),
+          warnIfMissed: false);
+      await settle5(tester);
+      expect(find.text('Access Key'), findsNothing,
+          reason: '编辑态协议锁定，点 S3 pill 不切换');
+      expect(find.text('账户'), findsOneWidget);
+      final s3pill = tester.widget<PillChip>(
+          find.byKey(const ValueKey('edit-pill-s3')));
+      expect(s3pill.enabled, isFalse, reason: '编辑态 pill 置灰');
+    });
+
+    testWidgets('R2⑤c 两服务时切换列表显两条 + 常驻「添加服务」钮存在',
+        (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      expect(find.byKey(const ValueKey('svc-switch-svcW')), findsOneWidget);
+      expect(find.byKey(const ValueKey('svc-switch-svcS')), findsOneWidget);
+      expect(find.byKey(const ValueKey('btn-add-svc-persistent')), findsOneWidget);
+      // 点常驻钮 → 新增服务弹层打开。
+      await openSheetVia(tester, 'btn-add-svc-persistent');
+      expect(find.text('服务配置'), findsOneWidget);
+      final webdavPill = tester.widget<PillChip>(
+          find.byKey(const ValueKey('edit-pill-webdav')));
+      expect(webdavPill.enabled, isTrue, reason: '新增态协议可选');
+    });
+
+    testWidgets('R2⑤d 键盘弹出（模拟 viewInsets）后 SK 输入框仍在可见区',
+        (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openSheetVia(tester, 'btn-add-svc-persistent');
+      expect(find.text('服务配置'), findsOneWidget);
+
+      // 收窄到手机高 + 模拟软键盘占掉下半屏（弹层已开，不受 ListView 懒建影响）。
+      await tester.binding.setSurfaceSize(const Size(360, 560));
+      tester.view.viewInsets = FakeViewPadding(bottom: 360);
+      await tester.pump();
+      await settle5(tester);
+
+      final sk = find.byKey(const ValueKey('edit-secret'));
+      expect(sk, findsOneWidget);
+      // 聚焦：ensureVisible 不抛；随后 finder.hitTestable() 命中（内容经
+      // viewInsets Padding 抬到键盘上方，未被遮）。
+      await tester.ensureVisible(sk);
+      await settle5(tester);
+      expect(sk.hitTestable(), findsOneWidget,
+          reason: 'viewInsets 兜底使 SK 框不被键盘遮住');
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.binding.setSurfaceSize(null);
     });
   });
 
