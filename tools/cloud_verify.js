@@ -26,10 +26,10 @@ if (!process.env.LH_S3_AK || !process.env.LH_S3_SK || !process.env.LH_WD_USER ||
     const fs = require('fs');
     const txt = fs.readFileSync(__dirname + '/.cloud_verify.env', 'utf8');
     const get = (k) => (txt.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1] || '';
-    if (!S3_AK) process.env.LH_S3_AK = get('LH_S3_AK');
-    if (!S3_SK) process.env.LH_S3_SK = get('LH_S3_SK');
-    if (!WD_USER) process.env.LH_WD_USER = get('LH_WD_USER');
-    if (!WD_PASS) process.env.LH_WD_PASS = get('LH_WD_PASS');
+    if (!process.env.LH_S3_AK) process.env.LH_S3_AK = get('LH_S3_AK');
+    if (!process.env.LH_S3_SK) process.env.LH_S3_SK = get('LH_S3_SK');
+    if (!process.env.LH_WD_USER) process.env.LH_WD_USER = get('LH_WD_USER');
+    if (!process.env.LH_WD_PASS) process.env.LH_WD_PASS = get('LH_WD_PASS');
     if (!process.env.LH_S3_BUCKET) process.env.LH_S3_BUCKET = get('LH_S3_BUCKET') || 'qoderwork';
     if (!process.env.LH_WD_DIR) process.env.LH_WD_DIR = get('LH_WD_DIR') || 'qoderwork';
   } catch (_) {
