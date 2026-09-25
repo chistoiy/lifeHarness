@@ -385,20 +385,34 @@ class S3Store implements RemoteStore {
     return body;
   }
 
-  Future<SigV4Signer> _signer(ServiceConfig c) async => SigV4Signer(
-        accessKey: c.account,
-        secretKey: await _vault.read(c.id) ?? '',
-        region: c.region.isEmpty ? s3DefaultRegion : c.region,
-        service: 's3',
-        clock: _clock,
-      );
-
-  Uri _root(ServiceConfig c) {
-    try {
-      return Uri.parse(c.apiUrl);
-    } catch (_) {
-      return Uri.parse('https://s3.bitiful.net');
+  /// SigV4 签名器构造（T18 携带修复：SK 缺失 **fail-fast**——空钥签名只会拿到
+  /// 服务端 403 误导性回包，抛明确配置异常，让 S2 连接验证能显示人话原因）。
+  Future<SigV4Signer> _signer(ServiceConfig c) async {
+    final sk = await _vault.read(c.id);
+    if (sk == null || sk.isEmpty) {
+      throw StateError('Secret Key 缺失：请在「服务配置」为该服务存入密钥'
+          '（保险箱键 ${CredentialVault.keyFor(c.id)} 为空，拒绝以空钥签名）');
     }
+    return SigV4Signer(
+      accessKey: c.account,
+      secretKey: sk,
+      region: c.region.isEmpty ? s3DefaultRegion : c.region,
+      service: 's3',
+      clock: _clock,
+    );
+  }
+
+  /// apiUrl → 根 URI（T18 携带修复：解析失败/缺 scheme **不再静默回落缺省
+  /// host**——落错 host 的请求会被服务端以误导文案拒绝，掩盖配置错误；
+  /// 直接抛配置异常，经 S2 连接验证显示给用户）。
+  Uri _root(ServiceConfig c) {
+    final uri = Uri.tryParse(c.apiUrl.trim());
+    final httpScheme = uri != null && (uri.isScheme('http') || uri.isScheme('https'));
+    if (uri == null || !httpScheme || uri.host.isEmpty) {
+      throw StateError('服务地址无效：apiUrl="${c.apiUrl}"'
+          '（需含 http(s):// 方案与主机名，不再回落缺省 host）');
+    }
+    return uri;
   }
 
   /// virtual-hosted URL（§4.2）：`https://{bucket}.{hostNoScheme}/{key}`；

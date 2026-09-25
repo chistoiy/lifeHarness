@@ -180,8 +180,10 @@ void main() {
         return http.Response.bytes(
             utf8.encode(listXml([contentsXml('sync/a.txt')])), 200);
       });
-      final store = storeOf(client,
-          vault: await vaultWith('svcS3'), clock: () => t);
+      // T18 携带修复后 SK 缺失 fail-fast：跨 serviceId 用例先补记第二把密钥。
+      final v = await vaultWith('svcS3');
+      await v.write('other', 'sk-other');
+      final store = storeOf(client, vault: v, clock: () => t);
       final c = cfg();
       await store.list(c, 'sync');
       expect(n, 1);
@@ -339,8 +341,10 @@ void main() {
         expectSigned(req);
         return http.Response.bytes(utf8.encode(bucketsXml), 200);
       });
-      final store = storeOf(client,
-          vault: await vaultWith('svcS3'), clock: () => t);
+      // T18 携带修复后 SK 缺失 fail-fast：跨 serviceId 用例先补记第二把密钥。
+      final v2 = await vaultWith('svcS3');
+      await v2.write('otherSvc', 'sk-other');
+      final store = storeOf(client, vault: v2, clock: () => t);
 
       final q = await store.quota(cfg());
       expect(q.usedBytes, 1000 + 10 + 200 + 20 + 5 + 0 + 30 + 70,

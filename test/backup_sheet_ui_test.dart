@@ -161,12 +161,16 @@ void main() {
     await settle5(tester);
   }
 
-  group('/sync 空壳页', () {
-    testWidgets('标题「数据与同步」+ 备份半屏入口 + 同步批5功能标签行',
+  group('/sync 主页（Task 18 P1 形态）', () {
+    testWidgets('标题「数据与同步」+ 备份半屏入口 + 同步主页入口行齐备',
         (tester) async {
       await openSyncPage(tester);
       expect(find.text('数据与同步'), findsOneWidget);
-      expect(find.text('同步功能批5接入'), findsOneWidget);
+      // Task 18：空壳页占位行已被 P1 全接线替换（brief 钉死）。
+      expect(find.text('同步功能批5接入'), findsNothing);
+      expect(find.text('尚未配置云服务'), findsOneWidget);
+      expect(find.text('立即同步'), findsNothing); // 无激活服务不出主钮
+      expect(find.text('控流'), findsOneWidget);
       expect(find.text('备份导出/导入'), findsWidgets); // 入口行标题
     });
   });

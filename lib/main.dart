@@ -13,7 +13,10 @@ import 'core/logging/file_log_sink.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
+import 'core/sync/snapshot_service.dart';
+import 'core/sync/sync_providers.dart';
 import 'core/theme/theme_repository.dart';
+import 'features/care/data/care_repository.dart';
 import 'features/habit/data/habit_repository.dart';
 import 'features/habit/domain/habit_calc.dart';
 import 'features/read/data/read_repository.dart';
@@ -94,6 +97,22 @@ Future<void> main() async {
     }
   }
 
+  // 5) V1.41 Task 10/18 组合根：备份服务实例（Task 18 同步快照复用同一实例，
+  //    故提到 runApp 之前构造）。
+  final backup = BackupService(
+    exportDir: () => p.join(docsPath, 'backup'),
+    db: () => AppDatabase.instance.open(),
+    closeDb: AppDatabase.instance.close,
+    attachDirs: [
+      p.join(docsPath, 'note_images'),
+      p.join(docsPath, 'book_covers'),
+      p.join(docsPath, 'exports'),
+      p.join(docsPath, 'share'),
+    ],
+    attachRootDirs: [docsPath],
+    prefs: prefs,
+  );
+
   runApp(
     ProviderScope(
       overrides: [
@@ -107,18 +126,16 @@ Future<void> main() async {
         // ledger_export_page/ledger_export）。closeDb 走 AppDatabase.instance
         // .close（评审 Critical 修复：close 后置空 _db 缓存，db() 重开才拿到
         // 可用新连接，而非裸 Database.close 留下的死句柄）。
-        backupServiceProvider.overrideWithValue(BackupService(
-          exportDir: () => p.join(docsPath, 'backup'),
-          db: () => AppDatabase.instance.open(),
-          closeDb: AppDatabase.instance.close,
-          attachDirs: [
-            p.join(docsPath, 'note_images'),
-            p.join(docsPath, 'book_covers'),
-            p.join(docsPath, 'exports'),
-            p.join(docsPath, 'share'),
-          ],
-          attachRootDirs: [docsPath],
+        backupServiceProvider.overrideWithValue(backup),
+        // V1.41 Task 18：同步快照服务组合根装配（R2 白名单先例照上方
+        // backupServiceProvider——core 不得 import features，careExcluded
+        // 在此接线 CareRepository；快照复用 BackupService 同一实例，
+        // 「快照 = 备份文件」口径）。
+        snapshotServiceProvider.overrideWithValue(SnapshotService(
+          backup: backup,
           prefs: prefs,
+          docsDir: () => docsPath,
+          careExcluded: () => CareRepository(AppDatabase.instance.db).syncExcluded(),
         )),
       ],
       child: const LifeHarnessApp(),
