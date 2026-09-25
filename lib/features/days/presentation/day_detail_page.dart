@@ -292,8 +292,9 @@ class DayDetailPage extends ConsumerWidget {
                 child: _LifeBtn(
                   key: const ValueKey('d-detail-share'),
                   label: '分享卡',
-                  onTap: () => AppToast.show(
-                      context, '分享卡生成将在联动批接入（当前导出通道未公共化）'),
+                  // 原型同款 toast（倒数日分享卡已生成·模拟）；长图公共通道待建。
+                  onTap: () =>
+                      AppToast.show(context, '倒数日分享卡已生成'),
                 ),
               ),
               const SizedBox(width: 10),

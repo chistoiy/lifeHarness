@@ -22,6 +22,15 @@ export '../../features/inbox/presentation/inbox_providers.dart' show inboxItemsP
 // 批5 收集箱 → 阅读摘录分流（L6）：只经本文件透出，不直连 read feature。
 export '../../features/read/presentation/read_providers.dart' show readRepositoryProvider, readTickProvider;
 export '../../features/read/domain/book_quote.dart' show BookQuote;
+// V1.42 批4 联动收口（L10）：仪表盘「最近的日子」倒数卡 + hero 持有成本块，
+// days/items 数据与实算引擎只经本文件透出（R1）。
+export '../../features/days/presentation/days_providers.dart' show daysDataProvider, daysRepositoryProvider, daysClockProvider;
+export '../../features/days/presentation/days_kit.dart' show dayGradientOf, dayIconOf, kDaysMuted;
+export '../../features/days/domain/day_models.dart' show DayEntry, DaysData;
+export '../../features/days/domain/day_calc.dart' show dashboardUpcoming, countdownDays;
+export '../../features/items/presentation/items_providers.dart' show itemsDataProvider, itemsRepositoryProvider, itemsClockProvider;
+export '../../features/items/domain/item_models.dart' show ItemProfile, ItemsData;
+export '../../features/items/domain/item_calc.dart' show totalDailyCost, fmtY;
 
 /// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。

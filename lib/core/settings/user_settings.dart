@@ -145,6 +145,7 @@ class UserSettings {
     'mood',
     'events',
     'inboxBar',
+    'days',
     'chart',
     'grid',
   ];

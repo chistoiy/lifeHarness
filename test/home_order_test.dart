@@ -21,9 +21,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('UserSettings.homeCardOrder 序列化', () {
-    test('默认顺序 = 原型 DASH_IDS 六卡', () {
+    test('默认顺序 = 原型 DASH_IDS 七卡（批4 新增 days 倒数卡）', () {
       expect(UserSettings.defaults.homeCardOrder,
-          ['greeting', 'mood', 'events', 'inboxBar', 'chart', 'grid']);
+          ['greeting', 'mood', 'events', 'inboxBar', 'days', 'chart', 'grid']);
     });
 
     test('往返读写保持顺序；未知 id 剔除、缺失卡片补尾', () {
@@ -31,9 +31,9 @@ void main() {
           .copyWith(homeCardOrder: ['grid', 'ghost', 'greeting']);
       final map = s.toMap();
       final back = UserSettings.fromMap(map.cast<String, Object?>());
-      // ghost 未知被剔除，其余保序，缺失四卡按默认序补尾
+      // ghost 未知被剔除，其余保序，缺失五卡按默认序补尾
       expect(back.homeCardOrder,
-          ['grid', 'greeting', 'mood', 'events', 'inboxBar', 'chart']);
+          ['grid', 'greeting', 'mood', 'events', 'inboxBar', 'days', 'chart']);
     });
 
     test('SettingsRepository 持久化后经 load 恢复', () async {

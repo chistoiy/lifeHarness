@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
@@ -27,6 +29,16 @@ class ItemsPage extends ConsumerStatefulWidget {
 
 class _ItemsPageState extends ConsumerState<ItemsPage> {
   String _cat = '全部';
+
+  @override
+  void initState() {
+    super.initState();
+    // 仪表盘 FAB「记物品」→ 本页自动展开建档表单（跨页经事件总线，守 R1）。
+    ref.read(eventBusProvider).on<QuickAddEvent>().listen((e) {
+      if (!mounted || e.target != 'items') return;
+      _push(const ItemEditPage());
+    });
+  }
 
   void _push(Widget page) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => page));

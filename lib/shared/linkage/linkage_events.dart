@@ -34,7 +34,7 @@ class ThemeChangedEvent {
 }
 
 /// 快捷记录请求（仪表盘 FAB 菜单 → 目标模块自行打开新增弹层）。
-/// target: 'todo' | 'inbox' | 'journal' | 'event'。
+/// target: 'todo' | 'inbox' | 'journal' | 'event' | 'items'。
 class QuickAddEvent {
   const QuickAddEvent(this.target);
   final String target;

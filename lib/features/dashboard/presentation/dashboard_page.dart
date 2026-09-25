@@ -109,7 +109,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         // 记账批1：直达记一笔全屏页（原型 fabGo→openL2）。
         context.push('/ledger/add');
       case 4:
-        _toastOf(context, '「物品」· 规划 V1.0');
+        // V1.42 批4：记物品 → 直达物品页并自动打开建档表单（跨页经事件总线，守 R1）。
+        context.go(NavModule.items.path);
+        Future.delayed(const Duration(milliseconds: 350),
+            () => ref.read(eventBusProvider).publish(const QuickAddEvent('items')));
     }
   }
 
@@ -140,6 +143,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             }),
           'events' => const _TodayScheduleCard(),
           'inboxBar' => const _InboxBar(),
+          'days' => const _RecentDaysCard(),
           'chart' => const _TimeDistCard(),
           'grid' => const _AllModulesCard(),
           _ => const SizedBox.shrink(),
@@ -359,6 +363,12 @@ class _HeroCard extends ConsumerWidget {
     final tokens = context.tokens;
     final todos = ref.watch(todosProvider).valueOrNull ?? const [];
     final todayEvents = ref.watch(todayEventCountProvider).valueOrNull ?? 0;
+    // V1.42 批4（L12/L13 挂载点）：今日持有成本由 items 计费引擎实算汇入。
+    final itemsData = ref.watch(itemsDataProvider).valueOrNull;
+    final itemsNow = ref.watch(itemsClockProvider)();
+    final billingCount = itemsData?.active.length ?? 0;
+    final dailyCost =
+        itemsData == null ? 0.0 : totalDailyCost(itemsData.items, itemsNow);
 
     final pending = todos.where((t) => !t.done).toList();
     final doneToday = todos.where((t) => t.done).length;
@@ -461,17 +471,31 @@ class _HeroCard extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _MiniGlass(
-                  label: '今日持有成本',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('¥ —',
-                          style: TextStyle(
-                              color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                      Text('物品模块规划 V1.0',
-                          style: TextStyle(color: Colors.white70, fontSize: 10)),
-                    ],
+                child: GestureDetector(
+                  key: const ValueKey('dash-cost-card'),
+                  onTap: () => context.push('/items/stats'),
+                  child: _MiniGlass(
+                    label: '今日持有成本',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text('¥ ${dailyCost.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                            const Text('/天',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                        Text('$billingCount 件物品计费中 ›',
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 10)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -516,6 +540,111 @@ class _MiniGlass extends StatelessWidget {
           Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
           const SizedBox(height: 6),
           child,
+        ],
+      ),
+    );
+  }
+}
+
+/// V1.42 批4 · 首页倒数卡「最近的日子」（联动 L10 · 原型 dashDayChips 3899-3905 对译）。
+/// dashboardUpcoming 实算前三（置顶恒前 · 倒数升序 · 已过期不入），
+/// 渐变迷你卡 = 图标+标题 / 大数字天数；点卡直达日子详情，「全部 ›」回日子主页。
+class _RecentDaysCard extends ConsumerWidget {
+  const _RecentDaysCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(daysDataProvider).valueOrNull;
+    final now = ref.watch(daysClockProvider)();
+    final top = data == null ? const <DayEntry>[] : dashboardUpcoming(data.days, now);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: context.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                  child: Text('最近的日子',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
+              InkWell(
+                key: const ValueKey('dash-days-all'),
+                onTap: () => context.go(NavModule.days.path),
+                child: Text('全部 ›',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: context.tokens.accent)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (top.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Text('暂无日子',
+                  style: TextStyle(fontSize: 11, color: kDaysMuted)),
+            )
+          else
+            Row(
+              children: [
+                for (final (i, d) in top.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      key: ValueKey('dash-day-${d.id}'),
+                      onTap: () => context.push('/days/detail?id=${d.id}'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: dayGradientOf(d.colorKey),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(dayIconOf(d.iconId),
+                                    size: 11,
+                                    color: Colors.white.withValues(alpha: .85)),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(d.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 9,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text('${countdownDays(d, now)}',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white)),
+                                const Text(' 天',
+                                    style: TextStyle(
+                                        fontSize: 9, color: Colors.white70)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -887,11 +1016,11 @@ class _AllModulesCard extends StatelessWidget {
     ('📚', '阅读', null, 'V0.5'),
     ('⚡', '收集箱', '/inbox', null),
     ('💰', '记账', '/ledger', null),
-    ('📦', '物品', null, 'V1.0'),
-    ('🎂', '日子', null, 'V1.0'),
+    ('📦', '物品', '/items', null),
+    ('🎂', '日子', '/days', null),
     ('🏃', '健康', null, 'V1.0'),
     ('🔁', '习惯', '/habits', null),
-    ('🧭', '目标', null, 'V1.0'),
+    ('🧭', '目标', '/goals', null),
     ('🧰', '小工具', null, 'V1.x'),
     ('🍼', '呵护', '/care', null),
     ('🧩', '插件中心', null, 'V1.x'),
