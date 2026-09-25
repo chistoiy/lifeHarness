@@ -1399,17 +1399,25 @@ class _ProgressFormState extends ConsumerState<_ProgressForm> {
 
 // ============================ 目录粘贴导入（sheetTocImport） ============================
 
+/// 目录导入弹层：粘贴文本实时解析 → 预览 → 确认替换。
+/// 批4-C「AI 补全」复用本弹层：传 [aiParts] 即预填解析结果，
+/// 仍走同一预览＋确认替换路径（绝不静默覆盖目录）。
 Future<void> showTocImportSheet(
   BuildContext context,
   WidgetRef ref,
   String bookId, {
   String? bookTitle,
-}) => _sheet<void>(context, _TocImport(bookId: bookId, bookTitle: bookTitle));
+  List<ParsedTocPart>? aiParts,
+}) => _sheet<void>(
+  context,
+  _TocImport(bookId: bookId, bookTitle: bookTitle, aiParts: aiParts),
+);
 
 class _TocImport extends ConsumerStatefulWidget {
-  const _TocImport({required this.bookId, this.bookTitle});
+  const _TocImport({required this.bookId, this.bookTitle, this.aiParts});
   final String bookId;
   final String? bookTitle;
+  final List<ParsedTocPart>? aiParts;
 
   @override
   ConsumerState<_TocImport> createState() => _TocImportState();
@@ -1422,6 +1430,18 @@ class _TocImportState extends ConsumerState<_TocImport> {
   int get _secCount => _parsed.fold(0, (t, p) => t + p.sections.length);
 
   @override
+  void initState() {
+    super.initState();
+    final ai = widget.aiParts;
+    if (ai != null && ai.isNotEmpty) {
+      // AI 结果直接进预览态：文本框回填可编辑文本，结构保持 AI 解析结果，
+      // 用户编辑文本则实时改按文本重解析（既有 onChanged 路径）。
+      _parsed = ai;
+      _ctl.text = tocPartsToText(ai);
+    }
+  }
+
+  @override
   void dispose() {
     _ctl.dispose();
     super.dispose();
@@ -1430,12 +1450,15 @@ class _TocImportState extends ConsumerState<_TocImport> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final aiMode = widget.aiParts != null && widget.aiParts!.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SheetTitle(
-          '导入目录${widget.bookTitle != null ? ' · 《${widget.bookTitle}》' : ''}',
+          aiMode
+              ? 'AI 目录补全${widget.bookTitle != null ? ' · 《${widget.bookTitle}》' : ''}'
+              : '导入目录${widget.bookTitle != null ? ' · 《${widget.bookTitle}》' : ''}',
         ),
         TextField(
           key: const ValueKey('toe-text'),

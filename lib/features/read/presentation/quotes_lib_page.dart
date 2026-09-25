@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/ai/ai_review.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
@@ -32,6 +33,14 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
   String? _tg; // 划线颜色分类（全部＝null）
   String _scope = 'all'; // all / cur / fav
   int _view = 0;
+  // 批4-C「AI 感想生成」：页面原无多选态 → 新增长按多选（偏差已登记）。
+  final Set<int> _sel = {};
+
+  void _toggleSel(BookQuote q) {
+    final id = q.id;
+    if (id == null) return;
+    setState(() => _sel.contains(id) ? _sel.remove(id) : _sel.add(id));
+  }
 
   String _fmtDate(int ms) {
     final d = DateTime.fromMillisecondsSinceEpoch(ms);
@@ -252,14 +261,19 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
               _ => _imgWall(list, byId, cs, imgCols),
             },
           const SizedBox(height: 14),
-          _exportCard(cs, tokens, all),
+          _exportCard(cs, tokens, all, byId),
         ],
       ),
     );
   }
 
   /// 「导出与分享」整卡（原型 876-884 · 导出 MD 接真库，B 类占位按口径 toast）。
-  Widget _exportCard(ColorScheme cs, ThemeTokens tokens, List<BookQuote> all) {
+  Widget _exportCard(
+    ColorScheme cs,
+    ThemeTokens tokens,
+    List<BookQuote> all,
+    Map<String, Book> byId,
+  ) {
     final markN =
         all.where((q) => q.kind == BookQuote.kKindMark).length;
     final thN = all.length - markN;
@@ -313,9 +327,8 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
               ),
               _miniBtn(
                 keyName: 'qlx-ai',
-                label: 'AI 感想归并',
-                tone: cs.error,
-                onTap: () => readToast(context, 'AI 能力规划中（V1.x）'),
+                label: 'AI 感想生成',
+                onTap: () => _aiInsights(all, byId),
               ),
             ],
           ),
@@ -342,6 +355,76 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
     } catch (e) {
       if (mounted) readToast(context, '导出失败：$e');
     }
+  }
+
+  /// 批4-C「AI 感想生成」：对长按多选的摘录逐条（单次 ≤3）走
+  /// read.quote_insight → 审阅弹层 → aiConfirmWrite 确认 → 写入该条 [BookQuote.thought]
+  /// 感想字段（既有独立字段，不覆盖用户原文：已有感想则换行追加；
+  /// AI tags 并入 [BookQuote.tags] 多选标签）。未选中只提示、不发起。
+  Future<void> _aiInsights(
+    List<BookQuote> all,
+    Map<String, Book> byId,
+  ) async {
+    final picked = all
+        .where((q) => q.id != null && _sel.contains(q.id) && q.deletedAt == null)
+        .toList();
+    if (picked.isEmpty) {
+      readToast(context, '先长按选择要生成感想的摘录');
+      return;
+    }
+    final batch = picked.take(3).toList();
+    final repo = ref.read(readRepositoryProvider);
+    var done = 0;
+    for (final q in batch) {
+      if (!mounted) return; // 上一轮 await 后页面可能已销毁
+      final bookTitle = byId[q.bookId]?.title ?? '';
+      final res = await aiRunWithReview(
+        context,
+        ref,
+        taskId: 'read.quote_insight',
+        vars: {'quote': q.body, 'book': bookTitle},
+      );
+      if (res == null) return; // 用户取消或失败（失败已 toast 归因）
+      if (!mounted) return;
+      final j = res.requireJson();
+      final insight = '${j['insight'] ?? ''}'.trim();
+      if (insight.isEmpty) continue;
+      final rawTags = j['tags'];
+      final aiTags = rawTags is List
+          ? rawTags.map((e) => '$e'.trim()).where((e) => e.isNotEmpty).toList()
+          : const <String>[];
+      final ok = await aiConfirmWrite(
+        context,
+        title: '写入摘录感想${bookTitle.isEmpty ? '' : ' · 《$bookTitle》'}',
+        preview: aiTags.isEmpty
+            ? insight
+            : '$insight\n标签：${aiTags.join('、')}',
+      );
+      if (!ok || !mounted) continue;
+      final old = (q.thought ?? '').trim();
+      final mergedTags = <String>[
+        ...q.tags,
+        for (final t in aiTags)
+          if (!q.tags.contains(t)) t,
+      ];
+      await repo.updateQuote(
+        q.copyWith(
+          thought: old.isEmpty ? insight : '$old\n$insight',
+          tags: mergedTags,
+        ),
+      );
+      _sel.remove(q.id);
+      done++;
+    }
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    setState(() {});
+    readToast(
+      context,
+      done == 0
+          ? '未写入感想 · 可重试'
+          : '已生成 $done 条感想${picked.length > 3 ? '（单次最多 3 条，其余请再点一次）' : ''}',
+    );
   }
 
   Widget _miniBtn({
@@ -463,11 +546,14 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
     final color = Color(0xFF000000 | q.colorInt);
     final accent = context.tokens.accent;
     final lines = int.tryParse(qtLines) ?? 3;
+    final sel = q.id != null && _sel.contains(q.id);
     return GestureDetector(
       key: ValueKey('ql-q-${q.id}'),
       behavior: HitTestBehavior.opaque,
       // 原型 4854：点卡片直接进编辑表单（操作弹层保留在书籍详情页入口）。
       onTap: () => showQuoteEditPage(context, ref, editing: q),
+      // 批4-C：长按＝切换多选（AI 感想生成入口的选中态）。
+      onLongPress: () => _toggleSel(q),
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 10),
@@ -475,7 +561,10 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
         decoration: BoxDecoration(
           color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
+          border: Border.all(
+            color: sel ? accent : cs.outlineVariant.withValues(alpha: .4),
+            width: sel ? 1.6 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,6 +703,15 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     child: const Text('→笔记', style: TextStyle(fontSize: 10.5)),
                   ),
                   const Spacer(),
+                  if (sel)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 6),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        size: 14,
+                        color: Color(0xFF6366F1),
+                      ),
+                    ),
                   GestureDetector(
                     key: ValueKey('qlq-star-${q.id}'),
                     onTap: () => _quickAct(q, b, 3),
@@ -670,11 +768,14 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
 
   Widget _row(BookQuote q, Map<String, Book> byId, ColorScheme cs) {
     final b = byId[q.bookId];
+    final sel = q.id != null && _sel.contains(q.id);
     return GestureDetector(
       key: ValueKey('qlr-${q.id}'),
       behavior: HitTestBehavior.opaque,
       // 原型 4861：行视图点行同样直接进编辑表单。
       onTap: () => showQuoteEditPage(context, ref, editing: q),
+      // 批4-C：行视图同样长按多选。
+      onLongPress: () => _toggleSel(q),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
@@ -692,7 +793,9 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                 height: 8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF000000 | q.colorInt),
+                  color: sel
+                      ? context.tokens.accent
+                      : Color(0xFF000000 | q.colorInt),
                 ),
               ),
             ),
@@ -715,6 +818,15 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                 ],
               ),
             ),
+            if (sel)
+              const Padding(
+                padding: EdgeInsets.only(left: 6),
+                child: Icon(
+                  Icons.check_circle_rounded,
+                  size: 13,
+                  color: Color(0xFF6366F1),
+                ),
+              ),
             if (q.starred)
               const Icon(Icons.star_rounded, size: 13, color: Color(0xFFF59E0B)),
           ],
@@ -787,13 +899,18 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                 key: ValueKey('qli-${q.id}'),
                 // 原型 4873：图片墙点格进编辑表单。
                 onTap: () => showQuoteEditPage(context, ref, editing: q),
+                // 批4-C：图片墙格同样长按多选。
+                onLongPress: () => _toggleSel(q),
                 child: Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: .4),
+                      color: q.id != null && _sel.contains(q.id)
+                          ? context.tokens.accent
+                          : cs.outlineVariant.withValues(alpha: .4),
+                      width: q.id != null && _sel.contains(q.id) ? 2 : 1,
                     ),
                   ),
                   child: Column(

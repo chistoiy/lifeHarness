@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/ai/ai_review.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
@@ -468,6 +469,31 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
 
   // ---- 目录卡（两级 · 只读 / 编辑就地微调 / 粘贴导入 · §3.3 §3.4） ----
 
+  /// 批4-C「目录 AI 补全」：审阅发送 read.toc → chapters 转导入解析结构 →
+  /// 复用既有目录导入弹层（预览 N 部分/M 节 → 确认替换），绝不静默覆盖。
+  Future<void> _aiToc(Book b) async {
+    final res = await aiRunWithReview(
+      context,
+      ref,
+      taskId: 'read.toc',
+      vars: {'title': b.title, 'author': b.author},
+    );
+    if (res == null || !mounted) return;
+    final chapters = res.requireJson()['chapters'];
+    final parts = tocPartsFromChapters(chapters is List ? chapters : const []);
+    if (parts.isEmpty) {
+      readToast(context, 'AI 未返回可用章节 · 未写入目录');
+      return;
+    }
+    await showTocImportSheet(
+      context,
+      ref,
+      b.id,
+      bookTitle: b.title,
+      aiParts: parts,
+    );
+  }
+
   Widget _tocTab(ColorScheme cs, dynamic tokens, Book b) {
     final nodes = ref.watch(tocProvider(b.id)).valueOrNull;
     if (nodes == null) return const SizedBox(height: 60);
@@ -556,7 +582,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                 if (!_tocEdit) ...[
                   GestureDetector(
                     key: const ValueKey('toc-ai'),
-                    onTap: () => readToast(context, 'AI 能力规划中（V1.x）'),
+                    onTap: () => _aiToc(b),
                     child: Text(
                       'AI 补全',
                       style: TextStyle(
@@ -616,7 +642,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                   ),
                   GestureDetector(
                     key: const ValueKey('toc-empty-ai'),
-                    onTap: () => readToast(context, 'AI 能力规划中（V1.x）'),
+                    onTap: () => _aiToc(b),
                     child: Text(
                       'AI 补全',
                       style: TextStyle(
