@@ -6,13 +6,22 @@
 /// 为顶层栈路由（见 app_router.dart），用一个走同款 `context.push` 的替身设置页，
 /// 钉死「在 shell+stack 拓扑下 push 会保留上一页、系统返回回上一页而非退出 app；
 /// 旧的 go 会把栈替换掉致返回键退出」这一行为类。真正的四处源行改动另由
-/// sync_page_ui_test.dart「导航返回退出修复」组用真实 SyncPage 覆盖。
+/// sync_page_ui_test.dart「导航返回退出修复」组用真实 SyncPage 覆盖；
+/// 评审修复轮1 Important-1（sync_history_page 行点击 go→push 漏改）由
+/// 末条用例挂真实 SyncHistoryPage 于同款拓扑，钉死「历史页→日志→返回回历史页」。
 library;
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/core/sync/credential_vault.dart';
+import 'package:lifeharness/core/sync/sync_providers.dart';
+import 'package:lifeharness/features/settings/presentation/sync_history_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers.dart';
 
@@ -99,5 +108,78 @@ void main() {
     // go 把 /settings 换下栈：/log 成根、无系统返回钮（返回即退出 app）。
     expect(find.text('设置替身'), findsNothing,
         reason: 'go 把 /settings 换下栈：/log 成根、返回即退出 app——正是被修复的 bug');
+  });
+
+  testWidgets('真实历史页：历史页→点行进 /log→系统返回回历史页（评审修复轮1 Important-1）',
+      (tester) async {
+    // 真实 SyncHistoryPage 挂进同款 shell+stack 拓扑，钉死其行点击源行为
+    // context.push（修复态）：go 会把历史页换下栈、pageBack 即退出 app。
+    SharedPreferences.setMockInitialValues({
+      'sync_history': jsonEncode([
+        {
+          'ts': 1,
+          'serviceId': 'svcW',
+          'dir': 'sync',
+          'up': 1,
+          'down': 0,
+          'bytes': 1024,
+          'ok': true,
+        },
+      ]),
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final router = GoRouter(initialLocation: '/settings', routes: [
+      ShellRoute(
+        builder: (_, _, child) => child,
+        routes: [
+          GoRoute(
+            path: '/settings',
+            builder: (context, _) => Scaffold(
+              appBar: AppBar(title: const Text('设置替身')),
+              body: Center(
+                child: TextButton(
+                    key: const ValueKey('entry-hist'),
+                    onPressed: () => context.push('/sync/history'),
+                    child: const Text('进同步历史')),
+              ),
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+          path: '/sync/history',
+          builder: (_, _) => const SyncHistoryPage()),
+      GoRoute(
+          path: '/log',
+          builder: (_, _) => Scaffold(
+              appBar: AppBar(title: const Text('LOG')),
+              body: const Center(child: Text('LOG-STUB')))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        credentialVaultProvider.overrideWithValue(CredentialVault.inMemory()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await settle5(tester);
+
+    // 设置页 → push 进真实历史页。
+    await tester.tap(find.byKey(const ValueKey('entry-hist')));
+    await settle5(tester);
+    expect(find.byKey(const ValueKey('hist-row-1')), findsOneWidget);
+
+    // 历史页 → 点行进 /log（页面内部导航，修复态为 push）。
+    await tester.tap(find.byKey(const ValueKey('hist-row-1')));
+    await settle5(tester);
+    expect(find.text('LOG-STUB'), findsOneWidget);
+
+    // 系统返回：回历史页而非退出 app。
+    await tester.pageBack();
+    await settle5(tester);
+    expect(find.text('LOG-STUB'), findsNothing);
+    expect(find.byKey(const ValueKey('hist-row-1')), findsOneWidget,
+        reason: '行点击 push 压栈保留历史页：返回键回历史页而非退出 app');
   });
 }

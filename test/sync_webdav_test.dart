@@ -430,6 +430,10 @@ void main() {
     expect(v.ok, isFalse);
     expect(v.message, contains('云端目录不存在'));
     expect(v.message, contains('首次同步将自动创建'));
+    // 评审修复轮1 Minor-2：ok=false 态开头改「服务可达」，不再「连接成功」。
+    expect(v.message, contains('服务可达'));
+    expect(v.message, isNot(contains('连接成功')),
+        reason: 'ok=false 与「连接成功」语义矛盾，必须去掉');
     store.close();
   });
 

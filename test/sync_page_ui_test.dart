@@ -332,6 +332,12 @@ void main() {
       expect(find.text('应用密码'), findsOneWidget);
       expect(find.text('Access Key'), findsNothing);
 
+      // 评审修复轮1 Minor-3：新增态先填 WebDAV 邮箱再切协议——
+      // 邮箱与 Access Key 语义不同，切协议必须清空账户防串显。
+      await tester.enterText(
+          find.byKey(const ValueKey('edit-account')), 'me@example.com');
+      await settle5(tester);
+
       // 切 S3：标签全换 + Region/Bucket 出现 + 地址联动 bitiful。
       await tester.tap(find.byKey(const ValueKey('edit-pill-s3')));
       await settle5(tester);
@@ -342,12 +348,28 @@ void main() {
       expect(find.text('Bucket'), findsOneWidget);
       expect(find.text('账户'), findsNothing);
       expect(find.text('应用密码'), findsNothing);
+      expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('edit-account')))
+              .controller!
+              .text,
+          isEmpty,
+          reason: '新增态切协议清空账户：邮箱不串显成 Access Key');
 
-      // 切回 WebDAV：标签还原。
+      // 切回 WebDAV：标签还原；Access Key 侧填入再切回同样被清。
+      await tester.enterText(
+          find.byKey(const ValueKey('edit-account')), 'AKIA-TEST');
       await tester.tap(find.byKey(const ValueKey('edit-pill-webdav')));
       await settle5(tester);
       expect(find.text('账户'), findsOneWidget);
       expect(find.text('应用密码'), findsOneWidget);
+      expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('edit-account')))
+              .controller!
+              .text,
+          isEmpty,
+          reason: '反方向同样清空，防 Access Key 串显成邮箱');
     });
 
     testWidgets('凭据保存走 CredentialVault · 明文侧无 authCode · 重开见状态点',

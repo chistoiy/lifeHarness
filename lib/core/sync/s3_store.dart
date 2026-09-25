@@ -200,12 +200,13 @@ class S3Store implements RemoteStore {
   /// 容量缓存（D3 键 serviceId，5min TTL）。
   final Map<String, (DateTime, CloudQuota)> _quotaCache = {};
 
-  /// 容量降级 warn 去重（V1.41 R2 项②：子账户无 ListAllMyBuckets 权限 /
-  /// 回包非该形态时优雅降级——**同服务同会话只 warn 一次**，不重复刷日志）。
-  final Set<String> _quotaWarned = {};
+  /// 容量降级 warn 去重（V1.41 R2 项② + 评审修复轮1 Minor-1：**静态表按
+  /// serviceId 去重、进程级生效**——过去是实例级 Set，store 每代新建都清零，
+  /// warn 实际「每代一次」而非承诺的一次；改静态表后同服务全进程只 warn 一次）。
+  static final Set<String> _quotaWarnedServices = {};
 
   void _warnQuotaDegraded(ServiceConfig c, String reason) {
-    if (!_quotaWarned.add(c.id)) return; // 已 warn 过不再刷
+    if (!_quotaWarnedServices.add(c.id)) return; // 已 warn 过（进程级）不再刷
     AppLog.add('⚠️ S3 容量降级：服务 ${c.id} $reason · 容量按未知（null）渲染',
         level: LhLevel.warn);
   }
@@ -360,9 +361,11 @@ class S3Store implements RemoteStore {
     // V1.41 R2 项②：403 = 子账户常无 ListAllMyBuckets 全局列举权限（桶级操作
     // 仍可正常同步），这不是错误而是「容量不可见」——优雅降级为 null 配额，
     // 只 warn 一次，绝不让整条同步链因容量行报 StateError。
+    // 评审修复轮1 Minor-1：降级结果同样进 5min 缓存（否则每次刷 UI 都重打
+    // 网络），force 仍可穿透重拉。
     if (res.statusCode == 403) {
       _warnQuotaDegraded(c, 'ListAllMyBuckets 403（子账户无全局列举权限）');
-      return CloudQuota(quotaBytes: null, usedBytes: null);
+      return _cacheQuotaDegraded(c);
     }
     if (res.statusCode != 200) {
       throw StateError('ListAllMyBuckets 失败(${res.statusCode})：'
@@ -370,14 +373,21 @@ class S3Store implements RemoteStore {
     }
     // 200 但回包根本不是 ListAllMyBuckets 形态（如误把坚果云 endpoint 配成
     // S3 服务，返回 <s:user>）：同样降级 null + warn，不强喂 parseListAllMyBuckets
-    // 得 0 用量误导用户。
+    // 得 0 用量误导用户。降级结果同进 5min 缓存（评审修复轮1 Minor-1）。
     if (!_isListAllMyBucketsShape(body)) {
       _warnQuotaDegraded(c, '回包非 ListAllMyBuckets 形态');
-      return CloudQuota(quotaBytes: null, usedBytes: null);
+      return _cacheQuotaDegraded(c);
     }
     final q = parseListAllMyBuckets(body);
     _quotaCache[c.id] = (_clock(), q);
     return q;
+  }
+
+  /// 降级 null 配额写入 5min 容量缓存并返回（评审修复轮1 Minor-1）。
+  CloudQuota _cacheQuotaDegraded(ServiceConfig c) {
+    final degraded = CloudQuota(quotaBytes: null, usedBytes: null);
+    _quotaCache[c.id] = (_clock(), degraded);
+    return degraded;
   }
 
   @override

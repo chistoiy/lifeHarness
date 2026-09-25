@@ -394,9 +394,13 @@ void main() {
     });
 
     test('quota 403（子账户无 ListAllMyBuckets 权限）→ CloudQuota(null,null) '
-        '不抛 + AppLog warn 一次（同服务同会话不重复刷）', () async {
-      final client = MockClient(
-          (req) async => http.Response('<AccessDenied/>', 403));
+        '不抛 + warn 一次（按 serviceId 静态去重）+ 降级结果进 5min 缓存、'
+        'force 穿透（评审修复轮1 Minor-1）', () async {
+      final requests = <http.Request>[];
+      final client = MockClient((req) async {
+        requests.add(req);
+        return http.Response('<AccessDenied/>', 403);
+      });
       final store = storeOf(client, vault: await vaultWith('svcS3'));
 
       final q = await store.quota(cfg());
@@ -406,27 +410,32 @@ void main() {
       expect(warns, hasLength(1), reason: '首次降级 warn 一次');
       expect(warns.first.text, contains('容量'));
 
-      // 第二次（缓存未命中会再打网络）：同服务同会话绝不重复刷 warn。
+      // 降级结果同样进 5min 缓存：二次调用零请求（过去每次刷 UI 重打网络）。
+      await store.quota(cfg());
+      expect(requests, hasLength(1), reason: '降级 CloudQuota(null,null) 也缓存');
+      // force 穿透缓存重拉；warn 静态按 serviceId 去重，仍只一条。
       await store.quota(cfg(), force: true);
-      expect(
-          AppLog.lines.where((l) => l.level == LhLevel.warn), hasLength(1),
-          reason: 'warn 去重：同服务同会话不重复刷');
+      expect(requests, hasLength(2), reason: 'force 穿透缓存重拉');
+      expect(AppLog.lines.where((l) => l.level == LhLevel.warn), hasLength(1),
+          reason: 'warn 去重：同 serviceId 进程级只一条');
       store.close();
     });
 
-    test('quota 200 但非 ListAllMyBuckets 形态（<s:user>）→ null 不抛 + warn',
-        () async {
+    test('quota 200 但非 ListAllMyBuckets 形态（<s:user>）→ null 不抛 + warn '
+        '（独立 serviceId，验证静态去重按服务粒度）', () async {
       final client = MockClient((req) async => http.Response.bytes(
           utf8.encode('<s:user xmlns:s="http://ns.jianguoyun.com">'
               '<s:storage_quota>100</s:storage_quota></s:user>'),
           200));
-      final store = storeOf(client, vault: await vaultWith('svcS3'));
+      final store =
+          storeOf(client, vault: await vaultWith('svcWeirdShape'));
 
-      final q = await store.quota(cfg());
+      final q = await store.quota(cfg(id: 'svcWeirdShape'));
       expect(q.quotaBytes, isNull);
       expect(q.usedBytes, isNull);
       expect(
-          AppLog.lines.where((l) => l.level == LhLevel.warn), isNotEmpty);
+          AppLog.lines.where((l) => l.level == LhLevel.warn), hasLength(1),
+          reason: '新 serviceId 首见仍 warn——去重表按服务粒度而非全局一条');
       store.close();
     });
   });

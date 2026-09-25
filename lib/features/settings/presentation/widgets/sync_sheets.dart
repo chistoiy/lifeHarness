@@ -339,6 +339,10 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
 
   void _setProvider(StoreProviderKind kind) {
     setState(() {
+      // 评审修复轮1 Minor-3：**新增态**切协议清空账户字段——WebDAV「账户」
+      // （邮箱）与 S3「Access Key」语义不同，留着会串显并误导保存；编辑态
+      // 协议 pill 已锁（R2⑤b）走不进这里，无需保护已存值。
+      if (_isNew && kind != _prov) _account.clear();
       _prov = kind;
       // 端点未手改时在两协议缺省值间联动切换（原型 Endpoint「写死」口径）。
       final cur = _url.text.trim();

@@ -13,6 +13,9 @@ import 'widgets/sync_sheets.dart';
 /// 口径：行 = 时间 · 服务名 / 上传 n · 下载 m · 量 · 结果角标；点击行 → /log
 /// （原型「已定位该轮同步日志区间」→ 本期跳日志窗口页）。数据源
 /// [SyncHistory.read]（prefs `sync_history` 头部新→旧，上限 100 条）。
+///
+/// 导航口径（评审修复轮1 Important-1）：行点击用 push 压栈而非 go 替换栈——
+/// 与 R2 项④同源根因，go 会让系统返回键直接退出 app。
 class SyncHistoryPage extends ConsumerWidget {
   const SyncHistoryPage({super.key});
 
@@ -94,7 +97,7 @@ class _HistRow extends StatelessWidget {
             : ('部分失败', const Color(0xFFEF4444));
     final tokens = context.tokens;
     return InkWell(
-      onTap: () => context.go('/log'),
+      onTap: () => context.push('/log'),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
