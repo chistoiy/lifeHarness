@@ -386,6 +386,18 @@ void main() {
     store.close();
   });
 
+  test('list：根 PROPFIND 404（云端目录不存在）→ 空清单 + info 日志，'
+      '不再让同步链整链报错（R2 项⑥）', () async {
+    final client = MockClient((req) async => http.Response('not found', 404));
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+    final listing = await store.list(cfg(), 'sync');
+    expect(listing.files, isEmpty);
+    final infos = AppLog.lines.where((l) => l.level == LhLevel.info).toList();
+    expect(infos.map((l) => l.text).join('\n'), contains('云端目录不存在'),
+        reason: '根目录 404 记 info「首次上传将自动创建」');
+    store.close();
+  });
+
   test('verify：207→ok；401→凭据错文案（WebDAV 提示应用密码）', () async {
     var status = 207;
     final client = MockClient((req) async {
@@ -407,6 +419,18 @@ void main() {
     expect(bad.ok, isFalse);
     expect(bad.message, contains('应用密码'),
         reason: 'R13：坚果云填登录密码稳定 401/403，文案必须提示应用密码');
+  });
+
+  test('verify：404→ok=false 且文案「云端目录不存在，首次同步将自动创建」（R2 项⑥）',
+      () async {
+    final client =
+        MockClient((req) async => http.Response('not found', 404));
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+    final v = await store.verify(cfg());
+    expect(v.ok, isFalse);
+    expect(v.message, contains('云端目录不存在'));
+    expect(v.message, contains('首次同步将自动创建'));
+    store.close();
   });
 
   /// 真机 getUserInfo 实测回 XML（协议文档 §4.1），非 JSON——旧 jsonDecode 直

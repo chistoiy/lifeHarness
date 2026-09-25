@@ -264,6 +264,19 @@ class WebDavStore implements RemoteStore {
       final next = <List<String>>[];
       for (final chain in queue) {
         final records = await _propfindDir(c, chain);
+        if (records == null) {
+          // 根目录 404（ObjectNotFound）：云端目录不存在——不是错误，返回空清单
+          // 让「立即同步」正常走首次上传（put 链路 MKCOL 自动建目录）。
+          // 子目录 404（列举期间被删）：跳过该支，不整链报错。
+          if (depth == 0) {
+            AppLog.add('云端目录不存在 · 首次上传将自动创建（$cloudDirName）',
+                level: LhLevel.info);
+            final empty = CloudListing(const <FileEntry>[]);
+            _listingCache[key] = (_clock(), empty);
+            return empty;
+          }
+          continue;
+        }
         final selfPath = _safeDecode(_uriSegments(c, chain).path);
         final dirRel = chain.skip(c.cloudDirName.isEmpty ? 0 : 1).join('/');
         for (final r in records) {
@@ -495,7 +508,9 @@ class WebDavStore implements RemoteStore {
     return (segs.isEmpty ? s : segs.last).toLowerCase();
   }
 
-  Future<List<PropfindRecord>> _propfindDir(
+  /// 单层 PROPFIND。返回 null 表示 **404 目录不存在**（由 [list] 降级处理）；
+  /// 207 返回记录；其余状态码抛 StateError。
+  Future<List<PropfindRecord>?> _propfindDir(
       ServiceConfig c, List<String> chain) async {
     final uri = _uriSegments(c, chain);
     final auth = await _authHeader(c);
@@ -505,6 +520,10 @@ class WebDavStore implements RemoteStore {
       config: c,
       label: 'PROPFIND ${uri.path}',
     );
+    if (res.statusCode == 404) {
+      await _bodyText(res); // 抽干流，避免连接悬挂
+      return null;
+    }
     if (res.statusCode != 207) {
       final body = await _bodyText(res);
       throw StateError('PROPFIND ${uri.path} 失败(${res.statusCode})：'
@@ -631,7 +650,9 @@ class WebDavStore implements RemoteStore {
           ? '认证失败（$status）：账户请填注册邮箱 + 应用密码（不是登录密码）。'
               '网页端 → 账户信息 → 安全选项 → 添加应用密码'
           : '认证失败（$status）：请检查账户与密钥',
-      404 => '路径不存在（404）：请确认云端目录已随客户端同步：$reason',
+      // R2 项⑥：WebDAV 404 = 认证已通过但云端目录不存在——首次同步会自动建，
+      // 属可继续态（非凭据/网络错误），文案据此而非「请确认已同步」。
+      404 => '连接成功 · 云端目录不存在，首次同步将自动创建',
       _ => '连接验证失败（$status）：$reason',
     };
   }
