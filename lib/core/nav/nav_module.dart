@@ -14,6 +14,8 @@ enum NavModule {
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   ledger('ledger', '记账', Icons.account_balance_wallet_outlined,
       Icons.account_balance_wallet, '/ledger'),
+  // V1.42 批1：重要日子（专版 P8 · 底栏池栏目，NAV_MODS p-days 同位）。
+  days('days', '日子', Icons.celebration_outlined, Icons.celebration, '/days'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');
 
   const NavModule(this.id, this.label, this.icon, this.iconActive, this.path);

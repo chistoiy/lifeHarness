@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 19;
+  static const int version = 20;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -88,6 +88,13 @@ class DbSchema {
   static const String tCareAllergies = 'care_allergies';
   static const String tCareCustomEvents = 'care_custom_events';
   static const String tCareEventOrder = 'care_event_order';
+  // v20（M4·日子批1）：重要日子三表（需求 V1.42 模块11 · 专版 P8 系）。
+  // days 用 rep_mode/target_date/lunar_*/month_day 承载四种重复方式；
+  // day_preps 准备事项（勾选转待办回写 todo_id）；
+  // reminder_items 提醒中心（cert 手动 · sub/warranty 派生，source_key 唯一）。
+  static const String tDays = 'days';
+  static const String tDayPreps = 'day_preps';
+  static const String tReminderItems = 'reminder_items';
 
   /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
   /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
@@ -368,6 +375,7 @@ class DbSchema {
     ...habitAuxSchemaStatements,
     ...ledgerSchemaStatements,
     ...careSchemaStatements,
+    ...daysSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -575,7 +583,73 @@ class DbSchema {
     18: [
       ...careSchemaStatements,
     ],
+    // v20（M4·日子批1）：重要日子三表（需求 V1.42 模块11 全量能力）。
+    19: [
+      ...daysSchemaStatements,
+    ],
   };
+
+  /// v20 重要日子三表 DDL（建库与迁移共用·幂等）。
+  /// rep_mode：once|solar-year|lunar|monthly；自然日一律 TEXT 'YYYY-MM-DD'；
+  /// reminder_items.source_key 局部唯一索引＝派生条目（sub/warranty）随源刷新的锚。
+  static const List<String> daysSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tDays (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT 'cake',
+      color TEXT NOT NULL DEFAULT 'rose',
+      category TEXT NOT NULL DEFAULT '倒数',
+      rep_mode TEXT NOT NULL DEFAULT 'solar-year',
+      target_date TEXT,
+      lunar_month INTEGER,
+      lunar_day INTEGER,
+      month_day INTEGER,
+      rem_offsets TEXT NOT NULL DEFAULT '[7,0]',
+      note TEXT,
+      pinned INTEGER NOT NULL DEFAULT 0,
+      archived INTEGER NOT NULL DEFAULT 0,
+      link_diary INTEGER NOT NULL DEFAULT 1,
+      prep_to_todo INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tDayPreps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      day_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0,
+      todo_id INTEGER
+    )
+    ''',
+    '''
+    CREATE INDEX IF NOT EXISTS idx_day_preps_day ON $tDayPreps(day_id)
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tReminderItems (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT 'id',
+      due_date TEXT NOT NULL,
+      tip TEXT,
+      meta TEXT,
+      source_key TEXT,
+      handled INTEGER NOT NULL DEFAULT 0,
+      handled_at INTEGER,
+      snooze_date TEXT,
+      snooze_hour INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_remind_source
+      ON $tReminderItems(source_key) WHERE source_key IS NOT NULL
+    ''',
+  ];
 
   /// v16 习惯五表 DDL（建库与迁移共用，保两处永远同文·幂等 · 习惯计划 §2.1）。
   /// 自然日一律 TEXT 'YYYY-MM-DD'（D13 日界线 00:00）；

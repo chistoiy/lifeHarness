@@ -117,6 +117,44 @@ class NotificationService {
 
   static const int habitNightlyId = 900004;
 
+  // ---- 日子多级提前提醒（V1.42 模块11 · id 段 830000+） ----
+
+  /// 提前提醒档位固定六档（编辑屏 chips），id 由 日子id×档 直算可撤销。
+  static const List<int> dayOffsetSlots = [30, 15, 7, 3, 1, 0];
+
+  static int dayNotifId(int dayId, int offset) =>
+      830000 + ((dayId * 16 + offset) % 60000);
+
+  /// 注册一条日子提醒（remindDay=触发日零点；当天 09:00 触发；已过不排）。
+  static Future<void> registerDayReminder({
+    required int dayId,
+    required int offset,
+    required String title,
+    required DateTime remindDay,
+  }) async {
+    final id = dayNotifId(dayId, offset);
+    if (!ready) return;
+    await plugin.cancel(id);
+    final now = tz.TZDateTime.now(tz.local);
+    final when = tz.TZDateTime(
+        tz.local, remindDay.year, remindDay.month, remindDay.day, 9, 0);
+    if (!when.isAfter(now)) return;
+    await plugin.zonedSchedule(
+      id,
+      '日子提醒',
+      offset == 0 ? '「$title」就是今天' : '「$title」还有 $offset 天',
+      when,
+      const NotificationDetails(android: _remindersCh),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: 'day:$dayId:$offset',
+    );
+  }
+
+  static Future<void> cancelDayReminder(int dayId, int offset) async {
+    if (!ready) return;
+    await plugin.cancel(dayNotifId(dayId, offset));
+  }
+
   /// 习惯文本 → 稳定通知 id（跨进程重启可取消重排；String.hashCode 不保证稳定）。
   static int habitNotifId(String habitId) {
     var h = 0x811c9dc5;

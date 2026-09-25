@@ -24,6 +24,10 @@ import '../../features/todo/presentation/widgets/pomo_screen.dart';
 import '../../features/todo/presentation/todo_providers.dart' show PomoSession;
 import '../../features/dashboard/presentation/dashboard_page.dart';
 import '../../features/dashboard/presentation/dashboard_providers.dart';
+import '../../features/days/presentation/day_detail_page.dart';
+import '../../features/days/presentation/day_edit_page.dart';
+import '../../features/days/presentation/day_remind_page.dart';
+import '../../features/days/presentation/days_page.dart';
 import '../../features/habit/presentation/habit_detail_page.dart';
 import '../../features/habit/presentation/habit_settings_page.dart';
 import '../../features/habit/presentation/habit_stat_page.dart';
@@ -96,6 +100,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/ledger', builder: (_, _) => const LedgerPage()),
           // 呵护批0：模块顶层壳（周期/宝宝点标题互切不落路由栈 · 红线 2）。
           GoRoute(path: '/care', builder: (_, _) => const CarePage()),
+          // V1.42 批1：重要日子主页（底栏池栏目 · 专版 p-days）。
+          GoRoute(path: '/days', builder: (_, _) => const DaysPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
         ],
@@ -104,6 +110,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pomo',
         builder: (_, s) => PomoScreen(session: s.extra as PomoSession),
+      ),
+      // V1.42 批1：日子栈页（专版 p-dayDetail / p-dayEdit / p-dayRemind）。
+      // 模块内跳转走 Navigator.push；此处登记供外部直达（仪表盘/设置入口）。
+      GoRoute(
+        path: '/days/detail',
+        builder: (_, s) =>
+            DayDetailPage(dayId: int.parse(s.uri.queryParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/days/edit',
+        builder: (_, s) =>
+            DayEditPage(dayId: int.tryParse(s.uri.queryParameters['id'] ?? '')),
+      ),
+      GoRoute(
+        path: '/days/remind',
+        builder: (_, _) => const DayRemindPage(),
       ),
       // 记账批1：记一笔（?kind/cat/date/note/edit/copy · 原型 openL2(opt)）与
       // 流水详情（全屏无底栏，同 p-txDetail 为 stack 页）。
