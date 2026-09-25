@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ai/ai_review.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
@@ -10,7 +11,7 @@ import 'inbox_providers.dart';
 
 /// 模块5 收集箱（原型 p-inbox）：秒记入口 + 未整理列表 + 10 秒四向分流（L6）。
 /// →待办 / →日记 / →笔记 / →摘录（选书落 book_quotes · origin=收集箱）全部真实落库；
-/// AI 分流留版本占位。
+/// AI 一键分流（批4-B）：对最前 ≤3 条逐条 inbox.triage → 结果确认 → 复用既有转化路径。
 class InboxPage extends ConsumerStatefulWidget {
   const InboxPage({super.key});
 
@@ -57,12 +58,14 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1600)));
   }
 
-  Future<void> _triage(InboxItem item, String target) async {
+  Future<void> _triage(InboxItem item, String target, {String? text}) async {
     final dao = ref.read(inboxDaoProvider);
+    // 转化正文：AI 分流建议可带清洗后的 draft；手动/空白回落原文。
+    final src = (text != null && text.trim().isNotEmpty) ? text.trim() : item.rawText;
     switch (target) {
       case 'todo':
         final t = await ref.read(todoRepositoryProvider).add(
-            Todo(title: item.rawText, quadrant: Quadrant.q2, tag: '收集箱'));
+            Todo(title: src, quadrant: Quadrant.q2, tag: '收集箱'));
         await dao.route(item.id!, 'todo', t.id);
         ref.invalidate(todosProvider);
         _toast('✅ 已转为待办（重要不紧急）· 可在四象限改判');
@@ -71,8 +74,8 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         final now = DateTime.now();
         final today = await jrepo.byDay(now);
         final merged = (today == null || today.content.isEmpty)
-            ? '📥 ${item.rawText}'
-            : '${today.content}\n📥 ${item.rawText}';
+            ? '📥 $src'
+            : '${today.content}\n📥 $src';
         final saved = await jrepo.save(JournalEntry(
             day: now,
             content: merged,
@@ -83,10 +86,8 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         _toast('📔 已插入今晚日记草稿');
       case 'note':
         final id = await ref.read(noteDaoProvider).insert(Note(
-            title: item.rawText.length > 20
-                ? '${item.rawText.substring(0, 20)}…'
-                : item.rawText,
-            content: item.rawText,
+            title: src.length > 20 ? '${src.substring(0, 20)}…' : src,
+            content: src,
             folder: '收集箱',
             createdAt: now(),
             updatedAt: now()));
@@ -124,7 +125,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         final qid = await rrepo.addQuote(BookQuote(
           bookId: picked,
           kind: BookQuote.kKindThought,
-          thought: item.rawText,
+          thought: src,
           origin: '收集箱',
           createdAt: nowMs,
           updatedAt: nowMs,
@@ -141,6 +142,112 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         return;
     }
     ref.invalidate(inboxItemsProvider);
+  }
+
+  /// AI 一键分流（批4-B）：对列表最前 ≤3 条逐条走 inbox.triage。
+  /// 每条 = 审阅弹层（aiRunWithReview）→ 结果卡（target/reason/draft）→ 采纳后
+  /// 复用既有 [_triage] 路径落库；任一环节取消/放弃即中止整轮。
+  bool _aiTriageBusy = false;
+
+  Future<void> _aiTriageAll() async {
+    if (_aiTriageBusy) return;
+    final items =
+        ref.read(inboxItemsProvider).valueOrNull ?? const <InboxItem>[];
+    if (items.isEmpty) {
+      _toast('收集箱没有待分流的条目');
+      return;
+    }
+    _aiTriageBusy = true;
+    try {
+      for (final item in items.take(3)) {
+        if (!mounted) return;
+        final res = await aiRunWithReview(context, ref,
+            taskId: 'inbox.triage', vars: {'content': item.rawText});
+        if (res == null) return; // 审阅取消或调用失败（已 toast）：中止整轮
+        final j = res.json;
+        final target = '${j?['target'] ?? ''}';
+        final action = _aiTriageAction(target);
+        if (action == null) {
+          _toast('AI 返回去向不在四向之内 · 已跳过该条');
+          continue;
+        }
+        if (!mounted) return;
+        final adopt = await _showTriageSuggestion(
+            item, target, '${j?['reason'] ?? ''}', '${j?['draft'] ?? ''}');
+        if (adopt != true) return; // 用户放弃建议：中止整轮
+        await _triage(item, action, text: '${j?['draft'] ?? ''}');
+      }
+    } finally {
+      _aiTriageBusy = false;
+    }
+  }
+
+  /// AI target → 既有转化动作口径（quote 走「→摘录」链，落库仍打标 quote）。
+  static String? _aiTriageAction(String target) => switch (target) {
+        'todo' => 'todo',
+        'journal' => 'journal',
+        'note' => 'note',
+        'quote' => 'excerpt',
+        _ => null,
+      };
+
+  static String _aiTriageLabel(String target) => switch (target) {
+        'todo' => '待办',
+        'journal' => '日记',
+        'note' => '笔记',
+        'quote' => '摘录',
+        _ => target,
+      };
+
+  Future<bool?> _showTriageSuggestion(
+      InboxItem item, String target, String reason, String draft) {
+    final scheme = Theme.of(context).colorScheme;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('AI 分流建议', style: TextStyle(fontSize: 15)),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('「${item.rawText}」',
+                  style: const TextStyle(fontSize: 12.5, height: 1.6)),
+              const SizedBox(height: 8),
+              Text('去向：${_aiTriageLabel(target)}',
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w800)),
+              if (reason.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('理由：$reason',
+                    style: TextStyle(
+                        fontSize: 12, color: scheme.onSurfaceVariant)),
+              ],
+              if (draft.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('建议正文：${draft.trim()}',
+                    style: TextStyle(
+                        fontSize: 12, color: scheme.onSurfaceVariant)),
+              ],
+              const SizedBox(height: 6),
+              const Text('AI 生成 · 采纳后写入前会再次经该条既有转化路径',
+                  style: TextStyle(fontSize: 10.5, color: Colors.amber)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('放弃')),
+          FilledButton(
+            key: const ValueKey('ai-triage-adopt'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('采纳并分流'),
+          ),
+        ],
+      ),
+    );
   }
 
   static DateTime now() => DateTime.now();
@@ -249,8 +356,9 @@ class _InboxPageState extends ConsumerState<InboxPage> {
                       fontSize: 13, fontWeight: FontWeight.w800)),
               const Spacer(),
               TextButton(
-                onPressed: () => _toast('AI 逐条分流建议 · 规划 V1.1（M3）'),
-                child: const Text('🤖 AI 一键分流',
+                key: const ValueKey('ai-triage'),
+                onPressed: _aiTriageAll,
+                child: const Text('AI 一键分流',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               TextButton(
