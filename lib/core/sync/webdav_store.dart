@@ -159,6 +159,48 @@ String _xmlUnescape(String s) => s
     .replaceAll('&apos;', "'")
     .replaceAll('&amp;', '&');
 
+// —— getUserInfo（XML）解析小件：子元素优先、属性回落，异常格式宽容降级 ——
+
+/// 一个 collection 元素：既容忍 `<collection …>子元素</collection>`，也容忍
+/// 自闭属性形态 `<collection href="…" used_storage="…"/>`。
+final RegExp _getUserCollectionRe = RegExp(
+    '<(?:[\\w.-]+:)?collection\\b(?:[^>]*/>|[^>]*>[\\s\\S]*?'
+    '</(?:[\\w.-]+:)?collection\\s*>)',
+    caseSensitive: false);
+
+/// 根 `<user …>` 开标签的属性串（属性形态的顶层字段落点）。
+final RegExp _getUserOpenRe =
+    RegExp('<(?:[\\w.-]+:)?user\\b([^>]*)>', caseSensitive: false);
+
+/// 取 collection 块开标签内的属性串（`<collection …>` / `<collection …/>`）。
+String? _collectionAttrsOf(String block) => RegExp(
+        '<(?:[\\w.-]+:)?collection\\b([^>]*?)/?>',
+        caseSensitive: false)
+    .firstMatch(block)
+    ?.group(1);
+
+/// 取 `<collection …>body</collection>` 的 body（自闭/属性形态返回 null）。
+String? _collectionBodyOf(String block) => RegExp(
+        '<(?:[\\w.-]+:)?collection\\b[^>]*>([\\s\\S]*?)'
+        '</(?:[\\w.-]+:)?collection\\s*>',
+        caseSensitive: false)
+    .firstMatch(block)
+    ?.group(1);
+
+/// 一个 XML 字段的值：先查 `<name>` 子元素（body），回落 `name="…"` 属性（attrs）。
+String? _xmlField(String body, String attrs, String name) {
+  final el = RegExp('<(?:[\\w.-]+:)?$name\\b[^>]*>([\\s\\S]*?)'
+          '</(?:[\\w.-]+:)?$name\\s*>',
+          caseSensitive: false)
+      .firstMatch(body);
+  final elVal = el?.group(1)?.trim();
+  if (elVal != null && elVal.isNotEmpty) return elVal;
+  final attr = RegExp('\\b$name\\s*=\\s*"([^"]*)"', caseSensitive: false)
+      .firstMatch(attrs);
+  final aVal = attr?.group(1)?.trim();
+  return (aVal != null && aVal.isNotEmpty) ? aVal : null;
+}
+
 /// 坚果云（WebDAV 路线，【云盘】§4.1）：PROPFIND 递归列举 / 逐级 MKCOL +
 /// 流式 PUT / 流式 GET 落盘 / Depth:0 verify / 私有 getUserInfo 容量。
 ///
@@ -406,36 +448,39 @@ class WebDavStore implements RemoteStore {
 
   // —— 内部件 ——
 
-  /// getUserInfo JSON → [CloudQuota]（collection.href 归一化：URL 解码 +
-  /// 去尾斜杠 + 小写，之后按目录名命中）。顶层纯函数导出供单测。
-  static CloudQuota parseGetUserInfo(String jsonText) {
-    final decoded = jsonDecode(jsonText);
-    final user = decoded is Map && decoded['user'] is Map
-        ? Map<String, dynamic>.from(decoded['user'] as Map)
-        : const <String, dynamic>{};
+  /// getUserInfo XML → [CloudQuota]（协议文档 §4.1 + 真机实测：坚果云私有
+  /// getUserInfo 回的是 **XML**（`<s:user xmlns:s="http://ns.jianguoyun.com">…`）
+  /// 而非 JSON，旧 `jsonDecode` 直炸 FormatException）。改为正则手工解析，
+  /// 子元素与属性两种形态都容忍：
+  /// `<storage_quota>3221225472</storage_quota>` ↔ `storage_quota="…"`。
+  /// 解析 user/storage_quota、used_storage、account_state、collection[]
+  /// （href 归一化逻辑不变）。异常格式（HTML 错误页 / 半截响应）宽容降级返回
+  /// null 字段，绝不抛穿传输链路。顶层纯函数导出供单测。
+  static CloudQuota parseGetUserInfo(String xmlText) {
+    final xml = _xmlUnescape(xmlText);
+    // 先摘出 collection 块并从解析域剔除，避免 collection 内的 used_storage
+    // 抢先命中 user 顶层 used_storage。
+    final collectionBlocks =
+        _getUserCollectionRe.allMatches(xml).map((m) => m.group(0)!).toList();
+    final userScope = xml.replaceAll(_getUserCollectionRe, '');
+    final userAttrs = _getUserOpenRe.firstMatch(userScope)?.group(1) ?? '';
+    int? userField(String name) =>
+        int.tryParse(_xmlField(userScope, userAttrs, name) ?? '');
+
     final collections = <String, int>{};
-    final list = user['collection'];
-    if (list is List) {
-      for (final e in list.whereType<Map>()) {
-        final href = e['href']?.toString();
-        final used = switch (e['used_storage']) {
-          final num n => n.toInt(),
-          final String s => int.tryParse(s),
-          _ => null,
-        };
-        if (href != null && used != null) {
-          collections[normalizeCollectionHref(href)] = used;
-        }
+    for (final block in collectionBlocks) {
+      final attrs = _collectionAttrsOf(block) ?? '';
+      final body = _collectionBodyOf(block) ?? '';
+      final href = _xmlField(body, attrs, 'href');
+      final used = int.tryParse(_xmlField(body, attrs, 'used_storage') ?? '');
+      if (href != null && href.isNotEmpty && used != null) {
+        collections[normalizeCollectionHref(href)] = used;
       }
     }
-    int? asInt(Object? v) => switch (v) {
-          final num n => n.toInt(),
-          final String s => int.tryParse(s),
-          _ => null,
-        };
+
     return CloudQuota(
-      quotaBytes: asInt(user['storage_quota']),
-      usedBytes: asInt(user['used_storage']),
+      quotaBytes: userField('storage_quota'),
+      usedBytes: userField('used_storage'),
       collectionUsed: collections,
     );
   }

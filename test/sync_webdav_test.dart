@@ -409,28 +409,37 @@ void main() {
         reason: 'R13：坚果云填登录密码稳定 401/403，文案必须提示应用密码');
   });
 
-  test('quota：GET {scheme}://{host}/nsdav/getUserInfo 解析容量；'
+  /// 真机 getUserInfo 实测回 XML（协议文档 §4.1），非 JSON——旧 jsonDecode 直
+  /// 接 FormatException。夹具以真机样例：子元素形态 + collection 嵌套元素。
+  const userInfoXml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+      '<s:user xmlns:s="http://ns.jianguoyun.com">'
+      '<s:email>me@example.com</s:email>'
+      '<s:storage_quota>3221225472</s:storage_quota>'
+      '<s:used_storage>1288490189</s:used_storage>'
+      '<s:account_state>normal</s:account_state>'
+      '<s:collection><s:href>/My%20%E5%90%8C%E6%AD%A5%20Dir/</s:href>'
+      '<s:used_storage>22600</s:used_storage></s:collection>'
+      '<s:collection><s:href>/other/</s:href>'
+      '<s:used_storage>100</s:used_storage></s:collection>'
+      '</s:user>';
+
+  test('quota：GET {scheme}://{host}/nsdav/getUserInfo 解析 XML 容量；'
       'collection href 归一化（解码+去尾斜杠+小写）命中目录名', () async {
     final calls = <String>[];
     final client = MockClient((req) async {
       calls.add('${req.method} ${req.url}');
       return http.Response.bytes(
-        utf8.encode(
-          '{"user":{"storage_quota":1073741824,"used_storage":23089664,'
-          '"account_state":"normal","collection":['
-          '{"href":"/My%20%E5%90%8C%E6%AD%A5%20Dir/","used_storage":22600},'
-          '{"href":"/other/","used_storage":100}]}}',
-        ),
+        utf8.encode(userInfoXml),
         200,
-        headers: {'content-type': 'application/json'},
+        headers: {'content-type': 'application/xml'},
       );
     });
     final store = storeOf(client, vault: await vaultWith('svc1'));
 
     final q = await store.quota(cfg());
     expect(calls, ['GET https://dav.jianguoyun.com/nsdav/getUserInfo']);
-    expect(q.quotaBytes, 1073741824);
-    expect(q.usedBytes, 23089664);
+    expect(q.quotaBytes, 3221225472);
+    expect(q.usedBytes, 1288490189);
     expect(q.collectionUsed['my 同步 dir'.toLowerCase()], 22600,
         reason: 'URL 解码+去尾斜杠+小写归一后按目录名命中');
     expect(q.collectionUsed['other'], 100);
@@ -442,6 +451,29 @@ void main() {
     await store.quota(cfg(), force: true);
     expect(calls, hasLength(before + 1), reason: 'force 穿透缓存');
     store.close();
+  });
+
+  test('parseGetUserInfo 容忍属性形态（storage_quota="…" / collection '
+      'href="…" used_storage="…"）', () {
+    const attrForm = '<user storage_quota="1073741824" used_storage="23089664" '
+        'account_state="normal">'
+        '<collection href="/Docs/" used_storage="4242"/>'
+        '</user>';
+    final q = WebDavStore.parseGetUserInfo(attrForm);
+    expect(q.quotaBytes, 1073741824);
+    expect(q.usedBytes, 23089664);
+    expect(q.collectionUsed['docs'], 4242);
+  });
+
+  test('parseGetUserInfo 异常格式返回 null 字段，绝不抛 FormatException', () {
+    // 真机偶发 HTML 错误页 / 半截响应：解析器宽容降级，不再 jsonDecode 炸穿。
+    final junk = WebDavStore.parseGetUserInfo('<html>502 Bad Gateway</html>');
+    expect(junk.quotaBytes, isNull);
+    expect(junk.usedBytes, isNull);
+    expect(junk.collectionUsed, isEmpty);
+    final notXml = WebDavStore.parseGetUserInfo('total garbage');
+    expect(notXml.quotaBytes, isNull);
+    expect(notXml.usedBytes, isNull);
   });
 
   test('清单缓存 60s：命中不发请求、force 穿透、假时钟过期重拉', () async {
