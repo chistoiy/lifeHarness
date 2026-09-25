@@ -125,7 +125,7 @@ void main() {
           p.basename(res.file.path),
           matches(RegExp(r'^sync_\d{8}_\d{6}(-\d+)?\.lhbak$')));
       expect(res.pruned, isEmpty); // 首份无可裁
-      expect(res.manifest.members, contains('db.sqlite'));
+      expect(res.manifest!.members, contains('db.sqlite'));
     });
 
     test('careExcluded=true → manifest.excludedTables ⊇ careTables 且 sync/ 内包 verify 正常',
@@ -134,10 +134,10 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final svc = buildService(prefs, careExcluded: () async => true);
       final res = await svc.build(keepN: 5);
-      expect(res.manifest.excludedTables,
+      expect(res.manifest!.excludedTables,
           containsAll(<String>[...DbSchema.careTables]));
       for (final t in DbSchema.careTables) {
-        expect(res.manifest.tables.containsKey(t), isFalse,
+        expect(res.manifest!.tables.containsKey(t), isFalse,
             reason: '排表包快照内不得有 $t（红线 7）');
       }
       // 快照就在 sync/ 目录：verify 链路照常（T17 下载后校验同源）。
@@ -168,9 +168,9 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final svc = buildService(prefs, careExcluded: () async => false);
       final res = await svc.build(keepN: 5);
-      expect(res.manifest.excludedTables, isEmpty);
+      expect(res.manifest!.excludedTables, isEmpty);
       for (final t in DbSchema.careTables) {
-        expect(res.manifest.tables.containsKey(t), isTrue,
+        expect(res.manifest!.tables.containsKey(t), isTrue,
             reason: '本机快照默认全量：$t 应在（红线 7 排除的是同步开关置位时）');
       }
     });
@@ -182,7 +182,7 @@ void main() {
         throw StateError('DB 未开');
       });
       final res = await svc.build(keepN: 5);
-      expect(res.manifest.excludedTables, containsAll(DbSchema.careTables));
+      expect(res.manifest!.excludedTables, containsAll(DbSchema.careTables));
       expect(
           AppLog.lines.any((l) =>
               l.level == LhLevel.warn && l.text.contains('care.syncExcluded')),
@@ -343,6 +343,66 @@ void main() {
       expect(
           inv.any((e) => e.relativePath == p.basename(res.file.path)), isTrue);
       expect(inv.every((e) => e.relativePath.isNotEmpty), isTrue);
+    });
+  });
+
+  group('R3② 快照复用（活库无新写入不再每点必出新包）', () {
+    SnapshotService svcWithDb(SharedPreferences prefs) => SnapshotService(
+          backup: BackupService(
+            exportDir: () => p.join(tmp.path, 'backup'),
+            db: openApp,
+          ),
+          prefs: prefs,
+          docsDir: () => docsDir,
+          careExcluded: () async => false,
+          dbFile: () => File(dbPath),
+        );
+
+    test('首建后库无写入 · 二次 build 复用（reused=true · manifest=null · '
+        '文件数不涨 · 路径不变）', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = svcWithDb(prefs);
+      final first = await svc.build(keepN: 5);
+      expect(first.reused, isFalse);
+      final namesBefore = snapshotNames();
+      final second = await svc.build(keepN: 5);
+      expect(second.reused, isTrue);
+      expect(second.manifest, isNull, reason: '复用未打包，无新 manifest');
+      expect(second.file.path, first.file.path);
+      expect(snapshotNames(), namesBefore,
+          reason: 'R3②：连点同步不得每点多了个 lhbak');
+    });
+
+    test('库mtime晚于最新快照（有新写入）→ 必出新包（reused=false）', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = svcWithDb(prefs);
+      final first = await svc.build(keepN: 5);
+      // 不靠 sleep：直接把库 mtime 回填到快照之后，模拟「快照后又有写入」。
+      File(dbPath).setLastModifiedSync(
+          first.file.lastModifiedSync().add(const Duration(seconds: 5)));
+      final second = await svc.build(keepN: 5);
+      expect(second.reused, isFalse);
+      expect(second.file.path, isNot(first.file.path));
+      expect(second.manifest, isNotNull);
+    });
+
+    test('force=true 跳过复用必出新包；未注入 dbFile 永不复用（旧行为）',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = svcWithDb(prefs);
+      final first = await svc.build(keepN: 5);
+      final forced = await svc.build(keepN: 5, force: true);
+      expect(forced.reused, isFalse);
+      expect(forced.file.path, isNot(first.file.path));
+      // 无 dbFile 的旧装配：连续 build 行为与 R3 前一致（每点必出）。
+      final legacy = buildService(prefs, careExcluded: () async => false);
+      final a = await legacy.build(keepN: 5);
+      final b = await legacy.build(keepN: 5);
+      expect(a.reused, isFalse);
+      expect(b.reused, isFalse, reason: 'dbFile 缺省 → 保守走真实生成');
     });
   });
 }

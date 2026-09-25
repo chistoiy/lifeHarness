@@ -49,6 +49,7 @@ class SyncTaskState {
     this.done = 0,
     this.total = 0,
     this.rateLimitedWaitSeconds,
+    this.failedPaths = const {},
   });
 
   /// 最近一次 [SyncOrchestrator.compare] 的结果（S3 半屏数据源）。
@@ -67,6 +68,10 @@ class SyncTaskState {
   /// **本期恒 null**：429/503 退避发生在 [HttpGate] 内部，store 不向上回调；
   /// T18 若 UI 需要实时退避提示，再接 gate 的回调通道——不留假通道。
   final int? rateLimitedWaitSeconds;
+
+  /// R3③：本任务内已失败的文件相对路径（S4 行状态如实渲染「失败」，
+  /// 不再出现「行显完成、页脚显失败」的自相矛盾）。
+  final Set<String> failedPaths;
 }
 
 /// 一次 [SyncOrchestrator.run] 的结算结果。
@@ -327,8 +332,7 @@ class SyncOrchestrator {
       state.value =
           SyncTaskState(diffs: state.value.diffs, running: true, total: total);
 
-      Future<void> step(FileDiff d, Future<int> Function() action) async {
-        state.value = SyncTaskState(
+      Future<void> step(FileDiff d, Future<int> Function() action) async {        state.value = SyncTaskState(
           diffs: state.value.diffs,
           running: true,
           current: d,
@@ -346,6 +350,18 @@ class SyncOrchestrator {
         );
         if (bytes > 0) outcome.bytes += bytes;
         await _sleeper?.call(Duration.zero);
+      }
+
+      // R3③：失败即时入 state.failedPaths——S4 行状态据此渲染「失败」，
+      // 不再出现「行显完成、页脚显失败」的自相矛盾。
+      void pushFailed(String rel) {
+        state.value = SyncTaskState(
+          diffs: state.value.diffs,
+          running: true,
+          done: done,
+          total: total,
+          failedPaths: {...state.value.failedPaths, rel},
+        );
       }
 
       for (final d in uploadsOrdered) {
@@ -373,6 +389,7 @@ class SyncOrchestrator {
           errorTexts.add('${d.relativePath}: $e');
           AppLog.add('上传失败（${d.relativePath}）：$e', level: LhLevel.warn);
           done++; // 失败也占一格进度，UI 不卡半程
+          pushFailed(d.relativePath);
         }
       }
       for (final d in downloads) {
@@ -389,6 +406,7 @@ class SyncOrchestrator {
           AppLog.add('下载跳过（${d.relativePath}）：非法相对路径，未落盘',
               level: LhLevel.warn);
           done++; // 与异常文件同口径：占一格进度、不中断其余
+          pushFailed(d.relativePath);
           continue;
         }
         final dest = p.join(exportsDir, d.relativePath);
@@ -405,6 +423,7 @@ class SyncOrchestrator {
           errorTexts.add('${d.relativePath}: $e');
           AppLog.add('下载失败（${d.relativePath}）：$e', level: LhLevel.warn);
           done++;
+          pushFailed(d.relativePath);
         }
       }
       if (outcome.downloadedToExports > 0) {
@@ -417,7 +436,10 @@ class SyncOrchestrator {
     } finally {
       _running = false;
       state.value = SyncTaskState(
-          diffs: state.value.diffs, done: done, total: total);
+          diffs: state.value.diffs,
+          done: done,
+          total: total,
+          failedPaths: outcome.failed.toSet());
       await SyncHistory.append(
         prefs,
         SyncHistoryEntry(

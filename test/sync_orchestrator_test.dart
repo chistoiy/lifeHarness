@@ -291,10 +291,15 @@ void main() {
       final store = _FakeStore(onPut: (rel) async {
         if (rel == 'boom.bin') throw const SocketException('net down');
       });
-      final outcome = await build(snap, store).run(selected);
+      final o = build(snap, store);
+      final outcome = await o.run(selected);
 
       expect(outcome.failed, ['boom.bin']);
       expect(outcome.up, 2);
+      // R3③：失败即时进 state.failedPaths（S4 行如实显「失败」），
+      // 收尾态同样携带。
+      expect(o.state.value.failedPaths, {'boom.bin'},
+          reason: 'failedPaths 与 outcome.failed 同步，行状态不再假绿');
       expect(store.putOrder, ['ok1.bin', 'boom.bin', 'ok2.bin']);
       final ledger =
           SyncLedger(prefs, serviceId: cfg.id, cloudDirName: cfg.cloudDirName);

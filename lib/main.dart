@@ -1,3 +1,4 @@
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -136,6 +137,12 @@ Future<void> main() async {
           prefs: prefs,
           docsDir: () => docsPath,
           careExcluded: () => CareRepository(AppDatabase.instance.db).syncExcluded(),
+          // R3②：活库文件（mtime 用于「无新写入则复用快照」判定，close 后
+          // openedPath 仍保留）。
+          dbFile: () {
+            final path = AppDatabase.instance.openedPath;
+            return path == null ? null : File(path);
+          },
         )),
       ],
       child: const LifeHarnessApp(),

@@ -118,7 +118,7 @@ class FakeSnapshotService extends SnapshotService {
   int buildCount = 0;
 
   @override
-  Future<SyncSnapshotResult> build({int? keepN}) async {
+  Future<SyncSnapshotResult> build({int? keepN, bool force = false}) async {
     buildCount++;
     syncActionOrder.add('build');
     return SyncSnapshotResult(

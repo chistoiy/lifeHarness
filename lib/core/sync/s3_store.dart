@@ -521,7 +521,10 @@ class S3Store implements RemoteStore {
       403 => '认证失败（403）：$permHint；并使用子账户（非主账户）密钥。$reason',
       400 => body.contains('MissingFields')
           ? '字段缺失（400 MissingFields）：$permHint。$reason'
-          : '连接验证失败（400）：$reason',
+          // R3④：400 InvalidRequest 头号成因同 MissingFields（桶名/权限/
+          // Endpoint 配置面）；附实际请求主机便于肉眼核对桶名是否填错。
+          : '连接验证失败（400）：$permHint。'
+              '当前请求 ${_uri(c, query: const {'list-type': '2', 'max-keys': '1'}).host}。$reason',
       404 => '桶不存在（404）：请核对桶名与 endpoint：$reason',
       _ => '连接验证失败（$status）：$reason',
     };

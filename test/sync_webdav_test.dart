@@ -350,6 +350,29 @@ void main() {
     store.close();
   });
 
+  test('R3①：云端根级文件 put("z.lhbak")——先 MKCOL cloudDirName 根集合再 PUT'
+      '（回归：旧 >1 条件漏建根目录，坚果云回 409 AncestorsNotFound）', () async {
+    final calls = <String>[];
+    final tmp = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}lhw_r3_root.lhbak');
+    tmp.writeAsStringSync('payload');
+    addTearDown(() => tmp.deleteSync());
+    final client = MockClient((req) async {
+      calls.add('${req.method} ${req.url.path}');
+      if (req.method == 'PUT') return http.Response('', 201);
+      return http.Response('', 405); // 根集合已存在时 MKCOL 回 405 亦成功
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+
+    await store.put(cfg(), tmp.path, 'z.lhbak');
+
+    expect(calls, [
+      'MKCOL ${pathOf(['sync'])}',
+      'PUT ${pathOf(['sync', 'z.lhbak'])}',
+    ], reason: '根级文件的父目录 = cloudDirName 根集合本身，必须先建再传');
+    store.close();
+  });
+
   test('本地文件名含字面 %20 往返：入参是逻辑路径不再解码，'
       'URL 构造把 % 转义为 %25，解码回读即原名', () async {
     final calls = <String>[];

@@ -26,16 +26,21 @@ class SyncSnapshotResult {
     required this.file,
     required this.manifest,
     required this.pruned,
+    this.reused = false,
   });
 
-  /// 刚生成的快照（`<docs>/sync/` 内，nameTag=sync）。
+  /// 本次使用/生成的快照（`<docs>/sync/` 内，nameTag=sync）。
   final File file;
 
   /// 打包时的 manifest（excludedTables 即 care 排表证据，S3 差异/恢复报告用）。
-  final LhBakManifest manifest;
+  /// [SyncSnapshotResult.reused] 为 true（复用旧快照、未重新打包）时为 null。
+  final LhBakManifest? manifest;
 
   /// 本轮裁剪删除的文件名（basename，含被裁的历史快照）。
   final List<String> pruned;
+
+  /// R3②：true = 数据库自最新快照后无变化，直接复用、未生成新文件。
+  final bool reused;
 }
 
 /// 同步快照生成器（Task 16；设计稿 §3+§4：同步对象 = `<docs>/sync/` 目录）。
@@ -59,6 +64,7 @@ class SnapshotService {
     required this.prefs,
     required this.docsDir,
     required this.careExcluded,
+    this.dbFile,
   });
 
   final BackupService backup;
@@ -69,6 +75,10 @@ class SnapshotService {
 
   /// `care.syncExcluded` 读取函数（红线 7，组合根接 CareRepository）。
   final CareExcludedReader careExcluded;
+
+  /// 活库文件提供者（R3② 快照复用判定用；生产 = AppDatabase.openedPath）。
+  /// 返回 null（未开库/测试未注入）时**永不复用**，行为与旧版一致。
+  final File? Function()? dbFile;
 
   /// 同步快照目录 = `<docs>/sync/`（设计稿 §4 同步对象根）。
   String get syncDir => p.join(docsDir(), 'sync');
@@ -94,10 +104,23 @@ class SnapshotService {
 
   /// 生成一份同步快照并裁剪目录至最新 keepN 份。
   /// [keepN] 显式传入优先于 prefs 配置（UI 预览/测试用）。
-  Future<SyncSnapshotResult> build({int? keepN}) async {
+  /// [force]=true 跳过快照复用判定，必出新包（手动「立即备份」类入口预留）。
+  Future<SyncSnapshotResult> build({int? keepN, bool force = false}) async {
     final n = effectiveKeepN(keepN);
     final dir = syncDir;
     Directory(dir).createSync(recursive: true);
+    // R3②：活库自最新快照后没有任何写入 → 复用，不再「每点一次同步多一个
+    // lhbak」。判定只用 mtime 大小关系（快照晚于/等于库即视为新鲜），
+    // -wal 存在时一并取 max（防未来开 WAL 后漏判）。
+    if (!force) {
+      final reuse = _freshSnapshotOrNull();
+      if (reuse != null) {
+        AppLog.add('数据库无新写入 · 复用最新快照'
+            '（${p.basename(reuse.path)}）');
+        return SyncSnapshotResult(
+            file: reuse, manifest: null, pruned: const [], reused: true);
+      }
+    }
     final excluded = await _careExcludedSafe() ? DbSchema.careTables : const <String>[];
     final res = await backup.exportBackup(
       withLogs: true,
@@ -107,6 +130,36 @@ class SnapshotService {
     );
     final pruned = await pruneSnapshots(keepN: n, protect: res.file.path);
     return SyncSnapshotResult(file: res.file, manifest: res.manifest, pruned: pruned);
+  }
+
+  /// 可复用的最新快照：sync/ 内 mtime 最新的快照命名文件，且其 mtime
+  /// ≥ 活库（含 -wal）mtime；任一前提缺失（无 dbFile/无快照/读 stat 失败）
+  /// 一律返回 null 走真实生成——宁多出一个快照，绝不同步陈旧数据。
+  File? _freshSnapshotOrNull() {
+    File? db;
+    try {
+      db = dbFile?.call();
+    } catch (_) {
+      return null;
+    }
+    if (db == null || !db.existsSync()) return null;
+    final dir = Directory(syncDir);
+    if (!dir.existsSync()) return null;
+    File? latest;
+    int latestM = -1;
+    for (final f in dir.listSync().whereType<File>()) {
+      if (!isSyncSnapshotName(p.basename(f.path))) continue;
+      final m = _mtimeOf(f);
+      if (m > latestM) {
+        latest = f;
+        latestM = m;
+      }
+    }
+    if (latest == null) return null;
+    var dbM = _mtimeOf(db);
+    final wal = File('${db.path}-wal');
+    if (wal.existsSync()) dbM = dbM > _mtimeOf(wal) ? dbM : _mtimeOf(wal);
+    return latestM >= dbM ? latest : null;
   }
 
   /// 本地侧清单：递归扫 sync/（快照 + logs/ 子目录等全部文件），产出可直接

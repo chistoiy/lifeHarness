@@ -314,9 +314,10 @@ class WebDavStore implements RemoteStore {
     final segments = _normSegments(cloudRelative);
     final fileName = segments.isEmpty ? '' : segments.last;
     // 传输前逐级 MKCOL（R7）：目标文件的每一级父目录先确保存在。
-    if (segments.length > 1) {
-      await ensureDirectory(c, segments.take(segments.length - 1).join('/'));
-    }
+    // R3①：云端根级文件（segments==1）同样要先建 cloudDirName 根集合——
+    // 坚果云对不存在目录的 PUT 回 409 AncestorsNotFound，旧 `>1` 条件漏掉
+    // 根目录这条链，导致「首次上传将自动创建」从未兑现。
+    await ensureDirectory(c, segments.take(segments.length - 1).join('/'));
     if (fileName.isEmpty) {
       throw StateError('PUT 目标必须是文件相对路径，收到：$cloudRelative');
     }

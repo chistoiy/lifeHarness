@@ -11,6 +11,11 @@ class AppDatabase {
 
   Database? _db;
 
+  /// 最近一次 open 实际使用的库文件路径（close 后仍保留，供快照新鲜度判定
+  /// 取 mtime；R3② 复用快照依据）。未初始化时为 null。
+  String? _openedPath;
+  String? get openedPath => _openedPath;
+
   Database get db {
     final d = _db;
     if (d == null) {
@@ -26,6 +31,7 @@ class AppDatabase {
     if (_db != null) return _db!;
     final dir = pathOverride ?? await getDatabasesPath();
     final path = p.join(dir, DbSchema.fileName);
+    _openedPath = path;
     _db = await openDatabase(
       path,
       version: DbSchema.version,

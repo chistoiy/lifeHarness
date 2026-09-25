@@ -1422,7 +1422,8 @@ class _ProgressSheetState extends ConsumerState<_ProgressSheet> {
                     ),
                     const SizedBox(height: 10),
                     for (var i = 0; i < ordered.length; i++)
-                      _row(ordered[i], i, done, running, canceled),
+                      _row(ordered[i], i, done, running, canceled,
+                          failedPaths: s.failedPaths),
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -1496,11 +1497,18 @@ class _ProgressSheetState extends ConsumerState<_ProgressSheet> {
     );
   }
 
-  Widget _row(FileDiff d, int i, int done, bool running, bool canceled) {
+  Widget _row(
+      FileDiff d, int i, int done, bool running, bool canceled,
+      {Set<String> failedPaths = const {}}) {
     final isCurrent = running && i == done;
     final String status;
     final Color color;
-    if (i < done) {
+    if (failedPaths.contains(d.relativePath)) {
+      // R3③：失败文件如实显「失败」——旧版只按 done 计数渲染，
+      // 出现过「三行全绿完成 + 页脚失败 3 个」的矛盾画面。
+      status = '失败';
+      color = const Color(0xFFDC2626);
+    } else if (i < done) {
       status = '完成 ${formatBytes(_diffBytes(d))}';
       color = const Color(0xFF10B981);
     } else if (isCurrent) {

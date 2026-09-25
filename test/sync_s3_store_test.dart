@@ -345,6 +345,22 @@ void main() {
       expect((await s400.verify(cfg())).message, contains('分配桶权限'));
       s400.close();
     });
+
+    test('R3④：400 InvalidRequest（非 MissingFields）→ 文案也带桶权限指引 + '
+        '实际请求主机（肉眼核对桶名）', () async {
+      final s = S3Store(
+        gate: HttpGate(sleeper: (d) async {}),
+        vault: await vaultWith('svcS3'),
+        client: () => MockClient((req) async => http.Response(
+            '<Error><Code>InvalidRequest</Code><Message>Invalid Request</Message></Error>',
+            400)),
+      );
+      final msg = (await s.verify(cfg())).message ?? '';
+      expect(msg, contains('分配桶权限'));
+      expect(msg, contains('${cfg().bucket}.s3.bitiful.net'),
+          reason: '400 头号成因是桶名/权限面，附 host 便于核对填写');
+      s.close();
+    });
   });
 
   group('quota：根 endpoint ListAllMyBuckets 私有字段（R5/§4.2）', () {
