@@ -109,6 +109,17 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     // R2 项④：go→push，从设置页进日志后返回回设置页而非退出 app。
                     onTap: () => context.push('/log')),
+                // R5c：图片存储清理入口（本地孤儿图片勾选清理）。
+                _EntryRow(
+                    key: const ValueKey('entry-media-clean'),
+                    emoji: '',
+                    iconWidget: const Icon(Icons.image_outlined,
+                        size: 18, color: Color(0xFF059669)),
+                    bg: const Color(0xFF10B981).withValues(alpha: .12),
+                    title: '图片存储清理',
+                    sub: '未引用图片扫描 · 勾选清理',
+                    trailing: '',
+                    onTap: () => context.push('/settings/media-clean')),
                 _EntryRow(
                     emoji: '🔔',
                     bg: const Color(0xFF6366F1).withValues(alpha: .12),

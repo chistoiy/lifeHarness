@@ -63,6 +63,7 @@ import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/log_page.dart';
+import '../../features/settings/presentation/media_clean_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
 import '../../features/settings/presentation/recmg_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
@@ -362,6 +363,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/log',
         builder: (_, _) => const LogPage(),
+      ),
+      // R5c：图片存储清理页（本地孤儿图片勾选清理，设置页入口）。
+      GoRoute(
+        path: '/settings/media-clean',
+        builder: (_, _) => const MediaCleanPage(),
       ),
       // V1.41 Task 18 /sync 主页（原型 p-sync：当前服务卡 + 容量三态 +
       // 立即同步 + 差异/备份/控流/历史/日志入口 + 切换服务列表）。

@@ -144,6 +144,14 @@ Future<void> main() async {
         // .close（评审 Critical 修复：close 后置空 _db 缓存，db() 重开才拿到
         // 可用新连接，而非裸 Database.close 留下的死句柄）。
         backupServiceProvider.overrideWithValue(backup),
+        // R5c：图片存储清理扫描器（媒体根 = note_images / book_covers）。
+        mediaScannerProvider.overrideWithValue(MediaUsageScanner(
+          db: AppDatabase.instance.db,
+          mediaDirs: [
+            p.join(docsPath, 'note_images'),
+            p.join(docsPath, 'book_covers'),
+          ],
+        )),
         // V1.41 Task 18：同步快照服务组合根装配（R2 白名单先例照上方
         // backupServiceProvider——core 不得 import features，careExcluded
         // 在此接线 CareRepository；快照复用 BackupService 同一实例，

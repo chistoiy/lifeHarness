@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backup/backup_service.dart';
+import 'media/media_usage_scanner.dart';
 import 'host/event_bus.dart';
 import 'host/mount_point.dart';
 import 'host/module_registry.dart';
@@ -34,6 +35,13 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 /// overrideWithValue；widget 测试注入 fake（如 /sync 半屏用例）。
 final backupServiceProvider = Provider<BackupService>(
   (ref) => throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
+);
+
+/// R5c 图片存储清理扫描器：媒体根目录/库在 main 组合根装配；
+/// widget 测试注入 fake（真实 I/O 不进 widget 测试红线）。
+final mediaScannerProvider = Provider<MediaUsageScanner>(
+  (ref) =>
+      throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
 );
 
 final settingsControllerProvider =
