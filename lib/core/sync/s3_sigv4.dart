@@ -114,13 +114,20 @@ class SigV4Signer {
           '请求 URL 必须经 SigV4Signer.toWireUri 构造');
     }
     final host = _hostHeaderFor(uri);
+    // R5d 真云验证修正：x-amz-copy-source（CopyObject）必须在签名头集内，
+    // 且按头名字典序插在 content-sha256 与 date 之间；缺失该头时行为不变。
+    final copySource = req.headers['x-amz-copy-source'];
     final canonicalHeaders = 'host:$host\n'
         'x-amz-content-sha256:$payloadHash\n'
+        '${copySource != null ? 'x-amz-copy-source:$copySource\n' : ''}'
         'x-amz-date:$amzDate\n';
+    final signedHeaders = copySource == null
+        ? signedHeadersTriple
+        : 'host;x-amz-content-sha256;x-amz-copy-source;x-amz-date';
     final canonicalRequest = '${req.method}\n'
         '$canonicalUri\n$canonicalQuery\n'
         '$canonicalHeaders\n' // 自带尾 \n，再补模板 \n → 头块与 SignedHeaders 间的空行
-        '$signedHeadersTriple\n$payloadHash';
+        '$signedHeaders\n$payloadHash';
     final stringToSign = 'AWS4-HMAC-SHA256\n$amzDate\n$credentialScope\n'
         '${sha256Hex(canonicalRequest)}';
     final signature = hmacSha256Hex(
@@ -130,7 +137,7 @@ class SigV4Signer {
     req.headers['x-amz-content-sha256'] = payloadHash;
     req.headers['authorization'] = 'AWS4-HMAC-SHA256 '
         'Credential=$accessKey/$credentialScope, '
-        'SignedHeaders=$signedHeadersTriple, Signature=$signature';
+        'SignedHeaders=$signedHeaders, Signature=$signature';
     _last = SigV4Canonical(
       method: req.method,
       host: host,
