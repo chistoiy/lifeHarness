@@ -32,6 +32,10 @@ void careTouchRef(Ref ref) => ref.read(careTickProvider.notifier).state++;
 /// 全天记录页事件类型多选筛选（bdKinds 同构；页面级共享，跨导航保留）。
 final careDayFilterProvider = StateProvider<Set<String>>((ref) => const {});
 
+/// 时间源缝（V1.41 T19 收口）：缺省系统钟（每帧 build 重读，「N分钟前」徽章实时走字）；
+/// 测试可 override 固定「now」，消除播种与徽章/日分组重算跨分钟·跨日界的墙钟抖动。
+final careClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 /// 悬浮/卡内计时状态（startTimer/endFeed 同构；结束自动入账）。
 class FeedTimerState {
   const FeedTimerState({

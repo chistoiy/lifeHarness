@@ -40,6 +40,8 @@ class CareBabyDayPage extends ConsumerWidget {
         data: (d) {
           final days = d.logsByDay.keys.toList()..sort((a, b) => b.compareTo(a));
           final total = d.logs.length;
+          // 同一帧共用一个「now」（时间源缝 careClockProvider，测试可固定）。
+          final now = ref.watch(careClockProvider)();
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
             children: [
@@ -106,6 +108,7 @@ class CareBabyDayPage extends ConsumerWidget {
                   _DayBlock(
                       day: day,
                       d: d,
+                      now: now,
                       logs: _visible(d.logsOfDay(day), kinds)),
               if (days.every((day) => _visible(d.logsOfDay(day), kinds).isEmpty))
                 const Padding(
@@ -165,19 +168,23 @@ class _RoundBtn extends StatelessWidget {
 }
 
 /// 单日分组：日标题 + 汇总行 + 记录行（bdRow 同构）。
+/// `now` 由页面 build 一次取值注入（careClockProvider 时间源缝），
+/// 同帧各分组共用，避免多次 DateTime.now() 跨分钟/日界互不一致。
 class _DayBlock extends StatelessWidget {
-  const _DayBlock({required this.day, required this.d, required this.logs});
+  const _DayBlock(
+      {required this.day, required this.d, required this.logs, required this.now});
   final String day;
   final CareData d;
   final List<CareRecord> logs;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final today = DateTime.now().withoutTimeCare();
+    final today = now.withoutTimeCare();
     final todayKey = careDayKey(today);
     final sum = careDaySummary(logs);
-    final nowMin = DateTime.now().hour * 60 + DateTime.now().minute;
+    final nowMin = now.hour * 60 + now.minute;
     final baby = d.currentBaby;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),

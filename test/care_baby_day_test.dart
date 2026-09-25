@@ -23,7 +23,12 @@ void main() {
   late ProviderContainer container;
   late int babyId;
 
-  final today = DateTime.now().withoutTimeCare();
+  // T19 收口：固定时间源——日期取真实今天、时刻钉死 15:30。
+  // 播种与页面徽章/日分组重算全部走同一 instant（careClockProvider override），
+  // 根治旧写法 DateTime.now()-5min 与墙钟重算跨分钟/跨日界的抖动 flake。
+  final wallNow = DateTime.now();
+  final fixedNow =
+      DateTime(wallNow.year, wallNow.month, wallNow.day, 15, 30);
 
   String key0(DateTime d) => careDayKey(d);
   String hhmm(DateTime d) =>
@@ -47,28 +52,30 @@ void main() {
   Future<void> add(CareRecord r) => repo.addLog(
       CareRecord.fromRow(r.toRow()..['baby_id'] = babyId));
 
-  /// 三条跨日样本：今天瓶喂（5min 前开始）+ 今天尿布，昨天配方奶。
+  /// 三条跨日样本（时刻全部相对 fixedNow 钉死）：
+  /// 今天瓶喂（15:25 始 · 15:30 止 → 徽章恒为「5分钟前」）+ 今天尿布 07:40（远离徽章窗口），
+  /// 昨天配方奶。
   Future<void> seedStandard() async {
-    final s = DateTime.now().subtract(const Duration(minutes: 5));
+    final s = fixedNow.subtract(const Duration(minutes: 5));
     await add(CareRecord(
         babyId: 0,
-        day: key0(DateTime.now()),
+        day: key0(fixedNow),
         k: 'bmilk',
         s: hhmm(s),
-        e: hhmm(DateTime.now()),
+        e: hhmm(fixedNow),
         dur: 5,
         ml: 150,
         rec: '妈妈'));
     await add(CareRecord(
         babyId: 0,
-        day: key0(DateTime.now()),
+        day: key0(fixedNow),
         k: 'diaper',
         s: '07:40',
         dia: 'pee',
         rec: '爸爸'));
     await add(CareRecord(
         babyId: 0,
-        day: key0(DateTime.now().subtract(const Duration(days: 1))),
+        day: key0(fixedNow.subtract(const Duration(days: 1))),
         k: 'formula',
         s: '21:00',
         e: '21:10',
@@ -79,7 +86,10 @@ void main() {
 
   Future<void> pumpRoot(WidgetTester tester) async {
     container = ProviderContainer(
-      overrides: [careRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        careRepositoryProvider.overrideWithValue(repo),
+        careClockProvider.overrideWithValue(() => fixedNow),
+      ],
     );
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -143,9 +153,10 @@ void main() {
     expect(find.text('嘘嘘'), findsOneWidget);
     expect(find.text('180ml'), findsOneWidget);
     expect(find.text('21:00-21:10'), findsOneWidget);
-    // 「N分钟前」徽章（5 分钟前开始的瓶喂）
+    // 「N分钟前」徽章：固定钟 15:30 − 播种 15:25 → 恒为「5分钟前」，
+    // 且全页仅此一枚（尿布 07:40 在 60min 窗口外，配方奶属昨日）。
     expect(find.text('4分钟前'), findsNothing);
-    expect(find.textContaining('分钟前'), findsOneWidget);
+    expect(find.text('5分钟前'), findsOneWidget);
     // 无筛选时标签=全部
     expect(find.textContaining('全部'), findsOneWidget);
   });
