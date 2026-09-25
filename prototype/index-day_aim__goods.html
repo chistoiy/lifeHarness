@@ -349,7 +349,7 @@ tailwind.config = {
           </div>
           <div class="flex-1 bg-white/15 rounded-2xl p-3 cursor-pointer" onclick="goItemStats()">
             <div class="text-[11px] opacity-80">今日持有成本</div>
-            <div class="text-xl font-extrabold mt-1">¥ 64.1<span class="text-xs font-medium opacity-80">/天</span></div>
+            <div class="text-xl font-extrabold mt-1">¥ 38.6<span class="text-xs font-medium opacity-80">/天</span></div>
             <div class="text-[10px] opacity-70">6 件物品计费中 ›</div>
           </div>
         </div>
@@ -1016,10 +1016,18 @@ tailwind.config = {
       <div class="mt-2 flex items-center gap-2 text-sm"><input id="ieWar" class="inp flex-1" type="date"><span class="text-[11px] text-slate-400 shrink-0">保修到期</span></div>
       <div class="text-xs font-bold mt-4 mb-1.5">计费方式</div>
       <div class="flex gap-2 text-xs" id="ieCalcChips">
-        <button class="tag-chip on" onclick="ieCalcPick(this,'直线法（按天摊薄）')">直线法 · 默认</button>
-        <button class="tag-chip" onclick="ieCalcPick(this,'按次均摊')">按次均摊 <span class="vchip">V1.x</span></button>
-        <button class="tag-chip" onclick="ieCalcPick(this,'预估止损')">预估止损 <span class="vchip">V1.x</span></button>
+        <button class="tag-chip on" onclick="ieCalcPick(this,'day')">直线法 · 按天摊薄（默认）</button>
+        <button class="tag-chip" onclick="ieCalcPick(this,'times')">按次均摊</button>
+        <button class="tag-chip" onclick="ieCalcPick(this,'stop')">预估止损</button>
       </div>
+      <div id="ieTimesWrap" class="hidden"><div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <input id="iePlan" class="inp" type="number" value="300" placeholder="计划总次数">
+        <select id="iePUnit" class="inp"><option>次</option><option>公里</option><option>页</option><option>小时</option></select>
+      </div><div class="text-[10px] text-slate-400 mt-1">每次成本 ＝ 成本池 ÷ 计划次数 · 日均按近 30 天实际频次折算</div></div>
+      <div id="ieStopWrap" class="hidden"><div class="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <select id="ieStopYears" class="inp"><option value="3">预期 3 年</option><option value="5" selected>预期 5 年</option><option value="8">预期 8 年</option></select>
+        <input id="ieStopPct" class="inp" type="number" value="30" placeholder="止损线：净值跌破购入价 30%">
+      </div><div class="text-[10px] text-slate-400 mt-1">按直线折旧预估净值曲线 · 接近止损线时提醒择机回收/转卖</div></div>
       <div class="text-xs font-bold mt-4 mb-1.5">状态</div>
       <div class="flex gap-2 text-xs" id="ieStChips">
         <button class="tag-chip on" onclick="ieStPick(this,'使用中')">使用中</button>
@@ -1233,13 +1241,6 @@ tailwind.config = {
       <div class="mt-3 card cursor-pointer" onclick="renderGoalReview();navTo('p-goalReview')">
         <div class="flex items-center justify-between"><div class="row-title">🪞 季度复盘引导 · KPT</div><span class="text-[10px] text-brand-500 font-bold">上季复盘已归档 ›</span></div>
         <div class="text-xs text-slate-400 mt-1">Keep 做对了什么 / Problem 做错了什么 / Try 下季度怎么改 · 逐 O 对照 KR 达成度</div>
-      </div>
-      <div class="mt-3 card opacity-70">
-        <div class="row-title">🧭 领域轮盘 <span class="vchip">V2</span></div>
-        <div class="flex items-center gap-3 mt-2">
-          <svg viewBox="0 0 80 80" class="w-20 h-20 shrink-0"><polygon points="40,8 62,20 70,44 52,66 28,66 12,42 20,18" fill="none" stroke="#e2e8f0"/><polygon points="40,14 58,26 62,42 48,58 30,60 18,40 26,24" fill="rgba(99,102,241,.25)" stroke="#6366f1" stroke-width="1.5"/><text x="40" y="43" text-anchor="middle" font-size="9" fill="#6366f1" font-weight="bold">68</text></svg>
-          <div class="text-xs text-slate-400 leading-5">健康·事业·学习·财务…各领域得分将由 记账/阅读/目标/时间账本 自动汇聚，季度复盘时对照。</div>
-        </div>
       </div>
     </section>
 
@@ -2124,7 +2125,7 @@ tailwind.config = {
         </div>
         <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
           <select class="inp"><option>分类：数码</option><option>家电</option><option>家具</option><option>服饰</option><option>交通工具</option></select>
-          <select class="inp"><option>计费：直线法(按天)</option><option>按次均摊 V1.x</option><option>预估止损 V1.x</option></select>
+          <select class="inp"><option>计费：直线法(按天摊薄)</option><option>按次均摊</option><option>预估止损</option></select>
         </div>
         <div class="mt-2 flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3"><span>预期使用年限（可选，用于止损预估）</span><select class="sel"><option>3 年</option><option>5 年</option></select></div>
         <label class="mt-2 flex items-center justify-between text-xs"><span>保修期到期并入提醒中心（联动 L13）</span><span class="toggle on" onclick="tgl(this)"></span></label>
@@ -2138,6 +2139,18 @@ tailwind.config = {
         </div>
         <div class="mt-2 text-[10px] text-slate-400">升级后流水挂来源徽标「物品 L12」，购入记录写入成本时间轴且不可删除。</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== 提醒中心：改提醒日（就地内嵌滚轮） ===== -->
+  <div id="sheetRemindPick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetRemindPick')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">改提醒日</div>
+      <div class="text-[11px] text-slate-400 mt-0.5">当前提醒：<b id="rpCur"></b> · 上下滑动滚轮选择</div>
+      <div class="mt-3 flex items-center gap-1"><div id="rpM" class="flex-1"></div><div id="rpD" class="flex-1"></div><div id="rpH" class="flex-1"></div></div>
+      <div class="text-[10px] text-slate-400 mt-1" id="rpHint"></div>
+      <button onclick="remindSnoozeOk()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存提醒日</button>
     </div>
   </div>
 
@@ -2413,10 +2426,10 @@ const D = {
          {a:'每日摊薄中',t:'近 30 天日均 ¥19.10 → ¥18.98',d:'2026-09',c:'bg-mint',n:''}]},
     {n:'人体工学椅',ic:'🪑',cat:'家电',days:412,cost:1899,extra:0,res:0,st:'使用中',calc:1,buy:'2025-08-03',war:'',
      tl:[{a:'¥1,899',t:'购入',d:'2025-08-03',c:'bg-brand-500',n:''},{a:'每日摊薄中',t:'近 30 天日均 ¥4.66 → ¥4.61',d:'2026-09',c:'bg-mint',n:''}]},
-    {n:'Nike 跑鞋',ic:'👟',cat:'服饰',days:30,cost:899,extra:0,res:0,st:'使用中',calc:1,buy:'2026-08-18',war:'',
-     tl:[{a:'¥899',t:'购入（记账流水一键升级建档）',d:'2026-08-18',c:'bg-brand-500',n:'来源：记账流水升级（联动 L12）'},{a:'每日摊薄中',t:'新建档 · 日均 ¥29.97 逐日下降',d:'2026-09',c:'bg-mint',n:''}]},
-    {n:'相机镜头 35mm',ic:'📷',cat:'数码',days:520,cost:1299,extra:0,res:0,st:'闲置',calc:1,buy:'2025-04-22',war:'',
-     tl:[{a:'¥1,299',t:'购入',d:'2025-04-22',c:'bg-brand-500',n:''},{a:'闲置提示',t:'近 90 天未使用 · 建议回收或转卖',d:'2026-09',c:'bg-slate-400',n:''}]},
+    {n:'Nike 跑鞋',ic:'👟',cat:'服饰',days:30,cost:899,extra:0,res:0,st:'使用中',calc:1,buy:'2026-08-18',war:'',mode:'times',plan:300,punit:'次',used:45,used30:45,
+     tl:[{a:'¥899',t:'购入（记账流水一键升级建档）',d:'2026-08-18',c:'bg-brand-500',n:'来源：记账流水升级（联动 L12）'},{a:'按次摊薄中',t:'近 30 天跑了 45 次 · 折合日均 ¥4.50',d:'2026-09',c:'bg-mint',n:''}]},
+    {n:'相机镜头 35mm',ic:'📷',cat:'数码',days:520,cost:1299,extra:0,res:0,st:'闲置',calc:1,buy:'2025-04-22',war:'',mode:'stop',years:5,stopPct:30,
+     tl:[{a:'¥1,299',t:'购入',d:'2025-04-22',c:'bg-brand-500',n:''},{a:'闲置提示',t:'近 90 天未使用 · 建议止损前回收或转卖',d:'2026-09',c:'bg-slate-400',n:''}]},
     {n:'布艺沙发',ic:'🛋',cat:'家具',days:730,cost:2600,extra:0,res:0,st:'使用中',calc:1,buy:'2024-09-20',war:'',
      tl:[{a:'¥2,600',t:'购入',d:'2024-09-20',c:'bg-brand-500',n:''}]},
     {n:'iPhone 13',ic:'📱',cat:'数码',days:980,cost:5999,extra:199,res:1800,st:'已回收(抵扣留用)',calc:1,buy:'2024-01-08',war:'',
@@ -2431,6 +2444,12 @@ const D = {
     {t:'年度体检预约',g:'🩺',c:'from-sky-400 to-blue-600',d:45,l:'每年 11-09 · 公历循环',cat:'倒数',rep:'solar-year',rem:[15,3],prep:[{t:'空腹准备',done:false}],note:'',diary:[]},
     {t:'驾照换证',g:'🪪',c:'from-amber-400 to-orange-600',d:118,l:'2027-01-25 · 一次性',cat:'证件',rep:'once',rem:[90,30],prep:[{t:'拍证件照',done:false},{t:'体检证明',done:false}],note:'到期前 90 天可办理',diary:[]}],
   okr:[
+    {o:'O1 作息与运动地基搭建',p:100,per:'2026 Q1',kr:[
+      {k:'建立每周运动习惯 ≥2 次',v:100,cur:3,tgt:2,unit:'次/周',src:'习惯打卡 · 自动汇聚'},
+      {k:'连续日记 ≥60 天',v:100,cur:64,tgt:60,unit:'天',src:'日记 · 自动汇聚'}]},
+    {o:'O2 财务台账启动',p:68,per:'2026 Q2',kr:[
+      {k:'账户台账 100% 建档',v:80,cur:4,tgt:5,unit:'个',src:'记账 · 自动汇聚'},
+      {k:'存量物品完成归类',v:55,cur:11,tgt:20,unit:'件',src:'手动'}]},
     {o:'O1 建立可持续的健康作息',p:66,per:'2026 Q3',kr:[
       {k:'每周运动 ≥3 次',v:78,cur:3,tgt:4,unit:'次/周',src:'习惯打卡 · 自动汇聚'},
       {k:'23:30 前入睡率 ≥80%',v:55,cur:17,tgt:31,unit:'天/月',src:'日记 · 睡眠打卡 · 自动汇聚'},
@@ -3632,7 +3651,11 @@ function renderFin(){
 
 /* ================= 物品 · 每日成本引擎 ================= */
 const ITEM_TODAY=new Date(2026,8,19);
-function costOf(it){ return it.calc? ((it.cost+it.extra-it.res)/it.days) : null; }
+/* 计费三模式：直线法 day（默认）· 按次均摊 times · 预估止损 stop（止损预估叠加在直线基线上） */
+function perUse(it){return (it.cost+it.extra-it.res)/it.plan;}
+function costOf(it){ if(!it.calc)return null;
+  if(it.mode==='times') return perUse(it)*(it.used30||0)/30; /* 近30天频次折算日均 */
+  return ((it.cost+it.extra-it.res)/it.days); }
 function poolOf(it){ return it.cost+it.extra-it.res; }
 function daysHeld(buy){const b=new Date(buy);return Math.max(1,Math.round((ITEM_TODAY-b)/864e5));}
 function fmtY(n){return '¥'+n.toLocaleString('zh-CN',{maximumFractionDigits:2});}
@@ -3655,7 +3678,7 @@ function renderItems(){
     return `<div class="card flex items-center gap-3 ${hist?'opacity-60':''}" onclick="itemOpen(${i})">
     <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0">${it.ic}</div>
     <div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${it.n}</div>
-      <div class="text-[10px] text-slate-400">${hist?'已归档 · 决算已冻结 · 点看决算单':`持有 ${it.days} 天 · 成本池 ${fmtY(poolOf(it))} · ${it.st}${it.st==='闲置'?' · ⚠️ 建议回收':''}`}</div>
+      <div class="text-[10px] text-slate-400">${hist?'已归档 · 决算已冻结 · 点看决算单':`持有 ${it.days} 天 · 成本池 ${fmtY(poolOf(it))} · ${it.st}${it.mode==='times'?` · 按次 ¥${perUse(it).toFixed(2)}/次`:it.mode==='stop'?' · 含止损预估':''}${it.st==='闲置'?' · ⚠️ 建议回收':''}`}</div>
       <div class="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden w-32"><span class="block h-full ${hist?'bg-slate-400':it.st==='闲置'?'bg-sun':'bg-mint'}" style="width:${hist?100:Math.round(c/maxC*100)}%"></span></div></div>
     <div class="text-right shrink-0">${c?`<b class="text-mint text-base">${fmtY(+c.toFixed(2))}</b><div class="text-[9px] text-slate-400">/天 · 每日摊薄↓</div>`:`<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">已归档</span>`}</div></div>`}).join('')||'<div class="text-center text-xs text-slate-400 py-8">该分类下暂无物品 · 可切换分类或录入新物品</div>';
 }
@@ -3680,7 +3703,7 @@ function renderItemDetail(){const it=D.items[curItem],c=costOf(it),hist=it.calc=
   ${hist?`<button class="mt-3 w-full card flex items-center gap-3 text-left" onclick="itemSettleOpen(${curItem})"><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">🧾</span><span class="flex-1"><b class="text-sm">查看决算报告</b><div class="text-[11px] text-slate-400">净持有 ${fmtY(poolOf(it))} · 真实日均 ${fmtY(+(poolOf(it)/it.days).toFixed(2))}/天 · 已冻结 ›</div></span><span class="text-slate-300">›</span></button>`:`
   <div class="mt-4 card">
     <div class="flex items-end justify-between">
-      <div><div class="text-[11px] text-slate-400">当前日均成本（直线法）</div><div class="text-3xl font-extrabold text-mint">${fmtY(+c.toFixed(2))}<span class="text-xs text-slate-400 font-semibold">/天</span></div></div>
+      <div><div class="text-[11px] text-slate-400">当前日均成本（${it.mode==='times'?'按次×近30天频次折算':it.mode==='stop'?'直线基线 · 附止损预估':'直线法'}）</div><div class="text-3xl font-extrabold text-mint">${fmtY(+c.toFixed(2))}<span class="text-xs text-slate-400 font-semibold">/天</span></div></div>
       <div class="text-right text-[11px] text-slate-400 leading-5">持有 ${it.days} 天<br>成本池 ${fmtY(poolOf(it))}</div>
     </div>
     <svg viewBox="0 0 300 70" class="w-full h-20 mt-2">
@@ -3690,8 +3713,17 @@ function renderItemDetail(){const it=D.items[curItem],c=costOf(it),hist=it.calc=
       <defs><linearGradient id="g1d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></linearGradient></defs>
       <text x="4" y="66" font-size="8" fill="#94a3b8">摊薄曲线（示意）</text><text x="248" y="58" font-size="8" fill="#2dd4bf">今日 ${fmtY(+c.toFixed(2))}</text>
     </svg>
-    <div class="text-center text-[10px] text-slate-400">购入价 ${fmtY(it.cost)} ＋ 二次付费 ${fmtY(it.extra)} － 回收残值 ${fmtY(it.res)} ＝ 成本池 ÷ ${it.days} 天 · 每天自动摊薄</div>
+    <div class="text-center text-[10px] text-slate-400">购入价 ${fmtY(it.cost)} ＋ 二次付费 ${fmtY(it.extra)} － 回收残值 ${fmtY(it.res)} ＝ 成本池 ÷ ${it.mode==='times'?it.plan+' '+ (it.punit||'次'):it.days+' 天'} · ${it.mode==='times'?'每次摊薄，用得越多摊得越快':'每天自动摊薄'}</div>
   </div>
+  ${it.mode==='times'?`<div class="mt-3 card">
+    <div class="row-title">🎯 按次均摊口径</div>
+    <div class="mt-2 flex items-end justify-between"><div><div class="text-[11px] text-slate-400">每次成本 ＝ 成本池 ÷ 计划 ${it.plan} ${it.punit||'次'}</div>
+      <div class="text-2xl font-extrabold" style="color:var(--accent)">¥ ${perUse(it).toFixed(2)}<span class="text-xs text-slate-400 font-semibold">/${it.punit||'次'}</span></div></div>
+      <div class="text-right text-[11px] text-slate-400 leading-5">已用 ${it.used}/${it.plan}<br>近 30 天 ${it.used30} 次</div></div>
+    <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${Math.round(it.used/it.plan*100)}%"></span></div>
+    <div class="text-[10px] text-slate-400 mt-2">双口径并列：按次看「用得值不值」，折算日均看「今天背了多少」· 计划次数与单位在档案中可改</div>
+  </div>`:''}
+  ${it.mode==='stop'?stopCardHtml(it):''}
   <div class="mt-3 grid grid-cols-3 gap-3">
     <button onclick="openExtraSheet()" class="life-btn bg-sun/10 text-amber-600 dark:text-amber-400">💳<br>二次付费</button>
     <button onclick="openRecycleSheet()" class="life-btn bg-mint/10 text-teal-600 dark:text-teal-400">♻️<br>回收/出售</button>
@@ -3791,50 +3823,70 @@ function renderItemSettle(i){const it=D.items[i];const pool=poolOf(it),inv=it.co
   </div>`;
 }
 /* —— 档案编辑（新建/修改共用） —— */
-let editItem=null;
+let editItem=null, ieMode='day';
+function stopCardHtml(it){const yrs=it.years||5,sp=it.stopPct||30,net=Math.max(0,it.cost*(1-it.days/(yrs*365))),line=it.cost*sp/100;
+  const sd=new Date(new Date(it.buy).getTime()+yrs*365*(1-sp/100)*864e5);
+  const dsd=sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');
+  return `<div class="mt-3 card">
+  <div class="row-title">🛑 预估止损</div>
+  <div class="mt-2 flex items-end justify-between"><div><div class="text-[11px] text-slate-400">直线折旧净值（预期 ${yrs} 年 · 止损线为购入价 ${sp}%）</div>
+    <div class="text-2xl font-extrabold ${net<line*1.2?'text-amber-500':'text-mint'}">${fmtY(Math.round(net))}</div></div>
+    <div class="text-right text-[11px] text-slate-400 leading-5">止损线 ${fmtY(Math.round(line))}<br>预估触线 ${dsd}</div></div>
+  <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative"><span class="block h-full ${net<line*1.2?'bg-amber-400':'bg-mint'}" style="width:${Math.min(100,net/it.cost*100)}%"></span><span class="absolute top-[-2px] bottom-[-2px] w-[2px] bg-rose-500" style="left:${sp}%"></span></div>
+  <div class="text-[10px] text-slate-400 mt-2">${net<line*1.5?'⚠️ 净值已接近止损线 · 建议尽快回收/转卖，残值将扣减成本池并生成决算':'跌破止损线前择机回收 · 回收/报废均自动生成决算并冻结审计记录'}</div></div>`}
+function ieCalcPick(el,k){ieMode=k;$$('#ieCalcChips .tag-chip').forEach(b=>b.classList.toggle('on',b===el));
+  $('#ieTimesWrap').classList.toggle('hidden',k!=='times');$('#ieStopWrap').classList.toggle('hidden',k!=='stop');}
 function itemEditNew(pref){editItem=null;
   $('#iePrevIco').textContent=(pref&&pref.ic)||'📦';$('#iePrevTip').textContent=(pref&&pref.ic)?'来自记账流水 · 点击可更换照片':'添加物品照片（点击拍摄/选择）';
   $('#ieName').value=pref&&pref.n?pref.n:'';$('#ieCost').value=pref&&pref.cost?pref.cost:'';
   $('#ieBuy').value=pref&&pref.buy?pref.buy:'2026-09-19';$('#ieWar').value='';
   if(pref&&pref.cat)$('#ieCat').value=pref.cat;
   $$('#ieStChips .tag-chip').forEach((b,i)=>b.classList.toggle('on',i===0));
-  $$('#ieCalcChips .tag-chip').forEach((b,i)=>b.classList.toggle('on',i===0));
+  ieMode='day';$$('#ieCalcChips .tag-chip').forEach((b,i)=>b.classList.toggle('on',i===0));ieCalcPick(document.querySelector('#ieCalcChips .tag-chip'),'day');
   $('#pageTitle').textContent='录入物品';$('#pageSub').textContent='建档即开始每日计费';
   navTo('p-itemEdit');}
 function itemEdit(i){editItem=i;const it=D.items[i];
   $('#iePrevIco').textContent=it.ic;$('#iePrevTip').textContent='点击更换照片';
   $('#ieName').value=it.n;$('#ieCost').value=it.cost;$('#ieBuy').value=it.buy;$('#ieWar').value=it.war||'';
   $('#ieCat').value=it.cat;
+  if(it.mode==='times'){$('#iePlan').value=it.plan;$('#iePUnit').value=it.punit||'次'}
+  if(it.mode==='stop'){$('#ieStopYears').value=String(it.years||5);$('#ieStopPct').value=it.stopPct||30}
+  ieMode=it.mode||'day';
+  $$('#ieCalcChips .tag-chip').forEach(b=>b.classList.remove('on'));
+  const idx={day:0,times:1,stop:2}[ieMode];ieCalcPick($$('#ieCalcChips .tag-chip')[idx],ieMode);
   $$('#ieStChips .tag-chip').forEach(b=>b.classList.toggle('on',it.st.indexOf(b.textContent.replace(/\s.*/,''))===0));
   $('#pageTitle').textContent='编辑档案';$('#pageSub').textContent=it.n;
   navTo('p-itemEdit');}
-function ieCalcPick(el,k){$$('#ieCalcChips .tag-chip').forEach(b=>b.classList.remove('on'));el.classList.add('on');
-  if(k!=='直线法（按天摊薄）')toast(k+' 排期 V1.x · 原型内按直线法演示');}
 function ieStPick(el,k){$$('#ieStChips .tag-chip').forEach(b=>b.classList.remove('on'));el.classList.add('on')}
 function itemSave(){const n=$('#ieName').value.trim(),c=+$('#ieCost').value;
   if(!n){toast('先填物品名称');return}if(!c||c<=0){toast('先填购入价格');return}
   const buy=$('#ieBuy').value||'2026-09-19';
   const st=(document.querySelector('#ieStChips .tag-chip.on')||{textContent:'使用中'}).textContent.replace(/\s.*/,'');
-  const rec={n,ic:'📦',cat:$('#ieCat').value,days:daysHeld(buy),cost:c,extra:0,res:0,st,calc:st==='使用中'||st==='闲置'?1:0,buy,war:$('#ieWar').value,
+  const rec={n,ic:'📦',cat:$('#ieCat').value,days:daysHeld(buy),cost:c,extra:0,res:0,st,calc:st==='使用中'||st==='闲置'?1:0,buy,war:$('#ieWar').value,mode:ieMode,
     tl:[{a:fmtY(c),t:'购入',d:buy,c:'bg-brand-500',n:'手动建档 · 同步生成记账流水（联动 L12）'}]};
+  if(ieMode==='times'){rec.plan=+$('#iePlan').value||100;rec.punit=$('#iePUnit').value;rec.used=0;rec.used30=0;
+    rec.tl.push({a:'按次口径',t:`计划 ${rec.plan} ${rec.punit} · 每次 ¥${(c/rec.plan).toFixed(2)}`,d:buy,c:'bg-mint',n:'尚未记录使用 · 日均 ¥0.00 起'});}
+  if(ieMode==='stop'){rec.years=+$('#ieStopYears').value||5;rec.stopPct=+$('#ieStopPct').value||30;}
   if(editItem===null){D.items.unshift(rec);curItem=0;toast('物品已建档 · 今日成本 '+fmtY(+(costOf(rec)||0).toFixed(2))+' 起计（模拟）');}
   else{const old=D.items[editItem];rec.extra=old.extra;rec.res=old.res;rec.tl=old.tl.concat(st==='已报废'?[{a:'状态变更',t:'转报废 · 停止计费',d:'2026-09-19',c:'bg-slate-400',n:''}]:[]);rec.days=old.days;rec.calc=st==='已报废'||st==='已回收(转出)'?0:1;
+    if(old.mode===ieMode){rec.used=old.used;rec.used30=old.used30;rec.plan=old.plan;rec.punit=old.punit;rec.years=old.years;rec.stopPct=old.stopPct;rec.tl=old.tl;}
     D.items[editItem]=rec;curItem=editItem;toast('档案已更新 · 日均已重算（模拟）');}
   itemCat='全部';renderItems();renderItemDetail();goBack();}
 
 /* ================= 重要日子 ================= */
 let dayCat='全部', dayListMode=false, daySortAsc=true, curDay=0;
-const DAY_CATS=['全部','生日','纪念日','循环','证件','倒数'];
+const DAY_CATS=['全部','生日','纪念日','循环','证件','倒数','已归档'];
 const REM_REM=[30,15,7,3,1,0];
 function dayNum(d){return d.d>=0?`<span class="text-3xl font-extrabold">${d.d}</span><span class="text-xs font-bold ml-1">天后</span>`:`<span class="text-2xl font-extrabold">已过${-d.d}</span><span class="text-xs font-bold ml-1">天</span>`}
 function renderDays(){
-  $('#daySeg').innerHTML=DAY_CATS.map(c=>{const n=c==='全部'?D.days.length:D.days.filter(x=>x.cat===c).length;
+  $('#daySeg').innerHTML=DAY_CATS.map(c=>{const n=c==='全部'?D.days.filter(x=>!x.arch).length:c==='已归档'?D.days.filter(x=>x.arch).length:D.days.filter(x=>x.cat===c&&!x.arch).length;
     return `<button class="seg-pill whitespace-nowrap ${c===dayCat?'on':''}" onclick="dayCatSet('${c}')">${c}${n&&c!=='全部'?' '+n:''}</button>`}).join('');
-  let list=D.days.map((x,i)=>({x,i}));
-  if(dayCat!=='全部')list=list.filter(o=>o.x.cat===dayCat);
+  let list=D.days.map((x,i)=>({x,i})).filter(o=>dayCat==='已归档'?o.x.arch:!o.x.arch);
+  if(dayCat!=='全部'&&dayCat!=='已归档')list=list.filter(o=>o.x.cat===dayCat);
   list.sort((a,b)=>daySortAsc?(Math.abs(a.x.d)-Math.abs(b.x.d)):(Math.abs(b.x.d)-Math.abs(a.x.d)));
-  const next=D.days.filter(x=>x.d>=0).sort((a,b)=>a.d-b.d)[0];
-  $('#dayCnt').textContent=`${D.days.length} 个日子 · 最近「${next?next.t:'—'}」还 ${next?next.d:'—'} 天`;
+  const act=D.days.filter(x=>!x.arch);
+  const next=act.filter(x=>x.d>=0).sort((a,b)=>a.d-b.d)[0];
+  $('#dayCnt').textContent=`${act.length} 个日子 · 最近「${next?next.t:'—'}」还 ${next?next.d:'—'} 天`;
   $('#daySortBtn').textContent=daySortAsc?'↕ 最近优先':'↕ 最久优先';
   $('#dayViewBtn').textContent=dayListMode?'▦ 卡片':'☰ 列表';
   $('#dayCards').classList.toggle('hidden',dayListMode);$('#dayListL').classList.toggle('hidden',!dayListMode);
@@ -3848,7 +3900,7 @@ function renderDays(){
     <div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${x.t}</div><div class="text-[10px] text-slate-400">${x.l}</div></div>
     <div class="text-right shrink-0">${dayNum(x)}${x.d<0?'<div class="text-[9px] text-rose-500 font-bold">去处理 ›</div>':''}</div></div>`).join('');
   /* 仪表盘倒数卡 */
-  const chips=D.days.filter(x=>x.d>=0).sort((a,b)=>a.d-b.d).slice(0,3);
+  const chips=D.days.filter(x=>x.d>=0&&!x.arch).sort((a,b)=>a.d-b.d).slice(0,3);
   const dd=$('#dashDayChips');if(dd)dd.innerHTML=chips.map(x=>{const i=D.days.indexOf(x);
     return `<button class="flex-1 rounded-xl bg-gradient-to-br ${x.c} text-white px-2 py-2 text-left" onclick="dayTap(${i});navTo('p-dashboard')"><div class="text-[9px] opacity-85 truncate">${x.g} ${x.t}</div><b class="text-lg">${x.d}</b><span class="text-[9px]"> 天</span></button>`}).join('');
   /* 提醒中心预览 */
@@ -3859,7 +3911,7 @@ function renderDays(){
 function dayCatSet(c){dayCat=c;renderDays()}
 function dayViewFlip(){dayListMode=!dayListMode;renderDays()}
 function daySortFlip(){daySortAsc=!daySortAsc;renderDays()}
-function dayTap(i){const d=D.days[i];if(d.d<0){goRemind();return}dayOpen(i)}
+function dayTap(i){const d=D.days[i];if(d.arch){dayOpen(i);return}if(d.d<0){goRemind();return}dayOpen(i)}
 function dayOpen(i){curDay=i;renderDayDetail();navTo('p-dayDetail')}
 function renderDayDetail(){const d=D.days[curDay];
   $('#pageTitle').textContent='日子详情';$('#pageSub').textContent=d.t;
@@ -3886,13 +3938,23 @@ function renderDayDetail(){const d=D.days[curDay];
     <div class="row-title">📖 关联当年日记（每年此日自动回看 · 联动 L5）</div>
     <div class="mt-2 space-y-2 text-xs">${(d.diary&&d.diary.length)?d.diary.map(s=>`<button class="w-full text-left rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 leading-5" onclick="toast('已打开当年日记（模拟）')">${s}</button>`).join(''):'<div class="text-xs text-slate-400">该日子尚无历史日记关联</div>'}</div>
   </div>
+  ${d.arch?`
+  <div class="mt-3 rounded-2xl bg-slate-100 dark:bg-slate-800 p-3 text-[11px] text-slate-500 dark:text-slate-400 text-center">🗄 此日子已归档 · 不再出现在列表与倒数卡，提醒已解除</div>
+  <div class="mt-3 flex gap-2">
+    <button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="dayRestore()">↩ 恢复到列表</button>
+    <button class="flex-1 py-3 rounded-xl border border-rose-300 text-rose-500 text-sm font-bold" onclick="dayPurge()">彻底删除</button>
+  </div>`:`
   <div class="mt-3 grid grid-cols-3 gap-3">
     <button class="life-btn bg-slate-100 dark:bg-slate-800 font-bold" onclick="dayEdit(${curDay})">✎ 编辑</button>
     <button class="life-btn bg-slate-100 dark:bg-slate-800 font-bold" onclick="toast('倒数日分享卡已生成（模拟）')">⤴ 分享卡</button>
     <button class="life-btn ${d.pinned?'bg-brand-500 text-white':'bg-slate-100 dark:bg-slate-800'} font-bold" onclick="dPinned()">📌 ${d.pinned?'已置顶':'置顶'}</button>
   </div>
-  <div class="text-center mt-2"><button class="text-[11px] text-slate-400" onclick="toast('归档后从主页移除 · 记录保留在历史')">归档此日子 ›</button></div>`;
+  <div class="text-center mt-2"><button class="text-[11px] text-slate-400" onclick="dayArchive()">归档此日子（可在「已归档」恢复）›</button></div>`}`;
 }
+function dayArchive(){const d=D.days[curDay];d.arch=1;renderDays();toast('已归档「'+d.t+'」· 到「日子 · 已归档」可恢复');goBack()}
+function dayRestore(){const d=D.days[curDay];d.arch=0;renderDays();renderDayDetail();toast('已恢复到日子列表')}
+function dayPurge(){const d=D.days[curDay];
+  if(confirm('彻底删除「'+d.t+'」？关联待办与日记引用不受影响（原型演示）')){D.days.splice(curDay,1);renderDays();toast('已彻底删除');goBack()}}
 function dayPrepToggle(k){const d=D.days[curDay],p=d.prep[k];p.done=!p.done;
   if(p.done&&!p.task){p.task=1;toast('「'+p.t+'」已生成待办（联动 L3 · 截止日='+d.t+'前）')}renderDayDetail()}
 function dayPrepAll(){const d=D.days[curDay];if(!d.prep||!d.prep.length){toast('先添加准备事项');return}
@@ -3963,7 +4025,7 @@ function renderRemind(){const tabs=['全部','证件','订阅','保修'];
     return `<div class="card !py-3 ${r.done?'opacity-50':''}">
     <div class="flex items-center gap-3"><span class="text-2xl">${r.ic}</span>
       <div class="flex-1 min-w-0"><div class="text-sm font-bold">${r.n}${r.done?' · 已处理':''}</div>
-        <div class="text-[10px] text-slate-400">${r.cat} · 到期 ${r.due}${r.meta?' · '+r.meta:''}</div>
+        <div class="text-[10px] text-slate-400">${r.cat} · 到期 ${r.due}${r.snooze?' · <b class="text-brand-500">已改提醒 '+r.snooze+'</b>':''}${r.meta?' · '+r.meta:''}</div>
         ${r.tip?`<div class="text-[10px] text-sun mt-0.5">💡 ${r.tip}</div>`:''}</div>
       <div class="text-right shrink-0"><b class="${r.d<0?'text-slate-400':r.d<=7?'text-rose-500':'text-sun'} text-sm">${r.d<0?'已过期 '+(-r.d)+' 天':r.d+' 天后'}</b></div></div>
     ${r.done?'':'<div class="mt-2.5 flex gap-2 text-[11px]">'+
@@ -3973,7 +4035,16 @@ function renderRemind(){const tabs=['全部','证件','订阅','保修'];
   renderDays();}
 function remindSet(t){remindTab=t;renderRemind()}
 function remindDone(i){REMINDS[i].done=1;renderRemind();toast('已标记处理 · 静默归档保留审计')}
-function remindSnooze(i){toast('滚轮改提醒日（同 V1.26 内嵌滚轮 · 模拟）')}
+let rpIdx=null;
+function remindSnooze(i){rpIdx=i;const r=REMINDS[i];
+  wReg('rpM',['9月','10月','11月','12月','1月'],1,rpHintUpd);
+  wReg('rpD',Array.from({length:31},(_,k)=>(k+1)+'日'),Math.min(30,Math.max(0,r.d-1)),rpHintUpd);
+  wReg('rpH',Array.from({length:24},(_,k)=>String(k).padStart(2,'0')+'时'),9,rpHintUpd);
+  $('#rpCur').textContent=r.n+' · 原定 '+r.due;rpHintUpd();openSheet('sheetRemindPick')}
+function rpHintUpd(){if(!WHEELS.rpM)return;$('#rpHint').innerHTML='将于 <b class="text-brand-500">'+WHEELS.rpM.items[WHEELS.rpM.i]+WHEELS.rpD.items[WHEELS.rpD.i]+' '+WHEELS.rpH.items[WHEELS.rpH.i].replace('时',':')+'00</b> 提醒 · 多级提前提醒按此日倒推'}
+function remindSnoozeOk(){const r=REMINDS[rpIdx];
+  r.snooze=WHEELS.rpM.items[WHEELS.rpM.i]+WHEELS.rpD.items[WHEELS.rpD.i]+' '+WHEELS.rpH.items[WHEELS.rpH.i].replace('时',':')+'00';
+  closeSheet('sheetRemindPick');renderRemind();toast('「'+r.n+'」提醒日已改为 '+r.snooze+'（模拟）')}
 function remindTodo(i){const r=REMINDS[i];
   D.todos.unshift({t:(r.cat==='订阅'?'续订 ':'办理 ')+r.n,tag:'日子',q:1,due:r.due.slice(5),done:false,imp:1,urg:r.d<=7?1:0});
   renderTodos();renderQuad&&renderQuad();toast('已生成待办「'+r.n+'」· 重要不紧急（联动 L3）')}
@@ -4005,51 +4076,76 @@ function water(n){ waterN=Math.max(0,Math.min(8,waterN+n)); renderHealth(); if(w
 function setWater(n){ waterN=n; renderHealth(); }
 /* ================= 目标 OKR ================= */
 let curGoal=0, goalView='quarter';
+const GOAL_PERIODS=['2026 Q1','2026 Q2','2026 Q3','2026 Q4'];
+let goalPi=2;
+function curPer(){return GOAL_PERIODS[goalPi]}
+function perArchived(p){return p==='2026 Q1'||p==='2026 Q2'}
+function perState(p){return perArchived(p)?'已归档 · 只读':p==='2026 Q3'?'进行中':'未开始 · 可预建'}
+function goalsIn(p){return D.okr.filter(o=>o.per===p)}
 function goalPct(o){return Math.round(o.kr.reduce((s,k)=>s+k.v,0)/o.kr.length)}
-function krDone(){return D.okr.reduce((s,o)=>s+o.kr.filter(k=>k.v>=100).length,0)}
+function krDone(list){return list.reduce((s,o)=>s+o.kr.filter(k=>k.v>=100).length,0)}
 function renderOkr(){
-  const avg=D.okr.length?Math.round(D.okr.reduce((s,o)=>s+goalPct(o),0)/D.okr.length):0;
-  $('#goalPeriodSub').innerHTML=`${D.okr.length} 个目标 · 平均进度 <b class="text-brand-500">${avg}%</b> · KR 达成 ${krDone()}/${D.okr.reduce((s,o)=>s+o.kr.length,0)}`;
-  $('#okrList').innerHTML=D.okr.map((o,i)=>{const p=goalPct(o);
-    return `<div class="card" onclick="goalOpen(${i})">
-    <div class="flex items-center justify-between"><div class="text-sm font-extrabold flex-1 pr-2">${o.o}${goalView==='year'?` <span class="chip !text-[9px] !py-0.5 ml-1">${o.per}</span>`:''}</div><b class="text-brand-500">${p}%</b></div>
-    <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${p}%"></span></div>
+  const list=goalView==='year'?D.okr:D.okr.filter(o=>o.per===curPer()||o.per==='年度目标');
+  $('#goalPeriodLbl').textContent=goalView==='year'?'2026 年度视角 · 全部周期':curPer()+' · '+perState(curPer());
+  const avg=list.length?Math.round(list.reduce((s,o)=>s+goalPct(o),0)/list.length):0;
+  $('#goalPeriodSub').innerHTML=`${list.length} 个目标 · 平均进度 <b class="text-brand-500">${avg}%</b> · KR 达成 ${krDone(list)}/${list.reduce((s,o)=>s+o.kr.length,0)}`;
+  $('#okrList').innerHTML=list.map((o,i)=>{const p=goalPct(o),arch=perArchived(o.per);const gi=D.okr.indexOf(o);
+    return `<div class="card ${arch?'opacity-80':''}" onclick="goalOpen(${gi})">
+    <div class="flex items-center justify-between"><div class="text-sm font-extrabold flex-1 pr-2">${o.o}${goalView==='year'||arch?` <span class="chip !text-[9px] !py-0.5 ml-1">${o.per}${arch?' · 归档':''}</span>`:''}</div><b class="${arch?'text-slate-400':'text-brand-500'}">${p}%</b></div>
+    <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${arch?'bg-slate-400':'grad'}" style="width:${p}%"></span></div>
     <div class="mt-3 space-y-2">${o.kr.map(k=>`<div class="flex items-center gap-2 text-xs"><span class="flex-1 truncate text-slate-500 dark:text-slate-400">${k.k}</span>
       <div class="w-20 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${k.v>=100?'bg-emerald-500':k.v>0?'bg-brand-500':'bg-slate-300'}" style="width:${Math.min(100,k.v)}%"></span></div><b class="w-9 text-right ${k.v>=100?'text-emerald-500':''}">${k.v}%</b></div>`).join('')}</div>
-    <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400"><span>进度由关联数据自动汇聚（联动 L3/L4/L5 · 可手动回填）</span><span class="text-brand-500 font-bold">详情 ›</span></div></div>`}).join('')
-    +'<div class="card !py-3 text-center text-[11px] text-slate-400">单周期建议 ≤ 5 个 O · 当前 '+D.okr.length+'/5，超出时创建入口将提醒收敛</div>';
+    <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400"><span>${arch?'归档周期保留最终达成口径 · 复盘已关联':'进度由关联数据自动汇聚（联动 L3/L4/L5 · 可手动回填）'}</span><span class="text-brand-500 font-bold">详情 ›</span></div></div>`}).join('')
+    +(list.length?'<div class="card !py-3 text-center text-[11px] text-slate-400">单周期建议 ≤ 5 个 O · 当前 '+list.length+'/5，超出时创建入口将提醒收敛</div>'
+      :`<div class="card !py-6 text-center"><div class="text-xs text-slate-400 leading-6">本周期还没有目标。<br>可从上一周期复制，或新建 2~4 个 KR 的目标。</div>
+        <div class="mt-3 flex gap-2 justify-center"><button class="mini-btn" onclick="goalNew()">＋ 新建目标</button><button class="mini-btn !bg-slate-100 dark:!bg-slate-800" onclick="goalCopyPrev()">⧉ 复制上期目标</button></div></div>`);
 }
-function goalPeriod(n){toast(n>0?'2026 Q4 尚未开始 · 原型固定在 Q3（正式版可查看历史/未来周期）':'2026 Q2 已归档 · 复盘见「季度复盘」')}
-function goalScope(el,k){goalView=k;$$('#goalScopeChips .tag-chip').forEach(b=>b.classList.toggle('on',b===el));renderOkr();toast(k==='year'?'年度视角：跨季度总览全部 O':'季度视角：仅当前周期')}
-function goalNew(){if(D.okr.filter(o=>o.per==='2026 Q3').length>=5){toast('目标数量上限提醒：本周期已有 5 个 O，建议先归档/收敛一个');return}
+function goalPeriod(n){const np=goalPi+n;if(np<0||np>3){toast(n>0?'已是最后一个周期':'最早周期为 2026 Q1');return}
+  goalPi=np;renderOkr();toast('已切换到 '+curPer()+' · '+perState(curPer()))}
+function goalScope(el,k){goalView=k;$$('#goalScopeChips .tag-chip').forEach(b=>b.classList.toggle('on',b===el));renderOkr();toast(k==='year'?'年度视角：跨周期总览全部 O（含归档）':'周期视角：仅 '+curPer())}
+function goalNew(){if(perArchived(curPer())){toast('归档周期只读 · 请切到 2026 Q3/Q4 再创建');return}
+  if(goalsIn(curPer()).length>=5){toast('目标数量上限提醒：'+curPer()+' 已有 5 个 O，建议先归档/收敛一个');return}
   geEdit=null;$('#geTitle').value='';$('#geSaveBtn').textContent='保存目标';$('#geDelBtn').classList.add('hidden');
   geKrs=[{k:'',type:'num',tgt:10,unit:'%',src:'手动'},{k:'',type:'num',tgt:1,unit:'项',src:'手动'}];
-  $$('#gePeriodChips .tag-chip').forEach((b,i)=>b.classList.toggle('on',i===1));
-  $('#pageTitle').textContent='新建目标';$('#pageSub').textContent='O ＋ 2~4 个 KR';renderGe();navTo('p-goalEdit')}
+  geChips(curPer());$('#pageTitle').textContent='新建目标';$('#pageSub').textContent='O ＋ 2~4 个 KR';renderGe();navTo('p-goalEdit')}
+function goalCopyPrev(){let pi=goalPi-1;while(pi>=0&&!goalsIn(GOAL_PERIODS[pi]).length)pi--;
+  if(pi<0){toast('没有可复制的历史周期');return}
+  const src=goalsIn(GOAL_PERIODS[pi]);
+  if(goalsIn(curPer()).length+src.length>5){toast('复制后将超出单周期 5 个上限 · 请精简后再复制');return}
+  src.forEach(o=>D.okr.push({o:o.o.replace(/^O\d+/,'O'+(goalsIn(curPer()).length+1)),per:curPer(),kr:o.kr.map(k=>({k:k.k,v:0,cur:0,tgt:k.tgt,unit:k.unit,src:k.src}))}));
+  renderOkr();toast('已从 '+GOAL_PERIODS[pi]+' 复制 '+src.length+' 个目标为 '+curPer()+' 草稿（进度清零）')}
+function goalCopy(i){const tgt=perArchived(curPer())?'2026 Q3':curPer();
+  const o=D.okr[i];D.okr.push({o:o.o,per:tgt,kr:o.kr.map(k=>({k:k.k,v:0,cur:0,tgt:k.tgt,unit:k.unit,src:k.src}))});
+  renderOkr();toast('已复制为 '+tgt+' 新目标 · 进度已清零')}
 function goalOpen(i){curGoal=i;renderGoalDetail();navTo('p-goalDetail')}
-function renderGoalDetail(){const o=D.okr[curGoal],p=goalPct(o);
+const PERIOD_END={'2026 Q1':'03-31','2026 Q2':'06-30','2026 Q3':'09-30','2026 Q4':'12-31'};
+function renderGoalDetail(){const o=D.okr[curGoal],p=goalPct(o),arch=perArchived(o.per);
   $('#pageTitle').textContent='目标详情';$('#pageSub').textContent=o.o.split(' ')[0]+' · '+o.per;
   $('#goalDetailBody').innerHTML=`
   <div class="card flex items-center gap-4">
     <div class="relative w-20 h-20 shrink-0">
-      <svg viewBox="0 0 36 36" class="w-20 h-20 ring-progress"><circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" stroke-width="4.5" class="dark:opacity-10"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-dasharray="${p} 100" stroke-linecap="round"/></svg>
-      <span class="absolute inset-0 flex items-center justify-center text-sm font-extrabold" style="color:var(--accent)">${p}%</span></div>
+      <svg viewBox="0 0 36 36" class="w-20 h-20 ring-progress"><circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" stroke-width="4.5" class="dark:opacity-10"/><circle cx="18" cy="18" r="15" fill="none" stroke="${arch?'#94a3b8':'var(--accent)'}" stroke-width="4.5" stroke-dasharray="${p} 100" stroke-linecap="round"/></svg>
+      <span class="absolute inset-0 flex items-center justify-center text-sm font-extrabold" style="color:${arch?'#94a3b8':'var(--accent)'}">${p}%</span></div>
     <div class="flex-1 min-w-0"><div class="font-extrabold text-sm leading-6">${o.o}</div>
-      <div class="text-[10px] text-slate-400 mt-0.5">${o.per} · ${o.kr.length} 个 KR · 截止 09-30（剩 11 天）</div></div>
+      <div class="text-[10px] text-slate-400 mt-0.5">${o.per} · ${o.kr.length} 个 KR · 截止 ${PERIOD_END[o.per]||'12-31'}${arch?' · 已归档':o.per==='2026 Q4'?' · 未开始':'（剩 11 天）'}</div>
+      ${arch?'<div class="mt-1 inline-flex text-[9px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold">归档周期 · 只读 · 保留最终达成口径</div>':''}</div>
   </div>
   ${o.kr.map((k,ki)=>`<div class="card mt-3">
     <div class="flex items-center justify-between"><b class="text-[13px] flex-1 pr-2">${k.k}</b><span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${k.src.indexOf('手动')>=0?'bg-slate-200 dark:bg-slate-800 text-slate-500':'bg-brand-50 dark:bg-brand-500/15 text-brand-600 dark:text-brand-400'}">${k.src.indexOf('手动')>=0?'手动':'自动汇聚'}</span></div>
     <div class="mt-2 flex items-center gap-2"><div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${k.v>=100?'bg-emerald-500':'grad'} rounded-full" style="width:${Math.min(100,k.v)}%"></span></div><b class="text-xs w-10 text-right">${k.v}%</b></div>
     <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400"><span>当前 <b class="text-slate-600 dark:text-slate-200">${k.cur}</b> / 目标 ${k.tgt} ${k.unit}</span>
-      <span class="flex gap-2"><button class="mini-btn" onclick="event.stopPropagation();krBump(${ki})">✎ 回填进度</button><button class="mini-btn !bg-slate-100 dark:!bg-slate-800" onclick="event.stopPropagation();toast('来源明细：${k.src}（跳转对应模块 · 模拟）')">来源明细</button></span></div>
+      <span class="flex gap-2">${arch?'':`<button class="mini-btn" onclick="event.stopPropagation();krBump(${ki})">✎ 回填进度</button>`}<button class="mini-btn !bg-slate-100 dark:!bg-slate-800" onclick="event.stopPropagation();toast('来源明细：${k.src}（跳转对应模块 · 模拟）')">来源明细</button></span></div>
     <div class="text-[10px] text-slate-400 mt-1.5">数据源：${k.src} · 每日 00:00 自动重算</div></div>`).join('')}
-  <div class="mt-3 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 text-[11px] leading-6 text-slate-500 dark:text-slate-400">汇聚口径：关联<b>待办完成数 / 阅读本数 / 日记篇数 / 习惯打卡 / 记账结余</b>自动计算 KR；关闭「自动汇聚」后该 KR 转手动回填。</div>
+  <div class="mt-3 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 text-[11px] leading-6 text-slate-500 dark:text-slate-400">汇聚口径：关联<b>待办完成数 / 阅读本数 / 日记篇数 / 习惯打卡 / 记账结余</b>自动计算 KR；关闭「自动汇聚」后该 KR 转手动回填。${arch?'归档周期数据冻结在期末时点。':''}</div>
   <div class="mt-3 flex gap-2">
+    ${arch?`<button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="goalCopy(${curGoal})">⧉ 复制为新周期目标</button>
+    <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="grTo(0);renderGoalReview();navTo('p-goalReview')">查看最近复盘</button>`:`
     <button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="goalEdit(${curGoal})">✎ 编辑目标</button>
-    <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="toast('本目标已加入「季度复盘」对照清单')">🪞 加入复盘</button>
+    <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="toast('本目标已加入「季度复盘」对照清单')">🪞 加入复盘</button>`}
   </div>`;
 }
-function krBump(ki){const k=D.okr[curGoal].kr[ki];k.cur=Math.min(k.tgt,k.cur+1);k.v=Math.round(k.cur/k.tgt*100);
+function krBump(ki){const k=D.okr[curGoal].kr[ki];if(perArchived(D.okr[curGoal].per)){toast('归档周期只读');return}
+  k.cur=Math.min(k.tgt,k.cur+1);k.v=Math.round(k.cur/k.tgt*100);
   renderGoalDetail();renderOkr();toast(k.k+' 已回填 '+k.cur+'/'+k.tgt+' '+k.unit+'（模拟）')}
 /* —— 目标编辑 —— */
 let geEdit=null, geKrs=[];
@@ -4063,19 +4159,23 @@ function renderGe(){$('#geKrs').innerHTML=geKrs.map((k,i)=>`<div class="card !py
     <span class="text-slate-400 ml-auto shrink-0">数据源</span><select class="sel" onchange="geKrs[${i}].src=this.value">${GE_SRC.map(s=>`<option ${s===k.src?'selected':''}>${s}</option>`).join('')}</select></div>
   </div>`).join('');}
 function gePeriodPick(el){$$('#gePeriodChips .tag-chip').forEach(b=>b.classList.toggle('on',b===el))}
+function geChips(cur){$('#gePeriodChips').innerHTML=['年度目标','2026 Q3','2026 Q4'].map(o=>`<button class="tag-chip ${o===cur?'on':''}" data-k="${o}" onclick="gePeriodPick(this)">${o}</button>`).join('')}
+function grTo(i){grIdx=i}
 function geKrAdd(){if(geKrs.length>=4){toast('KR 上限 4 个 · 建议合并同类项');return}geKrs.push({k:'',type:'num',tgt:1,unit:'项',src:'手动'});renderGe()}
 function geKrDel(i){geKrs.splice(i,1);renderGe()}
-function goalEdit(i){geEdit=i;const o=D.okr[i];$('#geTitle').value=o.o;geKrs=o.kr.map(k=>({k:k.k,type:'num',tgt:k.tgt,unit:k.unit,src:k.src}));
-  $('#geSaveBtn').textContent='保存修改';$('#geDelBtn').classList.remove('hidden');renderGe();
+function goalEdit(i){if(perArchived(D.okr[i].per)){toast('归档周期只读 · 在详情页可复制为新周期目标');return}
+  geEdit=i;const o=D.okr[i];$('#geTitle').value=o.o;geKrs=o.kr.map(k=>({k:k.k,type:'num',tgt:k.tgt,unit:k.unit,src:k.src}));
+  geChips(o.per);$('#geSaveBtn').textContent='保存修改';$('#geDelBtn').classList.remove('hidden');renderGe();
   $('#pageTitle').textContent='编辑目标';$('#pageSub').textContent=o.o;navTo('p-goalEdit')}
 function goalSave(){const t=$('#geTitle').value.trim();
   if(!t){toast('先写目标 O 标题');return}
   if(geKrs.length<2){toast('至少 2 个 KR');return}
   if(geKrs.some(k=>!k.k.trim())){toast('KR 描述不能为空');return}
-  const per=(document.querySelector('#gePeriodChips .tag-chip.on')||{textContent:'2026 Q3'}).textContent;
+  const per=(document.querySelector('#gePeriodChips .tag-chip.on')||{textContent:curPer()}).textContent;
+  if(perArchived(per)){toast('归档周期不可写入 · 请选择 2026 Q3/Q4 或年度目标');return}
   const kr=geKrs.map(k=>({k:k.k.trim(),v:0,cur:0,tgt:k.tgt,unit:k.unit,src:k.src}));
-  if(geEdit===null){D.okr.push({o:t,per:'2026 Q3',kr:kr.map(x=>({...x,src:x.src})),_per:per});toast('目标已创建 · KR 数据源已挂自动汇聚（模拟）')}
-  else{D.okr[geEdit]={o:t,per:per,kr};toast('目标已更新（模拟）')}
+  if(geEdit===null){D.okr.push({o:t,per,kr});toast('目标已创建到 '+per+' · KR 数据源已挂自动汇聚（模拟）')}
+  else{D.okr[geEdit]={o:t,per,kr};toast('目标已更新（模拟）')}
   renderOkr();goBack()}
 function goalDel(){if(confirm('确认删除此目标？KR 与复盘记录一并移除（原型演示）')){D.okr.splice(geEdit,1);renderOkr();toast('目标已删除');goBack()}}
 /* —— 季度复盘 KPT —— */
@@ -4593,8 +4693,12 @@ document.addEventListener('keydown',e=>{if(curPage!=='p-noteEdit')return;
   if(e.key==='ArrowRight')pwSwipe(1);if(e.key==='ArrowLeft')pwSwipe(-1);});
 renderPwBar();
 /* ===== 专版深链：#/p-days 或 ?screen=p-days 直达对应屏（逐屏验收与截图自检用） ===== */
-(function(){const m=(location.hash+' '+location.search).match(/(p-[A-Za-z]\w*)/);if(!m)return;const p=m[1];const el=document.getElementById(p);if(!el||!el.classList.contains('page'))return;
- const R={'p-itemDetail':renderItemDetail,'p-itemStats':renderItemStats,'p-itemSettle':()=>renderItemSettle(6),'p-dayDetail':renderDayDetail,'p-dayRemind':renderRemind,'p-goalDetail':renderGoalDetail,'p-goalReview':renderGoalReview,'p-dayEdit':dayEditNew,'p-itemEdit':()=>itemEditNew(),'p-goalEdit':goalNew};
+(function(){const m=(location.hash+' '+location.search).match(/(p-[A-Za-z][A-Za-z0-9]*)(?:[\/_]i(\d+))?/);if(!m)return;const p=m[1],idx=m[2]!=null?+m[2]:null;const el=document.getElementById(p);if(!el||!el.classList.contains('page'))return;
+ if(idx!=null){if(p==='p-itemDetail'||p==='p-itemEdit'||p==='p-itemSettle')curItem=idx;if(p==='p-dayDetail'||p==='p-dayEdit')curDay=idx;if(p==='p-goalDetail'||p==='p-goalEdit')curGoal=idx;}
+ const R={'p-itemDetail':renderItemDetail,'p-itemStats':renderItemStats,'p-itemSettle':()=>renderItemSettle(curItem),'p-dayDetail':renderDayDetail,'p-dayRemind':renderRemind,'p-goalDetail':renderGoalDetail,'p-goalReview':renderGoalReview,'p-dayEdit':dayEditNew,'p-itemEdit':()=>itemEditNew(),'p-goalEdit':goalNew};
+ if(p==='p-itemEdit'&&idx!=null)R[p]=()=>itemEdit(idx);
+ if(p==='p-dayEdit'&&idx!=null)R[p]=()=>dayEdit(idx);
+ if(p==='p-goalEdit'&&idx!=null)R[p]=()=>goalEdit(idx);
  stack.length=0; setPage(p); if(R[p])R[p]();})();
 </script>
 </body>
