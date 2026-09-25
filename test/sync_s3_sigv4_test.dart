@@ -122,7 +122,7 @@ void main() {
           'x-amz-content-sha256:$empty\n'
           'x-amz-date:20260925T033000Z\n');
       expect(d.signedHeaders, 'host;x-amz-content-sha256;x-amz-date');
-      expect(d.credentialScope, '20260925/s3/cn-east-1/aws4_request');
+      expect(d.credentialScope, '20260925/cn-east-1/s3/aws4_request');
       expect(
           d.canonicalRequest,
           'GET\n/\n\n'
@@ -136,7 +136,7 @@ void main() {
       expect(req.headers['x-amz-content-sha256'], empty);
       expect(
           req.headers['authorization'],
-          'AWS4-HMAC-SHA256 Credential=$ak/20260925/s3/cn-east-1/aws4_request, '
+          'AWS4-HMAC-SHA256 Credential=$ak/20260925/cn-east-1/s3/aws4_request, '
           'SignedHeaders=host;x-amz-content-sha256;x-amz-date, '
           'Signature=${d.signature}');
     });
@@ -204,7 +204,7 @@ void main() {
     s.sign(getRoot(), payloadHash: empty);
     final d0 = s.debugCanonical();
     expect(d0.amzDate, '20260925T234500Z');
-    expect(d0.credentialScope, '20260925/s3/cn-east-1/aws4_request');
+    expect(d0.credentialScope, '20260925/cn-east-1/s3/aws4_request');
 
     s.sign(getRoot(), payloadHash: empty); // 重签同对象也拿新时刻
     final s2 = signerAt(t0.add(const Duration(minutes: 20)));
@@ -212,7 +212,7 @@ void main() {
     s2.sign(req2, payloadHash: empty);
     final d1 = s2.debugCanonical();
     expect(d1.amzDate, '20260926T000500Z');
-    expect(d1.credentialScope, '20260926/s3/cn-east-1/aws4_request');
+    expect(d1.credentialScope, '20260926/cn-east-1/s3/aws4_request');
     expect(req2.headers['x-amz-date'], '20260926T000500Z');
     expect(d1.dateStamp, isNot(d0.dateStamp));
     expect(d1.signature, isNot(d0.signature),
@@ -250,9 +250,9 @@ void main() {
       // 推演（详见 task-14-report.md）：
       //   canonicalRequest → sha256 = e067db93…
       //   stringToSign = AWS4-HMAC-SHA256\n20260925T033000Z\n
-      //                  20260925/s3/cn-east-1/aws4_request\ne067db93…
+      //                  20260925/cn-east-1/s3/aws4_request\ne067db93…
       //   signingKey = HMAC 四段推导（AWS4+sk → 20260925 → cn-east-1 → s3
-      //                → aws4_request），signature = 570088b4…
+      //                → aws4_request），signature = c7193e5a…
       const handCreq = 'GET\n/report%201.txt\n\n'
           'host:photo.s3.bitiful.net\n'
           'x-amz-content-sha256:$empty\n'
@@ -275,15 +275,15 @@ void main() {
       expect(
           d.stringToSign,
           'AWS4-HMAC-SHA256\n20260925T033000Z\n'
-          '20260925/s3/cn-east-1/aws4_request\n'
+          '20260925/cn-east-1/s3/aws4_request\n'
           'e067db93b934bf0530f2a526533f3b3e90a76ba3d017319c381eb721b7844dc9');
       expect(d.signature,
-          '570088b4575b70bca27f7c3863d488c42465f430641e30b29250ae98bf0a6461');
+          'c7193e5a4132bccaebfbd76ed6b2d88218990f558652374bf6c5d5f7cd10d46d');
       expect(
           req.headers['authorization'],
-          'AWS4-HMAC-SHA256 Credential=$ak/20260925/s3/cn-east-1/aws4_request, '
+          'AWS4-HMAC-SHA256 Credential=$ak/20260925/cn-east-1/s3/aws4_request, '
           'SignedHeaders=host;x-amz-content-sha256;x-amz-date, '
-          'Signature=570088b4575b70bca27f7c3863d488c42465f430641e30b29250ae98bf0a6461');
+          'Signature=c7193e5a4132bccaebfbd76ed6b2d88218990f558652374bf6c5d5f7cd10d46d');
       expect(req.url.toString(), 'https://photo.s3.bitiful.net/report%201.txt');
     });
   });

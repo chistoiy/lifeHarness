@@ -50,7 +50,9 @@ class SigV4Canonical {
 /// - canonical query 按编码后 key 排序（同 key 再按 value），键值各自编码
 ///   （encodeSlash:true）；
 /// - SignedHeaders 字典序固定三元组：`host;x-amz-content-sha256;x-amz-date`；
-/// - credentialScope = `{yyyyMMdd}/{service}/{region}/aws4_request`；
+/// - credentialScope = `{yyyyMMdd}/{region}/{service}/aws4_request`（R6 真云
+///   定位：AWS 规范序 date/region/service，此前 service/region 写反——缤纷云
+///   部分前端节点宽松才未炸，严格节点对 List 类请求回 400 InvalidRequest）；
 /// - PayloadHash 三态（空体 GET=SHA256("") / 流式 PUT=UNSIGNED-PAYLOAD /
 ///   其他=实体 SHA256）由调用方传入，本类只负责入签与落头；
 /// - 时间戳取注入 clock 的 UTC（退避重发经 HttpGate 工厂重建 → 每次 sign
@@ -104,7 +106,7 @@ class SigV4Signer {
     final dateStamp = _dateStamp(now);
     final amzDate = '$dateStamp'
         'T${_two(now.hour)}${_two(now.minute)}${_two(now.second)}Z';
-    final credentialScope = '$dateStamp/$service/$region/aws4_request';
+    final credentialScope = '$dateStamp/$region/$service/aws4_request';
 
     final canonicalUri = _canonicalUriFor(uri);
     final canonicalQuery = _canonicalQueryFor(uri);

@@ -58,7 +58,7 @@ void main() {
         startsWith('AWS4-HMAC-SHA256 Credential=AKIA-TEST/'));
     expect(req.headers['authorization'],
         contains(', SignedHeaders=host;x-amz-content-sha256;x-amz-date, '));
-    expect(req.headers['authorization'], contains('/s3/cn-east-1/aws4_request'));
+    expect(req.headers['authorization'], contains('/cn-east-1/s3/aws4_request'));
     expect(req.headers['x-amz-date'], isNotNull);
     expect(req.headers['x-amz-content-sha256'],
         payloadHash ?? SigV4Signer.emptySha256);

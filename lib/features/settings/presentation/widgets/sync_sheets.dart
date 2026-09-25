@@ -266,13 +266,6 @@ class _NumberWheelState extends State<NumberWheel> {
 
 // ============================ S1 · 服务配置编辑 ============================
 
-/// S1 保存后请求接力 S2 的返回值（页面据此关 S1 再开验证半屏）。
-class ServiceEditVerifyRequest {
-  const ServiceEditVerifyRequest(this.config);
-
-  final ServiceConfig config;
-}
-
 /// WebDAV 缺省端点 / S3 缺省 endpoint（原型表单预填口径）。
 const String _kWebDavDefaultUrl = 'https://dav.jianguoyun.com/dav/';
 const String _kS3DefaultUrl = 'https://s3.bitiful.net';
@@ -434,7 +427,9 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
       _toast('已保存');
     }
     if (thenVerify) {
-      Navigator.of(context).pop(ServiceEditVerifyRequest(cfg));
+      // R6 真机反馈：验证不再关闭编辑弹层——S2 盖在 S1 之上，
+      // 失败关掉结果层即可原地改配置重验。
+      await showVerifySheet(context, config: cfg);
     } else {
       Navigator.of(context).pop(true);
     }

@@ -24,7 +24,7 @@ import '../database/schema.dart';
 
 /// App 版本常量（工程无 package_info_plus 依赖，直接常量注入；
 /// 收口批与 pubspec version 同步）。
-const String kAppVersion = '0.1.22';
+const String kAppVersion = '0.1.23';
 
 /// 口令加密参数（口径钉死于 T9 实施口径）。
 const int kPbkdf2Iterations = 100000;

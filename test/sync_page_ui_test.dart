@@ -470,6 +470,27 @@ void main() {
       expect(field.controller!.text, isEmpty, reason: '新增态无历史密钥可回填');
     });
 
+    testWidgets('R6 验证连接：S2 盖在 S1 上 · 关掉 S2 后 S1 仍在可继续编辑',
+        (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openSheetVia(tester, 'btn-edit-svc');
+      await tester.tap(find.byKey(const ValueKey('edit-verify')));
+      expect(await pollText(tester, '连接验证'), isTrue,
+          reason: 'S2 结果层已浮出');
+      expect(find.byKey(const ValueKey('verify-state')), findsOneWidget);
+      expect(find.byKey(const ValueKey('edit-save')), findsOneWidget,
+          reason: 'S1 不因验证而关闭');
+      // 点遮罩关掉 S2 → 回到 S1，表单仍在原地可继续改。
+      await tester.tapAt(const Offset(10, 10));
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('verify-state')), findsNothing);
+      expect(find.byKey(const ValueKey('edit-save')), findsOneWidget,
+          reason: '验证后编辑弹层保留（失败可原地改配置重验）');
+      await clearToasts(tester);
+    });
+
     testWidgets('R2⑤b 编辑态协议 pill 置灰不可点（无切换）· 新增态可切换',
         (tester) async {
       seedServices(prefs);

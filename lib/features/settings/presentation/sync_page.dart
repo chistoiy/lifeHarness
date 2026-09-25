@@ -80,13 +80,10 @@ class _SyncPageState extends ConsumerState<SyncPage> {
   }
 
   Future<void> _openEdit({ServiceConfig? cfg}) async {
-    final result = await showServiceEditSheet(context, config: cfg);
+    await showServiceEditSheet(context, config: cfg);
     if (!mounted) return;
     ref.invalidate(syncQuotaProvider);
     _reload();
-    if (result is ServiceEditVerifyRequest) {
-      await showVerifySheet(context, config: result.config);
-    }
   }
 
   Future<void> _openVerify() async {
