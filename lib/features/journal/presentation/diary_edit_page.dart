@@ -6,6 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/ai/ai_review.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/stats_providers.dart';
@@ -787,6 +788,107 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   bool _sameDayNow(DateTime? a) =>
       a != null && JournalEntry.sameDay(a, DateTime.now());
 
+  /* ---------- 批4-B · AI 反思草稿（journal.reflect 能力点接线） ---------- */
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1600)));
+  }
+
+  /// 各节标题（编辑既有篇时 _tpl.sections 可能为空，回落既有篇/占位名）。
+  List<String> _secTitles() => [
+        for (var i = 0; i < _secCtrls.length; i++)
+          if (i < _tpl.sections.length)
+            _tpl.sections[i].title
+          else if (_existing != null && i < _existing!.sections.length)
+            _existing!.sections[i].title
+          else
+            '分节 ${i + 1}',
+      ];
+
+  /// 当日已写内容：结构化=各节非空正文（带节名）；自由书写=富文本纯文。
+  String _writtenTodayText() {
+    if (_secCtrls.isNotEmpty) {
+      final titles = _secTitles();
+      return [
+        for (var i = 0; i < _secCtrls.length; i++)
+          if (_secCtrls[i].text.trim().isNotEmpty)
+            '${titles[i]}：${_secCtrls[i].text.trim()}',
+      ].join('\n');
+    }
+    return _richCtl?.document.toPlainText().trim() ?? '';
+  }
+
+  bool _aiReflectBusy = false;
+
+  /// AI 生成反思草稿：当日已写内容（今日再加概览行）→ journal.reflect 审阅弹层
+  /// → aiConfirmWrite 确认 → 有「反思/复盘」节直填该节，无则进正文
+  /// （自由书写=光标处插富文本；结构化=尾部追加「反思」节），标注「AI 生成 · 可编辑」。
+  Future<void> _genReflection() async {
+    if (_aiReflectBusy) return;
+    final body = _writtenTodayText();
+    if (body.trim().isEmpty) {
+      _toast('先写下今天的所见所感，AI 才有反思素材');
+      return;
+    }
+    _aiReflectBusy = true;
+    try {
+      final todos = ref.read(todosProvider).valueOrNull ?? const <Todo>[];
+      final events = ref.read(eventsProvider).valueOrNull ?? const <CalEvent>[];
+      final content = [
+        body,
+        if (_isToday) ..._summaryLines(todos, events),
+      ].join('\n');
+      final res = await aiRunWithReview(context, ref,
+          taskId: 'journal.reflect', vars: {'content': content});
+      if (res == null) return; // 审阅取消或调用失败（已 toast 归因）
+      final draft = (res.text ?? '').trim();
+      if (draft.isEmpty) {
+        _toast('AI 反思草稿为空 · 未写入');
+        return;
+      }
+      if (!mounted) return;
+      final marked = 'AI 生成 · 可编辑\n$draft';
+      final ok =
+          await aiConfirmWrite(context, title: '写入反思草稿', preview: marked);
+      if (!ok || !mounted) return;
+      setState(() {
+        final titles = _secTitles();
+        final i = titles
+            .indexWhere((t) => t.contains('反思') || t.contains('复盘'));
+        if (_secCtrls.isNotEmpty) {
+          if (i >= 0) {
+            final cur = _secCtrls[i].text.trimRight();
+            _secCtrls[i].text = cur.isEmpty ? marked : '$cur\n\n$marked';
+          } else {
+            // 无反思节：正文尾部插入新「反思」节（先按现标题补齐模板分节定义）。
+            _tpl = DiaryTemplate(
+                id: _tpl.id,
+                name: _tpl.name,
+                sections: [
+                  for (var k = 0; k < _secCtrls.length; k++)
+                    TemplateSection(title: titles[k]),
+                  const TemplateSection(title: '反思'),
+                ]);
+            _secCtrls = [
+              ..._secCtrls,
+              TextEditingController(text: marked),
+            ];
+          }
+          _dirty = true; // 程序化改控制器不触发 onChanged：手动走既有防抖自动存
+          _debounce?.cancel();
+          _debounce = Timer(const Duration(milliseconds: 900), _autoSave);
+        } else {
+          _insertAtCursor('\n$marked\n'); // 自由书写：进富文本正文（监听器自动存草稿）
+        }
+      });
+      _toast('AI 反思草稿已写入 · 可编辑');
+    } finally {
+      _aiReflectBusy = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
@@ -1052,9 +1154,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                                 fontSize: 11, fontWeight: FontWeight.w800)),
                       ),
                       TextButton(
-                        onPressed: () =>
-                            _soon('AI 反思草稿 · 规划 V1.1（M3）'),
-                        child: Text('🤖 AI 生成反思草稿',
+                        key: const ValueKey('diary-ai-reflect'),
+                        onPressed: _genReflection,
+                        child: Text('AI 生成反思草稿',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
