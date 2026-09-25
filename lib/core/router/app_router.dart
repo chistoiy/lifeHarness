@@ -62,6 +62,7 @@ import '../../features/read/presentation/read_settings_page.dart';
 import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
+import '../../features/settings/presentation/ai_page.dart';
 import '../../features/settings/presentation/log_page.dart';
 import '../../features/settings/presentation/media_clean_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
@@ -265,6 +266,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/notify',
         builder: (_, _) => const NotifySettingsPage(),
+      ),
+      // AI批：AI 增强二级页组（原型 p-sub-ai + aiapi 工具 + p-sub-aiPrompts/Edit）。
+      GoRoute(
+        path: '/settings/ai',
+        builder: (_, _) => const AiSettingsPage(),
+      ),
+      GoRoute(
+        path: '/settings/ai/verify',
+        builder: (_, _) => const AiVerifyPage(),
+      ),
+      GoRoute(
+        path: '/settings/ai/prompts',
+        builder: (_, _) => const AiPromptsPage(),
+      ),
+      GoRoute(
+        path: '/settings/ai/prompts/edit',
+        builder: (_, s) => AiPromptEditPage(taskId: s.extra as String),
       ),
       // V1.27 P2 外观二级页（原型 p-sub-appearance：主题/深色/主题色/字号）。
       GoRoute(

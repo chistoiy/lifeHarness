@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/ai/ai_providers.dart' show aiConfigProvider;
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 import '../../../core/nav/nav_module.dart';
@@ -133,12 +134,21 @@ class SettingsPage extends ConsumerWidget {
                     trailingColor: Colors.grey,
                     onTap: () => context.push('/settings/notify')),
                 _EntryRow(
+                    key: const ValueKey('entry-ai'),
                     emoji: '🤖',
                     bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
                     title: 'AI 增强',
                     sub: '服务商 · Key · 能力矩阵 · API 验证',
-                    trailing: '默认关闭',
-                    onTap: () => _toast(context, 'AI 增强 · 敬请期待')),
+                    trailing: ref
+                            .watch(aiConfigProvider.select((c) => c.master))
+                        ? '已开启'
+                        : '默认关闭',
+                    trailingColor: ref
+                            .watch(aiConfigProvider.select((c) => c.master))
+                        ? const Color(0xFF10B981)
+                        : Colors.grey,
+                    // AI批：占位 toast → 真实二级页（原型 p-sub-ai）。
+                    onTap: () => context.push('/settings/ai')),
                 _EntryRow(
                     emoji: '🏷',
                     bg: const Color(0xFFF97316).withValues(alpha: .12),

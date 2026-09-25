@@ -117,6 +117,7 @@ class AiService {
       baseUrl: cfg.baseUrl,
       model: cfg.model,
       apiKey: key,
+      protocol: cfg.protocol,
       temperature: temperature ?? (t.expect == AiExpect.text ? 0.7 : 0.2),
       messages: [
         {'role': 'system', 'content': t.system},
@@ -144,11 +145,13 @@ class AiService {
     required String model,
     required String apiKey,
     required String prompt,
+    String protocol = 'openai',
   }) =>
       _client.chat(
         baseUrl: baseUrl,
         model: model,
         apiKey: apiKey,
+        protocol: protocol,
         temperature: 0.2,
         timeout: const Duration(seconds: 20),
         messages: [

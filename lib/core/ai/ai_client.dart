@@ -71,8 +71,10 @@ class AiClient {
 
   void close() => _client.close();
 
-  /// 发一次 Chat Completions。baseUrl 不带尾斜杠；timeout 缺省 90s
+  /// 发一次对话补全。baseUrl 不带尾斜杠；timeout 缺省 90s
   /// （深度生成类任务如目录补全可能 >30s）。
+  /// protocol：'openai'（Chat Completions）| 'anthropic'（Messages API，
+  /// x-api-key + anthropic-version 头，Key 独立存储域）。
   Future<AiReply> chat({
     required String baseUrl,
     required String model,
@@ -80,26 +82,46 @@ class AiClient {
     required AiMessages messages,
     Duration timeout = const Duration(seconds: 90),
     double temperature = 0.4,
+    String protocol = 'openai',
   }) async {
     final base = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     if (base.isEmpty) throw AiException(AiFailKind.noBaseUrl, baseUrl);
     final key = apiKey.trim();
     if (key.isEmpty) throw AiException(AiFailKind.noKey, 'empty key');
+    final anth = protocol == 'anthropic';
+    final system = messages
+        .where((m) => m['role'] == 'system')
+        .map((m) => m['content'] ?? '')
+        .join('\n');
+    final chat = messages.where((m) => m['role'] != 'system').toList();
     final sw = Stopwatch()..start();
     http.Response res;
     try {
       res = await _client
           .post(
-            Uri.parse('$base/chat/completions'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $key',
-            },
-            body: jsonEncode({
-              'model': model.trim(),
-              'messages': messages,
-              'temperature': temperature,
-            }),
+            Uri.parse(base + (anth ? '/messages' : '/chat/completions')),
+            headers: anth
+                ? {
+                    'Content-Type': 'application/json',
+                    'x-api-key': key,
+                    'anthropic-version': '2023-06-01',
+                  }
+                : {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $key',
+                  },
+            body: jsonEncode(anth
+                ? {
+                    'model': model.trim(),
+                    if (system.isNotEmpty) 'system': system,
+                    'messages': chat,
+                    'max_tokens': 2048,
+                  }
+                : {
+                    'model': model.trim(),
+                    'messages': messages,
+                    'temperature': temperature,
+                  }),
           )
           .timeout(timeout);
     } on TimeoutException {
@@ -122,10 +144,7 @@ class AiClient {
     } catch (_) {
       throw AiException(AiFailKind.badResponse, '非 JSON 响应体');
     }
-    final choices = j['choices'] as List?;
-    final content = choices == null || choices.isEmpty
-        ? null
-        : ((choices.first as Map)['message']?['content'] as String?)?.trim();
+    final content = anth ? _anthropicContent(j) : _openaiContent(j);
     if (content == null || content.isEmpty) {
       // 端点报错常以 200+error 字段回传，尽量带出原因。
       final err = j['error'];
@@ -136,11 +155,31 @@ class AiClient {
     }
     final usage = (j['usage'] as Map?) ?? const {};
     return AiReply(
-      content: content,
+      content: content.trim(),
       latencyMs: sw.elapsedMilliseconds,
-      promptTokens: (usage['prompt_tokens'] as num?)?.toInt() ?? 0,
-      completionTokens: (usage['completion_tokens'] as num?)?.toInt() ?? 0,
+      promptTokens: (usage['prompt_tokens'] ?? usage['input_tokens'] as num?)
+              ?.toInt() ??
+          0,
+      completionTokens:
+          (usage['completion_tokens'] ?? usage['output_tokens'] as num?)
+                  ?.toInt() ??
+              0,
     );
+  }
+
+  static String? _openaiContent(Map<String, dynamic> j) {
+    final choices = j['choices'] as List?;
+    if (choices == null || choices.isEmpty) return null;
+    return ((choices.first as Map)['message']?['content'] as String?);
+  }
+
+  static String? _anthropicContent(Map<String, dynamic> j) {
+    final blocks = j['content'] as List?;
+    if (blocks == null || blocks.isEmpty) return null;
+    return blocks
+        .map((b) => (b as Map)['text'] as String? ?? '')
+        .join()
+        .trim();
   }
 
   static AiFailKind _kindOfStatus(int s) => switch (s) {

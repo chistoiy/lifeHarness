@@ -1413,9 +1413,37 @@ tailwind.config = {
           <div class="flex items-center justify-between"><span>📚 阅读：总结深化 / 目录 AI 补全</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>⚡ 收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>📊 周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>🤰 呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between opacity-50"><span>💰📦 记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
         </div>
         <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">🧪 提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">每个 AI 能力点的 System / User 模板可查看与覆盖；保存后立即生效，调整请求内容不需要修改代码。占位符（如 title、today）按当次数据注入。</div>
+      </div>
+    </section>
+
+    <!-- ===== P12c2 二级：提示词管理（AI批 · 能力点模板按模块查看/覆盖 · 默认来自内置资产） ===== -->
+    <section id="p-sub-aiPrompts" class="page px-5 safe-pb no-scrollbar">
+      <div class="text-[10px] text-slate-400 leading-5">共 11 个能力点 · 默认模板来自内置资产；覆盖只对本机生效，「恢复默认」随时回退。</div>
+      <div id="aiPromptRows" class="mt-2 space-y-4"></div>
+    </section>
+
+    <!-- ===== P12c3 二级：提示词编辑（System + User 模板 · 占位符说明 · 覆盖/恢复） ===== -->
+    <section id="p-sub-aiPromptEdit" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><div class="row-title" id="apeTitle">编辑提示词</div><span id="apeBadge" class="text-[10px] text-slate-400">默认</span></div>
+        <div class="text-[10px] text-slate-400 mt-1">占位符：<span id="apeVars" class="font-mono"></span>（保留原样即可注入当次数据）</div>
+        <div class="mt-3 text-xs font-bold">System 设定</div>
+        <textarea id="apeSys" rows="4" class="inp mt-1 w-full text-[11px] font-mono leading-5"></textarea>
+        <div class="mt-3 text-xs font-bold">User 模板</div>
+        <textarea id="apeUser" rows="9" class="inp mt-1 w-full text-[11px] font-mono leading-5"></textarea>
+        <div class="mt-4 flex gap-3">
+          <button onclick="aiPromptReset()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">恢复默认</button>
+          <button onclick="aiPromptSave()" class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold">保存覆盖</button>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">保存后该能力点即刻使用此模板发起请求；清空内容等同恢复默认。</div>
       </div>
     </section>
 
@@ -2279,7 +2307,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -3613,6 +3641,32 @@ async function aiTest(mock){const box=$('#aiRes');
  }catch(err){clearTimeout(to);
   box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
 }
+
+/* —— 提示词管理（AI批 · 与 assets/ai_prompts/prompts.json 同源的默认模板镜像） —— */
+const AI_PROMPTS_DEFAULT=[
+{id:'tool.verify',m:'小工具',n:'AI API 验证',v:['prompt'],s:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',u:'{{prompt}}'},
+{id:'todo.quadrant',m:'待办',n:'AI 判象限',v:['title'],s:'你是艾森豪威尔四象限分类器。只输出一个 JSON 对象，禁止输出解释、前后缀或代码块标记。',u:'根据待办标题判断所属象限。\n判定口径：\n- 重要：对长期目标、健康、人际或职责有实质影响\n- 紧急：有明确临近截止或被外部催促\n象限编号：1=重要且紧急，2=重要不紧急，3=紧急不重要，4=不紧急不重要\n待办标题：{{title}}\n输出格式：{"quadrant": 1, "reason": "不超过20字的中文理由"}'},
+{id:'todo.nl_parse',m:'待办',n:'自然语言速记解析',v:['text','today'],s:'你是待办速记解析器，把口语化一句话拆成结构化字段。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。无法确定的字段一律填 null，不要编造。',u:'今天日期：{{today}}（星期请自行推算）。\n解析下面这句速记，拆出标题、截止日、提醒时间、象限：\n「{{text}}」\n输出格式：{"title": "精炼后的任务标题", "dueDate": "YYYY-MM-DD 或 null", "remindTime": "HH:mm 或 null", "quadrant": 1}\nquadrant 取 1~4；标题去掉日期时间等修饰词，只留事情本身。'},
+{id:'todo.subtask',m:'待办',n:'复杂任务拆子任务',v:['title'],s:'你是任务分解助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。子任务必须可执行、按时间先后排序、数量为 3~6 条。',u:'把下面这个较复杂的待办拆成可勾选的子任务：\n「{{title}}」\n输出格式：{"subtasks": ["子任务一", "子任务二", "子任务三"]}\n每条不超过 15 字，动词开头。'},
+{id:'inbox.triage',m:'收集箱',n:'AI 一键分流',v:['content'],s:'你是个人知识管理分流器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。target 只能取 todo、journal、note、quote 四者之一。',u:'把下面这条收集箱碎片归到最合适的去向：\n- todo：需要做的事、有行动项\n- journal：当天的经历、感受、生活记录\n- note：可复用的知识、想法、资料\n- quote：摘录自他处的原文句子\n内容：{{content}}\n输出格式：{"target": "note", "reason": "不超过20字的中文理由", "draft": "清洗后的建议正文（去掉冗余口语）"}'},
+{id:'journal.reflect',m:'日记',n:'AI 反思草稿',v:['content'],s:'你是日记反思引导助手。用第一人称写一段 60~120 字的反思草稿，语气平实不煽情，不复述原文，而是点出这一天的关键、值得延续之处和一个可改进的小动作。只输出草稿正文，不要标题、不要解释、不要加引号。',u:'以下是今天的日记概览/片段：\n{{content}}\n请生成反思段落。'},
+{id:'read.toc',m:'阅读',n:'目录 AI 补全',v:['title','author'],s:'你是图书目录结构助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。若该书确实未知，返回空 chapters 数组，不要编造内容简介。',u:'为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{"chapters": [{"part": "第一部分 原则", "title": "1. 我的历程", "sections": ["工作原则", "生活原则"]}]}\nsections 可为 null；章节数控制在 8~30 条。'},
+{id:'read.quote_insight',m:'阅读',n:'摘录感想生成',v:['quote','book'],s:'你是读书笔记助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。感想要落在使用者自身场景，不空泛吹捧、不引用原文。',u:'为下面这条摘录写一段可选感想草稿（40~80 字），并给 1~3 个标签：\n书名：{{book}}\n摘录：{{quote}}\n输出格式：{"insight": "感想正文", "tags": ["标签一", "标签二"]}'},
+{id:'schedule.weekly_review',m:'日程',n:'周报 AI 点评',v:['stats'],s:'你是时间使用分析师。输入只有聚合统计数字，不含任何原始记录。用中文写 80~150 字点评：先说时间结构特征，再指出一个失衡点和一个具体可执行的下周调整建议。不下医疗或心理判断，不使用「您」，语气客观简练。只输出点评正文。',u:'本周时间结构统计：\n{{stats}}\n请给出点评。'},
+{id:'care.cycle_insight',m:'呵护',n:'AI 周期解读',v:['stats'],s:'你是女性周期数据的趋势摘要助手。输入仅为聚合统计，不含原始记录。用中文写 80~140 字趋势描述，只陈述数据事实与波动范围，必须包含「不构成医学诊断，如有不适请咨询医生」这一提示。禁止给出用药、诊断或治疗建议，禁止使用恐吓性措辞。只输出正文。',u:'周期聚合统计：\n{{stats}}\n请生成趋势摘要。'},
+{id:'ledger.categorize',m:'记账',n:'AI 辅助归类',v:['items','cats'],s:'你是账单分类器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。category 必须严格从给定候选分类中选，无法判断时填「其他」，不要新造分类名。',u:'候选分类：{{cats}}\n请按商户名/交易说明逐条归类：\n{{items}}\n输出格式：{"items": [{"name": "原始商户名", "category": "候选分类之一"}]}\n顺序与输入一致，条目数必须相同。'}
+];
+const aiPromptOver={};let aiPromptCur=null;
+function aiRenderPrompts(){const g={};AI_PROMPTS_DEFAULT.forEach(t=>(g[t.m]=g[t.m]||[]).push(t));
+ $('#aiPromptRows').innerHTML=Object.entries(g).map(([m,arr])=>`<div><div class="text-[10px] text-slate-400 font-bold mb-1">${m}</div><div class="space-y-2">`+arr.map(t=>`<div class="card !p-3 flex items-center justify-between" onclick="aiPromptEdit('${t.id}')"><div><div class="text-xs font-bold">${t.n}</div><div class="text-[10px] font-mono text-slate-400 mt-0.5">${t.id}</div></div><span class="text-[10px] ${(aiPromptOver[t.id]&&aiPromptOver[t.id].s!==undefined)?'text-amber-500':'text-slate-400'}">${(aiPromptOver[t.id]&&aiPromptOver[t.id].s!==undefined)?'● 已覆盖':'默认'} ›</span></div>`).join('')+`</div></div>`).join('');}
+function aiPromptEdit(id){aiPromptCur=id;const t=AI_PROMPTS_DEFAULT.find(x=>x.id===id);const o=aiPromptOver[id]||{};
+ $('#apeTitle').textContent=t.n+' · 提示词';$('#apeVars').textContent=t.v.map(x=>'{{'+x+'}}').join(' ');
+ $('#apeSys').value=o.s!==undefined?o.s:t.s;$('#apeUser').value=o.u!==undefined?o.u:t.u;
+ $('#apeBadge').textContent=(o.s!==undefined||o.u!==undefined)?'已覆盖':'默认';navTo('p-sub-aiPromptEdit');}
+function aiPromptSave(){aiPromptOver[aiPromptCur]={s:$('#apeSys').value,u:$('#apeUser').value};$('#apeBadge').textContent='已覆盖';
+ toast('覆盖已保存 · 即刻生效，无需改代码');const p=stack.pop();setPage(p||'p-sub-aiPrompts');aiRenderPrompts();}
+function aiPromptReset(){const t=AI_PROMPTS_DEFAULT.find(x=>x.id===aiPromptCur);delete aiPromptOver[aiPromptCur];
+ $('#apeSys').value=t.s;$('#apeUser').value=t.u;$('#apeBadge').textContent='默认';toast('已恢复内置默认模板');}
 
 /* ================= 阅读/观影计时 · 多方式进度 · 目录 ================= */
 let timer=null,timerT0=0,timerKind='read',timerTarget='';

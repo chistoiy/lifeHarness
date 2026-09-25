@@ -14,6 +14,7 @@ class AiConfig {
     this.master = false,
     this.baseUrl = 'https://api.deepseek.com/v1',
     this.model = 'deepseek-flash',
+    this.protocol = 'openai',
     this.caps = const {},
     this.promptOverrides = const {},
     this.verifyAtMs,
@@ -26,6 +27,9 @@ class AiConfig {
   final bool master;
   final String baseUrl;
   final String model;
+
+  /// 端点协议：'openai'（Chat Completions）| 'anthropic'（Messages API）。
+  final String protocol;
 
   /// 能力矩阵逐项授权：taskId → 是否授权（缺省=未授权）。
   final Map<String, bool> caps;
@@ -54,6 +58,7 @@ class AiConfigRepository {
   static const _kMaster = 'ai.master';
   static const _kBaseUrl = 'ai.base_url';
   static const _kModel = 'ai.model';
+  static const _kProtocol = 'ai.protocol';
   static const _kCaps = 'ai.caps';
   static const _kPromptPrefix = 'ai.prompt.'; // + taskId
   static const _kVerify = 'ai.verify'; // {atMs,ok,ms,reason}
@@ -80,6 +85,7 @@ class AiConfigRepository {
       master: _prefs.getBool(_kMaster) ?? false,
       baseUrl: _prefs.getString(_kBaseUrl) ?? const AiConfig().baseUrl,
       model: _prefs.getString(_kModel) ?? const AiConfig().model,
+      protocol: _prefs.getString(_kProtocol) ?? const AiConfig().protocol,
       caps: caps,
       promptOverrides: overrides,
       verifyAtMs: (v['atMs'] as num?)?.toInt(),
@@ -91,10 +97,15 @@ class AiConfigRepository {
 
   Future<void> setMaster(bool on) => _prefs.setBool(_kMaster, on);
 
-  Future<void> setEndpoint({required String baseUrl, required String model}) =>
+  Future<void> setEndpoint({
+    required String baseUrl,
+    required String model,
+    String? protocol,
+  }) =>
       Future.wait([
         _prefs.setString(_kBaseUrl, baseUrl.trim()),
         _prefs.setString(_kModel, model.trim()),
+        if (protocol != null) _prefs.setString(_kProtocol, protocol),
       ]).then((_) {});
 
   Future<void> setCap(String taskId, bool on) async {

@@ -67,8 +67,9 @@ class AiConfigNotifier extends Notifier<AiConfig> {
     ref.invalidateSelf();
   }
 
-  Future<void> setEndpoint(String baseUrl, String model) async {
-    await _repo.setEndpoint(baseUrl: baseUrl, model: model);
+  Future<void> setEndpoint(String baseUrl, String model,
+      {String? protocol}) async {
+    await _repo.setEndpoint(baseUrl: baseUrl, model: model, protocol: protocol);
     ref.invalidateSelf();
   }
 
