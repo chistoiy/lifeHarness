@@ -87,6 +87,13 @@ class _FakeStore implements RemoteStore {
   Future<void> ensureDirectory(ServiceConfig c, String cloudRelativeDir) async {}
 
   @override
+  Future<void> move(ServiceConfig c, String fromRel, String toRel) async {}
+
+  @override
+  Future<void> delete(ServiceConfig c, String cloudRelative) async {}
+
+
+  @override
   Future<VerifyResult> verify(ServiceConfig c) async => VerifyResult(true);
 
   @override

@@ -495,4 +495,41 @@ void main() {
     expect(w, isA<WebDavStore>());
     w.close();
   });
+
+  group('R5d move/delete', () {
+    test('move = CopyObject(x-amz-copy-source 源键) + DELETE 源', () async {
+      final seq = <String>[];
+      http.Request? copy;
+      final client = MockClient((req) async {
+        seq.add(req.method);
+        if (req.method == 'PUT') {
+          copy = req;
+          return http.Response('<CopyResult/>', 200);
+        }
+        return http.Response('', 204);
+      });
+      final store = storeOf(client, vault: await vaultWith('svcS3'));
+      await store.move(cfg(), 'attachments/a.jpg', 'media_archive/attachments/a.jpg');
+      expect(seq, ['PUT', 'DELETE']);
+      expect(copy!.headers['x-amz-copy-source'], '/photo/sync/attachments/a.jpg');
+      expect(copy!.url.path, '/sync/media_archive/attachments/a.jpg');
+      store.close();
+    });
+
+    test('delete：DELETE 源键；204/404 均幂等成功；403 抛', () async {
+      var status = 204;
+      final client = MockClient((req) async {
+        expect(req.method, 'DELETE');
+        return http.Response('', status);
+      });
+      final store = storeOf(client, vault: await vaultWith('svcS3'));
+      await store.delete(cfg(), 'attachments/a.jpg');
+      status = 404;
+      await store.delete(cfg(), 'attachments/a.jpg');
+      status = 403;
+      await expectLater(store.delete(cfg(), 'attachments/a.jpg'),
+          throwsA(isA<StateError>()));
+      store.close();
+    });
+  });
 }

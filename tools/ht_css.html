@@ -1,0 +1,15 @@
+
+  /* ===== 健康管理专版 · 就地内嵌滚轮（scroll-snap 真滑动 · 中位双线恒在容器几何中心） ===== */
+  .hw{--hw-it:28px;height:84px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+      border:1px solid var(--card-bd);border-radius:12px;
+      background:var(--card) linear-gradient(to bottom,
+        transparent calc(50% - var(--hw-it)/2 - 1px),
+        color-mix(in srgb,var(--accent) 28%,transparent) calc(50% - var(--hw-it)/2 - 1px) calc(50% - var(--hw-it)/2),
+        transparent calc(50% - var(--hw-it)/2) calc(50% + var(--hw-it)/2),
+        color-mix(in srgb,var(--accent) 28%,transparent) calc(50% + var(--hw-it)/2) calc(50% + var(--hw-it)/2 + 1px),
+        transparent calc(50% + var(--hw-it)/2 + 1px))}
+  .hw::-webkit-scrollbar{display:none}
+  .hw-i{height:28px;line-height:28px;scroll-snap-align:center;text-align:center;font-size:12px;font-weight:700;color:#94a3b8;transition:.15s}
+  .hw-i.on{color:var(--accent);font-size:15px;font-weight:900}
+  /* 弹层内容超高时内部滚动，避免滚轮表单被顶出视口 */
+  .sheet>.sheet-panel{max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}

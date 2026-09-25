@@ -1,0 +1,59 @@
+
+    <!-- ===== H3 运动记录 ===== -->
+    <section id="p-exLog" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
+        <button class="seg-on flex-1 rounded-lg py-1.5" onclick="hseg(this);HT.exRange='w';hRenderExLog()">本周</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="hseg(this);HT.exRange='m';hRenderExLog()">本月</button>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-center mt-3">
+        <div class="card !p-2.5"><b class="text-lg block" id="elN">—</b><span class="text-[9px] text-slate-400">次数</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="elMin">—</b><span class="text-[9px] text-slate-400">总时长 · 分</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="elKm">—</b><span class="text-[9px] text-slate-400">总距离 · km</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="elPc">—</b><span class="text-[9px] text-slate-400">总消耗 · kcal</span></div>
+      </div>
+      <div class="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pb-1" id="exFilterRow"></div>
+      <div class="card mt-2 !p-0">
+        <div class="px-4 py-2.5 flex items-center justify-between"><b class="text-[13px]">流水</b><button class="mini-btn" onclick="htExOpen()">＋ 记一笔</button></div>
+        <div id="exList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">配速趋势 · 仅距离类</div>
+        <svg id="paceSvg" viewBox="0 0 300 70" class="w-full h-16 mt-1"></svg>
+      </div>
+    </section>
+
+    <!-- ===== H4 用药管理 ===== -->
+    <section id="p-med" class="page px-5 safe-pb no-scrollbar">
+      <div id="medCards" class="space-y-3"></div>
+      <button class="mini-btn w-full mt-3" onclick="hDrugOpen()">＋ 新增药品</button>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">用药提醒并入「提醒通知」中心</span><span class="toggle on" id="tgMedAll" onclick="tgMedAll(this)"></span></div>
+        <div class="px-4 py-3 flex items-center justify-between" onclick="htNav('p-sub-notify')"><span class="text-xs font-semibold">免打扰时段</span><span class="flex items-center gap-1.5"><b class="text-xs font-bold" style="color:var(--accent)">23:00 – 07:00</b><span class="text-slate-300">›</span></span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">漏服提醒</span><span class="flex items-center gap-1.5"><b class="text-xs font-bold" id="gbMissedTx" style="color:var(--accent)">超 30 分钟</b><button class="mini-btn !py-1" id="gbMissed" onclick="hWheelPick(this,'missed','漏服宽限','分钟',[15,30,60,120])">改</button></span></div>
+      </div>
+      <div class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-4 pb-2">处方药请遵医嘱 · 本模块只做记录与提醒，不提供用药建议</div>
+    </section>
+
+    <!-- ===== H5 睡眠记录 ===== -->
+    <section id="p-sleepLog" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><b class="text-[13px]">昨晚睡眠</b><span class="text-[9px] text-slate-400" id="slLastDate">—</span></div>
+        <div class="flex h-4 rounded-full overflow-hidden mt-2.5 text-[8px] text-white font-bold" id="slStageBar"></div>
+        <div class="flex justify-between text-[10px] text-slate-400 mt-2" id="slMeta"></div>
+        <div class="text-[9px] text-slate-400 mt-1.5" id="slStageTip">分期为手动记录（默认关闭）· 可在「健康设置」开启逐段补录</div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><b class="text-[13px]">近 7 天时长</b><span class="text-[9px] text-slate-400"><i class="dot bg-emerald-400"></i>达标 ≥<b id="slT2">—</b>　<i class="dot bg-brand-500"></i>接近　<i class="dot bg-amber-400"></i>不足</span></div>
+        <div class="flex items-end gap-2 h-24 mt-2" id="slBars2"></div>
+        <div class="flex justify-between text-[9px] text-slate-400 mt-1" id="slWdRow"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center mt-3">
+        <div class="card !p-2.5"><b class="text-lg block" id="snOndt">—</b><span class="text-[9px] text-slate-400">按时入睡天</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="snAvg">—</b><span class="text-[9px] text-slate-400">均时长h</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="snBest">—</b><span class="text-[9px] text-slate-400">最长连续达标</span></div>
+      </div>
+      <div class="flex items-center justify-between mt-4 mb-2"><b class="text-[13px]">睡眠流水</b><button class="mini-btn" onclick="hSleepOpen()">＋ 记录</button></div>
+      <div class="card !p-0">
+        <div id="slList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+      </div>
+    </section>

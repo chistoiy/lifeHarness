@@ -406,6 +406,59 @@ class WebDavStore implements RemoteStore {
   }
 
   @override
+  Future<void> move(
+      ServiceConfig c, String fromRel, String toRel) async {
+    final src = _uriSegments(c, _dirChain(c, fromRel));
+    final dst = _uriSegments(c, _dirChain(c, toRel));
+    // 409 = 目标父目录缺失：补建父链后重试一次（归档首跑即此形态）。
+    for (var attempt = 0;; attempt++) {
+      final auth = await _authHeader(c);
+      final res = await gate.send(
+        _ensureClient(),
+        () {
+          final req = http.Request('MOVE', src);
+          req.headers['Authorization'] = auth;
+          req.headers['Destination'] = dst.toString();
+          return req;
+        },
+        config: c,
+        label: 'MOVE ${src.path}',
+      );
+      final body = await _bodyText(res);
+      if (_isSuccess(res.statusCode, const {201, 204})) return;
+      if (res.statusCode == 409 && attempt == 0) {
+        await ensureDirectory(
+            c, _normSegments(toRel).take(_normSegments(toRel).length - 1).join('/'));
+        continue;
+      }
+      throw StateError(
+          'MOVE ${src.path} 失败(${res.statusCode})：${_brief(body)}');
+    }
+  }
+
+  @override
+  Future<void> delete(ServiceConfig c, String cloudRelative) async {
+    final uri = _uriSegments(c, _dirChain(c, cloudRelative));
+    final auth = await _authHeader(c);
+    final res = await gate.send(
+      _ensureClient(),
+      () {
+        final req = http.Request('DELETE', uri);
+        req.headers['Authorization'] = auth;
+        return req;
+      },
+      config: c,
+      label: 'DELETE ${uri.path}',
+    );
+    final body = await _bodyText(res);
+    // 404 = 已不存在：幂等成功。
+    if (!_isSuccess(res.statusCode, const {200, 202, 204, 404})) {
+      throw StateError(
+          'DELETE ${uri.path} 失败(${res.statusCode})：${_brief(body)}');
+    }
+  }
+
+  @override
   Future<VerifyResult> verify(ServiceConfig c) async {
     // 根目录一次 PROPFIND Depth:0（协议文档 §8 verify = 1 次极轻请求）。
     final uri = _uriFullInCloud(c, '');

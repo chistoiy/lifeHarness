@@ -568,8 +568,9 @@ void main() {
       final tmp = Directory.systemTemp.createTempSync('lhimg2a');
       final docs = Directory.systemTemp.createTempSync('lh_docs2a');
       addTearDown(() {
-        tmp.deleteSync(recursive: true);
-        docs.deleteSync(recursive: true);
+        // R5b：Image.file 解码句柄释放有 Windows 竞态，temp 目录删除失败容忍（OS 回收）。
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+        try { docs.deleteSync(recursive: true); } catch (_) {}
       });
       File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
       ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
@@ -612,7 +613,9 @@ void main() {
     testWidgets('2a-1b 旧纯文本带图篇重开=图片转内嵌 embed；清空图后落库无图',
         (tester) async {
       final tmp = Directory.systemTemp.createTempSync('lhimg2a1b');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() {
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+      });
       final img = p.join(tmp.path, 'a.png');
       File(img).writeAsBytesSync(base64Decode(_png1x1));
       final seeded = await jrepo.save(JournalEntry(
@@ -650,8 +653,9 @@ void main() {
       final tmp = Directory.systemTemp.createTempSync('lhimg2a2');
       final docs = Directory.systemTemp.createTempSync('lh_docs2a2');
       addTearDown(() {
-        tmp.deleteSync(recursive: true);
-        docs.deleteSync(recursive: true);
+        // R5b：Image.file 解码句柄释放有 Windows 竞态，temp 目录删除失败容忍（OS 回收）。
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+        try { docs.deleteSync(recursive: true); } catch (_) {}
       });
       File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
       ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
@@ -689,7 +693,9 @@ void main() {
       final b = p.join(tmp.path, 'b.png');
       File(a).writeAsBytesSync(base64Decode(_png1x1));
       File(b).writeAsBytesSync(base64Decode(_png1x1));
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() {
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+      });
       final e = await jrepo.save(JournalEntry(
           day: DateTime.now(),
           content: '看图\n☐ 买水\n\n![图片]($a)\n![图片]($b)',

@@ -56,7 +56,7 @@ void main() {
     final newPath = p.join(imgDir, '${hashOf(bytes)}.jpg');
     expect(File(newPath).existsSync(), isTrue);
     expect(old.existsSync(), isFalse);
-    final row = (await db.query('notes'))!.first;
+    final row = (await db.query('notes')).first;
     expect(row['content'], contains(newPath));
     expect(row['content'], isNot(contains('1758000000000')));
 
@@ -79,7 +79,7 @@ void main() {
     expect(stats['merged'], 1);
     expect(dup.existsSync(), isFalse);
     expect(target.existsSync(), isTrue);
-    final row = (await db.query('book_quotes'))!.first;
+    final row = (await db.query('book_quotes')).first;
     expect(row['image_paths'], contains(p.basename(target.path)));
     expect(row['image_paths'], isNot(contains('1758111111111')));
   });

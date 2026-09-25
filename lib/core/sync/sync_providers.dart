@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logging/app_log.dart';
 import '../providers.dart';
+import 'cloud_clean_service.dart';
 import 'credential_vault.dart';
 import 'remote_store.dart';
 import 'service_config.dart';
@@ -42,6 +43,15 @@ final remoteStoreFactoryProvider = Provider<RemoteStoreFactory>((ref) {
 /// features，照 backupServiceProvider 先例）。
 final snapshotServiceProvider = Provider<SnapshotService>(
   (ref) => throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
+);
+
+/// R5d：云端孤儿附件清理服务（store 由调用方按当前服务传入，本 provider
+/// 只装配 prefs + scanner）。
+final cloudCleanServiceProvider = Provider<CloudCleanService>(
+  (ref) => CloudCleanService(
+    prefs: ref.watch(sharedPreferencesProvider),
+    scanner: ref.watch(mediaScannerProvider),
+  ),
 );
 
 /// 读取当前激活服务；无激活项抛 [StateError]（编排层与 UI 共用同一判空口径）。

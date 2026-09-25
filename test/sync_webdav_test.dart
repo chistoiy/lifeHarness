@@ -613,4 +613,45 @@ void main() {
     expect(s3, isA<S3Store>());
     s3.close();
   });
+
+  group('R5d move/delete', () {
+    test('move：MOVE + Destination 绝对 URL；409 补建目标父目录后重试一次',
+        () async {
+      final calls = <String>[];
+      var moveSeen = 0;
+      final client = MockClient((req) async {
+        calls.add('${req.method} ${req.url.path}');
+        if (req.method == 'MOVE') {
+          moveSeen++;
+          if (moveSeen == 1) return http.Response('', 409); // 目标父缺失
+          expect(req.headers['Destination'], contains('/media_archive/'));
+          return http.Response('', 204);
+        }
+        return http.Response('', req.method == 'MKCOL' ? 201 : 405);
+      });
+      final store = storeOf(client, vault: await vaultWith('svc1'));
+      await store
+          .move(cfg(), 'attachments/a.jpg', 'media_archive/attachments/a.jpg');
+      expect(calls.first, 'MOVE ${pathOf(['sync', 'attachments', 'a.jpg'])}');
+      expect(calls.any((c) => c.startsWith('MKCOL') && c.contains('media_archive')),
+          isTrue,
+          reason: '409 后必须补建目标父链再重试');
+      expect(moveSeen, 2);
+      store.close();
+    });
+
+    test('delete：204 成功；404 幂等成功；403 抛 StateError', () async {
+      var status = 204;
+      final client =
+          MockClient((req) async => http.Response('<x/>', status));
+      final store = storeOf(client, vault: await vaultWith('svc1'));
+      await store.delete(cfg(), 'attachments/a.jpg');
+      status = 404;
+      await store.delete(cfg(), 'attachments/a.jpg'); // 幂等
+      status = 403;
+      await expectLater(store.delete(cfg(), 'attachments/a.jpg'),
+          throwsA(isA<StateError>()));
+      store.close();
+    });
+  });
 }

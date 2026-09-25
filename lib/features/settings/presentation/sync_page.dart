@@ -1,8 +1,10 @@
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/sync/diff_service.dart';
 import '../../../core/sync/remote_store.dart';
@@ -146,6 +148,19 @@ class _SyncPageState extends ConsumerState<SyncPage> {
           task: () => o.run(actionable),
           queue: actionable,
           config: _active);
+      // R5d：同步结束后自动归档钩子（开关默认关；只归档不删除）。整体
+      // try 包裹：provider 未装配（测试环境）或服务内异常都不得影响页面。
+      final act = _active;
+      if (act != null) {
+        unawaited(() async {
+          try {
+            await ref.read(cloudCleanServiceProvider).autoCleanAfterSync(
+                ref.read(remoteStoreFactoryProvider)(act), act);
+          } catch (e) {
+            AppLog.add('⚠️ 云端自动归档钩子忽略：$e', level: LhLevel.warn);
+          }
+        }());
+      }
       _reload();
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -345,6 +360,15 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   sub: '环形缓冲 300 · 按日落盘',
                   // R2 项④：go→push，从 /sync 进日志后返回回 /sync 而非退出 app。
                   onTap: () => context.push('/log'),
+                ),
+                const Divider(height: 1, indent: 14, endIndent: 14),
+                // R5d：云端孤儿附件清理入口（归档为主，删除需逐项确认）。
+                _EntryRow(
+                  key: const ValueKey('sync-cloud-clean-entry'),
+                  icon: Icons.cloud_off_outlined,
+                  title: '清理云端',
+                  sub: '未引用附件归档 · 彻底删除需确认',
+                  onTap: active == null ? null : () => showCloudCleanSheet(context, config: active),
                 ),
               ],
             ),

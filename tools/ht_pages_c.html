@@ -1,0 +1,82 @@
+
+    <!-- ===== H6 健康趋势 ===== -->
+    <section id="p-trends" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
+        <button class="seg-on flex-1 rounded-lg py-1.5" data-v="7" onclick="hseg(this);HT.trRange=7;hTrends()">周</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-v="30" onclick="hseg(this);HT.trRange=30;hTrends()">月</button>
+        <button class="flex-1 rounded-lg py-1.5 text-slate-500" data-v="12" onclick="hseg(this);HT.trRange=12;hTrends()">年</button>
+      </div>
+      <div class="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pb-1" id="trMetricRow"></div>
+      <div class="card mt-2 !p-0 overflow-hidden">
+        <div class="px-4 py-2.5 flex items-center justify-between"><b class="text-[13px]" id="trHeatTx">达标热力</b><span class="text-[9px] text-slate-400" id="trLegend"></span></div>
+        <div class="grid gap-1.5 px-4 pb-2" id="trHeat"></div>
+        <div class="px-4 pb-3 pt-1 text-[10px] text-slate-400 border-t border-slate-100 dark:border-slate-800" id="trDayDetail">未选日期</div>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-center mt-3">
+        <div class="card !p-2.5"><b class="text-lg block" id="tv1">—</b><span class="text-[9px] text-slate-400 block" id="tl1">—</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="tv2">—</b><span class="text-[9px] text-slate-400 block" id="tl2">—</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="tv3">—</b><span class="text-[9px] text-slate-400 block" id="tl3">—</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="tv4">—</b><span class="text-[9px] text-slate-400 block" id="tl4">—</span></div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><b class="text-[13px]" id="trCurTx">曲线</b><span class="text-[9px] text-slate-400">虚线 = 目标值</span></div>
+        <svg id="trSvg" viewBox="0 0 300 90" class="w-full h-24 mt-1"></svg>
+        <div class="text-[10px] text-slate-400 mt-1" id="trCompare"></div>
+      </div>
+      <div class="card mt-3 flex items-center gap-3 active:scale-[.99] transition" onclick="openSheet('sheetHealthReport')">
+        <span class="w-9 h-9 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center" id="hl-report"></span>
+        <div class="flex-1"><div class="text-sm font-bold">健康周报</div><div class="text-[10px] text-slate-400">达成摘要 · 环比上周 · 长图分享</div></div>
+        <span class="text-slate-300">›</span></div>
+    </section>
+
+    <!-- ===== H7 健康目标 ===== -->
+    <section id="p-goalsH" class="page px-5 safe-pb no-scrollbar">
+      <div class="grad rounded-3xl p-4 text-white flex items-center gap-4">
+        <div class="relative w-14 h-14 shrink-0">
+          <svg viewBox="0 0 42 42" class="w-14 h-14 -rotate-90"><circle cx="21" cy="21" r="17" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle id="goalRing" cx="21" cy="21" r="17" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 107"/></svg>
+          <span id="goalRingTx" class="absolute inset-0 flex items-center justify-center text-sm font-extrabold">—</span>
+        </div>
+        <div><b class="text-[15px]">今日目标达成</b><div class="text-[11px] opacity-85 mt-0.5" id="goalSum">—</div><div class="text-[9px] opacity-70 mt-0.5">目标变更即时生效 · 历史数据不追改</div></div>
+      </div>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">每日喝水</b><div class="text-[9px] text-slate-400 mt-0.5">达成率分母 = 目标杯数</div></div><button class="mini-btn" id="gbWater" onclick="hGoalPick('water')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">睡眠时长</b><div class="text-[9px] text-slate-400 mt-0.5">按醒来日归属 · 跨天自动标注</div></div><button class="mini-btn" id="gbSleep" onclick="hGoalPick('sleep')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">按时入睡线</b><div class="text-[9px] text-slate-400 mt-0.5">统计「入睡早于该点」的天数</div></div><button class="mini-btn" id="gbBed" onclick="hGoalPick('bed')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">每周运动次数</b><div class="text-[9px] text-slate-400 mt-0.5">≥10 分钟计 1 次 </div></div><button class="mini-btn" id="gbEx" onclick="hGoalPick('ex')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">目标体重</b><div class="text-[9px] text-slate-400 mt-0.5">身体数据页显示差值</div></div><button class="mini-btn" id="gbW" onclick="hGoalPick('w')">—</button></div>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><b class="text-[13px]">围度目标</b><span class="text-[9px] text-slate-400">随体重记录选填</span></div>
+        <div class="grid grid-cols-3 gap-2 mt-2 text-center text-[10px]">
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b id="gWaist" class="text-[13px]">—</b><div class="text-slate-400">腰围 cm</div><button class="mini-btn !py-1 mt-1" onclick="hGoalPick('waist')">设目标</button></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b id="gHip" class="text-[13px]">—</b><div class="text-slate-400">臀围 cm</div><button class="mini-btn !py-1 mt-1" onclick="hGoalPick('hip')">设目标</button></div>
+          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2"><b id="gNeck" class="text-[13px]">—</b><div class="text-slate-400">颈围 cm</div><button class="mini-btn !py-1 mt-1" onclick="hGoalPick('neck')">设目标</button></div>
+        </div>
+      </div>
+      <button class="mini-btn w-full mt-3" onclick="hGoalsReset()">恢复默认目标</button>
+    </section>
+
+    <!-- ===== H8 健康设置 ===== -->
+    <section id="p-hSet" class="page px-5 safe-pb no-scrollbar">
+      <div class="card !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">主页健康概览卡</span><span class="toggle on" id="tgDash" onclick="hTg(this,'仪表盘健康卡已切换 · 变更单 S-11 待回灌 index.html')"></span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">悬浮球喝水快捷 <span class="vchip">V1.x</span></span><span class="toggle on" id="tgFab" onclick="hTg(this,'悬浮球快捷已切换')"></span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><div><div class="text-xs font-semibold">一杯换算量</div><div class="text-[9px] text-slate-400 mt-0.5">按 ml 记账时用于换算</div></div><button class="mini-btn" id="gbCup" onclick="hWheelPick(this,'cupMl','一杯 =','ml',[200,220,250,300,330,350,400,500])">250 ml</button></div>
+        <div class="px-4 py-3 flex items-center justify-between"><div><div class="text-xs font-semibold">睡眠分期逐段补录</div><div class="text-[9px] text-slate-400 mt-0.5">关闭时只记起止与质量</div></div><span class="toggle" id="tgStage" onclick="hTgStage(this)"></span></div>
+      </div>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between" onclick="htNav('p-sub-notify')"><span class="text-xs font-semibold">提醒通知中心（用药 / 达成度）</span><span class="text-slate-300">›</span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">每日达成度小结</span><button class="mini-btn" id="gbDaily" onclick="hWheelPick(this,'dailyTime','小结推送时刻','',[ '20:00','20:30','21:00','21:30','22:00'])">21:30</button></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">体重打卡提醒</span><button class="mini-btn" id="gbRem" onclick="hWheelPick(this,'remTime','提醒时刻','',[ '07:30','08:00','08:30','09:00','21:00','21:30'])">08:00</button></div>
+      </div>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">体重单位</span><span><b class="text-xs font-bold" style="color:var(--accent)" id="kgUnitTx">kg</b><button class="mini-btn ml-2 !py-1" onclick="hToggleKg()">切换</button></span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">距离单位</span><span><b class="text-xs font-bold" style="color:var(--accent)" id="kmUnitTx">km</b><button class="mini-btn ml-2 !py-1" onclick="hToggleKm()">切换</button></span></div>
+      </div>
+      <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">健康数据随本地备份</span><span class="toggle on" id="tgBak" onclick="hTg(this, this.classList.contains('on')?'健康数据将写入 .lhbak 备份':'本模块数据排除出备份（含敏感用药记录）')"></span></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold">导出健康流水</span><button class="mini-btn" onclick="hExport(this)">CSV / JSON</button></div>
+        <div class="px-4 py-3 flex items-center justify-between"><span class="text-xs font-semibold>分类映射</span><span class="text-[11px] text-slate-400">运动 · 睡眠休息</span></div>
+      </div>
+      <div class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-4 pb-2">健康管理 · 数据仅存本机 · 无网络上传</div>
+    </section>

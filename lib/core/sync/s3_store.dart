@@ -340,6 +340,54 @@ class S3Store implements RemoteStore {
   }
 
   @override
+  Future<void> move(
+      ServiceConfig c, String fromRel, String toRel) async {
+    // R5d：S3 无原生移动 = CopyObject（服务端复制，零本地流量）+ DELETE。
+    final srcKey = _keyFor(c, fromRel);
+    final dstUri = _uri(
+        c, keySegments: [..._dirSegments(c), ..._normSegments(toRel)]);
+    final signer = await _signer(c);
+    final copyRes = await gate.send(
+      _ensureClient(),
+      () {
+        final req = http.Request('PUT', dstUri)..bodyBytes = const [];
+        signer.sign(req, payloadHash: SigV4Signer.emptySha256);
+        req.headers['x-amz-copy-source'] =
+            '/${c.bucket}/${Uri.encodeComponent(srcKey).replaceAll('%2F', '/')}';
+        return req;
+      },
+      config: c,
+      label: 'COPY ${dstUri.host}/$srcKey',
+    );
+    final copyBody = await _bodyText(copyRes);
+    if (copyRes.statusCode != 200) {
+      throw StateError(
+          'COPY ${dstUri.host} 失败(${copyRes.statusCode})：${_brief(copyBody)}');
+    }
+    await delete(c, fromRel);
+  }
+
+  @override
+  Future<void> delete(ServiceConfig c, String cloudRelative) async {
+    final uri = _uri(
+        c, keySegments: [..._dirSegments(c), ..._normSegments(cloudRelative)]);
+    final signer = await _signer(c);
+    final res = await gate.send(
+      _ensureClient(),
+      () => signer.sign(http.Request('DELETE', uri),
+          payloadHash: SigV4Signer.emptySha256),
+      config: c,
+      label: 'DELETE ${uri.host}/${_keyFor(c, cloudRelative)}',
+    );
+    await res.stream.drain<void>();
+    // 204/200 成功；S3 对不存在对象也回 204（天然幂等）。
+    if (res.statusCode != 200 && res.statusCode != 204 && res.statusCode != 404) {
+      throw StateError(
+          'DELETE ${_keyFor(c, cloudRelative)} 失败(${res.statusCode})');
+    }
+  }
+
+  @override
   Future<VerifyResult> verify(ServiceConfig c) async {
     // §4.2：GET /?list-type=2&max-keys=1，200 即凭证与桶权限全通。
     final uri = _uri(c, query: {'list-type': '2', 'max-keys': '1'});

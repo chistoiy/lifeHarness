@@ -1111,8 +1111,9 @@ void main() {
       final tmp = Directory.systemTemp.createTempSync('lh_img');
       final docs = Directory.systemTemp.createTempSync('lh_docs');
       addTearDown(() {
-        tmp.deleteSync(recursive: true);
-        docs.deleteSync(recursive: true);
+        // R5b：Image.file 解码句柄释放有 Windows 竞态，temp 目录删除失败容忍（OS 回收）。
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+        try { docs.deleteSync(recursive: true); } catch (_) {}
       });
       File(p.join(tmp.path, 'a.png'))
           .writeAsBytesSync(base64Decode(_png1x1));
@@ -1209,8 +1210,9 @@ void main() {
       final tmp = Directory.systemTemp.createTempSync('lh_img_p');
       final docs = Directory.systemTemp.createTempSync('lh_docs_p');
       addTearDown(() {
-        tmp.deleteSync(recursive: true);
-        docs.deleteSync(recursive: true);
+        // R5b：Image.file 解码句柄释放有 Windows 竞态，temp 目录删除失败容忍（OS 回收）。
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+        try { docs.deleteSync(recursive: true); } catch (_) {}
       });
       File(p.join(tmp.path, 'a.png')).writeAsBytesSync(base64Decode(_png1x1));
       ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'a.png'));
@@ -1508,7 +1510,9 @@ void main() {
     testWidgets('11-3 纯文本空稿先插图→图下即有可写段；末段图片重开也可写',
         (tester) async {
       final tmp = Directory.systemTemp.createTempSync('lhimg11');
-      addTearDown(() => tmp.deleteSync(recursive: true));
+      addTearDown(() {
+        try { tmp.deleteSync(recursive: true); } catch (_) {}
+      });
       File(p.join(tmp.path, 'x.png')).writeAsBytesSync(base64Decode(_png1x1));
       PathProviderPlatform.instance = _FakePathProvider(tmp.path);
       ImagePickerPlatform.instance = _FakeImagePicker(p.join(tmp.path, 'x.png'));

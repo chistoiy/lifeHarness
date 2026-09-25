@@ -54,8 +54,8 @@ class MediaUsageScanner {
     ('books', 'cover_path'),
   ];
 
-  Future<MediaScanResult> scan() async {
-    // 引用全文一次性拉入内存（个人库体量 MB 级，可接受），逐列容错。
+  /// 六列引用全文（一次性拉入内存；R5c 孤儿判定与 R5d 云端清理共用）。
+  Future<String> referenceText() async {
     final buf = StringBuffer();
     for (final (table, col) in _refColumns) {
       try {
@@ -69,7 +69,11 @@ class MediaUsageScanner {
         // 表缺失（裁剪构建）跳过该列。
       }
     }
-    final text = buf.toString();
+    return buf.toString();
+  }
+
+  Future<MediaScanResult> scan() async {
+    final text = await referenceText();
     final orphans = <MediaScanEntry>[];
     var total = 0;
     for (final dir in mediaDirs) {

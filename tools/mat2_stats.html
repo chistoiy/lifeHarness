@@ -1,0 +1,28 @@
+    <!-- ===== C10 宝宝照护多维汇总 ===== -->
+    <section id="p-babyStats" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex gap-2 items-center">
+        <div class="flex flex-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+          <button id="bsT0" class="seg-on flex-1 rounded-lg py-1.5" onclick="bsRange('d')">今日</button>
+          <button id="bsT1" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="bsRange('w')">本周</button>
+          <button id="bsT2" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="bsRange('m')">本月</button>
+        </div>
+        <button class="w-9 h-9 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-slate-500 active:scale-95 transition shrink-0" title="回宝宝页" onclick="careSwap('p-baby')"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/></svg></button>
+      </div>
+      <div class="grid grid-cols-4 text-center text-[10px] mt-3" id="bsTot"></div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title !mb-0">分事件统计</div><span class="text-[9px] text-slate-400" id="bsKindHint">全部事件</span></div>
+        <div class="mt-1.5 flex gap-1.5 overflow-x-auto no-scrollbar text-[10px]" id="bsKindChips"></div>
+        <div class="mt-2 space-y-2" id="bsEvents"></div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">24 小时节律</div>
+        <div class="mt-1 overflow-x-auto no-scrollbar"><div id="bsClock" class="min-w-[300px]"></div></div>
+        <div class="text-[9px] text-slate-400 mt-1.5">行=事件 · 列=0~23时 · 圆点深浅=该小时记录条数</div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">近 7 日趋势</div>
+        <div class="mt-2 flex items-end gap-1.5 h-16" id="bsTrend"></div>
+        <div class="text-[9px] text-slate-400 mt-1.5"><i class="dot bg-brand-500"></i>喂养次数　<i class="dot bg-mint"></i>睡眠时长　<i class="dot bg-sun"></i>奶量</div>
+      </div>
+      <div class="card mt-3" id="bsInsight"></div>
+    </section>

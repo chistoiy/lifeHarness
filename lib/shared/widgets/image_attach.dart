@@ -64,7 +64,9 @@ Future<String?> pickAndStoreImage(BuildContext context,
     final hash = crypto.sha256.convert(bytes).toString();
     final dest = p.join(outDir.path, '$hash.$ext');
     final f = File(dest);
-    if (!await f.exists()) await f.writeAsBytes(bytes);
+    // 同步写：FakeAsync widget 测试里异步 writeAsBytes 永不完成（已知坑）；
+    // 图片 MB 级同步落盘毫秒量级，生产无感。
+    if (!await f.exists()) f.writeAsBytesSync(bytes);
     return context.mounted ? dest : null;
   } catch (_) {
     if (context.mounted) AppToast.show(context, '插图失败 · 请重试');

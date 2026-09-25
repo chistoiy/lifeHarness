@@ -447,8 +447,7 @@ void main() {
         () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final imgDir = Directory(p.join(docsDir, 'note_images'))
-        ..createSync(recursive: true);
+      Directory(p.join(docsDir, 'note_images')).createSync(recursive: true);
       final svc = svcWithAttach(prefs);
       // 不存在 → 给出媒体目录目标。
       final dest = svc.resolveDownload('attachments/note_images/n.jpg', 5);
@@ -465,9 +464,9 @@ void main() {
     test('同步快照 = 纯 DB：包内无 logs/ 与 attachments/ 成员', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final imgDir = Directory(p.join(docsDir, 'note_images'))
-        ..createSync(recursive: true);
-      File(p.join(imgDir.path, 'z.jpg')).writeAsBytesSync([9]);
+      File(p.join(docsDir, 'note_images', 'z.jpg'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync([9]);
       final svc = svcWithAttach(prefs);
       final res = await svc.build(keepN: 5);
       final verify = await LhBak.verify(res.file.path);

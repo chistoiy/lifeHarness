@@ -90,6 +90,14 @@ abstract class RemoteStore {
   /// 确保云端目录存在（相对 cloudDirName；S3 为空实现，R7）。
   Future<void> ensureDirectory(ServiceConfig c, String cloudRelativeDir);
 
+  /// R5d：云端移动（归档用）。WebDAV = MOVE；S3 = CopyObject + DELETE。
+  /// 两端参数均相对 cloudDirName；目标父目录不存在时实现方自行补建。
+  Future<void> move(ServiceConfig c, String fromRel, String toRel);
+
+  /// R5d：云端删除（仅「清理云端」显式确认后调用；同步链路永不触发——
+  /// 「删除不传播」红线不变）。相对 cloudDirName；404 视为已删（幂等）。
+  Future<void> delete(ServiceConfig c, String cloudRelative);
+
   /// 连接验证（一次极轻请求）。
   Future<VerifyResult> verify(ServiceConfig c);
 

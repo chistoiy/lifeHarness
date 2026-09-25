@@ -12,6 +12,7 @@ import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
 import 'core/logging/file_log_sink.dart';
 import 'core/media/media_hash_migrator.dart';
+import 'core/media/media_usage_scanner.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/providers.dart';
 import 'core/settings/settings_repository.dart';
