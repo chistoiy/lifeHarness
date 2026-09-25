@@ -4,8 +4,9 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
-    <!-- V1.41 同步与备份：INTERNET 仅用于用户自行配置的 WebDAV/S3 同步；
-         除此之外 App 零网络请求（离线优先 / 隐私红线）。 -->
+    <!-- V1.41 同步与备份：INTERNET 用于用户自行配置的 WebDAV/S3 同步与
+         既有天气查询（open-meteo）/ISBN 书目查询（豆瓣）；除此之外 App
+         零网络请求（离线优先 / 隐私红线·终审修复波 Minor-3 如实登记）。 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="lifeharness"
