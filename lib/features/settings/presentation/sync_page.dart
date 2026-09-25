@@ -24,8 +24,8 @@ import 'widgets/sync_sheets.dart';
 /// - 入口行：立即同步 / 差异对比(S3) / 备份导出·导入(S5·Task 10) /
 ///   控流(S6) / 同步历史(P2) / 日志(/log)；
 /// - 切换服务列表：单选 activeId；
-/// - 「立即同步」经差异扫描后进 S4 进度半屏（编排只执行可执行条目，
-///   一致条目自动跳过）；
+/// - 「立即同步」先为同步目录生成新快照再差异扫描，进 S4 进度半屏（编排只执行
+///   可执行条目，一致条目自动跳过）；
 /// - 底部原型三 tab（同步/历史/日志）在 app 内以入口行承载——
 ///   /sync 是栈页不占底栏导航池（见 task-18 报告差异说明）。
 class SyncPage extends ConsumerStatefulWidget {
@@ -109,7 +109,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
     _reload();
   }
 
-  /// 立即同步：compare → 全量可执行条目 → S4 进度半屏。
+  /// 立即同步：生成快照 → compare → 全量可执行条目 → S4 进度半屏。
   ///
   /// 防重入（评审修复轮1）：compare 前置网络 await 可 30s+，连点会叠出
   /// 第二层 S4（第二层 run 撞编排器单任务门闩抛「已在运行」）。
@@ -122,6 +122,12 @@ class _SyncPageState extends ConsumerState<SyncPage> {
     try {
       List<FileDiff> actionable;
       try {
+        // 终审修复波（Critical-1）：快照的唯一生产触发点。同步对象是
+        // <docs>/sync/ 目录，compare 前必须先 build 一份新快照，否则该
+        // 目录永远为空、上传链空转。最小实现=静默前置（不为 S4 增设
+        // 「生成快照」步骤——进度态按文件条目计数，生成不是传输条目）；
+        // 失败与 compare 同走「同步准备失败」toast（此段仍在 busy 保护区内）。
+        await ref.read(snapshotServiceProvider).build();
         await o.compare();
         actionable = o.state.value.diffs
             .where((d) => d.status != DiffStatus.inSync)

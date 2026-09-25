@@ -16,7 +16,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/sync/credential_vault.dart';
 import 'package:lifeharness/core/sync/http_gate.dart';
@@ -30,7 +29,8 @@ import 'package:lifeharness/features/settings/presentation/sync_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers.dart';
-import 'sync_page_ui_test.dart' show FakeRemoteStore, FakeSnapshotService;
+import 'sync_page_ui_test.dart'
+    show FakeRemoteStore, FakeSnapshotService, fakeBackupService;
 
 /// 四态清单（字节取整数 MB 便于合计断言）：
 /// 仅本地 3（log 4MB + sync 快照 8MB + cloud 侧忽略）/ 仅云端 2（3MB + 1MB 残留）
@@ -68,7 +68,8 @@ void main() {
     vault = CredentialVault.inMemory();
     fake = FakeRemoteStore();
     tmpDocs = Directory.systemTemp.createTempSync('lh_t18_docs_');
-    snap = FakeSnapshotService(prefs: prefs, docs: () => tmpDocs.path);
+    snap = FakeSnapshotService(
+        backup: fakeBackupService(), prefs: prefs, docsDir: () => tmpDocs.path);
     orch = SyncOrchestrator(
       snapshotService: snap,
       prefs: prefs,
@@ -134,8 +135,7 @@ void main() {
         remoteStoreFactoryProvider.overrideWithValue((c) => fake),
         snapshotServiceProvider.overrideWithValue(snap),
         syncOrchestratorProvider.overrideWithValue(orch),
-        backupServiceProvider.overrideWithValue(
-            BackupService(exportDir: () => '', db: () => throw UnimplementedError())),
+        backupServiceProvider.overrideWithValue(fakeBackupService()),
       ],
       child: MaterialApp.router(routerConfig: router),
     ));

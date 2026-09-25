@@ -5,17 +5,20 @@
 /// override 注入（SyncConfigStore 用 mock prefs + 内存保险箱真实实现，逻辑零
 /// 网络）；②本地极简 GoRouter（照 log_page_test 模式，不拉全 app）；
 /// ③SnackBar 断言一律 pollText 命中后再走 + clearToasts 清场；④禁真实
-/// I/O（SnapshotService.localInventory 覆写为内存清单）。
+/// I/O（SnapshotService.localInventory 覆写为内存清单、build 覆写为计数
+/// fake——终审修复波 Critical-1 触发点断言）。
 library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lifeharness/core/backup/backup_service.dart';
+import 'package:lifeharness/core/backup/lh_bak.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/sync/credential_vault.dart';
 import 'package:lifeharness/core/sync/remote_store.dart';
@@ -30,6 +33,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'helpers.dart';
 
 // ---------- 服务层 fake ----------
+
+/// 两个 fake 共用的动作序记录（'build' / 'list'）：钉死终审 Critical-1
+/// 「快照 build 生产触发点存在、且先于 compare 的网络 list」。各用例 setUp 清空。
+final List<String> syncActionOrder = <String>[];
+
+/// 测试用假备份服务（快照 build 已被 [FakeSnapshotService] 覆写、永不触达；
+/// 仅供构造满足 super 形参）。
+BackupService fakeBackupService() =>
+    BackupService(exportDir: () => '', db: () => throw UnimplementedError());
+
+String _fakeDocsDir() => '';
+
+Future<bool> _fakeCareExcluded() async => false;
 
 class FakeRemoteStore implements RemoteStore {
   FakeRemoteStore({this.quotaResult});
@@ -52,6 +68,7 @@ class FakeRemoteStore implements RemoteStore {
   Future<CloudListing> list(ServiceConfig c, String cloudDirName,
           {bool force = false}) async {
     listCount++;
+    syncActionOrder.add('list');
     await listGate?.future;
     if (listError != null) throw listError!;
     return CloudListing(files);
@@ -86,20 +103,37 @@ class FakeRemoteStore implements RemoteStore {
   void close() {}
 }
 
-/// 内存清单版 SnapshotService（覆写 localInventory，禁真实目录扫描）。
+/// 内存清单版 SnapshotService（覆写 localInventory/build，禁真实 I/O；
+/// build 记 [syncActionOrder] 与次数，供终审 Critical-1 断言）。
 class FakeSnapshotService extends SnapshotService {
   FakeSnapshotService({
-    required SharedPreferences prefs,
-    String Function()? docs,
-  }) : super(
-          backup: BackupService(
-              exportDir: () => '', db: () => throw UnimplementedError()),
-          prefs: prefs,
-          docsDir: docs ?? () => '',
-          careExcluded: () async => false,
-        );
+    required super.backup,
+    required super.prefs,
+    super.docsDir = _fakeDocsDir,
+    super.careExcluded = _fakeCareExcluded,
+  });
 
   List<FileEntry> inventory = const [];
+  int buildCount = 0;
+
+  @override
+  Future<SyncSnapshotResult> build({int? keepN}) async {
+    buildCount++;
+    syncActionOrder.add('build');
+    return SyncSnapshotResult(
+      file: File('fake_sync_snapshot.lhbak'),
+      manifest: LhBakManifest(
+        dbVersion: 0,
+        appVersion: 'test',
+        createdAt: DateTime(2026, 9, 25),
+        tables: const {},
+        excludedTables: const [],
+        encrypted: false,
+        members: const [],
+      ),
+      pruned: const [],
+    );
+  }
 
   @override
   Future<List<FileEntry>> localInventory() async => inventory;
@@ -165,7 +199,8 @@ void main() {
     prefs = await SharedPreferences.getInstance();
     vault = CredentialVault.inMemory();
     fake = FakeRemoteStore();
-    snap = FakeSnapshotService(prefs: prefs);
+    snap = FakeSnapshotService(backup: fakeBackupService(), prefs: prefs);
+    syncActionOrder.clear();
     orch = SyncOrchestrator(
       snapshotService: snap,
       prefs: prefs,
@@ -193,8 +228,7 @@ void main() {
         remoteStoreFactoryProvider.overrideWithValue((c) => fake),
         snapshotServiceProvider.overrideWithValue(snap),
         syncOrchestratorProvider.overrideWithValue(orch),
-        backupServiceProvider.overrideWithValue(
-            BackupService(exportDir: () => '', db: () => throw UnimplementedError())),
+        backupServiceProvider.overrideWithValue(fakeBackupService()),
       ],
       child: MaterialApp.router(routerConfig: router),
     ));
@@ -448,6 +482,43 @@ void main() {
       await clearToasts(tester);
       expect(inkWellOf(tester, 'btn-sync-now').onTap, isNotNull,
           reason: '异常也要经 finally 复位，不许永久置灰');
+    });
+  });
+
+  group('立即同步快照生成（终审修复波 Critical-1）', () {
+    testWidgets('点「立即同步」→ build 恰 1 次且先于 compare 的远端 list',
+        (tester) async {
+      seedServices(prefs);
+      // 一条仅本地快照：compare 完成后 actionable 非空，可一路跑到 S4 结束。
+      snap.inventory = [
+        FileEntry(relativePath: 'sync_20260925_120000.lhbak', size: 8388608),
+      ];
+      final gate = Completer<void>();
+      fake.listGate = gate; // 挂起 compare 的网络段，定格「build 已先发生」
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      expect(snap.buildCount, 0, reason: '进页/静止态绝不悄悄生成快照');
+      expect(syncActionOrder, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('btn-sync-now')));
+      await settle5(tester);
+      expect(snap.buildCount, 1, reason: 'build 是快照的唯一生产触发点');
+      expect(fake.listCount, 1);
+      expect(syncActionOrder, ['build', 'list'],
+          reason: '快照必须先于 compare（否则 sync/ 目录永远为空）');
+
+      // 放行 compare → S4 上传该快照 → 结束；全程仍只 build 一次。
+      gate.complete();
+      await settle5(tester);
+      expect(find.text('同步结束'), findsOneWidget);
+      expect(snap.buildCount, 1, reason: '一轮同步只生成一份快照');
+      expect(fake.putCalls, ['sync_20260925_120000.lhbak']);
+      expect(await pollText(tester, '同步完成 · 上传 1 · 下载 0 · 失败 0'), isTrue);
+      await clearToasts(tester);
+      final doneBtn = find.byKey(const ValueKey('btn-cancel-sync'));
+      await tester.ensureVisible(doneBtn);
+      await tester.tap(doneBtn);
+      await settle5(tester);
     });
   });
 
