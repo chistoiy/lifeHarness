@@ -110,6 +110,14 @@ CloudQuota parseListAllMyBuckets(String utf8Xml) {
   return CloudQuota(quotaBytes: null, usedBytes: used, collectionUsed: perBucket);
 }
 
+/// 回包是否为 ListAllMyBuckets 形态：认根标签 `ListAllMyBucketsResult` 或任意
+/// `<Bucket>` 元素二者其一即算（空桶账号有根标签无 Bucket，仍属正常形态）。
+/// 用于把「误配 endpoint 拿到坚果云 `<s:user>`」这类错误响应甄别为降级，
+/// 而非静默解析成 0 用量。
+bool _isListAllMyBucketsShape(String utf8Xml) =>
+    RegExp(r'ListAllMyBucketsResult', caseSensitive: false).hasMatch(utf8Xml) ||
+    RegExp(r'<(?:[\w.-]+:)?Bucket\b', caseSensitive: false).hasMatch(utf8Xml);
+
 final RegExp _contentsRe = RegExp(
     r'<(?:[\w.-]+:)?Contents\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?Contents\s*>',
     caseSensitive: false);
@@ -191,6 +199,16 @@ class S3Store implements RemoteStore {
 
   /// 容量缓存（D3 键 serviceId，5min TTL）。
   final Map<String, (DateTime, CloudQuota)> _quotaCache = {};
+
+  /// 容量降级 warn 去重（V1.41 R2 项②：子账户无 ListAllMyBuckets 权限 /
+  /// 回包非该形态时优雅降级——**同服务同会话只 warn 一次**，不重复刷日志）。
+  final Set<String> _quotaWarned = {};
+
+  void _warnQuotaDegraded(ServiceConfig c, String reason) {
+    if (!_quotaWarned.add(c.id)) return; // 已 warn 过不再刷
+    AppLog.add('⚠️ S3 容量降级：服务 ${c.id} $reason · 容量按未知（null）渲染',
+        level: LhLevel.warn);
+  }
 
   // —— 六方法 ——
 
@@ -339,9 +357,23 @@ class S3Store implements RemoteStore {
     final uri = _uri(c, rootEndpoint: true);
     final res = await _get(c, uri, 'GET ${uri.host}/ (ListAllMyBuckets)');
     final body = await _bodyText(res);
+    // V1.41 R2 项②：403 = 子账户常无 ListAllMyBuckets 全局列举权限（桶级操作
+    // 仍可正常同步），这不是错误而是「容量不可见」——优雅降级为 null 配额，
+    // 只 warn 一次，绝不让整条同步链因容量行报 StateError。
+    if (res.statusCode == 403) {
+      _warnQuotaDegraded(c, 'ListAllMyBuckets 403（子账户无全局列举权限）');
+      return CloudQuota(quotaBytes: null, usedBytes: null);
+    }
     if (res.statusCode != 200) {
       throw StateError('ListAllMyBuckets 失败(${res.statusCode})：'
           '${_brief(body)}');
+    }
+    // 200 但回包根本不是 ListAllMyBuckets 形态（如误把坚果云 endpoint 配成
+    // S3 服务，返回 <s:user>）：同样降级 null + warn，不强喂 parseListAllMyBuckets
+    // 得 0 用量误导用户。
+    if (!_isListAllMyBucketsShape(body)) {
+      _warnQuotaDegraded(c, '回包非 ListAllMyBuckets 形态');
+      return CloudQuota(quotaBytes: null, usedBytes: null);
     }
     final q = parseListAllMyBuckets(body);
     _quotaCache[c.id] = (_clock(), q);
@@ -469,11 +501,17 @@ class S3Store implements RemoteStore {
 
   String _verifyFailMessage(ServiceConfig c, int status, String body) {
     final reason = _brief(body);
+    // R14 文案分协议：缤纷云 403 / 400 MissingFields 的头号成因是子账户未分配
+    // 该桶权限或桶名/Endpoint 填错（V1.41 R2 项③——给出可操作控制台路径）。
+    const permHint = '缤纷云：子账户可能未分配该桶权限，或桶名/Endpoint 有误'
+        '（控制台→子账户→分配桶权限）';
     return switch (status) {
-      // R14 文案分协议：缤纷云 403 的头号成因是用了主账户密钥或子账户未分配桶权限。
-      401 || 403 => '认证失败（$status）：缤纷云需用控制台创建的**子账户** '
-          'Access Key/Secret Key（主账户密钥不可直连），并在控制台为该子账户'
-          '手动分配桶权限。$reason',
+      401 => '认证失败（401）：缤纷云需用控制台创建的**子账户** '
+          'Access Key/Secret Key（主账户密钥不可直连）。$reason',
+      403 => '认证失败（403）：$permHint；并使用子账户（非主账户）密钥。$reason',
+      400 => body.contains('MissingFields')
+          ? '字段缺失（400 MissingFields）：$permHint。$reason'
+          : '连接验证失败（400）：$reason',
       404 => '桶不存在（404）：请核对桶名与 endpoint：$reason',
       _ => '连接验证失败（$status）：$reason',
     };

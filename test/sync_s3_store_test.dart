@@ -325,6 +325,26 @@ void main() {
       expect(v.message, contains('桶权限'));
       store.close();
     });
+
+    test('R2③：403 / 400 MissingFields → 文案含「分配桶权限」控制台指引', () async {
+      final s403 = S3Store(
+        gate: HttpGate(sleeper: (d) async {}),
+        vault: await vaultWith('svcS3'),
+        client: () => MockClient(
+            (req) async => http.Response('<AccessDenied/>', 403)),
+      );
+      expect((await s403.verify(cfg())).message, contains('分配桶权限'));
+      s403.close();
+
+      final s400 = S3Store(
+        gate: HttpGate(sleeper: (d) async {}),
+        vault: await vaultWith('svcS3'),
+        client: () => MockClient((req) async => http.Response(
+            '<Error><Code>MissingFields</Code></Error>', 400)),
+      );
+      expect((await s400.verify(cfg())).message, contains('分配桶权限'));
+      s400.close();
+    });
   });
 
   group('quota：根 endpoint ListAllMyBuckets 私有字段（R5/§4.2）', () {
@@ -370,6 +390,43 @@ void main() {
       final client = MockClient((req) async => http.Response('<Error/>', 500));
       final store = storeOf(client, vault: await vaultWith('svcS3'));
       await expectLater(store.quota(cfg()), throwsStateError);
+      store.close();
+    });
+
+    test('quota 403（子账户无 ListAllMyBuckets 权限）→ CloudQuota(null,null) '
+        '不抛 + AppLog warn 一次（同服务同会话不重复刷）', () async {
+      final client = MockClient(
+          (req) async => http.Response('<AccessDenied/>', 403));
+      final store = storeOf(client, vault: await vaultWith('svcS3'));
+
+      final q = await store.quota(cfg());
+      expect(q.quotaBytes, isNull);
+      expect(q.usedBytes, isNull);
+      final warns = AppLog.lines.where((l) => l.level == LhLevel.warn).toList();
+      expect(warns, hasLength(1), reason: '首次降级 warn 一次');
+      expect(warns.first.text, contains('容量'));
+
+      // 第二次（缓存未命中会再打网络）：同服务同会话绝不重复刷 warn。
+      await store.quota(cfg(), force: true);
+      expect(
+          AppLog.lines.where((l) => l.level == LhLevel.warn), hasLength(1),
+          reason: 'warn 去重：同服务同会话不重复刷');
+      store.close();
+    });
+
+    test('quota 200 但非 ListAllMyBuckets 形态（<s:user>）→ null 不抛 + warn',
+        () async {
+      final client = MockClient((req) async => http.Response.bytes(
+          utf8.encode('<s:user xmlns:s="http://ns.jianguoyun.com">'
+              '<s:storage_quota>100</s:storage_quota></s:user>'),
+          200));
+      final store = storeOf(client, vault: await vaultWith('svcS3'));
+
+      final q = await store.quota(cfg());
+      expect(q.quotaBytes, isNull);
+      expect(q.usedBytes, isNull);
+      expect(
+          AppLog.lines.where((l) => l.level == LhLevel.warn), isNotEmpty);
       store.close();
     });
   });
