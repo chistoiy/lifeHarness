@@ -1545,7 +1545,7 @@ class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
       return;
     }
     setState(() => _cfg = target);
-    _toast('请求间隔已设为 ${ms}ms · 仅作用于该服务的 HttpGate 排队');
+    _toast('请求间隔已设为 ${ms}ms · 仅作用于该服务的同步请求排队');
   }
 
   void _setKeepN(int n) {
@@ -1576,7 +1576,7 @@ class _ThrottleSheetState extends ConsumerState<_ThrottleSheet> {
             const Text('控流设置',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
             const SizedBox(height: 2),
-            const Text('HttpGate 唯一请求出口 · 按服务排队',
+            const Text('同步请求统一排队 · 按服务设置请求间隔',
                 style: TextStyle(fontSize: 11, color: Colors.grey)),
             const _SecTitle('节流档位 · 请求间隔'),
             Row(

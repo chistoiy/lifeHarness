@@ -464,7 +464,7 @@ void main() {
 
       // 800ms 档写回当前服务（svcW）。
       await tester.tap(find.byKey(const ValueKey('throttle-seg-800')));
-      expect(await pollText(tester, '请求间隔已设为 800ms · 仅作用于该服务的 HttpGate 排队'),
+      expect(await pollText(tester, '请求间隔已设为 800ms · 仅作用于该服务的同步请求排队'),
           isTrue);
       await clearToasts(tester);
       expect(loaded().services.firstWhere((c) => c.id == 'svcW').requestIntervalMs,
