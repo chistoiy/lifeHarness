@@ -513,6 +513,10 @@ void main() {
       expect(seq, ['PUT', 'DELETE']);
       expect(copy!.headers['x-amz-copy-source'], '/photo/sync/attachments/a.jpg');
       expect(copy!.url.path, '/sync/media_archive/attachments/a.jpg');
+      // R5d 真云验证钉死：copy-source 必须进签名头集（签后追加=403）。
+      final auth = copy!.headers['authorization'] ?? '';
+      expect(auth, contains('SignedHeaders=host;x-amz-content-sha256;x-amz-copy-source;x-amz-date'),
+          reason: 'x-amz-copy-source 须在签名头集内且按字典序');
       store.close();
     });
 

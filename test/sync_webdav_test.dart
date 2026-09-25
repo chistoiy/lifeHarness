@@ -615,15 +615,20 @@ void main() {
   });
 
   group('R5d move/delete', () {
-    test('move：MOVE + Destination 绝对 URL；409 补建目标父目录后重试一次',
+    test('move：MOVE + Destination 绝对 URL；409/404 补建目标父目录后重试一次',
         () async {
       final calls = <String>[];
       var moveSeen = 0;
+      var expect404ForRetry = false;
       final client = MockClient((req) async {
         calls.add('${req.method} ${req.url.path}');
         if (req.method == 'MOVE') {
           moveSeen++;
-          if (moveSeen == 1) return http.Response('', 409); // 目标父缺失
+          if (moveSeen == 1) {
+            // 真云实测两形态都须触发补建重试：409（标准）与 404（坚果云）。
+            return http.Response('',
+                expect404ForRetry ? 404 : 409);
+          }
           expect(req.headers['Destination'], contains('/media_archive/'));
           return http.Response('', 204);
         }
@@ -636,6 +641,14 @@ void main() {
       expect(calls.any((c) => c.startsWith('MKCOL') && c.contains('media_archive')),
           isTrue,
           reason: '409 后必须补建目标父链再重试');
+      expect(moveSeen, 2);
+
+      // 404 形态（坚果云实测）同样触发补建重试。
+      moveSeen = 0;
+      expect404ForRetry = true;
+      calls.clear();
+      await store
+          .move(cfg(), 'attachments/b.jpg', 'media_archive/attachments/b.jpg');
       expect(moveSeen, 2);
       store.close();
     });

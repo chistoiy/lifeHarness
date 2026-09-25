@@ -410,7 +410,8 @@ class WebDavStore implements RemoteStore {
       ServiceConfig c, String fromRel, String toRel) async {
     final src = _uriSegments(c, _dirChain(c, fromRel));
     final dst = _uriSegments(c, _dirChain(c, toRel));
-    // 409 = 目标父目录缺失：补建父链后重试一次（归档首跑即此形态）。
+    // 409/404 = 目标父目录缺失（坚果云 MOVE 实测回 404 而非标准 409——
+    // R5d 真云验证修正）：补建父链后重试一次。
     for (var attempt = 0;; attempt++) {
       final auth = await _authHeader(c);
       final res = await gate.send(
@@ -426,7 +427,7 @@ class WebDavStore implements RemoteStore {
       );
       final body = await _bodyText(res);
       if (_isSuccess(res.statusCode, const {201, 204})) return;
-      if (res.statusCode == 409 && attempt == 0) {
+      if ((res.statusCode == 409 || res.statusCode == 404) && attempt == 0) {
         await ensureDirectory(
             c, _normSegments(toRel).take(_normSegments(toRel).length - 1).join('/'));
         continue;

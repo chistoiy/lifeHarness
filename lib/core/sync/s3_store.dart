@@ -351,9 +351,11 @@ class S3Store implements RemoteStore {
       _ensureClient(),
       () {
         final req = http.Request('PUT', dstUri)..bodyBytes = const [];
-        signer.sign(req, payloadHash: SigV4Signer.emptySha256);
+        // R5d 真云验证修正：x-amz-copy-source 必须在 sign **之前**写入——
+        // 缤纷云要求该头进签名头集，签后追加会 403 SignatureDoesNotMatch。
         req.headers['x-amz-copy-source'] =
             '/${c.bucket}/${Uri.encodeComponent(srcKey).replaceAll('%2F', '/')}';
+        signer.sign(req, payloadHash: SigV4Signer.emptySha256);
         return req;
       },
       config: c,

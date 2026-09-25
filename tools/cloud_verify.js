@@ -56,11 +56,13 @@ function s3Req({ host, path, query = '', method = 'GET', region = S3_REGION, bod
   const amzDate = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
   const dateStamp = amzDate.slice(0, 8);
   const payloadHash = body ? crypto.createHash('sha256').update(body).digest('hex') : EMPTY_SHA;
-  // R5d：CopyObject 探针需把 x-amz-copy-source 一并纳入签名头集。
-  const ch = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
-      + (copySource ? `x-amz-copy-source:${copySource}\n` : '');
+  // R5d：CopyObject 探针需把 x-amz-copy-source 一并纳入签名头集
+  // （规范=头名字典序：content-sha256 < copy-source < date，脚本首跑 403 教训）。
+  const ch = `host:${host}\nx-amz-content-sha256:${payloadHash}\n`
+      + (copySource ? `x-amz-copy-source:${copySource}\n` : '')
+      + `x-amz-date:${amzDate}\n`;
   const sh = copySource
-      ? 'host;x-amz-content-sha256;x-amz-date;x-amz-copy-source'
+      ? 'host;x-amz-content-sha256;x-amz-copy-source;x-amz-date'
       : 'host;x-amz-content-sha256;x-amz-date';
   const cr = `${method}\n${path}\n${query}\n${ch}\n${sh}\n${payloadHash}`;
   const scope = `${dateStamp}/${region}/s3/aws4_request`;
@@ -119,10 +121,9 @@ const code = (r) => (r.err ? `ERR ${r.err}` : `${r.status} ${(r.body.match(/<Cod
   const upS3 = await s3Req({ host: `${S3_BUCKET}.${S3_HOST}`, path: '/' + encodeURI(probeKey), method: 'PUT', body: 'probe-r5d' });
   console.log('8 S3 PUT 附件探针                :', code(upS3));
   if (upS3.status === 200) {
-    const copySrc = '/' + S3_BUCKET + '/' + encodeURI(probeKey);
     const mv = await s3Req({ host: `${S3_BUCKET}.${S3_HOST}`,
         path: '/' + encodeURI('media_archive/' + probeKey), method: 'PUT',
-        body: '', copySource });
+        body: '', copySource: '/' + S3_BUCKET + '/' + encodeURI(probeKey) });
     console.log('9 S3 CopyObject 归档             :', code(mv));
     console.log('10 S3 DELETE 源                  :', code(await s3Req({ host: `${S3_BUCKET}.${S3_HOST}`, path: '/' + encodeURI(probeKey), method: 'DELETE' })));
     if (mv.status === 200) {
@@ -142,7 +143,8 @@ const code = (r) => (r.err ? `ERR ${r.err}` : `${r.status} ${(r.body.match(/<Cod
     const dest = `https://dav.jianguoyun.com${P}media_archive/lh_probe.tmp`;
     let mv = await wdReq({ method: 'MOVE', path: `${P}lh_probe.tmp`, extraHeaders: { Destination: dest } });
     console.log('5 MOVE 归档（App 口径）            :', code(mv));
-    if (mv.status === 409) {
+    if (mv.status === 409 || mv.status === 404) {
+      // 坚果云实测：目标父目录缺失回 404（非标准 409）——App 两态都补建重试。
       await wdReq({ method: 'MKCOL', path: `${P}media_archive/` });
       mv = await wdReq({ method: 'MOVE', path: `${P}lh_probe.tmp`, extraHeaders: { Destination: dest } });
       console.log('5b MOVE 重试（补建目标父后）         :', code(mv));
