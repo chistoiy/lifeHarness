@@ -146,7 +146,7 @@ void main() {
       expect(requests, 0);
     });
 
-    testWidgets('能力关：审阅弹层→允许发送→MockClient 计数 0 + 未授权 toast',
+    testWidgets('能力关：点钮即拦截——不进审阅、MockClient 计数 0 + 未授权 toast',
         (tester) async {
       await useSurface(tester);
       await pumpDiary(tester, prefsMap: capsOff);
@@ -156,10 +156,8 @@ void main() {
       await settle5(tester); // 让防抖自动存先落库
 
       await openReflectFlow(tester);
-      expect(find.textContaining('发送给 AI'), findsOneWidget);
-
-      await tapSend(tester);
       expect(await pollContains(tester, '该能力未授权'), isTrue);
+      expect(find.textContaining('发送给 AI'), findsNothing);
       expect(requests, 0);
     });
 

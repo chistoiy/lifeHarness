@@ -113,7 +113,7 @@ void main() {
       200,
       headers: {'content-type': 'application/json; charset=utf-8'});
 
-  testWidgets('能力关：审阅后允许发送仍被门控拦下——零请求 + 未授权 toast',
+  testWidgets('能力关：入口即拦截——不进审阅、零请求 + 未授权 toast',
       (tester) async {
     await useSurface(tester, const Size(800, 2400));
     var calls = 0;
@@ -124,10 +124,9 @@ void main() {
       return openAi('不应到达这里');
     });
     await tapKey(tester, const ValueKey('ai-cycle-insight'));
-    expect(await pollHas(tester, '发送给 AI'), isTrue);
-    await tapKey(tester, const ValueKey('ai-review-send'));
     expect(await pollHas(tester, '该能力未授权'), isTrue);
     expect(calls, 0);
+    expect(find.textContaining('发送给 AI'), findsNothing);
     expect(find.textContaining('AI 生成 · 基于聚合统计'), findsNothing);
   });
 

@@ -134,19 +134,18 @@ void main() {
     expect(sent, 0);
   });
 
-  testWidgets('能力未授权（prefs 无 ai.caps）：审阅确认后零请求，toast 归因未授权',
+  testWidgets('能力未授权（prefs 无 ai.caps）：入口即刻拦截——不进审阅、零请求',
       (tester) async {
     await useSurface(tester);
     await openAddSheet(tester, prefsInit: {'ai.master': true}, apiKey: 'sk-t');
     await tester.enterText(find.byType(TextField).first, '今晚交报告');
     await tapAiBtn(tester);
-    // 审阅弹层照常可审（门控在「允许发送」后的请求阶段生效）。
-    expect(find.text('发送给 AI · AI 判象限'), findsOneWidget);
-    await tapReviewBtn(tester, find.byKey(const ValueKey('ai-review-send')));
+    // 门控前移到入口：未授权不弹审阅层，直接 toast 归因。
     expect(
         await pollText(tester,
-            'AI 调用失败：该能力未授权（AI 判象限）：请在 AI 增强页的能力矩阵中开启'),
+            'AI 未启用：该能力未授权（AI 判象限）：请在 AI 增强页的能力矩阵中开启'),
         isTrue);
+    expect(find.text('发送给 AI · AI 判象限'), findsNothing);
     expect(sent, 0);
     await clearToasts(tester);
   });

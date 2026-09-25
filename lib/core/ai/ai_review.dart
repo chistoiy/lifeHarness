@@ -22,6 +22,13 @@ Future<AiCallResult?> aiRunWithReview(
 }) async {
   final svc = ref.read(aiServiceProvider);
   final task = svc.effectiveTask(taskId);
+  // 门控前移到入口：未开启/未授权/无 Key 即刻 toast，不进入审阅流程（零请求）。
+  final denial = await svc.gate(taskId);
+  if (denial != null) {
+    if (context.mounted) AppToast.show(context, 'AI 未启用：$denial', ms: 2600);
+    return null;
+  }
+  if (!context.mounted) return null;
   final (system, user) = svc.renderForReview(taskId, vars);
   final confirmed = await showModalBottomSheet<bool>(
     context: context,

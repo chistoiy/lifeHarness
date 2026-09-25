@@ -149,7 +149,7 @@ void main() {
       await repo.replaceToc('a', [p]);
     }
 
-    testWidgets('能力关 → 点「AI 补全」→ 审阅后发送被拒 · MockClient 计数 0',
+    testWidgets('能力关 → 点「AI 补全」→ 入口即拦截 · 不进审阅 · MockClient 计数 0',
         (tester) async {
       await seedBookWithToc();
       await useSurface(tester);
@@ -162,13 +162,12 @@ void main() {
       await until(tester, find.byKey(const ValueKey('toc-ai')));
       await tester.ensureVisible(find.byKey(const ValueKey('toc-ai')));
       await tester.tap(find.byKey(const ValueKey('toc-ai')));
-      // 发送前审阅弹层（原则 4）：能力关也先审、发送时才三重门控拒绝。
-      await until(tester, find.text('发送给 AI · 目录 AI 补全'));
-      await tapSend(tester);
+      // 门控前移到入口：未授权直接 toast 归因，不进入发送审阅弹层。
       await until(
           tester,
           find.textContaining('该能力未授权（目录 AI 补全）'),
           reason: 'AiDenied 归因 toast');
+      expect(find.text('发送给 AI · 目录 AI 补全'), findsNothing);
       await clearSnacks(tester);
       expect(calls, 0, reason: '能力关＝零网络请求');
       // 目录未被触碰：仍是导入前的「旧节」。
@@ -242,9 +241,8 @@ void main() {
       await until(tester, find.byKey(const ValueKey('toc-empty-ai')));
       await tester.ensureVisible(find.byKey(const ValueKey('toc-empty-ai')));
       await tester.tap(find.byKey(const ValueKey('toc-empty-ai')));
-      await until(tester, find.text('发送给 AI · 目录 AI 补全'));
-      await tapSend(tester);
       await until(tester, find.textContaining('该能力未授权（目录 AI 补全）'));
+      expect(find.text('发送给 AI · 目录 AI 补全'), findsNothing);
       await clearSnacks(tester);
       expect(calls, 0);
     });

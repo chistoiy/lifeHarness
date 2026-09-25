@@ -124,18 +124,16 @@ void main() {
   });
 
   group('收集箱 AI 一键分流（inbox.triage 接线）', () {
-    testWidgets('能力关：点按钮→审阅弹层→允许发送→MockClient 计数 0 + 未授权 toast',
+    testWidgets('能力关：点按钮即拦截——不进审阅、MockClient 计数 0 + 未授权 toast',
         (tester) async {
       await useSurface(tester);
       await inbox.insert(InboxItem(rawText: '买牛奶', createdAt: DateTime.now()));
       await pumpInbox(tester, prefsMap: capsOff);
 
       await tester.tap(find.byKey(const ValueKey('ai-triage')));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('发送给 AI'), findsOneWidget);
-
-      await tapSend(tester);
+      await tester.pump();
       expect(await pollContains(tester, '该能力未授权'), isTrue);
+      expect(find.textContaining('发送给 AI'), findsNothing);
       expect(requests, 0);
       // 未授权即中止：条目原样保留
       expect(await inbox.listPending(), hasLength(1));

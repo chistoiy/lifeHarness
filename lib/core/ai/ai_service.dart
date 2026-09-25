@@ -93,6 +93,25 @@ class AiService {
     return (t.system, renderTemplate(t.user, vars));
   }
 
+  /// 三重门控预检（总开关×能力授权×Key）：返回拒绝原因，null=可发起。
+  /// UI 入口在弹「发送审阅」前先调它——未授权即刻 toast，不进审阅流程。
+  Future<String?> gate(String taskId) async {
+    final cfg = _repo.load();
+    if (!cfg.master) {
+      return 'AI 总开关未开启：请先到 设置 → AI 增强 打开';
+    }
+    // 与请求路径同源判定（不含 master，此处 master 已判过）。
+    if (cfg.caps[taskId] != true) {
+      return '该能力未授权（${effectiveTask(taskId).name}）：'
+          '请在 AI 增强页的能力矩阵中开启';
+    }
+    final key = (await _vault.read())?.trim() ?? '';
+    if (key.isEmpty) {
+      return '请先在 设置 → AI 增强 配置并验证 API Key';
+    }
+    return null;
+  }
+
   /// 发起一次能力调用：三重门控任一不过即 [AiDenied]（零请求）。
   /// [temperature] 由调用方按任务形态给（生成类可高些）。
   Future<AiCallResult> request(
@@ -100,18 +119,10 @@ class AiService {
     Map<String, String> vars, {
     double? temperature,
   }) async {
+    final denial = await gate(taskId);
+    if (denial != null) throw AiDenied(denial);
     final cfg = _repo.load();
-    if (!cfg.master) {
-      throw const AiDenied('AI 总开关未开启：请先到 设置 → AI 增强 打开');
-    }
-    if (!cfg.capEnabled(taskId)) {
-      throw AiDenied('该能力未授权（${effectiveTask(taskId).name}）：'
-          '请在 AI 增强页的能力矩阵中开启');
-    }
-    final key = (await _vault.read())?.trim() ?? '';
-    if (key.isEmpty) {
-      throw const AiDenied('请先在 设置 → AI 增强 配置并验证 API Key');
-    }
+    final key = (await _vault.read())!.trim();
     final t = effectiveTask(taskId);
     final reply = await _client.chat(
       baseUrl: cfg.baseUrl,

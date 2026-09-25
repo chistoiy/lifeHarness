@@ -1398,7 +1398,7 @@ tailwind.config = {
         <div class="row-title">🔑 Key 配置</div>
         <div class="mt-2 space-y-2 text-xs">
           <input class="inp w-full" type="password" placeholder="API Key · sk-••••••••••••" value="sk-demo-key">
-          <input class="inp w-full" placeholder="模型名，如 deepseek-chat" value="deepseek-chat">
+          <input class="inp w-full" placeholder="模型名，如 deepseek-flash" value="deepseek-flash">
           <div class="text-[10px] text-slate-400 leading-5">Key 存系统级加密区（flutter_secure_storage）：不入备份明文、不落日志、不随 WebDAV 同步。</div>
           <div class="flex justify-between items-center"><span>验证状态</span><b class="text-emerald-500">✓ 今日 08:12 通过 · 812ms</b></div>
           <button onclick="openTool('aiapi')" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold">🔌 重新验证 / 测试新 Key</button>
@@ -3557,7 +3557,7 @@ const TOOLS={
  aiapi:{ic:'🔌',nm:'AI API 验证',html:()=>`<div class="text-[11px] text-slate-400 leading-5 mb-2">供「设置 → AI 增强」使用：验证服务商 / Key / 模型是否可用。默认采用 OpenAI 兼容 Chat Completions 协议，请求仅发往下方填写的地址。</div>
  <select id="aiProvider" onchange="aiPick()" class="inp w-full text-xs"><option>DeepSeek</option><option>OpenAI</option><option>Anthropic</option><option>Moonshot Kimi</option><option>通义千问</option><option>智谱 GLM</option><option>Ollama（本地）</option><option>自定义</option></select>
  <input id="aiUrl" class="inp mt-2 w-full text-xs" value="https://api.deepseek.com/v1" placeholder="Base URL，如 https://api.xxx.com/v1">
- <div class="mt-2 grid grid-cols-2 gap-2"><input id="aiKey" type="password" class="inp text-xs" placeholder="API Key · sk-..."><input id="aiModel" class="inp text-xs" value="deepseek-chat" placeholder="模型名"></div>
+ <div class="mt-2 grid grid-cols-2 gap-2"><input id="aiKey" type="password" class="inp text-xs" placeholder="API Key · sk-..."><input id="aiModel" class="inp text-xs" value="deepseek-flash" placeholder="模型名"></div>
  <textarea id="aiPrompt" rows="2" class="inp mt-2 w-full text-xs" placeholder="验证提示词">请只回复四个字：连接成功</textarea>
  <div class="mt-2 flex gap-2"><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(0)">🚀 发送真实验证请求</button><button class="mini-btn flex-1 !py-2.5 !text-xs" onclick="aiTest(1)">🎭 模拟演示</button></div>
  <div id="aiRes" class="mt-3 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[74px] text-[11px] font-mono leading-5 break-all"><div class="opacity-50">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 / 429 限流 / 404 模型名 / CORS 网络）。</div></div>
@@ -3619,7 +3619,7 @@ function imgzGo(){if(!IMGO)return;const q=+$('#imgzQ').value;$('#imgzQL').textCo
     const a=$('#imgzDl');a.href=URL.createObjectURL(b);a.classList.remove('hidden');},'image/jpeg',q/100);}
 /* —— AI API 验证 —— */
 const esc2=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-chat'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Anthropic':['https://api.anthropic.com/v1','claude-3-5-haiku-latest'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
+const AI_PROVIDERS={'DeepSeek':['https://api.deepseek.com/v1','deepseek-flash'],'OpenAI':['https://api.openai.com/v1','gpt-4o-mini'],'Anthropic':['https://api.anthropic.com/v1','claude-3-5-haiku-latest'],'Moonshot Kimi':['https://api.moonshot.cn/v1','moonshot-v1-8s'],'通义千问':['https://dashscope.aliyuncs.com/compatible-mode/v1','qwen-turbo'],'智谱 GLM':['https://open.bigmodel.cn/api/paas/v4','glm-4-flash'],'Ollama（本地）':['http://127.0.0.1:11434/v1','qwen2.5:7b'],'自定义':['','']};
 function aiPick(){const p=AI_PROVIDERS[$('#aiProvider').value];if(!p)return;if(p[0])$('#aiUrl').value=p[0];if(p[1])$('#aiModel').value=p[1];}
 async function aiTest(mock){const box=$('#aiRes');
  if(mock){box.innerHTML='<div style="color:#94a3b8">⚤ 模拟请求中…</div>';setTimeout(()=>{box.innerHTML='<div style="color:#86efac">✔ 200 OK（模拟）· 812ms</div><div>模型回复：连接成功</div><div style="color:#94a3b8">usage: prompt 9 + completion 4 tokens</div><div style="color:#86efac">验证通过 · 设置页 AI 能力矩阵已可开启（模拟不校验真实 Key）</div>'},900);return;}
