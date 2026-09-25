@@ -143,6 +143,15 @@ Future<void> main() async {
             final path = AppDatabase.instance.openedPath;
             return path == null ? null : File(path);
           },
+          // R5a：附件目录以文件级增量并入差异集（图片不再随快照包重传）。
+          attachRoots: [
+            AttachRoot(
+                cloudName: 'note_images',
+                localDir: p.join(docsPath, 'note_images')),
+            AttachRoot(
+                cloudName: 'book_covers',
+                localDir: p.join(docsPath, 'book_covers')),
+          ],
         )),
       ],
       child: const LifeHarnessApp(),

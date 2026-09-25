@@ -43,13 +43,28 @@ class SyncSnapshotResult {
   final bool reused;
 }
 
-/// 同步快照生成器（Task 16；设计稿 §3+§4：同步对象 = `<docs>/sync/` 目录）。
+/// R5a：附件同步根——本地目录 [localDir] 的文件以 `attachments/<cloudName>/…`
+/// 相对路径进入差异引擎（文件级增量：新图上传、两端已有 inSync 跳过、
+/// 历史图片永不重传）。
+class AttachRoot {
+  const AttachRoot({required this.cloudName, required this.localDir});
+
+  /// 云内目录段（attachments/{cloudName}/…）。
+  final String cloudName;
+
+  /// 本地绝对目录（如 `<docs>/note_images`）。
+  final String localDir;
+}
+
+/// 同步快照生成器（Task 16；设计稿 §3+§4：同步对象 = `<docs>/sync/` 目录，
+/// R5a 起附件目录以文件级增量并入同一差异集）。
 ///
-/// 口径（钉死）：
-/// - **快照 = 备份文件**：一次 [build] 即调 [BackupService.exportBackup]
-///   （`withLogs:true` + `outDirOverride:<docs>/sync/` + `nameTag:'sync'` +
-///   `excludeTables`: careExcluded 置位时整组 [DbSchema.careTables]、否则空），
-///   不为同步另造容器格式；
+/// 口径（R5a 修订）：
+/// - **快照 = 纯 DB 备份文件**：一次 [build] 即调 [BackupService.exportBackup]
+///   （`withLogs:false` + `withAttachments:false` + `outDirOverride:<docs>/sync/`
+///   + `nameTag:'sync'` + `excludeTables`: careExcluded 置位时整组
+///   [DbSchema.careTables]、否则空）；图片经 [attachRoots] 以独立文件
+///   走文件级增量，不再随包重传；
 /// - careExcluded 读取抛异常（DB 未开等）→ **视为 true 保守排除** + AppLog
 ///   warn（红线 7 宁缺勿泄）；
 /// - 生成成功后按 mtime 新→旧裁剪目录内快照命名的 `.lhbak`，保最新 keepN 份
@@ -65,6 +80,7 @@ class SnapshotService {
     required this.docsDir,
     required this.careExcluded,
     this.dbFile,
+    this.attachRoots = const [],
   });
 
   final BackupService backup;
@@ -79,6 +95,9 @@ class SnapshotService {
   /// 活库文件提供者（R3② 快照复用判定用；生产 = AppDatabase.openedPath）。
   /// 返回 null（未开库/测试未注入）时**永不复用**，行为与旧版一致。
   final File? Function()? dbFile;
+
+  /// R5a：附件同步根（note_images / book_covers）。空 = 不并入附件。
+  final List<AttachRoot> attachRoots;
 
   /// 同步快照目录 = `<docs>/sync/`（设计稿 §4 同步对象根）。
   String get syncDir => p.join(docsDir(), 'sync');
@@ -122,8 +141,12 @@ class SnapshotService {
       }
     }
     final excluded = await _careExcludedSafe() ? DbSchema.careTables : const <String>[];
+    // R5a：同步快照 = 纯 DB（不含日志、不含附件——图片经 attachRoots 以
+    // 独立文件走文件级增量，历史图片不再随包重传）。手动备份 S5 不受影响，
+    // 仍是全量整包（含附件/可选日志）。
     final res = await backup.exportBackup(
-      withLogs: true,
+      withLogs: false,
+      withAttachments: false,
       outDirOverride: dir,
       excludeTables: excluded,
       nameTag: 'sync',
@@ -162,14 +185,22 @@ class SnapshotService {
     return latestM >= dbM ? latest : null;
   }
 
-  /// 本地侧清单：递归扫 sync/（快照 + logs/ 子目录等全部文件），产出可直接
-  /// 喂 `computeDiff` / `SyncLedger.record` 的 [FileEntry] 列表。
+  /// 本地侧清单：sync/ 全量 + R5a 附件根（`attachments/<cloudName>/…` 前缀），
+  /// 产出可直接喂 `computeDiff` / `SyncLedger.record` 的 [FileEntry] 列表。
   /// digest=null（严格 MD5 档由远端 32-hex ETag 门槛自动关闭）；
   /// relativePath 以 sync/ 为根、posix 分隔、非空保证（basename 兜底）。
   Future<List<FileEntry>> localInventory() async {
-    final dir = Directory(syncDir);
-    if (!dir.existsSync()) return [];
     final out = <FileEntry>[];
+    _collectInto(out, Directory(syncDir), '');
+    for (final root in attachRoots) {
+      _collectInto(out, Directory(root.localDir), 'attachments/${root.cloudName}');
+    }
+    out.sort((a, b) => a.relativePath.compareTo(b.relativePath));
+    return out;
+  }
+
+  void _collectInto(List<FileEntry> out, Directory dir, String relPrefix) {
+    if (!dir.existsSync()) return;
     try {
       for (final e in dir.listSync(recursive: true).whereType<File>()) {
         final rel = p.posix.joinAll(p.split(p.relative(e.path, from: dir.path)));
@@ -181,7 +212,7 @@ class SnapshotService {
           // 句柄占用/瞬时错误：mtime 仅展示用，缺了不影响差异判定（R8）。
         }
         out.add(FileEntry(
-          relativePath: rel,
+          relativePath: relPrefix.isEmpty ? rel : '$relPrefix/$rel',
           size: e.lengthSync(),
           modified: mtime,
         ));
@@ -189,8 +220,49 @@ class SnapshotService {
     } catch (_) {
       // 目录中途不可读：按已收集部分返回，绝不炸同步链路。
     }
-    out.sort((a, b) => a.relativePath.compareTo(b.relativePath));
-    return out;
+  }
+
+  /// R5a：差异条目相对路径 → 本地绝对路径（上传取源）。
+  /// `attachments/…` 命中附件根映射；其余落 sync/ 下。
+  String resolveLocal(String relativePath) {
+    if (relativePath.startsWith('attachments/')) {
+      final rest = relativePath.substring('attachments/'.length);
+      for (final root in attachRoots) {
+        if (rest.startsWith('${root.cloudName}/')) {
+          return p.joinAll([
+            root.localDir,
+            ...p.posix.split(rest.substring(root.cloudName.length + 1)),
+          ]);
+        }
+      }
+    }
+    return p.joinAll([syncDir, ...p.posix.split(relativePath)]);
+  }
+
+  /// R5a：下载目的地解析。附件条目**直落媒体目录**（内容寻址命名 +
+  /// 「同名同大小即跳过」保证幂等，图片到位即可被 App 引用）；
+  /// 同名但大小不同（历史时间戳名撞车，理论极小概率）→ 回落 exports
+  /// 隔离区并 warn，绝不覆盖既有文件；非附件条目返回 null（调用方走 exports）。
+  String? resolveDownload(String relativePath, int size) {
+    if (!relativePath.startsWith('attachments/')) return null;
+    final rest = relativePath.substring('attachments/'.length);
+    for (final root in attachRoots) {
+      if (rest.startsWith('${root.cloudName}/')) {
+        final dest = p.joinAll([
+          root.localDir,
+          ...p.posix.split(rest.substring(root.cloudName.length + 1)),
+        ]);
+        final f = File(dest);
+        if (f.existsSync()) {
+          if (f.lengthSync() == size) return dest; // 幂等跳过标记：同路径
+          AppLog.add('⚠️ 附件同名不同大小，落导出区隔离：$relativePath',
+              level: LhLevel.warn);
+          return null;
+        }
+        return dest;
+      }
+    }
+    return null;
   }
 
   /// 裁剪 sync/ 内快照命名文件至最新 [keepN] 份（mtime 新→旧，同秒按名序

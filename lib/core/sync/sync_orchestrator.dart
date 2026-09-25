@@ -82,6 +82,7 @@ class SyncOutcome {
     List<String>? failed,
     this.bytes = 0,
     this.downloadedToExports = 0,
+    this.placed = 0,
     this.canceled = false,
   }) : failed = failed ?? [];
 
@@ -90,6 +91,10 @@ class SyncOutcome {
 
   /// 成功下载文件数（仅云端条目）。
   int down;
+
+  /// R5a：附件条目直落媒体目录的成功数（不计入 downloadedToExports——
+  /// 它们已就位可被 App 直接引用，无需再去「备份导入」）。
+  int placed;
 
   /// 失败文件的相对路径（R9：不吞错，UI 可逐条展示）。
   final List<String> failed;
@@ -372,7 +377,9 @@ class SyncOrchestrator {
         final size = d.local?.size ?? 0;
         try {
           await step(d, () async {
-            await store.put(cfg, p.join(snapshotService.syncDir, d.relativePath),
+            // R5a：源路径经 resolveLocal——attachments/ 前缀映射媒体目录，
+            // 其余落 sync/（快照与非快照文件同规则）。
+            await store.put(cfg, snapshotService.resolveLocal(d.relativePath),
                 d.relativePath);
             // 成功标记（续传台账）：逐文件即时记，中断后下次 compare 判 inSync。
             // 续传语义 = 靠下轮 compare 重算差异，任务内不保留增量状态；
@@ -409,13 +416,28 @@ class SyncOrchestrator {
           pushFailed(d.relativePath);
           continue;
         }
-        final dest = p.join(exportsDir, d.relativePath);
+        // R5a：附件条目直落媒体目录（同名同大小幂等跳过）；其余走 exports
+        // 隔离区（下载 ≠ 导入口径不变）。
+        final attachDest = snapshotService.resolveDownload(d.relativePath, size);
+        final bool toMedia = attachDest != null;
+        final dest = toMedia ? attachDest : p.join(exportsDir, d.relativePath);
         try {
           await step(d, () async {
+            if (toMedia && File(dest).existsSync() &&
+                File(dest).lengthSync() == size) {
+              // 已就位（陈旧清单/台账时差）：零传输，计入 placed。
+              outcome.down++;
+              outcome.placed++;
+              return 0;
+            }
             Directory(p.dirname(dest)).createSync(recursive: true);
             await store.get(cfg, d.relativePath, dest);
             outcome.down++;
-            outcome.downloadedToExports++;
+            if (toMedia) {
+              outcome.placed++;
+            } else {
+              outcome.downloadedToExports++;
+            }
             return size;
           });
         } catch (e) {
@@ -430,6 +452,9 @@ class SyncOrchestrator {
         // 口径钉死：下载 ≠ 导入。引导去 S5「备份与恢复」手动恢复。
         AppLog.add('已下载 ${outcome.downloadedToExports} 个云端文件到导出目录，'
             '未自动导入：请到「备份与恢复 → 导入」确认后恢复本机库');
+      }
+      if (outcome.placed > 0) {
+        AppLog.add('附件已就位 ${outcome.placed} 个（图片直落媒体目录，可直接引用）');
       }
       if (outcome.canceled) AppLog.add('同步已取消：剩余队列清空');
       return outcome;

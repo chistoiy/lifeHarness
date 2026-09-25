@@ -123,6 +123,13 @@ class _FakeSnap implements SnapshotService {
   }
 
   @override
+  String resolveLocal(String relativePath) =>
+      p.joinAll([syncDir, ...p.posix.split(relativePath)]);
+
+  @override
+  String? resolveDownload(String relativePath, int size) => null; // 全走 exports
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('SnapshotService.${invocation.memberName} 不该被 T17 触碰');
 }
@@ -238,8 +245,9 @@ void main() {
 
       expect(store.putOrder,
           ['logs/l1.log', 'attachments/a.png', 'sync_20260925_120000.lhbak']);
-      expect(store.putLocalPaths['logs/l1.log'], p.join(syncDir, 'logs/l1.log'),
-          reason: '上传源 = syncDir 下绝对路径');
+      expect(store.putLocalPaths['logs/l1.log'],
+          p.joinAll([syncDir, 'logs', 'l1.log']),
+          reason: '上传源 = syncDir 下绝对路径（R5a resolveLocal 归一分隔符）');
       final ledger =
           SyncLedger(prefs, serviceId: cfg.id, cloudDirName: cfg.cloudDirName);
       expect(ledger.knownPaths(),

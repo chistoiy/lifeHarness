@@ -405,4 +405,77 @@ void main() {
       expect(b.reused, isFalse, reason: 'dbFile 缺省 → 保守走真实生成');
     });
   });
+
+  group('R5a 附件同步根（attachments/ 前缀文件级增量）', () {
+    SnapshotService svcWithAttach(SharedPreferences prefs) => SnapshotService(
+          backup: BackupService(
+            exportDir: () => p.join(tmp.path, 'backup'),
+            db: openApp,
+          ),
+          prefs: prefs,
+          docsDir: () => docsDir,
+          careExcluded: () async => false,
+          attachRoots: [
+            AttachRoot(
+                cloudName: 'note_images',
+                localDir: p.join(docsDir, 'note_images')),
+            AttachRoot(
+                cloudName: 'book_covers',
+                localDir: p.join(docsDir, 'book_covers')),
+          ],
+        );
+
+    test('localInventory 含附件（attachments/ 前缀）+ resolveLocal 映射回媒体目录',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final imgDir = Directory(p.join(docsDir, 'note_images'))
+        ..createSync(recursive: true);
+      File(p.join(imgDir.path, 'abc.jpg')).writeAsBytesSync([1, 2, 3]);
+      final svc = svcWithAttach(prefs);
+      final inv = await svc.localInventory();
+      final e = inv.firstWhere((x) => x.relativePath == 'attachments/note_images/abc.jpg');
+      expect(e.size, 3);
+      expect(svc.resolveLocal('attachments/note_images/abc.jpg'),
+          p.joinAll([docsDir, 'note_images', 'abc.jpg']));
+      // 非附件路径仍落 sync/。
+      expect(svc.resolveLocal('x/y.lhbak'),
+          p.joinAll([syncDir, 'x', 'y.lhbak']));
+    });
+
+    test('resolveDownload：附件直落媒体目录；同名不同大小→null 隔离 exports；非附件→null',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final imgDir = Directory(p.join(docsDir, 'note_images'))
+        ..createSync(recursive: true);
+      final svc = svcWithAttach(prefs);
+      // 不存在 → 给出媒体目录目标。
+      final dest = svc.resolveDownload('attachments/note_images/n.jpg', 5);
+      expect(dest, p.joinAll([docsDir, 'note_images', 'n.jpg']));
+      // 同名同大小 → 同路径（幂等跳过由编排层判）。
+      File(dest!).writeAsBytesSync(List.filled(5, 7));
+      expect(svc.resolveDownload('attachments/note_images/n.jpg', 5), dest);
+      // 同名不同大小 → null（exports 隔离，绝不覆盖）。
+      expect(svc.resolveDownload('attachments/note_images/n.jpg', 9), isNull);
+      // 非附件 → null。
+      expect(svc.resolveDownload('sync_x.lhbak', 1), isNull);
+    });
+
+    test('同步快照 = 纯 DB：包内无 logs/ 与 attachments/ 成员', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final imgDir = Directory(p.join(docsDir, 'note_images'))
+        ..createSync(recursive: true);
+      File(p.join(imgDir.path, 'z.jpg')).writeAsBytesSync([9]);
+      final svc = svcWithAttach(prefs);
+      final res = await svc.build(keepN: 5);
+      final verify = await LhBak.verify(res.file.path);
+      expect(verify.members.any((m) => m.startsWith('logs/')), isFalse,
+          reason: 'R5a 快照去日志');
+      expect(verify.members.any((m) => m.startsWith('attachments/')), isFalse,
+          reason: 'R5a 附件脱离快照包，走文件级增量');
+      expect(verify.members, contains('db.sqlite'));
+    });
+  });
 }
