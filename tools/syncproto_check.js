@@ -73,6 +73,19 @@ ok(s.indexOf('<label>目标位置</label>') < s.indexOf('口令 · 可选'), '�
 ok(/class="seg-btn on" onclick="pickBakDest\(this,'app'\)">应用目录（默认）<\/button>/.test(s), '目标位置默认态选中「应用目录（默认）」');
 ok(/class="seg-btn" onclick="pickBakDest\(this,'saf'\)">另存到…<\/button>/.test(s), '目标位置第二态「另存到…」未选中');
 
+/* ---------- 2c) R2⑤：s-svc-edit 眼睛钮+协议锁定 / p-sync 常驻添加服务 ---------- */
+ok(/\.pill\.locked\{opacity:\.45;cursor:not-allowed\}/.test(s), 'R2⑤b pill 置灰锁定样式 .pill.locked 存在');
+ok(/class="pill on locked" data-prov="webdav"/.test(s) && /class="pill locked" data-prov="s3"/.test(s), 'R2⑤b s-svc-edit 默认编辑态：两协议 pill 初始置灰');
+ok(/id="svcProvLockNote"[^>]*>编辑已建服务 · 协议已锁定/.test(s), 'R2⑤b 编辑态协议锁定提示行');
+ok(/onclick="openSvcEdit\('edit'\)">编辑配置/.test(s), 'R2⑤b 编辑配置入口走 openSvcEdit(edit)');
+ok(/onclick="openSvcEdit\('add'\)"/.test(s), 'R2⑤c 添加服务入口走 openSvcEdit(add)（解锁协议可切）');
+ok(/function openSvcEdit\(mode\)/.test(s) && /svcEditMode === 'edit'/.test(s) && /协议已锁定 · 请走「添加服务」/.test(s), 'R2⑤b editProvider 编辑态守卫+toast');
+ok(/id="rowAddSvc"/.test(s) && s.includes('添加服务'), 'R2⑤c p-sync 切换服务区常驻「添加服务」行 #rowAddSvc');
+ok(/class="eye-btn" type="button" onclick="toggleSecret\(this\)"/.test(s), 'R2⑤a SK 行尾眼睛钮（线性 SVG 双态）');
+ok(/function toggleSecret\(b\)[\s\S]{0,220}type = show \? 'text' : 'password'/.test(s), 'R2⑤a toggleSecret 切 password/text 显隐');
+ok(/if\(f\.type === 'password'\) inp = '<div class="inwrap">'/.test(s), 'R2⑤a password 字段带 inwrap+眼睛钮渲染');
+ok(/label:'应用密码',\s*value:'demo-apppw-7f2c',\s*type:'password'/.test(s) && /label:'Secret Key',\s*value:'demo-sk-4a71c0f2',\s*type:'password'/.test(s), 'R2⑤a 编辑态 SK 回填示意（假演示值，掩码下藏可显真值）');
+
 /* ---------- 3) provider 切 S3 表单标签静态映射 ---------- */
 const formMap = s.match(/var PROVIDER_FORMS = \{[\s\S]*?\n\};/);
 ok(!!formMap, 'PROVIDER_FORMS 映射数据存在');
@@ -127,6 +140,10 @@ try {
   var destBtns = Array.prototype.slice.call(d.querySelectorAll('#s-backup #segBakDest .seg-btn'));
   ok(destBtns.length === 2 && destBtns[0].classList.contains('on') && /应用目录/.test(destBtns[0].textContent), 'jsdom 目标位置两态单选且默认选中应用目录');
   ok(!!d.getElementById('safMock') && /保存为/.test(d.getElementById('safMock').textContent), 'jsdom #safMock「保存为」弹层存在');
+  var addRow = d.getElementById('rowAddSvc');
+  ok(!!addRow && !!d.querySelector('#p-sync #rowAddSvc') && /添加服务/.test(addRow.textContent), 'jsdom 常驻「添加服务」行位于 #p-sync');
+  ok(d.querySelectorAll('#s-svc-edit .pill.locked').length === 2, 'jsdom s-svc-edit 初始编辑态两协议 pill 均置灰');
+  ok(!!d.getElementById('svcProvLockNote') && /协议已锁定/.test(d.getElementById('svcProvLockNote').textContent), 'jsdom 编辑态协议锁定提示存在');
   console.log('jsdom: 已启用真 DOM 断言');
 } catch (e) {
   console.log('jsdom 不可用（' + e.code + '），已退化为正则断言');

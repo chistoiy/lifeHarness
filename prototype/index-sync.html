@@ -110,6 +110,16 @@
   html.dark .seg-btn.on{color:var(--accent-l)}
   .pill{padding:6px 13px;border-radius:999px;border:1.5px solid var(--line);font-size:11px;font-weight:800;color:var(--mut);background:var(--card)}
   .pill.on{border-color:var(--accent);background:var(--accent);color:#fff}
+  /* R2⑤b：编辑已建服务时协议 pill 置灰锁定（新增态不置灰） */
+  .pill.locked{opacity:.45;cursor:not-allowed}
+  /* R2⑤a：SK 行尾眼睛钮切显隐 */
+  .field .inwrap{position:relative}
+  .field .inwrap input{padding-right:36px}
+  .eye-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;align-items:center;color:var(--faint);background:none;border:none;padding:4px;cursor:pointer}
+  .eye-btn svg{width:15px;height:15px}
+  .eye-btn .e-sh{display:none}
+  .eye-btn.off .e-open{display:none}
+  .eye-btn.off .e-sh{display:block}
   /* ---- 表单 ---- */
   .field{margin-top:10px}
   .field label{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:var(--faint);margin-bottom:4px}
@@ -230,7 +240,7 @@
         <b style="font-size:14.5px;font-weight:800" id="svcName">坚果云 · WebDAV</b>
         <span class="tag-ok" id="svcState">已激活</span>
         <span style="flex:1"></span>
-        <button class="mini-btn" onclick="openSheet('s-svc-edit')">编辑配置</button>
+        <button class="mini-btn" onclick="openSvcEdit('edit')">编辑配置</button>
         <button class="mini-btn" onclick="openSheet('s-svc-verify')">验证连接</button>
       </div>
       <div id="svcCap" style="margin-top:12px"></div>
@@ -293,6 +303,12 @@
         <span class="badge badge-webdav">WebDAV</span>
         <span class="r-t">自定义 · 家庭 NAS<div class="r-s">待填凭据 · sync_secret 未写入</div></span>
         <span class="rd"></span>
+      </div>
+      <!-- R2⑤c：切换服务区底部常驻「添加服务」行（过去仅空态有入口） -->
+      <div class="row" id="rowAddSvc" onclick="openSvcEdit('add')">
+        <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span class="r-t">添加服务<div class="r-s">常驻入口 · 新增态协议可选 · 编辑已建服务时协议锁定</div></span>
+        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
       </div>
     </div>
 
@@ -377,9 +393,11 @@
       <div class="sh-title">服务配置</div>
       <div class="sh-sub">字段随协议联动 · 凭据读写仅走本机加密区</div>
       <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="pill on" data-prov="webdav" onclick="editProvider('webdav')">坚果云 · WebDAV</button>
-        <button class="pill" data-prov="s3" onclick="editProvider('s3')">缤纷云 · S3</button>
+        <button class="pill on locked" data-prov="webdav" onclick="editProvider('webdav')">坚果云 · WebDAV</button>
+        <button class="pill locked" data-prov="s3" onclick="editProvider('s3')">缤纷云 · S3</button>
       </div>
+      <!-- R2⑤b：默认展示编辑态（协议置灰锁定）；经「添加服务」打开则解锁可切 -->
+      <div class="kv" id="svcProvLockNote" style="margin-top:8px">编辑已建服务 · 协议已锁定 · 另一协议请走「添加服务」新建</div>
       <div id="svcForm"></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:12px">
         <span class="lock-dot"></span>
@@ -728,11 +746,13 @@ function setProvider(k, silent){
 }
 
 /* ================= s-svc-edit provider 字段联动 ================= */
+/* R2⑤a：password 字段 value 即「编辑态从 vault 回填」示意——默认掩码显示，
+   行尾眼睛钮切显隐（原型用假演示值，非真实凭据）。 */
 var PROVIDER_FORMS = {
   webdav: [
     { label:'地址',     value:'https://dav.jianguoyun.com/dav/' },
     { label:'账户',     value:'liang***@example.com', placeholder:'邮箱 / 手机号' },
-    { label:'应用密码', value:'••••••••••••', type:'password', secret:true, hint:'坚果云「安全信任→应用密码」，非登录密码' },
+    { label:'应用密码', value:'demo-apppw-7f2c', type:'password', secret:true, hint:'坚果云「安全信任→应用密码」，非登录密码' },
     { label:'远程目录', value:'/LifeHarness/sync/' }
   ],
   s3: [
@@ -740,16 +760,19 @@ var PROVIDER_FORMS = {
     { label:'Region',      value:'cn-east-1', fixed:'写死' },
     { label:'Bucket',      value:'lifeharness', placeholder:'私有桶名' },
     { label:'Access Key',  value:'AKID7f****9f2c', secret:true },
-    { label:'Secret Key',  value:'••••••••••••••••', type:'password', secret:true }
+    { label:'Secret Key',  value:'demo-sk-4a71c0f2', type:'password', secret:true }
   ]
 };
 var editProv = 'webdav';
+var svcEditMode = 'edit';
 function renderSvcForm(){
   var host = $('#svcForm'); host.innerHTML = '';
   PROVIDER_FORMS[editProv].forEach(function(f){
     var d = document.createElement('div'); d.className = 'field';
     var lab = '<label>' + f.label + (f.fixed ? ' <span class="badge badge-s3" style="font-weight:800">' + f.fixed + '</span>' : '') + '</label>';
-    d.innerHTML = lab + '<input type="' + (f.type||'text') + '" value="' + (f.value||'') + '" placeholder="' + (f.placeholder||'') + '">';
+    var inp = '<input type="' + (f.type||'text') + '" value="' + (f.value||'') + '" placeholder="' + (f.placeholder||'') + '">';
+    if(f.type === 'password') inp = '<div class="inwrap">' + inp + svcEyeBtn() + '</div>';
+    d.innerHTML = lab + inp;
     if(f.secret){
       d.querySelector('label').insertAdjacentHTML('beforeend',' <span class="lock-dot"></span><span class="lock-note">仅存本机加密区</span>');
     }
@@ -757,7 +780,29 @@ function renderSvcForm(){
     host.appendChild(d);
   });
 }
+function svcEyeBtn(){
+  return '<button class="eye-btn" type="button" onclick="toggleSecret(this)">'
+    + '<svg class="e-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
+    + '<svg class="e-sh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></svg>'
+    + '</button>';
+}
+function toggleSecret(b){
+  var i = b.previousElementSibling;
+  var show = i.type === 'password';
+  i.type = show ? 'text' : 'password';
+  b.classList.toggle('off', show);
+}
+/* R2⑤b：编辑已建服务=协议锁定（pill 置灰不可切）；「添加服务」=新增态可切。 */
+function openSvcEdit(mode){
+  svcEditMode = mode || 'edit';
+  var lock = svcEditMode === 'edit';
+  $$('#s-svc-edit .pill[data-prov]').forEach(function(b){ b.classList.toggle('locked', lock); });
+  $('#svcProvLockNote').style.display = lock ? '' : 'none';
+  renderSvcForm();
+  openSheet('s-svc-edit');
+}
 function editProvider(k){
+  if(svcEditMode === 'edit'){ toast('编辑已建服务 · 协议已锁定 · 请走「添加服务」新增另一协议'); return; }
   editProv = k;
   $$('#s-svc-edit .pill').forEach(function(b){ b.classList.toggle('on', b.dataset.prov===k); });
   renderSvcForm();
