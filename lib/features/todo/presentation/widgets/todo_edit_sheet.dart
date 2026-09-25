@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/ai/ai_review.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/wheel_date.dart';
 import '../todo_providers.dart';
@@ -238,6 +239,27 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   DateTime get _remindDateTime {
     final base = _due ?? DateTime.now();
     return DateTime(base.year, base.month, base.day, _remindAt.hour, _remindAt.minute);
+  }
+
+  /// AI批4-A：AI 判象限（能力点 todo.quadrant）。走 core/ai 通用通道：
+  /// 三重门控 → 发送前审阅弹层 → 请求 + 结构校验；取消/失败由通道 toast 归因。
+  /// 结果只写入表单两问状态（[_imp]/[_urg]），保存后才落库。
+  Future<void> _aiQuadrant() async {
+    final title = _title.text.trim();
+    if (title.isEmpty) {
+      _toast(context, 'AI 判象限：请先输入任务标题');
+      return;
+    }
+    final result = await aiRunWithReview(context, ref,
+        taskId: 'todo.quadrant', vars: {'title': title});
+    if (result == null || !mounted) return;
+    final q = (result.requireJson()['quadrant'] as int).clamp(1, 4);
+    final reason = '${result.requireJson()['reason']}';
+    setState(() {
+      _imp = q <= 2; // 1/2=重要
+      _urg = q.isOdd; // 1/3=紧急
+    });
+    _toast(context, 'AI 判定：Q$q · $reason（保存后生效）');
   }
 
   Future<void> _save() async {
@@ -796,8 +818,9 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
             const SizedBox(height: 10),
             // ===== AI 自动判象限（原型虚线品牌色钮） =====
             InkWell(
+              key: const ValueKey('ai-quadrant-btn'),
               borderRadius: BorderRadius.circular(12),
-              onTap: () => _toast(context, 'AI 判象限：请先在设置验证 API Key'),
+              onTap: _aiQuadrant,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -806,7 +829,7 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                   border: Border.all(color: tokens.accent.withValues(alpha: .6)),
                 ),
                 alignment: Alignment.center,
-                child: Text('🤖 AI 自动判象限（依据标题）',
+                child: Text('AI 自动判象限（依据标题）',
                     style: TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w700, color: tokens.accent)),
               ),

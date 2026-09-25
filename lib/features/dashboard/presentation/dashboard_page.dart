@@ -876,7 +876,10 @@ class _DonutPainter extends CustomPainter {
 class _AllModulesCard extends StatelessWidget {
   const _AllModulesCard();
 
-  static const _mods = <(String, String, String?, String?)>[
+  /// AI批4-A：AI 验证已接线（图标位支持线性 IconData，替代 emoji 占位）。
+  static const _aiVerifyRoute = '/settings/ai/verify';
+
+  static const _mods = <(Object, String, String?, String?)>[
     ('✅', '待办', '/todo', null),
     ('⏱️', '时间', '/calendar', null),
     ('📔', '日记', '/journal', null),
@@ -892,7 +895,7 @@ class _AllModulesCard extends StatelessWidget {
     ('🧰', '小工具', null, 'V1.x'),
     ('🍼', '呵护', '/care', null),
     ('🧩', '插件中心', null, 'V1.x'),
-    ('🤖', 'AI 验证', null, 'V1.x'),
+    (Icons.smart_toy_outlined, 'AI 验证', _aiVerifyRoute, null),
     ('⚙️', '设置', '/settings', null),
   ];
 
@@ -923,7 +926,10 @@ class _AllModulesCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         onTap: route == null
                             ? () => _toastOf(context, '「$label」· 规划 $ver')
-                            : () => context.go(route),
+                            : () => route == _aiVerifyRoute
+                                // AI批4-A：二级工具页走 push 保留返回栈，其余行机制不变。
+                                ? context.push(route)
+                                : context.go(route),
                         child: Opacity(
                           opacity: route == null ? .45 : 1,
                           child: Padding(
@@ -941,7 +947,11 @@ class _AllModulesCard extends StatelessWidget {
                                         color: scheme.onSurface.withValues(alpha: .06),
                                         borderRadius: BorderRadius.circular(14),
                                       ),
-                                      child: Text(ic, style: const TextStyle(fontSize: 20)),
+                                      // 图标位：emoji 或线性 IconData（AI批4-A 最小扩展）。
+                                      child: ic is IconData
+                                          ? Icon(ic, size: 20, color: scheme.onSurfaceVariant)
+                                          : Text(ic as String,
+                                              style: const TextStyle(fontSize: 20)),
                                     ),
                                     if (ver != null)
                                       Positioned(
