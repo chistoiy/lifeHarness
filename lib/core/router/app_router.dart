@@ -33,6 +33,10 @@ import '../../features/habit/presentation/habit_settings_page.dart';
 import '../../features/habit/presentation/habit_stat_page.dart';
 import '../../features/habit/presentation/habits_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
+import '../../features/goals/presentation/goal_detail_page.dart';
+import '../../features/goals/presentation/goal_edit_page.dart';
+import '../../features/goals/presentation/goal_review_page.dart';
+import '../../features/goals/presentation/goals_page.dart';
 import '../../features/items/presentation/item_detail_page.dart';
 import '../../features/items/presentation/item_settle_page.dart';
 import '../../features/items/presentation/item_stats_page.dart';
@@ -108,6 +112,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/days', builder: (_, _) => const DaysPage()),
           // V1.42 批2：物品价值主页（底栏池栏目 · 专版 p-items）。
           GoRoute(path: '/items', builder: (_, _) => const ItemsPage()),
+          // V1.42 批3：目标 OKR 主页（底栏池栏目 · 专版 p-goals）。
+          GoRoute(path: '/goals', builder: (_, _) => const GoalsPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
         ],
@@ -147,6 +153,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/items/settle',
         builder: (_, s) =>
             ItemSettlePage(itemId: int.parse(s.uri.queryParameters['id']!)),
+      ),
+      // V1.42 批3：目标栈页（专版 p-goalDetail / p-goalEdit / p-goalReview）。
+      GoRoute(
+        path: '/goals/detail',
+        builder: (_, s) =>
+            GoalDetailPage(goalId: int.parse(s.uri.queryParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/goals/edit',
+        builder: (_, s) =>
+            GoalEditPage(goalId: int.tryParse(s.uri.queryParameters['id'] ?? '')),
+      ),
+      GoRoute(
+        path: '/goals/review',
+        builder: (_, _) => const GoalReviewPage(),
       ),
       // 记账批1：记一笔（?kind/cat/date/note/edit/copy · 原型 openL2(opt)）与
       // 流水详情（全屏无底栏，同 p-txDetail 为 stack 页）。

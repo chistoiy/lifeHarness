@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 21;
+  static const int version = 22;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -101,6 +101,14 @@ class DbSchema {
   static const String tItemProfiles = 'item_profiles';
   static const String tItemEvents = 'item_events';
   static const String tItemUsages = 'item_usages';
+  // v22（M4·目标批3）：目标 OKR 五表（需求 V1.42 模块7 · 专版 P10 系四屏）。
+  // period TEXT（'2026 Q3' | '年度目标'）；goal_periods 存周期归档态（只读口径）；
+  // kr_updates 回填/来源留痕仅追加；goal_reviews 每季一份 KPT。
+  static const String tGoals = 'goals';
+  static const String tGoalKrs = 'goal_krs';
+  static const String tKrUpdates = 'kr_updates';
+  static const String tGoalReviews = 'goal_reviews';
+  static const String tGoalPeriods = 'goal_periods';
 
   /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
   /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
@@ -383,6 +391,7 @@ class DbSchema {
     ...careSchemaStatements,
     ...daysSchemaStatements,
     ...itemSchemaStatements,
+    ...goalSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -598,7 +607,71 @@ class DbSchema {
     20: [
       ...itemSchemaStatements,
     ],
+    // v22（M4·目标批3）：目标 OKR 五表（需求 V1.42 模块7 全量能力）。
+    21: [
+      ...goalSchemaStatements,
+    ],
   };
+
+  /// v22 目标 OKR 五表 DDL（建库与迁移共用·幂等）。
+  /// period：'2026 Q1'..'2026 Q4' 或 '年度目标'；归档只读口径落 goal_periods；
+  /// goal_krs.src：manual|todo|read|journal|habit|ledger（自动汇聚在载入时实算）。
+  static const List<String> goalSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tGoals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      period TEXT NOT NULL,
+      sort INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tGoalKrs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      goal_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      target REAL NOT NULL,
+      unit TEXT NOT NULL DEFAULT '项',
+      src TEXT NOT NULL DEFAULT 'manual',
+      cur REAL NOT NULL DEFAULT 0
+    )
+    ''',
+    '''
+    CREATE INDEX IF NOT EXISTS idx_goal_krs_goal ON $tGoalKrs(goal_id)
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tKrUpdates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kr_id INTEGER NOT NULL,
+      cur REAL NOT NULL,
+      kind TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tGoalReviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      period TEXT NOT NULL UNIQUE,
+      keep TEXT NOT NULL DEFAULT '',
+      problem TEXT NOT NULL DEFAULT '',
+      trial TEXT NOT NULL DEFAULT '',
+      archived INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tGoalPeriods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      period TEXT NOT NULL UNIQUE,
+      archived INTEGER NOT NULL DEFAULT 0,
+      archived_at INTEGER
+    )
+    ''',
+  ];
 
   /// v21 物品价值三表 DDL（建库与迁移共用·幂等）。
   /// status：使用中|闲置|已回收(抵扣留用)|已回收(转出)|已报废；
