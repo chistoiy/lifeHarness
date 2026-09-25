@@ -40,3 +40,5 @@ backup/
 secrets/
 *.local.json
 tools/.cloud_verify.env
+# AI 本地验证通道的 DeepSeek Key（仅本机 CLI 用，永不入库）
+tools/.ai_verify.env

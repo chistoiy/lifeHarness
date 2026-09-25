@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/ai/ai_providers.dart';
+import 'core/ai/ai_vault.dart';
 import 'core/backup/backup_service.dart';
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
@@ -47,6 +49,9 @@ Future<void> main() async {
 
   // 1) 主题设计令牌全量载入（assets/themes/）。
   final registry = await const ThemeRepository().loadAll();
+
+  // 1b) AI 默认提示词包载入（assets/ai_prompts/ · 用户覆盖在 prefs，不动资产）。
+  final aiPack = await loadAiPromptPack();
 
   // 2) 数据库建库（验收：启动即建库；核心表+预留表+plugin_* 规范见 DbSchema）。
   await AppDatabase.instance.open();
@@ -136,6 +141,9 @@ Future<void> main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         themeRegistryProvider.overrideWithValue(registry),
+        // AI 批：默认提示词包 + Key 保险箱组合根装配（测试注入内存版）。
+        aiPromptPackProvider.overrideWithValue(aiPack),
+        aiKeyVaultProvider.overrideWithValue(AiKeyVault()),
         // V1.41 Task 10：备份服务组合根装配。attachDirs 取证 = 应用文档目录下
         // 实际落盘的附件子目录（note_images: shared/image_attach 日记/笔记插图；
         // book_covers: read isbn_enrich 封面；exports: journal note_sheets 导出；

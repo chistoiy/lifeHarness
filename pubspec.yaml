@@ -82,3 +82,4 @@ flutter:
     - assets/themes/
     - assets/read_import/
     - assets/habit_templates/
+    - assets/ai_prompts/
