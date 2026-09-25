@@ -14,17 +14,38 @@
 const crypto = require('crypto');
 const https = require('https');
 
-const S3_AK = process.env.LH_S3_AK || '';
-const S3_SK = process.env.LH_S3_SK || '';
-const S3_BUCKET = process.env.LH_S3_BUCKET || 'qoderwork';
+
 const S3_HOST = 's3.bitiful.net';
 const S3_REGION = 'cn-east-1';
-const WD_USER = process.env.LH_WD_USER || '';
-const WD_PASS = process.env.LH_WD_PASS || '';
-const WD_DIR = 'qoderwork'; // 云端目录名（与 App 内配置一致）
 
-if (!S3_AK || !S3_SK || !WD_USER || !WD_PASS) {
-  console.error('缺少环境变量 LH_S3_AK/LH_S3_SK/LH_WD_USER/LH_WD_PASS');
+
+// 环境变量缺失时回落读本地凭据文件 tools/.cloud_verify.env（已 .gitignore，
+// 永不入库；agent 只执行本脚本、不读该文件内容）。格式：每行 KEY=VALUE。
+if (!process.env.LH_S3_AK || !process.env.LH_S3_SK || !process.env.LH_WD_USER || !process.env.LH_WD_PASS) {
+  try {
+    const fs = require('fs');
+    const txt = fs.readFileSync(__dirname + '/.cloud_verify.env', 'utf8');
+    const get = (k) => (txt.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1] || '';
+    if (!S3_AK) process.env.LH_S3_AK = get('LH_S3_AK');
+    if (!S3_SK) process.env.LH_S3_SK = get('LH_S3_SK');
+    if (!WD_USER) process.env.LH_WD_USER = get('LH_WD_USER');
+    if (!WD_PASS) process.env.LH_WD_PASS = get('LH_WD_PASS');
+    if (!process.env.LH_S3_BUCKET) process.env.LH_S3_BUCKET = get('LH_S3_BUCKET') || 'qoderwork';
+    if (!process.env.LH_WD_DIR) process.env.LH_WD_DIR = get('LH_WD_DIR') || 'qoderwork';
+  } catch (_) {
+    /* 无本地文件则维持原报错 */
+  }
+}
+const AK = process.env.LH_S3_AK || '';
+const SK = process.env.LH_S3_SK || '';
+const WU = process.env.LH_WD_USER || '';
+const WP = process.env.LH_WD_PASS || '';
+const S3_BUCKET = process.env.LH_S3_BUCKET || 'qoderwork';
+const WD_DIR = process.env.LH_WD_DIR || 'qoderwork';
+
+if (!AK || !SK || !WU || !WP) {
+  console.error('缺少凭据：设环境变量 LH_S3_AK/LH_S3_SK/LH_WD_USER/LH_WD_PASS，'
+      + '或写入本地文件 tools/.cloud_verify.env（KEY=VALUE 每行一条，不入库）');
   process.exit(2);
 }
 const EMPTY_SHA = crypto.createHash('sha256').update('').digest('hex');
@@ -41,19 +62,19 @@ function s3Req({ host, path, query = '', method = 'GET', region = S3_REGION, bod
   const scope = `${dateStamp}/${region}/s3/aws4_request`;
   const sts = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n` + crypto.createHash('sha256').update(cr).digest('hex');
   const hm = (k, s) => crypto.createHmac('sha256', k).update(s, 'utf8').digest();
-  const key = hm(hm(hm(hm('AWS4' + S3_SK, dateStamp), region), 's3'), 'aws4_request');
+  const key = hm(hm(hm(hm('AWS4' + SK, dateStamp), region), 's3'), 'aws4_request');
   const sig = crypto.createHmac('sha256', key).update(sts).digest('hex');
   return raw({
     host, path: query ? `${path}?${query}` : path, method, body,
     headers: {
       host, 'x-amz-date': amzDate, 'x-amz-content-sha256': payloadHash,
-      authorization: `AWS4-HMAC-SHA256 Credential=${S3_AK}/${scope}, SignedHeaders=${sh}, Signature=${sig}`,
+      authorization: `AWS4-HMAC-SHA256 Credential=${AK}/${scope}, SignedHeaders=${sh}, Signature=${sig}`,
     },
   });
 }
 
 function wdReq({ method, path, body = null, depth = null, extraHeaders = {} }) {
-  const auth = Buffer.from(WD_USER + ':' + WD_PASS).toString('base64');
+  const auth = Buffer.from(WU + ':' + WP).toString('base64');
   const headers = { host: 'dav.jianguoyun.com', authorization: 'Basic ' + auth, ...extraHeaders };
   if (depth) headers['Depth'] = depth;
   if (body) headers['Content-Type'] = 'application/xml';

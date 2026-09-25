@@ -39,3 +39,4 @@ backup/
 # 密钥/配置（WebDAV 凭据等，若后续生成本地配置文件）
 secrets/
 *.local.json
+tools/.cloud_verify.env
