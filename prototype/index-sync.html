@@ -201,7 +201,7 @@
   <div style="font-size:15px;font-weight:800;color:#cbd5e1">LifeHarness 交互原型 · 数据与同步专版</div>
   <div>· 仅 UI 占位模拟，无真实业务数据</div>
   <div>· 屏 id：p-sync / p-log / p-synchist</div>
-  <div>· 弹层 id：s-svc-edit / s-svc-verify / s-diff / s-syncprog / s-backup / s-throttle</div>
+  <div>· 弹层 id：s-svc-edit / s-svc-verify / s-diff / s-syncprog / s-backup / s-throttle / s-cloudclean</div>
 </div>
 
 <div id="phone">
@@ -278,6 +278,11 @@
       <div class="row" onclick="navTo('p-log')">
         <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
         <span class="r-t">日志<div class="r-s">环形缓冲 300 · 按日落盘</div></span>
+        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="row" onclick="openSheet('s-cloudclean')">
+        <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12.8 3.6 3.6 0 0 0 6 19.5"/><path d="M9 14l6 6M15 14l-6 6"/></svg></span>
+        <span class="r-t">清理云端<div class="r-s">未引用附件归档 · 彻底删除需确认</div></span>
         <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
       </div>
       <div class="row" onclick="navTo('p-synchist')">
@@ -625,9 +630,36 @@
         <span class="toggle" id="tglWifi" onclick="tglWifi(this)"></span>
       </div>
       <div class="row" style="border-bottom:none;padding-top:2px">
+        <span class="r-t">同步后自动归档云端未引用附件<div class="r-s">只移入 media_archive · 不删除</div></span>
+        <span class="toggle" id="tglAutoArc" onclick="this.classList.toggle('on')"></span>
+      </div>
+      <div class="row" style="border-bottom:none;padding-top:2px">
+        <span class="r-t">归档区 30 天后清理<div class="r-s">默认关 · 仅清 media_archive 超期条目</div></span>
+        <span class="toggle" id="tglArcPurge" onclick="this.classList.toggle('on')"></span>
+      </div>
+      <div class="row" style="border-bottom:none;padding-top:2px">
         <span class="r-t" style="font-size:12px;color:var(--mut)">缓存<div class="r-s">同目录清单 60s · 容量 5min · MKCOL 进程内记忆</div></span>
         <span class="kv">列举超时 30s · 传输 10min</span>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= S8 · s-cloudclean 清理云端弹层（R5d） ================= -->
+  <div class="sheet" id="s-cloudclean" onclick="if(event.target===this)closeSheet('s-cloudclean')">
+    <div class="sheet-panel">
+      <div class="grabber"></div>
+      <div class="sh-title">清理云端</div>
+      <div class="sh-sub">云端未引用附件 · 归档可回退 · 删除需确认</div>
+      <div style="margin-top:10px">
+        <div class="row" style="border-bottom:none;padding:8px 0"><span class="rd"></span><span class="fn" style="font-family:monospace;font-size:12px">attachments/note_images/9f2c…a41.png</span><span class="fs">1.2 MB</span></div>
+        <div class="row" style="border-bottom:none;padding:8px 0"><span class="rd"></span><span class="fn" style="font-family:monospace;font-size:12px">attachments/note_images/3be7…08d.jpg</span><span class="fs">860 KB</span></div>
+        <div class="row" style="border-bottom:none;padding:8px 0"><span class="rd on"></span><span class="fn" style="font-family:monospace;font-size:12px">attachments/book_covers/isbn_978…jpg</span><span class="fs">220 KB</span></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn ghost" style="flex:1" onclick="closeSheet('s-cloudclean')">归档</button>
+        <button class="btn" style="flex:1;background:#DC2626;border:none;color:#fff" onclick="closeSheet('s-cloudclean')">彻底删除</button>
+      </div>
+      <div class="kv" style="margin-top:8px;text-align:center">空态：云端无未引用附件</div>
     </div>
   </div>
 
