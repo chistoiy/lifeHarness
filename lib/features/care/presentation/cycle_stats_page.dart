@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/ai/ai_review.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/cycle_calc.dart';
@@ -9,13 +10,35 @@ import 'care_providers.dart';
 import 'cycle_sheet.dart' show kCycP;
 
 /// p-cycleStats 周期统计全屏（四指标 + 近12周期柱 + 异常波动提示 + 经量分布 + 症状 TOP5）。
-class CycleStatsPage extends ConsumerWidget {
+class CycleStatsPage extends ConsumerStatefulWidget {
   const CycleStatsPage({super.key});
 
+  @override
+  ConsumerState<CycleStatsPage> createState() => _CycleStatsPageState();
+}
+
+class _CycleStatsPageState extends ConsumerState<CycleStatsPage> {
   static const _flowColors = {'少': '#fda4af', '中': '#fb7185', '多': '#e11d48'};
 
+  /// AI 周期解读结果：仅展示不落库（红线）；再次点击重新生成即覆盖。
+  String? _aiInsight;
+  bool _aiBusy = false;
+
+  Future<void> _runCycleInsight(String stats) async {
+    if (_aiBusy) return;
+    _aiBusy = true;
+    try {
+      final res = await aiRunWithReview(context, ref,
+          taskId: 'care.cycle_insight', vars: {'stats': stats});
+      // 失败/取消静默：归因 toast 已由 aiRunWithReview 处理。
+      if (res != null && mounted) setState(() => _aiInsight = res.requireText());
+    } finally {
+      _aiBusy = false;
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final async = ref.watch(careDataProvider);
@@ -61,6 +84,17 @@ class CycleStatsPage extends ConsumerWidget {
             ..sort((a, b) => b.value.compareTo(a.value));
           final top5 = top.take(5).toList();
           final maxSym = top5.isEmpty ? 1 : top5.first.value;
+          // AI 周期解读红线：只发页面已算好的聚合数字，原始日记级记录不出本机。
+          final aiStats = _aggregateStats(
+            runs: runs,
+            lens: lens,
+            avg: avg,
+            avgP: avgP,
+            std: reg.std,
+            flowN: flowN,
+            flowTot: flowTot,
+            top5: top5,
+          );
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
             children: [
@@ -288,18 +322,53 @@ class CycleStatsPage extends ConsumerWidget {
                             ],
                           ),
                         ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: context.cardDecoration,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('AI 周期解读',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    const Text('仅上传本页聚合统计，原始记录不出本机；结果只展示、不存储',
+                        style: TextStyle(fontSize: 10, color: Colors.grey)),
                     const SizedBox(height: 10),
                     OutlinedButton(
-                      onPressed: () => AppToast.show(
-                          context,
-                          '🤖 AI 周期解读：Opt-in 功能，仅上传聚合统计（原始记录不出本机），'
-                          '生成趋势摘要（V1.x · 联动 AI 安全规范）',
-                          ms: 3000),
+                      key: const ValueKey('ai-cycle-insight'),
+                      onPressed: () => _runCycleInsight(aiStats),
                       style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 11)),
-                      child: const Text('🤖 生成周期解读',
+                      child: const Text('AI 周期解读',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                     ),
+                    if (_aiInsight != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: careHex(kCycP).withValues(alpha: .06),
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: careHex(kCycP).withValues(alpha: .25)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('AI 生成 · 基于聚合统计 · 不构成医学建议',
+                                  style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                              const SizedBox(height: 6),
+                              Text(_aiInsight!,
+                                  style: const TextStyle(fontSize: 12, height: 1.6)),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -308,6 +377,39 @@ class CycleStatsPage extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// 聚合统计文本（AI 出网唯一口径）：仅数字与区间，无任何日记级原始记录。
+  String _aggregateStats({
+    required List<PeriodRun> runs,
+    required List<int> lens,
+    required double? avg,
+    required double? avgP,
+    required double std,
+    required Map<String, int> flowN,
+    required int flowTot,
+    required List<MapEntry<String, int>> top5,
+  }) {
+    final parts = <String>['连续周期 ${runs.length} 个'];
+    if (lens.isNotEmpty) {
+      parts.add('周期长度序列：${lens.join('、')} 天');
+      parts.add('最短 ${lens.reduce((a, b) => a < b ? a : b)} 天、'
+          '最长 ${lens.reduce((a, b) => a > b ? a : b)} 天');
+    }
+    if (avg != null) parts.add('平均周期 ${avg.toStringAsFixed(1)} 天');
+    if (avgP != null) {
+      parts.add('经期天数序列：${runs.map((r) => r.len).join('、')} 天，'
+          '平均经期 ${avgP.toStringAsFixed(1)} 天');
+    }
+    if (lens.length >= 2) parts.add('周期长度标准差 ${std.toStringAsFixed(1)} 天');
+    if (flowTot > 0) {
+      parts.add('经量记录出现次数：少 ${flowN['少']}、中 ${flowN['中']}、多 ${flowN['多']}，'
+          '合计 $flowTot 次');
+    }
+    if (top5.isNotEmpty) {
+      parts.add('症状出现次数：${top5.map((e) => '${e.key} ${e.value} 次').join('、')}');
+    }
+    return parts.join('；');
   }
 
   Widget _metric(BuildContext context, String v, String l, String? color) => Expanded(
