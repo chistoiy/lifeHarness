@@ -1485,12 +1485,10 @@ void main() {
       await settle(tester);
       // 节行右侧＝该书该章摘录数划线角标（甲 2 条）
       expect(find.text('2'), findsWidgets);
-      // AI 补全＝B 类占位 toast
-      await tester.ensureVisible(find.byKey(const ValueKey('toc-ai')));
-      await tester.tap(find.byKey(const ValueKey('toc-ai')));
-      await settle(tester);
-      expect(find.text('AI 能力规划中（V1.x）'), findsOneWidget);
-      await clearToasts(tester);
+      // AI批4-C 接线后「AI 补全」改走审阅弹层（需 AI provider 装配，
+      // 本壳无 overrides 不能点）：占位 toast 断言改为按钮在位断言。
+      expect(find.byKey(const ValueKey('toc-ai')), findsOneWidget);
+      expect(find.text('AI 补全'), findsOneWidget);
       // 书摘 tab 分段 chips：全部/划线/想法/星标（原型 bdQSegChips 5468）
       await tester.ensureVisible(find.byKey(const ValueKey('seg-q')));
       await tester.tap(find.byKey(const ValueKey('seg-q')));
@@ -1588,14 +1586,15 @@ void main() {
       expect(find.text('导出 MD'), findsOneWidget);
       expect(find.text('书摘卡片'), findsOneWidget);
       expect(find.text('摘录 → 待办'), findsOneWidget);
-      expect(find.text('AI 感想归并'), findsOneWidget);
+      expect(find.text('AI 感想生成'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('qlx-card')));
       await settle(tester);
       expect(find.text('图片卡片规划中（V1.x）'), findsOneWidget);
       await clearToasts(tester);
+      // AI批4-C：接线后未选中摘录＝只提示先选、不发起 AI 调用。
       await tester.tap(find.byKey(const ValueKey('qlx-ai')));
       await settle(tester);
-      expect(find.text('AI 能力规划中（V1.x）'), findsOneWidget);
+      expect(find.text('先长按选择要生成感想的摘录'), findsOneWidget);
       await clearToasts(tester);
     });
 

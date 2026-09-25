@@ -96,6 +96,50 @@ class ParsedTocPart {
   final List<String> sections = [];
 }
 
+/// AI（read.toc）chapters 数组 → 导入解析结构 [ParsedTocPart]（批4-C 目录 AI 补全）。
+///
+/// 口径：`part` 非空且与当前部分不同 → 开新部分；章题与其 `sections` 一律归入
+/// 该部分的小节（与粘贴导入的两级落库一致，章级信息以标题行保留不丢失）；
+/// `part` 为 null 时延续当前部分，首条即 null 则挂未命名部分（title=''）。
+List<ParsedTocPart> tocPartsFromChapters(List chapters) {
+  final out = <ParsedTocPart>[];
+  ParsedTocPart? cur;
+  for (final raw in chapters) {
+    if (raw is! Map) continue;
+    final title = '${raw['title'] ?? ''}'.trim();
+    if (title.isEmpty) continue;
+    final part = '${raw['part'] ?? ''}'.trim();
+    if (part.isNotEmpty && cur?.title != part) {
+      cur = ParsedTocPart(part);
+      out.add(cur);
+    }
+    cur ??= ParsedTocPart('');
+    if (!out.contains(cur)) out.add(cur);
+    cur.sections.add(title);
+    final secs = raw['sections'];
+    if (secs is List) {
+      for (final e in secs) {
+        final s = '$e'.trim();
+        if (s.isNotEmpty) cur.sections.add(s);
+      }
+    }
+  }
+  return out;
+}
+
+/// 解析结构 → 可编辑文本（部分行顶格、小节行缩进两格）：
+/// AI 补全结果回填导入弹层文本框，用户可继续手改后确认替换。
+String tocPartsToText(List<ParsedTocPart> parts) {
+  final sb = StringBuffer();
+  for (final p in parts) {
+    if (p.title.trim().isNotEmpty) sb.writeln(p.title);
+    for (final s in p.sections) {
+      if (s.trim().isNotEmpty) sb.writeln('  $s');
+    }
+  }
+  return sb.toString();
+}
+
 final _cnPart = RegExp(
   r'^第\s*[0-9〇零一二两三四五六七八九十百千]+\s*[部篇卷](?:[\s　]|$|[、：:])',
   caseSensitive: false,
