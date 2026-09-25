@@ -8,6 +8,7 @@
 /// I/O（SnapshotService.localInventory 覆写为内存清单）。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -41,10 +42,20 @@ class FakeRemoteStore implements RemoteStore {
   final getCalls = <String>[];
   int verifyCount = 0;
 
+  /// 非空时 list() 挂起至 complete——模拟 compare 前置网络长 await（可 30s+），
+  /// 供防重入用例钉死「挂起期间二次 tap 不再触发 compare」。
+  Completer<void>? listGate;
+  Object? listError;
+  int listCount = 0;
+
   @override
   Future<CloudListing> list(ServiceConfig c, String cloudDirName,
-          {bool force = false}) async =>
-      CloudListing(files);
+          {bool force = false}) async {
+    listCount++;
+    await listGate?.future;
+    if (listError != null) throw listError!;
+    return CloudListing(files);
+  }
 
   @override
   Future<void> put(ServiceConfig c, String localPath, String cloudRelative) async {
@@ -356,6 +367,87 @@ void main() {
       expect(snap.services.map((c) => c.id), isNot(contains('svcW')));
       // activeId 悬空回落第一条（svcS）。
       expect(snap.activeId, 'svcS');
+    });
+  });
+
+  group('立即同步防重入（评审修复轮1）', () {
+    /// 取某 key 子树内唯一 InkWell（入口钮/入口行均为 InkWell 包 Material）。
+    InkWell inkWellOf(WidgetTester tester, String key) => tester.widget<InkWell>(
+        find.descendant(
+            of: find.byKey(ValueKey(key)), matching: find.byType(InkWell)));
+
+    testWidgets('compare 挂起时二次 tap 不叠第二层弹层 · 两入口置灰禁用', (tester) async {
+      seedServices(prefs);
+      // 一条仅本地 → compare 完成后 actionable 非空，正常会进 S4。
+      snap.inventory = [
+        FileEntry(relativePath: 'logs/2026-09-25.log', size: 4194304),
+      ];
+      fake.listGate = Completer<void>(); // compare 卡在网络 list（模拟 30s+ await）
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+
+      await tester.tap(find.byKey(const ValueKey('btn-sync-now')));
+      await settle5(tester);
+      expect(fake.listCount, 1);
+
+      // 挂起期间：两入口禁用态存在（onTap null + 置灰 Opacity .35，
+      // 工程惯例 habit_kit 同口径；btn 的 key 在内层 Container 上，
+      // 故置灰断言用全页谓词：恰两处 0.35）。
+      expect(inkWellOf(tester, 'btn-sync-now').onTap, isNull);
+      expect(inkWellOf(tester, 'sync-diff-entry').onTap, isNull);
+      expect(
+          find.byWidgetPredicate((w) => w is Opacity && w.opacity == .35),
+          findsNWidgets(2),
+          reason: '立即同步钮 + 差异对比行置灰，其余入口不受影响');
+
+      // 连点两入口：不产第二层 compare、不弹 S3/S4。
+      await tester.tap(find.byKey(const ValueKey('btn-sync-now')),
+          warnIfMissed: false);
+      await tester.tap(find.byKey(const ValueKey('sync-diff-entry')),
+          warnIfMissed: false);
+      await settle5(tester);
+      expect(fake.listCount, 1, reason: '挂起期间二次 tap 绝不触发第二层 compare');
+      expect(find.text('全选上传'), findsNothing); // S3 未弹
+      expect(find.text('同步进行中'), findsNothing); // S4 未弹
+
+      // compare 返回：恰好一层 S4 且能跑完（未叠层则无「已在运行」门闩错）。
+      fake.listGate!.complete();
+      await settle5(tester);
+      expect(find.text('同步结束'), findsOneWidget);
+      expect(find.textContaining('已在运行'), findsNothing);
+      expect(await pollText(tester, '同步完成 · 上传 1 · 下载 0 · 失败 0'), isTrue);
+      await clearToasts(tester);
+
+      // 关 S4 → 动作结束：入口恢复可用。
+      final doneBtn = find.byKey(const ValueKey('btn-cancel-sync'));
+      await tester.ensureVisible(doneBtn);
+      await tester.tap(doneBtn);
+      await settle5(tester);
+      expect(inkWellOf(tester, 'btn-sync-now').onTap, isNotNull);
+      expect(inkWellOf(tester, 'sync-diff-entry').onTap, isNotNull);
+      expect(fake.listCount, 1);
+    });
+
+    testWidgets('compare 异常 → finally 复位 · 入口恢复可点', (tester) async {
+      seedServices(prefs);
+      final gate = Completer<void>();
+      fake.listGate = gate;
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+
+      await tester.tap(find.byKey(const ValueKey('btn-sync-now')));
+      await settle5(tester);
+      expect(inkWellOf(tester, 'btn-sync-now').onTap, isNull);
+
+      // 让 list 抛错（compare 失败路径）。
+      fake.listError = StateError('PROPFIND 失败：网络中断');
+      gate.complete();
+      await settle5(tester);
+      expect(await pollText(tester, '同步准备失败：Bad state: PROPFIND 失败：网络中断'),
+          isTrue);
+      await clearToasts(tester);
+      expect(inkWellOf(tester, 'btn-sync-now').onTap, isNotNull,
+          reason: '异常也要经 finally 复位，不许永久置灰');
     });
   });
 

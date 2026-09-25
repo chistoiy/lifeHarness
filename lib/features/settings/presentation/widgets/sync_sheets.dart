@@ -1401,12 +1401,13 @@ class _ProgressSheetState extends ConsumerState<_ProgressSheet> {
                     Row(
                       children: [
                         PillChip(
+                            // 人话口径：功能标签式（评审修复轮1——不直出
+                            // 「HttpGate/requestIntervalMs」工程术语）。
                             label:
-                                'HttpGate ${widget.config?.requestIntervalMs ?? ServiceConfig.defaultRequestIntervalMs}ms'),
-                        const SizedBox(width: 8),
+                                '请求间隔 ${widget.config?.requestIntervalMs ?? ServiceConfig.defaultRequestIntervalMs}ms · 防服务端频控'),
                         const Expanded(
-                          child: Text(
-                              '退避 2s→4s→8s · 单次上限 30s · 重发必重建请求',
+                          child: Text('遇限流自动退避重发',
+                              textAlign: TextAlign.right,
                               style: TextStyle(
                                   fontSize: 10, color: Color(0xFF94A3B8))),
                         ),

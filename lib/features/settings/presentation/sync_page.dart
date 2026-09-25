@@ -38,6 +38,11 @@ class SyncPage extends ConsumerStatefulWidget {
 class _SyncPageState extends ConsumerState<SyncPage> {
   SyncConfigSnapshot _snap = const SyncConfigSnapshot(services: []);
 
+  /// 「立即同步」动作进行中（compare 网络前置 await 可 30s+ 直至 S4 关闭）。
+  /// 页面级防重入闸：期间「立即同步」「差异对比」入口置灰
+  /// （评审修复轮1——叠两层 S4 会让第二层 run 撞单任务门闩报错）。
+  bool _busy = false;
+
   @override
   void initState() {
     super.initState();
@@ -105,29 +110,40 @@ class _SyncPageState extends ConsumerState<SyncPage> {
   }
 
   /// 立即同步：compare → 全量可执行条目 → S4 进度半屏。
+  ///
+  /// 防重入（评审修复轮1）：compare 前置网络 await 可 30s+，连点会叠出
+  /// 第二层 S4（第二层 run 撞编排器单任务门闩抛「已在运行」）。
+  /// [_busy] 覆盖整个动作（try/finally 完成/异常必复位），期间两个
+  /// 会触发 compare 的入口（立即同步 / 差异对比）置灰禁用。
   Future<void> _syncNow() async {
+    if (_busy) return;
     final o = ref.read(syncOrchestratorProvider);
-    List<FileDiff> actionable;
+    setState(() => _busy = true);
     try {
-      await o.compare();
-      actionable = o.state.value.diffs
-          .where((d) => d.status != DiffStatus.inSync)
-          .toList(growable: false);
-    } catch (e) {
-      _toast('同步准备失败：$e');
-      return;
+      List<FileDiff> actionable;
+      try {
+        await o.compare();
+        actionable = o.state.value.diffs
+            .where((d) => d.status != DiffStatus.inSync)
+            .toList(growable: false);
+      } catch (e) {
+        _toast('同步准备失败：$e');
+        return;
+      }
+      if (!mounted) return;
+      if (actionable.isEmpty) {
+        _toast('无差异可同步 · 两端一致');
+        return;
+      }
+      await showSyncProgressSheet(context,
+          orchestrator: o,
+          task: () => o.run(actionable),
+          queue: actionable,
+          config: _active);
+      _reload();
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (!mounted) return;
-    if (actionable.isEmpty) {
-      _toast('无差异可同步 · 两端一致');
-      return;
-    }
-    await showSyncProgressSheet(context,
-        orchestrator: o,
-        task: () => o.run(actionable),
-        queue: actionable,
-        config: _active);
-    _reload();
   }
 
   Future<void> _openThrottle() async {
@@ -237,30 +253,34 @@ class _SyncPageState extends ConsumerState<SyncPage> {
             ),
           if (active != null) ...[
             const SizedBox(height: 12),
-            Container(
-              key: const ValueKey('btn-sync-now'),
-              decoration: BoxDecoration(
-                gradient: tokens.gradient,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _syncNow,
+            Opacity(
+              // 置灰禁用态 = 工程惯例（habit_kit：onTap null + opacity .35）。
+              opacity: _busy ? .35 : 1,
+              child: Container(
+                key: const ValueKey('btn-sync-now'),
+                decoration: BoxDecoration(
+                  gradient: tokens.gradient,
                   borderRadius: BorderRadius.circular(15),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 13),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.sync, size: 16, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text('立即同步',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white)),
-                      ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _busy ? null : _syncNow,
+                    borderRadius: BorderRadius.circular(15),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.sync, size: 16, color: Colors.white),
+                          SizedBox(width: 6),
+                          Text('立即同步',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -278,7 +298,9 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   icon: Icons.compare_arrows,
                   title: '差异对比',
                   sub: '本地快照目录 · 云端目录 · 四态差异',
-                  onTap: _openDiff,
+                  // _busy 期间同样禁用：S3 打开即发 compare，防叠层
+                  // （评审修复轮1）。
+                  onTap: _busy ? null : _openDiff,
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),
                 _EntryRow(
@@ -295,7 +317,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   title: '控流',
                   sub: active == null
                       ? '未配置服务'
-                      : '请求间隔 ${active.requestIntervalMs}ms · '
+                      // 人话口径：功能标签式（评审修复轮1——不直出工程术语）。
+                      : '请求间隔 ${active.requestIntervalMs}ms · 防服务端频控 · '
                           '快照 ${_keepN(prefs)} 份 · 仅Wi-Fi ${_wifiOnly(prefs) ? '开' : '关'}',
                   onTap: _openThrottle,
                 ),
@@ -508,38 +531,43 @@ class _EntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: tokens.accent.withValues(alpha: .11),
-                borderRadius: BorderRadius.circular(9),
+    // 禁用态 = onTap null + 置灰（工程惯例，habit_kit 同口径）。
+    return Opacity(
+      opacity: onTap == null ? .35 : 1,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: tokens.accent.withValues(alpha: .11),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, size: 16, color: tokens.accent),
               ),
-              child: Icon(icon, size: 16, color: tokens.accent),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 1),
-                  Text(sub,
-                      style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                ],
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 1),
+                    Text(sub,
+                        style:
+                            const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 15, color: Color(0xFF94A3B8)),
-          ],
+              const Icon(Icons.chevron_right_rounded,
+                  size: 15, color: Color(0xFF94A3B8)),
+            ],
+          ),
         ),
       ),
     );
