@@ -290,6 +290,9 @@ class S3Store implements RemoteStore {
       throw StateError('PUT $label 失败(${res.statusCode})：${_brief(body)}');
     }
     await res.stream.drain<void>();
+    // R4：与 WebDAV 同口径——上传成功即作废本服务清单缓存，防 60s TTL 内
+    // compare 拿旧清单报「刚传完仍仅本地」的假差异。
+    _listingCache.removeWhere((k, _) => k.startsWith('${c.id}|'));
   }
 
   @override

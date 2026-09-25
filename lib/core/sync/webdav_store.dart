@@ -349,6 +349,9 @@ class WebDavStore implements RemoteStore {
       throw StateError('PUT $label 失败(${res.statusCode})：${_brief(body)}');
     }
     await res.stream.drain<void>();
+    // R4：上传成功即作废本服务清单缓存——否则 60s TTL 内紧接着的 compare
+    // 仍拿旧空清单，出现「刚同步完还说仅本地/云端没有」的假差异。
+    _listingCache.removeWhere((k, _) => k.startsWith('${c.id}|'));
   }
 
   @override

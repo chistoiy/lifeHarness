@@ -555,6 +555,34 @@ void main() {
     store.close();
   });
 
+  test('R4：put 成功即作废本服务清单缓存——刚传完的 compare 不再拿旧清单'
+      '报「仅本地」假差异（真机反馈：同步后差异检测仍说云端没有）', () async {
+    var lists = 0;
+    final tmp = File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}lhw_r4_put.lhbak');
+    tmp.writeAsStringSync('payload');
+    addTearDown(() => tmp.deleteSync());
+    final client = MockClient((req) async {
+      if (req.method == 'PROPFIND') {
+        lists++;
+        return bytesXml207([resXml('/dav/sync', dir: true)]);
+      }
+      return http.Response('', req.method == 'PUT' ? 201 : 405);
+    });
+    final store = storeOf(client, vault: await vaultWith('svc1'));
+    final c = cfg();
+
+    await store.list(c, 'sync');
+    expect(lists, 1);
+    await store.list(c, 'sync');
+    expect(lists, 1, reason: '前置：60s 内二次 list 命中缓存');
+
+    await store.put(c, tmp.path, 'z.lhbak');
+    await store.list(c, 'sync');
+    expect(lists, 2, reason: 'put 成功后缓存作废，list 必重拉真实云端清单');
+    store.close();
+  });
+
   test('缓存键含 serviceId：同目录名不同服务互不串用', () async {
     var requests = 0;
     final client = MockClient((req) async {

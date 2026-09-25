@@ -198,6 +198,31 @@ void main() {
       expect(n, 4, reason: '假时钟过 TTL 自动重拉');
       store.close();
     });
+
+    test('R4：put 成功即作废本服务清单缓存（与 WebDAV 同口径，防同步后'
+        'compare 拿旧清单报假差异）', () async {
+      var lists = 0;
+      final tmp = File(
+          '${Directory.systemTemp.path}${Platform.pathSeparator}lhw_r4_s3.lhbak');
+      tmp.writeAsStringSync('payload');
+      addTearDown(() => tmp.deleteSync());
+      final client = MockClient((req) async {
+        if (req.method == 'PUT') return http.Response('', 200);
+        lists++;
+        return http.Response.bytes(
+            utf8.encode(listXml([contentsXml('sync/z.lhbak')])), 200);
+      });
+      final store = storeOf(client, vault: await vaultWith('svcS3'));
+      final c = cfg();
+      await store.list(c, 'sync');
+      expect(lists, 1);
+      await store.list(c, 'sync');
+      expect(lists, 1, reason: '前置：60s 内命中缓存');
+      await store.put(c, tmp.path, 'z.lhbak');
+      await store.list(c, 'sync');
+      expect(lists, 2, reason: 'put 成功后缓存作废，list 必重拉');
+      store.close();
+    });
   });
 
   test('list→get 直喂：key 前缀 {cloudDirName}/{relative} 两侧一致（T17 链路钉）',
