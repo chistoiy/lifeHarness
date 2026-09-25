@@ -14,6 +14,9 @@ enum NavModule {
   inbox('inbox', '收集箱', Icons.inbox_outlined, Icons.inbox, '/inbox'),
   ledger('ledger', '记账', Icons.account_balance_wallet_outlined,
       Icons.account_balance_wallet, '/ledger'),
+  // V1.42 批2：物品价值（每日成本 · 专版 P7 · NAV_MODS p-items 同位）。
+  items('items', '物品', Icons.inventory_2_outlined, Icons.inventory_2,
+      '/items'),
   // V1.42 批1：重要日子（专版 P8 · 底栏池栏目，NAV_MODS p-days 同位）。
   days('days', '日子', Icons.celebration_outlined, Icons.celebration, '/days'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');

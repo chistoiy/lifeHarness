@@ -33,6 +33,10 @@ import '../../features/habit/presentation/habit_settings_page.dart';
 import '../../features/habit/presentation/habit_stat_page.dart';
 import '../../features/habit/presentation/habits_page.dart';
 import '../../features/inbox/presentation/inbox_page.dart';
+import '../../features/items/presentation/item_detail_page.dart';
+import '../../features/items/presentation/item_settle_page.dart';
+import '../../features/items/presentation/item_stats_page.dart';
+import '../../features/items/presentation/items_page.dart';
 import '../../features/journal/presentation/diary_edit_page.dart';
 import '../../features/journal/presentation/journal_page.dart';
 import '../../features/journal/presentation/journal_providers.dart'
@@ -102,6 +106,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/care', builder: (_, _) => const CarePage()),
           // V1.42 批1：重要日子主页（底栏池栏目 · 专版 p-days）。
           GoRoute(path: '/days', builder: (_, _) => const DaysPage()),
+          // V1.42 批2：物品价值主页（底栏池栏目 · 专版 p-items）。
+          GoRoute(path: '/items', builder: (_, _) => const ItemsPage()),
           GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
           GoRoute(path: '/categories', builder: (_, _) => const CategoryPage()),
         ],
@@ -126,6 +132,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/days/remind',
         builder: (_, _) => const DayRemindPage(),
+      ),
+      // V1.42 批2：物品栈页（专版 p-itemDetail / p-itemEdit / p-itemStats / p-itemSettle）。
+      GoRoute(
+        path: '/items/detail',
+        builder: (_, s) =>
+            ItemDetailPage(itemId: int.parse(s.uri.queryParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/items/stats',
+        builder: (_, _) => const ItemStatsPage(),
+      ),
+      GoRoute(
+        path: '/items/settle',
+        builder: (_, s) =>
+            ItemSettlePage(itemId: int.parse(s.uri.queryParameters['id']!)),
       ),
       // 记账批1：记一笔（?kind/cat/date/note/edit/copy · 原型 openL2(opt)）与
       // 流水详情（全屏无底栏，同 p-txDetail 为 stack 页）。

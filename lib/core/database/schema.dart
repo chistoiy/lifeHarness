@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 20;
+  static const int version = 21;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -95,6 +95,12 @@ class DbSchema {
   static const String tDays = 'days';
   static const String tDayPreps = 'day_preps';
   static const String tReminderItems = 'reminder_items';
+  // v21（M4·物品批2）：物品价值三表（需求 V1.42 模块9 · 专版 P7 系六屏）。
+  // item_events 审计时间轴仅追加（repo 不暴露改删口）；extra/res 不落列＝
+  // 由 events 实算（HG-E1），billing=0 冻结决算；source/source_txn_id 来源徽标。
+  static const String tItemProfiles = 'item_profiles';
+  static const String tItemEvents = 'item_events';
+  static const String tItemUsages = 'item_usages';
 
   /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
   /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
@@ -376,6 +382,7 @@ class DbSchema {
     ...ledgerSchemaStatements,
     ...careSchemaStatements,
     ...daysSchemaStatements,
+    ...itemSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -587,7 +594,68 @@ class DbSchema {
     19: [
       ...daysSchemaStatements,
     ],
+    // v21（M4·物品批2）：物品价值三表（需求 V1.42 模块9 全量能力）。
+    20: [
+      ...itemSchemaStatements,
+    ],
   };
+
+  /// v21 物品价值三表 DDL（建库与迁移共用·幂等）。
+  /// status：使用中|闲置|已回收(抵扣留用)|已回收(转出)|已报废；
+  /// mode：day 直线|times 按次|stop 止损（止损叠加直线基线）；
+  /// 自然日一律 TEXT 'YYYY-MM-DD'；name/warranty 列名与 days 侧派生同步器对齐。
+  static const List<String> itemSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tItemProfiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT NOT NULL DEFAULT 'box',
+      category TEXT NOT NULL DEFAULT '数码',
+      buy_date TEXT NOT NULL,
+      price REAL NOT NULL,
+      expected_years INTEGER,
+      warranty TEXT,
+      status TEXT NOT NULL DEFAULT '使用中',
+      billing INTEGER NOT NULL DEFAULT 1,
+      mode TEXT NOT NULL DEFAULT 'day',
+      plan_units REAL,
+      unit TEXT,
+      stop_pct INTEGER DEFAULT 30,
+      photo TEXT,
+      source TEXT NOT NULL DEFAULT 'manual',
+      source_txn_id INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tItemEvents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      label TEXT NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      note TEXT,
+      event_date TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE INDEX IF NOT EXISTS idx_item_events_item ON $tItemEvents(item_id)
+    ''',
+    '''
+    CREATE TABLE IF NOT EXISTS $tItemUsages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      day TEXT NOT NULL,
+      qty REAL NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL
+    )
+    ''',
+    '''
+    CREATE INDEX IF NOT EXISTS idx_item_usages_item ON $tItemUsages(item_id)
+    ''',
+  ];
 
   /// v20 重要日子三表 DDL（建库与迁移共用·幂等）。
   /// rep_mode：once|solar-year|lunar|monthly；自然日一律 TEXT 'YYYY-MM-DD'；

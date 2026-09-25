@@ -50,7 +50,7 @@ void main() {
       );
 
   test('schema v20：版本与迁移登记', () {
-    expect(DbSchema.version, 20);
+    expect(DbSchema.version, greaterThanOrEqualTo(20));
     expect(DbSchema.migrations[19], containsAll(DbSchema.daysSchemaStatements));
   });
 
