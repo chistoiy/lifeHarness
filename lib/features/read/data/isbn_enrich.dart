@@ -337,6 +337,13 @@ class IsbnEnrich {
     if (c.length < 8) return const IsbnOutcome(null, IsbnMiss.tooShort);
     if (DoubanGuard.active()) return const IsbnOutcome(null, IsbnMiss.blocked);
     DoubanGuard.clearLastFetchBlocked();
+    // 真机取证（2026-09-27）：每次查询落一条「带没带登录态」——只记状态，
+    // Cookie 值永不进日志（AppLog.sanitize 亦会脱敏，双保险）。
+    AppLog.add(
+      DoubanCookie.value != null
+          ? '豆瓣书目查询（$c）· 带登录态 Cookie'
+          : '豆瓣书目查询（$c）· 匿名（未配置 Cookie）',
+    );
     var miss = IsbnMiss.network;
     try {
       final url = urlFor(c);
