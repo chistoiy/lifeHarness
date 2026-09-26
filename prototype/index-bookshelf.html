@@ -859,6 +859,15 @@ tailwind.config = {
     <!-- ===== 书架专版 · P-B1b 书籍资料（点封面进入） ===== -->
     <section id="p-bookInfo" class="page px-5 safe-pb no-scrollbar"><div id="biRoot"></div></section>
 
+    <!-- ===== V1.44 书目搜索（豆瓣）· 添加图书第一步（图1） ===== -->
+    <section id="p-biblioSearch" class="page px-5 safe-pb no-scrollbar relative"><div id="bsrRoot"></div></section>
+
+    <!-- ===== V1.44 条目详情（未入库 · 右上「添加」入书架，图2） ===== -->
+    <section id="p-biblioDetail" class="page px-5 safe-pb no-scrollbar"><div id="bsdRoot"></div></section>
+
+    <!-- ===== V1.44 整页录入 / 编辑书籍信息（替换原底部弹窗，图3） ===== -->
+    <section id="p-bookForm" class="page px-5 safe-pb no-scrollbar"><div id="bfRoot"></div></section>
+
     <!-- ===== 书架专版 · P-B2 笔记库（跨书摘录与感想） ===== -->
     <section id="p-quotes" class="page px-5 safe-pb no-scrollbar">
       <div class="mt-3 grid grid-cols-3 gap-2 text-center" id="qtStat"></div>
@@ -4752,7 +4761,8 @@ function renderToc(){const el=document.getElementById('tocList');if(!el)return;c
     ${kids.map(([tt,st,q])=>`<div class="toc-row" onclick="tocJump('${tt.replace(/'/g,"\\\'")}')"><span class="toc-dot ${st==='done'?'bg-emerald-400':st==='read'?'bg-brand-500 animate-pulse':'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${st?'':'text-slate-400'}">${tt}</span>${q?`<span class="text-[10px] text-brand-500 font-bold"><span class="inline-flex items-center">${bsi('quote','w-[10px] h-[10px] mr-0.5')}${q}</span></span>`:''}${st==='done'?'<span class="text-emerald-500"><svg class="w-[11px] h-[11px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg></span>':st==='read'?'<span class="text-[10px] text-brand-500 font-bold">在读</span>':''}</div>`).join('')}</div>`}).join('')}
 function shStatusPick(id){const b=bsBook(id);b.st=BS_STS[(BS_STS.indexOf(b.st)+1)%BS_STS.length];if(b.st==='已读'){b.p=100;b.rp=b.pg;if(!b.end)b.end=shFmtDate()}
   renderBookDetail();renderShelf();toast('已移到「'+b.st+'」分区')}
-function shEditOpen(id){CURBK=id;const b=bsBook(id);
+function shEditOpen(id){bfOpenEdit(id)}
+function shEditOpenSheet(id){CURBK=id;const b=bsBook(id);
   document.getElementById('ebName').value=b.n;document.getElementById('ebAuthor').value=b.a;document.getElementById('ebPub').value=b.pub;document.getElementById('ebYr').value=b.yr;
   document.getElementById('ebPages').value=b.pg;document.getElementById('ebProg').value=b.p;ebTags=[...b.tags];ebSt=b.st;ebRate=b.rate;ebCovFor='edit';ebCovUI();
   document.getElementById('ebIsbn').value=b.isbn==='—'?'':(b.isbn||'');document.getElementById('ebLookup').textContent='';
@@ -4777,7 +4787,8 @@ function shSaveEdit(){const b=bsBook(CURBK);b.n=document.getElementById('ebName'
 function shArchiveEdit(){const b=bsBook(CURBK);b.st='弃读';closeSheet('sheetEditBook');renderBookDetail();renderShelf();toast('《'+b.n+'》已移到弃读 · 笔记与时长保留')}
 /* 新书录入 */
 let nbSt='想读',nbTags=[],nbCovIdx=0,nbCov='';
-function shNewOpen(){nbSt='想读';nbTags=[];nbCovIdx=(Math.random()*BS_COV.length)|0;nbCov='';ebCovFor='new';
+function shNewOpen(){bsrOpen()}
+function shNewOpenSheet(){nbSt='想读';nbTags=[];nbCovIdx=(Math.random()*BS_COV.length)|0;nbCov='';ebCovFor='new';
   nbSrc='';nbGrp='';nbFmt='纸质';nbPw='page';
   ['nbTr','nbPubDate','nbTot','nbPos','nbFee','nbSeries','nbIntro'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=''});
   const nbm=document.getElementById('nbMore');if(nbm)nbm.classList.add('hidden');ebxChips('nb');ebxSum('nb');
@@ -6024,7 +6035,259 @@ function tocImportOk() {
   closeSheet('sheetTocImport'); renderBookDetail(); toast('目录已导入 · 点「编辑」可手动微调');
 }
 
+/* ================= V1.44 · 书目搜索 / 条目详情 / 整页录入与编辑 =================
+   口径（2026-09-26 用户三图拍板）：
+   · 添加图书＝**先搜后加**：一个搜索框收书名 / 作者 / ISBN，出结果列表，点条目看详情；
+   · 数据源本批只接**豆瓣**，其余源 chips 置灰标「未接入」，不做假结果；
+   · 条目详情是**展示态**，右上「添加」直接入书架（落「想读」，之后可改）；
+   · 同一页支持「扫描 ISBN 录入」与「手动录入」两个入口；
+   · 录入与编辑一律**整页分组表单**（基础信息 / 简介信息 / 书籍管理 / 来源信息 / 购买信息），
+     不再用底部弹窗（原 sheetNewBook / sheetEditBook 已废弃，入口改跳本页形态）。 */
+let BSR = { q: '', src: '豆瓣读书', list: [], pick: null };
+let BF = { mode: 'new', id: null, d: null };
+const BSR_SRC = [['豆瓣读书', true], ['纸间书摘', false], ['起点中文网', false], ['纵横中文网', false], ['晋江文学城', false]];
+
+/* 演示数据＝真机上该关键词的实际返回形态（实现时换成联想接口 + 详情页抓取）。 */
+function bsrMock(q) {
+  const k = (q || '').trim();
+  if (!k) return [];
+  if (/^\d{7,13}$/.test(k) || /^978\d+$/.test(k)) {
+    return [{ t: '万历十五年', a: '[美] 黄仁宇', pub: '生活·读书·新知三联书店', yr: '1997-5', price: '18.00元',
+      isbn: k, wc: 141000, rate: 9.0, id: 'db1041482', c: 0,
+      intro: '从万历十五年这一平淡年份切入，透视大明王朝由盛转衰的关键节点。（演示简介）',
+      an: '黄仁宇（1918—2000），湖南长沙人，明史研究名家。（演示作者简介）' }];
+  }
+  return [
+    { t: '万历十五年', a: '[美] 黄仁宇', pub: '生活·读书·新知三联书店', yr: '1997-5', price: '18.00元', isbn: '9787108009821', wc: 141000, rate: 9.0 },
+    { t: '万历十五年', a: '黄仁宇', pub: '生活·读书·新知三联书店', yr: '2015-8', price: '40.00元', isbn: '9787108056306', wc: 152000, rate: 8.9 },
+    { t: '万历十五年：经典版', a: '黄仁宇', pub: '中华书局', yr: '2014-7', price: '59.00元', isbn: '9787101100991', wc: 168000, rate: 8.7 },
+    { t: '万历十五年（增订本）', a: '[美] 黄仁宇', pub: '中华书局', yr: '2007-1', price: '18.00元', isbn: '9787101055509', wc: 145000, rate: 9.1 },
+    { t: '万历十五年：修订本', a: '[美] 黄仁宇', pub: '中华书局', yr: '2026-8', price: '68.00元', isbn: '9787101168007', wc: 172000, rate: 0 },
+  ].map((r, i) => Object.assign({ id: 'db' + (1041482 + i * 7), c: i % 6,
+    intro: '从万历十五年这一平淡年份切入，透视大明王朝由盛转衰的关键节点。（演示简介）',
+    an: '黄仁宇（1918—2000），湖南长沙人，明史研究名家。（演示作者简介）' }, r));
+}
+
+function bsrStar(r) {
+  if (!r) return '<span class="text-[10px] text-slate-400 ml-1">未评分</span>';
+  return '<span class="text-[10px] text-sun font-bold ml-1">' + r + '</span>';
+}
+
+function bsrOpen() { BSR.q = ''; BSR.list = []; navTo('p-biblioSearch'); renderBsr(); }
+function bsrInput(v) { BSR.q = v; BSR.list = bsrMock(v); renderBsr(true); }
+function bsrPickSrc(s, ok) {
+  if (!ok) { toast('该源未接入 · 本批只支持豆瓣'); return; }
+  BSR.src = s; BSR.list = bsrMock(BSR.q); renderBsr(true);
+}
+
+function renderBsr(keepFocus) {
+  const root = document.getElementById('bsrRoot'); if (!root) return;
+  const pos = keepFocus ? (document.getElementById('bsrQ') || {}).selectionStart : null;
+  root.innerHTML = `
+  <div class="mt-2 flex items-center gap-2">
+    <div class="flex-1 flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5">
+      <span class="text-slate-400"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+      <input id="bsrQ" value="${BSR.q}" oninput="bsrInput(this.value)" class="flex-1 bg-transparent text-[13px] outline-none" placeholder="书名 / 作者 / ISBN">
+      ${BSR.q ? '<button class="text-slate-400" onclick="bsrInput(\'\')"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" opacity=".25"/><path d="M8.6 8.6l6.8 6.8M15.4 8.6l-6.8 6.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>' : ''}
+    </div>
+    <span class="text-slate-400"><svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M7 12h10M10 17h4"/></svg></span>
+  </div>
+  <div class="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar">${BSR_SRC.map(([s, ok]) =>
+    `<button class="chip shrink-0 ${BSR.src === s ? 'chip-on' : ''} ${ok ? '' : 'opacity-40'}" onclick="bsrPickSrc('${s}',${ok})">${s}${ok ? '' : ' · 未接入'}</button>`).join('')}</div>
+  <div class="mt-3 space-y-2" id="bsrList">${BSR.list.length ? BSR.list.map((r, i) => `
+    <div class="card !py-3 !px-3 flex items-center gap-3 active:scale-[.99] transition" onclick="bsdOpen(${i})">
+      <div class="${bsCovCls({ c: r.c, img: '' })} w-9 h-[52px] rounded-md bk-cov shrink-0"></div>
+      <div class="flex-1 min-w-0"><b class="text-[13px] block truncate">${r.t}</b>
+        <div class="text-[10.5px] text-slate-400 mt-1 leading-4">${r.a} / ${r.pub} / ${r.yr} / ${r.price}</div></div>
+      ${bsrStar(r.rate)}</div>`).join('')
+    : `<div class="mt-10 text-center text-[11.5px] text-slate-400">搜书名、作者或 ISBN${BSR.src !== '豆瓣读书' ? ' · 该源未接入' : ''}</div>`}</div>
+  <div class="mt-4 mb-2 flex flex-col items-end gap-2 pr-1">
+    <button class="mini-btn !text-[10.5px] !px-3" onclick="bsrScan()"><span class="inline-flex items-center gap-1"><svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M8 12h8"/></svg>扫描 ISBN 录入</span></button>
+    <button class="w-11 h-11 rounded-full grad text-white text-xl shadow-lg flex items-center justify-center" onclick="bfOpenNew()">+</button>
+  </div>`;
+  const q = document.getElementById('bsrQ');
+  if (q && keepFocus && pos != null) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (e) {} }
+}
+function bsrScan() { BSR.list = bsrMock('9787108009821'); renderBsr(); toast('已扫描书脊 ISBN（模拟）'); bsdOpen(0); }
+
+/* ---------- 条目详情（未入库 · 展示态 + 右上添加） ---------- */
+function bsdOpen(i) { BSR.pick = BSR.list[i]; navTo('p-biblioDetail'); renderBsd(); }
+function bsdRow(k, v) {
+  return `<div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">${k}</span>
+    <span class="text-[13px] font-bold text-right truncate">${v || '<span class="text-slate-300 font-normal">—</span>'}</span></div>`;
+}
+function renderBsd() {
+  const r = BSR.pick, root = document.getElementById('bsdRoot'); if (!r || !root) return;
+  const inShelf = BS_BOOKS.some(b => b.isbn === r.isbn && r.isbn);
+  root.innerHTML = `
+  <div class="mt-1 flex items-center justify-end gap-4">
+    <button class="text-[13.5px] font-extrabold ${inShelf ? 'text-slate-400' : ''}" onclick="bsdAdd()">${inShelf ? '已在书架' : '添加'}</button>
+    <span class="text-slate-400"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></span>
+  </div>
+  <div class="mt-2 flex flex-col items-center">
+    <div class="${bsCovCls({ c: r.c, img: '' })} w-[92px] h-[130px] rounded-lg bk-cov"></div>
+    <div class="text-[11px] text-slate-400 mt-1.5">设置封面</div>
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">基础信息</div>
+  <div class="mt-1 card !py-1 !px-3">
+    ${bsdRow('书名（必填）', r.t)}${bsdRow('作者', r.a)}${bsdRow('译者', '')}
+    ${bsdRow('出版社', r.pub)}${bsdRow('出版日期', r.yr)}
+    ${bsdRow('ISBN', r.isbn)}${bsdRow('书籍评分', r.rate ? r.rate + ' 分' : '未评分')}${bsdRow('字数', r.wc ? r.wc.toLocaleString() : '')}
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">简介信息</div>
+  <div class="mt-1 card !py-1 !px-3">
+    <details><summary class="py-3 text-[12.5px] text-slate-500 cursor-pointer">作者简介</summary><div class="pb-3 text-[12px] leading-6">${r.an}</div></details>
+    <details><summary class="py-3 text-[12.5px] text-slate-500 cursor-pointer border-t border-slate-100 dark:border-slate-800">书籍简介</summary><div class="pb-3 text-[12px] leading-6">${r.intro}</div></details>
+  </div>
+  <div class="mt-3 mb-2 flex gap-2"><button class="mini-btn flex-1" onclick="bsdEdit()">添加后再填资料</button>
+    <button class="mini-btn flex-1" onclick="bfOpenNew()">改手动录入</button></div>`;
+}
+function bsdAdd() {
+  const r = BSR.pick; if (!r) return;
+  if (BS_BOOKS.some(b => b.isbn === r.isbn && r.isbn)) { toast('这本书已在书架（同 ISBN）'); return; }
+  BS_BOOKS.unshift({ id: 'b' + (Date.now() % 100000), n: r.t, a: (r.a || '').replace(/^\[[^\]]{1,6}\]\s*/, '') || '佚名',
+    st: '想读', p: 0, pg: 300, rp: 0, q: 0, tags: [], c: r.c, rate: 0, isbn: r.isbn, img: '',
+    pub: r.pub, yr: (r.yr || '').slice(0, 4), pubDate: r.yr, wc: r.wc, an: r.an, intro: r.intro,
+    src: '豆瓣', grp: '', fmt: '纸质', pw: 'page', tr: '', series: '', fee: 0, tot: 0, pos: 0,
+    start: '', end: '', min: 0, times: 0, note: '', fin: '' });
+  bsRegister(BS_BOOKS[0]);
+  renderShelf(); renderRecHub();
+  toast('《' + r.t + '》已加入书架 · 在「想读」分区');
+  navTo('p-bookshelf');
+}
+function bsdEdit() {
+  const r = BSR.pick;
+  BF = { mode: 'edit', id: (BS_BOOKS.find(b => b.isbn === (r && r.isbn)) || {}).id || null, d: Object.assign({
+    n: r.t, a: r.a, tr: '', pub: r.pub, pubDate: r.yr, isbn: r.isbn, rate: 0, wc: r.wc || '',
+    an: r.an, intro: r.intro, grp: '', tags: [], st: '想读', start: '', fmt: '纸质', rp: '', pg: '',
+    src: '豆瓣', feeDate: '', fee: '' }, r) };
+  navTo('p-bookForm'); renderBf();
+}
+
+/* ---------- 整页录入 / 编辑书籍信息（替换底部弹窗） ---------- */
+function bfOpenNew() {
+  BF = { mode: 'new', id: null, d: { n: '', a: '', tr: '', pub: '', pubDate: '', isbn: '', rate: 0, wc: '',
+    an: '', intro: '', grp: '', tags: [], st: '想读', start: '', fmt: '纸质', rp: '', pg: '', src: '', feeDate: '', fee: '' } };
+  navTo('p-bookForm'); renderBf();
+}
+function bfOpenEdit(id) {
+  CURBK = id; const b = bsBook(id);
+  BF = { mode: 'edit', id: id, d: { n: b.n, a: b.a, tr: b.tr || '', pub: b.pub === '—' ? '' : (b.pub || ''),
+    pubDate: b.pubDate || '', isbn: b.isbn === '—' ? '' : (b.isbn || ''), rate: b.rate || 0, wc: b.wc || '',
+    an: b.an || '', intro: b.intro || '', grp: b.grp || '', tags: [...(b.tags || [])], st: b.st,
+    start: b.start || '', fmt: b.fmt || '纸质', rp: b.rp, pg: b.pg, src: b.src === '自购' ? (b.src || '') : (b.src || ''),
+    feeDate: b.feeDate || '', fee: b.fee || '' } };
+  navTo('p-bookForm'); renderBf();
+}
+function bfSet(k, v) { BF.d[k] = v; if (['st', 'fmt', 'rate', 'tags'].includes(k)) renderBf(); }
+function bfIn(k, label, ph, type) {
+  return `<div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">${label}</span>
+    <input type="${type || 'text'}" value="${BF.d[k] == null ? '' : BF.d[k]}" oninput="bfSet('${k}',this.value)"
+      class="flex-1 min-w-0 bg-transparent text-right text-[13px] font-bold outline-none" placeholder="${ph}"></div>`;
+}
+function bfTap(k, label, ph, fn) {
+  return `<div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="${fn}">
+    <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">${label}</span>
+    <span class="flex-1 text-right text-[13px] font-bold ${BF.d[k] ? '' : 'text-slate-300 font-normal'}">${BF.d[k] || ph}</span></div>`;
+}
+function bfChips(k, list, label) {
+  return `<div class="py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <div class="text-[12.5px] text-slate-500 dark:text-slate-400 mb-2">${label}</div>
+    <div class="flex flex-wrap gap-1.5">${list.map(s => `<button class="chip !text-[10.5px] ${BF.d[k] === s ? 'chip-on' : ''}" onclick="bfSet('${k}','${s}')">${s}</button>`).join('')}</div></div>`;
+}
+function bfTagChips() {
+  return `<div class="py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <div class="text-[12.5px] text-slate-500 dark:text-slate-400 mb-2">标签</div>
+    <div class="flex flex-wrap gap-1.5">${BS_TAGS.map(t => `<button class="chip !text-[10.5px] ${BF.d.tags.includes(t) ? 'chip-on' : ''}" onclick="bfToggleTag('${t}')">#${t}</button>`).join('')}</div></div>`;
+}
+function bfToggleTag(t) {
+  const i = BF.d.tags.indexOf(t); if (i >= 0) BF.d.tags.splice(i, 1); else BF.d.tags.push(t); renderBf();
+}
+function bfRender() {
+  const root = document.getElementById('bfRoot'); if (!root) return;
+  const d = BF.d, isNew = BF.mode === 'new';
+  const _pt = document.getElementById('pageTitle');
+  if (_pt) _pt.textContent = isNew ? '手动录入' : '编辑书籍信息';
+  root.innerHTML = `
+  <div class="mt-1 flex items-center justify-end gap-4">
+    <button class="text-[13.5px] font-extrabold" onclick="bfSave()">${isNew ? '添加' : '保存'}</button>
+    <span class="text-slate-400"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></span>
+  </div>
+  <div class="mt-2 flex flex-col items-center">
+    <div class="${bsCovCls({ c: 0, img: '' })} w-[92px] h-[130px] rounded-lg bk-cov"></div>
+    <div class="text-[11px] text-slate-400 mt-1.5">设置封面</div>
+    <div class="mt-2 flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="toast('选择本地封面（模拟）')">上传</button>
+      <button class="mini-btn !text-[10px]" onclick="toast('拍照（模拟）')">拍照</button>
+      <button class="mini-btn !text-[10px]" onclick="bfIsbn()">ISBN 取图</button></div>
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">基础信息</div>
+  <div class="mt-1 card !py-1 !px-3">
+    ${bfIn('n', '书名（必填）', '输入书籍名称')}${bfIn('a', '作者', '输入作者名字')}${bfIn('tr', '译者', '请输入译者名字')}
+    ${bfIn('pub', '出版社', '请输入出版社名称')}${bfTap('pubDate', '出版日期', '点击录入出版日期', "toast('就地滚轮选年月（复用现有滚轮选择器）')")}
+    <div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800">
+      <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">ISBN</span>
+      <span class="flex items-center gap-2 flex-1 min-w-0 justify-end">
+        <button class="text-slate-400" onclick="bfScan()"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M8 12h8"/></svg></button>
+        <input value="${d.isbn}" oninput="bfSet('isbn',this.value)" class="flex-1 min-w-0 bg-transparent text-right text-[13px] font-bold outline-none" placeholder="ISBN"></div>
+    </div>
+    <div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800">
+      <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">书籍评分</span>
+      <span class="flex items-center gap-1">${[1, 2, 3, 4, 5].map(i => `<button onclick="bfSet('rate',${i})"><svg class="w-[15px] h-[15px] ${i <= d.rate ? 'text-sun' : 'text-slate-300 dark:text-slate-600'}" viewBox="0 0 24 24" fill="currentColor"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg></button>`).join('')}
+        <span class="text-[11px] text-slate-400 ml-1">${d.rate || '未评分'}</span></span></div>
+    ${bfIn('wc', '字数', '请输入书籍字数', 'number')}
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">简介信息</div>
+  <div class="mt-1 card !py-1 !px-3">
+    <details ${d.an ? 'open' : ''}><summary class="py-3 text-[12.5px] text-slate-500 cursor-pointer">作者简介</summary>
+      <textarea oninput="bfSet('an',this.value)" class="w-full min-h-[52px] text-[12px] leading-6 bg-transparent outline-none resize-none" placeholder="请输入作者简介">${d.an}</textarea></details>
+    <details ${d.intro ? 'open' : ''} class="border-t border-slate-100 dark:border-slate-800"><summary class="py-3 text-[12.5px] text-slate-500 cursor-pointer">书籍简介</summary>
+      <textarea oninput="bfSet('intro',this.value)" class="w-full min-h-[52px] text-[12px] leading-6 bg-transparent outline-none resize-none" placeholder="请输入书籍简介">${d.intro}</textarea></details>
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">书籍管理</div>
+  <div class="mt-1 card !py-1 !px-3">
+    ${bfTap('grp', '分组', '未指定', "toast('从分组库选（复用现有资料库）')")}${bfTagChips()}
+    ${bfChips('st', BS_STS, '阅读状态')}
+    ${bfTap('start', '标记在读的时间', '设为在读时自动记录', "toast('就地滚轮选日期时间')")}
+    ${bfChips('fmt', ['纸质', '电子书', '有声'], '书籍类型')}
+    ${bfIn('rp', '已读页码', '请输入已读页码', 'number')}${bfIn('pg', '总页码', '请输入总页码', 'number')}
+  </div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">来源信息</div>
+  <div class="mt-1 card !py-1 !px-3">${bfTap('src', '来源', '未知', "toast('从来源库选（复用现有资料库）')")}</div>
+  <div class="mt-3 text-[12px] font-extrabold text-slate-500">购买信息</div>
+  <div class="mt-1 card !py-1 !px-3 mb-3">
+    ${bfTap('feeDate', '购入日期', '点击录入购入日期', "toast('就地滚轮选日期')")}${bfIn('fee', '购入价格', '请输入书籍的价格', 'number')}
+  </div>`;
+}
+function renderBf() { bfRender(); }
+function bfScan() { BF.d.isbn = '9787508662560'; bfSet('isbn', BF.d.isbn); toast('已扫描书脊 ISBN（模拟）'); }
+function bfIsbn() { if (!BF.d.isbn) { toast('先填 ISBN（至少 8 位）'); return; } toast('按 ISBN 从书目库取到官方封面（模拟）'); }
+function bfSave() {
+  const d = BF.d;
+  if (!String(d.n || '').trim()) { toast('书名必填'); return; }
+  const patch = { n: d.n, a: d.a || '佚名', tr: d.tr, pub: d.pub || '—', pubDate: d.pubDate, yr: (d.pubDate || '').slice(0, 4),
+    isbn: d.isbn || '—', rate: +d.rate || 0, wc: +d.wc || 0, an: d.an, intro: d.intro, grp: d.grp, tags: d.tags,
+    st: d.st, fmt: d.fmt, src: d.src || '未知', fee: +d.fee || 0, feeDate: d.feeDate,
+    pg: +d.pg || (d.pg === '' ? 300 : +d.pg), rp: Math.min(+d.pg || 300, +d.rp || 0) };
+  if (BF.mode === 'edit' && BF.id) {
+    Object.assign(bsBook(BF.id), patch);
+    if (patch.p) bsBook(BF.id).p = patch.p;
+    bsRegister(bsBook(BF.id));
+    renderBookInfo(); renderShelf(); toast('书籍信息已保存');
+  } else {
+    patch.p = patch.pg ? Math.round(patch.rp / patch.pg * 100) : 0;
+    patch.start = patch.st === '在读' ? shFmtDate() : '';
+    BS_BOOKS.unshift(Object.assign({ id: 'b' + (Date.now() % 100000), q: 0, c: 0, img: '', series: '',
+      pw: 'page', tot: 0, pos: 0, end: '', min: 0, times: 0, note: '', fin: '', rate: 0 }, patch));
+    bsRegister(BS_BOOKS[0]); renderShelf(); renderRecHub();
+    toast('《' + patch.n + '》已加入书架 · 在「' + patch.st + '」分区');
+  }
+  navTo('p-bookshelf');
+}
+
 /* ---------- 注册：标题 / FAB / 渲染钩子 ---------- */
+Object.assign(TITLES,{'p-biblioSearch':['添加图书','豆瓣书目 · 搜索 / 扫码 / 手动录入'],'p-biblioDetail':['条目详情','未入库 · 右上添加到书架'],'p-bookForm':['编辑书籍信息','整页分组录入']});
 Object.assign(TITLES,{'p-bookshelf':['书架','2026 · 目标 '+BS_GOAL.books+' 本 / 每日 '+BS_GOAL.dayMin+'′'],'p-bkmgr':['书架资料','来源 / 分组 / 作者 / 出版社 / 标签'],'p-booklists':['书单','手动 · 年度 · 分享'],'p-booklist':['书单详情','分享长图与导出'],'p-readtimer':['阅读计时','开始即计时 · 结束即记进度'],'p-bookInfo':['书籍资料','档案 · 进度 · 总结 · 轨迹'],'p-readset':['阅读设置','显示 · 计时 · 导入 · 存储'],'p-readimport':['数据导入','授权 / 文件 / 剪贴板 / API'],'p-quotes':['摘录笔记库','跨书记录 · 划线与感想'],'p-readstat':['阅读统计','时长 · 热力图 · 目标']});
 Object.assign(FAB_CFG,{'p-bookshelf':{ico:'＋',act:()=>shNewOpen()},'p-booklists':{ico:'＋',act:()=>blCreate(false)},'p-readimport':{ico:'＋',act:()=>impRun()},'p-quotes':{ico:'＋',act:()=>qeOpen(null,CURBK)},'p-bookDetail':{ico:'＋',act:()=>qeOpen(null,CURBK)}});
 const BS_OLD_RR=renderRecords;
