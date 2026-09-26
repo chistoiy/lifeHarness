@@ -422,34 +422,32 @@ class _LogPageState extends ConsumerState<LogPage> {
                     valueListenable: AppLog.version,
                     builder: (context, _, _) {
                       final lines = _visibleLines();
+                      // 原型 .logline .lm{word-break:break-all}：长消息换行看全文，
+                      // 不做单行截断（真机反馈 2026-09-27：截断看不到尾部）。
                       return ListView.builder(
                         key: const ValueKey('log-list'),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
-                        itemExtent: 18,
                         itemCount: lines.length,
                         itemBuilder: (context, i) {
                           final l = lines[i];
-                          return SizedBox(
-                            height: 18,
-                            child: Text(
-                              l.formatted,
-                              key: ValueKey(
-                                  'log-line-$i-${l.time.microsecondsSinceEpoch}'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontFamily: 'monospace',
-                                fontWeight: l.level == LhLevel.info
-                                    ? FontWeight.w500
-                                    : FontWeight.w700,
-                                color: switch (l.level) {
-                                  LhLevel.info => scheme.onSurfaceVariant,
-                                  LhLevel.warn => const Color(0xFFF59E0B),
-                                  LhLevel.error => const Color(0xFFEF4444),
-                                },
-                              ),
+                          return Text(
+                            l.formatted,
+                            key: ValueKey(
+                                'log-line-$i-${l.time.microsecondsSinceEpoch}'),
+                            softWrap: true,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              height: 1.6,
+                              fontFamily: 'monospace',
+                              fontWeight: l.level == LhLevel.info
+                                  ? FontWeight.w500
+                                  : FontWeight.w700,
+                              color: switch (l.level) {
+                                LhLevel.info => scheme.onSurfaceVariant,
+                                LhLevel.warn => const Color(0xFFF59E0B),
+                                LhLevel.error => const Color(0xFFEF4444),
+                              },
                             ),
                           );
                         },
