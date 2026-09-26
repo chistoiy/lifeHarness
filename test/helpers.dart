@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lifeharness/core/ai/ai_review.dart' show aiRootNavKey;
 
 /// 测试共享防坑工具（计划书 §7.2）。新用例一律 import 本文件，不再各自造轮子。
 ///
@@ -45,4 +46,13 @@ Future<void> useSurface(WidgetTester tester,
     [Size size = const Size(800, 2400)]) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+}
+
+/// 注入 app 根 Navigator key：AI 通道（审阅/进度/结果弹层）走
+/// `aiRootNavKey.value?.currentState`，测试用本地 GoRouter 时必须把自己的
+/// 根栈 key 交出去，否则弹层退回落回调用页所属栈（分支页测不到根栈语义）。
+/// addTearDown 自动置 null，不跨用例串味。
+void useAiRootNav(WidgetTester tester, GlobalKey<NavigatorState> key) {
+  aiRootNavKey.value = key;
+  addTearDown(() => aiRootNavKey.value = null);
 }

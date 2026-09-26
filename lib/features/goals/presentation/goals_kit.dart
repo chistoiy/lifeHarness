@@ -314,10 +314,15 @@ class _RingPainter extends CustomPainter {
 }
 
 /// LH-S 公共骨架：grabber 圆条 + 标题 15 w900 + 内容（统一弹层容器）。
+///
+/// [scrollContent]：内容自带滚动视图（ListView/滚轮等）**不要**开——外层再包
+/// 一层滚动会给出无界高度直接报错；长枚举列表（如「数据源」七八档）必须开，
+/// 否则 88% 上限内的尾部条目被挤出可视区且无法触及（真机反馈缺陷类：弹层必滚）。
 Future<T?> showGoalsSheet<T>(
   BuildContext context, {
   required String title,
   required Widget Function(BuildContext) builder,
+  bool scrollContent = false,
 }) {
   final tokens = context.tokens;
   return showModalBottomSheet<T>(
@@ -352,7 +357,11 @@ Future<T?> showGoalsSheet<T>(
                   style: const TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
-              Flexible(child: Builder(builder: builder)),
+              Flexible(
+                child: scrollContent
+                    ? SingleChildScrollView(child: Builder(builder: builder))
+                    : Builder(builder: builder),
+              ),
             ],
           ),
         ),
@@ -371,7 +380,11 @@ Future<String?> showGoalsChoiceSheet(
 }) {
   final tokens = context.tokens;
   final scheme = Theme.of(context).colorScheme;
-  return showGoalsSheet<String>(context, title: title, builder: (bc) => Column(
+  return showGoalsSheet<String>(context,
+      title: title,
+      // 枚举档数不定（数据源/周期/单位各 4~8 项），一律可滚兜底。
+      scrollContent: true,
+      builder: (bc) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final o in options)

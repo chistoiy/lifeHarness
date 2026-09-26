@@ -577,7 +577,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
   void _goRemindCenter() {
     final router = GoRouter.maybeOf(context);
     if (router != null) {
-      router.go('/days/remind');
+      // push 压栈保留本页（go 会清空栈 → 返回键直接退出 app · 真机缺陷）。
+      router.push('/days/remind');
     } else {
       // 模块外路由未接线（测试/独立壳）：登记差异，不阻塞。
       AppToast.show(context, '保修提醒已汇入提醒中心 · 跳转待路由接线');

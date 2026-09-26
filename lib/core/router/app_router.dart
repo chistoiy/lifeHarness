@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../ai/ai_review.dart' show aiRootNavKey;
 import '../nav/nav_module.dart';
 import '../providers.dart';
 import '../theme/app_theme.dart';
@@ -89,6 +90,9 @@ final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// go_router 配置：单一 ShellRoute 承载可配置底部导航。
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // AI 通道弹层（审阅/进度/结果）一律挂这个根栈：分支页的对话框要盖住底栏，
+  // 且「开关同源」才有唯一答案（见 ai_review.aiRootNavKey 的两道护栏）。
+  aiRootNavKey.value = _rootKey;
   return GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/',
@@ -468,14 +472,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
 /// V1.27 G1 返回语义（纯函数便于守护）：
 /// 主页编排态 → endEdit（V1.28⑥：返回=退出编排并保存，不退 app）；
-/// 非主页 → goToday（逐级返回最终落主页）；主页 2s 内二次返回 → exit；首次 → remind。
+/// 底栏外模块主页 → goToday（逐级返回最终落主页，真机反馈修正）；
+/// 底栏内栏目页（含今天）与主页 → 2s 内二次返回 exit，首次 remind。
+/// V1.42 真机反馈①：模块被设进底栏后，其主页返回应「提醒→退出」而非跳今天。
 String shellBackAction(
   String currentPath, {
+  bool inNav = false,
   bool dashEditing = false,
   DateTime? lastBackAt,
   DateTime? at,
 }) {
-  if (currentPath != NavModule.today.path) return 'goToday';
+  if (currentPath != NavModule.today.path && !inNav) return 'goToday';
   if (dashEditing) return 'endEdit';
   final n = at ?? DateTime.now();
   if (lastBackAt != null &&
@@ -519,6 +526,7 @@ class HomeShell extends ConsumerWidget {
         // V1.27 G1：返回=最终回主页；今天页二次返回退出（SnackBar 全局同款风格）
         switch (shellBackAction(
           currentPath,
+          inNav: navModules.any((m) => m.path == currentPath),
           dashEditing: dashEditing,
           lastBackAt: _lastBackAt,
         )) {

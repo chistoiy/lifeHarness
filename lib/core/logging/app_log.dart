@@ -118,6 +118,13 @@ class AppLog {
     return lines.sublist(start).map((l) => l.formatted).join('\n');
   }
 
+  /// 手动清空内存缓冲（日志页「清理」动作；不动落盘挂点与定时器，
+  /// version 立即自增让局部件同步收敛显示）。
+  static void clearMemory() {
+    lines.clear();
+    version.value++;
+  }
+
   /// 重置全部状态（测试 setUp 用；生产侧进程重启即天然清空）。
   static void reset() {
     _flushTimer?.cancel();

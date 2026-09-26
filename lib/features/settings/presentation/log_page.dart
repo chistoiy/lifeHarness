@@ -35,7 +35,17 @@ class _LogPageState extends ConsumerState<LogPage> {
       FileLogSink.readRetentionDays(ref.read(sharedPreferencesProvider));
 
   /// 落盘文件名清单（新→旧）。未 init 时 dayFiles 返回空列表。
-  late final Future<List<String>> _dayFiles = FileLogSink.dayFiles();
+  late Future<List<String>> _dayFiles = FileLogSink.dayFiles();
+
+  /// 归档包清单（新→旧；归档/删除动作后整体重取）。
+  late Future<List<LhArchiveEntry>> _archives = FileLogSink.archives();
+
+  void _refreshFiles() {
+    setState(() {
+      _dayFiles = FileLogSink.dayFiles();
+      _archives = FileLogSink.archives();
+    });
+  }
 
   /// 滚轮定位档：读侧已按白名单钳制（readRetentionDays），indexOf 必命中；
   /// 仍保留异常值就近落默认 14 档（index 1）的守卫。
@@ -76,6 +86,125 @@ class _LogPageState extends ConsumerState<LogPage> {
     if (!mounted) return;
     AppToast.show(context, '已复制 ${AppLog.lines.length} 条全量日志 · 凭据已脱敏');
   }
+
+  // ==================== 日志管理（归档 / 清理 · V1.42 增强包） ====================
+
+  Future<bool?> _confirm(String title, String message,
+      {String okLabel = '归档', bool danger = false}) =>
+      showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(title, style: const TextStyle(fontSize: 15)),
+          content: Text(message, style: const TextStyle(fontSize: 13)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                key: const ValueKey('log-confirm-ok'),
+                style: FilledButton.styleFrom(
+                    backgroundColor:
+                        danger ? const Color(0xFFEF4444) : null),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(okLabel)),
+          ],
+        ),
+      );
+
+  Future<void> _archive() async {
+    final ok = await _confirm('确认归档',
+        '将当前落盘日志全部打包为归档并删除原文件（归档包最多保留 ${FileLogSink.maxArchives} 份）');
+    if (ok != true || !mounted) return;
+    try {
+      final r = await FileLogSink.archive();
+      if (!mounted) return;
+      AppToast.show(
+          context,
+          r == null
+              ? '暂无落盘日志可归档'
+              : '已归档 ${r.name} · ${r.files} 个文件 · ${_fmtBytes(r.bytes)}',
+          ms: 2200);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, '归档失败：$e', ms: 2600);
+    }
+    if (mounted) _refreshFiles();
+  }
+
+  Future<void> _purge() async {
+    final ok = await _confirm('确认清理', '删除全部落盘日志并清空内存缓冲（归档包保留）',
+        okLabel: '清理', danger: true);
+    if (ok != true || !mounted) return;
+    try {
+      final n = await FileLogSink.purgeDisk();
+      AppLog.clearMemory();
+      if (!mounted) return;
+      AppToast.show(context, '已清理 $n 个落盘文件 · 缓冲已清空');
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, '清理失败：$e', ms: 2600);
+    }
+    if (mounted) _refreshFiles();
+  }
+
+  Future<void> _viewArchive(LhArchiveEntry a) async {
+    final String text;
+    try {
+      text = await FileLogSink.archiveText(a.name);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(context, '归档打开失败：$e', ms: 2600);
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(a.name,
+            style: const TextStyle(fontSize: 13, fontFamily: 'monospace')),
+        content: SizedBox(
+          width: 460,
+          height: 320,
+          child: SingleChildScrollView(
+            child: SelectableText(
+                text.isEmpty ? '（归档为空）' : text,
+                style: const TextStyle(
+                    fontSize: 10.5, fontFamily: 'monospace', height: 1.5)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: ValueKey('log-arch-copy-${a.name}'),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) AppToast.show(context, '已复制归档内容');
+            },
+            child: const Text('复制'),
+          ),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _delArchive(LhArchiveEntry a) async {
+    final ok = await _confirm('删除归档',
+        '删除归档包 ${a.name} · ${_fmtBytes(a.bytes)}？',
+        okLabel: '删除', danger: true);
+    if (ok != true || !mounted) return;
+    await FileLogSink.deleteArchive(a.name);
+    if (!mounted) return;
+    AppToast.show(context, '归档已删除');
+    _refreshFiles();
+  }
+
+  static String _fmtBytes(int b) => b >= 1024 * 1024
+      ? '${(b / (1024 * 1024)).toStringAsFixed(1)} MB'
+      : b >= 1024
+          ? '${(b / 1024).toStringAsFixed(1)} KB'
+          : '$b B';
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +277,26 @@ class _LogPageState extends ConsumerState<LogPage> {
                             label: '错误',
                             selected: _flt == _LogFlt.error,
                             onTap: () => setState(() => _flt = _LogFlt.error)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // 日志管理动作：归档=搬家保历史 · 清理=删落盘+清缓冲（均二次确认）。
+                    Row(
+                      children: [
+                        _ToolBtn(
+                          key: const ValueKey('log-archive-btn'),
+                          icon: Icons.folder_zip_outlined,
+                          label: '归档落盘日志',
+                          onTap: _archive,
+                        ),
+                        const SizedBox(width: 8),
+                        _ToolBtn(
+                          key: const ValueKey('log-clear-btn'),
+                          icon: Icons.delete_sweep_outlined,
+                          label: '清理日志',
+                          danger: true,
+                          onTap: _purge,
+                        ),
                       ],
                     ),
                   ],
@@ -239,6 +388,61 @@ class _LogPageState extends ConsumerState<LogPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              // 归档包清单（有档才显；行内查看/复制/删除）。
+              FutureBuilder<List<LhArchiveEntry>>(
+                future: _archives,
+                builder: (context, snap) {
+                  final list = snap.data ?? const <LhArchiveEntry>[];
+                  if (list.isEmpty) return const SizedBox.shrink();
+                  return Container(
+                    decoration: context.cardDecoration,
+                    padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('归档包',
+                            style: TextStyle(
+                                fontSize: 12.5, fontWeight: FontWeight.w800)),
+                        for (final a in list)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                      '${a.name} · ${_fmtBytes(a.bytes)} · '
+                                      '${a.created.month}-${a.created.day} '
+                                      '${a.created.hour.toString().padLeft(2, '0')}:'
+                                      '${a.created.minute.toString().padLeft(2, '0')}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontFamily: 'monospace')),
+                                ),
+                                IconButton(
+                                    key: ValueKey('log-arch-view-${a.name}'),
+                                    tooltip: '查看归档',
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.visibility_outlined,
+                                        size: 17),
+                                    onPressed: () => _viewArchive(a)),
+                                IconButton(
+                                    key: ValueKey('log-arch-del-${a.name}'),
+                                    tooltip: '删除归档',
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 17, color: Color(0xFFEF4444)),
+                                    onPressed: () => _delArchive(a)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
               // 底部文件日志行：最近 3 个落盘文件名（新→旧）。
               SizedBox(
                 width: double.infinity,
@@ -261,6 +465,49 @@ class _LogPageState extends ConsumerState<LogPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 日志管理动作钮（线性图标 + 短标签；danger=玫红语义，禁 emoji 纪律同款）。
+class _ToolBtn extends StatelessWidget {
+  const _ToolBtn({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final fg = danger ? const Color(0xFFEF4444) : tokens.accent;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: fg.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: fg.withValues(alpha: .35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: fg),
+            const SizedBox(width: 5),
+            Text(label,
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: fg)),
+          ],
         ),
       ),
     );

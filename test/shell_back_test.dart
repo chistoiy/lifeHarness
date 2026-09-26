@@ -22,4 +22,18 @@ void main() {
         'endEdit');
     expect(shellBackAction('/todo', dashEditing: true), 'goToday');
   });
+
+  // V1.42 真机反馈①：模块被设进底栏后，其主页与今天页同语义（提醒→退出）。
+  test('inNav=true：底栏栏目页首次 remind、2s 内二次 exit；底栏外仍 goToday', () {
+    final t0 = DateTime(2026, 9, 26, 1, 0, 0);
+    expect(shellBackAction('/items', inNav: true, lastBackAt: null, at: t0),
+        'remind');
+    expect(
+        shellBackAction('/days',
+            inNav: true, lastBackAt: t0, at: t0.add(const Duration(seconds: 1))),
+        'exit');
+    expect(shellBackAction('/goals', inNav: true, dashEditing: true), 'endEdit');
+    expect(shellBackAction('/care', inNav: false, lastBackAt: t0, at: t0),
+        'goToday');
+  });
 }

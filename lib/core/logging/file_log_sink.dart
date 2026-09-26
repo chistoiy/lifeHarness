@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -53,6 +54,30 @@ String sanitize(String text) {
   return out;
 }
 
+/// 归档包元信息（日志管理增强 · 归档清单展示用）。
+class LhArchiveEntry {
+  const LhArchiveEntry({
+    required this.name,
+    required this.bytes,
+    required this.created,
+  });
+
+  /// 文件名 `lh-arch-YYYYMMDD-HHmmss.zip`（时间戳可从名复原，不依赖 mtime）。
+  final String name;
+  final int bytes;
+  final DateTime created;
+}
+
+/// 归档结果（toast 复述口径：包名 + 成员数 + 包体大小）。
+class LhArchiveResult {
+  const LhArchiveResult(
+      {required this.name, required this.files, required this.bytes});
+
+  final String name;
+  final int files;
+  final int bytes;
+}
+
 /// 按天滚动文件日志（设计稿 §2「落盘」段）。
 ///
 /// 口径：
@@ -86,9 +111,6 @@ class FileLogSink {
 
   /// 文件名 → 已写字节数缓存：避免每行都 stat（单进程独占目录，可信）。
   static final Map<String, int> _sizeCache = {};
-
-  /// 刷盘串行尾：所有 flush 串成一条链，杜绝并发 append 交错。
-  static Future<void> _tail = Future<void>.value();
 
   /// 最近一次落盘失败原因（仅供诊断展示；落盘失败绝不影响主流程）。
   static String? lastError;
@@ -142,8 +164,8 @@ class FileLogSink {
     _pending.clear();
     _sizeCache.clear();
     lastError = null;
-    await Directory(dirPath).create(recursive: true);
-    await _purgeExpired();
+    Directory(dirPath).createSync(recursive: true);
+    _purgeExpired();
     AppLog.onLine = write;
     _timer ??= Timer.periodic(_flushInterval, (_) {
       // 定时器里不 await：flush 自身串行且吞异常。
@@ -162,15 +184,18 @@ class FileLogSink {
     if (safe.level != LhLevel.info ||
         safe.key ||
         _pending.length >= _flushThresholdLines) {
-      flush(); // 串行链自带吞异常，此处无需 await
+      flush(); // 刷盘同步且自带吞异常，此处无需 await
     }
   }
 
   /// 立即把待刷队列落盘（测试与「附带日志导出」前的显式调用点）。
+  ///
+  /// **同步刷盘**：单线程内 drain 天然串行（无需再串 `_tail` 链），
+  /// 且不依赖真实事件循环——widget 测试的 FakeAsync 时钟下 dart:io 的异步
+  /// future 永不返回（日志页归档/清理用例曾挂死），同步链路两种时钟都能跑完。
   static Future<void> flush() {
-    final next = _tail.then((_) => _drain());
-    _tail = next.catchError((_) {}); // 链上不留未处理异常
-    return next;
+    _drain();
+    return Future<void>.value();
   }
 
   /// 当前落盘目录（未 init 为 null）。Task 10 导出「附带日志」按
@@ -190,12 +215,169 @@ class FileLogSink {
     return names;
   }
 
+  /// 归档子目录（logs/archive/ · 主清理/过期判定只扫顶层 `lh-*.log*`，互不误伤）。
+  static String _archiveDir() => p.join(_dirPath!, 'archive');
+
+  static final RegExp _archPattern = RegExp(
+      r'^lh-arch-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:_\d+)?\.zip$');
+
+  /// 归档包保留个数上限（超出裁最旧——归档是历史包袱，不能无限涨）。
+  static const int maxArchives = 10;
+
+  /// 手动归档：把当前全部落盘日志打包成 `archive/lh-arch-<ts>.zip`。
+  /// 打包成功**才**删原文件（removeSource=true 默认，归档即搬家不是复制）；
+  /// 空目录返回 null（页面据此 toast「暂无可归档日志」）。
+  static Future<LhArchiveResult?> archive({bool removeSource = true}) async {
+    final dir = _dirPath;
+    if (dir == null) return null;
+    await flush();
+    final names = await dayFiles(); // 新→旧
+    if (names.isEmpty) return null;
+    final ad = Directory(_archiveDir());
+    ad.createSync(recursive: true);
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final stem = 'lh-arch-${now.year}${two(now.month)}${two(now.day)}'
+        '-${two(now.hour)}${two(now.minute)}${two(now.second)}';
+    // 同秒二次归档防撞：已存在则补 `_k` 序号（名内时间戳仍以前 6 组为准）。
+    var archName = '$stem.zip';
+    for (var k = 2; File(p.join(ad.path, archName)).existsSync(); k++) {
+      archName = '${stem}_$k.zip';
+    }
+    final outPath = p.join(ad.path, archName);
+    var bytes = 0;
+    try {
+      // 全同步入包（同 _drain 口径：FakeAsync 时钟下真实异步 future 不返回）。
+      // InputFileStream 边读边写、逐文件释放，内存占用不随日志总量增长。
+      final encoder = ZipFileEncoder()..create(outPath);
+      for (final name in names.reversed) {
+        // 按旧→新入包（解包阅读顺序自然）。
+        final f = File(_join(name));
+        if (!f.existsSync()) continue;
+        final src = InputFileStream(f.path);
+        try {
+          final entry = ArchiveFile.stream(name, f.lengthSync(), src)
+            ..lastModTime = f.lastModifiedSync().millisecondsSinceEpoch ~/ 1000
+            ..mode = f.statSync().mode;
+          encoder.addArchiveFile(entry);
+        } finally {
+          src.closeSync();
+        }
+      }
+      encoder.closeSync();
+      bytes = File(outPath).lengthSync();
+    } catch (e) {
+      // 打包失败不动原文件；留诊断信息，由页面 toast 归因。
+      lastError = '归档失败: $e';
+      try {
+        File(outPath).deleteSync();
+      } catch (_) {}
+      rethrow;
+    }
+    if (removeSource) {
+      for (final name in names) {
+        try {
+          File(_join(name)).deleteSync();
+          _sizeCache.remove(name);
+        } catch (e) {
+          lastError = '归档后删除原文件失败 $name: $e';
+        }
+      }
+    }
+    await _pruneArchives();
+    return LhArchiveResult(name: archName, files: names.length, bytes: bytes);
+  }
+
+  /// 归档包清单（新→旧）。名内时间戳复原 created，不依赖文件系统 mtime。
+  static Future<List<LhArchiveEntry>> archives() async {
+    final dir = _dirPath;
+    if (dir == null) return const [];
+    final ad = Directory(_archiveDir());
+    if (!ad.existsSync()) return const [];
+    final out = <LhArchiveEntry>[];
+    for (final f in ad.listSync().whereType<File>()) {
+      final name = p.basename(f.path);
+      final m = _archPattern.firstMatch(name);
+      if (m == null) continue;
+      out.add(LhArchiveEntry(
+          name: name,
+          bytes: f.lengthSync(),
+          created: DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!),
+              int.parse(m.group(3)!), int.parse(m.group(4)!),
+              int.parse(m.group(5)!), int.parse(m.group(6)!))));
+    }
+    out.sort((a, b) => b.created != a.created
+        ? b.created.compareTo(a.created)
+        : b.name.compareTo(a.name));
+    return out;
+  }
+
+  /// 读归档包全文（各成员按旧→新拼接；页面「查看/复制归档」用）。
+  static Future<String> archiveText(String name) async {
+    final m = _archPattern.firstMatch(name);
+    if (m == null || _dirPath == null) return '';
+    final file = File(p.join(_archiveDir(), name));
+    if (!file.existsSync()) return '';
+    final input = InputFileStream(file.path);
+    try {
+      final zip = ZipDecoder().decodeBuffer(input, verify: true);
+      // 成员=原日志文件（isFile=true；目录条目带 '/' 后缀才排除）。
+      final members = zip.files.where((e) => e.isFile).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      final buf = StringBuffer();
+      for (final e in members) {
+        buf.write(utf8.decode(e.content as List<int>,
+            allowMalformed: true));
+      }
+      return buf.toString();
+    } finally {
+      input.closeSync();
+    }
+  }
+
+  /// 删除归档包（页面二次确认后调用；非法名拒绝，防路径注入）。
+  static Future<void> deleteArchive(String name) async {
+    if (_archPattern.firstMatch(name) == null || _dirPath == null) return;
+    try {
+      File(p.join(_archiveDir(), name)).deleteSync();
+    } catch (e) {
+      lastError = '删除归档失败 $name: $e';
+    }
+  }
+
+  /// 手动清理落盘日志：flush 后删除全部 `lh-*.log*` 分卷，返回删除文件数。
+  /// 归档包不在此列（清理毁历史、归档保历史，两口径分离）。
+  static Future<int> purgeDisk() async {
+    final dir = _dirPath;
+    if (dir == null) return 0;
+    await flush();
+    final names = await dayFiles();
+    for (final name in names) {
+      try {
+        File(_join(name)).deleteSync();
+        _sizeCache.remove(name);
+      } catch (e) {
+        lastError = '清理日志失败 $name: $e';
+      }
+    }
+    return names.length;
+  }
+
+  static Future<void> _pruneArchives() async {
+    final list = await archives();
+    for (final extra in list.skip(maxArchives)) {
+      try {
+        File(p.join(_archiveDir(), extra.name)).deleteSync();
+      } catch (_) {}
+    }
+  }
+
   /// 收起定时器并摘钩（测试结束/退出时调用，防 pending timer 与落盘泄漏）。
   static Future<void> dispose() async {
     _timer?.cancel();
     _timer = null;
     if (AppLog.onLine == write) AppLog.onLine = null;
-    await _tail;
+    _drain(); // 退出前把最后一段待刷行同步落盘（原 _tail 链的收尾语义）
     _pending.clear();
     _sizeCache.clear();
     _dirPath = null;
@@ -232,7 +414,7 @@ class FileLogSink {
 
   static String _join(String name) => p.join(_dirPath!, p.basename(name));
 
-  static Future<void> _purgeExpired() async {
+  static void _purgeExpired() {
     final dir = _dirPath;
     if (dir == null) return;
     final now = DateTime.now();
@@ -277,7 +459,7 @@ class FileLogSink {
         return f.existsSync() ? f.lengthSync() : 0;
       });
 
-  static Future<void> _drain() async {
+  static void _drain() {
     final dir = _dirPath;
     if (dir == null || _pending.isEmpty) return;
     final batch = List<LhLogLine>.of(_pending);
@@ -287,9 +469,9 @@ class FileLogSink {
       var bufferBytes = 0;
       var name = '';
       var size = 0;
-      Future<void> closeCurrent() async {
+      void closeCurrent() {
         if (buffer.isEmpty) return;
-        await _append(dir, name, buffer.toString());
+        _append(dir, name, buffer.toString());
         buffer.clear();
         bufferBytes = 0;
       }
@@ -301,14 +483,14 @@ class FileLogSink {
         if (name.isEmpty ||
             _dayKeyOf(name) != _dayKeyOf(_baseName(line.time)) ||
             size + bufferBytes + bytes > _maxBytes) {
-          await closeCurrent();
+          closeCurrent();
           name = _targetFor(line.time, bytes);
           size = _sizeOf(name);
         }
         buffer.write(text);
         bufferBytes += bytes;
       }
-      await closeCurrent();
+      closeCurrent();
       lastError = null;
     } catch (e) {
       // 落盘失败：丢掉本批并留诊断信息，绝不向上抛（日志不能引发二次错误）。
@@ -316,10 +498,10 @@ class FileLogSink {
     }
   }
 
-  static Future<void> _append(String dir, String name, String text) async {
+  static void _append(String dir, String name, String text) {
     if (text.isEmpty) return;
-    final f = File(p.join(dir, name));
-    await f.writeAsString(text, mode: FileMode.append, flush: true);
+    File(p.join(dir, name))
+        .writeAsStringSync(text, mode: FileMode.append, flush: true);
     _sizeCache[name] = _sizeOf(name) + utf8.encode(text).length;
   }
 }

@@ -8,6 +8,17 @@ import 'ai_service.dart';
 import 'ai_providers.dart';
 import '../../shared/widgets/ui_kit.dart' show AppToast;
 
+/// AI 生成中弹层的宿主 Navigator 定位键（可选注入，见 [aiRunWithReview]）。
+///
+/// 为什么需要它：弹层 push 与 pop **必须同源**。showDialog 默认
+/// `useRootNavigator: true` 把弹层挂到根栈，而页面在 GoRouter ShellRoute 分支里
+/// 时 `Navigator.of(context)` 拿到的是分支栈——pop 打不到根弹层，黑色屏障
+/// 永挂 = 真机「黑屏卡死」。注入 app 根 Navigator 的 key 后，通道一律
+/// 在根栈上开合（不依赖私有 `_RootNavigator` 类型）；未注入时退化为
+/// 「弹层开在调用页所属 Navigator」（useRootNavigator:false），同样同源。
+final ValueNotifier<GlobalKey<NavigatorState>?> aiRootNavKey =
+    ValueNotifier<GlobalKey<NavigatorState>?>(null);
+
 /// AI 通用交互通道（需求清单 §6 原则 4/5）：
 /// 发送前审阅弹层（展示完整 system/user 内容）→ 请求 → 返回原始结果。
 /// 各能力点调用方拿 [AiCallResult] 后自行渲染「结果确认」再写库。
@@ -78,18 +89,49 @@ Future<AiCallResult?> aiRunWithReview(
   );
   if (confirmed != true || !context.mounted) return null;
 
+  // 进度弹层两道护栏（真机「黑屏卡死」= 黑色屏障永挂，两种成因都要防）：
+  // ①开关同源：弹层与 pop 都走 [aiRootNavKey] 指向的那个栈（未注入时用调用页
+  //   所属栈）。ShellRoute 分支页里 `Navigator.of(context)` 是分支栈，而
+  //   showDialog 默认 push 根栈——pop 打不到根弹层，屏障永挂。
+  // ②首帧竞态：`showDialog` 的 push 是同步入栈、builder 要等下一帧才跑；
+  //   端点极快或同步失败（局域网 Ollama、参数校验即抛）时请求在同一帧内就
+  //   return，弹层 context 还没拿到 → 旧 pop 静默失效，屏障照样永挂。
+  //   所以 pop 以「是否已开」为准，未建帧时直接从宿主栈弹顶路由。
+  final navContext = aiRootNavKey.value?.currentState?.context ?? context;
+  final nav = Navigator.of(navContext);
+  var progressOpen = false, progressBuilt = false;
+  BuildContext? progressCtx;
   showDialog(
-    context: context,
+    context: navContext,
+    useRootNavigator: false,
     barrierDismissible: false,
-    builder: (_) => const PopScope(
-      canPop: false,
-      child: AlertDialog(content: Row(children: [
-        CircularProgressIndicator(),
-        SizedBox(width: 14),
-        Text('AI 生成中…', style: TextStyle(fontSize: 13)),
-      ])),
-    ),
+    builder: (ctx) {
+      progressBuilt = true;
+      progressCtx = ctx;
+      return const PopScope(
+        canPop: false,
+        child: AlertDialog(content: Row(children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 14),
+          Text('AI 生成中…', style: TextStyle(fontSize: 13)),
+        ])),
+      );
+    },
   );
+  progressOpen = true;
+
+  void closeProgressDialog() {
+    if (!progressOpen) return;
+    progressOpen = false;
+    final c = progressCtx;
+    if (c != null && c.mounted) {
+      Navigator.of(c).pop(); // 已建帧：从弹层自身反查同一栈关闭
+    } else if (!progressBuilt && nav.mounted) {
+      nav.pop(); // 未建帧即完成：路由已在栈顶，直接弹出拆屏障
+    }
+    progressCtx = null;
+  }
+
   AiCallResult? result;
   String? error;
   try {
@@ -103,8 +145,9 @@ Future<AiCallResult?> aiRunWithReview(
   } catch (e) {
     error = '$e';
   }
+  // 无论页面是否仍在，先关进度弹层：屏障永挂才是「黑屏」，页面没了也要拆。
+  closeProgressDialog();
   if (!context.mounted) return null;
-  Navigator.of(context).pop(); // 关进度
   if (error != null) {
     AppToast.show(context, 'AI 调用失败：$error', ms: 2600);
     return null;
