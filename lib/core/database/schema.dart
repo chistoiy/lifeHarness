@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 23;
+  static const int version = 24;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -621,6 +621,13 @@ class DbSchema {
     22: [
       ...doubanMetaSchemaStatements,
     ],
+    // v24（V1.44 先搜后加）：books 增「字数/装帧」两列。需求清单原口径只列
+    // word_count，但表单「装帧」行必须落库（丛书复用 series、作者简介复用
+    // author_note、豆瓣评分存 douban_meta.rating 不加列），故同迁移带上。
+    23: [
+      'ALTER TABLE $tBooks ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tBooks ADD COLUMN binding TEXT',
+    ],
   };
 
   /// v23 豆瓣元数据缓存 DDL（建库与迁移共用·幂等）。
@@ -1012,6 +1019,8 @@ class DbSchema {
       sum_quote TEXT,
       sum_view TEXT,
       sum_gain TEXT,
+      word_count INTEGER NOT NULL DEFAULT 0,
+      binding TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER

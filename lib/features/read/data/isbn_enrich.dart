@@ -217,12 +217,63 @@ class IsbnBookMeta {
     this.pages,
     this.rating,
     this.coverUrl,
+    // V1.44 先搜后加：详情页能给的字段全量入 meta，表单照填（缓存表仍只
+    // 存上面的最小字段集——用户口径「本地只存当前使用的字段」不变）。
+    this.translator,
+    this.series,
+    this.binding,
+    this.price,
+    this.wordCount,
+    this.isbn,
+    this.intro,
+    this.authorNote,
   });
   final String title;
   final String? author;
   final String? publisher;
   final String? pubDate;
   final int? pages;
+  final double? rating;
+  final String? coverUrl;
+  final String? translator;
+  final String? series;
+  final String? binding;
+
+  /// 定价原样（豆瓣形态「18.00元」）；表单落「购入价格」时取数字部分。
+  final String? price;
+  final int? wordCount;
+  final String? isbn;
+  final String? intro;
+  final String? authorNote;
+
+  /// 「18.00元」→ 18.0（无数字返回 null）。
+  double? get priceValue => double.tryParse(
+    RegExp(r'[\d.]+').firstMatch(price ?? '')?.group(0) ?? '',
+  );
+}
+
+/// 搜索结果列表行（V1.44 先搜后加 · 原型 bsrMock 的字段形态）。
+/// suggest 路只有 书名/作者/年份/封面；搜索页 window.__DATA__ 路多给
+/// 出版社/定价/评分（abstract 拆「作者 / 出版社 / 年-月 / 定价」）。
+class DoubanSearchRow {
+  const DoubanSearchRow({
+    required this.subjectId,
+    required this.title,
+    this.author,
+    this.publisher,
+    this.pubDate,
+    this.price,
+    this.rating,
+    this.coverUrl,
+  });
+  final String subjectId;
+  final String title;
+  final String? author;
+  final String? publisher;
+  final String? pubDate;
+  final String? price;
+
+  /// 豆瓣 10 分制评分（列表右侧只读展示，不换算本地 5 星）。
   final double? rating;
   final String? coverUrl;
 }
@@ -285,6 +336,31 @@ class IsbnEnrich {
   static final _pages = RegExp(r'页数[\s\S]{0,16}?</span>[^\d]*(\d+)');
   static final _rating = RegExp(r'rating_num[^>]*>\s*([\d.]+)\s*<');
   static final _cover = RegExp(r'id="mainpic"[\s\S]{0,400}?src="([^"]+)');
+  // V1.44 详情页扩展字段：真实形态 `<span class="pl">装帧:</span> 平装<br>`
+  // （冒号在 span 内；丛书值带 &nbsp; 后接 <a>；测试钉 douban_isbn_desktop.html）。
+  static String? _plText(String html, String label) {
+    final m = RegExp(
+      'class="pl">[^<]*$label[^<]*</span>[:：]?\\s*(?:&nbsp;)?\\s*([^<]+?)\\s*<',
+    ).firstMatch(html);
+    final v = m?.group(1)?.trim();
+    return (v == null || v.isEmpty || v == '-') ? null : v;
+  }
+
+  static final _seriesLink = RegExp(
+    r'class="pl">[^<]*丛书[^<]*</span>(?:&nbsp;)?\s*<a[^>]*>\s*([^<]+?)\s*</a>',
+  );
+  static final _isbnVal = RegExp(
+    r'class="pl">[^<]*ISBN[^<]*</span>[:：]?\s*(\d{10,13})',
+  );
+  static final _wordCount = RegExp(
+    r'class="pl">[^<]*字数[^<]*</span>[:：]?\s*(?:&nbsp;)?\s*([\d,]+)',
+  );
+  static final _ogDesc = RegExp(
+    r'property="og:description"\s+content="([^"]*)"',
+  );
+  static final _authorInfo = RegExp(
+    r'id="author_info"[\s\S]{0,60}?>([\s\S]{1,2000}?)</div>',
+  );
 
   /// 豆瓣书目页 → 结构化元信息；非书目页（无标题节点）返回 null。
   static IsbnBookMeta? parse(String html) {
@@ -313,7 +389,28 @@ class IsbnEnrich {
       pages: int.tryParse(_pages.firstMatch(html)?.group(1) ?? ''),
       rating: double.tryParse(_rating.firstMatch(html)?.group(1) ?? ''),
       coverUrl: _cover.firstMatch(html)?.group(1),
+      // V1.44 照填字段（无则 null，表单留空由用户补）。
+      translator: _plText(html, '译者'),
+      series: _seriesLink.firstMatch(html)?.group(1)?.trim(),
+      binding: _plText(html, '装帧'),
+      price: _plText(html, '定价'),
+      wordCount: int.tryParse(
+        (_wordCount.firstMatch(html)?.group(1) ?? '').replaceAll(',', ''),
+      ),
+      isbn: _isbnVal.firstMatch(html)?.group(1),
+      intro: _ogDesc.firstMatch(html)?.group(1)?.trim(),
+      authorNote: _plainFromHtml(_authorInfo.firstMatch(html)?.group(1)),
     );
+  }
+
+  /// 简介类 HTML 片段 → 纯文本（去标签、压空白；空返 null）。
+  static String? _plainFromHtml(String? frag) {
+    if (frag == null) return null;
+    final t = frag
+        .replaceAll(RegExp(r'<[^>]*>'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return t.isEmpty ? null : (t.length > 800 ? '${t.substring(0, 800)}…' : t);
   }
 
   /// 带成因归类的查询：UI 用它把「网络不通 / 豆瓣未收录 / 访问受限」分开显示。
@@ -401,6 +498,153 @@ class IsbnEnrich {
     }
     return seen.toList();
   }
+
+  /// 搜索页内嵌 `window.__DATA__ = {…"items":[…]…}` → 列表行。
+  /// 真页 fixture 钉格式：items[].abstract＝「作者 / 出版社 / 年-月 / 定价」，
+  /// rating.value 为豆瓣 10 分制，url 带 subject_id。
+  static List<DoubanSearchRow> parseSearchRows(String html, {int limit = 20}) {
+    final at = html.indexOf('window.__DATA__');
+    if (at < 0) return const [];
+    final brace = html.indexOf('{', at);
+    if (brace < 0) return const [];
+    final blob = _balancedBraces(html, brace);
+    if (blob == null) return const [];
+    try {
+      final decoded = jsonDecode(blob);
+      if (decoded is! Map) return const [];
+      final items = decoded['items'];
+      if (items is! List) return const [];
+      final rows = <DoubanSearchRow>[];
+      for (final e in items) {
+        if (e is! Map) continue;
+        final id = '${e['id'] ?? ''}';
+        final title = '${e['title'] ?? ''}'.trim();
+        if (id.isEmpty || title.isEmpty) continue;
+        // abstract 拆四段（缺段容忍）：作者 / 出版社 / 年-月 / 定价。
+        final seg =
+            '${e['abstract'] ?? ''}'
+                .split(RegExp(r'\s*/\s*'))
+                .map((s) => s.trim())
+                .toList();
+        final rating = e['rating'];
+        rows.add(
+          DoubanSearchRow(
+            subjectId: id,
+            title: title,
+            author: seg.isNotEmpty
+                ? seg[0].replaceAll(RegExp(r'^\[[^\]]{1,8}\]\s*'), '').trim()
+                : null,
+            publisher: seg.length > 1 && seg[1].isNotEmpty ? seg[1] : null,
+            pubDate: seg.length > 2 && seg[2].isNotEmpty ? seg[2] : null,
+            price: seg.length > 3 && seg[3].isNotEmpty ? seg[3] : null,
+            rating: rating is Map
+                ? (rating['value'] as num?)?.toDouble()
+                : null,
+            coverUrl: '${e['cover_url'] ?? ''}'.trim().isEmpty
+                ? null
+                : '${e['cover_url']}'.trim(),
+          ),
+        );
+        if (rows.length >= limit) break;
+      }
+      return rows;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// 从 [start] 处的 `{` 起做括号配对（跳过字符串字面量与转义），返回完整 JSON。
+  static String? _balancedBraces(String s, int start) {
+    var depth = 0;
+    var inStr = false;
+    var esc = false;
+    for (var i = start; i < s.length; i++) {
+      final ch = s[i];
+      if (inStr) {
+        if (esc) {
+          esc = false;
+        } else if (ch == r'\') {
+          esc = true;
+        } else if (ch == '"') {
+          inStr = false;
+        }
+        continue;
+      }
+      if (ch == '"') {
+        inStr = true;
+      } else if (ch == '{') {
+        depth++;
+      } else if (ch == '}') {
+        depth--;
+        if (depth == 0) return s.substring(start, i + 1);
+      }
+    }
+    return null;
+  }
+
+  /// V1.44 先搜后加 · 列表级搜索：suggest 先行（约 1KB JSON），空则退
+  /// 搜索页 `window.__DATA__`（本机出口 IP suggest 恒空即走这条路）。
+  /// 熔断生效期零请求直接空列表（UI 显「豆瓣访问受限 · 稍后再试」）。
+  static Future<List<DoubanSearchRow>> searchList(
+    String q, {
+    required IsbnPageFetcher fetch,
+  }) async {
+    final k = q.trim();
+    if (k.length < 2 || DoubanGuard.active()) return const [];
+    try {
+      final rows = await _suggestRows(k, fetch);
+      if (DoubanGuard.active()) return const [];
+      if (rows.isNotEmpty) {
+        return rows
+            .map((r) {
+              final id = '${r['id'] ?? ''}'.trim();
+              final title = '${r['title'] ?? ''}'.trim();
+              if (id.isEmpty || title.isEmpty) return null;
+              final author = '${r['author_name'] ?? ''}'
+                  .replaceFirst(RegExp(r'^\[[^\]]{1,8}\]\s*'), '')
+                  .trim();
+              final year = '${r['year'] ?? ''}'.trim();
+              final pic = '${r['pic'] ?? ''}'.trim();
+              return DoubanSearchRow(
+                subjectId: id,
+                title: title,
+                author: author.isEmpty ? null : author,
+                pubDate: RegExp(r'^\d{4}(-\d{1,2})?$').hasMatch(year)
+                    ? year
+                    : null,
+                coverUrl: pic.isEmpty ? null : pic,
+              );
+            })
+            .whereType<DoubanSearchRow>()
+            .toList();
+      }
+    } catch (e) {
+      AppLog.add('豆瓣联想列表异常（《$k》）：$e', level: LhLevel.error);
+    }
+    if (DoubanGuard.active()) return const [];
+    try {
+      final html = await fetch(searchUrl(k));
+      if (html == null) return const [];
+      if (doubanBlockedPage(html)) {
+        DoubanGuard.trip();
+        return const [];
+      }
+      final rows = parseSearchRows(html);
+      if (rows.isNotEmpty) {
+        AppLog.add('豆瓣联想无结果 · 搜索页出 ${rows.length} 条（《$k》）');
+      }
+      return rows;
+    } catch (e) {
+      AppLog.add('豆瓣搜索页列表异常（《$k》）：$e', level: LhLevel.error);
+      return const [];
+    }
+  }
+
+  /// 点搜索结果 → 按 subject_id 抓详情页全字段（表单预填用）。
+  static Future<IsbnBookMeta?> detailById(
+    String subjectId, {
+    required IsbnPageFetcher fetch,
+  }) => _detailById(subjectId, fetch);
 
   /// 书名 → 豆瓣条目：先拿 subject_id 抓详情页（字段全），抓不到退简版字段。
   static Future<IsbnBookMeta?> _byTitle(
