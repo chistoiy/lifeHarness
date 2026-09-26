@@ -112,9 +112,13 @@ class DoubanGuard {
       persist?.call(cand);
     }
     AppLog.add(
-      first
-          ? '豆瓣访问受限，熔断 $minutes 分钟内不再发起豆瓣请求'
-          : '豆瓣仍受限，熔断延长至 $minutes 分钟后（滚动）',
+      (first
+              ? '豆瓣访问受限，熔断 $minutes 分钟内不再发起豆瓣请求'
+              : '豆瓣仍受限，熔断延长至 $minutes 分钟后（滚动）') +
+          // V1.46 过期提醒：带着 Cookie 仍被风控，多半是登录态失效而非纯频控。
+          (DoubanCookie.value != null
+              ? ' · 登录态可能已失效，可在阅读设置重新登录豆瓣'
+              : ''),
       level: LhLevel.warn,
     );
   }
@@ -140,6 +144,14 @@ void _doubanHeaders(HttpClientRequest req, {String? referer}) {
   if (ck != null) req.headers.set(HttpHeaders.cookieHeader, ck);
   if (referer != null) req.headers.set(HttpHeaders.refererHeader, referer);
 }
+
+/// 列表缩略图直连 img*.doubanio.com 的请求头：真机实证（2026-09-27）无
+/// UA/Referer 的裸请求会被防盗链拦下（表单里 saveCover 走带 Referer 的
+/// 字节通道就能取到）——Image.network 用这份头即可在列表阶段直接显图。
+Map<String, String> doubanImageHeaders() => {
+  HttpHeaders.userAgentHeader: pickDoubanUserAgent(),
+  'Referer': 'https://book.douban.com/',
+};
 
 Future<String?> _httpGetText(Uri uri) async {
   String? lastErr;
@@ -625,11 +637,13 @@ class IsbnEnrich {
     try {
       final html = await fetch(searchUrl(k));
       if (html == null) return const [];
-      if (doubanBlockedPage(html)) {
+      // 先解析再判拦截：真数据页偶尔夹风控文案（搜索页带 __DATA__ 就不该
+      // 被误判封禁——2026-09-27 真机「出列表却触发熔断」的成因），解析为空才认拦截。
+      final rows = parseSearchRows(html);
+      if (rows.isEmpty && doubanBlockedPage(html)) {
         DoubanGuard.trip();
         return const [];
       }
-      final rows = parseSearchRows(html);
       if (rows.isNotEmpty) {
         AppLog.add('豆瓣联想无结果 · 搜索页出 ${rows.length} 条（《$k》）');
       }

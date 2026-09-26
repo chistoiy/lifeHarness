@@ -125,6 +125,14 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
       (ref.read(sharedPreferencesProvider).getString('read.dbCookie') ?? '')
           .isNotEmpty;
 
+  /// Cookie 写入超 30 天＝可能已过期（豆瓣登录态约按月失效，V1.46）。
+  bool get _dbCookieStale {
+    final at = ref.read(sharedPreferencesProvider).getInt('read.dbCookieAt');
+    if (at == null) return false; // 旧版粘贴无时间戳：不武断判过期
+    return DateTime.now().millisecondsSinceEpoch - at >
+        30 * 24 * 3600 * 1000;
+  }
+
   /// 应用内登录豆瓣（V1.45 改口：替代手动粘贴）。登录页点「完成」提取并
   /// 写入 prefs 后 pop(true)，这里只刷新「已配置」状态。
   Future<void> _openDoubanLogin() async {
@@ -537,21 +545,24 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
           ];
         }
         return [
-          const Text(
-            '已配置',
-            key: ValueKey('set-dbCookie-on'),
+          Text(
+            // V1.46 过期提醒：豆瓣登录态约按月失效，超 30 天提示重登。
+            _dbCookieStale ? '已配置 · 可能已过期' : '已配置',
+            key: const ValueKey('set-dbCookie-on'),
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF059669),
+              color: _dbCookieStale
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF059669),
             ),
           ),
           TextButton(
             key: const ValueKey('set-dbCookie-clear'),
             onPressed: () async {
-              await ref
-                  .read(sharedPreferencesProvider)
-                  .remove('read.dbCookie');
+              final prefs = ref.read(sharedPreferencesProvider);
+              await prefs.remove('read.dbCookie');
+              await prefs.remove('read.dbCookieAt');
               DoubanCookie.set(null);
               if (!mounted) return;
               setState(() {});

@@ -36,4 +36,29 @@ void main() {
     expect(shellBackAction('/care', inNav: false, lastBackAt: t0, at: t0),
         'goToday');
   });
+
+  // V1.46 真机反馈⑥：从主页(go)进入的模块页，返回先回主页——含被设进底栏的
+  // 栏目（待办/设置等）；只有底栏点进的（enteredFromToday=false）才二次退出。
+  test('enteredFromToday：底栏内栏目从主页进入也 goToday；底栏点进仍 remind/exit',
+      () {
+    final t0 = DateTime(2026, 9, 27, 3, 0, 0);
+    expect(
+        shellBackAction('/todo',
+            inNav: true, enteredFromToday: true, lastBackAt: t0, at: t0),
+        'goToday');
+    expect(
+        shellBackAction('/settings',
+            inNav: true, enteredFromToday: true, lastBackAt: t0, at: t0),
+        'goToday');
+    // 底栏点进（非主页来路）保持栏目语义。
+    expect(
+        shellBackAction('/todo',
+            inNav: true, enteredFromToday: false, lastBackAt: null, at: t0),
+        'remind');
+    // 今天页自身不受 enteredFromToday 影响。
+    expect(
+        shellBackAction('/',
+            inNav: true, enteredFromToday: true, lastBackAt: null, at: t0),
+        'remind');
+  });
 }

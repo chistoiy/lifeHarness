@@ -96,6 +96,9 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
   late String _format = Book.kFormatPaper;
   late String _way = Book.defaultWayFor(_format);
   final List<String> _tags = [];
+  // V1.46⑧ 行内添加标签：展开态 + 草稿输入（就地内嵌，不走弹层）。
+  bool _tagAddOpen = false;
+  final _newTag = TextEditingController();
   int _rate = 0;
   String? _cover;
   late int _colorIdx = Random().nextInt(kBsCov.length);
@@ -140,7 +143,7 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
     for (final c in [
       _title, _author, _translator, _publisher, _pubDate, _series, _binding,
       _isbn, _wc, _intro, _authorNote, _grp, _source, _pages, _readPages,
-      _fee, _feeDate,
+      _fee, _feeDate, _newTag,
     ]) {
       c.dispose();
     }
@@ -148,6 +151,33 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
   }
 
   static String? _nz(String s) => s.trim().isEmpty ? null : s.trim();
+
+  // ---- 标签行内添加（V1.46⑧ · 就地内嵌，禁两段式弹层）----
+
+  /// 确认钮逻辑：空名/重名只 toast 不新增；成功＝dictAdd 落字典＋立即选中
+  /// ＋readTick 广播刷新 chips 行。重名/空名判定即在此页面逻辑里做。
+  Future<void> _addTag() async {
+    final name = _newTag.text.trim();
+    if (name.isEmpty) {
+      readToast(context, '标签名不能为空');
+      return;
+    }
+    final dict =
+        ref.read(dictProvider(DictEntry.kTag)).valueOrNull ??
+        const <DictEntry>[];
+    if (dict.any((e) => e.name == name)) {
+      readToast(context, '标签已存在');
+      return;
+    }
+    await ref.read(readRepositoryProvider).dictAdd(DictEntry.kTag, name);
+    if (!mounted) return;
+    setState(() {
+      if (!_tags.contains(name)) _tags.add(name);
+      _tagAddOpen = false;
+      _newTag.clear();
+    });
+    ref.read(readTickProvider.notifier).state++;
+  }
 
   // ---- 回填 ----
 
@@ -899,6 +929,146 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
     );
   }
 
+  /// 标签行（V1.46⑧）：① 选项来自标签字典（多选 toggle，现状保持）；
+  /// ② 行尾「＋ 添加标签」chip 就地展开输入行（禁两段式弹层），确认后
+  /// dictAdd 落字典并立即选中、readTick 刷新 chips；③ 编辑态回填走 [_tags]（不变）。
+  Widget _tagsBlock(List<DictEntry> tagDict) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        key: const ValueKey('bf-tags'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '标签',
+            style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final e in tagDict)
+                GestureDetector(
+                  key: ValueKey('bf-tag-${e.name}'),
+                  onTap: () => setState(
+                    () => _tags.contains(e.name)
+                        ? _tags.remove(e.name)
+                        : _tags.add(e.name),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: _tags.contains(e.name)
+                          ? context.tokens.accent.withValues(alpha: .12)
+                          : cs.surfaceContainerHighest,
+                      border: Border.all(
+                        color: _tags.contains(e.name)
+                            ? context.tokens.accent
+                            : context.tokens.cardBorder,
+                      ),
+                    ),
+                    child: Text(
+                      '#${e.name}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _tags.contains(e.name)
+                            ? context.tokens.accent
+                            : cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              // 行尾「＋ 添加标签」chip：点开就地展开输入行。
+              GestureDetector(
+                key: const ValueKey('bf-tag-add'),
+                onTap: () => setState(() => _tagAddOpen = !_tagAddOpen),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: _tagAddOpen
+                        ? context.tokens.accent.withValues(alpha: .12)
+                        : cs.surfaceContainerHighest,
+                    border: Border.all(
+                      color: _tagAddOpen
+                          ? context.tokens.accent
+                          : context.tokens.cardBorder,
+                    ),
+                  ),
+                  child: Text(
+                    '＋ 添加标签',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _tagAddOpen
+                          ? context.tokens.accent
+                          : cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              if (tagDict.isEmpty)
+                Text(
+                  '还没有标签 · 点「＋ 添加标签」就地新建',
+                  style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                ),
+            ],
+          ),
+          // 就地展开的输入行（同页内嵌，非弹层）。
+          if (_tagAddOpen)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('bf-tag-name'),
+                      controller: _newTag,
+                      autofocus: true,
+                      style: const TextStyle(fontSize: 12.5),
+                      onSubmitted: (_) => _addTag(),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: '输入标签名',
+                        hintStyle: TextStyle(
+                          fontSize: 11.5,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        filled: true,
+                        fillColor: cs.surfaceContainerHighest.withValues(
+                          alpha: .5,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _mini('bf-tag-add-ok', '确认', () => _addTag()),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _coverBlock() {
     final cs = Theme.of(context).colorScheme;
     return Padding(
@@ -1122,70 +1292,7 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
           _sec('书籍管理'),
           _card([
             _row('分组', _dictDropdown(DictEntry.kGroup, 'bf-grp', _grp)),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Column(
-                key: const ValueKey('bf-tags'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '标签',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final e in tagDict)
-                        GestureDetector(
-                          key: ValueKey('bf-tag-${e.name}'),
-                          onTap: () => setState(
-                            () => _tags.contains(e.name)
-                                ? _tags.remove(e.name)
-                                : _tags.add(e.name),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: _tags.contains(e.name)
-                                  ? context.tokens.accent.withValues(alpha: .12)
-                                  : cs.surfaceContainerHighest,
-                              border: Border.all(
-                                color: _tags.contains(e.name)
-                                    ? context.tokens.accent
-                                    : context.tokens.cardBorder,
-                              ),
-                            ),
-                            child: Text(
-                              '#${e.name}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: _tags.contains(e.name)
-                                    ? context.tokens.accent
-                                    : cs.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (tagDict.isEmpty)
-                        Text(
-                          '还没有标签 · 可在书架资料里新增',
-                          style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _tagsBlock(tagDict),
             Divider(height: 1, thickness: .5, color: context.tokens.cardBorder),
             _row(
               '阅读状态',

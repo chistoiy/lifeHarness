@@ -702,6 +702,19 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     onPressed: () => _quickAct(q, b, 2),
                     child: const Text('→笔记', style: TextStyle(fontSize: 10.5)),
                   ),
+                  // V1.46④（真机反馈「笔记库的内容没办法删除」）：卡内直显
+                  // 删除（软删＋SnackBar 撤销），与原型 qtDel 同位。
+                  TextButton(
+                    key: ValueKey('qlq-del-${q.id}'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: const Color(0xFFEF4444),
+                    ),
+                    onPressed: q.id == null ? null : () => _delQuote(q),
+                    child: const Text('删除', style: TextStyle(fontSize: 10.5)),
+                  ),
                   const Spacer(),
                   if (sel)
                     const Padding(
@@ -733,6 +746,31 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
         ),
       ),
     );
+  }
+
+  /// V1.46④：卡内删除＝软删 + SnackBar 撤销（无二次弹层，撤销即恢复；
+  /// 与全 app「删除可撤销」纪律一致，见 log/物品批同款）。
+  Future<void> _delQuote(BookQuote q) async {
+    final repo = ref.read(readRepositoryProvider);
+    await repo.softDeleteQuote(q.id!);
+    if (!mounted) return;
+    ref.read(readTickProvider.notifier).state++;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('已删除这条记录'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: '撤销',
+            onPressed: () async {
+              await repo.restoreQuote(q.id!);
+              if (!mounted) return;
+              ref.read(readTickProvider.notifier).state++;
+            },
+          ),
+        ),
+      );
   }
 
   /// 卡内快捷动作（复用 b3 的 quoteToDiary/quoteToTodo/quoteToNote/setStarred 链路）。

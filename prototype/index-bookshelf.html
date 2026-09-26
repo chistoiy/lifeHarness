@@ -4574,7 +4574,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:''};
+let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false};
 /* 豆瓣防封批（2026-09-26）：抓到的书目按 ISBN 落本机元数据缓存（demo 内存态）。
    二次命中不静默采用——提示「本地已有缓存」，由用户选「用缓存 / 仍联网查询」。 */
 let BS_DB_CACHE={'9787111544937':{n:'深入理解计算机系统（原书第3版）',a:'兰德尔·布莱恩特',pub:'机械工业出版社',pg:868,yr:'2016-11'}};
@@ -4917,7 +4917,8 @@ function qtCard(x){const b=bsBook(x.b),tg=BS_QTAGS.find(t=>t[0]===x.tg)||BS_QTAG
   <div class="mt-1.5 text-[12.5px] leading-7" style="${BS_SET.qtLines&&BS_SET.qtLines<4?'display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;-webkit-line-clamp:'+BS_SET.qtLines:''}">${x.ty==='划线'?'「'+x.x+'」':'想法：'+x.x}</div>
   ${x.img?`<div class="mt-2 h-20 rounded-xl bg-gradient-to-br ${BS_COV[b.c][0]} opacity-80"></div>`:''}
   ${x.th?`<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-[11.5px] leading-6">想法：${x.th}</div>`:''}
-  <div class="mt-2 flex gap-3 text-[10px] font-bold"><button class="link-act" onclick="event.stopPropagation();toast('已插入今日日记草稿（联动 L5）')">→日记</button><button class="link-act" onclick="event.stopPropagation();toast('已生成待办（联动 L5）')">→待办</button><button class="link-act" onclick="event.stopPropagation();toast('已转存为笔记 · 入「摘录」文件夹')">→笔记</button><button class="ml-auto text-slate-400" onclick="event.stopPropagation();qtFav(${qtIdx(x)})">${x.fav?'取消标星':'标星'}</button></div></div>`}
+  <div class="mt-2 flex gap-3 text-[10px] font-bold"><button class="link-act" onclick="event.stopPropagation();toast('已插入今日日记草稿（联动 L5）')">→日记</button><button class="link-act" onclick="event.stopPropagation();toast('已生成待办（联动 L5）')">→待办</button><button class="link-act" onclick="event.stopPropagation();toast('已转存为笔记 · 入「摘录」文件夹')">→笔记</button><button class="text-rose-500 font-bold" onclick="event.stopPropagation();qtDel(${qtIdx(x)})">删除</button><button class="ml-auto text-slate-400" onclick="event.stopPropagation();qtFav(${qtIdx(x)})">${x.fav?'取消标星':'标星'}</button></div></div>`}
+function qtDel(i){const x=BS_QUOTES[i];if(!x)return;if(!confirm('删除这条摘录？删除后可在「改明细」前用撤销恢复'))return;BS_QUOTES.splice(i,1);renderQuotes();renderBookDetail();toast('已删除 · 可撤销')}
 function qtRow(x){const tg=BS_QTAGS.find(t=>t[0]===x.tg)||BS_QTAGS[0];
  return `<div class="flex items-start gap-2.5 py-2.5 border-b border-slate-100 dark:border-slate-800" onclick="qeOpen(${qtIdx(x)})">
   <span class="mt-1.5 w-2 h-2 rounded-full shrink-0" style="background:${tg[2]}"></span>
@@ -5113,7 +5114,7 @@ function rsRow(it){const k=it[0],nm=it[1],ty=it[2],ex=it[3];const v=BS_SET[k];
   const foot='</div>';
   if(ty==='chips')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 flex-wrap">'+ex.map(o=>'<button class="chip !text-[10px] '+(String(v)===String(o)?'chip-on':'')+'" onclick="rsChip(\''+k+'\','+(typeof o==='number'?o:'\''+o+'\'')+')">'+o+'</button>').join('')+'</div></div>';
   if(ty==='bool')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="toggle '+(v?'on':'')+'" onclick="rsFlip(\''+k+'\')"><i></i></button>'+foot+'</div>';
-  if(ty==='login'){const on=!!BS_SET.dbCookie;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+(on?'<span class="text-[10px] font-bold text-emerald-600 mr-1">已配置</span><button class="mini-btn !text-[10px]" onclick="rsCookieClear(\'dbCookie\')">清除</button><button class="mini-btn !text-[10px] ml-1.5" onclick="dblOpen()">重新登录</button>':'<button class="mini-btn !text-[10px]" onclick="dblOpen()">登录豆瓣</button>')+foot+'</div>';}
+  if(ty==='login'){const on=!!BS_SET.dbCookie;const stale=on&&BS_SET.dbCookieStale;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+(on?'<span class="text-[10px] font-bold '+(stale?'text-amber-500':'text-emerald-600')+' mr-1">'+(stale?'已配置 · 可能已过期':'已配置')+'</span><button class="mini-btn !text-[10px]" onclick="rsCookieClear(\'dbCookie\')">清除</button><button class="mini-btn !text-[10px] ml-1.5" onclick="dblOpen()">重新登录</button>':'<button class="mini-btn !text-[10px]" onclick="dblOpen()">登录豆瓣</button>')+foot+'</div>';}
   if(ty==='cache'){const n=Object.keys(BS_DB_CACHE).length;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]'+(n?'':' opacity-40')+'" onclick="rsCacheClear()">'+(n?'清除 '+n+' 条':'无缓存')+'</button>'+foot+'</div>';}
   if(ty==='ops'){const on=BS_SET.longPress.map((o,i)=>'<div class="flex items-center gap-2 text-[12px]"><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',-1)">↑</button><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',1)">↓</button><b>'+o+'</b><button class="ml-auto text-[10px] text-rose-500" onclick="lpRm('+i+')">移除</button></div>').join('');
     const off=LP_ALL.filter(x=>!BS_SET.longPress.includes(x)).map(x=>'<button class="chip !text-[10px]" onclick="lpAdd(\''+x+'\')">＋ '+x+'</button>').join('');
@@ -5136,7 +5137,7 @@ function dblLogin(){const u=document.getElementById('dblUser').value.trim(),c=do
   if(c!=='1234'){toast('验证码错误（演示用 1234）');return}
   dblLogged=true;toast('登录成功 · 请点击「完成」')}
 function dblDone(){if(!dblLogged){toast('尚未检测到登录');return}
-  BS_SET.dbCookie='ap=1; ck=demo'+(Date.now()%100000);renderReadSet();goBack();toast('已获取豆瓣登录 Cookie · 仅存本机')}
+  BS_SET.dbCookie='ap=1; ck=demo'+(Date.now()%100000);BS_SET.dbCookieStale=false;renderReadSet();goBack();toast('已获取豆瓣登录 Cookie · 仅存本机')}
 function rsCookieClear(k){BS_SET[k]='';renderReadSet();toast('豆瓣 Cookie 已清除')}
 function rsCacheClear(){const n=Object.keys(BS_DB_CACHE).length;if(!n)return;
   BS_DB_CACHE={};renderReadSet();toast('已清除 '+n+' 条豆瓣缓存')}
@@ -6232,10 +6233,22 @@ function bfChips(k, list, label) {
     <div class="text-[12.5px] text-slate-500 dark:text-slate-400 mb-2">${label}</div>
     <div class="flex flex-wrap gap-1.5">${list.map(s => `<button class="chip !text-[10.5px] ${BF.d[k] === s ? 'chip-on' : ''}" onclick="bfSet('${k}','${s}')">${s}</button>`).join('')}</div></div>`;
 }
+let bfTagAddOpen = false; // V1.46⑧ 就地展开态（非弹层）
 function bfTagChips() {
   return `<div class="py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
     <div class="text-[12.5px] text-slate-500 dark:text-slate-400 mb-2">标签</div>
-    <div class="flex flex-wrap gap-1.5">${BS_TAGS.map(t => `<button class="chip !text-[10.5px] ${BF.d.tags.includes(t) ? 'chip-on' : ''}" onclick="bfToggleTag('${t}')">#${t}</button>`).join('')}</div></div>`;
+    <div class="flex flex-wrap gap-1.5">${BS_TAGS.map(t => `<button class="chip !text-[10.5px] ${BF.d.tags.includes(t) ? 'chip-on' : ''}" onclick="bfToggleTag('${t}')">#${t}</button>`).join('')}
+      <button class="chip !text-[10.5px] border-dashed" onclick="bfTagToggleAdd()">＋ 添加标签</button></div>
+    ${bfTagAddOpen ? `<div class="flex gap-1.5 mt-2"><input id="bfTagIn" class="flex-1 min-w-0 chip !text-[10.5px] !justify-start outline-none bg-transparent border-dashed" placeholder="输入新标签名" onkeydown="if(event.key==='Enter')bfTagAdd()">
+      <button class="chip !text-[10.5px] chip-on" onclick="bfTagAdd()">确认</button></div>` : ''}</div>`;
+}
+function bfTagToggleAdd() { bfTagAddOpen = !bfTagAddOpen; renderBf(); if (bfTagAddOpen) { const i = document.getElementById('bfTagIn'); if (i) i.focus(); } }
+function bfTagAdd() {
+  const el = document.getElementById('bfTagIn'); const n = el ? el.value.trim() : '';
+  if (!n) { toast('标签名不能为空'); return; }
+  if (BS_TAGS.includes(n)) { toast('标签已存在 · 不重复添加'); return; }
+  BS_TAGS.push(n); if (!BF.d.tags.includes(n)) BF.d.tags.push(n);
+  bfTagAddOpen = false; renderBf(); toast('已添加并选中 #' + n);
 }
 function bfToggleTag(t) {
   const i = BF.d.tags.indexOf(t); if (i >= 0) BF.d.tags.splice(i, 1); else BF.d.tags.push(t); renderBf();

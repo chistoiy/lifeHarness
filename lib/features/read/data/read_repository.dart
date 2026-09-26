@@ -658,6 +658,15 @@ class ReadRepository {
     );
   }
 
+  /// V1.46④ 笔记库「删除＋撤销」：撤销即恢复 deleted_at（复习档位不重建，
+  /// 从新开始复习，与既有档位表语义无冲突）。
+  Future<void> restoreQuote(int id) => db.update(
+    DbSchema.tBookQuotes,
+    {'deleted_at': null, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
   Future<List<BookQuote>> quotesOf(String bookId) async => (await db.query(
     DbSchema.tBookQuotes,
     where: 'book_id = ? AND deleted_at IS NULL',

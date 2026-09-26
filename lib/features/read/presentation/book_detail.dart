@@ -291,6 +291,9 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                   child: switch (_tab) {
                     'c' => _tocTab(cs, tokens, b),
                     'q' => Column(
+                      // 真机反馈 V1.46②：分段筛选行靠左（原型 bdQSeg 即 flex 起首，
+                      // 实现默认 center 偏离）。
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (_chapF != null)
                           Padding(

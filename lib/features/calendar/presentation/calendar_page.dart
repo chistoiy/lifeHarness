@@ -1109,7 +1109,32 @@ class _DayHoursView extends ConsumerWidget {
   }
 }
 
+/// V1.46⑤ 周视图格子并排分段：≤3 项按份数等分；>3 项前 3 段并排、
+/// 第 4 个起并入末段（[WeekCellSegment.item]＝该段可点项，末段代表第 4 项）。
+class WeekCellSegment<T> {
+  WeekCellSegment(this.item, [List<T>? rest]) : rest = rest ?? const [];
+  final T item;
+
+  /// 并入本段的第 5 个及以后各项（仅末段且段内 ≥2 项时非空）。
+  final List<T> rest;
+
+  /// 「+N」小徽标文本：本段共含几项（≥2 项才显，单项无徽标）。
+  String get badgeText => rest.isEmpty ? '' : '+${rest.length + 1}';
+}
+
+/// V1.46⑤ 并排分段纯函数（items＝该小时格命中的事件/时间块，顺序即分段顺序）。
+List<WeekCellSegment<T>> weekCellSegments<T>(List<T> items) {
+  if (items.length <= 3) {
+    return [for (final it in items) WeekCellSegment<T>(it)];
+  }
+  return [
+    for (final it in items.take(3)) WeekCellSegment<T>(it),
+    WeekCellSegment<T>(items[3], items.sublist(4)),
+  ];
+}
+
 /// 周视图：7×24 网格。V1.28⑧：格子有事件/块=点开详情（→编辑），空格子才开补录。
+/// V1.46⑤：同小时格多个事件/时间块并排分段显示，各段仍可点进自己的详情。
 class _WeekBoard extends ConsumerWidget {
   const _WeekBoard({required this.selected, required this.events});
   final DateTime selected;
@@ -1129,6 +1154,7 @@ class _WeekBoard extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final days = List.generate(7, (i) => DateTime(selected.year, selected.month, selected.day - 3 + i));
     final blocksByDay = <DateTime, List<TimeBlock>>{};
+    final catColors = ref.watch(catColorsByNameProvider);
     String md(DateTime d) => '${d.month}/${d.day}';
 
     return Column(
@@ -1173,38 +1199,83 @@ class _WeekBoard extends ConsumerWidget {
                       final blocks = blocksByDay.putIfAbsent(
                           d, () => ref.watch(dayBlocksProvider(d)).valueOrNull ?? const []);
                       final m = h * 60;
-                      final e = CalendarPage.onDay(events, d)
-                          .where((x) => _coversHour(x, m))
-                          .firstOrNull;
-                      final b = e == null
-                          ? blocks.where((x) => x.covers(m)).firstOrNull
-                          : null;
-                      final color = e != null
-                          ? (e.status == EventStatus.done
+                      // V1.46⑤：同小时格命中的多个事件/时间块并排分段，各段可点进自己详情。
+                      final items = <Object>[
+                        ...CalendarPage.onDay(events, d)
+                            .where((x) => _coversHour(x, m)),
+                        ...blocks.where((x) => x.covers(m)),
+                      ];
+                      final segs = weekCellSegments(items);
+                      Color segColor(Object it) => it is CalEvent
+                          ? (it.status == EventStatus.done
                               ? const Color(0xFF34D399)
-                              : (e.status == EventStatus.active
+                              : (it.status == EventStatus.active
                                   ? const Color(0xFFF43F5E)
                                   : tokens.accent))
-                          : (b != null
-                              ? blockColor(b, ref.watch(catColorsByNameProvider), tokens.accent)
-                              : scheme.onSurface.withValues(alpha: .06));
+                          : blockColor(it as TimeBlock, catColors, tokens.accent);
+                      void openItem(Object? it) {
+                        // V1.28⑧：先查该时间的信息 → 详情（可编辑），空格子才开添加。
+                        if (it is CalEvent) {
+                          showEventDetailSheet(context, ref, it);
+                        } else if (it is TimeBlock) {
+                          showBlockDetailSheet(context, ref, d, it);
+                        } else {
+                          showTimePickSheet(context, ref, day: d, startMin: m);
+                        }
+                      }
                       return InkWell(
                         key: ValueKey('wk-cell-$di-$h'),
-                        onTap: () {
-                          // V1.28⑧：先查该时间的信息 → 详情（可编辑），空格子才开添加。
-                          if (e != null) {
-                            showEventDetailSheet(context, ref, e);
-                          } else if (b != null) {
-                            showBlockDetailSheet(context, ref, d, b);
-                          } else {
-                            showTimePickSheet(context, ref, day: d, startMin: m);
-                          }
-                        },
+                        onTap: () =>
+                            openItem(segs.isEmpty ? null : segs.first.item),
                         child: Container(
                           height: 17,
                           margin: const EdgeInsets.symmetric(horizontal: 1),
                           decoration: BoxDecoration(
-                              color: color, borderRadius: BorderRadius.circular(4)),
+                              color: scheme.onSurface.withValues(alpha: .06),
+                              borderRadius: BorderRadius.circular(4)),
+                          child: segs.isEmpty
+                              ? null
+                              : Row(
+                                  children: [
+                                    for (var si = 0; si < segs.length; si++)
+                                      Expanded(
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal:
+                                                  segs.length > 1 ? .5 : 0),
+                                          child: InkWell(
+                                            key: ValueKey('wk-seg-$di-$h-$si'),
+                                            onTap: () =>
+                                                openItem(segs[si].item),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                  color: segColor(
+                                                      segs[si].item),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          4)),
+                                              child: segs[si]
+                                                      .badgeText
+                                                      .isEmpty
+                                                  ? null
+                                                  : Center(
+                                                      child: Text(
+                                                          segs[si].badgeText,
+                                                          style: const TextStyle(
+                                                              fontSize: 7,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              color:
+                                                                  Colors
+                                                                      .white,
+                                                              height: 1))),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                         ),
                       );
                     }),

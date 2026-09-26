@@ -617,52 +617,116 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                     style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                   )
                 else
-                  SizedBox(
-                    height: 56,
-                    child: LayoutBuilder(
-                      builder: (_, box) {
-                        final byDay = <String, int>{};
-                        for (final s in closedSess) {
-                          final d = DateTime.fromMillisecondsSinceEpoch(
-                            s.endedAt!,
-                          );
-                          final k = '${d.month}-${d.day}';
-                          byDay[k] = (byDay[k] ?? 0) + s.billedMinutes;
-                        }
-                        final days = byDay.entries.toList()
-                          ..sort((a, b) => a.key.compareTo(b.key));
-                        final maxV = days
-                            .map((e) => e.value)
-                            .reduce((a, c) => a > c ? a : c);
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            for (final (i, e) in days.indexed)
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 1.5,
-                                  ),
-                                  child: Tooltip(
-                                    message: '${e.key} · ${e.value}′',
-                                    child: Container(
-                                      height:
-                                          48 * (e.value / maxV).clamp(.08, 1.0),
-                                      decoration: BoxDecoration(
-                                        color: tokens.accent.withValues(
-                                          alpha:
-                                              .35 + .55 * (i.isEven ? .7 : 1),
+                  // V1.46③「太抽象」：按原型 sheetTrack 口径补摘要行＋柱顶分钟
+                  // 数＋首尾日期轴，点柱仍可看当日分钟（Tooltip 保留）。
+                  Builder(
+                    builder: (_) {
+                      final byDay = <String, int>{};
+                      for (final s in closedSess) {
+                        final d = DateTime.fromMillisecondsSinceEpoch(
+                          s.endedAt!,
+                        );
+                        final k =
+                            '${d.month.toString().padLeft(2, '0')}-'
+                            '${d.day.toString().padLeft(2, '0')}';
+                        byDay[k] = (byDay[k] ?? 0) + s.billedMinutes;
+                      }
+                      final days = byDay.entries.toList()
+                        ..sort((a, b2) => a.key.compareTo(b2.key));
+                      final total = byDay.values.fold(0, (t, v) => t + v);
+                      final maxV = days
+                          .map((e) => e.value)
+                          .reduce((a, c) => a > c ? a : c);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${days.length} 天 · 共 ${total >= 60 ? '${total ~/ 60}h${(total % 60).toString().padLeft(2, '0')}' : '$total′'} · 进度 ${b.percent}%',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            height: 64,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                for (final (i, e) in days.indexed)
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 1.5,
+                                      ),
+                                      child: Tooltip(
+                                        message: '${e.key} · ${e.value}′',
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              '${e.value}',
+                                              style: const TextStyle(
+                                                fontSize: 7.5,
+                                                color: Color(0xFF94A3B8),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 1),
+                                            Container(
+                                              height: 48 *
+                                                  (e.value / maxV).clamp(
+                                                    .08,
+                                                    1.0,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: tokens.accent.withValues(
+                                                  alpha: .35 +
+                                                      .55 *
+                                                          (i.isEven ? .7 : 1),
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        borderRadius: BorderRadius.circular(3),
                                       ),
                                     ),
                                   ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                days.first.key,
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  color: Color(0xFF94A3B8),
                                 ),
                               ),
-                          ],
-                        );
-                      },
-                    ),
+                              Text(
+                                '每日时长（分钟）',
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                              Text(
+                                days.last.key,
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
               ],
             ),

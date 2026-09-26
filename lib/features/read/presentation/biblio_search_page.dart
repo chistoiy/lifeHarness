@@ -388,6 +388,8 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
       borderRadius: BorderRadius.circular(6),
       child: Image.network(
         u,
+        // doubanio 防盗链：裸请求 403（真机 2026-09-27 列表不显封面实证）。
+        headers: doubanImageHeaders(),
         width: 36,
         height: 52,
         fit: BoxFit.cover,

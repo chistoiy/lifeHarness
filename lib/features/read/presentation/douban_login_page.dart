@@ -24,6 +24,9 @@ class DoubanLoginPage extends ConsumerStatefulWidget {
 
   static const String prefsKey = 'read.dbCookie';
 
+  /// Cookie 写入时间（V1.46 过期提醒用：豆瓣登录态约按月失效）。
+  static const String prefsKeyAt = 'read.dbCookieAt';
+
   @override
   ConsumerState<DoubanLoginPage> createState() => _DoubanLoginPageState();
 }
@@ -88,10 +91,12 @@ class _DoubanLoginPageState extends ConsumerState<DoubanLoginPage> {
         readToast(context, '未检测到登录 · 请先完成登录');
         return;
       }
-      await ref.read(sharedPreferencesProvider).setString(
-            DoubanLoginPage.prefsKey,
-            header,
-          );
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setString(DoubanLoginPage.prefsKey, header);
+      await prefs.setInt(
+        DoubanLoginPage.prefsKeyAt,
+        DateTime.now().millisecondsSinceEpoch,
+      );
       DoubanCookie.set(header);
       if (!mounted) return;
       AppLog.add('豆瓣登录 Cookie 已获取并保存到本机（${all.length} 项）',

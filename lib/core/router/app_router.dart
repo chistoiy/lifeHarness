@@ -495,16 +495,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 /// V1.27 G1 返回语义（纯函数便于守护）：
 /// 主页编排态 → endEdit（V1.28⑥：返回=退出编排并保存，不退 app）；
 /// 底栏外模块主页 → goToday（逐级返回最终落主页，真机反馈修正）；
-/// 底栏内栏目页（含今天）与主页 → 2s 内二次返回 exit，首次 remind。
-/// V1.42 真机反馈①：模块被设进底栏后，其主页返回应「提醒→退出」而非跳今天。
+/// V1.46 真机反馈⑥：从主页(go)进入的模块页（含底栏内栏目）返回先回主页——
+/// 只有底栏点进的栏目页与今天页才走「提醒→二次退出」。
 String shellBackAction(
   String currentPath, {
   bool inNav = false,
+  bool enteredFromToday = false,
   bool dashEditing = false,
   DateTime? lastBackAt,
   DateTime? at,
 }) {
-  if (currentPath != NavModule.today.path && !inNav) return 'goToday';
+  if (currentPath != NavModule.today.path && (!inNav || enteredFromToday)) {
+    return 'goToday';
+  }
   if (dashEditing) return 'endEdit';
   final n = at ?? DateTime.now();
   if (lastBackAt != null &&
@@ -525,8 +528,17 @@ class HomeShell extends ConsumerWidget {
   /// G1：今天页二次返回退出计时（原型 _lastBackTs 2s 窗口）。
   static DateTime? _lastBackAt;
 
+  /// V1.46⑥：「从主页进入」判定——上一次壳层路径是今天页时，本模块页的
+  /// 返回先回主页（底栏点进的仍走栏目二次退出语义）。
+  static String? _prevPath;
+  static bool _fromToday = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (_prevPath != currentPath) {
+      _fromToday = _prevPath == NavModule.today.path;
+      _prevPath = currentPath;
+    }
     final navModules = ref.watch(
       settingsControllerProvider.select((s) => s.navModules),
     );
@@ -549,6 +561,7 @@ class HomeShell extends ConsumerWidget {
         switch (shellBackAction(
           currentPath,
           inNav: navModules.any((m) => m.path == currentPath),
+          enteredFromToday: _fromToday,
           dashEditing: dashEditing,
           lastBackAt: _lastBackAt,
         )) {

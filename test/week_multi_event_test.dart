@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/features/calendar/data/category_dao.dart';
+import 'package:lifeharness/features/calendar/data/event_dao.dart';
+import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
+import 'package:lifeharness/features/calendar/domain/cal_event.dart';
+import 'package:lifeharness/features/calendar/domain/event_repository.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
+import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'helpers.dart';
+
+/// V1.46⑤ 日程周视图同小时多事件并排分段（weekCellSegments 纯函数 + 格子渲染）。
+/// 新用例独立成文件；widget 层风格参照 test/grid_block_test.dart（无活动事件，
+/// 避开脉冲动画 pumpAndSettle 陷阱）。
+void main() {
+  group('weekCellSegments 并排分段纯函数', () {
+    test('1 个事件＝单段占满整格，无徽标', () {
+      final segs = weekCellSegments(['A']);
+      expect(segs, hasLength(1));
+      expect(segs.single.item, 'A');
+      expect(segs.single.rest, isEmpty);
+      expect(segs.single.badgeText, isEmpty);
+    });
+
+    test('3 个事件＝三段并排各占一份，均无徽标', () {
+      final segs = weekCellSegments(['A', 'B', 'C']);
+      expect(segs.map((s) => s.item).toList(), ['A', 'B', 'C']);
+      expect(segs.every((s) => s.badgeText.isEmpty), isTrue);
+    });
+
+    test('5 个事件＝前 3 段并排＋第 4 个起并入末段（末段代表第 4 项·徽标 +2）', () {
+      final segs = weekCellSegments(['A', 'B', 'C', 'D', 'E']);
+      expect(segs, hasLength(4));
+      expect(segs.take(3).map((s) => s.item).toList(), ['A', 'B', 'C']);
+      expect(segs[3].item, 'D');
+      expect(segs[3].rest, ['E']);
+      expect(segs[3].badgeText, '+2');
+    });
+  });
+
+  group('周视图格子并排渲染', () {
+    sqfliteFfiInit();
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    late Database db;
+    late EventRepository repo;
+    late EventBus bus;
+
+    setUp(() async {
+      db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      bus = EventBus();
+      repo = EventRepository(EventDao(db), bus, tbDao: TimeBlockDao(db));
+    });
+
+    tearDown(() async {
+      await db.close();
+      await bus.dispose();
+    });
+
+    testWidgets('同小时两事件＝两段并排，各点各的开自己的详情', (tester) async {
+      final now = DateTime.now();
+      final d0 = DateTime(now.year, now.month, now.day);
+      // A 覆盖 10 点整（9:00-10:30）· B 从 10 点起（10:00-10:50）→ 10 点格两段，
+      // start_at 升序保证段序＝A、B。
+      await repo.create(CalEvent(
+          title: '并排A',
+          start: DateTime(d0.year, d0.month, d0.day, 9),
+          end: DateTime(d0.year, d0.month, d0.day, 10, 30)));
+      await repo.create(CalEvent(
+          title: '并排B',
+          start: DateTime(d0.year, d0.month, d0.day, 10),
+          end: DateTime(d0.year, d0.month, d0.day, 10, 50)));
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          eventRepositoryProvider.overrideWithValue(repo),
+          timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+          categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        ],
+        child: const MaterialApp(home: CalendarPage()),
+      ));
+      await tester.pumpAndSettle();
+
+      // 切周视图（7×24）；选中日=今天=中间列 di=3。
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('▤ 周 · 7×24'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('wk-seg-3-10-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('wk-seg-3-10-1')), findsOneWidget);
+
+      // 点第二段（并排B）→ 开 B 的详情。
+      await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-1')));
+      await tester.pumpAndSettle();
+      expect(find.text('并排B'), findsOneWidget);
+      expect(find.text('✎ 编辑'), findsOneWidget);
+
+      // 遮罩关闭后点第一段（并排A）→ 开 A 的详情。
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-0')));
+      await tester.pumpAndSettle();
+      expect(find.text('并排A'), findsOneWidget);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await clearToasts(tester);
+    });
+  });
+}

@@ -10,6 +10,7 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_dict.dart';
 import 'package:lifeharness/features/read/presentation/biblio_search_page.dart';
 import 'package:lifeharness/features/read/presentation/book_form_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
@@ -282,6 +283,60 @@ void main() {
     expect(b.wordCount, 141000);
     expect(b.state, Book.kStateReading, reason: '未读满不自动落已读（页码未动）');
     expect(find.text('书籍信息已保存'), findsOneWidget);
+    await clearToasts(tester);
+  });
+
+  testWidgets('⑤ V1.46⑧ 标签行内添加：bf-tag-add→就地输入→bf-tag-add-ok 落字典并选中；空名/重名 toast 不新增', (tester) async {
+    await tester.pumpWidget(
+      boot(
+        const BookFormPage(),
+        [isbnPageFetcherProvider.overrideWith((ref) => (uri) async => null)],
+      ),
+    );
+    await tester.pump();
+    // 标签行在「书籍管理」卡片深部，懒构建需加高视口。
+    await useSurface(tester);
+    await settle(tester);
+
+    // ① 点「＋ 添加标签」→ 就地展开输入行（同页内嵌，无弹层）。
+    await tester.tap(find.byKey(const ValueKey('bf-tag-add')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('bf-tag-name')), findsOneWidget);
+
+    // ② 空名确认 → toast 不新增。
+    await tester.tap(find.byKey(const ValueKey('bf-tag-add-ok')));
+    await tester.pump();
+    expect(find.text('标签名不能为空'), findsOneWidget);
+    await clearToasts(tester);
+    expect(await repo.dictOf(DictEntry.kTag), isEmpty);
+
+    // ③ 输入「新标签」确认 → 字典出现且立即选中（保存后随书落 tags）。
+    await tester.enterText(find.byKey(const ValueKey('bf-tag-name')), '新标签');
+    await tester.tap(find.byKey(const ValueKey('bf-tag-add-ok')));
+    await pumpLookup(tester);
+    var dict = await repo.dictOf(DictEntry.kTag);
+    expect(dict.map((e) => e.name), contains('新标签'));
+    // chips 行经 readTick 刷新：新标签 chip 已入树。
+    await settle(tester);
+    expect(find.byKey(const ValueKey('bf-tag-新标签')), findsOneWidget);
+
+    // ④ 重名再加点 → toast 提示不新增（字典仍 1 条）。
+    await tester.tap(find.byKey(const ValueKey('bf-tag-add')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const ValueKey('bf-tag-name')), '新标签');
+    await tester.tap(find.byKey(const ValueKey('bf-tag-add-ok')));
+    await tester.pump();
+    expect(find.text('标签已存在'), findsOneWidget);
+    await clearToasts(tester);
+    dict = await repo.dictOf(DictEntry.kTag);
+    expect(dict.length, 1);
+
+    // ⑤ 立即选中：保存书籍 → tags 含「新标签」。
+    await tester.enterText(find.byKey(const ValueKey('bf-title')), '被讨厌的勇气');
+    await tester.tap(find.byKey(const ValueKey('bf-save')));
+    await pumpLookup(tester);
+    final b = (await repo.allBooks()).single;
+    expect(b.tags, contains('新标签'));
     await clearToasts(tester);
   });
 }

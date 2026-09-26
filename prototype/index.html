@@ -2729,7 +2729,10 @@ let CATS={'工作':'bg-brand-500','学习':'bg-violet-500','运动':'bg-sun','�
 const SUBS={'工作':{'开会':'#开会','不在工位':'#加班'},'休息':{'午休':'','睡觉':'#睡觉'},'路上':{'上班':'#工作','下班':'#工作','出行':''},'娱乐':{'摸鱼':'#摸鱼','躺平':'','旅行':'','逛街':''}};
 const CAT_COLORS=[['亚麻色','bg-yellow-700'],['品牌蓝','bg-brand-500'],['天青','bg-sky-400'],['橙','bg-orange-400'],['玫瑰','bg-rose-400'],['薄荷','bg-mint'],['紫罗兰','bg-violet-500'],['石墨','bg-slate-500'],['靛夜','bg-indigo-800']];
 const catsCollapsed={};
-let blocks=[{s:540,e:585,cat:'工作',note:'晨间规划'},{s:1170,e:1230,cat:'运动',note:'腿日'}];
+let blocks=[{s:540,e:585,cat:'工作',note:'晨间规划'},{s:1170,e:1230,cat:'运动',note:'腿日'},
+ /* V1.46⑤ 演示：14 点同格再叠 4 个块（＋既有 14:00 事件＝5 项）→ 前 3 段并排·第 4 个起并入末段显 +N */
+ {s:840,e:899,cat:'学习',note:'读书摘录'},{s:840,e:899,cat:'清洁',note:'桌面整理'},
+ {s:840,e:899,cat:'路上',note:'回复消息'},{s:840,e:899,cat:'其他',note:'贴发票'}];
 const fmt=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(Math.round(m%60)).padStart(2,'0');
 const hm2min=s=>{const[a,b]=s.split(':').map(Number);return a*60+b};
 function cellMin(i){return i*gran;}
@@ -2847,17 +2850,24 @@ function renderDayHours(){const el=$('#calDayHourView');if(!el)return;
    h+=`<div class="flex gap-2 border-b border-slate-100 dark:border-slate-800 min-h-[38px] cursor-pointer" onclick="addEventAtHour(${hr})"><span class="w-9 shrink-0 text-[10px] font-mono text-slate-400 pt-1.5">${hr}:00</span><div class="flex-1 py-1 pr-1">${chips}</div></div>`}
   el.innerHTML=h;}
 function addEventAtHour(hr){openTimePick(calDay,hr,0)}
-/* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加） —— */
+/* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加 · V1.46⑤ 同格多项并排分段+「+N」徽标） —— */
+function blocksAt(m){return allBlocks().filter(b=>m>=b.s&&m<b.e);}
+function weekCellSegments(bs){if(bs.length<=3)return bs.map(b=>({b,n:1}));
+  return bs.slice(0,3).map(b=>({b,n:1})).concat([{b:bs[3],n:bs.length-3}]);}
 function renderWeekGrid(){const el=$('#calWeekGrid');if(!el)return;
   const days=[13,14,15,16,17,18,19];
   let h='<div class="text-[10px] text-slate-400 mb-1">🗓 9/13 - 9/19 · 空格子 → 添加时间段 · 已添加 → 点进去查看/编辑</div>';
   h+='<div class="grid" style="grid-template-columns:26px repeat(7,1fr);gap:2px">';
   h+='<span></span>'+days.map(d=>`<span class="text-center text-[9px] ${d===19?'text-brand-500 font-extrabold':'text-slate-400'}">${d===19?'今':WDS[(d+1)%7]}</span>`).join('');
   for(let hr=0;hr<24;hr++){h+=`<span class="text-slate-400 text-right text-[8px] font-mono pr-0.5 pt-0.5">${hr}</span>`;
-   for(const d of days){const m=hr*60;const b=d===19?blockAt(m):null;
-    const cls=b?(b.done!==undefined?'bg-emerald-400':b.ev!==undefined?'bg-brand-500/80':(b.live?'animate-pulse ':'')+CATS[b.cat]):'bg-slate-100 dark:bg-slate-800';
-    const act=b?(b.ev!==undefined?`openEventDetail('plan',${b.ev})`:b.done!==undefined?`openEventDetail('ended',${b.done})`:`openEventDetail('live')`):`openTimePick(${d},${hr},0)`;
-    h+=`<div class="wk-cell ${cls}" title="${b?(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e):'9月'+d+'日 '+hr+':00 空'}" onclick="${act}"></div>`}}
+   for(const d of days){const m=hr*60;const bs=d===19?blocksAt(m):[];
+    if(!bs.length){h+=`<div class="wk-cell bg-slate-100 dark:bg-slate-800" title="9月${d}日 ${hr}:00 空" onclick="openTimePick(${d},${hr},0)"></div>`;continue}
+    h+='<div class="wk-cell flex bg-slate-100 dark:bg-slate-800 gap-px items-stretch">'+weekCellSegments(bs).map(s=>{
+     const b=s.b;
+     const cls=b.done!==undefined?'bg-emerald-400':b.ev!==undefined?'bg-brand-500/80':(b.live?'animate-pulse ':'')+CATS[b.cat];
+     const act=b.ev!==undefined?`openEventDetail('plan',${b.ev})`:b.done!==undefined?`openEventDetail('ended',${b.done})`:`openEventDetail('live')`;
+     const ti=(b.note||b.cat)+' '+fmt(b.s)+'-'+fmt(b.e);
+     return `<div class="flex-1 min-w-0 rounded-[4px] relative ${cls}" title="${ti}" onclick="event.stopPropagation();${act}">${s.n>1?`<span class="absolute inset-0 flex items-center justify-center text-white text-[8px] font-extrabold leading-none">+${s.n}</span>`:''}</div>`}).join('')+'</div>'}}
   el.innerHTML=h+'</div>';}
 
 

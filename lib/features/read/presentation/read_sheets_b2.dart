@@ -114,7 +114,10 @@ Future<void> _showAuthorPickSheet(
 /// book_form_page 与本 sheet 共用一份，原 _BookForm 内联 switch 提出，行为不变）。
 String isbnMissLabel(IsbnMiss miss) => switch (miss) {
   IsbnMiss.network => '网络不通 · 留空待补',
-  IsbnMiss.blocked => '豆瓣访问受限 · 稍后再试',
+  // V1.46：已配 Cookie 仍受限→点出「登录态可能失效」，引导去设置重登。
+  IsbnMiss.blocked => DoubanCookie.value != null
+      ? '豆瓣访问受限 · 稍后再试（登录态可能失效）'
+      : '豆瓣访问受限 · 稍后再试',
   _ => '豆瓣未收录 · 留空待补',
 };
 
