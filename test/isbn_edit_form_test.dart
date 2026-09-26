@@ -135,7 +135,9 @@ void main() {
     );
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 900));
-    expect(hits, 1, reason: '编辑态也要真的联网补全，而不是只存码');
+    // 详情页 1 次 + suggest 空后的搜索页兜底 1 次（防封批：suggest 恒空 IP
+    // 会再打 search.douban.com，见 isbn_enrich 兜底链）。
+    expect(hits, 2, reason: '编辑态也要真的联网补全，而不是只存码');
     expect(find.text('豆瓣未收录 · 留空待补'), findsOneWidget);
 
     // 「ISBN 取图」以输入框现值为准（改完即可重取，不必先保存）。
@@ -143,7 +145,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bkf-cov-isbn')));
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 900));
-    expect(hits, 2);
+    expect(hits, 4);
     expect(find.text('未取到封面'), findsOneWidget);
     await clearToasts(tester);
   });

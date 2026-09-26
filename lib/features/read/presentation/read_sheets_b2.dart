@@ -188,6 +188,10 @@ class _BookFormState extends ConsumerState<_BookForm> {
   Timer? _isbnT;
   int _isbnSeq = 0;
   bool _fillDouban = false; // 阅读设置 read.isbnFill＝「抓豆瓣数据」时联网补全。
+  // 豆瓣防封批（2026-09-26 拍板）：二次查询命中本地缓存时不静默采用，
+  // 出「用缓存 / 仍联网查询」询问行（''＝不显示）。
+  String _dbAskCode = '';
+  String _dbAskTitle = '';
 
   @override
   void initState() {
@@ -353,39 +357,84 @@ class _BookFormState extends ConsumerState<_BookForm> {
     _isbnT?.cancel();
     final v = _isbn.text.trim();
     if (v.isEmpty) {
-      setState(() => _isbnStatus = '');
+      setState(() {
+        _isbnStatus = '';
+        _dbAskCode = '';
+      });
       return;
     }
     if (v.length < 8) {
-      setState(() => _isbnStatus = '至少 8 位');
+      setState(() {
+        _isbnStatus = '至少 8 位';
+        _dbAskCode = '';
+      });
       return;
     }
     if (!_fillDouban) {
-      setState(() => _isbnStatus = '仅填 ISBN · 留空待补');
+      setState(() {
+        _isbnStatus = '仅填 ISBN · 留空待补';
+        _dbAskCode = '';
+      });
       return;
     }
-    setState(() => _isbnStatus = '匹配中…');
+    setState(() {
+      _isbnStatus = '匹配中…';
+      _dbAskCode = '';
+    });
     _isbnT = Timer(
       Duration(milliseconds: fromScan ? 0 : 520),
       () => _lookupFill(v, coverOnly: false),
     );
   }
 
-  Future<void> _lookupFill(String code, {required bool coverOnly}) async {
+  /// [fromCacheAsk]＝用户在询问行里选了「仍联网查询」，本次不再问缓存。
+  Future<void> _lookupFill(
+    String code, {
+    required bool coverOnly,
+    bool fromCacheAsk = false,
+  }) async {
     final seq = ++_isbnSeq;
+    final repo = ref.read(readRepositoryProvider);
+    // 缓存优先判定（纯本地，不发网络请求）：命中→询问；取图请求直接吃
+    // 已落盘的封面文件，省一次图床流量。
+    final hit = await repo.doubanCacheRow(code);
+    if (!mounted || seq != _isbnSeq) return;
+    if (hit != null && coverOnly) {
+      final cp = hit['cover_path'] as String?;
+      if (cp != null && await File(cp).exists()) {
+        setState(() {
+          _cover = cp;
+          _isbnStatus = '封面已取';
+        });
+        return;
+      }
+    }
+    if (hit != null && !coverOnly && !fromCacheAsk) {
+      setState(() {
+        _dbAskCode = code;
+        _dbAskTitle = '${hit['title'] ?? ''}';
+        _isbnStatus = '本地已有缓存';
+      });
+      return;
+    }
     final out = await IsbnEnrich.lookupDetailed(
       code,
       fetch: ref.read(isbnPageFetcherProvider),
       // 书名兜底：ISBN 没登记/整页断连时按书名在豆瓣反查（真机反馈②）。
       title: _title.text.trim(),
+      // 联想空结果再用「书名+作者」重试一次（同名书少抓一次整页）。
+      author: _author.text.trim(),
     );
     if (!mounted || seq != _isbnSeq) return;
     final meta = out.meta;
     if (meta == null) {
-      // 成因分档显示（网络不通 / 豆瓣未收录），细节（HTTP 码、异常）在日志页可查。
+      // 成因分档显示（网络不通 / 访问受限 / 豆瓣未收录），细节（HTTP 码、异常）在日志页可查。
       setState(
-        () => _isbnStatus =
-            out.miss == IsbnMiss.network ? '网络不通 · 留空待补' : '豆瓣未收录 · 留空待补',
+        () => _isbnStatus = switch (out.miss) {
+          IsbnMiss.network => '网络不通 · 留空待补',
+          IsbnMiss.blocked => '豆瓣访问受限 · 稍后再试',
+          _ => '豆瓣未收录 · 留空待补',
+        },
       );
       if (coverOnly) readToast(context, '未取到封面');
       return;
@@ -401,10 +450,37 @@ class _BookFormState extends ConsumerState<_BookForm> {
       );
       if (!mounted || seq != _isbnSeq) return;
     }
+    // 豆瓣防封批（2026-09-26）：联网命中即写本地缓存（v23 douban_meta ·
+    // 只存最小字段集），二次查询先提醒「本地已有数据」由用户选用缓存
+    // 还是仍联网（选择交互随原型确认后接入；本行只负责落）。
+    await ref.read(readRepositoryProvider).doubanCachePut(
+      code,
+      meta,
+      coverPath: coverPath,
+      viaSuggest: viaTitle,
+    );
+    if (!mounted || seq != _isbnSeq) return;
+    _applyDouban(
+      meta,
+      viaTitle: viaTitle,
+      coverPath: coverPath,
+      coverOnly: coverOnly,
+      cached: false,
+    );
+  }
+
+  /// 豆瓣元数据落表单（联网命中与缓存命中共用；只填空字段，不覆盖用户已敲内容）。
+  void _applyDouban(
+    IsbnBookMeta meta, {
+    required bool viaTitle,
+    String? coverPath,
+    required bool coverOnly,
+    required bool cached,
+  }) {
     setState(() {
+      _dbAskCode = '';
       if (coverPath != null) _cover = coverPath;
       if (!coverOnly) {
-        // 只填空字段，不覆盖用户已敲内容。
         if (_title.text.trim().isEmpty) _title.text = meta.title;
         if (_author.text.trim().isEmpty && meta.author != null) {
           _author.text = meta.author!;
@@ -418,14 +494,62 @@ class _BookFormState extends ConsumerState<_BookForm> {
         if (_pages.text.trim().isEmpty && meta.pages != null) {
           _pages.text = '${meta.pages}';
         }
-        // 「按书名匹配」说清楚数据来源：ISBN 那条路没走通，别让人误以为是条码命中。
-        _isbnStatus = viaTitle ? '按书名匹配 · 已填充' : '已命中 · 自动填充';
+        // 数据来源说清楚：缓存命中 / 按书名匹配 / 条码直接命中，三种口径不混。
+        _isbnStatus = switch ((cached, viaTitle)) {
+          (true, _) => '缓存命中 · 已填充',
+          (false, true) => '按书名匹配 · 已填充',
+          (false, false) => '已命中 · 自动填充',
+        };
       } else {
         _isbnStatus = coverPath != null ? '封面已取' : '未取到封面';
       }
     });
     if (coverOnly && _isbnStatus != '封面已取') {
       readToast(context, '未取到封面');
+    }
+  }
+
+  /// 询问行「用缓存」：本地行直接回填，不发任何豆瓣请求；缓存里没落封面
+  /// 但存了图床 URL 时补取一次图（仍是用户点出来的显式动作）。
+  Future<void> _dbUseCache() async {
+    final code = _dbAskCode;
+    if (code.isEmpty) return;
+    final hit = await ref.read(readRepositoryProvider).doubanCacheRow(code);
+    if (!mounted) return;
+    if (hit == null) {
+      // 缓存行没了（刚好被清理）：退化为联网查询，不再询问。
+      await _lookupFill(code, coverOnly: false, fromCacheAsk: true);
+      return;
+    }
+    final meta = IsbnEnrich.metaFromRow(hit);
+    final cp = hit['cover_path'] as String?;
+    String? coverPath =
+        (cp != null && File(cp).existsSync()) ? cp : null;
+    if (coverPath == null &&
+        meta.coverUrl != null &&
+        (_cover == null || _cover!.isEmpty)) {
+      coverPath = await IsbnEnrich.saveCover(
+        meta,
+        code,
+        fetchBytes: ref.read(isbnBytesFetcherProvider),
+      );
+      if (!mounted) return;
+    }
+    _applyDouban(
+      meta,
+      viaTitle: (hit['via_suggest'] as int? ?? 0) == 1,
+      coverPath: coverPath,
+      coverOnly: false,
+      cached: true,
+    );
+  }
+
+  /// 询问行「仍联网查询」：走完整抓取链（成功后刷新缓存行）。
+  void _dbRefetch() {
+    final code = _dbAskCode;
+    setState(() => _dbAskCode = '');
+    if (code.isNotEmpty) {
+      _lookupFill(code, coverOnly: false, fromCacheAsk: true);
     }
   }
 
@@ -705,7 +829,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
     // 真机反馈（2026-09-26）：ISBN 原先只在「添加新书」里有入口，建完就改不了
     // （也再也触发不了豆瓣补全）。现在添加/编辑两态共用这一块：输入即校验、
     // 命中状态就地显示，编辑态同样能改码后重抓。
-    final isbnBlock = Row(
+    final isbnRow = Row(
       children: [
         Expanded(
           child: _field(_isbn, 'ISBN / 豆瓣 subject_id',
@@ -720,6 +844,35 @@ class _BookFormState extends ConsumerState<_BookForm> {
             style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
           ),
         ),
+      ],
+    );
+    // 豆瓣防封批（2026-09-26 拍板 · 原型 nbCacheAsk/ebCacheAsk）：二次查询
+    // 命中本地缓存不静默采用，就地出「用缓存 / 仍联网查询」两个入口。
+    final isbnBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        isbnRow,
+        if (_dbAskCode.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              key: const ValueKey('bkf-cache-ask'),
+              children: [
+                Expanded(
+                  child: Text(
+                    '本地已有《$_dbAskTitle》缓存',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                _miniBtn(context, 'bkf-cache-use', '用缓存', _dbUseCache),
+                const SizedBox(width: 6),
+                _miniBtn(context, 'bkf-cache-net', '仍联网查询', _dbRefetch),
+              ],
+            ),
+          ),
       ],
     );
     final covBlock = Column(

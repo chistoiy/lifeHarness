@@ -24,6 +24,7 @@ import 'core/theme/theme_repository.dart';
 import 'features/care/data/care_repository.dart';
 import 'features/habit/data/habit_repository.dart';
 import 'features/habit/domain/habit_calc.dart';
+import 'features/read/data/isbn_enrich.dart';
 import 'features/read/data/read_repository.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
@@ -57,6 +58,13 @@ Future<void> main() async {
 
   // 1b) AI 默认提示词包载入（assets/ai_prompts/ · 用户覆盖在 prefs，不动资产）。
   final aiPack = await loadAiPromptPack();
+
+  // 1c) 豆瓣防封批（2026-09-26）组合根：从本机 prefs 恢复登录 Cookie 与
+  //     熔断冷却。Cookie 只落 SharedPreferences（只存本机：不进 DB、不进
+  //     备份导出、不进日志）；熔断到期点经 persist 钩子写回 prefs。
+  DoubanCookie.set(prefs.getString('read.dbCookie'));
+  DoubanGuard.persist = (untilMs) => prefs.setInt('read.dbBlockUntil', untilMs);
+  DoubanGuard.restore(prefs.getInt('read.dbBlockUntil'));
 
   // 2) 数据库建库（验收：启动即建库；核心表+预留表+plugin_* 规范见 DbSchema）。
   await AppDatabase.instance.open();

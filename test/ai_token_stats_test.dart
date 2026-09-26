@@ -53,7 +53,9 @@ void main() {
 
     test('失败/取消：计次并计失败数，token 不编造', () async {
       await AiTokenStats.record(prefs, 'read.toc', failed: true);
-      final cell = AiTokenStats.load(prefs)['2026-09-26']!['read.toc']!;
+      // 键用相对「今天」（AiTokenStats.dayKey）；写死日期＝每天 0 点后必红的时间炸弹。
+      final cell =
+          AiTokenStats.load(prefs)[AiTokenStats.dayKey(DateTime.now())]!['read.toc']!;
       expect(cell[AiTokenStats.fCalls], 1);
       expect(cell[AiTokenStats.fFails], 1);
       expect(cell[AiTokenStats.fIn], 0);
@@ -61,10 +63,12 @@ void main() {
     });
 
     test('跨天聚合与总量：aggregate 合日、total 出平均耗时', () async {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 1));
       await AiTokenStats.record(prefs, 'read.toc',
-          inTok: 100, outTok: 200, latencyMs: 1000, at: DateTime(2026, 9, 25));
+          inTok: 100, outTok: 200, latencyMs: 1000, at: yesterday);
       await AiTokenStats.record(prefs, 'read.toc',
-          inTok: 50, outTok: 50, latencyMs: 3000, at: DateTime(2026, 9, 26));
+          inTok: 50, outTok: 50, latencyMs: 3000, at: now);
       final table = AiTokenStats.load(prefs);
       final agg = AiTokenStats.aggregate(table.values);
       final t = AiTokenStats.total(agg);
@@ -75,20 +79,23 @@ void main() {
       // 近 7 天窗口只含两日；单日窗口只含当日。
       expect(
           AiTokenStats
-              .total(AiTokenStats.aggregate([table['2026-09-26']!, const {}]))
+              .total(AiTokenStats
+                  .aggregate([table[AiTokenStats.dayKey(now)]!, const {}]))
               .outTok,
           50);
     });
 
     test('超过保留天数：按最旧整日丢弃', () async {
+      final now = DateTime.now();
       for (var i = 0; i < AiTokenStats.keepDays + 5; i++) {
         await AiTokenStats.record(prefs, 'read.toc',
-            inTok: 1, at: DateTime(2026, 9, 26).subtract(Duration(days: i)));
+            inTok: 1, at: now.subtract(Duration(days: i)));
       }
       final days = AiTokenStats.load(prefs).keys.toList()..sort();
       expect(days.length, AiTokenStats.keepDays);
-      expect(days.first, isNot('2026-09-26'), reason: '最新的必须留下');
-      expect(days.last, '2026-09-26');
+      expect(days.first, isNot(AiTokenStats.dayKey(now)),
+          reason: '最新的必须留下');
+      expect(days.last, AiTokenStats.dayKey(now));
     });
 
     test('脏数据整键弃用；clear 清空明细', () async {

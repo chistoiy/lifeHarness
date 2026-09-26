@@ -2408,6 +2408,7 @@ tailwind.config = {
           <textarea id="nbIntro" class="inp min-h-[52px]" placeholder="书籍简介（导入源可自动带出）"></textarea>
         </div>
         <div class="flex gap-2"><input id="nbIsbn" class="inp flex-1" placeholder="ISBN / 豆瓣 subject_id" oninput="shIsbnHint()"><span id="nbLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
+        <div id="nbCacheAsk" class="hidden flex items-center gap-2 flex-wrap -mt-1"><span class="text-[10px] text-slate-500">本地已有《<b id="nbCacheN"></b>》缓存</span><button class="mini-btn !text-[10px]" onclick="dbPick('nb',1)">用缓存</button><button class="mini-btn !text-[10px]" onclick="dbPick('nb',0)">仍联网查询</button></div>
         <div class="flex gap-2"><input id="nbPages" class="inp flex-1" type="number" placeholder="总页数"><input id="nbRead" class="inp flex-1" type="number" placeholder="已读页（可选）"></div>
         <div class="text-[10px] text-slate-400 -mt-1">分区 <span class="ml-1" id="nbStChips"></span></div>
         <div class="text-[10px] text-slate-400 -mt-1">标签（可多选）<span class="ml-1" id="nbTagChips"></span></div>
@@ -2459,6 +2460,7 @@ tailwind.config = {
           <textarea id="ebIntro" class="inp min-h-[52px]" placeholder="书籍简介（导入源可自动带出）"></textarea>
         </div>
         <div class="flex gap-2"><input id="ebIsbn" class="inp flex-1" placeholder="ISBN / 豆瓣 subject_id" oninput="ebIsbnHint()"><span id="ebLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
+        <div id="ebCacheAsk" class="hidden flex items-center gap-2 flex-wrap -mt-1"><span class="text-[10px] text-slate-500">本地已有《<b id="ebCacheN"></b>》缓存</span><button class="mini-btn !text-[10px]" onclick="dbPick('eb',1)">用缓存</button><button class="mini-btn !text-[10px]" onclick="dbPick('eb',0)">仍联网查询</button></div>
         <div class="flex gap-2"><input id="ebPub" class="inp flex-1" placeholder="出版社"><input id="ebYr" class="inp w-24" placeholder="年份"></div>
         <div class="flex gap-2"><input id="ebPages" class="inp flex-1" type="number" placeholder="总页数"><input id="ebProg" class="inp flex-1" type="number" placeholder="进度 %"></div>
         <div class="text-[10px] text-slate-400 -mt-1">分区 <span id="ebStChips"></span></div>
@@ -4555,7 +4557,10 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除']};
+let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:''};
+/* 豆瓣防封批（2026-09-26）：抓到的书目按 ISBN 落本机元数据缓存（demo 内存态）。
+   二次命中不静默采用——提示「本地已有缓存」，由用户选「用缓存 / 仍联网查询」。 */
+let BS_DB_CACHE={'9787111544937':{n:'深入理解计算机系统（原书第3版）',a:'兰德尔·布莱恩特',pub:'机械工业出版社',pg:868,yr:'2016-11'}};
 let shSel=new Set(),CURBK='b1',bdTab='q',qtKw='',qtTag='',qtScope='all',qtView='card',bdChFilter='',bdIntroOpen=false;
 const shFmtDate=()=>{const d=new Date(2026,8,20);return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 
@@ -4807,22 +4812,25 @@ function shSaveNew(){const n=document.getElementById('nbName').value.trim();if(!
   closeSheet('sheetNewBook');shView='wall';shSt='全部';shTag='';renderShelf();renderRecHub();toast('《'+n+'》已加入书架 · '+(nbSt==='在读'?'可直接开始计时':'在「'+nbSt+'」分区'))}
 function shScanIsbn(){document.getElementById('nbIsbn').value='9787508662560';shIsbn();toast('已扫描书脊 ISBN（模拟）')}
 let nbIsbnTimer=null;
-function shIsbnHint(){const v=document.getElementById('nbIsbn').value.trim(),L=document.getElementById('nbLookup');if(!L)return;
+function shIsbnHint(){const v=document.getElementById('nbIsbn').value.trim(),L=document.getElementById('nbLookup');if(!L)return;dbAsk('nb',false);
  if(!v){L.textContent='';return}
  if(v.length<8){L.textContent='至少 8 位';return}
  if(BS_SET.isbnFill!=='抓豆瓣数据'){L.textContent='仅填 ISBN · 留空待补';return}
- L.textContent='匹配中…';clearTimeout(nbIsbnTimer);
- nbIsbnTimer=setTimeout(()=>{if(!document.getElementById('nbName').value){document.getElementById('nbName').value='被讨厌的勇气';document.getElementById('nbAuthor').value='岸见一郎';document.getElementById('nbPages').value='288';renderEbx()}L.textContent='已命中 · 自动填充'},520)}
+ clearTimeout(nbIsbnTimer);
+ nbIsbnTimer=setTimeout(()=>{if(BS_DB_CACHE[v]){L.textContent='本地已有缓存';dbAsk('nb',true,BS_DB_CACHE[v].n);return}
+  dbNet('nb',v)},520)}
 /* 编辑态 ISBN（真机反馈 2026-09-26：建完就改不了码，也再触发不了补全）。
    未命中分两档文案：网络不通（离线/DNS/超时）与豆瓣未收录（取到页但没这条书目），
    具体 HTTP 码与异常只在应用日志里留痕。 */
 let ebIsbnTimer=null;
-function ebIsbnHint(){const v=document.getElementById('ebIsbn').value.trim(),L=document.getElementById('ebLookup');if(!L)return;
+function ebIsbnHint(){const v=document.getElementById('ebIsbn').value.trim(),L=document.getElementById('ebLookup');if(!L)return;dbAsk('eb',false);
  if(!v){L.textContent='';return}
  if(v.length<8){L.textContent='至少 8 位';return}
  if(BS_SET.isbnFill!=='抓豆瓣数据'){L.textContent='仅填 ISBN · 留空待补';return}
- L.textContent='匹配中…';clearTimeout(ebIsbnTimer);
- ebIsbnTimer=setTimeout(()=>{const ok=/^978/.test(v)&&v.length===13;if(ok){if(!document.getElementById('ebName').value)document.getElementById('ebName').value='被讨厌的勇气';if(!document.getElementById('ebPages').value)document.getElementById('ebPages').value='288';renderEbx();L.textContent='已命中 · 自动填充'}else L.textContent='豆瓣未收录 · 留空待补'},520)}
+ clearTimeout(ebIsbnTimer);
+ ebIsbnTimer=setTimeout(()=>{if(BS_DB_CACHE[v]){L.textContent='本地已有缓存';dbAsk('eb',true,BS_DB_CACHE[v].n);return}
+  const ok=/^978/.test(v)&&v.length===13;if(!ok){L.textContent='豆瓣未收录 · 留空待补';return}
+  dbNet('eb',v)},520)}
 /* 编辑态扫码（2026-09-26 拍板）：改码最常见的原因就是对着书脊重扫。 */
 function ebScanIsbn(){document.getElementById('ebIsbn').value='9787508662560';ebIsbnHint();toast('已扫描书脊 ISBN（模拟）')}
 function shGoalInit(){const H=[0,1,2,3,4],M=[0,5,10,15,20,25,30,35,40,45,50,55];
@@ -5073,7 +5081,7 @@ const RS_SEC=[
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
- ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
+ ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','text','选填 · 粘贴浏览器登录后的 Cookie，带登录态访问降低抓取被限制的概率 · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}
@@ -5084,10 +5092,12 @@ function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderR
   if(k==='fullCh'){renderQuotes();renderBookDetail()}
   toast('已设置 '+o)}
 function rsRow(it){const k=it[0],nm=it[1],ty=it[2],ex=it[3];const v=BS_SET[k];
-  const head='<div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b>'+(typeof ex==='string'&&['bool','go','go2','info','ops','nav'].includes(ty)?'<div class="text-[10px] text-slate-400 mt-0.5">'+ex+'</div>':'')+'</div>';
+  const head='<div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b>'+(typeof ex==='string'&&['bool','go','go2','info','ops','nav','text','cache'].includes(ty)?'<div class="text-[10px] text-slate-400 mt-0.5">'+ex+'</div>':'')+'</div>';
   const foot='</div>';
   if(ty==='chips')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 flex-wrap">'+ex.map(o=>'<button class="chip !text-[10px] '+(String(v)===String(o)?'chip-on':'')+'" onclick="rsChip(\''+k+'\','+(typeof o==='number'?o:'\''+o+'\'')+')">'+o+'</button>').join('')+'</div></div>';
   if(ty==='bool')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="toggle '+(v?'on':'')+'" onclick="rsFlip(\''+k+'\')"><i></i></button>'+foot+'</div>';
+  if(ty==='text')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 items-center"><input id="rsIn_'+k+'" class="inp flex-1 !py-1.5 text-[10.5px]" type="password" placeholder="'+(BS_SET[k]?'已配置 · 可清空后重填':'粘贴浏览器登录豆瓣后的 Cookie')+'" autocomplete="off" autocorrect="off" spellcheck="false"><button class="mini-btn !text-[10px] shrink-0 self-stretch" onclick="rsCookieSave(\''+k+'\')">'+(BS_SET[k]?'覆盖':'保存')+'</button>'+(BS_SET[k]?'<button class="mini-btn !text-[10px] shrink-0 self-stretch" onclick="rsCookieClear(\''+k+'\')">清除</button>':'')+'</div></div>';
+  if(ty==='cache'){const n=Object.keys(BS_DB_CACHE).length;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]'+(n?'':' opacity-40')+'" onclick="rsCacheClear()">'+(n?'清除 '+n+' 条':'无缓存')+'</button>'+foot+'</div>';}
   if(ty==='ops'){const on=BS_SET.longPress.map((o,i)=>'<div class="flex items-center gap-2 text-[12px]"><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',-1)">↑</button><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',1)">↓</button><b>'+o+'</b><button class="ml-auto text-[10px] text-rose-500" onclick="lpRm('+i+')">移除</button></div>').join('');
     const off=LP_ALL.filter(x=>!BS_SET.longPress.includes(x)).map(x=>'<button class="chip !text-[10px]" onclick="lpAdd(\''+x+'\')">＋ '+x+'</button>').join('');
     return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<span class="text-[10px] text-slate-400">'+BS_SET.longPress.length+' 项</span>'+foot+'<div class="mt-1.5 space-y-1.5">'+on+'</div>'+(off?'<div class="mt-2 flex gap-1.5 flex-wrap">'+off+'</div>':'')+'</div>';}
@@ -5100,6 +5110,27 @@ function renderReadSet(){const el=document.getElementById('rsGroups');if(!el)ret
 function rsFlip(k){BS_SET[k]=!BS_SET[k];renderReadSet();
   if(k==='simple'){renderQuotes();renderBookDetail()}
   toast((BS_SET[k]?'已开启 · ':'已关闭 · ')+({floatBar:'悬浮计时条',speedFold:'倍速折算',autoAsk:'结束后问进度',dailyQ:'每日补记提醒',ocr:'识图取文',rateFmt:'默认带页码',clipAuto:'剪贴板识别',simple:'简洁浏览',fullCh:'完整章节名',feeTxn:'购书费用入账'}[k]||k))}
+/* 豆瓣防封批（2026-09-26）· 设置行为：Cookie 保存/清除、缓存清除。 */
+function rsCookieSave(k){const el=document.getElementById('rsIn_'+k),v=(el.value||'').trim();
+  if(!v){toast('先粘贴 Cookie 再保存');return}
+  BS_SET[k]=v;renderReadSet();toast('豆瓣 Cookie 已保存到本机')}
+function rsCookieClear(k){BS_SET[k]='';renderReadSet();toast('豆瓣 Cookie 已清除')}
+function rsCacheClear(){const n=Object.keys(BS_DB_CACHE).length;if(!n)return;
+  BS_DB_CACHE={};renderReadSet();toast('已清除 '+n+' 条豆瓣缓存')}
+/* ISBN 补全命中链：先问缓存（用户拍板 2026-09-26：不静默采用），再联网。 */
+function dbAsk(f,on,name){const r=document.getElementById(f+'CacheAsk');if(!r)return;
+  r.classList.toggle('hidden',!on);if(on&&name!=null)document.getElementById(f+'CacheN').textContent=name}
+function dbFillForm(f,c){const g=id=>document.getElementById(f+id);
+  if(!g('Name').value)g('Name').value=c.n;if(!g('Author').value&&c.a)g('Author').value=c.a;
+  if(!g('Pages').value&&c.pg)g('Pages').value=c.pg;if(g('Pub')&&!g('Pub').value&&c.pub)g('Pub').value=c.pub}
+function dbNet(f,v){const L=document.getElementById(f+'Lookup');L.textContent='匹配中…';
+  setTimeout(()=>{if(!document.getElementById(f+'Isbn')||document.getElementById(f+'Isbn').value.trim()!==v)return;
+    BS_DB_CACHE[v]=BS_DB_CACHE[v]||{n:'被讨厌的勇气',a:'岸见一郎',pub:'北京联合出版公司',pg:288,yr:'2013-10'};
+    dbFillForm(f,BS_DB_CACHE[v]);renderEbx();L.textContent='已命中 · 自动填充'},520)}
+function dbPick(f,use){const v=document.getElementById(f+'Isbn').value.trim(),L=document.getElementById(f+'Lookup');
+  dbAsk(f,false);
+  if(use){dbFillForm(f,BS_DB_CACHE[v]);renderEbx();L.textContent='缓存命中 · 已填充';toast('已从本地缓存补全 · 未联网')}
+  else dbNet(f,v)}
 function rsExport(k){const nm=k==='exportMd'?'全部书摘':'书架备份';
   const md=BS_BOOKS.map(b=>'## '+b.n+'（'+b.a+'）\n\n'+bsQ(b.id).map(x=>'> '+x.x+(x.th?'\n\n想法：'+x.th:'')+'\n\n— '+x.ch+(x.pg?' · P'+x.pg:'')+' · '+x.dt).join('\n\n')).join('\n\n');
   const js=JSON.stringify({app:'LifeHarness',kind:'bookshelf',year:BS_CUR_YEAR,books:BS_BOOKS,quotes:BS_QUOTES,lists:BS_LISTS,goal:BS_GOAL,settings:BS_SET},null,1);

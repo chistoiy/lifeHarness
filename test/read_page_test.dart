@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
 import 'dart:io';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
 import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
@@ -37,8 +39,11 @@ void main() {
 
   late Database db;
   late ReadRepository repo;
+  late SharedPreferences prefs;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
     for (final sql in DbSchema.createStatements) {
       await db.execute(sql);
@@ -64,7 +69,11 @@ void main() {
           updatedAt: last ?? ms(1));
 
   Widget page(Widget home) => ProviderScope(
-        overrides: [readRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          readRepositoryProvider.overrideWithValue(repo),
+          // 与 routed() 计数一致（riverpod 不允许重建时增删 override 数量）。
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
         child: MaterialApp(
           home: Directionality(textDirection: TextDirection.ltr, child: home),
         ),
@@ -117,6 +126,9 @@ void main() {
     return ProviderScope(
       overrides: [
         readRepositoryProvider.overrideWithValue(repo),
+        // V1.45：阅读设置新增 Cookie 行读 prefs（sharedPreferencesProvider 未
+        // override 时默认实现直接抛错），本文件所有 boot 统一注入 mock prefs。
+        sharedPreferencesProvider.overrideWithValue(prefs),
         ...extra,
       ],
       child: MaterialApp.router(
@@ -1939,6 +1951,14 @@ void main() {
       // 数据与存储组：import 行右侧按钮文案＝「配置」。
       await tester.ensureVisible(find.byKey(const ValueKey('set-tab-4')));
       await tester.tap(find.byKey(const ValueKey('set-tab-4')));
+      await settle(tester);
+      // V1.45 起该组多了 Cookie/缓存两行，import 行被挤出懒加载视口——
+      // 真滚到底再断言（find.byKey 抓不到未构建的离屏行）。
+      await tester.dragUntilVisible(
+        find.byKey(const ValueKey('set-open-import')),
+        find.byType(ListView).last,
+        const Offset(0, -160),
+      );
       await settle(tester);
       expect(find.byKey(const ValueKey('set-open-import')), findsOneWidget);
       expect(find.text('配置'), findsOneWidget);

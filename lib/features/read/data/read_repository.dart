@@ -12,6 +12,7 @@ import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
 import '../domain/book_toc.dart';
 import '../domain/shelf_query.dart';
+import 'isbn_enrich.dart';
 import 'read_import.dart';
 
 /// 阅读模块仓储（M1批3 · 计划 §2.1 三表）。
@@ -1852,4 +1853,48 @@ class ReadRepository {
 
   Future<int> kvInt(String key, int def) async =>
       int.tryParse(await kv(key) ?? '') ?? def;
+
+  // ---- 豆瓣元数据缓存（v23 douban_meta · 防封批 2026-09-26）----
+  // 只存 App 在用的最小字段集（不存整页快照），控制库体积与云备份体积；
+  // 手动清理由阅读设置「清除豆瓣缓存」触发（只清表行，不动已落盘封面文件，
+  // 封面清理走记录管理的文件口径）。Cookie 不落本库（存 SharedPreferences，
+  // 不进 DB 快照/书架备份导出）。
+
+  Future<Map<String, Object?>?> doubanCacheRow(String code) => db.query(
+    DbSchema.tDoubanMeta,
+    where: 'code = ?',
+    whereArgs: [code.trim()],
+    limit: 1,
+  ).then((r) => r.isEmpty ? null : r.first);
+
+  Future<void> doubanCachePut(
+    String code,
+    IsbnBookMeta meta, {
+    String? subject,
+    String? coverPath,
+    bool viaSuggest = false,
+  }) => db.insert(DbSchema.tDoubanMeta, {
+    'code': code.trim(),
+    'subject': subject,
+    'title': meta.title,
+    'author': meta.author,
+    'publisher': meta.publisher,
+    'pub_date': meta.pubDate,
+    'pages': meta.pages,
+    'rating': meta.rating,
+    'cover_url': meta.coverUrl,
+    'cover_path': coverPath,
+    'via_suggest': viaSuggest ? 1 : 0,
+    'fetched_at': DateTime.now().millisecondsSinceEpoch,
+  }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+  Future<int> doubanCacheCount() async {
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) c FROM ${DbSchema.tDoubanMeta}',
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  /// 手动清理：整表清空（阅读设置入口 · 无按行删除需求）。
+  Future<void> doubanCacheClear() => db.delete(DbSchema.tDoubanMeta);
 }

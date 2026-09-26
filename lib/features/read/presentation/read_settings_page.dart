@@ -7,14 +7,18 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/notifications/notification_service.dart';
+import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../../../core/theme/app_theme.dart';
+import '../data/isbn_enrich.dart' show DoubanCookie;
 import 'read_providers.dart';
 import 'read_sheets.dart';
 import 'shelf_page.dart' show kLpAll, kLpDefault;
 
 /// 阅读设置（原型 p-readset / RS_SEC · 计划 §6）：五组横向 tab，
 /// 一次只显示一组；所有键走 settings 表 read.*，写完 readTick 广播即时生效。
-enum _T { chips, bool, ops, nav, go, go2, info }
+/// 例外：dbCookie（豆瓣登录态凭据）只存 SharedPreferences，不进 settings 表
+/// ——书架备份导出（buildBackupJson 捞 read.* 全量）不会带走它。
+enum _T { chips, bool, ops, nav, go, go2, info, text, cache }
 
 class _Row {
   const _Row(this.key, this.name, this.t, {
@@ -72,6 +76,10 @@ const _secs = [
     _Row('isbnFill', 'ISBN 补全', _T.chips,
         opts: ['仅填 ISBN', '抓豆瓣数据'],
         desc: '扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'),
+    _Row('dbCookie', '豆瓣登录 Cookie', _T.text,
+        desc: '选填 · 粘贴浏览器登录后的 Cookie，带登录态访问降低抓取被限制的概率 · 仅存本机 · 频繁抓取可能导致自己的账号受限'),
+    _Row('dbCache', '豆瓣数据缓存', _T.cache,
+        desc: '抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'),
     _Row('import', '导入其他平台读书笔记', _T.go,
         route: '/read/import',
         desc: '微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'),
@@ -112,6 +120,19 @@ class ReadSettingsPage extends ConsumerStatefulWidget {
 
 class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
   late int _sec = widget.initialSec.clamp(0, _secs.length - 1);
+
+  // 豆瓣 Cookie 输入框（防封批 2026-09-26）：保存后屏上不回显值，只显「已配置」。
+  final TextEditingController _cookieCtl = TextEditingController();
+
+  @override
+  void dispose() {
+    _cookieCtl.dispose();
+    super.dispose();
+  }
+
+  bool get _dbCookieOn =>
+      (ref.read(sharedPreferencesProvider).getString('read.dbCookie') ?? '')
+          .isNotEmpty;
 
   Future<void> _set(String key, String value) async {
     final repo = ref.read(readRepositoryProvider);
@@ -323,6 +344,9 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     final opsInline = r.t == _T.ops
         ? _lpInline(r.key)
         : const SizedBox.shrink();
+    final textInline = r.t == _T.text
+        ? _dbCookieInline(cs)
+        : const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
@@ -332,7 +356,100 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [head, chips, opsInline],
+        children: [head, chips, opsInline, textInline],
+      ),
+    );
+  }
+
+  /// 豆瓣登录 Cookie 行内嵌输入（保存→prefs＋即时生效；清除→双清）。
+  Widget _dbCookieInline(ColorScheme cs) {
+    if (_dbCookieOn) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                '已配置 · 仅存本机',
+                key: ValueKey('set-dbCookie-on'),
+                style: TextStyle(fontSize: 10),
+              ),
+            ),
+            TextButton(
+              key: const ValueKey('set-dbCookie-clear'),
+              onPressed: () async {
+                await ref
+                    .read(sharedPreferencesProvider)
+                    .remove('read.dbCookie');
+                DoubanCookie.set(null);
+                if (!mounted) return;
+                setState(() {});
+                readToast(context, '豆瓣 Cookie 已清除');
+              },
+              child: const Text('清除', style: TextStyle(fontSize: 11.5)),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const ValueKey('set-dbCookie-input'),
+              controller: _cookieCtl,
+              obscureText: true,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 11),
+              decoration: InputDecoration(
+                hintText: '粘贴浏览器登录豆瓣后的 Cookie',
+                hintStyle: TextStyle(
+                  fontSize: 10.5,
+                  color: cs.onSurfaceVariant,
+                ),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerHighest.withValues(alpha: .4),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: .5),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: cs.primary),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            key: const ValueKey('set-dbCookie-save'),
+            onPressed: () async {
+              final v = _cookieCtl.text.trim();
+              if (v.isEmpty) {
+                readToast(context, '先粘贴 Cookie 再保存');
+                return;
+              }
+              await ref
+                  .read(sharedPreferencesProvider)
+                  .setString('read.dbCookie', v);
+              DoubanCookie.set(v);
+              _cookieCtl.clear();
+              if (!mounted) return;
+              setState(() {});
+              readToast(context, '豆瓣 Cookie 已保存到本机');
+            },
+            child: const Text('保存', style: TextStyle(fontSize: 11.5)),
+          ),
+        ],
       ),
     );
   }
@@ -505,6 +622,28 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
         ];
       case _T.chips:
         return const [];
+      case _T.text:
+        return const [];
+      case _T.cache:
+        // 原型 rsRow cache：按钮即「清除 N 条」，无缓存置灰「无缓存」。
+        final n = ref.watch(doubanCacheCountProvider).valueOrNull ?? 0;
+        return [
+          TextButton(
+            key: const ValueKey('set-dbCache-clear'),
+            onPressed: n == 0
+                ? null
+                : () async {
+                    final repo = ref.read(readRepositoryProvider);
+                    await repo.doubanCacheClear();
+                    ref.read(readTickProvider.notifier).state++;
+                    if (mounted) readToast(context, '已清除 $n 条豆瓣缓存');
+                  },
+            child: Text(
+              n == 0 ? '无缓存' : '清除 $n 条',
+              style: const TextStyle(fontSize: 11.5),
+            ),
+          ),
+        ];
     }
   }
 }

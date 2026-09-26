@@ -331,11 +331,13 @@ void main() {
     testWidgets('轮9s 时间三档：今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD',
         (tester) async {
       final now = DateTime.now();
+      // 「今天」锚定今天正午而非 now-1h：00:00~01:00 跑时后者会滑到昨天（时间炸弹）。
+      final today = DateTime(now.year, now.month, now.day, 12);
       await dao.save(Note(
           title: '今天篇',
           content: 'a',
-          createdAt: now.subtract(const Duration(hours: 1)),
-          updatedAt: now.subtract(const Duration(hours: 1))));
+          createdAt: today,
+          updatedAt: today));
       await dao.save(Note(
           title: '今年篇',
           content: 'b',

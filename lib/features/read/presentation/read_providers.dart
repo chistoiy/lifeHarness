@@ -20,6 +20,13 @@ final readRepositoryProvider = Provider<ReadRepository>(
 
 final readTickProvider = StateProvider<int>((ref) => 0);
 
+/// 豆瓣元数据缓存条数（防封批 2026-09-26 · 设置页「豆瓣数据缓存」行展示/
+/// 清除按钮置灰判断用；readTick 写后自动重取）。
+final doubanCacheCountProvider = FutureProvider<int>((ref) {
+  ref.watch(readTickProvider);
+  return ref.watch(readRepositoryProvider).doubanCacheCount();
+});
+
 final booksProvider = FutureProvider<List<Book>>((ref) {
   ref.watch(readTickProvider);
   return ref.watch(readRepositoryProvider).allBooks();

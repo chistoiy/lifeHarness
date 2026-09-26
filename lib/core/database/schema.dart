@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 22;
+  static const int version = 23;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -109,6 +109,10 @@ class DbSchema {
   static const String tKrUpdates = 'kr_updates';
   static const String tGoalReviews = 'goal_reviews';
   static const String tGoalPeriods = 'goal_periods';
+  // v23（豆瓣防封批）：豆瓣书目元数据缓存单表（calibre-douban 的
+  // isbn→identifier / identifier→cover 缓存思路落本地）。只存 App 在用的
+  // 最小字段集、不存整页快照——防库膨胀并控制云备份体积（2026-09-26 拍板）。
+  static const String tDoubanMeta = 'douban_meta';
 
   /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
   /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
@@ -392,6 +396,7 @@ class DbSchema {
     ...daysSchemaStatements,
     ...itemSchemaStatements,
     ...goalSchemaStatements,
+    ...doubanMetaSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -611,7 +616,36 @@ class DbSchema {
     21: [
       ...goalSchemaStatements,
     ],
+    // v23（豆瓣防封批）：豆瓣书目元数据缓存表（需求 2026-09-26：二次查询命中
+    // 本地缓存先提醒、由用户选「用缓存/仍联网」；支持手动清理）。
+    22: [
+      ...doubanMetaSchemaStatements,
+    ],
   };
+
+  /// v23 豆瓣元数据缓存 DDL（建库与迁移共用·幂等）。
+  /// code＝查询码原样（ISBN 13 位或豆瓣 subject_id）；subject 存命中的
+  /// subject_id（ISBN 重定向后的真身，二次直抓免重定向）；cover_path 为
+  /// 已落本地的封面文件路径（换机备份随私有目录走，清了缓存不删封面文件，
+  /// 由「清除缓存」按钮只管本表行）。
+  static const List<String> doubanMetaSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tDoubanMeta (
+      code TEXT PRIMARY KEY,
+      subject TEXT,
+      title TEXT NOT NULL,
+      author TEXT,
+      publisher TEXT,
+      pub_date TEXT,
+      pages INTEGER,
+      rating REAL,
+      cover_url TEXT,
+      cover_path TEXT,
+      via_suggest INTEGER NOT NULL DEFAULT 0,
+      fetched_at INTEGER NOT NULL
+    )
+    ''',
+  ];
 
   /// v22 目标 OKR 五表 DDL（建库与迁移共用·幂等）。
   /// period：'2026 Q1'..'2026 Q4' 或 '年度目标'；归档只读口径落 goal_periods；

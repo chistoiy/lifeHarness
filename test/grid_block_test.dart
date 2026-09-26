@@ -109,15 +109,18 @@ void main() {
   });
 
   test('endActive 回填 L4 时间块（source=event，覆盖同区间 mark）', () async {
-    await dao.insert(TimeBlock(day: DateTime.now(), startMin: 0, endMin: 1440, catName: '娱乐', note: '占位'));
-    await repo.startNow(CalEvent(title: '写周报', start: DateTime.now().subtract(const Duration(minutes: 30))));
+    // 全部锚定「事件开始日」：00:00~00:30 跑时 now-30min 属于昨天，
+    // 若拿今天做种/断言会跨日错位（原用例的零点窗口脆弱点）。
+    final start = DateTime.now().subtract(const Duration(minutes: 30));
+    await dao.insert(TimeBlock(day: start, startMin: 0, endMin: 1440, catName: '娱乐', note: '占位'));
+    await repo.startNow(CalEvent(title: '写周报', start: start));
     // startNow 强制 start=now，改为直接改库模拟 30 分钟前开始。
     await db.update(DbSchema.tEvents,
-        {'start_at': DateTime.now().subtract(const Duration(minutes: 30)).millisecondsSinceEpoch},
+        {'start_at': start.millisecondsSinceEpoch},
         where: 'status = ?', whereArgs: [EventStatus.active.index]);
     final ended = await repo.endActive();
     expect(ended, isNotNull);
-    final blocks = await dao.listByDay(DateTime.now());
+    final blocks = await dao.listByDay(start);
     final eventBlock = blocks.where((b) => b.source == 'event').toList();
     expect(eventBlock, hasLength(1));
     expect(eventBlock.single.note, '写周报');
