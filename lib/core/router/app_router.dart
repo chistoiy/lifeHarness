@@ -66,6 +66,7 @@ import '../../features/ledger/presentation/ledger_yearly_page.dart';
 import '../../features/read/presentation/book_detail.dart';
 import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/book_mgr_page.dart';
+import '../../features/read/presentation/douban_login_page.dart';
 import '../../features/read/presentation/isbn_scan_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
 import '../../features/read/presentation/read_import_page.dart';
@@ -429,6 +430,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/scan',
         builder: (_, _) => const IsbnScanPage(),
+      ),
+      // V1.45 豆瓣登录 Cookie 获取页（替代手动粘贴：设置页「登录豆瓣」push，
+      // 用户自行登录点「完成」→ 原生 CookieManager 提取 → pop 回 true）。
+      GoRoute(
+        path: '/read/douban-login',
+        builder: (_, _) => const DoubanLoginPage(),
       ),
       // 书架资料单类管理页：?kind= 决定类（书架维度行「管理X」入口；默认来源）。
       GoRoute(

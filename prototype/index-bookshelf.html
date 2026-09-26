@@ -990,6 +990,23 @@ tailwind.config = {
       <div id="rsGroups" class="mt-2.5 space-y-3"></div>
     </section>
 
+    <!-- ===== 书架专版 · 应用内豆瓣登录（2026-09-27 改口：不再手动粘贴 Cookie） ===== -->
+    <section id="p-doubanLogin" class="page safe-pb no-scrollbar !px-0">
+      <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800">
+        <button class="mini-btn !text-[10px]" onclick="goBack()">取消</button>
+        <div class="flex-1 text-center font-extrabold text-[13px]">豆瓣登录</div>
+        <button class="mini-btn !text-[10px]" onclick="dblDone()">完成</button>
+      </div>
+      <div class="mx-3 mt-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] text-slate-400 truncate">accounts.douban.com/passport/login</div>
+      <div class="p-5 space-y-3">
+        <div class="text-[15px] font-extrabold text-slate-700 dark:text-slate-200">登录豆瓣</div>
+        <input class="inp" placeholder="手机号 / 邮箱" id="dblUser">
+        <div class="flex gap-2"><input class="inp flex-1" placeholder="验证码" id="dblCode"><button class="mini-btn self-stretch" onclick="toast('验证码已发送（演示）')">获取验证码</button></div>
+        <button class="w-full py-2.5 rounded-xl grad text-white text-[12.5px] font-bold" onclick="dblLogin()">登录</button>
+        <div class="text-[10px] text-slate-400">演示：任意账号 + 验证码 1234 即登录成功</div>
+      </div>
+    </section>
+
     <!-- ===== 书架专版 · 阅读数据导入 ===== -->
     <section id="p-readimport" class="page px-5 safe-pb no-scrollbar">
       <div class="mt-3 card !py-3"><div class="row-title">导入方式</div><div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar" id="impCats"></div></div>
@@ -5081,7 +5098,7 @@ const RS_SEC=[
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
- ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','text','选填 · 粘贴浏览器登录后的 Cookie，带登录态访问降低抓取被限制的概率 · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
+ ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}
@@ -5092,11 +5109,11 @@ function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderR
   if(k==='fullCh'){renderQuotes();renderBookDetail()}
   toast('已设置 '+o)}
 function rsRow(it){const k=it[0],nm=it[1],ty=it[2],ex=it[3];const v=BS_SET[k];
-  const head='<div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b>'+(typeof ex==='string'&&['bool','go','go2','info','ops','nav','text','cache'].includes(ty)?'<div class="text-[10px] text-slate-400 mt-0.5">'+ex+'</div>':'')+'</div>';
+  const head='<div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b>'+(typeof ex==='string'&&['bool','go','go2','info','ops','nav','login','cache'].includes(ty)?'<div class="text-[10px] text-slate-400 mt-0.5">'+ex+'</div>':'')+'</div>';
   const foot='</div>';
   if(ty==='chips')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 flex-wrap">'+ex.map(o=>'<button class="chip !text-[10px] '+(String(v)===String(o)?'chip-on':'')+'" onclick="rsChip(\''+k+'\','+(typeof o==='number'?o:'\''+o+'\'')+')">'+o+'</button>').join('')+'</div></div>';
   if(ty==='bool')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="toggle '+(v?'on':'')+'" onclick="rsFlip(\''+k+'\')"><i></i></button>'+foot+'</div>';
-  if(ty==='text')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 items-center"><input id="rsIn_'+k+'" class="inp flex-1 !py-1.5 text-[10.5px]" type="password" placeholder="'+(BS_SET[k]?'已配置 · 可清空后重填':'粘贴浏览器登录豆瓣后的 Cookie')+'" autocomplete="off" autocorrect="off" spellcheck="false"><button class="mini-btn !text-[10px] shrink-0 self-stretch" onclick="rsCookieSave(\''+k+'\')">'+(BS_SET[k]?'覆盖':'保存')+'</button>'+(BS_SET[k]?'<button class="mini-btn !text-[10px] shrink-0 self-stretch" onclick="rsCookieClear(\''+k+'\')">清除</button>':'')+'</div></div>';
+  if(ty==='login'){const on=!!BS_SET.dbCookie;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+(on?'<span class="text-[10px] font-bold text-emerald-600 mr-1">已配置</span><button class="mini-btn !text-[10px]" onclick="rsCookieClear(\'dbCookie\')">清除</button><button class="mini-btn !text-[10px] ml-1.5" onclick="dblOpen()">重新登录</button>':'<button class="mini-btn !text-[10px]" onclick="dblOpen()">登录豆瓣</button>')+foot+'</div>';}
   if(ty==='cache'){const n=Object.keys(BS_DB_CACHE).length;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]'+(n?'':' opacity-40')+'" onclick="rsCacheClear()">'+(n?'清除 '+n+' 条':'无缓存')+'</button>'+foot+'</div>';}
   if(ty==='ops'){const on=BS_SET.longPress.map((o,i)=>'<div class="flex items-center gap-2 text-[12px]"><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',-1)">↑</button><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',1)">↓</button><b>'+o+'</b><button class="ml-auto text-[10px] text-rose-500" onclick="lpRm('+i+')">移除</button></div>').join('');
     const off=LP_ALL.filter(x=>!BS_SET.longPress.includes(x)).map(x=>'<button class="chip !text-[10px]" onclick="lpAdd(\''+x+'\')">＋ '+x+'</button>').join('');
@@ -5110,10 +5127,16 @@ function renderReadSet(){const el=document.getElementById('rsGroups');if(!el)ret
 function rsFlip(k){BS_SET[k]=!BS_SET[k];renderReadSet();
   if(k==='simple'){renderQuotes();renderBookDetail()}
   toast((BS_SET[k]?'已开启 · ':'已关闭 · ')+({floatBar:'悬浮计时条',speedFold:'倍速折算',autoAsk:'结束后问进度',dailyQ:'每日补记提醒',ocr:'识图取文',rateFmt:'默认带页码',clipAuto:'剪贴板识别',simple:'简洁浏览',fullCh:'完整章节名',feeTxn:'购书费用入账'}[k]||k))}
-/* 豆瓣防封批（2026-09-26）· 设置行为：Cookie 保存/清除、缓存清除。 */
-function rsCookieSave(k){const el=document.getElementById('rsIn_'+k),v=(el.value||'').trim();
-  if(!v){toast('先粘贴 Cookie 再保存');return}
-  BS_SET[k]=v;renderReadSet();toast('豆瓣 Cookie 已保存到本机')}
+/* 豆瓣防封批（2026-09-27 改口）· 应用内登录取 Cookie：WebView 里手动登录，
+   「完成」时由原生 CookieManager 提取（演示为 dblLogged 标记）。 */
+let dblLogged=false;
+function dblOpen(){dblLogged=false;const u=document.getElementById('dblUser'),c=document.getElementById('dblCode');if(u)u.value='';if(c)c.value='';navTo('p-doubanLogin')}
+function dblLogin(){const u=document.getElementById('dblUser').value.trim(),c=document.getElementById('dblCode').value.trim();
+  if(!u){toast('请输入手机号 / 邮箱');return}
+  if(c!=='1234'){toast('验证码错误（演示用 1234）');return}
+  dblLogged=true;toast('登录成功 · 请点击「完成」')}
+function dblDone(){if(!dblLogged){toast('尚未检测到登录');return}
+  BS_SET.dbCookie='ap=1; ck=demo'+(Date.now()%100000);renderReadSet();goBack();toast('已获取豆瓣登录 Cookie · 仅存本机')}
 function rsCookieClear(k){BS_SET[k]='';renderReadSet();toast('豆瓣 Cookie 已清除')}
 function rsCacheClear(){const n=Object.keys(BS_DB_CACHE).length;if(!n)return;
   BS_DB_CACHE={};renderReadSet();toast('已清除 '+n+' 条豆瓣缓存')}
@@ -6303,7 +6326,7 @@ function bfSave() {
 
 /* ---------- 注册：标题 / FAB / 渲染钩子 ---------- */
 Object.assign(TITLES,{'p-biblioSearch':['添加图书','豆瓣书目 · 搜索 / 扫码 / 手动录入'],'p-bookForm':['编辑书籍信息','整页分组录入']});
-Object.assign(TITLES,{'p-bookshelf':['书架','2026 · 目标 '+BS_GOAL.books+' 本 / 每日 '+BS_GOAL.dayMin+'′'],'p-bkmgr':['书架资料','来源 / 分组 / 作者 / 出版社 / 标签'],'p-booklists':['书单','手动 · 年度 · 分享'],'p-booklist':['书单详情','分享长图与导出'],'p-readtimer':['阅读计时','开始即计时 · 结束即记进度'],'p-bookInfo':['书籍资料','档案 · 进度 · 总结 · 轨迹'],'p-readset':['阅读设置','显示 · 计时 · 导入 · 存储'],'p-readimport':['数据导入','授权 / 文件 / 剪贴板 / API'],'p-quotes':['摘录笔记库','跨书记录 · 划线与感想'],'p-readstat':['阅读统计','时长 · 热力图 · 目标']});
+Object.assign(TITLES,{'p-bookshelf':['书架','2026 · 目标 '+BS_GOAL.books+' 本 / 每日 '+BS_GOAL.dayMin+'′'],'p-bkmgr':['书架资料','来源 / 分组 / 作者 / 出版社 / 标签'],'p-booklists':['书单','手动 · 年度 · 分享'],'p-booklist':['书单详情','分享长图与导出'],'p-readtimer':['阅读计时','开始即计时 · 结束即记进度'],'p-bookInfo':['书籍资料','档案 · 进度 · 总结 · 轨迹'],'p-readset':['阅读设置','显示 · 计时 · 导入 · 存储'],'p-doubanLogin':['豆瓣登录','应用内登录 · 完成后自动取 Cookie'],'p-readimport':['数据导入','授权 / 文件 / 剪贴板 / API'],'p-quotes':['摘录笔记库','跨书记录 · 划线与感想'],'p-readstat':['阅读统计','时长 · 热力图 · 目标']});
 Object.assign(FAB_CFG,{'p-bookshelf':{ico:'＋',act:()=>shNewOpen()},'p-booklists':{ico:'＋',act:()=>blCreate(false)},'p-readimport':{ico:'＋',act:()=>impRun()},'p-quotes':{ico:'＋',act:()=>qeOpen(null,CURBK)},'p-bookDetail':{ico:'＋',act:()=>qeOpen(null,CURBK)}});
 const BS_OLD_RR=renderRecords;
 renderRecords=function(){BS_OLD_RR();renderRecHub()};

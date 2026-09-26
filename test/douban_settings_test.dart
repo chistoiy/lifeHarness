@@ -9,10 +9,14 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
+import 'package:lifeharness/features/read/presentation/douban_login_page.dart'
+    show doubanCookieHeader;
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
 
-/// 豆瓣防封批（2026-09-26）· 阅读设置「数据与存储」新增两行：
+/// 豆瓣防封批（2026-09-26）· 阅读设置「数据与存储」新增两行；
+/// V1.45 改口（2026-09-27）：Cookie 从手动粘贴改为应用内登录获取——
+/// 未配置显「登录豆瓣」，已配置显「已配置」+清除+重新登录。
 /// Cookie 只进 SharedPreferences（绝不进 settings 表＝书架备份导出不带），
 /// 缓存行展示条数并可手动清除。
 void main() {
@@ -62,29 +66,41 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('Cookie 保存只进 prefs 且即时生效；清除双清', (tester) async {
-    await boot(tester);
-    expect(find.byKey(const ValueKey('set-dbCookie-input')), findsOneWidget);
-
-    await tester.enterText(
-      find.byKey(const ValueKey('set-dbCookie-input')),
-      '  ck=abc; ll="118351"  ',
+  test('doubanCookieHeader：必须含 dbcl2 才成头，按 name=value; … 拼接', () {
+    expect(
+      doubanCookieHeader({'dbcl2': '"a b"', 'll': '118351'}),
+      'dbcl2="a b"; ll=118351',
     );
-    await tester.tap(find.byKey(const ValueKey('set-dbCookie-save')));
-    await settle(tester);
+    // 只有匿名跟踪 cookie（未登录）→ 判未登录，不存半吊子。
+    expect(doubanCookieHeader({'ck': 'x', 'll': '118351'}), isNull);
+    expect(doubanCookieHeader({}), isNull);
+  });
 
-    expect(prefs.getString('read.dbCookie'), 'ck=abc; ll="118351"');
-    expect(DoubanCookie.value, 'ck=abc; ll="118351"', reason: '保存即注入抓取链');
+  testWidgets('未配置显「登录豆瓣」钮，无输入框（粘贴口径已废）', (tester) async {
+    await boot(tester);
+    expect(find.text('登录豆瓣'), findsOneWidget);
+    expect(find.byKey(const ValueKey('set-dbCookie-login')), findsOneWidget);
+    expect(find.byKey(const ValueKey('set-dbCookie-input')), findsNothing);
+    expect(find.byKey(const ValueKey('set-dbCookie-on')), findsNothing);
+  });
+
+  testWidgets('已配置：徽标+重新登录；清除→prefs 与内存态双清、回到未配置',
+      (tester) async {
+    // 登录页「完成」后的落点即 prefs＋DoubanCookie，这里直接预置等价状态。
+    await prefs.setString('read.dbCookie', 'ck=abc; ll="118351"');
+    DoubanCookie.set('ck=abc; ll="118351"');
+    await boot(tester);
+    expect(find.byKey(const ValueKey('set-dbCookie-on')), findsOneWidget);
+    expect(find.text('登录豆瓣'), findsNothing);
+    expect(find.byKey(const ValueKey('set-dbCookie-relogin')), findsOneWidget);
     // settings 表零足迹 → buildBackupJson（捞 read.*）永远不会带出 Cookie。
     expect(await repo.kv('read.dbCookie'), isNull);
-    expect(find.byKey(const ValueKey('set-dbCookie-on')), findsOneWidget);
-    expect(find.byKey(const ValueKey('set-dbCookie-input')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('set-dbCookie-clear')));
     await settle(tester);
     expect(prefs.getString('read.dbCookie'), isNull);
     expect(DoubanCookie.value, isNull);
-    expect(find.byKey(const ValueKey('set-dbCookie-input')), findsOneWidget);
+    expect(find.text('登录豆瓣'), findsOneWidget);
     await clearToasts(tester);
   });
 
@@ -110,8 +126,9 @@ void main() {
     await clearToasts(tester);
   });
 
-  testWidgets('书架备份导出不含 Cookie 键（settings 表 read.* 全量导出侧证）',
+  testWidgets('书架备份导出不含 Cookie 键（prefs 有值也不被 settings 捞走）',
       (tester) async {
+    await prefs.setString('read.dbCookie', 'ck=abc');
     await repo.setKv('read.isbnFill', '抓豆瓣数据');
     await boot(tester);
     final json = await repo.buildBackupJson();
