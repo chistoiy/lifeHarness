@@ -29,62 +29,74 @@ const String doubanUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-Future<HttpClientResponse?> _doubanOpen(
-  Uri uri, {
-  void Function(HttpClientRequest req)? decorate,
-}) async {
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-  try {
-    final req = await client.getUrl(uri);
-    req.headers.set(HttpHeaders.userAgentHeader, doubanUserAgent);
-    req.headers.set(HttpHeaders.acceptLanguageHeader, 'zh-CN,zh;q=0.9');
-    decorate?.call(req);
-    final res = await req.close().timeout(const Duration(seconds: 12));
-    if (res.statusCode != 200) {
-      AppLog.add('豆瓣请求 HTTP ${res.statusCode} ← $uri', level: LhLevel.warn);
-      return null;
-    }
-    return res;
-  } catch (e) {
-    // 与「未命中」区分：到这里都是网络层失败（离线/DNS/TLS/超时/重定向超限）。
-    AppLog.add('豆瓣请求失败（网络层）：$e ← $uri', level: LhLevel.error);
-    return null;
-  } finally {
-    client.close(force: true);
-  }
+/// 真机第二轮反馈（2026-09-26）：UA 改对之后豆瓣**能命中正确条目**了
+/// （日志里 `…/isbn/9787108009821/` 已重定向到 `subject/1041482/`），但桌面页
+/// 有 13 万字符，移动网络常在收 body 中途被掐断
+/// （`HttpException: Connection closed while receiving data`）→ 一次失败就判
+/// 「拉不到」不合理。默认 fetcher 内部对**传输层**失败重试 3 次（350/700ms 退避），
+/// 状态码类失败（404/403）不重试；再不行由 [IsbnEnrich.lookupDetailed] 走
+/// 联想接口兜底（约 1KB JSON，几乎不会被掐）。
+const int _textAttempts = 3;
+
+void _doubanHeaders(HttpClientRequest req, {String? referer}) {
+  req.headers.set(HttpHeaders.userAgentHeader, doubanUserAgent);
+  req.headers.set(HttpHeaders.acceptLanguageHeader, 'zh-CN,zh;q=0.9');
+  if (referer != null) req.headers.set(HttpHeaders.refererHeader, referer);
 }
 
 Future<String?> _httpGetText(Uri uri) async {
-  final res = await _doubanOpen(uri);
-  if (res == null) return null;
-  try {
-    return await utf8.decoder
-        .bind(res)
-        .join()
-        .timeout(const Duration(seconds: 12));
-  } catch (e) {
-    AppLog.add('豆瓣响应读取失败：$e ← $uri', level: LhLevel.error);
-    return null;
+  String? lastErr;
+  for (var i = 1; i <= _textAttempts; i++) {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final req = await client.getUrl(uri);
+      _doubanHeaders(req);
+      final res = await req.close().timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) {
+        // 状态码类失败重试无意义：直接记一条并交给上层判「未收录」。
+        AppLog.add('豆瓣请求 HTTP ${res.statusCode} ← $uri', level: LhLevel.warn);
+        return null;
+      }
+      final body = await utf8.decoder
+          .bind(res)
+          .join()
+          .timeout(const Duration(seconds: 12));
+      if (body.trim().isNotEmpty) return body;
+      lastErr = '空响应体';
+    } catch (e) {
+      lastErr = '$e';
+    } finally {
+      client.close(force: true);
+    }
+    if (i < _textAttempts) {
+      await Future<void>.delayed(Duration(milliseconds: 350 * i));
+    }
   }
+  AppLog.add(
+      '豆瓣响应读取失败（第 $_textAttempts 次仍断连）：$lastErr ← $uri',
+      level: LhLevel.error);
+  return null;
 }
 
 Future<List<int>?> _httpGetBytes(Uri uri) async {
   // 封面图床（doubanio）偶发校验来源，带 Referer 更稳。
-  final res = await _doubanOpen(
-    uri,
-    decorate: (req) => req.headers.set(
-      HttpHeaders.refererHeader,
-      'https://book.douban.com/',
-    ),
-  );
-  if (res == null) return null;
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
+    final req = await client.getUrl(uri);
+    _doubanHeaders(req, referer: 'https://book.douban.com/');
+    final res = await req.close().timeout(const Duration(seconds: 12));
+    if (res.statusCode != 200) {
+      AppLog.add('封面请求 HTTP ${res.statusCode} ← $uri', level: LhLevel.warn);
+      return null;
+    }
     return await res
         .fold<List<int>>(<int>[], (acc, chunk) => acc..addAll(chunk))
         .timeout(const Duration(seconds: 12));
   } catch (e) {
     AppLog.add('封面读取失败：$e ← $uri', level: LhLevel.error);
     return null;
+  } finally {
+    client.close(force: true);
   }
 }
 
@@ -119,9 +131,13 @@ enum IsbnMiss { none, tooShort, network, unparseable }
 
 /// [IsbnEnrich.lookupDetailed] 的结果：命中给元信息，未命中给归类。
 class IsbnOutcome {
-  const IsbnOutcome(this.meta, this.miss);
+  const IsbnOutcome(this.meta, this.miss, {this.viaSuggest = false});
   final IsbnBookMeta? meta;
   final IsbnMiss miss;
+
+  /// true＝ISBN 那条路没走通，靠**书名**在豆瓣联想接口反查到条目后补全的
+  /// （UI 要说清「按书名匹配」，别让用户以为是 ISBN 命中的）。
+  final bool viaSuggest;
   bool get hit => meta != null;
 }
 
@@ -188,33 +204,100 @@ class IsbnEnrich {
   }
 
   /// 带成因归类的查询：UI 用它把「网络不通 / 豆瓣未收录」分开显示。
+  ///
+  /// [title] 非空时启用**书名兜底**：豆瓣 `/isbn/` 只认它登记过的条码，且桌面
+  /// 整页在移动网络下偶发断连；这两条路都走不通时，用书名打联想接口
+  /// （`/j/subject_suggest`，约 1KB JSON）反查 subject_id 再抓详情页，
+  /// 连详情页也抓不到时就吃联想结果里的简版字段（书名/作者/年份/封面）。
   static Future<IsbnOutcome> lookupDetailed(
     String code, {
     required IsbnPageFetcher fetch,
+    String? title,
   }) async {
     final c = code.trim();
     if (c.length < 8) return const IsbnOutcome(null, IsbnMiss.tooShort);
+    var miss = IsbnMiss.network;
     try {
       final url = urlFor(c);
       final html = await fetch(url);
-      if (html == null) return const IsbnOutcome(null, IsbnMiss.network);
-      final meta = parse(html);
-      if (meta == null) {
+      if (html != null) {
+        final meta = parse(html);
+        if (meta != null) return IsbnOutcome(meta, IsbnMiss.none);
         // 取到页面却没有书目节点：多半是该码未收录/跳到了聚合页，与「离线」不是一回事。
         AppLog.add('豆瓣页面已取但解析不出书目（$c）：$url', level: LhLevel.warn);
-        return const IsbnOutcome(null, IsbnMiss.unparseable);
+        miss = IsbnMiss.unparseable;
       }
-      return IsbnOutcome(meta, IsbnMiss.none);
     } catch (e) {
       AppLog.add('豆瓣书目查询异常（$c）：$e', level: LhLevel.error);
-      return const IsbnOutcome(null, IsbnMiss.network);
     }
+    final t = title?.trim() ?? '';
+    if (t.isEmpty) return IsbnOutcome(null, miss);
+    final light = await _byTitle(t, fetch: fetch);
+    if (light == null) return IsbnOutcome(null, miss);
+    AppLog.add('ISBN 未命中（$c）· 已按书名《$t》在豆瓣匹配补全', level: LhLevel.warn);
+    return IsbnOutcome(light, IsbnMiss.none, viaSuggest: true);
+  }
+
+  /// 联想接口 URL（q 为书名，豆瓣不支持按 ISBN 查）。
+  static Uri suggestUrl(String q) => Uri.parse(
+    'https://book.douban.com/j/subject_suggest?q=${Uri.encodeComponent(q)}',
+  );
+
+  /// 书名 → 豆瓣条目：先拿 subject_id 抓详情页（字段全），抓不到退简版字段。
+  static Future<IsbnBookMeta?> _byTitle(
+    String title, {
+    required IsbnPageFetcher fetch,
+  }) async {
+    List<Map<String, dynamic>> rows;
+    try {
+      final raw = await fetch(suggestUrl(title));
+      if (raw == null) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      rows = decoded.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      AppLog.add('豆瓣联想接口异常（《$title》）：$e', level: LhLevel.error);
+      return null;
+    }
+    if (rows.isEmpty) return null;
+    // 同名书很多：书名完全一致的优先，其次取第一条（豆瓣按热度排）。
+    Map<String, dynamic> pick = rows.first;
+    for (final r in rows) {
+      if ('${r['title']}'.trim() == title) {
+        pick = r;
+        break;
+      }
+    }
+    final id = '${pick['id'] ?? ''}'.trim();
+    if (id.length >= 6) {
+      try {
+        final html = await fetch(urlFor(id));
+        final meta = html == null ? null : parse(html);
+        if (meta != null) return meta;
+      } catch (e) {
+        AppLog.add('豆瓣详情页异常（subject/$id）：$e', level: LhLevel.error);
+      }
+    }
+    final author = '${pick['author_name'] ?? ''}'
+        .replaceFirst(RegExp(r'^\[[^\]]{1,8}\]\s*'), '')
+        .trim();
+    final year = '${pick['year'] ?? ''}'.trim();
+    final pic = '${pick['pic'] ?? ''}'.trim();
+    final t = '${pick['title'] ?? ''}'.trim();
+    if (t.isEmpty) return null;
+    return IsbnBookMeta(
+      title: t,
+      author: author.isEmpty ? null : author,
+      pubDate: RegExp(r'^\d{4}$').hasMatch(year) ? year : null,
+      coverUrl: pic.isEmpty ? null : pic,
+    );
   }
 
   static Future<IsbnBookMeta?> lookup(
     String code, {
     required IsbnPageFetcher fetch,
-  }) async => (await lookupDetailed(code, fetch: fetch)).meta;
+    String? title,
+  }) async => (await lookupDetailed(code, fetch: fetch, title: title)).meta;
 
   /// 封面落本地（应用私有目录 · BsCover/coverPath 直接读文件）。
   static Future<String?> saveCover(

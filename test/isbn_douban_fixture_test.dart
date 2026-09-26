@@ -39,4 +39,74 @@ void main() {
     );
     expect(meta, isNull);
   });
+
+  // 真机第二轮：豆瓣 `/isbn/` 只认它登记过的条码，且 13 万字符的桌面页在移动
+  // 网络下常在收 body 时被掐断（日志：Connection closed while receiving data）。
+  // 两条路都断时按**书名**走联想接口反查 subject_id 再抓详情页。
+  test('书名兜底：ISBN 整页断连 → 联想接口拿 id → 详情页字段齐全', () async {
+    const suggestJson =
+        '[{"title":"万历十五年","url":"https://book.douban.com/subject/1041482/",'
+        '"pic":"https://img9.doubanio.com/view/subject/s/public/s1800355.jpg",'
+        '"author_name":"[美] 黄仁宇","year":"1997","type":"b","id":"1041482"},'
+        '{"title":"万历十五年（修订版）","id":"26418524","author_name":"黄仁宇",'
+        '"year":"2015","type":"b","pic":""}]';
+    final urls = <String>[];
+    final out = await IsbnEnrich.lookupDetailed(
+      '9787108009821',
+      title: '万历十五年',
+      fetch: (uri) async {
+        final u = uri.toString();
+        urls.add(u);
+        if (u.contains('/isbn/')) return null; // 断连/未登记
+        if (u.contains('subject_suggest')) return suggestJson;
+        if (u.contains('/subject/1041482/')) return desktop;
+        return null;
+      },
+    );
+    expect(out.hit, isTrue);
+    expect(out.viaSuggest, isTrue, reason: '要说清是按书名匹配，不是 ISBN 命中');
+    expect(out.meta!.title, '万历十五年');
+    expect(out.meta!.publisher, '生活·读书·新知三联书店');
+    expect(urls, containsAll(<String>[
+      'https://book.douban.com/isbn/9787108009821/',
+      IsbnEnrich.suggestUrl('万历十五年').toString(),
+      'https://book.douban.com/subject/1041482/',
+    ]));
+  });
+
+  test('书名兜底：详情页也抓不到 → 吃联想简版字段（书名/作者/年份/封面）', () async {
+    const suggestJson =
+        '[{"title":"万历十五年","author_name":"[美] 黄仁宇","year":"1997",'
+        '"id":"1041482","pic":"https://img9.doubanio.com/x/s1800355.jpg"}]';
+    final out = await IsbnEnrich.lookupDetailed(
+      '9787108009821',
+      title: '万历十五年',
+      fetch: (uri) async => uri.toString().contains('subject_suggest')
+          ? suggestJson
+          : null,
+    );
+    expect(out.hit, isTrue);
+    final m = out.meta!;
+    expect(m.title, '万历十五年');
+    expect(m.author, '黄仁宇', reason: '去掉「[美] 」国别前缀（作者库口径）');
+    expect(m.pubDate, '1997');
+    expect(m.coverUrl, endsWith('s1800355.jpg'));
+    expect(m.pages, isNull, reason: '简版没有页数：留空，不编造');
+  });
+
+  test('书名兜底：联想也没有 → 维持原未命中档（网络不通/未收录不混档）', () async {
+    final out = await IsbnEnrich.lookupDetailed(
+      '9787108009821',
+      title: '一本没有的书',
+      fetch: (uri) async => uri.toString().contains('subject_suggest') ? '[]' : null,
+    );
+    expect(out.hit, isFalse);
+    expect(out.miss, IsbnMiss.network);
+    final unparse = await IsbnEnrich.lookupDetailed(
+      '9787108009821',
+      title: '一本没有的书',
+      fetch: (uri) async => uri.toString().contains('subject_suggest') ? '[]' : mobile,
+    );
+    expect(unparse.miss, IsbnMiss.unparseable);
+  });
 }

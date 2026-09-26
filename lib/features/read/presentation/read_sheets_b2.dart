@@ -376,6 +376,8 @@ class _BookFormState extends ConsumerState<_BookForm> {
     final out = await IsbnEnrich.lookupDetailed(
       code,
       fetch: ref.read(isbnPageFetcherProvider),
+      // 书名兜底：ISBN 没登记/整页断连时按书名在豆瓣反查（真机反馈②）。
+      title: _title.text.trim(),
     );
     if (!mounted || seq != _isbnSeq) return;
     final meta = out.meta;
@@ -388,6 +390,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
       if (coverOnly) readToast(context, '未取到封面');
       return;
     }
+    final viaTitle = out.viaSuggest;
     String? coverPath;
     if (meta.coverUrl != null &&
         (coverOnly || _cover == null || _cover!.isEmpty)) {
@@ -415,7 +418,8 @@ class _BookFormState extends ConsumerState<_BookForm> {
         if (_pages.text.trim().isEmpty && meta.pages != null) {
           _pages.text = '${meta.pages}';
         }
-        _isbnStatus = '已命中 · 自动填充';
+        // 「按书名匹配」说清楚数据来源：ISBN 那条路没走通，别让人误以为是条码命中。
+        _isbnStatus = viaTitle ? '按书名匹配 · 已填充' : '已命中 · 自动填充';
       } else {
         _isbnStatus = coverPath != null ? '封面已取' : '未取到封面';
       }
@@ -942,7 +946,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
               lines: 2, keyName: 'bkf-note'),
           const SizedBox(height: 10),
           Text(
-            '录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（关闭或离线时留空待补）',
+            '录入后可在详情页开计时；ISBN 命中后按阅读设置「ISBN 补全」开关决定是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分（ISBN 未登记或整页取不到时按书名在豆瓣反查；关闭或离线时留空待补）',
             style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
           ),
         ];

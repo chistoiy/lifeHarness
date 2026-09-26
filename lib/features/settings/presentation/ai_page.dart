@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/ai/ai_client.dart';
 import '../../../core/ai/ai_prompt_pack.dart';
 import '../../../core/ai/ai_providers.dart';
+import '../../../core/ai/token_stats.dart';
 import '../../../core/logging/app_log.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
@@ -282,6 +284,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
+          // —— Token 使用（真机反馈 2026-09-26：想看 token 消耗）——
+          const _TokenUsageCard(),
+          const SizedBox(height: 12),
           // —— 提示词管理入口（AI批新增 · 原型 p-sub-ai 第四卡）——
           _Card(
             child: Row(
@@ -309,6 +314,160 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Token 使用卡（真机反馈 2026-09-26：「增加一个 token 使用情况查看」）。
+///
+/// 口径：只记**真的发出去**的调用；取消/断连这类没拿到应答的计一次调用但不计
+/// token（端点没回 usage，编不出来）；明细按「日 × 能力点」存 prefs，随整包备份
+/// 换机带走，保留最近 [AiTokenStats.keepDays] 天。
+class _TokenUsageCard extends ConsumerStatefulWidget {
+  const _TokenUsageCard();
+
+  @override
+  ConsumerState<_TokenUsageCard> createState() => _TokenUsageCardState();
+}
+
+class _TokenUsageCardState extends ConsumerState<_TokenUsageCard> {
+  Future<void> _clear() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认清理', style: TextStyle(fontSize: 15)),
+        content: const Text('清空本机 AI token 用量明细？不影响后续调用与日志。',
+            style: TextStyle(fontSize: 13)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          FilledButton(
+            key: const ValueKey('ai-token-clear-ok'),
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('清理'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AiTokenStats.clear(ref.read(sharedPreferencesProvider));
+    if (!mounted) return;
+    setState(() {});
+    AppToast.show(context, '用量明细已清空');
+  }
+
+  Widget _cell(String label, Map<String, Map<String, int>> agg) {
+    final t = AiTokenStats.total(agg);
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+          const SizedBox(height: 2),
+          Text('${t.inTok + t.outTok}',
+              key: ValueKey('ai-token-$label'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          Text('入 ${t.inTok} · 出 ${t.outTok} · ${t.calls} 次',
+              style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    final table = AiTokenStats.load(prefs);
+    final now = DateTime.now();
+    final todayKey = AiTokenStats.dayKey(now);
+    final weekKeys = {
+      for (var i = 0; i < 7; i++)
+        AiTokenStats.dayKey(now.subtract(Duration(days: i)))
+    };
+    final today = AiTokenStats.aggregate([table[todayKey] ?? const {}]);
+    final week = AiTokenStats.aggregate([
+      for (final e in table.entries)
+        if (weekKeys.contains(e.key)) e.value
+    ]);
+    final all = AiTokenStats.aggregate(table.values);
+    final names = {
+      // 行名带模块前缀：能力点名（如「智能归类」）脱离模块语境会看不出是谁的。
+      for (final t in ref.watch(aiPromptPackProvider).tasks)
+        t.id: (t.module.isEmpty ? '' : '${t.module} · ') + t.name
+    };
+    final rows = all.entries.toList()
+      ..sort((a, b) => (b.value['out']! + b.value['in']!)
+          .compareTo(a.value['out']! + a.value['in']!));
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                  child: Text('Token 使用',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
+              TextButton(
+                key: const ValueKey('ai-token-clear'),
+                onPressed: all.isEmpty ? null : _clear,
+                child: const Text('清理', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cell('今日', today),
+              _cell('近 7 天', week),
+              _cell('累计', all),
+            ],
+          ),
+          if (rows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('还没有发出的调用',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                children: [
+                  for (final r in rows.take(8))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(names[r.key] ?? r.key,
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                          Text(
+                            '${r.value['in']} / ${r.value['out']}'
+                            ' · ${r.value['n']} 次'
+                            '${(r.value['f'] ?? 0) > 0 ? ' · 失败 ${r.value['f']}' : ''}',
+                            key: ValueKey('ai-token-row-${r.key}'),
+                            style: const TextStyle(
+                                fontSize: 10.5, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          const Text('入/出＝提示与应答 token；取消或断连只计次不计 token（应答未回就没有用量）。',
+              style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
         ],
       ),
     );

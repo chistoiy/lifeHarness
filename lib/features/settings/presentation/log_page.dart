@@ -31,6 +31,25 @@ class _LogPageState extends ConsumerState<LogPage> {
   static const List<String> _keepLabels = ['7 天', '14 天', '30 天'];
 
   _LogFlt _flt = _LogFlt.all;
+
+  /// 来源筛选（null＝全部来源）与关键词（真机反馈：一眼看出是谁报的错、能筛）。
+  String? _src;
+  final TextEditingController _kwCtl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 关键词是即时过滤：输入即重建过滤视图（列表本身仍只在 version 变化时局部刷）。
+    _kwCtl.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _kwCtl.dispose();
+    super.dispose();
+  }
   late int _keep =
       FileLogSink.readRetentionDays(ref.read(sharedPreferencesProvider));
 
@@ -67,18 +86,38 @@ class _LogPageState extends ConsumerState<LogPage> {
     }
   }
 
-  /// 当前过滤视图：环形缓冲取最近 [AppLog.displayWindow] 条窗口，再按级别过滤。
+  /// 当前过滤视图：环形缓冲取最近 [AppLog.displayWindow] 条窗口，
+  /// 再按「级别 × 来源 × 关键词」三重过滤（真机反馈：混在一屏里找不到是谁报的错）。
   List<LhLogLine> _visibleLines() {
     final lines = AppLog.lines;
     final start = lines.length > AppLog.displayWindow
         ? lines.length - AppLog.displayWindow
         : 0;
-    final win = lines.sublist(start);
+    Iterable<LhLogLine> win = lines.sublist(start);
+    if (_src != null) win = win.where((l) => l.src == _src);
+    final kw = _kwCtl.text.trim();
+    if (kw.isNotEmpty) win = win.where((l) => l.text.contains(kw));
     return switch (_flt) {
-      _LogFlt.all => win,
+      _LogFlt.all => win.toList(),
       _LogFlt.warnUp => win.where((l) => l.level != LhLevel.info).toList(),
       _LogFlt.error => win.where((l) => l.level == LhLevel.error).toList(),
     };
+  }
+
+  /// 窗口里出现过的来源（按条数多→少，「系统」永远收尾）——筛选 chips 的候选集。
+  List<String> _sources() {
+    final counts = <String, int>{};
+    for (final l in AppLog.lines) {
+      counts[l.src] = (counts[l.src] ?? 0) + 1;
+    }
+    final out = counts.keys.toList()
+      ..sort((a, b) {
+        if (a == LhLogLine.srcSystem) return 1;
+        if (b == LhLogLine.srcSystem) return -1;
+        final c = counts[b]!.compareTo(counts[a]!);
+        return c != 0 ? c : a.compareTo(b);
+      });
+    return out;
   }
 
   Future<void> _copyAll() async {
@@ -278,6 +317,77 @@ class _LogPageState extends ConsumerState<LogPage> {
                             selected: _flt == _LogFlt.error,
                             onTap: () => setState(() => _flt = _LogFlt.error)),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    // 来源筛选 + 关键词：来源由代码路径自动归类（原型 p-log srcChips）。
+                    ValueListenableBuilder<int>(
+                      valueListenable: AppLog.version,
+                      builder: (context, _, _) {
+                        final shown = _visibleLines().length;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                PillChip(
+                                    key: const ValueKey('log-src-all'),
+                                    label: '全部来源',
+                                    selected: _src == null,
+                                    onTap: () => setState(() => _src = null)),
+                                for (final s in _sources())
+                                  PillChip(
+                                      key: ValueKey('log-src-$s'),
+                                      label: s,
+                                      selected: _src == s,
+                                      onTap: () => setState(
+                                          () => _src = _src == s ? null : s)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 34,
+                                    child: TextField(
+                                      key: const ValueKey('log-kw'),
+                                      controller: _kwCtl,
+                                      style: const TextStyle(fontSize: 11.5),
+                                      decoration: InputDecoration(
+                                        hintText: '搜关键词',
+                                        hintStyle: const TextStyle(
+                                            fontSize: 11.5),
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 9),
+                                        filled: true,
+                                        fillColor: scheme.surfaceContainerHighest,
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$shown 条 · 窗口 ${AppLog.displayWindow}',
+                                  key: const ValueKey('log-count'),
+                                  style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: scheme.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     // 日志管理动作：归档=搬家保历史 · 清理=删落盘+清缓冲（均二次确认）。

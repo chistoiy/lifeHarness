@@ -288,7 +288,7 @@ void main() {
   });
 
   group('P1 入口行 · 摘要 · 切换服务', () {
-    testWidgets('六入口齐备 · 最近同步摘要=历史首条 · 点击历史行跳 /log',
+    testWidgets('入口齐备（日志行已外移到设置）· 摘要=历史首条 · 点击历史行跳 /log',
         (tester) async {
       final ts = DateTime.now().millisecondsSinceEpoch;
       seedServices(prefs);
@@ -301,7 +301,8 @@ void main() {
       expect(find.text('备份导出/导入'), findsOneWidget);
       expect(find.text('控流'), findsOneWidget);
       expect(find.text('同步历史'), findsOneWidget);
-      expect(find.text('日志'), findsOneWidget);
+      // 2026-09-26：日志唯一入口在「设置 → 运行日志」，同步页不再挂日志行。
+      expect(find.text('日志'), findsNothing);
       expect(find.textContaining('最近同步 今天'), findsOneWidget);
       expect(find.textContaining('上传 3 · 下载 2 · 18 MB · 成功'), findsOneWidget);
 
@@ -635,21 +636,19 @@ void main() {
   });
 
   group('导航返回退出修复（R2 项④：go→push）', () {
-    testWidgets('从 /sync 进 /log：系统返回回 /sync 而非退出 app', (tester) async {
+    testWidgets('/sync 不再挂日志入口（2026-09-26 外移到设置）· 历史入口仍在',
+        (tester) async {
       seedServices(prefs);
       await useSurface(tester, const Size(800, 2400));
       await boot(tester);
       expect(find.byKey(const ValueKey('svc-card')), findsOneWidget);
 
-      await openSheetVia(tester, 'sync-log-entry');
-      await settle5(tester);
-      expect(find.text('LOG-STUB'), findsOneWidget);
-
-      await tester.pageBack();
-      await settle5(tester);
-      expect(find.text('LOG-STUB'), findsNothing);
-      expect(find.byKey(const ValueKey('svc-card')), findsOneWidget,
-          reason: 'push 保留 /sync 在栈：返回回 /sync，非退出 app');
+      // 唯一入口改成「设置 → 运行日志」（entry-log，返回语义见 sync_nav_back_test）；
+      // 同步页里再挂一行会让同一功能两个归属，用户按「备份」找不到日志反而绕路。
+      expect(find.byKey(const ValueKey('sync-log-entry')), findsNothing);
+      expect(find.text('环形缓冲 300 · 按日落盘'), findsNothing);
+      expect(find.byKey(const ValueKey('sync-history-entry')), findsOneWidget,
+          reason: '同步历史仍留在本页：点行进日志窗口是它自己的语义');
     });
 
     testWidgets('从 /sync 进 /sync/history：系统返回回 /sync', (tester) async {

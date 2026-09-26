@@ -415,8 +415,10 @@ class FileLogSink {
 
   static const int _tailReadBytes = 128 * 1024;
 
-  static final RegExp _linePattern =
-      RegExp(r'^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) \[([IWE])\] (.*)$');
+  /// 落盘行式：`HH:mm:ss.SSS [I] [来源] 文本`；`[来源]` 段是 V1.43.2 新加的，
+  /// 旧日志文件里没有这一段 → 反解时按「系统」收，不做二次迁移。
+  static final RegExp _linePattern = RegExp(
+      r'^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) \[([IWE])\] (?:\[([^\]]{1,10})\] )?(.*)$');
 
   /// 反解一行落盘文本（日期取文件名日期）；不匹配则按 info 原样收下行。
   static LhLogLine? _parseLine(String raw, DateTime day) {
@@ -433,7 +435,9 @@ class FileLogSink {
       'E' => LhLevel.error,
       _ => LhLevel.info,
     };
-    return LhLogLine(t, level, m.group(6)!);
+    // 组 6＝可选来源段；旧文件没有它 → 归「系统」，不迁移历史文件。
+    return LhLogLine(t, level, m.group(7)!,
+        src: m.group(6) ?? LhLogLine.srcSystem);
   }
 
   static Future<void> _pruneArchives() async {

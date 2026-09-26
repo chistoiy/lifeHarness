@@ -350,15 +350,8 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   onTap: () => context.push('/sync/history'),
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),
-                _EntryRow(
-                  key: const ValueKey('sync-log-entry'),
-                  icon: Icons.article_outlined,
-                  title: '日志',
-                  sub: '环形缓冲 300 · 按日落盘',
-                  // R2 项④：go→push，从 /sync 进日志后返回回 /sync 而非退出 app。
-                  onTap: () => context.push('/log'),
-                ),
-                const Divider(height: 1, indent: 14, endIndent: 14),
+                // 日志入口外移（2026-09-26 真机反馈）：唯一入口在「设置 → 运行日志」，
+                // 本页不再挂日志行；「同步历史」点行仍可跳日志页。
                 // R5d：云端孤儿附件清理入口（归档为主，删除需逐项确认）。
                 _EntryRow(
                   key: const ValueKey('sync-cloud-clean-entry'),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +114,9 @@ void main() {
       boot([
         isbnPageFetcherProvider.overrideWith(
           (ref) => (uri) async {
+            final u = uri.toString();
+            // 书名兜底也走同一个注入通道：这里回空数组，让它维持「未命中」档。
+            if (u.contains('subject_suggest')) return '[]';
             hits++;
             // 取到页面但没有书目节点＝豆瓣未收录（与「网络不通」不是一档）。
             return '<html><title>找不到</title></html>';
@@ -140,6 +145,50 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
     expect(hits, 2);
     expect(find.text('未取到封面'), findsOneWidget);
+    await clearToasts(tester);
+  });
+
+  testWidgets('ISBN 那条路断了：按书名在豆瓣反查补全，状态写清数据来源', (tester) async {
+    await repo.setKv('read.isbnFill', '抓豆瓣数据');
+    await seedBook();
+    final desktop = File(
+      'test/fixtures/douban_isbn_desktop.html',
+    ).readAsStringSync();
+    await tester.pumpWidget(
+      boot([
+        isbnPageFetcherProvider.overrideWith((ref) => (uri) async {
+          final u = uri.toString();
+          // /isbn/ 整页断连（真机日志：Connection closed while receiving data）。
+          if (u.contains('/isbn/')) return null;
+          if (u.contains('subject_suggest')) {
+            return '[{"title":"万历十五年","author_name":"[美] 黄仁宇",'
+                '"year":"1997","id":"1041482","pic":"https://img/x/s1800355.jpg"}]';
+          }
+          if (u.contains('/subject/1041482/')) return desktop;
+          return null;
+        }),
+        // 封面字节回 null：saveCover 会在取目录前就短路返回（widget 测试里
+        // path_provider 通道不应答，真等下去就是挂死）。
+        isbnBytesFetcherProvider.overrideWith((ref) => (_) async => null),
+      ]),
+    );
+    await settle(tester);
+    await useSurface(tester);
+    await settle(tester);
+    await openEdit(tester);
+
+    // 换一个与机上现值不同的码：enterText 写入同值不会触发 onChanged。
+    await tester.enterText(
+      find.byKey(const ValueKey('bkf-isbn')),
+      '9787108009820',
+    );
+    await settle(tester);
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.text('按书名匹配 · 已填充'), findsOneWidget,
+        reason: '不是 ISBN 命中就别写成「已命中」，口径要能分辨');
+    // 出版社/出版日期原本空着 → 补全；书名（检索词本身）不覆盖。
+    expect(fieldText(tester, 'bkf-publisher'), '生活·读书·新知三联书店');
+    expect(fieldText(tester, 'bkf-pages'), '320');
     await clearToasts(tester);
   });
 

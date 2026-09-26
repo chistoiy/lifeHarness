@@ -150,6 +150,10 @@
   .logline .ll{flex-shrink:0;font-weight:800;width:34px}
   .logline.lv-INFO .ll{color:var(--info)}.logline.lv-WARN .ll{color:var(--warn)}.logline.lv-ERROR .ll{color:var(--err)}
   .logline .lm{color:var(--ink);word-break:break-all}
+  /* 来源标签：一条日志来自哪个模块，一眼可辨并可点 chip 单看（真机反馈：
+     整屏混在一起找不到是谁报的错）。标签由代码路径自动归类，无需各模块传参。 */
+  .logline .ls{flex-shrink:0;align-self:flex-start;margin-top:2px;font-size:9px;font-weight:800;
+    color:var(--mut);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:1px 5px}
   .logline.lv-WARN{background:color-mix(in srgb,var(--warn) 5%,transparent)}
   .logline.lv-ERROR{background:color-mix(in srgb,var(--err) 6%,transparent)}
   /* ---- 差异 ---- */
@@ -275,11 +279,8 @@
         <span class="r-t">控流<div class="r-s">请求间隔 300ms · 快照 5 份 · 仅Wi-Fi 关</div></span>
         <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
       </div>
-      <div class="row" onclick="navTo('p-log')">
-        <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
-        <span class="r-t">日志<div class="r-s">环形缓冲 300 · 按日落盘</div></span>
-        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
-      </div>
+      <!-- 日志入口外移：2026-09-26 真机反馈「日志模块从备份里抽到外层，放到设置里即可」
+           → 唯一入口在「设置 → 运行日志」，本页不再挂日志行（同步历史点行仍跳日志页）。 -->
       <div class="row" onclick="openSheet('s-cloudclean')">
         <span class="r-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12.8 3.6 3.6 0 0 0 6 19.5"/><path d="M9 14l6 6M15 14l-6 6"/></svg></span>
         <span class="r-t">清理云端<div class="r-s">未引用附件归档 · 彻底删除需确认</div></span>
@@ -338,21 +339,33 @@
         <button class="chip" data-flt="warn" onclick="filterLog('warn',this)">警告+</button>
         <button class="chip" data-flt="error" onclick="filterLog('error',this)">错误</button>
       </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center" id="srcChips">
+        <button class="chip on" data-src="all" onclick="filterSrc('all',this)">全部来源</button>
+        <button class="chip" data-src="同步" onclick="filterSrc('同步',this)">同步</button>
+        <button class="chip" data-src="备份" onclick="filterSrc('备份',this)">备份</button>
+        <button class="chip" data-src="AI" onclick="filterSrc('AI',this)">AI</button>
+        <button class="chip" data-src="阅读" onclick="filterSrc('阅读',this)">阅读</button>
+        <button class="chip" data-src="记账" onclick="filterSrc('记账',this)">记账</button>
+        <button class="chip" data-src="系统" onclick="filterSrc('系统',this)">系统</button>
+        <input id="logKw" class="inp" style="flex:1;min-width:110px;padding:5px 9px;font-size:11px" placeholder="搜关键词" oninput="applyLogFilter()">
+      </div>
+      <div class="text-[10px] mt-1.5" style="color:var(--faint)" id="logCount">12 条 · 窗口 120</div>
     </div>
 
     <div class="card" style="margin-top:10px;padding:4px 12px" id="logBox">
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:29:58.412</span><span class="ll">INFO</span><span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:29:59.033</span><span class="ll">INFO</span><span class="lm">PROPFIND Depth:1 /LifeHarness/sync/ → 207 · 412ms · Authorization: 已脱敏</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:29:59.941</span><span class="ll">INFO</span><span class="lm">getUserInfo → 配额 3 GB · 已用 1.2 GB · 缓存 5min</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:30:01.771</span><span class="ll">INFO</span><span class="lm">差异结果：仅本地 2 · 仅云端 2 · 已修改 1 · 一致 42 · 字节数档</span></div>
-      <div class="logline lv-WARN"  data-lv="WARN"><span class="lt">08:30:04.219</span><span class="ll">WARN</span><span class="lm">429 Too Many Requests · Retry-After: 8 · 退避重发 1/3 · 请求工厂重建</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:30:12.660</span><span class="ll">INFO</span><span class="lm">put snapshot_20260924_083000.lhbak 完成 · 128.4 MB · StreamedRequest</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:30:38.026</span><span class="ll">INFO</span><span class="lm">MKCOL /LifeHarness/sync/logs/ → 405 · 进程内记忆命中，跳过</span></div>
-      <div class="logline lv-ERROR" data-lv="ERROR"><span class="lt">08:31:02.144</span><span class="ll">ERR </span><span class="lm">S3 GET /?list-type=2 失败 · 缤纷云 连接超时 30s · 已转失败清单</span></div>
-      <div class="logline lv-WARN"  data-lv="WARN"><span class="lt">08:31:02.871</span><span class="ll">WARN</span><span class="lm">台账残留判定：snapshot_20260918_075541.lhbak 仅云端 · 本机已删</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:31:03.007</span><span class="ll">INFO</span><span class="lm">同步摘要 · 上传 3 · 下载 2 · 272.2 MB · 结果 成功 · 详情见日志窗口</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:31:03.155</span><span class="ll">INFO</span><span class="lm">FileLogSink 刷盘 logs/2026-09-24.log · 保留 14 天</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO"><span class="lt">08:31:03.418</span><span class="ll">INFO</span><span class="lm">容量缓存失效重取 · 键 nutstore|quota</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:58.412</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:59.033</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">PROPFIND Depth:1 /LifeHarness/sync/ → 207 · 412ms · Authorization: 已脱敏</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:59.941</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">getUserInfo → 配额 3 GB · 已用 1.2 GB · 缓存 5min</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:30:01.771</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">差异结果：仅本地 2 · 仅云端 2 · 已修改 1 · 一致 42 · 字节数档</span></div>
+      <div class="logline lv-WARN"  data-lv="WARN" data-src="同步"><span class="lt">08:30:04.219</span><span class="ll">WARN</span><span class="ls">同步</span><span class="lm">429 Too Many Requests · Retry-After: 8 · 退避重发 1/3 · 请求工厂重建</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="备份"><span class="lt">08:30:12.660</span><span class="ll">INFO</span><span class="ls">备份</span><span class="lm">put snapshot_20260924_083000.lhbak 完成 · 128.4 MB · StreamedRequest</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:30:38.026</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">MKCOL /LifeHarness/sync/logs/ → 405 · 进程内记忆命中，跳过</span></div>
+      <div class="logline lv-ERROR" data-lv="ERROR" data-src="同步"><span class="lt">08:31:02.144</span><span class="ll">ERR </span><span class="ls">同步</span><span class="lm">S3 GET /?list-type=2 失败 · 缤纷云 连接超时 30s · 已转失败清单</span></div>
+      <div class="logline lv-WARN"  data-lv="WARN" data-src="备份"><span class="lt">08:31:02.871</span><span class="ll">WARN</span><span class="ls">备份</span><span class="lm">台账残留判定：snapshot_20260918_075541.lhbak 仅云端 · 本机已删</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:31:03.007</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">同步摘要 · 上传 3 · 下载 2 · 272.2 MB · 结果 成功 · 详情见日志窗口</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="系统"><span class="lt">08:31:03.155</span><span class="ll">INFO</span><span class="ls">系统</span><span class="lm">FileLogSink 刷盘 logs/2026-09-24.log · 保留 14 天</span></div>
+      <div class="logline lv-INFO"  data-lv="INFO" data-src="AI"><span class="lt">08:31:03.418</span><span class="ll">INFO</span><span class="ls">AI</span><span class="lm">AI 调用成功（read.toc）· 13443ms · 入 173/出 4216 tokens</span></div>
+      <div class="logline lv-WARN"  data-lv="WARN" data-src="阅读"><span class="lt">08:31:04.007</span><span class="ll">WARN</span><span class="ls">阅读</span><span class="lm">ISBN 未命中（9787108009821）· 已按书名《万历十五年》在豆瓣匹配补全</span></div>
     </div>
 
     <div class="card" style="margin-top:10px">
@@ -932,12 +945,30 @@ function renderHist(){
 }
 
 /* ================= p-log 级别过滤 ================= */
+/* 日志三重过滤：级别 × 来源 × 关键词（真机反馈「增加一个来源，按模块或其他可以
+   快速识别日志来源，或者筛选」）。来源标签由代码路径自动归类，不要求各模块传参。 */
+var logLv='all', logSrc='all';
 function filterLog(lv, btn){
+  logLv = lv;
   $$('#p-log .card .chip[data-flt]').forEach(function(b){ b.classList.toggle('on', b===btn); });
+  applyLogFilter();
+}
+function filterSrc(s, btn){
+  logSrc = s;
+  $$('#srcChips .chip[data-src]').forEach(function(b){ b.classList.toggle('on', b===btn); });
+  applyLogFilter();
+}
+function applyLogFilter(){
+  var kwEl = $('#logKw'), kw = kwEl ? (kwEl.value||'').trim() : '', n = 0;
   $$('#logBox .logline').forEach(function(l){
-    var show = lv==='all' || (lv==='warn' && (l.dataset.lv==='WARN'||l.dataset.lv==='ERROR')) || (lv==='error' && l.dataset.lv==='ERROR');
+    var okLv = logLv==='all' || (logLv==='warn' && (l.dataset.lv==='WARN'||l.dataset.lv==='ERROR')) || (logLv==='error' && l.dataset.lv==='ERROR');
+    var okSrc = logSrc==='all' || l.dataset.src===logSrc;
+    var msg = l.querySelector('.lm'), okKw = !kw || (msg && msg.textContent.indexOf(kw)>=0);
+    var show = okLv && okSrc && okKw;
     l.style.display = show ? '' : 'none';
+    if (show) n++;
   });
+  var c = $('#logCount'); if (c) c.textContent = n + ' 条 · 窗口 120';
 }
 
 /* ================= s-throttle ================= */

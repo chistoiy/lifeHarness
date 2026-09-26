@@ -5,10 +5,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logging/app_log.dart';
+import '../providers.dart';
 import 'ai_client.dart';
 import 'ai_service.dart';
 import 'ai_providers.dart';
+import 'token_stats.dart';
 import '../../shared/widgets/ui_kit.dart' show AppToast;
+
+/// token 用量入账：统计写盘失败绝不反噬 AI 结果（顶多看不到用量，不该丢应答）。
+Future<void> _recordUsage(
+  WidgetRef ref,
+  String taskId, {
+  int inTok = 0,
+  int outTok = 0,
+  int latencyMs = 0,
+  bool failed = false,
+}) async {
+  try {
+    await AiTokenStats.record(ref.read(sharedPreferencesProvider), taskId,
+        inTok: inTok, outTok: outTok, latencyMs: latencyMs, failed: failed);
+  } catch (_) {
+    // 静默：日志页已有本次调用的完整留痕。
+  }
+}
 
 /// AI 生成中弹层的宿主 Navigator 定位键（可选注入，见 [aiRunWithReview]）。
 ///
@@ -187,12 +206,15 @@ Future<AiCallResult?> aiRunWithReview(
   if (outcome == 'cancel') {
     AppLog.add('AI 调用已取消（$taskId）：等待期间用户取消/返回，应答若迟到将被丢弃',
         level: LhLevel.warn);
+    // 取消也算一次发出：请求已经打到端点、token 已消耗，只是应答没等到。
+    await _recordUsage(ref, taskId, failed: true);
     if (context.mounted) AppToast.show(context, '已取消本次 AI 生成', ms: 2000);
     return null;
   }
 
   // 成败都留痕（真机反馈③「日志里没有内容」：AI 通道原先只 toast 不落日志）。
   if (error != null) {
+    await _recordUsage(ref, taskId, failed: true);
     AppLog.add(
         'AI 调用失败（$taskId）：$error${logDetail == null ? '' : ' · $logDetail'}',
         level: LhLevel.error);
@@ -200,6 +222,10 @@ Future<AiCallResult?> aiRunWithReview(
     final r = result!;
     AppLog.add('AI 调用成功（$taskId）· ${r.reply.latencyMs}ms · '
         '入 ${r.reply.promptTokens}/出 ${r.reply.completionTokens} tokens');
+    await _recordUsage(ref, taskId,
+        inTok: r.reply.promptTokens,
+        outTok: r.reply.completionTokens,
+        latencyMs: r.reply.latencyMs);
   }
   if (!context.mounted) return null;
   if (error != null) {

@@ -13,10 +13,14 @@ void main() {
     expect(AppLog.lines.last.text, 'line349');
   });
 
-  test('formatted 含毫秒时间戳与级别', () {
+  test('formatted 含毫秒时间戳、级别与来源段', () {
     AppLog.add('boom', level: LhLevel.error);
     final f = AppLog.lines.single.formatted;
-    expect(RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3} \[E\] boom$').hasMatch(f), isTrue);
+    // V1.43.2 起行式多一段来源（调用帧自动归类；本调用来自测试文件 → 系统）。
+    expect(
+        RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3} \[E\] \[[^\]]+\] boom$').hasMatch(f),
+        isTrue);
+    expect(f, endsWith('[系统] boom'));
   });
 
   test('reportError 防递归：重入直接吞掉', () {
