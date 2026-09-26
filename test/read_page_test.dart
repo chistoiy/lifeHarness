@@ -2247,7 +2247,7 @@ void main() {
       expect(fieldText('bkf-pages'), '288');
     });
 
-    testWidgets('R-41 设置默认「仅填 ISBN」：输入只存码不联网；离线未命中提示逐字',
+    testWidgets('R-41 设置默认「仅填 ISBN」：输入只存码不联网；未命中按成因分档提示',
         (tester) async {
       await tester.pumpWidget(routed(const ReadWorkbench(), extra: [
         isbnPageFetcherProvider.overrideWith((ref) => (uri) async {
@@ -2266,12 +2266,13 @@ void main() {
           find.byKey(const ValueKey('bkf-isbn')), '9787508662560');
       await settle(tester);
       expect(find.text('仅填 ISBN · 留空待补'), findsOneWidget);
-      // 手动点「ISBN 取图」仍会抓取（显式操作不受开关限制）：此 fake 抛错＝未命中。
+      // 手动点「ISBN 取图」仍会抓取（显式操作不受开关限制）：此 fake 抛错＝网络层失败。
       await tester.ensureVisible(find.byKey(const ValueKey('bkf-cov-isbn')));
       await tester.tap(find.byKey(const ValueKey('bkf-cov-isbn')));
       await settle(tester);
       await tester.pump(const Duration(milliseconds: 120));
-      expect(find.text('离线或未命中 · 留空待补'), findsOneWidget);
+      expect(find.text('网络不通 · 留空待补'), findsOneWidget,
+          reason: '未命中要分档：抛错＝网络层，取到页但解析不出＝豆瓣未收录');
       expect(find.text('未取到封面'), findsOneWidget);
       await clearToasts(tester);
     });

@@ -180,6 +180,72 @@ void main() {
     expect(await pollText(tester, '结果:null'), isTrue);
     await settleLogTimer(tester);
   });
+
+  testWidgets('等待中点「取消」：屏障立拆、迟到应答不写库', (tester) async {
+    // 真机反馈②「点击 ai 生成后无法返回」：旧弹层 barrierDismissible:false +
+    // PopScope(canPop:false) 且没有出口，端点慢就是死等。
+    final done = CompleterDone();
+    await boot(tester, handler: (req) async {
+      await Future<void>.delayed(const Duration(seconds: 3));
+      done.called = true;
+      return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content':
+                      jsonEncode({'target': 'todo', 'reason': 'r', 'draft': 'd'})
+                }
+              }
+            ]
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    });
+    await tester.tap(find.byKey(const ValueKey('stub-triage')));
+    await settle5(tester);
+    await tapSend(tester);
+    expect(find.text('AI 生成中…'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ai-progress-cancel')));
+    await tester.pump(); // 取消胜出 → 拆屏障
+    expect(find.text('AI 生成中…'), findsNothing,
+        reason: '取消必须立刻关掉进度弹层');
+    expect(find.text('结果:null'), findsOneWidget,
+        reason: '取消回 null，调用方不得写入');
+
+    // 迟到的应答：把 3s 排干，既不写库也不改日志尾部（避免 pending timer 误报）。
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(AppLog.lines.last.text, contains('AI 调用已取消（inbox.triage）'));
+    expect(AppLog.lines.last.level, LhLevel.warn);
+    expect(find.text('结果:null'), findsOneWidget);
+    await settleLogTimer(tester);
+  });
+
+  testWidgets('等待中按系统返回：等同取消（不锁死用户）', (tester) async {
+    await boot(tester, handler: (req) async {
+      await Future<void>.delayed(const Duration(seconds: 3));
+      return http.Response('{}', 200,
+          headers: {'content-type': 'application/json; charset=utf-8'});
+    });
+    await tester.tap(find.byKey(const ValueKey('stub-triage')));
+    await settle5(tester);
+    await tapSend(tester);
+    expect(find.text('AI 生成中…'), findsOneWidget);
+
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pump();
+    expect(find.text('AI 生成中…'), findsNothing,
+        reason: '系统返回也要拆掉屏障，不能把用户困在等待里');
+    expect(find.text('结果:null'), findsOneWidget);
+    expect(AppLog.lines.last.text, contains('AI 调用已取消（inbox.triage）'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    await settleLogTimer(tester);
+  });
 }
 
 class CompleterDone {

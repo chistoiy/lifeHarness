@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -92,7 +93,7 @@ Future<AiCallResult?> aiRunWithReview(
   );
   if (confirmed != true || !context.mounted) return null;
 
-  // 进度弹层两道护栏（真机「黑屏卡死」= 黑色屏障永挂，两种成因都要防）：
+  // 进度弹层三道护栏（真机「黑屏卡死」与「点击后无法返回」= 屏障永挂 / 没有出口）：
   // ①开关同源：弹层与 pop 都走 [aiRootNavKey] 指向的那个栈（未注入时用调用页
   //   所属栈）。ShellRoute 分支页里 `Navigator.of(context)` 是分支栈，而
   //   showDialog 默认 push 根栈——pop 打不到根弹层，屏障永挂。
@@ -100,10 +101,14 @@ Future<AiCallResult?> aiRunWithReview(
   //   端点极快或同步失败（局域网 Ollama、参数校验即抛）时请求在同一帧内就
   //   return，弹层 context 还没拿到 → 旧 pop 静默失效，屏障照样永挂。
   //   所以 pop 以「是否已开」为准，未建帧时直接从宿主栈弹顶路由。
+  // ③用户出口：等待必须可中断。「取消」钮与系统返回都只完成 [cancel]，
+  //   关弹层仍由本函数统一执行（避免与 closeProgressDialog 双 pop）；
+  //   应答与取消竞速，迟到的结果只被吞掉——不写库、不当成成功播报。
   final navContext = aiRootNavKey.value?.currentState?.context ?? context;
   final nav = Navigator.of(navContext);
   var progressOpen = false, progressBuilt = false;
   BuildContext? progressCtx;
+  final cancel = Completer<void>();
   showDialog(
     context: navContext,
     useRootNavigator: false,
@@ -111,13 +116,27 @@ Future<AiCallResult?> aiRunWithReview(
     builder: (ctx) {
       progressBuilt = true;
       progressCtx = ctx;
-      return const PopScope(
+      return PopScope(
         canPop: false,
-        child: AlertDialog(content: Row(children: [
-          CircularProgressIndicator(),
-          SizedBox(width: 14),
-          Text('AI 生成中…', style: TextStyle(fontSize: 13)),
-        ])),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !cancel.isCompleted) cancel.complete();
+        },
+        child: AlertDialog(
+          content: const Row(children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 14),
+            Text('AI 生成中…', style: TextStyle(fontSize: 13)),
+          ]),
+          actions: [
+            TextButton(
+              key: const ValueKey('ai-progress-cancel'),
+              onPressed: () {
+                if (!cancel.isCompleted) cancel.complete();
+              },
+              child: const Text('取消'),
+            ),
+          ],
+        ),
       );
     },
   );
@@ -138,22 +157,40 @@ Future<AiCallResult?> aiRunWithReview(
   AiCallResult? result;
   String? error;
   String? logDetail; // 日志侧比 toast 更精确：带失败归类与端点原文
-  try {
-    result = await svc.request(taskId, vars, temperature: temperature);
-  } on AiDenied catch (e) {
-    error = e.reason;
-  } on AiException catch (e) {
-    error = e.userMessage;
-    logDetail = '${e.kind.name}: ${e.detail}';
-  } on AiBadOutput catch (e) {
-    error = e.reason;
-    logDetail = '输出不合约定';
-  } catch (e) {
-    error = '$e';
-    logDetail = e.runtimeType.toString();
-  }
+  // 请求侧自己收敛成 'ok'/'err'，好与 cancel.future 一起进 Future.any 竞速；
+  // 取消胜出后不再 await 它，异常也已在 onError 里吃掉（无 unhandled error）。
+  final settled = Completer<String>();
+  svc.request(taskId, vars, temperature: temperature).then((r) {
+    result = r;
+    if (!settled.isCompleted) settled.complete('ok');
+  }, onError: (Object e, StackTrace _) {
+    if (e is AiDenied) {
+      error = e.reason;
+    } else if (e is AiException) {
+      error = e.userMessage;
+      logDetail = '${e.kind.name}: ${e.detail}';
+    } else if (e is AiBadOutput) {
+      error = e.reason;
+      logDetail = '输出不合约定';
+    } else {
+      error = '$e';
+      logDetail = e.runtimeType.toString();
+    }
+    if (!settled.isCompleted) settled.complete('err');
+  });
+  final outcome =
+      await Future.any([settled.future, cancel.future.then((_) => 'cancel')]);
+
   // 无论页面是否仍在，先关进度弹层：屏障永挂才是「黑屏」，页面没了也要拆。
   closeProgressDialog();
+
+  if (outcome == 'cancel') {
+    AppLog.add('AI 调用已取消（$taskId）：等待期间用户取消/返回，应答若迟到将被丢弃',
+        level: LhLevel.warn);
+    if (context.mounted) AppToast.show(context, '已取消本次 AI 生成', ms: 2000);
+    return null;
+  }
+
   // 成败都留痕（真机反馈③「日志里没有内容」：AI 通道原先只 toast 不落日志）。
   if (error != null) {
     AppLog.add(

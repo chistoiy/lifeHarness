@@ -2418,7 +2418,7 @@ tailwind.config = {
   <div id="sheetEditBook" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetEditBook')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[84vh] overflow-y-auto no-scrollbar">
       <div class="grabber"></div>
-      <div class="font-extrabold text-sm">编辑书籍信息</div>
+      <div class="flex items-center justify-between"><div class="font-extrabold text-sm">编辑书籍信息</div><button class="mini-btn !text-[10px]" onclick="ebScanIsbn()">扫 ISBN</button></div>
       <div class="cov-pick mt-3">
         <div id="ebCovBox" class="cov-box" style="background-size:cover;background-position:center"></div>
         <div class="flex-1 min-w-0">
@@ -2452,6 +2452,7 @@ tailwind.config = {
           <input id="ebSeries" class="inp" placeholder="系列 / 套装">
           <textarea id="ebIntro" class="inp min-h-[52px]" placeholder="书籍简介（导入源可自动带出）"></textarea>
         </div>
+        <div class="flex gap-2"><input id="ebIsbn" class="inp flex-1" placeholder="ISBN / 豆瓣 subject_id" oninput="ebIsbnHint()"><span id="ebLookup" class="text-[10px] self-center text-slate-400 w-24"></span></div>
         <div class="flex gap-2"><input id="ebPub" class="inp flex-1" placeholder="出版社"><input id="ebYr" class="inp w-24" placeholder="年份"></div>
         <div class="flex gap-2"><input id="ebPages" class="inp flex-1" type="number" placeholder="总页数"><input id="ebProg" class="inp flex-1" type="number" placeholder="进度 %"></div>
         <div class="text-[10px] text-slate-400 -mt-1">分区 <span id="ebStChips"></span></div>
@@ -2563,7 +2564,7 @@ tailwind.config = {
         <div class="card !py-2.5 !px-3 flex justify-between items-center opacity-60"><span>按 ISBN 查询在线书目库</span><span class="vchip">V1.x</span></div>
       </div>
       <div class="mt-3 text-xs font-bold text-slate-500">粘贴目录文本</div>
-      <textarea id="tocPaste" oninput="tocParsePreview()" class="inp w-full min-h-[104px] mt-1 text-[11.5px] leading-6 font-mono" placeholder="每行一条，例如：&#10;第1部分 如何思考&#10;  1 两位主角：系统1与系统2&#10;  2 多任务&#10;（缩进两格或用 1.2 编号＝该部分下的小节）"></textarea>
+      <textarea id="tocPaste" oninput="tocParsePreview()" class="inp w-full min-h-[104px] mt-1 text-[11.5px] leading-6 font-mono" placeholder="每行一条，例如：&#10;第1部分 如何思考&#10;  1 两位主角：系统1与系统2……1&#10;  2 多任务……18&#10;（缩进两格或用 1.2 编号＝该部分下的小节；行尾页码按真值采用）"></textarea>
       <div class="mt-2 flex gap-2"><button class="mini-btn flex-1" onclick="tocParsePreview()">解析预览</button><button class="mini-btn flex-1" onclick="tocPasteDemo()">填入示例</button></div>
       <div id="tocPrev" class="hidden mt-2 card !py-2.5 !px-3"></div>
       <button id="tocOk" onclick="tocImportOk()" class="hidden mt-3 w-full py-3 rounded-xl grad text-white text-sm font-bold">确认导入并替换当前目录</button>
@@ -4079,7 +4080,7 @@ function saveProgress(){const v=$('#pIn1')&&$('#pIn1').value;if(!v){toast('请�
   const el=$('#bkTotal');if(el&&bk&&sec)el.textContent='5h04m';}
 const BOOK_TOC=[['1 两位主角：系统1与系统2','done',5],['2 多任务','done',3],['3 懒惰的大脑','done',4],['4 联想思维','done',2],['5 系统1擅长天真轻信','done',6],['6 常态与异常','done',1],['7 确定效应','done',4],['8 时间折扣','read',2],['9 损失厌恶',null,3],['10 禀赋效应',null,1],['11 认知偏误',null,0],['12 事前验尸法',null,0],['15 社会偏好',null,0],['20 结论：两种自我',null,0]];
 function renderToc(){$('#tocList').innerHTML=BOOK_TOC.map(([t,st,q])=>`<div class="toc-row" onclick="toast('跳转至该章笔记/摘录')"><span class="toc-dot ${st==='done'?'bg-emerald-400':st==='read'?'bg-brand-500 animate-pulse':'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${st?'':'text-slate-400'}">${t}</span>${q?`<span class="text-[10px] text-brand-500 font-bold"><span class="inline-flex items-center">${bsi('quote','w-[10px] h-[10px] mr-0.5')}${q}</span></span>`:''}${st==='done'?'<span class="text-emerald-500"><svg class="w-[11px] h-[11px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg></span>':st==='read'?'<span class="text-[10px] text-brand-500 font-bold">在读</span>':''}</div>`).join('');}
-function tocAI(){toast('AI 根据书名/作者补全剩余章节中…（需先在设置验证 Key · 模拟插入 9 章待确认）');}
+function tocAI(){toast('AI 补全：章节结构 + 起始页（缺真值时按常见版次估算并标「估」，可在「编辑」里改）· 模拟插入 9 章待确认');}
 function tocImportDemo(){closeSheet('sheetTocImport');renderToc();toast('✔ 解析成功：20 章/2 级 · 匹配 8 章 · 5 章自动标记摘录分布');}
 const MEDIA=[{n:'沙丘 2',t:'电影 · 2024 · 豆瓣 8.6',st:'在看',p:72,info:'72% · 累计 46min',g:'from-amber-600 to-orange-800',tm:'继续观影 · 上次 8min'},{n:'漫长的季节',t:'剧集 · 12 集 · 豆瓣 9.4',st:'在看',p:42,info:'第 5/12 集',g:'from-sky-500 to-indigo-700',tm:'第 6 集未看'},{n:'宇宙探索编辑部',t:'电影 · 想看 · 来自豆瓣',st:'想看',p:0,info:'',g:'from-slate-500 to-slate-800',tm:''}];
 function pickChip(sel,el){$$(sel).forEach(b=>b.classList.remove('on'));el.classList.add('on')}
@@ -4754,6 +4755,7 @@ function shStatusPick(id){const b=bsBook(id);b.st=BS_STS[(BS_STS.indexOf(b.st)+1
 function shEditOpen(id){CURBK=id;const b=bsBook(id);
   document.getElementById('ebName').value=b.n;document.getElementById('ebAuthor').value=b.a;document.getElementById('ebPub').value=b.pub;document.getElementById('ebYr').value=b.yr;
   document.getElementById('ebPages').value=b.pg;document.getElementById('ebProg').value=b.p;ebTags=[...b.tags];ebSt=b.st;ebRate=b.rate;ebCovFor='edit';ebCovUI();
+  document.getElementById('ebIsbn').value=b.isbn==='—'?'':(b.isbn||'');document.getElementById('ebLookup').textContent='';
   ebChips();renderEbx();ebFmt=b.fmt||'纸质';ebPw=b.pw||'page';
   ['Tr','PubDate','Tot','Pos','Fee','Series','Intro'].forEach(k=>{const e=document.getElementById('eb'+k);if(e)e.value=b[k.toLowerCase()==='pubdate'?'pubDate':k.toLowerCase()]||''});
   ebxChips('eb');ebxSum('eb');document.getElementById('ebMore').classList.add('hidden');
@@ -4765,6 +4767,7 @@ function ebChips(){document.getElementById('ebStChips').innerHTML=BS_STS.map(s=>
  document.getElementById('ebRate').innerHTML=[1,2,3,4,5].map(i=>`<button class="text-lg ${ebRate>=i?'text-sun':'text-slate-300 dark:text-slate-600'}" onclick="ebSet('rate',${i})">'<svg class="w-[13px] h-[13px]" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg>'</button>`).join('')}
 function shSaveEdit(){const b=bsBook(CURBK);b.n=document.getElementById('ebName').value.trim()||b.n;b.a=document.getElementById('ebAuthor').value.trim()||b.a;
   b.pub=document.getElementById('ebPub').value.trim()||'—';b.yr=document.getElementById('ebYr').value.trim()||b.yr;b.pg=+document.getElementById('ebPages').value||b.pg;
+  b.isbn=document.getElementById('ebIsbn').value.trim()||'—';
   b.p=Math.min(100,+document.getElementById('ebProg').value||0);b.rp=Math.round(b.pg*b.p/100);if(b.p===100)b.st='已读';
   b.tags=ebTags;b.st=ebSt;b.rate=ebRate;
   b.tr=(document.getElementById('ebTr').value||'').trim();b.pubDate=(document.getElementById('ebPubDate').value||'').trim();b.fmt=ebFmt;b.pw=ebPw;
@@ -4800,6 +4803,18 @@ function shIsbnHint(){const v=document.getElementById('nbIsbn').value.trim(),L=d
  if(BS_SET.isbnFill!=='抓豆瓣数据'){L.textContent='仅填 ISBN · 留空待补';return}
  L.textContent='匹配中…';clearTimeout(nbIsbnTimer);
  nbIsbnTimer=setTimeout(()=>{if(!document.getElementById('nbName').value){document.getElementById('nbName').value='被讨厌的勇气';document.getElementById('nbAuthor').value='岸见一郎';document.getElementById('nbPages').value='288';renderEbx()}L.textContent='已命中 · 自动填充'},520)}
+/* 编辑态 ISBN（真机反馈 2026-09-26：建完就改不了码，也再触发不了补全）。
+   未命中分两档文案：网络不通（离线/DNS/超时）与豆瓣未收录（取到页但没这条书目），
+   具体 HTTP 码与异常只在应用日志里留痕。 */
+let ebIsbnTimer=null;
+function ebIsbnHint(){const v=document.getElementById('ebIsbn').value.trim(),L=document.getElementById('ebLookup');if(!L)return;
+ if(!v){L.textContent='';return}
+ if(v.length<8){L.textContent='至少 8 位';return}
+ if(BS_SET.isbnFill!=='抓豆瓣数据'){L.textContent='仅填 ISBN · 留空待补';return}
+ L.textContent='匹配中…';clearTimeout(ebIsbnTimer);
+ ebIsbnTimer=setTimeout(()=>{const ok=/^978/.test(v)&&v.length===13;if(ok){if(!document.getElementById('ebName').value)document.getElementById('ebName').value='被讨厌的勇气';if(!document.getElementById('ebPages').value)document.getElementById('ebPages').value='288';renderEbx();L.textContent='已命中 · 自动填充'}else L.textContent='豆瓣未收录 · 留空待补'},520)}
+/* 编辑态扫码（2026-09-26 拍板）：改码最常见的原因就是对着书脊重扫。 */
+function ebScanIsbn(){document.getElementById('ebIsbn').value='9787508662560';ebIsbnHint();toast('已扫描书脊 ISBN（模拟）')}
 function shGoalInit(){const H=[0,1,2,3,4],M=[0,5,10,15,20,25,30,35,40,45,50,55];
   wReg('glDH',H.map(x=>x+'时'),Math.floor(BS_GOAL.dayMin/60)||0,shGoalPreview);
   wReg('glDM',M.map(x=>x+'分'),Math.floor(BS_GOAL.dayMin%60/5),shGoalPreview);
@@ -5932,7 +5947,9 @@ function tocRen(gi, ki, v) { tocK(gi)[ki][0] = v }
 function tocRenG(gi, v) { BS_TOC[CURBK][gi][0] = v }
 function tocDel(gi, ki) { const k = tocK(gi), n = k[ki][0]; k.splice(ki, 1); renderBookDetail(); toast('已删除「' + n + '」· 该节摘录保留并标为未分章') }
 function tocMove(gi, ki, d) { const k = tocK(gi), j = ki + d; if (j < 0 || j >= k.length) return; k.splice(j, 0, k.splice(ki, 1)[0]); renderBookDetail() }
-function tocAdd(gi) { tocK(gi).push(['新章节', null, 0]); renderBookDetail(); tocFocusLast() }
+function tocAdd(gi) { tocK(gi).push(['新章节', null, 0, null, false]); renderBookDetail(); tocFocusLast() }
+/* 起始页手改（2026-09-26 口径）：改完即视为真值，撤掉「估」标注。 */
+function tocRep(gi, ki, v) { const k = tocK(gi)[ki]; k[3] = v === '' ? null : (+v || null); k[4] = false }
 function tocAddG() { BS_TOC[CURBK] = (BS_TOC[CURBK] || []).concat([['新部分', null, []]]); renderBookDetail(); toast('已添加部分 · 记得在里面加小节，空部分退出编辑时会自动清掉') }
 function tocDelG(gi) { const g = BS_TOC[CURBK][gi], n = (g[2] || g[1] || []).length; BS_TOC[CURBK].splice(gi, 1); renderBookDetail(); toast('已删除「' + g[0] + '」' + (n ? ' · 含 ' + n + ' 小节' : '') + ' · 摘录保留') }
 function tocPrune() { BS_TOC[CURBK] = (BS_TOC[CURBK] || []).filter(g => (g[2] || g[1] || []).length) }
@@ -5953,8 +5970,9 @@ function renderToc() {
       ${tocEdit ? `<input class="toc-ed flex-1 min-w-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[10px] font-extrabold outline-none" value="${tocAttr(g[0])}" oninput="tocRenG(${gi},this.value)">${ib('plus', '添加小节', 'tocAdd(' + gi + ')')}${ib('trash', '删除整个部分', 'tocDelG(' + gi + ')')}`
       : `<span class="cursor-pointer select-none" onclick="tocFoldPart(${gi})">${fold ? '▸' : '▾'} ${g[0]}</span><span class="ml-auto">${done}/${kids.length}</span>`}</div>
     ${fold ? '' : kids.map((k, ki) => `<div class="toc-row" ${tocEdit ? '' : `onclick="tocJump('${String(k[0]).replace(/'/g, "\\'")}')"`}>
-      ${tocEdit ? `<input class="toc-ed flex-1 min-w-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[12px] outline-none" value="${tocAttr(k[0])}" oninput="tocRen(${gi},${ki},this.value)">`
-        : `<span class="toc-dot ${k[1] === 'done' ? 'bg-emerald-400' : k[1] === 'read' ? 'bg-brand-500 animate-pulse' : 'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${k[1] ? '' : 'text-slate-400'}">${k[0]}</span>${k[2] ? `<span class="text-[10px] text-brand-500 font-bold"><span class="inline-flex items-center">${bsi('quote', 'w-[10px] h-[10px] mr-0.5')}${k[2]}</span></span>` : ''}${k[1] === 'done' ? '<span class="text-emerald-500"><svg class="w-[11px] h-[11px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg></span>' : k[1] === 'read' ? '<span class="text-[10px] text-brand-500 font-bold">在读</span>' : ''}`}
+      ${tocEdit ? `<input class="toc-ed flex-1 min-w-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[12px] outline-none" value="${tocAttr(k[0])}" oninput="tocRen(${gi},${ki},this.value)">
+        <input class="toc-ed w-11 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[11px] outline-none text-right" type="number" min="1" placeholder="页" value="${k[3] == null ? '' : k[3]}" oninput="tocRep(${gi},${ki},this.value)">`
+        : `<span class="toc-dot ${k[1] === 'done' ? 'bg-emerald-400' : k[1] === 'read' ? 'bg-brand-500 animate-pulse' : 'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${k[1] ? '' : 'text-slate-400'}">${k[0]}</span>${k[3] != null ? `<span class="text-[10px] font-bold ${k[4] ? 'text-amber-500' : 'text-slate-400'}">${k[3]}${k[4] ? ' 估' : ''}</span>` : ''}${k[2] ? `<span class="text-[10px] text-brand-500 font-bold"><span class="inline-flex items-center">${bsi('quote', 'w-[10px] h-[10px] mr-0.5')}${k[2]}</span></span>` : ''}${k[1] === 'done' ? '<span class="text-emerald-500"><svg class="w-[11px] h-[11px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg></span>' : k[1] === 'read' ? '<span class="text-[10px] text-brand-500 font-bold">在读</span>' : ''}`}
       ${tocEdit ? ib('up', '上移', `tocMove(${gi},${ki},-1)`) + ib('down', '下移', `tocMove(${gi},${ki},1)`) + ib('trash', '删除', `tocDel(${gi},${ki})`) : ''}</div>`).join('')}
     </div>`
   }).join('') + (tocEdit ? `<button class="mt-3 w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-400" onclick="tocAddG()">＋ 添加部分</button>` : '');
@@ -5965,14 +5983,22 @@ function renderToc() {
 function tocParseText(txt) {
   const g = []; let cur = null;
   const ensure = lab => { cur = [lab, null, []]; g.push(cur); return cur };
+  /* 行尾页码＝真值（2026-09-26 拍板「真值优先 + AI 估算兜底」）：只认引导符后的
+     数字（……12 / ····12 / 制表 / 两个以上空格 / 空格-空格12），避免把
+     「系统1与系统2」这类以数字收尾的标题误读成页码。 */
+  const pgOf = s => {
+    const m = s.match(/(?:[.\u00b7\u2026\u3000]{2,}|\s[-\u2013\u2014]\s|\t|\s{2,})\s*(\d{1,4})\s*$/);
+    return m ? { t: s.slice(0, m.index).trim(), p: +m[1] } : { t: s, p: null };
+  };
   (txt || '').split(/\r?\n/).forEach(raw => {
-    const t = raw.replace(/^\s*#+\s*/, '').replace(/^\s*[-*·•>]\s*/, '').trim();
+    const lead = /^(\t| {2,})/.test(raw), num = /^(\d+)([\.、])(\d+)/.test(raw.trim());
+    const h = pgOf(raw.replace(/^\s*#+\s*/, '').replace(/^\s*[-*·•>]\s*/, '').trim());
+    const t = h.t;
     if (!t || t.length > 60) return;
-    const ind = /^(\t| {2,})/.test(raw), num = /^(\d+)([\.、])(\d+)/.test(t);
     const part = /^(第\s*[0-9一二三四五六七八九十百千]+\s*[部篇卷])/i.test(t) || /^part\b/i.test(t) || /^[IVXLC]+[\.、]/.test(t);
-    if (part || (!ind && !num && !cur)) { ensure(t); return }
+    if (part || (!lead && !num && !cur)) { ensure(t); return }
     if (!cur) ensure('目录');
-    cur[2].push([t, null, 0]);
+    cur[2].push([t, null, 0, h.p, false]);
   });
   return g;
 }
@@ -5980,13 +6006,15 @@ function tocParsePreview() {
   const g = tocParseText((document.getElementById('tocPaste') || {}).value || ''), el = document.getElementById('tocPrev'), ok = document.getElementById('tocOk');
   if (!g.length) { tocPend = null; if (el) el.classList.add('hidden'); if (ok) ok.classList.add('hidden'); return }
   tocPend = g; const n = g.reduce((t2, x) => t2 + x[2].length, 0);
+  const withPg = g.reduce((t2, x) => t2 + x[2].filter(k => k[3] != null).length, 0);
   if (el) { el.classList.remove('hidden');
-    el.innerHTML = `<div class="text-[10px] text-slate-400">识别 ${g.length} 个部分 / ${n} 节 · 确认后替换当前目录</div>
-      <div class="mt-1.5 max-h-40 overflow-y-auto no-scrollbar">${g.map(x => `<div class="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400 mt-1">${x[0]}</div>` + x[2].map(k => `<div class="text-[11.5px] pl-3 truncate">${k[0]}</div>`).join('')).join('')}</div>` }
+    el.innerHTML = `<div class="text-[10px] text-slate-400">识别 ${g.length} 个部分 / ${n} 节 · 其中 ${withPg} 节带页码 · 确认后替换当前目录</div>
+      <div class="mt-1.5 max-h-40 overflow-y-auto no-scrollbar">${g.map(x => `<div class="text-[10.5px] font-extrabold text-slate-500 dark:text-slate-400 mt-1">${x[0]}</div>` + x[2].map(k => `<div class="text-[11.5px] pl-3 flex"><span class="flex-1 truncate">${k[0]}</span>${k[3] != null ? `<span class="text-[10px] text-slate-400 font-bold">${k[3]}</span>` : `<span class="text-[10px] text-slate-300 dark:text-slate-600">无页码</span>`}</div>`).join('')).join('')}</div>
+      ${withPg < n ? '<div class="mt-1.5 text-[10px] text-slate-400">缺页码的节可在目录「编辑」里补，或由 AI 补全时估算（标「估」）</div>' : ''}` }
   if (ok) ok.classList.remove('hidden');
 }
 function tocPasteDemo() { const e = document.getElementById('tocPaste');
-  e.value = '第1部分 如何思考\n  1 两位主角：系统1与系统2\n  2 多任务\n  3 懒惰的大脑\n第2部分 启发式与偏见\n  5 系统1擅长天真轻信\n  6 常态与异常\n  7 确定效应\n第3部分 自我控制\n  11 认知偏误\n  12 事前验尸法';
+  e.value = '第1部分 如何思考\n  1 两位主角：系统1与系统2……1\n  2 多任务……18\n  3 懒惰的大脑……35\n第2部分 启发式与偏见\n  5 系统1擅长天真轻信……64\n  6 常态与异常……81\n  7 确定效应……96\n第3部分 自我控制\n  11 认知偏误……188\n  12 事前验尸法……215';
   tocParsePreview() }
 function tocImportOk() {
   if (!tocPend) return; BS_TOC[CURBK] = tocPend; tocPend = null;

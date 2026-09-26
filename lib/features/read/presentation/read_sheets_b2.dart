@@ -339,7 +339,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
   }
 
   Future<void> _isbnCover() async {
-    final v = (_isNew ? _isbn.text.trim() : (_b?.isbn ?? '')).trim();
+    final v = _isbn.text.trim(); // 编辑态同样以输入框现值为准（改完即可重取）。
     if (v.length < 8) {
       readToast(context, '先填 ISBN（至少 8 位）');
       return;
@@ -373,13 +373,18 @@ class _BookFormState extends ConsumerState<_BookForm> {
 
   Future<void> _lookupFill(String code, {required bool coverOnly}) async {
     final seq = ++_isbnSeq;
-    final meta = await IsbnEnrich.lookup(
+    final out = await IsbnEnrich.lookupDetailed(
       code,
       fetch: ref.read(isbnPageFetcherProvider),
     );
     if (!mounted || seq != _isbnSeq) return;
+    final meta = out.meta;
     if (meta == null) {
-      setState(() => _isbnStatus = '离线或未命中 · 留空待补');
+      // 成因分档显示（网络不通 / 豆瓣未收录），细节（HTTP 码、异常）在日志页可查。
+      setState(
+        () => _isbnStatus =
+            out.miss == IsbnMiss.network ? '网络不通 · 留空待补' : '豆瓣未收录 · 留空待补',
+      );
       if (coverOnly) readToast(context, '未取到封面');
       return;
     }
@@ -474,31 +479,32 @@ class _BookFormState extends ConsumerState<_BookForm> {
               ),
             ),
           ),
-          if (_isNew)
-            GestureDetector(
-              key: const ValueKey('bkf-scan'),
-              onTap: _scanIsbn,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+          // 扫码入口两态都有（2026-09-26 拍板）：编辑态补了 ISBN 行后，
+          // 改码最常见的路径是对着书脊重扫，而不是手敲 13 位。
+          GestureDetector(
+            key: const ValueKey('bkf-scan'),
+            onTap: _scanIsbn,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: tokens.accent.withValues(alpha: .5),
                 ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: tokens.accent.withValues(alpha: .5),
-                  ),
-                ),
-                child: Text(
-                  '扫 ISBN',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: tokens.accent,
-                  ),
+              ),
+              child: Text(
+                '扫 ISBN',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.accent,
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
@@ -689,6 +695,26 @@ class _BookFormState extends ConsumerState<_BookForm> {
                 ),
               ),
           ],
+        ),
+      ],
+    );
+    // 真机反馈（2026-09-26）：ISBN 原先只在「添加新书」里有入口，建完就改不了
+    // （也再也触发不了豆瓣补全）。现在添加/编辑两态共用这一块：输入即校验、
+    // 命中状态就地显示，编辑态同样能改码后重抓。
+    final isbnBlock = Row(
+      children: [
+        Expanded(
+          child: _field(_isbn, 'ISBN / 豆瓣 subject_id',
+              keyName: 'bkf-isbn', onChanged: (_) => _onIsbnChanged()),
+        ),
+        SizedBox(
+          width: 84,
+          child: Text(
+            _isbnStatus,
+            key: const ValueKey('bkf-isbn-status'),
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          ),
         ),
       ],
     );
@@ -894,27 +920,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
           moreBtn,
           if (_moreOpen) ...moreFields,
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _field(_isbn, 'ISBN / 豆瓣 subject_id',
-                    keyName: 'bkf-isbn',
-                    onChanged: (_) => _onIsbnChanged()),
-              ),
-              SizedBox(
-                width: 84,
-                child: Text(
-                  _isbnStatus,
-                  key: const ValueKey('bkf-isbn-status'),
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          isbnBlock,
           const SizedBox(height: 10),
           Row(
             children: [
@@ -963,6 +969,8 @@ class _BookFormState extends ConsumerState<_BookForm> {
         pubHint,
         moreBtn,
         if (_moreOpen) ...moreFields,
+        const SizedBox(height: 10),
+        isbnBlock,
         const SizedBox(height: 10),
         _field(_publisher, '出版社', keyName: 'bkf-publisher'),
         const SizedBox(height: 10),
