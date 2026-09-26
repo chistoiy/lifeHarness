@@ -47,6 +47,7 @@ class Book {
     this.sumGain,
     this.wordCount = 0,
     this.binding,
+    this.feeDate,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -111,9 +112,10 @@ class Book {
   final String? sumQuote;
   final String? sumView;
   final String? sumGain;
-  // V1.44 先搜后加：字数/装帧（DB v24 两列；豆瓣评分存 douban_meta 不加列）。
+  // V1.44 先搜后加：字数/装帧/购入日期（DB v24 三列；豆瓣评分存 douban_meta 不加列）。
   final int wordCount;
   final String? binding;
+  final String? feeDate;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -174,6 +176,7 @@ class Book {
     sumGain: r['sum_gain'] as String?,
     wordCount: (r['word_count'] as int?) ?? 0,
     binding: r['binding'] as String?,
+    feeDate: r['fee_date'] as String?,
     createdAt: r['created_at'] as int,
     updatedAt: r['updated_at'] as int,
     deletedAt: r['deleted_at'] as int?,
@@ -216,6 +219,7 @@ class Book {
     'sum_gain': sumGain,
     'word_count': wordCount,
     'binding': binding,
+    'fee_date': feeDate,
     'created_at': createdAt,
     'updated_at': updatedAt,
     'deleted_at': deletedAt,
@@ -257,6 +261,7 @@ class Book {
     String? sumGain,
     int? wordCount,
     String? binding,
+    String? feeDate,
     int? updatedAt,
     int? deletedAt,
   }) => Book(
@@ -296,6 +301,7 @@ class Book {
     sumGain: sumGain ?? this.sumGain,
     wordCount: wordCount ?? this.wordCount,
     binding: binding ?? this.binding,
+    feeDate: feeDate ?? this.feeDate,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,

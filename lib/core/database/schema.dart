@@ -621,12 +621,13 @@ class DbSchema {
     22: [
       ...doubanMetaSchemaStatements,
     ],
-    // v24（V1.44 先搜后加）：books 增「字数/装帧」两列。需求清单原口径只列
-    // word_count，但表单「装帧」行必须落库（丛书复用 series、作者简介复用
-    // author_note、豆瓣评分存 douban_meta.rating 不加列），故同迁移带上。
+    // v24（V1.44 先搜后加）：books 增「字数/装帧/购入日期」三列。需求清单原口径只列
+    // word_count，但整页表单「装帧」「购入日期」行必须落库（丛书复用 series、
+    // 作者简介复用 author_note、豆瓣评分存 douban_meta.rating 不加列），故同迁移带上。
     23: [
       'ALTER TABLE $tBooks ADD COLUMN word_count INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE $tBooks ADD COLUMN binding TEXT',
+      'ALTER TABLE $tBooks ADD COLUMN fee_date TEXT',
     ],
   };
 
@@ -1021,6 +1022,7 @@ class DbSchema {
       sum_gain TEXT,
       word_count INTEGER NOT NULL DEFAULT 0,
       binding TEXT,
+      fee_date TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER

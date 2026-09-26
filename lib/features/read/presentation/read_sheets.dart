@@ -17,6 +17,7 @@ import '../domain/book_progress.dart';
 import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
+import 'book_form_page.dart' show openBiblioSearch, openBookForm;
 import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
 
@@ -171,14 +172,15 @@ TextField _field(
   ),
 );
 
-/// 新增书籍（书架 FAB＋ / 工作台空态「添加一本」）。
-/// 批2 起与「编辑信息」共用同一张完整表单（更多资料折叠＋封面上传）。
-/// 原型 shNewOpen：新书默认落「想读」分区。
+/// 新增书籍（书架 FAB / 工作台空态「添加一本」/ 摘录表单「添加一本」）。
+/// V1.44 先搜后加：入口统一改道豆瓣书目搜索页（原型 shNewOpen→bsrOpen），
+/// 旧底部弹窗退居死代码待收口批删除；[defaultState] 仅保留签名兼容
+/// （搜索页「手动输入」恒默认「想读」，与原型一致）。
 Future<void> showAddBookSheet(
   BuildContext context,
   WidgetRef ref, {
   String defaultState = Book.kStateWant,
-}) => showBookFormSheet(context, ref, defaultState: defaultState);
+}) => openBiblioSearch(context);
 
 /// 唯一一张摘录录入表单（FAB 与详情页共用 · §3.3；默认书=在读最近那本）。
 /// 批3 起为完整字段版（书/章节/页码/创建时间/原文/想法/识图·加图·剪贴板/
@@ -237,7 +239,8 @@ Future<bool?> showBookOpsSheet(BuildContext context, WidgetRef ref, Book b) =>
                 key: const ValueKey('ops-edit'),
                 onPressed: () {
                   Navigator.of(sheetCtx).pop();
-                  showBookFormSheet(context, ref, editing: b);
+                  // V1.44：编辑改整页表单（原型 shEditOpen→bfOpenEdit）。
+                  openBookForm(context, bookId: b.id);
                 },
                 icon: const Icon(Icons.edit_outlined, size: 17),
                 label: const Text('编辑信息'),

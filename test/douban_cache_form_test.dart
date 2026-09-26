@@ -16,6 +16,8 @@ import 'package:lifeharness/features/read/presentation/read_providers.dart';
 /// 豆瓣防封批（2026-09-26 拍板）· 表单缓存命中询问链：
 /// 首次联网命中→自动落缓存；二次输入同码→「本地已有缓存」+「用缓存 /
 /// 仍联网查询」；用缓存一发网络都不发；取图直接吃已落盘封面。
+/// V1.44 起 bi-edit 改道整页表单 BookFormPage（键 bf-*，无 GoRouter 壳时
+/// openBookForm 退 Navigator push），本测随迁只换键名不改语义。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +80,7 @@ void main() {
   }
 
   String status(WidgetTester tester) => tester
-      .widget<Text>(find.byKey(const ValueKey('bkf-isbn-status')))
+      .widget<Text>(find.byKey(const ValueKey('bf-isbn-status')))
       .data!;
 
   /// 补全链里夹着真 sqflite 往返（缓存行读写）：假异步下必须混入真实
@@ -93,10 +95,23 @@ void main() {
   }
 
   Future<void> retypeIsbn(WidgetTester tester, String v) async {
-    await tester.enterText(find.byKey(const ValueKey('bkf-isbn')), '');
+    await tester.enterText(find.byKey(const ValueKey('bf-isbn')), '');
     await pumpLookup(tester);
-    await tester.enterText(find.byKey(const ValueKey('bkf-isbn')), v);
+    await tester.enterText(find.byKey(const ValueKey('bf-isbn')), v);
     await pumpLookup(tester);
+  }
+
+  /// 「用缓存」钮先 await doubanCacheRow（真 sqflite 往返）再回填：
+  /// 假异步下单步 pump 泵不动，runAsync 轮询到状态行到位（waitFinder 同法）。
+  Future<void> waitStatus(WidgetTester tester, String text) async {
+    for (var i = 0; i < 15; i++) {
+      if (find.text(text).evaluate().isNotEmpty) return;
+      await tester.runAsync(
+        () => Future.delayed(const Duration(milliseconds: 60)),
+      );
+      await tester.pump();
+    }
+      expect(find.text(text), findsOneWidget);
   }
 
   String desktop() =>
@@ -116,6 +131,9 @@ void main() {
     ]));
     await settle(tester);
     await openEdit(tester);
+    // 整页表单询问行（bf-cache-*）默认视口装不下 → 拉高视口。
+    await useSurface(tester);
+    await settle(tester);
 
     await retypeIsbn(tester, '9787108009821');
     expect(status(tester), contains('已命中'));
@@ -126,18 +144,19 @@ void main() {
     await retypeIsbn(tester, '9787108009821');
     expect(status(tester), '本地已有缓存');
     expect(net, 1, reason: '命中缓存不得先发网络请求');
-    expect(find.byKey(const ValueKey('bkf-cache-ask')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-cache-ask')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('bkf-cache-use')));
-    await pumpLookup(tester);
+    await tester.tap(find.byKey(const ValueKey('bf-cache-use')));
+    // 用缓存＝零网络，但 doubanCacheRow 是真 sqflite 往返 → runAsync 轮询。
+    await waitStatus(tester, '缓存命中 · 已填充');
     expect(status(tester), '缓存命中 · 已填充');
     expect(net, 1, reason: '用缓存这条路径零网络');
-    expect(find.byKey(const ValueKey('bkf-cache-ask')), findsNothing);
+    expect(find.byKey(const ValueKey('bf-cache-ask')), findsNothing);
 
     // 「仍联网查询」：显式重查并刷新缓存行。
     await retypeIsbn(tester, '9787108009821');
-    expect(find.byKey(const ValueKey('bkf-cache-ask')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('bkf-cache-net')));
+    expect(find.byKey(const ValueKey('bf-cache-ask')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('bf-cache-net')));
     await pumpLookup(tester);
     expect(status(tester), contains('已命中'));
     expect(net, 2);
@@ -146,7 +165,7 @@ void main() {
     await repo.doubanCacheClear();
     expect(await repo.doubanCacheCount(), 0);
     await retypeIsbn(tester, '9787108009821');
-    expect(find.byKey(const ValueKey('bkf-cache-ask')), findsNothing);
+    expect(find.byKey(const ValueKey('bf-cache-ask')), findsNothing);
     expect(net, 3);
     await clearToasts(tester);
   });

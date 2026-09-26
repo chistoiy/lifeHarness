@@ -11,6 +11,7 @@ import '../domain/book.dart';
 import '../domain/book_progress.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
+import 'book_form_page.dart' show openBookForm;
 import 'read_providers.dart';
 import 'read_sheets.dart';
 import 'shelf_page.dart' show shelfUiProvider, ShelfUI;
@@ -95,7 +96,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
           IconButton(
             key: const ValueKey('bi-edit'),
             tooltip: '编辑信息',
-            onPressed: () => showBookFormSheet(context, ref, editing: b),
+            // V1.44：编辑改整页表单（原型 shEditOpen→bfOpenEdit）。
+            onPressed: () => openBookForm(context, bookId: b.id),
             icon: const Icon(BsIcons.pen, size: 19),
           ),
           IconButton(

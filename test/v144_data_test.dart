@@ -173,7 +173,7 @@ void main() {
       }
       final cols = await db2.rawQuery('PRAGMA table_info(books)');
       final names = cols.map((c) => c['name']).toSet();
-      expect(names, containsAll(['word_count', 'binding']));
+      expect(names, containsAll(['word_count', 'binding', 'fee_date']));
       await db2.close();
       await f.delete();
     });

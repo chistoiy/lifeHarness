@@ -15,8 +15,9 @@ import 'package:lifeharness/features/read/presentation/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 
 /// 真机反馈（2026-09-26）：「添加图书时能填 ISBN，添加后再编辑就没办法改了」。
-/// 旧实现里 `bkf-isbn` 只挂在「添加新书」分支，编辑分支没有这一行，
-/// 于是编辑态既改不了码、也再触发不了豆瓣补全。本测钉住编辑态的完整闭环。
+/// 旧弹层实现里 `bkf-isbn` 只挂在「添加新书」分支——该缺陷已由 V1.43.2 修复；
+/// V1.44 起编辑入口（bi-edit）改道整页表单 BookFormPage（bf-* 键），
+/// 本测随迁钉住编辑态「改码→重查→落库」闭环不回归。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -91,14 +92,14 @@ void main() {
     await openEdit(tester);
 
     // 现值回填（旧实现：整行不存在）。
-    expect(fieldText(tester, 'bkf-isbn'), '9787108009821');
+    expect(fieldText(tester, 'bf-isbn'), '9787108009821');
 
     await tester.enterText(
-      find.byKey(const ValueKey('bkf-isbn')),
+      find.byKey(const ValueKey('bf-isbn')),
       '9787108009822',
     );
-    await tester.ensureVisible(find.byKey(const ValueKey('bkf-save')));
-    await tester.tap(find.byKey(const ValueKey('bkf-save')));
+    await tester.ensureVisible(find.byKey(const ValueKey('bf-save')));
+    await tester.tap(find.byKey(const ValueKey('bf-save')));
     await settle(tester);
 
     final b = (await repo.allBooks()).single;
@@ -130,7 +131,7 @@ void main() {
     await openEdit(tester);
 
     await tester.enterText(
-      find.byKey(const ValueKey('bkf-isbn')),
+      find.byKey(const ValueKey('bf-isbn')),
       '9780000000000',
     );
     await settle(tester);
@@ -141,8 +142,8 @@ void main() {
     expect(find.text('豆瓣未收录 · 留空待补'), findsOneWidget);
 
     // 「ISBN 取图」以输入框现值为准（改完即可重取，不必先保存）。
-    await tester.ensureVisible(find.byKey(const ValueKey('bkf-cov-isbn')));
-    await tester.tap(find.byKey(const ValueKey('bkf-cov-isbn')));
+    await tester.ensureVisible(find.byKey(const ValueKey('bf-cov-isbn')));
+    await tester.tap(find.byKey(const ValueKey('bf-cov-isbn')));
     await settle(tester);
     await tester.pump(const Duration(milliseconds: 900));
     expect(hits, 4);
@@ -181,7 +182,7 @@ void main() {
 
     // 换一个与机上现值不同的码：enterText 写入同值不会触发 onChanged。
     await tester.enterText(
-      find.byKey(const ValueKey('bkf-isbn')),
+      find.byKey(const ValueKey('bf-isbn')),
       '9787108009820',
     );
     await settle(tester);
@@ -189,8 +190,8 @@ void main() {
     expect(find.text('按书名匹配 · 已填充'), findsOneWidget,
         reason: '不是 ISBN 命中就别写成「已命中」，口径要能分辨');
     // 出版社/出版日期原本空着 → 补全；书名（检索词本身）不覆盖。
-    expect(fieldText(tester, 'bkf-publisher'), '生活·读书·新知三联书店');
-    expect(fieldText(tester, 'bkf-pages'), '320');
+    expect(fieldText(tester, 'bf-publisher'), '生活·读书·新知三联书店');
+    expect(fieldText(tester, 'bf-pg'), '320');
     await clearToasts(tester);
   });
 
@@ -202,13 +203,16 @@ void main() {
     await useSurface(tester);
     await settle(tester);
     await openEdit(tester);
-    await tester.ensureVisible(find.byKey(const ValueKey('bkf-publisher')));
-    expect(find.byKey(const ValueKey('bkf-isbn')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('bf-publisher')));
+    expect(find.byKey(const ValueKey('bf-isbn')), findsOneWidget);
     // 扫码入口两态都有（2026-09-26 拍板：改码多是对着书脊重扫）。
-    expect(find.byKey(const ValueKey('bkf-scan')), findsOneWidget);
-    expect(find.byKey(const ValueKey('bkf-publisher')), findsOneWidget);
-    expect(find.byKey(const ValueKey('bkf-pages')), findsOneWidget);
-    expect(find.byKey(const ValueKey('bkf-pct')), findsOneWidget);
-    expect(find.byKey(const ValueKey('bkf-save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-isbn-scan')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-publisher')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-pg')), findsOneWidget);
+    // V1.44 整页新增的三行（旧弹层没有）：字数/装帧/购入日期。
+    expect(find.byKey(const ValueKey('bf-wc')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-binding')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-feeDate')), findsOneWidget);
+    expect(find.byKey(const ValueKey('bf-save')), findsOneWidget);
   });
 }

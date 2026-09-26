@@ -110,6 +110,14 @@ Future<void> _showAuthorPickSheet(
   ),
 );
 
+/// 未命中成因 → 表单状态文案（真机反馈③分档口径；V1.44 整页表单
+/// book_form_page 与本 sheet 共用一份，原 _BookForm 内联 switch 提出，行为不变）。
+String isbnMissLabel(IsbnMiss miss) => switch (miss) {
+  IsbnMiss.network => '网络不通 · 留空待补',
+  IsbnMiss.blocked => '豆瓣访问受限 · 稍后再试',
+  _ => '豆瓣未收录 · 留空待补',
+};
+
 class _BookForm extends ConsumerStatefulWidget {
   const _BookForm({this.editing, this.defaultState = Book.kStateWant});
   final Book? editing;
@@ -429,13 +437,7 @@ class _BookFormState extends ConsumerState<_BookForm> {
     final meta = out.meta;
     if (meta == null) {
       // 成因分档显示（网络不通 / 访问受限 / 豆瓣未收录），细节（HTTP 码、异常）在日志页可查。
-      setState(
-        () => _isbnStatus = switch (out.miss) {
-          IsbnMiss.network => '网络不通 · 留空待补',
-          IsbnMiss.blocked => '豆瓣访问受限 · 稍后再试',
-          _ => '豆瓣未收录 · 留空待补',
-        },
-      );
+      setState(() => _isbnStatus = isbnMissLabel(out.miss));
       if (coverOnly) readToast(context, '未取到封面');
       return;
     }

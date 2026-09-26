@@ -17,6 +17,8 @@ import 'package:lifeharness/features/read/domain/book_list.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_dict.dart';
 import 'package:lifeharness/features/read/presentation/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/biblio_search_page.dart';
+import 'package:lifeharness/features/read/presentation/book_form_page.dart';
 import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
 import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
 import 'package:lifeharness/features/read/presentation/read_stat_page.dart';
@@ -122,6 +124,15 @@ void main() {
           path: '/read/mgr',
           builder: (_, s) => BookMgrPage(
               kind: s.uri.queryParameters['kind'] ?? 'source')),
+      // V1.44 先搜后加：添加＝书目搜索页；表单/编辑＝整页（键 bsr-*/bf-*）。
+      // openBiblioSearch/openBookForm 走 GoRouter push，本壳须注册同路径。
+      GoRoute(
+          path: '/read/biblio-search',
+          builder: (_, _) => const BiblioSearchPage()),
+      GoRoute(
+          path: '/read/book-form',
+          builder: (_, s) => BookFormPage(
+              bookId: s.uri.queryParameters['id'], seed: s.extra)),
     ]);
     return ProviderScope(
       overrides: [
@@ -153,27 +164,52 @@ void main() {
     expect(f, findsOneWidget);
   }
 
+  /// 补全/保存链夹着真 sqflite 往返（缓存行读写、addBook/updateBook）：
+  /// 假异步下必须混入真实事件循环才能推进（douban_cache_form_test.pumpLookup 同法）。
+  Future<void> pumpMix(WidgetTester tester) async {
+    for (var i = 0; i < 14; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+    }
+  }
+
+  /// V1.44「先搜后加」改道：工作台空态「添加一本」→ 书目搜索页 →
+  /// 右下 FAB 二选一「手动输入」→ 整页表单 BookFormPage（键 bf-*）。
+  Future<void> openManualForm(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('read-empty-add')));
+    await settle(tester);
+    expect(find.text('添加图书'), findsOneWidget); // p-biblioSearch AppBar 标题
+    await tester.tap(find.byKey(const ValueKey('bsr-fab')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('bsr-fab-manual')));
+    await settle(tester);
+    expect(find.text('手动录入'), findsOneWidget); // 新增三态标题：seed==null 手动
+  }
+
   group('批3-3 工作台', () {
     testWidgets('R-1 空态 → 添加一本 → 轨卡与在读数出现', (tester) async {
       await tester.pumpWidget(routed(const ReadWorkbench()));
       await settle(tester);
       expect(find.byKey(const ValueKey('read-empty-add')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
-      await settle(tester);
-      // 保真批F1：标题＝原型「添加新书到书架」；新书默认落「想读」（原型 shNewOpen）。
-      expect(find.text('添加新书到书架'), findsOneWidget);
+      // V1.44 先搜后加：空态入口先进搜索页，手动钮进整页表单。
+      await openManualForm(tester);
+      // 新书默认落「想读」（原型 shNewOpen 语义沿用到 bf 表单）。
       await tester.enterText(
-          find.byKey(const ValueKey('bkf-title')), '思考，快与慢');
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-save')));
-      await tester.tap(find.byKey(const ValueKey('bkf-save')));
-      await settle(tester);
+          find.byKey(const ValueKey('bf-title')), '思考，快与慢');
+      await tester.tap(find.byKey(const ValueKey('bf-save')));
+      await pumpMix(tester);
       expect(find.text('《思考，快与慢》已加入书架 · 在「想读」分区'),
           findsOneWidget);
       await clearToasts(tester);
       final nb = (await repo.allBooks()).firstWhere((b) => b.id != '');
       expect(nb.state, Book.kStateWant);
       expect(nb.pages, 300); // 原型 shSaveNew：总页数留空默认 300
+      // 表单保存后 pop 回搜索页：再返回工作台核对在读数（原断言语义不变）。
+      await tester.pageBack();
+      await settle(tester);
       expect(find.textContaining('在读 0 本'), findsOneWidget);
     });
 
@@ -2047,72 +2083,57 @@ void main() {
       await repo.dictAdd(DictEntry.kAuthor, '丹尼尔·卡尼曼');
       await tester.pumpWidget(routed(const ReadWorkbench()));
       await settle(tester);
-      // 新书表单字段全量后很高，默认视口装不下保存钮 → 拉高视口。
+      // 新书表单字段全量后很高，默认视口装不下深部行 → 拉高视口。
       await useSurface(tester);
       await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
-      await settle(tester);
-      // 头行（原型 2375）：标题＋「扫 ISBN」。
-      expect(find.text('添加新书到书架'), findsOneWidget);
-      expect(find.text('扫 ISBN'), findsOneWidget);
-      // 作者「从列表选」→ sheetAuthorPick（原型 1063-1069）。
-      await tester.tap(find.byKey(const ValueKey('bkf-pick-author')));
-      await settle(tester);
-      expect(find.text('从作者列表选择'), findsOneWidget);
-      expect(find.text('直接输入新名字则保存时自动登记到作者管理'), findsOneWidget);
-      expect(find.text('0 本'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('bap-丹尼尔·卡尼曼')));
-      await settle(tester);
-      expect(find.text('已选作者：丹尼尔·卡尼曼'), findsOneWidget);
-      await clearToasts(tester);
-      // 新作者提示行（原型 renderEbx 作者库 N 位 · …）。
-      await tester.enterText(find.byKey(const ValueKey('bkf-author')), '张三');
-      await settle(tester);
-      expect(find.textContaining('作者库 1 位'), findsOneWidget);
-      expect(find.textContaining('保存时将自动登记新作者「张三」'), findsOneWidget);
-      // 来源 / 分组下拉（轮2 改口：选一个 · 末项「＋ 新增…」进管理页 · 原型 ebPickSel）。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-src-sel')));
-      await tester.tap(find.byKey(const ValueKey('bkf-src-sel')));
+      // V1.44 先搜后加：弹层表单（bkf-*，read_sheets_b2 死代码保留）改道
+      // 整页 BookFormPage（bf-*）。头行「添加新书到书架」按原型 bfRender 三态
+      // 改「手动录入」（openManualForm 内已断言）。整页按原型 p-bookForm
+      // 无以下弹层专属行，对应断言随迁删除：
+      // · 「从作者列表选」（bkf-pick-author→bap- 弹层）：作者只留手输；
+      // · 「作者库 N 位 · 保存时将自动登记」「出版社库 0 家…」提示行；
+      // · 书脊色板（bkf-cov-N → colorIdx 选值）；
+      // · 「一句话」（bkf-note）：note 输入整页无（总结类字段走资料页链路）。
+      // 「保存时新作者自动登记」的落库语义仍由末尾字典断言兜住。
+      await openManualForm(tester);
+      // 扫码入口整页仍在（ISBN 行内图标钮，替代旧弹层头行「扫 ISBN」文字钮）。
+      expect(find.byKey(const ValueKey('bf-isbn-scan')), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('bf-author')), '张三');
+      // 来源 / 分组下拉（选一个 · 末项「＋ 新增…」进管理页 · 原型 ebPickSel）。
+      await tester.ensureVisible(find.byKey(const ValueKey('bf-src')));
+      await tester.tap(find.byKey(const ValueKey('bf-src')));
       await settle(tester);
       expect(find.text('＋ 新增来源…'), findsOneWidget);
       await tester.tap(find.text('自购'));
       await settle(tester);
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-grp-sel')));
-      await tester.tap(find.byKey(const ValueKey('bkf-grp-sel')));
+      await tester.ensureVisible(find.byKey(const ValueKey('bf-grp')));
+      await tester.tap(find.byKey(const ValueKey('bf-grp')));
       await settle(tester);
       expect(find.text('＋ 新增分组…'), findsOneWidget);
       await tester.tap(find.text('精读'));
       await settle(tester);
-      expect(find.text('未选择来源'), findsNothing); // 选中后回填按钮文案
-      expect(find.text('出版社库 0 家 · 新名字保存后自动登记'), findsOneWidget);
-      // 更多资料折叠（原型 nbMore：类型/进度方式含分钟/位置/费用/系列/简介）。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-more')));
-      await tester.tap(find.byKey(const ValueKey('bkf-more')));
-      await settle(tester);
+      expect(find.text('未选择来源'), findsNothing); // 选中后回填下拉现值
+      // 整页无「更多资料」折叠：类型/丛书等为常驻行。「进度方式/分钟/总位置」
+      // 输入整页不暴露（book_form_page 现场注释「本页不暴露位置输入」），
+      // 旧「系列 / 套装」行整页改名「丛书 / 分类」。
       expect(find.text('书籍类型'), findsOneWidget);
-      expect(find.text('进度方式'), findsOneWidget);
-      expect(find.text('分钟'), findsOneWidget);
-      expect(find.text('总位置 / 总页'), findsOneWidget);
-      expect(find.text('系列 / 套装'), findsOneWidget);
-      expect(find.text('纸质 · 页数'), findsOneWidget); // nbMoreSum（原型 ebxSum）
-      // 标签多选 · 封面三钮＋书脊色板 · ISBN 行 · 一句话 · 脚注。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-tag-方法论')));
-      await tester.tap(find.byKey(const ValueKey('bkf-tag-方法论')));
-      expect(find.text('封面（可上传 / 拍照 / 按 ISBN 取图，或直接选书脊色）'),
-          findsOneWidget);
-      expect(find.text('上传封面'), findsOneWidget);
+      expect(find.byKey(const ValueKey('bf-fmt-纸质')), findsOneWidget);
+      expect(find.text('丛书 / 分类'), findsOneWidget);
+      // 标签多选 · 封面三钮 · ISBN 行（hint 即旧弹层文案）。
+      await waitFinder(tester, find.byKey(const ValueKey('bf-tag-方法论')));
+      await tester.ensureVisible(find.byKey(const ValueKey('bf-tag-方法论')));
+      await tester.tap(find.byKey(const ValueKey('bf-tag-方法论')));
+      // 封面块整页文案改版：长说明行＋「上传封面」→ 三钮「上传/拍照/ISBN 取图」＋「设置封面」。
+      expect(find.text('设置封面'), findsOneWidget);
+      expect(find.text('上传'), findsOneWidget);
       expect(find.text('拍照'), findsOneWidget);
       expect(find.text('ISBN 取图'), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-cov-3')));
-      await tester.tap(find.byKey(const ValueKey('bkf-cov-3')));
       expect(find.text('ISBN / 豆瓣 subject_id'), findsOneWidget);
-      await tester.enterText(find.byKey(const ValueKey('bkf-title')), '思考，快与慢');
-      await tester.enterText(find.byKey(const ValueKey('bkf-note')), '先看两章');
-      expect(find.textContaining('ISBN 命中后按阅读设置「ISBN 补全」开关'),
-          findsOneWidget);
-      // 轮3：保存钮固定在弹层底部常驻，直接点击。
-      await tester.tap(find.byKey(const ValueKey('bkf-save')));
-      await settle(tester);
+      await tester.enterText(find.byKey(const ValueKey('bf-title')), '思考，快与慢');
+      // 「ISBN 命中后按阅读设置『ISBN 补全』开关」脚注行整页无 → 删；
+      // 保存钮从弹层底部常驻改 AppBar 右上（无需 ensureVisible）。
+      await tester.tap(find.byKey(const ValueKey('bf-save')));
+      await pumpMix(tester); // addBook 真 sqflite 往返
       expect(find.text('《思考，快与慢》已加入书架 · 在「想读」分区'), findsOneWidget);
       await clearToasts(tester);
       final nb = (await repo.allBooks()).single;
@@ -2120,11 +2141,9 @@ void main() {
       expect(nb.tags, ['方法论']);
       expect(nb.source, '自购');
       expect(nb.grp, '精读');
-      expect(nb.colorIdx, 3);
-      expect(nb.note, '先看两章');
       expect(nb.state, Book.kStateWant);
       expect(nb.pages, 300); // 总页数留空默认 300（原型 shSaveNew）
-      // 保存时新作者自动登记（原型 bsRegister）。
+      // 保存时新作者自动登记（原型 bsRegister · 卡尼曼为字典预置项）。
       expect((await repo.dictOf(DictEntry.kAuthor)).map((e) => e.name),
           containsAll(['丹尼尔·卡尼曼', '张三']));
     });
@@ -2143,34 +2162,50 @@ void main() {
       ));
       await tester.pumpWidget(routed(const BookInfoPage(bookId: 'x')));
       await settle(tester);
+      // V1.44：bi-edit 从弹层改道整页表单 BookFormPage（bf-* 键）。
+      await waitFinder(tester, find.byKey(const ValueKey('bi-edit')));
       await tester.tap(find.byKey(const ValueKey('bi-edit')));
       await settle(tester);
-      // 原型 sheetEditBook：封面块在最上方（四钮＋脚注）。
       expect(find.text('编辑书籍信息'), findsOneWidget);
-      expect(find.text('书籍封面'), findsOneWidget);
-      expect(find.text('清除'), findsOneWidget);
-      expect(find.textContaining('无封面时用书脊色块；图片本地保存'), findsOneWidget);
-      expect(find.text('进度 %'), findsOneWidget);
-      // 评分 4 星 ＋ 进度 100% → 保存自动落「已读」（原型 shSaveEdit）。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-rate-4')));
-      await tester.tap(find.byKey(const ValueKey('bkf-rate-4')));
-      await tester.enterText(find.byKey(const ValueKey('bkf-pct')), '100');
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-save')));
-      await tester.tap(find.byKey(const ValueKey('bkf-save')));
+      // 整页长表单 ListView 懒构建：拉高视口让「书籍管理」组（bf-rp）入树。
+      await useSurface(tester);
       await settle(tester);
+      // 封面块整页钮组：上传/拍照/ISBN 取图（「清除」仅在有封面时显；
+      // 旧弹层「书籍封面」标题与「无封面时用书脊色块…」脚注整页无 → 删）。
+      expect(find.text('设置封面'), findsOneWidget);
+      expect(find.text('上传'), findsOneWidget);
+      expect(find.text('拍照'), findsOneWidget);
+      expect(find.text('ISBN 取图'), findsOneWidget);
+      // 整页无「进度 %」行（原型 p-bookForm）：读满自动落「已读」改由
+      // 「已读页码 bf-rp＝总页码」兑现，落库断言（state/readPages）原样保留。
+      await tester.ensureVisible(find.byKey(const ValueKey('bf-rate-4')));
+      await tester.tap(find.byKey(const ValueKey('bf-rate-4')));
+      await tester.enterText(find.byKey(const ValueKey('bf-rp')), '100');
+      await tester.tap(find.byKey(const ValueKey('bf-save')));
+      await pumpMix(tester); // updateBook 真 sqflite 往返
       expect(find.text('书籍信息已保存'), findsOneWidget);
       await clearToasts(tester);
       var bx = (await repo.allBooks()).firstWhere((b) => b.id == 'x');
       expect(bx.state, Book.kStateDone);
       expect(bx.readPages, 100);
       expect(bx.rating, 4);
-      // 移出书架（原型 shArchiveEdit）：移到弃读而非删除。
-      await tester.tap(find.byKey(const ValueKey('bi-edit')));
+      // 移出书架=弃读：整页表单无「移出」钮（bkf-archive 随弹层退役），
+      // 该职责归 ops 操作弹层。① ops-edit → 编辑页可达；② 弃读走 ops 分区
+      // chip（与旧「移到弃读而非删除」同一条 setBookState 写路径，isDeleted
+      // 必须仍为 false 的语义不变）。
+      await waitFinder(tester, find.byKey(const ValueKey('bi-more')));
+      await tester.tap(find.byKey(const ValueKey('bi-more')));
       await settle(tester);
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-archive')));
-      await tester.tap(find.byKey(const ValueKey('bkf-archive')));
+      await tester.tap(find.byKey(const ValueKey('ops-edit')));
       await settle(tester);
-      expect(find.text('《书X》已移到弃读 · 笔记与时长保留'), findsOneWidget);
+      expect(find.text('编辑书籍信息'), findsOneWidget);
+      expect(find.byKey(const ValueKey('bf-save')), findsOneWidget);
+      await tester.pageBack();
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('bi-more')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('ops-st-弃读')));
+      await waitFinder(tester, find.text('《书X》· 弃读'));
       await clearToasts(tester);
       bx = (await repo.allBooks()).firstWhere((b) => b.id == 'x');
       expect(bx.state, Book.kStateDropped);
@@ -2240,31 +2275,27 @@ void main() {
       await settle(tester);
       await useSurface(tester);
       await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
-      await settle(tester);
+      // V1.44：新增表单改道整页（空态→搜索页→FAB 手动输入；键 bf-*）。
+      await openManualForm(tester);
       await tester.enterText(
-          find.byKey(const ValueKey('bkf-isbn')), '9787508662560');
-      // 单帧断言「匹配中…」：settle 会把 520ms 防抖泵过去，直达最终态。
+          find.byKey(const ValueKey('bf-isbn')), '9787508662560');
+      // 单帧断言「匹配中…」：混泵会把 520ms 防抖泵过去，直达最终态。
       await tester.pump();
       expect(find.text('匹配中…'), findsOneWidget);
-      // 520ms 防抖后抓取（假异步下 pump 时钟）。
-      await tester.pump(const Duration(milliseconds: 600));
-      await tester.pump();
+      // 防抖后：缓存行判定 + 抓取 + doubanCachePut 均有真 sqflite 往返 → 混泵。
+      await pumpMix(tester);
       expect(calls, 1);
       expect(find.text('已命中 · 自动填充'), findsOneWidget);
-      // 出版日期字段在「更多资料」折叠内，先展开再断言。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-more')));
-      await tester.tap(find.byKey(const ValueKey('bkf-more')));
-      await settle(tester);
+      // 整页无「更多资料」折叠：出版日期/页码行常驻（键 bf-pubDate/bf-pg）。
       String fieldText(String key) => tester
           .widget<TextField>(find.byKey(ValueKey(key)))
           .controller!
           .text;
-      expect(fieldText('bkf-title'), '被讨厌的勇气');
-      expect(fieldText('bkf-author'), '岸见一郎');
-      expect(fieldText('bkf-publisher'), '中信出版社');
-      expect(fieldText('bkf-pubdate'), '2015-06');
-      expect(fieldText('bkf-pages'), '288');
+      expect(fieldText('bf-title'), '被讨厌的勇气');
+      expect(fieldText('bf-author'), '岸见一郎');
+      expect(fieldText('bf-publisher'), '中信出版社');
+      expect(fieldText('bf-pubDate'), '2015-06');
+      expect(fieldText('bf-pg'), '288');
     });
 
     testWidgets('R-41 设置默认「仅填 ISBN」：输入只存码不联网；未命中按成因分档提示',
@@ -2277,20 +2308,19 @@ void main() {
       await settle(tester);
       await useSurface(tester);
       await settle(tester);
-      await tester.tap(find.byKey(const ValueKey('read-empty-add')));
-      await settle(tester);
-      await tester.enterText(find.byKey(const ValueKey('bkf-isbn')), '123');
+      // V1.44：新增表单改道整页（空态→搜索页→FAB 手动输入；键 bf-*）。
+      await openManualForm(tester);
+      await tester.enterText(find.byKey(const ValueKey('bf-isbn')), '123');
       await settle(tester);
       expect(find.text('至少 8 位'), findsOneWidget);
       await tester.enterText(
-          find.byKey(const ValueKey('bkf-isbn')), '9787508662560');
-      await settle(tester);
+          find.byKey(const ValueKey('bf-isbn')), '9787508662560');
+      await pumpMix(tester);
       expect(find.text('仅填 ISBN · 留空待补'), findsOneWidget);
       // 手动点「ISBN 取图」仍会抓取（显式操作不受开关限制）：此 fake 抛错＝网络层失败。
-      await tester.ensureVisible(find.byKey(const ValueKey('bkf-cov-isbn')));
-      await tester.tap(find.byKey(const ValueKey('bkf-cov-isbn')));
-      await settle(tester);
-      await tester.pump(const Duration(milliseconds: 120));
+      await tester.ensureVisible(find.byKey(const ValueKey('bf-cov-isbn')));
+      await tester.tap(find.byKey(const ValueKey('bf-cov-isbn')));
+      await pumpMix(tester); // 取图链先查本地缓存行（真 sqflite 往返）再抓取
       expect(find.text('网络不通 · 留空待补'), findsOneWidget,
           reason: '未命中要分档：抛错＝网络层，取到页但解析不出＝豆瓣未收录');
       expect(find.text('未取到封面'), findsOneWidget);
