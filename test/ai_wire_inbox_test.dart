@@ -137,6 +137,7 @@ void main() {
       expect(requests, 0);
       // 未授权即中止：条目原样保留
       expect(await inbox.listPending(), hasLength(1));
+      await settleLogTimer(tester); // 拦截现在也落一条 warn 日志
     });
 
     testWidgets('能力开：审阅弹层→允许发送→分流结果卡（去向/理由/草稿）→采纳后走既有转待办',

@@ -1950,8 +1950,15 @@ void main() {
       await repo.dictAdd(DictEntry.kSource, '得到APP');
       await repo.addBook(bk('e1', '得到书', Book.kStateReading, last: ms(0))
           .copyWith(source: '得到APP'));
-      await tester.pumpWidget(routed(const BookMgrPage()));
+      // 真实拓扑：资料管理恒为**书架之上 push 进来的栈页**。旧写法把本页挂成路由根，
+      // 等于制造了「栈底即资料管理」这种线上不存在的形态，才让 `go('/read/shelf')`
+      // 清栈兜底看起来没问题（R6 守护后该兜底已改为回壳层，不吞返回键）。
+      await tester.pumpWidget(routed(const ShelfPage()));
       await settle(tester);
+      GoRouter.of(tester.element(find.byType(ShelfPage)))
+          .push('/read/mgr?kind=source');
+      await settle(tester);
+      expect(find.byType(BookMgrPage), findsOneWidget);
       final entries = await repo.dictOf('source');
       final de = entries.firstWhere((e) => e.name == '得到APP');
       await waitFinder(tester, find.byKey(ValueKey('bkm-row-${de.id}')));

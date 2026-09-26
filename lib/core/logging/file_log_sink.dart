@@ -363,6 +363,79 @@ class FileLogSink {
     return names.length;
   }
 
+  /// 冷启动回填：把最近落盘文件的尾部 [limit] 行读回内存环形缓冲，
+  /// 让日志页跨进程重启仍能看到上一次记下的报错（真机反馈③「日志里没有内容」
+  /// 的第二成因——窗口只读内存，冷启动后自然是空的）。
+  ///
+  /// 只读每个文件**尾部 128KB**（单文件封顶 5MB，整读会在启动路径上抖一下），
+  /// 按新→旧逐文件向旧补齐；行格式 `HH:mm:ss.SSS [I|W|E] 文本` 反解失败的原样
+  /// 按 info 收进缓冲（宁可少判级别，不吞行）。全程同步 I/O（FakeAsync 可测）。
+  static Future<int> loadRecent({int limit = 300}) async {
+    final dir = _dirPath;
+    if (dir == null) return 0;
+    final chunks = <List<LhLogLine>>[]; // 新→旧，每块内部按时间正序
+    var got = 0;
+    for (final name in await dayFiles()) {
+      if (got >= limit) break;
+      final f = File(_join(name));
+      if (!f.existsSync()) continue;
+      final size = f.lengthSync();
+      if (size == 0) continue;
+      final take = size < _tailReadBytes ? size : _tailReadBytes;
+      late List<int> bytes;
+      final raf = f.openSync();
+      try {
+        raf.setPositionSync(size - take);
+        bytes = raf.readSync(take);
+      } finally {
+        raf.closeSync();
+      }
+      final all = utf8.decode(bytes, allowMalformed: true).split('\n');
+      // 从文件中部起读时首行是残行，丢弃。
+      if (take < size && all.isNotEmpty) all.removeAt(0);
+      final day = _dayOf(name);
+      final rows = <LhLogLine>[];
+      for (final raw in all) {
+        final line = _parseLine(raw, day);
+        if (line != null) rows.add(line);
+      }
+      if (rows.isEmpty) continue;
+      final need = limit - got;
+      chunks.add(rows.length > need ? rows.sublist(rows.length - need) : rows);
+      got += chunks.last.length;
+    }
+    // chunks 是新→旧，拼回时间正序（旧→新）再入缓冲。
+    final ordered = <LhLogLine>[];
+    for (final c in chunks.reversed) {
+      ordered.addAll(c);
+    }
+    AppLog.seed(ordered);
+    return ordered.length;
+  }
+
+  static const int _tailReadBytes = 128 * 1024;
+
+  static final RegExp _linePattern =
+      RegExp(r'^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) \[([IWE])\] (.*)$');
+
+  /// 反解一行落盘文本（日期取文件名日期）；不匹配则按 info 原样收下行。
+  static LhLogLine? _parseLine(String raw, DateTime day) {
+    final text = raw.trimRight();
+    if (text.isEmpty) return null;
+    final m = _linePattern.firstMatch(text);
+    if (m == null) {
+      return LhLogLine(day, LhLevel.info, text);
+    }
+    final t = DateTime(day.year, day.month, day.day, int.parse(m.group(1)!),
+        int.parse(m.group(2)!), int.parse(m.group(3)!), int.parse(m.group(4)!));
+    final level = switch (m.group(5)) {
+      'W' => LhLevel.warn,
+      'E' => LhLevel.error,
+      _ => LhLevel.info,
+    };
+    return LhLogLine(t, level, m.group(6)!);
+  }
+
   static Future<void> _pruneArchives() async {
     final list = await archives();
     for (final extra in list.skip(maxArchives)) {

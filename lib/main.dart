@@ -40,9 +40,14 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final docsPath = (await getApplicationDocumentsDirectory()).path;
   final logDir = p.join(docsPath, 'logs');
+  // init 前已入缓冲的早行（错误捕获抢跑那段）先取快照：回填历史之后不能再拿
+  // 全量列表去补写，否则会把上一进程的历史行重复写盘。
+  final earlyLines = AppLog.lines.toList();
   await FileLogSink.init(logDir,
       retentionDays: FileLogSink.readRetentionDays(prefs));
-  for (final line in AppLog.lines.toList()) {
+  // 先把上一次进程落盘的尾部行回填进内存缓冲（日志页跨重启可见）。
+  await FileLogSink.loadRecent();
+  for (final line in earlyLines) {
     FileLogSink.write(line);
   }
   await FileLogSink.flush();

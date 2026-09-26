@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/ai/ai_client.dart';
 import '../../../core/ai/ai_prompt_pack.dart';
 import '../../../core/ai/ai_providers.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
@@ -380,6 +381,8 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
       await ref.read(aiConfigProvider.notifier).setEndpoint(_url.text.trim(), _model.text.trim(), protocol: _protocol);
       await ref.read(aiConfigProvider.notifier).setVerifyResult(
           ok: true, at: DateTime.now().millisecondsSinceEpoch, latencyMs: r.latencyMs);
+      AppLog.add('AI 端点验证成功 · ${r.latencyMs}ms · '
+          '入 ${r.promptTokens}/出 ${r.completionTokens} tokens');
       if (!mounted) return;
       setState(() {
         _ok = true;
@@ -389,6 +392,9 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
             '验证通过 · 可回 AI 增强页逐项开启能力矩阵';
       });
     } on AiException catch (e) {
+      // 验证失败同样进日志：日志页是「所有报错一处可查」的落点。
+      AppLog.add('AI 端点验证失败：${e.kind.name}: ${e.detail}',
+          level: LhLevel.error);
       await ref.read(aiConfigProvider.notifier).setVerifyResult(
           ok: false, at: DateTime.now().millisecondsSinceEpoch, reason: e.userMessage);
       if (!mounted) return;
@@ -397,6 +403,7 @@ class _AiVerifyPageState extends ConsumerState<AiVerifyPage> {
         _result = '${e.userMessage}\n${e.detail}';
       });
     } catch (e) {
+      AppLog.add('AI 端点验证未预期错误：$e', level: LhLevel.error);
       if (!mounted) return;
       setState(() {
         _ok = false;

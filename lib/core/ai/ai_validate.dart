@@ -48,12 +48,15 @@ String? _validateJson(String taskId, String content, Map<String, String> vars) {
       }
     case 'read.toc':
       final cs = o['chapters'];
-      if (cs is! List ||
-          cs.isEmpty ||
-          cs.any((e) => e is! Map || e['title'] is! String)) {
+      // 空数组是**合法**产出：read.toc 系统提示词明确要求「该书确实未知时返回空
+      // chapters，不要编造」（红线：AI 不造目录）。旧写法把空数组判成结构错，
+      // 真机表现为《两宋之变》这类书目点「AI 补全」直接报「chapters 结构错: []」。
+      // 「没有可用章节」由调用方给友好回执并拒绝覆盖既有目录，不在此处报错。
+      if (cs is! List || cs.any((e) => e is! Map || e['title'] is! String)) {
         return 'chapters 结构错: ${_clip('$cs', 120)}';
       }
-      if (cs.length > 40) return '章节过多: ${cs.length}';
+      // 上限按实书放宽：69 节的书（真机样本）曾撞旧上限 40 被整条判失败。
+      if (cs.length > 120) return '章节过多: ${cs.length}';
     case 'read.quote_insight':
       if (o['insight'] is! String || (o['insight'] as String).isEmpty) {
         return '缺 insight';

@@ -14,6 +14,7 @@ import 'package:lifeharness/core/ai/ai_prompt_pack.dart';
 import 'package:lifeharness/core/ai/ai_providers.dart';
 import 'package:lifeharness/core/ai/ai_review.dart';
 import 'package:lifeharness/core/ai/ai_vault.dart';
+import 'package:lifeharness/core/logging/app_log.dart';
 import 'package:lifeharness/core/providers.dart';
 
 import 'helpers.dart';
@@ -24,6 +25,10 @@ import 'helpers.dart';
 /// 请求完成/失败后弹层必关、分支页可继续交互。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // 每条用例独立看日志（AppLog 是全局环形缓冲）。
+  setUp(AppLog.reset);
+  tearDown(AppLog.reset);
 
   final pack = AiPromptPack.decode(
       File('assets/ai_prompts/prompts.json').readAsStringSync());
@@ -129,8 +134,12 @@ void main() {
         reason: '旧 bug：分支 pop 关不掉根弹层 → 屏障永挂黑屏');
     expect(find.text('结果:todo'), findsOneWidget);
     expect(find.text('壳'), findsOneWidget, reason: '分支页未被误 pop');
+    // 成功也要留痕（耗时+token 用量），日志页才有「所有 AI 调用可查」的能力。
+    expect(AppLog.lines.last.text, contains('AI 调用成功（inbox.triage）'));
+    expect(AppLog.lines.last.text, contains('tokens'));
     // 底栏仍在原位（分支栈没被动过）。
     expect(find.byType(Scaffold), findsWidgets);
+    await settleLogTimer(tester);
   });
 
   testWidgets('失败应答：弹层同样关闭并 toast 归因', (tester) async {
@@ -146,6 +155,13 @@ void main() {
     expect(find.text('AI 生成中…'), findsNothing);
     expect(find.textContaining('AI 调用失败'), findsWidgets);
     expect(find.text('结果:null'), findsOneWidget);
+    // 真机反馈③：AI 失败必须同时进日志（旧写法只 toast，日志页永远查不到）。
+    final errLine = AppLog.lines.last;
+    expect(errLine.level, LhLevel.error);
+    expect(errLine.text, contains('AI 调用失败（inbox.triage）'));
+    expect(errLine.text, contains('unauthorized'),
+        reason: '日志侧要带失败归类，比 toast 文案更可诊断');
+    await settleLogTimer(tester);
   });
 
   testWidgets('同一帧即失败（局域网端点/即刻报错）：屏障也不许留', (tester) async {
@@ -162,6 +178,7 @@ void main() {
     expect(find.text('AI 生成中…'), findsNothing,
         reason: '未建帧分支必须从宿主栈弹顶路由拆屏障');
     expect(await pollText(tester, '结果:null'), isTrue);
+    await settleLogTimer(tester);
   });
 }
 

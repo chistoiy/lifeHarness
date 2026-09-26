@@ -72,7 +72,7 @@
       "expect": "json",
       "placeholders": ["title", "author"],
       "system": "你是图书目录结构助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。若该书确实未知，返回空 chapters 数组，不要编造内容简介。",
-      "user": "为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{\"chapters\": [{\"part\": \"第一部分 原则\", \"title\": \"1. 我的历程\", \"sections\": [\"工作原则\", \"生活原则\"]}]}\nsections 可为 null；章节数控制在 8~30 条。",
+      "user": "为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{\"chapters\": [{\"part\": \"第一部分 原则\", \"title\": \"1. 我的历程\", \"sections\": [\"工作原则\", \"生活原则\"]}]}\nsections 可为 null；章节数按该书实际目录给出（常见 8~60 条），不要为凑数拆分或合并。",
       "sample": { "title": "原则", "author": "瑞·达利欧" }
     },
     {

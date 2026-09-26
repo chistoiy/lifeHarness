@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/nav/nav_module.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -112,7 +113,10 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/read/shelf');
+      // 兜底分支（正常路径到不了：本页恒为 push 进入）。旧写法 `go('/read/shelf')`
+      // 会把壳层清掉→书架成为栈底→返回键直接退出 app，违反「返回最终落到底部
+      // 模块页」口径。筛选态已写进 shelfUiProvider，回今天页再进书架仍是筛选结果。
+      context.go(NavModule.today.path);
     }
   }
 
@@ -121,7 +125,8 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/read/shelf');
+      // 同上：栈底兜底只回壳层今天页，不用 go 清栈到栈路由。
+      context.go(NavModule.today.path);
     }
   }
 

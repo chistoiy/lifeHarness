@@ -128,6 +128,7 @@ void main() {
     expect(calls, 0);
     expect(find.textContaining('发送给 AI'), findsNothing);
     expect(find.textContaining('AI 生成 · 基于聚合统计'), findsNothing);
+    await settleLogTimer(tester); // 拦截现在也落一条 warn 日志
   });
 
   testWidgets('能力开：审阅弹层含聚合数字 → 发送 → 结果卡展示 + AI 标注',
@@ -159,6 +160,7 @@ void main() {
     expect(find.textContaining('AI 生成 · 基于聚合统计 · 不构成医学建议'),
         findsOneWidget);
     expect(find.textContaining('波动较小'), findsOneWidget);
+    await settleLogTimer(tester); // 成功调用会落一条 info 日志（300ms 节流 Timer）
   });
 
   testWidgets('返回缺免责句：校验失败 toast，无结果卡', (tester) async {
@@ -177,5 +179,6 @@ void main() {
     expect(await pollHas(tester, '缺医疗免责句'), isTrue);
     expect(calls, 1);
     expect(find.textContaining('AI 生成 · 基于聚合统计'), findsNothing);
+    await settleLogTimer(tester); // 输出不合约定也会落 error 日志
   });
 }

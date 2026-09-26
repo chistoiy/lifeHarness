@@ -56,3 +56,9 @@ void useAiRootNav(WidgetTester tester, GlobalKey<NavigatorState> key) {
   aiRootNavKey.value = key;
   addTearDown(() => aiRootNavKey.value = null);
 }
+
+/// 用例收尾放掉 [AppLog] 的 300ms version 节流 Timer：日志基建每次入缓冲都会
+/// 排一个一次性定时器，测试若在 300ms 假时间前结束，绑定层不变量检查直接报
+/// 「A Timer is still pending」。凡断言过日志/让被测代码写过日志的用例末尾都要来一发。
+Future<void> settleLogTimer(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 400));

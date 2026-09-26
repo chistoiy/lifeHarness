@@ -15,6 +15,9 @@ import 'package:path/path.dart' as p;
 ///   httpGate/gate 的 `.send(`；`package:http` import 放行——store 需构造
 ///   BaseRequest 交给 gate，出口唯一性由前两条保证，R10）；
 ///   附加断言：`x-bitiful-limit-rate`、`?stat` 在 lib/ 全库 0 命中（T14 前先行钉住）。
+/// R6 `context.go('/x')` 的字面目标必须是 ShellRoute 内的 tab 路径
+///   （栈路由只许 push——go 清栈会让该页成为栈底，返回键直接退出 app；
+///   tab 集合从 app_router 的 ShellRoute 块现场解析，加/撤栏目自动跟随）。
 /// 违反任何一条即测试失败——新增跨模块依赖必须先过架构评审并更新本白名单。
 void main() {
   const libDir = 'lib';
@@ -265,6 +268,42 @@ void main() {
     expect(hits, isEmpty, reason: '未过架构评审的缤纷云专用口径不得提前进入 lib/');
   });
 
+  test('R6 context.go 的字面目标必须是 ShellRoute 内 tab（栈路由只许 push）', () {
+    // 缺陷类：`go()` 清空整个导航栈。目标若是**栈路由**（/read/shelf、
+    // /days/detail、/settings/ai…），壳层被清掉后该页成为栈底，系统返回键
+    // 直接退出 app——违反拍板口径「返回最终落到底部模块页 → 二次返回退出」
+    // （V1.42 真机反馈①，book_mgr_page 曾踩）。
+    // tab 路径集合从 app_router 的 ShellRoute 块现场解析，不手抄：
+    // 以后加/撤栏目、改路由表，守护自动跟随。
+    final routerSrc = sources['core/router/app_router.dart'];
+    expect(routerSrc, isNotNull, reason: '路由表文件必须存在，否则本守护空转');
+    final shellPaths = _shellRoutePaths(routerSrc!);
+    expect(shellPaths, containsAll({'/', '/todo', '/settings', '/journal'}),
+        reason: 'ShellRoute 解析异常（拿到的是空集/错集）');
+
+    final reGo = RegExp(r"""\.go\(\s*['"](/[^'"]*)['"]""");
+    final violations = <String>[];
+    for (final entry in sources.entries) {
+      if (entry.key == 'core/router/app_router.dart') continue; // 壳层自身跳转
+      for (final m in reGo.allMatches(entry.value)) {
+        final lineStart = entry.value.lastIndexOf('\n', m.start) + 1;
+        final lineText = entry.value.substring(
+            lineStart, entry.value.indexOf('\n', m.start));
+        final t = lineText.trimLeft();
+        if (t.startsWith('//') || t.startsWith('///')) continue; // 注释里的反例
+        final path = m.group(1)!.split('?').first;
+        if (!shellPaths.contains(path)) {
+          final line =
+              '\n'.allMatches(entry.value.substring(0, m.start)).length + 1;
+          violations.add('${entry.key}:$line go(\'$path\')');
+        }
+      }
+    }
+    expect(violations, isEmpty,
+        reason: '栈路由请用 context.push/goNamed 保栈；go 清栈会让返回键直接退出 app。'
+            '确需「保存后回某页」请回 tab 路径或用 pushReplacement。');
+  });
+
   test('守护自身有效性：确认真实扫到了文件', () {
     expect(imports.length, greaterThan(20));
     expect(imports.keys.where((k) => k.startsWith('features/')).length,
@@ -272,4 +311,28 @@ void main() {
     expect(sources.containsKey('core/sync/http_gate.dart'), isTrue,
         reason: 'R5 的豁免文件必须真实存在，否则守护退化为空转');
   });
+}
+
+/// 取 `ShellRoute(...)` 调用括号内出现的全部 `path: '...'`（= 底部导航可达的
+/// tab 路径集合）。括号配平扫描，避免正则误吞后续顶层路由。
+Set<String> _shellRoutePaths(String src) {
+  final at = src.indexOf('ShellRoute(');
+  if (at < 0) return const {};
+  var depth = 0, end = -1;
+  for (var i = at + 'ShellRoute'.length; i < src.length; i++) {
+    if (src[i] == '(') {
+      depth++;
+    } else if (src[i] == ')') {
+      depth--;
+      if (depth == 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end < 0) return const {};
+  return RegExp(r"""path:\s*'([^']+)'""")
+      .allMatches(src.substring(at, end))
+      .map((m) => m.group(1)!)
+      .toSet();
 }

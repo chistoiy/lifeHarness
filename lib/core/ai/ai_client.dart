@@ -20,6 +20,7 @@ enum AiFailKind {
   rateLimited, // 429/503
   timeout,
   unreachable,
+  aborted, // 连接中途断开：响应未收全（长回复/网关掐断常见）
   badResponse, // 200 但解析不出内容
   server, // 5xx 其余
 }
@@ -40,6 +41,7 @@ class AiException implements Exception {
         AiFailKind.rateLimited => '✖ 限流（429/503）：请稍后再试',
         AiFailKind.timeout => '✖ 请求超时：端点无响应',
         AiFailKind.unreachable => '✖ 无法连接端点：检查地址与网络',
+        AiFailKind.aborted => '✖ 连接被端点中断（响应未收全，长回复常见）：请重试',
         AiFailKind.badResponse => '✖ 响应解析失败：$detail',
         AiFailKind.server => '✖ 端点服务异常（$detail）',
       };
@@ -130,6 +132,11 @@ class AiClient {
       throw AiException(AiFailKind.unreachable, base);
     } on HttpException catch (e) {
       throw AiException(AiFailKind.unreachable, e.message);
+    } on http.ClientException catch (e) {
+      // 「Connection closed while receiving data」这类半途断开：package:http
+      // 包成 ClientException 抛出（不是 SocketException），旧写法会漏到最外层
+      // 变成裸英文异常文案。归因成「可重试」，并整条写进日志。
+      throw AiException(AiFailKind.aborted, e.message);
     }
     sw.stop();
     final status = res.statusCode;

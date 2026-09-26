@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../logging/app_log.dart';
 import 'ai_client.dart';
 import 'ai_service.dart';
 import 'ai_providers.dart';
@@ -36,6 +37,8 @@ Future<AiCallResult?> aiRunWithReview(
   // 门控前移到入口：未开启/未授权/无 Key 即刻 toast，不进入审阅流程（零请求）。
   final denial = await svc.gate(taskId);
   if (denial != null) {
+    // 门控拒绝也要留痕：日志页是「所有报错都可查」的落点（真机反馈③）。
+    AppLog.add('AI 未启用（$taskId）：$denial', level: LhLevel.warn);
     if (context.mounted) AppToast.show(context, 'AI 未启用：$denial', ms: 2600);
     return null;
   }
@@ -134,19 +137,33 @@ Future<AiCallResult?> aiRunWithReview(
 
   AiCallResult? result;
   String? error;
+  String? logDetail; // 日志侧比 toast 更精确：带失败归类与端点原文
   try {
     result = await svc.request(taskId, vars, temperature: temperature);
   } on AiDenied catch (e) {
     error = e.reason;
   } on AiException catch (e) {
     error = e.userMessage;
+    logDetail = '${e.kind.name}: ${e.detail}';
   } on AiBadOutput catch (e) {
     error = e.reason;
+    logDetail = '输出不合约定';
   } catch (e) {
     error = '$e';
+    logDetail = e.runtimeType.toString();
   }
   // 无论页面是否仍在，先关进度弹层：屏障永挂才是「黑屏」，页面没了也要拆。
   closeProgressDialog();
+  // 成败都留痕（真机反馈③「日志里没有内容」：AI 通道原先只 toast 不落日志）。
+  if (error != null) {
+    AppLog.add(
+        'AI 调用失败（$taskId）：$error${logDetail == null ? '' : ' · $logDetail'}',
+        level: LhLevel.error);
+  } else {
+    final r = result!;
+    AppLog.add('AI 调用成功（$taskId）· ${r.reply.latencyMs}ms · '
+        '入 ${r.reply.promptTokens}/出 ${r.reply.completionTokens} tokens');
+  }
   if (!context.mounted) return null;
   if (error != null) {
     AppToast.show(context, 'AI 调用失败：$error', ms: 2600);

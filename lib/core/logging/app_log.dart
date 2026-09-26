@@ -118,6 +118,15 @@ class AppLog {
     return lines.sublist(start).map((l) => l.formatted).join('\n');
   }
 
+  /// 冷启动回填历史行（日志页跨重启可见）：直接插到缓冲最前，
+  /// **不回调 [onLine]**——这些行本来就在落盘文件里，再走一遍就是重复写盘。
+  static void seed(List<LhLogLine> rows) {
+    if (rows.isEmpty) return;
+    lines.insertAll(0, rows);
+    if (lines.length > _max) lines.removeRange(0, lines.length - _max);
+    version.value++;
+  }
+
   /// 手动清空内存缓冲（日志页「清理」动作；不动落盘挂点与定时器，
   /// version 立即自增让局部件同步收敛显示）。
   static void clearMemory() {
