@@ -42,11 +42,12 @@
 删除「时长 0/15/30/1时/2时」快捷钮；「标签」「管理」并入一级分组标题行，管理直达分类管理页。
 
 ## 验证
-- Flutter：`flutter analyze` 本批改面零告警；全量单并发测试通过（明细见仓库《交接文档》变更日志）。
+- Flutter：`flutter analyze` 本批改面零告警；**全量回归 1396/1396 绿**（收口前基线有 9 条红，均出在本批之外，已一并修掉：日志冷启动回填的反解正则未跟上带日期的落盘行式 → 回填行级别/来源/时刻全丢；习惯模块三条用例的周几时间炸弹）。
   新增用例文件：`time_block_ops_test`（纯函数 24）· `time_block_timing_test`（数据层 11）·
   `time_v152_test`（统一弹层与计时 UI 8）· `time_stats_page_test`（账本页 4）；
   既有 `calendar_test` / `grid_block_test` / `week_multi_event_test` 断言已迁到新形态。
 - 高保真：`tools/time52check.js` 无头回归 31/31。
+- 代码提交 `82c0c1b`；三包 versionCode＝arm64 6027 / armeabi-v7a 5027 / x86_64 8027，DB 沿用 v25（零迁移，覆盖安装数据不丢）。
 
 ## 已知边界（真机验收时关注）
 - 块视图粒度选 1 分钟 = 1440 格，真机需虚拟化；
