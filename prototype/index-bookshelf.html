@@ -1783,6 +1783,183 @@ tailwind.config = {
       </div>
     </section>
 
+    <!-- ===== V1.50 书架专版 · 阅读器（本地 EPUB） ===== -->
+    <style>
+    /* ---- 阅读器追加样式（勿回改上方既有样式） ---- */
+    .br-stage{position:absolute;inset:0;overflow:hidden;transition:background .25s}
+    .br-scroll{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    .brp{text-indent:2em;margin:0 0 .85em;word-break:break-all}
+    .brp-h{font-weight:800;text-indent:0;margin:1.1em 0 .8em;font-size:1.25em;line-height:1.5}
+    .brp-q{border-left:3px solid currentColor;opacity:.85;padding-left:.8em;text-indent:0;margin:0 0 .95em}
+    .brp-i{text-indent:0;margin:0 0 1em}
+    .brp-i figcaption{text-align:center;font-size:.62em;opacity:.55;margin-top:6px}
+    .br-cur{background:rgba(99,102,241,.28);border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+    .br-selon{outline:2px solid rgba(99,102,241,.55);outline-offset:2px;border-radius:5px}
+    .br-hit{outline:2px solid rgba(99,102,241,.65);border-radius:4px}
+    .br-link{text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+    .br-chrome{background:rgba(15,23,42,.86);backdrop-filter:blur(8px);color:#e2e8f0}
+    #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
+    #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
+    #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
+    .br-range{width:100%;accent-color:var(--accent);height:26px}
+    .br-themecard{border:2px solid transparent;opacity:.55;cursor:pointer;transition:.15s}
+    .br-themecard.on{border-color:var(--accent);opacity:1;box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+    .br-fs{border:2px solid #e2e8f0}.dark .br-fs{border-color:#334155}
+    .br-fs.on{border-color:var(--accent)!important;background:rgba(99,102,241,.08)}
+    .br-zone{-webkit-tap-highlight-color:transparent}
+    .br-swig{animation:brSwig .22s ease}@keyframes brSwig{from{transform:translateX(var(--sw,24px));opacity:.2}to{transform:none;opacity:1}}
+    .br-pulse{width:7px;height:7px;border-radius:99px;background:var(--accent);animation:brPl 1.6s infinite}@keyframes brPl{0%,100%{opacity:1}50%{opacity:.25}}
+    .br-local{position:absolute;right:3px;bottom:3px;z-index:5;display:inline-flex;align-items:center;gap:2px;font-size:8px;font-weight:800;color:#fff;background:rgba(15,23,42,.62);backdrop-filter:blur(3px);border-radius:99px;padding:1.5px 5px;line-height:1.4}
+    /* ---- V1.51 目录侧边抽屉（微信读书式·可折叠） ---- */
+    .br-dr{position:absolute;top:0;bottom:0;left:0;display:flex;transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+    .br-dr.out{transform:translateX(-103%)}
+    @keyframes brDrFade{from{opacity:0}to{opacity:1}}
+    </style>
+
+    <!-- ===== BR-1 导入本地图书（四步向导） ===== -->
+    <section id="p-localImport" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center gap-1.5 mt-1 mb-3" id="brSteps"></div>
+      <div id="brImp1" class="hidden">
+        <div class="card">
+          <div class="flex items-center gap-2.5"><span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5C4 16.5 7.4 20 12 21.5 16.6 20 20 16.5 20 11.5v-5z"/><path d="m9 12 2 2 4-4.5"/></svg></span>
+          <div class="flex-1"><div class="text-sm font-bold">Android 13+ · 无需「所有文件访问」</div><div class="text-[11px] text-slate-400 mt-0.5">通过系统文件选择器（SAF）读取所选 EPUB，应用只拿到该文件本身</div></div></div>
+          <div class="mt-3 space-y-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-5">
+            <div>· 13+：一次性读取授权，不落存储权限</div>
+            <div>· 12 及以下：仅申请单次读文件权限</div>
+            <div>· 全程本地解析，不上传、不联网下载书籍</div>
+          </div>
+          <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" onclick="brImpGo(2)">允许访问手机存储 · 选择文件</button>
+        </div>
+        <div class="mt-3 card">
+          <div class="row-title text-sm font-extrabold">支持范围</div>
+          <div class="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+            <div class="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 p-2.5 leading-5"><b>EPUB 2 / EPUB 3</b><br>图文混排 · 内/外链 · 目录</div>
+            <div class="rounded-xl bg-rose-50 dark:bg-rose-500/10 p-2.5 leading-5"><b>不支持</b><br>DRM 加密书 · PDF（独立模块）</div>
+          </div>
+        </div>
+      </div>
+      <div id="brImp2" class="hidden">
+        <div class="flex items-center gap-1 text-[11px] text-slate-400 mb-2"><button class="font-bold" onclick="brImpDir('download')">下载</button><span>/</span><button onclick="brImpDir('docs')">文档</button><span>· 手机存储</span></div>
+        <div id="brFiles" class="space-y-2.5"></div>
+        <div class="mt-3 text-[10px] text-slate-400 text-center">加密书籍与 PDF 置灰不可选 · 点击即打开系统选择器（模拟）</div>
+      </div>
+      <div id="brImp3" class="hidden">
+        <div class="card text-center py-7">
+          <div class="w-14 h-14 mx-auto rounded-2xl grad flex items-center justify-center text-white"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16.5H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A2 2 0 0 1 6 18h13v4H6a2 2 0 0 1-2-2.5z"/></svg></div>
+          <div class="font-extrabold mt-3 text-sm" id="brImpFile">—</div>
+          <div class="mt-4 mx-5 text-left space-y-2 text-[11px]" id="brTaskList"></div>
+          <div class="mt-4 mx-6 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span id="brBar" class="block h-full grad transition-all" style="width:0%"></span></div>
+        </div>
+      </div>
+      <div id="brImp4" class="hidden">
+        <div id="brDup" class="hidden mb-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 p-3 text-[11px] leading-5 text-amber-700 dark:text-amber-400"></div>
+        <div class="flex gap-4">
+          <div id="brMCov" class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0"></div>
+          <div class="flex-1 space-y-2">
+            <input id="brF_t" class="w-full card !py-2 text-sm font-bold outline-none" placeholder="书名">
+            <input id="brF_a" class="w-full card !py-2 text-xs outline-none" placeholder="作者">
+            <div class="text-[10px] text-slate-400">书名 / 作者 / 简介 / 目录从 EPUB 元数据自动读取 · 可修改</div>
+          </div>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div class="flex gap-2"><input id="brF_press" class="flex-1 card !py-2 text-xs outline-none" placeholder="出版社"><input id="brF_pub" class="w-28 card !py-2 text-xs outline-none" placeholder="出版日期"></div>
+          <textarea id="brF_intro" rows="3" class="w-full card text-xs outline-none leading-5" placeholder="简介"></textarea>
+        </div>
+        <div class="mt-3 card">
+          <div class="flex items-center justify-between"><div class="row-title text-xs font-extrabold">解析内容预览</div><span class="text-[9px] rounded-full px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400" id="brFmtTag">EPUB3 · 图文混排</span></div>
+          <div class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400" id="brMetaSum">—</div>
+          <div class="mt-2 max-h-36 overflow-y-auto no-scrollbar text-[11px] leading-5" id="brTocPrev"></div>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-[11px]"><span class="font-bold">加入「本地」标签与来源分组</span><span class="toggle on" id="brFTag" onclick="tgl(this)"></span></div>
+        <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" id="brSaveBtn" onclick="brImpCommit()">加入书架 · 开始阅读</button>
+        <div class="mt-2 text-[10px] text-slate-400 text-center">源文件保留原位 · 书架登记解析结果与分页缓存</div>
+      </div>
+    </section>
+
+    <!-- ===== BR-2 阅读主屏（全屏沉浸） ===== -->
+    <section id="p-readerPage" class="page !px-0 relative overflow-hidden">
+      <div class="br-stage" id="brStage">
+        <div class="br-scroll" id="brScroll"><div id="brBody" class="mx-auto"></div></div>
+        <button class="br-zone absolute left-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(-1)" aria-label="上一页"></button>
+        <button class="br-zone absolute right-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(1)" aria-label="下一页"></button>
+        <div class="br-zone absolute inset-x-[16%] top-[15%] bottom-[15%] z-[9]" onclick="brTapCenter()"></div>
+        <div id="brTop" class="br-chrome hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
+          <div class="flex items-center gap-2">
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="brBack()" title="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
+            <div class="flex-1 min-w-0 text-center"><div class="text-xs font-bold truncate" id="brTopTitle">—</div><div class="text-[9px] opacity-60 truncate" id="brTopSub">—</div></div>
+            <span id="brSessChip" class="text-[9px] rounded-full px-1.5 py-0.5 bg-white/10 tabular-nums">00:00</span>
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="navTo('p-readerSearch')" title="全书检索"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+            <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="openSheet('sheetBrMore')" title="更多"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          </div>
+          <div id="brHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="brHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(-1)">上一处</button><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(1)">下一处</button><button class="text-white/60 px-1" onclick="brClearHit()">✕</button></div>
+        </div>
+        <div id="brBottom" class="br-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-4 pt-2 pb-3 whitespace-nowrap">
+          <div class="flex items-center gap-2 text-[9px] opacity-70"><span id="brCfi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="brPgLbl">—</span></div>
+          <input type="range" min="0" max="100" value="0" class="br-range mt-0.5" id="brProg" oninput="brSeek(this.value)">
+          <div class="flex items-center justify-between mt-1">
+            <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0" onclick="brTocOpen()">目录</button>
+            <div class="flex items-center gap-1 text-[10px]">
+              <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="brFsNudge(-1)">A-</button>
+              <button class="px-2 py-1 rounded-lg bg-white/10 font-bold" onclick="brFsNudge(1)">A+</button>
+              <button class="px-2 py-1 rounded-lg" onclick="brThemeCycle()" id="brThemeBtn">日间</button>
+              <button class="px-2 py-1 rounded-lg" onclick="brModeToggle()" id="brModeBtn">滚动</button>
+            </div>
+            <button class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0" onclick="openSheet('sheetBrAppearance');brApOpen()">外观</button>
+          </div>
+        </div>
+        <div id="brSelBar" class="hidden absolute z-[72] br-chrome rounded-2xl px-1.5 py-1"><div class="flex items-center overflow-x-auto no-scrollbar max-w-[320px]" id="brSelActs"></div></div>
+        <div id="brColorPop" class="hidden absolute z-[73] br-chrome rounded-xl px-2 py-2 flex items-center gap-2"></div>
+        <div id="brTts" class="hidden absolute bottom-14 inset-x-3 z-[69] br-chrome rounded-2xl px-3 py-2.5">
+          <div class="flex items-center gap-2 text-[10px]">
+            <button class="w-8 h-8 rounded-full grad text-white flex items-center justify-center" onclick="brTtsToggle()" id="brTtsPlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+            <div class="flex-1 min-w-0"><b>朗读中 · <span id="brTtsCh">—</span></b><div class="opacity-60 truncate" id="brTtsNext">下一段：…</div></div>
+            <button class="px-1.5 py-1 rounded-lg bg-white/10" onclick="brTtsRate()" id="brTtsRate">1.0x</button>
+            <button class="text-white/60 px-1" onclick="brTtsOff()">✕</button>
+          </div>
+        </div>
+        <div id="brFlash" class="hidden absolute left-1/2 -translate-x-1/2 bottom-28 z-[71] text-[10px] br-chrome rounded-full px-3 py-1.5"></div>
+        <!-- V1.51 目录侧边抽屉（微信读书式 · 可折叠 · 目录⇄搜本书） -->
+        <div id="brTocDrawer" class="hidden absolute inset-0 z-[75]">
+          <div class="absolute inset-0 bg-black/45" style="animation:brDrFade .2s ease" onclick="brTocClose()"></div>
+          <div id="brDrPanel" class="br-dr out">
+            <div id="brDrWide" class="relative w-[78%] max-w-[300px] h-full bg-white dark:bg-slate-900 flex flex-col rounded-r-2xl shadow-[12px_0_32px_rgba(15,23,42,.18)]">
+              <div class="px-3.5 pt-4 pb-2 shrink-0 flex items-center gap-1.5">
+                <div class="flex-1 flex gap-1.5" id="brDrTabs"></div>
+                <button onclick="brDrCollapse()" title="折叠到边栏" class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-slate-400"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
+              </div>
+              <div id="brDrSearchBox" class="hidden px-3.5 pb-2 shrink-0">
+                <div class="flex items-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+                  <input id="brDrQ" class="flex-1 min-w-0 bg-transparent text-xs outline-none text-slate-700 dark:text-slate-200" placeholder="搜本书" oninput="brDrSearch()"></div>
+              </div>
+              <div class="flex-1 overflow-y-auto no-scrollbar" id="brDrScroll">
+                <div id="brTocList" class="px-3.5 pb-14 text-slate-700 dark:text-slate-200"></div>
+                <div id="brDrHits" class="hidden px-3.5 pb-14 space-y-2"></div>
+              </div>
+              <button id="brDrPill" onclick="brDrJump()" class="hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-10 text-[10px] font-bold px-3.5 py-2 rounded-full shadow-lg bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">去底部</button>
+            </div>
+            <button id="brDrRail" onclick="brDrExpand()" class="hidden flex w-11 h-full bg-white dark:bg-slate-900 flex-col items-center justify-center gap-3 text-slate-400 shadow-[8px_0_24px_rgba(15,23,42,.14)]">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg>
+              <span style="writing-mode:vertical-lr" class="text-[11px] font-black tracking-[3px]">目录</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BR-3 全书检索 ===== -->
+    <section id="p-readerSearch" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center gap-2 mt-1">
+        <div class="flex-1 relative">
+          <input id="brSq" class="w-full card !py-2.5 pl-9 pr-8 text-sm outline-none" placeholder="在本书中搜索关键词" oninput="brSearchRender()">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <button class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hidden" id="brSqX" onclick="$('#brSq').value='';brSearchRender()">✕</button>
+        </div>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-400"><span id="brSInfo">输入关键词检索全书正文</span></div>
+      <div id="brSHits" class="mt-3 space-y-2.5"></div>
+    </section>
+
   </main>
 
   <!-- ===== 悬浮球（快速记录） ===== -->
@@ -2682,6 +2859,140 @@ tailwind.config = {
     <div class="text-center text-[10px] text-white/40 pb-6">单帖全屏浏览 · 点击空白处关闭 · 左右滑切换（模拟）</div>
   </div>
 
+  <!-- ===================== V1.50 书架专版 · 阅读器弹层族 ===================== -->
+  <!-- 目录：V1.51 起改为阅读主屏内侧边抽屉 #brTocDrawer（微信读书式·可折叠），原底部弹层已移除 -->
+
+  <!-- 外观（固定预览 + 草稿保存制） -->
+  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAppearance')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] flex flex-col">
+      <div class="flex items-center justify-between"><b class="text-[15px]">阅读外观</b><div class="flex gap-1.5" id="brApScope"></div></div>
+      <div class="mt-3 shrink-0 rounded-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden">
+        <div id="brApPrev" class="h-36 px-5 py-4 overflow-hidden text-justify"></div>
+      </div>
+      <div class="flex-1 overflow-y-auto no-scrollbar mt-3 space-y-4">
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold"><span>字号</span><b id="brApFsV" class="text-brand-500">19</b></div>
+          <input type="range" min="14" max="30" step="1" class="br-range" id="brApFs" oninput="brApSet('fs',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>行距</span><b id="brApLhV" class="text-brand-500">1.6</b></div>
+          <input type="range" min="1.3" max="2.4" step="0.05" class="br-range" id="brApLh" oninput="brApSet('lh',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>字间距</span><b id="brApLsV" class="text-brand-500">0.0</b></div>
+          <input type="range" min="0" max="3" step="0.2" class="br-range" id="brApLs" oninput="brApSet('ls',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>页边距（上下左右）</span><b id="brApMarV" class="text-brand-500">中</b></div>
+          <input type="range" min="8" max="40" step="2" class="br-range" id="brApMar" oninput="brApSet('mar',+this.value)">
+        </div>
+        <div><div class="text-xs font-bold mb-1.5">主题</div><div class="grid grid-cols-3 gap-2" id="brApThemes"></div></div>
+        <div>
+          <div class="text-xs font-bold mb-1.5">自定义颜色</div>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="flex items-center gap-1.5">底色<input type="color" id="brApBg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'bg')"></span>
+            <span class="flex items-center gap-1.5">字色<input type="color" id="brApFg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'fg')"></span>
+          </div>
+        </div>
+        <div><div class="text-xs font-bold mb-1.5">字体（系统字体 · 可扩展下载，控制包体积）</div><div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="brApFonts"></div></div>
+        <div class="space-y-2.5 pb-1">
+          <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
+          <div class="flex items-center justify-between text-xs"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-400" id="brApAutoLbl">关</b><span class="toggle" id="brApAuto" onclick="brApTgl('auto',this)"></span></span></div>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2 shrink-0">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrAppearance');toast('草稿已丢弃')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl grad text-white text-sm font-bold" onclick="brApSave()">保存应用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 解读 -->
+  <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
+      <div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 line-clamp-2" id="brAiQuote">—</div>
+      <div class="mt-3 rounded-2xl border border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/5 p-3.5 text-xs leading-6 min-h-[150px]" id="brAiOut"><span class="text-slate-400">正在思考…</span></div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiCopy()">复制</button>
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiToQuote()">存为感想</button>
+      </div>
+      <div class="mt-2 text-[9px] text-slate-400 text-center">选中原文仅用于本次解读 · 不留存、不参与训练（AI 安全规范）</div>
+    </div>
+  </div>
+
+  <!-- 词典 -->
+  <div id="sheetBrDict" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDict')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-baseline gap-2"><b class="text-xl" id="brDcWord">—</b><span class="text-[11px] text-slate-400" id="brDcPh">—</span><span class="ml-auto text-[9px] text-slate-400">本地词典包 · 可扩展</span></div>
+      <div class="mt-3 text-xs leading-6 space-y-1.5" id="brDcBody"></div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brDcToQuote()">释义存为感想</button>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="closeSheet('sheetBrDict')">收起</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片查看 -->
+  <div id="sheetBrImg" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/85 items-center justify-center" onclick="if(event.target===this)closeSheet('sheetBrImg')">
+    <div class="w-[88%]">
+      <div id="brIvBox" class="rounded-2xl overflow-hidden bg-white transition-transform" style="transform:scale(1)"></div>
+      <div class="mt-3 flex items-center justify-center gap-2 text-[11px] text-white/85">
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="brIvZoom(-)">缩小</button>
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="brIvZoom(+)">放大</button>
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="toast('已保存到相册 · Pictures/LifeHarness/')">保存到相册</button>
+        <button class="px-3 py-1.5 rounded-full text-white/60" onclick="closeSheet('sheetBrImg')">关闭</button>
+      </div>
+      <div class="mt-2 text-center text-[9px] text-white/40" id="brIvCap">—</div>
+    </div>
+  </div>
+
+  <!-- 外链确认 -->
+  <div id="sheetBrLink" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrLink')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">即将离开阅读器</b>
+      <div class="mt-2 card !py-2.5 text-[11px] break-all leading-5" id="brLkUrl">—</div>
+      <div class="mt-1.5 text-[10px] text-slate-400">策略可在「阅读设置 · 本地阅读器」改为 禁止 / 询问 / 允许</div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrLink')">取消</button>
+        <button class="flex-1 py-3 rounded-2xl grad text-white text-sm font-bold" onclick="closeSheet('sheetBrLink');toast('已在系统浏览器打开（模拟）')">允许一次</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自动翻页 -->
+  <div id="sheetBrAutoPage" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAutoPage')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">自动翻页间隔</b>
+      <div class="mt-3" id="wBrAuto"></div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">滚动模式下为逐屏下滚 · 触摸正文即暂停</div>
+      <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold" onclick="closeSheet('sheetBrAutoPage');brAutoConfirm()">应用</button>
+    </div>
+  </div>
+
+  <!-- 更多（阅读主屏） -->
+  <div id="sheetBrMore" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrMore')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">本书操作</b>
+      <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px] font-bold" id="brMoreGrid"></div>
+      <div class="mt-4 space-y-3 text-xs">
+        <div class="flex items-center justify-between"><span>阅读模式</span><div class="flex gap-1.5" id="brMoreMode"></div></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brGotoQuotes()"><span>本书书摘与划线</span><b class="text-[10px] text-slate-400" id="brMoreQn">0 条</b></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brOpenDetail()"><span>书籍详情与资料页</span><span class="text-slate-300">›</span></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');navTo('p-readset');rsPickTab(RS_SEC.length-1)"><span>阅读器设置</span><span class="text-slate-300">›</span></div>
+        <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" id="brMoreBright" onclick="brMoreBright()"></span></div>
+        <div class="flex items-center justify-between"><span>文本朗读 TTS</span><span class="toggle" id="brMoreTts" onclick="brMoreTts(this)"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 本地书删除（源文件选项） -->
+  <div id="sheetBrDel" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDel')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px] text-rose-500">删除《<span id="brDelName">—</span>》</b>
+      <div class="mt-3 space-y-2 text-xs" id="brDelOpts"></div>
+      <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[10px] leading-5 text-slate-500 dark:text-slate-400">书摘与计时保留在书架数据中（与「移出书架」同口径）；阅读位置与外观记忆随删除清除。</div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrDel')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-sm font-bold" onclick="brDelCommit()">确认删除</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Toast ===== -->
   <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
 </div><!-- /phone -->
@@ -2786,7 +3097,7 @@ function setPage(p){
   if(p==='p-records')$('#pageTitle').textContent='记录 · '+REC_TABS[recTab]; /* V1.29轮5 */
   $('#btnBack').classList.toggle('hidden', stack.length===0); $('#btnBack').classList.toggle('flex', stack.length!==0);
   const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
-  const _imm=p==='p-noteEdit'||p==='p-diaryEdit'||(p==='p-readtimer'&&window.BS_FULLTIMER!==false); /* 书架专版：阅读计时按设置全屏（隐藏顶栏与底栏） */
+  const _imm=p==='p-noteEdit'||p==='p-diaryEdit'||(p==='p-readtimer'&&window.BS_FULLTIMER!==false)||p==='p-readerPage'; /* 书架专版：阅读计时按设置全屏（隐藏顶栏与底栏） */
   if(_th)_th.classList.toggle('hidden',_imm||(p==='calendar'&&stack.length===0)||(p==='p-calendar'&&stack.length===0));
   if(_tn)_tn.classList.toggle('hidden',_imm);
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
@@ -4611,16 +4922,16 @@ function shWall(list,cols){
     const lab=b.st==='已读'?'读完':b.st==='想读'?'未开始':b.st==='弃读'?'停在 '+b.p+'%':'<b>'+b.p+'%</b>';
     return `<div class="bk-pbar"><i class="${cls}" style="width:${w}%;${b.st==='弃读'?'background:#94a3b8':''}"></i></div><div class="bk-meta"><span>${lab}</span><span>${b.pg}页</span></div>`};
   return `<div class="bk-grid ${cols===4||cols===5?'c'+cols:''}">${list.map(b=>`<div class="relative" onclick="${shBatch?`shSelTap('${b.id}')`:`shOpen('${b.id}')`}" oncontextmenu="event.preventDefault();shLongMenu('${b.id}');return false">
-  <div class="bk-cov cov ${bsCovCls(b)} w-full" style="${bsCovStyle(b)}">${bsProgressBadge(b)}<div class="au">${b.a}</div>
+  <div class="bk-cov cov ${bsCovCls(b)} w-full" style="${bsCovStyle(b)}">${bsProgressBadge(b)}${b.local?brCovBadge():''}<div class="au">${b.a}</div>
    ${shBatch?`<span class="bsel ${shSel.has(b.id)?'on':''}">${shSel.has(b.id)?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':''}</span>`:''}</div>
   <div class="nm">${b.n}</div>${bar(b)}
   ${b.q?`<div class="text-[9px] text-slate-400 -mt-1.5">笔记 ${b.q} 条</div>`:''}</div>`).join('')}</div>`}
 function shSpine(list){const H=b=>b.st==='在读'?112:b.st==='已读'?132:b.st==='弃读'?78:96;
   return `<div class="card !p-3"><div class="spine-wrap">${list.map(b=>`<div class="spine" style="height:${H(b)}px;${b.img?'background-image:url('+b.img+');background-size:cover;background-position:center':'background:linear-gradient(180deg,'+BS_COV[b.c][1]+','+BS_COV[b.c][1]+'cc)'}" onclick="${shBatch?`shSelTap('${b.id}')`:`shOpen('${b.id}')`}">
-   <span>${b.n}</span><i style="background:${b.st==='在读'?'#fff':'rgba(255,255,255,.4)'}"></i></div>`).join('')}</div>
+   <span>${b.n}</span>${b.local?'<u style="position:absolute;right:2px;bottom:2px;width:5px;height:5px;border-radius:99px;background:#fff;display:block" title="本地"></u>':''}<i style="background:${b.st==='在读'?'#fff':'rgba(255,255,255,.4)'}"></i></div>`).join('')}</div>
    <div class="text-[10px] text-slate-400 mt-2">书脊高度＝总页数 · 白点＝在读 · 点书脊看详情，长按进多选</div></div>`}function shListRows(list){return `<div class="space-y-2.5">${list.map(b=>`<div class="shelf-row relative" onclick="${shBatch?`shSelTap('${b.id}')`:`shOpen('${b.id}')`}">
   <div class="${bsCovCls(b)} w-9 h-[52px] rounded-md shrink-0 relative bk-cov" style="${bsCovStyle(b)}">${shBatch?`<span class="bsel ${shSel.has(b.id)?'on':''}" style="right:-2px;bottom:-2px">${shSel.has(b.id)?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':''}</span>`:''}</div>
-  <div class="flex-1 min-w-0"><div class="text-[13px] font-bold truncate">${b.n}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${b.a} · ${b.pg} 页 · ${b.q} 条笔记${b.start?' · '+(b.st==='已读'?'读完 '+b.end:'开始 '+b.start):''}</div>
+  <div class="flex-1 min-w-0"><div class="text-[13px] font-bold truncate">${b.n}${b.local?brRowBadge():''}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${b.a} · ${b.pg} 页 · ${b.q} 条笔记${b.start?' · '+(b.st==='已读'?'读完 '+b.end:'开始 '+b.start):''}</div>
    ${b.st==='在读'?`<div class="mt-1.5 h-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><span class="block h-full bg-brand-500" style="width:${b.p}%"></span></div>`:''}</div>
   ${b.st==='在读'&&!shBatch?`<button class="mini-btn !text-[10px] shrink-0" onclick="event.stopPropagation();shStart('${b.id}')">${timer&&timerTarget==='《'+b.n+'》'?'结束':'开始'}</button>`:''}
   <span class="text-[9.5px] font-bold px-2 py-0.5 rounded-full shrink-0 ${b.st==='在读'?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':b.st==='想读'?'bg-sun/10 text-amber-600':b.st==='已读'?'bg-mint/10 text-teal-600':'bg-slate-100 text-slate-400 dark:bg-slate-800'}">${b.st}</span></div>`).join('')}</div>`}
@@ -4988,7 +5299,7 @@ function qeTagToggle(t){qeTags=qeTags.includes(t)?qeTags.filter(x=>x!==t):[...qe
 function qeSave(){const bid=document.getElementById('qeBook').value,txt=document.getElementById('qeText').value.trim(),th=document.getElementById('qeThink').value.trim();
   if(!txt&&!th){toast('至少写一点什么');return}
   const o={b:bid,ty:txt?'划线':'感想',tg:qeTag,ch:document.getElementById('qeCh').value.trim()||'未分章',pg:+document.getElementById('qePg').value||0,dt:qeDtGet(),tgs:[...qeTags],x:txt||th,th:txt?th:''};
-  if(qeCur>=0)BS_QUOTES[qeCur]=o;else BS_QUOTES.unshift(o);
+  if(qeCur>=0){const _old=BS_QUOTES[qeCur];if(_old&&_old.cf){o.cf=_old.cf;o.rid=_old.rid;o.src=_old.src}BS_QUOTES[qeCur]=o}else BS_QUOTES.unshift(o);
   const b=bsBook(bid);b.q=bsQ(bid).length;goBack();renderQuotes();renderBookDetail();renderShelf();
   toast(qeCur>=0?'笔记已更新':'已保存 · '+b.n+' 现共 '+b.q+' 条 · 可做日记素材（L5）')}
 function qeToDiary(){goBack();toast('已插入今日日记草稿（联动 L5）')}
@@ -5099,7 +5410,8 @@ const RS_SEC=[
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
- ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]]];
+ ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]],
+ ['本地阅读器',[['epub','导入本地 EPUB','nav',"navTo('p-localImport');brImpGo(1)",'添加图书流程内同样有入口 · Android 13+ SAF 单次读取'],['brSync','划线自动存为书摘','bool','阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'],['brLink','书籍内外部链接','chips',['禁止','询问','允许'],'章节内跳转不受限制 · 外链默认询问'],['brVoice','朗读音色','chips',['标准女声','温润男声','童声'],'离线引擎 · 扩展包按需下载控制体积'],['brBright','阅读时屏幕常亮','bool','进入阅读器自动生效 · 退出恢复系统策略']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}
@@ -5648,7 +5960,7 @@ function shWall(list, cols) {
     return `<div class="bk-pbar has-pct"><i class="${cls}" style="width:${w}%;${b.st === '弃读' ? 'background:#94a3b8' : ''}"></i><span class="bk-pct" style="color:${w >= 62 ? '#fff' : 'var(--text2,#64748b)'}">${lab}</span></div>`;
   };
   return `<div class="bk-grid ${cols === 4 || cols === 5 ? 'c' + cols : ''}">${list.map(b => `<div class="relative" onclick="${shBatch ? `shSelTap('${b.id}')` : `shOpen('${b.id}')`}" oncontextmenu="event.preventDefault();shLongMenu('${b.id}');return false">
-  <div class="bk-cov cov ${bsCovCls(b)} w-full" style="${bsCovStyle(b)}">${bsProgressBadge(b)}<div class="au">${b.a}</div>
+  <div class="bk-cov cov ${bsCovCls(b)} w-full" style="${bsCovStyle(b)}">${bsProgressBadge(b)}${b.local?brCovBadge():''}<div class="au">${b.a}</div>
    ${shBatch ? `<span class="bsel ${shSel.has(b.id) ? 'on' : ''}">${shSel.has(b.id) ? '<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>' : ''}</span>` : ''}</div>
   <div class="nm">${b.n}</div>${bar(b)}</div>`).join('')}</div>`;
 }
@@ -5661,7 +5973,7 @@ function shRailBar(b) {
 }
 function shWallRail(list) {
   return `<div class="bk-rail no-scrollbar">${list.map(b => `<div class="relative" onclick="${shBatch ? `shSelTap('${b.id}')` : `shOpen('${b.id}')`}" oncontextmenu="event.preventDefault();shLongMenu('${b.id}');return false">
-    <div class="bk-cov cov ${bsCovCls(b)} w-full !h-[159px]" style="${bsCovStyle(b)}">${bsProgressBadge(b)}<div class="au">${b.a}</div>
+    <div class="bk-cov cov ${bsCovCls(b)} w-full !h-[159px]" style="${bsCovStyle(b)}">${bsProgressBadge(b)}${b.local?brCovBadge():''}<div class="au">${b.a}</div>
      ${shBatch ? `<span class="bsel ${shSel.has(b.id) ? 'on' : ''}"></span>` : ''}</div>
     <div class="text-[10px] font-extrabold leading-tight mt-1.5 truncate">${b.n}</div>${shRailBar(b)}</div>`).join('')}</div>`;
 }
@@ -6168,6 +6480,7 @@ function renderBsr(keepFocus) {
   <div class="mt-4 mb-2 flex flex-col items-end gap-2 pr-1 relative">
     ${BSR.menu ? `<div class="self-end flex flex-col gap-1.5">
       <button class="mini-btn !text-[10.5px] !px-3" onclick="bsrScan()"><span class="inline-flex items-center gap-1"><svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M8 12h8"/></svg>扫描 ISBN 录入</span></button>
+      <button class="mini-btn !text-[10.5px] !px-3" onclick="BSR.menu=false;navTo('p-localImport');brImpGo(1)">导入本地图书（EPUB）</button>
       <button class="mini-btn !text-[10.5px] !px-3" onclick="BSR.menu=false;bfOpenNew()">手动输入</button></div>` : ''}
     <button class="w-11 h-11 rounded-full grad text-white text-xl shadow-lg flex items-center justify-center" onclick="bsrFab()">${BSR.menu ? '×' : '+'}</button>
   </div>`;
@@ -6348,6 +6661,558 @@ function bsInit(){shSt=BS_SET.openTab||'全部';shViewIcon();saveProgress=bsSave
 document.addEventListener('click',e=>{const b=e.target.closest('#navBar .navtab');});
 
 renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderCats(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore(); bsInit();
+/* ================================================================
+   V1.50 书架专版 · 阅读器（本地 EPUB）
+   仅追加：不改动既有书架/摘录/计时函数本体，全部经包装器接入
+   ================================================================ */
+const BR_TG={'重点':'#6366f1','共鸣':'#2dd4bf','待查证':'#fb7185','行动':'#f59e0b','疑问':'#8b5cf6'};
+const BR_THEMES={day:{n:'日间',bg:'#faf6ee',fg:'#3b3630'},eye:{n:'护眼',bg:'#cfe6cf',fg:'#2f4a33'},night:{n:'夜间',bg:'#101317',fg:'#9aa4b0'}};
+const BR_FONTS={system:['系统默认',"'PingFang SC',system-ui,sans-serif"],serif:['衬线','Georgia,"Noto Serif SC",serif'],hei:['黑体','SimHei,"Microsoft YaHei",sans-serif'],mono:['等宽','ui-monospace,monospace']};
+const BR_TASKS=['容器校验 · mimetype','版本与结构识别','目录构建（NCX / nav）','封面与元数据抽取','分页预计算'];
+const BR_AUTOS=[3,5,8,10,15,20,30,45,60];
+function brPad(n){return n<10?'0'+n:''+n}
+function brMS(s){s=Math.max(0,Math.floor(s));return brPad(Math.floor(s/60))+':'+brPad(s%60)}
+function brEsc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function brRx(s){return (s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
+function brNorm(t){return (t||'').replace(/[，。、：；·！？,.\s:;!?《》]/g,'').toLowerCase()}
+
+/* ---- 配置 / 位置（逐书独立记忆 · localStorage 持久化） ---- */
+const BR_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'system',bright:false,auto:false,autoSecs:10,mode:'page'};
+let brCfg=JSON.parse(JSON.stringify(BR_DEF)),brBooksCfg={},brPos={},BR_LOCAL_HL=[];/* brSync 关时的高亮暂存 */
+function brSt(bid){return Object.assign({},brCfg,brBooksCfg[bid]||{})}
+function brPersist(){try{localStorage.setItem('lh_reader_bs_v1',JSON.stringify({cfg:brCfg,bcfg:brBooksCfg,pos:brPos,hl:BR_LOCAL_HL}))}catch(e){}}
+function brLoad(){try{const s=JSON.parse(localStorage.getItem('lh_reader_bs_v1')||'null');if(!s)return;
+  brCfg=Object.assign(brCfg,s.cfg||{});brBooksCfg=s.bcfg||{};if(s.pos)brPos=Object.assign(brPos,s.pos);if(s.hl)BR_LOCAL_HL=s.hl}catch(e){}}
+
+/* ---- 章节与正文（目录与书摘章节下拉同源 BS_TOC） ---- */
+function brLeaves(bid){const out=[];(BS_TOC[bid]||[]).forEach(g=>{(g[2]||g[1]||[]).forEach(k=>out.push(k[0]))});return out}
+function brGenToc(bid,n){BS_TOC[bid]=[['正文',null,Array.from({length:n},(_,i)=>['第 '+(i+1)+' 章',null,0,(i+1)*18,false])]]}
+const BR_TXT={};
+const BR_S=['这个概念在后续章节会反复出现，值得放慢速度重读一遍。','把熟悉的材料放回陌生语境，判断的裂缝就会显形。','多数误判不是能力问题，而是抢答问题：先开口的人没有核对。','测量改变感受，命名改变记忆——给它一个词，它就换一副面孔。','对照实验给出的答案朴素：情境的微小改动，足以翻转整天的行为。','读到这里不妨停一下，回想你自己最近一次「说不清理由」的决定。'];
+function brHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+/* 真实语料：与 BS_TOC.b1 章名对齐（演示正文为自撰概要式文字） */
+BR_TXT['b1|1 两位主角：系统1与系统2']=[{k:'h',t:'1 两位主角：系统1与系统2'},
+ {k:'p',t:'想象你独自开车穿过乡间公路，路况熟悉，思绪飘到了晚饭的安排上。此时迎面来了一辆越线的卡车，你一脚刹车，心跳瞬间到了嗓子眼。'},
+ {k:'p',t:'紧急接管你的，是运行了千万年的古老大脑。它在你「意识到」危险之前，已经完成测距、减速、握紧方向盘三件事。'},
+ {k:'p',t:'这就是系统 1：识别、联想、直觉反应。它不需要努力，也不会关机。'},
+ {k:'p',t:'而当你试着算 17 乘以 24，你请出的是系统 2：注意力被占用，瞳孔放大，心率上升，别的思考全部暂停。'},
+ {k:'p',t:'麻烦在于，多数日常判断本应交给系统 2，却被系统 1 抢答了。抢答又快又自信，让人察觉不到破绽。'},
+ {k:'p',t:'本章的小实验：读三遍「苹果」，你会开始怀疑它是不是这个读音。熟悉感一旦被打破，判断立刻露馅。'},
+ {k:'p',t:'错觉真相效应同样源于熟悉：重复出现的陈述更容易被判为真，哪怕它来自你最不信任的来源。'},
+ {k:'p',t:'所以，读一本讲偏误的书并不能让你免疫偏误——你只能学会识别那些容易中招的情境。'},
+ {k:'p',t:'识别情境，比训练意志可靠得多。这是全书反复出现的主张。'}];
+BR_TXT['b1|4 联想思维']=[{k:'h',t:'4 联想思维'},
+ {k:'p',t:'系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。'},
+ {k:'p',t:'启动效应实验一再复现：先看过「洗手液」相关词汇的人，随后更愿意为清洁用品付高价，却坚称与刚才的阅读无关。'},
+ {k:'p',t:'联想是一条激活链，从概念扩散到评价，再扩散到动作。链条上的每一环都发生在意识之外。'},
+ {k:'p',t:'这解释了为什么「环境设计」有效：图书馆里放咖啡香，读者更安静；办公室摆绿植，谈判更少拍桌。'},
+ {k:'p',t:'更微妙的暗示：被要求回忆「童年」的被试，走路速度显著变慢，仿佛身体先于头脑接受了变老的设定。'},
+ {k:'p',t:'系统 2 的自控力并非无限资源。连续做决策的人，会在傍晚对甜食和简单答案双双缴械。'},
+ {k:'p',t:'分心是默认状态，专注是稀缺预算。把重要判断放在预算最满的时段，比苛责自己专注有效。'},
+ {k:'p',t:'书中链接一章一节都有呼应：锚定是联想链的刹车失灵，可得性是记忆检索的捷径，过度自信是叙事对因果的伪造。'},
+ {k:'p',t:'延伸阅读清单见附录（内链跳 20 结论：两种自我），原始材料发布于 princeton.edu（外链）。'},
+ {k:'p',t:'读完本章，试着回想今天你做过的三个小决定：你很可能一个也说不清理由。这不是缺陷，是架构。'}];
+BR_TXT['b1|8 时间折扣']=[{k:'h',t:'8 时间折扣'},
+ {k:'p',t:'同样是 100 元，今天拿到和一年后拿到，价值并不相等。等待本身会让奖励贬值，而且贬值曲线在近期最陡。'},
+ {k:'p',t:'这就是时间折扣：未来的效用被折算到现在，折得越狠，说明你越「短视」。'},
+ {k:'p',t:'经典选择是「今天 500 元，还是一年后 600 元」？多数人选前者——尽管银行利率远撑不起这么高的折扣。'},
+ {k:'img',t:'图 8-1 · 主观价值随延迟时间的双曲折扣曲线（示意）'},
+ {k:'p',t:'双曲折扣的麻烦在于「偏好反转」：周一你说周五一定早起，周五的你却按掉了闹钟。两个你，共用一个身体。'},
+ {k:'p',t:'承诺机制因此有价值：把选择权提前交给「周一的你」，比如自动转账、提前订好闹钟放远的房间。'},
+ {k:'p',t:'对阅读者而言，本书的即时愉悦几乎总是赢过一年后知识复利的模糊承诺——承认这一点，才能设计对策。'}];
+BR_TXT['b1|9 损失厌恶']=[{k:'h',t:'9 损失厌恶'},
+ {k:'p',t:'失去 100 元的痛，大约需要得到 200 元的乐才能抵消。这个约 2 倍的系数，是全书最稳定的实验发现之一。'},
+ {k:'p',t:'因此人对「被拿走的东西」格外敏感：禀赋效应让拥有的杯子瞬间涨价，现状偏好让一切改革举步维艰。'},
+ {k:'p',t:'谈判中的锚定、政策中的既得利益、投资中的套牢不动，背后都是同一台损失计算器。'},
+ {k:'p',t:'把决策写成「得到框架」还是「损失框架」，会直接改变选择——同一件事，两种说法，两副面孔。'},
+ {k:'p',t:'实操建议：重大决定前，问自己「如果我现在没有它，我愿意花多少钱买入？」答案往往指向行动。'}];
+BR_TXT['b1|20 结论：两种自我']=[{k:'h',t:'20 结论：两种自我'},
+ {k:'p',t:'体验的自我活在当下，记得的自我负责讲述。两者会打架：一段痛苦的旅程，若结尾平顺，回忆反而温柔。'},
+ {k:'p',t:'峰终定律告诉我们：记忆给经历打分，只看峰值与结尾，几乎无视时长。'},
+ {k:'p',t:'读书亦然。读完一本书的「你」，和读到一半的「你」，共享同一串被编辑过的记忆。'}];
+function brChText(bid,ch){const key=bid+'|'+ch;if(BR_TXT[key])return BR_TXT[key];
+  const n=6+(brHash(key)%5);const out=[{k:'h',t:ch}];
+  for(let i=0;i<n;i++)out.push({k:'p',t:'围绕「'+ch+'」，'+BR_S[brHash(key+i)%BR_S.length]+'这一节在第 '+(brLeaves(bid).indexOf(ch)+1)+' 章的脉络里承上启下。'});
+  if(brLeaves(bid).indexOf(ch)===6)out.splice(2,0,{k:'img',t:'图 · '+ch+'（书内插图示意）'});
+  return out}
+
+/* ---- 分页引擎（实算：字号/行距/字距/边距 → 页数与进度联动） ---- */
+let brPagCache={};
+function brPagesOf(bid,ci){const st=brSt(bid);const ch=brLeaves(bid)[ci];const key=bid+'|'+ci+'|'+st.fs+'|'+st.lh+'|'+st.ls+'|'+st.mar;
+  if(brPagCache[key])return brPagCache[key];
+  const W=390-st.mar*2,H=700-st.mar*2,fs=st.fs;const cpl=Math.max(6,Math.floor(W/(fs*(1+st.ls*0.03))));
+  const arr=brChText(bid,ch);const ph=arr.map(x=>{const len=(x.t||'').length;
+    if(x.k==='h')return {h:fs*1.6+14};if(x.k==='img')return {h:190};
+    const lines=Math.max(1,Math.ceil((len+2)/cpl));return {h:lines*fs*st.lh+(x.k==='q'?18:7)}});
+  const pages=[];let cur=[],h=0;
+  for(let i=0;i<arr.length;i++){const x=ph[i];const add=cur.length?8:0;
+    if(h+add+x.h>H&&cur.length){pages.push(cur);cur=[];h=0}else if(cur.length)h+=8;
+    cur.push(i);h+=x.h}
+  if(!pages.length)pages.push([0]);
+  brPagCache={};brPagCache[key]=pages;return pages}
+function brTotal(bid){return brLeaves(bid).reduce((s,c,i)=>s+brPagesOf(bid,i).length,0)}
+function brGPos(bid,ci,pg){let g=0;for(let i=0;i<ci;i++)g+=brPagesOf(bid,i).length;return g+pg}
+function brPct(bid){const p=brPos[bid];if(!p)return bid===CURBK&&brV.b===bid&&curPage==='p-readerPage'?brLivePct():0;
+  return Math.min(100,Math.round(brGPos(bid,Math.min(p.ci,brLeaves(bid).length-1),p.pg)/brTotal(bid)*100))}
+function brLivePct(){return Math.min(100,Math.round(brGPos(brV.b,brV.ci,brV.pg)/brTotal(brV.b)*100))}
+function brStPct(bid){return (brV.b===bid&&curPage==='p-readerPage')?brLivePct():brPct(bid)}
+function brGPosTo(bid,g){const lv=brLeaves(bid);for(let i=0;i<lv.length;i++){const n=brPagesOf(bid,i).length;if(g<n)return{ci:i,pg:g};g-=n}return{ci:lv.length-1,pg:Math.max(0,brPagesOf(bid,lv.length-1).length-1)}}
+function brCfi(bid,ci,pi){return 'epub/2/'+(ci+2)+'/'+pi}
+function brSavePos(){brPos[brV.b]={ci:brV.ci,pg:brV.pg};brPersist()}
+
+/* ---- 高亮=划线书摘（BS_QUOTES 同源） ---- */
+function brHlAt(bid,ci,pi){const qs=BS_QUOTES.filter(x=>x.b===bid&&x.cf&&x.cf.c===ci&&pi>=x.cf.p0&&pi<=x.cf.p1);
+  if(qs.length)return {tg:qs[qs.length-1].tg,c:BR_TG[qs[qs.length-1].tg]||'#fde047',rid:qs[qs.length-1].rid,th:qs[qs.length-1].th,quote:qs[qs.length-1]};
+  const t=BR_LOCAL_HL.filter(x=>x.b===bid&&x.cf.c===ci&&pi>=x.cf.p0&&pi<=x.cf.p1);
+  if(t.length)return {tg:t[t.length-1].tg,c:BR_TG[t[t.length-1].tg]||'#fde047',rid:t[t.length-1].id,th:''};
+  return null}
+function brHlCount(bid){return BS_QUOTES.filter(x=>x.b===bid&&x.cf).length+BR_LOCAL_HL.filter(x=>x.b===bid).length}
+
+/* ---- 阅读主屏状态与渲染 ---- */
+const brV={b:'b1',ci:0,pg:0,mode:'page',chrome:false,sel:null,selTxt:'',t0:0,ownT:0,noRd:0,hit:null,hits:null,hitI:0,hitPi:null};
+let brIvS=1,brTtsTimer=0,brTtsI=0,brAutoTimer=0,brAiTimer=0;const brAI={text:''};
+function brSvgFig(){return `<svg viewBox="0 0 300 170" style="width:100%;display:block;background:#fff">
+  <rect width="300" height="170" fill="#fbfbfd"/><text x="14" y="24" font-size="11" fill="#334" font-weight="700">主观价值 × 延迟时间（双曲折扣）</text>
+  <path d="M20 40 C 80 60, 120 120, 280 150" fill="none" stroke="#6366f1" stroke-width="2.5"/>
+  <path d="M20 40 L 280 150" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <line x1="20" y1="156" x2="280" y2="156" stroke="#cbd5e1"/><line x1="20" y1="34" x2="20" y2="156" stroke="#cbd5e1"/>
+  <text x="236" y="166" font-size="8" fill="#94a3b8">EPUB3 · image/svg+xml</text></svg>`}
+function brParaInner(bid,ci,x,pi){let inner=brEsc(x.t);
+  const ch=brLeaves(bid)[ci];
+  if(bid==='b1'&&ch==='4 联想思维'&&pi===8)inner='延伸阅读清单见附录（<span class="br-link" onclick="event.stopPropagation();brGotoCh(12)">内链跳 20 结论：两种自我</span>），原始材料发布于 <span class="br-link" onclick="event.stopPropagation();brExtLink(\'https://princeton.edu/kaneman/experiments\')">princeton.edu</span>（外链）。';
+  if(brV.hit&&brV.hitPi===pi&&brV.hit&&brV.hit.ci===ci&&brV.hit.q)inner=inner.replace(new RegExp(brRx(brEsc(brV.hit.q)),'g'),m=>`<span class="br-cur">${m}</span>`);
+  return `<span onclick="event.stopPropagation();brSelect(${pi},${pi})">${inner}</span>`}
+function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci];const th=st.theme==='custom'?{bg:st.bg,fg:st.fg}:BR_THEMES[st.theme];
+  const stage=document.getElementById('brStage');stage.style.background=th.bg;stage.style.color=th.fg;
+  document.getElementById('brBody').innerHTML='';const fam=BR_FONTS[st.font]?BR_FONTS[st.font][1]:BR_FONTS.system[1];
+  const arr=brChText(bid,ch);
+  const mk=(x,pi)=>{if(x.k==='img')return `<div class="brp-i" data-pi="${pi}" onclick="event.stopPropagation();brImgOpen('${brEsc(x.t)}')">${brSvgFig()}<figcaption>${brEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;
+    const hl=brHlAt(bid,brV.ci,pi);const sty=x.k==='h'?'class="brp brp-h"':x.k==='q'?'class="brp brp-q"':'class="brp"';
+    return `<p ${sty} data-pi="${pi}" ${hl?`style="background:${hl.c}44;padding:1px 2px;border-radius:3px"`:''}>${brParaInner(bid,brV.ci,x,pi)}${hl&&hl.th?`<span class="br-pulse" style="background:#f97316;margin-left:4px;display:inline-block" onclick="event.stopPropagation();brQuoteOf('${hl.rid}')"></span>`:''}</p>`};
+  if(brV.mode==='scroll'){const box=document.createElement('div');
+    box.style.cssText=`font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:${st.mar+30}px ${st.mar}px ${st.mar+56}px`;
+    box.innerHTML=arr.map((x,pi)=>mk(x,pi)).join('');document.getElementById('brBody').appendChild(box)}
+  else{const pages=brPagesOf(bid,brV.ci);brV.pg=Math.min(brV.pg,pages.length-1);
+    const wrap=document.createElement('div');
+    wrap.style.cssText=`display:flex;flex-direction:column;justify-content:center;height:100%;font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:calc(${st.mar}px + 40px) ${st.mar}px calc(${st.mar}px + 46px)`;
+    let body=pages[brV.pg].map(pi=>mk(arr[pi],pi)).join('');
+    if(brV.ci===brLeaves(bid).length-1&&brV.pg>=pages.length-1)body+='<p class="brp" style="text-indent:0;opacity:.55;text-align:center">—— 全书完 ——</p>';
+    wrap.innerHTML=body;if(anim)wrap.classList.add('br-swig');
+    document.getElementById('brBody').appendChild(wrap)}
+  brChromeLabels();brSelHideUI()}
+function brChromeLabels(){const bid=brV.b;const pages=brPagesOf(bid,brV.ci);const tot=brTotal(bid),gp=brGPos(bid,brV.ci,brV.pg);
+  document.getElementById('brTopTitle').textContent=bsBook(bid).n;
+  document.getElementById('brTopSub').textContent=brLeaves(bid)[brV.ci]+' · '+(brV.mode==='scroll'?'滚动':'翻页')+'模式';
+  document.getElementById('brCfi').textContent=brCfi(bid,brV.ci,brV.pg);
+  document.getElementById('brPgLbl').textContent=`${brV.pg+1}/${pages.length} 页 · 第 ${gp+1}/${tot} 页 · ${brLivePct()}%`;
+  const sl=document.getElementById('brProg');sl.max=tot-1;sl.value=gp;
+  document.getElementById('brThemeBtn').textContent=BR_THEMES[brSt(bid).theme]?BR_THEMES[brSt(bid).theme].n:'自定义';
+  document.getElementById('brModeBtn').textContent=brV.mode==='page'?'滚动':'翻页';
+  document.getElementById('brSessChip').textContent=brMS(brSessSecs())}
+function brSessSecs(){return brV.t0?Math.floor((Date.now()-brV.t0)/1000)+(brV.prevSess||0):0}
+function brFlash(msg){const el=document.getElementById('brFlash');el.textContent=msg;el.classList.remove('hidden');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.add('hidden'),1300)}
+function brFlip(d){if(brV.mode==='scroll'){const bx=document.getElementById('brScroll');bx.scrollTop+=d*(bx.clientHeight-120);return}
+  const bid=brV.b,pages=brPagesOf(bid,brV.ci),lv=brLeaves(bid);let np=brV.pg+d;
+  if(np>=pages.length){if(brV.ci===lv.length-1){const b=bsBook(bid);b.st='已读';b.p=100;b.rp=b.pg;if(!b.end)b.end=shFmtDate();brPos[bid]={ci:brV.ci,pg:pages.length-1};brPersist();brRenderPage();renderShelf();return toast('已读完最后一页 · 《'+b.n+'》标记为已读')}
+    brV.ci++;brV.pg=0;brSavePos();brRenderPage(true);brFlash(lv[brV.ci]);return}
+  if(np<0){if(brV.ci===0){brV.pg=0;return brRenderPage()}brV.ci--;brV.pg=brPagesOf(bid,brV.ci).length-1;brSavePos();brRenderPage(true);brFlash(lv[brV.ci]);return}
+  brV.pg=np;brSavePos();brRenderPage(true)}
+function brTapCenter(){if(brV.sel){brSelHide();return}brV.chrome=!brV.chrome;
+  ['brTop','brBottom'].forEach(id=>{const el=document.getElementById(id);el.classList.toggle('hidden',!brV.chrome);el.classList.toggle('flex',brV.chrome)});
+  if(brV.chrome)document.getElementById('brSessChip').textContent=brMS(brSessSecs())}
+function brSeek(v){const p=brGPosTo(brV.b,+v);brV.ci=p.ci;brV.pg=p.pg;brSavePos();if(curPage!=='p-readerPage')navTo('p-readerPage');else brRenderPage();
+  brV.chrome=true;['brTop','brBottom'].forEach(id=>{document.getElementById(id).classList.remove('hidden');document.getElementById(id).classList.add('flex')})}
+function brGotoCh(ci){brV.ci=ci;brV.pg=0;brSavePos();brTocClose();if(curPage!=='p-readerPage')navTo('p-readerPage');brRenderPage(true);brFlash(brLeaves(brV.b)[ci])}
+function brFsNudge(d){const bid=brV.b;const fs=Math.min(30,Math.max(14,brSt(bid).fs+d));
+  brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{fs});brPagCache={};brPersist();brRenderPage();brFlash('字号 '+fs)}
+function brThemeCycle(){const order=['day','eye','night'];const st=brSt(brV.b);let i=order.indexOf(st.theme);i=i<0?0:(i+1)%3;
+  brCfg.theme=order[i];brCfg.bg=BR_THEMES[order[i]].bg;brCfg.fg=BR_THEMES[order[i]].fg;brPagCache={};brPersist();brRenderPage();brFlash('主题 · '+BR_THEMES[order[i]].n)}
+function brModeToggle(){brV.mode=brV.mode==='page'?'scroll':'page';brCfg.mode=brV.mode;brSavePos();brRenderPage();
+  if(brV.mode==='scroll')toast('滚动模式 · 上下滑动阅读')}
+
+/* ---- 打开 / 离开（计时与进度结算走既有基建） ---- */
+function brOpen(id){const b=bsBook(id);if(!b)return;CURBK=id;brV.b=id;brV.sel=null;brV.hit=null;document.getElementById('brHitsBar')&&(document.getElementById('brHitsBar').classList.add('hidden'));
+  const lv=brLeaves(id);if(!lv.length)brGenToc(id,12);
+  const p=brPos[id]||{ci:0,pg:0};brV.ci=Math.min(p.ci,brLeaves(id).length-1);brV.pg=p.pg||0;brV.mode=brSt(id).mode||'page';brV.t0=Date.now();brV.prevSess=0;
+  if(!timer){timerTap('read','《'+b.n+'》');brV.ownT=1}else{brV.ownT=0;toast('已有计时在进行 · 阅读器沿用该计时条')}
+  navTo('p-readerPage');brRenderPage();
+  if(brSt(id).auto)brAutoStart();
+  if(p&&(p.ci||p.pg))toast('已恢复上次位置 · '+brCfi(id,brV.ci,brV.pg)+'（CFI）')}
+function brLeave(){if(curPage!=='p-readerPage')return;
+  brAutoStop();if(brTtsTimer)brTtsOff(true);brV.t0=0;
+  if(!brV.ownT)return;
+  const secs=(function(){const t=document.getElementById('timerSec');return t?parseInt(t.textContent)*60+(t.textContent.split(':')[1]|0):0})();
+  const b=bsBook(brV.b);const pct=brStPct(brV.b);if(b){b.p=Math.max(b.p||0,pct);b.rp=Math.max(b.rp||0,Math.round(pct/100*(b.pg||0)))}
+  const mins=Math.max(1,Math.round(secs/60));
+  if(b){b.min=(b.min||0)+mins;b.times=(b.times||0)+1;
+    if(BS_SESS_CACHE[b.id]&&BS_SESS_CACHE[b.id].length)BS_SESS_CACHE[b.id].unshift({dt:shFmtDate(),from:b.rp||0,to:b.rp,min:mins});
+    if(b.st==='想读'){b.st='在读';if(!b.start)b.start=shFmtDate()}}
+  stopTimerUI();brV.ownT=0;brPersist();renderShelf();try{renderBookDetail()}catch(e){}try{renderRecHub()}catch(e){}
+  toast('本次约 '+mins+' 分钟 · 已计入《'+(b?b.n:'')+'》时长与进度（联动 L4）')}
+function brBack(){brLeave();goBack()}
+
+/* ---- 划词 ---- */
+function brSelect(p0,p1){if(p1==null)p1=p0;brV.sel={ci:brV.ci,p0,p1};
+  brV.selTxt=brChText(brV.b,brLeaves(brV.b)[brV.ci]).slice(p0,p1+1).map(x=>x.t).join('\n');
+  document.querySelectorAll('#brBody .br-selon').forEach(x=>x.classList.remove('br-selon'));
+  for(let i=p0;i<=p1;i++){const el=document.querySelector(`#brBody [data-pi="${i}"]`);if(el)el.classList.add('br-selon')}
+  const first=document.querySelector(`#brBody [data-pi="${p0}"]`);const stage=document.getElementById('brStage').getBoundingClientRect();
+  let top=120;if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
+  const bar=document.getElementById('brSelBar');bar.style.left='50%';bar.style.transform='translateX(-50%)';bar.style.top=top+'px';
+  document.getElementById('brColorPop').classList.add('hidden');
+  bar.classList.remove('hidden');
+  brSelActsRender()}
+function brSelActsRender(){const acts=[['复制','<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4H6a2 2 0 0 0-2 2v8.5A1.5 1.5 0 0 0 5.5 16"/>','brCopy()'],
+  ['划线','<path d="M15 4 4 15v5h5L20 9z"/><path d="M13 6l5 5"/>','brColorShow()'],
+  ['书摘','<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/>','brToQuote()'],
+  ['感想','<path d="M4 20l1-4L16 5l3 3L8 19z"/>','brToThink()'],
+  ['AI 解读','<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>','brAiOpen()'],
+  ['词典','<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/>','brDictOpen()'],
+  ['分享','<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>','brShare()']];
+  document.getElementById('brSelActs').innerHTML=`<div class="sdb text-brand-300" onclick="brGrow(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg><span>前扩</span></div>`+
+   acts.map(a=>`<div class="sdb" onclick="${a[2]}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a[1]}</svg><span>${a[0]}</span></div>`).join('')+
+   `<div class="sdb text-brand-300" onclick="brGrow(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg><span>后扩</span></div>`}
+function brGrow(d){if(!brV.sel)return;const n=brChText(brV.b,brLeaves(brV.b)[brV.ci]).length;
+  if(d>0)brV.sel.p1=Math.min(n-1,brV.sel.p1+1);else brV.sel.p0=Math.max(0,brV.sel.p0-1);brSelect(brV.sel.p0,brV.sel.p1)}
+function brSelHideUI(){document.getElementById('brSelBar').classList.add('hidden');document.getElementById('brColorPop').classList.add('hidden')}
+function brSelHide(){brV.sel=null;brSelHideUI();brRenderPage()}
+function brColorShow(){const pop=document.getElementById('brColorPop');pop.classList.remove('hidden');
+  pop.style.top=(parseFloat(document.getElementById('brSelBar').style.top)-46)+'px';pop.style.left='50%';pop.style.transform='translateX(-50%)';
+  pop.innerHTML=Object.entries(BR_TG).map(([k,v])=>`<button title="${k}" class="w-6 h-6 rounded-full border-2 border-white/40" style="background:${v}" onclick="brAddHl('${k}')"></button>`).join('')+
+   `<button class="h-6 px-2 rounded-full bg-slate-700 text-white text-[10px] font-bold" onclick="brDelHl()">删划线</button>`}
+function brQuotePos(){return{pg:brGPos(brV.b,brV.ci,brV.pg)+1,ch:brLeaves(brV.b)[brV.ci],cf:{c:brV.ci,p0:brV.sel.p0,p1:brV.sel.p1}}}
+function brAddHl(tg){if(!brV.sel)return;const p=brQuotePos();const rid='r'+Date.now();
+  if(BS_SET.brSync!==false){const q={b:brV.b,ty:'划线',tg,x:brV.selTxt,th:'',ch:p.ch,pg:p.pg,dt:shFmtDate(),tgs:[],rid,cf:p.cf,src:'阅读器'};
+    BS_QUOTES.unshift(q);const b=bsBook(brV.b);b.q=bsQ(brV.b).length;
+    try{renderQuotes()}catch(e){}try{renderBookDetail()}catch(e){}}
+  else BR_LOCAL_HL.push({id:rid,b:brV.b,cf:p.cf,tg});
+  brPersist();brRenderPage();brSelHideUI();brFlash('已划线（'+tg+'）· 同步进本书书摘');toast('高亮即一条划线书摘 · 笔记库可查（联动 L5）')}
+function brDelHl(){if(!brV.sel)return;const s=brV.sel;let n=0;
+  for(let i=BS_QUOTES.length-1;i>=0;i--){const x=BS_QUOTES[i];if(x.b===brV.b&&x.cf&&x.cf.c===s.ci&&x.cf.p0===s.p0&&x.cf.p1===s.p1){BS_QUOTES.splice(i,1);n++}}
+  for(let i=BR_LOCAL_HL.length-1;i>=0;i--){const x=BR_LOCAL_HL[i];if(x.b===brV.b&&x.cf.c===s.ci&&x.cf.p0===s.p0&&x.cf.p1===s.p1){BR_LOCAL_HL.splice(i,1);n++}}
+  const b=bsBook(brV.b);b.q=bsQ(brV.b).length;brPersist();brRenderPage();brSelHideUI();
+  try{renderQuotes()}catch(e){}try{renderBookDetail()}catch(e){}
+  toast(n?'已删除划线（书摘同步移除）':'此处没有划线可删')}
+function brCopy(){try{navigator.clipboard&&navigator.clipboard.writeText(brV.selTxt)}catch(e){}toast('已复制 '+brV.selTxt.length+' 字')}
+function brShare(){if(!brV.sel)return;const b=bsBook(brV.b);const txt=brV.selTxt+'\n\n——《'+b.n+'》'+brLeaves(brV.b)[brV.sel.ci]+' · '+brCfi(brV.b,brV.sel.ci,brV.sel.p0);
+  if(navigator.share){navigator.share({title:'书摘',text:txt}).catch(()=>{})}toast('已调起系统分享 · 含出处引用')}
+function brToQuote(){if(!brV.sel)return;qeOpen(null,brV.b);const p=brQuotePos();
+  document.getElementById('qeText').value=brV.selTxt;brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;brV.sel=null;brSelHideUI()}
+function brToThink(){if(!brV.sel)return;qeOpen(null,brV.b);const p=brQuotePos();
+  document.getElementById('qeText').value=brV.selTxt;brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;
+  const th=document.getElementById('qeThink');th.focus();brV.sel=null;brSelHideUI()}
+function brQeSetCh(name){const el=document.getElementById('qeCh');if(!el)return;
+  if([...el.options].some(o=>o.value===name))el.value=name;
+  else{const o=document.createElement('option');o.textContent=name;o.selected=true;el.appendChild(o)}}
+function brQuoteOf(rid){const q=BS_QUOTES.find(x=>x.rid===rid);if(!q)return;openSheet('sheetBrMore');toast('该划线已在书摘库 · 详情页可查看')}
+function brGotoQuotes(){const b=bsBook(brV.b);brLeave();CURBK=brV.b;bdTab='q';bdChFilter='';bdQSeg='all';TITLES['p-bookDetail']=['书籍详情',b.n];renderBookDetail();navTo('p-bookDetail')}
+function brOpenDetail(){const b=bsBook(brV.b);brLeave();CURBK=brV.b;bdTab='c';bdChFilter='';TITLES['p-bookDetail']=['书籍详情',b.n];renderBookDetail();navTo('p-bookDetail')}
+
+/* ---- 词典 / AI ---- */
+const BR_DICT={'锚定':['ān dìng','动','在判断中过度依赖最先获得的数值。本书第 7 章专章实验：联合国非洲席位估计值随轮盘随机数显著漂移。','近义：定锚效应'],
+ '折扣':['zhé kòu','名','未来奖励在当下估值中的缩水。双曲折扣意味着「近期的等待」被高估、「远期的等待」被低估。','搭配：时间折扣 / 折现率'],
+ '联想':['lián xiǎng','名','一个概念激活后向评价、情绪、动作扩散的链条，全程发生在意识之外。','出自第 4 章 联想思维']};
+function brDictOpen(){const w=(brV.selTxt.replace(/\s/g,'')||'').slice(0,4);
+  const hit=Object.entries(BR_DICT).find(([k])=>w.includes(k)||k.includes(w));
+  const e=hit?hit[1]:['—','短语','（本地词典未收录该词 · 可下载扩展词库）','取词长度 ≤4 字效果最佳'];
+  document.getElementById('brDcWord').textContent=w||'选词';document.getElementById('brDcPh').textContent=e[0]+' · '+e[1];
+  document.getElementById('brDcBody').innerHTML=`<div>${e[2]}</div><div class="text-slate-400 text-[11px]">${e[3]}</div>`;
+  document.getElementById('brDcWord').dataset.w=w;brSelHideUI();openSheet('sheetBrDict')}
+function brDcToQuote(){const w=document.getElementById('brDcWord').dataset.w||'';const e=BR_DICT[w];
+  qeOpen(null,brV.b);const p=brQuotePos();document.getElementById('qeText').value=brV.selTxt||'';brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;
+  document.getElementById('qeThink').value='【'+w+'】'+(e?e[2]:'释义见本地词典包');closeSheet('sheetBrDict');toast('释义已填入感想表单 · 保存即入库')}
+function brAiOpen(){const q=brV.selTxt;document.getElementById('brAiQuote').textContent=q;document.getElementById('brAiOut').innerHTML='<span class="text-slate-400">正在结合上下文解读…</span>';brSelHideUI();openSheet('sheetBrAi');
+  const ch=brLeaves(brV.b)[brV.ci];
+  const chunks=['【要点】这段出自「'+ch+'」，核心机制可压缩为一句：先理解前提（意识资源有限、联想自动扩散），再看它推出的行为预测。',
+   '【背景】它与前文的抢答模型、后文的基础率忽视互为证据链，是同一主张在不同实验材料上的复现。',
+   '【追问】如果用于你的工作流：哪一类决策最容易被环境牵着走？可设一个「先写数字再做判断」的对照仪式。'];
+  let i=0;clearInterval(brAiTimer);brAI.text='';
+  brAiTimer=setInterval(()=>{if(i>=chunks.length){clearInterval(brAiTimer);return}brAI.text+=(i?'':'')+chunks[i]+'<br>';
+   document.getElementById('brAiOut').innerHTML=brAI.text+'<span class="br-pulse" style="display:inline-block"></span>';i++},460)}
+function brAiCopy(){try{navigator.clipboard&&navigator.clipboard.writeText(brAI.text.replace(/<br>/g,'\n'))}catch(e){}toast('解读已复制')}
+function brAiToQuote(){qeOpen(null,brV.b);const p=brQuotePos();document.getElementById('qeText').value=(brV.selTxt||'').slice(0,120);brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;
+  document.getElementById('qeThink').value='🤖 AI 解读：'+brAI.text.replace(/<br>/g,' ').replace(/【/g,'\n【').trim();closeSheet('sheetBrAi');brV.sel=null;brSelHideUI();toast('AI 解读已填入 · 保存为感想书摘（标注 AI 来源）')}
+
+/* ---- 图片 / 外链 ---- */
+function brImgOpen(cap){document.getElementById('brIvBox').innerHTML=brSvgFig();document.getElementById('brIvCap').textContent=cap;brIvS=1;document.getElementById('brIvBox').style.transform='scale(1)';brSelHideUI();openSheet('sheetBrImg')}
+function brIvZoom(d){brIvS=Math.min(2.4,Math.max(0.6,brIvS+d*0.3));document.getElementById('brIvBox').style.transform='scale('+brIvS+')';toast('缩放 '+Math.round(brIvS*100)+'%')}
+function brExtLink(url){const mode=BS_SET.brLink||'询问';
+  if(mode==='禁止')return toast('外链已被禁止 · 可在阅读设置改为询问/允许');
+  if(mode==='允许')return toast('已在系统浏览器打开（模拟）');
+  document.getElementById('brLkUrl').textContent=url;brSelHideUI();openSheet('sheetBrLink')}
+
+/* ---- 目录 · V1.51 侧边抽屉（微信读书式 · 可折叠 · 目录⇄搜本书） ---- */
+const BR_DR={tab:'toc',fold:{},rail:false,bot:false,hits:null};
+function brTocOpen(tab){BR_DR.tab=tab||'toc';BR_DR.rail=false;BR_DR.bot=false;
+  document.getElementById('brDrPill').textContent='去底部';
+  const d=document.getElementById('brTocDrawer');d.classList.remove('hidden');
+  const p=document.getElementById('brDrPanel');p.classList.add('out');void p.offsetWidth;p.classList.remove('out');
+  brDrTab(BR_DR.tab);brTocRender();
+  setTimeout(()=>{const el=document.querySelector('#brTocList [data-cur]');if(el&&BR_DR.tab==='toc')el.scrollIntoView({block:'center'})},120)}
+function brTocClose(){const d=document.getElementById('brTocDrawer');if(!d||d.classList.contains('hidden'))return;
+  document.getElementById('brDrPanel').classList.add('out');
+  setTimeout(()=>{if(document.getElementById('brDrPanel').classList.contains('out'))d.classList.add('hidden')},240)}
+function brDrCollapse(){BR_DR.rail=true;brDrRailApply()}
+function brDrExpand(){BR_DR.rail=false;brDrRailApply()}
+function brDrRailApply(){document.getElementById('brDrWide').classList.toggle('hidden',BR_DR.rail);
+  document.getElementById('brDrRail').classList.toggle('hidden',!BR_DR.rail);
+  document.getElementById('brDrPill').classList.toggle('hidden',BR_DR.rail||BR_DR.tab!=='toc')}
+function brDrTab(k){BR_DR.tab=k;const lv=brLeaves(brV.b);
+  document.getElementById('brDrTabs').innerHTML=[['toc','目录 · '+lv.length+' 章'],['search','搜本书']].map(([t,l])=>`<button class="seg-pill !text-[11px] flex-1 ${k===t?'on':''}" onclick="brDrTab('${t}')">${l}</button>`).join('');
+  document.getElementById('brTocList').classList.toggle('hidden',k!=='toc');
+  document.getElementById('brDrHits').classList.toggle('hidden',k!=='search');
+  document.getElementById('brDrSearchBox').classList.toggle('hidden',k!=='search');
+  brDrRailApply();if(k==='search')setTimeout(()=>{const q=document.getElementById('brDrQ');q&&q.focus()},80)}
+function brDrFold(gi){BR_DR.fold[gi]=!BR_DR.fold[gi];brTocRender()}
+function brDrJump(){const s=document.getElementById('brDrScroll');BR_DR.bot=!BR_DR.bot;
+  s.scrollTo({top:BR_DR.bot?s.scrollHeight:0,behavior:'smooth'});
+  document.getElementById('brDrPill').textContent=BR_DR.bot?'去顶部':'去底部'}
+function brAddBookmark(){brSavePos();brPos[brV.b].bm=[brV.ci,brV.pg,Date.now()];brPersist();
+  toast('书签已添加 · '+brCfi(brV.b,brV.ci,brV.pg))}
+function brTocRender(){const bid=brV.b,lv=brLeaves(bid);
+  let html='';(BS_TOC[bid]||[]).forEach((g,gi)=>{const kids=(g[2]||g[1]||[]).filter(k=>lv.indexOf(k[0])>=0);
+    const folded=!!BR_DR.fold[gi];
+    html+=`<button class="w-full flex items-center gap-1.5 mt-3.5 mb-1 text-left" onclick="brDrFold(${gi})">
+      <span class="shrink-0 text-slate-400 ${folded?'-rotate-90':''}" style="display:inline-flex;transition:transform .18s"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+      <span class="flex-1 min-w-0 truncate text-[10px] font-black text-slate-400">${brEsc(g[0])}</span>
+      <span class="text-[9px] text-slate-300 dark:text-slate-600 tabular-nums shrink-0">${kids.length}</span></button>`;
+    if(folded)return;
+    kids.forEach(k=>{const i=lv.indexOf(k[0]);
+      const st=i<brV.ci?'done':i===brV.ci?'cur':'todo';const n=brPagesOf(bid,i).length;
+      const mk=BS_QUOTES.filter(x=>x.b===bid&&x.ch===k[0]).length;
+      html+=`<div ${st==='cur'?'data-cur':''} class="relative border-b border-slate-100/80 dark:border-slate-800/60 last:border-0">
+       ${st==='cur'?`<span class="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style="background:var(--accent)"></span>`:''}
+       <button class="w-full flex items-center gap-2 py-2.5 pl-3 pr-0.5 text-left" onclick="brGotoCh(${i})">
+        <span class="flex-1 min-w-0">
+         <span class="block truncate text-xs ${st==='cur'?'font-extrabold':st==='done'?'text-slate-400':'font-semibold'}" ${st==='cur'?`style="color:var(--accent)"`:''}>${brEsc(k[0])}</span>
+         ${st==='cur'?`<span class="mt-1 flex items-center gap-2 whitespace-nowrap"><span class="text-[9px] font-bold shrink-0" style="color:var(--accent)">当前读到 · ${Math.round((brV.pg+1)/n*100)}%</span><span class="text-[9px] px-1.5 py-0.5 rounded-md border shrink-0" style="color:var(--accent);border-color:rgba(99,102,241,.35)" onclick="event.stopPropagation();brAddBookmark()">添加书签</span></span>`:''}
+        </span>
+        ${mk?`<span class="text-[8px] rounded-full px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">${mk}</span>`:''}
+        <span class="w-9 text-right text-[9px] tabular-nums text-slate-400 shrink-0">${k[3]||''}</span></button></div>`});});
+  document.getElementById('brTocList').innerHTML=html}
+function brDrSearch(){const q=(document.getElementById('brDrQ').value||'').trim();const box=document.getElementById('brDrHits');
+  if(!q){box.innerHTML='';BR_DR.hits=null;return}
+  const hits=[];const lv=brLeaves(brV.b);
+  lv.forEach((ch,ci)=>brChText(brV.b,ch).forEach((x,pi)=>{if(x.t&&x.t.includes(q))hits.push({ci,pi,t:x.t,ch})}));
+  BR_DR.hits=hits;
+  box.innerHTML=`<div class="pt-1 text-[10px] text-slate-400">《${bsBook(brV.b).n}》命中 ${hits.length} 处 · 本机检索</div>`+(hits.length?hits.map((h,i)=>`<button class="w-full card text-left active:scale-[.99] transition" onclick="brDrHitGo(${i})">
+    <div class="text-[10px] text-slate-400">${brEsc(h.ch)} · ${brCfi(brV.b,h.ci,h.pi)}</div>
+    <div class="text-xs leading-5 mt-1">${brEsc(h.t).replace(new RegExp(brRx(brEsc(q)),'g'),m=>`<mark class="bg-amber-200 dark:bg-amber-500/30 rounded px-0.5">${m}</mark>`)}</div></button>`).join(''):
+    `<div class="card text-center py-8"><div class="text-xs font-bold">未找到「${brEsc(q)}」</div></div>`)}
+function brDrHitGo(i){const h=BR_DR.hits&&BR_DR.hits[i];if(!h)return;brTocClose();
+  brV.b=CURBK;brV.hits=BR_DR.hits;brV.hitQ=document.getElementById('brDrQ').value.trim();brHitJump(i)}
+
+/* ---- 全书检索 ---- */
+function brSearchRender(){const q=document.getElementById('brSq').value.trim();document.getElementById('brSqX').classList.toggle('hidden',!q);
+  if(!q){document.getElementById('brSHits').innerHTML='';document.getElementById('brSInfo').textContent='输入关键词检索全书正文';return}
+  const hits=[];const lv=brLeaves(brV.b);
+  lv.forEach((ch,ci)=>brChText(brV.b,ch).forEach((x,pi)=>{if(x.t&&x.t.includes(q))hits.push({ci,pi,t:x.t,ch})}));
+  document.getElementById('brSInfo').textContent=`《${bsBook(brV.b).n}》命中 ${hits.length} 处 · 覆盖 ${lv.length} 章正文 · 本机检索`;
+  brV.hits=hits;brV.hitQ=q;
+  document.getElementById('brSHits').innerHTML=hits.length?hits.map((h,i)=>`<button class="w-full card text-left active:scale-[.99] transition" onclick="brHitJump(${i})">
+    <div class="text-[10px] text-slate-400">${brEsc(h.ch)} · ${brCfi(brV.b,h.ci,h.pi)}</div>
+    <div class="text-xs leading-5 mt-1">${brEsc(h.t).replace(new RegExp(brRx(brEsc(q)),'g'),m=>`<mark class="bg-amber-200 dark:bg-amber-500/30 rounded px-0.5">${m}</mark>`)}</div></button>`).join(''):
+    `<div class="card text-center py-10"><div class="text-xs font-bold">未找到「${brEsc(q)}」</div><div class="text-[10px] text-slate-400 mt-1">换个关键词试试 · 检索仅在本机进行</div></div>`}
+function brHitJump(i){const h=brV.hits[i];if(!h)return;brV.b=CURBK;brV.ci=h.ci;const pages=brPagesOf(brV.b,h.ci);brV.pg=pages.length-1;
+  for(let p=0;p<pages.length;p++)if(pages[p].includes(h.pi))brV.pg=p;
+  brV.hit={ci:h.ci,q:brV.hitQ};brV.hitPi=h.pi;brV.hitI=i;brSavePos();brLeave();navTo('p-readerPage');brRenderPage();
+  brV.chrome=true;['brTop','brBottom'].forEach(id=>{document.getElementById(id).classList.remove('hidden');document.getElementById(id).classList.add('flex')});
+  document.getElementById('brHitsBar').classList.remove('hidden');document.getElementById('brHitsBar').classList.add('flex');
+  document.getElementById('brHitsLbl').textContent=`「${brV.hitQ}」第 ${i+1}/${brV.hits.length} 处`}
+function brHitGo(d){if(!brV.hits)return;let i=brV.hitI+d;if(i<0)i=brV.hits.length-1;if(i>=brV.hits.length)i=0;brHitJump(i)}
+function brClearHit(){brV.hit=null;brV.hitPi=null;document.getElementById('brHitsBar').classList.add('hidden');document.getElementById('brHitsBar').classList.remove('flex');brRenderPage()}
+
+/* ---- 外观（固定预览 + 草稿保存制） ---- */
+let brDraft={},brApScopeK='book';
+function brApOpen(){brApScopeK='book';brDraft=JSON.parse(JSON.stringify(Object.assign({},brCfg,brBooksCfg[brV.b]||{})));brApScopeRender();brApCtl();brApPrev()}
+function brApScopeRender(){document.getElementById('brApScope').innerHTML=[['book','本书专属'],['global','全部书籍']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${brApScopeK===k?'on':''}" onclick="brApScope('${k}')">${l}</button>`).join('')}
+function brApScope(k){brApScopeK=k;brDraft=JSON.parse(JSON.stringify(k==='book'?Object.assign({},brCfg,brBooksCfg[brV.b]||{}):brCfg));brApScopeRender();brApCtl();brApPrev()}
+function brApCtl(){const d=brDraft;
+  document.getElementById('brApFs').value=d.fs;document.getElementById('brApFsV').textContent=d.fs;
+  document.getElementById('brApLh').value=d.lh;document.getElementById('brApLhV').textContent=(+d.lh).toFixed(2);
+  document.getElementById('brApLs').value=d.ls;document.getElementById('brApLsV').textContent=(+d.ls).toFixed(1);
+  document.getElementById('brApMar').value=d.mar;document.getElementById('brApMarV').textContent=d.mar<=12?'窄':d.mar>=36?'宽':'中';
+  document.getElementById('brApThemes').innerHTML=Object.entries(BR_THEMES).map(([k,v])=>`<button class="br-themecard ${d.theme===k?'on':''} rounded-xl p-2 text-center" style="background:${v.bg};color:${v.fg}" onclick="brApSet('theme','${k}')"><div class="text-[10px] font-black">${v.n}</div><div class="text-[7px] opacity-70 mt-0.5">Aa 阅读示例</div></button>`).join('');
+  document.getElementById('brApFonts').innerHTML=Object.entries(BR_FONTS).map(([k,v])=>`<button class="br-fs ${d.font===k?'on':''} rounded-xl px-3 py-2 text-[11px] font-bold shrink-0" style="font-family:${v[1]}" onclick="brApSet('font','${k}')">${v[0]}</button>`).join('');
+  document.getElementById('brApBright').classList.toggle('on',!!d.bright);document.getElementById('brApAuto').classList.toggle('on',!!d.auto);
+  document.getElementById('brApAutoLbl').textContent=d.auto?d.autoSecs+' 秒':'关';
+  document.getElementById('brApBg').value=d.bg;document.getElementById('brApFg').value=d.fg}
+function brApSet(k,v){brDraft[k]=v;if(k==='theme'){brDraft.bg=BR_THEMES[v].bg;brDraft.fg=BR_THEMES[v].fg}brApCtl();brApPrev()}
+function brApColor(v,k){brDraft[k]=v;brDraft.theme='custom';brApPrev()}
+function brApTgl(k,el){el.classList.toggle('on');brDraft[k]=el.classList.contains('on');
+  if(k==='auto'&&brDraft.auto){openSheet('sheetBrAutoPage');wReg('wBrAuto',BR_AUTOS.map(x=>x+' 秒'),Math.max(0,BR_AUTOS.indexOf(brDraft.autoSecs||10)),()=>{})}
+  if(k==='auto'&&!brDraft.auto)brAutoStop();brApCtl()}
+function brAutoConfirm(){const w=WHEELS['wBrAuto'];brDraft.auto=true;brDraft.autoSecs=BR_AUTOS[w?w.i:3];brApCtl();toast('自动翻页 '+brDraft.autoSecs+' 秒/页')}
+function brApPrev(){const d=brDraft;const el=document.getElementById('brApPrev');
+  el.style.background=d.theme==='custom'?d.bg:BR_THEMES[d.theme].bg;el.style.color=d.theme==='custom'?d.fg:BR_THEMES[d.theme].fg;
+  el.style.fontFamily=BR_FONTS[d.font]?BR_FONTS[d.font][1]:'';
+  el.innerHTML=`<div style="font-size:${d.fs*0.62}px;line-height:${d.lh};letter-spacing:${d.ls}px;padding:${d.mar*0.4}px ${d.mar*0.55}px">系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。</div>`}
+function brApSave(){const d=brDraft;
+  if(brApScopeK==='book')brBooksCfg[brV.b]=Object.assign(brBooksCfg[brV.b]||{},d);else brCfg=Object.assign(brCfg,d);
+  brPagCache={};brPersist();closeSheet('sheetBrAppearance');brRenderPage();
+  toast(brApScopeK==='book'?'本书外观已保存 · 逐书独立记忆':'全局默认已更新 · 未覆写的书即时生效')}
+function brAutoStart(){brAutoStop();brAutoTimer=setInterval(()=>{if(curPage==='p-readerPage'&&!brV.sel)brFlip(1)},(brSt(brV.b).autoSecs||10)*1000)}
+function brAutoStop(){clearInterval(brAutoTimer);brAutoTimer=0}
+
+/* ---- 更多菜单 / TTS / 删除 ---- */
+function brMoreRender(){document.getElementById('brMoreQn').textContent=bsQ(brV.b).length+' 条';
+  const tiles=[['目录','<path d="M5 4h14v16H5z"/><path d="M9 8h7M9 12h7M9 16h4"/>','brTocOpen()'],
+  ['检索','<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>',"navTo('p-readerSearch')"],
+  ['书摘','<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7"/>','brGotoQuotes()'],
+  ['记录','<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 3"/>','bsSessOpen(brV.b)'],
+  ['统计','<path d="M4 20V10m6 10V4m6 16v-7"/>','navTo(\'p-readstat\')'],
+  ['详情','<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/>','brOpenDetail()'],
+  ['外观','<circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M19 5l-2 2M7 17l-2 2"/>',"openSheet('sheetBrAppearance');brApOpen()"],
+  ['删除','<path d="M5 7h14M9 7V5h6v2m-8 0 1 13h8l1-13"/>','brDelOpen(brV.b)']];
+  document.getElementById('brMoreGrid').innerHTML=tiles.map(t=>`<button class="bg-slate-50 dark:bg-slate-800 rounded-xl py-2.5 flex flex-col items-center gap-1 font-bold" onclick="closeSheet('sheetBrMore');${t[2]}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${t[1]}</svg>${t[0]}</button>`).join('');
+  document.getElementById('brMoreMode').innerHTML=[['page','翻页'],['scroll','滚动']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${brV.mode===k?'on':''}" onclick="brV.mode='${k}';brCfg.mode='${k}';brPersist();closeSheet('sheetBrMore');brRenderPage()">${l}</button>`).join('');
+  document.getElementById('brMoreBright').classList.toggle('on',!!brCfg.bright);document.getElementById('brMoreTts').classList.toggle('on',!!brTtsTimer)}
+function brMoreBright(){brCfg.bright=!brCfg.bright;BS_SET.brBright=brCfg.bright;brPersist();try{renderReadSet()}catch(e){}brMoreRender();toast(brCfg.bright?'阅读时屏幕保持常亮':'已恢复系统息屏策略')}
+function brMoreTts(el){el.classList.toggle('on');if(el.classList.contains('on'))brTtsOn();else brTtsOff()}
+function brTtsOn(){closeSheet('sheetBrMore');document.getElementById('brTts').classList.remove('hidden');document.getElementById('brTtsCh').textContent=brLeaves(brV.b)[brV.ci];
+  brV.chrome=false;['brTop','brBottom'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  brTtsI=brV.pg;brTtsTick();clearInterval(brTtsTimer);brTtsTimer=setInterval(brTtsTick,3200/(BS_SET.brRate||1));toast('朗读中 · 本地离线引擎（'+(BS_SET.brVoice||'标准女声')+'）')}
+function brTtsTick(){const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);const i=brTtsI%arr.length;
+  document.getElementById('brTtsNext').textContent=arr[i]?arr[i].t.slice(0,26)+'…':''}
+function brTtsToggle(){const el=document.getElementById('brTtsPlay');if(brTtsTimer){clearInterval(brTtsTimer);brTtsTimer=0;el.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';toast('已暂停')}
+  else{brTtsTimer=setInterval(brTtsTick,3200/(BS_SET.brRate||1));el.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="14" y="5" width="3.5" height="14" rx="1"/></svg>';toast('继续朗读')}}
+function brTtsRate(){const r=BS_SET.brRate||1;BS_SET.brRate=r>=1.5?0.75:r+0.25;document.getElementById('brTtsRate').textContent=BS_SET.brRate.toFixed(2).replace(/0$/,'')+'x';
+  if(brTtsTimer){clearInterval(brTtsTimer);brTtsTimer=setInterval(brTtsTick,3200/BS_SET.brRate)}try{renderReadSet()}catch(e){}toast('语速 '+BS_SET.brRate+'x')}
+function brTtsOff(quiet){clearInterval(brTtsTimer);brTtsTimer=0;document.getElementById('brTts').classList.add('hidden');if(!quiet)toast('已停止朗读')}
+let brDelId='',brDelOpt='cache';
+function brDelOpen(id){brDelId=id;brDelOpt='cache';const b=bsBook(id);document.getElementById('brDelName').textContent=b.n;brDelRender();openSheet('sheetBrDel')}
+function brDelRender(){document.getElementById('brDelOpts').innerHTML=[['cache','仅清除阅读数据','进度 · 外观记忆 · 分页缓存清除 · 保留 EPUB 源文件与书摘'],['src','连同源文件一起删除','经系统授权移除 .epub 文件本体（模拟 SAF）· 书摘与计时保留']].map(([k,l,s])=>`<button class="w-full card !py-2.5 text-left flex items-start gap-2.5" onclick="brDelOpt='${k}';brDelRender()"><span class="mt-0.5 w-4 h-4 rounded-full border-2 ${brDelOpt===k?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'} flex items-center justify-center text-[9px] text-white">${brDelOpt===k?'✓':''}</span><span><b>${l}</b><div class="text-[10px] text-slate-400 mt-0.5">${s}</div></span></button>`).join('')}
+function brDelCommit(){const b=bsBook(brDelId);if(!b)return closeSheet('sheetBrDel');
+  b.local=0;delete b.epub;delete brPos[b.id];delete brBooksCfg[b.id];brPagCache={};brPersist();
+  closeSheet('sheetBrDel');renderShelf();try{renderBookDetail()}catch(e){}
+  toast('《'+b.n+'》'+(brDelOpt==='src'?'源文件已删除':'仅清除阅读数据 · 源文件保留')+' · 书摘与计时保留')}
+
+/* ---- 导入本地图书（四步向导） ---- */
+const BR_FILES={download:[
+ {n:'克拉拉与太阳.epub',sz:'5.2 MB',meta:{t:'克拉拉与太阳',a:'石黑一雄',press:'上海译文出版社',pub:'2021-04',fmt:'EPUB2',cover:'linear-gradient(150deg,#b91c1c,#f59e0b)',pages:288,intro:'一座被太阳祝福的城市里，人工智能朋友克拉拉的等待与牺牲。图文混排，含 12 幅内文插图。'}},
+ {n:'思考快与慢.epub',sz:'8.4 MB',merge:'思考，快与慢'},
+ {n:'古籍精藏本.epub',sz:'6.2 MB',drm:1},
+ {n:'大英百科词典.epub',sz:'186 MB',warn:'大文件：解析与分页预计算可能需要 1-2 分钟'}],
+ docs:[
+ {n:'我们仨.epub',sz:'3.1 MB',meta:{t:'我们仨',a:'杨绛',press:'三联书店',pub:'2003-07',fmt:'EPUB2',cover:'linear-gradient(150deg,#94a3b8,#e2e8f0)',pages:234,intro:'一个单纯温馨的学术家庭的回忆：钱锺书、杨绛与女儿钱瑗。'}},
+ {n:'产品方法论.pdf',sz:'12.4 MB',pdf:1}]};
+const brImp={step:1,dir:'download',file:null,meta:null,timer:0,mergeTo:null};
+function brImpGo(s){brImp.step=s;brImpRender()}
+function brImpRender(){document.getElementById('brSteps').innerHTML=['授权','选文件','解析','核对'].map((l,i)=>`<div class="flex items-center gap-1 ${i<=brImp.step-1?'text-brand-500':'text-slate-300 dark:text-slate-600'}"><span class="w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${i===brImp.step-1?'grad text-white':'bg-slate-100 dark:bg-slate-800'}">${i+1}</span><span class="text-[10px] font-bold">${l}</span>${i<3?'<span class="w-4 h-px bg-current opacity-40"></span>':''}</div>`).join('');
+  ['brImp1','brImp2','brImp3','brImp4'].forEach((id,i)=>document.getElementById(id).classList.toggle('hidden',i!==brImp.step-1));
+  if(brImp.step===2)brImpFiles()}
+function brImpDir(d){brImp.dir=d;brImpFiles()}
+function brImpFiles(){const box=document.getElementById('brFiles');
+  box.innerHTML=(BR_FILES[brImp.dir]||[]).map((f,i)=>{const bad=f.drm||f.pdf;
+    return `<button class="w-full card flex items-center gap-3 text-left ${bad?'opacity-45':''}" onclick="brImpPick('${brImp.dir}',${i})">
+      <span class="w-9 h-9 rounded-xl ${f.pdf?'bg-rose-50 dark:bg-rose-500/15':'bg-brand-50 dark:bg-brand-500/15'} flex items-center justify-center text-brand-500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7M9 15h5"/></svg></span>
+      <div class="flex-1 min-w-0"><div class="text-xs font-bold truncate">${brEsc(f.n)}</div><div class="text-[10px] text-slate-400">${f.sz}${f.drm?' · DRM 加密':f.pdf?' · PDF 文档':f.merge?' · 与书架同书':f.warn?' · 大文件':''}</div></div>
+      ${f.drm?'<span class="text-[9px] text-rose-500 font-bold">不支持</span>':f.pdf?'<span class="text-[9px] text-slate-400">PDF 走独立模块</span>':'<span class="text-slate-300">›</span>'}</button>`}).join('')}
+function brImpPick(dir,i){const f=BR_FILES[dir][i];
+  if(f.drm)return toast('检测到 DRM 加密：受版权保护书籍无法打开（需求边界）');
+  if(f.pdf)return toast('PDF 由独立模块承载，阅读器仅支持 EPUB');
+  brImp.file=f;brImp.mergeTo=null;brImpGo(3);brImpParse()}
+function brImpParse(){clearInterval(brImp.timer);document.getElementById('brImpFile').textContent=brImp.file.n;
+  document.getElementById('brTaskList').innerHTML=BR_TASKS.map((t,i)=>`<div id="brTk${i}" class="flex items-center gap-2 opacity-40"><span class="w-4 text-center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" opacity=".4"/></svg></span><span>${t}</span><b class="ml-auto text-[10px]" id="brTkS${i}">…</b></div>`).join('');
+  document.getElementById('brBar').style.width='0%';let i=0;
+  brImp.timer=setInterval(()=>{const el=document.getElementById('brTk'+i),s=document.getElementById('brTkS'+i);
+    if(el){el.classList.remove('opacity-40');el.firstElementChild.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';s.textContent='✓'}
+    document.getElementById('brBar').style.width=((i+1)/BR_TASKS.length*100)+'%';i++;
+    if(i>=BR_TASKS.length){clearInterval(brImp.timer);setTimeout(()=>brImpMeta(),450)}},560)}
+function brImpMeta(){const f=brImp.file;const m=f.meta||{t:f.n.replace(/\.epub$/,''),a:'未知作者',press:'',pub:'',fmt:'EPUB3',cover:null,pages:240,intro:'（元数据未提供 description 字段）'};
+  brImp.meta=m;document.getElementById('brF_t').value=m.t;document.getElementById('brF_a').value=m.a;
+  document.getElementById('brF_press').value=m.press;document.getElementById('brF_pub').value=m.pub;document.getElementById('brF_intro').value=m.intro;
+  const cov=document.getElementById('brMCov');cov.style.background=m.cover||'#e2e8f0';
+  cov.innerHTML=m.cover?`<div class="text-white">${brEsc(m.t.slice(0,14))}<br><span class="opacity-50">${brEsc(m.a)}</span></div>`:`<div class="text-slate-400 font-black text-base">${brEsc(m.t[0])}</div>`;
+  document.getElementById('brFmtTag').textContent=m.fmt+' · 图文混排';
+  document.getElementById('brMetaSum').innerHTML=`共 <b>12</b> 章 · 约 <b>${m.pages}</b> 页 · 内嵌字体 0 · 图片 ${brHash(m.t)%9+2} 张 · 书签 ${brHash(m.a)%5} 条`;
+  document.getElementById('brTocPrev').innerHTML=Array.from({length:12},(_,i)=>`<div class="flex justify-between py-0.5 border-b border-slate-100 dark:border-slate-800 last:border-0"><span>第 ${i+1} 章</span><span class="text-slate-400">${(i+1)*Math.round(m.pages/12)} 页</span></div>`).join('');
+  const dup=BS_BOOKS.find(b=>brNorm(b.n)===brNorm(m.t)||b.n===f.merge);
+  brImp.mergeTo=dup?dup.id:null;
+  document.getElementById('brDup').classList.toggle('hidden',!dup);
+  if(dup){document.getElementById('brDup').innerHTML=`已存在《${dup.n}》（${dup.src} · ${dup.st}${dup.st==='在读'?' '+dup.p+'%':''}）。推荐把本地文件<b>挂到该记录</b>：书摘、计时、进度共用一条，点封面即可阅读。`}
+  document.getElementById('brSaveBtn').textContent=dup?'合并到已有记录 · 附本地文件':'加入书架 · 开始阅读';
+  brImpGo(4)}
+function brImpCommit(){const m=brImp.meta;const tagOn=document.getElementById('brFTag').classList.contains('on');
+  if(brImp.mergeTo){const b=bsBook(brImp.mergeTo);b.local=1;b.epub={fmt:m.fmt,size:brImp.file.sz,path:'内部存储/'+(brImp.dir==='download'?'下载':'文档')+'/'+brImp.file.n};
+    if(tagOn&&!b.tags.includes('本地'))b.tags.push('本地');
+    renderShelf();renderQuotes();toast('《'+b.n+'》已附本地文件 · 点封面直接进入阅读');
+    brImpGo(1);goBack();return}
+  const id='bl'+(Date.now()%100000);
+  BS_BOOKS.push({id,n:m.t,a:m.a,st:'想读',p:0,pg:m.pages,rp:0,q:0,tags:tagOn?['本地']:[],c:BS_BOOKS.length%8,rate:0,isbn:'—',pub:m.press||'—',yr:(m.pub||'').slice(0,4)||2026,src:'本地导入',start:'',end:'',min:0,times:0,note:(m.intro||'').slice(0,14),fin:'',local:1,epub:{fmt:m.fmt,size:brImp.file.sz,path:'内部存储/'+(brImp.dir==='download'?'下载':'文档')+'/'+brImp.file.n},coverCss:m.cover||''});
+  brGenToc(id,12);
+  if(m.cover){const b=bsBook(id);b.imgCss=m.cover}
+  renderShelf();renderQuotes();try{renderRecHub()}catch(e){}
+  brPersist();brImpGo(1);
+  toast('《'+m.t+'》已加入书架 · 「本地」分类与标签已生成 · 源文件保留原位');
+  stack.length?goBack():navTo('p-bookshelf')}
+
+/* ---- 书架接入（包装器 · 不改既有函数体） ---- */
+function brCovBadge(){return '<span class="br-local"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>本地</span>'}
+function brRowBadge(){return '<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-900/80 text-white dark:bg-white/15 dark:text-white/80 align-middle ml-1.5">本地</span>'}
+const BR_OLD_SHOPEN=shOpen;
+shOpen=function(id){const b=bsBook(id);if(b&&b.local&&!brV.noRd){brOpen(id);return}BR_OLD_SHOPEN(id)};
+const BR_OLD_LM=shLongMenu;
+shLongMenu=function(id){BR_OLD_LM(id);const b=bsBook(id);
+  if(b&&b.local){const ops=document.getElementById('lpOps');if(ops)ops.insertAdjacentHTML('afterbegin','<button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl grad text-white text-[13px] font-bold text-left mb-1" onclick="closeSheet(\'sheetLongPress\');brOpen(\''+id+'\')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 开始阅读 · 本地 EPUB</button>')}};
+const BR_OLD_RBD=renderBookDetail;
+renderBookDetail=function(){BR_OLD_RBD();try{const b=bsBook(CURBK),root=document.getElementById('bdRoot');
+  if(!b||!b.local||!root)return;
+  if(document.getElementById('brDcard'))return;
+  root.insertAdjacentHTML('beforeend',`<div id="brDcard" class="mt-3 card">
+    <div class="flex items-center justify-between"><div class="row-title text-xs font-extrabold">本地 EPUB · 可直接阅读</div><span class="text-[9px] rounded-full px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400">${b.epub?b.epub.fmt:'EPUB'}</span></div>
+    <div class="mt-1.5 text-[10px] text-slate-400 leading-5 break-all">${b.epub?brEsc(b.epub.path)+' · '+b.epub.size:'—'} · 无 DRM · 图文混排</div>
+    <div class="mt-1.5 text-[10px] text-slate-400">阅读位置 ${brPos[b.id]?brCfi(b.id,Math.min(brPos[b.id].ci,Math.max(0,brLeaves(b.id).length-1)),brPos[b.id].pg):'未开始'} · 划线 ${brHlCount(b.id)} 处 · 进度 ${brStPct(b.id)}%</div>
+    <div class="mt-2.5 flex gap-2"><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="brOpen('${b.id}')">打开阅读器</button>
+    <button class="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="navTo('p-readerSearch');brV.b='${b.id}'">全书检索</button>
+    <button class="py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-500 text-xs font-bold" onclick="brDelOpen('${b.id}')">删除…</button></div>
+    <div class="mt-1.5 text-[9px] text-slate-400">删除可选「仅清除阅读数据 · 保留源文件」或连源文件一并移除</div></div>`)}catch(e){}};
+/* 设置页联动：brBright 与阅读器常亮同步 */
+const BR_OLD_RSFLIP=rsFlip;
+rsFlip=function(k){BR_OLD_RSFLIP(k);if(k==='brBright'){brCfg.bright=!!BS_SET.brBright;brPersist()}};
+
+/* ---- setPage 包装：沉浸路由 / 进出阅读器钩子 / 渲染钩子 ---- */
+const BR_SET_PAGE0=setPage;
+setPage=function(p){
+  if(curPage==='p-readerPage'&&p!=='p-readerPage')brLeave();
+  if(p!=='p-readerPage'){const d=document.getElementById('brTocDrawer');if(d){d.classList.add('hidden');const pp=document.getElementById('brDrPanel');if(pp)pp.classList.add('out')}}
+  if(brV.hit&&p!=='p-readerPage'&&p!=='p-readerSearch'){brV.hit=null;const hb=document.getElementById('brHitsBar');if(hb){hb.classList.add('hidden');hb.classList.remove('flex')}}
+  BR_SET_PAGE0(p);
+  const mn=document.querySelector('main');if(mn)mn.style.height=(p==='p-readerPage')?'calc(100% - 36px)':'';
+  if(p==='p-readerPage'){if(!brV.t0)brV.t0=Date.now();brChromeLabels();if(brTtsTimer)document.getElementById('brTts').classList.remove('hidden')}
+  if(p==='p-localImport')brImpRender();
+  if(p==='p-readerSearch'){brV.b=CURBK;brSearchRender()}
+  if(p==='p-readerPage'&&!document.getElementById('brBody').children.length)brRenderPage()};
+
+/* ---- 键盘 / 触摸滑动 / 计时芯片 ---- */
+document.addEventListener('keydown',e=>{if(curPage!=='p-readerPage')return;
+  if(e.key==='Escape'&&!document.getElementById('brTocDrawer').classList.contains('hidden')){brTocClose();return}
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();brFlip(1)}if(e.key==='ArrowLeft'){e.preventDefault();brFlip(-1)}
+  if(e.key==='Escape'&&brV.sel)brSelHide()});
+(()=>{const st=document.getElementById('brStage');if(!st)return;let sx=0,sy=0;
+  st.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+  st.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+    if(brV.mode==='page'&&Math.abs(dx)>70&&Math.abs(dx)>2*Math.abs(dy))brFlip(dx<0?1:-1)},{passive:true})})();
+setInterval(()=>{if(curPage==='p-readerPage'&&brV.chrome)document.getElementById('brSessChip').textContent=brMS(brSessSecs())},1000);
+
+/* ---- 启动接线 ---- */
+(function brBoot(){brLoad();
+  BS_TAGS.push('本地');
+  Object.assign(BS_SET,{brSync:true,brLink:'询问',brVoice:'标准女声',brBright:brCfg.bright,brRate:1},BS_SET);/* 已有值优先 */
+  Object.assign(TITLES,{'p-localImport':['导入本地图书','EPUB · Android 13+ 隐私适配'],'p-readerPage':['',''],'p-readerSearch':['全书检索','']});
+  /* 种子：《思考，快与慢》已挂本地文件（演示点击直达阅读） */
+  const b1=bsBook('b1');if(b1&&!b1.local){b1.local=1;b1.epub={fmt:'EPUB3',size:'8.4 MB',path:'内部存储/下载/思考快与慢.epub'};if(!b1.tags.includes('本地'))b1.tags.push('本地')}
+  try{renderShelf()}catch(e){}try{renderReadSet()}catch(e){}
+  /* 深链 */
+  const m=(location.hash+' '+location.search).match(/(p-[A-Za-z][A-Za-z0-9]*)(?:[\/_](?:b|i)(\d+))?/);
+  if(m){const p=m[1],el=document.getElementById(p);
+    if(el&&el.classList.contains('page')){const n=m[2]!=null?+m[2]:null;
+      if(p==='p-localImport'&&n!=null)brImpGo(Math.min(4,Math.max(1,n)));
+      stack.length=0;setPage(p);
+      if(p==='p-readerPage'){const bid=(n!=null&&BS_BOOKS[n]&&BS_BOOKS[n].local)?BS_BOOKS[n].id:'b1';brOpen(bid)}
+      if(p==='p-readerSearch'){brV.b=CURBK;brSearchRender()}}}})();
+/* ================= 阅读器（书架专版）结束 ================= */
+
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});

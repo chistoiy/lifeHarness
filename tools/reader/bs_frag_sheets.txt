@@ -1,0 +1,140 @@
+  <!-- ===================== V1.50 书架专版 · 阅读器弹层族 ===================== -->
+  <!-- 目录 -->
+  <div id="sheetBrToc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrToc')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-6 max-h-[72vh] flex flex-col">
+      <div class="flex items-center justify-between"><b class="text-[15px]">目录 · <span id="brTocN">0</span> 章</b><span class="text-[10px] text-slate-400" id="brTocCur">—</span></div>
+      <div class="flex-1 overflow-y-auto no-scrollbar mt-2" id="brTocList"></div>
+      <div class="text-[10px] text-slate-400 mt-2">与书摘「章节」下拉同源 · 已读章节带完成度 · 徽章为该章划线数</div>
+    </div>
+  </div>
+
+  <!-- 外观（固定预览 + 草稿保存制） -->
+  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAppearance')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] flex flex-col">
+      <div class="flex items-center justify-between"><b class="text-[15px]">阅读外观</b><div class="flex gap-1.5" id="brApScope"></div></div>
+      <div class="mt-3 shrink-0 rounded-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden">
+        <div id="brApPrev" class="h-36 px-5 py-4 overflow-hidden text-justify"></div>
+      </div>
+      <div class="flex-1 overflow-y-auto no-scrollbar mt-3 space-y-4">
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold"><span>字号</span><b id="brApFsV" class="text-brand-500">19</b></div>
+          <input type="range" min="14" max="30" step="1" class="br-range" id="brApFs" oninput="brApSet('fs',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>行距</span><b id="brApLhV" class="text-brand-500">1.6</b></div>
+          <input type="range" min="1.3" max="2.4" step="0.05" class="br-range" id="brApLh" oninput="brApSet('lh',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>字间距</span><b id="brApLsV" class="text-brand-500">0.0</b></div>
+          <input type="range" min="0" max="3" step="0.2" class="br-range" id="brApLs" oninput="brApSet('ls',+this.value)">
+          <div class="flex items-center justify-between text-xs font-bold mt-1"><span>页边距（上下左右）</span><b id="brApMarV" class="text-brand-500">中</b></div>
+          <input type="range" min="8" max="40" step="2" class="br-range" id="brApMar" oninput="brApSet('mar',+this.value)">
+        </div>
+        <div><div class="text-xs font-bold mb-1.5">主题</div><div class="grid grid-cols-3 gap-2" id="brApThemes"></div></div>
+        <div>
+          <div class="text-xs font-bold mb-1.5">自定义颜色</div>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="flex items-center gap-1.5">底色<input type="color" id="brApBg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'bg')"></span>
+            <span class="flex items-center gap-1.5">字色<input type="color" id="brApFg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'fg')"></span>
+          </div>
+        </div>
+        <div><div class="text-xs font-bold mb-1.5">字体（系统字体 · 可扩展下载，控制包体积）</div><div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="brApFonts"></div></div>
+        <div class="space-y-2.5 pb-1">
+          <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
+          <div class="flex items-center justify-between text-xs"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-400" id="brApAutoLbl">关</b><span class="toggle" id="brApAuto" onclick="brApTgl('auto',this)"></span></span></div>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2 shrink-0">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrAppearance');toast('草稿已丢弃')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl grad text-white text-sm font-bold" onclick="brApSave()">保存应用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 解读 -->
+  <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
+      <div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 line-clamp-2" id="brAiQuote">—</div>
+      <div class="mt-3 rounded-2xl border border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/5 p-3.5 text-xs leading-6 min-h-[150px]" id="brAiOut"><span class="text-slate-400">正在思考…</span></div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiCopy()">复制</button>
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiToQuote()">存为感想</button>
+      </div>
+      <div class="mt-2 text-[9px] text-slate-400 text-center">选中原文仅用于本次解读 · 不留存、不参与训练（AI 安全规范）</div>
+    </div>
+  </div>
+
+  <!-- 词典 -->
+  <div id="sheetBrDict" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDict')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-baseline gap-2"><b class="text-xl" id="brDcWord">—</b><span class="text-[11px] text-slate-400" id="brDcPh">—</span><span class="ml-auto text-[9px] text-slate-400">本地词典包 · 可扩展</span></div>
+      <div class="mt-3 text-xs leading-6 space-y-1.5" id="brDcBody"></div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brDcToQuote()">释义存为感想</button>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="closeSheet('sheetBrDict')">收起</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片查看 -->
+  <div id="sheetBrImg" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/85 items-center justify-center" onclick="if(event.target===this)closeSheet('sheetBrImg')">
+    <div class="w-[88%]">
+      <div id="brIvBox" class="rounded-2xl overflow-hidden bg-white transition-transform" style="transform:scale(1)"></div>
+      <div class="mt-3 flex items-center justify-center gap-2 text-[11px] text-white/85">
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="brIvZoom(-)">缩小</button>
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="brIvZoom(+)">放大</button>
+        <button class="px-3 py-1.5 rounded-full bg-white/15" onclick="toast('已保存到相册 · Pictures/LifeHarness/')">保存到相册</button>
+        <button class="px-3 py-1.5 rounded-full text-white/60" onclick="closeSheet('sheetBrImg')">关闭</button>
+      </div>
+      <div class="mt-2 text-center text-[9px] text-white/40" id="brIvCap">—</div>
+    </div>
+  </div>
+
+  <!-- 外链确认 -->
+  <div id="sheetBrLink" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrLink')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">即将离开阅读器</b>
+      <div class="mt-2 card !py-2.5 text-[11px] break-all leading-5" id="brLkUrl">—</div>
+      <div class="mt-1.5 text-[10px] text-slate-400">策略可在「阅读设置 · 本地阅读器」改为 禁止 / 询问 / 允许</div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrLink')">取消</button>
+        <button class="flex-1 py-3 rounded-2xl grad text-white text-sm font-bold" onclick="closeSheet('sheetBrLink');toast('已在系统浏览器打开（模拟）')">允许一次</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自动翻页 -->
+  <div id="sheetBrAutoPage" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAutoPage')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">自动翻页间隔</b>
+      <div class="mt-3" id="wBrAuto"></div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center">滚动模式下为逐屏下滚 · 触摸正文即暂停</div>
+      <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold" onclick="closeSheet('sheetBrAutoPage');brAutoConfirm()">应用</button>
+    </div>
+  </div>
+
+  <!-- 更多（阅读主屏） -->
+  <div id="sheetBrMore" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrMore')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px]">本书操作</b>
+      <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px] font-bold" id="brMoreGrid"></div>
+      <div class="mt-4 space-y-3 text-xs">
+        <div class="flex items-center justify-between"><span>阅读模式</span><div class="flex gap-1.5" id="brMoreMode"></div></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brGotoQuotes()"><span>本书书摘与划线</span><b class="text-[10px] text-slate-400" id="brMoreQn">0 条</b></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brOpenDetail()"><span>书籍详情与资料页</span><span class="text-slate-300">›</span></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');navTo('p-readset');rsPickTab(RS_SEC.length-1)"><span>阅读器设置</span><span class="text-slate-300">›</span></div>
+        <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" id="brMoreBright" onclick="brMoreBright()"></span></div>
+        <div class="flex items-center justify-between"><span>文本朗读 TTS</span><span class="toggle" id="brMoreTts" onclick="brMoreTts(this)"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 本地书删除（源文件选项） -->
+  <div id="sheetBrDel" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDel')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <b class="text-[15px] text-rose-500">删除《<span id="brDelName">—</span>》</b>
+      <div class="mt-3 space-y-2 text-xs" id="brDelOpts"></div>
+      <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[10px] leading-5 text-slate-500 dark:text-slate-400">书摘与计时保留在书架数据中（与「移出书架」同口径）；阅读位置与外观记忆随删除清除。</div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrDel')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-sm font-bold" onclick="brDelCommit()">确认删除</button>
+      </div>
+    </div>
+  </div>
