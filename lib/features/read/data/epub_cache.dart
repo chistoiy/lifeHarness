@@ -228,19 +228,32 @@ class EpubPreloadService extends ChangeNotifier {
     return docsPath;
   }
 
-  /// 指纹命中的落盘分页表（秒进）；无表/坏表/指纹不符＝null（调用方实算）。
+  /// 指纹命中的落盘分页表（秒进）；无表/坏表/指纹不符/目录不可用＝null（调用方实算）。
   Future<BookPagination?> loadPag(String bookId, ReaderLayout l) async {
-    final d = await _docs0();
-    return PagStore.load(d!, bookId, PagStore.fingerprint(l));
+    try {
+      final d = await _docs0();
+      return PagStore.load(d!, bookId, PagStore.fingerprint(l));
+    } catch (e) {
+      if (kDebugMode) debugPrint('loadPag fail $bookId: $e');
+      return null;
+    }
   }
 
   Future<void> savePag(String bookId, ReaderLayout l, BookPagination pag) async {
-    final d = await _docs0();
     try {
+      final d = await _docs0();
       await PagStore.save(d!, bookId, PagStore.fingerprint(l), pag);
     } catch (e) {
       if (kDebugMode) debugPrint('savePag fail $bookId: $e');
     }
+  }
+
+  /// 回收分页表（清缓存/删除书共用）。
+  Future<void> removePag(String bookId) async {
+    try {
+      final d = await _docs0();
+      await PagStore.remove(d!, bookId);
+    } catch (_) {}
   }
 
   @override

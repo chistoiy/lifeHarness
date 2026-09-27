@@ -10,70 +10,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/ai/ai_providers.dart' show aiServiceProvider;
 import '../../../core/ai/ai_service.dart' show AiDenied;
 import '../data/epub_doc.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
+import '../domain/reader_cfg.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast, showQuoteEditPage;
+import 'reader_appearance_sheet.dart';
 import 'reader_pager.dart';
 import 'reader_search_page.dart';
 import 'reader_toc_drawer.dart';
-
-/// 阅读主题色（原型 BR_THEMES；自定义底色字色随批4 外观面板）。
-const kBrThemes = {
-  'day': ('日间', Color(0xFFFAF6EE), Color(0xFF3B3630)),
-  'eye': ('护眼', Color(0xFFCFE6CF), Color(0xFF2F4A33)),
-  'night': ('夜间', Color(0xFF101317), Color(0xFF9AA4B0)),
-};
-const _kThemeOrder = ['day', 'eye', 'night'];
-
-/// 阅读器全局外观 KV（原型 lh_reader_bs_v1.cfg · 逐书覆盖批4）：
-/// fs/lh/ls/mar/theme/mode。
-class _Cfg {
-  _Cfg({
-    this.fs = 19,
-    this.lh = 1.62,
-    this.ls = 0.4,
-    this.mar = 22,
-    this.theme = 'day',
-    this.mode = 'page',
-  });
-
-  final double fs, lh, ls, mar;
-  final String theme, mode;
-
-  factory _Cfg.decode(String? raw) {
-    try {
-      final v = raw == null ? null : jsonDecode(raw) as Map<String, dynamic>?;
-      if (v == null) return _Cfg();
-      double d(String k, double f) => (v[k] as num?)?.toDouble() ?? f;
-      return _Cfg(
-        fs: d('fs', 19),
-        lh: d('lh', 1.62),
-        ls: d('ls', 0.4),
-        mar: d('mar', 22),
-        theme: _kThemeOrder.contains(v['theme']) ? v['theme'] as String : 'day',
-        mode: v['mode'] == 'scroll' ? 'scroll' : 'page',
-      );
-    } catch (_) {
-      return _Cfg();
-    }
-  }
-
-  String encode() => jsonEncode({'fs': fs, 'lh': lh, 'ls': ls, 'mar': mar, 'theme': theme, 'mode': mode});
-
-  _Cfg copyWith({double? fs, double? lh, double? ls, double? mar, String? theme, String? mode}) => _Cfg(
-    fs: fs ?? this.fs,
-    lh: lh ?? this.lh,
-    ls: ls ?? this.ls,
-    mar: mar ?? this.mar,
-    theme: theme ?? this.theme,
-    mode: mode ?? this.mode,
-  );
-}
 
 /// 阅读位置（brPos[bid]：{ci,pg} + 书签 bm=[ci,pg,ts]）。
 class _Pos {
@@ -171,7 +121,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   String? _err;
   bool _ownTimer = false;
 
-  _Cfg _cfg = _Cfg();
+  // 批4 外观：全局 cfg + 逐书补丁合并生效（原型 brSt(bid)）。
+  ReaderCfg _cfg = ReaderCfg.defaults;
+  ReaderCfg _global = ReaderCfg.defaults;
+  Map<String, dynamic> _bookPatch = const {};
+  Timer? _autoT;
+  bool _brightOwned = false; // 本页启用过常亮才负责关闭
   _Pos _pos = _Pos();
   BookPagination? _pag;
   Size _viewport = Size.zero;
@@ -219,6 +174,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   void dispose() {
     _clock?.cancel();
     _flashT?.cancel();
+    _autoT?.cancel();
+    if (_brightOwned) {
+      unawaited(
+        WakelockPlus.disable().catchError((Object _) {
+          return false;
+        }),
+      );
+      _brightOwned = false;
+    }
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -244,7 +208,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     // 外观/位置先读，渲染即按记忆恢复（CFI 自动定位 · V1.50 口径③）。
-    _cfg = _Cfg.decode(await repo.kv('reader.cfg'));
+    // 批4：全局 reader.cfg + 逐书 reader.cfg.<id> 补丁合并生效。
+    _global = ReaderCfg.decode(await repo.kv('reader.cfg'));
+    _bookPatch = brDecodePatch(await repo.kv('reader.cfg.${b.id}'));
+    _cfg = ReaderCfg.mergePatch(_global, _bookPatch);
+    // 设置组 read.brBright ⇄ 面板常亮（原型 rsFlip/brMoreBright 双向）。
+    if (await repo.kv('read.brBright') == 'true' && !_cfg.bright) {
+      _cfg = _cfg.copyWith(bright: true);
+    }
     _pos = _Pos.decode(await repo.kv('reader.pos.${b.id}'));
     // 划线同库数据（批3）：同步开关 + 本书划线行 + brSync 关时暂存。
     _brSync = (await repo.kv('read.brSync')) != 'false';
@@ -276,6 +247,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       // 首帧已定 _viewport 时 LayoutBuilder 不会再触发；此处直接建分页。
       _rebuildPag();
       if (_pag == null) _clampPos();
+      // 批4：常亮与自动翻页按生效外观接入。
+      _syncBright();
+      _syncAuto();
     } on EpubFormatException catch (e) {
       if (mounted) setState(() => _err = e.reason);
     } catch (_) {
@@ -733,32 +707,140 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  // ---------- 外观（A-/A+/主题循环/模式切换；完整面板批4） ----------
+  // ---------- 外观（批4：A± 逐书 · 主题/模式全局 · 草稿制面板 · 常亮 · 自动翻页） ----------
 
-  Future<void> _persistCfg() async {
-    await ref.read(readRepositoryProvider).setKv('reader.cfg', _cfg.encode());
+  Future<void> _persistGlobal() async {
+    await ref.read(readRepositoryProvider).setKv('reader.cfg', _global.encode());
   }
 
+  Future<void> _persistPatch([Map<String, dynamic> add = const {}]) async {
+    _bookPatch = {..._bookPatch, ...add};
+    await ref
+        .read(readRepositoryProvider)
+        .setKv('reader.cfg.${widget.bookId}', jsonEncode(_bookPatch));
+  }
+
+  void _applyMerged() => _cfg = ReaderCfg.mergePatch(_global, _bookPatch);
+
+  /// 原型 brFsNudge：字号写逐书补丁（只覆盖 fs）。
   void _nudgeFont(int d) {
-    setState(() {
-      _cfg = _cfg.copyWith(fs: (_cfg.fs + d).clamp(14.0, 30.0));
-    });
+    final fs = (_cfg.fs + d).clamp(14.0, 30.0);
+    setState(() => _cfg = _cfg.copyWith(fs: fs));
     _rebuildPagChapterFirst();
-    unawaited(_persistCfg());
+    unawaited(_persistPatch({'fs': fs}));
   }
 
+  /// 原型 brThemeCycle：主题循环写全局（custom 回落日间起步）。
   void _cycleTheme() {
-    final i = _kThemeOrder.indexOf(_cfg.theme);
-    final next = _kThemeOrder[(i + 1) % _kThemeOrder.length];
-    setState(() => _cfg = _cfg.copyWith(theme: next));
-    unawaited(_persistCfg());
+    final i = kBrThemeOrder.indexOf(_cfg.theme);
+    final next = kBrThemeOrder[i < 0 ? 0 : (i + 1) % kBrThemeOrder.length];
+    final (bg, fg) = (kBrThemes[next]!.$2, kBrThemes[next]!.$3);
+    setState(() {
+      _global = _global.copyWith(
+        theme: next,
+        bg: '#${(bg.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+        fg: '#${(fg.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+      );
+      _applyMerged();
+    });
+    unawaited(_persistGlobal());
+    _rebuildPagChapterFirst();
+    _showFlash('主题 · ${kBrThemes[next]!.$1}');
   }
 
   void _toggleMode() {
-    setState(() => _cfg = _cfg.copyWith(mode: _cfg.mode == 'page' ? 'scroll' : 'page'));
+    setState(() {
+      _global = _global.copyWith(
+        mode: _cfg.mode == 'page' ? 'scroll' : 'page',
+      );
+      _applyMerged();
+    });
     _savePos();
-    unawaited(_persistCfg());
+    unawaited(_persistGlobal());
     _rebuildPag();
+    _syncAuto();
+  }
+
+  /// 外观钮 → 草稿制面板（原型 sheetBrAppearance）。
+  void _openAppearance() {
+    showReaderAppearance(
+      context,
+      current: _cfg,
+      onSave: (draft, scopeBook) async {
+        setState(() {
+          if (scopeBook) {
+            _bookPatch = draft.toMap();
+            _applyMerged();
+          } else {
+            _global = draft;
+            _applyMerged();
+          }
+        });
+        if (scopeBook) {
+          unawaited(_persistPatch());
+        } else {
+          unawaited(_persistGlobal());
+        }
+        // 面板常亮回写设置组键（原型 brMoreBright → BS_SET.brBright）。
+        unawaited(
+          ref
+              .read(readRepositoryProvider)
+              .setKv('read.brBright', draft.bright ? 'true' : 'false'),
+        );
+        _rebuildPag();
+        _syncBright();
+        _syncAuto();
+        readToast(
+          context,
+          scopeBook ? '本书外观已保存 · 逐书独立记忆' : '全局默认已更新 · 未覆写的书即时生效',
+        );
+      },
+    );
+  }
+
+  /// 常亮：本页启用过才在退出时关闭（不打扰其它模块的常亮策略）；
+  /// 插件不可用（测试环境/桌面）静默降级，只保留设置值。
+  void _syncBright() {
+    if (_cfg.bright) {
+      _brightOwned = true;
+      unawaited(
+        WakelockPlus.enable().catchError((Object _) {
+          return false;
+        }),
+      );
+    } else if (_brightOwned) {
+      _brightOwned = false;
+      unawaited(
+        WakelockPlus.disable().catchError((Object _) {
+          return false;
+        }),
+      );
+    }
+  }
+
+  /// 自动翻页定时器（原型 brAutoStart：选区/抽屉打开时跳过；滚动模式逐屏下滚）。
+  void _syncAuto() {
+    _autoT?.cancel();
+    _autoT = null;
+    if (!_cfg.auto || _doc == null) return;
+    _autoT = Timer.periodic(Duration(seconds: _cfg.autoSecs.clamp(3, 60)), (_) {
+      if (!mounted || _sel != null || _drawerOpen || _doc == null) return;
+      if (_cfg.mode == 'scroll') {
+        final h = _viewport.height - 60;
+        final cur = _scrollCtrl.hasClients ? _scrollCtrl.offset : 0.0;
+        unawaited(
+          _scrollCtrl.hasClients
+              ? _scrollCtrl.animateTo(
+                  cur + h,
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                )
+              : Future<void>.value(),
+        );
+      } else {
+        _flip(1);
+      }
+    });
   }
 
   int _pagGen = 0;
@@ -832,6 +914,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     lh: _cfg.lh,
     ls: _cfg.ls,
     mar: _cfg.mar,
+    font: _cfg.font,
   );
 
   // ---------- 链接/图片 ----------
@@ -1068,7 +1151,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final th = kBrThemes[_cfg.theme]!;
+    final th = _cfg.theme == 'custom'
+        ? ('自定义', _cfg.bgColor, _cfg.textColor)
+        : (kBrThemes[_cfg.theme] ?? kBrThemes['day']!);
     return PopScope(
       // 抽屉开启时返回键先收抽屉；页面真出栈才结算（原型 Escape→brTocClose）。
       canPop: !_drawerOpen,
@@ -1381,19 +1466,33 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _chromeBtn('brBtnToc', '目录', () => setState(() => _drawerOpen = true)),
-                Row(
-                  children: [
-                    _chromeBtn('brBtnA-', 'A-', () => _nudgeFont(-1)),
-                    const SizedBox(width: 6),
-                    _chromeBtn('brBtnA+', 'A+', () => _nudgeFont(1)),
-                    const SizedBox(width: 6),
-                    _chromeBtn('brBtnTheme', kBrThemes[_cfg.theme]!.$1, _cycleTheme),
-                    const SizedBox(width: 6),
-                    _chromeBtn('brBtnMode', _cfg.mode == 'page' ? '滚动' : '翻页', _toggleMode),
-                  ],
+                // 窄屏五钮并排放不下时整体缩放（不换行、不溢出）。
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      children: [
+                        _chromeBtn('brBtnA-', 'A-', () => _nudgeFont(-1)),
+                        const SizedBox(width: 6),
+                        _chromeBtn('brBtnA+', 'A+', () => _nudgeFont(1)),
+                        const SizedBox(width: 6),
+                        _chromeBtn(
+                          'brBtnTheme',
+                          _cfg.theme == 'custom'
+                              ? '自定义'
+                              : (kBrThemes[_cfg.theme] ?? kBrThemes['day']!).$1,
+                          _cycleTheme,
+                        ),
+                        const SizedBox(width: 6),
+                        _chromeBtn('brBtnMode', _cfg.mode == 'page' ? '滚动' : '翻页', _toggleMode),
+                        const SizedBox(width: 6),
+                        // 批4：外观草稿制面板入口（原型八宫格「外观」同语义）。
+                        _chromeBtn('brBtnAp', '外观', _openAppearance),
+                      ],
+                    ),
+                  ),
                 ),
-                // 外观完整面板批4 接入（此处不放灰钮）。
-                const SizedBox(width: 44),
               ],
             ),
           ],
@@ -1732,6 +1831,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               style: TextStyle(
                 fontSize: _cfg.fs * 1.25,
                 height: _cfg.lh,
+                fontFamily: _cfg.fontFamily,
                 fontWeight: FontWeight.w800,
                 color: th.$3,
               ),
@@ -1753,6 +1853,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   fontSize: _cfg.fs,
                   height: _cfg.lh,
                   letterSpacing: _cfg.ls,
+                  fontFamily: _cfg.fontFamily,
                   color: th.$3.withValues(alpha: .85),
                 ),
               ),
@@ -1786,6 +1887,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       fontSize: _cfg.fs,
       height: _cfg.lh,
       letterSpacing: _cfg.ls,
+      fontFamily: _cfg.fontFamily,
       color: th.$3,
     );
     final display = paraDisplayText(p);

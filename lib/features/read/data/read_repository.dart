@@ -1860,6 +1860,10 @@ class ReadRepository {
     conflictAlgorithm: ConflictAlgorithm.replace,
   );
 
+  /// 删除单键（批4 删除本地书回收 reader.pos./reader.cfg. 逐书键）。
+  Future<void> removeKv(String key) =>
+      db.delete(DbSchema.tSettings, where: 'key = ?', whereArgs: [key]);
+
   Future<int> kvInt(String key, int def) async =>
       int.tryParse(await kv(key) ?? '') ?? def;
 

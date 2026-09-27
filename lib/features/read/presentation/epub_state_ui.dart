@@ -7,10 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/epub_cache.dart';
+import '../data/epub_doc.dart';
 import '../domain/book.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
 import 'reader_pager.dart';
+import 'reader_search_page.dart' show ReaderSearchPage;
 
 /// 批3.5 · 预载/清缓存共享 UI：入口守卫、三态弹层、封面状态覆盖层、
 /// 预载启动器。事实源 `prototype/index-bookshelf.html` 批3.5 增量
@@ -456,4 +458,182 @@ String brLocalStateLine(Book b) {
         : '本地副本已清理 · 原文件已不存在 · 记录与书摘完整保留',
     _ => '就绪 · 点封面秒进',
   };
+}
+
+// ---------- 批4 · 删除本地书两口径（原型 sheetBrDel） ----------
+
+/// cache＝仅清除阅读数据（保留源文件与书摘计时）；src＝连同源文件一起删除。
+enum BrDelOpt { cache, src }
+
+Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
+  var opt = BrDelOpt.cache;
+  await showModalBottomSheet<void>(
+    context: context,
+    shape: _sheetShape,
+    builder: (sc) => StatefulBuilder(
+      builder: (_, setSel) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sheetTitle('删除《${b.title}》', color: const Color(0xFFE11D48)),
+              const SizedBox(height: 4),
+              for (final (k, label, sub) in const [
+                (
+                  BrDelOpt.cache,
+                  '仅清除阅读数据',
+                  '进度 · 外观记忆 · 分页缓存清除 · 保留 EPUB 源文件与书摘',
+                ),
+                (
+                  BrDelOpt.src,
+                  '连同源文件一起删除',
+                  '移除 .epub 文件本体 · 书摘与计时保留',
+                ),
+              ])
+                RadioListTile<BrDelOpt>(
+                  key: ValueKey('brDelOpt-${k.name}'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: k,
+                  groupValue: opt,
+                  title: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: Text(
+                    sub,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(sc).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  onChanged: (v) => setSel(() => opt = v!),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 10),
+                child: Text(
+                  '书摘与计时保留在书架数据中（与「移出书架」同口径）；阅读位置与外观记忆随删除清除。',
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.5,
+                    color: Theme.of(sc).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('brDelCancel'),
+                      onPressed: () => Navigator.of(sc).pop(),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      key: const ValueKey('brDelOk'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                      ),
+                      onPressed: () {
+                        Navigator.of(sc).pop();
+                        unawaited(brDelCommit(context, ref, b, opt));
+                      },
+                      child: const Text('确认删除'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本（src 口径再删源文件），
+/// 书籍行与书摘/计时保留、local 标记摘除。
+Future<void> brDelCommit(
+  BuildContext context,
+  WidgetRef ref,
+  Book b,
+  BrDelOpt opt,
+) async {
+  final ep = b.epub;
+  if (ep == null) return;
+  final repo = ref.read(readRepositoryProvider);
+  final preload = ref.read(epubPreloadProvider);
+  preload.docs.remove(b.id); // 释放懒归档句柄（Windows 句柄锁教训）
+  if (opt == BrDelOpt.src) {
+    try {
+      final copy = File(ep.path);
+      if (await copy.exists()) await copy.delete();
+    } catch (_) {}
+    final src = ep.srcPath;
+    if (src != null && src.isNotEmpty) {
+      var failed = false;
+      try {
+        final f = File(src);
+        if (await f.exists()) await f.delete();
+      } catch (_) {
+        failed = true;
+      }
+      if (failed && context.mounted) {
+        readToast(context, '源文件被系统保护 · 请在文件管理器手动删除：$src');
+      }
+    }
+  }
+  await repo.removeKv('reader.pos.${b.id}');
+  await repo.removeKv('reader.cfg.${b.id}');
+  await preload.removePag(b.id);
+  await repo.updateBook(b.copyWith(local: false, clearEpub: true));
+  ref.read(readTickProvider.notifier).state++;
+  if (context.mounted) {
+    readToast(
+      context,
+      '《${b.title}》${opt == BrDelOpt.src ? '源文件已删除' : '仅清除阅读数据 · 源文件保留'} · 书摘与计时保留',
+    );
+  }
+}
+
+/// 详情本地卡「全书检索」：预载缓存/懒归档取档后进检索页（与阅读器顶栏同页）。
+Future<void> brOpenBookSearch(
+  BuildContext context,
+  WidgetRef ref,
+  Book b,
+) async {
+  final ep = b.epub;
+  if (ep == null) return;
+  EpubDoc doc;
+  final cached = ref.read(epubPreloadProvider).docs.get(b.id);
+  if (cached != null) {
+    doc = cached;
+  } else {
+    try {
+      doc = await ref.read(epubDocLoaderProvider)(ep.path);
+    } catch (_) {
+      if (context.mounted) {
+        readToast(context, '文件无法读取 · 可点封面走重新载入');
+      }
+      return;
+    }
+  }
+  if (!context.mounted) return;
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => ReaderSearchPage(doc: doc, title: b.title),
+    ),
+  );
+  // 临时打开的档（不在预载缓存里）用完即释放句柄。
+  if (ref.read(epubPreloadProvider).docs.get(b.id) == null) {
+    doc.lazy?.dispose();
+  }
 }

@@ -25,22 +25,36 @@ class ReaderLayout {
   /// 上下让出 chrome 呼吸区（原型 padding mar+40 / mar+46）。
   double get contentH => (height - mar - 40 - mar - 46).clamp(120.0, 10000.0);
 
+  /// 泛族字体（与 ReaderCfg.fontFamily 同映射；测量与渲染必须一致）。
+  String? get fontFamily => switch (font) {
+    'serif' => 'serif',
+    'hei' => 'sans-serif',
+    'mono' => 'monospace',
+    _ => null,
+  };
+
   TextStyle get base => TextStyle(
     fontSize: fs,
     height: lh,
     letterSpacing: ls,
+    fontFamily: fontFamily,
   );
 
-  ReaderLayout copyWith({double? fs, double? lh, double? ls, double? mar}) =>
-      ReaderLayout(
-        width: width,
-        height: height,
-        fs: fs ?? this.fs,
-        lh: lh ?? this.lh,
-        ls: ls ?? this.ls,
-        mar: mar ?? this.mar,
-        font: font,
-      );
+  ReaderLayout copyWith({
+    double? fs,
+    double? lh,
+    double? ls,
+    double? mar,
+    String? font,
+  }) => ReaderLayout(
+    width: width,
+    height: height,
+    fs: fs ?? this.fs,
+    lh: lh ?? this.lh,
+    ls: ls ?? this.ls,
+    mar: mar ?? this.mar,
+    font: font ?? this.font,
+  );
 }
 
 /// 段首缩进 2em（原型 .brp text-indent:2em；两个全角空格的实测宽度恰为 2em）。

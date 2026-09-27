@@ -274,6 +274,8 @@ class Book {
     String? feeDate,
     bool? local,
     EpubRef? epub,
+    // 批4 删除本地书：epub 列显式清空哨兵（copyWith 的 null＝不改）。
+    bool clearEpub = false,
     int? updatedAt,
     int? deletedAt,
   }) => Book(
@@ -315,7 +317,7 @@ class Book {
     binding: binding ?? this.binding,
     feeDate: feeDate ?? this.feeDate,
     local: local ?? this.local,
-    epub: epub ?? this.epub,
+    epub: clearEpub ? null : (epub ?? this.epub),
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,

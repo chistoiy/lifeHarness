@@ -436,29 +436,82 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
             style: TextStyle(fontSize: 10, height: 1.5, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 10),
-          GestureDetector(
-            key: const ValueKey('br-d-open'),
-            onTap: () async {
-              if (await brTapGuarded(context, ref, b)) return;
-              if (mounted) context.push('/read/reader/${b.id}');
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: tokens.gradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                '打开阅读器',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+          // 原型 brDcard 三钮一行：打开阅读器（主）· 全书检索 · 删除…
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  key: const ValueKey('br-d-open'),
+                  onTap: () async {
+                    if (await brTapGuarded(context, ref, b)) return;
+                    if (mounted) context.push('/read/reader/${b.id}');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: tokens.gradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      '打开阅读器',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                key: const ValueKey('br-d-search'),
+                onTap: () => brOpenBookSearch(context, ref, b),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: tokens.cardBorder),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '全书检索',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                key: const ValueKey('br-d-del'),
+                onTap: () => showBrDelSheet(context, ref, b),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: const Color(0x59E11D48),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '删除…',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFE11D48),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           if (ep != null) _cacheRow(cs, b, ep),
         ],

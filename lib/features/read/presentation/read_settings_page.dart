@@ -92,6 +92,19 @@ const _secs = [
     _Row('store', '存储位置', _T.info, desc: '应用私有目录 · 本地优先'),
     _Row('sync', '服务集成', _T.info, desc: 'WebDAV / 局域网备份'),
   ]),
+  // V1.50 批4（原型「本地阅读器」组 · 朗读音色随 TTS 能力延后未列）。
+  _Sec('本地阅读器', [
+    _Row('epub', '导入本地 EPUB', _T.nav,
+        route: '/read/import-epub',
+        desc: '添加图书流程内同样有入口 · Android 13+ SAF 单次读取'),
+    _Row('brSync', '划线自动存为书摘', _T.bool,
+        desc: '阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'),
+    _Row('brLink', '书籍内外部链接', _T.chips,
+        opts: ['禁止', '询问', '允许'],
+        desc: '章节内跳转不受限制 · 外链默认询问'),
+    _Row('brBright', '阅读时屏幕常亮', _T.bool,
+        desc: '进入阅读器自动生效 · 退出恢复系统策略'),
+  ]),
 ];
 
 /// bool 键关闭/开启时的 toast 文案（原型 rsFlip 映射）。
@@ -106,6 +119,8 @@ const _boolLabel = {
   'simple': '简洁浏览',
   'fullCh': '完整章节名',
   'feeTxn': '购书费用入账',
+  'brSync': '划线自动存书摘',
+  'brBright': '阅读常亮',
 };
 
 class ReadSettingsPage extends ConsumerStatefulWidget {
@@ -477,13 +492,16 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     // 原型 BS_SET 默认关的两键（其余 bool 键默认开）。
     'simple' => 'false',
     'fullCh' => 'false',
+    // 批4 本地阅读器：外链默认询问、常亮默认关（原型 BR_DEF.bright=false）。
+    'brLink' => '询问',
+    'brBright' => 'false',
     _ => 'true',
   };
 
   List<Widget> _trailing(ColorScheme cs, ThemeTokens tokens, _Row r) {
     switch (r.t) {
       case _T.bool:
-        final on = _val(r.key, 'true') == 'true';
+        final on = _val(r.key, _def(r)) == 'true';
         return [
           Switch(
             key: ValueKey('set-${r.key}-t'),

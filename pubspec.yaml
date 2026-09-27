@@ -64,6 +64,7 @@ dependencies:
   url_launcher: ^6.3.2
   enough_convert: ^1.6.0
   spreadsheet_decoder: ^2.3.0
+  wakelock_plus: ^1.5.2
 
 dev_dependencies:
   flutter_test:
