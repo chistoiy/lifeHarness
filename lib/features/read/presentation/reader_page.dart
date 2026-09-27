@@ -423,7 +423,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _openUrl(url);
       return;
     }
-    // 询问：sheetBrLink 半屏（URL + 打开/取消 · 含输入框弹层无关，无需 viewInsets）。
+    // 询问：sheetBrLink 半屏（原型：即将离开阅读器 + URL 卡 + 策略提示 +
+    // 取消/允许一次 双钮）。
+    final cs = Theme.of(context).colorScheme;
     final ok = await showModalBottomSheet<bool>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -431,30 +433,49 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       ),
       builder: (sc) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
           child: Column(
             key: const ValueKey('sheetBrLink'),
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                '外部链接',
+                '即将离开阅读器',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('brLkUrl'),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(url, style: const TextStyle(fontSize: 11, height: 1.6)),
+              ),
+              const SizedBox(height: 6),
               Text(
-                url,
-                style: const TextStyle(fontSize: 11.5, height: 1.4),
+                '策略可在「阅读设置 · 本地阅读器」改为 禁止 / 询问 / 允许',
+                style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
               ),
-              const SizedBox(height: 14),
-              FilledButton(
-                key: const ValueKey('brLkOpen'),
-                onPressed: () => Navigator.of(sc).pop(true),
-                child: const Text('在系统浏览器打开'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(sc).pop(false),
-                child: const Text('取消'),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sc).pop(false),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey('brLkOpen'),
+                      onPressed: () => Navigator.of(sc).pop(true),
+                      child: const Text('允许一次'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
