@@ -11,16 +11,44 @@ Future<void> showQuoteEditPage(
   WidgetRef ref, {
   String? bookId,
   BookQuote? editing,
+  // V1.50 批3 阅读器划词入口（原型 brToQuote/brToThink）：预填原文/想法/
+  // 章/全局页，感想动作焦点落想法框。
+  String? preBody,
+  String? preThought,
+  String? preChapter,
+  int? prePage,
+  bool focusThought = false,
 }) => Navigator.of(context).push(
   MaterialPageRoute<void>(
-    builder: (_) => _QuoteForm(bookId: bookId, editing: editing),
+    builder: (_) => _QuoteForm(
+      bookId: bookId,
+      editing: editing,
+      preBody: preBody,
+      preThought: preThought,
+      preChapter: preChapter,
+      prePage: prePage,
+      focusThought: focusThought,
+    ),
   ),
 );
 
 class _QuoteForm extends ConsumerStatefulWidget {
-  const _QuoteForm({this.bookId, this.editing});
+  const _QuoteForm({
+    this.bookId,
+    this.editing,
+    this.preBody,
+    this.preThought,
+    this.preChapter,
+    this.prePage,
+    this.focusThought = false,
+  });
   final String? bookId;
   final BookQuote? editing;
+  final String? preBody;
+  final String? preThought;
+  final String? preChapter;
+  final int? prePage;
+  final bool focusThought;
 
   @override
   ConsumerState<_QuoteForm> createState() => _QuoteFormState();
@@ -80,16 +108,16 @@ class _ColWheelState extends State<_ColWheel> {
 
 class _QuoteFormState extends ConsumerState<_QuoteForm> {
   late final TextEditingController _body = TextEditingController(
-    text: widget.editing?.body ?? '',
+    text: widget.editing?.body ?? widget.preBody ?? '',
   );
   late final TextEditingController _thought = TextEditingController(
-    text: widget.editing?.thought ?? '',
+    text: widget.editing?.thought ?? widget.preThought ?? '',
   );
   final TextEditingController _newTag = TextEditingController();
   /// 真机验收轮1d：⊕ 再记一条＝清空回新建态（AppBar ⊕ · 原型 qeClear）。
   late BookQuote? _editing = widget.editing;
   /// 保真批D：页码/创建时间一律就地滚轮（铁律 · 禁键盘输入与日历二段弹层）。
-  late int? _pageVal = widget.editing?.page;
+  late int? _pageVal = widget.editing?.page ?? widget.prePage;
   bool _pageOpen = false;
   late DateTime _date = widget.editing != null
       ? DateTime.fromMillisecondsSinceEpoch(widget.editing!.createdAt)
@@ -97,13 +125,13 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   bool _dateOpen = false;
   late String _tag =
       widget.editing?.tag ?? BookQuote.kTagKey; // 新建默认「重点」（原型 qeOpen）
-  late String? _chap = widget.editing?.chapter;
+  late String? _chap = widget.editing?.chapter ?? widget.preChapter;
   late final List<String> _imgs = [...?widget.editing?.imagePaths];
   late final Set<String> _qtags = {...?widget.editing?.tags};
   List<String> _chapters = const [];
   bool _chapterLoaded = false;
   /// 手动改过页码后换书不再覆写（联动仅对未触碰字段生效）。
-  late bool _pageTouched = widget.editing != null;
+  late bool _pageTouched = widget.editing != null || widget.prePage != null;
   /// read.rateFmt（§6 书摘创建）：新建摘录是否自动带出当前进度页码。
   bool _rateFmt = true;
   /// read.clipAuto：读剪贴板时是否按来源模板自动识别书名/页码。
@@ -284,6 +312,9 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
       starred: _editing?.starred ?? false,
       origin: _editing?.origin,
       dedupHash: _editing?.dedupHash,
+      // V1.50 硬约束①：划线行的 cf/rid 是阅读器回跳锚点，编辑保存必须原样保留。
+      cf: _editing?.cf,
+      rid: _editing?.rid,
       createdAt: _date.millisecondsSinceEpoch,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
@@ -629,9 +660,21 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 正文/想法置顶加大：打开表单即可直接录入（键盘避让 · Scaffold resize）。
-          _field(_body, '原文摘录…', lines: 5, keyName: 'qef-body', autofocus: adding),
+          _field(
+            _body,
+            '原文摘录…',
+            lines: 5,
+            keyName: 'qef-body',
+            autofocus: adding && !widget.focusThought,
+          ),
           const SizedBox(height: 10),
-          _field(_thought, '我的想法（可选，与摘录同条存储）', lines: 3, keyName: 'qef-thought'),
+          _field(
+            _thought,
+            '我的想法（可选，与摘录同条存储）',
+            lines: 3,
+            keyName: 'qef-thought',
+            autofocus: adding && widget.focusThought,
+          ),
           const SizedBox(height: 10),
           Row(
             children: [

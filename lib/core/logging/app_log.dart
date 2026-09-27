@@ -36,11 +36,14 @@ class LhLogLine {
   /// 不做全量 logcat 镜像）。
   final bool key;
 
-  /// `HH:mm:ss.SSS [级别] [来源] 文本`
+  /// `MM-dd HH:mm:ss.SSS [级别] [来源] 文本`
+  /// （真机反馈 2026-09-27 V1.50批3.6：只显时分秒跨启动分不清哪天，补月-日。）
   String get formatted {
     String two(int n) => n.toString().padLeft(2, '0');
     String three(int n) => n.toString().padLeft(3, '0');
-    final ts = '${two(time.hour)}:${two(time.minute)}:${two(time.second)}'
+    final ts =
+        '${two(time.month)}-${two(time.day)} '
+        '${two(time.hour)}:${two(time.minute)}:${two(time.second)}'
         '.${three(time.millisecond)}';
     return '$ts [${level.tag}] [$src] $text';
   }

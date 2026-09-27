@@ -18,7 +18,9 @@ void main() {
     final f = AppLog.lines.single.formatted;
     // V1.43.2 起行式多一段来源（调用帧自动归类；本调用来自测试文件 → 系统）。
     expect(
-        RegExp(r'^\d{2}:\d{2}:\d{2}\.\d{3} \[E\] \[[^\]]+\] boom$').hasMatch(f),
+        RegExp(
+          r'^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \[E\] \[[^\]]+\] boom$',
+        ).hasMatch(f),
         isTrue);
     expect(f, endsWith('[系统] boom'));
   });

@@ -112,7 +112,7 @@ void main() {
   /// 窗口列表内的日志行（每行以 `HH:mm:ss.SSS` 时间戳开头）。
   Finder logLines() => find.descendant(
         of: find.byKey(const ValueKey('log-list')),
-        matching: find.textContaining(RegExp(r'^\d{2}:\d{2}:\d{2}\.')),
+        matching: find.textContaining(RegExp(r'^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.')),
       );
 
   int logLineCount(WidgetTester tester) => logLines().evaluate().length;

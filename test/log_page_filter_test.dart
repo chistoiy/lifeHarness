@@ -54,7 +54,7 @@ void main() {
 
   Finder logLines() => find.descendant(
         of: find.byKey(const ValueKey('log-list')),
-        matching: find.textContaining(RegExp(r'^\d{2}:\d{2}:\d{2}\.')),
+        matching: find.textContaining(RegExp(r'^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.')),
       );
 
   int lineCount(WidgetTester tester) => logLines().evaluate().length;

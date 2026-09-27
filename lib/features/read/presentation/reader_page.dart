@@ -5,16 +5,21 @@ import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/ai/ai_providers.dart' show aiServiceProvider;
+import '../../../core/ai/ai_service.dart' show AiDenied;
 import '../data/epub_doc.dart';
 import '../domain/book.dart';
+import '../domain/book_quote.dart';
 import 'read_providers.dart';
-import 'read_sheets.dart' show readToast;
+import 'read_sheets.dart' show readToast, showQuoteEditPage;
 import 'reader_pager.dart';
+import 'reader_search_page.dart';
 import 'reader_toc_drawer.dart';
 
 /// 阅读主题色（原型 BR_THEMES；自定义底色字色随批4 外观面板）。
@@ -93,6 +98,58 @@ class _Pos {
   String encode() => jsonEncode({'ci': ci, 'pg': pg, if (bm != null) 'bm': bm});
 }
 
+/// brSync 关时的划线暂存行（原型 BR_LOCAL_HL · 全量存 kv `reader.hl`）。
+/// 与 book_quotes 同构语义：cf 章段区间 + 颜色分类 tg + 稳定 rid。
+class _LocalHl {
+  const _LocalHl({
+    required this.id,
+    required this.bookId,
+    required this.cf,
+    required this.tg,
+  });
+
+  final String id;
+  final String bookId;
+  final QuoteCf cf;
+  final String tg;
+
+  Map<String, Object?> toMap() => {
+    'id': id,
+    'b': bookId,
+    'c': cf.c,
+    'p0': cf.p0,
+    'p1': cf.p1,
+    'tg': tg,
+  };
+
+  static _LocalHl? fromMap(Map<Object?, Object?> m) {
+    final c = m['c'], p0 = m['p0'], p1 = m['p1'];
+    if (c is! num || p0 is! num || p1 is! num) return null;
+    return _LocalHl(
+      id: '${m['id']}',
+      bookId: '${m['b']}',
+      cf: QuoteCf(c: c.toInt(), p0: p0.toInt(), p1: p1.toInt()),
+      tg: '${m['tg']}',
+    );
+  }
+
+  static List<_LocalHl> decodeAll(String? raw) {
+    try {
+      final v = raw == null ? null : jsonDecode(raw) as List?;
+      if (v == null) return const [];
+      return [
+        for (final e in v.whereType<Map<Object?, Object?>>())
+          ?_LocalHl.fromMap(e),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static String encodeAll(List<_LocalHl> l) =>
+      jsonEncode([for (final x in l) x.toMap()]);
+}
+
 /// 阅读主屏（V1.50 · 事实源 `#p-readerPage` BR-2 + V1.51 目录侧边抽屉）。
 ///
 /// 批2 全量：分页引擎实算（字号/行距/字距/边距即时重排页数）、翻页⇄滚动双模式、
@@ -137,6 +194,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   String _hitQ = '';
   ({int ci, int pg, int pi})? _hitMark; // 当前高亮段
 
+  // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
+  ({int ci, int p0, int p1})? _sel; // 同章段落闭区间
+  bool _hlPop = false; // 色板展开
+  bool _brSync = true; // read.brSync：划线自动存为书摘
+  List<BookQuote> _hlQuotes = const []; // 本书已入库划线行（cf≠null）
+  List<_LocalHl> _localHl = const []; // brSync 关时暂存
+
   final _scrollCtrl = ScrollController();
 
   String get _clockText {
@@ -171,6 +235,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     // 外观/位置先读，渲染即按记忆恢复（CFI 自动定位 · V1.50 口径③）。
     _cfg = _Cfg.decode(await repo.kv('reader.cfg'));
     _pos = _Pos.decode(await repo.kv('reader.pos.${b.id}'));
+    // 划线同库数据（批3）：同步开关 + 本书划线行 + brSync 关时暂存。
+    _brSync = (await repo.kv('read.brSync')) != 'false';
+    _localHl = _LocalHl.decodeAll(await repo.kv('reader.hl'));
+    _hlQuotes = (await repo.quotesOf(b.id))
+        .where((q) => q.deletedAt == null && q.cf != null)
+        .toList();
     if (!mounted) return;
     setState(() {});
     // 进阅读器自动开始计时；他处已在计时则沿用该计时条（原型 brV.ownT）。
@@ -345,6 +415,308 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _scrollCtrl.position.maxScrollExtent,
     );
     _scrollCtrl.jumpTo(est.toDouble());
+  }
+
+  // ---------- 批3 划词/划线（原型 brSelect / brAddHl / brDelHl · L5 同库） ----------
+
+  static const _kBrDict = {
+    '锚定': ('ān dìng', '动', '在判断中过度依赖最先获得的数值。'),
+    '折扣': ('zhé kòu', '名', '未来奖励在当下估值中的缩水。'),
+    '联想': ('lián xiǎng', '名', '一个概念激活后向评价、情绪、动作扩散的链条。'),
+  };
+
+  String get _selTxt {
+    final sel = _sel;
+    final doc = _doc;
+    if (sel == null || doc == null) return '';
+    final ps = doc.chapters[sel.ci].paras;
+    return [
+      for (var i = sel.p0; i <= sel.p1 && i < ps.length; i++) ps[i].text,
+    ].join('\n');
+  }
+
+  void _selectPara(int ci, int pi) => setState(() {
+    _sel = (ci: ci, p0: pi, p1: pi);
+    _hlPop = false;
+  });
+
+  void _growSel(int d) {
+    final sel = _sel;
+    final doc = _doc;
+    if (sel == null || doc == null) return;
+    final n = doc.chapters[sel.ci].paras.length;
+    setState(() {
+      _sel = d > 0
+          ? (ci: sel.ci, p0: sel.p0, p1: (sel.p1 + 1).clamp(0, n - 1))
+          : (ci: sel.ci, p0: (sel.p0 - 1).clamp(0, n - 1), p1: sel.p1);
+      _hlPop = false;
+    });
+  }
+
+  void _clearSel() => setState(() {
+    _sel = null;
+    _hlPop = false;
+  });
+
+  /// 段生效划线（原型 brHlAt：库内行优先，多条取最后；回落暂存行）。
+  ({String tg, Color c, bool hasThought})? _hlAt(int ci, int pi) {
+    ({String tg, Color c, bool hasThought})? hit;
+    for (final h in _localHl) {
+      if (h.bookId == widget.bookId && h.cf.covers(ci, pi)) {
+        hit = (
+          tg: h.tg,
+          c: Color(0xFF000000 | (BookQuote.hexToInt(BookQuote.colorHex[h.tg]) ?? 0xFDE047)),
+          hasThought: false,
+        );
+      }
+    }
+    for (final q in _hlQuotes) {
+      if (q.cf!.covers(ci, pi)) {
+        hit = (
+          tg: q.tag,
+          c: Color(0xFF000000 | q.colorInt),
+          hasThought: (q.thought ?? '').isNotEmpty,
+        );
+      }
+    }
+    return hit;
+  }
+
+  Future<void> _reloadHls() async {
+    final repo = ref.read(readRepositoryProvider);
+    _brSync = (await repo.kv('read.brSync')) != 'false';
+    _hlQuotes = (await repo.quotesOf(widget.bookId))
+        .where((q) => q.deletedAt == null && q.cf != null)
+        .toList(growable: false);
+    _localHl = _LocalHl.decodeAll(await repo.kv('reader.hl'));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _addHl(String tg) async {
+    final sel = _sel;
+    final doc = _doc;
+    final pag = _pag;
+    final body = _selTxt;
+    if (sel == null || doc == null || body.isEmpty) return;
+    final repo = ref.read(readRepositoryProvider);
+    final cf = QuoteCf(c: sel.ci, p0: sel.p0, p1: sel.p1);
+    final rid = 'r${DateTime.now().millisecondsSinceEpoch}';
+    if (_brSync) {
+      // 硬约束①：划线即一条「划线」型书摘直接进既有摘录表，携带 cf+rid。
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await repo.addQuote(
+        BookQuote(
+          bookId: widget.bookId,
+          kind: BookQuote.kKindMark,
+          tag: tg,
+          body: body,
+          chapter: doc.chapters[sel.ci].title,
+          page: pag == null ? null : pag.gPos(sel.ci, 0) + 1,
+          cf: cf,
+          rid: rid,
+          origin: '阅读器',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    } else {
+      // brSync 关：暂存本地全量 kv，开库后由渲染层按 cf 生效（原型 BR_LOCAL_HL）。
+      final next = [
+        ..._localHl,
+        _LocalHl(id: rid, bookId: widget.bookId, cf: cf, tg: tg),
+      ];
+      await repo.setKv('reader.hl', _LocalHl.encodeAll(next));
+    }
+    await _reloadHls();
+    if (!mounted) return;
+    setState(() {
+      _sel = null;
+      _hlPop = false;
+    });
+    ref.read(readTickProvider.notifier).state++;
+    _showFlash('已划线（$tg）· 同步进本书书摘');
+    readToast(context, '高亮即一条划线书摘 · 笔记库可查（联动 L5）');
+  }
+
+  Future<void> _delHl() async {
+    final sel = _sel;
+    if (sel == null) return;
+    final repo = ref.read(readRepositoryProvider);
+    var n = 0;
+    // 删除互清：删划线＝软删对应书摘行（笔记库同款可撤销语义）。
+    for (final q in _hlQuotes) {
+      final cf = q.cf!;
+      if (q.id != null && cf.c == sel.ci && cf.p0 == sel.p0 && cf.p1 == sel.p1) {
+        await repo.softDeleteQuote(q.id!);
+        n++;
+      }
+    }
+    final keep = _localHl.where((h) {
+      final cf = h.cf;
+      return !(h.bookId == widget.bookId && cf.c == sel.ci && cf.p0 == sel.p0 && cf.p1 == sel.p1);
+    }).toList();
+    if (keep.length != _localHl.length) {
+      n += _localHl.length - keep.length;
+      await repo.setKv('reader.hl', _LocalHl.encodeAll(keep));
+    }
+    await _reloadHls();
+    if (!mounted) return;
+    setState(() => _sel = null);
+    ref.read(readTickProvider.notifier).state++;
+    readToast(context, n > 0 ? '已删除划线（书摘同步移除）' : '此处没有划线可删');
+  }
+
+  void _actCopy() {
+    final t = _selTxt;
+    if (t.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: t));
+    _clearSel();
+    readToast(context, '已复制 ${t.length} 字');
+  }
+
+  void _actShare() {
+    final sel = _sel;
+    final doc = _doc;
+    if (sel == null || doc == null) return;
+    final txt =
+        '$_selTxt\n\n——《${_book?.title ?? ''}》${doc.chapters[sel.ci].title} · ${_cfi(sel.ci, sel.p0)}';
+    Clipboard.setData(ClipboardData(text: txt));
+    _clearSel();
+    readToast(context, '分享文本已复制 · 含出处引用');
+  }
+
+  void _actQuote(bool thought) {
+    final sel = _sel;
+    final doc = _doc;
+    final pag = _pag;
+    if (sel == null || doc == null) return;
+    final body = _selTxt;
+    final ch = doc.chapters[sel.ci].title;
+    final pg = pag == null ? null : pag.gPos(sel.ci, 0) + 1;
+    _clearSel();
+    showQuoteEditPage(
+      context,
+      ref,
+      bookId: widget.bookId,
+      preBody: body,
+      preChapter: ch,
+      prePage: pg,
+      focusThought: thought,
+    );
+  }
+
+  /// 词典取词（原型 BR_DICT：去空白 ≤4 字 · 互含模糊匹配 · 未收录回退）。
+  void _actDict() {
+    final sel = _sel;
+    if (sel == null) return;
+    final w = _selTxt.replaceAll(RegExp(r'\s'), '');
+    final word = w.length > 4 ? w.substring(0, 4) : w;
+    String? hitKey;
+    for (final k in _kBrDict.keys) {
+      if (word.contains(k) || k.contains(word)) {
+        hitKey = k;
+        break;
+      }
+    }
+    final e = hitKey == null ? null : _kBrDict[hitKey];
+    final bodyText = _selTxt;
+    _clearSel();
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sc) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+          child: Column(
+            key: const ValueKey('sheetBrDict'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                word.isEmpty ? '选词' : word,
+                key: const ValueKey('brDcWord'),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                e == null ? '— · 短语' : '${e.$1} · ${e.$2}',
+                key: const ValueKey('brDcPh'),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                e?.$3 ?? '（本地词典未收录该词 · 可下载扩展词库）',
+                style: const TextStyle(fontSize: 12.5, height: 1.6),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(sc).pop(),
+                      child: const Text('关闭'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey('brDcToQuote'),
+                      onPressed: () {
+                        Navigator.of(sc).pop();
+                        showQuoteEditPage(
+                          context,
+                          ref,
+                          bookId: widget.bookId,
+                          preBody: bodyText,
+                          preThought:
+                              '【$word】${e?.$3 ?? '释义见本地词典包'}',
+                          focusThought: true,
+                        );
+                      },
+                      child: const Text('释义填入想法'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// AI 解读：三重门控通过后调 read.quote_insight（摘录感想生成）。
+  void _actAi() {
+    final sel = _sel;
+    final doc = _doc;
+    if (sel == null || doc == null) return;
+    final quote = _selTxt;
+    final book = _book?.title ?? doc.title;
+    _clearSel();
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sc) => _BrAiSheet(
+        bookId: widget.bookId,
+        quote: quote,
+        book: book,
+        onToQuote: (insight) {
+          Navigator.of(sc).pop();
+          showQuoteEditPage(
+            context,
+            ref,
+            bookId: widget.bookId,
+            preBody: quote.length > 120 ? quote.substring(0, 120) : quote,
+            preThought: '【AI 解读】$insight',
+            focusThought: true,
+          );
+        },
+      ),
+    );
   }
 
   // ---------- 外观（A-/A+/主题循环/模式切换；完整面板批4） ----------
@@ -574,6 +946,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   // ---------- 命中导航 ----------
 
+  /// 全书检索整页（顶栏放大镜）：pop 回结果即挂上/下一处并跳原文。
+  Future<void> _openSearch() async {
+    final doc = _doc;
+    if (doc == null) return;
+    final r = await Navigator.of(context).push(
+      MaterialPageRoute<BrSearchResult>(
+        builder: (_) => ReaderSearchPage(
+          doc: doc,
+          title: _book?.title ?? doc.title,
+        ),
+      ),
+    );
+    if (r == null || !mounted) return;
+    setState(() {
+      _hits = r.hits;
+      _hitQ = r.q;
+      _chrome = true;
+    });
+    _jumpHit(r.idx);
+  }
+
   void _jumpHit(int i) {
     if (i < 0 || i >= _hits.length) return;
     final h = _hits[i];
@@ -629,12 +1022,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             final s = _viewport;
             final p = d.localPosition;
             if (p.dy < s.height * .15 || p.dy > s.height * .85) return;
+            // 中区点按：有选区则先清空；无选区才切换 chrome。
+            if (p.dx >= s.width * .16 && p.dx <= s.width * .84) {
+              if (_sel != null) {
+                _clearSel();
+              } else {
+                setState(() => _chrome = !_chrome);
+              }
+              return;
+            }
             if (p.dx < s.width * .16) {
               _flip(-1);
             } else if (p.dx > s.width * .84) {
               _flip(1);
-            } else {
-              setState(() => _chrome = !_chrome);
             }
           },
           onHorizontalDragEnd: (e) {
@@ -696,6 +1096,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       if (_chrome) _topBar(th),
                       if (_chrome) _bottomBar(th, size),
                       if (_flash != null) _flashBar(th),
+                      if (_sel != null) _selOverlay(size),
                     ],
                     if (_drawerOpen && _doc != null && _pag != null)
                       ReaderTocDrawer(
@@ -795,6 +1196,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       ),
                     ),
                   ),
+                ),
+                // 全书检索入口（双入口之一；另一入口＝抽屉「搜本书」Tab）。
+                IconButton(
+                  key: const ValueKey('brBtnSearch'),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _openSearch,
+                  icon: const Icon(Icons.search_rounded, size: 17, color: Colors.white),
                 ),
               ],
             ),
@@ -1055,9 +1463,161 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
+  /// 选区浮条（原型 brSelBar/brColorPop）：前扩｜七操作｜后扩 + 5色板/删划线。
+  Widget _selOverlay(Size size) {
+    const dark = Color(0xE60F172A);
+    const brand = Color(0xFFA5B4FC);
+    Widget chip(String k, String label, IconData icon, VoidCallback? onTap, {bool accent = false}) =>
+        InkWell(
+          key: ValueKey(k),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: accent ? brand : Colors.white),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                    color: accent ? brand : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    return Positioned(
+      top: size.height * .15,
+      left: 0,
+      right: 0,
+      child: Column(
+        children: [
+          if (_hlPop)
+            Container(
+              key: const ValueKey('brColorPop'),
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: dark, borderRadius: BorderRadius.circular(14)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final tg in BookQuote.colorTags)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        key: ValueKey('brColor-$tg'),
+                        onTap: () => _addHl(tg),
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: Color(
+                              0xFF000000 |
+                                  (BookQuote.hexToInt(
+                                            BookQuote.colorHex[tg],
+                                          ) ??
+                                          0xFDE047),
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white38),
+                          ),
+                        ),
+                      ),
+                    ),
+                  TextButton(
+                    key: const ValueKey('brDelHl'),
+                    onPressed: _delHl,
+                    child: const Text(
+                      '删划线',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Container(
+            key: const ValueKey('brSelBar'),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+            decoration: BoxDecoration(color: dark, borderRadius: BorderRadius.circular(16)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  chip('brGrowL', '前扩', Icons.chevron_left_rounded, () => _growSel(-1), accent: true),
+                  chip('brSelCopy', '复制', Icons.copy_rounded, _actCopy),
+                  chip('brSelHl', '划线', Icons.format_color_text_rounded, () => setState(() => _hlPop = !_hlPop)),
+                  chip('brSelQuote', '书摘', Icons.note_alt_outlined, () => _actQuote(false)),
+                  chip('brSelThink', '感想', Icons.edit_outlined, () => _actQuote(true)),
+                  chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, _actAi),
+                  chip('brSelDict', '词典', Icons.book_outlined, _actDict),
+                  chip('brSelShare', '分享', Icons.ios_share, _actShare),
+                  chip('brGrowR', '后扩', Icons.chevron_right_rounded, () => _growSel(1), accent: true),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _para((String, Color, Color) th, EpubDoc doc, int ci, EpubPara p, int pi) {
     final isHit =
         _hitMark != null && _hitMark!.ci == ci && _hitMark!.pi == pi;
+    // 批3：划线色底（原型 background: c+'44'）与选中段高亮；点段即划词。
+    final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
+    final s = _sel;
+    final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
+    Widget wrap(Widget child) => GestureDetector(
+      key: ValueKey('brpTap-$ci-$pi'),
+      behavior: HitTestBehavior.translucent,
+      onTap: () => _selectPara(ci, pi),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+        decoration: hl == null && !inSel
+            ? null
+            : BoxDecoration(
+                color: inSel
+                    ? const Color(0x4D6366F1)
+                    : hl!.c.withValues(alpha: .27),
+                borderRadius: BorderRadius.circular(3),
+              ),
+        child: (hl?.hasThought ?? false)
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  child,
+                  // 原型 br-pulse 橙点：该划线带感想，点按提示去书摘库查看。
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 2),
+                    child: GestureDetector(
+                      key: ValueKey('brHlDot-$ci-$pi'),
+                      onTap: () => readToast(context, '该划线已在书摘库 · 详情页可查看'),
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF97316),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : child,
+      ),
+    );
     switch (p.kind) {
       case EpubParaKind.image:
         final bytes = doc.images[p.imgSrc];
@@ -1094,32 +1654,39 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ),
         );
       case EpubParaKind.heading:
+        // 段间距放检测器外：空隙带仍归 body 分派（中区点按开收 chrome）。
         return Padding(
           padding: const EdgeInsets.only(top: 16, bottom: 12),
-          child: Text(
-            p.text,
-            style: TextStyle(
-              fontSize: _cfg.fs * 1.25,
-              height: _cfg.lh,
-              fontWeight: FontWeight.w800,
-              color: th.$3,
+          child: wrap(
+            Text(
+              p.text,
+              style: TextStyle(
+                fontSize: _cfg.fs * 1.25,
+                height: _cfg.lh,
+                fontWeight: FontWeight.w800,
+                color: th.$3,
+              ),
             ),
           ),
         );
       case EpubParaKind.quote:
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.only(left: 11),
-          decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: th.$3, width: 3)),
-          ),
-          child: Text(
-            p.text,
-            style: TextStyle(
-              fontSize: _cfg.fs,
-              height: _cfg.lh,
-              letterSpacing: _cfg.ls,
-              color: th.$3.withValues(alpha: .85),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: wrap(
+            Container(
+              padding: const EdgeInsets.only(left: 11),
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: th.$3, width: 3)),
+              ),
+              child: Text(
+                p.text,
+                style: TextStyle(
+                  fontSize: _cfg.fs,
+                  height: _cfg.lh,
+                  letterSpacing: _cfg.ls,
+                  color: th.$3.withValues(alpha: .85),
+                ),
+              ),
             ),
           ),
         );
@@ -1127,9 +1694,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         return Padding(
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),
-          child: Text.rich(
-            _textSpan(th, doc, ci, p, pi, isHit),
-            textAlign: TextAlign.justify,
+          child: wrap(
+            Text.rich(
+              _textSpan(th, doc, ci, p, pi, isHit),
+              textAlign: TextAlign.justify,
+            ),
           ),
         );
     }
@@ -1214,5 +1783,145 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
     flush(display.length);
     return TextSpan(style: base, children: children);
+  }
+}
+
+/// AI 解读弹层（原型 sheetBrAi）：门控→请求→展示 insight；可复制/填想法。
+class _BrAiSheet extends ConsumerStatefulWidget {
+  const _BrAiSheet({
+    required this.bookId,
+    required this.quote,
+    required this.book,
+    required this.onToQuote,
+  });
+
+  final String bookId;
+  final String quote;
+  final String book;
+  final void Function(String insight) onToQuote;
+
+  @override
+  ConsumerState<_BrAiSheet> createState() => _BrAiSheetState();
+}
+
+class _BrAiSheetState extends ConsumerState<_BrAiSheet> {
+  String? _insight;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    final ai = ref.read(aiServiceProvider);
+    final denial = await ai.gate('read.quote_insight');
+    if (!mounted) return;
+    if (denial != null) {
+      setState(() => _err = denial);
+      return;
+    }
+    setState(() {});
+    try {
+      final r = await ai.request('read.quote_insight', {
+        'quote': widget.quote,
+        'book': widget.book,
+      });
+      if (!mounted) return;
+      final m = r.json;
+      final txt = m != null ? '${m['insight'] ?? ''}' : (r.text ?? '').trim();
+      setState(() => _insight = txt.isEmpty ? '（返回为空）' : txt);
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() => _err = e is AiDenied ? e.reason : '解读失败 · 稍后再试');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+        child: Column(
+          key: const ValueKey('sheetBrAi'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'AI 解读',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.quote,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              key: const ValueKey('brAiOut'),
+              height: 108,
+              child: _err != null
+                  ? Text(_err!, style: const TextStyle(fontSize: 12, height: 1.6))
+                  : _insight == null
+                  ? Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '正在结合上下文解读…',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      child: Text(
+                        _insight!,
+                        style: const TextStyle(fontSize: 13, height: 1.7),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('brAiCopy'),
+                    onPressed: _insight == null
+                        ? null
+                        : () {
+                            Clipboard.setData(ClipboardData(text: _insight!));
+                            readToast(context, '解读已复制');
+                          },
+                    child: const Text('复制'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    key: const ValueKey('brAiToQuote'),
+                    onPressed: _insight == null
+                        ? null
+                        : () => widget.onToQuote(_insight!),
+                    child: const Text('填为感想'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
