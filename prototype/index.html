@@ -87,6 +87,28 @@ tailwind.config = {
   .dark .quote-line{color:#94a3b8}
   .border-l-peach{border-left-color:#fb7185!important}.border-l-mint{border-left-color:#2dd4bf!important}
   .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px}
+  /* V1.50 批3.6 V4 · 日志行版式（补齐搬移缺失：等宽/级别配色/来源标签/行分隔；色值沿用 sync 专版口径；字号滚轮经 #logBoxWrap 级联） */
+  #logBoxWrap{font-size:11px}
+  .logline{display:flex;gap:7px;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1em;line-height:1.8;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent)}
+  .logline:last-child{border-bottom:none}
+  .logline .lt{color:#94a3b8;flex-shrink:0}
+  .dark .logline .lt{color:#64748b}
+  .logline .ll{flex-shrink:0;font-weight:800;width:3.4em;color:#0ea5e9}
+  .logline.lv-WARN .ll{color:#f59e0b}
+  .logline.lv-ERROR .ll{color:#ef4444}
+  .logline .ls{flex-shrink:0;align-self:flex-start;margin-top:2px;font-size:9px;font-weight:800;color:#64748b;background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:1px 5px}
+  .logline .lm{flex:1;min-width:0;color:#0f172a;word-break:break-all}
+  .dark .logline .lm{color:#e2e8f0}
+  .logline.lv-WARN{background:color-mix(in srgb,#f59e0b 5%,transparent)}
+  .logline.lv-ERROR{background:color-mix(in srgb,#ef4444 6%,transparent)}
+  /* V1.50批3.6 V5：横滑选择器（hpick）——左右滑动/点选切换，选中态对齐 seg-on；首尾 hsp 弹性占位保证首末项可居中 */
+  .hpick{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:5px;border-radius:14px;background:color-mix(in srgb,var(--card-bd) 55%,transparent)}
+  .hpick::-webkit-scrollbar{display:none}
+  .hsp{flex:0 0 calc(50% - 30px);min-width:10px}
+  .hopt{flex:0 0 auto;min-width:52px;text-align:center;padding:9px 10px;border-radius:11px;font-size:13px;font-weight:700;color:#64748b;scroll-snap-align:center;opacity:.72;transition:opacity .15s,box-shadow .15s}
+  .dark .hopt{color:#94a3b8}
+  .hopt.hon{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12);opacity:1}
+  .dark .hopt.hon{color:var(--accent-l)}
   .dark .grabber{background:#475569}
   .toggle{width:40px;height:23px;border-radius:99px;background:#cbd5e1;position:relative;transition:.2s;flex-shrink:0;display:inline-block;cursor:pointer}
   .toggle::after{content:'';position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
@@ -302,6 +324,9 @@ tailwind.config = {
     </div>
     <button id="btnRecSwitch" class="hidden w-9 h-9 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleRecSwitchMenu()" title="切换 日记/笔记/阅读/影音游">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.5 20 7.5l-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/></svg>
+    </button>
+    <button id="btnLogCfg" class="hidden w-9 h-9 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="openSheet('sheetLogSettings')" title="日志筛选与配置">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
     </button>
     <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
@@ -1503,20 +1528,15 @@ tailwind.config = {
       <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
     </section>
 
-    <!-- ===== P12g 二级：日志管理（V1.50 批 3.6 · 从 sync 专版移入全局 · 单行复制/筛选配置收进设置钮/字号调节/扩大显示） ===== -->
-    <section id="p-logs" class="page px-5 safe-pb no-scrollbar">
-      <div class="mt-3">
-        <div class="flex items-center gap-2">
-          <b class="text-sm">📋 日志管理</b>
-          <!-- V1.50 批 3.6 修订：右上角设置钮 -->
-          <button onclick="openSheet('sheetLogSettings')" class="ml-auto w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-          </button>
-        </div>
+    <!-- ===== P12g 二级：日志管理（V1.50 批 3.6 · 从 sync 专版移入全局 · V5：无底栏通底/齿轮入顶栏/横滑选择器/日志行补样式） ===== -->
+    <section id="p-logs" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 mb-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <span class="truncate">窗口 120 条 · 缓冲 300 · 落盘按天 · 单文件 5 MB</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="copyAllLogs()">复制全部</button>
       </div>
 
-      <!-- 日志列表（expanded 显示区） -->
-      <div class="card mt-3 !p-0 overflow-hidden" id="logBoxWrap" style="max-height: calc(100vh - 240px); overflow-y: auto;">
+      <!-- 日志列表（长按一行 = 复制该行） -->
+      <div class="card mt-1 !p-0 overflow-hidden" id="logBoxWrap" style="max-height: calc(100vh - 158px); overflow-y: auto;">
         <!-- V1.50：时间戳加日期前缀 + 长按复制 -->
         <div class="logline lv-INFO"  data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
           <span class="lt">09-27 08:29:58.412</span>
@@ -1602,42 +1622,32 @@ tailwind.config = {
       <div id="sheetLogSettings" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLogSettings')">
         <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
           <div class="grabber"></div>
-          <div class="font-extrabold">🔧 日志筛选与配置</div>
+          <div class="font-extrabold">日志筛选与配置</div>
           
-          <!-- Tab 切换：筛选 | 配置 -->
-          <div class="flex gap-2 mt-4 mb-4">
-            <button class="flex-1 seg-on py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 font-bold" onclick="logTab('filter',this)">筛选</button>
-            <button class="flex-1 py-2 rounded-xl text-slate-500" onclick="logTab('config',this)">配置</button>
+          <!-- Tab 切换：筛选 | 配置（全局分段控件样式） -->
+          <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold mt-3">
+            <button id="logTabF" class="seg-on flex-1 rounded-lg py-1.5 font-bold" onclick="logTab('filter')">筛选</button>
+            <button id="logTabC" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logTab('config')">配置</button>
           </div>
           
           <!-- 筛选 Tab -->
           <div id="logFilterTab">
-            <!-- 窗口信息条 -->
-            <div class="card !p-2 mb-4">
-              <div class="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
-                <span class="chip">窗口 · 最近 120 条</span>
-                <span class="chip">环形缓冲 300</span>
-                <span class="chip">落盘 logs/ · 按天 · 单文件封顶 5 MB</span>
-                <span style="flex:1"></span>
-                <button class="mini-btn" onclick="toast('已复制全量日志 · 凭据已脱敏')">复制全部</button>
+            <!-- 窗口信息条已上移页面顶部（V4） -->
+            <!-- 级别（全局分段控件样式） -->
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">级别</div>
+              <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+                <button id="logLvAll" class="seg-on flex-1 rounded-lg py-1.5 font-bold" onclick="logLvSet('all','logLvAll')">全部</button>
+                <button id="logLvWarn" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logLvSet('warn','logLvWarn')">警告+</button>
+                <button id="logLvErr" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logLvSet('error','logLvErr')">错误</button>
               </div>
             </div>
             
-            <!-- 级别 -->
-            <div class="mb-4">
-              <div class="text-xs font-bold text-slate-500 mb-2">级别</div>
-              <div class="flex gap-2">
-                <button class="seg-on flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 font-bold" onclick="filterLv('all',this)">全部</button>
-                <button class="py-2 rounded-xl text-slate-500" onclick="filterLv('warn',this)">警告+</button>
-                <button class="py-2 rounded-xl text-slate-500" onclick="filterLv('error',this)">错误</button>
-              </div>
-            </div>
-            
-            <!-- 来源 -->
-            <div class="mb-4">
-              <div class="text-xs font-bold text-slate-500 mb-2">来源</div>
-              <div class="flex flex-wrap gap-2">
-                <button class="chip" onclick="filterSrc(this,'all')">全部</button>
+            <!-- 来源（LH-K03 胶囊选中态 chip-on） -->
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">来源</div>
+              <div class="flex flex-wrap gap-2" id="logSrcRow">
+                <button class="chip chip-on" onclick="filterSrc(this,'all')">全部</button>
                 <button class="chip" onclick="filterSrc(this,'同步')">同步</button>
                 <button class="chip" onclick="filterSrc(this,'备份')">备份</button>
                 <button class="chip" onclick="filterSrc(this,'AI')">AI</button>
@@ -1648,37 +1658,32 @@ tailwind.config = {
             </div>
             
             <!-- 关键词 -->
-            <div>
-              <div class="text-xs font-bold text-slate-500 mb-2">关键词</div>
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">关键词</div>
               <input id="logKwInp" class="inp w-full" placeholder="搜关键词..." oninput="applyKwFilter()">
             </div>
           </div>
           
-          <!-- 配置 Tab -->
+          <!-- 配置 Tab（V5：横滑选择器 hpick——左右滑动或点选切换，替代上下滚轮） -->
           <div id="logConfigTab" class="hidden">
-            <!-- 字号滚轮 -->
-            <div class="mb-4">
-              <div class="text-xs font-bold text-slate-500 mb-2">字号调节</div>
-              <div class="wheel" id="logFontSize" style="height:80px">
-                <div class="pad"></div>
-                <div class="witem" onclick="logFontSizePick(this,10)">10px</div>
-                <div class="witem on" onclick="logFontSizePick(this,12)">12px</div>
-                <div class="witem" onclick="logFontSizePick(this,14)">14px</div>
-                <div class="witem" onclick="logFontSizePick(this,16)">16px</div>
-                <div class="pad"></div>
+            <!-- 日志字号（9 档） -->
+            <div class="mt-2">
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">日志字号</div>
+                <b class="text-xs" id="logFontVal" style="color:var(--accent)">11px</b>
               </div>
+              <div id="logFont" class="hpick"></div>
+              <div class="text-[10px] text-slate-400 mt-1">左右滑动选择 · 立即预览</div>
             </div>
-            
+
             <!-- 保留天数 -->
-            <div class="mb-4">
-              <div class="text-xs font-bold text-slate-500 mb-2">落盘日志保留</div>
-              <div class="wheel" id="wheelKeep">
-                <div class="pad"></div>
-                <div class="witem" onclick="wheelPick(this)">7 天</div>
-                <div class="witem on" onclick="wheelPick(this)">14 天</div>
-                <div class="witem" onclick="wheelPick(this)">30 天</div>
-                <div class="pad"></div>
+            <div class="mt-3">
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">落盘日志保留</div>
+                <b class="text-xs" id="logKeepVal" style="color:var(--accent)">14 天</b>
               </div>
+              <div id="logKeep" class="hpick"></div>
+              <div class="text-[10px] text-slate-400 mt-1">过期日志自动清理（模拟）</div>
             </div>
           </div>
         </div>
@@ -2491,7 +2496,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2533,7 +2538,9 @@ function setPage(p){
   const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
   const _imm=p==='p-noteEdit'||p==='p-diaryEdit'; /* V1.29：笔记编辑页全屏沉浸·隐藏全局头部与底栏；轮12-3：写日记页同款全屏（自带返回头，不露底栏/搜索） */
   if(_th)_th.classList.toggle('hidden',_imm||(p==='calendar'&&stack.length===0)||(p==='p-calendar'&&stack.length===0));
-  if(_tn)_tn.classList.toggle('hidden',_imm);
+  if(_tn)_tn.classList.toggle('hidden',_imm||p==='p-logs'); /* V1.50批3.6 V5：日志页无底栏（日志窗通底） */
+  const _mn=document.querySelector('main'); /* V1.50批3.6 V5：p-logs 时 main 吃掉底栏 70px 高度，日志窗直达屏幕底（148=顶栏预留78+底栏70） */
+  if(_mn)_mn.style.height=(p==='p-logs')?'calc(100% - 78px)':'';
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
   $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
@@ -2542,6 +2549,8 @@ function setPage(p){
   $('#btnTodoViewToggle').classList.toggle('flex',p==='p-todo');
   $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
   $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
+  const _blc=$('#btnLogCfg'); /* V1.50批3.6 V5：日志配置齿轮入顶栏，仅日志页显示 */
+  if(_blc){_blc.classList.toggle('hidden',p!=='p-logs');_blc.classList.toggle('flex',p==='p-logs');}
   hideRecSwitchMenu(); renderRecSwitch();
   if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}
     const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}
@@ -4232,36 +4241,76 @@ document.addEventListener('keydown',e=>{if(curPage!=='p-noteEdit')return;
   if(e.key==='ArrowRight')pwSwipe(1);if(e.key==='ArrowLeft')pwSwipe(-1);});
 renderPwBar();
 
-/* ================= V1.50 批 3.6 · 日志筛选与配置函数 ================= */
+/* ================= V1.50 批 3.6 · 日志筛选与配置（V5：横滑选择器 hpick + 分段 seg-on + 胶囊 chip-on） ================= */
 var logLv='all',logSrc='all',logKw='';
-function logTab(tab,btn){
+/* 横滑选择器：左右滑动 scroll-snap 吸中 / 点选居中，选中项对齐 seg-on 观感；首尾 hsp 占位使首末项可真正居中 */
+const HPICKS={};
+function hOpts(id){const el=$('#'+id);return el?[...el.querySelectorAll('.hopt')]:[]}
+function hReg(id,items,i,onch){
+  const el=$('#'+id);if(!el)return;HPICKS[id]={items,i:Math.max(0,Math.min(items.length-1,i||0)),onch};
+  el.innerHTML='<div class="hsp"></div>'+items.map((v,k)=>'<div class="hopt'+(k===HPICKS[id].i?' hon':'')+'" data-k="'+k+'">'+v+'</div>').join('')+'<div class="hsp"></div>';
+  el.onclick=e=>{const t=e.target.closest('.hopt');if(t)hGo(id,+t.dataset.k);};
+  el.onscroll=()=>{clearTimeout(HPICKS[id]._tm);HPICKS[id]._tm=setTimeout(()=>hSync(id,true),90);};
+  hPos(id);
+}
+function hPos(id){const w=HPICKS[id],el=$('#'+id);if(!w||!el)return;
+  if(el.offsetParent===null){requestAnimationFrame(()=>hPos(id));return}
+  const os=hOpts(id),c=os[w.i];if(c)el.scrollLeft=c.offsetLeft-(el.clientWidth-c.offsetWidth)/2;hSync(id,false);}
+function hSync(id,fire){const w=HPICKS[id],el=$('#'+id);if(!w||!el)return;
+  if(el.scrollWidth<=el.clientWidth+1)return; /* 不可滚（内容不足）时不重判，保持注册项 */
+  const mid=el.scrollLeft+el.clientWidth/2;let best=w.i,bd=1e9;
+  hOpts(id).forEach((c,k)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=k}});
+  if(best!==w.i){w.i=best;hOpts(id).forEach((c,k)=>c.classList.toggle('hon',k===best));if(fire&&w.onch)w.onch(w.items[best]);}}
+function hGo(id,k){const w=HPICKS[id],el=$('#'+id);const os=hOpts(id),c=os[k];if(!w||!c)return;
+  el.scrollTo({left:c.offsetLeft-(el.clientWidth-c.offsetWidth)/2,behavior:'smooth'});}
+function logTab(tab){
+  var on='seg-on flex-1 rounded-lg py-1.5 font-bold',off='flex-1 rounded-lg py-1.5 text-slate-500';
+  $('#logTabF').className=tab==='filter'?on:off;
+  $('#logTabC').className=tab==='config'?on:off;
   $('#logFilterTab').classList.toggle('hidden',tab!=='filter');
   $('#logConfigTab').classList.toggle('hidden',tab!=='config');
-  $$('#sheetLogSettings .seg-btn').forEach(b=>{b.classList.remove('on','bg-brand-50','dark:bg-brand-500/10','text-brand-500');});
-  btn.classList.add('on','bg-brand-50','dark:bg-brand-500/10','text-brand-500');
+  if(tab==='config'){
+    if(!HPICKS.logFont){
+      hReg('logFont',['10','11','12','13','14','15','16','18','20'],1,function(v){
+        $('#logBoxWrap').style.fontSize=v+'px';$('#logFontVal').textContent=v+'px';});
+      hReg('logKeep',['7 天','14 天','30 天'],1,function(v){
+        $('#logKeepVal').textContent=v;toast('落盘日志保留已设为 '+v+'（模拟）');});
+    }
+    hPos('logFont');hPos('logKeep');
+  }
 }
-function filterLv(lv,btn){logLv=lv;$$('#sheetLogSettings [onclick^="filterLv"]').forEach(b=>{b.classList.toggle('on',b===btn);});applyLogFilter();}
-function filterSrc(btn,src){logSrc=src;$$('#sheetLogSettings [data-src="'+src+'"]').forEach(b=>{b.classList.toggle('on',b===btn);});applyLogFilter();}
+function logLvSet(lv,id){
+  logLv=lv;
+  [['logLvAll','all'],['logLvWarn','warn'],['logLvErr','error']].forEach(function(p){
+    var b=$('#'+p[0]),on=p[1]===lv;
+    b.className=(on?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(on?' font-bold':' text-slate-500');
+  });
+  applyLogFilter();
+}
+function filterSrc(btn,src){
+  logSrc=src;
+  $$('#logSrcRow .chip').forEach(function(b){b.classList.remove('chip-on');});
+  btn.classList.add('chip-on');
+  applyLogFilter();
+}
 function applyKwFilter(){logKw=$('#logKwInp').value.trim();applyLogFilter();}
 function applyLogFilter(){
-  var n=0;
   $$('#logBoxWrap .logline').forEach(function(l){
-    var okLv=logLv==='all'||(logLv==='warn'&&l.dataset.lv.match(/WARN|ERROR/))||(logLv==='error'&&l.dataset.lv==='ERROR');
+    var okLv=logLv==='all'||(logLv==='warn'&&/WARN|ERROR/.test(l.dataset.lv))||(logLv==='error'&&l.dataset.lv==='ERROR');
     var okSrc=logSrc==='all'||l.dataset.src===logSrc;
     var okKw=!logKw||l.querySelector('.lm').textContent.indexOf(logKw)>=0;
     l.style.display=(okLv&&okSrc&&okKw)?'':'none';
-    if(okLv&&okSrc&&okKw)n++;
   });
 }
-function logFontSizePick(el,size){
-  $$('#logFontSize .witem').forEach(i=>i.classList.remove('on'));
-  el.classList.add('on');
-  $('#logBoxWrap').style.fontSize=size+'px';
+function copyLogLine(line){
+  var text=line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent.trim()+' ['+line.querySelector('.ls').textContent+'] '+line.querySelector('.lm').textContent;
+  navigator.clipboard.writeText(text).then(function(){toast('已复制该行日志');}).catch(function(){toast('复制失败');});
 }
-function copyLogLine(btn){
-  var line=btn.closest('.logline');
-  var text=line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent+' '+line.querySelector('.ls').textContent+' '+line.querySelector('.lm').textContent;
-  navigator.clipboard.writeText(text).then(function(){toast('已复制该行日志');}).catch(function(){toast('复制失败');});}
+function copyAllLogs(){
+  var t=[];
+  $$('#logBoxWrap .logline').forEach(function(l){t.push(l.textContent.replace(/\s+/g,' ').trim());});
+  navigator.clipboard.writeText(t.join('\n')).then(function(){toast('已复制全量日志 · 凭据已脱敏');}).catch(function(){toast('复制失败');});
+}
 </script>
 </body>
 </html>
