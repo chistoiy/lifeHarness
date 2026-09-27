@@ -145,6 +145,76 @@ Future<int?> showLAcctPick(
   heightFactor: .62,
 );
 
+// ============ 导入账户对应弹层（与分类选择同套交互 · V1.51） ============
+
+/// 账单导入「账户匹配」用：列「新建「src」」+ 现有账户，返回 '__new' 或账户 id 字符串。
+Future<String?> showLAcctPickForImport(
+  BuildContext context, {
+  required String src,
+  required String curPick,
+}) => showLSheet<String>(
+  context,
+  Consumer(
+    builder: (sheetCtx, ref, _) {
+    final d = ref.watch(ledgerDataProvider).valueOrNull;
+    if (d == null) return const SizedBox.shrink();
+    final scheme = Theme.of(sheetCtx).colorScheme;
+    Widget item(String val, Widget leading, String label) => InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Navigator.pop(sheetCtx, val),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        child: Row(children: [
+          leading,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w800)),
+          ),
+          if (curPick == val)
+            Icon(Icons.check, size: 18, color: scheme.primary),
+        ]),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LSheetHead(title: '「$src」对应到'),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                item('__new',
+                    LTile(
+                        iconKey: 'plus',
+                        color: '#f59e0b',
+                        size: 32,
+                        radius: 11),
+                    '新建「$src」'),
+                for (final a in d.accounts.where((x) => !x.archived))
+                  item('${a.id}',
+                      LTile(
+                          iconKey: a.icon,
+                          color: a.color,
+                          size: 32,
+                          radius: 11),
+                      a.name),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }),
+  heightFactor: .6,
+);
+
 // ============ S10 角色选择/管理（原型 openWhoPick） ============
 
 /// [mg]=true 打开即管理态（原型 openWhoPick(true)·L13 设置页行入口）。

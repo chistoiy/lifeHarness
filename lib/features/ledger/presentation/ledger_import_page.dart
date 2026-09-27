@@ -12,7 +12,7 @@ import '../data/ledger_repository.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_models.dart';
 import '../domain/ledger_txn.dart';
-import 'ledger_pick_sheets.dart' show showLCatPick;
+import 'ledger_pick_sheets.dart' show showLCatPick, showLAcctPickForImport;
 import 'ledger_providers.dart';
 import 'widgets/ledger_kit.dart';
 
@@ -542,137 +542,81 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     final d = ref.watch(ledgerDataProvider).valueOrNull;
     if (d == null) return const [];
     final nw = _picks.where((p) => p == '__new').length;
+    String pickName(int i) {
+      if (_picks[i] == '__new') return '新建「${_agg[i].$1}」';
+      return d.acctById[int.tryParse(_picks[i]) ?? -1]?.name ?? '未对应';
+    }
+
     return [
       const Text(
         '账户匹配',
         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 2),
-      Text(
-        '从账单「付款方式」列识别出以下账户，逐一指定写入的本地账户；'
-        '未对应的默认自动新建，已对应的也可改',
-        style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), height: 1.4),
+      const Text(
+        '从账单「付款方式」列识别出以下账户，点击逐条指定写入的本地账户；'
+        '未对应的默认新建，已对应的也可改',
+        style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8), height: 1.4),
       ),
       const SizedBox(height: 12),
       for (var i = 0; i < _agg.length; i++)
         Builder(
           builder: (bc) {
-            final (src, cnt, type) = _agg[i];
+            final (src, cnt, _) = _agg[i];
             final isNew = _picks[i] == '__new';
-            final opts = [
-              (
-                '__new',
-                '自动新建账户「$src」',
-              ),
-              for (final a in d.accounts.where((x) => !x.archived))
-                ('${a.id}', a.name),
-            ];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: context.cardDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      LTile(
-                        iconKey: isNew ? 'plus' : 'link',
-                        color: isNew ? '#f59e0b' : '#6366f1',
-                        size: 32,
-                        radius: 10,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              src,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
+            return InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () async {
+                final res = await showLAcctPickForImport(
+                    bc, src: src, curPick: _picks[i]);
+                if (res != null) setState(() => _picks[i] = res);
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: context.cardDecoration,
+                child: Row(
+                  children: [
+                    LTile(
+                      iconKey: isNew ? 'plus' : 'link',
+                      color: isNew ? '#f59e0b' : '#6366f1',
+                      size: 32,
+                      radius: 10,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            src,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
                             ),
-                            Text(
-                              '出现 $cnt 笔 · 来自付款方式列',
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (isNew
-                                  ? const Color(0xFFF59E0B)
-                                  : const Color(0xFF10B981))
-                              .withValues(alpha: .12),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          isNew ? '未对应 · 将新建' : '已对应 · 可改',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: isNew
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF10B981),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Theme.of(bc).colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: opts.any((o) => o.$1 == _picks[i])
-                            ? _picks[i]
-                            : '__new',
-                        isExpanded: true,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        items: [
-                          for (final (v, t) in opts)
-                            DropdownMenuItem(value: v, child: Text(t)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '出现 $cnt 笔 · 对应到「${pickName(i)}」',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: isNew
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFF10B981),
+                            ),
+                          ),
                         ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _picks[i] = v);
-                        },
                       ),
                     ),
-                  ),
-                  // 未使用 type 提示行仅在调试可见；保留建型信息。
-                  if (isNew && type == LedgerAccount.kCredit)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Text(
-                        '信用卡 · 额度默认 0，可在资产页调整',
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ),
-                ],
+                    const Icon(Icons.keyboard_arrow_right,
+                        size: 18, color: Color(0xFFCBD5E1)),
+                  ],
+                ),
               ),
             );
           },
