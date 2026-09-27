@@ -458,7 +458,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // 阅读主屏（p-readerPage · 栈内全屏页，TimerBarOverlay 壳外不显胶囊）。
       GoRoute(
         path: '/read/import-epub',
-        builder: (_, _) => const LocalImportPage(),
+        // 批3.5：?reattach=<bookId> ＝ 源丢失重选模式（选中原文件挂回原记录）。
+        builder: (_, s) =>
+            LocalImportPage(reattachBookId: s.uri.queryParameters['reattach']),
       ),
       GoRoute(
         path: '/read/reader/:id',

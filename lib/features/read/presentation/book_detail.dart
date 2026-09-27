@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
+import 'epub_state_ui.dart';
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
@@ -400,7 +402,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
   }
 
   /// 本地 EPUB 卡（原型 brDcard · V1.50）：源文件与 fmt + 打开阅读器直达。
-  /// 「全书检索 / 删除…」按钮随批3/批4 能力接上。
+  /// 批3.5：打开钮走状态守卫；尾插「本地副本与缓存」四态行。
   Widget _localEpubCard(ColorScheme cs, Book b) {
     final tokens = context.tokens;
     final ep = b.epub;
@@ -436,7 +438,10 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
           const SizedBox(height: 10),
           GestureDetector(
             key: const ValueKey('br-d-open'),
-            onTap: () => context.push('/read/reader/${b.id}'),
+            onTap: () async {
+              if (await brTapGuarded(context, ref, b)) return;
+              if (mounted) context.push('/read/reader/${b.id}');
+            },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -455,8 +460,136 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
               ),
             ),
           ),
+          if (ep != null) _cacheRow(cs, b, ep),
         ],
       ),
+    );
+  }
+
+  /// 本地副本与缓存行（原型 brDcache · 批3.5 四态：预载中/已清可读/已清丢失/就绪）。
+  Widget _cacheRow(ColorScheme cs, Book b, EpubRef ep) {
+    final tokens = context.tokens;
+    Widget body;
+    switch (ep.state) {
+      case 'pre':
+        body = Column(
+          key: const ValueKey('br-dcache-pre'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '整本预载中 · 解析与分页计算 · 完成前不可进入阅读',
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: Consumer(
+                builder: (_, ref2, _) {
+                  ref2.watch(epubPreloadProvider);
+                  final pr =
+                      (ref2.read(epubPreloadProvider).info(b.id)?.pr ?? ep.pr)
+                          .clamp(0, 100) /
+                      100;
+                  return LinearProgressIndicator(
+                    value: pr,
+                    minHeight: 4,
+                    backgroundColor: cs.surfaceContainerHighest,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      case 'cl':
+        final srcOk = (ep.srcPath != null && File(ep.srcPath!).existsSync());
+        body = Column(
+          key: ValueKey(srcOk ? 'br-dcache-cl' : 'br-dcache-lost'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              srcOk
+                  ? '本地副本已清理 · 源文件仍可读 · 记录与书摘完整保留'
+                  : '本地副本已清理 · 原文件已不存在 · 记录与书摘完整保留',
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.5,
+                color: srcOk ? cs.onSurfaceVariant : const Color(0xFFE11D48),
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              key: ValueKey(srcOk ? 'br-d-reload' : 'br-d-repick'),
+              onTap: () => srcOk
+                  ? brShowReloadSheet(context, ref, b)
+                  : brShowLostSheet(context, ref, b),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: srcOk ? tokens.gradient : null,
+                  color: srcOk ? null : const Color(0xFFF59E0B),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  srcOk ? '重新载入本地副本' : '重新选择文件',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      default:
+        body = Row(
+          key: const ValueKey('br-dcache-rdy'),
+          children: [
+            Expanded(
+              child: Text(
+                '本地副本 + 分页缓存 · 源文件在原始位置保留',
+                style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+              ),
+            ),
+            GestureDetector(
+              key: const ValueKey('br-d-clearcache'),
+              onTap: () => brShowCacheSheet(context, ref, b),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0x59D97706)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  '清理缓存',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFD97706),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: .4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          left: BorderSide(color: const Color(0xFFD97706), width: 3),
+        ),
+      ),
+      child: body,
     );
   }
 

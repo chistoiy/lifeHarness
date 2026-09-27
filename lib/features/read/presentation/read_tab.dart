@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
 import 'book_detail.dart' show BookDetailArg;
+import 'epub_state_ui.dart';
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
@@ -442,14 +443,19 @@ class _RailCard extends ConsumerWidget {
       child: GestureDetector(
         key: ValueKey('rail-${book.id}'),
         // V1.50 分流：本地书点封面直达阅读器（与书架 _tapWrap 同语义）。
-        onTap: () => context.push(
-          book.local ? '/read/reader/${book.id}' : '/read/book/${book.id}',
-        ),
+        // 批3.5：预载中/已清缓存先走状态守卫。
+        onTap: () async {
+          if (await brTapGuarded(context, ref, book)) return;
+          if (!context.mounted) return;
+          context.push(
+            book.local ? '/read/reader/${book.id}' : '/read/book/${book.id}',
+          );
+        },
         onLongPress: () => showLongPressSheet(context, ref, book),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BsCover(book: book),
+            BsCover(book: book, showStateOverlay: true),
             Padding(
               padding: const EdgeInsets.only(top: 6, bottom: 5),
               child: Text(

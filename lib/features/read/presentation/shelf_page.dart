@@ -13,6 +13,7 @@ import '../domain/book_quote.dart';
 import '../domain/book_session.dart';
 import '../domain/shelf_query.dart';
 import 'read_actions.dart';
+import 'epub_state_ui.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
 import 'widgets/bs_cover.dart';
@@ -1138,9 +1139,17 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     key: ValueKey('sh-item-$pfx${b.id}'),
     // V1.50 分流：本地书点封面＝直接进阅读器（原型 shOpen 包装器同语义），
     // 非本地书行为不变；多选态优先。
-    onTap: () => ui.batch
-        ? _selTap(ui, b)
-        : context.push(b.local ? '/read/reader/${b.id}' : '/read/book/${b.id}'),
+    // 批3.5：预载中/已清缓存先走状态守卫（提示或三态弹层），不放行。
+    onTap: () async {
+      if (ui.batch) {
+        _selTap(ui, b);
+        return;
+      }
+      final blocked = await brTapGuarded(context, ref, b);
+      if (blocked) return;
+      if (!context.mounted) return;
+      context.push(b.local ? '/read/reader/${b.id}' : '/read/book/${b.id}');
+    },
     onLongPress: ui.batch ? null : () => showLongPressSheet(context, ref, b),
     child: child,
   );
@@ -1172,6 +1181,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                   book: b,
                   width: double.infinity,
                   height: double.infinity,
+                  showStateOverlay: true,
                   onBadgeTap: ui.batch
                       ? null
                       : () => cycleBookState(context, ref, b),
@@ -1279,10 +1289,15 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                           ),
                         ),
                       ),
-                      // 原型 brRowBadge：列表行标题后「本地」小胶囊。
+                      // 原型 brRowBadge：列表行标题后「本地」小胶囊；
+                      // 批3.5 三态追加「预载中/已清缓存」琥珀小胶囊。
                       if (b.local) ...[
                         const SizedBox(width: 6),
                         const BrLocalInlineBadge(),
+                        if (b.epub != null && b.epub!.state != 'rdy') ...[
+                          const SizedBox(width: 4),
+                          BrStateInlineBadge(st: b.epub!.state),
+                        ],
                       ],
                     ],
                   ),
@@ -2059,11 +2074,14 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                   ),
                   const SizedBox(height: 6),
                   // 原型 shLongMenu 包装器：本地书置顶「开始阅读 · 本地 EPUB」渐变钮。
+                  // 批3.5：钮走状态守卫（预载中提示 / 已清缓存分流三态弹层）。
                   if (b.local) ...[
                     GestureDetector(
                       key: const ValueKey('lp-read'),
-                      onTap: () {
+                      onTap: () async {
                         Navigator.of(sheetCtx).pop();
+                        if (!context.mounted) return;
+                        if (await brTapGuarded(context, ref2, b)) return;
                         if (context.mounted) {
                           context.push('/read/reader/${b.id}');
                         }

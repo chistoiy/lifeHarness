@@ -232,6 +232,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     setState(() => _book = b);
+    // 批3.5 入口守卫（防御：正常路径书架/详情已拦截）：预载中不可进、
+    // 已清缓存回书架走三态恢复。
+    final ep = b.epub!;
+    if (ep.state == EpubRef.stPreload) {
+      setState(() => _err = '正在预载整本书 · 完成后可进入');
+      return;
+    }
+    if (ep.cleared) {
+      setState(() => _err = '本地副本已清理 · 回书架点封面重新载入');
+      return;
+    }
     // 外观/位置先读，渲染即按记忆恢复（CFI 自动定位 · V1.50 口径③）。
     _cfg = _Cfg.decode(await repo.kv('reader.cfg'));
     _pos = _Pos.decode(await repo.kv('reader.pos.${b.id}'));
@@ -256,7 +267,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       }
     });
     try {
-      final doc = await ref.read(epubDocLoaderProvider)(b.epub!.path);
+      // 秒进：预载缓存命中直接用（分页表也已落盘）；未命中走懒归档再开。
+      final cached = ref.read(epubPreloadProvider).docs.get(b.id);
+      final doc =
+          cached ?? await ref.read(epubDocLoaderProvider)(b.epub!.path);
       if (!mounted) return;
       setState(() => _doc = doc);
       // 首帧已定 _viewport 时 LayoutBuilder 不会再触发；此处直接建分页。
@@ -729,7 +743,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() {
       _cfg = _cfg.copyWith(fs: (_cfg.fs + d).clamp(14.0, 30.0));
     });
-    _rebuildPag();
+    _rebuildPagChapterFirst();
     unawaited(_persistCfg());
   }
 
@@ -747,13 +761,68 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _rebuildPag();
   }
 
+  int _pagGen = 0;
+
   void _rebuildPag() {
     final doc = _doc;
     if (doc == null || _viewport.width <= 0) return;
+    final gen = ++_pagGen;
+    final l = _layout();
+    unawaited(_applyPag(doc, l, gen));
+  }
+
+  /// 分页表优先（批3.5 指纹命中＝秒进）；未命中实算并落盘。
+  Future<void> _applyPag(EpubDoc doc, ReaderLayout l, int gen) async {
+    final svc = ref.read(epubPreloadProvider);
+    BookPagination? pag;
+    if (svc.docsPath != null) {
+      try {
+        pag = await svc.loadPag(widget.bookId, l);
+      } catch (_) {}
+      if (!mounted || gen != _pagGen) return;
+    }
+    final computed = pag == null;
+    pag ??= BookPagination.of(doc, l);
     setState(() {
-      _pag = BookPagination.of(doc, _layout());
+      _pag = pag;
       _clampPos();
     });
+    if (computed && svc.docsPath != null) {
+      unawaited(svc.savePag(widget.bookId, l, pag));
+    }
+  }
+
+  /// 外观变化增量重排（批3.5 口径：当前章毫秒级即时，其余章后台补齐后落盘）。
+  void _rebuildPagChapterFirst() {
+    final doc = _doc;
+    final pag = _pag;
+    if (doc == null || pag == null || _viewport.width <= 0) {
+      _rebuildPag();
+      return;
+    }
+    final l = _layout();
+    final ci = _pos.ci.clamp(0, doc.chapters.length - 1);
+    final gen = ++_pagGen;
+    setState(() {
+      pag.perChapter[ci] = EpubPager.layoutChapter(doc.chapters[ci].paras, l);
+      _clampPos();
+    });
+    unawaited(
+      () async {
+        for (var i = 0; i < doc.chapters.length; i++) {
+          if (i == ci) continue;
+          if (!mounted || gen != _pagGen) return;
+          pag.perChapter[i] = EpubPager.layoutChapter(doc.chapters[i].paras, l);
+          if (i % 6 == 5) {
+            await Future<void>.delayed(Duration.zero);
+          }
+        }
+        if (!mounted || gen != _pagGen) return;
+        setState(_clampPos);
+        final svc = ref.read(epubPreloadProvider);
+        if (svc.docsPath != null) unawaited(svc.savePag(widget.bookId, l, pag));
+      }(),
+    );
   }
 
   ReaderLayout _layout() => ReaderLayout(
@@ -866,7 +935,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _openImage(EpubPara para) {
-    final bytes = _doc?.images[para.imgSrc];
+    final bytes = _doc?.imageBytes(para.imgSrc);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.black,
@@ -1094,7 +1163,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     Positioned.fill(child: _stage(th)),
                     if (_doc != null && _err == null) ...[
                       if (_chrome) _topBar(th),
-                      if (_chrome) _bottomBar(th, size),
+                      if (_chrome && _pag != null) _bottomBar(th, size),
                       if (_flash != null) _flashBar(th),
                       if (_sel != null) _selOverlay(size),
                     ],
@@ -1620,7 +1689,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
     switch (p.kind) {
       case EpubParaKind.image:
-        final bytes = doc.images[p.imgSrc];
+        final bytes = doc.imageBytes(p.imgSrc);
         return Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: GestureDetector(

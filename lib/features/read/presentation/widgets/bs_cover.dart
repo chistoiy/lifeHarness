@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../domain/book.dart';
+import '../epub_state_ui.dart' show BrCoverStateOverlay;
 
 /// 书脊色板（原型 BS_COV 8 组：渐变起/止 + 书脊纯色）。
 const kBsCov = <(Color, Color, Color)>[
@@ -93,6 +94,34 @@ class BrLocalInlineBadge extends StatelessWidget {
   }
 }
 
+/// 列表行标题后的三态小胶囊（批3.5：预载中/已清缓存 · 琥珀底白字）。
+class BrStateInlineBadge extends StatelessWidget {
+  const BrStateInlineBadge({super.key, required this.st});
+
+  /// 'pre' | 'cl'（就绪不渲染由调用方判断）。
+  final String st;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('br-state-inline'),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD97706),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        st == 'pre' ? '预载中' : '已清缓存',
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 /// 色板封面卡（LH-C06）：渐变底 + 右上分区徽标 + 作者行；有封面图则铺图。
 class BsCover extends StatelessWidget {
   const BsCover({
@@ -105,6 +134,7 @@ class BsCover extends StatelessWidget {
     this.showAuthor = true,
     this.showBadge = true,
     this.showLocalBadge = true,
+    this.showStateOverlay = false,
     this.onBadgeTap,
     this.onTap,
   });
@@ -116,6 +146,9 @@ class BsCover extends StatelessWidget {
 
   /// 本地 EPUB 书右下角「本地」角标（墙/轨道/详情封面共用；V1.50）。
   final bool showLocalBadge;
+
+  /// 批3.5 三态覆盖层（预载进度/已清缓存）；大封面处开启。
+  final bool showStateOverlay;
 
   /// 可点状态角标（LH-K17：点按循环切分区，不冒泡进详情）。
   final VoidCallback? onBadgeTap;
@@ -171,6 +204,8 @@ class BsCover extends StatelessWidget {
                   ),
                 if (showLocalBadge && book.local)
                   Positioned(right: 3, bottom: 3, child: const BrLocalBadge()),
+                if (showStateOverlay && book.local)
+                  Positioned.fill(child: BrCoverStateOverlay(book: book)),
                 if (showBadge)
                   Positioned(
                     top: 5,

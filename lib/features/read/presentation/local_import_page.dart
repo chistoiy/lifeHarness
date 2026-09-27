@@ -9,6 +9,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/epub_doc.dart';
 import '../data/epub_import.dart';
 import '../domain/book.dart';
+import 'epub_state_ui.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
 
@@ -17,10 +18,13 @@ import 'read_sheets.dart' show readToast;
 /// 事实源 `prototype/index-bookshelf.html#p-localImport`（BR-1 屏）：
 /// 授权 → 选文件 → 解析五任务 → 元信息核对（含同书合并守卫）。
 /// 步骤深链语义（原型 `_bN`）在 Flutter 侧由 [startStep] 承载（测试直达）。
+/// 批3.5：[reattachBookId] ＝ 源丢失重选模式——选文件后强制挂回该原记录
+/// （书摘/计时/进度共用一条），提交即重新预载（原型 brAttachHint 链路）。
 class LocalImportPage extends ConsumerStatefulWidget {
-  const LocalImportPage({super.key, this.startStep = 1});
+  const LocalImportPage({super.key, this.startStep = 1, this.reattachBookId});
 
   final int startStep;
+  final String? reattachBookId;
 
   @override
   ConsumerState<LocalImportPage> createState() => _LocalImportPageState();
@@ -40,6 +44,7 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
   EpubPick? _pick;
   EpubDoc? _doc;
   Book? _dup;
+  Book? _reattach; // 批3.5：源丢失重选模式的目标原记录
   String? _err; // 解析失败原因（DRM/坏包）
   int _taskDone = 0;
   Timer? _tick;
@@ -52,8 +57,23 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
   bool _tagLocal = true;
 
   @override
+  void initState() {
+    super.initState();
+    final rid = widget.reattachBookId;
+    if (rid != null) {
+      unawaited(
+        ref.read(readRepositoryProvider).bookById(rid).then((b) {
+          if (mounted) setState(() => _reattach = b);
+        }),
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _tick?.cancel();
+    // 批3.5：向导解析走懒归档，离开页面即释放文件句柄（副本/预载另有其档）。
+    _doc?.lazy?.dispose();
     for (final c in [_title, _author, _publisher, _pubDate, _intro]) {
       c.dispose();
     }
@@ -99,7 +119,13 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
         if (mounted) setState(() => _err = '文件无法读取');
         return;
       }
-      final dup = await svc.findDup(doc);
+      var dup = await svc.findDup(doc);
+      // 批3.5 挂回模式：目标锁定原记录（书名可能已被用户改过，不走标题匹配）。
+      if (widget.reattachBookId != null) {
+        dup =
+            await ref.read(readRepositoryProvider).bookById(widget.reattachBookId!) ??
+            dup;
+      }
       if (!mounted) return;
       _tick?.cancel();
       setState(() {
@@ -142,11 +168,13 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     );
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
+    // 批3.5：落库即后台整本预载（完成前封面显进度、不可点进）。
+    brStartPreload(ref, b, context);
     readToast(
       context,
       _dup != null
-          ? '《${b.title}》已附本地文件 · 点封面直接进入阅读'
-          : '《${b.title}》已加入书架 · 「本地」分类与标签已生成 · 源文件保留原位',
+          ? '《${b.title}》已${_reattach != null ? '重新挂回 · 正在预载' : '附本地文件 · 正在预载'}'
+          : '《${b.title}》已加入书架 · 正在后台预载整本 · 源文件保留原位',
     );
     Navigator.of(context).pop();
   }
@@ -406,6 +434,28 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
       key: const ValueKey('br-imp2'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // 批3.5 挂回模式提示（原型 brAttachHint 琥珀条）。
+        if (_reattach != null)
+          Container(
+            key: const ValueKey('brAttachHint'),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: .35),
+              ),
+            ),
+            child: Text(
+              '正在为《${_reattach!.title}》重新选择文件 · 选中原文件即挂回原记录',
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFB45309),
+              ),
+            ),
+          ),
         _card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -609,7 +659,9 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
               ),
             ),
             child: Text(
-              '已存在《${_dup!.title}》（${_dup!.source ?? _dup!.state} · ${_dup!.state}${_dup!.state == Book.kStateReading ? ' ${_dup!.percent}%' : ''}）。推荐把本地文件挂到该记录：书摘、计时、进度共用一条，点封面即可阅读。',
+              _reattach != null
+                  ? '原文件丢失的《${_dup!.title}》仍在书架保留全部记录。本次将把选中的文件挂回原记录：书摘、计时、进度共用一条。'
+                  : '已存在《${_dup!.title}》（${_dup!.source ?? _dup!.state} · ${_dup!.state}${_dup!.state == Book.kStateReading ? ' ${_dup!.percent}%' : ''}）。推荐把本地文件挂到该记录：书摘、计时、进度共用一条，点封面即可阅读。',
               style: const TextStyle(
                 fontSize: 11,
                 height: 1.55,
@@ -737,7 +789,9 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
           ],
         ),
         _gradBtn(
-          _dup != null ? '合并到已有记录 · 附本地文件' : '加入书架 · 开始阅读',
+          _dup != null
+              ? (_reattach != null ? '挂回原记录 · 重新预载' : '合并到已有记录 · 附本地文件')
+              : '加入书架 · 预载后可读',
           const ValueKey('brSaveBtn'),
           _commit,
         ),

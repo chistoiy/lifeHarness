@@ -327,11 +327,61 @@ class Book {
 /// [fmt] EPUB2|EPUB3（解析时识别）；[size] 源文件字节数；
 /// [path] 应用私有目录内的副本路径（原文件保留原位，删书可选连副本移除）。
 class EpubRef {
-  const EpubRef({required this.fmt, required this.size, required this.path});
+  const EpubRef({
+    required this.fmt,
+    required this.size,
+    required this.path,
+    this.st,
+    this.pr = 0,
+    this.srcPath,
+    this.srcName,
+  });
 
   final String fmt;
   final int size;
+
+  /// 应用私有副本路径（阅读只读它；源文件永远保留原位）。
   final String path;
+
+  /// 预载状态（批3.5）：'pre' 整本预载中（不可进阅读）· null/'rdy' 就绪 ·
+  /// 'cl' 已清缓存（本地副本/分页表已回收，记录与书摘全保留）。
+  final String? st;
+
+  /// 预载进度 0~100（仅 st=='pre' 期间有意义）。
+  final int pr;
+
+  /// 源文件原始位置（重载入探测用；丢失则引导重选挂回）。
+  final String? srcPath;
+
+  /// 源文件名（重选时按名匹配挂回原记录）。
+  final String? srcName;
+
+  /// 归一状态：旧数据无 st 字段＝就绪。
+  String get state => st == null || st!.isEmpty ? 'rdy' : st!;
+  bool get preloadable => state == 'pre';
+  bool get cleared => state == 'cl';
+
+  static const stPreload = 'pre';
+  static const stReady = 'rdy';
+  static const stCleared = 'cl';
+
+  EpubRef copyWith({
+    String? fmt,
+    int? size,
+    String? path,
+    String? st,
+    int? pr,
+    String? srcPath,
+    String? srcName,
+  }) => EpubRef(
+    fmt: fmt ?? this.fmt,
+    size: size ?? this.size,
+    path: path ?? this.path,
+    st: st ?? this.st,
+    pr: pr ?? this.pr,
+    srcPath: srcPath ?? this.srcPath,
+    srcName: srcName ?? this.srcName,
+  );
 
   static EpubRef? decode(String? raw) {
     if (raw == null || raw.isEmpty) return null;
@@ -345,14 +395,25 @@ class EpubRef {
         fmt: fmt,
         size: (v['size'] as num?)?.toInt() ?? 0,
         path: path,
+        st: v['st']?.toString(),
+        pr: (v['pr'] as num?)?.toInt() ?? 0,
+        srcPath: v['srcPath']?.toString(),
+        srcName: v['srcName']?.toString(),
       );
     } catch (_) {
       return null;
     }
   }
 
-  String encode() =>
-      jsonEncode({'fmt': fmt, 'size': size, 'path': path});
+  String encode() => jsonEncode({
+    'fmt': fmt,
+    'size': size,
+    'path': path,
+    if (st != null) 'st': st,
+    if (pr != 0) 'pr': pr,
+    if (srcPath != null) 'srcPath': srcPath,
+    if (srcName != null) 'srcName': srcName,
+  });
 }
 
 /// 逗号分隔标签列的进出工具（books.tags / book_quotes.tags 共用）。

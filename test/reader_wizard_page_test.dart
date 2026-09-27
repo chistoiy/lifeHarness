@@ -179,7 +179,7 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('brMetaSum')))
           .data;
       expect(sum, contains('共 1 章'));
-      expect(find.text('加入书架 · 开始阅读'), findsOne);
+      expect(find.text('加入书架 · 预载后可读'), findsOne);
       await t.tap(find.byKey(const ValueKey('brSaveBtn')));
       await step(t);
       expect(fake.lastTagLocal, isTrue);

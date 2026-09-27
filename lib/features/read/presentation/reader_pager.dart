@@ -99,6 +99,9 @@ class BookPagination {
   BookPagination.of(EpubDoc doc, ReaderLayout l)
     : perChapter = [for (final c in doc.chapters) EpubPager.layoutChapter(c.paras, l)];
 
+  /// 从落盘表直接构造（批3.5 分页表命中＝秒进，不再实算）。
+  BookPagination.fromTable(this.perChapter);
+
   final List<List<List<int>>> perChapter;
 
   int chapterPages(int ci) => perChapter[ci].length;

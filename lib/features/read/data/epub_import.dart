@@ -89,9 +89,12 @@ class EpubImportService {
   Future<EpubPick?> pick() => (pickHook ?? defaultPickEpub)();
 
   /// 读文件并解析；坏包/DRM 抛 [EpubFormatException]。
+  /// 批3.5：走懒归档 openFile——大图文包解析不再整包进内存；
+  /// 元数据/封面/目录抽取完立即释放句柄（不长期锁源文件，Windows 语义同理）。
   Future<EpubDoc> loadDoc(EpubPick pick) async {
-    final bytes = await File(pick.path).readAsBytes();
-    return EpubDoc.parse(bytes);
+    final doc = await EpubDoc.openFile(pick.path);
+    doc.lazy?.dispose();
+    return doc;
   }
 
   /// 同书重复守卫：先 ISBN 无从谈（本地包无 ISBN 时归一书名+作者），
@@ -146,6 +149,10 @@ class EpubImportService {
           fmt: doc.format,
           size: pick.size,
           path: path,
+          // 批3.5：挂回即重新预载；源文件位置留作「已清缓存→重新载入」探测。
+          st: EpubRef.stPreload,
+          srcPath: pick.path,
+          srcName: pick.name,
         ),
         tags: tags,
       );
@@ -178,7 +185,14 @@ class EpubImportService {
     );
     final path = await _copyEpub(created.id, pick.path);
     final withFile = created.copyWith(
-      epub: EpubRef(fmt: doc.format, size: pick.size, path: path),
+      epub: EpubRef(
+        fmt: doc.format,
+        size: pick.size,
+        path: path,
+        st: EpubRef.stPreload,
+        srcPath: pick.path,
+        srcName: pick.name,
+      ),
     );
     await repo.updateBook(withFile);
     final cover = await _saveCover(withFile.id, doc);

@@ -1,8 +1,10 @@
-import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/epub_cache.dart';
 import '../data/epub_doc.dart';
 import '../data/epub_import.dart';
 import '../data/read_repository.dart';
@@ -31,11 +33,35 @@ final epubImportServiceProvider = Provider<EpubImportService>(
 );
 
 /// EPUB 文件加载器（阅读主屏批2/删除批4 复用；测试 override 免真 IO）。
+/// 批3.5：生产走懒归档 openFile——图片不再整包进内存。
 final epubDocLoaderProvider
     = Provider<Future<EpubDoc> Function(String path)>((ref) => (path) async {
-  final bytes = await File(path).readAsBytes();
-  return EpubDoc.parse(bytes);
+  return EpubDoc.openFile(path);
 });
+
+/// 整本预载服务（批3.5）：导入后后台解析+全书分页落盘；封面进度数据源。
+/// widget 测试 override 注入 parseOverride/pump/docsPath，不碰真实磁盘。
+final epubPreloadProvider = ChangeNotifierProvider<EpubPreloadService>(
+  (ref) {
+    final svc = EpubPreloadService(ref.watch(readRepositoryProvider));
+    svc.onBookSettled = (_) =>
+        ref.read(readTickProvider.notifier).state++;
+    // 生产：docs 目录解析完成后启用分页表落盘；测试 override 注入固定目录。
+    unawaited(
+      () async {
+        try {
+          svc.docsPath ??= (await getApplicationDocumentsDirectory()).path;
+        } catch (_) {}
+      }(),
+    );
+    return svc;
+  },
+);
+
+/// 单书清缓存与三态恢复服务（批3.5）。
+final epubCacheServiceProvider = Provider<EpubCacheService>(
+  (ref) => EpubCacheService(ref.watch(readRepositoryProvider)),
+);
 
 /// 豆瓣元数据缓存条数（防封批 2026-09-26 · 设置页「豆瓣数据缓存」行展示/
 /// 清除按钮置灰判断用；readTick 写后自动重取）。
