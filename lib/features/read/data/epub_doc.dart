@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
@@ -29,6 +30,23 @@ class EpubFormatException implements Exception {
 /// 段落类型（渲染语义：正文/标题/引文/插图）。
 enum EpubParaKind { text, heading, quote, image }
 
+/// 段落内联链接（a 元素 · 相对段落文本的字符区间 · V1.50 内链直跳/外链三策略）。
+class EpubLink {
+  const EpubLink({
+    required this.start,
+    required this.end,
+    required this.href,
+    required this.external,
+  });
+
+  final int start;
+  final int end;
+
+  /// 内链＝解析后的 zip 内路径（含锚点已剥）；外链＝原样 URL。
+  final String href;
+  final bool external;
+}
+
 /// 一个内容段落（章内下标即 CFI 段落号）。
 class EpubPara {
   const EpubPara({
@@ -37,6 +55,7 @@ class EpubPara {
     this.headingLevel = 0,
     this.imgSrc = '',
     this.alt = '',
+    this.links = const [],
   });
 
   final EpubParaKind kind;
@@ -50,6 +69,9 @@ class EpubPara {
 
   /// 图片题注（figcaption）或 alt。
   final String alt;
+
+  /// 段内链接（字符区间对齐 [text]）。
+  final List<EpubLink> links;
 
   int get charCount => kind == EpubParaKind.image ? 0 : text.length;
 }
@@ -102,6 +124,7 @@ class EpubDoc {
     required this.totalChars,
     this.fontCount = 0,
     this.bookmarkCount = 0,
+    this.images = const {},
   });
 
   /// 'EPUB2' | 'EPUB3'（OPF package@version）。
@@ -127,6 +150,9 @@ class EpubDoc {
 
   /// ncx pageList 书签数（EPUB3 常规无书签源＝0）。
   final int bookmarkCount;
+
+  /// 包内图片字节（key＝zip 内路径；正文/插图放大/封面共用）。
+  final Map<String, Uint8List> images;
 
   /// spine 文档顺序的章节正文。
   final List<EpubChapter> chapters;
@@ -293,6 +319,12 @@ class EpubDoc {
               .length ??
           0;
     }
+    // 图片字节按需驻留（正文渲染/放大/保存共用；封面也在其中）。
+    final images = <String, Uint8List>{
+      for (final m in manifest.values)
+        if (m.type.startsWith('image/') && files[m.href] != null)
+          m.href: Uint8List.fromList(files[m.href]!),
+    };
     return EpubDoc(
       format: format,
       title: title,
@@ -309,6 +341,7 @@ class EpubDoc {
       totalChars: totalChars,
       fontCount: fontCount,
       bookmarkCount: bookmarkCount,
+      images: images,
     );
   }
 
@@ -446,18 +479,65 @@ List<EpubTocItem> _parseNcx(XmlDocument? ncx, String ncxPath) {
 }
 
 /// XHTML → 段落序列（p/h1-6/blockquote/img/figure/li；其余块并入文本流）。
+/// 段内 <a> 记为 [EpubLink]（内链解析成 zip 路径，外链保留原样）。
 List<EpubPara> _extractParas(String xhtml, String docPath) {
   final out = <EpubPara>[];
   final doc = hparser.parse(xhtml);
   final body = doc.body ?? doc.documentElement;
   if (body == null) return out;
   final base = _dirName(docPath);
+  final extRe = RegExp(r'^(https?:|mailto:|tel:)', caseSensitive: false);
+
   String norm(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
 
-  void pushText(String t, EpubParaKind k, {int level = 0}) {
-    final s = norm(t);
+  /// 收集元素文本 + 链接区间（a 只取其文字，不取 URL）。
+  (String, List<EpubLink>) grab(h.Element el) {
+    final sb = StringBuffer();
+    final links = <EpubLink>[];
+    void walkNode(h.Node n) {
+      if (n is h.Text) {
+        sb.write(n.text);
+        return;
+      }
+      if (n is! h.Element) return;
+      final tag = n.localName ?? '';
+      if (tag == 'br') {
+        sb.write(' ');
+        return;
+      }
+      final href = n.attributes['href'];
+      if (tag == 'a' && href != null && href.isNotEmpty) {
+        final s = sb.length;
+        for (final c in n.nodes) {
+          walkNode(c);
+        }
+        final isExt = extRe.hasMatch(href);
+        links.add(
+          EpubLink(
+            start: s,
+            end: sb.length,
+            href: isExt ? href : _resolve(base, href.split('#').first),
+            external: isExt,
+          ),
+        );
+        return;
+      }
+      for (final c in n.nodes) {
+        walkNode(c);
+      }
+    }
+    for (final c in el.nodes) {
+      walkNode(c);
+    }
+    return (sb.toString(), links);
+  }
+
+  void pushText(h.Element el, EpubParaKind k, {int level = 0}) {
+    final (raw, links) = grab(el);
+    final s = norm(raw);
     if (s.isEmpty) return;
-    out.add(EpubPara(kind: k, text: s, headingLevel: level));
+    // norm 会折叠首尾空白，链接区间按折叠近似保留（渲染端以文本再定位兜底）。
+    out.add(EpubPara(kind: k, text: s, headingLevel: level, links: links));
   }
 
   void pushImg(String src, String alt) {
@@ -477,12 +557,12 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
       case 'p':
       case 'div':
         if (tag == 'p') {
-          pushText(el.text, EpubParaKind.text);
+          pushText(el, EpubParaKind.text);
           return;
         }
         // div 含子块则下钻，纯文本 div 当段落。
         if (el.children.isEmpty) {
-          pushText(el.text, EpubParaKind.text);
+          pushText(el, EpubParaKind.text);
           return;
         }
         for (final c in el.children) {
@@ -494,14 +574,13 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
       case 'h4':
       case 'h5':
       case 'h6':
-        pushText(el.text, EpubParaKind.heading,
-            level: int.parse(tag.substring(1)));
+        pushText(el, EpubParaKind.heading, level: int.parse(tag.substring(1)));
       case 'blockquote':
         if (el.children.where((c) => c.localName == 'p').isEmpty) {
-          pushText(el.text, EpubParaKind.quote);
+          pushText(el, EpubParaKind.quote);
         } else {
           for (final c in el.children) {
-            if (c.localName == 'p') pushText(c.text, EpubParaKind.quote);
+            if (c.localName == 'p') pushText(c, EpubParaKind.quote);
           }
         }
       case 'img':
@@ -516,15 +595,11 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
           );
         }
       case 'li':
-        pushText(
-          el.nodes
-              .where((n) => n.nodeType != h.Node.ELEMENT_NODE)
-              .map((n) => n.toString())
-              .join(' '),
-          EpubParaKind.text,
-        );
+        pushText(el, EpubParaKind.text);
         for (final c in el.children) {
-          if (c.localName == 'li' || c.localName == 'ul' || c.localName == 'ol') {
+          if (c.localName == 'li' ||
+              c.localName == 'ul' ||
+              c.localName == 'ol') {
             walk(c);
           }
         }
@@ -544,7 +619,13 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
         }
       default:
         final s = norm(el.text);
-        if (s.isNotEmpty) pushText(s, EpubParaKind.text);
+        if (s.isNotEmpty) {
+          final (raw, links) = grab(el);
+          final t = norm(raw);
+          if (t.isNotEmpty) {
+            out.add(EpubPara(kind: EpubParaKind.text, text: t, links: links));
+          }
+        }
     }
   }
 
@@ -553,7 +634,10 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
   }
   // body 只有裸文本（无包裹元素）时兜底整段。
   if (out.isEmpty && norm(body.text).isNotEmpty) {
-    pushText(body.text, EpubParaKind.text);
+    final (raw, links) = grab(body);
+    out.add(
+      EpubPara(kind: EpubParaKind.text, text: norm(raw), links: links),
+    );
   }
   return out;
 }

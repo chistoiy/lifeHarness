@@ -70,6 +70,7 @@ import '../../features/read/presentation/book_info_page.dart';
 import '../../features/read/presentation/book_mgr_page.dart';
 import '../../features/read/presentation/douban_login_page.dart';
 import '../../features/read/presentation/isbn_scan_page.dart';
+import '../../features/read/presentation/local_import_page.dart';
 import '../../features/read/presentation/quotes_lib_page.dart';
 import '../../features/read/presentation/read_import_page.dart';
 import '../../features/read/presentation/read_lists_page.dart';
@@ -77,6 +78,7 @@ import '../../features/read/presentation/read_log_page.dart';
 import '../../features/read/presentation/read_settings_page.dart';
 import '../../features/read/presentation/read_stat_page.dart';
 import '../../features/read/presentation/read_timer_page.dart';
+import '../../features/read/presentation/reader_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/ai_page.dart';
 import '../../features/settings/presentation/log_page.dart';
@@ -451,6 +453,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/read/douban-login',
         builder: (_, _) => const DoubanLoginPage(),
+      ),
+      // V1.50 阅读器（本地 EPUB）：导入四步向导（原型 p-localImport）与
+      // 阅读主屏（p-readerPage · 栈内全屏页，TimerBarOverlay 壳外不显胶囊）。
+      GoRoute(
+        path: '/read/import-epub',
+        builder: (_, _) => const LocalImportPage(),
+      ),
+      GoRoute(
+        path: '/read/reader/:id',
+        builder: (_, s) => ReaderPage(bookId: s.pathParameters['id']!),
       ),
       // 书架资料单类管理页：?kind= 决定类（书架维度行「管理X」入口；默认来源）。
       GoRoute(

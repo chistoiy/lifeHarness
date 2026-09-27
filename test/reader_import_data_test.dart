@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:lifeharness/core/database/schema.dart';
@@ -13,14 +12,13 @@ import 'package:lifeharness/features/read/data/epub_import.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
-import 'package:lifeharness/features/read/domain/book_toc.dart';
 
 // V1.50 批1 · 阅读器数据层（DB v25 四列 / 模型往返 / 导入服务落库与合并）。
 // 独立文件防 isolate 污染；纯数据测试允许真 IO（非 widget FakeAsync 环境）。
 
 Uint8List _miniEpub({String title = '导入测试书', String author = '丙一'}) {
   String enc(String s) => s;
-  final b = (String n, String c) => ArchiveFile(n, utf8.encode(c).length, utf8.encode(c));
+  ArchiveFile b(String n, String c) => ArchiveFile(n, utf8.encode(c).length, utf8.encode(c));
   final files = <ArchiveFile>[
     ArchiveFile('mimetype', 'application/epub+zip'.length, utf8.encode('application/epub+zip')),
     b(

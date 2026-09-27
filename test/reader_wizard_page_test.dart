@@ -28,7 +28,7 @@ import 'package:lifeharness/features/read/presentation/widgets/bs_cover.dart';
 
 Uint8List _miniEpubBytes({String title = '导入测试书'}) {
   ArchiveFile f(String n, List<int> b) => ArchiveFile(n, b.length, b);
-  final x = (String s) => utf8.encode(s);
+  List<int> x(String s) => utf8.encode(s);
   final arch = Archive();
   for (final e in <(String, List<int>)>[
     ('mimetype', x('application/epub+zip')),
@@ -66,7 +66,6 @@ class _FakeImport extends EpubImportService {
   _FakeImport(
     ReadRepository repo, {
     EpubPick? pickResult,
-    this.doc,
     this.dup,
     this.drm = false,
   }) : _pickResult = pickResult ??
@@ -281,8 +280,9 @@ void main() {
     });
   });
 
-  group('批1-W · 阅读主屏（批1 最小形态）', () {
+  group('批1-W · 阅读主屏（批2 形态：默认翻页模式）', () {
     testWidgets('进入自动起计时 · 退出结算结束会话', (t) async {
+      await useSurface(t);
       final book = await repo.addBook(Book(
         id: 'r1',
         title: '阅读器书',
@@ -299,12 +299,13 @@ void main() {
         ],
       ));
       await step(t, times: 4);
-      // 正文出现（滚动模式最小渲染）
-      expect(find.textContaining('第一段内容'), findsOne);
+      // 正文出现（分页引擎实测渲染 · Text.rich 需 findRichText）。
+      expect(find.textContaining('第一段内容', findRichText: true), findsOne);
       // 自动计时：running 会话存在
       expect(await repo.runningSession(), isNotNull);
-      // chrome 切换 + 计时 chip 走秒
-      await t.tapAt(t.getCenter(find.byKey(const ValueKey('br-scroll'))));
+      // 中央热区切换 chrome + 计时 chip 走秒（点正文列外空白，
+      // 热区已置于 stage 之下，文字段落区域由正文优先命中）。
+      await t.tapAt(const Offset(400, 500));
       await step(t);
       expect(find.byKey(const ValueKey('br-top')), findsOne);
       expect(find.byKey(const ValueKey('br-sess-chip')), findsOne);
