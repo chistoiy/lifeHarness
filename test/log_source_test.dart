@@ -74,7 +74,8 @@ void main() {
       final raw = File(
               '$dir${Platform.pathSeparator}lh-20260926.log')
           .readAsLinesSync();
-      expect(raw.single, '08:30:04.000 [W] [同步] 429 退避');
+      // 落盘行与 `formatted` 同源：V1.50批3.6 起带 `MM-dd ` 段（跨启动分不清哪天）。
+      expect(raw.single, '09-26 08:30:04.000 [W] [同步] 429 退避');
 
       await FileLogSink.dispose();
       AppLog.reset();
@@ -82,6 +83,10 @@ void main() {
       expect(await FileLogSink.loadRecent(), 1);
       expect(AppLog.lines.single.src, '同步');
       expect(AppLog.lines.single.level, LhLevel.warn);
+      // 反解必须吃掉日期段：日期以文件名日期为准，文本只留正文
+      // （回归点：`_linePattern` 漏了这段时整行会被当裸文本按 info 收进缓冲）。
+      expect(AppLog.lines.single.text, '429 退避');
+      expect(AppLog.lines.single.time, DateTime(2026, 9, 26, 8, 30, 4));
     });
 
     test('旧格式行（无来源段）照旧回填，归「系统」', () async {

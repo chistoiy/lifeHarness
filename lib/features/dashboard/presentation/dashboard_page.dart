@@ -873,8 +873,9 @@ class _TimeDistCard extends ConsumerWidget {
         continue;
       }
       for (final TimeBlock b in blocks) {
+        // V1.52：计时中块按已耗时计入（原 endMin-startMin 对计时块恒为 0）
         minutesByCat[b.catName] =
-            (minutesByCat[b.catName] ?? 0) + math.max(0, b.endMin - b.startMin);
+            (minutesByCat[b.catName] ?? 0) + b.durationMin(now);
       }
     }
     final entries = minutesByCat.entries.toList()
@@ -889,7 +890,11 @@ class _TimeDistCard extends ConsumerWidget {
       for (final c in _palette.skip(1)) c,
     ];
 
-    return Container(
+    return InkWell(
+      // V1.52：点卡片直达时间账本（L4 全量统计）
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => context.push('/time-stats'),
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: context.cardDecoration,
       child: Column(
@@ -949,9 +954,22 @@ class _TimeDistCard extends ConsumerWidget {
               ),
             ],
           ),
+          Text('合计 ${_fmtMin(totalMin)} · 点开看时间账本',
+              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
         ],
       ),
+      ),
     );
+  }
+
+  static String _fmtMin(int m) {
+    final d = m ~/ 1440, h = (m % 1440) ~/ 60, r = m % 60;
+    if (m <= 0) return '0 分';
+    return [
+      if (d > 0) '$d 天',
+      if (h > 0) '$h 时',
+      if (r > 0 || (d == 0 && h == 0)) '$r 分',
+    ].join(' ');
   }
 }
 

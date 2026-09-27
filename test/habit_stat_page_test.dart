@@ -21,6 +21,16 @@ void main() {
 
   String key(int back) => dayKey(DateTime.now().subtract(Duration(days: back)));
 
+  /// 上一整周（dow 0=周一 … 6=周日）：整周必然早于今天。
+  /// 当期页按「今天所在周」取样，周一~周三跑测时「按天倒推」的种子会跨到上周，
+  /// 分母随之漂移（周一跑必红）；锚到已结束的一周后与星期几无关。
+  String lw(int dow) {
+    final now = DateTime.now();
+    final mon =
+        dayStart(now).subtract(Duration(days: now.weekday - 1 + 7));
+    return dayKey(mon.add(Duration(days: dow)));
+  }
+
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
     for (final sql in DbSchema.createStatements) {
@@ -69,14 +79,18 @@ void main() {
   });
 
   testWidgets('口径开关：日均分母按开始跟踪日 vs 按周期天数', (tester) async {
+    // 种子落在上一整周的周五~周日，并把统计页翻到该期（见 lw 注释）。
     final h = await repo.saveHabit(
-      Habit(name: '晚起', startDate: key(2)),
+      Habit(name: '晚起', startDate: lw(4)),
     );
-    await repo.upsertEntry(h.id, day: key(2), checked: true);
-    await repo.upsertEntry(h.id, day: key(1), checked: true);
+    await repo.upsertEntry(h.id, day: lw(5), checked: true);
+    await repo.upsertEntry(h.id, day: lw(6), checked: true);
     await useSurface(tester);
     await pump(tester);
-    // 开：分母=实际跟踪 3 天 → 日均 0.7
+    await tester.tap(find.byKey(const ValueKey('hs-prev')));
+    await settle5(tester);
+    expect(find.text('第 1 期前'), findsOneWidget);
+    // 开：分母=实际跟踪 3 天（周五~周日）→ 日均 0.7
     expect(find.text('按开始跟踪日'), findsOneWidget);
     expect(find.text('0.7'), findsOneWidget);
     // 关：分母=整周 7 天 → 日均 0.3
@@ -90,8 +104,9 @@ void main() {
     final a = await repo.saveHabit(Habit(name: '甲', startDate: key(30)));
     final b = await repo.saveHabit(Habit(name: '乙', startDate: key(30)));
     await repo.saveHabit(Habit(name: '丙', type: Habit.kNeg, startDate: key(30), negLimit: 2));
-    await repo.upsertEntry(a.id, day: key(1), checked: true, checkAt: '07:10');
-    await repo.upsertEntry(b.id, day: key(1), checked: true, checkAt: '20:00');
+    // 时段样本按「今天」种：当期=本周，周一跑时按天倒推会跨到上周而落进不了当期。
+    await repo.upsertEntry(a.id, day: key(0), checked: true, checkAt: '07:10');
+    await repo.upsertEntry(b.id, day: key(0), checked: true, checkAt: '20:00');
     await useSurface(tester);
     await pump(tester);
     expect(find.textContaining('3 个跟踪中习惯'), findsOneWidget);

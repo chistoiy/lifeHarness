@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/block_ops.dart';
+import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
+import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
 
 /// 当月天数（避开 DateTime(y,m+1,0)：day-0 归一化在 FakeAsync 时区解析下会挂死）。
@@ -14,21 +17,27 @@ int daysInMonthOf(int y, int m) {
   return (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 29 : 28;
 }
 
-/// 统一添加事件/时间块弹层（V1.23 · 图2 · 轴/块/日/周共用）。
-/// 上尾·起始 / 当前·结束 两组三列滚轮（日/时/分）+ 时长快捷 + 两级分类 + 备注 + 继续添加。
+/// V1.52 统一添加 / 编辑弹层（原型 sheetTimePick）。
+///
+/// 四视图（轴/块/日/周）点已有事件、时间块、计时块 **都打开本弹层**并预填，
+/// 底部按钮随形态切换：添加=继续添加+添加；编辑=删除+保存修改；
+/// 计时中额外给「■ 结束计时」，已结束额外给「对半拆分 / 与上一个合并 / 与下一个合并」。
+/// 今天：起止默认当前分钟，确认即为「计时中」块；非今天：纯补录，无计时。
 Future<void> showTimePickSheet(BuildContext context, WidgetRef ref,
-    {DateTime? day, int? startMin}) {
+    {DateTime? day, int? startMin, TimeBlock? block, CalEvent? event}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _TimePick(day: day, startMin: startMin),
+    builder: (_) => _TimePick(day: day, startMin: startMin, block: block, event: event),
   );
 }
 
 class _TimePick extends ConsumerStatefulWidget {
-  const _TimePick({this.day, this.startMin});
+  const _TimePick({this.day, this.startMin, this.block, this.event});
   final DateTime? day;
   final int? startMin;
+  final TimeBlock? block;
+  final CalEvent? event;
 
   @override
   ConsumerState<_TimePick> createState() => _TimePickState();
@@ -37,18 +46,20 @@ class _TimePick extends ConsumerStatefulWidget {
 /// 单向数据流：滚轮自持滚动状态，父层经 ValueNotifier 只读汇总，
 /// 不在 onSel 后回写/重建滚轮——避免同帧重建回环。
 class _TimePickState extends ConsumerState<_TimePick> {
-  static const _durs = [0, 15, 30, 60, 120];
+  static const _rowH = 26.0; // 3 行 × 26 = 78（V1.52 弹层瘦身）
+  static const _catCols = 6; // 一级分类每行 6 个
 
   late final DateTime _date;
   late final int _daysInMonth;
+  late final TimeBlock? _blk;
+  late final CalEvent? _ev;
+  late final int _nowMin; // 打开弹层时的当前分钟（isNow 判定基准，避免跨分钟失效）
+
   // items 跨 rebuild 保持同一 List 实例：CupertinoPicker 每次 build 拿到新
   // delegate 会重置内部索引上报，故这些列表必须缓存进 state（不能就地新建）。
   //
-  // ⚠️ 一律用 List.generate 而非 `[for (...; ...; ...) ...]` 集合推导：
-  // 手写三段式 for 的增量子句极易漏写（曾把 `h++` 写成 `h`），而空增量在
-  // 集合推导里是**静默无限循环**——同帧同步空转、列表无界 add，实测吃满
-  // 单核并膨胀到 20GB OOM，且因不让出事件循环，`--timeout` 也杀不掉。
-  // List.generate 没有增量子句，从结构上让该 bug 不可表示。
+  // ⚠️ 一律用 List.generate 而非集合推导手写三段式 for：增量子句漏写是
+  // **静默无限循环**（曾吃满单核膨胀到 20GB OOM，--timeout 也杀不掉）。
   late final List<String> _dayItems;
   late final List<String> _hourItems;
   late final List<String> _minItems;
@@ -62,21 +73,94 @@ class _TimePickState extends ConsumerState<_TimePick> {
   String? _subName;
   final _note = TextEditingController();
 
+  bool get _editing => _blk != null || _ev != null;
+  bool get _timing => _blk?.isTiming ?? false;
+
   @override
   void initState() {
     super.initState();
-    final d = widget.day ?? DateTime.now();
+    final now = DateTime.now();
+    _nowMin = now.hour * 60 + now.minute;
+    _blk = widget.block;
+    _ev = widget.event;
+    final b = _blk, e = _ev;
+    final d = b?.day ??
+        (e != null ? DateTime(e.start.year, e.start.month, e.start.day) : null) ??
+        widget.day ??
+        now;
     _date = DateTime(d.year, d.month, d.day);
     _daysInMonth = daysInMonthOf(_date.year, _date.month);
     _dayItems = List.generate(_daysInMonth, (i) => '${_date.month}/${i + 1}');
     _hourItems = List.generate(24, (h) => h.toString().padLeft(2, '0'));
-    _minItems = List.generate(12, (i) => (i * 5).toString().padLeft(2, '0'));
-    final sm = widget.startMin ?? (DateTime.now().hour * 60 ~/ 5 * 5);
+    _minItems = List.generate(60, (i) => i.toString().padLeft(2, '0')); // 1 分一档
+
+    int s0, e0;
+    if (b != null) {
+      s0 = b.startMin;
+      e0 = b.effEnd(now);
+    } else if (e != null) {
+      s0 = e.start.hour * 60 + e.start.minute;
+      e0 = e.end == null ? (s0 + 60).clamp(0, 1440) : e.end!.hour * 60 + e.end!.minute;
+    } else if (widget.startMin != null) {
+      s0 = widget.startMin!;
+      e0 = (s0 + 60).clamp(0, 1440);
+    } else if (_isTodaySel) {
+      s0 = _nowMin;
+      e0 = _nowMin; // 今天默认起止=当前
+    } else {
+      s0 = 9 * 60;
+      e0 = 10 * 60;
+    }
     _dayN = ValueNotifier<int>(_date.day);
-    _sMinN = ValueNotifier<int>(sm);
-    _eDayN = ValueNotifier<int>(_date.day);
-    _eMinN = ValueNotifier<int>((sm + 60).clamp(0, 1440));
+    _sMinN = ValueNotifier<int>(s0.clamp(0, 1439));
+    // 跨天块在本库按「两段行」存储，故结束日=块自身日；事件取 end 的日。
+    final endAt = e?.end;
+    final eDate = b != null
+        ? b.day
+        : (endAt != null ? DateTime(endAt.year, endAt.month, endAt.day) : _date);
+    _eDayN = ValueNotifier<int>(eDate.day.clamp(1, _daysInMonth));
+    _eMinN = ValueNotifier<int>(e0.clamp(0, 1440));
     _all = Listenable.merge([_dayN, _sMinN, _eDayN, _eMinN]);
+
+    // 分类回填：categoriesProvider 是异步的，initState 时通常还没值——
+    // 先记下待回填的 catId/catName，等 build 里拿到 cats 再解析（否则编辑弹层预填不到分类）。
+    _pendingCatId = b?.catId ?? e?.catId;
+    _pendingCatName = b?.catName; // 事件的分类只有 catId，名称不回填
+    _pendingCat = b != null || _pendingCatId != null;
+    _note.text = b?.note ?? e?.title ?? '';
+  }
+
+  int? _pendingCatId;
+  String? _pendingCatName;
+  bool _pendingCat = false;
+
+  /// 用已加载的分类表解析待回填项：次级→选中父级并勾中次级；一级→直接选中。
+  /// catId 缺失（历史行 cat_id 为 null）时按分类名回退匹配。
+  void _applyPendingCat(List<Category> cats) {
+    if (cats.isEmpty || !_pendingCat) return;
+    final cid = _pendingCatId;
+    _pendingCat = false;
+    Category? hit;
+    if (cid != null) hit = cats.where((c) => c.id == cid).firstOrNull;
+    final name = _pendingCatName;
+    hit ??= name == null ? null : cats.where((c) => c.name == name).firstOrNull;
+    if (hit == null) return;
+    if (hit.isPrimary) {
+      _catId = hit.id;
+      _catName = hit.name;
+      _subName = null;
+    } else {
+      final p = cats.where((c) => c.id == hit!.parentId).firstOrNull;
+      _catId = p?.id;
+      _catName = p?.name ?? _catName;
+      _subName = hit.name;
+    }
+  }
+
+  bool get _isTodaySel {
+    final n = DateTime.now();
+    final d = widget.block?.day ?? widget.event?.start ?? widget.day ?? n;
+    return d.year == n.year && d.month == n.month && d.day == n.day;
   }
 
   @override
@@ -89,54 +173,203 @@ class _TimePickState extends ConsumerState<_TimePick> {
     super.dispose();
   }
 
-  int get _durMin => _eMinN.value - _sMinN.value;
+  int get _s => _sMinN.value;
+  int get _eDay => _eDayN.value;
+  int get _e => _eMinN.value;
+  int get _durMin => _e - _s;
+  DateTime get _sDate => DateTime(_date.year, _date.month, _dayN.value);
+  DateTime get _eDate => DateTime(_date.year, _date.month, _eDay);
+  bool get _crossDay => !_eDate.isAtSameMomentAs(_sDate);
+  String get _pickedCat => _subName ?? _catName;
 
-  void _setDur(int min) {
-    // 时长快捷：结束=起始+时长（封顶当日 24:00），驱动结束滚轮同步跳转。
-    setState(() => _eMinN.value = (_sMinN.value + min).clamp(0, 1440));
+  int? _catIdForName(String name) {
+    final cats = ref.read(categoriesProvider).valueOrNull ?? const <Category>[];
+    if (_subName != null) {
+      return cats
+          .where((c) => c.name == _subName && c.parentId == _catId)
+          .map((c) => c.id)
+          .firstOrNull;
+    }
+    return cats.where((c) => c.name == name).map((c) => c.id).firstOrNull ?? _catId;
   }
 
-  static String _fmt(int m) =>
-      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
-
-  Future<void> _add() async {
-    final cats = ref.read(categoriesProvider).valueOrNull ?? const [];
-    final id = _subName != null
-        ? cats
-            .where((c) => c.name == _subName && c.parentId == _catId)
-            .map((c) => c.id)
-            .firstOrNull
-        : _catId;
-    final date = DateTime(_date.year, _date.month, _dayN.value);
-    final eDate = DateTime(_date.year, _date.month, _eDayN.value);
-    final s = _sMinN.value;
-    final e = _eMinN.value;
-    final dao = ref.read(timeBlockDaoProvider);
-    if (eDate == date) {
-      await dao.markRange(date, s, e <= s ? s + 1 : e,
-          catId: id,
-          catName: _subName ?? _catName,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim());
-      ref.invalidate(dayBlocksProvider(date));
-    } else {
-      // 跨天：拆两段（起始日到 24:00 + 结束日 00:00 到结束时刻）
-      await dao.markRange(date, s, 1440,
-          catId: id,
-          catName: _subName ?? _catName,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim());
-      await dao.markRange(eDate, 0, e <= 0 ? 1 : e,
-          catId: id,
-          catName: _subName ?? _catName,
-          note: _note.text.trim().isEmpty ? null : _note.text.trim());
-      ref.invalidate(dayBlocksProvider(date));
-      ref.invalidate(dayBlocksProvider(eDate));
-    }
+  void _snack(String msg, {String? undoLabel, VoidCallback? onUndo}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    final ms = ScaffoldMessenger.of(context);
+    ms
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-          content: Text('✔ 已添加 ${_fmt(s)}-${_fmt(e)} · ${_subName ?? _catName}'
-              '（四视图与时间账本同步 L4）')));
+        content: Text(msg),
+        action: (undoLabel != null && onUndo != null)
+            ? SnackBarAction(label: undoLabel, onPressed: onUndo)
+            : null,
+      ));
+  }
+
+  Future<void> _reload([DateTime? other]) async {
+    ref.invalidate(dayBlocksProvider(_sDate));
+    ref.invalidate(timingBlockProvider);
+    ref.invalidate(monthTimingDaysProvider((_sDate.year, _sDate.month)));
+    if (other != null) ref.invalidate(dayBlocksProvider(other));
+  }
+
+  /// 添加（含继续添加）：今天起止=当前 → 计时块；否则普通块（跨天自动拆两段）。
+  Future<void> _add({bool keepOpen = false}) async {
+    final dao = ref.read(timeBlockDaoProvider);
+    final s = _s, e = _e, eDate = _eDate;
+    final note = _note.text.trim().isEmpty ? null : _note.text.trim();
+    final cat = _pickedCat, catId = _catIdForName(cat);
+
+    final t = await dao.activeTiming();
+    if (t != null &&
+        DateTime(t.day.year, t.day.month, t.day.day) ==
+            DateTime(_sDate.year, _sDate.month, _sDate.day)) {
+      if (addRejected(timing: t, bStart: s, bEnd: e <= s ? s + 1 : e)) {
+        _snack('✕ 补录事件的结束不能晚于计时中事件的开始（${fmtMin(t.startMin)}）· 请调整');
+        return;
+      }
+    }
+    final isNow = _isTodaySel && s == _nowMin;
+    if (isNow && e <= s) {
+      await dao.startTiming(_sDate, s, catId: catId, catName: cat, note: note);
+      await _reload();
+      _snack('▶ 已按当前时间开始计时 · 下次点击该事件可「■ 结束计时」');
+      if (!keepOpen && mounted) Navigator.of(context).pop();
+      return;
+    }
+    if (eDate == _sDate) {
+      await dao.markRange(_sDate, s, e <= s ? s + 1 : e, catId: catId, catName: cat, note: note);
+      await _reload();
+    } else {
+      await dao.markRange(_sDate, s, 1440, catId: catId, catName: cat, note: note);
+      await dao.markRange(eDate, 0, e <= 0 ? 1 : e, catId: catId, catName: cat, note: note);
+      await _reload(eDate);
+    }
+    if (keepOpen) {
+      setState(() => _note.clear());
+      _snack('✔ 已添加 ${fmtMin(s)}-${fmtMin(e)} · $cat（${_sDate.month}/${_sDate.day}）');
+      return;
+    }
+    _snack('✔ 已添加 · 轴/块/日/周四视图与时间账本同步（L4）'
+        '${_crossDay ? ' · 跨天' : ''}${eDate != _sDate ? ' · 已补录到 ${eDate.month}/${eDate.day}' : ''}');
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// 编辑保存：块改起止/分类/备注；事件改起止/分类/标题。
+  Future<void> _save() async {
+    final s = _s, e = _e;
+    if (_blk != null) {
+      final dao = ref.read(timeBlockDaoProvider);
+      final b = _blk;
+      final wasTiming = b.isTiming;
+      final cat = _pickedCat;
+      await dao.save(b.copyWith(
+        day: _sDate,
+        startMin: s,
+        endMin: (e <= s ? s + 1 : e).clamp(0, 1440),
+        catId: _catIdForName(cat),
+        catName: cat,
+        note: _note.text.trim().isEmpty ? cat : _note.text.trim(),
+        source: wasTiming && (e != _nowMin || s != b.startMin) ? kSrcMark : b.source,
+      ));
+      await _reload();
+      _snack('✔ 已保存 · 轴/块/日/周四视图与时间账本同步（L4）');
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    if (_ev != null) {
+      final e0 = _ev;
+      final st = DateTime(_sDate.year, _sDate.month, _sDate.day, s ~/ 60, s % 60);
+      final en = DateTime(_eDate.year, _eDate.month, _eDate.day, e ~/ 60 % 24, e % 60);
+      final title = _note.text.trim().isEmpty ? e0.title : _note.text.trim();
+      await ref.read(eventRepositoryProvider).update(e0.copyWith(
+          start: st, end: en, title: title, catId: _catIdForName(_pickedCat)));
+      ref.invalidate(eventsProvider);
+      _snack('✔ 已保存 · 四视图与时间账本同步');
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _delete() async {
+    final dao = ref.read(timeBlockDaoProvider);
+    if (_blk != null) {
+      final day = _blk.day;
+      final snap = await dao.snapshotDay(day);
+      await dao.remove(_blk.id!);
+      await _reload();
+      _snack('🗑 已删除 · 四视图与时间账本同步移除', undoLabel: '撤销',
+          onUndo: () async {
+        await dao.restoreDay(day, snap);
+        await _reload();
+      });
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    if (_ev != null) {
+      final e0 = _ev;
+      await ref.read(eventRepositoryProvider).remove(e0);
+      ref.invalidate(eventsProvider);
+      _snack('🗑 已删除该日程');
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _endTiming() async {
+    final b = _blk;
+    if (b == null || !b.isTiming) return;
+    final now = DateTime.now();
+    final dao = ref.read(timeBlockDaoProvider);
+    await dao.endTiming(b.id, now.hour * 60 + now.minute);
+    await _reload();
+    _snack('■ 结束计时 · 结束 ${fmtMin(now.hour * 60 + now.minute)} · 已落账（L4）');
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _split() async {
+    final b = _blk;
+    if (b == null || b.isTiming) return;
+    final dao = ref.read(timeBlockDaoProvider);
+    final day = b.day;
+    final snap = await dao.snapshotDay(day);
+    final parts = splitHalf(b);
+    if (parts == null) {
+      _snack('✕ 时长不足 2 分钟 · 无法对半拆分');
+      return;
+    }
+    await dao.save(parts[0]);
+    await dao.insert(parts[1]);
+    await _reload();
+    _snack('✂ 已对半拆分为两段 · ${fmtMin(parts[0].startMin)}-${fmtMin(parts[0].endMin)} / '
+        '${fmtMin(parts[1].startMin)}-${fmtMin(parts[1].endMin)}', undoLabel: '撤销',
+        onUndo: () async {
+      await dao.restoreDay(day, snap);
+      await _reload();
+    });
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _merge(int dir) async {
+    final b = _blk;
+    if (b == null || b.isTiming) return;
+    final dao = ref.read(timeBlockDaoProvider);
+    final day = await dao.listByDay(b.day);
+    final o = neighborOf(day, b, dir);
+    if (o == null) {
+      _snack(dir < 0 ? '✕ 上方没有 30 分钟内可合并的已结束事件' : '✕ 下方没有 30 分钟内可合并的已结束事件');
+      return;
+    }
+    final snap = await dao.snapshotDay(b.day);
+    final m = mergePair(b, o);
+    await dao.remove(o.id!);
+    await dao.save(m);
+    await _reload();
+    _snack('⇄ 已合并为 ${fmtMin(m.startMin)}-${fmtMin(m.endMin)} · ${m.catName}',
+        undoLabel: '撤销',
+        onUndo: () async {
+      await dao.restoreDay(b.day, snap);
+      await _reload();
+    });
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -144,9 +377,12 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
+    _applyPendingCat(cats); // 分类异步到位后补一次编辑态预填
     final catColors = ref.watch(catColorsByNameProvider);
     final primary = cats.where((c) => c.isPrimary).toList();
     final subs = cats.where((c) => c.parentId == _catId).toList();
+    final b = _blk;
+    final canMerge = b != null && !b.isTiming;
 
     return SafeArea(
       top: false,
@@ -159,18 +395,34 @@ class _TimePickState extends ConsumerState<_TimePick> {
           children: [
             Row(
               children: [
-                const Expanded(
-                    child: Text('添加事件 / 时间块',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+                Expanded(
+                    child: Text(_editing ? '编辑事件 / 时间块' : '添加事件 / 时间块',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
                 AnimatedBuilder(
                   animation: _all,
                   builder: (context, _) => Text(
-                      '${_date.month}/${_dayN.value} ${_fmt(_sMinN.value)} → '
-                      '${_date.month}/${_eDayN.value} ${_fmt(_eMinN.value)} · $_durMin 分钟',
-                      style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                      '${_dayItems[_dayN.value - 1]} ${fmtMin(_s)} → '
+                      '${_dayItems[_eDay - 1]} ${fmtMin(_e)} · ${_durMin < 0 ? _durMin + 1440 : _durMin} 分钟'
+                      '${_crossDay ? ' · 跨天' : ''}',
+                      style: TextStyle(
+                          fontSize: 10.5, color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
+            if (_editing || _isTodaySel)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                    b != null
+                        ? (b.isTiming
+                            ? '● 计时中 · 已 ${DateTime.now().difference(DateTime(b.day.year, b.day.month, b.day.day, b.startMin ~/ 60, b.startMin % 60)).inMinutes} 分钟 · 点「■ 结束计时」落当前时刻'
+                            : '✎ 编辑中 · 修改即保存')
+                        : (_isTodaySel ? '▶ 起止默认当前 · 确认后即为计时中' : ''),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: b?.isTiming ?? false ? const Color(0xFFF43F5E) : tokens.accent)),
+              ),
             const SizedBox(height: 10),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,12 +437,12 @@ class _TimePickState extends ConsumerState<_TimePick> {
                           onSel: (i) => _dayN.value = i + 1),
                       _Wheel(
                           items: _hourItems,
-                          initialIndex: _sMinN.value ~/ 60,
-                          onSel: (i) => _sMinN.value = i * 60 + _sMinN.value % 60),
+                          initialIndex: _s ~/ 60,
+                          onSel: (i) => _sMinN.value = i * 60 + _s % 60),
                       _Wheel(
                           items: _minItems,
-                          initialIndex: (_sMinN.value % 60) ~/ 5,
-                          onSel: (i) => _sMinN.value = _sMinN.value ~/ 60 * 60 + i * 5),
+                          initialIndex: _s % 60,
+                          onSel: (i) => _sMinN.value = _s ~/ 60 * 60 + i),
                     ],
                   ),
                 ),
@@ -201,194 +453,200 @@ class _TimePickState extends ConsumerState<_TimePick> {
                     children: [
                       _Wheel(
                           items: _dayItems,
-                          initialIndex: _eDayN.value - 1,
+                          initialIndex: (_eDay - 1).clamp(0, _daysInMonth - 1),
                           onSel: (i) => _eDayN.value = i + 1),
                       _Wheel(
                           items: _hourItems,
-                          initialIndex: _eMinN.value ~/ 60,
-                          onSel: (i) => _eMinN.value = i * 60 + _eMinN.value % 60),
+                          initialIndex: _e ~/ 60,
+                          onSel: (i) => _eMinN.value = i * 60 + _e % 60),
                       _Wheel(
                           items: _minItems,
-                          initialIndex: (_eMinN.value % 60) ~/ 5,
-                          onSel: (i) => _eMinN.value = _eMinN.value ~/ 60 * 60 + i * 5),
+                          initialIndex: _e % 60,
+                          onSel: (i) => _eMinN.value = _e ~/ 60 * 60 + i),
                     ],
                   ),
                 ),
               ],
             ),
-            // 时长快捷 + 标签 / 无分类入口（原型 tpDur chips 行）
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
-                Text('时长',
+                Text('一级分组',
                     style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurfaceVariant)),
-                const SizedBox(width: 6),
-                for (final d in _durs)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: () => _setDur(d),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 9, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: _durMin == d
-                              ? tokens.accent
-                              : scheme.onSurface.withValues(alpha: .08),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          d < 60 ? '$d分' : '${d ~/ 60}时',
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: _durMin == d
-                                  ? Colors.white
-                                  : scheme.onSurfaceVariant),
-                        ),
-                      ),
-                    ),
-                  ),
+                        fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('标签将取所选分类的默认标签'))),
+                  onTap: () => _snack('标签将取所选分类的默认标签'),
                   child: Text('标签 ›',
                       style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurfaceVariant)),
+                          fontSize: 10.5, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 GestureDetector(
-                  onTap: () => context.push('/categories'),
-                  child: Text('无分类 ›',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    if (context.mounted) context.push('/categories');
+                  },
+                  child: Text('管理 ›',
                       style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurfaceVariant)),
+                          fontSize: 10.5, fontWeight: FontWeight.w700, color: tokens.accent)),
                 ),
               ],
             ),
-            // ===== V1.27 C5：一级分组 / 子分组 双标题 + 虚线分隔 + 子组底色卡（原型同构） =====
+            const SizedBox(height: 6),
+            LayoutBuilder(builder: (context, c) {
+              const sp = 6.0;
+              final w = (c.maxWidth - sp * (_catCols - 1)) / _catCols;
+              return Wrap(
+                spacing: sp,
+                runSpacing: 4,
+                children: [
+                  for (final cat in primary)
+                    SizedBox(
+                      width: w,
+                      child: ChoiceChip(
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: EdgeInsets.zero,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                        selected: _catName == cat.name && _subName == null,
+                        onSelected: (_) => setState(() {
+                          _catId = cat.id;
+                          _catName = cat.name;
+                          _subName = null;
+                        }),
+                        avatar: Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                color: cat.name == '工作'
+                                    ? tokens.accent
+                                    : catColors[cat.name])),
+                        label: Text(cat.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 10)),
+                      ),
+                    ),
+                ],
+              );
+            }),
             const SizedBox(height: 10),
-            Text('一级分组',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final c in primary)
-                  ChoiceChip(
-                    visualDensity: VisualDensity.compact,
-                    selected: _catName == c.name && _subName == null,
-                    onSelected: (_) => setState(() {
-                      _catId = c.id;
-                      _catName = c.name;
-                      _subName = null;
-                    }),
-                    avatar: Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(3),
-                            color: c.name == '工作' ? tokens.accent : catColors[c.name])),
-                    label: Text(c.name, style: const TextStyle(fontSize: 11)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
             const DashedDivider(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Text('子分组',
                     style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurfaceVariant)),
+                        fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text('属于上方选中的一级分组 · 再点可取消',
-                      style: TextStyle(
-                          fontSize: 9.5, color: scheme.onSurfaceVariant)),
+                      style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Container(
               width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 38),
-              padding: const EdgeInsets.all(10),
+              constraints: const BoxConstraints(minHeight: 34, maxHeight: 96),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: scheme.onSurface.withValues(alpha: .05),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: subs.isEmpty
-                  ? Text('该分组暂无子分组',
-                      style: TextStyle(
-                          fontSize: 10.5, color: scheme.onSurfaceVariant))
-                  : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final sc in subs)
-                          ChoiceChip(
-                            visualDensity: VisualDensity.compact,
-                            selected: _subName == sc.name,
-                            onSelected: (_) => setState(
-                                () => _subName = _subName == sc.name ? null : sc.name),
-                            label: Text('${sc.name}${sc.tag == null ? '' : ' ${sc.tag}'}',
-                                style: const TextStyle(fontSize: 11)),
-                          ),
-                      ],
-                    ),
+              child: SingleChildScrollView(
+                child: subs.isEmpty
+                    ? Text('该分组暂无子分组',
+                        style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant))
+                    : Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: [
+                          for (final sc in subs)
+                            ChoiceChip(
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                              selected: _subName == sc.name,
+                              onSelected: (_) => setState(
+                                  () => _subName = _subName == sc.name ? null : sc.name),
+                              label: Text('${sc.name}${sc.tag == null ? '' : ' ${sc.tag}'}',
+                                  style: const TextStyle(fontSize: 10)),
+                            ),
+                        ],
+                      ),
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             TextField(
               controller: _note,
               maxLength: 5000,
-              decoration: const InputDecoration(
-                  hintText: '请输入备注',
+              maxLines: 2,
+              decoration: InputDecoration(
+                  hintText: _ev != null ? '事件名称' : '请输入备注',
                   isDense: true,
-                  border: OutlineInputBorder()),
+                  counterText: '',
+                  border: const OutlineInputBorder()),
             ),
-            const SizedBox(height: 2),
+            if (canMerge)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(child: _miniBtn('✂ 对半拆分', _split)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _miniBtn('⇧ 与上一个合并', () => _merge(-1))),
+                    const SizedBox(width: 6),
+                    Expanded(child: _miniBtn('⇩ 与下一个合并', () => _merge(1))),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _add();
-                      setState(() => _note.clear());
-                    },
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46)),
-                    child: const Text('继续添加'),
+                if (_editing)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _delete,
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          foregroundColor: const Color(0xFFF43F5E)),
+                      child: const Text('删除'),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _add(keepOpen: true),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                      child: const Text('继续添加'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                if (_timing) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _endTiming,
+                      style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          backgroundColor: const Color(0xFFF43F5E)),
+                      child: const Text('■ 结束计时'),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 10),
                 Expanded(
                   child: SizedBox(
-                    height: 46,
+                    height: 44,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                          gradient: tokens.gradient,
-                          borderRadius: BorderRadius.circular(8)),
+                          gradient: tokens.gradient, borderRadius: BorderRadius.circular(8)),
                       child: TextButton(
-                        onPressed: () async {
-                          await _add();
-                          if (context.mounted) Navigator.of(context).pop();
-                        },
-                        child: const Text('添加',
-                            style: TextStyle(
+                        onPressed: _editing ? _save : () => _add(),
+                        child: Text(_editing ? '保存修改' : '添加',
+                            style: const TextStyle(
                                 color: Colors.white, fontWeight: FontWeight.w700)),
                       ),
                     ),
@@ -396,16 +654,24 @@ class _TimePickState extends ConsumerState<_TimePick> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Center(
-                child: Text('5 分一档',
-                    style:
-                        TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))),
+                child: Text('1 分一档 · 滚轮循环',
+                    style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))),
           ],
         ),
       ),
     );
   }
+
+  Widget _miniBtn(String label, VoidCallback onTap) => OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(34),
+            padding: EdgeInsets.zero,
+            textStyle: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
 }
 
 class _WheelGroup extends StatelessWidget {
@@ -417,7 +683,7 @@ class _WheelGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
           color: scheme.onSurface.withValues(alpha: .05),
           borderRadius: BorderRadius.circular(14)),
@@ -425,7 +691,7 @@ class _WheelGroup extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             decoration: BoxDecoration(
                 color: scheme.onSurface.withValues(alpha: .85),
                 borderRadius: BorderRadius.circular(6)),
@@ -433,7 +699,7 @@ class _WheelGroup extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white)),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Row(children: children),
         ],
       ),
@@ -442,7 +708,7 @@ class _WheelGroup extends StatelessWidget {
 }
 
 /// 单列滚轮：自持 controller（仅取初值）与选中高亮，滚动只回调 onSel；
-/// 父层不得据此重建本组件（单向数据流，杜绝重建回环）。
+/// 父层不得据此重建本组件（单向数据流，杜绝重建回环）。looping=真循环滚动。
 class _Wheel extends StatefulWidget {
   const _Wheel(
       {required this.items, required this.initialIndex, required this.onSel});
@@ -482,7 +748,6 @@ class _WheelState extends State<_Wheel> {
   void didUpdateWidget(_Wheel old) {
     super.didUpdateWidget(old);
     if (!identical(old.items, widget.items)) _rebuildBase();
-    // 外部取值变化（如时长快捷 chip）驱动滚轮同步跳转；同值不动，避免自激。
     if (widget.initialIndex != old.initialIndex &&
         _ctl.hasClients &&
         _ctl.selectedItem != widget.initialIndex) {
@@ -503,14 +768,15 @@ class _WheelState extends State<_Wheel> {
     final tokens = context.tokens;
     return Expanded(
       child: SizedBox(
-        height: 96,
+        height: _TimePickState._rowH * 3,
         child: ListenableBuilder(
           listenable: _selN,
           builder: (context, _) {
             final sel = _selN.value.clamp(0, _base.isEmpty ? 0 : _base.length - 1);
             return CupertinoPicker(
               scrollController: _ctl,
-              itemExtent: 32,
+              itemExtent: _TimePickState._rowH,
+              looping: true,
               diameterRatio: 1.4,
               backgroundColor: Colors.transparent,
               onSelectedItemChanged: (i) {
@@ -524,7 +790,7 @@ class _WheelState extends State<_Wheel> {
                           key: ValueKey('w$i'),
                           child: Text(widget.items[i],
                               style: TextStyle(
-                                  fontSize: 17,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                   color: tokens.accent)))
                       : _base[i],

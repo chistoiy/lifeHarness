@@ -65,7 +65,8 @@ void main() {
       await bus.dispose();
     });
 
-    testWidgets('同小时两事件＝两段并排，各点各的开自己的详情', (tester) async {
+    testWidgets('同小时两事件＝两段并排，各点各的开自己的编辑弹层（V1.52 统一弹层）',
+        (tester) async {
       final now = DateTime.now();
       final d0 = DateTime(now.year, now.month, now.day);
       // A 覆盖 10 点整（9:00-10:30）· B 从 10 点起（10:00-10:50）→ 10 点格两段，
@@ -98,22 +99,23 @@ void main() {
       expect(find.byKey(const ValueKey('wk-seg-3-10-0')), findsOneWidget);
       expect(find.byKey(const ValueKey('wk-seg-3-10-1')), findsOneWidget);
 
-      // 点第二段（并排B）→ 开 B 的详情。
+      // 点第二段（并排B 10:00-10:50）→ 开 B 的统一编辑弹层（预填 B 的起止）。
       await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-1')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-1')));
       await tester.pumpAndSettle();
-      expect(find.text('并排B'), findsOneWidget);
-      expect(find.text('✎ 编辑'), findsOneWidget);
+      expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+      expect(find.textContaining('10:00 → '), findsOneWidget);
+      expect(find.text('保存修改'), findsOneWidget);
 
-      // 遮罩关闭后点第一段（并排A）→ 开 A 的详情。
+      // 遮罩关闭后点第一段（并排A 09:00-10:30）→ 开 A 的编辑弹层。
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-0')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-0')));
       await tester.pumpAndSettle();
-      expect(find.text('并排A'), findsOneWidget);
+      expect(find.textContaining('09:00 → '), findsOneWidget);
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await clearToasts(tester);

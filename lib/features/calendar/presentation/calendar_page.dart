@@ -7,10 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
-import '../domain/event_repository.dart';
+import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
 import 'calendar_providers.dart';
-import 'widgets/event_detail_sheet.dart';
 import 'widgets/grid_day_view.dart';
 import 'widgets/time_pick_sheet.dart';
 import '../../../core/widgets/wheel_date.dart';
@@ -53,8 +52,6 @@ class CalendarPage extends ConsumerWidget {
     final selected = ref.watch(calSelectedProvider);
     final view = ref.watch(calViewModeProvider);
     final events = ref.watch(eventsProvider).valueOrNull ?? const [];
-    final conflicts =
-        EventRepository.conflictsOf(onDay(events, selected));
     final now = DateTime.now();
     final isToday = sameDay(selected, now);
 
@@ -83,27 +80,6 @@ class CalendarPage extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                   children: [
                     _CalendarRegion(selected: selected, events: events),
-                    if (conflicts.isNotEmpty)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () =>
-                            showEventDetailSheet(context, ref, conflicts.first.a),
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF43F5E).withValues(alpha: .07),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: const Color(0xFFF43F5E).withValues(alpha: .3)),
-                          ),
-                          child: Text(
-                            '⏱ 时间冲突：「${conflicts.first.a.title}」与「${conflicts.first.b.title}」'
-                            '重叠 ${conflicts.first.overlapMin} 分钟，点击调整 ›',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
                     const SizedBox(height: 10),
                     if (view == 'block') const _BlockToolbar(),
                     if (view == 'block') const SizedBox(height: 8),
@@ -279,6 +255,12 @@ class _TimeHeader extends ConsumerWidget {
             ),
           ),
           const Spacer(),
+          // V1.52：时间账本（L4 分类时长统计）入口
+          IconButton(
+            tooltip: '时间账本',
+            icon: const Icon(Icons.bar_chart_rounded),
+            onPressed: () => context.push('/time-stats'),
+          ),
           // V1.27 C4：搜索入口下移到本行（全局顶栏标题行已删）
           IconButton(
             tooltip: '搜索',
@@ -389,6 +371,11 @@ class _MonthPanel extends ConsumerWidget {
             .watch(monthBlockDaysProvider((selected.year, selected.month)))
             .valueOrNull ??
         const <int>{};
+    // V1.52：计时中块所在日=红脉冲点（最高优先级）
+    final timingDays = ref
+            .watch(monthTimingDaysProvider((selected.year, selected.month)))
+            .valueOrNull ??
+        const <int>{};
 
     // V1.27 C6：展开态左右滑动切月（保日序，超出目标月天数则夹到月末）。
     // 位移累计判定而非 primaryVelocity：合成手势速度恒 0，真机慢滑同样不该漏切。
@@ -443,11 +430,13 @@ class _MonthPanel extends ConsumerWidget {
                 final date = DateTime(selected.year, selected.month, day);
                 final isSel = CalendarPage.sameDay(date, selected);
                 final isToday = CalendarPage.sameDay(date, now);
-                final dot = CalendarPage.dotColorFor(
-                        CalendarPage.onDay(events, date), tokens.accent) ??
-                    (blockDays.contains(day)
-                        ? const Color(0xFF6366F1)
-                        : null);
+                final dot = timingDays.contains(day)
+                    ? const Color(0xFFF43F5E)
+                    : CalendarPage.dotColorFor(
+                            CalendarPage.onDay(events, date), tokens.accent) ??
+                        (blockDays.contains(day)
+                            ? const Color(0xFF6366F1)
+                            : null);
                 return InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: () {
@@ -551,6 +540,11 @@ class _WeekStrip extends ConsumerWidget {
             .watch(monthBlockDaysProvider((selected.year, selected.month)))
             .valueOrNull ??
         const <int>{};
+    // V1.52：计时中所在日=红点
+    final timingDays = ref
+            .watch(monthTimingDaysProvider((selected.year, selected.month)))
+            .valueOrNull ??
+        const <int>{};
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -628,14 +622,16 @@ class _WeekStrip extends ConsumerWidget {
                               shape: BoxShape.circle,
                               color: CalendarPage.sameDay(d, selected)
                                   ? Colors.white
-                                  : (CalendarPage.dotColorFor(
-                                          CalendarPage.onDay(events, d),
-                                          tokens.accent) ??
-                                      (d.month == selected.month &&
-                                              blockDays.contains(d.day)
-                                          ? const Color(0xFF6366F1)
-                                          : null) ??
-                                      Colors.transparent),
+                                  : (timingDays.contains(d.day)
+                                      ? const Color(0xFFF43F5E)
+                                      : (CalendarPage.dotColorFor(
+                                              CalendarPage.onDay(events, d),
+                                              tokens.accent) ??
+                                          (d.month == selected.month &&
+                                                  blockDays.contains(d.day)
+                                              ? const Color(0xFF6366F1)
+                                              : null) ??
+                                          Colors.transparent)),
                             ),
                           ),
                         ],
@@ -682,10 +678,12 @@ class _AxisView extends ConsumerWidget {
       return selDay == DateTime(base.year, base.month, base.day);
     }).toList();
     // V1.27 C3：轴视图并入手动标记块投影（事件回填块由事件卡表达，不重复列示）
+    // V1.52：计时中块（source=timing）同列，结束时间随当前时刻推进
     final markBlocks = (ref.watch(dayBlocksProvider(selected)).valueOrNull ??
             const <TimeBlock>[])
-        .where((b) => b.source == 'mark')
-        .toList();
+        .where((b) => b.source != kSrcEvent)
+        .toList()
+      ..sort((a, b) => a.startMin.compareTo(b.startMin));
     final active =
         dayEvents.where((e) => e.status == EventStatus.active).toList();
     final planning =
@@ -698,7 +696,7 @@ class _AxisView extends ConsumerWidget {
           : (isLive ? const Color(0xFFF43F5E) : e.colorOf(tokens.accent));
       return InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => showEventDetailSheet(context, ref, e),
+        onTap: () => showTimePickSheet(context, ref, event: e),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -727,10 +725,10 @@ class _AxisView extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       isLive
-                          ? '● 进行中 · ${_hm(e.start)} 开始 · 点卡片管理'
+                          ? '● 进行中 · 点卡片管理'
                           : (isDone
-                              ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可编辑/删除'
-                              : '${e.allDay ? '全天' : '${_hm(e.start)} – ${e.end == null ? '' : _hm(e.end!)}'}${e.crossDay ? ' · 跨天' : ''} · 点卡片查看/编辑/删除'),
+                              ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可修改/删除'
+                              : '${e.allDay ? '全天' : '${(e.end == null ? 0 : e.end!.difference(e.start).inMinutes.clamp(0, 1 << 20))} 分钟'}${e.crossDay ? ' · 跨天' : ''} · 点卡片修改起止/类型'),
                       style: TextStyle(
                           fontSize: 10.5,
                           color: isLive
@@ -812,6 +810,99 @@ class _AxisView extends ConsumerWidget {
     final rose = const Color(0xFFF43F5E);
     final violet = const Color(0xFF8B5CF6);
     final catColors = ref.watch(catColorsByNameProvider);
+
+    // ===== V1.52：块投影（点块=与添加同款编辑弹层）+ 每段空隙可点补录 =====
+    Widget blockCard(TimeBlock b) {
+      final col = blockColor(b, catColors, tokens.accent);
+      final live = b.isTiming;
+      final dur = b.durationMin();
+      return InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => showTimePickSheet(context, ref, block: b),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: col.withValues(alpha: .07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: col.withValues(alpha: live ? .85 : .4), width: live ? 1.4 : 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(b.note == null || b.note!.isEmpty ? b.catName : b.note!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(
+                      live
+                          ? '● 计时中 · 已 $dur 分钟 · 点卡片可结束/修改'
+                          : '${b.catName} · $dur 分钟 · 点卡片修改起止/类型',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          color: live ? rose : scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              if (live)
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: rose, minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12)),
+                  onPressed: () async {
+                    final dao = ref.read(timeBlockDaoProvider);
+                    final n = DateTime.now();
+                    await dao.endTiming(b.id, n.hour * 60 + n.minute);
+                    ref.invalidate(dayBlocksProvider(selected));
+                    ref.invalidate(timingBlockProvider);
+                    ref.invalidate(monthTimingDaysProvider((selected.year, selected.month)));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(const SnackBar(content: Text('■ 结束计时 · 已落账（L4）')));
+                    }
+                  },
+                  child: const Text('■ 结束计时', style: TextStyle(fontSize: 11.5)),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget gapRow(int a, int e) => InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => showTimePickSheet(context, ref, day: selected, startMin: a),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Center(
+              child: Text('空闲 ${fmtMin(a)} – ${fmtMin(e)} · 点此补录',
+                  style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            ),
+          ),
+        );
+
+    final blockRails = <Widget>[];
+    var cursor = 0;
+    for (final b in markBlocks) {
+      if (b.startMin - cursor >= kGapMinMin) blockRails.add(rail(fmtMin(cursor), scheme.surface, gapRow(cursor, b.startMin)));
+      blockRails.add(rail(fmtMin(b.startMin),
+          b.isTiming ? rose : blockColor(b, catColors, tokens.accent),
+          blockCard(b),
+          timeColor: b.isTiming ? rose : null));
+      if (b.effEnd() > cursor) cursor = b.effEnd();
+    }
+    if (1440 - cursor >= kGapMinMin) blockRails.add(rail(fmtMin(cursor), scheme.surface, gapRow(cursor, 1440)));
+
     final items = <Widget>[
       for (final e in active)
         rail(_hm(e.start), rose, content(e, isLive: true, isDone: false),
@@ -822,33 +913,7 @@ class _AxisView extends ConsumerWidget {
       for (final e in done)
         rail(_hm(e.start), const Color(0xFF34D399),
             content(e, isLive: false, isDone: true)),
-      // V1.27 C3：标记块投影（分类色点 · 点击=块详情取消标记）
-      for (final b in markBlocks)
-        rail(_hm2(b.startMin),
-            blockColor(b, catColors, tokens.accent),
-            InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => showBlockDetailSheet(context, ref, selected, b),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: blockColor(b, catColors, tokens.accent)
-                      .withValues(alpha: .07),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: blockColor(b, catColors, tokens.accent)
-                          .withValues(alpha: .4)),
-                ),
-                child: Text(
-                  '▦ ${b.catName} ${_hm2(b.startMin)}-${_hm2(b.endMin)}'
-                  '${b.note == null || b.note == b.catName ? '' : ' · ${b.note}'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ),
-            )),
+      ...blockRails,
     ];
 
     for (final t in sched) {
@@ -934,38 +999,8 @@ class _AxisView extends ConsumerWidget {
           ),
           timeColor: violet));
     }
-    if (items.isNotEmpty) {
-      // 末尾空行提示（原型：空闲时段虚线补录行 · 带下一整点时间标）
-      final isToday = CalendarPage.sameDay(selected, DateTime.now());
-      final nextHour =
-          isToday ? '${(DateTime.now().hour + 1) % 24}:00' : '09:00';
-      final nextMin = isToday ? ((DateTime.now().hour + 1) % 24) * 60 : 9 * 60;
-      items.add(rail(
-          nextHour,
-          scheme.surface,
-          InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () =>
-                showTimePickSheet(context, ref, day: selected, startMin: nextMin),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 22),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: scheme.outlineVariant),
-              ),
-              child: Center(
-                child: Text(
-                  dayEvents.isEmpty
-                      ? '当天暂无安排 · 点空行或右下角 ＋ 补录'
-                      : '空闲 · 点此补录该时段日程',
-                  style: TextStyle(
-                      fontSize: 12, color: scheme.onSurfaceVariant),
-                ),
-              ),
-            ),
-          )));
-    }
+    // V1.52：空隙补录条已由 blockRails 按实际空档生成（无块时整段 00:00-24:00），
+    // 不再追加写死的「下一整点」单行。
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1047,7 +1082,7 @@ class _DayHoursView extends ConsumerWidget {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: InkWell(
-                              onTap: () => showEventDetailSheet(context, ref, e),
+                              onTap: () => showTimePickSheet(context, ref, event: e),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 7),
@@ -1072,27 +1107,41 @@ class _DayHoursView extends ConsumerWidget {
                               ),
                             ),
                           ),
-                        for (final b in blocks.where((b) => b.startMin ~/ 60 == h))
+                        for (final b in blocks.where((b) => b.source != kSrcEvent && b.startMin ~/ 60 == h))
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: InkWell(
-                              onTap: () => showBlockDetailSheet(context, ref, selected, b),
+                              onTap: () => showTimePickSheet(context, ref, block: b),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 10, vertical: 7),
                                 decoration: BoxDecoration(
-                                  color: blockColor(b, catColors, tokens.accent)
-                                      .withValues(alpha: .85),
+                                  color: b.isTiming
+                                      ? const Color(0xFFF43F5E)
+                                      : blockColor(b, catColors, tokens.accent)
+                                          .withValues(alpha: .85),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Text(
-                                  '${b.catName} ${(b.startMin ~/ 60).toString().padLeft(2, '0')}:${(b.startMin % 60).toString().padLeft(2, '0')}-${(b.endMin ~/ 60).clamp(0, 23).toString().padLeft(2, '0')}:${(b.endMin % 60).toString().padLeft(2, '0')}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${b.note == null || b.note!.isEmpty ? b.catName : b.note}'
+                                        '${b.isTiming ? ' ●' : ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                    Text('${b.durationMin()}分',
+                                        style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white70)),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1140,12 +1189,12 @@ class _WeekBoard extends ConsumerWidget {
   final DateTime selected;
   final List<CalEvent> events;
 
-  /// 事件是否覆盖该整点分钟（进行中 end=null 视为覆盖到当天 24:00）。
+  /// 事件是否与该小时有交集（V1.52：原按整点采样，非整点起始的事件/块整行隐身）。
   static bool _coversHour(CalEvent e, int m0) {
     if (e.allDay) return e.start.hour * 60 == m0;
     final s = e.start.hour * 60 + e.start.minute;
-    final en = e.end == null ? 1440 : e.end!.hour * 60 + e.end!.minute;
-    return m0 >= s && m0 < math.max(en, s + 1);
+    final en = e.end == null ? 1440 : math.max(e.end!.hour * 60 + e.end!.minute, s + 1);
+    return s < m0 + 60 && en > m0;
   }
 
   @override
@@ -1160,7 +1209,7 @@ class _WeekBoard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('🗓 ${md(days.first)} - ${md(days.last)} · 空格子 → 添加时间段 · 已添加 → 点进去查看/编辑',
+        Text('🗓 ${md(days.first)} - ${md(days.last)} · 空格子 → 添加时间段 · 已添加 → 点进去修改/拆分/合并',
             style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
         const SizedBox(height: 6),
         Row(
@@ -1203,7 +1252,10 @@ class _WeekBoard extends ConsumerWidget {
                       final items = <Object>[
                         ...CalendarPage.onDay(events, d)
                             .where((x) => _coversHour(x, m)),
-                        ...blocks.where((x) => x.covers(m)),
+                        ...blocks.where((x) =>
+                            x.source != kSrcEvent &&
+                            x.startMin < m + 60 &&
+                            x.effEnd() > m),
                       ];
                       final segs = weekCellSegments(items);
                       Color segColor(Object it) => it is CalEvent
@@ -1213,12 +1265,24 @@ class _WeekBoard extends ConsumerWidget {
                                   ? const Color(0xFFF43F5E)
                                   : tokens.accent))
                           : blockColor(it as TimeBlock, catColors, tokens.accent);
+                      int segDurMin(Object it) => it is TimeBlock
+                          ? it.durationMin()
+                          : (it is CalEvent && it.end != null
+                              ? it.end!.difference(it.start).inMinutes
+                                  .clamp(0, 1440)
+                              : 0);
+                      String segLabel(Object it) => it is CalEvent
+                          ? it.title
+                          : ((it as TimeBlock).note == null ||
+                                  it.note!.isEmpty
+                              ? it.catName
+                              : it.note!);
                       void openItem(Object? it) {
-                        // V1.28⑧：先查该时间的信息 → 详情（可编辑），空格子才开添加。
+                        // V1.52：点已有事件/块=与添加同款编辑弹层；空格子才开添加。
                         if (it is CalEvent) {
-                          showEventDetailSheet(context, ref, it);
+                          showTimePickSheet(context, ref, event: it);
                         } else if (it is TimeBlock) {
-                          showBlockDetailSheet(context, ref, d, it);
+                          showTimePickSheet(context, ref, block: it);
                         } else {
                           showTimePickSheet(context, ref, day: d, startMin: m);
                         }
@@ -1256,9 +1320,8 @@ class _WeekBoard extends ConsumerWidget {
                                                           4)),
                                               child: segs[si]
                                                       .badgeText
-                                                      .isEmpty
-                                                  ? null
-                                                  : Center(
+                                                      .isNotEmpty
+                                                  ? Center(
                                                       child: Text(
                                                           segs[si].badgeText,
                                                           style: const TextStyle(
@@ -1269,7 +1332,32 @@ class _WeekBoard extends ConsumerWidget {
                                                               color:
                                                                   Colors
                                                                       .white,
-                                                              height: 1))),
+                                                              height: 1)))
+                                                  : (segs.length > 1
+                                                      ? null
+                                                      : Padding(
+                                                          padding: const EdgeInsets.symmetric(
+                                                              horizontal: 2),
+                                                          child: ClipRect(
+                                                            child: Text(
+                                                                '${segLabel(segs[si].item)} · ${segDurMin(segs[si].item)}分',
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .clip,
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                                style: const TextStyle(
+                                                                    fontSize:
+                                                                        6.5,
+                                                                    color: Colors
+                                                                        .white,
+                                                                    height:
+                                                                        17 /
+                                                                            6.5)),
+                                                          ),
+                                                        )),
                                             ),
                                           ),
                                         ),

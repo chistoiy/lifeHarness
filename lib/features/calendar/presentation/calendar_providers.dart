@@ -87,3 +87,19 @@ final monthBlockDaysProvider =
     FutureProvider.family<Set<int>, (int, int)>((ref, ym) {
   return ref.watch(timeBlockDaoProvider).daysWithBlocks(ym.$1, ym.$2);
 });
+
+/// V1.52：全局唯一「计时中」块（轴视图卡片/结束计时按钮/账本 hero 共用）。
+final timingBlockProvider =
+    FutureProvider<TimeBlock?>((ref) => ref.watch(timeBlockDaoProvider).activeTiming());
+
+/// V1.52：月内有计时中块的日（月历红脉冲点，优先级最高）。
+final monthTimingDaysProvider =
+    FutureProvider.family<Set<int>, (int, int)>((ref, ym) {
+  return ref.watch(timeBlockDaoProvider).daysWithTiming(ym.$1, ym.$2);
+});
+
+/// V1.52 时间账本：区间内全部时间块（含计时中，按已耗时计入）。
+final blocksInRangeProvider =
+    FutureProvider.family<List<TimeBlock>, (DateTime, DateTime)>((ref, r) {
+  return ref.watch(timeBlockDaoProvider).listInRange(r.$1, r.$2);
+});

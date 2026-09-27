@@ -231,13 +231,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('空格子 → 添加时间段'), findsOneWidget);
 
-    // 中间列=选中日（di=3），10 点格被事件覆盖 → 点它开详情而非添加
+    // 中间列=选中日（di=3），10 点格被事件覆盖 → 点它开统一编辑弹层（V1.52）
     final used = find.byKey(const ValueKey('wk-cell-3-10'));
     await tester.ensureVisible(used);
     await tester.pumpAndSettle();
     await tester.tap(used);
     await tester.pumpAndSettle();
-    expect(find.text('✎ 编辑'), findsOneWidget);
+    expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+    expect(find.text('保存修改'), findsOneWidget);
     expect(find.text('添加事件 / 时间块'), findsNothing);
 
     // 关详情（点遮罩）后点 4 点空格子 → 才应开补录弹层

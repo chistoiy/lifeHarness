@@ -4,6 +4,8 @@
 .flutter-plugins-dependencies
 packages/
 build/
+build_*/
+flutter_*.log
 *.lproj
 
 # Android

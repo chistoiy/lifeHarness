@@ -197,28 +197,30 @@ void main() {
       expect((await repo.habitById(h.id))!.streak, 3);
     });
 
-    test('非计划日不计分母也不断连（周固定日一二）', () async {
-      // 以本周一/周三构造计划日，其余日跳过。
+    test('非计划日不计分母也不断连（计划日=前天/昨天）', () async {
+      // 计划日按「前天/昨天」的实际星期几排：这两天必然已过去、今天必然不是计划日，
+      // 用例结果与跑测日是周几无关。
+      // （原写死本周一/周三：周一跑时周三是未来日，被 upsertEntry 的时钟防护拒写。）
       final now = DateTime.now();
-      final monday = dayStart(now).subtract(Duration(days: now.weekday - 1));
-      final wed = monday.add(const Duration(days: 2));
+      final d2 = dayStart(now).subtract(const Duration(days: 2));
+      final d1 = dayStart(now).subtract(const Duration(days: 1));
       final h = await repo.saveHabit(
         Habit(
           name: '周练',
           cycle: Habit.kWeek,
-          weekDays: const [0, 2],
-          startDate: dayKey(monday.subtract(const Duration(days: 14))),
+          weekDays: [d2.weekday - 1, d1.weekday - 1],
+          startDate: dayKey(d2.subtract(const Duration(days: 14))),
         ),
       );
-      await repo.upsertEntry(h.id, day: dayKey(monday));
-      await repo.upsertEntry(h.id, day: dayKey(wed));
+      await repo.upsertEntry(h.id, day: dayKey(d2));
+      await repo.upsertEntry(h.id, day: dayKey(d1));
       final r = await repo.habitById(h.id);
-      expect(r!.streak, 2, reason: '周二/周日等非计划日跳过不计数不断连');
+      expect(r!.streak, 2, reason: '前天/昨天之外的非计划日跳过不计数不断连');
       expect(
         habitRate(
           r,
           entries: await repo.entriesOf(h.id),
-          from: monday,
+          from: d2,
           to: dayStart(now),
         ),
         100,

@@ -8,7 +8,7 @@ import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
-import 'event_detail_sheet.dart';
+import 'time_pick_sheet.dart';
 
 /// 块视图·格子时间块（V1.19~V1.21 · 原型 calBlockView）。
 ///
@@ -16,9 +16,9 @@ import 'event_detail_sheet.dart';
 /// G1 **全天 0-24**（V1.19.2 起，替代 06:00 起点），1 格 = 粒度分钟；
 /// G2 总面积固定：cols=max(6,√(n*0.82))，任意粒度全天一屏；
 /// G3 **选块即标记**：滑选（含单格）后点右侧分类=直接标记（块即时间，免弹层）；
-///     未选中时点分类=记到此刻（接龙速记）；
+///     V1.52：未选中时点分类=**开一段计时中块**（与 ＋ 添加同一状态机·仅今天可用）；
 /// G4 重复标记=拆分覆盖同步（markRange 事务，原块非交叠段保留）；
-/// G5 事件投影块：计划⚡/进行中●红脉冲/完成✓绿，点击=统一事件详情（全状态 CRUD）。
+/// G5 点已有块/事件=与添加同款统一编辑弹层（V1.52 起不再走详情层）。
 class GridDayView extends ConsumerStatefulWidget {
   const GridDayView({super.key, required this.day});
 
@@ -60,7 +60,8 @@ class _GridDayViewState extends ConsumerState<GridDayView>
 
   void _clearSel() => setState(() => _selA = _selB = null);
 
-  /// 分类速记列点击：有选区=标记选区（拆分覆盖）；无选区=记到此刻（接龙）。
+  /// 分类速记列点击：有选区=标记选区（拆分覆盖）；
+  /// V1.52：无选区=**开一段计时中块**（上一段自动收口·仅今天可用）。
   Future<void> _railTap(Category c, int gran) async {
     final now = DateTime.now();
     final isToday = widget.day.year == now.year &&
@@ -72,19 +73,33 @@ class _GridDayViewState extends ConsumerState<GridDayView>
       s = _startMin + a * gran;
       e = math.min(_startMin + b * gran + gran, _endMin);
     } else if (isToday) {
-      // 记到此刻：上一段速记（今日最后一段 mark 块）截止到 now，新段从 now 到 24:00。
       final nm = now.hour * 60 + now.minute;
-      s = nm;
-      e = _endMin;
-      final blocks = ref.read(dayBlocksProvider(widget.day)).valueOrNull ?? const [];
-      final lastMark = blocks.where((b) => b.source == 'mark' && b.endMin == _endMin).toList()
-        ..sort((a, b) => a.startMin.compareTo(b.startMin));
-      if (lastMark.isNotEmpty) {
-        await ref.read(timeBlockDaoProvider).updateEnd(lastMark.last.id!, nm);
+      final dao = ref.read(timeBlockDaoProvider);
+      final prev = await dao.activeTiming();
+      await dao.startTiming(widget.day, nm, catId: c.id, catName: c.name, note: c.name);
+      _clearSel();
+      ref.invalidate(dayBlocksProvider(widget.day));
+      ref.invalidate(timingBlockProvider);
+      ref.invalidate(monthTimingDaysProvider((widget.day.year, widget.day.month)));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              content: Text(prev == null
+                  ? '▶ 开始计时「${c.name}」· 点该块「■ 结束计时」或点其他分类自动接龙'
+                  : '▶ 上一段「${prev.catName}」已截止 ${_fmt(nm)} · 开始计时「${c.name}」'),
+              duration: const Duration(milliseconds: 1600)));
       }
+      return;
     } else {
-      s = 540;
-      e = 600;
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+              content: Text('仅今天可速记开始计时 · 其他日期请用 ＋ 补录'),
+              duration: Duration(milliseconds: 1500)));
+      }
+      return;
     }
     _clearSel();
     await ref.read(timeBlockDaoProvider).markRange(widget.day, s, math.max(e, s + 1),
@@ -135,7 +150,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
       liveE = now.hour * 60 + now.minute;
       if (liveE <= liveS) liveE = liveS + 1;
     }
-    if (liveS != null) {
+    if (liveS != null || blocks.any((b) => b.isTiming)) {
       if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
     } else if (_pulse.isAnimating) {
       _pulse.stop();
@@ -170,7 +185,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '🖐 滑选 → 点右列分类=直接标记 · 1格=$gran分 · 全天0-24 · ⚡事件/✓完成块点击可管理',
+                '🖐 滑选 → 点右列分类=直接标记 · 1格=$gran分 · 全天0-24 · 点已有块可改起止/拆分/合并',
                 style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 8),
@@ -211,18 +226,19 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                       final hitEv = (a == b) ? eventAt(m) : null;
                       if (hitLive != null && hitEv == null) {
                         _clearSel();
-                        showEventDetailSheet(context, ref, hitLive);
+                        showTimePickSheet(context, ref, event: hitLive);
                         return;
                       }
                       if (hitEv != null) {
                         _clearSel();
-                        showEventDetailSheet(context, ref, hitEv);
+                        showTimePickSheet(context, ref, event: hitEv);
                         return;
                       }
                       final hit = (a == b) ? blockAt(m) : null;
-                      if (hit != null && hit.source == 'mark') {
+                      if (hit != null && hit.source != kSrcEvent) {
                         _clearSel();
-                        showBlockDetailSheet(context, ref, widget.day, hit);
+                        // V1.52：点已有块=与添加同款编辑弹层（含删除/拆分/合并/结束计时）
+                        showTimePickSheet(context, ref, block: hit);
                         return;
                       }
                       // 保持选区，等右侧分类点选（V1.21 选块即标记）
@@ -249,6 +265,8 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                           Color bg;
                           if (isLive) {
                             bg = const Color(0xFFF43F5E);
+                          } else if (blk != null && blk.isTiming) {
+                            bg = const Color(0xFFF43F5E);
                           } else if (ev != null) {
                             bg = ev.status == EventStatus.done
                                 ? const Color(0xFF34D399)
@@ -260,9 +278,11 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                           }
                           final label = isLive
                               ? '●进行中'
-                              : (ev != null
-                                  ? (ev.status == EventStatus.done ? '✓完成' : '⚡事件')
-                                  : (blk?.catName ?? ''));
+                              : (blk != null && blk.isTiming
+                                  ? '●计时中'
+                                  : (ev != null
+                                      ? (ev.status == EventStatus.done ? '✓完成' : '⚡事件')
+                                      : (blk?.catName ?? '')));
                           final cell = AnimatedBuilder(
                             animation: _pulse,
                             builder: (context, _) {
@@ -327,7 +347,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('选中=标记\n未选=记到此刻',
+              Text('选中=标记\n未选=开始计时',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant, height: 1.3)),
               const SizedBox(height: 4),

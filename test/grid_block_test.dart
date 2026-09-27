@@ -160,9 +160,10 @@ void main() {
     await tester.tap(find.text('☰ 轴 · 时间轴'));
     await tester.pumpAndSettle();
     expect(find.text('产品评审'), findsOneWidget);
-    expect(find.textContaining('点卡片查看/编辑/删除'), findsOneWidget);
-    // 块投影出现在时间轴（▦ 分类 起止）
-    expect(find.textContaining('▦ 休息'), findsOneWidget);
+    // V1.52：轴视图副行不再重复起止时间（刻度即开始时间）· 事件卡与块卡同文案
+    expect(find.textContaining('点卡片修改起止/类型'), findsWidgets);
+    // 块投影出现在时间轴（标题=备注/分类名）
+    expect(find.textContaining('休息'), findsWidgets);
   });
 
   testWidgets('块视图：拖选保持选区 → 点右列分类=直接标记（免弹层）', (tester) async {
@@ -236,14 +237,15 @@ void main() {
     }
 
     await tapEventCell();
-    expect(find.text('事件A'), findsWidgets); // 详情弹层打开
-    await tester.tap(find.text('关闭'));
+    // V1.52：点事件格=打开统一编辑弹层（不再是详情层）
+    expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+    await tester.tapAt(const Offset(20, 20)); // 遮罩关闭
     await tester.pumpAndSettle();
 
-    // 第二次点击（此时无选块）→ 仍只开详情，库内块不受任何影响
+    // 第二次点击（此时无选块）→ 仍只开编辑弹层，库内块不受任何影响
     await tapEventCell();
-    expect(find.text('关闭'), findsOneWidget);
-    await tester.tap(find.text('关闭'));
+    expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+    await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
     final after = (await dao.listByDay(d0))

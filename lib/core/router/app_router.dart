@@ -10,6 +10,8 @@ import '../theme/app_theme.dart';
 import '../../shared/linkage/timer_bar_overlay.dart';
 import '../../features/calendar/presentation/calendar_page.dart';
 import '../../features/calendar/presentation/category_page.dart';
+// V1.52 批4：时间账本（L4 分类时长统计 · 日/周/月/年四档）。
+import '../../features/calendar/presentation/time_stats_page.dart';
 import '../../features/care/presentation/baby_day_page.dart';
 import '../../features/care/presentation/babies_page.dart';
 import '../../features/care/presentation/care_page.dart';
@@ -131,6 +133,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pomo',
         builder: (_, s) => PomoScreen(session: s.extra as PomoSession),
+      ),
+      // V1.52 批4：时间账本（时间页顶栏柱状图标 push 进入 · 栈路由不走 go，R6）。
+      GoRoute(
+        path: '/time-stats',
+        builder: (_, _) => const TimeStatsPage(),
       ),
       // V1.42 批1：日子栈页（专版 p-dayDetail / p-dayEdit / p-dayRemind）。
       // 模块内跳转走 Navigator.push；此处登记供外部直达（仪表盘/设置入口）。

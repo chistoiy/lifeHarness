@@ -368,8 +368,8 @@ class FileLogSink {
   /// 的第二成因——窗口只读内存，冷启动后自然是空的）。
   ///
   /// 只读每个文件**尾部 128KB**（单文件封顶 5MB，整读会在启动路径上抖一下），
-  /// 按新→旧逐文件向旧补齐；行格式 `HH:mm:ss.SSS [I|W|E] 文本` 反解失败的原样
-  /// 按 info 收进缓冲（宁可少判级别，不吞行）。全程同步 I/O（FakeAsync 可测）。
+  /// 按新→旧逐文件向旧补齐；行格式见 [_linePattern]（日期一律取文件名），反解
+  /// 失败的原样按 info 收进缓冲（宁可少判级别，不吞行）。全程同步 I/O（FakeAsync 可测）。
   static Future<int> loadRecent({int limit = 300}) async {
     final dir = _dirPath;
     if (dir == null) return 0;
@@ -415,10 +415,14 @@ class FileLogSink {
 
   static const int _tailReadBytes = 128 * 1024;
 
-  /// 落盘行式：`HH:mm:ss.SSS [I] [来源] 文本`；`[来源]` 段是 V1.43.2 新加的，
-  /// 旧日志文件里没有这一段 → 反解时按「系统」收，不做二次迁移。
+  /// 落盘行式：`[MM-dd ]HH:mm:ss.SSS [I] [来源] 文本`。
+  /// 两处兼容（都按「旧行照常解」处理，不做二次迁移）：
+  /// · `[来源]` 段 V1.43.2 新加，旧文件没有 → 按「系统」收；
+  /// · `MM-dd ` 前缀 V1.50批3.6 随 `formatted` 落盘（跨启动分不清哪天），
+  ///   更早的文件里没有 → 设为可选段并**丢弃**，日期一律以文件名为准
+  ///   （flush 按 `line.time` 分天落卷，文件名日期即权威日期）。
   static final RegExp _linePattern = RegExp(
-      r'^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) \[([IWE])\] (?:\[([^\]]{1,10})\] )?(.*)$');
+      r'^(?:\d{2}-\d{2} )?(\d{2}):(\d{2}):(\d{2})\.(\d{3}) \[([IWE])\] (?:\[([^\]]{1,10})\] )?(.*)$');
 
   /// 反解一行落盘文本（日期取文件名日期）；不匹配则按 info 原样收下行。
   static LhLogLine? _parseLine(String raw, DateTime day) {

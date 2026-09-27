@@ -101,9 +101,15 @@ void main() {
     final expected = texts
         .map((t) => LhLogLine(now, LhLevel.info, t).formatted)
         .toList();
-    expect([...baseLines, ...part1.readAsLinesSync()], expected);
-    // dayFiles 新→旧，分卷排在其日后。
-    expect(await FileLogSink.dayFiles(), ['${dayName(now)}.1', dayName(now)]);
+    // 行内字节数会随落盘行式变化（V1.50批3.6 起带 `MM-dd ` 段），因此分卷数
+    // 不固定：按 dayFiles（新→旧）反转成写入顺序后拼回，验的是「一行不丢」。
+    final names = (await FileLogSink.dayFiles())
+        .where((n) => n.startsWith(dayName(now)))
+        .toList();
+    expect(names.last, dayName(now), reason: '主文件排在其分卷之后（新→旧）');
+    expect(
+        [for (final n in names.reversed) ...fileAt(n).readAsLinesSync()],
+        expected);
   });
 
   test('dayFiles 按天列出、新→旧', () async {
