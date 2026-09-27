@@ -63,7 +63,16 @@ class _LedgerCatsPageState extends ConsumerState<LedgerCatsPage> {
     if (_cmSel == c.id) {
       final n = await _prompt(context, title: '大类名称', initial: c.name);
       if (n == null) return;
-      await _repo.renameMajorCat(c.id, n);
+      final name = n.trim();
+      if (name.isEmpty) return;
+      final d = ref.read(ledgerDataProvider).valueOrNull;
+      if (d != null &&
+          d.cats.any((x) =>
+              x.isMajor && x.kind == _kind && x.id != c.id && x.name == name)) {
+        _toast('已有同名分类「$name」');
+        return;
+      }
+      await _repo.renameMajorCat(c.id, name);
       _tick();
     } else {
       setState(() {
@@ -121,8 +130,17 @@ class _LedgerCatsPageState extends ConsumerState<LedgerCatsPage> {
   Future<void> _renameSub(LedgerCat s) async {
     final n = await _prompt(context, title: '子分类名称', initial: s.name);
     if (n == null || n == s.name) return;
-    await _repo.renameCat(s.id, n);
-    await _repo.renameSubCat(s.parentId!, s.name, n);
+    final name = n.trim();
+    if (name.isEmpty) return;
+    final d = ref.read(ledgerDataProvider).valueOrNull;
+    if (d != null &&
+        d.cats.any((x) =>
+            x.parentId == s.parentId && x.id != s.id && x.name == name)) {
+      _toast('该大类下已有子分类「$name」');
+      return;
+    }
+    await _repo.renameCat(s.id, name);
+    await _repo.renameSubCat(s.parentId!, s.name, name);
     _tick();
   }
 

@@ -626,6 +626,13 @@ class _AcctFormState extends ConsumerState<_AcctForm> {
     final n = _name.text.trim().isNotEmpty
         ? _name.text.trim()
         : LedgerAccount.typeLabel(_type);
+    // 禁止重名：撞已有账户名（编辑自身除外）则拦下提示，不做隐式合并。
+    final d0 = ref.read(ledgerDataProvider).valueOrNull;
+    if (d0 != null &&
+        d0.accounts.any((a) => a.name == n && a.id != widget.editing?.id)) {
+      AppToast.show(context, '已有同名账户「$n」，请换个名字');
+      return;
+    }
     final bal = double.tryParse(_bal.text.trim()) ?? 0;
     final enteredLimit = double.tryParse(_limit.text.trim());
     final e = widget.editing;

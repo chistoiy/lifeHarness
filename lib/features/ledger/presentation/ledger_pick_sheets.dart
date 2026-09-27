@@ -206,7 +206,8 @@ Future<String?> showLAcctPickForImport(
                     on: isNew,
                     tap: () async {
                       final name = await promptAcctName(
-                          sheetCtx, isNew ? newName : src);
+                          sheetCtx, isNew ? newName : src,
+                          taken: d.accounts.map((a) => a.name).toSet());
                       if (name != null &&
                           name.trim().isNotEmpty &&
                           sheetCtx.mounted) {
@@ -236,27 +237,46 @@ Future<String?> showLAcctPickForImport(
   heightFactor: .6,
 );
 
-/// 新建账户名输入框：预填解析到的账户名，用户可改，保存才生效。
-Future<String?> promptAcctName(BuildContext ctx, String def) =>
+/// 新建账户名输入框：预填解析名，可改，保存才生效；撞现有账户名则拦下提示。
+Future<String?> promptAcctName(BuildContext ctx, String def,
+        {Set<String> taken = const {}}) =>
     showDialog<String>(
       context: ctx,
       builder: (c) {
         final ctl = TextEditingController(text: def);
-        return AlertDialog(
-          title: const Text('新建账户', style: TextStyle(fontSize: 15)),
-          content: TextField(
-            controller: ctl,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: '账户名称'),
-            onSubmitted: (v) => Navigator.pop(c, v),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(c), child: const Text('取消')),
-            FilledButton(
-                onPressed: () => Navigator.pop(c, ctl.text),
-                child: const Text('保存')),
-          ],
+        String? err;
+        return StatefulBuilder(
+          builder: (c, setSt) {
+            void save() {
+              final v = ctl.text.trim();
+              if (v.isEmpty) {
+                setSt(() => err = '名称不能为空');
+                return;
+              }
+              if (taken.contains(v)) {
+                setSt(() => err = '已有同名账户「$v」');
+                return;
+              }
+              Navigator.pop(c, v);
+            }
+
+            return AlertDialog(
+              title: const Text('新建账户', style: TextStyle(fontSize: 15)),
+              content: TextField(
+                controller: ctl,
+                autofocus: true,
+                decoration:
+                    InputDecoration(labelText: '账户名称', errorText: err),
+                onSubmitted: (_) => save(),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(c),
+                    child: const Text('取消')),
+                FilledButton(onPressed: save, child: const Text('保存')),
+              ],
+            );
+          },
         );
       },
     );
