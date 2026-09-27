@@ -68,6 +68,148 @@ class PillChip extends StatelessWidget {
   }
 }
 
+/// LH-K09 横滑选择器（原型 .hpick/.hopt/.hon，V1.50 批3.6 V5）：
+/// 横向可滑 + 松手吸附居中，替代上下滚轮 CWheel——左右滑或点选切换，选中项居中
+/// accent 高亮。首尾留半格外边距使首末项可真正居中。每项 key=`hopt-<label>` 供测试点选。
+class HPick extends StatefulWidget {
+  const HPick({
+    super.key,
+    required this.items,
+    required this.index,
+    required this.onChanged,
+    this.itemWidth = 76,
+    this.height = 40,
+  });
+
+  final List<String> items;
+  final int index;
+  final ValueChanged<int> onChanged;
+  final double itemWidth;
+  final double height;
+
+  @override
+  State<HPick> createState() => _HPickState();
+}
+
+class _HPickState extends State<HPick> {
+  final ScrollController _ctl = ScrollController();
+  late int _cur = widget.index;
+  double _viewport = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _center(widget.index, animate: false));
+  }
+
+  @override
+  void didUpdateWidget(HPick oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index && widget.index != _cur) {
+      _cur = widget.index;
+      _center(widget.index, animate: true);
+    }
+  }
+
+  double _offsetFor(int i) => i * widget.itemWidth;
+
+  void _center(int i, {required bool animate}) {
+    if (!_ctl.hasClients || _viewport == 0) return;
+    final target =
+        (_offsetFor(i) - (_viewport - widget.itemWidth) / 2).clamp(0.0, _ctl.position.maxScrollExtent);
+    if (animate) {
+      _ctl.animateTo(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+    } else {
+      _ctl.jumpTo(target);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  void _select(int i) {
+    if (i == _cur) return;
+    setState(() => _cur = i);
+    _center(i, animate: true);
+    widget.onChanged(i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return LayoutBuilder(builder: (context, box) {
+      _viewport = box.maxWidth;
+      final pad = ((_viewport - widget.itemWidth) / 2).clamp(0.0, double.infinity);
+      return SizedBox(
+        height: widget.height,
+        child: NotificationListener<ScrollEndNotification>(
+          onNotification: (_) {
+            if (_ctl.hasClients) {
+              final i = (_ctl.offset / widget.itemWidth).round().clamp(0, widget.items.length - 1);
+              if (i != _cur) {
+                setState(() => _cur = i);
+                widget.onChanged(i);
+              }
+              _center(i, animate: true);
+            }
+            return false;
+          },
+          child: ListView.builder(
+            controller: _ctl,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.symmetric(horizontal: pad),
+            itemCount: widget.items.length,
+            itemBuilder: (context, i) {
+              final on = i == _cur;
+              return GestureDetector(
+                key: ValueKey('hopt-${widget.items[i]}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _select(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: widget.itemWidth,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: on ? tokens.card : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: on
+                        ? [
+                            BoxShadow(
+                                color: Colors.black.withValues(alpha: .10),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1))
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    widget.items[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: on
+                          ? tokens.accent
+                          : Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: .72),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
+}
+
 /// LH-K05 色点图例：`(标签, 颜色)` 横排。
 class DotLegend extends StatelessWidget {
   const DotLegend({super.key, required this.items, this.trailing});
