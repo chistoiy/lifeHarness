@@ -43,6 +43,12 @@ dependencies:
   http: ^1.2.0
   # ZIP 归档（备份容器 .lhak 打包/解包）
   archive: ^3.6.1
+  # 阅读器（V1.50）：EPUB 容器/OPF/NCX/nav 解析（xml 原为 markdown 等的传递依赖·提为直接声明钉版本）
+  xml: ^6.5.0
+  # EPUB 章节正文抽取走宽容 HTML 解析（xhtml 常不严格合法·markdown 传递依赖同上）
+  html: ^0.15.0
+  # firstOrNull 等迭代扩展（flutter_test 钉版本同轨·直接声明防 depend_on_referenced_packages）
+  collection: ^1.19.1
   # MD5 表校验和（.lhbak manifest；archive/cryptography 的传递依赖，显式声明）
   crypto: ^3.0.0
   # 加解密原语（AES-GCM 口令档、SHA-256 校验）

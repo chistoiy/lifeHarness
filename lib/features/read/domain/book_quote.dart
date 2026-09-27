@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'book.dart' show splitTags, decodeStringList;
 
 /// 一条书摘（book_quotes 表 · 计划 §2.1 / §3.3）。
@@ -23,6 +25,8 @@ class BookQuote {
     this.starred = false,
     this.origin,
     this.dedupHash,
+    this.cf,
+    this.rid,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -66,6 +70,10 @@ class BookQuote {
   final bool starred;
   final String? origin;
   final String? dedupHash;
+  // V1.50 阅读器同库口径（DB v25 两列）：[cf]＝划线出处的章+段落区间，
+  // [rid]＝阅读器高亮稳定标识（编辑摘录时二者必须保留 · qeSave 守卫同语义）。
+  final QuoteCf? cf;
+  final String? rid;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -88,6 +96,8 @@ class BookQuote {
     starred: ((r['starred'] as int?) ?? 0) == 1,
     origin: r['origin'] as String?,
     dedupHash: r['dedup_hash'] as String?,
+    cf: QuoteCf.decode(r['cf'] as String?),
+    rid: r['rid'] as String?,
     createdAt: r['created_at'] as int,
     updatedAt: r['updated_at'] as int,
     deletedAt: r['deleted_at'] as int?,
@@ -110,6 +120,8 @@ class BookQuote {
     'starred': starred ? 1 : 0,
     'origin': origin,
     'dedup_hash': dedupHash,
+    'cf': cf?.encode(),
+    'rid': rid,
     'created_at': createdAt,
     'updated_at': updatedAt,
     'deleted_at': deletedAt,
@@ -128,6 +140,8 @@ class BookQuote {
     bool? starred,
     String? origin,
     String? dedupHash,
+    QuoteCf? cf,
+    String? rid,
     int? createdAt,
     int? updatedAt,
     int? deletedAt,
@@ -146,8 +160,43 @@ class BookQuote {
     starred: starred ?? this.starred,
     origin: origin ?? this.origin,
     dedupHash: dedupHash ?? this.dedupHash,
+    cf: cf ?? this.cf,
+    rid: rid ?? this.rid,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
+}
+
+/// 划线出处 CFI 区间（book_quotes.cf 列 JSON 值 · V1.50 数据口径①）。
+///
+/// [c]＝章序（0 基，对应阅读器 spine 叶子章），[p0]~[p1]＝段落下标闭区间。
+/// 原型形态 `cf:{c,p0,p1}`；阅读器高亮渲染与「跳原文」都以此为唯一锚点。
+class QuoteCf {
+  const QuoteCf({required this.c, required this.p0, required this.p1});
+
+  final int c;
+  final int p0;
+  final int p1;
+
+  static QuoteCf? decode(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final v = jsonDecode(raw);
+      if (v is! Map) return null;
+      final c = (v['c'] as num?)?.toInt();
+      final p0 = (v['p0'] as num?)?.toInt();
+      final p1 = (v['p1'] as num?)?.toInt();
+      if (c == null || p0 == null || p1 == null) return null;
+      return QuoteCf(c: c, p0: p0, p1: p1);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String encode() => jsonEncode({'c': c, 'p0': p0, 'p1': p1});
+
+  /// 命中判定：章相同且段落落在闭区间内（阅读器逐段上色用）。
+  bool covers(int chapter, int para) =>
+      chapter == c && para >= p0 && para <= p1;
 }

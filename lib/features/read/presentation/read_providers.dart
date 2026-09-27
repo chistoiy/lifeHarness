@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/epub_doc.dart';
+import '../data/epub_import.dart';
 import '../data/read_repository.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -19,6 +23,19 @@ final readRepositoryProvider = Provider<ReadRepository>(
 );
 
 final readTickProvider = StateProvider<int>((ref) => 0);
+
+/// 本地 EPUB 导入服务（V1.50 批1）。widget 测试 override 注入 pickHook/私有目录，
+/// 不碰真实系统选择器与磁盘（FakeAsync 真 IO 挂死既有教训）。
+final epubImportServiceProvider = Provider<EpubImportService>(
+  (ref) => EpubImportService(ref.watch(readRepositoryProvider)),
+);
+
+/// EPUB 文件加载器（阅读主屏批2/删除批4 复用；测试 override 免真 IO）。
+final epubDocLoaderProvider
+    = Provider<Future<EpubDoc> Function(String path)>((ref) => (path) async {
+  final bytes = await File(path).readAsBytes();
+  return EpubDoc.parse(bytes);
+});
 
 /// 豆瓣元数据缓存条数（防封批 2026-09-26 · 设置页「豆瓣数据缓存」行展示/
 /// 清除按钮置灰判断用；readTick 写后自动重取）。

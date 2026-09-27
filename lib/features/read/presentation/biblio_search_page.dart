@@ -232,6 +232,12 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
           if (_menu) ...[
             _mini(context, 'bsr-fab-scan', '扫描 ISBN 录入', _fabScan),
             const SizedBox(height: 8),
+            // V1.50 导入入口（原型顺序：扫描 → 导入本地 → 手动）。
+            _mini(context, 'bsr-fab-epub', '导入本地图书（EPUB）', () {
+              setState(() => _menu = false);
+              context.push('/read/import-epub');
+            }),
+            const SizedBox(height: 8),
             _mini(context, 'bsr-fab-manual', '手动输入', () {
               setState(() => _menu = false);
               _openForm(null);

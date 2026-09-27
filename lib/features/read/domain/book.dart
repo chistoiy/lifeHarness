@@ -48,6 +48,8 @@ class Book {
     this.wordCount = 0,
     this.binding,
     this.feeDate,
+    this.local = false,
+    this.epub,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -116,6 +118,10 @@ class Book {
   final int wordCount;
   final String? binding;
   final String? feeDate;
+  // V1.50 本地阅读器：local＝EPUB 导入书（点封面直达阅读器 + 角标），
+  // epub＝源文件描述符（DB v25 两列；无新表，位置/外观走 settings KV）。
+  final bool local;
+  final EpubRef? epub;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -177,6 +183,8 @@ class Book {
     wordCount: (r['word_count'] as int?) ?? 0,
     binding: r['binding'] as String?,
     feeDate: r['fee_date'] as String?,
+    local: ((r['local'] as int?) ?? 0) == 1,
+    epub: EpubRef.decode(r['epub'] as String?),
     createdAt: r['created_at'] as int,
     updatedAt: r['updated_at'] as int,
     deletedAt: r['deleted_at'] as int?,
@@ -220,6 +228,8 @@ class Book {
     'word_count': wordCount,
     'binding': binding,
     'fee_date': feeDate,
+    'local': local ? 1 : 0,
+    'epub': epub?.encode(),
     'created_at': createdAt,
     'updated_at': updatedAt,
     'deleted_at': deletedAt,
@@ -262,6 +272,8 @@ class Book {
     int? wordCount,
     String? binding,
     String? feeDate,
+    bool? local,
+    EpubRef? epub,
     int? updatedAt,
     int? deletedAt,
   }) => Book(
@@ -302,10 +314,45 @@ class Book {
     wordCount: wordCount ?? this.wordCount,
     binding: binding ?? this.binding,
     feeDate: feeDate ?? this.feeDate,
+    local: local ?? this.local,
+    epub: epub ?? this.epub,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,
   );
+}
+
+/// 本地 EPUB 源文件描述符（books.epub 列 JSON 值 · V1.50 数据口径③）。
+///
+/// [fmt] EPUB2|EPUB3（解析时识别）；[size] 源文件字节数；
+/// [path] 应用私有目录内的副本路径（原文件保留原位，删书可选连副本移除）。
+class EpubRef {
+  const EpubRef({required this.fmt, required this.size, required this.path});
+
+  final String fmt;
+  final int size;
+  final String path;
+
+  static EpubRef? decode(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final v = jsonDecode(raw);
+      if (v is! Map) return null;
+      final fmt = v['fmt']?.toString();
+      final path = v['path']?.toString();
+      if (fmt == null || path == null || path.isEmpty) return null;
+      return EpubRef(
+        fmt: fmt,
+        size: (v['size'] as num?)?.toInt() ?? 0,
+        path: path,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String encode() =>
+      jsonEncode({'fmt': fmt, 'size': size, 'path': path});
 }
 
 /// 逗号分隔标签列的进出工具（books.tags / book_quotes.tags 共用）。

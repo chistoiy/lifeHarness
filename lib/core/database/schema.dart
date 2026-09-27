@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 24;
+  static const int version = 25;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -629,6 +629,18 @@ class DbSchema {
       'ALTER TABLE $tBooks ADD COLUMN binding TEXT',
       'ALTER TABLE $tBooks ADD COLUMN fee_date TEXT',
     ],
+    // v25（V1.50 阅读器并入书架专版·批1）：本地 EPUB 阅读能力四列一次建齐——
+    // books.local＝1 标记本地导入书（封面角标 + 点封面直达阅读器的分流依据）；
+    // books.epub＝JSON {fmt,size,path}（EPUB 版本/源文件字节数/应用私有目录路径）；
+    // book_quotes.cf＝划线书摘的 CFI 出处 JSON {c,p0,p1}（章序+段落区间，批3 划词用）；
+    // book_quotes.rid＝阅读器高亮稳定标识（批3 双向映射与 brSync 暂存回灌用）。
+    // 阅读位置/逐书外观走 settings 表 KV（reader.* 键，无新表；不新建批注表口径）。
+    24: [
+      'ALTER TABLE $tBooks ADD COLUMN local INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE $tBooks ADD COLUMN epub TEXT',
+      'ALTER TABLE $tBookQuotes ADD COLUMN cf TEXT',
+      'ALTER TABLE $tBookQuotes ADD COLUMN rid TEXT',
+    ],
   };
 
   /// v23 豆瓣元数据缓存 DDL（建库与迁移共用·幂等）。
@@ -1023,6 +1035,8 @@ class DbSchema {
       word_count INTEGER NOT NULL DEFAULT 0,
       binding TEXT,
       fee_date TEXT,
+      local INTEGER NOT NULL DEFAULT 0,
+      epub TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER
@@ -1068,6 +1082,8 @@ class DbSchema {
       starred INTEGER NOT NULL DEFAULT 0,
       origin TEXT,
       dedup_hash TEXT,
+      cf TEXT,
+      rid TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER

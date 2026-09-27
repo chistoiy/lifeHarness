@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/ai/ai_review.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
@@ -388,7 +389,70 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                     _ => _related(cs, tokens, b, relGroups),
                   },
                 ),
+                // V1.50 包装器语义：本地书尾插「本地 EPUB · 可直接阅读」卡。
+                if (b.local) _localEpubCard(cs, b),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 本地 EPUB 卡（原型 brDcard · V1.50）：源文件与 fmt + 打开阅读器直达。
+  /// 「全书检索 / 删除…」按钮随批3/批4 能力接上。
+  Widget _localEpubCard(ColorScheme cs, Book b) {
+    final tokens = context.tokens;
+    final ep = b.epub;
+    final sizeMb = ep == null ? '—' : '${(ep.size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return Container(
+      key: const ValueKey('br-dcard'),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: tokens.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tokens.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '本地 EPUB · 可直接阅读',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+              PillChip(label: ep?.fmt ?? 'EPUB', selected: false),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${ep?.path ?? '—'} · $sizeMb · 无 DRM · 图文混排',
+            style: TextStyle(fontSize: 10, height: 1.5, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          GestureDetector(
+            key: const ValueKey('br-d-open'),
+            onTap: () => context.push('/read/reader/${b.id}'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: tokens.gradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                '打开阅读器',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

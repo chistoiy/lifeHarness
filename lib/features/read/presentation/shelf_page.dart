@@ -1136,7 +1136,11 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     String pfx = '',
   }) => GestureDetector(
     key: ValueKey('sh-item-$pfx${b.id}'),
-    onTap: () => ui.batch ? _selTap(ui, b) : context.push('/read/book/${b.id}'),
+    // V1.50 分流：本地书点封面＝直接进阅读器（原型 shOpen 包装器同语义），
+    // 非本地书行为不变；多选态优先。
+    onTap: () => ui.batch
+        ? _selTap(ui, b)
+        : context.push(b.local ? '/read/reader/${b.id}' : '/read/book/${b.id}'),
     onLongPress: ui.batch ? null : () => showLongPressSheet(context, ref, b),
     child: child,
   );
@@ -1262,14 +1266,25 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    b.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          b.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      // 原型 brRowBadge：列表行标题后「本地」小胶囊。
+                      if (b.local) ...[
+                        const SizedBox(width: 6),
+                        const BrLocalInlineBadge(),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -1427,6 +1442,21 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                                     ),
                                   ),
                                 ),
+                                // 原型 shSpine 本地书右下白圆点（u 元素 5px）。
+                                if (b.local)
+                                  Positioned(
+                                    right: 2,
+                                    bottom: 2,
+                                    child: Container(
+                                      key: ValueKey('sh-spine-local-${b.id}'),
+                                      width: 5,
+                                      height: 5,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -2028,6 +2058,46 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  // 原型 shLongMenu 包装器：本地书置顶「开始阅读 · 本地 EPUB」渐变钮。
+                  if (b.local) ...[
+                    GestureDetector(
+                      key: const ValueKey('lp-read'),
+                      onTap: () {
+                        Navigator.of(sheetCtx).pop();
+                        if (context.mounted) {
+                          context.push('/read/reader/${b.id}');
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: context.tokens.gradient,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.play_arrow_rounded,
+                              size: 15,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              '开始阅读 · 本地 EPUB',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   for (final n in items) rowFor(n),
                   // 原型 5059 尾行灰钮：查看书籍详情
                   TextButton(

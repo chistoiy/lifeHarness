@@ -28,6 +28,71 @@ Color bsStateColor(String state) => switch (state) {
 String bsBadgeLabel(Book b) =>
     b.state == Book.kStateReading ? '${b.percent}%' : b.state;
 
+/// 本地导入书角标（原型 .br-local：右下角黑半透胶囊 + 下载线性图标 + 「本地」）。
+class BrLocalBadge extends StatelessWidget {
+  const BrLocalBadge({super.key, this.fontSize = 8});
+
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('br-local-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .62),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.download_outlined,
+            size: fontSize - 1,
+            color: Colors.white,
+            semanticLabel: null,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '本地',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 列表行标题后的「本地」小胶囊（原型 brRowBadge：8px 黑底白字圆药丸）。
+class BrLocalInlineBadge extends StatelessWidget {
+  const BrLocalInlineBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('br-local-inline'),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        '本地',
+        style: TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 /// 色板封面卡（LH-C06）：渐变底 + 右上分区徽标 + 作者行；有封面图则铺图。
 class BsCover extends StatelessWidget {
   const BsCover({
@@ -39,6 +104,7 @@ class BsCover extends StatelessWidget {
     this.badgeSize = 9,
     this.showAuthor = true,
     this.showBadge = true,
+    this.showLocalBadge = true,
     this.onBadgeTap,
     this.onTap,
   });
@@ -47,6 +113,9 @@ class BsCover extends StatelessWidget {
   final double width, height, radius, badgeSize;
   final bool showAuthor;
   final bool showBadge;
+
+  /// 本地 EPUB 书右下角「本地」角标（墙/轨道/详情封面共用；V1.50）。
+  final bool showLocalBadge;
 
   /// 可点状态角标（LH-K17：点按循环切分区，不冒泡进详情）。
   final VoidCallback? onBadgeTap;
@@ -100,6 +169,8 @@ class BsCover extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (showLocalBadge && book.local)
+                  Positioned(right: 3, bottom: 3, child: const BrLocalBadge()),
                 if (showBadge)
                   Positioned(
                     top: 5,

@@ -441,7 +441,10 @@ class _RailCard extends ConsumerWidget {
       width: 106,
       child: GestureDetector(
         key: ValueKey('rail-${book.id}'),
-        onTap: () => context.push('/read/book/${book.id}'),
+        // V1.50 分流：本地书点封面直达阅读器（与书架 _tapWrap 同语义）。
+        onTap: () => context.push(
+          book.local ? '/read/reader/${book.id}' : '/read/book/${book.id}',
+        ),
         onLongPress: () => showLongPressSheet(context, ref, book),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
