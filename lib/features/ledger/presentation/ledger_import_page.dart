@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,14 +37,15 @@ class _PRow {
 
 class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
   int _step = 1;
-  String _plat = '支付宝';
-  final _rawCtl = TextEditingController();
+  String _plat = '微信支付';
 
-  // 解析选项（原型 billOpts 四开关 + 编码自适应行）。
-  bool _unzip = true;
+  // 选文件（file_picker 读入的原始字节 + 展示名）。
+  List<int>? _fileBytes;
+  String _fileName = '';
+
+  // 解析选项（图4 主页「只导入支出和收入类型」= skipNonSpend；退款冲抵负支出）。
   bool _skipNonSpend = true;
   bool _refundNeg = true;
-  bool _aiCat = false;
 
   List<_PRow> _rows = [];
   Set<int> _sel = {};
@@ -58,7 +62,6 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
 
   @override
   void dispose() {
-    _rawCtl.dispose();
     super.dispose();
   }
 
@@ -73,10 +76,19 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     _written = 0;
     _createdAccts = 0;
     _createdNames = '';
-    _rawCtl.clear();
+    _fileBytes = null;
+    _fileName = '';
   });
 
   int _catOf(_PRow p) => p.catOverride ?? mapBillCat(p.r);
+
+  String _appBarTitle() => switch (_step) {
+        1 => '账单导入与导出',
+        2 => '选择导入文件',
+        3 => '关联账户',
+        4 => '已选 ${_sel.length} · 共 ${_rows.length} 笔',
+        _ => '导入完成',
+      };
 
   // ---- 步骤流转 ----
 
@@ -86,14 +98,14 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       return;
     }
     if (_step == 2) {
-      final text = _rawCtl.text.trim();
-      if (text.isEmpty) {
-        _toast('请先粘贴账单 CSV 内容');
+      final bytes = _fileBytes;
+      if (bytes == null) {
+        _toast('请先选择账单文件');
         return;
       }
-      final res = parseBillText(text, skipNonSpend: _skipNonSpend);
+      final res = parseBillFile(bytes, skipNonSpend: _skipNonSpend);
       if (res == null) {
-        _toast('未识别到支付宝/微信账单表头 · 请粘贴完整导出内容');
+        _toast('未识别到支付宝/微信账单表头 · 请检查导出文件');
         return;
       }
       if (res.rows.isEmpty) {
@@ -225,7 +237,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     final res = await repo.commitImport(
       bk: d.curBook.id,
       platform: _plat,
-      fileName: 'pasted',
+      fileName: _fileName.isEmpty ? 'file' : _fileName,
       newAccounts: newAccts,
       rows: specs,
     );
@@ -248,9 +260,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('账单导入'),
+            Text(_appBarTitle()),
             Text(
-              '仅本机解析 · 不上传不联网',
+              _step == 4 ? '勾选要导入的账条目 · 点分类可改' : '仅本机解析 · 不上传不联网',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.normal,
@@ -334,103 +346,92 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
   // ---- 步骤1 选平台 ----
 
   List<Widget> _step1() {
-    Widget pick(String plat, String badge, Color badgeBg, String guide) {
+    Widget pick(String plat, String badge, Color badgeBg, Color fg) {
       final on = _plat == plat;
       return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 10),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: () => setState(() => _plat = plat),
           child: Ink(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: on
-                  ? context.tokens.accent.withValues(alpha: .06)
-                  : null,
-              borderRadius: BorderRadius.circular(18),
+              color: on ? context.tokens.accent.withValues(alpha: .06) : null,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: on ? context.tokens.accent : Colors.transparent,
-                width: 2,
-              ),
+                  color: on ? context.tokens.accent : Colors.transparent, width: 2),
             ),
-            child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      badge,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        color: plat == '支付宝'
-                            ? const Color(0xFF0EA5E9)
-                            : const Color(0xFF059669),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          plat,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          guide,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF94A3B8),
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Text('›'),
-                ],
+            child: Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                    color: badgeBg, borderRadius: BorderRadius.circular(11)),
+                alignment: Alignment.center,
+                child: Text(badge,
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w900, color: fg)),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(plat,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w800))),
+              Icon(
+                  on ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 20,
+                  color: on ? context.tokens.accent : const Color(0xFFCBD5E1)),
+            ]),
           ),
-        );
+        ),
+      );
     }
 
     return [
-      const Text(
-        '选择账单平台',
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+      const Text('选择账单来源',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      pick('微信支付', '微', const Color(0x2210B981), const Color(0xFF059669)),
+      pick('支付宝', '支', const Color(0x220EA5E9), const Color(0xFF0EA5E9)),
+      pick('其他记账产品', '其', const Color(0x22EF4444), const Color(0xFFEF4444)),
+      pick('通用模板', '表', const Color(0x2216A34A), const Color(0xFF16A34A)),
+      const SizedBox(height: 4),
+      InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _toast('切换账本请在账本页进行'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: context.cardDecoration,
+          child: const Row(children: [
+            Text('导入至',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+            Spacer(),
+            Text('当前账本',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+            Icon(Icons.chevron_right, size: 18, color: Color(0xFFCBD5E1)),
+          ]),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: context.cardDecoration,
+        child: Row(children: [
+          const Expanded(
+              child: Text('只导入支出和收入类型', style: TextStyle(fontSize: 13))),
+          Switch(
+              value: _skipNonSpend,
+              onChanged: (v) => setState(() => _skipNonSpend = v)),
+        ]),
       ),
       const SizedBox(height: 12),
-      pick(
-        '支付宝',
-        '支',
-        const Color(0x220EA5E9),
-        '我的 → 账单 → ⋯ → 开具账单 → 交易明细 CSV（zip）',
-      ),
-      pick(
-        '微信支付',
-        '微',
-        const Color(0x2210B981),
-        '服务 → 钱包 → 账单 → 常见问题 → 下载账单（CSV 为 zip 加密包）',
-      ),
       Container(
         padding: const EdgeInsets.all(14),
         decoration: context.cardDecoration,
-        child: Text(
+        child: const Text(
           '隐私承诺：账单文件仅在本机解析，不上传不联网；'
-          '自动识别支付宝 18 行 / 微信 17 行表头前缀与列结构。',
-          style: const TextStyle(fontSize: 11, height: 1.6),
+          '自动识别编码（UTF-8 含 BOM / GBK）与表头列结构。',
+          style: TextStyle(fontSize: 11, height: 1.6),
         ),
       ),
     ];
@@ -440,7 +441,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
 
   List<Widget> _step2() {
     Widget opt(String label, bool value, ValueChanged<bool> on) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(
@@ -455,23 +456,42 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     );
     return [
       Text(
-        '$_plat · 粘贴账单内容',
+        '$_plat · 选择导出文件',
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 10),
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: context.cardDecoration,
-        child: TextField(
-          controller: _rawCtl,
-          maxLines: 8,
-          style: const TextStyle(fontSize: 11, fontFamily: 'Consolas'),
-          decoration: InputDecoration(
-            hintText:
-                '将 CSV 文件用文本编辑器打开后全选粘贴到此处\n'
-                '（$_plat 导出为 zip 加密包，解压后取明细 CSV）',
-            hintStyle: const TextStyle(fontSize: 11, height: 1.6),
-            border: InputBorder.none,
+      InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _pickFile,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 16),
+          decoration: BoxDecoration(
+            color: context.tokens.accent.withValues(alpha: .04),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: context.tokens.accent.withValues(alpha: .5), width: 2),
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.folder_open, size: 34, color: context.tokens.accent),
+              const SizedBox(height: 10),
+              Text(
+                _fileName.isEmpty ? '点击选择账单文件（.xlsx / .csv）' : _fileName,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: _fileName.isEmpty
+                      ? const Color(0xFF94A3B8)
+                      : context.tokens.accent,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '文件仅在本机解析 · 自动识别编码与表头',
+                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              ),
+            ],
           ),
         ),
       ),
@@ -481,40 +501,39 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
         decoration: context.cardDecoration,
         child: Column(
           children: [
-            opt('zip 加密包解压密码（先在系统「文件」解压再粘贴）', _unzip,
-                (v) => _unzip = v),
             opt('跳过「帮人代付 / 零钱通转入」等非支出流水', _skipNonSpend,
                 (v) => _skipNonSpend = v),
             opt('退款冲抵记为负支出', _refundNeg, (v) => _refundNeg = v),
-            opt('分类未命中时 AI 辅助归类（需 Key）', _aiCat, (v) {
-              if (v) _toast('AI 辅助归类 · 批3 接入');
-              _aiCat = false;
-            }),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'CSV 编码自适应（UTF-8 含 BOM / GBK 兜底转码）',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                  ),
-                  const Text(
-                    '自动',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF10B981),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     ];
+  }
+
+  Future<void> _pickFile() async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['xlsx', 'csv'],
+      withData: true,
+    );
+    if (r == null || r.files.isEmpty) return;
+    final f = r.files.first;
+    List<int>? bytes = f.bytes;
+    if (bytes == null && f.path != null) {
+      try {
+        bytes = await File(f.path!).readAsBytes();
+      } catch (_) {
+        bytes = null;
+      }
+    }
+    if (bytes == null) {
+      _toast('无法读取所选文件');
+      return;
+    }
+    setState(() {
+      _fileBytes = bytes;
+      _fileName = f.name;
+    });
   }
 
   // ---- 步骤3 账户匹配 ----

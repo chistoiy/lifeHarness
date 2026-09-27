@@ -5,7 +5,10 @@
 /// 编码转换（UTF-8/GBK），此处只处理引号 CSV。
 library;
 
-import 'dart:convert' show LineSplitter;
+import 'dart:convert' show LineSplitter, utf8;
+
+import 'package:enough_convert/gbk.dart';
+import 'package:spreadsheet_decoder/spreadsheet_decoder.dart';
 
 class BillRow {
   const BillRow({
@@ -173,7 +176,7 @@ BillParseResult? parseBillText(String text, {bool skipNonSpend = true}) {
       amt: amt,
       isIncome: !isRefund && flow == '收入',
       isRefund: isRefund,
-      payMethod: payM.isEmpty ? '未指定' : payM,
+      payMethod: (payM.isEmpty || payM == '/') ? '未指定' : payM,
       tradeNo: tradeNo.trim(),
       rawCat: rawCat,
       status: status,
@@ -248,4 +251,88 @@ int mapBillCat(BillRow r) {
   if (s.contains('宠物')) return 112;
   if (s.contains('订阅') || s.contains('会员') || s.contains('自动续费')) return 113;
   return 114;
+}
+
+/// Excel 1900 日期系统序列号 → DateTime（epoch 1899-12-30）。
+DateTime excelSerialToDateTime(num serial) => DateTime(1899, 12, 30)
+    .add(Duration(microseconds: (serial * 86400 * 1e6).round()));
+
+/// 从账单文件字节解析（V1.51 文件式导入）。自动识别：
+/// - `PK`(zip) → xlsx：spreadsheet_decoder 读表 + 归一化「交易时间」日期序列号，
+///   再拼回 CSV 文本走 [parseBillText]（复用列映射/去重/过滤口径）；
+/// - 其余 → csv：GBK / UTF-8(含 BOM) 解码后走 [parseBillText]。
+/// 识别失败返回 null。
+BillParseResult? parseBillFile(List<int> bytes, {bool skipNonSpend = true}) {
+  if (bytes.length >= 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
+    return _parseXlsx(bytes, skipNonSpend: skipNonSpend);
+  }
+  return parseBillText(_decodeCsv(bytes), skipNonSpend: skipNonSpend);
+}
+
+/// csv 字节解码：UTF-8 BOM → 去 BOM；否则 UTF-8 严格优先、GBK 兜底
+/// （GBK 几乎接受任意字节对不抛异常，故必须先试 UTF-8，否则 UTF-8 文件会被解成乱码）。
+String _decodeCsv(List<int> bytes) {
+  if (bytes.length >= 3 &&
+      bytes[0] == 0xEF &&
+      bytes[1] == 0xBB &&
+      bytes[2] == 0xBF) {
+    return utf8.decode(bytes.sublist(3));
+  }
+  try {
+    return utf8.decode(bytes);
+  } catch (_) {
+    try {
+      return gbk.decode(bytes);
+    } catch (_) {
+      return utf8.decode(bytes, allowMalformed: true);
+    }
+  }
+}
+
+BillParseResult? _parseXlsx(List<int> bytes, {bool skipNonSpend = true}) {
+  final SpreadsheetDecoder dec;
+  try {
+    dec = SpreadsheetDecoder.decodeBytes(bytes);
+  } catch (_) {
+    return null;
+  }
+  final sheet = dec.tables.values.isEmpty ? null : dec.tables.values.first;
+  if (sheet == null) return null;
+  final rows = sheet.rows;
+  int hdr = -1;
+  for (var i = 0; i < rows.length && i < 40; i++) {
+    if (rows[i].any((c) => (c?.toString() ?? '').trim() == '交易时间')) {
+      hdr = i;
+      break;
+    }
+  }
+  if (hdr < 0) return null;
+  final header = rows[hdr].map((c) => (c?.toString() ?? '').trim()).toList();
+  final dtCol = header.indexOf('交易时间');
+  final sb = StringBuffer();
+  sb.writeln(header.map(_csvCell).join(','));
+  for (var i = hdr + 1; i < rows.length; i++) {
+    final r = rows[i];
+    final cells = <String>[];
+    for (var c = 0; c < header.length; c++) {
+      var s = (c < r.length ? r[c]?.toString() : '') ?? '';
+      if (c == dtCol) s = _normExcelDate(s);
+      cells.add(_csvCell(s));
+    }
+    sb.writeln(cells.join(','));
+  }
+  return parseBillText(sb.toString(), skipNonSpend: skipNonSpend);
+}
+
+String _csvCell(String s) =>
+    (s.contains(',') || s.contains('"')) ? '"${s.replaceAll('"', '""')}"' : s;
+
+/// 交易时间列：Excel 数字序列号 → 'yyyy-MM-dd HH:mm:ss'；已是文本则原样。
+String _normExcelDate(String raw) {
+  final n = double.tryParse(raw.trim());
+  if (n == null) return raw;
+  final dt = excelSerialToDateTime(n);
+  String two(int x) => x.toString().padLeft(2, '0');
+  return '${dt.year}-${two(dt.month)}-${two(dt.day)} '
+      '${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}';
 }
