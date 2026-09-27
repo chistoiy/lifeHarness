@@ -1259,6 +1259,8 @@ tailwind.config = {
         <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800">🧩</span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
           <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
+        <button onclick="navTo('p-logs')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <span class="set-ic bg-purple-50 dark:bg-purple-500/15">📋</span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
@@ -1499,6 +1501,203 @@ tailwind.config = {
         <button onclick="caSave(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保 存</button>
       </div>
       <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
+    </section>
+
+    <!-- ===== P12g 二级：日志管理（V1.50 批 3.6 · 从 sync 专版移入全局 · 单行复制/筛选配置收进设置钮/字号调节/扩大显示） ===== -->
+    <section id="p-logs" class="page px-5 safe-pb no-scrollbar">
+      <!-- V1.50：右上角设置钮（筛选/字号/配置）-->
+      <div class="absolute right-5 top-5 z-20">
+        <button onclick="openSheet('sheetLogSettings')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </button>
+      </div>
+
+      <div class="mt-3">
+        <div class="text-lg font-extrabold">📋 日志管理</div>
+        <div class="text-xs text-slate-400 mt-1">环形缓冲 300 · 复制永远全量 · MM-dd 格式</div>
+      </div>
+
+      <!-- 窗口信息条 -->
+      <div class="mt-3 card !p-2">
+        <div class="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+          <span class="chip on">窗口 · 最近 120 条</span>
+          <span class="chip">环形缓冲 300</span>
+          <span class="chip">落盘 logs/ · 按天 · 单文件封顶 5 MB</span>
+          <span style="flex:1"></span>
+          <button class="mini-btn" onclick="toast('已复制全量日志 · 凭据已脱敏')">复制全部</button>
+        </div>
+      </div>
+
+      <!-- 日志列表（expanded 显示区） -->
+      <div class="card mt-3 !p-0 overflow-hidden" id="logBoxWrap" style="max-height: calc(100vh - 280px); overflow-y: auto;">
+        <!-- V1.50：时间戳加日期前缀 + 单行复制按钮 -->
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:29:58.412</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:29:59.033</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">PROPFIND Depth:1 /LifeHarness/sync/ → 207 · 412ms · Authorization: 已脱敏</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:29:59.941</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">getUserInfo → 配额 3 GB · 已用 1.2 GB · 缓存 5min</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:30:01.771</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">差异结果：仅本地 2 · 仅云端 2 · 已修改 1 · 一致 42 · 字节数档</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-WARN"  data-lv="WARN" data-src="同步">
+          <span class="lt">09-27 08:30:04.219</span>
+          <span class="ll">WARN</span>
+          <span class="ls">同步</span>
+          <span class="lm">429 Too Many Requests · Retry-After: 8 · 退避重发 1/3 · 请求工厂重建</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="备份">
+          <span class="lt">09-27 08:30:12.660</span>
+          <span class="ll">INFO</span>
+          <span class="ls">备份</span>
+          <span class="lm">put snapshot_20260924_083000.lhbak 完成 · 128.4 MB · StreamedRequest</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:30:38.026</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">MKCOL /LifeHarness/sync/logs/ → 405 · 进程内记忆命中，跳过</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-ERROR" data-lv="ERROR" data-src="同步">
+          <span class="lt">09-27 08:31:02.144</span>
+          <span class="ll">ERR </span>
+          <span class="ls">同步</span>
+          <span class="lm">S3 GET /?list-type=2 失败 · 缤纷云 连接超时 30s · 已转失败清单</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-WARN"  data-lv="WARN" data-src="备份">
+          <span class="lt">09-27 08:31:02.871</span>
+          <span class="ll">WARN</span>
+          <span class="ls">备份</span>
+          <span class="lm">台账残留判定：snapshot_20260918_075541.lhbak 仅云端 · 本机已删</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="同步">
+          <span class="lt">09-27 08:31:03.007</span>
+          <span class="ll">INFO</span>
+          <span class="ls">同步</span>
+          <span class="lm">同步摘要 · 上传 3 · 下载 2 · 272.2 MB · 结果成功 · 详情见日志窗口</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="系统">
+          <span class="lt">09-27 08:31:03.155</span>
+          <span class="ll">INFO</span>
+          <span class="ls">系统</span>
+          <span class="lm">FileLogSink 刷盘 logs/2026-09-24.log · 保留 14 天</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-INFO"  data-lv="INFO" data-src="AI">
+          <span class="lt">09-27 08:31:03.418</span>
+          <span class="ll">INFO</span>
+          <span class="ls">AI</span>
+          <span class="lm">AI 调用成功（read.toc）· 13443ms · 入 173/出 4216 tokens</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+        <div class="logline lv-WARN"  data-lv="WARN" data-src="阅读">
+          <span class="lt">09-27 08:31:04.007</span>
+          <span class="ll">WARN</span>
+          <span class="ls">阅读</span>
+          <span class="lm">ISBN 未命中（9787108009821）· 已按书名《万历十五年》在豆瓣匹配补全</span>
+          <button class="mini-btn ml-2 log-copy-btn" onclick="copyLogLine(this)">复制</button>
+        </div>
+      </div>
+
+      <!-- 筛选配置弹层 -->
+      <div id="sheetLogSettings" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLogSettings')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
+          <div class="grabber"></div>
+          <div class="font-extrabold">🔧 日志筛选与配置</div>
+          
+          <!-- Tab 切换：筛选 | 配置 -->
+          <div class="flex gap-2 mt-4 mb-4">
+            <button class="flex-1 seg-on py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 font-bold" onclick="logTab('filter',this)">筛选</button>
+            <button class="flex-1 py-2 rounded-xl text-slate-500" onclick="logTab('config',this)">配置</button>
+          </div>
+          
+          <!-- 筛选 Tab -->
+          <div id="logFilterTab">
+            <!-- 级别 -->
+            <div class="mb-4">
+              <div class="text-xs font-bold text-slate-500 mb-2">级别</div>
+              <div class="flex gap-2">
+                <button class="seg-on flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 font-bold" onclick="filterLv('all',this)">全部</button>
+                <button class="py-2 rounded-xl text-slate-500" onclick="filterLv('warn',this)">警告+</button>
+                <button class="py-2 rounded-xl text-slate-500" onclick="filterLv('error',this)">错误</button>
+              </div>
+            </div>
+            
+            <!-- 来源 -->
+            <div class="mb-4">
+              <div class="text-xs font-bold text-slate-500 mb-2">来源</div>
+              <div class="flex flex-wrap gap-2">
+                <button class="chip on" onclick="filterSrc(this,'all')">全部</button>
+                <button class="chip" onclick="filterSrc(this,'同步')">同步</button>
+                <button class="chip" onclick="filterSrc(this,'备份')">备份</button>
+                <button class="chip" onclick="filterSrc(this,'AI')">AI</button>
+                <button class="chip" onclick="filterSrc(this,'阅读')">阅读</button>
+                <button class="chip" onclick="filterSrc(this,'记账')">记账</button>
+                <button class="chip" onclick="filterSrc(this,'系统')">系统</button>
+              </div>
+            </div>
+            
+            <!-- 关键词 -->
+            <div>
+              <div class="text-xs font-bold text-slate-500 mb-2">关键词</div>
+              <input id="logKwInp" class="inp w-full" placeholder="搜关键词..." oninput="applyKwFilter()">
+            </div>
+          </div>
+          
+          <!-- 配置 Tab -->
+          <div id="logConfigTab" class="hidden">
+            <!-- 字号滚轮 -->
+            <div class="mb-4">
+              <div class="text-xs font-bold text-slate-500 mb-2">字号调节</div>
+              <div class="wheel" id="logFontSize" style="height:80px">
+                <div class="pad"></div>
+                <div class="witem" onclick="logFontSizePick(this,10)">10px</div>
+                <div class="witem on" onclick="logFontSizePick(this,12)">12px</div>
+                <div class="witem" onclick="logFontSizePick(this,14)">14px</div>
+                <div class="witem" onclick="logFontSizePick(this,16)">16px</div>
+                <div class="pad"></div>
+              </div>
+            </div>
+            
+            <!-- 保留天数 -->
+            <div class="mb-4">
+              <div class="text-xs font-bold text-slate-500 mb-2">落盘日志保留</div>
+              <div class="wheel" id="wheelKeep">
+                <div class="pad"></div>
+                <div class="witem" onclick="wheelPick(this)">7 天</div>
+                <div class="witem on" onclick="wheelPick(this)">14 天</div>
+                <div class="witem" onclick="wheelPick(this)">30 天</div>
+                <div class="pad"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
@@ -4047,6 +4246,37 @@ $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].ma
 document.addEventListener('keydown',e=>{if(curPage!=='p-noteEdit')return;
   if(e.key==='ArrowRight')pwSwipe(1);if(e.key==='ArrowLeft')pwSwipe(-1);});
 renderPwBar();
+
+/* ================= V1.50 批 3.6 · 日志筛选与配置函数 ================= */
+var logLv='all',logSrc='all',logKw='';
+function logTab(tab,btn){
+  $('#logFilterTab').classList.toggle('hidden',tab!=='filter');
+  $('#logConfigTab').classList.toggle('hidden',tab!=='config');
+  $$('#sheetLogSettings .seg-btn').forEach(b=>{b.classList.remove('on','bg-brand-50','dark:bg-brand-500/10','text-brand-500');});
+  btn.classList.add('on','bg-brand-50','dark:bg-brand-500/10','text-brand-500');
+}
+function filterLv(lv,btn){logLv=lv;$$('#sheetLogSettings [onclick^="filterLv"]').forEach(b=>{b.classList.toggle('on',b===btn);});applyLogFilter();}
+function filterSrc(btn,src){logSrc=src;$$('#sheetLogSettings [data-src="'+src+'"]').forEach(b=>{b.classList.toggle('on',b===btn);});applyLogFilter();}
+function applyKwFilter(){logKw=$('#logKwInp').value.trim();applyLogFilter();}
+function applyLogFilter(){
+  var n=0;
+  $$('#logBoxWrap .logline').forEach(function(l){
+    var okLv=logLv==='all'||(logLv==='warn'&&l.dataset.lv.match(/WARN|ERROR/))||(logLv==='error'&&l.dataset.lv==='ERROR');
+    var okSrc=logSrc==='all'||l.dataset.src===logSrc;
+    var okKw=!logKw||l.querySelector('.lm').textContent.indexOf(logKw)>=0;
+    l.style.display=(okLv&&okSrc&&okKw)?'':'none';
+    if(okLv&&okSrc&&okKw)n++;
+  });
+}
+function logFontSizePick(el,size){
+  $$('#logFontSize .witem').forEach(i=>i.classList.remove('on'));
+  el.classList.add('on');
+  $('#logBoxWrap').style.fontSize=size+'px';
+}
+function copyLogLine(btn){
+  var line=btn.closest('.logline');
+  var text=line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent+' '+line.querySelector('.ls').textContent+' '+line.querySelector('.lm').textContent;
+  navigator.clipboard.writeText(text).then(function(){toast('已复制该行日志');}).catch(function(){toast('复制失败');});}
 </script>
 </body>
 </html>
