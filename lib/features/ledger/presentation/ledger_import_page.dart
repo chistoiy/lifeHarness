@@ -180,11 +180,13 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     final newAccts = <LedgerAccount>[];
     final newIdxOf = <int, int>{}; // agg 下标 → newAccts 下标
     for (var i = 0; i < _agg.length; i++) {
-      if (_picks[i] != '__new') continue;
+      final pk = _picks[i];
+      if (!pk.startsWith('__new')) continue;
       final (src, _, type) = _agg[i];
+      final custom = pk.startsWith('__new:') ? pk.substring(6).trim() : '';
       newAccts.add(LedgerAccount(
         type: type,
-        name: src,
+        name: custom.isEmpty ? src : custom,
         icon: type == LedgerAccount.kCredit ? 'cardplus' : 'card',
         color: type == LedgerAccount.kCredit ? '#fb7185' : '#8b5cf6',
         creditLimit: type == LedgerAccount.kCredit ? 0 : null,
@@ -206,7 +208,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       int? newIdx;
       if (kind == LedgerTxn.kIncome) {
         acct = d.defAcctId ?? 1; // 收入默认落默认账户，可在 L2 编辑改
-      } else if (pick == '__new') {
+      } else if (pick.startsWith('__new')) {
         acct = 1; // 占位，commitImport 按 newAcctIndex 覆写
         newIdx = newIdxOf[aggIdx];
       } else {
@@ -541,10 +543,12 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
   List<Widget> _step3() {
     final d = ref.watch(ledgerDataProvider).valueOrNull;
     if (d == null) return const [];
-    final nw = _picks.where((p) => p == '__new').length;
+    final nw = _picks.where((p) => p.startsWith('__new')).length;
     String pickName(int i) {
-      if (_picks[i] == '__new') return '新建「${_agg[i].$1}」';
-      return d.acctById[int.tryParse(_picks[i]) ?? -1]?.name ?? '未对应';
+      final p = _picks[i];
+      if (p == '__new') return '新建「${_agg[i].$1}」';
+      if (p.startsWith('__new:')) return '新建「${p.substring(6)}」';
+      return d.acctById[int.tryParse(p) ?? -1]?.name ?? '未对应';
     }
 
     return [

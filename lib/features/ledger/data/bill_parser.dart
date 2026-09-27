@@ -147,9 +147,13 @@ BillParseResult? parseBillText(String text, {bool skipNonSpend = true}) {
     final product = alipay ? at('商品说明') : at('商品');
     final rawCat = alipay ? at('交易分类') : at('交易类型');
     final status = alipay ? at('交易状态') : at('当前状态');
-    final payM = alipay
+    var payM = alipay
         ? (at('收/付款方式').isNotEmpty ? at('收/付款方式') : at('付款方式'))
         : at('支付方式');
+    // 支付宝「收/付款方式」常把主账户与活动/优惠用 & 拼接（如
+    // 「招商银行信用卡(8663)&遇财神立减」「建设银行储蓄卡(1585)&建设银行立减金」），
+    // 取 & 前的主账户，避免每个活动裂成一个新账户。
+    payM = payM.split('&').first.trim();
     final tradeNo = alipay ? at('交易订单号') : at('交易单号');
     final isRefund = status.contains('退款') ||
         rawCat.contains('退款') ||

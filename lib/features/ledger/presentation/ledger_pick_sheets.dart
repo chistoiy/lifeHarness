@@ -156,64 +156,110 @@ Future<String?> showLAcctPickForImport(
   context,
   Consumer(
     builder: (sheetCtx, ref, _) {
-    final d = ref.watch(ledgerDataProvider).valueOrNull;
-    if (d == null) return const SizedBox.shrink();
-    final scheme = Theme.of(sheetCtx).colorScheme;
-    Widget item(String val, Widget leading, String label) => InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => Navigator.pop(sheetCtx, val),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-        child: Row(children: [
-          leading,
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w800)),
-          ),
-          if (curPick == val)
-            Icon(Icons.check, size: 18, color: scheme.primary),
-        ]),
-      ),
-    );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LSheetHead(title: '「$src」对应到'),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                item('__new',
-                    LTile(
+      final d = ref.watch(ledgerDataProvider).valueOrNull;
+      if (d == null) return const SizedBox.shrink();
+      final scheme = Theme.of(sheetCtx).colorScheme;
+      final isNew = curPick.startsWith('__new');
+      final newName = curPick.startsWith('__new:') ? curPick.substring(6) : src;
+      Widget row(
+              {required Widget leading,
+              required String label,
+              required bool on,
+              required VoidCallback? tap}) =>
+          InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: tap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+              child: Row(children: [
+                leading,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w800)),
+                ),
+                if (on) Icon(Icons.check, size: 18, color: scheme.primary),
+              ]),
+            ),
+          );
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LSheetHead(title: '「$src」对应到'),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  row(
+                    leading: LTile(
                         iconKey: 'plus',
                         color: '#f59e0b',
                         size: 32,
                         radius: 11),
-                    '新建「$src」'),
-                for (final a in d.accounts.where((x) => !x.archived))
-                  item('${a.id}',
-                      LTile(
+                    label: '新建「${isNew ? newName : src}」',
+                    on: isNew,
+                    tap: () async {
+                      final name = await promptAcctName(
+                          sheetCtx, isNew ? newName : src);
+                      if (name != null &&
+                          name.trim().isNotEmpty &&
+                          sheetCtx.mounted) {
+                        Navigator.pop(sheetCtx, '__new:${name.trim()}');
+                      }
+                    },
+                  ),
+                  for (final a in d.accounts.where((x) => !x.archived))
+                    row(
+                      leading: LTile(
                           iconKey: a.icon,
                           color: a.color,
                           size: 32,
                           radius: 11),
-                      a.name),
-              ],
+                      label: a.name,
+                      on: curPick == '${a.id}',
+                      tap: () => Navigator.pop(sheetCtx, '${a.id}'),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }),
+          ],
+        ),
+      );
+    },
+  ),
   heightFactor: .6,
 );
+
+/// 新建账户名输入框：预填解析到的账户名，用户可改，保存才生效。
+Future<String?> promptAcctName(BuildContext ctx, String def) =>
+    showDialog<String>(
+      context: ctx,
+      builder: (c) {
+        final ctl = TextEditingController(text: def);
+        return AlertDialog(
+          title: const Text('新建账户', style: TextStyle(fontSize: 15)),
+          content: TextField(
+            controller: ctl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: '账户名称'),
+            onSubmitted: (v) => Navigator.pop(c, v),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c), child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(c, ctl.text),
+                child: const Text('保存')),
+          ],
+        );
+      },
+    );
 
 // ============ S10 角色选择/管理（原型 openWhoPick） ============
 
