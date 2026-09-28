@@ -90,8 +90,10 @@ void main() {
   final now = DateTime(2026, 9, 27).millisecondsSinceEpoch;
 
   group('批1-IM · DB v25', () {
-    test('version=25 · migrations[24] 四列与建库段同文双写', () {
-      expect(DbSchema.version, 25);
+    // 版本号不钉死：本用例只保证「v24→v25 的四列迁移与建库段同文双写」，
+    // 后续批次（V1.53 用 v26 建 ai_calls）继续加版本时不该回头改这里（时间炸弹口径）。
+    test('version>=25 · migrations[24] 四列与建库段同文双写', () {
+      expect(DbSchema.version, greaterThanOrEqualTo(25));
       expect(DbSchema.migrations[24], hasLength(4));
       expect(
         DbSchema.migrations[24]!.join(';'),
