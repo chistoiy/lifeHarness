@@ -278,7 +278,21 @@ void main() {
     // 以后加/撤栏目、改路由表，守护自动跟随。
     final routerSrc = sources['core/router/app_router.dart'];
     expect(routerSrc, isNotNull, reason: '路由表文件必须存在，否则本守护空转');
-    final shellPaths = _shellRoutePaths(routerSrc!);
+    var shellPaths = _shellRoutePaths(routerSrc!).toSet();
+    // 治理G6：壳路由已下沉 features/*/presentation/*_routes.dart（...xShellRoutes()）。
+    // 守护跟随下沉：把各域 *_routes.dart 中 `ShellRoutes()` 函数体里的 path 并入。
+    for (final e in sources.entries) {
+      if (!e.key.endsWith('_routes.dart')) continue;
+      final fn = RegExp(
+              r'List<GoRoute>\s+(\w+)ShellRoutes\(\)\s*=>\s*\[([\s\S]*?)\];')
+          .allMatches(e.value);
+      for (final m in fn) {
+        for (final p in RegExp(r"""path:\s*'([^']+)'""")
+            .allMatches(m.group(2)!)) {
+          shellPaths.add(p.group(1)!);
+        }
+      }
+    }
     expect(shellPaths, containsAll({'/', '/todo', '/settings', '/journal'}),
         reason: 'ShellRoute 解析异常（拿到的是空集/错集）');
 
