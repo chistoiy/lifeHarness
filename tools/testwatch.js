@@ -42,7 +42,7 @@ function serve() {
       s.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       s.end(JSON.stringify({ ...st, mode, elapsed: new Date(Date.now() - st.started).toISOString().slice(11, 19) }));
     } else { s.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); s.end(html()); }
-  }).listen(PORT, '127.0.0.1', () => console.log('testwatch http://127.0.0.1:' + PORT + ' mode=' + mode));
+  }).listen(PORT, '0.0.0.0', () => { const ifs = Object.values(require('os').networkInterfaces()).flat().filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address); console.log('testwatch mode=' + mode + ' -> ' + ['127.0.0.1', ...ifs].map(a => 'http://' + a + ':' + PORT).join(' | ')); });
 }
 
 if (mode === 'json') { /* flutter test --reporter json 的标准输入逐行事件 */
