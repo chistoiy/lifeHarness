@@ -51,7 +51,7 @@ EpubDoc _bigDoc() => _docOf([
         imgSrc: 'img/px.png',
         alt: '测试插图',
       ),
-      ...List.generate(27, (i) => _p('一之$i。$_lorem')),
+      ...List.generate(27, (i) => _p('一之$i。$_lorem$_lorem$_lorem')),
     ],
   ),
   EpubChapter(
@@ -59,7 +59,7 @@ EpubDoc _bigDoc() => _docOf([
     title: '第二章',
     paras: [
       const EpubPara(kind: EpubParaKind.heading, text: '第二章', headingLevel: 1),
-      ...List.generate(24, (i) => _p('二之$i。$_lorem')),
+      ...List.generate(24, (i) => _p('二之$i。$_lorem$_lorem$_lorem')),
     ],
   ),
 ]);
@@ -124,17 +124,20 @@ void main() {
     expect(find.byKey(const ValueKey('br-bottom')), findsOne);
   }
 
-  /// 底栏页码标签 → (章内页, 章页数, 全局页, 总页数)。
-  (int, int, int, int) pgLbl(WidgetTester t) {
+  /// 底栏页码标签 → (章内页, 章页数, 约全局页, 约总页数, 百分比)。
+  /// 轮4②：全局页改字符权重估算（foliate 口径，标签为「约第 X/Y 页」）。
+  (int, int, int, int, int) pgLbl(WidgetTester t) {
     final s = t
         .widget<Text>(find.byKey(const ValueKey('brPgLbl')))
         .data!;
-    final m = RegExp(r'(\d+)/(\d+) 页 · 第 (\d+)/(\d+) 页').firstMatch(s)!;
+    final m = RegExp(r'(\d+)/(\d+) 页 · 约第 (\d+)/(\d+) 页 · (\d+)%')
+        .firstMatch(s)!;
     return (
       int.parse(m.group(1)!),
       int.parse(m.group(2)!),
       int.parse(m.group(3)!),
       int.parse(m.group(4)!),
+      int.parse(m.group(5)!),
     );
   }
 
@@ -149,35 +152,40 @@ void main() {
     testWidgets('右/左热区翻页 · 页码标签同步', (t) async {
       await openReader(t, _bigDoc(), 'u1');
       expect(pgLbl(t).$1, 1); // 章内第 1 页
-      expect(pgLbl(t).$3, 1); // 全局第 1 页
+      expect(pgLbl(t).$3, 1); // 约全局第 1 页
+      expect(pgLbl(t).$5, greaterThan(0)); // 首页也有进度（页底占比）
       // 翻页动画 220ms 后需空帧收尾，600ms 双泵保证下一次轻点可达。
+      final p0 = pgLbl(t).$5;
       for (var i = 0; i < 2; i++) {
         await flipR(t);
         await step(t, ms: 300, times: 2);
       }
-      expect(pgLbl(t).$3, 3);
       expect(pgLbl(t).$1, 3);
+      expect(pgLbl(t).$5, greaterThan(p0)); // 进度随翻页推进
+      expect(pgLbl(t).$3, greaterThan(1)); // 估算全局页跟进
+      final p2 = pgLbl(t).$5;
       await flipL(t);
       await step(t, ms: 300, times: 2);
-      expect(pgLbl(t).$3, 2);
       expect(pgLbl(t).$1, 2); // 仍在第一章
+      expect(pgLbl(t).$5, lessThan(p2));
     });
 
-    testWidgets('字号滑条重排：总页数随字号变化（实算非估算 · V1.53 面板）', (t) async {
+    testWidgets('字号滑条重排：章实算页数随字号变化（实算非估算 · V1.53 面板）', (t) async {
       await openReader(t, _bigDoc(), 'u2');
       await showChrome(t);
       await t.tap(find.byKey(const ValueKey('brBtnFont')));
       await step(t);
-      final before = pgLbl(t).$4;
+      // 轮4②：全书页数为字符估算（不随字号变），字号只影响当前章实算页数。
+      final before = pgLbl(t).$2;
       // 点轨道右端＝字号拉满（页数增）；点左端＝缩回（页数减）。
       final sr = t.getRect(find.byKey(const ValueKey('brFsSl')));
       await t.tapAt(Offset(sr.right - 4, sr.center.dy));
       await step(t, ms: 300, times: 2);
-      final after = pgLbl(t).$4;
+      final after = pgLbl(t).$2;
       expect(after, greaterThan(before));
       await t.tapAt(Offset(sr.left + 4, sr.center.dy));
       await step(t, ms: 300, times: 2);
-      expect(pgLbl(t).$4, lessThan(after));
+      expect(pgLbl(t).$2, lessThan(after));
     });
 
     testWidgets('翻页⇄滚动双模式切换（字号面板 chip）', (t) async {
@@ -220,8 +228,8 @@ void main() {
       );
       await step(t, ms: 300, times: 2);
       final g = pgLbl(t).$3;
-      final tot = pgLbl(t).$4;
-      expect(g, greaterThan(tot ~/ 2));
+      // 轮4②：进度为字符权重占比（滑条拖到右半区 → 占比过半）。
+      expect(pgLbl(t).$5, greaterThanOrEqualTo(50));
       await step(t, ms: 300);
       // 重进：换挂载即重读 reader.pos（同库同书 → 位置回落）。
       // 不用 br-back：根路由弹出会触发 Navigator 空历史断言。
@@ -273,7 +281,8 @@ void main() {
       await t.tap(find.byKey(const ValueKey('brDrTabSearch')));
       await step(t);
       await t.enterText(find.byKey(const ValueKey('brDrQ')), '二之7。');
-      await step(t);
+      // 轮4②：抽屉检索防抖 260ms + 分批微任务。
+      await step(t, times: 3);
       expect(find.byKey(const ValueKey('brDrHit-0')), findsOne);
       await t.tap(find.byKey(const ValueKey('brDrHit-0')));
       await step(t, ms: 300);

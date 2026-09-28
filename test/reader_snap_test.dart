@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -61,7 +62,12 @@ void main() {
     src = '${tmp.path}/book.epub';
     File(src).writeAsBytesSync(List.filled(1000, 7));
   });
-  tearDown(() => tmp.deleteSync(recursive: true));
+  // 懒归档/快照句柄在 Windows 上释放有延迟，删除失败忽略（不影响断言）。
+  tearDown(() {
+    try {
+      tmp.deleteSync(recursive: true);
+    } catch (_) {}
+  });
 
   String fp() => DocStore.fingerprint(src);
 
@@ -137,6 +143,26 @@ void main() {
     await DocStore.remove(tmp.path, 's4');
     expect(await DocStore.sizeOf(tmp.path, 's4'), 0);
     expect(await DocStore.load(tmp.path, 's4', fp(), srcPath: src), isNull);
+  });
+
+  test('轮4①/②：快照标题与字符数走廉价索引；旧版本快照作废', () async {
+    await DocStore.save(tmp.path, 's5', fp(), _doc());
+    final back = await DocStore.load(tmp.path, 's5', fp(), srcPath: src);
+    expect(back!.chapterTitles, ['一章', '二章']);
+    // 权重来自索引 chars 字段，且与逐章实算一致（口径漂移即红）。
+    expect(
+      back.chapterCharCounts,
+      [for (final c in back.chapters) c.charCount],
+    );
+    expect(back.chapterCharCounts.last, 4);
+    // v 字段低于当前 snapVersion（老 App 留下的 part1394 时代快照）→ 作废。
+    final idxFile = File(DocStore.dirFor(tmp.path, 's5') + '/index.json');
+    final j = (jsonDecode(idxFile.readAsStringSync()) as Map)
+        .cast<String, Object?>();
+    j['v'] = DocStore.snapVersion - 1;
+    idxFile.writeAsStringSync(jsonEncode(j));
+    expect(await DocStore.load(tmp.path, 's5', fp(), srcPath: src), isNull);
+    back.lazy?.dispose();
   });
 
   test('真实大书（素材在才跑）：快照载入远快于整本解析且内容一致', () async {

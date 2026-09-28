@@ -116,9 +116,32 @@ void main() {
 
   Future<void> selectPara(WidgetTester t, String key) async {
     // V1.53 轮3：长按段落下摘抄工具条（点按已改为冒泡收放 chrome）。
+    // 轮4③：长按默认命中一句（落点＝段中心）。
     await t.longPress(find.byKey(ValueKey(key)));
     await step(t);
     expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+  }
+
+  /// 轮4③：长按段首行左缘 → 确定性命中首句。
+  Future<void> selectParaTop(WidgetTester t, String key) async {
+    final r = t.getRect(find.byKey(ValueKey(key)));
+    await t.longPressAt(Offset(r.left + 12, r.top + 5));
+    await step(t);
+    expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+  }
+
+  /// 当前选区文本（工具条「复制」不弹 toast 场景不便，这里直接读渲染段）。
+  /// 段 wrap 内 Text.rich 全文＝显示文本（含缩进），选中子串长度另经复制测得。
+  Future<int> copiedLen(WidgetTester t) async {
+    await t.tap(find.byKey(const ValueKey('brSelCopy')));
+    await step(t);
+    final toast = t.widgetList<Text>(find.byType(Text)).firstWhere(
+      (w) => (w.data ?? '').startsWith('已复制 '),
+      orElse: () => const Text(''),
+    );
+    final m = RegExp(r'已复制 (\d+) 字').firstMatch(toast.data ?? '');
+    await clearToasts(t);
+    return m == null ? -1 : int.parse(m.group(1)!);
   }
 
   group('批3-S · 选区与浮条', () {
@@ -136,15 +159,29 @@ void main() {
       expect(find.byKey(const ValueKey('br-bottom')), findsOne);
     });
 
-    testWidgets('后扩一段 · 复制 toast 含合计字数', (t) async {
+    testWidgets('轮4③ 长按句首选首句 · 后扩按句推进', (t) async {
       await openReader(t, _doc(), 's2');
-      await selectPara(t, 'brpTap-0-3');
+      final full = '三之0。$_lorem';
+      await selectParaTop(t, 'brpTap-0-3');
+      // 段首长按 → 精确命中首句「三之0。」（4 字）。
+      final n1 = await copiedLen(t);
+      expect(n1, '三之0。'.length);
+      // 复制后选区已收；再长按段首 → 同一句（确定性）。
+      await selectParaTop(t, 'brpTap-0-3');
+      expect(await copiedLen(t), n1);
+      // 后扩一次＝补到下一句（不越过整段）。
+      await selectParaTop(t, 'brpTap-0-3');
       await t.tap(find.byKey(const ValueKey('brGrowR')));
       await step(t);
-      await t.tap(find.byKey(const ValueKey('brSelCopy')));
+      final got2 = await copiedLen(t);
+      expect(got2, full.length);
+      // 再后扩＝本段用尽 → 跨段吞下「三之1。」整段（含换行连接）。
+      await selectParaTop(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brGrowR')));
       await step(t);
-      final n = ('三之0。$_lorem'.length) + ('三之1。$_lorem'.length) + 1;
-      expect(find.textContaining('已复制 $n 字'), findsOne);
+      await t.tap(find.byKey(const ValueKey('brGrowR')));
+      await step(t);
+      expect(await copiedLen(t), full.length + '三之1。$_lorem'.length + 1);
       expect(find.byKey(const ValueKey('brSelBar')), findsNothing);
       await clearToasts(t);
     });
@@ -169,7 +206,11 @@ void main() {
       expect(q.tag, '共鸣');
       expect(q.rid, startsWith('r'));
       expect(q.origin, '阅读器');
-      expect(q.body, '三之0。$_lorem');
+      // 轮4③：长按默认命中一句 → body 是整段的真子串（句粒度）。
+      final full3 = '三之0。$_lorem';
+      expect(q.body, isNotEmpty);
+      expect(full3.contains(q.body), isTrue);
+      expect(q.body.length, lessThan(full3.length + 1));
       expect(q.chapter, '第一章');
       expect(q.cf!.covers(0, 3), isTrue);
       expect(q.cf!.covers(0, 4), isFalse);
@@ -221,8 +262,11 @@ void main() {
       await t.tap(find.byKey(const ValueKey('brSelThink')));
       await step(t, ms: 300, times: 2);
       // 原型 brToThink：选区落「原文摘录」框，焦点落想法框（想法框留空待录）。
+      // 轮4③：选区＝长按命中的一句（严格短于整段）。
       final body = t.widget<TextField>(find.byKey(const ValueKey('qef-body')));
-      expect(body.controller!.text, '三之0。$_lorem');
+      final txt = body.controller!.text;
+      expect('三之0。$_lorem'.contains(txt), isTrue);
+      expect(txt.length, inInclusiveRange(4, '三之0。$_lorem'.length - 1));
       final tf = t.widget<TextField>(find.byKey(const ValueKey('qef-thought')));
       expect(tf.controller!.text, isEmpty);
       expect(tf.autofocus, isTrue);
@@ -233,7 +277,8 @@ void main() {
 
     testWidgets('词典命中「锚定」→ AI 未开总开关给门控提示', (t) async {
       await openReader(t, _doc(), 's6');
-      await selectPara(t, 'brpTap-0-2');
+      // 轮4③：长按段首命中含「锚定」的首句。
+      await selectParaTop(t, 'brpTap-0-2');
       await t.tap(find.byKey(const ValueKey('brSelDict')));
       await step(t, ms: 400);
       expect(find.byKey(const ValueKey('sheetBrDict')), findsOne);
@@ -259,7 +304,8 @@ void main() {
     await t.tap(find.byKey(const ValueKey('brBtnSearch')));
     await step(t, ms: 300, times: 2);
     await t.enterText(find.byKey(const ValueKey('brSq')), '二之7。');
-    await step(t);
+    // 轮4②：检索防抖 260ms → 多帧后再断言。
+    await step(t, times: 3);
     expect(find.byKey(const ValueKey('brSInfo')), findsOne);
     expect(t.widget<Text>(find.byKey(const ValueKey('brSInfo'))).data, contains('命中 1 处'));
     await t.tap(find.byKey(const ValueKey('brSHit-0')));

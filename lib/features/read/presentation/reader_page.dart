@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -155,8 +156,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   ({int ci, int pg, int pi})? _hitMark; // 当前高亮段
 
   // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
-  ({int ci, int p0, int p1})? _sel; // 同章段落闭区间
+  // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句，前扩/后扩按句走）。
+  ({int ci, int p0, int p1, int o0, int o1})? _sel;
   bool _hlPop = false; // 色板展开
+  // 长按落点 → 句边界需要段内命中偏移；'ci:pi' → 段 Text GlobalKey。
+  final Map<String, GlobalKey> _paraKeys = {};
+  // 轮4③：最后一次长按段（同段再长按＝收起的判定锚）。
+  int _lpCi = -1, _lpPi = -1;
   bool _brSync = true; // read.brSync：划线自动存为书摘
   List<BookQuote> _hlQuotes = const []; // 本书已入库划线行（cf≠null）
   List<_LocalHl> _localHl = const []; // brSync 关时暂存
@@ -180,6 +186,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _clock?.cancel();
     _flashT?.cancel();
     _autoT?.cancel();
+    _pagSaveT?.cancel();
     if (_brightOwned) {
       _brightOwned = false;
       unawaited(_wake(false));
@@ -325,7 +332,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (doc != null && pag != null && _book != null) {
       final pct = pag.pct(_pos.ci, _pos.pg);
       final b = _book!;
-      final pages = b.pages > 0 ? b.pages : pag.total;
+      final pages = b.pages > 0 ? b.pages : pag.estTotal;
       unawaited(
         repo.saveProgress(
           widget.bookId,
@@ -359,8 +366,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         _markFinished();
         return;
       }
+      _pos.ci++;
+      _ensureCur(); // 跨章＝按需实算新章（毫秒级）
       setState(() {
-        _pos.ci++;
         _pos.pg = 0;
         _flash = doc.chapters[_pos.ci].title;
       });
@@ -370,8 +378,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         _savePos();
         return;
       }
+      _pos.ci--;
+      _ensureCur();
       setState(() {
-        _pos.ci--;
         _pos.pg = pag.chapterPages(_pos.ci) - 1;
         _flash = doc.chapters[_pos.ci].title;
       });
@@ -410,6 +419,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _drawerOpen = false;
       _flash = _doc?.chapters[ci].title;
     });
+    _ensureCur();
     _savePos();
     _flashT?.cancel();
     _flashT = Timer(const Duration(milliseconds: 1300), () {
@@ -418,16 +428,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (_cfg.mode == 'scroll') _scrollToPara(ci, 0);
   }
 
-  /// 全书全局页定位（进度条 seek · brSeek 同语义）。
-  void _seek(int g) {
+  /// 进度分数定位（0~1，字节加权 · V1.53.1 轮4 foliate 模型；进度条 seek）。
+  void _seek(double f) {
     final pag = _pag;
-    if (pag == null) return;
-    final p = pag.gPosTo(g);
-    final h = _homePos;
+    final doc = _doc;
+    if (pag == null || doc == null) return;
+    final p = pag.fracTo(f);
     setState(() {
       _pos.ci = p.ci;
       _pos.pg = p.pg;
-      _backPill = h != null && (h.ci != p.ci || h.pg != p.pg);
+    });
+    _ensureCur();
+    final h = _homePos;
+    setState(() {
+      _backPill = h != null && (h.ci != _pos.ci || h.pg != _pos.pg);
     });
     _savePos();
   }
@@ -524,11 +538,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _scrollToPara(int ci, int pi) {
-    // 滚动模式：按段落序号近似定位（每段约 5 行容量下限，误差可接受）。
+    // 滚动模式：按段落序号近似定位。V1.53.1 轮4：只累加当前渲染窗口
+    // （前 8 章起）内的段落，避免为算偏移 materialize 前面所有章。
     final doc = _doc;
     if (doc == null || !_scrollCtrl.hasClients) return;
+    final lo = ci - 8 < 0 ? 0 : ci - 8;
     var idx = 0;
-    for (var c = 0; c < ci; c++) {
+    for (var c = lo; c < ci; c++) {
       idx += doc.chapters[c].paras.length + 1;
     }
     idx += 1 + pi;
@@ -552,33 +568,176 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final doc = _doc;
     if (sel == null || doc == null) return '';
     final ps = doc.chapters[sel.ci].paras;
-    return [
-      for (var i = sel.p0; i <= sel.p1 && i < ps.length; i++) ps[i].text,
-    ].join('\n');
+    final out = <String>[];
+    for (var i = sel.p0; i <= sel.p1 && i < ps.length; i++) {
+      final t = ps[i].text;
+      out.add(
+        i == sel.p0 && i == sel.p1
+            ? t.substring(sel.o0.clamp(0, t.length), sel.o1.clamp(0, t.length))
+            : i == sel.p0
+            ? t.substring(sel.o0.clamp(0, t.length))
+            : i == sel.p1
+            ? t.substring(0, sel.o1.clamp(0, t.length))
+            : t,
+      );
+    }
+    return out.join('\n');
   }
 
-  /// 真机反馈（2026-09-28）+ V1.53 轮3：长按段子弹工具条；同段再长按＝收起
-  /// （点其它段落＝移动选区）。点按已不落到这里（冒泡 body 层收放 chrome）。
-  void _selectPara(int ci, int pi) => setState(() {
-    final s = _sel;
-    if (s != null && s.ci == ci && s.p0 == pi && s.p1 == pi) {
-      _sel = null;
-      _hlPop = false;
+  // ---------- 轮4③ 句粒度选区（参考微信读书：长按默认选中一句） ----------
+
+  static const _kTerm = '。！？!?；;…\n';
+  static const _kSoft = '，,、：:；';
+  static const _kTail = '”’」』）)】》';
+
+  /// 从 [pos] 命中段内整句：左右扫到句读边界；超长则按软标点再切一档。
+  static ({int a, int b}) _sentenceAt(String t, int pos) {
+    if (t.isEmpty) return (a: 0, b: 0);
+    var i = pos.clamp(0, t.length - 1);
+    // 落在标点上 → 先回退到最近实词。
+    while (i > 0 && (_kTerm.contains(t[i]) || _kSoft.contains(t[i]))) {
+      i--;
+    }
+    var a = 0;
+    for (var j = i; j > 0; j--) {
+      final c = t[j - 1];
+      if (_kTerm.contains(c)) {
+        a = j;
+        break;
+      }
+    }
+    var b = t.length;
+    for (var j = i; j < t.length; j++) {
+      if (_kTerm.contains(t[j])) {
+        b = j + 1;
+        while (b < t.length && _kTail.contains(t[b])) {
+          b++;
+        }
+        break;
+      }
+    }
+    if (b - a > 60) {
+      for (var j = a; j < b; j++) {
+        if (_kSoft.contains(t[j])) {
+          if (j - a >= 12 && (b - (j + 1)) >= 12) {
+            b = j + 1;
+            while (b < t.length && _kTail.contains(t[b])) {
+              b++;
+            }
+            break;
+          }
+        }
+      }
+      if (b - a > 60) {
+        for (var j = i; j >= a; j--) {
+          if (_kSoft.contains(t[j]) && (i - j) <= 40) {
+            a = j + 1;
+            break;
+          }
+        }
+      }
+    }
+    return (a: a, b: b);
+  }
+
+  /// 长按落点 → 段内字符偏移（RenderParagraph 精确命中；拿不到回落段首）。
+  int? _charPosInPara(int ci, int pi, Offset global) {
+    final doc = _doc;
+    if (doc == null) return null;
+    final ps = doc.chapters[ci].paras;
+    if (pi >= ps.length) return null;
+    final ctx = _paraKeys['$ci:$pi']?.currentContext;
+    final ro = ctx == null ? null : (ctx as Element).renderObject;
+    if (ro == null) return null;
+    final rb = _firstRenderParagraph(ro);
+    if (rb == null) return null;
+    final local = rb.globalToLocal(global);
+    final pos = rb.getPositionForOffset(local);
+    // 显示文本 = kParaIndent 前缀 + 原文（仅 text 段且开缩进）。
+    final shift = ps[pi].kind == EpubParaKind.text && _cfg.indent
+        ? kParaIndent.length
+        : 0;
+    return (pos.offset - shift).clamp(0, ps[pi].text.length);
+  }
+
+  static RenderParagraph? _firstRenderParagraph(RenderObject root) {
+    RenderParagraph? out;
+    void walk(RenderObject ro) {
+      if (out != null) return;
+      if (ro is RenderParagraph) {
+        out = ro;
+        return;
+      }
+      ro.visitChildren(walk);
+    }
+    walk(root);
+    return out;
+  }
+
+  /// 真机反馈（2026-09-28）+ 轮4③：长按命中一句；同段再长按＝收起；
+  /// 点其它段落＝移动选区。点按已不落到这里（冒泡 body 层收放 chrome）。
+  void _selectPara(int ci, int pi, {Offset? at}) {
+    final doc = _doc;
+    if (doc == null) return;
+    final ps = doc.chapters[ci].paras;
+    if (pi >= ps.length) return;
+    if (_sel != null && _lpCi == ci && _lpPi == pi) {
+      _clearSel();
       return;
     }
-    _sel = (ci: ci, p0: pi, p1: pi);
-    _hlPop = false;
-  });
+    final idx = at == null ? 0 : _charPosInPara(ci, pi, at) ?? 0;
+    final se = _sentenceAt(ps[pi].text, idx);
+    _lpCi = ci;
+    _lpPi = pi;
+    setState(() {
+      _sel = (ci: ci, p0: pi, p1: pi, o0: se.a, o1: se.b);
+      _hlPop = false;
+    });
+  }
 
+  /// 前扩/后扩：按句推进；本段句子用尽后整段吞/吐，再跨段。
   void _growSel(int d) {
     final sel = _sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
-    final n = doc.chapters[sel.ci].paras.length;
+    final ps = doc.chapters[sel.ci].paras;
     setState(() {
-      _sel = d > 0
-          ? (ci: sel.ci, p0: sel.p0, p1: (sel.p1 + 1).clamp(0, n - 1))
-          : (ci: sel.ci, p0: (sel.p0 - 1).clamp(0, n - 1), p1: sel.p1);
+      if (d > 0) {
+        final t = ps[sel.p1].text;
+        if (sel.o1 < t.length) {
+          final se = _sentenceAt(t, sel.o1);
+          var b = se.b;
+          if (b <= sel.o1) b = t.length;
+          _sel = (ci: sel.ci, p0: sel.p0, p1: sel.p1, o0: sel.o0, o1: b);
+        } else if (sel.p1 < ps.length - 1) {
+          _sel = (
+            ci: sel.ci,
+            p0: sel.p0,
+            p1: sel.p1 + 1,
+            o0: sel.o0,
+            o1: ps[sel.p1 + 1].text.length,
+          );
+        }
+      } else {
+        if (sel.p0 == sel.p1 && sel.o0 > 0) {
+          final t = ps[sel.p0].text;
+          final se = _sentenceAt(t, (sel.o0 - 1).clamp(0, t.length - 1));
+          var a = se.a;
+          if (a >= sel.o0) a = 0;
+          _sel = (ci: sel.ci, p0: sel.p0, p1: sel.p1, o0: a, o1: sel.o1);
+        } else if (sel.p0 > 0) {
+          _sel = (
+            ci: sel.ci,
+            p0: sel.p0 - 1,
+            p1: sel.p1,
+            o0: 0,
+            o1: sel.p0 == sel.p1 ? ps[sel.p1].text.length : sel.o1,
+          );
+        }
+      }
+      // 锚点跟到增长端所在段（同段再长按收起的判定随之迁移）。
+      _lpCi = sel.ci;
+      _lpPi = d > 0 ? (_sel?.p1 ?? sel.p1) : sel.p0;
       _hlPop = false;
     });
   }
@@ -586,6 +745,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   void _clearSel() => setState(() {
     _sel = null;
     _hlPop = false;
+    _lpCi = -1;
+    _lpPi = -1;
   });
 
   /// 段生效划线（原型 brHlAt：库内行优先，多条取最后；回落暂存行）。
@@ -641,7 +802,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           tag: tg,
           body: body,
           chapter: doc.chapters[sel.ci].title,
-          page: pag == null ? null : pag.gPos(sel.ci, 0) + 1,
+          page: pag == null ? null : pag.gPosEst(sel.ci, 0) + 1,
           cf: cf,
           rid: rid,
           origin: '阅读器',
@@ -722,7 +883,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (sel == null || doc == null) return;
     final body = _selTxt;
     final ch = doc.chapters[sel.ci].title;
-    final pg = pag == null ? null : pag.gPos(sel.ci, 0) + 1;
+    final pg = pag == null ? null : pag.gPosEst(sel.ci, 0) + 1;
     _clearSel();
     showQuoteEditPage(
       context,
@@ -980,6 +1141,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   int _pagGen = 0;
+  Timer? _pagSaveT;
 
   void _rebuildPag() {
     final doc = _doc;
@@ -989,89 +1151,75 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     unawaited(_applyPag(doc, l, gen));
   }
 
-  /// 分页表优先（批3.5 指纹命中＝秒进）；未命中分片实算（真机修⑤：
-  /// 2409 章大全集整本同步实算＝改字体后卡死数十秒；当前章先行渲染，
-  /// 其余逐 3 章让出 UI 后台补齐后落盘）。
-  /// 真机修⑥：表加载（读文件+compute 解码几万页）期间不再空转圈——
-  /// 先同步铺「当前章实算+其余章占位」上屏，表命中后整体换入（同指纹不跳版）。
+  List<int> _weights(EpubDoc doc) => doc.chapterCharCounts;
+
+  /// V1.53.1 轮4（foliate 模型）：分页**按章懒排**。打开＝当前章同步实算上屏
+  /// （毫秒级，一章而已），落盘表后台合并（允许部分章缺）；不再有任何整本循环
+  /// ——那正是大书打开后书摘/抽屉卡顿的主线程霸占者（真机反馈⑤⑥的最终形态）。
   Future<void> _applyPag(EpubDoc doc, ReaderLayout l, int gen) async {
     final svc = ref.read(epubPreloadProvider);
-    final ci0 = _pos.ci.clamp(0, doc.chapters.length - 1);
-    if (_pag == null) {
-      final fresh = BookPagination.fromTable([
-        for (var i = 0; i < doc.chapters.length; i++)
-          i == ci0
-              ? EpubPager.layoutChapter(doc.chapters[i].paras, l)
-              : const [<int>[]],
-      ]);
-      setState(() {
-        _pag = fresh;
-        _clampPos();
-      });
-      if (svc.docsPath == null) {
-        unawaited(_fillPag(doc, l, fresh, gen, skipCi: ci0));
-        return;
-      }
+    final fresh = BookPagination.lazy(_weights(doc));
+    _ensure(fresh, doc, l, _pos.ci.clamp(0, doc.chapters.length - 1));
+    setState(() {
+      _pag = fresh;
+      _clampPos();
+    });
+    if (svc.docsPath == null) return;
+    BookPagination? tab;
+    try {
+      tab = await svc.loadPag(widget.bookId, l, _weights(doc));
+    } catch (_) {}
+    if (!mounted || gen != _pagGen || tab == null) return;
+    final cur = _pag;
+    if (cur == null) return;
+    for (var i = 0; i < cur.pages.length && i < tab.pages.length; i++) {
+      if (cur.pages[i] == null) cur.pages[i] = tab.pages[i];
     }
-    BookPagination? pag;
-    if (svc.docsPath != null) {
-      try {
-        pag = await svc.loadPag(widget.bookId, l);
-      } catch (_) {}
-      if (!mounted || gen != _pagGen) return;
-    }
-    if (pag != null) {
-      setState(() {
-        _pag = pag;
-        _clampPos();
-      });
-      return;
-    }
-    // 表未命中：继续用已上屏的占位表分片补齐。
-    unawaited(_fillPag(doc, l, _pag!, gen, skipCi: ci0));
-  }
-
-  /// 逐章分片实算全书分页（当前章优先），完成后落盘。
-  Future<void> _fillPag(
-    EpubDoc doc,
-    ReaderLayout l,
-    BookPagination pag,
-    int gen, {
-    int skipCi = -1,
-  }) async {
-    if (skipCi >= 0 && skipCi < doc.chapters.length) {
-      pag.perChapter[skipCi] = EpubPager.layoutChapter(
-        doc.chapters[skipCi].paras,
-        l,
-      );
-      if (mounted && gen == _pagGen) setState(_clampPos);
-    }
-    for (var i = 0; i < doc.chapters.length; i++) {
-      if (i == skipCi) continue;
-      if (!mounted || gen != _pagGen) return;
-      pag.perChapter[i] = EpubPager.layoutChapter(doc.chapters[i].paras, l);
-      if (i % 3 == 2) {
-        await Future<void>.delayed(Duration.zero);
-      }
-    }
-    if (!mounted || gen != _pagGen) return;
     setState(_clampPos);
-    final svc = ref.read(epubPreloadProvider);
-    if (svc.docsPath != null) unawaited(svc.savePag(widget.bookId, l, pag));
   }
 
-  /// 外观变化增量重排（批3.5 口径：当前章毫秒级即时，其余章后台补齐后落盘）。
+  /// 指定章未排版则实算（同步读快照章 + TextPainter，单章毫秒级）。
+  void _ensure(BookPagination pag, EpubDoc doc, ReaderLayout l, int ci) {
+    if (ci < 0 || ci >= doc.chapters.length || pag.laidOut(ci)) return;
+    pag.setChapter(ci, EpubPager.layoutChapter(doc.chapters[ci].paras, l));
+    _pagSaveTick();
+  }
+
+  /// 确保当前章已排版（翻页/跳章/ seek 落章后统一走这里）。
+  void _ensureCur() {
+    final doc = _doc, pag = _pag;
+    if (doc == null || pag == null) return;
+    _ensure(pag, doc, _layout(), _pos.ci.clamp(0, doc.chapters.length - 1));
+  }
+
+  /// 分页表防抖落盘（连翻多章后 2s 写一次，不逐章打盘）。
+  void _pagSaveTick() {
+    _pagSaveT?.cancel();
+    _pagSaveT = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      final svc = ref.read(epubPreloadProvider);
+      final pag = _pag;
+      if (svc.docsPath != null && pag != null) {
+        unawaited(svc.savePag(widget.bookId, _layout(), pag));
+      }
+    });
+  }
+
+  /// 外观变化＝指纹作废整表重置：只重排当前章（改字号/字体即时生效，零后台负载）。
   void _rebuildPagChapterFirst() {
     final doc = _doc;
-    final pag = _pag;
-    if (doc == null || pag == null || _viewport.width <= 0) {
+    if (doc == null || _viewport.width <= 0) {
       _rebuildPag();
       return;
     }
     final l = _layout();
-    final ci = _pos.ci.clamp(0, doc.chapters.length - 1);
-    final gen = ++_pagGen;
-    unawaited(_fillPag(doc, l, pag, gen, skipCi: ci));
+    ++_pagGen;
+    final fresh = BookPagination.lazy(_weights(doc));
+    _ensure(fresh, doc, l, _pos.ci.clamp(0, doc.chapters.length - 1));
+    setState(() {
+      _pag = fresh;
+      _clampPos();
+    });
   }
 
   ReaderLayout _layout() => ReaderLayout(
@@ -1291,6 +1439,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (i < 0 || i >= _hits.length) return;
     final h = _hits[i];
     final pag = _pag;
+    final doc = _doc;
+    if (_cfg.mode == 'page' && pag != null && doc != null) {
+      _ensure(pag, doc, _layout(), h.ci); // 命中章未排版先实算，再定位段
+    }
     setState(() {
       _hitI = i;
       _drawerOpen = false;
@@ -1620,8 +1772,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   Widget _bottomBar((String, Color, Color) th, Size size) {
     final pag = _pag!;
     final n = pag.chapterPages(_pos.ci);
-    final gp = pag.gPos(_pos.ci, _pos.pg);
-    final total = pag.total;
+    final gpEst = pag.gPosEst(_pos.ci, _pos.pg);
+    final total = pag.estTotal;
     return Positioned(
       bottom: 0,
       left: 0,
@@ -1634,7 +1786,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // V1.53 轮3（参考图1~3）：面板区在底栏上方内嵌展开，互斥。
-            if (_panel == 1) _pnlProg(pag, total, gp),
+            if (_panel == 1) _pnlProg(pag),
             if (_panel == 2) _pnlBright(),
             if (_panel == 3) _pnlFont(),
             Row(
@@ -1652,7 +1804,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '${_pos.pg + 1}/$n 页 · 第 ${gp + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',
+                  // 全书页码为字节加权估算（约 1500 字/页 · foliate 口径）。
+                  '${_pos.pg + 1}/$n 页 · 约第 ${gpEst + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',
                   key: const ValueKey('brPgLbl'),
                   style: const TextStyle(
                     fontSize: 9,
@@ -1765,10 +1918,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   /// 进度面板（参考图1）：统计三格 + 进度滑条（上次读到这里）+ 阅读明细/开启自动翻页。
-  Widget _pnlProg(BookPagination pag, int total, int gp) {
-    final pct = pag.pct(_pos.ci, _pos.pg);
-    final left = (total - gp - 1).clamp(0, 1 << 30);
-    final etaMin = left * 45 ~/ 60;
+  Widget _pnlProg(BookPagination pag) {
+    final f = pag.frac(_pos.ci, _pos.pg);
+    final pct = (f * 100).round().clamp(0, 100);
+    // 剩余字数 ÷ 400 字/分钟（经验阅读速率）→ ETA。
+    final leftChars = (pag.totalChars * (1 - f)).round();
+    final etaMin = leftChars ~/ 400;
     final eta = pct >= 100
         ? '已读完'
         : pct <= 0
@@ -1828,10 +1983,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             ),
             child: Slider(
               key: const ValueKey('brProg'),
-              value: gp.toDouble().clamp(0.0, (total - 1).toDouble()),
+              value: (f * 1000).clamp(0, 1000).toDouble(),
               min: 0,
-              max: (total - 1).toDouble().clamp(1.0, (1 << 30).toDouble()),
-              onChanged: (v) => _seek(v.round()),
+              max: 1000,
+              onChanged: (v) => _seek(v / 1000),
             ),
           ),
           const Text(
@@ -2167,20 +2322,31 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       );
     }
     if (_cfg.mode == 'scroll') {
-      return ListView(
+      // V1.53.1 轮4：滚动模式只渲染当前章窗口（前8后24章）——大书不再
+      // 一次性 materialize 全书 2409 章（那是滚动卡顿的另一主因）。
+      final lo = _pos.ci - 8 < 0 ? 0 : _pos.ci - 8;
+      final hi = _pos.ci + 24 > doc.chapters.length - 1
+          ? doc.chapters.length - 1
+          : _pos.ci + 24;
+      final flat = <(int, int)>[];
+      for (var ci = lo; ci <= hi; ci++) {
+        final ps = doc.chapters[ci].paras;
+        for (var pi = 0; pi < ps.length; pi++) {
+          flat.add((ci, pi));
+        }
+      }
+      return ListView.builder(
         key: const ValueKey('br-scroll'),
         controller: _scrollCtrl,
         padding: EdgeInsets.fromLTRB(_cfg.mar, _cfg.mar + 30, _cfg.mar, _cfg.mar + 56),
-        children: [
-          for (var ci = 0; ci < doc.chapters.length; ci++) ...[
-            for (var pi = 0; pi < doc.chapters[ci].paras.length; pi++)
-              _para(th, doc, ci, doc.chapters[ci].paras[pi], pi),
-          ],
-        ],
-        // 滚动模式可见章跟踪（chrome 副标题近似）。
+        itemCount: flat.length,
+        itemBuilder: (_, k) {
+          final (ci, pi) = flat[k];
+          return _para(th, doc, ci, doc.chapters[ci].paras[pi], pi);
+        },
       );
     }
-    final pages = pag.perChapter[_pos.ci];
+    final pages = pag.pages[_pos.ci] ?? const <List<int>>[<int>[]];
     final pg = _pos.pg.clamp(0, pages.length - 1);
     final isLast = _pos.ci == doc.chapters.length - 1 && pg == pages.length - 1;
     return AnimatedSwitcher(
@@ -2346,12 +2512,25 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
     final s = _sel;
     final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
+    // 轮4③：段内精确子串高亮（同段＝句选 o0/o1；跨段首尾各切一头）。
+    var q0 = 0, q1 = p.text.length;
+    if (s != null && inSel) {
+      if (s.p0 == s.p1) {
+        q0 = s.o0;
+        q1 = s.o1;
+      } else {
+        if (pi == s.p0) q0 = s.o0;
+        if (pi == s.p1) q1 = s.o1;
+      }
+    }
+    final partSel = s != null && inSel && (q0 > 0 || q1 < p.text.length);
     Widget wrap(Widget child) => GestureDetector(
       key: ValueKey('brpTap-$ci-$pi'),
       behavior: HitTestBehavior.translucent,
       // V1.53 轮3（参考图4）：长按选中段落才弹摘抄工具条；
       // 点按不再命中这里 → 冒泡到 body 层分派（收放 chrome / 清选区）。
-      onLongPress: () => _selectPara(ci, pi),
+      // 轮4③：长按落点命中整句（微信读书口径），d.globalPosition → 段内偏移。
+      onLongPressStart: (d) => _selectPara(ci, pi, at: d.globalPosition),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
         decoration: hl == null && !inSel
@@ -2463,17 +2642,47 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ),
         );
       case EpubParaKind.text:
+        final pk = _paraKeys.putIfAbsent(
+          '$ci:$pi',
+          () => GlobalKey(debugLabel: 'brp$ci-$pi'),
+        );
+        final span = partSel
+            ? _subSpan(th, p, q0, q1)
+            : _textSpan(th, doc, ci, p, pi, isHit);
         return Padding(
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),
           child: wrap(
-            Text.rich(
-              _textSpan(th, doc, ci, p, pi, isHit),
-              textAlign: TextAlign.justify,
-            ),
+            Text.rich(key: pk, span, textAlign: TextAlign.justify),
           ),
         );
     }
+  }
+
+  /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
+  TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) {
+    final base = TextStyle(
+      fontSize: _cfg.fs,
+      height: _cfg.lh,
+      letterSpacing: _cfg.ls,
+      fontFamily: _cfg.fontFamily,
+      color: th.$3,
+    );
+    final a = q0.clamp(0, p.text.length);
+    final b = q1.clamp(a, p.text.length);
+    // 句从段首开始 → 保留 2em 缩进；切自段中则无前缀（子串起点贴左）。
+    final pre = a == 0 && _cfg.indent ? kParaIndent : '';
+    return TextSpan(
+      style: base,
+      children: [
+        if (a > 0) TextSpan(text: p.text.substring(0, a)),
+        TextSpan(
+          text: '$pre${p.text.substring(a, b)}',
+          style: base.copyWith(backgroundColor: const Color(0x4D6366F1)),
+        ),
+        if (b < p.text.length) TextSpan(text: p.text.substring(b)),
+      ],
+    );
   }
 
   /// 段渲染：2em 缩进 + 链接 span（点击区）+ 命中底色。

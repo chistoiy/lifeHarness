@@ -269,14 +269,27 @@ void main() {
     );
   });
 
-  test('批1-EP · 无目录回落：toc 空 + 章节标题取文件名', () {
+  test('批1-EP · 无目录回落：toc 空 + 章节标题取章内首标题（轮4①）', () {
     final files = {
       for (final e in _epub2Files().entries)
         if (e.key != 'OEBPS/toc.ncx') e.key: e.value,
     };
     final doc = EpubDoc.parse(_zipBytes(files));
     expect(doc.toc, isEmpty);
-    expect(doc.chapters.map((c) => c.title).toList(), ['chapter1', 'chap 2']);
+    // 轮4①：文件名 part1394 类不可读 → 回落章内首个标题段；无标题才用文件名。
+    expect(doc.chapters.map((c) => c.title).toList(), ['章一标题', '章二标题']);
+  });
+
+  test('轮4① · 章内无标题段 → 仍回落文件名（去扩展名）', () {
+    final files = {
+      for (final e in _epub2Files().entries)
+        if (e.key != 'OEBPS/toc.ncx') e.key: e.value,
+      'OEBPS/chapter1.xhtml':
+          '<?xml version="1.0" encoding="UTF-8"?>'
+          '<html xmlns="http://www.w3.org/1999/xhtml"><body><p>只有正文。</p></body></html>',
+    };
+    final doc = EpubDoc.parse(_zipBytes(files));
+    expect(doc.chapters.first.title, 'chapter1');
   });
 
   test('批1-EP · CFI 前缀常量（epub/2/{章序+2}/{段} 的段一）', () {

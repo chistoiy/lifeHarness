@@ -201,25 +201,52 @@ void main() {
 
   group('批3.5 · 分页表落盘', () {
     ReaderLayout layout() => const ReaderLayout(width: 400, height: 800);
-    BookPagination pag() => BookPagination.fromTable([
+    // 轮4②：表带字符权重（进度加权），未排版章在表里为 null。
+    BookPagination pag() => BookPagination.fromTable(
+      [60, 30],
       [
-        [0, 1],
-        [2],
+        [
+          [0, 1],
+          [2],
+        ],
+        [
+          [0],
+        ],
       ],
-      [
-        [0],
-      ],
-    ]);
+    );
 
     test('指纹命中读回；外观变化即失效', () async {
       final fp = PagStore.fingerprint(layout());
       await PagStore.save(tmp.path, 'bk1', fp, pag());
-      final hit = await PagStore.load(tmp.path, 'bk1', fp);
+      final hit = await PagStore.load(tmp.path, 'bk1', fp, [60, 30]);
       expect(hit, isNotNull);
-      expect(hit!.total, 3);
-      expect(await PagStore.load(tmp.path, 'bk1', '$fp|fs22'), isNull);
+      expect(hit!.totalChars, 90);
+      expect(hit.chapterCount, 2);
+      expect(hit.pages[0], [
+        [0, 1],
+        [2],
+      ]);
+      expect(hit.pages[1], [[0]]);
+      expect(await PagStore.load(tmp.path, 'bk1', '$fp|fs22', [60, 30]), isNull);
       await PagStore.remove(tmp.path, 'bk1');
-      expect(await PagStore.load(tmp.path, 'bk1', fp), isNull);
+      expect(await PagStore.load(tmp.path, 'bk1', fp, [60, 30]), isNull);
+    });
+
+    test('null 章（未排版）原样往返', () async {
+      final fp = PagStore.fingerprint(layout());
+      final withNull = BookPagination.fromTable([10, 20], [
+        [
+          [0],
+        ],
+        null,
+      ]);
+      await PagStore.save(tmp.path, 'bk2', fp, withNull);
+      final hit = await PagStore.load(tmp.path, 'bk2', fp, [10, 20]);
+      expect(hit, isNotNull);
+      expect(hit!.laidOut(0), isTrue);
+      expect(hit.laidOut(1), isFalse);
+      expect(hit.totalChars, 30);
+      await PagStore.remove(tmp.path, 'bk2');
     });
   });
 
@@ -255,9 +282,13 @@ void main() {
       final after = (await repo.bookById('b1'))!;
       expect(after.epub!.state, 'rdy');
       expect(svc.docs.get('b1'), isNotNull, reason: '预载完即内存驻留＝秒进');
-      final tab = await svc.loadPag('b1', layout);
+      final tab = await svc.loadPag(
+        'b1',
+        layout,
+        svc.docs.get('b1')?.chapterCharCounts ?? const [],
+      );
       expect(tab, isNotNull);
-      expect(tab!.total, greaterThanOrEqualTo(3));
+      expect(tab!.chapterCount, greaterThanOrEqualTo(3));
       expect(svc.info('b1')?.error, isNull);
       svc.docs.clear();
     });
@@ -306,7 +337,7 @@ void main() {
         tmp.path,
         'b1',
         PagStore.fingerprint(const ReaderLayout(width: 400, height: 800)),
-        BookPagination.fromTable([
+        BookPagination.fromTable([7], <List<List<int>>?>[
           [
             [0],
           ],
@@ -322,7 +353,7 @@ void main() {
       await svc.clear(s.b);
       expect(File(s.copy).existsSync(), isFalse);
       expect(File(s.cover).existsSync(), isFalse);
-      expect(await PagStore.load(tmp.path, 'b1', 'x'), isNull);
+      expect(await PagStore.load(tmp.path, 'b1', 'x', const [7]), isNull);
       expect(File(s.src).existsSync(), isTrue, reason: '原文件绝不删除');
       final after = (await repo.bookById('b1'))!;
       expect(after.epub!.state, 'cl');

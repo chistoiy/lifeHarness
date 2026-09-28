@@ -66,7 +66,7 @@ void main() {
     });
   });
 
-  group('批2-P · BookPagination', () {
+  group('轮4 · BookPagination（惰性表 + 字符权重）', () {
     final doc = _doc([
       EpubChapter(
         href: 'c1',
@@ -80,46 +80,71 @@ void main() {
       ),
     ]);
 
-    test('字号↑ → 总页数↑（真实重排非估算）', () {
-      final small = BookPagination.of(doc, _l(fs: 16));
-      final big = BookPagination.of(doc, _l(fs: 28));
-      expect(big.total, greaterThan(small.total));
-      expect(small.chapterPages(0), greaterThan(1));
-    });
-
-    test('gPos/gPosTo 全书往返一致（跨章）', () {
+    test('frac 沿阅读序单调；跨章按字符权重（未排版章也计权）', () {
       final pag = BookPagination.of(doc, _l());
-      for (var g = 0; g < pag.total; g++) {
-        final p = pag.gPosTo(g);
-        expect(pag.gPos(p.ci, p.pg), g);
+      expect(pag.totalChars, doc.chapters.fold(0, (s, c) => s + c.charCount));
+      final seq = <({int ci, int pg})>[];
+      for (var ci = 0; ci < 2; ci++) {
+        for (var pg = 0; pg < pag.chapterPages(ci); pg++) {
+          seq.add((ci: ci, pg: pg));
+        }
       }
-      // 第二章首页的全局位置 = 第一章页数。
-      expect(pag.gPosTo(pag.chapterPages(0)).ci, 1);
-      expect(pag.gPosTo(pag.chapterPages(0)).pg, 0);
+      for (var i = 1; i < seq.length; i++) {
+        expect(
+          pag.frac(seq[i].ci, seq[i].pg),
+          greaterThan(pag.frac(seq[i - 1].ci, seq[i - 1].pg)),
+        );
+      }
+      expect(pag.frac(1, pag.chapterPages(1) - 1), closeTo(1.0, 1e-9));
+      // 未排版章：占位 1 页，frac 仍按字符权重推进。
+      final lazy = BookPagination.lazy([for (final c in doc.chapters) c.charCount]);
+      expect(lazy.laidOut(0), isFalse);
+      expect(lazy.chapterPages(0), 1);
+      expect(lazy.frac(1, 0), greaterThan(lazy.frac(0, 0)));
     });
 
-    test('pct 单调且夹 0~100；末页为 100% 前置页递增', () {
+    test('fracTo 与 frac 往返（±1 页容差，章内需 ensure 后重夹）', () {
       final pag = BookPagination.of(doc, _l());
-      expect(pag.pct(0, 0), 0);
+      for (var i = 0; i < 2; i++) {
+        for (var pg = 0; pg < pag.chapterPages(i); pg++) {
+          final t = pag.fracTo(pag.frac(i, pg));
+          // 章内允许 ±1 页插值差；跨章错位 ≤1 章（章边界取整）。
+          expect((t.ci - i).abs(), lessThanOrEqualTo(1));
+          if (t.ci == i) expect((t.pg - pg).abs(), lessThanOrEqualTo(1));
+        }
+      }
+      expect(pag.fracTo(0).ci, 0);
+      expect(pag.fracTo(1.0), (ci: 1, pg: pag.chapterPages(1) - 1));
+    });
+
+    test('pct 夹 0~100 且随进度递增；末页 100%', () {
+      final pag = BookPagination.of(doc, _l());
+      expect(pag.pct(1, pag.chapterPages(1) - 1), 100);
       expect(
         pag.pct(1, pag.chapterPages(1) - 1),
         greaterThan(pag.pct(0, 0)),
       );
-      for (final p in [
-        (0, 0),
-        (0, 1),
-        (1, 0),
-      ]) {
-        final v = pag.pct(p.$1, p.$2);
-        expect(v, inInclusiveRange(0, 100));
-      }
+      expect(pag.pct(0, 0), inInclusiveRange(0, 100));
     });
 
-    test('pageOfPara 与装箱表一致；越界段回落末页', () {
+    test('estTotal/gPosEst：约 1500 字/页估算，全局页随进度单调', () {
       final pag = BookPagination.of(doc, _l());
-      final pages = pag.perChapter[0];
+      expect(pag.estTotal, (pag.totalChars / 1500).ceil());
+      final a = pag.gPosEst(0, 0);
+      final b = pag.gPosEst(0, pag.chapterPages(0) - 1);
+      final c = pag.gPosEst(1, pag.chapterPages(1) - 1);
+      expect(a, lessThan(b));
+      expect(b, lessThanOrEqualTo(c));
+      expect(c, lessThanOrEqualTo(pag.estTotal));
+    });
+
+    test('pageOfPara 与装箱表一致；未排版章回落 0、越界段末页', () {
+      final pag = BookPagination.of(doc, _l());
+      final pages = pag.pages[0]!;
       expect(pag.pageOfPara(0, pages[1][0]), 1);
       expect(pag.pageOfPara(0, 9999), pages.length - 1);
+      final lazy = BookPagination.lazy([2, 2]);
+      expect(lazy.pageOfPara(0, 1), 0);
     });
   });
 }

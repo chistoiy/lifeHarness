@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -59,6 +61,11 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   final _q = TextEditingController();
   List<({int ci, int pi, String text, String ch})> _hits = const [];
   bool _bot = false;
+  // 轮4②：标题映射只算一次（chapterTitles 每次新分配列表，勿在 build 里重建）。
+  Map<String, int>? _titleToCi;
+  // 轮4②：搜本书防抖 + 分批扫（2409 章一次同步扫会冻结抽屉滚动帧）。
+  Timer? _debounce;
+  int _searchSeq = 0;
 
   static const _accent = Color(0xFF6366F1);
 
@@ -72,6 +79,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _scroll.dispose();
     _q.dispose();
     super.dispose();
@@ -88,22 +96,41 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     );
   }
 
+  /// 轮4②：输入防抖 260ms + 每批 24 章微任务让帧（大合集一次同步全扫会
+  /// 冻结抽屉；快照章节按需物化，扫到即读段文本）。
   void _runSearch(String q) {
+    _debounce?.cancel();
     final query = q.trim();
+    final seq = ++_searchSeq;
     if (query.isEmpty) {
       setState(() => _hits = const []);
       return;
     }
-    final hits = <({int ci, int pi, String text, String ch})>[];
-    for (var ci = 0; ci < widget.doc.chapters.length; ci++) {
-      final ch = widget.doc.chapters[ci];
-      for (var pi = 0; pi < ch.paras.length; pi++) {
-        if (ch.paras[pi].text.contains(query)) {
-          hits.add((ci: ci, pi: pi, text: ch.paras[pi].text, ch: ch.title));
+    _debounce = Timer(const Duration(milliseconds: 260), () {
+      var ci = 0;
+      final acc = <({int ci, int pi, String text, String ch})>[];
+      void step() {
+        if (!mounted || seq != _searchSeq) return;
+        final end = ci + 24 > widget.doc.chapters.length
+            ? widget.doc.chapters.length
+            : ci + 24;
+        for (; ci < end && acc.length < 80; ci++) {
+          final ch = widget.doc.chapters[ci];
+          for (var pi = 0; pi < ch.paras.length; pi++) {
+            if (ch.paras[pi].text.contains(query)) {
+              acc.add((ci: ci, pi: pi, text: ch.paras[pi].text, ch: ch.title));
+              if (acc.length >= 80) break;
+            }
+          }
+        }
+        if (ci < widget.doc.chapters.length && acc.length < 80) {
+          scheduleMicrotask(step);
+        } else {
+          setState(() => _hits = acc);
         }
       }
-    }
-    setState(() => _hits = hits);
+      step();
+    });
   }
 
   @override
@@ -348,9 +375,10 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
             .where((q) =>
                 q.bookId == widget.bookId && q.deletedAt == null && q.cf != null)
             .length;
-    final titleToCi = <String, int>{
-      for (var i = 0; i < widget.doc.chapters.length; i++)
-        widget.doc.chapters[i].title: i,
+    final titleToCi = _titleToCi ??= <String, int>{
+      // 廉价标题（快照走 ChapterMetaSource 索引，不 materialize 段落）。
+      for (var i = 0; i < widget.doc.chapterTitles.length; i++)
+        widget.doc.chapterTitles[i]: i,
     };
     final groups = tocTree(nodes, hideEmptyParts: false);
     if (groups.isEmpty && titleToCi.isEmpty) {
@@ -360,7 +388,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     for (var gi = 0; gi < (groups.isEmpty ? 1 : groups.length); gi++) {
       final g = groups.isEmpty ? null : groups[gi];
       final secNames = g == null
-          ? [for (final c in widget.doc.chapters) c.title]
+          ? widget.doc.chapterTitles
           : g.sections.map((s) => s.title).toList();
       final folded = widget.state.folded.contains(gi);
       rows.add(
@@ -508,7 +536,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                     SizedBox(
                       width: 34,
                       child: Text(
-                        '${widget.pager.gPos(ci, 0) + 1}',
+                        '${widget.pager.gPosEst(ci, 0) + 1}',
                         textAlign: TextAlign.right,
                         style: TextStyle(
                           fontSize: 9,

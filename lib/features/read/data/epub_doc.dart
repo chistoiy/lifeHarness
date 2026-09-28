@@ -109,6 +109,13 @@ class EpubChapter {
   int get charCount => paras.fold(0, (s, p) => s + p.charCount);
 }
 
+/// 章元数据廉价源（V1.53.1 轮4）：懒章表实现它——标题/字符数**不加载段落**
+/// 即可读，避免进度权重、目录抽屉等全量遍历把整本书 materialize 回内存。
+abstract class ChapterMetaSource {
+  List<String> get chapterTitles;
+  List<int> get chapterCharCounts;
+}
+
 /// 解析结果快照（不可变）。
 class EpubDoc {
   const EpubDoc({
@@ -176,6 +183,16 @@ class EpubDoc {
     if (eager != null) return eager;
     return lazy?.image(src);
   }
+
+  /// 章标题（廉价：懒章表从索引直读，不加载段落）。
+  List<String> get chapterTitles => chapters is ChapterMetaSource
+      ? (chapters as ChapterMetaSource).chapterTitles
+      : [for (final c in chapters) c.title];
+
+  /// 各章字符数（廉价：懒章表从索引直读；进度权重与估算页数用它）。
+  List<int> get chapterCharCounts => chapters is ChapterMetaSource
+      ? (chapters as ChapterMetaSource).chapterCharCounts
+      : [for (final c in chapters) c.charCount];
 
   /// 解析入口（测试/小包）：ZIP 全量字节→容器→OPF→NCX/nav→正文逐段。
   ///
@@ -382,14 +399,36 @@ class EpubDoc {
       final raw = files.bytes(m.href);
       if (raw == null) continue;
       final paras = _extractParas(_str(raw), m.href);
-      final viaToc = toc
+      var viaToc = toc
           .where((t) => t.href == m.href)
           .firstOrNull
           ?.label;
+      if (viaToc == null) {
+        // 合集书常见：toc 与 spine 仅差目录前缀/大小写 → 按文件名再配一次。
+        final bn = m.href.split('/').last.toLowerCase();
+        viaToc = toc
+            .where((t) => t.href.split('/').last.toLowerCase() == bn)
+            .firstOrNull
+            ?.label;
+      }
+      // 轮4①：目录仍没命中（合集目录常只指向每本书首文件）→ 回落章内首个
+      // 标题段（如「第二十一章」），比文件名 part1394 可读得多。
+      String? firstHeading;
+      for (final p in paras) {
+        if (p.kind == EpubParaKind.heading && p.text.trim().isNotEmpty) {
+          final t = p.text.trim();
+          firstHeading = t.length > 30 ? '${t.substring(0, 30)}…' : t;
+          break;
+        }
+      }
+      final title =
+          viaToc ??
+          firstHeading ??
+          m.href.split('/').last.replaceAll(RegExp(r'\.x?html$'), '');
       chapters.add(
         EpubChapter(
           href: m.href,
-          title: viaToc ?? m.href.split('/').last.replaceAll(RegExp(r'\.x?html$'), ''),
+          title: title,
           paras: paras,
         ),
       );

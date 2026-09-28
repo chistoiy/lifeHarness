@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/epub_doc.dart';
@@ -36,14 +38,27 @@ class ReaderSearchPage extends StatefulWidget {
 class _ReaderSearchPageState extends State<ReaderSearchPage> {
   final _q = TextEditingController();
   List<BrHit> _hits = const [];
+  // 轮4②：大合集全扫一次可达秒级，逐键同步扫会卡输入；防抖后再扫。
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _q.dispose();
     super.dispose();
   }
 
-  void _run(String s) => setState(() => _hits = brSearchDoc(widget.doc, s));
+  void _run(String s) {
+    _debounce?.cancel();
+    if (s.trim().isEmpty) {
+      setState(() => _hits = const []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 260), () {
+      if (!mounted) return;
+      setState(() => _hits = brSearchDoc(widget.doc, s));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

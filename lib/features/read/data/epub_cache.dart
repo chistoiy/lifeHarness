@@ -30,7 +30,7 @@ import 'read_repository.dart';
 class PagStore {
   const PagStore._();
 
-  static const tableVersion = 1;
+  static const tableVersion = 2;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   static String fingerprint(ReaderLayout l) =>
@@ -42,31 +42,39 @@ class PagStore {
   static File fileFor(String docsPath, String bookId) =>
       File(p.join(dirPath(docsPath), '$bookId.json'));
 
-  /// 读取与 [fp] 匹配的分页表；无表/坏表/指纹不符返回 null（调用方实算）。
-  static Future<BookPagination?> load(String docsPath, String bookId, String fp) async {
+  /// 读取与 [fp] 匹配的分页表（[weights]＝本书各章字符数，进度加权用）；
+  /// 无表/坏表/指纹不符返回 null（调用方实算）。未排版章在表里为 null。
+  static Future<BookPagination?> load(
+    String docsPath,
+    String bookId,
+    String fp,
+    List<int> weights,
+  ) async {
     final f = fileFor(docsPath, bookId);
     if (!await f.exists()) return null;
     try {
       final src = await f.readAsString();
       // 真机修⑥：2409 章表数 MB，jsonDecode 移入 isolate，主线程零阻塞。
-      return compute(_pagFromJson, (src, fp));
+      return compute(_pagFromJson, (src, fp, weights));
     } catch (_) {
       return null;
     }
   }
 
-  static BookPagination? _pagFromJson((String, String) arg) {
-    final (src, fp) = arg;
+  static BookPagination? _pagFromJson((String, String, List<int>) arg) {
+    final (src, fp, weights) = arg;
     final v = jsonDecode(src);
     if (v is! Map || v['fp'] != fp || v['v'] != tableVersion) return null;
     final per = v['per'];
     if (per is! List) return null;
-    return BookPagination.fromTable([
+    return BookPagination.fromTable(weights, [
       for (final ch in per)
-        [
-          for (final pg in ch as List)
-            [for (final i in pg as List) (i as num).toInt()],
-        ],
+        ch == null
+            ? null
+            : [
+                for (final pg in ch as List)
+                  [for (final i in pg as List) (i as num).toInt()],
+              ],
     ]);
   }
 
@@ -82,7 +90,7 @@ class PagStore {
       jsonEncode({
         'v': tableVersion,
         'fp': fp,
-        'per': pag.perChapter,
+        'per': pag.pages,
       }),
       flush: true,
     );
@@ -108,7 +116,9 @@ class PagStore {
 class DocStore {
   const DocStore._();
 
-  static const snapVersion = 1;
+  /// v2：轮4① 章节标题回落链（toc→文件名→章内首个标题）落盘后，
+  /// 旧快照里的 part1394 类标题全部作废 → 版本 +1 让存量快照失效重解。
+  static const snapVersion = 2;
 
   static String dirFor(String docsPath, String bookId) =>
       p.join(docsPath, 'epub_snap', bookId);
@@ -175,6 +185,7 @@ class DocStore {
           'href': c.href,
           'title': c.title,
           'n': c.paras.length,
+          'chars': c.charCount,
           'off': off,
           'len': b.length,
         });
@@ -243,6 +254,7 @@ class DocStore {
           (s as Map)['href'] as String,
           s['title'] as String,
           s['n'] as int,
+          (s['chars'] as num?)?.toInt() ?? 0,
           s['off'] as int,
           s['len'] as int,
         ),
@@ -311,22 +323,32 @@ class DocStore {
 }
 
 class _ChRef {
-  const _ChRef(this.href, this.title, this.n, this.off, this.len);
+  const _ChRef(this.href, this.title, this.n, this.chars, this.off, this.len);
   final String href;
   final String title;
   final int n;
+
+  /// 章字符数（保存时算好入索引：进度权重不触碰段落）。
+  final int chars;
   final int off;
   final int len;
 }
 
 /// 章粒度懒读列表：只有被访问的章才 readSync+decode（打开＝只读当前章）。
 /// 每次读独立开合文件句柄（章级几十 KB，毫秒级），不做跨页常驻。
-class _LazyChapterList extends ListBase<EpubChapter> {
+/// 标题/字符数走 [_refs] 索引直读（[ChapterMetaSource]），全量遍历不再 materialize。
+class _LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSource {
   _LazyChapterList(this._dir, this._refs);
 
   final String _dir;
   final List<_ChRef> _refs;
   final Map<int, EpubChapter> _cache = {};
+
+  @override
+  List<String> get chapterTitles => [for (final r in _refs) r.title];
+
+  @override
+  List<int> get chapterCharCounts => [for (final r in _refs) r.chars];
 
   @override
   int get length => _refs.length;
@@ -413,8 +435,9 @@ class EpubPreloadService extends ChangeNotifier {
     this.repo, {
     this.docsPath,
     this.parseOverride,
+    // 兼容旧签名保留；V1.53.1 轮4 起整本预排循环已删（按章懒排），不再需要让帧 pump。
     Future<void> Function()? pump,
-  }) : _pump = pump ?? _defaultPump;
+  });
 
   final ReadRepository repo;
 
@@ -423,8 +446,6 @@ class EpubPreloadService extends ChangeNotifier {
 
   /// 测试注入：替换真实解析（同 pickHook 惯例；FakeAsync 下禁真 IO）。
   final Future<EpubDoc> Function(String path)? parseOverride;
-
-  final Future<void> Function() _pump;
 
   final Map<String, PreloadInfo> _info = {};
   final Set<String> _running = {};
@@ -520,9 +541,6 @@ class EpubPreloadService extends ChangeNotifier {
   /// 预载到终态（rdy/失败回退）时回调——provider 用它 bump readTick 重取书籍。
   void Function(String bookId)? onBookSettled;
 
-  static Future<void> _defaultPump() =>
-      Future.delayed(const Duration(milliseconds: 8));
-
   /// 预载一本书（幂等：同书在跑则直接返回）。[layout] 为分页指纹基准视口/外观。
   Future<void> preload(Book b, ReaderLayout layout) async {
     final ep = b.epub;
@@ -542,18 +560,16 @@ class EpubPreloadService extends ChangeNotifier {
         await DocStore.save(docs0, b.id, DocStore.fingerprint(ep.path), doc);
       }
       await _mark(b, EpubRef.stPreload, 45);
-      // ② 全书分页实算（TextPainter 必须主 isolate；逐章分片让出 UI）
-      final per = <List<List<int>>>[];
-      final chs = doc.chapters;
-      for (var i = 0; i < chs.length; i++) {
-        per.add(EpubPager.layoutChapter(chs[i].paras, layout));
-        if (i % 6 == 5) {
-          await _mark(b, EpubRef.stPreload, 45 + ((i + 1) * 50 ~/ chs.length));
-          await _pump();
-        }
+      // ② V1.53.1 轮4（foliate 模型）：**不再整本预排**——分页按章在打开时
+      //    懒算；进度百分比按章字符数插值，与全书页数无关。这里只排首章做种子
+      //    落盘（2409 章合集的整本循环正是真机书摘/抽屉卡顿的主线程霸占者）。
+      final pag = BookPagination.lazy([
+        for (final c in doc.chapters) c.charCount,
+      ]);
+      if (doc.chapters.isNotEmpty) {
+        pag.setChapter(0, EpubPager.layoutChapter(doc.chapters[0].paras, layout));
       }
-      // ③ 分页表落盘 + 就绪
-      await PagStore.save(docs0!, b.id, PagStore.fingerprint(layout), BookPagination.fromTable(per));
+      await PagStore.save(docs0!, b.id, PagStore.fingerprint(layout), pag);
       await _mark(b, EpubRef.stReady, 100);
       onBookSettled?.call(b.id);
     } catch (e) {
@@ -587,11 +603,16 @@ class EpubPreloadService extends ChangeNotifier {
     return docsPath;
   }
 
-  /// 指纹命中的落盘分页表（秒进）；无表/坏表/指纹不符/目录不可用＝null（调用方实算）。
-  Future<BookPagination?> loadPag(String bookId, ReaderLayout l) async {
+  /// 指纹命中的落盘分页表（秒进，可含未排版章＝null）；
+  /// 无表/坏表/指纹不符/目录不可用＝null（调用方实算）。
+  Future<BookPagination?> loadPag(
+    String bookId,
+    ReaderLayout l,
+    List<int> weights,
+  ) async {
     try {
       final d = await _docs0();
-      return PagStore.load(d!, bookId, PagStore.fingerprint(l));
+      return PagStore.load(d!, bookId, PagStore.fingerprint(l), weights);
     } catch (e) {
       if (kDebugMode) debugPrint('loadPag fail $bookId: $e');
       return null;

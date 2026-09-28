@@ -278,7 +278,7 @@ void main() {
           tmp.path,
           'd1',
           PagStore.fingerprint(const ReaderLayout(width: 420, height: 780)),
-          BookPagination.fromTable([
+          BookPagination.fromTable([7], <List<List<int>>?>[
             [
               [0],
             ],
