@@ -46,45 +46,62 @@ const delta = (s) => {
   return d;
 };
 
-// ---- 深度切块：类内成员 = 深度 1 处起始、深度回 1 且语句结束（; 或 }）处收块 ----
-// 坑（本刀首跑炸出）：只用「深度回 1」判定会在 `Future<void> f(..) =>`（括号自平衡、
-// 深度不变）这类多行箭头成员的第一行后就误收尾，把函数体留在主文件里 → 语法炸。
-const codeEnds = (s) => {
-  const c = code(s).trim();
-  return c.endsWith(';') || c.endsWith('}');
-};
+// ---- 切块（锚定「下一成员声明行」，不用花括号深度）----
+// 坑（G7d④ 4c 首跑炸 397 个 error 后改刀法）：本文件有跨行相邻字符串拼接成员，如
+//   String _quoteText(BookQuote q, Book b) =>
+//       '《${b.title}》${q.chapter == null ? '' : ' · ${q.chapter}'}'
+//       '${q.page == null ? '' : ' · ${q.page} 页'}\n${q.body}' …;
+// 插值里嵌套引号，任何「先剥字符串再数括号/判句末」的词法都会在此错位而提前收块，
+// 把函数体留在主文件里 → 语法炸。本文件房规够用：成员声明行必在缩进 2、非注释、
+// 非收尾符开头，故「块尾＝下一声明行（含其上方注释）之前」，并对句末做断言兜底。
 const classStart = lines.findIndex((l) => l.startsWith('abstract class _ReadRepoBase {'));
 if (classStart < 0) { console.error('NO-BASE-CLASS'); process.exit(1); }
-let depth = 0;
-let cur = null;
+let classEnd = -1;
+for (let i = classStart + 1; i < lines.length; i++)
+  if (lines[i] === '}') { classEnd = i; break; }
+if (classEnd < 0) { console.error('NO-BASE-END'); process.exit(1); }
+const isDeclLine = (i) =>
+  i > classStart &&
+  i < classEnd &&
+  /^  \S/.test(lines[i]) &&
+  !/^  [});\]]/.test(lines[i]) &&
+  !lines[i].trim().startsWith('//');
+const decls = [];
+for (let i = classStart + 1; i < classEnd; i++) if (isDeclLine(i)) decls.push(i);
 const blocks = [];
-for (let i = classStart; i < lines.length; i++) {
-  const d0 = depth;
-  depth += delta(lines[i]);
-  if (i === classStart) continue;
-  const isDecl =
-    d0 === 1 && /^  \S/.test(lines[i]) && !/^  [});\]]/.test(lines[i]) && !lines[i].trim().startsWith('//');
-  if (isDecl) {
-    if (cur) { console.error('PARSE-OVERLAP near L' + (i + 1) + ' 前块未收：' + cur.sig.slice(0, 50)); process.exit(1); }
-    let s = i;
-    while (s > 0 && lines[s - 1].trim() !== '' && /^\s*(@\w+|\/\/|\/\*)/.test(lines[s - 1])) s--;
-    // 空行之上的 // ---- 区头 ---- 随其首个成员一起外提
-    if (s >= 2 && lines[s - 1].trim() === '' && /^  \/\/ ---- /.test(lines[s - 2])) s -= 2;
-    cur = { decl: i, start: s, end: i, sig: lines[i].trim() };
-    blocks.push(cur);
-  } else if (cur) cur.end = i;
-  if (cur && depth === 1 && codeEnds(lines[i])) cur = null;
-  if (depth === 0) break;
+// 上方注释随块走：先接紧邻注释/注解串；若再往上是一空行且空行之上仍是注释串，
+// 一并接住（区头 // ---- X ---- 与其后的多行说明常与上一成员隔一空行）。
+const absorbUp = (from) => {
+  let k = from;
+  while (k > 0 && lines[k - 1].trim() !== '' && /^\s*(@\w+|\/\/|\/\*)/.test(lines[k - 1])) k--;
+  return k;
+};
+for (const d of decls) {
+  let s = absorbUp(d);
+  if (s - 1 > classStart && lines[s - 1].trim() === '') {
+    const k2 = absorbUp(s - 1);
+    if (k2 < s - 1) s = k2;
+  }
+  blocks.push({ decl: d, start: s, sig: lines[d].trim() });
 }
+// 块尾＝下一块 start 之前（注释/区头已划归下一块），再退掉尾部空行
+for (let j = 0; j < blocks.length; j++) {
+  let e = j + 1 < blocks.length ? blocks[j + 1].start - 1 : classEnd - 1;
+  while (e >= blocks[j].start && lines[e].trim() === '') e--;
+  blocks[j].end = e;
+}
+if (!blocks.length) { console.error('NO-MEMBER'); process.exit(1); }
 const nameOf = (sig) => {
   const g = sig.match(/\bget (_?\w+)/) || sig.match(/\b(_?\w+)\s*[(=]/);
   return g ? g[1] : null;
 };
 for (const b of blocks) {
   b.name = nameOf(b.sig);
-  let d = 0;
-  for (let i = b.start; i <= b.end; i++) d += delta(lines[i]);
-  if (d !== 0) { console.error('UNBALANCED', b.name, b.start + 1, b.end + 1); process.exit(1); }
+  const last = lines[b.end].trim();
+  if (!/[;}]$/.test(last)) {
+    console.error('END-FAIL', b.name, 'L' + (b.end + 1), JSON.stringify(last.slice(0, 60)));
+    process.exit(1);
+  }
 }
 const named = blocks.filter((b) => b.name);
 const block = (n) => named.find((b) => b.name === n);
@@ -190,8 +207,11 @@ const bad = [];
 const sigSeen = new Map();
 for (const b of blocks) if (b.name) sigSeen.set(b.sig, (sigSeen.get(b.sig) ?? 0) + 1);
 for (const [s, n] of sigSeen) if (n > 1) bad.push(`DUP-SIG x${n} ${s.slice(0, 50)}`);
-for (const m of partOfMember.keys()) if (!byName.has(m)) bad.push(`PLAN-MISS ${m}`);
-for (const k of wanted) if (!PLAN[k]) bad.push(`UNKNOWN-GROUP ${k}`);
+// 计划成员只在本批必须存在（前几批已外提的成员自然不在基类里了）
+for (const k of wanted) {
+  if (!PLAN[k]) bad.push(`UNKNOWN-GROUP ${k}`);
+  else for (const m of PLAN[k].members) if (!byName.has(m)) bad.push(`PLAN-MISS ${k}/${m}`);
+}
 
 // 2) 全局引用闭合：任一被引用者若与他群不同群且不在 core → 编译期裸调用不可达
 const refSites = new Map(); // target -> Set<`${from}>line`>
@@ -204,7 +224,8 @@ for (const b of blocks) {
     for (const m of c.matchAll(/([A-Za-z_]\w*)\s*\(/g)) names.add(m[1]);
     for (const m of c.matchAll(/\b(reviewGapsMs|_stateValues|_dayMs|dayStartMs|_rng|db)\b/g)) names.add(m[1]);
     for (const n of names) {
-      if (!byName.has(n) || n === b.name) continue;
+      // 目标可能是本批/他批计划成员（前批已外提者不在 byName 里，但计划归属仍有效）
+      if (n === b.name || (!byName.has(n) && !partOfMember.has(n))) continue;
       edgeTotal++;
       if (part(n) !== part(b.name) && part(n) !== 'core') {
         const key = `${b.name}[${part(b.name)}] → ${n}[${part(n)}]`;
@@ -342,6 +363,10 @@ console.log(
   )
 );
 if (bad.length || !volumeOk) process.exit(1);
+if (process.argv.includes('--dump'))
+  console.log(
+    blocks.map((b) => `${b.name ?? '(anon)'}\tL${b.start + 1}..L${b.end + 1}\t${part(b.name)}\t${lines[b.end].trim().slice(0, 40)}`).join('\n')
+  );
 if (DRY) process.exit(0);
 
 fs.writeFileSync(SRC + '.bak', lines.join('\n'));
