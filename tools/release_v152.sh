@@ -55,5 +55,7 @@ echo "=== ③ GitHub prerelease（失败仅提醒，不阻塞）==="
   || echo "!! GitHub 发布失败：HTTPS 443 时好时坏，重试或改走 ssh://git@ssh.github.com:443；按铁律只提醒不阻塞"
 
 echo "=== ④ 核对 GitHub 三资产 ==="
-"$GH" release view "$TAG" --json assets,prerelease --jq '{prerelease:.prerelease,assets:[.assets[].name]}'
+# 注意字段名是 isPrerelease（gh 没有 `prerelease` 这个 json field）
+"$GH" release view "$TAG" --json isPrerelease,assets \
+  --jq '{pre:.isPrerelease,assets:[.assets[]|{name:.name,mb:((.size/1048576)|floor)}]}'
 echo "OK 双端预发布收口：$TAG"
