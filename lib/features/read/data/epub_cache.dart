@@ -99,7 +99,270 @@ class PagStore {
   }
 }
 
-// ---------- 预载文档缓存（秒进） ----------
+// ---------- 排版快照落盘（批5 秒开） ----------
+
+/// 解析结果按「章」粒度落盘：`docs/epub_snap/<bookId>/`（index.json + data.bin +
+/// cover.bin）。指纹＝源文件 size|mtime，源不变则打开只需「读索引 + 当前章」，
+/// 整本不再重新解析（微信读书「导入时排版、打开时加载」口径；anx-reader 的
+/// foliate-js「只排当前章」以快照章节粒度落地）。图片仍走懒归档按需解码。
+class DocStore {
+  const DocStore._();
+
+  static const snapVersion = 1;
+
+  static String dirFor(String docsPath, String bookId) =>
+      p.join(docsPath, 'epub_snap', bookId);
+
+  /// 源文件指纹（不存在/不可读＝空串，快照视为失效）。
+  static String fingerprint(String srcPath) {
+    try {
+      final f = File(srcPath);
+      if (!f.existsSync()) return '';
+      final st = f.statSync();
+      return '${st.size}|${st.modified.millisecondsSinceEpoch}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static List _paraJson(EpubPara x) => [
+    x.kind.index,
+    x.text,
+    x.headingLevel,
+    x.imgSrc,
+    x.alt,
+    [
+      for (final l in x.links) [l.start, l.end, l.href, l.external ? 1 : 0],
+    ],
+  ];
+
+  static EpubPara _paraFromJson(List a) => EpubPara(
+    kind: EpubParaKind.values[a[0] as int],
+    text: a[1] as String,
+    headingLevel: a[2] as int,
+    imgSrc: a[3] as String,
+    alt: a[4] as String,
+    links: [
+      for (final l in (a.length > 5 ? a[5] as List : const []))
+        EpubLink(
+          start: l[0] as int,
+          end: l[1] as int,
+          href: l[2] as String,
+          external: (l[3] as int) == 1,
+        ),
+    ],
+  );
+
+  /// 保存快照（覆盖式）。data.bin＝各章段落 JSON 的 UTF-8 拼接。
+  static Future<void> save(
+    String docsPath,
+    String bookId,
+    String fp,
+    EpubDoc doc,
+  ) async {
+    if (fp.isEmpty) return;
+    final dir = Directory(dirFor(docsPath, bookId));
+    await dir.create(recursive: true);
+    final spine = <Map<String, Object>>[];
+    final raf =
+        await File(p.join(dir.path, 'data.bin')).open(mode: FileMode.write);
+    var off = 0;
+    try {
+      for (final c in doc.chapters) {
+        final b =
+            utf8.encode(jsonEncode([for (final x in c.paras) _paraJson(x)]));
+        spine.add({
+          'href': c.href,
+          'title': c.title,
+          'n': c.paras.length,
+          'off': off,
+          'len': b.length,
+        });
+        await raf.writeFrom(b);
+        off += b.length;
+      }
+    } finally {
+      await raf.close();
+    }
+    final idx = <String, Object?>{
+      'v': snapVersion,
+      'fp': fp,
+      'format': doc.format,
+      'title': doc.title,
+      'author': doc.author,
+      'pub': doc.publisher,
+      'date': doc.pubDate,
+      'lang': doc.language,
+      'desc': doc.description,
+      'covN': doc.coverName,
+      'imgC': doc.imageCount,
+      'chars': doc.totalChars,
+      'fontC': doc.fontCount,
+      'bmC': doc.bookmarkCount,
+      'toc': [
+        for (final t in doc.toc) [t.label, t.href, t.level],
+      ],
+      'spine': spine,
+    };
+    await File(p.join(dir.path, 'index.json'))
+        .writeAsString(jsonEncode(idx));
+    final cov = doc.coverBytes;
+    if (cov != null) {
+      await File(p.join(dir.path, 'cover.bin')).writeAsBytes(cov);
+    }
+  }
+
+  /// 指纹相符才载入；否则 null（调用方走解析）。[srcPath] 给出时重挂懒归档
+  /// 供图；源文件丢失仍返回纯文本快照（插图渲染自然走缺图占位）。
+  static Future<EpubDoc?> load(
+    String docsPath,
+    String bookId,
+    String fp, {
+    String? srcPath,
+  }) async {
+    if (fp.isEmpty) return null;
+    final dir = dirFor(docsPath, bookId);
+    final idxF = File(p.join(dir, 'index.json'));
+    if (!await idxF.exists()) return null;
+    final Map<String, Object?> m;
+    try {
+      m = (jsonDecode(await idxF.readAsString()) as Map).cast<String, Object?>();
+    } catch (_) {
+      return null;
+    }
+    if (m['v'] != snapVersion || m['fp'] != fp) return null;
+    final List<Object?> sp;
+    try {
+      sp = m['spine'] as List;
+    } catch (_) {
+      return null;
+    }
+    final refs = <_ChRef>[
+      for (final s in sp)
+        _ChRef(
+          (s as Map)['href'] as String,
+          s['title'] as String,
+          s['n'] as int,
+          s['off'] as int,
+          s['len'] as int,
+        ),
+    ];
+    List<EpubTocItem> toc;
+    try {
+      toc = [
+        for (final t in (m['toc'] as List))
+          EpubTocItem(label: t[0] as String, href: t[1] as String, level: t[2] as int),
+      ];
+    } catch (_) {
+      toc = const [];
+    }
+    LazyEpubArchive? lz;
+    if (srcPath != null) {
+      try {
+        lz = LazyEpubArchive.open(srcPath);
+      } catch (_) {
+        lz = null;
+      }
+    }
+    Uint8List? cover;
+    try {
+      final cf = File(p.join(dir, 'cover.bin'));
+      if (await cf.exists()) cover = await cf.readAsBytes();
+    } catch (_) {}
+    return EpubDoc(
+      format: m['format'] as String,
+      title: m['title'] as String,
+      author: m['author'] as String,
+      publisher: m['pub'] as String?,
+      pubDate: m['date'] as String?,
+      language: m['lang'] as String?,
+      description: m['desc'] as String?,
+      coverBytes: cover,
+      coverName: m['covN'] as String?,
+      toc: toc,
+      chapters: _LazyChapterList(dir, refs),
+      imageCount: (m['imgC'] as int?) ?? 0,
+      totalChars: (m['chars'] as int?) ?? 0,
+      fontCount: (m['fontC'] as int?) ?? 0,
+      bookmarkCount: (m['bmC'] as int?) ?? 0,
+      lazy: lz,
+    );
+  }
+
+  /// 快照占用字节（目录不存在＝0）。
+  static Future<int> sizeOf(String docsPath, String bookId) async {
+    var sum = 0;
+    try {
+      final dir = Directory(dirFor(docsPath, bookId));
+      if (!await dir.exists()) return 0;
+      await for (final e in dir.list(recursive: true)) {
+        if (e is File) sum += await e.length();
+      }
+    } catch (_) {}
+    return sum;
+  }
+
+  static Future<void> remove(String docsPath, String bookId) async {
+    try {
+      final dir = Directory(dirFor(docsPath, bookId));
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {}
+  }
+}
+
+class _ChRef {
+  const _ChRef(this.href, this.title, this.n, this.off, this.len);
+  final String href;
+  final String title;
+  final int n;
+  final int off;
+  final int len;
+}
+
+/// 章粒度懒读列表：只有被访问的章才 readSync+decode（打开＝只读当前章）。
+/// 每次读独立开合文件句柄（章级几十 KB，毫秒级），不做跨页常驻。
+class _LazyChapterList extends ListBase<EpubChapter> {
+  _LazyChapterList(this._dir, this._refs);
+
+  final String _dir;
+  final List<_ChRef> _refs;
+  final Map<int, EpubChapter> _cache = {};
+
+  @override
+  int get length => _refs.length;
+
+  @override
+  set length(int v) => throw UnsupportedError('快照章节列表只读');
+
+  @override
+  void operator []=(int i, EpubChapter c) =>
+      throw UnsupportedError('快照章节列表只读');
+
+  @override
+  EpubChapter operator [](int i) {
+    final hit = _cache[i];
+    if (hit != null) return hit;
+    final r = _refs[i];
+    var paras = const <EpubPara>[];
+    try {
+      final raf = File(p.join(_dir, 'data.bin')).openSync();
+      try {
+        raf.setPositionSync(r.off);
+        final bytes = raf.readSync(r.len);
+        final raw = jsonDecode(utf8.decode(bytes)) as List;
+        paras = [for (final a in raw) DocStore._paraFromJson(a)];
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      paras = const [];
+    }
+    final c = EpubChapter(href: r.href, title: r.title, paras: paras);
+    _cache[i] = c;
+    return c;
+  }
+}
+
 
 /// 预载完成的书本内存驻留（LRU 上限 [maxLive] 本；被逐出后重开走懒归档再开，
 /// 分页表仍在盘上 → 秒进不受影响）。
@@ -165,12 +428,13 @@ class EpubPreloadService extends ChangeNotifier {
 
   final Map<String, PreloadInfo> _info = {};
   final Set<String> _running = {};
+  final Map<String, Future<void>> _warmTasks = {};
   final EpubDocCache docs = EpubDocCache();
 
   PreloadInfo? info(String bookId) => _info[bookId];
 
   /// 书架预热（真机修⑥：重启后内存文档缓存清空，重进要等重新解析）：
-  /// 就绪本地书后台 isolate 解析入缓存，点封面即秒进；失败静默（进阅读再报）。
+  /// 优先读排版快照（批5·毫秒级）；无快照才后台 isolate 解析整本并回灌快照。
   /// 单飞：同书并发只跑一次；[warming] 可等它完成，避免阅读器再起第二路解析。
   Future<void> warm(Book b) {
     final ep = b.epub;
@@ -180,18 +444,78 @@ class EpubPreloadService extends ChangeNotifier {
     if (docs.get(b.id) != null) return Future.value();
     return _warmTasks[b.id] ??= () async {
       try {
-        final doc = await (parseOverride ??
+        final dp = docsPath;
+        final inj = parseOverride;
+        if (dp != null && inj == null) {
+          final snap = await DocStore.load(
+            dp,
+            b.id,
+            DocStore.fingerprint(ep.path),
+            srcPath: ep.path,
+          );
+          if (snap != null) {
+            docs.put(b.id, snap);
+            _warmTasks.remove(b.id);
+            return;
+          }
+        }
+        final doc = await (inj ??
                 ((path) async => EpubDoc.openFileDetached(path)))(ep.path);
         docs.put(b.id, doc);
+        if (dp != null && inj == null) {
+          unawaited(() async {
+            try {
+              await DocStore.save(
+                  dp, b.id, DocStore.fingerprint(ep.path), doc);
+            } catch (_) {}
+          }());
+        }
       } catch (_) {}
       _warmTasks.remove(b.id);
     }();
   }
 
-  final Map<String, Future<void>> _warmTasks = {};
-
   /// 该书预热任务（没在跑则 null）。
   Future<void>? warming(String bookId) => _warmTasks[bookId];
+
+  /// 批5 · 读排版快照（docsPath 未就绪/测试注入/指纹不符＝null，调用方回落解析）。
+  /// 只同步取 [docsPath]，绝不在 widget 测试 FakeAsync 下触发真实 path_provider。
+  Future<EpubDoc?> snap(Book b) async {
+    final dp = docsPath;
+    final ep = b.epub;
+    if (dp == null || ep == null || ep.path.isEmpty || parseOverride != null) {
+      return null;
+    }
+    try {
+      return await DocStore.load(
+        dp,
+        b.id,
+        DocStore.fingerprint(ep.path),
+        srcPath: ep.path,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 批5 · 现开路径回灌快照（本次已付解析成本，下次打开＝秒进）。
+  Future<void> saveSnap(Book b, EpubDoc doc) async {
+    final dp = docsPath;
+    final ep = b.epub;
+    if (dp == null || ep == null || ep.path.isEmpty || parseOverride != null) {
+      return;
+    }
+    try {
+      await DocStore.save(dp, b.id, DocStore.fingerprint(ep.path), doc);
+    } catch (_) {}
+  }
+
+  /// 回收排版快照（清缓存/删除书共用）。
+  Future<void> removeSnap(String bookId) async {
+    final dp = docsPath;
+    if (dp == null) return;
+    await DocStore.remove(dp, bookId);
+  }
 
   /// 预载到终态（rdy/失败回退）时回调——provider 用它 bump readTick 重取书籍。
   void Function(String bookId)? onBookSettled;
@@ -213,6 +537,10 @@ class EpubPreloadService extends ChangeNotifier {
       final doc = await (parseOverride ??
               ((path) async => EpubDoc.openFileDetached(path)))(ep.path);
       docs.put(b.id, doc);
+      // 批5：解析结果按章落盘（下次冷启动打开＝读快照，不再整本重析）。
+      if (docs0 != null && parseOverride == null) {
+        await DocStore.save(docs0, b.id, DocStore.fingerprint(ep.path), doc);
+      }
       await _mark(b, EpubRef.stPreload, 45);
       // ② 全书分页实算（TextPainter 必须主 isolate；逐章分片让出 UI）
       final per = <List<List<int>>>[];
@@ -314,7 +642,7 @@ class EpubCacheService {
   Future<String> _docs() async =>
       docsPath ?? (await getApplicationDocumentsDirectory()).path;
 
-  /// 约可释放字节数＝私有副本 + 封面衍生 + 分页表（源文件不计、绝不删）。
+  /// 约可释放字节数＝私有副本 + 封面衍生 + 分页表 + 排版快照（源文件不计、绝不删）。
   Future<int> estimateRelease(Book b) async {
     final ep = b.epub;
     if (ep == null) return 0;
@@ -326,11 +654,13 @@ class EpubCacheService {
       final f = File(cover);
       if (await f.exists()) sum += await f.length();
     }
-    sum += await PagStore.sizeOf(await _docs(), b.id);
+    final d = await _docs();
+    sum += await PagStore.sizeOf(d, b.id);
+    sum += await DocStore.sizeOf(d, b.id);
     return sum;
   }
 
-  /// 清理：回收三类缓存文件；记录/书摘划线/计时/进度/外观全保留；原文件不动。
+  /// 清理：回收四类缓存文件；记录/书摘划线/计时/进度/外观全保留；原文件不动。
   /// 状态置 [EpubRef.stCleared]，并探测源文件是否仍可读（三态分流用）。
   Future<void> clear(Book b) async {
     final ep = b.epub;
@@ -344,6 +674,7 @@ class EpubCacheService {
       if (await f.exists()) await f.delete();
     }
     await PagStore.remove(docs0, b.id);
+    await DocStore.remove(docs0, b.id);
     await repo.updateBook(
       b.copyWith(epub: ep.copyWith(st: EpubRef.stCleared, pr: 0)),
     );

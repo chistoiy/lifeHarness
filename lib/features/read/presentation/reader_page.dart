@@ -212,7 +212,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         await svc.warming(b.id);
         d = svc.docs.get(b.id);
       }
-      return d ?? await ref.read(epubDocLoaderProvider)(b.epub!.path);
+      // 批5 秒开：无内存文档先吃排版快照（读索引+当前章＝毫秒级）；
+      // 快照也没有才整本解析，且解析结果回灌快照让下次也秒开。
+      d ??= await svc.snap(b);
+      if (d == null) {
+        d = await ref.read(epubDocLoaderProvider)(b.epub!.path);
+        unawaited(svc.saveSnap(b, d));
+      }
+      return d;
     }();
     // 立即挂接错误：解析异常延后到 try 里再抛，避免成未处理异步错误。
     final docR = Completer<(EpubDoc?, Object?)>();

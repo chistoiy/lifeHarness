@@ -594,6 +594,7 @@ Future<void> brDelCommit(
   await repo.removeKv('reader.pos.${b.id}');
   await repo.removeKv('reader.cfg.${b.id}');
   await preload.removePag(b.id);
+  await preload.removeSnap(b.id);
   await repo.updateBook(b.copyWith(local: false, clearEpub: true));
   ref.read(readTickProvider.notifier).state++;
   if (context.mounted) {
