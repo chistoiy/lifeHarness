@@ -56,17 +56,17 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
 
   /* T2 进页 + 默认今日范围 */
   const t2 = await ev(`navTo('p-aiUsage');auRender();
-    return {p:curPage,rows:${ROWS},sum:$('#auSum').textContent,cnt:$('#auCnt').textContent};`);
+    return {p:curPage,rows:${ROWS},sum:$('#auSum').textContent,cnt:$('#auSum').textContent};`);
   (t2.p === 'p-aiUsage' && JSON.stringify(t2.rows) === '[1,2,3,4,5]' && /今日 5 次/.test(t2.sum))
     ? ok('T2 默认「今日」只列当天 5 条 + 摘要条') : bad('T2', JSON.stringify(t2));
 
   await shot('aiu-list-today');
-  /* T3 全部范围 13 条 */  const t3 = await ev(`auSetRange(9999,'auDA');return {rows:${ROWS},cnt:$('#auCnt').textContent};`);
+  /* T3 全部范围 13 条 */  const t3 = await ev(`auSetRange(9999,'auDA');return {rows:${ROWS},cnt:$('#auSum').textContent};`);
   (t3.rows.length === 13) ? ok('T3 切「全部」= 13 条') : bad('T3', JSON.stringify(t3));
 
   /* T4 模块 chips 计数与筛选 */
   const t4 = await ev(`${RESET}
-    var chips=[].map.call($$('#auModRow .chip'),function(b){return b.textContent.trim()});
+    var chips=[].map.call($$('#auModRow .auf'),function(b){return b.textContent.trim()});
     auPickMod('阅读');
     var rows=[].map.call(document.querySelectorAll('#auBox .ailine .am'),function(e){return e.textContent});
     var r={chips:chips,n:rows.length,allRead:rows.every(function(t){return /^阅读 ·/.test(t)})};
@@ -75,7 +75,7 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
     ? ok('T4 模块 chips 带计数 · 选「阅读」=4 条') : bad('T4', JSON.stringify(t4));
 
   /* T5 状态筛选 */
-  const t5 = await ev(`${RESET}auSetSt('fail','auSF');var r={rows:${ROWS},cnt:$('#auCnt').textContent};auSetSt('all','auSAll');return r;`);
+  const t5 = await ev(`${RESET}auSetSt('fail','auSF');var r={rows:${ROWS},cnt:$('#auSum').textContent};auSetSt('all','auSAll');return r;`);
   (JSON.stringify(t5.rows) === '[5,10]') ? ok('T5 状态=失败 命中 2 条（含 429 与断连）') : bad('T5', JSON.stringify(t5));
 
   /* T6 关键词跨正文搜索 */
@@ -128,7 +128,7 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
 
   /* T13 空态（关键词无命中） */
   const t13 = await ev(`$('#auKw').value='zzz不存在';auRender();
-    var r={html:$('#auBox').textContent.slice(0,24),cnt:$('#auCnt').textContent};
+    var r={html:$('#auBox').textContent.slice(0,24),cnt:$('#auSum').textContent};
     $('#auKw').value='';auRender();return r;`);
   (/暂无 AI 调用记录/.test(t13.html)) ? ok('T13 清空后列表空态文案') : bad('T13', JSON.stringify(t13));
 
@@ -162,6 +162,33 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
   const leak = ['undefined', 'NaN', '[object Object]', 'null 次'].filter(k => (t16.body || '').includes(k));
   (errs.length === 0 && leak.length === 0)
     ? ok('T16 零 JS 异常 · 无 undefined/NaN/[object Object] 泄漏') : bad('T16', 'errs=' + errs.join(' | ') + ' leak=' + leak.join(','));
+
+  /* T17~T19 第二轮改版：无底栏 / 筛选合一行 / 统计与删除上移（重新播种几条再量版式） */
+  await ev(`AI_CALLS=[
+    {i:201,d:0,t:'09-28 10:02:11',m:'阅读',id:'read.toc',n:'目录 AI 补全',st:'ok',it:173,ot:4216,ms:13443,cut:0,sys:'S',usr:'U',out:'O',err:''},
+    {i:202,d:0,t:'09-28 09:41:02',m:'待办',id:'todo.quadrant',n:'AI 判象限',st:'fail',it:88,ot:0,ms:2100,cut:0,sys:'S',usr:'U',out:'',err:'rateLimited: 429'},
+    {i:203,d:1,t:'09-27 20:11:44',m:'日记',id:'journal.reflect',n:'当日复盘草稿',st:'ok',it:612,ot:988,ms:6800,cut:0,sys:'S',usr:'U',out:'O',err:''}];
+    ${RESET}navTo('p-aiUsage');auToggle(201);auRender();return 1;`);
+  const t17 = await ev(`return {p:curPage,navHidden:$('#tabNav').classList.contains('hidden'),
+      mainH:(document.querySelector('main')||{style:{}}).style.height};`);
+  (t17.p === 'p-aiUsage' && t17.navHidden && /calc/.test(t17.mainH))
+    ? ok('T17 本页隐藏底栏且 main 通底（与日志页同款）', JSON.stringify(t17)) : bad('T17', JSON.stringify(t17));
+
+  const t18 = await ev(`
+    var ids=['auD0','auSAll','auModRow'].map(function(i){return document.getElementById(i).getBoundingClientRect().top});
+    var bar=document.getElementById('auBar');
+    return {tops:ids.map(function(t){return Math.round(t)}),bar:!!bar,h:Math.round(bar.getBoundingClientRect().height)};`);
+  (t18.bar && (Math.max.apply(null, t18.tops) - Math.min.apply(null, t18.tops)) < 6 && t18.h < 46)
+    ? ok('T18 时间/状态/模块合并为一行（同基线 · 行高 <46px）', JSON.stringify(t18)) : bad('T18', JSON.stringify(t18));
+
+  const t19 = await ev(`
+    var sum=$('#auSum').getBoundingClientRect(), box=$('#auBox').getBoundingClientRect();
+    var del=[].filter.call(document.querySelectorAll('.mini-btn'),function(x){return /删除筛选结果/.test(x.textContent)})[0].getBoundingClientRect();
+    return {sumBottom:Math.round(sum.bottom),delTop:Math.round(del.top),boxTop:Math.round(box.top),
+      noCnt:!document.getElementById('auCnt'),kw:!!document.getElementById('auKw')};`);
+  (t19.sumBottom < t19.boxTop && t19.delTop < t19.boxTop && t19.noCnt && t19.kw)
+    ? ok('T19 统计与「删除筛选结果」上移到列表上方（底部行已移除）', JSON.stringify(t19)) : bad('T19', JSON.stringify(t19));
+  await shot('aiu-compact');
 
   await shot('aiu-final');
   finish();

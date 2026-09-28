@@ -1,0 +1,30 @@
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 筛选合一行 · 统计与删除上移） ===== -->
+    <section id="p-aiUsage" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auSum" class="truncate">0 条 · 入 0/出 0 tokens · 未成功 0</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="openSheet('sheetAiUsageCfg')">记录设置</button>
+        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制</button>
+        <button class="mini-btn shrink-0" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
+      </div>
+      <!-- 时间 / 状态 / 模块 合并为一行（横向可滑），把纵向空间全留给列表 -->
+      <div class="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar pb-1" id="auBar">
+        <span class="au-cap">时间</span>
+        <button id="auD0" class="auf on" onclick="auSetRange(0,'auD0')">今日</button>
+        <button id="auD7" class="auf" onclick="auSetRange(7,'auD7')">7 天</button>
+        <button id="auD30" class="auf" onclick="auSetRange(30,'auD30')">30 天</button>
+        <button id="auDA" class="auf" onclick="auSetRange(9999,'auDA')">全部</button>
+        <span class="au-div"></span>
+        <span class="au-cap">状态</span>
+        <button id="auSAll" class="auf on" onclick="auSetSt('all','auSAll')">全部</button>
+        <button id="auSOk" class="auf" onclick="auSetSt('ok','auSOk')">成功</button>
+        <button id="auSF" class="auf" onclick="auSetSt('fail','auSF')">失败</button>
+        <button id="auSC" class="auf" onclick="auSetSt('cancel','auSC')">取消</button>
+        <button id="auSD" class="auf" onclick="auSetSt('denied','auSD')">未启用</button>
+        <span class="au-div"></span>
+        <span class="au-cap">模块</span>
+        <span class="flex gap-1" id="auModRow"></span>
+      </div>
+      <input id="auKw" class="inp w-full mt-1" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 268px);overflow-y:auto"></div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 mb-3" id="auHint">点一行展开输入与输出全文 · 长按一行复制该行摘要</div>
+    </section>

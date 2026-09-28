@@ -133,6 +133,10 @@ tailwind.config = {
   .ailine .ops{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
   .ailine .cut{color:#f59e0b;font-size:9.5px;font-weight:700}
   .au-h{font-size:10px;font-weight:800;color:#64748b;margin:10px 0 4px}
+  .au-cap{font-size:9px;font-weight:800;color:#94a3b8;flex-shrink:0;padding:0 2px}
+  .au-div{width:1px;height:14px;background:color-mix(in srgb,var(--card-bd) 90%,transparent);flex-shrink:0;margin:0 4px}
+  .auf{flex-shrink:0;font-size:10.5px;font-weight:700;color:#64748b;background:color-mix(in srgb,var(--accent) 7%,transparent);border:1px solid color-mix(in srgb,var(--card-bd) 80%,transparent);border-radius:99px;padding:3px 9px;white-space:nowrap}
+  .auf.on{background:var(--accent);color:#fff;border-color:transparent}
   /* V1.50批3.6 V5：横滑选择器（hpick）——左右滑动/点选切换，选中态对齐 seg-on；首尾 hsp 弹性占位保证首末项可居中 */
   .hpick{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:5px;border-radius:14px;background:color-mix(in srgb,var(--card-bd) 55%,transparent)}
   .hpick::-webkit-scrollbar{display:none}
@@ -1503,36 +1507,35 @@ tailwind.config = {
       </div>
     </section>
 
-    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 输入输出留痕 · 按模块/状态/关键词筛选 · 查删） ===== -->
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 筛选合一行 · 统计与删除上移） ===== -->
     <section id="p-aiUsage" class="page px-5 no-scrollbar">
-      <div class="flex items-center gap-2 mt-2 mb-1 text-[10px] text-slate-500 dark:text-slate-400">
-        <span id="auSum" class="truncate">今日 0 次 · 入 0/出 0 tokens · 失败 0</span>
+      <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auSum" class="truncate">0 条 · 入 0/出 0 tokens · 未成功 0</span>
         <button class="mini-btn ml-auto shrink-0" onclick="openSheet('sheetAiUsageCfg')">记录设置</button>
-        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制筛选结果</button>
+        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制</button>
+        <button class="mini-btn shrink-0" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
       </div>
-      <!-- 时间范围（与日志页级别段选同语言） -->
-      <div class="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
-        <button id="auD0" class="seg-on flex-1 rounded-lg py-1.5" onclick="auSetRange(0,'auD0')">今日</button>
-        <button id="auD7" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(7,'auD7')">7 天</button>
-        <button id="auD30" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(30,'auD30')">30 天</button>
-        <button id="auDA" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(9999,'auDA')">全部</button>
+      <!-- 时间 / 状态 / 模块 合并为一行（横向可滑），把纵向空间全留给列表 -->
+      <div class="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar pb-1" id="auBar">
+        <span class="au-cap">时间</span>
+        <button id="auD0" class="auf on" onclick="auSetRange(0,'auD0')">今日</button>
+        <button id="auD7" class="auf" onclick="auSetRange(7,'auD7')">7 天</button>
+        <button id="auD30" class="auf" onclick="auSetRange(30,'auD30')">30 天</button>
+        <button id="auDA" class="auf" onclick="auSetRange(9999,'auDA')">全部</button>
+        <span class="au-div"></span>
+        <span class="au-cap">状态</span>
+        <button id="auSAll" class="auf on" onclick="auSetSt('all','auSAll')">全部</button>
+        <button id="auSOk" class="auf" onclick="auSetSt('ok','auSOk')">成功</button>
+        <button id="auSF" class="auf" onclick="auSetSt('fail','auSF')">失败</button>
+        <button id="auSC" class="auf" onclick="auSetSt('cancel','auSC')">取消</button>
+        <button id="auSD" class="auf" onclick="auSetSt('denied','auSD')">未启用</button>
+        <span class="au-div"></span>
+        <span class="au-cap">模块</span>
+        <span class="flex gap-1" id="auModRow"></span>
       </div>
-      <div class="au-h">状态</div>
-      <div class="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
-        <button id="auSAll" class="seg-on flex-1 rounded-lg py-1.5" onclick="auSetSt('all','auSAll')">全部</button>
-        <button id="auSOk" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('ok','auSOk')">成功</button>
-        <button id="auSF" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('fail','auSF')">失败</button>
-        <button id="auSC" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('cancel','auSC')">取消</button>
-        <button id="auSD" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('denied','auSD')">未启用</button>
-      </div>
-      <div class="au-h">模块（点选只看该模块 · 括号内为该范围条数）</div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="auModRow"></div>
-      <input id="auKw" class="inp w-full mt-2" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
-      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 372px);overflow-y:auto"></div>
-      <div class="flex items-center justify-between mt-2 mb-3 text-[10px] text-slate-500 dark:text-slate-400">
-        <span id="auCnt">0 条</span>
-        <button class="mini-btn" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
-      </div>
+      <input id="auKw" class="inp w-full mt-1" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 268px);overflow-y:auto"></div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 mb-3" id="auHint">点一行展开输入与输出全文 · 长按一行复制该行摘要</div>
     </section>
 
     <!-- ===== 时间账本（L4 · 分类时长统计 · 与轴/块/日/周同一份 blocks） ===== -->
@@ -2579,9 +2582,9 @@ function setPage(p){
   const _th=$('#topHead'),_pc=$('#p-calendar'),_tn=$('#tabNav');
   const _imm=p==='p-noteEdit'||p==='p-diaryEdit'; /* V1.29：笔记编辑页全屏沉浸·隐藏全局头部与底栏；轮12-3：写日记页同款全屏（自带返回头，不露底栏/搜索） */
   if(_th)_th.classList.toggle('hidden',_imm||(p==='calendar'&&stack.length===0)||(p==='p-calendar'&&stack.length===0));
-  if(_tn)_tn.classList.toggle('hidden',_imm||p==='p-logs'); /* V1.50批3.6 V5：日志页无底栏（日志窗通底） */
+  if(_tn)_tn.classList.toggle('hidden',_imm||p==='p-logs'||p==='p-aiUsage'); /* V1.50批3.6 V5 日志页 / V1.53 AI 使用记录：无底栏，列表通底 */
   const _mn=document.querySelector('main'); /* V1.50批3.6 V5：p-logs 时 main 吃掉底栏 70px 高度，日志窗直达屏幕底（148=顶栏预留78+底栏70） */
-  if(_mn)_mn.style.height=(p==='p-logs')?'calc(100% - 78px)':'';
+  if(_mn)_mn.style.height=(p==='p-logs'||p==='p-aiUsage')?'calc(100% - 78px)':'';
   if(_pc)_pc.style.paddingTop=(p==='p-calendar'&&stack.length===0)?'12px':'';
   curPage=p;
   $('#btnTodoFilter').classList.toggle('hidden',p!=='p-todo');
@@ -4101,8 +4104,8 @@ function auModChips(){
   var pool=AI_CALLS.filter(auInRange);var cnt={};
   pool.forEach(function(r){cnt[r.m]=(cnt[r.m]||0)+1;});
   var mods=Object.keys(cnt).sort();
-  var h='<button class="chip'+(auMod==='all'?' chip-on':'')+'" onclick="auPickMod(\'all\')">全部 '+pool.length+'</button>';
-  mods.forEach(function(m){h+='<button class="chip'+(auMod===m?' chip-on':'')+'" onclick="auPickMod(\''+m+'\')">'+m+' '+cnt[m]+'</button>';});
+  var h='<button class="auf'+(auMod==='all'?' on':'')+'" onclick="auPickMod(\'all\')">全部 '+pool.length+'</button>';
+  mods.forEach(function(m){h+='<button class="auf'+(auMod===m?' on':'')+'" onclick="auPickMod(\''+m+'\')">'+m+' '+cnt[m]+'</button>';});
   $('#auModRow').innerHTML=h;
 }
 function auRender(){
@@ -4112,7 +4115,7 @@ function auRender(){
   list.forEach(function(r){
     var open=r.open?' open':'';
     h+='<div class="ailine st-'+r.st+open+'" data-i="'+r.i+'">'
-      +'<div class="ah" onclick="auToggle('+r.i+')">'
+      +'<div class="ah" onclick="auToggle('+r.i+')" oncontextmenu="event.preventDefault();auCopyLine('+r.i+')">'
       +'<span class="at">'+r.t+'</span><span class="as">'+auStTxt(r.st)+'</span>'
       +'<span class="am">'+r.m+' · '+r.n+'</span>'
       +'<span class="aq">'+(r.it||r.ot?('入'+r.it+'/出'+r.ot):'—')+' · '+auMsTxt(r.ms)+'</span></div>'
@@ -4131,12 +4134,16 @@ function auRender(){
   });
   $('#auBox').innerHTML=h;
   var s=auSumOf(list);
-  $('#auCnt').textContent=list.length+' 条 · 入 '+s.it+' / 出 '+s.ot+' tokens · 未成功 '+s.f;
   var today=auSumOf(AI_CALLS.filter(function(r){return r.d===0;}));
-  $('#auSum').textContent='今日 '+today.n+' 次 · 入 '+today.it+'/出 '+today.ot+' tokens · 失败 '+today.f
-    +' · 保留 '+(auKeepDays||'不限')+' 天 · 正文'+(auBodyOn?'全存':'只记用量');
+  $('#auSum').textContent='筛选 '+list.length+' 条 · 入 '+s.it+'/出 '+s.ot+' tokens · 未成功 '+s.f
+    +' · 今日 '+today.n+' 次';
   auKpi();
 }
+/* 长按一行＝复制该行摘要（与日志页同交互） */
+function auCopyLine(i){var r=auFind(i);if(!r)return;
+  var t='['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+' · 入'+r.it+'/出'+r.ot+' · '+auMsTxt(r.ms)
+    +(r.err?('\n'+r.err):'');
+  navigator.clipboard.writeText(t).then(function(){toast('已复制该行记录');}).catch(function(){toast('复制失败');});}
 /* 入口卡摘要要在进页前就有数：DOM 就绪即渲染一次（脚本先于 section 时静默跳过） */
 function auBootRender(){if(document.getElementById('auBox'))auRender();}
 function auKpi(){
@@ -4146,9 +4153,8 @@ function auKpi(){
   [['auK1',t.n],['auK2',t.it+t.ot],['auK3',w.n],['auK4',a.n]].forEach(function(p){
     var el=document.getElementById(p[0]);if(el)el.textContent=p[1];});
 }
-function auSeg(id,ids){ids.forEach(function(i){var b=document.getElementById(i);if(!b)return;
-  b.classList.remove('seg-on');b.classList.add('text-slate-500');});
-  var on=document.getElementById(id);if(on){on.classList.add('seg-on');on.classList.remove('text-slate-500');}}
+function auSeg(id,ids){ids.forEach(function(i){var b=document.getElementById(i);if(b)b.classList.remove('on');});
+  var on=document.getElementById(id);if(on)on.classList.add('on');}
 function auSetRange(d,id){auD=d;auSeg(id,['auD0','auD7','auD30','auDA']);auRender();}
 function auSetSt(st,id){auSt=st;auSeg(id,['auSAll','auSOk','auSF','auSC','auSD']);auRender();}
 function auPickMod(m){auMod=m;auRender();}
