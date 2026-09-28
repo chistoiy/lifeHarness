@@ -15,6 +15,11 @@ import '../domain/shelf_query.dart';
 import 'isbn_enrich.dart';
 import 'read_import.dart';
 
+/// 治理G7d④ prep：一天毫秒数从类内 static 提为库级 const（值与写法一字未改）。
+/// extension 成员能裸访问宿主类的**实例**成员，但宿主类的 static 在扩展里裸名不解析；
+/// _dayMs 同时被 quote 群与 imp 群裸引用，提为库级后两侧零改动可用。
+const int _dayMs = 24 * 60 * 60 * 1000;
+
 /// 阅读模块仓储（M1批3 · 计划 §2.1 三表）。
 ///
 /// 口径：
@@ -468,7 +473,7 @@ class ReadRepository {
         ? (start.hour * 60 + start.minute).clamp(0, 1439)
         : 0;
     final row = {
-      'day': dayStartMs(day),
+      'day': ReadRepository.dayStartMs(day),
       'start_min': startMin,
       'end_min': endMin.clamp(startMin + 1, 1440),
       'category': '阅读',
@@ -541,12 +546,15 @@ class ReadRepository {
     }
   }
 
+  /// 自然日起点（外部 read_providers 以 ReadRepository.dayStartMs 调用，故必须留类内）。
+  /// 治理G7d④ prep：库内三处裸调用相应写作 ReadRepository.dayStartMs（宿主类 static
+  /// 在同库 extension 方法里裸名不解析）。
   static int dayStartMs(DateTime d) =>
       DateTime(d.year, d.month, d.day).millisecondsSinceEpoch;
 
   /// 今日累计入账分钟（含在跑会话的已耗时；倍速按 speedFold 口径在 billedMinutes）。
   Future<int> minutesOnDay(DateTime day) async {
-    final from = dayStartMs(day);
+    final from = ReadRepository.dayStartMs(day);
     final to = from + 86400000;
     final rows = await db.query(
       DbSchema.tBookSessions,
@@ -569,7 +577,7 @@ class ReadRepository {
   Future<int> minutesThisWeek() async {
     final now = DateTime.now();
     final monday = DateTime(now.year, now.month, now.day - (now.weekday - 1));
-    final from = dayStartMs(monday);
+    final from = ReadRepository.dayStartMs(monday);
     final rows = await db.query(
       DbSchema.tBookSessions,
       where: 'ended_at >= ?',
@@ -595,8 +603,6 @@ class ReadRepository {
         ..sort((a, b) => b.compareTo(a));
 
   // ---- 摘录（批3 全量：查重入账 / 标签字典 / 复习档位 / L5 分流）----
-
-  static const int _dayMs = 24 * 60 * 60 * 1000;
 
   /// 艾宾浩斯复习间隔（天 · 计划批3「1/3/7 天」）：入账次日 1 天，其后 3/7，
   /// 走完 7 天档 next 置空＝已掌握。
