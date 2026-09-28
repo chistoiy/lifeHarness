@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/ai/ai_call_store.dart';
 import '../../../core/ai/ai_client.dart';
 import '../../../core/ai/ai_config.dart';
 import '../../../core/ai/ai_prompt_pack.dart';
@@ -412,6 +413,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
           // —— Token 使用（真机反馈 2026-09-26：想看 token 消耗）——
           const _TokenUsageCard(),
           const SizedBox(height: 12),
+          // —— AI 使用记录入口（V1.53 · 原型 p-aiUsage 的入口卡）——
+          const _AiUsageEntryCard(),
+          const SizedBox(height: 12),
           // —— 提示词管理入口（AI批新增 · 原型 p-sub-ai 第四卡）——
           _Card(
             child: Row(
@@ -439,6 +443,95 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// AI 使用记录入口卡（V1.53 · 原型 p-sub-ai 的「AI 使用记录」卡）：
+/// 四个实算数字（今日次数 / 今日 tokens / 近 7 天次数 / 累计条数）+ 全屏页入口。
+/// AI 使用记录入口卡（V1.53 · 原型 p-sub-ai 第四卡）：四个实数摘要 + 全屏页入口。
+class _AiUsageEntryCard extends ConsumerStatefulWidget {
+  const _AiUsageEntryCard();
+
+  @override
+  ConsumerState<_AiUsageEntryCard> createState() => _AiUsageEntryCardState();
+}
+
+class _AiUsageEntryCardState extends ConsumerState<_AiUsageEntryCard> {
+  int _today = 0, _todayTok = 0, _week = 0, _all = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final store = ref.read(aiCallStoreProvider);
+    if (store == null) return;
+    final today = await store.sumOf(const AiCallFilter(sinceDays: 0));
+    final week = await store.sumOf(const AiCallFilter(sinceDays: 7));
+    final all = await store.sumOf(const AiCallFilter());
+    if (!mounted) return;
+    setState(() {
+      _today = today.n;
+      _todayTok = today.tokens;
+      _week = week.n;
+      _all = all.n;
+    });
+  }
+
+  Widget _cell(String label, String value, String key) => Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+            const SizedBox(height: 2),
+            Text(value,
+                key: ValueKey(key),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                  child: Text('AI 使用记录',
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
+              TextButton(
+                key: const ValueKey('ai-usage-entry'),
+                onPressed: () async {
+                  await context.push('/settings/ai/usage');
+                  if (mounted) _load();
+                },
+                child: const Text('全屏查看 ›'),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              _cell('今日调用', '$_today', 'ai-usage-k1'),
+              _cell('今日 tokens', '${_todayTok}p', 'ai-usage-k2'),
+              _cell('近 7 天调用', '$_week', 'ai-usage-k3'),
+              _cell('累计', '$_all', 'ai-usage-k4'),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text('每次调用留一行（含门控拒绝与取消）：能力点 · 状态 · token · 耗时 · 发送与返回正文。'
+              '正文可在记录设置里整体停记或单独清除，Key 永不入库。',
+              style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
         ],
       ),
     );

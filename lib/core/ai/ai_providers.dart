@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/app_database.dart';
 import '../providers.dart';
+import 'ai_call_store.dart';
 import 'ai_client.dart';
 import 'ai_config.dart';
 import 'ai_prompt_pack.dart';
@@ -47,12 +49,20 @@ final aiClientProvider = Provider<AiClient>((ref) {
   return client;
 });
 
+/// AI 使用记录（V1.53 · 表 ai_calls）。
+/// 未开库环境（如只 pump 单页的 widget 测试）返回 null＝不落记录，绝不因此崩。
+final aiCallStoreProvider = Provider<AiCallStore?>((ref) {
+  if (!AppDatabase.instance.isInitialized) return null;
+  return AiCallStore(AppDatabase.instance.db);
+});
+
 /// 能力编排服务（同步可用：包已在 main 预载 override）。
 final aiServiceProvider = Provider<AiService>((ref) => AiService(
       configRepo: ref.watch(aiConfigRepoProvider),
       keyVault: ref.watch(aiKeyVaultProvider),
       client: ref.watch(aiClientProvider),
       pack: ref.watch(aiPromptPackProvider),
+      calls: ref.watch(aiCallStoreProvider),
     ));
 
 /// AI 配置响应式快照：所有写操作经本 Notifier（写盘 + 重建 state）。
@@ -108,6 +118,19 @@ class AiConfigNotifier extends Notifier<AiConfig> {
 
   Future<void> clearPromptOverride(String taskId) async {
     await _repo.clearPromptOverride(taskId);
+    ref.invalidateSelf();
+  }
+
+  /// V1.53 使用记录设置：是否留存正文（关掉后新调用只记用量）。
+  Future<void> setRecordBody(bool on) async {
+    await _repo.setRecordBody(on);
+    ref.invalidateSelf();
+  }
+
+  /// V1.53 使用记录保留天数（0=不限）；改完即刻按新值裁剪超期记录。
+  Future<void> setCallKeepDays(int days) async {
+    await _repo.setCallKeepDays(days);
+    ref.read(aiCallStoreProvider)?.prune(days);
     ref.invalidateSelf();
   }
 

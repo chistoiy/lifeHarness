@@ -57,7 +57,9 @@ Future<AiCallResult?> aiRunWithReview(
   // 门控前移到入口：未开启/未授权/无 Key 即刻 toast，不进入审阅流程（零请求）。
   final denial = await svc.gate(taskId);
   if (denial != null) {
-    // 门控拒绝也要留痕：日志页是「所有报错都可查」的落点（真机反馈③）。
+    // 门控拒绝也要留痕：日志页是「所有报错都可查」的落点（真机反馈③），
+    // V1.53 的「AI 使用记录」同样要能查到"为什么这条压根没发出去"。
+    await svc.recordDenied(taskId, denial);
     AppLog.add('AI 未启用（$taskId）：$denial', level: LhLevel.warn);
     if (context.mounted) AppToast.show(context, 'AI 未启用：$denial', ms: 2600);
     return null;
@@ -176,10 +178,13 @@ Future<AiCallResult?> aiRunWithReview(
   AiCallResult? result;
   String? error;
   String? logDetail; // 日志侧比 toast 更精确：带失败归类与端点原文
+  // 取消票据：请求已经打出去、应答还在路上时用户取消——请求侧迟到的收尾据此
+  // 记成「取消」而不是「成功」（结果确实没被采用），使用记录与用户看到的一致。
+  final cancelToken = AiCancelToken();
   // 请求侧自己收敛成 'ok'/'err'，好与 cancel.future 一起进 Future.any 竞速；
   // 取消胜出后不再 await 它，异常也已在 onError 里吃掉（无 unhandled error）。
   final settled = Completer<String>();
-  svc.request(taskId, vars, temperature: temperature).then((r) {
+  svc.request(taskId, vars, temperature: temperature, cancel: cancelToken).then((r) {
     result = r;
     if (!settled.isCompleted) settled.complete('ok');
   }, onError: (Object e, StackTrace _) {
@@ -204,6 +209,7 @@ Future<AiCallResult?> aiRunWithReview(
   closeProgressDialog();
 
   if (outcome == 'cancel') {
+    cancelToken.cancelled = true;
     AppLog.add('AI 调用已取消（$taskId）：等待期间用户取消/返回，应答若迟到将被丢弃',
         level: LhLevel.warn);
     // 取消也算一次发出：请求已经打到端点、token 已消耗，只是应答没等到。

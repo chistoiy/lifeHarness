@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 25;
+  static const int version = 26;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -113,6 +113,9 @@ class DbSchema {
   // isbn→identifier / identifier→cover 缓存思路落本地）。只存 App 在用的
   // 最小字段集、不存整页快照——防库膨胀并控制云备份体积（2026-09-26 拍板）。
   static const String tDoubanMeta = 'douban_meta';
+  // v26（V1.53）：AI 使用记录单表——每次能力调用一行（含门控拒绝与取消），
+  // 正文列在「记录正文」关闭时留空；Key 永不入库（需求清单 §六 原则 7）。
+  static const String tAiCalls = 'ai_calls';
 
   /// 红线 7（V1.41·T16）：母婴呵护十一表成组清单（上方 v19 注释归组）。
   /// `care.syncExcluded` 置位时由 SnapshotService 整组作 excludeTables 传入
@@ -397,6 +400,7 @@ class DbSchema {
     ...itemSchemaStatements,
     ...goalSchemaStatements,
     ...doubanMetaSchemaStatements,
+    ...aiCallSchemaStatements,
   ];
 
   /// 内置分类种子（id 固定；一级 1-10 + 22 阅读，次级 11-21）。
@@ -641,7 +645,39 @@ class DbSchema {
       'ALTER TABLE $tBookQuotes ADD COLUMN cf TEXT',
       'ALTER TABLE $tBookQuotes ADD COLUMN rid TEXT',
     ],
+    // v25（V1.53）：AI 使用记录表 ai_calls（每次能力调用一行，含门控拒绝与取消；
+    // 正文可整体停记或单独清除；Key 永不入库）。
+    25: [
+      ...aiCallSchemaStatements,
+    ],
   };
+
+  /// v26 AI 使用记录（V1.53）DDL：建库与迁移共用（幂等）。
+  /// status：ok|fail|cancel|denied（denied=三重门控拒绝，同样入账，用户要能看到"没发出去"的原因）；
+  /// sys/usr/out 为发送与返回正文，超 8000 字上限截断并置 cut=1；
+  /// recordBody 关掉时三段留空，用量列照记。module 取能力点自带模块，新增能力零改表。
+  static const List<String> aiCallSchemaStatements = [
+    '''
+    CREATE TABLE IF NOT EXISTS $tAiCalls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INTEGER NOT NULL,
+      task_id TEXT NOT NULL,
+      module TEXT NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      in_tok INTEGER NOT NULL DEFAULT 0,
+      out_tok INTEGER NOT NULL DEFAULT 0,
+      ms INTEGER NOT NULL DEFAULT 0,
+      sys TEXT,
+      usr TEXT,
+      out TEXT,
+      err TEXT,
+      cut INTEGER NOT NULL DEFAULT 0
+    )
+    ''',
+    'CREATE INDEX IF NOT EXISTS idx_ai_calls_ts ON $tAiCalls(ts)',
+    'CREATE INDEX IF NOT EXISTS idx_ai_calls_module ON $tAiCalls(module)',
+  ];
 
   /// v23 豆瓣元数据缓存 DDL（建库与迁移共用·幂等）。
   /// code＝查询码原样（ISBN 13 位或豆瓣 subject_id）；subject 存命中的

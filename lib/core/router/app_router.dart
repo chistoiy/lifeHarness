@@ -83,6 +83,7 @@ import '../../features/read/presentation/read_timer_page.dart';
 import '../../features/read/presentation/reader_page.dart';
 import '../../features/read/presentation/shelf_page.dart';
 import '../../features/settings/presentation/ai_page.dart';
+import '../../features/settings/presentation/ai_usage_page.dart';
 import '../../features/settings/presentation/log_page.dart';
 import '../../features/settings/presentation/media_clean_page.dart';
 import '../../features/settings/presentation/notify_settings_page.dart';
@@ -355,6 +356,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings/ai/verify',
         builder: (_, _) => const AiVerifyPage(),
+      ),
+      // V1.53 AI 使用记录（全屏明细·与日志页同交互语言·无底栏）。
+      GoRoute(
+        path: '/settings/ai/usage',
+        builder: (_, _) => const AiUsagePage(),
       ),
       GoRoute(
         path: '/settings/ai/prompts',

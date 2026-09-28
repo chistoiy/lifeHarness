@@ -107,6 +107,9 @@ const kAiProviderSeeds = <AiProvider>[
       baseUrl: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:7b', builtin: true),
 ];
 
+/// 使用记录默认保留天数（V1.53 拍板：30 天）。
+const kAiCallDefaultKeepDays = 30;
+
 /// 旧版本单值端点匹配不到预置时合成的条目 id（升级兼容用）。
 const kAiCustomProviderId = 'custom';
 
@@ -122,6 +125,8 @@ class AiConfig {
     this.verifyOk = false,
     this.verifyLatencyMs,
     this.verifyReason,
+    this.recordBody = true,
+    this.callKeepDays = 30,
   });
 
   /// AI 总开关（默认关：未开启时全应用零 AI 请求）。
@@ -144,6 +149,12 @@ class AiConfig {
   final bool verifyOk;
   final int? verifyLatencyMs;
   final String? verifyReason;
+
+  /// V1.53 使用记录：**是否留存发送与返回正文**（关掉只记 能力点·状态·token·耗时）。
+  final bool recordBody;
+
+  /// V1.53 使用记录保留天数（0=不限；超期整批丢弃）。
+  final int callKeepDays;
 
   bool capEnabled(String taskId) => master && (caps[taskId] ?? false);
 
@@ -185,6 +196,9 @@ class AiConfigRepository {
   static const _kCaps = 'ai.caps';
   static const _kPromptPrefix = 'ai.prompt.'; // + taskId
   static const _kVerify = 'ai.verify'; // {atMs,ok,ms,reason}
+  // V1.53 使用记录设置（缺省：记正文 + 保留 30 天）
+  static const _kRecordBody = 'ai.record_body';
+  static const _kCallKeepDays = 'ai.call_keep_days';
   // 旧版单值键（只读迁移来源，V1.53.1 起不再写入）
   static const _kBaseUrl = 'ai.base_url';
   static const _kModel = 'ai.model';
@@ -220,6 +234,8 @@ class AiConfigRepository {
         verifyOk: v['ok'] == true,
         verifyLatencyMs: (v['ms'] as num?)?.toInt(),
         verifyReason: v['reason'] as String?,
+        recordBody: _prefs.getBool(_kRecordBody) ?? true,
+        callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
       );
     }
     // 未落过 providers：按旧单值键派生，保证升级后用户原端点不被预置顶掉。
@@ -260,6 +276,8 @@ class AiConfigRepository {
       verifyOk: v['ok'] == true,
       verifyLatencyMs: (v['ms'] as num?)?.toInt(),
       verifyReason: v['reason'] as String?,
+      recordBody: _prefs.getBool(_kRecordBody) ?? true,
+      callKeepDays: _prefs.getInt(_kCallKeepDays) ?? kAiCallDefaultKeepDays,
     );
   }
 
@@ -358,6 +376,13 @@ class AiConfigRepository {
       return const [];
     }
   }
+
+  /// 是否留存发送与返回正文（关闭后新调用只记用量，已存正文不动，需单独清除）。
+  Future<void> setRecordBody(bool on) => _prefs.setBool(_kRecordBody, on);
+
+  /// 使用记录保留天数（0=不限）。
+  Future<void> setCallKeepDays(int days) =>
+      _prefs.setInt(_kCallKeepDays, days < 0 ? 0 : days);
 
   Map<String, bool> _decodeBoolMap(String? raw) {
     final m = _decodeMap(raw);
