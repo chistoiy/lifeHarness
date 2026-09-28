@@ -116,10 +116,12 @@ class ShelfQuery {
 /// 计时起停语义（单活会话）：全局同时至多一条 running 会话，
 /// 对另一本开始会自动结束上一本（与顶部胶囊「当前任务」口径一致）。
 /// 结束入账：endedAt < startedAt 直接丢弃（时钟回拨防护 · 计划 §2.4）；
-/// 有实际时长不足 1 分钟按 1 分钟计。
-BookSession? closeRunning(BookSession s, int nowMs) {
+/// [minSecs]＝短会话门槛（轮5.2② read.brMinSecs，默认 30）：不足门槛同样丢弃，
+/// 时长与会话都不入账；有实际时长不足 1 分钟按 1 分钟计。
+BookSession? closeRunning(BookSession s, int nowMs, {int minSecs = 0}) {
   if (nowMs < s.startedAt) return null; // 回拨：丢弃，由调用方删行
   final elapsed = nowMs - s.startedAt;
+  if (minSecs > 0 && elapsed < minSecs * 1000) return null; // 太短：不入账
   return s.copyWith(
     endedAt: nowMs,
     minutes: elapsed <= 0 ? 0 : (elapsed / 60000).ceil(),

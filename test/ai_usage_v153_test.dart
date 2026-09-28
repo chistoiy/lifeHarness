@@ -89,7 +89,8 @@ void main() {
       final t = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='ai_calls'");
       expect(t, hasLength(1));
-      expect(DbSchema.version, 26);
+      // 版本号不钉死（后续批次会继续升版）：只要求 ai_calls 的 v26 步已并入。
+      expect(DbSchema.version, greaterThanOrEqualTo(26));
       expect(DbSchema.migrations.containsKey(25), isTrue,
           reason: '老库升级必须带 ai_calls 迁移步');
     });

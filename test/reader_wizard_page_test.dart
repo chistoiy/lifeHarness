@@ -283,6 +283,9 @@ void main() {
   group('批1-W · 阅读主屏（批2 形态：默认翻页模式）', () {
     testWidgets('进入自动起计时 · 退出结算结束会话', (t) async {
       await useSurface(t);
+      // 轮5.2②：默认 30 秒门槛会把这条 2 秒会话整条丢弃 → 本例关掉门槛，
+      // 只验「进页起表 / 退页结算」链路（门槛行为见 reader_v52_sess_test）。
+      await repo.setKv('read.brMinSecs', '0');
       final book = await repo.addBook(Book(
         id: 'r1',
         title: '阅读器书',

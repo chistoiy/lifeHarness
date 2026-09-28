@@ -1597,10 +1597,16 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         final pp = s.fromPage != null && s.toPage != null
             ? ' · P${s.fromPage}→${s.toPage}'
             : '';
+        // 轮5.2②：会话起止章节/百分比由阅读器退出时自动记录。
+        final ch = s.toChapter ?? s.fromChapter;
+        final pc = s.fromPct != null && s.toPct != null
+            ? ' · ${s.fromPct!.round()}%→${s.toPct!.round()}%'
+            : '';
         add(
           s.endedAt,
           Icons.timer_outlined,
-          '读了 ${s.billedMinutes} 分钟$pp',
+          '读了 ${s.billedMinutes} 分钟'
+              '${ch == null ? '' : ' · $ch'}$pp$pc',
           b,
         );
       }

@@ -573,6 +573,23 @@ class _LogCardState extends ConsumerState<_LogCard> {
   static String _hhmm(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
+  /// 会话位置摘要（轮5.2②：起止章节/页/百分比由阅读器退出时自动记录；
+  /// 手工补记与旧数据只有 toPage → 保持原展示）。
+  static String _sessPos(BookSession s) {
+    final ch = (s.toChapter ?? s.fromChapter ?? '').trim();
+    final pg = s.fromPage != null && s.toPage != null
+        ? 'P${s.fromPage}→${s.toPage}'
+        : 'P${s.toPage ?? '—'}';
+    final pc = s.fromPct != null && s.toPct != null
+        ? '${s.fromPct!.round()}%→${s.toPct!.round()}%'
+        : null;
+    return [
+      if (ch.isNotEmpty) ch,
+      pg,
+      if (pc != null) pc,
+    ].join(' · ');
+  }
+
   Future<void> _apply({int? minutes, int? fromPage, int? toPage, int? startedAtMs}) async {
     await ref.read(readRepositoryProvider).editSession(
       widget.s.id!,
@@ -650,7 +667,7 @@ class _LogCardState extends ConsumerState<_LogCard> {
                       children: [
                         Text(
                           '${_hhmm(d)} - ${_hhmm(DateTime.fromMillisecondsSinceEpoch(s.endedAt ?? s.startedAt))}'
-                          ' · P${s.toPage ?? '—'}',
+                          ' · ${_sessPos(s)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: cs.onSurfaceVariant,

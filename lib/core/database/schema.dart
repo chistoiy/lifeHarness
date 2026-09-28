@@ -8,7 +8,7 @@ class DbSchema {
 
   /// 数据库文件名与版本（版本递增驱动 onUpgrade 迁移）。
   static const String fileName = 'lifeharness.db';
-  static const int version = 26;
+  static const int version = 27;
 
   // ---- 表名常量 ----
   static const String tTodos = 'todos';
@@ -650,6 +650,14 @@ class DbSchema {
     25: [
       ...aiCallSchemaStatements,
     ],
+    // v27（V1.53.2 轮5.2②）：阅读计时会话自动记录起止位置（章节名 + 全书百分比），
+    // 用户不再手填页码/位置；页码沿用 v12 的 from_page/to_page。
+    26: [
+      'ALTER TABLE $tBookSessions ADD COLUMN from_chapter TEXT',
+      'ALTER TABLE $tBookSessions ADD COLUMN to_chapter TEXT',
+      'ALTER TABLE $tBookSessions ADD COLUMN from_pct REAL',
+      'ALTER TABLE $tBookSessions ADD COLUMN to_pct REAL',
+    ],
   };
 
   /// v26 AI 使用记录（V1.53）DDL：建库与迁移共用（幂等）。
@@ -1084,6 +1092,8 @@ class DbSchema {
     'CREATE INDEX IF NOT EXISTS idx_books_grp ON $tBooks(grp)',
     'CREATE INDEX IF NOT EXISTS idx_books_last ON $tBooks(last_read_at)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn ON $tBooks(isbn) WHERE isbn IS NOT NULL AND isbn != \'\'',
+    // v27（V1.53.2 轮5.2②）：book_sessions 的 from_chapter/to_chapter/from_pct/to_pct
+    // ＝退出阅读器自动结算的起止位置快照（与下方迁移步 26 同文）。
     '''
     CREATE TABLE IF NOT EXISTS $tBookSessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1096,6 +1106,10 @@ class DbSchema {
       to_page INTEGER,
       from_loc REAL,
       to_loc REAL,
+      from_chapter TEXT,
+      to_chapter TEXT,
+      from_pct REAL,
+      to_pct REAL,
       source TEXT NOT NULL DEFAULT 'timer',
       txn_id INTEGER
     )

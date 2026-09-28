@@ -104,6 +104,10 @@ const _secs = [
         desc: '章节内跳转不受限制 · 外链默认询问'),
     _Row('brBright', '阅读时屏幕常亮', _T.bool,
         desc: '进入阅读器自动生效 · 退出恢复系统策略'),
+    // V1.53.2 轮5.2②：退出阅读器时结算，未达门槛不记时长也不记会话。
+    _Row('brMinSecs', '短于该时长的阅读不计入', _T.chips,
+        opts: ['5', '10', '15', '30', '60', '120', '300'],
+        desc: '秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话'),
   ]),
 ];
 
@@ -495,6 +499,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     // 批4 本地阅读器：外链默认询问、常亮默认关（原型 BR_DEF.bright=false）。
     'brLink' => '询问',
     'brBright' => 'false',
+    // 轮5.2②：短会话门槛默认 30 秒（chip 值以字符串存）。
+    'brMinSecs' => '30',
     _ => 'true',
   };
 
