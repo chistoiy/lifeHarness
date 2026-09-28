@@ -121,9 +121,15 @@ final speedFoldProvider = FutureProvider<bool>((ref) async {
   return v;
 });
 
-/// 顶部长胶囊是否可见：有在跑会话 && 计时形态为顶部胶囊 && read.floatBar 开。
+/// 轮5.4：当前是否有阅读页在前台（阅读页自带顶栏计时胶囊，
+/// 全局读书计时条在其上属重复信息 → 进页挂起、退页恢复）。
+final readerOpenProvider = StateProvider<int>((_) => 0);
+
+/// 顶部长胶囊是否可见：有在跑会话 && 计时形态为顶部胶囊 && read.floatBar 开
+/// && 不在阅读页内（轮5.4 UI 统一）。
 /// （全屏形态下计时走沉浸页，顶栏不再挂胶囊。）
 final readTimerBarVisibleProvider = FutureProvider<bool>((ref) async {
+  if (ref.watch(readerOpenProvider) > 0) return false;
   final run = await ref.watch(runningSessionProvider.future);
   if (run == null) return false;
   if (await ref.watch(timerUIProvider.future) != '顶部胶囊') return false;

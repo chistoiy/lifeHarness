@@ -22,6 +22,9 @@ class ReaderCfg {
     this.autoSecs = 10,
     this.lum = 100,
     this.indent = true,
+    this.bgTex = '',
+    this.bgImg = '',
+    this.dim = 60,
   });
 
   final double fs, lh, ls, mar;
@@ -50,6 +53,15 @@ class ReaderCfg {
 
   /// 首行缩进（原型 .brp text-indent:2em；关掉则段首不缩进）。
   final bool indent;
+
+  /// 轮5.1 背景纹理预设键（kBrTex：'' 无 · paper 纸纹 · kraft 牛皮 · grid 网格）。
+  final String bgTex;
+
+  /// 轮5.1 自选图片背景的**本机文件路径**（原型存 dataURL，Flutter 落私有目录存路径）。
+  final String bgImg;
+
+  /// 图片/纹理之上的白幕淡化百分比（0~90，越大越淡＝越盖白）。
+  final int dim;
 
   static const defaults = ReaderCfg();
 
@@ -89,6 +101,9 @@ class ReaderCfg {
       autoSecs: (m['autoSecs'] as num?)?.toInt() ?? 10,
       lum: ((m['lum'] as num?)?.toInt() ?? 100).clamp(30, 100),
       indent: m['indent'] != false,
+      bgTex: kBrTex.containsKey(ss('bgTex', '')) ? ss('bgTex', '') : '',
+      bgImg: ss('bgImg', ''),
+      dim: ((m['dim'] as num?)?.toInt() ?? 60).clamp(0, 90),
     );
   }
 
@@ -111,6 +126,9 @@ class ReaderCfg {
     'autoSecs': autoSecs,
     'lum': lum,
     'indent': indent,
+    'bgTex': bgTex,
+    'bgImg': bgImg,
+    'dim': dim,
   };
 
   String encode() => jsonEncode(toMap());
@@ -130,6 +148,9 @@ class ReaderCfg {
     int? autoSecs,
     int? lum,
     bool? indent,
+    String? bgTex,
+    String? bgImg,
+    int? dim,
   }) => ReaderCfg(
     fs: fs ?? this.fs,
     lh: lh ?? this.lh,
@@ -145,6 +166,9 @@ class ReaderCfg {
     autoSecs: autoSecs ?? this.autoSecs,
     lum: lum ?? this.lum,
     indent: indent ?? this.indent,
+    bgTex: bgTex ?? this.bgTex,
+    bgImg: bgImg ?? this.bgImg,
+    dim: dim ?? this.dim,
   );
 
   Color get bgColor => _parseHex(bg, const Color(0xFFFAF6EE));
@@ -178,6 +202,10 @@ const kBrThemeOrder = ['day', 'eye', 'night'];
 
 /// 背景预设（V1.53 轮3 参考图2「背景」5 缩略图；选中即 custom 底色）。
 const kBrBgs = ['#faf6ee', '#f5edda', '#f2f3f5', '#f6e7d3', '#dfe8f4'];
+
+/// 纹理背景（V1.53.2 轮5.1 · 原型 BR_TEX；''＝无，选中即回到纯色）。
+/// Flutter 侧不用 CSS 渐变串，键即绘制方案（见 reader_bg.dart 的 CustomPainter）。
+const kBrTex = {'': '无', 'paper': '纸纹', 'kraft': '牛皮', 'grid': '网格'};
 
 /// 字体（原型 BR_FONTS：系统字体 · 可扩展下载控制包体积）。
 const kBrFonts = {

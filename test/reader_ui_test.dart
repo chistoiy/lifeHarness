@@ -170,35 +170,45 @@ void main() {
       expect(pgLbl(t).$5, lessThan(p2));
     });
 
-    testWidgets('字号滑条重排：章实算页数随字号变化（实算非估算 · V1.53 面板）', (t) async {
+    testWidgets('字号滑条重排：章实算页数随字号变化（轮5.1 外观弹层）', (t) async {
       await openReader(t, _bigDoc(), 'u2');
       await showChrome(t);
-      await t.tap(find.byKey(const ValueKey('brBtnFont')));
-      await step(t);
       // 轮4②：全书页数为字符估算（不随字号变），字号只影响当前章实算页数。
       final before = pgLbl(t).$2;
-      // 点轨道右端＝字号拉满（页数增）；点左端＝缩回（页数减）。
-      final sr = t.getRect(find.byKey(const ValueKey('brFsSl')));
-      await t.tapAt(Offset(sr.right - 4, sr.center.dy));
-      await step(t, ms: 300, times: 2);
+      Future<void> setFs({required bool max}) async {
+        await t.tap(find.byKey(const ValueKey('brBtnLook')));
+        await step(t, ms: 320, times: 2);
+        final sr = t.getRect(find.byKey(const ValueKey('brApFsSlider')));
+        await t.tapAt(
+          Offset(max ? sr.right - 6 : sr.left + 6, sr.center.dy),
+        );
+        await step(t);
+        await t.tap(find.byKey(const ValueKey('brApSave')));
+        // 保存提示条盖在底栏上，等它退场再点下一个底栏钮。
+        await step(t, ms: 320, times: 2);
+        await step(t, ms: 1200, times: 4);
+      }
+
+      await setFs(max: true); // 字号拉满 → 页数增
       final after = pgLbl(t).$2;
       expect(after, greaterThan(before));
-      await t.tapAt(Offset(sr.left + 4, sr.center.dy));
-      await step(t, ms: 300, times: 2);
+      await setFs(max: false); // 缩回 → 页数减
       expect(pgLbl(t).$2, lessThan(after));
     });
 
-    testWidgets('翻页⇄滚动双模式切换（字号面板 chip）', (t) async {
+    testWidgets('翻页⇄滚动双模式切换（更多弹层分段钮）', (t) async {
       await openReader(t, _bigDoc(), 'u3');
       await showChrome(t);
       expect(find.byKey(const ValueKey('br-scroll')), findsNothing);
-      await t.tap(find.byKey(const ValueKey('brBtnFont')));
-      await step(t);
-      await t.tap(find.byKey(const ValueKey('brPfMode')));
-      await step(t, ms: 300);
+      await t.tap(find.byKey(const ValueKey('brBtnMore')));
+      await step(t, ms: 320, times: 2);
+      await t.tap(find.byKey(const ValueKey('brMode-scroll')));
+      await step(t, ms: 300, times: 2);
       expect(find.byKey(const ValueKey('br-scroll')), findsOne);
-      await t.tap(find.byKey(const ValueKey('brPfMode')));
-      await step(t, ms: 300);
+      await t.tap(find.byKey(const ValueKey('brBtnMore')));
+      await step(t, ms: 320, times: 2);
+      await t.tap(find.byKey(const ValueKey('brMode-page')));
+      await step(t, ms: 300, times: 2);
       expect(find.byKey(const ValueKey('br-pageflip')), findsOne);
     });
 
@@ -220,17 +230,19 @@ void main() {
   group('批2-U · 进度条与位置记忆', () {
     testWidgets('拖动进度 → 全书定位；退出重进恢复同页', (t) async {
       await openReader(t, _bigDoc(), 'u5');
-      await t.tap(find.byKey(const ValueKey('brBtnProg'))); // 进度滑条在进度面板内
-      await step(t);
+      await t.tap(find.byKey(const ValueKey('brBtnProg'))); // 轮5.1：进度在弹层里
+      await step(t, ms: 320, times: 2);
+      expect(find.byKey(const ValueKey('sheetBrProg')), findsOne);
       await t.drag(
         find.byKey(const ValueKey('brProg')),
-        const Offset(260, 0),
+        const Offset(150, 0),
       );
       await step(t, ms: 300, times: 2);
-      final g = pgLbl(t).$3;
       // 轮4②：进度为字符权重占比（滑条拖到右半区 → 占比过半）。
       expect(pgLbl(t).$5, greaterThanOrEqualTo(50));
-      await step(t, ms: 300);
+      final g = pgLbl(t).$3;
+      await t.tap(find.byKey(const ValueKey('brPpClose')));
+      await step(t, ms: 300, times: 2);
       // 重进：换挂载即重读 reader.pos（同库同书 → 位置回落）。
       // 不用 br-back：根路由弹出会触发 Navigator 空历史断言。
       await t.pumpWidget(const SizedBox.shrink());

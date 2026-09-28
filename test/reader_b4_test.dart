@@ -147,13 +147,23 @@ void main() {
   String pgLbl(WidgetTester t) =>
       t.widget<Text>(find.byKey(const ValueKey('brPgLbl'))).data ?? '';
 
-  // V1.53 轮3：外观草稿面板入口移入字号面板「字体样式 ›」chip。
+  // 轮5.1：外观面板入口＝底栏第三个图标（主题/亮度/字号三面板已并入）。
   Future<void> openAp(WidgetTester t) async {
-    await t.tap(find.byKey(const ValueKey('brBtnFont')));
-    await step(t);
-    await t.tap(find.byKey(const ValueKey('brPfFont')));
-    await step(t, times: 2);
+    await t.tap(find.byKey(const ValueKey('brBtnLook')));
+    await step(t, times: 3);
   }
+
+  /// 面板内滚到某个键（DraggableScrollableSheet 里的 ListView）。
+  Future<void> apScrollTo(WidgetTester t, String key) => t.scrollUntilVisible(
+    find.byKey(ValueKey(key)),
+    150,
+    scrollable: find
+        .descendant(
+          of: find.byKey(const ValueKey('sheetBrAppearance')),
+          matching: find.byType(Scrollable),
+        )
+        .last,
+  );
 
   group('批4-A · 外观草稿制面板', () {
     testWidgets('外观钮开面板；滑字号→保存应用写逐书补丁并即时生效', (t) async {
@@ -188,35 +198,39 @@ void main() {
       expect(await repo.kv('reader.cfg.b2'), isNull);
     });
 
-    testWidgets('字号滑条写逐书补丁；主题循环写全局（原型 brFsSl/brThemeCycle）', (t) async {
+    testWidgets('字号+主题一起存：本书专属进补丁 · 全部书籍进全局', (t) async {
       await openReader(t, 'b3');
-      await t.tap(find.byKey(const ValueKey('brBtnFont')));
+      await openAp(t);
+      await t.drag(
+        find.byKey(const ValueKey('brApFsSlider')),
+        const Offset(60, 0),
+      );
       await step(t);
-      await t.drag(find.byKey(const ValueKey('brFsSl')), const Offset(60, 0));
+      await t.tap(find.byKey(const ValueKey('brApTheme-eye')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApSave')));
       await step(t, times: 2);
-      final patch =
-          jsonDecode((await repo.kv('reader.cfg.b3'))!) as Map;
+      final patch = jsonDecode((await repo.kv('reader.cfg.b3'))!) as Map;
       expect((patch['fs'] as num) > 19, isTrue);
-      await t.tap(find.byKey(const ValueKey('brBtnTheme')));
+      expect(patch['theme'], 'eye');
+      // 作用域切「全部书籍」→ 夜间：写全局 reader.cfg。（先等保存提示条退场，
+      // 它盖在底栏上会吃掉 brBtnLook 的命中。）
+      await step(t, ms: 1200, times: 4);
+      await openAp(t);
+      await t.tap(find.byKey(const ValueKey('brApScope-global')));
+      await t.tap(find.byKey(const ValueKey('brApTheme-night')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApSave')));
       await step(t, times: 2);
       final g = jsonDecode((await repo.kv('reader.cfg'))!) as Map;
-      expect(g['theme'], 'eye');
+      expect(g['theme'], 'night');
     });
 
     testWidgets('自动翻页：开关弹间隔滚轮→保存后按秒推进页码', (t) async {
       await openReader(t, 'b4');
       final before = pgLbl(t);
       await openAp(t);
-      await t.scrollUntilVisible(
-        find.byKey(const ValueKey('brApAuto')),
-        150,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const ValueKey('sheetBrAppearance')),
-              matching: find.byType(Scrollable),
-            )
-            .last,
-      );
+      await apScrollTo(t, 'brApAuto');
       await step(t);
       await t.tap(find.byKey(const ValueKey('brApAuto')));
       await step(t, times: 2);
@@ -236,16 +250,7 @@ void main() {
       await repo.setKv('read.brBright', 'true');
       await openReader(t, 'b5');
       await openAp(t);
-      await t.scrollUntilVisible(
-        find.byKey(const ValueKey('brApBright')),
-        150,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const ValueKey('sheetBrAppearance')),
-              matching: find.byType(Scrollable),
-            )
-            .last,
-      );
+      await apScrollTo(t, 'brApBright');
       await step(t);
       expect(
         t.widget<SwitchListTile>(find.byKey(const ValueKey('brApBright'))).value,

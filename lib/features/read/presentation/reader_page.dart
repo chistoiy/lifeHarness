@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,9 +20,12 @@ import '../data/epub_doc.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
 import '../domain/reader_cfg.dart';
+import 'epub_state_ui.dart' show showBrDelSheet;
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast, showQuoteEditPage;
 import 'reader_appearance_sheet.dart';
+import 'reader_bg.dart';
+import 'reader_bottom_sheets.dart';
 import 'reader_pager.dart';
 import 'reader_search_page.dart';
 import 'reader_toc_drawer.dart';
@@ -121,6 +126,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   String? _err;
   bool _ownTimer = false;
 
+  /// 轮5.4：本页是否已把全局读书计时条挂起（ dispose 时按此还原）。
+  bool _readerCounted = false;
+
   // 批4 外观：全局 cfg + 逐书补丁合并生效（原型 brSt(bid)）。
   ReaderCfg _cfg = ReaderCfg.defaults;
   ReaderCfg _global = ReaderCfg.defaults;
@@ -133,9 +141,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   // chrome / 反馈
   bool _chrome = false;
-  // V1.53 轮3：底栏内嵌面板（0 无 · 1 进度 · 2 亮度 · 3 字号，互斥）。
-  int _panel = 0;
-  // 「返回原进度」胶囊：进书位置为锚，拖进度离开才现（原型 brBackPos）。
+  // 「回到进书位置」锚点：进书时的 (ci,pg)；拖离后进度弹层给出入口（轮5.2①）。
   ({int ci, int pg})? _homePos;
   bool _backPill = false;
   String? _flash;
@@ -178,10 +184,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   void initState() {
     super.initState();
     _boot();
+    // 轮5.4：进阅读页挂起全局读书计时条（首帧后再写，避开 initState 取 container）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(readerOpenProvider.notifier).state++;
+      _readerCounted = true;
+    });
   }
 
   @override
   void dispose() {
+    if (_readerCounted) {
+      try {
+        ref.read(readerOpenProvider.notifier).state--;
+      } catch (_) {
+        // 容器先于本页销毁（测试拆树）：计数随容器一起消失。
+      }
+    }
     _clock?.cancel();
     _flashT?.cancel();
     _autoT?.cancel();
@@ -457,74 +476,100 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _showFlash('已返回原进度');
   }
 
-  // ---------- V1.53 轮3 · 底栏三面板（进度/亮度/字号·互斥·即时应用写逐书补丁） ----------
+  // ---------- V1.53.2 轮5.1 · 底栏三图标（目录/进度/外观·面板升格为弹层） ----------
 
-  void _togglePanel(int k) => setState(() => _panel = _panel == k ? 0 : k);
-
-  void _closePanels() => _panel = 0;
-
-  /// 亮度＝页面遮罩（不动系统设置）；逐书补丁持久，不进分页指纹。
-  void _setLum(int v) {
-    setState(() => _cfg = _cfg.copyWith(lum: v.clamp(30, 100)));
-    unawaited(_persistPatch({'lum': _cfg.lum}));
-  }
-
-  void _setFs(double v) {
-    setState(() => _cfg = _cfg.copyWith(fs: v.clamp(14, 30)));
-    _rebuildPagChapterFirst();
-    unawaited(_persistPatch({'fs': _cfg.fs}));
-  }
-
-  void _nudgeMar(int d) {
-    setState(() => _cfg = _cfg.copyWith(mar: (_cfg.mar + d * 4).clamp(8, 40)));
-    _rebuildPagChapterFirst();
-    unawaited(_persistPatch({'mar': _cfg.mar}));
-    _showFlash('边距 · ${brMarLabel(_cfg.mar)}');
-  }
-
-  void _nudgeLh(int d) {
-    setState(
-      () => _cfg = _cfg.copyWith(
-        lh: (_cfg.lh + d * 0.1).clamp(1.3, 2.4),
+  /// 进度弹层（原型 sheetBrProg）：统计三格 + 全书滑条 + 明细/自动翻页/回进书位。
+  void _openProgressSheet() {
+    final doc = _doc;
+    final pag = _pag;
+    if (doc == null || pag == null) return;
+    final f = pag.frac(_pos.ci, _pos.pg);
+    final pct = (f * 100).round().clamp(0, 100);
+    // 剩余字数 ÷ 400 字/分钟（经验阅读速率）→ ETA。
+    final leftChars = (pag.totalChars * (1 - f)).round();
+    final etaMin = leftChars ~/ 400;
+    final eta = pct >= 100
+        ? '已读完'
+        : pct <= 0
+        ? '刚开始读'
+        : etaMin >= 60
+        ? '约${(etaMin / 60).ceil()}小时后读完'
+        : '约${etaMin < 1 ? 1 : etaMin}分钟后读完';
+    final h = _homePos;
+    showBrProgressSheet(
+      context,
+      d: BrProgData(
+        pct: pct,
+        eta: eta,
+        sessMin: (_sessSecs / 60).ceil(),
+        notes: _hlQuotes.length,
+        cfi: _cfi(_pos.ci, _pos.pg),
+        frac: f,
+        auto: _cfg.auto,
+        homeLbl: h != null && (h.ci != _pos.ci || h.pg != _pos.pg)
+            ? '回到进书位置'
+            : null,
       ),
+      onSeek: _seek, // 弹层内已把 0~1000 滑条值换算成 0~1 分数
+      onDetail: () => Navigator.of(
+        context,
+      ).pushNamed('/read/log/${widget.bookId}'),
+      onAuto: _toggleAutoQuick,
+      homeProbe: () => _backPill ? '回到进书位置' : null,
+      onHome: _goHome,
     );
-    _rebuildPagChapterFirst();
-    unawaited(_persistPatch({'lh': _cfg.lh}));
-    _showFlash('行距 · ${_cfg.lh.toStringAsFixed(1)}');
   }
 
-  void _toggleIndent() {
-    setState(() => _cfg = _cfg.copyWith(indent: !_cfg.indent));
-    _rebuildPagChapterFirst();
-    unawaited(_persistPatch({'indent': _cfg.indent}));
-    _showFlash(_cfg.indent ? '首行缩进 · 开' : '首行缩进 · 关');
+  /// 本书操作弹层（原型 sheetBrMore）：顶栏 ⋯ 的唯一入口。
+  void _openMoreSheet() {
+    final ctx = context;
+    showBrMoreSheet(
+      ctx,
+      quotes: _hlQuotes.length,
+      mode: _cfg.mode,
+      bright: _cfg.bright,
+      onToc: () => setState(() => _drawerOpen = true),
+      onSearch: _openSearch,
+      onQuotes: () =>
+          context.push('/read/quotes', extra: widget.bookId),
+      onLog: () => Navigator.of(ctx).pushNamed('/read/log/${widget.bookId}'),
+      onStat: () => Navigator.of(ctx).pushNamed('/read/stat'),
+      onDetail: () =>
+          Navigator.of(ctx).pushNamed('/read/book/${widget.bookId}'),
+      onAppearance: _openAppearance,
+      onDelete: _openDelete,
+      onReadSet: () => Navigator.of(ctx).pushNamed('/read/settings?sec=5'),
+      onMode: (m) {
+        if (m == _cfg.mode) return;
+        _setMode(m);
+      },
+      onBright: (v) {
+        setState(() => _cfg = _cfg.copyWith(bright: v));
+        unawaited(_persistPatch({'bright': v}));
+        unawaited(
+          ref
+              .read(readRepositoryProvider)
+              .setKv('read.brBright', v ? 'true' : 'false'),
+        );
+        _syncBright();
+      },
+    );
   }
 
-  /// 亮度面板「颜色」四档：前三＝主题直选（写全局，同 _cycleTheme 口径），
-  /// 第四＝自定义走外观草稿面板。
-  void _pickTheme(String key) {
-    final t = kBrThemes[key];
-    if (t == null) return;
+  /// 阅读模式（翻页⇄滚动）：写全局默认（原型 brCfg.mode + brPersist）。
+  void _setMode(String m) {
     setState(() {
-      _global = _global.copyWith(
-        theme: key,
-        bg: '#${(t.$2.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-        fg: '#${(t.$3.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-      );
+      _global = _global.copyWith(mode: m);
       _applyMerged();
     });
+    _savePos();
     unawaited(_persistGlobal());
-    _rebuildPagChapterFirst();
-    _showFlash('颜色 · ${t.$1}');
+    _rebuildPag();
+    _syncAuto();
+    _showFlash(m == 'page' ? '翻页模式' : '滚动模式');
   }
 
-  /// 背景预设＝逐书 custom 底色（字色保持当前，预设全为浅色底）。
-  void _pickBg(String hex) {
-    setState(() => _cfg = _cfg.copyWith(theme: 'custom', bg: hex));
-    unawaited(_persistPatch({'theme': 'custom', 'bg': hex}));
-    _showFlash('背景已切换');
-  }
-
+  /// 自动翻页快捷开关（进度弹层「开启/暂停」·间隔在外观弹层里调）。
   void _toggleAutoQuick() {
     final on = !_cfg.auto;
     setState(() => _cfg = _cfg.copyWith(auto: on));
@@ -532,7 +577,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _syncAuto();
     readToast(
       context,
-      on ? '自动翻页已开启 · ${_cfg.autoSecs} 秒/页 · 间隔可在外观面板调整' : '自动翻页已关闭',
+      on
+          ? '自动翻页已开启 · ${_cfg.autoSecs} 秒/页 · 间隔可在外观弹层调整'
+          : '自动翻页已关闭',
     );
   }
 
@@ -1054,49 +1101,40 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   void _applyMerged() => _cfg = ReaderCfg.mergePatch(_global, _bookPatch);
 
-  /// 原型 brThemeCycle：主题循环写全局（custom 回落日间起步）。
-  void _cycleTheme() {
-    final i = kBrThemeOrder.indexOf(_cfg.theme);
-    final next = kBrThemeOrder[i < 0 ? 0 : (i + 1) % kBrThemeOrder.length];
-    final (bg, fg) = (kBrThemes[next]!.$2, kBrThemes[next]!.$3);
-    setState(() {
-      _global = _global.copyWith(
-        theme: next,
-        bg: '#${(bg.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-        fg: '#${(fg.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-      );
-      _applyMerged();
-    });
-    unawaited(_persistGlobal());
-    _rebuildPagChapterFirst();
-    _showFlash('主题 · ${kBrThemes[next]!.$1}');
-  }
-
-  void _toggleMode() {
-    setState(() {
-      _global = _global.copyWith(
-        mode: _cfg.mode == 'page' ? 'scroll' : 'page',
-      );
-      _applyMerged();
-    });
-    _savePos();
-    unawaited(_persistGlobal());
-    _rebuildPag();
-    _syncAuto();
-  }
-
-  /// 外观钮 → 草稿制面板（原型 sheetBrAppearance）。
+  /// 外观弹层（原型 sheetBrAppearance · 轮5.1 起为唯一外观入口）。
+  /// 保存时按作用域落库：本书＝整份补丁，全部书籍＝全局默认。
   void _openAppearance() {
     showReaderAppearance(
       context,
       current: _cfg,
-      onSave: (draft, scopeBook) async {
+      onSave: (draft, scopeBook, pickedImage) async {
+        var d = draft;
+        // 相册图落进应用私有目录（草稿期用临时路径预览，退出即失效）。
+        if (pickedImage != null && pickedImage.isNotEmpty) {
+          try {
+            final dir = await getApplicationSupportDirectory();
+            final bg = Directory(p.join(dir.path, 'reader_bg'));
+            await bg.create(recursive: true);
+            final ext = p.extension(pickedImage).isEmpty
+                ? '.jpg'
+                : p.extension(pickedImage);
+            final dst = p.join(
+              bg.path,
+              'bg_${DateTime.now().millisecondsSinceEpoch}$ext',
+            );
+            await File(pickedImage).copy(dst);
+            d = d.copyWith(bgImg: dst);
+          } catch (_) {
+            d = d.copyWith(bgImg: '');
+          }
+        }
+        if (!mounted) return;
         setState(() {
           if (scopeBook) {
-            _bookPatch = draft.toMap();
+            _bookPatch = d.toMap();
             _applyMerged();
           } else {
-            _global = draft;
+            _global = d;
             _applyMerged();
           }
         });
@@ -1109,7 +1147,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         unawaited(
           ref
               .read(readRepositoryProvider)
-              .setKv('read.brBright', draft.bright ? 'true' : 'false'),
+              .setKv('read.brBright', d.bright ? 'true' : 'false'),
         );
         _rebuildPag();
         _syncBright();
@@ -1120,6 +1158,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         );
       },
     );
+  }
+
+  /// 本书操作弹层「删除」：两口径弹层沿用详情页同一条通道；
+  /// 删除成功后本地副本已摘除，阅读页无内容可读 → 出栈（出栈即结算计时）。
+  Future<void> _openDelete() async {
+    final b = _book;
+    if (b == null) return;
+    await showBrDelSheet(context, ref, b);
+    if (!mounted) return;
+    final nb = await ref.read(readRepositoryProvider).bookById(widget.bookId);
+    if (!mounted) return;
+    if (nb == null || !nb.local || nb.epub == null) {
+      Navigator.of(context).pop();
+    }
   }
 
   /// 常亮：本页启用过才在退出时关闭（不打扰其它模块的常亮策略）；
@@ -1231,23 +1283,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       if (svc.docsPath != null && pag != null) {
         unawaited(svc.savePag(widget.bookId, _layout(), pag));
       }
-    });
-  }
-
-  /// 外观变化＝指纹作废整表重置：只重排当前章（改字号/字体即时生效，零后台负载）。
-  void _rebuildPagChapterFirst() {
-    final doc = _doc;
-    if (doc == null || _viewport.width <= 0) {
-      _rebuildPag();
-      return;
-    }
-    final l = _layout();
-    ++_pagGen;
-    final fresh = BookPagination.lazy(_weights(doc));
-    _ensure(fresh, doc, l, _pos.ci.clamp(0, doc.chapters.length - 1));
-    setState(() {
-      _pag = fresh;
-      _clampPos();
     });
   }
 
@@ -1500,9 +1535,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final th = _cfg.theme == 'custom'
-        ? ('自定义', _cfg.bgColor, _cfg.textColor)
-        : (kBrThemes[_cfg.theme] ?? kBrThemes['day']!);
+    final th = brThemeResolved(_cfg);
+    final bar = brBarOf(th.$2, th.$3);
     return PopScope(
       // 抽屉开启时返回键先收抽屉；页面真出栈才结算（原型 Escape→brTocClose）。
       canPop: !_drawerOpen,
@@ -1530,10 +1564,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               if (_sel != null) {
                 _clearSel();
               } else {
-                setState(() {
-                  _chrome = !_chrome;
-                  if (!_chrome) _panel = 0;
-                });
+                setState(() => _chrome = !_chrome);
               }
               return;
             }
@@ -1597,7 +1628,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         ),
                       ),
                     ],
-                    Positioned.fill(child: _stage(th)),
+                    Positioned.fill(
+                      child: BrBackdrop(
+                        key: const ValueKey('brStage'),
+                        cfg: _cfg,
+                        base: th.$2,
+                        child: _stage(th),
+                      ),
+                    ),
                     // 亮度遮罩（V1.53 轮3：模拟系统亮度，只压正文不压 chrome）。
                     if (_cfg.lum < 100)
                       Positioned.fill(
@@ -1611,9 +1649,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         ),
                       ),
                     if (_doc != null && _err == null) ...[
-                      if (_chrome) _topBar(th),
-                      if (_chrome && _pag != null) _bottomBar(th, size),
-                      if (_flash != null) _flashBar(th),
+                      if (_chrome) _topBar(bar),
+                      if (_chrome && _pag != null) _bottomBar(bar, size),
+                      if (_flash != null) _flashBar(bar),
                       if (_sel != null) _selOverlay(size),
                       // 「返回原进度」胶囊（参考图4）：拖进度离开原位置后出现。
                       if (_backPill && _sel == null)
@@ -1683,122 +1721,164 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   String _cfi(int ci, int pg) => '${EpubDoc.cfiPrefix}/${ci + 2}/$pg';
 
-  Widget _topBar((String, Color, Color) th) {
+  Widget _topBar(BrBar bar) {
     final doc = _doc!;
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
-      child: Container(
+      child: KeyedSubtree(
         key: const ValueKey('br-top'),
-        color: const Color(0xDB0F172A),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  key: const ValueKey('br-back'),
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.chevron_left_rounded, color: Colors.white),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        _book?.title ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        '${doc.chapters[_pos.ci.clamp(0, doc.chapters.length - 1)].title} · ${_cfg.mode == 'page' ? '翻页' : '滚动'}模式',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: Colors.white.withValues(alpha: .6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Container(
-                    key: const ValueKey('br-sess-chip'),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      _clockText,
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.white,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ),
-                // 全书检索入口（双入口之一；另一入口＝抽屉「搜本书」Tab）。
-                IconButton(
-                  key: const ValueKey('brBtnSearch'),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: _openSearch,
-                  icon: const Icon(Icons.search_rounded, size: 17, color: Colors.white),
-                ),
-              ],
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            key: const ValueKey('brTopBox'),
+            decoration: BoxDecoration(
+              color: bar.bg,
+              border: Border(bottom: BorderSide(color: bar.line)),
             ),
-            if (_hits.isNotEmpty && _hitI >= 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 2),
-                child: Row(
-                  key: const ValueKey('brHitsBar'),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Text(
-                      '${_hitI + 1}/${_hits.length} 处匹配 · “$_hitQ”',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: .75),
+                    IconButton(
+                      key: const ValueKey('br-back'),
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(
+                        Icons.chevron_left_rounded,
+                        color: bar.fg,
                       ),
                     ),
-                    const Spacer(),
-                    TextButton(
-                      key: const ValueKey('brHitPrev'),
-                      onPressed: () => _hitStep(-1),
-                      child: const Text('上一处', style: TextStyle(fontSize: 10, color: Colors.white)),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Text(
+                            _book?.title ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: bar.fg,
+                            ),
+                          ),
+                          Text(
+                            '${doc.chapters[_pos.ci.clamp(0, doc.chapters.length - 1)].title} · ${_cfg.mode == 'page' ? '翻页' : '滚动'}模式',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: bar.fg.withValues(alpha: .6),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    TextButton(
-                      key: const ValueKey('brHitNext'),
-                      onPressed: () => _hitStep(1),
-                      child: const Text('下一处', style: TextStyle(fontSize: 10, color: Colors.white)),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Container(
+                        key: const ValueKey('br-sess-chip'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bar.chip,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _clockText,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: bar.fg,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
                     ),
+                    // 全书检索入口（双入口之一；另一入口＝抽屉「搜本书」Tab）。
                     IconButton(
-                      key: const ValueKey('brHitClear'),
+                      key: const ValueKey('brBtnSearch'),
                       visualDensity: VisualDensity.compact,
-                      onPressed: () => setState(() {
-                        _hits = const [];
-                        _hitI = -1;
-                        _hitMark = null;
-                      }),
-                      icon: const Icon(Icons.close_rounded, size: 14, color: Colors.white60),
+                      onPressed: _openSearch,
+                      icon: Icon(
+                        Icons.search_rounded,
+                        size: 17,
+                        color: bar.fg,
+                      ),
+                    ),
+                    // 本书操作弹层入口（原型顶栏 ⋯）。
+                    IconButton(
+                      key: const ValueKey('brBtnMore'),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _openMoreSheet,
+                      icon: Icon(Icons.more_horiz_rounded, size: 19, color: bar.fg),
                     ),
                   ],
                 ),
-              ),
-          ],
+                if (_hits.isNotEmpty && _hitI >= 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                    child: Row(
+                      key: const ValueKey('brHitsBar'),
+                      children: [
+                        Text(
+                          '${_hitI + 1}/${_hits.length} 处匹配 · “$_hitQ”',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: bar.fg.withValues(alpha: .75),
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          key: const ValueKey('brHitPrev'),
+                          onPressed: () => _hitStep(-1),
+                          child: Text(
+                            '上一处',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: bar.fg,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          key: const ValueKey('brHitNext'),
+                          onPressed: () => _hitStep(1),
+                          child: Text(
+                            '下一处',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: bar.fg,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('brHitClear'),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => setState(() {
+                            _hits = const [];
+                            _hitI = -1;
+                            _hitMark = null;
+                          }),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 14,
+                            color: bar.fg.withValues(alpha: .6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _bottomBar((String, Color, Color) th, Size size) {
+  Widget _bottomBar(BrBar bar, Size size) {
     final pag = _pag!;
     final n = pag.chapterPages(_pos.ci);
     final gpEst = pag.gPosEst(_pos.ci, _pos.pg);
@@ -1807,103 +1887,85 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       bottom: 0,
       left: 0,
       right: 0,
-      child: Container(
+      child: KeyedSubtree(
         key: const ValueKey('br-bottom'),
-        color: const Color(0xDB0F172A),
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // V1.53 轮3（参考图1~3）：面板区在底栏上方内嵌展开，互斥。
-            if (_panel == 1) _pnlProg(pag),
-            if (_panel == 2) _pnlBright(),
-            if (_panel == 3) _pnlFont(),
-            Row(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            key: const ValueKey('brBottomBox'),
+            decoration: BoxDecoration(
+              color: bar.bg,
+              border: Border(top: BorderSide(color: bar.line)),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(
-                  child: Text(
-                    _cfi(_pos.ci, _pos.pg),
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      color: Colors.white70,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _cfi(_pos.ci, _pos.pg),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: bar.fg.withValues(alpha: .7),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    Text(
+                      // 全书页码为字符加权估算（约 1500 字/页 · foliate 口径）。
+                      '${_pos.pg + 1}/$n 页 · 约第 ${gpEst + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',
+                      key: const ValueKey('brPgLbl'),
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: bar.fg.withValues(alpha: .7),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                Text(
-                  // 全书页码为字节加权估算（约 1500 字/页 · foliate 口径）。
-                  '${_pos.pg + 1}/$n 页 · 约第 ${gpEst + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',
-                  key: const ValueKey('brPgLbl'),
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white70,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                // 轮5.1：三图标底栏（目录 / 进度 / 外观），主题·亮度·字号并入外观弹层。
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _brIconBtn(bar, 'brBtnToc', '目录', Icons.menu_rounded, () {
+                        setState(() => _drawerOpen = true);
+                      }),
+                      _brIconBtn(
+                        bar,
+                        'brBtnProg',
+                        '进度',
+                        Icons.tune_rounded,
+                        _openProgressSheet,
+                      ),
+                      _brIconBtn(
+                        bar,
+                        'brBtnLook',
+                        '外观',
+                        Icons.palette_outlined,
+                        _openAppearance,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _brIconBtn('brBtnToc', '目录', const Icon(Icons.menu_rounded, size: 19), false, () {
-                    _closePanels();
-                    setState(() => _drawerOpen = true);
-                  }),
-                  _brIconBtn(
-                    'brBtnTheme',
-                    '主题',
-                    const Icon(Icons.eco_outlined, size: 19),
-                    false,
-                    _cycleTheme,
-                  ),
-                  _brIconBtn(
-                    'brBtnProg',
-                    '进度',
-                    const Icon(Icons.tune_rounded, size: 19),
-                    _panel == 1,
-                    () => _togglePanel(1),
-                  ),
-                  _brIconBtn(
-                    'brBtnBright',
-                    '亮度',
-                    const Icon(Icons.light_mode_outlined, size: 19),
-                    _panel == 2,
-                    () => _togglePanel(2),
-                  ),
-                  _brIconBtn(
-                    'brBtnFont',
-                    '字号',
-                    // 大小双 A（原型底栏「Aᴀ 字号」字形）。
-                    const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text('A', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2)),
-                        Text('A', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2)),
-                      ],
-                    ),
-                    _panel == 3,
-                    () => _togglePanel(3),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _brIconBtn(
+    BrBar bar,
     String key,
     String label,
-    Widget icon,
-    bool active,
+    IconData icon,
     VoidCallback onTap,
   ) {
     return GestureDetector(
@@ -1912,32 +1974,22 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         decoration: BoxDecoration(
-          color: active ? Colors.white.withValues(alpha: .14) : Colors.transparent,
+          color: bar.chip.withValues(alpha: .0),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconTheme.merge(
-              data: IconThemeData(
-                color: active ? const Color(0xFFA5B4FC) : Colors.white,
-              ),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(
-                  color: active ? const Color(0xFFA5B4FC) : Colors.white,
-                ),
-                child: icon,
-              ),
-            ),
+            Icon(icon, size: 19, color: bar.fg),
             const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontSize: 8,
                 fontWeight: FontWeight.w700,
-                color: active ? const Color(0xFFA5B4FC) : Colors.white70,
+                color: bar.fg.withValues(alpha: .8),
               ),
             ),
           ],
@@ -1946,348 +1998,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  /// 进度面板（参考图1）：统计三格 + 进度滑条（上次读到这里）+ 阅读明细/开启自动翻页。
-  Widget _pnlProg(BookPagination pag) {
-    final f = pag.frac(_pos.ci, _pos.pg);
-    final pct = (f * 100).round().clamp(0, 100);
-    // 剩余字数 ÷ 400 字/分钟（经验阅读速率）→ ETA。
-    final leftChars = (pag.totalChars * (1 - f)).round();
-    final etaMin = leftChars ~/ 400;
-    final eta = pct >= 100
-        ? '已读完'
-        : pct <= 0
-        ? '刚开始读'
-        : etaMin >= 60
-        ? '约${(etaMin / 60).ceil()}小时后读完'
-        : '约${etaMin < 1 ? 1 : etaMin}分钟后读完';
-    Widget stat(String key, String big, String unit, String sub) => Expanded(
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                big,
-                key: ValueKey(key),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              Text(
-                unit,
-                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white70),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 8, color: Colors.white54)),
-        ],
-      ),
-    );
-    Widget sep() => Container(width: 1, height: 26, color: Colors.white12);
-    return Padding(
-      key: const ValueKey('brPnlProg'),
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              stat('brStPct', '$pct', '%', eta),
-              sep(),
-              stat('brStMin', '${(_sessSecs / 60).ceil()}', '分钟', '阅读时长'),
-              sep(),
-              stat('brStNote', '${_hlQuotes.length}', '条', '笔记'),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            ),
-            child: Slider(
-              key: const ValueKey('brProg'),
-              value: (f * 1000).clamp(0, 1000).toDouble(),
-              min: 0,
-              max: 1000,
-              onChanged: (v) => _seek(v / 1000),
-            ),
-          ),
-          const Text(
-            '上次读到这里',
-            style: TextStyle(fontSize: 8, color: Colors.white54),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _pnlBtn('brPpDetail', '阅读明细', () {
-                    _closePanels();
-                    Navigator.of(context).pushNamed('/read/log/${widget.bookId}');
-                  }),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _pnlBtn(
-                    'brPpAuto',
-                    _cfg.auto ? '暂停自动翻页' : '开启自动翻页',
-                    _toggleAutoQuick,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _pnlBtn(String key, String label, VoidCallback onTap) => GestureDetector(
-    key: ValueKey(key),
-    behavior: HitTestBehavior.opaque,
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
-      ),
-    ),
-  );
-
-  /// 亮度面板（参考图2）：亮度滑条 + 颜色 4 档 + 背景 5 缩略图。
-  Widget _pnlBright() {
-    Widget swatch(String key, String label, Color bg, Color fg, bool on, VoidCallback onTap) => GestureDetector(
-      key: ValueKey(key),
-      onTap: onTap,
-      child: Container(
-        width: 52,
-        height: 32,
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: on ? const Color(0xFF6366F1) : Colors.white12, width: 2),
-        ),
-        alignment: Alignment.center,
-        child: label == '夜间'
-            ? const Icon(Icons.nightlight_round, size: 13, color: Color(0xFF60A5FA))
-            : Text(
-                label,
-                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: fg),
-              ),
-      ),
-    );
-    return Padding(
-      key: const ValueKey('brPnlBright'),
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.light_mode_outlined, size: 14, color: Colors.white70),
-              Expanded(
-                child: Slider(
-                  key: const ValueKey('brLum'),
-                  value: _cfg.lum.toDouble().clamp(30, 100),
-                  min: 30,
-                  max: 100,
-                  onChanged: (v) => _setLum(v.round()),
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 4),
-            child: Text('颜色', style: TextStyle(fontSize: 8, color: Colors.white54)),
-          ),
-          Row(
-            children: [
-              for (final k in kBrThemeOrder) ...[
-                swatch(
-                  'brBt-$k',
-                  kBrThemes[k]!.$1,
-                  kBrThemes[k]!.$2,
-                  kBrThemes[k]!.$3,
-                  _cfg.theme == k,
-                  () => _pickTheme(k),
-                ),
-                const SizedBox(width: 8),
-              ],
-              GestureDetector(
-                key: const ValueKey('brBt-custom'),
-                onTap: _openAppearance,
-                child: Container(
-                  width: 52,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _cfg.theme == 'custom' ? const Color(0xFF6366F1) : Colors.white12,
-                      width: 2,
-                    ),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFCA5A5), Color(0xFFFCD34D), Color(0xFF86EFAC), Color(0xFF93C5FD)],
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text('自定义', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF334155))),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, top: 10, bottom: 4),
-            child: Text('背景', style: TextStyle(fontSize: 8, color: Colors.white54)),
-          ),
-          Row(
-            children: [
-              for (var i = 0; i < kBrBgs.length; i++) ...[
-                GestureDetector(
-                  key: ValueKey('brBg-$i'),
-                  onTap: () => _pickBg(kBrBgs[i]),
-                  child: Container(
-                    width: 42,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Color(0xFF000000 | int.parse(kBrBgs[i].substring(1), radix: 16)),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _cfg.theme == 'custom' && _cfg.bg == kBrBgs[i]
-                            ? const Color(0xFF6366F1)
-                            : Colors.white12,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ],
-          ),
-          const SizedBox(height: 2),
-        ],
-      ),
-    );
-  }
-
-  /// 字号面板（参考图3）：字号滑条 + 边距/行距微调 + 三 chip。
-  Widget _pnlFont() {
-    Widget stepper(String key, String label) => Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .10),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Text(_sideLabel(key, 'a'), style: const TextStyle(fontSize: 8, color: Colors.white54)),
-            _stepBtn('${key}Down', Icons.chevron_left_rounded, () => _stepNudge(key, -1)),
-            Expanded(
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
-              ),
-            ),
-            _stepBtn('${key}Up', Icons.chevron_right_rounded, () => _stepNudge(key, 1)),
-            Text(_sideLabel(key, 'b'), style: const TextStyle(fontSize: 8, color: Colors.white54)),
-          ],
-        ),
-      ),
-    );
-    return Padding(
-      key: const ValueKey('brPnlFont'),
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Text('A', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white70)),
-              Expanded(
-                child: Slider(
-                  key: const ValueKey('brFsSl'),
-                  value: _cfg.fs.clamp(14, 30),
-                  min: 14,
-                  max: 30,
-                  divisions: 16,
-                  onChanged: _setFs,
-                ),
-              ),
-              Text(
-                _cfg.fs.round().toString(),
-                key: const ValueKey('brFsNum'),
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white, fontFeatures: [FontFeature.tabularFigures()]),
-              ),
-              const Text('A', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white70)),
-            ],
-          ),
-          Row(
-            children: [
-              stepper('brMar', '边距'),
-              const SizedBox(width: 8),
-              stepper('brLh', '行距'),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Row(
-              children: [
-                Expanded(child: _pnlBtn('brPfFont', '字体样式 ›', _openAppearance)),
-                const SizedBox(width: 8),
-                Expanded(child: _pnlBtn('brPfIndent', '首行缩进 · ${_cfg.indent ? '开' : '关'} ›', _toggleIndent)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _pnlBtn('brPfMode', '翻页方式 · ${_cfg.mode == 'page' ? '翻页' : '滚动'} ›', _toggleMode),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 2),
-        ],
-      ),
-    );
-  }
-
-  String _sideLabel(String key, String side) => key == 'brMar'
-      ? (side == 'a' ? '小' : '大')
-      : (side == 'a' ? '紧' : '松');
-
-  void _stepNudge(String key, int dir) {
-    if (key == 'brMar') {
-      _nudgeMar(dir);
-    } else {
-      _nudgeLh(dir);
-    }
-  }
-
-  Widget _stepBtn(String key, IconData icon, VoidCallback onTap) => GestureDetector(
-    key: ValueKey(key),
-    behavior: HitTestBehavior.opaque,
-    onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.all(4),
-      child: Icon(icon, size: 13, color: Colors.white70),
-    ),
-  );
-
-  Widget _flashBar((String, Color, Color) th) {
+  /// 章节名闪现提示（轮5.2 拍板保留）：随主题取色，不再是固定黑底。
+  Widget _flashBar(BrBar bar) {
     return Positioned(
       bottom: 120,
       left: 0,
@@ -2297,12 +2009,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           key: const ValueKey('brFlash'),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xDB0F172A),
+            color: bar.bg,
             borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: bar.line),
           ),
           child: Text(
             _flash!,
-            style: const TextStyle(fontSize: 10, color: Colors.white),
+            style: TextStyle(fontSize: 10, color: bar.fg),
           ),
         ),
       ),
