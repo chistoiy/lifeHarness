@@ -85,12 +85,29 @@ const ROWS = "[].map.call(document.querySelectorAll('#aiProvList > div'),functio
 
   /* P5 编辑既有项：预填 + 改模型生效 + 条数不变（deepseek 此时已非当前项 → 允许删） */
   const p5 = await ev(`var n0=AI_PROVS.length;aiProvEdit('deepseek');
-    var pre={u:$('#apUrl').value,m:$('#apModel').value,k:/留空则不改/.test($('#apKey').placeholder),del:!document.getElementById('apDelBtn').classList.contains('hidden')};
+    var pre={u:$('#apUrl').value,m:$('#apModel').value,k:($('#apKey').type==='password'&&$('#apKey').value.length>6),del:!document.getElementById('apDelBtn').classList.contains('hidden')};
     $('#apModel').value='deepseek-reasoner';aiProvSave();
     var p=aiProvById('deepseek');
     return {same:AI_PROVS.length===n0,pre:pre,model:p.m};`);
   (p5.same && p5.pre.u.indexOf('api.deepseek.com') > 0 && p5.pre.k && p5.pre.del && p5.model === 'deepseek-reasoner')
-    ? ok('P5 编辑预填（Key 留空=不改 · 非当前项才给删钮）· 改模型即刻生效', JSON.stringify(p5)) : bad('P5', JSON.stringify(p5));
+    ? ok('P5 编辑预填（Key 预填为掩码态 · 非当前项才给删钮）· 改模型即刻生效', JSON.stringify(p5)) : bad('P5', JSON.stringify(p5));
+
+  /* P12 Key 掩码显隐 + 结果区不再是深色面板（用户反馈两处） */
+  const p12 = await ev(`aiProvEdit('deepseek');
+    var masked=$('#apKey').type==='password'&&$('#apKey').value.length>6;
+    var eyeIcon=!!document.querySelector('#apEye svg');
+    apPeek('apKey','apEye');var shown=$('#apKey').type==='text';
+    apPeek('apKey','apEye');var back=$('#apKey').type==='password';
+    var resBg=getComputedStyle(document.getElementById('apRes')).backgroundColor;
+    var hint=$('#apKeyHint').textContent.slice(0,7);
+    var gk=$('#gkKey')?$('#gkKey').type:'-';
+    closeSheet('sheetAiProv');
+    return {masked:masked,eyeIcon:eyeIcon,shown:shown,back:back,resBg:resBg,hint:hint,gk:gk};`);
+  (p12.masked && p12.eyeIcon && p12.shown && p12.back && p12.resBg.indexOf('15, 23, 42') < 0 && /已存 Key/.test(p12.hint) && p12.gk === 'password')
+    ? ok('P12 Key 默认掩码 · 点眼睛切明文再点回掩码 · 结果区改浅色描边框', JSON.stringify(p12)) : bad('P12', JSON.stringify(p12));
+  await ev(`aiProvEdit('deepseek');return 1;`); await wait(200);
+  await shot('aip-form-edit');
+  await ev(`closeSheet('sheetAiProv');return 1;`);
 
   /* P6 切换当前：原当前项露出「选用」，新当前项显 ● 当前 且无删除钮 */
   const p6 = await ev(`aiProvUse('relay');var r=${ROWS};
