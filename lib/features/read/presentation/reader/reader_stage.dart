@@ -3,7 +3,6 @@ part of 'reader_page.dart';
 // 治理G7c3：舞台渲染群自 _ReaderPageState 移入同库扩展（行为零改动·直访私有字段）。
 // _stage＝错误态/加载态/滚动窗口/翻页 AnimatedSwitcher 四态；_para＝段型分派＋划线底色＋选区子串高亮。
 extension _ReaderStage on _ReaderPageState {
-
   // ---------- 舞台（翻页/滚动） ----------
 
   Widget _stage((String, Color, Color) th) {

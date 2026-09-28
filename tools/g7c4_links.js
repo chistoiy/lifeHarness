@@ -41,7 +41,6 @@ const partLines = [
   '// 治理G7c4：链接/图片群自 _ReaderPageState 移入同库扩展（行为零改动·直访私有字段）。',
   '// 内链跳章 / 外链三策略（含 UA·熔断后的回落通道）/ 图片放大与保存。',
   'extension _ReaderLinks on _ReaderPageState {',
-  '',
   ...block,
   '}',
   '',

@@ -4,7 +4,6 @@ part of 'reader_page.dart';
 // 群内成员＝选区文本/句粒度命中/划线增删/工具条动作（复制·分享·书摘·词典·AI），
 // 以及手柄定位（_selAnchor/_paraRender/_dragSel/_paraHitAt）与 AI 解读弹层 _BrAiSheet。
 extension _ReaderSelOps on _ReaderPageState {
-
   // ---------- 批3 划词/划线（原型 brSelect / brAddHl / brDelHl · L5 同库） ----------
 
 
