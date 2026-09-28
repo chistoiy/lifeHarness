@@ -1436,19 +1436,17 @@ tailwind.config = {
     <!-- ===== P12c 二级：AI 增强 ===== -->
     <section id="p-sub-ai" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="toast('添加自定义 OpenAI 兼容端点（模拟）')">+ 添加</button></div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>🐋 DeepSeek · <span class="font-mono text-[10px]">api.deepseek.com/v1</span></span><span class="flex items-center gap-2"><b class="text-emerald-500 text-[10px]">● 当前</b><span class="toggle on" onclick="tgl(this)"></span></span></div>
-          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🟤 Anthropic claude · <span class="font-mono text-[10px]">api.anthropic.com/v1</span>（Messages 协议适配，Key 独立存储）</span><span class="toggle" onclick="tgl(this)"></span></div>
-                 <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🦙 Ollama 本地 · <span class="font-mono text-[10px]">127.0.0.1:11434/v1</span>（全离线）</span><span class="toggle" onclick="tgl(this)"></span></div>
-          <div class="text-[10px] text-slate-400">协议：OpenAI 兼容 Chat Completions · 请求仅发往已配置端点，应用自身零埋点</div>
+        <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="aiProvEdit(null)">+ 添加服务商</button></div>
+        <div class="mt-2 space-y-2 text-xs" id="aiProvList"></div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">预置只是默认值，<b>不是白名单</b>：官方、中转站/自建网关、局域网 Ollama·LM Studio 都能添加，Base URL、模型名、协议都能改。请求只发往你填的地址，应用自身零埋点；每个服务商的 Key 各自存系统加密区。</div>
         </div>
       </div>
       <div class="card mt-3">
         <div class="row-title">🔑 Key 配置</div>
         <div class="mt-2 space-y-2 text-xs">
-          <input class="inp w-full" type="password" placeholder="API Key · sk-••••••••••••" value="sk-demo-key">
-          <input class="inp w-full" placeholder="模型名，如 deepseek-flash" value="deepseek-flash">
+          <input class="inp w-full" type="password" placeholder="API Key · 当前服务商单独保存（sk-••••••••••••）" value="sk-demo-key">
+          <div id="apCur" class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-[11px]">当前端点：<b>DeepSeek</b></div>
+          <div class="flex gap-2"><button class="mini-btn flex-1" onclick="aiProvEdit(aiCurProv().id)">编辑当前服务商</button><button class="mini-btn flex-1" onclick="aiProvEdit(null)">+ 新服务商</button></div>
           <div class="text-[10px] text-slate-400 leading-5">Key 存系统级加密区（flutter_secure_storage）：不入备份明文、不落日志、不随 WebDAV 同步。</div>
           <div class="flex justify-between items-center"><span>验证状态</span><b class="text-emerald-500">✓ 今日 08:12 通过 · 812ms</b></div>
           <button onclick="openTool('aiapi')" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold">🔌 重新验证 / 测试新 Key</button>
@@ -1867,6 +1865,41 @@ tailwind.config = {
         <button onclick="auClearBody()" class="mt-3 w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">清除已存正文（保留用量记录）</button>
         <button onclick="auClearAll()" class="mt-2 w-full py-2.5 rounded-xl text-white text-xs font-bold" style="background:#ef4444">清空全部 AI 使用记录</button>
         <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：记录只写在本机数据库（ai_calls 表），随本地备份 .lhbak 与云同步快照一起走；API Key 存系统加密区，永不出现在记录、日志与备份明文中。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== V1.53.1 服务商添加/编辑（Base URL · 模型 · 协议 · 独立 Key · 实测连接） ===== -->
+  <div id="sheetAiProv" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiProv')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto">
+      <div class="grabber"></div>
+      <div class="font-extrabold" id="apTitle">添加服务商</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="text-[10px] font-bold text-slate-500">名称</div>
+        <input id="apName" class="inp w-full" placeholder="自己看得懂就行，如「公司中转站」「家里 Ollama」">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">Base URL（必填 · 按端点要求填完整前缀）</div>
+        <input id="apUrl" class="inp w-full font-mono text-[11px]" placeholder="https://relay.example.com/v1 或 http://192.168.31.20:11434/v1" oninput="apHintCheck()">
+        <div class="text-[10px] text-slate-400 leading-5">请求会拼 <b class="font-mono">/chat/completions</b>（OpenAI 兼容）或 <b class="font-mono">/messages</b>（Anthropic）。中转站若要求别的后缀（如 <span class="font-mono">/v1/api</span>），直接把它写进 Base URL 即可。</div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">模型名（必填）</div>
+        <input id="apModel" class="inp w-full font-mono text-[11px]" placeholder="deepseek-chat / qwen2.5:7b / claude-3-5-haiku">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">协议</div>
+        <div class="flex gap-2" id="apProto">
+          <button class="auf on" data-p="openai" onclick="aiProtoSet('openai')">OpenAI 兼容</button>
+          <button class="auf" data-p="anthropic" onclick="aiProtoSet('anthropic')">Anthropic Messages</button>
+        </div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">API Key（该服务商单独保存）</div>
+        <input id="apKey" class="inp w-full" type="password" placeholder="留空=不修改已存的 Key">
+        <div class="text-[10px] text-slate-400">存系统级加密区（flutter_secure_storage）：不进备份明文、不落日志、不随云同步导出。</div>
+        <div id="apHttpRow" class="hidden flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2">
+          <span class="text-[10.5px] leading-4">地址是 <b>http 明文</b>：仅建议局域网/回环端点，公网请用 https</span>
+          <span id="apHttpOk" class="toggle" onclick="tgl(this)"></span>
+        </div>
+        <div id="apRes" class="mt-1 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[46px] text-[10.5px] font-mono leading-5 break-all"></div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="aiProvPing()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">测试连接</button>
+          <button id="apDelBtn" onclick="aiProvDel(apEdit)" class="px-4 py-2.5 rounded-xl text-white text-xs font-bold hidden" style="background:#ef4444">删除</button>
+        </div>
+        <button onclick="aiProvSave()" class="mt-2 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存服务商</button>
       </div>
     </div>
   </div>
@@ -4207,6 +4240,91 @@ function auKeep(k){auKeepDays=k;
     toast('保留 '+k+' 天：丢弃超期 '+(before-AI_CALLS.length)+' 条');}
   auRender();}
 
+/* ================= V1.53.1 服务商可增删改（预置=默认值而非白名单 · 支持中转站与局域网 Ollama） =================
+   与实现同口径：业务模块只调 aiRunWithReview，端点/模型/协议/Key 全在 AI 侧，
+   所以这一层的可配置性不需要任何模块配合改动。 */
+let AI_PROVS=null,apEdit=null;
+function aiProvSeed(){return [
+ {id:'deepseek',n:'DeepSeek',u:'https://api.deepseek.com/v1',m:'deepseek-flash',p:'openai',k:1,b:1,cur:true},
+ {id:'anthropic',n:'Anthropic claude',u:'https://api.anthropic.com/v1',m:'claude-3-5-haiku-latest',p:'anthropic',k:0,b:1,cur:false},
+ {id:'ollama',n:'Ollama（局域网）',u:'http://192.168.31.20:11434/v1',m:'qwen2.5:7b',p:'openai',k:0,b:1,cur:false},
+ {id:'relay',n:'自建中转站',u:'https://relay.mydomain.com/v1/api',m:'deepseek-chat',p:'openai',k:1,b:0,cur:false}
+];}
+function aiProvs(){if(!AI_PROVS)AI_PROVS=aiProvSeed();return AI_PROVS;}
+function aiProvById(id){return aiProvs().filter(function(p){return p.id===id;})[0];}
+function aiCurProv(){return aiProvs().filter(function(p){return p.cur;})[0]||aiProvs()[0];}
+function aiProvRender(){
+ var box=$('#aiProvList');if(!box)return;
+ box.innerHTML=aiProvs().map(function(p){
+  var cur=p===aiCurProv();
+  return '<div class="rounded-xl px-3 py-2 '+(cur?'bg-slate-100 dark:bg-slate-800':'bg-slate-50 dark:bg-slate-800/50')+'">'
+   +'<div class="flex items-center justify-between gap-2">'
+   +'<div class="min-w-0"><div class="truncate font-bold">'+p.n+(p.b?' <span class="text-[9px] font-normal text-slate-400">预置</span>':'')+'</div>'
+   +'<div class="truncate font-mono text-[10px] opacity-70">'+p.u+'</div></div>'
+   +'<div class="flex items-center gap-1 shrink-0">'
+   +(cur?'<b class="text-[10px]" style="color:#10b981">● 当前</b>':'<button class="mini-btn" onclick="aiProvUse(\''+p.id+'\')">选用</button>')
+   +'<button class="mini-btn" onclick="aiProvEdit(\''+p.id+'\')">编辑</button>'
+   +(cur?'':'<button class="mini-btn" style="color:#ef4444" onclick="aiProvDel(\''+p.id+'\')">删</button>')
+   +'</div></div>'
+   +'<div class="text-[9.5px] opacity-60 mt-0.5 truncate">'+p.m+' · '+(p.p==='anthropic'?'Anthropic Messages':'OpenAI 兼容')
+   +' · Key '+(p.k?'已单独保存':'未填')+(p.u.indexOf('http://')===0?' · <span style="color:#f59e0b">http 明文（局域网）</span>':'')+'</div>'
+   +'</div>';
+ }).join('');
+ var c=aiCurProv();
+ var cur=$('#apCur');
+ if(cur)cur.innerHTML='当前端点：<b>'+c.n+'</b> · <span class="font-mono text-[10px]">'+c.u+'</span> · '+c.m;
+}
+function aiProvUse(id){aiProvs().forEach(function(p){p.cur=p.id===id;});aiProvRender();
+ toast('已切换到「'+aiProvById(id).n+'」· 后续 AI 请求走该端点与其 Key');}
+function aiProvEdit(id){apEdit=id;
+ var p=id?aiProvById(id):null;
+ $('#apTitle').textContent=p?('编辑服务商 · '+p.n):'添加服务商';
+ $('#apName').value=p?p.n:'';$('#apUrl').value=p?p.u:'';$('#apModel').value=p?p.m:'';
+ $('#apKey').value='';$('#apKey').placeholder=(p&&p.k)?'已存于加密区（留空则不改）':'该服务商的 API Key';
+ aiProtoSet(p?p.p:'openai');apHintCheck();
+ $('#apDelBtn').classList.toggle('hidden',!p||p===aiCurProv());
+ $('#apRes').innerHTML='<span class="opacity-50">「测试连接」向该 Base URL 发一次最小请求，回真实状态码与耗时。</span>';
+ openSheet('sheetAiProv');}
+function aiProtoSet(v){$$('#apProto .auf').forEach(function(b){b.classList.toggle('on',b.dataset.p===v);});}
+function apHintCheck(){var row=$('#apHttpRow');if(row)row.classList.toggle('hidden',$('#apUrl').value.trim().indexOf('http://')!==0);}
+function aiProvProto(){var on=$$('#apProto .auf.on')[0];return on?on.dataset.p:'openai';}
+function aiProvSave(){
+ var n=$('#apName').value.trim(),u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ if(!n){toast('✕ 请填写服务商名称');return}
+ if(!/^https?:\/\//.test(u)){toast('✕ Base URL 需以 http:// 或 https:// 开头');return}
+ if(!m){toast('✕ 请填写模型名');return}
+ if(u.indexOf('http://')===0&&!$('#apHttpOk').classList.contains('on')){toast('✕ http 明文端点需先确认是局域网/回环地址');return}
+ var ps=aiProvs(),p=apEdit?aiProvById(apEdit):null;
+ if(p){p.n=n;p.u=u;p.m=m;p.p=aiProvProto();if(k)p.k=1;}
+ else{var id='p'+Date.now();ps.push({id:id,n:n,u:u,m:m,p:aiProvProto(),k:k?1:0,b:0,cur:false});aiProvUse(id);}
+ closeSheet('sheetAiProv');apEdit=null;aiProvRender();toast('✔ 已保存 · 端点即刻生效（业务模块无需任何改动）');}
+function aiProvDel(id){var btn=(typeof event!=='undefined'&&event)?event.target:null;
+ var run=function(){AI_PROVS=aiProvs().filter(function(p){return p.id!==id;});
+   apEdit=null;aiProvRender();closeSheet('sheetAiProv');toast('已删除该服务商（其 Key 一并从加密区清除）');};
+ if(btn&&btn.dataset!=='')auArmTwice(btn,btn.textContent,run);else run();}
+/* 表单内实测：直连该端点发一次最小请求（浏览器预览受 CORS 限制，App 内为直连） */
+async function aiProvPing(){
+ var u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ var anth=aiProvProto()==='anthropic',box=$('#apRes');
+ if(!/^https?:\/\//.test(u)){box.innerHTML='<span style="color:#fb7185">✖ 先填合法 Base URL</span>';return}
+ if(!m){box.innerHTML='<span style="color:#fb7185">✖ 先填模型名</span>';return}
+ box.innerHTML='<span class="opacity-60">POST '+u+(anth?'/messages':'/chat/completions')+' · model='+m+' …</span>';
+ var t0=Date.now();
+ try{
+  var ctl=new AbortController(),to=setTimeout(function(){ctl.abort();},12000);
+  var r=await fetch(u+(anth?'/messages':'/chat/completions'),{method:'POST',signal:ctl.signal,
+   headers:anth?{'Content-Type':'application/json','x-api-key':k||'probe','anthropic-version':'2023-06-01'}
+               :{'Content-Type':'application/json','Authorization':'Bearer '+(k||'probe')},
+   body:JSON.stringify(anth?{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]}
+                          :{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]})});
+  clearTimeout(to);var ms=Date.now()-t0;
+  box.innerHTML=r.ok?'<span style="color:#10b981">✔ HTTP '+r.status+' · '+ms+'ms · 端点可用</span>'
+   :'<span style="color:#fb7185">✖ HTTP '+r.status+' · '+ms+'ms</span><div class="opacity-70">'
+    +(r.status===401?'Key 无效或未授权 · 核对这家服务商的 Key':r.status===403?'Key 无该模型权限':r.status===404?'路径或模型名不对 · 检查 Base URL 后缀与模型名':r.status===429?'限流 · 稍后再试':'请核对 Base URL 与模型名')+'</div>';
+ }catch(e){clearTimeout&&0;
+  box.innerHTML='<span style="color:#fb7185">✖ 未送达：'+String((e&&e.name==='AbortError')?'超时 12s':((e&&e.message)||e))+'</span>'
+   +'<div class="opacity-70">局域网 http 端点需与设备同网段；浏览器预览的跨域失败不代表端点有问题（App 内为原生直连，无 CORS）。</div>';}
+}
 /* —— 提示词管理（AI批 · 与 assets/ai_prompts/prompts.json 同源的默认模板镜像） —— */
 const AI_PROMPTS_DEFAULT=[
 {id:'tool.verify',m:'小工具',n:'AI API 验证',v:['prompt'],s:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',u:'{{prompt}}'},
@@ -4591,6 +4709,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
 /* ================= 启动 ================= */
 migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
 auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
+aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
 function timerSecsOK(){return true}
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});

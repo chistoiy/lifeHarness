@@ -1,0 +1,34 @@
+  <!-- ===== V1.53.1 服务商添加/编辑（Base URL · 模型 · 协议 · 独立 Key · 实测连接） ===== -->
+  <div id="sheetAiProv" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiProv')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] overflow-y-auto">
+      <div class="grabber"></div>
+      <div class="font-extrabold" id="apTitle">添加服务商</div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="text-[10px] font-bold text-slate-500">名称</div>
+        <input id="apName" class="inp w-full" placeholder="自己看得懂就行，如「公司中转站」「家里 Ollama」">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">Base URL（必填 · 按端点要求填完整前缀）</div>
+        <input id="apUrl" class="inp w-full font-mono text-[11px]" placeholder="https://relay.example.com/v1 或 http://192.168.31.20:11434/v1" oninput="apHintCheck()">
+        <div class="text-[10px] text-slate-400 leading-5">请求会拼 <b class="font-mono">/chat/completions</b>（OpenAI 兼容）或 <b class="font-mono">/messages</b>（Anthropic）。中转站若要求别的后缀（如 <span class="font-mono">/v1/api</span>），直接把它写进 Base URL 即可。</div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">模型名（必填）</div>
+        <input id="apModel" class="inp w-full font-mono text-[11px]" placeholder="deepseek-chat / qwen2.5:7b / claude-3-5-haiku">
+        <div class="text-[10px] font-bold text-slate-500 mt-2">协议</div>
+        <div class="flex gap-2" id="apProto">
+          <button class="auf on" data-p="openai" onclick="aiProtoSet('openai')">OpenAI 兼容</button>
+          <button class="auf" data-p="anthropic" onclick="aiProtoSet('anthropic')">Anthropic Messages</button>
+        </div>
+        <div class="text-[10px] font-bold text-slate-500 mt-2">API Key（该服务商单独保存）</div>
+        <input id="apKey" class="inp w-full" type="password" placeholder="留空=不修改已存的 Key">
+        <div class="text-[10px] text-slate-400">存系统级加密区（flutter_secure_storage）：不进备份明文、不落日志、不随云同步导出。</div>
+        <div id="apHttpRow" class="hidden flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2">
+          <span class="text-[10.5px] leading-4">地址是 <b>http 明文</b>：仅建议局域网/回环端点，公网请用 https</span>
+          <span id="apHttpOk" class="toggle" onclick="tgl(this)"></span>
+        </div>
+        <div id="apRes" class="mt-1 rounded-xl bg-slate-900 text-slate-200 p-3 min-h-[46px] text-[10.5px] font-mono leading-5 break-all"></div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="aiProvPing()" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">测试连接</button>
+          <button id="apDelBtn" onclick="aiProvDel(apEdit)" class="px-4 py-2.5 rounded-xl text-white text-xs font-bold hidden" style="background:#ef4444">删除</button>
+        </div>
+        <button onclick="aiProvSave()" class="mt-2 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存服务商</button>
+      </div>
+    </div>
+  </div>

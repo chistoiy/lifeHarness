@@ -1,0 +1,85 @@
+/* ================= V1.53.1 服务商可增删改（预置=默认值而非白名单 · 支持中转站与局域网 Ollama） =================
+   与实现同口径：业务模块只调 aiRunWithReview，端点/模型/协议/Key 全在 AI 侧，
+   所以这一层的可配置性不需要任何模块配合改动。 */
+let AI_PROVS=null,apEdit=null;
+function aiProvSeed(){return [
+ {id:'deepseek',n:'DeepSeek',u:'https://api.deepseek.com/v1',m:'deepseek-flash',p:'openai',k:1,b:1,cur:true},
+ {id:'anthropic',n:'Anthropic claude',u:'https://api.anthropic.com/v1',m:'claude-3-5-haiku-latest',p:'anthropic',k:0,b:1,cur:false},
+ {id:'ollama',n:'Ollama（局域网）',u:'http://192.168.31.20:11434/v1',m:'qwen2.5:7b',p:'openai',k:0,b:1,cur:false},
+ {id:'relay',n:'自建中转站',u:'https://relay.mydomain.com/v1/api',m:'deepseek-chat',p:'openai',k:1,b:0,cur:false}
+];}
+function aiProvs(){if(!AI_PROVS)AI_PROVS=aiProvSeed();return AI_PROVS;}
+function aiProvById(id){return aiProvs().filter(function(p){return p.id===id;})[0];}
+function aiCurProv(){return aiProvs().filter(function(p){return p.cur;})[0]||aiProvs()[0];}
+function aiProvRender(){
+ var box=$('#aiProvList');if(!box)return;
+ box.innerHTML=aiProvs().map(function(p){
+  var cur=p===aiCurProv();
+  return '<div class="rounded-xl px-3 py-2 '+(cur?'bg-slate-100 dark:bg-slate-800':'bg-slate-50 dark:bg-slate-800/50')+'">'
+   +'<div class="flex items-center justify-between gap-2">'
+   +'<div class="min-w-0"><div class="truncate font-bold">'+p.n+(p.b?' <span class="text-[9px] font-normal text-slate-400">预置</span>':'')+'</div>'
+   +'<div class="truncate font-mono text-[10px] opacity-70">'+p.u+'</div></div>'
+   +'<div class="flex items-center gap-1 shrink-0">'
+   +(cur?'<b class="text-[10px]" style="color:#10b981">● 当前</b>':'<button class="mini-btn" onclick="aiProvUse(\''+p.id+'\')">选用</button>')
+   +'<button class="mini-btn" onclick="aiProvEdit(\''+p.id+'\')">编辑</button>'
+   +(cur?'':'<button class="mini-btn" style="color:#ef4444" onclick="aiProvDel(\''+p.id+'\')">删</button>')
+   +'</div></div>'
+   +'<div class="text-[9.5px] opacity-60 mt-0.5 truncate">'+p.m+' · '+(p.p==='anthropic'?'Anthropic Messages':'OpenAI 兼容')
+   +' · Key '+(p.k?'已单独保存':'未填')+(p.u.indexOf('http://')===0?' · <span style="color:#f59e0b">http 明文（局域网）</span>':'')+'</div>'
+   +'</div>';
+ }).join('');
+ var c=aiCurProv();
+ var cur=$('#apCur');
+ if(cur)cur.innerHTML='当前端点：<b>'+c.n+'</b> · <span class="font-mono text-[10px]">'+c.u+'</span> · '+c.m;
+}
+function aiProvUse(id){aiProvs().forEach(function(p){p.cur=p.id===id;});aiProvRender();
+ toast('已切换到「'+aiProvById(id).n+'」· 后续 AI 请求走该端点与其 Key');}
+function aiProvEdit(id){apEdit=id;
+ var p=id?aiProvById(id):null;
+ $('#apTitle').textContent=p?('编辑服务商 · '+p.n):'添加服务商';
+ $('#apName').value=p?p.n:'';$('#apUrl').value=p?p.u:'';$('#apModel').value=p?p.m:'';
+ $('#apKey').value='';$('#apKey').placeholder=(p&&p.k)?'已存于加密区（留空则不改）':'该服务商的 API Key';
+ aiProtoSet(p?p.p:'openai');apHintCheck();
+ $('#apDelBtn').classList.toggle('hidden',!p||p===aiCurProv());
+ $('#apRes').innerHTML='<span class="opacity-50">「测试连接」向该 Base URL 发一次最小请求，回真实状态码与耗时。</span>';
+ openSheet('sheetAiProv');}
+function aiProtoSet(v){$$('#apProto .auf').forEach(function(b){b.classList.toggle('on',b.dataset.p===v);});}
+function apHintCheck(){var row=$('#apHttpRow');if(row)row.classList.toggle('hidden',$('#apUrl').value.trim().indexOf('http://')!==0);}
+function aiProvProto(){var on=$$('#apProto .auf.on')[0];return on?on.dataset.p:'openai';}
+function aiProvSave(){
+ var n=$('#apName').value.trim(),u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ if(!n){toast('✕ 请填写服务商名称');return}
+ if(!/^https?:\/\//.test(u)){toast('✕ Base URL 需以 http:// 或 https:// 开头');return}
+ if(!m){toast('✕ 请填写模型名');return}
+ if(u.indexOf('http://')===0&&!$('#apHttpOk').classList.contains('on')){toast('✕ http 明文端点需先确认是局域网/回环地址');return}
+ var ps=aiProvs(),p=apEdit?aiProvById(apEdit):null;
+ if(p){p.n=n;p.u=u;p.m=m;p.p=aiProvProto();if(k)p.k=1;}
+ else{var id='p'+Date.now();ps.push({id:id,n:n,u:u,m:m,p:aiProvProto(),k:k?1:0,b:0,cur:false});aiProvUse(id);}
+ closeSheet('sheetAiProv');apEdit=null;aiProvRender();toast('✔ 已保存 · 端点即刻生效（业务模块无需任何改动）');}
+function aiProvDel(id){var btn=(typeof event!=='undefined'&&event)?event.target:null;
+ var run=function(){AI_PROVS=aiProvs().filter(function(p){return p.id!==id;});
+   apEdit=null;aiProvRender();closeSheet('sheetAiProv');toast('已删除该服务商（其 Key 一并从加密区清除）');};
+ if(btn&&btn.dataset!=='')auArmTwice(btn,btn.textContent,run);else run();}
+/* 表单内实测：直连该端点发一次最小请求（浏览器预览受 CORS 限制，App 内为直连） */
+async function aiProvPing(){
+ var u=$('#apUrl').value.trim().replace(/\/+$/,''),m=$('#apModel').value.trim(),k=$('#apKey').value.trim();
+ var anth=aiProvProto()==='anthropic',box=$('#apRes');
+ if(!/^https?:\/\//.test(u)){box.innerHTML='<span style="color:#fb7185">✖ 先填合法 Base URL</span>';return}
+ if(!m){box.innerHTML='<span style="color:#fb7185">✖ 先填模型名</span>';return}
+ box.innerHTML='<span class="opacity-60">POST '+u+(anth?'/messages':'/chat/completions')+' · model='+m+' …</span>';
+ var t0=Date.now();
+ try{
+  var ctl=new AbortController(),to=setTimeout(function(){ctl.abort();},12000);
+  var r=await fetch(u+(anth?'/messages':'/chat/completions'),{method:'POST',signal:ctl.signal,
+   headers:anth?{'Content-Type':'application/json','x-api-key':k||'probe','anthropic-version':'2023-06-01'}
+               :{'Content-Type':'application/json','Authorization':'Bearer '+(k||'probe')},
+   body:JSON.stringify(anth?{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]}
+                          :{model:m,max_tokens:8,messages:[{role:'user',content:'ping'}]})});
+  clearTimeout(to);var ms=Date.now()-t0;
+  box.innerHTML=r.ok?'<span style="color:#10b981">✔ HTTP '+r.status+' · '+ms+'ms · 端点可用</span>'
+   :'<span style="color:#fb7185">✖ HTTP '+r.status+' · '+ms+'ms</span><div class="opacity-70">'
+    +(r.status===401?'Key 无效或未授权 · 核对这家服务商的 Key':r.status===403?'Key 无该模型权限':r.status===404?'路径或模型名不对 · 检查 Base URL 后缀与模型名':r.status===429?'限流 · 稍后再试':'请核对 Base URL 与模型名')+'</div>';
+ }catch(e){clearTimeout&&0;
+  box.innerHTML='<span style="color:#fb7185">✖ 未送达：'+String((e&&e.name==='AbortError')?'超时 12s':((e&&e.message)||e))+'</span>'
+   +'<div class="opacity-70">局域网 http 端点需与设备同网段；浏览器预览的跨域失败不代表端点有问题（App 内为原生直连，无 CORS）。</div>';}
+}
