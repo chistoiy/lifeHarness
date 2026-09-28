@@ -15,6 +15,9 @@ const BASE = arg('base');
 const MAIN = arg('main');
 const DIR = arg('dir');
 const parts = arg('parts', '').split(',').filter(Boolean);
+// --allow-ignore：比对前剔除 G7c/G7d 式定点 `// ignore: invalid_use_of_protected_member`
+// （extension 内 setState 所需的行为零改动注释），其余行仍要求逐行连续全等。
+const ALLOW_IGNORE = process.argv.includes('--allow-ignore');
 const SRC_REL = `${DIR}/${MAIN}`;
 if (!BASE || !MAIN || !DIR || !parts.length) {
   console.error('USAGE: --base <ref> --main <file.dart> --dir <dir> --parts a.dart,b.dart');
@@ -28,6 +31,7 @@ const baseLines = norm(
 
 let fail = 0;
 let totalBody = 0;
+let totalIgn = 0;
 for (const f of parts) {
   const raw = norm(fs.readFileSync(path.join(DIR, f), 'utf8')).split('\n');
   if (raw[0] !== `part of '${MAIN}';`) {
@@ -41,8 +45,13 @@ for (const f of parts) {
   let e = raw.length - 1;
   while (e > s && raw[e].trim() === '') e--;
   if (raw[e].trim() === '}') e--;
-  const body = raw.slice(s, e + 1);
+  const rawBody = raw.slice(s, e + 1);
+  // --allow-ignore：setState 定点 ignore 注释属治理批的机械插入，比对前剔除
+  const IGN = '// ignore: invalid_use_of_protected_member';
+  const useIgn = process.argv.includes('--allow-ignore');
+  const body = useIgn ? rawBody.filter((l) => l.trim() !== IGN) : rawBody;
   totalBody += body.length;
+  totalIgn += useIgn ? rawBody.length - body.length : 0;
   let at = -1;
   for (let i = 0; i + body.length <= baseLines.length; i++) {
     let ok = true;
@@ -63,5 +72,7 @@ for (const f of parts) {
     console.log(`OK ${f} body=${body.length} -> 基线 ${BASE} L${at}..L${at + body.length - 1}`);
   }
 }
-console.log(`${fail === 0 ? 'PURE-MOVE-VERIFIED' : `PURE-MOVE-FAIL count=${fail}`} 合计行数=${totalBody}`);
+console.log(
+  `${fail === 0 ? 'PURE-MOVE-VERIFIED' : `PURE-MOVE-FAIL count=${fail}`} 合计行数=${totalBody}·剔除定点 ignore=${totalIgn}`,
+);
 process.exit(fail === 0 ? 0 : 1);
