@@ -112,23 +112,28 @@ async function gotoQ(q){await cmd('Page.navigate',{url:URLF+q});await wait(2600)
  /* D · 跳章 → 返回上一位置胶囊 + 3 秒自动消失 */
  await gotoQ('?br55=jump');
  const jump=await ev(`return {from:_brJumpFrom?{ci:_brJumpFrom.ci,pg:_brJumpFrom.pg}:null,ci:brV.ci,
-   pill:!document.getElementById('brBackJump').classList.contains('hidden'),
+   pill:!document.getElementById('brDrBack').classList.contains('hidden'),
+   noPill:!document.getElementById('brBackJump')&&!document.getElementById('brBackPos'),
    sub:document.getElementById('brTopSub').textContent,
    lbl:document.getElementById('brPgLbl').textContent};`);
  if(jump.__err)bad('跳章读取',jump.__err);
  else{
   (jump.from&&jump.from.ci<jump.ci)?ok('跳章记录跳转前位置',JSON.stringify(jump.from)+' → ci'+jump.ci):bad('跳转留痕',JSON.stringify(jump));
-  jump.pill?ok('「返回上一位置」胶囊即时可见'):bad('胶囊未显示',JSON.stringify(jump));
+  (jump.pill&&jump.noPill)?ok('跳章后返回入口在抽屉横条 · 正文无悬浮胶囊'):bad('返回入口',JSON.stringify(jump));
   /^[\d/]+ 页 · 约第 \d+\/\d+ 页 · \d+%$/.test(jump.lbl||'')?ok('底栏读数＝约第 X/Y 页 · P%',jump.lbl):bad('读数',jump.lbl);
  }
  const back=await ev(`brBackJumpGo();return {ci:brV.ci,pg:brV.pg,
-   hidden:document.getElementById('brBackJump').classList.contains('hidden')};`);
+   hidden:document.getElementById('brDrBack').classList.contains('hidden')};`);
  if(back.__err)bad('返回',back.__err);
  else (back.ci===jump.from.ci&&back.hidden)?ok('点返回 → 回跳转前位置并收起',JSON.stringify(back)):bad('返回结果',JSON.stringify({back,jump}));
- const auto=await ev(`brGotoCh(7);return {shown:!document.getElementById('brBackJump').classList.contains('hidden')};`);
+ /* 轮5.2 起：返回入口收进抽屉横条，不再「3 秒自动消失」（正文零悬浮才是目标） */
+ const auto=await ev(`brGotoCh(7);brTocOpen('toc');return {shown:!document.getElementById('brDrBack').classList.contains('hidden')};`);
  await wait(3400);
- const after=await ev(`return {hidden:document.getElementById('brBackJump').classList.contains('hidden')};`);
- (auto.shown&&!after.hidden?false:auto.shown&&after.hidden)?ok('3 秒无操作自动消失'):bad('自动消失',JSON.stringify({auto,after}));
+ const after=await ev(`return {hidden:document.getElementById('brDrBack').classList.contains('hidden')};`);
+ (auto.shown&&!after.hidden)?ok('横条持续可见直到主动返回（正文无悬浮物）'):bad('返回入口',JSON.stringify({auto,after}));
+ const gone=await ev(`brBackJumpGo();return {hidden:document.getElementById('brDrBack').classList.contains('hidden'),
+   state:_brJumpFrom};`);
+ (!gone.__err&&gone.hidden&&gone.state===null)?ok('点返回后清留痕并收起横条'):bad('清理',JSON.stringify(gone));
  await shot('jump');
 
  /* E · 注释卡：角标可点 → 卡内「跳回原处」 */

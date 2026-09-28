@@ -157,8 +157,9 @@ async function gotoQ(q){await cmd('Page.navigate',{url:URLF+q});await wait(2600)
    folded:Object.keys(BR_DR.fold).filter(k=>BR_DR.fold[k]).length,groups:(BS_TOC[brV.b]||[]).length};`);
  (!fold.__err&&fold.btn&&fold.folded>=fold.groups)?ok('目录一键全折叠仍生效',`${fold.folded}/${fold.groups}`):bad('折叠',JSON.stringify(fold));
  await gotoQ('?br55=jump');
+ await ev(`brTocOpen('toc');return 1`);
  const jp=await ev(`return {from:_brJumpFrom&&_brJumpFrom.ci,ci:brV.ci,
-   pill:!document.getElementById('brBackJump').classList.contains('hidden'),
+   pill:!document.getElementById('brDrBack').classList.contains('hidden'),
    lbl:document.getElementById('brPgLbl').textContent};`);
  (!jp.__err&&jp.pill&&jp.from!==null&&jp.from<jp.ci)?ok('跳章留痕与返回胶囊仍生效',jp.from+'→'+jp.ci):bad('跳章',JSON.stringify(jp));
  /^[\d/]+ 页 · 约第 \d+\/\d+ 页 · \d+%$/.test(jp.lbl||'')?ok('底栏读数格式保持',jp.lbl):bad('读数',jp.lbl);
