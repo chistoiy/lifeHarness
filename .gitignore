@@ -44,3 +44,13 @@ secrets/
 tools/.cloud_verify.env
 # AI 本地验证通道的 DeepSeek Key（仅本机 CLI 用，永不入库）
 tools/.ai_verify.env
+
+# 治理 G1：设备取证与临时产物（本机残留，不入库）
+device_logcat.txt
+logcat*.txt
+tmp_bs.js
+.snapshots/
+.workbuddy/
+.chrome-probe/
+tools/*.log
+tools/*snapshot*.html
