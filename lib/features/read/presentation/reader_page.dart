@@ -164,11 +164,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   ({int ci, int pg, int pi})? _hitMark; // 当前高亮段
 
   // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
-  // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句，前扩/后扩按句走）。
+  // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句 · 轮5① 扩选改为首尾手柄拖动）。
   ({int ci, int p0, int p1, int o0, int o1})? _sel;
   bool _hlPop = false; // 色板展开
   // 长按落点 → 句边界需要段内命中偏移；'ci:pi' → 段 Text GlobalKey。
   final Map<String, GlobalKey> _paraKeys = {};
+  // 轮5①：手柄要按全局坐标落位，需要 Stack 的 RenderBox 做 globalToLocal。
+  final GlobalKey _stackKey = GlobalKey(debugLabel: 'brStack');
   // 轮4③：最后一次长按段（同段再长按＝收起的判定锚）。
   int _lpCi = -1, _lpPi = -1;
   bool _brSync = true; // read.brSync：划线自动存为书摘
@@ -791,53 +793,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _lpPi = pi;
     setState(() {
       _sel = (ci: ci, p0: pi, p1: pi, o0: se.a, o1: se.b);
-      _hlPop = false;
-    });
-  }
-
-  /// 前扩/后扩：按句推进；本段句子用尽后整段吞/吐，再跨段。
-  void _growSel(int d) {
-    final sel = _sel;
-    final doc = _doc;
-    if (sel == null || doc == null) return;
-    final ps = doc.chapters[sel.ci].paras;
-    setState(() {
-      if (d > 0) {
-        final t = ps[sel.p1].text;
-        if (sel.o1 < t.length) {
-          final se = _sentenceAt(t, sel.o1);
-          var b = se.b;
-          if (b <= sel.o1) b = t.length;
-          _sel = (ci: sel.ci, p0: sel.p0, p1: sel.p1, o0: sel.o0, o1: b);
-        } else if (sel.p1 < ps.length - 1) {
-          _sel = (
-            ci: sel.ci,
-            p0: sel.p0,
-            p1: sel.p1 + 1,
-            o0: sel.o0,
-            o1: ps[sel.p1 + 1].text.length,
-          );
-        }
-      } else {
-        if (sel.p0 == sel.p1 && sel.o0 > 0) {
-          final t = ps[sel.p0].text;
-          final se = _sentenceAt(t, (sel.o0 - 1).clamp(0, t.length - 1));
-          var a = se.a;
-          if (a >= sel.o0) a = 0;
-          _sel = (ci: sel.ci, p0: sel.p0, p1: sel.p1, o0: a, o1: sel.o1);
-        } else if (sel.p0 > 0) {
-          _sel = (
-            ci: sel.ci,
-            p0: sel.p0 - 1,
-            p1: sel.p1,
-            o0: 0,
-            o1: sel.p0 == sel.p1 ? ps[sel.p1].text.length : sel.o1,
-          );
-        }
-      }
-      // 锚点跟到增长端所在段（同段再长按收起的判定随之迁移）。
-      _lpCi = sel.ci;
-      _lpPi = d > 0 ? (_sel?.p1 ?? sel.p1) : sel.p0;
       _hlPop = false;
     });
   }
@@ -1556,6 +1511,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (_cfg.mode == 'scroll') _scrollToPara(h.ci, h.pi);
   }
 
+  /// 左右滑动翻页（无选区、无抽屉时才挂）。
+  void _onSwipe(DragEndDetails e) {
+    final v = e.velocity.pixelsPerSecond.dx;
+    final off = e.primaryVelocity ?? 0;
+    if (off < -150 || (v < 0 && v < -0.4)) {
+      _flip(1);
+    } else if (off > 150 || (v > 0 && v > 0.4)) {
+      _flip(-1);
+    }
+  }
+
   void _hitStep(int d) {
     if (_hits.isEmpty) return;
     var i = _hitI + d;
@@ -1607,16 +1573,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               _flip(1);
             }
           },
-          onHorizontalDragEnd: (e) {
-            if (_drawerOpen) return;
-            final v = e.velocity.pixelsPerSecond.dx;
-            final off = e.primaryVelocity ?? 0;
-            if (off < -150 || (v < 0 && v < -0.4)) {
-              _flip(1);
-            } else if (off > 150 || (v > 0 && v > 0.4)) {
-              _flip(-1);
-            }
-          },
+          // 轮5①：有选区时**不挂**滑动翻页识别器——否则手柄横向拖动会在手势竞技场
+          // 里被父级 HorizontalDragGestureRecognizer 抢先认领，手柄拖不动（真机同理）。
+          onHorizontalDragEnd: _sel == null && !_drawerOpen ? _onSwipe : null,
           child: LayoutBuilder(
             builder: (_, box) {
               final size = Size(box.maxWidth, box.maxHeight);
@@ -1627,6 +1586,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               return SafeArea(
                 bottom: false,
                 child: Stack(
+                  key: _stackKey,
                   children: [
                     // 热区可视化占位（键供测试/调试；手势统一走 body 层分派）。
                     if (_doc != null && _err == null) ...[
@@ -1685,7 +1645,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       if (_chrome) _topBar(bar),
                       if (_chrome && _pag != null) _bottomBar(bar, size),
                       if (_flash != null) _flashBar(bar),
-                      if (_sel != null) _selOverlay(size),
+                      if (_sel != null) ..._selLayer(size),
                       // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
                       // 「回到刚才在读」在目录抽屉（跳章返回）。
                     ],
@@ -2133,8 +2093,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  /// 选区浮条（原型 brSelBar/brColorPop）：前扩｜七操作｜后扩 + 5色板/删划线。
-  Widget _selOverlay(Size size) {
+  /// 选区层（原型 brSelBar + brHStart/brHEnd）：浮条 + 首尾可拖动手柄。
+  /// 轮5①：工具条不再放「前扩/后扩」，扩选改由手柄拖动完成（系统复制手感）。
+  List<Widget> _selLayer(Size size) {
     const dark = Color(0xE60F172A);
     const brand = Color(0xFFA5B4FC);
     Widget chip(String k, String label, IconData icon, VoidCallback? onTap, {bool accent = false}) =>
@@ -2161,96 +2122,295 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             ),
           ),
         );
-    return Positioned(
-      top: size.height * .15,
-      left: 0,
-      right: 0,
-      child: Column(
-        children: [
-          if (_hlPop)
-            Container(
-              key: const ValueKey('brColorPop'),
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: dark, borderRadius: BorderRadius.circular(14)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final tg in BookQuote.colorTags)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        key: ValueKey('brColor-$tg'),
-                        onTap: () => _addHl(tg),
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: Color(
-                              0xFF000000 |
-                                  (BookQuote.hexToInt(
-                                            BookQuote.colorHex[tg],
-                                          ) ??
-                                          0xFDE047),
+    return [
+      Positioned(
+        top: size.height * .15,
+        left: 0,
+        right: 0,
+        child: Column(
+          children: [
+            if (_hlPop)
+              Container(
+                key: const ValueKey('brColorPop'),
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: dark,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final tg in BookQuote.colorTags)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          key: ValueKey('brColor-$tg'),
+                          onTap: () => _addHl(tg),
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: Color(
+                                0xFF000000 |
+                                    (BookQuote.hexToInt(
+                                          BookQuote.colorHex[tg],
+                                        ) ??
+                                        0xFDE047),
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white38),
                             ),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white38),
                           ),
                         ),
                       ),
-                    ),
-                  TextButton(
-                    key: const ValueKey('brDelHl'),
-                    onPressed: _delHl,
-                    child: const Text(
-                      '删划线',
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                    TextButton(
+                      key: const ValueKey('brDelHl'),
+                      onPressed: _delHl,
+                      child: const Text(
+                        '删划线',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            Container(
+              key: const ValueKey('brSelBar'),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              decoration: BoxDecoration(
+                color: dark,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    chip('brSelCopy', '复制', Icons.copy_rounded, _actCopy),
+                    chip(
+                      'brSelHl',
+                      '划线',
+                      Icons.format_color_text_rounded,
+                      () => setState(() => _hlPop = !_hlPop),
+                    ),
+                    chip(
+                      'brSelThink',
+                      '写想法',
+                      Icons.edit_outlined,
+                      () => _actQuote(true),
+                    ),
+                    chip(
+                      'brSelQuote',
+                      '书摘',
+                      Icons.note_alt_outlined,
+                      () => _actQuote(false),
+                    ),
+                    chip('brSelDict', '查询', Icons.search_rounded, _actDict),
+                    // 听当前＝TTS：按拍板延后，入口先占位提示。
+                    chip(
+                      'brSelTts',
+                      '听当前',
+                      Icons.volume_up_rounded,
+                      () => readToast(context, '朗读能力规划中 · 暂未上线'),
+                    ),
+                    chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, _actAi),
+                    chip('brSelShare', '分享', Icons.ios_share, _actShare),
+                  ],
+                ),
+              ),
+            ),
+            // 指向气泡（参考图4：工具条下沿小三角指向选中段落方向）。
+            CustomPaint(size: const Size(16, 8), painter: _BrTriPainter(dark)),
+          ],
+        ),
+      ),
+      // 轮5①：首尾手柄（长按只给一句，扩不扩由拖动决定＝系统复制手感）。
+      ?_brHandle(false),
+      ?_brHandle(true),
+    ];
+  }
+
+  /// 选区端点手柄（原型 .br-h：11px 圆点 + 2×15px 竖枝，首端枝朝上、尾端枝朝下）。
+  /// 端点算不出（段落未渲染/快照缺段）就不画，也不拦事件。
+  Widget? _brHandle(bool end) {
+    final p = _selAnchor(end);
+    if (p == null) return null;
+    final stemUp = !end; // 首端：枝在点上方；尾端：枝在点下方
+    return Positioned(
+      key: ValueKey(end ? 'brHEnd' : 'brHStart'),
+      left: p.dx - 13,
+      top: p.dy - (stemUp ? 26 : 0),
+      width: 26,
+      height: 37,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        // 起点即判定：拖动一开始就认领手势，避免与父级识别器争抢。
+        dragStartBehavior: DragStartBehavior.down,
+        onPanUpdate: (d) => _dragSel(end: end, global: d.globalPosition),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: stemUp ? 0 : null,
+              bottom: stemUp ? null : 0,
+              child: Container(
+                width: 2,
+                height: 15,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Container(
+              width: 11,
+              height: 11,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x660F172A),
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
                   ),
                 ],
               ),
             ),
-          Container(
-            key: const ValueKey('brSelBar'),
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            decoration: BoxDecoration(color: dark, borderRadius: BorderRadius.circular(16)),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  chip('brGrowL', '前扩', Icons.chevron_left_rounded, () => _growSel(-1), accent: true),
-                  chip('brSelCopy', '复制', Icons.copy_rounded, _actCopy),
-                  chip('brSelHl', '划线', Icons.format_color_text_rounded, () => setState(() => _hlPop = !_hlPop)),
-                  chip('brSelThink', '写想法', Icons.edit_outlined, () => _actQuote(true)),
-                  chip('brSelQuote', '书摘', Icons.note_alt_outlined, () => _actQuote(false)),
-                  chip('brSelDict', '查询', Icons.search_rounded, _actDict),
-                  // 听当前＝TTS：按拍板延后，入口先占位提示。
-                  chip(
-                    'brSelTts',
-                    '听当前',
-                    Icons.volume_up_rounded,
-                    () => readToast(context, '朗读能力规划中 · 暂未上线'),
-                  ),
-                  chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, _actAi),
-                  chip('brSelShare', '分享', Icons.ios_share, _actShare),
-                  chip('brGrowR', '后扩', Icons.chevron_right_rounded, () => _growSel(1), accent: true),
-                ],
-              ),
-            ),
-          ),
-          // 指向气泡（参考图4：工具条下沿小三角指向选中段落方向）。
-          CustomPaint(
-            size: const Size(16, 8),
-            painter: const _BrTriPainter(dark),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  /// 选区端点 → 舞台 Stack 内坐标（RenderParagraph 取字符盒）。
+  Offset? _selAnchor(bool end) {
+    final s = _sel, doc = _doc;
+    final sb = _stackKey.currentContext?.findRenderObject();
+    if (s == null || doc == null || sb is! RenderBox || !sb.hasSize) return null;
+    final ps = doc.chapters[s.ci].paras;
+    final pi = end ? s.p1 : s.p0;
+    if (pi < 0 || pi >= ps.length) return null;
+    final rb = _paraRender(s.ci, pi);
+    if (rb == null) return null;
+    final full = rb.text.toPlainText();
+    if (full.isEmpty) return null;
+    // 渲染文本比原始段文本多出的＝2em 缩进前缀（选中切自段中时无前缀）。
+    final shift = (full.length - ps[pi].text.length).clamp(0, full.length);
+    final o = (end ? s.o1 : s.o0).clamp(0, ps[pi].text.length) + shift;
+    final at = o.clamp(0, full.length);
+    final r = end
+        ? TextSelection(
+            baseOffset: (at - 1).clamp(0, full.length),
+            extentOffset: at,
+          )
+        : TextSelection(
+            baseOffset: at,
+            extentOffset: (at + 1).clamp(0, full.length),
+          );
+    final boxes = rb.getBoxesForSelection(r);
+    if (boxes.isEmpty) return null;
+    final b = end ? boxes.last : boxes.first;
+    final g = rb.localToGlobal(Offset(end ? b.right : b.left, end ? b.bottom : b.top));
+    return sb.globalToLocal(g);
+  }
+
+  RenderParagraph? _paraRender(int ci, int pi) {
+    final ctx = _paraKeys['$ci:$pi']?.currentContext;
+    if (ctx is! Element) return null;
+    final ro = ctx.renderObject;
+    if (ro == null) return null;
+    return _firstRenderParagraph(ro);
+  }
+
+  /// 手柄拖动：把端点落到指针所在段/字符（跨段自动整段吞并），两端可互换。
+  void _dragSel({required bool end, required Offset global}) {
+    final s = _sel, doc = _doc;
+    if (s == null || doc == null) return;
+    final hit = _paraHitAt(s.ci, global);
+    if (hit == null) return;
+    final ps = doc.chapters[s.ci].paras;
+    setState(() {
+      if (end) {
+        if (hit.pi < s.p0 || (hit.pi == s.p0 && hit.off <= s.o0)) {
+          // 拖过首端＝互换，首端跟随旧尾端。
+          _sel = (
+            ci: s.ci,
+            p0: hit.pi,
+            p1: s.p0,
+            o0: hit.off,
+            o1: s.o0,
+          );
+        } else {
+          _sel = (
+            ci: s.ci,
+            p0: s.p0,
+            p1: hit.pi,
+            o0: s.o0,
+            o1: hit.off == 0 && ps[hit.pi].text.isEmpty
+                ? 0
+                : hit.off,
+          );
+        }
+        _lpPi = _sel!.p1;
+      } else {
+        if (hit.pi > s.p1 || (hit.pi == s.p1 && hit.off >= s.o1)) {
+          _sel = (
+            ci: s.ci,
+            p0: s.p1,
+            p1: hit.pi,
+            o0: s.o1,
+            o1: hit.off,
+          );
+        } else {
+          _sel = (
+            ci: s.ci,
+            p0: hit.pi,
+            p1: s.p1,
+            o0: hit.off,
+            o1: s.o1,
+          );
+        }
+        _lpPi = _sel!.p0;
+      }
+      _hlPop = false;
+    });
+  }
+
+  /// 指针 → (段序号, 段内字符偏移)：取垂直距离最近的可渲染文本段。
+  ({int pi, int off})? _paraHitAt(int ci, Offset g) {
+    final doc = _doc;
+    if (doc == null) return null;
+    final ps = doc.chapters[ci].paras;
+    int? best;
+    var bestD = double.infinity;
+    for (var pi = 0; pi < ps.length; pi++) {
+      if (ps[pi].kind != EpubParaKind.text) continue;
+      final rb = _paraRender(ci, pi);
+      if (rb == null || !rb.hasSize) continue;
+      final top = rb.localToGlobal(Offset.zero);
+      final rect = Rect.fromLTWH(top.dx, top.dy, rb.size.width, rb.size.height);
+      final d = g.dy < rect.top
+          ? rect.top - g.dy
+          : (g.dy > rect.bottom ? g.dy - rect.bottom : 0.0);
+      if (d < bestD) {
+        bestD = d;
+        best = pi;
+      }
+    }
+    if (best == null) return null;
+    final off = _charPosInPara(ci, best, g);
+    if (off == null) return null;
+    return (pi: best, off: off);
   }
 
   Widget _para((String, Color, Color) th, EpubDoc doc, int ci, EpubPara p, int pi) {

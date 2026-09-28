@@ -167,13 +167,38 @@ void main() {
     return m == null ? -1 : int.parse(m.group(1)!);
   }
 
+  /// 轮5①：拖选区手柄到目标段的某条边（tail＝下沿／head＝上沿），x＝段内横向比例。
+  Future<void> dragHandle(
+    WidgetTester t,
+    String handle,
+    String para, {
+    required bool tail,
+    double x = .5,
+  }) async {
+    final hr = t.getRect(find.byKey(ValueKey(handle)));
+    final pr = t.getRect(find.byKey(ValueKey(para)));
+    final gx = pr.left + pr.width * x;
+    final gy = tail ? pr.bottom - 1 : pr.top + 1;
+    await t.dragFrom(
+      Offset(hr.center.dx, hr.center.dy),
+      Offset(gx - hr.center.dx, gy - hr.center.dy),
+    );
+    await step(t);
+  }
+
   group('批3-S · 选区与浮条', () {
     testWidgets('长按段落出浮条 · 点空隙收选区不误翻页', (t) async {
       await openReader(t, _doc(), 's1');
       await selectPara(t, 'brpTap-0-3');
-      for (final k in ['brGrowL', 'brSelCopy', 'brSelHl', 'brSelQuote', 'brSelThink', 'brSelAi', 'brSelDict', 'brSelShare', 'brGrowR']) {
+      for (final k in ['brSelCopy', 'brSelHl', 'brSelQuote', 'brSelThink', 'brSelAi', 'brSelDict', 'brSelShare']) {
         expect(find.byKey(ValueKey(k)), findsOne, reason: k);
       }
+      // 轮5①：扩选改手柄拖动，工具条不再放前扩/后扩。
+      for (final k in ['brGrowL', 'brGrowR']) {
+        expect(find.byKey(ValueKey(k)), findsNothing, reason: k);
+      }
+      expect(find.byKey(const ValueKey('brHStart')), findsOne);
+      expect(find.byKey(const ValueKey('brHEnd')), findsOne);
       // 再点段落空隙：选区收起，chrome 不误切（dispatch 优先清选区）。
       final r = t.getRect(find.byKey(const ValueKey('brpTap-0-3')));
       await t.tapAt(Offset(210, r.bottom + 5));
@@ -182,29 +207,29 @@ void main() {
       expect(find.byKey(const ValueKey('br-bottom')), findsOne);
     });
 
-    testWidgets('轮4③ 长按句首选首句 · 后扩按句推进', (t) async {
+    testWidgets('轮4③ 长按句首选首句 · 轮5① 手柄拖动扩到整段/跨段', (t) async {
       await openReader(t, _doc(), 's2');
       final full = '三之0。$_lorem';
+      final p4 = '三之1。$_lorem';
       await selectParaTop(t, 'brpTap-0-3');
       // 段首长按 → 精确命中首句「三之0。」（4 字）。
       final n1 = await copiedLen(t);
       expect(n1, '三之0。'.length);
-      // 复制后选区已收；再长按段首 → 同一句（确定性）。
+      // 复制会收选区；再长按同处 → 同一句（确定性）。
       await selectParaTop(t, 'brpTap-0-3');
       expect(await copiedLen(t), n1);
-      // 后扩一次＝补到下一句（不越过整段）。
+      // 尾端手柄拖到本段下沿 → 选区吃满整段。
       await selectParaTop(t, 'brpTap-0-3');
-      await t.tap(find.byKey(const ValueKey('brGrowR')));
-      await step(t);
-      final got2 = await copiedLen(t);
-      expect(got2, full.length);
-      // 再后扩＝本段用尽 → 跨段吞下「三之1。」整段（含换行连接）。
+await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
+      expect(await copiedLen(t), full.length);
+      // 尾端手柄拖进下一段 → 跨段连选（中间一个换行）。
       await selectParaTop(t, 'brpTap-0-3');
-      await t.tap(find.byKey(const ValueKey('brGrowR')));
-      await step(t);
-      await t.tap(find.byKey(const ValueKey('brGrowR')));
-      await step(t);
-      expect(await copiedLen(t), full.length + '三之1。$_lorem'.length + 1);
+      await dragHandle(t, 'brHEnd', 'brpTap-0-4', tail: true);
+      expect(await copiedLen(t), full.length + 1 + p4.length);
+      // 首端手柄反向拖到上一段段首 → 上一段整段并入（尾端仍是原首句）。
+      await selectParaTop(t, 'brpTap-0-4');
+      await dragHandle(t, 'brHStart', 'brpTap-0-3', tail: false, x: .02);
+      expect(await copiedLen(t), full.length + 1 + '三之1。'.length);
       expect(find.byKey(const ValueKey('brSelBar')), findsNothing);
       await clearToasts(t);
     });
