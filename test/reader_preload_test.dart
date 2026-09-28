@@ -156,6 +156,23 @@ void main() {
       expect(lazy.images, isEmpty);
       lazy.lazy?.dispose();
     });
+
+    test('openFileDetached：isolate 解析回主 isolate 后图片 LRU 照常', () async {
+      final path = epubFile('iso.epub', _epubWithImages(chapters: 2, images: 5));
+      final doc = await EpubDoc.openFileDetached(path);
+      expect(doc.chapters.length, 2);
+      expect(doc.totalChars, greaterThan(0));
+      expect(doc.lazy, isNotNull, reason: '主 isolate 重挂懒归档句柄');
+      expect(doc.lazy!.cachedImageCount, 0);
+      final imgs = [
+        for (final c in doc.chapters)
+          for (final p in c.paras)
+            if (p.kind == EpubParaKind.image) p.imgSrc,
+      ];
+      expect(doc.imageBytes(imgs.first), isNotNull);
+      expect(doc.lazy!.cachedImageCount, 1);
+      doc.lazy?.dispose();
+    });
   });
 
   group('批3.5 · EpubRef 状态列', () {

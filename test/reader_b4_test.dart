@@ -325,6 +325,27 @@ void main() {
     });
   });
 
+  group('真机修 · 划词工具条收起（2026-09-28 反馈③）', () {
+    testWidgets('点段落弹工具条；再点同段收起', (t) async {
+      await useSurface(t, const Size(420, 780));
+      await addBook('b6');
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: baseOverrides(),
+          child: MaterialApp(home: ReaderPage(bookId: 'b6')),
+        ),
+      );
+      await step(t, times: 4);
+      final para = find.byKey(const ValueKey('brpTap-0-1'));
+      await t.tap(para);
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+      await t.tap(para);
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsNothing);
+    });
+  });
+
   group('批4-S · 阅读设置本地阅读器组', () {
     testWidgets('分组渲染四行；brLink chip 与 brBright 开关落键', (t) async {
       await useSurface(t);

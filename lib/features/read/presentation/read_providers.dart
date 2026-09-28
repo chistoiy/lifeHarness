@@ -33,10 +33,11 @@ final epubImportServiceProvider = Provider<EpubImportService>(
 );
 
 /// EPUB 文件加载器（阅读主屏批2/删除批4 复用；测试 override 免真 IO）。
-/// 批3.5：生产走懒归档 openFile——图片不再整包进内存。
+/// 批3.5：生产走懒归档 openFile——图片不再整包进内存；
+/// 真机修（2026-09-28）：改后台 isolate 解析（openFileDetached），大书不再卡 UI。
 final epubDocLoaderProvider
     = Provider<Future<EpubDoc> Function(String path)>((ref) => (path) async {
-  return EpubDoc.openFile(path);
+  return EpubDoc.openFileDetached(path);
 });
 
 /// 整本预载服务（批3.5）：导入后后台解析+全书分页落盘；封面进度数据源。

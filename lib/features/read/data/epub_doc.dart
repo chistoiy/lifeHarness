@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -216,6 +217,58 @@ class EpubDoc {
     }
   }
 
+  /// 后台 isolate 解析（真机反馈 2026-09-28：22MB 书主 isolate 同步解析卡死）：
+  /// isolate 内 openFile → 释放文件句柄 → 纯数据快照跨 isolate 传回 →
+  /// 主 isolate 重挂懒归档（只读中央目录，毫秒级）。坏包/DRM 异常原样抛回。
+  static Future<EpubDoc> openFileDetached(String path) async {
+    final core = await Isolate.run(() async {
+      final d = await openFile(path);
+      d.lazy?.dispose();
+      return d._copyNoLazy();
+    });
+    final lz = LazyEpubArchive.open(path);
+    return core._withLazy(lz);
+  }
+
+  EpubDoc _copyNoLazy() => EpubDoc(
+    format: format,
+    title: title,
+    author: author,
+    publisher: publisher,
+    pubDate: pubDate,
+    language: language,
+    description: description,
+    coverBytes: coverBytes,
+    coverName: coverName,
+    toc: toc,
+    chapters: chapters,
+    imageCount: imageCount,
+    totalChars: totalChars,
+    fontCount: fontCount,
+    bookmarkCount: bookmarkCount,
+    images: const {},
+  );
+
+  EpubDoc _withLazy(LazyEpubArchive lz) => EpubDoc(
+    format: format,
+    title: title,
+    author: author,
+    publisher: publisher,
+    pubDate: pubDate,
+    language: language,
+    description: description,
+    coverBytes: coverBytes,
+    coverName: coverName,
+    toc: toc,
+    chapters: chapters,
+    imageCount: imageCount,
+    totalChars: totalChars,
+    fontCount: fontCount,
+    bookmarkCount: bookmarkCount,
+    images: const {},
+    lazy: lz,
+  );
+
   static EpubDoc _build(
     _Source files, {
     LazyEpubArchive? lazy,
@@ -376,6 +429,9 @@ class EpubDoc {
               if (m.type.startsWith('image/') && files.bytes(m.href) != null)
                 m.href: Uint8List.fromList(files.bytes(m.href)!),
           };
+    // 真机反馈（大书滑动卡）：文本条目解压副本在抽取完成后立即释放，
+    // 归档侧不再双份驻留（String/封面字节引用仍有效）。
+    lazy?.releaseDecoded();
     return EpubDoc(
       format: format,
       title: title,
@@ -490,6 +546,13 @@ class LazyEpubArchive implements _Source {
       _idx[oldest]?.clear(); // 释放归档内解压驻留
     }
     return u;
+  }
+
+  /// 释放所有已解码条目的归档侧副本（文本抽取完成后调用；引用方仍持数据）。
+  void releaseDecoded() {
+    for (final n in _decodedPaths) {
+      _idx[n]?.clear();
+    }
   }
 
   @override

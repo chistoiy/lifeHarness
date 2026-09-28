@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -167,6 +168,28 @@ class ShelfPage extends ConsumerStatefulWidget {
 class _ShelfPageState extends ConsumerState<ShelfPage> {
   final _kwCtl = TextEditingController();
   bool _tabBooted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 真机修⑥：进书架即后台预热就绪本地书（isolate 解析入文档缓存），
+    // 点封面秒进；重启后缓存清空也靠这里回温。
+    WidgetsBinding.instance.addPostFrameCallback((_) => _warmLocalBooks());
+  }
+
+  Future<void> _warmLocalBooks() async {
+    try {
+      final books = await ref.read(booksProvider.future);
+      final svc = ref.read(epubPreloadProvider);
+      for (final b in ShelfSort.byLastRead(
+        books
+            .where((b) => !b.isDeleted && b.local && b.epub?.state == 'rdy')
+            .toList(),
+      ).take(2)) {
+        unawaited(svc.warm(b));
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {

@@ -176,12 +176,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _flashT?.cancel();
     _autoT?.cancel();
     if (_brightOwned) {
-      unawaited(
-        WakelockPlus.disable().catchError((Object _) {
-          return false;
-        }),
-      );
       _brightOwned = false;
+      unawaited(_wake(false));
     }
     _scrollCtrl.dispose();
     super.dispose();
@@ -207,20 +203,44 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       setState(() => _err = '本地副本已清理 · 回书架点封面重新载入');
       return;
     }
+    // 真机修⑥：文档解析（或等书架预热）与外观/位置读取并行，
+    // 冷启动重进时省掉一段串行等待。
+    final svc = ref.read(epubPreloadProvider);
+    final docF = () async {
+      var d = svc.docs.get(b.id);
+      if (d == null) {
+        await svc.warming(b.id);
+        d = svc.docs.get(b.id);
+      }
+      return d ?? await ref.read(epubDocLoaderProvider)(b.epub!.path);
+    }();
+    // 立即挂接错误：解析异常延后到 try 里再抛，避免成未处理异步错误。
+    final docR = Completer<(EpubDoc?, Object?)>();
+    docF.then(
+      (d) => docR.complete((d, null)),
+      onError: (Object e, StackTrace _) => docR.complete((null, e)),
+    );
     // 外观/位置先读，渲染即按记忆恢复（CFI 自动定位 · V1.50 口径③）。
     // 批4：全局 reader.cfg + 逐书 reader.cfg.<id> 补丁合并生效。
-    _global = ReaderCfg.decode(await repo.kv('reader.cfg'));
-    _bookPatch = brDecodePatch(await repo.kv('reader.cfg.${b.id}'));
+    final fGlobal = repo.kv('reader.cfg');
+    final fPatch = repo.kv('reader.cfg.${b.id}');
+    final fBright = repo.kv('read.brBright');
+    final fPos = repo.kv('reader.pos.${b.id}');
+    final fSync = repo.kv('read.brSync');
+    final fHl = repo.kv('reader.hl');
+    final fQuotes = repo.quotesOf(b.id);
+    _global = ReaderCfg.decode(await fGlobal);
+    _bookPatch = brDecodePatch(await fPatch);
     _cfg = ReaderCfg.mergePatch(_global, _bookPatch);
     // 设置组 read.brBright ⇄ 面板常亮（原型 rsFlip/brMoreBright 双向）。
-    if (await repo.kv('read.brBright') == 'true' && !_cfg.bright) {
+    if (await fBright == 'true' && !_cfg.bright) {
       _cfg = _cfg.copyWith(bright: true);
     }
-    _pos = _Pos.decode(await repo.kv('reader.pos.${b.id}'));
+    _pos = _Pos.decode(await fPos);
     // 划线同库数据（批3）：同步开关 + 本书划线行 + brSync 关时暂存。
-    _brSync = (await repo.kv('read.brSync')) != 'false';
-    _localHl = _LocalHl.decodeAll(await repo.kv('reader.hl'));
-    _hlQuotes = (await repo.quotesOf(b.id))
+    _brSync = await fSync != 'false';
+    _localHl = _LocalHl.decodeAll(await fHl);
+    _hlQuotes = (await fQuotes)
         .where((q) => q.deletedAt == null && q.cf != null)
         .toList();
     if (!mounted) return;
@@ -233,15 +253,22 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
     _t0 = DateTime.now();
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _t0 != null) {
-        setState(() => _sessSecs = DateTime.now().difference(_t0!).inSeconds);
+      // 时钟胶囊只在 chrome/抽屉可见时展示；平时不整页重建（大书滑动掉帧根因之一）。
+      if (!mounted || _t0 == null) return;
+      final secs = DateTime.now().difference(_t0!).inSeconds;
+      if (_chrome || _drawerOpen) {
+        setState(() => _sessSecs = secs);
+      } else {
+        _sessSecs = secs;
       }
     });
     try {
       // 秒进：预载缓存命中直接用（分页表也已落盘）；未命中走懒归档再开。
-      final cached = ref.read(epubPreloadProvider).docs.get(b.id);
-      final doc =
-          cached ?? await ref.read(epubDocLoaderProvider)(b.epub!.path);
+      final (doc0, docErr) = await docR.future;
+      if (docErr != null) throw docErr;
+      final doc = doc0!;
+      // 现开的文档也回灌缓存（真机修⑥）：退出重进不再二次整本解析。
+      svc.docs.put(b.id, doc);
       if (!mounted) return;
       setState(() => _doc = doc);
       // 首帧已定 _viewport 时 LayoutBuilder 不会再触发；此处直接建分页。
@@ -423,7 +450,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     ].join('\n');
   }
 
+  /// 真机反馈（2026-09-28）：中区点按几乎必命中段落识别器，工具条永远关不掉
+  /// ——同段再点＝收起；点其它段落＝移动选区（原型 brSelHide 语义的移动端补齐）。
   void _selectPara(int ci, int pi) => setState(() {
+    final s = _sel;
+    if (s != null && s.ci == ci && s.p0 == pi && s.p1 == pi) {
+      _sel = null;
+      _hlPop = false;
+      return;
+    }
     _sel = (ci: ci, p0: pi, p1: pi);
     _hlPop = false;
   });
@@ -800,21 +835,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   /// 常亮：本页启用过才在退出时关闭（不打扰其它模块的常亮策略）；
   /// 插件不可用（测试环境/桌面）静默降级，只保留设置值。
+  Future<void> _wake(bool on) async {
+    try {
+      if (on) {
+        await WakelockPlus.enable();
+      } else {
+        await WakelockPlus.disable();
+      }
+    } catch (_) {}
+  }
+
   void _syncBright() {
     if (_cfg.bright) {
       _brightOwned = true;
-      unawaited(
-        WakelockPlus.enable().catchError((Object _) {
-          return false;
-        }),
-      );
+      unawaited(_wake(true));
     } else if (_brightOwned) {
       _brightOwned = false;
-      unawaited(
-        WakelockPlus.disable().catchError((Object _) {
-          return false;
-        }),
-      );
+      unawaited(_wake(false));
     }
   }
 
@@ -853,9 +890,30 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     unawaited(_applyPag(doc, l, gen));
   }
 
-  /// 分页表优先（批3.5 指纹命中＝秒进）；未命中实算并落盘。
+  /// 分页表优先（批3.5 指纹命中＝秒进）；未命中分片实算（真机修⑤：
+  /// 2409 章大全集整本同步实算＝改字体后卡死数十秒；当前章先行渲染，
+  /// 其余逐 3 章让出 UI 后台补齐后落盘）。
+  /// 真机修⑥：表加载（读文件+compute 解码几万页）期间不再空转圈——
+  /// 先同步铺「当前章实算+其余章占位」上屏，表命中后整体换入（同指纹不跳版）。
   Future<void> _applyPag(EpubDoc doc, ReaderLayout l, int gen) async {
     final svc = ref.read(epubPreloadProvider);
+    final ci0 = _pos.ci.clamp(0, doc.chapters.length - 1);
+    if (_pag == null) {
+      final fresh = BookPagination.fromTable([
+        for (var i = 0; i < doc.chapters.length; i++)
+          i == ci0
+              ? EpubPager.layoutChapter(doc.chapters[i].paras, l)
+              : const [<int>[]],
+      ]);
+      setState(() {
+        _pag = fresh;
+        _clampPos();
+      });
+      if (svc.docsPath == null) {
+        unawaited(_fillPag(doc, l, fresh, gen, skipCi: ci0));
+        return;
+      }
+    }
     BookPagination? pag;
     if (svc.docsPath != null) {
       try {
@@ -863,15 +921,44 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       } catch (_) {}
       if (!mounted || gen != _pagGen) return;
     }
-    final computed = pag == null;
-    pag ??= BookPagination.of(doc, l);
-    setState(() {
-      _pag = pag;
-      _clampPos();
-    });
-    if (computed && svc.docsPath != null) {
-      unawaited(svc.savePag(widget.bookId, l, pag));
+    if (pag != null) {
+      setState(() {
+        _pag = pag;
+        _clampPos();
+      });
+      return;
     }
+    // 表未命中：继续用已上屏的占位表分片补齐。
+    unawaited(_fillPag(doc, l, _pag!, gen, skipCi: ci0));
+  }
+
+  /// 逐章分片实算全书分页（当前章优先），完成后落盘。
+  Future<void> _fillPag(
+    EpubDoc doc,
+    ReaderLayout l,
+    BookPagination pag,
+    int gen, {
+    int skipCi = -1,
+  }) async {
+    if (skipCi >= 0 && skipCi < doc.chapters.length) {
+      pag.perChapter[skipCi] = EpubPager.layoutChapter(
+        doc.chapters[skipCi].paras,
+        l,
+      );
+      if (mounted && gen == _pagGen) setState(_clampPos);
+    }
+    for (var i = 0; i < doc.chapters.length; i++) {
+      if (i == skipCi) continue;
+      if (!mounted || gen != _pagGen) return;
+      pag.perChapter[i] = EpubPager.layoutChapter(doc.chapters[i].paras, l);
+      if (i % 3 == 2) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+    if (!mounted || gen != _pagGen) return;
+    setState(_clampPos);
+    final svc = ref.read(epubPreloadProvider);
+    if (svc.docsPath != null) unawaited(svc.savePag(widget.bookId, l, pag));
   }
 
   /// 外观变化增量重排（批3.5 口径：当前章毫秒级即时，其余章后台补齐后落盘）。
@@ -885,26 +972,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final l = _layout();
     final ci = _pos.ci.clamp(0, doc.chapters.length - 1);
     final gen = ++_pagGen;
-    setState(() {
-      pag.perChapter[ci] = EpubPager.layoutChapter(doc.chapters[ci].paras, l);
-      _clampPos();
-    });
-    unawaited(
-      () async {
-        for (var i = 0; i < doc.chapters.length; i++) {
-          if (i == ci) continue;
-          if (!mounted || gen != _pagGen) return;
-          pag.perChapter[i] = EpubPager.layoutChapter(doc.chapters[i].paras, l);
-          if (i % 6 == 5) {
-            await Future<void>.delayed(Duration.zero);
-          }
-        }
-        if (!mounted || gen != _pagGen) return;
-        setState(_clampPos);
-        final svc = ref.read(epubPreloadProvider);
-        if (svc.docsPath != null) unawaited(svc.savePag(widget.bookId, l, pag));
-      }(),
-    );
+    unawaited(_fillPag(doc, l, pag, gen, skipCi: ci));
   }
 
   ReaderLayout _layout() => ReaderLayout(

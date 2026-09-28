@@ -248,12 +248,15 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                     ),
                   ),
                 Expanded(
-                  child: SingleChildScrollView(
-                    key: const ValueKey('brDrScroll'),
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
-                    child: st.searchTab ? _searchList(cs) : _tocList(cs),
-                  ),
+                  // 目录 Tab＝虚拟化 ListView（自带滚动）；搜本书 Tab 仍整块滚动。
+                  child: st.searchTab
+                      ? SingleChildScrollView(
+                          key: const ValueKey('brDrScroll'),
+                          controller: _scroll,
+                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
+                          child: _searchList(cs),
+                        )
+                      : _tocList(cs),
                 ),
               ],
             ),
@@ -335,6 +338,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   }
 
   /// 目录树：BS_TOC 同源（book_toc_nodes）；小节名命中标题即叶子章。
+  /// 真机反馈（2026-09-28）：2409 章大全集整列 Column 一次构建致抽屉卡顿、
+  /// 点按无响应——行描述符 + ListView.builder 虚拟化，只建可见行。
   Widget _tocList(ColorScheme cs) {
     final nodes =
         ref.watch(tocProvider(widget.bookId)).valueOrNull ?? const <TocNode>[];
@@ -351,203 +356,217 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     if (groups.isEmpty && titleToCi.isEmpty) {
       return const SizedBox.shrink();
     }
-    final children = <Widget>[];
+    final rows = <Object>[];
     for (var gi = 0; gi < (groups.isEmpty ? 1 : groups.length); gi++) {
       final g = groups.isEmpty ? null : groups[gi];
       final secNames = g == null
           ? [for (final c in widget.doc.chapters) c.title]
           : g.sections.map((s) => s.title).toList();
       final folded = widget.state.folded.contains(gi);
-      children.add(
-        GestureDetector(
-          key: ValueKey('brDrFold-$gi'),
-          onTap: () => setState(() {
-            folded
-                ? widget.state.folded.remove(gi)
-                : widget.state.folded.add(gi);
-          }),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 14, bottom: 4),
-            child: Row(
-              children: [
-                Icon(
-                  folded
-                      ? Icons.keyboard_arrow_right_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 12,
-                  color: cs.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    g?.part.title.isNotEmpty == true ? g!.part.title : '正文',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-                ),
-                Text(
-                  '${secNames.length}',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Color(0xFFCBD5E1),
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-          ),
+      rows.add(
+        _DrHdr(
+          gi: gi,
+          title: g?.part.title.isNotEmpty == true ? g!.part.title : '正文',
+          count: secNames.length,
+          folded: folded,
         ),
       );
       if (folded) continue;
       for (final name in secNames) {
         final ci = titleToCi[name];
         if (ci == null) continue;
-        final isCur = ci == widget.ci;
-        final before = ci < widget.ci;
-        final chapPages = widget.pager.chapterPages(ci);
-        final pct = chapPages == 0 ? 0 : ((widget.pg + 1) / chapPages * 100).round();
-        children.add(
-          Stack(
-            children: [
-              if (isCur)
-                Positioned(
-                  left: 0,
-                  top: 8,
-                  bottom: 8,
-                  child: Container(
-                    key: ValueKey('brDrCurBar-$ci'),
-                    width: 3,
-                    decoration: BoxDecoration(
-                      color: _accent,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              GestureDetector(
-                key: ValueKey('brDrCh-$ci'),
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  widget.onGoto(ci);
-                  setState(() {});
-                },
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 2, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: isCur
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
-                                color: isCur
-                                    ? _accent
-                                    : (before ? cs.onSurfaceVariant : cs.onSurface),
-                              ),
-                            ),
-                          ),
-                          if (quotes > 0 && ci == widget.ci)
-                            Container(
-                              margin: const EdgeInsets.only(right: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF3C7),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                '$quotes',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFFB45309),
-                                ),
-                              ),
-                            ),
-                          SizedBox(
-                            width: 34,
-                            child: Text(
-                              '${widget.pager.gPos(ci, 0) + 1}',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: cs.onSurfaceVariant,
-                                fontFeatures: const [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (isCur)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            children: [
-                              Text(
-                                '当前读到 · $pct%',
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: _accent,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                key: const ValueKey('brDrBm'),
-                                onTap: () {
-                                  widget.onAddBookmark();
-                                  setState(() {});
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: _accent.withValues(alpha: .35),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    '添加书签',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: _accent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+        rows.add(_DrSec(ci: ci, name: name));
       }
     }
-    return Column(
+    return ListView.builder(
       key: const ValueKey('brTocList'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+      controller: _scroll,
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
+      itemCount: rows.length,
+      itemBuilder: (_, i) =>
+          rows[i] is _DrHdr ? _hdrRow(cs, rows[i] as _DrHdr) : _secRow(cs, rows[i] as _DrSec, quotes),
+    );
+  }
+
+  Widget _hdrRow(ColorScheme cs, _DrHdr h) {
+    return GestureDetector(
+      key: ValueKey('brDrFold-${h.gi}'),
+      onTap: () => setState(() {
+        widget.state.folded.contains(h.gi)
+            ? widget.state.folded.remove(h.gi)
+            : widget.state.folded.add(h.gi);
+      }),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 14, bottom: 4),
+        child: Row(
+          children: [
+            Icon(
+              h.folded
+                  ? Icons.keyboard_arrow_right_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 12,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                h.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+            Text(
+              '${h.count}',
+              style: const TextStyle(
+                fontSize: 9,
+                color: Color(0xFFCBD5E1),
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _secRow(ColorScheme cs, _DrSec s, int quotes) {
+    final ci = s.ci;
+    final name = s.name;
+    final isCur = ci == widget.ci;
+    final before = ci < widget.ci;
+    final chapPages = widget.pager.chapterPages(ci);
+    final pct = chapPages == 0 ? 0 : ((widget.pg + 1) / chapPages * 100).round();
+    return Stack(
+      children: [
+        if (isCur)
+          Positioned(
+            left: 0,
+            top: 8,
+            bottom: 8,
+            child: Container(
+              key: ValueKey('brDrCurBar-$ci'),
+              width: 3,
+              decoration: BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        GestureDetector(
+          key: ValueKey('brDrCh-$ci'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            widget.onGoto(ci);
+            setState(() {});
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 2, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCur ? FontWeight.w800 : FontWeight.w600,
+                          color: isCur
+                              ? _accent
+                              : (before ? cs.onSurfaceVariant : cs.onSurface),
+                        ),
+                      ),
+                    ),
+                    if (quotes > 0 && ci == widget.ci)
+                      Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '$quotes',
+                          style: const TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '${widget.pager.gPos(ci, 0) + 1}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: cs.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (isCur)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          '当前读到 · $pct%',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: _accent,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          key: const ValueKey('brDrBm'),
+                          onTap: () {
+                            widget.onAddBookmark();
+                            setState(() {});
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: _accent.withValues(alpha: .35),
+                              ),
+                            ),
+                            child: const Text(
+                              '添加书签',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: _accent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -637,4 +656,19 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     }
     return TextSpan(children: children);
   }
+}
+
+/// 目录虚拟化行描述符（批4 真机修）：分组头与小节行只存数据，可见才建 Widget。
+class _DrHdr {
+  const _DrHdr({required this.gi, required this.title, required this.count, required this.folded});
+  final int gi;
+  final String title;
+  final int count;
+  final bool folded;
+}
+
+class _DrSec {
+  const _DrSec({required this.ci, required this.name});
+  final int ci;
+  final String name;
 }

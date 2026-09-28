@@ -306,4 +306,28 @@ void main() {
       expect(find.byKey(const ValueKey('sheetBrImg')), findsNothing);
     });
   });
+
+  group('真机修⑥ · 文档缓存回灌', () {
+    testWidgets('现开的文档进 epubPreloadProvider.docs（重进不再二次解析）', (t) async {
+      await useSurface(t, const Size(420, 780));
+      await addBook('u9');
+      final c = ProviderContainer(
+        overrides: [
+          readRepositoryProvider.overrideWithValue(repo),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          epubDocLoaderProvider.overrideWithValue((_) async => _bigDoc()),
+        ],
+      );
+      addTearDown(c.dispose);
+      await t.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const MaterialApp(home: ReaderPage(bookId: 'u9')),
+        ),
+      );
+      await step(t, times: 4);
+      expect(find.byKey(const ValueKey('brPgLbl')), findsNothing); // chrome 未开
+      expect(c.read(epubPreloadProvider).docs.get('u9'), isNotNull);
+    });
+  });
 }

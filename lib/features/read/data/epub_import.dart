@@ -89,10 +89,10 @@ class EpubImportService {
   Future<EpubPick?> pick() => (pickHook ?? defaultPickEpub)();
 
   /// 读文件并解析；坏包/DRM 抛 [EpubFormatException]。
-  /// 批3.5：走懒归档 openFile——大图文包解析不再整包进内存；
+  /// 批3.5+真机修：走后台 isolate 懒归档解析（22MB 书主 isolate 同步解析卡死），
   /// 元数据/封面/目录抽取完立即释放句柄（不长期锁源文件，Windows 语义同理）。
   Future<EpubDoc> loadDoc(EpubPick pick) async {
-    final doc = await EpubDoc.openFile(pick.path);
+    final doc = await EpubDoc.openFileDetached(pick.path);
     doc.lazy?.dispose();
     return doc;
   }

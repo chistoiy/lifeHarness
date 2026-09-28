@@ -47,20 +47,27 @@ class PagStore {
     final f = fileFor(docsPath, bookId);
     if (!await f.exists()) return null;
     try {
-      final v = jsonDecode(await f.readAsString());
-      if (v is! Map || v['fp'] != fp || v['v'] != tableVersion) return null;
-      final per = v['per'];
-      if (per is! List) return null;
-      return BookPagination.fromTable([
-        for (final ch in per)
-          [
-            for (final pg in ch as List)
-              [for (final i in pg as List) (i as num).toInt()],
-          ],
-      ]);
+      final src = await f.readAsString();
+      // 真机修⑥：2409 章表数 MB，jsonDecode 移入 isolate，主线程零阻塞。
+      return compute(_pagFromJson, (src, fp));
     } catch (_) {
       return null;
     }
+  }
+
+  static BookPagination? _pagFromJson((String, String) arg) {
+    final (src, fp) = arg;
+    final v = jsonDecode(src);
+    if (v is! Map || v['fp'] != fp || v['v'] != tableVersion) return null;
+    final per = v['per'];
+    if (per is! List) return null;
+    return BookPagination.fromTable([
+      for (final ch in per)
+        [
+          for (final pg in ch as List)
+            [for (final i in pg as List) (i as num).toInt()],
+        ],
+    ]);
   }
 
   static Future<void> save(
@@ -162,6 +169,30 @@ class EpubPreloadService extends ChangeNotifier {
 
   PreloadInfo? info(String bookId) => _info[bookId];
 
+  /// 书架预热（真机修⑥：重启后内存文档缓存清空，重进要等重新解析）：
+  /// 就绪本地书后台 isolate 解析入缓存，点封面即秒进；失败静默（进阅读再报）。
+  /// 单飞：同书并发只跑一次；[warming] 可等它完成，避免阅读器再起第二路解析。
+  Future<void> warm(Book b) {
+    final ep = b.epub;
+    if (ep == null || ep.path.isEmpty || ep.state != EpubRef.stReady) {
+      return Future.value();
+    }
+    if (docs.get(b.id) != null) return Future.value();
+    return _warmTasks[b.id] ??= () async {
+      try {
+        final doc = await (parseOverride ??
+                ((path) async => EpubDoc.openFileDetached(path)))(ep.path);
+        docs.put(b.id, doc);
+      } catch (_) {}
+      _warmTasks.remove(b.id);
+    }();
+  }
+
+  final Map<String, Future<void>> _warmTasks = {};
+
+  /// 该书预热任务（没在跑则 null）。
+  Future<void>? warming(String bookId) => _warmTasks[bookId];
+
   /// 预载到终态（rdy/失败回退）时回调——provider 用它 bump readTick 重取书籍。
   void Function(String bookId)? onBookSettled;
 
@@ -178,9 +209,9 @@ class EpubPreloadService extends ChangeNotifier {
     final docs0 = await _docs0();
     try {
       await _mark(b, EpubRef.stPreload, 4);
-      // ① 解析（懒归档：open 只读中央目录，文本逐章解压、图片零驻留）
+      // ① 解析（后台 isolate 懒归档：open 只读中央目录，文本逐章解压、图片零驻留）
       final doc = await (parseOverride ??
-              ((path) async => EpubDoc.openFile(path)))(ep.path);
+              ((path) async => EpubDoc.openFileDetached(path)))(ep.path);
       docs.put(b.id, doc);
       await _mark(b, EpubRef.stPreload, 45);
       // ② 全书分页实算（TextPainter 必须主 isolate；逐章分片让出 UI）
