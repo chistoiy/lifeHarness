@@ -203,8 +203,24 @@ for (const g of sorted.slice().reverse()) {
   keep.splice(g.s, 0, '');
 }
 
-const lastImport = findOnce(keep, (l) => l.startsWith("import '../../../../shared/widgets/ui_kit.dart';"), 'last.import');
-keep.splice(lastImport + 1, 0, '', ...groups.map((g) => `part '${g.out}';`));
+// part 指令插入点：已有 part 块末尾顺序追加；无 part 块时插到末条 import 之后并补分隔空行
+let insAt = -1;
+let hadParts = false;
+for (let i = 0; i < keep.length; i++)
+  if (keep[i].startsWith("part '")) {
+    insAt = i;
+    hadParts = true;
+  }
+if (!hadParts) {
+  insAt = findOnce(
+    keep,
+    (l) => l.startsWith("import '../../../../shared/widgets/ui_kit.dart';"),
+    'last.import',
+  );
+  keep.splice(insAt + 1, 0, '');
+  insAt += 1;
+}
+keep.splice(insAt + 1, 0, ...groups.map((g) => `part '${g.out}';`));
 while (keep.length && keep[keep.length - 1].trim() === '') keep.pop();
 keep.push('');
 
