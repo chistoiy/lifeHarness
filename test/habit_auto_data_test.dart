@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'helpers.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/habit/data/habit_repository.dart';
 import 'package:lifeharness/features/habit/domain/habit.dart';

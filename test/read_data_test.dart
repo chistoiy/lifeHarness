@@ -464,15 +464,34 @@ void main() {
           updatedAt: t0));
       final s = await repo.startSession(b.id);
       await repo.endSession(b.id);
-      final before = await db.query('time_blocks',
+      // 治理G6 悬案根治：入账流水在高负载下可能迟一拍落库（3-6 曾随机挂
+      // Bad state: No element）→ 有界轮询等行出现，超时由原断言判失败。
+      var before = await db.query('time_blocks',
           where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      for (var i = 0; i < 40 && before.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        before = await db.query('time_blocks',
+            where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      }
       final txnId = before.single['id'] as int;
       await repo.editSession(s.id!, minutes: 999, toPage: 40);
-      final after = await db.query('time_blocks',
+      var after = await db.query('time_blocks',
           where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      for (var i = 0;
+          i < 40 && !(after.length == 1 && after.single['id'] == txnId);
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        after = await db.query('time_blocks',
+            where: 'cat_id = ?', whereArgs: [DbSchema.catReadingId]);
+      }
       expect(after, hasLength(1)); // 复用不新建
       expect(after.single['id'], txnId);
-      expect((await repo.sessionsOf(b.id)).single.minutes, 999);
+      var sess = await repo.sessionsOf(b.id);
+      for (var i = 0; i < 40 && !(sess.isNotEmpty && sess.single.minutes == 999); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        sess = await repo.sessionsOf(b.id);
+      }
+      expect(sess.single.minutes, 999);
       final agg = sessionAggByBook(await repo.allSessions());
       expect(agg[b.id]!.minutes, 999);
       final nb = await repo.bookById(b.id);

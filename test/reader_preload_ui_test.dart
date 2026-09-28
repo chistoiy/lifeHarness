@@ -214,7 +214,13 @@ void main() {
       expect(find.byKey(const ValueKey('brReloadOk')), findsOne);
       await t.runAsync(() async {
         await t.tap(find.byKey(const ValueKey('brReloadOk')));
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        // 治理G6 悬案根治：预载服务在高负载下可超 400ms 定值（本用例曾随机挂+
+        // G0 轮 database_closed 同族）→ 有界轮询直到状态回填，超时仍由下方断言判失败。
+        for (var i = 0; i < 40; i++) {
+          final bk = await repo.bookById('cr');
+          if (bk?.epub?.state == EpubRef.stReady) break;
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+        }
       });
       await step(t, times: 3);
       final b = (await repo.bookById('cr'))!;

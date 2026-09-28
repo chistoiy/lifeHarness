@@ -1393,6 +1393,9 @@ void main() {
       // rtFoot 今日/连续（原型 5023）
       expect(find.byKey(const ValueKey('rt-foot')), findsOneWidget);
       expect(find.text('今日'), findsOneWidget);
+      // 治理G6 悬案根治：今日分钟数经真实 sqflite 往返回填，全量并发下 4×60ms 定泵
+      // 会饥饿（R-23 随机挂）→ 改有界轮询（runAsync 真实等待），超时仍判失败。
+      await waitFinder(tester, find.text('12 / 30 分钟'));
       expect(find.text('12 / 30 分钟'), findsOneWidget);
       expect(find.text('连续 1 天'), findsOneWidget);
       final bar = tester.widget<LinearProgressIndicator>(
