@@ -54,3 +54,4 @@ tmp_bs.js
 .chrome-probe/
 tools/*.log
 tools/*snapshot*.html
+tools/reader/.chrome-profile/
