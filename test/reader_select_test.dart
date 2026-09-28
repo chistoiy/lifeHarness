@@ -75,6 +75,9 @@ void main() {
   late Database db;
   late ReadRepository repo;
   late SharedPreferences prefs;
+  // 统一入口 aiRunWithReview 会先校验能力点已注册 → 默认用真提示词包。
+  final pack = AiPromptPack.decode(
+      File('assets/ai_prompts/prompts.json').readAsStringSync());
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -87,17 +90,13 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Widget wrap(Widget home, EpubDoc doc, {AiClient? ai, AiPromptPack? pack}) =>
-      ProviderScope(
+  Widget wrap(Widget home, EpubDoc doc, {AiClient? ai}) => ProviderScope(
     overrides: [
       readRepositoryProvider.overrideWithValue(repo),
       sharedPreferencesProvider.overrideWithValue(prefs),
       epubDocLoaderProvider.overrideWithValue((_) async => doc),
-      // AI 门控用例需可构造 AiService：空包 + 内存 Key（master 默认关 → 门控拒绝）。
-      aiPromptPackProvider.overrideWithValue(
-          pack ??
-              const AiPromptPack(
-                  version: 0, defaultBaseUrl: '', defaultModel: '', tasks: [])),
+      // 真提示词包 + 内存 Key（默认未授权、master 默认关 → 门控拒绝零请求）。
+      aiPromptPackProvider.overrideWithValue(pack),
       aiKeyVaultProvider.overrideWithValue(
           ai == null ? AiKeyVault.inMemory() : AiKeyVault.inMemory(apiKey: 'sk-t')),
       // 接通统一入口的用例注入 MockClient（零真实网络）；不传＝用默认实现。
@@ -119,7 +118,7 @@ void main() {
   }
 
   Future<void> openReader(WidgetTester t, EpubDoc doc, String id,
-      {AiClient? ai, AiPromptPack? pack}) async {
+      {AiClient? ai}) async {
     await useSurface(t, const Size(420, 780));
     await repo.addBook(Book(
       id: id,
@@ -129,7 +128,7 @@ void main() {
       createdAt: 1,
       updatedAt: 1,
     ));
-    await t.pumpWidget(wrap(ReaderPage(bookId: id), doc, ai: ai, pack: pack));
+    await t.pumpWidget(wrap(ReaderPage(bookId: id), doc, ai: ai));
     await step(t, times: 4);
     // 段落空隙带点 chrome（段内长按才是划词，点按只走 body 分派）。
     final r = t.getRect(find.byKey(const ValueKey('brpTap-0-2')));
@@ -342,14 +341,11 @@ void main() {
         'ai.master': true,
         'ai.caps': '{"read.quote_insight":true}',
       });
-      final pack = AiPromptPack.decode(
-          File('assets/ai_prompts/prompts.json').readAsStringSync());
       var hits = 0;
       await openReader(
         t,
         _doc(),
         's9',
-        pack: pack,
         ai: AiClient(
           client: MockClient((req) async {
             hits++;
