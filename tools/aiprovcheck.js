@@ -124,6 +124,15 @@ const ROWS = "[].map.call(document.querySelectorAll('#aiProvList > div'),functio
   (errs.length === 0 && leak.length === 0)
     ? ok('P10 零 JS 异常 · 无 undefined/NaN/[object Object] 泄漏', errs.join('|')) : bad('P10', errs.join('|') + ' leak=' + leak);
 
+  /* P11 正常导航路径下的整页截图（navTo 走栈，与真人点开一致） */
+  await ev(`navTo('p-sub-ai');return 1;`); await wait(500);
+  await shot('aip-page-full');
+  const p11 = await ev(`var el=document.getElementById('p-sub-ai');
+    return {w:Math.round(el.getBoundingClientRect().width),rows:document.querySelectorAll('#aiProvList > div').length,
+      inMain:!!el.closest('main')};`);
+  (p11.w > 380 && p11.rows === 4 && p11.inMain)
+    ? ok('P11 正常导航下 AI 增强页版式完好（宽 ' + p11.w + 'px · 服务商 4 行）', JSON.stringify(p11)) : bad('P11', JSON.stringify(p11));
+
   await shot('aip-final');
   finish();
   try { chrome.kill('SIGKILL') } catch (e) { }
