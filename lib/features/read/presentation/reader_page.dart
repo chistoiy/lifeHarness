@@ -133,6 +133,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   // chrome / 反馈
   bool _chrome = false;
+  // V1.53 轮3：底栏内嵌面板（0 无 · 1 进度 · 2 亮度 · 3 字号，互斥）。
+  int _panel = 0;
+  // 「返回原进度」胶囊：进书位置为锚，拖进度离开才现（原型 brBackPos）。
+  ({int ci, int pg})? _homePos;
+  bool _backPill = false;
   String? _flash;
   Timer? _flashT;
   int _sessSecs = 0;
@@ -244,6 +249,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _cfg = _cfg.copyWith(bright: true);
     }
     _pos = _Pos.decode(await fPos);
+    _homePos = (ci: _pos.ci, pg: _pos.pg);
+    _backPill = false;
     // 划线同库数据（批3）：同步开关 + 本书划线行 + brSync 关时暂存。
     _brSync = await fSync != 'false';
     _localHl = _LocalHl.decodeAll(await fHl);
@@ -416,11 +423,104 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final pag = _pag;
     if (pag == null) return;
     final p = pag.gPosTo(g);
+    final h = _homePos;
     setState(() {
       _pos.ci = p.ci;
       _pos.pg = p.pg;
+      _backPill = h != null && (h.ci != p.ci || h.pg != p.pg);
     });
     _savePos();
+  }
+
+  void _goHome() {
+    final h = _homePos;
+    if (h == null) return;
+    setState(() {
+      _pos.ci = h.ci;
+      _pos.pg = h.pg;
+      _backPill = false;
+    });
+    _savePos();
+    _showFlash('已返回原进度');
+  }
+
+  // ---------- V1.53 轮3 · 底栏三面板（进度/亮度/字号·互斥·即时应用写逐书补丁） ----------
+
+  void _togglePanel(int k) => setState(() => _panel = _panel == k ? 0 : k);
+
+  void _closePanels() => _panel = 0;
+
+  /// 亮度＝页面遮罩（不动系统设置）；逐书补丁持久，不进分页指纹。
+  void _setLum(int v) {
+    setState(() => _cfg = _cfg.copyWith(lum: v.clamp(30, 100)));
+    unawaited(_persistPatch({'lum': _cfg.lum}));
+  }
+
+  void _setFs(double v) {
+    setState(() => _cfg = _cfg.copyWith(fs: v.clamp(14, 30)));
+    _rebuildPagChapterFirst();
+    unawaited(_persistPatch({'fs': _cfg.fs}));
+  }
+
+  void _nudgeMar(int d) {
+    setState(() => _cfg = _cfg.copyWith(mar: (_cfg.mar + d * 4).clamp(8, 40)));
+    _rebuildPagChapterFirst();
+    unawaited(_persistPatch({'mar': _cfg.mar}));
+    _showFlash('边距 · ${brMarLabel(_cfg.mar)}');
+  }
+
+  void _nudgeLh(int d) {
+    setState(
+      () => _cfg = _cfg.copyWith(
+        lh: (_cfg.lh + d * 0.1).clamp(1.3, 2.4),
+      ),
+    );
+    _rebuildPagChapterFirst();
+    unawaited(_persistPatch({'lh': _cfg.lh}));
+    _showFlash('行距 · ${_cfg.lh.toStringAsFixed(1)}');
+  }
+
+  void _toggleIndent() {
+    setState(() => _cfg = _cfg.copyWith(indent: !_cfg.indent));
+    _rebuildPagChapterFirst();
+    unawaited(_persistPatch({'indent': _cfg.indent}));
+    _showFlash(_cfg.indent ? '首行缩进 · 开' : '首行缩进 · 关');
+  }
+
+  /// 亮度面板「颜色」四档：前三＝主题直选（写全局，同 _cycleTheme 口径），
+  /// 第四＝自定义走外观草稿面板。
+  void _pickTheme(String key) {
+    final t = kBrThemes[key];
+    if (t == null) return;
+    setState(() {
+      _global = _global.copyWith(
+        theme: key,
+        bg: '#${(t.$2.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+        fg: '#${(t.$3.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+      );
+      _applyMerged();
+    });
+    unawaited(_persistGlobal());
+    _rebuildPagChapterFirst();
+    _showFlash('颜色 · ${t.$1}');
+  }
+
+  /// 背景预设＝逐书 custom 底色（字色保持当前，预设全为浅色底）。
+  void _pickBg(String hex) {
+    setState(() => _cfg = _cfg.copyWith(theme: 'custom', bg: hex));
+    unawaited(_persistPatch({'theme': 'custom', 'bg': hex}));
+    _showFlash('背景已切换');
+  }
+
+  void _toggleAutoQuick() {
+    final on = !_cfg.auto;
+    setState(() => _cfg = _cfg.copyWith(auto: on));
+    unawaited(_persistPatch({'auto': on}));
+    _syncAuto();
+    readToast(
+      context,
+      on ? '自动翻页已开启 · ${_cfg.autoSecs} 秒/页 · 间隔可在外观面板调整' : '自动翻页已关闭',
+    );
   }
 
   void _scrollToPara(int ci, int pi) {
@@ -457,8 +557,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     ].join('\n');
   }
 
-  /// 真机反馈（2026-09-28）：中区点按几乎必命中段落识别器，工具条永远关不掉
-  /// ——同段再点＝收起；点其它段落＝移动选区（原型 brSelHide 语义的移动端补齐）。
+  /// 真机反馈（2026-09-28）+ V1.53 轮3：长按段子弹工具条；同段再长按＝收起
+  /// （点其它段落＝移动选区）。点按已不落到这里（冒泡 body 层收放 chrome）。
   void _selectPara(int ci, int pi) => setState(() {
     final s = _sel;
     if (s != null && s.ci == ci && s.p0 == pi && s.p1 == pi) {
@@ -764,14 +864,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   void _applyMerged() => _cfg = ReaderCfg.mergePatch(_global, _bookPatch);
 
-  /// 原型 brFsNudge：字号写逐书补丁（只覆盖 fs）。
-  void _nudgeFont(int d) {
-    final fs = (_cfg.fs + d).clamp(14.0, 30.0);
-    setState(() => _cfg = _cfg.copyWith(fs: fs));
-    _rebuildPagChapterFirst();
-    unawaited(_persistPatch({'fs': fs}));
-  }
-
   /// 原型 brThemeCycle：主题循环写全局（custom 回落日间起步）。
   void _cycleTheme() {
     final i = kBrThemeOrder.indexOf(_cfg.theme);
@@ -990,6 +1082,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     ls: _cfg.ls,
     mar: _cfg.mar,
     font: _cfg.font,
+    indent: _cfg.indent,
   );
 
   // ---------- 链接/图片 ----------
@@ -1256,7 +1349,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               if (_sel != null) {
                 _clearSel();
               } else {
-                setState(() => _chrome = !_chrome);
+                setState(() {
+                  _chrome = !_chrome;
+                  if (!_chrome) _panel = 0;
+                });
               }
               return;
             }
@@ -1321,11 +1417,54 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       ),
                     ],
                     Positioned.fill(child: _stage(th)),
+                    // 亮度遮罩（V1.53 轮3：模拟系统亮度，只压正文不压 chrome）。
+                    if (_cfg.lum < 100)
+                      Positioned.fill(
+                        key: const ValueKey('brLumMask'),
+                        child: IgnorePointer(
+                          child: ColoredBox(
+                            color: Colors.black.withValues(
+                              alpha: (100 - _cfg.lum) / 100 * .55,
+                            ),
+                          ),
+                        ),
+                      ),
                     if (_doc != null && _err == null) ...[
                       if (_chrome) _topBar(th),
                       if (_chrome && _pag != null) _bottomBar(th, size),
                       if (_flash != null) _flashBar(th),
                       if (_sel != null) _selOverlay(size),
+                      // 「返回原进度」胶囊（参考图4）：拖进度离开原位置后出现。
+                      if (_backPill && _sel == null)
+                        Positioned(
+                          bottom: 96,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: GestureDetector(
+                              key: const ValueKey('brBackPos'),
+                              onTap: _goHome,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xDB0F172A),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  '‹ 返回原进度',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                     if (_drawerOpen && _doc != null && _pag != null)
                       ReaderTocDrawer(
@@ -1490,10 +1629,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       child: Container(
         key: const ValueKey('br-bottom'),
         color: const Color(0xDB0F172A),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // V1.53 轮3（参考图1~3）：面板区在底栏上方内嵌展开，互斥。
+            if (_panel == 1) _pnlProg(pag, total, gp),
+            if (_panel == 2) _pnlBright(),
+            if (_panel == 3) _pnlFont(),
             Row(
               children: [
                 Flexible(
@@ -1519,56 +1662,54 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 ),
               ],
             ),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 3,
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-              ),
-              child: Slider(
-                key: const ValueKey('brProg'),
-                value: gp.toDouble()
-                    .clamp(0.0, (total - 1).toDouble())
-                    .toDouble(),
-                min: 0,
-                max: (total - 1)
-                    .toDouble()
-                    .clamp(1.0, (1 << 30).toDouble())
-                    .toDouble(),
-                onChanged: (v) => _seek(v.round()),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _chromeBtn('brBtnToc', '目录', () => setState(() => _drawerOpen = true)),
-                // 窄屏五钮并排放不下时整体缩放（不换行、不溢出）。
-                Flexible(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerRight,
-                    child: Row(
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _brIconBtn('brBtnToc', '目录', const Icon(Icons.menu_rounded, size: 19), false, () {
+                    _closePanels();
+                    setState(() => _drawerOpen = true);
+                  }),
+                  _brIconBtn(
+                    'brBtnTheme',
+                    '主题',
+                    const Icon(Icons.eco_outlined, size: 19),
+                    false,
+                    _cycleTheme,
+                  ),
+                  _brIconBtn(
+                    'brBtnProg',
+                    '进度',
+                    const Icon(Icons.tune_rounded, size: 19),
+                    _panel == 1,
+                    () => _togglePanel(1),
+                  ),
+                  _brIconBtn(
+                    'brBtnBright',
+                    '亮度',
+                    const Icon(Icons.light_mode_outlined, size: 19),
+                    _panel == 2,
+                    () => _togglePanel(2),
+                  ),
+                  _brIconBtn(
+                    'brBtnFont',
+                    '字号',
+                    // 大小双 A（原型底栏「Aᴀ 字号」字形）。
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
-                        _chromeBtn('brBtnA-', 'A-', () => _nudgeFont(-1)),
-                        const SizedBox(width: 6),
-                        _chromeBtn('brBtnA+', 'A+', () => _nudgeFont(1)),
-                        const SizedBox(width: 6),
-                        _chromeBtn(
-                          'brBtnTheme',
-                          _cfg.theme == 'custom'
-                              ? '自定义'
-                              : (kBrThemes[_cfg.theme] ?? kBrThemes['day']!).$1,
-                          _cycleTheme,
-                        ),
-                        const SizedBox(width: 6),
-                        _chromeBtn('brBtnMode', _cfg.mode == 'page' ? '滚动' : '翻页', _toggleMode),
-                        const SizedBox(width: 6),
-                        // 批4：外观草稿制面板入口（原型八宫格「外观」同语义）。
-                        _chromeBtn('brBtnAp', '外观', _openAppearance),
+                        Text('A', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2)),
+                        Text('A', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, height: 1.2)),
                       ],
                     ),
+                    _panel == 3,
+                    () => _togglePanel(3),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1576,19 +1717,391 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  Widget _chromeBtn(String key, String label, VoidCallback onTap) {
+  Widget _brIconBtn(
+    String key,
+    String label,
+    Widget icon,
+    bool active,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       key: ValueKey(key),
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withValues(alpha: .14) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconTheme.merge(
+              data: IconThemeData(
+                color: active ? const Color(0xFFA5B4FC) : Colors.white,
+              ),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(
+                  color: active ? const Color(0xFFA5B4FC) : Colors.white,
+                ),
+                child: icon,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+                color: active ? const Color(0xFFA5B4FC) : Colors.white70,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  /// 进度面板（参考图1）：统计三格 + 进度滑条（上次读到这里）+ 阅读明细/开启自动翻页。
+  Widget _pnlProg(BookPagination pag, int total, int gp) {
+    final pct = pag.pct(_pos.ci, _pos.pg);
+    final left = (total - gp - 1).clamp(0, 1 << 30);
+    final etaMin = left * 45 ~/ 60;
+    final eta = pct >= 100
+        ? '已读完'
+        : pct <= 0
+        ? '刚开始读'
+        : etaMin >= 60
+        ? '约${(etaMin / 60).ceil()}小时后读完'
+        : '约${etaMin < 1 ? 1 : etaMin}分钟后读完';
+    Widget stat(String key, String big, String unit, String sub) => Expanded(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                big,
+                key: ValueKey(key),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                unit,
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(sub, style: const TextStyle(fontSize: 8, color: Colors.white54)),
+        ],
+      ),
+    );
+    Widget sep() => Container(width: 1, height: 26, color: Colors.white12);
+    return Padding(
+      key: const ValueKey('brPnlProg'),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              stat('brStPct', '$pct', '%', eta),
+              sep(),
+              stat('brStMin', '${(_sessSecs / 60).ceil()}', '分钟', '阅读时长'),
+              sep(),
+              stat('brStNote', '${_hlQuotes.length}', '条', '笔记'),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 3,
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            ),
+            child: Slider(
+              key: const ValueKey('brProg'),
+              value: gp.toDouble().clamp(0.0, (total - 1).toDouble()),
+              min: 0,
+              max: (total - 1).toDouble().clamp(1.0, (1 << 30).toDouble()),
+              onChanged: (v) => _seek(v.round()),
+            ),
+          ),
+          const Text(
+            '上次读到这里',
+            style: TextStyle(fontSize: 8, color: Colors.white54),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _pnlBtn('brPpDetail', '阅读明细', () {
+                    _closePanels();
+                    Navigator.of(context).pushNamed('/read/log/${widget.bookId}');
+                  }),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _pnlBtn(
+                    'brPpAuto',
+                    _cfg.auto ? '暂停自动翻页' : '开启自动翻页',
+                    _toggleAutoQuick,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _pnlBtn(String key, String label, VoidCallback onTap) => GestureDetector(
+    key: ValueKey(key),
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+      ),
+    ),
+  );
+
+  /// 亮度面板（参考图2）：亮度滑条 + 颜色 4 档 + 背景 5 缩略图。
+  Widget _pnlBright() {
+    Widget swatch(String key, String label, Color bg, Color fg, bool on, VoidCallback onTap) => GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 32,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: on ? const Color(0xFF6366F1) : Colors.white12, width: 2),
+        ),
+        alignment: Alignment.center,
+        child: label == '夜间'
+            ? const Icon(Icons.nightlight_round, size: 13, color: Color(0xFF60A5FA))
+            : Text(
+                label,
+                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: fg),
+              ),
+      ),
+    );
+    return Padding(
+      key: const ValueKey('brPnlBright'),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.light_mode_outlined, size: 14, color: Colors.white70),
+              Expanded(
+                child: Slider(
+                  key: const ValueKey('brLum'),
+                  value: _cfg.lum.toDouble().clamp(30, 100),
+                  min: 30,
+                  max: 100,
+                  onChanged: (v) => _setLum(v.round()),
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 4),
+            child: Text('颜色', style: TextStyle(fontSize: 8, color: Colors.white54)),
+          ),
+          Row(
+            children: [
+              for (final k in kBrThemeOrder) ...[
+                swatch(
+                  'brBt-$k',
+                  kBrThemes[k]!.$1,
+                  kBrThemes[k]!.$2,
+                  kBrThemes[k]!.$3,
+                  _cfg.theme == k,
+                  () => _pickTheme(k),
+                ),
+                const SizedBox(width: 8),
+              ],
+              GestureDetector(
+                key: const ValueKey('brBt-custom'),
+                onTap: _openAppearance,
+                child: Container(
+                  width: 52,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _cfg.theme == 'custom' ? const Color(0xFF6366F1) : Colors.white12,
+                      width: 2,
+                    ),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFCA5A5), Color(0xFFFCD34D), Color(0xFF86EFAC), Color(0xFF93C5FD)],
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text('自定义', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Color(0xFF334155))),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, top: 10, bottom: 4),
+            child: Text('背景', style: TextStyle(fontSize: 8, color: Colors.white54)),
+          ),
+          Row(
+            children: [
+              for (var i = 0; i < kBrBgs.length; i++) ...[
+                GestureDetector(
+                  key: ValueKey('brBg-$i'),
+                  onTap: () => _pickBg(kBrBgs[i]),
+                  child: Container(
+                    width: 42,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Color(0xFF000000 | int.parse(kBrBgs[i].substring(1), radix: 16)),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _cfg.theme == 'custom' && _cfg.bg == kBrBgs[i]
+                            ? const Color(0xFF6366F1)
+                            : Colors.white12,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+          const SizedBox(height: 2),
+        ],
+      ),
+    );
+  }
+
+  /// 字号面板（参考图3）：字号滑条 + 边距/行距微调 + 三 chip。
+  Widget _pnlFont() {
+    Widget stepper(String key, String label) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .10),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Text(_sideLabel(key, 'a'), style: const TextStyle(fontSize: 8, color: Colors.white54)),
+            _stepBtn('${key}Down', Icons.chevron_left_rounded, () => _stepNudge(key, -1)),
+            Expanded(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+            ),
+            _stepBtn('${key}Up', Icons.chevron_right_rounded, () => _stepNudge(key, 1)),
+            Text(_sideLabel(key, 'b'), style: const TextStyle(fontSize: 8, color: Colors.white54)),
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      key: const ValueKey('brPnlFont'),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Text('A', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white70)),
+              Expanded(
+                child: Slider(
+                  key: const ValueKey('brFsSl'),
+                  value: _cfg.fs.clamp(14, 30),
+                  min: 14,
+                  max: 30,
+                  divisions: 16,
+                  onChanged: _setFs,
+                ),
+              ),
+              Text(
+                _cfg.fs.round().toString(),
+                key: const ValueKey('brFsNum'),
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+              const Text('A', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white70)),
+            ],
+          ),
+          Row(
+            children: [
+              stepper('brMar', '边距'),
+              const SizedBox(width: 8),
+              stepper('brLh', '行距'),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Expanded(child: _pnlBtn('brPfFont', '字体样式 ›', _openAppearance)),
+                const SizedBox(width: 8),
+                Expanded(child: _pnlBtn('brPfIndent', '首行缩进 · ${_cfg.indent ? '开' : '关'} ›', _toggleIndent)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _pnlBtn('brPfMode', '翻页方式 · ${_cfg.mode == 'page' ? '翻页' : '滚动'} ›', _toggleMode),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+        ],
+      ),
+    );
+  }
+
+  String _sideLabel(String key, String side) => key == 'brMar'
+      ? (side == 'a' ? '小' : '大')
+      : (side == 'a' ? '紧' : '松');
+
+  void _stepNudge(String key, int dir) {
+    if (key == 'brMar') {
+      _nudgeMar(dir);
+    } else {
+      _nudgeLh(dir);
+    }
+  }
+
+  Widget _stepBtn(String key, IconData icon, VoidCallback onTap) => GestureDetector(
+    key: ValueKey(key),
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(4),
+      child: Icon(icon, size: 13, color: Colors.white70),
+    ),
+  );
 
   Widget _flashBar((String, Color, Color) th) {
     return Positioned(
@@ -1799,15 +2312,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                   chip('brGrowL', '前扩', Icons.chevron_left_rounded, () => _growSel(-1), accent: true),
                   chip('brSelCopy', '复制', Icons.copy_rounded, _actCopy),
                   chip('brSelHl', '划线', Icons.format_color_text_rounded, () => setState(() => _hlPop = !_hlPop)),
+                  chip('brSelThink', '写想法', Icons.edit_outlined, () => _actQuote(true)),
                   chip('brSelQuote', '书摘', Icons.note_alt_outlined, () => _actQuote(false)),
-                  chip('brSelThink', '感想', Icons.edit_outlined, () => _actQuote(true)),
+                  chip('brSelDict', '查询', Icons.search_rounded, _actDict),
+                  // 听当前＝TTS：按拍板延后，入口先占位提示。
+                  chip(
+                    'brSelTts',
+                    '听当前',
+                    Icons.volume_up_rounded,
+                    () => readToast(context, '朗读能力规划中 · 暂未上线'),
+                  ),
                   chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, _actAi),
-                  chip('brSelDict', '词典', Icons.book_outlined, _actDict),
                   chip('brSelShare', '分享', Icons.ios_share, _actShare),
                   chip('brGrowR', '后扩', Icons.chevron_right_rounded, () => _growSel(1), accent: true),
                 ],
               ),
             ),
+          ),
+          // 指向气泡（参考图4：工具条下沿小三角指向选中段落方向）。
+          CustomPaint(
+            size: const Size(16, 8),
+            painter: const _BrTriPainter(dark),
           ),
         ],
       ),
@@ -1824,7 +2349,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     Widget wrap(Widget child) => GestureDetector(
       key: ValueKey('brpTap-$ci-$pi'),
       behavior: HitTestBehavior.translucent,
-      onTap: () => _selectPara(ci, pi),
+      // V1.53 轮3（参考图4）：长按选中段落才弹摘抄工具条；
+      // 点按不再命中这里 → 冒泡到 body 层分派（收放 chrome / 清选区）。
+      onLongPress: () => _selectPara(ci, pi),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
         decoration: hl == null && !inSel
@@ -1965,7 +2492,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       fontFamily: _cfg.fontFamily,
       color: th.$3,
     );
-    final display = paraDisplayText(p);
+    final display = paraDisplayText(p, indent: _cfg.indent);
+    // 段首缩进 2 全角空格＝2 显示偏移；关掉缩进则链接/命中偏移回落 0。
+    final ind = p.kind == EpubParaKind.text && _cfg.indent ? 2 : 0;
     final linkStyle = base.copyWith(
       color: const Color(0xFF6366F1),
       decoration: TextDecoration.underline,
@@ -1975,16 +2504,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       backgroundColor: const Color(0xFF6366F1).withValues(alpha: .28),
     );
     final children = <InlineSpan>[];
-    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +2 缩进）。
+    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）。
     final events = <(int, int, EpubLink?)>[
       for (final l in p.links) ...[
-        (l.start + 2, 0, l),
-        (l.end + 2, 1, l),
+        (l.start + ind, 0, l),
+        (l.end + ind, 1, l),
       ],
       if (hit && _hitQ.isNotEmpty) ...[
         for (var idx = p.text.indexOf(_hitQ); idx >= 0; idx = p.text.indexOf(_hitQ, idx + 1)) ...[
-          (idx + 2, 2, null),
-          (idx + 2 + _hitQ.length, 3, null),
+          (idx + ind, 2, null),
+          (idx + ind + _hitQ.length, 3, null),
         ],
       ],
     ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
@@ -2000,7 +2529,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       }
       final style = inLink > 0 ? linkStyle : (inMark > 0 ? markStyle : base);
       final link = p.links.firstWhere(
-        (l) => l.start + 2 == cursor || (cursor >= l.start + 2 && cursor < l.end + 2),
+        (l) => l.start + ind == cursor || (cursor >= l.start + ind && cursor < l.end + ind),
         orElse: () => EpubLink(start: -1, end: -1, href: '', external: false),
       );
       children.add(
@@ -2032,9 +2561,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 }
 
+/// 选区工具条下沿指向小三角（参考图4 气泡尖）。
+class _BrTriPainter extends CustomPainter {
+  const _BrTriPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(p, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrTriPainter old) => old.color != color;
+}
+
 /// AI 解读弹层（原型 sheetBrAi）：门控→请求→展示 insight；可复制/填想法。
-class _BrAiSheet extends ConsumerStatefulWidget {
-  const _BrAiSheet({
+class _BrAiSheet extends ConsumerStatefulWidget {  const _BrAiSheet({
     required this.bookId,
     required this.quote,
     required this.book,

@@ -35,7 +35,7 @@ class PagStore {
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   static String fingerprint(ReaderLayout l) =>
       '${l.width.round()}x${l.height.round()}|fs${l.fs}|lh${l.lh}|ls${l.ls}'
-      '|mar${l.mar}|fnt${l.font}';
+      '|mar${l.mar}|fnt${l.font}|ind${l.indent ? 1 : 0}';
 
   static String dirPath(String docsPath) => p.join(docsPath, 'epub_pag');
 

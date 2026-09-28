@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../data/epub_cache.dart';
 import '../data/epub_doc.dart';
 import '../domain/book.dart';
+import '../domain/reader_cfg.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
 import 'reader_pager.dart';
@@ -18,19 +18,19 @@ import 'reader_search_page.dart' show ReaderSearchPage;
 /// 预载启动器。事实源 `prototype/index-bookshelf.html` 批3.5 增量
 /// （?br35=pre/frozen/cl/detail/lost 五演示态）。
 
-/// 预载布局基准：与阅读主屏同构（全屏视口 + reader.cfg 外观值）。
+/// 预载布局基准：与阅读主屏同构（全屏视口 + reader.cfg 外观值·V1.53 起含 font/indent）。
 ReaderLayout brPreloadLayout(String? cfgJson, Size vp) {
-  double fs = 19, lh = 1.62, ls = 0.4, mar = 22;
-  try {
-    final v = cfgJson == null ? null : jsonDecode(cfgJson);
-    if (v is Map) {
-      fs = (v['fs'] as num?)?.toDouble() ?? fs;
-      lh = (v['lh'] as num?)?.toDouble() ?? lh;
-      ls = (v['ls'] as num?)?.toDouble() ?? ls;
-      mar = (v['mar'] as num?)?.toDouble() ?? mar;
-    }
-  } catch (_) {}
-  return ReaderLayout(width: vp.width, height: vp.height, fs: fs, lh: lh, ls: ls, mar: mar);
+  final c = ReaderCfg.decode(cfgJson);
+  return ReaderLayout(
+    width: vp.width,
+    height: vp.height,
+    fs: c.fs,
+    lh: c.lh,
+    ls: c.ls,
+    mar: c.mar,
+    font: c.font,
+    indent: c.indent,
+  );
 }
 
 /// MB 展示（一位小数 · 原型「约释放 N MB」口径）。

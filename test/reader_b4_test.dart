@@ -147,11 +147,18 @@ void main() {
   String pgLbl(WidgetTester t) =>
       t.widget<Text>(find.byKey(const ValueKey('brPgLbl'))).data ?? '';
 
+  // V1.53 轮3：外观草稿面板入口移入字号面板「字体样式 ›」chip。
+  Future<void> openAp(WidgetTester t) async {
+    await t.tap(find.byKey(const ValueKey('brBtnFont')));
+    await step(t);
+    await t.tap(find.byKey(const ValueKey('brPfFont')));
+    await step(t, times: 2);
+  }
+
   group('批4-A · 外观草稿制面板', () {
     testWidgets('外观钮开面板；滑字号→保存应用写逐书补丁并即时生效', (t) async {
       await openReader(t, 'b1');
-      await t.tap(find.byKey(const ValueKey('brBtnAp')));
-      await step(t, times: 2);
+      await openAp(t);
       expect(find.byKey(const ValueKey('sheetBrAppearance')), findsOne);
       expect(find.byKey(const ValueKey('brApPrev')), findsOne);
       // 字号滑到最大：点轨道右端（divisions 16 → 29/30 均达标）。
@@ -172,8 +179,7 @@ void main() {
 
     testWidgets('取消＝丢弃草稿，不落逐书键', (t) async {
       await openReader(t, 'b2');
-      await t.tap(find.byKey(const ValueKey('brBtnAp')));
-      await step(t, times: 2);
+      await openAp(t);
       final rect = t.getRect(find.byKey(const ValueKey('brApLhSlider')));
       await t.tapAt(Offset(rect.left + 6, rect.center.dy));
       await step(t);
@@ -182,13 +188,15 @@ void main() {
       expect(await repo.kv('reader.cfg.b2'), isNull);
     });
 
-    testWidgets('A± 写逐书补丁；主题循环写全局（原型 brFsNudge/brThemeCycle）', (t) async {
+    testWidgets('字号滑条写逐书补丁；主题循环写全局（原型 brFsSl/brThemeCycle）', (t) async {
       await openReader(t, 'b3');
-      await t.tap(find.byKey(const ValueKey('brBtnA+')));
+      await t.tap(find.byKey(const ValueKey('brBtnFont')));
+      await step(t);
+      await t.drag(find.byKey(const ValueKey('brFsSl')), const Offset(60, 0));
       await step(t, times: 2);
       final patch =
           jsonDecode((await repo.kv('reader.cfg.b3'))!) as Map;
-      expect(patch['fs'], 20);
+      expect((patch['fs'] as num) > 19, isTrue);
       await t.tap(find.byKey(const ValueKey('brBtnTheme')));
       await step(t, times: 2);
       final g = jsonDecode((await repo.kv('reader.cfg'))!) as Map;
@@ -198,8 +206,7 @@ void main() {
     testWidgets('自动翻页：开关弹间隔滚轮→保存后按秒推进页码', (t) async {
       await openReader(t, 'b4');
       final before = pgLbl(t);
-      await t.tap(find.byKey(const ValueKey('brBtnAp')));
-      await step(t, times: 2);
+      await openAp(t);
       await t.scrollUntilVisible(
         find.byKey(const ValueKey('brApAuto')),
         150,
@@ -228,8 +235,7 @@ void main() {
     testWidgets('设置组 read.brBright=true → 面板常亮开关预开', (t) async {
       await repo.setKv('read.brBright', 'true');
       await openReader(t, 'b5');
-      await t.tap(find.byKey(const ValueKey('brBtnAp')));
-      await step(t, times: 2);
+      await openAp(t);
       await t.scrollUntilVisible(
         find.byKey(const ValueKey('brApBright')),
         150,
@@ -325,8 +331,8 @@ void main() {
     });
   });
 
-  group('真机修 · 划词工具条收起（2026-09-28 反馈③）', () {
-    testWidgets('点段落弹工具条；再点同段收起', (t) async {
+  group('真机修 · 划词工具条收起（2026-09-28 反馈③ · V1.53 轮3 长按化）', () {
+    testWidgets('长按段落弹工具条；点按同段收起', (t) async {
       await useSurface(t, const Size(420, 780));
       await addBook('b6');
       await t.pumpWidget(
@@ -337,9 +343,14 @@ void main() {
       );
       await step(t, times: 4);
       final para = find.byKey(const ValueKey('brpTap-0-1'));
-      await t.tap(para);
+      await t.longPress(para);
       await step(t);
       expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+      // 点按（含段落上）冒泡到 body 分派：有选区先清选区，工具条收起。
+      await t.tap(para);
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsNothing);
+      // 点按不再划词：无选区时同一点按改为收放 chrome。
       await t.tap(para);
       await step(t);
       expect(find.byKey(const ValueKey('brSelBar')), findsNothing);

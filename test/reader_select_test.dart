@@ -107,7 +107,7 @@ void main() {
     ));
     await t.pumpWidget(wrap(ReaderPage(bookId: id), doc));
     await step(t, times: 4);
-    // 段落空隙带点 chrome（段内点按现在是划词，不能用来开菜单）。
+    // 段落空隙带点 chrome（段内长按才是划词，点按只走 body 分派）。
     final r = t.getRect(find.byKey(const ValueKey('brpTap-0-2')));
     await t.tapAt(Offset(210, r.bottom + 5));
     await step(t);
@@ -115,13 +115,14 @@ void main() {
   }
 
   Future<void> selectPara(WidgetTester t, String key) async {
-    await t.tap(find.byKey(ValueKey(key)));
+    // V1.53 轮3：长按段落下摘抄工具条（点按已改为冒泡收放 chrome）。
+    await t.longPress(find.byKey(ValueKey(key)));
     await step(t);
     expect(find.byKey(const ValueKey('brSelBar')), findsOne);
   }
 
   group('批3-S · 选区与浮条', () {
-    testWidgets('点段落出浮条 · 点空隙收选区不误翻页', (t) async {
+    testWidgets('长按段落出浮条 · 点空隙收选区不误翻页', (t) async {
       await openReader(t, _doc(), 's1');
       await selectPara(t, 'brpTap-0-3');
       for (final k in ['brGrowL', 'brSelCopy', 'brSelHl', 'brSelQuote', 'brSelThink', 'brSelAi', 'brSelDict', 'brSelShare', 'brGrowR']) {

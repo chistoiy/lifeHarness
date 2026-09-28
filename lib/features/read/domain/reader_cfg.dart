@@ -20,6 +20,8 @@ class ReaderCfg {
     this.bright = false,
     this.auto = false,
     this.autoSecs = 10,
+    this.lum = 100,
+    this.indent = true,
   });
 
   final double fs, lh, ls, mar;
@@ -42,6 +44,12 @@ class ReaderCfg {
   /// 自动翻页 + 间隔秒（kBrAutos 档位）。
   final bool auto;
   final int autoSecs;
+
+  /// 亮度遮罩百分比（30~100；100＝不遮挡，越低越暗）。
+  final int lum;
+
+  /// 首行缩进（原型 .brp text-indent:2em；关掉则段首不缩进）。
+  final bool indent;
 
   static const defaults = ReaderCfg();
 
@@ -79,6 +87,8 @@ class ReaderCfg {
       bright: m['bright'] == true,
       auto: m['auto'] == true,
       autoSecs: (m['autoSecs'] as num?)?.toInt() ?? 10,
+      lum: ((m['lum'] as num?)?.toInt() ?? 100).clamp(30, 100),
+      indent: m['indent'] != false,
     );
   }
 
@@ -99,6 +109,8 @@ class ReaderCfg {
     'bright': bright,
     'auto': auto,
     'autoSecs': autoSecs,
+    'lum': lum,
+    'indent': indent,
   };
 
   String encode() => jsonEncode(toMap());
@@ -116,6 +128,8 @@ class ReaderCfg {
     bool? bright,
     bool? auto,
     int? autoSecs,
+    int? lum,
+    bool? indent,
   }) => ReaderCfg(
     fs: fs ?? this.fs,
     lh: lh ?? this.lh,
@@ -129,6 +143,8 @@ class ReaderCfg {
     bright: bright ?? this.bright,
     auto: auto ?? this.auto,
     autoSecs: autoSecs ?? this.autoSecs,
+    lum: lum ?? this.lum,
+    indent: indent ?? this.indent,
   );
 
   Color get bgColor => _parseHex(bg, const Color(0xFFFAF6EE));
@@ -159,6 +175,9 @@ const kBrThemes = {
   'night': ('夜间', Color(0xFF101317), Color(0xFF9AA4B0)),
 };
 const kBrThemeOrder = ['day', 'eye', 'night'];
+
+/// 背景预设（V1.53 轮3 参考图2「背景」5 缩略图；选中即 custom 底色）。
+const kBrBgs = ['#faf6ee', '#f5edda', '#f2f3f5', '#f6e7d3', '#dfe8f4'];
 
 /// 字体（原型 BR_FONTS：系统字体 · 可扩展下载控制包体积）。
 const kBrFonts = {

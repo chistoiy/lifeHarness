@@ -13,12 +13,16 @@ class ReaderLayout {
     this.ls = 0.4,
     this.mar = 22,
     this.font = 'system',
+    this.indent = true,
   });
 
   /// 舞台可视宽高（翻页模式内容盒）。
   final double width, height;
   final double fs, lh, ls, mar;
   final String font;
+
+  /// 首行缩进开关（V1.53 轮3 字号面板；影响测量与渲染，必须进分页指纹）。
+  final bool indent;
 
   double get contentW => (width - mar * 2).clamp(80.0, 10000.0);
 
@@ -46,6 +50,7 @@ class ReaderLayout {
     double? ls,
     double? mar,
     String? font,
+    bool? indent,
   }) => ReaderLayout(
     width: width,
     height: height,
@@ -54,14 +59,15 @@ class ReaderLayout {
     ls: ls ?? this.ls,
     mar: mar ?? this.mar,
     font: font ?? this.font,
+    indent: indent ?? this.indent,
   );
 }
 
 /// 段首缩进 2em（原型 .brp text-indent:2em；两个全角空格的实测宽度恰为 2em）。
 const String kParaIndent = '\u3000\u3000';
 
-String paraDisplayText(EpubPara p) =>
-    p.kind == EpubParaKind.text ? '$kParaIndent${p.text}' : p.text;
+String paraDisplayText(EpubPara p, {bool indent = true}) =>
+    p.kind == EpubParaKind.text && indent ? '$kParaIndent${p.text}' : p.text;
 
 /// 分页引擎：TextPainter 真实测量（字号/行距/字距/边距变化 → 页数即时重排），
 /// 非字符数估算（V1.50 硬约束「分页引擎实算」）。
@@ -72,7 +78,7 @@ class EpubPager {
   static double paraHeight(EpubPara p, ReaderLayout l) {
     if (p.kind == EpubParaKind.image) return 190;
     final tp = TextPainter(
-      text: TextSpan(text: paraDisplayText(p), style: l.base),
+      text: TextSpan(text: paraDisplayText(p, indent: l.indent), style: l.base),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: l.contentW);
     final gap = p.kind == EpubParaKind.heading

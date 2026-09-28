@@ -163,32 +163,33 @@ void main() {
       expect(pgLbl(t).$1, 2); // 仍在第一章
     });
 
-    testWidgets('A+/A- 重排：总页数随字号变化（实算非估算）', (t) async {
+    testWidgets('字号滑条重排：总页数随字号变化（实算非估算 · V1.53 面板）', (t) async {
       await openReader(t, _bigDoc(), 'u2');
       await showChrome(t);
+      await t.tap(find.byKey(const ValueKey('brBtnFont')));
+      await step(t);
       final before = pgLbl(t).$4;
-      for (var i = 0; i < 6; i++) {
-        await t.tap(find.byKey(const ValueKey('brBtnA+')));
-        await step(t);
-      }
+      // 点轨道右端＝字号拉满（页数增）；点左端＝缩回（页数减）。
+      final sr = t.getRect(find.byKey(const ValueKey('brFsSl')));
+      await t.tapAt(Offset(sr.right - 4, sr.center.dy));
+      await step(t, ms: 300, times: 2);
       final after = pgLbl(t).$4;
       expect(after, greaterThan(before));
-      for (var i = 0; i < 6; i++) {
-        await t.tap(find.byKey(const ValueKey('brBtnA-')));
-        await step(t);
-      }
-      expect(pgLbl(t).$4, before);
+      await t.tapAt(Offset(sr.left + 4, sr.center.dy));
+      await step(t, ms: 300, times: 2);
+      expect(pgLbl(t).$4, lessThan(after));
     });
 
-    testWidgets('翻页⇄滚动双模式切换', (t) async {
+    testWidgets('翻页⇄滚动双模式切换（字号面板 chip）', (t) async {
       await openReader(t, _bigDoc(), 'u3');
       await showChrome(t);
       expect(find.byKey(const ValueKey('br-scroll')), findsNothing);
-      await t.tap(find.byKey(const ValueKey('brBtnMode')));
+      await t.tap(find.byKey(const ValueKey('brBtnFont')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brPfMode')));
       await step(t, ms: 300);
       expect(find.byKey(const ValueKey('br-scroll')), findsOne);
-      expect(find.text('翻页'), findsWidgets); // 按钮文案回落
-      await t.tap(find.byKey(const ValueKey('brBtnMode')));
+      await t.tap(find.byKey(const ValueKey('brPfMode')));
       await step(t, ms: 300);
       expect(find.byKey(const ValueKey('br-pageflip')), findsOne);
     });
@@ -211,6 +212,8 @@ void main() {
   group('批2-U · 进度条与位置记忆', () {
     testWidgets('拖动进度 → 全书定位；退出重进恢复同页', (t) async {
       await openReader(t, _bigDoc(), 'u5');
+      await t.tap(find.byKey(const ValueKey('brBtnProg'))); // 进度滑条在进度面板内
+      await step(t);
       await t.drag(
         find.byKey(const ValueKey('brProg')),
         const Offset(260, 0),
