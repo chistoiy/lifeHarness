@@ -16,4 +16,4 @@ LifeHarness 预发布 v0.1.30-m1.time-v152-fix1 · V1.52 时间模块真机验�
 
 【安装要求】Android 8.0+（minSdk 26）；纯本地无账号零联网（除你自己配置的同步/AI 端点）；数据库沿用 v25，旧版本可直接覆盖安装，数据不丢。装过 v0.1.29 的机器同样覆盖安装（versionCode 4027→4028 递增）。
 【分包】app-arm64-v8a-release.apk＝真机主流（versionCode 6028）｜ app-x86_64-release.apk＝模拟器（8028）｜ app-armeabi-v7a-release.apk＝老旧 32 位（5028）。release 暂用 debug 签名（正式签名随发布工程）。
-【验证口径】时间模块 8 只用例文件 84 例全绿（新增 `test/time_v152_fix_test.dart` 7 例，全部用 390×900 手机视口跑，桌面视口测不出窄列挤字与滚轮行数）；全量 `flutter test` 1401 通过 / 1 失败，唯一失败为 `test/reader_ui_test.dart`「拖动进度 → 全书定位」，由阅读会话工作区未提交改动引起，与本批改面无关，已移交；发包前以 aapt 复验三包 versionCode 与 release 清单 INTERNET 权限。
+【验证口径】时间模块 8 只用例文件 78 例全绿（新增 `test/time_v152_fix_test.dart` 7 例，全部用 390×900 手机视口跑，桌面视口测不出窄列挤字与滚轮行数）；全量 `flutter test` 1401 通过 / 1 失败，唯一失败为 `test/reader_ui_test.dart`「拖动进度 → 全书定位」，由阅读会话工作区未提交改动引起，与本批改面无关，已移交；发包前以 aapt 复验三包 versionCode 与 release 清单 INTERNET 权限。
