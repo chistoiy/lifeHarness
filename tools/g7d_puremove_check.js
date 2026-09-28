@@ -41,36 +41,99 @@ for (const f of parts) {
   }
   let s = 1;
   while (s < raw.length && (raw[s].trim() === '' || raw[s].trim().startsWith('//'))) s++;
-  if (raw[s] && raw[s].startsWith('extension ')) s++;
-  let e = raw.length - 1;
-  while (e > s && raw[e].trim() === '') e--;
-  if (raw[e].trim() === '}') e--;
-  const rawBody = raw.slice(s, e + 1);
-  // --allow-ignore：setState 定点 ignore 注释属治理批的机械插入，比对前剔除
+  // G7d④：同库拆分有两种包装——extension（巨型 State）与 mixin（公开 API 类）；
+  // 一个 part 文件可含多个 mixin（如导出群 + 豆瓣缓存群），故按列 0 的声明行切段分别取证。
+  const isWrap = (l) => /^(extension|mixin)\s/.test(l);
+  const segs = [];
+  let seg = null;
+  for (let i = s; i < raw.length; i++) {
+    if (isWrap(raw[i])) {
+      seg = [];
+      segs.push(seg);
+      continue;
+    }
+    if (raw[i] === '}') {
+      // 包装体收尾：从段尾退掉空行后丢弃该花括号，并结束此段
+      if (seg) {
+        while (seg.length && seg[seg.length - 1].trim() === '') seg.pop();
+        seg = null;
+      }
+      continue;
+    }
+    if (seg) seg.push(raw[i]);
+  }
+  if (!segs.length) segs.push([]);
   const IGN = '// ignore: invalid_use_of_protected_member';
   const useIgn = process.argv.includes('--allow-ignore');
-  const body = useIgn ? rawBody.filter((l) => l.trim() !== IGN) : rawBody;
-  totalBody += body.length;
-  totalIgn += useIgn ? rawBody.length - body.length : 0;
-  let at = -1;
-  for (let i = 0; i + body.length <= baseLines.length; i++) {
-    let ok = true;
-    for (let j = 0; j < body.length; j++)
-      if (baseLines[i + j] !== body[j]) {
+  // --per-member：一个群的成员在原文件里与「留枢纽层的跨域入口」交错，整段必然不连续，
+  // 故按成员声明行把段再切成块（注释吸附规则与 g7d4_repo_split.js 一致），逐块找全等区间。
+  const PER = process.argv.includes('--per-member');
+  const isDeclRaw = (l) => /^  \S/.test(l) && !/^  [});\]]/.test(l) && !l.trim().startsWith('//');
+  const absorbUp = (arr, from) => {
+    let k = from;
+    while (k > 0 && arr[k - 1].trim() !== '' && /^\s*(@\w+|\/\/|\/\*)/.test(arr[k - 1])) k--;
+    return k;
+  };
+  const splitUnits = (body) => {
+    if (!PER) return [body];
+    const decls = [];
+    for (let i = 0; i < body.length; i++) if (isDeclRaw(body[i])) decls.push(i);
+    const starts = decls.map((d) => {
+      let s2 = absorbUp(body, d);
+      if (s2 - 1 >= 0 && body[s2 - 1].trim() === '') {
+        const k2 = absorbUp(body, s2 - 1);
+        if (k2 < s2 - 1) s2 = k2;
+      }
+      return s2;
+    });
+    const units = [];
+    for (let j = 0; j < starts.length; j++) {
+      let e = j + 1 < starts.length ? starts[j + 1] - 1 : body.length - 1;
+      while (e >= starts[j] && body[e].trim() === '') e--;
+      if (e >= starts[j]) units.push(body.slice(starts[j], e + 1));
+    }
+    return units;
+  };
+  const found = [];
+  let ok = true;
+  let why = '';
+  for (const seg of segs) {
+    const body0 = useIgn ? seg.filter((l) => l.trim() !== IGN) : seg;
+    for (const body of splitUnits(body0)) {
+      while (body.length && body[body.length - 1].trim() === '') body.pop();
+      if (!body.length) continue;
+      totalBody += body.length;
+      totalIgn += useIgn ? body0.length - body.length : 0;
+      let at = -1;
+      for (let i = 0; i + body.length <= baseLines.length; i++) {
+        let m = true;
+        for (let j = 0; j < body.length; j++)
+          if (baseLines[i + j] !== body[j]) {
+            m = false;
+            break;
+          }
+        if (m) {
+          at = i + 1;
+          break;
+        }
+      }
+      if (at < 0) {
         ok = false;
+        why = `块首行=${JSON.stringify(body[0])} 长=${body.length}`;
         break;
       }
-    if (ok) {
-      at = i + 1;
-      break;
+      found.push({ lines: body.length, at });
     }
+    if (!ok) break;
   }
-  if (at < 0) {
-    console.log(`NOMATCH ${f} body=${body.length} 首行=${JSON.stringify(body[0])}`);
+  if (!ok) {
+    console.log(`NO-CONTIG-MATCH ${f} ${why}`);
     fail++;
-  } else {
-    console.log(`OK ${f} body=${body.length} -> 基线 ${BASE} L${at}..L${at + body.length - 1}`);
+    continue;
   }
+  const span = found.map((x) => `L${x.at}(+${x.lines})`).join(' ');
+  const sum = found.reduce((a, x) => a + x.lines, 0);
+  console.log(`OK ${f} 块=${found.length} 计${sum}行 ${span}`);
 }
 console.log(
   `${fail === 0 ? 'PURE-MOVE-VERIFIED' : `PURE-MOVE-FAIL count=${fail}`} 合计行数=${totalBody}·剔除定点 ignore=${totalIgn}`,

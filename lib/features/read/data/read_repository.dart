@@ -24,10 +24,12 @@ part 'read_repo_list.dart';
 part 'read_repo_stat.dart';
 part 'read_repo_import.dart';
 part 'read_repo_export.dart';
+
 /// 治理G7d④ prep：一天毫秒数从类内 static 提为库级 const（值与写法一字未改）。
-/// extension 成员能裸访问宿主类的**实例**成员，但宿主类的 static 在扩展里裸名不解析；
-/// _dayMs 同时被 quote 群与 imp 群裸引用，提为库级后两侧零改动可用。
+/// 静态成员不随 extends/with 可见：各域 mixin 里裸名解析不到宿主基类的 static，
+/// 而 _dayMs 同时被 quote 群与 imp 群裸引用，提为库级后两侧零改动可用。
 const int _dayMs = 24 * 60 * 60 * 1000;
+
 /// 阅读模块仓储（M1批3 · 计划 §2.1 三表）。
 ///
 /// 口径：
@@ -63,6 +65,7 @@ class ReadRepository extends _ReadRepoBase
   static int dayStartMs(DateTime d) =>
       DateTime(d.year, d.month, d.day).millisecondsSinceEpoch;
 }
+
 /// 枢纽层：各域 mixin 唯一的 `on` 约束，只放字段/构造与被跨群调用的入口方法。
 /// 判据＝「谁会被别的群调用」，故这些方法不外提到任何一个域。
 abstract class _ReadRepoBase {
@@ -136,6 +139,8 @@ abstract class _ReadRepoBase {
       whereArgs: [bookId],
     );
   }
+
+  // ---- 计时会话 · 摘录（枢纽件：统计群与导出群都要全量取数，其余成员见各域 mixin）----
 
   Future<List<BookSession>> allSessions() async => (await db.query(
     DbSchema.tBookSessions,
