@@ -1801,6 +1801,13 @@ tailwind.config = {
     #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
     #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
     #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
+    .br-selpart{background:rgba(99,102,241,.30);border-radius:2px}
+    .br-h{position:absolute;width:11px;height:11px;border-radius:50%;background:#6366F1;border:2px solid #fff;box-shadow:0 1px 4px rgba(15,23,42,.4);z-index:74;display:none;cursor:grab;touch-action:none}
+    .br-h::after{content:"";position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:2px;height:15px;background:#6366F1;border-radius:2px}
+    .br-h.br-hend::after{top:auto;bottom:-14px}
+    #brBackJump{background:rgba(15,23,42,.9);color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.3)}
+    #brNoteCard{box-shadow:0 10px 30px rgba(15,23,42,.28)}
+    .br-sup{color:#6366F1;font-size:.72em;vertical-align:super;cursor:pointer;padding:0 1px}
     #brSelBar::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(15,23,42,.86);border-bottom:0}
     .br-ibtn{width:46px;height:42px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;font-weight:700;opacity:.72;cursor:pointer}
     .br-ibtn.on{opacity:1;background:rgba(148,163,184,.22)}
@@ -1969,7 +1976,9 @@ tailwind.config = {
         </div>
         <!-- 亮度遮罩（模拟系统亮度）＋ 返回原进度胶囊（参考图4） -->
         <div id="brLumMask" class="absolute inset-0 bg-black z-[66] pointer-events-none" style="opacity:0"></div>
+        <button id="brBackJump" class="hidden absolute bottom-40 left-1/2 -translate-x-1/2 z-[73] rounded-full px-3.5 py-2 text-[10px] font-bold" onclick="brBackJumpGo()">‹ 返回上一位置</button>
         <button id="brBackPos" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 z-[71] br-chrome rounded-full px-3.5 py-2 text-[10px] font-bold" onclick="brGoHome()">‹ 返回原进度</button>
+        <i id="brHStart" class="br-h"></i><i id="brHEnd" class="br-h br-hend"></i>
                 <div id="brSelBar" class="hidden absolute z-[72] br-chrome rounded-2xl px-1.5 py-1"><div class="flex items-center overflow-x-auto no-scrollbar max-w-[320px]" id="brSelActs"></div></div>
         <div id="brColorPop" class="hidden absolute z-[73] br-chrome rounded-xl px-2 py-2 flex items-center gap-2"></div>
         <div id="brTts" class="hidden absolute bottom-14 inset-x-3 z-[69] br-chrome rounded-2xl px-3 py-2.5">
@@ -1988,6 +1997,7 @@ tailwind.config = {
             <div id="brDrWide" class="relative w-[78%] max-w-[300px] h-full bg-white dark:bg-slate-900 flex flex-col rounded-r-2xl shadow-[12px_0_32px_rgba(15,23,42,.18)]">
               <div class="px-3.5 pt-4 pb-2 shrink-0 flex items-center gap-1.5">
                 <div class="flex-1 flex gap-1.5" id="brDrTabs"></div>
+                <button onclick="brDrFoldAll()" id="brDrFoldAll" title="全部折叠" class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-slate-400"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8.5 12 4l5 4.5M7 15.5 12 20l5-4.5"/></svg></button>
                 <button onclick="brDrCollapse()" title="折叠到边栏" class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-slate-400"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
               </div>
               <div id="brDrSearchBox" class="hidden px-3.5 pb-2 shrink-0">
@@ -6885,8 +6895,14 @@ function brSvgFig(){return `<svg viewBox="0 0 300 170" style="width:100%;display
   <text x="236" y="166" font-size="8" fill="#94a3b8">EPUB3 · image/svg+xml</text></svg>`}
 function brParaInner(bid,ci,x,pi){let inner=brEsc(x.t);
   const ch=brLeaves(bid)[ci];
+  if(bid==='b1'&&ch==='4 联想思维'&&pi===2)inner+='<span class="br-sup" onclick="event.stopPropagation();brNoteShow(\'锚定：启发式之一，判断受最先取得的信息支配，见附录「启发式与偏差清单」。\',brV.ci,2)">1</span>';
   if(bid==='b1'&&ch==='4 联想思维'&&pi===8)inner='延伸阅读清单见附录（<span class="br-link" onclick="event.stopPropagation();brGotoCh(12)">内链跳 20 结论：两种自我</span>），原始材料发布于 <span class="br-link" onclick="event.stopPropagation();brExtLink(\'https://princeton.edu/kaneman/experiments\')">princeton.edu</span>（外链）。';
   if(brV.hit&&brV.hitPi===pi&&brV.hit&&brV.hit.ci===ci&&brV.hit.q)inner=inner.replace(new RegExp(brRx(brEsc(brV.hit.q)),'g'),m=>`<span class="br-cur">${m}</span>`);
+  const sel=brV.sel;
+  if(sel&&sel.ci===ci&&pi>=sel.p0&&pi<=sel.p1&&x.k!=='img'){
+    const t=x.t,lo=(pi===sel.p0?sel.o0:0),hi=(pi===sel.p1?sel.o1:t.length);
+    inner=brEsc(t.slice(0,lo))+`<span class="br-selpart">${brEsc(t.slice(lo,hi))}</span>`+brEsc(t.slice(hi));
+  }
   return `<span onpointerdown="brLpStart(event,${pi})" onpointerup="brLpEnd()" onpointerleave="brLpCancel()" onpointercancel="brLpCancel()" onclick="event.stopPropagation();brParaTap(${pi})">${inner}</span>`}
 function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci];const th=st.theme==='custom'?{bg:st.bg,fg:st.fg}:BR_THEMES[st.theme];
   const stage=document.getElementById('brStage');stage.style.background=th.bg;stage.style.color=th.fg;
@@ -6905,12 +6921,12 @@ function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci
     if(brV.ci===brLeaves(bid).length-1&&brV.pg>=pages.length-1)body+='<p class="brp" style="text-indent:0;opacity:.55;text-align:center">—— 全书完 ——</p>';
     wrap.innerHTML=body;if(anim)wrap.classList.add('br-swig');
     document.getElementById('brBody').appendChild(wrap)}
-  brChromeLabels();brSelHideUI()}
+  brChromeLabels();brSelHideUI();brHandleHide()}
 function brChromeLabels(){const bid=brV.b;const pages=brPagesOf(bid,brV.ci);const tot=brTotal(bid),gp=brGPos(bid,brV.ci,brV.pg);
   document.getElementById('brTopTitle').textContent=bsBook(bid).n;
   document.getElementById('brTopSub').textContent=brLeaves(bid)[brV.ci]+' · '+(brV.mode==='scroll'?'滚动':'翻页')+'模式';
   document.getElementById('brCfi').textContent=brCfi(bid,brV.ci,brV.pg);
-  document.getElementById('brPgLbl').textContent=`${brV.pg+1}/${pages.length} 页 · 第 ${gp+1}/${tot} 页 · ${brLivePct()}%`;
+  document.getElementById('brPgLbl').textContent=`${brV.pg+1}/${pages.length} 页 · 约第 ${gp+1}/${tot} 页 · ${brLivePct()}%`;
   const sl=document.getElementById('brProg');sl.max=tot-1;sl.value=gp;
   const mb=document.getElementById('brModeBtn');if(mb)mb.textContent='翻页方式 · '+(brV.mode==='page'?'翻页':'滚动')+' ›';
   const fss=document.getElementById('brFsSl');if(fss)fss.value=brSt(bid).fs;
@@ -6929,14 +6945,33 @@ function brFlip(d){if(brV.mode==='scroll'){const bx=document.getElementById('brS
     brV.ci++;brV.pg=0;brSavePos();brRenderPage(true);brFlash(lv[brV.ci]);return}
   if(np<0){if(brV.ci===0){brV.pg=0;return brRenderPage()}brV.ci--;brV.pg=brPagesOf(bid,brV.ci).length-1;brSavePos();brRenderPage(true);brFlash(lv[brV.ci]);return}
   brV.pg=np;brSavePos();brRenderPage(true)}
-function brTapCenter(){if(_brLpFired){_brLpFired=false;return}if(brV.sel){brSelHide();return}brV.chrome=!brV.chrome;
+function brTapCenter(){if(_brLpFired){_brLpFired=false;return}
+  const nc=document.getElementById('brNoteCard');if(nc){nc.remove();return}
+  const bj=document.getElementById('brBackJump');if(bj&&!bj.classList.contains('hidden')){brHideBackJump();return}
+  if(brV.sel){brSelHide();return}brV.chrome=!brV.chrome;
   ['brTop','brBottom'].forEach(id=>{const el=document.getElementById(id);el.classList.toggle('hidden',!brV.chrome);el.classList.toggle('flex',brV.chrome)});
   if(!brV.chrome)brHidePanels();
   if(brV.chrome)document.getElementById('brSessChip').textContent=brMS(brSessSecs())}
 function brSeek(v){const p=brGPosTo(brV.b,+v);brV.ci=p.ci;brV.pg=p.pg;brSavePos();if(curPage!=='p-readerPage')navTo('p-readerPage');else brRenderPage();
   const h=brV.home,bp=document.getElementById('brBackPos');if(h&&bp)bp.classList.toggle('hidden',h.ci===p.ci&&h.pg===p.pg);
   brV.chrome=true;['brTop','brBottom'].forEach(id=>{document.getElementById(id).classList.remove('hidden');document.getElementById(id).classList.add('flex')})}
-function brGotoCh(ci){brV.ci=ci;brV.pg=0;brSavePos();brTocClose();if(curPage!=='p-readerPage')navTo('p-readerPage');brRenderPage(true);brFlash(brLeaves(brV.b)[ci])}
+let _brJumpFrom=null,_brJumpT=null;
+function brGotoCh(ci){_brJumpFrom={ci:brV.ci,pg:brV.pg};brV.ci=ci;brV.pg=0;brSavePos();brTocClose();if(curPage!=='p-readerPage')navTo('p-readerPage');brRenderPage(true);brFlash(brLeaves(brV.b)[ci]);brShowBackJump()}
+function brShowBackJump(){const b=document.getElementById('brBackJump');if(!b||!_brJumpFrom)return;
+  b.classList.remove('hidden');clearTimeout(_brJumpT);_brJumpT=setTimeout(brHideBackJump,3000)}
+function brHideBackJump(){clearTimeout(_brJumpT);const b=document.getElementById('brBackJump');if(b)b.classList.add('hidden')}
+function brBackJumpGo(){if(!_brJumpFrom)return;const f=_brJumpFrom;_brJumpFrom=null;brHideBackJump();
+  brV.ci=f.ci;brV.pg=f.pg;brSavePos();brRenderPage();brFlash('已回到上一位置')}
+function brNoteShow(txt,backCi,backPi){const old=document.getElementById('brNoteCard');if(old)old.remove();
+  const c=document.createElement('div');c.id='brNoteCard';
+  c.className='absolute left-4 right-4 bottom-28 z-[76] rounded-2xl p-3.5 text-[12px] leading-relaxed';
+  c.style.cssText='background:rgba(15,23,42,.94);color:#E2E8F0';
+  c.innerHTML=`<div class="text-[10px] font-bold mb-1" style="color:#A5B4FC">注释</div><div>${brEsc(txt)}</div>`+
+   `<div class="flex gap-2 mt-3"><button class="flex-1 rounded-lg py-1.5 text-[11px] font-bold" style="background:rgba(148,163,184,.22)" onclick="this.parentNode.parentNode.remove()">关闭</button>`+
+   `<button class="flex-1 rounded-lg py-1.5 text-[11px] font-bold" style="background:#6366F1;color:#fff" onclick="this.parentNode.parentNode.remove();brNoteBack(${backCi},${backPi})">跳回原处</button></div>`;
+  document.getElementById('brStage').appendChild(c)}
+function brNoteBack(ci,pi){brV.ci=ci;brV.pg=0;brSavePos();brRenderPage();
+  const el=document.querySelector(`#brBody [data-pi="${pi}"]`);if(el)el.scrollIntoView({block:'center'});brFlash('已跳回原处')}
 function brFsNudge(d){const bid=brV.b;const fs=Math.min(30,Math.max(14,brSt(bid).fs+d));
   brBooksCfg[bid]=Object.assign(brBooksCfg[bid]||{},{fs});brPagCache={};brPersist();brRenderPage();brFlash('字号 '+fs)}
 function brThemeCycle(){const order=['day','eye','night'];const st=brSt(brV.b);let i=order.indexOf(st.theme);i=i<0?0:(i+1)%3;
@@ -6980,18 +7015,29 @@ function brQuickToggleAuto(){const bid=brV.b;const on=!brSt(bid).auto;brBooksCfg
 function brGoHome(){const h=brV.home;if(!h)return;brV.ci=h.ci;brV.pg=h.pg;brSavePos();brRenderPage();document.getElementById('brBackPos').classList.add('hidden');brFlash('已返回原进度')}
 /* 长按选区：段落与中心热区都支持（点按＝收放 chrome，长按＝弹摘抄工具条） */
 let _brLpT=0,_brLpFired=false;
-function brLpStart(e,pi){_brLpFired=false;clearTimeout(_brLpT);_brLpT=setTimeout(()=>{_brLpFired=true;brSelect(pi,pi)},520)}
+const BR_WORD_STOP="\u3002\uff01\uff1f\uff1b\uff0c\u3001\uff1a\n ,.!?;:";
+function brWordAt(t,pos){if(!t)return[0,0];const c=i=>t[i]!==undefined&&BR_WORD_STOP.indexOf(t[i])>=0;
+  let a=Math.max(0,Math.min(pos,t.length-1));while(a>0&&c(a))a--;
+  let b=a;while(b<t.length&&!c(b))b++;if(b<t.length)b++;
+  if(b-a<1)b=Math.min(t.length,a+1);return[a,b]}
+function brLpStart(e,pi){_brLpFired=false;clearTimeout(_brLpT);const cx=e.clientX,cy=e.clientY;
+  _brLpT=setTimeout(()=>{_brLpFired=true;const p=brPtFromXY(cx,cy);const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);
+    const usePi=p&&p.pi!=null?p.pi:pi;const t=(arr[usePi]&&arr[usePi].t)||'';
+    const w=brWordAt(t,p&&p.pi!=null?p.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
 function brZoneLpStart(e){_brLpFired=false;clearTimeout(_brLpT);const cx=e.clientX,cy=e.clientY;
   _brLpT=setTimeout(()=>{_brLpFired=true;const z=document.getElementById('brZoneC');if(z)z.style.pointerEvents='none';
     const el=document.elementFromPoint(cx,cy);if(z)z.style.pointerEvents='';
-    const p=el&&el.closest?el.closest('[data-pi]'):null;if(p)brSelect(+p.dataset.pi,+p.dataset.pi)},520)}
-function brLpEnd(){clearTimeout(_brLpT)}
+    const q=brPtFromXY(cx,cy);const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);
+    const usePi=q&&q.pi!=null?q.pi:(el&&el.closest?+el.closest('[data-pi]').dataset.pi:null);if(usePi==null)return;
+    const t=(arr[usePi]&&arr[usePi].t)||'';const w=brWordAt(t,q&&q.pi!=null?q.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
+function brLpEnd(){clearTimeout(_brLpT);brBindHandles()}
 function brLpCancel(){clearTimeout(_brLpT)}
 function brParaTap(pi){if(_brLpFired){_brLpFired=false;return}brTapCenter()}
 
 /* ---- 打开 / 离开（计时与进度结算走既有基建） ---- */
 function brOpen(id){const b=bsBook(id);if(!b)return;CURBK=id;brV.b=id;brV.sel=null;brV.hit=null;document.getElementById('brHitsBar')&&(document.getElementById('brHitsBar').classList.add('hidden'));
   const lv=brLeaves(id);if(!lv.length)brGenToc(id,12);
+  _brJumpFrom=null;brHideBackJump();const _nc=document.getElementById('brNoteCard');if(_nc)_nc.remove();
   const p=brPos[id]||{ci:0,pg:0};brV.ci=Math.min(p.ci,brLeaves(id).length-1);brV.pg=p.pg||0;brV.mode=brSt(id).mode||'page';brV.t0=Date.now();brV.prevSess=0;
   brV.home={ci:brV.ci,pg:brV.pg};brHidePanels();const _bp=document.getElementById('brBackPos');if(_bp)_bp.classList.add('hidden');
   brBrightSet(brLumMaskV);document.getElementById('brStage').classList.toggle('no-indent',brV.indent===false);
@@ -7013,16 +7059,62 @@ function brLeave(){if(curPage!=='p-readerPage')return;
 function brBack(){brLeave();goBack()}
 
 /* ---- 划词 ---- */
-function brSelect(p0,p1){if(p1==null)p1=p0;brV.sel={ci:brV.ci,p0,p1};
-  brV.selTxt=brChText(brV.b,brLeaves(brV.b)[brV.ci]).slice(p0,p1+1).map(x=>x.t).join('\n');
-  document.querySelectorAll('#brBody .br-selon').forEach(x=>x.classList.remove('br-selon'));
-  for(let i=p0;i<=p1;i++){const el=document.querySelector(`#brBody [data-pi="${i}"]`);if(el)el.classList.add('br-selon')}
-  const first=document.querySelector(`#brBody [data-pi="${p0}"]`);const stage=document.getElementById('brStage').getBoundingClientRect();
-  let top=120;if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
-  const bar=document.getElementById('brSelBar');bar.style.left='50%';bar.style.transform='translateX(-50%)';bar.style.top=top+'px';
-  document.getElementById('brColorPop').classList.add('hidden');
-  bar.classList.remove('hidden');
-  brSelActsRender()}
+function brSelArr(){return brChText(brV.b,brLeaves(brV.b)[brV.sel?brV.sel.ci:brV.ci])}
+function brSelect(p0,p1,o0,o1){if(p1==null)p1=p0;const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);
+  const L=(arr[p0]&&arr[p0].t.length)||0, L1=(arr[p1]&&arr[p1].t.length)||0;
+  brV.sel={ci:brV.ci,p0,p1,o0:o0==null?0:Math.max(0,Math.min(o0,L)),o1:o1==null?L1:Math.max(0,Math.min(o1,L1))};
+  brSelRefresh();
+  document.getElementById("brSelBar").classList.remove("hidden");
+  document.getElementById("brColorPop").classList.add("hidden");
+  brSelBarPlace();brHandlePlace();brSelActsRender()}
+function brSelTextCompute(){const s=brV.sel,arr=brChText(brV.b,brLeaves(brV.b)[s.ci]);const out=[];
+  for(let i=s.p0;i<=s.p1;i++){const t=(arr[i]&&arr[i].t)||"";
+    out.push(i===s.p0&&i===s.p1?t.slice(s.o0,s.o1):i===s.p0?t.slice(s.o0):i===s.p1?t.slice(0,s.o1):t)}
+  brV.selTxt=out.join("\n")}
+/* 选区变化＝整页重绘（子串高亮在 brParaInner 里算），再把工具条与手柄放回去 */
+function brSelRefresh(){if(!brV.sel)return;brSelTextCompute();brRenderPage();
+  document.getElementById("brSelBar").classList.remove("hidden");brSelBarPlace();brHandlePlace()}
+function brSelBarPlace(){const first=document.querySelector(`#brBody [data-pi="${brV.sel.p0}"]`);
+  const stage=document.getElementById("brStage").getBoundingClientRect();let top=120;
+  if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
+  const bar=document.getElementById("brSelBar");bar.style.left="50%";bar.style.transform="translateX(-50%)";bar.style.top=top+"px"}
+/* 屏幕坐标 → (段序, 段内字符偏移)：优先原生 caret，回落按行均分估算 */
+function brPtFromXY(cx,cy){
+  if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(cx,cy);
+    if(r){const n=r.startContainer;const el=(n.nodeType===3?n.parentElement:n).closest?n.closest("[data-pi]")||(n.parentElement?n.parentElement.closest("[data-pi]"):null):null;
+      if(el&&el.closest("#brBody"))return{pi:+el.dataset.pi,off:r.startOffset}}}
+  const els=[...document.querySelectorAll("#brBody [data-pi]")];
+  for(const el of els){const r=el.getBoundingClientRect();
+    if(cx>=r.left&&cx<=r.right&&cy>=r.top&&cy<=r.bottom){const txt=el.textContent||"";
+      const lh=parseFloat(getComputedStyle(el).lineHeight)||parseFloat(getComputedStyle(el).fontSize)*1.6;
+      const lines=Math.max(1,Math.round(r.height/lh));const per=Math.max(1,Math.floor(txt.length/lines));
+      const ln=Math.min(lines-1,Math.max(0,Math.floor((cy-r.top)/lh)));
+      return{pi:+el.dataset.pi,off:Math.min(txt.length,ln*per+Math.round((cx-r.left)/Math.max(1,r.width)*per))}}}
+  const last=els.length-1;return last<0?null:{pi:+els[last].dataset.pi,off:(els[last].textContent||"").length}}
+function brHandlePlace(){const s=brV.sel;if(!s){brHandleHide();return}
+  const stage=document.getElementById("brStage").getBoundingClientRect();
+  const put=(id,pi,off,end)=>{const el=document.querySelector(`#brBody [data-pi="${pi}"]`);const h=document.getElementById(id);
+    if(!el||!h||!el.firstChild){return}
+    const rg=document.createRange();rg.selectNodeContents(el);
+    let node=el.firstChild,rest=Math.max(0,Math.min(off,node.textContent||"").length);
+    rg.setStart(node,rest);rg.collapse(true);
+    const rs=rg.getClientRects();const r=(end?rs[rs.length-1]||rs[0]:rs[0])||el.getBoundingClientRect();
+    if(!r)return;h.style.display="block";
+    h.style.left=(r.left-stage.left+(end?2:-2))+"px";h.style.top=(r.top-stage.top+(end?r.height:-r.height*0.15))+"px"};
+  put("brHStart",s.p0,s.o0,false);put("brHEnd",s.p1,s.o1,true)}
+function brHandleHide(){["brHStart","brHEnd"].forEach(i=>{const e=document.getElementById(i);if(e)e.style.display="none"})}
+function brHandleDrag(which,e){const s=brV.sel;if(!s)return;const p=brPtFromXY(e.clientX,e.clientY);if(!p)return;
+  const arr=brChText(brV.b,brLeaves(brV.b)[s.ci]);const len=(arr[p.pi]&&arr[p.pi].t.length)||0;
+  const off=Math.max(0,Math.min(p.off,len));
+  if(which==="s"){if(p.pi>s.p1||(p.pi===s.p1&&off>=s.o1))return;s.p0=p.pi;s.o0=off}
+  else{if(p.pi<s.p0||(p.pi===s.p0&&off<=s.o0))return;s.p1=p.pi;s.o1=off}
+  brSelRefresh()}
+function brBindHandles(){["brHStart","brHEnd"].forEach((id,i)=>{const h=document.getElementById(id);if(!h||h.dataset.b)return;h.dataset.b="1";
+  const w=i===0?"s":"e";
+  h.addEventListener("pointerdown",ev=>{ev.stopPropagation();ev.preventDefault();h._drag=1;try{h.setPointerCapture(ev.pointerId)}catch(e){}});
+  h.addEventListener("pointermove",ev=>{if(h._drag){ev.stopPropagation();brHandleDrag(w,ev)}});
+  h.addEventListener("pointerup",ev=>{if(!h._drag)return;h._drag=0;try{h.releasePointerCapture(ev.pointerId)}catch(e){}})})}
+
 function brSelActsRender(){const acts=[['复制','<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4H6a2 2 0 0 0-2 2v8.5A1.5 1.5 0 0 0 5.5 16"/>','brCopy()'],
   ['划线','<path d="M15 4 4 15v5h5L20 9z"/><path d="M13 6l5 5"/>','brColorShow()'],
   ['写想法','<path d="M4 20l1-4L16 5l3 3L8 19z"/>','brToThink()'],
@@ -7031,12 +7123,9 @@ function brSelActsRender(){const acts=[['复制','<rect x="8" y="8" width="12" h
   ['听当前','<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M17 8a5 5 0 0 1 0 8"/>','brTtsToggle()'],
   ['AI 解读','<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>','brAiOpen()'],
   ['分享','<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>','brShare()']];
-  document.getElementById('brSelActs').innerHTML=`<div class="sdb text-brand-300" onclick="brGrow(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg><span>前扩</span></div>`+
-   acts.map(a=>`<div class="sdb" onclick="${a[2]}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a[1]}</svg><span>${a[0]}</span></div>`).join('')+
-   `<div class="sdb text-brand-300" onclick="brGrow(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg><span>后扩</span></div>`}
-function brGrow(d){if(!brV.sel)return;const n=brChText(brV.b,brLeaves(brV.b)[brV.ci]).length;
-  if(d>0)brV.sel.p1=Math.min(n-1,brV.sel.p1+1);else brV.sel.p0=Math.max(0,brV.sel.p0-1);brSelect(brV.sel.p0,brV.sel.p1)}
-function brSelHideUI(){document.getElementById('brSelBar').classList.add('hidden');document.getElementById('brColorPop').classList.add('hidden')}
+  document.getElementById('brSelActs').innerHTML=
+   acts.map(a=>`<div class="sdb" onclick="${a[2]}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a[1]}</svg><span>${a[0]}</span></div>`).join('')}
+function brSelHideUI(){document.getElementById('brSelBar').classList.add('hidden');document.getElementById('brColorPop').classList.add('hidden');brHandleHide()}
 function brSelHide(){brV.sel=null;brSelHideUI();brRenderPage()}
 function brColorShow(){const pop=document.getElementById('brColorPop');pop.classList.remove('hidden');
   pop.style.top=(parseFloat(document.getElementById('brSelBar').style.top)-46)+'px';pop.style.left='50%';pop.style.transform='translateX(-50%)';
@@ -7126,6 +7215,11 @@ function brDrTab(k){BR_DR.tab=k;const lv=brLeaves(brV.b);
   document.getElementById('brDrSearchBox').classList.toggle('hidden',k!=='search');
   brDrRailApply();if(k==='search')setTimeout(()=>{const q=document.getElementById('brDrQ');q&&q.focus()},80)}
 function brDrFold(gi){BR_DR.fold[gi]=!BR_DR.fold[gi];brTocRender()}
+function brDrFoldAll(){const n=Math.max(1,(BS_TOC[brV.b]||[]).length);
+  const allF=Object.keys(BR_DR.fold).filter(k=>BR_DR.fold[k]).length>=n;
+  BR_DR.fold={};if(!allF)for(let i=0;i<n;i++)BR_DR.fold[i]=true;brTocRender();
+  const b=document.getElementById('brDrFoldAll');if(b)b.title=allF?'全部折叠':'全部展开';
+  toast(allF?'已展开全部分组':'已折叠全部分组')}
 function brDrJump(){const s=document.getElementById('brDrScroll');BR_DR.bot=!BR_DR.bot;
   s.scrollTo({top:BR_DR.bot?s.scrollHeight:0,behavior:'smooth'});
   document.getElementById('brDrPill').textContent=BR_DR.bot?'去顶部':'去底部'}
@@ -7514,7 +7608,17 @@ function br35Seed(){
   else if(m==='sel'){const el=document.querySelector('#brBody [data-pi]');if(el)brSelect(+el.dataset.pi,+el.dataset.pi);
     const bp=document.getElementById('brBackPos');if(bp)bp.classList.remove('hidden');}
 }catch(e){console.warn('br53',e)}})();
-/* ================= 阅读器（书架专版）结束 ================= */
+/* V1.53.2 轮5 深链：?br55=sel|fold|jump|note → 选区手柄 / 全折叠 / 跳章返回 / 注释卡 */
+(function br55Boot(){try{
+  const m=(location.search.match(/br55=(\w+)/)||[])[1];if(!m)return;
+  brOpen('b1');brShowChrome();
+  if(m==='sel'){const el=document.querySelector('#brBody [data-pi="2"]')||document.querySelector('#brBody [data-pi]');
+    if(el){const pi=+el.dataset.pi;const t=(brChText(brV.b,brLeaves(brV.b)[brV.ci])[pi]||{}).t||'';
+      const w=brWordAt(t,4);brSelect(pi,pi,w[0],w[1]);brBindHandles();brHandlePlace()}}
+  else if(m==='fold'){brTocOpen('toc');brDrFoldAll()}
+  else if(m==='jump'){brTocOpen('toc');brGotoCh(9)}
+  else if(m==='note'){const el=document.querySelector('#brBody [data-pi="2"]');if(el)brNoteShow('锚定：启发式之一，判断受最先取得的信息支配，见附录「启发式与偏差清单」。',brV.ci,+el.dataset.pi)}
+}catch(e){console.warn('br55',e)}})();/* ================= 阅读器（书架专版）结束 ================= */
 
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
