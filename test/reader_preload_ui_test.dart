@@ -248,9 +248,13 @@ void main() {
         ),
       );
       await step(t, times: 4);
-      expect(find.byKey(const ValueKey('br-dcache-rdy')), findsOne);
+      // 轮5.3：整卡压成两行紧凑条，「清理缓存」收进「?」说明半屏（入口不减）。
+      expect(find.byKey(const ValueKey('brDstrip')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brDinfo')));
+      await step(t, times: 3);
+      expect(find.byKey(const ValueKey('brLiClean')), findsOne);
       await t.runAsync(() async {
-        await t.tap(find.byKey(const ValueKey('br-d-clearcache')));
+        await t.tap(find.byKey(const ValueKey('brLiClean')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await step(t, times: 2);
