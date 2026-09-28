@@ -140,6 +140,7 @@
 | LH-S26 | **自绘选色弹层**（V1.47 真机轮） | sheetKitColor（index-kits） | 规划 `features/tools/widgets/color_sheet.dart` | 替代 `<input type=color>`：当前色预览 + 16 色板 + **色相/饱和/明度三滑杆**（色相条为渐变轨）+ HEX/rgb/hsl 解析框 + 取消/确定；**从预设或解析进入时保留精确 HEX**（`KCC.exact`），仅拖动滑杆才由 HSL 回算，避免 ±1 色偏 |
 | LH-S27 | **专版日期滚轮弹层**（V1.47 真机轮） | sheetKitDate（index-kits） | 复用 LH-S05 三列滚轮基础设施 | 替代 `<input type=date>`：年 1970~2040 / 月 12 / 日**按年月自动收放天数**；顶部实时「YYYY 年 M 月 D 日 · 周 X」；确定后回填并触发所属工具重算 |
 | LH-S28 | **抽签选项与数据弹层**（V1.47 真机轮） | sheetWheelCfg（index-kits） | 规划 `features/tools/widgets/wheel_cfg_sheet.dart` | 工具主屏只留轮盘与结果，**数据管理整体收进设置弹层**：套 chips（≤8）+ 改名/新建/删除 + 批量粘贴 + 选项权重行（−/＋/↑↓/删）+ 恢复默认；弹层可滚动、右上「完成」关闭 |
+| LH-S29 | **服务商添加/编辑弹层**（V1.53.1） | `sheetAiProv` | `ai_page.dart` `_AiProviderFormSheet` | 名称 · Base URL（等宽，允许任意 `http(s)` 前缀与自定义后缀）· 模型名 · 协议二选（复用 LH-K03 胶囊）· 独立 Key（LH-K30 掩码+眼睛）· http 明文二次确认行（仅当地址以 `http://` 开头才出现）· 测试结果框（**浅色描边**，禁深色面板）· 「测试连接 / 删除（非当前才给）/ 保存服务商」。**校验失败一律弹层内行内红字**（模态弹层里挂页面 SnackBar 会被遮罩挡住看不见——既定坑）；新增即选用；改动即刻生效，业务模块零感知 |
 
 - 可调旋钮：标题字号、行卡高度、选中描边色——**弹层内字段结构变更走原型确认门**。
 
@@ -176,6 +177,8 @@
 | LH-K27 | **全量程滚动尺面**（V1.47） | `#rulerBox`（52vh 滚动卡） | 规划 `ruler_scale.dart` | 默认取 `max(screen.w,screen.h)` 的**长边**并铺满整条量程（短边可切）；主刻度横贯细线；倍率校准以银行卡 8.50cm 为基准，持久化 |
 | LH-K28 | **提词舞台层**（V1.47） | `#tpStage` | 规划 `teleprompter_stage.dart` | 全屏覆盖层：rAF 按 px/s 滚动、首尾回绕；横向=整体 rotate 90° 并交换宽高；LED 模式=点阵遮罩 + 扫描线 + 发光字；**默认 `display:none`，仅去 `.hidden` 时显形**（截图曾暴露常驻遮罩） |
 | LH-K29 | **线性图标原语 kit-ico**（V1.47） | `KIT_ICOS` + `kitSvg()`（index-kits） | 规划 `lib/shared/widgets/lh_icons.dart` 图标表 | `svg.kit-ico{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.7;round}`；**新增工具/分类只往表里加键**，不在 UI 处内联画路径；缺键回落 `_def` 而非 emoji；分类名与图标解耦（`cat-网络` 这类键查表，名字本身保持纯词）；**齿轮用标准齿形路径，禁用形似太阳的辐条式画法**（沿用 LH-K14 旧口径） |
+| LH-K30 | **掩码密钥输入 + 眼睛切换**（V1.53.1） | `#apKey`/`#gkKey` + `apPeek()` | `ai_page.dart` Key 卡与服务商表单 | **默认掩码**（HTML `type=password` / Flutter `obscureText: true`），右侧线性 SVG 眼睛点切明文、再点回掩码，**禁 emoji 眼睛**；编辑已有条目时把已存 Key 掩码预填并在下方给状态提示「已存 Key（末 4 位 xxxx）· 覆盖即改，清空后保存＝删除该 Key」；明文只在本机显示，绝不进日志/备份/同步 |
+| LH-K31 | **服务商条目行**（V1.53.1） | `#aiProvList`（`aiProvRender()`） | `ai_page.dart` `_ProviderRow` | 一行两条信息带：上行＝名称（+「预置」徽）＋动作区（当前＝绿点「● 当前」文字，非当前＝「选用」；一律给「编辑」，非当前再加红字「删」）；下行＝Base URL 等宽省略号 ＋「模型 · 协议 · Key 已单独保存/沿用旧全局 Key/未填」，`http://` 端点追加黄字「http 明文（局域网）」。**当前端点不给删除入口**（数据层同样拒删，双保险） |
 
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 |
 |---|---|---|---|---|

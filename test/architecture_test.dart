@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -355,6 +356,79 @@ void main() {
     // 打印当前被容忍的例外，收口时看得见（不红，但不许遗忘）。
     // ignore: avoid_print
     if (tolerated.isNotEmpty) print('R7 暂豁免（待整改）：\n  ${tolerated.join('\n  ')}');
+  });
+
+  test('R8 AI 能力点登记闭环：提示词资产 ↔ 能力矩阵一一对应', () {
+    // 口径见《需求清单》§六 原则 9（V1.53.1 定案）：新增一个 AI 能力＝
+    // prompts.json 加一条（含 module 归属）+ AI 增强页 kAiCapRows 登记一行授权入口。
+    // 漏登记＝用户在能力矩阵里根本看不到它＝gate 永远回「该能力未授权」＝功能静默不可用；
+    // 反过来矩阵留死行也会让人以为开了 AI 却没有任何调用点。
+    final tasks =
+        (((jsonDecode(File('assets/ai_prompts/prompts.json').readAsStringSync())
+                    as Map)['tasks'] ??
+                const [])
+            as List)
+            .cast<Map>();
+    expect(tasks.length, greaterThan(10),
+        reason: '提示词包解析为空＝守护空转（资产路径变了要同步这里）');
+
+    // ① 八字段齐全：id/module/name/system/user/expect 非空，placeholders/sample 存在。
+    const mustNonEmpty = ['id', 'module', 'name', 'system', 'user', 'expect'];
+    const mustPresent = [...mustNonEmpty, 'placeholders', 'sample'];
+    final malformed = <String>[];
+    for (final t in tasks) {
+      final id = '${t['id'] ?? '(无 id)'}';
+      for (final k in mustPresent) {
+        if (!t.containsKey(k)) {
+          malformed.add('$id 缺字段 $k');
+          break;
+        }
+      }
+      for (final k in mustNonEmpty) {
+        final v = t[k];
+        if (v is! String || v.trim().isEmpty) malformed.add('$id 的 $k 为空');
+      }
+    }
+    expect(malformed, isEmpty,
+        reason: '能力点必须写全 id/module/name/system/user/expect（placeholders/sample 可为空数组/空串），'
+            'module 为空会让能力矩阵按模块分组时无处安放。');
+
+    // ② 能力矩阵登记面（从 AI 增强页源码现场解析）。
+    final page = sources['features/settings/presentation/ai_page.dart'] ?? '';
+    final capIds = RegExp(r"""tasks:\s*\[([^\]]*)\]""")
+        .allMatches(page)
+        .expand((m) => RegExp("'([^']+)'").allMatches(m.group(1) ?? ''))
+        .map((m) => m.group(1)!)
+        .toSet();
+    expect(capIds, isNotEmpty, reason: '能力矩阵解析为空＝守护空转');
+
+    // 连通性验证小工具不受能力矩阵门控（它先于能力配置存在，是配 Key 的手段）。
+    const capExempt = {'tool.verify'};
+
+    final unregistered =
+        tasks.map((t) => '${t['id']}').where((id) => !capExempt.contains(id) && !capIds.contains(id)).toSet();
+    expect(unregistered, isEmpty,
+        reason: '这些能力点在提示词包里但没在能力矩阵登记，用户无从授权（功能必然不可用）：'
+            '${unregistered.join(', ')}。请在 lib/features/settings/presentation/ai_page.dart 的 '
+            'kAiCapRows 加一行（label 用「模块：能力」格式，禁 emoji）。');
+
+    final deadRows = capIds.where((id) => !tasks.any((t) => '${t['id']}' == id)).toSet();
+    expect(deadRows, isEmpty,
+        reason: '能力矩阵里有 $deadRows 的授权行，但提示词包没有这个能力点＝死行：'
+            '要么补进 assets/ai_prompts/prompts.json，要么删掉这一行。');
+
+    // ③ 端点/模型/协议/Key 的 prefs 键只许出现在 core/ai 与 AI 增强页（业务模块零感知）。
+    final endpointKeys = RegExp(
+        r"""['"](ai\.base_url|ai\.model|ai\.protocol|ai\.providers|ai\.activeProvider|ai_api_key|ai_key:)""");
+    final leaks = <String>[];
+    for (final e in sources.entries) {
+      if (!e.key.startsWith('features/')) continue;
+      if (e.key == 'features/settings/presentation/ai_page.dart') continue;
+      if (endpointKeys.hasMatch(e.value)) leaks.add(e.key);
+    }
+    expect(leaks, isEmpty,
+        reason: '业务模块直接读写端点/Key 的 prefs 键＝绕开服务商层：'
+            '${leaks.join(', ')}。端点三要素与 Key 只在 core/ai/* 与 AI 增强页处理。');
   });
 
   test('守护自身有效性：确认真实扫到了文件', () {
