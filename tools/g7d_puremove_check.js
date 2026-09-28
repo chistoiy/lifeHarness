@@ -44,15 +44,39 @@ for (const f of parts) {
   // G7d④：同库拆分有两种包装——extension（巨型 State）与 mixin（公开 API 类）；
   // 一个 part 文件可含多个 mixin（如导出群 + 豆瓣缓存群），故按列 0 的声明行切段分别取证。
   const isWrap = (l) => /^(extension|mixin)\s/.test(l);
+  // --toplevel（G7d⑤）：整块外提的 part 无 extension/mixin 包装，按 0 列声明行切段；
+  // 段首的紧邻注释/空行组（前导）与段尾收尾花括号一并剥除，与 extension 模式口径一致。
+  const TOP = process.argv.includes('--toplevel');
+  const isTopDecl = (l) =>
+    l !== '' && !/^\s/.test(l) && !l.startsWith('//') && l !== '}';
   const segs = [];
   let seg = null;
+  let pending = [];
+  const flushPending = () => {
+    if (!pending.length) return [];
+    let k = 0;
+    while (k < pending.length && (pending[k].trim() === '' || pending[k].trim().startsWith('//'))) k++;
+    const lead = pending.slice(k);
+    pending = [];
+    return lead;
+  };
   for (let i = s; i < raw.length; i++) {
+    if (TOP && !isWrap(raw[i]) && isTopDecl(raw[i])) {
+      if (seg) {
+        while (seg.length && seg[seg.length - 1].trim() === '') seg.pop();
+        if (seg.length && seg[seg.length - 1] === '}') seg.pop();
+      }
+      seg = flushPending();
+      segs.push(seg);
+      seg.push(raw[i]);
+      continue;
+    }
     if (isWrap(raw[i])) {
-      seg = [];
+      seg = flushPending();
       segs.push(seg);
       continue;
     }
-    if (raw[i] === '}') {
+    if (raw[i] === '}' && !TOP) {
       // 包装体收尾：从段尾退掉空行后丢弃该花括号，并结束此段
       if (seg) {
         while (seg.length && seg[seg.length - 1].trim() === '') seg.pop();
@@ -61,6 +85,11 @@ for (const f of parts) {
       continue;
     }
     if (seg) seg.push(raw[i]);
+    else pending.push(raw[i]);
+  }
+  if (TOP && seg) {
+    while (seg.length && seg[seg.length - 1].trim() === '') seg.pop();
+    if (seg.length && seg[seg.length - 1] === '}') seg.pop();
   }
   if (!segs.length) segs.push([]);
   const IGN = '// ignore: invalid_use_of_protected_member';

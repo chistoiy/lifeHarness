@@ -111,6 +111,11 @@ void main() {
   final imports = collectImports();
   final sources = collectSources();
 
+  // AI 增强页族（G7d⑤ 起主文件 + 同库 part 组）：R7 provider 直取豁免、
+  // R8 端点键扫描跳过共用本口径；族外任何 features 文件仍然红。
+  bool aiPageFamily(String rel) =>
+      rel.startsWith('features/settings/presentation/ai_');
+
   test('R1 features 不得互相 import（跨模块必须走 shared/linkage）', () {
     final violations = <String>[];
     for (final entry in imports.entries) {
@@ -326,9 +331,7 @@ void main() {
     // 绕行不只是风格问题：它**静默丢掉审阅弹层与留痕**——用户看不到发出去了
     // 什么、查不到失败原因，V1.53 的 ai_calls 也会缺这一条。
     // AI 增强页自身（配置端点 / 连通性验证 / 提示词管理）允许取 provider。
-    const entryExempt = {
-      'features/settings/presentation/ai_page.dart',
-    };
+    // G7d⑤ 起该页拆为同库 part 族，豁免按 main() 顶部 aiPageFamily 族口径。
     // 棘轮豁免：定案时已存在的绕行点，整改后**必须删掉对应登记**（下方有反向断言）。
     const pendingFix = <String>{}; // 阅读侧已于 2026-09-28 改走 aiRunWithReview
     final bannedProvider = RegExp(r'\baiServiceProvider\b|\bAiService\s*\(|\bAiClient\s*\(');
@@ -350,7 +353,7 @@ void main() {
       }
       if (hits.isEmpty) continue;
       final line = '$rel ← ${hits.join(' / ')}';
-      final okProviderOnly = entryExempt.contains(rel) &&
+      final okProviderOnly = aiPageFamily(rel) &&
           !bannedRequest.hasMatch(stripped);
       if (okProviderOnly || pendingFix.contains(rel)) {
         tolerated.add(line);
@@ -437,7 +440,7 @@ void main() {
     final leaks = <String>[];
     for (final e in sources.entries) {
       if (!e.key.startsWith('features/')) continue;
-      if (e.key == 'features/settings/presentation/ai_page.dart') continue;
+      if (aiPageFamily(e.key)) continue; // G7d⑤：AI 增强页族（主文件 + part）
       if (endpointKeys.hasMatch(e.value)) leaks.add(e.key);
     }
     expect(leaks, isEmpty,
