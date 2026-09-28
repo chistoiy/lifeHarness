@@ -32,6 +32,8 @@ class ReaderTocDrawer extends ConsumerStatefulWidget {
     required this.onAddBookmark,
     this.onSearchJump,
     this.onClose,
+    this.backLbl,
+    this.onBackJump,
   });
 
   final TocDrawerState state;
@@ -46,6 +48,11 @@ class ReaderTocDrawer extends ConsumerStatefulWidget {
   /// 跳章 / 跳全书全局页。
   final void Function(int ci) onGoto;
   final void Function() onAddBookmark;
+
+  /// 轮5.2①：跳章后的「回到刚才在读」入口只放在抽屉里（正文零悬浮胶囊）。
+  /// [backLbl] 非空＝显示该行（来源章名）。
+  final String? backLbl;
+  final VoidCallback? onBackJump;
 
   /// 搜本书命中 → 整表+序号+关键词（页侧挂「上/下一处」并跳原文）。
   final void Function(List<({int ci, int pi, String text})> hits, int idx, String q)?
@@ -63,11 +70,17 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   bool _bot = false;
   // 轮4②：标题映射只算一次（chapterTitles 每次新分配列表，勿在 build 里重建）。
   Map<String, int>? _titleToCi;
+  // 轮5②：分组数（「全部折叠/展开」判定用；build 内与目录行同源回填）。
+  int _gcount = 1;
   // 轮4②：搜本书防抖 + 分批扫（2409 章一次同步扫会冻结抽屉滚动帧）。
   Timer? _debounce;
   int _searchSeq = 0;
 
   static const _accent = Color(0xFF6366F1);
+
+  /// 轮5②：全部分组已折叠？（无分组时按单组「正文」计）
+  bool get _allFolded =>
+      _gcount > 0 && widget.state.folded.length >= _gcount;
 
   @override
   void initState() {
@@ -177,6 +190,11 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
       );
     }
     final lv = widget.doc.chapters.length;
+    // 分组树在本帧算好：折叠按钮的「全折叠/全展开」判定与行渲染同源。
+    final nodes =
+        ref.watch(tocProvider(widget.bookId)).valueOrNull ?? const <TocNode>[];
+    final groups = tocTree(nodes, hideEmptyParts: false);
+    _gcount = groups.isEmpty ? 1 : groups.length;
     return Stack(
       children: [
         // 遮罩：点按收起（Escape/返回键由父层处理）。
@@ -235,6 +253,25 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                         ),
                       ),
                       IconButton(
+                        key: const ValueKey('brDrFoldAll'),
+                        tooltip: _allFolded ? '全部展开' : '全部折叠',
+                        icon: Icon(
+                          _allFolded
+                              ? Icons.unfold_more_rounded
+                              : Icons.compress_rounded,
+                          size: 17,
+                        ),
+                        onPressed: () => setState(() {
+                          if (_allFolded) {
+                            st.folded.clear();
+                          } else {
+                            st.folded.addAll(
+                              List.generate(_gcount, (i) => i),
+                            );
+                          }
+                        }),
+                      ),
+                      IconButton(
                         key: const ValueKey('brDrCollapse'),
                         tooltip: '折叠到边栏',
                         icon: const Icon(Icons.chevron_left_rounded, size: 17),
@@ -243,6 +280,52 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                     ],
                   ),
                 ),
+                // 轮5.2①：跳章后的返回入口（正文不悬浮，收进抽屉一行）。
+                if (widget.backLbl != null && widget.onBackJump != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                    child: GestureDetector(
+                      key: const ValueKey('brDrBack'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onBackJump,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: .10),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text(
+                              '‹ 回到刚才在读 ·',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: _accent,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                widget.backLbl!,
+                                key: const ValueKey('brDrBackLbl'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: _accent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 if (st.searchTab)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
@@ -283,7 +366,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                           padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
                           child: _searchList(cs),
                         )
-                      : _tocList(cs),
+                      : _tocList(cs, groups),
                 ),
               ],
             ),
@@ -367,9 +450,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   /// 目录树：BS_TOC 同源（book_toc_nodes）；小节名命中标题即叶子章。
   /// 真机反馈（2026-09-28）：2409 章大全集整列 Column 一次构建致抽屉卡顿、
   /// 点按无响应——行描述符 + ListView.builder 虚拟化，只建可见行。
-  Widget _tocList(ColorScheme cs) {
-    final nodes =
-        ref.watch(tocProvider(widget.bookId)).valueOrNull ?? const <TocNode>[];
+  Widget _tocList(ColorScheme cs, List<TocPartGroup> groups) {
     final quotes =
         (ref.watch(allQuotesProvider).valueOrNull ?? const <BookQuote>[])
             .where((q) =>
@@ -380,7 +461,6 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
       for (var i = 0; i < widget.doc.chapterTitles.length; i++)
         widget.doc.chapterTitles[i]: i,
     };
-    final groups = tocTree(nodes, hideEmptyParts: false);
     if (groups.isEmpty && titleToCi.isEmpty) {
       return const SizedBox.shrink();
     }

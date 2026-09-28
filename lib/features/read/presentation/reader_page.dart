@@ -144,6 +144,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   // 「回到进书位置」锚点：进书时的 (ci,pg)；拖离后进度弹层给出入口（轮5.2①）。
   ({int ci, int pg})? _homePos;
   bool _backPill = false;
+  /// 轮5.2①：目录/内链跳章前的位置（原型 _brJumpFrom）。
+  /// 入口只放抽屉一行 + 进度弹层，正文不再悬浮任何胶囊。
+  ({int ci, int pg, String title})? _jumpFrom;
   String? _flash;
   Timer? _flashT;
   int _sessSecs = 0;
@@ -431,11 +434,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _gotoChapter(int ci) {
+    final doc = _doc;
+    // 轮5③：跳章前记一份来源位置（同原型 brGotoCh），抽屉里给「回到刚才在读」。
+    final from = doc == null || ci >= doc.chapters.length
+        ? null
+        : (
+            ci: _pos.ci,
+            pg: _pos.pg,
+            title: doc.chapters[_pos.ci.clamp(0, doc.chapters.length - 1)].title,
+          );
     setState(() {
+      if (from != null && from.ci != ci) _jumpFrom = from;
       _pos.ci = ci;
       _pos.pg = 0;
       _drawerOpen = false;
-      _flash = _doc?.chapters[ci].title;
+      _flash = doc?.chapters[ci].title;
     });
     _ensureCur();
     _savePos();
@@ -444,6 +457,26 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       if (mounted) setState(() => _flash = null);
     });
     if (_cfg.mode == 'scroll') _scrollToPara(ci, 0);
+  }
+
+  /// 轮5③/5.2①：回到跳章前的位置（入口＝目录抽屉行 / 进度弹层按钮）。
+  void _goBackJump() {
+    final f = _jumpFrom;
+    if (f == null) return;
+    setState(() {
+      _jumpFrom = null;
+      _pos.ci = f.ci;
+      _pos.pg = f.pg;
+      _drawerOpen = false;
+      _flash = f.title;
+    });
+    _ensureCur();
+    _savePos();
+    _flashT?.cancel();
+    _flashT = Timer(const Duration(milliseconds: 1300), () {
+      if (mounted) setState(() => _flash = null);
+    });
+    if (_cfg.mode == 'scroll') _scrollToPara(f.ci, f.pg);
   }
 
   /// 进度分数定位（0~1，字节加权 · V1.53.1 轮4 foliate 模型；进度条 seek）。
@@ -1653,37 +1686,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       if (_chrome && _pag != null) _bottomBar(bar, size),
                       if (_flash != null) _flashBar(bar),
                       if (_sel != null) _selOverlay(size),
-                      // 「返回原进度」胶囊（参考图4）：拖进度离开原位置后出现。
-                      if (_backPill && _sel == null)
-                        Positioned(
-                          bottom: 96,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: GestureDetector(
-                              key: const ValueKey('brBackPos'),
-                              onTap: _goHome,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xDB0F172A),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: const Text(
-                                  '‹ 返回原进度',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                      // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
+                      // 「回到刚才在读」在目录抽屉（跳章返回）。
                     ],
                     if (_drawerOpen && _doc != null && _pag != null)
                       ReaderTocDrawer(
@@ -1694,6 +1698,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         ci: _pos.ci,
                         pg: _pos.pg,
                         onGoto: _gotoChapter,
+                        backLbl: _jumpFrom?.title,
+                        onBackJump: _jumpFrom == null ? null : _goBackJump,
                         onAddBookmark: () {
                           setState(() => _pos.bm = [_pos.ci, _pos.pg, DateTime.now().millisecondsSinceEpoch]);
                           _savePos();

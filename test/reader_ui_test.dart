@@ -285,6 +285,43 @@ void main() {
       expect(find.byKey(const ValueKey('brDrPanel')), findsNothing);
     });
 
+    testWidgets('轮5②/③：全部折叠⇄展开 · 跳章后抽屉返回行 · 正文零胶囊', (t) async {
+      await openReader(t, _bigDoc(), 'u8');
+      await showChrome(t);
+      await t.tap(find.byKey(const ValueKey('brBtnToc')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brDrFoldAll')), findsOne);
+      expect(find.byKey(const ValueKey('brDrCh-1')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brDrFoldAll')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brDrCh-1')), findsNothing); // 全折叠
+      await t.tap(find.byKey(const ValueKey('brDrFoldAll')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brDrCh-1')), findsOne); // 全展开回位
+      // 跳二章：正文不悬浮任何返回胶囊（轮5.2①）
+      await t.tap(find.byKey(const ValueKey('brDrCh-1')));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('brBackPos')), findsNothing);
+      final g2 = pgLbl(t);
+      expect(g2.$1, 1);
+      await showChrome(t);
+      await t.tap(find.byKey(const ValueKey('brBtnToc')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brDrBack')), findsOne);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brDrBackLbl'))).data,
+        '第一章',
+      );
+      await t.tap(find.byKey(const ValueKey('brDrBack')));
+      await step(t, ms: 300, times: 2);
+      expect(pgLbl(t), isNot(g2)); // 回到跳章前的位置
+      // 用后即清：再开抽屉不再显示返回行
+      await showChrome(t);
+      await t.tap(find.byKey(const ValueKey('brBtnToc')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brDrBack')), findsNothing);
+    });
+
     testWidgets('搜本书：命中→跳原文挂上/下一处', (t) async {
       await openReader(t, _bigDoc(), 'u7');
       await showChrome(t);
