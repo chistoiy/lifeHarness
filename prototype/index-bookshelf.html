@@ -2979,6 +2979,24 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- 轮5.3 · 本地文件与缓存说明（详情页「?」入口） -->
+  <div id="sheetBrLocalInfo" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrLocalInfo')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">本地文件与缓存</b><span class="text-[9px] text-slate-400" id="brLiFmt">EPUB</span></div>
+      <div class="mt-3 space-y-2.5 text-[11.5px] leading-5">
+        <div><div class="text-[9.5px] text-slate-400 mb-0.5">文件路径</div><div class="break-all rounded-xl bg-slate-50 dark:bg-slate-800/60 px-2.5 py-2 text-[10.5px]" id="brLiPath">—</div></div>
+        <div class="flex items-center justify-between"><span class="text-slate-400">体积 / 加密 / 版式</span><b id="brLiMeta">—</b></div>
+        <div class="flex items-center justify-between"><span class="text-slate-400">阅读位置 / 划线 / 进度</span><b id="brLiPos">—</b></div>
+        <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 leading-5">删除时分两种口径：仅清除阅读数据（保留源文件），或连源文件一并移除；书籍记录、书摘与计时始终保留。</div>
+        <div id="brLiCache" class="text-[10.5px] text-slate-500 leading-5"></div>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrLocalInfo')">知道了</button>
+        <button id="brLiClean" class="flex-1 py-3 rounded-2xl border border-amber-300 dark:border-amber-500/40 text-amber-600 text-xs font-bold" onclick="closeSheet('sheetBrLocalInfo');brCacheOpen(CURBK)">清理缓存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- AI 解读 -->
   <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -7516,14 +7534,33 @@ const BR_OLD_RBD=renderBookDetail;
 renderBookDetail=function(){BR_OLD_RBD();try{const b=bsBook(CURBK),root=document.getElementById('bdRoot');
   if(!b||!b.local||!root)return;
   if(document.getElementById('brDcard'))return;
-  root.insertAdjacentHTML('beforeend',`<div id="brDcard" class="mt-3 card">
-    <div class="flex items-center justify-between"><div class="row-title text-xs font-extrabold">本地 EPUB · 可直接阅读</div><span class="text-[9px] rounded-full px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-400">${b.epub?b.epub.fmt:'EPUB'}</span></div>
-    <div class="mt-1.5 text-[10px] text-slate-400 leading-5 break-all">${b.epub?brEsc(b.epub.path)+' · '+b.epub.size:'—'} · 无 DRM · 图文混排</div>
-    <div class="mt-1.5 text-[10px] text-slate-400">阅读位置 ${brPos[b.id]?brCfi(b.id,Math.min(brPos[b.id].ci,Math.max(0,brLeaves(b.id).length-1)),brPos[b.id].pg):'未开始'} · 划线 ${brHlCount(b.id)} 处 · 进度 ${brStPct(b.id)}%</div>
-    <div class="mt-2.5 flex gap-2"><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="brOpen('${b.id}')">打开阅读器</button>
-    <button class="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="navTo('p-readerSearch');brV.b='${b.id}'">全书检索</button>
-    <button class="py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-500 text-xs font-bold" onclick="brDelOpen('${b.id}')">删除…</button></div>
-    <div class="mt-1.5 text-[9px] text-slate-400">删除可选「仅清除阅读数据 · 保留源文件」或连源文件一并移除</div></div>`)}catch(e){}};
+  const tabs=document.getElementById('btToc');const host=tabs&&tabs.parentElement;
+  if(!host||document.getElementById('brDstrip'))return;
+  const fmt=(b.epub&&b.epub.fmt)||'EPUB', size=(b.epub&&b.epub.size)||'—';
+  const pos=brPos[b.id]?brCfi(b.id,Math.min(brPos[b.id].ci,Math.max(0,brLeaves(b.id).length-1)),brPos[b.id].pg):'未开始';
+  host.insertAdjacentHTML('beforebegin',
+    `<div id="brDstrip" class="mt-2.5 rounded-2xl border border-slate-200/70 dark:border-slate-700 px-3 py-2">
+      <div class="flex items-center gap-2">
+        <span class="shrink-0 text-[8.5px] rounded-md px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold">${fmt}</span>
+        <span class="flex-1 min-w-0 truncate text-[10.5px] text-slate-500 dark:text-slate-400">${size} · 无 DRM · 图文混排</span>
+        <button class="shrink-0 w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 text-[10px] font-black text-slate-500 leading-none" title="本地文件与缓存说明" onclick="brLocalInfoOpen('${b.id}')">?</button>
+      </div>
+      <div class="mt-1.5 flex items-center gap-1.5">
+        <span class="flex-1 min-w-0 truncate text-[10px] text-slate-400">进度 ${brStPct(b.id)}% · 位置 ${pos} · 划线 ${brHlCount(b.id)} 处</span>
+        <button class="shrink-0 py-1.5 px-3 rounded-xl grad text-white text-[10.5px] font-bold" onclick="brOpen('${b.id}')">打开阅读器</button>
+        <button class="shrink-0 w-7 h-7 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center" title="全书检索" onclick="navTo('p-readerSearch');brV.b='${b.id}'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
+        <button class="shrink-0 w-7 h-7 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-500 flex items-center justify-center" title="删除本地书" onclick="brDelOpen('${b.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 7h14M9 7V5h6v2m-8 0 1 13h8l1-13"/></svg></button>
+      </div>
+    </div>`)}catch(e){}};
+function brLocalInfoOpen(id){const b=bsBook(id||CURBK);if(!b)return;
+  const e=b.epub||{};const set=(k,v)=>{const el=document.getElementById(k);if(el)el.textContent=v};
+  set('brLiFmt',e.fmt||'EPUB');set('brLiPath',e.path||'—');
+  set('brLiMeta',(e.size||'—')+' · 无 DRM · 图文混排');
+  set('brLiPos',(brPos[b.id]?brCfi(b.id,Math.min(brPos[b.id].ci,Math.max(0,brLeaves(b.id).length-1)),brPos[b.id].pg):'未开始')+' · 划线 '+brHlCount(b.id)+' 处 · 进度 '+brStPct(b.id)+'%');
+  const cache=document.getElementById('brLiCache'),clean=document.getElementById('brLiCache')&&document.getElementById('brLiClean');
+  if(cache)cache.innerHTML='本地副本 + 分页缓存约 <b>'+(e.cache||e.size||'—')+'</b> · 源文件在原始位置保留';
+  if(clean)clean.classList.toggle('hidden',!(e.cache||e.size));
+  openSheet('sheetBrLocalInfo')}
 /* 设置页联动：brBright 与阅读器常亮同步 */
 const BR_OLD_RSFLIP=rsFlip;
 rsFlip=function(k){BR_OLD_RSFLIP(k);if(k==='brBright'){brCfg.bright=!!BS_SET.brBright;brPersist()}};
