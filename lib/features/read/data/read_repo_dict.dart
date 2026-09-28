@@ -1,7 +1,7 @@
 part of 'read_repository.dart';
 
 // 治理G7d④：书架资料字典的引用计数与改名联动群移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
-// dictOf/dictAdd 被摘录群跨群调用，留类内。
+// dictOf/dictAdd 被摘录群跨群调用，留枢纽层。
 mixin _RepoDict on _ReadRepoBase {
   /// 引用计数（删除前守卫）：books 直列 + tags/quotes 多值列。
   Future<int> dictRefCount(DictEntry e) async {

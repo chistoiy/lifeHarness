@@ -1,9 +1,9 @@
-// 治理G7d④ 一次性脚本：read_repository.dart 按域外提 extension part（成员粒度切块·枢纽留类内）
+// 治理G7d④ 一次性脚本：read_repository.dart 按域外提 mixin part（成员粒度切块·枢纽留 _ReadRepoBase）
 // 用法：node tools/g7d4_repo_split.js --parts book,session   （加 --dry 只看统计）
 //
 // 与 note_edit 刀的差量：仓储无 State/setState → 免定点 ignore；改为「花括号深度切块 +
 // 全局引用闭合断言」——extension 成员静态派发，跨扩展裸调用不解析，故任一被引用者
-// 必须留类内（core）或与调用者同群。PLAN 即按此闭合条件定稿。
+// 必须留枢纽层（core）或与调用者同群。PLAN 即按此闭合条件定稿。
 const fs = require('fs');
 const path = require('path');
 
@@ -106,7 +106,7 @@ for (const b of blocks) {
 const named = blocks.filter((b) => b.name);
 const block = (n) => named.find((b) => b.name === n);
 
-// ---- 刀路 PLAN：part → 成员（core＝留类内）----
+// ---- 刀路 PLAN：part → 成员（core＝留枢纽层）----
 const PLAN = {
   book: {
     out: 'read_repo_book.dart',
@@ -115,7 +115,7 @@ const PLAN = {
       '// 治理G7d④：书籍状态群与购书费用流水群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 新增/更新/分区流转（单本与批量同语义）·批量加标签·软删；',
       '// 「购书费用 → L4/记账流水」整段随本群外提（唯一调用者 addBook/updateBook 在同群）。',
-      '// 群内自用 static _stateValues 随迁；枢纽 allBooks/bookById/touchLastRead/_registerDictFor 留类内。',
+      '// 群内自用 static _stateValues 随迁；枢纽 allBooks/bookById/touchLastRead/_registerDictFor 留枢纽层。',
     ],
     members: ['addBook', 'updateBook', '_stateValues', 'setBookState', 'bulkSetState', 'bulkAddTags', 'softDeleteBooks', '_syncFeeTxn'],
   },
@@ -125,7 +125,8 @@ const PLAN = {
     doc: [
       '// 治理G7d④：计时会话群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 单活会话开始/结束/就地补位·关闭与门槛·明细增删改与 L4 流水回写·聚合重算·',
-      '// 今日/本周分钟与自然日列表。allSessions（被统计群跨群调用）与 dayStartMs（公开静态 API）留类内。',
+      '// 今日/本周分钟与自然日列表。allSessions（库外 providers/页面直调的通用取数入口）留枢纽层；',
+      '// dayStartMs 为公开静态 API，静态成员不随 with 可见，故留 ReadRepository 本类。',
     ],
     members: ['runningSession', 'startSession', 'endSession', 'stampSessionStart', '_close', 'sessionsOf', 'addManualSession', 'editSession', 'deleteSession', '_syncTxn', 'syncBookAgg', 'minutesOnDay', 'minutesThisWeek', 'readingDays'],
   },
@@ -135,7 +136,7 @@ const PLAN = {
     doc: [
       '// 治理G7d④：摘录群（查重入账/标签字典/复习档位/L5 跨模块分流）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 群内自用 static reviewGapsMs 随迁（全仓无 ReadRepository.reviewGapsMs 外部调用，已核实）；',
-      '// quotesOf/allQuotes 被导出群与统计群跨群调用，留类内。',
+      '// quotesOf 被导出群调用、allQuotes 为库外通用取数入口，故二者留枢纽层。',
     ],
     members: ['reviewGapsMs', 'addQuote', 'updateQuote', 'quoteById', 'setQuoteStarred', 'softDeleteQuote', 'restoreQuote', 'quoteCount', 'quoteCountSince', 'recentQuotes', 'quoteBookIdsMatching', 'quoteTags', 'reviewOf', 'reviewMap', 'dueReviewCount', 'dueReviews', 'bumpReview', 'resetReview', 'holdReview', '_quoteText', 'quoteToDiary', 'quoteToTodo', 'quoteToNote', 'bookToNote'],
   },
@@ -152,7 +153,7 @@ const PLAN = {
     ext: '_RepoDict',
     doc: [
       '// 治理G7d④：书架资料字典的引用计数与改名联动群移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
-      '// dictOf/dictAdd 被摘录群跨群调用，留类内。',
+      '// dictOf/dictAdd 被摘录群跨群调用，留枢纽层。',
     ],
     members: ['dictRefCount', 'dictRefCounts', 'dictRename', 'dictDelete'],
   },
@@ -161,7 +162,7 @@ const PLAN = {
     ext: '_RepoLists',
     doc: [
       '// 治理G7d④：书单群（手动 items / 年度 auto_year 动态成员）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
-      '// allLists 被导出群跨群调用，留类内。',
+      '// allLists 被导出群跨群调用，留枢纽层。',
     ],
     members: ['findAutoYear', 'addList', 'listById', 'updateList', 'setListBooks', 'addBookToList', 'removeBookFromList', 'softDeleteList', 'listMembers'],
   },
@@ -170,7 +171,7 @@ const PLAN = {
     ext: '_RepoStats',
     doc: [
       '// 治理G7d④：统计聚合群（p-readstat 数据源）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
-      '// 逐日分钟/逐日摘录/时段直方/费用/字数/本月摘录/本年读完；跨群只调类内枢纽。',
+      '// 逐日分钟/逐日摘录/时段直方/费用/字数/本月摘录/本年读完；跨群只调 _ReadRepoBase 枢纽层。',
     ],
     members: ['dayLogYear', 'dayQuotesYear', 'hourHistogram', 'feeTotals', 'doneWords', 'quotesThisMonth', 'doneThisYear'],
   },

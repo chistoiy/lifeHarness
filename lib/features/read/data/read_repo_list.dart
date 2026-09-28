@@ -1,7 +1,7 @@
 part of 'read_repository.dart';
 
 // 治理G7d④：书单群（手动 items / 年度 auto_year 动态成员）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
-// allLists 被导出群跨群调用，留类内。
+// allLists 被导出群跨群调用，留枢纽层。
 mixin _RepoLists on _ReadRepoBase {
   Future<BookList?> findAutoYear(int year) async {
     final rows = await db.query(

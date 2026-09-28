@@ -1,7 +1,7 @@
 part of 'read_repository.dart';
 
 // 治理G7d④：统计聚合群（p-readstat 数据源）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
-// 逐日分钟/逐日摘录/时段直方/费用/字数/本月摘录/本年读完；跨群只调类内枢纽。
+// 逐日分钟/逐日摘录/时段直方/费用/字数/本月摘录/本年读完；跨群只调 _ReadRepoBase 枢纽层。
 mixin _RepoStats on _ReadRepoBase {
   // ---- 统计聚合（批4 · p-readstat 数据源）----
 

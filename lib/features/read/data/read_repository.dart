@@ -66,8 +66,11 @@ class ReadRepository extends _ReadRepoBase
       DateTime(d.year, d.month, d.day).millisecondsSinceEpoch;
 }
 
-/// 枢纽层：各域 mixin 唯一的 `on` 约束，只放字段/构造与被跨群调用的入口方法。
-/// 判据＝「谁会被别的群调用」，故这些方法不外提到任何一个域。
+/// 枢纽层：各域 mixin 唯一的 `on` 约束，只放字段/构造与共享入口方法。
+/// 留本层的判据（复审拍板的口径）＝①被两个以上域群调用（allBooks/bookById/
+/// _registerDictFor/touchLastRead/quotesOf/dictOf/dictAdd/allLists），或②库外
+/// providers/页面直接使用的通用取数入口（allSessions/allQuotes 库内虽只统计群用，
+/// 但 read_providers·shelf_page·read_stat_page 等 11~21 处直调，归任一域都不合适）。
 abstract class _ReadRepoBase {
   _ReadRepoBase(this.db);
 
@@ -140,7 +143,8 @@ abstract class _ReadRepoBase {
     );
   }
 
-  // ---- 计时会话 · 摘录（枢纽件：统计群与导出群都要全量取数，其余成员见各域 mixin）----
+  // ---- 计时会话 · 摘录（枢纽件：库内由统计群全量取数，库外 providers/书架页/统计页
+  // 直调，故不归任一带域的 mixin；其余成员见 _RepoSessions/_RepoQuotes）----
 
   Future<List<BookSession>> allSessions() async => (await db.query(
     DbSchema.tBookSessions,

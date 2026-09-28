@@ -2,7 +2,7 @@ part of 'read_repository.dart';
 
 // 治理G7d④：摘录群（查重入账/标签字典/复习档位/L5 跨模块分流）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
 // 群内自用 static reviewGapsMs 随迁（全仓无 ReadRepository.reviewGapsMs 外部调用，已核实）；
-// quotesOf/allQuotes 被导出群与统计群跨群调用，留类内。
+// quotesOf 被导出群调用、allQuotes 为库外通用取数入口，故二者留枢纽层。
 mixin _RepoQuotes on _ReadRepoBase {
   // ---- 摘录（批3 全量：查重入账 / 标签字典 / 复习档位 / L5 分流）----
 

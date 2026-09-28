@@ -3,7 +3,8 @@ part of 'read_repository.dart';
 // 治理G7d④：书籍状态群与购书费用流水群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
 // 新增/更新/分区流转（单本与批量同语义）·批量加标签·软删；
 // 「购书费用 → L4/记账流水」整段随本群外提（唯一调用者 addBook/updateBook 在同群）。
-// 群内自用 static _stateValues 随迁；枢纽 allBooks/bookById/touchLastRead/_registerDictFor 留类内。
+// 群内自用 static _stateValues 随迁；枢纽 allBooks/bookById/touchLastRead/_registerDictFor
+// 与 read.* 设置 kv 群留 _ReadRepoBase（判据见该类的文档注释）。
 mixin _RepoBooks on _ReadRepoBase {
   /// 新增：read.newPos=末尾 时以 last_read_at 沉底实现插入位置（§6）。
   Future<Book> addBook(Book b) async {

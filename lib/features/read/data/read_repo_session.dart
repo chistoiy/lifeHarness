@@ -2,7 +2,8 @@ part of 'read_repository.dart';
 
 // 治理G7d④：计时会话群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。
 // 单活会话开始/结束/就地补位·关闭与门槛·明细增删改与 L4 流水回写·聚合重算·
-// 今日/本周分钟与自然日列表。allSessions（被统计群跨群调用）与 dayStartMs（公开静态 API）留类内。
+// 今日/本周分钟与自然日列表。allSessions（库外 providers/书架页/统计页直调的通用取数入口）
+// 与 dayStartMs（公开静态 API·静态成员不随 with 可见）留枢纽层与本类。
 mixin _RepoSessions on _ReadRepoBase {
   // ---- 计时会话 ----
 
