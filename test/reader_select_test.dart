@@ -1,11 +1,15 @@
-import 'dart:convert' show jsonDecode;
+import 'dart:convert' show jsonDecode, jsonEncode, utf8;
+import 'dart:io' show File;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:lifeharness/core/ai/ai_client.dart' show AiClient;
 import 'package:lifeharness/core/ai/ai_prompt_pack.dart';
 import 'package:lifeharness/core/ai/ai_providers.dart';
 import 'package:lifeharness/core/ai/ai_vault.dart';
@@ -83,18 +87,30 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Widget wrap(Widget home, EpubDoc doc) => ProviderScope(
+  Widget wrap(Widget home, EpubDoc doc, {AiClient? ai, AiPromptPack? pack}) =>
+      ProviderScope(
     overrides: [
       readRepositoryProvider.overrideWithValue(repo),
       sharedPreferencesProvider.overrideWithValue(prefs),
       epubDocLoaderProvider.overrideWithValue((_) async => doc),
       // AI 门控用例需可构造 AiService：空包 + 内存 Key（master 默认关 → 门控拒绝）。
-      aiPromptPackProvider.overrideWithValue(const AiPromptPack(
-          version: 0, defaultBaseUrl: '', defaultModel: '', tasks: [])),
-      aiKeyVaultProvider.overrideWithValue(AiKeyVault.inMemory()),
+      aiPromptPackProvider.overrideWithValue(
+          pack ??
+              const AiPromptPack(
+                  version: 0, defaultBaseUrl: '', defaultModel: '', tasks: [])),
+      aiKeyVaultProvider.overrideWithValue(
+          ai == null ? AiKeyVault.inMemory() : AiKeyVault.inMemory(apiKey: 'sk-t')),
+      // 接通统一入口的用例注入 MockClient（零真实网络）；不传＝用默认实现。
+      if (ai != null) aiClientProvider.overrideWithValue(ai),
     ],
     child: MaterialApp(home: home),
   );
+
+  /// 换一套 SharedPreferences 种子（AI 开关类用例需在测试内改 pref）。
+  Future<void> seedPrefs(Map<String, Object> m) async {
+    SharedPreferences.setMockInitialValues(m);
+    prefs = await SharedPreferences.getInstance();
+  }
 
   Future<void> step(WidgetTester t, {int ms = 200, int times = 1}) async {
     for (var i = 0; i < times; i++) {
@@ -102,7 +118,8 @@ void main() {
     }
   }
 
-  Future<void> openReader(WidgetTester t, EpubDoc doc, String id) async {
+  Future<void> openReader(WidgetTester t, EpubDoc doc, String id,
+      {AiClient? ai, AiPromptPack? pack}) async {
     await useSurface(t, const Size(420, 780));
     await repo.addBook(Book(
       id: id,
@@ -112,7 +129,7 @@ void main() {
       createdAt: 1,
       updatedAt: 1,
     ));
-    await t.pumpWidget(wrap(ReaderPage(bookId: id), doc));
+    await t.pumpWidget(wrap(ReaderPage(bookId: id), doc, ai: ai, pack: pack));
     await step(t, times: 4);
     // 段落空隙带点 chrome（段内长按才是划词，点按只走 body 分派）。
     final r = t.getRect(find.byKey(const ValueKey('brpTap-0-2')));
@@ -310,16 +327,72 @@ void main() {
       await t.tapAt(const Offset(210, 60));
       await step(t, ms: 400);
       expect(find.byKey(const ValueKey('sheetBrDict')), findsNothing);
-      // AI：默认总开关关 → 弹层内直接给门控原因（零请求）。
+      // AI：默认总开关关 → 统一入口在通道内 toast 归因，阅读侧不再自建弹层。
       await selectPara(t, 'brpTap-0-3');
       await t.tap(find.byKey(const ValueKey('brSelAi')));
-      // 门控结果经 async 回填，需两帧：首帧挂弹层、次帧渲染拒绝文案。
-      await step(t, ms: 300, times: 2);
-      expect(find.byKey(const ValueKey('sheetBrAi')), findsOne);
-      expect(find.textContaining('AI 总开关未开启'), findsOne);
-      await t.tapAt(const Offset(210, 60));
-      await step(t, ms: 400, times: 2);
+      await step(t, ms: 300, times: 3);
+      expect(find.textContaining('AI 未启用'), findsOne);
       expect(find.byKey(const ValueKey('sheetBrAi')), findsNothing);
+      expect(find.byKey(const ValueKey('ai-review-send')), findsNothing);
+      await clearToasts(t);
+    });
+
+    testWidgets('R7 接入门：AI 解读走 aiRunWithReview（审阅→MockClient→结果弹层）', (t) async {
+      await seedPrefs({
+        'ai.master': true,
+        'ai.caps': '{"read.quote_insight":true}',
+      });
+      final pack = AiPromptPack.decode(
+          File('assets/ai_prompts/prompts.json').readAsStringSync());
+      var hits = 0;
+      await openReader(
+        t,
+        _doc(),
+        's9',
+        pack: pack,
+        ai: AiClient(
+          client: MockClient((req) async {
+            hits++;
+            return http.Response.bytes(
+              utf8.encode(
+                jsonEncode({
+                  'choices': [
+                    {
+                      'message': {
+                        'content':
+                            '{"insight":"这段把犹豫写成行动，适合做排期评审的开场。","tags":["决断"]}'
+                      }
+                    }
+                  ],
+                  'usage': {'prompt_tokens': 10, 'completion_tokens': 20},
+                }),
+              ),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }),
+        ),
+      );
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelAi')));
+      await step(t, ms: 300, times: 2);
+      // ① 发送前审阅弹层（内容由通道负责）。
+      expect(find.byKey(const ValueKey('ai-review-send')), findsOne);
+      expect(hits, 0, reason: '未确认前零请求');
+      await t.tap(find.byKey(const ValueKey('ai-review-send')));
+      await step(t, ms: 300, times: 3);
+      // ② 请求一次 + 结果弹层渲染 insight。
+      expect(hits, 1);
+      expect(find.byKey(const ValueKey('sheetBrAi')), findsOne);
+      expect(find.textContaining('排期评审的开场'), findsOne);
+      await t.tap(find.byKey(const ValueKey('brAiToQuote')));
+      await step(t, ms: 300, times: 3);
+      // ③ 「填为感想」仍落到摘录编辑页（原语义不变）。
+      final tf = t.widget<TextField>(find.byKey(const ValueKey('qef-thought')));
+      expect(tf.controller!.text, contains('【AI 解读】'));
+      await t.pageBack();
+      await step(t, ms: 300, times: 3);
+      await clearToasts(t);
     });
   });
 

@@ -13,8 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-import '../../../core/ai/ai_providers.dart' show aiServiceProvider;
-import '../../../core/ai/ai_service.dart' show AiDenied;
+import '../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../data/epub_doc.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
@@ -999,31 +998,40 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  /// AI 解读：三重门控通过后调 read.quote_insight（摘录感想生成）。
-  void _actAi() {
+  /// AI 解读：走统一入口 aiRunWithReview（架构守护 R7 · 需求清单 §六 原则 8）。
+  /// 门控/发送前审阅/进度与取消/四态留痕与 token 台账都在通道内，阅读侧只渲染结果。
+  Future<void> _actAi() async {
     final sel = _sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
     final quote = _selTxt;
     final book = _book?.title ?? doc.title;
     _clearSel();
+    final res = await aiRunWithReview(
+      context,
+      ref,
+      taskId: 'read.quote_insight',
+      vars: {'quote': quote, 'book': book},
+    );
+    if (res == null || !mounted) return; // 取消/门控拒绝/失败已由通道提示并留痕
+    final j = res.json;
+    final insight =
+        ('${j != null ? j['insight'] ?? '' : res.requireText()}').trim();
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sc) => _BrAiSheet(
-        bookId: widget.bookId,
-        quote: quote,
-        book: book,
-        onToQuote: (insight) {
+        insight: insight.isEmpty ? '（返回为空）' : insight,
+        onToQuote: (txt) {
           Navigator.of(sc).pop();
           showQuoteEditPage(
             context,
             ref,
             bookId: widget.bookId,
             preBody: quote.length > 120 ? quote.substring(0, 120) : quote,
-            preThought: '【AI 解读】$insight',
+            preThought: '【AI 解读】$txt',
             focusThought: true,
           );
         },
@@ -2810,61 +2818,16 @@ class _BrTriPainter extends CustomPainter {
   bool shouldRepaint(covariant _BrTriPainter old) => old.color != color;
 }
 
-/// AI 解读弹层（原型 sheetBrAi）：门控→请求→展示 insight；可复制/填想法。
-class _BrAiSheet extends ConsumerStatefulWidget {  const _BrAiSheet({
-    required this.bookId,
-    required this.quote,
-    required this.book,
-    required this.onToQuote,
-  });
+/// AI 解读结果弹层（原型 sheetBrAi）：只渲染 aiRunWithReview 的应答。
+/// 门控/审阅/进度/留痕都在通道内完成，这里不再有第二条 AI 调用路径（R7 接入门）。
+class _BrAiSheet extends StatelessWidget {
+  const _BrAiSheet({required this.insight, required this.onToQuote});
 
-  final String bookId;
-  final String quote;
-  final String book;
+  final String insight;
   final void Function(String insight) onToQuote;
 
   @override
-  ConsumerState<_BrAiSheet> createState() => _BrAiSheetState();
-}
-
-class _BrAiSheetState extends ConsumerState<_BrAiSheet> {
-  String? _insight;
-  String? _err;
-
-  @override
-  void initState() {
-    super.initState();
-    _run();
-  }
-
-  Future<void> _run() async {
-    final ai = ref.read(aiServiceProvider);
-    final denial = await ai.gate('read.quote_insight');
-    if (!mounted) return;
-    if (denial != null) {
-      setState(() => _err = denial);
-      return;
-    }
-    setState(() {});
-    try {
-      final r = await ai.request('read.quote_insight', {
-        'quote': widget.quote,
-        'book': widget.book,
-      });
-      if (!mounted) return;
-      final m = r.json;
-      final txt = m != null ? '${m['insight'] ?? ''}' : (r.text ?? '').trim();
-      setState(() => _insight = txt.isEmpty ? '（返回为空）' : txt);
-    } on Object catch (e) {
-      if (mounted) {
-        setState(() => _err = e is AiDenied ? e.reason : '解读失败 · 稍后再试');
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
@@ -2877,43 +2840,13 @@ class _BrAiSheetState extends ConsumerState<_BrAiSheet> {
               'AI 解读',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 8),
-            Text(
-              widget.quote,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-            ),
             const SizedBox(height: 12),
             SizedBox(
               key: const ValueKey('brAiOut'),
               height: 108,
-              child: _err != null
-                  ? Text(_err!, style: const TextStyle(fontSize: 12, height: 1.6))
-                  : _insight == null
-                  ? Row(
-                      children: [
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2.2),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '正在结合上下文解读…',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    )
-                  : SingleChildScrollView(
-                      child: Text(
-                        _insight!,
-                        style: const TextStyle(fontSize: 13, height: 1.7),
-                      ),
-                    ),
+              child: SingleChildScrollView(
+                child: Text(insight, style: const TextStyle(fontSize: 13, height: 1.7)),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -2921,12 +2854,10 @@ class _BrAiSheetState extends ConsumerState<_BrAiSheet> {
                 Expanded(
                   child: OutlinedButton(
                     key: const ValueKey('brAiCopy'),
-                    onPressed: _insight == null
-                        ? null
-                        : () {
-                            Clipboard.setData(ClipboardData(text: _insight!));
-                            readToast(context, '解读已复制');
-                          },
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: insight));
+                      readToast(context, '解读已复制');
+                    },
                     child: const Text('复制'),
                   ),
                 ),
@@ -2934,9 +2865,7 @@ class _BrAiSheetState extends ConsumerState<_BrAiSheet> {
                 Expanded(
                   child: FilledButton(
                     key: const ValueKey('brAiToQuote'),
-                    onPressed: _insight == null
-                        ? null
-                        : () => widget.onToQuote(_insight!),
+                    onPressed: () => onToQuote(insight),
                     child: const Text('填为感想'),
                   ),
                 ),
