@@ -28,6 +28,7 @@ import './reader_bg.dart';
 import './reader_bottom_sheets.dart';
 import './reader_pager.dart';
 import './reader_search_page.dart';
+import './reader_sel_layer.dart';
 import './reader_toc_drawer.dart';
 
 part 'reader_models.dart';
@@ -1560,7 +1561,25 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       if (_chrome) _topBar(bar),
                       if (_chrome && _pag != null) _bottomBar(bar, size),
                       if (_flash != null) _flashBar(bar),
-                      if (_sel != null) ..._selLayer(size),
+                      if (_sel != null) ...brSelLayer(
+                        size: size,
+                        hlPop: _hlPop,
+                        onCopy: _actCopy,
+                        onToggleHl: () => setState(() => _hlPop = !_hlPop),
+                        onQuote: _actQuote,
+                        onDict: _actDict,
+                        onTts: () => readToast(context, '朗读能力规划中 · 暂未上线'),
+                        onAi: _actAi,
+                        onShare: _actShare,
+                        onColor: _addHl,
+                        onDelete: _delHl,
+                        handle: (end) =>
+                            brHandleWidget(
+                              end,
+                              _selAnchor(end),
+                              (g) => _dragSel(end: end, global: g),
+                            ),
+                      ),
                       // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
                       // 「回到刚才在读」在目录抽屉（跳章返回）。
                     ],
@@ -2005,204 +2024,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  /// 选区层（原型 brSelBar + brHStart/brHEnd）：浮条 + 首尾可拖动手柄。
-  /// 轮5①：工具条不再放「前扩/后扩」，扩选改由手柄拖动完成（系统复制手感）。
-  List<Widget> _selLayer(Size size) {
-    const dark = Color(0xE60F172A);
-    const brand = Color(0xFFA5B4FC);
-    Widget chip(String k, String label, IconData icon, VoidCallback? onTap, {bool accent = false}) =>
-        InkWell(
-          key: ValueKey(k),
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 13, color: accent ? brand : Colors.white),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                    color: accent ? brand : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-    return [
-      Positioned(
-        top: size.height * .15,
-        left: 0,
-        right: 0,
-        child: Column(
-          children: [
-            if (_hlPop)
-              Container(
-                key: const ValueKey('brColorPop'),
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: dark,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final tg in BookQuote.colorTags)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          key: ValueKey('brColor-$tg'),
-                          onTap: () => _addHl(tg),
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: Color(
-                                0xFF000000 |
-                                    (BookQuote.hexToInt(
-                                          BookQuote.colorHex[tg],
-                                        ) ??
-                                        0xFDE047),
-                              ),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white38),
-                            ),
-                          ),
-                        ),
-                      ),
-                    TextButton(
-                      key: const ValueKey('brDelHl'),
-                      onPressed: _delHl,
-                      child: const Text(
-                        '删划线',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            Container(
-              key: const ValueKey('brSelBar'),
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-              decoration: BoxDecoration(
-                color: dark,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    chip('brSelCopy', '复制', Icons.copy_rounded, _actCopy),
-                    chip(
-                      'brSelHl',
-                      '划线',
-                      Icons.format_color_text_rounded,
-                      () => setState(() => _hlPop = !_hlPop),
-                    ),
-                    chip(
-                      'brSelThink',
-                      '写想法',
-                      Icons.edit_outlined,
-                      () => _actQuote(true),
-                    ),
-                    chip(
-                      'brSelQuote',
-                      '书摘',
-                      Icons.note_alt_outlined,
-                      () => _actQuote(false),
-                    ),
-                    chip('brSelDict', '查询', Icons.search_rounded, _actDict),
-                    // 听当前＝TTS：按拍板延后，入口先占位提示。
-                    chip(
-                      'brSelTts',
-                      '听当前',
-                      Icons.volume_up_rounded,
-                      () => readToast(context, '朗读能力规划中 · 暂未上线'),
-                    ),
-                    chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, _actAi),
-                    chip('brSelShare', '分享', Icons.ios_share, _actShare),
-                  ],
-                ),
-              ),
-            ),
-            // 指向气泡（参考图4：工具条下沿小三角指向选中段落方向）。
-            CustomPaint(size: const Size(16, 8), painter: _BrTriPainter(dark)),
-          ],
-        ),
-      ),
-      // 轮5①：首尾手柄（长按只给一句，扩不扩由拖动决定＝系统复制手感）。
-      ?_brHandle(false),
-      ?_brHandle(true),
-    ];
-  }
 
-  /// 选区端点手柄（原型 .br-h：11px 圆点 + 2×15px 竖枝，首端枝朝上、尾端枝朝下）。
-  /// 端点算不出（段落未渲染/快照缺段）就不画，也不拦事件。
-  Widget? _brHandle(bool end) {
-    final p = _selAnchor(end);
-    if (p == null) return null;
-    final stemUp = !end; // 首端：枝在点上方；尾端：枝在点下方
-    return Positioned(
-      key: ValueKey(end ? 'brHEnd' : 'brHStart'),
-      left: p.dx - 13,
-      top: p.dy - (stemUp ? 26 : 0),
-      width: 26,
-      height: 37,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // 起点即判定：拖动一开始就认领手势，避免与父级识别器争抢。
-        dragStartBehavior: DragStartBehavior.down,
-        onPanUpdate: (d) => _dragSel(end: end, global: d.globalPosition),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              top: stemUp ? 0 : null,
-              bottom: stemUp ? null : 0,
-              child: Container(
-                width: 2,
-                height: 15,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x660F172A),
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// 选区端点 → 舞台 Stack 内坐标（RenderParagraph 取字符盒）。
   Offset? _selAnchor(bool end) {
@@ -2593,23 +2415,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 }
 
 /// 选区工具条下沿指向小三角（参考图4 气泡尖）。
-class _BrTriPainter extends CustomPainter {
-  const _BrTriPainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(p, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BrTriPainter old) => old.color != color;
-}
 
 /// AI 解读结果弹层（原型 sheetBrAi）：只渲染 aiRunWithReview 的应答。
 /// 门控/审阅/进度/留痕都在通道内完成，这里不再有第二条 AI 调用路径（R7 接入门）。
