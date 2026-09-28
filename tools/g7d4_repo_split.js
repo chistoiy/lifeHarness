@@ -53,8 +53,8 @@ const codeEnds = (s) => {
   const c = code(s).trim();
   return c.endsWith(';') || c.endsWith('}');
 };
-const classStart = lines.findIndex((l) => l.startsWith('class ReadRepository {'));
-if (classStart < 0) { console.error('NO-CLASS'); process.exit(1); }
+const classStart = lines.findIndex((l) => l.startsWith('abstract class _ReadRepoBase {'));
+if (classStart < 0) { console.error('NO-BASE-CLASS'); process.exit(1); }
 let depth = 0;
 let cur = null;
 const blocks = [];
@@ -93,9 +93,9 @@ const block = (n) => named.find((b) => b.name === n);
 const PLAN = {
   book: {
     out: 'read_repo_book.dart',
-    ext: 'ReadRepoBooks',
+    ext: '_RepoBooks',
     doc: [
-      '// 治理G7d④：书籍状态群与购书费用流水群自 ReadRepository 移入同库扩展（行为零改动）。',
+      '// 治理G7d④：书籍状态群与购书费用流水群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 新增/更新/分区流转（单本与批量同语义）·批量加标签·软删；',
       '// 「购书费用 → L4/记账流水」整段随本群外提（唯一调用者 addBook/updateBook 在同群）。',
       '// 群内自用 static _stateValues 随迁；枢纽 allBooks/bookById/touchLastRead/_registerDictFor 留类内。',
@@ -104,9 +104,9 @@ const PLAN = {
   },
   session: {
     out: 'read_repo_session.dart',
-    ext: 'ReadRepoSessions',
+    ext: '_RepoSessions',
     doc: [
-      '// 治理G7d④：计时会话群自 ReadRepository 移入同库扩展（行为零改动）。',
+      '// 治理G7d④：计时会话群自 _ReadRepoBase 移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 单活会话开始/结束/就地补位·关闭与门槛·明细增删改与 L4 流水回写·聚合重算·',
       '// 今日/本周分钟与自然日列表。allSessions（被统计群跨群调用）与 dayStartMs（公开静态 API）留类内。',
     ],
@@ -114,9 +114,9 @@ const PLAN = {
   },
   quote: {
     out: 'read_repo_quote.dart',
-    ext: 'ReadRepoQuotes',
+    ext: '_RepoQuotes',
     doc: [
-      '// 治理G7d④：摘录群（查重入账/标签字典/复习档位/L5 跨模块分流）移入同库扩展（行为零改动）。',
+      '// 治理G7d④：摘录群（查重入账/标签字典/复习档位/L5 跨模块分流）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 群内自用 static reviewGapsMs 随迁（全仓无 ReadRepository.reviewGapsMs 外部调用，已核实）；',
       '// quotesOf/allQuotes 被导出群与统计群跨群调用，留类内。',
     ],
@@ -124,53 +124,53 @@ const PLAN = {
   },
   toc: {
     out: 'read_repo_toc.dart',
-    ext: 'ReadRepoToc',
+    ext: '_RepoToc',
     doc: [
-      '// 治理G7d④：目录（两级·手动微调与粘贴导入）与记进度群移入同库扩展（行为零改动）。',
+      '// 治理G7d④：目录（两级·手动微调与粘贴导入）与记进度群移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
     ],
     members: ['tocOf', 'replaceToc', 'renameToc', 'moveToc', 'deleteToc', 'addTocPart', 'addTocSection', 'tocPrune', 'saveProgress'],
   },
   dict: {
     out: 'read_repo_dict.dart',
-    ext: 'ReadRepoDict',
+    ext: '_RepoDict',
     doc: [
-      '// 治理G7d④：书架资料字典的引用计数与改名联动群移入同库扩展（行为零改动）。',
+      '// 治理G7d④：书架资料字典的引用计数与改名联动群移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// dictOf/dictAdd 被摘录群跨群调用，留类内。',
     ],
     members: ['dictRefCount', 'dictRefCounts', 'dictRename', 'dictDelete'],
   },
   list: {
     out: 'read_repo_list.dart',
-    ext: 'ReadRepoLists',
+    ext: '_RepoLists',
     doc: [
-      '// 治理G7d④：书单群（手动 items / 年度 auto_year 动态成员）移入同库扩展（行为零改动）。',
+      '// 治理G7d④：书单群（手动 items / 年度 auto_year 动态成员）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// allLists 被导出群跨群调用，留类内。',
     ],
     members: ['findAutoYear', 'addList', 'listById', 'updateList', 'setListBooks', 'addBookToList', 'removeBookFromList', 'softDeleteList', 'listMembers'],
   },
   stat: {
     out: 'read_repo_stat.dart',
-    ext: 'ReadRepoStats',
+    ext: '_RepoStats',
     doc: [
-      '// 治理G7d④：统计聚合群（p-readstat 数据源）移入同库扩展（行为零改动）。',
+      '// 治理G7d④：统计聚合群（p-readstat 数据源）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
       '// 逐日分钟/逐日摘录/时段直方/费用/字数/本月摘录/本年读完；跨群只调类内枢纽。',
     ],
     members: ['dayLogYear', 'dayQuotesYear', 'hourHistogram', 'feeTotals', 'doneWords', 'quotesThisMonth', 'doneThisYear'],
   },
   imp: {
     out: 'read_repo_import.dart',
-    ext: 'ReadRepoImport',
+    ext: '_RepoImport',
     doc: [
-      '// 治理G7d④：导入群（三级去重·整批事务·撤销本批·书单导入）移入同库扩展（行为零改动）。',
+      '// 治理G7d④：导入群（三级去重·整批事务·撤销本批·书单导入）移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
     ],
     members: ['findBookFor', 'previewImport', 'commitImport', 'undoImportBatch', 'importBookList'],
   },
   expo: {
     out: 'read_repo_export.dart',
-    ext: 'ReadRepoExport',
-    ext2: 'ReadRepoDouban',
+    ext: '_RepoExport',
+    ext2: '_RepoDouban',
     doc: [
-      '// 治理G7d④：导出群（MD 按书分组 / JSON 书架备份）与豆瓣元数据缓存群移入同库扩展（行为零改动）。',
+      '// 治理G7d④：导出群（MD 按书分组 / JSON 书架备份）与豆瓣元数据缓存群移入同库 mixin（行为零改动·成员经 with 组合后仍是 ReadRepository 的实例成员）。',
     ],
     members: ['buildQuotesMd', 'buildBookQuotesMd', 'buildBackupJson', 'doubanCacheRow', 'doubanCachePut', 'doubanCacheCount', 'doubanCacheClear'],
   },
@@ -262,6 +262,29 @@ if (!hadParts) {
 }
 kept.splice(insAt + 1, 0, ...groups.map((g) => `part '${g.out}';`));
 
+// ---- with 子句：本批 mixin 追加进 ReadRepository 的 with 列表（顺序＝part 顺序）----
+const newMixins = groups.flatMap((g) => [g.ext, ...(g.ext2 ? [g.ext2] : [])]);
+const clsRe = /class ReadRepository extends _ReadRepoBase(\s+with\s+[_\w\s,]+?)?\s*\{/;
+const cm = kept.join('\n').match(clsRe);
+if (!cm) { console.error('NO-READREPO-CLASS'); process.exit(1); }
+const existing = (cm[1] || '')
+  .replace(/^\s*with/, '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const allMixins = [...new Set([...existing, ...newMixins])];
+for (const x of existing) if (!/^_Repo[A-Za-z]+$/.test(x)) bad.push(`WITH-SUSPECT ${x}`);
+const clause = allMixins.length
+  ? 'class ReadRepository extends _ReadRepoBase\n    with\n        ' +
+    allMixins.join(',\n        ') +
+    ' {'
+  : 'class ReadRepository extends _ReadRepoBase {';
+kept = kept.join('\n').replace(clsRe, () => clause).split('\n');
+for (const x of allMixins) {
+  const n = kept.filter((l) => l.trim() === `${x},` || l.trim() === `${x} {`).length;
+  if (n !== 1) bad.push(`WITH-ONCE ${x} hits=${n}`);
+}
+
 // ---- part 文件正文 ----
 const keptText = kept.join('\n');
 const partTexts = {};
@@ -270,11 +293,11 @@ for (const g of groups) {
     `part of '${MAIN}';`,
     '',
     ...g.doc,
-    `extension ${g.ext} on ReadRepository {`,
+    `mixin ${g.ext} on _ReadRepoBase {`,
   ];
   g.sorted.forEach((b, idx) => {
     if (idx > 0) out.push('');
-    if (g.ext2 && b.name === 'doubanCacheRow') out.push('}', '', `extension ${g.ext2} on ReadRepository {`);
+    if (g.ext2 && b.name === 'doubanCacheRow') out.push('}', '', `mixin ${g.ext2} on _ReadRepoBase {`);
     out.push(...bodies.get(b.name));
   });
   out.push('}', '');
