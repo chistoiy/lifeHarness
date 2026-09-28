@@ -219,6 +219,7 @@ List<Widget> brSelLayer({
     );
   }
 
+/// 选区工具条下沿指向小三角（参考图4 气泡尖）。
 class BrTriPainter extends CustomPainter {
   const BrTriPainter(this.color);
   final Color color;
