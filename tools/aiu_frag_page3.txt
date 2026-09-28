@@ -1,0 +1,15 @@
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 三胶囊点开横向选项 · 列表通底） ===== -->
+    <section id="p-aiUsage" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auSum" class="truncate">0 条 · 入 0/出 0 tokens · 未成功 0</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="openSheet('sheetAiUsageCfg')">记录设置</button>
+        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制</button>
+        <button class="mini-btn shrink-0" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
+      </div>
+      <!-- 时间 / 状态 / 模块 收成三个胶囊：点某个胶囊才横向展开该组选项，纵向空间尽量留给列表 -->
+      <div class="flex items-center gap-1.5 mt-1.5" id="auBar"></div>
+      <div id="auPop" class="hidden"></div>
+      <input id="auKw" class="inp w-full mt-1.5" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 258px);overflow-y:auto"></div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 mb-3" id="auHint">点一行展开输入与输出全文 · 长按一行复制该行摘要</div>
+    </section>

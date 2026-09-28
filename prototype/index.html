@@ -1508,6 +1508,7 @@ tailwind.config = {
     </section>
 
     <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 筛选合一行 · 统计与删除上移） ===== -->
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 无底栏 · 三胶囊点开横向选项 · 列表通底） ===== -->
     <section id="p-aiUsage" class="page px-5 no-scrollbar">
       <div class="flex items-center gap-2 mt-2 text-[10px] text-slate-500 dark:text-slate-400">
         <span id="auSum" class="truncate">0 条 · 入 0/出 0 tokens · 未成功 0</span>
@@ -1515,26 +1516,11 @@ tailwind.config = {
         <button class="mini-btn shrink-0" onclick="auCopyAll()">复制</button>
         <button class="mini-btn shrink-0" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
       </div>
-      <!-- 时间 / 状态 / 模块 合并为一行（横向可滑），把纵向空间全留给列表 -->
-      <div class="flex items-center gap-1 mt-1.5 overflow-x-auto no-scrollbar pb-1" id="auBar">
-        <span class="au-cap">时间</span>
-        <button id="auD0" class="auf on" onclick="auSetRange(0,'auD0')">今日</button>
-        <button id="auD7" class="auf" onclick="auSetRange(7,'auD7')">7 天</button>
-        <button id="auD30" class="auf" onclick="auSetRange(30,'auD30')">30 天</button>
-        <button id="auDA" class="auf" onclick="auSetRange(9999,'auDA')">全部</button>
-        <span class="au-div"></span>
-        <span class="au-cap">状态</span>
-        <button id="auSAll" class="auf on" onclick="auSetSt('all','auSAll')">全部</button>
-        <button id="auSOk" class="auf" onclick="auSetSt('ok','auSOk')">成功</button>
-        <button id="auSF" class="auf" onclick="auSetSt('fail','auSF')">失败</button>
-        <button id="auSC" class="auf" onclick="auSetSt('cancel','auSC')">取消</button>
-        <button id="auSD" class="auf" onclick="auSetSt('denied','auSD')">未启用</button>
-        <span class="au-div"></span>
-        <span class="au-cap">模块</span>
-        <span class="flex gap-1" id="auModRow"></span>
-      </div>
-      <input id="auKw" class="inp w-full mt-1" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
-      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 268px);overflow-y:auto"></div>
+      <!-- 时间 / 状态 / 模块 收成三个胶囊：点某个胶囊才横向展开该组选项，纵向空间尽量留给列表 -->
+      <div class="flex items-center gap-1.5 mt-1.5" id="auBar"></div>
+      <div id="auPop" class="hidden"></div>
+      <input id="auKw" class="inp w-full mt-1.5" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 258px);overflow-y:auto"></div>
       <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2 mb-3" id="auHint">点一行展开输入与输出全文 · 长按一行复制该行摘要</div>
     </section>
 
@@ -4081,7 +4067,7 @@ var AI_CALLS=[
   sys:'你是任务分解助手。只输出 JSON：{"subtasks":["…"]}，3~6 条，每条不超过 15 字。',
   usr:'标题：筹备十月技术分享',out:'{"subtasks":["定题与大纲","整理示例代码","做幻灯片","预讲一次","收集反馈问题"]}',err:''}
 ];
-var auD=0,auSt='all',auMod='all',auBodyOn=true,auKeepDays=30,auArm=null;
+var auD=0,auSt='all',auMod='all',auBodyOn=true,auKeepDays=30,auArm=null,auPop=null;
 function auEsc(s){return (s||'').replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
 function auInRange(r){return auD>=9999?true:(auD===0?r.d===0:r.d<auD);}
 function auList(){
@@ -4100,16 +4086,42 @@ function auMsTxt(ms){return ms>=1000?(ms/1000).toFixed(1)+'s':ms+'ms';}
 function auSumOf(list){var n=list.length,it=0,ot=0,f=0;
   list.forEach(function(r){it+=r.it;ot+=r.ot;if(r.st==='fail'||r.st==='cancel')f++;});
   return {n:n,it:it,ot:ot,f:f};}
-function auModChips(){
-  var pool=AI_CALLS.filter(auInRange);var cnt={};
+/* 三组选项的候选集（模块组按当前时间范围计数） */
+function auOpts(g){
+  if(g==='d')return [['0','今日'],['7','7 天'],['30','30 天'],['9999','全部']];
+  if(g==='st')return [['all','全部'],['ok','成功'],['fail','失败'],['cancel','取消'],['denied','未启用']];
+  var pool=AI_CALLS.filter(auInRange),cnt={};
   pool.forEach(function(r){cnt[r.m]=(cnt[r.m]||0)+1;});
-  var mods=Object.keys(cnt).sort();
-  var h='<button class="auf'+(auMod==='all'?' on':'')+'" onclick="auPickMod(\'all\')">全部 '+pool.length+'</button>';
-  mods.forEach(function(m){h+='<button class="auf'+(auMod===m?' on':'')+'" onclick="auPickMod(\''+m+'\')">'+m+' '+cnt[m]+'</button>';});
-  $('#auModRow').innerHTML=h;
+  return [['all','全部 '+pool.length]].concat(Object.keys(cnt).sort().map(function(m){return [m,m+' '+cnt[m]];}));
+}
+function auCur(g){return g==='d'?String(auD):(g==='st'?auSt:auMod);}
+function auLblOf(g,v){var o=auOpts(g).filter(function(x){return x[0]===v;})[0];return o?o[1]:'全部';}
+/* 点胶囊=横向弹出该组选项；再点同一胶囊=收起 */
+function auPopToggle(g){auPop=(auPop===g?null:g);auRender();}
+function auPopPick(g,v){
+  if(g==='d')auD=+v;else if(g==='st')auSt=v;else auMod=v;
+  auPop=null;auRender();
+}
+function auPills(){
+  var cur={d:auLblOf('d',String(auD)),st:auLblOf('st',auSt),mod:auLblOf('mod',auMod)};
+  $('#auBar').innerHTML=[['d','时间'],['st','状态'],['mod','模块']].map(function(p){
+    var on=auPop===p[0];
+    return '<button id="aup-'+p[0]+'" class="auf'+(on?' on':'')+'" onclick="auPopToggle(\''+p[0]+'\')">'
+      +p[1]+' · '+cur[p[0]]+' <span class="au-ar">'+(on?'▾':'▸')+'</span></button>';
+  }).join('');
+}
+function auPopRender(){
+  auPills();
+  var box=$('#auPop');if(!box)return;
+  if(!auPop){box.className='hidden';box.innerHTML='';return;}
+  box.className='';
+  box.innerHTML='<div class="flex gap-1 overflow-x-auto no-scrollbar mt-1.5 pb-1">'
+    +auOpts(auPop).map(function(o){
+      return '<button class="auf'+(o[0]===auCur(auPop)?' on':'')+'" onclick="auPopPick(\''+auPop+'\',\''+o[0]+'\')">'+o[1]+'</button>';
+    }).join('')+'</div>';
 }
 function auRender(){
-  auModChips();
+  auPopRender();
   var list=auList(),h='';
   if(!list.length){h='<div class="p-6 text-center text-[11px] text-slate-400">该范围暂无 AI 调用记录<br><span class="opacity-70">换时间范围或清掉关键词再看</span></div>';}
   list.forEach(function(r){
@@ -4155,8 +4167,8 @@ function auKpi(){
 }
 function auSeg(id,ids){ids.forEach(function(i){var b=document.getElementById(i);if(b)b.classList.remove('on');});
   var on=document.getElementById(id);if(on)on.classList.add('on');}
-function auSetRange(d,id){auD=d;auSeg(id,['auD0','auD7','auD30','auDA']);auRender();}
-function auSetSt(st,id){auSt=st;auSeg(id,['auSAll','auSOk','auSF','auSC','auSD']);auRender();}
+function auSetRange(d){auD=+d;auRender();}
+function auSetSt(st){auSt=st;auRender();}
 function auPickMod(m){auMod=m;auRender();}
 function auToggle(i){var r=AI_CALLS.filter(function(x){return x.i===i;})[0];if(!r)return;
   r.open=!r.open;auRender();}

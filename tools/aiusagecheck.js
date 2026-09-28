@@ -64,15 +64,19 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
   /* T3 全部范围 13 条 */  const t3 = await ev(`auSetRange(9999,'auDA');return {rows:${ROWS},cnt:$('#auSum').textContent};`);
   (t3.rows.length === 13) ? ok('T3 切「全部」= 13 条') : bad('T3', JSON.stringify(t3));
 
-  /* T4 模块 chips 计数与筛选 */
+  /* T4 模块胶囊：点开才横向出选项（带计数）· 选完自动收起并生效 */
   const t4 = await ev(`${RESET}
-    var chips=[].map.call($$('#auModRow .auf'),function(b){return b.textContent.trim()});
-    auPickMod('阅读');
+    auPopToggle('mod');
+    var chips=[].map.call($$('#auPop .auf'),function(b){return b.textContent.trim()});
+    var openH=!!document.querySelector('#aup-mod.on');
+    auPopPick('mod','阅读');
     var rows=[].map.call(document.querySelectorAll('#auBox .ailine .am'),function(e){return e.textContent});
-    var r={chips:chips,n:rows.length,allRead:rows.every(function(t){return /^阅读 ·/.test(t)})};
+    var r={chips:chips,openH:openH,closed:document.getElementById('auPop').className==='hidden',
+      n:rows.length,allRead:rows.every(function(t){return /^阅读 ·/.test(t)}),
+      pill:$('#aup-mod').textContent.replace(/\\s+/g,'')};
     auPickMod('all');return r;`);
-  (t4.n === 4 && t4.allRead && t4.chips.join('|').indexOf('阅读 4') > 0)
-    ? ok('T4 模块 chips 带计数 · 选「阅读」=4 条') : bad('T4', JSON.stringify(t4));
+  (t4.openH && t4.closed && t4.n === 4 && t4.allRead && t4.chips.join('|').indexOf('阅读 4') > 0 && t4.pill.indexOf('模块·阅读4') >= 0)
+    ? ok('T4 模块胶囊横向出选项（带计数）· 选「阅读」=4 条并收起', JSON.stringify(t4.pill)) : bad('T4', JSON.stringify(t4));
 
   /* T5 状态筛选 */
   const t5 = await ev(`${RESET}auSetSt('fail','auSF');var r={rows:${ROWS},cnt:$('#auSum').textContent};auSetSt('all','auSAll');return r;`);
@@ -175,11 +179,22 @@ const RESET = "auSetSt('all','auSAll');auSetRange(9999,'auDA');auPickMod('all');
     ? ok('T17 本页隐藏底栏且 main 通底（与日志页同款）', JSON.stringify(t17)) : bad('T17', JSON.stringify(t17));
 
   const t18 = await ev(`
-    var ids=['auD0','auSAll','auModRow'].map(function(i){return document.getElementById(i).getBoundingClientRect().top});
+    var ids=['aup-d','aup-st','aup-mod'].map(function(i){return document.getElementById(i).getBoundingClientRect().top});
     var bar=document.getElementById('auBar');
-    return {tops:ids.map(function(t){return Math.round(t)}),bar:!!bar,h:Math.round(bar.getBoundingClientRect().height)};`);
-  (t18.bar && (Math.max.apply(null, t18.tops) - Math.min.apply(null, t18.tops)) < 6 && t18.h < 46)
-    ? ok('T18 时间/状态/模块合并为一行（同基线 · 行高 <46px）', JSON.stringify(t18)) : bad('T18', JSON.stringify(t18));
+    return {tops:ids.map(function(t){return Math.round(t)}),bar:!!bar,h:Math.round(bar.getBoundingClientRect().height),
+      popHidden:document.getElementById('auPop').className==='hidden'};`);
+  (t18.bar && (Math.max.apply(null, t18.tops) - Math.min.apply(null, t18.tops)) < 6 && t18.h < 40 && t18.popHidden)
+    ? ok('T18 三组条件收成一行三胶囊（同基线 · 行高<40px · 选项条默认收起）', JSON.stringify(t18)) : bad('T18', JSON.stringify(t18));
+
+  const t20 = await ev(`auPopToggle('d');
+    var o=$$('#auPop .auf').length, act=!!document.querySelector('#auPop .auf.on'), h=Math.round(document.getElementById('auPop').getBoundingClientRect().height);
+    auPopToggle('d');
+    return {o:o,act:act,h:h,closed:document.getElementById('auPop').className==='hidden'};`);
+  (t20.o === 4 && t20.act && t20.h > 20 && t20.closed)
+    ? ok('T20 点「时间」胶囊横向弹出 4 个选项（当前项高亮）· 再点收起', JSON.stringify(t20)) : bad('T20', JSON.stringify(t20));
+  await ev(`auPopToggle('mod');return 1;`);
+  await shot('aiu-pill-open');
+  await ev(`auPopToggle('mod');return 1;`);
 
   const t19 = await ev(`
     var sum=$('#auSum').getBoundingClientRect(), box=$('#auBox').getBoundingClientRect();
