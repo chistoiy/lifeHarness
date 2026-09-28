@@ -5,9 +5,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../domain/reader_cfg.dart';
-import 'reader_bg.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/reader_cfg.dart';
+import './reader_bg.dart';
 
 /// 阅读外观草稿制面板（V1.50 批4 · 轮5.1 扩到弹层全量：亮度/背景/取色/图片）。
 ///

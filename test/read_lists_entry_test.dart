@@ -6,7 +6,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_list.dart';
-import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/read_lists_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';

@@ -8,13 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_list.dart';
-import '../domain/book_quote.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'widgets/bs_cover.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_list.dart';
+import '../../domain/book_quote.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../widgets/bs_cover.dart';
 
 /// 书单列表 + 详情（原型 p-booklists / p-booklist · 计划 §4 批4）。
 /// 分享长图 = RepaintBoundary 渲染（验收口径：1080 宽不裁切）；TXT/MD 落文件。

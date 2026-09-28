@@ -17,7 +17,7 @@ import '../domain/book_progress.dart';
 import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
-import 'book_form_page.dart' show openBiblioSearch, openBookForm;
+import './shelf/book_form_page.dart' show openBiblioSearch, openBookForm;
 import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
 

@@ -16,10 +16,10 @@ import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/epub_import.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
-import 'package:lifeharness/features/read/presentation/local_import_page.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/import/local_import_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
-import 'package:lifeharness/features/read/presentation/shelf_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/shelf_page.dart';
 import 'package:lifeharness/features/read/presentation/widgets/bs_cover.dart';
 
 // V1.50 批1 · 阅读器 UI 流（导入向导四步 / DRM 拒绝 / 本地角标 / 点封面分流 /

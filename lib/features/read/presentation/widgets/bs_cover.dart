@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../domain/book.dart';
-import '../epub_state_ui.dart' show BrCoverStateOverlay;
+import '../reader/epub_state_ui.dart' show BrCoverStateOverlay;
 
 /// 书脊色板（原型 BS_COV 8 组：渐变起/止 + 书脊纯色）。
 const kBsCov = <(Color, Color, Color)>[

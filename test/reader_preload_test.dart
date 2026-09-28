@@ -11,7 +11,7 @@ import 'package:lifeharness/features/read/data/epub_cache.dart';
 import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
-import 'package:lifeharness/features/read/presentation/reader_pager.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_pager.dart';
 
 // V1.50 批3.5 · 导入预载 + 大书内存模型 + 单书清缓存（数据层回归）。
 // 独立文件防 isolate 污染；纯数据测试允许真 IO（非 widget FakeAsync 环境）。

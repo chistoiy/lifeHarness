@@ -16,23 +16,23 @@ import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_list.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_dict.dart';
-import 'package:lifeharness/features/read/presentation/book_detail.dart';
-import 'package:lifeharness/features/read/presentation/biblio_search_page.dart';
-import 'package:lifeharness/features/read/presentation/book_form_page.dart';
-import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
-import 'package:lifeharness/features/read/presentation/read_lists_page.dart';
-import 'package:lifeharness/features/read/presentation/read_stat_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/biblio/biblio_search_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_form_page.dart';
+import 'package:lifeharness/features/read/presentation/stats/quotes_lib_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/read_lists_page.dart';
+import 'package:lifeharness/features/read/presentation/stats/read_stat_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_sheets.dart'
     show showMoveToListSheet;
-import 'package:lifeharness/features/read/presentation/book_info_page.dart';
-import 'package:lifeharness/features/read/presentation/book_mgr_page.dart';
-import 'package:lifeharness/features/read/presentation/read_import_page.dart';
+import 'package:lifeharness/features/read/presentation/biblio/book_info_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_mgr_page.dart';
+import 'package:lifeharness/features/read/presentation/import/read_import_page.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
 import 'package:lifeharness/features/read/presentation/read_tab.dart';
-import 'package:lifeharness/features/read/presentation/read_log_page.dart';
-import 'package:lifeharness/features/read/presentation/read_timer_page.dart';
-import 'package:lifeharness/features/read/presentation/shelf_page.dart';
+import 'package:lifeharness/features/read/presentation/stats/read_log_page.dart';
+import 'package:lifeharness/features/read/presentation/stats/read_timer_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/shelf_page.dart';
 
 /// M1批3 · 阅读工作台与书架 widget 测试（独立文件防 isolate 污染）。
 void main() {

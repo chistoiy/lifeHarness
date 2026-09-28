@@ -7,18 +7,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/image_attach.dart' show pickAndStoreImage;
-import '../data/isbn_enrich.dart';
-import '../data/read_import.dart' show normIsbn;
-import '../domain/book.dart';
-import '../domain/book_dict.dart';
-import 'biblio_search_page.dart';
-import 'book_mgr_page.dart';
-import 'isbn_scan_page.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart' show readToast, isbnMissLabel;
-import 'widgets/bs_cover.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/image_attach.dart' show pickAndStoreImage;
+import '../../data/isbn_enrich.dart';
+import '../../data/read_import.dart' show normIsbn;
+import '../../domain/book.dart';
+import '../../domain/book_dict.dart';
+import '../biblio/biblio_search_page.dart';
+import './book_mgr_page.dart';
+import '../biblio/isbn_scan_page.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart' show readToast, isbnMissLabel;
+import '../widgets/bs_cover.dart';
 
 /// V1.44 统一入口：有 GoRouter 走路由（线上），无路由（widget 测试/异常栈）
 /// 退回 Navigator push，两页同策。语义恒为 push（返回保留来源页）。

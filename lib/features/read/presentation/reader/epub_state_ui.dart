@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/epub_cache.dart';
-import '../data/epub_doc.dart';
-import '../domain/book.dart';
-import '../domain/reader_cfg.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart' show readToast;
-import 'reader_pager.dart';
-import 'reader_search_page.dart' show ReaderSearchPage;
+import '../../data/epub_cache.dart';
+import '../../data/epub_doc.dart';
+import '../../domain/book.dart';
+import '../../domain/reader_cfg.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart' show readToast;
+import './reader_pager.dart';
+import './reader_search_page.dart' show ReaderSearchPage;
 
 /// 批3.5 · 预载/清缓存共享 UI：入口守卫、三态弹层、封面状态覆盖层、
 /// 预载启动器。事实源 `prototype/index-bookshelf.html` 批3.5 增量

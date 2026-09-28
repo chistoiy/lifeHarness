@@ -6,18 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_dict.dart';
-import '../domain/book_list.dart';
-import '../domain/book_quote.dart';
-import '../domain/book_session.dart';
-import '../domain/shelf_query.dart';
-import 'read_actions.dart';
-import 'epub_state_ui.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'widgets/bs_cover.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_dict.dart';
+import '../../domain/book_list.dart';
+import '../../domain/book_quote.dart';
+import '../../domain/book_session.dart';
+import '../../domain/shelf_query.dart';
+import '../read_actions.dart';
+import '../reader/epub_state_ui.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../widgets/bs_cover.dart';
 
 /// 书架视图循环 5 态（原型 shCycleView 4545 顺序：墙3 → 墙4 → 列表 → 书脊 → 时间线）。
 const kShelfViews = ['wall', 'wall4', 'rows', 'spine', 'time'];

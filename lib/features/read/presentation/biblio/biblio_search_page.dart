@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../data/isbn_enrich.dart';
-import 'book_form_page.dart';
-import 'isbn_scan_page.dart';
-import 'read_sheets.dart' show readToast;
-import 'widgets/bs_cover.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../data/isbn_enrich.dart';
+import '../shelf/book_form_page.dart';
+import './isbn_scan_page.dart';
+import '../read_sheets.dart' show readToast;
+import '../widgets/bs_cover.dart';
 
 /// V1.44「先搜后加」· 添加图书搜索页（原型 p-biblioSearch · renderBsr）。
 /// 一个搜索框收「书名 / 作者 / ISBN」，350ms 防抖打 [IsbnEnrich.searchList]

@@ -15,8 +15,8 @@ import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/reader_cfg.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
-import 'package:lifeharness/features/read/presentation/reader_bg.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_bg.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
 
 // V1.53 轮3 → V1.53.2 轮5.1 改版：底栏五图标+三个内嵌面板
 // → 底栏三图标（目录/进度/外观）+ 正常底部弹层（原型 sheetBrProg /

@@ -21,8 +21,8 @@ import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/domain/book_toc.dart';
-import 'package:lifeharness/features/read/presentation/book_detail.dart';
-import 'package:lifeharness/features/read/presentation/quotes_lib_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/stats/quotes_lib_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 
 /// AI批4-C · 阅读模块接线（目录 AI 补全 + 摘录感想生成）。

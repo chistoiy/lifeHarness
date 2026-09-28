@@ -9,7 +9,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
-import 'package:lifeharness/features/read/presentation/douban_login_page.dart'
+import 'package:lifeharness/features/read/presentation/biblio/douban_login_page.dart'
     show doubanCookieHeader;
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';

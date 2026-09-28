@@ -13,7 +13,7 @@ import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
 
 import 'helpers.dart';
 

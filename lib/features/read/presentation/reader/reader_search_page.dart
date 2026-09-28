@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../data/epub_doc.dart';
+import '../../data/epub_doc.dart';
 
 // 全书检索整页（V1.50 批3 · 事实源 `#p-readerSearch`）。
 // 双入口之一（顶栏放大镜）；抽屉「搜本书」Tab 共用同款命中→跳原文链路。

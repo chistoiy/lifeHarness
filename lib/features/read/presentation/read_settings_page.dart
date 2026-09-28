@@ -12,7 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../data/isbn_enrich.dart' show DoubanCookie;
 import 'read_providers.dart';
 import 'read_sheets.dart';
-import 'shelf_page.dart' show kLpAll, kLpDefault;
+import './shelf/shelf_page.dart' show kLpAll, kLpDefault;
 
 /// 阅读设置（原型 p-readset / RS_SEC · 计划 §6）：五组横向 tab，
 /// 一次只显示一组；所有键走 settings 表 read.*，写完 readTick 广播即时生效。

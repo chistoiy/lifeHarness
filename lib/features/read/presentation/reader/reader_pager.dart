@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/epub_doc.dart';
+import '../../data/epub_doc.dart';
 
 /// 阅读排版参数（V1.50 批2 · 原型 BR_DEF 同源默认：fs19/lh1.62/ls0.4/mar22）。
 @immutable

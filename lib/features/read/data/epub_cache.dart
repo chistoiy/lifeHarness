@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/book.dart';
-import '../presentation/reader_pager.dart';
+import '../presentation/reader/reader_pager.dart';
 import 'epub_doc.dart';
 import 'read_repository.dart';
 

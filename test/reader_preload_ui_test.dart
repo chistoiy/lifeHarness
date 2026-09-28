@@ -17,11 +17,11 @@ import 'package:lifeharness/features/read/data/epub_cache.dart';
 import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
-import 'package:lifeharness/features/read/presentation/book_detail.dart';
-import 'package:lifeharness/features/read/presentation/local_import_page.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/import/local_import_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
-import 'package:lifeharness/features/read/presentation/shelf_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/shelf_page.dart';
 
 // V1.50 批3.5 · 预载/清缓存 UI 流回归（独立文件防 isolate 污染）。
 // 真 IO 步骤（预载落盘/重拷贝/释放统计）一律包在 tester.runAsync 内。

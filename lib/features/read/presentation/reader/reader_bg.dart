@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../domain/reader_cfg.dart';
+import '../../domain/reader_cfg.dart';
 
 /// 轮5.1 · 背景层（原型 brStageBgCss 的 Flutter 等价）。
 ///

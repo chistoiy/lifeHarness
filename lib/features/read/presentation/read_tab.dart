@@ -5,12 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
-import 'book_detail.dart' show BookDetailArg;
-import 'epub_state_ui.dart';
+import './shelf/book_detail.dart' show BookDetailArg;
+import './reader/epub_state_ui.dart';
 import 'read_actions.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
-import 'shelf_page.dart' show showLongPressSheet;
+import './shelf/shelf_page.dart' show showLongPressSheet;
 import 'widgets/bs_cover.dart';
 
 /// 记录页·阅读 tab = 书架工作台（原型 renderRecHub · V1.30 §3.4）。

@@ -11,8 +11,8 @@ import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_dict.dart';
-import 'package:lifeharness/features/read/presentation/biblio_search_page.dart';
-import 'package:lifeharness/features/read/presentation/book_form_page.dart';
+import 'package:lifeharness/features/read/presentation/biblio/biblio_search_page.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_form_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 
 /// V1.44「添加图书先搜后加」两页冒烟（原型 p-biblioSearch / p-bookForm）。

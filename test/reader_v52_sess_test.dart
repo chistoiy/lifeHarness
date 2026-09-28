@@ -14,7 +14,7 @@ import 'package:lifeharness/features/read/domain/book_session.dart';
 import 'package:lifeharness/features/read/domain/shelf_query.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
 
 // V1.53.2 轮5.2② · 阅读计时自动结算（DB v27）：
 // 退出阅读器自动写起止章节/页/百分比，短会话按 read.brMinSecs 门槛整条丢弃。

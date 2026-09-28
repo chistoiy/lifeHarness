@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/nav/nav_module.dart';
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_dict.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'shelf_page.dart' show shelfUiProvider, ShelfUI, kShelfDimDict;
+import '../../../../core/nav/nav_module.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_dict.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import './shelf_page.dart' show shelfUiProvider, ShelfUI, kShelfDimDict;
 
 /// 书架资料管理页（原型 p-bkmgr + renderBm + bmSwitch 五类切换）：
 /// kind 初始由路由 ?kind= 决定（书架维度行「管理X」/ 阅读设置「书架资料」入口），

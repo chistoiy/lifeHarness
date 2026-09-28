@@ -15,11 +15,11 @@ import 'package:lifeharness/features/read/data/epub_cache.dart';
 import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
-import 'package:lifeharness/features/read/presentation/book_detail.dart';
+import 'package:lifeharness/features/read/presentation/shelf/book_detail.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
-import 'package:lifeharness/features/read/presentation/reader_page.dart';
-import 'package:lifeharness/features/read/presentation/reader_pager.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_pager.dart';
 
 // V1.50 批4 · 外观草稿制面板/逐书记忆/自动翻页/常亮/删除两口径/设置组。
 // 独立文件防 isolate 污染；文件 IO 断言包 runAsync；周期 Timer 页禁 pumpAndSettle。

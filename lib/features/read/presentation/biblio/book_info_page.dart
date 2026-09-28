@@ -6,16 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_progress.dart';
-import '../domain/book_quote.dart';
-import '../domain/book_session.dart';
-import 'book_form_page.dart' show openBookForm;
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'shelf_page.dart' show shelfUiProvider, ShelfUI;
-import 'widgets/bs_cover.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_progress.dart';
+import '../../domain/book_quote.dart';
+import '../../domain/book_session.dart';
+import '../shelf/book_form_page.dart' show openBookForm;
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../shelf/shelf_page.dart' show shelfUiProvider, ShelfUI;
+import '../widgets/bs_cover.dart';
 
 /// 书籍资料页（原型 p-bookInfo · §3.2 拆两屏之资料屏）。
 /// 顶栏＝编辑信息 + 操作；数据卡可下钻；进度行可点改；总结就地可编辑；

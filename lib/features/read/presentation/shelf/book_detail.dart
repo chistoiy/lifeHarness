@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/ai/ai_review.dart';
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_quote.dart';
-import '../domain/book_toc.dart';
-import 'epub_state_ui.dart';
-import 'read_actions.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'widgets/bs_cover.dart';
+import '../../../../core/ai/ai_review.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_quote.dart';
+import '../../domain/book_toc.dart';
+import '../reader/epub_state_ui.dart';
+import '../read_actions.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../widgets/bs_cover.dart';
 
 /// 二级页参数（tab: c=目录 q=书摘 r=相关）。
 class BookDetailArg {

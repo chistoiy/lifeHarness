@@ -10,7 +10,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
-import 'package:lifeharness/features/read/presentation/book_info_page.dart';
+import 'package:lifeharness/features/read/presentation/biblio/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 
 /// 豆瓣防封批（2026-09-26 拍板）· 表单缓存命中询问链：

@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/epub_doc.dart';
-import '../domain/book_quote.dart';
-import '../domain/book_toc.dart';
-import 'read_providers.dart';
-import 'reader_pager.dart';
+import '../../data/epub_doc.dart';
+import '../../domain/book_quote.dart';
+import '../../domain/book_toc.dart';
+import '../read_providers.dart';
+import './reader_pager.dart';
 
 /// 抽屉状态（原型 BR_DR：tab/折叠记忆/rail/去底部）。
 class TocDrawerState {

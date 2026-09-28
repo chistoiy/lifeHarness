@@ -5,13 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/ai/ai_review.dart';
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/book_quote.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'widgets/bs_cover.dart';
+import '../../../../core/ai/ai_review.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/book_quote.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../widgets/bs_cover.dart';
 
 /// 笔记库（原型 p-quotes · §3.4：三统计 + 搜索 + 复习 + 标签/范围筛选 +
 /// 四视图 卡片·行·按章节·图片墙）。跨书只做视图层聚合，不改归属（§9 已拍板②）。

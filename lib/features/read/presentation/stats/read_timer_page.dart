@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../domain/book.dart';
-import 'read_providers.dart';
-import 'read_sheets.dart';
-import 'widgets/bs_cover.dart';
+import '../../domain/book.dart';
+import '../read_providers.dart';
+import '../read_sheets.dart';
+import '../widgets/bs_cover.dart';
 
 /// 沉浸计时页（原型 p-readtimer 931-949 + renderReadTimer 5015-5027）。
 /// 顶栏＝返回 + 「阅读计时」+ 收起（rtClose：计时未结束提示回胶囊继续）；

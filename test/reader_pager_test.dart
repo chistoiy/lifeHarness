@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lifeharness/features/read/data/epub_doc.dart';
-import 'package:lifeharness/features/read/presentation/reader_pager.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_pager.dart';
 
 // V1.50 批2 · 分页引擎（TextPainter 实测：字号/视口变化即时重排页数；
 // 全局页往返；百分比与段→页映射）。独立文件防 isolate 污染。

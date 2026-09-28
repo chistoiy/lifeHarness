@@ -3,12 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../domain/book.dart';
-import '../domain/shelf_query.dart' show sessionAggByBook;
-import 'read_lists_page.dart' show openYearBooklist;
-import 'read_providers.dart';
-import 'read_sheets.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/book.dart';
+import '../../domain/shelf_query.dart' show sessionAggByBook;
+import '../shelf/read_lists_page.dart' show openYearBooklist;
+import '../read_providers.dart';
+import '../read_sheets.dart';
 
 /// 阅读统计（原型 p-readstat · §3.4：年×月钻取 + 度量/构成切换 + 四卡 +
 /// 热力图 + 月度柱 + 构成环 + 时段 + 均速 + 购书支出/完读书字数 + 目标五路）。

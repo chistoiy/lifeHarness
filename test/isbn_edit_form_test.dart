@@ -11,7 +11,7 @@ import 'package:lifeharness/features/read/data/isbn_enrich.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_dict.dart';
-import 'package:lifeharness/features/read/presentation/book_info_page.dart';
+import 'package:lifeharness/features/read/presentation/biblio/book_info_page.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 
 /// 真机反馈（2026-09-26）：「添加图书时能填 ISBN，添加后再编辑就没办法改了」。
