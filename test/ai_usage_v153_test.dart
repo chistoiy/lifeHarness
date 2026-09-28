@@ -344,7 +344,7 @@ void main() {
       ]);
       expect(find.byKey(const ValueKey('ai-usage-sum')), findsOneWidget);
       expect(tester.widget<Text>(find.byKey(const ValueKey('ai-usage-sum'))).data,
-          contains('筛选 1 条'),
+          contains('1 条 · 入'),
           reason: '默认时间范围＝今日，只出今天那条');
       expect(find.byKey(const ValueKey('ai-usage-pill-time')), findsOneWidget);
       expect(find.byKey(const ValueKey('ai-usage-pill-status')), findsOneWidget);
@@ -364,7 +364,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('ai-usage-opt-time-7 天')));
       await settle5(tester);
       expect(tester.widget<Text>(find.byKey(const ValueKey('ai-usage-sum'))).data,
-          contains('筛选 2 条'));
+          contains('2 条 · 入'));
       // 选完自动收起（同时只开一组）。
       expect(find.byKey(const ValueKey('ai-usage-options')), findsNothing);
     });
@@ -383,7 +383,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle5(tester);
       expect(tester.widget<Text>(find.byKey(const ValueKey('ai-usage-sum'))).data,
-          contains('筛选 1 条'));
+          contains('1 条 · 入'));
 
       final id = (await store.query(const AiCallFilter(keyword: '很累'))).single.id;
       await tester.tap(find.byKey(ValueKey('ai-usage-head-$id')));
@@ -392,6 +392,10 @@ void main() {
       expect(find.text('输出'), findsOneWidget);
       expect(find.byKey(ValueKey('ai-usage-copy-out-$id')), findsOneWidget);
       expect(find.textContaining('今天很累'), findsWidgets);
+      // 真机走查①：SelectableText 带 maxLines>1 会预留整块高度，段间出现大片空白
+      for (final w in tester.widgetList<SelectableText>(find.byType(SelectableText))) {
+        expect(w.maxLines, isNull, reason: '展开正文不得预留固定行数高度');
+      }
     });
 
     testWidgets('删除筛选结果走二次确认，取消不动数据', (tester) async {

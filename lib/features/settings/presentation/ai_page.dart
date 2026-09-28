@@ -523,7 +523,7 @@ class _AiUsageEntryCardState extends ConsumerState<_AiUsageEntryCard> {
           Row(
             children: [
               _cell('今日调用', '$_today', 'ai-usage-k1'),
-              _cell('今日 tokens', '${_todayTok}p', 'ai-usage-k2'),
+              _cell('今日 tokens', '$_todayTok', 'ai-usage-k2'),
               _cell('近 7 天调用', '$_week', 'ai-usage-k3'),
               _cell('累计', '$_all', 'ai-usage-k4'),
             ],

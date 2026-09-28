@@ -177,8 +177,8 @@ class _AiUsagePageState extends ConsumerState<AiUsagePage> {
                     children: [
                       Expanded(
                         child: Text(
-                          '筛选 ${_sum.n} 条 · 入 ${_sum.inTok}/出 ${_sum.outTok} tokens'
-                          ' · 未成功 ${_sum.bad} · 今日 ${_today.n} 次',
+                          '${_sum.n} 条 · 入${_sum.inTok}/出${_sum.outTok}'
+                          ' · 未成 ${_sum.bad} · 今日 ${_today.n} 次',
                           key: const ValueKey('ai-usage-sum'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -253,8 +253,8 @@ class _AiUsagePageState extends ConsumerState<AiUsagePage> {
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
                   child: Text(
                     _total == 0
-                        ? '还没有 AI 调用记录 · 各模块用一次 AI 就会在这里留一行'
-                        : '共 $_total 条 · 近 7 天 $_week 次 · 点一行展开输入与输出全文',
+                        ? '还没有 AI 调用记录'
+                        : '共 $_total 条 · 近 7 天 $_week 次',
                     key: const ValueKey('ai-usage-hint'),
                     style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
@@ -267,7 +267,7 @@ class _AiUsagePageState extends ConsumerState<AiUsagePage> {
   Widget _list() {
     if (_rows.isEmpty) {
       return const Center(
-        child: Text('该范围暂无 AI 调用记录\n换时间范围或清掉关键词再看',
+        child: Text('该范围暂无 AI 调用记录',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.6)),
       );
@@ -395,8 +395,7 @@ class _AiUsagePageState extends ConsumerState<AiUsagePage> {
                     fontSize: 10.5,
                     height: 1.5,
                     fontFamily: 'monospace',
-                    color: danger ? const Color(0xFFF43F5E) : null),
-                maxLines: 12),
+                    color: danger ? const Color(0xFFF43F5E) : null)),
           ],
         ),
       );
