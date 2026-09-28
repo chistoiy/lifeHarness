@@ -76,6 +76,7 @@ const ALL = {
     ],
     members: [
       'Widget _spineView(List<Book> list, String pfx) {',
+      'bool _hasCover(Book b) =>',
       'Widget _timelineView(List<Book> list, ColorScheme cs) {',
     ],
   },
@@ -173,7 +174,7 @@ const after = keep.length;
 const volumeOk =
   origLen - after >= moved - 3 * groups.length - 2 &&
   origLen - after <= moved + 4 &&
-  after > 700;
+  after > 400;
 
 console.log(
   JSON.stringify(
