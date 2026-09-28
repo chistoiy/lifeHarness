@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/ai/ai_review.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/ui_kit.dart';
 import '../domain/book.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
@@ -271,6 +270,13 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                     ),
                   ],
                 ),
+                // 轮5.3：本地文件紧凑条上移到信息行之下、三 tab 之上（原整卡在尾部）。
+                if (b.local)
+                  _localEpubStrip(
+                    cs,
+                    b,
+                    allQ.where((q) => q.cf != null).length,
+                  ),
                 // 三 tab（§3.2：目录 / 书摘 N / 相关 N＝四分组命中共 N 本）
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -391,8 +397,6 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                     _ => _related(cs, tokens, b, relGroups),
                   },
                 ),
-                // V1.50 包装器语义：本地书尾插「本地 EPUB · 可直接阅读」卡。
-                if (b.local) _localEpubCard(cs, b),
               ],
             ),
           ),
@@ -401,121 +405,148 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     );
   }
 
-  /// 本地 EPUB 卡（原型 brDcard · V1.50）：源文件与 fmt + 打开阅读器直达。
-  /// 批3.5：打开钮走状态守卫；尾插「本地副本与缓存」四态行。
-  Widget _localEpubCard(ColorScheme cs, Book b) {
-    final tokens = context.tokens;
+  /// 本地文件紧凑条（V1.53.2 轮5.3 · 原型 brDstrip）：原「本地 EPUB」整卡
+  /// 上移到信息行之下并压成两行 —— 一行格式/体积/说明钮，一行进度/位置/划线 + 三动作。
+  /// 未就绪（预载中/已清缓存）时仍保留批3.5 的四态行，重载/重选入口不丢。
+  Widget _localEpubStrip(ColorScheme cs, Book b, int hlCount) {
     final ep = b.epub;
-    final sizeMb = ep == null ? '—' : '${(ep.size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return Container(
-      key: const ValueKey('br-dcard'),
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: tokens.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tokens.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  '本地 EPUB · 可直接阅读',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-              ),
-              PillChip(label: ep?.fmt ?? 'EPUB', selected: false),
-            ],
+    if (ep == null) return const SizedBox.shrink();
+    final tokens = context.tokens;
+    final sizeMb = '${(ep.size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    Widget mini(String key, IconData ic, Color fg, VoidCallback onTap) =>
+        GestureDetector(
+          key: ValueKey(key),
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+            decoration: BoxDecoration(
+              border: Border.all(color: fg.withValues(alpha: .35)),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(ic, size: 14, color: fg),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '${ep?.path ?? '—'} · $sizeMb · 无 DRM · 图文混排',
-            style: TextStyle(fontSize: 10, height: 1.5, color: cs.onSurfaceVariant),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('brDstrip'),
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          decoration: BoxDecoration(
+            color: tokens.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: tokens.cardBorder),
           ),
-          const SizedBox(height: 10),
-          // 原型 brDcard 三钮一行：打开阅读器（主）· 全书检索 · 删除…
-          Row(
+          child: Column(
             children: [
-              Expanded(
-                child: GestureDetector(
-                  key: const ValueKey('br-d-open'),
-                  onTap: () async {
-                    if (await brTapGuarded(context, ref, b)) return;
-                    if (mounted) context.push('/read/reader/${b.id}');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      gradient: tokens.gradient,
-                      borderRadius: BorderRadius.circular(12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
                     ),
-                    child: const Text(
-                      '打开阅读器',
-                      style: TextStyle(
-                        fontSize: 12,
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      ep.fmt,
+                      style: const TextStyle(
+                        fontSize: 8.5,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$sizeMb · 无 DRM · 图文混排',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    key: const ValueKey('brDinfo'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showBrLocalInfo(context, ref, b, hlCount),
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cs.outlineVariant),
+                      ),
+                      child: Text(
+                        '?',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                key: const ValueKey('br-d-search'),
-                onTap: () => brOpenBookSearch(context, ref, b),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: tokens.cardBorder),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    '全书检索',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '进度 ${b.percent}% · 位置 ${bsPosLabel(b)} · 划线 $hlCount 处',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                key: const ValueKey('br-d-del'),
-                onTap: () => showBrDelSheet(context, ref, b),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0x59E11D48),
+                  GestureDetector(
+                    key: const ValueKey('br-d-open'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      if (await brTapGuarded(context, ref, b)) return;
+                      if (mounted) context.push('/read/reader/${b.id}');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: tokens.gradient,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        '打开阅读器',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    '删除…',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFFE11D48),
-                    ),
-                  ),
-                ),
+                  const SizedBox(width: 6),
+                  mini('br-d-search', Icons.search_rounded, cs.onSurface, () =>
+                      brOpenBookSearch(context, ref, b)),
+                  const SizedBox(width: 6),
+                  mini('br-d-del', Icons.delete_outline_rounded,
+                      const Color(0xFFE11D48), () =>
+                      showBrDelSheet(context, ref, b)),
+                ],
               ),
             ],
           ),
-          if (ep != null) _cacheRow(cs, b, ep),
-        ],
-      ),
+        ),
+        if (ep.state != 'rdy') _cacheRow(cs, b, ep),
+      ],
     );
   }
 
@@ -1367,4 +1398,173 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
       ],
     );
   }
+}
+
+/// 轮5.3 · 本地文件与缓存说明半屏（详情页紧凑条「?」入口 · 原型 sheetBrLocalInfo）。
+///
+/// 原「本地 EPUB」整卡的说明文字收进这里，正文只留两行紧凑条；
+/// 清理缓存沿用批3.5 三态弹层（源文件永不删除）。
+Future<void> showBrLocalInfo(
+  BuildContext context,
+  WidgetRef ref,
+  Book b,
+  int hlCount,
+) async {
+  final ep = b.epub;
+  if (ep == null) return;
+  final cs = Theme.of(context).colorScheme;
+  final sizeMb = '${(ep.size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  final stateTxt = switch (ep.state) {
+    'pre' => '整本预载中（完成前不可进入阅读）',
+    'cl' => '本地副本已清理 · 记录与书摘保留',
+    _ => '本地副本 + 分页缓存已就绪',
+  };
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (sc) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          key: const ValueKey('sheetBrLocalInfo'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  '本地文件与缓存',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+                const Spacer(),
+                Text(
+                  ep.fmt,
+                  key: const ValueKey('brLiFmt'),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '文件路径',
+              style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 3),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest.withValues(alpha: .5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                ep.path,
+                key: const ValueKey('brLiPath'),
+                style: const TextStyle(fontSize: 10.5, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '体积 / 加密 / 版式',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$sizeMb · 无 DRM · 图文混排',
+                  key: const ValueKey('brLiMeta'),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '阅读位置 / 划线 / 进度',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${bsPosLabel(b)} · $hlCount 处 · ${b.percent}%',
+                  key: const ValueKey('brLiPos'),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '删除时分两种口径：仅清除阅读数据（保留源文件），或连源文件一并移除；'
+              '书籍记录、书摘与计时始终保留。',
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.6,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                '缓存：$stateTxt · 只回收分页表与私有副本，随时可重新载入。',
+                key: const ValueKey('brLiCache'),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.6,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('brLiOk'),
+                    onPressed: () => Navigator.of(sc).pop(),
+                    child: const Text('知道了'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('brLiClean'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFD97706),
+                      side: const BorderSide(color: Color(0x66D97706)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(sc).pop();
+                      brShowCacheSheet(context, ref, b);
+                    },
+                    child: const Text('清理缓存'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

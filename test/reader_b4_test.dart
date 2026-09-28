@@ -362,6 +362,57 @@ void main() {
     });
   });
 
+  group('轮5.3 · 详情页本地文件紧凑条', () {
+    Future<void> openDetail(WidgetTester t, String id) async {
+      await useSurface(t);
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: baseOverrides(docs: tmp.path),
+          child: MaterialApp(home: BookDetailPage(bookId: id)),
+        ),
+      );
+      await step(t, times: 4);
+    }
+
+    testWidgets('整卡→两行紧凑条（?/打开/检索/删除）· ? 弹说明', (t) async {
+      await addBook('e1');
+      await openDetail(t, 'e1');
+      // 旧底部整卡已删，紧凑条接管四个入口。
+      expect(find.byKey(const ValueKey('br-dcard')), findsNothing);
+      expect(find.byKey(const ValueKey('brDstrip')), findsOne);
+      for (final k in ['brDinfo', 'br-d-open', 'br-d-search', 'br-d-del']) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
+      final txt = find
+          .descendant(
+            of: find.byKey(const ValueKey('brDstrip')),
+            matching: find.byType(Text),
+          )
+          .evaluate()
+          .map((e) => (e.widget as Text).data ?? '')
+          .join(' ');
+      expect(txt, contains('EPUB'));
+      expect(txt, contains('无 DRM'));
+      expect(txt, contains('进度'));
+      expect(txt, contains('划线'));
+      await t.tap(find.byKey(const ValueKey('brDinfo')));
+      await step(t, times: 3);
+      expect(find.byKey(const ValueKey('sheetBrLocalInfo')), findsOne);
+      for (final k in [
+        'brLiFmt',
+        'brLiPath',
+        'brLiMeta',
+        'brLiPos',
+        'brLiClean',
+      ]) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
+      await t.tap(find.byKey(const ValueKey('brLiOk')));
+      await step(t, times: 3);
+      expect(find.byKey(const ValueKey('sheetBrLocalInfo')), findsNothing);
+    });
+  });
+
   group('批4-S · 阅读设置本地阅读器组', () {
     testWidgets('分组渲染四行；brLink chip 与 brBright 开关落键', (t) async {
       await useSurface(t);
