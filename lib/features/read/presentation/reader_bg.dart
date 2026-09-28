@@ -133,6 +133,8 @@ class BrTexPainter extends CustomPainter {
 
 /// 轮5.4 · 顶栏/底栏配色（原型 brBarTheme）：浅底＝同色浅栏深字，
 /// 深底＝深色栏浅字。不再固定黑底，避免与阅读主题割裂。
+/// 真机反馈（2026-09-28）：栏底改不透明——阅读页顶/底栏已摘掉 BackdropFilter
+/// （毛玻璃在弹层/选区重合成时会把整页正文卷进模糊），半透明底会直接透出正文。
 class BrBar {
   const BrBar({
     required this.bg,
@@ -149,14 +151,14 @@ BrBar brBarOf(Color stageBg, Color textFg) {
       0.299 * (c.r * 255) + 0.587 * (c.g * 255) + 0.114 * (c.b * 255);
   if (l > 150) {
     return BrBar(
-      bg: c.withValues(alpha: .94),
+      bg: c,
       fg: textFg,
       line: Colors.black.withValues(alpha: .10),
       chip: Colors.black.withValues(alpha: .06),
     );
   }
   return const BrBar(
-    bg: Color(0xEB0F172A),
+    bg: Color(0xFF0F172A),
     fg: Color(0xFFE2E8F0),
     line: Color(0x1AFFFFFF),
     chip: Color(0x1FFFFFFF),

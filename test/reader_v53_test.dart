@@ -261,11 +261,14 @@ void main() {
       BoxDecoration box(String k) =>
           t.widget<Container>(find.byKey(ValueKey(k))).decoration!
               as BoxDecoration;
-      // 默认日间（浅底）：栏底＝舞台色半透明、字色深。
+      // 默认日间（浅底）：栏底＝舞台色不透明、字色深。
+      // 真机反馈（2026-09-28）：顶/底栏已摘 BackdropFilter（弹层/选区时会把
+      // 整页正文卷进模糊），栏底必须不透明，且页面内不再存在任何模糊层。
       final top = box('brTopBox');
       expect(top.color!.computeLuminance() > .5, isTrue);
-      expect(top.color!.a, lessThan(1.0));
+      expect(top.color!.a, 1.0);
       expect(box('brBottomBox').color!.computeLuminance() > .5, isTrue);
+      expect(find.byType(BackdropFilter), findsNothing);
       // 夜间主题：同一套取色应翻成深栏浅字。
       final dark = brBarOf(kBrThemes['night']!.$2, kBrThemes['night']!.$3);
       final light = brBarOf(kBrThemes['day']!.$2, kBrThemes['day']!.$3);

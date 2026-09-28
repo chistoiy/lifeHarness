@@ -7096,6 +7096,8 @@ function brSelect(p0,p1,o0,o1){if(p1==null)p1=p0;const arr=brChText(brV.b,brLeav
   const L=(arr[p0]&&arr[p0].t.length)||0, L1=(arr[p1]&&arr[p1].t.length)||0;
   brV.sel={ci:brV.ci,p0,p1,o0:o0==null?0:Math.max(0,Math.min(o0,L)),o1:o1==null?L1:Math.max(0,Math.min(o1,L1))};
   brSelRefresh();
+  /* 真机反馈（2026-09-28）：建选区即展开顶/底栏，摘抄操作在有书名·计时·搜索·设置的面板里做 */
+  brShowChrome();
   document.getElementById("brSelBar").classList.remove("hidden");
   document.getElementById("brColorPop").classList.add("hidden");
   brSelBarPlace();brHandlePlace();brSelActsRender()}

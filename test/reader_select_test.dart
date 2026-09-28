@@ -234,6 +234,36 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await clearToasts(t);
     });
 
+    testWidgets('真机反馈（2026-09-28）：段中选句不顶格重排 · 建选区即展开顶栏', (t) async {
+      await openReader(t, _doc(), 's9');
+      const para = '三之0。$_lorem';
+      final fnd = find.byKey(const ValueKey('brpTap-0-3'));
+      final r0 = t.getRect(fnd);
+      // 末行中段长按 → 确定性命中第二句（a>0）；旧实现在这里丢 2em 缩进前缀，
+      // 整段顶格重排（分页器却仍按带缩进测量 → 行数/高度都会变）。
+      final rr = r0;
+      await t.longPressAt(Offset(rr.left + rr.width * .5, rr.bottom - 5));
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+      // ① 选区建立 → chrome 自动展开：书名/计时/搜索/设置随顶栏可见。
+      expect(find.byKey(const ValueKey('br-top')), findsOne);
+      expect(find.byKey(const ValueKey('br-sess-chip')), findsOne);
+      expect(find.byKey(const ValueKey('brBtnSearch')), findsOne);
+      expect(find.byKey(const ValueKey('brBtnMore')), findsOne);
+      // ② 选中段显示文本仍带缩进前缀（与未选中完全一致 → 不重排）。
+      final rt = t.widget<RichText>(
+        find.descendant(
+          of: find.byKey(const ValueKey('brp-0-3')),
+          matching: find.byType(RichText),
+        ),
+      );
+      final shown = rt.text.toPlainText();
+      expect(shown.startsWith('\u3000\u3000'), isTrue, reason: '缩进前缀恒在');
+      expect(shown, '\u3000\u3000$para');
+      expect(t.getRect(fnd).height, r0.height, reason: '段落高度不因选区变化');
+      await clearToasts(t);
+    });
+
     testWidgets('轮4③ 拉丁长段无句读 → 词边界回落（不吃整段）', (t) async {
       await openReader(t, _doc(), 's8');
       const latin =

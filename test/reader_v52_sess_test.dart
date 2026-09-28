@@ -240,5 +240,24 @@ void main() {
       expect(b.lastReadAt, isNotNull, reason: '短会话不记时长，但进度与最后阅读时间仍更新');
       await clearToasts(t);
     });
+
+    testWidgets('真机反馈（2026-09-28）：别书挂死会话被接管，本书照常计时落进度', (t) async {
+      // 修复前：runningSession 属于别书（含崩溃遗留）→ 本页既不开新会话也不结算，
+      // _leave 又因 _ownTimer=false 直接返回，时长与进度整段静默丢失。
+      await repo.setKv('read.brMinSecs', '0');
+      await addBook('z9');
+      await repo.startSession('z9'); // 别书在跑行（模拟未收口）
+      await open(t, 'q3');
+      await t.tapAt(const Offset(210, 645)); // 唤起 chrome 才有返回钮
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('br-back')));
+      await step(t, times: 3);
+      final z = (await repo.sessionsOf('z9')).single;
+      expect(z.endedAt, isNotNull, reason: '接管时先收口别书在跑行');
+      final q = (await repo.sessionsOf('q3')).single;
+      expect(q.fromChapter, '第一章', reason: '本书会话带起始快照正常入账');
+      expect((await repo.bookById('q3'))!.lastReadAt, isNotNull);
+      await clearToasts(t);
+    });
   });
 }

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -303,14 +302,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (!mounted) return;
     setState(() {});
     // 进阅读器自动开始计时；他处已在计时则沿用该计时条（原型 brV.ownT）。
+    // 真机反馈（2026-09-28）：在跑会话属于「别书」（含崩溃遗留的挂死行）时
+    // 接管＝startSession 内部先收口那行再为本书开新行；本书在跑则沿用。
+    // 修复前：别书在跑 → 本页不记时长、进度也不落库。
     final running = await repo.runningSession();
-    if (running == null) {
+    if (running != null && running.bookId == b.id) {
+      // 他处已为本书开计时：沿用该会话（起止快照补在同一行上）。
+      _sessId = running.id;
+    } else {
       final ses = await repo.startSession(b.id);
       _ownTimer = true;
       _sessId = ses.id;
-    } else if (running.bookId == b.id) {
-      // 他处已为本书开计时：沿用该会话（起止快照补在同一行上）。
-      _sessId = running.id;
     }
     _t0 = DateTime.now();
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -379,12 +381,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  /// 结算：本页开启的计时才由本页结束；进度按全局页百分比写回书籍记录。
+  /// 结算：本页开启的计时才由本页结束；进度无条件写回书籍记录
+  /// （真机反馈 2026-09-28：修复前 _ownTimer=false 连进度都不落库）。
   /// 轮5.2②：起止位置随会话自动落库；短于 read.brMinSecs 的会话整条丢弃
   /// （不记时长、不入明细），但进度仍然保存。
   void _leave() {
     _clock?.cancel();
-    if (!_ownTimer) return;
+    final own = _ownTimer;
     final repo = ref.read(readRepositoryProvider);
     final doc = _doc;
     final pag = _pag;
@@ -395,11 +398,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final ms = _ms;
     final title = _book?.title ?? '';
     unawaited(() async {
-      final closed = await repo.endSession(
-        widget.bookId,
-        to: to,
-        minSecs: gate,
-      );
+      final closed = own
+          ? await repo.endSession(
+              widget.bookId,
+              to: to,
+              minSecs: gate,
+            )
+          : null;
       if (doc != null && pag != null && _book != null) {
         final pct = pag.pct(_pos.ci, _pos.pg);
         final b = _book!;
@@ -413,7 +418,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           ),
         );
       }
-      if (ms == null) return;
+      // 结算提示只属于本页自己计时的会话（沿用他处计时时不抢话）。
+      if (ms == null || !own) return;
       final span = from != null && to != null && to.chapter != from.chapter
           ? '${from.chapter}→${to.chapter}'
           : (to?.chapter ?? '');
@@ -860,6 +866,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     setState(() {
       _sel = (ci: ci, p0: pi, p1: pi, o0: se.a, o1: se.b);
       _hlPop = false;
+      // 真机反馈（2026-09-28）：摘抄操作要在有顶栏的界面里做——
+      // 建选区即展开 chrome，书名/计时/搜索/设置随顶栏可见。
+      _chrome = true;
     });
   }
 
@@ -1763,16 +1772,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       right: 0,
       child: KeyedSubtree(
         key: const ValueKey('br-top'),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            key: const ValueKey('brTopBox'),
-            decoration: BoxDecoration(
-              color: bar.bg,
-              border: Border(bottom: BorderSide(color: bar.line)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-            child: Column(
+        // 真机反馈（2026-09-28）：不再用 BackdropFilter 毛玻璃——弹层/选区触发
+        // 重合成时会把整页正文卷进模糊（引擎 backdrop 扩散）。底色改不透明（brBarOf）。
+        child: Container(
+          key: const ValueKey('brTopBox'),
+          decoration: BoxDecoration(
+            color: bar.bg,
+            border: Border(bottom: BorderSide(color: bar.line)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Column(
               children: [
                 Row(
                   children: [
@@ -1905,7 +1914,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     ),
                   ),
               ],
-            ),
           ),
         ),
       ),
@@ -1923,16 +1931,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       right: 0,
       child: KeyedSubtree(
         key: const ValueKey('br-bottom'),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            key: const ValueKey('brBottomBox'),
-            decoration: BoxDecoration(
-              color: bar.bg,
-              border: Border(top: BorderSide(color: bar.line)),
-            ),
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-            child: Column(
+        // 同顶栏：去 BackdropFilter，防弹层/选区时整页模糊。
+        child: Container(
+          key: const ValueKey('brBottomBox'),
+          decoration: BoxDecoration(
+            color: bar.bg,
+            border: Border(top: BorderSide(color: bar.line)),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+          child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
@@ -1991,8 +1998,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _brIconBtn(
@@ -2372,7 +2378,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (rb == null) return null;
     final full = rb.text.toPlainText();
     if (full.isEmpty) return null;
-    // 渲染文本比原始段文本多出的＝2em 缩进前缀（选中切自段中时无前缀）。
+    // 渲染文本比原始段文本多出的＝2em 缩进前缀（选中态也恒带前缀，见 _subSpan）。
     final shift = (full.length - ps[pi].text.length).clamp(0, full.length);
     final o = (end ? s.o1 : s.o0).clamp(0, ps[pi].text.length) + shift;
     final at = o.clamp(0, full.length);
@@ -2646,14 +2652,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
     final a = q0.clamp(0, p.text.length);
     final b = q1.clamp(a, p.text.length);
-    // 句从段首开始 → 保留 2em 缩进；切自段中则无前缀（子串起点贴左）。
-    final pre = a == 0 && _cfg.indent ? kParaIndent : '';
+    // 真机反馈（2026-09-28）：缩进前缀恒以普通文本渲染在最前——选中任何子串
+    // 显示文本都与未选中一致，不再顶格重排；高亮也只包子串本体、不吞缩进。
+    final pre = _cfg.indent ? kParaIndent : '';
     return TextSpan(
       style: base,
       children: [
+        if (pre.isNotEmpty) TextSpan(text: pre),
         if (a > 0) TextSpan(text: p.text.substring(0, a)),
         TextSpan(
-          text: '$pre${p.text.substring(a, b)}',
+          text: p.text.substring(a, b),
           style: base.copyWith(backgroundColor: const Color(0x4D6366F1)),
         ),
         if (b < p.text.length) TextSpan(text: p.text.substring(b)),
