@@ -1,0 +1,53 @@
+/* ═══ 轮5.1 · 外观弹层扩展：亮度 / 背景色板 / 自绘取色 / 图片背景 ═══ */
+const BR_TEX=[['无',''],
+  ['纸纹','repeating-linear-gradient(0deg,rgba(120,90,40,.07) 0 1px,transparent 1px 4px)'],
+  ['牛皮','repeating-linear-gradient(45deg,rgba(120,80,20,.12) 0 2px,transparent 2px 6px)'],
+  ['网格','repeating-linear-gradient(90deg,rgba(60,80,120,.10) 0 1px,transparent 1px 12px),repeating-linear-gradient(0deg,rgba(60,80,120,.10) 0 1px,transparent 1px 12px)']];
+let brPickTgt='bg';
+/* 取色用 hsl() 交给浏览器换算，避免手写 HSL→RGB 公式出错 */
+function brHsl2Hex(h,s,l){return 'hsl('+h+','+s+'%,'+l+'%)'}
+function brApLumRender(){const l=document.getElementById('brApLum');if(!l)return;
+  l.value=brDraft.lum==null?100:brDraft.lum;
+  const v=document.getElementById('brApLumV');if(v)v.textContent=l.value;
+  const d=document.getElementById('brApDim');if(d){d.value=brDraft.dim==null?60:brDraft.dim;
+    const dv=document.getElementById('brApDimV');if(dv)dv.textContent=d.value}}
+function brApBgsRender(){const box=document.getElementById('brApBgs');if(!box)return;
+  box.innerHTML=BR_BGS.map(c=>`<button class="w-8 h-8 rounded-xl border-2 ${!brDraft.bgImg&&brDraft.bg===c?'border-brand-500':'border-slate-200/70 dark:border-slate-700'}" style="background:${c}" onclick="brApBgSet('${c}')"></button>`).join('')}
+function brApBgSet(c){brDraft.bg=c;brDraft.bgImg='';brDraft.theme='custom';brApCtl();brApPrev()}
+function brApTgt(t){brPickTgt=t;
+  document.querySelectorAll('#brApPickTgt [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  brApSwRender()}
+function brApPick(){const h=+(document.getElementById('brApHue')||{value:30}).value;
+  const lt=+(document.getElementById('brApLite')||{value:95}).value;
+  const l=brPickTgt==='bg'?Math.max(78,Math.min(99,lt)):Math.max(8,Math.min(45,100-lt));
+  const s=brPickTgt==='bg'?Math.min(60,h===0?0:38):Math.min(40,30);
+  brDraft[brPickTgt]=brHsl2Hex(h,s,l);brDraft.theme='custom';brApCtl();brApPrev()}
+function brApSwRender(){const b=document.getElementById('brApSwBg'),f=document.getElementById('brApSwFg'),x=document.getElementById('brApHex');
+  if(b)b.style.background=brDraft.bg;
+  if(f){f.style.color=brDraft.fg;f.style.background=brDraft.bg}
+  if(x)x.textContent=brPickTgt==='bg'?'底色 '+brDraft.bg:'字色 '+brDraft.fg}
+function brApCtlExt(){brApLumRender();brApBgsRender();brApTexRender();brApSwRender();
+  const hu=document.getElementById('brApHue'),li=document.getElementById('brApLite');
+  if(hu&&hu.dataset.init!=='1'){hu.dataset.init='1';hu.value=32}
+  if(li&&li.dataset.init!=='1'){li.dataset.init='1';li.value=96}}
+function brApTexRender(){const box=document.getElementById('brApTex');if(!box)return;
+  box.innerHTML=BR_TEX.map(([n,v],i)=>`<button class="w-14 h-11 rounded-xl border-2 text-[10px] font-bold ${(brDraft.bgTex||'')===v&&!(v===''&&brDraft.bgImg)?'border-brand-500':'border-slate-200/70 dark:border-slate-700'}" style="background-color:${brDraft.bg};${v?'background-image:'+v:''}" onclick="brApTexSet(${i})">${n}</button>`).join('')+
+   (brDraft.bgImg?`<button class="w-14 h-11 rounded-xl border-2 border-brand-500 bg-cover bg-center" style="background-image:url(${brDraft.bgImg})" onclick="brApTexSet(-1)" title="清除自选图片"></button>`:'')}
+function brApTexSet(i){const v=i<0?'':(BR_TEX[i]||['',''])[1];brDraft.bgTex=v;if(i<0)brDraft.bgImg='';brApCtl();brApPrev()}
+function brApPickImg(){const f=document.getElementById('brApImgFile');if(f)f.click()}
+function brApImgChose(inp){const file=inp.files&&inp.files[0];if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{brDraft.bgImg=String(rd.result);brDraft.bgTex='';brDraft.theme='custom';brApCtl();brApPrev();toast('图片背景已进入草稿 · 保存后生效')};
+  rd.readAsDataURL(file);inp.value=''}
+/* 背景层叠：淡化白幕 → 图片/纹理 → 底色 */
+function brStageBgCss(d){const img=[],siz=[];
+  if(d.bgImg)img.push('url('+d.bgImg+')'),siz.push('cover');
+  else if(d.bgTex)img.push(d.bgTex),siz.push('auto');
+  if(img.length&&d.dim>0){const a=(100-d.dim)/100;
+    img.unshift('linear-gradient(rgba(255,255,255,'+a+'),rgba(255,255,255,'+a+'))');siz.push('cover','cover')}
+  return {image:img.join(','),size:siz.join(',')}}
+function brApplyStageBg(){if(!brV.b)return;const stg=document.getElementById('brStage');if(!stg)return;
+  const d=brSt(brV.b),c=brStageBgCss(d);
+  stg.style.backgroundColor=d.bg||'#faf6ee';
+  stg.style.backgroundImage=c.image||'none';
+  stg.style.backgroundSize=c.size||'auto'}

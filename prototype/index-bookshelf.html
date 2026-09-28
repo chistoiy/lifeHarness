@@ -1919,59 +1919,12 @@ tailwind.config = {
           <div id="brHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="brHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(-1)">上一处</button><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(1)">下一处</button><button class="text-white/60 px-1" onclick="brClearHit()">✕</button></div>
         </div>
         <div id="brBottom" class="br-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-3 pt-1.5 pb-2">
-          <!-- V1.53 轮3 · 进度面板（参考图1：统计三格 + 进度滑条 + 阅读明细/自动翻页） -->
-          <div id="brPnlProg" class="hidden px-1 pb-1">
-            <div class="flex items-stretch justify-around text-center py-1.5">
-              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStPct">0</span><span class="text-[9px]">%</span></div><div class="text-[8px] opacity-55 mt-1" id="brStEta">—</div></div>
-              <div class="w-px bg-white/10"></div>
-              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStMin">0</span><span class="text-[9px]">分钟</span></div><div class="text-[8px] opacity-55 mt-1">阅读时长</div></div>
-              <div class="w-px bg-white/10"></div>
-              <div class="flex-1"><div class="text-base font-black leading-none"><span id="brStNote">0</span><span class="text-[9px]">条</span></div><div class="text-[8px] opacity-55 mt-1">笔记</div></div>
-            </div>
-            <input type="range" min="0" max="100" value="0" class="br-range" id="brProg" oninput="brSeek(this.value)">
-            <div class="text-center text-[8px] opacity-55 -mt-0.5">上次读到这里</div>
-            <div class="flex gap-2 mt-2">
-              <button class="flex-1 py-2 rounded-xl bg-white/10 text-[10px] font-bold" onclick="bsSessOpen(brV.b)">阅读明细</button>
-              <button class="flex-1 py-2 rounded-xl bg-white/10 text-[10px] font-bold" id="brBtnAuto" onclick="brQuickToggleAuto()">开启自动翻页</button>
-            </div>
-          </div>
-          <!-- 亮度面板（参考图2：亮度滑条 + 颜色4档 + 背景缩略图） -->
-          <div id="brPnlBright" class="hidden px-1 pb-1">
-            <div class="flex items-center gap-2 py-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="shrink-0"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
-              <input type="range" min="30" max="100" value="100" class="br-range flex-1" id="brBright" oninput="brBrightSet(this.value)">
-            </div>
-            <div class="text-[8px] opacity-55 mt-1 mb-1">颜色</div>
-            <div class="flex gap-2" id="brBtColors"></div>
-            <div class="text-[8px] opacity-55 mt-2.5 mb-1">背景</div>
-            <div class="flex gap-2" id="brBtBgs"></div>
-          </div>
-          <!-- 字号面板（参考图3：字号滑条 + 边距/行距 + 字体样式/首行缩进/翻页方式） -->
-          <div id="brPnlFont" class="hidden px-1 pb-1">
-            <div class="flex items-center gap-2 py-1.5">
-              <span class="text-[9px] font-black opacity-60 shrink-0">A</span>
-              <input type="range" min="14" max="30" value="19" class="br-range flex-1" id="brFsSl" oninput="brFsSlSet(this.value)">
-              <span id="brFsNum" class="text-[10px] font-black w-5 text-center tabular-nums shrink-0">19</span>
-              <span class="text-[16px] font-black opacity-60 shrink-0">A</span>
-            </div>
-            <div class="flex gap-2 mt-1">
-              <div class="flex-1 flex items-center gap-1 rounded-xl bg-white/10 px-2 py-1.5 text-[9px] font-bold"><span class="opacity-55 shrink-0">小</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brMarNudge(-1)">‹</button><span class="flex-1 text-center">边距</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brMarNudge(1)">›</button><span class="opacity-55 shrink-0">大</span></div>
-              <div class="flex-1 flex items-center gap-1 rounded-xl bg-white/10 px-2 py-1.5 text-[9px] font-bold"><span class="opacity-55 shrink-0">紧</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brLhNudge(-1)">‹</button><span class="flex-1 text-center">行距</span><button class="w-5 h-5 rounded-full bg-white/10 shrink-0" onclick="brLhNudge(1)">›</button><span class="opacity-55 shrink-0">松</span></div>
-            </div>
-            <div class="flex gap-2 mt-2 text-[10px] font-bold">
-              <button class="br-fchip" onclick="openSheet('sheetBrAppearance');brApOpen()">字体样式 ›</button>
-              <button class="br-fchip" id="brBtnIndent" onclick="brIndentToggle()">首行缩进 ›</button>
-              <button class="br-fchip" id="brModeBtn" onclick="brModeToggle()">翻页方式 ›</button>
-            </div>
-          </div>
           <div class="flex items-center gap-2 text-[9px] opacity-60 px-1 pb-0.5 pt-1"><span id="brCfi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="brPgLbl">—</span></div>
-          <!-- 五线性图标底栏（目录/主题/进度/亮度/字号 · 参考图1~3） -->
+          <!-- 轮5.1 · 三图标底栏：目录 / 进度 / 外观（主题+亮度+字号并入外观弹层） -->
           <div class="flex items-center justify-around pt-0.5">
             <button class="br-ibtn" id="brBtnToc" onclick="brTocOpen()" title="目录"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>目录</span></button>
-            <button class="br-ibtn" id="brBtnTheme" onclick="brThemeCycle()" title="主题"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4C10 4 4 10 4 20c6 0 8-3 10-6 1 2 6 1 6-10z"/><path d="M4 20 13 11"/></svg><span>主题</span></button>
-            <button class="br-ibtn" id="brBtnProg" onclick="brTogglePanel('prog')" title="进度"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h5m8 0h5"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg><span>进度</span></button>
-            <button class="br-ibtn" id="brBtnBright" onclick="brTogglePanel('bright')" title="亮度"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg><span>亮度</span></button>
-            <button class="br-ibtn" id="brBtnFont" onclick="brTogglePanel('font')" title="字号"><span class="text-[16px] font-black leading-none">A<span class="text-[9px] align-middle">A</span></span><span>字号</span></button>
+            <button class="br-ibtn" id="brBtnProg" onclick="brProgSheet()" title="进度"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h5m8 0h5"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/></svg><span>进度</span></button>
+            <button class="br-ibtn" id="brBtnLook" onclick="brLookSheet()" title="外观"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/><path d="M8.5 8h.01M8.5 12h.01M15.5 8h.01M15.5 12h.01"/></svg><span>外观</span></button>
           </div>
         </div>
         <!-- 亮度遮罩（模拟系统亮度）＋ 返回原进度胶囊（参考图4） -->
@@ -2936,7 +2889,7 @@ tailwind.config = {
   <!-- 目录：V1.51 起改为阅读主屏内侧边抽屉 #brTocDrawer（微信读书式·可折叠），原底部弹层已移除 -->
 
   <!-- 外观（固定预览 + 草稿保存制） -->
-  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAppearance')">
+  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAppearance')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] flex flex-col">
       <div class="flex items-center justify-between"><b class="text-[15px]">阅读外观</b><div class="flex gap-1.5" id="brApScope"></div></div>
       <div class="mt-3 shrink-0 rounded-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden">
@@ -2953,14 +2906,44 @@ tailwind.config = {
           <div class="flex items-center justify-between text-xs font-bold mt-1"><span>页边距（上下左右）</span><b id="brApMarV" class="text-brand-500">中</b></div>
           <input type="range" min="8" max="40" step="2" class="br-range" id="brApMar" oninput="brApSet('mar',+this.value)">
         </div>
+        <div>
+          <div class="flex items-center justify-between text-xs font-bold"><span>亮度</span><b id="brApLumV" class="text-brand-500">100</b></div>
+          <input type="range" min="30" max="100" step="1" class="br-range" id="brApLum" oninput="brApSet('lum',+this.value)">
+          <div class="text-[9px] text-slate-400 -mt-0.5">低于 100 时在正文上叠一层半透明黑，模拟暗光阅读（不影响分页）</div>
+        </div>
         <div><div class="text-xs font-bold mb-1.5">主题</div><div class="grid grid-cols-3 gap-2" id="brApThemes"></div></div>
         <div>
-          <div class="text-xs font-bold mb-1.5">自定义颜色</div>
-          <div class="flex items-center gap-3 text-[11px]">
-            <span class="flex items-center gap-1.5">底色<input type="color" id="brApBg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'bg')"></span>
-            <span class="flex items-center gap-1.5">字色<input type="color" id="brApFg" class="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer" oninput="brApColor(this.value,'fg')"></span>
+          <div class="text-xs font-bold mb-1.5">背景色</div>
+          <div class="flex gap-2 flex-wrap" id="brApBgs"></div>
+          <div class="mt-3 text-[11px] font-bold">自定义颜色</div>
+          <div class="mt-1.5 flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-xl border border-slate-200/70 dark:border-slate-700 shrink-0" id="brApSwBg" style="background:#faf6ee"></span>
+            <span class="w-9 h-9 rounded-xl border border-slate-200/70 dark:border-slate-700 shrink-0 flex items-center justify-center text-[14px] font-black" id="brApSwFg" style="color:#3b3630">A</span>
+            <div class="flex-1 min-w-0 space-y-1.5">
+              <input type="range" min="0" max="360" step="1" class="br-range" id="brApHue" oninput="brApPick()">
+              <input type="range" min="0" max="100" step="1" class="br-range" id="brApLite" oninput="brApPick()">
+            </div>
+          </div>
+          <div class="mt-2 flex items-center gap-1.5 text-[10px] font-bold" id="brApPickTgt">
+            <button class="seg-pill on" data-t="bg" onclick="brApTgt('bg')">改底色</button>
+            <button class="seg-pill" data-t="fg" onclick="brApTgt('fg')">改字色</button>
+            <span class="flex-1"></span>
+            <span class="text-slate-400 tabular-nums" id="brApHex">—</span>
           </div>
         </div>
+        <div>
+          <div class="text-xs font-bold mb-1.5">图片背景</div>
+          <div class="flex gap-2 flex-wrap" id="brApTex"></div>
+          <div class="mt-2 flex items-center gap-2">
+            <button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold" onclick="brApPickImg()">从相册选择图片…</button>
+            <input type="file" accept="image/*" id="brApImgFile" class="hidden" onchange="brApImgChose(this)">
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-[11px]"><span class="shrink-0 text-slate-400">淡化</span>
+            <input type="range" min="0" max="90" step="5" class="br-range flex-1" id="brApDim" oninput="brApSet('dim',+this.value)">
+            <b id="brApDimV" class="text-brand-500 w-7 text-right">60</b></div>
+          <div class="text-[9px] text-slate-400">越淡越好读；点「无」回到纯色背景</div>
+        </div>
+
         <div><div class="text-xs font-bold mb-1.5">字体（系统字体 · 可扩展下载，控制包体积）</div><div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="brApFonts"></div></div>
         <div class="space-y-2.5 pb-1">
           <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
@@ -2974,8 +2957,27 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- 轮5.1 · 进度弹层（原底栏内嵌面板 → 正常底部弹层） -->
+  <div id="sheetBrProg" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrProg')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">阅读进度</b><span class="text-[9px] text-slate-400 tabular-nums" id="brProgCfi">—</span></div>
+      <div class="mt-4 grid grid-cols-3 text-center">
+        <div><div class="text-xl font-black leading-none"><span id="brStPct">0</span><span class="text-[10px]">%</span></div><div class="text-[9px] text-slate-400 mt-1" id="brStEta">—</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStMin">0</span><span class="text-[10px]">分钟</span></div><div class="text-[9px] text-slate-400 mt-1">本次时长</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStNote">0</span><span class="text-[10px]">条</span></div><div class="text-[9px] text-slate-400 mt-1">本书笔记</div></div>
+      </div>
+      <div class="mt-5"><input type="range" min="0" max="100" value="0" class="br-range" id="brProg" oninput="brSeek(this.value)">
+        <div class="text-center text-[9px] text-slate-400 mt-1">拖动到全书任意位置 · 目标章节即时实算</div></div>
+      <div class="mt-5 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrProg');bsSessOpen(brV.b)">阅读明细</button>
+        <button class="flex-1 py-3 rounded-2xl grad text-white text-xs font-bold" id="brBtnAuto" onclick="brQuickToggleAuto()">开启自动翻页</button>
+      </div>
+      <div class="mt-2"><button class="w-full py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrProg')">关闭</button></div>
+    </div>
+  </div>
+
   <!-- AI 解读 -->
-  <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
+  <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-center justify-between"><b class="text-[15px]">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
       <div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 line-clamp-2" id="brAiQuote">—</div>
@@ -2989,7 +2991,7 @@ tailwind.config = {
   </div>
 
   <!-- 词典 -->
-  <div id="sheetBrDict" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDict')">
+  <div id="sheetBrDict" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDict')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-baseline gap-2"><b class="text-xl" id="brDcWord">—</b><span class="text-[11px] text-slate-400" id="brDcPh">—</span><span class="ml-auto text-[9px] text-slate-400">本地词典包 · 可扩展</span></div>
       <div class="mt-3 text-xs leading-6 space-y-1.5" id="brDcBody"></div>
@@ -3028,7 +3030,7 @@ tailwind.config = {
   </div>
 
   <!-- 自动翻页 -->
-  <div id="sheetBrAutoPage" class="sheet hidden fixed md:absolute inset-0 z-[60] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAutoPage')">
+  <div id="sheetBrAutoPage" class="sheet hidden fixed md:absolute inset-0 z-[85] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAutoPage')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px]">自动翻页间隔</b>
       <div class="mt-3" id="wBrAuto"></div>
@@ -3038,7 +3040,7 @@ tailwind.config = {
   </div>
 
   <!-- 更多（阅读主屏） -->
-  <div id="sheetBrMore" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrMore')">
+  <div id="sheetBrMore" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrMore')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px]">本书操作</b>
       <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px] font-bold" id="brMoreGrid"></div>
@@ -3054,7 +3056,7 @@ tailwind.config = {
   </div>
 
   <!-- 本地书删除（源文件选项） -->
-  <div id="sheetBrDel" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDel')">
+  <div id="sheetBrDel" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDel')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px] text-rose-500">删除《<span id="brDelName">—</span>》</b>
       <div class="mt-3 space-y-2 text-xs" id="brDelOpts"></div>
@@ -3067,7 +3069,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== 批3.5 · 清理缓存（单书·保留记录） ===== -->
-  <div id="sheetBrCache" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrCache')">
+  <div id="sheetBrCache" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrCache')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px]">清理缓存 · 《<span id="brCacheName">—</span>》</b>
       <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[11px] leading-5" id="brCacheInfo"></div>
@@ -3084,7 +3086,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== 批3.5 · 重新载入（已清缓存·原文件可读） ===== -->
-  <div id="sheetBrReload" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrReload')">
+  <div id="sheetBrReload" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrReload')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px]">重新载入 · 《<span id="brReloadName">—</span>》</b>
       <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[11px] leading-5" id="brReloadInfo"></div>
@@ -3097,7 +3099,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== 批3.5 · 源文件丢失 → 重新选择文件 ===== -->
-  <div id="sheetBrLost" class="sheet hidden fixed md:absolute inset-0 z-[70] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrLost')">
+  <div id="sheetBrLost" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrLost')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px] text-amber-600">源文件已不存在 · 《<span id="brLostName">—</span>》</b>
       <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[11px] leading-5" id="brLostInfo"></div>
@@ -6905,7 +6907,7 @@ function brParaInner(bid,ci,x,pi){let inner=brEsc(x.t);
   }
   return `<span onpointerdown="brLpStart(event,${pi})" onpointerup="brLpEnd()" onpointerleave="brLpCancel()" onpointercancel="brLpCancel()" onclick="event.stopPropagation();brParaTap(${pi})">${inner}</span>`}
 function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci];const th=st.theme==='custom'?{bg:st.bg,fg:st.fg}:BR_THEMES[st.theme];
-  const stage=document.getElementById('brStage');stage.style.background=th.bg;stage.style.color=th.fg;
+  const stage=document.getElementById('brStage');stage.style.color=th.fg;brApplyStageBg();
   document.getElementById('brBody').innerHTML='';const fam=BR_FONTS[st.font]?BR_FONTS[st.font][1]:BR_FONTS.system[1];
   const arr=brChText(bid,ch);
   const mk=(x,pi)=>{if(x.k==='img')return `<div class="brp-i" data-pi="${pi}" onclick="event.stopPropagation();brImgOpen('${brEsc(x.t)}')">${brSvgFig()}<figcaption>${brEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;
@@ -6982,25 +6984,10 @@ function brModeToggle(){brV.mode=brV.mode==='page'?'scroll':'page';brCfg.mode=br
 /* ---- V1.53 轮3 · 底栏五图标 + 进度/亮度/字号三面板 + 长按选区（参考图1~4） ---- */
 const BR_BGS=['#faf6ee','#f5edda','#f2f3f5','#f6e7d3','#dfe8f4'];
 let brPanelK='',brLumMaskV=100;
-function brHidePanels(){['brPnlProg','brPnlBright','brPnlFont'].forEach(i=>{const e=document.getElementById(i);if(e)e.classList.add('hidden')});
-  ['brBtnProg','brBtnBright','brBtnFont'].forEach(i=>{const e=document.getElementById(i);if(e)e.classList.remove('on')});brPanelK=''}
+function brHidePanels(){/* 轮5.1：内嵌面板已并入底部弹层，保留空实现兼容旧调用 */}
 function brShowChrome(){brV.chrome=true;['brTop','brBottom'].forEach(id=>{const e=document.getElementById(id);if(e){e.classList.remove('hidden');e.classList.add('flex')}})}
-function brTogglePanel(k){if(!brV.chrome)brShowChrome();
-  if(brPanelK===k){brHidePanels();return}
-  brHidePanels();brPanelK=k;
-  const map={prog:'brPnlProg',bright:'brPnlBright',font:'brPnlFont'};
-  const btn={prog:'brBtnProg',bright:'brBtnBright',font:'brBtnFont'};
-  const el=document.getElementById(map[k]);if(el)el.classList.remove('hidden');
-  const b=document.getElementById(btn[k]);if(b)b.classList.add('on');
-  if(k==='bright')brRenderBrightPanel();if(k==='font')brRenderFontPanel();brChromeLabels()}
-function brRenderBrightPanel(){const st=brSt(brV.b);
-  document.getElementById('brBtColors').innerHTML=Object.entries(BR_THEMES).map(([k,v])=>
-    `<button class="br-bt ${st.theme===k?'on':''}" style="background:${v.bg};color:${v.fg}" onclick="brThemePick('${k}')">${k==='night'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>':v.n}</button>`).join('')+
-    `<button class="br-bt ${(st.theme==='custom')?'on':''}" style="background:conic-gradient(#fca5a5,#fcd34d,#86efac,#93c5fd);color:#334" onclick="openSheet('sheetBrAppearance');brApOpen()">自定义</button>`;
-  document.getElementById('brBtBgs').innerHTML=BR_BGS.map((c,i)=>
-    `<button class="br-bg ${st.theme==='custom'&&st.bg===c?'on':''}" style="background:${c}" onclick="brBgPick(${i})"></button>`).join('')}
-function brThemePick(k){brCfg.theme=k;brCfg.bg=BR_THEMES[k].bg;brCfg.fg=BR_THEMES[k].fg;brPagCache={};brPersist();brRenderPage();brRenderBrightPanel();brFlash('颜色 · '+BR_THEMES[k].n)}
-function brBgPick(i){const c=BR_BGS[i];brCfg.theme='custom';brCfg.bg=c;brCfg.fg=brLumIsDark(c)?'#3b3630':'#3b3630';brPagCache={};brPersist();brRenderPage();brRenderBrightPanel();brFlash('背景已切换')}
+function brProgSheet(){brChromeLabels();const c=document.getElementById('brProgCfi');if(c)c.textContent=brCfi(brV.b,brV.ci,brV.pg);openSheet('sheetBrProg')}
+function brLookSheet(){openSheet('sheetBrAppearance');brApOpen()}
 function brLumIsDark(){return false}
 function brBrightSet(v){brLumMaskV=+v;const m=document.getElementById('brLumMask');if(m)m.style.opacity=String((100-brLumMaskV)/100*0.55)}
 function brRenderFontPanel(){const st=brSt(brV.b);
@@ -7079,10 +7066,17 @@ function brSelBarPlace(){const first=document.querySelector(`#brBody [data-pi="$
   if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
   const bar=document.getElementById("brSelBar");bar.style.left="50%";bar.style.transform="translateX(-50%)";bar.style.top=top+"px"}
 /* 屏幕坐标 → (段序, 段内字符偏移)：优先原生 caret，回落按行均分估算 */
+/* 文本节点内的局部偏移 → 整段偏移（选区把段落拆成多 span 后必须累加） */
+function brOffsetInPara(el,node,local){let acc=0,found=-1;
+  (function walk(n){if(found>=0)return;
+    if(n.nodeType===3){if(n===node){found=acc+local;return}acc+=n.textContent.length}
+    else n.childNodes.forEach(walk)})(el);
+  return found<0?Math.min(local,(el.textContent||"").length):found}
 function brPtFromXY(cx,cy){
   if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(cx,cy);
-    if(r){const n=r.startContainer;const el=(n.nodeType===3?n.parentElement:n).closest?n.closest("[data-pi]")||(n.parentElement?n.parentElement.closest("[data-pi]"):null):null;
-      if(el&&el.closest("#brBody"))return{pi:+el.dataset.pi,off:r.startOffset}}}
+    if(r){const n=r.startContainer;const host=n.nodeType===3?n.parentElement:n;
+      const el=host&&host.closest?host.closest("[data-pi]"):null;
+      if(el&&el.closest("#brBody"))return{pi:+el.dataset.pi,off:brOffsetInPara(el,n,r.startOffset)}}}
   const els=[...document.querySelectorAll("#brBody [data-pi]")];
   for(const el of els){const r=el.getBoundingClientRect();
     if(cx>=r.left&&cx<=r.right&&cy>=r.top&&cy<=r.bottom){const txt=el.textContent||"";
@@ -7091,17 +7085,38 @@ function brPtFromXY(cx,cy){
       const ln=Math.min(lines-1,Math.max(0,Math.floor((cy-r.top)/lh)));
       return{pi:+el.dataset.pi,off:Math.min(txt.length,ln*per+Math.round((cx-r.left)/Math.max(1,r.width)*per))}}}
   const last=els.length-1;return last<0?null:{pi:+els[last].dataset.pi,off:(els[last].textContent||"").length}}
+/* 轮5.1 · 段内第 off 个字符的屏幕矩形：遍历文本节点累计长度，取 1 字宽 range
+   （折叠 range 在多数内核拿不到 rect；旧实现只看 firstChild，选区拆 span 后必错位） */
+function brCharRect(el,off,end){
+  const nodes=[];let total=0;
+  (function walk(n){
+    if(n.nodeType===3){nodes.push({n,from:total,nlen:n.textContent.length});total+=n.textContent.length}
+    else n.childNodes.forEach(walk);
+  })(el);
+  if(!nodes.length||total===0)return null;
+  const want=Math.max(0,Math.min(off,total));
+  const at=end?Math.max(0,want-1):Math.min(want,Math.max(0,total-1));
+  const hit=nodes.find(x=>at>=x.from&&at<x.from+x.nlen)||nodes[nodes.length-1];
+  const lo=Math.min(at-hit.from,hit.nlen);
+  const rg=document.createRange();
+  try{rg.setStart(hit.n,lo);rg.setEnd(hit.n,Math.min(lo+1,hit.nlen))}catch(e){return null}
+  const r=rg.getClientRects()[0];
+  if(!r||!r.height)return null;
+  return {left:end?r.right:r.left,top:r.top,height:r.height};
+}
 function brHandlePlace(){const s=brV.sel;if(!s){brHandleHide();return}
-  const stage=document.getElementById("brStage").getBoundingClientRect();
-  const put=(id,pi,off,end)=>{const el=document.querySelector(`#brBody [data-pi="${pi}"]`);const h=document.getElementById(id);
-    if(!el||!h||!el.firstChild){return}
-    const rg=document.createRange();rg.selectNodeContents(el);
-    let node=el.firstChild,rest=Math.max(0,Math.min(off,node.textContent||"").length);
-    rg.setStart(node,rest);rg.collapse(true);
-    const rs=rg.getClientRects();const r=(end?rs[rs.length-1]||rs[0]:rs[0])||el.getBoundingClientRect();
-    if(!r)return;h.style.display="block";
-    h.style.left=(r.left-stage.left+(end?2:-2))+"px";h.style.top=(r.top-stage.top+(end?r.height:-r.height*0.15))+"px"};
-  put("brHStart",s.p0,s.o0,false);put("brHEnd",s.p1,s.o1,true)}
+  const stage=document.getElementById('brStage').getBoundingClientRect();
+  const put=(id,pi,off,end)=>{
+    const el=document.querySelector(`#brBody [data-pi="${pi}"]`);const h=document.getElementById(id);
+    if(!el||!h)return;
+    const r=brCharRect(el,off,end);
+    if(!r){h.style.display='none';return}
+    h.style.display='block';
+    h.style.left=Math.round(r.left-stage.left-5)+'px';
+    h.style.top=Math.round((end?r.top+r.height:r.top)-stage.top-5)+'px';
+  };
+  put('brHStart',s.p0,s.o0,false);put('brHEnd',s.p1,s.o1,true)}
+
 function brHandleHide(){["brHStart","brHEnd"].forEach(i=>{const e=document.getElementById(i);if(e)e.style.display="none"})}
 function brHandleDrag(which,e){const s=brV.sel;if(!s)return;const p=brPtFromXY(e.clientX,e.clientY);if(!p)return;
   const arr=brChText(brV.b,brLeaves(brV.b)[s.ci]);const len=(arr[p.pi]&&arr[p.pi].t.length)||0;
@@ -7280,6 +7295,60 @@ function brClearHit(){brV.hit=null;brV.hitPi=null;document.getElementById('brHit
 
 /* ---- 外观（固定预览 + 草稿保存制） ---- */
 let brDraft={},brApScopeK='book';
+/* ═══ 轮5.1 · 外观弹层扩展：亮度 / 背景色板 / 自绘取色 / 图片背景 ═══ */
+const BR_TEX=[['无',''],
+  ['纸纹','repeating-linear-gradient(0deg,rgba(120,90,40,.07) 0 1px,transparent 1px 4px)'],
+  ['牛皮','repeating-linear-gradient(45deg,rgba(120,80,20,.12) 0 2px,transparent 2px 6px)'],
+  ['网格','repeating-linear-gradient(90deg,rgba(60,80,120,.10) 0 1px,transparent 1px 12px),repeating-linear-gradient(0deg,rgba(60,80,120,.10) 0 1px,transparent 1px 12px)']];
+let brPickTgt='bg';
+/* 取色用 hsl() 交给浏览器换算，避免手写 HSL→RGB 公式出错 */
+function brHsl2Hex(h,s,l){return 'hsl('+h+','+s+'%,'+l+'%)'}
+function brApLumRender(){const l=document.getElementById('brApLum');if(!l)return;
+  l.value=brDraft.lum==null?100:brDraft.lum;
+  const v=document.getElementById('brApLumV');if(v)v.textContent=l.value;
+  const d=document.getElementById('brApDim');if(d){d.value=brDraft.dim==null?60:brDraft.dim;
+    const dv=document.getElementById('brApDimV');if(dv)dv.textContent=d.value}}
+function brApBgsRender(){const box=document.getElementById('brApBgs');if(!box)return;
+  box.innerHTML=BR_BGS.map(c=>`<button class="w-8 h-8 rounded-xl border-2 ${!brDraft.bgImg&&brDraft.bg===c?'border-brand-500':'border-slate-200/70 dark:border-slate-700'}" style="background:${c}" onclick="brApBgSet('${c}')"></button>`).join('')}
+function brApBgSet(c){brDraft.bg=c;brDraft.bgImg='';brDraft.theme='custom';brApCtl();brApPrev()}
+function brApTgt(t){brPickTgt=t;
+  document.querySelectorAll('#brApPickTgt [data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  brApSwRender()}
+function brApPick(){const h=+(document.getElementById('brApHue')||{value:30}).value;
+  const lt=+(document.getElementById('brApLite')||{value:95}).value;
+  const l=brPickTgt==='bg'?Math.max(78,Math.min(99,lt)):Math.max(8,Math.min(45,100-lt));
+  const s=brPickTgt==='bg'?Math.min(60,h===0?0:38):Math.min(40,30);
+  brDraft[brPickTgt]=brHsl2Hex(h,s,l);brDraft.theme='custom';brApCtl();brApPrev()}
+function brApSwRender(){const b=document.getElementById('brApSwBg'),f=document.getElementById('brApSwFg'),x=document.getElementById('brApHex');
+  if(b)b.style.background=brDraft.bg;
+  if(f){f.style.color=brDraft.fg;f.style.background=brDraft.bg}
+  if(x)x.textContent=brPickTgt==='bg'?'底色 '+brDraft.bg:'字色 '+brDraft.fg}
+function brApCtlExt(){brApLumRender();brApBgsRender();brApTexRender();brApSwRender();
+  const hu=document.getElementById('brApHue'),li=document.getElementById('brApLite');
+  if(hu&&hu.dataset.init!=='1'){hu.dataset.init='1';hu.value=32}
+  if(li&&li.dataset.init!=='1'){li.dataset.init='1';li.value=96}}
+function brApTexRender(){const box=document.getElementById('brApTex');if(!box)return;
+  box.innerHTML=BR_TEX.map(([n,v],i)=>`<button class="w-14 h-11 rounded-xl border-2 text-[10px] font-bold ${(brDraft.bgTex||'')===v&&!(v===''&&brDraft.bgImg)?'border-brand-500':'border-slate-200/70 dark:border-slate-700'}" style="background-color:${brDraft.bg};${v?'background-image:'+v:''}" onclick="brApTexSet(${i})">${n}</button>`).join('')+
+   (brDraft.bgImg?`<button class="w-14 h-11 rounded-xl border-2 border-brand-500 bg-cover bg-center" style="background-image:url(${brDraft.bgImg})" onclick="brApTexSet(-1)" title="清除自选图片"></button>`:'')}
+function brApTexSet(i){const v=i<0?'':(BR_TEX[i]||['',''])[1];brDraft.bgTex=v;if(i<0)brDraft.bgImg='';brApCtl();brApPrev()}
+function brApPickImg(){const f=document.getElementById('brApImgFile');if(f)f.click()}
+function brApImgChose(inp){const file=inp.files&&inp.files[0];if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{brDraft.bgImg=String(rd.result);brDraft.bgTex='';brDraft.theme='custom';brApCtl();brApPrev();toast('图片背景已进入草稿 · 保存后生效')};
+  rd.readAsDataURL(file);inp.value=''}
+/* 背景层叠：淡化白幕 → 图片/纹理 → 底色 */
+function brStageBgCss(d){const img=[],siz=[];
+  if(d.bgImg)img.push('url('+d.bgImg+')'),siz.push('cover');
+  else if(d.bgTex)img.push(d.bgTex),siz.push('auto');
+  if(img.length&&d.dim>0){const a=(100-d.dim)/100;
+    img.unshift('linear-gradient(rgba(255,255,255,'+a+'),rgba(255,255,255,'+a+'))');siz.push('cover','cover')}
+  return {image:img.join(','),size:siz.join(',')}}
+function brApplyStageBg(){if(!brV.b)return;const stg=document.getElementById('brStage');if(!stg)return;
+  const d=brSt(brV.b),c=brStageBgCss(d);
+  stg.style.backgroundColor=d.bg||'#faf6ee';
+  stg.style.backgroundImage=c.image||'none';
+  stg.style.backgroundSize=c.size||'auto'}
+
 function brApOpen(){brApScopeK='book';brDraft=JSON.parse(JSON.stringify(Object.assign({},brCfg,brBooksCfg[brV.b]||{})));brApScopeRender();brApCtl();brApPrev()}
 function brApScopeRender(){document.getElementById('brApScope').innerHTML=[['book','本书专属'],['global','全部书籍']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${brApScopeK===k?'on':''}" onclick="brApScope('${k}')">${l}</button>`).join('')}
 function brApScope(k){brApScopeK=k;brDraft=JSON.parse(JSON.stringify(k==='book'?Object.assign({},brCfg,brBooksCfg[brV.b]||{}):brCfg));brApScopeRender();brApCtl();brApPrev()}
@@ -7292,7 +7361,7 @@ function brApCtl(){const d=brDraft;
   document.getElementById('brApFonts').innerHTML=Object.entries(BR_FONTS).map(([k,v])=>`<button class="br-fs ${d.font===k?'on':''} rounded-xl px-3 py-2 text-[11px] font-bold shrink-0" style="font-family:${v[1]}" onclick="brApSet('font','${k}')">${v[0]}</button>`).join('');
   document.getElementById('brApBright').classList.toggle('on',!!d.bright);document.getElementById('brApAuto').classList.toggle('on',!!d.auto);
   document.getElementById('brApAutoLbl').textContent=d.auto?d.autoSecs+' 秒':'关';
-  document.getElementById('brApBg').value=d.bg;document.getElementById('brApFg').value=d.fg}
+  brApCtlExt()}
 function brApSet(k,v){brDraft[k]=v;if(k==='theme'){brDraft.bg=BR_THEMES[v].bg;brDraft.fg=BR_THEMES[v].fg}brApCtl();brApPrev()}
 function brApColor(v,k){brDraft[k]=v;brDraft.theme='custom';brApPrev()}
 function brApTgl(k,el){el.classList.toggle('on');brDraft[k]=el.classList.contains('on');
@@ -7300,12 +7369,15 @@ function brApTgl(k,el){el.classList.toggle('on');brDraft[k]=el.classList.contain
   if(k==='auto'&&!brDraft.auto)brAutoStop();brApCtl()}
 function brAutoConfirm(){const w=WHEELS['wBrAuto'];brDraft.auto=true;brDraft.autoSecs=BR_AUTOS[w?w.i:3];brApCtl();toast('自动翻页 '+brDraft.autoSecs+' 秒/页')}
 function brApPrev(){const d=brDraft;const el=document.getElementById('brApPrev');
-  el.style.background=d.theme==='custom'?d.bg:BR_THEMES[d.theme].bg;el.style.color=d.theme==='custom'?d.fg:BR_THEMES[d.theme].fg;
+  const bg=d.theme==='custom'?d.bg:BR_THEMES[d.theme].bg;const c=brStageBgCss(d);
+  el.style.backgroundColor=bg;el.style.backgroundImage=c.image||'none';el.style.backgroundSize=c.size||'auto';
+  el.style.color=d.theme==='custom'?d.fg:BR_THEMES[d.theme].fg;
   el.style.fontFamily=BR_FONTS[d.font]?BR_FONTS[d.font][1]:'';
   el.innerHTML=`<div style="font-size:${d.fs*0.62}px;line-height:${d.lh};letter-spacing:${d.ls}px;padding:${d.mar*0.4}px ${d.mar*0.55}px">系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。</div>`}
 function brApSave(){const d=brDraft;
   if(brApScopeK==='book')brBooksCfg[brV.b]=Object.assign(brBooksCfg[brV.b]||{},d);else brCfg=Object.assign(brCfg,d);
-  brPagCache={};brPersist();closeSheet('sheetBrAppearance');brRenderPage();
+  brPagCache={};brPersist();brLumMaskV=d.lum==null?100:d.lum;brBrightSet(brLumMaskV);
+  closeSheet('sheetBrAppearance');brRenderPage();
   toast(brApScopeK==='book'?'本书外观已保存 · 逐书独立记忆':'全局默认已更新 · 未覆写的书即时生效')}
 function brAutoStart(){brAutoStop();brAutoTimer=setInterval(()=>{if(curPage==='p-readerPage'&&!brV.sel)brFlip(1)},(brSt(brV.b).autoSecs||10)*1000)}
 function brAutoStop(){clearInterval(brAutoTimer);brAutoTimer=0}
@@ -7604,7 +7676,7 @@ function br35Seed(){
 (function br53Boot(){try{
   const m=(location.search.match(/br53=(\w+)/)||[])[1];if(!m)return;
   brOpen('b1');brShowChrome();
-  if(m==='prog'||m==='bright'||m==='font')brTogglePanel(m);
+  if(m==='prog')brProgSheet();else if(m==='bright'||m==='font')brLookSheet();
   else if(m==='sel'){const el=document.querySelector('#brBody [data-pi]');if(el)brSelect(+el.dataset.pi,+el.dataset.pi);
     const bp=document.getElementById('brBackPos');if(bp)bp.classList.remove('hidden');}
 }catch(e){console.warn('br53',e)}})();
@@ -7618,7 +7690,15 @@ function br35Seed(){
   else if(m==='fold'){brTocOpen('toc');brDrFoldAll()}
   else if(m==='jump'){brTocOpen('toc');brGotoCh(9)}
   else if(m==='note'){const el=document.querySelector('#brBody [data-pi="2"]');if(el)brNoteShow('锚定：启发式之一，判断受最先取得的信息支配，见附录「启发式与偏差清单」。',brV.ci,+el.dataset.pi)}
-}catch(e){console.warn('br55',e)}})();/* ================= 阅读器（书架专版）结束 ================= */
+}catch(e){console.warn('br55',e)}})();
+/* V1.53.2 轮5.1 深链：?br56=prog|look|lookimg → 进度弹层 / 外观弹层 / 外观弹层含自选图 */
+(function br56Boot(){try{
+  const m=(location.search.match(/br56=([a-z]+)/)||[])[1];if(!m)return;
+  brOpen('b1');brShowChrome();
+  if(m==='prog')brProgSheet();
+  else if(m==='look')brLookSheet();
+  else if(m==='lookimg'){brLookSheet();brDraft.bgTex=BR_TEX[1][1];brDraft.dim=45;brApCtl();brApPrev()}
+}catch(e){console.warn('br56',e)}})();/* ================= 阅读器（书架专版）结束 ================= */
 
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
