@@ -27,8 +27,28 @@ const int _dayMs = 24 * 60 * 60 * 1000;
 /// - 累计时长/次数不存列，由 book_sessions 聚合派生（sessionAggByBook）；
 /// - last_read_at 为聚合索引列：开始/读完/摘录/会话结束四类活动取最大（§3.2）；
 /// - 全局单活计时会话：开始新会话自动结束旧会话（L4 流水批2 接）。
-class ReadRepository {
-  ReadRepository(this.db);
+///
+/// 治理G7d④ 结构（1,955 行按域分 part）：本类只剩构造转发与公开静态 dayStartMs，
+/// 实装在 `_ReadRepoBase`（枢纽层＝字段/构造 + 被跨群调用的公共入口）与同库各域
+/// mixin（书籍/会话/摘录/目录/字典/书单/统计/导入/导出·缓存）中；mixin 成员经 with
+/// 组合后仍是 ReadRepository 的**真实例成员**，库内库外调用写法一字不改。
+/// 之所以走 mixin 而非 extension：本类是公开 API 类型，成员被 providers/UI/测试经
+/// 传递来的实例调用，而 extension 成员只有在调用方**直接 import 声明库**时才可见
+/// （read_log_page 等只 import read_providers → 会报 undefined_method）。
+class ReadRepository extends _ReadRepoBase {
+  ReadRepository(super.db);
+
+  /// 自然日起点（外部 read_providers 以 ReadRepository.dayStartMs 调用，故必须留本类）。
+  /// 治理G7d④ prep：库内三处裸调用相应写作 ReadRepository.dayStartMs
+  /// （静态成员不随继承/mixin/扩展可见，必须类名限定）。
+  static int dayStartMs(DateTime d) =>
+      DateTime(d.year, d.month, d.day).millisecondsSinceEpoch;
+}
+
+/// 枢纽层：各域 mixin 唯一的 `on` 约束，只放字段/构造与被跨群调用的入口方法。
+/// 判据＝「谁会被别的群调用」，故这些方法不外提到任何一个域。
+abstract class _ReadRepoBase {
+  _ReadRepoBase(this.db);
 
   final Database db;
   final Random _rng = Random();
@@ -545,12 +565,6 @@ class ReadRepository {
       );
     }
   }
-
-  /// 自然日起点（外部 read_providers 以 ReadRepository.dayStartMs 调用，故必须留类内）。
-  /// 治理G7d④ prep：库内三处裸调用相应写作 ReadRepository.dayStartMs（宿主类 static
-  /// 在同库 extension 方法里裸名不解析）。
-  static int dayStartMs(DateTime d) =>
-      DateTime(d.year, d.month, d.day).millisecondsSinceEpoch;
 
   /// 今日累计入账分钟（含在跑会话的已耗时；倍速按 speedFold 口径在 billedMinutes）。
   Future<int> minutesOnDay(DateTime day) async {
