@@ -304,6 +304,61 @@ void main() {
             '确需「保存后回某页」请回 tab 路径或用 pushReplacement。');
   });
 
+  test('R7 AI 能力调用唯一入口：features 只许 aiRunWithReview（禁直取 AiService/AiClient）', () {
+    // 口径见《需求清单》§六 设计原则 8（V1.53 定案）：业务模块只传
+    // `taskId + vars`，端点/模型/协议/Key/三重门控/发送前审阅/留痕
+    // （运行日志 + token 台账 + AI 使用记录）全部收在 core/ai 一处。
+    // 绕行不只是风格问题：它**静默丢掉审阅弹层与留痕**——用户看不到发出去了
+    // 什么、查不到失败原因，V1.53 的 ai_calls 也会缺这一条。
+    // AI 增强页自身（配置端点 / 连通性验证 / 提示词管理）允许取 provider。
+    const entryExempt = {
+      'features/settings/presentation/ai_page.dart',
+    };
+    // 棘轮豁免：定案时已存在的绕行点，整改后**必须删掉对应登记**（下方有反向断言）。
+    const pendingFix = {
+      'features/read/presentation/reader_page.dart', // ai.request('read.quote_insight') 待改 aiRunWithReview
+    };
+    final bannedProvider = RegExp(r'\baiServiceProvider\b|\bAiService\s*\(|\bAiClient\s*\(');
+    final bannedRequest = RegExp(r'\.request\s*\(');
+    final violations = <String>[], tolerated = <String>[];
+    int lineOf(String src, int at) =>
+        '\n'.allMatches(src.substring(0, at)).length + 1;
+
+    for (final entry in sources.entries) {
+      final rel = entry.key;
+      if (!rel.startsWith('features/')) continue;
+      final stripped = strip(entry.value); // 去字符串/注释，防文案与注释误伤
+      final hits = <String>[];
+      for (final m in bannedProvider.allMatches(stripped)) {
+        hits.add('${lineOf(stripped, m.start)}:${m[0]}');
+      }
+      for (final m in bannedRequest.allMatches(stripped)) {
+        hits.add('${lineOf(stripped, m.start)}:${m[0]} 能力调用绕行');
+      }
+      if (hits.isEmpty) continue;
+      final line = '$rel ← ${hits.join(' / ')}';
+      final okProviderOnly = entryExempt.contains(rel) &&
+          !bannedRequest.hasMatch(stripped);
+      if (okProviderOnly || pendingFix.contains(rel)) {
+        tolerated.add(line);
+      } else {
+        violations.add(line);
+      }
+    }
+    expect(violations, isEmpty,
+        reason: 'AI 能力调用必须走 core/ai/ai_review.dart 的 aiRunWithReview(context, ref, '
+            '{taskId, vars})：它承载门控、发送前审阅、取消竞速、日志与用量留痕。'
+            '新增能力点=在 assets/ai_prompts/prompts.json 加一条 + 模块侧调 aiRunWithReview，'
+            '不要 import aiServiceProvider / AiService / AiClient。');
+    // 反向守护：豁免清单不许虚设——登记的例外若已不再命中，说明整改完成，须删登记。
+    final toleratedFiles = tolerated.map((e) => e.split(' ← ').first).toSet();
+    expect(pendingFix.difference(toleratedFiles), isEmpty,
+        reason: 'pendingFix 里的绕行点已消失，请把对应条目从 R7 豁免清单删掉（否则守护悄悄失效）。');
+    // 打印当前被容忍的例外，收口时看得见（不红，但不许遗忘）。
+    // ignore: avoid_print
+    if (tolerated.isNotEmpty) print('R7 暂豁免（待整改）：\n  ${tolerated.join('\n  ')}');
+  });
+
   test('守护自身有效性：确认真实扫到了文件', () {
     expect(imports.length, greaterThan(20));
     expect(imports.keys.where((k) => k.startsWith('features/')).length,
