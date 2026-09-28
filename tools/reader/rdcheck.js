@@ -3,7 +3,7 @@
 const {spawn}=require('child_process');
 const fs=require('fs'),path=require('path'),http=require('http'),url=require('url');
 const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const FILE=path.resolve('prototype/index-reader.html');
+const FILE=path.resolve('prototype/archive/index-reader.html');
 const URLF=url.pathToFileURL(FILE).href;
 const PORT=Number(process.env.RD_PORT||9517);
 const SHOTS=process.argv.includes('--shots');

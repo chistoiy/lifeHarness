@@ -1,8 +1,8 @@
-/* rdpatch.js · 一次性：修正阅读器片段 + 将片段合入 prototype/index-reader.html
+/* rdpatch.js · 一次性：修正阅读器片段 + 将片段合入 prototype/archive/index-reader.html
    锚点唯一性强校验；重复执行会被守卫拦截。 */
 const fs=require('fs'),P=require('path');
 const FRAG=P.join(__dirname,'rd_frag_');
-const HTML='prototype/index-reader.html';
+const HTML='prototype/archive/index-reader.html';
 function rd(name){return fs.readFileSync(P.join(__dirname,name),'utf8').replace(/\r\n/g,'\n')}
 
 /* ---------- 第 0 步：片段自身修正 ---------- */
