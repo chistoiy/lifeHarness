@@ -43,7 +43,8 @@ for a in "${APKS[@]}"; do
 done
 rm -f "$OUT/.gitee_up.json"
 # 核对走列表接口（附件字段叫 assets，且含两个自动源包 → 三包齐=5 个资产）
-node tools/check_gitee_assets.js "$TAG"
+# 注意：check_gitee_assets.js 从 stdin 读 JSON，必须管道喂，直跑会读空 stdin 报错。
+"$GITEE" api "repos/$OWNER/$REPO/releases?per_page=100" | node tools/check_gitee_assets.js "$TAG"
 
 echo "=== ② GitHub release ==="
 "$GH" release create "$TAG" "${APKS[@]}" \
