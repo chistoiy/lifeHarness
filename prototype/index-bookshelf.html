@@ -1798,6 +1798,11 @@ tailwind.config = {
     .br-hit{outline:2px solid rgba(99,102,241,.65);border-radius:4px}
     .br-link{text-decoration:underline;text-underline-offset:2px;cursor:pointer}
     .br-chrome{background:rgba(15,23,42,.86);backdrop-filter:blur(8px);color:#e2e8f0}
+    #p-readerPage{--brBarBg:rgba(15,23,42,.86);--brBarFg:#e2e8f0;--brBarLine:rgba(255,255,255,.08);--brBarChip:rgba(255,255,255,.10)}
+    .br-bar{background:var(--brBarBg);color:var(--brBarFg);backdrop-filter:blur(10px);transition:background .18s,color .18s}
+    .br-bar-top{border-bottom:1px solid var(--brBarLine)}
+    .br-bar-bot{border-top:1px solid var(--brBarLine)}
+    .br-bar .br-chipbg{background:var(--brBarChip)}
     #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
     #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
     #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
@@ -1908,17 +1913,17 @@ tailwind.config = {
         <button class="br-zone absolute left-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(-1)" aria-label="上一页"></button>
         <button class="br-zone absolute right-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(1)" aria-label="下一页"></button>
         <div id="brZoneC" class="br-zone absolute inset-x-[16%] top-[15%] bottom-[15%] z-[9]" onpointerdown="brZoneLpStart(event)" onpointerup="brLpEnd()" onpointerleave="brLpCancel()" onpointercancel="brLpCancel()" onclick="brTapCenter()"></div>
-        <div id="brTop" class="br-chrome hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
+        <div id="brTop" class="br-bar br-bar-top hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
           <div class="flex items-center gap-2">
             <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="brBack()" title="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
             <div class="flex-1 min-w-0 text-center"><div class="text-xs font-bold truncate" id="brTopTitle">—</div><div class="text-[9px] opacity-60 truncate" id="brTopSub">—</div></div>
-            <span id="brSessChip" class="text-[9px] rounded-full px-1.5 py-0.5 bg-white/10 tabular-nums">00:00</span>
+            <span id="brSessChip" class="br-chipbg text-[9px] rounded-full px-1.5 py-0.5 tabular-nums">00:00</span>
             <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="navTo('p-readerSearch')" title="全书检索"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></button>
             <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="openSheet('sheetBrMore')" title="更多"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
           </div>
-          <div id="brHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="brHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(-1)">上一处</button><button class="px-2 py-1 rounded-lg bg-white/10" onclick="brHitGo(1)">下一处</button><button class="text-white/60 px-1" onclick="brClearHit()">✕</button></div>
+          <div id="brHitsBar" class="hidden mt-2 flex items-center gap-2 text-[10px]"><span class="opacity-70" id="brHitsLbl">0 处匹配</span><span class="flex-1"></span><button class="br-chipbg px-2 py-1 rounded-lg" onclick="brHitGo(-1)">上一处</button><button class="br-chipbg px-2 py-1 rounded-lg" onclick="brHitGo(1)">下一处</button><button class="opacity-60 px-1" onclick="brClearHit()">✕</button></div>
         </div>
-        <div id="brBottom" class="br-chrome hidden absolute bottom-0 inset-x-0 z-[70] px-3 pt-1.5 pb-2">
+        <div id="brBottom" class="br-bar br-bar-bot hidden absolute bottom-0 inset-x-0 z-[70] px-3 pt-1.5 pb-2">
           <div class="flex items-center gap-2 text-[9px] opacity-60 px-1 pb-0.5 pt-1"><span id="brCfi" class="tabular-nums truncate max-w-[52%]">—</span><span class="flex-1"></span><span id="brPgLbl">—</span></div>
           <!-- 轮5.1 · 三图标底栏：目录 / 进度 / 外观（主题+亮度+字号并入外观弹层） -->
           <div class="flex items-center justify-around pt-0.5">
@@ -1937,7 +1942,7 @@ tailwind.config = {
           <div class="flex items-center gap-2 text-[10px]">
             <button class="w-8 h-8 rounded-full grad text-white flex items-center justify-center" onclick="brTtsToggle()" id="brTtsPlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
             <div class="flex-1 min-w-0"><b>朗读中 · <span id="brTtsCh">—</span></b><div class="opacity-60 truncate" id="brTtsNext">下一段：…</div></div>
-            <button class="px-1.5 py-1 rounded-lg bg-white/10" onclick="brTtsRate()" id="brTtsRate">1.0x</button>
+            <button class="br-chipbg px-1.5 py-1 rounded-lg" onclick="brTtsRate()" id="brTtsRate">1.0x</button>
             <button class="text-white/60 px-1" onclick="brTtsOff()">✕</button>
           </div>
         </div>
@@ -3249,7 +3254,8 @@ function setPage(p){
   const _bkHdr=(p==='p-bookDetail'||p==='p-bookInfo'||p==='p-bookshelf');
   const _hs=$('#btnHdrSearch');if(_hs)_hs.classList.toggle('hidden',_bkHdr);
   if(typeof renderHdrActs==='function')renderHdrActs(p);
-  const _tb=$('#timerBar');if(_tb&&typeof timer!=='undefined'&&timer){_tb.classList.toggle('hidden',p==='p-readtimer');_tb.classList.toggle('flex',p!=='p-readtimer')}
+  /* 轮5.4：阅读器内不挂全局计时条（顶栏已有时长胶囊 · 退出自动结算） */
+  const _tb=$('#timerBar');if(_tb&&typeof timer!=='undefined'&&timer){const off=p==='p-readtimer'||p==='p-readerPage';_tb.classList.toggle('hidden',off);_tb.classList.toggle('flex',!off)}
   $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
   $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
   hideRecSwitchMenu(); renderRecSwitch();
@@ -6929,7 +6935,7 @@ function brParaInner(bid,ci,x,pi){let inner=brEsc(x.t);
   }
   return `<span onpointerdown="brLpStart(event,${pi})" onpointerup="brLpEnd()" onpointerleave="brLpCancel()" onpointercancel="brLpCancel()" onclick="event.stopPropagation();brParaTap(${pi})">${inner}</span>`}
 function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci];const th=st.theme==='custom'?{bg:st.bg,fg:st.fg}:BR_THEMES[st.theme];
-  const stage=document.getElementById('brStage');stage.style.color=th.fg;brApplyStageBg();
+  const stage=document.getElementById('brStage');stage.style.color=th.fg;brApplyStageBg();brBarTheme();
   document.getElementById('brBody').innerHTML='';const fam=BR_FONTS[st.font]?BR_FONTS[st.font][1]:BR_FONTS.system[1];
   const arr=brChText(bid,ch);
   const mk=(x,pi)=>{if(x.k==='img')return `<div class="brp-i" data-pi="${pi}" onclick="event.stopPropagation();brImgOpen('${brEsc(x.t)}')">${brSvgFig()}<figcaption>${brEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;
@@ -7382,9 +7388,27 @@ function brStageBgCss(d){const img=[],siz=[];
   if(img.length&&d.dim>0){const a=(100-d.dim)/100;
     img.unshift('linear-gradient(rgba(255,255,255,'+a+'),rgba(255,255,255,'+a+'))');siz.push('cover','cover')}
   return {image:img.join(','),size:siz.join(',')}}
+/* CSS 颜色（hex/rgb/hsl/关键字）→ [r,g,b]，交给浏览器解析，避免手写公式 */
+function brRgb(css){const d=document.createElement('div');d.style.color=css||'#faf6ee';d.style.display='none';
+  document.body.appendChild(d);const c=getComputedStyle(d).color;d.remove();
+  const m=c.match(/(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)/);
+  return m?[+m[1],+m[2],+m[3]]:[250,246,238]}
+/* 顶栏/底栏跟随阅读主题：浅底用浅栏深字，深底用深栏浅字（不再固定黑底） */
+function brBarTheme(){if(!brV.b)return;const el=document.getElementById('p-readerPage');if(!el)return;
+  const st=brSt(brV.b),th=st.theme==='custom'?{bg:st.bg,fg:st.fg}:(BR_THEMES[st.theme]||BR_THEMES.day);
+  const rgb=brRgb(th.bg),L=0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2];
+  const s=el.style,light=L>150;
+  if(light){s.setProperty('--brBarBg','rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',.94)');
+    s.setProperty('--brBarFg',th.fg||'#3b3630');s.setProperty('--brBarLine','rgba(0,0,0,.10)');
+    s.setProperty('--brBarChip','rgba(0,0,0,.06)')}
+  else{s.setProperty('--brBarBg','rgba(15,23,42,.92)');s.setProperty('--brBarFg','#e2e8f0');
+    s.setProperty('--brBarLine','rgba(255,255,255,.10)');s.setProperty('--brBarChip','rgba(255,255,255,.12)')}
+  /* 图片/纹理背景时正文可读性靠淡化层，条上再加一档模糊 */
+  el.classList.toggle('br-bar-blurmore',!!(st.bgImg||st.bgTex))}
 function brApplyStageBg(){if(!brV.b)return;const stg=document.getElementById('brStage');if(!stg)return;
   const d=brSt(brV.b),c=brStageBgCss(d);
-  stg.style.backgroundColor=d.bg||'#faf6ee';
+  const th=BR_THEMES[d.theme]||BR_THEMES.day;
+  stg.style.backgroundColor=d.theme==='custom'?(d.bg||th.bg):th.bg;
   stg.style.backgroundImage=c.image||'none';
   stg.style.backgroundSize=c.size||'auto'}
 
