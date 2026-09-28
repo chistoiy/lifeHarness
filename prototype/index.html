@@ -109,6 +109,30 @@ tailwind.config = {
   .dark .logline .lm{color:#e2e8f0}
   .logline.lv-WARN{background:color-mix(in srgb,#f59e0b 5%,transparent)}
   .logline.lv-ERROR{background:color-mix(in srgb,#ef4444 6%,transparent)}
+  /* ===== V1.53 AI 使用记录（p-aiUsage · 全屏明细 · 与 .logline 同族视觉，行内可展开正文） ===== */
+  .ailine{border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent);padding:8px 12px}
+  .ailine:last-child{border-bottom:none}
+  .ailine .ah{display:flex;align-items:center;gap:7px;font-size:11px}
+  .ailine .at{color:#94a3b8;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:10px;flex-shrink:0}
+  .dark .ailine .at{color:#64748b}
+  .ailine .am{font-weight:700;color:#0f172a;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dark .ailine .am{color:#e2e8f0}
+  .ailine .as{flex-shrink:0;font-size:9px;font-weight:800;border-radius:5px;padding:1px 5px}
+  .ailine .aq{flex-shrink:0;font-size:9.5px;color:#64748b;font-family:ui-monospace,Consolas,Menlo,monospace}
+  .ailine.st-ok .as{color:#10b981;background:color-mix(in srgb,#10b981 14%,transparent)}
+  .ailine.st-fail .as{color:#ef4444;background:color-mix(in srgb,#ef4444 14%,transparent)}
+  .ailine.st-cancel .as{color:#f59e0b;background:color-mix(in srgb,#f59e0b 14%,transparent)}
+  .ailine.st-denied .as{color:#64748b;background:color-mix(in srgb,#64748b 16%,transparent)}
+  .ailine.st-fail{background:color-mix(in srgb,#ef4444 5%,transparent)}
+  .ailine .ab{display:none;margin-top:8px}
+  .ailine.open .ab{display:block}
+  .ailine .ab h5{font-size:10px;font-weight:800;color:#64748b;margin:8px 0 3px}
+  .ailine .ab pre{white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:10.5px;line-height:1.65;background:color-mix(in srgb,var(--accent) 5%,transparent);border:1px solid color-mix(in srgb,var(--card-bd) 70%,transparent);border-radius:10px;padding:8px;max-height:170px;overflow-y:auto;margin:0;color:#334155}
+  .dark .ailine .ab pre{color:#cbd5e1}
+  .ailine .ab pre.err{background:color-mix(in srgb,#ef4444 7%,transparent);border-color:color-mix(in srgb,#ef4444 25%,transparent)}
+  .ailine .ops{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .ailine .cut{color:#f59e0b;font-size:9.5px;font-weight:700}
+  .au-h{font-size:10px;font-weight:800;color:#64748b;margin:10px 0 4px}
   /* V1.50批3.6 V5：横滑选择器（hpick）——左右滑动/点选切换，选中态对齐 seg-on；首尾 hsp 弹性占位保证首末项可居中 */
   .hpick{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:5px;border-radius:14px;background:color-mix(in srgb,var(--card-bd) 55%,transparent)}
   .hpick::-webkit-scrollbar{display:none}
@@ -1441,6 +1465,16 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
       </div>
       <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">📊 AI 使用记录</div><button class="mini-btn" onclick="navTo('p-aiUsage');auRender()">查看全部 ›</button></div>
+        <div class="mt-2 grid grid-cols-4 gap-2 text-center">
+          <div><div class="text-[9px] text-slate-400">今日次数</div><b id="auK1" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">今日 tokens</div><b id="auK2" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">近 7 天</div><b id="auK3" class="text-[13px]">0</b></div>
+          <div><div class="text-[9px] text-slate-400">累计</div><b id="auK4" class="text-[13px]">0</b></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">每次调用记一条：能力点 · 状态 · 入/出 token · 耗时 · 发送内容与返回正文。正文只存本机（随整包备份走），可在「记录设置」改为只记用量或调整保留天数；API Key 永不入库。</div>
+      </div>
+      <div class="card mt-3">
         <div class="flex items-center justify-between"><div class="row-title">🧪 提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
         <div class="text-[10px] text-slate-400 mt-1 leading-5">每个 AI 能力点的 System / User 模板可查看与覆盖；保存后立即生效，调整请求内容不需要修改代码。占位符（如 title、today）按当次数据注入。</div>
       </div>
@@ -1466,6 +1500,38 @@ tailwind.config = {
           <button onclick="aiPromptSave()" class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold">保存覆盖</button>
         </div>
         <div class="text-[10px] text-slate-400 mt-2 leading-5">保存后该能力点即刻使用此模板发起请求；清空内容等同恢复默认。</div>
+      </div>
+    </section>
+
+    <!-- ===== P12c3 二级：AI 使用记录（V1.53 · 全屏明细 · 输入输出留痕 · 按模块/状态/关键词筛选 · 查删） ===== -->
+    <section id="p-aiUsage" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 mb-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auSum" class="truncate">今日 0 次 · 入 0/出 0 tokens · 失败 0</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="openSheet('sheetAiUsageCfg')">记录设置</button>
+        <button class="mini-btn shrink-0" onclick="auCopyAll()">复制筛选结果</button>
+      </div>
+      <!-- 时间范围（与日志页级别段选同语言） -->
+      <div class="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
+        <button id="auD0" class="seg-on flex-1 rounded-lg py-1.5" onclick="auSetRange(0,'auD0')">今日</button>
+        <button id="auD7" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(7,'auD7')">7 天</button>
+        <button id="auD30" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(30,'auD30')">30 天</button>
+        <button id="auDA" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetRange(9999,'auDA')">全部</button>
+      </div>
+      <div class="au-h">状态</div>
+      <div class="flex gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-[11px] font-bold">
+        <button id="auSAll" class="seg-on flex-1 rounded-lg py-1.5" onclick="auSetSt('all','auSAll')">全部</button>
+        <button id="auSOk" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('ok','auSOk')">成功</button>
+        <button id="auSF" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('fail','auSF')">失败</button>
+        <button id="auSC" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('cancel','auSC')">取消</button>
+        <button id="auSD" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="auSetSt('denied','auSD')">未启用</button>
+      </div>
+      <div class="au-h">模块（点选只看该模块 · 括号内为该范围条数）</div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="auModRow"></div>
+      <input id="auKw" class="inp w-full mt-2" placeholder="搜能力名 / 输入内容 / 输出内容…" oninput="auRender()">
+      <div class="card mt-2 !p-0 overflow-hidden" id="auBox" style="max-height:calc(100vh - 372px);overflow-y:auto"></div>
+      <div class="flex items-center justify-between mt-2 mb-3 text-[10px] text-slate-500 dark:text-slate-400">
+        <span id="auCnt">0 条</span>
+        <button class="mini-btn" style="color:#ef4444" onclick="auDelFiltered()">删除筛选结果</button>
       </div>
     </section>
 
@@ -1792,6 +1858,30 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="dlExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
+  <!-- ===== V1.53 AI 记录设置（正文开关 · 保留天数 · 清除/清空） ===== -->
+  <div id="sheetAiUsageCfg" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiUsageCfg')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">AI 记录设置</div>
+      <div class="mt-3 text-xs">
+        <div class="flex items-center justify-between"><span>记录输入与输出正文</span><span id="auCfgBody" class="toggle on" onclick="auToggleBody(this)"></span></div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">关闭后只记用量（能力点 · 状态 · token · 耗时），不再留存发送内容与返回正文；已存的正文可用下方按钮单独清除。</div>
+        <div class="au-h">保留天数</div>
+        <div class="flex flex-wrap gap-2" id="auKeepRow">
+          <button class="chip" data-k="7" onclick="auKeep(7)">7 天</button>
+          <button class="chip" data-k="15" onclick="auKeep(15)">15 天</button>
+          <button class="chip chip-on" data-k="30" onclick="auKeep(30)">30 天</button>
+          <button class="chip" data-k="90" onclick="auKeep(90)">90 天</button>
+          <button class="chip" data-k="0" onclick="auKeep(0)">不限</button>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1 leading-5">超期记录自动丢弃；单条正文超过 <b>8000</b> 字按上限截断并标「已截断」。当前占用 <b id="auSize">0.0 MB</b>。</div>
+        <button onclick="auClearBody()" class="mt-3 w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">清除已存正文（保留用量记录）</button>
+        <button onclick="auClearAll()" class="mt-2 w-full py-2.5 rounded-xl text-white text-xs font-bold" style="background:#ef4444">清空全部 AI 使用记录</button>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：记录只写在本机数据库（ai_calls 表），随本地备份 .lhbak 与云同步快照一起走；API Key 存系统加密区，永不出现在记录、日志与备份明文中。</div>
+      </div>
+    </div>
+  </div>
+
   <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
@@ -2447,7 +2537,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -3939,6 +4029,166 @@ async function aiTest(mock){const box=$('#aiRes');
   box.innerHTML=`<div style="color:#fb7185">✖ 请求未送达</div><div style="color:#fda4af">${esc2(String(err&&err.name==='AbortError'?'超时 15s':(err&&err.message)||err)).slice(0,140)}</div><div style="color:#94a3b8">浏览器原型环境最常见原因：该 API 不允许网页跨域调用（CORS），属原型环境限制，不代表 Key 错误；正式 Flutter 版原生请求无此限制。也可先用「模拟演示」查看交互流程。</div>`;}
 }
 
+/* ================= V1.53 AI 使用记录（ai_calls 明细 · 全屏页 p-aiUsage · 模块/状态/关键词筛选 · 行内展开正文 · 查删） ================= */
+/* 演示数据口径与实现一致：d=几天前（范围筛选用），st=ok|fail|cancel|denied，
+   it/ot=入出 tokens，ms=耗时，sys/usr/out=发送与返回正文（关闭「记正文」后置空），cut=1 表示按上限截断过。 */
+var AI_CALLS=[
+ {i:1,d:0,t:'09-28 08:12:04',m:'阅读',id:'read.toc',n:'目录 AI 补全',st:'ok',it:173,ot:4216,ms:13443,cut:1,
+  sys:'你是图书目录结构化助手。只输出一个 JSON 对象，禁止解释与代码块标记：{"toc":[{"title":"字符串","start_page":整数}]}。',
+  usr:'书名：人类简史：从动物到上帝\n章节片段（原文顺序，含页码线索）：\n第 1 部分 认知革命 · 第 1 章 人类：一种也没什么特别的动物 /13\n第 1 章 知能革命 /21\n第 2 章 神秘的火 /33\n第 2 部分 农业革命 /57\n…（共 20 条）',
+  out:'{"toc":[{"title":"认知革命","start_page":13},{"title":"人类：一种也没什么特别的动物","start_page":21},{"title":"神秘的火","start_page":33},{"title":"农业革命","start_page":57}]}',err:''},
+ {i:2,d:0,t:'09-28 07:58:31',m:'待办',id:'todo.nl_parse',n:'自然语言速记解析',st:'ok',it:96,ot:142,ms:1120,cut:0,
+  sys:'你是待办速记解析器，把口语化一句话拆成结构化字段。只输出 JSON：{"title","due_at","quadrant","tags":[],"subtasks":[]}。',
+  usr:'今天：2026-09-28\n原句：下周三前把报销单交给财务，顺便约老王对齐排期',
+  out:'{"title":"提交报销单给财务","due_at":"2026-10-01","quadrant":2,"tags":["财务"],"subtasks":["约老王对齐排期"]}',err:''},
+ {i:3,d:0,t:'09-28 07:30:12',m:'日记',id:'journal.reflect',n:'当日复盘草稿',st:'ok',it:612,ot:988,ms:6820,cut:0,
+  sys:'你是个人复盘助手。基于当天日记条目生成 KPT 三段草稿，每段不超过 3 条，短句，禁止编造未出现的事实。',
+  usr:'日期：2026-09-27\n条目：\n1. 上午把时间模块的统一弹层改完，合并逻辑返工两次\n2. 晚上读了 40 页\n3. 睡前刷手机到 1 点',
+  out:'Keep：改动当天即自测，返工成本可控\nProblem：睡前刷手机把入睡推到 1 点\nTry：给手机设 23:30 停用提醒；合并类逻辑先写用例再动实现',err:''},
+ {i:4,d:0,t:'09-28 06:58:02',m:'小工具',id:'tool.verify',n:'AI API 验证',st:'ok',it:18,ot:4,ms:812,cut:0,
+  sys:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',
+  usr:'请只回复四个字：连接成功',out:'连接成功',err:''},
+ {i:5,d:0,t:'09-28 06:40:55',m:'阅读',id:'read.quote_insight',n:'摘录感想生成',st:'fail',it:520,ot:0,ms:21300,cut:0,
+  sys:'你是阅读摘录的感想助手。用第一人称写 60~120 字感想，不复述原文，不下判断性结论。',
+  usr:'摘录：「农业革命是史上最大的骗局。」\n书名：人类简史',
+  out:'',err:'aborted: Connection closed while receiving data（响应未收全，长回复常见）· 请重试'},
+ {i:6,d:1,t:'09-27 21:14:07',m:'待办',id:'todo.quadrant',n:'AI 判象限',st:'cancel',it:88,ot:0,ms:9400,cut:0,
+  sys:'你是艾森豪威尔四象限分类器。只输出一个 JSON 对象：{"quadrant":1-4,"reason":"不超过20字"}。',
+  usr:'标题：整理去年发票并归档',out:'',err:'等待期间用户点「取消」/按返回，应答若迟到将被丢弃（不计成功，token 已消耗）'},
+ {i:7,d:1,t:'09-27 19:02:44',m:'收集箱',id:'inbox.triage',n:'AI 一键分流',st:'ok',it:340,ot:276,ms:3910,cut:0,
+  sys:'你是个人知识管理分流器。只输出 JSON：{"target":"todo|note|journal|quote","title","reason"}。',
+  usr:'内容：记得周五交季度总结；另外「深工作需要 90 分钟 uninterrupted」这句值得存',
+  out:'{"target":"todo","title":"交季度总结（周五）","reason":"含明确截止日，属可执行事项；后半句建议另存笔记"}',err:''},
+ {i:8,d:2,t:'09-26 20:31:19',m:'日程',id:'schedule.weekly_review',n:'周报 AI 点评',st:'ok',it:1204,ot:812,ms:8600,cut:0,
+  sys:'你是周度回顾点评助手。只依据给定聚合数据点评，禁止臆造具体事件。输出 3 条短句。',
+  usr:'本周聚合：工作 32.5h · 睡眠 47h · 阅读 4.2h · 运动 1.5h · 待办完成 38/52 · 逾期 6',
+  out:'1. 工作占比略高，运动 1.5h 低于你上周设定的 3 次目标\n2. 逾期 6 条集中在周四之后，建议周中做一次清空\n3. 阅读时长稳定，可考虑把碎片时段并入',err:''},
+ {i:9,d:3,t:'09-25 09:12:50',m:'呵护',id:'care.cycle_insight',n:'周期趋势解读',st:'denied',it:0,ot:0,ms:0,cut:0,
+  sys:'',usr:'',out:'',err:'该能力未授权（呵护：周期趋势解读）：请在 AI 增强页的能力矩阵中开启 · 零请求'},
+ {i:10,d:5,t:'09-23 14:05:33',m:'阅读',id:'read.toc',n:'目录 AI 补全',st:'fail',it:173,ot:0,ms:2200,cut:0,
+  sys:'你是图书目录结构化助手。只输出一个 JSON 对象，禁止解释与代码块标记。',
+  usr:'书名：置身事内\n章节片段：…（共 18 条）',out:'',err:'rateLimited: 429 Too Many Requests · Retry-After: 8 · 请稍后再试'},
+ {i:11,d:12,t:'09-16 22:41:08',m:'日记',id:'journal.reflect',n:'当日复盘草稿',st:'ok',it:580,ot:904,ms:7100,cut:0,
+  sys:'你是个人复盘助手。基于当天日记条目生成 KPT 三段草稿，每段不超过 3 条。',
+  usr:'日期：2026-09-16\n条目：3 条',out:'Keep：…（正文已按上限截断）',err:''},
+ {i:12,d:26,t:'09-02 08:02:15',m:'阅读',id:'read.quote_insight',n:'摘录感想生成',st:'ok',it:498,ot:126,ms:4200,cut:0,
+  sys:'你是阅读摘录的感想助手。用第一人称写 60~120 字感想，不复述原文。',
+  usr:'摘录：「所有重大事件都以巧合的方式发生。」',out:'这句话让我想到最近两次计划外的进展——真正改变节奏的，往往不在日程上。',err:''},
+ {i:13,d:28,t:'08-31 16:20:41',m:'待办',id:'todo.subtask',n:'复杂任务拆子任务',st:'ok',it:150,ot:238,ms:3400,cut:0,
+  sys:'你是任务分解助手。只输出 JSON：{"subtasks":["…"]}，3~6 条，每条不超过 15 字。',
+  usr:'标题：筹备十月技术分享',out:'{"subtasks":["定题与大纲","整理示例代码","做幻灯片","预讲一次","收集反馈问题"]}',err:''}
+];
+var auD=0,auSt='all',auMod='all',auBodyOn=true,auKeepDays=30,auArm=null;
+function auEsc(s){return (s||'').replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function auInRange(r){return auD>=9999?true:(auD===0?r.d===0:r.d<auD);}
+function auList(){
+  var kw=($('#auKw')?$('#auKw').value:'').trim().toLowerCase();
+  return AI_CALLS.filter(function(r){
+    if(!auInRange(r))return false;
+    if(auSt!=='all'&&r.st!==auSt)return false;
+    if(auMod!=='all'&&r.m!==auMod)return false;
+    if(kw){var hay=(r.n+' '+r.m+' '+r.id+' '+r.sys+' '+r.usr+' '+r.out+' '+r.err).toLowerCase();
+      if(hay.indexOf(kw)<0)return false;}
+    return true;
+  }).sort(function(a,b){return a.d===b.d?(a.t<b.t?1:-1):a.d-b.d;});
+}
+function auStTxt(st){return st==='ok'?'成功':st==='fail'?'失败':st==='cancel'?'取消':'未启用';}
+function auMsTxt(ms){return ms>=1000?(ms/1000).toFixed(1)+'s':ms+'ms';}
+function auSumOf(list){var n=list.length,it=0,ot=0,f=0;
+  list.forEach(function(r){it+=r.it;ot+=r.ot;if(r.st==='fail'||r.st==='cancel')f++;});
+  return {n:n,it:it,ot:ot,f:f};}
+function auModChips(){
+  var pool=AI_CALLS.filter(auInRange);var cnt={};
+  pool.forEach(function(r){cnt[r.m]=(cnt[r.m]||0)+1;});
+  var mods=Object.keys(cnt).sort();
+  var h='<button class="chip'+(auMod==='all'?' chip-on':'')+'" onclick="auPickMod(\'all\')">全部 '+pool.length+'</button>';
+  mods.forEach(function(m){h+='<button class="chip'+(auMod===m?' chip-on':'')+'" onclick="auPickMod(\''+m+'\')">'+m+' '+cnt[m]+'</button>';});
+  $('#auModRow').innerHTML=h;
+}
+function auRender(){
+  auModChips();
+  var list=auList(),h='';
+  if(!list.length){h='<div class="p-6 text-center text-[11px] text-slate-400">该范围暂无 AI 调用记录<br><span class="opacity-70">换时间范围或清掉关键词再看</span></div>';}
+  list.forEach(function(r){
+    var open=r.open?' open':'';
+    h+='<div class="ailine st-'+r.st+open+'" data-i="'+r.i+'">'
+      +'<div class="ah" onclick="auToggle('+r.i+')">'
+      +'<span class="at">'+r.t+'</span><span class="as">'+auStTxt(r.st)+'</span>'
+      +'<span class="am">'+r.m+' · '+r.n+'</span>'
+      +'<span class="aq">'+(r.it||r.ot?('入'+r.it+'/出'+r.ot):'—')+' · '+auMsTxt(r.ms)+'</span></div>'
+      +'<div class="ab">'
+      +(r.err?('<h5>'+(r.st==='ok'?'提示':'原因')+'</h5><pre class="err">'+auEsc(r.err)+'</pre>'):'')
+      +(r.sys?('<h5>System · 发送设定</h5><pre>'+auEsc(r.sys)+'</pre>'):'')
+      +(r.usr?('<h5>User · 本次输入</h5><pre>'+auEsc(r.usr)+(r.cut?' <span class="cut">…已截断（上限 8000 字）</span>':'')+'</pre>'):'')
+      +(r.out?('<h5>输出</h5><pre>'+auEsc(r.out)+'</pre>'):'')
+      +(!r.sys&&!r.usr&&!r.out?'<div class="text-[10px] text-slate-400 mt-2">本条未存正文（记录设置里「记录输入与输出正文」已关闭）</div>':'')
+      +'<div class="ops">'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'usr\')">复制输入</button>'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'out\')">复制输出</button>'
+      +'<button class="mini-btn" onclick="event.stopPropagation();auCopy('+r.i+',\'all\')">复制全部</button>'
+      +'<button class="mini-btn" style="color:#ef4444" onclick="event.stopPropagation();auDel('+r.i+',this)">删除本条</button>'
+      +'</div></div></div>';
+  });
+  $('#auBox').innerHTML=h;
+  var s=auSumOf(list);
+  $('#auCnt').textContent=list.length+' 条 · 入 '+s.it+' / 出 '+s.ot+' tokens · 未成功 '+s.f;
+  var today=auSumOf(AI_CALLS.filter(function(r){return r.d===0;}));
+  $('#auSum').textContent='今日 '+today.n+' 次 · 入 '+today.it+'/出 '+today.ot+' tokens · 失败 '+today.f
+    +' · 保留 '+(auKeepDays||'不限')+' 天 · 正文'+(auBodyOn?'全存':'只记用量');
+  auKpi();
+}
+/* 入口卡摘要要在进页前就有数：DOM 就绪即渲染一次（脚本先于 section 时静默跳过） */
+function auBootRender(){if(document.getElementById('auBox'))auRender();}
+function auKpi(){
+  var t=auSumOf(AI_CALLS.filter(function(r){return r.d===0;}));
+  var w=auSumOf(AI_CALLS.filter(function(r){return r.d<7;}));
+  var a=auSumOf(AI_CALLS);
+  [['auK1',t.n],['auK2',t.it+t.ot],['auK3',w.n],['auK4',a.n]].forEach(function(p){
+    var el=document.getElementById(p[0]);if(el)el.textContent=p[1];});
+}
+function auSeg(id,ids){ids.forEach(function(i){var b=document.getElementById(i);if(!b)return;
+  b.classList.remove('seg-on');b.classList.add('text-slate-500');});
+  var on=document.getElementById(id);if(on){on.classList.add('seg-on');on.classList.remove('text-slate-500');}}
+function auSetRange(d,id){auD=d;auSeg(id,['auD0','auD7','auD30','auDA']);auRender();}
+function auSetSt(st,id){auSt=st;auSeg(id,['auSAll','auSOk','auSF','auSC','auSD']);auRender();}
+function auPickMod(m){auMod=m;auRender();}
+function auToggle(i){var r=AI_CALLS.filter(function(x){return x.i===i;})[0];if(!r)return;
+  r.open=!r.open;auRender();}
+function auFind(i){return AI_CALLS.filter(function(x){return x.i===i;})[0];}
+function auCopy(i,part){var r=auFind(i);if(!r)return;
+  var t=part==='all'?('['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+'\n--- System ---\n'+r.sys+'\n--- User ---\n'+r.usr+'\n--- 输出 ---\n'+r.out+(r.err?('\n--- 原因 ---\n'+r.err):''))
+    :(part==='usr'?(r.sys?r.sys+'\n\n'+r.usr:r.usr):r.out);
+  if(!t){toast('本条没有可复制的正文');return;}
+  navigator.clipboard.writeText(t).then(function(){toast(part==='all'?'已复制整条记录':(part==='usr'?'已复制输入内容':'已复制输出内容'));}).catch(function(){toast('复制失败');});}
+function auCopyAll(){var list=auList();if(!list.length){toast('当前筛选没有记录');return;}
+  var t=list.map(function(r){return '['+r.t+'] '+r.m+' · '+r.n+' · '+auStTxt(r.st)+' · 入'+r.it+'/出'+r.ot+' · '+auMsTxt(r.ms);}).join('\n');
+  navigator.clipboard.writeText(t).then(function(){toast('已复制 '+list.length+' 条摘要');}).catch(function(){toast('复制失败');});}
+function auDel(i,btn){var idx=-1;AI_CALLS.forEach(function(x,k){if(x.i===i)idx=k;});
+  if(idx<0)return;var gone=AI_CALLS[idx];AI_CALLS.splice(idx,1);auRender();
+  toast('🗑 已删除「'+gone.n+'」1 条');}
+function auArmTwice(btn,label,fn){
+  if(btn.dataset.arm==='1'){btn.dataset.arm='';btn.textContent=label;fn();return;}
+  btn.dataset.arm='1';btn.textContent='再点一次确认';
+  setTimeout(function(){if(btn.dataset.arm==='1'){btn.dataset.arm='';btn.textContent=label;}},3000);}
+function auDelFiltered(){var btn=event&&event.target;var list=auList();
+  if(!list.length){toast('当前筛选没有记录');return;}
+  var run=function(){var ids=list.map(function(r){return r.i;});
+    AI_CALLS=AI_CALLS.filter(function(r){return ids.indexOf(r.i)<0;});auRender();
+    toast('已删除筛选结果 '+ids.length+' 条');};
+  if(btn)auArmTwice(btn,'删除筛选结果',run);else run();}
+function auClearAll(){var btn=event&&event.target;
+  var run=function(){AI_CALLS=[];auRender();toast('已清空全部 AI 使用记录');closeSheet('sheetAiUsageCfg');};
+  if(btn)auArmTwice(btn,'清空全部 AI 使用记录',run);else run();}
+function auClearBody(){AI_CALLS.forEach(function(r){r.sys='';r.usr='';r.out='';});auRender();
+  toast('已清除正文，用量记录保留');}
+function auToggleBody(el){el.classList.toggle('on');auBodyOn=el.classList.contains('on');auRender();
+  toast(auBodyOn?'开始记录输入与输出正文':'已停记正文：新调用只记用量');}
+function auKeep(k){auKeepDays=k;
+  $$('#auKeepRow .chip').forEach(function(b){b.classList.toggle('chip-on',+b.dataset.k===k);});
+  if(k){var before=AI_CALLS.length;AI_CALLS=AI_CALLS.filter(function(r){return r.d<k;});
+    toast('保留 '+k+' 天：丢弃超期 '+(before-AI_CALLS.length)+' 条');}
+  auRender();}
+
 /* —— 提示词管理（AI批 · 与 assets/ai_prompts/prompts.json 同源的默认模板镜像） —— */
 const AI_PROMPTS_DEFAULT=[
 {id:'tool.verify',m:'小工具',n:'AI API 验证',v:['prompt'],s:'你是接口连通性验证助手。按用户要求作答，回答保持简短。',u:'{{prompt}}'},
@@ -4322,6 +4572,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
 
 /* ================= 启动 ================= */
 migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderTools(); renderPlugins(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
+auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
 function timerSecsOK(){return true}
 document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
