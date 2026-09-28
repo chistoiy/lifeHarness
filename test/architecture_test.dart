@@ -315,9 +315,7 @@ void main() {
       'features/settings/presentation/ai_page.dart',
     };
     // 棘轮豁免：定案时已存在的绕行点，整改后**必须删掉对应登记**（下方有反向断言）。
-    const pendingFix = {
-      'features/read/presentation/reader_page.dart', // ai.request('read.quote_insight') 待改 aiRunWithReview
-    };
+    const pendingFix = <String>{}; // 阅读侧已于 2026-09-28 改走 aiRunWithReview
     final bannedProvider = RegExp(r'\baiServiceProvider\b|\bAiService\s*\(|\bAiClient\s*\(');
     final bannedRequest = RegExp(r'\.request\s*\(');
     final violations = <String>[], tolerated = <String>[];
