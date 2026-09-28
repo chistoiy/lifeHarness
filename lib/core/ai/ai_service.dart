@@ -105,9 +105,9 @@ class AiService {
       return '该能力未授权（${effectiveTask(taskId).name}）：'
           '请在 AI 增强页的能力矩阵中开启';
     }
-    final key = (await _vault.read())?.trim() ?? '';
+    final key = (await _vault.read(cfg.active.id))?.trim() ?? '';
     if (key.isEmpty) {
-      return '请先在 设置 → AI 增强 配置并验证 API Key';
+      return '请先在 设置 → AI 增强 为「${cfg.active.name}」配置并验证 API Key';
     }
     return null;
   }
@@ -121,14 +121,14 @@ class AiService {
   }) async {
     final denial = await gate(taskId);
     if (denial != null) throw AiDenied(denial);
-    final cfg = _repo.load();
-    final key = (await _vault.read())!.trim();
+    final provider = _repo.load().active;
+    final key = (await _vault.read(provider.id))!.trim();
     final t = effectiveTask(taskId);
     final reply = await _client.chat(
-      baseUrl: cfg.baseUrl,
-      model: cfg.model,
+      baseUrl: provider.baseUrl,
+      model: provider.model,
       apiKey: key,
-      protocol: cfg.protocol,
+      protocol: provider.protocol,
       temperature: temperature ?? (t.expect == AiExpect.text ? 0.7 : 0.2),
       messages: [
         {'role': 'system', 'content': t.system},

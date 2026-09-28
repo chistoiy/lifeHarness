@@ -187,7 +187,8 @@ void main() {
     await settle5(tester);
     expect(find.textContaining('验证通过'), findsOneWidget);
     expect(find.textContaining('模型回复：连接成功'), findsOneWidget);
-    expect(await vault.read(), 'sk-widget');
+    // V1.53.1：Key 按服务商分域落槽（验证页地址对上 DeepSeek 预置 → 存它自己槽位）。
+    expect(await vault.readOwn('deepseek'), 'sk-widget');
     final v = jsonDecode(prefs.getString('ai.verify') ?? '{}');
     expect(v['ok'], true);
   });

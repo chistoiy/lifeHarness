@@ -73,6 +73,28 @@ class AiConfigNotifier extends Notifier<AiConfig> {
     ref.invalidateSelf();
   }
 
+  /// 增/改一条服务商（V1.53.1：预置只是种子，用户可改可删可加）。
+  Future<void> saveProvider(AiProvider p) async {
+    await _repo.saveProvider(p);
+    ref.invalidateSelf();
+  }
+
+  /// 切换当前服务商（id 不在列表内返回 false，state 不动）。
+  Future<bool> useProvider(String id) async {
+    final ok = await _repo.useProvider(id);
+    if (ok) ref.invalidateSelf();
+    return ok;
+  }
+
+  /// 删服务商，并连带清除它在加密区的 Key；当前激活项拒删。
+  Future<bool> deleteProvider(String id) async {
+    final ok = await _repo.deleteProvider(id);
+    if (!ok) return false;
+    await ref.read(aiKeyVaultProvider).clear(providerId: id);
+    ref.invalidateSelf();
+    return true;
+  }
+
   Future<void> setCap(String taskId, bool on) async {
     await _repo.setCap(taskId, on);
     ref.invalidateSelf();
