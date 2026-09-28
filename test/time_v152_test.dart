@@ -10,6 +10,7 @@ import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
+import 'package:lifeharness/features/calendar/presentation/widgets/time_pick_sheet.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -81,8 +82,9 @@ void main() {
 
     final field = tester.widget<TextField>(find.byType(TextField).last);
     expect(field.controller!.text, '擦桌子');
-    final chip = tester.widget<ChoiceChip>(
-        find.widgetWithText(ChoiceChip, '清洁').first);
+    // V1.52 真机反馈⑤：分类格改自绘 CatPill（ChoiceChip 窄列会把名称挤没）
+    final chip = tester.widget<CatPill>(
+        find.widgetWithText(CatPill, '清洁').first);
     expect(chip.selected, isTrue);
   });
 

@@ -71,7 +71,19 @@ class _TimePickState extends ConsumerState<_TimePick> {
   int? _catId;
   String _catName = '工作';
   String? _subName;
+
+  /// 弹层内即时反馈（校验拒绝一类）。**不走** 页面 ScaffoldMessenger：
+  /// 条子由页面 Scaffold 渲染，弹层浮着时既被压在弹层与遮罩后头看不见，
+  /// 又因带 action 的 SnackBar 默认 `persist` 而不退场（真机反馈②）。
+  String? _hint;
   final _note = TextEditingController();
+
+  /// 根容器。撤销闭包在弹层 pop（State dispose）之后才执行，用 `ref` 会静默失效
+  /// ——真机反馈「点了撤销要再添加一次事件才看到恢复」即此。
+  /// 只在 mounted 期间取（initState 里取会撞 dependOnInheritedWidget 限制），
+  /// 取到的是随 App 存活的根容器，pop 后照样能 invalidate。
+  ProviderContainer get _container =>
+      ProviderScope.containerOf(context, listen: false);
 
   bool get _editing => _blk != null || _ev != null;
   bool get _timing => _blk?.isTiming ?? false;
@@ -193,25 +205,51 @@ class _TimePickState extends ConsumerState<_TimePick> {
     return cats.where((c) => c.name == name).map((c) => c.id).firstOrNull ?? _catId;
   }
 
-  void _snack(String msg, {String? undoLabel, VoidCallback? onUndo}) {
+  /// 弹层保持打开时的反馈（校验拒绝/继续添加）：写在弹层内的提示行上。
+  void _hintAt(String msg) {
     if (!mounted) return;
-    final ms = ScaffoldMessenger.of(context);
-    ms
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(msg),
-        action: (undoLabel != null && onUndo != null)
-            ? SnackBarAction(label: undoLabel, onPressed: onUndo)
-            : null,
-      ));
+    setState(() => _hint = msg);
   }
 
-  Future<void> _reload([DateTime? other]) async {
-    ref.invalidate(dayBlocksProvider(_sDate));
-    ref.invalidate(timingBlockProvider);
-    ref.invalidate(monthTimingDaysProvider((_sDate.year, _sDate.month)));
-    if (other != null) ref.invalidate(dayBlocksProvider(other));
+  /// 落库成功后的收口提示：**先关弹层，再在下一帧挂条**。
+  /// 两条理由：① 弹层浮着时挂的条由页面 Scaffold 渲染，会被模态弹层与遮罩压住看不见；
+  /// ② 撤销闭包要在弹层关闭后仍能刷新四视图，所以趁 mounted 把 messenger 与根容器取好。
+  /// 另注意框架默认 `SnackBar.persist = action != null`（snack_bar.dart:303）：
+  /// 带按钮的条会**永挂**直到点按钮——真机反馈「不点撤销就一直挂着」正是这个默认值，
+  /// 故下面显式 `persist: false` 并给足点击时间。
+  void _closeAndToast(String msg, {DateTime? alsoDay, Future<void> Function()? undo}) {
+    if (!mounted) return;
+    final ms = ScaffoldMessenger.of(context);
+    final day = _sDate, c = _container;
+    Navigator.of(context).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _reloadOn(c, day, alsoDay);
+      ms
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(msg),
+          duration: Duration(milliseconds: undo == null ? 1600 : 5000),
+          // 框架里 `persist` 默认 = `action != null`（snack_bar.dart:303）：
+          // 带按钮的条会**永挂**直到点按钮——真机反馈②「不点撤销就一直挂着」即此。
+          persist: false,
+          action: undo == null
+              ? null
+              : SnackBarAction(
+                  label: '撤销',
+                  onPressed: () => undo().then((_) => _reloadOn(c, day, alsoDay))),
+        ));
+    });
   }
+
+  /// 四视图 / 账本 / 月历圆点的数据源刷新（只依赖根容器与日期，弹层关掉后仍可用）。
+  void _reloadOn(ProviderContainer c, DateTime day, [DateTime? other]) {
+    c.invalidate(dayBlocksProvider(day));
+    c.invalidate(timingBlockProvider);
+    c.invalidate(monthTimingDaysProvider((day.year, day.month)));
+    if (other != null) c.invalidate(dayBlocksProvider(other));
+  }
+
+  void _reload([DateTime? other]) => _reloadOn(_container, _sDate, other);
 
   /// 添加（含继续添加）：今天起止=当前 → 计时块；否则普通块（跨天自动拆两段）。
   Future<void> _add({bool keepOpen = false}) async {
@@ -225,34 +263,38 @@ class _TimePickState extends ConsumerState<_TimePick> {
         DateTime(t.day.year, t.day.month, t.day.day) ==
             DateTime(_sDate.year, _sDate.month, _sDate.day)) {
       if (addRejected(timing: t, bStart: s, bEnd: e <= s ? s + 1 : e)) {
-        _snack('✕ 补录事件的结束不能晚于计时中事件的开始（${fmtMin(t.startMin)}）· 请调整');
+        _hintAt('✕ 补录事件的结束不能晚于计时中事件的开始（${fmtMin(t.startMin)}）· 请调整');
         return;
       }
     }
     final isNow = _isTodaySel && s == _nowMin;
     if (isNow && e <= s) {
       await dao.startTiming(_sDate, s, catId: catId, catName: cat, note: note);
-      await _reload();
-      _snack('▶ 已按当前时间开始计时 · 下次点击该事件可「■ 结束计时」');
-      if (!keepOpen && mounted) Navigator.of(context).pop();
+      _closeAndToast('▶ 已按当前时间开始计时 · 下次点击该事件可「■ 结束计时」');
       return;
     }
-    if (eDate == _sDate) {
-      await dao.markRange(_sDate, s, e <= s ? s + 1 : e, catId: catId, catName: cat, note: note);
-      await _reload();
+    // 跨天在库中是「两段行」（起始日到 24:00 + 次日 00:00 到结束），结束日需一并刷新。
+    final other = eDate == _sDate ? null : eDate;
+    if (other == null) {
+      await dao.markRange(_sDate, s, e <= s ? s + 1 : e,
+          catId: catId, catName: cat, note: note);
     } else {
       await dao.markRange(_sDate, s, 1440, catId: catId, catName: cat, note: note);
-      await dao.markRange(eDate, 0, e <= 0 ? 1 : e, catId: catId, catName: cat, note: note);
-      await _reload(eDate);
+      await dao.markRange(eDate, 0, e <= 0 ? 1 : e,
+          catId: catId, catName: cat, note: note);
     }
     if (keepOpen) {
-      setState(() => _note.clear());
-      _snack('✔ 已添加 ${fmtMin(s)}-${fmtMin(e)} · $cat（${_sDate.month}/${_sDate.day}）');
+      _reload(other);
+      setState(() {
+        _note.clear();
+        _hint = '✔ 已添加 ${fmtMin(s)}-${fmtMin(e)} · $cat（${_sDate.month}/${_sDate.day}）';
+      });
       return;
     }
-    _snack('✔ 已添加 · 轴/块/日/周四视图与时间账本同步（L4）'
-        '${_crossDay ? ' · 跨天' : ''}${eDate != _sDate ? ' · 已补录到 ${eDate.month}/${eDate.day}' : ''}');
-    if (mounted) Navigator.of(context).pop();
+    _closeAndToast(
+        '✔ 已添加 · 轴/块/日/周四视图与时间账本同步（L4）'
+        '${_crossDay ? ' · 跨天' : ''}${other != null ? ' · 已补录到 ${other.month}/${other.day}' : ''}',
+        alsoDay: other);
   }
 
   /// 编辑保存：块改起止/分类/备注；事件改起止/分类/标题。
@@ -272,9 +314,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
         note: _note.text.trim().isEmpty ? cat : _note.text.trim(),
         source: wasTiming && (e != _nowMin || s != b.startMin) ? kSrcMark : b.source,
       ));
-      await _reload();
-      _snack('✔ 已保存 · 轴/块/日/周四视图与时间账本同步（L4）');
-      if (mounted) Navigator.of(context).pop();
+      _closeAndToast('✔ 已保存 · 轴/块/日/周四视图与时间账本同步（L4）');
       return;
     }
     if (_ev != null) {
@@ -284,9 +324,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
       final title = _note.text.trim().isEmpty ? e0.title : _note.text.trim();
       await ref.read(eventRepositoryProvider).update(e0.copyWith(
           start: st, end: en, title: title, catId: _catIdForName(_pickedCat)));
-      ref.invalidate(eventsProvider);
-      _snack('✔ 已保存 · 四视图与时间账本同步');
-      if (mounted) Navigator.of(context).pop();
+      _container.invalidate(eventsProvider);
+      _closeAndToast('✔ 已保存 · 四视图与时间账本同步');
     }
   }
 
@@ -296,21 +335,15 @@ class _TimePickState extends ConsumerState<_TimePick> {
       final day = _blk.day;
       final snap = await dao.snapshotDay(day);
       await dao.remove(_blk.id!);
-      await _reload();
-      _snack('🗑 已删除 · 四视图与时间账本同步移除', undoLabel: '撤销',
-          onUndo: () async {
-        await dao.restoreDay(day, snap);
-        await _reload();
-      });
-      if (mounted) Navigator.of(context).pop();
+      _closeAndToast('🗑 已删除 · 四视图与时间账本同步移除',
+          undo: () => dao.restoreDay(day, snap));
       return;
     }
     if (_ev != null) {
       final e0 = _ev;
       await ref.read(eventRepositoryProvider).remove(e0);
-      ref.invalidate(eventsProvider);
-      _snack('🗑 已删除该日程');
-      if (mounted) Navigator.of(context).pop();
+      _container.invalidate(eventsProvider);
+      _closeAndToast('🗑 已删除该日程');
     }
   }
 
@@ -320,9 +353,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final now = DateTime.now();
     final dao = ref.read(timeBlockDaoProvider);
     await dao.endTiming(b.id, now.hour * 60 + now.minute);
-    await _reload();
-    _snack('■ 结束计时 · 结束 ${fmtMin(now.hour * 60 + now.minute)} · 已落账（L4）');
-    if (mounted) Navigator.of(context).pop();
+    _closeAndToast(
+        '■ 结束计时 · 结束 ${fmtMin(now.hour * 60 + now.minute)} · 已落账（L4）');
   }
 
   Future<void> _split() async {
@@ -333,19 +365,15 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final snap = await dao.snapshotDay(day);
     final parts = splitHalf(b);
     if (parts == null) {
-      _snack('✕ 时长不足 2 分钟 · 无法对半拆分');
+      _hintAt('✕ 时长不足 2 分钟 · 无法对半拆分');
       return;
     }
     await dao.save(parts[0]);
     await dao.insert(parts[1]);
-    await _reload();
-    _snack('✂ 已对半拆分为两段 · ${fmtMin(parts[0].startMin)}-${fmtMin(parts[0].endMin)} / '
-        '${fmtMin(parts[1].startMin)}-${fmtMin(parts[1].endMin)}', undoLabel: '撤销',
-        onUndo: () async {
-      await dao.restoreDay(day, snap);
-      await _reload();
-    });
-    if (mounted) Navigator.of(context).pop();
+    _closeAndToast(
+        '✂ 已对半拆分为两段 · ${fmtMin(parts[0].startMin)}-${fmtMin(parts[0].endMin)} / '
+        '${fmtMin(parts[1].startMin)}-${fmtMin(parts[1].endMin)}',
+        undo: () => dao.restoreDay(day, snap));
   }
 
   Future<void> _merge(int dir) async {
@@ -355,21 +383,21 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final day = await dao.listByDay(b.day);
     final o = neighborOf(day, b, dir);
     if (o == null) {
-      _snack(dir < 0 ? '✕ 上方没有 30 分钟内可合并的已结束事件' : '✕ 下方没有 30 分钟内可合并的已结束事件');
+      _hintAt(dir < 0
+          ? '✕ 上方没有 30 分钟内可合并的已结束事件'
+          : '✕ 下方没有 30 分钟内可合并的已结束事件');
       return;
     }
     final snap = await dao.snapshotDay(b.day);
     final m = mergePair(b, o);
-    await dao.remove(o.id!);
+    // mergePair 的身份归「较早那段」（原型 tpMerge 同口径：保留早者的分类/备注），
+    // 所以必须删的是**另一段**。真机缺陷：原先无条件删 o，「与上一个合并」时 o 就是
+    // 早者 → 先删掉 m 所依附的行，随后 save 的 update 命中 0 行，两段一起消失。
+    await dao.remove(m.id == b.id ? o.id! : b.id!);
     await dao.save(m);
-    await _reload();
-    _snack('⇄ 已合并为 ${fmtMin(m.startMin)}-${fmtMin(m.endMin)} · ${m.catName}',
-        undoLabel: '撤销',
-        onUndo: () async {
-      await dao.restoreDay(b.day, snap);
-      await _reload();
-    });
-    if (mounted) Navigator.of(context).pop();
+    _closeAndToast(
+        '⇄ 已合并为 ${fmtMin(m.startMin)}-${fmtMin(m.endMin)} · ${m.catName}',
+        undo: () => dao.restoreDay(b.day, snap));
   }
 
   @override
@@ -422,6 +450,19 @@ class _TimePickState extends ConsumerState<_TimePick> {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
                         color: b?.isTiming ?? false ? const Color(0xFFF43F5E) : tokens.accent)),
+              ),
+            // 弹层内即时反馈（校验拒绝/继续添加成功）——不走页面 ScaffoldMessenger，
+            // 否则条子既被弹层遮住、又不会自动退场（真机反馈②）。
+            if (_hint != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(_hint!,
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: _hint!.startsWith('✕')
+                            ? const Color(0xFFF43F5E)
+                            : tokens.accent)),
               ),
             const SizedBox(height: 10),
             Row(
@@ -476,7 +517,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
                         fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () => _snack('标签将取所选分类的默认标签'),
+                  onTap: () => _hintAt('标签将取所选分类的默认标签'),
                   child: Text('标签 ›',
                       style: TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
@@ -497,39 +538,32 @@ class _TimePickState extends ConsumerState<_TimePick> {
             LayoutBuilder(builder: (context, c) {
               const sp = 6.0;
               final w = (c.maxWidth - sp * (_catCols - 1)) / _catCols;
-              return Wrap(
-                spacing: sp,
-                runSpacing: 4,
-                children: [
-                  for (final cat in primary)
-                    SizedBox(
-                      width: w,
-                      child: ChoiceChip(
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: EdgeInsets.zero,
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
-                        selected: _catName == cat.name && _subName == null,
-                        onSelected: (_) => setState(() {
-                          _catId = cat.id;
-                          _catName = cat.name;
-                          _subName = null;
-                        }),
-                        avatar: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(3),
-                                color: cat.name == '工作'
-                                    ? tokens.accent
-                                    : catColors[cat.name])),
-                        label: Text(cat.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 10)),
-                      ),
-                    ),
-                ],
+              // 原型 .tp-catgrid：max-height 82px + 纵向滚动 → 最多 3 行，再多可滚。
+              return ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 26 * 3 + 4 * 2),
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: sp,
+                    runSpacing: 4,
+                    children: [
+                      for (final cat in primary)
+                        CatPill(
+                          width: w,
+                          name: cat.name,
+                          dot: cat.name == '工作'
+                              ? tokens.accent
+                              : catColors[cat.name],
+                          selected: _catName == cat.name && _subName == null,
+                          onTap: () => setState(() {
+                            _catId = cat.id;
+                            _catName = cat.name;
+                            _subName = null;
+                            _hint = null;
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
               );
             }),
             const SizedBox(height: 10),
@@ -565,15 +599,17 @@ class _TimePickState extends ConsumerState<_TimePick> {
                         runSpacing: 4,
                         children: [
                           for (final sc in subs)
-                            ChoiceChip(
-                              visualDensity: VisualDensity.compact,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                            CatPill(
+                              name:
+                                  '${sc.name}${sc.tag == null ? '' : ' · ${sc.tag}'}',
+                              dot: catColors[sc.name] ?? catColors[_catName],
+                              dotOpacity: .6,
                               selected: _subName == sc.name,
-                              onSelected: (_) => setState(
-                                  () => _subName = _subName == sc.name ? null : sc.name),
-                              label: Text('${sc.name}${sc.tag == null ? '' : ' ${sc.tag}'}',
-                                  style: const TextStyle(fontSize: 10)),
+                              onTap: () => setState(() {
+                                _subName =
+                                    _subName == sc.name ? null : sc.name;
+                                _hint = null;
+                              }),
                             ),
                         ],
                       ),
@@ -776,6 +812,10 @@ class _WheelState extends State<_Wheel> {
             return CupertinoPicker(
               scrollController: _ctl,
               itemExtent: _TimePickState._rowH,
+              // CupertinoPicker 默认 squeeze=1.45（"visually mimic iOS"）会把可见行数
+              // 放大到 高度/itemExtent×1.45 —— 真机反馈④：78px 高显示成 5 行。
+              // 原型的滚轮就是等距 3 行，故显式锁 1.0。
+              squeeze: 1.0,
               looping: true,
               diameterRatio: 1.4,
               backgroundColor: Colors.transparent,
@@ -797,6 +837,87 @@ class _WheelState extends State<_Wheel> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// 弹层分类胶囊（原型 `.tag-chip`：色点 + 名称 · 选中=accent 实底白字）。
+///
+/// 不用 ChoiceChip 的两条硬理由（真机反馈⑤）：
+/// ① 6 列窄格（约 48dp）下 ChoiceChip 的 label 会被 avatar+内边距挤到 0 宽，
+///    屏幕上只剩一个色点，分类名整个看不见；
+/// ② ChoiceChip 选中时把 avatar 换成 ✓，把分类色点顶掉，与原型口径不符。
+/// 本组件自排：点 7×7 + 3dp 间距 + `Flexible(Text)`，窄格下退化为「点 + 省略号名」，
+/// 名称始终占位可见。
+class CatPill extends StatelessWidget {
+  const CatPill({
+    super.key,
+    required this.name,
+    required this.selected,
+    this.dot,
+    this.dotOpacity = 1,
+    this.width,
+    this.onTap,
+  });
+
+  final String name;
+  final Color? dot;
+
+  /// 色点透明度（子分组沿用父级色 · 原型 `opacity-60`）。
+  final double dotOpacity;
+  final bool selected;
+
+  /// 定宽（一级分类 6 列等分）；null=按内容自适应（子分组）。
+  final double? width;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final fg = selected ? Colors.white : scheme.onSurfaceVariant;
+    return SizedBox(
+      width: width,
+      height: 26,
+      child: Material(
+        color: selected
+            ? tokens.accent
+            : scheme.onSurface.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Row(
+              mainAxisSize: width == null ? MainAxisSize.min : MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (dot != null) ...[
+                  Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(3),
+                          color: dot!.withValues(alpha: dotOpacity))),
+                  const SizedBox(width: 3),
+                ],
+                Flexible(
+                  child: Text(name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 10,
+                          height: 1.2,
+                          fontWeight: FontWeight.w600,
+                          color: fg)),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

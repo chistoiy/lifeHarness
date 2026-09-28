@@ -33,6 +33,8 @@
 | 规格 | 底 0xE60F172A · 白字 12.5 w600 · 圆角 28 · 宽 320 · floating · 默认 1.5~2.2s |
 | 可调旋钮 | 底色/圆角/宽度/字号/时长（改一处全局生效，禁止页面私调样式） |
 | 现状 | 主题层已统一；调用点 40 处/19 文件，后续批次路过逐步替换为 AppToast.show |
+| ⚠️ 带按钮必写 `persist: false` | 框架 `SnackBar` 构造里 `persist = persist ?? action != null`——**带 `SnackBarAction` 的条默认永挂**，直到点按钮或再挂一条。撤销类条子一律显式 `persist: false` + 明确 `duration`（V1.52.1 真机反馈②）。 |
+| ⚠️ 模态弹层内不要挂 | 条子由**页面 Scaffold** 渲染，弹层浮着时既被压在弹层与遮罩后头看不见、又不会退场。弹层内的校验反馈走弹层自带提示行（见 LH-S03 的 `_hint`），落库成功的反馈＝先 pop 再下一帧挂。 |
 
 ## 二、LH-C 卡片类
 
@@ -96,6 +98,13 @@
   热力图（按日深浅 · 少→多图例）· 总时长环形（含「未记录」灰弧 · 分母=天数×1440）· 分类排行（次数/占比/进度条/环比）
 - 规格：每卡标题行右侧 ∧/∨ 可折叠（`_fold` 内存态）· 全部 CustomPainter 自绘零图表依赖 · 聚合一律走 `block_ops`（`minutesByCat`/`totalMinutes`/`deltaPct`）
 
+### LH-C13 分类胶囊 CatPill（V1.52.1 新增）
+- 原型：`index.html` `.tag-chip`（L156）+ `.tp-catgrid .tag-chip`（L73·6 列窄格）；代码：`time_pick_sheet.dart` `CatPill`
+- 规格：高 26 · 圆角 999 · 内边距横 5 · 色点 7×7 圆角 3 + 3dp 间距 · 名称 10 w600 `Flexible`+省略号
+  · 未选=onSurface 6% 底/onSurfaceVariant 字 · 选中=accent 实底白字（**色点不换 ✓**）· 子分组色点沿用父级 60% 透明
+- ⚠️ 不用 `ChoiceChip` 的两条硬理由：① 6 列窄格（约 48dp）下它的 label 会被 avatar+内边距挤到 0 宽，屏幕上只剩一个色点（真机反馈⑤）；② 选中时它把 avatar 替换成 ✓，把分类色点顶掉，与原型不符
+- 用法：定宽列（一级分类 6 列等分）传 `width`，内容自适应列（子分组）不传；一级格外层最多 3 行、超出可滚（对齐 `.tp-catgrid` max-height 82px）
+
 ## 三、LH-S 弹层类（sheet 家族）
 
 **公共骨架**：showModalBottomSheet · isScrollControlled · 内边距 LTRB(16,14,16,24) · 标题 15 w900 · 行卡=LH-C01+选中描边 accent 2px+✓
@@ -104,7 +113,7 @@
 |---|---|---|---|
 | LH-S01 | 事件详情弹层 ~~sheetEventDetail~~ | **V1.52 退役**：并入 LH-S03 统一弹层（点已有事件=与新增同一个弹层） | 原 `event_detail_sheet.dart` 已删除 |
 | LH-S02 | 标记块详情弹层 ~~sheetBlockDetail~~ | **V1.52 退役**：「取消标记」独立层撤销，删除动作进 LH-S03 底部「删除」+ SnackBar 撤销 | 同上 |
-| LH-S03 | **统一添加 / 编辑弹层**（V1.52） | sheetTimePick | `showTimePickSheet(context, ref, {day, startMin, block, event})`：日/时/**分（1 分一档 · CupertinoPicker looping）**三列滚轮 ×2 组（起止 · 结束含日轮支持跨天）· 一级分类**每行 6 个**+子分组自适应 · 备注 · 底部按形态=「继续添加+添加」/「删除+保存修改」· 计时中额外「■ 结束计时」· 已结束额外「✂ 对半拆分 / ⇧ 与上一个合并 / ⇩ 与下一个合并」（间隙>30 分置灰）· 破坏性操作 SnackBar 带撤销 · 标签与「管理 ›」并入一级分组标题行 |
+| LH-S03 | **统一添加 / 编辑弹层**（V1.52 · V1.52.1 修口） | sheetTimePick | `showTimePickSheet(context, ref, {day, startMin, block, event})`：日/时/**分（1 分一档 · CupertinoPicker looping · `squeeze: 1.0` 才等于「高度÷行高」的真行数，默认 1.45 会多挤进行数）**三列滚轮 ×2 组（起止 · 结束含日轮支持跨天）· 一级分类**每行 6 个**（LH-C13 CatPill）+子分组自适应 · 备注 · 底部按形态=「继续添加+添加」/「删除+保存修改」· 计时中额外「■ 结束计时」· 已结束额外「✂ 对半拆分 / ⇧ 与上一个合并 / ⇩ 与下一个合并」（间隙>30 分置灰 · **合并存活段=较早那段，删的是另一段**）· 破坏性操作 SnackBar 带撤销（`persist: false` · 先关弹层再下一帧挂）· 标签与「管理 ›」并入一级分组标题行 · **弹层内校验反馈走标题下提示行 `_hint`（✕ 红 / ✔ 主题色），不借道页面 SnackBar** |
 | LH-S04 | 待办新建/编辑弹层 | sheetAddTask / sheetTask | todo_edit_sheet.dart:14/:24（两型·提醒·番茄·关联分类） |
 | LH-S05 | 日期滚轮弹层 | sheetDatePick | wheel_date.dart:15 `showWheelDatePick`（年月日三列） |
 | LH-S06 | 日记模板管理弹层 | sheetDiaryTpl | diary_edit_page `_openTplSheet`（行 key tpl-row-*，删除 tpl-del-*，新建 tpl-new） |
