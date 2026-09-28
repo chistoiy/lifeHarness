@@ -636,6 +636,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           }
         }
       }
+      // 拉丁文本没有句读可用：退到词边界（空格），仍保证只选一句的范围。
+      if (b - a > 60) {
+        var sa = a;
+        for (var j = i; j >= a; j--) {
+          if (t[j] == ' ' && (i - j) <= 40) {
+            sa = j + 1;
+            break;
+          }
+        }
+        var sb = b;
+        for (var j = i; j < b; j++) {
+          if (t[j] == ' ') {
+            sb = j;
+            break;
+          }
+        }
+        if (sb > sa) {
+          a = sa;
+          b = sb;
+        }
+      }
     }
     return (a: a, b: b);
   }

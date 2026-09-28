@@ -41,6 +41,13 @@ EpubDoc _doc() => EpubDoc(
         _p('锚定效应贯穿全书。$_lorem'),
         _p('三之0。$_lorem'),
         _p('三之1。$_lorem'),
+        // 轮4③：拉丁长段（无句读）→ 验证词边界回落。放首页可及处。
+        _p(
+          'This rather long English sentence exists to prove the Latin '
+          'fallback: when a paragraph carries no CJK punctuation at all the '
+          'selection still snaps to word boundaries instead of swallowing '
+          'the entire block of text wholesale.',
+        ),
         ...List.generate(10, (i) => _p('一之$i。$_lorem')),
       ],
     ),
@@ -184,6 +191,23 @@ void main() {
       expect(await copiedLen(t), full.length + '三之1。$_lorem'.length + 1);
       expect(find.byKey(const ValueKey('brSelBar')), findsNothing);
       await clearToasts(t);
+    });
+
+    testWidgets('轮4③ 拉丁长段无句读 → 词边界回落（不吃整段）', (t) async {
+      await openReader(t, _doc(), 's8');
+      const latin =
+          'This rather long English sentence exists to prove the Latin '
+          'fallback: when a paragraph carries no CJK punctuation at all the '
+          'selection still snaps to word boundaries instead of swallowing '
+          'the entire block of text wholesale.';
+      final fnd = find.byKey(const ValueKey('brpTap-0-4'));
+      expect(fnd, findsOne, reason: '拉丁段应在首页');
+      await t.longPress(fnd);
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+      final n = await copiedLen(t);
+      expect(n, greaterThan(0));
+      expect(n, lessThan(latin.length), reason: '只选一个词组范围，非整段');
     });
   });
 
