@@ -184,6 +184,7 @@ void main() {
       expect(await pollContains(tester, '已恢复 2026 Q3 · 可继续编辑'), isTrue);
       await tester.pumpAndSettle();
       expect(find.text('2026 Q3 · 进行中'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('年度视角含周期/归档 chip', (tester) async {
@@ -204,6 +205,7 @@ void main() {
       expect(find.text('2026 Q3'), findsNWidgets(3));
       await tester.tap(find.byKey(const ValueKey('g-scope-quarter')));
       expect(await pollContains(tester, '周期视角：仅 2026 Q3'), isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('空态双钮 + 复制上期清零重编号 toast', (tester) async {
@@ -229,6 +231,7 @@ void main() {
       expect(find.textContaining('3 个目标 · 平均进度 0% · KR 达成 0/8'), findsOneWidget);
       // 复制成功后空态消失（原型同口径：复制入口仅在空周期出现）
       expect(find.byKey(const ValueKey('g-copy-prev')), findsNothing);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('无可复制历史周期 toast', (tester) async {
@@ -241,6 +244,7 @@ void main() {
       await clearToasts2(tester);
       await tester.tap(find.byKey(const ValueKey('g-copy-prev')));
       expect(await pollContains(tester, '没有可复制的历史周期'), isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -283,6 +287,7 @@ void main() {
       await tester.tapAt(const Offset(5, 5)); // 关弹层
       await tester.pumpAndSettle();
       await clearToasts2(tester);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('自动汇聚 KR 展示来源 chip + 数据源行', (tester) async {
@@ -302,6 +307,7 @@ void main() {
       expect(find.text('自动汇聚'), findsOneWidget);
       expect(find.textContaining('数据源：习惯打卡 · 每日 00:00 自动重算'), findsOneWidget);
       expect(find.text('当前 1 / 目标 100 %'), findsOneWidget); // 汇聚实算回写
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('归档详情：复制为新周期目标 + 查看最近复盘', (tester) async {
@@ -326,6 +332,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('g-detail-review')));
       await tester.pumpAndSettle();
       expect(find.textContaining('KR 达成对照（自动汇聚）'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -382,6 +389,7 @@ void main() {
       expect(g.krs.first.unit, '次/周');
       expect(g.krs[1].source, KrSource.todo);
       expect(find.textContaining('当前 4/5'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('校验链②：仅 1 KR 的目标保存提示「至少 2 个 KR」', (tester) async {
@@ -395,6 +403,7 @@ void main() {
       expect(find.text('编辑目标'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('g-edit-save')));
       expect(await pollContains(tester, '至少 2 个 KR'), isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('归档周期保存拦截 + 删除二次确认连退', (tester) async {
@@ -430,6 +439,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(ValueKey('g-okr-${ids['o3']}')), findsNothing);
       expect(find.byKey(ValueKey('g-okr-${ids['o1']}')), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -476,6 +486,7 @@ void main() {
       expect(d.reviewFor('2026 Q3')!.archived, isTrue);
       expect(d.reviewFor('2026 Q3')!.keep, '节奏好');
       expect(ids['o1'], isNotNull);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('Try 空拦截 → 生成下季草稿后列表可见', (tester) async {
@@ -502,6 +513,7 @@ void main() {
       await clearToasts2(tester);
       expect(find.text('O1 由 2026 Q3 复盘 Try 生成'), findsOneWidget);
       expect(find.textContaining('把物品建档从记账流水一键升级切入'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 }

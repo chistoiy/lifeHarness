@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'helpers.dart';
+
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +57,7 @@ void main() {
 
     expect(find.text('1'), findsWidgets, reason: '待办数应从 0 变 1');
     await db.close();
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('心情行为原型 7 表情全量（V1.26 对齐：修 😪/😢 空位）', (tester) async {
@@ -88,6 +91,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('已记录：平静'), findsOneWidget);
     await db.close();
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('仪表盘 FAB = 原型快捷记录菜单（5 项）', (tester) async {
@@ -120,5 +124,6 @@ void main() {
       expect(find.text(item), findsOneWidget);
     }
     await db.close();
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

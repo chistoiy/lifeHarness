@@ -175,6 +175,7 @@ void main() {
               .controller!
               .text,
           '899');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -225,6 +226,7 @@ void main() {
       expect(find.textContaining('跌破止损线前择机回收'), findsOneWidget);
       // 闲置：列表行「建议回收」+ 状态 chip
       expect(find.textContaining('● 闲置 · 计费中'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -311,6 +313,7 @@ void main() {
       expect(it.status, kItemStatusRecycleKeep);
       // 仍在计费：详情 hero 未替换
       expect(find.byKey(const ValueKey('i-detail-settle')), findsNothing);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('scrap 两击确认：变文案 → 冻结 + 自动跳决算', (tester) async {
@@ -352,6 +355,7 @@ void main() {
       expect(find.text('历史（决算） 1'), findsOneWidget);
       expect(find.text('已归档'), findsOneWidget);
       expect(find.textContaining('已归档 · 决算已冻结 · 点看决算单'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -485,6 +489,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('i-stats-top-1')));
       await settle5(tester);
       expect(find.text('物品详情'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -499,6 +504,7 @@ void main() {
       expect(find.textContaining('2026-09-10 冻结'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('i-settle-share')));
       expect(await pollContains(tester, '决算长图已生成（分享卡片）'), isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 }

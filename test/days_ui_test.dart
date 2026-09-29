@@ -129,6 +129,7 @@ void main() {
       await tester.tap(find.text('日本签证到期').last);
       await settle5(tester);
       expect(find.text('到期提醒中心'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('提醒预览卡 + 新建入口进编辑屏', (tester) async {
@@ -140,6 +141,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('d-new-day')));
       await settle5(tester);
       expect(find.byKey(const ValueKey('d-edit-save')), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -178,6 +180,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('d-detail-restore')));
       await settle5(tester);
       expect(find.byKey(const ValueKey('d-detail-archive')), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -198,6 +201,7 @@ void main() {
       final d = await repo.loadAll();
       expect(d.days.single.title, '结婚纪念日');
       expect(d.days.single.repeat, DayRepeat.lunar);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('空标题拦截 + 删除二次确认后编辑/详情连退回列表', (tester) async {
@@ -222,6 +226,7 @@ void main() {
       expect(find.byKey(ValueKey('d-day-card-$id')), findsNothing);
       final d = await repo.loadAll();
       expect(d.days, isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -275,6 +280,7 @@ void main() {
       final d2 = await repo.loadAll();
       expect(d2.reminders.firstWhere((r) => r.id == cert.id).handled, isTrue);
       expect(d2.unhandled.length, 1);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('＋证件建档：内嵌日期滚轮落库', (tester) async {
@@ -288,6 +294,7 @@ void main() {
       await settle5(tester);
       final d = await repo.loadAll();
       expect(d.reminders.map((r) => r.title), contains('港澳通行证'));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 }

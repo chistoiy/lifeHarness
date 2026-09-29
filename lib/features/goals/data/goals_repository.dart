@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/goal_calc.dart';
 import '../domain/goal_models.dart';
 
@@ -70,7 +71,21 @@ class GoalsRepository {
   }
 
   /// 单一数据源在周期窗内的实算值。
-  Future<double> aggregate(KrSource src, String krLabel, String period, DateTime now) async {
+  /// 外层只负责留痕：源表缺表/列异常照常抛出（`rethrow` 不改控制流），
+  /// 否则目标页整片空白时没人知道是哪个数据源炸的。
+  Future<double> aggregate(
+      KrSource src, String krLabel, String period, DateTime now) async {
+    try {
+      return await _aggregateOf(src, krLabel, period, now);
+    } catch (e) {
+      AppLog.add('目标自动汇聚失败（源 ${src.label} · KR「$krLabel」 · '
+          '周期 $period）：$e', level: LhLevel.error);
+      rethrow;
+    }
+  }
+
+  Future<double> _aggregateOf(
+      KrSource src, String krLabel, String period, DateTime now) async {
     final (start, end) = GoalPeriod.range(period, now);
     final s = start.millisecondsSinceEpoch;
     final e = end.millisecondsSinceEpoch;
@@ -127,7 +142,11 @@ class GoalsRepository {
     final existing = (await db.query(DbSchema.tGoals,
             where: 'period = ?', whereArgs: [g.period]))
         .length;
-    if (existing >= kMaxOkrPerPeriod) return null;
+    if (existing >= kMaxOkrPerPeriod) {
+      AppLog.add('目标新建被拒：${g.period} 已有 $existing 个 O · '
+          '每期上限 $kMaxOkrPerPeriod', level: LhLevel.warn);
+      return null;
+    }
     final ts = DateTime.now().millisecondsSinceEpoch;
     return db.transaction((txn) async {
       final id = await txn.insert(DbSchema.tGoals, {
@@ -207,20 +226,25 @@ class GoalsRepository {
           await txn.delete(DbSchema.tKrUpdates, where: 'kr_id = ?', whereArgs: [k['id']]);
         }
         await txn.delete(DbSchema.tGoals, where: 'id = ?', whereArgs: [id]);
+        // 目标连 KR 与回填留痕一起删，属不可逆操作（krs 只在事务闭包内可见）。
+        AppLog.addKey('目标删除：#$id 及其 ${krs.length} 条 KR 与回填留痕');
       });
 
   /// 手动回填（关闭自动汇聚即转 manual；自动源也允许随时回填 → 留痕）。
-  Future<void> bumpKr(int krId, double cur, {String? note}) => db.transaction((txn) async {
-        await txn.update(DbSchema.tGoalKrs, {'cur': cur},
-            where: 'id = ?', whereArgs: [krId]);
-        await txn.insert(DbSchema.tKrUpdates, {
-          'kr_id': krId,
-          'cur': cur,
-          'kind': 'manual',
-          'note': note ?? '手动回填',
-          'created_at': DateTime.now().millisecondsSinceEpoch,
-        });
+  Future<void> bumpKr(int krId, double cur, {String? note}) async {
+    await db.transaction((txn) async {
+      await txn.update(DbSchema.tGoalKrs, {'cur': cur},
+          where: 'id = ?', whereArgs: [krId]);
+      await txn.insert(DbSchema.tKrUpdates, {
+        'kr_id': krId,
+        'cur': cur,
+        'kind': 'manual',
+        'note': note ?? '手动回填',
+        'created_at': DateTime.now().millisecondsSinceEpoch,
       });
+    });
+    AppLog.addKey('目标 KR 回填：#$krId → $cur（${note ?? '手动回填'}）');
+  }
 
   // ==================== 复制清零（上期整组 / 单目标） ====================
 
@@ -258,6 +282,8 @@ class GoalsRepository {
       });
       copied++;
     }
+    AppLog.addKey('目标整组复制：$fromPeriod → $toPeriod · '
+        '$copied/${src.length} 个（每期上限 $kMaxOkrPerPeriod，超出截断）');
     return copied;
   }
 
@@ -268,7 +294,11 @@ class GoalsRepository {
     final existing = (await db.query(DbSchema.tGoals,
             where: 'period = ?', whereArgs: [toPeriod]))
         .length;
-    if (existing >= kMaxOkrPerPeriod) return null;
+    if (existing >= kMaxOkrPerPeriod) {
+      AppLog.add('目标单个复制被拒：$toPeriod 已有 $existing 个 O · '
+          '每期上限 $kMaxOkrPerPeriod', level: LhLevel.warn);
+      return null;
+    }
     final ts = DateTime.now().millisecondsSinceEpoch;
     return db.transaction((txn) async {
       final id = await txn.insert(DbSchema.tGoals, {
@@ -348,7 +378,11 @@ class GoalsRepository {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final existing =
         (await db.query(DbSchema.tGoals, where: 'period = ?', whereArgs: [to])).length;
-    if (existing >= kMaxOkrPerPeriod) return null;
+    if (existing >= kMaxOkrPerPeriod) {
+      AppLog.add('复盘 Try 转下季草稿被拒：$to 已有 $existing 个 O · '
+          '每期上限 $kMaxOkrPerPeriod', level: LhLevel.warn);
+      return null;
+    }
     return db.transaction((txn) async {
       final id = await txn.insert(DbSchema.tGoals, {
         'title': 'O${existing + 1} 由 $fromPeriod 复盘 Try 生成',

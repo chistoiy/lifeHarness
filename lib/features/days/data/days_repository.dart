@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/day_models.dart';
 import '../../../shared/calendar/lunar.dart';
 
@@ -18,6 +19,9 @@ class DaysRepository {
   DaysRepository(this.db);
 
   final Database db;
+
+  /// 上次已记录的派生汇总（进程内去重用；见 [syncDerived] 尾）。
+  static String _lastDerivedSig = '';
 
   // ==================== 加载 ====================
 
@@ -205,7 +209,10 @@ class DaysRepository {
     try {
       recurs = await db.rawQuery(
           'SELECT id, name, amt, freq, next_date FROM ${DbSchema.tLedgerRecur} WHERE active = 1');
-    } catch (_) {
+    } catch (e) {
+      // 读不到就当没有订阅：派生条目会静默缺失，必须留一行归因。
+      AppLog.add('日子派生：记账订阅表读取失败（订阅提醒会缺项）：$e',
+          level: LhLevel.warn);
       recurs = const [];
     }
     final keepSub = <String>{};
@@ -256,6 +263,14 @@ class DaysRepository {
     if (hasItemTable) {
       await _syncWarranty(ts);
     }
+    // syncDerived 随每次 loadAll 触发，同一状态只落一行（同 L2「防刷满环形缓冲」口径）；
+    // 数值变了才记，正好留下「订阅 3→4」这类变化轨迹。
+    final sig = '订阅 ${keepSub.length} 项 · '
+        '保修表${hasItemTable ? '已同步' : '不存在（跳过）'}';
+    if (sig != _lastDerivedSig) {
+      _lastDerivedSig = sig;
+      AppLog.addKey('日子派生刷新：$sig');
+    }
   }
 
   Future<void> _syncWarranty(int ts) async {
@@ -263,7 +278,9 @@ class DaysRepository {
     try {
       items = await db.rawQuery(
           'SELECT id, name, warranty FROM item_profiles WHERE warranty IS NOT NULL AND warranty <> \'\'');
-    } catch (_) {
+    } catch (e) {
+      AppLog.add('日子派生：物品保修表读取失败（保修提醒会缺项）：$e',
+          level: LhLevel.warn);
       return;
     }
     final keep = <String>{};

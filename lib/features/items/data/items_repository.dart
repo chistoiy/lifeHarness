@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
 
@@ -63,7 +64,7 @@ class ItemsRepository {
   /// 新建（同事务追加「购入」首条审计）。返回新 id。
   Future<int> addItem(ItemProfile it) async {
     final ts = DateTime.now().millisecondsSinceEpoch;
-    return db.transaction((txn) async {
+    final id = await db.transaction((txn) async {
       final id = await txn.insert(
           DbSchema.tItemProfiles, {..._row(it, ts), 'created_at': ts});
       await txn.insert(DbSchema.tItemEvents, {
@@ -79,6 +80,9 @@ class ItemsRepository {
       });
       return id;
     });
+    AppLog.addKey('物品建档：#$id ${it.name} · 价 ${it.price} · '
+        '${it.buyDate} · 计费=${it.billing} · 来源 ${it.source}');
+    return id;
   }
 
   /// 编辑档案（不动 billing 冻结口径由调用方传入；events 不在此改）。
@@ -101,16 +105,19 @@ class ItemsRepository {
 
   /// 二次付费：计入成本池，摊回全周期（日均回升由引擎实算）。
   Future<void> addExtraPay(int itemId, double amount, String desc,
-          {String? note, String? date}) =>
-      _appendEvent(
-          itemId,
-          ItemEvent(
-              itemId: itemId,
-              kind: kEvExtra,
-              label: '二次付费：$desc',
-              amount: amount,
-              note: note,
-              date: date ?? fmtYmd(DateTime.now())));
+          {String? note, String? date}) async {
+    final d = date ?? fmtYmd(DateTime.now());
+    await _appendEvent(
+        itemId,
+        ItemEvent(
+            itemId: itemId,
+            kind: kEvExtra,
+            label: '二次付费：$desc',
+            amount: amount,
+            note: note,
+            date: d));
+    AppLog.addKey('物品二次付费：#$itemId +$amount · $desc · $d（摊回全周期）');
+  }
 
   /// 回收/出售：残值扣减。keep=true 抵扣留用（继续计费）；
   /// false 转出（停计费 + 冻结决算）。
@@ -133,6 +140,8 @@ class ItemsRepository {
         'updated_at': DateTime.now().millisecondsSinceEpoch,
       }, where: 'id = ?', whereArgs: [itemId]);
     });
+    AppLog.addKey('物品回收：#$itemId 残值 $amount · '
+        '${keep ? '抵扣留用·继续计费' : '转出·停计费并冻结决算'} · $d');
   }
 
   /// 报废：停止计费、冻结决算、转历史库（原因入审计行；二次确认在 UI 层）。
@@ -158,6 +167,8 @@ class ItemsRepository {
           where: 'id = ?',
           whereArgs: [itemId]);
     });
+    AppLog.addKey('物品报废：#$itemId · 原因「$reason」 · $d · '
+        '停计费并冻结决算');
   }
 
   // ==================== 按次用量 ====================

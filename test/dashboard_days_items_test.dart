@@ -63,6 +63,7 @@ void main() {
     expect(find.text('暂无日子'), findsOneWidget);
     expect(find.text('¥ 0.00'), findsOneWidget);
     expect(find.text('0 件物品计费中 ›'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('倒数卡：置顶恒前 + 倒数升序取三 + 过期不入', (tester) async {
@@ -104,6 +105,7 @@ void main() {
     expect(find.text('已过期倒数'), findsNothing);
     expect(find.text('18'), findsOneWidget, reason: '结婚纪念日 10-07 倒数 18 天');
     expect(find.text('7'), findsOneWidget, reason: '护照到期 9-26 倒数 7 天');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('持有成本卡：MacBook 直线法 ¥18.98 + 跑鞋按次 ¥4.50 实算',
@@ -147,5 +149,6 @@ void main() {
     expect(find.text('全部 ›'), findsOneWidget);
     // 2026-09-19 → 下一次 2027-05-16 = 239 天（引擎实算）。
     expect(find.text('239'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }
