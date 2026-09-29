@@ -1,9 +1,0 @@
-    <!-- ===== V1.55 在线书源 · 屏（内容全部由 JS 渲染，与 p-biblioSearch 同形态） ===== -->
-    <section id="p-bsSources" class="page px-5 safe-pb no-scrollbar"><div id="bxSrcRoot"></div></section>
-    <section id="p-bsSrcForm" class="page px-5 safe-pb no-scrollbar"><div id="bxFormRoot"></div></section>
-    <section id="p-bsSearch" class="page px-5 safe-pb no-scrollbar"><div id="bxSearchRoot"></div></section>
-    <section id="p-bsDiscover" class="page px-5 safe-pb no-scrollbar"><div id="bxDiscRoot"></div></section>
-    <section id="p-bsDetail" class="page px-5 safe-pb no-scrollbar"><div id="bxDetailRoot"></div></section>
-    <section id="p-bsTask" class="page px-5 safe-pb no-scrollbar"><div id="bxTaskRoot"></div></section>
-    <section id="p-bsVerify" class="page px-5 safe-pb no-scrollbar"><div id="bxVerifyRoot"></div></section>
-    <section id="p-bsBookSrc" class="page px-5 safe-pb no-scrollbar"><div id="bxBookSrcRoot"></div></section>
