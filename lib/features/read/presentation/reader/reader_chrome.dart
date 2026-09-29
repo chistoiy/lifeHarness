@@ -29,6 +29,8 @@ extension _ReaderChrome on _ReaderPageState {
                       icon: Icon(
                         Icons.chevron_left_rounded,
                         color: bar.fg,
+                        // R14-10：纯图标钮补语义标签（真机 uiautomator 可命中）。
+                        semanticLabel: '返回',
                       ),
                     ),
                     Expanded(
@@ -87,6 +89,7 @@ extension _ReaderChrome on _ReaderPageState {
                         Icons.search_rounded,
                         size: 17,
                         color: bar.fg,
+                        semanticLabel: '全书搜索', // R14-10
                       ),
                     ),
                     // 本书操作弹层入口（原型顶栏 ⋯）。
@@ -94,7 +97,12 @@ extension _ReaderChrome on _ReaderPageState {
                       key: const ValueKey('brBtnMore'),
                       visualDensity: VisualDensity.compact,
                       onPressed: _openMoreSheet,
-                      icon: Icon(Icons.more_horiz_rounded, size: 19, color: bar.fg),
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        size: 19,
+                        color: bar.fg,
+                        semanticLabel: '更多操作', // R14-10
+                      ),
                     ),
                   ],
                 ),
@@ -147,6 +155,7 @@ extension _ReaderChrome on _ReaderPageState {
                             Icons.close_rounded,
                             size: 14,
                             color: bar.fg.withValues(alpha: .6),
+                            semanticLabel: '清除搜索', // R14-10
                           ),
                         ),
                       ],

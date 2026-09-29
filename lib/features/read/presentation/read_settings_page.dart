@@ -406,7 +406,11 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
               children: [
                 IconButton(
                   key: ValueKey('lpset-up-$n'),
-                  icon: const Icon(Icons.arrow_upward, size: 16),
+                  icon: Icon(
+                    Icons.arrow_upward,
+                    size: 16,
+                    semanticLabel: '上移 $n', // R14-10
+                  ),
                   onPressed: i == 0
                       ? null
                       : () {
@@ -417,7 +421,11 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
                 ),
                 IconButton(
                   key: ValueKey('lpset-dn-$n'),
-                  icon: const Icon(Icons.arrow_downward, size: 16),
+                  icon: Icon(
+                    Icons.arrow_downward,
+                    size: 16,
+                    semanticLabel: '下移 $n', // R14-10
+                  ),
                   onPressed: i == items.length - 1
                       ? null
                       : () {
