@@ -55,3 +55,6 @@ tmp_bs.js
 tools/*.log
 tools/*snapshot*.html
 tools/reader/.chrome-profile/
+
+# 真机走查取证临时区（截图/logcat/ui dump，不入库）
+.walkthrough/
