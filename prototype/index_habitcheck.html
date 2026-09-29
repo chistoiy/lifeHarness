@@ -2452,7 +2452,7 @@ tailwind.config = {
         <span class="text-[10px] text-slate-400">预览</span></div>
       <div class="mt-3 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700" id="hshImg"></div>
       <div class="mt-3 flex gap-2"><button class="flex-1 card !py-2.5 text-xs font-bold" onclick="hbShareCopy()">复制文字版</button>
-        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="toast('已保存到相册（模拟）')">保存图片</button></div>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="hbShareSave()">保存图片</button></div>
     </div>
   </div>
 
@@ -5041,6 +5041,9 @@ function hbShareCopy(){const dim=hsDim,off=hsOffGet(dim),A=hbAgg(dim,off);
   hbScopeBook().filter(h=>h.type==='pos').map(h=>h.n+'：'+hbTot(h,dim,off).cnt+' 次').join('\n')].join('\n');
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>toast('文字版已复制'),()=>toast('复制失败 · 请在页面手动选择'));
  else toast('当前环境不支持剪贴板 · 请手动截图')}
+/* 保存图片＝真实落盘回执（Flutter 侧 RepaintBoundary → 应用目录 share/<名>.png·口径同书单长图） */
+function hbShareSave(){const dim=hsDim,off=hsOffGet(dim);
+ toast('分享长图已保存：share/'+hbBaseTxt(dim,off)+'打卡报告.png')}
 
 /* 归档区 */
 function hbArchGoto(){hbSegPick('arch');navTo('p-habits');renderHabits();
