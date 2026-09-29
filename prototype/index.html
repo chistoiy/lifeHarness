@@ -398,7 +398,7 @@ tailwind.config = {
       <div class="grad rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden">
         <div class="absolute -right-8 -top-10 w-36 h-36 rounded-full bg-white/10"></div>
         <div class="absolute -right-2 top-12 w-20 h-20 rounded-full bg-white/10"></div>
-        <div class="text-sm opacity-80">早上好，CHIST ☀️</div>
+        <div id="dashGreet" class="text-sm opacity-80">早上好，CHIST ☀️</div>
         <div class="text-2xl font-extrabold mt-1">今天有 <span class="text-3xl">4</span> 个待办 · <span class="text-3xl">2</span> 场安排</div>
         <div class="mt-3 flex items-center gap-2 text-xs bg-white/15 rounded-full px-3 py-1.5 w-fit">
           <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span> 本周 62% 精力在「重要」象限，状态不错
@@ -1284,14 +1284,14 @@ tailwind.config = {
     <!-- ===== P11 我的 / 设置 ===== -->
     <section id="p-profile" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center gap-4">
-        <div class="w-16 h-16 rounded-full grad flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-indigo-500/30">C</div>
-        <div><div class="font-extrabold text-lg">CHIST</div><div class="text-xs text-slate-400">本地模式 · 无账号 · 已记录 55 天</div></div>
-        <button class="ml-auto text-xs text-brand-500 font-bold" onclick="toast('编辑资料（模拟）')">编辑</button>
+        <div id="pfAv" class="w-16 h-16 rounded-full grad flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-indigo-500/30">C</div>
+        <div><div id="pfName" class="font-extrabold text-lg">CHIST</div><div id="pfSub" class="text-xs text-slate-400">本地模式 · 无账号 · 已记录 55 天</div></div>
+        <button id="pfEditBtn" class="ml-auto text-xs text-brand-500 font-bold" onclick="openProfileEdit()">编辑</button>
       </div>
       <div class="mt-4 grid grid-cols-3 text-center text-[11px]">
-        <div class="card !py-2.5"><b class="text-base text-brand-500">128</b>完成任务</div>
-        <div class="card !py-2.5"><b class="text-base text-mint">55</b>连续记录天</div>
-        <div class="card !py-2.5"><b class="text-base text-sun">17</b>在册书籍</div>
+        <div class="card !py-2.5"><b id="pfDone" class="text-base text-brand-500">128</b>完成任务</div>
+        <div class="card !py-2.5"><b id="pfStreak" class="text-base text-mint">55</b>连续记录天</div>
+        <div class="card !py-2.5"><b id="pfBooks" class="text-base text-sun">17</b>在册书籍</div>
       </div>
 
       <div class="card mt-4 !p-0 overflow-hidden">
@@ -2108,6 +2108,20 @@ tailwind.config = {
       <div id="cityList" class="mt-2 space-y-1.5 max-h-72 overflow-y-auto no-scrollbar"></div>
     </div>
   </div>
+  <!-- ===== 我的 · 编辑资料（昵称/签名 · 2026-09-29 保真补口） ===== -->
+  <div id="sheetProfile" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetProfile')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">编辑资料</div>
+      <div class="mt-3 text-xs font-bold text-slate-400">昵称</div>
+      <input id="pfNameIn" maxlength="12" class="mt-1.5 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="显示在「我的」与今天页问候语">
+      <div id="pfNameErr" class="hidden text-[11px] text-rose-500 mt-1 font-bold"></div>
+      <div class="mt-3 text-xs font-bold text-slate-400">一句话签名</div>
+      <input id="pfBioIn" maxlength="20" class="mt-1.5 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="出现在顶栏副标题">
+      <div class="mt-4 flex gap-2"><button class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="closeSheet('sheetProfile')">取消</button>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-sm font-bold" onclick="saveProfileEdit()">保存</button></div>
+    </div>
+  </div>
   <!-- ===== V1.28 新建/编辑模板（分节结构） ===== -->
   <div id="sheetDiaryTplEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTplEdit')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2482,6 +2496,9 @@ tailwind.config = {
 <script>
 /* ================= 模拟数据（仅 UI 占位，无业务逻辑） ================= */
 const D = {
+  // 我的页资料与统计基数（2026-09-29）：统计卡 = 基数 + 当前演示数据聚合，
+  // 基数代表历史累计（演示数据只含近期样本），故初始仍显示 128/55/17。
+  profile:{name:'CHIST',bio:'数据在手心里',doneBase:127,streakBase:52,booksBase:13},
   todoChips:['📅 今天 4','🗓 最近7天 9','⭐ 四象限','🗃 已安排','☑️ 已完成 128','⏰ 已过期 2'],
   todos:[
     {t:'提交周报',tag:'工作',q:0,due:'今天 18:00',done:true,imp:1,urg:1},
@@ -2599,8 +2616,29 @@ function setPage(p){
     const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   if(p==='p-timeStats')renderTimeStats();
+  if(p==='p-profile')renderProfile();
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
+}
+/* ===== 我的 · 资料与统计联动 =====
+/* 统计卡＝历史基数 + 当前演示数据聚合：勾完一条待办/新增一本书/多记一天日记都会即时反映 */
+const statDone=()=>D.profile.doneBase+D.todos.filter(t=>t.done).length;
+const statStreak=()=>D.profile.streakBase+new Set(D.diary.map(d=>d.d)).size;
+const statBooks=()=>D.profile.booksBase+D.books.length;
+function renderProfile(){
+  const p=D.profile,av=$('#pfAv');if(!av)return;
+  av.textContent=(p.name||'·').trim().charAt(0).toUpperCase();
+  $('#pfName').textContent=p.name; $('#pfSub').textContent='本地模式 · 无账号 · 已记录 '+statStreak()+' 天';
+  $('#pfDone').textContent=statDone(); $('#pfStreak').textContent=statStreak(); $('#pfBooks').textContent=statBooks();
+  const g=$('#dashGreet'); if(g){ if(!g.dataset.hi)g.dataset.hi=g.textContent.split('，')[0]+'，'; g.textContent=g.dataset.hi+p.name+' ☀️'; }
+  if(curPage==='p-profile')$('#pageSub').textContent='本地模式 · '+p.bio;
+}
+function openProfileEdit(){ const p=D.profile; $('#pfNameIn').value=p.name; $('#pfBioIn').value=p.bio; $('#pfNameErr').classList.add('hidden'); openSheet('sheetProfile'); }
+function saveProfileEdit(){
+  const v=$('#pfNameIn').value.trim();
+  if(!v){ $("#pfNameErr").textContent="昵称不能为空"; $("#pfNameErr").classList.remove("hidden"); return; }
+  D.profile.name=v; D.profile.bio=$('#pfBioIn').value.trim()||'数据在手心里';
+  closeSheet('sheetProfile'); renderProfile(); renderChips(); toast('资料已更新（模拟持久化）');
 }
 function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
@@ -2762,7 +2800,7 @@ function dashToggle(){dashEditing=!dashEditing;
 function gotoDashEdit(){stack.length=0;setPage('p-dashboard');window.scrollTo(0,0);if(!dashEditing)dashToggle();}
 /* ================= 待办 ================= */
 let todoFilter=0, askState={imp:null,urg:null};
-function renderChips(){ $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();$('#todoFilterPanel').classList.add('hidden');toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
+function renderChips(){ D.todoChips=D.todoChips.map(c=>c.replace(/已完成 \d+/,'已完成 '+statDone())); $('#smartChips').innerHTML=D.todoChips.map((c,i)=>`<button onclick="todoFilter=${i};renderTodos();$('#todoFilterPanel').classList.add('hidden');toast('已切换到「${c}」视图（模拟）')" class="chip ${i===todoFilter?'chip-on':''} whitespace-nowrap">${c}</button>`).join(''); }
 function toggleTodoFilter(){const el=$('#todoFilterPanel');el.classList.toggle('hidden');if(!el.classList.contains('hidden'))el.scrollIntoView({behavior:'smooth',block:'nearest'})}
 function renderTodos(){
   $('#todoList').innerHTML=D.todos.map((t,i)=>`<div class="task-row card !py-3 flex items-center gap-3" draggable="true" ondragstart="listDrag(event,${i})" ondragover="event.preventDefault()" ondrop="listDrop(event,${i})">
@@ -2777,7 +2815,7 @@ let ldIdx=null;
 function listDrag(e,i){ldIdx=i;e.target.classList.add('dragging')}
 function listDrop(e,i){e.preventDefault();if(ldIdx===null||ldIdx===i)return;
   const rec=D.todos.splice(ldIdx,1)[0];D.todos.splice(i,0,rec);ldIdx=null;renderTodos();toast('清单顺序已调整（模拟持久化）')}
-function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
+function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); renderChips(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
 function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
 function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
