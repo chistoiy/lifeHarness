@@ -78,7 +78,7 @@ async function reload(q) {
     books:BS_BOOKS.length,onl:BS_BOOKS.filter(b=>b.online).length,grp:RS_SEC[RS_SEC.length-1][0],
     rows:RS_SEC[RS_SEC.length-1][1].length,scr:document.querySelectorAll('section[id^="p-bs"]').length,
     bdg:[].map.call(document.querySelectorAll('#p-bookshelf .br-local'),function(e){return e.textContent.trim()})}`);
-  (boot.src === 8 && boot.scr === 6) ? ok('启动·书源域注入', '源' + boot.src + ' · 屏' + boot.scr + ' · 可用' + boot.usable) : bad('启动', JSON.stringify(boot));
+  (boot.src === 8 && boot.scr === 7) ? ok('启动·书源域注入', '源' + boot.src + ' · 屏' + boot.scr + ' · 可用' + boot.usable) : bad('启动', JSON.stringify(boot));
   boot.onl === 2 ? ok('启动·在线书已入架', '在线 2 本 · 全架 ' + boot.books + ' 本') : bad('启动·在线书', JSON.stringify(boot));
   const onB = boot.bdg.filter(t => /在线/.test(t)).length, loB = boot.bdg.filter(t => /本地/.test(t)).length;
   onB === 2 && loB === 1 ? ok('书架·徽标同位替换', '在线 ' + onB + ' 枚 · 本地 ' + loB + ' 枚（EPUB 仍标本地）') : bad('书架·徽标', JSON.stringify(boot.bdg));
@@ -86,9 +86,9 @@ async function reload(q) {
   /在线/.test(rb.row) && /在线/.test(rb.cov) && /本地/.test(rb.covEp) && /本地/.test(rb.rowEp)
     ? ok('徽标·四视图出口同源', '列表行与封面均按来源切换文案') : bad('徽标·出口', JSON.stringify(rb));
   await run("stack.length=0;setPage('p-bookshelf');renderShelf()"); await shot('bs-shelf-online');
-  boot.grp === '在线书源' && boot.rows === 13 ? ok('设置·在线书源分组', boot.rows + ' 行') : bad('设置·分组', JSON.stringify(boot));
+  boot.grp === '在线书源' && boot.rows === 17 ? ok('设置·在线书源分组', boot.rows + ' 行') : bad('设置·分组', JSON.stringify(boot));
 
-  /* ---------- 六屏逐屏断言 ---------- */
+  /* ---------- 七屏逐屏断言 ---------- */
   await page('p-bsSources', 'bxSrcRender', 300);
   await run("bxSearchOpen('')");
   await page('p-bsSearch', 'bxSearchRender', 90);
@@ -98,6 +98,8 @@ async function reload(q) {
   await page('p-bsTask', 'bxTaskRender', 300);
   await run("bxFormOpen('r2')");
   await page('p-bsSrcForm', 'bxFormRender', 150);
+  await run("bxVerifyOpen('全部')");
+  await page('p-bsVerify', 'bxVerifyRender', 260);
 
   /* ---------- 书源管理 ---------- */
   const mgr = await ev(`return {rows:document.querySelectorAll('#bxSrcList .bx-row').length,
@@ -125,24 +127,36 @@ async function reload(q) {
   sub3.rows === 7 && sub3.cap ? ok('管理·按订阅筛源', sub3.rows + ' 行（u1 的 7 源）') : bad('管理·按订阅筛', JSON.stringify(sub3));
   await run("BXSF.sub=null;bxSrcRender()");
   await run("bxAddOpen()");
-  const add = await ev(`return {open:!document.getElementById('sheetBsAdd').classList.contains('hidden'),n:document.querySelectorAll('#bxAddBody .bx-row').length}`);
-  add.open && add.n === 4 ? ok('管理·添加书源四入口', '4 入口') : bad('管理·添加弹层', JSON.stringify(add));
+  const add = await ev(`return {open:!document.getElementById('sheetBsAdd').classList.contains('hidden'),
+    ta:document.querySelectorAll('#bxAddBody textarea').length,files:document.querySelectorAll('#bxAddBody .chip').length,
+    parse:[].some.call(document.querySelectorAll('#bxAddBody button'),function(b){return b.textContent==='解析'})}`);
+  add.open && add.ta === 2 && add.files >= 2 && add.parse ? ok('导入·批量入口（链接+文件+粘贴）', '输入区 ' + add.ta + ' · 文件/钮 ' + add.files) : bad('管理·添加弹层', JSON.stringify(add));
   await shot('bs-add');
-  await run("closeSheet('sheetBsAdd');bxAddPaste()"); await wait(1200);
-  const imp = await ev(`return {n:BX_SRC.length,js:BX_SRC.filter(s=>s.kind==='js'&&s.on===0).length}`);
-  imp.n === 10 && imp.js >= 1 ? ok('管理·导入合并', '源 8→' + imp.n + ' · 含 @js 自动停用 ' + imp.js) : bad('管理·导入', JSON.stringify(imp));
+  await run("document.getElementById('bxaiUrls').value='https://legado.aoaostar.com/api/bookSource\\n随手写的一行';BXAI.urls='https://legado.aoaostar.com/api/bookSource\\n随手写的一行';" +
+    "document.getElementById('bxaiJson').value='[{\\\"bookSourceUrl\\\":\\\"https://m.d1.com\\\",\\\"bookSourceName\\\":\\\"演示1\\\"},{\\\"x\\\":1}]';BXAI.json=document.getElementById('bxaiJson').value;bxAddParse()");
+  const pv = await ev(`return {rows:document.querySelectorAll('#bxaiPrev .bx-vrow').length,txt:document.getElementById('bxaiPrev').innerText.replace(/\\s+/g,' '),
+    btn:[].some.call(document.querySelectorAll('#bxaiPrev button'),function(b){return /导入并校验/.test(b.textContent)})}`);
+  pv.rows >= 4 && pv.btn && /订阅/.test(pv.txt) && /源数组/.test(pv.txt) && /无效/.test(pv.txt)
+    ? ok('导入·自动解析分类与预览', pv.rows + ' 条 · 订阅/源数组/无效 分类 + 去重处置') : bad('导入·解析', JSON.stringify(pv));
+  await run("bxAddImport()"); await wait(700);
+  const imp = await ev(`return {n:BX_SRC.length,js:BX_SRC.filter(s=>s.kind==='js'&&s.on===0).length,subs:BX_SUBS.length,p:curPage,v:BXV2.rows.length}`);
+  imp.n === 17 && imp.js >= 4 && imp.subs === 3 ? ok('导入·合并入列并停用不支持源', '源 8→' + imp.n + ' · @js 自动停用 ' + imp.js + ' · 订阅 ' + imp.subs) : bad('管理·导入', JSON.stringify(imp));
+  imp.p === 'p-bsVerify' && imp.v > 0 ? ok('导入·导入后直落校验中心', '本次导入范围 ' + imp.v + ' 源') : bad('导入·转校验', JSON.stringify(imp));
+  await run("bxSrcOpen()");
   await run("bxsCheck('r1')"); await wait(1100);
   const chk = await ev(`return bxs('r1').last`);
   chk === '刚刚' ? ok('管理·自检写回', '最近自检 ' + chk) : bad('管理·自检', JSON.stringify(chk));
-  await run("bxsOps('r9')");
+  await run("window.__delId=BX_SRC[BX_SRC.length-1].id;bxsOps(__delId)");
   const dn0 = await ev(`window.__row=document.querySelector('#bxOpsBody .bx-row:last-child');return BX_SRC.length`);
-  await run("bxDelSrc('r9',__row)");
+  await run("bxDelSrc(__delId,__row)");
   const dn1 = await ev(`return {n:BX_SRC.length,arm:__row&&__row.getAttribute('data-arm')}`);
   dn1.n === dn0 && dn1.arm === '1' ? ok('管理·删除需二次确认', '首点只挂确认态（仍 ' + dn1.n + ' 源）') : bad('管理·删除确认', JSON.stringify({ dn0, dn1 }));
-  await run("bxDelSrc('r9',__row)");
+  await run("bxDelSrc(__delId,__row)");
   const dn2 = await ev(`return BX_SRC.length`);
   dn2 === dn0 - 1 ? ok('管理·二点真删', dn0 + ' → ' + dn2 + ' 源') : bad('管理·二点删', JSON.stringify({ dn0, dn2 }));
-  await run("BX_SRC=BX_SRC.filter(s=>s.id!=='r9'&&s.id!=='r10');bxSrcRender()");
+  await run("BX_SRC=BX_SRC.filter(s=>s.id[0]!=='x');BX_SUBS=BX_SUBS.slice(0,2);BXV2.ids=[];BXV2.rows=[];bxSrcRender()");
+  const back = await ev(`return {n:BX_SRC.length,subs:BX_SUBS.length}`);
+  back.n === 8 && back.subs === 2 ? ok('管理·导入批次可整体回退（走查复位）', '源回 ' + back.n + ' · 订阅回 ' + back.subs) : bad('管理·复位', JSON.stringify(back));
 
   /* ---------- 净化规则弹层 ---------- */
   await run("bxFilterOpen()");
@@ -237,14 +251,87 @@ async function reload(q) {
   mo ? ok('阅读·更多菜单含换源') : bad('阅读·换源入口', JSON.stringify({ mo }));
   await run("closeSheet('sheetBrMore');brLeave();bxSrcOpen()");
 
+  /* ---------- 轮2·阅读页常驻源钮 / 底栏续抓 / 逐章预取 ---------- */
+  await run("var o=bxRegBook('r1','剑来');bxEnter(o.b.id)"); await wait(500);
+  await run("brChromeLabels();document.getElementById('brTop').classList.remove('hidden');document.getElementById('brBottom').classList.remove('hidden');brTocOpen&&0");
+  const pill = await ev(`return {btn:!!document.getElementById('bxSrcBtn'),cls:(document.getElementById('bxSrcBtn')||{}).className||'',txt:(document.getElementById('bxSrcBtn')||{}).innerText||'',batch:!!document.getElementById('bxBatchBtn')}`);
+  pill.btn && /笔趣阁/.test(pill.txt) && pill.batch ? ok('轮2·阅读页常驻「源」钮与底栏「续抓」', pill.txt + ' · ' + pill.cls.trim()) : bad('轮2·常驻源钮', JSON.stringify(pill));
+  await run("document.getElementById('bxSrcBtn').click()");
+  const pillSheet = await ev(`return {open:!document.getElementById('sheetBsSwitch').classList.contains('hidden'),cur:document.querySelector('#bxSwitchBody .bx-row b').textContent}`);
+  pillSheet.open && pillSheet.cur === '笔趣阁' ? ok('轮2·阅读中随时点开换源') : bad('轮2·换源入口', JSON.stringify(pillSheet));
+  await run("bxOrdMove('r2',-1);bxOrdMove('r3',-1)");
+  const ord = await ev(`return BX_ORDER.slice(0,3).join(',')`);
+  /^r[0-9]+,/.test(ord) ? ok('轮2·候选优先级可拖序', '当前顺序 ' + ord) : bad('轮2·调序', JSON.stringify({ ord }));
+  await run("closeSheet('sheetBsSwitch')");
+  const p0 = await ev(`var b=bsBook(brV.b);return {c:b.bsrc.cached}`);
+  await run("brV.ci=" + p0.c + ";brFlip(1)"); await wait(1300);
+  const p1 = await ev(`var b=bsBook(brV.b);return {c:b.bsrc.cached}`);
+  p1.c >= p0.c + 2 ? ok('轮2·看一章取一章 + 预取下一章', p0.c + ' → ' + p1.c + ' 章（翻 1 章推进 ≥2）') : bad('轮2·预取', JSON.stringify({ p0, p1 }));
+  const wall = await ev(`var b=bsBook(brV.b);b.bsrc.srcId='r7';b.bsrc.srcNm='轻小说平台';brV.ci=b.bsrc.cached;var c0=b.bsrc.cached;brFlip(1);
+    return {c0:c0,src:b.bsrc.srcId,cached:b.bsrc.cached,dead:b.bsrc.dead}`);
+  wall.src !== 'r7' && wall.cached > wall.c0 && !wall.dead ? ok('轮2·防盗链 403 自动换源续读', '403 源 → ' + wall.src + ' · 停在第 ' + wall.cached + ' 章') : bad('轮2·自动换源', JSON.stringify(wall));
+  const noauto = await ev(`var b=bsBook(brV.b);BS_SET.bsAuto=0;b.bsrc={srcId:'r5',srcNm:'得奇小说网',total:b.bsrc.total,cached:b.bsrc.cached,dead:false};brV.ci=b.bsrc.cached;brFlip(1);
+    BS_SET.bsAuto=1;return {src:b.bsrc.srcId,dead:b.bsrc.dead}`);
+  noauto.dead ? ok('轮2·全源不可用时标失效不硬翻', '源 r5 已标失效 · 待人工处置') : bad('轮2·失效标注', JSON.stringify(noauto));
+  await run("closeSheet('sheetBsFail');closeSheet('sheetBsSwitch')");
+  const off = await ev(`var b=bsBook(brV.b);b.bsrc={srcId:'r1',srcNm:'笔趣阁',total:b.bsrc.total,cached:b.bsrc.cached,dead:false};var c0=b.bsrc.cached;
+    BS_SET.bsOn=0;brV.ci=c0;brFlip(1);BS_SET.bsOn=1;return {c0:c0,c1:b.bsrc.cached}`);
+  off.c1 === off.c0 ? ok('轮2·总开关停用后翻章不请求只读缓存', '停在第 ' + off.c1 + ' 章 · 未发起抓取') : bad('轮2·停用', JSON.stringify(off));
+  await run("bxBatchOpen()");
+  const bat = await ev(`return {open:!document.getElementById('sheetBsBatch').classList.contains('hidden'),lv:document.querySelectorAll('#bxBatchBody .chip').length,
+    txt:document.getElementById('bxBatchBody').innerText.replace(/\\s+/g,' ')}`);
+  bat.open && bat.lv === 5 && /从第 \d+ 章起抓/.test(bat.txt) && /预估耗时/.test(bat.txt)
+    ? ok('轮2·续抓档位（20/50/100/200/全部）', bat.txt.slice(0, 46)) : bad('轮2·续抓弹层', JSON.stringify(bat));
+  await shot('bs-batch');
+  await run("bxBatchPick(50);bxBatchGo()"); await wait(400);
+  const rg = await ev(`var t=BX_TASKS[0];return {p:curPage,r:t&&t.range,st:t&&t.st,done:t&&t.done}`);
+  rg.p === 'p-bsTask' && rg.r && rg.r[1] - rg.r[0] + 1 === 50 && rg.st === 'run'
+    ? ok('轮2·预抓成范围任务（第 ' + rg.r[0] + '–' + rg.r[1] + ' 章）', rg.st + ' · done ' + rg.done) : bad('轮2·范围任务', JSON.stringify(rg));
+  await wait(1400);
+  const rg2 = await ev(`var t=BX_TASKS[0];return {done:t.done,st:t.st,card:/预抓/.test(document.getElementById('bxTaskRoot').innerText)}`);
+  rg2.done > rg.done && rg2.card ? ok('轮2·范围任务推进且卡面标注预抓', rg.done + ' → ' + rg2.done + ' 章') : bad('轮2·范围推进', JSON.stringify({ rg, rg2 }));
+  await run("bxTaskPause(BX_TASKS[0].id);BX_TASKS=BX_TASKS.filter(function(t){return t.id!==BX_TASKS[0].id});bxTaskRender()");
+  await run("brLeave();bxSrcOpen()");
+
+  /* ---------- 轮2·书源校验中心 ---------- */
+  await run("window.__onSnap=BX_SRC.map(s=>s.on);window.__hsSnap=BX_SRC.map(s=>s.hs);bxVerifyOpen('全部')");
+  const v0 = await ev(`return {p:curPage,rows:document.querySelectorAll('#bxVerifyRoot .bx-vrow').length,seg:document.querySelectorAll('#bxVerifyRoot .bx-seg3').length,
+    btn:[].some.call(document.querySelectorAll('#bxVerifyRoot button'),function(b){return /开始校验/.test(b.textContent)})}`);
+  v0.p === 'p-bsVerify' && v0.rows === 8 && v0.btn ? ok('轮2·校验中心开屏', v0.rows + ' 源 · 四段位 ' + v0.seg) : bad('轮2·校验开屏', JSON.stringify(v0));
+  await run("bxVerifyRun()"); await wait(2600);
+  const v1 = await ev(`return {run:BXV2.run,done:bxVerifyDone(),ok:bxs('r1').hs,warn:bxs('r2').hs,fuse:bxs('r3').hs,dead:bxs('r4').hs,never:bxs('r6').hs,
+    jsOff:bxs('r6').on,txt:document.getElementById('bxVerifyRoot').innerText.replace(/\\s+/g,' ').slice(0,52)}`);
+  v1.run === 0 && v1.done === 8 && v1.ok === 'ok' && v1.warn === 'warn' && v1.fuse === 'fuse' && v1.dead === 'dead' && v1.jsOff === 0
+    ? ok('轮2·逐源跑完并按结论写回健康态', v1.txt) : bad('轮2·跑批', JSON.stringify(v1));
+  await run("bxVerifyCopy()");
+  const v2 = await ev(`return {lines:(window.__bxReport||'').split('\\n').length,has:/\\t.+\\t.+ms\\t/.test(window.__bxReport||'')}`);
+  v2.lines === 8 && v2.has ? ok('轮2·报告含结论/耗时/归因', v2.lines + ' 行') : bad('轮2·报告', JSON.stringify(v2));
+  const before2 = await ev(`return BX_SRC.filter(s=>s.on).length`);
+  await run("bxVerifyDisableDead()");
+  const v3 = await ev(`return {on:BX_SRC.filter(s=>s.on).length,bad:BX_SRC.filter(s=>!s.on&&(s.kind!=='rule'||s.hs==='dead'||s.hs==='fuse')).length}`);
+  v3.on < before2 ? ok('轮2·一键停用不可用源', before2 + ' → ' + v3.on + ' 源启用') : bad('轮2·停用', JSON.stringify({ before2, v3 }));
+  await run("bxVerifyScope('仅失效')");
+  const v4 = await ev(`return {n:BXV2.rows.length,scope:BXV2.scope,chip:document.querySelectorAll('#bxVerifyRoot .chip.chip-on').length}`);
+  v4.n > 0 && v4.scope === '仅失效' ? ok('轮2·范围切换（仅失效 ' + v4.n + ' 源）', '选中态 ' + v4.chip + ' 枚') : bad('轮2·范围', JSON.stringify(v4));
+  await run("bxVerifyScope('全部')"); await shot('bs-verify');
+  await run("BX_SRC.forEach(function(s,i){s.on=__onSnap[i];s.hs=__hsSnap[i]});BX_ORDER=BX_SRC.filter(bxSel).map(s=>s.id);bxSrcRender();bxVerifyReset()");
+  const rst = await ev(`return {on:BX_SRC.filter(s=>s.on).length,hs:BX_SRC.map(s=>s.hs).join('/')}`);
+  rst.on === 4 && rst.hs.indexOf('ok/warn/fuse/dead') === 0 ? ok('轮2·校验跑批后可复位（走查护栏）', '启用 ' + rst.on + ' · ' + rst.hs) : bad('轮2·复位', JSON.stringify(rst));
+
   /* ---------- 换源 ---------- */
   await run("BXV.b={t:'剑来',a:'烽火戏诸侯',st:'连载',wc:'1250 万字',last:'',hot:'9.8',intro:''};bxSwitchOpen('r1')");
-  const sw = await ev(`return {open:!document.getElementById('sheetBsSwitch').classList.contains('hidden'),rows:document.querySelectorAll('#bxSwitchBody .bx-row').length}`);
-  sw.open && sw.rows === 3 ? ok('换源·候选列表', sw.rows + ' 行（含当前源）') : bad('换源·列表', JSON.stringify(sw));
+  const sw = await ev(`return {open:!document.getElementById('sheetBsSwitch').classList.contains('hidden'),rows:document.querySelectorAll('#bxSwitchBody .bx-row').length,
+    ord:document.querySelectorAll('#bxSwitchBody .bx-ord').length,auto:!!document.querySelector('#bxSwitchBody .toggle')}`);
+  sw.open && sw.rows >= 6 && sw.ord >= 14 && sw.auto ? ok('换源·候选优先级与调序', sw.rows + ' 行 · ↑↓ ' + sw.ord + ' 钮 · 自动换源开关') : bad('换源·列表', JSON.stringify(sw));
   const before = await ev(`var b=bxBk('剑来');return {c:b.bsrc.cached,q:b.q,mn:b.min,tm:b.times}`);
   await run("bxSwitch('r2')");
-  const after = await ev(`var b=bxBk('剑来');return {src:b.bsrc.srcId,nm:b.bsrc.srcNm,c:b.bsrc.cached,q:b.q,mn:b.min,tm:b.times,s:b.src}`);
-  after.src === 'r2' && after.c === before.c && after.q === before.q && after.tm === before.tm ? ok('换源·进度与书摘计时不动', after.nm + ' · 缓存 ' + after.c + ' · 书摘 ' + after.q) : bad('换源·同源', JSON.stringify({ before, after }));
+  const after = await ev(`var b=bxBk('剑来');return {src:b.bsrc.srcId,nm:b.bsrc.srcNm,sel:bxSel(bxs(b.bsrc.srcId)),lbl:b.src,c:b.bsrc.cached,q:b.q,mn:b.min,tm:b.times}`);
+  after.sel && after.lbl === '书源·' + after.nm && after.c >= before.c && after.q === before.q && after.tm === before.tm && after.mn === before.mn
+    ? ok('换源·划线书摘计时进度不动', after.nm + ' · 缓存 ' + before.c + '→' + after.c + ' · 书架来源文案=' + after.lbl) : bad('换源·同源', JSON.stringify({ before, after }));
+  await run("bxSwitch('r1')");
+  await run("BS_SET.bsAuto=0;bxSwitch('r3');BS_SET.bsAuto=1");
+  const man = await ev(`var b=bxBk('剑来');return {src:b.bsrc.srcId,nm:b.bsrc.srcNm,lbl:b.src,dead:b.bsrc.dead}`);
+  man.dead && man.src === 'r3' ? ok('换源·关掉自动换源后停在所选手动源（不偷偷跳）', man.nm + ' · ' + man.lbl) : bad('换源·手动语义', JSON.stringify(man));
   await run("bxSwitch('r1')");
   await shot('bs-switch');
 
@@ -310,7 +397,7 @@ async function reload(q) {
   await wait(500);
   const o2 = await ev(`return {open:!document.getElementById('sheetBsFail').classList.contains('hidden'),t:document.getElementById('bxFailBody').innerText.slice(0,40),
     ops:document.querySelectorAll('#bxFailBody .bx-row').length}`);
-  o2.open && o2.ops === 3 && /404|失败/.test(o2.t) ? ok('深链·?bs=fail 失败三选一', o2.t.replace(/\s+/g, ' ')) : bad('深链·fail', JSON.stringify(o2));
+  o2.open && o2.ops === 4 && /均不可用/.test(o2.t) ? ok('深链·?bs=fail 失败四选一（含去校验）', o2.t.replace(/\s+/g, ' ')) : bad('深链·fail', JSON.stringify(o2));
   await shot('bs-fail');
   await reload('?bs=switch');
   const o3 = await ev(`return {open:!document.getElementById('sheetBsSwitch').classList.contains('hidden')}`);
@@ -318,14 +405,34 @@ async function reload(q) {
   await reload('#p-bsSearch_i1');
   const o4 = await ev(`return {p:curPage,q:BXQ.q,run:BXQ.total}`);
   o4.p === 'p-bsSearch' && o4.q === '剑来' ? ok('深链·#p-bsSearch_i1 带词进搜页', o4.q + ' · 已并发 ' + o4.run + ' 源') : bad('深链·hash', JSON.stringify(o4));
+  await reload('?bs=parse');
+  const o5 = await ev(`return {open:!document.getElementById('sheetBsAdd').classList.contains('hidden'),prev:document.querySelectorAll('#bxaiPrev .bx-vrow').length,
+    txt:document.getElementById('bxaiPrev').innerText.replace(/\\s+/g,' ').slice(0,40)}`);
+  o5.open && o5.prev >= 3 ? ok('深链·?bs=parse 批量导入解析预览', o5.prev + ' 条 · ' + o5.txt) : bad('深链·parse', JSON.stringify(o5));
+  await shot('bs-import');
+  await run("bxAddImport()"); await wait(700);
+  const o6 = await ev(`return {p:curPage,scope:BXV2.scope,n:BXV2.rows.length}`);
+  o6.p === 'p-bsVerify' && o6.scope === '本次导入' && o6.n > 0 ? ok('深链·导入即跳校验（本次导入 ' + o6.n + ' 源）') : bad('深链·导入跳校验', JSON.stringify(o6));
+  await run("BX_SRC=BX_SRC.filter(s=>s.id[0]!=='x');BX_SUBS=BX_SUBS.slice(0,2)");
+  await reload('?bs=verify');
+  const o7 = await ev(`return {p:curPage,rows:document.querySelectorAll('#bxVerifyRoot .bx-vrow').length}`);
+  o7.p === 'p-bsVerify' && o7.rows === 8 ? ok('深链·?bs=verify 直落校验中心', o7.rows + ' 源') : bad('深链·verify', JSON.stringify(o7));
+  await reload('?bs=batch');
+  const o8 = await ev(`return {p:curPage,open:!document.getElementById('sheetBsBatch').classList.contains('hidden'),
+    chips:document.querySelectorAll('#bxBatchBody .chip').length}`);
+  o8.open && o8.p === 'p-readerPage' && o8.chips === 5 ? ok('深链·?bs=batch 阅读页续抓弹层', o8.chips + ' 档') : bad('深链·batch', JSON.stringify(o8));
+  await shot('bs-batch-deeplink');
+  await reload('?bs=switch');
+  const o9 = await ev(`return {rows:document.querySelectorAll('#bxSwitchBody .bx-row').length,ord:document.querySelectorAll('#bxSwitchBody .bx-ord').length}`);
+  o9.rows >= 6 && o9.ord >= 14 ? ok('深链·?bs=switch 换源弹层含优先级调序', o9.rows + ' 行 · ' + o9.ord + ' 钮') : bad('深链·switch 轮2', JSON.stringify(o9));
 
   /* ---------- 全屏 emoji / 泄漏复扫 ---------- */
-  const sweep = await ev(`var out=[];['p-bsSources','p-bsSearch','p-bsDiscover','p-bsDetail','p-bsTask','p-bsSrcForm'].forEach(function(p){
+  const sweep = await ev(`var out=[];['p-bsSources','p-bsSearch','p-bsDiscover','p-bsDetail','p-bsTask','p-bsSrcForm','p-bsVerify'].forEach(function(p){
     var el=document.getElementById(p);setPage(p);var t=el.innerText||'';
     if(new RegExp(${JSON.stringify(EMOJI)},'u').test(t))out.push(p+':emoji');
     if(/undefined|NaN|\\[object/.test(t))out.push(p+':fake');});
     return {bad:out,bs:typeof BX_SRC==='undefined'?0:BX_SRC.length}`);
-  sweep.bad.length === 0 ? ok('全筛·六屏无 emoji 与假值') : bad('全筛', JSON.stringify(sweep.bad));
+  sweep.bad.length === 0 ? ok('全筛·七屏无 emoji 与假值') : bad('全筛', JSON.stringify(sweep.bad));
 
   finish();
   async function finish() {

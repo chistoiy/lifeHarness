@@ -126,9 +126,9 @@ function bxSrcRender() {
   r.innerHTML = '<div class="mt-2 flex items-center gap-2">' +
     '<div class="flex-1 flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-3 py-2">' +
     '<input id="bxFnQ" value="' + bxd(BXSF.kw) + '" oninput="bxFnKw(this.value)" class="flex-1 bg-transparent text-[12.5px] outline-none" placeholder="书源名 / 状态">' +
-    '</div><button class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" onclick="bxAddOpen()">+</button></div>' +
+    '</div><button class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" onclick="bxAddOpen()" title="批量导入书源">+</button></div>' +
     '<div class="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">' + tabs.map(t => '<button class="bx-tab ' + (BXSF.tab === t ? 'on' : '') + '" onclick="bxFnTab(\'' + t + '\')">' + t + '</button>').join('') +
-    '<span class="flex-1"></span><button class="bx-tab" onclick="bxFilterOpen()">净化规则</button></div>' +
+    '<span class="flex-1"></span><button class="bx-tab" onclick="bxVerifyOpen(\'全部\')">书源校验</button><button class="bx-tab" onclick="bxFilterOpen()">净化规则</button></div>' +
     bxSubBar() +
     '<div class="bx-cap mt-3">书源 · ' + BX_SRC.length + (BXSF.sub ? ' · 已筛订阅 ' + bxd(BX_SUBS.find(u => u.id === BXSF.sub).nm) : '') + '</div>' +
     (BXSF.sub ? '<div class="mt-1.5"><button class="chip !text-[10px]" onclick="BXSF.sub=null;bxSrcRender()">取消订阅筛选</button></div>' : '') +
@@ -142,30 +142,108 @@ function bxSubRefresh() {
   setTimeout(() => { BX_SUBS[0].at = '刚刚'; toast('订阅已更新 · 1 个源地址变更已合并 · 2 个源标记失效'); bxSrcRender() }, 900);
 }
 
-/* ---------- 弹层：添加书源 ---------- */
-function bxAddOpen() {
-  const b = document.getElementById('bxAddBody');
-  b.innerHTML = [
-    ['订阅地址（URL）', '拉取整份源集合 · 同名 URL 合并更新', 'bxAddSub()'],
-    ['本地文件', '从存储选 .json / .txt 书源文件', 'bxAddFile()'],
-    ['粘贴书源 JSON', '单源或数组均可 · 解析后逐条预览', 'bxAddPaste()'],
-    ['手写规则源', '搜索 / 详情 / 目录 / 正文 / 发现页逐段填', 'bxFormOpen(null)']
-  ].map(x => '<div class="bx-row !py-2.5" onclick="' + x[2] + '"><div class="flex-1"><b class="text-[12.5px]">' + x[0] + '</b>' +
-    '<div class="text-[9.5px] text-slate-400 mt-0.5">' + x[1] + '</div></div><span class="text-slate-300">›</span></div>').join('') +
-    '<div class="bx-warn mt-3">书源由你自行添加与维护 · 应用不内置书城与源市场</div>';
-  openSheet('sheetBsAdd');
+/* ---------- 弹层：批量导入书源（链接 / 文件 / 粘贴 JSON · 自动解析 · 去重预览） ---------- */
+const BXAI_FILES = [
+  { nm: 'biqumo_src.json', kind: '源数组', n: 1, note: '纯规则 · 真站四段全通' },
+  { nm: 'shuyuan_2026.json', kind: '源数组', n: 22, note: '含 17 源 @js / WebView 规则' },
+  { nm: 'my_sources.txt', kind: '订阅', n: 0, note: '文本内为订阅地址' }
+];
+let BXAI = { files: ['shuyuan_2026.json'], urls: '', json: '', rows: null, ids: [] };
+function bxAddOpen() { BXAI.rows = null; bxAddRender(); openSheet('sheetBsAdd') }
+function bxAddRender() {
+  document.getElementById('bxAddBody').innerHTML =
+    '<div class="bx-cap mb-1">订阅 / 文件链接（每行一个 · 可批量）</div>' +
+    '<textarea id="bxaiUrls" class="bx-ta" rows="3" oninput="BXAI.urls=this.value" placeholder="https://…/shuyuan"></textarea>' +
+    '<div class="bx-cap mt-3 mb-1">本地书源文件（可多选）</div>' +
+    '<div class="flex gap-1.5 flex-wrap items-center">' + BXAI.files.map(function (f) { return '<span class="chip !text-[10px] chip-on">' + bxd(f) + '<button class="ml-1 opacity-60" onclick="bxAddUnpick(\'' + f + '\')">✕</button></span>' }).join('') +
+    '<button class="chip !text-[10px]" onclick="bxAddPick()">+ 选择文件</button></div>' +
+    '<div class="bx-cap mt-3 mb-1">或直接粘贴书源 JSON（单源 / 数组自动识别）</div>' +
+    '<textarea id="bxaiJson" class="bx-ta" rows="3" oninput="BXAI.json=this.value" placeholder="[{&quot;bookSourceUrl&quot;:&quot;…&quot;}]"></textarea>' +
+    '<div class="mt-3 flex gap-2">' +
+    '<button class="flex-1 py-2.5 rounded-2xl grad text-white text-[12.5px] font-bold" onclick="bxAddParse()">解析</button>' +
+    '<button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[12.5px] font-bold" onclick="closeSheet(\'sheetBsAdd\');bxFormOpen(null)">手写规则源</button></div>' +
+    '<div id="bxaiPrev" class="mt-3"></div>' +
+    '<div class="bx-warn mt-3">书源由你自行添加与维护 · 应用不内置书城与源市场 · 导入只存规则不存正文</div>';
+  const q = document.getElementById('bxaiUrls'); if (q) q.value = BXAI.urls;
+  const j = document.getElementById('bxaiJson'); if (j) j.value = BXAI.json;
 }
-function bxAddSub() { closeSheet('sheetBsAdd'); setTimeout(bxAddPaste, 200) }
-function bxAddFile() { closeSheet('sheetBsAdd'); toast('已读取 biqumo_src.json · 1 个源'); setTimeout(() => { BX_SRC[0].last = '刚刚'; bxSrcRender() }, 400) }
-function bxAddPaste() {
-  toast('解析到 22 源 · 其中 17 源含 @js / WebView 规则');
-  setTimeout(() => {
-    const add = [{ id: 'r9', nm: '新导入源 A', sub: 'u1', grp: '综合', on: 0, kind: 'js', hs: 'never', ms: 0, fails: 0, last: '未自检', toc: 0, books: 0, rule: BX_RULE_JS, note: '规则含 @js · 未启用引擎故默认停用' },
-    { id: 'r10', nm: '新导入源 B', sub: 'u1', grp: '综合', on: 1, kind: 'rule', hs: 'never', ms: 0, fails: 0, last: '未自检', toc: 0, books: 0, rule: [['搜索', 'https://m.example.com/search?q={{key}}']], note: '纯规则 · 建议先自检' }];
-    add.forEach(s => { if (!BX_SRC.some(x => x.nm === s.nm)) BX_SRC.push(s) });
-    BX_SUBS[0].n = BX_SUBS[0].n + 0; BXSF.tab = '全部'; bxSrcRender();
-    toast('导入完成 · 新增 2 源 · 合并 20 源 · 停用 1 源');
-  }, 900);
+function bxAddPick() {
+  const rest = BXAI_FILES.filter(f => BXAI.files.indexOf(f.nm) < 0);
+  if (!rest.length) { toast('演示语料已全部选中 · 实现时为系统文件选择器'); return }
+  BXAI.files.push(rest[0].nm); bxAddRender(); if (BXAI.rows) bxAddParse();
+  toast('已加入 ' + rest[0].nm);
+}
+function bxAddUnpick(nm) { BXAI.files = BXAI.files.filter(x => x !== nm); bxAddRender(); if (BXAI.rows) bxAddParse() }
+function bxAddParse() {
+  BXAI.urls = (document.getElementById('bxaiUrls') || {}).value || '';
+  BXAI.json = (document.getElementById('bxaiJson') || {}).value || '';
+  const rows = [];
+  BXAI.urls.split(/[\n,，\s]+/).filter(Boolean).forEach(function (u) {
+    const dup = BX_SUBS.find(x => x.url === u);
+    if (/^https?:\/\//.test(u)) {
+      const sub = /shuyuan|booksource|bookSource|legado|\/api\//.test(u) || /\.json$|\.txt$/.test(u);
+      rows.push({ t: sub ? '订阅' : '单源', src: u, n: sub ? (dup ? dup.n : 22) : 1, dup: dup ? '同名订阅已存在 · 合并更新' : '', note: sub ? '整份源集合 · 只取规则不取正文' : '按 bookUrlPattern 建单源', ok: 1 });
+    } else rows.push({ t: '无效', src: u, n: 0, dup: '不是可识别的地址', ok: 0 });
+  });
+  BXAI.files.forEach(function (nm) {
+    const f = BXAI_FILES.find(x => x.nm === nm) || { kind: '源数组', n: 1, note: '自定义文件' };
+    const dup = f.kind === '订阅' ? BX_SUBS.some(x => x.url.indexOf(nm) >= 0) : false;
+    rows.push({ t: f.kind, src: nm, n: f.n, dup: dup ? '与已有订阅重复 · 跳过' : '', note: f.note, ok: 1, file: 1 });
+  });
+  if (BXAI.json.trim()) {
+    try {
+      const j = JSON.parse(BXAI.json);
+      const arr = Array.isArray(j) ? j : [j];
+      const good = arr.filter(x => x && (x.bookSourceUrl || x.bookSourceName));
+      const bad = arr.length - good.length;
+      if (!good.length) rows.push({ t: '无效', src: '粘贴内容 ' + arr.length + ' 条', n: 0, dup: '缺 bookSourceUrl / bookSourceName 字段', ok: 0 });
+      else rows.push({ t: arr.length > 1 ? '源数组' : '单源', src: '粘贴 JSON', n: good.length, dup: '', note: bad ? bad + ' 条缺 bookSourceUrl 已丢弃' : '字段完整 · 可直接建源', ok: 1 });
+    } catch (e) { rows.push({ t: '无效', src: '粘贴 JSON', n: 0, dup: '解析失败：' + String(e.message).slice(0, 28), ok: 0 }) }
+  }
+  if (!rows.length) { document.getElementById('bxaiPrev').innerHTML = '<div class="bx-empty">没有可解析的内容 · 请填链接、选文件或粘贴 JSON</div>'; BXAI.rows = null; return }
+  const news = rows.filter(r => r.ok && !r.dup);
+  const dups = rows.filter(r => r.ok && r.dup);
+  const total = rows.reduce((a, r) => a + r.n, 0);
+  BXAI.rows = rows;
+  document.getElementById('bxaiPrev').innerHTML =
+    '<div class="bx-cap mb-1">解析结果 ' + rows.length + ' 条 · 共 ' + total + ' 个源</div>' +
+    '<div class="bx-list">' + rows.map(function (r) {
+      return '<div class="bx-vrow"><span class="bx-src shrink-0">' + r.t + '</span><span class="flex-1 min-w-0 truncate">' + bxd(r.src) + '</span>' +
+        '<span class="bx-lat shrink-0 font-bold">' + (r.n ? r.n + ' 源' : '—') + '</span>' +
+        '<span class="shrink-0 text-[9.5px] ' + (r.ok ? (r.dup ? 'text-amber-600' : 'text-emerald-600') : 'text-rose-500') + '">' + (r.ok ? (r.dup ? '合并' : '新增') : '无效') + '</span></div>' +
+        (r.dup || r.note ? '<div class="bx-vrow !pt-0 !text-[9.5px] ' + (r.dup ? 'text-amber-600' : 'text-slate-400') + '">' + bxd(r.dup || r.note) + '</div>' : '') + '';
+    }).join('') + '</div>' +
+    '<div class="flex items-center gap-2 mt-2 text-[9.5px] text-slate-400"><span>新增 ' + news.length + ' 条 · 合并 ' + dups.length + ' 条 · 无效 ' + (rows.length - news.length - dups.length) + ' 条</span><span class="flex-1"></span></div>' +
+    '<button class="w-full py-3 rounded-2xl grad text-white text-[13px] font-bold mt-2" onclick="bxAddImport()">导入并校验（' + total + ' 源）</button>';
+  toast('已解析 ' + rows.length + ' 条 · 自动分类为订阅 / 源数组 / 单源 / 无效');
+}
+function bxAddImport() {
+  if (!BXAI.rows) { toast('请先点「解析」'); return }
+  BXAI.ids = [];
+  let addSub = 0, addSrc = 0, skip = 0, js = 0;
+  BXAI.rows.forEach(function (r) {
+    if (!r.ok) return;
+    if (r.t === '订阅') {
+      const dup = BX_SUBS.find(x => x.url === r.src || (r.file && x.url.indexOf(r.src) >= 0));
+      if (dup) { dup.at = '刚刚'; dup.n = Math.max(dup.n, r.n || dup.n); skip += r.n; return }
+      BX_SUBS.push({ id: 'u' + (BX_SUBS.length + 1), nm: (r.file ? r.src : (r.src.match(/[^/]+$/) || ['订阅'])[0]), url: r.src || r.file, n: r.n || 22, ok: 5, on: 1, at: '刚刚' });
+      addSub++;
+    }
+    const cnt = r.t === '订阅' ? Math.min(4, r.n || 4) : Math.min(r.n, 4);
+    for (let i = 0; i < cnt; i++) {
+      const nm = (r.file ? r.src.replace(/\.(json|txt)$/i, '') : (r.t === '订阅' ? '合集源' : '粘贴源')) + ' ' + (BX_SRC.length + 1);
+      if (BX_SRC.some(x => x.nm === nm)) { skip++; continue }
+      const isJs = (r.t === '订阅' && i >= 2) || /2026/.test(r.src || '');
+      const s = { id: 'x' + (BX_SRC.length + 1), nm: nm, sub: BX_SUBS[BX_SUBS.length - 1].id, grp: '导入', on: isJs ? 0 : 1, kind: isJs ? 'js' : 'rule', hs: 'never', ms: 0, fails: 0, last: '未自检', toc: 0, books: 0, rule: isJs ? BX_RULE_JS : [['搜索', 'https://example' + (BX_SRC.length + 1) + '.com/search?q={{key}}'], ['正文', 'id.content']], note: isJs ? '规则含 @js · 引擎未启用故停用' : '纯规则 · 待校验' };
+      if (isJs) js++;
+      BX_SRC.push(s); BXAI.ids.push(s.id); addSrc++;
+    }
+  });
+  closeSheet('sheetBsAdd');
+  try { bxSrcRender() } catch (e) { }
+  toast('导入完成 · 新增订阅 ' + addSub + ' · 新增源 ' + addSrc + '（' + js + ' 个含 @js 已停用）· 跳过重复 ' + skip);
+  BXV2.ids = BXAI.ids;
+  setTimeout(function () { bxVerifyOpen('本次导入') }, 420);
 }
 
 /* ---------- 弹层：源操作 / 订阅操作 ---------- */
@@ -546,31 +624,89 @@ function bxEnter(bid, idx) {
     brRenderPage(); toast('已跳到第 ' + idx + ' 章');
   }
 }
+/* ---------- 逐章抓取引擎（防盗链 / 失效 / 超时 → 按优先级自动换源） ---------- */
+function bxTrySrc(s, idx) {
+  if (!bxSel(s)) return { ok: 0, why: bxUsable(s) || '未启用' };
+  if (s.kind === 'js') return { ok: 0, why: '规则含 @js · JS 引擎未启用' };
+  if (s.kind === 'web') return { ok: 0, why: '403 防盗链 · 需浏览器渲染挑战页' };
+  if (s.hs === 'dead') return { ok: 0, why: '站点 404 · 源已失效' };
+  if (s.hs === 'fuse') return { ok: 0, why: '连续 ' + s.fails + ' 次超时 · 本轮熔断' };
+  if (s.kind === 'part' && idx % 7 === 3) return { ok: 0, why: '正文规则缺 textNodes · 该章取到空段' };
+  return { ok: 1, ms: s.ms || 700 };
+}
+function bxFetch(b, idx, quiet) {
+  const was = b.bsrc.srcId;
+  const order = BS_SET.bsAuto
+    ? [was].concat(BX_ORDER.filter(x => x !== was)).concat(BX_SRC.map(s => s.id).filter(id => id !== was && BX_ORDER.indexOf(id) < 0))
+    : [was];
+  const tried = [];
+  for (const id of order) {
+    const s = bxs(id); if (!s) continue;
+    const r = bxTrySrc(s, idx);
+    if (r.ok) {
+      b.bsrc = { srcId: s.id, srcNm: s.nm, total: b.bsrc.total, cached: Math.max(b.bsrc.cached, idx), dead: false };
+      if (id !== was) b.src = '书源·' + s.nm;
+      if (b.epub) { b.epub.size = (b.bsrc.cached * 12) + ' KB'; b.epub.path = '书源缓存 · ' + s.nm; }
+      if (!quiet) toast('第 ' + idx + ' 章 · ' + s.nm + ' ' + r.ms + 'ms' + (id !== was && BS_SET.bsAuto ? ' · 已自动换源' : ''));
+      return { ok: 1, s: s, changed: id !== was };
+    }
+    tried.push(s.nm + '：' + r.why);
+  }
+  b.bsrc.dead = true;
+  return { ok: 0, tried: tried };
+}
+function bxBkNow() { return bxBk((BXV.b && BXV.b.t) || '') || bsBook(brV.b) }
+function bxChNo(t) { const m = String(t).match(/第\s*([0-9]+)\s*章/); return m ? +m[1] : null }
+function bxCurNo(b) { const lv = brLeaves(b.id); return bxChNo(lv[Math.max(0, Math.min(lv.length - 1, brV.ci))] || '') }
+
+/* ---------- 换源弹层（阅读中随时打开 · 不打断当前章 · 可调优先级） ---------- */
 function bxSwitchOpen(srcId) {
-  const cur = bxs(srcId) || BX_SRC[0];
-  const cands = BX_SRC.filter(s => s.id !== cur.id && bxSel(s));
-  const b = bxBk(BXV.b ? BXV.b.t : '') || bsBook(brV.b);
-  const at = b && b.bsrc ? b.bsrc.cached : 0;
+  const b = bxBkNow(); const cur = bxs((b && b.bsrc) ? b.bsrc.srcId : srcId) || BX_SRC[0];
+  const no = b ? bxCurNo(b) : null;
+  BX_ORDER = BX_ORDER.filter(id => bxs(id));
+  BX_SRC.forEach(s => { if (BX_ORDER.indexOf(s.id) < 0) BX_ORDER.push(s.id) });
   document.getElementById('bxSwitchBody').innerHTML =
-    '<div class="bx-row !py-2.5 opacity-60">' + bxDot(cur) + '<div class="flex-1"><b class="text-[12.5px]">' + bxd(cur.nm) + '</b>' +
-    '<div class="text-[9.5px] text-slate-400">当前源 · 进度第 ' + (at + 1) + ' 章</div></div><span class="bx-k off">使用中</span></div>' +
-    (cands.length ? cands.map(s => '<div class="bx-row !py-2.5" onclick="bxSwitch(\'' + s.id + '\')">' + bxDot(s) + '<div class="flex-1 min-w-0"><b class="text-[12.5px]">' + bxd(s.nm) + '</b>' +
-      '<div class="text-[9.5px] text-slate-400 truncate">' + BX_KINDN[s.kind] + ' · ' + (s.toc ? s.toc + ' 章' : '章数未知') + ' · 按章名对齐进度</div></div><span class="text-slate-300">›</span></div>').join('')
-      : '<div class="bx-empty">没有其他可用纯规则源 · 可先添加书源</div>') +
-    '<div class="bx-warn mt-2">换源只改正文来源 · 章节进度按章名匹配，划线与计时不动</div>';
+    '<div class="bx-row !px-0 !py-2 opacity-75">' + bxDot(cur) + '<div class="flex-1 min-w-0"><b class="text-[12.5px]">' + bxd(cur.nm) + '</b>' +
+    '<div class="text-[9.5px] text-slate-400">当前源 · ' + (b && b.bsrc ? '已缓存 ' + b.bsrc.cached + '/' + b.bsrc.total + ' 章' : '未入库') + (no ? ' · 停在第 ' + no + ' 章' : '') + '</div></div>' +
+    (cur.kind !== 'rule' || cur.hs !== 'ok' ? '<span class="bx-k part">' + BX_HSN[cur.hs] + '</span>' : '') + '</div>' +
+    '<div class="bx-row !px-0 !py-2"><div class="flex-1"><b class="text-[12px]">自动换源</b><div class="text-[9.5px] text-slate-400">本章失败即按下方顺序重试，成功后停在原章</div></div>' +
+    '<span class="toggle ' + (BS_SET.bsAuto ? 'on' : '') + '" onclick="bsFlipKey(\'bsAuto\');bxSwitchOpen(\'' + cur.id + '\')"></span></div>' +
+    '<div class="bx-cap mt-2">候选源 · 按优先级（↑↓ 调序）</div>' +
+    BX_ORDER.filter(id => id !== cur.id).map((id, k) => {
+      const s = bxs(id); if (!s) return '';
+      const dis = !bxSel(s); const r = bxTrySrc(s, no || 1);
+      const align = s.toc && no ? (no <= s.toc ? '可对齐第 ' + no + ' 章' : '目录只到 ' + s.toc + ' 章') : '章数未知';
+      return '<div class="bx-row !px-0 !py-2' + (dis ? ' opacity-45' : '') + '" onclick="' + (dis ? "toast('" + bxd(s.nm) + ' · ' + bxd(r.why) + "')" : 'bxSwitch(\'' + s.id + '\')') + '">' +
+        '<span class="bx-ord">' + (k + 1) + '</span>' + bxDot(s) +
+        '<div class="flex-1 min-w-0"><b class="text-[12px]">' + bxd(s.nm) + '</b>' +
+        '<div class="text-[9px] text-slate-400 truncate mt-0.5">' + (dis ? bxd(r.why) : s.toc + ' 章 · ' + align + (s.kind === 'part' ? ' · 正文可能缺段' : '')) + '</div></div>' +
+        '<span class="text-[9px] text-slate-400 bx-lat">' + (s.ms ? s.ms + 'ms' : '—') + '</span>' + bxKind(s) +
+        '<span class="flex gap-0.5" onclick="event.stopPropagation()"><button class="bx-ord" onclick="bxOrdMove(\'' + s.id + '\',-1)">↑</button><button class="bx-ord" onclick="bxOrdMove(\'' + s.id + '\',1)">↓</button></span></div>';
+    }).join('') +
+    '<div class="bx-warn mt-2">换源只改正文来源 · 章节按「第 N 章」编号对齐，划线 · 书摘 · 计时 · 进度全部不动</div>';
   openSheet('sheetBsSwitch');
 }
+function bxOrdMove(id, d) {
+  const i = BX_ORDER.indexOf(id), j = i + d;
+  if (i < 0 || j < 0 || j >= BX_ORDER.length) return;
+  const t = BX_ORDER[i]; BX_ORDER[i] = BX_ORDER[j]; BX_ORDER[j] = t;
+  bxSwitchOpen((bxBkNow() || {}).bsrc ? bxBkNow().bsrc.srcId : id);
+}
 function bxSwitch(id) {
-  const s = bxs(id);
-  const nm = (BXV.b && BXV.b.t) || (bsBook(brV.b) || {}).n;
-  const b = bxBk(nm);
+  const s = bxs(id), b = bxBkNow();
   closeSheet('sheetBsSwitch');
-  if (b) { b.bsrc = { srcId: s.id, srcNm: s.nm, total: b.bsrc ? b.bsrc.total : bxProto(nm).total, cached: b.bsrc ? b.bsrc.cached : bxProto(nm).cached, dead: bxBad(s) }; b.src = '书源·' + s.nm; if (b.epub) b.epub.path = '书源缓存 · ' + s.nm; bxTocOf(b) }
+  if (!b) { toast('先把这本书加入书架再换源'); return }
+  const no = bxCurNo(b) || b.bsrc.cached || 1;
+  b.bsrc = { srcId: s.id, srcNm: s.nm, total: b.bsrc.total, cached: b.bsrc.cached, dead: false };
+  b.src = '书源·' + s.nm; b.epub.path = '书源缓存 · ' + s.nm; bxTocOf(b);
   BXV.srcId = s.id;
+  const r = bxFetch(b, Math.max(1, no), true);
   try { renderShelf() } catch (e) { }
+  try { bxBadgeSync() } catch (e) { }
   try { renderReadSet() } catch (e) { }
   if (curPage === 'p-bsDetail') bxdRender();
-  toast('已换到 ' + s.nm + ' · 进度保持第 ' + ((b && b.bsrc.cached) || 0) + ' 章');
+  if (curPage === 'p-readerPage') { brRenderPage(); const el = document.getElementById('brBody'); if (el) { el.classList.remove('bx-flash'); void el.offsetWidth; el.classList.add('bx-flash') } }
+  toast(r.ok ? ('已换到 ' + s.nm + ' · 第 ' + no + ' 章已取回 · 划线与计时未动') : ('已换到 ' + s.nm + ' · 但该章仍取不到'));
 }
 
 /* ================= 屏 4 · 发现页 ================= */
@@ -619,14 +755,17 @@ function bxTaskOpen(id) {
   navTo('p-bsTask'); bxTaskRender();
 }
 const BX_TST = { run: '抓取中', pause: '已暂停', fail: '失败', done: '已完成', wait: '排队中' };
+function bxTaskWin(t) { return t.range ? { a: t.range[0], b: t.range[1] } : { a: 1, b: t.total } }
 function bxTaskRow(t) {
   const s = bxs(t.src) || BX_SRC[0];
+  const w = bxTaskWin(t), got = Math.max(0, t.done - w.a + 1), span = Math.max(1, w.b - w.a + 1);
   const cls = { run: 'bx-hs-ok', pause: 'bx-hs-never', fail: 'bx-hs-dead', done: 'bx-hs-ok', wait: 'bx-hs-never' }[t.st];
   return '<div class="card !py-3 !px-3 mt-2"><div class="flex items-center gap-2">' +
     '<span class="bx-dot ' + cls + '"></span><b class="text-[12.5px] flex-1 truncate">' + bxd(t.bk) + '</b>' +
     '<span class="bx-src">' + bxd(s.nm) + '</span><span class="text-[9.5px] text-slate-400">' + BX_TST[t.st] + '</span></div>' +
-    '<div class="bx-prog mt-2"><i style="width:' + Math.round(t.done / t.total * 100) + '%"></i></div>' +
-    '<div class="flex items-center gap-2 mt-1.5 text-[9.5px] text-slate-400"><span>' + t.done + '/' + t.total + ' 章</span><span class="flex-1"></span>' +
+    (t.range ? '<div class="text-[9px] text-slate-400 mt-1">预抓范围 · 第 ' + t.range[0] + '–' + t.range[1] + ' 章（全本 ' + t.total + ' 章）</div>' : '') +
+    '<div class="bx-prog mt-2"><i style="width:' + Math.round(Math.min(100, (t.range ? got / span : t.done / t.total) * 100)) + '%"></i></div>' +
+    '<div class="flex items-center gap-2 mt-1.5 text-[9.5px] text-slate-400"><span>' + (t.range ? '预抓 ' + Math.max(0, got) + '/' + span + ' 章' : t.done + '/' + t.total + ' 章') + '</span><span class="flex-1"></span>' +
     '<span>' + t.mb + '</span><span>·</span><span>重试 ' + t.retry + '/' + BS_SET.bsRetry + '</span><span>·</span><span>' + t.at + '</span></div>' +
     (t.err ? '<div class="' + (t.st === 'fail' ? 'bx-bad' : 'bx-warn') + ' mt-2">' + bxd(t.err) + '</div>' : '') +
     '<div class="mt-2 flex gap-1.5 flex-wrap">' +
@@ -684,18 +823,21 @@ function bxTaskUpd(id) {
 let BXTIMER = null;
 function bxTaskRun(t, only) {
   clearInterval(BXTIMER); bxTaskRender();
-  const target = t.total, step = 0;
+  const w = bxTaskWin(t), target = w.b, step = 0;
   BXTIMER = setInterval(() => {
     if (!t || t.st !== 'run') { clearInterval(BXTIMER); return }
     t.done++;
-    if (t.src === 'r2' && t.done === 10) { t.st = 'fail'; t.retry = BS_SET.bsRetry; t.err = '第 ' + t.done + ' 章 · 正文规则未取到段落（缺 textNodes）'; clearInterval(BXTIMER); bxTaskRender(); return }
+    if (!t.range && t.src === 'r2' && t.done === 10) { t.st = 'fail'; t.retry = BS_SET.bsRetry; t.err = '第 ' + t.done + ' 章 · 正文规则未取到段落（缺 textNodes）'; clearInterval(BXTIMER); bxTaskRender(); return }
     const b = bxBk(t.bk); if (b && b.bsrc) b.bsrc.cached = Math.max(b.bsrc.cached, t.done);
     if (t.done >= target) {
-      t.st = 'done'; t.mb = (target * 12 / 1024).toFixed(1) + ' MB'; t.at = '刚刚'; t.err = ''; t.upd = 0;
-      if (b) { b.epub.st = 'rdy'; b.epub.size = t.mb; }
-      clearInterval(BXTIMER); bxTaskRender(); toast('《' + t.bk + '》' + (only ? '新增 ' + only + ' 章' : '全本') + '已入段落快照 · ' + target + ' 章'); return;
+      const got = t.range ? (t.done - t.range[0] + 1) : t.total;
+      t.st = 'done'; t.mb = (got * 12 / 1024).toFixed(1) + ' MB'; t.at = '刚刚'; t.err = ''; if (!t.range) t.upd = 0;
+      if (b && !t.range) { b.epub.st = 'rdy'; b.epub.size = t.mb; }
+      try { renderShelf() } catch (e) { }
+      clearInterval(BXTIMER); bxTaskRender();
+      toast('《' + t.bk + '》' + (t.range ? '第 ' + t.range[0] + '–' + t.range[1] + ' 章' : only ? '新增 ' + only + ' 章' : '全本') + '已入段落快照 · 缓存 ' + (b && b.bsrc ? b.bsrc.cached : target) + '/' + t.total + ' 章'); return;
     }
-    const bar = document.getElementById('bxTaskRoot'); if (bar) { const row = bar.querySelectorAll('.bx-prog>i')[BX_TASKS.indexOf(t)]; if (row) row.style.width = Math.round(t.done / t.total * 100) + '%'; }
+    const bar = document.getElementById('bxTaskRoot'); if (bar) { const row = bar.querySelectorAll('.bx-prog>i')[BX_TASKS.indexOf(t)]; if (row) row.style.width = Math.round(Math.min(100, (t.range ? (t.done - t.range[0] + 1) / (t.range[1] - t.range[0] + 1) : t.done / t.total) * 100)) + '%'; }
     if (t.done % 24 === 0) bxTaskRender();
     void step;
   }, 380);
@@ -725,14 +867,17 @@ function bsDlStart() {
   navTo('p-bsTask'); bxTaskRun(BX_TASKS[0]); toast('已开始抓取 · 串行间隔 ' + BS_SET.bsRate + 'ms');
 }
 
-/* ---------- 阅读中拉取失败 ---------- */
-function bxFailOpen(chIdx) {
+/* ---------- 阅读中拉取失败（已按优先级试完所有源） ---------- */
+function bxFailOpen(chIdx, tried) {
   const b = bsBook(brV.b) || {}; const bs = b.bsrc || {}; const s = bxs(bs.srcId) || BX_SRC[3];
+  const list = (tried || []).map(function (t) { return '<div class="bx-vrow"><span class="flex-1 truncate">' + bxd(t) + '</span><span class="text-slate-400">失败</span></div>' }).join('');
   document.getElementById('bxFailBody').innerHTML =
-    '<div class="bx-bad">' + bxd(s.nm) + ' 取第 ' + chIdx + ' 章失败：' + (s.hs === 'dead' ? '站点 404（源已失效）' : '连接被重置') + ' · 已重试 ' + BS_SET.bsRetry + ' 次</div>' +
-    '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');BXV.b={t:' + JSON.stringify(b.n || '大奉打更人') + '};bxSwitchOpen(\'' + s.id + '\')"><div class="flex-1"><b class="text-[12.5px]">换源继续</b><div class="text-[9.5px] text-slate-400">按章名对齐 · 划线与计时不动</div></div></div>' +
+    '<div class="bx-bad">第 ' + chIdx + ' 章按优先级试过 ' + ((tried || []).length || 1) + ' 个源均不可用 · 每源重试 ' + BS_SET.bsRetry + ' 次</div>' +
+    (list ? '<div class="mt-2">' + list + '</div>' : '') +
+    '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');BXV.b={t:' + JSON.stringify(b.n || '大奉打更人') + '};bxSwitchOpen(\'' + s.id + '\')"><div class="flex-1"><b class="text-[12.5px]">手动换源</b><div class="text-[9.5px] text-slate-400">按章名对齐 · 划线与计时不动</div></div></div>' +
+    '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');bxVerifyOpen(\'仅失效\')"><div class="flex-1"><b class="text-[12.5px]">去书源校验</b><div class="text-[9.5px] text-slate-400">跑一遍四段 · 确认哪个源还能用</div></div></div>' +
     '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');toast(\'已切为只读缓存 · 该源不再请求\')"><div class="flex-1"><b class="text-[12.5px]">只读已下载章节</b><div class="text-[9.5px] text-slate-400">离线可读 ' + (bs.cached || 0) + ' 章 · 追更入口保留</div></div></div>' +
-    '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');toast(\'重试第 ' + chIdx + ' 章…\')"><div class="flex-1"><b class="text-[12.5px]">重试本章</b></div></div>';
+    '<div class="bx-row !py-2.5" onclick="closeSheet(\'sheetBsFail\');BXV.b={t:' + JSON.stringify(b.n || '') + '};toast(\'重试第 ' + chIdx + ' 章…\');setTimeout(function(){brFlip(0)},300)"><div class="flex-1"><b class="text-[12.5px]">全部源重试本章</b></div></div>';
   openSheet('sheetBsFail');
 }
 
@@ -745,20 +890,25 @@ Object.assign(TITLES, {
   'p-bsDetail': ['书籍资料', '源抓取详情 · 在线阅读 / 下载整本'],
   'p-bsTask': ['抓取任务', '串行限速 · manifest 断点续传 · 追更']
 });
-Object.assign(BS_SET, { bsOn: 1, bsRate: 400, bsRetry: 3, bsResume: 1, bsClean: 1, bsWifi: 0, bsWarn: 1 });
+Object.assign(BS_SET, { bsOn: 1, bsRate: 400, bsRetry: 3, bsResume: 1, bsClean: 1, bsWifi: 0, bsWarn: 1, bsAuto: 1, bsNext: 50, bsPrefetch: 1 });
+let BX_ORDER = BX_SRC.filter(bxSel).map(s => s.id);
 RS_SEC.push([
   '在线书源', [
     ['bsOn', '启用在线书源', 'bool', '关闭后书源入口与联网抓取全部停用，仅保留已下载正文'],
     ['bsMgr', '书源管理', 'nav', "bxSrcOpen()", BX_SRC.length + ' 个源 · ' + BX_SRC.filter(bxSel).length + ' 个纯规则可用'],
     ['bsSearch', '书源搜索', 'nav', "bxSearchOpen('')", '多源并发 · 粘贴地址自动识源'],
     ['bsDisc', '发现页', 'nav', "bxDiscOpen()", '源自带发现频道 · 模板翻页'],
+    ['bsVerify', '书源校验', 'nav', "bxVerifyOpen('全部')", '逐源跑四段 · 出结论表与失效归因'],
     ['bsTask', '抓取任务', 'nav', "bxTaskOpen()", '串行限速 · 断点续传 · 追更'],
+    ['bsAuto', '阅读中自动换源', 'bool', '本章失败即按源优先级顺序重试其他源，成功后停在原章'],
+    ['bsNext', '续抓默认档', 'chips', [20, 50, 100, 200, '全部'], '阅读页「续抓」钮的预选章数'],
+    ['bsPrefetch', '预取下一章', 'bool', '读到本章末提前抓下一章，翻页不等待'],
     ['bsRate', '章节抓取间隔', 'chips', [200, 400, 600, 1000], '毫秒 · 过快易被源站限流'],
     ['bsRetry', '单章失败重试', 'chips', [1, 2, 3, 5], '次 · 超出后转人工处置'],
     ['bsResume', '断点续传', 'bool', '按 manifest 从停止的章继续，不重复请求'],
     ['bsClean', '默认净化', 'bool', '去（本章完）/ 请收藏本站 等噪声'],
     ['bsWifi', '仅 Wi-Fi 整本下载', 'bool', '移动网络下只允许逐章在线取'],
-    ['bsWarn', '源失效时提示换源', 'bool', '抓取失败给换源 / 只读已缓存 / 重试三选一'],
+    ['bsWarn', '源失效时提示换源', 'bool', '自动换源仍失败时给换源 / 只读已缓存 / 重试三选一'],
     ['bsFilter', '净化与替换规则', 'nav', "bxFilterOpen()", BX_FILTERS.filter(f => f.on).length + ' 条生效 · 正则##替换'],
     ['bsCacheCl', '清除全部书源缓存', 'nav', "bxCacheClearNow()", '释放正文缓存 · 书摘与计时进度保留']
   ]
@@ -817,13 +967,52 @@ renderBsr = function (keep) {
   }
 };
 
-/* 阅读器：在线书顶栏副标题带源与缓存 · 更多菜单加「换源」· 翻到未缓存章按源状态处置 */
+/* 阅读器接线（轮2）：顶栏常驻「源」钮随时换源 · 底栏「续抓」批量预抓 · 逐章按需抓取与自动换源 · 预取下一章 */
+function bxBadgeSync() {
+  const b = bsBook(brV.b);
+  const head = document.querySelector('#brTop .flex.items-center.gap-2');
+  let btn = document.getElementById('bxSrcBtn');
+  if (head) {
+    if (!b || !b.online || !b.bsrc) { if (btn) btn.remove(); }
+    else {
+      if (!btn) {
+        btn = document.createElement('button'); btn.id = 'bxSrcBtn'; btn.className = 'bx-srcbtn'; btn.title = '切换书源';
+        btn.onclick = function () { BXV.b = { t: b.n }; bxSwitchOpen(b.bsrc.srcId) };
+        head.insertBefore(btn, head.children[3] || null);
+      }
+      const s = bxs(b.bsrc.srcId) || BX_SRC[0];
+      btn.className = 'bx-srcbtn ' + (b.bsrc.dead ? 'dead' : s.kind === 'part' ? 'warn' : '');
+      btn.innerHTML = '<i></i>' + bxd(s.nm);
+    }
+  }
+  const row = document.querySelector('#brBottom .justify-around');
+  let bb = document.getElementById('bxBatchBtn');
+  if (row) {
+    if (!b || !b.online) { if (bb) bb.remove(); }
+    else if (!bb) {
+      bb = document.createElement('button'); bb.id = 'bxBatchBtn'; bb.className = 'br-ibtn'; bb.title = '下载后续章节';
+      bb.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg><span>续抓</span>';
+      bb.onclick = bxBatchOpen; row.appendChild(bb);
+    }
+  }
+  const tabs = document.getElementById('brDrTabs');
+  if (tabs && tabs.parentNode) {
+    let chip = document.getElementById('bxDrChip');
+    if (!b || !b.online) { if (chip) chip.remove(); }
+    else {
+      if (!chip) { chip = document.createElement('button'); chip.id = 'bxDrChip'; chip.className = 'bx-srcbtn !px-2 !py-1 !text-[8.5px] shrink-0'; tabs.parentNode.insertBefore(chip, tabs.nextSibling); }
+      chip.onclick = function () { BXV.b = { t: b.n }; bxSwitchOpen(b.bsrc.srcId) };
+      chip.innerHTML = '<i></i>' + bxd(b.bsrc.srcNm) + ' ' + b.bsrc.cached + '/' + b.bsrc.total;
+    }
+  }
+}
 const BX_OLD_BRCHROME = brChromeLabels;
 brChromeLabels = function () {
   BX_OLD_BRCHROME();
   const b = bsBook(brV.b); if (!b || !b.online || !b.bsrc) return;
   const el = document.getElementById('brTopSub');
   if (el) el.textContent = '在线 · ' + b.bsrc.srcNm + ' · 已缓存 ' + b.bsrc.cached + '/' + b.bsrc.total + ' 章';
+  try { bxBadgeSync() } catch (e) { }
 };
 const BX_OLD_BRMORE = brMoreRender;
 brMoreRender = function () {
@@ -836,20 +1025,188 @@ brMoreRender = function () {
   btn.onclick = function () { closeSheet('sheetBrMore'); BXV.b = { t: b.n }; bxSwitchOpen(b.bsrc.srcId) };
   g.appendChild(btn);
 };
+const BX_OLD_BRTOC = brTocRender;
+brTocRender = function () { BX_OLD_BRTOC(); try { bxBadgeSync() } catch (e) { } };
+/* 逐章按需抓取：翻到未缓存章＝抓该章（看一章请求一章）；失败按 BX_ORDER 自动换源；仍失败弹三选一 */
 const BX_OLD_BRFLIP = brFlip;
 brFlip = function (dir) {
   const b = bsBook(brV.b);
   if (b && b.online && b.bsrc) {
     const lv = brLeaves(b.id), nx = brV.ci + dir;
     if (nx >= 0 && nx < lv.length && nx + 1 > b.bsrc.cached) {
-      if (b.bsrc.dead) { bxFailOpen(nx + 1); return }
       if (!BS_SET.bsOn) { toast('在线书源已停用 · 只读已缓存章节'); return }
-      b.bsrc.cached = nx + 1;
-      toast('正在取第 ' + (nx + 1) + ' 章正文 · ' + b.bsrc.srcNm);
+      const r = bxFetch(b, nx + 1);
+      if (!r.ok) { if (BS_SET.bsWarn) bxFailOpen(nx + 1, r.tried); else toast('第 ' + (nx + 1) + ' 章各源都取不到'); return }
+      if (BS_SET.bsPrefetch && nx + 2 <= b.bsrc.total && nx + 2 > b.bsrc.cached) setTimeout(() => { if (curPage === 'p-readerPage') bxFetch(b, nx + 2, true) }, 900);
     }
   }
   BX_OLD_BRFLIP(dir);
 };
+
+/* ================= 屏 7 · 书源校验中心（逐源四段 · 结论表 · 失效归因） ================= */
+const BX_VSTG = ['搜索', '目录', '正文', '发现页'];
+const BX_VSC = ['全部', '仅失效', '仅未自检', '本次导入'];
+let BXV2 = { scope: '全部', rows: [], i: 0, run: 0, tm: null, ids: [] };
+Object.assign(TITLES, { 'p-bsVerify': ['书源校验', '逐源跑搜索 / 目录 / 正文 / 发现页 · 出结论与归因'] });
+function bxVerifyOf(s) {
+  if (s.kind === 'js') return { segs: ['no', 'na', 'na', 'na'], v: '需 JS 引擎', ms: 0, why: '@js 规则 · 本期未启用引擎 · 保持停用' };
+  if (s.kind === 'web') return { segs: ['no', 'na', 'na', 'na'], v: '被反爬拦', ms: 0, why: '403 + WebCrypto 解密 · 需浏览器渲染（期 4）' };
+  if (s.hs === 'dead') return { segs: ['no', 'na', 'na', 'na'], v: '源已失效', ms: s.ms || 410, why: '搜索 404 · 已缓存章节仍可离线读' };
+  if (s.hs === 'fuse') return { segs: ['no', 'na', 'na', 'na'], v: '单源熔断', ms: s.ms || 9800, why: '连续超时 ' + (s.fails || 3) + ' 次 · 本轮自动跳过' };
+  if (s.kind === 'part') return { segs: ['ok', 'ok', 'warn', 'ok'], v: '部分可用', ms: s.ms || 1240, why: '正文缺 textNodes → 取到 6 段（预期 22 段）' };
+  const disc = (s.rule || []).some(r => /发现/.test(r[0]));
+  return { segs: ['ok', 'ok', 'ok', disc ? 'ok' : 'warn'], v: disc ? '可用' : '可用（无发现页）', ms: s.ms || (860 + (s.nm.length * 137) % 900), why: '搜索 19 条 · 目录 ' + (s.toc || 45) + ' 章 · 正文 2480 字 · 发现页' + (disc ? ' 3 频道' : '未配') };
+}
+function bxVerifyPool(scope) {
+  if (scope === '仅失效') return BX_SRC.filter(function (s) { return s.hs === 'dead' || s.hs === 'fuse' || s.hs === 'wall' || s.kind === 'js' || s.kind === 'web' });
+  if (scope === '仅未自检') return BX_SRC.filter(s => s.hs === 'never');
+  if (scope === '本次导入') return BX_SRC.filter(s => BXV2.ids.indexOf(s.id) >= 0);
+  return BX_SRC.slice();
+}
+function bxVerifyHs(o) {
+  if (/^可用/.test(o.v)) return 'ok';
+  if (/部分/.test(o.v)) return 'warn';
+  if (/熔断/.test(o.v)) return 'fuse';
+  if (/失效|反爬/.test(o.v)) return 'dead';
+  return 'never';
+}
+function bxVerifyOpen(scope) {
+  BXV2.scope = scope || '全部';
+  bxVerifyReset();
+  if (curPage !== 'p-bsVerify') navTo('p-bsVerify');
+  bxVerifyRender();
+}
+function bxVerifyReset() {
+  clearInterval(BXV2.tm); BXV2.run = 0; BXV2.i = 0;
+  BXV2.rows = bxVerifyPool(BXV2.scope).map(s => ({ id: s.id, done: 0 }));
+}
+function bxVerifyDone() { return BXV2.rows.filter(r => r.done).length }
+function bxVerifyCount(v) { return BXV2.rows.filter(r => r.done && bxVerifyOf(bxs(r.id)).v === v).length }
+function bxVerifyRender() {
+  const r = document.getElementById('bxVerifyRoot'); if (!r) return;
+  const tot = BXV2.rows.length, dn = bxVerifyDone();
+  const okn = BXV2.rows.filter(x => x.done && /^可用/.test(bxVerifyOf(bxs(x.id)).v)).length;
+  const bad = BXV2.rows.filter(x => x.done && /失效|熔断|反爬/.test(bxVerifyOf(bxs(x.id)).v)).length;
+  const nos = BXV2.rows.filter(x => x.done && /需 JS 引擎/.test(bxVerifyOf(bxs(x.id)).v)).length;
+  r.innerHTML = '<div class="mt-2 card !py-3"><div class="flex items-center gap-1.5 flex-wrap">' +
+    BX_VSC.map(function (sc) { return '<button class="chip !text-[10px] ' + (BXV2.scope === sc ? 'chip-on' : '') + '" onclick="bxVerifyScope(\'' + sc + '\')">' + sc + '</button>' }).join('') +
+    '</div>' +
+    '<div class="flex items-center gap-2 mt-3"><div class="bx-prog flex-1"><i style="width:' + (tot ? Math.round(dn / tot * 100) : 0) + '%"></i></div>' +
+    '<span class="text-[10px] font-bold bx-lat">' + dn + '/' + tot + '</span></div>' +
+    '<div class="flex items-center gap-3 mt-2 text-[9.5px] text-slate-400"><span>可用 <b class="text-emerald-600">' + okn + '</b></span><span>失效/熔断 <b class="text-rose-500">' + bad + '</b></span><span>本期不支持 <b class="text-slate-500">' + nos + '</b></span></div>' +
+    '<div class="mt-3 flex gap-2">' +
+    (BXV2.run ? '<button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[12px] font-bold" onclick="bxVerifyStop()">停止</button>' :
+      '<button class="flex-1 py-2.5 rounded-2xl grad text-white text-[12px] font-bold" onclick="bxVerifyRun()">' + (dn ? '重新校验' : '开始校验') + '（' + tot + ' 源）</button>') +
+    '<button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[12px] font-bold" onclick="bxVerifyRetryFailed()">仅重跑失败</button></div>' +
+    '<div class="bx-warn mt-2">校验只跑规则四段 · 不批量下载正文 · 单源连续超时 ' + BS_SET.bsRetry + ' 次即熔断</div></div>' +
+    '<div class="bx-cap mt-3">四段 = 搜索 / 目录 / 正文 / 发现页 · 结论与归因逐源列出</div>' +
+    (tot ? '<div class="bx-list mt-2">' + BXV2.rows.map(bxVerifyRow).join('') + '</div>' : '<div class="bx-empty">该范围内没有书源</div>') +
+    (dn ? '<div class="mt-3 flex gap-2">' +
+      '<button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[12px] font-bold" onclick="bxVerifyDisableDead()">停用失效与不支持源</button>' +
+      '<button class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 text-[12px] font-bold" onclick="bxVerifyCopy()">复制报告</button></div>' : '');
+}
+function bxVerifyRow(x) {
+  const s = bxs(x.id); if (!s) return '';
+  const cur = BXV2.rows.indexOf(x) === BXV2.i && BXV2.run && !x.done;
+  const o = x.done ? bxVerifyOf(s) : null;
+  return '<div class="bx-vrow' + (cur ? ' run' : '') + '">' + bxDot(s) +
+    '<div class="flex-1 min-w-0"><b class="text-[11.5px] block truncate">' + bxd(s.nm) + '</b>' +
+    '<div class="flex items-center gap-1 mt-0.5">' + bxKind(s) +
+    '<span class="bx-seg3 w-[52px]">' + (o ? o.segs.map(function (q) { return '<span class="' + (q === 'na' ? '' : q) + '"></span>' }).join('') : '<span></span><span></span><span></span><span></span>') + '</span>' +
+    '<span class="text-[9px] text-slate-400">' + BX_VSTG.map(function (t, i) { return o ? t + (o.segs[i] === 'ok' ? '√' : o.segs[i] === 'warn' ? '△' : o.segs[i] === 'no' ? '×' : '·') : t + '·' }).join(' ') + '</span></div>' +
+    (o ? '<div class="text-[9px] text-slate-400 mt-1 truncate">' + bxd(o.why) + (o.ms ? ' · ' + o.ms + 'ms' : '') + '</div>' : '') +
+    '</div>' +
+    '<span class="shrink-0 text-[10px] font-bold ' + (o ? (/^可用/.test(o.v) ? 'text-emerald-600' : /需 JS/.test(o.v) ? 'text-slate-400' : 'text-rose-500') : 'text-slate-300') + '">' + (cur ? '校验中' : (o ? o.v : '待跑')) + '</span></div>';
+}
+function bxVerifyScope(sc) { BXV2.scope = sc; bxVerifyReset(); bxVerifyRender() }
+function bxVerifyRun() {
+  if (!BXV2.rows.length) { toast('该范围内没有书源'); return }
+  BXV2.rows.forEach(r => { r.done = 0 });
+  BXV2.i = 0; BXV2.run = 1; bxVerifyRender();
+  clearInterval(BXV2.tm);
+  BXV2.tm = setInterval(function () {
+    if (!BXV2.run) { clearInterval(BXV2.tm); return }
+    const x = BXV2.rows[BXV2.i];
+    if (!x) {
+      BXV2.run = 0; clearInterval(BXV2.tm);
+      BXV2.rows.forEach(function (r) { const s = bxs(r.id), o = bxVerifyOf(s); if (!s || !o) return; s.last = '刚刚'; s.ms = o.ms || s.ms; s.hs = bxVerifyHs(o); if (/需 JS|被反爬/.test(o.v)) { s.on = 0 } });
+      try { bxSrcRender() } catch (e) { }
+      const bad = BXV2.rows.filter(r => /失效|熔断|反爬/.test(bxVerifyOf(bxs(r.id)).v)).length;
+      toast('校验完成 · ' + BXV2.rows.length + ' 源 · ' + bad + ' 源不可用（已记归因）');
+      bxVerifyRender(); return;
+    }
+    x.done = 1; BXV2.i++;
+    bxVerifyRender();
+  }, 260);
+}
+function bxVerifyStop() { BXV2.run = 0; clearInterval(BXV2.tm); bxVerifyRender(); toast('已停止校验 · 已出结论保留') }
+function bxVerifyRetryFailed() {
+  const bad = BXV2.rows.filter(function (r) { const s = bxs(r.id); if (!s) return false; const o = bxVerifyOf(s); return r.done && !/^可用/.test(o.v) });
+  if (!bad.length) { toast('没有失败源可重跑'); return }
+  BXV2.rows = bad; BXV2.i = 0; BXV2.run = 1; bxVerifyRender();
+  clearInterval(BXV2.tm);
+  BXV2.tm = setInterval(function () {
+    const x = BXV2.rows[BXV2.i];
+    if (!x) { BXV2.run = 0; clearInterval(BXV2.tm); toast('重跑完成 · 结论未变化则以归因记录为准'); bxVerifyRender(); return }
+    x.done = 1; BXV2.i++; bxVerifyRender();
+  }, 300);
+}
+function bxVerifyDisableDead() {
+  let n = 0;
+  BXV2.rows.forEach(function (r) { const s = bxs(r.id); if (!s) return; const o = bxVerifyOf(s); if (!/^可用/.test(o.v) && s.on) { s.on = 0; r.off = 1; n++ } });
+  try { bxSrcRender() } catch (e) { }
+  bxVerifyRender();
+  toast(n ? '已停用 ' + n + ' 个不可用源 · 已缓存正文与书摘保留' : '没有可停用的源');
+}
+function bxVerifyCopy() {
+  const txt = BXV2.rows.map(function (r) { const s = bxs(r.id), o = bxVerifyOf(s); return s.nm + '\t' + BX_KINDN[s.kind] + '\t' + o.v + '\t' + o.ms + 'ms\t' + o.why }).join('\n');
+  try { window.__bxReport = txt; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(function () { }) } catch (e) { }
+  toast('报告已复制 · ' + BXV2.rows.length + ' 行（含归因）');
+}
+
+/* ================= 弹层：续抓（下载后续 N 章 · 范围任务） ================= */
+let BXB = { n: 50, from: 1, to: 1 };
+function bxBatchOpen() {
+  const b = bsBook(brV.b);
+  if (!b || !b.online || !b.bsrc) { toast('仅在线书源可预抓后续章节'); return }
+  if (!BS_SET.bsOn) { toast('在线书源已停用 · 无法发起抓取'); return }
+  const left = Math.max(0, b.bsrc.total - b.bsrc.cached);
+  BXB.n = Math.min(BS_SET.bsNext || 50, left || BS_SET.bsNext);
+  BXB.from = b.bsrc.cached + 1; BXB.left = left;
+  BXV.b = { t: b.n };
+  bxBatchRender(); openSheet('sheetBsBatch');
+}
+function bxBatchRender() {
+  const b = bsBook(brV.b); if (!b) return;
+  const opts = [20, 50, 100, 200, '全部'];
+  document.getElementById('bxBatchBody').innerHTML =
+    '<div class="flex items-center gap-2"><span class="bx-dot bx-hs-ok"></span><b class="text-[12.5px] flex-1 truncate">' + bxd(b.n) + '</b>' +
+    '<span class="bx-src">' + bxd(b.bsrc.srcNm) + '</span></div>' +
+    '<div class="text-[9.5px] text-slate-400 mt-1">已缓存 ' + b.bsrc.cached + '/' + b.bsrc.total + ' 章 · 从第 ' + BXB.from + ' 章起抓 · 剩余 ' + BXB.left + ' 章</div>' +
+    '<div class="bx-cap mt-3 mb-1">预抓档数</div>' +
+    '<div class="flex gap-1.5 flex-wrap">' + opts.map(function (o) { return '<button class="chip !text-[10px] ' + (BXB.n === o ? 'chip-on' : '') + '" onclick="bxBatchPick(' + (o === '全部' ? BXB.left : o) + ',this)">' + (o === '全部' ? '全部（' + BXB.left + '）' : o + ' 章') + '</button>' }).join('') + '</div>' +
+    '<div class="mt-3">' + [['抓取范围', '第 ' + BXB.from + '–' + Math.min(b.bsrc.total, BXB.from + BXB.n - 1) + ' 章'],
+      ['预估耗时', (BXB.n * BS_SET.bsRate / 1000).toFixed(0) + 's（串行间隔 ' + BS_SET.bsRate + 'ms）'],
+      ['预估体积', (BXB.n * 12 / 1024).toFixed(2) + ' MB（约 12 KB/章）'],
+      ['失败处置', '单章重试 ' + BS_SET.bsRetry + ' 次 → 自动换源 → 仍失败转人工'],
+      ['净化', BS_SET.bsClean ? '默认净化 + 自定义 ' + BX_FILTERS.filter(f => f.on).length + ' 条' : '关']]
+      .map(function (x) { return '<div class="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0"><span class="text-[10.5px] text-slate-400">' + x[0] + '</span><span class="text-[11px] font-bold">' + bxd(x[1]) + '</span></div>' }).join('') + '</div>' +
+    '<div class="bx-warn mt-2">阅读中翻到未缓存章仍会逐章现取（看一章取一章）· 预抓只是提前排队 · 断网后可继续读已抓部分</div>';
+}
+function bxBatchPick(n) { BXB.n = n; bxBatchRender() }
+function bxBatchGo() {
+  const b = bsBook(brV.b);
+  closeSheet('sheetBsBatch');
+  if (!b || !b.bsrc) return;
+  const from = b.bsrc.cached + 1, to = Math.min(b.bsrc.total, from + BXB.n - 1);
+  if (from > b.bsrc.total) { navTo('p-bsTask'); bxTaskRender(); toast('全本已在本地缓存 · 无需预抓'); return }
+  const ex = BX_TASKS.find(t => t.bk === b.n && t.range && t.st !== 'done');
+  if (ex) { ex.range = [from, to]; ex.total = b.bsrc.total; ex.st = 'run'; bxTaskGo(ex.id, true); navTo('p-bsTask'); bxTaskRun(ex); toast('已并入未完成的预抓任务 · 第 ' + from + '–' + to + ' 章'); return }
+  const t = { id: 't' + Date.now(), bk: b.n, src: b.bsrc.srcId, total: b.bsrc.total, done: from - 1, range: [from, to], st: 'run', retry: 0, mb: '—', at: '进行中', err: '', upd: 0 };
+  BX_TASKS.unshift(t);
+  navTo('p-bsTask'); bxTaskRun(t);
+  toast('预抓已排队 · 第 ' + from + '–' + to + ' 章（' + BXB.n + ' 章档）');
+}
 
 /* ---------- 种子与深链 ---------- */
 function bxSeedOnline() {
@@ -872,6 +1229,9 @@ function bxSeedOnline() {
   else if (k === 'task') bxTaskOpen();
   else if (k === 'form') bxFormOpen('r2');
   else if (k === 'add') { bxSrcOpen(); bxAddOpen() }
+  else if (k === 'parse') { bxSrcOpen(); bxAddOpen(); document.getElementById('bxaiUrls').value = 'https://legado.aoaostar.com/api/bookSource\n随手写的一行不是地址'; BXAI.urls = document.getElementById('bxaiUrls').value; document.getElementById('bxaiJson').value = '[{"bookSourceUrl":"https://m.demo1.com","bookSourceName":"演示源1"},{"bookSourceUrl":"https://m.demo2.com"}]'; BXAI.json = document.getElementById('bxaiJson').value; bxAddParse() }
+  else if (k === 'verify') bxVerifyOpen(BX_VSC[Math.min(BX_VSC.length - 1, +(qs.get('sc') || 0))] || '全部')
+  else if (k === 'batch') { const o = bxRegBook('r1', '剑来'); bxEnter(o.b.id); setTimeout(bxBatchOpen, 300) }
   else if (k === 'filter') { bxSrcOpen(); bxFilterOpen() }
   else if (k === 'switch') { BXV = { srcId: 'r4', i: 0, b: { t: '大奉打更人', a: '卖报小郎君', st: '完结', wc: '620 万字', last: '第 268 章', hot: '9.4', intro: '' }, rev: false, tab: '全部' }; bxdOpen('r4', 0); bxSwitchOpen('r4') }
   else if (k === 'fail') { BXV.b = { t: '大奉打更人', a: '卖报小郎君', st: '完结', wc: '620 万字', last: '', hot: '9.4', intro: '' }; const o = bxRegBook('r4', '大奉打更人'); bxEnter(o.b.id, 13); setTimeout(() => bxFailOpen(13), 260) }

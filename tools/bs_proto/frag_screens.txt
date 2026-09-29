@@ -5,3 +5,4 @@
     <section id="p-bsDiscover" class="page px-5 safe-pb no-scrollbar"><div id="bxDiscRoot"></div></section>
     <section id="p-bsDetail" class="page px-5 safe-pb no-scrollbar"><div id="bxDetailRoot"></div></section>
     <section id="p-bsTask" class="page px-5 safe-pb no-scrollbar"><div id="bxTaskRoot"></div></section>
+    <section id="p-bsVerify" class="page px-5 safe-pb no-scrollbar"><div id="bxVerifyRoot"></div></section>
