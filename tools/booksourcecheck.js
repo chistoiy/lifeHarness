@@ -303,6 +303,7 @@ async function reload(q) {
     jsOff:bxs('r6').on,txt:document.getElementById('bxVerifyRoot').innerText.replace(/\\s+/g,' ').slice(0,52)}`);
   v1.run === 0 && v1.done === 8 && v1.ok === 'ok' && v1.warn === 'warn' && v1.fuse === 'fuse' && v1.dead === 'dead' && v1.jsOff === 0
     ? ok('轮2·逐源跑完并按结论写回健康态', v1.txt) : bad('轮2·跑批', JSON.stringify(v1));
+  await shot('bs-verify-ran');
   await run("bxVerifyCopy()");
   const v2 = await ev(`return {lines:(window.__bxReport||'').split('\\n').length,has:/\\t.+\\t.+ms\\t/.test(window.__bxReport||'')}`);
   v2.lines === 8 && v2.has ? ok('轮2·报告含结论/耗时/归因', v2.lines + ' 行') : bad('轮2·报告', JSON.stringify(v2));
