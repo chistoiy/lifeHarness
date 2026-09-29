@@ -34,6 +34,10 @@ const get = u => new Promise(res => { http.get(u, r => { let d = ''; r.on('data'
   console.log('shot', await shot('r2-plg.png'));
   console.log(await evl(`setPage('p-profile');await sleep(300);return {rows:[...document.querySelectorAll('#p-profile button')].map(b=>b.innerText.split('\\n')[0]).filter(Boolean).join('|'),hasPlg:/插件中心/.test(document.getElementById('p-profile').innerText)}`));
   console.log('shot', await shot('r2-profile.png'));
+  console.log(await evl(`setPage('p-tools');KITS.pset={scan:true,wifi:false,bakPlg:true,bakFoot:true};kitSave();renderKitPset();openSheet('sheetKitSet');await sleep(250);return {rows:document.querySelectorAll('#kitSetRows [data-pset]').length,cls:[...document.querySelectorAll('#kitSetRows [data-pset]')].map(x=>x.dataset.pset+':'+x.className).join(' | '),pset:JSON.stringify(kitPset()),raw:(document.getElementById('kitSetRows').innerHTML||'').slice(0,220)}`));
+  console.log('shot', await shot('r3-kitset-sheet.png'));
+  console.log(await evl(`closeSheet('sheetKitSet');setPage('p-kitsPlg');await sleep(250);return document.querySelectorAll('#kitPsetRows [data-pset]').length+' 行（插件中心·拓展设置）'`));
+  console.log('shot', await shot('r3-plgset-rows.png'));
   console.log(await evl(`return {navPool:NAV_MODS.map(m=>m[1]).join(','),nav:document.getElementById('navBar').innerText.replace(/\\s+/g,'/')}`));
   ws.close(); chrome.kill(); console.log('done'); process.exit(0);
 })().catch(e => { console.log('FAIL ' + e.message); process.exit(1); });

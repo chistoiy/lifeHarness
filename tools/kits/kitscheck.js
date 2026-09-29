@@ -253,6 +253,29 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
    return {asked:mid===b,cleared:KITS.log.length===0}})()`,v=>v.asked&&v.cleared);
  await step('首页图标已 SVG 化',`(function(){setPage('p-tools');var g=document.querySelector('#toolGrid');
    return {svg:g.querySelectorAll('svg.kit-ico').length,emoji:(g.innerText.match(/[\u{1F300}-\u{1FAFF}]/gu)||[]).length,chips:document.querySelector('#kitCatChips').innerText.length}})()`,v=>v.svg>=13&&v.emoji===0);
+ await step('小工具设置入口与弹层',`(function(){setPage('p-tools');
+   var btns=[].slice.call(document.querySelectorAll('#kitHero button')).map(b=>b.innerText.trim());
+   openSheet('sheetKitSet');var rows=[].slice.call(document.querySelectorAll('#kitSetRows [data-pset]'));
+   if(!rows.length)return {noRows:1};
+   var r0=rows[0];r0.click();var mid=rows[0].classList.contains('on');
+   var center=(document.querySelector('#kitPsetRows [data-pset="'+r0.dataset.pset+'"]')||{classList:{}}).classList.contains('on');
+   r0.click();var back=rows[0].classList.contains('on');
+   var hasPlug=/插件中心/.test(document.getElementById('kitSetRows').innerText);
+   var hasReset=/清空使用足迹/.test(document.getElementById('sheetKitSet').innerText);
+   var saved=JSON.parse(localStorage.getItem('lh_kits_v1')||'{}').pset;
+   var plg4=document.querySelectorAll('#kitPsetRows [data-pset]').length;
+   var bad=/class="[^"]*data-pset/.test(document.getElementById('kitSetRows').innerHTML+document.getElementById('kitPsetRows').innerHTML);
+   closeSheet('sheetKitSet');
+   return {set:btns.indexOf('设置')>=0,rows:rows.length,flip:mid===!back,sync:center===mid,hasPlug:hasPlug,hasReset:hasReset,saved:!!saved&&typeof saved==='object',plg4:plg4,bad:bad}})()`,
+   v=>v.set&&v.rows===4&&v.flip&&v.sync&&v.hasPlug&&v.hasReset&&v.saved&&v.plg4===4&&!v.bad);
+ await step('DOM 嵌套未破（自闭合改写不留游离标签）',`(function(){var ph=document.getElementById('phone');
+   var secs=[].slice.call(document.querySelectorAll('section.page'));
+   var outside=secs.filter(s=>!ph.contains(s)).map(s=>s.id);
+   var cards=[].slice.call(document.querySelectorAll('#p-kitsPlg .card'));
+   var boxOk=cards.some(c=>/包规范/.test(c.innerText)&&/拓展设置/.test(c.innerText));
+   var heroCards=[].slice.call(document.querySelectorAll('#p-tools > div')).length;
+   return {secs:secs.length,outside:outside.length,ids:outside.join(','),boxOk:boxOk,heroCards:heroCards}})()`,
+   v=>v.outside===0&&v.boxOk&&v.secs>=8);
  await step('文本 Base64 往返',`(function(){openTool('b64');b64Tab('xenc');$('#b64SrcTxt').value='中文 ABC 123 · 数据在手';b64TxtEnc();
    var enc=$('#b64TxtOut').value;$('#b64TxtIn').value=enc;b64Tab('xdec');b64TxtDec();var back=$('#b64TxtBack').value;
    $('#b64TxtIn').value='@@@非法@@@';b64TxtDec();var err=!$('#b64TxtErr').classList.contains('hidden');

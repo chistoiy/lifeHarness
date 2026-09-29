@@ -910,7 +910,9 @@ tailwind.config = {
         <div class="flex items-start justify-between">
           <div><div class="text-sm font-extrabold">小工具合集</div>
             <div class="text-[10px] opacity-80 mt-0.5">本地计算 · 离线可用 · 无广告</div></div>
-          <button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1 font-bold" onclick="openKitCfg()">数据位 ⇄</button>
+          <span class="flex gap-1.5 flex-shrink-0">
+            <button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1 font-bold" onclick="openKitCfg()">数据位 ⇄</button>
+            <button class="text-[10px] bg-white/20 rounded-full px-2.5 py-1 font-bold flex items-center gap-1" onclick="openSheet('sheetKitSet')">设置</button></span>
         </div>
         <div class="mt-3 grid grid-cols-4 gap-2 text-center" id="kitHeroSlots"></div>
         <div class="mt-3 grid grid-cols-4 gap-2" id="kitHeroFuncs">
@@ -1047,12 +1049,8 @@ tailwind.config = {
       <div id="plgCenterList" class="mt-3 space-y-2"></div>
       <div class="card mt-4">
         <div class="row-title">拓展设置</div>
-        <div class="mt-1 space-y-2 text-xs">
-          <div class="flex items-center justify-between py-1.5"><span class="flex-1 pr-3">自动扫描私有 <b>plugins/</b> 目录<div class="text-[9px] text-slate-400">启动时热加载符合规范的工具包</div></span><span class="toggle on" onclick="tgl(this);kitToastK('启动扫描已切换')"></span></div>
-          <div class="flex items-center justify-between py-1.5 border-t border-slate-100 dark:border-slate-800"><span class="flex-1 pr-3">Wi-Fi 下自动检查更新<div class="text-[9px] text-slate-400">每周一次 · 仅请求索引清单</div></span><span class="toggle" onclick="tgl(this);kitToastK('自动检查更新已切换')"></span></div>
+        <div id="kitPsetRows" class="mt-1 space-y-2 text-xs"></div>
           <div class="flex items-center justify-between py-1.5 border-t border-slate-100 dark:border-slate-800"><span class="flex-1 pr-3">安装前强制校验<div class="text-[9px] text-slate-400">SHA-256 哈希比对 + minisign 发布者签名</div></span><span class="font-bold text-emerald-500 text-[10px] px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-full">强制</span></div>
-          <div class="flex items-center justify-between py-1.5 border-t border-slate-100 dark:border-slate-800"><span class="flex-1 pr-3">插件列表随备份导出<div class="text-[9px] text-slate-400">换机恢复时按清单重装 · 数据各随其主</div></span><span class="toggle on" onclick="tgl(this);kitToastK('备份包含项已切换')"></span></div>
-        </div>
         <div class="mt-3 rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-[10px] leading-5 text-slate-500 dark:text-slate-400">
           <b class="text-slate-700 dark:text-slate-200">包规范</b>：manifest.json（id · name · semver · minHost · 权限声明 · sha256）+ UI Schema + JS 逻辑 + 资源，zip 打包<br>
           <b class="text-slate-700 dark:text-slate-200">索引</b>：GitHub Release 的 index.json 提供清单与 changelog<br>
@@ -2414,6 +2412,23 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 小工具专版 · 模块设置弹层（V1.47 验收轮3） ===== -->
+  <div id="sheetKitSet" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetKitSet')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">小工具设置</div>
+      <div class="text-[10px] text-slate-400 mt-0.5">本机生效 · 随应用备份导出</div>
+      <div id="kitSetRows" class="mt-3 space-y-2 text-xs"></div>
+      <div class="mt-4 rounded-xl bg-slate-100 dark:bg-slate-800 p-3 text-[10px] leading-5 text-slate-500 dark:text-slate-400">
+        设置只存本机 · 随应用备份导出；关闭「使用足迹随备份导出」后，换机恢复时足迹从零开始，收藏与编排仍会带回。
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="kitResetConfirm(this)">清空使用足迹</button>
+        <button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="closeSheet('sheetKitSet')">完成</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 小工具专版 · 沙箱运行弹层 ===== -->
   <div id="sheetKitSandbox" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetKitSandbox')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2661,6 +2676,7 @@ const KIT_ICOS={
  audit:'<path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M9 9.5h6M9 13h6M9 16.5h3.5"/>',
  txt:'<path d="M4.5 6h15M4.5 10.5h15M4.5 15h9"/>',
  cfg:'<circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.6a1.6 1.6 0 0 0 .33 1.77l.05.05a1.9 1.9 0 1 1-2.7 2.7l-.05-.05a1.6 1.6 0 0 0-1.77-.33 1.6 1.6 0 0 0-.97 1.47v.17a1.9 1.9 0 1 1-3.8 0v-.09a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.33l-.05.05a1.9 1.9 0 1 1-2.7-2.7l.05-.05a1.6 1.6 0 0 0 .33-1.77 1.6 1.6 0 0 0-1.47-.97H3.3a1.9 1.9 0 1 1 0-3.8h.09a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.33-1.77l-.05-.05a1.9 1.9 0 1 1 2.7-2.7l.05.05a1.6 1.6 0 0 0 1.77.33h.08a1.6 1.6 0 0 0 .97-1.47V3.3a1.9 1.9 0 1 1 3.8 0v.09a1.6 1.6 0 0 0 .97 1.47 1.6 1.6 0 0 0 1.77-.33l.05-.05a1.9 1.9 0 1 1 2.7 2.7l-.05.05a1.6 1.6 0 0 0-.33 1.77v.08a1.6 1.6 0 0 0 1.47.97h.17a1.9 1.9 0 1 1 0 3.8h-.09a1.6 1.6 0 0 0-1.47.97z"/>',
+ gear:'<circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.6M12 18.6v2.6M5.05 5.05l1.85 1.85M17.1 17.1l1.85 1.85M2.8 12h2.6M18.6 12h2.6M5.05 18.95l1.85-1.85M17.1 6.9l1.85-1.85"/>',
  _def:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 12h6"/>'};
 KIT_ICOS['plg-qr2']=KIT_ICOS['plg-qr'];
 function kitSvg(k){return '<svg class="kit-ico" viewBox="0 0 24 24" aria-hidden="true">'+(KIT_ICOS[k]||KIT_ICOS._def)+'</svg>'}
@@ -2680,6 +2696,22 @@ const KIT_METRICS={
  plug:{n:'已装插件',f:()=>PLUGINS.length},
  plugOn:{n:'启用插件',f:()=>PLUGINS.filter(p=>p.en).length},
  size:{n:'插件体积',f:()=>{const s=PLUGINS.reduce((a,p)=>a+p.size,0);return s>=1024?(s/1024).toFixed(1)+'M':s+'KB'}}};
+/* —— 模块设置（V1.47 验收轮3 · hero 卡「设置」入口） —— */
+function kitPset(){return (KITS.pset=Object.assign({scan:true,wifi:false,bakPlg:true,bakFoot:true},KITS.pset||{}))}
+function kitPsetLabel(k){return {scan:'自动扫描私有 <b>plugins/</b> 目录',wifi:'Wi-Fi 下自动检查更新',bakPlg:'插件列表随备份导出',bakFoot:'使用足迹随备份导出'}[k]||k}
+function kitPsetHint(k){return {scan:'启动时热加载符合规范的工具包',wifi:'每周一次 · 仅请求索引清单',bakPlg:'换机恢复时按清单重装 · 数据各随其主',bakFoot:'关闭后 .lhbak 不含足迹流水 · 收藏与编排仍导出'}[k]||''}
+function kitPsetRow(k,i,key){const on=!!kitPset()[k];const da=key?' data-pset="'+key+'"':'';
+ return '<div class="flex items-center justify-between py-1.5"'+(i?' border-t border-slate-100 dark:border-slate-800':'')+'><span class="flex-1 pr-3">'+kitPsetLabel(k)+'<div class="text-[9px] text-slate-400">'+kitPsetHint(k)+'</div></span><span class="toggle'+(on?' on':'')+'"'+da+'></span></div>'}
+function kitPsetToggle(k,el){const s=kitPset();s[k]=!s[k];KITS.pset=s;kitSave();
+ document.querySelectorAll('[data-pset="'+k+'"]').forEach(x=>x.classList.toggle('on',!!s[k]));
+ toast(kitPsetLabel(k).replace(/<[^>]+>/g,'')+(s[k]?' 已开启':' 已关闭'))}
+function renderKitPset(){const h=document.getElementById('kitPsetRows');
+ if(!window.__kitPsetWired){window.__kitPsetWired=1;[document.getElementById("kitSetRows"),document.getElementById("kitPsetRows")].forEach(function(c){if(c)c.addEventListener("click",function(e){var t=e.target.closest("[data-pset]");if(t)kitPsetToggle(t.dataset.pset,t)})});}
+ if(h)h.innerHTML=['scan','wifi','bakPlg','bakFoot'].map((k,i)=>kitPsetRow(k,i,k)).join('');
+ const s=document.getElementById('kitSetRows');
+ if(s)s.innerHTML=['scan','wifi','bakPlg','bakFoot'].map((k,i)=>kitPsetRow(k,i,k)).join('')
+  +'<div class="flex items-center justify-between py-1.5 border-t border-slate-100 dark:border-slate-800"><span class="flex-1 pr-3">插件中心<div class="text-[9px] text-slate-400">安装 · 更新 · 回滚 · 权限与审计</div></span><button class="mini-btn" onclick="closeSheet(&#39;sheetKitSet&#39;);navTo(&#39;p-kitsPlg&#39;)">前往 ›</button></div>'
+  +'<div class="flex items-center justify-between py-1.5 border-t border-slate-100 dark:border-slate-800"><span class="flex-1 pr-3">已装拓展<div class="text-[9px] text-slate-400">沙箱运行 · 默认无网络与用户数据</div></span><b class="text-[11px]">'+(KIT_METRICS.plug?KIT_METRICS.plug.f():0)+' 个</b></div>'}
 function kitSave(){try{localStorage.setItem(KIT_STORE,JSON.stringify(KITS))}catch(e){}}
 function kitDkey(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function kitRel(ts){const m=(Date.now()-ts)/6e4;if(m<1)return '刚刚';if(m<60)return Math.floor(m)+' 分钟前';
@@ -2727,7 +2759,7 @@ function renderKitRecentStrip(){const box=$('#kitRecentStrip');if(!box)return;
  const rs=KITS.recent.filter(k=>TOOL_REG[k]);box.classList.toggle('hidden',!rs.length);
  $('#kitRecentRow').innerHTML=rs.map(k=>`<button class="card !p-2.5 w-[74px] flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition" onclick="kitOpen('${k}')"><span class="text-lg leading-6">${kitSvg(k)}</span><span class="text-[9px] font-bold truncate w-full text-center">${TOOL_REG[k].nm}</span><span class="text-[8px] text-slate-400">${kitRel((KITS.log.filter(x=>x.k===k).pop()||{ts:0}).ts)}</span></button>`).join('')}
 function kitRenderHome(){if(!$('#kitCatChips'))return;
- renderKitHeroSlots();renderKitChips();renderKitFavRow();renderKitRecentStrip();
+ renderKitHeroSlots();renderKitChips();renderKitFavRow();renderKitRecentStrip();renderKitPset();
  const q=($('#kitSearch')&&$('#kitSearch').value.trim().toLowerCase())||'';
  /* V1.47 验收轮2：全分类合并成单一网格，每行稳定 5 枚；分类归属看筛选 chips */
  const items=[];
@@ -3334,7 +3366,7 @@ function setPage(p){
   if(p==='p-tools')kitRenderHome();
   if(p==='p-kitsMng')renderKitsMng();
   if(p==='p-kitsStats')renderKitsStats();
-  if(p==='p-kitsPlg')plgRenderCenter();
+  if(p==='p-kitsPlg'){plgRenderCenter();renderKitPset()}
   renderNav();renderFab();
 }
 function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
@@ -5428,7 +5460,7 @@ renderPwBar();
   else{setPage('p-tools');return}
   if(page==='p-kitsStats')renderKitsStats();
   if(page==='p-kitsMng')renderKitsMng();
-  if(page==='p-kitsPlg')plgRenderCenter();
+  if(page==='p-kitsPlg'){plgRenderCenter();renderKitPset()}
   if(page==='p-tools')kitRenderHome();
   if(page!=='p-toolDetail')window.scrollTo(0,0);
   console.log('[deeplink] '+page+(arg?' · '+arg:''));
