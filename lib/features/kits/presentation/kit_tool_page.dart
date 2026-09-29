@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../domain/kit_models.dart';
+import 'tools/kit_aiapi_page.dart';
 import 'tools/kit_b64_page.dart';
 import 'tools/kit_comp_page.dart';
 import 'tools/kit_datec_page.dart';
@@ -114,5 +115,6 @@ Widget? kitToolBody(String key) => switch (key) {
       kitToolKeyImgz => const KitImgzBody(),
       kitToolKeyB64 => const KitB64Body(),
       kitToolKeyTele => const KitTeleBody(),
+      kitToolKeyAiapi => const KitAiapiBody(),
       _ => null,
     };
