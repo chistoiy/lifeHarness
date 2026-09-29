@@ -5491,9 +5491,9 @@ function renderLset(){
   row('默认记账账户',`<button class="chip" onclick="openLedgerAcctPick(a=>{L.set.defAcct=a;renderLset();toast('默认账户已切换')})">${LA(L.set.defAcct)?.n||'选择'}</button>`)+
   row('记一笔保存后',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.afterSave==='back'?'seg-on':''}" onclick="L.set.afterSave='back';renderLset()">回流水页</button><button class="px-2.5 py-1 rounded-full ${L.set.afterSave==='stay'?'seg-on':''}" onclick="L.set.afterSave='stay';renderLset()">继续记录</button></div>`)+
   row('删除流水二次确认',`<span class="toggle ${L.set.confirmDel?'on':''}" onclick="L.set.confirmDel=!L.set.confirmDel;renderLset()"></span>`)+
-  row('预算月起始日',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===1?'seg-on':''}" onclick="L.set.monthStart=1;renderLset()">每月 1 日</button><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===15?'seg-on':''}" onclick="L.set.monthStart=15;renderLset();toast('预算与日均分配将按 15 日周期重算（演示）')">每月 15 日</button></div>`)+
-  row('预算超支提醒',`<span class="toggle on" onclick="tgl(this);toast('超支 80% / 100% 两档本地通知（演示）')"></span>`)+
-  row('月度小结推送',`<span class="toggle" onclick="tgl(this);toast('每月 1 日 09:00 本地推送（演示）')"></span>`)+
+  row('预算月起始日',`<div class="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5 text-[10px] font-bold"><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===1?'seg-on':''}" onclick="L.set.monthStart=1;renderLset()">每月 1 日</button><button class="px-2.5 py-1 rounded-full ${L.set.monthStart===15?'seg-on':''}" onclick="L.set.monthStart=15;renderLset();toast('预算与日均分配改按每月 15 日起算')">每月 15 日</button></div>`,'周期账单与预算提醒随之重排')+
+  row('预算超支提醒',`<span class="toggle on" onclick="tgl(this);toast(this.classList.contains('on')?'已开启 · 达 80% 与 100% 各提醒一次':'已关闭 · 不再发预算超支提醒')"></span>`,'支出达预算 80% / 100% 各一次 · 免打扰时段顺延')+
+  row('月度小结推送',`<span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'已开启 · 每月 1 日 09:00 推送':'已关闭 · 不再推月度小结')"></span>`,'每月 1 日 09:00 · 上月收支与分类 Top')+
   row('导入支付宝 / 微信账单',`<button class="chip" onclick="billGo()">五步向导 · 账户匹配 + 勾选导入 ›</button>`)+
   row('分类管理',`<button class="chip" onclick="navTo('p-cats')">两级分类 · 排序改名 ›</button>`)+
   row('角色管理',`<button class="chip" onclick="openWhoPick(true)">排序 · 改名 · 设默认 ›</button>`,`记一笔「角色」半屏同源数据 · 当前默认「${L.set.whoDef}」`)+
