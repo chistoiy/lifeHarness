@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../domain/kit_models.dart';
+import 'tools/kit_b64_page.dart';
 import 'tools/kit_comp_page.dart';
 import 'tools/kit_datec_page.dart';
 import 'tools/kit_dist_page.dart';
@@ -12,6 +13,7 @@ import 'tools/kit_ping_page.dart';
 import 'tools/kit_rand_page.dart';
 import 'tools/kit_ruler_page.dart';
 import 'tools/kit_speed_page.dart';
+import 'tools/kit_tele_page.dart';
 import 'tools/kit_wheel_page.dart';
 
 /// 工具屏容器（原型 `#p-toolDetail`）。
@@ -110,5 +112,7 @@ Widget? kitToolBody(String key) => switch (key) {
       kitToolKeyRuler => const KitRulerBody(),
       kitToolKeyDist => const KitDistBody(),
       kitToolKeyImgz => const KitImgzBody(),
+      kitToolKeyB64 => const KitB64Body(),
+      kitToolKeyTele => const KitTeleBody(),
       _ => null,
     };

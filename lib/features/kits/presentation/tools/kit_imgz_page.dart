@@ -5,16 +5,13 @@
 // 取图/解码/压缩/另存四个环节都留了静态缝，widget 测试注入假实现（禁真实异步 I/O）。
 // 参数落 `kit_tool_data.tool='imgz'`；WebP 无纯 Dart 编码器，选中只给「待接入」口径，
 // 不谎报格式。
-import 'dart:io' as io;
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
@@ -162,26 +159,12 @@ class KitImgz {
     return KitImgzResult(outW: w, outH: h, bytes: bytes);
   }
 
-  static Future<String?> _defaultSave(String fileName, Uint8List bytes) async {
-    try {
-      final picked = await FilePicker.platform.saveFile(
-        dialogTitle: '保存压缩结果',
+  static Future<String?> _defaultSave(String fileName, Uint8List bytes) =>
+      kitToolSaveBytes(
         fileName: fileName,
         bytes: bytes,
+        dialogTitle: '保存压缩结果',
       );
-      if (picked != null) return picked;
-    } catch (_) {
-      // 平台不支持系统另存 → 落应用文件目录。
-    }
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final f = io.File('${dir.path}/$fileName');
-      await f.writeAsBytes(bytes, flush: true);
-      return f.path;
-    } catch (_) {
-      return null;
-    }
-  }
 }
 
 /// 队列里的一项（首项=正在实时预览的那张）。

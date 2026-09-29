@@ -2,8 +2,12 @@
 // / `.inp` / `.card` 口径）。
 //
 // 命名一律 `kit-tool-*`，键值前缀由各屏自带。
+import 'dart:io' as io;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
@@ -202,4 +206,34 @@ void kitToolCopy(BuildContext context, String text, {String msg = '已复制'}) 
   }
   Clipboard.setData(ClipboardData(text: text));
   AppToast.show(context, msg);
+}
+
+/// 另存到本机（批3 起 imgz/b64 共用）：先走系统保存对话框，平台不支持时落
+/// 应用文件目录。取消或失败返回 null（调用方按「已取消」口径提示）。
+///
+/// 内部是**真异步 I/O**，只能在生产通道或 `tester.runAsync` 里执行；widget 测试
+/// 一律经各屏的 `save` 注入缝替换掉它。
+Future<String?> kitToolSaveBytes({
+  required String fileName,
+  required Uint8List bytes,
+  String dialogTitle = '保存到本机',
+}) async {
+  try {
+    final picked = await FilePicker.platform.saveFile(
+      dialogTitle: dialogTitle,
+      fileName: fileName,
+      bytes: bytes,
+    );
+    if (picked != null) return picked;
+  } catch (_) {
+    // 平台不支持系统另存 → 落应用文件目录。
+  }
+  try {
+    final dir = await getApplicationDocumentsDirectory();
+    final f = io.File('${dir.path}/$fileName');
+    await f.writeAsBytes(bytes, flush: true);
+    return f.path;
+  } catch (_) {
+    return null;
+  }
 }
