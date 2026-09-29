@@ -417,6 +417,12 @@
       <!-- R2⑤b：默认展示编辑态（协议置灰锁定）；经「添加服务」打开则解锁可切 -->
       <div class="kv" id="svcProvLockNote" style="margin-top:8px">编辑已建服务 · 协议已锁定 · 另一协议请走「添加服务」新建</div>
       <div id="svcForm"></div>
+      <!-- R7（缺口盘点批 #7）：verifyContent 的用户编辑入口＝服务级开关；三档仍由引擎自动降级 -->
+      <div class="row" style="border-bottom:none;padding:12px 0 0">
+        <span class="r-t">允许严格校验（MD5）<div class="r-s">逐文件下载算 MD5 比对 · 大文件多一轮下载 · 默认关</div></span>
+        <span class="toggle" id="tglVerify" onclick="tglVerify(this)"></span>
+      </div>
+
       <div style="display:flex;align-items:center;gap:6px;margin-top:12px">
         <span class="lock-dot"></span>
         <span class="kv">已存入保险箱 · sync_secret_{serviceId} · 明文侧 authCode 恒为空</span>
@@ -913,12 +919,27 @@ function toggleSame(){
   l.classList.toggle('hide');
   $('#sameCaret').textContent = l.classList.contains('hide') ? '展开 ▾' : '收起 ▴';
 }
+/* R7（缺口盘点批 #7）：严格 MD5 档由「服务配置 · 允许严格校验」开关放行；未开时只在字节数/强 ETag 间自动降级 */
+var svcVerify=false;
 function pickTier(el){
+  var strict = el.textContent.indexOf('严格 MD5')>-1;
+  if(strict && !svcVerify){ toast('严格校验未开启 · 在「服务配置」里打开「允许严格校验（MD5）」后可选'); return; }
   el.parentNode.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.remove('on'); });
   el.classList.add('on');
-  if(el.textContent.indexOf('严格 MD5')>-1) toast('严格 MD5 · 仅远端存在 32 位十六进制 ETag 时可选 · 默认关');
+  if(strict) toast('严格 MD5 · 逐文件下载比对 · 大文件多一轮下载');
   computeDiff();
 }
+function tglVerify(el){
+  svcVerify=!svcVerify; el.classList.toggle('on',svcVerify);
+  var seg=document.querySelectorAll('#s-diff .seg-btn');
+  if(!svcVerify && seg[2] && seg[2].classList.contains('on')){
+    seg[2].classList.remove('on'); seg[0].classList.add('on'); computeDiff();
+    toast('已关闭严格校验 · 差异对比退回「按字节数」');
+  } else {
+    toast(svcVerify?'已允许严格校验 · 差异对比可选「严格 MD5」':'已关闭严格校验 · 差异对比按字节数/强 ETag 自动降级');
+  }
+}
+
 
 /* ================= p-synchist ================= */
 var HIST = [

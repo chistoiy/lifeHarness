@@ -165,7 +165,8 @@ async function ready(names, maxMs) {
       msg:document.getElementById('tpMsg').textContent,
       listed:document.getElementById('tpList').children.length,
       name:D.trash[0].t};`);
-  await shot('t6_3_purge_confirm.png');
+  await ev(`var p=document.querySelector('#sheetTrashPurge .sheet-panel');if(p)p.scrollTop=p.scrollHeight;return{ok:1};`);
+  await wait(300); await shot('t6_3_purge_confirm.png');
   const c6 = await ev(`
     var name=${JSON.stringify(c6a.name)}, before=D.trash.length, todosBefore=D.todos.length;
     tpGo();
