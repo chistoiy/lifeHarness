@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/book.dart';
 import '../../domain/shelf_query.dart' show sessionAggByBook;
@@ -1047,12 +1047,12 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   '${s.paid} 本付费 · 已自动生成记账流水（L4）',
                   style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
                 ),
-                // 原型 4982「看账本」：/finance 路由未就绪 → 占位 toast。
+                // 原型 5501「查看账本」= navTo('p-finance')：真实跳记账主页。
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: GestureDetector(
                     key: const ValueKey('rs-fee-book'),
-                    onTap: () => readToast(context, '账本模块规划中（V1.x）'),
+                    onTap: () => context.go('/ledger'),
                     child: Text(
                       '看账本',
                       style: TextStyle(

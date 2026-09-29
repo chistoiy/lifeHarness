@@ -52,7 +52,7 @@ Future<String?> lPrompt(
 
 // ============ S4-lite 账户选择 ============
 
-/// 返回选中账户 id；底部「管理账户 ›」批2 前提示即将开放。
+/// 返回选中账户 id；底部「管理账户 ›」已接 `/ledger/assets`（批2 起为真实跳转）。
 Future<int?> showLAcctPick(
   BuildContext context, {
   String title = '选择账户',

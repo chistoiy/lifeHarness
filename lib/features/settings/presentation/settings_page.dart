@@ -17,7 +17,7 @@ import 'weather_city_sheet.dart';
 
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/主题/深色/底栏配置。
-/// 占位入口：数据与同步(M1)/提醒通知(M1)/AI(M3)/小工具(V1.x)/插件中心(M4)/主题市场/字号。
+/// 仍为占位入口：插件中心(M4)/主题市场/字号调节；数据与同步·提醒通知·AI·小工具均已上线。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 

@@ -30,7 +30,7 @@ class HabitActions {
   /// 负向「记一次触发」。
   final void Function(Habit h) trigger;
 
-  /// 宽限卡使用（批5 前占位）。
+  /// 宽限卡使用（批5 已实装 · 走 `repo.useFreeze`，见 habits_page 达成链）。
   final void Function(Habit h) freeze;
   final void Function(Habit h) archiveToggle;
 
