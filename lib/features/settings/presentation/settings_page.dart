@@ -178,7 +178,7 @@ class SettingsPage extends ConsumerWidget {
                     title: '小工具合集',
                     sub: '本地工具 · 插件拓展',
                     trailing: '',
-                    onTap: () => _toast(context, '小工具合集 · 敬请期待')),
+                    onTap: () => context.go('/kits')),
                 _EntryRow(
                     iconWidget: Icon(Icons.extension_outlined,
                     size: 18, color: const Color(0xFF6B7280)),

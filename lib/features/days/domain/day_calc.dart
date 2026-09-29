@@ -2,7 +2,7 @@
 library;
 
 import 'day_models.dart';
-import 'lunar.dart';
+import '../../../shared/calendar/lunar.dart';
 
 /// 自然日差（b − a，按零点日界）。
 int dayDiff(DateTime a, DateTime b) =>

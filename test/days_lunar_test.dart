@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:lifeharness/features/days/domain/lunar.dart';
+import 'package:lifeharness/shared/calendar/lunar.dart';
 
 /// 批1 · 农历换算回归（V1.42 模块11「每年（农历）· 自动逐年换算公历」）。
 /// 历表为纯数据高危件，以公开权威锚点钉死：春节/中秋/闰月。

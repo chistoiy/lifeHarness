@@ -21,6 +21,8 @@ enum NavModule {
   days('days', '日子', Icons.celebration_outlined, Icons.celebration, '/days'),
   // V1.42 批3：目标 OKR（专版 P10 · NAV_MODS p-goals 同位）。
   goals('goals', '目标', Icons.explore_outlined, Icons.explore, '/goals'),
+  // V1.47 模块14：小工具合集（原型 NAV_MODS「工具」栏同位 · 底栏栏目池可挂载）。
+  kits('kits', '工具', Icons.grid_view_outlined, Icons.grid_view, '/kits'),
   settings('settings', '我的', Icons.person_outline, Icons.person, '/settings');
 
   const NavModule(this.id, this.label, this.icon, this.iconActive, this.path);

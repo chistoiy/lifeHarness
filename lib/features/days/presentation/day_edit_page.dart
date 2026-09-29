@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/day_models.dart';
-import '../domain/lunar.dart';
+import '../../../shared/calendar/lunar.dart';
 import 'days_kit.dart';
 import 'days_providers.dart';
 

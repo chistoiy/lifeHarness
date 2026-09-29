@@ -10,6 +10,7 @@ import 'schema/core.dart' as c;
 import 'schema/days.dart' as d;
 import 'schema/goals.dart' as g;
 import 'schema/habit.dart' as h;
+import 'schema/kit.dart' as k;
 import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
 import 'schema/read.dart' as r;
@@ -20,7 +21,7 @@ class DbSchema {
   
   static const String fileName = 'lifeharness.db';
 
-  static const int version = 27;
+  static const int version = 28;
  
 
   
@@ -287,6 +288,7 @@ class DbSchema {
     ...goalSchemaStatements,
     ...doubanMetaSchemaStatements,
     ...aiCallSchemaStatements,
+    ...kitSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -361,7 +363,12 @@ class DbSchema {
   static const String tGoalPeriods = g.tGoalPeriods;  // G5: goals.dart
   static const String tDoubanMeta = r.tDoubanMeta;  // G5: read.dart
   static const String tAiCalls = a.tAiCalls;  // G5: ai.dart
+  static const String tKitUsage = k.tKitUsage;  // G5: kit.dart
+  static const String tKitLayout = k.tKitLayout;  // G5: kit.dart
+  static const String tKitToolData = k.tKitToolData;  // G5: kit.dart
+  static const String tKitPlugin = k.tKitPlugin;  // G5: kit.dart
   static const List<String> careTables = e.careTables;  // G5: care.dart
+  static const List<String> kitTables = k.kitTables;  // G5: kit.dart
   static const int ledgerCatOtherExpense = l.ledgerCatOtherExpense;  // G5: ledger.dart
   static const int ledgerCatOtherIncome = l.ledgerCatOtherIncome;  // G5: ledger.dart
   static const List<String> categorySeed = c.categorySeed;  // G5: core.dart
@@ -378,6 +385,7 @@ class DbSchema {
   static const List<String> bookTocSchemaStatements = r.bookTocSchemaStatements;  // G5: read.dart
   static final List<String> ledgerSchemaStatements = l.ledgerSchemaStatements;  // G5: ledger.dart
   static const List<String> careSchemaStatements = e.careSchemaStatements;  // G5: care.dart
+  static const List<String> kitSchemaStatements = k.kitSchemaStatements;  // G5: kit.dart
   static final Map<int, List<String>> migrations = {
     ...a.mig,
     ...e.mig,
@@ -385,6 +393,7 @@ class DbSchema {
     ...d.mig,
     ...g.mig,
     ...h.mig,
+    ...k.mig,
     ...m.mig,
     ...l.mig,
     ...r.mig,

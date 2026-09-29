@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
 import '../domain/day_models.dart';
-import '../domain/lunar.dart';
+import '../../../shared/calendar/lunar.dart';
 
 /// 日子模块仓储（仿 care/ledger 范式：单 Repository 直持 Database，loadAll 全域快照）。
 ///
