@@ -6,6 +6,7 @@ import '../domain/kit_models.dart';
 import 'tools/kit_comp_page.dart';
 import 'tools/kit_datec_page.dart';
 import 'tools/kit_dist_page.dart';
+import 'tools/kit_imgz_page.dart';
 import 'tools/kit_pick_page.dart';
 import 'tools/kit_ping_page.dart';
 import 'tools/kit_rand_page.dart';
@@ -108,5 +109,6 @@ Widget? kitToolBody(String key) => switch (key) {
       kitToolKeySpeed => const KitSpeedBody(),
       kitToolKeyRuler => const KitRulerBody(),
       kitToolKeyDist => const KitDistBody(),
+      kitToolKeyImgz => const KitImgzBody(),
       _ => null,
     };
