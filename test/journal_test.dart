@@ -318,6 +318,7 @@ void main() {
       await tester.tap(find.text('日记'));
       await tester.pumpAndSettle();
       expect(find.text('记录 · 日记'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮9g 筛选钮=切换钮右侧·底部浮层 全部/☐待办/标签 生效',
@@ -379,6 +380,7 @@ void main() {
       await tester.pumpAndSettle();
       final after = await jrepo.byDay(DateTime.now());
       expect(after!.liked, isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -408,6 +410,7 @@ void main() {
       expect(todos.map((t) => t.title), contains('整理评审纪要'));
       expect(todos.first.quadrant, Quadrant.q2);
       expect(todos.first.tag, '日记');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮12-6/8 头部=仅居中日期（当年 MM-DD 周几 · 跨年显年月日）·无篇序/字数/搜索',
@@ -446,6 +449,7 @@ void main() {
       await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey(), day: DateTime(2030, 1, 1))));
       await settle5(tester);
       expect(richCtl(tester).controller.document.toPlainText().trim(), isEmpty); // 新篇空白
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮12-1 今日概览草稿默认折叠·点标题行展开·插入正文进富文本', (tester) async {
@@ -463,6 +467,7 @@ void main() {
       await tester.pump();
       expect(richCtl(tester).controller.document.toPlainText(),
           contains('【今日概览 · 自动生成】'));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('V1.28 模板弹层：应用 KPT → 3 分节卡（仍纯文本）· 保存 toast 含节数',
@@ -684,6 +689,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1200));
       final e = await jrepo.byDay(DateTime.now());
       expect(e!.imagePaths, hasLength(1));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     /// 两条真 1×1 PNG + 一篇带图带待办的日记（INS/列表两用例共用装配）。
@@ -767,6 +773,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('jref-${e.id}')));
       await settle5(tester);
       expect(find.textContaining('本页关联 · ☑ 1 个待办同步'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -832,6 +839,7 @@ void main() {
       expect(await jrepo.open(e1.id!), isNull);
       expect(await jrepo.open(e2.id!), isNull);
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('13-3 INS 卡长按进多选·点卡切换勾选·✕退出', (tester) async {
@@ -856,6 +864,7 @@ void main() {
           warnIfMissed: false);
       await settle5(tester);
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -1106,6 +1115,7 @@ void main() {
       await settle5(tester);
       expect(find.text('天气'), findsOneWidget); // 空壳入口仍在
       expect(find.byKey(const ValueKey('diary-rich-editor')), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('2e-3b 有城市但无网：假 fetch 返回 null=静默，chip 空壳不写缓存',

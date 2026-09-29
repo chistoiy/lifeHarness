@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../core/logging/app_log.dart';
+
 /// 模块3 笔记条目（notes 表；M0 仅收集箱分流写入，M1 批1 开放编辑与管理）。
 class Note {
   const Note({
@@ -55,7 +57,8 @@ class Note {
         }
       }
       return sb.toString();
-    } catch (_) {
+    } catch (err) {
+      AppLog.add('笔记正文非 quill JSON，摘要回退原文：$err', level: LhLevel.warn);
       return content;
     }
   }

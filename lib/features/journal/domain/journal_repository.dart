@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../core/logging/app_log.dart';
 import '../data/journal_dao.dart';
 import '../domain/journal_entry.dart';
 
@@ -26,12 +27,16 @@ class JournalRepository {
   }
 
   /// 轮13：删除单篇 / 批量删除（编辑页与记录页长按多选共用）。
-  Future<void> remove(int id) => dao.remove(id);
+  Future<void> remove(int id) async {
+    await dao.remove(id);
+    AppLog.addKey('日记删除单篇：#$id');
+  }
 
   Future<void> removeAll(Iterable<int> ids) async {
     for (final id in ids) {
       await dao.remove(id);
     }
+    AppLog.addKey('日记批量删除：${ids.length} 篇（${ids.join('/')}）');
   }
 
   Future<List<JournalEntry>> month(DateTime any) => dao.range(
@@ -43,6 +48,9 @@ class JournalRepository {
   /// 结构化篇：分节写 journal_sections，content 存渲染快照（预览/☐/#标签仍可用）。
   Future<JournalEntry> save(JournalEntry e) async {
     final now = DateTime.now();
+    // 编辑页每次手动保存都会走这里（自动保存不写库），频率可控。
+    AppLog.addKey('日记保存落库：${e.id == null ? '新增一篇' : '更新 #${e.id}'} · '
+        '日 ${e.day.toString().substring(0, 10)} · 结构化=${e.structured}');
     final content = e.structured ? JournalEntry.renderSections(e.sections) : e.content;
     final base = e.copyWith(content: content);
     final tags = {...e.tags, ...base.hashTags()}.toList();

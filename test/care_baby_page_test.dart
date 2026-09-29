@@ -79,6 +79,7 @@ void main() {
     expect(find.text('妈妈 · 记录中 ›'), findsOneWidget);
     final d = await repo.loadAll();
     expect(d.currentBaby?.name, '团子');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('sheetBabySwitch：双宝列表 + 点选切换 + 记录人即时切换', (tester) async {
@@ -99,6 +100,7 @@ void main() {
     expect(d.currentBaby?.name, '糯米');
     expect(d.curCarer, '爸爸');
     expect(find.text('糯米'), findsWidgets);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('记录人规则：添加重名拦截 / 删除最后一个守卫', (tester) async {
@@ -119,6 +121,7 @@ void main() {
     }
     final last = (await repo.carers()).single;
     expect(await repo.delCarer(last.id), isNull); // 仓储层守卫
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('过敏史档案侧：搜索→选食→反应→确定；重复被拦', (tester) async {
@@ -153,6 +156,7 @@ void main() {
     await pollText(tester, '该食物已在过敏史中');
     await clearToasts(tester);
     expect((await repo.allergies(d.currentBaby!.id)).length, 1);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('删除档案：二次确认 + 至少保留一个', (tester) async {
@@ -176,5 +180,6 @@ void main() {
     await settle5(tester);
     await tester.tap(find.byKey(const ValueKey('ab-del')));
     await pollText(tester, '至少保留一个宝宝档案');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

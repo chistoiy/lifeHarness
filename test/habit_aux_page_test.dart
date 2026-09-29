@@ -89,6 +89,7 @@ void main() {
     // 余额 0 → 钮消失（原型条件 !ok && gl>0 && streak>0）
     await refresh(tester);
     expect(find.text('宽限 1'), findsNothing);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('负向卡「记一次触发」开弹层并落库', (tester) async {
@@ -113,6 +114,7 @@ void main() {
     final e = (await repo.entriesOf(h.id))[key(0)]!;
     expect(e.checked, isFalse);
     expect(h.isNeg, isTrue);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('字典管理弹层：改名 toast · 引用守卫 · 迁移并删除', (tester) async {
@@ -152,5 +154,6 @@ void main() {
     expect((await repo.habitById(h.id))!.cat, '学习');
     final cats = (await repo.dictOf(HabitDict.kCat)).map((c) => c.name);
     expect(cats, isNot(contains('体能')));
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

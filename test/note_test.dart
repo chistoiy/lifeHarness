@@ -258,6 +258,7 @@ void main() {
       await tester.tap(find.text('恢复'));
       await tester.pumpAndSettle();
       expect((await dao.trash()), isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('排序菜单三方式（当前项✓）与视图循环 列表→2→3→列表（轮9b 去4列·瀑布流）',
@@ -402,6 +403,7 @@ void main() {
       await tester.pump();
       await settle5(tester);
       expect((await dao.trash()).single.title, '滑动删除我');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('文件夹树抽屉：顶层新建→点选目录（不关抽屉）→在其下建子夹', (tester) async {
@@ -440,6 +442,7 @@ void main() {
       final g = folders.firstWhere((f) => f.name == '灵感');
       final w = folders.firstWhere((f) => f.name == '工作');
       expect(w.parentId, g.id);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -604,6 +607,7 @@ void main() {
       mutate(tester, (c) => c.read(noteViewColsProvider.notifier).state = 2);
       await tester.pumpAndSettle();
       expect(decoOf(n.id!).color, const Color(0xFF1E1D1B));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('专注段落：空段成段·输入空行拆段·聚焦默认开淡出其余（⋯ 可关）',
@@ -654,6 +658,7 @@ void main() {
       await tester.pumpAndSettle();
       final list = await dao.list();
       expect(list.single.content, '**克制**设计');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -727,6 +732,7 @@ void main() {
           .controller!;
       expect(ctl.text, startsWith('- [x] 回复邮件'));
       expect(ctl.text, contains('- [ ] 买菜')); // 只翻第 0 个
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('返回保存：未勾选任务行 → 新待办（q2·tag 笔记）；已勾选不建',
@@ -813,6 +819,7 @@ void main() {
       expect(after.map((e) => e.title), contains('正主（副本）'));
       expect(
           after.firstWhere((e) => e.title == '正主').content, '当前稿'); // 当前稿未动
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('每 +500 字 → 里程碑快照（不必等停输）', (tester) async {
@@ -824,6 +831,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1200));
       await tester.pump();
       expect(await dao.snapshotsOf(n.id!), hasLength(1));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('快照比当前稿完整 → 打开时草稿提醒 toast', (tester) async {
@@ -835,6 +843,7 @@ void main() {
           await pollText(tester,
               '有比当前更完整的快照（+13 字）· 可从版本快照恢复'),
           isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮9r：⋯ 标题行分享钮 → 分享弹层 导出TXT/Markdown/复制全文/以图片形式分享',
@@ -898,6 +907,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('note-back')));
       await settle5(tester);
       expect((await dao.byId(n.id!))!.content, '甲段乙段');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('段中有文本时退格不触发并段（正常删除）', (tester) async {
@@ -917,6 +927,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('note-para-1')), findsOneWidget);
       expect(ctl.text, '乙');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('记录管理页：五段分组渲染；nr-mode 行切换持久化', (tester) async {
@@ -942,6 +953,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('nr-mode')));
       await tester.pumpAndSettle();
       expect(find.text('直接替换正文'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮9k：LaTeX 公式渲染开关（笔记段·默认关·点击持久化 lh.note_latex）',
@@ -1017,6 +1029,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('note-rich-task')));
       await tester.pump();
       expect(jsonEncode(ctl.document.toDelta().toJson()), isNot(contains('"list"')));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('轮9j：⋯ 类型三 chip 直选 纯文本⇄MD⇄富文本（内容往返不丢·入口收进弹层）',
@@ -1106,6 +1119,7 @@ void main() {
               find.byKey(const ValueKey('note-rich-editor')))
           .controller;
       expect(ctl.document.toPlainText(), contains('更完整的旧稿共十九个字啦'));
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('插图：相册弹层→拷贝 note_images→Delta image 嵌入并落库',
@@ -1414,6 +1428,7 @@ void main() {
       await clearToasts(tester);
       await tester.pump(const Duration(seconds: 2)); // 自动保存
       expect((await dao.byId(n.id!))!.folder, '啊KKK');
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('10-7 kit 标题行：统计+分享钮贴右缘（Flexible 平分陷阱回归守护）',
@@ -1468,6 +1483,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.dragFrom(const Offset(400, 280), const Offset(-220, 0));
       expect(await pollText(tester, '⇄ 已切换 2/2 · 甲'), isTrue);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
 
@@ -1507,6 +1523,7 @@ void main() {
             isA<IconButton>(),
             reason: '$k 应为图标钮（轮11 恢复图标样式）');
       }
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('11-3 纯文本空稿先插图→图下即有可写段；末段图片重开也可写',

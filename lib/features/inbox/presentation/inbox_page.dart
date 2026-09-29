@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/ai/ai_review.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
@@ -58,6 +59,12 @@ class _InboxPageState extends ConsumerState<InboxPage> {
       ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1600)));
   }
 
+  /// 日志用摘要：只取前 16 字，避免整段原文进环形缓冲。
+  static String _brief(String s) =>
+      s.replaceAll(RegExp(r'\s+'), ' ').length > 16
+          ? '${s.replaceAll(RegExp(r'\s+'), ' ').substring(0, 16)}…'
+          : s.replaceAll(RegExp(r'\s+'), ' ');
+
   Future<void> _triage(InboxItem item, String target, {String? text}) async {
     final dao = ref.read(inboxDaoProvider);
     // 转化正文：AI 分流建议可带清洗后的 draft；手动/空白回落原文。
@@ -68,6 +75,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             Todo(title: src, quadrant: Quadrant.q2, tag: '收集箱'));
         await dao.route(item.id!, 'todo', t.id);
         ref.invalidate(todosProvider);
+        AppLog.addKey('收集箱分流→待办：#${t.id} 「${_brief(src)}」（原条 #${item.id}）');
         _toast('✅ 已转为待办（重要不紧急）· 可在四象限改判');
       case 'journal':
         final jrepo = ref.read(journalRepositoryProvider);
@@ -83,6 +91,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             updatedAt: now));
         await dao.route(item.id!, 'journal', saved.id);
         ref.invalidate(journalsProvider);
+        AppLog.addKey('收集箱分流→今晚日记：#${saved.id}（原条 #${item.id}）');
         _toast('📔 已插入今晚日记草稿');
       case 'note':
         final id = await ref.read(noteDaoProvider).insert(Note(
@@ -92,6 +101,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
             createdAt: now(),
             updatedAt: now()));
         await dao.route(item.id!, 'note', id);
+        AppLog.addKey('收集箱分流→笔记：#$id（原条 #${item.id}）');
         _toast('📝 已存为笔记（编辑器 M1 开放）');
       case 'excerpt':
         final rrepo = ref.read(readRepositoryProvider);
@@ -99,6 +109,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           ..sort((a, b) =>
               (b.lastReadAt ?? 0).compareTo(a.lastReadAt ?? 0));
         if (books.isEmpty) {
+          AppLog.add('收集箱分流→摘录被拒：书架无在读书目', level: LhLevel.warn);
           _toast('书架还没有书 · 先去阅读书架添加一本书');
           return;
         }
@@ -131,6 +142,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           updatedAt: nowMs,
         ));
         if (qid == null) {
+          AppLog.add('收集箱分流→摘录未入账（同书同句已存在）', level: LhLevel.warn);
           _toast('这条摘录已存在 · 未重复入账');
           return;
         }
@@ -138,6 +150,7 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         ref.read(readTickProvider.notifier).state++;
         // excerpt 分支在 switch 内提前 return——这里必须自行 invalidate，否则分流后未整理列表不刷新。
         ref.invalidate(inboxItemsProvider);
+        AppLog.addKey('收集箱分流→阅读摘录：#$qid · 书 $picked（原条 #${item.id}）');
         _toast('已存为阅读摘录（联动 L6）');
         return;
     }
@@ -255,6 +268,8 @@ class _InboxPageState extends ConsumerState<InboxPage> {
   Future<void> _dismiss(InboxItem item) async {
     await ref.read(inboxDaoProvider).remove(item.id!);
     ref.invalidate(inboxItemsProvider);
+    // 未落任何模块就删掉＝原文只存在于这一条里，事后想查必须有痕迹。
+    AppLog.addKey('收集箱条目直接删除：#${item.id} 「${_brief(item.rawText)}」');
     _toast('🗑 已删除');
   }
 

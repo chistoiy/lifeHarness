@@ -92,6 +92,7 @@ void main() {
     await tester.tap(undo);
     expect(await pollText(tester, '已撤销 ${key(1).substring(5)} 的补卡'), isTrue);
     expect((await repo.entriesOf(h.id)).containsKey(key(1)), isFalse);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('有量习惯：补记数值行随所选习惯出现并落库', (tester) async {
@@ -120,5 +121,6 @@ void main() {
     final e = (await repo.entriesOf(h.id))[key(1)]!;
     expect(e.value, 6);
     expect(habitOkAt((await repo.habitById(h.id))!, e), isTrue);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

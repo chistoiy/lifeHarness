@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note.dart';
@@ -797,7 +798,8 @@ Future<void> _shareAsImage(BuildContext context, String title, String body) asyn
     if (context.mounted) {
       AppToast.show(context, '已生成笔记图片卡片 · 存至 exports（系统分享面板规划 V1.x）');
     }
-  } catch (_) {
+  } catch (err) {
+    AppLog.add('笔记图片卡片生成失败：$err', level: LhLevel.error);
     if (context.mounted) AppToast.show(context, '生成图片失败 · 请重试');
   }
 }
@@ -872,7 +874,8 @@ Future<void> _writeExport(BuildContext pageCtx, BuildContext bc, String title,
     if (pageCtx.mounted) {
       AppToast.show(pageCtx, '已导出 $name');
     }
-  } catch (_) {
+  } catch (err) {
+    AppLog.add('笔记导出失败（$ext）：$err', level: LhLevel.error);
     if (pageCtx.mounted) AppToast.show(pageCtx, '导出失败 · 请重试');
   }
 }

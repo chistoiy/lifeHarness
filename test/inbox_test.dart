@@ -21,6 +21,8 @@ import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'helpers.dart';
+
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +96,7 @@ void main() {
       expect(find.text('买猫粮'), findsOneWidget);
       expect(find.text('未整理 · 1'), findsOneWidget);
       expect(find.text('⚡ 已秒记入收集箱'), findsOneWidget);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('→待办：建 q2 待办(tag=收集箱)并移出未整理', (tester) async {
@@ -109,6 +112,7 @@ void main() {
       expect(todos.single.quadrant, Quadrant.q2);
       expect(todos.single.tag, '收集箱');
       expect(await inbox.listPending(), isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('→日记：追加为今晚日记片段（📥 前缀）', (tester) async {
@@ -122,6 +126,7 @@ void main() {
       final e = await journalRepo.byDay(DateTime.now());
       expect(e!.content, contains('📥 今晚晚霞是橘粉色的'));
       expect(await inbox.listPending(), isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('→笔记：写入 notes 表 folder=收集箱；✕ 删除', (tester) async {
@@ -135,6 +140,7 @@ void main() {
       expect(notes.single.folder, '收集箱');
       expect(notes.single.title.endsWith('…'), isTrue); // 超 20 字截断
       expect(await inbox.listPending(), isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('✕ 删除：直接丢弃', (tester) async {
@@ -144,6 +150,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('tri-✕')));
       await tester.pumpAndSettle();
       expect(await inbox.listPending(), isEmpty);
+      await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 
     testWidgets('→摘录：无书提示条目保留；选书后落 book_quotes（origin=收集箱）',

@@ -95,6 +95,7 @@ void main() {
     // 睡眠/换尿布卡不出现
     expect(find.text('睡眠量'), findsNothing);
     expect(find.text('换尿布次数'), findsNothing);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('睡眠 tab 换肤：时长格式化 + 均值；尿布 tab 点阵图例', (tester) async {
@@ -109,6 +110,7 @@ void main() {
     expect(find.text('近7天平均每天 0.3次'), findsOneWidget); // 2/7
     expect(find.textContaining('嘘嘘+臭臭'), findsWidgets);
     expect(find.textContaining('砖红色、灰白色'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('全部 tab：筛选钮出现 → sheetBsFilter 只留睡眠', (tester) async {
@@ -131,6 +133,7 @@ void main() {
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     // 仅剩睡眠：奶卡 0 次
     expect(find.text('近7天平均每天 0 ml'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('参考表钮 → V1.x 接入 toast；筛选不筛选回落', (tester) async {
@@ -150,5 +153,6 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.text('近7天平均每天 39 ml'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

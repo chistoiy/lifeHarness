@@ -51,8 +51,7 @@ void main() {
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
-    await settle5(tester);
-    await drainLogTimer(tester); // 轴视图 watch todosProvider（本文件未挂待办仓储）→ 排空日志节流 Timer
+    await settle5(tester); // 内含排空 AppLog 节流 Timer（本文件未挂待办仓储 → 读取失败会落日志）
   }
 
   testWidgets('轴视图点已有块 → 打开与添加同款的统一编辑弹层', (tester) async {

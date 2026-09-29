@@ -86,6 +86,7 @@ void main() {
     expect(find.textContaining('71.0cm @ '), findsOneWidget);
     await tapK(tester, const ValueKey('gm-2'));
     expect(find.textContaining('Z 分数'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('sheetBabyMeasure：缺项拦截 → 补全入账 + toast', (tester) async {
@@ -115,6 +116,7 @@ void main() {
     expect(ms.first.rec, '爸爸');
     // 页面刷新后历史三行
     expect(find.text('06-19'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('跨带样本 → 预警文案出现', (tester) async {
@@ -126,6 +128,7 @@ void main() {
     await pumpPage(tester, const GrowthPage());
     expect(find.textContaining('下跨 4 条主百分位带'), findsOneWidget);
     expect(find.textContaining('不构成医疗建议'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('宝宝页缩略卡：无实测文案 → P/SD/Z 钮轮换 + 入口', (tester) async {
@@ -153,5 +156,6 @@ void main() {
     await tester.pump();
     await settle5(tester);
     expect(find.textContaining('2 次实测'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

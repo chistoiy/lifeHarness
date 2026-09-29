@@ -141,6 +141,7 @@ void main() {
     final all = find.byWidgetPredicate((w) =>
         w is Text && (w.data == '乙脑减毒 第1剂' || w.data == '麻腮风减毒 第1剂' || w.data == '手足口病灭活疫苗 第1剂'));
     expect(all, findsNWidgets(3));
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('完成钮 → done + L10 联动 toast；重新发起回落', (tester) async {
@@ -163,6 +164,7 @@ void main() {
     final y = d0.vaccines.firstWhere((v) => v.done);
     await tapK(tester, ValueKey('vax-cert-${y.id}'));
     await pollText(tester, '查看接种凭证照片（本地图档）');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('sheetVaxAdd：空名拦截 → 新建自费/提前3天 → 编辑删除', (tester) async {
@@ -193,6 +195,7 @@ void main() {
     await tapK(tester, const ValueKey('va-del'));
     await pollText(tester, '计划已删除');
     expect((await repo.vaccines(babyId)).map((v) => v.id), isNot(contains(p.id)));
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('里程碑页：汇总/双区/达成钮/空名拦截/编辑删除', (tester) async {
@@ -233,6 +236,7 @@ void main() {
     expect(find.text('编辑里程碑'), findsOneWidget);
     await tapK(tester, const ValueKey('ms-del'));
     await pollText(tester, '里程碑已删除');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('宝宝页迷你卡：疫苗 D-N / 里程碑 msSub + 入口跳转', (tester) async {
@@ -258,5 +262,6 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.textContaining('已达成 3 项'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

@@ -64,6 +64,7 @@ void main() {
     await useSurface(tester);
     await pump(tester);
     expect(find.text('全部为手动打卡 · 可绑定自动达成源'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('autoMode=0：pill 查看来源 → 达成源弹层含绑定数与说明', (tester) async {
@@ -78,6 +79,7 @@ void main() {
     expect(find.text('模拟一次自动达成'), findsNothing); // autoMode=0 隐藏
     await tester.tap(find.text('完成'));
     await settle5(tester);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('autoMode=1：待确认 pill → 队列逐条确认落 auto-todo 流水', (tester) async {
@@ -97,6 +99,7 @@ void main() {
     await clearToasts(tester);
     // 队列清空后弹层显示空态
     expect(find.text('没有待确认的自动打卡'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('达成源弹层（autoMode=1）：模拟一次自动达成 → 入待确认队列', (tester) async {
@@ -132,6 +135,7 @@ void main() {
     final ps = await repo.pends();
     expect(ps.length, 1);
     expect(await repo.entriesOf((await repo.allHabits()).first.id), isEmpty);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('模板库：编辑弹层「从模板填充」→ 选跑步带出周固定日', (tester) async {
@@ -168,6 +172,7 @@ void main() {
     // 回填断言：名称与单位控件已带出（提醒时刻为滚轮控件，不断言字面文本）
     expect(find.text('跑步'), findsWidgets);
     expect(find.text('公里'), findsWidgets);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('分享弹层：预览三数据位 + 复制文字版 toast', (tester) async {
@@ -216,5 +221,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('btn-hsh-copy')));
     expect(await pollText(tester, '文字版已复制'), true);
     expect(snap.copyText.contains('打卡 1 次 · 达成率 33% · 数值记录 1 条'), true);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

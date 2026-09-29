@@ -53,10 +53,7 @@ void main() {
     await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(home: DashboardPage())));
-    await settle5(tester);
-    // 未 override todoRepositoryProvider → 仪表盘 build 触发读取失败留痕（L3），
-    // 排空 AppLog 的 300ms 节流 Timer，否则收尾判「Timer still pending」。
-    await drainLogTimer(tester);
+    await settle5(tester); // 内含排空 AppLog 节流 Timer（未 override 待办仓储 → 读取失败会落日志）
   }
 
   /// 空态：倒数卡占位 + 持有成本 ¥0 + 0 件计费中。

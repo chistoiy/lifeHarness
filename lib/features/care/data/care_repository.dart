@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/care_events.dart';
 import '../domain/care_models.dart';
 import '../domain/cycle_calc.dart';
@@ -112,6 +113,8 @@ class CareRepository {
       }
       await tx.delete(DbSchema.tCareBabies, where: 'id = ?', whereArgs: [id]);
     });
+    // 删档是不可逆的级联清理，必须留一条「删了谁」的硬证据。
+    AppLog.addKey('呵护删档级联清理：宝宝 #$id（记录/测量/疫苗/里程碑/过敏 + 档案行）');
     final cur = await kvInt('care.curBaby', 0);
     if (cur == id) {
       final rest = await babies();
@@ -284,8 +287,11 @@ class CareRepository {
     return rows.map(CareRecord.fromRow).toList();
   }
 
-  Future<int> addLog(CareRecord r) =>
-      db.insert(DbSchema.tCareLogs, r.toRow());
+  Future<int> addLog(CareRecord r) async {
+    final id = await db.insert(DbSchema.tCareLogs, r.toRow());
+    AppLog.addKey('呵护记录落库：#$id 宝宝 ${r.babyId} · ${r.day} · 事件 ${r.k}');
+    return id;
+  }
 
   Future<void> updateLog(CareRecord r) async {
     final row = r.toRow()..remove('created_at')..remove('baby_id');
@@ -462,7 +468,9 @@ class CareRepository {
         'created_at': DateTime.now().millisecondsSinceEpoch,
       });
       return true;
-    } catch (_) {
+    } catch (e) {
+      // 同宝宝同食物唯一：重名会走到这里，UI 只提示一次，库里查不到就靠这条。
+      AppLog.add('呵护过敏项未写入（重名或异常）：$food · $e', level: LhLevel.warn);
       return false;
     }
   }

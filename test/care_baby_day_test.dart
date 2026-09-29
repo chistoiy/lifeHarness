@@ -195,6 +195,7 @@ void main() {
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.textContaining('全部'), findsOneWidget);
     expect(find.text('180ml'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('hero 数据位「喂养」→ 预置筛选进入全天记录', (tester) async {
@@ -209,6 +210,7 @@ void main() {
     expect(find.text('嘘嘘'), findsNothing); // 尿布不在喂养组
     expect(find.text('150ml'), findsOneWidget);
     expect(find.text('180ml'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('快速记录宫格（sheetEvPanel）→ 选事件开录入弹层', (tester) async {
@@ -227,6 +229,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.text('喝水'), findsWidgets); // 录入弹层标题=E事件名
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('行点按→二次编辑弹层；喂养分析钮走路由', (tester) async {
@@ -252,6 +255,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.text('汇总-STUB'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('筛选后无命中日 → 空态文案', (tester) async {
@@ -263,5 +267,6 @@ void main() {
     await tester.pump();
     expect(find.text('暂无该类型记录'), findsOneWidget);
     expect(find.text('今天'), findsNothing);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

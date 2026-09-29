@@ -52,6 +52,7 @@ void main() {
     expect(find.text('🩸 记录今天'), findsOneWidget);
     expect(find.text('今日感受'), findsOneWidget);
     expect(find.text('周期统计'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('日记录弹层闭环：标记经期第 1 天 → hero 出周期第 1 天 + 存档 toast',
@@ -90,6 +91,7 @@ void main() {
     await pollText(tester, '今日感受已存');
     final d = await repo.loadAll();
     expect(d.cycleDays[careDayKey(DateTime.now())]!.syms, ['⚡ 精力旺']);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('周期/宝宝点标题互切不堆栈：无返回钮、汇总钮仅宝宝侧',

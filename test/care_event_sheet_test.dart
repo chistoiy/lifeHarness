@@ -89,6 +89,7 @@ void main() {
     expect(d.logs.single.ml, 150);
     expect(d.titleOf(d.logs.single), '瓶喂母乳 150ml');
     expect(find.text('瓶喂母乳 150ml'), findsWidgets); // 今日列表行
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('尿布臭臭：砖红触发就医参考 toast；粘稠默认糊状', (tester) async {
@@ -106,6 +107,7 @@ void main() {
     expect(r.color, '砖红');
     expect(r.tex, '糊状');
     expect(r.vol, '中');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('补剂两行一次入账多条 + chips 快填', (tester) async {
@@ -122,6 +124,7 @@ void main() {
     final logs = await repo.logs(babyId);
     expect(logs.length, 2);
     expect(logs.map((r) => r.name), containsAll(['维生素D3', '钙']));
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('辅食+过敏二级弹层：命中带反应同步入过敏史', (tester) async {
@@ -148,6 +151,7 @@ void main() {
     expect(r.name, '蛋黄泥');
     expect(r.ala!.single.f, '蛋黄');
     expect(d.allergies.single.food, '蛋黄'); // 反应非空→同步入档
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('自定义录入流：按摩/次数/固定速记区 → 宫格新增该事件', (tester) async {
@@ -164,6 +168,7 @@ void main() {
     expect(d.customs.containsKey('cus:按摩'), isTrue);
     expect(d.evOrder.contains('cus:按摩'), isTrue);
     expect(find.text('按摩'), findsWidgets); // 速记宫格出现
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('二次编辑：改量后更新原行不新增；删除钮存在', (tester) async {
@@ -190,6 +195,7 @@ void main() {
     final logs = await repo.logs(babyId);
     expect(logs.length, 1);
     expect(logs.single.ml, 210);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('亲喂编辑：默认手动模式回填 seg + 最后使用提示', (tester) async {
@@ -213,6 +219,7 @@ void main() {
     expect(find.text('时长 14min（左8′/右6′）'), findsOneWidget);
     expect(find.text('手动输入'), findsOneWidget);
     expect(find.byKey(const ValueKey('el-nl')), findsOneWidget); // 手动双滚轮
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('速记区排序：⇅ 进入 → ▼ 移位 → 完成落库', (tester) async {
@@ -227,6 +234,7 @@ void main() {
     final d = await repo.loadAll();
     expect(d.evOrder.first, 'bmilk');
     expect(d.evOrder[1], 'nurse');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('事件管理新建自定义（evf）→ 速记区与档案联动', (tester) async {
@@ -247,6 +255,7 @@ void main() {
     await clearToasts(tester);
     final d = await repo.loadAll();
     expect(d.customs['cus:抚触']?.unit, 'min');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('计时条：start → 卡内出现 → end 自动入账（不 pumpAndSettle）',

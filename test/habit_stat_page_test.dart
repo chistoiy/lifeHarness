@@ -76,6 +76,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('hs-prev')));
     await settle5(tester);
     expect(find.text('第 1 期前'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('口径开关：日均分母按开始跟踪日 vs 按周期天数', (tester) async {
@@ -98,6 +99,7 @@ void main() {
     await pump(tester);
     expect(find.text('按周期天数'), findsOneWidget);
     expect(find.text('0.3'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('统计范围收窄 + 展开更多：时段/热力三模式', (tester) async {
@@ -133,5 +135,6 @@ void main() {
     expect(find.text('习惯排行'), findsOneWidget);
     expect(find.text('负向控制'), findsOneWidget);
     expect(find.text('连续纪录墙'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

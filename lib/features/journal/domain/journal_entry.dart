@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../core/logging/app_log.dart';
 import 'note.dart';
 
 /// 心情常量（原型 moodRow 7 表情；mood 值 1~7，null=未记录）。
@@ -92,7 +93,11 @@ class JournalEntry {
                 (op['insert'] as Map)['image'] as String,
           ];
         }
-      } catch (_) {/* 非 JSON 回退语法扫描 */}
+      } catch (err) {
+        // 解不开就按 Markdown 扫：图片引用可能漏判，「图片没进回收站」类问题看这条。
+        AppLog.add('日记正文非 quill JSON，回退语法扫描：$err',
+            level: LhLevel.warn);
+      }
     }
     return RegExp(r'!\[[^\]]*\]\(([^)]*)\)')
         .allMatches(content)
@@ -170,7 +175,8 @@ class JournalEntry {
     try {
       final l = jsonDecode(raw);
       return l is List ? l.map((e) => '$e').toList() : const [];
-    } catch (_) {
+    } catch (err) {
+      AppLog.add('日记标签非 JSON，按逗号拆分兜底：$err', level: LhLevel.warn);
       return raw.split(',').where((e) => e.isNotEmpty).toList();
     }
   }

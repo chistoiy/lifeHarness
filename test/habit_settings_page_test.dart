@@ -64,6 +64,7 @@ void main() {
     expect(find.text('影响统计口径 · 提醒与日历分列 · 本机生效'), findsOneWidget);
     expect(find.text('恢复默认设置'), findsOneWidget);
     expect(find.text('设置仅作用于习惯模块'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('分段「周日」写入 habit.weekStart=1 并 toast 名称', (tester) async {
@@ -73,6 +74,7 @@ void main() {
     expect(await pollText(tester, '已更新设置 · 周起始日'), true);
     expect(await repo.kvInt('habit.weekStart', 0), 1);
     await clearToasts(tester);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('开关「允许提醒」关闭写 KV（提醒静默口径）', (tester) async {
@@ -82,6 +84,7 @@ void main() {
     expect(await pollText(tester, '已更新设置 · 允许提醒'), true);
     expect(await repo.kvBool('habit.remindAll', true), false);
     await clearToasts(tester);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('恢复默认：口径/提醒/周起始日回初始，宽限与自动方式不动', (tester) async {
@@ -98,6 +101,7 @@ void main() {
     expect(await repo.kvInt('habit.grace', 1), 3); // 原型 hbSetReset 不含 grace
     expect(await repo.kvInt('habit.autoMode', 0), 1);
     await clearToasts(tester);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('宽限档位切换即刻影响 grace KV（主页余额随 tick 重取）', (tester) async {
@@ -107,5 +111,6 @@ void main() {
     expect(await pollText(tester, '已更新设置 · 每月宽限次数'), true);
     expect(await repo.kvInt('habit.grace', 1), 2);
     await clearToasts(tester);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

@@ -86,6 +86,7 @@ void main() {
     // 日历今日格 → 指引 toast
     await tester.tap(find.byKey(ValueKey('hd-cal-${key(0)}')));
     expect(await pollText(tester, '今天请在卡片上打卡或记量'), isTrue);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('负向详情：触发统计/情境分布/明细删除', (tester) async {
@@ -110,6 +111,7 @@ void main() {
     await tester.tap(find.byKey(ValueKey('hd-slip-del-1')));
     expect(await pollText(tester, '已删除该条触发记录'), isTrue);
     expect(await repo.slipsOf(h.id), isEmpty);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('组习惯详情：组内子项卡与达成规则文案', (tester) async {
@@ -131,5 +133,6 @@ void main() {
     expect(find.text('达成规则：过半子项达标'), findsOneWidget);
     expect(find.text('子项分别统计'), findsOneWidget);
     expect(find.text('编辑子项'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/habit.dart';
 import '../domain/habit_calc.dart';
 import '../domain/habit_dict.dart';
@@ -215,6 +216,8 @@ class HabitRepository {
   }) async {
     final today = dayKey(DateTime.now());
     if (day.compareTo(today) > 0) {
+      AppLog.add('习惯未来日写入被拒（时钟防护）：$day > $today',
+          level: LhLevel.warn);
       throw ArgumentError('未来日不可写入（时钟防护）：$day > $today');
     }
     await db.transaction((txn) async {
@@ -274,7 +277,11 @@ class HabitRepository {
       }
     });
     await _touchWatermark(day);
-    await recomputeStats(habitId);
+    final stats = await recomputeStats(habitId);
+    // 一次打卡＝一条留痕，且把结算值直接写进行文：事后不必再翻流水重算。
+    AppLog.addKey('习惯落账：$habitId · $day · checked=${checked ?? '不改'} '
+        'value=${clearValue ? '清空' : (value ?? '不改')} · origin=$origin '
+        '· 结算 streak=${stats.$1}/best=${stats.$2}');
   }
 
   /// 撤销某日流水（打卡按钮二次点 / 流水垃圾桶 / 补卡记录删除共用）。
@@ -298,7 +305,8 @@ class HabitRepository {
         whereArgs: [old.first['id']],
       );
     });
-    await recomputeStats(habitId);
+    final stats = await recomputeStats(habitId);
+    AppLog.addKey('习惯撤销流水：$habitId · $day · 结算 streak=${stats.$1}/best=${stats.$2}');
   }
 
   /// 补记流水条数（hero「补卡 N」徽标 · 原型 h.bf 计数）。
@@ -411,6 +419,9 @@ class HabitRepository {
       'note': note,
       'created_at': DateTime.now().millisecondsSinceEpoch,
     });
+    // 落账行已由 upsertEntry 出，这里只补「触发」这层语义（负向习惯的主数据）。
+    AppLog.addKey('习惯触发登记：$habitId · $day · 量=${amount ?? amountText ?? '-'} '
+        '原因=${reasons.join('/')}');
   }
 
   /// 触发记录（新→旧）。
@@ -482,7 +493,9 @@ class HabitRepository {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
-    await recomputeStats(h.id);
+    final stats = await recomputeStats(h.id);
+    AppLog.addKey('习惯用宽限抵签：${h.id} · $day · frozen 只保连续不算达成 '
+        '· 结算 streak=${stats.$1}/best=${stats.$2}');
   }
 
   Future<List<String>> freezesOf(String habitId) async => [
@@ -728,6 +741,8 @@ class HabitRepository {
           ? null
           : _hhmm(DateTime.fromMillisecondsSinceEpoch(at)),
     );
+    AppLog.addKey('习惯待确认达成入账：pend#${p['id']} · ${p['habit_id']} · '
+        '${p['day']} · 来源=${p['src']}（落账行随后）');
   }
 
   /// 忽略一条待确认达成（只出队，不落流水）。

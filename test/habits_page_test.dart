@@ -97,6 +97,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('＋ 新建习惯'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('12 条混合样例三视图渲染无溢出', (tester) async {
@@ -126,6 +127,7 @@ void main() {
     expect(find.text('本周达成'), findsWidgets);
     // 偏好落 settings KV
     expect(await repo.kv('habit.view'), 'grid');
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('无量正向：打卡→toast→流水行；再点撤销', (tester) async {
@@ -144,6 +146,7 @@ void main() {
     await settle5(tester);
     expect(await pollText(tester, '已撤销今日打卡'), isTrue);
     expect(Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM habit_entries')), 0);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('有量正向：打卡并记量弹层保存并打卡', (tester) async {
@@ -160,6 +163,7 @@ void main() {
     final e = (await repo.entriesOf((await repo.allHabits()).first.id))[dayKey(DateTime.now())]!;
     expect(e.value, 8);
     expect(e.checked, isTrue);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('组卡 all 规则未达 → 说明 toast 且不落库', (tester) async {
@@ -178,6 +182,7 @@ void main() {
     await settle5(tester);
     expect(await pollText(tester, '未达组内达成条件（0/2 项达标）· 可改为「任一即达成」'), isTrue);
     expect((await repo.entriesOf(h.id)).length, 0);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('负向：今天没做落流水 checked=1；记一次触发弹层落 slip 并断连', (tester) async {
@@ -204,6 +209,7 @@ void main() {
     expect(e1.checked, isFalse);
     expect(await repo.slipsOf(h.id), hasLength(1));
     expect((await repo.habitById(h.id))!.streak, 0);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('回看模式：‹ 回退一天出提示、动作区替换', (tester) async {
@@ -217,6 +223,7 @@ void main() {
     expect(find.text('昨天 · ${dayKey(DateTime.now().subtract(const Duration(days: 1))).substring(5)} 周${'一二三四五六日'[DateTime.now().subtract(const Duration(days: 1)).weekday - 1]}'), findsOneWidget);
     expect(find.text('回看模式 · 修改这天请用「补卡」'), findsOneWidget);
     expect(find.text('打卡'), findsNothing);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('日期速览弹层打开/月历/关闭', (tester) async {
@@ -234,6 +241,7 @@ void main() {
     expect(find.text('先选习惯 · 再点日期，可跨月补记'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('btn-hbf-save')));
     expect(await pollText(tester, '先选要补记的日期'), isTrue);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('新建表单：无名校验 → 填写保存入列', (tester) async {
@@ -254,6 +262,7 @@ void main() {
     final hs = await repo.allHabits();
     expect(hs.single.name, '背单词');
     expect(hs.single.startDate, dayKey(DateTime.now()));
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('筛选：负向下拉只剩负向', (tester) async {
@@ -269,6 +278,7 @@ void main() {
     expect(find.text('奶茶'), findsOneWidget);
     expect(find.text('晨跑'), findsNothing);
     expect(find.text('显示 1 / 2'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 
   testWidgets('hero 计数与全部达成横幅', (tester) async {
@@ -282,5 +292,6 @@ void main() {
     await refresh(tester);
     expect(find.text('1/2'), findsOneWidget);
     expect(find.text('今日进行中'), findsOneWidget);
+    await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 }

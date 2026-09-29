@@ -12,7 +12,16 @@ import 'package:lifeharness/core/ai/ai_review.dart' show aiRootNavKey;
 /// Flutter 文本不进 uiautomator dump，逐屏取证用 `adb exec-out screencap -p`。
 
 /// 全 app 场景 pumpAndSettle 可能不收敛：5s 上限快速失败并暴露现场。
-Future<void> settle5(WidgetTester tester) => tester.pumpAndSettle(
+/// 收尾顺带排空 AppLog 的节流 Timer（L3/L4 起，页面读写会落日志，FakeAsync 下
+/// 不显式推进就判「A Timer is still pending」）。要「只推帧不推时间」的场合
+/// 直接用手写 `pumpAndSettle` 或 [settleFrames]。
+Future<void> settle5(WidgetTester tester) async {
+  await settleFrames(tester);
+  await drainLogTimer(tester);
+}
+
+/// 只推帧、不动节流定时器（极少数对时间推进敏感的用例用）。
+Future<void> settleFrames(WidgetTester tester) => tester.pumpAndSettle(
     const Duration(milliseconds: 50), EnginePhase.sendSemanticsUpdate,
     const Duration(seconds: 5));
 
