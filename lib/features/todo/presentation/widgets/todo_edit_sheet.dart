@@ -622,7 +622,12 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                           DropdownMenuItem(
                               value: 3,
                               child: Text(
-                                  '提醒 · 当天 ${_remindAt.hour.toString().padLeft(2, '0')}:${_remindAt.minute.toString().padLeft(2, '0')}',
+                                  // 菜单里必须写「自定义时间…」（原型 ntRemind 第二项同字面）；
+                                  // 之前跟着当前时刻显示成「提醒 · 当天 09:00」，与第一项同字面，
+                                  // 真机反馈看着像重复项、点下去才知道是自定义。选中后才显具体时刻。
+                                  _remind == 3
+                                      ? '提醒 · 当天 ${_remindAt.hour.toString().padLeft(2, '0')}:${_remindAt.minute.toString().padLeft(2, '0')}'
+                                      : '提醒 · 自定义时间…',
                                   style: const TextStyle(fontSize: 12))),
                           const DropdownMenuItem(value: 2, child: Text('提醒 · 提前1小时', style: TextStyle(fontSize: 12))),
                           const DropdownMenuItem(value: 0, child: Text('提醒 · 不提醒', style: TextStyle(fontSize: 12))),

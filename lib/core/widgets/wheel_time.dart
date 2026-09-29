@@ -28,17 +28,17 @@ class _InlineWheelTimeState extends State<InlineWheelTime> {
   // 每次拿到新 delegate（与 time_pick_sheet 的约定一致）。用 List.generate
   // 而非手写三段式 for 推导——空增量在推导里是静默无限循环（见 R4 守护）。
   static final List<int> _hours = List.generate(24, (i) => i);
-  static final List<int> _minutes = List.generate(12, (i) => i * 5);
+  static final List<int> _minutes = List.generate(60, (i) => i);
 
   late final FixedExtentScrollController _hCtl =
       FixedExtentScrollController(initialItem: widget.initial.hour);
   late final FixedExtentScrollController _mCtl = FixedExtentScrollController(
-      initialItem: (widget.initial.minute / 5).round().clamp(0, 11));
+      initialItem: widget.initial.minute.clamp(0, 59));
   late final ValueNotifier<int> _hSelN = ValueNotifier<int>(widget.initial.hour);
-  late final ValueNotifier<int> _mSelN = ValueNotifier<int>(
-      (widget.initial.minute / 5).round().clamp(0, 11));
+  late final ValueNotifier<int> _mSelN =
+      ValueNotifier<int>(widget.initial.minute.clamp(0, 59));
   late int _h = widget.initial.hour;
-  late int _m = (widget.initial.minute / 5).round().clamp(0, 11) * 5;
+  late int _m = widget.initial.minute.clamp(0, 59);
   int _lastEmitted = -1;
 
   @override
@@ -78,7 +78,7 @@ class _InlineWheelTimeState extends State<InlineWheelTime> {
                   color: scheme.onSurface)),
           Expanded(
               child: _wheel(_minutes, _mCtl, _mSelN, (i) {
-            _m = i * 5;
+            _m = i;
             _emit();
           })),
         ],
