@@ -48,15 +48,30 @@ class KitTool {
 
 /// 13 个内置工具（顺序=原型「全部工具」网格默认序）。
 const List<KitTool> kKitTools = [
+  // 网络两件是「模拟网络层」（交棒话术 §三.1）：页脚必须与其余本机工具的
+  // 「本地计算」口径区分开，否则用户以为真发了请求。
   KitTool(
     key: 'ping',
     name: 'Ping 工具',
     cat: KitCat.network,
     icon: Icons.network_ping,
+    privacy: '模拟网络层 · 不发真实请求',
   ),
-  KitTool(key: 'speed', name: '网络测速', cat: KitCat.network, icon: Icons.speed),
+  KitTool(
+    key: 'speed',
+    name: '网络测速',
+    cat: KitCat.network,
+    icon: Icons.speed,
+    privacy: '模拟网络层 · 不发真实请求',
+  ),
   KitTool(key: 'ruler', name: '尺子', cat: KitCat.length, icon: Icons.straighten),
-  KitTool(key: 'dist', name: '测距', cat: KitCat.length, icon: Icons.route),
+  KitTool(
+    key: 'dist',
+    name: '测距',
+    cat: KitCat.length,
+    icon: Icons.route,
+    privacy: '本地计算 · 地图为模拟网格 · 抓包 0 请求',
+  ),
   KitTool(
     key: 'wheel',
     name: '轮盘抽签',
@@ -109,6 +124,14 @@ const String kitToolKeyRand = 'rand';
 const String kitToolKeyWheel = 'wheel';
 const String kitToolKeyPick = 'pick';
 const String kitToolKeyComp = 'comp';
+const String kitToolKeyPing = 'ping';
+const String kitToolKeySpeed = 'speed';
+const String kitToolKeyRuler = 'ruler';
+const String kitToolKeyDist = 'dist';
+const String kitToolKeyImgz = 'imgz';
+const String kitToolKeyB64 = 'b64';
+const String kitToolKeyTele = 'tele';
+const String kitToolKeyAiapi = 'aiapi';
 
 /// hero 数据位候选（原型 `KIT_METRICS` 八项；配置弹层从中选四枚）。
 enum KitMetric {

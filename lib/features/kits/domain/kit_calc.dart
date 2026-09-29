@@ -112,3 +112,27 @@ String kitKbText(int kb) {
   if (kb < 1024) return '${kb.round()}KB';
   return '${(kb / 1024).toStringAsFixed(1)}M';
 }
+
+/// 字节 → 可读体积（原型 `kitKB(n)`：B / KB（<10KB 留一位小数））。
+String kitBytesText(int bytes) {
+  if (bytes < 1024) return '${bytes}B';
+  final kb = bytes / 1024;
+  return '${kb.toStringAsFixed(bytes < 10240 ? 1 : 0)}KB';
+}
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+/// 日期键 `YYYY-MM-DD`（原型 `kitDkey`）。
+String kitDateKey(int ts) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ts);
+  return '${d.year}-${_two(d.month)}-${_two(d.day)}';
+}
+
+/// `MM-DD`（原型 `kitDkey(ts).slice(5)`；测速历史行首）。
+String kitMonthDay(int ts) => kitDateKey(ts).substring(5);
+
+/// `HH:MM` 24 小时制（原型 `toTimeString().slice(0,5)`；AI 验证记录行首）。
+String kitHourMinute(int ts) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ts);
+  return '${_two(d.hour)}:${_two(d.minute)}';
+}

@@ -137,6 +137,7 @@ class KitToolNumberField extends StatefulWidget {
     this.width = 76,
     this.min = 0,
     this.max = 999999,
+    this.keyName,
   });
 
   final int value;
@@ -144,6 +145,9 @@ class KitToolNumberField extends StatefulWidget {
   final double width;
   final int min;
   final int max;
+
+  /// 内部 TextField 的键（用例直接 find 输入框；命名沿用各屏前缀）。
+  final String? keyName;
 
   @override
   State<KitToolNumberField> createState() => _KitToolNumberFieldState();
@@ -171,6 +175,9 @@ class _KitToolNumberFieldState extends State<KitToolNumberField> {
   Widget build(BuildContext context) => SizedBox(
         width: widget.width,
         child: TextField(
+          key: widget.keyName == null
+              ? null
+              : ValueKey<String>(widget.keyName!),
           controller: _c,
           keyboardType: TextInputType.number,
           style: const TextStyle(fontSize: 12),
