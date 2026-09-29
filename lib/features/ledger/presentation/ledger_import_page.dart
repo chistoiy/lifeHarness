@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/bill_parser.dart';
@@ -109,6 +110,8 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
         return;
       }
       if (res.rows.isEmpty) {
+        AppLog.add('账单导入：$_fileName 解析到 0 条可导入流水'
+            '（规则过滤 ${res.skipped} 条）', level: LhLevel.warn);
         _toast('解析到 0 条可导入流水');
         return;
       }
@@ -146,6 +149,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
         };
         _step = 3;
       });
+      AppLog.addKey('账单导入预览：文件 $_fileName · 平台 ${res.platform} · '
+          '${rows.length} 条（重复命中 ${rows.where((p) => p.dup).length}）· '
+          '付款方式 ${_agg.length} 组');
       _toast('解析完成：${rows.length} 条 · 重复命中 ${rows.where((p) => p.dup).length} 条');
       return;
     }
@@ -243,6 +249,11 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       newAccounts: newAccts,
       rows: specs,
     );
+    // 批次 id 只在这里落日志：页面没有「撤销本批」入口（原型无该行，见 set 页注释），
+    // 真机要追某批导入只能从这条 key 行起查。
+    AppLog.addKey('账单导入落库：批次 ${res.batchId} · 平台 $_plat · '
+        '写入 ${res.written}/${specs.length} 条 · 新建账户 ${newAccts.length} 个'
+        '（$_fileName）');
     ledgerTouch(ref);
     setState(() {
       _written = res.written;
@@ -524,7 +535,8 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     if (bytes == null && f.path != null) {
       try {
         bytes = await File(f.path!).readAsBytes();
-      } catch (_) {
+      } catch (e) {
+        AppLog.add('账单文件读取失败（${f.name}）：$e', level: LhLevel.warn);
         bytes = null;
       }
     }

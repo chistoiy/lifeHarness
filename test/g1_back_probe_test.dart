@@ -5,6 +5,8 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/theme/theme_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'helpers.dart';
+
 Future<void> settle(WidgetTester tester) => tester.pumpAndSettle(
     const Duration(milliseconds: 50), EnginePhase.sendSemanticsUpdate,
     const Duration(seconds: 5));
@@ -23,6 +25,7 @@ void main() {
       child: const LifeHarnessApp(),
     ));
     await settle(tester);
+    await drainLogTimer(tester); // 仪表盘 build 触发 todosProvider 读失败留痕 → 排空 AppLog 节流 Timer
 
     final popResult = await tester.binding.handlePopRoute();
     await tester.pump(); // 触发 onPopInvokedWithResult

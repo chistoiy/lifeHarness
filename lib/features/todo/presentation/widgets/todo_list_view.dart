@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/todo.dart';
@@ -222,6 +223,9 @@ class TodoListView extends ConsumerWidget {
                     for (final t in escalate) {
                       await repo.moveQuadrant(t, Quadrant.q1);
                     }
+                    // 一次改多条，留「改了哪些 id」才可能事后逐条核对。
+                    AppLog.addKey('待办一键升紧急：${escalate.length} 项 重要不紧急→重要且紧急 '
+                        '（id ${escalate.map((t) => t.id).join('/')}）');
                     ref.invalidate(todosProvider);
                     ref.invalidate(overdueCountProvider);
                     if (!context.mounted) return;

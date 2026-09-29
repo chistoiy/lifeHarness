@@ -10,6 +10,8 @@ import 'dart:convert' show LineSplitter, utf8;
 import 'package:enough_convert/gbk.dart';
 import 'package:spreadsheet_decoder/spreadsheet_decoder.dart';
 
+import '../../../core/logging/app_log.dart';
+
 class BillRow {
   const BillRow({
     required this.date,
@@ -186,7 +188,14 @@ BillParseResult? parseBillText(String text, {bool skipNonSpend = true}) {
       status: status,
     ));
   }
-  if (platform == null) return null;
+  if (platform == null) {
+    // 表头认不出＝这批一行都进不来，必须留痕（真机「导入无反应」类反馈看这里）。
+    AppLog.add('账单解析：${lines.length} 行里未识别到支付宝/微信表头',
+        level: LhLevel.warn);
+    return null;
+  }
+  AppLog.addKey('账单解析：平台 $platform · 有效 ${rows.length} 条 · '
+      '规则过滤 $skipped 条（共 ${lines.length} 行）');
   return BillParseResult(platform: platform, rows: rows, skipped: skipped);
 }
 
@@ -284,10 +293,14 @@ String _decodeCsv(List<int> bytes) {
   }
   try {
     return utf8.decode(bytes);
-  } catch (_) {
+  } catch (e) {
+    // 支付宝/微信 CSV 多为 GBK：utf8 严格解码失败属常态路径，记 warn 供复盘。
+    AppLog.add('账单 CSV utf8 解码失败，改按 GBK 重试：$e', level: LhLevel.warn);
     try {
       return gbk.decode(bytes);
-    } catch (_) {
+    } catch (e2) {
+      AppLog.add('账单 CSV utf8/GBK 均失败，容错解码（可能出乱码行）：$e2',
+          level: LhLevel.warn);
       return utf8.decode(bytes, allowMalformed: true);
     }
   }
@@ -297,11 +310,16 @@ BillParseResult? _parseXlsx(List<int> bytes, {bool skipNonSpend = true}) {
   final SpreadsheetDecoder dec;
   try {
     dec = SpreadsheetDecoder.decodeBytes(bytes);
-  } catch (_) {
+  } catch (e) {
+    AppLog.add('账单 xlsx 解包失败（不是有效 Excel 容器）：$e',
+        level: LhLevel.error);
     return null;
   }
   final sheet = dec.tables.values.isEmpty ? null : dec.tables.values.first;
-  if (sheet == null) return null;
+  if (sheet == null) {
+    AppLog.add('账单 xlsx 里没有可用工作表', level: LhLevel.warn);
+    return null;
+  }
   final rows = sheet.rows;
   int hdr = -1;
   for (var i = 0; i < rows.length && i < 40; i++) {

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../data/todo_dao.dart';
 import '../domain/todo.dart';
@@ -10,14 +11,36 @@ final todoRepositoryProvider = Provider<TodoRepository>((ref) {
   return TodoRepository(TodoDao(AppDatabase.instance.db), ref.watch(eventBusProvider));
 });
 
+/// 同一条读取异常只在首次留痕：Provider 失败态每次 build 都会重读重抛，
+/// 全记会把 300 行环形缓冲刷满（同 L2「取消与开关关不记」的降噪口径）。
+/// 按文案去重，故「列表」与「逾期计数」各自仍有一条。
+final Set<String> _readErrLogged = {};
+
+void _logReadErrOnce(String what, Object e) {
+  if (!_readErrLogged.add(what)) return;
+  AppLog.add('$what：$e（同类只记一次）', level: LhLevel.error);
+}
+
 /// 全部待办（变更后 invalidate 刷新）。
-final todosProvider = FutureProvider<List<Todo>>((ref) {
-  return ref.watch(todoRepositoryProvider).list();
+/// 读取异常照常抛出（`rethrow` 不改控制流），但必须留痕：
+/// 消费侧一律 `valueOrNull ?? 默认值`，不记日志就会把「读失败」看成「空列表」。
+final todosProvider = FutureProvider<List<Todo>>((ref) async {
+  try {
+    return await ref.watch(todoRepositoryProvider).list();
+  } catch (e) {
+    _logReadErrOnce('待办列表读取失败（页面将显示为空）', e);
+    rethrow;
+  }
 });
 
 /// 逾期计数（仪表盘角标 / 列表头提示共用）。
-final overdueCountProvider = FutureProvider<int>((ref) {
-  return ref.watch(todoRepositoryProvider).countOverdue();
+final overdueCountProvider = FutureProvider<int>((ref) async {
+  try {
+    return await ref.watch(todoRepositoryProvider).countOverdue();
+  } catch (e) {
+    _logReadErrOnce('待办逾期扫描失败（角标将显示 0）', e);
+    rethrow;
+  }
 });
 
 /// 番茄会话（V1.20 · 单活：全局同时仅一个番茄，与日程「进行中」同规则）。

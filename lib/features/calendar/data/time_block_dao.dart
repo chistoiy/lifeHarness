@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
+import '../../../core/logging/app_log.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
 
@@ -83,6 +84,8 @@ class TimeBlockDao {
         table,
         {'end_min': e, 'source': kSrcMark, 'updated_at': DateTime.now().millisecondsSinceEpoch},
         where: 'id = ?', whereArgs: [id]);
+    AppLog.addKey('日程计时收口：块 #$id '
+        '${fmtMin(b.startMin)}→${fmtMin(e)}（请求 ${fmtMin(atMin)}）');
     return b.copyWith(endMin: e, source: kSrcMark);
   }
 
@@ -125,6 +128,7 @@ class TimeBlockDao {
         await txn.insert(table, b.toRow());
       }
     });
+    AppLog.addKey('日程撤销回写：日 $dayMs 恢复 ${rows.length} 段');
   }
 
   /// 速记接龙：上一段"记到此刻"块截止到新时刻。
@@ -199,6 +203,10 @@ class TimeBlockDao {
         batch.insert(table, b.toRow());
       }
       await batch.commit(noResult: true);
+      // 段数前后对照：V1.52 真机「合并丢块」就是这里少写了一段，
+      // 只靠 toast 复盘不出来。
+      AppLog.addKey('日程标记落库：${fmtMin(startMin)}-${fmtMin(endMin)} · $catName '
+          '· 日内 mark 段 ${rows.length}→${merged.length}');
     });
   }
 }

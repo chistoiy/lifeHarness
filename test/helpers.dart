@@ -16,6 +16,14 @@ Future<void> settle5(WidgetTester tester) => tester.pumpAndSettle(
     const Duration(milliseconds: 50), EnginePhase.sendSemanticsUpdate,
     const Duration(seconds: 5));
 
+/// 排空 AppLog 的 300ms 节流 Timer。
+/// 任何一次 `AppLog.add/addKey`（含 L3 起 Provider 读取失败留痕）都会起一个
+/// 300ms 定时器；FakeAsync 下 `pumpAndSettle` 只看帧、不看定时器，收尾就会判
+/// 「A Timer is still pending」。页面 pump 之后补一次本调用（400ms > 节流窗口）
+/// 即可让定时器自然到期。
+Future<void> drainLogTimer(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 400));
+
 /// 有界轮询等某段文案出现（默认 15×80ms=1.2s）。
 /// SnackBar 断言专用：show 后禁止先 pumpAndSettle——会把 fake 时间推过其
 /// 1.6s 自动消失期导致查无；应 `pollText` 命中后再继续。返回是否命中。

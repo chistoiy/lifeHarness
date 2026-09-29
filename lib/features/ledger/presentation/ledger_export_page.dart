@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/ledger_repository.dart';
@@ -68,11 +69,14 @@ class _LedgerExportPageState extends ConsumerState<LedgerExportPage> {
         catName: (id) => d.catOf(id).name,
         acctName: (id) => d.acct(id)?.name ?? '?',
       );
+      AppLog.addKey('记账流水导出完成：${r.count} 条 · ${r.path}');
       if (mounted) {
         _toast('已导出 ${_scope == 'month' ? _month : '全量'} 流水 · '
             'lifeharness_ledger.$_fmt（${r.path}）');
       }
     } catch (e) {
+      AppLog.add('记账流水导出失败（$_fmt · 范围 $_scope）：$e',
+          level: LhLevel.error);
       if (mounted) _toast('导出失败 · $e');
     } finally {
       if (mounted) setState(() => _busy = false);
