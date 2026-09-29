@@ -1102,8 +1102,8 @@ tailwind.config = {
         <label class="mt-3 flex items-center gap-2.5 px-1 text-sm cursor-pointer" onclick="tgl(this.querySelector('.toggle'))">
           <span class="toggle on"></span>只导入支出和收入类型</label>
         <button class="mt-4 w-full py-3.5 rounded-2xl grad text-white text-[15px] font-bold shadow-md shadow-indigo-500/30" id="biGoBtn" onclick="biStart()">导入微信支付账单</button>
-        <button class="mt-3 w-full card flex items-center py-3.5" onclick="toast('已导入的账单列表（模拟）')">
-          <span class="flex-1 text-left text-sm font-bold">已导入的账单</span><span class="text-slate-300">›</span></button>
+        <button class="mt-3 w-full card flex items-center py-3.5" onclick="biOpenBatches()">
+          <span class="flex-1 text-left text-sm font-bold">导入记录</span><span class="text-xs text-slate-400" id="biBatCnt"></span><span class="text-slate-300 ml-1">›</span></button>
       </div>
 
       <!-- 屏2 选择导入文件（文件选择器 · 选完点下一步去解析账户） -->
@@ -1137,6 +1137,19 @@ tailwind.config = {
           <span class="text-sm font-bold" id="biAcctSum">共识别到 0 个账户</span>
           <button class="ml-auto px-7 py-2.5 rounded-full grad text-white text-sm font-bold" onclick="biAcctNext()">下一步</button>
         </div>
+      </div>
+
+      <!-- 屏5 导入完成（R15-1：「撤销本批」是可点动作，不是文案承诺） -->
+      <div id="biDone" class="hidden">
+        <div class="mt-8 flex flex-col items-center text-center">
+          <svg class="w-14 h-14 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.4 12.4 2.6 2.6 4.6-5.2"/></svg>
+          <div class="text-lg font-extrabold mt-3">导入完成</div>
+          <div class="text-[11px] text-slate-400 leading-5 mt-2" id="biDoneSum"></div>
+        </div>
+        <button class="mt-7 w-full py-3.5 rounded-2xl border-2 border-rose-400 text-rose-500 text-[15px] font-bold" id="biDoneUndo" onclick="biAskUndo(biLatest(),'done')">撤销本批</button>
+        <button class="mt-3 w-full py-3.5 rounded-2xl grad text-white text-[15px] font-bold shadow-md shadow-indigo-500/30" onclick="biBackHome()">完成</button>
+        <button class="mt-4 w-full card flex items-center py-3.5" onclick="biOpenBatches()">
+          <span class="flex-1 text-left text-sm font-bold">导入记录</span><span class="text-xs text-slate-400" id="biBatCnt2"></span><span class="text-slate-300 ml-1">›</span></button>
       </div>
 
       <!-- 图3 类别关联半屏弹层 -->
@@ -1905,6 +1918,32 @@ tailwind.config = {
       <div class="mt-4 flex gap-2">
         <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetLedgerAcctAdd')">取消</button>
         <button class="flex-[2] py-3 rounded-2xl grad text-white text-[13px] font-extrabold" onclick="acctSheetSave()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== S6 导入记录（批次列表 · R15-1 · 仅最近一批给撤销） ===== -->
+  <div id="sheetLedgerBatches" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerBatches')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">导入记录</div>
+      <div class="mt-3 space-y-2" id="biBatList"></div>
+      <button class="mt-3 w-full py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[12px] font-bold" onclick="closeSheet('sheetLedgerBatches')">关闭</button>
+    </div>
+  </div>
+
+  <!-- ===== S7 撤销本批二次确认（R15-1 · 默认只删流水，账户回收为勾选项） ===== -->
+  <div id="sheetLedgerUndo" style="z-index:70" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLedgerUndo')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="text-center mt-1"><div class="text-base font-extrabold">撤销本批导入</div>
+        <div class="text-[12px] text-slate-400 mt-2 leading-5" id="buSum"></div></div>
+      <label class="mt-5 flex items-center gap-2.5 px-1 text-[13px] cursor-pointer" id="buRow" onclick="biUndoTog()">
+        <span class="toggle"></span>同时移除本批新建且已无引用的账户</label>
+      <div class="text-[10px] text-slate-400 px-1 mt-1.5" id="buAcctNote"></div>
+      <div class="mt-5 flex gap-2">
+        <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetLedgerUndo')">取消</button>
+        <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold" onclick="biUndoGo()">确认撤销</button>
       </div>
     </div>
   </div>
@@ -3798,6 +3837,8 @@ const BI_SRC=[
  {k:'通用',badge:'表',bg:'#16A34A1a',c:'#16A34A',n:'通用模板导入（推荐）',guide:'按 LifeHarness 标准模板整理的 CSV / XLSX，列名可自定义映射，兼容性最好。'}
 ];
 let biN=1,biSrc='微信',biRows=null,biSel=new Set(),biAccts=null,biCatK=null,biCatBatch=false,biCatTmp=null,biCatTmpSub='',biAcctIdx=null;
+/* R15-1：批次记录（原型为内存态·不真持久化）· biFileName=本次文件名 · biUndo*=撤销弹层态 */
+let BI_BATCH=[],biBatSeq=0,biFileName='',biUndoId=null,biUndoFrom='list',biUndoReclaim=false;
 function billGo(){biN=1;biRows=null;biSel=new Set();biAccts=null;renderBi();navTo('p-billImport');}
 function billReset(){billGo();}
 function biTab(x){if(x==='out'){toast('账单导出见「数据导出」页');navTo('p-export');}}
@@ -3818,7 +3859,7 @@ function biGen(){let sd=20260927;const rn=()=>((sd=(sd*9301+49297)%233280)/23328
  biSel=new Set(biRows.map(r=>r.k));}
 function biStart(){$('#biFilePlat').textContent=(BI_SRC.find(x=>x.k===biSrc)||{}).n||biSrc;$('#biFileName').textContent='点击选择账单文件（.xlsx / .xls / .csv）';biN=2;renderBi();}
 function biChooseFile(){const ext={'微信':'_20260627-20260927.xlsx','支付宝':'_20260627-20260927.csv','其他':'_20260627-20260927.csv','通用':'_20260627-20260927.xlsx'};
- $('#biFileName').textContent=(BI_SRC.find(x=>x.k===biSrc)||{}).n+ext[biSrc];
+ biFileName=(BI_SRC.find(x=>x.k===biSrc)||{}).n+ext[biSrc];$('#biFileName').textContent=biFileName;
  if(!biRows)biGen();const cnt={};biRows.forEach(r=>cnt[r.pay]=(cnt[r.pay]||0)+1);
  biAccts=Object.entries(cnt).map(([src,c])=>({src,cnt:c,pick:L.accounts.some(a=>a.n===src)?src:'__new'}));
  biSel=new Set(biRows.map(r=>r.k));
@@ -3856,19 +3897,57 @@ function renderBiAcctPick(){const a=biAccts[biAcctIdx];
   `<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-bold ${a.pick==='__new'?'border-amber-500 bg-amber-500/5 text-amber-500':'border-slate-200 dark:border-slate-700 text-slate-500'}" onclick="biAcctNew()"><span>新建「${a.src}」</span>${a.pick==='__new'?'✓':''}</button>`;}
 function biAcctSet(n){biAccts[biAcctIdx].pick=n;closeSheet('sheetBiAcctPick');biRenderAcct();}
 function biAcctNew(){biAccts[biAcctIdx].pick='__new';closeSheet('sheetBiAcctPick');biRenderAcct();}
-function biCommit(){const nw=biAccts.filter(a=>a.pick==='__new');
- nw.forEach(a=>{if(!L.accounts.some(x=>x.n===a.src))L.accounts.push({id:'imp_'+a.src,type:a.src.includes('储蓄卡')?'debit':'ewallet',n:a.src,i:'card',c:'#8b5cf6',base:0});});
- let cnt=0;for(const r of biRows){if(!biSel.has(r.k))continue;const a=biAccts.find(x=>x.src===r.pay);const acc=a&&a.pick!=='__new'?(L.accounts.find(x=>x.n===a.pick)||{id:a.pick}).id||'imp_'+a.src:'imp_'+r.pay;
-  ledgerAdd({kind:r.kind==='income'?'income':'expense',cat:r.cat,sub:'',n:r.m,amt:r.amt,a:acc,d:r.d,tags:[],src:'bill',note:biSrc+' · '+r.t});cnt++;}
- toast('✔ 已写入 '+cnt+' 条流水 · 支持整批撤销');biN=1;biRows=null;biSel=new Set();biAccts=null;renderBi();}
+function biCommit(){const nw=biAccts.filter(a=>a.pick==='__new');const made=[];
+ nw.forEach(a=>{if(!L.accounts.some(x=>x.n===a.src)){L.accounts.push({id:'imp_'+a.src,type:a.src.includes('储蓄卡')?'debit':'ewallet',n:a.src,i:'card',c:'#8b5cf6',base:0});made.push({id:'imp_'+a.src,n:a.src});}});
+ const biBat={id:++biBatSeq,plat:biSrc,file:biFileName||'账单文件',ts:biNow(),n:0,skip:0,made};
+ for(const r of biRows){const a=biAccts.find(x=>x.src===r.pay);const acc=a&&a.pick!=='__new'?(L.accounts.find(x=>x.n===a.pick)||{id:a.pick}).id||'imp_'+a.src:'imp_'+r.pay;
+  if(!biSel.has(r.k)){biBat.skip++;continue;}
+  ledgerAdd({kind:r.kind==='income'?'income':'expense',cat:r.cat,sub:'',n:r.m,amt:r.amt,a:acc,d:r.d,tags:[],src:'bill',note:biSrc+' · '+r.t,bat:biBat.id});biBat.n++;}
+ BI_BATCH.push(biBat);biRows=null;biSel=new Set();biAccts=null;biN=5;renderBi();}
 function renderBi(){
  [1,2,3,4].forEach(n=>$('#bi'+['Home','File','Acct','Detail'][n-1]).classList.toggle('hidden',n!==biN));
+ $('#biDone').classList.toggle('hidden',biN!==5);biBatCnt();
  const pt=$('#pageTitle'),ps=$('#pageSub');
  if(biN===1){biRenderSrc();const s=BI_SRC.find(x=>x.k===biSrc);$('#biGoBtn').textContent='导入'+s.n;$('#biGuide').textContent=s.guide;pt.textContent='账单导入与导出';if(ps)ps.textContent='支付宝 / 微信 · 本地解析';}
  if(biN===2){pt.textContent='选择导入文件';if(ps)ps.textContent=(BI_SRC.find(x=>x.k===biSrc)||{}).n||'';}
  if(biN===3){pt.textContent='关联账户';if(ps)ps.textContent='账单账户 ↔ 本地账户 对应';}
- if(biN===4){pt.textContent='共'+(biRows?biRows.length:0)+'笔明细';if(ps)ps.textContent='';}}
+ if(biN===4){pt.textContent='共'+(biRows?biRows.length:0)+'笔明细';if(ps)ps.textContent='';}
+ if(biN===5){const b=BI_BATCH[BI_BATCH.length-1];pt.textContent='导入完成';if(ps)ps.textContent='本批可整批撤销';
+  $('#biDoneSum').innerHTML=b?b.plat+' · '+b.file+'<br>写入 '+b.n+' 条'+(b.skip?' · 未勾选 '+b.skip+' 条不导入':'')+(b.made.length?'<br>新建账户 '+b.made.length+' 个（'+b.made.map(x=>x.n).join('、')+'）':''):'';}}
 function billStep(d){renderBi();}
+/* ===== R15-1 导入记录与整批撤销（可撤范围＝最近一批；账户回收默认不勾） ===== */
+function biNow(){const d=new Date(),p=n=>String(n).padStart(2,'0');return p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+function biLatest(){const b=BI_BATCH[BI_BATCH.length-1];return b?b.id:null;}
+function biBatCnt(){const t=BI_BATCH.length?BI_BATCH.length+' 批':'';
+  const e1=$('#biBatCnt'),e2=$('#biBatCnt2');if(e1)e1.textContent=t;if(e2)e2.textContent=t;}
+function biOpenBatches(){renderBiBatches();openSheet('sheetLedgerBatches');}
+function renderBiBatches(){const el=$('#biBatList');if(!el)return;
+ if(!BI_BATCH.length){el.innerHTML='<div class="text-center text-xs text-slate-400 py-6">暂无导入记录</div>';return;}
+ const last=biLatest();
+ el.innerHTML=BI_BATCH.slice().reverse().map(b=>{const st=BI_SRC.find(x=>x.k===b.plat)||{badge:'账',bg:'#64748B1a',c:'#64748B'};
+  const btn=b.id===last?'<button class="px-3.5 py-2 rounded-full border border-rose-400 text-rose-500 text-[12px] font-bold shrink-0" onclick="biAskUndo('+b.id+',\'list\')">撤销</button>':'';
+  return '<div class="card !p-3 flex items-center gap-3"><span class="w-9 h-9 rounded-lg flex items-center justify-center text-[14px] font-black shrink-0" style="background:'+st.bg+';color:'+st.c+'">'+st.badge+'</span>'+
+   '<div class="flex-1 min-w-0"><div class="text-[13px] font-bold truncate">'+b.file+'</div><div class="text-[10px] text-slate-400 truncate mt-0.5">'+b.plat+' · '+b.ts+' · 写入 '+b.n+' 条'+(b.made.length?' · 新建账户 '+b.made.length+' 个':'')+'</div></div>'+btn+'</div>';}).join('');}
+function biAskUndo(id,from){const b=BI_BATCH.find(x=>x.id===id);if(!b)return;
+ biUndoId=id;biUndoFrom=from||'list';biUndoReclaim=false;
+ $('#buSum').innerHTML='将删除 <b>'+b.n+'</b> 条流水 · '+b.plat+' · '+b.file+'<br>报表、分类占比与资产页同步重算';
+ $('#buAcctNote').textContent=b.made.length?('本批新建账户：'+b.made.map(x=>x.n).join('、')):'本批未新建账户';
+ $('#buRow').classList.toggle('hidden',!b.made.length);
+ $('#sheetLedgerUndo').querySelector('.toggle').classList.remove('on');
+ openSheet('sheetLedgerUndo');}
+function biUndoTog(){biUndoReclaim=!biUndoReclaim;
+ $('#sheetLedgerUndo').querySelector('.toggle').classList.toggle('on',biUndoReclaim);}
+function biUndoGo(){const b=BI_BATCH.find(x=>x.id===biUndoId);if(!b)return;
+ let n=0;L.txns=L.txns.filter(t=>{if(t.bat===b.id){n++;return false;}return true;});
+ let rc=0;
+ if(biUndoReclaim)b.made.forEach(m=>{
+  const used=L.txns.some(t=>t.a===m.id||t.to===m.id);
+  const a=L.accounts.find(x=>x.id===m.id);
+  if(!used&&a&&a.base===0){L.accounts=L.accounts.filter(x=>x.id!==m.id);rc++;}});
+ BI_BATCH=BI_BATCH.filter(x=>x.id!==b.id);
+ closeSheet('sheetLedgerUndo');finTouch();
+ if(biUndoFrom==='done'){biBackHome();}else{renderBiBatches();biBatCnt();}
+ toast('已撤销批次 '+b.id+' · 删除 '+n+' 条流水'+(rc?' · 移除 '+rc+' 个账户':''));}
 /* 导入向导 */
 let impN=1;
 function renderImp(){
