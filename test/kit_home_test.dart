@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -139,6 +138,69 @@ void main() {
       await pumpHome(tester);
       expect(find.byIcon(Icons.star), findsOneWidget);
       await drainLogTimer(tester);
+    });
+  });
+
+  group('4 · 长按收藏与编排（批1b）', () {
+    List<String> tileKeys(WidgetTester tester) => tester
+        .widgetList<GestureDetector>(find.byType(GestureDetector))
+        .map((w) => w.key)
+        .whereType<ValueKey<Object>>()
+        .map((k) => '${k.value}')
+        .where((s) => s.startsWith('kit-tile-'))
+        .toList();
+
+    testWidgets('长按卡片=收藏，再长按=取消', (tester) async {
+      await useSurface(tester);
+      await pumpHome(tester);
+      expect(find.byIcon(Icons.star), findsNothing);
+      await tester.longPress(find.byKey(const ValueKey('kit-tile-ping')));
+      await settle5(tester);
+      expect(await repo.favorites(), ['ping']);
+      expect(find.text('已收藏 Ping 工具'), findsOneWidget);
+      await clearToasts(tester);
+      await tester.longPress(find.byKey(const ValueKey('kit-tile-ping')));
+      await settle5(tester);
+      expect(await repo.favorites(), isEmpty);
+      expect(find.text('已取消收藏 Ping 工具'), findsOneWidget);
+      await clearToasts(tester);
+    });
+
+    testWidgets('收藏满 6 个后长按给上限提示且不再增加', (tester) async {
+      await repo.setFavorites(['ping', 'speed', 'ruler', 'dist', 'wheel', 'rand']);
+      await useSurface(tester);
+      await pumpHome(tester);
+      await tester.longPress(find.byKey(const ValueKey('kit-tile-pick')));
+      await settle5(tester);
+      expect(find.textContaining('收藏最多 6 个'), findsOneWidget);
+      expect(await repo.favorites(), hasLength(6));
+      await clearToasts(tester);
+    });
+
+    testWidgets('编排生效：order 内的按 order 排，其余按默认序追加', (tester) async {
+      await repo.setOrder(['tele', 'b64']);
+      await useSurface(tester);
+      await pumpHome(tester);
+      final keys = tileKeys(tester);
+      expect(keys.take(2), ['kit-tile-tele', 'kit-tile-b64']);
+      expect(keys.length, 13);
+      expect(keys.sublist(2).first, 'kit-tile-ping');
+      await drainLogTimer(tester);
+    });
+
+    test('流水上限 600：超出裁最旧（原型同口径）', () async {
+      for (var i = 0; i < 605; i++) {
+        await db.insert(DbSchema.tKitUsage,
+            {'tool': 'ping', 'ts': 1000 + i, 'kind': 'builtin'});
+      }
+      await repo.logUse('rand');
+      final log = await repo.usage();
+      // 605 条 ping + 1 条 rand = 606 → 裁到 600，最旧 6 条 ping 被剪掉。
+      expect(log, hasLength(600));
+      expect(log.first.tool, 'ping');
+      expect(log.first.ts, 1006);
+      expect(log.last.tool, 'rand');
+      expect(await repo.recent(), hasLength(1), reason: 'recent 只留最新一枚工具键');
     });
   });
 }

@@ -22,7 +22,7 @@ class KitRepository {
   // ---- 足迹流水 ----
 
   /// 记一次使用（工具屏进出即写；插件工具 kind=plugin）。
-  /// 同步把工具键推到「最近使用」表头（原型 `KITS.recent` 同构，上限 12）。
+  /// 同步把工具键推到「最近使用」表头（原型 `KITS.recent` 同构，上限 8）。
   Future<void> logUse(String tool, {String kind = kKitKindBuiltin}) async {
     try {
       await db.insert(
@@ -36,11 +36,18 @@ class KitRepository {
       final r = await recent();
       r.remove(tool);
       r.insert(0, tool);
-      await setRecent(r.take(12).toList());
+      await setRecent(r.take(8).toList());
+      await trimUsage();
     } catch (e) {
       AppLog.add('小工具足迹写入失败：$e', src: '小工具');
     }
   }
+
+  /// 流水上限 600 条（原型 `KITS.log.length>600` 同口径）：超出裁最旧。
+  Future<void> trimUsage() => db.rawDelete(
+    'DELETE FROM ${DbSchema.tKitUsage} WHERE id NOT IN '
+    '(SELECT id FROM ${DbSchema.tKitUsage} ORDER BY ts DESC LIMIT 600)',
+  );
 
   /// 全量足迹（ts 升序；[sinceMs] 可截断窗口）。
   Future<List<KitUsage>> usage({int? sinceMs}) async {

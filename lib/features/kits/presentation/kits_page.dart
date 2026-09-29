@@ -35,7 +35,7 @@ class _KitsPageState extends ConsumerState<KitsPage> {
   /// 首页可见工具：隐藏项恒不展示；分类与搜索按当前筛选叠加。
   List<KitTool> _visible(KitHomeData d) {
     final q = _q.trim().toLowerCase();
-    return [
+    final matched = [
       for (final t in kKitTools)
         if (!d.hidden.contains(t.key) &&
             (_cat == null || t.cat == _cat) &&
@@ -44,6 +44,37 @@ class _KitsPageState extends ConsumerState<KitsPage> {
                 t.cat.label.toLowerCase().contains(q)))
           t,
     ];
+    // 编排（原型 kitRenderHome：order 里有的按 order 排，其余按默认序追加在后）。
+    final order = d.order;
+    if (order == null) return matched;
+    final keys = matched.map((t) => t.key).toSet();
+    return [
+      for (final k in order)
+        if (keys.contains(k)) kitToolOf(k)!,
+      for (final t in matched)
+        if (!order.contains(t.key)) t,
+    ];
+  }
+
+  /// 长按卡片切换收藏（原型 tile 的 `oncontextmenu` · 上限 6 个）。
+  Future<void> _toggleFav(KitTool t) async {
+    final d = ref.read(kitHomeProvider).value;
+    if (d == null) return;
+    final fav = [...d.fav];
+    final i = fav.indexOf(t.key);
+    if (i < 0) {
+      if (fav.length >= kKitFavMax) {
+        AppToast.show(context, '收藏最多 $kKitFavMax 个 · 请先到收藏管理移除');
+        return;
+      }
+      fav.add(t.key);
+      AppToast.show(context, '已收藏 ${t.name}');
+    } else {
+      fav.removeAt(i);
+      AppToast.show(context, '已取消收藏 ${t.name}');
+    }
+    await ref.read(kitRepositoryProvider).setFavorites(fav);
+    ref.read(kitTickProvider.notifier).state++;
   }
 
   @override
@@ -162,6 +193,7 @@ class _KitsPageState extends ConsumerState<KitsPage> {
               uses: counts[visible[i].key] ?? 0,
               fav: d.fav.contains(visible[i].key),
               onTap: () => _open(visible[i]),
+              onLongPress: () => _toggleFav(visible[i]),
             ),
           ),
       ],
@@ -530,12 +562,16 @@ class _Tile extends StatelessWidget {
     required this.uses,
     required this.fav,
     required this.onTap,
+    this.onLongPress,
   });
 
   final KitTool tool;
   final int uses;
   final bool fav;
   final VoidCallback onTap;
+
+  /// 长按=切换收藏（原型 tile 的 `oncontextmenu`）。
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -545,6 +581,7 @@ class _Tile extends StatelessWidget {
       key: ValueKey('kit-tile-${tool.key}'),
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
