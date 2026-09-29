@@ -102,6 +102,14 @@ KitTool? kitToolOf(String key) {
   return null;
 }
 
+/// 工具键常量（= `kKitTools` 里的 key，也是 `kit_tool_data.tool` 取值；
+/// 批2 起各工具屏用它读写私有数据，改这里等于改数据，须与原型一致）。
+const String kitToolKeyDatec = 'datec';
+const String kitToolKeyRand = 'rand';
+const String kitToolKeyWheel = 'wheel';
+const String kitToolKeyPick = 'pick';
+const String kitToolKeyComp = 'comp';
+
 /// hero 数据位候选（原型 `KIT_METRICS` 八项；配置弹层从中选四枚）。
 enum KitMetric {
   total('累计使用'),
