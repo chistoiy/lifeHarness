@@ -1,6 +1,7 @@
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../logging/app_log.dart';
 import 'schema.dart';
 
 /// 应用数据库封装（sqflite）。Repository 层通过它取得 [Database]，
@@ -32,25 +33,40 @@ class AppDatabase {
     final dir = pathOverride ?? await getDatabasesPath();
     final path = p.join(dir, DbSchema.fileName);
     _openedPath = path;
-    _db = await openDatabase(
-      path,
-      version: DbSchema.version,
-      onConfigure: (d) async {
-        await d.execute('PRAGMA foreign_keys = ON');
-      },
-      onCreate: (d, v) async {
-        final batch = d.batch();
-        for (final sql in DbSchema.createStatements) {
-          batch.execute(sql);
-        }
-        await batch.commit(noResult: true);
-      },
-      onUpgrade: (d, oldV, newV) async {
-        // 迁移骨架：按版本逐级升级；预留表已在此前建好，后续里程碑补 ALTER。
-        // 迁移自检（需求 8.3）：迁移前后核对行数/完整性，此处留接入点。
-        await _runMigrations(d, oldV, newV);
-      },
-    );
+    // L1 日志批：建库/迁移/失败全程留痕（炸机排查的唯一线索）。
+    // src 显式标注：onCreate/onUpgrade 走 sqflite 异步回调，调用帧里没有业务帧，
+    // 自动归类会落到「系统」；日志页要按「数据库」来源筛，故显式带源。
+    AppLog.addKey('数据库打开：目标版本 ${DbSchema.version}', src: '数据库');
+    try {
+      _db = await openDatabase(
+        path,
+        version: DbSchema.version,
+        onConfigure: (d) async {
+          await d.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (d, v) async {
+          final batch = d.batch();
+          for (final sql in DbSchema.createStatements) {
+            batch.execute(sql);
+          }
+          await batch.commit(noResult: true);
+          AppLog.addKey(
+            '数据库建表完成：v$v · ${DbSchema.createStatements.length} 条语句',
+            src: '数据库',
+          );
+        },
+        onUpgrade: (d, oldV, newV) async {
+          AppLog.addKey('数据库升级：v$oldV → v$newV', src: '数据库');
+          // 迁移骨架：按版本逐级升级；预留表已在此前建好，后续里程碑补 ALTER。
+          // 迁移自检（需求 8.3）：迁移前后核对行数/完整性，此处留接入点。
+          await _runMigrations(d, oldV, newV);
+        },
+      );
+    } catch (e, st) {
+      AppLog.add('数据库打开失败：$e', level: LhLevel.error, src: '数据库');
+      AppLog.addStack(st.toString(), src: '数据库');
+      rethrow;
+    }
     return _db!;
   }
 
@@ -58,11 +74,13 @@ class AppDatabase {
     // 逐级执行 DbSchema.migrations；迁移自检（需求 8.3）留行数核对接入点。
     for (var v = from; v < to; v++) {
       final stmts = DbSchema.migrations[v] ?? const [];
+      AppLog.addKey('迁移 v${v + 1} 开始：${stmts.length} 条语句', src: '数据库');
       final batch = d.batch();
       for (final sql in stmts) {
         batch.execute(sql);
       }
       await batch.commit(noResult: true);
+      AppLog.addKey('迁移 v${v + 1} 完成', src: '数据库');
     }
   }
 

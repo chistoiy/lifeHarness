@@ -24,6 +24,7 @@ import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../logging/app_log.dart';
 import '../logging/file_log_sink.dart';
 import 'lh_bak.dart';
 
@@ -149,37 +150,52 @@ class BackupService {
     String? outDirOverride,
     String? nameTag,
   }) async {
-    final out = outDirOverride ?? exportDir();
-    List<String> logFiles = const [];
-    if (withLogs) {
-      final dir = FileLogSink.dirPath;
-      if (dir != null) {
-        logFiles = (await FileLogSink.dayFiles())
-            .map((name) => p.join(dir, name))
-            .toList();
+    // L1 日志批：备份导出全程可查（成功=key 带终名与表数；失败=error 带成因）。
+    try {
+      final out = outDirOverride ?? exportDir();
+      List<String> logFiles = const [];
+      if (withLogs) {
+        final dir = FileLogSink.dirPath;
+        if (dir != null) {
+          logFiles = (await FileLogSink.dayFiles())
+              .map((name) => p.join(dir, name))
+              .toList();
+        }
       }
+      var res = await LhBak.create(
+        db: await db(),
+        outDirPath: out,
+        attachDirs: withAttachments ? attachDirs : const [],
+        attachFiles: withAttachments ? collectRootAttachFiles() : const [],
+        logFiles: logFiles,
+        excludeTables: excludeTables,
+        passphrase: passphrase,
+      );
+      if (nameTag != null && nameTag.isNotEmpty) {
+        final base = p.basename(res.file.path);
+        final stem = base.startsWith('lifeharness')
+            ? base.substring('lifeharness'.length)
+            : '_$base';
+        // 同目录同名（同秒二次自动备份）不覆盖——去重命名后再搬移。
+        final dir = p.dirname(res.file.path);
+        final target =
+            File(p.join(dir, uniqueFileNameInDir(dir, '$nameTag$stem')));
+        res = LhBakCreateResult(
+          await res.file.rename(target.path),
+          res.manifest,
+        );
+      }
+      AppLog.addKey(
+        '备份导出成功：${p.basename(res.file.path)} · 表 ${res.manifest.tables.length} 张'
+        '${excludeTables.isNotEmpty ? ' · 排除 ${excludeTables.length} 张' : ''}'
+        '${passphrase != null ? ' · 口令加密' : ''}',
+      );
+      return res;
+    } catch (e, st) {
+      AppLog.add('备份导出失败：$e', level: LhLevel.error, src: '备份');
+      AppLog.addStack(st.toString(), src: '备份');
+      rethrow;
     }
-    var res = await LhBak.create(
-      db: await db(),
-      outDirPath: out,
-      attachDirs: withAttachments ? attachDirs : const [],
-      attachFiles: withAttachments ? collectRootAttachFiles() : const [],
-      logFiles: logFiles,
-      excludeTables: excludeTables,
-      passphrase: passphrase,
-    );
-    if (nameTag != null && nameTag.isNotEmpty) {
-      final base = p.basename(res.file.path);
-      final stem = base.startsWith('lifeharness')
-          ? base.substring('lifeharness'.length)
-          : '_$base';
-      // 同目录同名（同秒二次自动备份）不覆盖——去重命名后再搬移。
-      final dir = p.dirname(res.file.path);
-      final target =
-          File(p.join(dir, uniqueFileNameInDir(dir, '$nameTag$stem')));
-      res = LhBakCreateResult(await res.file.rename(target.path), res.manifest);
-    }
-    return res;
   }
 
   /// [attachRootDirs] 浅扫：仅一层文件、仅白名单扩展名 [kRootAttachExts]。
@@ -206,8 +222,16 @@ class BackupService {
   }
 
   /// 只读校验包（导入 UI 的「校验报告态」数据源）：坏包冒泡 [LhBakException]。
-  Future<LhBakManifest> inspect(String filePath, {String? passphrase}) =>
-      LhBak.verify(filePath, passphrase: passphrase);
+  Future<LhBakManifest> inspect(String filePath, {String? passphrase}) async {
+    try {
+      final m = await LhBak.verify(filePath, passphrase: passphrase);
+      AppLog.addKey('备份校验通过：${p.basename(filePath)} · 表 ${m.tables.length} 张');
+      return m;
+    } catch (e) {
+      AppLog.add('备份校验失败：$e', level: LhLevel.error);
+      rethrow;
+    }
+  }
 
   /// 把已生成的备份文件经系统「保存为」弹层另存到用户自选位置。
   /// 用户取消 = null（不做任何后续动作）；成功记 prefs 提示串。
@@ -230,8 +254,15 @@ class BackupService {
   /// 导入恢复（整库替换，不做记录级合并）。顺序钉死，见文件头注释。
   Future<RestoreReport> importBackup(String filePath,
       {String? passphrase}) async {
+    // L1 日志批：恢复前置备份/校验/解包失败全部落日志（现场重开也记）。
+    AppLog.addKey('备份导入开始：${p.basename(filePath)}');
     // 1) 前置校验：坏包在这里拒绝，现库一字节不动。
-    await LhBak.verify(filePath, passphrase: passphrase);
+    try {
+      await LhBak.verify(filePath, passphrase: passphrase);
+    } catch (e) {
+      AppLog.add('备份校验失败（现库未动）：$e', level: LhLevel.error);
+      rethrow;
+    }
     // 2) 恢复前自动备份：close 之前完成 → 原库文件此后不再被触碰。
     final auto = await exportBackup(nameTag: kAutoBeforeRestoreTag);
     // 3) close → unpack → reopen。
@@ -253,7 +284,11 @@ class BackupService {
       final unpack = unpackOverride ?? LhBak.unpack;
       manifest = await unpack(
           filePath: filePath, targetDb: working, passphrase: passphrase);
-    } catch (_) {
+    } catch (e, st) {
+      // L1：解包失败先记成因，再做现场清理（清理自身失败也记）。
+      AppLog.add('备份解包失败（即将重开原库恢复现场）：$e',
+          level: LhLevel.error);
+      AppLog.addStack(st.toString());
       // 恢复失败路径：清理必须与成功路径同一注入通道——closeDb 非空
       // （生产）时调 closer（= AppDatabase.instance.close：关连接且置空
       // _db 缓存），裸 working.close() 会留下缓存死句柄让 db() 短路返回、
@@ -269,11 +304,17 @@ class BackupService {
       } catch (_) {}
       try {
         await db(); // 重开并保持实例可用（生产 = _db 已置空 → 新开连接）
-      } catch (_) {
-        // 重开失败不掩盖原始异常。
+      } catch (e2) {
+        // 重开失败不掩盖原始异常（L1：但必须留痕，否则现场无从取证）。
+        AppLog.add('备份导入后原库重开失败：$e2', level: LhLevel.error);
       }
       rethrow;
     }
+    AppLog.addKey(
+      '备份导入成功：表 ${manifest.tables.length} 张 · 共 '
+      '${manifest.tables.values.fold<int>(0, (a, t) => a + t.rows)} 行'
+      '${manifest.missingTables.isNotEmpty ? ' · 缺表 ${manifest.missingTables.join(",")}' : ""}',
+    );
     return RestoreReport(
       tableCount: manifest.tables.length,
       totalRows:
