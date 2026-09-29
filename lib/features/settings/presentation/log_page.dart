@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,9 +17,10 @@ enum _LogFlt { all, warnUp, error }
 ///
 /// 保真口径：
 /// - 顶栏「日志管理」+ 齿轮 → 底部弹层「筛选与配置」（分段 Tab：筛选 | 配置）；
-/// - 页头信息条一行（窗口120·缓冲300·落盘按天·单文件5MB）+ 复制全部；
-/// - 通底 `.logline` 四段式列表：时间戳灰 / 级别色 / 来源胶囊 / 消息换行，
-///   WARN·ERROR 整行淡底，长按一行复制该行；
+/// - 页头信息条一行（窗口120·缓冲300·落盘按天·单文件5MB·最新在上）+ 复制全部；
+/// - 通底 `.logline` **单栏行内流**（V1.53.4 R14-11 去分栏）：时间戳灰 / 级别色 /
+///   来源胶囊 / 正文同一段，长内容占满整行回流；**倒序**（最新在上）；
+///   堆栈行默认折一行可展开；WARN·ERROR 整行淡底，长按一行复制该行；
 /// - 配置：日志字号（9 档 10-20，落 prefs `log.fontSize` 实时生效）、
 ///   落盘保留（横滑 7/14/30）、归档管理（归档/清理/归档包查看·复制·删除）。
 /// 渲染只给最近 [AppLog.displayWindow] 条窗口、复制永远全量；
@@ -114,7 +116,7 @@ class _LogPageState extends ConsumerState<LogPage> {
   }
 
   /// 当前过滤视图：环形缓冲取最近 [AppLog.displayWindow] 条窗口，
-  /// 再按「级别 × 来源 × 关键词」三重过滤。
+  /// 再按「级别 × 来源 × 关键词」三重过滤，**倒序返回（最新在上 · R14-11）**。
   List<LhLogLine> _visibleLines() {
     final lines = AppLog.lines;
     final start = lines.length > AppLog.displayWindow
@@ -124,11 +126,12 @@ class _LogPageState extends ConsumerState<LogPage> {
     if (_src != null) win = win.where((l) => l.src == _src);
     final kw = _kwCtl.text.trim();
     if (kw.isNotEmpty) win = win.where((l) => l.text.contains(kw));
-    return switch (_flt) {
+    final out = switch (_flt) {
       _LogFlt.all => win.toList(),
       _LogFlt.warnUp => win.where((l) => l.level != LhLevel.info).toList(),
       _LogFlt.error => win.where((l) => l.level == LhLevel.error).toList(),
     };
+    return out.reversed.toList();
   }
 
   /// 窗口里出现过的来源（按条数多→少，「系统」永远收尾）——筛选胶囊候选集。
@@ -362,7 +365,7 @@ class _LogPageState extends ConsumerState<LogPage> {
                 children: [
                   const Expanded(
                     child: Text(
-                      '窗口 120 条 · 缓冲 300 · 落盘按天 · 单文件 5 MB',
+                      '窗口 120 条 · 缓冲 300 · 落盘按天 · 单文件 5 MB · 最新在上',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -440,9 +443,10 @@ class _LogPageState extends ConsumerState<LogPage> {
   }
 }
 
-/// 单条日志行（原型 `.logline`）：时间戳灰 / 级别色 / 来源胶囊 / 消息换行，
-/// WARN·ERROR 整行淡底，长按复制该行。
-class _LogLine extends StatelessWidget {
+/// 单条日志行（原型 `.logline` V1.53.4 R14-11）：**不分栏**——时间戳/级别/来源/
+/// 正文同一段行内流，长内容占满整行自然回流；WARN·ERROR 整行淡底，长按复制该行。
+/// 堆栈行（`addStack` 压平的 ` | #N ` 序列）默认只显首段，可展开看全文。
+class _LogLine extends StatefulWidget {
   const _LogLine({
     required this.line,
     required this.font,
@@ -457,84 +461,126 @@ class _LogLine extends StatelessWidget {
   final Color levelColor;
   final VoidCallback onLongPress;
 
+  @override
+  State<_LogLine> createState() => _LogLineState();
+}
+
+class _LogLineState extends State<_LogLine> {
+  /// 堆栈段展开态（仅堆栈行有意义）。
+  bool _open = false;
+
   String get _ts {
-    final t = line.time;
+    final t = widget.line.time;
     String two(int n) => n.toString().padLeft(2, '0');
     String three(int n) => n.toString().padLeft(3, '0');
     return '${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}:'
         '${two(t.second)}.${three(t.millisecond)}';
   }
 
+  /// 堆栈行判据：`AppLog.addStack` 把多行压成 `帧 | 帧` 的一行，帧以 `#N` 起头。
+  bool get _isStack {
+    final t = widget.line.text;
+    final i = t.indexOf(' | #');
+    return t.startsWith('#') || (i > 0 && RegExp(r'#\d').hasMatch(t.substring(i + 4)));
+  }
+
+  /// 堆栈行的「摘要 / 全文」切分：摘要＝帧列表之前的正文（整行皆帧时为空）。
+  (String, String) get _split {
+    final t = widget.line.text;
+    final i = t.indexOf('#0');
+    if (i < 0) return (t, '');
+    return (t.substring(0, i).trimRight(), t.substring(i));
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final line = widget.line;
+    final font = widget.font;
+    final mono = TextStyle(
+        fontSize: font,
+        fontFamily: 'monospace',
+        height: 1.7,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFFE2E8F0)
+            : const Color(0xFF0F172A));
     final tint = switch (line.level) {
       LhLevel.warn => const Color(0xFFF59E0B).withValues(alpha: .05),
       LhLevel.error => const Color(0xFFEF4444).withValues(alpha: .06),
       _ => Colors.transparent,
     };
+    final (head, stack) = _isStack ? _split : (line.text, '');
+    final base = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: tint,
+        border: Border(
+            bottom: BorderSide(color: tokens.cardBorder.withValues(alpha: .6))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              style: mono,
+              children: [
+                TextSpan(
+                    text: '$_ts ',
+                    style: const TextStyle(color: Color(0xFF94A3B8))),
+                TextSpan(
+                    text: '${widget.levelText} ',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, color: widget.levelColor)),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: tokens.accent.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(line.src,
+                        style: TextStyle(
+                            fontSize: font < 11 ? 8.5 : font - 2,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF64748B))),
+                  ),
+                ),
+                if (head.isNotEmpty) TextSpan(text: head),
+              ],
+            ),
+          ),
+          // 堆栈段独立成块：折叠时整段不建 Text（toPlainText 不会把隐藏内容带出来）。
+          if (stack.isNotEmpty) ...[
+            if (_open)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(stack,
+                    key: const ValueKey('log-stack'),
+                    style: mono.copyWith(color: const Color(0xFF94A3B8))),
+              ),
+            GestureDetector(
+              key: ValueKey(_open ? 'log-stk-close' : 'log-stk-open'),
+              onTap: () => setState(() => _open = !_open),
+              child: Text(
+                _open ? '收起堆栈' : '展开堆栈',
+                style: TextStyle(
+                    fontSize: font - 2,
+                    fontWeight: FontWeight.w800,
+                    color: tokens.accent),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
     return GestureDetector(
       key: ValueKey('log-line-$_ts-${line.text.hashCode}'),
       behavior: HitTestBehavior.opaque,
-      onLongPress: onLongPress,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: tint,
-          border: Border(
-              bottom: BorderSide(
-                  color: tokens.cardBorder.withValues(alpha: .6))),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: font * 11.5,
-              child: Text(_ts,
-                  style: TextStyle(
-                      fontSize: font,
-                      fontFamily: 'monospace',
-                      height: 1.6,
-                      color: const Color(0xFF94A3B8))),
-            ),
-            SizedBox(
-              width: font * 3.6,
-              child: Text(levelText,
-                  style: TextStyle(
-                      fontSize: font,
-                      fontFamily: 'monospace',
-                      height: 1.6,
-                      fontWeight: FontWeight.w800,
-                      color: levelColor)),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 2, right: 6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: tokens.accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(line.src,
-                    style: TextStyle(
-                        fontSize: font < 11 ? 8.5 : font - 2,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF64748B))),
-              ),
-            ),
-            Expanded(
-              child: Text(line.text,
-                  style: TextStyle(
-                      fontSize: font,
-                      fontFamily: 'monospace',
-                      height: 1.6,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFFE2E8F0)
-                          : const Color(0xFF0F172A))),
-            ),
-          ],
-        ),
-      ),
+      onLongPress: widget.onLongPress,
+      child: base,
     );
   }
 }

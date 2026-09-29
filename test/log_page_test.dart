@@ -106,6 +106,24 @@ void main() {
 
   int logLineCount(WidgetTester tester) => logLines().evaluate().length;
 
+  /// R14-11 单栏行内流后，正文不再是独立 Text —— 取以日期开头的整行主 Text。
+  List<String> renderedLines(WidgetTester tester) => find
+      .descendant(
+          of: find.byKey(const ValueKey('log-list')), matching: find.byType(Text))
+      .evaluate()
+      .map((el) => el.widget as Text)
+      .map((t) => (t.textSpan ?? TextSpan(text: t.data))
+          .toPlainText()
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim())
+      .where((s) => RegExp(r'^\d{2}-\d{2} ').hasMatch(s))
+      .toList();
+
+  void expectMsg(WidgetTester tester, String msg, {int count = 1}) {
+    final n = renderedLines(tester).where((l) => l.contains(msg)).length;
+    expect(n, count, reason: '含正文「$msg」的日志行数');
+  }
+
   Future<void> openSheet(WidgetTester tester) async {
     await tester.tap(find.byKey(const ValueKey('log-settings-gear')));
     await settle5(tester);
@@ -133,13 +151,17 @@ void main() {
       final copied = mockClipboard(tester);
       await openLogPage(tester);
 
-      final win = AppLog.lines.sublist(AppLog.lines.length - AppLog.displayWindow);
+      // 显示为倒序（最新在上 · R14-11），故窗口按倒序取首/末。
+      final win = AppLog.lines
+          .sublist(AppLog.lines.length - AppLog.displayWindow)
+          .reversed
+          .toList();
       LhLogLine winFirst(LhLevel lv) => win.firstWhere((l) => l.level == lv);
       LhLogLine winLast(LhLevel lv) => win.lastWhere((l) => l.level == lv);
 
-      // ① 通底窗口=最近 120 条（高视口全量入树）。
+      // ① 通底窗口=最近 120 条（高视口全量入树）；倒序后首行即最新。
       expect(logLineCount(tester), 120);
-      expect(find.text(win.first.text), findsOneWidget);
+      expectMsg(tester, win.first.text);
 
       // ② 级别过滤在齿轮弹层「筛选」Tab。
       final warnUpExpected = win.where((l) => l.level != LhLevel.info).length;
@@ -151,16 +173,16 @@ void main() {
       await settle5(tester);
       await closeSheet(tester);
       expect(logLineCount(tester), warnUpExpected);
-      expect(find.text(winFirst(LhLevel.info).text), findsNothing);
-      expect(find.text(winLast(LhLevel.warn).text), findsOneWidget);
+      expectMsg(tester, winFirst(LhLevel.info).text, count: 0);
+      expectMsg(tester, winLast(LhLevel.warn).text);
 
       await openSheet(tester);
       await tester.tap(find.byKey(const ValueKey('seg-错误')));
       await settle5(tester);
       await closeSheet(tester);
       expect(logLineCount(tester), errorExpected);
-      expect(find.text(winLast(LhLevel.error).text), findsOneWidget);
-      expect(find.text(winFirst(LhLevel.warn).text), findsNothing);
+      expectMsg(tester, winLast(LhLevel.error).text);
+      expectMsg(tester, winFirst(LhLevel.warn).text, count: 0);
 
       await openSheet(tester);
       await tester.tap(find.byKey(const ValueKey('seg-全部')));
@@ -184,7 +206,12 @@ void main() {
       final copied = mockClipboard(tester);
       await openLogPage(tester);
 
-      await tester.longPress(find.text('PROPFIND /sync → 207'));
+      // 单栏行内流后整行只有一个 Text（key=log-line-*）；本用例缓冲仅此一行。
+      await tester.longPress(find
+          .descendant(
+              of: find.byKey(const ValueKey('log-list')),
+              matching: find.byType(Text))
+          .first);
       await settle5(tester);
       expect(await pollText(tester, '已复制该行日志'), isTrue);
       expect(copied.single, contains('[同步]'));
