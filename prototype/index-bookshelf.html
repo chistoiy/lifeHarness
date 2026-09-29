@@ -7207,7 +7207,7 @@ function brDelHl(){if(!brV.sel)return;const s=brV.sel;let n=0;
   try{renderQuotes()}catch(e){}try{renderBookDetail()}catch(e){}
   toast(n?'已删除划线（书摘同步移除）':'此处没有划线可删')}
 function brCopy(){try{navigator.clipboard&&navigator.clipboard.writeText(brV.selTxt)}catch(e){}toast('已复制 '+brV.selTxt.length+' 字')}
-function brShare(){if(!brV.sel)return;const b=bsBook(brV.b);const txt=brV.selTxt+'\n\n——《'+b.n+'》'+brLeaves(brV.b)[brV.sel.ci]+' · '+brCfi(brV.b,brV.sel.ci,brV.sel.p0);
+function brShare(){if(!brV.sel)return;const b=bsBook(brV.b);const txt=brV.selTxt+'\n\n——《'+b.n+'》'+brLeaves(brV.b)[brV.sel.ci]+' · '+brCfi(brV.b,brV.sel.ci,brV.pg);
   if(navigator.share){navigator.share({title:'书摘',text:txt}).catch(()=>{})}toast('已调起系统分享 · 含出处引用')}
 function brToQuote(){if(!brV.sel)return;qeOpen(null,brV.b);const p=brQuotePos();
   document.getElementById('qeText').value=brV.selTxt;brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;brV.sel=null;brSelHideUI()}

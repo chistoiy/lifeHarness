@@ -2,6 +2,7 @@ import 'dart:convert' show jsonDecode, jsonEncode, utf8;
 import 'dart:io' show File;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -115,6 +116,23 @@ void main() {
     for (var i = 0; i < times; i++) {
       await t.pump(Duration(milliseconds: ms));
     }
+  }
+
+  /// 拦截 Clipboard.setData（同 log_page_test 手法），返回收集到的文本列表。
+  List<String> mockClipboard(WidgetTester t) {
+    final copied = <String>[];
+    t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(() => t.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    return copied;
   }
 
   Future<void> openReader(WidgetTester t, EpubDoc doc, String id,
@@ -346,6 +364,29 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       final list = jsonDecode(raw!) as List;
       expect(list.single['tg'], '重点');
       expect((list.single as Map)['c'], 0);
+      await clearToasts(t);
+    });
+  });
+
+  group('治理backlog⑥ · 分享出处引用', () {
+    // 工单 docs/治理backlog行为改工单-20260929.md ⑥：旧实现把**段序号**（sel.p0）
+    // 喂给 _cfi 的页参数 → 引用尾段数值是段号而非页号，与书签/进度条（_pos.pg）口径
+    // 错位。修复＝分享用当前页号（原型 index-bookshelf.html brShare 同步修正）。
+    testWidgets('引用尾段＝当前页号 · 非段序号', (t) async {
+      final copied = mockClipboard(t);
+      await openReader(t, _doc(), 's10');
+      // 翻到第 2 页（0 基 pg=1），选一段 pi≥2 的段落：
+      // 旧实现尾段＝pi（≥2）≠1 → 本例必红；新实现＝当前页号 1。
+      await t.tapAt(const Offset(412, 350));
+      await step(t);
+      await selectPara(t, 'brpTap-0-7');
+      await t.tap(find.byKey(const ValueKey('brSelShare')));
+      await step(t);
+      expect(copied, hasLength(1));
+      expect(copied.single, contains('· epub/2/2/1'),
+          reason: '分享引用 CFI 尾段应为当前页号（与书签同口径）');
+      expect(copied.single, contains('——《划词书》第一章'),
+          reason: '脚注模板前缀不变（clipAuto 回读依赖 ——《书名》）');
       await clearToasts(t);
     });
   });

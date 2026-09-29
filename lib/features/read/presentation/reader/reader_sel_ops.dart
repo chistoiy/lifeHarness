@@ -209,8 +209,10 @@ extension _ReaderSelOps on _ReaderPageState {
     final sel = _sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
+    // 治理backlog⑥：出处引用尾段＝当前页号（与书签/进度条同用 _pos.pg 口径）；
+    // 旧实现误传段序号 sel.p0 → 量纲错位（原型 brShare 已同步修正）。
     final txt =
-        '$_selTxt\n\n——《${_book?.title ?? ''}》${doc.chapters[sel.ci].title} · ${_cfi(sel.ci, sel.p0)}';
+        '$_selTxt\n\n——《${_book?.title ?? ''}》${doc.chapters[sel.ci].title} · ${_cfi(sel.ci, _pos.pg)}';
     Clipboard.setData(ClipboardData(text: txt));
     _clearSel();
     readToast(context, '分享文本已复制 · 含出处引用');
