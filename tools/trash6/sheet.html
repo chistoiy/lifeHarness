@@ -1,0 +1,15 @@
+  <!-- ===== V1.57 垃圾箱彻底删除二次确认（不可恢复 · 列出将被删除的条目） ===== -->
+  <div id="sheetTrashPurge" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrashPurge')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">彻底删除</div>
+      <div class="mt-1 text-[11px] text-rose-500 font-bold" id="tpMsg">删除后不可恢复</div>
+      <div class="mt-3 space-y-1.5 text-xs max-h-[40vh] overflow-y-auto no-scrollbar" id="tpList"></div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetTrashPurge')">取消</button>
+        <button class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-extrabold" onclick="tpGo()">彻底删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== INS 全屏查看 ===== -->

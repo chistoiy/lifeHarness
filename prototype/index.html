@@ -494,6 +494,12 @@ tailwind.config = {
           <button class="text-[11px] text-amber-600 font-bold shrink-0" onclick="toast('已进入引导规划（模拟）')">去规划</button>
         </div>
       </div>
+      <!-- ===== V1.57 待办垃圾箱入口（清单/四象限两视图共用·期限与记录管理·通用·回收站自动清理同源） ===== -->
+      <button class="mt-4 w-full card !py-3 flex items-center gap-3 text-left" onclick="ttOpen()">
+        <span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span>
+        <span class="flex-1 min-w-0"><b class="text-sm">垃圾箱</b>
+          <div class="text-[10px] text-slate-400" id="todoTrashMeta">4 项 · 删除 30 天后自动彻底删除</div></span>
+        <span class="text-slate-300">›</span></button>
     </section>
 
     <!-- ===== P3 日程/日历 ===== -->
@@ -735,9 +741,21 @@ tailwind.config = {
       <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">通用</div>
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>回收站自动清理</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
-        <div class="text-[11px] text-slate-400">日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除</div>
+          <button id="recTrashOpt" class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
+        <div class="text-[11px] text-slate-400">待办 / 日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除</div>
       </div>
+    </section>
+
+    <!-- ===== P4a2 待办垃圾箱（V1.57 · 软删保留期内可恢复 · 支持批量彻底删除/恢复） ===== -->
+    <section id="p-sub-todoTrash" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="ttCnt">4 项</b><span id="ttKeep"> · 删除 30 天后自动彻底删除</span></div>
+        <div class="flex items-center gap-3 text-[11px] font-bold">
+          <button class="text-brand-500 hidden" id="ttAllBtn" onclick="ttSelAll()">全选</button>
+          <button class="text-slate-500" id="ttPickBtn" onclick="ttToggleSel()">选择</button>
+        </div>
+      </div>
+      <div class="mt-2 space-y-2" id="ttList"></div>
     </section>
 
     <!-- ===== P4b 阅读导入向导 ===== -->
@@ -1808,6 +1826,15 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
+  <!-- V1.57：待办垃圾箱批量操作条（恢复 / 彻底删除 · 与笔记·日记批量同款语言） -->
+  <div id="ttSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
+    <span id="ttSelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 项</span>
+    <button onclick="ttBatchRestore()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-teal-600 dark:text-teal-400 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h12a5 5 0 0 1 0 10H8"/><path d="m8 5-4 4 4 4"/></svg>恢复</button>
+    <button onclick="ttBatchPurge()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>彻底删除</button>
+    <button onclick="ttExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
+  </div>
   <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->
   <div id="diarySelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
     <span id="diarySelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 篇</span>
@@ -2477,6 +2504,20 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== V1.57 垃圾箱彻底删除二次确认（不可恢复 · 列出将被删除的条目） ===== -->
+  <div id="sheetTrashPurge" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrashPurge')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-sm">彻底删除</div>
+      <div class="mt-1 text-[11px] text-rose-500 font-bold" id="tpMsg">删除后不可恢复</div>
+      <div class="mt-3 space-y-1.5 text-xs max-h-[40vh] overflow-y-auto no-scrollbar" id="tpList"></div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetTrashPurge')">取消</button>
+        <button class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-extrabold" onclick="tpGo()">彻底删除</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== INS 全屏查看 ===== -->
   <div id="insFull" class="hidden fixed md:absolute inset-0 z-[62] bg-black/95 overflow-y-auto" onclick="if(event.target===this)this.classList.add('hidden')">
     <button onclick="insFull.classList.add('hidden')" class="absolute top-3 right-4 z-10 w-9 h-9 rounded-full bg-white/15 text-white text-lg">✕</button>
@@ -2494,6 +2535,10 @@ const D = {
   // 我的页资料与统计基数（2026-09-29）：统计卡 = 基数 + 当前演示数据聚合，
   // 基数代表历史累计（演示数据只含近期样本），故初始仍显示 128/55/17。
   profile:{name:'CHIST',bio:'数据在手心里',doneBase:127,streakBase:52,booksBase:13},
+  trash:[{t:'退掉不用的视频会员',tag:'',q:3,due:'—',del:'09-16 21:05'},
+         {t:'整理上季度发票',tag:'财务',q:0,due:'已逾期 3 天',del:'09-11 09:40'},
+         {t:'给旧手机贴膜的约定',tag:'家人',q:2,due:'本周',del:'09-02 20:11'},
+         {t:'整理车库杂物柜',tag:'生活',q:2,due:'09-30',del:'08-22 08:30'}],
   todoChips:['📅 今天 4','🗓 最近7天 9','⭐ 四象限','🗃 已安排','☑️ 已完成 128','⏰ 已过期 2'],
   todos:[
     {t:'提交周报',tag:'工作',q:0,due:'今天 18:00',done:true,imp:1,urg:1},
@@ -2551,7 +2596,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-todoTrash':['垃圾箱','删除的待办 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2609,6 +2654,7 @@ function setPage(p){
   hideRecSwitchMenu(); renderRecSwitch();
   if(p!=='p-records'){const _sb=$('#noteSelBar');if(_sb){_sb.classList.add('hidden');_sb.classList.remove('flex');}
     const _ds=$('#diarySelBar');if(_ds){_ds.classList.add('hidden');_ds.classList.remove('flex');}}
+  if(p!=='p-sub-todoTrash'){const _ts=$('#ttSelBar');if(_ts){_ts.classList.add('hidden');_ts.classList.remove('flex');}}
   if(p!=='p-todo')$('#todoFilterPanel')&&$('#todoFilterPanel').classList.add('hidden');
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-profile')renderProfile();
@@ -2829,6 +2875,7 @@ function renderTodos(){ renderHero();
       <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5"><span>⏰ ${t.due}</span>${t.habit?`<span class="text-violet-500 font-bold">🔁 ${t.habit}</span>`:''}${t.tag?`<span>#${t.tag}</span>`:''}</div></div>
     ${t.pomo?(pomoRun&&pomoRun.i===i?`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoFinish()">■ 结束</button>`:`<button class="px-2.5 py-1.5 rounded-lg bg-rose-500/90 text-white text-[10px] font-extrabold shrink-0" onclick="event.stopPropagation();pomoStart(${i})">▶ 专注</button>`):''}
     <span class="w-3 h-3 rounded-full ${D.quads[t.q].cls} shrink-0" title="${D.quads[t.q].name}"></span></div>`).join('');
+  ttSyncKeep();
 }
 /* V1.27 清单长按拖拽排序 */
 let ldIdx=null;
@@ -2836,7 +2883,64 @@ function listDrag(e,i){ldIdx=i;e.target.classList.add('dragging')}
 function listDrop(e,i){e.preventDefault();if(ldIdx===null||ldIdx===i)return;
   const rec=D.todos.splice(ldIdx,1)[0];D.todos.splice(i,0,rec);ldIdx=null;renderTodos();toast('清单顺序已调整（模拟持久化）')}
 function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQuad(); renderTimeline(); renderChips(); if(t.done){toast('完成 ✓ 已计入今日小结（联动 L2）');if(t.habit)syncHabit(t.habit);} }
-function delTaskFromSheet(){D.todos.splice(stIdx,1);closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();toast('🗑 已删除（垃圾箱 · 30 天自动清空 · 另批原型）')}
+function delTaskFromSheet(){const t=D.todos.splice(stIdx,1)[0];t.del='09-19 14:20';D.trash.unshift(t);
+  closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
+  toast('已移入垃圾箱 · '+ttKeepTxt())}
+/* ================= V1.57 待办垃圾箱（软删 · 保留期与记录管理同源 · 支持批量） ================= */
+let ttMode=false,ttSel=new Set(),tpIds=[],ttPressTimer=null;
+function ttDaysVal(){const el=document.getElementById('recTrashOpt');const v=el?el.textContent.trim():'30 天';
+  return v==='不清理'?0:(parseInt(v,10)||30)}
+function ttKeepTxt(){const k=ttDaysVal();return k?'删除 '+k+' 天后自动彻底删除':'不自动清理'}
+function ttAgo(t){const md=String(t.del||'').slice(0,5).split('-'); /* 原型今天=09-19 */
+  return (9*30+19)-((+md[0]||9)*30+(+md[1]||19))}
+function ttLeft(t){const k=ttDaysVal();return k?k-ttAgo(t):null}
+function ttLeftTxt(t){const n=ttLeft(t);return n===null?'不清理':(n<=0?'待清理':'剩 '+n+' 天')}
+function ttOpen(){ttExitSel();navTo('p-sub-todoTrash');renderTrash()}
+function ttSyncKeep(){const k=ttKeepTxt(),m=document.getElementById('todoTrashMeta');
+  if(m)m.textContent=D.trash.length+' 项 · '+k;
+  const c=document.getElementById('ttCnt');if(c)c.textContent=D.trash.length+' 项';
+  const s=document.getElementById('ttKeep');if(s)s.textContent=' · '+k}
+function renderTrash(){const el=document.getElementById('ttList');if(!el)return;ttSyncKeep();
+  if(!D.trash.length){el.innerHTML='<div class="card !py-10 text-center text-xs text-slate-400">暂无已删除的待办</div>';ttBar();return}
+  el.innerHTML=D.trash.map((t,i)=>{const sel=ttSel.has(i),left=ttLeft(t);
+    return `<div class="card !py-3 flex items-center gap-3" onmousedown="ttPress(${i})" onmouseup="ttRelease()" onmouseleave="ttRelease()" ontouchstart="ttPress(${i})" ontouchend="ttRelease()" onclick="ttTap(${i})">
+      ${ttMode?`<span class="nchk ${sel?'on':''} shrink-0">✓</span>`:`<span class="w-3 h-3 rounded-full ${D.quads[t.q].cls} shrink-0" title="${D.quads[t.q].name}"></span>`}
+      <div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">${t.t}</div>
+        <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5 flex-wrap"><span>⏰ ${t.due}</span>${t.tag?`<span>#${t.tag}</span>`:''}<span>删于 ${t.del}</span>
+          <span class="${left!==null&&left<=7?'text-rose-500 font-bold':'text-slate-400'}">${ttLeftTxt(t)}</span></div></div>
+      ${ttMode?'':`<button class="mini-btn shrink-0" onclick="event.stopPropagation();ttRestore([${i}])">恢复</button>
+        <button class="mini-btn shrink-0 !text-rose-500" onclick="event.stopPropagation();tpAsk([${i}])">删除</button>`}</div>`}).join('');
+  ttBar();}
+function ttPress(i){ttRelease();if(ttMode)return;ttPressTimer=setTimeout(()=>{ttMode=true;ttSel=new Set([i]);renderTrash()},520)}
+function ttRelease(){if(ttPressTimer){clearTimeout(ttPressTimer);ttPressTimer=null}}
+function ttToggleSel(){if(ttMode){ttExitSel();return}ttMode=true;ttSel.clear();renderTrash()}
+function ttExitSel(){ttMode=false;ttSel.clear();renderTrash()}
+function ttTap(i){if(!ttMode)return;if(ttSel.has(i))ttSel.delete(i);else ttSel.add(i);
+  if(!ttSel.size){ttExitSel();return}renderTrash()}
+function ttSelAll(){if(ttSel.size===D.trash.length){ttSel.clear()}else{ttSel=new Set(D.trash.map((_,i)=>i))}
+  if(!ttSel.size){ttExitSel();return}renderTrash()}
+function ttBar(){const b=document.getElementById('ttSelBar'),all=document.getElementById('ttAllBtn'),pk=document.getElementById('ttPickBtn');
+  if(b){b.classList.toggle('hidden',!(ttMode&&ttSel.size));b.classList.toggle('flex',ttMode&&ttSel.size>0)}
+  const lbl=document.getElementById('ttSelLbl');if(lbl)lbl.textContent='已选 '+ttSel.size+' 项';
+  if(all){all.classList.toggle('hidden',!ttMode);all.textContent=ttSel.size&&ttSel.size===D.trash.length?'取消全选':'全选'}
+  if(pk)pk.textContent=ttMode?'取消':'选择'}
+function ttRestore(ids){const list=ids.slice().sort((a,b)=>a-b);const back=list.map(i=>D.trash[i]);
+  for(let j=list.length-1;j>=0;j--)D.trash.splice(list[j],1);
+  back.forEach(t=>{delete t.del;D.todos.push(t)});
+  ttSel.clear();if(!ttSel.size)ttMode=false;
+  renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
+  toast(list.length===1?'已恢复到「'+D.quads[back[0].q].name+'」':'已恢复 '+list.length+' 项到原象限')}
+function ttBatchRestore(){if(!ttSel.size)return;ttRestore([...ttSel])}
+function tpAsk(ids){tpIds=ids.slice();const msg=document.getElementById('tpMsg'),lst=document.getElementById('tpList');
+  if(msg)msg.textContent='共 '+tpIds.length+' 条 · 删除后不可恢复';
+  if(lst)lst.innerHTML=tpIds.map(i=>{const t=D.trash[i];return t?`<div class="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full ${D.quads[t.q].cls} shrink-0"></span><span class="flex-1 min-w-0 truncate">${t.t}</span><span class="text-slate-400">${ttLeftTxt(t)}</span></div>`:''}).join('');
+  openSheet('sheetTrashPurge')}
+function ttBatchPurge(){if(!ttSel.size)return;tpAsk([...ttSel].sort((a,b)=>b-a))}
+function tpGo(){const n=tpIds.length;tpIds.forEach(i=>D.trash.splice(i,1));tpIds=[];ttSel.clear();ttMode=false;
+  closeSheet('sheetTrashPurge');renderTrash();toast('已彻底删除 '+n+' 条')}
+/* 记录管理·通用·回收站自动清理 改档后，垃圾箱两处读数同步 */
+function recSetChanged(key){if(key==='trash')renderTrash()}
+
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
 function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
 function openTask(i){ stIdx=i; $('#stTitle').textContent=D.todos[i].t; $$('.q-move').forEach((b,q)=>b.classList.toggle('on',q===D.todos[i].q)); openSheet('sheetTask'); }
@@ -3791,7 +3895,7 @@ let noteRestore='replace';
 function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
   $('#nrMode').textContent=noteRestore==='replace'?'直接替换正文':'新增为副本';
   toast(noteRestore==='replace'?'恢复=直接替换当前正文（替换前自动留快照）':'恢复=新增一条副本笔记，当前正文不动');}
-function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');}
+function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');if(key==='trash')recSetChanged(key);}
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
   $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}

@@ -1,0 +1,10 @@
+  <!-- V1.57：待办垃圾箱批量操作条（恢复 / 彻底删除 · 与笔记·日记批量同款语言） -->
+  <div id="ttSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
+    <span id="ttSelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 项</span>
+    <button onclick="ttBatchRestore()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-teal-600 dark:text-teal-400 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9h12a5 5 0 0 1 0 10H8"/><path d="m8 5-4 4 4 4"/></svg>恢复</button>
+    <button onclick="ttBatchPurge()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>彻底删除</button>
+    <button onclick="ttExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
+  </div>
+  <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->
