@@ -78,7 +78,7 @@ async function reload(q) {
     books:BS_BOOKS.length,onl:BS_BOOKS.filter(b=>b.online).length,grp:RS_SEC[RS_SEC.length-1][0],
     rows:RS_SEC[RS_SEC.length-1][1].length,scr:document.querySelectorAll('section[id^="p-bs"]').length,
     bdg:[].map.call(document.querySelectorAll('#p-bookshelf .br-local'),function(e){return e.textContent.trim()})}`);
-  (boot.src === 8 && boot.scr === 7) ? ok('启动·书源域注入', '源' + boot.src + ' · 屏' + boot.scr + ' · 可用' + boot.usable) : bad('启动', JSON.stringify(boot));
+  (boot.src === 8 && boot.scr === 8) ? ok('启动·书源域注入', '源' + boot.src + ' · 屏' + boot.scr + ' · 可用' + boot.usable) : bad('启动', JSON.stringify(boot));
   boot.onl === 2 ? ok('启动·在线书已入架', '在线 2 本 · 全架 ' + boot.books + ' 本') : bad('启动·在线书', JSON.stringify(boot));
   const onB = boot.bdg.filter(t => /在线/.test(t)).length, loB = boot.bdg.filter(t => /本地/.test(t)).length;
   onB === 2 && loB === 1 ? ok('书架·徽标同位替换', '在线 ' + onB + ' 枚 · 本地 ' + loB + ' 枚（EPUB 仍标本地）') : bad('书架·徽标', JSON.stringify(boot.bdg));
@@ -100,6 +100,8 @@ async function reload(q) {
   await page('p-bsSrcForm', 'bxFormRender', 150);
   await run("bxVerifyOpen('全部')");
   await page('p-bsVerify', 'bxVerifyRender', 260);
+  await run("BXBS.nm='剑来';BXBS.q='剑来';BXBS.done=8;BXBS.total=8;BXBS.run=0;BXBS.hits=[{id:'r1',it:{a:'烽火戏诸侯',st:'连载',wc:'1250 万字'},ms:842,toc:108,align:true}];BXBS.errs=[{id:'r4',why:'搜索路径 404 · 源已失效'}];");
+  await page('p-bsBookSrc', 'bxBookSrcRender', 200);
 
   /* ---------- 书源管理 ---------- */
   const mgr = await ev(`return {rows:document.querySelectorAll('#bxSrcList .bx-row').length,
@@ -319,6 +321,41 @@ async function reload(q) {
   const rst = await ev(`return {on:BX_SRC.filter(s=>s.on).length,hs:BX_SRC.map(s=>s.hs).join('/')}`);
   rst.on === 4 && rst.hs.indexOf('ok/warn/fuse/dead') === 0 ? ok('轮2·校验跑批后可复位（走查护栏）', '启用 ' + rst.on + ' · ' + rst.hs) : bad('轮2·复位', JSON.stringify(rst));
 
+  /* ---------- 轮3·本书书源（按书名找齐所有源 · 点一行即换源 · 页内导入） ---------- */
+  await run("var o=bxRegBook('r1','剑来');bxEnter(o.b.id)"); await wait(400);
+  await run("bxBatchOpen();document.querySelector('#bxBatchBody .bx-src').click()"); await wait(1500);
+  const bk0 = await ev(`return {p:curPage,txt:document.getElementById('bxBookSrcRoot').innerText.replace(/\\s+/g,' '),
+    hits:document.querySelectorAll('#bxBookSrcRoot .bx-list .bx-row').length,errs:document.querySelectorAll('#bxBookSrcRoot .bx-vrow').length,
+    prog:(document.querySelector('#bxBookSrcRoot .bx-prog>i')||{}).style}`);
+  bk0.p === 'p-bsBookSrc' && bk0.hits >= 2 && bk0.errs >= 3 ? ok('轮3·从续抓弹层点源名找齐本书源', bk0.hits + ' 源收录 · ' + bk0.errs + ' 源未命中') : bad('轮3·本书书源', JSON.stringify(bk0));
+  const bk1 = await ev(`return {first:document.querySelector('#bxBookSrcRoot .bx-list .bx-row b').textContent,
+    align:/可对齐当前章|只到 \\d+ 章|章数待取目录/.test(document.getElementById('bxBookSrcRoot').innerText),
+    why:/404|熔断|JS 引擎|渲染|无本书/.test(document.getElementById('bxBookSrcRoot').innerText),
+    imp:[].some.call(document.querySelectorAll('#bxBookSrcRoot button'),function(b){return /导入书源文件/.test(b.textContent)})}`);
+  /当前/.test(bk1.first) && bk1.align && bk1.why && bk1.imp
+    ? ok('轮3·命中表含当前源与对齐判定与失败归因', '首行「' + bk1.first + '」· 页内有导入入口') : bad('轮3·命中表', JSON.stringify(bk1));
+  await shot('bs-booksrc');
+  const bkB = await ev(`var b=bxBk('剑来');return {c:b.bsrc.cached,q:b.q,tm:b.times}`);
+  await run("BXBS.hits.filter(function(h){return h.id!=='r1'})[0]&&bxBookSrcPick(BXBS.hits.filter(function(h){return h.id!=='r1'})[0].id)"); await wait(300);
+  const bk2 = await ev(`var b=bxBk('剑来');return {src:b.bsrc.srcId,nm:b.bsrc.srcNm,c:b.bsrc.cached,q:b.q,tm:b.times,p:curPage}`);
+  bk2.src !== 'r1' && bk2.q === bkB.q && bk2.tm === bkB.tm && bk2.c >= bkB.c
+    ? ok('轮3·点一行即换源并回原页续读', bk2.nm + ' · 停在第 ' + bk2.c + ' 章 · 书摘 ' + bk2.q + ' 条') : bad('轮3·点行换源', JSON.stringify({ bkB, bk2 }));
+  await run("BXV.b={t:'剑来'};bxSwitchOpen('r1')");
+  const sw3 = await ev(`return {entry:/按书名找齐所有源/.test(document.getElementById('bxSwitchBody').innerText)}`);
+  sw3.entry ? ok('轮3·换源弹层有「按书名找齐所有源」入口') : bad('轮3·换源入口', JSON.stringify(sw3));
+  await run("closeSheet('sheetBsSwitch');bxBookSrcOpen('剑来')"); await wait(1700);
+  const bsN0 = await ev(`return {n:BX_SRC.length,hits:BXBS.hits.length}`);
+  await run("document.querySelector('#bxBookSrcRoot button[onclick*=\"bxAddOpen\"]').click()");
+  const impOpen = await ev(`return {open:!document.getElementById('sheetBsAdd').classList.contains('hidden'),ta:document.querySelectorAll('#bxAddBody textarea').length}`);
+  impOpen.open && impOpen.ta === 2 ? ok('轮3·本书无合适源时页内直接导入书源') : bad('轮3·页内导入', JSON.stringify(impOpen));
+  await run("document.getElementById('bxaiUrls').value='https://demo.newsub.com/shuyuan';BXAI.urls='https://demo.newsub.com/shuyuan';bxAddParse();bxAddImport()"); await wait(3600);
+  const bsN1 = await ev(`return {p:curPage,n:BX_SRC.length,hits:BXBS.hits.length,run:BXBS.run,txt:document.getElementById('bxBookSrcRoot').innerText.replace(/\\s+/g,' ').slice(0,40)}`);
+  bsN1.p === 'p-bsBookSrc' && bsN1.n > bsN0.n && bsN1.hits > bsN0.hits
+    ? ok('轮3·导入新源后自动回本页重查', '源 ' + bsN0.n + '→' + bsN1.n + ' · 收录本书 ' + bsN0.hits + '→' + bsN1.hits + ' 源') : bad('轮3·导入重查', JSON.stringify({ bsN0, bsN1 }));
+  await shot('bs-booksrc-import');
+  await run("BX_SRC=BX_SRC.filter(s=>s.id[0]!=='x');BX_SUBS=BX_SUBS.slice(0,2);bxSrcRender()");
+  await run("BXV.b={t:'剑来'};bxSwitch('r1');brLeave()");
+
   /* ---------- 换源 ---------- */
   await run("BXV.b={t:'剑来',a:'烽火戏诸侯',st:'连载',wc:'1250 万字',last:'',hot:'9.8',intro:''};bxSwitchOpen('r1')");
   const sw = await ev(`return {open:!document.getElementById('sheetBsSwitch').classList.contains('hidden'),rows:document.querySelectorAll('#bxSwitchBody .bx-row').length,
@@ -428,7 +465,7 @@ async function reload(q) {
   o9.rows >= 6 && o9.ord >= 14 ? ok('深链·?bs=switch 换源弹层含优先级调序', o9.rows + ' 行 · ' + o9.ord + ' 钮') : bad('深链·switch 轮2', JSON.stringify(o9));
 
   /* ---------- 全屏 emoji / 泄漏复扫 ---------- */
-  const sweep = await ev(`var out=[];['p-bsSources','p-bsSearch','p-bsDiscover','p-bsDetail','p-bsTask','p-bsSrcForm','p-bsVerify'].forEach(function(p){
+  const sweep = await ev(`var out=[];['p-bsSources','p-bsSearch','p-bsDiscover','p-bsDetail','p-bsTask','p-bsSrcForm','p-bsVerify','p-bsBookSrc'].forEach(function(p){
     var el=document.getElementById(p);setPage(p);var t=el.innerText||'';
     if(new RegExp(${JSON.stringify(EMOJI)},'u').test(t))out.push(p+':emoji');
     if(/undefined|NaN|\\[object/.test(t))out.push(p+':fake');});
