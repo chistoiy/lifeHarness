@@ -51,7 +51,7 @@ class CloudCleanService {
             c, e.relativePath, '$archivePrefix${e.relativePath}');
         n++;
       } catch (err) {
-        AppLog.add('⚠️ 云端归档失败（跳过不中断）：${e.relativePath} $err',
+        AppLog.add('云端归档失败（跳过不中断）：${e.relativePath} $err',
             level: LhLevel.warn);
       }
     }
@@ -68,7 +68,7 @@ class CloudCleanService {
         await store.delete(c, e.relativePath);
         n++;
       } catch (err) {
-        AppLog.add('⚠️ 云端删除失败（跳过不中断）：${e.relativePath} $err',
+        AppLog.add('云端删除失败（跳过不中断）：${e.relativePath} $err',
             level: LhLevel.warn);
       }
     }
@@ -95,7 +95,7 @@ class CloudCleanService {
         if (expired.isNotEmpty) await purge(store, c, expired);
       }
     } catch (e) {
-      AppLog.add('⚠️ 云端自动归档失败（不影响同步结果）：$e',
+      AppLog.add('云端自动归档失败（不影响同步结果）：$e',
           level: LhLevel.warn);
     }
   }

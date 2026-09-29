@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../logging/app_log.dart';
+
 /// R5c：本地孤儿图片扫描/清理（存储卫生）。
 ///
 /// 口径：
@@ -65,8 +67,11 @@ class MediaUsageScanner {
           if (v is String) buf.write(v);
           buf.write('\n');
         }
-      } catch (_) {
+      } catch (e) {
         // 表缺失（裁剪构建）跳过该列。
+        // 但「读不到引用」＝该列全部文件会被判成孤儿，必须留痕提醒别据此清理。
+        AppLog.add('媒体引用列读取失败（$table.$col）：$e · 孤儿判定会偏多',
+            level: LhLevel.warn);
       }
     }
     return buf.toString();
@@ -92,24 +97,37 @@ class MediaUsageScanner {
       }
     }
     orphans.sort((a, b) => a.path.compareTo(b.path));
-    return MediaScanResult(orphans: orphans, totalFiles: total);
+    final result = MediaScanResult(orphans: orphans, totalFiles: total);
+    AppLog.addKey('媒体扫描：根 ${mediaDirs.length} 个 · 文件 $total 个 · 孤儿 '
+        '${orphans.length} 个 ${(result.orphanBytes / 1048576).toStringAsFixed(1)}MB');
+    return result;
   }
 
   /// 删除给定孤儿（用户勾选后调用）。护栏：路径必须落在注册根内。
   int deleteOrphans(List<String> paths) {
-    var n = 0;
+    var n = 0, refused = 0;
     for (final path in paths) {
       final canonical = p.canonicalize(path);
       final insideRoot = mediaDirs.any((root) =>
           canonical.startsWith(p.canonicalize(root) + p.separator));
-      if (!insideRoot) continue; // 绝不越界删
+      if (!insideRoot) {
+        // 绝不越界删
+        refused++;
+        AppLog.add('媒体清理越界拒绝（不在注册根内）：$canonical',
+            level: LhLevel.warn);
+        continue;
+      }
       try {
         File(canonical).deleteSync();
         n++;
-      } catch (_) {
+      } catch (e) {
         // 句柄占用等：跳过，不中断批量。
+        AppLog.add('媒体清理删除失败（跳过不中断）：$canonical $e',
+            level: LhLevel.error);
       }
     }
+    AppLog.addKey('媒体清理完成：删除 $n/${paths.length} 个'
+        '${refused > 0 ? ' · 越界拒绝 $refused 个' : ''}');
     return n;
   }
 }

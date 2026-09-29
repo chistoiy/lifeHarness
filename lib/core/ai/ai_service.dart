@@ -3,6 +3,7 @@
 /// 拿到将要发出的完整文本（原则 4：发送前可审阅）。
 library;
 
+import '../logging/app_log.dart';
 import 'ai_call_store.dart';
 import 'ai_client.dart';
 import 'ai_config.dart';
@@ -126,8 +127,10 @@ class AiService {
         _prunedOnce = true;
         await store.prune(cfg.callKeepDays);
       }
-    } catch (_) {
-      // 旁路失败静默：调用结果优先。
+    } catch (e) {
+      // 旁路失败静默：调用结果优先。但留痕丢了要在日志页看得见。
+      AppLog.add('AI 使用记录写入失败（$taskId·$status）：$e',
+          level: LhLevel.warn);
     }
   }
 
@@ -201,6 +204,7 @@ class AiService {
   }) async {
     final denial = await gate(taskId);
     if (denial != null) {
+      AppLog.add('AI 零请求被拒（$taskId）：$denial', level: LhLevel.warn);
       await recordDenied(taskId, denial);
       throw AiDenied(denial);
     }
@@ -223,6 +227,9 @@ class AiService {
         ],
       );
     } on AiException catch (e) {
+      AppLog.add(
+          'AI 调用失败（${t.name}·${provider.name}）：${e.kind.name} · ${e.detail}',
+          level: LhLevel.error);
       // 失败同样入账（含发送内容）：使用记录页要能查清「发出去了什么、为什么没回」。
       await _record(
         taskId: t.id,
@@ -255,7 +262,10 @@ class AiService {
       out: reply.content,
       err: bad ?? '',
     );
-    if (bad != null) throw AiBadOutput(bad);
+    if (bad != null) {
+      AppLog.add('AI 输出不合约定（${t.name}）：$bad', level: LhLevel.warn);
+      throw AiBadOutput(bad);
+    }
     return AiCallResult(
       reply: reply,
       taskId: taskId,
@@ -306,8 +316,12 @@ class AiService {
         usr: prompt,
         out: reply.content,
       );
+      AppLog.add(
+          'AI 端点验证成功：$model · ${reply.latencyMs}ms · in${reply.promptTokens}/out${reply.completionTokens}');
       return reply;
     } on AiException catch (e) {
+      AppLog.add('AI 端点验证失败：$model · ${e.kind.name} · ${e.detail}',
+          level: LhLevel.error);
       await _record(
         taskId: 'tool.verify',
         module: t?.module ?? '小工具',

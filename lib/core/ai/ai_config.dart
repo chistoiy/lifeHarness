@@ -8,6 +8,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../logging/app_log.dart';
+
 /// 一个 AI 服务商条目（V1.53.1）：名称 + Base URL + 模型 + 协议。
 ///
 /// 预置只是**首次种子**，不是白名单：用户可改可删可加（中转站、局域网 Ollama 等
@@ -217,8 +219,9 @@ class AiConfigRepository {
         if (m is Map) {
           overrides[taskId] = m.map((k, v) => MapEntry('$k', '$v'));
         }
-      } catch (_) {
+      } catch (e) {
         // 覆盖值损坏：按未覆盖处理，不阻断配置加载。
+        AppLog.add('AI 提示词覆盖损坏（$taskId）：$e', level: LhLevel.warn);
       }
     }
     final stored = _decodeProviders(_prefs.getString(_kProviders));
@@ -371,8 +374,10 @@ class AiConfigRepository {
           .where((p) => p.baseUrl.trim().isNotEmpty)
           .toList();
       return out;
-    } catch (_) {
+    } catch (e) {
       // 脏数据：回落到预置种子，AI 功能仍可用，不阻断启动。
+      AppLog.add('AI 服务商列表解码失败，回落预置端点：$e',
+          level: LhLevel.warn);
       return const [];
     }
   }

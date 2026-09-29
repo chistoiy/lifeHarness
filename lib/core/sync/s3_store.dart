@@ -207,7 +207,7 @@ class S3Store implements RemoteStore {
 
   void _warnQuotaDegraded(ServiceConfig c, String reason) {
     if (!_quotaWarnedServices.add(c.id)) return; // 已 warn 过（进程级）不再刷
-    AppLog.add('⚠️ S3 容量降级：服务 ${c.id} $reason · 容量按未知（null）渲染',
+    AppLog.add('S3 容量降级：服务 ${c.id} $reason · 容量按未知（null）渲染',
         level: LhLevel.warn);
   }
 
@@ -249,7 +249,7 @@ class S3Store implements RemoteStore {
       token = r.nextToken;
     }
     // 硬顶触达：warn 后带已聚合结果返回，不静默截断（对齐 WebDAV 限深口径）。
-    AppLog.add('⚠️ S3 列举翻页硬顶($s3MaxPages页)：停止翻页 $cloudDirName',
+    AppLog.add('S3 列举翻页硬顶($s3MaxPages页)：停止翻页 $cloudDirName',
         level: LhLevel.warn);
     final listing = CloudListing(files);
     _listingCache[cacheKey] = (_clock(), listing);

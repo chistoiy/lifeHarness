@@ -1,5 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../logging/app_log.dart';
+
 /// AI API Key 保险箱：真实 Key 只进系统级加密区（Keystore），
 /// 不入 prefs 明文、不进备份导出、不随 WebDAV/S3 同步（需求清单 §6 原则 2）。
 ///
@@ -57,7 +59,9 @@ class AiKeyVault {
     try {
       await _storage!.write(key: slotKey, value: key);
       return true;
-    } catch (_) {
+    } catch (e) {
+      // 只记槽位名，绝不记 Key 本体。
+      AppLog.add('AI Key 写入失败（槽 $slotKey）：$e', level: LhLevel.error);
       return false;
     }
   }
@@ -72,8 +76,9 @@ class AiKeyVault {
     }
     try {
       await _storage!.delete(key: slotKey);
-    } catch (_) {
+    } catch (e) {
       // 删不掉不阻断 UI 流程。
+      AppLog.add('AI Key 删除失败（槽 $slotKey）：$e', level: LhLevel.error);
     }
   }
 
@@ -82,7 +87,9 @@ class AiKeyVault {
     if (mem != null) return mem[key];
     try {
       return await _storage!.read(key: key);
-    } catch (_) {
+    } catch (e) {
+      // 读不到＝表现为「未配置 Key」，没有这行日志根本查不出是保险箱炸了。
+      AppLog.add('AI Key 读取失败（槽 $key）：$e', level: LhLevel.error);
       return null;
     }
   }

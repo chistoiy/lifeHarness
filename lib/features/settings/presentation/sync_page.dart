@@ -154,7 +154,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
             await ref.read(cloudCleanServiceProvider).autoCleanAfterSync(
                 ref.read(remoteStoreFactoryProvider)(act), act);
           } catch (e) {
-            AppLog.add('⚠️ 云端自动归档钩子忽略：$e', level: LhLevel.warn);
+            AppLog.add('云端自动归档钩子忽略：$e', level: LhLevel.warn);
           }
         }());
       }

@@ -61,7 +61,7 @@ class MediaHashMigrator {
         }
       } catch (e) {
         stats['failed'] = stats['failed']! + 1;
-        AppLog.add('⚠️ 图片哈希迁移失败（跳过不中断）：${p.basename(f.path)} $e',
+        AppLog.add('图片哈希迁移失败（跳过不中断）：${p.basename(f.path)} $e',
             level: LhLevel.warn);
       }
     }
@@ -87,8 +87,11 @@ class MediaHashMigrator {
           await db.update(table, {col: text.replaceAll(oldPath, newPath)},
               where: 'id = ?', whereArgs: [r['id']]);
         }
-      } catch (_) {
+      } catch (e) {
         // 单列失败不影响其余列改名替换（文件侧已原子完成）。
+        // 但这意味着**库里还指着旧路径**，不留痕就是静默丢引用。
+        AppLog.add('图片哈希迁移引用替换失败（$table.$col）：$e',
+            level: LhLevel.warn);
       }
     }
   }

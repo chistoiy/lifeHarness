@@ -11,7 +11,7 @@ import 'app_log.dart';
 void installGlobalErrorLogging() {
   // 1) Flutter 框架内构建/布局错误。
   FlutterError.onError = (FlutterErrorDetails d) {
-    AppLog.reportError('‼️ FlutterError: ${d.exception}');
+    AppLog.reportError('FlutterError: ${d.exception}');
     final stack = d.stack;
     if (stack != null) AppLog.addStack(stack.toString());
     FlutterError.presentError(d); // 保留默认 debug 呈现
@@ -19,14 +19,14 @@ void installGlobalErrorLogging() {
 
   // 2) 异步未捕获异常。
   PlatformDispatcher.instance.onError = (Object e, StackTrace st) {
-    AppLog.reportError('‼️ 未捕获异常: $e');
+    AppLog.reportError('未捕获异常: $e');
     AppLog.addStack(st.toString());
     return true;
   };
 
   // 3) 出错 widget 的占位渲染（顺便记录，R12 给「详情见日志」指引）。
   ErrorWidget.builder = (FlutterErrorDetails d) {
-    AppLog.reportError('‼️ WidgetError: ${d.exception}');
+    AppLog.reportError('WidgetError: ${d.exception}');
     final stack = d.stack;
     if (stack != null) AppLog.addStack(stack.toString());
     return Center(

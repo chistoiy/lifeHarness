@@ -255,7 +255,7 @@ class SnapshotService {
         final f = File(dest);
         if (f.existsSync()) {
           if (f.lengthSync() == size) return dest; // 幂等跳过标记：同路径
-          AppLog.add('⚠️ 附件同名不同大小，落导出区隔离：$relativePath',
+          AppLog.add('附件同名不同大小，落导出区隔离：$relativePath',
               level: LhLevel.warn);
           return null;
         }

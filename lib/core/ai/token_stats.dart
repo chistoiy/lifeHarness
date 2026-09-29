@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../logging/app_log.dart';
+
 /// AI token 用量台账（真机反馈 2026-09-26：想看 token 使用情况）。
 ///
 /// 口径：
@@ -41,7 +43,9 @@ class AiTokenStats {
         if (perTask.isNotEmpty) out['$day'] = perTask;
       });
       return out;
-    } catch (_) {
+    } catch (e) {
+      AppLog.add('AI 用量台账解码失败，本轮按空台账起算：$e',
+          level: LhLevel.warn);
       return {};
     }
   }

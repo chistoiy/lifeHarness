@@ -93,6 +93,9 @@ void main() {
     await pumpCal(tester);
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
+    // 弹层默认起止取的是**挂钟**分钟，而 `now` 在本文件加载时就冻结了：全量跑时
+    // 若正好跨过分钟边界，`== nowMin()` 会假红（R14 轮 1661 例中 1 例即此）。
+    final mOpen = DateTime.now().hour * 60 + DateTime.now().minute;
 
     expect(find.text('添加事件 / 时间块'), findsOneWidget);
     expect(find.textContaining('${nowMin() ~/ 60}'.padLeft(2, '0')), findsWidgets);
@@ -103,7 +106,8 @@ void main() {
 
     final act = await tbDao.activeTiming();
     expect(act, isNotNull, reason: '确认添加即为计时中块');
-    expect(act!.startMin, nowMin());
+    expect(act!.startMin, inInclusiveRange(mOpen - 1, DateTime.now().hour * 60 + DateTime.now().minute),
+        reason: '起止必须落在弹层打开那一刻的分钟（允许跨边界一格）· nowMin()=$nowMin() mOpen=$mOpen');
     expect(act.source, kSrcTiming);
 
     await pumpCal(tester);

@@ -128,7 +128,7 @@ Future<void> main() async {
       ).migrate();
       await prefs.setBool('media.hashMigrate.v1', true);
     } catch (e) {
-      AppLog.add('⚠️ 图片哈希迁移整体失败（下次启动重试）：$e',
+      AppLog.add('图片哈希迁移整体失败（下次启动重试）：$e',
           level: LhLevel.warn);
     }
   }

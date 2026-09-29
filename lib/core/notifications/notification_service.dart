@@ -4,11 +4,17 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../logging/app_log.dart';
+
 /// 通知与定时提醒基建（M0末A）。
 ///
 /// 渠道：reminders（待办/日程精确提醒）· daily（收集箱整理/日记复盘每日节律）。
 /// 调度用 inexactAllowWhileIdle（免特殊权限；分钟级偏差可接受，正式精确闹钟随发布工程评估）。
 /// 测试/无平台通道环境全部静默降级（[ready]=false 即 no-op），不影响单测。
+///
+/// 日志口径（L2 批·只加日志零行为改动）：降级链与排程成败落 AppLog（来源＝通知），
+/// 取消/开关关等常规静默路径不落，避免启动批量重排刷满环形缓冲。
+
 class NotificationService {
   NotificationService._();
 
@@ -48,15 +54,25 @@ class NotificationService {
       tzdata.initializeTimeZones();
       try {
         tz.setLocalLocation(tz.getLocation(await FlutterTimezone.getLocalTimezone()));
-      } catch (_) {
+      } catch (e) {
         // 拿不到 IANA 时区名时保持 UTC 回退（提醒时间可能偏移，功能不崩）。
+        AppLog.add('通知时区未取得，提醒按 UTC 排程可能偏移：$e',
+            level: LhLevel.warn);
       }
       const settings = InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       );
       ready = await plugin.initialize(settings) ?? false;
-    } catch (_) {
+      if (ready) {
+        AppLog.addKey('通知初始化：平台就绪');
+      } else {
+        AppLog.add('通知初始化：插件未就绪，全部提醒降级为不排程',
+            level: LhLevel.warn);
+      }
+    } catch (e) {
       ready = false;
+      AppLog.add('通知初始化异常，提醒全部降级为不排程：$e',
+          level: LhLevel.error);
     }
   }
 
@@ -65,7 +81,12 @@ class NotificationService {
     if (!ready) return false;
     final android =
         plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    return await android?.requestNotificationsPermission() ?? false;
+    final granted =
+        await android?.requestNotificationsPermission() ?? false;
+    if (!granted) {
+      AppLog.add('通知权限未授予：提醒不会出现在通知栏', level: LhLevel.warn);
+    }
+    return granted;
   }
 
   static Future<void> cancel(int id) async {
@@ -84,15 +105,21 @@ class NotificationService {
     if (!todoEnabled || remindAt == null) return;
     final when = tz.TZDateTime.from(remindAt, tz.local);
     if (!when.isAfter(tz.TZDateTime.now(tz.local))) return;
-    await plugin.zonedSchedule(
-      id,
-      '任务提醒',
-      title,
-      when,
-      const NotificationDetails(android: _remindersCh),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      payload: 'todo:$id',
-    );
+    try {
+      await plugin.zonedSchedule(
+        id,
+        '任务提醒',
+        title,
+        when,
+        const NotificationDetails(android: _remindersCh),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: 'todo:$id',
+      );
+      AppLog.add('待办提醒已排程：#$id · ${title.length > 12 ? '${title.substring(0, 12)}…' : title} · $when');
+    } catch (e) {
+      AppLog.add('待办提醒排程失败：#$id $e', level: LhLevel.error);
+      rethrow;
+    }
   }
 
   /// 同步每日节律提醒（收集箱 21:00 固定 + 日记复盘可配时间）。
@@ -139,15 +166,22 @@ class NotificationService {
     final when = tz.TZDateTime(
         tz.local, remindDay.year, remindDay.month, remindDay.day, 9, 0);
     if (!when.isAfter(now)) return;
-    await plugin.zonedSchedule(
-      id,
-      '日子提醒',
-      offset == 0 ? '「$title」就是今天' : '「$title」还有 $offset 天',
-      when,
-      const NotificationDetails(android: _remindersCh),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      payload: 'day:$dayId:$offset',
-    );
+    try {
+      await plugin.zonedSchedule(
+        id,
+        '日子提醒',
+        offset == 0 ? '「$title」就是今天' : '「$title」还有 $offset 天',
+        when,
+        const NotificationDetails(android: _remindersCh),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: 'day:$dayId:$offset',
+      );
+      AppLog.add('日子提醒已排程：「$title」提前 $offset 天 · $when');
+    } catch (e) {
+      AppLog.add('日子提醒排程失败：「$title」提前 $offset 天 $e',
+          level: LhLevel.error);
+      rethrow;
+    }
   }
 
   static Future<void> cancelDayReminder(int dayId, int offset) async {
@@ -191,15 +225,21 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
     if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-    await plugin.zonedSchedule(
-      id,
-      '习惯提醒',
-      '「$title」到点该打卡了',
-      next,
-      const NotificationDetails(android: _remindersCh),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    try {
+      await plugin.zonedSchedule(
+        id,
+        '习惯提醒',
+        '「$title」到点该打卡了',
+        next,
+        const NotificationDetails(android: _remindersCh),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      AppLog.add('习惯提醒已排程：$title · 每日 $hhmm');
+    } catch (e) {
+      AppLog.add('习惯提醒排程失败：$title（$hhmm）$e', level: LhLevel.error);
+      rethrow;
+    }
   }
 
   static Future<void> _syncDailyAt(
@@ -212,14 +252,20 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
     if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-    await plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      next,
-      const NotificationDetails(android: _dailyCh),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    try {
+      await plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        next,
+        const NotificationDetails(android: _dailyCh),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      AppLog.add('每日提醒已排程：$title · $hhmm');
+    } catch (e) {
+      AppLog.add('每日提醒排程失败：$title（$hhmm）$e', level: LhLevel.error);
+      rethrow;
+    }
   }
 }
