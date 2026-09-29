@@ -13,7 +13,6 @@ class BrProgData {
     required this.eta,
     required this.sessMin,
     required this.notes,
-    required this.cfi,
     required this.frac,
     required this.auto,
     required this.homeLbl,
@@ -25,7 +24,6 @@ class BrProgData {
   final String eta;
   final int sessMin;
   final int notes;
-  final String cfi;
 
   /// 0~1 全书进度（滑条初值）。
   final double frac;
@@ -104,16 +102,6 @@ class _ProgSheetState extends State<_ProgSheet> {
                 const Text(
                   '阅读进度',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                ),
-                const Spacer(),
-                Text(
-                  d.cfi,
-                  key: const ValueKey('brProgCfi'),
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
                 ),
               ],
             ),

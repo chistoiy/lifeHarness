@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../domain/book.dart';
 import '../presentation/reader/reader_pager.dart';
 import 'epub_doc.dart';
@@ -579,7 +580,8 @@ class EpubPreloadService extends ChangeNotifier {
         await _mark(b, EpubRef.stReady, 0, notify: false);
       } catch (_) {}
       onBookSettled?.call(b.id);
-      if (kDebugMode) debugPrint('preload fail ${b.id}: $e');
+      // 真机反馈 R14-10b：原为 debugPrint，release 下无痕 → 统一入 AppLog。
+      AppLog.add('预载失败 书#${b.id}: $e', level: LhLevel.error);
     } finally {
       _running.remove(b.id);
     }
@@ -614,7 +616,7 @@ class EpubPreloadService extends ChangeNotifier {
       final d = await _docs0();
       return PagStore.load(d!, bookId, PagStore.fingerprint(l), weights);
     } catch (e) {
-      if (kDebugMode) debugPrint('loadPag fail $bookId: $e');
+      AppLog.add('分页缓存读取失败 书#$bookId: $e', level: LhLevel.warn);
       return null;
     }
   }
@@ -624,7 +626,7 @@ class EpubPreloadService extends ChangeNotifier {
       final d = await _docs0();
       await PagStore.save(d!, bookId, PagStore.fingerprint(l), pag);
     } catch (e) {
-      if (kDebugMode) debugPrint('savePag fail $bookId: $e');
+      AppLog.add('分页缓存写入失败 书#$bookId: $e', level: LhLevel.warn);
     }
   }
 

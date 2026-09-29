@@ -183,18 +183,7 @@ extension _ReaderChrome on _ReaderPageState {
               children: [
                 Row(
                   children: [
-                    Flexible(
-                      child: Text(
-                        _cfi(_pos.ci, _pos.pg),
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: bar.fg.withValues(alpha: .7),
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
+                    // 轮5.4 后不再显示内部定位串（原型底栏只有页码标签 · 真机反馈 R14-3）。
                     Text(
                       // 全书页码为字符加权估算（约 1500 字/页 · foliate 口径）。
                       '${_pos.pg + 1}/$n 页 · 约第 ${gpEst + 1}/$total 页 · ${pag.pct(_pos.ci, _pos.pg)}%',

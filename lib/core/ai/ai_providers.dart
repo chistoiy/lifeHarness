@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
+import '../logging/app_log.dart';
 import '../providers.dart';
 import 'ai_call_store.dart';
 import 'ai_client.dart';
@@ -29,7 +30,8 @@ Future<AiPromptPack> loadAiPromptPack() async {
   try {
     return AiPromptPack.decode(await rootBundle.loadString(kAiPromptAssetPath));
   } catch (e) {
-    debugPrint('AI 提示词包加载失败：$e');
+    // 真机反馈 R14-10b：debugPrint 在 release 无痕，改入统一日志出口。
+    AppLog.add('AI 提示词包加载失败：$e', level: LhLevel.warn);
     return const AiPromptPack(
         version: 0, defaultBaseUrl: '', defaultModel: '', tasks: []);
   }

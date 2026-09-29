@@ -544,7 +544,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         eta: eta,
         sessMin: (_sessSecs / 60).ceil(),
         notes: _hlQuotes.length,
-        cfi: _cfi(_pos.ci, _pos.pg),
         frac: f,
         auto: _cfg.auto,
         homeLbl: h != null && (h.ci != _pos.ci || h.pg != _pos.pg)
@@ -552,9 +551,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             : null,
       ),
       onSeek: _seek, // 弹层内已把 0~1000 滑条值换算成 0~1 分数
-      onDetail: () => Navigator.of(
-        context,
-      ).pushNamed('/read/log/${widget.bookId}'),
+      onDetail: () => context.push('/read/log/${widget.bookId}'),
       onAuto: _toggleAutoQuick,
       homeProbe: () => _backPill ? '回到进书位置' : null,
       onHome: _goHome,
@@ -573,13 +570,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       onSearch: _openSearch,
       onQuotes: () =>
           context.push('/read/quotes', extra: widget.bookId),
-      onLog: () => Navigator.of(ctx).pushNamed('/read/log/${widget.bookId}'),
-      onStat: () => Navigator.of(ctx).pushNamed('/read/stat'),
-      onDetail: () =>
-          Navigator.of(ctx).pushNamed('/read/book/${widget.bookId}'),
+      onLog: () => ctx.push('/read/log/${widget.bookId}'),
+      onStat: () => ctx.push('/read/stat'),
+      onDetail: () => ctx.push('/read/book/${widget.bookId}'),
       onAppearance: _openAppearance,
       onDelete: _openDelete,
-      onReadSet: () => Navigator.of(ctx).pushNamed('/read/settings?sec=5'),
+      onReadSet: () => ctx.push('/read/settings?sec=5'),
       onMode: (m) {
         if (m == _cfg.mode) return;
         _setMode(m);
