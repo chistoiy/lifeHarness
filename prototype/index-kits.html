@@ -286,6 +286,41 @@ tailwind.config = {
 #tpStage .tp-scan{display:none}
 #tpStage.tp-led .tp-scan{display:block;position:absolute;left:0;right:0;height:3px;top:0;background:linear-gradient(180deg,transparent,rgba(255,255,255,.32),transparent);animation:tpScan 3.6s linear infinite;pointer-events:none}
 #tpStage.tp-led #tpBody{background-image:radial-gradient(circle at center,rgba(0,0,0,.6) 0 28%,transparent 30%);background-size:6px 6px}
+  /* ===== 尺子全屏舞台 + 滑动游标（V1.47 验收轮2 · LH-KIT-RULER） ===== */
+  #rulerStage{background:#f7f8fb;color:#0f172a;display:none}
+  #rulerStage:not(.hidden){display:flex}
+  .dark #rulerStage{background:#0b1120;color:#e2e8f0}
+  #rsBar{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:14px 14px 9px;font-size:10px}
+  #rsBar .rs-chip{padding:4px 10px;border-radius:999px;border:1px solid rgba(100,116,139,.35);font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:inherit}
+  #rsBar .rs-chip.on{background:var(--accent,#6366f1);border-color:transparent;color:#fff}
+  #rsTape{position:absolute;left:0;right:0;top:74px;height:104px;border-top:1px solid rgba(100,116,139,.28);border-bottom:1px solid rgba(100,116,139,.28);background:rgba(255,255,255,.72);overflow:hidden;touch-action:none}
+  .dark #rsTape{background:rgba(255,255,255,.06);border-color:rgba(148,163,184,.3)}
+  #rsScale{position:absolute;left:0;top:0;height:100%;width:1000px}
+  #rsScale i{position:absolute;bottom:0;width:1px;background:currentColor;opacity:.5}
+  #rsScale b{position:absolute;bottom:10px;font-size:8.5px;font-weight:700;transform:translateX(3px);opacity:.75}
+  #rsZero{position:absolute;top:0;bottom:0;width:2px;background:var(--accent,#6366f1);z-index:3;cursor:ew-resize;touch-action:none}
+  #rsZero::before{content:'0';position:absolute;left:-15px;top:50%;transform:translateY(-50%);font-size:9px;font-weight:800;color:var(--accent,#6366f1)}
+  #rsCursor{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:4;cursor:ew-resize;touch-action:none}
+  #rsCursor::before{content:'';position:absolute;left:-6px;top:-1px;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #ef4444}
+  #rsCursor::after{content:'';position:absolute;left:-6px;bottom:-1px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:9px solid #ef4444}
+  #rsRead{position:absolute;left:0;right:0;top:190px;height:96px;text-align:center;padding:0 14px;overflow:hidden}
+  #rsRead .big{font-size:34px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.15}
+  #rsRead .sub{font-size:11px;opacity:.62;margin-top:3px;font-variant-numeric:tabular-nums}
+  #rsZeroPos{margin-top:2px;font-size:10px;opacity:.5}
+  #rsGuideTip{position:absolute;top:294px;left:14px;right:14px;text-align:center;font-size:10px;opacity:.5;line-height:1.5}
+  #rsGuide{position:absolute;top:326px;bottom:56px;left:14px;right:14px;border:1.5px dashed rgba(100,116,139,.45);border-radius:18px;pointer-events:none}
+  #rsCtl{position:absolute;left:14px;right:14px;bottom:16px;display:flex;align-items:center;gap:8px;font-size:10px}
+  #rsCtl input[type=range]{flex:1;min-width:0}
+  /* ===== 紧凑工具卡（V1.47 验收轮2：5 列 / 去白卡底） ===== */
+  .kgrid{display:flex!important;flex-wrap:wrap;width:100%;margin:0 -2px}
+  .kit-tile{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;position:relative;box-sizing:border-box;flex:0 0 20%;max-width:20%;min-width:0;overflow:hidden;padding:6px 3px 7px;border-radius:14px;transition:transform .12s}
+  .kit-tile:active{transform:scale(.95)}
+  .kit-tile .kt-ic{width:30px;height:30px;flex-shrink:0;border-radius:9px;background:rgba(148,163,184,.18);display:flex;align-items:center;justify-content:center;font-size:15px;color:inherit}
+  .dark .kit-tile .kt-ic{background:rgba(148,163,184,.2)}
+  .kit-tile .kt-nm{font-size:9.5px;font-weight:700;line-height:1.2;text-align:center;width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kit-tile .kt-sub{font-size:8px;color:#94a3b8;line-height:1.1}
+  .kit-tile .kt-fav{position:absolute;right:3px;top:1px;font-size:8px;color:#fbbf24;line-height:1}
+  .kit-tile .kt-tag{position:absolute;right:2px;top:1px;font-size:7px;color:#94a3b8;line-height:1}
 #tpText{position:relative;height:70vh;width:88%;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset}
 #tpBody{line-height:1.55;font-weight:800;text-shadow:0 0 12px rgba(255,255,255,.35);white-space:pre-wrap}
 #tpCtl{position:absolute;bottom:18px;left:0;right:0;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:0 12px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.82));opacity:.28;transition:.25s}
@@ -928,6 +963,28 @@ tailwind.config = {
       <span class="text-[9px] opacity-60" id="tpLedTxt"></span>
       <button class="chip !text-[10px]" onclick="tpClose()">✕ 退出</button></div>
     </div>
+    <!-- ===== 尺子全屏舞台（LH-KIT-RULER · V1.47 验收轮2） ===== -->
+    <div id="rulerStage" class="fixed inset-0 z-[90] hidden">
+      <div id="rsBar">
+        <b class="text-[12px] mr-1">尺子</b>
+        <button class="rs-chip" id="rsUcm" onclick="rulerUnit('cm')">cm</button>
+        <button class="rs-chip" id="rsUin" onclick="rulerUnit('in')">in</button>
+        <span class="flex-1"></span>
+        <button class="rs-chip" id="rsDirLong" onclick="rulerDir('long')">长边</button>
+        <button class="rs-chip" id="rsDirShort" onclick="rulerDir('short')">短边</button>
+        <button class="rs-chip" onclick="rulerBank()">银行卡校准</button>
+        <button class="rs-chip" onclick="rulerFsClose()">✕ 退出</button>
+      </div>
+      <div id="rsTape" onpointerdown="rsTapeDown(event)">
+        <div id="rsScale"></div>
+        <div id="rsZero" onpointerdown="rsGrab(event,'zero')"></div>
+        <div id="rsCursor" onpointerdown="rsGrab(event,'cur')"></div>
+      </div>
+      <div id="rsRead"><div class="big" id="rsBig">0 mm</div><div class="sub" id="rulerSpan"></div><div id="rsZeroPos"></div></div>
+      <div id="rsGuideTip">把要量的东西贴着上方尺条 · 按住红线滑到末端即自动读数</div>
+      <div id="rsGuide"></div>
+      <div id="rsCtl"><span>倍率</span><input type="range" id="rsCal" min="0.85" max="1.15" step="0.002" value="1" oninput="rulerCalSet(this.value)"><b class="font-mono w-14 text-right" id="rsCalV">1.000×</b></div>
+    </div>
 
     <!-- ===== P4g 工具管理（收藏 / 排序 / 隐藏） ===== -->
     <section id="p-kitsMng" class="page px-5 safe-pb no-scrollbar">
@@ -1412,9 +1469,7 @@ tailwind.config = {
           <span class="set-ic bg-slate-100 dark:bg-slate-800">📔</span><div class="flex-1"><b class="text-sm">记录管理</b><div class="text-[11px] text-slate-400">笔记版本恢复方式 · 快照策略 · 文件夹与回收站</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-tools')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800">🧰</span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">13 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧩</span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
-          <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
+
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
@@ -2674,21 +2729,17 @@ function renderKitRecentStrip(){const box=$('#kitRecentStrip');if(!box)return;
 function kitRenderHome(){if(!$('#kitCatChips'))return;
  renderKitHeroSlots();renderKitChips();renderKitFavRow();renderKitRecentStrip();
  const q=($('#kitSearch')&&$('#kitSearch').value.trim().toLowerCase())||'';
- let shown=0;
- const groups=TOOL_CATS.filter(c=>!KITS.cat||c[0]===KITS.cat).map(c=>{
-  const ks=c[1].filter(k=>(!KITS.hidden.includes(k))&&(!q||(kitT(k)+' '+c[0]).toLowerCase().includes(q)));
-  shown+=ks.length;
-  return ks.length?`<div class="kgrp text-xs font-extrabold text-slate-500 mt-5 mb-2">${kitSvg('cat-'+c[0])}<span>${c[0]}</span><span class="text-[9px] text-slate-400 ml-1">${ks.length}</span></div><div class="grid grid-cols-4 gap-3">`+
-   ks.map(k=>{const t=TOOL_REG[k];return `<button class="card !p-2.5 flex flex-col items-center gap-1.5 active:scale-95 transition relative" onclick="kitOpen('${k}')" oncontextmenu="event.preventDefault();kitToggleFav('${k}')"><span class="absolute right-1 top-1 text-[9px] text-amber-400">${KITS.fav.includes(k)?'★':''}</span><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">${kitSvg(k)}</span><span class="text-[10px] font-bold">${t.nm}</span><span class="text-[8px] text-slate-400">${kitUsage(k)?kitUsage(k)+' 次':'未用过'}</span></button>`}).join('')+`</div>`:''}).join('');
- let plgHtml='';
- if(!KITS.cat||KITS.cat==='拓展'){
-  const ps=PLUGINS.filter(p=>p.en).filter(p=>!q||p.n.toLowerCase().includes(q));
-  if(ps.length)plgHtml=`<div class="kgrp text-xs font-extrabold text-slate-500 mt-5 mb-2">${kitSvg('cat-拓展')}<span>拓展</span><span class="text-[9px] text-slate-400 ml-1">${ps.length}</span></div><div class="grid grid-cols-4 gap-3">`+
-   ps.map(p=>`<button class="card !p-2.5 flex flex-col items-center gap-1.5 active:scale-95 transition relative" onclick="plgUse('${p.id}')"><span class="absolute right-1 top-1 vchip !text-[7px]">插件</span><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">${plgIco(p)}</span><span class="text-[10px] font-bold truncate w-full">${p.n}</span><span class="text-[8px] text-slate-400">沙箱 · v${p.ver}</span></button>`).join('')+`</div>`}
- $('#toolGrid').innerHTML=groups+plgHtml;
- const e=$('#kitEmpty');if(e)e.classList.toggle('hidden',shown+ (ps0()) >0);
- function ps0(){return (!KITS.cat||KITS.cat==='拓展')?PLUGINS.filter(p=>p.en).filter(p=>!q||p.n.toLowerCase().includes(q)).length:0}
- renderPlugins()}
+ /* V1.47 验收轮2：全分类合并成单一网格，每行稳定 5 枚；分类归属看筛选 chips */
+ const items=[];
+ TOOL_CATS.forEach(c=>{if(KITS.cat&&c[0]!==KITS.cat)return;
+  c[1].forEach(k=>{if(KITS.hidden.includes(k))return;
+   if(q&&!(kitT(k)+' '+c[0]).toLowerCase().includes(q))return;
+   const t=TOOL_REG[k];
+   items.push(`<button class="kit-tile" onclick="kitOpen('${k}')" oncontextmenu="event.preventDefault();kitToggleFav('${k}')"><span class="kt-fav">${KITS.fav.includes(k)?'★':''}</span><span class="kt-ic">${kitSvg(k)}</span><span class="kt-nm">${t.nm}</span><span class="kt-sub">${kitUsage(k)?kitUsage(k)+' 次':'未用过'}</span></button>`)});});
+ const ps=(!KITS.cat||KITS.cat==='拓展')?PLUGINS.filter(p=>p.en).filter(p=>!q||p.n.toLowerCase().includes(q)):[];
+ ps.forEach(p=>items.push(`<button class="kit-tile" onclick="plgUse('${p.id}')"><span class="kt-tag">插件</span><span class="kt-ic">${plgIco(p)}</span><span class="kt-nm">${p.n}</span><span class="kt-sub">v${p.ver}</span></button>`));
+ $('#toolGrid').innerHTML=`<div class="kgrp text-xs font-extrabold text-slate-500 mb-2">${KITS.cat||'全部工具'}<span class="text-[9px] text-slate-400 ml-1">${items.length}</span></div><div class="kgrid">`+items.join('')+`</div>`;
+ const e=$('#kitEmpty');if(e)e.classList.toggle('hidden',items.length>0)}
 /* —— 主卡数据位配置弹层（固定预览 + 草稿保存制 HG-D3） —— */
 let kitCfgDraft=null;
 function openKitSheet(id){openSheet(id)}
@@ -3078,9 +3129,10 @@ const TOOLS={
  <div class="card mt-3"><div class="flex items-center justify-between"><div class="row-title text-xs !mb-0">历史结果 · 近 5 次</div><button class="mini-btn" onclick="spdCompareToggle(this)">对比</button></div><div id="spdHist" class="mt-2 space-y-1.5 text-[10px]"></div><div class="text-[9px] text-slate-400 mt-1.5">结果存本机 · 可写入日记留档</div></div>`,mount(){spdHistRender()}},
  ruler:{ic:'📏',nm:'尺子',html:()=>`<div class="flex gap-1.5 mb-2 flex-wrap"><button class="prog-chip on !py-1" id="rUcm" onclick="rulerUnit('cm')">厘米 cm</button><button class="prog-chip !py-1" id="rUin" onclick="rulerUnit('in')">英寸 in</button><span class="flex-1"></span><button class="prog-chip on !py-1" id="rDirLong" onclick="rulerDir('long')">长边</button><button class="prog-chip !py-1" id="rDirShort" onclick="rulerDir('short')">短边</button></div>
  <div class="flex items-center gap-2"><span class="text-[10px] text-slate-400 w-8">倍率</span><input type="range" id="rulerCal" min="0.85" max="1.15" step="0.002" value="${KITS.cal}" class="flex-1 min-w-0" oninput="rulerCalSet(this.value)"><b class="text-[10px] w-16 shrink-0 text-right font-mono" id="rulerCalV"></b></div>
- <div class="card !p-3 text-slate-700 dark:text-slate-300 mt-2 overflow-y-auto no-scrollbar" style="height:52vh" id="rulerBox"></div>
- <div class="mt-2 flex gap-2 items-center"><b id="rulerSpan" class="text-xs text-brand-500"></b><span class="ml-auto flex gap-2"><button class="mini-btn" onclick="rulerBank()">银行卡校准</button><button class="mini-btn" onclick="rulerCalSet(1)">重置 1.000</button></span></div>
-`,mount(){rulerApplyBoot();rulerDraw()}},
+ <button class="mt-2 w-full py-4 rounded-2xl grad text-white text-[13px] font-extrabold active:scale-[.98] transition" onclick="rulerFsOpen()">全屏尺子 · 按住红线滑动读数 ›</button>
+ <div class="card !p-3 text-slate-700 dark:text-slate-300 mt-2 overflow-y-auto no-scrollbar hidden" style="height:52vh" id="rulerBox"></div>
+ <div class="mt-2 flex gap-2 items-center"><b class="text-xs text-brand-500">量程 <b id="rulerSpanCard"></b></b><span class="ml-auto flex gap-2"><button class="mini-btn" onclick="rulerBank()">银行卡校准</button><button class="mini-btn" onclick="rulerCalSet(1)">重置 1.000</button></span></div>
+`,mount(){rulerApplyBoot();rulerDraw();rulerFsOpen()}},
  dist:{ic:'🗺️',nm:'测距',html:()=>`<div class="flex gap-1.5 mb-2"><button class="prog-chip ${KITS.distMode==='map'?'on':''}" id="dmMap" onclick="distMode('map')">离线地图比例尺</button><button class="prog-chip ${KITS.distMode==='gps'?'on':''}" id="dmGps" onclick="distMode('gps')">GPS 轨迹</button></div>
  <div id="distMap" onclick="distTap(event)" class="relative h-56 rounded-2xl overflow-hidden cursor-crosshair" style="background-image:linear-gradient(rgba(100,116,139,.14) 1px,transparent 1px),linear-gradient(90deg,rgba(100,116,139,.14) 1px,transparent 1px),linear-gradient(135deg,#dbeafe,#e0f2fe 45%,#d1fae5);background-size:24px 24px,24px 24px,100% 100%"><svg id="distSvg" class="absolute inset-0 w-full h-full pointer-events-none"></svg><span id="distHint" class="absolute left-2 top-2 text-[10px] bg-white/80 dark:bg-slate-900/80 rounded px-1.5 py-0.5"></span><span id="distTrail" class="absolute right-2 bottom-2 text-[9px] font-mono bg-slate-900/70 text-white rounded px-1.5 py-0.5 hidden"></span></div>
  <div id="distScaleRow" class="mt-2 flex items-center gap-2 text-[10px]"><span>比例尺</span><input type="range" id="distScale" min="0.5" max="10" step="0.5" value="${KITS.distScale}" class="flex-1 min-w-0" oninput="distScaleSet(this.value)"><b id="distScaleV" class="w-20 shrink-0 text-right font-mono"></b></div>
@@ -3241,7 +3293,7 @@ const ICONS={
  'p-care':'<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/>',
  'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
  'p-pstore':'<path d="M3.5 9 5 4h14l1.5 5"/><path d="M5 9v10a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V9"/><path d="M9.5 20.5V14h5v6.5"/>'};
-const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-tools','工具',''],['p-pstore','插件',''],['p-profile','我的','fix']];
+const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-tools','工具',''],['p-profile','我的','fix']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
@@ -4574,33 +4626,73 @@ function spdHistRender(){const el=$('#spdHist');if(!el)return;const L=KITS.spd||
   '<div class="text-[10px] text-slate-400">尚无测速记录 · 完成一次测速自动留档</div>'}
 function spdCompareToggle(el){SPD_CMP=!SPD_CMP;el.textContent=SPD_CMP?'对比中':'对比';spdHistRender();toast(SPD_CMP?'已与上一次结果对比':'取消对比')}
 /* —— 尺子 —— */
-function rulerDraw(){const box=$('#rulerBox');if(!box)return;
- const cal=KITS.cal,PXMM=3.78;
+function rulerEdgeMm(){const PXMM=3.78;
  const _pe=document.getElementById('phone')||document.documentElement,_pr=_pe.getBoundingClientRect(); /* 走查A1：screen.* 在部分 WebView/桌面壳恒为 0，改量手机框实际渲染尺寸 */
  const _ew=Math.round(_pr.width)||innerWidth,_eh=Math.round(_pr.height)||innerHeight;
- const longMm=Math.round(Math.max(_ew,_eh)/PXMM),shortMm=Math.round(Math.min(_ew,_eh)/PXMM);
- const dir=KITS.rulerDir||'long',unit=KITS.rulerUnit||'cm',targetMm=dir==='long'?longMm:shortMm;
-  let rows='',i=0;
- if(unit==='cm'){const n=targetMm;
-  for(i=0;i<=n;i++){const major=i%10===0,mid=i%5===0;
-   rows+=`<div style="height:${cal}mm;display:flex;align-items:center"><span style="height:1px;width:${major?'14mm':mid?'9mm':'5mm'};background:currentColor;opacity:${major?'.85':mid?'.5':'.3'}"></span>${major?`<b style="font-size:8.5px;margin-left:3px">${i/10}</b><span style="flex:1;height:1px;background:currentColor;opacity:.08;margin-left:6px"></span>`:''}</div>`}}
- else{const nIn=Math.round(targetMm/25.4*4);
-  for(i=0;i<=nIn;i++){const major=i%4===0,mid=i%2===0;
-   rows+=`<div style="height:${cal*6.35}px;display:flex;align-items:center"><span style="height:1px;width:${major?'14mm':mid?'9mm':'5mm'};background:currentColor;opacity:${major?'.85':mid?'.5':'.3'}"></span>${major?`<b style="font-size:8.5px;margin-left:3px">${i/4}</b><span style="flex:1;height:1px;background:currentColor;opacity:.08;margin-left:6px"></span>`:''}</div>`}}
- box.innerHTML=`<div class="flex flex-col">${rows}</div>`;
- $('#rulerCalV').textContent=cal.toFixed(3)+'×';
- const sp=$('#rulerSpan');if(sp)sp.textContent=`${dir==='long'?'长边':'短边'} ${targetMm} mm ≈ ${(targetMm/10).toFixed(1)} cm`;
- KIT_SHARE_TXT=`尺子 · ${dir==='long'?'长边':'短边'} ${targetMm}mm · 单位 ${unit} · 校准 ${cal.toFixed(3)}×`}
+ return {longMm:Math.round(Math.max(_ew,_eh)/PXMM),shortMm:Math.round(Math.min(_ew,_eh)/PXMM)};}
+function rulerTargetMm(){const e=rulerEdgeMm();return (KITS.rulerDir||'long')==='long'?e.longMm:e.shortMm;}
+/* 整条量程尺面已迁到全屏舞台（rsTape/rsScale）；页面内不再画 52vh 竖尺。 */
+function rulerDraw(){rulerDrawScale();rulerPaintRs();
+ const v=$('#rulerCalV');if(v)v.textContent=(+KITS.cal).toFixed(3)+'×';
+ const v2=$('#rsCalV');if(v2)v2.textContent=(+KITS.cal).toFixed(3)+'×';
+ const card=$('#rulerSpanCard');if(card)card.textContent=rulerTargetMm()+' mm';}
+/* —— 尺子全屏舞台 + 滑动游标（V1.47 验收轮2） —— */
+function rulerFsOpen(){const st=$('#rulerStage');if(!st)return;st.classList.remove('hidden');document.body.classList.add('tp-noscroll');
+ if(KITS.rsCur==null)KITS.rsCur=Math.round(rulerTargetMm()*.4);rsClamp();rulerDraw();rsChips()}
+function rulerFsClose(){const st=$('#rulerStage');if(!st)return;st.classList.add('hidden');document.body.classList.remove('tp-noscroll')}
+function rsChips(){const u=$('#rsUcm');if(!u)return;const cm=(KITS.rulerUnit||'cm')==='cm';
+ u.classList.toggle('on',cm);$('#rsUin').classList.toggle('on',!cm);
+ $('#rsDirLong').classList.toggle('on',(KITS.rulerDir||'long')==='long');$('#rsDirShort').classList.toggle('on',KITS.rulerDir==='short')}
+function rsGeom(){const tp=$('#rsTape');if(!tp)return null;const r=tp.getBoundingClientRect();
+ const target=rulerTargetMm(),px=r.width||400;return {left:r.left,px:px,ppmm:px/target,target:target}}
+function rsClamp(){const g=rsGeom();if(!g)return;const t=g.target;
+ KITS.rsZero=Math.min(Math.max(0,KITS.rsZero||0),t-1);
+ if(KITS.rsCur==null)KITS.rsCur=Math.round(t*.4);
+ KITS.rsCur=Math.min(Math.max(KITS.rsCur,KITS.rsZero+1),t)}
+function rsSetFromX(clientX,which){const g=rsGeom();if(!g)return;
+ const mm=Math.round((clientX-g.left)/g.ppmm);
+ if(which==='zero')KITS.rsZero=Math.min(Math.max(0,mm),g.target-1);
+ else KITS.rsCur=Math.min(Math.max(mm,KITS.rsZero+1),g.target);
+ rulerPaintRs()}
+function rsGrab(e,which){e.preventDefault();if(e.stopPropagation)e.stopPropagation();rsSetFromX(e.clientX,which);
+ const mv=ev=>rsSetFromX(ev.clientX,which);
+ const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
+   toast(which==='zero'?('零点已移到 '+KITS.rsZero+' mm'):('读数 '+(KITS.rsCur-KITS.rsZero)+' mm'))};
+ window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up)}
+function rsTapeDown(e){if(e.target.closest('#rsCursor,#rsZero'))return;rsGrab(e,'cur')}
+function rsKey(e){const st=$('#rulerStage');if(!st||st.classList.contains('hidden'))return;
+ if(e.key==='Escape'){rulerFsClose();return}
+ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){const d=e.key==='ArrowLeft'?-1:1;
+  KITS.rsCur=Math.min(Math.max(KITS.rsCur+d,KITS.rsZero+1),rulerTargetMm());rulerPaintRs();e.preventDefault()}}
+function rulerPaintRs(){const g=rsGeom();if(!g)return;
+ const cur=$('#rsCursor'),z=$('#rsZero');if(!cur||!z)return;rsClamp();
+ cur.style.left=Math.round(KITS.rsCur*g.ppmm)+'px';z.style.left=Math.round(KITS.rsZero*g.ppmm)+'px';
+ const mm=KITS.rsCur-KITS.rsZero,dirLbl=(KITS.rulerDir||'long')==='long'?'长边':'短边';
+ const big=$('#rsBig');if(big)big.textContent=(RULER_UNIT==='in')?((mm/25.4).toFixed(2)+' in'):(mm+' mm');
+ const sp=$('#rulerSpan');if(sp)sp.textContent=dirLbl+' 游标 '+mm+' mm ≈ '+(mm/10).toFixed(1)+' cm';
+ const zp=$('#rsZeroPos');if(zp)zp.textContent='零点 '+KITS.rsZero+' mm · 量程 '+g.target+' mm · 方向键微调 1mm';
+ KIT_SHARE_TXT='尺子 · 游标读数 '+mm+' mm（'+dirLbl+' · 零点 '+KITS.rsZero+' mm）· 量程 '+g.target+' mm · 校准 '+(+KITS.cal).toFixed(3)+'×'}
+function rulerDrawScale(){const host=$('#rsScale');if(!host)return;const g=rsGeom();if(!g)return;
+ const target=g.target,cm=(KITS.rulerUnit||'cm')==='cm';let h='';
+ if(cm){for(let i=0;i<=target;i++){const px=i*g.ppmm,major=i%10===0,mid=i%5===0;
+   h+='<i style="left:'+px.toFixed(1)+'px;height:'+(major?'56px':mid?'34px':'18px')+'"></i>';
+   if(major)h+='<b style="left:'+px.toFixed(1)+'px">'+(i/10)+'</b>'}}
+ else{const n=Math.round(target/25.4*4);for(let i=0;i<=n;i++){const v=i*25.4/4;if(v>target)break;
+   const px=v*g.ppmm,major=i%4===0,mid=i%2===0;
+   h+='<i style="left:'+px.toFixed(1)+'px;height:'+(major?'56px':mid?'34px':'18px')+'"></i>';
+   if(major)h+='<b style="left:'+px.toFixed(1)+'px">'+(i/4)+'</b>'}}
+ host.style.width=(target*g.ppmm)+'px';host.innerHTML=h}
+
 function rulerApplyBoot(){if(!KITS.rulerDir)KITS.rulerDir='long';if(!KITS.rulerUnit)KITS.rulerUnit='cm';
- const a=$('#rDirLong'),b=$('#rUcm');if(!a)return;
- a.classList.toggle('on',KITS.rulerDir==='long');b&&$('#rDirShort').classList.toggle('on',KITS.rulerDir==='short');
- $('#rUcm').classList.toggle('on',KITS.rulerUnit==='cm');$('#rUin').classList.toggle('on',KITS.rulerUnit==='in')}
-function rulerDir(d){KITS.rulerDir=d;kitSave();$('#rDirLong').classList.toggle('on',d==='long');$('#rDirShort').classList.toggle('on',d==='short');
+ rsChips();const b=$('#rUcm');if(!b)return;
+ b.classList.toggle('on',KITS.rulerUnit==='cm');$('#rUin').classList.toggle('on',KITS.rulerUnit==='in');
+ $('#rDirLong').classList.toggle('on',KITS.rulerDir==='long');$('#rDirShort').classList.toggle('on',KITS.rulerDir==='short')}
+function rulerDir(d){KITS.rulerDir=d;kitSave();rsChips();const _a=$('#rDirLong');if(_a){_a.classList.toggle('on',d==='long');$('#rDirShort').classList.toggle('on',d==='short');}
  rulerDraw();toast(d==='long'?'尺边：沿手机长边铺设（默认自动取长边）':'尺边：沿手机短边铺设')}
-function rulerUnit(u){RULER_UNIT=u;KITS.rulerUnit=u;kitSave();$('#rUcm').classList.toggle('on',u==='cm');$('#rUin').classList.toggle('on',u==='in');rulerDraw();toast('刻度单位：'+(u==='cm'?'厘米 · 逻辑毫米基准':'英寸 · 1in=25.4mm 换算'))}
-function rulerCalSet(v){KITS.cal=+v;kitSave();const s=$('#rulerCal');if(s)s.value=v;rulerDraw()}
+function rulerUnit(u){RULER_UNIT=u;KITS.rulerUnit=u;kitSave();const _c=$('#rUcm');if(_c){_c.classList.toggle('on',u==='cm');$('#rUin').classList.toggle('on',u==='in')}rsChips();rulerDraw();toast('刻度单位：'+(u==='cm'?'厘米 · 逻辑毫米基准':'英寸 · 1in=25.4mm 换算'))}
+function rulerCalSet(v){KITS.cal=+v;kitSave();const s=$('#rulerCal');if(s)s.value=v;const r=$('#rsCal');if(r)r.value=v;rulerDraw()}
 function rulerBank(){const v=Math.min(1.15,Math.max(.85,1/(0.86+Math.random()*.24)));
- KITS.cal=+v;kitSave();$('#rulerCal').value=v;rulerDraw();
+ KITS.cal=+v;kitSave();const _rc=$('#rulerCal');if(_rc)_rc.value=v;const _rs=$('#rsCal');if(_rs)_rs.value=v;rulerDraw();
  toast('已按银行卡 8.50cm 对齐 · 倍率 '+(+v).toFixed(3)+'×（拖动滑杆可再微调）')}
 /* —— 测距 —— */
 function distMode(m){KITS.distMode=m;kitSave();$('#dmMap').classList.toggle('on',m==='map');$('#dmGps').classList.toggle('on',m==='gps');

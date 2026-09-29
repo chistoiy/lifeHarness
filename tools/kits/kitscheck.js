@@ -89,7 +89,8 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
   let r;try{r=await withTimeout(evl(expr,aw),25000,n)}catch(e){return bad(n,e.message)}
   if(r&&r.__err)return bad(n,r.__err);
   const v=check?check(r):!!r;
-  v?ok(n,typeof r==='object'?JSON.stringify(r).slice(0,72):''):bad(n,JSON.stringify(r).slice(0,90))}
+  v?ok(n,typeof r==='object'?JSON.stringify(r).slice(0,72):''):bad(n,JSON.stringify(r).slice(0,900))
+ }
  await step('提词层默认隐藏（防全屏遮罩回归）',`(function(){var st=document.querySelector('#tpStage');var cs=getComputedStyle(st);
    return {cls:st.className.indexOf('hidden')>=0,disp:cs.display}})()`,v=>v.cls&&v.disp==='none');
  await step('使用计数递增',`(function(){var a=KITS.usage.ping||0;kitOpen('ping');return {b:a,a:KITS.usage.ping}})()`,v=>v.a>v.b);
@@ -110,9 +111,33 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
  await step('轮盘 12 项上限',`(function(){openTool('wheel');
    var it=wItems();while(it.length<12)it.push({t:'x'+it.length,w:1});wheelDraw();$('#wNew').value='超';$('#wNewW').value=1;wheelAdd();
    return {n:wItems().length,capped:wItems().length<=12}})()`,v=>v.capped);
- await step('尺子长边默认读数',`(function(){openTool('ruler');var t=$('#rulerSpan').textContent;
-   var long=Math.round(Math.max(screen.width,screen.height)/3.78);var mm=+(t.match(/(\\d+)\\s*mm/)||[0,0])[1];
-   return {dir:KITS.rulerDir,diff:Math.abs(mm-long),txt:t.slice(0,20)}})()`,v=>v.dir==='long'&&v.diff<=3);
+  await step('尺子全屏舞台与量程读数',`(function(){openTool('ruler');var st=$('#rulerStage');
+   var target=rulerTargetMm();var card=(document.getElementById('rulerSpanCard')||{}).textContent||'';
+   return {open:!st.classList.contains('hidden'),
+     span:document.getElementById('rulerSpan').textContent,
+     target:target,cardMm:+(card.match(/(\\d+)/)||[0,0])[1],
+     ticks:document.querySelectorAll('#rsScale i').length,majors:document.querySelectorAll('#rsScale b').length,
+     cursorLeft:document.getElementById('rsCursor').style.left}})()`,
+   v=>v.open&&/长边 游标 \d+ mm/.test(v.span)&&v.cardMm===v.target&&v.ticks>=v.target-2&&v.majors>=10&&/\d+px/.test(v.cursorLeft));
+  await step('尺子游标拖动即自动读数',`(function(){openTool('ruler');
+   var g=rsGeom(),x0=g.left+g.ppmm*120;rsSetFromX(x0,'cur');
+   return {cur:KITS.rsCur,read:(document.getElementById('rulerSpan').textContent||''),big:document.getElementById('rsBig').textContent}})()`,
+   v=>Math.abs(v.cur-120)<=2&&new RegExp('游标 '+v.cur+' mm').test(v.read)&&v.big===v.cur+' mm');
+  await step('尺子零点可挪且读数=游标-零点',`(function(){openTool('ruler');
+   KITS.rsZero=0;KITS.rsCur=150;rulerPaintRs();var a=KITS.rsCur-KITS.rsZero;
+   var g=rsGeom();rsSetFromX(g.left+g.ppmm*40,'zero');var b=KITS.rsCur-KITS.rsZero,z=KITS.rsZero;
+   KITS.rsZero=0;rulerPaintRs();return {before:a,after:b,z:z}})()`,v=>v.before===150&&Math.abs(v.after-110)<=2&&Math.abs(v.z-40)<=2);
+  await step('首页工具卡已紧凑化（每行可排 5 枚 · kit-tile）',`(function(){setPage('p-tools');var g=document.querySelector('#toolGrid');
+   var grids=[].slice.call(g.querySelectorAll('.kgrid'));var gr0=grids[0]?getComputedStyle(grids[0]):null;
+   var t0=grids[0]?grids[0].querySelector('.kit-tile'):null;
+   var gw=grids[0]?grids[0].getBoundingClientRect().width:0;
+   var tw=t0?t0.getBoundingClientRect().width:0;
+   var kids=grids[0]?[].slice.call(grids[0].children).map(x=>x.getBoundingClientRect()):[];
+   var y=kids.length?kids[0].top:0;
+   return {tiles:g.querySelectorAll('.kit-tile').length,disp:gr0?gr0.display:'',perRow:kids.filter(r=>Math.abs(r.top-y)<2).length,
+     fits5:tw>0&&Math.floor(gw/tw)===5,minW:t0?getComputedStyle(t0).minWidth:'',
+     legacy:/class="card !p-2.5/.test(g.innerHTML)}})()`,
+   v=>v.tiles>=13&&!v.legacy&&v.fits5&&v.minW==='0px'&&v.perRow>=2);
  await step('尺子方向切换',`(function(){rulerDir('short');var a=$('#rulerSpan').textContent;rulerDir('long');
    return {short:/短边/.test(a),long:/长边/.test($('#rulerSpan').textContent)}})()`,v=>v.short&&v.long);
  await step('尺子校准与重置',`(function(){openTool('ruler');rulerBank();var c=KITS.cal;rulerCalSet(1);return {moved:Math.abs(c-1)>0.001,reset:KITS.cal===1}})()`,v=>v.moved&&v.reset);
