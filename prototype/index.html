@@ -546,7 +546,7 @@ tailwind.config = {
         <div class="flex gap-2 items-start">
           <div class="flex-1 min-w-0 select-none" style="touch-action:none">
             <div class="flex items-center justify-between mb-1.5 gap-2">
-              <div class="text-[10px] text-slate-400">🖐 滑选 → 点右列分类=直接标记 · 1格=<b id="granLabel">15</b>分 · 全天0-24 · 点已有块可改起止/拆分/合并</div>
+              <div class="text-[10px] text-slate-400">1 格 = <b id="granLabel">15</b> 分 · 全天 0-24</div>
               <span class="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">粒度
                 <select id="granSel" onchange="setGran(+this.value)" class="sel !py-1">
                   <option value="1">1 分钟</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15" selected>15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option>
@@ -557,7 +557,7 @@ tailwind.config = {
             <div id="gridSelInfo" class="mt-2 text-xs font-bold text-brand-500 min-h-[20px]"></div>
           </div>
           <div class="w-[70px] shrink-0">
-            <div class="text-[9px] text-slate-400 text-center mb-1">选中=标记 · 未选=记到此刻</div>
+            <div class="text-[9px] text-slate-400 text-center mb-1">分类</div>
             <div id="catRail2" class="space-y-1.5"></div>
           </div>
         </div>
@@ -708,34 +708,34 @@ tailwind.config = {
 
     <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
     <section id="p-sub-recmg" class="page px-5 safe-pb no-scrollbar">
-      <div class="text-xs font-extrabold text-slate-400 mt-2 mb-1.5">📔 日记</div>
+      <div class="text-xs font-extrabold text-slate-400 mt-2 mb-1.5">日记</div>
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>默认新建模板</span>
           <button class="mini-btn" onclick="cycleRecSet(this,'tpl',['纯文本','KPT 复盘','晨间三问'])">纯文本</button></div>
         <div class="flex items-center justify-between"><span>连续记录提醒</span><b class="text-xs text-slate-400">断签 2 天时提醒</b></div>
       </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📝 笔记</div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">笔记</div>
       <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>🕘 版本恢复方式</span>
+        <div class="flex items-center justify-between"><span>版本恢复方式</span>
           <button id="nrMode" onclick="tglNoteRestore()" class="mini-btn">直接替换正文</button></div>
         <div class="text-[11px] text-slate-400">恢复快照时：直接替换当前正文（替换前自动留快照，可反悔）⇄ 新增为一条副本笔记</div>
         <div class="flex items-center justify-between"><span>自动快照节奏</span><b class="text-xs text-slate-400">停输 30 秒 / 每 500 字</b></div>
         <!-- V1.29轮9k：LaTeX 语法渲染开关（默认关·关=预览/分屏按原文显示 $..$/$$..$$） -->
         <div class="flex items-center justify-between"><span>LaTeX 公式渲染</span><span id="latexTgl" class="toggle" onclick="tgl(this);PW_LATEX=!PW_LATEX;pwSync();toast(PW_LATEX?'已开启 LaTeX 渲染：$..$ 与 $$..$$ 显示为公式':'已关闭 LaTeX 渲染：公式按原文显示')"></span></div>
-        <div class="flex items-center justify-between"><span>🗂 文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 点 📂 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
+        <div class="flex items-center justify-between"><span>文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
       </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📚 阅读</div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">阅读</div>
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>默认进度方式</span>
           <button class="mini-btn" onclick="cycleRecSet(this,'pg',['页数','百分比','章节'])">页数</button></div>
         <div class="flex items-center justify-between"><span>阅读计时</span><b class="text-xs text-slate-400">开始阅读时询问</b></div>
       </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">🎬 影音游</div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">影音游</div>
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>默认进度方式</span>
           <button class="mini-btn" onclick="cycleRecSet(this,'mg',['集数','百分比','时间点'])">集数</button></div>
       </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">⚙️ 通用</div>
+      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">通用</div>
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>回收站自动清理</span>
           <button class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
@@ -1285,7 +1285,7 @@ tailwind.config = {
     <section id="p-profile" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center gap-4">
         <div class="w-16 h-16 rounded-full grad flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-indigo-500/30">C</div>
-        <div><div class="font-extrabold text-lg">CHIST</div><div class="text-xs text-slate-400">本地模式 · 无账号 🔒 · 已记录 55 天</div></div>
+        <div><div class="font-extrabold text-lg">CHIST</div><div class="text-xs text-slate-400">本地模式 · 无账号 · 已记录 55 天</div></div>
         <button class="ml-auto text-xs text-brand-500 font-bold" onclick="toast('编辑资料（模拟）')">编辑</button>
       </div>
       <div class="mt-4 grid grid-cols-3 text-center text-[11px]">
@@ -1296,41 +1296,41 @@ tailwind.config = {
 
       <div class="card mt-4 !p-0 overflow-hidden">
         <button onclick="navTo('p-sub-data')" class="w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-emerald-100 dark:bg-emerald-500/15">☁️</span><div class="flex-1"><b class="text-sm">数据与同步</b><div class="text-[11px] text-slate-400">WebDAV · 备份 · 加密 · 同步历史</div></div>
+          <span class="set-ic bg-emerald-100 dark:bg-emerald-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 18.5h9.3a3.6 3.6 0 0 0 .5-7.16 5.2 5.2 0 0 0-9.9-1.4 3.9 3.9 0 0 0 .1 8.56Z"/><path d="M12 15.4V9.2m0 0-2.1 2.1M12 9.2l2.1 2.1"/></svg></span><div class="flex-1"><b class="text-sm">数据与同步</b><div class="text-[11px] text-slate-400">WebDAV · 备份 · 加密 · 同步历史</div></div>
           <span class="text-[10px] text-emerald-500 font-bold mr-1">● 已连接</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-notify')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-brand-50 dark:bg-brand-500/15">🔔</span><div class="flex-1"><b class="text-sm">提醒通知</b><div class="text-[11px] text-slate-400">日程 · 日记复盘 · 收集箱清理 · 习惯</div></div>
+          <span class="set-ic bg-brand-50 dark:bg-brand-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 16.2v-5.1a5.4 5.4 0 0 1 10.8 0v5.1l1.4 2H5.2l1.4-2Z"/><path d="M10.2 20.4a1.9 1.9 0 0 0 3.6 0"/></svg></span><div class="flex-1"><b class="text-sm">提醒通知</b><div class="text-[11px] text-slate-400">日程 · 日记复盘 · 收集箱清理 · 习惯</div></div>
           <span class="text-[10px] text-slate-400 mr-1">3 项开启</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-ai')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-violet-50 dark:bg-violet-500/15">🤖</span><div class="flex-1"><b class="text-sm">AI 增强</b><div class="text-[11px] text-slate-400">服务商 · Key · 能力矩阵 · API 验证</div></div>
+          <span class="set-ic bg-violet-50 dark:bg-violet-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="7.4" y="7.4" width="9.2" height="9.2" rx="2.2"/><path d="M10.4 3.8v3.6m3.2-3.6v3.6M10.4 16.6v3.6m3.2-3.6v3.6M3.8 10.4h3.6m-3.6 3.2h3.6M16.6 10.4h3.6m-3.6 3.2h3.6"/></svg></span><div class="flex-1"><b class="text-sm">AI 增强</b><div class="text-[11px] text-slate-400">服务商 · Key · 能力矩阵 · API 验证</div></div>
           <span class="text-[10px] text-slate-400 mr-1">默认关闭</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-cats')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-orange-50 dark:bg-orange-500/15">🏷</span><div class="flex-1"><b class="text-sm">分类管理</b><div class="text-[11px] text-slate-400">时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组</div></div><span class="text-slate-300">›</span></button>
+          <span class="set-ic bg-orange-50 dark:bg-orange-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 11.6 11.6 4.6h7.8v7.8l-7 7a1.6 1.6 0 0 1-2.2 0l-5.6-5.6a1.6 1.6 0 0 1 0-2.2Z"/><circle cx="16" cy="8" r="1.2"/></svg></span><div class="flex-1"><b class="text-sm">分类管理</b><div class="text-[11px] text-slate-400">时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-recmg')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">📔</span><div class="flex-1"><b class="text-sm">记录管理</b><div class="text-[11px] text-slate-400">笔记版本恢复方式 · 快照策略 · 文件夹与回收站</div></div><span class="text-slate-300">›</span></button>
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="6.4" y="4" width="12.6" height="16" rx="2"/><path d="M9.8 4v16M6.4 8.6h3.4m-3.4 3.5h3.4m-3.4 3.5h3.4"/></svg></span><div class="flex-1"><b class="text-sm">记录管理</b><div class="text-[11px] text-slate-400">笔记版本恢复方式 · 快照策略 · 文件夹与回收站</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-tools')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧰</span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">11 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14.8 4.4a4.2 4.2 0 0 0-5.2 5.4l-5 5a1.8 1.8 0 1 0 2.6 2.6l5-5a4.2 4.2 0 0 0 5.4-5.2l-2.5 2.5-2.3-.7-.7-2.3 2.7-2.3Z"/></svg></span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">11 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧩</span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4.4" y="4.4" width="6.6" height="6.6" rx="1.6"/><rect x="13" y="4.4" width="6.6" height="6.6" rx="1.6"/><rect x="4.4" y="13" width="6.6" height="6.6" rx="1.6"/><path d="M16.3 13v6.6M13 16.3h6.6"/></svg></span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
           <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-logs')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-purple-50 dark:bg-purple-500/15">📋</span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
+          <span class="set-ic bg-purple-50 dark:bg-purple-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5.6" y="5" width="12.8" height="15" rx="2"/><path d="M9.4 5V3.6h5.2V5M9.4 10.4h5.2m-5.2 3.4h5.2m-5.2 3.4h3.4"/></svg></span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
       <button onclick="navTo('p-sub-appearance')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
-        <span class="set-ic bg-indigo-50 dark:bg-indigo-500/15">🎨</span><div class="flex-1"><b class="text-sm">外观</b><div class="text-[11px] text-slate-400">主题风格 · 深色模式 · 主题色 · 字体大小</div></div><span class="text-slate-300">›</span></button>
+        <span class="set-ic bg-indigo-50 dark:bg-indigo-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c-4.5 0-8.2 3.5-8.2 7.9 0 4.3 3.3 7.5 7.4 7.5 1.3 0 2-.8 2-1.7 0-.6-.3-1-.7-1.4-.4-.4-.7-.8-.7-1.4 0-.9.8-1.6 1.8-1.6h1.5c2.5 0 4.4-1.9 4.4-4.3 0-3.3-3.4-5-7.5-5Z"/><circle cx="8.4" cy="10.6" r="1.1"/><circle cx="12" cy="8.2" r="1.1"/><circle cx="15.6" cy="10.6" r="1.1"/></svg></span><div class="flex-1"><b class="text-sm">外观</b><div class="text-[11px] text-slate-400">主题风格 · 深色模式 · 主题色 · 字体大小</div></div><span class="text-slate-300">›</span></button>
 
       <!-- 批2e：日记天气城市（一次选定 · 写日记当天自动抓取） -->
       <button onclick="openSheet('sheetCityPick')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
         <span class="set-ic bg-sky-50 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5 5l1.6 1.6M17.4 17.4 19 19M19 5l-1.6 1.6M6.6 17.4 5 19"/></svg></span><div class="flex-1"><b class="text-sm">日记天气</b><div class="text-[11px] text-slate-400">城市 · 当前 <b id="setCityName" class="text-slate-600 dark:text-slate-200">杭州</b></div></div><span class="text-slate-300">›</span></button>
 
       <div class="card mt-4">
-        <div class="flex items-center justify-between"><div class="row-title">🧭 底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
+        <div class="flex items-center justify-between"><div class="row-title">底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
         <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」固定；新增「习惯」栏目可在下方启用</div>
         <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
         <div class="mt-2.5 flex gap-2">
-          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">🧩 主页编排直达（或长按卡片）›</button>
+          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">主页编排直达（或长按卡片）›</button>
         </div>
       </div>
 
@@ -1367,7 +1367,7 @@ tailwind.config = {
     <!-- ===== P12a 二级：数据与同步 ===== -->
     <section id="p-sub-data" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="row-title">🔄 WebDAV 配置</div>
+        <div class="row-title">WebDAV 配置</div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center justify-between"><span class="text-slate-400">预设</span><select class="sel" onchange="toast('已填入'+this.value+'端点（模拟）')"><option>坚果云</option><option>Dropbox</option><option>Nextcloud</option><option>自定义</option></select></div>
           <input class="inp w-full" value="https://dav.jianguoyun.com/dav/">
@@ -1378,7 +1378,7 @@ tailwind.config = {
         </div>
       </div>
       <div class="card mt-3">
-        <div class="row-title">💾 本地备份</div>
+        <div class="row-title">本地备份</div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center justify-between"><span>自动备份（每 3 天夜间 · 仅 Wi-Fi）</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span class="text-slate-400">快照保留份数</span><select class="sel"><option>10 份</option><option>5 份</option><option>20 份</option></select></div>
@@ -1386,16 +1386,16 @@ tailwind.config = {
         </div>
       </div>
       <div class="card mt-3">
-        <div class="row-title">🔐 加密设置</div>
+        <div class="row-title">加密设置</div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center justify-between"><span>备份口令加密（AES-GCM · 云商不可见）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <button class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold" onclick="toast('修改备份口令：旧口令解密→重新加密存量快照（模拟）')">🔑 修改备份口令</button>
+          <button class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold" onclick="toast('修改备份口令：旧口令解密→重新加密存量快照（模拟）')">修改备份口令</button>
           <div class="flex items-center justify-between opacity-55"><span>应用锁（PIN / 生物识别）</span><span class="text-[10px] text-slate-400">产品决策：不提供 · 纯本地无找回通道，防数据永久丢失</span></div>
           <div class="flex items-center justify-between text-slate-400"><span>母婴等敏感数据排除同步（模块级）</span><span class="toggle" onclick="tgl(this)"></span></div>
         </div>
       </div>
       <div class="card mt-3">
-        <div class="row-title">🕘 同步历史</div>
+        <div class="row-title">同步历史</div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">今天 08:30 · 2.1 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚前将当前库存为 safety 快照（模拟）')">回滚</button></div>
           <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">昨天 21:02 · 0.8 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚（模拟）')">回滚</button></div>
@@ -1408,7 +1408,7 @@ tailwind.config = {
     <!-- ===== P12b 二级：提醒通知 ===== -->
     <section id="p-sub-notify" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="flex justify-between items-center"><div class="row-title">📅 日程与任务提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
+        <div class="flex justify-between items-center"><div class="row-title">日程与任务提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
         <div class="mt-2 space-y-2 text-xs text-slate-500 dark:text-slate-400">
           <div class="flex justify-between"><span>默认提前量</span><select class="sel"><option>10 分钟</option><option>30 分钟</option><option>1 小时</option></select></div>
           <div class="flex justify-between"><span>重复事件提醒策略</span><select class="sel"><option>仅当天</option><option>每次重复都提醒</option></select></div>
@@ -1416,16 +1416,16 @@ tailwind.config = {
         </div>
       </div>
       <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">📔 日记复盘</div><span class="toggle on" onclick="tgl(this)"></span></div>
+        <div class="flex justify-between items-center"><div class="row-title">日记复盘</div><span class="toggle on" onclick="tgl(this)"></span></div>
         <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>晚间复盘提醒时间</span><select class="sel"><option>21:30</option><option>22:00</option><option>自定义</option></select></div>
         <div class="mt-2 flex justify-between items-center text-xs"><span>含今日概览草稿自动预览</span><span class="toggle on" onclick="tgl(this)"></span></div>
       </div>
       <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">⚡ 收集箱清理</div><span class="toggle on" onclick="tgl(this)"></span></div>
+        <div class="flex justify-between items-center"><div class="row-title">收集箱清理</div><span class="toggle on" onclick="tgl(this)"></span></div>
         <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>每天 21:00 · 未整理≥3 条时提醒</span><span class="toggle on" onclick="tgl(this)"></span></div>
       </div>
       <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">🔁 习惯提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
+        <div class="flex justify-between items-center"><div class="row-title">习惯提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex justify-between items-center"><span>🏃 晨间跑步 · 07:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex justify-between items-center"><span>📚 阅读 30min · 21:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
@@ -1434,7 +1434,7 @@ tailwind.config = {
         </div>
       </div>
       <div class="card mt-3">
-        <div class="row-title">⛔ 免打扰时段</div>
+        <div class="row-title">免打扰时段</div>
         <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>23:00 – 07:00 · 仅逾期紧急项可穿透</span><button class="mini-btn" onclick="toast('编辑时段（模拟）')">设置</button></div>
       </div>
     </section>
@@ -1442,12 +1442,12 @@ tailwind.config = {
     <!-- ===== P12c 二级：AI 增强 ===== -->
     <section id="p-sub-ai" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="aiProvEdit(null)">+ 添加服务商</button></div>
+        <div class="flex items-center justify-between"><div class="row-title">服务商管理</div><button class="mini-btn" onclick="aiProvEdit(null)">+ 添加服务商</button></div>
         <div class="mt-2 space-y-2 text-xs" id="aiProvList"></div>
         <div class="text-[10px] text-slate-400 mt-2 leading-5">预置只是默认值，<b>不是白名单</b>：官方、中转站/自建网关、局域网 Ollama·LM Studio 都能添加，Base URL、模型名、协议都能改。请求只发往你填的地址，应用自身零埋点；每个服务商的 Key 各自存系统加密区。</div>
       </div>
       <div class="card mt-3">
-        <div class="row-title">🔑 Key 配置</div>
+        <div class="row-title">Key 配置</div>
         <div class="mt-2 space-y-2 text-xs">
           <div class="relative">
             <input id="gkKey" class="inp w-full pr-10 font-mono text-[11px]" type="password" value="sk-demo-key-3f2a">
@@ -1458,25 +1458,25 @@ tailwind.config = {
           <div class="flex gap-2"><button class="mini-btn flex-1" onclick="aiProvEdit(aiCurProv().id)">编辑当前服务商</button><button class="mini-btn flex-1" onclick="aiProvEdit(null)">+ 新服务商</button></div>
           <div class="text-[10px] text-slate-400 leading-5">Key 存系统级加密区（flutter_secure_storage）：不入备份明文、不落日志、不随 WebDAV 同步。</div>
           <div class="flex justify-between items-center"><span>验证状态</span><b class="text-emerald-500">✓ 今日 08:12 通过 · 812ms</b></div>
-          <button onclick="openTool('aiapi')" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold">🔌 重新验证 / 测试新 Key</button>
+          <button onclick="openTool('aiapi')" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold">重新验证 / 测试新 Key</button>
         </div>
       </div>
       <div class="card mt-3">
-        <div class="flex items-center justify-between"><div class="row-title">🤖 AI 总开关</div><span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'总开关已开：各能力仍逐项授权':'总开关已关：全应用零 AI 请求')"></span></div>
+        <div class="flex items-center justify-between"><div class="row-title">AI 总开关</div><span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'总开关已开：各能力仍逐项授权':'总开关已关：全应用零 AI 请求')"></span></div>
         <div class="mt-2 text-[11px] font-bold text-slate-500">能力矩阵（逐项授权）</div>
         <div class="mt-1 text-xs space-y-2">
-          <div class="flex items-center justify-between"><span>✅ 待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📔 日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📚 阅读：总结深化 / 目录 AI 补全</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>⚡ 收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📊 周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>🤰 呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between opacity-50"><span>💰📦 记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>阅读：总结深化 / 目录 AI 补全</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between opacity-50"><span>记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
         </div>
         <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
       </div>
       <div class="card mt-3">
-        <div class="flex items-center justify-between"><div class="row-title">📊 AI 使用记录</div><button class="mini-btn" onclick="navTo('p-aiUsage');auRender()">查看全部 ›</button></div>
+        <div class="flex items-center justify-between"><div class="row-title">AI 使用记录</div><button class="mini-btn" onclick="navTo('p-aiUsage');auRender()">查看全部 ›</button></div>
         <div class="mt-2 grid grid-cols-4 gap-2 text-center">
           <div><div class="text-[9px] text-slate-400">今日次数</div><b id="auK1" class="text-[13px]">0</b></div>
           <div><div class="text-[9px] text-slate-400">今日 tokens</div><b id="auK2" class="text-[13px]">0</b></div>
@@ -1486,7 +1486,7 @@ tailwind.config = {
         <div class="text-[10px] text-slate-400 mt-2 leading-5">每次调用记一条：能力点 · 状态 · 入/出 token · 耗时 · 发送内容与返回正文。正文只存本机（随整包备份走），可在「记录设置」改为只记用量或调整保留天数；API Key 永不入库。</div>
       </div>
       <div class="card mt-3">
-        <div class="flex items-center justify-between"><div class="row-title">🧪 提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
+        <div class="flex items-center justify-between"><div class="row-title">提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
         <div class="text-[10px] text-slate-400 mt-1 leading-5">每个 AI 能力点的 System / User 模板可查看与覆盖；保存后立即生效，调整请求内容不需要修改代码。占位符（如 title、today）按当次数据注入。</div>
       </div>
     </section>
@@ -1548,8 +1548,7 @@ tailwind.config = {
     <!-- ===== P12d 二级：分类管理（V1.19 · 两级分类树 · 拖拽换父组 · 全局唯一分类表） ===== -->
     <section id="p-sub-cats" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center justify-between">
-        <div class="text-[10px] text-slate-400">🖐 长按拖拽 = 调整顺序 / 拖入其他父级换组 · 分类供 轴/块/日/周 四视图与时间账本共用</div>
-      </div>
+              </div>
       <div class="flex gap-2 mt-2 text-sm font-bold">
         <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="catsCollapseAll()">⏷ 全部折叠</button>
         <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" id="catsSortBtn" onclick="catsSortMode()">⇅ 排序</button>
@@ -1732,13 +1731,13 @@ tailwind.config = {
     <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
     <section id="p-sub-appearance" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">🎨 主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">🛍 更多主题 ›</button></div>
+        <div class="flex items-center justify-between"><div class="row-title">主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">更多主题 ›</button></div>
         <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
         <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
       </div>
       <div class="card mt-4 space-y-3 text-sm">
-        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
-        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
+        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"/></svg></span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
+        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c3 4 5.4 6.3 5.4 9.3a5.4 5.4 0 0 1-10.8 0c0-3 2.4-5.3 5.4-9.3Z"/></svg></span><div class="flex-1"><b>主题色</b></div>
           <div class="flex gap-2" id="themeDots"></div></div>
         <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
       </div>
