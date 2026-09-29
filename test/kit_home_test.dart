@@ -55,9 +55,13 @@ void main() {
       expect(find.text('小工具合集'), findsWidgets);
       expect(find.text('本地轻工具 · 可插件拓展'), findsOneWidget);
       expect(tileCount(tester), 13);
-      for (final label in ['累计使用', '近7天', '收藏', '已装插件']) {
-        expect(find.text(label), findsOneWidget, reason: '数据位「$label」缺失');
+      for (final m in ['total', 'week', 'fav', 'plug']) {
+        expect(find.byKey(ValueKey('kit-hero-slot-$m')), findsOneWidget,
+            reason: '数据位 $m 缺失');
       }
+      expect(find.text('累计使用'), findsOneWidget);
+      expect(find.text('近7天'), findsOneWidget);
+      expect(find.text('已装插件'), findsOneWidget);
       await drainLogTimer(tester);
     });
 

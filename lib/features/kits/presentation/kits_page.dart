@@ -7,6 +7,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/kit_calc.dart';
 import '../domain/kit_models.dart';
 import 'kit_providers.dart';
+import 'kit_sheets.dart';
 
 /// 小工具合集首页 = 控制盘（原型 `#p-tools` · 变更单 §八 B2 合并单网格口径）。
 ///
@@ -56,8 +57,10 @@ class _KitsPageState extends ConsumerState<KitsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('小工具合集'),
-            Text('本地轻工具 · 可插件拓展',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
+            Text(
+              '本地轻工具 · 可插件拓展',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
+            ),
           ],
         ),
       ),
@@ -69,6 +72,38 @@ class _KitsPageState extends ConsumerState<KitsPage> {
     );
   }
 
+  // ---- hero 动作（原型：数据位 ⇄ / 设置 / 收藏 / 最近 / 插件 / 统计 / 清空足迹）----
+
+  void _cfg() {
+    final d = ref.read(kitHomeProvider).value;
+    if (d != null) kitShowHeroCfg(context, d);
+  }
+
+  void _settings() =>
+      kitShowSettings(context, onGoPlugins: () => _todo('插件中心随批5 实装'));
+
+  void _fav() {
+    final d = ref.read(kitHomeProvider).value;
+    if (d != null) kitShowFav(context, d.fav);
+  }
+
+  Future<void> _recent() async {
+    final d = ref.read(kitHomeProvider).value;
+    if (d == null) return;
+    final key = await kitShowRecent(context, d.recent);
+    if (key != null) await _open(kitToolOf(key)!);
+  }
+
+  Future<void> _clearFootprint() async {
+    await ref.read(kitRepositoryProvider).clearUsage();
+    await ref.read(kitRepositoryProvider).setRecent(const []);
+    if (!mounted) return;
+    ref.read(kitTickProvider.notifier).state++;
+    AppToast.show(context, '使用足迹已清空 · 收藏与编排保留');
+  }
+
+  void _todo(String what) => AppToast.show(context, what);
+
   Widget _body(KitHomeData d) {
     final now = DateTime.now();
     final counts = kitCountByTool(d.log);
@@ -76,24 +111,40 @@ class _KitsPageState extends ConsumerState<KitsPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _Hero(data: d, now: now),
+        _Hero(
+          data: d,
+          now: now,
+          onCfg: _cfg,
+          onSettings: _settings,
+          onFav: _fav,
+          onRecent: _recent,
+          onPlugins: () => _todo('插件中心随批5 实装'),
+          onStats: () => _todo('使用统计屏随批4 实装'),
+          onClearFootprint: _clearFootprint,
+        ),
         const SizedBox(height: 12),
         _SearchBar(
           onQuery: (v) => setState(() => _q = v),
-          onManage: () => AppToast.show(context, '工具管理屏随批4 实装'),
+          onManage: () => _todo('工具管理屏随批4 实装'),
         ),
         const SizedBox(height: 8),
         _CatChips(current: _cat, onPick: (c) => setState(() => _cat = c)),
+        _RecentStrip(keys: d.recent, onOpen: (t) => _open(t)),
         const SizedBox(height: 10),
-        Text('全部工具  ${visible.length}',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+        Text(
+          '全部工具  ${visible.length}',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 6),
         if (visible.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 24),
             child: Center(
-                child: Text('没有匹配的工具 · 换个关键词或点「全部」',
-                    style: TextStyle(fontSize: 12, color: Colors.grey))),
+              child: Text(
+                '没有匹配的工具 · 换个关键词或点「全部」',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
           )
         else
           GridView.builder(
@@ -118,17 +169,106 @@ class _KitsPageState extends ConsumerState<KitsPage> {
   }
 }
 
-/// hero 控制盘卡（原型 `.grad` 卡 + 四枚数据位）。
+/// hero 控制盘卡（原型 `.grad` 卡：数据位 ⇄ / 设置 两枚胶囊钮 + 四枚数据位
+/// + 收藏/最近/插件/统计四入口 + 状态行与两段式清空足迹）。
 class _Hero extends StatelessWidget {
-  const _Hero({required this.data, required this.now});
+  const _Hero({
+    required this.data,
+    required this.now,
+    required this.onCfg,
+    required this.onSettings,
+    required this.onFav,
+    required this.onRecent,
+    required this.onPlugins,
+    required this.onStats,
+    required this.onClearFootprint,
+  });
 
   final KitHomeData data;
   final DateTime now;
+  final VoidCallback onCfg;
+  final VoidCallback onSettings;
+  final VoidCallback onFav;
+  final VoidCallback onRecent;
+  final VoidCallback onPlugins;
+  final VoidCallback onStats;
+  final VoidCallback onClearFootprint;
+
+  int _value(KitMetric m) => kitMetricValue(
+    m,
+    log: data.log,
+    now: now,
+    fav: data.fav,
+    plugCount: data.plugins.length,
+    plugOnCount: data.plugins.where((p) => p.enabled).length,
+    plugSizeKb: data.plugins.fold<int>(0, (a, p) => a + p.size),
+  );
+
+  /// 右上胶囊钮（原型 `.text-[10px] bg-white/20 rounded-full`）。
+  Widget _pill(String key, String label, VoidCallback onTap) => TextButton(
+    key: ValueKey('kit-hero-$key'),
+    onPressed: onTap,
+    style: TextButton.styleFrom(
+      backgroundColor: Colors.white24,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      minimumSize: Size.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: const StadiumBorder(),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+    ),
+  );
+
+  /// 四功能入口方格（原型 `.grid-cols-4 .h-[52px] .bg-white/15`）。
+  Widget _func(String key, IconData icon, String label, VoidCallback onTap) =>
+      Expanded(
+        child: InkWell(
+          key: ValueKey('kit-func-$key'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 19, color: Colors.white),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final plugs = data.plugins;
+    final today = kitMetricValue(
+      KitMetric.today,
+      log: data.log,
+      now: now,
+      fav: data.fav,
+    );
+    final week = kitMetricValue(
+      KitMetric.week,
+      log: data.log,
+      now: now,
+      fav: data.fav,
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -138,17 +278,32 @@ class _Hero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Column(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('小工具合集',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800)),
-              SizedBox(height: 2),
-              Text('本地计算 · 离线可用 · 无广告',
-                  style: TextStyle(color: Colors.white70, fontSize: 10.5)),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '小工具合集',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      '本地计算 · 离线可用 · 无广告',
+                      style: TextStyle(color: Colors.white70, fontSize: 10.5),
+                    ),
+                  ],
+                ),
+              ),
+              _pill('cfg', '数据位 ⇄', onCfg),
+              const SizedBox(width: 6),
+              _pill('set', '设置', onSettings),
             ],
           ),
           const SizedBox(height: 12),
@@ -157,28 +312,137 @@ class _Hero extends StatelessWidget {
               for (final m in data.hero)
                 Expanded(
                   child: Column(
+                    key: ValueKey('kit-hero-slot-${m.name}'),
                     children: [
                       Text(
-                        '${kitMetricValue(m,
-                            log: data.log,
-                            now: now,
-                            fav: data.fav,
-                            plugCount: plugs.length,
-                            plugOnCount: plugs.where((p) => p.enabled).length,
-                            plugSizeKb: plugs.fold<int>(0, (a, p) => a + p.size))}',
+                        _value(m).toString(),
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800),
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 2),
-                      Text(m.label,
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 10)),
+                      Text(
+                        m.label,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
                 ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _func('fav', Icons.star_border, '收藏', onFav),
+              const SizedBox(width: 8),
+              _func('recent', Icons.schedule, '最近', onRecent),
+              const SizedBox(width: 8),
+              _func('plug', Icons.extension_outlined, '插件', onPlugins),
+              const SizedBox(width: 8),
+              _func('stats', Icons.bar_chart, '统计', onStats),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '今日 $today 次 · 近 7 天 $week 次 · 收藏 ${data.fav.length} 个',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ),
+                KitTwoStageButton(
+                  label: '清空足迹',
+                  confirmLabel: '再点一次确认',
+                  compact: true,
+                  onConfirm: onClearFootprint,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 最近使用横条（原型 `#kitRecentStrip`：无记录整条隐藏）。
+class _RecentStrip extends StatelessWidget {
+  const _RecentStrip({required this.keys, required this.onOpen});
+
+  final List<String> keys;
+  final ValueChanged<KitTool> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final tools = [
+      for (final k in keys)
+        if (kitToolOf(k) != null) kitToolOf(k)!,
+    ];
+    if (tools.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '最近使用',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 86,
+            child: ListView(
+              key: const ValueKey('kit-recent-strip'),
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final t in tools)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      key: ValueKey('kit-recent-tile-${t.key}'),
+                      onTap: () => onOpen(t),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 74,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: context.cardDecoration,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(t.icon, size: 19),
+                            const SizedBox(height: 4),
+                            Text(
+                              t.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -206,8 +470,10 @@ class _SearchBar extends StatelessWidget {
               hintText: '搜索工具 · 名称或用途',
               hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
               isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: context.tokens.cardBorder),
@@ -304,15 +570,19 @@ class _Tile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(tool.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
-          Text(uses == 0 ? '未用过' : '已用 $uses 次',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 8, color: Colors.grey)),
+          Text(
+            tool.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+          ),
+          Text(
+            uses == 0 ? '未用过' : '已用 $uses 次',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 8, color: Colors.grey),
+          ),
         ],
       ),
     );

@@ -98,5 +98,12 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// V1.47 批1 · 小工具合集模块开关（原型 sheetKitSet）。
+  /// 只落 prefs（kit 四项属偏好）；足迹/收藏/编排/插件登记走 kit_* 表。
+  Future<void> setKit(KitSettings k) async {
+    state = state.copyWith(kit: k);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }

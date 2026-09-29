@@ -20,8 +20,11 @@ class KitToolPage extends ConsumerWidget {
       return Scaffold(
         appBar: AppBar(centerTitle: true, title: const Text('工具未登记')),
         body: const Center(
-            child: Text('该工具不在内置清单内',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey))),
+          child: Text(
+            '该工具不在内置清单内',
+            style: TextStyle(fontSize: 12.5, color: Colors.grey),
+          ),
+        ),
       );
     }
     final tokens = context.tokens;
@@ -33,9 +36,13 @@ class KitToolPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(tool.name),
-            Text('小工具合集 · ${tool.cat.label}',
-                style: const TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.normal)),
+            Text(
+              '小工具合集 · ${tool.cat.label}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),
@@ -51,18 +58,27 @@ class KitToolPage extends ConsumerWidget {
               children: [
                 Icon(tool.icon, size: 26, color: tokens.accent),
                 const SizedBox(height: 8),
-                Text(tool.name,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                Text(
+                  tool.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                const Text('工具主体随批2 / 批3 实装',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  '工具主体随批2 / 批3 实装',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Center(
-            child: Text(tool.privacy,
-                style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            child: Text(
+              tool.privacy,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
           ),
         ],
       ),

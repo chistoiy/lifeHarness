@@ -23,6 +23,9 @@ class SettingsRepository {
   static const _kProfileNick = 'lh.profile_nick';
   static const _kProfileBio = 'lh.profile_bio';
 
+  /// V1.47 批1·小工具合集模块开关（四项一 JSON，与 notify 同构）。
+  static const _kKit = 'lh.kit';
+
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
     final themeId = _prefs.getString(_kTheme);
@@ -37,7 +40,8 @@ class SettingsRepository {
         _prefs.getBool(_kNoteLineNum) == null &&
         _prefs.getBool(_kNoteSwipe) == null &&
         _prefs.getString(_kWeatherCity) == null &&
-        _prefs.getString(_kProfileNick) == null) {
+        _prefs.getString(_kProfileNick) == null &&
+        _prefs.getString(_kKit) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -53,6 +57,7 @@ class SettingsRepository {
       'weatherCity': ?_prefs.getString(_kWeatherCity),
       'profileNick': ?_prefs.getString(_kProfileNick),
       'profileBio': ?_prefs.getString(_kProfileBio),
+      'kit': ?_prefs.getString(_kKit),
     });
   }
 
@@ -70,5 +75,6 @@ class SettingsRepository {
     await _prefs.setString(_kWeatherCity, m['weatherCity']! as String);
     await _prefs.setString(_kProfileNick, m['profileNick']! as String);
     await _prefs.setString(_kProfileBio, m['profileBio']! as String);
+    await _prefs.setString(_kKit, m['kit']! as String);
   }
 }

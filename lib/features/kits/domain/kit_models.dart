@@ -48,24 +48,50 @@ class KitTool {
 
 /// 13 个内置工具（顺序=原型「全部工具」网格默认序）。
 const List<KitTool> kKitTools = [
-  KitTool(key: 'ping', name: 'Ping 工具', cat: KitCat.network, icon: Icons.network_ping),
+  KitTool(
+    key: 'ping',
+    name: 'Ping 工具',
+    cat: KitCat.network,
+    icon: Icons.network_ping,
+  ),
   KitTool(key: 'speed', name: '网络测速', cat: KitCat.network, icon: Icons.speed),
   KitTool(key: 'ruler', name: '尺子', cat: KitCat.length, icon: Icons.straighten),
   KitTool(key: 'dist', name: '测距', cat: KitCat.length, icon: Icons.route),
-  KitTool(key: 'wheel', name: '轮盘抽签', cat: KitCat.random, icon: Icons.pie_chart_outline),
+  KitTool(
+    key: 'wheel',
+    name: '轮盘抽签',
+    cat: KitCat.random,
+    icon: Icons.pie_chart_outline,
+  ),
   KitTool(key: 'rand', name: '随机数', cat: KitCat.random, icon: Icons.casino),
   KitTool(key: 'pick', name: '取色盘', cat: KitCat.color, icon: Icons.colorize),
-  KitTool(key: 'comp', name: '互补色方案', cat: KitCat.color, icon: Icons.format_color_fill),
-  KitTool(key: 'datec', name: '日期计算', cat: KitCat.calc, icon: Icons.calculate_outlined),
+  KitTool(
+    key: 'comp',
+    name: '互补色方案',
+    cat: KitCat.color,
+    icon: Icons.format_color_fill,
+  ),
+  KitTool(
+    key: 'datec',
+    name: '日期计算',
+    cat: KitCat.calc,
+    icon: Icons.calculate_outlined,
+  ),
   KitTool(key: 'imgz', name: '图片体积缩小', cat: KitCat.image, icon: Icons.compress),
   KitTool(key: 'b64', name: 'Base64 转换', cat: KitCat.encode, icon: Icons.code),
   KitTool(
-      key: 'aiapi',
-      name: 'AI API 验证',
-      cat: KitCat.ai,
-      icon: Icons.smart_toy_outlined,
-      privacy: '按所填端点发出请求 · 其余工具零出站'),
-  KitTool(key: 'tele', name: '提词器', cat: KitCat.demo, icon: Icons.subtitles_outlined),
+    key: 'aiapi',
+    name: 'AI API 验证',
+    cat: KitCat.ai,
+    icon: Icons.smart_toy_outlined,
+    privacy: '按所填端点发出请求 · 其余工具零出站',
+  ),
+  KitTool(
+    key: 'tele',
+    name: '提词器',
+    cat: KitCat.demo,
+    icon: Icons.subtitles_outlined,
+  ),
 ];
 
 /// 按 key 取工具（未登记返回 null，由调用侧决定回落）。
@@ -122,17 +148,13 @@ class KitUsage {
   final String kind;
 
   factory KitUsage.fromRow(Map<String, Object?> r) => KitUsage(
-        id: (r['id'] as int?) ?? 0,
-        tool: r['tool'] as String,
-        ts: r['ts'] as int,
-        kind: (r['kind'] as String?) ?? kKitKindBuiltin,
-      );
+    id: (r['id'] as int?) ?? 0,
+    tool: r['tool'] as String,
+    ts: r['ts'] as int,
+    kind: (r['kind'] as String?) ?? kKitKindBuiltin,
+  );
 
-  Map<String, Object?> toRow() => {
-        'tool': tool,
-        'ts': ts,
-        'kind': kind,
-      };
+  Map<String, Object?> toRow() => {'tool': tool, 'ts': ts, 'kind': kind};
 }
 
 /// 插件审计条目（`kit_plugin.audit` 以 JSON 数组存列）。
@@ -181,32 +203,32 @@ class KitPlugin {
   final List<KitAudit> audit;
 
   factory KitPlugin.fromRow(Map<String, Object?> r) => KitPlugin(
-        id: r['id'] as String,
-        name: r['name'] as String,
-        ver: r['ver'] as String,
-        src: (r['src'] as String?) ?? 'local',
-        size: (r['size'] as int?) ?? 0,
-        perms: _strings(r['perms']),
-        granted: _strings(r['granted']),
-        enabled: ((r['enabled'] as int?) ?? 0) == 1,
-        installedAt: (r['installed_at'] as int?) ?? 0,
-        updatedAt: (r['updated_at'] as int?) ?? 0,
-        audit: _audits(r['audit']),
-      );
+    id: r['id'] as String,
+    name: r['name'] as String,
+    ver: r['ver'] as String,
+    src: (r['src'] as String?) ?? 'local',
+    size: (r['size'] as int?) ?? 0,
+    perms: _strings(r['perms']),
+    granted: _strings(r['granted']),
+    enabled: ((r['enabled'] as int?) ?? 0) == 1,
+    installedAt: (r['installed_at'] as int?) ?? 0,
+    updatedAt: (r['updated_at'] as int?) ?? 0,
+    audit: _audits(r['audit']),
+  );
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'name': name,
-        'ver': ver,
-        'src': src,
-        'size': size,
-        'perms': jsonEncode(perms),
-        'granted': jsonEncode(granted),
-        'enabled': enabled ? 1 : 0,
-        'installed_at': installedAt,
-        'updated_at': updatedAt,
-        'audit': jsonEncode([for (final a in audit) a.toJson()]),
-      };
+    'id': id,
+    'name': name,
+    'ver': ver,
+    'src': src,
+    'size': size,
+    'perms': jsonEncode(perms),
+    'granted': jsonEncode(granted),
+    'enabled': enabled ? 1 : 0,
+    'installed_at': installedAt,
+    'updated_at': updatedAt,
+    'audit': jsonEncode([for (final a in audit) a.toJson()]),
+  };
 }
 
 List<String> _strings(Object? raw) {

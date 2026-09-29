@@ -70,8 +70,9 @@ Map<int, int> kitCountByDay(List<KitUsage> log, DateTime now, int days) {
   final out = <int, int>{};
   for (final e in log) {
     if (e.ts < start) continue;
-    final key = kitDayStart(DateTime.fromMillisecondsSinceEpoch(e.ts))
-        .millisecondsSinceEpoch;
+    final key = kitDayStart(
+      DateTime.fromMillisecondsSinceEpoch(e.ts),
+    ).millisecondsSinceEpoch;
     out[key] = (out[key] ?? 0) + 1;
   }
   return out;
@@ -94,7 +95,9 @@ String kitRelText(int? ts, DateTime now) {
   final diff = now.difference(DateTime.fromMillisecondsSinceEpoch(ts));
   if (diff.inMinutes < 1) return '刚刚';
   if (diff.inMinutes < 60) return '${diff.inMinutes} 分钟前';
-  final day = kitDayStart(now).difference(kitDayStart(DateTime.fromMillisecondsSinceEpoch(ts))).inDays;
+  final day = kitDayStart(
+    now,
+  ).difference(kitDayStart(DateTime.fromMillisecondsSinceEpoch(ts))).inDays;
   if (day == 0) return '${diff.inHours} 小时前';
   if (day == 1) return '昨天';
   if (day < 7) return '$day 天前';

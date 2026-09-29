@@ -22,6 +22,7 @@ class KitHomeData {
     required this.hidden,
     required this.order,
     required this.hero,
+    required this.recent,
     required this.plugins,
   });
 
@@ -30,6 +31,7 @@ class KitHomeData {
   final List<String> hidden;
   final List<String>? order;
   final List<KitMetric> hero;
+  final List<String> recent;
   final List<KitPlugin> plugins;
 }
 
@@ -42,6 +44,7 @@ final kitHomeProvider = FutureProvider<KitHomeData>((ref) async {
     hidden: await repo.hidden(),
     order: await repo.order(),
     hero: await repo.heroSlots(),
+    recent: await repo.recent(),
     plugins: await repo.plugins(),
   );
 });
