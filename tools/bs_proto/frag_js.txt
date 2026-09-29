@@ -1230,7 +1230,8 @@ function bxBookSrcOpen(nm) {
       if (o.err) BXBS.errs.push({ id: s.id, why: o.err });
       else {
         const it = (o.list || []).find(function (x) { return x.t.indexOf(BXBS.q) === 0 }) || (o.list || [])[0];
-        if (it) BXBS.hits.push({ id: s.id, it: it, ms: o.ms, toc: s.toc || 0, align: (s.toc || 0) >= no });
+        const bk = bxBk(BXBS.nm);
+        if (it) BXBS.hits.push({ id: s.id, it: Object.assign({}, it, { a: (bk && bk.a) || it.a, st: (bk && bk.st) || it.st }), ms: o.ms, toc: s.toc || 0, align: (s.toc || 0) >= no });
         else BXBS.errs.push({ id: s.id, why: '搜索有结果但无本书' });
       }
       BXBS.done++;
