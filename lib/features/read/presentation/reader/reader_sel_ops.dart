@@ -242,7 +242,9 @@ extension _ReaderSelOps on _ReaderPageState {
   void _actDict() {
     final sel = _sel;
     if (sel == null) return;
-    final w = _selTxt.replaceAll(RegExp(r'\s'), '');
+    // 治理backlog②：_selTxt 只读 _sel/_doc，本函数内同步取一次复用（旧代码取两次）。
+    final selTxt = _selTxt;
+    final w = selTxt.replaceAll(RegExp(r'\s'), '');
     final word = w.length > 4 ? w.substring(0, 4) : w;
     String? hitKey;
     for (final k in _kBrDict.keys) {
@@ -252,7 +254,7 @@ extension _ReaderSelOps on _ReaderPageState {
       }
     }
     final e = hitKey == null ? null : _kBrDict[hitKey];
-    final bodyText = _selTxt;
+    final bodyText = selTxt;
     _clearSel();
     showModalBottomSheet<void>(
       context: context,
@@ -407,7 +409,6 @@ extension _ReaderSelOps on _ReaderPageState {
     if (s == null || doc == null) return;
     final hit = _paraHitAt(s.ci, global);
     if (hit == null) return;
-    final ps = doc.chapters[s.ci].paras;
     // ignore: invalid_use_of_protected_member
     setState(() {
       if (end) {
@@ -426,9 +427,9 @@ extension _ReaderSelOps on _ReaderPageState {
             p0: s.p0,
             p1: hit.pi,
             o0: s.o0,
-            o1: hit.off == 0 && ps[hit.pi].text.isEmpty
-                ? 0
-                : hit.off,
+            // 治理backlog①：旧式 `hit.off==0 && 空段 ? 0 : hit.off` 两分支同值＝恒等死条件，
+            // 简化为 hit.off（伴随删去仅此处使用的 ps 局部）。
+            o1: hit.off,
           );
         }
         _lpPi = _sel!.p1;
