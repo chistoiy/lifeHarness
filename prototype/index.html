@@ -2518,6 +2518,22 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== V1.57 时间账本 · 分类明细下钻（半屏 · 段列表＋段数/合计/日均） ===== -->
+  <div id="sheetTsCat" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTsCat')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2">
+        <span id="tscDot" class="w-3 h-3 rounded-full shrink-0"></span>
+        <div class="font-extrabold text-sm flex-1" id="tscTitle">分类</div>
+        <span class="text-[10px] text-slate-400" id="tscPeriod"></span></div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center" id="tscStat"></div>
+      <div class="mt-3 text-xs" id="tscList"></div>
+      <div class="mt-4 flex gap-2">
+        <button class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetTsCat')">收起</button>
+        <button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="closeSheet('sheetTsCat');navTo('p-calendar')">去时间页</button></div>
+    </div>
+  </div>
+
   <!-- ===== INS 全屏查看 ===== -->
   <div id="insFull" class="hidden fixed md:absolute inset-0 z-[62] bg-black/95 overflow-y-auto" onclick="if(event.target===this)this.classList.add('hidden')">
     <button onclick="insFull.classList.add('hidden')" class="absolute top-3 right-4 z-10 w-9 h-9 rounded-full bg-white/15 text-white text-lg">✕</button>
@@ -3337,7 +3353,7 @@ function tsColor(c){return TS_HEX[c]||'#94a3b8'}
 function tsClamp(d){return Math.max(1,Math.min(30,d))}
 function tsPeriod(mode,anchor){
  if(mode==='d')return {from:anchor,to:anchor,label:'9.'+String(anchor).padStart(2,'0')};
- if(mode==='w'){const a=anchor-((anchor+1)%7),b=a+6;return {from:tsClamp(a),to:tsClamp(b),label:tsClamp(a)+'.'+String(tsClamp(a)).padStart(2,'0')+'-'+(b>30?'10.'+(b-30):'9.'+String(b).padStart(2,'0'))}}
+ if(mode==='w'){const a=anchor-((anchor+1)%7),b=a+6;return {from:tsClamp(a),to:tsClamp(b),label:'9.'+String(tsClamp(a)).padStart(2,'0')+'-'+(b>30?'10.'+(b-30):'9.'+String(b).padStart(2,'0'))}}
  return {from:1,to:30,label:mode==='m'?'2026.09':'2026'}}
 function tsAgg(fr,to){const byCat={},byDay={},cnt={};
  blocks.forEach(b=>{const d0=b.day||TODAY,e=bend(b);const parts=[[d0,Math.min(e,1439)]];if(e>1439)parts.push([d0+1,e-1440]);
@@ -3425,7 +3441,7 @@ function renderTimeStats(){const body=$('#tsBody');if(!body)return;
  h+=tsCard('donut','总时长汇总',`<div class="flex items-center gap-4">${tsDonutSvg(dn,cap,104)}
   <div class="flex-1 text-[11px] space-y-1">${dn.slice(0,6).map(([c,m])=>`<div class="flex items-center gap-2"><i class="dot" style="background:${tsColor(c)}"></i><span class="flex-1 truncate">${c}</span><b>${Math.round(m/cap*100)}%</b></div>`).join('')}</div></div>`);
  h+=tsCard('rank','分类时长汇总',entries.length?entries.map(([c,m])=>{const pm=PA.byCat[c]||0;const delta=pm?((m-pm)/pm*100):null;
-  return `<div class="flex items-center gap-2.5 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="toast('${c} 明细列表（模拟）· 可下钻到每段')">
+  return `<div class="flex items-center gap-2.5 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0" onclick="tsOpenCat('${c}')">
    <span class="w-7 h-7 rounded-full text-white text-[11px] font-extrabold flex items-center justify-center shrink-0" style="background:${tsColor(c)}">${c.slice(0,1)}</span>
    <div class="flex-1 min-w-0"><div class="flex items-center gap-1.5"><b class="text-[12px]">${c}</b><span class="text-[9px] text-slate-400">(${A.cnt[c]||0} 次) ${Math.round(m/total*100)}%</span></div>
     <div class="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden"><div class="h-full rounded-full" style="width:${(m/entries[0][1]*100).toFixed(1)}%;background:${tsColor(c)}"></div></div></div>
@@ -3434,7 +3450,34 @@ function renderTimeStats(){const body=$('#tsBody');if(!body)return;
    <span class="text-slate-300">›</span></div>`}).join(''):'<div class="text-xs text-slate-400 py-2">该时段还没有时间块 · 去时间页记几段吧</div>');
  body.innerHTML=h;}
 
+/* ================= V1.57 时间账本 · 分类明细下钻（缺口盘点批 #8） =================
+ * 分类时长汇总每行都是真入口：列出该时段内此分类的全部分段，谓词与 tsAgg 同源（含跨零点拆分）。 */
+let tsCat=null;
+function tsHHMM(m){m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function tsCatSegs(){const {from,to}=tsPeriod(tsSpan,tsAnchor);const out=[];
+  blocks.forEach(b=>{if(b.cat!==tsCat)return;const d0=b.day||TODAY,e=bend(b);
+    const parts=[[d0,Math.min(e,1439)]];if(e>1439)parts.push([d0+1,e-1440]);
+    parts.forEach(([d,end])=>{const mins=Math.max(0,end-b.s);if(!mins||d<from||d>to)return;
+      out.push({d:d,s:b.s,e:end,mins:mins,note:b.note||'',cross:e>1439})})});
+  out.sort((x,y)=>x.d-y.d||x.s-y.s);return out}
+function tsOpenCat(c){tsCat=c;tsCatRender();openSheet('sheetTsCat')}
+function tsCatRender(){const segs=tsCatSegs(),P=tsPeriod(tsSpan,tsAnchor),span=P.to-P.from+1;
+  const sum=segs.reduce((t,x)=>t+x.mins,0),mx=Math.max(1,...segs.map(x=>x.mins));
+  const dot=document.getElementById('tscDot');if(dot)dot.style.background=tsColor(tsCat);
+  document.getElementById('tscTitle').textContent=tsCat;
+  document.getElementById('tscPeriod').textContent={d:'当日',w:'本周',m:'本月',y:'全年'}[tsSpan]+' · '+P.label;
+  document.getElementById('tscStat').innerHTML=[[segs.length,'段数'],[tsHM(sum),'合计'],[tsHM(Math.round(sum/span)),'日均']]
+    .map(x=>`<div class="rounded-2xl bg-slate-100 dark:bg-slate-800 py-2"><b class="text-[13px] block">${x[0]}</b><span class="text-[9px] text-slate-400">${x[1]}</span></div>`).join('');
+  document.getElementById('tscList').innerHTML=segs.length?segs.map(x=>`<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+    <span class="w-9 shrink-0 text-[11px] font-extrabold" style="color:${tsColor(tsCat)}">${x.d}日</span>
+    <div class="flex-1 min-w-0"><div class="text-[12px] font-semibold truncate">${x.note||tsCat}</div>
+      <div class="text-[10px] text-slate-400">${tsHHMM(x.s)}–${tsHHMM(x.e)}${x.cross?' · 跨零点':''}</div>
+      <div class="h-1 rounded-full bg-slate-100 dark:bg-slate-800 mt-1 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.round(x.mins/mx*100)}%;background:${tsColor(tsCat)}"></div></div></div>
+    <b class="text-[12px] shrink-0">${tsHM(x.mins)}</b></div>`).join('')
+    :'<div class="text-xs text-slate-400 py-6 text-center">该时段没有此分类的时间块</div>'}
+
 let tsScope='w';
+
 function renderDashDist(){const el=$('#dashTimeDist');if(!el)return;
  const {from,to}=tsPeriod('w',TODAY);const A=tsAgg(from,to);
  const entries=Object.entries(A.byCat).sort((x,y)=>y[1]-x[1]);const total=entries.reduce((t,e)=>t+e[1],0);
