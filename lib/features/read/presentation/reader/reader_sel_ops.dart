@@ -38,10 +38,9 @@ extension _ReaderSelOps on _ReaderPageState {
     if (doc == null) return null;
     final ps = doc.chapters[ci].paras;
     if (pi >= ps.length) return null;
-    final ctx = _paraKeys['$ci:$pi']?.currentContext;
-    final ro = ctx == null ? null : (ctx as Element).renderObject;
-    if (ro == null) return null;
-    final rb = _firstRenderParagraph(ro);
+    // 治理backlog④：定位链改复用 _paraRender（key→Element→renderObject→首
+    // RenderParagraph 与其完全同形，旧写法在此重复一遍并多一次 `as Element` 硬转）。
+    final rb = _paraRender(ci, pi);
     if (rb == null) return null;
     final local = rb.globalToLocal(global);
     final pos = rb.getPositionForOffset(local);
@@ -261,14 +260,9 @@ extension _ReaderSelOps on _ReaderPageState {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sc) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
-          child: Column(
-            key: const ValueKey('sheetBrDict'),
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      builder: (sc) => _BrSheetShell(
+        sheetKey: const ValueKey('sheetBrDict'),
+        children: [
               Text(
                 word.isEmpty ? '选词' : word,
                 key: const ValueKey('brDcWord'),
@@ -315,9 +309,7 @@ extension _ReaderSelOps on _ReaderPageState {
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -487,6 +479,29 @@ extension _ReaderSelOps on _ReaderPageState {
 
 /// AI 解读结果弹层（原型 sheetBrAi）：只渲染 aiRunWithReview 的应答。
 /// 门控/审阅/进度/留痕都在通道内完成，这里不再有第二条 AI 调用路径（R7 接入门）。
+/// 治理backlog③：阅读器小弹层统一外壳（原型 `.sheet` 内边距口径）。
+/// 词典弹层与 _BrAiSheet 旧各自展开一份完全同形的 SafeArea+Padding+Column，现共用本件；
+/// `key` 透传给 Column 以保持既有取证锚（sheetBrDict / sheetBrAi 不变）。
+class _BrSheetShell extends StatelessWidget {
+  const _BrSheetShell({required this.sheetKey, required this.children});
+
+  final Key sheetKey;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
+      child: Column(
+        key: sheetKey,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    ),
+  );
+}
+
 class _BrAiSheet extends StatelessWidget {
   const _BrAiSheet({required this.insight, required this.onToQuote});
 
@@ -495,14 +510,9 @@ class _BrAiSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
-        child: Column(
-          key: const ValueKey('sheetBrAi'),
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return _BrSheetShell(
+      sheetKey: const ValueKey('sheetBrAi'),
+      children: [
             const Text(
               'AI 解读',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
@@ -538,9 +548,7 @@ class _BrAiSheet extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
