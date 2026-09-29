@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
@@ -13,6 +12,7 @@ import '../data/ledger_repository.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_models.dart';
 import '../domain/ledger_txn.dart';
+import 'ledger_import_batches_sheet.dart';
 import 'ledger_pick_sheets.dart' show showLCatPick, showLAcctPickForImport;
 import 'ledger_providers.dart';
 import 'widgets/ledger_kit.dart';
@@ -61,6 +61,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
   int _createdAccts = 0;
   String _createdNames = '';
 
+  /// 本次导入的批次 id（R15-1：完成页「撤销本批」按它定位，可撤范围＝仅最近一批）。
+  int? _batchId;
+
   @override
   void dispose() {
     super.dispose();
@@ -77,6 +80,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
     _written = 0;
     _createdAccts = 0;
     _createdNames = '';
+    _batchId = null;
     _fileBytes = null;
     _fileName = '';
   });
@@ -249,8 +253,8 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       newAccounts: newAccts,
       rows: specs,
     );
-    // 批次 id 只在这里落日志：页面没有「撤销本批」入口（原型无该行，见 set 页注释），
-    // 真机要追某批导入只能从这条 key 行起查。
+    // 批次 id 落 key 行（L3 口径）：真机可从日志页按批次号复盘整次导入；
+    // R15-1 起页面侧也有了「撤销本批」入口（完成页钮 + 导入记录列表）。
     AppLog.addKey('账单导入落库：批次 ${res.batchId} · 平台 $_plat · '
         '写入 ${res.written}/${specs.length} 条 · 新建账户 ${newAccts.length} 个'
         '（$_fileName）');
@@ -259,6 +263,7 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       _written = res.written;
       _createdAccts = newAccts.length;
       _createdNames = newAccts.map((a) => a.name).join('、');
+      _batchId = res.batchId;
       _step = 5;
     });
     _toast('已写入 ${res.written} 条 · 支持整批撤销本批导入');
@@ -437,6 +442,9 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
               onChanged: (v) => setState(() => _skipNonSpend = v)),
         ]),
       ),
+      const SizedBox(height: 10),
+      // 原型 biHome「导入记录」行（R15-1：原为「已导入的账单列表（模拟）」死 toast）。
+      const LedgerImportRecordsRow(),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.all(14),
@@ -1006,6 +1014,19 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // 钮序照原型 biDone：撤销本批（描边红）在左、完成（渐变）在右。
+          SizedBox(
+            width: 140,
+            height: 44,
+            child: LedgerImportUndoButton(
+              batchId: _batchId,
+              onUndone: (m) {
+                _toast(m);
+                _reset();
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
           SizedBox(
             width: 140,
             height: 44,
@@ -1018,10 +1039,10 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () => context.go('/ledger'),
+                  onTap: _reset,
                   child: const Center(
                     child: Text(
-                      '查看账本',
+                      '完成',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -1032,22 +1053,11 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 140,
-            height: 44,
-            child: OutlinedButton(
-              onPressed: _reset,
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text('再导一份'),
-            ),
-          ),
         ],
       ),
+      const SizedBox(height: 12),
+      // 原型 biDone 底部「导入记录 · N 批」行。
+      const LedgerImportRecordsRow(),
     ];
   }
 }

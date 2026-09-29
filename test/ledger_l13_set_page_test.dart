@@ -17,7 +17,8 @@ import 'package:lifeharness/features/ledger/presentation/ledger_set_page.dart';
 /// 管理入口行断言弹层管理态（角色/标签/商家=对应半屏 mg 态；速记/顶部卡=
 /// 配置弹层）；跳转行（分类/导入/导出）以文案守护，路由 push 无 GoRouter 树
 /// 不可点（真实化收口见 ledgerNav done 表 + app_router '/ledger/set'）。
-/// 撤销导入批次：原型 p-lset 无该行（不造行）→ 仅 repo 语义数据层用例。
+/// 撤销导入批次：入口不在 p-lset（原型无该行），而在导入向导首页与完成屏的「导入记录」——
+/// UI 与两档语义见 test/ledger_import_undo_test.dart（R15-1/V1.56），本文件只钉 repo 既有行为。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
