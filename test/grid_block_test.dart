@@ -138,7 +138,7 @@ void main() {
         child: const MaterialApp(home: CalendarPage()),
       );
 
-  testWidgets('时间页默认块视图：全天0-24 提示 + 视图菜单切轴显示事件', (tester) async {
+  testWidgets('时间页默认块视图：全天 0-24 刻度读数 + 视图菜单切轴显示事件', (tester) async {
     final now = DateTime.now();
     await repo.create(CalEvent(
         title: '产品评审',
@@ -151,7 +151,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 默认块视图（V1.19 四视图，月历/周行在上方）。
-    expect(find.textContaining('全天0-24'), findsOneWidget);
+    expect(find.textContaining('全天 0-24'), findsOneWidget);
     // V1.27 C6：月历不再显示「‹年 月 月›」切月行
     expect(find.textContaining('年'), findsNothing);
     // 顶栏视图菜单 → 轴视图。

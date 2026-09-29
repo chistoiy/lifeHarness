@@ -12,6 +12,7 @@ import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import 'dashboard_providers.dart';
+import 'widgets/today_schedule_card.dart';
 
 /// 模块6 今日仪表盘（对齐原型 p-dashboard）。
 /// 真数据：待办数/进度环/今日日程列表/收集箱未整理/连续记录天/本周时间分布。
@@ -121,7 +122,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final now = DateTime.now();
     final hour = now.hour;
     final greet = hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
-    final emoji = hour < 18 ? '☀️' : '🌙';
+    // R14-12/14：问候语随「我的」页昵称联动，装饰 emoji 摘除（UI 禁 emoji）。
+    final nickNow = ref.watch(settingsControllerProvider).nickOrFallback;
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final tokens = context.tokens;
 
@@ -131,7 +133,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         draft ?? ref.watch(settingsControllerProvider).homeCardOrder;
 
     Widget card(String id) => switch (id) {
-          'greeting' => _HeroCard(greet: '$greet，CHIST $emoji'),
+          'greeting' => _HeroCard(greet: '$greet，$nickNow'),
           'mood' => _MoodCard(mood: _mood, onPick: (m) {
               setState(() => _mood = m);
               // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
@@ -141,7 +143,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ref.invalidate(journalsProvider);
               }
             }),
-          'events' => const _TodayScheduleCard(),
+          'events' => const TodayScheduleCard(),
           'inboxBar' => const _InboxBar(),
           'days' => const _RecentDaysCard(),
           'chart' => const _TimeDistCard(),
@@ -362,7 +364,6 @@ class _HeroCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final todos = ref.watch(todosProvider).valueOrNull ?? const [];
-    final todayEvents = ref.watch(todayEventCountProvider).valueOrNull ?? 0;
     // V1.42 批4（L12/L13 挂载点）：今日持有成本由 items 计费引擎实算汇入。
     final itemsData = ref.watch(itemsDataProvider).valueOrNull;
     final itemsNow = ref.watch(itemsClockProvider)();
@@ -370,17 +371,33 @@ class _HeroCard extends ConsumerWidget {
     final dailyCost =
         itemsData == null ? 0.0 : totalDailyCost(itemsData.items, itemsNow);
 
-    final pending = todos.where((t) => !t.done).toList();
-    final doneToday = todos.where((t) => t.done).length;
-    final total = todos.length;
+    // R14-14：四个数字全部对齐已确认原型口径，且与「今日日程」卡同源。
+    final now = DateTime.now();
+    final day0 = DateTime(now.year, now.month, now.day);
+    bool onToday(DateTime? d) => d != null &&
+        d.year == now.year &&
+        d.month == now.month &&
+        d.day == now.day;
+    // 今日待办＝截止日落在今天（逾期另有「已过期」入口，不混计）。
+    final todayTodos = todos.where((t) => onToday(t.dueAt)).toList();
+    final doneToday = todayTodos.where((t) => t.done).length;
+    final total = todayTodos.length;
     final ratio = total == 0 ? 0.0 : doneToday / total;
-    // 本周精力「重要」象限占比（原型 62% 胶囊 · 用真实象限分布计算）
-    final counted = todos.where((t) => !t.dropped).toList();
+    // 本周精力「重要」象限占比：只统计未完成待办（原型同款谓词）。
+    final pending = todos.where((t) => !t.done && !t.dropped).toList();
     final important =
-        counted.where((t) => t.quadrant.value <= 2).length;
-    final impPct = counted.isEmpty
+        pending.where((t) => t.quadrant.value <= 2).length;
+    final impPct = pending.isEmpty
         ? null
-        : (important * 100 / counted.length).round();
+        : (important * 100 / pending.length).round();
+    // 场安排＝今日日程列表条数（事件 + 手动/计时块，与 TodayScheduleCard 同一函数出数）。
+    final plans = mergeTodayPlans(
+      ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[],
+      ref.watch(dayBlocksProvider(day0)).valueOrNull ?? const <TimeBlock>[],
+      now: now,
+      catColors: const {},
+      accent: tokens.accent,
+    );
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -399,11 +416,13 @@ class _HeroCard extends ConsumerWidget {
             children: [
               const Text('今天有 ',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('${pending.length}',
+              Text('$total',
+                  key: const ValueKey('hero-todo-count'),
                   style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
               const Text(' 个待办 · ',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('$todayEvents',
+              Text('${plans.length}',
+                  key: const ValueKey('hero-plan-count'),
                   style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
               const Text(' 场安排',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
@@ -498,16 +517,6 @@ class _HeroCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // V1.27 H1：删「⇄ 编排」按钮，长按任意卡片进入编排（原型同款提示行）
-          const Row(
-            children: [
-              Expanded(
-                child: Text('长按任意卡片可编排顺序',
-                    style: TextStyle(color: Colors.white70, fontSize: 10.5)),
               ),
             ],
           ),
@@ -690,115 +699,23 @@ class _MoodCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              mood == null
-                  ? '点一下，记录今天的心情'
-                  : '已记录：$mood · ${_DashboardPageState._moodTips[mood]}（将进入今晚日记）',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: mood == null ? Colors.grey.shade400 : tokens.accent),
+          // R14-8：未选时不留教学句（原型同款），选中后才出这一行状态提示。
+          if (mood != null) ...[
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                '已记录：$mood · ${_DashboardPageState._moodTips[mood]}（将进入今晚日记）',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: tokens.accent),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// 今日日程（原型 dashEvents：色条 + 标题 + 起止时间卡列表）。
-class _TodayScheduleCard extends ConsumerWidget {
-  const _TodayScheduleCard();
-
-  static String _hm(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = context.tokens;
-    final scheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
-    final events = (ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[])
-        .where((e) =>
-            e.start.year == now.year && e.start.month == now.month && e.start.day == now.day)
-        .toList()
-      ..sort((a, b) => a.start.compareTo(b.start));
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: context.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                  child: Text('今日日程',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
-              TextButton(
-                onPressed: () => context.go(NavModule.calendar.path),
-                child: Text('查看全部 ›',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: tokens.accent,
-                        fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-          if (events.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text('今天还没有安排',
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-            ),
-          for (final e in events.take(4))
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: scheme.onSurface.withValues(alpha: .04),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: e.colorOf(tokens.accent),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: Text(e.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600))),
-                  Text(
-                      e.allDay
-                          ? '全天'
-                          : '${_hm(e.start)}-${e.end == null ? '' : _hm(e.end!)}',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          color: scheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-          if (events.length > 4)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text('还有 ${events.length - 4} 项…',
-                  style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 /// 收集箱快捷条（真实未整理计数）。
 class _InboxBar extends ConsumerWidget {

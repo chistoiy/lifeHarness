@@ -16,6 +16,8 @@ import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'helpers.dart';
+
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,9 +80,9 @@ void main() {
           container: container, child: const MaterialApp(home: DashboardPage())));
       await tester.pumpAndSettle();
 
-      // 右上「⇄ 编排」钮已删；问候卡底部有长按提示行
+      // 右上「⇄ 编排」钮已删；R14-8：长按提示行属教学文案，已摘（入口与编排模式本身不变）
       expect(find.text('⇄ 编排'), findsNothing);
-      expect(find.text('长按任意卡片可编排顺序'), findsOneWidget);
+      expect(find.text('长按任意卡片可编排顺序'), findsNothing);
 
       // V1.27 H1：长按任意卡片 → 进入编排模式
       await tester.longPress(find.byKey(const ValueKey('card-press-greeting')));
@@ -114,7 +116,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final yMood = tester.getTopLeft(find.text('😄')).dy;
-      final yGreet = tester.getTopLeft(find.textContaining('，CHIST')).dy;
+      final yGreet = tester.getTopLeft(find.textContaining('，本地用户')).dy;
       expect(yMood, lessThan(yGreet), reason: '保存顺序首卡应为心情');
     });
 
@@ -132,12 +134,18 @@ void main() {
       expect(find.text('已在第一位'), findsOneWidget);
       expect(container.read(settingsControllerProvider).homeCardOrder.first, 'greeting');
 
-      // 末卡（grid）在懒加载列表尾部：先滚到底再点 ↓
-      await tester.drag(find.byType(ReorderableListView), const Offset(0, -900));
+      // 末卡（grid）在懒加载列表尾部：先滚到已构建，再 ensureVisible 拉进视口。
+      for (var i = 0;
+          i < 8 && find.byKey(const ValueKey('down-grid')).evaluate().isEmpty;
+          i++) {
+        await tester.drag(find.byType(ReorderableListView), const Offset(0, -300));
+        await tester.pumpAndSettle();
+      }
+      await tester.ensureVisible(find.byKey(const ValueKey('down-grid')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('down-grid')));
-      await tester.pumpAndSettle();
-      expect(find.text('已在最后一位'), findsOneWidget);
+      // 提示条断言前先 pollText：pumpAndSettle 会把 fake 时间推过其自动消失期（假红）
+      expect(await pollText(tester, '已在最后一位'), isTrue);
     });
   });
 }

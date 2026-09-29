@@ -20,7 +20,7 @@ class RecmgSettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const _Label('📔 日记'),
+          const _Label('日记'),
           _Card(children: [
             _Row(
                 title: '默认新建模板',
@@ -32,11 +32,11 @@ class RecmgSettingsPage extends ConsumerWidget {
                 last: true,
                 onTap: () => _soon(context, '连续记录提醒')),
           ]),
-          const _Label('📝 笔记'),
+          const _Label('笔记'),
           _Card(children: [
             _Row(
                 keyName: 'nr-mode',
-                title: '🕘 版本恢复方式',
+                title: '版本恢复方式',
                 trailing: restore == 'replace' ? '直接替换正文' : '新增为副本',
                 onTap: () async {
                   await ref.read(settingsControllerProvider.notifier).
@@ -94,13 +94,13 @@ class RecmgSettingsPage extends ConsumerWidget {
                   }
                 }),
             _Row(
-                title: '🗂 文件夹管理',
-                trailing: '记录 › 笔记 › 📂',
+                title: '文件夹管理',
+                trailing: '记录 › 笔记',
                 last: true,
                 onTap: () => AppToast.show(
-                    context, '在 记录 › 笔记 点 📂 打开树侧栏管理（增删改/嵌套）')),
+                    context, '在 记录 › 笔记 tab 打开树状侧栏管理（增删改/拖动嵌套）')),
           ]),
-          const _Label('📚 阅读'),
+          const _Label('阅读'),
           _Card(children: [
             _Row(
                 title: '默认进度方式',
@@ -112,7 +112,7 @@ class RecmgSettingsPage extends ConsumerWidget {
                 last: true,
                 onTap: () => _soon(context, '阅读计时询问')),
           ]),
-          const _Label('🎬 影音游'),
+          const _Label('影音游'),
           _Card(children: [
             _Row(
                 title: '默认进度方式',
@@ -120,7 +120,7 @@ class RecmgSettingsPage extends ConsumerWidget {
                 last: true,
                 onTap: () => _soon(context, '影音游默认进度方式')),
           ]),
-          const _Label('⚙️ 通用'),
+          const _Label('通用'),
           _Card(children: [
             _Row(
                 keyName: 'trash-days',

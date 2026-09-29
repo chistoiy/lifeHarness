@@ -924,7 +924,7 @@ void main() {
       await tester.pumpWidget(scope(const RecmgSettingsPage()));
       await tester.pumpAndSettle();
 
-      for (final label in ['📔 日记', '📝 笔记', '📚 阅读', '🎬 影音游', '⚙️ 通用']) {
+      for (final label in ['日记', '笔记', '阅读', '影音游', '通用']) { // R14-7：段标题去 emoji 前缀
         expect(find.text(label), findsOneWidget);
       }
       expect(find.text('回收站自动清理'), findsOneWidget);

@@ -113,6 +113,8 @@ class UserSettings {
     this.notePlainLineNum = false,
     this.noteSwipe = false,
     this.weatherCity = '',
+    this.profileNick = '',
+    this.profileBio = '',
   });
 
   final String themeId;
@@ -138,6 +140,17 @@ class UserSettings {
 
   /// M1批2e·设置页：日记天气城市（编码 `name|lat|lon`·''=未设置不抓取）。
   final String weatherCity;
+
+  /// R14-12·我的页资料：昵称（''=未设置，界面回落「本地用户」）。
+  /// 口径：**只进设置项 KV，不建表、不做迁移**——本地模式无账号，资料属偏好而非业务数据，
+  /// 随 prefs 一起进整包备份与 WebDAV 同步，换机即带走。
+  final String profileNick;
+
+  /// R14-12·我的页资料：一句话签名（''=不显示）。
+  final String profileBio;
+
+  /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
+  String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
 
   /// 可编排卡片 id 全集（顺序之外新增卡片按此兜底补齐）。
   static const List<String> kHomeCardIds = [
@@ -170,6 +183,8 @@ class UserSettings {
     bool? notePlainLineNum,
     bool? noteSwipe,
     String? weatherCity,
+    String? profileNick,
+    String? profileBio,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -182,6 +197,8 @@ class UserSettings {
         notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
         noteSwipe: noteSwipe ?? this.noteSwipe,
         weatherCity: weatherCity ?? this.weatherCity,
+        profileNick: profileNick ?? this.profileNick,
+        profileBio: profileBio ?? this.profileBio,
       );
 
   Map<String, Object> toMap() => {
@@ -195,6 +212,8 @@ class UserSettings {
         'notePlainLineNum': notePlainLineNum,
         'noteSwipe': noteSwipe,
         'weatherCity': weatherCity,
+        'profileNick': profileNick,
+        'profileBio': profileBio,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -210,6 +229,8 @@ class UserSettings {
         notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
         noteSwipe: m['noteSwipe'] as bool? ?? false,
         weatherCity: m['weatherCity'] as String? ?? '',
+        profileNick: m['profileNick'] as String? ?? '',
+        profileBio: m['profileBio'] as String? ?? '',
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

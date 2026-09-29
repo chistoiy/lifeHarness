@@ -102,7 +102,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('${now.month}'), findsWidgets); // 月历含今天
-    expect(find.textContaining('全天0-24'), findsOneWidget); // 默认块视图（V1.19 四视图）
+    expect(find.textContaining('全天 0-24'), findsOneWidget); // 默认块视图（V1.19 四视图 · R14-8 后为刻度读数）
 
     // 视图菜单切轴：事件卡可见。
     await tester.tap(find.byType(PopupMenuButton<String>));

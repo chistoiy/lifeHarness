@@ -106,10 +106,10 @@ void main() {
 
     testWidgets('五卡渲染 + 开关持久化 + 入口状态联动', (tester) async {
       final container = await pump(tester);
-      expect(find.text('📅 日程与任务提醒'), findsOneWidget);
-      expect(find.text('📔 日记复盘'), findsOneWidget);
+      expect(find.text('日程与任务提醒'), findsOneWidget);
+      expect(find.text('日记复盘'), findsOneWidget);
       expect(find.text('⚡ 收集箱清理'), findsOneWidget);
-      expect(find.text('🔁 习惯提醒'), findsOneWidget);
+      expect(find.text('习惯提醒'), findsOneWidget);
       expect(find.text('⛔ 免打扰时段'), findsOneWidget);
       expect(find.textContaining('类提醒已开启'), findsOneWidget); // 默认 todoEvent on
 

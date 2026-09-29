@@ -185,7 +185,8 @@ class _GridDayViewState extends ConsumerState<GridDayView>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '🖐 滑选 → 点右列分类=直接标记 · 1格=$gran分 · 全天0-24 · 点已有块可改起止/拆分/合并',
+                // R14-8：教学串摘除，只留刻度读数（原型同款「1 格 = N 分 · 全天 0-24」）。
+                '1 格 = $gran 分 · 全天 0-24',
                 style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 8),
@@ -341,13 +342,15 @@ class _GridDayViewState extends ConsumerState<GridDayView>
           ),
         ),
         const SizedBox(width: 8),
-        // 右侧分类速记列（V1.19 · 选中=标记 / 未选=记到此刻）
+        // 右侧分类速记列（V1.19 · 有选区=标记选区，无选区=就地开计时块；
+        // R14-8：列头教学串摘除，只留「分类」功能标签）。
         SizedBox(
           width: 64,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('选中=标记\n未选=开始计时',
+              // R14-8：右列标题只留功能标签（原型 p-calendar 块视图同款「分类」）。
+              Text('分类',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant, height: 1.3)),
               const SizedBox(height: 4),

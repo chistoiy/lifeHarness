@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/app_database.dart';
 import '../../features/calendar/presentation/calendar_providers.dart';
 import '../../features/inbox/presentation/inbox_providers.dart';
+import '../../features/read/presentation/read_providers.dart'
+    show booksProvider;
 import '../../features/todo/presentation/todo_providers.dart';
 
 // 跨模块聚合出口：仪表盘/设置等只 import 本文件，不直接 import 其他 feature。
@@ -20,7 +22,7 @@ export '../../features/journal/domain/journal_entry.dart' show JournalEntry, kJo
 export '../../features/journal/domain/note.dart' show Note;
 export '../../features/inbox/presentation/inbox_providers.dart' show inboxItemsProvider;
 // 批5 收集箱 → 阅读摘录分流（L6）：只经本文件透出，不直连 read feature。
-export '../../features/read/presentation/read_providers.dart' show readRepositoryProvider, readTickProvider;
+export '../../features/read/presentation/read_providers.dart' show readRepositoryProvider, readTickProvider, booksProvider;
 export '../../features/read/domain/book_quote.dart' show BookQuote;
 // V1.42 批4 联动收口（L10）：仪表盘「最近的日子」倒数卡 + hero 持有成本块，
 // days/items 数据与实算引擎只经本文件透出（R1）。
@@ -79,4 +81,12 @@ final doneTaskCountProvider = FutureProvider<int>((ref) async {
   final rows =
       await db.rawQuery('SELECT COUNT(*) c FROM todos WHERE done = 1');
   return (rows.first['c'] as int?) ?? 0;
+});
+
+/// 在册书籍数（R14-13·我的页统计宫格第三格）。
+/// 走 booksProvider 而不是直查库：加书/删书后随阅读侧心跳自动重算，
+/// 且 widget 测试可用 `readRepositoryProvider` 注入内存库（不依赖 AppDatabase 单例）。
+final shelfBookCountProvider = FutureProvider<int>((ref) async {
+  final books = await ref.watch(booksProvider.future);
+  return books.length;
 });

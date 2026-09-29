@@ -43,8 +43,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('0'), findsWidgets); // 初始 0
 
-    // 模拟待办页添加（无到期日，走同一 add + invalidate 链路）
-    await repo.add(Todo(title: '新任务', quadrant: Quadrant.q2));
+    // 模拟待办页添加。R14-14 口径：问候卡只数「截止日＝今天」的待办，
+    // 无截止日与逾期各有自己的入口，不混进这一格。
+    final t = DateTime.now();
+    await repo.add(Todo(
+        title: '新任务',
+        quadrant: Quadrant.q2,
+        dueAt: DateTime(t.year, t.month, t.day, 18)));
     container.invalidate(todosProvider);
     await tester.pumpAndSettle();
 

@@ -62,10 +62,10 @@ void main() {
     }
     await tester.ensureVisible(entry);
     await settle(tester);
-    expect(find.text('🎨 主题风格'), findsNothing); // 已收进二级页
+    expect(find.text('主题风格'), findsNothing); // 已收进二级页
     await tester.tap(entry);
     await settle(tester);
-    expect(find.text('🎨 主题风格'), findsOneWidget);
+    expect(find.text('主题风格'), findsOneWidget);
     expect(find.text('海洋深蓝'), findsOneWidget);
     await tester.pageBack();
     await settle(tester);

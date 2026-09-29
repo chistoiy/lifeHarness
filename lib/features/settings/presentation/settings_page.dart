@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/weather/weather.dart';
+import 'profile_edit_sheet.dart';
 import 'weather_city_sheet.dart';
 
 /// 我的/设置（M0 · 对齐原型 p-profile）。
@@ -26,6 +27,9 @@ class SettingsPage extends ConsumerWidget {
     final settings = ref.watch(settingsControllerProvider);
     final streak = ref.watch(streakDaysProvider).valueOrNull ?? 0;
     final doneTasks = ref.watch(doneTaskCountProvider).valueOrNull ?? 0;
+    // R14-12/13：资料与三宫格同源实算——昵称/签名走设置项，书籍数走聚合层。
+    final nick = settings.nickOrFallback;
+    final books = ref.watch(shelfBookCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
@@ -41,8 +45,8 @@ class SettingsPage extends ConsumerWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                     shape: BoxShape.circle, gradient: tokens.gradient),
-                child: const Text('C',
-                    style: TextStyle(
+                child: Text(nick.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
                         color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
               ),
               const SizedBox(width: 14),
@@ -50,16 +54,21 @@ class SettingsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CHIST',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                    Text(nick,
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 3),
-                    Text('本地模式 · 无账号 🔒 · 已记录 $streak 天',
+                    Text(
+                        // 原型 p-profile 副行 + 顶栏副标题（App 顶栏无副标题位，签名并到这一行）。
+                        '本地模式 · 无账号 · 已记录 $streak 天'
+                        '${settings.profileBio.isEmpty ? '' : ' · ${settings.profileBio}'}',
                         style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
                   ],
                 ),
               ),
               TextButton(
-                onPressed: () => _toast(context, '编辑资料 · 敬请期待'),
+                key: const ValueKey('profile-edit'),
+                onPressed: () => showProfileEditSheet(context, ref),
                 child: Text('编辑',
                     style: TextStyle(
                         color: tokens.accent, fontWeight: FontWeight.w700)),
@@ -74,7 +83,11 @@ class SettingsPage extends ConsumerWidget {
               const SizedBox(width: 10),
               _StatCell(value: '$streak', label: '连续记录天', color: const Color(0xFF2DD4BF)),
               const SizedBox(width: 10),
-              const _StatCell(value: '0', label: '在册书籍', color: Color(0xFFF59E0B)),
+              _StatCell(
+                  key: const ValueKey('stat-books'),
+                  value: '$books',
+                  label: '在册书籍',
+                  color: const Color(0xFFF59E0B)),
             ],
           ),
           const SizedBox(height: 14),
@@ -86,8 +99,9 @@ class SettingsPage extends ConsumerWidget {
               children: [
                 _EntryRow(
                     key: const ValueKey('entry-sync'),
-                    emoji: '☁️',
-                    bg: const Color(0xFF10B981).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.cloud_outlined,
+                    size: 18, color: const Color(0xFF10B981)),
+                                        bg: const Color(0xFF10B981).withValues(alpha: .12),
                     title: '数据与同步',
                     sub: 'WebDAV · 备份 · 加密 · 同步历史',
                     trailing: '● 未配置',
@@ -101,7 +115,6 @@ class SettingsPage extends ConsumerWidget {
                 // V1.41批1 Task 6：日志查看页入口（原型 index-sync p-log）。
                 _EntryRow(
                     key: const ValueKey('entry-log'),
-                    emoji: '',
                     iconWidget: const Icon(Icons.receipt_long_outlined,
                         size: 18, color: Color(0xFF0891B2)),
                     bg: const Color(0xFF06B6D4).withValues(alpha: .12),
@@ -113,7 +126,6 @@ class SettingsPage extends ConsumerWidget {
                 // R5c：图片存储清理入口（本地孤儿图片勾选清理）。
                 _EntryRow(
                     key: const ValueKey('entry-media-clean'),
-                    emoji: '',
                     iconWidget: const Icon(Icons.image_outlined,
                         size: 18, color: Color(0xFF059669)),
                     bg: const Color(0xFF10B981).withValues(alpha: .12),
@@ -122,8 +134,9 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     onTap: () => context.push('/settings/media-clean')),
                 _EntryRow(
-                    emoji: '🔔',
-                    bg: const Color(0xFF6366F1).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.notifications_none,
+                    size: 18, color: const Color(0xFF6366F1)),
+                                        bg: const Color(0xFF6366F1).withValues(alpha: .12),
                     title: '提醒通知',
                     sub: '日程 · 日记复盘 · 收集箱清理 · 习惯',
                     trailing: ref
@@ -135,8 +148,9 @@ class SettingsPage extends ConsumerWidget {
                     onTap: () => context.push('/settings/notify')),
                 _EntryRow(
                     key: const ValueKey('entry-ai'),
-                    emoji: '🤖',
-                    bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.memory,
+                    size: 18, color: const Color(0xFF8B5CF6)),
+                                        bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
                     title: 'AI 增强',
                     sub: '服务商 · Key · 能力矩阵 · API 验证',
                     trailing: ref
@@ -150,22 +164,25 @@ class SettingsPage extends ConsumerWidget {
                     // AI批：占位 toast → 真实二级页（原型 p-sub-ai）。
                     onTap: () => context.push('/settings/ai')),
                 _EntryRow(
-                    emoji: '🏷',
-                    bg: const Color(0xFFF97316).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.label_outline,
+                    size: 18, color: const Color(0xFFF97316)),
+                                        bg: const Color(0xFFF97316).withValues(alpha: .12),
                     title: '分类管理',
                     sub: '时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组',
                     trailing: '',
                     onTap: () => context.push('/categories')),
                 _EntryRow(
-                    emoji: '🧰',
-                    bg: Colors.grey.withValues(alpha: .12),
+                    iconWidget: Icon(Icons.handyman_outlined,
+                    size: 18, color: const Color(0xFF6B7280)),
+                                        bg: Colors.grey.withValues(alpha: .12),
                     title: '小工具合集',
                     sub: '本地工具 · 插件拓展',
                     trailing: '',
                     onTap: () => _toast(context, '小工具合集 · 敬请期待')),
                 _EntryRow(
-                    emoji: '🧩',
-                    bg: Colors.grey.withValues(alpha: .12),
+                    iconWidget: Icon(Icons.extension_outlined,
+                    size: 18, color: const Color(0xFF6B7280)),
+                                        bg: Colors.grey.withValues(alpha: .12),
                     title: '插件中心',
                     sub: '大模块按需安装 · 更新 · 回滚',
                     trailing: '',
@@ -179,8 +196,9 @@ class SettingsPage extends ConsumerWidget {
           _Card(
             child: _EntryRow(
                     key: const ValueKey('entry-appearance'),
-                    emoji: '🎨',
-                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.palette_outlined,
+                    size: 18, color: const Color(0xFF0EA5E9)),
+                                        bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
                     title: '外观',
                     sub: '主题风格 · 深色模式 · 主题色 · 字体大小',
                     trailing: '',
@@ -192,7 +210,6 @@ class SettingsPage extends ConsumerWidget {
           _Card(
             child: _EntryRow(
                     key: const ValueKey('entry-weather'),
-                    emoji: '',
                     iconWidget: const Icon(Icons.wb_sunny_outlined,
                         size: 18, color: Color(0xFF0284C7)),
                     bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
@@ -207,8 +224,9 @@ class SettingsPage extends ConsumerWidget {
           _Card(
             child: _EntryRow(
                     key: const ValueKey('entry-recmg'),
-                    emoji: '📔',
-                    bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
+                    iconWidget: Icon(Icons.menu_book_outlined,
+                    size: 18, color: const Color(0xFF8B5CF6)),
+                                        bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
                     title: '记录管理',
                     sub: '版本恢复 · 快照 · 回收站清理',
                     trailing: '',
@@ -224,7 +242,7 @@ class SettingsPage extends ConsumerWidget {
                 Row(
                   children: [
                     const Expanded(
-                        child: Text('🧭 底部导航栏自定义',
+                        child: Text('底部导航栏自定义',
                             style:
                                 TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
                     Text(
@@ -257,7 +275,7 @@ class SettingsPage extends ConsumerWidget {
                       foregroundColor: tokens.accent,
                       side: BorderSide(color: tokens.accent.withValues(alpha: .3)),
                     ),
-                    child: const Text('🧩 主页编排直达（或长按卡片）›',
+                    child: const Text('主页编排直达（或长按卡片）›',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
                 ),
@@ -314,9 +332,12 @@ class _Card extends StatelessWidget {
 
 /// 设置行图标块（原型 .set-ic：36px 圆角浅底）。
 class _SetIc extends StatelessWidget {
-  const _SetIc({required this.emoji, this.text = false});
+  const _SetIc({this.emoji = '', this.icon, this.text = false});
 
   final String emoji;
+
+  /// R14-7：外观页小方格图标位（禁 emoji，传线性图标）。
+  final IconData? icon;
   final bool text;
 
   @override
@@ -330,16 +351,23 @@ class _SetIc extends StatelessWidget {
         color: scheme.onSurface.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(emoji,
-          style: TextStyle(
-              fontSize: text ? 13 : 16,
-              fontWeight: text ? FontWeight.w800 : FontWeight.normal)),
+      child: icon != null
+          ? Icon(icon, size: 18, color: scheme.onSurfaceVariant)
+          : Text(emoji,
+              style: TextStyle(
+                  fontSize: text ? 13 : 16,
+                  fontWeight: text ? FontWeight.w800 : FontWeight.normal)),
     );
   }
 }
 
 class _StatCell extends StatelessWidget {
-  const _StatCell({required this.value, required this.label, required this.color});
+  const _StatCell({
+    super.key,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
 
   final String value;
   final String label;
@@ -367,8 +395,7 @@ class _StatCell extends StatelessWidget {
 class _EntryRow extends StatelessWidget {
   const _EntryRow({
     super.key,
-    required this.emoji,
-    this.iconWidget,
+    required this.iconWidget,
     required this.bg,
     required this.title,
     required this.sub,
@@ -378,10 +405,8 @@ class _EntryRow extends StatelessWidget {
     required this.onTap,
   });
 
-  final String emoji;
-
-  /// 批2e：新条目按「UI 禁 emoji」规范传线性图标，替换 emoji 文本位。
-  final Widget? iconWidget;
+  /// R14-7：入口位只接受线性图标（UI 禁 emoji 硬规矩；emoji 文本位已整体摘除）。
+  final Widget iconWidget;
   final Color bg;
   final String title;
   final String sub;
@@ -406,7 +431,7 @@ class _EntryRow extends StatelessWidget {
               height: 34,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-              child: iconWidget ?? Text(emoji, style: const TextStyle(fontSize: 16)),
+              child: iconWidget,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -613,12 +638,12 @@ class AppearanceSettingsPage extends ConsumerWidget {
                 Row(
                   children: [
                     const Expanded(
-                        child: Text('🎨 主题风格',
+                        child: Text('主题风格',
                             style:
                                 TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
                     TextButton(
                       onPressed: () => _toast(context, '主题市场（GitHub 热加载）V1.x 上线'),
-                      child: Text('🛍 更多主题 ›',
+                      child: Text('更多主题 ›',
                           style: TextStyle(
                               fontSize: 11,
                               color: tokens.accent,
@@ -633,7 +658,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                 // 深色模式（原型：单 toggle · 与主题正交）
                 Row(
                   children: [
-                    _SetIc(emoji: '🌙'),
+                    _SetIc(icon: Icons.dark_mode_outlined),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -668,7 +693,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                 // 主题色（原型 themeDots：一排色点，点击=切对应主题）
                 Row(
                   children: [
-                    _SetIc(emoji: '🎨'),
+                    _SetIc(icon: Icons.palette_outlined),
                     const SizedBox(width: 12),
                     const Expanded(
                         child: Text('主题色',

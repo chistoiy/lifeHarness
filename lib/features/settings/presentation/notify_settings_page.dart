@@ -50,7 +50,7 @@ class NotifySettingsPage extends ConsumerWidget {
           const SizedBox(height: 10),
           _card(context, child: Column(
             children: [
-              _row(context, '📅 日程与任务提醒', n.todoEvent,
+              _row(context, '日程与任务提醒', n.todoEvent,
                   (v) => _apply(ref, n.copyWith(todoEvent: v))),
               _selectRow(context, '默认提前量', '${n.leadMin} 分钟',
                   const ['10 分钟', '30 分钟', '1 小时'],
@@ -64,7 +64,7 @@ class NotifySettingsPage extends ConsumerWidget {
           const SizedBox(height: 12),
           _card(context, child: Column(
             children: [
-              _row(context, '📔 日记复盘', n.diaryReview,
+              _row(context, '日记复盘', n.diaryReview,
                   (v) => _apply(ref, n.copyWith(diaryReview: v))),
               _selectRow(context, '晚间复盘提醒时间', n.diaryTime,
                   const ['21:00', '21:30', '22:00', '22:30'],
@@ -87,7 +87,7 @@ class NotifySettingsPage extends ConsumerWidget {
           const SizedBox(height: 12),
           _card(context, child: Column(
             children: [
-              _row(context, '🔁 习惯提醒', n.habits,
+              _row(context, '习惯提醒', n.habits,
                   (v) => _apply(ref, n.copyWith(habits: v))),
               Padding(
                 padding: const EdgeInsets.only(right: 12),

@@ -84,6 +84,13 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 我的页资料（R14-12）：昵称 + 一句话签名。只进设置项 KV，不建表不迁移；
+  /// 头像首字、页面副标题与「今天」页问候语都随这一份数据联动。
+  Future<void> setProfile({required String nick, required String bio}) async {
+    state = state.copyWith(profileNick: nick, profileBio: bio);
+    await _persist();
+  }
+
   /// 提醒通知设置（M0末A）。副作用（权限申请/排程同步）由 settings feature 层执行，
   /// core 不触达 feature（R2）。
   Future<void> setNotify(NotifySettings n) async {
