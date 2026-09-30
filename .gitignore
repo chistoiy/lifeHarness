@@ -61,6 +61,10 @@ tools/.*-probe/
 
 # 真机走查取证临时区（截图/logcat/ui dump，不入库）
 .walkthrough/
+# adb 逐屏走查的原生截图与 uiautomator dump（结论进 docs/验收清单与 docs/*.png，原始帧留本机）
+prototype/shots/
+tools/ui*.xml
+tools/ui[0-9]*.xml
 
 # 阅读域校验器运行日志（长活校验器原地保留，日志不入库）
 tools/reader/*.log
