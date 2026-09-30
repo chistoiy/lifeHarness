@@ -46,6 +46,13 @@ const String xrayActAdd = 'add';
 const String xrayActForbid = 'forbid';
 const String xrayActMerge = 'merge_pair';
 
+/// `xray_entity.status` 四态（§7：删除/合并都是状态位，不是降分）。
+/// `merged_into:<id>` 形态由本表前缀常量 + id 拼出，读侧按前缀判。
+const String xrayEntityActive = 'active';
+const String xrayEntityUserAdded = 'user_added';
+const String xrayEntityDeleted = 'deleted';
+const String xrayEntityMergedPrefix = 'merged_into:';
+
 /// `xray_userdict.scope` 的全局档（黑名单升级·§7「应用到所有书」）。
 const String xrayScopeGlobal = 'GLOBAL';
 
