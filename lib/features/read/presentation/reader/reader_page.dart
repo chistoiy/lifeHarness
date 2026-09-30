@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui; // V1.53.2 放大镜抓帧
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/rendering.dart' show RenderParagraph, RenderRepaintBoundary;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,8 +30,8 @@ import './reader_bottom_sheets.dart';
 import './reader_pager.dart';
 import './reader_search_page.dart';
 import './reader_sel_layer.dart';
+import './reader_loupe.dart'; // V1.53.2 选区放大镜
 import '../selection_controller.dart';
-import '../para_box_cache.dart'; // V1.53.2 性能批 2
 import './reader_toc_drawer.dart';
 
 part 'reader_models.dart';
@@ -106,50 +107,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   final TocDrawerState _drState = TocDrawerState();
   late SelectionController _selController; // V1.53.2 性能批 1
 
-  /// V1.53.2 性能批 2：段落盒缓存（方案 B），提升长按命中准确度至 95%+
-  ParaBoxCache? _paraBoxCache;
-
-  /// 已缓存的段落键（'ci:pi'），避免重复填充
-  final Set<String> _cachedParaKeys = {};
-
-  /// 填充段落盒缓存（在 postFrameCallback 中调用）
-  void _fillParaCache(int ci, int pi) {
-    final cache = _paraBoxCache;
-    final doc = _doc;
-    if (cache == null || doc == null) return;
-    if (pi >= doc.chapters[ci].paras.length) return;
-    final key = '$ci:$pi';
-    if (_cachedParaKeys.contains(key)) return;
-
-    final rb = _paraRender(ci, pi);
-    if (rb == null || !rb.hasSize) return;
-
-    final full = rb.text.toPlainText();
-    if (full.isEmpty) return;
-    _cachedParaKeys.add(key);
-
-    // 为每个字符建一个 Rect（取该字符的起始 x、顶部 y、宽度 1、行高）
-    final rects = <Rect>[];
-    for (var i = 0; i < full.length; i++) {
-      final r = TextSelection(
-        baseOffset: i,
-        extentOffset: (i + 1).clamp(0, full.length),
-      );
-      final boxes = rb.getBoxesForSelection(r);
-      if (boxes.isEmpty) {
-        // 空盒用上一个位置或 0
-        rects.add(Rect.fromLTWH(0, 0, 0, 0));
-      } else {
-        final b = boxes.first;
-        rects.add(Rect.fromLTRB(b.left, b.top, b.right, b.bottom));
-      }
-    }
-
-    // 转换为全局坐标
-    final global = rb.localToGlobal(Offset.zero);
-    final shifted = rects.map((r) => r.shift(global)).toList(growable: false);
-    cache.update(ci, pi, shifted);
-  }
+  /// V1.53.2 选区放大镜：正文抓帧边界 + 手指落点（Stack 局部坐标）+ 快照。
+  final GlobalKey _contentBoundaryKey = GlobalKey(debugLabel: 'brLoupeBoundary');
+  Offset? _loupeFocal;
+  ui.Image? _loupeImage;
 
 
   // 命中导航（搜本书/全书检索共用）
@@ -184,7 +145,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   void initState() {
     super.initState();
     _selController = SelectionController(); // V1.53.2 性能批 1
-    _paraBoxCache = ParaBoxCache(); // V1.53.2 性能批 2（方案 B）
     _boot();
     // 轮5.4：进阅读页挂起全局读书计时条（首帧后再写，避开 initState 取 container）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -211,6 +171,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       _brightOwned = false;
       unawaited(_wake(false));
     }
+    _loupeImage?.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -1071,11 +1032,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       ),
                     ],
                     Positioned.fill(
-                      child: BrBackdrop(
-                        key: const ValueKey('brStage'),
-                        cfg: _cfg,
-                        base: th.$2,
-                        child: _stage(th),
+                      child: RepaintBoundary(
+                        key: _contentBoundaryKey,
+                        child: BrBackdrop(
+                          key: const ValueKey('brStage'),
+                          cfg: _cfg,
+                          base: th.$2,
+                          child: _stage(th),
+                        ),
                       ),
                     ),
                     // 亮度遮罩（V1.53 轮3：模拟系统亮度，只压正文不压 chrome）。
@@ -1112,9 +1076,22 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             brHandleWidget(
                               end,
                               _selAnchor(end),
-                              (g) => _dragSel(end: end, global: g),
+                              (g) {
+                                _dragSel(end: end, global: g);
+                                _loupeAtEnd(end);
+                              },
+                              onDragStart: (g) => _loupeAtEnd(end),
+                              onDragEnd: () => _setLoupe(null),
                             ),
                       ),
+                      // V1.53.2 选区放大镜：拖动手柄期间跟随手指显示。
+                      if (_loupeFocal != null)
+                        ReaderLoupe(
+                          image: _loupeImage,
+                          focal: _loupeFocal!,
+                          contentLogicalSize: size,
+                          stackSize: size,
+                        ),
                       // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
                       // 「回到刚才在读」在目录抽屉（跳章返回）。
                     ],

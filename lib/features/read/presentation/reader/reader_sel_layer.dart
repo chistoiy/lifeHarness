@@ -242,7 +242,13 @@ List<Widget> brSelLayer({
 /// R14-6：首尾手柄（原型 brHandlePlace / .br-h：圆钮 15px 中心≈字符盒边，
 /// 茎 2.5×18 外挑 17px；命中区按视觉簇外扩 8px 保证拖动可靠）。
 /// 锚点算不出（段落未渲染/快照缺段）就不画，也不拦事件。
-  Widget? brHandleWidget(bool end, Offset? p, void Function(Offset g) onDrag) {
+  Widget? brHandleWidget(
+    bool end,
+    Offset? p,
+    void Function(Offset g) onDrag, {
+    void Function(Offset g)? onDragStart,
+    VoidCallback? onDragEnd,
+  }) {
     if (p == null) return null;
     final stemUp = !end; // 首端：枝在点上方；尾端：枝在点下方
     const w = 31.0, h = 48.0, knob = 15.0;
@@ -259,7 +265,10 @@ List<Widget> brSelLayer({
         behavior: HitTestBehavior.opaque,
         // 起点即判定：拖动一开始就认领手势，避免与父级识别器争抢。
         dragStartBehavior: DragStartBehavior.down,
+        onPanStart: (d) => onDragStart?.call(d.globalPosition),
         onPanUpdate: (d) => onDrag(d.globalPosition),
+        onPanEnd: (d) => onDragEnd?.call(),
+        onPanCancel: () => onDragEnd?.call(),
         child: Stack(
           children: [
             Positioned(

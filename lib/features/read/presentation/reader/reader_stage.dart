@@ -135,15 +135,19 @@ extension _ReaderStage on _ReaderPageState {
       // V1.53 轮3（参考图4）：长按选中段落才弹摘抄工具条；
       // 点按不再命中这里 → 冒泡到 body 层分派（收放 chrome / 清选区）。
       // 轮4③：长按落点命中整句（微信读书口径），d.globalPosition → 段内偏移。
+      // V1.53.2：长按拖动跟手扩到手指下的句子；放大镜改挂到手柄微调（见 brHandleWidget）。
       onLongPressStart: (d) => _selectPara(ci, pi, at: d.globalPosition),
+      onLongPressMoveUpdate: (d) => _extendSelTo(ci, d.globalPosition),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-        decoration: hl == null && !inSel
+        // V1.53.2 修②：选中态不再整段铺底——部分选中（首/尾/单段局部）交给
+        // _subSpan 精确子串高亮；仅整段选中（跨段的中间段）才铺段级底色。
+        decoration: hl == null && !(inSel && !partSel)
             ? null
             : BoxDecoration(
-                color: inSel
+                color: inSel && !partSel
                     ? const Color(0x4D6366F1)
-                    : hl!.c.withValues(alpha: .27),
+                    : hl?.c.withValues(alpha: .27),
                 borderRadius: BorderRadius.circular(3),
               ),
         child: (hl?.hasThought ?? false)
@@ -254,10 +258,6 @@ extension _ReaderStage on _ReaderPageState {
         final span = partSel
             ? _subSpan(th, p, q0, q1)
             : _textSpan(th, doc, ci, p, pi, isHit);
-        // V1.53.2 性能批 2：段落首帧后异步填充盒缓存（方案 B）
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _fillParaCache(ci, pi);
-        });
         return Padding(
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),

@@ -32,33 +32,23 @@ extension _ReaderSelOps on _ReaderPageState {
 
 
 
-  /// 长按落点 → 段内字符偏移（方案 B：优先用缓存，fallback RenderParagraph）。
+  /// 长按落点 → 段内字符偏移（纯原生 RenderParagraph，确定性）。
+  /// V1.53.2：停用 ParaBoxCache 命中（缓存填充时机不定 + 与 anchor 坐标源不一致，
+  /// 导致「时偏时不偏」）；shift 改动态取渲染前缀长度，与 _selAnchor 完全同源。
   int? _charPosInPara(int ci, int pi, Offset global) {
     final doc = _doc;
     if (doc == null) return null;
     final ps = doc.chapters[ci].paras;
     if (pi >= ps.length) return null;
-
-    // V1.53.2 性能批 2：优先使用段落盒缓存（方案 B）
-    final cache = _paraBoxCache;
-    final cachedIdx = cache?.hitTest(ci, pi, global);
-
-    // 显示文本 = kParaIndent 前缀 + 原文（仅 text 段且开缩进）。
-    final shift = ps[pi].kind == EpubParaKind.text && _cfg.indent
-        ? kParaIndent.length
-        : 0;
-
-    // 缓存命中 → 用缓存的插入点偏移（语义与 getPositionForOffset 对齐）。
-    if (cachedIdx != null) {
-      return (cachedIdx - shift).clamp(0, ps[pi].text.length);
-    }
-
-    // fallback：使用原有 RenderParagraph 逻辑（精度约 85%）
     final rb = _paraRender(ci, pi);
     if (rb == null) return null;
     final local = rb.globalToLocal(global);
     final pos = rb.getPositionForOffset(local);
-    return (pos.offset - shift).clamp(0, ps[pi].text.length);
+    final full = rb.text.toPlainText();
+    // 渲染文本比原文多出的＝缩进前缀（动态，与 _selAnchor 的 shift 同式）。
+    final shift = (full.length - ps[pi].text.length).clamp(0, full.length);
+    final r = (pos.offset - shift).clamp(0, ps[pi].text.length);
+    return r;
   }
 
 
@@ -87,12 +77,77 @@ extension _ReaderSelOps on _ReaderPageState {
     });
   }
 
+  /// V1.53.2 选区放大镜：抓正文快照 + 记录手指落点（Stack 局部坐标）。
+  void _setLoupe(Offset? global) {
+    if (global == null) {
+      _loupeImage?.dispose();
+      _loupeImage = null;
+      // ignore: invalid_use_of_protected_member
+      setState(() => _loupeFocal = null);
+      return;
+    }
+    final rb = _stackKey.currentContext?.findRenderObject();
+    final local = rb is RenderBox ? rb.globalToLocal(global) : global;
+    _loupeAtFocal(local);
+  }
+
+  /// V1.53.2 选区放大镜：以**选区端点 anchor** 为焦点（与手柄圆点同源坐标），
+  /// 而非手指触点——消除手指按在有尺寸圆点上造成的 2~3 汉字偏差。
+  void _loupeAtEnd(bool end) {
+    final anchor = _selAnchor(end); // 已是 Stack 局部坐标
+    if (anchor == null) return;
+    _loupeAtFocal(anchor);
+  }
+
+  /// 抓帧 + 落焦（focal 为 Stack 局部坐标）。
+  void _loupeAtFocal(Offset local) {
+    final bo = _contentBoundaryKey.currentContext?.findRenderObject();
+    ui.Image? img;
+    if (bo is RenderRepaintBoundary) {
+      img = bo.toImageSync(
+        pixelRatio: MediaQuery.devicePixelRatioOf(context),
+      );
+    }
+    _loupeImage?.dispose();
+    _loupeImage = img;
+    // ignore: invalid_use_of_protected_member
+    setState(() => _loupeFocal = local);
+  }
+
+  /// V1.53.2 选区放大镜：长按拖动时，选区实时跟随手指下的句子（松手前不落定工具条）。
+  void _extendSelTo(int ci, Offset global) {
+    final doc = _doc;
+    if (doc == null) return;
+    final hit = _paraHitAt(ci, global);
+    if (hit == null) return;
+    final ps = doc.chapters[ci].paras;
+    if (hit.pi >= ps.length) return;
+    final se = _sentenceAt(ps[hit.pi].text, hit.off);
+    _lpCi = ci;
+    _lpPi = hit.pi;
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _selController.setSelection(
+        ci: ci,
+        p0: hit.pi,
+        p1: hit.pi,
+        o0: se.a,
+        o1: se.b,
+      );
+      _hlPop = false;
+    });
+  }
+
   // ignore: invalid_use_of_protected_member
   void _clearSel() => setState(() {
     _selController.clear();
     _hlPop = false;
     _lpCi = -1;
     _lpPi = -1;
+    // 关闭选区时一并收起放大镜，避免残留。
+    _loupeImage?.dispose();
+    _loupeImage = null;
+    _loupeFocal = null;
   });
 
   /// 段生效划线（原型 brHlAt：库内行优先，多条取最后；回落暂存行）。
