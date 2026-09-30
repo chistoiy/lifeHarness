@@ -44,6 +44,10 @@ const _secs = [
   _Sec('外观与启动', [
     _Row('openTab', '默认打开', _T.chips, opts: ['想读', '在读', '已读', '弃读']),
     _Row('wallCols', '封面墙列数', _T.chips, opts: ['3', '4', '5']),
+    // R14-4 三档回落（原型 RS_SEC）：A 正文首图（默认）/ B 书脊色块 / C 纯文字卡。
+    _Row('covFallback', '无封面书卡', _T.chips,
+        opts: ['A 正文首图', 'B 书脊色块', 'C 纯文字卡'],
+        desc: 'EPUB 无内嵌封面时的回落档 · 默认 A · 可在书架同屏预览对比'),
     _Row('imgCols', '图片墙列数', _T.chips, opts: ['3', '4', '5']),
     _Row('qtLines', '书摘文本行数', _T.chips, opts: ['2', '3', '4']),
     _Row('simple', '简洁浏览书摘', _T.bool, desc: '隐藏时间、位置等辅助信息'),
@@ -492,6 +496,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
   static String _def(_Row r) => switch (r.key) {
     'openTab' => '在读',
     'wallCols' => '3',
+    // R14-4：无封面书卡回落档默认 A 正文首图。
+    'covFallback' => 'A 正文首图',
     'imgCols' => '5',
     'qtLines' => '3',
     'newPos' => '开头',

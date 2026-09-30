@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../domain/book.dart';
 import '../domain/book_toc.dart';
 import 'epub_doc.dart';
+import 'epub_first_img.dart';
 import 'read_repository.dart';
 
 /// 一次系统文件选择的结果（SAF 语义：只拿到被选文件本体）。
@@ -162,6 +163,16 @@ class EpubImportService {
           updated = updated.copyWith(coverPath: cover);
         }
       }
+      // R14-4：挂回后仍无真封面 → 生成 A 档正文首图衍生件（预载完成会再幂等兜底）。
+      if (updated.coverPath == null) {
+        final fi = await EpubFirstImg.ensure(
+          docsPath: (await _docs()).path,
+          bookId: mergeInto.id,
+          doc: doc,
+          existing: updated.firstImgPath,
+        );
+        if (fi != null) updated = updated.copyWith(firstImgPath: fi);
+      }
       await repo.updateBook(updated);
       return updated;
     }
@@ -198,6 +209,16 @@ class EpubImportService {
     final cover = await _saveCover(withFile.id, doc);
     if (cover != null) {
       await repo.updateBook(withFile.copyWith(coverPath: cover));
+    } else {
+      // R14-4：包内无封面 → 立即尝试 A 档正文首图（失败不阻断导入，预载还会兜底）。
+      final fi = await EpubFirstImg.ensure(
+        docsPath: (await _docs()).path,
+        bookId: withFile.id,
+        doc: doc,
+      );
+      if (fi != null) {
+        await repo.updateBook(withFile.copyWith(firstImgPath: fi));
+      }
     }
     await repo.replaceToc(withFile.id, tocParts(doc));
     return (await repo.bookById(withFile.id)) ?? withFile;

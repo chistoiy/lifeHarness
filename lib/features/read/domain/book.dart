@@ -50,6 +50,7 @@ class Book {
     this.feeDate,
     this.local = false,
     this.epub,
+    this.firstImgPath,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -122,6 +123,10 @@ class Book {
   // epub＝源文件描述符（DB v25 两列；无新表，位置/外观走 settings KV）。
   final bool local;
   final EpubRef? epub;
+
+  /// R14-4 A 档回落：EPUB 正文第一张图落盘的衍生封面路径（DB v32 first_img 列）。
+  /// 导入/预载时生成，单书清缓存回收；与 coverPath（真封面/上传/ISBN）互不覆盖。
+  final String? firstImgPath;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -185,6 +190,7 @@ class Book {
     feeDate: r['fee_date'] as String?,
     local: ((r['local'] as int?) ?? 0) == 1,
     epub: EpubRef.decode(r['epub'] as String?),
+    firstImgPath: r['first_img'] as String?,
     createdAt: r['created_at'] as int,
     updatedAt: r['updated_at'] as int,
     deletedAt: r['deleted_at'] as int?,
@@ -230,6 +236,7 @@ class Book {
     'fee_date': feeDate,
     'local': local ? 1 : 0,
     'epub': epub?.encode(),
+    'first_img': firstImgPath,
     'created_at': createdAt,
     'updated_at': updatedAt,
     'deleted_at': deletedAt,
@@ -274,6 +281,7 @@ class Book {
     String? feeDate,
     bool? local,
     EpubRef? epub,
+    String? firstImgPath,
     // 批4 删除本地书：epub 列显式清空哨兵（copyWith 的 null＝不改）。
     bool clearEpub = false,
     int? updatedAt,
@@ -318,6 +326,7 @@ class Book {
     feeDate: feeDate ?? this.feeDate,
     local: local ?? this.local,
     epub: clearEpub ? null : (epub ?? this.epub),
+    firstImgPath: clearEpub ? null : (firstImgPath ?? this.firstImgPath),
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt ?? this.deletedAt,

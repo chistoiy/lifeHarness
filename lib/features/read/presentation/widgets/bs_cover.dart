@@ -1,9 +1,30 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/book.dart';
+import '../read_providers.dart';
 import '../reader/epub_state_ui.dart' show BrCoverStateOverlay;
+
+/// R14-4 三档回落模式（无真实封面时使用）。
+enum BsFallbackMode { aFirstImg, bSpineInitial, cPureText }
+
+/// 设置值（`read.covFallback`，如「B 书脊色块」）→ 档位；按首字符识别，其余回落 A。
+BsFallbackMode bsFallbackModeFromKv(String? v) {
+  final s = (v ?? '').trim();
+  if (s.startsWith('B')) return BsFallbackMode.bSpineInitial;
+  if (s.startsWith('C')) return BsFallbackMode.cPureText;
+  return BsFallbackMode.aFirstImg;
+}
+
+extension _BsCovExt on Book {
+  bool _hasRealCover() => coverPath != null && File(coverPath!).existsSync();
+
+  /// A 档素材：本地 EPUB 抽出的正文首图存在才算数（B/C 档不取，由调用处分流）。
+  bool _hasFirstImg() =>
+      firstImgPath != null && File(firstImgPath!).existsSync() && local;
+}
 
 /// 书脊色板（原型 BS_COV 8 组：渐变起/止 + 书脊纯色）。
 const kBsCov = <(Color, Color, Color)>[
@@ -123,7 +144,10 @@ class BrStateInlineBadge extends StatelessWidget {
 }
 
 /// 色板封面卡（LH-C06）：渐变底 + 右上分区徽标 + 作者行；有封面图则铺图。
-class BsCover extends StatelessWidget {
+/// R14-4 无封面三档回落：A=EPUB 正文首图（默认，带「正文首图」角标）·
+/// B=书脊色块＋书名首字 · C=纯文字卡。有真实封面永远直出；档位自读全局
+/// 设置 `read.covFallback`，写后 readTick 广播，各调用点同屏一致更新。
+class BsCover extends ConsumerWidget {
   const BsCover({
     super.key,
     required this.book,
@@ -135,6 +159,7 @@ class BsCover extends StatelessWidget {
     this.showBadge = true,
     this.showLocalBadge = true,
     this.showStateOverlay = false,
+    this.fallbackMode,
     this.onBadgeTap,
     this.onTap,
   });
@@ -156,88 +181,183 @@ class BsCover extends StatelessWidget {
   /// 点封面本体（详情页：进书籍资料页 §3.3）。
   final VoidCallback? onTap;
 
+  /// R14-4 档位覆盖：null＝自读全局设置 `read.covFallback`（生产路径）；
+  /// 仅测试/预览用显式值钉住档位。
+  final BsFallbackMode? fallbackMode;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    if (book._hasRealCover()) return _buildCover(book.coverPath!);
+    final mode =
+        fallbackMode ??
+        bsFallbackModeFromKv(
+          ref
+              .watch(readKvProvider(('read.covFallback', 'A 正文首图')))
+              .valueOrNull,
+        );
     final pal = kBsCov[book.paletteIdx];
-    final img = book.coverPath;
+    return switch (mode) {
+      // A 档（默认）：本地书有正文首图即铺图，否则维持原渐变卡。
+      BsFallbackMode.aFirstImg => book._hasFirstImg()
+          ? _buildCover(book.firstImgPath!, fiTag: true)
+          : _buildGradCard(pal),
+      // B 档：书脊色块（color_idx 取色）＋书名首字。
+      BsFallbackMode.bSpineInitial => _buildSpineCard(pal),
+      // C 档：纯文字卡（纸面底＋书名＋作者，无图无色）。
+      BsFallbackMode.cPureText => _buildTextCard(cs),
+    };
+  }
+
+  Widget _shell(Decoration decoration, List<Widget> children) {
     return GestureDetector(
       key: onTap == null ? null : ValueKey('cover-${book.id}'),
       onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: SizedBox(
-          width: width,
-          height: height,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: img == null || !File(img).existsSync()
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [pal.$1, pal.$2],
-                    )
-                  : null,
-              image: img != null && File(img).existsSync()
-                  ? DecorationImage(
-                      image: FileImage(File(img)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+        child: SizedBox(width: width, height: height, child: DecoratedBox(
+          decoration: decoration,
+          child: Stack(children: children),
+        )),
+      ),
+    );
+  }
+
+  Widget _buildCover(String path, {bool fiTag = false}) => _shell(
+    BoxDecoration(
+      image: File(path).existsSync()
+          ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
+          : null,
+    ),
+    _stackChildren(fiTag: fiTag),
+  );
+
+  /// A 档无首图的默认渐变卡（原 LH-C06 形态）。
+  Widget _buildGradCard((Color, Color, Color) pal) => _shell(
+    BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [pal.$1, pal.$2],
+      ),
+    ),
+    _stackChildren(),
+  );
+
+  /// B 档书脊色块（原型 bsCovStyle：165deg 由书脊色渐变到自身 85% 透明）。
+  Widget _buildSpineCard((Color, Color, Color) pal) {
+    final spine = pal.$3;
+    return _shell(
+      BoxDecoration(
+        gradient: LinearGradient(
+          begin: const Alignment(-.26, -.97),
+          end: const Alignment(.26, .97),
+          colors: [spine, spine.withValues(alpha: .85)],
+        ),
+      ),
+      _stackChildren(useB: true),
+    );
+  }
+
+  /// C 档纯文字卡（原型 bs-covC：纸面底 + 细边 + 居中书名）。
+  Widget _buildTextCard(ColorScheme cs) => _shell(
+    BoxDecoration(
+      color: cs.surface,
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: .6)),
+    ),
+    _stackChildren(useC: true, cs: cs),
+  );
+
+  List<Widget> _stackChildren({
+    bool useB = false,
+    bool useC = false,
+    bool fiTag = false,
+    ColorScheme? cs,
+  }) {
+    final children = <Widget>[];
+    // R14-4 卡面内容（原型 bsCovInner）：先于徽标入栈，徽标始终在上。
+    if (fiTag) {
+      final fs = (width * .066).clamp(5.5, 8.0);
+      children.add(Positioned(left: 5, top: 5, child: Container(
+        key: const ValueKey('cov-fi-tag'),
+        padding: EdgeInsets.symmetric(horizontal: fs * .65, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: .5),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text('正文首图', style: TextStyle(
+          fontSize: fs, fontWeight: FontWeight.w800, color: Colors.white, height: 1.4)),
+      )));
+    }
+    // B 档：书名首字（原型 .bs-bi：居中 · 白色 · 带投影；字号随卡高缩放）。
+    if (useB) {
+      children.add(Positioned.fill(child: Center(child: Text(
+        book.title.isNotEmpty ? book.title[0] : '书',
+        key: const ValueKey('cov-b-char'),
+        style: TextStyle(
+          fontSize: (height * .148).clamp(9.0, 44.0),
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+          height: 1.1,
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: .28),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            child: Stack(
-              children: [
-                if (showAuthor)
-                  Positioned(
-                    left: 7,
-                    right: 7,
-                    bottom: 6,
-                    child: Text(
-                      book.author,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white.withValues(alpha: .78),
-                      ),
-                    ),
-                  ),
-                if (showLocalBadge && book.local)
-                  Positioned(right: 3, bottom: 3, child: const BrLocalBadge()),
-                if (showStateOverlay && book.local)
-                  Positioned.fill(child: BrCoverStateOverlay(book: book)),
-                if (showBadge)
-                  Positioned(
-                    top: 5,
-                    right: 5,
-                    child: GestureDetector(
-                      onTap: onBadgeTap,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: bsStateColor(book.state),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          bsBadgeLabel(book),
-                          style: TextStyle(
-                            fontSize: badgeSize,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+          ],
+        ),
+      ))));
+    }
+    // C 档：书名中心落在卡高 36%（原型 .bs-ci-t：top 36% + translateY(-50%)）。
+    if (useC) {
+      children.add(Positioned.fill(child: Align(
+        alignment: const Alignment(0, -.28),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            book.title,
+            key: const ValueKey('cov-c-title'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: (width * .096).clamp(7.0, 11.0),
+              fontWeight: FontWeight.w800,
+              color: cs?.onSurface ?? const Color(0xFF0F172A),
+              height: 1.5,
             ),
           ),
         ),
-      ),
-    );
+      )));
+    }
+    if (showAuthor) {
+      children.add(Positioned(left: 7, right: 7, bottom: 6, child: Text(
+        book.author, maxLines: 1, overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: FontWeight.w700,
+          color: useC
+              ? (cs?.onSurfaceVariant ?? const Color(0xFF64748B))
+              : Colors.white.withValues(alpha: useB ? .85 : .78),
+        ),
+      )));
+    }
+    if (showLocalBadge && book.local) {
+      children.add(Positioned(right: 3, bottom: 3, child: const BrLocalBadge()));
+    }
+    if (showStateOverlay && book.local) {
+      children.add(Positioned.fill(child: BrCoverStateOverlay(book: book)));
+    }
+    if (showBadge) {
+      children.add(Positioned(top: 5, right: 5, child: GestureDetector(
+        onTap: onBadgeTap,
+        child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(
+          color: bsStateColor(book.state), borderRadius: BorderRadius.circular(999)),
+        child: Text(bsBadgeLabel(book), style: TextStyle(fontSize: badgeSize, fontWeight: FontWeight.w800, color: Colors.white))),
+      )));
+    }
+    return children;
   }
 }
 

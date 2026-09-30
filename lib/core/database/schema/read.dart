@@ -111,6 +111,7 @@ import 'core.dart' as c;
       local INTEGER NOT NULL DEFAULT 0,
       epub TEXT,
       md5 TEXT,
+      first_img TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER
@@ -304,5 +305,11 @@ final Map<int, List<String>> mig = {
       'ALTER TABLE $tBookSessions ADD COLUMN to_chapter TEXT',
       'ALTER TABLE $tBookSessions ADD COLUMN from_pct REAL',
       'ALTER TABLE $tBookSessions ADD COLUMN to_pct REAL',
+    ],
+
+    // R14-4（2026-09-30 三档回落）：EPUB 正文首图回落封面的衍生文件路径（A 档用）。
+    // 导入/预载时生成；单书清缓存随封面衍生件一并回收（记录本身保留）。
+    32: [
+      'ALTER TABLE $tBooks ADD COLUMN first_img TEXT',
     ]
 };

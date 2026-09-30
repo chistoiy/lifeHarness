@@ -11,6 +11,7 @@ import '../../../core/logging/app_log.dart';
 import '../domain/book.dart';
 import '../presentation/reader/reader_pager.dart';
 import 'epub_doc.dart';
+import 'epub_first_img.dart';
 import 'read_repository.dart';
 
 /// 批3.5 · 大书内存模型与预载/清缓存服务。
@@ -571,6 +572,23 @@ class EpubPreloadService extends ChangeNotifier {
         pag.setChapter(0, EpubPager.layoutChapter(doc.chapters[0].paras, layout));
       }
       await PagStore.save(docs0!, b.id, PagStore.fingerprint(layout), pag);
+      // R14-4：无真封面的本地书在预载尾步生成 A 档正文首图衍生件（幂等；
+      // 清缓存后的恢复重预载也走这里再生）。失败不阻断预载终态。
+      if (b.coverPath == null) {
+        try {
+          final fi = await EpubFirstImg.ensure(
+            docsPath: docs0,
+            bookId: b.id,
+            doc: doc,
+            existing: b.firstImgPath,
+          );
+          if (fi != null && fi != b.firstImgPath) {
+            await repo.updateBook(b.copyWith(firstImgPath: fi));
+          }
+        } catch (e) {
+          AppLog.add('首图回落生成失败 书#${b.id}: $e', level: LhLevel.error);
+        }
+      }
       await _mark(b, EpubRef.stReady, 100);
       onBookSettled?.call(b.id);
     } catch (e) {
@@ -695,6 +713,11 @@ class EpubCacheService {
     if (cover != null && p.basename(cover).startsWith('epub_')) {
       final f = File(cover);
       if (await f.exists()) await f.delete();
+    }
+    // R14-4：同时回收 A 档首图衍生件。
+    if (b.firstImgPath != null) {
+      final fi = File(b.firstImgPath!);
+      if (await fi.exists()) await fi.delete();
     }
     await PagStore.remove(docs0, b.id);
     await DocStore.remove(docs0, b.id);

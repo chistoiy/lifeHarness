@@ -184,6 +184,20 @@ class EpubDoc {
     return lazy?.image(src);
   }
 
+  /// R14-4 A 档：正文（spine 章序）里第一张插图的包内路径；跳过封面，
+  /// 前 [maxChapters] 章内找不到即认为无图返回 null（懒章表按章读快照，成本可控）。
+  String? firstBodyImageSrc({int maxChapters = 24}) {
+    final n = chapters.length < maxChapters ? chapters.length : maxChapters;
+    for (var ci = 0; ci < n; ci++) {
+      for (final para in chapters[ci].paras) {
+        if (para.kind == EpubParaKind.image && para.imgSrc.isNotEmpty) {
+          return para.imgSrc;
+        }
+      }
+    }
+    return null;
+  }
+
   /// 章标题（廉价：懒章表从索引直读，不加载段落）。
   List<String> get chapterTitles => chapters is ChapterMetaSource
       ? (chapters as ChapterMetaSource).chapterTitles
