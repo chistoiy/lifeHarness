@@ -177,6 +177,7 @@ class UserSettings {
     this.noteLatex = false,
     this.notePlainLineNum = false,
     this.noteSwipe = false,
+    this.trashKeepDays = 30,
     this.weatherCity = '',
     this.profileNick = '',
     this.profileBio = '',
@@ -203,6 +204,14 @@ class UserSettings {
 
   /// V1.29轮10-2·记录管理：编辑页左右滑动切换上下篇开关（默认关=轮8②常开改为可选）。
   final bool noteSwipe;
+
+  /// V1.57 E 批 · 记录管理「通用 · 回收站自动清理」：待办垃圾箱保留天数
+  /// 档位 30/7/90，0＝不清理（默认 30）。垃圾箱入口/期限文案与冷启动自动清理同源读这里。
+  final int trashKeepDays;
+
+  /// 期限展示文案（原型 ttKeepTxt 同源）：'删除 30 天后自动彻底删除' / '不自动清理'。
+  String get trashKeepTxt =>
+      trashKeepDays > 0 ? '删除 $trashKeepDays 天后自动彻底删除' : '不自动清理';
 
   /// M1批2e·设置页：日记天气城市（编码 `name|lat|lon`·''=未设置不抓取）。
   final String weatherCity;
@@ -252,6 +261,7 @@ class UserSettings {
     bool? noteLatex,
     bool? notePlainLineNum,
     bool? noteSwipe,
+    int? trashKeepDays,
     String? weatherCity,
     String? profileNick,
     String? profileBio,
@@ -267,6 +277,7 @@ class UserSettings {
         noteLatex: noteLatex ?? this.noteLatex,
         notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
         noteSwipe: noteSwipe ?? this.noteSwipe,
+        trashKeepDays: trashKeepDays ?? this.trashKeepDays,
         weatherCity: weatherCity ?? this.weatherCity,
         profileNick: profileNick ?? this.profileNick,
         profileBio: profileBio ?? this.profileBio,
@@ -283,6 +294,7 @@ class UserSettings {
         'noteLatex': noteLatex,
         'notePlainLineNum': notePlainLineNum,
         'noteSwipe': noteSwipe,
+        'trashKeepDays': trashKeepDays,
         'weatherCity': weatherCity,
         'profileNick': profileNick,
         'profileBio': profileBio,
@@ -302,6 +314,9 @@ class UserSettings {
         noteLatex: m['noteLatex'] as bool? ?? false,
         notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
         noteSwipe: m['noteSwipe'] as bool? ?? false,
+        trashKeepDays: const {0, 7, 30, 90}.contains(m['trashKeepDays'])
+            ? m['trashKeepDays'] as int
+            : 30,
         weatherCity: m['weatherCity'] as String? ?? '',
         profileNick: m['profileNick'] as String? ?? '',
         profileBio: m['profileBio'] as String? ?? '',

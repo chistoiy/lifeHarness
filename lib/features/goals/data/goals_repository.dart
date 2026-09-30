@@ -92,8 +92,9 @@ class GoalsRepository {
     final sd = _day(start), ed = _day(end.subtract(const Duration(days: 1)));
     switch (src) {
       case KrSource.todo:
+        // V1.57 E 批：垃圾箱条目（deleted_at 非空）不得计入 KR 汇聚。
         final r = await db.rawQuery(
-            'SELECT COUNT(*) c FROM ${DbSchema.tTodos} WHERE done = 1 AND updated_at >= ? AND updated_at < ?',
+            'SELECT COUNT(*) c FROM ${DbSchema.tTodos} WHERE done = 1 AND updated_at >= ? AND updated_at < ? AND deleted_at IS NULL',
             [s, e]);
         return (r.first['c'] as int).toDouble();
       case KrSource.read:

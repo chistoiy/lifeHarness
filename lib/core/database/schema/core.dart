@@ -88,6 +88,8 @@
 
 /// 治理G5：本域承接的版本迁移条目（聚合于 DbSchema.migrations·键互斥）
 final Map<int, List<String>> mig = {
+    // V1.57 E 批 · v29：待办垃圾箱软删列（NULL=在册）。只加列，不动任何既有行数据。
+    28: ['ALTER TABLE $tTodos ADD COLUMN deleted_at INTEGER'],
     1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
     2: [
       '''

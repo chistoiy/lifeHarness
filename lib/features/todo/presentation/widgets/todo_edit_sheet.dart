@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/ai_review.dart';
+import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/wheel_date.dart';
 import '../todo_providers.dart';
@@ -1120,13 +1121,13 @@ class _TodoDetailSheetState extends ConsumerState<_TodoDetailSheet> {
                   onPressed: () async {
                     final navigator = Navigator.of(context);
                     final messenger = ScaffoldMessenger.of(context);
-                    await ref.read(todoRepositoryProvider).remove(t);
+                    // V1.57 E 批：删除＝软删进垃圾箱；keep 须在 pop 前取（弹层销毁后 ref 失效）
+                    final keep = ref.read(settingsControllerProvider).trashKeepTxt;
+                    await ref.read(todoRepositoryProvider).softRemove(t);
                     ref.invalidate(todosProvider);
                     ref.invalidate(overdueCountProvider);
                     navigator.pop();
-                    messenger.showSnackBar(const SnackBar(
-                        content: Text('🗑 已删除 · 垃圾箱 30 天后自动清空（规划 V1.0）'),
-                        duration: Duration(milliseconds: 1600)));
+                    messenger.showSnackBar(SnackBar(content: Text('已移入垃圾箱 · $keep'), duration: const Duration(milliseconds: 1600)));
                   },
                   style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFF43F5E),

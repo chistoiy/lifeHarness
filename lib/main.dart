@@ -133,6 +133,17 @@ Future<void> main() async {
     AppLog.add('启动提醒重排失败（小结/体检）：$e', level: LhLevel.warn);
   }
 
+  // 4.4b) V1.57 E 批：垃圾箱到期自动清理（保留期读「记录管理 · 通用」档位，
+  //       0＝不清理）。只真 DELETE 已过期的软删条目，失败不阻断启动。
+  try {
+    final n = await TodoDao(AppDatabase.instance.db)
+        .purgeExpired(settings.trashKeepDays);
+    AppLog.addKey(
+        '垃圾箱自动清理：删除 $n 条 · 保留期 ${settings.trashKeepDays > 0 ? '${settings.trashKeepDays} 天' : '不清理'}');
+  } catch (e) {
+    AppLog.add('垃圾箱自动清理失败：$e', level: LhLevel.warn);
+  }
+
   // 4.5) R5b：note_images 存量一次性收编为 SHA256 内容寻址命名（幂等标志，
   //    失败不阻断启动——迁移器内部逐文件 try，整体异常只 warn）。
   if (prefs.getBool('media.hashMigrate.v1') != true) {

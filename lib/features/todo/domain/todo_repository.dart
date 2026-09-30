@@ -51,4 +51,26 @@ class TodoRepository {
     await _dao.remove(t.id!);
     await NotificationService.cancel(t.id!);
   }
+
+  // ---- V1.57 E 批 · 待办垃圾箱 ----
+
+  /// 删除＝软删进垃圾箱：撤提醒（恢复时重排）；清单/象限/今日数字即时消失。
+  Future<void> softRemove(Todo t) async {
+    await _dao.softRemove(t.id!);
+    await NotificationService.cancel(t.id!);
+  }
+
+  Future<List<Todo>> trashed() => _dao.trashed();
+
+  /// 恢复＝回原象限原截止（同一条目，不新建）；提醒重排。
+  Future<void> restore(Todo t) async {
+    await _dao.restore(t.id!);
+    if (!t.done) {
+      await NotificationService.scheduleTodo(
+          id: t.id!, title: t.title, remindAt: t.remindAt);
+    }
+  }
+
+  /// 彻底删除（真删·不可恢复）。
+  Future<int> purge(List<int> ids) => _dao.purge(ids);
 }

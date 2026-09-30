@@ -21,7 +21,7 @@ class DbSchema {
   
   static const String fileName = 'lifeharness.db';
 
-  static const int version = 28;
+  static const int version = 29;
  
 
   
@@ -55,6 +55,7 @@ class DbSchema {
       grp TEXT,
       habit_id INTEGER,
       link_cat INTEGER,
+      deleted_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )

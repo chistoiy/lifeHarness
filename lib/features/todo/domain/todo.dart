@@ -43,6 +43,7 @@ class Todo {
     this.habitId,
     this.linkCat,
     this.sortOrder = 0,
+    this.deletedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -84,6 +85,11 @@ class Todo {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// V1.57 E 批 · 待办垃圾箱：软删时刻（null=在册；非空=在垃圾箱，保留期内可恢复）。
+  final DateTime? deletedAt;
+
+  bool get trashed => deletedAt != null;
+
   /// 逾期=过了截止日的**当天**（自然日粒度，与原型 dueLabel「今天≠逾期」一致）。
   /// due_at 携带的隐藏时刻（默认 18:00）只用于「提前1小时」类提醒锚点，不参与逾期判定；
   /// 计划执行时间点（start_min）是独立字段，同样不参与。
@@ -114,6 +120,7 @@ class Todo {
     int? habitId,
     int? linkCat,
     int? sortOrder,
+    DateTime? deletedAt,
   }) =>
       Todo(
         id: id ?? this.id,
@@ -135,6 +142,7 @@ class Todo {
         habitId: habitId ?? this.habitId,
         linkCat: linkCat ?? this.linkCat,
         sortOrder: sortOrder ?? this.sortOrder,
+        deletedAt: deletedAt ?? this.deletedAt,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -159,6 +167,7 @@ class Todo {
         'habit_id': habitId,
         'link_cat': linkCat,
         'sort_order': sortOrder,
+        'deleted_at': deletedAt?.millisecondsSinceEpoch,
         'created_at': (createdAt ?? DateTime.now()).millisecondsSinceEpoch,
         'updated_at': (updatedAt ?? DateTime.now()).millisecondsSinceEpoch,
       };
@@ -187,6 +196,9 @@ class Todo {
         habitId: r['habit_id'] as int?,
         linkCat: r['link_cat'] as int?,
         sortOrder: (r['sort_order'] as int?) ?? 0,
+        deletedAt: r['deleted_at'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(r['deleted_at'] as int),
         createdAt: DateTime.fromMillisecondsSinceEpoch(r['created_at'] as int),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(r['updated_at'] as int),
       );

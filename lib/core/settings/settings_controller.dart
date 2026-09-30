@@ -72,6 +72,12 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// V1.57 E 批 · 回收站自动清理期限（30/7/90 天 · 0=不清理，默认 30）。
+  Future<void> setTrashKeepDays(int days) async {
+    state = state.copyWith(trashKeepDays: days);
+    await _persist();
+  }
+
   /// 编辑页左右滑动切换上下篇（V1.29轮10-2·记录管理，默认关）。
   Future<void> setNoteSwipe(bool on) async {
     state = state.copyWith(noteSwipe: on);

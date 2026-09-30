@@ -121,22 +121,71 @@ class RecmgSettingsPage extends ConsumerWidget {
                 onTap: () => _soon(context, '影音游默认进度方式')),
           ]),
           const _Label('通用'),
-          _Card(children: [
-            _Row(
-                keyName: 'trash-days',
-                title: '回收站自动清理',
-                trailing: '30 天',
-                last: true,
-                onTap: () => _soon(context, '回收站自动清理期限')),
-          ]),
+          Consumer(builder: (ctx, ref, _) {
+            final keep =
+                ref.watch(settingsControllerProvider).trashKeepDays;
+            return _Card(children: [
+              _Row(
+                  keyName: 'trash-days',
+                  title: '回收站自动清理',
+                  trailing: keep > 0 ? '$keep 天' : '不清理',
+                  last: true,
+                  onTap: () => _pickTrashKeep(ctx, ref, keep)),
+            ]);
+          }),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-            child: Text('日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按期限自动彻底删除',
+            child: Text('待办 / 日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
           ),
         ],
       ),
     );
+  }
+
+  /// 期限档位选择半屏（30/7/90 天 · 不清理；默认 30）——选中即落库并回显。
+  Future<void> _pickTrashKeep(
+      BuildContext context, WidgetRef ref, int cur) async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bc) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text('回收站自动清理',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            ),
+            for (final (v, lab) in const [
+              (30, '30 天'),
+              (7, '7 天'),
+              (90, '90 天'),
+              (0, '不清理'),
+            ])
+              ListTile(
+                dense: true,
+                title: Text(lab),
+                trailing: v == cur
+                    ? Icon(Icons.check,
+                        size: 18,
+                        color: Theme.of(bc).colorScheme.primary)
+                    : null,
+                onTap: () => Navigator.of(bc).pop(v),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await ref.read(settingsControllerProvider.notifier).setTrashKeepDays(picked);
+    if (context.mounted) {
+      AppToast.show(context,
+          picked > 0 ? '回收站内容保留 $picked 天后自动彻底删除' : '回收站不再自动清理');
+    }
   }
 
   void _soon(BuildContext context, String what) {
