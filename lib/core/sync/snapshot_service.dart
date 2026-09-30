@@ -240,6 +240,8 @@ class SnapshotService {
       if (f.lengthSync() > _digestMaxBytes) return null;
       return crypto.md5.convert(f.readAsBytesSync()).toString();
     } catch (_) {
+      // catch-ok: 单文件读失败/超大只回「无摘要」，差异对比自动降级到字节数·强 ETag 档；
+      // 逐文件记日志会在大库上刷屏，整体失败已由 _collectInto 上层留痕。
       return null;
     }
   }

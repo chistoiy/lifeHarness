@@ -44,7 +44,7 @@ void main() {
     'core/backup/backup_service.dart': 3,
     'core/backup/lh_bak.dart': 4,
     'core/media/media_usage_scanner.dart': 1,
-    'core/settings/user_settings.dart': 2,
+    'core/settings/user_settings.dart': 1,
     'core/sync/credential_vault.dart': 2,
     'core/sync/http_gate.dart': 1,
     'core/sync/s3_store.dart': 1,
