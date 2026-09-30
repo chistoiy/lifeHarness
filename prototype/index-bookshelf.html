@@ -1816,6 +1816,8 @@ tailwind.config = {
     #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28);background:var(--card);backdrop-filter:none;color:#334155;border:1px solid var(--card-bd)}
     #brColorPop{background:var(--card);backdrop-filter:none;color:#334155;border:1px solid var(--card-bd)}
     html.dark #brSelBar,html.dark #brColorPop{color:#cbd5e1}
+    /* V1.53.4⑥ 书架定位闪烁（打开方式已导入 → 跳书架高亮） */
+    #shBody .br-flash-loc{box-shadow:0 0 0 3px rgba(99,102,241,.6);border-radius:14px}
     #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
     #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
     .br-selpart{background:rgba(99,102,241,.30);border-radius:2px}
@@ -3016,10 +3018,51 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- V1.53.4⑥ 系统「打开方式」接收 EPUB · 未导入=导入确认 / 已导入=提醒+定位（?br57=open|dup） -->
+  <div id="sheetBrOpen" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrOpen')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8" id="brOpenBody"></div>
+  </div>
+
+  <!-- V1.53.4② AI 解读二选一（?br57=choice） -->
+  <div id="sheetBrAiChoice" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAiChoice')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
+      <div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 line-clamp-2" id="brChoiceQuote">—</div>
+      <div class="mt-3 space-y-2">
+        <button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl card !py-2.5 text-left" onclick="brAiPick('explain')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-brand-500"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="flex-1 min-w-0"><b class="text-[13px]">解释词句</b><span class="block text-[10px] text-slate-400 mt-0.5">释义 · 背景 · 简析</span></span><span class="text-slate-300">›</span></button>
+        <button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl card !py-2.5 text-left" onclick="brAiPick('insight')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-brand-500"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/></svg>
+          <span class="flex-1 min-w-0"><b class="text-[13px]">深度解读</b><span class="block text-[10px] text-slate-400 mt-0.5">论证链 · 感想与标签</span></span><span class="text-slate-300">›</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- V1.53.4③ 发送前审阅（全模块共用 · System/User 默认折叠）（?br57=review） -->
+  <div id="sheetAiReview" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAiReview')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">发送前审阅</b><span class="text-[9px] text-slate-400" id="brRvTask">—</span></div>
+      <div class="mt-3 rounded-xl border border-slate-200 dark:border-slate-700">
+        <button class="w-full flex items-center gap-2 px-3 py-2.5 text-left" onclick="brRvTog('Sys')">
+          <b class="text-[12px] shrink-0">System · 发送设定</b><span class="text-[10px] text-slate-400 truncate flex-1" id="brRvSysPeek">…</span><span class="text-[11px] text-slate-400" id="brRvSysChev">∨</span></button>
+        <div class="hidden px-3 pb-3 text-[11px] leading-5 text-slate-500 dark:text-slate-400 whitespace-pre-wrap" id="brRvSysBox"></div>
+      </div>
+      <div class="mt-2 rounded-xl border border-slate-200 dark:border-slate-700">
+        <button class="w-full flex items-center gap-2 px-3 py-2.5 text-left" onclick="brRvTog('Usr')">
+          <b class="text-[12px] shrink-0">User · 本次内容</b><span class="text-[10px] text-slate-400 truncate flex-1" id="brRvUsrPeek">…</span><span class="text-[11px] text-slate-400" id="brRvUsrChev">∨</span></button>
+        <div class="hidden px-3 pb-3 text-[11px] leading-5 text-slate-500 dark:text-slate-400 whitespace-pre-wrap" id="brRvUsrBox"></div>
+      </div>
+      <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetAiReview')">取消</button>
+        <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="brAiSend()">发送</button></div>
+      <div class="mt-2 text-[9px] text-slate-400 text-center">只发送以上两部分 · 模板可在「提示词管理」逐段修改</div>
+    </div>
+  </div>
+
   <!-- AI 解读 -->
   <div id="sheetBrAi" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAi')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="flex items-center justify-between"><b class="text-[15px]">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
+      <div class="flex items-center justify-between"><b class="text-[15px]" id="brAiTitle">AI 解读</b><span class="text-[9px] text-slate-400">Opt-in · 本地 Key</span></div>
       <div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 line-clamp-2" id="brAiQuote">—</div>
       <div class="mt-3 rounded-2xl border border-brand-500/25 bg-brand-50/50 dark:bg-brand-500/5 p-3.5 text-xs leading-6 min-h-[150px]" id="brAiOut"><span class="text-slate-400">正在思考…</span></div>
       <div class="mt-3 flex gap-2">
@@ -5044,7 +5087,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30};
+let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','听当前','AI 解读','分享']};
 /* 豆瓣防封批（2026-09-26）：抓到的书目按 ISBN 落本机元数据缓存（demo 内存态）。
    二次命中不静默采用——提示「本地已有缓存」，由用户选「用缓存 / 仍联网查询」。 */
 let BS_DB_CACHE={'9787111544937':{n:'深入理解计算机系统（原书第3版）',a:'兰德尔·布莱恩特',pub:'机械工业出版社',pg:868,yr:'2016-11'}};
@@ -5599,7 +5642,7 @@ const RS_SEC=[
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
  ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]],
  ['本地阅读器',[['epub','导入本地 EPUB','nav',"navTo('p-localImport');brImpGo(1)",'添加图书流程内同样有入口 · Android 13+ SAF 单次读取'],['brSync','划线自动存为书摘','bool','阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'],['brLink','书籍内外部链接','chips',['禁止','询问','允许'],'章节内跳转不受限制 · 外链默认询问'],['brVoice','朗读音色','chips',['标准女声','温润男声','童声'],'离线引擎 · 扩展包按需下载控制体积'],['brBright','阅读时屏幕常亮','bool','进入阅读器自动生效 · 退出恢复系统策略'],
-   ['brMinSecs','短于该时长的阅读不计入','chips',[5,10,15,30,60,120,300],'秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话']]]];
+   ['brMinSecs','短于该时长的阅读不计入','chips',[5,10,15,30,60,120,300],'秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话'],['brSelGran','长按选择粒度','chips',['选字','选句'],'默认 选字 · 长按命中单字，拖手柄扩选；选句 长按命中整句'],['brSelOps','选区工具条工具','opsSel','勾选并调整顺序 · 移除＝不上工具条']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
   if(k==='openTab'){shSt=o}
@@ -5620,6 +5663,7 @@ function rsRow(it){const k=it[0],nm=it[1],ty=it[2],ex=it[3];const v=BS_SET[k];
   if(ty==='ops'){const on=BS_SET.longPress.map((o,i)=>'<div class="flex items-center gap-2 text-[12px]"><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',-1)">↑</button><button class="mini-btn !text-[10px] !px-2" onclick="lpMv('+i+',1)">↓</button><b>'+o+'</b><button class="ml-auto text-[10px] text-rose-500" onclick="lpRm('+i+')">移除</button></div>').join('');
     const off=LP_ALL.filter(x=>!BS_SET.longPress.includes(x)).map(x=>'<button class="chip !text-[10px]" onclick="lpAdd(\''+x+'\')">＋ '+x+'</button>').join('');
     return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<span class="text-[10px] text-slate-400">'+BS_SET.longPress.length+' 项</span>'+foot+'<div class="mt-1.5 space-y-1.5">'+on+'</div>'+(off?'<div class="mt-2 flex gap-1.5 flex-wrap">'+off+'</div>':'')+'</div>';}
+  if(ty==='opsSel'){const a=BS_SET.brSelOps&&BS_SET.brSelOps.length?BS_SET.brSelOps:(BS_SET.brSelOps=BR_SEL_ALL.slice());const on=a.map((o,i)=>'<div class="flex items-center gap-2 text-[12px]"><button class="mini-btn !text-[10px] !px-2" onclick="bpMv('+i+',-1)">↑</button><button class="mini-btn !text-[10px] !px-2" onclick="bpMv('+i+',1)">↓</button><b>'+o+'</b><button class="ml-auto text-[10px] text-rose-500" onclick="bpRm('+i+')">移除</button></div>').join('');const off=BR_SEL_ALL.filter(x=>!a.includes(x)).map(x=>'<button class="chip !text-[10px]" onclick="bpAdd(\''+x+'\')">＋ '+x+'</button>').join('');return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<span class="text-[10px] text-slate-400">'+a.length+' 项</span>'+foot+'<div class="mt-1.5 space-y-1.5">'+on+'</div>'+(off?'<div class="mt-2 flex gap-1.5 flex-wrap">'+off+'</div>':'')+'</div>';}
   if(ty==='go')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]" onclick="impOpen()">配置</button>'+foot+'</div>';
   if(ty==='nav')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0"><div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b><div class="text-[10px] text-slate-400 mt-0.5">'+(it[4]||'')+'</div></div><button class="mini-btn !text-[10px]" onclick="'+ex+'">打开</button></div></div>';
   if(ty==='go2')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]" onclick="rsExport(\''+k+'\')">导出</button>'+foot+'</div>';
@@ -5672,6 +5716,11 @@ function shLongMenu(id){lpCur=id;const b=bsBook(id);document.getElementById('lpT
 function lpMv(i,d){const a=BS_SET.longPress;if(i<0||i>=a.length)return;const j=i+d;if(j<0||j>=a.length)return;const t=a[i];a[i]=a[j];a[j]=t;renderReadSet()}
 function lpRm(i){BS_SET.longPress.splice(i,1);renderReadSet()}
 function lpAdd(o){BS_SET.longPress.push(o);renderReadSet()}
+/* V1.53.4⑤ 选区工具条：排序/显隐管理（配置口径同长按书籍菜单行） */
+function bpArr(){return BS_SET.brSelOps&&BS_SET.brSelOps.length?BS_SET.brSelOps:(BS_SET.brSelOps=BR_SEL_ALL.slice())}
+function bpMv(i,d){const a=bpArr();if(i<0||i>=a.length)return;const j=i+d;if(j<0||j>=a.length)return;const t=a[i];a[i]=a[j];a[j]=t;renderReadSet();try{brSelActsRender()}catch(e){}}
+function bpRm(i){bpArr().splice(i,1);renderReadSet();try{brSelActsRender()}catch(e){}}
+function bpAdd(o){bpArr().push(o);renderReadSet();try{brSelActsRender()}catch(e){}}
 function lpRun(o){const b=bsBook(lpCur);closeSheet('sheetLongPress');
   if(o==='计时')shStart(b.id);
   else if(o==='记摘录')qeOpen(null,b.id);
@@ -7085,16 +7134,19 @@ function brWordAt(t,pos){if(!t)return[0,0];const c=i=>t[i]!==undefined&&BR_WORD_
   let a=Math.max(0,Math.min(pos,t.length-1));while(a>0&&c(a))a--;
   let b=a;while(b<t.length&&!c(b))b++;if(b<t.length)b++;
   if(b-a<1)b=Math.min(t.length,a+1);return[a,b]}
+/* V1.53.4④ 长按选择粒度：选字＝命中单字（可拖手柄扩选）；选句＝既有句/词块命中 */
+function brSelGranWord(t,off){if(BS_SET.brSelGran==='选句')return brWordAt(t,off);
+ const a=Math.max(0,Math.min(off||0,(t||'').length-1));return[a,Math.min((t||'').length,a+1)]}
 function brLpStart(e,pi){_brLpFired=false;clearTimeout(_brLpT);const cx=e.clientX,cy=e.clientY;
   _brLpT=setTimeout(()=>{_brLpFired=true;const p=brPtFromXY(cx,cy);const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);
     const usePi=p&&p.pi!=null?p.pi:pi;const t=(arr[usePi]&&arr[usePi].t)||'';
-    const w=brWordAt(t,p&&p.pi!=null?p.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
+    const w=brSelGranWord(t,p&&p.pi!=null?p.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
 function brZoneLpStart(e){_brLpFired=false;clearTimeout(_brLpT);const cx=e.clientX,cy=e.clientY;
   _brLpT=setTimeout(()=>{_brLpFired=true;const z=document.getElementById('brZoneC');if(z)z.style.pointerEvents='none';
     const el=document.elementFromPoint(cx,cy);if(z)z.style.pointerEvents='';
     const q=brPtFromXY(cx,cy);const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);
     const usePi=q&&q.pi!=null?q.pi:(el&&el.closest?+el.closest('[data-pi]').dataset.pi:null);if(usePi==null)return;
-    const t=(arr[usePi]&&arr[usePi].t)||'';const w=brWordAt(t,q&&q.pi!=null?q.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
+    const t=(arr[usePi]&&arr[usePi].t)||'';const w=brSelGranWord(t,q&&q.pi!=null?q.off:0);brSelect(usePi,usePi,w[0],w[1])},520)}
 function brLpEnd(){clearTimeout(_brLpT);brBindHandles()}
 function brLpCancel(){clearTimeout(_brLpT)}
 function brParaTap(pi){if(_brLpFired){_brLpFired=false;return}brTapCenter()}
@@ -7240,16 +7292,20 @@ function brBindHandles(){["brHStart","brHEnd"].forEach((id,i)=>{const h=document
   h.addEventListener("pointermove",ev=>{if(h._drag){ev.stopPropagation();brHandleDrag(w,ev)}});
   h.addEventListener("pointerup",ev=>{if(!h._drag)return;h._drag=0;try{h.releasePointerCapture(ev.pointerId)}catch(e){}})})}
 
-function brSelActsRender(){const acts=[['复制','<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4H6a2 2 0 0 0-2 2v8.5A1.5 1.5 0 0 0 5.5 16"/>','brCopy()'],
-  ['划线','<path d="M15 4 4 15v5h5L20 9z"/><path d="M13 6l5 5"/>','brColorShow()'],
-  ['写想法','<path d="M4 20l1-4L16 5l3 3L8 19z"/>','brToThink()'],
-  ['书摘','<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/>','brToQuote()'],
-  ['查询','<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>','brDictOpen()'],
-  ['听当前','<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M17 8a5 5 0 0 1 0 8"/>','brTtsToggle()'],
-  ['AI 解读','<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>','brAiOpen()'],
-  ['分享','<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>','brShare()']];
-  document.getElementById('brSelActs').innerHTML=
-   acts.map(a=>`<div class="sdb" onclick="${a[2]}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a[1]}</svg><span>${a[0]}</span></div>`).join('')}
+/* V1.53.4⑤ 工具条渲染由配置驱动：名称→[svg,动作]，顺序与显隐取 BS_SET.brSelOps */
+const BR_SEL_TOOLS={
+ '复制':['<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 5.5A1.5 1.5 0 0 0 14.5 4H6a2 2 0 0 0-2 2v8.5A1.5 1.5 0 0 0 5.5 16"/>','brCopy()'],
+ '划线':['<path d="M15 4 4 15v5h5L20 9z"/><path d="M13 6l5 5"/>','brColorShow()'],
+ '写想法':['<path d="M4 20l1-4L16 5l3 3L8 19z"/>','brToThink()'],
+ '书摘':['<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/>','brToQuote()'],
+ '查询':['<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>','brDictOpen()'],
+ '听当前':['<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M17 8a5 5 0 0 1 0 8"/>','brTtsToggle()'],
+ 'AI 解读':['<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>','brAiOpen()'],
+ '分享':['<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>','brShare()']};
+const BR_SEL_ALL=['复制','划线','写想法','书摘','查询','听当前','AI 解读','分享'];
+function brSelActsRender(){const ops=(BS_SET.brSelOps&&BS_SET.brSelOps.length?BS_SET.brSelOps:BR_SEL_ALL).filter(n=>BR_SEL_TOOLS[n]);
+ document.getElementById('brSelActs').innerHTML=ops.map(n=>{const a=BR_SEL_TOOLS[n];
+  return '<div class="sdb" onclick="'+a[1]+'"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+a[0]+'</svg><span>'+n+'</span></div>'}).join('')}
 function brSelHideUI(){document.getElementById('brSelBar').classList.add('hidden');document.getElementById('brColorPop').classList.add('hidden');brHandleHide()}
 function brSelHide(){brV.sel=null;brSelHideUI();brRenderPage()}
 function brColorShow(){const pop=document.getElementById('brColorPop');pop.classList.remove('hidden');
@@ -7297,17 +7353,41 @@ function brDictOpen(){const w=(brV.selTxt.replace(/\s/g,'')||'').slice(0,4);
 function brDcToQuote(){const w=document.getElementById('brDcWord').dataset.w||'';const e=BR_DICT[w];
   qeOpen(null,brV.b);const p=brQuotePos();document.getElementById('qeText').value=brV.selTxt||'';brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;
   document.getElementById('qeThink').value='【'+w+'】'+(e?e[2]:'释义见本地词典包');closeSheet('sheetBrDict');toast('释义已填入感想表单 · 保存即入库')}
-function brAiOpen(){const q=brV.selTxt;document.getElementById('brAiQuote').textContent=q;document.getElementById('brAiOut').innerHTML='<span class="text-slate-400">正在结合上下文解读…</span>';brSelHideUI();openSheet('sheetBrAi');
-  const ch=brLeaves(brV.b)[brV.ci];
-  const chunks=['【要点】这段出自「'+ch+'」，核心机制可压缩为一句：先理解前提（意识资源有限、联想自动扩散），再看它推出的行为预测。',
-   '【背景】它与前文的抢答模型、后文的基础率忽视互为证据链，是同一主张在不同实验材料上的复现。',
-   '【追问】如果用于你的工作流：哪一类决策最容易被环境牵着走？可设一个「先写数字再做判断」的对照仪式。'];
-  let i=0;clearInterval(brAiTimer);brAI.text='';
-  brAiTimer=setInterval(()=>{if(i>=chunks.length){clearInterval(brAiTimer);return}brAI.text+=(i?'':'')+chunks[i]+'<br>';
-   document.getElementById('brAiOut').innerHTML=brAI.text+'<span class="br-pulse" style="display:inline-block"></span>';i++},460)}
+/* V1.53.4②③ AI 解读＝二选一（解释词句/深度解读）→ 发送前审阅（默认折叠·全模块共用形态）→ 结果 */
+let brAiQ='',brAiBook='',brAiMode='insight';
+const BR_AI_TPL={
+ explain:{nm:'阅读 · 词句解释',
+  sys:'你是《{book}》的随行注疏助手。对读者选中的词或句，依次给出：①释义（字词义/句意）②背景（概念出处与作者语境）③简析（一句话说明它在书中论证里的位置）。总计不超过 180 字，直接输出正文，不客套、不整句复述原文。',
+  usr:'书名：{book}\n选中：{quote}\n请解释。',
+  chunks:['【释义】锚定：判断时过度依赖最先获得的数值；本句指轮盘随机数成了估计的「锚」。','【背景】出自第 2 章抢答实验，与后文「基础率忽视」互为证据链（Kahneman & Tversky, 1974）。','【简析】先到的数字不是背景噪音，而是被大脑当作起点的证据。<br>']},
+ insight:{nm:'阅读 · 摘录深度解读',
+  sys:'你是读书笔记助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。感想要落在使用者自身场景，不空泛吹捧、不引用原文。',
+  usr:'为下面这条摘录写一段可选感想草稿（40~80 字），并给 1~3 个标签：\n书名：{book}\n摘录：{quote}\n输出格式：{\"insight\": \"感想正文\", \"tags\": [\"标签一\", \"标签二\"]}',
+  chunks:['【要点】这段出自「{ch}」，核心机制可压缩为一句：先理解前提（意识资源有限、联想自动扩散），再看它推出的行为预测。<br>','【背景】它与前文的抢答模型、后文的基础率忽视互为证据链，是同一主张在不同实验材料上的复现。<br>','【追问】如果用于你的工作流：哪一类决策最容易被环境牵着走？可设一个「先写数字再做判断」的对照仪式。<br>']}};
+function brAiFill(t){return t.replace(/\{book\}/g,brAiBook).replace(/\{quote\}/g,brAiQ).replace(/\{ch\}/g,(brLeaves(brV.b)[brV.ci]||''))}
+function brAiOpen(){if(!brV.sel)return;brAiQ=brV.selTxt;brAiBook=(bsBook(brV.b)||{}).n||'';
+ document.getElementById('brChoiceQuote').textContent=brAiQ;brSelHideUI();openSheet('sheetBrAiChoice')}
+function brAiPick(k){brAiMode=k;closeSheet('sheetBrAiChoice');const T=BR_AI_TPL[k];
+ document.getElementById('brRvTask').textContent=T.nm;
+ const sys=brAiFill(T.sys),usr=brAiFill(T.usr);
+ document.getElementById('brRvSysBox').textContent=sys;document.getElementById('brRvUsrBox').textContent=usr;
+ document.getElementById('brRvSysPeek').textContent=sys.split('\n')[0].slice(0,24)+'…';document.getElementById('brRvUsrPeek').textContent=usr.split('\n')[0].slice(0,24)+'…';
+ document.getElementById('brRvSysBox').classList.add('hidden');document.getElementById('brRvUsrBox').classList.add('hidden');
+ document.getElementById('brRvSysChev').textContent='∨';document.getElementById('brRvUsrChev').textContent='∨';
+ openSheet('sheetAiReview')}
+function brRvTog(k){const box=document.getElementById('brRv'+k+'Box'),chev=document.getElementById('brRv'+k+'Chev');
+ const hide=box.classList.toggle('hidden');chev.textContent=hide?'∨':'∧'}
+function brAiSend(){closeSheet('sheetAiReview');const T=BR_AI_TPL[brAiMode];
+ document.getElementById('brAiTitle').textContent=brAiMode==='explain'?'AI 解释':'AI 深度解读';
+ document.getElementById('brAiQuote').textContent=brAiQ;
+ document.getElementById('brAiOut').innerHTML='<span class="text-slate-400">正在结合上下文'+(brAiMode==='explain'?'解释…':'解读…')+'</span>';
+ brSelHideUI();openSheet('sheetBrAi');
+ clearInterval(brAiTimer);brAI.text='';let i=0;
+ brAiTimer=setInterval(()=>{if(i>=T.chunks.length){clearInterval(brAiTimer);return}brAI.text+=brAiFill(T.chunks[i]);
+  document.getElementById('brAiOut').innerHTML=brAI.text+'<span class="br-pulse" style="display:inline-block"></span>';i++},460)}
 function brAiCopy(){try{navigator.clipboard&&navigator.clipboard.writeText(brAI.text.replace(/<br>/g,'\n'))}catch(e){}toast('解读已复制')}
 function brAiToQuote(){qeOpen(null,brV.b);const p=brQuotePos();document.getElementById('qeText').value=(brV.selTxt||'').slice(0,120);brQeSetCh(p.ch);document.getElementById('qePg').value=p.pg;
-  document.getElementById('qeThink').value='🤖 AI 解读：'+brAI.text.replace(/<br>/g,' ').replace(/【/g,'\n【').trim();closeSheet('sheetBrAi');brV.sel=null;brSelHideUI();toast('AI 解读已填入 · 保存为感想书摘（标注 AI 来源）')}
+  document.getElementById('qeThink').value=(brAiMode==='explain'?'【AI 解释】':'【AI 解读】')+brAI.text.replace(/<br>/g,' ').replace(/【/g,'\n【').trim();closeSheet('sheetBrAi');brV.sel=null;brSelHideUI();toast('AI 解读已填入 · 保存为感想书摘（标注 AI 来源）')}
 
 /* ---- 图片 / 外链 ---- */
 function brImgOpen(cap){document.getElementById('brIvBox').innerHTML=brSvgFig();document.getElementById('brIvCap').textContent=cap;brIvS=1;document.getElementById('brIvBox').style.transform='scale(1)';brSelHideUI();openSheet('sheetBrImg')}
@@ -7611,6 +7691,35 @@ function brImpCommit(){const m=brImp.meta;const tagOn=document.getElementById('b
   toast('《'+m.t+'》已加入书架 · 「本地」分类与标签已生成 · 源文件保留原位');
   stack.length?goBack():navTo('p-bookshelf')}
 
+/* ---- V1.53.4⑥ 系统「打开方式」接收 EPUB（?br57=open|dup 演示两态） ---- */
+const brOpenSt={file:null,dir:'download',dup:null,meta:null};
+const BR_OPEN_DEMO={'new':'我们仨.epub','dup':'思考快与慢.epub'};
+function brOpenFind(fn){for(const d of ['download','docs']){const f=(BR_FILES[d]||[]).find(x=>x.n===fn);if(f)return{f:f,dir:d}}return null}
+function brOpenEpub(fn){const hit=brOpenFind(fn)||{f:{n:fn,sz:'—',meta:null},dir:'download'};const f=hit.f;
+ const m=f.meta||{t:(f.merge||f.n.replace(/\.epub$/,'')),a:'未知作者',press:'',pub:'',fmt:'EPUB3',pages:240,intro:''};
+ const dup=BS_BOOKS.find(b=>brNorm(b.n)===brNorm(m.t)||b.n===f.merge);
+ brOpenSt.file=f;brOpenSt.dir=hit.dir;brOpenSt.dup=dup?dup.id:null;brOpenSt.meta=m;
+ const box=document.getElementById('brOpenBody');
+ const btns=(a,b)=>'<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="'+a+'">取消</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="'+b+'">'+(dup?'前往书架定位':'加入书架 · 预载')+'</button></div>';
+ if(dup){box.innerHTML='<div class="flex items-center justify-between"><b class="text-[15px]">这本书已在书架</b><span class="text-[9px] text-slate-400">打开方式</span></div>'
+  +'<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5"><b>'+brEsc(dup.n)+'</b>（'+brEsc(dup.a)+'）· '+brEsc(dup.st)+(dup.st==='在读'?' '+dup.p+'%':'')+'<div class="text-slate-400 mt-0.5">来自文件：'+brEsc(f.n)+'</div></div>'
+  +btns("closeSheet('sheetBrOpen')","shLocate('"+dup.id+"')")
+  +'<div class="mt-2 text-[9px] text-slate-400 text-center">同一本书不再重复入库 · 书摘与进度沿用书架记录</div>'}
+ else{box.innerHTML='<div class="flex items-center justify-between"><b class="text-[15px]">导入这本书？</b><span class="text-[9px] text-slate-400">打开方式</span></div>'
+  +'<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5"><b>'+brEsc(m.t)+'</b>（'+brEsc(m.a)+'）· '+brEsc(f.sz)+'<div class="text-slate-400 mt-0.5">'+brEsc(f.n)+' · 元数据从 EPUB 自动读取</div></div>'
+  +btns("closeSheet('sheetBrOpen')","brOpenConfirm()")
+  +'<div class="mt-2 text-[9px] text-slate-400 text-center">导入后可在核对页修改书名与作者 · 源文件保留原位</div>'}
+ openSheet('sheetBrOpen')}
+function brOpenConfirm(){closeSheet('sheetBrOpen');brImp.file=brOpenSt.file;brImp.dir=brOpenSt.dir;brImp.mergeTo=null;brImp.lostId=null;
+ navTo('p-localImport');brImpGo(3);brImpParse()}
+function shLocate(id){closeSheet('sheetBrOpen');const b=bsBook(id);if(!b)return;
+ try{shSt=b.st}catch(e){}
+ navTo('p-bookshelf');try{renderShelf()}catch(e){}
+ const el=[...document.querySelectorAll('#shBody [onclick]')].find(x=>(x.getAttribute('onclick')||'').indexOf("shOpen('"+id+"')")>=0);
+ if(!el){toast('未在当前视图找到该书');return}
+ el.scrollIntoView({block:'center'});el.classList.add('br-flash-loc');
+ setTimeout(()=>el.classList.remove('br-flash-loc'),1800);toast('已在书架定位《'+b.n+'》')}
+
 /* ---- 书架接入（包装器 · 不改既有函数体） ---- */
 function brCovBadge(){return '<span class="br-local"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>本地</span>'}
 function brRowBadge(){return '<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-slate-900/80 text-white dark:bg-white/15 dark:text-white/80 align-middle ml-1.5">本地</span>'}
@@ -7859,6 +7968,24 @@ function br35Seed(){
   const pi=+el.dataset.pi;const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);const t=(arr[pi]&&arr[pi].t)||'';
   const w=brWordAt(t,Math.min(4,Math.max(0,t.length-1)));brSelect(pi,pi,w[0],w[1]);brBindHandles();brHandlePlace();
 }catch(e){console.warn('r146',e)}})();
+/* V1.53.4 批深链：?br57=gran|sent|bar|choice|review|set|open|dup
+   gran/sent＝长按粒度两态 · bar＝工具条按配置渲染 · choice/review＝AI 二选一与审阅折叠 · set＝新设置行 · open/dup＝打开方式两态 */
+(function br57Boot(){try{
+ const m=(location.search.match(/br57=([a-z]+)/)||[])[1];if(!m)return;
+ if(m==='open'){brOpenEpub(BR_OPEN_DEMO['new']);return}
+ if(m==='dup'){brOpenEpub(BR_OPEN_DEMO.dup);return}
+ if(m==='set'){navTo('p-readset');rsPickTab(RS_SEC.length-1);renderReadSet();return}
+ brOpen('b1');brShowChrome();
+ const el=document.querySelector('#brBody [data-pi="2"]')||document.querySelector('#brBody [data-pi]');
+ if(!el)return;const pi=+el.dataset.pi;const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);const t=(arr[pi]&&arr[pi].t)||'';
+ if(m==='gran'){BS_SET.brSelGran='选字';const w=brSelGranWord(t,4);brSelect(pi,pi,w[0],w[1])}
+ else if(m==='sent'){BS_SET.brSelGran='选句';const w=brSelGranWord(t,4);brSelect(pi,pi,w[0],w[1])}
+ else if(m==='bar'){BS_SET.brSelOps=['AI 解读','复制','划线','分享','书摘'];const w=brWordAt(t,4);brSelect(pi,pi,w[0],w[1])}
+ else{const w=brWordAt(t,4);brSelect(pi,pi,w[0],w[1])}
+ brBindHandles();brHandlePlace();
+ if(m==='choice')brAiOpen();
+ if(m==='review'){brAiOpen();brAiPick('explain')}
+}catch(e){console.warn('br57',e)}})();
 /* R14-4 重放：bsInit 首帧渲染早于批3.5 shWall 覆盖，深链/三档卡须在覆盖后重画一次 */
 (function r144Replay(){try{
   if(window._r144Dl&&typeof bsCovDemo==='function'){bsCovDemo(_r144Dl);_r144Dl=null}
