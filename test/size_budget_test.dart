@@ -26,7 +26,6 @@ void main() {
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
     'features/journal/presentation/diary_edit_page.dart': 1260,
-    'features/todo/presentation/widgets/todo_edit_sheet.dart': 1231,
   };
 
   test('体积预算：lib 超线文件必须登记且只许减不许增', () {

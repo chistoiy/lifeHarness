@@ -90,8 +90,23 @@ void main() {
   group('提醒下拉第二项文案', () {
     const sheet = 'lib/features/todo/presentation/widgets/todo_edit_sheet.dart';
 
+    /// 表单主体已按体积预算整块外提为 part（`todo_add_sheet.dart`），
+    /// 源码级断言要扫**整个库**：宿主文件 + 同目录所有 `part of 'todo_edit_sheet.dart'` 的分片，
+    /// 否则一拆文件就把文案锚点扫成假红（本用例首拆即踩）。
+    String librarySrc() {
+      final dir = File(sheet).parent;
+      final parts = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) =>
+              f.path != sheet &&
+              f.readAsStringSync().startsWith("part of 'todo_edit_sheet.dart';"))
+          .map((f) => f.readAsStringSync());
+      return [File(sheet).readAsStringSync(), ...parts].join('\n');
+    }
+
     test('未选中时菜单写「自定义时间…」，选中后才显具体时刻', () {
-      final src = File(sheet).readAsStringSync();
+      final src = librarySrc();
       expect(
         src,
         contains("'提醒 · 自定义时间…'"),
