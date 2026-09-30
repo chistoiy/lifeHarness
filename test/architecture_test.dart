@@ -72,7 +72,10 @@ void main() {
   }
 
   /// lib 下全部 .dart 文件（rel → 源码原文）。
-  Map<String, String> collectSources() {
+  /// 清单 D-1：整个守护文件原本要递归扫 lib 三遍（collectImports 内部一遍、
+  /// `sources` 一遍、R4 又走一遍目录），改成**记忆化一次遍历**共享——
+  /// 覆盖与红灯语义完全不变，只是不再重复读同一批文件。
+  Map<String, String> readAllSources() {
     final result = <String, String>{};
     for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart')) continue;
@@ -81,6 +84,9 @@ void main() {
     }
     return result;
   }
+
+  Map<String, String>? sourcesCache;
+  Map<String, String> collectSources() => sourcesCache ??= readAllSources();
 
   // 文件 → 其 import 解析出的 lib 相对路径列表。
   Map<String, List<String>> collectImports() {
@@ -108,8 +114,15 @@ void main() {
     return result;
   }
 
-  final imports = collectImports();
   final sources = collectSources();
+  final imports = collectImports();
+
+  /// 清单 D-1：`strip()`（去字符串/注释的逐字符扫描）原本 R4/R5/R7 各跑一遍全量源码，
+  /// 这里按文件缓存一次结果供三处共用。
+  final stripped = <String, String>{
+    for (final entry in sources.entries) entry.key: strip(entry.value),
+  };
+  String strippedOf(String rel) => stripped[rel]!;
 
   // AI 增强页族（G7d⑤ 起主文件 + 同库 part 组）：R7 provider 直取豁免、
   // R8 端点键扫描跳过共用本口径；族外任何 features 文件仍然红。
@@ -180,10 +193,9 @@ void main() {
     }
 
     final violations = <String>[];
-    for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
-      if (!f.path.endsWith('.dart')) continue;
-      final rel = p.posix.joinAll(p.split(p.relative(f.path, from: libDir)));
-      final src = strip(f.readAsStringSync());
+    for (final entry in stripped.entries) {
+      final rel = entry.key;
+      final src = entry.value; // 清单 D-1：复用共享的 strip 结果，不再重扫目录
       for (final m in RegExp(r'\bfor\s*\(').allMatches(src)) {
         final open = src.indexOf('(', m.start);
         final h = header(src, open);
@@ -240,7 +252,7 @@ void main() {
       final rel = entry.key;
       if (!rel.startsWith('core/sync/')) continue;
       if (rel.endsWith('http_gate.dart')) continue; // 唯一出口自身豁免
-      final stripped = strip(entry.value); // 去字符串/注释，防文案误伤
+      final stripped = strippedOf(entry.key); // 清单 D-1：复用共享 strip 结果
       for (final m in bannedInstantiate.allMatches(stripped)) {
         report(rel, stripped, m, m[0]!);
       }
@@ -265,11 +277,18 @@ void main() {
     // T14 若确需引入，须走架构评审更新本守护而不是直接删断言。
     final hits = <String>[];
     final reLimit = RegExp(r'x-bitiful-limit-rate', caseSensitive: false);
+    // 清单 C-1：只认「?stat 到此为止」——后面跟字母/数字/下划线的（?status 等）不算。
+    final reStat = RegExp(r'\?stat(?![A-Za-z0-9_])');
     for (final entry in sources.entries) {
       // 原文扫描（不 strip）：这两串只会出现在字符串字面量/URL 拼接里，
       // 去字符串后就查不到了；代价是注释提及也算命中——本期正是要求零提及。
       if (reLimit.hasMatch(entry.value)) hits.add('${entry.key} x-bitiful-limit-rate');
-      if (entry.value.contains('?stat')) hits.add('${entry.key} ?stat');
+      // 清单 C-1：`?stat` 原本是 5 字符前缀匹配，将来任何 `?status=`、`?stable=`
+      // 都会被误判成缤纷云统计口径而红灯。收紧成「?stat 后面不接标识符字符」，
+      // 并把这条的扫描面收到 `core/sync/`（缤纷云专用口径只可能出现在同步层）。
+      if (entry.key.startsWith('core/sync/') && reStat.hasMatch(entry.value)) {
+        hits.add('${entry.key} ?stat');
+      }
     }
     expect(hits, isEmpty, reason: '未过架构评审的缤纷云专用口径不得提前进入 lib/');
   });
@@ -343,7 +362,7 @@ void main() {
     for (final entry in sources.entries) {
       final rel = entry.key;
       if (!rel.startsWith('features/')) continue;
-      final stripped = strip(entry.value); // 去字符串/注释，防文案与注释误伤
+      final stripped = strippedOf(entry.key); // 清单 D-1：复用共享 strip 结果
       final hits = <String>[];
       for (final m in bannedProvider.allMatches(stripped)) {
         hits.add('${lineOf(stripped, m.start)}:${m[0]}');

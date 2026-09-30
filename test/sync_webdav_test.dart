@@ -504,27 +504,46 @@ void main() {
     store.close();
   });
 
-  test('parseGetUserInfo 容忍属性形态（storage_quota="…" / collection '
-      'href="…" used_storage="…"）', () {
+  // 清单 B-1：原「容忍属性形态」与「异常格式返回 null」两条是同一纯函数
+  // （WebDavStore.parseGetUserInfo 输入→输出）的两组样本，无 IO / 无 pump / 无状态依赖
+  // → 合并为表驱动，断言一条不减；每例自带 why，红灯时仍能一眼定位是哪条样本。
+  test('parseGetUserInfo 表驱动：属性形态容忍 + 异常格式宽容降级（不抛）', () {
     const attrForm = '<user storage_quota="1073741824" used_storage="23089664" '
         'account_state="normal">'
         '<collection href="/Docs/" used_storage="4242"/>'
         '</user>';
-    final q = WebDavStore.parseGetUserInfo(attrForm);
-    expect(q.quotaBytes, 1073741824);
-    expect(q.usedBytes, 23089664);
-    expect(q.collectionUsed['docs'], 4242);
-  });
-
-  test('parseGetUserInfo 异常格式返回 null 字段，绝不抛 FormatException', () {
-    // 真机偶发 HTML 错误页 / 半截响应：解析器宽容降级，不再 jsonDecode 炸穿。
-    final junk = WebDavStore.parseGetUserInfo('<html>502 Bad Gateway</html>');
-    expect(junk.quotaBytes, isNull);
-    expect(junk.usedBytes, isNull);
-    expect(junk.collectionUsed, isEmpty);
-    final notXml = WebDavStore.parseGetUserInfo('total garbage');
-    expect(notXml.quotaBytes, isNull);
-    expect(notXml.usedBytes, isNull);
+    final cases = <(String, String, void Function(CloudQuota))>[
+      (
+        '属性形态：quota/used/逐集合 used 全部取到',
+        attrForm,
+        (q) {
+          expect(q.quotaBytes, 1073741824);
+          expect(q.usedBytes, 23089664);
+          expect(q.collectionUsed['docs'], 4242);
+        },
+      ),
+      (
+        'HTML 错误页（真机偶发 502）：降级为 null 字段，绝不 jsonDecode 炸穿',
+        '<html>502 Bad Gateway</html>',
+        (q) {
+          expect(q.quotaBytes, isNull);
+          expect(q.usedBytes, isNull);
+          expect(q.collectionUsed, isEmpty);
+        },
+      ),
+      (
+        '完全非 XML：同样返回 null 字段',
+        'total garbage',
+        (q) {
+          expect(q.quotaBytes, isNull);
+          expect(q.usedBytes, isNull);
+        },
+      ),
+    ];
+    for (final (why, src, asserts) in cases) {
+      expect(() => asserts(WebDavStore.parseGetUserInfo(src)), returnsNormally,
+          reason: why);
+    }
   });
 
   test('清单缓存 60s：命中不发请求、force 穿透、假时钟过期重拉', () async {

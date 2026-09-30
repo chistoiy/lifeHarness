@@ -30,8 +30,11 @@ void main() {
     return t.startsWith('//') || t.startsWith('///') || t.startsWith('*');
   }
 
-  List<String> hits(bool Function(String rel, String line) pred) {
-    final out = <String>[];
+  /// 清单 D-2：原本 `hits()` 被两条断言各调一次＝同一棵 lib 树递归扫两遍。
+  /// 改成先一次遍历收全「命中行」，两条断言各自过滤——扫描次数 2→1，判定结果不变。
+  final hitLines = <(String, int, String)>[];
+  List<(String, int, String)> allHits() {
+    if (hitLines.isNotEmpty) return hitLines;
     for (final f in Directory(libDir).listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart')) continue;
       final rel = p.posix.joinAll(p.split(p.relative(f.path, from: libDir)));
@@ -40,11 +43,16 @@ void main() {
         final line = lines[i];
         if (isComment(line)) continue;
         if (!tableRef.hasMatch(line)) continue;
-        if (pred(rel, line)) out.add('$rel:${i + 1}  ${line.trim()}');
+        hitLines.add((rel, i + 1, line));
       }
     }
-    return out;
+    return hitLines;
   }
+
+  List<String> hits(bool Function(String rel, String line) pred) => [
+        for (final (rel, ln, line) in allHits())
+          if (pred(rel, line)) '$rel:$ln  ${line.trim()}',
+      ];
 
   test('todos 表裸查询：白名单外一律必须带 deleted_at IS NULL', () {
     final leaked = hits(

@@ -139,16 +139,10 @@ void main() {
       await settleLogTimer(tester);
     });
 
-    test('⑤ 仪表盘宫格：日记/笔记两枚摘除 · 阅读枚带段参', () {
-      final s = File(
-              'lib/features/dashboard/presentation/dashboard_page.dart')
-          .readAsStringSync();
-      expect(s, isNot(contains("'日记', '/journal'")),
-          reason: '日记枚与记录页 ⇄ 段重复，已按反馈轮5 下架');
-      expect(s, isNot(contains("'笔记', '/journal'")));
-      expect(s, contains("'阅读', '/journal?tab=book'"),
-          reason: '阅读枚未带段参 = 点了还是停在默认段');
-    });
+    // 清单 A-1：本文件原有一条「仪表盘宫格：日记/笔记摘除 · 阅读枚带段参」的源码级断言，
+    // 与 `test/g2_entry_wiring_test.dart:36-45` 钉同一文件、同三条断言，且 g2 的正锚写得更完整
+    // （含图标与 null 位），本条是其严格子集 → 删除，锚点唯一留在 g2（零覆盖损失）。
+    // 提醒：若将来嫌 g2 的长锚太脆要改松，请**先删本文件这条历史注释、把断言搬回来**，别反过来。
 
     test('⑤ 我的页「小工具合集」入口行已摘（入口只留全部功能宫格）', () {
       final s =

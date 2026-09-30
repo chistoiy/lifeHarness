@@ -148,11 +148,13 @@ void main() {
           '确需豁免再进本测试 baseline（登记＝允许存在的当前处数，之后只许减）。',
     );
     expect(grown, isEmpty, reason: '已登记文件的静默 catch 变多了：登记面只许减不许增。');
-    expect(
-      shrunk,
-      isEmpty,
-      reason: '以下文件已变小，棘轮要收紧（跑一次 CATCH_GUARD_DUMP=1 重生成）。',
-    );
+    // 清单 C-4：与 size_budget 同口径——「静默 catch 变少」是改善，判红只会让并行会话互踩；
+    // 降级为提醒（跑 CATCH_GUARD_DUMP=1 重生成登记面），over / grown / stale 继续判红。
+    if (shrunk.isNotEmpty) {
+      // ignore: avoid_print
+      print('[catch_log_guard 提醒] 以下文件静默 catch 变少了，请跑 CATCH_GUARD_DUMP=1 '
+          '重生成登记面：\n  ${shrunk.join('\n  ')}');
+    }
     expect(
       stale,
       isEmpty,
