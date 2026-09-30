@@ -55,6 +55,9 @@ tmp_bs.js
 tools/*.log
 tools/*snapshot*.html
 tools/reader/.chrome-profile/
+# 无头浏览器逐屏走查的原生用户目录（每个 10~80MB，可再生；别让它污染 git status）
+tools/.*-profile/
+tools/.*-probe/
 
 # 真机走查取证临时区（截图/logcat/ui dump，不入库）
 .walkthrough/
