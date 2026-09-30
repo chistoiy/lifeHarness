@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/ledger/data/ledger_repository.dart';
 import 'package:lifeharness/features/ledger/domain/ledger_models.dart';
 import 'package:lifeharness/features/ledger/domain/ledger_txn.dart';
@@ -36,8 +38,15 @@ void main() {
   tearDown(() async => db.close());
 
   Future<void> pump(WidgetTester tester) async {
+    // V1.57 B 批：小结/超支重排要读全局 dnd（settingsRepositoryProvider←prefs），
+    // 不 override 会让 digest 同步整段被 catch 吞掉（假绿）。
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(
-      overrides: [ledgerRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        ledgerRepositoryProvider.overrideWithValue(repo),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
     );
     addTearDown(container.dispose);
     await tester.pumpWidget(
@@ -86,6 +95,11 @@ void main() {
       }
       // 副文案（原型 row 第三参逐字）
       expect(find.text('仪表盘与资产页同步生效'), findsOneWidget);
+      // V1.57 B 批：5/6/7 三行副文案逐字（原型 2cfc157）
+      expect(find.text('周期账单与预算提醒随之重排'), findsOneWidget);
+      expect(find.text('支出达预算 80% / 100% 各一次 · 免打扰时段顺延'),
+          findsOneWidget);
+      expect(find.text('每月 1 日 09:00 · 上月收支与分类 Top'), findsOneWidget);
       expect(
         find.text('记一笔「角色」半屏同源数据 · 当前默认「自己」'),
         findsOneWidget,
@@ -151,14 +165,14 @@ void main() {
       expect(await LedgerRepository(db).confirmDel(), isFalse);
     });
 
-    testWidgets('超支提醒/月度小结：§7 默认 true/false + toast 逐字（演示）',
+    testWidgets('超支提醒/月度小结：§7 默认 true/false + 两态 toast（V1.57 去演示）',
         (tester) async {
       await useSurface(tester);
       await pump(tester);
       expect(switches(tester)[2].value, isTrue); // budgetAlert 默认 true
       await tester.tap(find.byType(Switch).at(2));
       expect(
-        await pollText(tester, '超支 80% / 100% 两档本地通知（演示）'),
+        await pollText(tester, '已关闭 · 不再发预算超支提醒'),
         isTrue,
       );
       await clearToasts(tester);
@@ -168,11 +182,18 @@ void main() {
       expect(switches(tester)[3].value, isFalse); // monthlyDigest 默认 false
       await tester.tap(find.byType(Switch).at(3));
       expect(
-        await pollText(tester, '每月 1 日 09:00 本地推送（演示）'),
+        await pollText(tester, '已开启 · 每月 1 日 09:00 推送'),
         isTrue,
       );
       await clearToasts(tester);
       expect(await fresh.monthlyDigest(), isTrue);
+      // 再关＝另一态文案（排程取消走 syncMonthlyDigest 内部）。
+      await tester.tap(find.byType(Switch).at(3));
+      expect(
+        await pollText(tester, '已关闭 · 不再推月度小结'),
+        isTrue,
+      );
+      await clearToasts(tester);
     });
   });
 
@@ -212,7 +233,7 @@ void main() {
       await pump(tester);
       await tester.tap(find.text('每月 15 日'));
       expect(
-        await pollText(tester, '预算与日均分配将按 15 日周期重算（演示）'),
+        await pollText(tester, '预算与日均分配改按每月 15 日起算'),
         isTrue,
       );
       await clearToasts(tester);

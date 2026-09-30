@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import 'care_kit.dart';
+import 'care_notify.dart';
 import 'care_providers.dart';
 
 /// p-careRemind 呵护提醒（周期三类 / 宝宝 / 敏感数据保护；KV 落 care.rm.*）。
@@ -124,9 +127,21 @@ class CareRemindPage extends ConsumerWidget {
                         (v) => _setKv(ref, 'care.rm.vax', v ? 'true' : 'false'),
                         divider: true),
                     _row(context, '儿保体检节点提醒', _b(rm, 'care.rm.checkup', false),
-                        (v) => _setKv(ref, 'care.rm.checkup', v ? 'true' : 'false'),
-                        divider: true,
-                        vchip: 'V1.x'),
+                        (v) async {
+                      // V1.57 B 批：接真排程（节点表驱动 · 受免打扰顺延）。
+                      await _setKv(ref, 'care.rm.checkup', v ? 'true' : 'false');
+                      try {
+                        await syncCareCheckup(ref.read(careRepositoryProvider),
+                            dnd: ref
+                                .read(settingsRepositoryProvider)
+                                .load()
+                                .notify
+                                .dnd);
+                      } catch (e) {
+                        AppLog.add('儿保体检提醒重排失败：$e',
+                            level: LhLevel.warn, src: '呵护');
+                      }
+                    }, divider: true),
                   ],
                 ),
               ),
@@ -143,9 +158,8 @@ class CareRemindPage extends ConsumerWidget {
                       await ref.read(careRepositoryProvider).setSyncExcluded(v);
                       careTouch(ref);
                     }),
-                    _row(context, '进入模块需二次验证', _b(rm, 'care.rm.lock', false),
-                        (v) => _setKv(ref, 'care.rm.lock', v ? 'true' : 'false'),
-                        vchip: 'V1.x'),
+                    // V1.57 拍板 §十：「进入模块需二次验证」已否决整行摘除
+                    // （不遮挡、不验证、不做伪装页；历史键由 reminderKvs 读到即清）。
                     _row(context, '本地备份包含本模块', _b(rm, 'care.rm.backup', true),
                         (v) => _setKv(ref, 'care.rm.backup', v ? 'true' : 'false'),
                         divider: true),

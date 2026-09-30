@@ -22,8 +22,11 @@ import 'core/sync/snapshot_service.dart';
 import 'core/sync/sync_providers.dart';
 import 'core/theme/theme_repository.dart';
 import 'features/care/data/care_repository.dart';
+import 'features/care/presentation/care_notify.dart';
 import 'features/habit/data/habit_repository.dart';
 import 'features/habit/domain/habit_calc.dart';
+import 'features/ledger/data/ledger_repository.dart';
+import 'features/ledger/presentation/ledger_notify.dart';
 import 'features/read/data/isbn_enrich.dart';
 import 'features/read/data/read_repository.dart';
 import 'features/todo/data/todo_dao.dart';
@@ -116,6 +119,18 @@ Future<void> main() async {
             id: t.id!, title: t.title, remindAt: t.remindAt);
       }
     }
+  }
+
+  // 4.4) V1.57 B 批：记账月度小结 + 呵护儿保体检节点按当前设置重排
+  //      （开关关＝取消排程；开＝刷新下一送达时点与内容；免打扰顺延）。
+  //      失败只 warn 不阻断启动（提醒属可降级旁路）。
+  try {
+    await syncMonthlyDigest(LedgerRepository(AppDatabase.instance.db),
+        dnd: settings.notify.dnd);
+    await syncCareCheckup(CareRepository(AppDatabase.instance.db),
+        dnd: settings.notify.dnd);
+  } catch (e) {
+    AppLog.add('启动提醒重排失败（小结/体检）：$e', level: LhLevel.warn);
   }
 
   // 4.5) R5b：note_images 存量一次性收编为 SHA256 内容寻址命名（幂等标志，

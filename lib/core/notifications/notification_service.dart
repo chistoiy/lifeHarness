@@ -144,6 +144,93 @@ class NotificationService {
 
   static const int habitNightlyId = 900004;
 
+  // ---- V1.57 B 批：记账超支/月度小结 · 呵护儿保体检 ----
+
+  static const int ledgerDigestId = 900010;
+  static const int ledgerBud80Id = 900011;
+  static const int ledgerBud100Id = 900012;
+  static const int careCheckupId = 900020;
+
+  /// 全局免打扰固定时段 23:00–07:00（NotifySettings.dnd 开启时生效）。
+  static bool inDndWindow(DateTime t) => t.hour >= 23 || t.hour < 7;
+
+  /// 落在免打扰窗内的时刻顺延到最近的 07:00（窗内任意时刻同点顺延）。
+  static DateTime deferOutOfDnd(DateTime when) =>
+      when.hour >= 23 ? DateTime(when.year, when.month, when.day + 1, 7)
+      : when.hour < 7 ? DateTime(when.year, when.month, when.day, 7)
+      : when;
+
+  /// 一次性排程（月度小结/体检节点用：内容在排程时算好，重启后重排刷新）。
+  /// 已过的时点不排；ready=false 静默降级。
+  static Future<void> scheduleOnce({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+    bool dnd = false,
+  }) async {
+    if (!ready) return;
+    await plugin.cancel(id);
+    var target = when;
+    if (dnd && inDndWindow(target)) target = deferOutOfDnd(target);
+    final z = tz.TZDateTime.from(target, tz.local);
+    if (!z.isAfter(tz.TZDateTime.now(tz.local))) return;
+    try {
+      await plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        z,
+        const NotificationDetails(android: _remindersCh),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: 'fixed:$id',
+      );
+      AppLog.add('单次提醒已排程：$title · $z');
+    } catch (e) {
+      AppLog.add('单次提醒排程失败：$title（$when）$e', level: LhLevel.error);
+      rethrow;
+    }
+  }
+
+  /// 预算超支提示：记账保存当刻触发。免打扰开启且此刻在窗内 → 改排当日/次日 07:00；
+  /// 否则立即送达。ready=false 静默降级。
+  static Future<void> showBudgetAlert({
+    required int id,
+    required String body,
+    required bool dnd,
+  }) async {
+    if (!ready) return;
+    await plugin.cancel(id);
+    final now = DateTime.now();
+    if (dnd && inDndWindow(now)) {
+      final z = tz.TZDateTime.from(deferOutOfDnd(now), tz.local);
+      try {
+        await plugin.zonedSchedule(
+          id,
+          '预算超支提醒',
+          body,
+          z,
+          const NotificationDetails(android: _remindersCh),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: 'fixed:$id',
+        );
+        AppLog.add('预算超支提醒已顺延排程：$z · $body');
+      } catch (e) {
+        AppLog.add('预算超支提醒顺延排程失败：$e', level: LhLevel.error);
+        rethrow;
+      }
+      return;
+    }
+    try {
+      await plugin.show(id, '预算超支提醒', body,
+          const NotificationDetails(android: _remindersCh));
+      AppLog.add('预算超支提醒已送达：$body');
+    } catch (e) {
+      AppLog.add('预算超支提醒展示失败：$e', level: LhLevel.error);
+      rethrow;
+    }
+  }
+
   // ---- 日子多级提前提醒（V1.42 模块11 · id 段 830000+） ----
 
   /// 提前提醒档位固定六档（编辑屏 chips），id 由 日子id×档 直算可撤销。

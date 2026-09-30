@@ -54,7 +54,16 @@ class CareRepository {
   Future<Map<String, String>> reminderKvs() async {
     final rows = await db.rawQuery(
         "SELECT key, value FROM ${DbSchema.tSettings} WHERE key LIKE 'care.rm.%'");
-    return {for (final r in rows) r['key'] as String: (r['value'] as String? ?? '')};
+    final m = <String, String>{
+      for (final r in rows) r['key'] as String: (r['value'] as String? ?? '')
+    };
+    // V1.57 拍板 §十：二次验证已否决——历史遗留 care.rm.lock 读到即清
+    // （一次性迁移，不留只写不读的键）。
+    if (m.remove('care.rm.lock') != null) {
+      await db.delete(DbSchema.tSettings,
+          where: "key = 'care.rm.lock'");
+    }
+    return m;
   }
 
   // ==================== 宝宝档案 ====================

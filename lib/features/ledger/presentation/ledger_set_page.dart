@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/ledger_repository.dart';
 import '../domain/ledger_models.dart';
 import 'ledger_hero_cfg_sheet.dart';
+import 'ledger_notify.dart';
 import 'ledger_pick_sheets.dart';
 import 'ledger_providers.dart';
 import 'ledger_sheets.dart';
@@ -94,7 +97,7 @@ class _LedgerSetPageState extends ConsumerState<LedgerSetPage> {
     if (!mounted) return;
     _tick();
     if (d == 15) {
-      _toast('预算与日均分配将按 15 日周期重算（演示）');
+      _toast('预算与日均分配改按每月 15 日起算');
     }
   }
 
@@ -102,14 +105,23 @@ class _LedgerSetPageState extends ConsumerState<LedgerSetPage> {
     await _repo.setBudgetAlert(v);
     if (!mounted) return;
     setState(() => _alert = v);
-    _toast('超支 80% / 100% 两档本地通知（演示）');
+    _toast(v
+        ? '已开启 · 达 80% 与 100% 各提醒一次'
+        : '已关闭 · 不再发预算超支提醒');
   }
 
   Future<void> _setDigest(bool v) async {
     await _repo.setMonthlyDigest(v);
     if (!mounted) return;
     setState(() => _digest = v);
-    _toast('每月 1 日 09:00 本地推送（演示）');
+    // 开关即重排：开＝按下一枚「1 日 09:00」排程；关＝取消（syncMonthlyDigest 内部处理）。
+    try {
+      await syncMonthlyDigest(_repo,
+          dnd: ref.read(settingsRepositoryProvider).load().notify.dnd);
+    } catch (e) {
+      AppLog.add('月度小结重排失败：$e', level: LhLevel.warn, src: '记账');
+    }
+    _toast(v ? '已开启 · 每月 1 日 09:00 推送' : '已关闭 · 不再推月度小结');
   }
 
   /// 原型「重置演示数据 → location.reload()」：Web 演示专属机制，真实版
@@ -174,16 +186,19 @@ class _LedgerSetPageState extends ConsumerState<LedgerSetPage> {
             d.monthStart,
             _setMonthStart,
           ),
+          sub: '周期账单与预算提醒随之重排',
         ),
-        // 6 预算超支提醒（原型静态演示开关；真实版落 budgetAlert 键）
+        // 6 预算超支提醒（V1.57 B 批接真排程：80%/100% 各一次 · 同档期去重）
         _row(
           '预算超支提醒',
           Switch(value: _alert ?? true, onChanged: _setAlert),
+          sub: '支出达预算 80% / 100% 各一次 · 免打扰时段顺延',
         ),
-        // 7 月度小结推送（真实版落 monthlyDigest 键，默认 false）
+        // 7 月度小结推送（V1.57 B 批接真排程：每月 1 日 09:00）
         _row(
           '月度小结推送',
           Switch(value: _digest ?? false, onChanged: _setDigest),
+          sub: '每月 1 日 09:00 · 上月收支与分类 Top',
         ),
         // 8 billGo() → 五步向导（批1d 已开放）
         _row(

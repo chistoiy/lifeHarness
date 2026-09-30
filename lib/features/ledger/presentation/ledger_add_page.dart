@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_models.dart';
 import '../domain/ledger_txn.dart';
 import 'ledger_date_sheet.dart';
+import 'ledger_notify.dart';
 import 'ledger_pick_sheets.dart';
 import 'ledger_providers.dart';
 import 'widgets/ledger_kit.dart';
@@ -235,6 +238,13 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
     } else {
       await repo.addTxn(txn);
       _toast('已记一笔 · ${money(amt)} · ${d.curBook.name}');
+    }
+    // V1.57 B 批：本笔落库后检查预算 80%/100% 档（同档期各一次 · 免打扰顺延）。
+    try {
+      await checkBudgetAlert(
+          repo, dnd: ref.read(settingsRepositoryProvider).load().notify.dnd);
+    } catch (e) {
+      AppLog.add('预算超支提醒检查失败：$e', level: LhLevel.warn, src: '记账');
     }
     ledgerTouch(ref);
     // 再记=必留；保存=按 afterSave 设置（back 回 L1 · stay 清金额留表单）。
