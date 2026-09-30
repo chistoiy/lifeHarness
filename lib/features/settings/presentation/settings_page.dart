@@ -171,14 +171,8 @@ class SettingsPage extends ConsumerWidget {
                     sub: '时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组',
                     trailing: '',
                     onTap: () => context.push('/categories')),
-                _EntryRow(
-                    iconWidget: Icon(Icons.handyman_outlined,
-                    size: 18, color: const Color(0xFF6B7280)),
-                                        bg: Colors.grey.withValues(alpha: .12),
-                    title: '小工具合集',
-                    sub: '本地工具 · 插件拓展',
-                    trailing: '',
-                    onTap: () => context.go('/kits')),
+                // V1.58 反馈轮5：「小工具合集」入口行摘除——与「今天」页
+                // 全部功能宫格的「小工具」重复，入口只留一处。
                 _EntryRow(
                     iconWidget: Icon(Icons.extension_outlined,
                     size: 18, color: const Color(0xFF6B7280)),

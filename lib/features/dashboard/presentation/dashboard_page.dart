@@ -936,7 +936,9 @@ class _DonutPainter extends CustomPainter {
       old.values != values || old.colors != colors || old.empty != empty;
 }
 
-/// 全部功能宫格（原型 D.grid：emoji + 浅灰圆角底块 17 项 · 未建灰显 + 版本角标）。
+/// 全部功能宫格（原型 D.grid：emoji + 浅灰圆角底块 15 项 · 未建灰显 + 版本角标）。
+/// V1.58 反馈轮5：日记/笔记两枚摘除（与记录页 ⇄ 四段重复），
+/// 「阅读」带段参深链 → 记录页自动切到阅读视图。
 class _AllModulesCard extends StatelessWidget {
   const _AllModulesCard();
 
@@ -946,9 +948,7 @@ class _AllModulesCard extends StatelessWidget {
   static const _mods = <(Object, String, String?, String?)>[
     ('✅', '待办', '/todo', null),
     ('⏱️', '时间', '/calendar', null),
-    ('📔', '日记', '/journal', null),
-    ('📝', '笔记', '/journal', null),
-    ('📚', '阅读', '/journal', null),
+    ('📚', '阅读', '/journal?tab=book', null),
     ('⚡', '收集箱', '/inbox', null),
     ('💰', '记账', '/ledger', null),
     ('📦', '物品', '/items', null),

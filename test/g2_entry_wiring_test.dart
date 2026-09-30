@@ -33,18 +33,21 @@ void main() {
       );
     });
 
-    test('仪表盘「全部功能」笔记/阅读两格已接记录页 · V0.5 灰标归零', () {
+    test('仪表盘「全部功能」阅读格已接记录页并带段参 · V0.5 灰标归零', () {
       const f = 'lib/features/dashboard/presentation/dashboard_page.dart';
       final s = src(f);
-      expect(s, contains("('📝', '笔记', '/journal', null),"));
-      expect(s, contains("('📚', '阅读', '/journal', null),"));
+      // V1.58 反馈轮5：日记/笔记两枚下架（与记录页 ⇄ 段重复），
+      // 阅读枚改带 `?tab=book` 深链，点击自动切到阅读视图。
+      expect(s, contains("('📚', '阅读', '/journal?tab=book', null),"));
+      expect(s, isNot(contains("'笔记', '/journal'")));
+      expect(s, isNot(contains("'日记', '/journal'")));
       expect(s, isNot(contains("'V0.5'")), reason: '笔记/阅读早已上线，不得再挂规划角标');
     });
 
     test('目标路由在册（/journal 与 /ledger 均已注册）', () {
       expect(
         src('lib/features/journal/presentation/journal_routes.dart'),
-        contains("GoRoute(path: '/journal'"),
+        contains("path: '/journal'"),
       );
       expect(
         src('lib/features/ledger/presentation/ledger_routes.dart'),

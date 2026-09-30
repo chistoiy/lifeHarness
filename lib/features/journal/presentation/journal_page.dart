@@ -94,8 +94,14 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
 /// 模块3 记录页（原型 p-records · V1.29轮5）：无段切换行，
 /// 标题随当前段显「记录 · X」，右上 ⇄ 钮开四能力菜单。
 /// 日记（M0/V1.28）与笔记列表管理（M1 批1a）为真实数据；阅读/影音游留占位。
-class JournalPage extends ConsumerWidget {
-  const JournalPage({super.key});
+///
+/// V1.58 反馈轮5：支持段深链 [initialTab]（仪表盘「阅读」格 → `/journal?tab=book`），
+/// 进来即落在对应段视图，不再停在默认日记段。
+class JournalPage extends ConsumerStatefulWidget {
+  const JournalPage({super.key, this.initialTab});
+
+  /// 深链段名（diary/note/book/media）；null 或非法值 = 沿用当前段。
+  final String? initialTab;
 
   static const kRecordLabels = {
     'diary': '日记',
@@ -104,14 +110,57 @@ class JournalPage extends ConsumerWidget {
     'media': '影音游',
   };
 
+  /// 段名合法性：深链参数来自外部 URI，必须先校验再落状态。
+  static bool isRecordTab(String? t) => kRecordLabels.containsKey(t);
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tab = ref.watch(recordTabProvider);
+  ConsumerState<JournalPage> createState() => _JournalPageState();
+}
+
+class _JournalPageState extends ConsumerState<JournalPage> {
+  /// 本帧生效的深链段：provider 落定前先按它渲染，避免「先闪日记再切段」。
+  String? _linkTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _takeLink();
+  }
+
+  @override
+  void didUpdateWidget(covariant JournalPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) _takeLink();
+  }
+
+  /// 把深链段写回 [recordTabProvider]（⇄ 菜单同款通道）。
+  /// initState/build 期不能同步改 provider，故落到本帧之后的微任务。
+  void _takeLink() {
+    final t = widget.initialTab;
+    if (!JournalPage.isRecordTab(t)) return;
+    final seg = t!;
+    // 只在 initState/didUpdateWidget 里调用，本帧必然重建，无需 setState。
+    _linkTab = seg;
+    Future<void>.microtask(() {
+      if (mounted) ref.read(recordTabProvider.notifier).state = seg;
+    });
+  }
+
+  /// ⇄ 菜单选段：用户意图优先于深链，清掉本帧覆盖后交给 provider。
+  void _selectTab(String v) {
+    if (_linkTab != null) setState(() => _linkTab = null);
+    ref.read(recordTabProvider.notifier).state = v;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final providerTab = ref.watch(recordTabProvider);
+    final tab = _linkTab ?? providerTab;
     final tokens = context.tokens;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('记录 · ${kRecordLabels[tab]}'),
+        title: Text('记录 · ${JournalPage.kRecordLabels[tab]}'),
         actions: [
           // ⇄ 四能力切换（仅记录页；当前项高亮✓）
           // 轮10-9：菜单条目改圆角行卡+选中底色（与弹层/抽屉同语言·accent 随主题）。
@@ -121,10 +170,9 @@ class JournalPage extends ConsumerWidget {
             icon: const Icon(Icons.sync_alt),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18)),
-            onSelected: (v) =>
-                ref.read(recordTabProvider.notifier).state = v,
+            onSelected: _selectTab,
             itemBuilder: (_) => [
-              for (final e in kRecordLabels.entries)
+              for (final e in JournalPage.kRecordLabels.entries)
                 PopupMenuItem<String>(
                   value: e.key,
                   height: 46,

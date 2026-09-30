@@ -8,7 +8,13 @@ import 'note_edit_page.dart';
 
 /// 底部导航壳内路由（原 ShellRoute 登记 · 治理G6 下沉）
 List<GoRoute> journalShellRoutes() => [
-        GoRoute(path: '/journal', builder: (_, _) => const JournalPage())
+        // V1.58 反馈轮5：`?tab=diary|note|book|media` 段深链
+        // （仪表盘「阅读」格直达记录页阅读视图；无参 = 沿用上次停留的段）。
+        GoRoute(
+          path: '/journal',
+          builder: (_, s) =>
+              JournalPage(initialTab: s.uri.queryParameters['tab']),
+        )
 ];
 
 /// 全屏栈路由（治理G6 下沉）
