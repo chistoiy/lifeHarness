@@ -304,7 +304,9 @@ class _KitWheelBodyState extends ConsumerState<KitWheelBody>
                       () {
                         kitToolCopy(context, cur.history.first.option,
                             msg: '结果已复制 · 请到日记页粘贴留档');
-                        context.go('/journal');
+                        // 反馈轮5 同款口径：跳记录模块必须落到对应视图，
+                        // 无段参会停在用户上次停留的段（可能停在笔记段）。
+                        context.go('/journal?tab=diary');
                       },
                       keyName: 'kit-wheel-to-diary',
                       small: true,
