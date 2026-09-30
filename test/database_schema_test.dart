@@ -167,4 +167,60 @@ void main() {
     expect(row['tag'], isNull);
     await db.close();
   });
+
+  // V1.58 小工具整模块下架（产品负责人 2026-09-30 拍板「模块价值太低」）。
+  test('v29→v30 迁移：kit_* 四表删除，其余表与数据一律不动', () async {
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    // 手工构造 v29 现场：kit 四表（带数据）+ 一张无关表（带数据）。
+    await db.execute('CREATE TABLE kit_usage (id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        ' tool TEXT NOT NULL, kind TEXT NOT NULL DEFAULT \'builtin\', ts INTEGER NOT NULL)');
+    await db.execute('CREATE INDEX idx_kit_usage_ts ON kit_usage(ts)');
+    await db.execute('CREATE TABLE kit_layout (key TEXT PRIMARY KEY,'
+        ' value TEXT NOT NULL, updated_at INTEGER NOT NULL)');
+    await db.execute('CREATE TABLE kit_tool_data (tool TEXT PRIMARY KEY,'
+        ' data TEXT NOT NULL, updated_at INTEGER NOT NULL)');
+    await db.execute('CREATE TABLE kit_plugin (id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        ' name TEXT NOT NULL, src TEXT, enabled INTEGER NOT NULL DEFAULT 1)');
+    await db.execute('CREATE TABLE leftovers (id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        ' title TEXT NOT NULL)');
+    await db.insert('kit_usage', {'tool': 'ruler', 'kind': 'builtin', 'ts': 1});
+    await db.insert('kit_layout', {'key': 'order', 'value': '[]', 'updated_at': 1});
+    await db.insert('kit_tool_data', {'tool': 'tele', 'data': '{}', 'updated_at': 1});
+    await db.insert('kit_plugin', {'name': 'morse', 'src': 'local', 'enabled': 1});
+    await db.insert('leftovers', {'title': '留下来的行'});
+
+    expect(DbSchema.version, 30, reason: '删表是 schema 变更，必须升版本');
+    // 新库不再建这四张表（否则删完又被 onCreate 建回来）。
+    expect(DbSchema.createStatements.join(), isNot(contains('kit_usage')));
+    expect(DbSchema.migrations[29], hasLength(4));
+
+    for (final sql in DbSchema.migrations[29]!) {
+      await db.execute(sql);
+    }
+    final tables = (await db
+            .rawQuery("SELECT name FROM sqlite_master WHERE type='table'"))
+        .map((r) => r['name'] as String)
+        .toSet();
+    for (final t in ['kit_usage', 'kit_layout', 'kit_tool_data', 'kit_plugin']) {
+      expect(tables, isNot(contains(t)), reason: '$t 应随 v30 迁移删除');
+    }
+    // 索引随表消失：残留会在「以后重建同名表」时撞名。
+    final idx = (await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_kit%'"));
+    expect(idx, isEmpty, reason: 'kit 索引未随表删除');
+    expect(tables, contains('leftovers'), reason: '删表不得波及其他模块');
+    expect((await db.query('leftovers')).single['title'], '留下来的行');
+    await db.close();
+  });
+
+  test('v30 迁移幂等：从未建过 kit 表的新库重跑不报错', () async {
+    final db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
+    for (final round in [0, 1]) {
+      for (final sql in DbSchema.migrations[29]!) {
+        await db.execute(sql);
+      }
+      expect(round, lessThan(2));
+    }
+    await db.close();
+  });
 }

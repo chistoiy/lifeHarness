@@ -34,7 +34,8 @@ void main() {
   //    并行会话未提交的新文件（如当时的 kits/domain/kit_datec.dart）会被误登记，
   //    干净 checkout 里那项找不到对应文件即判 stale 空转报红。
   // 干净 checkout 里那项找不到对应文件即判 stale 空转报红。
-  // 其中 features/read(47) 与 features/kits(2) 属并行阅读器/小工具会话写区，由各自的留痕批次消项；
+  // 其中 features/read(47) 属并行阅读器会话写区，由各自的留痕批次消项；
+  // （原 features/kits 两项已随 V1.58 小工具整模块下架删除登记——文件本身不存在了。）
   // 域内动到哪个文件，就把它的登记改小或直接删项。
   const baseline = <String, int>{
     'core/ai/ai_config.dart': 1,
@@ -56,7 +57,6 @@ void main() {
     'core/theme/theme_repository.dart': 2,
     'features/journal/presentation/diary_edit_page.dart': 1,
     'features/journal/presentation/note_edit_rich.dart': 1,
-    'features/kits/domain/kit_models.dart': 2,
     'features/ledger/data/ledger_repository.dart': 2,
     'features/read/data/epub_cache.dart': 16,
     'features/read/data/epub_doc.dart': 2,

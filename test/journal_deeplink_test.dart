@@ -157,11 +157,11 @@ void main() {
       expect(s, isNot(contains("title: '小工具合集'")));
       expect(s, isNot(contains("context.go('/kits')")),
           reason: '设置页不得再留第二个小工具入口');
-      // 宫格侧仍在册，摘的是重复入口而不是功能本身。
+      // V1.58 小工具整模块下架：宫格里也不再有这一枚。
       final d = File(
               'lib/features/dashboard/presentation/dashboard_page.dart')
           .readAsStringSync();
-      expect(d, contains("'小工具', '/kits'"));
+      expect(d, isNot(contains("'小工具'")));
     });
   });
 }

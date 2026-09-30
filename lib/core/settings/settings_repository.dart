@@ -23,14 +23,15 @@ class SettingsRepository {
   static const _kProfileNick = 'lh.profile_nick';
   static const _kProfileBio = 'lh.profile_bio';
 
-  /// V1.47 批1·小工具合集模块开关（四项一 JSON，与 notify 同构）。
-  static const _kKit = 'lh.kit';
 
   /// V1.57 批E·回收站自动清理期限（天；0=不清理）。垃圾箱屏与待办页入口行同源读它。
   static const _kTrashKeep = 'lh.trash_keep_days';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
+    // V1.58 小工具整模块下架：历史遗留 lh.kit（四项模块开关）读到即清，
+    // 不留「有用户配置」假信号（照 care.rm.lock 先例）。
+    if (_prefs.containsKey('lh.kit')) _prefs.remove('lh.kit');
     final themeId = _prefs.getString(_kTheme);
     final mode = _prefs.getString(_kMode);
     final nav = _prefs.getString(_kNav);
@@ -44,8 +45,7 @@ class SettingsRepository {
         _prefs.getBool(_kNoteSwipe) == null &&
         _prefs.getString(_kWeatherCity) == null &&
         _prefs.getString(_kProfileNick) == null &&
-        _prefs.getInt(_kTrashKeep) == null &&
-        _prefs.getString(_kKit) == null) {
+        _prefs.getInt(_kTrashKeep) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -62,7 +62,6 @@ class SettingsRepository {
       'profileNick': ?_prefs.getString(_kProfileNick),
       'profileBio': ?_prefs.getString(_kProfileBio),
       'trashKeepDays': ?_prefs.getInt(_kTrashKeep),
-      'kit': ?_prefs.getString(_kKit),
     });
   }
 
@@ -81,6 +80,5 @@ class SettingsRepository {
     await _prefs.setString(_kProfileNick, m['profileNick']! as String);
     await _prefs.setString(_kProfileBio, m['profileBio']! as String);
     await _prefs.setInt(_kTrashKeep, m['trashKeepDays']! as int);
-    await _prefs.setString(_kKit, m['kit']! as String);
   }
 }

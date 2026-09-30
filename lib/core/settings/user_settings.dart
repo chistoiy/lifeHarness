@@ -101,71 +101,6 @@ class NotifySettings {
 ///
 /// 骨架阶段持久化用 shared_preferences 模拟；正式版换 settings 表并随备份策略
 /// （ADR D11：原型与两环境实现差异抽象为存储接口层）。
-/// V1.47 批1 · 小工具合集模块开关（原型 `KITS.pset` 四项同源）。
-///
-/// 口径：属用户偏好而非业务数据——与 [NotifySettings] 同构走 prefs，
-/// 随整包备份/WebDAV 同步带走；足迹流水、收藏编排、插件登记另有 kit_* 表。
-class KitSettings {
-  const KitSettings({
-    this.scan = true,
-    this.wifiCheck = false,
-    this.backupPlugins = true,
-    this.backupFootprint = true,
-  });
-
-  /// 自动扫描私有 plugins/ 目录（启动时热加载符合规范的工具包）。
-  final bool scan;
-
-  /// Wi-Fi 下自动检查更新（每周一次 · 仅请求索引清单）。
-  final bool wifiCheck;
-
-  /// 插件列表随备份导出（换机恢复时按清单重装 · 数据各随其主）。
-  final bool backupPlugins;
-
-  /// 使用足迹随备份导出（关闭后 .lhbak 不含足迹流水 · 收藏与编排仍导出）。
-  final bool backupFootprint;
-
-  KitSettings copyWith({
-    bool? scan,
-    bool? wifiCheck,
-    bool? backupPlugins,
-    bool? backupFootprint,
-  }) =>
-      KitSettings(
-        scan: scan ?? this.scan,
-        wifiCheck: wifiCheck ?? this.wifiCheck,
-        backupPlugins: backupPlugins ?? this.backupPlugins,
-        backupFootprint: backupFootprint ?? this.backupFootprint,
-      );
-
-  Map<String, Object?> toMap() => {
-        'scan': scan,
-        'wifiCheck': wifiCheck,
-        'backupPlugins': backupPlugins,
-        'backupFootprint': backupFootprint,
-      };
-
-  factory KitSettings.fromMap(Object? raw) {
-    const def = KitSettings();
-    if (raw is! String || raw.isEmpty) return def;
-    final Object? d;
-    try {
-      d = jsonDecode(raw);
-    } catch (_) {
-      return def;
-    }
-    if (d is! Map) return def;
-    final j = d.cast<String, Object?>();
-    bool b(String k, bool fallback) => j[k] is bool ? j[k]! as bool : fallback;
-    return KitSettings(
-      scan: b('scan', def.scan),
-      wifiCheck: b('wifiCheck', def.wifiCheck),
-      backupPlugins: b('backupPlugins', def.backupPlugins),
-      backupFootprint: b('backupFootprint', def.backupFootprint),
-    );
-  }
-}
-
 class UserSettings {
   const UserSettings({
     required this.themeId,
@@ -181,7 +116,6 @@ class UserSettings {
     this.weatherCity = '',
     this.profileNick = '',
     this.profileBio = '',
-    this.kit = const KitSettings(),
   });
 
   final String themeId;
@@ -224,8 +158,6 @@ class UserSettings {
   /// R14-12·我的页资料：一句话签名（''=不显示）。
   final String profileBio;
 
-  /// V1.47 批1 · 小工具合集模块开关（原型 sheetKitSet 四项）。
-  final KitSettings kit;
 
   /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
   String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
@@ -248,7 +180,6 @@ class UserSettings {
     mode: ThemeModeOption.system,
     // 今天/我的固定，中间三个可切换栏目（最多 5，需求 V1.5）。
     navIds: ['today', 'todo', 'calendar', 'journal', 'settings'],
-    kit: KitSettings(),
   );
 
   UserSettings copyWith({
@@ -265,7 +196,6 @@ class UserSettings {
     String? weatherCity,
     String? profileNick,
     String? profileBio,
-    KitSettings? kit,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -281,7 +211,6 @@ class UserSettings {
         weatherCity: weatherCity ?? this.weatherCity,
         profileNick: profileNick ?? this.profileNick,
         profileBio: profileBio ?? this.profileBio,
-        kit: kit ?? this.kit,
       );
 
   Map<String, Object> toMap() => {
@@ -298,7 +227,6 @@ class UserSettings {
         'weatherCity': weatherCity,
         'profileNick': profileNick,
         'profileBio': profileBio,
-        'kit': jsonEncode(kit.toMap()),
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -306,7 +234,6 @@ class UserSettings {
         mode: ThemeModeOption.fromId(m['mode'] as String?),
         navIds: (m['navIds'] as String?)?.split(',').where((s) => s.isNotEmpty).toList() ??
             defaults.navIds,
-        kit: KitSettings.fromMap(m['kit']),
         notify: _decodeNotify(m['notify'] as String?),
         homeCardOrder: _sanitizeHomeOrder(m['homeOrder'] as String?),
         noteRestoreMode:

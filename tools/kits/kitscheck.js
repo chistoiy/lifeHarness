@@ -1,9 +1,9 @@
-/* 小工具专版原型回归校验 · CDP 无头（进度实时可见：tools/kits/kits-run.log）
+/* 小工具专版原型回归校验 · CDP 无头（V1.58 整模块下架后**不再维护**，仅用于历史稿回归）（进度实时可见：tools/kits/kits-run.log）
  * 用法：node --experimental-websocket tools/kits/kitscheck.js [--shots] */
 const {spawn}=require('child_process');
 const fs=require('fs'),path=require('path'),http=require('http'),url=require('url');
 const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const FILE=path.resolve('prototype/index-kits.html');
+const FILE=path.resolve('prototype/archive/index-kits.html'); // V1.58 下架：专版已归档，本工装留作历史回归用
 const URLF=url.pathToFileURL(FILE).href;
 const PORT=Number(process.env.KIT_PORT||9417);
 const SHOTS=process.argv.includes('--shots');

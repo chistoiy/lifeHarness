@@ -11,7 +11,6 @@ import '../../features/todo/presentation/todo_routes.dart';
 import '../../features/calendar/presentation/calendar_routes.dart';
 import '../../features/journal/presentation/journal_routes.dart';
 import '../../features/habit/presentation/habit_routes.dart';
-import '../../features/kits/presentation/kit_routes.dart';
 import '../../features/inbox/presentation/inbox_routes.dart';
 import '../../features/ledger/presentation/ledger_routes.dart';
 import '../../features/care/presentation/care_routes.dart';
@@ -77,7 +76,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ...journalShellRoutes(),
 
           ...habitShellRoutes(),
-          ...kitShellRoutes(),
 
           ...inboxShellRoutes(),
 
@@ -104,7 +102,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ...journalPageRoutes(),
 
       ...habitPageRoutes(),
-      ...kitPageRoutes(),
 
       ...ledgerPageRoutes(),
 
