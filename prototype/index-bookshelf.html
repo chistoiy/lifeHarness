@@ -267,6 +267,15 @@ tailwind.config = {
   .bk-cov::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(90deg,rgba(255,255,255,.34),rgba(255,255,255,0))}
   .bk-cov .ti{position:absolute;left:6px;right:6px;top:8px;font-size:8.5px;font-weight:800;line-height:1.25;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4)}
   .bk-cov .au{position:absolute;left:6px;bottom:7px;font-size:7px;color:rgba(255,255,255,.72);font-weight:600}
+  /* R14-4 · 无封面书卡三档回落：A 正文首图（默认）/ B 书脊色块 / C 纯文字卡 */
+  .bs-covB{background:linear-gradient(165deg,#64748b,#475569)}
+  .bs-covB .bs-bi{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.28);line-height:1}
+  .bs-covB .au{color:rgba(255,255,255,.85)}
+  .bs-covC{background:var(--card);border:1px solid var(--card-bd)}
+  .bs-covC .bs-ci-t{position:absolute;left:8px;right:8px;top:36%;transform:translateY(-50%);text-align:center;font-weight:800;font-size:10.5px;line-height:1.5;color:var(--text1,#0f172a)}
+  .bk-cov.bs-covC .ti{position:absolute;left:8px;right:8px;top:34%;text-align:center;font-size:10px;line-height:1.45;color:var(--text1,#0f172a);text-shadow:none}
+  .bk-cov.bs-covC .au{color:var(--text2,#64748b);text-shadow:none}
+  .bs-fi-tag{position:absolute;left:5px;top:5px;font-size:7px;font-weight:800;padding:1px 5px;border-radius:999px;background:rgba(15,23,42,.5);color:#fff;z-index:2}
   .bk-badge{position:absolute;right:4px;top:4px;font-size:8px;font-weight:800;padding:1px 5px;border-radius:999px;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
   .bk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
   .bk-grid.c5{grid-template-columns:repeat(5,1fr)}
@@ -843,6 +852,7 @@ tailwind.config = {
         <button id="shBatchBtn" onclick="shBatchToggle()" class="text-[11px] font-extrabold px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 shrink-0">管理</button>
       </div>
       <div class="mt-2.5 flex gap-2 overflow-x-auto no-scrollbar pb-0.5" id="shChips"></div>
+      <div class="mt-2 flex items-center gap-1.5" id="bsCovDemo"><span class="text-[9.5px] font-bold text-slate-400 shrink-0">无封面卡预览</span><button class="seg-pill !px-3 !py-1 !text-[10px]" data-m="A" onclick="bsCovDemo('A')">A 首图</button><button class="seg-pill !px-3 !py-1 !text-[10px]" data-m="B" onclick="bsCovDemo('B')">B 书脊</button><button class="seg-pill !px-3 !py-1 !text-[10px]" data-m="C" onclick="bsCovDemo('C')">C 文字</button></div>
       <div id="shDimVals" class="hidden mt-1.5"></div>
       <div class="hidden mt-1.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="shTags"></div>
       <div id="shBody" class="mt-3"></div>
@@ -1803,17 +1813,21 @@ tailwind.config = {
     .br-bar-top{border-bottom:1px solid var(--brBarLine)}
     .br-bar-bot{border-top:1px solid var(--brBarLine)}
     .br-bar .br-chipbg{background:var(--brBarChip)}
-    #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28)}
+    #brSelBar{box-shadow:0 8px 24px rgba(15,23,42,.28);background:var(--card);backdrop-filter:none;color:#334155;border:1px solid var(--card-bd)}
+    #brColorPop{background:var(--card);backdrop-filter:none;color:#334155;border:1px solid var(--card-bd)}
+    html.dark #brSelBar,html.dark #brColorPop{color:#cbd5e1}
     #brSelBar .sdb{padding:9px 10px;border-radius:10px;font-size:11px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;cursor:pointer}
     #brSelBar .sdb:active{background:rgba(148,163,184,.18)}
     .br-selpart{background:rgba(99,102,241,.30);border-radius:2px}
-    .br-h{position:absolute;width:11px;height:11px;border-radius:50%;background:#6366F1;border:2px solid #fff;box-shadow:0 1px 4px rgba(15,23,42,.4);z-index:74;display:none;cursor:grab;touch-action:none}
-    .br-h::after{content:"";position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:2px;height:15px;background:#6366F1;border-radius:2px}
-    .br-h.br-hend::after{top:auto;bottom:-14px}
+    /* R14-6：首尾手柄视觉放大一档（11→15px），只改样式不改交互 */
+    .br-h{position:absolute;width:15px;height:15px;border-radius:50%;background:#6366F1;border:2px solid #fff;box-shadow:0 1px 4px rgba(15,23,42,.4);z-index:74;display:none;cursor:grab;touch-action:none}
+    .br-h::after{content:"";position:absolute;left:50%;top:-17px;transform:translateX(-50%);width:2.5px;height:18px;background:#6366F1;border-radius:2px}
+    .br-h.br-hend::after{top:auto;bottom:-17px}
     #brBackJump{background:rgba(15,23,42,.9);color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.3)}
     #brNoteCard{box-shadow:0 10px 30px rgba(15,23,42,.28)}
     .br-sup{color:#6366F1;font-size:.72em;vertical-align:super;cursor:pointer;padding:0 1px}
-    #brSelBar::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(15,23,42,.86);border-bottom:0}
+    #brSelBar::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--card);border-bottom:0;filter:drop-shadow(0 1px 1px rgba(15,23,42,.22));pointer-events:none}
+    #brSelBar.flip::after{bottom:auto;top:-7px;border-top-color:transparent;border-bottom:7px solid var(--card);filter:drop-shadow(0 -1px 1px rgba(15,23,42,.22))}
     .br-ibtn{width:46px;height:42px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;font-weight:700;opacity:.72;cursor:pointer}
     .br-ibtn.on{opacity:1;background:rgba(148,163,184,.22)}
     .br-bt{flex:1;height:34px;border-radius:10px;border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;cursor:pointer}
@@ -5030,7 +5044,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30};
+let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30};
 /* 豆瓣防封批（2026-09-26）：抓到的书目按 ISBN 落本机元数据缓存（demo 内存态）。
    二次命中不静默采用——提示「本地已有缓存」，由用户选「用缓存 / 仍联网查询」。 */
 let BS_DB_CACHE={'9787111544937':{n:'深入理解计算机系统（原书第3版）',a:'兰德尔·布莱恩特',pub:'机械工业出版社',pg:868,yr:'2016-11'}};
@@ -5058,8 +5072,36 @@ function shFiltered(){let a=BS_BOOKS.filter(b=>(shSt==='全部'||b.st===shSt)&&(
   const cmp={recent:(x,y)=>bsLast(y).localeCompare(bsLast(x)),prog:(x,y)=>y.p-x.p,rate:(x,y)=>y.rate-x.rate,added:(x,y)=>BS_BOOKS.indexOf(x)-BS_BOOKS.indexOf(y),name:(x,y)=>x.n.localeCompare(y.n,'zh'),pages:(x,y)=>y.pg-x.pg}[shSort];
   return a.sort(cmp)}
 function bsGrad(b){return 'bg-gradient-to-br '+BS_COV[b.c][0]}
-function bsCovStyle(b){return b.img?'background-image:url('+b.img+')':''}
-function bsCovCls(b){return b.img?'':'bg-gradient-to-br '+BS_COV[b.c][0]}
+/* R14-4 三档回落（2026-09-30 拍板）：A=EPUB 正文首图（默认）· B=书脊色块（color_idx 取色＋首字）· C=纯文字卡
+   有真实封面（b.img）永远直出封面，三档只作用于「无封面」的书卡 */
+function bsCovMode(){const v=String(BS_SET.covFallback||'A');return v[0]==='B'?'B':v[0]==='C'?'C':'A'}
+function bsFiImg(b){if(b.fi!=null)return b.fi;
+  try{const cv=document.createElement('canvas');cv.width=240;cv.height=360;const x=cv.getContext('2d');
+  const c=BS_COV[b.c||0][1];x.fillStyle='#f4ecdd';x.fillRect(0,0,240,360);
+  x.strokeStyle='rgba(120,113,108,.4)';x.lineWidth=1;x.strokeRect(9,9,222,342);
+  x.save();x.translate(120,146);x.strokeStyle=c;x.lineWidth=3;x.beginPath();x.arc(0,0,54,0,6.283);x.stroke();
+  x.beginPath();x.moveTo(-54,0);x.lineTo(54,0);x.moveTo(0,-54);x.lineTo(0,54);x.stroke();
+  x.fillStyle=c;x.globalAlpha=.18;x.fillRect(-66,72,132,8);x.fillRect(-66,92,96,8);x.restore();
+  x.fillStyle='rgba(87,83,78,.85)';x.font='bold 11px system-ui';x.fillText('正文首图 · 第 '+(b.fiPage||3)+' 页',16,330);
+  b.fi=cv.toDataURL('image/jpeg',.82)}catch(e){b.fi=''}return b.fi}
+function bsCovHasFi(b){return bsCovMode()==='A'&&!b.img&&!!b.local&&!!bsFiImg(b)}
+function bsCovStyle(b){if(b.img)return 'background-image:url('+b.img+')';const m=bsCovMode();
+  if(m==='A')return bsCovHasFi(b)?'background-image:url('+bsFiImg(b)+')':'';
+  if(m==='B')return 'background:linear-gradient(165deg,'+BS_COV[b.c||0][1]+','+BS_COV[b.c||0][1]+'d9)';
+  return ''}
+function bsCovCls(b){if(b.img)return '';const m=bsCovMode();
+  if(m==='B')return 'bs-covB';if(m==='C')return 'bs-covC';
+  if(m==='A'&&bsCovHasFi(b))return '';
+  return 'bg-gradient-to-br '+BS_COV[b.c][0]}
+function bsCovInner(b){if(b.img)return '';const m=bsCovMode();
+  if(m==='A')return bsCovHasFi(b)?'<span class="bs-fi-tag">正文首图</span>':'';
+  if(m==='B')return '<span class="bs-bi">'+String(b.n||'书')[0]+'</span>';
+  return '<div class="bs-ci-t">'+b.n+'</div>'}
+function bsCovDemo(m){BS_SET.covFallback={A:'A 正文首图',B:'B 书脊色块',C:'C 纯文字卡'}[m]||'A 正文首图';
+  try{renderShelf()}catch(e){}try{renderBookDetail()}catch(e){}try{renderRecHub()}catch(e){}bsCovDemoSync();toast('无封面书卡：'+m+' 档')}
+function bsCovDemoSync(){const el=document.getElementById('bsCovDemo');if(!el)return;
+  el.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',bsCovMode()===x.dataset.m))}
+/* 旧 bsCovCls 已并入上方 R14-4 实现 */
 function bsProgressBadge(b){if(b.st==='已读')return `<span class="bk-badge bg-emerald-500">已读</span>`;if(b.st==='想读')return `<span class="bk-badge bg-amber-500">想读</span>`;if(b.st==='弃读')return `<span class="bk-badge bg-slate-500">弃读</span>`;return `<span class="bk-badge bg-indigo-500">${b.p}%</span>`}
 function shCards(list,cols){return shWall(list,cols)}
 function shWall(list,cols){
@@ -5100,7 +5142,7 @@ function renderShelf(){const body=document.getElementById('shBody');if(!body)ret
   let h=list.length?'':'<div class="card text-center text-[11px] text-slate-400 py-8">没有符合条件的书 · <button class="link-act" onclick="shResetFilter()">清空筛选</button></div>';
   if(list.length)h=shView==='wall'?shWall(list,BS_SET.wallCols||3):shView==='wall4'?shWall(list,4):shView==='spine'?shSpine(list):shView==='time'?shTimeline(list):shListRows(list);
   renderShDims();bsBindBtns();
-  body.innerHTML=(list.length&&shDim!=='none'?shByDim(list):h)+`<div class="mt-3 text-[10px] text-slate-400 text-center">${list.length} 本 · ${shSt}${shTag?' · #'+shTag:''}${shDimVal?' · '+shDimLabel(shDim)+'：'+shDimVal:''}</div>`}
+  body.innerHTML=(list.length&&shDim!=='none'?shByDim(list):h)+`<div class="mt-3 text-[10px] text-slate-400 text-center">${list.length} 本 · ${shSt}${shTag?' · #'+shTag:''}${shDimVal?' · '+shDimLabel(shDim)+'：'+shDimVal:''}</div>`;bsCovDemoSync()}
 function bsDayKey(md){return md?+md.slice(0,2)*100+ +md.slice(3):0}
 function bsEvents(list){const ev=[];const lim=BS_SET.tlRange==='month'?820:BS_SET.tlRange==='year'?0:320;
   list.forEach(b=>{if(b.start&&bsDayKey(b.start)>=lim)ev.push({d:b.start,k:'start',b,t:'开始读《'+b.n+'》',ic:'book'});
@@ -5532,7 +5574,7 @@ function rsPickDim(k){rsDim=k;BS_SET.statDim=k;renderReadStat()}
 function rtFmt(s){return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
 function rtOpen(id){if(id)CURBK=id;navTo("p-readtimer");renderReadTimer()}
 function renderReadTimer(){const b=bsBook(CURBK);const cov=document.getElementById("rtCov");if(!cov)return;
-  cov.className="w-28 h-40 rounded-xl bk-cov shadow-2xl "+bsCovCls(b);cov.style.backgroundImage=b.img?"url("+b.img+")":"";cov.style.backgroundSize="cover";cov.style.backgroundPosition="center";
+  cov.className="w-28 h-40 rounded-xl bk-cov shadow-2xl "+bsCovCls(b);cov.setAttribute("style",(bsCovStyle(b)||'')+";background-size:cover;background-position:center");cov.innerHTML=bsCovInner(b);
   document.getElementById("rtBg").style.background=b.img?"linear-gradient(180deg,rgba(15,23,42,.55),rgba(15,23,42,.92)),url("+b.img+") center/cover":"linear-gradient(180deg,var(--accent,#4f46e5),rgba(15,23,42,.95))";
   document.getElementById("rtName").textContent=b.n;document.getElementById("rtSub").textContent=b.a+" · "+b.st+(b.p?" · "+b.p+"%":"");
   const on=!!timer&&timerTarget==="《"+b.n+"》";const btn=document.getElementById("rtStartBtn");
@@ -5551,7 +5593,7 @@ function rtProgress(){openProgress("read","《"+bsBook(CURBK).n+"》",!!timer)}
 const LP_ALL=['计时','记摘录','改分区','移书单','标记读完','多选','删除'];
 const LP_IC={'计时':'timer','记摘录':'pen','改分区':'grid','移书单':'book','标记读完':'check','多选':'grid4','删除':'close'};
 const RS_SEC=[
- ['外观与启动',[['openTab','默认打开','chips',['在读','想读','已读','弃读']],['wallCols','封面墙列数','chips',[3,4,5]],['imgCols','图片墙列数','chips',[3,4,5]],['qtLines','书摘文本行数','chips',[2,3,4]],['simple','简洁浏览书摘','bool','隐藏时间、位置等辅助信息'],['fullCh','完整显示章节名','bool','过长章节名换行显示']]],
+ ['外观与启动',[['openTab','默认打开','chips',['在读','想读','已读','弃读']],['wallCols','封面墙列数','chips',[3,4,5]],['covFallback','无封面书卡','chips',['A 正文首图','B 书脊色块','C 纯文字卡'],'EPUB 无内嵌封面时的回落档 · 默认 A · 可在书架同屏预览对比'],['imgCols','图片墙列数','chips',[3,4,5]],['qtLines','书摘文本行数','chips',[2,3,4]],['simple','简洁浏览书摘','bool','隐藏时间、位置等辅助信息'],['fullCh','完整显示章节名','bool','过长章节名换行显示']]],
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',['本月','近半年','全年']],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
@@ -5566,11 +5608,12 @@ function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderR
   if(k==='tlRange'||k==='tlDays'){renderShelf()}
   if(k==='imgCols'&&qtView==='img'){renderQuotes()}
   if(k==='fullCh'){renderQuotes();renderBookDetail()}
+  if(k==='covFallback'){bsCovDemoSync();renderShelf();renderBookDetail();try{renderRecHub()}catch(e){}}
   toast('已设置 '+o)}
 function rsRow(it){const k=it[0],nm=it[1],ty=it[2],ex=it[3];const v=BS_SET[k];
   const head='<div class="flex items-center gap-2"><div class="flex-1 min-w-0"><b class="text-[12.5px]">'+nm+'</b>'+(typeof ex==='string'&&['bool','go','go2','info','ops','nav','login','cache'].includes(ty)?'<div class="text-[10px] text-slate-400 mt-0.5">'+ex+'</div>':'')+'</div>';
   const foot='</div>';
-  if(ty==='chips')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 flex-wrap">'+ex.map(o=>'<button class="chip !text-[10px] '+(String(v)===String(o)?'chip-on':'')+'" onclick="rsChip(\''+k+'\','+(typeof o==='number'?o:'\''+o+'\'')+')">'+o+'</button>').join('')+'</div></div>';
+  if(ty==='chips')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+foot+'<div class="mt-1.5 flex gap-1.5 flex-wrap">'+ex.map(o=>'<button class="chip !text-[10px] '+(String(v)===String(o)?'chip-on':'')+'" onclick="rsChip(\''+k+'\','+(typeof o==='number'?o:'\''+o+'\'')+')">'+o+'</button>').join('')+'</div>'+(typeof it[4]==='string'?'<div class="text-[10px] text-slate-400 mt-1">'+it[4]+'</div>':'')+'</div>';
   if(ty==='bool')return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="toggle '+(v?'on':'')+'" onclick="rsFlip(\''+k+'\')"><i></i></button>'+foot+'</div>';
   if(ty==='login'){const on=!!BS_SET.dbCookie;const stale=on&&BS_SET.dbCookieStale;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+(on?'<span class="text-[10px] font-bold '+(stale?'text-amber-500':'text-emerald-600')+' mr-1">'+(stale?'已配置 · 可能已过期':'已配置')+'</span><button class="mini-btn !text-[10px]" onclick="rsCookieClear(\'dbCookie\')">清除</button><button class="mini-btn !text-[10px] ml-1.5" onclick="dblOpen()">重新登录</button>':'<button class="mini-btn !text-[10px]" onclick="dblOpen()">登录豆瓣</button>')+foot+'</div>';}
   if(ty==='cache'){const n=Object.keys(BS_DB_CACHE).length;return '<div class="py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">'+head+'<button class="mini-btn !text-[10px]'+(n?'':' opacity-40')+'" onclick="rsCacheClear()">'+(n?'清除 '+n+' 条':'无缓存')+'</button>'+foot+'</div>';}
@@ -6211,7 +6254,7 @@ function renderBookInfo() {
   const todayMin = BS_LOG[262].m;
   root.innerHTML = `
   <div class="mt-3 flex gap-3 items-start">
-    <div class="${bsCovCls(b)} w-[74px] h-[106px] rounded-xl bk-cov shrink-0 p-2" style="${b.img ? 'background-image:url(' + b.img + ');background-size:cover;background-position:center' : ''}" onclick="ebCovFromDetail()"></div>
+    <div class="${bsCovCls(b)} w-[74px] h-[106px] rounded-xl bk-cov shrink-0 p-2" style="${bsCovStyle(b)};${b.img||bsCovHasFi(b)?'background-size:cover;background-position:center':''}" onclick="ebCovFromDetail()">${bsCovInner(b)}</div>
     <div class="flex-1 min-w-0"><div class="font-extrabold text-[15px] leading-6">${b.n}</div>
       <div class="text-[11px] text-slate-400 mt-1 leading-5">${b.a}${b.tr ? ' 著 · ' + b.tr + ' 译' : ' 著'}<br>${b.pub && b.pub !== '—' ? b.pub : '出版社待补'}${b.pubDate ? ' · ' + b.pubDate : ''}${b.series ? '<br>' + b.series : ''}</div>
       <div class="flex items-center gap-1 text-sun text-sm mt-1">${[1, 2, 3, 4, 5].map(i => `<span class="${b.rate >= i ? '' : 'text-slate-300 dark:text-slate-600'}">${b.rate >= i - .5 ? '<svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="currentColor"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg>' : '<svg class="w-[12px] h-[12px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m12 4 2.4 5 5.6.8-4 4 .9 5.6L12 16.4 6.1 19.4 7 13.8l-4-4 5.6-.8z"/></svg>'}</span>`).join('')}<span class="text-[10px] text-slate-400 ml-1">${b.rate || '未评'}</span></div></div></div>
@@ -7100,7 +7143,10 @@ function brSelect(p0,p1,o0,o1){if(p1==null)p1=p0;const arr=brChText(brV.b,brLeav
   brShowChrome();
   document.getElementById("brSelBar").classList.remove("hidden");
   document.getElementById("brColorPop").classList.add("hidden");
-  brSelBarPlace();brHandlePlace();brSelActsRender()}
+  brSelBarPlace();brHandlePlace();brSelActsRender()
+  /* R14-6：Tailwind CDN 异步套样式/字体后行盒会变，落位与手柄需补一次 */
+  setTimeout(()=>{if(brV.sel){brSelBarPlace();brHandlePlace()}},80);
+  setTimeout(()=>{if(brV.sel){brSelBarPlace();brHandlePlace()}},420)}
 function brSelTextCompute(){const s=brV.sel,arr=brChText(brV.b,brLeaves(brV.b)[s.ci]);const out=[];
   for(let i=s.p0;i<=s.p1;i++){const t=(arr[i]&&arr[i].t)||"";
     out.push(i===s.p0&&i===s.p1?t.slice(s.o0,s.o1):i===s.p0?t.slice(s.o0):i===s.p1?t.slice(0,s.o1):t)}
@@ -7108,10 +7154,27 @@ function brSelTextCompute(){const s=brV.sel,arr=brChText(brV.b,brLeaves(brV.b)[s
 /* 选区变化＝整页重绘（子串高亮在 brParaInner 里算），再把工具条与手柄放回去 */
 function brSelRefresh(){if(!brV.sel)return;brSelTextCompute();brRenderPage();
   document.getElementById("brSelBar").classList.remove("hidden");brSelBarPlace();brHandlePlace()}
-function brSelBarPlace(){const first=document.querySelector(`#brBody [data-pi="${brV.sel.p0}"]`);
-  const stage=document.getElementById("brStage").getBoundingClientRect();let top=120;
-  if(first){const r=first.getBoundingClientRect();top=Math.max(54,r.top-stage.top-46)}
-  const bar=document.getElementById("brSelBar");bar.style.left="50%";bar.style.transform="translateX(-50%)";bar.style.top=top+"px"}
+/* R14-6 C 方案 · 让位规则（2026-09-30）：工具条所在行与被选段所在行不重叠
+   ① 首选上贴：条底边贴选区上方空白 · 箭头朝下（默认）
+   ② 上方放不下（选区贴近顶栏）→ 下压到选区底边之下 · 箭头翻上（bar 加 .flip）
+   ③ 下方也放不下（选区在最底部行）→ 退化：贴屏下沿（底栏上方），选区留在条下方 · 箭头仍朝下 */
+function brSelBarPlace(){const s=brV.sel;const bar=document.getElementById("brSelBar");
+  const stage=document.getElementById("brStage");const stg=stage.getBoundingClientRect();
+  const el0=document.querySelector(`#brBody [data-pi="${s.p0}"]`),el1=document.querySelector(`#brBody [data-pi="${s.p1}"]`)||el0;
+  const barH=bar.offsetHeight||46,gap=8;
+  const tp=document.getElementById("brTop"),bo=document.getElementById("brBottom");
+  const cT=(tp&&!tp.classList.contains("hidden")?tp.offsetHeight:0)+8;
+  const cB=(bo&&!bo.classList.contains("hidden")?bo.offsetHeight:0)+8;
+  let place="above";
+  if(el0){const r0=el0.getBoundingClientRect(),r1=el1.getBoundingClientRect();
+    const tAbove=r0.top-stg.top-gap-barH,tBelow=r1.bottom-stg.top+gap;
+    const roomAbove=tAbove>=cT,roomBelow=tBelow+barH<=stg.height-cB;
+    if(!roomAbove&&roomBelow){bar.style.top=Math.round(tBelow)+"px";place="flip"}
+    else if(!roomBelow){bar.style.top=Math.round(stg.height-cB-barH)+"px";place="pinned"}
+    else{bar.style.top=Math.round(tAbove)+"px";place="above"}}
+  else bar.style.top="120px";
+  bar.style.left="50%";bar.style.transform="translateX(-50%)";
+  bar.classList.toggle("flip",place==="flip");bar.dataset.place=place}
 /* 屏幕坐标 → (段序, 段内字符偏移)：优先原生 caret，回落按行均分估算 */
 /* 文本节点内的局部偏移 → 整段偏移（选区把段落拆成多 span 后必须累加） */
 function brOffsetInPara(el,node,local){let acc=0,found=-1;
@@ -7159,8 +7222,8 @@ function brHandlePlace(){const s=brV.sel;if(!s){brHandleHide();return}
     const r=brCharRect(el,off,end);
     if(!r){h.style.display='none';return}
     h.style.display='block';
-    h.style.left=Math.round(r.left-stage.left-5)+'px';
-    h.style.top=Math.round((end?r.top+r.height:r.top)-stage.top-5)+'px';
+    h.style.left=Math.round(r.left-stage.left-7)+'px';
+    h.style.top=Math.round((end?r.top+r.height:r.top)-stage.top-7)+'px';
   };
   put('brHStart',s.p0,s.o0,false);put('brHEnd',s.p1,s.o1,true)}
 
@@ -7190,7 +7253,7 @@ function brSelActsRender(){const acts=[['复制','<rect x="8" y="8" width="12" h
 function brSelHideUI(){document.getElementById('brSelBar').classList.add('hidden');document.getElementById('brColorPop').classList.add('hidden');brHandleHide()}
 function brSelHide(){brV.sel=null;brSelHideUI();brRenderPage()}
 function brColorShow(){const pop=document.getElementById('brColorPop');pop.classList.remove('hidden');
-  pop.style.top=(parseFloat(document.getElementById('brSelBar').style.top)-46)+'px';pop.style.left='50%';pop.style.transform='translateX(-50%)';
+  {const bar=document.getElementById('brSelBar');const bt=parseFloat(bar.style.top)||120;pop.style.top=(bar.classList.contains('flip')?(bt+(bar.offsetHeight||46)+8):(bt-46))+'px'}pop.style.left='50%';pop.style.transform='translateX(-50%)';
   pop.innerHTML=Object.entries(BR_TG).map(([k,v])=>`<button title="${k}" class="w-6 h-6 rounded-full border-2 border-white/40" style="background:${v}" onclick="brAddHl('${k}')"></button>`).join('')+
    `<button class="h-6 px-2 rounded-full bg-slate-700 text-white text-[10px] font-bold" onclick="brDelHl()">删划线</button>`}
 function brQuotePos(){return{pg:brGPos(brV.b,brV.ci,brV.pg)+1,ch:brLeaves(brV.b)[brV.ci],cf:{c:brV.ci,p0:brV.sel.p0,p1:brV.sel.p1}}}
@@ -7630,7 +7693,8 @@ setInterval(()=>{if(curPage==='p-readerPage'&&brV.chrome)document.getElementById
       if(p==='p-localImport'&&n!=null)brImpGo(Math.min(4,Math.max(1,n)));
       stack.length=0;setPage(p);
       if(p==='p-readerPage'){const bid=(n!=null&&BS_BOOKS[n]&&BS_BOOKS[n].local)?BS_BOOKS[n].id:'b1';brOpen(bid)}
-      if(p==='p-readerSearch'){brV.b=CURBK;brSearchRender()}}}})();
+      if(p==='p-readerSearch'){brV.b=CURBK;brSearchRender()}
+      if(p==='p-bookshelf'&&n!=null)window._r144Dl=['A','B','C'][Math.min(3,Math.max(1,n))-1]}}})();
 /* ================= 批3.5 · 导入预载 + 大书内存模型 + 单书清缓存 ================= */
 /* 数据口径：b.epub={fmt,size,path,name, st:'pre'|'rdy'|'cl', pr:0-100, cache:'约释放 MB', srcOk:1|0, lostAt}
    三态：就绪→点封面秒进；已清缓存且原文件可读→提示后重新拷贝+预载；原文件丢失→引导重选文件走合并导入挂回原记录。
@@ -7646,13 +7710,13 @@ function brCovOvl(b){const e=b&&b.epub;if(!b||!b.local||!e)return '';
 /* 封面墙 / 横向轨道：在封面节点内注入预载与已清缓存覆盖层（其余视图不展示本地态） */
 const BR35_OLD_SHWALL=shWall, BR35_OLD_SHRAIL=shWallRail;
 shWall=function(list,cols){return '<div class="bk-grid '+(cols===4||cols===5?'c'+cols:'')+'">'+list.map(b=>'<div class="relative" onclick="'+(shBatch?'shSelTap(\''+b.id+'\')':'shOpen(\''+b.id+'\')')+'" oncontextmenu="event.preventDefault();shLongMenu(\''+b.id+'\');return false">'+
-  '<div class="bk-cov cov '+bsCovCls(b)+' w-full" style="'+bsCovStyle(b)+'">'+bsProgressBadge(b)+(b.local?brCovBadge(b):'')+brCovOvl(b)+'<div class="au">'+b.a+'</div>'+(shBatch?'<span class="bsel '+(shSel.has(b.id)?'on':'')+'">'+(shSel.has(b.id)?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':'')+'</span>':'')+'</div>'+
+  '<div class="bk-cov cov '+bsCovCls(b)+' w-full" style="'+bsCovStyle(b)+'">'+bsCovInner(b)+bsProgressBadge(b)+(b.local?brCovBadge(b):'')+brCovOvl(b)+'<div class="au">'+b.a+'</div>'+(shBatch?'<span class="bsel '+(shSel.has(b.id)?'on':'')+'">'+(shSel.has(b.id)?'<svg class="w-[11px] h-[11px] inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4.5 4.5L19 7"/></svg>':'')+'</span>':'')+'</div>'+
   '<div class="nm">'+b.n+'</div>'+BR35_SHBAR(b)+'</div>').join('')+'</div>'};
 const BR35_SHBAR=b=>{const w=b.st==='想读'?0:b.p,cls=b.st==='已读'?'full':b.st==='想读'?'zero':b.st==='弃读'?'give':'';
   const lab=b.st==='已读'?'读完':b.st==='想读'?'未开始':b.st==='弃读'?b.p+'%':b.p+'%';
   return '<div class="bk-pbar has-pct"><i class="'+cls+'" style="width:'+w+'%;'+(b.st==='弃读'?'background:#94a3b8':'')+'"></i><span class="bk-pct" style="color:'+(w>=62?'#fff':'var(--text2,#64748b)')+'">'+lab+'</span></div>'};
 shWallRail=function(list){return '<div class="bk-rail no-scrollbar">'+list.map(b=>'<div class="relative" onclick="'+(shBatch?'shSelTap(\''+b.id+'\')':'shOpen(\''+b.id+'\')')+'" oncontextmenu="event.preventDefault();shLongMenu(\''+b.id+'\');return false">'+
-  '<div class="bk-cov cov '+bsCovCls(b)+' w-full !h-[159px]" style="'+bsCovStyle(b)+'">'+bsProgressBadge(b)+(b.local?brCovBadge(b):'')+brCovOvl(b)+'<div class="au">'+b.a+'</div>'+(shBatch?'<span class="bsel '+(shSel.has(b.id)?'on':'')+'"></span>':'')+'</div>'+
+  '<div class="bk-cov cov '+bsCovCls(b)+' w-full !h-[159px]" style="'+bsCovStyle(b)+'">'+bsCovInner(b)+bsProgressBadge(b)+(b.local?brCovBadge(b):'')+brCovOvl(b)+'<div class="au">'+b.a+'</div>'+(shBatch?'<span class="bsel '+(shSel.has(b.id)?'on':'')+'"></span>':'')+'</div>'+
   '<div class="text-[10px] font-extrabold leading-tight mt-1.5 truncate">'+b.n+'</div>'+shRailBar(b)+'</div>').join('')+'</div>'};
 /* 预载模拟：整本解析+分页计算（实算在 Flutter 侧后台 isolate，此处只演示进度与守卫） */
 const brPre={timers:{},
@@ -7782,7 +7846,24 @@ function br35Seed(){
   if(m==='prog')brProgSheet();
   else if(m==='look')brLookSheet();
   else if(m==='lookimg'){brLookSheet();brDraft.bgTex=BR_TEX[1][1];brDraft.dim=45;brApCtl();brApPrev()}
-}catch(e){console.warn('br56',e)}})();/* ================= 阅读器（书架专版）结束 ================= */
+}catch(e){console.warn('br56',e)}})();
+/* R14-6 深链：?r146=top|mid|bot → 选区落在本页上/中/下三带，演示工具条让位三规则 */
+(function r146Boot(){try{
+  const m=(location.search.match(/r146=(\w+)/)||[])[1];if(!m)return;
+  brOpen('b1');brShowChrome();
+  /* 演示钉章：bot 用铺满整屏的第 7 节触发规则③；其余钉在第 3 节（5 段正文） */
+  if(m==='bot'&&brLeaves(brV.b).length>6){brV.ci=6}else{brV.ci=2}
+  brV.pg=0;brRenderPage();
+  const els=[...document.querySelectorAll('#brBody [data-pi]')];if(!els.length)return;
+  const el=m==='top'?els[0]:m==='bot'?els[els.length-1]:els[Math.min(els.length-1,Math.floor(els.length*0.7))];
+  const pi=+el.dataset.pi;const arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);const t=(arr[pi]&&arr[pi].t)||'';
+  const w=brWordAt(t,Math.min(4,Math.max(0,t.length-1)));brSelect(pi,pi,w[0],w[1]);brBindHandles();brHandlePlace();
+}catch(e){console.warn('r146',e)}})();
+/* R14-4 重放：bsInit 首帧渲染早于批3.5 shWall 覆盖，深链/三档卡须在覆盖后重画一次 */
+(function r144Replay(){try{
+  if(window._r144Dl&&typeof bsCovDemo==='function'){bsCovDemo(_r144Dl);_r144Dl=null}
+  else if(curPage==='p-bookshelf'){renderShelf()}
+}catch(e){console.warn('r144',e)}})();/* ================= 阅读器（书架专版）结束 ================= */
 
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(liveEv&&timerSecsOK()){const now=new Date();const nm=now.getHours()*60+now.getMinutes();const el=$('#liveDur');if(el)el.textContent=Math.max(0,nm-liveEv.s)+' 分钟'}},1000);
 function timerSecsOK(){return true}
