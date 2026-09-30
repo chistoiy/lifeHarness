@@ -488,6 +488,38 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
     });
   });
 
+  group('V1.53.4① · 手柄跨页扩选（工单 20261001-①）', () {
+    testWidgets('拖出页顶自动回翻同章上一页并延续扩选', (t) async {
+      final copied = mockClipboard(t);
+      await openReader(t, _doc(), 's11');
+      // 翻到第 2 页（s10 实测 brpTap-0-7 在第 2 页；过渡结束后首页段落应已卸载）。
+      await t.tapAt(const Offset(412, 350));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('brpTap-0-7')), findsOne);
+      expect(find.byKey(const ValueKey('brpTap-0-3')), findsNothing,
+          reason: '已离开第 1 页');
+      // 长按第 2 页段落首行 → 选句落定，首手柄出现。
+      await selectParaTop(t, 'brpTap-0-7');
+      // 首手柄拖过页文字区上沿 → 自动回翻一页（同章），选区吃进邻页交界段。
+      final hr = t.getRect(find.byKey(const ValueKey('brHStart')));
+      await t.dragFrom(hr.center, Offset(0, -(hr.center.dy - 40)));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('brpTap-0-3')), findsOne,
+          reason: '已回翻到第 1 页');
+      expect(find.byKey(const ValueKey('brpTap-0-7')), findsNothing,
+          reason: '过渡结束后第 2 页应卸载（旧行为：端点冻住不翻页）');
+      // 回翻后继续在新页上拖到「三之0」段首 → 扩选延续（旧行为会冻在页边）。
+      await dragHandle(t, 'brHStart', 'brpTap-0-3', tail: false, x: .02);
+      await t.tap(find.byKey(const ValueKey('brSelCopy')));
+      await step(t);
+      expect(copied, hasLength(1));
+      expect(copied.single, contains('一之1。'), reason: '尾端原句保留');
+      expect(copied.single, startsWith('三之0。'), reason: '跨页扩选延续到第 1 页段落');
+      expect(copied.single, contains('\n'));
+      await clearToasts(t);
+    });
+  });
+
   testWidgets('批3-S · 全书检索：输入即搜→点命中→跳原文挂上/下一处', (t) async {
     await openReader(t, _doc(), 's7');
     await t.tap(find.byKey(const ValueKey('brBtnSearch')));

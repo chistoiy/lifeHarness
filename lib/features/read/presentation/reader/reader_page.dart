@@ -128,6 +128,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   final GlobalKey _stackKey = GlobalKey(debugLabel: 'brStack');
   // 轮4③：最后一次长按段（同段再长按＝收起的判定锚）。
   int _lpCi = -1, _lpPi = -1;
+  /// V1.53.4 ①：手柄跨页扩选的翻页守护位——翻页后新页尚未渲染期间吞掉拖动事件，
+  /// 渲染落定（postFrame）后恢复命中，防止一帧内连翻多页。
+  bool _selFlipPending = false;
   bool _brSync = true; // read.brSync：划线自动存为书摘
   List<BookQuote> _hlQuotes = const []; // 本书已入库划线行（cf≠null）
   List<_LocalHl> _localHl = const []; // brSync 关时暂存

@@ -490,10 +490,79 @@ extension _ReaderSelOps on _ReaderPageState {
     return _firstRenderParagraph(ro);
   }
 
+  /// 当前页已渲染文字段的垂直范围（全局坐标）；一页都没渲染则 null。
+  ({double top, double bottom})? _pageRect(int ci, List<int> page) {
+    double? top, bottom;
+    for (final pi in page) {
+      final rb = _paraRender(ci, pi);
+      if (rb == null || !rb.hasSize) continue;
+      final o = rb.localToGlobal(Offset.zero);
+      if (top == null || o.dy < top) top = o.dy;
+      if (bottom == null || o.dy + rb.size.height > bottom) bottom = o.dy + rb.size.height;
+    }
+    if (top == null || bottom == null) return null;
+    return (top: top, bottom: bottom);
+  }
+
+  /// 页内首个/末个可命中文字段（与 _paraHitAt 同口径跳过非 text 段）。
+  int? _pageEdgePi(int ci, List<int> page, {required bool last}) {
+    final ps = _doc!.chapters[ci].paras;
+    for (final pi in last ? page.reversed : page) {
+      if (ps[pi].kind == EpubParaKind.text) return pi;
+    }
+    return null;
+  }
+
+  /// V1.53.4 ① 头/尾手柄跨页扩选（工单 20261001-①）：翻页模式只渲染当前页，
+  /// 拖出页文字区上（首手柄）/下（尾手柄）沿时——同章内自动翻页一次，并把被拖端
+  /// 落锚到邻页交界段（首端＝上一页末段整段、尾端＝下一页首段整段），后续帧在新页
+  /// 上按手指位置继续命中扩选。跨章扩选受划线 cf（单章 c/p0/p1）模型限制，本批
+  /// 不做，维持旧「钳到页边」行为。返回 true＝本帧已由翻页逻辑消费。
+  bool _edgeFlipSel(bool end, Offset global) {
+    if (_selFlipPending) return true; // 新页渲染落定前吞事件，防一帧连翻多页
+    if (_cfg.mode == 'scroll') return false;
+    final doc = _doc, pag = _pag, s = _selController.sel;
+    if (doc == null || pag == null || s == null) return false;
+    if (_pos.ci != s.ci) return false; // 显示章≠选区章：交回原命中逻辑
+    final pages = pag.pages[s.ci];
+    if (pages == null || pages.isEmpty) return false;
+    final pg = _pos.pg.clamp(0, pages.length - 1);
+    final d = end ? 1 : -1;
+    final target = pg + d;
+    if (target < 0 || target >= pages.length) return false; // 章界：不跨章
+    final cur = _pageRect(s.ci, pages[pg]);
+    if (cur == null) return false;
+    final outside = d < 0 ? global.dy < cur.top : global.dy > cur.bottom;
+    if (!outside) return false;
+    final a = _pageEdgePi(s.ci, pages[target], last: d < 0);
+    if (a == null) return false;
+    _flip(d);
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      if (d < 0) {
+        _selController.setSelection(ci: s.ci, p0: a, p1: s.p1, o0: 0, o1: s.o1);
+      } else {
+        _selController.setSelection(
+          ci: s.ci, p0: s.p0, p1: a, o0: s.o0, o1: doc.chapters[s.ci].paras[a].text.length,
+        );
+      }
+      _lpPi = d < 0 ? _selController.sel!.p0 : _selController.sel!.p1;
+      _hlPop = false;
+      _selFlipPending = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ignore: invalid_use_of_protected_member
+      if (mounted) setState(() => _selFlipPending = false);
+    });
+    return true;
+  }
+
   /// 手柄拖动：把端点落到指针所在段/字符（跨段自动整段吞并），两端可互换。
+  /// V1.53.4 ①：拖出当前页文字区上/下沿 → 同章自动翻页并延续扩选。
   void _dragSel({required bool end, required Offset global}) {
     final s = _selController.sel, doc = _doc;
     if (s == null || doc == null) return;
+    if (_edgeFlipSel(end, global)) return;
     final hit = _paraHitAt(s.ci, global);
     if (hit == null) return;
     // ignore: invalid_use_of_protected_member
