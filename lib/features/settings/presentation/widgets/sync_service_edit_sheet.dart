@@ -39,6 +39,8 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
   bool _secretVisible = false;
   String? _error;
   bool _busy = false;
+  // 缺口盘点批 #7：verifyContent 的用户编辑入口（服务级；三档仍由引擎自动降级）。
+  late bool _verify;
 
   bool get _isNew => widget.config == null;
 
@@ -52,6 +54,7 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
     _region = TextEditingController(text: c?.region ?? '');
     _bucket = TextEditingController(text: c?.bucket ?? '');
     _dir = TextEditingController(text: c?.cloudDirName ?? 'sync');
+    _verify = c?.verifyContent ?? false;
     _loadSecretState();
   }
 
@@ -111,7 +114,7 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
         cloudDirName: _dir.text.trim(),
         requestIntervalMs:
             widget.config?.requestIntervalMs ?? ServiceConfig.defaultRequestIntervalMs,
-        verifyContent: widget.config?.verifyContent ?? false,
+        verifyContent: _verify,
       );
 
   /// 地址校验（与 S3Store._root 携带修复同一口径：缺 scheme/host 即配置错误）。
@@ -293,6 +296,38 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
                     ],
                   ),
                 ),
+              // 缺口盘点批 #7：「允许严格校验（MD5）」服务级开关（原型 S1 #tglVerify）。
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('允许严格校验（MD5）',
+                              style: TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
+                          SizedBox(height: 2),
+                          Text('逐文件下载算 MD5 比对 · 大文件多一轮下载 · 默认关',
+                              style:
+                                  TextStyle(fontSize: 9.5, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      key: const ValueKey('edit-verify-switch'),
+                      value: _verify,
+                      onChanged: (v) {
+                        setState(() => _verify = v);
+                        _toast(v
+                            ? '已允许严格校验 · 差异对比可选「严格 MD5」'
+                            : '已关闭严格校验 · 差异对比按字节数/强 ETag 自动降级');
+                      },
+                    ),
+                  ],
+                ),
+              ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),

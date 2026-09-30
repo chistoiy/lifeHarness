@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -187,19 +188,23 @@ class SnapshotService {
 
   /// 本地侧清单：sync/ 全量 + R5a 附件根（`attachments/<cloudName>/…` 前缀），
   /// 产出可直接喂 `computeDiff` / `SyncLedger.record` 的 [FileEntry] 列表。
-  /// digest=null（严格 MD5 档由远端 32-hex ETag 门槛自动关闭）；
+  /// [withDigest]＝服务配置「允许严格校验（MD5）」开（缺口盘点批 #7）：逐本地文件
+  /// 计算 MD5 摘要随行，diff 引擎在远端 etag 为 32-hex 时走严格档；关＝digest=null
+  /// （严格档自动关闭，同 R8 降级口径）；附件根单文件 >64MB 跳过摘要（超大件成本闸门）。
   /// relativePath 以 sync/ 为根、posix 分隔、非空保证（basename 兜底）。
-  Future<List<FileEntry>> localInventory() async {
+  Future<List<FileEntry>> localInventory({bool withDigest = false}) async {
     final out = <FileEntry>[];
-    _collectInto(out, Directory(syncDir), '');
+    _collectInto(out, Directory(syncDir), '', withDigest);
     for (final root in attachRoots) {
-      _collectInto(out, Directory(root.localDir), 'attachments/${root.cloudName}');
+      _collectInto(out, Directory(root.localDir),
+          'attachments/${root.cloudName}', withDigest);
     }
     out.sort((a, b) => a.relativePath.compareTo(b.relativePath));
     return out;
   }
 
-  void _collectInto(List<FileEntry> out, Directory dir, String relPrefix) {
+  void _collectInto(List<FileEntry> out, Directory dir, String relPrefix,
+      bool withDigest) {
     if (!dir.existsSync()) return;
     try {
       for (final e in dir.listSync(recursive: true).whereType<File>()) {
@@ -211,14 +216,31 @@ class SnapshotService {
         } catch (_) {
           // 句柄占用/瞬时错误：mtime 仅展示用，缺了不影响差异判定（R8）。
         }
+        String? digest;
+        if (withDigest) {
+          digest = _md5Of(e);
+        }
         out.add(FileEntry(
           relativePath: relPrefix.isEmpty ? rel : '$relPrefix/$rel',
           size: e.lengthSync(),
           modified: mtime,
+          digest: digest,
         ));
       }
     } catch (_) {
       // 目录中途不可读：按已收集部分返回，绝不炸同步链路。
+    }
+  }
+
+  static const int _digestMaxBytes = 64 * 1024 * 1024;
+
+  /// 单文件 MD5；超大件/读失败返回 null（该文件回落保守档，不判不等）。
+  static String? _md5Of(File f) {
+    try {
+      if (f.lengthSync() > _digestMaxBytes) return null;
+      return crypto.md5.convert(f.readAsBytesSync()).toString();
+    } catch (_) {
+      return null;
     }
   }
 

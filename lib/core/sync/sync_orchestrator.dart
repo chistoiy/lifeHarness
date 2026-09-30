@@ -270,7 +270,8 @@ class SyncOrchestrator {
   Future<List<FileDiff>> compare() async {
     final cfg = activeConfig();
     final listing = await _store(cfg).list(cfg, cfg.cloudDirName);
-    final local = await snapshotService.localInventory();
+    // #7：「允许严格校验（MD5）」开＝本地清单带 MD5 摘要，引擎按 32-hex 门槛走严格档。
+    final local = await snapshotService.localInventory(withDigest: cfg.verifyContent);
     final diffs = computeDiff(
       local: local,
       remote: listing.files,

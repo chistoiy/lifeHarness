@@ -14,6 +14,7 @@ library;
 
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/backup/lh_bak.dart';
@@ -343,6 +344,23 @@ void main() {
       expect(
           inv.any((e) => e.relativePath == p.basename(res.file.path)), isTrue);
       expect(inv.every((e) => e.relativePath.isNotEmpty), isTrue);
+    });
+
+    test('缺口盘点批 #7：withDigest=true 逐文件 MD5 随行；默认仍 null',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = buildService(prefs, careExcluded: () async => false);
+      final f = File(p.join(syncDir, 'lifeharness_sync_d.lhbak'))
+        ..writeAsBytesSync([1, 2, 3, 4]);
+      final expectMd5 = crypto.md5.convert(f.readAsBytesSync()).toString();
+      final plain = await svc.localInventory();
+      expect(plain.every((e) => e.digest == null), isTrue);
+      final dig = await svc.localInventory(withDigest: true);
+      final row =
+          dig.firstWhere((e) => e.relativePath == 'lifeharness_sync_d.lhbak');
+      expect(row.digest, expectMd5);
+      expect(row.digest!.length, 32);
     });
   });
 

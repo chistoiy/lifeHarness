@@ -117,7 +117,7 @@ class _FakeSnap implements SnapshotService {
   String Function() get docsDir => () => docsDirRoot;
 
   @override
-  Future<List<FileEntry>> localInventory() async {
+  Future<List<FileEntry>> localInventory({bool withDigest = false}) async {
     final dir = Directory(syncDir);
     if (!dir.existsSync()) return [];
     final out = <FileEntry>[];

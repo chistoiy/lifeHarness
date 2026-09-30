@@ -144,7 +144,8 @@ class FakeSnapshotService extends SnapshotService {
   }
 
   @override
-  Future<List<FileEntry>> localInventory() async => inventory;
+  Future<List<FileEntry>> localInventory({bool withDigest = false}) async =>
+      inventory;
 }
 
 // ---------- 数据种子 ----------
@@ -415,6 +416,45 @@ void main() {
       // 弹层未关闭（保存未成功不放行）。
       expect(find.byKey(const ValueKey('edit-save')), findsOneWidget);
       await clearToasts(tester);
+    });
+
+    testWidgets('缺口盘点批 #7「允许严格校验（MD5）」开关：两态 toast·保存落配置·重开回显',
+        (tester) async {
+      seedServices(prefs);
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openSheetVia(tester, 'btn-edit-svc');
+      final sw = find.byKey(const ValueKey('edit-verify-switch'));
+      // 滚动到弹层底部（原型注明「弹层要滚到底才看得到开关行」）。
+      await tester.ensureVisible(sw);
+      await settle5(tester);
+      expect(tester.widget<Switch>(sw).value, isFalse); // 默认关
+      await tester.tap(sw);
+      expect(
+          await pollText(tester, '已允许严格校验 · 差异对比可选「严格 MD5」'),
+          isTrue);
+      await clearToasts(tester);
+      await tester.tap(find.byKey(const ValueKey('edit-save')));
+      expect(await pollText(tester, '已保存'), isTrue);
+      await clearToasts(tester);
+      expect(prefs.getString('sync_services'), contains('"verifyContent":true'));
+
+      // 重开回显 on；关闭给出另一态文案。
+      await openSheetVia(tester, 'btn-edit-svc');
+      await tester.ensureVisible(sw);
+      await settle5(tester);
+      expect(tester.widget<Switch>(sw).value, isTrue);
+      await tester.tap(sw);
+      expect(
+          await pollText(tester,
+              '已关闭严格校验 · 差异对比按字节数/强 ETag 自动降级'),
+          isTrue);
+      await clearToasts(tester);
+      await tester.tap(find.byKey(const ValueKey('edit-save')));
+      await pollText(tester, '已保存');
+      await clearToasts(tester);
+      expect(prefs.getString('sync_services'),
+          contains('"verifyContent":false'));
     });
 
     testWidgets('删除服务清 vault + 台账键（D1/D3 无孤儿）', (tester) async {
