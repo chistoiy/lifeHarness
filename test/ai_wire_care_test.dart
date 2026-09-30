@@ -148,8 +148,10 @@ void main() {
     });
     await tapKey(tester, const ValueKey('ai-cycle-insight'));
     expect(await pollHas(tester, '发送给 AI'), isTrue);
-    // 审阅弹层天然展示将要发送的聚合统计（红线取证：仅数字，无日期级记录）。
-    expect(find.textContaining('周期长度序列：28、30、28'), findsOneWidget);
+    // V1.53.4③：审阅正文默认折叠——先点开 User 段再取红线取证（仅数字，无日期级记录）。
+    expect(find.textContaining('周期长度序列：28、30、28'), findsNothing);
+    await tapKey(tester, const ValueKey('ai-review-usr'));
+    expect(await pollHas(tester, '周期长度序列：28、30、28'), isTrue);
     expect(sentUser, isNull);
     await tapKey(tester, const ValueKey('ai-review-send'));
     expect(await pollHas(tester, '不构成医学诊断'), isTrue);

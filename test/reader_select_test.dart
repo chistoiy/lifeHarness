@@ -22,6 +22,8 @@ import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/reader/reader_page.dart';
+import 'package:lifeharness/features/read/presentation/reader/reader_sel_layer.dart'
+    show brSelToolsDecode;
 
 import 'helpers.dart';
 
@@ -226,6 +228,8 @@ void main() {
     });
 
     testWidgets('轮4③ 长按句首选首句 · 轮5① 手柄拖动扩到整段/跨段', (t) async {
+      // V1.53.4④：本例语义＝选句档（长按命中整句），显式钉住粒度设置。
+      await repo.setKv('read.brSelGran', '选句');
       await openReader(t, _doc(), 's2');
       final full = '三之0。$_lorem';
       final p4 = '三之1。$_lorem';
@@ -399,10 +403,11 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await step(t, ms: 300, times: 2);
       // 原型 brToThink：选区落「原文摘录」框，焦点落想法框（想法框留空待录）。
       // 轮4③：选区＝长按命中的一句（严格短于整段）。
+      // V1.53.4④：默认档改「选字」后本例命中单字——下限从 4 收到 1。
       final body = t.widget<TextField>(find.byKey(const ValueKey('qef-body')));
       final txt = body.controller!.text;
       expect('三之0。$_lorem'.contains(txt), isTrue);
-      expect(txt.length, inInclusiveRange(4, '三之0。$_lorem'.length - 1));
+      expect(txt.length, inInclusiveRange(1, '三之0。$_lorem'.length - 1));
       final tf = t.widget<TextField>(find.byKey(const ValueKey('qef-thought')));
       expect(tf.controller!.text, isEmpty);
       expect(tf.autofocus, isTrue);
@@ -422,9 +427,13 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await t.tapAt(const Offset(210, 60));
       await step(t, ms: 400);
       expect(find.byKey(const ValueKey('sheetBrDict')), findsNothing);
-      // AI：默认总开关关 → 统一入口在通道内 toast 归因，阅读侧不再自建弹层。
+      // AI：默认总开关关 → 先二选一（V1.53.4②），选完仍由统一入口在通道内
+      // toast 归因，阅读侧不再自建弹层。
       await selectPara(t, 'brpTap-0-3');
       await t.tap(find.byKey(const ValueKey('brSelAi')));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('sheetBrAiChoice')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brAiChoiceInsight')));
       await step(t, ms: 300, times: 3);
       expect(find.textContaining('AI 未启用'), findsOne);
       expect(find.byKey(const ValueKey('sheetBrAi')), findsNothing);
@@ -466,16 +475,35 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
         ),
       );
       await selectPara(t, 'brpTap-0-3');
+      // V1.53.4②：AI 解读先二选一；深度解读＝既有 read.quote_insight。
       await t.tap(find.byKey(const ValueKey('brSelAi')));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('sheetBrAiChoice')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brAiChoiceInsight')));
       await step(t, ms: 300, times: 2);
       // ① 发送前审阅弹层（内容由通道负责）。
       expect(find.byKey(const ValueKey('ai-review-send')), findsOne);
       expect(hits, 0, reason: '未确认前零请求');
+      // V1.53.4③：System/User 默认折叠——正文盒不在树上（标题行预览只有 30 字）；
+      // 点开 System 后全文才渲染。
+      expect(
+          find.byWidgetPredicate((w) =>
+              w is SelectableText &&
+              (w.data ?? '').contains('不空泛吹捧')),
+          findsNothing);
+      await t.tap(find.byKey(const ValueKey('ai-review-sys')));
+      await step(t);
+      expect(
+          find.byWidgetPredicate((w) =>
+              w is SelectableText &&
+              (w.data ?? '').contains('不空泛吹捧')),
+          findsOne);
       await t.tap(find.byKey(const ValueKey('ai-review-send')));
       await step(t, ms: 300, times: 3);
-      // ② 请求一次 + 结果弹层渲染 insight。
+      // ② 请求一次 + 结果弹层渲染 insight（标题按模式 V1.53.4②）。
       expect(hits, 1);
       expect(find.byKey(const ValueKey('sheetBrAi')), findsOne);
+      expect(find.text('AI 深度解读'), findsOne);
       expect(find.textContaining('排期评审的开场'), findsOne);
       await t.tap(find.byKey(const ValueKey('brAiToQuote')));
       await step(t, ms: 300, times: 3);
@@ -491,6 +519,7 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
   group('V1.53.4① · 手柄跨页扩选（工单 20261001-①）', () {
     testWidgets('拖出页顶自动回翻同章上一页并延续扩选', (t) async {
       final copied = mockClipboard(t);
+      await repo.setKv('read.brSelGran', '选句'); // 本例复验轮4③选句建选（与①无关）
       await openReader(t, _doc(), 's11');
       // 翻到第 2 页（s10 实测 brpTap-0-7 在第 2 页；过渡结束后首页段落应已卸载）。
       await t.tapAt(const Offset(412, 350));
@@ -534,5 +563,80 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
     // 回阅读页：命中条在 + 已跳到第二章首页附近。
     expect(find.byKey(const ValueKey('brHitsBar')), findsOne);
     expect(find.textContaining('处匹配'), findsOne);
+  });
+
+  group('V1.53.4②④⑤ · 长按粒度 / 工具条配置 / 解释链路', () {
+    testWidgets('④ 默认选字：长按命中单字（复制恰 1 字）', (t) async {
+      await openReader(t, _doc(), 't20');
+      await selectParaTop(t, 'brpTap-0-3');
+      expect(await copiedLen(t), 1, reason: '默认档＝选字，命中「三」');
+      await clearToasts(t);
+    });
+
+    testWidgets('⑤ read.brSelBar 名单驱动显隐（划线,复制 → 只上两枚）', (t) async {
+      expect(brSelToolsDecode(null), hasLength(8), reason: '未配置＝默认全量');
+      expect(brSelToolsDecode('划线,复制'), ['划线', '复制']);
+      expect(brSelToolsDecode('不存在,复制'), ['复制'], reason: '野名字剔除');
+      await repo.setKv('read.brSelBar', '划线,复制');
+      await openReader(t, _doc(), 't21');
+      await selectPara(t, 'brpTap-0-3');
+      expect(find.byKey(const ValueKey('brSelHl')), findsOne);
+      expect(find.byKey(const ValueKey('brSelCopy')), findsOne);
+      expect(find.byKey(const ValueKey('brSelQuote')), findsNothing);
+      expect(find.byKey(const ValueKey('brSelAi')), findsNothing);
+      await clearToasts(t);
+    });
+
+    testWidgets('② 解释路径：read.explain 门控零请求→审阅→text 结果→前缀填感想', (t) async {
+      await seedPrefs({
+        'ai.master': true,
+        'ai.caps': '{"read.explain":true}',
+      });
+      var hits = 0;
+      await openReader(
+        t,
+        _doc(),
+        't22',
+        ai: AiClient(
+          client: MockClient((req) async {
+            hits++;
+            return http.Response.bytes(
+                utf8.encode(jsonEncode({
+                  'choices': [
+                    {
+                      'message': {
+                        'content': '这是一段词句解释正文，释义背景与简析各给一句。'
+                      }
+                    }
+                  ]
+                })),
+                200,
+                headers: {'content-type': 'application/json; charset=utf-8'});
+          }),
+        ),
+      );
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelAi')));
+      await step(t, ms: 300, times: 2);
+      expect(find.byKey(const ValueKey('sheetBrAiChoice')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brAiChoiceExplain')));
+      await step(t, ms: 300, times: 2);
+      expect(find.text('发送给 AI · 词句解释'), findsOne);
+      expect(find.byKey(const ValueKey('ai-review-send')), findsOne);
+      expect(hits, 0, reason: '确认前零请求');
+      await t.tap(find.byKey(const ValueKey('ai-review-send')));
+      await step(t, ms: 300, times: 3);
+      expect(hits, 1);
+      expect(find.byKey(const ValueKey('sheetBrAi')), findsOne);
+      expect(find.text('AI 解释'), findsOne);
+      expect(find.textContaining('这是一段词句解释'), findsOne);
+      await t.tap(find.byKey(const ValueKey('brAiToQuote')));
+      await step(t, ms: 300, times: 3);
+      final tf = t.widget<TextField>(find.byKey(const ValueKey('qef-thought')));
+      expect(tf.controller!.text, startsWith('【AI 解释】'));
+      await t.pageBack();
+      await step(t, ms: 300, times: 3);
+      await clearToasts(t);
+    });
   });
 }

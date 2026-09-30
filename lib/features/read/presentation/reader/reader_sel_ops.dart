@@ -52,6 +52,13 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
 
+  /// V1.53.4④ 选字档命中盒：[idx, idx+1)；段尾越界回退一格（空段=0..0）。
+  ({int a, int b}) _charSel(String t, int idx) {
+    if (t.isEmpty) return (a: 0, b: 0);
+    final a = idx >= t.length ? t.length - 1 : idx;
+    return (a: a, b: a + 1);
+  }
+
   /// 真机反馈（2026-09-28）+ 轮4③：长按命中一句；同段再长按＝收起；
   /// 点其它段落＝移动选区。点按已不落到这里（冒泡 body 层收放 chrome）。
   void _selectPara(int ci, int pi, {Offset? at}) {
@@ -64,7 +71,10 @@ extension _ReaderSelOps on _ReaderPageState {
       return;
     }
     final idx = at == null ? 0 : _charPosInPara(ci, pi, at) ?? 0;
-    final se = _sentenceAt(ps[pi].text, idx);
+    // V1.53.4④ 长按选择粒度（read.brSelGran）：选字＝命中单字可拖手柄扩；选句＝整句。
+    final se = _brSelGran == '选句'
+        ? _sentenceAt(ps[pi].text, idx)
+        : _charSel(ps[pi].text, idx);
     _lpCi = ci;
     _lpPi = pi;
     // ignore: invalid_use_of_protected_member
@@ -122,7 +132,10 @@ extension _ReaderSelOps on _ReaderPageState {
     if (hit == null) return;
     final ps = doc.chapters[ci].paras;
     if (hit.pi >= ps.length) return;
-    final se = _sentenceAt(ps[hit.pi].text, hit.off);
+    // V1.53.4④ 拖动跟手同样按粒度档命中（选字＝单字随指走）。
+    final se = _brSelGran == '选句'
+        ? _sentenceAt(ps[hit.pi].text, hit.off)
+        : _charSel(ps[hit.pi].text, hit.off);
     _lpCi = ci;
     _lpPi = hit.pi;
     // ignore: invalid_use_of_protected_member
@@ -177,6 +190,9 @@ extension _ReaderSelOps on _ReaderPageState {
   Future<void> _reloadHls() async {
     final repo = ref.read(readRepositoryProvider);
     _brSync = (await repo.kv('read.brSync')) != 'false';
+    // V1.53.4④⑤ 设置组改动即时生效（与 brSync 同链路重读）。
+    _brSelGran = (await repo.kv('read.brSelGran')) ?? '选字';
+    _brSelTools = brSelToolsDecode(await repo.kv('read.brSelBar'));
     _hlQuotes = (await repo.quotesOf(widget.bookId))
         .where((q) => q.deletedAt == null && q.cf != null)
         .toList(growable: false);
@@ -379,7 +395,9 @@ extension _ReaderSelOps on _ReaderPageState {
     );
   }
 
-  /// AI 解读：走统一入口 aiRunWithReview（架构守护 R7 · 需求清单 §六 原则 8）。
+  /// AI 解读（V1.53.4② 二选一）：先弹「解释词句 / 深度解读」，选后进统一入口
+  /// aiRunWithReview（架构守护 R7 · 需求清单 §六 原则 8）。解释走新能力点
+  /// read.explain（expect text，占位 text/book），深度解读沿用 read.quote_insight。
   /// 门控/发送前审阅/进度与取消/四态留痕与 token 台账都在通道内，阅读侧只渲染结果。
   Future<void> _actAi() async {
     final sel = _selController.sel;
@@ -388,22 +406,35 @@ extension _ReaderSelOps on _ReaderPageState {
     final quote = _selTxt;
     final book = _book?.title ?? doc.title;
     _clearSel();
+    final mode = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sc) => _BrAiChoiceSheet(quote: quote),
+    );
+    if (mode == null || !mounted) return; // 关掉弹层＝放弃
+    final explain = mode == 'explain';
     final res = await aiRunWithReview(
       context,
       ref,
-      taskId: 'read.quote_insight',
-      vars: {'quote': quote, 'book': book},
+      taskId: explain ? 'read.explain' : 'read.quote_insight',
+      vars: explain
+          ? {'text': quote, 'book': book}
+          : {'quote': quote, 'book': book},
     );
     if (res == null || !mounted) return; // 取消/门控拒绝/失败已由通道提示并留痕
     final j = res.json;
-    final insight =
-        ('${j != null ? j['insight'] ?? '' : res.requireText()}').trim();
+    final insight = explain
+        ? res.requireText().trim()
+        : ('${j != null ? j['insight'] ?? '' : res.requireText()}').trim();
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sc) => _BrAiSheet(
+        title: explain ? 'AI 解释' : 'AI 深度解读',
         insight: insight.isEmpty ? '（返回为空）' : insight,
         onToQuote: (txt) {
           Navigator.of(sc).pop();
@@ -412,7 +443,8 @@ extension _ReaderSelOps on _ReaderPageState {
             ref,
             bookId: widget.bookId,
             preBody: quote.length > 120 ? quote.substring(0, 120) : quote,
-            preThought: '【AI 解读】$txt',
+            preThought:
+                '${explain ? '【AI 解释】' : '【AI 解读】'}$txt',
             focusThought: true,
           );
         },
@@ -666,9 +698,96 @@ class _BrSheetShell extends StatelessWidget {
   );
 }
 
-class _BrAiSheet extends StatelessWidget {
-  const _BrAiSheet({required this.insight, required this.onToQuote});
+/// V1.53.4② AI 解读二选一（原型 sheetBrAiChoice）：解释词句 / 深度解读。
+/// 返回 'explain' / 'insight'；直接关掉＝null（放弃）。引文只回显，不请求。
+class _BrAiChoiceSheet extends StatelessWidget {
+  const _BrAiChoiceSheet({required this.quote});
 
+  final String quote;
+
+  Widget _row(BuildContext context, String key, String mode, String title,
+          String sub, IconData ic) =>
+      InkWell(
+        key: ValueKey(key),
+        onTap: () => Navigator.pop(context, mode),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            border: Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: .6)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(ic, size: 17, color: const Color(0xFF6366F1)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    Text(sub,
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+              ),
+              const Text('›',
+                  style: TextStyle(fontSize: 14, color: Color(0xFFCBD5E1))),
+            ],
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => _BrSheetShell(
+        sheetKey: const ValueKey('sheetBrAiChoice'),
+        children: [
+          const Text('AI 解读',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: .05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              quote,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11.5, height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _row(context, 'brAiChoiceExplain', 'explain', '解释词句', '释义 · 背景 · 简析',
+              Icons.menu_book_outlined),
+          const SizedBox(height: 8),
+          _row(context, 'brAiChoiceInsight', 'insight', '深度解读', '论证链 · 感想与标签',
+              Icons.auto_awesome_rounded),
+        ],
+      );
+}
+
+class _BrAiSheet extends StatelessWidget {
+  const _BrAiSheet({
+    required this.title,
+    required this.insight,
+    required this.onToQuote,
+  });
+
+  final String title;
   final String insight;
   final void Function(String insight) onToQuote;
 
@@ -677,9 +796,9 @@ class _BrAiSheet extends StatelessWidget {
     return _BrSheetShell(
       sheetKey: const ValueKey('sheetBrAi'),
       children: [
-            const Text(
-              'AI 解读',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
             SizedBox(

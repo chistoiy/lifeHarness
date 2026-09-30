@@ -10,6 +10,7 @@ import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../../../core/theme/app_theme.dart';
 import '../data/isbn_enrich.dart' show DoubanCookie;
+import './reader/reader_sel_layer.dart' show kBrSelDefaultTools;
 import 'read_providers.dart';
 import 'read_sheets.dart';
 import './shelf/shelf_page.dart' show kLpAll, kLpDefault;
@@ -112,6 +113,12 @@ const _secs = [
     _Row('brMinSecs', '短于该时长的阅读不计入', _T.chips,
         opts: ['5', '10', '15', '30', '60', '120', '300'],
         desc: '秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话'),
+    // V1.53.4④⑤（原型 RS_SEC 新两行）：长按粒度 + 选区工具条管理。
+    _Row('brSelGran', '长按选择粒度', _T.chips,
+        opts: ['选字', '选句'],
+        desc: '默认 选字 · 长按命中单字，拖手柄扩选；选句 长按命中整句'),
+    _Row('brSelBar', '选区工具条工具', _T.ops,
+        desc: '勾选并调整顺序 · 移除＝不上工具条'),
   ]),
 ];
 
@@ -371,7 +378,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
           )
         : const SizedBox.shrink();
     final opsInline = r.t == _T.ops
-        ? _lpInline(r.key)
+        ? _lpInline(r)
         : const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -387,15 +394,20 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     );
   }
 
-  /// 长按菜单就地内嵌编辑（原型 5054-5056 rsRow ops：设置页内直接渲染列表，
-  /// 无「调整」按钮、无弹层、无保存钮，每次操作立即落库 read.longPress）。
-  Widget _lpInline(String key) {
+  /// ops 行的候选池（V1.53.4⑤：池随键走；长按菜单=书架池，工具条=选区 8 项）。
+  List<String> _opAll(String key) =>
+      key == 'brSelBar' ? kBrSelDefaultTools : kLpAll;
+
+  /// 长按菜单/工具条等 ops 行就地内嵌编辑（原型 5054-5056 rsRow ops：设置页内直接渲染列表，
+  /// 无「调整」按钮、无弹层、无保存钮，每次操作立即落库 `read.<key>`）。
+  Widget _lpInline(_Row r) {
     final cs = Theme.of(context).colorScheme;
-    final items = _val(key, kLpDefault).split(',').where(kLpAll.contains).toList();
-    final rest = kLpAll.where((n) => !items.contains(n)).toList();
+    final all = _opAll(r.key);
+    final items = _val(r.key, _def(r)).split(',').where(all.contains).toList();
+    final rest = all.where((n) => !items.contains(n)).toList();
     Future<void> mutate(List<String> next) async {
       final repo = ref.read(readRepositoryProvider);
-      await repo.setKv('read.$key', next.join(','));
+      await repo.setKv('read.${r.key}', next.join(','));
       ref.read(readTickProvider.notifier).state++;
     }
 
@@ -515,6 +527,9 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     'brBright' => 'false',
     // 轮5.2②：短会话门槛默认 30 秒（chip 值以字符串存）。
     'brMinSecs' => '30',
+    // V1.53.4④⑤：长按粒度默认选字；工具条名单默认 8 项全开（逗号串）。
+    'brSelGran' => '选字',
+    'brSelBar' => kBrSelDefaultTools.join(','),
     _ => 'true',
   };
 
@@ -564,7 +579,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
       case _T.ops:
         return [
           Text(
-            '${_val(r.key, kLpDefault).split(',').where(kLpAll.contains).length} 项',
+            '${_val(r.key, _def(r)).split(',').where(_opAll(r.key).contains).length} 项',
             style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
           ),
         ];

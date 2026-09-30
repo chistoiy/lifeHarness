@@ -12,6 +12,28 @@ import '../../domain/book_quote.dart';
 /// `||46` 为其兜底值）。本实现栏高约 40±2px，取 42 只影响临界 1~2px 的档位选择。
 const kBrSelBarH = 42.0;
 
+/// V1.53.4⑤ 选区工具条默认名单（顺序＝默认排布；名称即 read.brSelBar 逗号串词元）。
+const kBrSelDefaultTools = [
+  '复制',
+  '划线',
+  '写想法',
+  '书摘',
+  '查询',
+  '听当前',
+  'AI 解读',
+  '分享',
+];
+
+/// read.brSelBar 解码：只保留在册名称；未配置/全非法→默认全量。
+List<String> brSelToolsDecode(String? raw) {
+  final list = (raw ?? '')
+      .split(',')
+      .map((e) => e.trim())
+      .where(kBrSelDefaultTools.contains)
+      .toList();
+  return list.isEmpty ? kBrSelDefaultTools : list;
+}
+
 /// R14-6 · 选区工具条/色环配色（原型 #brSelBar、#brColorPop：var(--card) 卡底＋描边）。
 class BrSelSkin {
   const BrSelSkin({required this.card, required this.border, required this.fg});
@@ -42,6 +64,8 @@ BrSelSkin brSelSkinOf(Color stageBg) {
 ///
 /// [place]：R14-6 让位结果（`top`＝工具条顶边坐标；`flip`＝下压型、箭头翻上）。
 /// [skin]：不透明底衬配色。
+/// [tools]：V1.53.4⑤ 工具条顺序与显隐（read.brSelBar 逗号串解码结果；
+/// 只渲染名单内的工具，按名单顺序排布；缺键回落到 [kBrSelDefaultTools]）。
 List<Widget> brSelLayer({
   required Size size,
   required bool hlPop,
@@ -57,6 +81,7 @@ List<Widget> brSelLayer({
   required void Function(String) onColor,
   required VoidCallback onDelete,
   required Widget? Function(bool end) handle,
+  required List<String> tools,
 }) {
 // 选区层（原型 brSelBar + brHStart/brHEnd）：浮条 + 首尾可拖动手柄。
 // 轮5①：工具条不再放「前扩/后扩」，扩选改由手柄拖动完成（系统复制手感）。
@@ -85,6 +110,23 @@ List<Widget> brSelLayer({
             ),
           ),
         );
+    // V1.53.4⑤：工具名→既有 chip（key/label/图标/回调全部沿用原硬编码顺序版本）。
+    Widget? toolChip(String name) => switch (name) {
+      '复制' => chip('brSelCopy', '复制', Icons.copy_rounded, onCopy),
+      '划线' => chip('brSelHl', '划线', Icons.format_color_text_rounded,
+          () => onToggleHl()),
+      '写想法' => chip('brSelThink', '写想法', Icons.edit_outlined,
+          () => onQuote(true)),
+      '书摘' => chip('brSelQuote', '书摘', Icons.note_alt_outlined,
+          () => onQuote(false)),
+      '查询' => chip('brSelDict', '查询', Icons.search_rounded, onDict),
+      // 听当前＝TTS：按拍板延后，入口先占位提示。
+      '听当前' => chip('brSelTts', '听当前', Icons.volume_up_rounded,
+          () => onTts()),
+      'AI 解读' => chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, onAi),
+      '分享' => chip('brSelShare', '分享', Icons.ios_share, onShare),
+      _ => null,
+    };
     final bar = Container(
       key: const ValueKey('brSelBar'),
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
@@ -106,35 +148,8 @@ List<Widget> brSelLayer({
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            chip('brSelCopy', '复制', Icons.copy_rounded, onCopy),
-            chip(
-              'brSelHl',
-              '划线',
-              Icons.format_color_text_rounded,
-              () => onToggleHl(),
-            ),
-            chip(
-              'brSelThink',
-              '写想法',
-              Icons.edit_outlined,
-              () => onQuote(true),
-            ),
-            chip(
-              'brSelQuote',
-              '书摘',
-              Icons.note_alt_outlined,
-              () => onQuote(false),
-            ),
-            chip('brSelDict', '查询', Icons.search_rounded, onDict),
-            // 听当前＝TTS：按拍板延后，入口先占位提示。
-            chip(
-              'brSelTts',
-              '听当前',
-              Icons.volume_up_rounded,
-              () => onTts(),
-            ),
-            chip('brSelAi', 'AI 解读', Icons.auto_awesome_rounded, onAi),
-            chip('brSelShare', '分享', Icons.ios_share, onShare),
+            for (final name in tools)
+              toolChip(name) ?? const SizedBox.shrink(),
           ],
         ),
       ),

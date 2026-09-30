@@ -1,5 +1,6 @@
 import './selection_controller.dart'; // V1.53.2 性能批 1
-import './para_box_cache.dart'; // V1.53.2 性能批 2
+// V1.53.4：para_box_cache（性能批 2 方案 B）已摘除——放大镜批停用命中后为死代码，
+// 跨页扩选改走「边界自动翻页」方案（reader_sel_ops._edgeFlipSel），无需坐标缓存。
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -372,6 +373,3 @@ final selectionProvider = StateNotifierProvider<SelectionController, ({int ci, i
 
 /// V1.53.2 性能批 1：高亮色板展开状态
 final highlightPopupProvider = StateProvider<bool>((ref) => false);
-
-/// V1.53.2 性能批 2：段落盒缓存（方案 B）
-final paraBoxCacheProvider = Provider<ParaBoxCache>((ref) => ParaBoxCache());

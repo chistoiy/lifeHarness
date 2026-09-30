@@ -38,7 +38,8 @@ String aiProtocolLabel(String protocol) =>
 const kAiCapRows = <({String label, List<String> tasks, bool v2})>[
   (label: '待办：自然语言速记 + AI 判象限 + 拆子任务', tasks: ['todo.nl_parse', 'todo.quadrant', 'todo.subtask'], v2: false),
   (label: '日记：复盘生成 / 反思草稿', tasks: ['journal.reflect'], v2: false),
-  (label: '阅读：目录 AI 补全 / 摘录感想', tasks: ['read.toc', 'read.quote_insight'], v2: false),
+  // V1.53.4②：阅读器选区「AI 解读」二选一新增 词句解释（read.explain）。
+  (label: '阅读：目录 AI 补全 / 摘录感想 / 词句解释', tasks: ['read.toc', 'read.quote_insight', 'read.explain'], v2: false),
   (label: '收集箱：智能分流建议', tasks: ['inbox.triage'], v2: false),
   (label: '周报 AI 点评（只发聚合数据）', tasks: ['schedule.weekly_review'], v2: false),
   (label: '呵护：周期趋势解读（仅聚合统计）', tasks: ['care.cycle_insight'], v2: false),

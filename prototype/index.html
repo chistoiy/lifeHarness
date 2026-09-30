@@ -1458,7 +1458,7 @@ tailwind.config = {
         <div class="mt-1 text-xs space-y-2">
           <div class="flex items-center justify-between"><span>待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>阅读：总结深化 / 目录 AI 补全</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>阅读：目录 AI 补全 / 摘录感想 / 词句解释</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span>呵护：周期趋势解读（仅聚合统计·原始记录不出本机）</span><span class="toggle" onclick="tgl(this)"></span></div>
@@ -4388,6 +4388,7 @@ const AI_PROMPTS_DEFAULT=[
 {id:'journal.reflect',m:'日记',n:'AI 反思草稿',v:['content'],s:'你是日记反思引导助手。用第一人称写一段 60~120 字的反思草稿，语气平实不煽情，不复述原文，而是点出这一天的关键、值得延续之处和一个可改进的小动作。只输出草稿正文，不要标题、不要解释、不要加引号。',u:'以下是今天的日记概览/片段：\n{{content}}\n请生成反思段落。'},
 {id:'read.toc',m:'阅读',n:'目录 AI 补全',v:['title','author'],s:'你是图书目录结构助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。若该书确实未知，返回空 chapters 数组，不要编造内容简介。',u:'为下面这本书给出通行的章节目录（部分+节两级，不确定部分可填 null）：\n书名：{{title}}\n作者：{{author}}\n输出格式：{"chapters": [{"part": "第一部分 原则", "title": "1. 我的历程", "sections": ["工作原则", "生活原则"]}]}\nsections 可为 null；章节数控制在 8~30 条。'},
 {id:'read.quote_insight',m:'阅读',n:'摘录感想生成',v:['quote','book'],s:'你是读书笔记助手。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。感想要落在使用者自身场景，不空泛吹捧、不引用原文。',u:'为下面这条摘录写一段可选感想草稿（40~80 字），并给 1~3 个标签：\n书名：{{book}}\n摘录：{{quote}}\n输出格式：{"insight": "感想正文", "tags": ["标签一", "标签二"]}'},
+{id:'read.explain',m:'阅读',n:'词句解释',v:['text','book'],s:'你是《{{book}}》的随行注疏助手。对读者选中的词或句，依次给出：①释义（字词义/句意）②背景（概念出处与作者语境）③简析（一句话说明它在书中论证里的位置）。总计不超过 180 字，直接输出正文，不客套、不整句复述原文。',u:'书名：{{book}}\n选中：{{text}}\n请解释。'},
 {id:'schedule.weekly_review',m:'日程',n:'周报 AI 点评',v:['stats'],s:'你是时间使用分析师。输入只有聚合统计数字，不含任何原始记录。用中文写 80~150 字点评：先说时间结构特征，再指出一个失衡点和一个具体可执行的下周调整建议。不下医疗或心理判断，不使用「您」，语气客观简练。只输出点评正文。',u:'本周时间结构统计：\n{{stats}}\n请给出点评。'},
 {id:'care.cycle_insight',m:'呵护',n:'AI 周期解读',v:['stats'],s:'你是女性周期数据的趋势摘要助手。输入仅为聚合统计，不含原始记录。用中文写 80~140 字趋势描述，只陈述数据事实与波动范围，必须包含「不构成医学诊断，如有不适请咨询医生」这一提示。禁止给出用药、诊断或治疗建议，禁止使用恐吓性措辞。只输出正文。',u:'周期聚合统计：\n{{stats}}\n请生成趋势摘要。'},
 {id:'ledger.categorize',m:'记账',n:'AI 辅助归类',v:['items','cats'],s:'你是账单分类器。只输出一个 JSON 对象，禁止输出其他文字或代码块标记。category 必须严格从给定候选分类中选，无法判断时填「其他」，不要新造分类名。',u:'候选分类：{{cats}}\n请按商户名/交易说明逐条归类：\n{{items}}\n输出格式：{"items": [{"name": "原始商户名", "category": "候选分类之一"}]}\n顺序与输入一致，条目数必须相同。'}

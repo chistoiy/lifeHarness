@@ -132,6 +132,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   /// 渲染落定（postFrame）后恢复命中，防止一帧内连翻多页。
   bool _selFlipPending = false;
   bool _brSync = true; // read.brSync：划线自动存为书摘
+  /// V1.53.4④ 长按选择粒度（read.brSelGran · 默认 选字；选句＝命中整句）。
+  String _brSelGran = '选字';
+  /// V1.53.4⑤ 选区工具条顺序与显隐（read.brSelBar · 默认全量 8 项）。
+  List<String> _brSelTools = kBrSelDefaultTools;
   List<BookQuote> _hlQuotes = const []; // 本书已入库划线行（cf≠null）
   List<_LocalHl> _localHl = const []; // brSync 关时暂存
 
@@ -231,6 +235,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final fPos = repo.kv('reader.pos.${b.id}');
     final fSync = repo.kv('read.brSync');
     final fMin = repo.kv('read.brMinSecs');
+    // V1.53.4④⑤ 选区设置：长按粒度（默认选字）与工具条名单（默认 8 项全开）。
+    final fGran = repo.kv('read.brSelGran');
+    final fBar = repo.kv('read.brSelBar');
     final fHl = repo.kv('reader.hl');
     final fQuotes = repo.quotesOf(b.id);
     _global = ReaderCfg.decode(await fGlobal);
@@ -246,6 +253,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     // 划线同库数据（批3）：同步开关 + 本书划线行 + brSync 关时暂存。
     _brSync = await fSync != 'false';
     _minSecs = int.tryParse(await fMin ?? '') ?? 30;
+    _brSelGran = await fGran ?? '选字';
+    _brSelTools = brSelToolsDecode(await fBar);
     _localHl = _LocalHl.decodeAll(await fHl);
     _hlQuotes = (await fQuotes)
         .where((q) => q.deletedAt == null && q.cf != null)
@@ -1075,6 +1084,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         onShare: _actShare,
                         onColor: _addHl,
                         onDelete: _delHl,
+                        tools: _brSelTools,
                         handle: (end) =>
                             brHandleWidget(
                               end,

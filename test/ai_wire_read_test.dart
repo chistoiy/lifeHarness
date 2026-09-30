@@ -203,7 +203,10 @@ void main() {
       await tester.ensureVisible(find.byKey(const ValueKey('toc-ai')));
       await tester.tap(find.byKey(const ValueKey('toc-ai')));
       await until(tester, find.text('发送给 AI · 目录 AI 补全'));
-      // 审阅内容含书名/作者渲染（vars 注入 user 模板）。
+      // 审阅内容含书名/作者渲染（vars 注入 user 模板）。V1.53.4③：默认折叠，先落定再点开。
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('ai-review-usr')));
+      await tester.pump();
       expect(
           find.byWidgetPredicate((w) =>
               w is SelectableText && (w.data ?? '').contains('书名：原则')),

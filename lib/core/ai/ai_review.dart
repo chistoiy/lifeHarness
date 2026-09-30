@@ -70,46 +70,10 @@ Future<AiCallResult?> aiRunWithReview(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.55,
-      maxChildSize: 0.9,
-      builder: (ctx, ctrl) => ListView(
-        controller: ctrl,
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-        children: [
-          Text('发送给 AI · ${task.name}',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('以下内容将发往你配置的端点；确认后才发起请求。',
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
-          const SizedBox(height: 12),
-          const Text('System',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-          _Box(system),
-          const SizedBox(height: 8),
-          const Text('User',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-          _Box(user),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('取消')),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                    key: const ValueKey('ai-review-send'),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('允许发送')),
-              ),
-            ],
-          ),
-        ],
-      ),
+    builder: (ctx) => _ReviewSheet(
+      name: task.name,
+      system: system,
+      user: user,
     ),
   );
   if (confirmed != true || !context.mounted) return null;
@@ -239,6 +203,152 @@ Future<AiCallResult?> aiRunWithReview(
     return null;
   }
   return result;
+}
+
+/// 发送前审阅弹层（V1.53.4③ · 原型 sheetAiReview）：System/User **默认折叠**，
+/// 点标题行展开。R7 的「发送前看到发什么」不变——预览行仍给出首行内容，
+/// 展开即全文；审阅→发送/取消的竞速与留痕都在 [aiRunWithReview] 外层完成。
+class _ReviewSheet extends ConsumerStatefulWidget {
+  const _ReviewSheet({required this.name, required this.system, required this.user});
+
+  final String name;
+  final String system;
+  final String user;
+
+  @override
+  ConsumerState<_ReviewSheet> createState() => _ReviewSheetState();
+}
+
+class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
+  bool _sysOpen = false, _usrOpen = false;
+
+  static String _peek(String s) {
+    final line = s.split('\n').first.trim();
+    return line.length <= 30 ? line : '${line.substring(0, 30)}…';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.55,
+      maxChildSize: 0.9,
+      builder: (ctx, ctrl) => ListView(
+        controller: ctrl,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        children: [
+          Text('发送给 AI · ${widget.name}',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          const Text('以下内容将发往你配置的端点；确认后才发起请求。',
+              style: TextStyle(fontSize: 11, color: Colors.grey)),
+          const SizedBox(height: 12),
+          _FoldSection(
+            key: const ValueKey('ai-review-sys'),
+            title: 'System · 发送设定',
+            peek: _peek(widget.system),
+            open: _sysOpen,
+            onToggle: () => setState(() => _sysOpen = !_sysOpen),
+            body: widget.system,
+          ),
+          const SizedBox(height: 8),
+          _FoldSection(
+            key: const ValueKey('ai-review-usr'),
+            title: 'User · 本次内容',
+            peek: _peek(widget.user),
+            open: _usrOpen,
+            onToggle: () => setState(() => _usrOpen = !_usrOpen),
+            body: widget.user,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('取消')),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                    key: const ValueKey('ai-review-send'),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('允许发送')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 折叠段：标题行（标题 + 首行预览 + ∧/∨）点开才渲染全文盒（原型 brRvTog 口径）。
+class _FoldSection extends StatelessWidget {
+  const _FoldSection({
+    super.key,
+    required this.title,
+    required this.peek,
+    required this.open,
+    required this.onToggle,
+    required this.body,
+  });
+
+  final String title;
+  final String peek;
+  final bool open;
+  final VoidCallback onToggle;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: .6)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      peek,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10.5, color: cs.onSurfaceVariant),
+                    ),
+                  ),
+                  Icon(
+                    open ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: _Box(body),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// JSON 结果的通用「确认写入」弹层：展示可编辑前的 AI 原文 + AI 标识。

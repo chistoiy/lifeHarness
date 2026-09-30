@@ -161,6 +161,8 @@ void main() {
     await tapAiBtn(tester);
 
     expect(find.text('发送给 AI · AI 判象限'), findsOneWidget);
+    // V1.53.4③：审阅内容默认折叠——点开 User 段才渲染正文（复用既有滚动点按助手）。
+    await tapReviewBtn(tester, find.byKey(const ValueKey('ai-review-usr')));
     // user 模板注入标题（SelectableText → RichText，findRichText 才可见）。
     expect(
         find.textContaining('待办标题：今晚交报告', findRichText: true),

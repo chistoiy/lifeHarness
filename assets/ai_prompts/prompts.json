@@ -86,6 +86,16 @@
       "sample": { "book": "原则", "quote": "痛苦 + 反思 = 进步。" }
     },
     {
+      "id": "read.explain",
+      "module": "阅读",
+      "name": "词句解释",
+      "expect": "text",
+      "placeholders": ["text", "book"],
+      "system": "你是《{{book}}》的随行注疏助手。对读者选中的词或句，依次给出：①释义（字词义/句意）②背景（概念出处与作者语境）③简析（一句话说明它在书中论证里的位置）。总计不超过 180 字，直接输出正文，不客套、不整句复述原文。",
+      "user": "书名：{{book}}\n选中：{{text}}\n请解释。",
+      "sample": { "book": "思考，快与慢", "text": "锚定效应" }
+    },
+    {
       "id": "schedule.weekly_review",
       "module": "日程",
       "name": "周报 AI 点评",
