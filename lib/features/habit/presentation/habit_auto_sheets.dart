@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../domain/habit.dart';
 import '../domain/habit_template.dart';
 import 'habit_providers.dart';
@@ -666,9 +667,12 @@ class HabitShareSnapshot {
 }
 
 class _ShareSheet extends StatelessWidget {
-  const _ShareSheet({required this.s});
+  _ShareSheet({required this.s});
 
   final HabitShareSnapshot s;
+
+  /// 预览层捕获挂点（V1.57 A 批：保存图片走公共通道真渲染）。
+  final GlobalKey _boundary = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -698,15 +702,17 @@ class _ShareSheet extends StatelessWidget {
           const SizedBox(height: 12),
           Flexible(
             child: SingleChildScrollView(
-              child: Container(
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: scheme.outlineVariant),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: RepaintBoundary(
+                key: _boundary,
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
@@ -913,6 +919,7 @@ class _ShareSheet extends StatelessWidget {
               ),
             ),
           ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -943,7 +950,20 @@ class _ShareSheet extends StatelessWidget {
               Expanded(
                 child: TextButton(
                   key: const ValueKey('btn-hsh-save'),
-                  onPressed: () => habitToast(context, '已保存到相册（模拟）'),
+                  onPressed: () async {
+                    // V1.57 A 批：真渲染落盘并回执真实路径；失败落 warn 日志不谎报。
+                    final nav = Navigator.of(context);
+                    final m = ScaffoldMessenger.of(context);
+                    final path = await captureShareCard(
+                      _boundary,
+                      name: s.title,
+                      src: '习惯',
+                    );
+                    nav.pop();
+                    messengerToast(m, path == null
+                        ? '分享长图生成失败 · 详见日志'
+                        : '分享长图已保存：$path');
+                  },
                   style: TextButton.styleFrom(
                     backgroundColor: tokens.accent,
                     foregroundColor: Colors.white,

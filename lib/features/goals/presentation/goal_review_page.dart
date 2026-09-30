@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/goal_calc.dart';
 import '../domain/goal_models.dart';
@@ -38,6 +39,40 @@ class _GoalReviewPageState extends ConsumerState<GoalReviewPage> {
   }
 
   void _toast(String msg) => AppToast.show(context, msg);
+
+  /// KPT 复盘分享卡（原型 scData('review') 同构；整体达成/均达＝该季各 O 进度均值）。
+  ShareCardModel _shareReviewCard(String sel, List<Goal> goals, GoalReview rv) {
+    final krCount = goals.fold<int>(0, (s, g) => s + g.krs.length);
+    final avg = goals.isEmpty
+        ? 0
+        : (goals.fold<int>(0, (s, g) => s + g.pct) / goals.length).round();
+    return ShareCardModel(
+      file: '复盘-${sel.replaceAll(' ', '')}',
+      eyebrow: 'LifeHarness · 季度复盘',
+      title: '$sel KPT 复盘',
+      line: '${goals.length} 个目标 · $krCount 条 KR · 已归档',
+      big: '$avg%',
+      unit: '整体达成',
+      tiles: [
+        ShareCardTile('目标', '${goals.length} 个'),
+        ShareCardTile('KR', '$krCount 条'),
+        ShareCardTile('均达', '$avg%'),
+      ],
+      sections: [
+        ShareCardSection(head: 'KR 达成对照', rows: [
+          for (final g in goals)
+            for (final k in g.krs)
+              ShareCardRow(k.label, '${k.progressPct}%'),
+        ]),
+        if (rv.keep.trim().isNotEmpty)
+          ShareCardSection(head: 'Keep · 做对了什么', rows: [ShareCardRow(rv.keep)]),
+        if (rv.problem.trim().isNotEmpty)
+          ShareCardSection(head: 'Problem · 卡在哪', rows: [ShareCardRow(rv.problem)]),
+        if (rv.trial.trim().isNotEmpty)
+          ShareCardSection(head: 'Try · 下季怎么改', rows: [ShareCardRow(rv.trial)]),
+      ],
+    );
+  }
 
   /// 当年「已结束或当前」四季：有归档/草稿复盘的季 + 当前季恒在。
   List<String> _chips(GoalsData d, DateTime now) {
@@ -133,7 +168,6 @@ class _GoalReviewPageState extends ConsumerState<GoalReviewPage> {
     _bind(sel, d);
     final review = d.reviewFor(sel);
     final archived = review?.archived ?? false;
-    final cur = GoalPeriod.current(now);
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
 
@@ -241,13 +275,21 @@ class _GoalReviewPageState extends ConsumerState<GoalReviewPage> {
         Row(
           children: [
             Expanded(
-              child: GradButton(
-                key: const ValueKey('g-review-save'),
-                label: archived ? '已归档' : '保存复盘',
-                onTap: archived
-                    ? () => _toast('已归档复盘为只读 · 点「$cur · 撰写中」编辑')
-                    : () => _save(sel),
-              ),
+              child: archived
+                  // 原型：归档态按钮行＝「分享复盘卡」（未归档仍是保存/Try 两钮）。
+                  ? GradButton(
+                      key: const ValueKey('g-review-share'),
+                      label: '分享复盘卡',
+                      icon: Icons.ios_share,
+                      onTap: () => showShareCardSheet(
+                          context, _shareReviewCard(sel, goals, review!),
+                          src: '目标'),
+                    )
+                  : GradButton(
+                      key: const ValueKey('g-review-save'),
+                      label: '保存复盘',
+                      onTap: () => _save(sel),
+                    ),
             ),
             if (!archived) ...[
               const SizedBox(width: 8),

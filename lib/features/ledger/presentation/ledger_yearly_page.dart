@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/ui_kit.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_txn.dart';
 import 'ledger_providers.dart';
@@ -13,7 +13,7 @@ import 'widgets/ledger_kit.dart';
 
 /// L16 年度总结（原型 p-yearly · TITLES ['年度总结','']；renderYearly 逐段对照）。
 /// 年份 ‹ › 步进 + 渐变英雄卡 + 月度收支柱 + 年度分类 Top + 年度最大单笔 +
-/// 生成分享图（原型为模拟 toast）/ 看明细 ›（跳 L4）。
+/// 生成分享图（V1.57 走 share_card 公共通道真渲染）/ 看明细 ›（跳 L4）。
 class LedgerYearlyPage extends ConsumerStatefulWidget {
   const LedgerYearlyPage({super.key});
 
@@ -26,8 +26,6 @@ class _LedgerYearlyPageState extends ConsumerState<LedgerYearlyPage> {
 
   static const _rose = Color(0xFFFB7185);
   static const _slate = Color(0xFF94A3B8);
-
-  void _toast(String m) => AppToast.show(context, m);
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +40,61 @@ class _LedgerYearlyPageState extends ConsumerState<LedgerYearlyPage> {
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: _body,
       ),
+    );
+  }
+
+  /// 年度分享卡（原型 yrData/yrShareRender 同构：hero 三格 + 12 月柱 + 分类 Top5 + 最大单笔；
+  /// 金额一律走 amtText(hide)，隐藏金额态不泄漏真实数字）。
+  ShareCardModel _yearShareCard(LedgerData d, YearStat ys, bool hide, String y) {
+    final big = ys.big;
+    String txName(LedgerTxn t) =>
+        t.note.isNotEmpty ? t.note : d.catOf(t.catId).name;
+    final rank = [
+      for (final (i, e) in ys.rank.indexed)
+        ShareCardRow('${i + 1} · ${d.catOf(e.$1).name}',
+            amtText(e.$2, hide: hide)),
+    ];
+    return ShareCardModel(
+      file: '$y年记账总结',
+      eyebrow: 'LifeHarness · 本地账本',
+      title: '$y 年收支总结',
+      line: '${ys.cnt} 笔流水 · 记账 ${ys.actDays} 天 · '
+          '日均 ${amtText(ys.avgDaily, hide: hide)}',
+      big: amtText(ys.exp, hide: hide),
+      unit: '全年支出',
+      tiles: [
+        ShareCardTile('全年收入', amtText(ys.inc, hide: hide)),
+        ShareCardTile('全年结余', amtText(ys.inc - ys.exp, hide: hide)),
+        ShareCardTile('最大单笔',
+            big == null ? '—' : amtText(big.amt, hide: hide)),
+      ],
+      sections: [
+        ShareCardSection(
+          head: '月度支出',
+          bars: [for (final b in ys.months) b.exp],
+          barLabels: [for (final b in ys.months) '${b.m}'],
+        ),
+        ShareCardSection(
+          head: '年度分类 Top ${ys.rank.length}',
+          rows: rank.isEmpty ? const [ShareCardRow('本年暂无支出')] : rank,
+        ),
+        if (big != null)
+          ShareCardSection(head: '最大单笔', rows: [
+            ShareCardRow('${big.date} · ${txName(big)}',
+                amtText(big.amt, hide: hide)),
+          ]),
+      ],
+      textVersion: [
+        '$y 年收支总结',
+        '全年支出 ${amtText(ys.exp, hide: hide)} · 收入 ${amtText(ys.inc, hide: hide)} · '
+            '结余 ${amtText(ys.inc - ys.exp, hide: hide)}',
+        '${ys.cnt} 笔流水 · 记账 ${ys.actDays} 天',
+        if (big != null)
+          '最大单笔 ${big.date} ${txName(big)} ${amtText(big.amt, hide: hide)}',
+        '〔年度分类 Top〕',
+        for (final e in ys.rank)
+          '${d.catOf(e.$1).name}：${amtText(e.$2, hide: hide)}',
+      ].join('\n'),
     );
   }
 
@@ -361,7 +414,9 @@ class _LedgerYearlyPageState extends ConsumerState<LedgerYearlyPage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: TextButton(
-                      onPressed: () => _toast('已生成年度分享图（模拟）'),
+                      onPressed: () => showShareCardSheet(
+                          context, _yearShareCard(d, ys, hide, y),
+                          src: '记账'),
                       child: const Text(
                         '生成分享图',
                         style: TextStyle(

@@ -160,11 +160,19 @@ void main() {
     expect(find.text('¥160.00'), findsOneWidget);
   });
 
-  testWidgets('生成分享图（模拟 toast）与 看明细 › 跳 L4', (tester) async {
+  testWidgets('生成分享图 → 真预览弹层（V1.57 A 批）· 看明细 › 跳 L4', (tester) async {
     await useSurface(tester);
     await pump(tester);
     await tester.tap(find.text('生成分享图'));
-    expect(await pollText(tester, '已生成年度分享图（模拟）'), isTrue);
+    await settle5(tester);
+    expect(find.text('分享长图'), findsOneWidget);
+    expect(find.text('预览'), findsOneWidget);
+    expect(find.text('月度支出'), findsOneWidget);
+    expect(find.text('年度分类 Top 2'), findsOneWidget); // 页面卡标题无数字，卡内带计数
+    expect(find.text('数据仅存本机'), findsOneWidget);
+    expect(find.textContaining('模拟'), findsNothing);
+    Navigator.of(tester.element(find.byKey(const ValueKey('sc-sheet')))).pop();
+    await settle5(tester);
     await clearToasts(tester);
     await tester.tap(find.text('看明细 ›'));
     await settle5(tester);

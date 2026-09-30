@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
@@ -109,7 +110,8 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage> {
                     key: const ValueKey('i-stats-share'),
                     icon: Icons.ios_share,
                     label: '分享',
-                    onTap: () => AppToast.show(context, '统计卡已生成分享长图'),
+                    onTap: () => showShareCardSheet(context,
+                        _shareStatsCard(d, now), src: '物品'),
                   ),
                 ],
               ),
@@ -333,6 +335,50 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage> {
                   style: TextStyle(fontSize: 10, color: kItemMuted)),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  /// 今日持有成本分享卡（原型 scData('stats') 同构：大数字+三格+Top5+分类占比）。
+  ShareCardModel _shareStatsCard(ItemsData d, DateTime now) {
+    final bill = d.active;
+    final total = totalDailyCost(bill, now);
+    final poolAll = d.items.fold<double>(0, (s, x) => s + poolOf(x));
+    final top = [...bill]
+      ..sort(
+          (a, b) => (costPerDay(b, now) ?? 0).compareTo(costPerDay(a, now) ?? 0));
+    final shares = [...catPoolShare(d)]
+      ..sort((a, b) => b.$2.compareTo(a.$2));
+    return ShareCardModel(
+      file: '物品价值统计',
+      eyebrow: 'LifeHarness · 物品价值',
+      title: '今日持有成本',
+      line: '计费中 ${bill.length} 件 · 已归档决算 ${d.items.length - bill.length} 件',
+      big: '¥ ${total.toStringAsFixed(2)}',
+      unit: '/天',
+      tiles: [
+        ShareCardTile('本月花掉', fmtY((total * 30).roundToDouble())),
+        ShareCardTile('成本池', fmtY(poolAll.roundToDouble())),
+        ShareCardTile('件均日均',
+            bill.isEmpty ? '¥0.00' : '¥${(total / bill.length).toStringAsFixed(2)}'),
+      ],
+      sections: [
+        ShareCardSection(
+          head: '日均成本 Top 5',
+          rows: [
+            for (final x in top.take(5))
+              ShareCardRow(
+                  x.name, '¥${(costPerDay(x, now) ?? 0).toStringAsFixed(2)}/天'),
+          ],
+        ),
+        ShareCardSection(
+          head: '分类占比 · 按成本池',
+          rows: [
+            for (final s in shares)
+              ShareCardRow(
+                  s.$1, '${(s.$2 / (poolAll <= 0 ? 1 : poolAll) * 100).round()}%'),
+          ],
         ),
       ],
     );

@@ -464,11 +464,17 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('g-review-q-0'))); // Q2
       await tester.pumpAndSettle();
       expect(find.text('作息稳'), findsOneWidget); // 归档内容回显
-      // 归档态：保存钮变「已归档」+ toast
-      await tester.tap(find.byKey(const ValueKey('g-review-save')));
-      expect(await pollContains(tester, '已归档复盘为只读 · 点「2026 Q3 · 撰写中」编辑'), isTrue);
-      await clearToasts2(tester);
+      // 归档态：按钮行＝「分享复盘卡」（V1.57 A 批新增入口）· 保存/Try 钮不出
+      expect(find.byKey(const ValueKey('g-review-save')), findsNothing);
       expect(find.byKey(const ValueKey('g-review-draft')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('g-review-share')));
+      await tester.pumpAndSettle();
+      expect(find.text('分享长图'), findsOneWidget);
+      expect(find.text('KR 达成对照'), findsOneWidget);
+      expect(find.text('Keep · 做对了什么'), findsOneWidget);
+      expect(find.text('数据仅存本机'), findsOneWidget);
+      Navigator.of(tester.element(find.byKey(const ValueKey('sc-sheet')))).pop();
+      await tester.pumpAndSettle();
 
       // 回 Q3 撰写中：填 KPT → 保存 → 转只读归档视图
       await tester.tap(find.byKey(const ValueKey('g-review-q-1')));
@@ -480,7 +486,7 @@ void main() {
       expect(await pollContains(tester, '复盘已保存 · 已转为只读归档视图'), isTrue);
       await tester.pumpAndSettle();
       expect(find.text('2026 Q3 · 已归档'), findsOneWidget);
-      expect(find.text('已归档'), findsOneWidget); // 按钮态
+      expect(find.byKey(const ValueKey('g-review-share')), findsOneWidget); // 归档后出分享钮
       expect(find.byKey(const ValueKey('g-review-draft')), findsNothing);
       final d = await repo.loadAll(now: now);
       expect(d.reviewFor('2026 Q3')!.archived, isTrue);

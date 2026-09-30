@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/ui_kit.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
 import 'items_kit.dart';
@@ -12,7 +12,7 @@ import 'items_providers.dart';
 ///
 /// 口径：冻结条目最终决算——六值全走 settleOf 实算（总投入/持有天数/残值回收/
 /// 净持有/真实日均/回收率）+ 审计条数；审计时间轴不可删改（HG-D2）；
-/// 冻结日＝末条事件日期；分享仅 toast（长图能力未接线，登记差异）。
+/// 冻结日＝末条事件日期；分享走 V1.57 长图公共通道（share_card 弹层）。
 class ItemSettlePage extends ConsumerStatefulWidget {
   const ItemSettlePage({super.key, required this.itemId});
 
@@ -189,7 +189,8 @@ class _ItemSettlePageState extends ConsumerState<ItemSettlePage> {
                 key: const ValueKey('i-settle-share'),
                 label: '分享决算卡片',
                 icon: Icons.ios_share,
-                onTap: () => AppToast.show(context, '决算长图已生成（分享卡片）'),
+                onTap: () => showShareCardSheet(
+                    context, _shareSettleCard(it, now, freezeDate), src: '物品'),
               ),
             ),
             const SizedBox(width: 12),
@@ -212,6 +213,35 @@ class _ItemSettlePageState extends ConsumerState<ItemSettlePage> {
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  /// 决算分享卡（原型 scData('settle') 同构：真实日均大数字+三格+决算口径+审计时间轴）。
+  ShareCardModel _shareSettleCard(ItemProfile it, DateTime now, String freezeDate) {
+    final s = settleOf(it, now);
+    final daily = '¥${s.realDaily.toStringAsFixed(2)}/天';
+    return ShareCardModel(
+      file: '决算-${it.name}',
+      eyebrow: 'LifeHarness · 物品决算',
+      title: '${it.name} 决算报告',
+      line: '${it.status} · ${it.buyDate} 建档 · $freezeDate 冻结',
+      big: '¥ ${s.realDaily.toStringAsFixed(2)}',
+      unit: '/天',
+      tiles: [
+        ShareCardTile('总投入', fmtY(s.invested)),
+        ShareCardTile('持有', '${s.days} 天'),
+        ShareCardTile('净持有', fmtY(s.netHold)),
+      ],
+      sections: [
+        ShareCardSection(head: '决算口径', rows: [
+          ShareCardRow('残值回收', fmtY(s.residue)),
+          ShareCardRow('回收率', '${s.recoverRate}%'),
+          ShareCardRow('真实日均', daily),
+        ]),
+        ShareCardSection(head: '审计时间轴', rows: [
+          for (final e in it.events) ShareCardRow(e.label, e.date),
+        ]),
       ],
     );
   }

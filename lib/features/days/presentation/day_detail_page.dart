@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/share_card.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/days_repository.dart';
 import '../domain/day_calc.dart';
@@ -292,9 +293,17 @@ class DayDetailPage extends ConsumerWidget {
                 child: _LifeBtn(
                   key: const ValueKey('d-detail-share'),
                   label: '分享卡',
-                  // 原型同款 toast（倒数日分享卡已生成·模拟）；长图公共通道待建。
-                  onTap: () =>
-                      AppToast.show(context, '倒数日分享卡已生成'),
+                  onTap: () async {
+                    final echoes = day.linkDiary
+                        ? await ref
+                            .read(daysRepositoryProvider)
+                            .diaryForDay(day, now)
+                        : const <DiaryEcho>[];
+                    if (!context.mounted) return;
+                    await showShareCardSheet(context,
+                        _shareDayCard(day, now, dd, echoes),
+                        src: '日子');
+                  },
                 ),
               ),
               const SizedBox(width: 10),
@@ -320,6 +329,48 @@ class DayDetailPage extends ConsumerWidget {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  /// 倒数日分享卡（原型 scData('day') 同构：剩余天数大数字+三格+准备事项+备注+历年日记）。
+  ShareCardModel _shareDayCard(
+      DayEntry day, DateTime now, int dd, List<DiaryEcho> echoes) {
+    const repLabel = {
+      'once': '一次性倒数',
+      'solar-year': '每年（公历循环）',
+      'lunar': '每年（农历自动换算）',
+      'monthly': '每月循环',
+    };
+    String two(int n) => n.toString().padLeft(2, '0');
+    return ShareCardModel(
+      file: '倒数日-${day.title}',
+      eyebrow: 'LifeHarness · 重要日子',
+      title: day.title,
+      line:
+          '${occurrenceLabel(day, now)} · ${repLabel[day.repeat.wire] ?? day.repeat.label}',
+      big: '${dd.abs()}',
+      unit: dd >= 0 ? '天后' : '天前',
+      tiles: [
+        ShareCardTile('类别', day.category),
+        ShareCardTile('提醒', day.remOffsets.isEmpty
+            ? '无'
+            : [for (final o in day.remOffsets) o == 0 ? '当天' : '前$o天']
+                .join('/')),
+        ShareCardTile('准备', '${day.preps.length} 项'),
+      ],
+      sections: [
+        ShareCardSection(head: '准备事项', rows: [
+          for (final p in day.preps) ShareCardRow(p.text, p.done ? '已完成' : '待办'),
+        ]),
+        if ((day.note ?? '').isNotEmpty)
+          ShareCardSection(head: '备注', rows: [ShareCardRow(day.note!)]),
+        if (echoes.isNotEmpty)
+          ShareCardSection(head: '历年关联日记', rows: [
+            for (final e in echoes)
+              ShareCardRow('${e.date.year}-${two(e.date.month)}-${two(e.date.day)} '
+                  '${e.text.length > 24 ? '${e.text.substring(0, 24)}…' : e.text}'),
+          ]),
       ],
     );
   }

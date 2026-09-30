@@ -494,7 +494,7 @@ void main() {
   });
 
   group('P7d 决算屏分享', () {
-    testWidgets('分享决算卡片 toast（长图能力未接线·登记差异）', (tester) async {
+    testWidgets('分享决算卡片 → 真预览弹层（V1.57 A 批长图公共通道）', (tester) async {
       await useSurface(tester);
       final id = await seedMonitor();
       await repo.scrap(id, '损坏', date: '2026-09-10');
@@ -503,7 +503,17 @@ void main() {
       await settle5(tester);
       expect(find.textContaining('2026-09-10 冻结'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('i-settle-share')));
-      expect(await pollContains(tester, '决算长图已生成（分享卡片）'), isTrue);
+      await settle5(tester);
+      // 弹层语言统一：标题「分享长图」+「预览」+ 决算卡内容
+      expect(find.text('分享长图'), findsOneWidget);
+      expect(find.text('预览'), findsOneWidget);
+      expect(find.text('决算报告'), findsWidgets); // 标题含「决算报告」
+      expect(find.text('决算口径'), findsOneWidget);
+      expect(find.text('审计时间轴'), findsOneWidget);
+      expect(find.text('数据仅存本机'), findsOneWidget);
+      expect(find.textContaining('模拟'), findsNothing);
+      Navigator.of(tester.element(find.byKey(const ValueKey('sc-sheet')))).pop();
+      await settle5(tester);
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
   });
