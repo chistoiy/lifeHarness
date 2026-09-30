@@ -9,6 +9,7 @@ import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
 import 'calendar_page.dart' show daysInMonthOf;
 import 'calendar_providers.dart';
+import 'widgets/ts_cat_sheet.dart';
 
 /// 「时间账本」统计页（需求 V1.52 批4）。
 /// 与高保真原型 `prototype/index.html` p-timeStats 一一对应：
@@ -289,7 +290,7 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
             _foldCard('donut', '总时长汇总',
                 _donutChart(agg, un, cap, catColor, scheme)),
             _foldCard('rank', '分类时长汇总',
-                _rankList(agg, prevAgg, catColor, scheme, tokens)),
+                _rankList(agg, prevAgg, blocks, catColor, scheme, tokens)),
           ],
         ),
       ),
@@ -827,8 +828,8 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
 
   // ——————— 分类排行：进度条归一 + 环比 deltaPct（原型 rank 卡） ———————
 
-  Widget _rankList(_Agg agg, _Agg prevAgg, Color Function(String) catColor,
-      ColorScheme scheme, ThemeTokens tokens) {
+  Widget _rankList(_Agg agg, _Agg prevAgg, List<TimeBlock> blocks,
+      Color Function(String) catColor, ColorScheme scheme, ThemeTokens tokens) {
     final entries = agg.byCat.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     if (entries.isEmpty) {
@@ -849,10 +850,17 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
       final delta = deltaPct(m, pm);
       final color = catColor(name);
       return InkWell(
-        // 明细下钻页本期不做（V1.52 批4 范围），先按原型口径给模拟反馈。
-        onTap: () => ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('$name 明细列表（模拟）'))),
+        // V1.57 C 批：明细下钻半屏（原型 tsOpenCat；谓词与本页汇总同源）。
+        onTap: () => showTsCatSheet(
+          context,
+          blocks: blocks,
+          cat: name,
+          from: _p.from,
+          to: _p.to,
+          spanDays: _p.spanDays,
+          periodText: '${{'d': '当日', 'w': '本周', 'm': '本月', 'y': '全年'}[_p.span] ?? _p.span} · ${_p.label}',
+          color: catColor(name),
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 2),
           child: Row(
