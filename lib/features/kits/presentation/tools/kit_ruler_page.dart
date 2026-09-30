@@ -3,7 +3,10 @@
 // 页面是参数台（单位 / 尺边 / 倍率 / 校准），**尺面在全屏舞台**（V1.47 验收轮2
 // 口径：全屏 + 可滑动游标与零点）；量程按实测 DPI 计算（见 `domain/kit_ruler.dart`）。
 // 参数与游标位置落 `kit_tool_data.tool='ruler'`（键名同原型 `KITS.*`）。
+// 反馈轮4：尺边=长边时把页面真的转成横向（原型 `#rulerStage.rs-land` 同义）——
+// 之前只换量程数字、尺条仍铺在竖屏宽度上，用户点「长边」看不出任何变化。
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -13,6 +16,33 @@ import '../../domain/kit_ruler.dart';
 import '../kit_providers.dart';
 import 'kit_ruler_stage.dart';
 import 'kit_tools_kit.dart';
+
+/// 尺边 → 屏幕方向：长边=横向（手机横过来量），短边=竖向。
+Future<void> kitRulerApplyOrientation({required bool longEdge}) =>
+    SystemChrome.setPreferredOrientations(
+      longEdge
+          ? const [DeviceOrientation.landscapeLeft]
+          : const [DeviceOrientation.portraitUp],
+    );
+
+/// 离开尺子：把方向决策交还系统（本 app 其余屏不锁方向，不能留锁死状态）。
+Future<void> kitRulerRestoreOrientation() =>
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+
+/// 当前视口下的量程（毫米）：长/短边像素 × 实测密度 × 倍率。
+///
+/// 页面与全屏舞台共用这一处取数：旋转后 `MediaQuery` 立刻变，量程跟着变，
+/// 不再出现「舞台里换了尺边、量程还是进入时那份」的冻结值。
+int kitRulerTargetOf(BuildContext context, KitRulerController c) {
+  final mq = MediaQuery.of(context);
+  return kitRulerTargetMm(
+    widthPx: mq.size.width,
+    heightPx: mq.size.height,
+    devicePixelRatio: mq.devicePixelRatio,
+    longEdge: c.longEdge,
+    cal: c.cal,
+  );
+}
 
 /// 尺子参数与游标位置（页面与全屏舞台共用同一份，改一处即通知另一方）。
 ///
@@ -55,6 +85,8 @@ class KitRulerController extends ChangeNotifier {
     dir = d;
     notifyListeners();
     persist(this);
+    // 换尺边=换持机姿势：页面方向必须跟着转，否则尺条还是铺在短边上。
+    kitRulerApplyOrientation(longEdge: longEdge);
   }
 
   void setCal(double v) {
@@ -103,6 +135,8 @@ class _KitRulerBodyState extends ConsumerState<KitRulerBody> {
 
   @override
   void dispose() {
+    // 尺子是全屏里唯一会改系统方向的屏；离开时一律交还给系统。
+    kitRulerRestoreOrientation();
     _c.dispose();
     super.dispose();
   }
@@ -111,28 +145,19 @@ class _KitRulerBodyState extends ConsumerState<KitRulerBody> {
     final d = await ref.read(kitRepositoryProvider).toolData(kitToolKeyRuler);
     if (!mounted) return;
     _c.load(d);
+    kitRulerApplyOrientation(longEdge: _c.longEdge);
   }
 
   /// 当前视口下的量程（毫米）：长/短边像素 × 实测密度 × 倍率。
-  int _targetMm(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    return kitRulerTargetMm(
-      widthPx: mq.size.width,
-      heightPx: mq.size.height,
-      devicePixelRatio: mq.devicePixelRatio,
-      longEdge: _c.longEdge,
-      cal: _c.cal,
-    );
-  }
+  int _targetMm(BuildContext context) => kitRulerTargetOf(context, _c);
 
   Future<void> _openStage() async {
     // 舞台内每次拖动结束都会经控制器落库，退出时不必再回写。
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) =>
-            KitRulerStage(controller: _c, targetMm: _targetMm(context)),
-      ),
+      MaterialPageRoute(builder: (_) => KitRulerStage(controller: _c)),
     );
+    // 舞台里可能换过尺边：回到参数台时按当前尺边重新对齐方向。
+    kitRulerApplyOrientation(longEdge: _c.longEdge);
   }
 
   void _bank() {
@@ -190,7 +215,7 @@ class _KitRulerBodyState extends ConsumerState<KitRulerBody> {
                 const Spacer(),
                 KitToolChip(
                   keyName: 'kit-ruler-dir-long',
-                  label: '长边',
+                  label: '长边 · 横向',
                   on: _c.longEdge,
                   onTap: () {
                     _c.setDir('long');
@@ -200,7 +225,7 @@ class _KitRulerBodyState extends ConsumerState<KitRulerBody> {
                 const SizedBox(width: 6),
                 KitToolChip(
                   keyName: 'kit-ruler-dir-short',
-                  label: '短边',
+                  label: '短边 · 竖向',
                   on: !_c.longEdge,
                   onTap: () {
                     _c.setDir('short');

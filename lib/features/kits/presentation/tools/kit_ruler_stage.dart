@@ -12,14 +12,9 @@ import 'kit_ruler_page.dart';
 import 'kit_tools_kit.dart';
 
 class KitRulerStage extends StatefulWidget {
-  const KitRulerStage({
-    super.key,
-    required this.controller,
-    required this.targetMm,
-  });
+  const KitRulerStage({super.key, required this.controller});
 
   final KitRulerController controller;
-  final int targetMm;
 
   @override
   State<KitRulerStage> createState() => _KitRulerStageState();
@@ -28,10 +23,12 @@ class KitRulerStage extends StatefulWidget {
 class _KitRulerStageState extends State<KitRulerStage> {
   final GlobalKey _tapeKey = GlobalKey();
   late int _zero = widget.controller.zero;
-  late int _cur = widget.controller.curOrDefault(widget.targetMm);
+  late int _cur = widget.controller.curOrDefault(_target);
 
   KitRulerController get _c => widget.controller;
-  int get _target => widget.targetMm;
+
+  /// 量程随视口现算：舞台里点「长边/短边」会转屏，冻结进入时的值会算错刻度。
+  int get _target => kitRulerTargetOf(context, widget.controller);
 
   /// ±1mm 微调（触屏上没有方向键，读数仍要能精调）。
   void _move(KitRulerMarks m) {

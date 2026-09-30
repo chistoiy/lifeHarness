@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -13,10 +13,9 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/kits/data/kit_repository.dart';
 import 'package:lifeharness/features/kits/presentation/kit_providers.dart';
 import 'package:lifeharness/features/kits/presentation/kit_routes.dart';
-import 'package:lifeharness/features/kits/presentation/tools/kit_ping_page.dart';
-import 'package:lifeharness/features/kits/presentation/tools/kit_speed_page.dart';
 
-/// V1.47 批3 · 工具屏 B 上半（Ping / 网络测速 / 尺子 / 测距）。
+/// V1.47 批3 · 工具屏 B 上半（尺子 / 测距）。
+/// 反馈轮4：Ping 与网络测速两件按产品裁定摘除，本文件只留长度类两屏。
 /// 独立文件防 isolate 污染；DB 走内存 ffi；随机源一律注入固定种子。
 void main() {
   sqfliteFfiInit();
@@ -33,8 +32,7 @@ void main() {
     }
     repo = KitRepository(db);
     SharedPreferences.setMockInitialValues({});
-    KitPingBody.randomProvider = () => math.Random(20260929);
-    KitSpeedBody.randomProvider = () => math.Random(7);
+
   });
   tearDown(() => db.close());
 
@@ -85,144 +83,6 @@ void main() {
   int mmOf(WidgetTester tester, String key) =>
       int.parse(textOf(tester, key).split(' ').first);
 
-  group('1 · Ping', () {
-    testWidgets('初始态：终端引导文案 + 四格占位「—」+ 模拟网络层页脚', (tester) async {
-      await useSurface(tester);
-      await pumpTool(tester, 'ping');
-      expect(
-        textOf(tester, 'kit-ping-head'),
-        '设置次数与超时后点击开始（本机模拟网络层）',
-      );
-      for (var i = 0; i < 4; i++) {
-        expect(textOf(tester, 'kit-ping-cell-$i'), contains('—'));
-      }
-      expect(find.text('模拟网络层 · 不发真实请求'), findsOneWidget);
-      await drainLogTimer(tester);
-    });
-
-    testWidgets('跑满 3 次：三行输出 + 统计实算 + 结束提示', (tester) async {
-      await useSurface(tester);
-      await pumpTool(tester, 'ping');
-      await tester.enterText(find.byKey(const ValueKey('kit-ping-times')), '3');
-      await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('kit-ping-go')));
-      await settle5(tester);
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 420));
-      }
-      await settle5(tester);
-      expect(find.byKey(const ValueKey('kit-ping-line-1')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kit-ping-line-3')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kit-ping-line-4')), findsNothing);
-      final head = textOf(tester, 'kit-ping-head');
-      expect(head, startsWith('PING baidu.com · 模拟解析 → '));
-      expect(head, contains('56 字节包 · 超时 2s'));
-      expect(textOf(tester, 'kit-ping-cell-0'), matches(RegExp(r'^[1-3]/3$')));
-      expect(textOf(tester, 'kit-ping-cell-3'), matches(RegExp(r'^\d+%$')));
-      await pollText(tester, '已停止');
-      await clearToasts(tester);
-    });
-
-    testWidgets('停止钮中途收场；主机名与超时改动进首行', (tester) async {
-      await useSurface(tester);
-      await pumpTool(tester, 'ping');
-      await tester.enterText(find.byKey(const ValueKey('kit-ping-host')), 'qoder.com');
-      await tester.enterText(find.byKey(const ValueKey('kit-ping-times')), '20');
-      await tester.enterText(find.byKey(const ValueKey('kit-ping-timeout')), '5');
-      await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('kit-ping-go')));
-      await tester.pump(const Duration(milliseconds: 420));
-      await tester.pump(const Duration(milliseconds: 420));
-      await tester.tap(find.byKey(const ValueKey('kit-ping-stop')));
-      await settle5(tester);
-      expect(find.byKey(const ValueKey('kit-ping-line-2')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kit-ping-line-3')), findsNothing);
-      final head = textOf(tester, 'kit-ping-head');
-      expect(head, startsWith('PING qoder.com'));
-      expect(head, contains('超时 5s'));
-      await clearToasts(tester);
-    });
-  });
-
-  group('2 · 网络测速', () {
-    testWidgets('爬坡到完成：仪表/阶段/说明行 + 历史落库', (tester) async {
-      await useSurface(tester);
-      await pumpTool(tester, 'speed');
-      expect(textOf(tester, 'kit-speed-val'), '0.0');
-      expect(textOf(tester, 'kit-speed-phase'), '待开始');
-      expect(find.text('尚无测速记录 · 完成一次测速自动留档'), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('kit-speed-go')));
-      await tester.pump(const Duration(milliseconds: 70));
-      expect(textOf(tester, 'kit-speed-phase'), '下载中…');
-      for (var i = 0; i < 46; i++) {
-        await tester.pump(const Duration(milliseconds: 70));
-      }
-      await settle5(tester);
-      expect(textOf(tester, 'kit-speed-phase'), '完成');
-      expect(textOf(tester, 'kit-speed-msg'), contains('下载'));
-      expect(textOf(tester, 'kit-speed-msg'), contains('Mbps · 延迟'));
-      final d = await repo.toolData('speed');
-      final spd = d['spd'] as List;
-      expect(spd.length, 1);
-      expect((spd.first as Map)['n'], '电信·杭州');
-      expect(textOf(tester, 'kit-speed-hist-down-0'), matches(RegExp(r'^\d+\.\d$')));
-      await drainLogTimer(tester);
-    });
-
-    testWidgets('切节点记进结果 · 两次结果后可对比 · 清空落库', (tester) async {
-      await useSurface(tester);
-      await pumpTool(tester, 'speed');
-      await tester.tap(find.byKey(const ValueKey('kit-speed-node-联通·北京')));
-      await settle5(tester);
-      await pollText(tester, '切换节点');
-      await clearToasts(tester);
-
-      Future<void> run() async {
-        await tester.tap(find.byKey(const ValueKey('kit-speed-go')));
-        for (var i = 0; i < 47; i++) {
-          await tester.pump(const Duration(milliseconds: 70));
-        }
-        await settle5(tester);
-      }
-
-      await run();
-      await run();
-      final d = await repo.toolData('speed');
-      final spd = d['spd'] as List;
-      expect(spd.length, 2);
-      expect((spd.first as Map)['n'], '联通·北京');
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('kit-speed-compare')),
-          matching: find.text('对比'),
-        ),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(const ValueKey('kit-speed-compare')));
-      await settle5(tester);
-      expect(
-        textOf(tester, 'kit-speed-hist-down-0'),
-        matches(RegExp(r'^\d+\.\d [▲▼]$')),
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('kit-speed-compare')),
-          matching: find.text('对比中'),
-        ),
-        findsOneWidget,
-      );
-      await clearToasts(tester);
-
-      await tester.tap(find.byKey(const ValueKey('kit-speed-hist-clear')));
-      await settle5(tester);
-      final d2 = await repo.toolData('speed');
-      expect(d2['spd'] as List, isEmpty);
-      expect(find.text('尚无测速记录 · 完成一次测速自动留档'), findsOneWidget);
-      await clearToasts(tester);
-    });
-  });
-
   group('3 · 尺子', () {
     testWidgets('参数台齐备 · 量程按视口实算 · 倍率 1.000×', (tester) async {
       await useSurface(tester);
@@ -250,6 +110,43 @@ void main() {
       expect((longSpan, shortSpan), (127, 95));
       final d = await repo.toolData('ruler');
       expect(d['dir'], 'short');
+      await clearToasts(tester);
+    });
+
+    testWidgets('换尺边必须真的转屏：长边=横向、短边=竖向', (tester) async {
+      await useSurface(tester);
+      final calls = <Object?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'SystemChrome.setPreferredOrientations') {
+              calls.add(call.arguments);
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      await pumpTool(tester, 'ruler');
+      // 默认长边：进入即要求横向；参数台自带方向文案，不点也看得懂。
+      expect(calls.last, ['DeviceOrientation.landscapeLeft']);
+      expect(textOf(tester, 'kit-ruler-dir-long'), contains('横向'));
+      expect(textOf(tester, 'kit-ruler-dir-short'), contains('竖向'));
+      calls.clear();
+      await tester.tap(find.byKey(const ValueKey('kit-ruler-dir-short')));
+      await settle5(tester);
+      expect(calls.last, ['DeviceOrientation.portraitUp']);
+      calls.clear();
+      await tester.tap(find.byKey(const ValueKey('kit-ruler-dir-long')));
+      await settle5(tester);
+      expect(calls.last, ['DeviceOrientation.landscapeLeft']);
+      // 从全屏舞台回到参数台：按当前尺边重新对齐方向（舞台里可能换过尺边）。
+      calls.clear();
+      await tester.tap(find.byKey(const ValueKey('kit-ruler-fs')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-ruler-fs-close')));
+      await settle5(tester);
+      expect(calls.last, ['DeviceOrientation.landscapeLeft']);
       await clearToasts(tester);
     });
 

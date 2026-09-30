@@ -153,8 +153,8 @@ void main() {
     test('toast 文案与单位/尺边一致（原型 rulerUnit / rulerDir）', () {
       expect(kitRulerUnitToast('cm'), '刻度单位：厘米 · 逻辑毫米基准');
       expect(kitRulerUnitToast('in'), '刻度单位：英寸 · 1in=25.4mm 换算');
-      expect(kitRulerDirToast(true), startsWith('尺边：沿手机长边'));
-      expect(kitRulerDirToast(false), startsWith('尺边：沿手机短边'));
+      expect(kitRulerDirToast(true), startsWith('尺边：长边 · 尺面转为横向'));
+      expect(kitRulerDirToast(false), startsWith('尺边：短边 · 尺面回到竖向'));
     });
   });
 

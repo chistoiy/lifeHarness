@@ -95,10 +95,10 @@ void main() {
 
     test('收藏/隐藏/编排写入后读回一致', () async {
       await repo.setFavorites(['ruler', 'tele']);
-      await repo.setHidden(['speed']);
+      await repo.setHidden(['dist']);
       await repo.setOrder(['tele', 'ruler']);
       expect(await repo.favorites(), ['ruler', 'tele']);
-      expect(await repo.hidden(), ['speed']);
+      expect(await repo.hidden(), ['dist']);
       expect(await repo.order(), ['tele', 'ruler']);
     });
 

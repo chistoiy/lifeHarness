@@ -279,17 +279,38 @@ tailwind.config = {
   .brand-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .brand-cap{font-size:9px;line-height:1.4;color:#64748b;text-align:center}
   .glow-btn{box-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
-/* ================= 提词器 · 舞台层 CSS（LH-KIT-LED） ================= */
+/* ================= 提词器 · 舞台层 CSS（LH-KIT-LED · 反馈轮4 吸收手持弹幕效果组） ================= */
 .tp-noscroll{overflow:hidden!important}
 #tpStage{background:#000;color:#fff;display:none}
 #tpStage:not(.hidden){display:flex}
 #tpStage .tp-scan{display:none}
 #tpStage.tp-led .tp-scan{display:block;position:absolute;left:0;right:0;height:3px;top:0;background:linear-gradient(180deg,transparent,rgba(255,255,255,.32),transparent);animation:tpScan 3.6s linear infinite;pointer-events:none}
 #tpStage.tp-led #tpBody{background-image:radial-gradient(circle at center,rgba(0,0,0,.6) 0 28%,transparent 30%);background-size:6px 6px}
+/* 多彩背景五档（KITS.tpGrad）：none 时回到所选纯色背景 */
+#tpStage.tp-g-candy{background:linear-gradient(135deg,#a78bfa,#f472b6)}
+#tpStage.tp-g-dusk{background:linear-gradient(135deg,#fb923c,#f43f5e)}
+#tpStage.tp-g-mint{background:linear-gradient(135deg,#34d399,#0ea5e9)}
+#tpStage.tp-g-sea{background:linear-gradient(135deg,#6366f1,#22d3ee)}
+#tpStage.tp-g-grape{background:linear-gradient(135deg,#8b5cf6,#6366f1)}
+/* 效果组：闪烁落在 #tpBody（透明度），抖动落在 #tpShake（位移），两条动画互不覆盖 */
+#tpStage.tp-blink #tpBody{animation:tpBlink 1.1s steps(1,end) infinite}
+#tpStage.tp-bold #tpBody{font-weight:900}
+#tpStage.tp-shake #tpShake{animation:tpShake .28s linear infinite}
+@keyframes tpBlink{0%,49%{opacity:1}50%,100%{opacity:.12}}
+@keyframes tpShake{0%,100%{transform:translate(0,0)}25%{transform:translate(calc(var(--tp-shake,2px)*-1),var(--tp-shake,2px))}50%{transform:translate(var(--tp-shake,2px),calc(var(--tp-shake,2px)*-1))}75%{transform:translate(calc(var(--tp-shake,2px)*-1),calc(var(--tp-shake,2px)*-1))}}
+/* 展示态只留左上角淡返回箭头（图3 口径）；点按屏幕才浮出控制条 */
+#tpBack{position:absolute;top:10px;left:12px;z-index:9;opacity:.34;font-size:16px;line-height:1;padding:6px 10px;cursor:pointer}
+#tpCtl{opacity:0;pointer-events:none;transition:opacity .18s}
+#tpStage.tp-ctl-on #tpCtl{opacity:1;pointer-events:auto}
+#tpShake{position:absolute;left:0;right:0;top:0;bottom:0}
   /* ===== 尺子全屏舞台 + 滑动游标（V1.47 验收轮2 · LH-KIT-RULER） ===== */
   #rulerStage{background:#f7f8fb;color:#0f172a;display:none}
   #rulerStage:not(.hidden){display:flex}
   .dark #rulerStage{background:#0b1120;color:#e2e8f0}
+  /* 走查R4-1：尺边=长边时整块舞台转成横向（等价于手机横过来），
+     尺条才真的沿设备长边铺设；短边保持竖向。量程与指针换算一并换轴（rsGeom）。 */
+  #rulerStage.rs-land{transform:rotate(90deg);transform-origin:center center;
+    left:calc(50% - 50vh);top:calc(50% - 50vw);width:100vh;height:100vw}
   #rsBar{position:absolute;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:14px 14px 9px;font-size:10px}
   #rsBar .rs-chip{padding:4px 10px;border-radius:999px;border:1px solid rgba(100,116,139,.35);font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:inherit}
   #rsBar .rs-chip.on{background:var(--accent,#6366f1);border-color:transparent;color:#fff}
@@ -953,17 +974,18 @@ tailwind.config = {
       <div id="toolBody"></div>
     </section>
 
-    <!-- ===== 提词器全屏舞台层（LH-KIT-LED） ===== -->
-    <div id="tpStage" class="fixed inset-0 z-[90] hidden flex-col items-center justify-center">
-     <div id="tpText" class="relative overflow-hidden"><div id="tpBody" class="absolute left-0 top-0 w-full px-6 will-change-transform"></div><div class="tp-scan"></div></div>
-     <div id="tpCtl"><button class="chip chip-on !text-[10px]" id="tpPlay" onclick="tpPlay()">▶ 开始提词</button>
-      <button class="chip !text-[10px]" onclick="tpReset()">回到稿首</button>
-      <span class="text-[9px] opacity-70">速度</span><input type="range" min="10" max="300" step="5" id="tpSpS" class="w-20" oninput="KITS.tpSpeed=+this.value;kitSave();$('#tpSpeedV')&&($('#tpSpeedV').textContent=this.value+' px/s')">
-      <span class="text-[9px] opacity-70">字号</span><input type="range" min="18" max="96" id="tpSzS" class="w-16" oninput="KITS.tpSize=+this.value;kitSave();tpApply()">
-      <span class="text-[9px] opacity-70">行距</span><input type="range" min="110" max="220" step="5" id="tpLhS" class="w-14" oninput="KITS.tpLh=+this.value;kitSave();$('#tpBody').style.lineHeight=(this.value/100)" >
-      <button class="chip !text-[10px]" id="tpLedBtn" onclick="tpLedOn(!!KITS.tpLed?false:true)">LED：关</button>
+    <!-- ===== 提词器全屏舞台层（LH-KIT-LED · 反馈轮4：展示态只留返回箭头，点按浮出控制条） ===== -->
+    <div id="tpStage" class="fixed inset-0 z-[90] hidden flex-col items-center justify-center" onclick="tpStageTap(event)">
+     <div id="tpBack" onclick="event.stopPropagation();tpClose()">←</div>
+     <div id="tpText" class="relative overflow-hidden"><div id="tpShake"><div id="tpBody" class="absolute left-0 top-0 w-full px-6 will-change-transform"></div></div><div class="tp-scan"></div></div>
+     <div id="tpCtl"><button class="chip chip-on !text-[10px]" id="tpPlay" onclick="event.stopPropagation();tpPlay()">开始提词</button>
+      <button class="chip !text-[10px]" onclick="event.stopPropagation();tpReset()">回到稿首</button>
+      <span class="text-[9px] opacity-70">速度</span><input type="range" min="10" max="300" step="5" id="tpSpS" class="w-20" onclick="event.stopPropagation()" oninput="KITS.tpSpeed=+this.value;kitSave();$('#tpSpeedV')&&($('#tpSpeedV').textContent=this.value+' px/s')">
+      <span class="text-[9px] opacity-70">字号</span><input type="range" min="18" max="160" id="tpSzS" class="w-16" onclick="event.stopPropagation()" oninput="KITS.tpSize=+this.value;kitSave();$('#tpSizeV')&&($('#tpSizeV').textContent=this.value+' px');tpApply()">
+      <span class="text-[9px] opacity-70">行距</span><input type="range" min="110" max="220" step="5" id="tpLhS" class="w-14" onclick="event.stopPropagation()" oninput="KITS.tpLh=+this.value;kitSave();$('#tpBody').style.lineHeight=(this.value/100)" >
+      <button class="chip !text-[10px]" id="tpLedBtn" onclick="event.stopPropagation();tpLedOn(!KITS.tpLed)">LED：关</button>
       <span class="text-[9px] opacity-60" id="tpLedTxt"></span>
-      <button class="chip !text-[10px]" onclick="tpClose()">✕ 退出</button></div>
+      <button class="chip !text-[10px]" onclick="event.stopPropagation();tpClose()">退出</button></div>
     </div>
     <!-- ===== 尺子全屏舞台（LH-KIT-RULER · V1.47 验收轮2） ===== -->
     <div id="rulerStage" class="fixed inset-0 z-[90] hidden">
@@ -2634,14 +2656,12 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
 /* ================= 小工具专版 KITS ENGINE（V1.0 · 全部本机实算 + localStorage 持久化） ================= */
 const KIT_SEED=(()=>{const t=new Date();t.setHours(0,0,0,0);const A=[];
- [[0,5,'pick'],[0,3,'datec'],[0,1,'rand'],[1,4,'imgz'],[1,2,'ping'],[2,3,'wheel'],[3,1,'speed'],[4,6,'datec'],[4,2,'pick'],[5,5,'rand'],[5,1,'aiapi'],[6,4,'wheel'],[8,3,'imgz'],[9,2,'dist'],[10,5,'pick'],[11,1,'ruler'],[13,4,'datec'],[13,2,'rand'],[15,3,'wheel'],[17,1,'aiapi'],[17,2,'ping'],[18,5,'imgz'],[20,2,'speed'],[22,3,'rand'],[24,1,'wheel'],[25,4,'pick'],[27,2,'datec'],[29,1,'dist'],[31,3,'imgz'],[33,2,'aiapi']]
+ [[0,5,'pick'],[0,3,'datec'],[0,1,'rand'],[1,4,'imgz'],[2,3,'wheel'],[4,6,'datec'],[4,2,'pick'],[5,5,'rand'],[5,1,'aiapi'],[6,4,'wheel'],[8,3,'imgz'],[9,2,'dist'],[10,5,'pick'],[11,1,'ruler'],[13,4,'datec'],[13,2,'rand'],[15,3,'wheel'],[17,1,'aiapi'],[18,5,'imgz'],[22,3,'rand'],[24,1,'wheel'],[25,4,'pick'],[27,2,'datec'],[29,1,'dist'],[31,3,'imgz'],[33,2,'aiapi']]
  .forEach(([d,h,k])=>{const x=new Date(t);x.setDate(x.getDate()-d);x.setHours(h,17,0,0);A.push({k:k,ts:x.getTime()})});
  return A})();
 const KIT_STORE='lh_kits_v1';
 /* 线性图标表：工具 / 分类 / 插件 / 向导状态统一从此取（用户拍板：UI 不用 emoji） */
 const KIT_ICOS={
- ping:'<path d="M3 12h3.5l2.5-7 4 14 2.5-7H21"/>',
- speed:'<path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 14.5l4-4.5"/><circle cx="12" cy="15" r="1.4"/>',
  ruler:'<rect x="2.5" y="8" width="19" height="8" rx="2"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/>',
  dist:'<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 17l4-6 2 3 4-6"/>',
  wheel:'<circle cx="12" cy="12" r="9"/><path d="M12 3v9l7.5 4"/>',
@@ -2653,7 +2673,6 @@ const KIT_ICOS={
  aiapi:'<rect x="7" y="7" width="10" height="10" rx="2.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.5 5.5l2 2M16.5 16.5l2 2M18.5 5.5l-2 2M7.5 16.5l-2 2"/>',
  b64:'<path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.5 4.5l-3 15"/>',
  tele:'<rect x="3" y="4.5" width="18" height="12.5" rx="2.5"/><path d="M7 9h10M7 12.5h6.5M9 20h6"/>',
- 'cat-网络':'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.8 3 2.8 11 0 17M12 3.5c-2.8 3-2.8 11 0 17"/>',
  'cat-长度':'<rect x="2.5" y="8" width="19" height="8" rx="2"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/>',
  'cat-随机':'<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="9" cy="9" r="1.3"/><circle cx="15" cy="15" r="1.3"/>',
  'cat-色彩':'<path d="M12 3c3.4 4.4 5.4 6.9 5.4 9.3a5.4 5.4 0 0 1-10.8 0C6.6 9.9 8.6 7.4 12 3z"/>',
@@ -3094,34 +3113,75 @@ function kitKB(n){return n<1024?n+'B':(n/1024).toFixed(n<10240?1:0)+'KB'}
 function b64RecentRender(){const el=$('#b64RecentRow');if(!el)return;const L=KITS.b64Recent||[];
  el.innerHTML=L.length?``+L.map(x=>`<div class="flex gap-2 text-[10px] bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-1.5 mb-1"><span class="flex-1 truncate">${x.name}</span><span class="text-slate-400">${kitKB(x.size)} → ${kitKB(x.len)}${x.size===0?' · 空文件':''}</span><span class="text-slate-300">${kitRel(x.ts)}</span></div>`).join(''):
  '<div class="text-[10px] text-slate-400">尚无转换记录 · 选图或粘贴文本后即留痕</div>'}
-/* —— 提词器 —— */
+/* —— 提词器（反馈轮4：吸收手持弹幕的静止/闪烁/加粗/抖动/多彩背景，长文本提词能力保留） —— */
 let TP_ON=false,TP_PLAY=false,TP_RAF=null,TP_LAST=0,TP_Y=0;
+/* 多彩背景档位：点「多彩背景」行循环一档，none=回到所选背景色 */
+const TP_GRADS=[['none','纯色',''],['candy','糖果','linear-gradient(135deg,#a78bfa,#f472b6)'],['dusk','落日','linear-gradient(135deg,#fb923c,#f43f5e)'],['mint','薄荷','linear-gradient(135deg,#34d399,#0ea5e9)'],['sea','海盐','linear-gradient(135deg,#6366f1,#22d3ee)'],['grape','葡萄','linear-gradient(135deg,#8b5cf6,#6366f1)']];
+function tpGradId(v){return TP_GRADS.some(g=>g[0]===v)?v:'none'}
+function tpGradOn(v){return tpGradId(v)!=='none'}
+function tpGradCss(v){const g=tpGradId(v);return g==='none'?(KITS.tpBg||'#000000'):TP_GRADS.find(x=>x[0]===g)[2]}
+function tpGradLabel(v){return TP_GRADS.find(x=>x[0]===tpGradId(v))[1]}
+function tpModeIsScroll(){return (KITS.tpMode||'scroll')==='scroll'}
+function tpGradNext(){const L=TP_GRADS.map(g=>g[0]);KITS.tpGrad=L[(L.indexOf(tpGradId(KITS.tpGrad))+1)%L.length];kitSave();
+ const sw=$('#tpGradSw');if(sw)sw.style.background=tpGradCss(KITS.tpGrad);
+ const nm=$('#tpGradName');if(nm)nm.textContent=tpGradLabel(KITS.tpGrad);
+ const ck=$('#tpGradChk');if(ck)ck.classList.toggle('opacity-0',!tpGradOn(KITS.tpGrad));
+ tpApply();toast('背景：'+tpGradLabel(KITS.tpGrad))}
+function tpMode(m){KITS.tpMode=m;kitSave();tpChips();if(m==='static'){if(TP_PLAY)tpPlay()}else if(TP_ON&&!TP_PLAY)tpPlay();
+ toast(m==='static'?'显示方式：静止铺屏':'显示方式：向上滚动')}
+function tpTgl(k){const key={blink:'tpBlink',bold:'tpBold',led:'tpLed'}[k];KITS[key]=!KITS[key];kitSave();
+ if(k==='led')tpLedOn(KITS[key]);else{tpChips();tpApply();toast(({tpBlink:'文字闪烁',tpBold:'加粗字体'})[key]+'：'+(KITS[key]?'开':'关'))}}
+function tpGo(){const s=$('#tpSrc');if(s){KITS.tpText=s.value;kitSave()}tpOpen()}
 function tpOpen(){TP_ON=true;const st=$('#tpStage');st.classList.remove('hidden');document.body.classList.add('tp-noscroll');
- const tx=$('#tpText'),bo=$('#tpBody');
- if(tx&&bo){if(!tx.dataset.wired){tx.addEventListener('input',()=>{KITS.tpText=tx.value;kitSave()});tx.dataset.wired='1'}
-  tx.value=KITS.tpText||'';bo.textContent=tx.value||'（在下方设置里输入讲稿）'}
- tpApply();tpFit();if(TP_PLAY)tpLoop()}
-function tpClose(){TP_ON=false;TP_PLAY=false;$('#tpStage').classList.add('hidden');document.body.classList.remove('tp-noscroll');
- if(TP_RAF)cancelAnimationFrame(TP_RAF);TP_RAF=null;$('#tpPlay').textContent='▶ 开始提词'}
+ tpApply();tpFit();tpChips();if(tpModeIsScroll()&&!TP_PLAY)tpPlay();
+ /* 进入时把控制条浮出 1.8s 再收起：展示态只留返回箭头（图3），点按屏幕随时唤回 */
+ st.classList.add('tp-ctl-on');setTimeout(()=>{if(TP_ON)st.classList.remove('tp-ctl-on')},1800)}
+function tpStageTap(e){if(e.target.closest('#tpCtl,#tpBack'))return;$('#tpStage').classList.toggle('tp-ctl-on')}
+function tpClose(){TP_ON=false;TP_PLAY=false;const st=$('#tpStage');st.classList.add('hidden');st.classList.remove('tp-ctl-on');
+ document.body.classList.remove('tp-noscroll');if(TP_RAF)cancelAnimationFrame(TP_RAF);TP_RAF=null;
+ const b=$('#tpPlay');if(b)b.textContent='开始提词'}
 function tpFit(){const st=$('#tpStage'),tx=$('#tpText'),bo=$('#tpBody');if(!st||!tx||!bo)return;
  const h=st.clientHeight,w=st.clientWidth;
  if(KITS.tpOri==='land'){tx.style.height=(w-16)+'px';tx.style.width=(h-16)+'px';
   tx.style.transform='translate(-50%,-50%) rotate(90deg)';bo.style.height=(w-16)+'px'}
  else{tx.style.height=(h-12)+'px';tx.style.width=(w-24)+'px';
-  tx.style.transform='translate(-50%,-50%)';bo.style.height=(h-12)+'px'}}
-function tpPlay(){if(!TP_PLAY){TP_PLAY=true;TP_LAST=performance.now();const b=document.querySelector('#tpPlay');if(b)b.textContent='❚❚ 暂停';tpLoop()}
- else{TP_PLAY=false;const b=document.querySelector('#tpPlay');if(b)b.textContent='▶ 开始提词';if(TP_RAF)cancelAnimationFrame(TP_RAF);TP_RAF=null}}
+  tx.style.transform='translate(-50%,-50%)';bo.style.height=(h-12)+'px'}
+ tpStatic()}
+function tpStatic(){const bo=$('#tpBody'),tx=$('#tpText');if(!bo||!tx)return;if(tpModeIsScroll())return;
+ TP_Y=0;bo.style.transform='translateY('+Math.max(0,(tx.clientHeight-bo.scrollHeight)/2)+'px)'}
+function tpPlay(){if(!TP_PLAY){TP_PLAY=true;TP_LAST=performance.now();const b=document.querySelector('#tpPlay');if(b)b.textContent='暂停';tpLoop()}
+ else{TP_PLAY=false;const b=document.querySelector('#tpPlay');if(b)b.textContent='开始提词';if(TP_RAF)cancelAnimationFrame(TP_RAF);TP_RAF=null}}
 function tpLoop(){if(TP_RAF)cancelAnimationFrame(TP_RAF);
  const step=t=>{if(!TP_PLAY)return;const dt=Math.min(80,t-TP_LAST);TP_LAST=t;const bo=document.querySelector('#tpBody'),tx=document.querySelector('#tpText');
   if(bo&&tx){TP_Y+=(KITS.tpSpeed||60)*dt/1000;if(TP_Y>bo.scrollHeight+40)TP_Y=-(tx.clientHeight-40);bo.style.transform='translateY('+(-TP_Y)+'px)'}
   TP_RAF=requestAnimationFrame(step)};
  TP_RAF=requestAnimationFrame(step)}
 function tpReset(){TP_Y=0;const bo=document.querySelector('#tpBody');if(bo)bo.style.transform='translateY(0)';toast('已回到稿首')}
-function tpOri(o){KITS.tpOri=o;kitSave();$('#tpOL').classList.toggle('on',o==='land');$('#tpOP').classList.toggle('on',o==='port');tpFit();tpApply();
- toast(o==='land'?'显示方向：手机横过来看（内容转 90°）':'显示方向：竖向滚动')}
-function tpLed(el){KITS.tpLed=!KITS.tpLed;el.classList.toggle('on',KITS.tpLed);kitSave();tpApply();
- toast(KITS.tpLed?'LED 点阵屏已开 · 扫描线同步运行':'LED 已关 · 普通文字模式')}
-/* tpApply 见 tpStage.js */
+function tpOri(o){KITS.tpOri=o;kitSave();tpChips();tpFit();tpApply();
+ toast(o==='land'?'显示方向：横屏（内容转 90°）':'显示方向：竖屏')}
+function tpLedOn(v){KITS.tpLed=!!v;kitSave();const s=$('#tpStage');if(s)s.classList.toggle('tp-led',!!KITS.tpLed);
+ tpChips();tpApply();toast(KITS.tpLed?'LED 点阵屏已开 · 扫描线同步运行':'LED 已关 · 普通文字模式')}
+/* 参数页 / 舞台上的 chip 一律从 KITS 反读，避免两处状态各写各的 */
+function tpChips(){const on=(id,v)=>{const e=$(id);if(e)e.classList.toggle('on',!!v)};
+ on('#tpOL',KITS.tpOri!=='port');on('#tpOP',KITS.tpOri==='port');
+ on('#tpMS',!tpModeIsScroll());on('#tpMR',tpModeIsScroll());
+ on('#tpEB',KITS.tpBlink);on('#tpEF',KITS.tpBold);on('#tpEL',KITS.tpLed);
+ const b=$('#tpLedBtn');if(b)b.textContent='LED：'+(KITS.tpLed?'开':'关');
+ const t=$('#tpLedTxt');if(t)t.textContent=KITS.tpLed?'点阵颗粒 + 扫描线已同步':'普通文字模式'}
+function tpBootChips(){if(!KITS.tpOri)KITS.tpOri='land';if(!KITS.tpMode)KITS.tpMode='scroll';if(!KITS.tpGrad)KITS.tpGrad='none';
+ tpChips();const sw=$('#tpGradSw');if(sw)sw.style.background=tpGradCss(KITS.tpGrad);
+ const nm=$('#tpGradName');if(nm)nm.textContent=tpGradLabel(KITS.tpGrad);
+ const ck=$('#tpGradChk');if(ck)ck.classList.toggle('opacity-0',!tpGradOn(KITS.tpGrad))}
+function tpApply(){const st=$('#tpStage'),bo=$('#tpBody'),tx=$('#tpText');if(!st||!bo||!tx)return;
+ bo.style.fontSize=(KITS.tpSize||40)+'px';bo.style.lineHeight=((KITS.tpLh||155)/100);
+ bo.style.color=KITS.tpFg||'#ffffff';tx.style.background=KITS.tpBg||'#000000';
+ bo.textContent=(KITS.tpText||'').trim()||'（先在上方输入内容）';
+ TP_GRADS.forEach(g=>{if(g[0]!=='none')st.classList.remove('tp-g-'+g[0])});
+ if(tpGradOn(KITS.tpGrad))st.classList.add('tp-g-'+tpGradId(KITS.tpGrad));
+ st.classList.toggle('tp-blink',!!KITS.tpBlink);st.classList.toggle('tp-bold',!!KITS.tpBold);
+ st.classList.toggle('tp-shake',(KITS.tpShake||0)>0);st.style.setProperty('--tp-shake',(KITS.tpShake||2)+'px');
+ const s=$('#tpSpS');if(s)s.value=KITS.tpSpeed||60;const z=$('#tpSzS');if(z)z.value=KITS.tpSize||40;
+ tpStatic()}
 /* ================= 提词器辅助（演示稿 · LED · 参数应用） ================= */
 function tpDemo(){const t=[
  '各位好，欢迎参加本次产品复盘。',
@@ -3130,18 +3190,9 @@ function tpDemo(){const t=[
  '第三件事：我知道大家最在意稳定性。所以下面这三条，是我给自己定的验收红线，不是给团队的。',
  '讲到这里可以停三秒，等一等提问。',
  '最后一句话：工具应该让人更自由，而不是让人更忙。谢谢大家。'];
- $('#tpSrc').value=t.join('\n\n');KITS.tpText=$('#tpSrc').value;kitSave();toast('演示稿已填入 · 点「进入提词」')}
+ $('#tpSrc').value=t.join('\n\n');KITS.tpText=$('#tpSrc').value;kitSave();tpApply();toast('演示稿已填入 · 点「显示」')}
 function tpImportNote(){toast('从笔记选取（演示）· 正式版走笔记选择器并保留来源徽标 L5');
- KITS.tpText=(KITS.tpText||'')+'\n\n【来自笔记】把手机横过来，眼睛跟着字走就好。';$('#tpSrc').value=KITS.tpText;kitSave()}
-function tpLedOn(v){KITS.tpLed=!!v;kitSave();const s=$('#tpStage');if(s)s.classList.toggle('tp-led',!!KITS.tpLed);
- const b=$('#tpLedBtn');if(b)b.textContent='LED：'+(KITS.tpLed?'开':'关');
- const t=$('#tpLedTxt');if(t)t.textContent=KITS.tpLed?'点阵颗粒 + 扫描线已同步':'普通文字模式';
- const k=$('#tpLedK');if(k)k.classList.toggle('on',!!KITS.tpLed);
- toast(KITS.tpLed?'LED 点阵屏已开启 · 远看仍是文字，近看是颗粒':'LED 已关 · 回到普通文字')}
-function tpApply(){const bo=$('#tpBody'),tx=$('#tpText');if(!bo||!tx)return;
- bo.style.fontSize=(KITS.tpSize||40)+'px';bo.style.lineHeight=((KITS.tpLh||155)/100);
- bo.style.color=KITS.tpFg||'#ffffff';tx.style.background=KITS.tpBg||'#000000';
- const s=$('#tpSzS');if(s)s.value=KITS.tpSize||40}
+ KITS.tpText=(KITS.tpText||'')+'\n\n【来自笔记】把手机横过来，眼睛跟着字走就好。';$('#tpSrc').value=KITS.tpText;kitSave();tpApply()}
 function tpResize(){if(TP_ON)tpFit()}
 window.addEventListener('resize',tpResize);
 
@@ -3149,17 +3200,7 @@ window.addEventListener('resize',tpResize);
 const KIT_PRIV='<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[9px] text-slate-400"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-3 h-3 mr-1"><path d="M7 10V7.5a5 5 0 0 1 10 0V10" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="10" rx="2.5"/></svg><span class="flex-1">本工具全程本地计算 · 抓包 0 请求</span><button class="text-slate-300 px-1" onclick="kitShareTxt()">⤴</button></div>';
 let KIT_SHARE_TXT='结果已复制';
 const TOOLS={
- ping:{ic:'📡',nm:'Ping 工具',mountNote:'模拟网络层',html:()=>`<div class="flex gap-2"><input id="pingHost" class="inp flex-1 !py-2.5 text-xs" value="baidu.com" placeholder="主机 / IP"><button class="mini-btn self-center" onclick="pingGo()">开始</button><button class="mini-btn self-center" onclick="pingStop()">停止</button></div>
- <div class="mt-2 flex gap-3 items-center text-[10px] text-slate-500"><span>次数</span><input type="number" id="pingN" class="inp !w-14 !py-1.5 text-xs" value="10" min="1" max="50"><span>超时(s)</span><input type="number" id="pingTo" class="inp !w-14 !py-1.5 text-xs" value="2" min="1" max="10"><span class="ml-auto text-slate-400">统计可分享 ⤴</span></div>
- <pre id="pingOut" class="mt-3 rounded-xl bg-slate-900 text-emerald-300 font-mono text-[10px] leading-5 p-3 h-44 overflow-auto whitespace-pre-wrap">设置次数与超时后点击开始（本机模拟网络层）</pre>
- <div id="pingStat" class="mt-2 grid grid-cols-4 gap-2 text-center text-[10px]"></div>`},
- speed:{ic:'⚡',nm:'网络测速',html:()=>`<div class="flex gap-1.5 justify-center flex-wrap" id="spdNodes">
-   <button class="prog-chip on !py-1" onclick="spdNode(this,'电信·杭州')">电信·杭州</button><button class="prog-chip !py-1" onclick="spdNode(this,'联通·北京')">联通·北京</button><button class="prog-chip !py-1" onclick="spdNode(this,'移动·广州')">移动·广州</button></div>
- <div class="text-center mt-3"><div id="spdGauge" class="w-44 h-44 mx-auto rounded-full flex items-center justify-center" style="background:conic-gradient(var(--accent) 0deg,#e2e8f0 0deg)"><div class="w-32 h-32 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center"><b id="spdVal" class="text-2xl">0.0</b><span id="spdPhase" class="text-[10px] text-slate-400">待开始</span></div></div>
- <button class="mt-4 mini-btn !text-sm !py-2.5 !px-5" onclick="spdGo()">开始测速（模拟）</button>
- <div id="spdMsg" class="mt-2 text-[11px] text-slate-400">正式版多节点实测下载 / 上传 / 延迟 / 抖动</div></div>
- <div class="card mt-3"><div class="flex items-center justify-between"><div class="row-title text-xs !mb-0">历史结果 · 近 5 次</div><button class="mini-btn" onclick="spdCompareToggle(this)">对比</button></div><div id="spdHist" class="mt-2 space-y-1.5 text-[10px]"></div><div class="text-[9px] text-slate-400 mt-1.5">结果存本机 · 可写入日记留档</div></div>`,mount(){spdHistRender()}},
- ruler:{ic:'📏',nm:'尺子',html:()=>`<div class="flex gap-1.5 mb-2 flex-wrap"><button class="prog-chip on !py-1" id="rUcm" onclick="rulerUnit('cm')">厘米 cm</button><button class="prog-chip !py-1" id="rUin" onclick="rulerUnit('in')">英寸 in</button><span class="flex-1"></span><button class="prog-chip on !py-1" id="rDirLong" onclick="rulerDir('long')">长边</button><button class="prog-chip !py-1" id="rDirShort" onclick="rulerDir('short')">短边</button></div>
+ ruler:{ic:'📏',nm:'尺子',html:()=>`<div class="flex gap-1.5 mb-2 flex-wrap"><button class="prog-chip on !py-1" id="rUcm" onclick="rulerUnit('cm')">厘米 cm</button><button class="prog-chip !py-1" id="rUin" onclick="rulerUnit('in')">英寸 in</button><span class="flex-1"></span><button class="prog-chip on !py-1" id="rDirLong" onclick="rulerDir('long')">长边 · 横向</button><button class="prog-chip !py-1" id="rDirShort" onclick="rulerDir('short')">短边 · 竖向</button></div>
  <div class="flex items-center gap-2"><span class="text-[10px] text-slate-400 w-8">倍率</span><input type="range" id="rulerCal" min="0.85" max="1.15" step="0.002" value="${KITS.cal}" class="flex-1 min-w-0" oninput="rulerCalSet(this.value)"><b class="text-[10px] w-16 shrink-0 text-right font-mono" id="rulerCalV"></b></div>
  <button class="mt-2 w-full py-4 rounded-2xl grad text-white text-[13px] font-extrabold active:scale-[.98] transition" onclick="rulerFsOpen()">全屏尺子 · 按住红线滑动读数 ›</button>
  <div class="card !p-3 text-slate-700 dark:text-slate-300 mt-2 overflow-y-auto no-scrollbar hidden" style="height:52vh" id="rulerBox"></div>
@@ -3272,29 +3313,39 @@ const TOOLS={
   <div class="mt-2 flex gap-2"><button class="mini-btn hidden" id="b64TxtCopy" onclick="b64TxtCopy()">复制还原文本</button><button class="mini-btn hidden" id="b64TxtDl" onclick="b64TxtDl()">存 .txt</button></div></div>
  <div class="card mt-3 !bg-slate-50 dark:!bg-slate-800/60"><div class="row-title text-xs !mb-1">近期转换 · 本机留痕</div><div id="b64RecentRow"></div></div>
  <div class="card mt-3"><div class="flex items-center justify-between"><div class="row-title text-xs !mb-0">操作记录</div><button class="text-[9px] text-slate-400" onclick="KITS.b64Hist=[];kitSave();b64HistRender()">清空</button></div><div id="b64Hist" class="mt-1.5 text-[10px] text-slate-400 leading-5"></div></div>`,mount(){b64Tab('enc');b64HistRender();b64RecentRender()}},
- tele:{ic:'📺',nm:'提词器',html:()=>`<div class="flex gap-2 items-center mb-2"><span class="text-[10px] text-slate-400 w-14">显示方向</span>
-   <button class="prog-chip on !py-1" id="tpOL" onclick="tpOri('land')">横向（手机横过来）</button><button class="prog-chip !py-1" id="tpOP" onclick="tpOri('port')">竖向</button></div>
- <div class="flex items-center gap-2"><span class="text-[10px] text-slate-400 w-14">速度</span><input type="range" id="tpSpeed" min="10" max="300" step="5" value="${KITS.tpSpeed||60}" class="flex-1 min-w-0" oninput="KITS.tpSpeed=+this.value;kitSave();$('#tpSpeedV').textContent=this.value+' px/s'"><b class="text-[10px] w-16 shrink-0 text-right font-mono" id="tpSpeedV">${KITS.tpSpeed||60} px/s</b></div>
- <div class="flex items-center gap-2 mt-1.5"><span class="text-[10px] text-slate-400 w-14">字号</span><input type="range" id="tpSize" min="18" max="96" value="${KITS.tpSize||40}" class="flex-1 min-w-0" oninput="KITS.tpSize=+this.value;kitSave();$('#tpSizeV').textContent=this.value+'px';tpApply()"><b class="text-[10px] w-16 shrink-0 text-right font-mono" id="tpSizeV">${KITS.tpSize||40}px</b></div>
- <div class="flex items-center gap-3 mt-2 text-[10px]"><span class="text-slate-400 w-14">文字色</span><button class="kcc-sw sm" id="tpFgSw" style="background:${KITS.tpFg||'#ffffff'}" onclick="openKitColor(KITS.tpFg,c=>{KITS.tpFg=c;kitSave();$('#tpFgSw').style.background=c;tpApply()})"></button>
-  <span class="text-slate-400">底色</span><button class="kcc-sw sm" id="tpBgSw" style="background:${KITS.tpBg||'#000000'}" onclick="openKitColor(KITS.tpBg,c=>{KITS.tpBg=c;kitSave();$('#tpBgSw').style.background=c;tpApply()})"></button>
-  <span class="ml-auto flex items-center gap-2"><span class="text-slate-400">LED 点阵屏</span><span class="toggle ${KITS.tpLed?'on':''}" onclick="tgl(this);tpLedOn(this.classList.contains('on'))"></span></span></div>
-  <textarea id="tpSrc" rows="4" class="inp mt-2 w-full text-xs leading-5" placeholder="粘贴讲稿 / 台词…">${(KITS.tpText||'').replace(/</g,'&lt;')}</textarea>
- <div class="mt-2 flex gap-2 flex-wrap"><button class="mini-btn" onclick="KITS.tpText=$('#tpSrc').value;kitSave();toast('讲稿已存本机 · 下次打开仍在')">存稿</button>
-  <button class="mini-btn" onclick="tpDemo()">填入演示稿</button><button class="mini-btn" onclick="KITS.tpText=$('#tpSrc').value;kitSave();tpOpen()">▶ 进入提词</button>
-  <button class="mini-btn" onclick="tpImportNote()">从笔记导入</button></div>
- <div class="text-[10px] text-slate-400 mt-2">参数已随本机备份保存</div>`,mount(){$('#tpSrc').value=KITS.tpText||''}},
+ tele:{ic:'📺',nm:'提词器',html:()=>`<textarea id="tpSrc" rows="3" class="inp w-full text-sm leading-6" placeholder="输入内容 / 粘贴讲稿…" oninput="KITS.tpText=this.value;kitSave()">${(KITS.tpText||'').replace(/</g,'&lt;')}</textarea>
+ <div class="flex items-center gap-2 mt-3"><span class="text-[10px] text-slate-400 w-16">文字大小</span><input type="range" id="tpSize" min="18" max="160" value="${KITS.tpSize||40}" class="flex-1 min-w-0" oninput="KITS.tpSize=+this.value;kitSave();$('#tpSizeV').textContent=this.value+' px';tpApply()"><b class="text-[10px] w-14 shrink-0 text-right font-mono" id="tpSizeV">${KITS.tpSize||40} px</b></div>
+ <div class="flex items-center gap-2 mt-1.5"><span class="text-[10px] text-slate-400 w-16">滚动速度</span><input type="range" id="tpSpeed" min="10" max="300" step="5" value="${KITS.tpSpeed||60}" class="flex-1 min-w-0" oninput="KITS.tpSpeed=+this.value;kitSave();$('#tpSpeedV').textContent=this.value+' px/s'"><b class="text-[10px] w-14 shrink-0 text-right font-mono" id="tpSpeedV">${KITS.tpSpeed||60} px/s</b></div>
+ <div class="flex items-center gap-2 mt-1.5"><span class="text-[10px] text-slate-400 w-16">行距</span><input type="range" id="tpLh" min="110" max="220" step="5" value="${KITS.tpLh||155}" class="flex-1 min-w-0" oninput="KITS.tpLh=+this.value;kitSave();$('#tpLhV').textContent=this.value+'%';tpApply()"><b class="text-[10px] w-14 shrink-0 text-right font-mono" id="tpLhV">${KITS.tpLh||155}%</b></div>
+ <div class="mt-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2.5 flex items-center gap-3 cursor-pointer" id="tpGradRow" onclick="tpGradNext()">
+   <span id="tpGradSw" class="w-9 h-9 rounded-full shrink-0" style="background:${tpGradCss(KITS.tpGrad)}"></span>
+   <span class="flex-1 text-[13px] font-bold">多彩背景</span><b id="tpGradName" class="text-[10px] text-slate-400 font-mono">${tpGradLabel(KITS.tpGrad)}</b>
+   <span id="tpGradChk" class="text-brand-500 font-bold ${tpGradOn(KITS.tpGrad)?'':'opacity-0'}">✓</span></div>
+ <div class="mt-2 flex gap-2"><button class="flex-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 py-2 flex items-center justify-center gap-2 text-xs" onclick="openKitColor(KITS.tpFg,c=>{KITS.tpFg=c;kitSave();$('#tpFgSw').style.background=c;tpApply()})"><span id="tpFgSw" class="w-4 h-4 rounded-full border border-slate-300" style="background:${KITS.tpFg||'#ffffff'}"></span>文本颜色</button>
+  <button class="flex-1 rounded-xl bg-slate-50 dark:bg-slate-800/60 py-2 flex items-center justify-center gap-2 text-xs" onclick="openKitColor(KITS.tpBg,c=>{KITS.tpBg=c;kitSave();$('#tpBgSw').style.background=c;tpApply()})"><span id="tpBgSw" class="w-4 h-4 rounded-full border border-slate-300" style="background:${KITS.tpBg||'#000000'}"></span>背景色</button></div>
+ <div class="flex gap-2 items-center mt-3"><span class="text-[10px] text-slate-400 w-16">显示方向</span>
+   <button class="prog-chip !py-1" id="tpOL" onclick="tpOri('land')">横屏</button><button class="prog-chip !py-1" id="tpOP" onclick="tpOri('port')">竖屏</button></div>
+ <div class="flex gap-2 items-center mt-1.5"><span class="text-[10px] text-slate-400 w-16">显示方式</span>
+   <button class="prog-chip !py-1" id="tpMS" onclick="tpMode('static')">静止</button><button class="prog-chip !py-1" id="tpMR" onclick="tpMode('scroll')">滚动</button></div>
+ <div class="flex gap-2 items-center mt-1.5"><span class="text-[10px] text-slate-400 w-16">文字效果</span>
+   <button class="prog-chip !py-1" id="tpEB" onclick="tpTgl('blink')">闪烁</button>
+   <button class="prog-chip !py-1" id="tpEF" onclick="tpTgl('bold')">加粗</button>
+   <button class="prog-chip !py-1" id="tpEL" onclick="tpTgl('led')">LED 点阵</button></div>
+ <div class="flex items-center gap-2 mt-1.5"><span class="text-[10px] text-slate-400 w-16">文字抖动</span><input type="range" id="tpShk" min="0" max="8" step="1" value="${KITS.tpShake||0}" class="flex-1 min-w-0" oninput="KITS.tpShake=+this.value;kitSave();$('#tpShkV').textContent=this.value+' px';tpApply()"><b class="text-[10px] w-14 shrink-0 text-right font-mono" id="tpShkV">${KITS.tpShake||0} px</b></div>
+ <div class="mt-3 flex gap-2 flex-wrap"><button class="mini-btn" onclick="tpDemo()">填入演示稿</button><button class="mini-btn" onclick="tpImportNote()">从笔记导入</button></div>
+ <button class="mt-3 w-full py-3.5 rounded-2xl grad text-white text-[13px] font-extrabold active:scale-[.98] transition" onclick="tpGo()">显示</button>
+ <div class="text-[10px] text-slate-400 mt-2">内容改动即存本机 · 参数随本机备份</div>`,mount(){tpBootChips()}},
 };
 const TOOL_REG=Object.assign({},TOOLS);
-const TOOL_CATS=[['网络',['ping','speed']],['长度',['ruler','dist']],['随机',['wheel','rand']],['色彩',['pick','comp']],['计算',['datec']],['图片',['imgz']],['编码',['b64']],['智能',['aiapi']],['演示',['tele'] ]];
+const TOOL_CATS=[['长度',['ruler','dist']],['随机',['wheel','rand']],['色彩',['pick','comp']],['计算',['datec']],['图片',['imgz']],['编码',['b64']],['智能',['aiapi']],['演示',['tele'] ]];
 let PLUGINS=[
  {id:'lh-morse',n:'摩斯电码',ic:'▂▄',ver:'1.2.0',minHost:'0.1.20',srcType:'local',src:'plugins/morse.h5.zip',hash:'a41f3c…9d02',size:18,en:true,perms:['剪贴板'],permOn:1,netDom:'',audit:[{ts:Date.now()-3*864e5,t:'扫描发现 · 双重校验通过'},{ts:Date.now()-3*864e5+6e5,t:'授权：剪贴板'},{ts:Date.now()-864e5,t:'一键回滚至 v1.2.0'}],prev:'1.1.4'},
  {id:'lh-decibel',n:'分贝计',ic:'🎚',ver:'0.3.1',minHost:'0.1.24',srcType:'gh',src:'github.com/lifeharness/lh-plugin-decibel v0.3',hash:'7be2aa…1f6c',size:46,en:true,perms:['麦克风','相册'],permOn:1,netDom:'',audit:[{ts:Date.now()-6*864e5,t:'安装 · SHA-256+minisign 通过'},{ts:Date.now()-6*864e5+8e5,t:'授权：麦克风、相册'},{ts:Date.now()-2*864e5,t:'bsdiff 增量升级 0.3.0→0.3.1'}],prev:'0.3.0'},
  {id:'lh-barcode',n:'条形码生成',ic:'▮▯',ver:'1.0.2',minHost:'0.1.26',srcType:'gh',src:'github.com/lifeharness/plugins/barcode v1.0.2',hash:'c9910d…5a44',size:31,en:false,perms:['剪贴板','网络'],permOn:0,netDom:'api.barcode-lib.example',audit:[{ts:Date.now()-2*864e5,t:'安装 · 双重校验通过'},{ts:Date.now()-864e5,t:'网络调用被沙箱拦截 · 权限未授权'},{ts:Date.now()-864e5+3e5,t:'停用 · 导航项消失 · 数据保留'}],prev:null}];
 function kitBootSync(){kitSave();if(!$('#plgDetailBody').innerHTML.trim()&&PLUGINS[0])plgRenderDetail(PLUGINS[0].id)}
-let curTool=null,wheelRot=0,wheelBusy=false,pingT=null,pingRun=false,DIST=[],DIST_T0=null,IMGO=null,IMGB=[],CP_RECENT=null,DIST_SCALE=KITS.distScale||2.5,RULER_UNIT='cm',RAND_LAST=[],IMGZ_FMT='jpeg',D_SIGN=1,SPD_NODE='电信·杭州',SPD_CMP=false;
+let curTool=null,wheelRot=0,wheelBusy=false,DIST=[],DIST_T0=null,IMGO=null,IMGB=[],CP_RECENT=null,DIST_SCALE=KITS.distScale||2.5,RULER_UNIT='cm',RAND_LAST=[],IMGZ_FMT='jpeg',D_SIGN=1;
 function openTool(k){curTool=k;stack.push(curPage);setPage('p-toolDetail');const t=TOOLS[k];$('#pageTitle').textContent=t.nm;$('#pageSub').textContent='小工具合集 · 本地计算';
- $('#toolBody').innerHTML=`<div class="card">${t.html()}${k==='aiapi'?'<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[9px] text-slate-400"><span class="flex-1">本工具按声明向所填端点发出请求 · 其余工具零出站</span></div>':(k==='ping'||k==='speed')?KIT_PRIV.replace('本地计算 · 抓包 0 请求','模拟网络层 · 不发真实请求'):KIT_PRIV}</div>`;
+ $('#toolBody').innerHTML=`<div class="card">${t.html()}${k==='aiapi'?'<div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center text-[9px] text-slate-400"><span class="flex-1">本工具按声明向所填端点发出请求 · 其余工具零出站</span></div>':KIT_PRIV}</div>`;
  if(k==='wheel'){const st=document.createElement('style');st.id='wheelSt';if(!$('#wheelSt')){st.textContent='#wheelEl{transition:transform 2.8s cubic-bezier(.15,.9,.15,1)}';document.head.appendChild(st)}}
  if(k==='rand')randHistRender(); /* 走查A6：打开时不渲染，空态引导文案不显示 */
  t.mount&&t.mount();if(curPage==='p-toolDetail')$('#pageTitle').textContent=t.nm}
@@ -4616,47 +4667,6 @@ function wheelCfgOpen(){wheelSetsRender();wheelListRender();openSheet('sheetWhee
 /* —— 日期计算：调用应用内滚轮 —— */
 function dPick(id){openKitDate($('#'+id).value,v=>{$('#'+id).value=v;
  if(id==='dC')dCalcAdd();else dCalcDiff()})}
-/* —— ping —— */
-function pingGo(){pingStop();const h=($('#pingHost').value||'baidu.com').trim();
- const n=Math.max(1,Math.min(50,+$('#pingN').value||10)),toMs=(+$('#pingTo').value||2)*1000;
- const out=$('#pingOut');out.textContent='';pingRun=true;
- const base=12+Math.random()*40,stats={sent:0,recv:0,lost:0,min:1e9,max:0,sum:0,jit:0,last:0};
- out.textContent=`PING ${h} · 模拟解析 → ${(Math.random()<.5?'39.156.':'110.242.')+Math.floor(Math.random()*200+10)+'.'+Math.floor(Math.random()*200+10)} · 56 字节包 · 超时 ${toMs/1000}s\n`;
- let i=0;
- pingT=setInterval(()=>{if(!pingRun)return;i++;stats.sent++;
-  const roll=Math.random();
-  if(roll<.07){stats.lost++;out.innerHTML+=`<span style="color:#fb7185">seq=${i} 请求超时（>${toMs/1000}s）</span>\n`}
-  else{const ms=Math.max(1,base+(Math.random()-.5)*base*1.1);stats.recv++;stats.sum+=ms;stats.min=Math.min(stats.min,ms);stats.max=Math.max(stats.max,ms);
-   if(stats.last)stats.jit+=Math.abs(ms-stats.last);stats.last=ms;
-   out.innerHTML+=`<span style="color:#86efac">seq=${i}  ttl=${54+Math.floor(Math.random()*8)}  time=${ms.toFixed(1)}ms</span>\n`}
-  out.scrollTop=1e5;pingStatRender(stats);if(i>=n)pingStop()},420)}
-function pingStatRender(s){const el=$('#pingStat');if(!el)return;
- const avg=s.recv?(s.sum/s.recv).toFixed(1):'—',jit=s.recv>1?(s.jit/(s.recv-1)).toFixed(1):'0.0';
- const lossPct=s.sent?Math.round(s.lost/s.sent*100):0;
- el.innerHTML=[[`<b class="text-[13px]">${s.recv}/${s.sent}</b>`,('收/发')],[`<b class="text-[13px]">${avg}</b>`,'平均 ms'],[`<b class="text-[13px]">${s.recv?s.min.toFixed(1):'—'} / ${s.recv?s.max.toFixed(1):'—'}</b>`,'min / max'],[`<b class="text-[13px] ${lossPct>10?'text-rose-500':'text-emerald-500'}">${lossPct}%</b>`,'丢包率']].map(x=>`<div class="bg-slate-100 dark:bg-slate-800 rounded-xl py-1.5">${x[0]}<div class="text-[9px] text-slate-400">${x[1]}</div></div>`).join('');
- KIT_SHARE_TXT=`PING ${($('#pingHost').value||'')} · 发 ${s.sent} 收 ${s.recv} · 平均 ${avg}ms · 丢包 ${lossPct}% · 抖动 ${jit}ms`}
-function pingStatSeed(){const el=$('#pingStat');if(el&&!el.innerHTML)el.innerHTML=['收/发','平均 ms','min / max','丢包率'].map(t=>`<div class="bg-slate-100 dark:bg-slate-800 rounded-xl py-1.5"><b class="text-[13px]">—</b><div class="text-[9px] text-slate-400">${t}</div></div>`).join('')}
-function pingStop(){if(pingT){clearInterval(pingT);pingT=null}
- if(!pingRun)return;pingRun=false;const out=$('#pingOut');if(out)out.scrollTop=1e5;
- toast('已停止 · 统计为实算结果，可点 ⤴ 分享')}
-/* —— 测速 —— */
-function spdNode(el,n){SPD_NODE=n;$$('#spdNodes .prog-chip').forEach(c=>c.classList.toggle('on',c===el));toast('切换节点：'+n)}
-function spdGo(){const dur=3200,target=40+Math.random()*160,st=performance.now();
- const phase=$('#spdPhase');phase.textContent='下载中…';
- const t=setInterval(()=>{const p=(performance.now()-st)/dur;
-  if(p>=1){clearInterval(t);const up=target*(.12+Math.random()*.1),ping=8+Math.random()*40,jit=Math.random()*20;
-   phase.textContent='完成';$('#spdVal').textContent=target.toFixed(1);
-   $('#spdGauge').style.background=`conic-gradient(var(--accent) ${Math.min(360,target/200*360)}deg,#e2e8f0 0deg)`;
-   $('#spdMsg').textContent=`下载 ${target.toFixed(1)} · 上传 ${up.toFixed(1)} Mbps · 延迟 ${ping.toFixed(0)}ms · 抖动 ${jit.toFixed(0)}ms`;
-   KITS.spd=KITS.spd||[];KITS.spd.unshift({n:SPD_NODE,d:+target.toFixed(1),u:+up.toFixed(1),p:+ping.toFixed(0),j:+jit.toFixed(0),ts:Date.now()});
-   KITS.spd=KITS.spd.slice(0,5);kitSave();spdHistRender();KIT_SHARE_TXT=`测速 ${SPD_NODE} · 下载 ${target.toFixed(1)}Mbps / 上传 ${up.toFixed(1)} · 延迟 ${ping.toFixed(0)}ms`;return}
-  const v=Math.max(0,target*p*(.82+Math.random()*.36));$('#spdVal').textContent=v.toFixed(1);
-  $('#spdGauge').style.background=`conic-gradient(var(--accent) ${Math.min(360,v/200*360)}deg,#e2e8f0 0deg)`},70)}
-function spdHistRender(){const el=$('#spdHist');if(!el)return;const L=KITS.spd||[];
- el.innerHTML=L.length?L.map((x,i)=>{const prev=L[1];const delta=prev&&i===0?(x.d-prev.d):null;
-  return `<div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2.5 py-1.5"><span class="text-slate-400">${kitDkey(x.ts).slice(5)}</span><span class="flex-1">${x.n}</span><b class="text-[var(--accent)]">${SPD_CMP&&delta!==null&&i===0?(x.d.toFixed(1)+(delta>=0?' ▲':' ▼')):x.d.toFixed(1)}</b><span class="text-slate-400 w-16 text-right">↑${x.u.toFixed(1)} · ${x.p}ms</span></div>`}).join(''):
-  '<div class="text-[10px] text-slate-400">尚无测速记录 · 完成一次测速自动留档</div>'}
-function spdCompareToggle(el){SPD_CMP=!SPD_CMP;el.textContent=SPD_CMP?'对比中':'对比';spdHistRender();toast(SPD_CMP?'已与上一次结果对比':'取消对比')}
 /* —— 尺子 —— */
 function rulerEdgeMm(){const PXMM=3.78;
  const _pe=document.getElementById('phone')||document.documentElement,_pr=_pe.getBoundingClientRect(); /* 走查A1：screen.* 在部分 WebView/桌面壳恒为 0，改量手机框实际渲染尺寸 */
@@ -4670,24 +4680,31 @@ function rulerDraw(){rulerDrawScale();rulerPaintRs();
  const card=$('#rulerSpanCard');if(card)card.textContent=rulerTargetMm()+' mm';}
 /* —— 尺子全屏舞台 + 滑动游标（V1.47 验收轮2） —— */
 function rulerFsOpen(){const st=$('#rulerStage');if(!st)return;st.classList.remove('hidden');document.body.classList.add('tp-noscroll');
- if(KITS.rsCur==null)KITS.rsCur=Math.round(rulerTargetMm()*.4);rsClamp();rulerDraw();rsChips()}
+ rsLand(st);if(KITS.rsCur==null)KITS.rsCur=Math.round(rulerTargetMm()*.4);rsClamp();rulerDraw();rsChips()}
+/* 尺边 → 舞台方向：长边=横向（手机横过来），短边=竖向 */
+function rsLand(st){const s=st||$('#rulerStage');if(s)s.classList.toggle('rs-land',(KITS.rulerDir||'long')==='long')}
 function rulerFsClose(){const st=$('#rulerStage');if(!st)return;st.classList.add('hidden');document.body.classList.remove('tp-noscroll')}
 function rsChips(){const u=$('#rsUcm');if(!u)return;const cm=(KITS.rulerUnit||'cm')==='cm';
  u.classList.toggle('on',cm);$('#rsUin').classList.toggle('on',!cm);
  $('#rsDirLong').classList.toggle('on',(KITS.rulerDir||'long')==='long');$('#rsDirShort').classList.toggle('on',KITS.rulerDir==='short')}
-function rsGeom(){const tp=$('#rsTape');if(!tp)return null;const r=tp.getBoundingClientRect();
- const target=rulerTargetMm(),px=r.width||400;return {left:r.left,px:px,ppmm:px/target,target:target}}
+function rsGeom(){const tp=$('#rsTape');if(!tp)return null;const target=rulerTargetMm();
+ /* 横向态下舞台整体 rotate(90deg)：尺条本地 x 轴落在屏幕 y 轴上，
+    所以长度取布局宽 offsetWidth、原点取包围盒 top，指针换算随之换轴。 */
+ const land=(KITS.rulerDir||'long')==='long',r=tp.getBoundingClientRect();
+ const px=(land?tp.offsetWidth:r.width)||400;
+ return {land:land,origin:land?r.top:r.left,px:px,ppmm:px/target,target:target}}
+function rsAlong(e){const g=rsGeom();return (g&&g.land)?e.clientY:e.clientX}
 function rsClamp(){const g=rsGeom();if(!g)return;const t=g.target;
  KITS.rsZero=Math.min(Math.max(0,KITS.rsZero||0),t-1);
  if(KITS.rsCur==null)KITS.rsCur=Math.round(t*.4);
  KITS.rsCur=Math.min(Math.max(KITS.rsCur,KITS.rsZero+1),t)}
-function rsSetFromX(clientX,which){const g=rsGeom();if(!g)return;
- const mm=Math.round((clientX-g.left)/g.ppmm);
+function rsSetFromX(clientP,which){const g=rsGeom();if(!g)return;
+ const mm=Math.round((clientP-g.origin)/g.ppmm);
  if(which==='zero')KITS.rsZero=Math.min(Math.max(0,mm),g.target-1);
  else KITS.rsCur=Math.min(Math.max(mm,KITS.rsZero+1),g.target);
  rulerPaintRs()}
-function rsGrab(e,which){e.preventDefault();if(e.stopPropagation)e.stopPropagation();rsSetFromX(e.clientX,which);
- const mv=ev=>rsSetFromX(ev.clientX,which);
+function rsGrab(e,which){e.preventDefault();if(e.stopPropagation)e.stopPropagation();rsSetFromX(rsAlong(e),which);
+ const mv=ev=>rsSetFromX(rsAlong(ev),which);
  const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);
    toast(which==='zero'?('零点已移到 '+KITS.rsZero+' mm'):('读数 '+(KITS.rsCur-KITS.rsZero)+' mm'))};
  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up)}
@@ -4716,11 +4733,11 @@ function rulerDrawScale(){const host=$('#rsScale');if(!host)return;const g=rsGeo
  host.style.width=(target*g.ppmm)+'px';host.innerHTML=h}
 
 function rulerApplyBoot(){if(!KITS.rulerDir)KITS.rulerDir='long';if(!KITS.rulerUnit)KITS.rulerUnit='cm';
- rsChips();const b=$('#rUcm');if(!b)return;
+ rsChips();rsLand();const b=$('#rUcm');if(!b)return;
  b.classList.toggle('on',KITS.rulerUnit==='cm');$('#rUin').classList.toggle('on',KITS.rulerUnit==='in');
  $('#rDirLong').classList.toggle('on',KITS.rulerDir==='long');$('#rDirShort').classList.toggle('on',KITS.rulerDir==='short')}
 function rulerDir(d){KITS.rulerDir=d;kitSave();rsChips();const _a=$('#rDirLong');if(_a){_a.classList.toggle('on',d==='long');$('#rDirShort').classList.toggle('on',d==='short');}
- rulerDraw();toast(d==='long'?'尺边：沿手机长边铺设（默认自动取长边）':'尺边：沿手机短边铺设')}
+ rsLand();rulerDraw();toast(d==='long'?'尺边：长边 · 尺面转为横向（手机横过来量）':'尺边：短边 · 尺面回到竖向')}
 function rulerUnit(u){RULER_UNIT=u;KITS.rulerUnit=u;kitSave();const _c=$('#rUcm');if(_c){_c.classList.toggle('on',u==='cm');$('#rUin').classList.toggle('on',u==='in')}rsChips();rulerDraw();toast('刻度单位：'+(u==='cm'?'厘米 · 逻辑毫米基准':'英寸 · 1in=25.4mm 换算'))}
 function rulerCalSet(v){KITS.cal=+v;kitSave();const s=$('#rulerCal');if(s)s.value=v;const r=$('#rsCal');if(r)r.value=v;rulerDraw()}
 function rulerBank(){const v=Math.min(1.15,Math.max(.85,1/(0.86+Math.random()*.24)));

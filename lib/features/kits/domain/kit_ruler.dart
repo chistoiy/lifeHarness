@@ -167,9 +167,9 @@ List<KitRulerTick> kitRulerTicks({
 String kitRulerUnitToast(String unit) =>
     unit == 'in' ? '刻度单位：英寸 · 1in=25.4mm 换算' : '刻度单位：厘米 · 逻辑毫米基准';
 
-/// 方向说明 toast（原型 `rulerDir`）。
+/// 方向说明 toast（原型 `rulerDir` · 反馈轮4：换尺边会真的转屏）。
 String kitRulerDirToast(bool longEdge) =>
-    longEdge ? '尺边：沿手机长边铺设（默认自动取长边）' : '尺边：沿手机短边铺设';
+    longEdge ? '尺边：长边 · 尺面转为横向（手机横过来量）' : '尺边：短边 · 尺面回到竖向';
 
 /// 分享文案（原型 `KIT_SHARE_TXT`）。
 String kitRulerShare({

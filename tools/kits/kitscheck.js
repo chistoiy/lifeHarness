@@ -10,7 +10,7 @@ const SHOTS=process.argv.includes('--shots');
 const SHOTDIR='prototype/shots/kits';
 const LOG='tools/kits/kits-run.log', RES='tools/kits/last-kitscheck.txt';
 const PAGES=['p-tools','p-kitsMng','p-kitsStats','p-kitsPlg','p-kitsPlgDetail','p-dashboard','p-profile'];
-const TOOLS=['ping','speed','ruler','dist','wheel','rand','pick','comp','datec','imgz','b64','tele','aiapi'];
+const TOOLS=['ruler','dist','wheel','rand','pick','comp','datec','imgz','b64','tele','aiapi'];
 let pass=0,fail=0;const results=[];
 const log=m=>{fs.appendFileSync(LOG,m+'\n');console.log(m)};
 fs.writeFileSync(LOG,'== kitscheck start '+new Date().toISOString()+' ==\n');
@@ -61,8 +61,8 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
  if(boot&&boot.__err)bad('boot',boot.__err);
  else{log('boot '+JSON.stringify(boot));
   /小工具合集专版/.test(boot.title)?ok('专版 title'):bad('专版 title',boot.title);
-  boot.reg===13?ok('工具注册 13 项'):bad('工具注册数',boot.reg);
-  boot.cat===9?ok('分类 9 组'):bad('分类组数',boot.cat);
+  boot.reg===11?ok('工具注册 11 项（Ping/测速已摘除）'):bad('工具注册数',boot.reg);
+  boot.cat===8?ok('分类 8 组（网络组随两件一并下架）'):bad('分类组数',boot.cat);
   boot.cards>=13?ok('首页卡片 '+boot.cards):bad('首页卡片',boot.cards);
   boot.hero===4?ok('主卡数据位 4'):bad('主卡数据位',boot.hero);
   boot.ls?ok('localStorage 已写入'):bad('localStorage 未写入')}
@@ -93,9 +93,13 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
  }
  await step('提词层默认隐藏（防全屏遮罩回归）',`(function(){var st=document.querySelector('#tpStage');var cs=getComputedStyle(st);
    return {cls:st.className.indexOf('hidden')>=0,disp:cs.display}})()`,v=>v.cls&&v.disp==='none');
- await step('使用计数递增',`(function(){var a=KITS.usage.ping||0;kitOpen('ping');return {b:a,a:KITS.usage.ping}})()`,v=>v.a>v.b);
- await step('收藏上限 6 拦截',`(function(){KITS.fav=['ping','speed','ruler','dist','wheel','rand'];kitToggleFav('pick');return KITS.fav.length})()`,v=>v===6);
+ await step('使用计数递增',`(function(){var a=KITS.usage.ruler||0;kitOpen('ruler');return {b:a,a:KITS.usage.ruler}})()`,v=>v.a>v.b);
+ await step('收藏上限 6 拦截',`(function(){KITS.fav=['ruler','dist','wheel','rand','comp','datec'];kitToggleFav('pick');return KITS.fav.length})()`,v=>v===6);
  await step('hero 草稿保存制',`(function(){openKitCfg();kitCfgPick('today');kitCfgSave();return KITS.hero.join('|')})()`,v=>v.split('|').length===4);
+ await step('分类条已无「网络」（Ping/测速摘除后不留空分类）',`(function(){setPage('p-tools');
+   var cats=TOOL_CATS.map(c=>c[0]);var chips=[].slice.call(document.querySelectorAll('#p-tools .prog-chip,#p-tools .chip')).map(x=>x.textContent).join('|');
+   return {cats:cats.join(','),noNet:cats.indexOf('网络')<0,chipNet:chips.indexOf('网络')>=0,n:cats.length}})()`,
+   v=>v.noNet&&!v.chipNet&&v.n===8);
  await step('筛选+搜索组合',`(function(){kitSetCat('随机');var a=document.querySelectorAll('#toolGrid button').length;
    var s=document.querySelector('#kitSearch');s.value='骰';kitFilter();var b=document.querySelectorAll('#toolGrid button').length;
    kitClearFilter();return {cat:a,search:b}})()`,v=>v.cat>0&&v.search<=v.cat);
@@ -120,12 +124,12 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
      cursorLeft:document.getElementById('rsCursor').style.left}})()`,
    v=>v.open&&/长边 游标 \d+ mm/.test(v.span)&&v.cardMm===v.target&&v.ticks>=v.target-2&&v.majors>=10&&/\d+px/.test(v.cursorLeft));
   await step('尺子游标拖动即自动读数',`(function(){openTool('ruler');
-   var g=rsGeom(),x0=g.left+g.ppmm*120;rsSetFromX(x0,'cur');
+   var g=rsGeom(),x0=g.origin+g.ppmm*120;rsSetFromX(x0,'cur');
    return {cur:KITS.rsCur,read:(document.getElementById('rulerSpan').textContent||''),big:document.getElementById('rsBig').textContent}})()`,
    v=>Math.abs(v.cur-120)<=2&&new RegExp('游标 '+v.cur+' mm').test(v.read)&&v.big===v.cur+' mm');
   await step('尺子零点可挪且读数=游标-零点',`(function(){openTool('ruler');
    KITS.rsZero=0;KITS.rsCur=150;rulerPaintRs();var a=KITS.rsCur-KITS.rsZero;
-   var g=rsGeom();rsSetFromX(g.left+g.ppmm*40,'zero');var b=KITS.rsCur-KITS.rsZero,z=KITS.rsZero;
+   var g=rsGeom();rsSetFromX(g.origin+g.ppmm*40,'zero');var b=KITS.rsCur-KITS.rsZero,z=KITS.rsZero;
    KITS.rsZero=0;rulerPaintRs();return {before:a,after:b,z:z}})()`,v=>v.before===150&&Math.abs(v.after-110)<=2&&Math.abs(v.z-40)<=2);
   await step('首页工具卡已紧凑化（每行可排 5 枚 · kit-tile）',`(function(){setPage('p-tools');var g=document.querySelector('#toolGrid');
    var grids=[].slice.call(g.querySelectorAll('.kgrid'));var gr0=grids[0]?getComputedStyle(grids[0]):null;
@@ -137,9 +141,14 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
    return {tiles:g.querySelectorAll('.kit-tile').length,disp:gr0?gr0.display:'',perRow:kids.filter(r=>Math.abs(r.top-y)<2).length,
      fits5:tw>0&&Math.floor(gw/tw)===5,minW:t0?getComputedStyle(t0).minWidth:'',
      legacy:/class="card !p-2.5/.test(g.innerHTML)}})()`,
-   v=>v.tiles>=13&&!v.legacy&&v.fits5&&v.minW==='0px'&&v.perRow>=2);
- await step('尺子方向切换',`(function(){rulerDir('short');var a=$('#rulerSpan').textContent;rulerDir('long');
-   return {short:/短边/.test(a),long:/长边/.test($('#rulerSpan').textContent)}})()`,v=>v.short&&v.long);
+   v=>v.tiles>=11&&!v.legacy&&v.fits5&&v.minW==='0px'&&v.perRow>=2);
+ await step('尺子方向切换（长边=舞台转横向 · 短边=回到竖向）',`(function(){openTool('ruler');
+   rulerDir('short');var a=$('#rulerSpan').textContent,land0=$('#rulerStage').classList.contains('rs-land'),s0=rulerTargetMm();
+   rulerDir('long');return {short:/短边/.test(a),long:/长边/.test($('#rulerSpan').textContent),
+     portNoRotate:!land0,landRotate:$('#rulerStage').classList.contains('rs-land'),grown:rulerTargetMm()>s0}})()`,
+   v=>v.short&&v.long&&v.portNoRotate&&v.landRotate&&v.grown); await step('尺子横向态指针换轴（沿屏幕 y 轴取点）',`(function(){rulerDir('long');var g=rsGeom();
+   var landAxis=g.land&&g.origin>=0&&g.px>0;rsSetFromX(g.origin+g.ppmm*90,'cur');var mm=KITS.rsCur-KITS.rsZero;
+   rulerDir('short');return {landAxis:landAxis,mm:mm}})()`,v=>v.landAxis&&Math.abs(v.mm-90)<=2);
  await step('尺子校准与重置',`(function(){openTool('ruler');rulerBank();var c=KITS.cal;rulerCalSet(1);return {moved:Math.abs(c-1)>0.001,reset:KITS.cal===1}})()`,v=>v.moved&&v.reset);
  await step('取色三值一致',`(function(){openTool('pick');cpkShow('#2dd4bf');return {h:$('#cpHex').textContent,r:$('#cpRgb').textContent}})()`,v=>v.h==='#2DD4BF'&&/45, 212, 191/.test(v.r));
  await step('色串解析 rgb/hsl',`(function(){openTool('pick');$('#cpIn').value='rgb(99, 102, 241)';cpkParse();var a=$('#cpHex').textContent;
@@ -215,19 +224,32 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
  await step('b64 非法输入归因',`(function(){openTool('b64');$('#b64In').value='@@@###';b64Decode();return $('#b64Err').textContent})()`,v=>/解码失败|非法/.test(v));
  await step('b64 补前缀',`(function(){openTool('b64');$('#b64In').value='QUJD';b64Copy('prefix');return $('#b64In').value.slice(0,22)})()`,v=>/data:image/.test(v));
  await step('提词器参数记忆',`(function(){openTool('tele');KITS.tpSpeed=120;KITS.tpSize=52;KITS.tpLh=180;kitSave();return {sp:KITS.tpSpeed,sz:KITS.tpSize,lh:KITS.tpLh}})()`,v=>v.sp===120&&v.sz===52);
+ await step('提词效果组（多彩背景·静止/滚动·闪烁·加粗·抖动）',`(function(){openTool('tele');
+   tpGradNext();var g1=tpGradId(KITS.tpGrad),sw=/linear-gradient/.test($('#tpGradSw').style.background);
+   var st=$('#tpStage');tpOpen();var gcls=new RegExp('tp-g-'+g1).test(st.className);
+   tpMode('static');var stat=(KITS.tpMode==='static')&&TP_PLAY===false;tpMode('scroll');
+   tpTgl('blink');tpTgl('bold');var blink=/tp-blink/.test(st.className),bold=/tp-bold/.test(st.className);
+   KITS.tpShake=4;tpApply();var shk=/tp-shake/.test(st.className),varSh=st.style.getPropertyValue('--tp-shake');
+   KITS.tpShake=0;tpApply();var shkOff=!/tp-shake/.test(st.className);
+   tpTgl('blink');tpTgl('bold');tpGradNext();tpGradNext();tpClose();
+   return {g1:g1,sw:sw,gcls:gcls,stat:stat,blink:blink,bold:bold,shk:shk,shkOff:shkOff,varSh:/px/.test(varSh),cycled:tpGradId(KITS.tpGrad)!==g1}})()`,
+   v=>v.g1!=='none'&&v.sw&&v.gcls&&v.stat&&v.blink&&v.bold&&v.shk&&v.shkOff&&v.varSh&&v.cycled);
+ await step('提词展示态只留返回箭头（点按浮出控制条）',`(function(){openTool('tele');tpOpen();
+   var st=$('#tpStage');var ctlOn=st.classList.contains('tp-ctl-on');
+   tpStageTap({target:document.querySelector('#tpBody')});var off=!st.classList.contains('tp-ctl-on');
+   tpStageTap({target:document.querySelector('#tpBody')});var again=st.classList.contains('tp-ctl-on');
+   var back=!!document.querySelector('#tpBack');tpClose();
+   return {ctlOn:ctlOn,off:off,again:again,back:back}})()`,
+   v=>v.ctlOn&&v.off&&v.again&&v.back);
  await step('提词舞台·方向·LED·播放',`(function(){openTool('tele');tpDemo();tpOpen();
    var st=document.querySelector('#tpStage'),vis=!/hidden/.test(st.className);
    tpOri('land');var rot=/rotate\\(90deg\\)/.test(document.querySelector('#tpText').style.transform);
    tpLedOn(true);var led=/tp-led/.test(st.className);tpLedOn(false);
-   tpPlay();var playing=TP_PLAY;tpPlay();tpReset();tpClose();
-   return {vis:vis,rot:rot,led:led,playing:playing,closed:/hidden/.test(st.className),txt:$('#tpSrc').value.length}})()`,v=>v.vis&&v.rot&&v.led&&v.playing&&v.closed&&v.txt>60);
- await step('提词滚动推进',`(function(){tpOpen();KITS.tpSpeed=220;tpPlay();
+   var auto=TP_PLAY;tpPlay();var paused=!TP_PLAY;tpPlay();tpReset();tpClose();
+   return {vis:vis,rot:rot,led:led,auto:auto,paused:paused,closed:/hidden/.test(st.className),txt:$('#tpSrc').value.length}})()`,v=>v.vis&&v.rot&&v.led&&v.auto&&v.paused&&v.closed&&v.txt>60);
+ await step('提词滚动推进',`(function(){tpOpen();KITS.tpSpeed=220;if(!TP_PLAY)tpPlay();
    return new Promise(function(res){setTimeout(function(){tpPlay();tpClose();res(document.querySelector('#tpBody').style.transform)},520)})})()`,v=>/translateY\(-[0-9.]+px\)/.test(v),true);
- await step('Ping 统计实算',`(function(){openTool('ping');$('#pingN').value=2;pingGo();
-   return new Promise(function(res){setTimeout(function(){res($('#pingStat').innerText.replace(/\\s+/g,'|').slice(0,48))},1600)})})()`,v=>/收\/发/.test(v),true);
- await step('测速自动留档',`(function(){openTool('speed');spdGo();
-   return new Promise(function(res){setTimeout(function(){res({n:(KITS.spd||[]).length,rows:document.querySelector('#spdHist').children.length})},3500)})})()`,v=>v.n>=1&&v.rows>=1,true);
- await step('测速对比开关',`(function(){spdCompareToggle({textContent:'x'});return SPD_CMP===true})()`);
+ /* 反馈轮4：Ping / 网络测速两件已按产品裁定摘除（模拟网络层无价值），断言一并下架。 */
  await step('插件启停联动',`(function(){var p=PLG('lh-barcode'),w=p.en;plgToggle('lh-barcode');var n=p.en;plgToggle('lh-barcode');
    return {flip:w!==n,back:p.en===w}})()`,v=>v.flip&&v.back);
  await step('插件详情渲染',`(function(){plgDetail('lh-morse');return /审计时间轴/.test($('#plgDetailBody').innerText)})()`,v=>v===true);
@@ -241,7 +263,7 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
  await step('删除插件需二次确认',`(function(){var b=PLUGINS.length,btn=document.createElement('button');btn.innerHTML='卸载';
    plgDelete(btn,'lh-qr2');var mid=PLUGINS.length;plgDelete(btn,'lh-qr2');
    return {asked:mid===b,gone:PLUGINS.length===b-1}})()`,v=>v.asked&&v.gone);
- await step('管理屏排序与隐藏',`(function(){renderKitsMng();var v0=kitVisKeys().join(',');kitMove('ping',1);var v1=kitVisKeys().join(',');
+ await step('管理屏排序与隐藏',`(function(){renderKitsMng();var v0=kitVisKeys().join(',');kitMove('ruler',1);var v1=kitVisKeys().join(',');
    kitToggleHide('aiapi');var hid=kitVisKeys().indexOf('aiapi')<0;kitToggleHide('aiapi');
    return {moved:v0!==v1,hid:hid,back:kitVisKeys().indexOf('aiapi')>=0}})()`,v=>v.moved&&v.hid&&v.back);
  await step('统计与流水一致',`(function(){renderKitsStats();return {t:+$('#ksTotal').textContent,log:KITS.log.length,weeks:$('#ksHeat').children.length}})()`,v=>v.t===v.log&&v.weeks===17);
@@ -282,11 +304,11 @@ async function withTimeout(p,ms,label){let t;const to=new Promise((_,rej)=>{t=se
    $('#b64TxtIn').value='QUJD';b64TxtDec();var abc=$('#b64TxtBack').value;
    return {round:back==='中文 ABC 123 · 数据在手',err:err,abc:abc==='ABC',meta:/UTF-8/.test($('#b64TxtMeta').textContent),tabs:document.querySelectorAll('#b64PE,#b64PD,#b64PX,#b64PDx').length}})()`,v=>v.round&&v.err&&v.abc&&v.meta&&v.tabs===4);
  log('-- 持久化真复验：重新加载页面后读本机值');
- await evl(`KITS.fav=['ping','tele'];KITS.cat='编码';kitSave();1`);
+ await evl(`KITS.fav=['ruler','tele'];KITS.cat='编码';kitSave();1`);
  await send('Page.navigate',{url:URLF});await wait(1200);
  for(let i=0;i<30;i++){const r=await evl('typeof setPage');if(r==='function')break;await wait(400)}
  const persisted=await evl(`({fav:KITS.fav.join(','),cat:KITS.cat,hero:KITS.hero.length})`);
- (persisted&&persisted.fav==='ping,tele'&&persisted.cat==='编码'&&persisted.hero===4)?ok('刷新后仍保留 '+JSON.stringify(persisted)):bad('刷新后仍保留',JSON.stringify(persisted));
+ (persisted&&persisted.fav==='ruler,tele'&&persisted.cat==='编码'&&persisted.hero===4)?ok('刷新后仍保留 '+JSON.stringify(persisted)):bad('刷新后仍保留',JSON.stringify(persisted));
  errs.length?bad('运行时异常',errs.slice(0,2).join(' ;; ')):ok('无未捕获异常');
  if(SHOTS){log('-- 截图');
   // 截图前复位：关闭全部弹层 + 恢复演示足迹，避免用例外链状态污染归档图

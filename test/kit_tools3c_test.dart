@@ -12,7 +12,6 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/kits/data/kit_repository.dart';
 import 'package:lifeharness/features/kits/domain/kit_b64.dart';
-import 'package:lifeharness/features/kits/presentation/kit_color_sheet.dart';
 import 'package:lifeharness/features/kits/presentation/kit_providers.dart';
 import 'package:lifeharness/features/kits/presentation/kit_routes.dart';
 import 'package:lifeharness/features/kits/presentation/tools/kit_b64_page.dart';
@@ -249,53 +248,82 @@ void main() {
     });
   });
 
-  group('2 · 提词器', () {
-    testWidgets('默认参数齐备 · 五项都可改并落库', (tester) async {
+  group('2 · 提词器（反馈轮4 版式：图2 选项集 + 图3 展示态）', () {
+    testWidgets('默认参数齐备 · 新版选项集都可改并落库', (tester) async {
       await useSurface(tester);
       await pumpTool(tester, 'tele');
       expect(noteOf(tester, 'kit-tele-speed-v'), '60 px/s');
       expect(noteOf(tester, 'kit-tele-size-v'), '40 px');
-      expect(noteOf(tester, 'kit-tele-led-note'), '普通文字模式');
-      expect(noteOf(tester, 'kit-tele-note-tip'), '参数与讲稿已随本机备份保存');
+      expect(noteOf(tester, 'kit-tele-lh-v'), '155%');
+      expect(noteOf(tester, 'kit-tele-shake-v'), '0 px');
+      expect(noteOf(tester, 'kit-tele-grad-name'), '纯色');
+      expect(
+        noteOf(tester, 'kit-tele-note-tip'),
+        '内容改动即存本机 · 参数随本机备份',
+      );
       expect(find.byKey(const ValueKey('kit-tele-stage-speed')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('kit-tele-dir-port')));
       await settle5(tester);
-      await pollText(tester, '显示方向：竖向滚动');
+      await pollText(tester, '显示方向：竖屏');
       await clearToasts(tester);
 
       final slider = find.byKey(const ValueKey('kit-tele-speed'));
-      final wide = tester.getRect(slider);
-      await tester.drag(slider, Offset(wide.width, 0));
+      await tester.drag(slider, Offset(tester.getRect(slider).width, 0));
       await settle5(tester);
       expect(noteOf(tester, 'kit-tele-speed-v'), '300 px/s');
 
-      await tester.tap(find.byKey(const ValueKey('kit-tele-led')));
+      // 多彩背景：点一行换一档（纯色 → 糖果）。
+      await tester.tap(find.byKey(const ValueKey('kit-tele-grad')));
       await settle5(tester);
-      expect(noteOf(tester, 'kit-tele-led-note'), '点阵颗粒 + 扫描线已同步');
+      expect(noteOf(tester, 'kit-tele-grad-name'), '糖果');
+      await pollText(tester, '背景：糖果');
+      await clearToasts(tester);
+
+      // 静止 + 闪烁 / 加粗 / LED 四枚开关各自独立。
+      await tester.tap(find.byKey(const ValueKey('kit-tele-mode-static')));
+      await settle5(tester);
+      await pollText(tester, '显示方式：静止铺屏');
+      await tester.tap(find.byKey(const ValueKey('kit-tele-fx-blink')));
+      await settle5(tester);
+      await pollText(tester, '闪烁：开');
+      await tester.tap(find.byKey(const ValueKey('kit-tele-fx-bold')));
+      await settle5(tester);
+      await pollText(tester, '加粗：开');
+      await tester.tap(find.byKey(const ValueKey('kit-tele-fx-led')));
+      await settle5(tester);
+      await pollText(tester, 'LED 点阵：开');
+      await clearToasts(tester);
+
+      final shk = find.byKey(const ValueKey('kit-tele-shake'));
+      await tester.drag(shk, Offset(tester.getRect(shk).width, 0));
+      await settle5(tester);
+      expect(noteOf(tester, 'kit-tele-shake-v'), '8 px');
 
       await tester.tap(find.byKey(const ValueKey('kit-tele-demo')));
       await settle5(tester);
       expect(
-        tester.widget<TextField>(find.byKey(const ValueKey('kit-tele-src')))
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('kit-tele-src')))
             .controller!
             .text,
         startsWith('各位好，欢迎参加本次产品复盘。'),
       );
-      await tester.tap(find.byKey(const ValueKey('kit-tele-save')));
-      await settle5(tester);
-      await pollText(tester, '讲稿已存本机');
-      await clearToasts(tester);
 
       final d = await repo.toolData('tele');
       expect(d['tpOri'], 'port');
       expect(d['tpSpeed'], 300);
+      expect(d['tpGrad'], 'candy');
+      expect(d['tpMode'], 'static');
+      expect(d['tpBlink'], true);
+      expect(d['tpBold'], true);
       expect(d['tpLed'], true);
+      expect(d['tpShake'], 8);
       expect(d['tpText'] as String, contains('产品复盘'));
       await drainLogTimer(tester);
     });
 
-    testWidgets('文字色走应用内选色弹层 · 结果落库', (tester) async {
+    testWidgets('文本色走应用内选色弹层 · 结果落库', (tester) async {
       await useSurface(tester);
       await pumpTool(tester, 'tele');
       await tester.tap(find.byKey(const ValueKey('kit-tele-fg')));
@@ -305,20 +333,13 @@ void main() {
       await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('kit-cc-ok')));
       await settle5(tester);
-      final sw = tester.widget<KitColorSwatchButton>(
-        find.descendant(
-          of: find.byKey(const ValueKey('kit-tele-fg')),
-          matching: find.byType(KitColorSwatchButton),
-        ),
-      );
-      expect(sw.hex, '#facc15');
       final d = await repo.toolData('tele');
       expect(d['tpFg'], '#facc15');
       await clearToasts(tester);
       await drainLogTimer(tester);
     });
 
-    testWidgets('从笔记导入：未接线给明确口径 · 接线后追加并存稿', (tester) async {
+    testWidgets('从笔记导入：未接线给明确口径 · 接线后追加并落库', (tester) async {
       await useSurface(tester);
       await pumpTool(tester, 'tele');
       await tester.tap(find.byKey(const ValueKey('kit-tele-note')));
@@ -330,7 +351,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('kit-tele-note')));
       await settle5(tester);
       expect(
-        tester.widget<TextField>(find.byKey(const ValueKey('kit-tele-src')))
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('kit-tele-src')))
             .controller!
             .text,
         noteText,
@@ -341,27 +363,41 @@ void main() {
       await drainLogTimer(tester);
     });
 
-    testWidgets('舞台：滚动推进 · 暂停回卷参数 · 退出回参数页', (tester) async {
+    testWidgets('舞台：滚动态进入即走字 · 控制条点按收起/唤回 · 退出回参数页', (tester) async {
       await useSurface(tester);
       await pumpTool(tester, 'tele');
       await tester.tap(find.byKey(const ValueKey('kit-tele-dir-port')));
       await settle5(tester);
       await tester.tap(find.byKey(const ValueKey('kit-tele-demo')));
       await tester.tap(find.byKey(const ValueKey('kit-tele-open')));
-      await settle5(tester);
+      // 进入即自动播放：周期 Timer 持续排帧，这一段禁用 pumpAndSettle。
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(const ValueKey('kit-tele-stage')), findsOneWidget);
       expect(find.byKey(const ValueKey('kit-tele-play')), findsOneWidget);
       expect(find.byKey(const ValueKey('kit-tele-stage-lh')), findsOneWidget);
-      expect(find.byKey(const ValueKey('kit-tele-stage-led')), findsOneWidget);
+      final stageTop = tester.getTopLeft(find.byKey(const ValueKey('kit-tele-stage'))).dy;
       final y0 = tester.getTopLeft(find.byKey(const ValueKey('kit-tele-body'))).dy;
-
-      await tester.tap(find.byKey(const ValueKey('kit-tele-play')));
       await tester.pump(const Duration(milliseconds: 320));
-      await tester.pump();
       final y1 = tester.getTopLeft(find.byKey(const ValueKey('kit-tele-body'))).dy;
       expect(y1, lessThan(y0));
 
-      // 周期定时器还在跑：先暂停再 settle（pumpAndSettle 会一直等不到静帧）。
+      // 先进入展示态：1.8s 自动收起是一次性定时器，越过它之后控制条只跟随点按。
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(
+        tester.widget<AnimatedOpacity>(find.byKey(const ValueKey('kit-tele-ctl'))).opacity,
+        0,
+        reason: '展示态应只剩返回箭头（图3）',
+      );
+      // 点按屏幕唤回控制条。
+      await tester.tap(find.byKey(const ValueKey('kit-tele-stage')));
+      await tester.pump(const Duration(milliseconds: 220));
+      expect(
+        tester.widget<AnimatedOpacity>(find.byKey(const ValueKey('kit-tele-ctl'))).opacity,
+        1,
+        reason: '点按必须能把控制条唤回来',
+      );
+
       await tester.tap(find.byKey(const ValueKey('kit-tele-play')));
       await tester.pump();
       await settle5(tester);
@@ -372,7 +408,7 @@ void main() {
       await settle5(tester);
       expect(
         tester.getTopLeft(find.byKey(const ValueKey('kit-tele-body'))).dy,
-        closeTo(y0, 1),
+        closeTo(stageTop, 1),
       );
       await pollText(tester, '已回到稿首');
       await clearToasts(tester);
@@ -391,6 +427,31 @@ void main() {
       expect(d['tpText'] as String, contains('谢谢大家'));
       await drainLogTimer(tester);
     });
+
+    testWidgets('静止态：进入后不再位移，内容按视口居中铺屏', (tester) async {
+      await useSurface(tester);
+      await pumpTool(tester, 'tele');
+      await tester.enterText(find.byKey(const ValueKey('kit-tele-src')), '宥淇');
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-tele-mode-static')));
+      await settle5(tester);
+      await clearToasts(tester);
+      await tester.tap(find.byKey(const ValueKey('kit-tele-open')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final body = find.byKey(const ValueKey('kit-tele-body'));
+      final stage = find.byKey(const ValueKey('kit-tele-stage'));
+      final dy = tester.getTopLeft(body).dy;
+      expect(dy, greaterThan(tester.getTopLeft(stage).dy + 1));
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.getTopLeft(body).dy, dy);
+      await tester.tap(find.byKey(const ValueKey('kit-tele-close')));
+      await settle5(tester);
+      final d = await repo.toolData('tele');
+      expect(d['tpMode'], 'static');
+      expect(d['tpText'], '宥淇');
+      await clearToasts(tester);
+      await drainLogTimer(tester);
+    });
   });
 }
-

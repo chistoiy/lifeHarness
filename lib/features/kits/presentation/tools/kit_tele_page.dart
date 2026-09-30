@@ -1,10 +1,12 @@
-// 工具屏 · 提词器（原型 `TOOLS.tele` / `tp*` 同源 · 批3）。
+// 工具屏 · 提词器（原型 `TOOLS.tele` / `tp*` 同源 · 批3 · 反馈轮4 重排）。
 //
-// 参数五项：显示方向 / 速度 / 字号 / 文字色·底色（色值一律走应用内
-// `kitShowColorSheet`，禁系统取色器）+ LED 点阵开关；行距在舞台上调（原型
-// `#tpLhS` 也只存在于 `#tpCtl`）。讲稿与参数全部落 `kit_tool_data.tool='tele'`
-// （键名同原型 `KITS.tp*`）。拍板口径：不做语音跟随、自动停顿、反向滚动。
-// 「从笔记导入」是注入缝 [KitTele.noteImporter]，未接线时给明确口径而不是假数据。
+// 版式按产品给的「手持弹幕」参考图重排：内容 → 文字大小 / 滚动速度 / 行距 →
+// 多彩背景 → 文本色 / 背景色 → 显示方向 / 显示方式 → 文字效果 → 文字抖动 →
+// 演示稿·从笔记导入 → 显示。长文本提词能力保留（滚动态），静止态即铺屏大字。
+// 色值一律走应用内 `kitShowColorSheet`（禁系统取色器）。讲稿与参数全部落
+// `kit_tool_data.tool='tele'`（键名同原型 `KITS.tp*`）。拍板口径：不做语音
+// 跟随、自动停顿、反向滚动。「从笔记导入」是注入缝 [KitTele.noteImporter]，
+// 未接线时给明确口径而不是假数据。
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -61,7 +63,7 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
     });
   }
 
-  /// 参数改动即落库（原型每个 oninput 都 `kitSave()`）。
+  /// 参数改动即落库（原型每个 oninput 都 `kitSave()`；内容同样随改随存）。
   void _set(KitTeleState next) {
     setState(() => _s = next);
     ref
@@ -70,11 +72,6 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
           kitToolKeyTele,
           kitTeleEncode(_s.copyWith(text: _src.text)),
         );
-  }
-
-  void _saveScript() {
-    _set(_s.copyWith(text: _src.text));
-    AppToast.show(context, '讲稿已存本机 · 下次打开仍在');
   }
 
   Future<void> _openStage() async {
@@ -99,7 +96,7 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
     setState(
       () => _src.text = _src.text.isEmpty ? text : '${_src.text}\n\n$text',
     );
-    _saveScript();
+    _set(_s.copyWith(text: _src.text));
   }
 
   @override
@@ -108,38 +105,32 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 56,
-              child: Text(
-                '显示方向',
-                style: TextStyle(fontSize: 10.5, color: Colors.grey),
-              ),
-            ),
-            KitToolChip(
-              keyName: 'kit-tele-dir-land',
-              label: kitTeleDirLabel(kKitTeleDirLand),
-              on: _s.horizontal,
-              onTap: () {
-                _set(_s.copyWith(dir: kKitTeleDirLand));
-                AppToast.show(context, kitTeleDirToast(kKitTeleDirLand));
-              },
-            ),
-            const SizedBox(width: 6),
-            KitToolChip(
-              keyName: 'kit-tele-dir-port',
-              label: kitTeleDirLabel(kKitTeleDirPort),
-              on: !_s.horizontal,
-              onTap: () {
-                _set(_s.copyWith(dir: kKitTeleDirPort));
-                AppToast.show(context, kitTeleDirToast(kKitTeleDirPort));
-              },
-            ),
-          ],
+        TextField(
+          key: const ValueKey('kit-tele-src'),
+          controller: _src,
+          minLines: 3,
+          maxLines: 8,
+          style: const TextStyle(fontSize: 13, height: 1.6),
+          decoration: const InputDecoration(
+            isDense: true,
+            hintText: '输入内容 / 粘贴讲稿…',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (v) => _set(_s.copyWith(text: v)),
+        ),
+        const SizedBox(height: 12),
+        _sliderRow(
+          label: '文字大小',
+          keyName: 'kit-tele-size',
+          value: _s.size.toDouble(),
+          min: kKitTeleSizeMin,
+          max: kKitTeleSizeMax,
+          step: 1,
+          text: kitTeleSizeText(_s.size),
+          onChanged: (v) => _set(_s.copyWith(size: v.round())),
         ),
         _sliderRow(
-          label: '速度',
+          label: '滚动速度',
           keyName: 'kit-tele-speed',
           value: _s.speed.toDouble(),
           min: kKitTeleSpeedMin,
@@ -149,98 +140,102 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
           onChanged: (v) => _set(_s.copyWith(speed: v.round())),
         ),
         _sliderRow(
-          label: '字号',
-          keyName: 'kit-tele-size',
-          value: _s.size.toDouble(),
-          min: kKitTeleSizeMin,
-          max: kKitTeleSizeMax,
-          step: 1,
-          text: kitTeleSizeText(_s.size),
-          onChanged: (v) => _set(_s.copyWith(size: v.round())),
+          label: '行距',
+          keyName: 'kit-tele-lh',
+          value: _s.lh.toDouble(),
+          min: kKitTeleLhMin,
+          max: kKitTeleLhMax,
+          step: kKitTeleLhStep,
+          text: kitTeleLhText(_s.lh),
+          onChanged: (v) => _set(_s.copyWith(lh: v.round())),
         ),
+        const SizedBox(height: 4),
+        _gradRow(context),
+        const SizedBox(height: 8),
         Row(
           children: [
-            SizedBox(
-              width: 56,
-              child: Text(
-                '文字色',
-                style: TextStyle(fontSize: 10.5, color: Colors.grey),
-              ),
-            ),
-            SizedBox(
-              key: const ValueKey('kit-tele-fg'),
-              child: KitColorSwatchButton(
+            Expanded(
+              child: _colorBtn(
+                keyName: 'kit-tele-fg',
+                label: '文本颜色',
                 hex: _s.fg,
-                size: 30,
-                onChanged: (v) => _set(_s.copyWith(fg: v)),
+                onPick: (v) => _set(_s.copyWith(fg: v)),
               ),
             ),
-            const SizedBox(width: 10),
-            Text('底色', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
-            const SizedBox(width: 6),
-            SizedBox(
-              key: const ValueKey('kit-tele-bg'),
-              child: KitColorSwatchButton(
+            const SizedBox(width: 8),
+            Expanded(
+              child: _colorBtn(
+                keyName: 'kit-tele-bg',
+                label: '背景色',
                 hex: _s.bg,
-                size: 30,
-                onChanged: (v) => _set(_s.copyWith(bg: v)),
-              ),
-            ),
-            const Spacer(),
-            Text(
-              'LED 点阵屏',
-              style: TextStyle(fontSize: 10.5, color: Colors.grey),
-            ),
-            SizedBox(
-              key: const ValueKey('kit-tele-led'),
-              width: 44,
-              height: 30,
-              child: Switch(
-                value: _s.led,
-                onChanged: (v) {
-                  _set(_s.copyWith(led: v));
-                  AppToast.show(context, kitTeleLedToast(v));
-                },
+                onPick: (v) => _set(_s.copyWith(bg: v)),
               ),
             ),
           ],
         ),
-        kitToolNote(
-          kitTeleLedNote(_s.led),
-          key: const ValueKey('kit-tele-led-note'),
+        const SizedBox(height: 10),
+        _chipRow(
+          label: '显示方向',
+          keyPrefix: 'kit-tele-dir',
+          items: [
+            (kKitTeleDirLand, kitTeleDirLabel(kKitTeleDirLand)),
+            (kKitTeleDirPort, kitTeleDirLabel(kKitTeleDirPort)),
+          ],
+          active: _s.dir,
+          onPick: (v) {
+            _set(_s.copyWith(dir: v));
+            AppToast.show(context, kitTeleDirToast(v));
+          },
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: TextField(
-            key: const ValueKey('kit-tele-src'),
-            controller: _src,
-            minLines: 4,
-            maxLines: 8,
-            style: const TextStyle(fontSize: 12, height: 1.6),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: '粘贴讲稿 / 台词…',
-              border: const OutlineInputBorder(),
-            ),
-          ),
+        _chipRow(
+          label: '显示方式',
+          keyPrefix: 'kit-tele-mode',
+          items: const [
+            (kKitTeleModeStatic, '静止'),
+            (kKitTeleModeScroll, '滚动'),
+          ],
+          active: _s.mode,
+          onPick: (v) {
+            _set(_s.copyWith(mode: v));
+            AppToast.show(context, kitTeleModeToast(v));
+          },
+        ),
+        _chipRow(
+          label: '文字效果',
+          keyPrefix: 'kit-tele-fx',
+          items: [
+            ('blink', kitTeleFxLabel('blink')),
+            ('bold', kitTeleFxLabel('bold')),
+            ('led', kitTeleFxLabel('led')),
+          ],
+          // 三枚效果各自独立开关，active 用「哪个开着」表达不了 → 交给 _fxChip。
+          active: '',
+          onPick: (_) {},
+          builder: (id) => _fxChip(id),
+        ),
+        const SizedBox(height: 2),
+        _sliderRow(
+          label: '文字抖动',
+          keyName: 'kit-tele-shake',
+          value: _s.shake.toDouble(),
+          min: kKitTeleShakeMin,
+          max: kKitTeleShakeMax,
+          step: kKitTeleShakeStep,
+          text: kitTeleShakeText(_s.shake),
+          onChanged: (v) => _set(_s.copyWith(shake: v.round())),
         ),
         Wrap(
           spacing: 2,
           children: [
-            kitToolBtn(context, '存稿', _saveScript, keyName: 'kit-tele-save'),
             kitToolBtn(
               context,
               '填入演示稿',
-              () => setState(() => _src.text = kitTeleDemoScript()),
+              () => setState(() {
+                _src.text = kitTeleDemoScript();
+                _set(_s.copyWith(text: _src.text));
+              }),
               keyName: 'kit-tele-demo',
               small: true,
-            ),
-            kitToolBtn(
-              context,
-              '进入提词',
-              _openStage,
-              keyName: 'kit-tele-open',
-              color: tokens.accent,
             ),
             kitToolBtn(
               context,
@@ -251,14 +246,212 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
             ),
           ],
         ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          key: const ValueKey('kit-tele-open'),
+          onTap: _openStage,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [tokens.g1, tokens.g3]),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Text(
+              '显示',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
         kitToolSubCard(
           context,
           kitToolNote(
-            _loaded ? '参数与讲稿已随本机备份保存' : '正在读本机参数…',
+            _loaded ? '内容改动即存本机 · 参数随本机备份' : '正在读本机参数…',
             key: const ValueKey('kit-tele-note-tip'),
           ),
         ),
       ],
+    );
+  }
+
+  /// 多彩背景行（原型 `#tpGradRow`：整行点一下换一档）。
+  Widget _gradRow(BuildContext context) {
+    final tokens = context.tokens;
+    return GestureDetector(
+      key: const ValueKey('kit-tele-grad'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        final id = kitTeleGradNext(_s.grad);
+        _set(_s.copyWith(grad: id));
+        AppToast.show(context, kitTeleGradToast(id));
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: tokens.cardBorder),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _s.gradOn
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          for (final c in _s.gradColors) Color(c),
+                        ],
+                      )
+                    : null,
+                color: _s.gradOn ? null : kitColor(_s.bg),
+                border: Border.all(color: tokens.cardBorder),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '多彩背景',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Text(
+              kitTeleGrad(_s.grad).label,
+              key: const ValueKey('kit-tele-grad-name'),
+              style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.check,
+              size: 16,
+              key: const ValueKey('kit-tele-grad-chk'),
+              color: _s.gradOn ? tokens.accent : Colors.transparent,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 文本色 / 背景色按钮（图2 的「圆点 + 名称」样式，点开应用内取色弹层）。
+  Widget _colorBtn({
+    required String keyName,
+    required String label,
+    required String hex,
+    required ValueChanged<String> onPick,
+  }) {
+    final tokens = context.tokens;
+    return GestureDetector(
+      key: ValueKey(keyName),
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        final v = await kitShowColorSheet(context, hex);
+        if (v != null) onPick(v);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: tokens.cardBorder),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: kitColor(hex),
+                shape: BoxShape.circle,
+                border: Border.all(color: tokens.cardBorder),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 一枚效果开关（闪烁 / 加粗 / LED 点阵）。
+  Widget _fxChip(String id) {
+    final on = switch (id) {
+      'blink' => _s.blink,
+      'bold' => _s.bold,
+      _ => _s.led,
+    };
+    return KitToolChip(
+      keyName: 'kit-tele-fx-$id',
+      label: kitTeleFxLabel(id),
+      on: on,
+      onTap: () {
+        final next = !on;
+        _set(
+          switch (id) {
+            'blink' => _s.copyWith(blink: next),
+            'bold' => _s.copyWith(bold: next),
+            _ => _s.copyWith(led: next),
+          },
+        );
+        AppToast.show(
+          context,
+          '${kitTeleFxLabel(id)}：${next ? '开' : '关'}',
+        );
+      },
+    );
+  }
+
+  /// 「标签 + 两枚 chip」的选项行（方向 / 方式 / 效果三处共用）。
+  Widget _chipRow({
+    required String label,
+    required String keyPrefix,
+    required List<(String, String)> items,
+    required String active,
+    required ValueChanged<String> onPick,
+    Widget Function(String id)? builder,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+            ),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (id, text) in items)
+                  builder != null
+                      ? builder(id)
+                      : KitToolChip(
+                          keyName: '$keyPrefix-$id',
+                          label: text,
+                          on: active == id,
+                          onTap: () => onPick(id),
+                        ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -277,7 +470,7 @@ class _KitTeleBodyState extends ConsumerState<KitTeleBody> {
     return Row(
       children: [
         SizedBox(
-          width: 56,
+          width: 62,
           child: Text(
             label,
             style: const TextStyle(fontSize: 10.5, color: Colors.grey),

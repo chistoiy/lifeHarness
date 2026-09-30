@@ -194,7 +194,7 @@ void main() {
       await pumpHome(tester);
       await tester.tap(find.byKey(const ValueKey('kit-func-fav')));
       await settle5(tester);
-      for (final k in ['ping', 'speed', 'ruler', 'dist', 'wheel', 'rand']) {
+      for (final k in ['ruler', 'dist', 'wheel', 'rand', 'comp', 'datec']) {
         await tester.tap(find.byKey(ValueKey('kit-fav-$k')));
       }
       await settle5(tester);
@@ -203,12 +203,12 @@ void main() {
       expect(find.textContaining('最多收藏'), findsOneWidget);
       await tester.tap(find.text('保存'));
       await settle5(tester);
-      expect(await repo.favorites(), ['ping', 'speed', 'ruler', 'dist', 'wheel', 'rand']);
+      expect(await repo.favorites(), ['ruler', 'dist', 'wheel', 'rand', 'comp', 'datec']);
       await drainLogTimer(tester);
     });
 
     testWidgets('↑↓ 调序只影响收藏行顺序', (tester) async {
-      await repo.setFavorites(['ping', 'speed']);
+      await repo.setFavorites(['ruler', 'dist']);
       await useSurface(tester);
       await pumpHome(tester);
       await tester.tap(find.byKey(const ValueKey('kit-func-fav')));
@@ -217,7 +217,7 @@ void main() {
       await settle5(tester);
       await tester.tap(find.text('保存'));
       await settle5(tester);
-      expect(await repo.favorites(), ['speed', 'ping']);
+      expect(await repo.favorites(), ['dist', 'ruler']);
       await drainLogTimer(tester);
     });
   });

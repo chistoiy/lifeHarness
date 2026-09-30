@@ -29,11 +29,11 @@ void main() {
         u('pick', ms(0)),
         u('pick', ms(1)),
         u('datec', ms(1)),
-        u('speed', ms(30)),
+        u('ruler', ms(30)),
       ];
-      expect(kitCountByTool(log), {'pick': 2, 'datec': 1, 'speed': 1});
+      expect(kitCountByTool(log), {'pick': 2, 'datec': 1, 'ruler': 1});
       expect(kitCountByDay(log, now, 7).values.fold<int>(0, (a, b) => a + b), 3);
-      expect(kitCountByCat(log), {KitCat.color: 2, KitCat.calc: 1, KitCat.network: 1});
+      expect(kitCountByCat(log), {KitCat.color: 2, KitCat.calc: 1, KitCat.length: 1});
     });
 
     test('未登记工具键归入兜底分类而不抛', () {
@@ -110,10 +110,10 @@ void main() {
   });
 
   group('4 · 工具登记与原型同源', () {
-    test('13 个内置工具、9 个分类、键唯一', () {
-      expect(kKitTools, hasLength(13));
-      expect(KitCat.values, hasLength(9));
-      expect(kKitTools.map((t) => t.key).toSet(), hasLength(13));
+    test('11 个内置工具、8 个分类、键唯一', () {
+      expect(kKitTools, hasLength(11));
+      expect(KitCat.values, hasLength(8));
+      expect(kKitTools.map((t) => t.key).toSet(), hasLength(11));
     });
 
     test('每个分类都有工具落位（网格不会出现空组）', () {

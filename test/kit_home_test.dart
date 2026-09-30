@@ -48,12 +48,12 @@ void main() {
       find.byWidgetPredicate((w) => w.key.toString().contains('kit-tile-')).evaluate().length;
 
   group('1 · 首页骨架', () {
-    testWidgets('标题 + 13 枚工具卡 + hero 四枚数据位', (tester) async {
+    testWidgets('标题 + 11 枚工具卡 + hero 四枚数据位', (tester) async {
       await useSurface(tester);
       await pumpHome(tester);
       expect(find.text('小工具合集'), findsWidgets);
       expect(find.text('本地轻工具 · 可插件拓展'), findsOneWidget);
-      expect(tileCount(tester), 13);
+      expect(tileCount(tester), 11);
       for (final m in ['total', 'week', 'fav', 'plug']) {
         expect(find.byKey(ValueKey('kit-hero-slot-$m')), findsOneWidget,
             reason: '数据位 $m 缺失');
@@ -67,7 +67,7 @@ void main() {
     testWidgets('未使用过的工具显示「未用过」', (tester) async {
       await useSurface(tester);
       await pumpHome(tester);
-      expect(find.text('未用过'), findsNWidgets(13));
+      expect(find.text('未用过'), findsNWidgets(11));
       await drainLogTimer(tester);
     });
   });
@@ -76,11 +76,11 @@ void main() {
     testWidgets('分类 chips 收窄到该分类', (tester) async {
       await useSurface(tester);
       await pumpHome(tester);
-      await tester.tap(find.byKey(const ValueKey('kit-cat-network')));
+      await tester.tap(find.byKey(const ValueKey('kit-cat-length')));
       await settle5(tester);
       expect(tileCount(tester), 2);
-      expect(find.text('Ping 工具'), findsOneWidget);
-      expect(find.text('尺子'), findsNothing);
+      expect(find.text('尺子'), findsOneWidget);
+      expect(find.text('取色盘'), findsNothing);
       await drainLogTimer(tester);
     });
 
@@ -98,11 +98,11 @@ void main() {
     });
 
     testWidgets('隐藏项不进网格', (tester) async {
-      await repo.setHidden(['speed', 'tele']);
+      await repo.setHidden(['dist', 'tele']);
       await useSurface(tester);
       await pumpHome(tester);
-      expect(tileCount(tester), 11);
-      expect(find.text('网络测速'), findsNothing);
+      expect(tileCount(tester), 9);
+      expect(find.text('测距'), findsNothing);
       await drainLogTimer(tester);
     });
   });
@@ -154,20 +154,20 @@ void main() {
       await useSurface(tester);
       await pumpHome(tester);
       expect(find.byIcon(Icons.star), findsNothing);
-      await tester.longPress(find.byKey(const ValueKey('kit-tile-ping')));
+      await tester.longPress(find.byKey(const ValueKey('kit-tile-ruler')));
       await settle5(tester);
-      expect(await repo.favorites(), ['ping']);
-      expect(find.text('已收藏 Ping 工具'), findsOneWidget);
+      expect(await repo.favorites(), ['ruler']);
+      expect(find.text('已收藏 尺子'), findsOneWidget);
       await clearToasts(tester);
-      await tester.longPress(find.byKey(const ValueKey('kit-tile-ping')));
+      await tester.longPress(find.byKey(const ValueKey('kit-tile-ruler')));
       await settle5(tester);
       expect(await repo.favorites(), isEmpty);
-      expect(find.text('已取消收藏 Ping 工具'), findsOneWidget);
+      expect(find.text('已取消收藏 尺子'), findsOneWidget);
       await clearToasts(tester);
     });
 
     testWidgets('收藏满 6 个后长按给上限提示且不再增加', (tester) async {
-      await repo.setFavorites(['ping', 'speed', 'ruler', 'dist', 'wheel', 'rand']);
+      await repo.setFavorites(['ruler', 'dist', 'wheel', 'rand', 'comp', 'datec']);
       await useSurface(tester);
       await pumpHome(tester);
       await tester.longPress(find.byKey(const ValueKey('kit-tile-pick')));
@@ -183,8 +183,8 @@ void main() {
       await pumpHome(tester);
       final keys = tileKeys(tester);
       expect(keys.take(2), ['kit-tile-tele', 'kit-tile-b64']);
-      expect(keys.length, 13);
-      expect(keys.sublist(2).first, 'kit-tile-ping');
+      expect(keys.length, 11);
+      expect(keys.sublist(2).first, 'kit-tile-ruler');
       await drainLogTimer(tester);
     });
 

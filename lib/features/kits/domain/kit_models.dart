@@ -1,9 +1,12 @@
 /// 小工具合集 · 工具与分类登记（V1.47 模块14 · 计划 §2）。
 ///
 /// 与原型 `prototype/index-kits.html` 的 `TOOLS` / `TOOL_CATS` 同源：
-/// 13 个内置工具、9 个分类。[KitTool.key] 即 `kit_usage.tool` 列取值，也是
+/// 11 个内置工具、8 个分类。[KitTool.key] 即 `kit_usage.tool` 列取值，也是
 /// 路由 `/kits/tool/<key>` 的参数，改名等于改数据，务必与原型保持一致。
 /// 图标一律 `IconData`（红线：UI 不用 emoji，原型侧已全站线性化）。
+/// 反馈轮4 按产品裁定摘除 Ping / 网络测速（模拟网络层无价值），「网络」分类
+/// 随之下架；老用户留下的 `tool='ping'|'speed'` 足迹按「未登记键」归入其他，
+/// 首页与分类分布都走 [kitToolOf] 兜底，不会崩。
 library;
 
 import 'dart:convert';
@@ -11,7 +14,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 enum KitCat {
-  network('网络', Icons.public),
   length('长度', Icons.straighten),
   random('随机', Icons.casino),
   color('色彩', Icons.palette_outlined),
@@ -42,28 +44,12 @@ class KitTool {
   final KitCat cat;
   final IconData icon;
 
-  /// 页脚隐私口径（原型全站统一「本地计算 · 抓包 0 请求」；网络类如实标注）。
+  /// 页脚隐私口径（原型全站统一「本地计算 · 抓包 0 请求」；会出站的工具如实标注）。
   final String privacy;
 }
 
-/// 13 个内置工具（顺序=原型「全部工具」网格默认序）。
+/// 11 个内置工具（顺序=原型「全部工具」网格默认序）。
 const List<KitTool> kKitTools = [
-  // 网络两件是「模拟网络层」（交棒话术 §三.1）：页脚必须与其余本机工具的
-  // 「本地计算」口径区分开，否则用户以为真发了请求。
-  KitTool(
-    key: 'ping',
-    name: 'Ping 工具',
-    cat: KitCat.network,
-    icon: Icons.network_ping,
-    privacy: '模拟网络层 · 不发真实请求',
-  ),
-  KitTool(
-    key: 'speed',
-    name: '网络测速',
-    cat: KitCat.network,
-    icon: Icons.speed,
-    privacy: '模拟网络层 · 不发真实请求',
-  ),
   KitTool(key: 'ruler', name: '尺子', cat: KitCat.length, icon: Icons.straighten),
   KitTool(
     key: 'dist',
@@ -124,8 +110,6 @@ const String kitToolKeyRand = 'rand';
 const String kitToolKeyWheel = 'wheel';
 const String kitToolKeyPick = 'pick';
 const String kitToolKeyComp = 'comp';
-const String kitToolKeyPing = 'ping';
-const String kitToolKeySpeed = 'speed';
 const String kitToolKeyRuler = 'ruler';
 const String kitToolKeyDist = 'dist';
 const String kitToolKeyImgz = 'imgz';
