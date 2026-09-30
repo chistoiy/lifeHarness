@@ -189,7 +189,8 @@ void main() {
     await db.insert('kit_plugin', {'name': 'morse', 'src': 'local', 'enabled': 1});
     await db.insert('leftovers', {'title': '留下来的行'});
 
-    expect(DbSchema.version, 30, reason: '删表是 schema 变更，必须升版本');
+    expect(DbSchema.version, greaterThanOrEqualTo(30),
+        reason: '删表是 schema 变更，v30 起只许更高（X-Ray 批1 已把版本推到 v31）');
     // 新库不再建这四张表（否则删完又被 onCreate 建回来）。
     expect(DbSchema.createStatements.join(), isNot(contains('kit_usage')));
     expect(DbSchema.migrations[29], hasLength(4));

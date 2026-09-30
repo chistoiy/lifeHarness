@@ -110,6 +110,7 @@ import 'core.dart' as c;
       fee_date TEXT,
       local INTEGER NOT NULL DEFAULT 0,
       epub TEXT,
+      md5 TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER
@@ -121,6 +122,7 @@ import 'core.dart' as c;
     'CREATE INDEX IF NOT EXISTS idx_books_grp ON $tBooks(grp)',
     'CREATE INDEX IF NOT EXISTS idx_books_last ON $tBooks(last_read_at)',
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn ON $tBooks(isbn) WHERE isbn IS NOT NULL AND isbn != \'\'',
+    'CREATE INDEX IF NOT EXISTS idx_books_md5 ON $tBooks(md5) WHERE md5 IS NOT NULL',
     
     
     '''

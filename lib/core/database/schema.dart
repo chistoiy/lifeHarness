@@ -13,6 +13,7 @@ import 'schema/habit.dart' as h;
 import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
 import 'schema/read.dart' as r;
+import 'schema/xray.dart' as x;
 class DbSchema {
   const DbSchema._();
 
@@ -20,7 +21,7 @@ class DbSchema {
   
   static const String fileName = 'lifeharness.db';
 
-  static const int version = 30;
+  static const int version = 31;
  
 
   
@@ -288,6 +289,7 @@ class DbSchema {
     ...goalSchemaStatements,
     ...doubanMetaSchemaStatements,
     ...aiCallSchemaStatements,
+    ...xraySchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -379,6 +381,11 @@ class DbSchema {
   static const List<String> bookTocSchemaStatements = r.bookTocSchemaStatements;  // G5: read.dart
   static final List<String> ledgerSchemaStatements = l.ledgerSchemaStatements;  // G5: ledger.dart
   static const List<String> careSchemaStatements = e.careSchemaStatements;  // G5: care.dart
+  static const String tXrayTask = x.tXrayTask;  // G5: xray.dart
+  static const String tXrayEntity = x.tXrayEntity;  // G5: xray.dart
+  static const String tXrayMention = x.tXrayMention;  // G5: xray.dart
+  static const String tXrayUserdict = x.tXrayUserdict;  // G5: xray.dart
+  static const List<String> xraySchemaStatements = x.xraySchemaStatements;  // G5: xray.dart
   static final Map<int, List<String>> migrations = {
     // V1.58 小工具整模块下架（产品负责人 2026-09-30 拍板「模块价值太低」）：
     // v29→v30 删除 kit_* 四表。索引随表自动删除，无需单独 DROP；
@@ -399,5 +406,6 @@ class DbSchema {
     ...m.mig,
     ...l.mig,
     ...r.mig,
+    ...x.mig,
   };
 }
