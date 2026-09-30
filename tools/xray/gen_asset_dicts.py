@@ -25,6 +25,7 @@ OUT = os.path.join(BASE, "assets", "xray", "dicts")
 os.makedirs(OUT, exist_ok=True)
 
 # ---- 1) xray_extract.py 可安全 import（有 __main__ 门）----
+sys.dont_write_bytecode = True  # 别在预研目录里落 __pycache__（那是别人的归档目录）
 sys.path.insert(0, SRC)
 import xray_extract as X  # noqa: E402
 

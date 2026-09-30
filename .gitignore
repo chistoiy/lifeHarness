@@ -71,3 +71,6 @@ tools/reader/*.log
 
 # 无头浏览器在 tools 子目录里的原生用户目录（可再生·别污染 git status）
 tools/**/.chrome-*/
+
+# Python 字节码缓存（预研脚本被工具复跑时产生）
+__pycache__/
