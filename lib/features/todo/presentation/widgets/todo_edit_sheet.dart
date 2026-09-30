@@ -1121,8 +1121,7 @@ class _TodoDetailSheetState extends ConsumerState<_TodoDetailSheet> {
                   onPressed: () async {
                     final navigator = Navigator.of(context);
                     final messenger = ScaffoldMessenger.of(context);
-                    // V1.57 E 批：删除＝软删进垃圾箱；keep 须在 pop 前取（弹层销毁后 ref 失效）
-                    final keep = ref.read(settingsControllerProvider).trashKeepTxt;
+                    final keep = ref.read(settingsControllerProvider).trashKeepTxt; // V1.57 E 批：软删进垃圾箱·pop 前取档位文案
                     await ref.read(todoRepositoryProvider).softRemove(t);
                     ref.invalidate(todosProvider);
                     ref.invalidate(overdueCountProvider);
