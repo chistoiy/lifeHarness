@@ -50,8 +50,10 @@ void main() {
       expect((await tables()).length, 4);
     });
 
-    test('DbSchema.version 已升到 28 且 kit 表名常量转发到位', () {
-      expect(DbSchema.version, 28);
+    test('kit 四表建表到位 · 版本号只守下限（后续批次升版不该撞红本用例）', () {
+      // 版本随各模块批次一路上调（kits 自 v28 起建四表），钉死等值会让并行会话
+      // 每次升版都把 kits 门禁染红，这里只断言「不低于建表版本」。
+      expect(DbSchema.version, greaterThanOrEqualTo(28));
       expect(DbSchema.kitTables, hasLength(4));
       expect(DbSchema.createStatements.join(), contains('kit_usage'));
     });
