@@ -64,13 +64,12 @@ Uint8List _miniEpubBytes({String title = '导入测试书'}) {
 /// 内存版导入服务：pick/loadDoc/findDup/commit 全 fake，落库断言交数据测。
 class _FakeImport extends EpubImportService {
   _FakeImport(
-    ReadRepository repo, {
+    super.repo, {
     EpubPick? pickResult,
     this.dup,
     this.drm = false,
   }) : _pickResult = pickResult ??
-            const EpubPick(name: '导入测试书.epub', size: 2048, path: 'mem'),
-       super(repo);
+            const EpubPick(name: '导入测试书.epub', size: 2048, path: 'mem');
 
   final EpubPick _pickResult;
   EpubDoc? doc;

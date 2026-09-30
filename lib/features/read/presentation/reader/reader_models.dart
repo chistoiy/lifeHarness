@@ -90,8 +90,54 @@ const _kBrDict = {
     '联想': ('lián xiǎng', '名', '一个概念激活后向评价、情绪、动作扩散的链条。'),
   };
 
+  /// V1.53.2 性能批 3（方案 D）：判断位置 [j] 处的标点是否是**真正的句末**。
+  /// 排除常见英文缩写（Mr. Dr. Mrs. Prof. St. No. vs. etc.）、小数点、
+  /// 连续标点（!? / ?!）、引号内成句的收尾判定。
+  bool _isRealTermAt(String t, int j) {
+    final c = t[j];
+    if (!_kTerm.contains(c)) return false;
+    // 连续标点（!?/?!）：只认最后一个
+    if (j + 1 < t.length && _kTerm.contains(t[j + 1])) return false;
+    // 英文缩写里的点：前一个字母 + 后一个空格/大写 视为缩写
+    if (c == '.') {
+      if (j > 0 && _isAsciiLetter(t[j - 1])) {
+        // 常见缩写表（前 4 字母 + 结尾 .）
+        final head = t.substring(
+          (j - 4).clamp(0, t.length),
+          j,
+        );
+        const abbrs = ['mr', 'mrs', 'dr', 'prof', 'st', 'no', 'vs', 'etc', 'jr', 'sr'];
+        for (final a in abbrs) {
+          if (head.toLowerCase().endsWith(a) &&
+              (head.length == a.length ||
+                  !_isAsciiLetter(head[head.length - a.length - 1]))) {
+            return false;
+          }
+        }
+      }
+      // 小数：3.14 中的点
+      if (j > 0 && j + 1 < t.length &&
+          _isDigit(t[j - 1]) && _isDigit(t[j + 1])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _isAsciiLetter(String c) {
+    if (c.isEmpty) return false;
+    final u = c.codeUnitAt(0);
+    return (u >= 65 && u <= 90) || (u >= 97 && u <= 122);
+  }
+
+  bool _isDigit(String c) {
+    if (c.isEmpty) return false;
+    final u = c.codeUnitAt(0);
+    return u >= 48 && u <= 57;
+  }
+
   /// 从 [pos] 命中段内整句：左右扫到句读边界；超长则按软标点再切一档。
-({int a, int b}) _sentenceAt(String t, int pos) {
+  ({int a, int b}) _sentenceAt(String t, int pos) {
     if (t.isEmpty) return (a: 0, b: 0);
     var i = pos.clamp(0, t.length - 1);
     // 落在标点上 → 先回退到最近实词。
@@ -101,14 +147,21 @@ const _kBrDict = {
     var a = 0;
     for (var j = i; j > 0; j--) {
       final c = t[j - 1];
-      if (_kTerm.contains(c)) {
+      // V1.53.2 方案 D：用 _isRealTermAt 排除缩写/小数点/连续标点
+      if (_isRealTermAt(t, j - 1)) {
+        a = j;
+        break;
+      }
+      // 保留原逻辑：非真句末但仍是标点（例如 , 等），不切
+      if (c == '\n') {
         a = j;
         break;
       }
     }
     var b = t.length;
     for (var j = i; j < t.length; j++) {
-      if (_kTerm.contains(t[j])) {
+      // V1.53.2 方案 D：真句末才切
+      if (_isRealTermAt(t, j)) {
         b = j + 1;
         while (b < t.length && _kTail.contains(t[b])) {
           b++;

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -117,7 +116,7 @@ void main() {
     expect(await DocStore.load(tmp.path, 's2', '', srcPath: src), isNull);
     // 索引损坏 → null 不抛。
     File(src).writeAsBytesSync(List.filled(1000, 7));
-    File(DocStore.dirFor(tmp.path, 's2') + '/index.json')
+    File('${DocStore.dirFor(tmp.path, 's2')}/index.json')
         .writeAsStringSync('{坏档');
     expect(
       await DocStore.load(tmp.path, 's2', fp(), srcPath: src),
@@ -130,7 +129,7 @@ void main() {
     final back = await DocStore.load(tmp.path, 's3', fp());
     expect(back!.chapters.length, 2); // 只读索引，不 materialize
     // 篡改 data.bin 长度 → 章内读失败应回落空段（渲染不崩）。
-    File(DocStore.dirFor(tmp.path, 's3') + '/data.bin')
+    File('${DocStore.dirFor(tmp.path, 's3')}/data.bin')
         .writeAsBytesSync([1, 2]);
     expect(back.chapters[1].paras, isEmpty);
     expect(back.chapters[1].href, 'b.xhtml');
@@ -156,7 +155,7 @@ void main() {
     );
     expect(back.chapterCharCounts.last, 4);
     // v 字段低于当前 snapVersion（老 App 留下的 part1394 时代快照）→ 作废。
-    final idxFile = File(DocStore.dirFor(tmp.path, 's5') + '/index.json');
+    final idxFile = File('${DocStore.dirFor(tmp.path, 's5')}/index.json');
     final j = (jsonDecode(idxFile.readAsStringSync()) as Map)
         .cast<String, Object?>();
     j['v'] = DocStore.snapVersion - 1;

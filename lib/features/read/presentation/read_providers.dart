@@ -1,3 +1,5 @@
+import './selection_controller.dart'; // V1.53.2 性能批 1
+import './para_box_cache.dart'; // V1.53.2 性能批 2
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -364,3 +366,12 @@ String bsRateLabel(double rating) => rating <= 0
     : rating % 1 == 0
     ? '${rating.toInt()}分'
     : '$rating分';
+
+/// V1.53.2 性能批 1：选区控制器（方案 A）
+final selectionProvider = StateNotifierProvider<SelectionController, ({int ci, int p0, int p1, int o0, int o1})?>((ref) => SelectionController());
+
+/// V1.53.2 性能批 1：高亮色板展开状态
+final highlightPopupProvider = StateProvider<bool>((ref) => false);
+
+/// V1.53.2 性能批 2：段落盒缓存（方案 B）
+final paraBoxCacheProvider = Provider<ParaBoxCache>((ref) => ParaBoxCache());

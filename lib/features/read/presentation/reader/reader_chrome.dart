@@ -12,7 +12,13 @@ extension _ReaderChrome on _ReaderPageState {
         key: const ValueKey('br-top'),
         // 真机反馈（2026-09-28）：不再用 BackdropFilter 毛玻璃——弹层/选区触发
         // 重合成时会把整页正文卷进模糊（引擎 backdrop 扩散）。底色改不透明（brBarOf）。
-        child: Container(
+        // R14-6：外包尺寸探针回灌实测高度（选区工具条让位 cT 用）。
+        child: BrSizeProbe(
+          onSize: (s) {
+            // ignore: invalid_use_of_protected_member
+            if (mounted && s.height != _topBarH) setState(() => _topBarH = s.height);
+          },
+          child: Container(
           key: const ValueKey('brTopBox'),
           decoration: BoxDecoration(
             color: bar.bg,
@@ -163,6 +169,7 @@ extension _ReaderChrome on _ReaderPageState {
                   ),
               ],
           ),
+          ),
         ),
       ),
     );
@@ -180,7 +187,13 @@ extension _ReaderChrome on _ReaderPageState {
       child: KeyedSubtree(
         key: const ValueKey('br-bottom'),
         // 同顶栏：去 BackdropFilter，防弹层/选区时整页模糊。
-        child: Container(
+        // R14-6：外包尺寸探针回灌实测高度（选区工具条让位 cB 用）。
+        child: BrSizeProbe(
+          onSize: (s) {
+            // ignore: invalid_use_of_protected_member
+            if (mounted && s.height != _bottomBarH) setState(() => _bottomBarH = s.height);
+          },
+          child: Container(
           key: const ValueKey('brBottomBox'),
           decoration: BoxDecoration(
             color: bar.bg,
@@ -234,6 +247,7 @@ extension _ReaderChrome on _ReaderPageState {
                 ),
               ],
             ),
+          ),
           ),
         ),
       );

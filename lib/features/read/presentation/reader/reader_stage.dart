@@ -115,7 +115,7 @@ extension _ReaderStage on _ReaderPageState {
         _hitMark != null && _hitMark!.ci == ci && _hitMark!.pi == pi;
     // 批3：划线色底（原型 background: c+'44'）与选中段高亮；点段即划词。
     final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
-    final s = _sel;
+    final s = _selController.sel;
     final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
     // 轮4③：段内精确子串高亮（同段＝句选 o0/o1；跨段首尾各切一头）。
     var q0 = 0, q1 = p.text.length;
@@ -254,6 +254,10 @@ extension _ReaderStage on _ReaderPageState {
         final span = partSel
             ? _subSpan(th, p, q0, q1)
             : _textSpan(th, doc, ci, p, pi, isHit);
+        // V1.53.2 性能批 2：段落首帧后异步填充盒缓存（方案 B）
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fillParaCache(ci, pi);
+        });
         return Padding(
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),

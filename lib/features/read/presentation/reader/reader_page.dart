@@ -29,6 +29,8 @@ import './reader_bottom_sheets.dart';
 import './reader_pager.dart';
 import './reader_search_page.dart';
 import './reader_sel_layer.dart';
+import '../selection_controller.dart';
+import '../para_box_cache.dart'; // V1.53.2 性能批 2
 import './reader_toc_drawer.dart';
 
 part 'reader_models.dart';
@@ -85,6 +87,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   // chrome / 反馈
   bool _chrome = false;
+  /// R14-6：顶/底栏实测高度（BrSizeProbe 回灌；选区工具条让位约束 cT/cB 用）。
+  double _topBarH = 0, _bottomBarH = 0;
   // 「回到进书位置」锚点：进书时的 (ci,pg)；拖离后进度弹层给出入口（轮5.2①）。
   ({int ci, int pg})? _homePos;
   bool _backPill = false;
@@ -100,6 +104,53 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   // 抽屉
   bool _drawerOpen = false;
   final TocDrawerState _drState = TocDrawerState();
+  late SelectionController _selController; // V1.53.2 性能批 1
+
+  /// V1.53.2 性能批 2：段落盒缓存（方案 B），提升长按命中准确度至 95%+
+  ParaBoxCache? _paraBoxCache;
+
+  /// 已缓存的段落键（'ci:pi'），避免重复填充
+  final Set<String> _cachedParaKeys = {};
+
+  /// 填充段落盒缓存（在 postFrameCallback 中调用）
+  void _fillParaCache(int ci, int pi) {
+    final cache = _paraBoxCache;
+    final doc = _doc;
+    if (cache == null || doc == null) return;
+    if (pi >= doc.chapters[ci].paras.length) return;
+    final key = '$ci:$pi';
+    if (_cachedParaKeys.contains(key)) return;
+
+    final rb = _paraRender(ci, pi);
+    if (rb == null || !rb.hasSize) return;
+
+    final full = rb.text.toPlainText();
+    if (full.isEmpty) return;
+    _cachedParaKeys.add(key);
+
+    // 为每个字符建一个 Rect（取该字符的起始 x、顶部 y、宽度 1、行高）
+    final rects = <Rect>[];
+    for (var i = 0; i < full.length; i++) {
+      final r = TextSelection(
+        baseOffset: i,
+        extentOffset: (i + 1).clamp(0, full.length),
+      );
+      final boxes = rb.getBoxesForSelection(r);
+      if (boxes.isEmpty) {
+        // 空盒用上一个位置或 0
+        rects.add(Rect.fromLTWH(0, 0, 0, 0));
+      } else {
+        final b = boxes.first;
+        rects.add(Rect.fromLTRB(b.left, b.top, b.right, b.bottom));
+      }
+    }
+
+    // 转换为全局坐标
+    final global = rb.localToGlobal(Offset.zero);
+    final shifted = rects.map((r) => r.shift(global)).toList(growable: false);
+    cache.update(ci, pi, shifted);
+  }
+
 
   // 命中导航（搜本书/全书检索共用）
   List<({int ci, int pi, String text})> _hits = const [];
@@ -109,7 +160,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
   // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句 · 轮5① 扩选改为首尾手柄拖动）。
-  ({int ci, int p0, int p1, int o0, int o1})? _sel;
   bool _hlPop = false; // 色板展开
   // 长按落点 → 句边界需要段内命中偏移；'ci:pi' → 段 Text GlobalKey。
   final Map<String, GlobalKey> _paraKeys = {};
@@ -130,8 +180,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   @override
+  @override
   void initState() {
     super.initState();
+    _selController = SelectionController(); // V1.53.2 性能批 1
+    _paraBoxCache = ParaBoxCache(); // V1.53.2 性能批 2（方案 B）
     _boot();
     // 轮5.4：进阅读页挂起全局读书计时条（首帧后再写，避开 initState 取 container）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -754,7 +807,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _autoT = null;
     if (!_cfg.auto || _doc == null) return;
     _autoT = Timer.periodic(Duration(seconds: _cfg.autoSecs.clamp(3, 60)), (_) {
-      if (!mounted || _sel != null || _drawerOpen || _doc == null) return;
+      if (!mounted || _selController.sel != null || _drawerOpen || _doc == null) return;
       if (_cfg.mode == 'scroll') {
         final h = _viewport.height - 60;
         final cur = _scrollCtrl.hasClients ? _scrollCtrl.offset : 0.0;
@@ -956,7 +1009,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             if (p.dy < s.height * .15 || p.dy > s.height * .85) return;
             // 中区点按：有选区则先清空；无选区才切换 chrome。
             if (p.dx >= s.width * .16 && p.dx <= s.width * .84) {
-              if (_sel != null) {
+              if (_selController.sel != null) {
                 _clearSel();
               } else {
                 setState(() => _chrome = !_chrome);
@@ -971,7 +1024,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           },
           // 轮5①：有选区时**不挂**滑动翻页识别器——否则手柄横向拖动会在手势竞技场
           // 里被父级 HorizontalDragGestureRecognizer 抢先认领，手柄拖不动（真机同理）。
-          onHorizontalDragEnd: _sel == null && !_drawerOpen ? _onSwipe : null,
+          onHorizontalDragEnd: _selController.sel == null && !_drawerOpen ? _onSwipe : null,
           child: LayoutBuilder(
             builder: (_, box) {
               final size = Size(box.maxWidth, box.maxHeight);
@@ -1041,9 +1094,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       if (_chrome) _topBar(bar),
                       if (_chrome && _pag != null) _bottomBar(bar, size),
                       if (_flash != null) _flashBar(bar),
-                      if (_sel != null) ...brSelLayer(
+                      if (_selController.sel != null) ...brSelLayer(
                         size: size,
                         hlPop: _hlPop,
+                        place: _selBarPlace(size),
+                        skin: brSelSkinOf(th.$2),
                         onCopy: _actCopy,
                         onToggleHl: () => setState(() => _hlPop = !_hlPop),
                         onQuote: _actQuote,

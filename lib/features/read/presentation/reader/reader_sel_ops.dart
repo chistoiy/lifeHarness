@@ -8,7 +8,7 @@ extension _ReaderSelOps on _ReaderPageState {
 
 
   String get _selTxt {
-    final sel = _sel;
+    final sel = _selController.sel;
     final doc = _doc;
     if (sel == null || doc == null) return '';
     final ps = doc.chapters[sel.ci].paras;
@@ -32,22 +32,32 @@ extension _ReaderSelOps on _ReaderPageState {
 
 
 
-  /// 长按落点 → 段内字符偏移（RenderParagraph 精确命中；拿不到回落段首）。
+  /// 长按落点 → 段内字符偏移（方案 B：优先用缓存，fallback RenderParagraph）。
   int? _charPosInPara(int ci, int pi, Offset global) {
     final doc = _doc;
     if (doc == null) return null;
     final ps = doc.chapters[ci].paras;
     if (pi >= ps.length) return null;
-    // 治理backlog④：定位链改复用 _paraRender（key→Element→renderObject→首
-    // RenderParagraph 与其完全同形，旧写法在此重复一遍并多一次 `as Element` 硬转）。
-    final rb = _paraRender(ci, pi);
-    if (rb == null) return null;
-    final local = rb.globalToLocal(global);
-    final pos = rb.getPositionForOffset(local);
+
+    // V1.53.2 性能批 2：优先使用段落盒缓存（方案 B）
+    final cache = _paraBoxCache;
+    final cachedIdx = cache?.hitTest(ci, pi, global);
+
     // 显示文本 = kParaIndent 前缀 + 原文（仅 text 段且开缩进）。
     final shift = ps[pi].kind == EpubParaKind.text && _cfg.indent
         ? kParaIndent.length
         : 0;
+
+    // 缓存命中 → 用缓存的插入点偏移（语义与 getPositionForOffset 对齐）。
+    if (cachedIdx != null) {
+      return (cachedIdx - shift).clamp(0, ps[pi].text.length);
+    }
+
+    // fallback：使用原有 RenderParagraph 逻辑（精度约 85%）
+    final rb = _paraRender(ci, pi);
+    if (rb == null) return null;
+    final local = rb.globalToLocal(global);
+    final pos = rb.getPositionForOffset(local);
     return (pos.offset - shift).clamp(0, ps[pi].text.length);
   }
 
@@ -59,7 +69,7 @@ extension _ReaderSelOps on _ReaderPageState {
     if (doc == null) return;
     final ps = doc.chapters[ci].paras;
     if (pi >= ps.length) return;
-    if (_sel != null && _lpCi == ci && _lpPi == pi) {
+    if (_selController.sel != null && _lpCi == ci && _lpPi == pi) {
       _clearSel();
       return;
     }
@@ -69,7 +79,7 @@ extension _ReaderSelOps on _ReaderPageState {
     _lpPi = pi;
     // ignore: invalid_use_of_protected_member
     setState(() {
-      _sel = (ci: ci, p0: pi, p1: pi, o0: se.a, o1: se.b);
+      _selController.setSelection(ci: ci, p0: pi, p1: pi, o0: se.a, o1: se.b);
       _hlPop = false;
       // 真机反馈（2026-09-28）：摘抄操作要在有顶栏的界面里做——
       // 建选区即展开 chrome，书名/计时/搜索/设置随顶栏可见。
@@ -79,7 +89,7 @@ extension _ReaderSelOps on _ReaderPageState {
 
   // ignore: invalid_use_of_protected_member
   void _clearSel() => setState(() {
-    _sel = null;
+    _selController.clear();
     _hlPop = false;
     _lpCi = -1;
     _lpPi = -1;
@@ -121,7 +131,7 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   Future<void> _addHl(String tg) async {
-    final sel = _sel;
+    final sel = _selController.sel;
     final doc = _doc;
     final pag = _pag;
     final body = _selTxt;
@@ -159,7 +169,7 @@ extension _ReaderSelOps on _ReaderPageState {
     if (!mounted) return;
     // ignore: invalid_use_of_protected_member
     setState(() {
-      _sel = null;
+      _selController.clear();
       _hlPop = false;
     });
     ref.read(readTickProvider.notifier).state++;
@@ -168,7 +178,7 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   Future<void> _delHl() async {
-    final sel = _sel;
+    final sel = _selController.sel;
     if (sel == null) return;
     final repo = ref.read(readRepositoryProvider);
     var n = 0;
@@ -191,7 +201,7 @@ extension _ReaderSelOps on _ReaderPageState {
     await _reloadHls();
     if (!mounted) return;
     // ignore: invalid_use_of_protected_member
-    setState(() => _sel = null);
+    setState(() => _selController.clear());
     ref.read(readTickProvider.notifier).state++;
     readToast(context, n > 0 ? '已删除划线（书摘同步移除）' : '此处没有划线可删');
   }
@@ -205,7 +215,7 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   void _actShare() {
-    final sel = _sel;
+    final sel = _selController.sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
     // 治理backlog⑥：出处引用尾段＝当前页号（与书签/进度条同用 _pos.pg 口径）；
@@ -218,7 +228,7 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   void _actQuote(bool thought) {
-    final sel = _sel;
+    final sel = _selController.sel;
     final doc = _doc;
     final pag = _pag;
     if (sel == null || doc == null) return;
@@ -239,7 +249,7 @@ extension _ReaderSelOps on _ReaderPageState {
 
   /// 词典取词（原型 BR_DICT：去空白 ≤4 字 · 互含模糊匹配 · 未收录回退）。
   void _actDict() {
-    final sel = _sel;
+    final sel = _selController.sel;
     if (sel == null) return;
     // 治理backlog②：_selTxt 只读 _sel/_doc，本函数内同步取一次复用（旧代码取两次）。
     final selTxt = _selTxt;
@@ -317,7 +327,7 @@ extension _ReaderSelOps on _ReaderPageState {
   /// AI 解读：走统一入口 aiRunWithReview（架构守护 R7 · 需求清单 §六 原则 8）。
   /// 门控/发送前审阅/进度与取消/四态留痕与 token 台账都在通道内，阅读侧只渲染结果。
   Future<void> _actAi() async {
-    final sel = _sel;
+    final sel = _selController.sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
     final quote = _selTxt;
@@ -355,9 +365,39 @@ extension _ReaderSelOps on _ReaderPageState {
     );
   }
 
+  /// R14-6 · 选区工具条让位（原型 brSelBarPlace 三规则直译，2026-09-30 C 方案）：
+  /// ① 首选上贴：条底边贴选区上方空白 · 箭头朝下；
+  /// ② 上方放不下（选区贴近顶栏）→ 下压到选区底边之下 · 箭头翻上；
+  /// ③ 下方也放不下 → 贴屏下沿（底栏上方），选区留在条下方。
+  /// 选区跨度取首/尾端整段盒（原型 el0/el1 getBoundingClientRect 口径）。
+  ({double top, bool flip}) _selBarPlace(Size size) {
+    const fallback = (top: 120.0, flip: false);
+    final s = _selController.sel, doc = _doc;
+    final sb = _stackKey.currentContext?.findRenderObject();
+    if (s == null || doc == null || sb is! RenderBox || !sb.hasSize) {
+      return fallback;
+    }
+    final rb0 = _paraRender(s.ci, s.p0);
+    if (rb0 == null) return fallback;
+    final rb1 = _paraRender(s.ci, s.p1) ?? rb0;
+    final selTop = sb.globalToLocal(rb0.localToGlobal(Offset.zero)).dy;
+    final selBottom =
+        sb.globalToLocal(rb1.localToGlobal(Offset.zero)).dy + rb1.size.height;
+    // cT/cB＝顶/底栏实测高（可见时）＋ 8px 间距（原型 cT/cB 口径）。
+    final cT = (_chrome ? _topBarH : 0.0) + 8;
+    final cB = (_chrome && _pag != null ? _bottomBarH : 0.0) + 8;
+    final tAbove = selTop - 8 - kBrSelBarH; // 上贴：条底边＝选区顶-8
+    final tBelow = selBottom + 8; // 下压：条顶边＝选区底+8
+    final roomAbove = tAbove >= cT;
+    final roomBelow = tBelow + kBrSelBarH <= size.height - cB;
+    if (!roomAbove && roomBelow) return (top: tBelow, flip: true);
+    if (!roomBelow) return (top: size.height - cB - kBrSelBarH, flip: false);
+    return (top: tAbove, flip: false);
+  }
+
   /// 选区端点 → 舞台 Stack 内坐标（RenderParagraph 取字符盒）。
   Offset? _selAnchor(bool end) {
-    final s = _sel, doc = _doc;
+    final s = _selController.sel, doc = _doc;
     final sb = _stackKey.currentContext?.findRenderObject();
     if (s == null || doc == null || sb is! RenderBox || !sb.hasSize) return null;
     final ps = doc.chapters[s.ci].paras;
@@ -397,7 +437,7 @@ extension _ReaderSelOps on _ReaderPageState {
 
   /// 手柄拖动：把端点落到指针所在段/字符（跨段自动整段吞并），两端可互换。
   void _dragSel({required bool end, required Offset global}) {
-    final s = _sel, doc = _doc;
+    final s = _selController.sel, doc = _doc;
     if (s == null || doc == null) return;
     final hit = _paraHitAt(s.ci, global);
     if (hit == null) return;
@@ -406,7 +446,7 @@ extension _ReaderSelOps on _ReaderPageState {
       if (end) {
         if (hit.pi < s.p0 || (hit.pi == s.p0 && hit.off <= s.o0)) {
           // 拖过首端＝互换，首端跟随旧尾端。
-          _sel = (
+          _selController.setSelection(
             ci: s.ci,
             p0: hit.pi,
             p1: s.p0,
@@ -414,7 +454,7 @@ extension _ReaderSelOps on _ReaderPageState {
             o1: s.o0,
           );
         } else {
-          _sel = (
+          _selController.setSelection(
             ci: s.ci,
             p0: s.p0,
             p1: hit.pi,
@@ -424,10 +464,10 @@ extension _ReaderSelOps on _ReaderPageState {
             o1: hit.off,
           );
         }
-        _lpPi = _sel!.p1;
+        _lpPi = _selController.sel!.p1;
       } else {
         if (hit.pi > s.p1 || (hit.pi == s.p1 && hit.off >= s.o1)) {
-          _sel = (
+          _selController.setSelection(
             ci: s.ci,
             p0: s.p1,
             p1: hit.pi,
@@ -435,7 +475,7 @@ extension _ReaderSelOps on _ReaderPageState {
             o1: hit.off,
           );
         } else {
-          _sel = (
+          _selController.setSelection(
             ci: s.ci,
             p0: hit.pi,
             p1: s.p1,
@@ -443,7 +483,7 @@ extension _ReaderSelOps on _ReaderPageState {
             o1: s.o1,
           );
         }
-        _lpPi = _sel!.p0;
+        _lpPi = _selController.sel!.p0;
       }
       _hlPop = false;
     });
