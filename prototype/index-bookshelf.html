@@ -1050,6 +1050,22 @@ tailwind.config = {
       <div id="bmList" class="mt-3"></div>
     </section>
 
+    <!-- ===== 阅读器 · P-XR 词库管理（V1.54.1 批2 · GLOBAL 养成词库 CRUD + 启用开关） ===== -->
+    <section id="p-xrwords" class="page px-5 safe-pb no-scrollbar">
+      <div class="mt-3 card !py-3 flex items-center gap-2.5">
+        <span class="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-500/15 flex items-center justify-center text-brand-500"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="m20 20-3.5-3.5"/></svg></span>
+        <div class="flex-1 min-w-0"><div class="text-[13px] font-extrabold">X-Ray 词库管理</div><div class="text-[10px] text-slate-400 mt-0.5" id="xrwSum"></div></div>
+        <button class="mini-btn !text-[10px]" onclick="navTo('p-bookshelf')">回书架</button>
+      </div>
+      <div class="mt-2 card !py-3 flex items-center gap-2.5">
+        <div class="flex-1 min-w-0"><b class="text-[12.5px]">启用养成词库</b><div class="text-[10px] text-slate-400 mt-0.5">关＝纯预置视角：隐藏我的词条并恢复被屏蔽词 · 已整理状态不回滚，重开即恢复</div></div>
+        <span class="toggle on" id="xrwToggle" onclick="xrWordsToggle()"><i></i></span>
+      </div>
+      <div class="mt-2 flex gap-1.5 flex-wrap" id="xrwTypeChips"></div>
+      <div class="mt-3 flex gap-2"><input id="xrwAddInp" class="inp flex-1" placeholder="新增养入词…" onkeydown="if(event.key==='Enter')xrWordsAdd()"><button class="mini-btn self-stretch flex items-center px-4" onclick="xrWordsAdd()">添加</button></div>
+      <div id="xrwList" class="mt-3"></div>
+    </section>
+
     <!-- ===== 书架生态 · P-B5 书单列表 ===== -->
     <section id="p-booklists" class="page px-5 safe-pb no-scrollbar">
       <div class="mt-3 grid grid-cols-2 gap-2.5" id="blNew"></div>
@@ -3137,6 +3153,14 @@ tailwind.config = {
       <div id="xrPeekBody" class="mt-2"></div>
     </div>
   </div>
+  <div id="sheetXrMiss" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrMiss')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">未命中全书索引</b><span class="text-[9px] text-slate-400">选区 · X-Ray</span></div>
+      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">选中文本</span><b class="ml-auto" id="xrMissWord">—</b></div>
+      <div class="mt-2 text-[10px] text-slate-400">把它养进词库（加为词条并全书补扫），或拉黑（养词库生效期间不再显示）。</div>
+      <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetXrMiss')">取消</button><button class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold" id="xrMissBan" onclick="xrMissBan()">改为屏蔽</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" id="xrMissAdd" onclick="xrMissAdd()">加为词条</button></div>
+    </div>
+  </div>
   <div id="sheetXrMerge" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrMerge')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8"><div id="xrMergeBody"></div></div>
   </div>
@@ -3276,6 +3300,7 @@ tailwind.config = {
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brGotoQuotes()"><span>本书书摘与划线</span><b class="text-[10px] text-slate-400" id="brMoreQn">0 条</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brOpenDetail()"><span>书籍详情与资料页</span><span class="text-slate-300">›</span></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrEntry()"><span>全书索引（X-Ray）</span><b class="text-[10px] text-slate-400" id="brMoreXr">已索引 12/18 章 · 随阅读推进</b></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrWordsOpen()"><span>X-Ray 词库管理</span><b class="text-[10px] text-slate-400" id="brMoreXrw">养词库 开</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');navTo('p-readset');rsPickTab(RS_SEC.length-1)"><span>阅读器设置</span><span class="text-slate-300">›</span></div>
         <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" id="brMoreBright" onclick="brMoreBright()"></span></div>
         <div class="flex items-center justify-between"><span>文本朗读 TTS</span><span class="toggle" id="brMoreTts" onclick="brMoreTts(this)"></span></div>
@@ -5788,7 +5813,7 @@ const RS_SEC=[
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
  ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
  ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]],
- ['本地阅读器',[['epub','导入本地 EPUB','nav',"navTo('p-localImport');brImpGo(1)",'添加图书流程内同样有入口 · Android 13+ SAF 单次读取'],['brSync','划线自动存为书摘','bool','阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'],['brLink','书籍内外部链接','chips',['禁止','询问','允许'],'章节内跳转不受限制 · 外链默认询问'],['brVoice','朗读音色','chips',['标准女声','温润男声','童声'],'离线引擎 · 扩展包按需下载控制体积'],['brBright','阅读时屏幕常亮','bool','进入阅读器自动生效 · 退出恢复系统策略'],
+ ['本地阅读器',[['epub','导入本地 EPUB','nav',"navTo('p-localImport');brImpGo(1)",'添加图书流程内同样有入口 · Android 13+ SAF 单次读取'],['xrwords','X-Ray 词库管理','nav',"navTo('p-xrwords');renderXrWords()",'GLOBAL 养成词库 · 增删改查 · 启用开关（关＝纯预置视角） · 导入导出随批3'],['brSync','划线自动存为书摘','bool','阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'],['brLink','书籍内外部链接','chips',['禁止','询问','允许'],'章节内跳转不受限制 · 外链默认询问'],['brVoice','朗读音色','chips',['标准女声','温润男声','童声'],'离线引擎 · 扩展包按需下载控制体积'],['brBright','阅读时屏幕常亮','bool','进入阅读器自动生效 · 退出恢复系统策略'],
    ['brMinSecs','短于该时长的阅读不计入','chips',[5,10,15,30,60,120,300],'秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话'],['brSelGran','长按选择粒度','chips',['选字','选句'],'默认 选字 · 长按命中单字，拖手柄扩选；选句 长按命中整句'],['brSelOps','选区工具条工具','opsSel','勾选并调整顺序 · 移除＝不上工具条']]]];
 function rsOpen(){navTo('p-readset');renderReadSet()}
 function rsChip(k,o){const v=BS_SET[k];BS_SET[k]=typeof o==='number'?o:o;renderReadSet();
@@ -8227,7 +8252,8 @@ function br35Seed(){
     }).join('');
     var r2='<div class="flex items-center gap-2"><div class="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 gap-1">'+segs+'</div><span class="flex-1"></span>'
       +'<span class="chip !text-[9px] !px-2.5" id="xrAddBtn" onclick="xrAddOpen(\'\')">＋加词</span>'
-      +'<span class="chip !text-[9px] !px-2.5'+(XR.org?' chip-on':'')+'" id="xrOrgBtn" onclick="xrToggleOrg()">整理词条</span></div>';
+      +'<span class="chip !text-[9px] !px-2.5'+(XR.org?' chip-on':'')+'" id="xrOrgBtn" onclick="xrToggleOrg()">整理词条</span>'
+      +'<span class="chip !text-[9px] !px-2.5'+(xrUserDictOn()?' chip-on':'')+'" id="xrUserDictBtn" onclick="xrUserDictFlip()">养词库 '+(xrUserDictOn()?'开':'关')+'</span></div>';
     return r1+r2
   }
   function xrTypesHtml(pool){
@@ -8241,6 +8267,8 @@ function br35Seed(){
   function xrListHtml(){
     var pool=xrByType(xrScoped(),XR.type);
     if(XR.kw.trim())pool=pool.filter(function(x){return x.name.indexOf(XR.kw.trim())>=0});
+    var ud=xrUserDictOn();
+    pool=pool.filter(function(x){return (ud||!x.usr)&&!XR_BLOCKED[x.name]});
     var hi=[],lo=[];pool.forEach(function(x){(x.score<XR_LOW?lo:hi).push(x)});
     hi=xrSorted(hi);lo=xrSorted(lo);
     var h='';
@@ -8498,7 +8526,7 @@ function br35Seed(){
     if(!w){toast('先选中文字');return}
     var hit=XR_ENTS.find(function(v){return v.name===w||w.indexOf(v.name)>=0||v.name.indexOf(w)>=0});
     if(hit)xrPeekOpen(hit.name)
-    else xrAddOpen(w)
+    else xrMissOpen(w)
   };
   window.xrPeekOpen=function(word){
     var x=XR_ENTS.find(function(v){return v.name===word});
@@ -8511,6 +8539,58 @@ function br35Seed(){
     openSheet('sheetXrPeek')
   };
   window.xrPeekToPanel=function(name){closeSheet('sheetXrPeek');var x=XR_ENTS.find(function(v){return v.name===name});if(x)xrPickEnt(x.id);else brTocOpen('xr')};
+  /* V1.54.1 批2 · GLOBAL 养成词库管理 + 启用开关 + 选区未命中二选一 */
+  window.xrUserDictOn=function(){return BS_SET.xrUserDict!==false};
+  window.xrUserDictFlip=function(){BS_SET.xrUserDict=!xrUserDictOn();xrRender();
+    if(document.getElementById('xrwSum'))renderXrWords();
+    var mb=document.getElementById('brMoreXrw');if(mb)mb.textContent='养词库 '+(xrUserDictOn()?'开':'关');
+    toast(xrUserDictOn()?'养词库已开启 · 我的词条与屏蔽恢复生效':'已切纯预置视角 · 已整理状态不回滚，重开即恢复')};
+  var XR_WORDS=[
+    {w:'认知负担',type:'term',act:'add',src:'《模型思维》',ts:Date.now()-86400000*2},
+    {w:'普通国家',type:'term',act:'add',src:'人类简史',ts:Date.now()-86400000*5},
+    {w:'麦田里的守望者',type:'book',act:'forbid',src:'雾都小书',ts:Date.now()-86400000*9}];
+  var XR_BLOCKED={};
+  var xrwType='all',xrwQ='';
+  window.xrWordsOpen=function(){TITLES['p-xrwords']=['X-Ray 词库管理','GLOBAL 养成词库 · 随批3 可导入导出'];navTo('p-xrwords');renderXrWords()};
+  window.xrwSetType=function(t){xrwType=t;renderXrWords()};
+  window.xrwSetQ=function(v){xrwQ=(v||'').trim().toLowerCase();renderXrWords()};
+  window.xrWordsToggle=function(){xrUserDictFlip();renderXrWords();
+    var b=document.getElementById('brMoreXrw');if(b)b.textContent='养词库 '+(xrUserDictOn()?'开':'关')};
+  function xrwTypeBadge(t){return (XR_TYPES.find(function(x){return x[0]===t})||['','词'])[1]}
+  window.renderXrWords=function(){
+    var tg=document.getElementById('xrwToggle');if(!tg)return;
+    var on=xrUserDictOn();
+    tg.className='toggle'+(on?' on':'');
+    var mb=document.getElementById('brMoreXrw');if(mb)mb.textContent='养词库 '+(on?'开':'关');
+    document.getElementById('xrwTypeChips').innerHTML=[['all','全部']].concat(XR_TYPES).map(function(t){
+      var n=t[0]==='all'?XR_WORDS.length:XR_WORDS.filter(function(r){return r.type===t[0]}).length;
+      return '<button class="chip !text-[10px]'+(xrwType===t[0]?' chip-on':'')+'" id="xrw-tp-'+t[0]+'" onclick="xrwSetType(\''+t[0]+'\')">'+t[1]+' · '+n+'</button>'}).join('');
+    document.getElementById('xrwSum').textContent=XR_WORDS.length+' 个养成词 · '+(on?'养词库生效中':'纯预置视角（开关已关）');
+    document.getElementById('xrwList').innerHTML=XR_WORDS.filter(function(r){return (xrwType==='all'||r.type===xrwType)&&(!xrwQ||r.w.toLowerCase().indexOf(xrwQ)>=0)}).map(function(r){
+      return '<div class="shelf-row !px-3" data-w="'+r.w+'"><div class="flex-1 min-w-0"><b class="text-[13px] block truncate">'+r.w+'</b>'
+        +'<span class="text-[10px] text-slate-400">'+xrwTypeBadge(r.type)+' · '+(r.act==='add'?'加词':'屏蔽')+' · 来源 '+r.src+' · '+new Date(r.ts).toISOString().slice(5,10)+'</span></div>'
+        +'<button class="mini-btn !text-[10px]" onclick="xrwRename(\''+r.w+'\')">改名</button>'
+        +'<button class="mini-btn !text-[10px]" onclick="xrwFlip(\''+r.w+'\')">'+(r.act==='add'?'改屏蔽':'改加词')+'</button>'
+        +'<button class="mini-btn !text-[10px] !bg-peach/15 !text-rose-500" onclick="xrwDel(\''+r.w+'\')">删除</button></div>'
+    }).join('')||'<div class="card text-[11px] text-slate-400 text-center py-6">该类型还没有养成词，先在上方添加</div>';
+  };
+  window.xrWordsAdd=function(){var i=document.getElementById('xrwAddInp');var w=(i&&i.value||'').trim();if(!w){toast('先输入词');return}
+    if(XR_WORDS.some(function(r){return r.w===w})){toast('该词已在词库');return}
+    XR_WORDS.unshift({w:w,type:xrGuessType(w),act:'add',src:'手动养入',ts:Date.now()});
+    if(i)i.value='';xrwType='all';xrwQ='';renderXrWords();toast('已养入「'+w+'」· 重解析与补扫时生效')};
+  window.xrwRename=function(w){var nn=prompt('改成：',w);if(nn==null)return;nn=nn.trim();if(!nn||nn===w)return;
+    XR_WORDS.forEach(function(r){if(r.w===w)r.w=nn});renderXrWords();toast('已改名「'+nn+'」')};
+  window.xrwFlip=function(w){XR_WORDS.forEach(function(r){if(r.w===w)r.act=r.act==='add'?'forbid':'add'});
+    renderXrWords();toast('已更新动作')};
+  window.xrwDel=function(w){XR_WORDS=XR_WORDS.filter(function(r){return r.w!==w});delete XR_BLOCKED[w];
+    renderXrWords();toast('已删除「'+w+'」')};
+  var xrMissW='';
+  window.xrMissOpen=function(w){xrMissW=w||'';
+    document.getElementById('xrMissWord').textContent=xrMissW;openSheet('sheetXrMiss')};
+  window.xrMissAdd=function(){closeSheet('sheetXrMiss');xrAddOpen(xrMissW)};
+  window.xrMissBan=function(){XR_BLOCKED[xrMissW]=1;closeSheet('sheetXrMiss');
+    try{xrRender()}catch(e){}
+    toast('已屏蔽「'+xrMissW+'」· 关养词库开关可恢复')};
   var xrAddPick={word:'',type:'term',scope:'book'};
   window.xrAddOpen=function(word){
     xrAddPick={word:word||'',type:xrGuessType(word||''),scope:'book'};
@@ -8658,6 +8738,8 @@ function br35Seed(){
       }
       return
     }
+    if(m==='dict'){navTo('p-xrwords');renderXrWords();return}
+    if(m==='miss'){brOpen('b1');brShowChrome();xrMissOpen('麦田里的守望者');return}
     if(m==='fail'){xrSeed();brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');openSheet('sheetXrFail');return}
   }catch(e){console.warn('xr',e)}})();
 })();

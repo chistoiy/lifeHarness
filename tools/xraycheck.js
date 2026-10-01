@@ -213,10 +213,52 @@ async function go(q) {
   r = await ev(`xrFailRetry();return{st:xrState().status,p:xrState().p};`);
   (r.st === 'run' && r.p === 66) ? ok('屏7 断点继续转解析中') : bad('屏7 继续', JSON.stringify(r));
 
+  /* V1.54.1 批2 · 词库管理页 + 启用开关 + 未命中二选一 */
+  await go('xr=dict');
+  r = await ev(`return{page:curPage,sum:document.getElementById('xrwSum').textContent,
+    tg:document.getElementById('xrwToggle').className.indexOf('on')>=0,
+    chips:document.querySelectorAll('#xrwTypeChips .chip').length,
+    rows:document.querySelectorAll('#xrwList .shelf-row').length};`);
+  (r.page === 'p-xrwords' && /3 个养成词/.test(r.sum) && r.tg && r.chips === 7 && r.rows === 3)
+    ? ok('批2 词库管理页：3 养入词 + 7 类型筛选 + 开关默认开', r.sum) : bad('批2 管理页', JSON.stringify(r));
+  await shot('xr-words.png');
+  r = await ev(`document.getElementById('xrwAddInp').value='沉没成本';xrWordsAdd();
+    var first=document.querySelector('#xrwList .shelf-row b');
+    return{n:document.querySelectorAll('#xrwList .shelf-row').length,w:first?first.textContent:'',
+      sum:document.getElementById('xrwSum').textContent};`);
+  (r.n === 4 && r.w === '沉没成本' && /4 个养成词/.test(r.sum)) ? ok('批2 词库添加即置顶') : bad('批2 添加', JSON.stringify(r));
+  r = await ev(`xrUserDictFlip();return{on:xrUserDictOn(),sum:document.getElementById('xrwSum').textContent};`);
+  (r.on === false && /纯预置视角/.test(r.sum)) ? ok('批2 启用开关：关＝纯预置视角') : bad('批2 开关', JSON.stringify(r));
+  await go('xr=panel');
+  r = await ev(`document.getElementById('xrUserDictBtn').click();
+    var b2=document.getElementById('xrUserDictBtn');
+    return{txt:b2.textContent,on:b2.className.indexOf('chip-on')>=0};`);
+  (/养词库 关/.test(r.txt) && !r.on) ? ok('批2 面板头养词库开关点按') : bad('批2 面板头开关', JSON.stringify(r));
+  await go('xr=miss');
+  r = await ev(`return{sh:!document.getElementById('sheetXrMiss').classList.contains('hidden'),
+    w:document.getElementById('xrMissWord').textContent,
+    btns:[].map.call(document.querySelectorAll('#sheetXrMiss button'),function(x){return x.textContent}).join('|')};`);
+  (r.sh && r.w === '麦田里的守望者' && /加为词条/.test(r.btns) && /改为屏蔽/.test(r.btns))
+    ? ok('批2 选区未命中二选一弹层', r.btns) : bad('批2 未命中弹层', JSON.stringify(r));
+  r = await ev(`xrMissBan();var out={toast:/已屏蔽/.test(document.getElementById('toast').innerText)};
+    xrAddOpen('巧克力');out.prefill=document.getElementById('xrAddWordIn').value;
+    return out;`);
+  (r.toast && r.prefill === '巧克力') ? ok('批2 改为屏蔽反馈 + 二选一→加词预填') : bad('批2 屏蔽', JSON.stringify(r));
+  await go('xr=more');
+  r = await ev(`var row=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).find(function(x){return /词库管理/.test(x.innerText)});
+    return{row:row?row.innerText.replace(/\\s+/g,' '):''};`);
+  (/X-Ray 词库管理/.test(r.row) && /养词库 开/.test(r.row)) ? ok('批2 ⋯菜单词库管理行', r.row) : bad('批2 菜单行', JSON.stringify(r));
+  await go('xr=bak');
+  r = await ev(`rsPickTab(RS_SEC.length-1);renderReadSet();
+    var row=[].slice.call(document.querySelectorAll('#rsGroups .mini-btn')).find(function(b){return false});
+    var nav=[].slice.call(document.querySelectorAll('#rsGroups b')).find(function(x){return /X-Ray 词库管理/.test(x.textContent)});
+    return{nav:nav?nav.textContent:''};`);
+  (r.nav === 'X-Ray 词库管理') ? ok('批2 阅读设置「本地阅读器」入口行') : bad('批2 设置入口', JSON.stringify(r));
+
   /* 收尾：emoji 与异常 */
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
-    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
+    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','sheetXrMiss','p-xrwords'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
     var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab].join(',')};`);
   (!r.emoji && r.fns === 'function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
