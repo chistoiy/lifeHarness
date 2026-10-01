@@ -84,6 +84,8 @@ async function go(q) {
     head:(document.getElementById('xrHead').innerText||'').slice(0,20)};`);
   (r.page === 'p-xray' && r.tabs.length === 6 && r.chips >= 5 && r.lowmore && /系统1/.test(r.detail) && /已解析 12\/18/.test(r.head))
     ? ok('屏3 六标签 · 头像胶囊行 · 详情区默认选中 · 已解析x/y章', r.tabs.join('|')) : bad('屏3 面板', JSON.stringify(r));
+  r = await ev(`return{gd:document.querySelectorAll('#xrGlobal .xr-dot').length,add:!!document.getElementById('xrAddBtn'),org:/整理词条/.test(document.getElementById('xrHead').innerText)};`);
+  (r.gd >= 20 && r.add && r.org) ? ok('屏3 底部全书总时间轴 · ＋加词 · 整理词条入口显性化', 'dots=' + r.gd) : bad('屏3 总览/自学习入口', JSON.stringify(r));
   r = await ev(`var n0=document.querySelectorAll('#xrFeatured .xr-chip').length;
     document.getElementById('xr-lowmore').click();
     var n1=document.querySelectorAll('#xrFeatured .xr-chip.low').length;
@@ -116,18 +118,26 @@ async function go(q) {
     return{lost:n0-xrEnts().length,toast:/全局黑名单/.test(document.getElementById('toast').innerText)};`);
   (r.lost === 1 && r.toast) ? ok('屏7 全局黑名单移除生效') : bad('全局移除', JSON.stringify(r));
 
-  /* 屏4（并入版式）：详情区=选中词条上下文流 */
+  /* 屏4（并入版式）：横向时间轴 · 剧透保护 · 简介 · 自学习动作 */
   await go('xr=ent');
   r = await ev(`var det=document.getElementById('xrDetail').innerText;
-    var clip=document.getElementById('xr-clip-e_kmn-0');
     return{hasName:/卡尼曼/.test((document.getElementById('xr-det-name')||{}).innerText||''),
-      spark:document.querySelectorAll('#xr-spark-e_kmn i').length,
+      desc:/诺贝尔/.test((document.getElementById('xr-desc-e_kmn')||{}).innerText||''),
+      dots:document.querySelectorAll('[id^="xr-dot-e_kmn-"]').length,
+      unread:document.querySelectorAll('#xr-tl-e_kmn .xr-dot.unread').length,
+      now:!!document.getElementById('xr-now-e_kmn'),
       clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,
-      ai:/AI 释义 · 二期占位/.test(det),dlg:/台词 34/.test(det),
-      hl:clip?clip.querySelectorAll('b').length:0,selOn:!!document.querySelector('#xrFeatured .xr-chip.on')};`);
-  (r.hasName && r.spark === 18 && r.clips === 4 && r.ai && r.dlg && r.hl > 0 && r.selOn)
-    ? ok('屏4 详情区：18柱频次 · 4条上下文(关键词高亮) · 台词 · AI预留 · 选中胶囊', JSON.stringify(r)) : bad('屏4 详情', JSON.stringify(r));
+      spoiler:/隐藏未读 1 处/.test(det),cites:!!document.getElementById('xr-cites'),
+      cand:!!document.getElementById('xr-cand'),ban:!!document.getElementById('xr-ban'),into:!!document.getElementById('xr-merge-into')};`);
+  (r.hasName && r.desc && r.dots === 4 && r.unread === 1 && r.now && r.clips === 3 && r.spoiler && r.cand && r.ban && r.into)
+    ? ok('屏4 时间轴4点(1未读淡显)·当前位置线·剧透保护默认隐藏·候选合并·自学习动作', JSON.stringify(r)) : bad('屏4 详情', JSON.stringify(r));
   await shot('xr-ent.png');
+  r = await ev(`xrToggleCites();return{clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,off:!document.getElementById('xr-spoiler')};`);
+  (r.clips === 4 && r.off) ? ok('屏4 「显示全部引用」开关 → 未读引用出现') : bad('屏4 开关', JSON.stringify(r));
+  r = await ev(`var n0=xrEnts().length;document.getElementById('xr-cand').querySelector('button').click();
+    return{lost:n0-xrEnts().length,toast:/已合并/.test(document.getElementById('toast').innerText)};`);
+  (r.lost === 1 && r.toast) ? ok('屏4 候选卡一键并词（aliases+归属迁移）') : bad('屏4 候选并词', JSON.stringify(r));
+  await shot('xr-merge.png');
   await go('xr=jump');
   await wait(400);
   r = await ev(`return{page:curPage,toast:/已跳转/.test(document.getElementById('toast').innerText),
@@ -147,11 +157,11 @@ async function go(q) {
   r = await ev(`var chips=[].map.call(document.querySelectorAll('#brSelActs .sdb span'),function(x){return x.textContent});
     return{chip:chips.indexOf('X-Ray')>=0,sh:!document.getElementById('sheetXrPeek').classList.contains('hidden'),
       body:document.getElementById('xrPeekBody').innerText.slice(0,60)};`);
-  (r.chip && r.sh && /系统1/.test(r.body) && /面板中查看/.test(r.body)) ? ok('屏5 工具条 X-Ray 动作 · 命中浮摘要', r.body.replace(/\n/g, ' ').slice(0, 40)) : bad('屏5 peek', JSON.stringify(r));
+  (r.chip && r.sh && /系统1/.test(r.body) && /查看全部位置/.test(r.body)) ? ok('屏5 工具条 X-Ray 动作 · 命中浮迷你卡(查看全部位置)', r.body.replace(/\n/g, ' ').slice(0, 40)) : bad('屏5 peek', JSON.stringify(r));
   await shot('xr-peek.png');
   await go('xr=add');
   r = await ev(`return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),
-      word:document.getElementById('xrAddWord').textContent,types:document.querySelectorAll('#xrAddTypes .xr-tab').length,
+      word:(document.getElementById('xrAddWordIn')||{}).value,types:document.querySelectorAll('#xrAddTypes .xr-tab').length,
       scopes:document.querySelectorAll('#xrAddScope .chip').length};`);
   (r.sh && r.word === '巧克力' && r.types === 6 && r.scopes === 2) ? ok('屏5 未命中→加为词条（6 类型+两范围）', r.word) : bad('屏5 加词', JSON.stringify(r));
   await shot('xr-add.png');

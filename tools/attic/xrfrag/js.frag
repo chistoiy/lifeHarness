@@ -9,7 +9,7 @@
   var XR_TL={};XR_TYPES.forEach(function(t){XR_TL[t[0]]=t[1]});
   var XR_CHS=['理解的起点','行得快','跳板','直觉型判断的可靠性','基础比率','相似性','可得性','质量与信念','预测与判断','小错误与影响','稳健的错觉','专家预测 vs 公式','回归均值','因果关系','选择与框架','惊奇与情绪','双系统案例','尾声'];
   function xrChTitle(ch){return XR_CHS[ch-1]||('第'+ch+'章')}
-  var XR={total:18,done:12,status:'ready',kw:'',type:'term',sort:'score',org:false,sel:{},cur:'e_s1',lowOpen:false};
+  var XR={total:18,done:12,status:'ready',kw:'',type:'term',sort:'score',org:false,sel:{},cur:'e_s1',lowOpen:false,cites:false,readCh:7};
   function e(id,name,type,n,chs,score,toc,dist,ment,dlg,q){return {id:id,name:name,type:type,n:n,chs:chs,score:score,toc:toc,dist:dist,ment:ment,dlg:dlg,q:q}}
   var XR_ENTS=[
     e('e_kmn','卡尼曼','per',143,12,0.96,1,[2,5,9,14,18,12,7,10,16,11,6,4],[[1,2,'卡尼曼在讲座上第一次提出了双系统框架。'],[3,1,'按照卡尼曼的说法，直觉只是识别。'],[7,4,'卡尼曼与特沃斯基在耶路撒冷开始了合作。'],[12,0,'卡尼曼坚持：公式胜过专家的直觉判断。']],34,'「直觉只是识别。」'),
@@ -38,6 +38,8 @@
     e('e_rtm','《不确定世界的理性选择》','book',5,2,0.71,0,[0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,0,0,0],null,null,null)
   ];
   var XR_LOW=0.7;
+  var XR_DESC={e_kmn:'本书作者，心理学家，2002 年诺贝尔经济学奖得主。',e_s1:'快、自动、几乎不费力的思维系统。',e_tvs:'卡尼曼毕生合作者，启发式与偏差研究奠基人。'};
+  XR_ENTS.forEach(function(x){x.desc=XR_DESC[x.id]||null});
   function xrTypeCount(t){return XR_ENTS.filter(function(x){return x.type===t}).length}
   function xrList(t){
     var kw=XR.kw.trim();
@@ -54,7 +56,8 @@
     if(st==='ready'&&XR.done<XR.total)btns+='<button class="chip !text-[10px]" id="xrBarContinue" onclick="xrContinue()">继续生成</button>';
     if(st==='ready'||st==='fail')btns+='<button class="chip !text-[10px]" onclick="xrScopeOpen()">重新解析</button>';
     btns+='<button class="chip !text-[10px]" onclick="xrReset()">重置索引</button>';
-    btns+='<button class="chip !text-[10px]'+(XR.org?' !grad text-white':'')+'" id="xrOrgBtn" onclick="xrToggleOrg()">整理</button>';
+    btns+='<button class="chip !text-[10px]" id="xrAddBtn" onclick="xrAddOpen(\'\')">＋加词</button>';
+    btns+='<button class="chip !text-[10px]'+(XR.org?' !grad text-white':'')+'" id="xrOrgBtn" onclick="xrToggleOrg()">整理词条</button>';
     return '<div class="pt-2 flex items-center gap-2 flex-wrap"><b class="text-[12px]">'+lbl+'</b><span class="flex-1"></span>'+btns+'</div>'
   }
   function xrTabsHtml(){
@@ -89,26 +92,72 @@
   }
   function xrDetailHtml(x){
     if(!x)return '<div class="text-[10px] text-slate-400 py-4">点上方词条查看出场上下文</div>';
-    var dist=(x.dist||[]).slice();while(dist.length<XR.total)dist.push(0);dist=dist.slice(0,XR.total);
-    var max=Math.max.apply(null,dist)||1;
-    var spark=dist.map(function(v){return '<i style="height:'+Math.max(2,Math.round(v/max*30))+'px" data-xr-bar="'+x.id+'"></i>'}).join('');
     var badges='<span class="xr-tbadge '+(x.usr?'user':x.type)+'">'+(x.usr?'我的词条':XR_TL[x.type])+'</span>';
     if(x.toc)badges+='<span class="xr-tbadge toc">目录词</span>';
     var h='<div class="flex items-center gap-2 flex-wrap" id="xr-det-name"><b class="text-[15px]">'+x.name+'</b>'+badges+'<span class="flex-1"></span><span class="text-[10px] text-slate-400">置信 '+x.score.toFixed(2)+'</span></div>';
     h+='<div class="mt-1.5 text-[10px] text-slate-400">'+x.n+' 次提及 · 跨 '+x.chs+' 章'+(x.dlg!=null?' · 台词 '+x.dlg+' 段':'')+(x.aliases&&x.aliases.length?' · 并词 '+x.aliases.join('、'):'')+'</div>';
     if(x.q)h+='<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5"><span class="text-slate-400">代表语录</span><div class="mt-0.5">'+x.q+'</div></div>';
-    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">章节频次分布</div><div class="xr-sp mt-1.5" id="xr-spark-'+x.id+'">'+spark+'</div><div class="text-[8px] text-slate-400 mt-1">第1章 → 第'+XR.total+'章</div>';
-    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">出场 · 点按跳回阅读位置</div><div class="mt-1.5 space-y-2" id="xr-ments-'+x.id+'">';
-    var m=x.ment||[];
-    if(!m.length)h+='<div class="text-[10px] text-slate-400">出场锚点已存 · 上下文未截取</div>';
-    m.forEach(function(mm,k){
+    if(x.desc)h+='<div class="mt-1.5 text-[11px] leading-5 text-slate-500 dark:text-slate-400" id="xr-desc-'+x.id+'">'+x.desc+'</div>';
+    h+=xrTimelineHtml(x);
+    var mAll=x.ment||[],mVis=XR.cites?mAll:mAll.filter(function(mm){return mm[0]<=XR.readCh}),hidden=mAll.length-mVis.length;
+    h+='<div class="mt-3 text-[10px] font-bold text-slate-400 flex items-center"><span>出场 · 点按跳回阅读位置</span><span class="flex-1"></span><span class="chip !text-[9px] !px-2.5'+(XR.cites?' chip-on':'')+'" id="xr-cites" onclick="xrToggleCites()">显示全部引用</span></div><div class="mt-1.5 space-y-2" id="xr-ments-'+x.id+'">';
+    if(!mVis.length)h+='<div class="text-[10px] text-slate-400">已读范围内没有出场</div>';
+    mVis.forEach(function(mm,k){
       h+='<div class="xr-clip" id="xr-clip-'+x.id+'-'+k+'" onclick="xrJumpTo('+mm[0]+','+mm[1]+')"><div class="xr-chlabel">'+xrChTitle(mm[0])+' · 段 '+(mm[1]+1)+'</div><div class="mt-0.5">'+xrKwHl(mm[2],x.name)+'</div></div>'
     });
+    if(hidden)h+='<div class="text-[9px] text-slate-400 px-1" id="xr-spoiler">剧透保护 · 隐藏未读 '+hidden+' 处引用</div>';
     h+='</div>';
-    h+='<div class="mt-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-2.5 text-[10px] text-slate-400 flex items-center gap-2" id="xr-aihold">AI 释义 · 二期占位<span class="flex-1"></span></div>';
+    var cands=XR_ENTS.filter(function(v){return v.id!==x.id&&(v.name.indexOf(x.name)>=0||x.name.indexOf(v.name)>=0)});
+    if(cands.length)h+='<div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px]" id="xr-cand">疑似同一条目：「'+cands[0].name+'」'+cands[0].n+' 次<span class="flex-1"></span><button class="grad text-white !text-[10px] font-bold px-3 py-1.5 rounded-lg" onclick="xrMergeInto(\''+cands[0].id+'\',\''+x.id+'\')">并入当前词条</button></div>';
+    h+='<div class="mt-2.5 flex gap-2"><button class="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold" id="xr-merge-into" onclick="xrShowMergeSheet(\''+x.id+'\')">合并进…</button><button class="flex-1 py-2 rounded-xl border border-rose-200 dark:border-rose-500/40 text-[10px] font-bold text-rose-500" id="xr-ban" onclick="xrBan(\''+x.id+'\')">不再显示该词</button></div>';
+    h+='<div class="mt-2.5 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-2.5 text-[10px] text-slate-400 flex items-center gap-2" id="xr-aihold">AI 释义 · 二期占位<span class="flex-1"></span></div>';
     return h
   }
   window.xrToggleLow=function(){XR.lowOpen=!XR.lowOpen;xrRender()};
+  /* 横向全书时间轴：每次出场一个圆点（未读淡显）· 当前阅读位置竖线 · 点圆点即跳 */
+  function xrTimelineHtml(x){
+    var m=x.ment||[],dots='';
+    m.forEach(function(mm,k){
+      var unread=mm[0]>XR.readCh;
+      var stack=(k%3)*9;
+      dots+='<i class="xr-dot '+(x.usr?'user':x.type)+(unread?' unread':'')+'" id="xr-dot-'+x.id+'-'+k+'" style="left:'+Math.round((mm[0]-0.5)/XR.total*100)+'%;bottom:'+stack+'px" onclick="xrJumpTo('+mm[0]+','+mm[1]+')"></i>'
+    });
+    return '<div class="xr-tl mt-2" id="xr-tl-'+x.id+'"><i class="xr-now" style="left:'+Math.round(XR.readCh/XR.total*100)+'%" id="xr-now-'+x.id+'"></i>'+dots+'</div>'
+      +'<div class="flex justify-between text-[8px] text-slate-400 mt-1"><span>书首</span><span>竖线＝读到第'+XR.readCh+'章</span><span>书尾</span></div>'
+  }
+  /* 全书总时间轴（面板常驻）：全部词条出场点按类型着色 · 当前词条加粗 · 点选联动 */
+  function xrGlobalHtml(){
+    var dots='';
+    XR_ENTS.forEach(function(x){
+      (x.ment||[]).forEach(function(mm,k){
+        var on=x.id===XR.cur;
+        dots+='<i class="xr-dot xs '+(x.usr?'user':x.type)+(on?' on':'')+'" style="left:'+Math.round((mm[0]-0.5)/XR.total*100)+'%;bottom:'+(on?10:2)+'px" onclick="xrPickEnt(\''+x.id+'\')" title="'+x.name+'"></i>'
+      })
+    });
+    return '<div class="text-[10px] font-bold text-slate-400 mt-4">全书总览 · 点圆点选词条</div><div class="xr-tl xs mt-1.5" id="xrGlobal">'+dots+'</div>'
+  }
+  window.xrToggleCites=function(){XR.cites=!XR.cites;xrRender()};
+  /* 自学习动作：合并进… / 不再显示（=F8 移除）/ 并词候选（§7 用户确认口径） */
+  window.xrMergeInto=function(id,target){
+    var a=XR_ENTS.find(function(v){return v.id===id}),b=XR_ENTS.find(function(v){return v.id===target});
+    if(!a||!b)return;
+    b.n+=a.n;b.chs=Math.max(b.chs,a.chs);if(!b.aliases)b.aliases=[];b.aliases.push(a.name);
+    XR_ENTS=XR_ENTS.filter(function(v){return v.id!==id});
+    if(XR.cur===id)XR.cur=b.id;
+    xrRender();toast('已合并「'+a.name+'」入「'+b.name+'」· 出场归属已迁移')
+  };
+  window.xrShowMergeSheet=function(id){
+    var x=XR_ENTS.find(function(v){return v.id===id});if(!x)return;
+    document.getElementById('xrMergeBody').innerHTML='<div class="flex items-center justify-between"><b class="text-[15px]">合并进…</b><span class="text-[9px] text-slate-400">整理词条</span></div><div class="mt-1.5 text-[10px] text-slate-400">「'+x.name+'」的出场将全部归入所选规范词条（aliases 记录曾用名）</div><div class="mt-2.5 space-y-2 max-h-[46vh] overflow-y-auto no-scrollbar">'+XR_ENTS.filter(function(v){return v.id!==id}).map(function(v){
+      return '<div class="xr-clip flex items-center gap-2" id="xr-mg-'+v.id+'" onclick="xrMergeInto(\''+id+'\',\''+v.id+'\');closeSheet(\'sheetXrMerge\')"><span class="xr-tbadge '+(v.usr?'user':v.type)+'">'+(v.usr?'我的':XR_TL[v.type])+'</span><b class="text-[11px]">'+v.name+'</b><span class="ml-auto text-[9px] text-slate-400">'+v.n+' 次</span></div>'
+    }).join('')+'</div>';
+    openSheet('sheetXrMerge')
+  };
+  window.xrBan=function(id){
+    xrDelIds=[id];var x=XR_ENTS.find(function(v){return v.id===id});
+    document.getElementById('xrDelBody').innerHTML='移除「'+(x?x.name:id)+'」后不再出现在索引，阈值再低也不会复活。';
+    xrDelPick='book';xrDelRenderScope();openSheet('sheetXrDel')
+  };
   window.xrEnts=function(){return XR_ENTS};
   window.xrState=function(){return XR};
   window.xrRender=function(){
@@ -120,6 +169,7 @@
     var cur=(XR_ENTS||[]).find(function(v){return v.id===XR.cur});
     if(!cur||xrList(XR.type).indexOf(cur)<0){XR.cur=(f.hi[0]||f.lo[0]||{}).id||null;cur=(XR_ENTS||[]).find(function(v){return v.id===XR.cur})}
     var de=document.getElementById('xrDetail');if(de)de.innerHTML=xrDetailHtml(cur);
+    var gh=document.getElementById('xrGlobalHost');if(gh)gh.innerHTML=xrGlobalHtml();
     var q=document.getElementById('xrQ');if(q&&q.value!==XR.kw)q.value=XR.kw;
     var qc=document.getElementById('xrQClear');if(qc)qc.classList.toggle('hidden',!XR.kw);
     var sb=document.getElementById('xrSortBtn');if(sb)sb.textContent=({score:'按置信',n:'按出场',name:'按名称'})[XR.sort];
@@ -266,38 +316,44 @@
     var h='<div class="flex items-center gap-2 flex-wrap"><b class="text-[15px]">'+x.name+'</b><span class="xr-tbadge '+x.type+'">'+XR_TL[x.type]+'</span>'+(x.toc?'<span class="xr-tbadge toc">目录词</span>':'')+'</div>';
     h+='<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5">'+x.n+' 次提及 · 跨 '+x.chs+' 章 · 置信 '+x.score.toFixed(2)+(x.dlg!=null?' · 台词 '+x.dlg+' 段':'')+'</div>';
     if(x.q)h+='<div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400">'+x.q+'</div>';
-    h+='<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet(\'sheetXrPeek\')">关闭</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrPeekToPanel(\''+x.name+'\')">面板中查看</button></div>';
+    h+='<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet(\'sheetXrPeek\')">关闭</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrPeekToPanel(\''+x.name+'\')">查看全部位置</button></div>';
     document.getElementById('xrPeekBody').innerHTML=h;
     openSheet('sheetXrPeek')
   };
   window.xrPeekToPanel=function(name){closeSheet('sheetXrPeek');var x=XR_ENTS.find(function(v){return v.name===name});if(x)xrPickEnt(x.id);else navTo('p-xray')};
   var xrAddPick={word:'',type:'term',scope:'book'};
   window.xrAddOpen=function(word){
-    xrAddPick={word:word,type:xrGuessType(word),scope:'book'};
-    document.getElementById('xrAddWord').textContent=word;
-    document.getElementById('xrAddTypes').innerHTML=XR_TYPES.map(function(t){
-      return '<div class="xr-tab'+(xrAddPick.type===t[0]?' on':'')+'" id="xr-add-'+t[0]+'" onclick="xrAddPickType(\''+t[0]+'\')">'+t[1]+'</div>'
-    }).join('');
+    xrAddPick={type:xrGuessType(word||''),scope:'book'};
+    var wi=document.getElementById('xrAddWordIn');if(wi)wi.value=word||'';
+    if(wi)wi.oninput=function(){xrAddPick.type=xrGuessType(this.value);xrAddRenderTypes()};
+    xrAddRenderTypes();
     document.getElementById('xrAddScope').innerHTML=xrAddScopeHtml();
     openSheet('sheetXrAdd')
   };
+  function xrAddRenderTypes(){
+    document.getElementById('xrAddTypes').innerHTML=XR_TYPES.map(function(t){
+      return '<div class="xr-tab'+(xrAddPick.type===t[0]?' on':'')+'" id="xr-add-'+t[0]+'" onclick="xrAddPickType(\''+t[0]+'\')">'+t[1]+'</div>'
+    }).join('')
+  }
   function xrAddScopeHtml(){
     return [['book','仅本书'],['global','加入全局词库']].map(function(o){
       return '<div class="chip !text-[10px]'+(xrAddPick.scope===o[0]?' chip-on':'')+'" id="xr-addsc-'+o[0]+'" onclick="xrAddPickScope(\''+o[0]+'\')">'+o[1]+'</div>'
     }).join('')
   }
-  window.xrAddPickType=function(t){xrAddPick.type=t;xrAddOpen(xrAddPick.word)};
+  window.xrAddPickType=function(t){xrAddPick.type=t;xrAddRenderTypes()};
   window.xrAddPickScope=function(s){xrAddPick.scope=s;
     document.getElementById('xrAddScope').innerHTML=xrAddScopeHtml()
   };
   window.xrDoAdd=function(){
+    var w=((document.getElementById('xrAddWordIn')||{}).value||'').trim()||'新词条';
+    xrAddPick.word=w;
     var id='e_u'+Date.now()%100000;
-    XR_ENTS.push(e(id,xrAddPick.word,xrAddPick.type,0,0,1.0,0,XR_CHS.map(function(){return 0}),null,null,null));
+    XR_ENTS.push(e(id,w,xrAddPick.type,0,0,1.0,0,XR_CHS.map(function(){return 0}),null,null,null));
     XR_ENTS[XR_ENTS.length-1].usr=1;
-    closeSheet('sheetXrAdd');XR.type=xrAddPick.type;XR.kw='';
+    closeSheet('sheetXrAdd');XR.type=xrAddPick.type;XR.kw='';XR.cur=id;
     if(curPage==='p-xray')xrRender();
     var sc=xrAddPick.scope==='global'?' · 已入全局词库':'';
-    toast('已加词「'+xrAddPick.word+'」· 全书补扫中 · 出场 8 处（演示）'+sc)
+    toast('已加词「'+w+'」· 全书补扫中 · 出场 8 处（演示）'+sc)
   };
   /* 补扫建议规则（F8 回流 · 提示条形态） */
   window.xrSuggestCard=function(){
@@ -393,6 +449,8 @@
     if(m==='org'){navTo('p-xray');XR.org=true;XR.sel={'e_kmn':true,'e_dk':true};xrRender();return}
     if(m==='del'){navTo('p-xray');XR.org=true;XR.sel={'e_kmn':true,'e_dk':true};xrRender();xrDelOpen();return}
     if(m==='bak'){navTo('p-readset');rsPickTab(RS_SEC.length-1);renderReadSet();openSheet('sheetXrBak');return}
+    if(m==='addword'){navTo('p-xray');xrAddOpen('');return}
+    if(m==='merge'){xrPickEnt('e_s1');xrShowMergeSheet('e_s1');return}
     if(m==='more'){brOpen('b1');brShowChrome();openSheet('sheetBrMore');return}
     if(m==='peek'||m==='add'){
       brOpen('b1');brShowChrome();

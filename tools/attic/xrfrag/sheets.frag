@@ -23,7 +23,7 @@
   <div id="sheetXrAdd" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrAdd')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-center justify-between"><b class="text-[15px]">加为词条</b><span class="text-[9px] text-slate-400">全书索引 · X-Ray</span></div>
-      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">词条</span><b id="xrAddWord" class="ml-auto">—</b></div>
+      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">词条</span><input id="xrAddWordIn" class="xr-kw !text-right !font-bold" placeholder="要加入的词"></div>
       <div class="mt-2.5 text-[10px] font-bold text-slate-400">类型</div>
       <div class="mt-1.5 flex gap-1.5 flex-wrap" id="xrAddTypes"></div>
       <div class="mt-2.5 text-[10px] font-bold text-slate-400">生效范围</div>
@@ -36,6 +36,9 @@
       <div class="flex items-center justify-between"><b class="text-[15px]">X-Ray</b><span class="text-[9px] text-slate-400">选区命中</span></div>
       <div id="xrPeekBody" class="mt-2"></div>
     </div>
+  </div>
+  <div id="sheetXrMerge" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrMerge')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8"><div id="xrMergeBody"></div></div>
   </div>
   <div id="sheetXrBak" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrBak')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">

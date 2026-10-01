@@ -36,3 +36,12 @@
 .xr-clip{padding:9px 11px;border-radius:12px;background:rgba(148,163,184,.10);font-size:11px;line-height:1.55;cursor:pointer}
 .xr-clip b{color:var(--accent)}
 .xr-clip .xr-chlabel{font-size:9px;font-weight:900;color:#94a3b8}
+.xr-tl{position:relative;height:40px;border-radius:10px;background:rgba(148,163,184,.14)}
+.xr-tl.xs{height:30px}
+.xr-tl .xr-now{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.85}
+.xr-dot{position:absolute;width:9px;height:9px;border-radius:50%;transform:translateX(-50%);background:#6366f1;border:1.5px solid #fff;cursor:pointer}
+.dark .xr-dot{border-color:#0f172a}
+.xr-dot.xs{width:7px;height:7px}
+.xr-dot.on{width:11px;height:11px;box-shadow:0 0 0 2px rgba(99,102,241,.4);z-index:2}
+.xr-dot.loc{background:#059669}.xr-dot.org{background:#b45309}.xr-dot.term{background:#0284c7}.xr-dot.abbr{background:#64748b}.xr-dot.book{background:#db2777}.xr-dot.user{background:#7c3aed}
+.xr-dot.unread{opacity:.35}

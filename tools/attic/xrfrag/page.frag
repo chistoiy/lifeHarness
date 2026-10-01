@@ -13,5 +13,6 @@
       <div id="xrFeatured" class="mt-2.5 flex gap-1 overflow-x-auto no-scrollbar items-start"></div>
       <div id="xrDetail" class="mt-3"></div>
       <div id="xrBar" class="hidden mt-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5 space-y-2"></div>
+      <div id="xrGlobalHost"></div>
       <div id="xrFoot" class="mt-3 text-[10px] text-slate-400 text-center"></div>
     </section>
