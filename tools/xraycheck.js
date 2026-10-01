@@ -214,6 +214,10 @@ async function go(q) {
   (r.st === 'run' && r.p === 66) ? ok('屏7 断点继续转解析中') : bad('屏7 继续', JSON.stringify(r));
 
   /* V1.54.1 批2 · 词库管理页 + 启用开关 + 未命中二选一 */
+  await go('xr=panel');
+  r = await ev(`return{def:(BS_SET.brSelOps||[]).indexOf('X-Ray')>=0,
+      reg:!!BR_SEL_TOOLS['X-Ray']};`);
+  (r.def && r.reg) ? ok('批2 选区工具条默认名单含 X-Ray（修②：默认字面量补齐，非深链强制）') : bad('批2 默认名单', JSON.stringify(r));
   await go('xr=dict');
   r = await ev(`return{page:curPage,sum:document.getElementById('xrwSum').textContent,
     tg:document.getElementById('xrwToggle').className.indexOf('on')>=0,

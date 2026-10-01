@@ -5257,7 +5257,7 @@ function bsSaveProgress(){const bk=progMode==='read';const b=bk?bsBook(CURBK):nu
 /* ---------- 视图状态 ---------- */
 let shView='wall',shSt='全部',shTag='',shSort='recent',shBatch=false,shKw='',shDim='none',shDimVal='',nbSrc='',nbGrp='';
 const BS_CUR_YEAR=2026;
-let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','听当前','AI 解读','分享']};
+let BS_SET={covFallback:'A 正文首图',wallCols:3,qtLines:3,timeline:true,tlRange:'half',tlDays:14,newPos:'head',yearSort:'asc',simple:false,fullCh:false,trendType:'area',heatMetric:'min',rateFmt:true,ocr:true,feeTxn:true,imgCols:5,openTab:'在读',timerUI:'全屏',clipAuto:true,floatBar:true,speedFold:true,autoAsk:true,dailyQ:true,isbnFill:'仅填 ISBN',longPress:['计时','记摘录','改分区','移书单','删除'],dbCookie:'',dbCookieStale:false,brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','X-Ray','听当前','AI 解读','分享']};
 /* 豆瓣防封批（2026-09-26）：抓到的书目按 ISBN 落本机元数据缓存（demo 内存态）。
    二次命中不静默采用——提示「本地已有缓存」，由用户选「用缓存 / 仍联网查询」。 */
 let BS_DB_CACHE={'9787111544937':{n:'深入理解计算机系统（原书第3版）',a:'兰德尔·布莱恩特',pub:'机械工业出版社',pg:868,yr:'2016-11'}};
