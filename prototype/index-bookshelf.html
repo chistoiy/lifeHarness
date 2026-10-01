@@ -3275,7 +3275,7 @@ tailwind.config = {
         <div class="flex items-center justify-between"><span>阅读模式</span><div class="flex gap-1.5" id="brMoreMode"></div></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brGotoQuotes()"><span>本书书摘与划线</span><b class="text-[10px] text-slate-400" id="brMoreQn">0 条</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brOpenDetail()"><span>书籍详情与资料页</span><span class="text-slate-300">›</span></div>
-        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrEntry()"><span>全书索引（X-Ray）</span><b class="text-[10px] text-slate-400" id="brMoreXr">已解析 12/18 章</b></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrEntry()"><span>全书索引（X-Ray）</span><b class="text-[10px] text-slate-400" id="brMoreXr">已索引 12/18 章 · 随阅读推进</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');navTo('p-readset');rsPickTab(RS_SEC.length-1)"><span>阅读器设置</span><span class="text-slate-300">›</span></div>
         <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" id="brMoreBright" onclick="brMoreBright()"></span></div>
         <div class="flex items-center justify-between"><span>文本朗读 TTS</span><span class="toggle" id="brMoreTts" onclick="brMoreTts(this)"></span></div>
@@ -8217,7 +8217,7 @@ function br35Seed(){
   }
   function xrHeadHtml(){
     var st=XR.status;
-    var lbl=st==='run'?('解析中 '+XR.p+'%'):st==='pause'?'已暂停 · 断点已存':st==='fail'?'上次失败':('已解析 '+XR.done+'/'+XR.total+' 章');
+    var lbl=st==='run'?('解析中 '+XR.p+'%'):st==='pause'?'已暂停 · 断点已存':st==='fail'?'上次失败':('已索引 '+XR.done+'/'+XR.total+' 章 · 随阅读推进');
     var r1='<div class="flex items-center gap-2 text-[10px]"><b class="font-black">'+lbl+'</b><span class="flex-1"></span>';
     if(st==='ready'&&XR.done<XR.total)r1+='<span class="chip !text-[9px] !px-2.5" id="xrBarContinue" onclick="xrContinue()">继续生成</span>';
     if(st==='ready'||st==='fail')r1+='<span class="chip !text-[9px] !px-2.5" onclick="xrScopeOpen()">重新解析</span>';
@@ -8552,7 +8552,7 @@ function br35Seed(){
     if(x.st==='run')return '索引解析中 · '+x.p+'% · 管理';
     if(x.st==='pause')return '索引已暂停 · 管理';
     if(x.st==='fail')return '索引上次失败 · 重试';
-    return '管理全书索引 · 已解析 '+x.done+'/'+XR.total}
+    return '管理全书索引 · 已索引 '+x.done+'/'+XR.total}
   var XROLD_LM=shLongMenu;
   shLongMenu=function(id){XROLD_LM(id);
     try{const ops=document.getElementById('lpOps');if(!ops)return;
@@ -8606,7 +8606,7 @@ function br35Seed(){
   /* 阅读器菜单行（屏5 入口） */
   window.xrEntry=function(){
     var lbl=document.getElementById('brMoreXr');
-    if(lbl)lbl.textContent=XR.status==='ready'?('已解析 '+XR.done+'/'+XR.total+' 章'):XR.status==='run'?('解析中 '+XR.p+'%'):XR.status==='pause'?'已暂停':XR.status==='fail'?'上次失败':'未解析';
+    if(lbl)lbl.textContent=XR.status==='ready'?('已索引 '+XR.done+'/'+XR.total+' 章 · 随阅读推进'):XR.status==='run'?('解析中 '+XR.p+'%'):XR.status==='pause'?'已暂停':XR.status==='fail'?'上次失败':'未解析';
     if(XR.status==='none'||(XR.status==='ready'&&XR.done===0))xrScopeOpen();
     else brTocOpen('xr')
   };

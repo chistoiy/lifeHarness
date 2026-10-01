@@ -184,7 +184,7 @@ async function go(q) {
   await go('xr=more');
   r = await ev(`var row=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).find(function(x){return /全书索引/.test(x.innerText)});
     return{sh:!document.getElementById('sheetBrMore').classList.contains('hidden'),row:row?row.innerText.replace(/\\s+/g,' '):''};`);
-  (r.sh && /全书索引（X-Ray）/.test(r.row) && /已解析 12\/18 章/.test(r.row)) ? ok('屏5 阅读器菜单行（入口=上拉面板 X-Ray 段）', r.row) : bad('屏5 菜单行', JSON.stringify(r));
+  (r.sh && /全书索引（X-Ray）/.test(r.row) && /已索引 12\/18 章 · 随阅读推进/.test(r.row)) ? ok('屏5 阅读器菜单行（入口=上拉面板 X-Ray 段）', r.row) : bad('屏5 菜单行', JSON.stringify(r));
   await go('xr=peek');
   r = await ev(`var chips=[].map.call(document.querySelectorAll('#brSelActs .sdb span'),function(x){return x.textContent});
     return{chip:chips.indexOf('X-Ray')>=0,sh:!document.getElementById('sheetXrPeek').classList.contains('hidden'),

@@ -82,7 +82,7 @@
   }
   function xrHeadHtml(){
     var st=XR.status;
-    var lbl=st==='run'?('解析中 '+XR.p+'%'):st==='pause'?'已暂停 · 断点已存':st==='fail'?'上次失败':('已解析 '+XR.done+'/'+XR.total+' 章');
+    var lbl=st==='run'?('解析中 '+XR.p+'%'):st==='pause'?'已暂停 · 断点已存':st==='fail'?'上次失败':('已索引 '+XR.done+'/'+XR.total+' 章 · 随阅读推进');
     var r1='<div class="flex items-center gap-2 text-[10px]"><b class="font-black">'+lbl+'</b><span class="flex-1"></span>';
     if(st==='ready'&&XR.done<XR.total)r1+='<span class="chip !text-[9px] !px-2.5" id="xrBarContinue" onclick="xrContinue()">继续生成</span>';
     if(st==='ready'||st==='fail')r1+='<span class="chip !text-[9px] !px-2.5" onclick="xrScopeOpen()">重新解析</span>';
@@ -417,7 +417,7 @@
     if(x.st==='run')return '索引解析中 · '+x.p+'% · 管理';
     if(x.st==='pause')return '索引已暂停 · 管理';
     if(x.st==='fail')return '索引上次失败 · 重试';
-    return '管理全书索引 · 已解析 '+x.done+'/'+XR.total}
+    return '管理全书索引 · 已索引 '+x.done+'/'+XR.total}
   var XROLD_LM=shLongMenu;
   shLongMenu=function(id){XROLD_LM(id);
     try{const ops=document.getElementById('lpOps');if(!ops)return;
@@ -471,7 +471,7 @@
   /* 阅读器菜单行（屏5 入口） */
   window.xrEntry=function(){
     var lbl=document.getElementById('brMoreXr');
-    if(lbl)lbl.textContent=XR.status==='ready'?('已解析 '+XR.done+'/'+XR.total+' 章'):XR.status==='run'?('解析中 '+XR.p+'%'):XR.status==='pause'?'已暂停':XR.status==='fail'?'上次失败':'未解析';
+    if(lbl)lbl.textContent=XR.status==='ready'?('已索引 '+XR.done+'/'+XR.total+' 章 · 随阅读推进'):XR.status==='run'?('解析中 '+XR.p+'%'):XR.status==='pause'?'已暂停':XR.status==='fail'?'上次失败':'未解析';
     if(XR.status==='none'||(XR.status==='ready'&&XR.done===0))xrScopeOpen();
     else brTocOpen('xr')
   };
