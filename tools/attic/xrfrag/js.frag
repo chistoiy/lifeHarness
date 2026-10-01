@@ -197,32 +197,58 @@
       toast('已跳转 · '+xrChTitle(ch))
     }catch(err){toast('演示：跳转到 '+xrChTitle(ch))}
   };
-  /* 上拉面板双段切换（目录｜X-Ray） */
+  /* 上拉面板双段切换（目录｜X-Ray）· 搜索独占态（图1三等分→图2独占） */
   window.brTocTab=function(k){
     BR_TOC_TAB=k;
     var toc=document.getElementById('xrSegToc'),xr=document.getElementById('xrSegXr');
     if(toc)toc.classList.toggle('on',k==='toc');if(xr)xr.classList.toggle('on',k==='xr');
     var pane=document.getElementById('xrPane'),sc=document.getElementById('brDrScroll'),
-        back=document.getElementById('brDrBack'),pill=document.getElementById('brDrPill'),fold=document.getElementById('xrFoldBtn');
+        foldRow=document.getElementById('xrTocFoldRow'),pill=document.getElementById('brDrPill');
+    var pl=document.querySelector('#xrSearchPill span'),qi=document.getElementById('xrHdrQ');
+    if(pl)pl.textContent=k==='xr'?'搜词条':'搜本书';if(qi)qi.placeholder=k==='xr'?'搜词条':'搜本书';
     if(k==='xr'){
       if(pane){pane.classList.remove('hidden');pane.classList.add('flex')}
       if(sc)sc.classList.add('hidden');
       if(pill)pill.classList.add('hidden');
-      if(fold)fold.classList.add('hidden');
+      if(foldRow){foldRow.classList.add('hidden');foldRow.classList.remove('flex')}
       var q=document.getElementById('xrHdrQ');XR.kw=q?q.value:'';
       xrRender()
     } else {
       if(pane){pane.classList.add('hidden');pane.classList.remove('flex')}
       if(sc)sc.classList.remove('hidden');
-      if(fold)fold.classList.remove('hidden');
-      var q2=document.getElementById('xrHdrQ');brDrTab((q2&&q2.value)?'search':'toc')
+      var q2=document.getElementById('xrHdrQ'),inSearch=document.getElementById('xrHdrSearchRow')&&!document.getElementById('xrHdrSearchRow').classList.contains('hidden');
+      if(foldRow&&!inSearch){foldRow.classList.remove('hidden');foldRow.classList.add('flex')}
+      brDrTab((q2&&q2.value)?'search':'toc')
     }
   };
+  window.xrSearchEnter=function(){
+    var row=document.getElementById('xrHdrRow'),srow=document.getElementById('xrHdrSearchRow'),
+        foldRow=document.getElementById('xrTocFoldRow');
+    row.classList.add('hidden');row.classList.remove('flex');
+    srow.classList.remove('hidden');srow.classList.add('flex');
+    if(foldRow){foldRow.classList.add('hidden');foldRow.classList.remove('flex')}
+    var q=document.getElementById('xrHdrQ');q&&q.focus()
+  };
+  window.xrSearchExit=function(){
+    var row=document.getElementById('xrHdrRow'),srow=document.getElementById('xrHdrSearchRow');
+    srow.classList.add('hidden');srow.classList.remove('flex');
+    row.classList.remove('hidden');row.classList.add('flex');
+    xrHdrClear();
+    brTocTab(BR_TOC_TAB)
+  };
+  window.xrHdrClear=function(){
+    var q=document.getElementById('xrHdrQ');if(q)q.value='';
+    var c=document.getElementById('xrHdrClr');if(c){c.classList.add('hidden');c.classList.remove('flex')}
+    xrHdrSearch('')
+  };
   window.xrHdrSearch=function(v){
+    var c=document.getElementById('xrHdrClr');if(c){c.classList.toggle('hidden',!v);if(v)c.classList.add('flex')}
     if(BR_TOC_TAB==='xr'){XR.kw=v;xrRender();return}
     var q=document.getElementById('brDrQ');if(q)q.value=v;
-    brDrTab(v?'search':'toc')
+    brDrTab(v?'search':'toc');
+    if(!v){var row=document.getElementById('xrHdrSearchRow');if(row&&!row.classList.contains('hidden')){var f=document.getElementById('xrTocFoldRow');if(f){f.classList.remove('hidden');f.classList.add('flex')}}}
   };
+  window.xrFoldAll=function(){brDrFoldAll();var b=document.getElementById('xrFoldBtn');if(b)b.textContent=b.textContent==='全部折叠'?'全部展开':'全部折叠'};
   var XROLD_TOCOPEN=brTocOpen;
   brTocOpen=function(tab){XROLD_TOCOPEN.call(window,tab==='xr'?'toc':tab);try{brTocTab(tab==='xr'?'xr':'toc')}catch(e){}};
   /* 屏1 解析范围 */

@@ -65,15 +65,24 @@ async function go(q) {
     ? ok('面板=上拉全屏双段 · X-Ray 段：范围段3+类型段7+词条行+当前页分组+行内分布条', 'rows=' + r.rows) : bad('面板形态', JSON.stringify(r));
   await shot('xr-panel.png');
   r = await ev(`document.getElementById('xrSegToc').click();
-    var sc=document.getElementById('brDrScroll'),pane=document.getElementById('xrPane');
-    var out={tocBack:!sc.classList.contains('hidden'),paneOff:pane.classList.contains('hidden'),tocItems:document.querySelectorAll('#brTocList [data-leaf],#brTocList .br-toc-row,#brTocList > div').length};
-    document.getElementById('xrHdrQ').value='第三章';xrHdrSearch('第三章');
+    var out={tocBack:!document.getElementById('brDrScroll').classList.contains('hidden'),
+      paneOff:document.getElementById('xrPane').classList.contains('hidden'),
+      foldRow:!document.getElementById('xrTocFoldRow').classList.contains('hidden'),
+      lbl:(document.querySelector('#xrSearchPill span')||{}).textContent};
+    document.getElementById('xrSearchPill').click();
+    out.searchMode=!document.getElementById('xrHdrSearchRow').classList.contains('hidden')&&document.getElementById('xrHdrRow').classList.contains('hidden');
+    var q=document.getElementById('xrHdrQ');q.value='第三章';xrHdrSearch('第三章');
     out.hits=!document.getElementById('brDrHits').classList.contains('hidden');
-    document.getElementById('xrHdrQ').value='';xrHdrSearch('');
+    out.clr=!document.getElementById('xrHdrClr').classList.contains('hidden');
+    xrHdrClear();out.cleared=document.getElementById('brTocList').classList.contains('hidden')===false&&q.value==='';
+    xrSearchExit();out.back=!document.getElementById('xrHdrRow').classList.contains('hidden');
     document.getElementById('xrSegXr').click();
     out.xrAgain=!document.getElementById('xrPane').classList.contains('hidden');
+    out.xrLbl=(document.querySelector('#xrSearchPill span')||{}).textContent;
+    out.segFlex=document.getElementById('xrSegToc').className.indexOf('flex-1')>=0&&document.getElementById('xrSearchPill').className.indexOf('flex-1')>=0;
     return out;`);
-  (r.tocBack && r.paneOff && r.hits && r.xrAgain) ? ok('目录段回归：目录列表/搜本书可用 · 段切换往返') : bad('目录段', JSON.stringify(r));
+  (r.tocBack && r.paneOff && r.foldRow && r.searchMode && r.hits && r.clr && r.cleared && r.back && r.xrAgain && r.xrLbl === '搜词条' && r.segFlex)
+    ? ok('头部三等分 · 点搜索独占态（输入/清空/取消）· 目录段命中与回归 · 段感知标签') : bad('头部/搜索', JSON.stringify(r));
   r = await ev(`var n0=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('chapter');
     var n1=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('book');
     return{n0:n0,n1:n1,back:document.querySelectorAll('#xrList .xr-row').length===n0};`);
