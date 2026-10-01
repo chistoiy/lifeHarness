@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/xray/xray_dao.dart' show XrayTaskRow;
+import '../../data/xray/xray_scheduler.dart' show XrayLive;
 import '../../domain/book.dart';
 import '../../domain/book_dict.dart';
 import '../../domain/book_list.dart';

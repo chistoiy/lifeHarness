@@ -96,6 +96,50 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  // V1.54 批A · 屏2（js.frag xrLpLabel/xrLpGo）：全书索引入口置顶。
+                  if (b.local)
+                    GestureDetector(
+                      key: const ValueKey('lp-xray'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () async {
+                        Navigator.of(sheetCtx).pop();
+                        if (!context.mounted) return;
+                        // 存量书懒补算指纹（批A-3）；随后进阅读页自动开 X-Ray 段。
+                        await ref2.read(xraySchedulerProvider).ensureMd5(b);
+                        if (!context.mounted) return;
+                        ref2.read(readerXrOpenTabProvider.notifier).state = b.id;
+                        context.push('/read/reader/${b.id}');
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Theme.of(context).dividerColor),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.travel_explore_outlined, size: 14),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _xrLpLabel(
+                                  ref2.read(xraySchedulerProvider).live(b.id),
+                                  ref2.read(xrayTaskBadgeProvider)
+                                      .valueOrNull?[b.id],
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // 原型 shLongMenu 包装器：本地书置顶「开始阅读 · 本地 EPUB」渐变钮。
                   // 批3.5：钮走状态守卫（预载中提示 / 已清缓存分流三态弹层）。
                   if (b.local) ...[
@@ -181,4 +225,19 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
       ),
     ),
   );
+}
+
+/// 长按菜单「生成/管理全书索引」行文案（原型 js.frag `xrLpLabel` 1:1；
+/// live＝本次会话内的实时态，回落任务表态＝跨重启可见）。
+String _xrLpLabel(XrayLive? live, XrayTaskRow? t) {
+  if (live != null && live.running) return '索引解析中 · ${live.pct}% · 管理';
+  if (live != null && live.error != null) return '索引上次失败 · 重试';
+  if (t == null) return '生成全书索引';
+  return switch (t.status) {
+    'running' => '索引解析中 · 管理',
+    'pause' => '索引已暂停 · 管理',
+    'failed' => '索引上次失败 · 重试',
+    'success' => '管理全书索引 · 已解析 ${t.processedCh}/${t.totalCh}',
+    _ => '生成全书索引',
+  };
 }

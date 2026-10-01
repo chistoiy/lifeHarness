@@ -268,6 +268,8 @@ Future<void> showBrMoreSheet(
   required VoidCallback onReadSet,
   required ValueChanged<String> onMode,
   required ValueChanged<bool> onBright,
+  String? xrStatus,
+  VoidCallback? onXray,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -355,6 +357,31 @@ Future<void> showBrMoreSheet(
                 ),
               ],
             ),
+            // V1.54 批A · 屏5（more.frag）：全书索引行＋任务态状态字。
+            if (onXray != null) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                key: const ValueKey('brMoreXr'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => go(onXray),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text('全书索引（X-Ray）',
+                            style: TextStyle(fontSize: 12.5)),
+                      ),
+                      Text(
+                        xrStatus ?? '',
+                        style: const TextStyle(
+                            fontSize: 10, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             Row(
               children: [

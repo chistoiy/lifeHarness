@@ -11,6 +11,8 @@ import '../data/epub_cache.dart';
 import '../data/epub_doc.dart';
 import '../data/epub_import.dart';
 import '../data/read_repository.dart';
+import '../data/xray/xray_dao.dart';
+import '../data/xray/xray_scheduler.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
 import '../domain/book_list.dart';
@@ -32,7 +34,11 @@ final readTickProvider = StateProvider<int>((ref) => 0);
 /// 本地 EPUB 导入服务（V1.50 批1）。widget 测试 override 注入 pickHook/私有目录，
 /// 不碰真实系统选择器与磁盘（FakeAsync 真 IO 挂死既有教训）。
 final epubImportServiceProvider = Provider<EpubImportService>(
-  (ref) => EpubImportService(ref.watch(readRepositoryProvider)),
+  (ref) => EpubImportService(
+    ref.watch(readRepositoryProvider),
+    // 批A-3 MD5 接线：导入提交时给私有副本算指纹落 books.md5（经 XrayDao 唯一出口）。
+    xray: ref.watch(xrayDaoProvider),
+  ),
 );
 
 /// EPUB 文件加载器（阅读主屏批2/删除批4 复用；测试 override 免真 IO）。
@@ -373,3 +379,66 @@ final selectionProvider = StateNotifierProvider<SelectionController, ({int ci, i
 
 /// V1.53.2 性能批 1：高亮色板展开状态
 final highlightPopupProvider = StateProvider<bool>((ref) => false);
+
+// ---------- V1.54 X-Ray 全书索引 · 批A（面板与跳转） ----------
+
+/// X-Ray 四表唯一出口的装配位（守护红线：别处拿到的是这个 provider，不是 db）。
+final xrayDaoProvider = Provider<XrayDao>(
+  (ref) => XrayDao(ref.watch(readRepositoryProvider).db),
+);
+
+/// 解析终态修订号（完成/失败/重置）——词条数据重取只看它，逐章进度不惊动列表。
+final xrayRevisionProvider = StateProvider<int>((ref) => 0);
+
+/// 解析调度器（全局单飞·面板头与书架角标共用其 live 状态）。
+/// widget 测试 override 注入 loadDoc/workerFactory/md5Hook，禁真 isolate 与真 IO。
+final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
+  final svc = ref.watch(epubPreloadProvider);
+  final s = XrayScheduler(
+    dao: ref.watch(xrayDaoProvider),
+    loadDoc: (b) async {
+      final ep = b.epub;
+      if (ep == null || ep.path.isEmpty) return null;
+      var d = svc.docs.get(b.id);
+      if (d == null) {
+        await svc.warming(b.id);
+        d = svc.docs.get(b.id);
+      }
+      d ??= await svc.snap(b);
+      d ??= await EpubDoc.openFileDetached(ep.path);
+      return d;
+    },
+    // 全局单飞优先级：开书（预热）在跑时 X-Ray 让路（§8）。
+    busyProbe: (bookId) => svc.warming(bookId) != null,
+  );
+  s.onRevised = () => ref.read(xrayRevisionProvider.notifier).state = s.revision;
+  return s;
+});
+
+/// 某架位的内容指纹（懒补算不在这里做——被动渲染只读库，起解析动作才 ensureMd5）。
+final bookMd5Provider = FutureProvider.family.autoDispose<String?, String>((
+  ref,
+  bookId,
+) {
+  ref.watch(readTickProvider);
+  return ref.watch(xrayDaoProvider).bookMd5(bookId);
+});
+
+/// 面板整包数据（任务态+词条+锚点），按 md5 归属、随页面存活。
+final xraySnapProvider = FutureProvider.family.autoDispose<XrayPanelData, String>((
+  ref,
+  md5,
+) {
+  ref.watch(xrayRevisionProvider);
+  return ref.watch(xrayDaoProvider).panelData(md5);
+});
+
+/// 书架角标（F7）：一张 join 查询取回所有有任务态的架位；readTick/终态修订失效。
+final xrayTaskBadgeProvider = FutureProvider<Map<String, XrayTaskRow>>((ref) {
+  ref.watch(readTickProvider);
+  ref.watch(xrayRevisionProvider);
+  return ref.watch(xrayDaoProvider).taskByBookIds();
+});
+
+/// 书架长按「生成/管理全书索引」→ 阅读页落地自动开 X-Ray 段的一次性接力旗。
+final readerXrOpenTabProvider = StateProvider<String?>((ref) => null);

@@ -10,6 +10,8 @@ import '../domain/book_toc.dart';
 import 'epub_doc.dart';
 import 'epub_first_img.dart';
 import 'read_repository.dart';
+import 'xray/xray_dao.dart';
+import 'xray/xray_scheduler.dart' show xrayFileMd5;
 
 /// 一次系统文件选择的结果（SAF 语义：只拿到被选文件本体）。
 class EpubPick {
@@ -78,12 +80,20 @@ class EpubImportService {
     this.repo, {
     this.pickHook,
     Directory? docsOverride,
+    this.xray,
+    this.md5Hook,
   }) : _docsOverride = docsOverride;
 
   final ReadRepository repo;
 
   /// 测试注入点（同 BackupService.pickFileHook 惯例）：替换系统选择器。
   final Future<EpubPick?> Function()? pickHook;
+
+  /// 批A-3 MD5 接线：落 `books.md5` 只许经 XrayDao（表守护红线）。null＝不接线（旧调用兼容）。
+  final XrayDao? xray;
+
+  /// 测试注入：替换文件指纹计算（FakeAsync 禁真 IO）。
+  final Future<String> Function(String path)? md5Hook;
 
   final Directory? _docsOverride;
 
@@ -174,6 +184,7 @@ class EpubImportService {
         if (fi != null) updated = updated.copyWith(firstImgPath: fi);
       }
       await repo.updateBook(updated);
+      await _stampMd5(mergeInto.id, path);
       return updated;
     }
     final created = await repo.addBook(
@@ -221,7 +232,19 @@ class EpubImportService {
       }
     }
     await repo.replaceToc(withFile.id, tocParts(doc));
+    await _stampMd5(withFile.id, path);
     return (await repo.bookById(withFile.id)) ?? withFile;
+  }
+
+  /// 内容指纹补票（F9/§13）：对私有副本算 md5 落 books.md5。
+  /// 失败**绝不阻断导入**（指纹是索引复用的加分项），X-Ray 入口还有懒补算兜底。
+  Future<void> _stampMd5(String bookId, String copyPath) async {
+    final dao = xray;
+    if (dao == null) return;
+    try {
+      final m = await (md5Hook ?? xrayFileMd5)(copyPath);
+      await dao.setBookMd5(bookId, m);
+    } catch (_) {}
   }
 
   /// 删除本地书时清私有副本（BrDel「连源文件删除」用 · 批4 接线）。

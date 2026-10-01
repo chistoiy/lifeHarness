@@ -47,7 +47,10 @@ void main() {
       expect(tables, contains(t), reason: '$t 应随 createStatements 建出（新装库不跑迁移）');
     }
     expect(await columnsOf(db, 'books'), contains('md5'));
-    expect(DbSchema.version, 31, reason: '加表加列是 schema 变更，必须升版本');
+    // 原钉 `version==31` 是时间炸弹：2861bfb（v32 first_img）之后长红。
+    // 守护意图是「X-Ray 建表后版本必须已到 31+」，按下限钉。
+    expect(DbSchema.version, greaterThanOrEqualTo(31),
+        reason: '加表加列是 schema 变更，版本必须已升过 v31');
     // 四表在新装库里必须可用（写入探针·顺带钉住 NOT NULL 默认形态）
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.insert('xray_task', {

@@ -1,0 +1,668 @@
+/// X-Ray 解析调度器（需求 V1.54 · 设计书 §3/§8 · 交棒话术批A-4）
+///
+/// 三条骨架口径：
+/// - **引擎跑 isolate**（§3 约束）：本文件的 [_IsoXrayWorker] 与主 isolate 走
+///   「主线程喂章 ⇄ worker 逐章回执」的乒乓协议；章内先低频剪枝的内存护栏在
+///   引擎侧已有（§8），这里只保证**按章流式**（勿整本驻留：主线程每章现取段文本）。
+/// - **全局单飞**：同一时刻至多一路解析；开新书的解析请求会先暂停当前任务
+///   （断点已逐章落库），优先级 开书 > 分页 > X-Ray——喂每一章前查 [busyProbe]，
+///   预载/预热在跑就让路。
+/// - **前台跑 · 退后台自动暂停 · 一键恢复**（§8 一期不做后台续跑）：暂停只是
+///   停止喂章，worker isolate 原地驻留；进程被杀后 worker 随进程消亡，
+///   「继续生成」按 processed_ch 之后重跑区间（引擎统计全局性决定断点是
+///   展示语义，重跑走 upsert 幂等，不叠加出场）。
+library;
+
+import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
+
+import 'package:crypto/crypto.dart' show md5;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
+import '../../../../core/database/schema/xray.dart' as xs;
+import '../../domain/book.dart';
+import '../epub_doc.dart';
+import 'xray_dao.dart';
+import 'xray_engine.dart';
+import 'xray_lexicon.dart';
+
+/// 文件内容指纹（F9 归属键）。整读进一次性 isolate 计算：22MB 书峰值 ≈45MB 短驻留，
+/// 不在主 isolate 读大文件（FakeAsync 测试经 md5Hook 注入，永不走到这里）。
+Future<String> xrayFileMd5(String path) => Isolate.run(() async {
+      final bytes = await File(path).readAsBytes();
+      return md5.convert(bytes).toString();
+    });
+
+/// 一次解析任务的输入（全部纯数据，可跨 isolate 发送）。
+class XrayJobSpec {
+  const XrayJobSpec({
+    required this.totalCh,
+    required this.rangeFrom,
+    required this.rangeTo,
+    required this.totalChars,
+    required this.sens,
+    required this.added,
+    required this.forbidden,
+    required this.tocTitles,
+  });
+
+  final int totalCh;
+  final int rangeFrom;
+  final int rangeTo;
+  final int totalChars;
+  final double sens;
+  final Set<String> added;
+  final Set<String> forbidden;
+  final List<String> tocTitles;
+}
+
+/// worker → 调度器的四类事件（逐章回执即心跳：进度/暂停/取消都从这里驱动）。
+class XrayWorkerEvents {
+  const XrayWorkerEvents({
+    required this.onChapterDone,
+    required this.onWantAnchor,
+       required this.onResult,
+    required this.onFail,
+  });
+  final void Function(int ci) onChapterDone;
+  final void Function(int ci) onWantAnchor;
+  final void Function(List<Map<String, Object?>> ents) onResult;
+  final void Function(String message) onFail;
+}
+
+/// 计算通道抽象：生产＝[_IsoXrayWorker]；测试＝同 isolate 直跑引擎（禁真 isolate，
+/// FakeAsync 教训）。工厂注入是这里唯一的缝。
+abstract class XrayWorker {
+  void feedCollect(int ci, List<String> paras);
+  void feedAnchor(int ci, List<String> paras);
+  void finishCollect();
+  void cancel();
+}
+
+typedef XrayWorkerFactory = Future<XrayWorker> Function(
+    XrayJobSpec spec, XrayWorkerEvents ev);
+
+/// 面板/角标共用的运行态快照。
+class XrayLive {
+  XrayLive({
+    required this.bookId,
+    required this.md5,
+    required this.totalCh,
+    required this.rangeFrom,
+    required this.rangeTo,
+  });
+
+  final String bookId;
+  final String md5;
+  final int totalCh;
+  final int rangeFrom;
+  final int rangeTo;
+
+  bool running = false;
+  int doneCh = 0; // 本次任务已完成章数（区间内计数）
+  String? error;
+
+  int get pct {
+    final span = rangeTo - rangeFrom + 1;
+    if (span <= 0) return 0;
+    return (doneCh * 100 / span).round().clamp(0, 100);
+  }
+}
+
+/// X-Ray 任务调度器（ChangeNotifier：面板头 + 书架角标共用）。
+class XrayScheduler extends ChangeNotifier {
+  XrayScheduler({
+    required this.dao,
+    required this.loadDoc,
+    this.busyProbe,
+    this.md5Hook,
+    XrayWorkerFactory? workerFactory,
+    this.sens = 1.0,
+  }) : workerFactory = workerFactory ?? _IsoXrayWorker.spawn;
+
+  final XrayDao dao;
+
+  /// 取整本书文档（预载服务口径：内存缓存→预热→快照→现解；测试注入直构 EpubDoc）。
+  final Future<EpubDoc?> Function(Book book) loadDoc;
+
+  /// 全局单飞让路探针：返回 true＝该书预载/预热在跑，先喂它。
+  final bool Function(String bookId)? busyProbe;
+
+  /// 测试注入：替换文件 md5 计算（FakeAsync 禁真 IO）。
+  final Future<String> Function(String path)? md5Hook;
+
+  /// 索引灵敏度倍率（§4 设置项「低/中/高」→ 1.6/1.0/0.7；一期默认中，设置页在批C 接）。
+  final double sens;
+
+  final XrayWorkerFactory workerFactory;
+
+  final Map<String, XrayRun> _runs = {};
+  XrayRun? _cur;
+
+  /// 终态修订号：解析完成/失败/重置时自增。provider 监听它决定是否重取词条数据
+  /// （逐章进度不触发词条重查，只驱动面板头）。
+  int get revision => _revision;
+  int _revision = 0;
+
+  /// 终态变化外联口（providers 用它 bump xrayRevisionProvider·装配时挂）。
+  void Function()? onRevised;
+
+  void _bumpRevision() {
+    _revision++;
+    onRevised?.call();
+  }
+
+  XrayLive? live(String bookId) => _runs[bookId]?.live;
+
+  /// 该书是否有活体 worker（进程内暂停后可原地续喂）。
+  bool hasWorker(String bookId) => _runs[bookId]?._worker != null;
+
+  // ---------------------------------------------------------------- md5 补票
+
+  /// 内容指纹（批A-3「MD5 接线补票」）：有则直返；无则对私有副本懒补算。
+  /// 路径不可读/测试假路径＝返回 null（调用方按「未解析」空态渲染，绝不抛进 UI）。
+  Future<String?> ensureMd5(Book book) async {
+    try {
+      final have = await dao.bookMd5(book.id);
+      if (have != null && have.isNotEmpty) return have;
+      final ep = book.epub;
+      if (ep == null || ep.path.isEmpty) return null;
+      final m = await (md5Hook ?? xrayFileMd5)(ep.path);
+      await dao.setBookMd5(book.id, m);
+      return m;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ------------------------------------------------------------------ 生命周期
+
+  /// 启动一次解析（from..to 为**绝对章号闭区间**）。同书在跑＝幂等直返；
+  /// 别书在跑＝先暂停它（断点已落库），实现全局单飞。
+  Future<void> start({
+    required Book book,
+    required String md5,
+    required int from,
+    required int to,
+  }) async {
+    final existing = _runs[book.id];
+    if (existing != null && existing.live.running) return;
+    if (_cur != null && _cur!.live.running && _cur!.bookId != book.id) {
+      _cur!.pause();
+    }
+    final doc = await loadDoc(book);
+    if (doc == null || doc.chapters.isEmpty) {
+      final failed = XrayRun(
+          bookId: book.id,
+          book: book,
+          live: XrayLive(
+              bookId: book.id,
+              md5: md5,
+              totalCh: 0,
+              rangeFrom: from,
+              rangeTo: to)
+            ..error = '书本内容不可用 · 无法解析');
+      _runs[book.id] = failed;
+      notifyListeners();
+      return;
+    }
+    final total = doc.chapters.length;
+    final f = from.clamp(0, total - 1);
+    final t = to.clamp(f, total - 1);
+    final run = XrayRun(
+      bookId: book.id,
+      book: book,
+      live: XrayLive(
+          bookId: book.id,
+          md5: md5,
+          totalCh: total,
+          rangeFrom: f,
+          rangeTo: t),
+      doc: doc,
+    );
+    _runs[book.id] = run;
+    _cur = run;
+    unawaited(run._drive(this));
+    notifyListeners();
+  }
+
+  /// 暂停当前任务（退后台/切书共用）。worker 驻留，回前台一键恢复。
+  void pauseBook(String bookId) {
+    _runs[bookId]?.pause();
+    if (_cur?.bookId == bookId) notifyListeners();
+  }
+
+  /// 同库内部类（XrayRun）驱动刷新的合法通道（notifyListeners 是 protected）。
+  void ping() => notifyListeners();
+
+  /// 前台恢复：有活体 worker＝原地续喂；没有（进程重启后）＝从区间起点重跑。
+  Future<void> resume(Book book, String md5) async {
+    final run = _runs[book.id];
+    if (run != null && run._worker != null) {
+      run.resumeFeeding();
+      notifyListeners();
+      return;
+    }
+    final task = await dao.task(md5);
+    await start(
+      book: book,
+      md5: md5,
+      from: 0,
+      to: (task?.totalCh ?? 1) - 1,
+    );
+  }
+
+  /// 中断本次解析（不删已产出数据；任务态落 canceled）。
+  void cancel(String bookId) {
+    _runs[bookId]?.cancel();
+    if (_cur?.bookId == bookId) notifyListeners();
+  }
+
+  /// 重置索引（F3）：杀任务 + 清该书三层数据（用户词典不动，DAO 内已钉）。
+  Future<void> reset(String bookId, String md5) async {
+    _runs[bookId]?.cancel();
+    _runs.remove(bookId);
+    if (_cur?.bookId == bookId) _cur = null;
+    await dao.resetBook(md5);
+    _bumpRevision();
+    notifyListeners();
+  }
+
+  /// 退后台：正在跑的自动暂停（§8；断点已逐章落库，无数据损失）。
+  void noteBackground() {
+    final c = _cur;
+    if (c != null && c.live.running) c.pause();
+  }
+
+  @override
+  void dispose() {
+    for (final r in _runs.values) {
+      r._worker?.cancel();
+    }
+    super.dispose();
+  }
+}
+
+/// 一路解析任务的全部状态。调度语义集中在 [_drive]/[_onChapterDone]/[_pumpNext]，
+/// 外部只通过 [XrayScheduler] 的方法触达（暂停/恢复/取消都可从 UI 线程同步调）。
+class XrayRun {
+  XrayRun({
+    required this.bookId,
+    required this.book,
+    required this.live,
+    this.doc,
+  });
+
+  final String bookId;
+  final Book book;
+  final XrayLive live;
+  final EpubDoc? doc;
+
+  XrayWorker? _worker;
+  bool _paused = false;
+  bool _cancelled = false;
+  bool _collecting = true;
+  bool _inFlight = false;
+  int _next = -1;
+  Future<void> _persistTail = Future.value();
+
+  /// 逐章进度落库串行尾巴：sqflite 并发写不保证顺序，processed_ch 必须单调。
+  void _queuePersist(Future<void> Function() op) {
+    _persistTail = _persistTail.then((_) => op().catchError((_) {}));
+  }
+
+  void pause() {
+    if (!live.running) return;
+    _paused = true;
+    _queuePersist(() => schedulerDao.patchTaskProgress(
+        md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusPause));
+  }
+
+  // XrayRun 需要触达 dao/notify：由调度器在 _drive 里注入（避免到处传参）。
+  XrayScheduler? _s;
+  XrayScheduler get _sched => _s!;
+  XrayDao get schedulerDao => _sched.dao;
+
+  void resumeFeeding() {
+    if (!_paused || _cancelled) return;
+    _paused = false;
+    live.running = true;
+    _queuePersist(() => schedulerDao.patchTaskProgress(
+        md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusRunning));
+    _sched.ping();
+    if (!_inFlight) _pumpNext();
+  }
+
+  void cancel() {
+    if (_cancelled || _s == null) {
+      // 未起过 _drive 的失败占位任务：只清本地标记，没有落库通道也不需要落。
+      _cancelled = true;
+      live.running = false;
+      return;
+    }
+    _cancelled = true;
+    live.running = false;
+    _worker?.cancel();
+    _worker = null;
+    _queuePersist(() => schedulerDao.patchTaskProgress(
+        md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusCanceled));
+  }
+
+  Future<void> _drive(XrayScheduler s) async {
+    _s = s;
+    final d = doc!;
+    try {
+      final layer = await s.dao.userLayer(live.md5);
+      final toc = d.toc.isNotEmpty
+          ? [for (final t in d.toc) t.label]
+          : [for (final c in d.chapters) c.title];
+      final spec = XrayJobSpec(
+        totalCh: live.totalCh,
+        rangeFrom: live.rangeFrom,
+        rangeTo: live.rangeTo,
+        totalChars: d.totalChars,
+        sens: s.sens,
+        added: layer.added,
+        forbidden: layer.forbidden,
+        tocTitles: toc,
+      );
+      await s.dao.upsertTask(
+        md5: live.md5,
+        totalCh: live.totalCh,
+        rangeStart: live.rangeFrom,
+        rangeEnd: live.rangeTo,
+        status: xs.xrayStatusRunning,
+        processedCh: live.doneCh,
+      );
+      live.running = true;
+      _next = live.rangeFrom;
+      _worker = await s.workerFactory(spec, XrayWorkerEvents(
+        onChapterDone: _onChapterDone,
+        onWantAnchor: _onWantAnchor,
+        onResult: _onResult,
+        onFail: _onFail,
+      ));
+      _pumpNext();
+    } catch (e) {
+      _onFail('$e');
+    }
+  }
+
+  /// 喂下一章前的三道闸：已取消 / 被暂停 / 全局让路（预载在跑）。
+  void _pumpNext() {
+    if (_cancelled || _paused || _inFlight) return;
+    if (_sched.busyProbe?.call(bookId) ?? false) {
+      // 让路：50ms 后再试（开书与分页优先，§8）。
+      Timer(const Duration(milliseconds: 50), () {
+        if (!_cancelled) _pumpNext();
+      });
+      return;
+    }
+    final d = doc!;
+    try {
+      if (_collecting) {
+        if (_next > live.rangeTo) {
+          _collecting = false;
+          _worker!.finishCollect();
+          return;
+        }
+        _inFlight = true;
+        _worker!.feedCollect(_next, _paras(d, _next));
+      } else {
+        if (_next >= live.totalCh) return; // 锚点遍越界：worker 侧自行定稿
+        _inFlight = true;
+        _worker!.feedAnchor(_next, _paras(d, _next));
+      }
+    } catch (e) {
+      _inFlight = false;
+      _onFail('$e');
+    }
+  }
+
+  static List<String> _paras(EpubDoc d, int ci) => [
+        for (final p in d.chapters[ci].paras)
+          if (p.text.isNotEmpty) p.text,
+      ];
+
+  void _onChapterDone(int ci) {
+    _inFlight = false;
+    if (_cancelled) return;
+    if (_collecting) {
+      live.doneCh = ci - live.rangeFrom + 1;
+      _next = ci + 1;
+      _queuePersist(() => _sched.dao.patchTaskProgress(
+          md5: live.md5, processedCh: ci + 1, status: xs.xrayStatusRunning));
+      _sched.ping();
+      _pumpNext();
+    } else {
+      _next = ci + 1;
+      _pumpNext();
+    }
+  }
+
+  /// 第二遍（术语锚点回填）：worker 逐章索取，全书章号顺序推进，越界即由
+  /// worker 侧定稿发 result。
+  void _onWantAnchor(int ci) {
+    if (_cancelled) return;
+    _collecting = false;
+    _next = ci;
+    _pumpNext();
+  }
+
+  void _onResult(List<Map<String, Object?>> ents) {
+    _worker = null;
+    live.running = false;
+    unawaited(() async {
+      try {
+        await _persistTail;
+        await _sched.dao.writeRunResult(md5: live.md5, rows: [
+          for (final m in ents) XrayWriteEntity.fromMap(m),
+        ]);
+        await _sched.dao.upsertTask(
+          md5: live.md5,
+          totalCh: live.totalCh,
+          rangeStart: live.rangeFrom,
+          rangeEnd: live.rangeTo,
+          status: xs.xrayStatusSuccess,
+          processedCh: live.totalCh,
+        );
+        _sched._bumpRevision();
+        _sched.ping();
+      } catch (e) {
+        _onFail('$e');
+      }
+    }());
+  }
+
+  void _onFail(String message) {
+    _worker?.cancel();
+    _worker = null;
+    _cancelled = true;
+    live.running = false;
+    live.error = message;
+    unawaited(() async {
+      try {
+        await _persistTail;
+        await _sched.dao.patchTaskProgress(
+            md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusFailed);
+      } catch (_) {}
+      _sched._bumpRevision();
+      _sched.ping();
+    }());
+  }
+}
+
+// ============================================================ isolate worker
+
+/// 真·计算通道：`Isolate.spawn` 常驻 worker，主线程按章喂、worker 按章回执。
+/// 消息协议（Map 直发，全为纯数据）：
+///   main→w：{'t':'c',ci,p} 收集章 / {'t':'a',ci,p} 锚点章 / {'t':'e'} 收集结束 / {'t':'x'} 杀
+///   w→main：首消息=worker 收件端口，随后 {'t':'d',ci} {'t':'w',ci} {'t':'r',ents} {'t':'f',m}
+class _IsoXrayWorker implements XrayWorker {
+  _IsoXrayWorker._(this._toWorker, this._port);
+
+  final SendPort _toWorker;
+  final ReceivePort _port;
+  StreamSubscription<Object?>? _sub;
+  bool _dead = false;
+
+  static Future<XrayWorker> spawn(XrayJobSpec spec, XrayWorkerEvents ev) async {
+    final assets = await _loadAssets();
+    final mainPort = ReceivePort();
+    final errors = ReceivePort();
+    final booted = Completer<SendPort>();
+    late StreamSubscription<Object?> sub;
+    Isolate.spawn(
+      _entry,
+      _XrBoot(
+        mainSend: mainPort.sendPort,
+        assets: assets,
+        spec: spec,
+      ),
+      debugName: 'xray-engine',
+      // 引擎炸了（坏词表/坏文本）必须能回到 UI，不吞栈。
+      onError: errors.sendPort,
+      errorsAreFatal: true,
+    );
+    sub = mainPort.listen((m) {
+      if (m is SendPort) {
+        if (!booted.isCompleted) booted.complete(m);
+        return;
+      }
+      if (m is! Map) return;
+      switch (m['t']) {
+        case 'd':
+          ev.onChapterDone(m['ci'] as int);
+        case 'w':
+          ev.onWantAnchor(m['ci'] as int);
+        case 'r':
+          ev.onResult((m['ents'] as List).cast<Map<String, Object?>>());
+        case 'f':
+          ev.onFail('${m['m']}');
+      }
+    });
+    final w = _IsoXrayWorker._(await booted.future, mainPort);
+    w._sub = sub;
+    errors.listen((m) {
+      // 未捕获异常（errorsAreFatal）→ onFail 一次即终结；后续消息被 _dead 吞掉。
+      ev.onFail('解析进程异常: $m');
+    });
+    return w;
+  }
+
+  void _send(Map<String, Object?> m) {
+    if (_dead) return;
+    _toWorker.send(m);
+  }
+
+  @override
+  void feedCollect(int ci, List<String> paras) => _send({'t': 'c', 'ci': ci, 'p': paras});
+
+  @override
+  void feedAnchor(int ci, List<String> paras) => _send({'t': 'a', 'ci': ci, 'p': paras});
+
+  @override
+  void finishCollect() => _send({'t': 'e'});
+
+  @override
+  void cancel() {
+    if (_dead) return;
+    _dead = true;
+    _send({'t': 'x'});
+    unawaited(_sub?.cancel());
+    _port.close();
+  }
+}
+
+class _XrBoot {
+  _XrBoot({
+    required this.mainSend,
+    required this.assets,
+    required this.spec,
+  });
+  final SendPort mainSend;
+  final Map<String, String> assets;
+  final XrayJobSpec spec;
+}
+
+/// worker 主循环（常驻 isolate 入口；只做纯计算，零 IO）。
+void _entry(_XrBoot boot) {
+  final rp = ReceivePort();
+  boot.mainSend.send(rp.sendPort);
+  final spec = boot.spec;
+  final bank = XrayWordBank.parse(boot.assets);
+  final engine = XrayEngine(
+    bank: bank,
+    book: XrayUserLayer(added: spec.added, forbidden: spec.forbidden),
+    totalChars: spec.totalChars,
+    sens: spec.sens,
+  );
+  List<XrayEntity>? keep;  void deliver() {
+    boot.mainSend.send({'t': 'r', 'ents': _payload(keep!)});
+    Isolate.exit();
+  }
+
+  /// 锚点回填遍：逐章向主线程索取（勿整本驻留，§8）；走完即定稿。
+  void anchorFrom(int ci) {
+    if (ci >= spec.totalCh) {
+      deliver();
+      return;
+    }
+    boot.mainSend.send({'t': 'w', 'ci': ci});
+  }
+
+  rp.listen((m) {
+    if (m is! Map) return;
+    switch (m['t']) {
+      case 'c':
+        final ci = m['ci'] as int;
+        engine.runChapter(
+            XrayChapter(idx: ci, paras: (m['p'] as List).cast<String>()));
+        boot.mainSend.send({'t': 'd', 'ci': ci});
+      case 'e':
+        // finish 只许一次：定榜结果存下来，锚点遍走完后直接投递。
+        keep = engine.finish(tocTitles: spec.tocTitles);
+        if (engine.needsAnchorPass) {
+          anchorFrom(0);
+        } else {
+          deliver();
+        }
+      case 'a':
+        final ci = m['ci'] as int;
+        engine.anchorPass(
+            XrayChapter(idx: ci, paras: (m['p'] as List).cast<String>()));
+        anchorFrom(ci + 1);
+      case 'x':
+        rp.close();
+        Isolate.exit();
+    }
+  });
+}
+
+/// 定稿实体 → 可跨 isolate 的平铺 Map（DAO 侧 XrayWriteEntity.fromMap 还原）。
+List<Map<String, Object?>> _payload(List<XrayEntity> ents) => [
+      for (final e in ents)
+        {
+          'name': e.name,
+          'type': e.type.code,
+          'n': e.n,
+          'chs': e.chs,
+          'score': e.score,
+          'ch': e.channels,
+          'toc': e.tocFlag ? 1 : 0,
+          'al': e.aliases.toList(),
+          'm': [
+            for (final mm in e.mentions) [mm.ch, mm.para, mm.snippet],
+          ],
+        },
+    ];
+
+Map<String, String>? _assetsCache;
+
+/// 词表资产只在生产首次解析时读一次（widget 测试走 fake 工厂，永不触发）。
+Future<Map<String, String>> _loadAssets() async => _assetsCache ??= {
+      for (final n in XrayWordBank.assetNames)
+        n: await rootBundle.loadString('assets/xray/dicts/$n'),
+    };

@@ -1,0 +1,167 @@
+part of 'reader_page.dart';
+
+// V1.54 批A · X-Ray 在阅读页的挂接四处之三（底栏目录／⋯菜单行／出场跳转）：
+// - `xrStatusLabel/_openXrTab`：⋯菜单行「全书索引（X-Ray）+状态字」（形态＝more.frag）；
+// - `_xrJump`：复用目录跳章 + 检索命中定位链路（章+段锚点 → 现算页位），
+//   落定后照 shelf_locate 先例给目标段挂 1.6s 描边闪烁环（原型 .br-flash-xr）；
+// - 退后台守护：调度器自动暂停（§8 断点已逐章落库）。
+
+extension _ReaderXray on _ReaderPageState {
+/// ⋯菜单行状态字（只读缓存值，渲染路径零 IO；解析中优先看 live）。
+String xrStatusLabel() {
+  final sched = ref.read(xraySchedulerProvider);
+  final live = sched.live(widget.bookId);
+  if (live != null && live.running) return '解析中 ${live.pct}%';
+  final md5 = ref.read(bookMd5Provider(widget.bookId)).valueOrNull;
+  if (md5 == null || md5.isEmpty) return '未解析';
+  final snap = ref.read(xraySnapProvider(md5)).valueOrNull;
+  final t = snap?.task;
+  if (t == null) return '未解析';
+  if (t.status == xs.xrayStatusRunning) return '解析中';
+  if (t.status == xs.xrayStatusPause) return '已暂停';
+  if (t.status == xs.xrayStatusFailed) return '上次失败';
+  return '已解析 ${t.processedCh}/${t.totalCh} 章';
+}
+
+/// 打开上拉面板并停在 X-Ray 段（⋯菜单行与书架长按「管理」共用入口）。
+void openXrTab() {
+  // ignore: invalid_use_of_protected_member
+  setState(() {
+    _drState.xrTab = true;
+    _drState.searching = false;
+    _drawerOpen = true;
+    _chrome = false;
+  });
+}
+
+/// 出场跳转：关面板 → 现算页位 → 段闪烁（_jumpHit 同构，但不挂「上/下一处」序列）。
+void xrJumpTo(int ch, int para) {
+  final doc = _doc;
+  final pag = _pag;
+  if (doc == null || pag == null || doc.chapters.isEmpty) return;
+  final ci = ch.clamp(0, doc.chapters.length - 1);
+  final pi = para.clamp(0, doc.chapters[ci].paras.length - 1);
+  if (_cfg.mode == 'page') {
+    _ensure(pag, doc, _layout(), ci);
+  }
+  // ignore: invalid_use_of_protected_member
+  setState(() {
+    _drawerOpen = false;
+    _pos.ci = ci;
+    if (_cfg.mode == 'page') {
+      _pos.pg = pag.pageOfPara(ci, pi);
+      _hitMark = (ci: ci, pg: _pos.pg, pi: pi);
+    } else {
+      _hitMark = (ci: ci, pg: 0, pi: pi);
+    }
+    _flash = doc.chapters[ci].title;
+  });
+  _ensureCur();
+  _savePos();
+  _flashT?.cancel();
+  _flashT = Timer(const Duration(milliseconds: 1300), () {
+    // ignore: invalid_use_of_protected_member
+    if (mounted) setState(() => _flash = null);
+  });
+  if (_cfg.mode == 'scroll') _scrollToPara(ci, pi);
+  // 段元素要等新页渲染那一帧才拿得到 rect。
+  WidgetsBinding.instance.addPostFrameCallback((_) => _brFlashPara(ci, pi));
+}
+
+/// 目标段的一次性描边闪烁环（shelf_locate `_LocateFlashRing` 同法，色取原型
+/// .br-flash-xr 的 emerald；帧驱动 1.6s 自移除，测试 settle 友好）。
+void _brFlashPara(int ci, int pi) {
+  if (!mounted) return;
+  Element? found;
+  void visit(Element e) {
+    if (found != null) return;
+    final k = e.widget.key;
+    if (k is ValueKey<String> && k.value == 'brpTap-$ci-$pi') {
+      found = e;
+      return;
+    }
+    e.visitChildren(visit);
+  }
+
+  (context as Element).visitChildren(visit);
+  final el = found;
+  if (el == null) return;
+  final ro = el.renderObject;
+  if (ro is! RenderBox || !ro.hasSize || !ro.attached) return;
+  final rect = ro.localToGlobal(Offset.zero) & ro.size;
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => Positioned.fromRect(
+      rect: rect,
+      child: IgnorePointer(
+        child: _XrParaFlash(
+          onDone: () {
+            entry.remove();
+          },
+        ),
+      ),
+    ),
+  );
+  Overlay.of(context, rootOverlay: true).insert(entry);
+}
+
+/// 退后台自动暂停解析（§8 一期不做后台续跑；回前台在面板头一键恢复）。
+void xrNoteBackground() {
+  try {
+    ref.read(xraySchedulerProvider).noteBackground();
+  } catch (_) {
+    // 容器已销毁（页面出栈竞态）：调度器随 ProviderScope 存活，无需本页处理。
+  }
+}
+
+}
+
+class _XrParaFlash extends StatefulWidget {
+  const _XrParaFlash({required this.onDone});
+  final VoidCallback onDone;
+
+  @override
+  State<_XrParaFlash> createState() => _XrParaFlashState();
+}
+
+class _XrParaFlashState extends State<_XrParaFlash>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addStatusListener((s) {
+      if (s == AnimationStatus.completed) widget.onDone();
+    });
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, _) => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10B981).withValues(alpha: .6 * (1 - _c.value)),
+              spreadRadius: 3,
+              blurRadius: 0,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

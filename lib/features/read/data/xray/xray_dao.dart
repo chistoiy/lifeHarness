@@ -55,6 +55,7 @@ class XrayEntityRow {
     required this.channels,
     required this.status,
     required this.aliases,
+    this.aiDesc,
     required this.firstCh,
     required this.firstPara,
     required this.tocFlag,
@@ -69,9 +70,15 @@ class XrayEntityRow {
   final int channels;
   final String status;
   final List<String> aliases;
+
+  /// 词条简介（批A 面板行/详情的 desc 行；AI 二期回写，一期多为空）。
+  final String? aiDesc;
   final int? firstCh;
   final int? firstPara;
   final bool tocFlag;
+
+  /// 批A 面板判定「我的词条」徽：用户加词来源而非解析产出。
+  bool get userAdded => status == xs.xrayEntityUserAdded;
 }
 
 /// 出场锚点（页码由调用方按当前排版现算，这里只有章+段）。
@@ -81,6 +88,65 @@ class XrayAnchorRow {
   final int ch;
   final int para;
   final String? snippet;
+}
+
+/// 落库用的词条写入模型（批A：引擎实体跨 isolate 回报后不再可构造，
+/// 这里承接「词条 + 全量锚点」的形状；字段与 `xray_entity` 一一对应）。
+class XrayWriteEntity {
+  const XrayWriteEntity({
+    required this.name,
+    required this.type,
+    required this.n,
+    required this.chs,
+    required this.score,
+    required this.channels,
+    required this.tocFlag,
+    required this.aliases,
+    required this.anchors,
+  });
+
+  final String name;
+  final String type;
+  final int n;
+  final int chs;
+  final double score;
+  final int channels;
+  final bool tocFlag;
+  final List<String> aliases;
+  final List<XrayMention> anchors;
+
+  /// `_IsoXrayWorker` 协议里的平铺 Map（键名见 xray_scheduler 的 `_payload`）。
+  static XrayWriteEntity fromMap(Map<String, Object?> m) => XrayWriteEntity(
+        name: m['name'] as String,
+        type: m['type'] as String,
+        n: m['n'] as int,
+        chs: m['chs'] as int,
+        score: (m['score'] as num).toDouble(),
+        channels: m['ch'] as int,
+        tocFlag: (m['toc'] as int) != 0,
+        aliases: (m['al'] as List).cast<String>(),
+        anchors: [
+          for (final a in (m['m'] as List))
+            XrayMention(
+                (a as List)[0] as int, (a)[1] as int, (a)[2] as String?),
+        ],
+      );
+}
+
+/// 面板渲染所需的整包快照（词条已按分值倒序；锚点按实体分组、章段升序）。
+class XrayPanelData {
+  const XrayPanelData({
+    required this.task,
+    required this.entities,
+    required this.anchors,
+  });
+
+  final XrayTaskRow? task;
+  final List<XrayEntityRow> entities;
+  final Map<int, List<XrayAnchorRow>> anchors;
+
+  static const XrayPanelData empty =
+      XrayPanelData(task: null, entities: [], anchors: {});
 }
 
 /// X-Ray 数据访问。
@@ -181,10 +247,32 @@ class XrayDao {
     required List<XrayEntity> entities,
     required Map<String, List<XrayMention>> anchorsByName,
   }) =>
+      writeRunResult(
+        md5: md5,
+        rows: [
+          for (final e in entities)
+            XrayWriteEntity(
+              name: e.name,
+              type: e.type.code,
+              n: e.n,
+              chs: e.chs,
+              score: e.score,
+              channels: e.channels,
+              tocFlag: e.tocFlag,
+              aliases: e.aliases,
+              anchors: anchorsByName[e.name] ?? e.mentions,
+            ),
+        ],
+      );
+
+  /// 调度器（跨 isolate 回报的平铺结果）落库的同一出口。
+  Future<void> writeRunResult({
+    required String md5,
+    required List<XrayWriteEntity> rows,
+  }) =>
       _db.transaction((txn) async {
-        for (final e in entities) {
-          final anchors = anchorsByName[e.name] ?? const <XrayMention>[];
-          final first = anchors.isEmpty ? null : anchors.first;
+        for (final e in rows) {
+          final first = e.anchors.isEmpty ? null : e.anchors.first;
           final existing = await txn.query(DbSchema.tXrayEntity,
               columns: ['id', 'status'],
               where: 'book_md5 = ? AND name = ?',
@@ -193,7 +281,7 @@ class XrayDao {
           final values = <String, Object?>{
             'book_md5': md5,
             'name': e.name,
-            'type': e.type.code,
+            'type': e.type,
             'n': e.n,
             'chs': e.chs,
             'score': e.score,
@@ -206,7 +294,7 @@ class XrayDao {
           if (existing.isEmpty) {
             final id = await txn.insert(DbSchema.tXrayEntity,
                 {...values, 'status': xs.xrayEntityActive});
-            await _insertAnchors(txn, md5, id, anchors);
+            await _insertAnchors(txn, md5, id, e.anchors);
           } else {
             final id = existing.first['id'] as int;
             // 用户状态优先：解析无权把「用户屏蔽」洗回在册，也无权改走「用户加词」的来源标记。
@@ -217,7 +305,7 @@ class XrayDao {
             }, where: 'id = ?', whereArgs: [id]);
             await txn.delete(DbSchema.tXrayMention,
                 where: 'book_md5 = ? AND entity_id = ?', whereArgs: [md5, id]);
-            await _insertAnchors(txn, md5, id, anchors);
+            await _insertAnchors(txn, md5, id, e.anchors);
           }
         }
       });
@@ -235,13 +323,14 @@ class XrayDao {
     }
   }
 
-  /// 面板主查询：某类型按置信分倒序，`deleted` 一律不出现（F8② 的读侧口径）。
+  /// 面板主查询：某类型按置信分倒序；读侧口径＝**在册两条状态**（active/user_added），
+  /// `deleted` 与 `merged_into:*` 一律不出现（F8② 的读侧口径）。
   Future<List<XrayEntityRow>> entitiesOfType(String md5, String type,
       {int? minScore, int limit = 400}) async {
     final rows = await _db.query(DbSchema.tXrayEntity,
-        where: 'book_md5 = ? AND type = ? AND status = ?'
+        where: 'book_md5 = ? AND type = ? AND status IN (?, ?)'
             '${minScore != null ? ' AND score >= ?' : ''}',
-        whereArgs: [md5, type, xs.xrayEntityActive, ?minScore],
+        whereArgs: [md5, type, xs.xrayEntityActive, xs.xrayEntityUserAdded, ?minScore],
         orderBy: 'score DESC',
         limit: limit);
     return rows.map(_row).toList();
@@ -251,9 +340,11 @@ class XrayDao {
   Future<List<XrayEntityRow>> searchEntities(String md5, String q,
       {String? type}) async {
     final rows = await _db.query(DbSchema.tXrayEntity,
-        where: 'book_md5 = ? AND status = ? AND name LIKE ?'
+        where: 'book_md5 = ? AND status IN (?, ?) AND name LIKE ?'
             '${type != null ? ' AND type = ?' : ''}',
-        whereArgs: [md5, xs.xrayEntityActive, '%$q%', ?type],
+        whereArgs: [
+          md5, xs.xrayEntityActive, xs.xrayEntityUserAdded, '$q%', ?type,
+        ],
         orderBy: 'score DESC',
         limit: 200);
     return rows.map(_row).toList();
@@ -283,13 +374,74 @@ class XrayDao {
     final r = type == null
         ? await _db.rawQuery(
             'SELECT COUNT(*) AS c FROM ${DbSchema.tXrayEntity} '
-            'WHERE book_md5 = ? AND status = ?',
-            [md5, xs.xrayEntityActive])
+            'WHERE book_md5 = ? AND status IN (?, ?)',
+            [md5, xs.xrayEntityActive, xs.xrayEntityUserAdded])
         : await _db.rawQuery(
             'SELECT COUNT(*) AS c FROM ${DbSchema.tXrayEntity} '
-            'WHERE book_md5 = ? AND type = ? AND status = ?',
-            [md5, type, xs.xrayEntityActive]);
+            'WHERE book_md5 = ? AND type = ? AND status IN (?, ?)',
+            [md5, type, xs.xrayEntityActive, xs.xrayEntityUserAdded]);
     return (r.first['c'] as int?) ?? 0;
+  }
+
+  /// 面板主查询的「全部」段（批A F4）：一次取回六类在册词条，UI 侧分桶。
+  /// 上限 2000＝预研单书实体 500~2000 画像的宽余量（大书极端时截尾，
+  /// 排序分值低的自然落在尾部，与「低置信折叠」消化路径同侧）。
+  Future<List<XrayEntityRow>> allEntities(String md5, {int limit = 2000}) async {
+    final rows = await _db.query(DbSchema.tXrayEntity,
+        where: 'book_md5 = ? AND status IN (?, ?)',
+        whereArgs: [md5, xs.xrayEntityActive, xs.xrayEntityUserAdded],
+        orderBy: 'score DESC',
+        limit: limit);
+    return rows.map(_row).toList();
+  }
+
+  /// 单条词条点查（选区迷你卡/详情刷新用）。
+  Future<XrayEntityRow?> entityById(String md5, int id) async {
+    final rows = await _db.query(DbSchema.tXrayEntity,
+        where: 'book_md5 = ? AND id = ? AND status IN (?, ?)',
+        whereArgs: [md5, id, xs.xrayEntityActive, xs.xrayEntityUserAdded],
+        limit: 1);
+    return rows.isEmpty ? null : _row(rows.first);
+  }
+
+  /// 行内迷你分布条数据源（批A）：整书锚点一把取回按实体分组。
+  /// 体积口径见 §6：单书 0.1~1MB，面板只在 X-Ray 段激活时查这一发。
+  Future<Map<int, List<XrayAnchorRow>>> anchorsByEntity(String md5) async {
+    final rows = await _db.query(DbSchema.tXrayMention,
+        columns: ['entity_id', 'ch', 'para', 'snippet'],
+        where: 'book_md5 = ?',
+        whereArgs: [md5],
+        orderBy: 'ch ASC, para ASC');
+    final out = <int, List<XrayAnchorRow>>{};
+    for (final r in rows) {
+      final id = r['entity_id'] as int;
+      (out[id] ??= <XrayAnchorRow>[]).add(
+          XrayAnchorRow(id, r['ch'] as int, r['para'] as int, r['snippet'] as String?));
+    }
+    return out;
+  }
+
+  /// 书架角标（F7）：一张联合查询取回**所有**有任务态的架位（md5→books.id 多架位共享）。
+  /// 书架每轮刷新只打一发，不在每本封面各查一次。
+  Future<Map<String, XrayTaskRow>> taskByBookIds() async {
+    final rows = await _db.rawQuery(
+      'SELECT b.id AS book_id, t.* FROM ${DbSchema.tBooks} b '
+      'JOIN ${DbSchema.tXrayTask} t ON b.md5 = t.book_md5 '
+      'WHERE b.md5 IS NOT NULL',
+    );
+    final out = <String, XrayTaskRow>{};
+    for (final m in rows) {
+      out[m['book_id'] as String] = XrayTaskRow(
+        md5: m['book_md5'] as String,
+        totalCh: m['total_ch'] as int? ?? 0,
+        rangeStart: m['range_start'] as int? ?? 0,
+        rangeEnd: m['range_end'] as int? ?? 0,
+        status: m['status'] as String? ?? xs.xrayStatusPending,
+        processedCh: m['processed_ch'] as int? ?? 0,
+        scoreMeta: m['score_meta'] as String?,
+      );
+    }
+    return out;
   }
 
   /// 重置索引＝清该书三层数据（F3）。**不动用户词典**：那是用户资产，
@@ -344,6 +496,15 @@ class XrayDao {
   Future<void> promoteToGlobal(String md5, String word) => putUserWord(
       scope: xs.xrayScopeGlobal, word: word, action: xs.xrayActForbid);
 
+  /// 面板一揽子数据（批A）：任务态 + 全部词条 + 锚点分组，一次查齐。
+  /// 只在 X-Ray 段激活时调用（autoDispose 跟页面走），逐章进度不重查。
+  Future<XrayPanelData> panelData(String md5) async {
+    final task = await this.task(md5);
+    final ents = await allEntities(md5);
+    final anchors = await anchorsByEntity(md5);
+    return XrayPanelData(task: task, entities: ents, anchors: anchors);
+  }
+
   XrayEntityRow _row(Map<String, Object?> m) => XrayEntityRow(
         id: m['id'] as int,
         name: m['name'] as String,
@@ -354,6 +515,7 @@ class XrayDao {
         channels: m['src_channels'] as int,
         status: m['status'] as String,
         aliases: _decodeAliases(m['aliases'] as String?),
+        aiDesc: m['ai_desc'] as String?,
         firstCh: m['first_ch'] as int?,
         firstPara: m['first_para'] as int?,
         tocFlag: (m['toc_flag'] as int) != 0,

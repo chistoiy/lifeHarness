@@ -255,8 +255,8 @@ void main() {
     });
   });
 
-  group('批2-U · 目录侧边抽屉', () {
-    testWidgets('开→跳二章→折叠 rail→展开', (t) async {
+  group('批2-U · 目录上拉面板（V1.54 批A 双段形态）', () {
+    testWidgets('开→跳二章→收起钮关→遮罩点关', (t) async {
       await openReader(t, _bigDoc(), 'u6');
       await showChrome(t);
       await t.tap(find.byKey(const ValueKey('brBtnToc')));
@@ -270,18 +270,18 @@ void main() {
       expect(find.byKey(const ValueKey('brDrPanel')), findsNothing); // 跳章即收
       expect(pgLbl(t).$1, 1); // 二章首页
       expect(pgLbl(t).$3, greaterThan(gBefore)); // 全局页跨入二章区段
-      // 折叠成 rail 再展开
+      // V1.54 批A：rail 边栏随原型退场——头部「收起」钮即关面板。
       await t.tap(find.byKey(const ValueKey('brBtnToc')));
-      await step(t);
-      await t.tap(find.byKey(const ValueKey('brDrCollapse')));
-      await step(t);
-      expect(find.byKey(const ValueKey('brDrRail')), findsOne);
+      await step(t, ms: 300);
+      await t.tap(find.byKey(const ValueKey('brDrClose')));
+      await step(t, ms: 300);
       expect(find.byKey(const ValueKey('brDrPanel')), findsNothing);
-      await t.tap(find.byKey(const ValueKey('brDrRail')));
-      await step(t);
+      // 再开：点顶部露出带（面板只占 92% 高）＝遮罩收起。
+      await t.tap(find.byKey(const ValueKey('brBtnToc')));
+      await step(t, ms: 300);
       expect(find.byKey(const ValueKey('brDrPanel')), findsOne);
-      await t.tapAt(const Offset(380, 390)); // 面板宽 300，遮罩点在右侧
-      await step(t);
+      await t.tapAt(const Offset(210, 20));
+      await step(t, ms: 300);
       expect(find.byKey(const ValueKey('brDrPanel')), findsNothing);
     });
 
@@ -327,7 +327,7 @@ void main() {
       await showChrome(t);
       await t.tap(find.byKey(const ValueKey('brBtnToc')));
       await step(t);
-      await t.tap(find.byKey(const ValueKey('brDrTabSearch')));
+      await t.tap(find.byKey(const ValueKey('xrSearchPill')));
       await step(t);
       await t.enterText(find.byKey(const ValueKey('brDrQ')), '二之7。');
       // 轮4②：抽屉检索防抖 260ms + 分批微任务。

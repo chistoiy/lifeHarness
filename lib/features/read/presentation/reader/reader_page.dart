@@ -16,6 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
+import '../../../../core/database/schema/xray.dart' as xs;
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
@@ -39,6 +40,7 @@ part 'reader_chrome.dart';
 part 'reader_sel_ops.dart';
 part 'reader_stage.dart';
 part 'reader_links.dart';
+part 'reader_xray.dart';
 
 
 
@@ -57,7 +59,8 @@ class ReaderPage extends ConsumerStatefulWidget {
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
 }
 
-class _ReaderPageState extends ConsumerState<ReaderPage> {
+class _ReaderPageState extends ConsumerState<ReaderPage>
+    with WidgetsBindingObserver {
   Book? _book;
   EpubDoc? _doc;
   String? _err;
@@ -151,6 +154,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selController = SelectionController(); // V1.53.2 性能批 1
     _boot();
     // 轮5.4：进阅读页挂起全局读书计时条（首帧后再写，避开 initState 取 container）。
@@ -158,11 +162,27 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       if (!mounted) return;
       ref.read(readerOpenProvider.notifier).state++;
       _readerCounted = true;
+      // V1.54 批A：书架长按「生成/管理全书索引」跳进来的书，落地即开 X-Ray 段。
+      if (ref.read(readerXrOpenTabProvider) == widget.bookId) {
+        ref.read(readerXrOpenTabProvider.notifier).state = null;
+        openXrTab();
+      }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // §8 生命周期：退后台自动暂停解析（断点已落库），回前台一键恢复。
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      xrNoteBackground();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_readerCounted) {
       try {
         ref.read(readerOpenProvider.notifier).state--;
@@ -593,6 +613,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       mode: _cfg.mode,
       bright: _cfg.bright,
       onToc: () => setState(() => _drawerOpen = true),
+      // V1.54 批A · 屏5 入口（more.frag 行）：状态字＋开 X-Ray 段。
+      xrStatus: xrStatusLabel(),
+      onXray: openXrTab,
       onSearch: _openSearch,
       onQuotes: () =>
           context.push('/read/quotes', extra: widget.bookId),
@@ -1108,15 +1131,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       // 轮5.2①：正文不再悬浮任何胶囊——「回到进书位置」在进度弹层，
                       // 「回到刚才在读」在目录抽屉（跳章返回）。
                     ],
-                    if (_drawerOpen && _doc != null && _pag != null)
+                    if (_drawerOpen && _doc != null && _pag != null && _book != null)
                       ReaderTocDrawer(
                         state: _drState,
-                        bookId: widget.bookId,
+                        book: _book!,
                         doc: _doc!,
                         pager: _pag!,
                         ci: _pos.ci,
                         pg: _pos.pg,
                         onGoto: _gotoChapter,
+                        onXrJump: xrJumpTo,
                         backLbl: _jumpFrom?.title,
                         onBackJump: _jumpFrom == null ? null : _goBackJump,
                         onAddBookmark: () {

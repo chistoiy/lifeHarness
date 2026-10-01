@@ -83,19 +83,20 @@ class XrayEntity {
   int get firstCh => mentions.isEmpty ? 0 : mentions.first.ch;
   int get firstPara => mentions.isEmpty ? 0 : mentions.first.para;
 
-  /// 锚点全量计入章集，context 只留前 6 条（§6 体积决策）。
+  /// 锚点全量存，context 截断存（§6/§10 体积决策：出场 1.2 万锚点 ≈100KB 可全存，
+  /// 但带文摘到 6~25MB 必须限流——只有**前 6 条**允许携带 snippet）。
+  /// 批A 补齐：此前 `mentions.length < 6` 把锚点本身也截断了，F5 出场列表/
+  /// 迷你分布条/F12 剧透过滤都要求全量锚点；计分路径（n/_chs）一字未动，GT 不受影响。
   void hit(int ch, int para, {String? snippet}) {
     n++;
     _chs.add(ch);
-    if (mentions.length < 6) mentions.add(XrayMention(ch, para, snippet));
+    mentions.add(XrayMention(ch, para, snippet));
   }
 
   /// 只登记位置、不加重提及数（术语的第二遍用这条：计数已由全局 n-gram 给出）。
   void anchorOnly(int ch, int para, {String? snippet}) {
     _chs.add(ch);
-    if (snippet != null && mentions.length < 6) {
-      mentions.add(XrayMention(ch, para, snippet));
-    }
+    mentions.add(XrayMention(ch, para, snippet));
   }
 }
 
@@ -434,9 +435,7 @@ class XrayEngine {
         win.channels |= e.channels;
         win.n += e.n;
         if (!win.aliases.contains(e.name)) win.aliases.add(e.name);
-        for (final m in e.mentions) {
-          if (win.mentions.length < 6) win.mentions.add(m);
-        }
+        win.mentions.addAll(e.mentions);
         _ents.remove(k);
         continue;
       }
@@ -472,9 +471,7 @@ class XrayEngine {
         win.channels |= loser.channels;
         win.n += loser.n;
         win._chs.addAll(loser._chs);
-        for (final m in loser.mentions) {
-          if (win.mentions.length < 6) win.mentions.add(m);
-        }
+        win.mentions.addAll(loser.mentions);
       }
       winners.add(win);
     }
@@ -501,6 +498,10 @@ class XrayEngine {
   /// 是否已定榜（决定术语走不走第二遍）。
   bool _decided = false;
   List<XrayEntity> _pending = const [];
+
+  /// 定榜后是否还有「入选但无锚点」的实体（第二遍是否要跑）——批A 调度器
+  /// 在 isolate 侧用它决定是否申请补扫章节，不触碰任何计分状态。
+  bool get needsAnchorPass => _decided && _pending.isNotEmpty;
 
   /// 第二遍：只补**已入选但还没锚点**的实体（主要是术语），按章流式跑，不做整本驻留（§8）。
   /// 术语的「提及数」用的是全局计数（不是这一遍累加的），所以这里只登记位置与跨章集合。

@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/database/schema/xray.dart'
+    show
+        xrayStatusRunning,
+        xrayStatusPause,
+        xrayStatusFailed,
+        xrayStatusSuccess;
 import '../../data/epub_cache.dart';
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
@@ -365,6 +371,8 @@ Future<void> brShowLostSheet(BuildContext context, WidgetRef ref, Book b) async 
 /// 封面状态覆盖层（原型 brCovOvl）：预载中＝渐变底+进度条+百分比；
 /// 已清缓存＝暗罩+琥珀 chip。就绪/非本地＝空。调用方以
 /// `Positioned.fill(child: BrCoverStateOverlay(book: b))` 挂进封面 Stack。
+/// V1.54 批A · F7：右上角另挂 X-Ray 四态小徽标（解析中%/已暂停/已索引/失败·重试），
+/// 与整本预载态互不遮蔽（轻抽取档全部不锁阅读）。
 class BrCoverStateOverlay extends ConsumerWidget {
   const BrCoverStateOverlay({super.key, required this.book});
 
@@ -375,9 +383,75 @@ class BrCoverStateOverlay extends ConsumerWidget {
     final ep = book.epub;
     if (!book.local || ep == null) return const SizedBox.shrink();
     final st = ep.state;
-    if (st != EpubRef.stPreload && !ep.cleared) {
-      return const SizedBox.shrink();
+    final base = (st != EpubRef.stPreload && !ep.cleared)
+        ? null
+        : _epubLayer(ref, ep, st);
+    final xr = _xrChipText(ref);
+    if (base == null && xr == null) return const SizedBox.shrink();
+    return Stack(
+      children: [
+        if (base != null) Positioned.fill(child: base),
+        if (xr != null)
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Container(
+                key: ValueKey('xr-badge-${book.id}'),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: xr.$2,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  xr.$1,
+                  style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// X-Ray 角标文案与底色（live 优先＝实时进度；回落库内任务态·跨重启可见）。
+  (String, Color)? _xrChipText(WidgetRef ref) {
+    ref.watch(xraySchedulerProvider); // 逐章进度刷新驱动
+    final live = ref.read(xraySchedulerProvider).live(book.id);
+    if (live != null) {
+      if (live.running) {
+        return ('解析中 ${live.pct}%', const Color(0xCC0F172A));
+      }
+      if (live.error != null) return ('失败 · 重试', const Color(0xEAF43F5E));
+      if (live.doneCh > 0 &&
+          live.totalCh > 0 &&
+          live.doneCh < live.rangeTo - live.rangeFrom + 1) {
+        return ('已暂停 ${live.pct}%', const Color(0xE694A3B8));
+      }
     }
+    final t = ref.watch(xrayTaskBadgeProvider).valueOrNull?[book.id];
+    if (t == null) return null;
+    return switch (t.status) {
+      xrayStatusRunning => (
+          '解析中 ${t.totalCh == 0 ? 0 : (t.processedCh * 100 / t.totalCh).round()}%',
+          const Color(0xCC0F172A)
+        ),
+      xrayStatusPause => (
+          '已暂停 ${t.totalCh == 0 ? 0 : (t.processedCh * 100 / t.totalCh).round()}%',
+          const Color(0xE694A3B8)
+        ),
+      xrayStatusFailed => ('失败 · 重试', const Color(0xEAF43F5E)),
+      xrayStatusSuccess => ('已索引', const Color(0xEB6366F1)),
+      _ => null,
+    };
+  }
+
+  Widget _epubLayer(WidgetRef ref, EpubRef ep, String st) {
     // 预载进度：内存态优先（实时），回落库内值（跨重启可见）。
     ref.watch(epubPreloadProvider);
     final live = ref.read(epubPreloadProvider).info(book.id)?.pr;

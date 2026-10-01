@@ -4,32 +4,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/epub_doc.dart';
+import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
 import '../../domain/book_toc.dart';
 import '../read_providers.dart';
 import './reader_pager.dart';
+import './reader_xray_panel.dart';
 
-/// 抽屉状态（原型 BR_DR：tab/折叠记忆/rail/去底部）。
+/// 上拉面板状态（原型 V1.54 批2 终态：BR_TOC_TAB + 搜索独占 + 折叠记忆）。
+/// 轮6 起「目录侧边抽屉」升格为阅读页上拉全屏面板「目录｜X-Ray」双段：
+/// rail 折叠边栏随旧形态退场（已拍板：不做独立页，也不留 44px 边栏）。
 class TocDrawerState {
-  bool searchTab = false;
-  bool rail = false;
+  /// false＝目录段 · true＝X-Ray 段（面板头三等分里的段位）。
+  bool xrTab = false;
+
+  /// 搜索独占态（点搜索伪输入进入；取消/收起回原段）。
+  bool searching = false;
+
   final Set<int> folded = {};
 }
 
-/// V1.51 目录侧边抽屉（微信读书式）：左侧滑出 · 双 Tab · 分组折叠 ·
-/// 当前章左竖条 + 「当前读到 · 百分比」+ 添加书签 · 起始页码列 · 划线数徽章 ·
-/// 去底部/去顶部 pill · 折叠成 44px 竖排「目录」边栏 · 搜本书即时命中跳转。
+/// 阅读页上拉全屏面板（V1.51 抽屉 → V1.54 批A 双段）：
+/// 头部三态（常态三等分／搜索独占／目录段「全部折叠」行）+ 双段容器。
+/// **目录段功能零回归是硬验收**：树/折叠记忆/当前读到/回到刚才在读/去底部/搜本书命中。
 class ReaderTocDrawer extends ConsumerStatefulWidget {
   const ReaderTocDrawer({
     super.key,
     required this.state,
-    required this.bookId,
+    required this.book,
     required this.doc,
     required this.pager,
     required this.ci,
     required this.pg,
     required this.onGoto,
     required this.onAddBookmark,
+    required this.onXrJump,
     this.onSearchJump,
     this.onClose,
     this.backLbl,
@@ -37,11 +46,13 @@ class ReaderTocDrawer extends ConsumerStatefulWidget {
   });
 
   final TocDrawerState state;
-  final String bookId;
+  final Book book;
   final EpubDoc doc;
   final BookPagination pager;
 
-  /// 当前阅读位置（高亮当前章行）。
+  String get bookId => book.id;
+
+  /// 当前阅读位置（高亮当前章行；X-Ray 段「当前页/已读」判定同源）。
   final int ci;
   final int pg;
 
@@ -49,7 +60,10 @@ class ReaderTocDrawer extends ConsumerStatefulWidget {
   final void Function(int ci) onGoto;
   final void Function() onAddBookmark;
 
-  /// 轮5.2①：跳章后的「回到刚才在读」入口只放在抽屉里（正文零悬浮胶囊）。
+  /// X-Ray 出场跳转（章+段锚点；页侧现算页位并段闪烁）。
+  final void Function(int ch, int para) onXrJump;
+
+  /// 轮5.2①：跳章后的「回到刚才在读」入口只放在面板里（正文零悬浮胶囊）。
   /// [backLbl] 非空＝显示该行（来源章名）。
   final String? backLbl;
   final VoidCallback? onBackJump;
@@ -66,13 +80,14 @@ class ReaderTocDrawer extends ConsumerStatefulWidget {
 class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   final _scroll = ScrollController();
   final _q = TextEditingController();
+  final _searchFocus = FocusNode();
   List<({int ci, int pi, String text, String ch})> _hits = const [];
   bool _bot = false;
   // 轮4②：标题映射只算一次（chapterTitles 每次新分配列表，勿在 build 里重建）。
   Map<String, int>? _titleToCi;
   // 轮5②：分组数（「全部折叠/展开」判定用；build 内与目录行同源回填）。
   int _gcount = 1;
-  // 轮4②：搜本书防抖 + 分批扫（2409 章一次同步扫会冻结抽屉滚动帧）。
+  // 轮4②：搜本书防抖 + 分批扫（2409 章一次同步扫会冻结面板滚动帧）。
   Timer? _debounce;
   int _searchSeq = 0;
 
@@ -86,7 +101,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _centerCurrent();
+      if (mounted && !widget.state.xrTab) _centerCurrent();
     });
   }
 
@@ -95,6 +110,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     _debounce?.cancel();
     _scroll.dispose();
     _q.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -110,7 +126,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   }
 
   /// 轮4②：输入防抖 260ms + 每批 24 章微任务让帧（大合集一次同步全扫会
-  /// 冻结抽屉；快照章节按需物化，扫到即读段文本）。
+  /// 冻结面板；快照章节按需物化，扫到即读段文本）。
   void _runSearch(String q) {
     _debounce?.cancel();
     final query = q.trim();
@@ -146,40 +162,38 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  // ---------- 头部三态（xrfrag/hdr.frag 1:1） ----------
+
+  /// 常态行：[搜本书伪输入｜目录｜X-Ray｜收起]。
+  Widget _hdrRowNormal(ColorScheme cs) {
     final st = widget.state;
-    if (st.rail) {
-      // 44px 竖排「目录」边栏：点按展开回宽版。
-      return Positioned(
-        left: 0,
-        top: 0,
-        bottom: 0,
-        child: GestureDetector(
-          key: const ValueKey('brDrRail'),
-          onTap: () => setState(() {
-            st.rail = false;
-            st.searchTab = false;
-          }),
-          child: Container(
-            width: 44,
-            color: cs.surface,
-            alignment: Alignment.center,
-            child: const RotatedBox(
-              quarterTurns: 1,
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            key: const ValueKey('xrSearchPill'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _searchEnter,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF94A3B8)),
-                  SizedBox(width: 10),
-                  Text(
-                    '目录',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3,
-                      color: Color(0xFF94A3B8),
+                  const Icon(Icons.search_rounded, size: 13, color: Color(0xFF94A3B8)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      st.xrTab ? '搜词条' : '搜本书',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                   ),
                 ],
@@ -187,17 +201,148 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
             ),
           ),
         ),
-      );
+        const SizedBox(width: 8),
+        _seg('xrSegToc', '目录', !st.xrTab, () => _pickSeg(false)),
+        const SizedBox(width: 6),
+        _seg('xrSegXr', 'X-Ray', st.xrTab, () => _pickSeg(true)),
+        const SizedBox(width: 4),
+        IconButton(
+          key: const ValueKey('brDrClose'),
+          tooltip: '收起',
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.keyboard_double_arrow_down_rounded, size: 17),
+          onPressed: widget.onClose,
+        ),
+      ],
+    );
+  }
+
+  /// 搜索独占行：[输入 + ✕清空｜取消]（段感知：目录段扫正文/X-Ray 段过滤词条）。
+  Widget _hdrRowSearch(ColorScheme cs) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search_rounded, size: 13, color: Color(0xFF94A3B8)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('brDrQ'),
+                    controller: _q,
+                    focusNode: _searchFocus,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 12),
+                    decoration: InputDecoration(
+                      hintText: widget.state.xrTab ? '搜词条' : '搜本书',
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: Color(0xFF94A3B8)),
+                      border: InputBorder.none,
+                    ),
+                    onChanged: (v) {
+                      setState(() {});
+                      if (!widget.state.xrTab) _runSearch(v);
+                    },
+                  ),
+                ),
+                if (_q.text.isNotEmpty)
+                  GestureDetector(
+                    key: const ValueKey('xrHdrClr'),
+                    onTap: () {
+                      _q.clear();
+                      setState(() {
+                        _hits = const [];
+                      });
+                    },
+                    child: const Icon(Icons.cancel_rounded,
+                        size: 15, color: Color(0xFF94A3B8)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          key: const ValueKey('xrHdrCancel'),
+          behavior: HitTestBehavior.opaque,
+          onTap: _searchExit,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Text(
+              '取消',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _searchEnter() => setState(() => widget.state.searching = true);
+
+  void _searchExit() {
+    _q.clear();
+    setState(() {
+      widget.state.searching = false;
+      _hits = const [];
+    });
+  }
+
+  void _pickSeg(bool xr) {
+    if (widget.state.xrTab == xr) return;
+    setState(() => widget.state.xrTab = xr);
+    if (!xr) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _centerCurrent();
+      });
     }
+  }
+
+  Widget _seg(String key, String label, bool on, VoidCallback onTap) {
+    return GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: on ? const Color(0x1F6366F1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: on ? _accent.withValues(alpha: .35) : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: on ? _accent : const Color(0xFF94A3B8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final st = widget.state;
     final lv = widget.doc.chapters.length;
     // 分组树在本帧算好：折叠按钮的「全折叠/全展开」判定与行渲染同源。
     final nodes =
         ref.watch(tocProvider(widget.bookId)).valueOrNull ?? const <TocNode>[];
     final groups = tocTree(nodes, hideEmptyParts: false);
     _gcount = groups.isEmpty ? 1 : groups.length;
+    final searching = st.searching;
     return Stack(
       children: [
-        // 遮罩：点按收起（Escape/返回键由父层处理）。
+        // 遮罩（面板外顶部条）：点按收起（Escape/返回键由父层处理）。
         Positioned.fill(
           child: GestureDetector(
             key: const ValueKey('brDrScrim'),
@@ -205,179 +350,176 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
             child: Container(color: Colors.black.withValues(alpha: .45)),
           ),
         ),
+        // 上拉全屏面板：顶部留 8% 露出正文，滑入 240ms（原型 .xr-sheet>div 过渡）。
         Positioned(
           left: 0,
-          top: 0,
+          right: 0,
           bottom: 0,
-          width: MediaQuery.sizeOf(context).width * .78 < 300
-              ? MediaQuery.sizeOf(context).width * .78
-              : 300,
-          child: Container(
-            key: const ValueKey('brDrPanel'),
-            decoration: BoxDecoration(
-              color: cs.surface,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: .18),
-                  blurRadius: 32,
-                  offset: const Offset(12, 0),
-                ),
-              ],
+          top: MediaQuery.sizeOf(context).height * .08,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOut,
+            builder: (_, v, child) => FractionalTranslation(
+              translation: Offset(0, (1 - v) * .06),
+              child: Opacity(opacity: v.clamp(0.0, 1.0), child: child),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 16, 10, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _tab('brDrTabToc', '目录 · $lv 章', !st.searchTab, () {
-                                setState(() => st.searchTab = false);
-                              }),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: _tab('brDrTabSearch', '搜本书', st.searchTab, () {
-                                setState(() => st.searchTab = true);
-                              }),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        key: const ValueKey('brDrFoldAll'),
-                        tooltip: _allFolded ? '全部展开' : '全部折叠',
-                        icon: Icon(
-                          _allFolded
-                              ? Icons.unfold_more_rounded
-                              : Icons.compress_rounded,
-                          size: 17,
-                        ),
-                        onPressed: () => setState(() {
-                          if (_allFolded) {
-                            st.folded.clear();
-                          } else {
-                            st.folded.addAll(
-                              List.generate(_gcount, (i) => i),
-                            );
-                          }
-                        }),
-                      ),
-                      IconButton(
-                        key: const ValueKey('brDrCollapse'),
-                        tooltip: '折叠到边栏',
-                        icon: const Icon(Icons.chevron_left_rounded, size: 17),
-                        onPressed: () => setState(() => st.rail = true),
-                      ),
-                    ],
+            child: Container(
+              key: const ValueKey('brDrPanel'),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .18),
+                    blurRadius: 32,
+                    offset: const Offset(0, -12),
                   ),
-                ),
-                // 轮5.2①：跳章后的返回入口（正文不悬浮，收进抽屉一行）。
-                if (widget.backLbl != null && widget.onBackJump != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                    child: GestureDetector(
-                      key: const ValueKey('brDrBack'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onBackJump,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _accent.withValues(alpha: .10),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Text(
-                              '‹ 回到刚才在读 ·',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: _accent,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                widget.backLbl!,
-                                key: const ValueKey('brDrBackLbl'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: _accent,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
+                      child: searching
+                          ? _hdrRowSearch(cs)
+                          : _hdrRowNormal(cs),
                     ),
-                  ),
-                if (st.searchTab)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.search_rounded, size: 14, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              key: const ValueKey('brDrQ'),
-                              controller: _q,
-                              autofocus: true,
-                              style: const TextStyle(fontSize: 12),
-                              decoration: const InputDecoration(
-                                hintText: '搜本书',
-                                hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                border: InputBorder.none,
-                              ),
-                              onChanged: _runSearch,
-                            ),
-                          ),
-                        ],
-                      ),
+                    Expanded(
+                      child: st.xrTab
+                          ? ReaderXrayPanel(
+                              book: widget.book,
+                              doc: widget.doc,
+                              pager: widget.pager,
+                              ci: widget.ci,
+                              pg: widget.pg,
+                              kw: searching ? _q.text.trim() : '',
+                              onJump: widget.onXrJump,
+                            )
+                          : _tocBody(cs, groups, lv, searching),
                     ),
-                  ),
-                Expanded(
-                  // 目录 Tab＝虚拟化 ListView（自带滚动）；搜本书 Tab 仍整块滚动。
-                  child: st.searchTab
-                      ? SingleChildScrollView(
-                          key: const ValueKey('brDrScroll'),
-                          controller: _scroll,
-                          padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
-                          child: _searchList(cs),
-                        )
-                      : _tocList(cs, groups),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
-        // 去底部/去顶部悬浮 pill（仅目录 Tab · 非 rail）。
+      ],
+    );
+  }
+
+  // ---------- 目录段（功能零回归：树/折叠/当前读到/回在读/去底部/搜本书） ----------
+
+  Widget _tocBody(ColorScheme cs, List<TocPartGroup> groups, int lv, bool searching) {
+    return Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 「全部折叠」小行＝目录段内容区右上（原型 xrTocFoldRow；搜索态隐藏）。
+            if (!searching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 16, 2),
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    GestureDetector(
+                      key: const ValueKey('brDrFoldAll'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() {
+                        if (_allFolded) {
+                          widget.state.folded.clear();
+                        } else {
+                          widget.state.folded.addAll(
+                            List.generate(_gcount, (i) => i),
+                          );
+                        }
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        child: Text(
+                          _allFolded ? '全部展开' : '全部折叠',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // 轮5.2①：跳章后的返回入口（正文不悬浮，收进面板一行）。
+            if (widget.backLbl != null && widget.onBackJump != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                child: GestureDetector(
+                  key: const ValueKey('brDrBack'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.onBackJump,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text(
+                          '‹ 回到刚才在读 ·',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: _accent,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            widget.backLbl!,
+                            key: const ValueKey('brDrBackLbl'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: _accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(
+              // 目录＝虚拟化 ListView（自带滚动）；搜索独占态仍整块滚动。
+              child: searching
+                  ? SingleChildScrollView(
+                      key: const ValueKey('brDrScroll'),
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 56),
+                      child: _searchList(cs),
+                    )
+                  : _tocList(cs, groups),
+            ),
+          ],
+        ),
+        // 去底部/去顶部悬浮 pill（仅目录段 · 非搜索态）。
         Positioned(
           bottom: 20,
           left: 0,
-          right: 44,
-          child: st.searchTab
+          right: 0,
+          child: searching
               ? const SizedBox.shrink()
               : Center(
                   child: GestureDetector(
@@ -419,36 +561,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     );
   }
 
-  Widget _tab(String key, String label, bool on, VoidCallback onTap) {
-    return GestureDetector(
-      key: ValueKey(key),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: on ? const Color(0x1F6366F1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: on ? _accent.withValues(alpha: .35) : Colors.transparent,
-          ),
-        ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: on ? _accent : const Color(0xFF94A3B8),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 目录树：BS_TOC 同源（book_toc_nodes）；小节名命中标题即叶子章。
-  /// 真机反馈（2026-09-28）：2409 章大全集整列 Column 一次构建致抽屉卡顿、
+  /// 真机反馈（2026-09-28）：2409 章大全集整列 Column 一次构建致面板卡顿、
   /// 点按无响应——行描述符 + ListView.builder 虚拟化，只建可见行。
   Widget _tocList(ColorScheme cs, List<TocPartGroup> groups) {
     final quotes =
