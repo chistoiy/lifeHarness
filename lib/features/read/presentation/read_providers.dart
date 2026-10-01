@@ -13,6 +13,7 @@ import '../data/epub_import.dart';
 import '../data/read_repository.dart';
 import '../data/xray/xray_backup.dart';
 import '../data/xray/xray_dao.dart';
+import '../data/xray/xray_words_io.dart';
 import '../data/xray/xray_scheduler.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -426,6 +427,10 @@ final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
 /// 单书索引备份服务（F10 · .xraybak 导出/导入；测试 override 注钩子）。
 final xrayBackupServiceProvider = Provider<XrayBackupService>(
   (ref) => XrayBackupService(ref.watch(xrayDaoProvider)),
+);
+/// 养成词库导入导出（批3 · .xrwords；测试 override 注 saveAs/pickFile 钩子）。
+final xrayWordsIoProvider = Provider<XrayWordsIoService>(
+  (ref) => XrayWordsIoService(ref.watch(xrayDaoProvider)),
 );
 
 /// 某架位的内容指纹（懒补算不在这里做——被动渲染只读库，起解析动作才 ensureMd5）。

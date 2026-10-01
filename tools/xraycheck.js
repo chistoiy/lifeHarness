@@ -224,6 +224,11 @@ async function go(q) {
     rows:document.querySelectorAll('#xrwList .shelf-row').length};`);
   (r.page === 'p-xrwords' && /3 个养成词/.test(r.sum) && r.tg && r.chips === 7 && r.rows === 3)
     ? ok('批2 词库管理页：3 养入词 + 7 类型筛选 + 开关默认开', r.sum) : bad('批2 管理页', JSON.stringify(r));
+  /* 批3 · 导入导出卡 */
+  r = await ev(`document.getElementById('xrwExp').click();var t1=document.getElementById('toast').innerText;
+    document.getElementById('xrwImp').click();var t2=document.getElementById('toast').innerText;
+    return{t1:t1,t2:t2};`);
+  (/导出/.test(r.t1) && /合并/.test(r.t2)) ? ok('批3 词库导入导出卡（导出/导入两行）') : bad('批3 导入导出', JSON.stringify(r));
   await shot('xr-words.png');
   r = await ev(`document.getElementById('xrwAddInp').value='沉没成本';xrWordsAdd();
     var first=document.querySelector('#xrwList .shelf-row b');

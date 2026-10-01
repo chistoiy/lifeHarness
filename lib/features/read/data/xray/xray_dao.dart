@@ -168,6 +168,25 @@ class XrayDictRow {
   final int createTime;
 }
 
+/// `.xrwords` 包内的单条养成词（批3 导入载荷；与 [XrayDictRow] 同构但 ts 可缺省）。
+class XrayDictEntry {
+  const XrayDictEntry({
+    required this.word,
+    required this.action,
+    this.type,
+    this.target,
+    this.patternHint,
+    int? createTime,
+  }) : createTime = createTime ?? 0;
+
+  final String word;
+  final String action;
+  final String? type;
+  final String? target;
+  final String? patternHint;
+  final int createTime;
+}
+
 /// X-Ray 数据访问。
 class XrayDao {
   const XrayDao(this._db);
@@ -946,6 +965,44 @@ class XrayDao {
           whereArgs: action == null
               ? [xs.xrayScopeGlobal, word]
               : [xs.xrayScopeGlobal, word, action]);
+
+  // ------------------------------------------------- 批3 .xrwords 导入导出
+
+  /// 逐条 upsert 进 GLOBAL 层（导入专用，整包一个事务），返回 (新增, 覆盖, 跳过)。
+  /// 跳过＝空词或非法动作（`merge_pair` 无 target 语义不收），不中断整包。
+  Future<({int added, int updated, int skipped})> importGlobalDict(
+      List<XrayDictEntry> entries) async {
+    var added = 0, updated = 0, skipped = 0;
+    await _db.transaction((txn) async {
+      for (final e in entries) {
+        final word = e.word.trim();
+        if (word.isEmpty ||
+            (e.action != xs.xrayActAdd && e.action != xs.xrayActForbid)) {
+          skipped++;
+          continue;
+        }
+        final exist = await txn.query(DbSchema.tXrayUserdict,
+            columns: ['id'],
+            where: 'scope = ? AND word = ? AND action = ?',
+            whereArgs: [xs.xrayScopeGlobal, word, e.action],
+            limit: 1);
+        exist.isEmpty ? added++ : updated++;
+        await txn.insert(
+            DbSchema.tXrayUserdict,
+            {
+              'scope': xs.xrayScopeGlobal,
+              'word': word,
+              'action': e.action,
+              'type': e.type,
+              'target': e.target,
+              'pattern_hint': e.patternHint,
+              'create_time': e.createTime,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+    return (added: added, updated: updated, skipped: skipped);
+  }
 
   /// 面板一揽子数据（批A）：任务态 + 全部词条 + 锚点分组，一次查齐。
   /// 只在 X-Ray 段激活时调用（autoDispose 跟页面走），逐章进度不重查。

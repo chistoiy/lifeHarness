@@ -1061,6 +1061,10 @@ tailwind.config = {
         <div class="flex-1 min-w-0"><b class="text-[12.5px]">启用养成词库</b><div class="text-[10px] text-slate-400 mt-0.5">关＝纯预置视角：隐藏我的词条并恢复被屏蔽词 · 已整理状态不回滚，重开即恢复</div></div>
         <span class="toggle on" id="xrwToggle" onclick="xrWordsToggle()"><i></i></span>
       </div>
+      <div class="mt-2 card !py-3">
+        <div class="xr-mrow flex items-center gap-2" id="xrwExp" onclick="xrWordsExport()"><b class="text-xs">导出养成词库（.xrwords）</b><span class="ml-auto text-[10px] text-slate-400" id="xrwExpLbl">3 条 · 预置指纹随包</span></div>
+        <div class="xr-mrow flex items-center gap-2 mt-1" id="xrwImp" onclick="xrWordsImport()"><b class="text-xs">从文件导入</b><span class="ml-auto text-[10px] text-slate-400">合并进全局词库 · 覆盖需确认</span></div>
+      </div>
       <div class="mt-2 flex gap-1.5 flex-wrap" id="xrwTypeChips"></div>
       <div class="mt-3 flex gap-2"><input id="xrwAddInp" class="inp flex-1" placeholder="新增养入词…" onkeydown="if(event.key==='Enter')xrWordsAdd()"><button class="mini-btn self-stretch flex items-center px-4" onclick="xrWordsAdd()">添加</button></div>
       <div id="xrwList" class="mt-3"></div>
@@ -8556,6 +8560,8 @@ function br35Seed(){
         +'<button class="mini-btn !text-[10px] !bg-peach/15 !text-rose-500" onclick="xrwDel(\''+r.w+'\')">删除</button></div>'
     }).join('')||'<div class="card text-[11px] text-slate-400 text-center py-6">该类型还没有养成词，先在上方添加</div>';
   };
+  window.xrWordsExport=function(){toast('已导出 '+XR_WORDS.length+' 条 · 预置指纹随包（演示）')};
+  window.xrWordsImport=function(){toast('已合并 · 新增 2 · 覆盖 1 · 跳过 0（演示）')};
   window.xrWordsAdd=function(){var i=document.getElementById('xrwAddInp');var w=(i&&i.value||'').trim();if(!w){toast('先输入词');return}
     if(XR_WORDS.some(function(r){return r.w===w})){toast('该词已在词库');return}
     XR_WORDS.unshift({w:w,type:xrGuessType(w),act:'add',src:'手动养入',ts:Date.now()});

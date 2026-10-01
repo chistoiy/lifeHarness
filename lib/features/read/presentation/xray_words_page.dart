@@ -177,6 +177,73 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
     if (mounted) readToast(context, '已删除「${r.word}」');
   }
 
+  // ---------------------------------------------- 批3 · .xrwords 导入导出
+
+  Future<void> _export() async {
+    final saved = await ref.read(xrayWordsIoProvider).exportWords();
+    if (!mounted) return;
+    readToast(context,
+        saved == null ? '已取消导出' : '已导出 ${_rows.length} 条 · $saved');
+  }
+
+  Future<void> _import() async {
+    Map<String, Object?>? bundle;
+    try {
+      bundle = await ref.read(xrayWordsIoProvider).readPick();
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      readToast(context, e.message);
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      readToast(context, '读取失败：$e');
+      return;
+    }
+    if (bundle == null) {
+      if (!mounted) return;
+      readToast(context, '已取消导入');
+      return;
+    }
+    if (!mounted) return;
+    final (entries, parseSkipped) =
+        ref.read(xrayWordsIoProvider).parseEntries(bundle);
+    // 预检计数：对照当前 GLOBAL 行算新增/覆盖，确认后才落库。
+    final keys = _rows.map((r) => '${r.word}|${r.action}').toSet();
+    var add = 0, upd = 0;
+    for (final e in entries) {
+      keys.contains('${e.word}|${e.action}') ? upd++ : add++;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (sc) => AlertDialog(
+        title: const Text('导入养成词', style: TextStyle(fontSize: 15)),
+        content: Text(
+          '包内 ${entries.length + parseSkipped} 条 · 新增 $add · 覆盖 $upd'
+          '${parseSkipped > 0 ? ' · 跳过 $parseSkipped' : ''}\n'
+          '合并进全局词库（同名同动作覆盖），不影响按书词条。',
+          style: const TextStyle(fontSize: 12.5),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(sc, false),
+              child: const Text('取消')),
+          TextButton(
+            key: const ValueKey('xrwImpGo'),
+            onPressed: () => Navigator.pop(sc, true),
+            child: const Text('导入', style: TextStyle(color: _xrAccent)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final r = await ref.read(xrayDaoProvider).importGlobalDict(entries);
+    await _load();
+    if (mounted) {
+      readToast(context,
+          '导入完成 · 新增 ${r.added} · 覆盖 ${r.updated} · 跳过 ${r.skipped + parseSkipped}');
+    }
+  }
+
   List<XrayDictRow> get _filtered {
     final q = _q.trim();
     return _rows.where((r) {
@@ -222,6 +289,54 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                   key: const ValueKey('xrwToggle'),
                   value: on,
                   onChanged: (_) => _flipUserDict(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            key: const ValueKey('xrwIoCard'),
+            padding: const EdgeInsets.all(14),
+            decoration: _card(cs),
+            child: Column(
+              children: [
+                GestureDetector(
+                  key: const ValueKey('xrwExp'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _export,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        const Text('导出养成词库（.xrwords）',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        Text('${_rows.length} 条 · 预置指纹随包',
+                            style: TextStyle(
+                                fontSize: 10, color: cs.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  key: const ValueKey('xrwImp'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _import,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        const Text('从文件导入',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        Text('合并进全局词库 · 覆盖需确认',
+                            style: TextStyle(
+                                fontSize: 10, color: cs.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +11,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/data/xray/xray_dao.dart';
+import 'package:lifeharness/features/read/data/xray/xray_words_io.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/xray_words_page.dart';
 
@@ -153,5 +157,66 @@ void main() {
     await t.tap(find.byKey(const ValueKey('xrw-tp-all')));
     await t.pump(const Duration(milliseconds: 150));
     expect(rowCount(t), 2);
+  });
+
+  testWidgets('批3 导入导出：导出落盘 + 导入预检确认后合并', (t) async {
+    // 夹具建在用例体内（真实区），且一律用**同步**文件 API：
+    // FakeAsync 下 `await createTemp`/`writeAsString` 永不返回＝用例挂死（先例见记忆）。
+    final tmp = Directory.systemTemp.createTempSync('xrwords_page_test');
+    addTearDown(() {
+      if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    });
+    final inFile = File('${tmp.path}/in.xrwords')
+      ..writeAsStringSync(jsonEncode({
+        'v': 1,
+        'kind': 'xrwords',
+        'preset': {'id': 'x', 'files': {}},
+        'entries': [
+          {'word': '新词', 'action': 'add', 'type': 'per', 'ts': 1},
+          {'word': '旧词', 'action': 'add', 'type': 'term', 'ts': 2},
+        ],
+      }));
+    // 被测导出走真文件写（dir.create + writeAsString）：假异步泵不动，
+    // 每轮等文案开一次真实事件循环（ledger_l15 / journal waitFinder 先例）。
+    Future<void> pollContains(String needle, {int times = 50}) async {
+      for (var i = 0; i < times; i++) {
+        if (find.textContaining(needle).evaluate().isNotEmpty) return;
+        await t.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await t.pump(const Duration(milliseconds: 60));
+      }
+      fail('文案未出现：$needle');
+    }
+
+    await dao.putUserWord(scope: 'GLOBAL', word: '旧词', action: 'add', type: 'term');
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        readRepositoryProvider.overrideWithValue(repo),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        // 钩子直通临时目录；预置词表同步读磁盘（指纹用，避开假异步）。
+        xrayWordsIoProvider.overrideWith((ref) => XrayWordsIoService(
+              ref.watch(xrayDaoProvider),
+              docsOverride: tmp,
+              saveAs: (src) async => src,
+              pickFile: () async => inFile.path,
+              readAsset: (p) async => File(p).readAsStringSync(),
+            )),
+      ],
+      child: const MaterialApp(home: XrayWordsPage()),
+    ));
+    await pollContains('导出养成词库');
+    // 导出：saveAs 直通 → toast 报条数，文件在临时目录。
+    await t.tap(find.byKey(const ValueKey('xrwExp')));
+    await pollContains('已导出 1 条');
+    expect(Directory('${tmp.path}/xray_words').listSync(),
+        isNotEmpty, reason: '导出文件落盘');
+    await clearToasts(t);
+    // 导入：预检弹层报 新增1/覆盖1 → 确认 → 合并 + 回读。
+    await t.tap(find.byKey(const ValueKey('xrwImp')));
+    await pollContains('新增 1 · 覆盖 1');
+    await t.tap(find.byKey(const ValueKey('xrwImpGo')));
+    await pollContains('导入完成 · 新增 1 · 覆盖 1 · 跳过 0');
+    expect((await dao.listGlobalDict()).map((r) => r.word).toSet(),
+        {'旧词', '新词'});
   });
 }
