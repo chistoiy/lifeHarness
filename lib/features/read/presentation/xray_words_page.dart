@@ -9,6 +9,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_log.dart';
+
 import '../data/xray/xray_dao.dart';
 import '../../../core/database/schema/xray.dart' as xs;
 import 'reader/reader_xray_learn_sheets.dart' show xrGuessType;
@@ -191,10 +193,12 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
     try {
       bundle = await ref.read(xrayWordsIoProvider).readPick();
     } on FormatException catch (e) {
+      AppLog.add('xrwords 导入拒收：${e.message}', level: LhLevel.warn);
       if (!mounted) return;
       readToast(context, e.message);
       return;
     } catch (e) {
+      AppLog.add('xrwords 导入读取失败：$e', level: LhLevel.warn);
       if (!mounted) return;
       readToast(context, '读取失败：$e');
       return;
