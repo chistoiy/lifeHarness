@@ -21,7 +21,10 @@ class DbSchema {
   
   static const String fileName = 'lifeharness.db';
 
-  static const int version = 33;
+  // 34：真机取证修正——_runMigrations 循环按「key=起始版本」取段，
+  // ⑤ 索引迁移写在 migrations[33]（33→34 段），故目标版本必须到 34 才会在老库执行；
+  // 33 只在 v0.2.7-reader2 上停留过（该批真机 user_version 已是 33，索引仍是全量唯一）。
+  static const int version = 34;
  
 
   

@@ -321,6 +321,11 @@ final Map<int, List<String>> mig = {
     // 旧全量唯一让垃圾箱软删行永久占键：删划线后重划同句 INSERT 撞 2067、
     // 手抄摘录在库时再划线也走死。先把历史脏数据的软删行键位让出，
     // 再重建为局部唯一索引（在库行本就互斥，重建必成）。
+    // ⚠️ 段 key 按仓内循环语义（app_database._runMigrations：for v=from; v<to;
+    // migrations[v]）＝「33→34 升级语句」。真机取证（v0.2.7-reader2·日志 20:24:08
+    // 「迁移 v33 开始：1 条语句」）：32→33 实际执行的是 [32]（first_img 补列），
+    // 本段要 33→34 才跑——DbSchema.version 因此抬到 34。[32] 的错位属 R15 候选，
+    // 已在轮2 收口行登记（老库若从 ≤32 直升 34 会重放 [32] ALTER，撞列风险留档）。
     33: [
       'UPDATE $tBookQuotes SET dedup_hash = NULL WHERE deleted_at IS NOT NULL',
       'DROP INDEX IF EXISTS idx_bq_dedup',

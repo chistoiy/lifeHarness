@@ -697,6 +697,35 @@ void main() {
       expect(restored.dedupHash, isNull, reason: '同键让位：恢复行丢判重键但保留内容');
     });
 
+    // 真机取证（v0.2.7-reader2 日志「迁移 v33 开始：1 条语句」）：_runMigrations 按
+    // key=起始版本 取段，⑤ 三语句写在 migrations[33]＝33→34 段，version 已抬 34。
+    // 本用例钉住「链语义 + 迁移效果」：模拟 33 态老库（全量唯一索引+软删占键脏数据）
+    // → 重放 migrations[33] → 索引转局部唯一、删后重划可入账。
+    test('⑤ v33→v34 迁移链：老库全量唯一索引重放后转局部唯一·删后重划可入账', () async {
+      // 回退到 33 态：删局部索引、重建全量唯一（＝reader2 装机后库的真实形态）。
+      await db.execute('DROP INDEX IF EXISTS idx_bq_dedup');
+      await db.execute(
+          'CREATE UNIQUE INDEX idx_bq_dedup ON book_quotes(dedup_hash)');
+      final b = await seedBook();
+      final id = (await repo.addQuote(q('链上重划句', b.id, chap: '第一章', page: 3)))!;
+      await repo.softDeleteQuote(id); // 33 态判重已放行，但旧行占全量唯一键
+      // 33 态下重划同句必炸（这正是真机 reader2 的症状）：
+      await expectLater(
+          repo.addQuote(q('链上重划句', b.id, chap: '第一章', page: 3)),
+          throwsA(isA<DatabaseException>()));
+      // 重放 migrations[33]（33→34 段）：
+      for (final sql in DbSchema.migrations[33]!) {
+        await db.execute(sql);
+      }
+      final idx = (await db.query('sqlite_master',
+          where: "type='index' AND name='idx_bq_dedup'")).single['sql'] as String;
+      expect(idx, contains('WHERE deleted_at IS NULL'), reason: '迁移后应为局部唯一');
+      final id2 = await repo.addQuote(q('链上重划句', b.id, chap: '第一章', page: 3));
+      expect(id2, isNotNull, reason: '迁移后删后重划必须可入账');
+      expect(DbSchema.version, greaterThanOrEqualTo(34),
+          reason: '本段挂在 33→34 升级：目标版本必须 ≥34 才会在老库执行');
+    });
+
     test('4-2 updateQuote：改写生效 · 撞他行返回 false · 创建时间可改', () async {
       final b = await seedBook();
       final id1 = (await repo.addQuote(q('甲句', b.id)))!;
