@@ -340,9 +340,10 @@ void main() {
       WidgetTester t,
       String id, {
       bool boom = false,
+      bool silent = false,
       List<Override>? extra,
     }) async {
-      final sched = makeScheduler(boom: boom);
+      final sched = makeScheduler(boom: boom, silent: silent);
       // 半屏弹层里的开始/菜单行在 780 高视口放不下（真机同样要能点）：垫高再测。
       await useSurface(t, const Size(420, 1600));
       await addBook(id);
@@ -470,6 +471,33 @@ void main() {
       expect(chap, lessThanOrEqualTo(book));
       expect(book, greaterThan(0));
       await t.pump(const Duration(milliseconds: 400));
+    });
+
+    testWidgets('退后台：生命周期必须把在跑的解析暂停（真机 16:35 零留痕回归）',
+        (t) async {
+      // 真机上 Home 之后解析照跑完（8.9s），而「暂停」与「暂停未执行」两条留痕
+      // 都没落 → 怀疑 `didChangeAppLifecycleState` 就没被调到。这里用 binding
+      // 派发生命周期走真链路，把这条钉住。
+      final sched = await openReader(t, 'p9', silent: true);
+      final b = await repo.bookById('p9');
+      await sched.start(book: b!, md5: 'M', from: 0, to: 1);
+      for (var i = 0; i < 200 && !(sched.live('p9')?.running ?? false); i++) {
+        await dao.task('M');
+      }
+      expect(sched.live('p9')!.running, isTrue, reason: '静默通道下应停在「在跑」');
+      t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await t.pump(const Duration(milliseconds: 200));
+      expect(sched.live('p9')!.running, isFalse,
+          reason: '退后台没暂停＝§8 失效：观察者没注册上还是回调没到？');
+      var paused = false;
+      for (var i = 0; i < 500 && !paused; i++) {
+        paused = (await dao.task('M'))?.status == 'pause';
+      }
+      expect(paused, isTrue, reason: '暂停必须落库，进程被杀才接得回断点');
+      // 本批新加的解析链 AppLog 会起 300ms 节流 Timer，收尾必须排空（helpers 口径）。
+      await drainLogTimer(t);
+      // 注意：sched 由 overrideWith 交给容器，ProviderScope 卸载时自己 dispose，
+      // 这里再调一次会撞「used after being disposed」。
     });
 
     testWidgets('失败态：面板打开自动挂中断弹层，可关闭', (t) async {

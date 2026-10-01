@@ -428,9 +428,11 @@ class XrayScheduler extends ChangeNotifier {
   /// 退后台：正在跑的自动暂停（§8；断点已逐章落库，无数据损失）。
   void noteBackground() {
     final c = _cur;
+    // 每次退后台留一条「有没有任务/在不在跑」的锚点：真机 16:27 与 16:35 两轮
+    // 既没有「自动暂停」也没有「未执行」留痕，无法区分「回调没到」与「到了但
+    // 调度器里没有活体任务」（= 实例不是同一个）。
+    AppLog.add('X-Ray 退后台检查 任务=${c == null ? '无' : '${c.bookId}·${c.live.running ? "在跑" : "未在跑"}'}');
     if (c != null && c.live.running) {
-      // 真机排障锚点：这条与「退后台暂停未执行」二选一必留痕，
-      // 否则无法区分「生命周期回调没到」与「到了但任务不在跑」。
       AppLog.add('X-Ray 退后台自动暂停 书#${c.bookId}');
       c.pause();
     }
