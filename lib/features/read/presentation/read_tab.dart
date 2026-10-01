@@ -62,7 +62,8 @@ class ReadWorkbench extends ConsumerWidget {
                       ),
                       child: Center(
                         child: Text(
-                          '${data.minutesToday}′',
+                          // 真机反馈⑥：≥60 分钟自动换时/分（与原型 hero 同口径 bsFmt）。
+                          bsFmt(data.minutesToday),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w900,
@@ -78,8 +79,8 @@ class ReadWorkbench extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '今日阅读 ${data.minutesToday} / ${data.goalDay} 分钟 '
-                          '${data.minutesToday >= data.goalDay ? '已达成' : '· 还差 ${data.goalDay - data.minutesToday} 分钟'} · 连续 ${data.streak} 天',
+                          '今日阅读 ${bsFmt(data.minutesToday)} / 目标 ${bsFmt(data.goalDay)} '
+                          '${data.minutesToday >= data.goalDay ? '已达成' : '· 还差 ${bsFmt(data.goalDay - data.minutesToday)}'} · 连续 ${data.streak} 天',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
