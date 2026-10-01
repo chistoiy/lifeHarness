@@ -2079,7 +2079,7 @@ tailwind.config = {
               <div id="xrPane" class="hidden flex-1 flex-col min-h-0">
                 <div id="xrHead" class="px-4 pt-1 pb-1.5 shrink-0 space-y-1.5"></div>
                 <div id="xrTypes" class="px-4 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0"></div>
-                <div id="xrScroll" class="flex-1 overflow-y-auto no-scrollbar px-4 pt-2 pb-16"><div id="xrList" class="space-y-2"></div></div>
+                <div id="xrScroll" class="flex-1 overflow-y-auto no-scrollbar px-4 pt-2 pb-16"><div id="xrAiBar" class="hidden mb-2"></div><div id="xrList" class="space-y-2"></div></div>
                 <div id="xrBar" class="shrink-0 px-4 pb-3"></div>
               </div>
               <button id="brDrPill" onclick="brDrJump()" class="hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-10 text-[10px] font-bold px-3.5 py-2 rounded-full shadow-lg bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">去底部</button>
@@ -3164,6 +3164,31 @@ tailwind.config = {
       <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[10px] leading-4 text-slate-500 dark:text-slate-400" id="xrBakNote">整包备份已含索引数据 · 单书 .xraybak 供跨设备与分享</div>
     </div>
   </div>
+  <div id="sheetXrAiPre" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrAiPre')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">AI 精化</b><span class="text-[9px] text-slate-400">read.xray_refine</span></div>
+      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5" id="xrAiPreStat">候选 <b id="xrAiCand">0</b> 条 · 预计 <b id="xrAiBatches">0</b> 批 · 约 <b id="xrAiTok">0</b> tokens</div>
+      <div class="mt-3 text-[10px] font-bold text-slate-400">单请求字符预算</div>
+      <div class="mt-1.5 flex gap-1.5 flex-wrap" id="xrAiBudgetChips"></div>
+      <div class="mt-3 space-y-2">
+        <button id="xrAiPreGo" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrAiStart()">开始精化 · <span id="xrAiPreBn">0</span> 批</button>
+        <button class="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400" onclick="closeSheet('sheetXrAiPre')">取消</button>
+      </div>
+      <div class="mt-2 text-[9px] text-slate-400" id="xrAiPreNote">确认后按预算逐批顺序请求 · 未配 Key 或离线不出现本入口</div>
+    </div>
+  </div>
+  <div id="sheetXrAiReview" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrAiReview')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="flex items-center justify-between"><b class="text-[15px]">精化结果</b><span class="text-[9px] text-slate-400" id="xrAiRevSum">建议删 3 · 改类 2 · 补 2</span></div>
+      <div class="mt-2.5 space-y-2.5 max-h-[46vh] overflow-y-auto no-scrollbar" id="xrAiRevBody"></div>
+      <div class="mt-3 text-[10px] font-bold text-slate-400">写入范围</div>
+      <div class="mt-1.5 flex gap-1.5"><span class="chip !text-[10px] chip-on" id="xrAiSc-book" onclick="xrAiScope('book')">仅本书</span><span class="chip !text-[10px]" id="xrAiSc-global" onclick="xrAiScope('global')">升级为全局</span></div>
+      <div class="mt-3 space-y-2">
+        <button id="xrAiApplyGo" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrAiApply()">确认写入 <span id="xrAiApplyN">0</span> 条</button>
+        <button class="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400" onclick="closeSheet('sheetXrAiReview')">先不写</button>
+      </div>
+    </div>
+  </div>
   <div id="sheetXrFail" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrFail')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-center justify-between"><b class="text-[15px]">解析中断</b><span class="text-[9px] text-rose-500 font-bold">失败</span></div>
@@ -3291,6 +3316,7 @@ tailwind.config = {
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');brOpenDetail()"><span>书籍详情与资料页</span><span class="text-slate-300">›</span></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrEntry()"><span>全书索引（X-Ray）</span><b class="text-[10px] text-slate-400" id="brMoreXr">已索引 12/18 章 · 随阅读推进</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrWordsOpen()"><span>X-Ray 词库管理</span><b class="text-[10px] text-slate-400" id="brMoreXrw">养词库 开</b></div>
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrAiOpen()"><span>X-Ray 精化</span><b class="text-[10px] text-slate-400" id="brMoreXrAi">AI · 未跑</b></div>
         <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');navTo('p-readset');rsPickTab(RS_SEC.length-1)"><span>阅读器设置</span><span class="text-slate-300">›</span></div>
         <div class="flex items-center justify-between"><span>屏幕常亮</span><span class="toggle" id="brMoreBright" onclick="brMoreBright()"></span></div>
         <div class="flex items-center justify-between"><span>文本朗读 TTS</span><span class="toggle" id="brMoreTts" onclick="brMoreTts(this)"></span></div>
@@ -8672,6 +8698,120 @@ function br35Seed(){
     else brTocOpen('xr')
   };
   /* 演示状态注入 */
+  /* V1.54.1 批4 · AI 精化（预检→逐批→汇总审阅→确认写入） */
+  var XRAI={st:'idle',b:0,n:0,err:0,budget:3000,scope:'book',sel:{},t:0};
+  var XRAI_SUG=[
+    {k:'d1',g:'del',w:'几乎',why:'通用词非实体'},
+    {k:'d2',g:'del',w:'概念',why:'通用词非实体'},
+    {k:'d3',g:'del',w:'种种',why:'通用词非实体'},
+    {k:'c1',g:'cls',w:'玫瑰战争',t:'org',why:'术语 → 组织'},
+    {k:'c2',g:'cls',w:'谷地庄园',t:'loc',why:'术语 → 地名'},
+    {k:'a1',g:'add',w:'波洛',t:'per',why:'正文漏召 6 次'},
+    {k:'a2',g:'add',w:'马普尔',t:'per',why:'正文漏召 4 次'}
+  ];
+  function xrAiEst(){
+    var cand=(typeof xrScoped==='function')?(xrScoped()||[]).length:(typeof XR_ENTS!=='undefined'?XR_ENTS.length:24);
+    var chars=cand*900;
+    var n=Math.max(2,Math.ceil(chars/XRAI.budget));
+    return {cand:cand,chars:chars,n:n,tok:Math.round(chars/1.5)};
+  }
+  window.xrAiBudgetChips=function(){
+    var el=document.getElementById('xrAiBudgetChips');if(!el)return;
+    el.innerHTML=[1000,2000,3000,5000,8000].map(function(v){
+      return '<span class="chip !text-[10px]'+(v===XRAI.budget?' chip-on':'')+'" id="xrAiB-'+v+'" onclick="xrAiSetBudget('+v+')">'+v+' 字</span>'}).join('');
+  };
+  window.xrAiSetBudget=function(v){XRAI.budget=v;xrAiPreFill();};
+  function xrAiPreFill(){
+    var e=xrAiEst();XRAI.n=e.n;
+    var st=document.getElementById('xrAiPreStat');
+    if(st)st.innerHTML='候选 <b id="xrAiCand">'+e.cand+'</b> 条 · 预计 <b id="xrAiBatches">'+e.n+'</b> 批 · 约 <b id="xrAiTok">'+e.tok+'</b> tokens';
+    var bn=document.getElementById('xrAiPreBn');if(bn)bn.textContent=e.n;
+    xrAiBudgetChips();
+  }
+  window.xrAiOpen=function(){XRAI.st=XRAI.st==='done'?XRAI.st:'pre';xrAiPreFill();openSheet('sheetXrAiPre');};
+  window.xrAiBarRender=function(){
+    var bar=document.getElementById('xrAiBar');if(!bar)return;
+    if(XRAI.st==='idle'||XRAI.st==='pre'||XRAI.st==='applied'){bar.className='hidden mb-2';bar.innerHTML='';return}
+    var pct=XRAI.n?Math.round(XRAI.b/XRAI.n*100):0;
+    var h='<div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5">'
+      +'<div class="flex items-center gap-2 text-[10px] font-bold"><span>AI 精化 · 第 '+XRAI.b+'/'+XRAI.n+' 批</span><span class="flex-1"></span>'
+      +(XRAI.st==='pause'?'<button class="chip !text-[10px] chip-on" id="xrAiResume" onclick="xrAiRun()">继续</button>':'<button class="chip !text-[10px]" id="xrAiPause" onclick="xrAiPause()">暂停</button>')
+      +'</div><div class="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div id="xrAiProg" class="h-full rounded-full" style="width:'+pct+'%;background:var(--accent)"></div></div>';
+    if(XRAI.err&&XRAI.b>=XRAI.err&&XRAI.st!=='done')h+='<div class="mt-1 text-[9px] text-rose-500" id="xrAiErr">第 '+XRAI.err+' 批失败 · 已重试后跳过，后续批次继续</div>';
+    if(XRAI.st==='done')h+='<div class="mt-1.5 flex items-center gap-2"><span class="text-[9px] text-slate-400">'+XRAI.n+' 批跑完 · 建议 '+XRAI_SUG.length+' 条</span><span class="flex-1"></span><button class="grad text-white !text-[10px] font-bold px-3 py-1.5 rounded-lg" id="xrAiShowRev" onclick="xrAiReview()">查看汇总</button></div>';
+    bar.className='mb-2';bar.innerHTML=h;
+  };
+  window.xrAiStart=function(){
+    closeSheet('sheetXrAiPre');
+    if(XRAI.t){clearInterval(XRAI.t);XRAI.t=0}
+    XRAI.b=0;XRAI.err=0;XRAI.sel={};XRAI_SUG.forEach(function(x){XRAI.sel[x.k]=true});
+    xrAiRun();toast('已按 '+XRAI.budget+' 字预算逐批发起');
+  };
+  window.xrAiRun=function(){
+    XRAI.st='run';
+    if(XRAI.t)return xrAiBarRender();
+    XRAI.t=setInterval(function(){
+      if(XRAI.st!=='run')return;
+      XRAI.b++;
+      if(XRAI.b===4)XRAI.err=4;
+      if(XRAI.b>=XRAI.n){
+        clearInterval(XRAI.t);XRAI.t=0;XRAI.b=XRAI.n;XRAI.st='done';
+        xrAiBarRender();xrAiReview();return;
+      }
+      xrAiBarRender();
+    },400);
+    xrAiBarRender();
+  };
+  window.xrAiPause=function(){XRAI.st='pause';xrAiBarRender();toast('已暂停 · 断点在第 '+XRAI.b+' 批');};
+  window.xrAiReview=function(){
+    if(XRAI.t){clearInterval(XRAI.t);XRAI.t=0}
+    var g=[['del','建议删除'],['cls','建议改类'],['add','建议补词']];
+    var h='';
+    g.forEach(function(gr){
+      var rows=XRAI_SUG.filter(function(x){return x.g===gr[0]});
+      if(!rows.length)return;
+      h+='<div><div class="text-[10px] font-bold text-slate-400">'+gr[1]+' · '+rows.length+'</div><div class="mt-1 space-y-1.5">';
+      rows.forEach(function(x){
+        h+='<div class="xr-mrow flex items-center gap-2'+(XRAI.sel[x.k]?'':' opacity-40')+'" id="xrAiR-'+x.k+'" onclick="xrAiToggle(\''+x.k+'\')">'
+          +'<b class="text-xs">'+x.w+'</b><span class="text-[9px] text-slate-400">'+x.why+(x.t?' → '+(XR_TL[x.t]||x.t):'')+'</span>'
+          +'<span class="ml-auto text-[10px] font-bold" style="color:var(--accent)">'+(XRAI.sel[x.k]?'✓':'—')+'</span></div>';
+      });
+      h+='</div></div>';
+    });
+    var body=document.getElementById('xrAiRevBody');if(body)body.innerHTML=h;
+    var delN=XRAI_SUG.filter(function(x){return x.g==='del'}).length;
+    var clsN=XRAI_SUG.filter(function(x){return x.g==='cls'}).length;
+    var addN=XRAI_SUG.filter(function(x){return x.g==='add'}).length;
+    var sum=document.getElementById('xrAiRevSum');if(sum)sum.textContent='建议删 '+delN+' · 改类 '+clsN+' · 补 '+addN;
+    xrAiCount();
+    openSheet('sheetXrAiReview');
+  };
+  window.xrAiToggle=function(k){XRAI.sel[k]=!XRAI.sel[k];xrAiReview();};
+  window.xrAiScope=function(v){
+    XRAI.scope=v;
+    var b=document.getElementById('xrAiSc-book'),g=document.getElementById('xrAiSc-global');
+    if(b)b.className='chip !text-[10px]'+(v==='book'?' chip-on':'');
+    if(g)g.className='chip !text-[10px]'+(v==='global'?' chip-on':'');
+  };
+  function xrAiCount(){
+    var n=XRAI_SUG.filter(function(x){return XRAI.sel[x.k]}).length;
+    var el=document.getElementById('xrAiApplyN');if(el)el.textContent=n;
+    var go=document.getElementById('xrAiApplyGo');if(go)go.style.opacity=n?'1':'.4';
+  }
+  window.xrAiApply=function(){
+    var n=XRAI_SUG.filter(function(x){return XRAI.sel[x.k]}).length;
+    if(!n){toast('先勾选要写入的建议');return}
+    closeSheet('sheetXrAiReview');
+    XRAI.st='applied';
+    var lbl=document.getElementById('brMoreXrAi');if(lbl)lbl.textContent='AI · 已写 '+n+' 条';
+    xrAiBarRender();
+    toast('已写入 '+n+' 条 · '+(XRAI.scope==='global'?'升级为全局，随词库导出带走':'仅本书，可在词库管理升级'));
+  };
+  window.xrAiDemo=function(mode){
+    var dn=Math.max(6,xrAiEst().n);
+    if(mode==='run'){XRAI.st='run';XRAI.n=dn;XRAI.b=5;XRAI.err=4;if(XRAI.t){clearInterval(XRAI.t);XRAI.t=0}xrAiBarRender();return}
+    if(mode==='rev'){XRAI.st='done';XRAI.n=dn;XRAI.b=dn;XRAI.sel={};XRAI_SUG.forEach(function(x){XRAI.sel[x.k]=true});xrAiBarRender();xrAiReview();return}
+  };
   window.xrSeed=function(k){
     xrSetBookXr('b1',{st:'ready',done:12});
     if(k==='shelf'){
@@ -8719,6 +8859,10 @@ function br35Seed(){
     }
     if(m==='dict'){navTo('p-xrwords');renderXrWords();return}
     if(m==='miss'){brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');XR.kw='麦田里的守望者';XR.cur=null;XR.mode='list';xrRender();return}
+    if(m==='ai'||m==='airun'||m==='airev'){
+      xrSeed();brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');
+      if(m==='ai')xrAiOpen();else xrAiDemo(m==='airun'?'run':'rev');
+      return}
     if(m==='fail'){xrSeed();brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');openSheet('sheetXrFail');return}
   }catch(e){console.warn('xr',e)}})();
 })();

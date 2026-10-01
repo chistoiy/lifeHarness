@@ -266,12 +266,52 @@ async function go(q) {
     return{nav:nav?nav.textContent:''};`);
   (r.nav === 'X-Ray 词库管理') ? ok('批2 阅读设置「本地阅读器」入口行') : bad('批2 设置入口', JSON.stringify(r));
 
+  /* 批4 · AI 精化（预检→逐批→审阅→写入） */
+  await go('xr=ai');
+  r = await ev(`var p=document.getElementById('sheetXrAiPre');
+    return{sh:!p.classList.contains('hidden'),cand:+document.getElementById('xrAiCand').textContent,
+      n:+document.getElementById('xrAiBatches').textContent,tok:+document.getElementById('xrAiTok').textContent,
+      chips:document.querySelectorAll('#xrAiBudgetChips .chip').length,
+      on:(document.getElementById('xrAiB-3000')||{className:''}).className.indexOf('chip-on')>=0,
+      go:document.getElementById('xrAiPreGo').innerText.replace(/\\s+/g,' ')};`);
+  (r.sh && r.cand > 0 && r.n >= 6 && r.tok > 0 && r.chips === 5 && r.on && /批/.test(r.go))
+    ? ok('批4 预检卡：候选/预计批次/tokens + 单请求预算五档默认 3000', JSON.stringify(r)) : bad('批4 预检卡', JSON.stringify(r));
+  r = await ev(`var n0=+document.getElementById('xrAiBatches').textContent;xrAiSetBudget(1000);
+    var n1=+document.getElementById('xrAiBatches').textContent;xrAiSetBudget(3000);
+    return{n0:n0,n1:n1,back:+document.getElementById('xrAiBatches').textContent};`);
+  (r.n1 > r.n0 && r.back === r.n0) ? ok('批4 预算与批次联动（预算调小=批次变多，可来回改）', JSON.stringify(r)) : bad('批4 预算联动', JSON.stringify(r));
+  await go('xr=airun');
+  r = await ev(`var bar=document.getElementById('xrAiBar'),pr=document.getElementById('xrAiProg');
+    var m=bar.innerText.match(/第 (\\d+)\\/(\\d+) 批/);
+    return{vis:!bar.classList.contains('hidden'),txt:bar.innerText.replace(/\\s+/g,' '),
+      pctOk:!!(m&&pr&&Math.round(+m[1]/+m[2]*100)+'%'===pr.style.width),
+      err:(document.getElementById('xrAiErr')||{textContent:''}).textContent};`);
+  (r.vis && r.pctOk && /第 5\/\d+ 批/.test(r.txt) && /第 4 批失败/.test(r.err))
+    ? ok('批4 面板内逐批进度条（条宽=批次进度）+ 单批失败提示不拖垮后续', r.txt + ' | ' + r.err) : bad('批4 进度条', JSON.stringify(r));
+  r = await ev(`document.getElementById('xrAiPause').click();var bar=document.getElementById('xrAiBar');
+    return{resume:!!document.getElementById('xrAiResume'),txt:bar.innerText.replace(/\\s+/g,' '),
+      toast:document.getElementById('toast').innerText};`);
+  (r.resume && /断点在第 5 批/.test(r.toast) && /继续/.test(r.txt)) ? ok('批4 暂停留断点、原地可续跑', r.toast) : bad('批4 暂停续跑', JSON.stringify(r));
+  await go('xr=airev');
+  r = await ev(`var v=document.getElementById('sheetXrAiReview');
+    return{sh:!v.classList.contains('hidden'),sum:document.getElementById('xrAiRevSum').textContent,
+      rows:document.querySelectorAll('#xrAiRevBody .xr-mrow').length,n:document.getElementById('xrAiApplyN').textContent,
+      sc:document.getElementById('xrAiSc-book').className.indexOf('chip-on')>=0};`);
+  (r.sh && /建议删 3 · 改类 2 · 补 2/.test(r.sum) && r.rows === 7 && r.n === '7' && r.sc)
+    ? ok('批4 汇总审阅：删/改类/补三段 7 条默认全勾 + 范围默认仅本书', JSON.stringify(r)) : bad('批4 审阅弹层', JSON.stringify(r));
+  r = await ev(`xrAiToggle('d2');xrAiScope('global');
+    var bn=document.getElementById('xrAiApplyN').textContent;
+    document.getElementById('xrAiApplyGo').click();
+    var lbl=document.getElementById('brMoreXrAi');
+    return{bn:bn,toast:document.getElementById('toast').innerText,lbl:lbl?lbl.textContent:''};`);
+  (r.bn === '6' && /已写入 6 条/.test(r.toast) && /升级为全局/.test(r.toast) && /已写 6 条/.test(r.lbl))
+    ? ok('批4 勾除一条+升级全局：写入计数与 ⋯菜单状态字同步', r.toast + ' | ' + r.lbl) : bad('批4 写入', JSON.stringify(r));
   /* 收尾：emoji 与异常 */
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
-    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','p-xrwords'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
-    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab].join(',')};`);
-  (!r.emoji && r.fns === 'function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
+    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','p-xrwords','sheetXrAiPre','sheetXrAiReview','xrAiBar','sheetBrMore'].forEach(function(id){var el=document.getElementById(id);out+=(el?(el.innerText||el.textContent):'')});
+    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab,typeof xrAiOpen,typeof xrAiApply,typeof xrAiBarRender].join(',')};`);
+  (!r.emoji && r.fns === 'function,function,function,function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
   return finish();
 })().catch((e) => { bad('脚本自身', String(e).slice(0, 200)); finish(); });
