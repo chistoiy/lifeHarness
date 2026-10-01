@@ -29,11 +29,11 @@ void main() {
   final pack = packFromAssets();
 
   group('提示词包', () {
-    test('资产可解析：11 个能力点、DeepSeek 默认端点', () {
+    test('资产可解析：12 个能力点、DeepSeek 默认端点', () {
       expect(pack.version, 1);
       expect(pack.defaultBaseUrl, 'https://api.deepseek.com/v1');
       expect(pack.defaultModel, 'deepseek-flash');
-      expect(pack.tasks.length, 11);
+      expect(pack.tasks.length, 12);
       for (final t in pack.tasks) {
         expect(t.system.trim(), isNotEmpty, reason: '${t.id} system');
         expect(t.user.trim(), isNotEmpty, reason: '${t.id} user');

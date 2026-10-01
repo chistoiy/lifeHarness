@@ -22,6 +22,17 @@ void main() {
 
   String key(int back) => dayKey(DateTime.now().subtract(Duration(days: back)));
 
+  /// 补卡日历按月渲染（锚＝今天所在月；可 `btn-hbf-prev` 翻月）。
+  /// 月初窗口里「昨天/前天」属上月——存在性检查式翻月，跨月/月内两种日历都成立。
+  Future<void> tapDay(WidgetTester tester, String day) async {
+    if (find.byKey(ValueKey('hbf-day-$day')).evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('btn-hbf-prev')));
+      await settle5(tester);
+    }
+    await tester.tap(find.byKey(ValueKey('hbf-day-$day')));
+    await settle5(tester);
+  }
+
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
     for (final sql in DbSchema.createStatements) {
@@ -68,11 +79,9 @@ void main() {
     expect(find.text('暂无补记'), findsNothing);
     expect(find.text('1 条'), findsOneWidget);
 
-    // 选两个过去日 → 确认补卡
-    await tester.tap(find.byKey(ValueKey('hbf-day-${key(2)}')));
-    await settle5(tester);
-    await tester.tap(find.byKey(ValueKey('hbf-day-${key(1)}')));
-    await settle5(tester);
+    // 选两个过去日 → 确认补卡（月初时先翻回上月）
+    await tapDay(tester, key(2));
+    await tapDay(tester, key(1));
     expect(find.text('已选 2 天'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('btn-hbf-save')));
     final okToast = await pollText(tester, '已为「晨跑」补记 2 天 · 时刻 08:00 · 已计入连续');
@@ -108,8 +117,7 @@ void main() {
       find.byKey(const ValueKey('hbf-val-0')),
       '6',
     );
-    await tester.tap(find.byKey(ValueKey('hbf-day-${key(1)}')));
-    await settle5(tester);
+    await tapDay(tester, key(1));
     await tester.tap(find.byKey(const ValueKey('btn-hbf-save')));
     expect(
       await pollText(

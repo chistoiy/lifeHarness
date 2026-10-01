@@ -862,9 +862,14 @@ void main() {
     });
 
     test('5-5 本月摘录数（L7 第五路）', () async {
+      // 时间炸弹修复（2026-10-01 跨月首现红）：种子必须相对「今天所在月」，
+      // 原写死 2026-09/2025-05 每逢月初必炸（日期测试禁时间炸弹口径）。
+      final now = DateTime.now();
+      final thisMonth = DateTime(now.year, now.month, now.day < 28 ? now.day : 28);
+      final lastYear = DateTime(now.year - 1, 5, 5);
       final b = await repo.addBook(Book(title: '甲', createdAt: t0, updatedAt: t0));
-      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '本月句', createdAt: t0, updatedAt: t0));
-      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '去年句', createdAt: DateTime(2025, 5, 5).millisecondsSinceEpoch, updatedAt: t0));
+      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '本月句', createdAt: thisMonth.millisecondsSinceEpoch, updatedAt: t0));
+      await repo.addQuote(BookQuote(bookId: b.id, kind: '划线', body: '去年句', createdAt: lastYear.millisecondsSinceEpoch, updatedAt: t0));
       expect(await repo.quotesThisMonth(), 1);
       expect(await repo.doneThisYear(), 0);
     });
