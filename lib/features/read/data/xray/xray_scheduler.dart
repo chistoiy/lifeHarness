@@ -457,6 +457,9 @@ class XrayRun {
   int _next = -1;
   Future<void> _persistTail = Future.value();
 
+  /// 本次运行耗时（release 无 logcat 通道，用时/词条数只能进自建日志）。
+  final Stopwatch _watch = Stopwatch();
+
   /// 逐章进度落库串行尾巴：sqflite 并发写不保证顺序，processed_ch 必须单调。
   void _queuePersist(Future<void> Function() op) {
     _persistTail = _persistTail.then((_) => op().catchError((_) {}));
@@ -523,6 +526,10 @@ class XrayRun {
         // 补扫不动任务态：跑完直接回填该词。
         live.running = true;
         _next = 0;
+        _watch
+          ..reset()
+          ..start();
+        AppLog.add('X-Ray 补扫开始 书#$bookId 词「$word」共 ${live.totalCh} 章');
         _worker = await s.workerFactory(spec, XrayWorkerEvents(
           onChapterDone: _onChapterDone,
           onWantAnchor: _onWantAnchor,
@@ -542,6 +549,11 @@ class XrayRun {
       );
       live.running = true;
       _next = live.rangeFrom;
+      _watch
+        ..reset()
+        ..start();
+      AppLog.add('X-Ray 解析开始 书#$bookId 章 ${live.rangeFrom}..${live.rangeTo}'
+          '/${live.totalCh} · ${d.totalChars} 字');
       _worker = await s.workerFactory(spec, XrayWorkerEvents(
         onChapterDone: _onChapterDone,
         onWantAnchor: _onWantAnchor,
@@ -611,8 +623,14 @@ class XrayRun {
 
   /// 第二遍（术语锚点回填）：worker 逐章索取，全书章号顺序推进，越界即由
   /// worker 侧定稿发 result。
+  ///
+  /// **锚点遍的 worker 回执只有 'w' 没有 'd'**（真 isolate 协议，见 `_entry`），
+  /// 所以在飞标记必须在这里落回——否则第一章之后 `_pumpNext` 永远直返，
+  /// 主线程等 result、worker 等下一章，任务卡在「解析中 100%」且零词条
+  /// （2026-10-01 真机首跑撞实；假通道此前自走锚点遍，把这段掩盖成了死代码）。
   void _onWantAnchor(int ci) {
     if (_cancelled) return;
+    _inFlight = false;
     _collecting = false;
     _next = ci;
     _pumpNext();
@@ -640,6 +658,9 @@ class XrayRun {
               ],
             );
           }
+          AppLog.add('X-Ray 补扫完成 书#$bookId 词「${m0['name']}」'
+              '出场 ${m0['n']} 处 · 用时 '
+              '${(_watch.elapsedMilliseconds / 1000).toStringAsFixed(1)}s');
           final pat = m0['pat'];
           if (pat is List && pat.length == 2) {
             _sched._suggestions[bookId] = XraySuggestion(
@@ -670,6 +691,8 @@ class XrayRun {
           status: xs.xrayStatusSuccess,
           processedCh: live.totalCh,
         );
+        AppLog.add('X-Ray 解析完成 书#$bookId 词条 ${ents.length} 枚 · 用时 '
+            '${(_watch.elapsedMilliseconds / 1000).toStringAsFixed(1)}s');
         _sched._bumpRevision();
         _sched.ping();
       } catch (e) {
@@ -680,6 +703,8 @@ class XrayRun {
   }
 
   void _onFail(String message) {
+    AppLog.add('X-Ray 解析失败 书#$bookId 停在第 ${live.doneCh} 章: $message',
+        level: LhLevel.error);
     _worker?.cancel();
     _worker = null;
     _cancelled = true;

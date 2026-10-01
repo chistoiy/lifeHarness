@@ -281,7 +281,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                     md5: md5,
                     ci: widget.ci,
                   )),
-            if (!running && task != null && done < total)
+            if (!running &&
+                task != null &&
+                (done < total || status == xs.xrayStatusPause))
+              // 暂停态一律给续跑出口：锚点遍里暂停时 processedCh 已等于总章数，
+              // 只看 done<total 会让「已暂停 · 断点已存」变成没有按钮的死状态。
               _chip('xrBarContinue', '继续生成', () => sched.resume(widget.book, md5)),
             if (!running && task != null) ...[
               const SizedBox(width: 6),

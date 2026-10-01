@@ -97,8 +97,17 @@ class _FakeWorker implements XrayWorker {
 
   @override
   void feedAnchor(int ci, List<String> paras) {
-    engine.anchorPass(XrayChapter(idx: ci, paras: _stored[ci] ?? const []));
-    scheduleMicrotask(() => _ev.onChapterDone(ci));
+    engine.anchorPass(XrayChapter(idx: ci, paras: _stored[ci] ?? paras));
+    // 与真 isolate `_entry` 同形：锚点遍**只回 'w' 不回 'd'**，越界才投递 result。
+    // （旧夹具在 finishCollect 里自己把锚点遍跑完，等于绕过了握手，
+    //  把 `_onWantAnchor` 掩盖成死代码 → 真机第一章后死锁。）
+    scheduleMicrotask(() {
+      if (ci + 1 >= _spec.totalCh) {
+        _ev.onResult(_payloadOf(_keep!));
+      } else {
+        _ev.onWantAnchor(ci + 1);
+      }
+    });
   }
 
   @override
@@ -110,9 +119,8 @@ class _FakeWorker implements XrayWorker {
     }
     _keep = engine.finish(tocTitles: _spec.tocTitles);
     if (engine.needsAnchorPass) {
-      for (final e in _stored.entries) {
-        engine.anchorPass(XrayChapter(idx: e.key, paras: e.value));
-      }
+      scheduleMicrotask(() => _ev.onWantAnchor(0));
+      return;
     }
     scheduleMicrotask(() => _ev.onResult(_payloadOf(_keep!)));
   }
