@@ -3147,20 +3147,6 @@ tailwind.config = {
       <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetXrAdd')">取消</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrDoAdd()">加为词条</button></div>
     </div>
   </div>
-  <div id="sheetXrPeek" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrPeek')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="flex items-center justify-between"><b class="text-[15px]">X-Ray</b><span class="text-[9px] text-slate-400">选区命中</span></div>
-      <div id="xrPeekBody" class="mt-2"></div>
-    </div>
-  </div>
-  <div id="sheetXrMiss" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrMiss')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="flex items-center justify-between"><b class="text-[15px]">未命中全书索引</b><span class="text-[9px] text-slate-400">选区 · X-Ray</span></div>
-      <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">选中文本</span><b class="ml-auto" id="xrMissWord">—</b></div>
-      <div class="mt-2 text-[10px] text-slate-400">把它养进词库（加为词条并全书补扫），或拉黑（养词库生效期间不再显示）。</div>
-      <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetXrMiss')">取消</button><button class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold" id="xrMissBan" onclick="xrMissBan()">改为屏蔽</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" id="xrMissAdd" onclick="xrMissAdd()">加为词条</button></div>
-    </div>
-  </div>
   <div id="sheetXrMerge" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrMerge')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8"><div id="xrMergeBody"></div></div>
   </div>
@@ -8274,7 +8260,11 @@ function br35Seed(){
     var h='';
     /* ④（工单20261001轮2）：全书范围不再置顶「在当前页」分组——当前页只由范围段切换表达。 */
     var rest=hi;
-    if(!hi.length&&!lo.length)h+='<div class="text-[10px] text-slate-400 py-6 text-center">该范围没有词条</div>';
+    if(!hi.length&&!lo.length){
+      if(XR.kw.trim())h+='<div class="text-[10px] text-slate-400 py-3 text-center">没有找到「'+XR.kw.trim()+'」</div>'
+        +'<div class="flex justify-center pb-2"><button class="grad text-white !text-[10px] font-bold px-3 py-1.5 rounded-lg" id="xrKwAdd" onclick="xrAddKw()">＋ 加为词条</button></div>';
+      else h+='<div class="text-[10px] text-slate-400 py-6 text-center">该范围没有词条</div>';
+    }
     h+=rest.map(function(x){return xrRowHtml(x,false)}).join('');
     if(lo.length){
       h+='<div class="xr-grplbl mt-2 cursor-pointer" id="xr-lowmore" onclick="xrToggleLow()">'+(XR.lowOpen?'收起低置信':'低置信 · '+lo.length+' · 展开')+'</div>';
@@ -8282,7 +8272,7 @@ function br35Seed(){
     }
     h+='<div class="xr-sortrow"><span class="chip !text-[10px]" id="xrSortBtn" onclick="xrToggleSort()">'+({score:'按相关度',n:'按出场',name:'按名称'})[XR.sort]+' ▾</span></div>';
     h+='<div class="text-[9px] text-slate-400 text-center pb-2">'+XR_ENTS.length+' 个词条 · 出场锚点全量 · 上下文截断（每实体前 N 条）</div>';
-    return h
+    return (XR.kw.trim()?'<div class="flex items-center gap-2 px-1 pt-1 pb-1"><span class="text-[10px] text-slate-400">搜索「'+XR.kw.trim()+'」</span><span class="flex-1"></span><button class="chip !text-[9px] !px-2.5" id="xrKwClr" onclick="xrKwClear()">清除</button></div>':'')+h
   }
   function xrDetailHtml(x){
     if(!x)return xrListHtml();
@@ -8525,20 +8515,12 @@ function br35Seed(){
     if(!w)w=(brV&&brV.selWord)||'';
     if(!w){toast('先选中文字');return}
     var hit=XR_ENTS.find(function(v){return v.name===w||w.indexOf(v.name)>=0||v.name.indexOf(w)>=0});
-    if(hit)xrPeekOpen(hit.name)
-    else xrMissOpen(w)
+    if(hit){brTocOpen('xr');xrPickEnt(hit.id);return}
+    brTocOpen('xr');XR.kw=w;XR.cur=null;XR.mode='list';xrRender()
+    /* 选区未命中＝面板带入搜索+空态加词入口（批2修③ 口径：屏蔽不前置，仍留在词条详情与管理页） */
   };
-  window.xrPeekOpen=function(word){
-    var x=XR_ENTS.find(function(v){return v.name===word});
-    if(!x){xrAddOpen(word);return}
-    var h='<div class="flex items-center gap-2 flex-wrap"><b class="text-[15px]">'+x.name+'</b><span class="xr-tbadge '+(x.usr?'user':x.type)+'">'+(x.usr?'我的词条':XR_TL[x.type])+'</span>'+(x.toc?'<span class="xr-tbadge toc">目录词</span>':'')+'</div>';
-    h+='<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5">'+x.n+' 次提及 · 跨 '+x.chs+' 章 · 置信 '+x.score.toFixed(2)+(x.dlg!=null?' · 台词 '+x.dlg+' 段':'')+'</div>';
-    if(x.q)h+='<div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400">'+x.q+'</div>';
-    h+='<div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet(\'sheetXrPeek\')">关闭</button><button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrPeekToPanel(\''+x.name+'\')">查看全部位置</button></div>';
-    document.getElementById('xrPeekBody').innerHTML=h;
-    openSheet('sheetXrPeek')
-  };
-  window.xrPeekToPanel=function(name){closeSheet('sheetXrPeek');var x=XR_ENTS.find(function(v){return v.name===name});if(x)xrPickEnt(x.id);else brTocOpen('xr')};
+  window.xrKwClear=function(){XR.kw='';XR.mode='list';xrRender()};
+  window.xrAddKw=function(){xrAddOpen(XR.kw.trim())};
   /* V1.54.1 批2 · GLOBAL 养成词库管理 + 启用开关 + 选区未命中二选一 */
   window.xrUserDictOn=function(){return BS_SET.xrUserDict!==false};
   window.xrUserDictFlip=function(){BS_SET.xrUserDict=!xrUserDictOn();xrRender();
@@ -8584,13 +8566,6 @@ function br35Seed(){
     renderXrWords();toast('已更新动作')};
   window.xrwDel=function(w){XR_WORDS=XR_WORDS.filter(function(r){return r.w!==w});delete XR_BLOCKED[w];
     renderXrWords();toast('已删除「'+w+'」')};
-  var xrMissW='';
-  window.xrMissOpen=function(w){xrMissW=w||'';
-    document.getElementById('xrMissWord').textContent=xrMissW;openSheet('sheetXrMiss')};
-  window.xrMissAdd=function(){closeSheet('sheetXrMiss');xrAddOpen(xrMissW)};
-  window.xrMissBan=function(){XR_BLOCKED[xrMissW]=1;closeSheet('sheetXrMiss');
-    try{xrRender()}catch(e){}
-    toast('已屏蔽「'+xrMissW+'」· 关养词库开关可恢复')};
   var xrAddPick={word:'',type:'term',scope:'book'};
   window.xrAddOpen=function(word){
     xrAddPick={word:word||'',type:xrGuessType(word||''),scope:'book'};
@@ -8721,7 +8696,7 @@ function br35Seed(){
       brOpen('b1');brShowChrome();
       BS_SET.brSelOps=['X-Ray','复制','划线','书摘'];brSelActsRender();
       var els=[].slice.call(document.querySelectorAll('#brBody [data-pi]'));
-      if(!els.length){xrPeekOpen('系统1');return}
+      if(!els.length){brTocOpen('xr');xrPickEnt('e_s1');return}
       var pi=-1,st='';
       for(var i=0;i<els.length;i++){var el=els[i];var ppi=+el.dataset.pi;
         var arr=brChText(brV.b,brLeaves(brV.b)[brV.ci]);var t=(arr[ppi]&&arr[ppi].t)||'';
@@ -8731,15 +8706,13 @@ function br35Seed(){
       if(pi>=0){var ix2=st.indexOf('系统1');
         brSelect(pi,pi,ix2,ix2+3);brBindHandles();brHandlePlace();
         if(m==='peek')xrSelTool();else xrAddOpen('巧克力');
-        var pk=document.getElementById('sheetXrPeek');
-        if(m==='peek'&&pk.classList.contains('hidden'))xrPeekOpen('系统1');
       } else {
-        if(m==='peek')xrPeekOpen('系统1');else xrAddOpen('巧克力')
+        if(m==='peek'){brTocOpen('xr');xrPickEnt('e_s1')}else xrAddOpen('巧克力')
       }
       return
     }
     if(m==='dict'){navTo('p-xrwords');renderXrWords();return}
-    if(m==='miss'){brOpen('b1');brShowChrome();xrMissOpen('麦田里的守望者');return}
+    if(m==='miss'){brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');XR.kw='麦田里的守望者';XR.cur=null;XR.mode='list';xrRender();return}
     if(m==='fail'){xrSeed();brOpen('b1');brShowChrome();xrBootCh();brTocOpen('xr');openSheet('sheetXrFail');return}
   }catch(e){console.warn('xr',e)}})();
 })();

@@ -187,14 +187,13 @@ async function go(q) {
   (r.sh && /全书索引（X-Ray）/.test(r.row) && /已索引 12\/18 章 · 随阅读推进/.test(r.row)) ? ok('屏5 阅读器菜单行（入口=上拉面板 X-Ray 段）', r.row) : bad('屏5 菜单行', JSON.stringify(r));
   await go('xr=peek');
   r = await ev(`var chips=[].map.call(document.querySelectorAll('#brSelActs .sdb span'),function(x){return x.textContent});
-    return{chip:chips.indexOf('X-Ray')>=0,sh:!document.getElementById('sheetXrPeek').classList.contains('hidden'),
-      body:document.getElementById('xrPeekBody').innerText.slice(0,60)};`);
-  (r.chip && r.sh && /系统1/.test(r.body) && /查看全部位置/.test(r.body)) ? ok('屏5 工具条 X-Ray · 迷你卡「查看全部位置」', r.body.replace(/\n/g, ' ').slice(0, 36)) : bad('屏5 peek', JSON.stringify(r));
+    return{chip:chips.indexOf('X-Ray')>=0,
+      pane:!document.getElementById('xrPane').classList.contains('hidden'),
+      drawer:!document.getElementById('brTocDrawer').classList.contains('hidden'),
+      peekGone:document.getElementById('sheetXrPeek')===null,
+      detail:/系统1/.test((document.getElementById('xrList')||{innerText:''}).innerText.slice(0,80))};`);
+  (r.chip && r.pane && r.drawer && r.peekGone && r.detail) ? ok('屏5 工具条 X-Ray：命中→直达面板详情（批2修③ 迭代迷你卡中转）') : bad('屏5 peek', JSON.stringify(r));
   await shot('xr-peek.png');
-  r = await ev(`document.querySelector('#xrPeekBody [onclick^="xrPeekToPanel"]').click();
-    return{pane:!document.getElementById('xrPane').classList.contains('hidden'),drawer:!document.getElementById('brTocDrawer').classList.contains('hidden'),
-      detail:/系统1/.test(document.getElementById('xrList').innerText.slice(0,60))};`);
-  (r.pane && r.drawer && r.detail) ? ok('迷你卡→查看全部位置：开面板 X-Ray 段并选中词条') : bad('迷你卡跳转', JSON.stringify(r));
   await go('xr=add');
   r = await ev(`return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),word:document.getElementById('xrAddWordIn').value};`);
   (r.sh && r.word === '巧克力') ? ok('屏5 未命中→加为词条（预填选区词）') : bad('屏5 加词', JSON.stringify(r));
@@ -239,15 +238,18 @@ async function go(q) {
     return{txt:b2.textContent,on:b2.className.indexOf('chip-on')>=0};`);
   (/养词库 关/.test(r.txt) && !r.on) ? ok('批2 面板头养词库开关点按') : bad('批2 面板头开关', JSON.stringify(r));
   await go('xr=miss');
-  r = await ev(`return{sh:!document.getElementById('sheetXrMiss').classList.contains('hidden'),
-    w:document.getElementById('xrMissWord').textContent,
-    btns:[].map.call(document.querySelectorAll('#sheetXrMiss button'),function(x){return x.textContent}).join('|')};`);
-  (r.sh && r.w === '麦田里的守望者' && /加为词条/.test(r.btns) && /改为屏蔽/.test(r.btns))
-    ? ok('批2 选区未命中二选一弹层', r.btns) : bad('批2 未命中弹层', JSON.stringify(r));
-  r = await ev(`xrMissBan();var out={toast:/已屏蔽/.test(document.getElementById('toast').innerText)};
-    xrAddOpen('巧克力');out.prefill=document.getElementById('xrAddWordIn').value;
-    return out;`);
-  (r.toast && r.prefill === '巧克力') ? ok('批2 改为屏蔽反馈 + 二选一→加词预填') : bad('批2 屏蔽', JSON.stringify(r));
+  r = await ev(`return{pane:!document.getElementById('xrPane').classList.contains('hidden'),
+    empty:/没有找到「麦田里的守望者」/.test((document.getElementById('xrList')||{innerText:''}).innerText),
+    add:!!document.getElementById('xrKwAdd'),missGone:document.getElementById('sheetXrMiss')===null};`);
+  (r.pane && r.empty && r.add && r.missGone) ? ok('批2修③ 未命中→面板带入搜索+空态加词入口（不前置屏蔽）') : bad('批2修③ 未命中', JSON.stringify(r));
+  r = await ev(`document.getElementById('xrKwAdd').click();
+    return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),
+      prefill:document.getElementById('xrAddWordIn').value};`);
+  (r.sh && r.prefill === '麦田里的守望者') ? ok('批2修③ 空态加词预填选区词') : bad('批2修③ 加词预填', JSON.stringify(r));
+  r = await ev(`closeSheet('sheetXrAdd');xrKwClear();
+    var t=(document.getElementById('xrList')||{innerText:''}).innerText;
+    return{empty:/没有找到/.test(t),banner:/搜索「/.test(t)};`);
+  (!r.empty && !r.banner) ? ok('批2修③ 清除搜索回全量列表') : bad('批2修③ 清除', JSON.stringify(r));
   await go('xr=more');
   r = await ev(`var row=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).find(function(x){return /词库管理/.test(x.innerText)});
     return{row:row?row.innerText.replace(/\\s+/g,' '):''};`);
@@ -262,7 +264,7 @@ async function go(q) {
   /* 收尾：emoji 与异常 */
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
-    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','sheetXrMiss','p-xrwords'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
+    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','p-xrwords'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
     var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab].join(',')};`);
   (!r.emoji && r.fns === 'function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
