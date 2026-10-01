@@ -17,6 +17,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../../../../core/database/schema/xray.dart' as xs;
+import '../../../../core/logging/app_log.dart';
 import '../../data/xray/xray_dao.dart' show XrayEntityRow;
 import './reader_xray_learn_sheets.dart' show showXrPeekSheet;
 import '../../data/epub_doc.dart';
@@ -152,7 +153,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  @override
   @override
   void initState() {
     super.initState();

@@ -156,8 +156,10 @@ Future<void> _xrSelLookup(String w) async {
 void xrNoteBackground() {
   try {
     ref.read(xraySchedulerProvider).noteBackground();
-  } catch (_) {
-    // catch-ok: 容器已销毁（页面出栈竞态）——调度器随 ProviderScope 存活，无需本页处理。
+  } catch (e) {
+    // 真机 2026-10-01 16:28：退后台暂停没生效，而这条静默 catch 是唯一可能吞掉
+    // 原因的地方（容器销毁只是其中一种）。留痕后再判，不再裸吞。
+    AppLog.add('X-Ray 退后台暂停未执行: $e', level: LhLevel.warn);
   }
 }
 
