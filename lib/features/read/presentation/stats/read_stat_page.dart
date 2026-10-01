@@ -9,6 +9,7 @@ import '../../domain/shelf_query.dart' show sessionAggByBook, quoteCountByBook;
 import '../shelf/read_lists_page.dart' show openYearBooklist;
 import '../read_providers.dart';
 import '../read_sheets.dart';
+import 'read_stat_widgets.dart';
 
 /// 阅读统计（原型 p-readstat · §3.4：年×月钻取 + 度量/构成切换 + 四卡 +
 /// 热力图 + 月度柱 + 构成环 + 时段 + 均速 + 购书支出/完读书字数 + 目标五路）。
@@ -264,7 +265,16 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 const SizedBox(height: 12),
                 _moneyRow(cs, tokens, s),
                 const SizedBox(height: 12),
-                _booksTimeCard(cs, s),
+                // ⑦ 按书累计时长（工单20261001轮2）：点行复用书籍资料页
+                // /read/info/:id（其「累计时长→计时明细」链现成），不另建单书统计页。
+                ReadStatBooksTimeCard(
+                  rows: ReadStatBookMinute.rowsOf(
+                    s.books,
+                    s.minutesByBook,
+                    s.quotesByBook,
+                  ),
+                  onOpen: (id) => context.push('/read/info/$id'),
+                ),
                 const SizedBox(height: 12),
                 _speedCard(cs, tokens, s),
                 const SizedBox(height: 12),
@@ -833,7 +843,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 width: 70,
                 height: 70,
                 child: CustomPaint(
-                  painter: _DonutPainter(
+                  painter: ReadStatDonutPainter(
                     fracs: [
                       for (final e in entries) total == 0 ? 0 : e.value / total,
                     ],
@@ -945,107 +955,6 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  /// ⑦ 按书累计时长（工单 20261001 轮2 · 原型 p-readstat 新增 rsBooks 段）：
-  /// 时长降序 · 行内＝书名 · bsFmt 累计 · 摘录数 · 进度；点行进书籍资料页
-  /// （复用 /read/info/:id 的「累计时长→计时明细」链，不另建单书统计页）。
-  Widget _booksTimeCard(ColorScheme cs, StatData s) {
-    final rows = [
-      for (final b in s.books)
-        if ((s.minutesByBook[b.id] ?? 0) > 0)
-          (b, s.minutesByBook[b.id]!, s.quotesByBook[b.id] ?? 0),
-    ]..sort((a, e) => e.$2.compareTo(a.$2));
-    return Container(
-      key: const ValueKey('rs-bookstime'),
-      padding: const EdgeInsets.all(14),
-      decoration: _deco(cs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '按书累计时长',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onSurface,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '时长 / 摘录 / 进度',
-                style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (rows.isEmpty)
-            Text(
-              '还没有计时的书',
-              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-            )
-          else
-            for (final (b, min, q) in rows)
-              InkWell(
-                key: ValueKey('rs-bt-${b.id}'),
-                onTap: () => context.push('/read/info/${b.id}'),
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          b.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        bsFmt(min),
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 46,
-                        child: Text(
-                          '$q 条',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          '${b.percent}%',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
         ],
       ),
     );
@@ -1447,46 +1356,4 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
       ),
     );
   }
-}
-
-class _DonutPainter extends CustomPainter {
-  _DonutPainter({required this.fracs, required this.colors});
-  final List<double> fracs;
-  final List<Color> colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.width / 2 - 6;
-    final total = fracs.fold<double>(0, (t, f) => t + f);
-    if (total <= 0) {
-      canvas.drawCircle(
-        c,
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 12
-          ..color = const Color(0xFFE2E8F0),
-      );
-      return;
-    }
-    var start = -pi / 2;
-    for (var i = 0; i < fracs.length && fracs[i] > 0; i++) {
-      final sweep = fracs[i] / total * 2 * pi;
-      canvas.drawArc(
-        Rect.fromCircle(center: c, radius: r),
-        start,
-        sweep,
-        false,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 12
-          ..color = colors[i],
-      );
-      start += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DonutPainter old) => old.fracs.join() != fracs.join();
 }
