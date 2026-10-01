@@ -7,7 +7,13 @@ import 'dart:ui' as ui; // V1.53.2 放大镜抓帧
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph, RenderRepaintBoundary;
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show
+        Clipboard,
+        ClipboardData,
+        SystemChrome,
+        SystemUiMode,
+        SystemUiOverlay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
@@ -94,6 +100,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   // chrome / 反馈
   bool _chrome = false;
+  /// ③（工单20261001轮2）正文沉浸：进页未主动收放过 chrome 不隐藏；收起后隐藏系统栏
+  /// （实现见 reader_chrome.dart `_ReaderImmersive` 扩展）。
+  bool _chromeShownOnce = false, _sysImmersive = false;
   /// R14-6：顶/底栏实测高度（BrSizeProbe 回灌；选区工具条让位约束 cT/cB 用）。
   double _topBarH = 0, _bottomBarH = 0;
   // 「回到进书位置」锚点：进书时的 (ci,pg)；拖离后进度弹层给出入口（轮5.2①）。
@@ -202,6 +211,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     }
     _loupeImage?.dispose();
     _scrollCtrl.dispose();
+    _sysUiRestore(); // ③：退出阅读页还原系统栏
     super.dispose();
   }
 
@@ -981,6 +991,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   Widget build(BuildContext context) {
     final th = brThemeResolved(_cfg);
     final bar = brBarOf(th.$2, th.$3);
+    // ③：chrome/抽屉/选区任何翻转都在 setState→build 之后统一同步系统栏。
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _syncSysUi(); });
     // 出页后的结算提示要用还活着的 messenger（离开前抓住）。
     _ms ??= ScaffoldMessenger.of(context);
     return PopScope(

@@ -2,6 +2,7 @@ import 'dart:convert' show base64Decode;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -342,6 +343,48 @@ void main() {
       await t.tap(find.byKey(const ValueKey('brHitClear')));
       await step(t);
       expect(find.byKey(const ValueKey('brHitsBar')), findsNothing);
+    });
+  });
+
+  group('③ 正文沉浸 · 系统栏（工单20261001轮2）', () {
+    testWidgets('收起隐藏/展开还原/退页还原（mock channel 钉 SystemChrome 调用）',
+        (t) async {
+      final calls = <String>[];
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          // 协议照框架源码（system_chrome.dart:609）：非 manual 走
+          // setEnabledSystemUIMode（参数＝模式串），manual 走
+          // setEnabledSystemUIOverlays（参数＝overlay 列表）。
+          if (call.method == 'SystemChrome.setEnabledSystemUIMode') {
+            calls.add('hide:${call.arguments as String}');
+          } else if (call.method == 'SystemChrome.setEnabledSystemUIOverlays') {
+            calls.add('show:${(call.arguments as List).join(',')}');
+          }
+          return null;
+        },
+      );
+      addTearDown(() => t.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      // openReader 已点过一次中区＝chrome 展开：进页/展开态绝不隐藏系统栏。
+      await openReader(t, _bigDoc(), 'u13');
+      await step(t);
+      expect(calls, isEmpty);
+      // 再点中区收起 → immersiveSticky。
+      await centerTap(t);
+      await step(t);
+      expect(calls, contains('hide:SystemUiMode.immersiveSticky'));
+      // 点出顶/底栏 → 全量 overlays 还原。
+      await centerTap(t);
+      await step(t);
+      expect(calls.last, 'show:SystemUiOverlay.top,SystemUiOverlay.bottom');
+      // 收起后离页（拆树触发 dispose）→ 还原，不把别的页带成无状态栏。
+      await centerTap(t);
+      await step(t);
+      expect(calls.last, 'hide:SystemUiMode.immersiveSticky');
+      await t.pumpWidget(wrap(const SizedBox.shrink(), _bigDoc()));
+      await step(t);
+      expect(calls.last, 'show:SystemUiOverlay.top,SystemUiOverlay.bottom');
     });
   });
 

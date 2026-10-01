@@ -426,3 +426,39 @@ extension _ReaderChrome on _ReaderPageState {
     return TextSpan(style: base, children: children);
   }
 }
+
+// ---------- ③ 正文沉浸（工单20261001轮2·用户拍板 chrome 收起才隐藏系统栏） ----------
+
+extension _ReaderImmersive on _ReaderPageState {
+  /// 每帧落定后同步：chrome 收起（且用户主动收放过）→ immersiveSticky；
+  /// 点出顶/底栏、开抽屉/面板、选区出现 → 还原。弹层均由展开态 chrome 入口
+  /// 进入（进入前一步已还原），故无需逐弹层埋点；「在当前页」分组等不影响此链。
+  void _syncSysUi() {
+    if (_chrome) _chromeShownOnce = true;
+    final want = _chromeShownOnce &&
+        !_chrome &&
+        !_drawerOpen &&
+        _selController.sel == null;
+    if (want == _sysImmersive) return;
+    _sysImmersive = want;
+    _applySysUi(!want);
+  }
+
+  /// 退出阅读页还原系统栏，不把别的页带成无状态栏。
+  void _sysUiRestore() {
+    if (!_sysImmersive) return;
+    _sysImmersive = false;
+    _applySysUi(true);
+  }
+
+  void _applySysUi(bool visible) {
+    if (visible) {
+      SystemChrome.setEnabledSystemUIMode(
+        SystemUiMode.manual,
+        overlays: SystemUiOverlay.values,
+      );
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
+  }
+}
