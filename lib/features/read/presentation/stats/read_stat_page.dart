@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/book.dart';
-import '../../domain/shelf_query.dart' show sessionAggByBook;
+import '../../domain/shelf_query.dart' show sessionAggByBook, quoteCountByBook;
 import '../shelf/read_lists_page.dart' show openYearBooklist;
 import '../read_providers.dart';
 import '../read_sheets.dart';
@@ -28,6 +28,7 @@ class StatData {
     required this.hours,
     required this.books,
     required this.minutesByBook,
+    required this.quotesByBook,
     required this.speed,
     required this.fee,
     required this.paid,
@@ -46,6 +47,9 @@ class StatData {
   /// 构成分布数据源：藏书与每本累计分钟（按维度现场聚合）。
   final List<Book> books;
   final Map<String, int> minutesByBook;
+
+  /// ⑦ 按书累计时长段的行内摘录数（在库行口径，与笔记库计数同源）。
+  final Map<String, int> quotesByBook;
 
   /// 均速榜：(书名, 分/页)。
   final List<({String title, double minPerPage})> speed;
@@ -67,6 +71,7 @@ final _statProvider = FutureProvider.family<StatData, int>((ref, year) async {
   final books = (await repo.allBooks()).where((b) => !b.isDeleted).toList();
   final sessions = await repo.allSessions();
   final agg = sessionAggByBook(sessions);
+  final quotesByBook = quoteCountByBook(await repo.allQuotes());
   final speed = [
     for (final b in books)
       if (b.readPages > 0 && (agg[b.id]?.minutes ?? 0) > 0)
@@ -81,6 +86,7 @@ final _statProvider = FutureProvider.family<StatData, int>((ref, year) async {
     hours: hours,
     books: books,
     minutesByBook: {for (final b in books) b.id: agg[b.id]?.minutes ?? 0},
+    quotesByBook: quotesByBook,
     speed: speed.take(5).toList(),
     fee: fee.fee,
     paid: fee.paid,
@@ -257,6 +263,8 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
                 const SizedBox(height: 12),
                 _moneyRow(cs, tokens, s),
+                const SizedBox(height: 12),
+                _booksTimeCard(cs, s),
                 const SizedBox(height: 12),
                 _speedCard(cs, tokens, s),
                 const SizedBox(height: 12),
@@ -937,6 +945,107 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  /// ⑦ 按书累计时长（工单 20261001 轮2 · 原型 p-readstat 新增 rsBooks 段）：
+  /// 时长降序 · 行内＝书名 · bsFmt 累计 · 摘录数 · 进度；点行进书籍资料页
+  /// （复用 /read/info/:id 的「累计时长→计时明细」链，不另建单书统计页）。
+  Widget _booksTimeCard(ColorScheme cs, StatData s) {
+    final rows = [
+      for (final b in s.books)
+        if ((s.minutesByBook[b.id] ?? 0) > 0)
+          (b, s.minutesByBook[b.id]!, s.quotesByBook[b.id] ?? 0),
+    ]..sort((a, e) => e.$2.compareTo(a.$2));
+    return Container(
+      key: const ValueKey('rs-bookstime'),
+      padding: const EdgeInsets.all(14),
+      decoration: _deco(cs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '按书累计时长',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '时长 / 摘录 / 进度',
+                style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Text(
+              '还没有计时的书',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            )
+          else
+            for (final (b, min, q) in rows)
+              InkWell(
+                key: ValueKey('rs-bt-${b.id}'),
+                onTap: () => context.push('/read/info/${b.id}'),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          b.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        bsFmt(min),
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(
+                        width: 46,
+                        child: Text(
+                          '$q 条',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          '${b.percent}%',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
         ],
       ),
     );

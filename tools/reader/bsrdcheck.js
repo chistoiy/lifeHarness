@@ -169,9 +169,9 @@ async function assertPage(p,render,minLen){
  await assertPage('p-readerPage','brRenderPage',40);
  await cmd('Runtime.evaluate',{expression:"CURBK='b1';brV.b='b1';document.getElementById('brSq').value='折扣'"});await assertPage('p-readerSearch','brSearchRender',60);
  await assertPage('p-readset','renderReadSet',100);
- /* 既有能力回归抽查 */
- const reg=await ev(`renderShelf();renderQuotes();renderBookDetail();renderReadStat();return {shelf:document.getElementById('shBody').children.length>0,quotes:document.getElementById('qtList').innerText.length>50}`);
- reg.shelf&&reg.quotes?ok('既有书架/笔记库渲染回归'):bad('既有回归',JSON.stringify(reg));
+ /* 既有能力回归抽查（⑦扩容：按书累计时长段存在且时长降序） */
+ const reg=await ev(`renderShelf();renderQuotes();renderBookDetail();renderReadStat();return {shelf:document.getElementById('shBody').children.length>0,quotes:document.getElementById('qtList').innerText.length>50,bt:document.getElementById('rsBooks').children.length>0,ord:(function(){var a=[].map.call(document.getElementById('rsBooks').children,function(e){return +e.dataset.m||0});return a.length>1&&a.every(function(v,i){return i===0||a[i-1]>=v})})()}`);
+ reg.shelf&&reg.quotes&&reg.bt&&reg.ord?ok('既有书架/笔记库渲染回归+⑦按书时长'):bad('既有回归',JSON.stringify(reg));
  log('JS 异常 '+(errs.length?(':\n'+errs.join('\n')):'0 条'));
  errs.length?bad('无 JS 异常',errs.length+' 条'):ok('无 JS 异常');
  /* 深链新实例 */

@@ -961,6 +961,10 @@ tailwind.config = {
       </div>
       <div class="mt-3 grid grid-cols-2 gap-2.5" id="rsMoney"></div>
       <div class="mt-3 card">
+        <div class="flex items-center justify-between"><div class="row-title">按书累计时长</div><span class="text-[10px] text-slate-400">时长 / 摘录 / 进度</span></div>
+        <div id="rsBooks" class="mt-2.5 space-y-1.5"></div>
+      </div>
+      <div class="mt-3 card">
         <div class="flex items-center justify-between"><div class="row-title">阅读速度分布</div><span class="text-[10px] text-slate-400">分钟 / 页</span></div>
         <div id="rsSpeed" class="mt-3 space-y-2"></div>
         
@@ -5719,6 +5723,8 @@ function renderReadStat(){const el=document.getElementById('rsCards');if(!el)ret
   document.getElementById('rsDonutLg').innerHTML=cs.slice(0,4).map((x,i)=>`<div><i class="qtag" style="background:${pal[i%6]}"></i>${x[0]} <b>${Math.round(x[1]/ct*100)}%</b></div>`).join('');
   const hrs=Array.from({length:24},(_,h)=>{const seed=bsHash('h'+h+rsYearCur);return 2+(seed%22)+(h>=19||h<=8?2:0)});const hm=Math.max.apply(null,hrs);
   document.getElementById('rsHours').innerHTML=hrs.map((v,i)=>`<div class="flex-1 rounded-t bg-brand-500/70" style="height:${Math.max(2,v/hm*66)}px" onclick="toast('${i}:00 时段 · ${v} 分钟')"></div>`).join('');
+  document.getElementById('rsBooks').innerHTML=(function(){var lb=BS_BOOKS.filter(function(b){return b.min>0}).slice().sort(function(x,y){return y.min-x.min});
+    return lb.length?lb.map(function(b){return '<div class="flex items-center gap-2 text-[11px] cursor-pointer active:opacity-60" data-m="'+b.min+'" onclick="biOpen(\''+b.id+'\')"><span class="flex-1 truncate text-slate-500 dark:text-slate-400">'+b.n+'</span><b class="tabular-nums">'+bsFmt(b.min)+'</b><span class="w-12 text-right text-slate-400">'+b.q+' 条</span><span class="w-10 text-right text-slate-400">'+b.p+'%</span></div>'}).join(''):'<div class="text-[11px] text-slate-400">还没有计时的书</div>'})();
   document.getElementById('rsSpeed').innerHTML=BS_BOOKS.filter(b=>b.rp&&b.min).slice(0,5).map(b=>`<div class="flex items-center gap-2 text-[11px]"><span class="w-28 truncate text-slate-500 dark:text-slate-400">${b.n}</span><div class="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${Math.min(100,bsSpeed(b)*14)}%"></span></div><b class="w-[62px] text-right text-[10.5px]">${bsSpeed(b)} 分/页</b></div>`).join('');
   const fee=BS_BOOKS.reduce((t,b)=>t+(b.fee||0),0),paid=BS_BOOKS.filter(b=>b.fee).length;
   const words=BS_BOOKS.filter(b=>b.st==='已读').reduce((t,b)=>t+b.pg*520,0);

@@ -1143,6 +1143,51 @@ void main() {
       expect(rows, hasLength(1));
     });
 
+    testWidgets('⑦ 按书累计时长卡：时长降序 · 行内摘录/进度 · 点行进书籍资料页',
+        (tester) async {
+      await repo.addBook(bk('t1', '甲本', Book.kStateReading, rp: 30));
+      await repo.addBook(bk('t2', '乙本', Book.kStateReading, rp: 80));
+      await repo.addBook(bk('t0', '零分钟本', Book.kStateWant));
+      await repo.addManualSession(
+          day: DateTime.now(), bookId: 't1', minutes: 125, fromPage: 0, toPage: 30);
+      await repo.addManualSession(
+          day: DateTime.now(), bookId: 't2', minutes: 45, fromPage: 0, toPage: 80);
+      await repo.addQuote(BookQuote(
+          bookId: 't1', kind: BookQuote.kKindMark, body: '甲句一', createdAt: 0, updatedAt: 0));
+      await repo.addQuote(BookQuote(
+          bookId: 't1', kind: BookQuote.kKindMark, body: '甲句二', createdAt: 0, updatedAt: 0));
+      await repo.addQuote(BookQuote(
+          bookId: 't2', kind: BookQuote.kKindMark, body: '乙句', createdAt: 0, updatedAt: 0));
+      final gone = (await repo.addQuote(BookQuote(
+          bookId: 't2', kind: BookQuote.kKindMark, body: '已删的', createdAt: 0, updatedAt: 0)))!;
+      await repo.softDeleteQuote(gone);
+      await tester.pumpWidget(routed(const ReadStatPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester);
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-bookstime')));
+      // 零分钟书不入榜；125m → bsFmt '2h5m' 在前，45m → '45′' 在后。
+      expect(find.byKey(const ValueKey('rs-bt-t0')), findsNothing);
+      expect(find.text('2h5m'), findsOneWidget);
+      expect(find.text('45′'), findsOneWidget);
+      expect(
+          tester.getTopLeft(find.byKey(const ValueKey('rs-bt-t1'))).dy,
+          lessThan(tester
+              .getTopLeft(find.byKey(const ValueKey('rs-bt-t2')))
+              .dy));
+      // 行内计数与进度：甲本 2 条 30%；乙本 1 条（软删不计数）80%。
+      expect(find.text('2 条'), findsOneWidget);
+      expect(find.text('1 条'), findsOneWidget);
+      expect(find.text('30%'), findsOneWidget);
+      expect(find.text('80%'), findsOneWidget);
+      // 点行 → 复用书籍资料页（/read/info/:id），不另建单书统计页。
+      await tester.tap(find.byKey(const ValueKey('rs-bt-t1')));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('bi-edit')));
+      expect(find.text('甲本'), findsWidgets);
+    });
+
     testWidgets('R-18 手动建单 → 详情移出 → 书保留', (tester) async {
       await repo.addBook(bk('m1', '甲书', Book.kStateReading));
       await repo.addBook(bk('m2', '乙书', Book.kStateReading));
