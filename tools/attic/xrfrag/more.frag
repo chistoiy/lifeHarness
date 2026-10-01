@@ -1,0 +1,1 @@
+        <div class="flex items-center justify-between py-1 cursor-pointer" onclick="closeSheet('sheetBrMore');xrEntry()"><span>全书索引（X-Ray）</span><b class="text-[10px] text-slate-400" id="brMoreXr">已解析 12/18 章</b></div>
