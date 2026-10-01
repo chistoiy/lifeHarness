@@ -461,7 +461,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     );
   }
 
-  // ---------- 列表（xrListHtml：当前页分组 + 高/低置信 + 排序 pill） ----------
+  // ---------- 列表（xrListHtml：高/低置信 + 排序 pill · ④全书态不置顶「在当前页」分组） ----------
 
   Widget _list(XrayPanelData snap, String md5) {
     var pool = _scoped(snap.entities, snap.anchors);
@@ -474,9 +474,6 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     final cut = _topScore * _kLowRatio;
     final hi = _sorted(pool.where((e) => e.score >= cut).toList());
     final lo = _sorted(pool.where((e) => e.score < cut).toList());
-    final onCur = _scope == 'book'
-        ? hi.followedBy(lo).where((e) => _onPage(e, snap.anchors[e.id])).toList()
-        : const <XrayEntityRow>[];
 
     if (pool.isEmpty) {
       return ListView(
@@ -495,14 +492,9 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     }
 
     final rows = <Widget>[];
-    if (_scope == 'book' && onCur.isNotEmpty) {
-      rows.add(_groupLbl('xr-grpCurLbl', '在当前页 · ${onCur.length}'));
-      rows.addAll(onCur
-          .map((e) => _row(e, snap.anchors[e.id], inCur: true)));
-      rows.add(_groupLbl('xr-grpBookLbl', '在书中'));
-    }
-    final rest = hi.where((e) => !onCur.contains(e)).toList();
-    rows.addAll(rest.map((e) => _row(e, snap.anchors[e.id])));
+    // ④（工单20261001轮2·用户拍板）：全书范围不显示「在当前页」分组，
+    // 当前页只由范围段选「当前页」表达（_scoped 过滤），与原型同步摘组。
+    rows.addAll(hi.map((e) => _row(e, snap.anchors[e.id])));
     if (lo.isNotEmpty) {
       rows.add(GestureDetector(
         key: const ValueKey('xr-lowmore'),
@@ -551,17 +543,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     return ListView(key: const ValueKey('xrList'), children: rows);
   }
 
-  Widget _groupLbl(String key, String text) => Padding(
-        key: Key(key),
-        padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
-        child: Text(
-          text,
-          style: const TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w900, color: _XrStyle.muted),
-        ),
-      );
-
-  Widget _row(XrayEntityRow e, List<XrayAnchorRow>? ms, {bool inCur = false}) {
+  Widget _row(XrayEntityRow e, List<XrayAnchorRow>? ms) {
     final cs = Theme.of(context).colorScheme;
     final sel = _sel.contains(e.id);
     return GestureDetector(
@@ -580,11 +562,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: inCur
-                ? _XrStyle.accent.withValues(alpha: .55)
-                : cs.outlineVariant.withValues(alpha: .5),
-          ),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: .5)),
         ),
         foregroundDecoration: _org && sel
             ? BoxDecoration(

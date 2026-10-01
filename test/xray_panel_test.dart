@@ -413,8 +413,9 @@ void main() {
       // 类型段：人名/地点非空必现。
       expect(find.byKey(const ValueKey('xr-tp-per')), findsOne);
       expect(find.byKey(const ValueKey('xr-tp-loc')), findsOne);
-      // 「在当前页」分组：第一章第一段有李德，当前停在章0页0。
-      expect(find.textContaining('在当前页'), findsOne);
+      // ④（工单20261001轮2）：全书范围不再置顶「在当前页」分组（原型同步摘组）。
+      expect(find.textContaining('在当前页'), findsNothing);
+      expect(find.text('在书中'), findsNothing);
       // 点第一个词条行进详情。
       final rows = find.byWidgetPredicate((w) =>
           w is GestureDetector &&
@@ -450,8 +451,13 @@ void main() {
       await sched.start(book: b!, md5: 'M', from: 0, to: 1);
       await waitTask(sched, 'M');
       await toXrTab(t);
-      // 直接点「李德」行（列表按分值排，rows.first 未必是它；长引用列表懒建，勿靠滚动找）。
+      // 直接点「李德」行：同 isolate 前序解析/语料通道会产出高分垃圾词条，④去掉
+      // 「在当前页」置顶后 李德 可能被压进折叠的「低置信」段——先展开再点。
       final lideId = (await dao.allEntities('M')).firstWhere((e) => e.name == '李德').id;
+      if (find.byKey(const ValueKey('xr-lowmore')).evaluate().isNotEmpty) {
+        await t.tap(find.byKey(const ValueKey('xr-lowmore')));
+        await t.pump(const Duration(milliseconds: 100));
+      }
       await t.tap(find.byKey(ValueKey('xrRow-$lideId')));
       await t.pump(const Duration(milliseconds: 200));
       // 剧透保护默认隐藏未读引用：先「显示全部引用」再挑第二章的出场。

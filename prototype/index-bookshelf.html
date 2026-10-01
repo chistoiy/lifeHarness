@@ -8244,12 +8244,8 @@ function br35Seed(){
     var hi=[],lo=[];pool.forEach(function(x){(x.score<XR_LOW?lo:hi).push(x)});
     hi=xrSorted(hi);lo=xrSorted(lo);
     var h='';
-    var onCur=hi.concat(lo).filter(xrOnPage);
-    if(XR.scope==='book'&&onCur.length){
-      h+='<div class="xr-grplbl" id="xr-grpCurLbl">在当前页 · '+onCur.length+'</div>'+onCur.map(function(x){return xrRowHtml(x,true)}).join('')
-        +'<div class="xr-grplbl mt-2" id="xr-grpBookLbl">在书中</div>'
-    }
-    var rest=hi.filter(function(x){return !(XR.scope==='book'&&onCur.indexOf(x)>=0)});
+    /* ④（工单20261001轮2）：全书范围不再置顶「在当前页」分组——当前页只由范围段切换表达。 */
+    var rest=hi;
     if(!hi.length&&!lo.length)h+='<div class="text-[10px] text-slate-400 py-6 text-center">该范围没有词条</div>';
     h+=rest.map(function(x){return xrRowHtml(x,false)}).join('');
     if(lo.length){

@@ -59,10 +59,11 @@ async function go(q) {
       scopeSegs:document.querySelectorAll('#xrHead .xr-seg').length,
       types:document.querySelectorAll('#xrTypes .xr-tab').length,
       rows:document.querySelectorAll('#xrList .xr-row').length,
-      curGrp:!!document.getElementById('xr-grpCurLbl'),
+      curGrp:!document.getElementById('xr-grpCurLbl')&&!document.getElementById('xr-grpBookLbl'),
       bar:!!document.querySelector('#xr-bar-e_kmn i.now')};`);
+  /* ④（工单20261001轮2）：全书范围不置顶「在当前页」分组；当前页只走范围段切换 */
   (r.drawer && r.pane && r.tocHidden && r.segXr && r.wideFull && r.scopeSegs === 3 && r.types === 7 && r.rows >= 15 && r.curGrp && r.bar)
-    ? ok('面板=上拉全屏双段 · X-Ray 段：范围段3+类型段7+词条行+当前页分组+行内分布条', 'rows=' + r.rows) : bad('面板形态', JSON.stringify(r));
+    ? ok('面板=上拉全屏双段 · X-Ray 段：范围段3+类型段7+词条行+④全书态无当前页分组+行内分布条', 'rows=' + r.rows) : bad('面板形态', JSON.stringify(r));
   await shot('xr-panel.png');
   r = await ev(`document.getElementById('xrSegToc').click();
     var out={tocBack:!document.getElementById('brDrScroll').classList.contains('hidden'),
@@ -84,9 +85,13 @@ async function go(q) {
   (r.tocBack && r.paneOff && r.foldRow && r.searchMode && r.hits && r.clr && r.cleared && r.back && r.xrAgain && r.xrLbl === '搜词条' && r.segFlex)
     ? ok('头部三等分 · 点搜索独占态（输入/清空/取消）· 目录段命中与回归 · 段感知标签') : bad('头部/搜索', JSON.stringify(r));
   r = await ev(`var n0=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('chapter');
-    var n1=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('book');
-    return{n0:n0,n1:n1,back:document.querySelectorAll('#xrList .xr-row').length===n0};`);
-  (r.n1 < r.n0 && r.n1 >= 2 && r.back) ? ok('范围段：本章过滤生效（当前页/本章/全书）', r.n0 + '→' + r.n1) : bad('范围段', JSON.stringify(r));
+    var n1=document.querySelectorAll('#xrList .xr-row').length;
+    xrSetScope('page');
+    var n2=document.querySelectorAll('#xrList .xr-row').length;
+    var noLbl2=!document.getElementById('xr-grpCurLbl')&&!document.getElementById('xr-grpBookLbl');
+    xrSetScope('book');
+    return{n0:n0,n1:n1,n2:n2,noLbl2:noLbl2,back:document.querySelectorAll('#xrList .xr-row').length===n0};`);
+  (r.n1 < r.n0 && r.n1 >= 2 && r.n2 <= r.n1 && r.noLbl2 && r.back) ? ok('范围段：当前页/本章只过滤不加组（④）· 全书回位', r.n0 + '→' + r.n1 + '→' + r.n2) : bad('范围段', JSON.stringify(r));
   r = await ev(`xrPickType('per');var per=document.querySelectorAll('#xrList .xr-row').length;xrPickType('all');
     xrToggleLow();var lowOn=/收起低置信/.test(document.getElementById('xr-lowmore').textContent);xrToggleLow();
     xrToggleSort();var sl=document.getElementById('xrSortBtn').textContent;
