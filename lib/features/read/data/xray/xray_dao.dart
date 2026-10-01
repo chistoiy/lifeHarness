@@ -233,6 +233,20 @@ class XrayDao {
           where: 'book_md5 = ?',
           whereArgs: [md5]);
 
+  /// 冷启动收尸：App 单进程 ⇒ 库里残留的 `running` 只可能是上个进程被杀/崩溃
+  /// 留下的死任务。不收则面板走 `else` 分支谎报「已解析 x/x 章」（真机 15:43 见
+  /// 已解析 34/34 而词条 0），书架角标谎报「解析中」，且没有任何恢复入口。
+  /// 一律转 `pause`：断点语义成立，面板头给「继续生成」。
+  Future<int> reapStaleRunning() => _db.update(
+        DbSchema.tXrayTask,
+        {
+          'status': xs.xrayStatusPause,
+          'update_time': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'status = ?',
+        whereArgs: [xs.xrayStatusRunning],
+      );
+
   // -------------------------------------------------------------- xray_entity
 
   /// 引擎产出整批写入（**同事务**：词条与锚点必须一起成，否则面板会点到空锚点）。
@@ -312,7 +326,21 @@ class XrayDao {
 
   Future<void> _insertAnchors(Transaction txn, String md5, int entityId,
       List<XrayMention> anchors) async {
+    // **段级去重**：引擎侧 `hit`/`anchorOnly` 每次出现都记一条，多通道合并
+    // （`win.mentions.addAll`）还会带来非相邻重复；真机表现＝F5 出场列表整行
+    // 重复、迷你分布条同位叠点（2026-10-01 人类简史「几乎」第一章段 42 连列两次）。
+    // 提及数 `n` 仍按出现次数计，这里只保证锚点一格一条（优先保留带 snippet 的那条）。
+    final byPos = <String, XrayMention>{};
     for (final m in anchors) {
+      final k = '${m.ch}:${m.para}';
+      final old = byPos[k];
+      if (old == null) {
+        byPos[k] = m;
+      } else if (old.snippet == null && m.snippet != null) {
+        byPos[k] = XrayMention(m.ch, m.para, m.snippet);
+      }
+    }
+    for (final m in byPos.values) {
       await txn.insert(DbSchema.tXrayMention, {
         'entity_id': entityId,
         'book_md5': md5,

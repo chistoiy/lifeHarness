@@ -413,6 +413,8 @@ final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
     busyProbe: (bookId) => svc.warming(bookId) != null,
   );
   s.onRevised = () => ref.read(xrayRevisionProvider.notifier).state = s.revision;
+  // 冷启动收尸一次：上个进程留下的 running 行不转 pause，面板/角标会一直谎报状态。
+  unawaited(s.reconcileStale());
   return s;
 });
 

@@ -163,6 +163,20 @@ class _BoomWorker implements XrayWorker {
   void cancel() {}
 }
 
+/// 只收不回话的通道：喂完章不推进，用来验「暂停/恢复」这条状态机分支
+/// （假通道跑得太快，暂停态根本停不出来）。
+class _SilentWorker implements XrayWorker {
+  _SilentWorker(XrayWorkerEvents ev);
+  @override
+  void feedCollect(int ci, List<String> paras) {}
+  @override
+  void feedAnchor(int ci, List<String> paras) {}
+  @override
+  void finishCollect() {}
+  @override
+  void cancel() {}
+}
+
 void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
@@ -196,12 +210,16 @@ void main() {
     ));
   }
 
-  XrayScheduler makeScheduler({bool boom = false}) => XrayScheduler(
+  XrayScheduler makeScheduler({bool boom = false, bool silent = false}) =>
+      XrayScheduler(
         dao: dao,
         loadDoc: (_) async => _doc(),
         md5Hook: (_) async => 'M',
-        workerFactory: (spec, ev) async =>
-            boom ? _BoomWorker(ev) : _FakeWorker(spec, ev),
+        workerFactory: (spec, ev) async => boom
+            ? _BoomWorker(ev)
+            : silent
+                ? _SilentWorker(ev)
+                : _FakeWorker(spec, ev),
       );
 
   /// 假通道全链路只踩微任务（sqflite ffiNoIsolate 同线程），无需推钟。
@@ -226,6 +244,50 @@ void main() {
       expect(await dao.bookMd5('s1'), isNull);
       expect(await s.ensureMd5(b), 'M');
       expect(await dao.bookMd5('s1'), 'M');
+      s.dispose();
+    });
+
+    test('退后台暂停：running 标记必须落回，回前台给原地续喂（真机死状态回归）',
+        () async {
+      // 2026-10-01 15:49 真机：Home 后回来面板头仍「解析中 25%」，只剩「重置」——
+      // pause() 只停喂章、没清 live.running，于是标签和钮双双骗人。
+      final b = await addBook('s7');
+      final s = makeScheduler(silent: true);
+      await s.start(book: b, md5: 'M', from: 0, to: 1);
+      var up = false;
+      for (var i = 0; i < 500 && !up; i++) {
+        await dao.task('M'); // 真 DB 往返：让 _drive 的 await 链推进
+        up = s.live('s7')?.running ?? false;
+      }
+      expect(up, isTrue, reason: '静默通道下任务应停在「在跑」');
+      s.pauseBook('s7');
+      expect(s.live('s7')!.running, isFalse,
+          reason: '暂停后仍报在跑 → 面板永远「解析中」且「继续生成」不出现');
+      var paused = false;
+      XrayTaskRow? t;
+      for (var i = 0; i < 500 && !paused; i++) {
+        t = await dao.task('M');
+        paused = t?.status == 'pause';
+      }
+      expect(paused, isTrue, reason: '断点必须落库（进程被杀也接得回）');
+      await s.resume(b, 'M');
+      expect(s.live('s7')!.running, isTrue,
+          reason: 'worker 还活着＝原地续喂，不该整本重来');
+      s.dispose();
+    });
+
+    test('冷启动收尸：库里残留 running 转 pause（否则谎报已解析/解析中）', () async {
+      await dao.upsertTask(
+          md5: 'M',
+          totalCh: 2,
+          rangeStart: 0,
+          rangeEnd: 1,
+          status: 'running',
+          processedCh: 1);
+      final s = makeScheduler();
+      await s.reconcileStale();
+      expect((await dao.task('M'))!.status, 'pause',
+          reason: '单进程 app 里 running 只可能是上个进程的死任务');
       s.dispose();
     });
 

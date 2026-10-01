@@ -298,6 +298,20 @@ class XrayScheduler extends ChangeNotifier {
   /// 该书是否有活体 worker（进程内暂停后可原地续喂）。
   bool hasWorker(String bookId) => _runs[bookId]?._worker != null;
 
+  /// 冷启动收尸（provider 建出来就跑一次）：上个进程留下的 `running` 行转 `pause`。
+  Future<void> reconcileStale() async {
+    try {
+      final n = await dao.reapStaleRunning();
+      if (n > 0) {
+        AppLog.add('X-Ray 收尸：$n 条中断任务已标记为已暂停');
+        notifyListeners();
+      }
+    } catch (e) {
+      // catch-ok: 收尸失败只是少一次状态纠正（面板仍按库内旧态渲染），不该拖垮首次读。
+      AppLog.add('X-Ray 收尸失败: $e', level: LhLevel.warn);
+    }
+  }
+
   // ---------------------------------------------------------------- md5 补票
 
   /// 内容指纹（批A-3「MD5 接线补票」）：有则直返；无则对私有副本懒补算。
@@ -468,8 +482,13 @@ class XrayRun {
   void pause() {
     if (!live.running) return;
     _paused = true;
+    // 暂停必须把「在跑」标记一起落回：worker 驻留但不再喂章，若留着 running，
+    // 面板头会一直显示「解析中 x%」且按 `!running` 门控的「继续生成」钮永远不出现
+    // ——真机退后台回前台就成了没有出口的死状态（2026-10-01 15:49 撞实）。
+    live.running = false;
     _queuePersist(() => schedulerDao.patchTaskProgress(
         md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusPause));
+    _sched.ping();
   }
 
   // XrayRun 需要触达 dao/notify：由调度器在 _drive 里注入（避免到处传参）。

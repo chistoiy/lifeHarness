@@ -106,6 +106,58 @@ void main() {
         reason: '「已解析 x/y 章」按锚点跨章去重，面板不自己数');
   });
 
+  test('锚点段级去重：同段多次命中只落一条，提及数不跟着掉', () async {
+    // 真机 2026-10-01 16:03 人类简史「几乎」详情：第一章段 42 整行重复列两次。
+    // 引擎侧每次出现都记一条 mention（n 要数次数），多通道合并还会带来非相邻重复，
+    // 所以去重收在落库唯一出口，而不是收在某个通道的循环里。
+    final e = ents();
+    e[1].hit(1, 0); // 同段第二次出现 → n 变，锚点不该变
+    await dao.writeChapterResult(
+        md5: md5,
+        entities: e,
+        anchorsByName: {
+          '李伟': [
+            XrayMention(0, 2, '李伟说过'),
+            XrayMention(0, 2, null), // 重复且没带文：留带文的那条
+          ],
+          '认知革命': const [
+            XrayMention(1, 0),
+            XrayMention(1, 0),
+            XrayMention(2, 7),
+            XrayMention(1, 0), // 非相邻重复（合并通道带来）
+          ],
+        });
+    final term = (await dao.entitiesOfType(md5, 'term')).single;
+    expect(await dao.anchorsOf(md5, term.id), hasLength(2),
+        reason: '出场列表一格一条，否则 F5 位置数不对、迷你分布条同位叠点');
+    expect(term.n, 8, reason: '去重只动锚点，提及数仍按出现次数计');
+    final per = (await dao.entitiesOfType(md5, 'per')).single;
+    final pa = await dao.anchorsOf(md5, per.id);
+    expect(pa, hasLength(1));
+    expect(pa.single.snippet, '李伟说过', reason: '留下的那条必须带 snippet');
+  });
+
+  test('冷启动收尸：上个进程留下的 running 一律转 pause', () async {
+    await dao.upsertTask(
+        md5: md5,
+        totalCh: 12,
+        rangeStart: 0,
+        rangeEnd: 11,
+        status: xsStatusRunning,
+        processedCh: 5);
+    await dao.upsertTask(
+        md5: 'BBB',
+        totalCh: 4,
+        rangeStart: 0,
+        rangeEnd: 3,
+        status: xsStatusSuccess,
+        processedCh: 4);
+    expect(await dao.reapStaleRunning(), 1,
+        reason: '只收 running；成功/暂停/失败都是终态或用户态，不许动');
+    expect((await dao.task(md5))!.status, xsStatusPause);
+    expect((await dao.task('BBB'))!.status, xsStatusSuccess);
+  });
+
   test('重解析：刷新计数与分值，但用户状态与词典不许被洗白', () async {
     await dao.writeChapterResult(
         md5: md5, entities: ents(), anchorsByName: anchors());
@@ -183,6 +235,7 @@ XrayWordBank _bank() => XrayWordBank.parse({
 
 /// 表名/状态常量别名（测试里直连表要写全 DbSchema，这几行只为可读性）。
 const xsStatusRunning = 'running';
+const xsStatusPause = 'pause';
 const xsStatusSuccess = 'success';
 const xsStatusDeleted = 'deleted';
 const xsActForbid = 'forbid';
