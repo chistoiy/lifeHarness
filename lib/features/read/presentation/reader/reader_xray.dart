@@ -105,6 +105,53 @@ void _brFlashPara(int ci, int pi) {
   Overlay.of(context, rootOverlay: true).insert(entry);
 }
 
+/// 选区工具条「X-Ray」（F6）：命中实体词→迷你卡（查看全部位置→面板详情）；
+/// 未命中→面板「加为词条」弹层预填（名单驱动 read.brSelBar）。
+void xrSelToLearn() {
+  final raw = _selTxt.trim();
+  _clearSel();
+  if (raw.isEmpty) return;
+  final w = raw.length > 24 ? raw.substring(0, 24) : raw;
+  unawaited(_xrSelLookup(w));
+}
+
+Future<void> _xrSelLookup(String w) async {
+  final b = _book;
+  if (b == null) return;
+  final dao = ref.read(xrayDaoProvider);
+  String? md5 = await dao.bookMd5(b.id);
+  if (md5 == null || md5.isEmpty) {
+    md5 = await ref.read(xraySchedulerProvider).ensureMd5(b);
+  }
+  if (!mounted) return;
+  if (md5 != null && md5.isNotEmpty) {
+    final hits = await dao.searchEntities(md5, w);
+    if (!mounted) return;
+    XrayEntityRow? hit;
+    for (final e in hits) {
+      if (e.name == w) {
+        hit = e;
+        break;
+      }
+    }
+    hit ??= hits.where((e) => e.name.contains(w) || w.contains(e.name)).firstOrNull;
+    if (hit != null) {
+      final name = hit.name;
+      showXrPeekSheet(
+        context,
+        ent: hit,
+        onViewAll: () {
+          ref.read(readerXrFocusWordProvider.notifier).state = name;
+          openXrTab();
+        },
+      );
+      return;
+    }
+  }
+  ref.read(readerXrAddWordProvider.notifier).state = w;
+  openXrTab();
+}
+
 /// 退后台自动暂停解析（§8 一期不做后台续跑；回前台在面板头一键恢复）。
 void xrNoteBackground() {
   try {

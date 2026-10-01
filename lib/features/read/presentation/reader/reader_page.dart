@@ -17,6 +17,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../../../../core/database/schema/xray.dart' as xs;
+import '../../data/xray/xray_dao.dart' show XrayEntityRow;
+import './reader_xray_learn_sheets.dart' show showXrPeekSheet;
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
@@ -1107,6 +1109,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                         onShare: _actShare,
                         onColor: _addHl,
                         onDelete: _delHl,
+                        onXray: xrSelToLearn,
                         tools: _brSelTools,
                         handle: (end) =>
                             brHandleWidget(

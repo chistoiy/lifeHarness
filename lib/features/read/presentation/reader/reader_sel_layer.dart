@@ -19,6 +19,8 @@ const kBrSelDefaultTools = [
   '写想法',
   '书摘',
   '查询',
+  // V1.54 批B F6：默认在列（read.brSelBar 名单可关；存量已存名单不自动获得）。
+  'X-Ray',
   '听当前',
   'AI 解读',
   '分享',
@@ -80,6 +82,7 @@ List<Widget> brSelLayer({
   required VoidCallback onShare,
   required void Function(String) onColor,
   required VoidCallback onDelete,
+  VoidCallback? onXray,
   required Widget? Function(bool end) handle,
   required List<String> tools,
 }) {
@@ -120,6 +123,8 @@ List<Widget> brSelLayer({
       '书摘' => chip('brSelQuote', '书摘', Icons.note_alt_outlined,
           () => onQuote(false)),
       '查询' => chip('brSelDict', '查询', Icons.search_rounded, onDict),
+      'X-Ray' => chip(
+          'brSelXray', 'X-Ray', Icons.travel_explore_rounded, onXray),
       // 听当前＝TTS：按拍板延后，入口先占位提示。
       '听当前' => chip('brSelTts', '听当前', Icons.volume_up_rounded,
           () => onTts()),

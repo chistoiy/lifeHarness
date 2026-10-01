@@ -452,6 +452,197 @@ class XrayDao {
         await txn.delete(DbSchema.tXrayTask, where: 'book_md5 = ?', whereArgs: [md5]);
       });
 
+  // ------------------------------------------------- 批B 自学习（F8 · 写时物化）
+
+  /// 按 (md5,name) 点查（加词幂等与选区命中判重用）。
+  Future<XrayEntityRow?> entityByName(String md5, String name) async {
+    final rows = await _db.query(DbSchema.tXrayEntity,
+        where: 'book_md5 = ? AND name = ?', whereArgs: [md5, name], limit: 1);
+    return rows.isEmpty ? null : _row(rows.first);
+  }
+
+  Future<void> _putUserdict(Transaction txn,
+      {required String scope,
+      required String word,
+      required String action,
+      String? type,
+      String? target,
+      String? patternHint}) =>
+      txn.insert(DbSchema.tXrayUserdict, {
+        'scope': scope,
+        'word': word,
+        'action': action,
+        'type': type,
+        'target': target,
+        'pattern_hint': patternHint,
+        'create_time': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+  /// 移除（F8②）：**状态位而非降分**——`status=deleted` 读侧永不出现，
+  /// 同时写本书屏蔽词（`action=forbid`）让重解析也捞不回来（§7）；
+  /// [toGlobal]＝「升级到全局黑名单」，所有书生效。
+  Future<void> markDeleted(String md5, List<int> ids, {bool toGlobal = false}) =>
+      _db.transaction((txn) async {
+        for (final id in ids) {
+          final r = await txn.query(DbSchema.tXrayEntity,
+              columns: ['name'], where: 'id = ?', whereArgs: [id], limit: 1);
+          if (r.isEmpty) continue;
+          final name = r.first['name'] as String;
+          await txn.update(DbSchema.tXrayEntity, {'status': xs.xrayEntityDeleted},
+              where: 'id = ?', whereArgs: [id]);
+          await _putUserdict(txn,
+              scope: md5, word: name, action: xs.xrayActForbid);
+          if (toGlobal) {
+            await _putUserdict(txn,
+                scope: xs.xrayScopeGlobal, word: name, action: xs.xrayActForbid);
+          }
+        }
+      });
+
+  /// 合并（F8③）：**mention 归属迁移**至规范词条（与账目「改名不迁流水」刻意相反
+  /// ——出场属于实体本体）；曾用名进 aliases；计数/跨章/首锚点**当场重算落库**
+  /// （写时物化：二次打开面板只查询、不重算，§7 的 <10ms 红线靠这条）。
+  Future<void> mergeInto(String md5,
+      {required int intoId, required List<int> fromIds}) =>
+          _db.transaction((txn) async {
+            final intoRows = await txn.query(DbSchema.tXrayEntity,
+                where: 'id = ?', whereArgs: [intoId], limit: 1);
+            if (intoRows.isEmpty) return;
+            final into = intoRows.first;
+            final aliases = <String>[
+              ..._decodeAliases(into['aliases'] as String?),
+            ];
+            for (final fid in fromIds) {
+              if (fid == intoId) continue;
+              final fr = await txn.query(DbSchema.tXrayEntity,
+                  columns: ['name', 'aliases', 'status'],
+                  where: 'id = ? AND book_md5 = ?',
+                  whereArgs: [fid, md5],
+                  limit: 1);
+              if (fr.isEmpty) continue;
+              final f = fr.first;
+              if ((f['status'] as String).startsWith(xs.xrayEntityMergedPrefix)) {
+                continue; // 已是死行不并第二遍
+              }
+              final fname = f['name'] as String;
+              if (fname != into['name'] && !aliases.contains(fname)) {
+                aliases.add(fname);
+              }
+              for (final al in _decodeAliases(f['aliases'] as String?)) {
+                if (al != into['name'] && !aliases.contains(al)) aliases.add(al);
+              }
+              // 出场整批搬家。
+              await txn.update(DbSchema.tXrayMention, {'entity_id': intoId},
+                  where: 'book_md5 = ? AND entity_id = ?', whereArgs: [md5, fid]);
+              await txn.update(DbSchema.tXrayEntity,
+                  {'status': '${xs.xrayEntityMergedPrefix}$intoId'},
+                  where: 'id = ?', whereArgs: [fid]);
+            }
+            // 重算派生值（全从迁移后的 mention 表现算，不信任累加）。
+            final agg = await txn.rawQuery(
+                'SELECT COUNT(*) AS n, COUNT(DISTINCT ch) AS chs FROM ${DbSchema.tXrayMention} '
+                'WHERE book_md5 = ? AND entity_id = ?', [md5, intoId]);
+            final firstRow = await txn.rawQuery(
+                'SELECT ch, para FROM ${DbSchema.tXrayMention} '
+                'WHERE book_md5 = ? AND entity_id = ? ORDER BY ch ASC, para ASC LIMIT 1',
+                [md5, intoId]);
+            await txn.update(DbSchema.tXrayEntity, {
+              'n': (agg.first['n'] as int?) ?? 0,
+              'chs': (agg.first['chs'] as int?) ?? 0,
+              'aliases': jsonEncode(aliases),
+              'first_ch': firstRow.isEmpty ? null : firstRow.first['ch'],
+              'first_para': firstRow.isEmpty ? null : firstRow.first['para'],
+            }, where: 'id = ?', whereArgs: [intoId]);
+          });
+
+  /// 加词（F8①）登记：词条行（`status=user_added`）+ 本书/全局 userdict add。
+  /// 出场由 [XrayScheduler] 全书补扫回填（`applyScanResult`）。
+  Future<int> registerUserWord(
+      {required String md5,
+      required String word,
+      required String type,
+      bool global = false}) => _db.transaction((txn) async {
+        final exist = await txn.query(DbSchema.tXrayEntity,
+            columns: ['id'],
+            where: 'book_md5 = ? AND name = ?',
+            whereArgs: [md5, word],
+            limit: 1);
+        final int id;
+        if (exist.isEmpty) {
+          id = await txn.insert(DbSchema.tXrayEntity, {
+            'book_md5': md5,
+            'name': word,
+            'type': type,
+            'n': 0,
+            'chs': 0,
+            'score': 1.0,
+            'src_channels': 0,
+            'status': xs.xrayEntityUserAdded,
+            'aliases': '[]',
+            'toc_flag': 0,
+          });
+        } else {
+          id = exist.first['id'] as int;
+          // 已有行只把来源改标为「我的词条」，不动其出场统计。
+          await txn.update(DbSchema.tXrayEntity,
+              {'status': xs.xrayEntityUserAdded},
+              where: 'id = ?', whereArgs: [id]);
+        }
+        await _putUserdict(txn,
+            scope: md5, word: word, action: xs.xrayActAdd, type: type);
+        if (global) {
+          await _putUserdict(txn,
+              scope: xs.xrayScopeGlobal, word: word, action: xs.xrayActAdd);
+        }
+        return id;
+      });
+
+  /// 全书补扫回填（含 §7 回流建议的 pattern_hint 落库）。
+  Future<void> applyScanResult({
+    required String md5,
+    required String word,
+    required int entityId,
+    required int n,
+    required int chs,
+    required List<XrayMention> anchors,
+    String? patternHint,
+  }) =>
+      _db.transaction((txn) async {
+        final first = anchors.isEmpty ? null : anchors.first;
+        await txn.update(DbSchema.tXrayEntity, {
+          'n': n,
+          'chs': chs,
+          'first_ch': first?.ch,
+          'first_para': first?.para,
+        }, where: 'id = ?', whereArgs: [entityId]);
+        await txn.delete(DbSchema.tXrayMention,
+            where: 'book_md5 = ? AND entity_id = ?',
+            whereArgs: [md5, entityId]);
+        await _insertAnchors(txn, md5, entityId, anchors);
+        if (patternHint != null) {
+          await txn.update(
+              DbSchema.tXrayUserdict,
+              {'pattern_hint': patternHint},
+              where: 'scope = ? AND word = ? AND action = ?',
+              whereArgs: [md5, word, xs.xrayActAdd]);
+        }
+      });
+
+  /// 全局惯例采纳（建议规则卡「采纳」）：写 GLOBAL add（可带模式注记）。
+  Future<void> promoteWordToGlobal(String md5, String word, {String? patternHint}) async {
+    final rows = await _db.query(DbSchema.tXrayUserdict,
+        columns: ['type'],
+        where: 'scope = ? AND word = ? AND action = ?',
+        whereArgs: [md5, word, xs.xrayActAdd],
+        limit: 1);
+    await putUserWord(
+        scope: xs.xrayScopeGlobal,
+        word: word,
+        action: xs.xrayActAdd,
+        type: rows.isEmpty ? null : rows.first['type'] as String?,
+        patternHint: patternHint);
+  }
+
   // ------------------------------------------------------------ xray_userdict
 
   /// 三层词库里的后两层：GLOBAL + 本书（§5/§7）。

@@ -574,7 +574,7 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
     });
 
     testWidgets('⑤ read.brSelBar 名单驱动显隐（划线,复制 → 只上两枚）', (t) async {
-      expect(brSelToolsDecode(null), hasLength(8), reason: '未配置＝默认全量');
+      expect(brSelToolsDecode(null), hasLength(9), reason: '未配置＝默认全量（V1.54 批B 加 X-Ray）');
       expect(brSelToolsDecode('划线,复制'), ['划线', '复制']);
       expect(brSelToolsDecode('不存在,复制'), ['复制'], reason: '野名字剔除');
       await repo.setKv('read.brSelBar', '划线,复制');

@@ -17,7 +17,10 @@ import '../../domain/book.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 import './reader_pager.dart';
+import './reader_xray_learn_sheets.dart';
 import './reader_xray_sheets.dart';
+
+part 'reader_xray_panel_learn.dart';
 
 const List<(String, String)> kXrTypes = [
   ('per', '人名'),
@@ -78,6 +81,10 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
   bool _failShown = false;
   bool? _showCitesOverride; // 弹层内「显示全部引用」的本页覆盖（null＝跟随持久偏好）
   int _seenRev = -1;
+  // 批B 整理模式（xrfrag：行前勾选 + 底部「合并/移除」条）。
+  bool _org = false;
+  final Set<int> _sel = {};
+  bool _relayShown = false;
 
   double get _confTop => _topScore;
   double _topScore = 1;
@@ -174,6 +181,27 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         }
       });
     }
+    // 接力：选区迷你卡「查看全部位置」直达详情；未命中词自动开加词弹层（各消费一次）。
+    if (!_relayShown) {
+      final focus = ref.read(readerXrFocusWordProvider);
+      final addWord = ref.read(readerXrAddWordProvider);
+      if (focus != null || addWord != null) {
+        _relayShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (addWord != null) {
+            ref.read(readerXrAddWordProvider.notifier).state = null;
+            _openAdd(md5, prefill: addWord);
+          }
+          if (focus != null) {
+            ref.read(readerXrFocusWordProvider.notifier).state = null;
+            final hit =
+                snap.entities.where((e) => e.name == focus).firstOrNull;
+            if (hit != null) setState(() => _curId = hit.id);
+          }
+        });
+      }
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -185,15 +213,31 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
           child: _typeRow(_scoped(snap.entities, snap.anchors)),
         ),
+        if (sched.suggestion(widget.book.id) case final sug?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            child: _suggestionCard(sched, md5, sug),
+          ),
         Expanded(
           key: const ValueKey('xrScroll'),
           child: _curId == null
               ? _list(snap, md5)
               : _detail(snap, md5, _curId!),
         ),
+        if (_org && _curId == null) _orgBar(sched, md5, snap),
       ],
     );
   }
+
+  Future<void> _openAdd(String? md5, {String prefill = ''}) => showXrAddSheet(
+        context,
+        ref,
+        book: widget.book,
+        md5: md5,
+        prefill: prefill,
+        ensureMd5: () =>
+            ref.read(xraySchedulerProvider).ensureMd5(widget.book),
+      );
 
   // ---------- 头部（xrHeadHtml 1:1） ----------
 
@@ -289,6 +333,38 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                   ),
                 ),
               ),
+            const Spacer(),
+            // 批B：段头部「＋加词 / 整理词条」（原型 xrHeadHtml r2 右组）。
+            _chip('xrAddBtn', '＋加词', () => _openAdd(md5)),
+            const SizedBox(width: 6),
+            GestureDetector(
+              key: const ValueKey('xrOrgBtn'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() {
+                _org = !_org;
+                if (!_org) _sel.clear();
+                _curId = null;
+              }),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _org ? _XrStyle.accent : null,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                      color: _org
+                          ? _XrStyle.accent
+                          : Theme.of(context).dividerColor),
+                ),
+                child: Text(
+                  '整理词条',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: _org ? Colors.white : null),
+                ),
+              ),
+            ),
           ],
         ),
       ],
@@ -483,10 +559,17 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
 
   Widget _row(XrayEntityRow e, List<XrayAnchorRow>? ms, {bool inCur = false}) {
     final cs = Theme.of(context).colorScheme;
+    final sel = _sel.contains(e.id);
     return GestureDetector(
       key: ValueKey('xrRow-${e.id}'),
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _curId = e.id),
+      onTap: () => setState(() {
+        if (_org) {
+          sel ? _sel.remove(e.id) : _sel.add(e.id);
+        } else {
+          _curId = e.id;
+        }
+      }),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -499,11 +582,34 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 : cs.outlineVariant.withValues(alpha: .5),
           ),
         ),
+        foregroundDecoration: _org && sel
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _XrStyle.accent, width: 2),
+              )
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                if (_org)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Container(
+                      key: ValueKey('xr-ck-${e.id}'),
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: sel ? _XrStyle.accent : const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: sel
+                          ? const Icon(Icons.check_rounded,
+                              size: 12, color: Colors.white)
+                          : null,
+                    ),
+                  ),
                 Flexible(
                   child: Text(
                     e.name,
@@ -726,6 +832,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
             child: Text('剧透保护 · 隐藏未读 $hidden 处引用',
                 style: const TextStyle(fontSize: 9, color: _XrStyle.muted)),
           ),
+        ..._detailLearn(snap, md5, e),
       ],
     );
   }

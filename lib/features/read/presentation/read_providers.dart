@@ -442,3 +442,9 @@ final xrayTaskBadgeProvider = FutureProvider<Map<String, XrayTaskRow>>((ref) {
 
 /// 书架长按「生成/管理全书索引」→ 阅读页落地自动开 X-Ray 段的一次性接力旗。
 final readerXrOpenTabProvider = StateProvider<String?>((ref) => null);
+
+/// 选区迷你卡「查看全部位置」→ 面板直达该词条详情（批B F6）。
+final readerXrFocusWordProvider = StateProvider<String?>((ref) => null);
+
+/// 选区「X-Ray」未命中 → 面板自动开「加为词条」弹层并预填（批B F8①）。
+final readerXrAddWordProvider = StateProvider<String?>((ref) => null);

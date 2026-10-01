@@ -46,6 +46,8 @@ class XrayJobSpec {
     required this.added,
     required this.forbidden,
     required this.tocTitles,
+    this.word,
+    this.wordType,
   });
 
   final int totalCh;
@@ -56,6 +58,98 @@ class XrayJobSpec {
   final Set<String> added;
   final Set<String> forbidden;
   final List<String> tocTitles;
+
+  /// 批B 加词补扫模式（F8①）：非空＝不走引擎榜单，只统计该词全书出场（XrayWordScan）。
+  final String? word;
+  final String? wordType;
+}
+
+/// 加词补扫累加器（纯计算·单实现两处用：worker isolate 与测试假通道）。
+/// 语境模式检测（§7 回流建议）：出场点后跟 ≤2 字命中称谓词表 → 记模式票；
+/// 占比 ≥30% 才产出建议（阈值口径同设计书「≥30% 命中某模式」）。
+class XrayWordScan {
+  XrayWordScan({
+    required this.word,
+    required this.type,
+    required this.bank,
+    this.maxAnchors = 200,
+  });
+
+  final String word;
+  final String type;
+  final XrayWordBank bank;
+
+  /// 补扫锚点保留上限（用户词通常是低频专有词；超限时保前 N 条锚点、计数照加）。
+  final int maxAnchors;
+
+  int n = 0;
+  final Set<int> _chs = {};
+  final List<XrayMention> _m = [];
+  final Map<String, int> _pat = {};
+
+  void addChapter(int ci, List<String> paras) {
+    for (var pi = 0; pi < paras.length; pi++) {
+      final text = paras[pi];
+      var idx = 0;
+      while (true) {
+        final at = text.indexOf(word, idx);
+        if (at < 0) break;
+        n++;
+        _chs.add(ci);
+        final after = at + word.length;
+        final tail = text.substring(
+            after, after + 2 < text.length ? after + 2 : text.length);
+        for (final t in bank.titles) {
+          if (t.isNotEmpty && tail.startsWith(t)) {
+            _pat[t] = (_pat[t] ?? 0) + 1;
+            break;
+          }
+        }
+        if (_m.length < maxAnchors) {
+          final s = at - 30 < 0 ? 0 : at - 30;
+          final e = text.length < after + 40 ? text.length : after + 40;
+          _m.add(XrayMention(ci, pi,
+              '${s > 0 ? '…' : ''}${text.substring(s, e)}${e < text.length ? '…' : ''}'));
+        }
+        idx = at + word.length;
+      }
+    }
+  }
+
+  /// [title, pct]：出场上下文 ≥30% 命中同一称谓形态时产出（否则 null）。
+  List<Object?>? get pattern {
+    if (_pat.isEmpty || n == 0) return null;
+    final best = _pat.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    final pct = (best.value * 100 / n).round();
+    return pct >= 30 ? [best.key, pct] : null;
+  }
+
+  Map<String, Object?> payload() => {
+        'name': word,
+        'type': type,
+        'n': n,
+        'chs': _chs.length,
+        'score': 1.0,
+        'ch': 0,
+        'toc': 0,
+        'al': <String>[],
+        'm': [
+          for (final m in _m) [m.ch, m.para, m.snippet],
+        ],
+        'pat': pattern,
+      };
+}
+
+/// 建议规则卡数据（§7 回流：采纳进全局表 / 忽略）。
+class XraySuggestion {
+  const XraySuggestion({
+    required this.word,
+    required this.title,
+    required this.pct,
+  });
+  final String word;
+  final String title;
+  final int pct;
 }
 
 /// worker → 调度器的四类事件（逐章回执即心跳：进度/暂停/取消都从这里驱动）。
@@ -141,6 +235,18 @@ class XrayScheduler extends ChangeNotifier {
   final Map<String, XrayRun> _runs = {};
   XrayRun? _cur;
 
+  /// 建议规则卡（bookId → 未消化的回流建议；采纳/忽略即清）。
+  final Map<String, XraySuggestion> _suggestions = {};
+
+  XraySuggestion? suggestion(String bookId) => _suggestions[bookId];
+
+  void dismissSuggestion(String bookId) {
+    if (_suggestions.remove(bookId) != null) notifyListeners();
+  }
+
+  /// 用户层直改（加/删/合并走 DAO 后调用）：数据修订 + 面板刷新。
+  void notifyDataChanged() => _bumpRevision();
+
   /// 终态修订号：解析完成/失败/重置时自增。provider 监听它决定是否重取词条数据
   /// （逐章进度不触发词条重查，只驱动面板头）。
   int get revision => _revision;
@@ -152,6 +258,38 @@ class XrayScheduler extends ChangeNotifier {
   void _bumpRevision() {
     _revision++;
     onRevised?.call();
+    notifyListeners();
+  }
+
+  /// 批B 加词全书补扫（F8①）：秒级轻扫（XrayWordScan 单实现），只回填该词出场，
+  /// 不动解析任务态；≥30% 称谓形态命中时挂出建议规则卡。
+  Future<void> scanWord({
+    required Book book,
+    required String md5,
+    required String word,
+    required String type,
+  }) async {
+    final existing = _runs[book.id];
+    if (existing != null && existing.live.running && existing.word == word) return;
+    final doc = await loadDoc(book);
+    if (doc == null || doc.chapters.isEmpty) return;
+    final run = XrayRun(
+      bookId: book.id,
+      book: book,
+      live: XrayLive(
+          bookId: book.id,
+          md5: md5,
+          totalCh: doc.chapters.length,
+          rangeFrom: 0,
+          rangeTo: doc.chapters.length - 1),
+      doc: doc,
+      word: word,
+      wordType: type,
+    );
+    _runs[book.id] = run;
+    _cur = run;
+    unawaited(run._drive(this));
+    notifyListeners();
   }
 
   XrayLive? live(String bookId) => _runs[bookId]?.live;
@@ -293,12 +431,20 @@ class XrayRun {
     required this.book,
     required this.live,
     this.doc,
+    this.word,
+    this.wordType,
   });
 
   final String bookId;
   final Book book;
   final XrayLive live;
   final EpubDoc? doc;
+
+  /// 非空＝加词补扫运行（不落 xray_task、结果走 applyScanResult）。
+  final String? word;
+  final String? wordType;
+
+  bool get isScan => word != null;
 
   XrayWorker? _worker;
   bool _paused = false;
@@ -336,7 +482,7 @@ class XrayRun {
   }
 
   void cancel() {
-    if (_cancelled || _s == null) {
+    if (isScan || _cancelled || _s == null) {
       // 未起过 _drive 的失败占位任务：只清本地标记，没有落库通道也不需要落。
       _cancelled = true;
       live.running = false;
@@ -367,7 +513,22 @@ class XrayRun {
         added: layer.added,
         forbidden: layer.forbidden,
         tocTitles: toc,
+        word: word,
+        wordType: wordType,
       );
+      if (isScan) {
+        // 补扫不动任务态：跑完直接回填该词。
+        live.running = true;
+        _next = 0;
+        _worker = await s.workerFactory(spec, XrayWorkerEvents(
+          onChapterDone: _onChapterDone,
+          onWantAnchor: _onWantAnchor,
+          onResult: _onResult,
+          onFail: _onFail,
+        ));
+        _pumpNext();
+        return;
+      }
       await s.dao.upsertTask(
         md5: live.md5,
         totalCh: live.totalCh,
@@ -454,6 +615,40 @@ class XrayRun {
   void _onResult(List<Map<String, Object?>> ents) {
     _worker = null;
     live.running = false;
+    if (isScan && ents.isNotEmpty) {
+      final m0 = ents.first;
+      unawaited(() async {
+        try {
+          final ent = await _sched.dao.entityByName(live.md5, m0['name'] as String);
+          if (ent != null) {
+            await _sched.dao.applyScanResult(
+              md5: live.md5,
+              word: ent.name,
+              entityId: ent.id,
+              n: m0['n'] as int,
+              chs: m0['chs'] as int,
+              anchors: [
+                for (final a in (m0['m'] as List))
+                  XrayMention((a as List)[0] as int, (a)[1] as int,
+                      (a)[2] as String?),
+              ],
+            );
+          }
+          final pat = m0['pat'];
+          if (pat is List && pat.length == 2) {
+            _sched._suggestions[bookId] = XraySuggestion(
+              word: m0['name'] as String,
+              title: pat[0] as String,
+              pct: pat[1] as int,
+            );
+          }
+        } catch (e) {
+          live.error = '$e';
+        }
+        _sched._bumpRevision();
+      }());
+      return;
+    }
     unawaited(() async {
       try {
         await _persistTail;
@@ -485,8 +680,10 @@ class XrayRun {
     unawaited(() async {
       try {
         await _persistTail;
-        await _sched.dao.patchTaskProgress(
-            md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusFailed);
+        if (!isScan) {
+          await _sched.dao.patchTaskProgress(
+              md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusFailed);
+        }
       } catch (_) {}
       _sched._bumpRevision();
       _sched.ping();
@@ -599,7 +796,8 @@ void _entry(_XrBoot boot) {
     totalChars: spec.totalChars,
     sens: spec.sens,
   );
-  List<XrayEntity>? keep;  void deliver() {
+  List<XrayEntity>? keep;
+  XrayWordScan? scanner;  void deliver() {
     boot.mainSend.send({'t': 'r', 'ents': _payload(keep!)});
     Isolate.exit();
   }
@@ -615,6 +813,25 @@ void _entry(_XrBoot boot) {
 
   rp.listen((m) {
     if (m is! Map) return;
+    if (spec.word != null) {
+      // 批B 加词补扫：不建榜单，只累加该词出场（协议消息与解析共用）。
+      scanner ??= XrayWordScan(
+          word: spec.word!, type: spec.wordType ?? 'term', bank: bank);
+      switch (m['t']) {
+        case 'c':
+          final ci = m['ci'] as int;
+          scanner!.addChapter(ci, (m['p'] as List).cast<String>());
+          boot.mainSend.send({'t': 'd', 'ci': ci});
+        case 'e':
+          boot.mainSend
+              .send({'t': 'r', 'ents': [scanner!.payload()]});
+          Isolate.exit();
+        case 'x':
+          rp.close();
+          Isolate.exit();
+      }
+      return;
+    }
     switch (m['t']) {
       case 'c':
         final ci = m['ci'] as int;
