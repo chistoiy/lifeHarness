@@ -13,6 +13,7 @@ import '../../domain/book_list.dart';
 import '../../domain/book_quote.dart';
 import '../../domain/book_session.dart';
 import '../../domain/shelf_query.dart';
+import '../open_with.dart' show locateBookProvider;
 import '../read_actions.dart';
 import '../reader/epub_state_ui.dart';
 import '../read_providers.dart';
@@ -21,6 +22,7 @@ import '../widgets/bs_cover.dart';
 
 part 'shelf_batch_tag.dart';
 part 'shelf_fab.dart';
+part 'shelf_locate.dart';
 part 'shelf_long_press.dart';
 part 'shelf_goal_ring.dart';
 part 'shelf_goal.dart';
@@ -179,12 +181,21 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
   final _kwCtl = TextEditingController();
   bool _tabBooted = false;
 
+  // V1.53.4⑥ 定位高亮：请求序号（新请求作废旧轮询）与描边闪烁浮层。
+  int _locateSeq = 0;
+  OverlayEntry? _locateFlashEntry;
+
   @override
   void initState() {
     super.initState();
     // 真机修⑥：进书架即后台预热就绪本地书（isolate 解析入文档缓存），
     // 点封面秒进；重启后缓存清空也靠这里回温。
     WidgetsBinding.instance.addPostFrameCallback((_) => _warmLocalBooks());
+    // V1.53.4⑥：建页前已置位的定位请求（open_with 先 go 后消费）首帧补触发。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final id = ref.read(locateBookProvider);
+      if (id != null) unawaited(_locateBook(id));
+    });
   }
 
   Future<void> _warmLocalBooks() async {
@@ -203,12 +214,21 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
 
   @override
   void dispose() {
+    _locateFlashEntry?.remove();
+    _locateFlashEntry = null;
     _kwCtl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // V1.53.4⑥：在书架页内时新定位请求即时消费（建页前的首值见 initState）。
+    ref.listen<String?>(
+      locateBookProvider,
+      (_, next) {
+        if (next != null) unawaited(_locateBook(next));
+      },
+    );
     final ui = ref.watch(shelfUiProvider);
     // read.openTab（§6 外观与启动）：进书架默认落到的分区；原型 BS_SET 默认「在读」，未设过同样生效。
     if (!_tabBooted) {

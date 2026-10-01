@@ -34,6 +34,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- V1.53.4⑥ 系统「打开方式」接收本地 EPUB：
+                 VIEW+content（主流文件管理器/微信附件走 SAF content uri）、
+                 VIEW+file pathPattern（个别旧文件管理器给 file://）、
+                 SEND+EXTRA_STREAM（「发送→其他应用」兜底通道）。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content" android:mimeType="application/epub+zip"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.epub"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/epub+zip"/>
+            </intent-filter>
         </activity>
         <!-- flutter_local_notifications：定时通知发送 + 开机重传（需 ScheduleNotificationReceiver 权限声明） -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
