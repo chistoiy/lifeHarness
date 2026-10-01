@@ -9,7 +9,7 @@
   var XR_TL={};XR_TYPES.forEach(function(t){XR_TL[t[0]]=t[1]});
   var XR_CHS=['理解的起点','行得快','跳板','直觉型判断的可靠性','基础比率','相似性','可得性','质量与信念','预测与判断','小错误与影响','稳健的错觉','专家预测 vs 公式','回归均值','因果关系','选择与框架','惊奇与情绪','双系统案例','尾声'];
   function xrChTitle(ch){return XR_CHS[ch-1]||('第'+ch+'章')}
-  var XR={total:18,done:12,status:'ready',kw:'',type:'term',sort:'score',org:false,sel:{},expanded:{}};
+  var XR={total:18,done:12,status:'ready',kw:'',type:'term',sort:'score',org:false,sel:{},cur:'e_s1',lowOpen:false};
   function e(id,name,type,n,chs,score,toc,dist,ment,dlg,q){return {id:id,name:name,type:type,n:n,chs:chs,score:score,toc:toc,dist:dist,ment:ment,dlg:dlg,q:q}}
   var XR_ENTS=[
     e('e_kmn','卡尼曼','per',143,12,0.96,1,[2,5,9,14,18,12,7,10,16,11,6,4],[[1,2,'卡尼曼在讲座上第一次提出了双系统框架。'],[3,1,'按照卡尼曼的说法，直觉只是识别。'],[7,4,'卡尼曼与特沃斯基在耶路撒冷开始了合作。'],[12,0,'卡尼曼坚持：公式胜过专家的直觉判断。']],34,'「直觉只是识别。」'),
@@ -62,36 +62,67 @@
       return '<div class="xr-tab'+(XR.type===t[0]?' on':'')+'" id="xr-tab-'+t[0]+'" onclick="xrPickTab(\''+t[0]+'\')">'+t[1]+' · '+xrTypeCount(t[0])+'</div>'
     }).join('')
   }
-  function xrRowHtml(x){
-    var badges='<span class="xr-tbadge '+(x.usr?'user':x.type)+'">'+(x.usr?'我的词条':XR_TL[x.type])+'</span>';
-    if(x.toc)badges+='<span class="xr-tbadge toc">目录词</span>';
-    var check=XR.org?'<div class="shrink-0 w-5 h-5 rounded-lg border flex items-center justify-center text-[10px] font-black '+(XR.sel[x.id]?'grad text-white border-transparent':'border-slate-300 text-transparent')+'" id="xr-s-'+x.id+'" onclick="xrSel(\''+x.id+'\')">✓</div>':'';
-    return '<div class="xr-ent'+(XR.org&&XR.sel[x.id]?' sel':'')+'" id="'+x.id+'" onclick="'+(XR.org?'xrSel(\''+x.id+'\')':'xrEntOpen(\''+x.id+'\')')+'">'
-      +check+'<div class="flex-1 min-w-0"><div class="flex items-center gap-1.5 flex-wrap"><b class="text-xs">'+x.name+'</b>'+badges+'</div>'
-      +'<div class="text-[9px] text-slate-400 mt-0.5">'+x.n+' 次 · 跨 '+x.chs+' 章 · 置信 '+x.score.toFixed(2)+(x.dlg!=null?' · 台词 '+x.dlg:'')+'</div></div>'
-      +'<span class="text-slate-300">›</span></div>'
+  /* Kindle X-Ray 主从版式：上排头像胶囊（选中态描边）+ 下方详情与上下文出场流 */
+  function xrChipHtml(x,low){
+    var initial=(x.type==='book'?x.name.replace(/^《/,''):x.name).slice(0,1);
+    var sel=XR.cur===x.id&&!XR.org?' on':'';
+    var onclick=XR.org?'xrSel(\''+x.id+'\')':'xrPickEnt(\''+x.id+'\')';
+    var mark=XR.org?'<div class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black '+(XR.sel[x.id]?'grad text-white':'bg-slate-200 text-transparent dark:bg-slate-700')+'" id="xr-s-'+x.id+'">✓</div>':'';
+    return '<div class="xr-chip relative'+sel+(low?' low':'')+'" id="'+x.id+'" onclick="'+onclick+'">'+mark
+      +'<span class="xr-av '+x.type+'">'+initial+'</span>'
+      +'<b>'+x.name+'</b><span class="xr-cnt">'+x.n+' 次</span></div>'
   }
-  function xrListHtml(){
+  function xrKwHl(text,kw){
+    if(!kw||text.indexOf(kw)<0)return text;
+    return text.split(kw).join('<b>'+kw+'</b>')
+  }
+  function xrFeaturedHtml(){
     var a=xrList(XR.type),hi=[],lo=[];
     a.forEach(function(x){(x.score<XR_LOW?lo:hi).push(x)});
-    var h=hi.map(xrRowHtml).join('');
-    if(!hi.length&&!lo.length)h='<div class="text-[10px] text-slate-400 py-6 text-center">该类没有词条</div>';
+    var h=hi.map(function(x){return xrChipHtml(x,false)}).join('');
+    if(!hi.length&&!lo.length)h='<div class="text-[10px] text-slate-400 py-4">该类没有词条</div>';
     if(lo.length){
-      var open=!!XR.expanded[XR.type];
-      h+='<div class="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1.5 cursor-pointer" id="xr-lowtoggle" onclick="xrToggleLow(\''+XR.type+'\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="'+(open?'m6 9 6 6 6-9':'m6 15 6-6 6 9')+'"/></svg>低置信 · '+lo.length+' 条'+(open?' ▾':' ▸')+'</div>';
-      if(open)h+='<div class="mt-1.5 space-y-2" id="xr-lowzone">'+lo.map(xrRowHtml).join('')+'</div>';
+      h+='<div class="xr-chip !w-auto !flex-row items-center !px-3" id="xr-lowmore" onclick="xrToggleLow()"><b class="!max-w-none text-slate-400">'+(XR.lowOpen?'收起':'低置信 · '+lo.length)+'</b></div>';
+      if(XR.lowOpen)h+=lo.map(function(x){return xrChipHtml(x,true)}).join('')
     }
+    return {html:h,hi:hi,lo:lo}
+  }
+  function xrDetailHtml(x){
+    if(!x)return '<div class="text-[10px] text-slate-400 py-4">点上方词条查看出场上下文</div>';
+    var dist=(x.dist||[]).slice();while(dist.length<XR.total)dist.push(0);dist=dist.slice(0,XR.total);
+    var max=Math.max.apply(null,dist)||1;
+    var spark=dist.map(function(v){return '<i style="height:'+Math.max(2,Math.round(v/max*30))+'px" data-xr-bar="'+x.id+'"></i>'}).join('');
+    var badges='<span class="xr-tbadge '+(x.usr?'user':x.type)+'">'+(x.usr?'我的词条':XR_TL[x.type])+'</span>';
+    if(x.toc)badges+='<span class="xr-tbadge toc">目录词</span>';
+    var h='<div class="flex items-center gap-2 flex-wrap" id="xr-det-name"><b class="text-[15px]">'+x.name+'</b>'+badges+'<span class="flex-1"></span><span class="text-[10px] text-slate-400">置信 '+x.score.toFixed(2)+'</span></div>';
+    h+='<div class="mt-1.5 text-[10px] text-slate-400">'+x.n+' 次提及 · 跨 '+x.chs+' 章'+(x.dlg!=null?' · 台词 '+x.dlg+' 段':'')+(x.aliases&&x.aliases.length?' · 并词 '+x.aliases.join('、'):'')+'</div>';
+    if(x.q)h+='<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5"><span class="text-slate-400">代表语录</span><div class="mt-0.5">'+x.q+'</div></div>';
+    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">章节频次分布</div><div class="xr-sp mt-1.5" id="xr-spark-'+x.id+'">'+spark+'</div><div class="text-[8px] text-slate-400 mt-1">第1章 → 第'+XR.total+'章</div>';
+    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">出场 · 点按跳回阅读位置</div><div class="mt-1.5 space-y-2" id="xr-ments-'+x.id+'">';
+    var m=x.ment||[];
+    if(!m.length)h+='<div class="text-[10px] text-slate-400">出场锚点已存 · 上下文未截取</div>';
+    m.forEach(function(mm,k){
+      h+='<div class="xr-clip" id="xr-clip-'+x.id+'-'+k+'" onclick="xrJumpTo('+mm[0]+','+mm[1]+')"><div class="xr-chlabel">'+xrChTitle(mm[0])+' · 段 '+(mm[1]+1)+'</div><div class="mt-0.5">'+xrKwHl(mm[2],x.name)+'</div></div>'
+    });
+    h+='</div>';
+    h+='<div class="mt-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-2.5 text-[10px] text-slate-400 flex items-center gap-2" id="xr-aihold">AI 释义 · 二期占位<span class="flex-1"></span></div>';
     return h
   }
-  window.xrToggleLow=function(t){XR.expanded[t]=!XR.expanded[t];xrRender()};
+  window.xrToggleLow=function(){XR.lowOpen=!XR.lowOpen;xrRender()};
   window.xrEnts=function(){return XR_ENTS};
   window.xrState=function(){return XR};
   window.xrRender=function(){
     var hd=document.getElementById('xrHead');if(hd)hd.innerHTML=xrHeadHtml();
     var tb=document.getElementById('xrTabs');if(tb)tb.innerHTML=xrTabsHtml();
-    var ls=document.getElementById('xrList');if(ls)ls.innerHTML='<div class="space-y-2">'+xrListHtml()+'</div>';
+    var f=xrFeaturedHtml();
+    var fe=document.getElementById('xrFeatured');if(fe)fe.innerHTML=f.html;
+    // 选中项不在当前类内（切类/搜索/合并移除后）→ 回落该类首位
+    var cur=(XR_ENTS||[]).find(function(v){return v.id===XR.cur});
+    if(!cur||xrList(XR.type).indexOf(cur)<0){XR.cur=(f.hi[0]||f.lo[0]||{}).id||null;cur=(XR_ENTS||[]).find(function(v){return v.id===XR.cur})}
+    var de=document.getElementById('xrDetail');if(de)de.innerHTML=xrDetailHtml(cur);
     var q=document.getElementById('xrQ');if(q&&q.value!==XR.kw)q.value=XR.kw;
     var qc=document.getElementById('xrQClear');if(qc)qc.classList.toggle('hidden',!XR.kw);
+    var sb=document.getElementById('xrSortBtn');if(sb)sb.textContent=({score:'按置信',n:'按出场',name:'按名称'})[XR.sort];
     var ft=document.getElementById('xrFoot');
     if(ft)ft.textContent=XR_ENTS.length+' 个词条 · 出场锚点全量 · 上下文截断（每实体前 N 条）';
     var bar=document.getElementById('xrBar');
@@ -107,38 +138,23 @@
     }
   };
   window.xrPickTab=function(t){XR.type=t;xrRender()};
+  window.xrSetKw=function(v){XR.kw=v;xrRender()};
+  window.xrClearKw=function(){XR.kw='';var i=document.getElementById('xrQ');if(i)i.value='';xrRender()};
   window.xrToggleOrg=function(){XR.org=!XR.org;if(!XR.org)XR.sel={};xrRender()};
   window.xrExitOrg=function(){XR.org=false;XR.sel={};xrRender()};
   window.xrSel=function(id){XR.sel[id]=!XR.sel[id];xrRender()};
   var XR_SORTS=[['score','按置信'],['n','按出场'],['name','按名称']];
   window.xrToggleSort=function(){var i=0;XR_SORTS.forEach(function(s,k){if(s[0]===XR.sort)i=k});XR.sort=XR_SORTS[(i+1)%3][0];xrRender();toast('排序：'+XR_SORTS[(i+1)%3][1])};
-  document.getElementById('xrQ')&&document.getElementById('xrQ').addEventListener('input',function(){this.value=XR.kw});
-  var xrQHost=document.getElementById('xrQ');
-  if(xrQHost)xrQHost.oninput=function(){XR.kw=this.value;xrRender()};
-  /* 屏4 实体详情 */
-  window.xrEntOpen=function(id){
+  /* 屏4（并入主从版式）：选中词条 → 详情区就地渲染 */
+  window.xrPickEnt=function(id){
     var x=XR_ENTS.find(function(v){return v.id===id});if(!x)return;
-    var dist=x.dist.slice();while(dist.length<XR.total)dist.push(0);dist=dist.slice(0,XR.total);
-    var max=Math.max.apply(null,dist)||1;
-    var spark=dist.map(function(v){return '<i style="height:'+Math.max(2,Math.round(v/max*34))+'px" data-xr-bar="'+x.id+'"></i>'}).join('');
-    var h='<div class="flex items-center gap-2 flex-wrap"><b class="text-[15px]">'+x.name+'</b><span class="xr-tbadge '+(x.usr?'user':x.type)+'">'+(x.usr?'我的词条':XR_TL[x.type])+'</span>'+(x.toc?'<span class="xr-tbadge toc">目录词</span>':'')+'<span class="flex-1"></span><span class="text-[10px] text-slate-400">置信 '+x.score.toFixed(2)+'</span></div>';
-    h+='<div class="mt-2 text-[10px] text-slate-400">'+x.n+' 次提及 · 跨 '+x.chs+' 章'+(x.dlg!=null?' · 台词 '+x.dlg+' 段':'')+'</div>';
-    if(x.q)h+='<div class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5"><span class="text-slate-400">代表语录</span><div class="mt-0.5">'+x.q+'</div></div>';
-    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">章节频次分布</div><div class="xr-sp mt-1.5" id="xr-spark-'+x.id+'">'+spark+'</div><div class="text-[8px] text-slate-400 mt-1">第1章 → 第'+XR.total+'章</div>';
-    h+='<div class="mt-3 text-[10px] font-bold text-slate-400">出场 · 点按跳转到阅读位置</div><div class="mt-1.5 space-y-2" id="xr-ments-'+x.id+'">';
-    var m=x.ment||[];
-    if(!m.length)h+='<div class="text-[10px] text-slate-400">出场锚点已存 · 上下文未截取</div>';
-    m.forEach(function(mm,k){
-      h+='<div class="xr-jump" id="xr-ment-'+x.id+'-'+k+'" onclick="xrJumpTo('+mm[0]+','+mm[1]+')"><div class="flex items-center gap-2"><b class="text-[11px]">'+xrChTitle(mm[0])+'</b><span class="text-slate-400 text-[9px]">段 '+(mm[1]+1)+'</span></div><div class="text-slate-500 dark:text-slate-400 mt-0.5">'+mm[2]+'</div></div>'
-    });
-    h+='</div>';
-    h+='<div class="mt-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-2.5 text-[10px] text-slate-400 flex items-center gap-2" id="xr-aihold">AI 释义 · 二期占位<span class="flex-1"></span></div>';
-    document.getElementById('xrEntBody').innerHTML=h;
-    openSheet('sheetXrEnt')
+    XR.type=x.type;XR.cur=id;XR.kw='';
+    var i=document.getElementById('xrQ');if(i)i.value='';
+    xrRender();
+    try{document.getElementById(id).scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   };
   window.xrJumpTo=function(ch,para){
     try{
-      closeSheet('sheetXrEnt');
       if(!brV.b||brV.b!==CURBK||!document.getElementById('brBody').children.length)brOpen(CURBK);
       brShowChrome();
       var leaves=brLeaves(brV.b);
@@ -254,7 +270,7 @@
     document.getElementById('xrPeekBody').innerHTML=h;
     openSheet('sheetXrPeek')
   };
-  window.xrPeekToPanel=function(name){closeSheet('sheetXrPeek');var x=XR_ENTS.find(function(v){return v.name===name});XR.type=x?x.type:'term';XR.kw=name;navTo('p-xray');xrRender()};
+  window.xrPeekToPanel=function(name){closeSheet('sheetXrPeek');var x=XR_ENTS.find(function(v){return v.name===name});if(x)xrPickEnt(x.id);else navTo('p-xray')};
   var xrAddPick={word:'',type:'term',scope:'book'};
   window.xrAddOpen=function(word){
     xrAddPick={word:word,type:xrGuessType(word),scope:'book'};
@@ -372,8 +388,8 @@
     if(m==='menu'){xrSeed();setPage('p-bookshelf');renderShelf();shLongMenu('b1');return}
     if(m==='scope'){brOpen('b1');brShowChrome();xrScopeOpen();return}
     if(m==='panel'){navTo('p-xray');xrRender();return}
-    if(m==='ent'){navTo('p-xray');xrRender();xrEntOpen('e_kmn');return}
-    if(m==='jump'){navTo('p-xray');xrRender();xrEntOpen('e_kmn');xrJumpTo(1,2);return}
+    if(m==='ent'){navTo('p-xray');xrPickEnt('e_kmn');return}
+    if(m==='jump'){navTo('p-xray');xrPickEnt('e_kmn');xrJumpTo(1,2);return}
     if(m==='org'){navTo('p-xray');XR.org=true;XR.sel={'e_kmn':true,'e_dk':true};xrRender();return}
     if(m==='del'){navTo('p-xray');XR.org=true;XR.sel={'e_kmn':true,'e_dk':true};xrRender();xrDelOpen();return}
     if(m==='bak'){navTo('p-readset');rsPickTab(RS_SEC.length-1);renderReadSet();openSheet('sheetXrBak');return}

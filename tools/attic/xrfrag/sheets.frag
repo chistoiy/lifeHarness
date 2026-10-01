@@ -12,11 +12,6 @@
       <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetXrScope')">取消</button><button id="xrScopeGoBtn" class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrScopeStart()">开始解析</button></div>
     </div>
   </div>
-  <div id="sheetXrEnt" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrEnt')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div id="xrEntBody" class="max-h-[62vh] overflow-y-auto no-scrollbar"></div>
-    </div>
-  </div>
   <div id="sheetXrDel" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrDel')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="flex items-center justify-between"><b class="text-[15px]">移除词条</b><span class="text-[9px] text-slate-400">整理</span></div>

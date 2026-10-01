@@ -75,25 +75,27 @@ async function go(q) {
   (r.h && r.est && /字/.test(r.est)) ? ok('屏1 区间态出现起止章选择 · 预估联动', r.est) : bad('屏1 区间', JSON.stringify(r));
   await shot('xr-scope.png');
 
-  /* 屏3 面板：标签/排序/低分折叠/搜索 */
+  /* 屏3 面板（Kindle 主从版式）：标签/头像胶囊/低分折叠/搜索 */
   await go('xr=panel');
   r = await ev(`return{page:curPage,tabs:[].map.call(document.querySelectorAll('#xrTabs .xr-tab'),function(x){return x.textContent}),
-    rows:document.querySelectorAll('#xrList .xr-ent').length,low:!!document.getElementById('xr-lowtoggle'),
+    chips:document.querySelectorAll('#xrFeatured .xr-chip:not(#xr-lowmore)').length,
+    lowmore:!!document.getElementById('xr-lowmore'),
+    detail:(document.getElementById('xr-det-name')||{}).innerText||'',
     head:(document.getElementById('xrHead').innerText||'').slice(0,20)};`);
-  (r.page === 'p-xray' && r.tabs.length === 6 && r.rows > 5 && r.low && /已解析 12\/18/.test(r.head))
-    ? ok('屏3 面板六标签 · 词条列表 · 低分折叠 · 已解析x/y章', r.tabs.join('|')) : bad('屏3 面板', JSON.stringify(r));
-  r = await ev(`var before=document.querySelectorAll('#xrList .xr-ent').length;
-    document.getElementById('xr-lowtoggle').click();
-    var after=document.querySelectorAll('#xrList .xr-ent').length;
-    var anyLow=[].slice.call(document.querySelectorAll('#xr-lowzone .xr-ent')).some(function(x){return /0\\.[0-6]/.test(x.innerText)});
-    return{before:before,after:after,anyLow:after>before&&anyLow};`);
-  r.anyLow ? ok('屏3 低分折叠展开（0.7 以下入折叠区）', r.before + '→' + r.after) : bad('屏3 折叠展开', JSON.stringify(r));
+  (r.page === 'p-xray' && r.tabs.length === 6 && r.chips >= 5 && r.lowmore && /系统1/.test(r.detail) && /已解析 12\/18/.test(r.head))
+    ? ok('屏3 六标签 · 头像胶囊行 · 详情区默认选中 · 已解析x/y章', r.tabs.join('|')) : bad('屏3 面板', JSON.stringify(r));
+  r = await ev(`var n0=document.querySelectorAll('#xrFeatured .xr-chip').length;
+    document.getElementById('xr-lowmore').click();
+    var n1=document.querySelectorAll('#xrFeatured .xr-chip.low').length;
+    var hasLow=/洛瓦洛|均值回归/.test(document.getElementById('xrFeatured').innerText);
+    return{n0:n0,n1:n1,hasLow:hasLow};`);
+  (r.n1 >= 1 && r.hasLow) ? ok('屏3 低置信折叠展开（胶囊变暗入列）', 'low=' + r.n1) : bad('屏3 折叠展开', JSON.stringify(r));
   await shot('xr-panel.png');
-  r = await ev(`document.getElementById('xrQ').value='特沃';document.getElementById('xrQ').dispatchEvent(new Event('input'));
-    var per=document.querySelector('#xr-tab-per');per&&per.click();
-    var rows=[].map.call(document.querySelectorAll('#xrList .xr-ent b'),function(x){return x.textContent});
-    return{rows:rows};`);
-  (r.rows.length === 1 && /特沃斯基/.test(r.rows[0])) ? ok('屏3 类内搜索（人名·特沃→1条）', r.rows.join('|')) : bad('屏3 搜索', JSON.stringify(r));
+  r = await ev(`xrPickTab('per');xrSetKw('特沃');
+    var chips=[].map.call(document.querySelectorAll('#xrFeatured .xr-chip:not(#xr-lowmore) b'),function(x){return x.textContent});
+    var detail=(document.getElementById('xr-det-name')||{}).innerText||'';
+    return{chips:chips,detail:/特沃斯基/.test(detail)};`);
+  (r.chips.length === 1 && /特沃斯基/.test(r.chips[0]) && r.detail) ? ok('屏3 类内搜索→1胶囊 · 详情联动', r.chips.join('|')) : bad('屏3 搜索', JSON.stringify(r));
 
   /* 屏3 整理：合并与移除 */
   await go('xr=org');
@@ -114,14 +116,17 @@ async function go(q) {
     return{lost:n0-xrEnts().length,toast:/全局黑名单/.test(document.getElementById('toast').innerText)};`);
   (r.lost === 1 && r.toast) ? ok('屏7 全局黑名单移除生效') : bad('全局移除', JSON.stringify(r));
 
-  /* 屏4 实体详情 + 跳转 */
+  /* 屏4（并入版式）：详情区=选中词条上下文流 */
   await go('xr=ent');
-  r = await ev(`var bd=document.getElementById('xrEntBody').innerText;
-    return{sh:!document.getElementById('sheetXrEnt').classList.contains('hidden'),
-      hasName:/卡尼曼/.test(bd),spark:document.querySelectorAll('#xr-spark-e_kmn i').length,
-      ments:document.querySelectorAll('[id^="xr-ment-e_kmn"]').length,ai:/AI 释义 · 二期占位/.test(bd),dlg:/台词 34/.test(bd)};`);
-  (r.sh && r.hasName && r.spark === 18 && r.ments === 4 && r.ai && r.dlg)
-    ? ok('屏4 实体详情：频次分布18柱 · 出场4条 · 台词 · AI预留位', JSON.stringify(r)) : bad('屏4 详情', JSON.stringify(r));
+  r = await ev(`var det=document.getElementById('xrDetail').innerText;
+    var clip=document.getElementById('xr-clip-e_kmn-0');
+    return{hasName:/卡尼曼/.test((document.getElementById('xr-det-name')||{}).innerText||''),
+      spark:document.querySelectorAll('#xr-spark-e_kmn i').length,
+      clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,
+      ai:/AI 释义 · 二期占位/.test(det),dlg:/台词 34/.test(det),
+      hl:clip?clip.querySelectorAll('b').length:0,selOn:!!document.querySelector('#xrFeatured .xr-chip.on')};`);
+  (r.hasName && r.spark === 18 && r.clips === 4 && r.ai && r.dlg && r.hl > 0 && r.selOn)
+    ? ok('屏4 详情区：18柱频次 · 4条上下文(关键词高亮) · 台词 · AI预留 · 选中胶囊', JSON.stringify(r)) : bad('屏4 详情', JSON.stringify(r));
   await shot('xr-ent.png');
   await go('xr=jump');
   await wait(400);
@@ -152,11 +157,11 @@ async function go(q) {
   await shot('xr-add.png');
   r = await ev(`var n0=xrEnts().length;xrDoAdd();
     if(curPage!=='p-xray')navTo('p-xray');xrRender();
-    var l=document.getElementById('xrList').innerText;
+    var f=document.getElementById('xrFeatured').innerText;
     var tt=(document.getElementById('toast')||{}).innerText||'';
-    return{add:xrEnts().length-n0,dom:/巧克力/.test(l)&&/我的词条/.test(l),
+    return{add:xrEnts().length-n0,dom:/巧克力/.test(f),
       toast:/已加词/.test(tt),tt:tt.slice(0,30)};`);
-  (r.add === 1 && r.dom) ? ok('屏5 加词入列（我的词条徽）', 'toast=' + r.tt || '(空)') : bad('加词入列', JSON.stringify(r));
+  (r.add === 1 && r.dom) ? ok('屏5 加词入列（头像胶囊出现）', 'toast=' + r.tt) : bad('加词入列', JSON.stringify(r));
 
   /* 屏6 设置-数据 · 备份 */
   await go('xr=bak');
@@ -182,7 +187,7 @@ async function go(q) {
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
     var out='';['p-xray','sheetXrScope','sheetXrEnt','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
-    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrEntOpen,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo].join(',')};`);
+    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo].join(',')};`);
   (!r.emoji && r.fns === 'function,function,function,function,function') ? ok('七屏零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
   return finish();
