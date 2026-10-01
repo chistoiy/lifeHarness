@@ -391,14 +391,16 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                     ),
                     Expanded(
                       child: st.xrTab
-                          ? ReaderXrayPanel(
-                              book: widget.book,
-                              doc: widget.doc,
-                              pager: widget.pager,
-                              ci: widget.ci,
-                              pg: widget.pg,
-                              kw: searching ? _q.text.trim() : '',
-                              onJump: widget.onXrJump,
+                          ? _xrTabBody(
+                              ReaderXrayPanel(
+                                book: widget.book,
+                                doc: widget.doc,
+                                pager: widget.pager,
+                                ci: widget.ci,
+                                pg: widget.pg,
+                                kw: searching ? _q.text.trim() : '',
+                                onJump: widget.onXrJump,
+                              ),
                             )
                           : _tocBody(cs, groups, lv, searching),
                     ),
@@ -413,6 +415,66 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   }
 
   // ---------- 目录段（功能零回归：树/折叠/当前读到/回在读/去底部/搜本书） ----------
+
+  /// 轮5.2①：跳章后的返回入口行（正文不悬浮，收进面板一行）。
+  /// ①（工单20261001轮2）：目录段与 X-Ray 段共用——X-Ray 出场跳转也记 _jumpFrom，
+  /// 打开任一抽屉段都应看到「回到刚才在读」。
+  Widget _backRow() => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+    child: GestureDetector(
+      key: const ValueKey('brDrBack'),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onBackJump,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: _accent.withValues(alpha: .10),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            const Text(
+              '‹ 回到刚才在读 ·',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: _accent,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                widget.backLbl!,
+                key: const ValueKey('brDrBackLbl'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: _accent,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// ①：X-Ray 段的返回行壳（无返回态时原样挂面板，不动既有布局）。
+  Widget _xrTabBody(Widget panel) =>
+      widget.backLbl == null || widget.onBackJump == null
+          ? panel
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _backRow(),
+                Expanded(child: panel),
+              ],
+            );
 
   Widget _tocBody(ColorScheme cs, List<TocPartGroup> groups, int lv, bool searching) {
     return Stack(
@@ -456,51 +518,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                 ),
               ),
             // 轮5.2①：跳章后的返回入口（正文不悬浮，收进面板一行）。
-            if (widget.backLbl != null && widget.onBackJump != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                child: GestureDetector(
-                  key: const ValueKey('brDrBack'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onBackJump,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _accent.withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text(
-                          '‹ 回到刚才在读 ·',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _accent,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            widget.backLbl!,
-                            key: const ValueKey('brDrBackLbl'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              color: _accent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            if (widget.backLbl != null && widget.onBackJump != null) _backRow(),
             Expanded(
               // 目录＝虚拟化 ListView（自带滚动）；搜索独占态仍整块滚动。
               child: searching

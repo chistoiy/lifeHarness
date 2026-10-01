@@ -47,6 +47,15 @@ void xrJumpTo(int ch, int para) {
   // ignore: invalid_use_of_protected_member
   setState(() {
     _drawerOpen = false;
+    // ①（工单20261001轮2）：跳章前记来源位置——与 _gotoChapter 同式，
+    // 让目录抽屉的「回到刚才在读」返回行自然出现（同一 UI 语言，零新组件）。
+    if (ci != _pos.ci) {
+      _jumpFrom = (
+        ci: _pos.ci,
+        pg: _pos.pg,
+        title: doc.chapters[_pos.ci.clamp(0, doc.chapters.length - 1)].title,
+      );
+    }
     _pos.ci = ci;
     if (_cfg.mode == 'page') {
       _pos.pg = pag.pageOfPara(ci, pi);

@@ -444,6 +444,63 @@ void main() {
       await t.pump(const Duration(milliseconds: 400));
     });
 
+    testWidgets('① X-Ray 出场跳转：跳章前记位 → 抽屉返回行 → 回跳后即用即清', (t) async {
+      final sched = await openReader(t, 'p9');
+      final b = await repo.bookById('p9');
+      await sched.start(book: b!, md5: 'M', from: 0, to: 1);
+      await waitTask(sched, 'M');
+      await toXrTab(t);
+      // 直接点「李德」行（列表按分值排，rows.first 未必是它；长引用列表懒建，勿靠滚动找）。
+      final lideId = (await dao.allEntities('M')).firstWhere((e) => e.name == '李德').id;
+      await t.tap(find.byKey(ValueKey('xrRow-$lideId')));
+      await t.pump(const Duration(milliseconds: 200));
+      // 剧透保护默认隐藏未读引用：先「显示全部引用」再挑第二章的出场。
+      await t.tap(find.byKey(const ValueKey('xr-cites')));
+      await t.pump(const Duration(milliseconds: 200));
+      // 提示条 1300ms 挂底栏上：不清掉会拦住后开抽屉的 brBtnToc（本轮实测红灯）；
+      // SnackBar 退场要小步 pump（helpers 口径），单次大 pump 不触发退场计时。
+      await clearToasts(t);
+      final clipsCh2 = find.byWidgetPredicate((w) {
+        if (w is! GestureDetector || w.key is! ValueKey<String>) return false;
+        final p = (w.key as ValueKey<String>).value.split('-');
+        return p.length == 5 &&
+            p[0] == 'xr' && p[1] == 'clip' && p[3] == '1';
+      });
+      expect(clipsCh2, findsWidgets, reason: '前置：二章出场引用在列');
+      await t.tap(clipsCh2.first);
+      await t.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('brDrPanel')), findsNothing); // 跳转即收面板
+      for (var i = 0; i < 10; i++) {
+        await t.pump(const Duration(milliseconds: 200)); // 闪烁环 1.6s 自摘
+      }
+      // 跳转后 chrome 可能是收起态：先亮顶/底栏再开抽屉（reader_ui showChrome 同法）。
+      Future<void> reopenDrawer() async {
+        if (find.byKey(const ValueKey('br-bottom')).evaluate().isEmpty) {
+          await t.tapAt(const Offset(210, 645));
+          await t.pump(const Duration(milliseconds: 200));
+        }
+        await t.tap(find.byKey(const ValueKey('brBtnToc')));
+        for (var i = 0; i < 4; i++) {
+          await t.pump(const Duration(milliseconds: 150));
+        }
+      }
+
+      await reopenDrawer();
+      expect(find.byKey(const ValueKey('brDrBack')), findsOne);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brDrBackLbl'))).data,
+        '第一章',
+      );
+      await t.tap(find.byKey(const ValueKey('brDrBack')));
+      await t.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('brDrPanel')), findsNothing); // 回跳即收
+      // 用后即清：再开抽屉不再显示返回行。
+      await reopenDrawer();
+      expect(find.byKey(const ValueKey('brDrBack')), findsNothing);
+      await t.tapAt(const Offset(210, 20)); // 遮罩收面板
+      await t.pump(const Duration(milliseconds: 300));
+    });
+
     testWidgets('范围段切换：当前页 ⊂ 本章 ⊂ 全书', (t) async {
       final sched = await openReader(t, 'p3');
       final b = await repo.bookById('p3');
