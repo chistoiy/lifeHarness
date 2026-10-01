@@ -149,6 +149,25 @@ class XrayPanelData {
       XrayPanelData(task: null, entities: [], anchors: {});
 }
 
+/// GLOBAL 养成词库行（批2 词库管理页数据面；scope 恒为 GLOBAL）。
+class XrayDictRow {
+  const XrayDictRow({
+    required this.word,
+    required this.action,
+    this.type,
+    this.target,
+    this.patternHint,
+    required this.createTime,
+  });
+
+  final String word;
+  final String action;
+  final String? type;
+  final String? target;
+  final String? patternHint;
+  final int createTime;
+}
+
 /// X-Ray 数据访问。
 class XrayDao {
   const XrayDao(this._db);
@@ -850,6 +869,76 @@ class XrayDao {
   /// F8②「应用到所有书」：把本书屏蔽升级成 GLOBAL 黑名单。
   Future<void> promoteToGlobal(String md5, String word) => putUserWord(
       scope: xs.xrayScopeGlobal, word: word, action: xs.xrayActForbid);
+
+  // ---------------------------------------------- GLOBAL 养成词库管理（批2 数据面）
+
+  /// GLOBAL 养成词库全量行（管理页列表：最近养入在前）。
+  Future<List<XrayDictRow>> listGlobalDict() async {
+    final rows = await _db.query(DbSchema.tXrayUserdict,
+        where: 'scope = ?',
+        whereArgs: [xs.xrayScopeGlobal],
+        orderBy: 'create_time DESC, word ASC');
+    return [
+      for (final r in rows)
+        XrayDictRow(
+          word: r['word'] as String,
+          action: r['action'] as String,
+          type: r['type'] as String?,
+          target: r['target'] as String?,
+          patternHint: r['pattern_hint'] as String?,
+          createTime: r['create_time'] as int,
+        ),
+    ];
+  }
+
+  /// 编辑 GLOBAL 行：键 = (word, action) 唯一键。[newWord] 改名、[type] 改类型
+  /// （传 null 不动，显式改空不可达——类型列本就允许空）；[toAction] 换动作
+  /// ＝旧行删新行写（唯一键含 action，原键位更新会撞键）。
+  Future<void> updateGlobalDict({
+    required String word,
+    required String action,
+    String? newWord,
+    String? type,
+    String? toAction,
+  }) =>
+      _db.transaction((txn) async {
+        final rows = await txn.query(DbSchema.tXrayUserdict,
+            where: 'scope = ? AND word = ? AND action = ?',
+            whereArgs: [xs.xrayScopeGlobal, word, action],
+            limit: 1);
+        if (rows.isEmpty) return;
+        final row = rows.first;
+        final nextAction = toAction ?? action;
+        // 唯一键 = (scope, word, action)：任一维度变化都得删旧键行，
+        // 否则改名会留下旧词行（实测红灯）。
+        if (nextAction != action || (newWord != null && newWord != word)) {
+          await txn.delete(DbSchema.tXrayUserdict,
+              where: 'scope = ? AND word = ? AND action = ?',
+              whereArgs: [xs.xrayScopeGlobal, word, action]);
+        }
+        await txn.insert(
+            DbSchema.tXrayUserdict,
+            {
+              'scope': xs.xrayScopeGlobal,
+              'word': newWord ?? (row['word'] as String),
+              'action': nextAction,
+              'type': type ?? row['type'] as String?,
+              'target': row['target'] as String?,
+              'pattern_hint': row['pattern_hint'] as String?,
+              'create_time': row['create_time'] as int,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      });
+
+  /// 删除 GLOBAL 行：[action] 精确删单动作行，null＝该词所有动作行全删。
+  Future<int> deleteGlobalDict(String word, {String? action}) =>
+      _db.delete(DbSchema.tXrayUserdict,
+          where: action == null
+              ? 'scope = ? AND word = ?'
+              : 'scope = ? AND word = ? AND action = ?',
+          whereArgs: action == null
+              ? [xs.xrayScopeGlobal, word]
+              : [xs.xrayScopeGlobal, word, action]);
 
   /// 面板一揽子数据（批A）：任务态 + 全部词条 + 锚点分组，一次查齐。
   /// 只在 X-Ray 段激活时调用（autoDispose 跟页面走），逐章进度不重查。

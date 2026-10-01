@@ -197,6 +197,45 @@ void main() {
     expect((await dao.userLayer(md5)).forbidden, contains('案子'));
   });
 
+  test('批2 GLOBAL 词库管理面：列表只含 GLOBAL、改名/换动作/删行不越界', () async {
+    // 造数：GLOBAL 两动作 + 按书一行（按书行不得混进管理页列表）。
+    await dao.putUserWord(
+        scope: xsScopeGlobal, word: '波洛', action: xsActAdd, type: 'per');
+    await dao.putUserWord(scope: md5, word: '案子', action: xsActForbid);
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await dao.putUserWord(scope: xsScopeGlobal, word: '侦探', action: xsActForbid);
+
+    final list = await dao.listGlobalDict();
+    expect(list.map((r) => r.word), ['侦探', '波洛'],
+        reason: '最近养入在前；按书行（案子）不得出现');
+    expect(list[1].type, 'per');
+
+    // 改名：只动 (波洛,add) 行；同词其他动作行（若有）不受牵连。
+    await dao.updateGlobalDict(word: '波洛', action: xsActAdd, newWord: '赫丘勒');
+    expect((await dao.listGlobalDict()).map((r) => r.word),
+        containsAll(['侦探', '赫丘勒']));
+    expect((await dao.listGlobalDict()).where((r) => r.word == '波洛'), isEmpty);
+
+    // 换动作＝旧行删新行写（唯一键含 action）：侦探 forbid→add。
+    await dao.updateGlobalDict(
+        word: '侦探', action: xsActForbid, toAction: xsActAdd);
+    final after = await dao.listGlobalDict();
+    expect(after.where((r) => r.word == '侦探').map((r) => r.action), ['add']);
+    final layer = await dao.userLayer(md5);
+    expect(layer.forbidden, isNot(contains('侦探')), reason: '换动作后旧动作必须失效');
+    expect(layer.added, contains('侦探'));
+
+    // 精确删：只删 add 行；词级删（action=null）把该词所有动作行清掉。
+    await dao.deleteGlobalDict('侦探', action: xsActAdd);
+    expect((await dao.listGlobalDict()).where((r) => r.word == '侦探'), isEmpty);
+    await dao.putUserWord(scope: xsScopeGlobal, word: '赫丘勒', action: xsActAdd);
+    await dao.putUserWord(scope: xsScopeGlobal, word: '赫丘勒', action: xsActForbid);
+    expect(await dao.deleteGlobalDict('赫丘勒'), 2, reason: '词级删清所有动作行');
+    expect(await dao.listGlobalDict(), isEmpty);
+    // 幂等：删不存在的词返回 0 不抛错。
+    expect(await dao.deleteGlobalDict('不存在'), 0);
+  });
+
   test('重置索引清三层，但用户词典是用户资产不许一起抹（§7）', () async {
     await dao.writeChapterResult(
         md5: md5, entities: ents(), anchorsByName: anchors());
