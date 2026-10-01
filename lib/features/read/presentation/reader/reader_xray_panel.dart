@@ -84,7 +84,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
   // 批B 整理模式（xrfrag：行前勾选 + 底部「合并/移除」条）。
   bool _org = false;
   final Set<int> _sel = {};
-  bool _relayShown = false;
+  // 接力两半拆开（批1 修 20261002）：加词弹层不依赖快照，照旧首帧消费；
+  // 直达详情改等快照可用——老逻辑首帧就把一次性标志烧在空快照上，
+  // 全等匹配必败且永不重试＝选了词还得手动再搜。
+  bool _addRelayed = false;
+  bool _focusRelayed = false;
 
   double get _confTop => _topScore;
   double _topScore = 1;
@@ -181,24 +185,44 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         }
       });
     }
-    // 接力：选区迷你卡「查看全部位置」直达详情；未命中词自动开加词弹层（各消费一次）。
-    if (!_relayShown) {
-      final focus = ref.read(readerXrFocusWordProvider);
+    // 接力：选区迷你卡「查看全部位置」直达详情；未命中词自动开加词弹层。
+    if (!_addRelayed) {
       final addWord = ref.read(readerXrAddWordProvider);
-      if (focus != null || addWord != null) {
-        _relayShown = true;
+      if (addWord != null) {
+        _addRelayed = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          if (addWord != null) {
-            ref.read(readerXrAddWordProvider.notifier).state = null;
-            _openAdd(md5, prefill: addWord);
-          }
-          if (focus != null) {
-            ref.read(readerXrFocusWordProvider.notifier).state = null;
-            final hit =
-                snap.entities.where((e) => e.name == focus).firstOrNull;
-            if (hit != null) setState(() => _curId = hit.id);
-          }
+          ref.read(readerXrAddWordProvider.notifier).state = null;
+          _openAdd(md5, prefill: addWord);
+        });
+      }
+    }
+    if (!_focusRelayed && (snapA.hasValue || snapA.hasError)) {
+      final focusId = ref.read(readerXrFocusIdProvider);
+      final focusWord = ref.read(readerXrFocusWordProvider);
+      if (focusId != null || focusWord != null) {
+        _focusRelayed = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(readerXrFocusIdProvider.notifier).state = null;
+          ref.read(readerXrFocusWordProvider.notifier).state = null;
+          // id 优先；id 失效（重解析换行）回退词全等，再回退互含
+          // （与选区查询 dao.searchEntities 的命中判同式）。
+          final byId = focusId == null
+              ? null
+              : snap.entities.where((e) => e.id == focusId).firstOrNull;
+          final byName = focusWord == null
+              ? null
+              : snap.entities.where((e) => e.name == focusWord).firstOrNull;
+          final fuzzy = focusWord == null
+              ? null
+              : snap.entities
+                  .where((e) =>
+                      e.name.contains(focusWord) ||
+                      focusWord.contains(e.name))
+                  .firstOrNull;
+          final target = byId ?? byName ?? fuzzy;
+          if (target != null) setState(() => _curId = target.id);
         });
       }
     }

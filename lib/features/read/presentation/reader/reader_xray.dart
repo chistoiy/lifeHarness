@@ -145,12 +145,15 @@ Future<void> _xrSelLookup(String w) async {
     }
     hit ??= hits.where((e) => e.name.contains(w) || w.contains(e.name)).firstOrNull;
     if (hit != null) {
-      final name = hit.name;
+      final ent = hit;
       showXrPeekSheet(
         context,
-        ent: hit,
+        ent: ent,
         onViewAll: () {
-          ref.read(readerXrFocusWordProvider.notifier).state = name;
+          // 批1 修（20261002）：直达改传词条 id（面板按 id 定位，不再按词全等猜
+          // 名——选中文本与词条名不一致时老链路直接哑火）；词留作 id 失效回退。
+          ref.read(readerXrFocusIdProvider.notifier).state = ent.id;
+          ref.read(readerXrFocusWordProvider.notifier).state = ent.name;
           openXrTab();
         },
       );
