@@ -96,6 +96,16 @@
       "sample": { "book": "思考，快与慢", "text": "锚定效应" }
     },
     {
+      "id": "read.xray_refine",
+      "module": "阅读",
+      "name": "X-Ray 词条精化",
+      "expect": "json",
+      "placeholders": ["book", "batch"],
+      "system": "你是全书索引（X-Ray）的词条质检助手，只对送来的词条批次做判断，禁止臆造批次里没有出现过的词。remove 只收明显不是实体的词（通用词、章节序号、单字、口语片段）；retype 只收类型判错的词，type 限 per/loc/org/term/abbr/book 六种；add 只收批次提示明显漏掉、在书里反复出现的实体名。拿不准就三项都不动，宁空勿造。只输出一个 JSON 对象，禁止代码块标记、禁止解释文字。",
+      "user": "书名：{{book}}\n待精化词条（每行「词 | 类型 | 出现次数 | 跨章数」）：\n{{batch}}\n输出格式：{\"remove\": [\"词一\"], \"retype\": [{\"word\": \"词二\", \"type\": \"loc\"}], \"add\": [{\"word\": \"词三\", \"type\": \"per\"}]}",
+      "sample": { "book": "思考，快与慢", "batch": "系统1 | term | 480 | 12\n几乎 | term | 90 | 9\n第十一章 | abbr | 30 | 8" }
+    },
+    {
       "id": "schedule.weekly_review",
       "module": "日程",
       "name": "周报 AI 点评",

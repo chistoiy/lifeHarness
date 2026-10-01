@@ -62,6 +62,46 @@ String? _validateJson(String taskId, String content, Map<String, String> vars) {
         return '缺 insight';
       }
       if (o['tags'] != null && o['tags'] is! List) return 'tags 非数组';
+    case 'read.xray_refine':
+      // 三段全缺＝模型没按约定输出；多余段一律容忍（宁少勿造，缺段只是没建议）。
+      final rm = o['remove'], rt = o['retype'], ad = o['add'];
+      if (rm == null && rt == null && ad == null) return 'remove/retype/add 三段全缺';
+      const Set<String> xrTypes = {
+        'per', 'loc', 'org', 'term', 'abbr', 'book'
+      };
+      if (rm != null && (rm is! List || rm.any((e) => e is! String))) {
+        return 'remove 非字符串数组: ${_clip('$rm', 80)}';
+      }
+      if (rt != null &&
+          (rt is! List ||
+              rt.any((e) =>
+                  e is! Map ||
+                  e['word'] is! String ||
+                  !xrTypes.contains('${e['type']}')))) {
+        return 'retype 结构错或类型越界: ${_clip('$rt', 120)}';
+      }
+      if (ad != null &&
+          (ad is! List ||
+              ad.any((e) =>
+                  e is! Map ||
+                  e['word'] is! String ||
+                  (e['type'] != null && !xrTypes.contains('${e['type']}'))))) {
+        return 'add 结构错或类型越界: ${_clip('$ad', 120)}';
+      }
+      // 防幻觉钉子：remove/retype 只能动**送出去的那些词**（add 允许补批次外的新词）。
+      // 真机口径：模型若自己编一批词，写入就会污染用户词库，这里直接判输出不合约定。
+      final sent = (vars['batch'] ?? '')
+          .split('\n')
+          .map((l) => l.split('|').first.trim())
+          .where((w) => w.isNotEmpty)
+          .toSet();
+      for (final e in (rm is List ? rm : const <dynamic>[])) {
+        if (!sent.contains('$e')) return 'remove 引用批次外的词: $e';
+      }
+      for (final e in (rt is List ? rt : const <dynamic>[])) {
+        final w = (e as Map)['word'];
+        if (!sent.contains('$w')) return 'retype 引用批次外的词: $w';
+      }
     case 'ledger.categorize':
       final items = o['items'];
       final wantLines = (vars['items'] ?? '')

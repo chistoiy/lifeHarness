@@ -29,6 +29,27 @@ Future<void> _recordUsage(
   }
 }
 
+/// V1.54.1 批4 · **多批顺序调用**的核心侧出口（与 [aiRunWithReview] 同族、同门控）。
+///
+/// 为什么要有第二条入口：一个能力点拆成 N 批时，逐批弹「发送内容审阅 + AI 生成中」会把
+/// 流程打断——X-Ray 精化的进度本就常驻面板段内（原型 `#xrAiBar`）。R7 要守的东西一件没少：
+/// **三重门控、`ai_calls` 留痕、输出结构校验、失败归因**仍由 AiService 执行；调用方在开跑前
+/// 用预检卡把「候选数 / 批数 / 单请求预算 / token 估算」列清拿一次确认，写库前再过结果审阅。
+/// 拦的是「绕过 core/ai 直取 AiService」，不是「一个任务只许一个弹层」。
+Future<String?> aiGateDenied(WidgetRef ref, String taskId) =>
+    ref.read(aiServiceProvider).gate(taskId);
+
+/// 逐批调用里的一批：返回解析后的 JSON。门控被拒 / 网络失败 / 输出不合约定**一律上抛**，
+/// 由调用方（批执行器）计重试与跳过——这里不吞异常，否则失败批次会被当成没发生。
+Future<Map<String, dynamic>> aiRunJsonBatch(
+  WidgetRef ref, {
+  required String taskId,
+  required Map<String, String> vars,
+}) async {
+  final r = await ref.read(aiServiceProvider).request(taskId, vars);
+  return r.requireJson();
+}
+
 /// AI 生成中弹层的宿主 Navigator 定位键（可选注入，见 [aiRunWithReview]）。
 ///
 /// 为什么需要它：弹层 push 与 pop **必须同源**。showDialog 默认

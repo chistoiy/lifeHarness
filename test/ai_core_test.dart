@@ -29,11 +29,11 @@ void main() {
   final pack = packFromAssets();
 
   group('提示词包', () {
-    test('资产可解析：12 个能力点、DeepSeek 默认端点', () {
+    test('资产可解析：13 个能力点、DeepSeek 默认端点', () {
       expect(pack.version, 1);
       expect(pack.defaultBaseUrl, 'https://api.deepseek.com/v1');
       expect(pack.defaultModel, 'deepseek-flash');
-      expect(pack.tasks.length, 12);
+      expect(pack.tasks.length, 13);
       for (final t in pack.tasks) {
         expect(t.system.trim(), isNotEmpty, reason: '${t.id} system');
         expect(t.user.trim(), isNotEmpty, reason: '${t.id} user');
@@ -95,6 +95,29 @@ void main() {
             'cats': '餐饮, 其他'
           }),
           contains('越界'));
+      // 批4 · X-Ray 精化：三段结构 + **防幻觉钉子**（只能动送出去的那些词）。
+      const xrBatch = '几乎 | term | 90 | 9\n玫瑰战争 | term | 12 | 3';
+      expect(
+          validateAiOutput(
+              'read.xray_refine',
+              AiExpect.json,
+              '{"remove":["几乎"],'
+                  '"retype":[{"word":"玫瑰战争","type":"org"}],'
+                  '"add":[{"word":"波洛","type":"per"}]}',
+              {'batch': xrBatch}),
+          isNull);
+      expect(
+          validateAiOutput('read.xray_refine', AiExpect.json,
+              '{"remove":["我编的词"]}', {'batch': xrBatch}),
+          contains('批次外'));
+      expect(
+          validateAiOutput('read.xray_refine', AiExpect.json,
+              '{"retype":[{"word":"几乎","type":"npc"}]}', {'batch': xrBatch}),
+          contains('越界'));
+      expect(
+          validateAiOutput('read.xray_refine', AiExpect.json, '{"x":1}',
+              {'batch': xrBatch}),
+          contains('三段全缺'));
       expect(
           validateAiOutput('tool.verify', AiExpect.text, '连接成功', const {}),
           isNull);

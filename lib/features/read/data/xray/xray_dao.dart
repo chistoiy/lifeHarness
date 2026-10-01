@@ -670,6 +670,15 @@ class XrayDao {
     return rows.isEmpty ? null : _row(rows.first);
   }
 
+  /// 批4 AI 精化「改类」：只改本书实体行的类型（零迁移，`type` 本就是列）。
+  /// 用户层的类型登记由调用方另走 [putUserWord]（add 行随批3 `.xrwords` 导出带走）。
+  Future<int> setEntityType(String md5, String name, String type) => _db.update(
+        DbSchema.tXrayEntity,
+        {'type': type},
+        where: 'book_md5 = ? AND name = ?',
+        whereArgs: [md5, name],
+      );
+
   Future<void> _putUserdict(Transaction txn,
       {required String scope,
       required String word,

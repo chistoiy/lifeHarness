@@ -18,6 +18,7 @@ import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 import './reader_pager.dart';
 import './reader_xray_learn_sheets.dart';
+import './reader_xray_refine.dart' show XrRefineCard;
 import './reader_xray_sheets.dart';
 
 part 'reader_xray_panel_learn.dart';
@@ -243,6 +244,12 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
             child: _suggestionCard(sched, md5, sug),
+          ),
+        // 批4 · AI 精化进度卡（原型 #xrAiBar）：逐批进度/暂停续跑/失败提示/查看汇总。
+        if (ref.watch(xrRefineHolderProvider) case final xrR?)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            child: XrRefineCard(runner: xrR, md5: md5),
           ),
         Expanded(
           key: const ValueKey('xrScroll'),

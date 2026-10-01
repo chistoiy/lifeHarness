@@ -271,6 +271,8 @@ Future<void> showBrMoreSheet(
   String? xrStatus,
   VoidCallback? onXray,
   VoidCallback? onXrWords,
+  String? xrAiStatus,
+  VoidCallback? onXrRefine,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -399,6 +401,26 @@ Future<void> showBrMoreSheet(
                       ),
                       Text('养词库',
                           style: TextStyle(
+                              fontSize: 10, color: Color(0xFF94A3B8))),
+                    ],
+                  ),
+                ),
+              ),
+            // 批4 · AI 精化入口行（原型 sheetBrMore「X-Ray 精化」行 + 状态字）。
+            if (onXrRefine != null)
+              GestureDetector(
+                key: const ValueKey('brMoreXrAi'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => go(onXrRefine),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                          child: Text('X-Ray 精化',
+                              style: TextStyle(fontSize: 12.5))),
+                      Text(xrAiStatus ?? 'AI · 未跑',
+                          style: const TextStyle(
                               fontSize: 10, color: Color(0xFF94A3B8))),
                     ],
                   ),

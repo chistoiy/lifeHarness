@@ -14,6 +14,7 @@ import '../data/read_repository.dart';
 import '../data/xray/xray_backup.dart';
 import '../data/xray/xray_dao.dart';
 import '../data/xray/xray_words_io.dart';
+import '../data/xray/xray_refine.dart';
 import '../data/xray/xray_scheduler.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -432,6 +433,9 @@ final xrayBackupServiceProvider = Provider<XrayBackupService>(
 final xrayWordsIoProvider = Provider<XrayWordsIoService>(
   (ref) => XrayWordsIoService(ref.watch(xrayDaoProvider)),
 );
+/// 批4 · 正在跑/跑完待审阅的精化任务持有位（null＝无）。
+/// 面板段内的进度卡 watch 它；审阅写入完成后置 null 收场。
+final xrRefineHolderProvider = StateProvider<XrRefineRunner?>((ref) => null);
 
 /// 某架位的内容指纹（懒补算不在这里做——被动渲染只读库，起解析动作才 ensureMd5）。
 final bookMd5Provider = FutureProvider.family.autoDispose<String?, String>((
