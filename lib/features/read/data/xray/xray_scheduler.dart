@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../../../core/database/schema/xray.dart' as xs;
+import '../../../../core/logging/app_log.dart';
 import '../../domain/book.dart';
 import '../epub_doc.dart';
 import 'xray_dao.dart';
@@ -310,7 +311,9 @@ class XrayScheduler extends ChangeNotifier {
       final m = await (md5Hook ?? xrayFileMd5)(ep.path);
       await dao.setBookMd5(book.id, m);
       return m;
-    } catch (_) {
+    } catch (e) {
+      // 路径不可读/测试假路径＝返回 null 交 UI 空态；留痕便于真机排查懒补算失败。
+      AppLog.add('指纹懒补算失败 书#${book.id}: $e', level: LhLevel.warn);
       return null;
     }
   }
@@ -547,6 +550,8 @@ class XrayRun {
       ));
       _pumpNext();
     } catch (e) {
+      // catch-ok: 异常转交 _onFail——任务态 failed + live.error + 面板中断弹层，
+      // 不是静默吞噬，是**上报路径本身**。
       _onFail('$e');
     }
   }
@@ -577,6 +582,7 @@ class XrayRun {
         _worker!.feedAnchor(_next, _paras(d, _next));
       }
     } catch (e) {
+      // catch-ok: 同上——统一走 _onFail 落 failed 态并弹层报出。
       _inFlight = false;
       _onFail('$e');
     }
@@ -643,6 +649,7 @@ class XrayRun {
             );
           }
         } catch (e) {
+          // catch-ok: 补扫失败写进 live.error（面板头显示「上次失败」），非吞掉。
           live.error = '$e';
         }
         _sched._bumpRevision();
@@ -666,6 +673,7 @@ class XrayRun {
         _sched._bumpRevision();
         _sched.ping();
       } catch (e) {
+        // catch-ok: 落库链异常同样转 _onFail 上报（任务态 failed + 弹层）。
         _onFail('$e');
       }
     }());
@@ -684,7 +692,9 @@ class XrayRun {
           await _sched.dao.patchTaskProgress(
               md5: live.md5, processedCh: live.doneCh, status: xs.xrayStatusFailed);
         }
-      } catch (_) {}
+      } catch (_) {
+        // catch-ok: failed 态写库自身失败无处可报（DB 已异常）；仍会 bump 刷新 UI。
+      }
       _sched._bumpRevision();
       _sched.ping();
     }());

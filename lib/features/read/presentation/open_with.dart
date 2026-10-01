@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/logging/app_log.dart';
 import '../data/epub_doc.dart';
 import '../data/epub_import.dart';
 import '../domain/book.dart';
@@ -25,6 +26,7 @@ Future<String?> takeEpubUri() async {
   try {
     return await _intentsChannel.invokeMethod<String>('takeEpubUri');
   } catch (_) {
+    // catch-ok: 原生侧未挂到 intents（非打开方式进入）＝无待接文件，属正常分支。
     return null;
   }
 }
@@ -56,15 +58,19 @@ Future<void> handleOpenWithEpub(
   int size = 0;
   try {
     size = await brOpenFileSize(path);
-  } catch (_) {}
+  } catch (_) {
+    // catch-ok: 体积仅展示位，取不到按 0 走（主链用路径直读，不依赖此值）。
+  }
   final pick = EpubPick(name: name, size: size, path: path);
   EpubDoc doc;
   try {
     doc = await ref.read(epubDocLoaderProvider)(path);
   } on EpubFormatException catch (e) {
+    // catch-ok: 坏包/DRM 是用户可解错误，已按原因 toast（页面级反馈即产物）。
     if (context.mounted) readToast(context, e.reason);
     return;
   } catch (_) {
+    // catch-ok: 同上，读取异常的兜底文案已出toast；此处再落日志会与 loader 侧重复。
     if (context.mounted) readToast(context, '文件无法读取');
     return;
   }
@@ -72,8 +78,10 @@ Future<void> handleOpenWithEpub(
   Book? dup;
   try {
     dup = await svc.findDup(doc);
-  } catch (_) {
+  } catch (e) {
+    // catch-ok: 判重失败回落「按新建导入」是有意保守路径（宁重不丢）。
     dup = null;
+    AppLog.add('打开方式判重查询失败: $e', level: LhLevel.warn);
   }
   if (!context.mounted) {
     doc.lazy?.dispose();

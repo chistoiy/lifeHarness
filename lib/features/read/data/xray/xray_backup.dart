@@ -17,6 +17,8 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/logging/app_log.dart';
+
 import 'xray_dao.dart';
 
 typedef XrSaveAs = Future<String?> Function(String srcPath);
@@ -56,8 +58,9 @@ class XrayBackupService {
     if (saved == null) {
       try {
         await tmp.delete();
-      } catch (_) {
-        // 清理失败不影响取消语义（临时文件留在应用私有目录）。
+      } catch (e) {
+        // 清理失败不影响取消语义（临时文件留在应用私有目录），但要留痕。
+        AppLog.add('xraybak 临时文件清理失败: $e', level: LhLevel.warn);
       }
     }
     return saved;

@@ -10,6 +10,7 @@ extension _ShelfLocate on _ShelfPageState {
     try {
       books = await ref.read(booksProvider.future);
     } catch (_) {
+      // catch-ok: 拉列表失败走「未在当前视图找到」兜底提示，用户可见、不静默。
       books = const [];
     }
     if (!mounted || seq != _locateSeq) return;

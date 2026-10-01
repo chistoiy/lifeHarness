@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../domain/book.dart';
 import '../domain/book_toc.dart';
 import 'epub_doc.dart';
@@ -252,7 +253,10 @@ class EpubImportService {
       if (await dao.task(m) != null) {
         lastReuseHits = await dao.bookIdsWithMd5(m, exceptBookId: bookId);
       }
-    } catch (_) {}
+    } catch (e) {
+      // 导入主链路不因指纹失败中断，但留痕必须打点（§2.3 四类必记·文件读取失败）。
+      AppLog.add('导入指纹计算失败 书#$bookId: $e', level: LhLevel.warn);
+    }
   }
 
   /// 删除本地书时清私有副本（BrDel「连源文件删除」用 · 批4 接线）。

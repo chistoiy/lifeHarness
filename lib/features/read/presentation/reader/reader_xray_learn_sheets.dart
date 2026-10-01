@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/logging/app_log.dart';
 import '../../data/xray/xray_dao.dart';
 import '../../domain/book.dart';
 import '../read_providers.dart';
@@ -505,6 +506,8 @@ Future<void> showXrBakSheet(BuildContext context, WidgetRef ref) async {
               try {
                 bundle = await svc.readPick();
               } catch (e) {
+                // 导入包解析失败＝外部文件问题，留痕+toast 双出口。
+                AppLog.add('.xraybak 解析失败: $e', level: LhLevel.error);
                 if (sc.mounted) readToast(sc, '包不可读：$e');
                 return;
               }

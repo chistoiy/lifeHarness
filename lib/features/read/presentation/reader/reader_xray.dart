@@ -157,7 +157,7 @@ void xrNoteBackground() {
   try {
     ref.read(xraySchedulerProvider).noteBackground();
   } catch (_) {
-    // 容器已销毁（页面出栈竞态）：调度器随 ProviderScope 存活，无需本页处理。
+    // catch-ok: 容器已销毁（页面出栈竞态）——调度器随 ProviderScope 存活，无需本页处理。
   }
 }
 
