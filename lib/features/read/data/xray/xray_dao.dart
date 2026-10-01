@@ -433,10 +433,17 @@ class XrayDao {
   /// 面板主查询的「全部」段（批A F4）：一次取回六类在册词条，UI 侧分桶。
   /// 上限 2000＝预研单书实体 500~2000 画像的宽余量（大书极端时截尾，
   /// 排序分值低的自然落在尾部，与「低置信折叠」消化路径同侧）。
-  Future<List<XrayEntityRow>> allEntities(String md5, {int limit = 2000}) async {
+  /// [presetView]（批2 开关关＝纯预置视角）：只看引擎原始产出——`user_added`
+  /// 不算预置产物要隐掉，`deleted` 是「被用户屏蔽的原始行」要恢复；merged 死行两态都不出现。
+  Future<List<XrayEntityRow>> allEntities(String md5,
+      {int limit = 2000, bool presetView = false}) async {
     final rows = await _db.query(DbSchema.tXrayEntity,
-        where: 'book_md5 = ? AND status IN (?, ?)',
-        whereArgs: [md5, xs.xrayEntityActive, xs.xrayEntityUserAdded],
+        where: presetView
+            ? 'book_md5 = ? AND (status = ? OR status = ?)'
+            : 'book_md5 = ? AND status IN (?, ?)',
+        whereArgs: presetView
+            ? [md5, xs.xrayEntityActive, xs.xrayEntityDeleted]
+            : [md5, xs.xrayEntityActive, xs.xrayEntityUserAdded],
         orderBy: 'score DESC',
         limit: limit);
     return rows.map(_row).toList();
@@ -942,9 +949,10 @@ class XrayDao {
 
   /// 面板一揽子数据（批A）：任务态 + 全部词条 + 锚点分组，一次查齐。
   /// 只在 X-Ray 段激活时调用（autoDispose 跟页面走），逐章进度不重查。
-  Future<XrayPanelData> panelData(String md5) async {
+  /// [presetView] 直通 [allEntities]（批2 开关关＝纯预置视角）。
+  Future<XrayPanelData> panelData(String md5, {bool presetView = false}) async {
     final task = await this.task(md5);
-    final ents = await allEntities(md5);
+    final ents = await allEntities(md5, presetView: presetView);
     final anchors = await anchorsByEntity(md5);
     return XrayPanelData(task: task, entities: ents, anchors: anchors);
   }

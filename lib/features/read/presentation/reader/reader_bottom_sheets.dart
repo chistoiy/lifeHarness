@@ -270,6 +270,7 @@ Future<void> showBrMoreSheet(
   required ValueChanged<bool> onBright,
   String? xrStatus,
   VoidCallback? onXray,
+  VoidCallback? onXrWords,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -382,6 +383,27 @@ Future<void> showBrMoreSheet(
                 ),
               ),
             ],
+            // 批2 · 词库管理入口行（原型 sheetBrMore「X-Ray 词库管理」行）。
+            if (onXrWords != null)
+              GestureDetector(
+                key: const ValueKey('brMoreXrw'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => go(onXrWords),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                  child: Row(
+                    children: const [
+                      Expanded(
+                        child: Text('X-Ray 词库管理',
+                            style: TextStyle(fontSize: 12.5)),
+                      ),
+                      Text('养词库',
+                          style: TextStyle(
+                              fontSize: 10, color: Color(0xFF94A3B8))),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 14),
             Row(
               children: [

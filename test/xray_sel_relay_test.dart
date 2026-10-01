@@ -207,11 +207,24 @@ void main() {
     await t.pump(const Duration(milliseconds: 400));
   });
 
-  testWidgets('未命中加词接力不回归：自动开弹层并预填、旗标即清', (t) async {
+  testWidgets('未命中＝面板带入搜索+空态加词入口（批2修③，不再自动弹加词）', (t) async {
     await seedEntities();
     await openReader(t, 'r4');
-    containerOf(t).read(readerXrAddWordProvider.notifier).state = '巧克力';
+    containerOf(t).read(readerXrKwProvider.notifier).state = '巧克力';
     await toXrTab(t);
+    // 搜索横幅 + 空态提示 + 加词入口（不自动弹层、不前置屏蔽）。
+    expect(find.byKey(const ValueKey('xrKwBar')), findsOne);
+    expect(find.text('搜索「巧克力」'), findsOne);
+    expect(find.text('没有找到「巧克力」'), findsOne);
+    expect(find.byKey(const ValueKey('xrKwAdd')), findsOne);
+    expect(find.byKey(const ValueKey('sheetXrAdd')), findsNothing);
+    expect(containerOf(t).read(readerXrKwProvider), isNull,
+        reason: '接力旗标即清');
+    // 空态加词 → 预填弹层。
+    await t.tap(find.byKey(const ValueKey('xrKwAdd')));
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(milliseconds: 150));
+    }
     expect(find.byKey(const ValueKey('sheetXrAdd')), findsOne);
     expect(
       t.widget<TextField>(find.byKey(const ValueKey('xrAddWordIn')))
@@ -219,7 +232,51 @@ void main() {
           .text,
       '巧克力',
     );
-    expect(containerOf(t).read(readerXrAddWordProvider), isNull);
+    // 清除搜索回全量列表。
+    await clearToasts(t);
+    await t.tapAt(const Offset(20, 20)); // 遮罩收加词弹层
+    await t.pump(const Duration(milliseconds: 200));
+    await t.tap(find.byKey(const ValueKey('xrKwClr')));
+    await t.pump(const Duration(milliseconds: 200));
+    expect(find.byKey(const ValueKey('xrKwBar')), findsNothing);
+    final rows = find.byWidgetPredicate((w) =>
+        w is GestureDetector &&
+        w.key is ValueKey<String> &&
+        (w.key as ValueKey<String>).value.startsWith('xrRow-'));
+    expect(rows, findsWidgets, reason: '清除后应回到全量词条列表');
+    await t.pump(const Duration(milliseconds: 400));
+  });
+
+  testWidgets('养词库开关：关＝纯预置视角（隐我的词条、恢复被屏蔽词）', (t) async {
+    final (lideId, ldId) = await seedEntities();
+    await dao.registerUserWord(md5: 'M', word: '自定义词', type: 'term');
+    await dao.markDeleted('M', [ldId]); // 屏蔽引擎原始行「伦敦」
+    await openReader(t, 'r6');
+    await toXrTab(t);
+    Future<void> expandLow() async {
+      if (find.byKey(const ValueKey('xr-lowmore')).evaluate().isNotEmpty) {
+        await t.tap(find.byKey(const ValueKey('xr-lowmore')));
+        await t.pump(const Duration(milliseconds: 150));
+      }
+    }
+
+    await expandLow();
+    // 默认开：我的词条在列、被屏蔽的伦敦不出现。
+    expect(find.text('自定义词'), findsOne);
+    expect(find.text('伦敦'), findsNothing);
+    // 关＝纯预置视角：user_added 隐掉、deleted 恢复。
+    await t.tap(find.byKey(const ValueKey('xrUserDictBtn')));
+    for (var i = 0; i < 8; i++) {
+      await t.pump(const Duration(milliseconds: 150));
+    }
+    expect(find.text('养词库 关'), findsOne);
+    // 低置信折叠区保持展开（首次 expandLow 后 _lowOpen 常驻，快照重取不清）。
+    expect(find.text('自定义词'), findsNothing,
+        reason: '纯预置视角不显示 user_added');
+    expect(find.text('伦敦'), findsOne, reason: '纯预置视角恢复被屏蔽的原始行');
+    expect(containerOf(t).read(readerXrFocusIdProvider), isNull);
+    expect(lideId, greaterThan(0));
+    await clearToasts(t);
     await t.pump(const Duration(milliseconds: 400));
   });
 

@@ -18,6 +18,7 @@ import 'stats/read_timer_page.dart';
 import 'reader/reader_page.dart';
 import 'shelf/shelf_page.dart';
 import 'shelf/read_lists_page.dart';
+import 'xray_words_page.dart';
 
 /// 全屏栈路由（治理G6 下沉）
 List<GoRoute> readPageRoutes() => [
@@ -119,5 +120,10 @@ List<GoRoute> readPageRoutes() => [
               final k = s.uri.queryParameters['kind'];
               return BookMgrPage(kind: kinds.contains(k) ? k! : 'source');
             },
+          ),
+        // V1.54.1 批2：X-Ray 词库管理（GLOBAL 养成词库 CRUD＋启用开关）。
+          GoRoute(
+            path: '/read/xray-words',
+            builder: (_, _) => const XrayWordsPage(),
           )
 ];

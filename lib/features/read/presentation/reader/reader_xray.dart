@@ -114,8 +114,8 @@ void _brFlashPara(int ci, int pi) {
   Overlay.of(context, rootOverlay: true).insert(entry);
 }
 
-/// 选区工具条「X-Ray」（F6）：命中实体词→迷你卡（查看全部位置→面板详情）；
-/// 未命中→面板「加为词条」弹层预填（名单驱动 read.brSelBar）。
+/// 选区工具条「X-Ray」（F6 · 批2修③ 口径）：命中→直达面板详情（迷你卡中转已撤）；
+/// 未命中→面板带入搜索，空态给「加为词条」入口（不前置屏蔽/添加）。
 void xrSelToLearn() {
   final raw = _selTxt.trim();
   _clearSel();
@@ -145,22 +145,15 @@ Future<void> _xrSelLookup(String w) async {
     }
     hit ??= hits.where((e) => e.name.contains(w) || w.contains(e.name)).firstOrNull;
     if (hit != null) {
-      final ent = hit;
-      showXrPeekSheet(
-        context,
-        ent: ent,
-        onViewAll: () {
-          // 批1 修（20261002）：直达改传词条 id（面板按 id 定位，不再按词全等猜
-          // 名——选中文本与词条名不一致时老链路直接哑火）；词留作 id 失效回退。
-          ref.read(readerXrFocusIdProvider.notifier).state = ent.id;
-          ref.read(readerXrFocusWordProvider.notifier).state = ent.name;
-          openXrTab();
-        },
-      );
+      // 批2修③：命中＝直达面板详情（原迷你卡「查看全部位置」那步已并进来）。
+      ref.read(readerXrFocusIdProvider.notifier).state = hit.id;
+      ref.read(readerXrFocusWordProvider.notifier).state = hit.name;
+      openXrTab();
       return;
     }
   }
-  ref.read(readerXrAddWordProvider.notifier).state = w;
+  // 未命中＝面板带入搜索+空态加词入口；不前置「屏蔽/添加」二选一。
+  ref.read(readerXrKwProvider.notifier).state = w;
   openXrTab();
 }
 

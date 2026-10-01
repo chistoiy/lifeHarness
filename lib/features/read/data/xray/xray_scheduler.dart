@@ -215,6 +215,7 @@ class XrayScheduler extends ChangeNotifier {
     this.md5Hook,
     XrayWorkerFactory? workerFactory,
     this.sens = 1.0,
+    this.userDictOn,
   }) : workerFactory = workerFactory ?? _IsoXrayWorker.spawn;
 
   final XrayDao dao;
@@ -230,6 +231,10 @@ class XrayScheduler extends ChangeNotifier {
 
   /// 索引灵敏度倍率（§4 设置项「低/中/高」→ 1.6/1.0/0.7；一期默认中，设置页在批C 接）。
   final double sens;
+
+  /// 养成词库开关（批2 `read.xrUserDict`，null＝默认开）：关＝解析/补扫不叠加
+  /// 用户层（纯预置视角）；已物化状态行不回滚，重开即恢复。
+  final Future<bool> Function()? userDictOn;
 
   final XrayWorkerFactory workerFactory;
 
@@ -532,7 +537,11 @@ class XrayRun {
     _s = s;
     final d = doc!;
     try {
-      final layer = await s.dao.userLayer(live.md5);
+      // 批2 养词库开关：关＝用户层不叠加（解析与补扫同口径）。
+      final layerOn = s.userDictOn == null || await s.userDictOn!();
+      final layer = layerOn
+          ? await s.dao.userLayer(live.md5)
+          : XrayUserLayer.none;
       final toc = d.toc.isNotEmpty
           ? [for (final t in d.toc) t.label]
           : [for (final c in d.chapters) c.title];

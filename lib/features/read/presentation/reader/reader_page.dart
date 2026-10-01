@@ -25,7 +25,6 @@ import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../../../../core/database/schema/xray.dart' as xs;
 import '../../../../core/logging/app_log.dart';
 import '../../data/xray/xray_dao.dart' show XrayEntityRow;
-import './reader_xray_learn_sheets.dart' show showXrPeekSheet;
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
@@ -628,6 +627,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       // V1.54 批A · 屏5 入口（more.frag 行）：状态字＋开 X-Ray 段。
       xrStatus: xrStatusLabel(),
       onXray: openXrTab,
+      onXrWords: () => ctx.push('/read/xray-words'),
       onSearch: _openSearch,
       onQuotes: () =>
           context.push('/read/quotes', extra: widget.bookId),

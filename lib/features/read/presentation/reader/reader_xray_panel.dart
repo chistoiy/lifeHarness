@@ -84,11 +84,13 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
   // 批B 整理模式（xrfrag：行前勾选 + 底部「合并/移除」条）。
   bool _org = false;
   final Set<int> _sel = {};
-  // 接力两半拆开（批1 修 20261002）：加词弹层不依赖快照，照旧首帧消费；
+  // 接力两半拆开（批1 修 20261002）：选区 kw 不依赖快照，照旧首帧消费；
   // 直达详情改等快照可用——老逻辑首帧就把一次性标志烧在空快照上，
   // 全等匹配必败且永不重试＝选了词还得手动再搜。
-  bool _addRelayed = false;
+  bool _kwRelayed = false;
   bool _focusRelayed = false;
+  // 批2修③：选区未命中带进来的搜索词（面板内过滤；空态给加词入口）。
+  String? _selKw;
 
   double get _confTop => _topScore;
   double _topScore = 1;
@@ -185,15 +187,15 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         }
       });
     }
-    // 接力：选区迷你卡「查看全部位置」直达详情；未命中词自动开加词弹层。
-    if (!_addRelayed) {
-      final addWord = ref.read(readerXrAddWordProvider);
-      if (addWord != null) {
-        _addRelayed = true;
+    // 接力：选区未命中＝面板带入搜索（批2修③，空态给加词入口）；命中详情等快照可用。
+    if (!_kwRelayed) {
+      final kw = ref.read(readerXrKwProvider);
+      if (kw != null) {
+        _kwRelayed = true;
+        _selKw = kw; // 本帧即渲染横幅
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          ref.read(readerXrAddWordProvider.notifier).state = null;
-          _openAdd(md5, prefill: addWord);
+          // build 期间禁改 provider，旗标清场推到帧外。
+          ref.read(readerXrKwProvider.notifier).state = null;
         });
       }
     }
@@ -262,6 +264,30 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         ensureMd5: () =>
             ref.read(xraySchedulerProvider).ensureMd5(widget.book),
       );
+
+  /// 养成词库开关（批2 `read.xrUserDict`，默认开）。快照 provider watch 同一 kv，
+  /// 翻转即重取（DAO presetView 换读侧口径），无需手动失效。
+  bool get _udOn =>
+      ref.watch(readKvProvider(('read.xrUserDict', 'true'))).valueOrNull !=
+      'false';
+
+  Future<void> _flipUserDict() async {
+    // 回调内只能 read（watch 仅限 build）；键值即取即翻。
+    final onNow =
+        ref.read(readKvProvider(('read.xrUserDict', 'true'))).valueOrNull !=
+            'false';
+    final next = onNow ? 'false' : 'true';
+    await ref.read(readRepositoryProvider).setKv('read.xrUserDict', next);
+    ref.read(readTickProvider.notifier).state++;
+    if (mounted) {
+      readToast(
+        context,
+        next == 'true'
+            ? '养词库已开启 · 我的词条与屏蔽恢复生效'
+            : '已切纯预置视角 · 已整理状态不回滚，重开即恢复',
+      );
+    }
+  }
 
   // ---------- 头部（xrHeadHtml 1:1） ----------
 
@@ -393,6 +419,32 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 ),
               ),
             ),
+            // 批2 · 养词库开关快捷位（关＝纯预置视角：快照随 kv 重取）。
+            const SizedBox(width: 6),
+            GestureDetector(
+              key: const ValueKey('xrUserDictBtn'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _flipUserDict,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _udOn ? _XrStyle.accent : null,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                      color: _udOn
+                          ? _XrStyle.accent
+                          : Theme.of(context).dividerColor),
+                ),
+                child: Text(
+                  '养词库 ${_udOn ? '开' : '关'}',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: _udOn ? Colors.white : null),
+                ),
+              ),
+            ),
           ],
         ),
       ],
@@ -492,6 +544,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     if (_type != 'all') pool = pool.where((e) => e.type == _type).toList();
     final kw = widget.kw.trim();
     if (kw.isNotEmpty) pool = pool.where((e) => e.name.contains(kw)).toList();
+    // 批2修③：选区未命中带入的搜索词（空态给「加为词条」入口）。
+    final skw = _selKw?.trim() ?? '';
+    if (skw.isNotEmpty) {
+      pool = pool.where((e) => e.name.contains(skw)).toList();
+    }
     _topScore =
         pool.isEmpty ? 1 : pool.map((e) => e.score).reduce((a, b) => a > b ? a : b);
     if (_topScore <= 0) _topScore = 1;
@@ -503,19 +560,56 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
       return ListView(
         key: const ValueKey('xrList'),
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 48),
-            child: Text(
-              snap.entities.isEmpty ? '还没有词条 · 点「重新解析」生成全书索引' : '该范围没有词条',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10, color: _XrStyle.muted),
+          if (skw.isNotEmpty) _kwBanner(),
+          if (skw.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                children: [
+                  Text('没有找到「$skw」',
+                      key: const ValueKey('xrMissLbl'),
+                      textAlign: TextAlign.center,
+                      style:
+                          const TextStyle(fontSize: 10, color: _XrStyle.muted)),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    key: const ValueKey('xrKwAdd'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openAdd(md5, prefill: skw),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: _XrStyle.accent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text('＋ 加为词条',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              child: Text(
+                snap.entities.isEmpty ? '还没有词条 · 点「重新解析」生成全书索引' : '该范围没有词条',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10, color: _XrStyle.muted),
+              ),
             ),
-          ),
         ],
       );
     }
 
-    final rows = <Widget>[];
+    final rows = <Widget>[
+      // 批2修③：选区搜索横幅（列表态任意时刻可清）。
+      if (skw.isNotEmpty) _kwBanner(),
+    ];
     // ④（工单20261001轮2·用户拍板）：全书范围不显示「在当前页」分组，
     // 当前页只由范围段选「当前页」表达（_scoped 过滤），与原型同步摘组。
     rows.addAll(hi.map((e) => _row(e, snap.anchors[e.id])));
@@ -565,6 +659,39 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
       ),
     ));
     return ListView(key: const ValueKey('xrList'), children: rows);
+  }
+
+  /// 批2修③：选区搜索横幅（列表/空态两分支共用；清除钮任意时刻可关）。
+  Widget _kwBanner() {
+    final skw = _selKw?.trim() ?? '';
+    return Padding(
+      key: const ValueKey('xrKwBar'),
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('搜索「$skw」',
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _XrStyle.muted)),
+          ),
+          GestureDetector(
+            key: const ValueKey('xrKwClr'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _selKw = null),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text('清除',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: _XrStyle.accent)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _row(XrayEntityRow e, List<XrayAnchorRow>? ms) {

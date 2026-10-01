@@ -106,6 +106,10 @@ const _secs = [
     _Row('epub', '导入本地 EPUB', _T.nav,
         route: '/read/import-epub',
         desc: '添加图书流程内同样有入口 · Android 13+ SAF 单次读取'),
+    // V1.54.1 批2：X-Ray 养成词库管理页（入口与面板 ⋯ 菜单行同达）。
+    _Row('xrwords', 'X-Ray 词库管理', _T.nav,
+        route: '/read/xray-words',
+        desc: 'GLOBAL 养成词库 · 增删改查 · 启用开关（关＝纯预置视角） · 导入导出随批3'),
     _Row('brSync', '划线自动存为书摘', _T.bool,
         desc: '阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'),
     _Row('brLink', '书籍内外部链接', _T.chips,

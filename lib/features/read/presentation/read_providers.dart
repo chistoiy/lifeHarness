@@ -411,6 +411,11 @@ final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
     },
     // 全局单飞优先级：开书（预热）在跑时 X-Ray 让路（§8）。
     busyProbe: (bookId) => svc.warming(bookId) != null,
+    // 批2 养词库开关：默认开；关＝解析/补扫不叠加用户层（纯预置视角）。
+    userDictOn: () async =>
+        ((await ref.read(readRepositoryProvider).kv('read.xrUserDict')) ??
+                'true') !=
+            'false',
   );
   s.onRevised = () => ref.read(xrayRevisionProvider.notifier).state = s.revision;
   // 冷启动收尸一次：上个进程留下的 running 行不转 pause，面板/角标会一直谎报状态。
@@ -433,12 +438,14 @@ final bookMd5Provider = FutureProvider.family.autoDispose<String?, String>((
 });
 
 /// 面板整包数据（任务态+词条+锚点），按 md5 归属、随页面存活。
+/// 批2：跟随「养词库」开关取数——关＝纯预置视角（DAO presetView）。
 final xraySnapProvider = FutureProvider.family.autoDispose<XrayPanelData, String>((
   ref,
   md5,
 ) {
   ref.watch(xrayRevisionProvider);
-  return ref.watch(xrayDaoProvider).panelData(md5);
+  final ud = ref.watch(readKvProvider(('read.xrUserDict', 'true'))).valueOrNull ?? 'true';
+  return ref.watch(xrayDaoProvider).panelData(md5, presetView: ud == 'false');
 });
 
 /// 书架角标（F7）：一张 join 查询取回所有有任务态的架位；readTick/终态修订失效。
@@ -458,5 +465,6 @@ final readerXrFocusWordProvider = StateProvider<String?>((ref) => null);
 /// 词仅留作 id 失效（重解析换行）时的回退。
 final readerXrFocusIdProvider = StateProvider<int?>((ref) => null);
 
-/// 选区「X-Ray」未命中 → 面板自动开「加为词条」弹层并预填（批B F8①）。
-final readerXrAddWordProvider = StateProvider<String?>((ref) => null);
+/// 选区「X-Ray」未命中 → 面板带入搜索（批2修③）：面板空态给「加为词条」入口，
+/// 不再自动弹加词弹层、也不前置屏蔽（原 readerXrAddWordProvider 已撤）。
+final readerXrKwProvider = StateProvider<String?>((ref) => null);
