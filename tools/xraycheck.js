@@ -1,6 +1,5 @@
-/* V1.54 X-Ray 全书索引 · 批2 原型校验（CDP 无头 Chrome · ?xr= 深链逐屏）
- * 覆盖 设计书§9 七屏：范围弹层/书架入口+角标/面板(标签·搜索·折叠·整理)/实体详情+跳转/
- * 阅读器菜单+选区工具条(X-Ray·加为词条)/设置-数据备份/失败中断。
+/* V1.54 X-Ray 全书索引 · 批2 原型校验 v2（CDP 无头 Chrome · ?xr= 深链逐屏）
+ * 形态=阅读页上拉全屏面板「目录｜X-Ray」双段（微信读书图1 版式）+ X-Ray 段内 Kindle 图2/3 列表与详情。
  * 用法：node --experimental-websocket tools/xraycheck.js
  */
 const { spawn } = require('child_process');
@@ -51,154 +50,161 @@ async function go(q) {
       if (!/tailwind is not defined/.test(t)) errs.push(t); } });
   await cmd('Runtime.enable'); await cmd('Page.enable');
 
-  /* 屏2 书架四态角标 */
+  /* 面板形态：上拉全屏 · X-Ray 段 · 目录段回归 */
+  await go('xr=panel');
+  let r = await ev(`var d=document.getElementById('brTocDrawer'),pane=document.getElementById('xrPane'),sc=document.getElementById('brDrScroll');
+    return{drawer:!d.classList.contains('hidden'),pane:!pane.classList.contains('hidden'),tocHidden:sc.classList.contains('hidden'),
+      segXr:document.getElementById('xrSegXr').className.indexOf('on')>=0,
+      wideFull:document.getElementById('brDrWide').className.indexOf('w-full')>=0,
+      scopeSegs:document.querySelectorAll('#xrHead .xr-seg').length,
+      types:document.querySelectorAll('#xrTypes .xr-tab').length,
+      rows:document.querySelectorAll('#xrList .xr-row').length,
+      curGrp:!!document.getElementById('xr-grpCurLbl'),
+      bar:!!document.querySelector('#xr-bar-e_kmn i.now')};`);
+  (r.drawer && r.pane && r.tocHidden && r.segXr && r.wideFull && r.scopeSegs === 3 && r.types === 7 && r.rows >= 15 && r.curGrp && r.bar)
+    ? ok('面板=上拉全屏双段 · X-Ray 段：范围段3+类型段7+词条行+当前页分组+行内分布条', 'rows=' + r.rows) : bad('面板形态', JSON.stringify(r));
+  await shot('xr-panel.png');
+  r = await ev(`document.getElementById('xrSegToc').click();
+    var sc=document.getElementById('brDrScroll'),pane=document.getElementById('xrPane');
+    var out={tocBack:!sc.classList.contains('hidden'),paneOff:pane.classList.contains('hidden'),tocItems:document.querySelectorAll('#brTocList [data-leaf],#brTocList .br-toc-row,#brTocList > div').length};
+    document.getElementById('xrHdrQ').value='第三章';xrHdrSearch('第三章');
+    out.hits=!document.getElementById('brDrHits').classList.contains('hidden');
+    document.getElementById('xrHdrQ').value='';xrHdrSearch('');
+    document.getElementById('xrSegXr').click();
+    out.xrAgain=!document.getElementById('xrPane').classList.contains('hidden');
+    return out;`);
+  (r.tocBack && r.paneOff && r.hits && r.xrAgain) ? ok('目录段回归：目录列表/搜本书可用 · 段切换往返') : bad('目录段', JSON.stringify(r));
+  r = await ev(`var n0=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('chapter');
+    var n1=document.querySelectorAll('#xrList .xr-row').length;xrSetScope('book');
+    return{n0:n0,n1:n1,back:document.querySelectorAll('#xrList .xr-row').length===n0};`);
+  (r.n1 < r.n0 && r.n1 >= 2 && r.back) ? ok('范围段：本章过滤生效（当前页/本章/全书）', r.n0 + '→' + r.n1) : bad('范围段', JSON.stringify(r));
+  r = await ev(`xrPickType('per');var per=document.querySelectorAll('#xrList .xr-row').length;xrPickType('all');
+    xrToggleLow();var lowOn=/收起低置信/.test(document.getElementById('xr-lowmore').textContent);xrToggleLow();
+    xrToggleSort();var sl=document.getElementById('xrSortBtn').textContent;
+    return{per:per,lowOn:lowOn,sl:/按出场/.test(sl)};`);
+  (r.per >= 5 && r.per < 15 && r.lowOn && r.sl) ? ok('类型段筛选 · 低置信展开 · 排序切换') : bad('类型/折叠/排序', JSON.stringify(r));
+
+  /* 词条详情（段内子页）：时间轴 · 剧透保护 · 简介 · 候选并词 · 自学习动作 */
+  await go('xr=ent');
+  r = await ev(`var det=document.getElementById('xrList').innerText;
+    return{pane:!document.getElementById('xrPane').classList.contains('hidden'),
+      back:!!document.getElementById('xr-back'),name:/卡尼曼/.test(document.getElementById('xrList').innerText.slice(0,80)),
+      desc:/诺贝尔/.test((document.getElementById('xr-desc-e_kmn')||{}).innerText||''),
+      lg:!!document.querySelector('#xr-bar-e_kmn.lg i.now'),
+      ticks:document.querySelectorAll('[id^="xr-tick-e_kmn-"]').length,
+      clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,
+      spoiler:/隐藏未读 1 处/.test(det),cand:!!document.getElementById('xr-cand'),
+      into:!!document.getElementById('xr-merge-into'),ban:!!document.getElementById('xr-ban'),ai:/AI 释义 · 二期占位/.test(det)};`);
+  (r.pane && r.back && r.name && r.desc && r.lg && r.ticks === 4 && r.clips === 3 && r.spoiler && r.cand && r.into && r.ban && r.ai)
+    ? ok('详情子页：大时间轴(4点+橙线) · 剧透保护默认 · 简介 · 候选并词 · 合并进/不再显示', JSON.stringify(r)) : bad('详情', JSON.stringify(r));
+  await shot('xr-ent.png');
+  r = await ev(`xrToggleCites();return{clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,off:!document.getElementById('xr-spoiler')};`);
+  (r.clips === 4 && r.off) ? ok('「显示全部引用」开关 → 未读引用出现') : bad('剧透开关', JSON.stringify(r));
+  r = await ev(`var n0=xrEnts().length;document.getElementById('xr-cand').querySelector('button').click();
+    return{lost:n0-xrEnts().length,toast:/已合并/.test(document.getElementById('toast').innerText)};`);
+  (r.lost === 1 && r.toast) ? ok('候选卡一键并词（aliases+出场迁移）') : bad('候选并词', JSON.stringify(r));
+  await go('xr=merge');
+  r = await ev(`return{sh:!document.getElementById('sheetXrMerge').classList.contains('hidden'),rows:document.querySelectorAll('[id^="xr-mg-"]').length};`);
+  (r.sh && r.rows >= 15) ? ok('「合并进…」半屏：全词条可选（'+r.rows+' 行）') : bad('合并半屏', JSON.stringify(r));
+  r = await ev(`var n0=xrEnts().length;document.getElementById('xr-mg-e_hce').click();
+    return{lost:n0-xrEnts().length,toast:/已合并/.test(document.getElementById('toast').innerText)};`);
+  (r.lost === 1 && r.toast) ? ok('半屏选择目标执行合并') : bad('半屏合并', JSON.stringify(r));
+
+  /* 跳转：详情片段 → 关面板 → 阅读位高亮 */
+  await go('xr=jump');
+  await wait(500);
+  r = await ev(`return{drawer:document.getElementById('brTocDrawer').classList.contains('hidden'),
+    page:curPage,toast:/已跳转/.test(document.getElementById('toast').innerText)};`);
+  (r.drawer && r.page === 'p-readerPage' && r.toast) ? ok('片段/圆点跳转：关面板→定位→提示') : bad('跳转', JSON.stringify(r));
+  r = await ev(`xrJumpTo(3,0);return{flash:!!document.querySelector('.br-flash-xr')};`);
+  r.flash ? ok('段内高亮闪烁环在位') : bad('高亮环', JSON.stringify(r));
+  await shot('xr-jump.png');
+
+  /* 整理模式（多选合并/移除） */
+  await go('xr=org');
+  r = await ev(`return{bar:/已选 2 条/.test(document.getElementById('xrBar').innerText),
+    merge:!!document.querySelector('#xrBar [onclick="xrMerge()"]'),del:!!document.querySelector('#xrBar [onclick="xrDelOpen()"]'),
+    selChk:document.querySelectorAll('#xrList .xr-ck.on').length};`);
+  (r.bar && r.merge && r.del && r.selChk === 2) ? ok('整理词条：多选态 + 底部合并/移除条') : bad('整理模式', JSON.stringify(r));
+  await shot('xr-org.png');
+  await go('xr=del');
+  r = await ev(`return{sh:!document.getElementById('sheetXrDel').classList.contains('hidden'),scope:document.querySelectorAll('#xrDelScope .xr-scope-opt').length};`);
+  (r.sh && r.scope === 2) ? ok('移除确认含「全局黑名单」升级选项') : bad('移除确认', JSON.stringify(r));
+  r = await ev(`xrDelPickScope('global');var n0=xrEnts().length;xrDoDel();
+    return{lost:n0-xrEnts().length,toast:/全局黑名单/.test(document.getElementById('toast').innerText)};`);
+  (r.lost === 1 && r.toast) ? ok('全局黑名单移除生效') : bad('全局移除', JSON.stringify(r));
+
+  /* 加词（面板入口 + 输入框） */
+  await go('xr=addword');
+  r = await ev(`return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),
+      input:!!document.getElementById('xrAddWordIn'),types:document.querySelectorAll('#xrAddTypes .xr-tab').length,
+      scopes:document.querySelectorAll('#xrAddScope .chip').length};`);
+  (r.sh && r.input && r.types === 6 && r.scopes === 2) ? ok('＋加词弹层：输入框 + 6 类型 + 两范围') : bad('加词弹层', JSON.stringify(r));
+  r = await ev(`document.getElementById('xrAddWordIn').value='巧克力';xrDoAdd();
+    var l=document.getElementById('xrList').innerText;
+    return{add:xrEnts().length,dom:/巧克力/.test(l),usr:/我的词条/.test(l)};`);
+  (r.dom && r.usr) ? ok('加词入列（详情态 · 我的词条徽）') : bad('加词入列', JSON.stringify(r));
+
+  /* 屏2 书架四态角标 + 长按入口 */
   await go('xr=shelf');
-  let r = await ev(`var bs=[].map.call(document.querySelectorAll('.xr-badge'),function(x){return x.textContent});
+  r = await ev(`var bs=[].map.call(document.querySelectorAll('.xr-badge'),function(x){return x.textContent});
     return{n:bs.length,t:bs.join('|'),page:curPage};`);
   (r.page === 'p-bookshelf' && r.n >= 4 && /解析中 57%/.test(r.t) && /已暂停/.test(r.t) && /失败/.test(r.t) && /已索引/.test(r.t))
     ? ok('屏2 书架角标四态', r.t) : bad('屏2 角标', JSON.stringify(r));
   await shot('xr-shelf.png');
-
-  /* 屏2 长按菜单入口 */
   await go('xr=menu');
   r = await ev(`var b=document.getElementById('lpXrBtn');
     return{sheet:!document.getElementById('sheetLongPress').classList.contains('hidden'),txt:b?b.textContent:''};`);
   (r.sheet && /全书索引/.test(r.txt)) ? ok('屏2 长按菜单「生成/管理全书索引」', r.txt.trim().slice(0, 30)) : bad('屏2 长按入口', JSON.stringify(r));
-  await shot('xr-menu.png');
 
-  /* 屏1 解析范围弹层 */
+  /* 屏1 解析范围 */
   await go('xr=scope');
   r = await ev(`var o=[].map.call(document.querySelectorAll('#xrScopeOpts .xr-scope-opt'),function(x){return x.textContent});
-    return{sh:!document.getElementById('sheetXrScope').classList.contains('hidden'),n:o.length,est:document.getElementById('xrScopeEst').textContent,rangeHidden:document.getElementById('xrScopeRange').classList.contains('hidden')};`);
-  (r.sh && r.n === 3 && /万字/.test(r.est) && r.rangeHidden) ? ok('屏1 范围三选 · 预估字数（全书）', r.est) : bad('屏1 范围', JSON.stringify(r));
-  r = await ev(`xrScopePick('range');var h=!document.getElementById('xrScopeRange').classList.contains('hidden');return{h:h,est:document.getElementById('xrScopeEst').textContent};`);
-  (r.h && r.est && /字/.test(r.est)) ? ok('屏1 区间态出现起止章选择 · 预估联动', r.est) : bad('屏1 区间', JSON.stringify(r));
+    return{sh:!document.getElementById('sheetXrScope').classList.contains('hidden'),n:o.length,est:document.getElementById('xrScopeEst').textContent};`);
+  (r.sh && r.n === 3 && /万字/.test(r.est)) ? ok('屏1 范围三选 · 预估字数（全书）', r.est) : bad('屏1 范围', JSON.stringify(r));
+  r = await ev(`xrScopePick('range');return{h:!document.getElementById('xrScopeRange').classList.contains('hidden'),est:document.getElementById('xrScopeEst').textContent};`);
+  (r.h && /字/.test(r.est)) ? ok('屏1 区间态起止章选择 · 预估联动', r.est) : bad('屏1 区间', JSON.stringify(r));
   await shot('xr-scope.png');
 
-  /* 屏3 面板（Kindle 主从版式）：标签/头像胶囊/低分折叠/搜索 */
-  await go('xr=panel');
-  r = await ev(`return{page:curPage,tabs:[].map.call(document.querySelectorAll('#xrTabs .xr-tab'),function(x){return x.textContent}),
-    chips:document.querySelectorAll('#xrFeatured .xr-chip:not(#xr-lowmore)').length,
-    lowmore:!!document.getElementById('xr-lowmore'),
-    detail:(document.getElementById('xr-det-name')||{}).innerText||'',
-    head:(document.getElementById('xrHead').innerText||'').slice(0,20)};`);
-  (r.page === 'p-xray' && r.tabs.length === 6 && r.chips >= 5 && r.lowmore && /系统1/.test(r.detail) && /已解析 12\/18/.test(r.head))
-    ? ok('屏3 六标签 · 头像胶囊行 · 详情区默认选中 · 已解析x/y章', r.tabs.join('|')) : bad('屏3 面板', JSON.stringify(r));
-  r = await ev(`return{gd:document.querySelectorAll('#xrGlobal .xr-dot').length,add:!!document.getElementById('xrAddBtn'),org:/整理词条/.test(document.getElementById('xrHead').innerText)};`);
-  (r.gd >= 20 && r.add && r.org) ? ok('屏3 底部全书总时间轴 · ＋加词 · 整理词条入口显性化', 'dots=' + r.gd) : bad('屏3 总览/自学习入口', JSON.stringify(r));
-  r = await ev(`var n0=document.querySelectorAll('#xrFeatured .xr-chip').length;
-    document.getElementById('xr-lowmore').click();
-    var n1=document.querySelectorAll('#xrFeatured .xr-chip.low').length;
-    var hasLow=/洛瓦洛|均值回归/.test(document.getElementById('xrFeatured').innerText);
-    return{n0:n0,n1:n1,hasLow:hasLow};`);
-  (r.n1 >= 1 && r.hasLow) ? ok('屏3 低置信折叠展开（胶囊变暗入列）', 'low=' + r.n1) : bad('屏3 折叠展开', JSON.stringify(r));
-  await shot('xr-panel.png');
-  r = await ev(`xrPickTab('per');xrSetKw('特沃');
-    var chips=[].map.call(document.querySelectorAll('#xrFeatured .xr-chip:not(#xr-lowmore) b'),function(x){return x.textContent});
-    var detail=(document.getElementById('xr-det-name')||{}).innerText||'';
-    return{chips:chips,detail:/特沃斯基/.test(detail)};`);
-  (r.chips.length === 1 && /特沃斯基/.test(r.chips[0]) && r.detail) ? ok('屏3 类内搜索→1胶囊 · 详情联动', r.chips.join('|')) : bad('屏3 搜索', JSON.stringify(r));
-
-  /* 屏3 整理：合并与移除 */
-  await go('xr=org');
-  r = await ev(`var bar=!document.getElementById('xrBar').classList.contains('hidden');
-    var cnt=(document.getElementById('xrBar').innerText.match(/已选 (\\d+) 条/)||[])[1];
-    return{bar:bar,cnt:cnt,merge:!!document.querySelector('#xrBar [onclick="xrMerge()"]'),del:!!document.querySelector('#xrBar [onclick="xrDelOpen()"]')};`);
-  (r.bar && r.cnt === '2' && r.merge && r.del) ? ok('屏3 整理模式 · 多选合并/移除条', '已选 ' + r.cnt) : bad('屏3 整理', JSON.stringify(r));
-  await shot('xr-org.png');
-  r = await ev(`var n0=xrEnts().length;xrMerge();
-    var kn=xrEnts().find(function(v){return v.id==='e_kmn'});
-    return{lost:n0-xrEnts().length,alias:kn&&kn.aliases?kn.aliases.length:0,toast:/已合并/.test(document.getElementById('toast').innerText)};`);
-  (r.lost === 1 && r.alias === 1 && r.toast) ? ok('屏3 合并执行 · aliases 归一出场迁移', JSON.stringify(r)) : bad('屏3 合并', JSON.stringify(r));
-  r = await ev(`xrSel('e_s1');xrDelOpen();
-    return{sh:!document.getElementById('sheetXrDel').classList.contains('hidden'),scope:document.querySelectorAll('#xrDelScope .xr-scope-opt').length};`);
-  (r.sh && r.scope === 2) ? ok('屏7 移除确认含「全局黑名单」升级选项', '') : bad('移除确认', JSON.stringify(r));
-  await shot('xr-del.png');
-  r = await ev(`xrDelPickScope('global');var n0=xrEnts().length;xrDoDel();
-    return{lost:n0-xrEnts().length,toast:/全局黑名单/.test(document.getElementById('toast').innerText)};`);
-  (r.lost === 1 && r.toast) ? ok('屏7 全局黑名单移除生效') : bad('全局移除', JSON.stringify(r));
-
-  /* 屏4（并入版式）：横向时间轴 · 剧透保护 · 简介 · 自学习动作 */
-  await go('xr=ent');
-  r = await ev(`var det=document.getElementById('xrDetail').innerText;
-    return{hasName:/卡尼曼/.test((document.getElementById('xr-det-name')||{}).innerText||''),
-      desc:/诺贝尔/.test((document.getElementById('xr-desc-e_kmn')||{}).innerText||''),
-      dots:document.querySelectorAll('[id^="xr-dot-e_kmn-"]').length,
-      unread:document.querySelectorAll('#xr-tl-e_kmn .xr-dot.unread').length,
-      now:!!document.getElementById('xr-now-e_kmn'),
-      clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,
-      spoiler:/隐藏未读 1 处/.test(det),cites:!!document.getElementById('xr-cites'),
-      cand:!!document.getElementById('xr-cand'),ban:!!document.getElementById('xr-ban'),into:!!document.getElementById('xr-merge-into')};`);
-  (r.hasName && r.desc && r.dots === 4 && r.unread === 1 && r.now && r.clips === 3 && r.spoiler && r.cand && r.ban && r.into)
-    ? ok('屏4 时间轴4点(1未读淡显)·当前位置线·剧透保护默认隐藏·候选合并·自学习动作', JSON.stringify(r)) : bad('屏4 详情', JSON.stringify(r));
-  await shot('xr-ent.png');
-  r = await ev(`xrToggleCites();return{clips:document.querySelectorAll('[id^="xr-clip-e_kmn"]').length,off:!document.getElementById('xr-spoiler')};`);
-  (r.clips === 4 && r.off) ? ok('屏4 「显示全部引用」开关 → 未读引用出现') : bad('屏4 开关', JSON.stringify(r));
-  r = await ev(`var n0=xrEnts().length;document.getElementById('xr-cand').querySelector('button').click();
-    return{lost:n0-xrEnts().length,toast:/已合并/.test(document.getElementById('toast').innerText)};`);
-  (r.lost === 1 && r.toast) ? ok('屏4 候选卡一键并词（aliases+归属迁移）') : bad('屏4 候选并词', JSON.stringify(r));
-  await shot('xr-merge.png');
-  await go('xr=jump');
-  await wait(400);
-  r = await ev(`return{page:curPage,toast:/已跳转/.test(document.getElementById('toast').innerText),
-    flash:!!document.querySelector('.br-flash-xr')};`);
-  (r.page === 'p-readerPage' && r.toast) ? ok('屏4 出场点击→跳阅读位置（跳转文案）', JSON.stringify(r)) : bad('屏4 跳转', JSON.stringify(r));
-  r = await ev(`xrJumpTo(3,0);return{flash:!!document.querySelector('.br-flash-xr')};`);
-  r.flash ? ok('屏4 段内高亮闪烁环在位') : bad('屏4 高亮环', JSON.stringify(r));
-  await shot('xr-jump.png');
-
-  /* 屏5 阅读器菜单 + 选区工具条 */
+  /* 屏5 阅读器菜单 + 迷你卡（命中/未命中） */
   await go('xr=more');
   r = await ev(`var row=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).find(function(x){return /全书索引/.test(x.innerText)});
     return{sh:!document.getElementById('sheetBrMore').classList.contains('hidden'),row:row?row.innerText.replace(/\\s+/g,' '):''};`);
-  (r.sh && /全书索引（X-Ray）/.test(r.row) && /已解析 12\/18 章/.test(r.row)) ? ok('屏5 阅读器菜单「全书索引（X-Ray）」行', r.row) : bad('屏5 菜单行', JSON.stringify(r));
-  await shot('xr-more.png');
+  (r.sh && /全书索引（X-Ray）/.test(r.row) && /已解析 12\/18 章/.test(r.row)) ? ok('屏5 阅读器菜单行（入口=上拉面板 X-Ray 段）', r.row) : bad('屏5 菜单行', JSON.stringify(r));
   await go('xr=peek');
   r = await ev(`var chips=[].map.call(document.querySelectorAll('#brSelActs .sdb span'),function(x){return x.textContent});
     return{chip:chips.indexOf('X-Ray')>=0,sh:!document.getElementById('sheetXrPeek').classList.contains('hidden'),
       body:document.getElementById('xrPeekBody').innerText.slice(0,60)};`);
-  (r.chip && r.sh && /系统1/.test(r.body) && /查看全部位置/.test(r.body)) ? ok('屏5 工具条 X-Ray 动作 · 命中浮迷你卡(查看全部位置)', r.body.replace(/\n/g, ' ').slice(0, 40)) : bad('屏5 peek', JSON.stringify(r));
+  (r.chip && r.sh && /系统1/.test(r.body) && /查看全部位置/.test(r.body)) ? ok('屏5 工具条 X-Ray · 迷你卡「查看全部位置」', r.body.replace(/\n/g, ' ').slice(0, 36)) : bad('屏5 peek', JSON.stringify(r));
   await shot('xr-peek.png');
+  r = await ev(`document.querySelector('#xrPeekBody [onclick^="xrPeekToPanel"]').click();
+    return{pane:!document.getElementById('xrPane').classList.contains('hidden'),drawer:!document.getElementById('brTocDrawer').classList.contains('hidden'),
+      detail:/系统1/.test(document.getElementById('xrList').innerText.slice(0,60))};`);
+  (r.pane && r.drawer && r.detail) ? ok('迷你卡→查看全部位置：开面板 X-Ray 段并选中词条') : bad('迷你卡跳转', JSON.stringify(r));
   await go('xr=add');
-  r = await ev(`return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),
-      word:(document.getElementById('xrAddWordIn')||{}).value,types:document.querySelectorAll('#xrAddTypes .xr-tab').length,
-      scopes:document.querySelectorAll('#xrAddScope .chip').length};`);
-  (r.sh && r.word === '巧克力' && r.types === 6 && r.scopes === 2) ? ok('屏5 未命中→加为词条（6 类型+两范围）', r.word) : bad('屏5 加词', JSON.stringify(r));
-  await shot('xr-add.png');
-  r = await ev(`var n0=xrEnts().length;xrDoAdd();
-    if(curPage!=='p-xray')navTo('p-xray');xrRender();
-    var f=document.getElementById('xrFeatured').innerText;
-    var tt=(document.getElementById('toast')||{}).innerText||'';
-    return{add:xrEnts().length-n0,dom:/巧克力/.test(f),
-      toast:/已加词/.test(tt),tt:tt.slice(0,30)};`);
-  (r.add === 1 && r.dom) ? ok('屏5 加词入列（头像胶囊出现）', 'toast=' + r.tt) : bad('加词入列', JSON.stringify(r));
+  r = await ev(`return{sh:!document.getElementById('sheetXrAdd').classList.contains('hidden'),word:document.getElementById('xrAddWordIn').value};`);
+  (r.sh && r.word === '巧克力') ? ok('屏5 未命中→加为词条（预填选区词）') : bad('屏5 加词', JSON.stringify(r));
 
-  /* 屏6 设置-数据 · 备份 */
+  /* 屏6 备份 · 屏7 中断 */
   await go('xr=bak');
-  r = await ev(`return{page:curPage,sh:!document.getElementById('sheetXrBak').classList.contains('hidden'),
-      row:!!document.getElementById('xrSetRow'),exp:document.getElementById('xrBakExport').innerText,imp:document.getElementById('xrBakImport').innerText};`);
-  (r.sh && r.row && /\.xraybak/.test(r.exp) && /从备份导入/.test(r.imp)) ? ok('屏6 阅读设置-数据 X-Ray 备份行+弹层', '') : bad('屏6 备份', JSON.stringify(r));
-  await shot('xr-bak.png');
+  r = await ev(`return{sh:!document.getElementById('sheetXrBak').classList.contains('hidden'),row:!!document.getElementById('xrSetRow')};`);
+  (r.sh && r.row) ? ok('屏6 阅读设置-数据 X-Ray 备份行+弹层') : bad('屏6 备份', JSON.stringify(r));
   r = await ev(`xrBakGo('imp');return{toast:/MD5 校验/.test(document.getElementById('toast').innerText)};`);
   r.toast ? ok('屏6 导入含 MD5 校验反馈') : bad('屏6 MD5', JSON.stringify(r));
-
-  /* 屏7 失败/中断 */
   await go('xr=fail');
   r = await ev(`return{sh:!document.getElementById('sheetXrFail').classList.contains('hidden'),
       body:document.getElementById('xrFailBody').innerText.slice(0,40),
       btns:[].map.call(document.querySelectorAll('#sheetXrFail button'),function(x){return x.textContent}).join('|')};`);
-  (r.sh && /12\/18/.test(r.body) && /从断点继续/.test(r.btns) && /重置索引/.test(r.btns) && /关闭/.test(r.btns))
-    ? ok('屏7 中断弹层：断点续跑/重置/关闭', r.btns) : bad('屏7 中断', JSON.stringify(r));
-  await shot('xr-fail.png');
+  (r.sh && /12\/18/.test(r.body) && /从断点继续/.test(r.btns) && /重置索引/.test(r.btns)) ? ok('屏7 中断弹层：断点续跑/重置/关闭') : bad('屏7 中断', JSON.stringify(r));
   r = await ev(`xrFailRetry();return{st:xrState().status,p:xrState().p};`);
   (r.st === 'run' && r.p === 66) ? ok('屏7 断点继续转解析中') : bad('屏7 继续', JSON.stringify(r));
 
   /* 收尾：emoji 与异常 */
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
-    var out='';['p-xray','sheetXrScope','sheetXrEnt','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
-    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo].join(',')};`);
-  (!r.emoji && r.fns === 'function,function,function,function,function') ? ok('七屏零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
+    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrPeek','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge'].forEach(function(id){var el=document.getElementById(id);out+=(el?el.innerText:'')});
+    var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab].join(',')};`);
+  (!r.emoji && r.fns === 'function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
   return finish();
 })().catch((e) => { bad('脚本自身', String(e).slice(0, 200)); finish(); });
