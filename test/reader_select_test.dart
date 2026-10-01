@@ -368,6 +368,113 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       final list = jsonDecode(raw!) as List;
       expect(list.single['tg'], '重点');
       expect((list.single as Map)['c'], 0);
+      // 真机反馈⑤候选2补票：这条分支旧实现只断言了 kv，渲染从未被覆盖——
+      // 暂存行同样必须让段落 Container 出现非空底色。
+      final box = t.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('brpTap-0-4')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
+          reason: 'brSync 关的暂存划线也要真的铺上色底');
+      await clearToasts(t);
+    });
+
+    testWidgets('真机反馈⑤A：删划线后重划同一句 → 重新入账并上色', (t) async {
+      await openReader(t, _doc(), 's13');
+      // 首划 → 入账
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-共鸣')));
+      await step(t, ms: 300);
+      expect(await repo.quotesOf('s13'), hasLength(1));
+      await clearToasts(t);
+      // 删划线（软删进垃圾箱）
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brDelHl')));
+      await step(t, ms: 300);
+      expect(await repo.quotesOf('s13'), isEmpty);
+      await clearToasts(t);
+      // 重划同一句：旧实现 dedup 撞软删行 → 返回 null 不入账 → 正文永不上色
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-重点')));
+      await step(t, ms: 300);
+      final qs = await repo.quotesOf('s13');
+      expect(qs, hasLength(1), reason: '删后重划必须重新入账');
+      expect(qs.single.cf, isNotNull);
+      final box = t.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('brpTap-0-3')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
+          reason: '重划后正文必须上色');
+      await clearToasts(t);
+    });
+
+    testWidgets('真机反馈⑤B：在库书摘同句（无 cf）→ 划线补 cf 定位、不重复入账', (t) async {
+      await openReader(t, _doc(), 's14');
+      // 先按正常链路划一句，拿到「手抄摘录」将来要仿形的行内容
+      await selectPara(t, 'brpTap-0-4');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-共鸣')));
+      await step(t, ms: 300);
+      final first = (await repo.quotesOf('s14')).single;
+      await clearToasts(t);
+      // 模拟用户更早手抄过同句：同 dedup 键、无 cf/rid 的在库行
+      await db.update('book_quotes', {'cf': null, 'rid': null},
+          where: 'id = ?', whereArgs: [first.id]);
+      // 重开阅读器：无 cf 行不铺色（先证明「看不见底色」是撞车现场）
+      await t.pumpWidget(wrap(const SizedBox.shrink(), _doc()));
+      await step(t);
+      await t.pumpWidget(wrap(ReaderPage(bookId: 's14'), _doc()));
+      await step(t, times: 4);
+      final r0 = t.getRect(find.byKey(const ValueKey('brpTap-0-4')));
+      await t.tapAt(Offset(210, r0.bottom + 5));
+      await step(t);
+      var box = t.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('brpTap-0-4')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect((box.decoration as BoxDecoration?)?.color, isNull,
+          reason: '无 cf 的书摘行不该铺色');
+      // 再对同句划线：dedup 撞在库行 → 修法＝给该行补 cf 并提示已定位
+      await selectPara(t, 'brpTap-0-4');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-重点')));
+      await step(t, ms: 300);
+      expect(find.textContaining('已在书摘中，已定位'), findsOne);
+      final qs = await repo.quotesOf('s14');
+      expect(qs, hasLength(1), reason: '撞车不新增行，只给已有行补 cf');
+      expect(qs.single.cf, isNotNull);
+      expect(qs.single.tag, '重点');
+      box = t.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('brpTap-0-4')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
+          reason: '补 cf 后当屏即上色');
       await clearToasts(t);
     });
   });

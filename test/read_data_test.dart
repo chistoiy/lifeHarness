@@ -672,6 +672,31 @@ void main() {
       expect(await repo.quoteTags(), contains('心理学'));
     });
 
+    test('⑤ addQuote 查重只认在库行 · 软删后同句可再次入账（划线删后重划不静默丢）', () async {
+      final b = await seedBook();
+      final id = (await repo.addQuote(q('删后重划句', b.id, chap: '第一章', page: 10)))!;
+      // 在库重复仍拦
+      expect(await repo.addQuote(q('删后重划句', b.id, chap: '第一章', page: 10)), isNull);
+      await repo.softDeleteQuote(id);
+      // 真机反馈⑤：垃圾箱里的旧行不得再挡新入账（旧实现不过滤 deleted_at → 永久静默丢划线）
+      final id2 = await repo.addQuote(q('删后重划句', b.id, chap: '第一章', page: 10));
+      expect(id2, isNotNull);
+      expect(await repo.quoteCount(), 1);
+    });
+
+    test('⑤ restoreQuote 撞在库同键：丢键保行不炸（局部唯一索引联动）', () async {
+      final b = await seedBook();
+      final gone = (await repo.addQuote(q('重抄句', b.id, chap: '第一章', page: 7)))!;
+      await repo.softDeleteQuote(gone);
+      final live = (await repo.addQuote(q('重抄句', b.id, chap: '第一章', page: 7)))!;
+      await repo.restoreQuote(gone); // 旧实现：UPDATE deleted_at=null 直接撞唯一索引
+      final rows = await repo.allQuotes();
+      expect(rows.map((e) => e.id), containsAll([gone, live]));
+      final restored = (await repo.quoteById(gone))!;
+      expect(restored.deletedAt, isNull);
+      expect(restored.dedupHash, isNull, reason: '同键让位：恢复行丢判重键但保留内容');
+    });
+
     test('4-2 updateQuote：改写生效 · 撞他行返回 false · 创建时间可改', () async {
       final b = await seedBook();
       final id1 = (await repo.addQuote(q('甲句', b.id)))!;

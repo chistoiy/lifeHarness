@@ -174,7 +174,11 @@ import 'core.dart' as c;
     'CREATE INDEX IF NOT EXISTS idx_bq_book ON $tBookQuotes(book_id)',
     'CREATE INDEX IF NOT EXISTS idx_bq_tag ON $tBookQuotes(tag)',
     'CREATE INDEX IF NOT EXISTS idx_bq_created ON $tBookQuotes(created_at)',
-    'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash)',
+    // 真机反馈⑤：判重只约束「在库行」——软删（垃圾箱）行不再占唯一键，
+    // 否则「删划线后重划同一句」INSERT 直接 2067 撞索引、划线整链中断。
+    // 老库经 migrations[33] DROP 全量唯一版后按本式重建。
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash) '
+        'WHERE deleted_at IS NULL',
   ];
 
 
@@ -311,5 +315,16 @@ final Map<int, List<String>> mig = {
     // 导入/预载时生成；单书清缓存随封面衍生件一并回收（记录本身保留）。
     32: [
       'ALTER TABLE $tBooks ADD COLUMN first_img TEXT',
+    ],
+
+    // 真机反馈⑤（20261001 工单轮2）：dedup 唯一索引改为「仅在库行」局部唯一——
+    // 旧全量唯一让垃圾箱软删行永久占键：删划线后重划同句 INSERT 撞 2067、
+    // 手抄摘录在库时再划线也走死。先把历史脏数据的软删行键位让出，
+    // 再重建为局部唯一索引（在库行本就互斥，重建必成）。
+    33: [
+      'UPDATE $tBookQuotes SET dedup_hash = NULL WHERE deleted_at IS NOT NULL',
+      'DROP INDEX IF EXISTS idx_bq_dedup',
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_bq_dedup ON $tBookQuotes(dedup_hash) '
+          'WHERE deleted_at IS NULL',
     ]
 };

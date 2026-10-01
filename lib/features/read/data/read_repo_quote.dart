@@ -12,7 +12,9 @@ mixin _RepoQuotes on _ReadRepoBase {
 
   /// 新增摘录并刷新该书 last_read_at（摘录活动 §3.2）；标签自动登记字典；
   /// 同步行写入复习档位（stage 0 · 次日到期）。
-  /// dedup：正文归一化哈希撞已有摘录 → 返回 null 不入账（调用方提示「已存在」）。
+  /// dedup：正文归一化哈希撞**在库**摘录 → 返回 null 不入账（调用方提示「已存在」）。
+  /// 真机反馈⑤：判重只认 deleted_at IS NULL 行——垃圾箱里的旧行不挡「删划线后重划」，
+  /// 与导入判重 previewImport 同口径。
   Future<int?> addQuote(BookQuote q) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final created = q.createdAt == 0 ? now : q.createdAt;
@@ -24,7 +26,7 @@ mixin _RepoQuotes on _ReadRepoBase {
     if (key.isNotEmpty) {
       final dup = await db.query(
         DbSchema.tBookQuotes,
-        where: 'dedup_hash = ?',
+        where: 'dedup_hash = ? AND deleted_at IS NULL',
         whereArgs: [key],
         limit: 1,
       );
@@ -75,6 +77,34 @@ mixin _RepoQuotes on _ReadRepoBase {
     return true;
   }
 
+  /// 真机反馈⑤：阅读器「划线」撞在库同键摘录（手抄行无 cf）时的定位补票——
+  /// 命中行若无 cf 则补上 cf/rid/颜色分类（划线与书摘保持同一行 · 硬约束①），
+  /// 已有 cf 则只定位不改写。返回 true＝在库确有此句（调用方提示「已在书摘中，已定位」）。
+  Future<bool> attachCfOnDup(
+    String bookId,
+    String? chapter,
+    int? page,
+    String body,
+    QuoteCf cf,
+    String rid,
+    String tg,
+  ) async {
+    final key = quoteDedupKey(bookId, chapter, page, body);
+    final rows = await db.query(
+      DbSchema.tBookQuotes,
+      where: 'dedup_hash = ? AND deleted_at IS NULL',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return false;
+    final dup = BookQuote.fromRow(rows.first);
+    if (dup.id == null) return false;
+    if (dup.cf == null) {
+      await updateQuote(dup.copyWith(cf: cf, rid: rid, tag: tg));
+    }
+    return true;
+  }
+
   Future<BookQuote?> quoteById(int id) async {
     final rows = await db.query(
       DbSchema.tBookQuotes,
@@ -110,12 +140,36 @@ mixin _RepoQuotes on _ReadRepoBase {
 
   /// V1.46④ 笔记库「删除＋撤销」：撤销即恢复 deleted_at（复习档位不重建，
   /// 从新开始复习，与既有档位表语义无冲突）。
-  Future<void> restoreQuote(int id) => db.update(
-    DbSchema.tBookQuotes,
-    {'deleted_at': null, 'updated_at': DateTime.now().millisecondsSinceEpoch},
-    where: 'id = ?',
-    whereArgs: [id],
-  );
+  /// 真机反馈⑤：v33 起 dedup 为「在库行」局部唯一——若恢复时库里已有同键在库行
+  /// （删后又重划/重抄在前），旧行键位让出（丢键保行），恢复不撞索引。
+  Future<void> restoreQuote(int id) async {
+    final rows = await db.query(
+      DbSchema.tBookQuotes,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    final hsh = rows.isEmpty ? null : rows.first['dedup_hash'] as String?;
+    var clash = false;
+    if (hsh != null && hsh.isNotEmpty) {
+      clash = (await db.query(
+        DbSchema.tBookQuotes,
+        where: 'dedup_hash = ? AND deleted_at IS NULL AND id <> ?',
+        whereArgs: [hsh, id],
+        limit: 1,
+      )).isNotEmpty;
+    }
+    await db.update(
+      DbSchema.tBookQuotes,
+      {
+        'deleted_at': null,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        if (clash) 'dedup_hash': null,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 
   Future<int> quoteCount() async =>
       Sqflite.firstIntValue(

@@ -210,17 +210,20 @@ extension _ReaderSelOps on _ReaderPageState {
     final repo = ref.read(readRepositoryProvider);
     final cf = QuoteCf(c: sel.ci, p0: sel.p0, p1: sel.p1);
     final rid = 'r${DateTime.now().millisecondsSinceEpoch}';
+    var flash = '已划线（$tg）· 同步进本书书摘';
     if (_brSync) {
       // 硬约束①：划线即一条「划线」型书摘直接进既有摘录表，携带 cf+rid。
       final now = DateTime.now().millisecondsSinceEpoch;
-      await repo.addQuote(
+      final ch = doc.chapters[sel.ci].title;
+      final pg = pag == null ? null : pag.gPosEst(sel.ci, 0) + 1;
+      final id = await repo.addQuote(
         BookQuote(
           bookId: widget.bookId,
           kind: BookQuote.kKindMark,
           tag: tg,
           body: body,
-          chapter: doc.chapters[sel.ci].title,
-          page: pag == null ? null : pag.gPosEst(sel.ci, 0) + 1,
+          chapter: ch,
+          page: pg,
           cf: cf,
           rid: rid,
           origin: '阅读器',
@@ -228,6 +231,13 @@ extension _ReaderSelOps on _ReaderPageState {
           updatedAt: now,
         ),
       );
+      if (id == null) {
+        // 真机反馈⑤：同键在库行（手抄摘录无 cf）撞车——旧实现静默丢划线致
+        // 「正文不上色、书摘里却有」；现在给命中行补 cf/rid/色类，划线定位到该行。
+        final hit = await repo.attachCfOnDup(
+            widget.bookId, ch, pg, body, cf, rid, tg);
+        if (hit) flash = '已在书摘中，已定位（$tg）';
+      }
     } else {
       // brSync 关：暂存本地全量 kv，开库后由渲染层按 cf 生效（原型 BR_LOCAL_HL）。
       final next = [
@@ -244,7 +254,7 @@ extension _ReaderSelOps on _ReaderPageState {
       _hlPop = false;
     });
     ref.read(readTickProvider.notifier).state++;
-    _showFlash('已划线（$tg）· 同步进本书书摘');
+    _showFlash(flash);
     readToast(context, '高亮即一条划线书摘 · 笔记库可查（联动 L5）');
   }
 
