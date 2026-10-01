@@ -176,6 +176,10 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
           ? '《${b.title}》已${_reattach != null ? '重新挂回 · 正在预载' : '附本地文件 · 正在预载'}'
           : '《${b.title}》已加入书架 · 正在后台预载整本 · 源文件保留原位',
     );
+    // V1.54 批C F9：同内容指纹已有解析 → 索引整体复用（含用户整理结果）。
+    if (svc.lastReuseHits.isNotEmpty && mounted) {
+      readToast(context, '检测到同文件书籍 · 全书索引已直接复用');
+    }
     Navigator.of(context).pop();
   }
 

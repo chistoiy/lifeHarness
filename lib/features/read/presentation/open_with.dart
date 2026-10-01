@@ -101,6 +101,10 @@ Future<void> handleOpenWithEpub(
   ref.read(readTickProvider.notifier).state++;
   brStartPreload(ref, book, context);
   readToast(context, '《${book.title}》已加入书架 · 正在后台预载整本');
+  // V1.54 批C F9：同文件指纹命中 → X-Ray 索引直接复用（含用户整理结果）。
+  if (svc.lastReuseHits.isNotEmpty && context.mounted) {
+    readToast(context, '检测到同文件书籍 · 全书索引已直接复用');
+  }
   _brGoShelf(context, ref, book.id);
 }
 

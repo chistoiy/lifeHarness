@@ -11,6 +11,7 @@ import '../data/epub_cache.dart';
 import '../data/epub_doc.dart';
 import '../data/epub_import.dart';
 import '../data/read_repository.dart';
+import '../data/xray/xray_backup.dart';
 import '../data/xray/xray_dao.dart';
 import '../data/xray/xray_scheduler.dart';
 import '../domain/book.dart';
@@ -414,6 +415,11 @@ final xraySchedulerProvider = ChangeNotifierProvider<XrayScheduler>((ref) {
   s.onRevised = () => ref.read(xrayRevisionProvider.notifier).state = s.revision;
   return s;
 });
+
+/// 单书索引备份服务（F10 · .xraybak 导出/导入；测试 override 注钩子）。
+final xrayBackupServiceProvider = Provider<XrayBackupService>(
+  (ref) => XrayBackupService(ref.watch(xrayDaoProvider)),
+);
 
 /// 某架位的内容指纹（懒补算不在这里做——被动渲染只读库，起解析动作才 ensureMd5）。
 final bookMd5Provider = FutureProvider.family.autoDispose<String?, String>((

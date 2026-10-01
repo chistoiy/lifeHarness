@@ -10,6 +10,7 @@ import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../../../core/theme/app_theme.dart';
 import '../data/isbn_enrich.dart' show DoubanCookie;
+import 'reader/reader_xray_learn_sheets.dart' show showXrBakSheet;
 import './reader/reader_sel_layer.dart' show kBrSelDefaultTools;
 import 'read_providers.dart';
 import 'read_sheets.dart';
@@ -92,6 +93,9 @@ const _secs = [
         route: '/read/mgr', desc: '来源 / 分组 / 作者 / 出版社 / 标签'),
     _Row('stat', '阅读统计', _T.nav,
         route: '/read/stat', desc: '时长 · 热力图 · 目标'),
+    // V1.54 批C（屏6 · sheets.frag sheetXrBak）：单书 .xraybak 供跨设备与分享。
+    _Row('xrBak', 'X-Ray 索引备份', _T.go2,
+        desc: '导出 .xraybak / 从备份导入 · MD5 校验 · 整包备份已含索引数据'),
     _Row('exportMd', '导出全部书摘', _T.go2, desc: 'Markdown · 按书分组'),
     _Row('exportJson', '导出书架备份', _T.go2, desc: 'JSON · 可换机导入'),
     _Row('store', '存储位置', _T.info, desc: '应用私有目录 · 本地优先'),
@@ -191,6 +195,10 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
       ref.watch(readKvProvider(('read.$key', def))).valueOrNull ?? def;
 
   Future<void> _export(String key) async {
+    if (key == 'xrBak') {
+      showXrBakSheet(context, ref);
+      return;
+    }
     // 轮5：真机「点了没反应」——点击即回反馈，异常也要说出来。
     readToast(context, '导出中…');
     try {

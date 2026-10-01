@@ -421,6 +421,142 @@ class XrayDao {
     return out;
   }
 
+  // ------------------------------------------------- 批C .xraybak（F10）
+
+  /// 导出包（F10）：按 md5 分册打包四表（含 deleted/merged 状态与 GLOBAL 词典——
+  /// 用户整理结果是要分享的资产，原样随行）。
+  Future<Map<String, Object?>> exportBundle() async {
+    final tasks = await _db.query(DbSchema.tXrayTask);
+    final ents = await _db.query(DbSchema.tXrayEntity);
+    final ments = await _db.query(DbSchema.tXrayMention);
+    final dict = await _db.query(DbSchema.tXrayUserdict);
+    final md5s = <String>{
+      for (final t in tasks) t['book_md5'] as String,
+      for (final e in ents) e['book_md5'] as String,
+    }..removeWhere((m) => m.isEmpty);
+    final titleByMd5 = <String, String>{};
+    if (md5s.isNotEmpty) {
+      final rows = await _db.query(DbSchema.tBooks,
+          columns: ['title', 'md5'],
+          where: 'md5 IN (${List.filled(md5s.length, '?').join(',')})',
+          whereArgs: md5s.toList());
+      for (final r in rows) {
+        titleByMd5.putIfAbsent(r['md5'] as String, () => r['title'] as String);
+      }
+    }
+    List<List<Map<String, Object?>>> byMd5(List<Map<String, Object?>> rows,
+            {bool keepId = false}) =>
+        [
+          for (final md5 in md5s)
+            [
+              for (final r in rows)
+                if (r['book_md5'] == md5)
+                  keepId ? r : _strip(r, ['id'])
+            ],
+        ];
+    final groupedT = byMd5(tasks);
+    // 实体行带 id 出包：导入侧按旧→新 id 重映射 mention.entity_id（跨设备 id 不复用）。
+    final groupedE = byMd5(ents, keepId: true);
+    final groupedM = byMd5(ments);
+    return {
+      'v': 1,
+      'exported_at': DateTime.now().millisecondsSinceEpoch,
+      'indices': [
+        for (final (i, md5) in md5s.indexed)
+          {
+            'md5': md5,
+            'title': titleByMd5[md5] ?? '',
+            'task': groupedT[i].isEmpty ? null : groupedT[i].first,
+            'entities': groupedE[i],
+            'mentions': groupedM[i],
+          },
+      ],
+      'userdict': [for (final d in dict) _strip(d, ['id'])],
+    };
+  }
+
+  static Map<String, Object?> _strip(
+          Map<String, Object?> row, List<String> keys) =>
+      {for (final e in row.entries) if (!keys.contains(e.key)) e.key: e.value};
+
+  /// 导入包（F10）：逐册 **MD5 一致性校验**（task/entities/mentions 必须同指纹，
+  /// 不符整册拒收）；通过后整册替换本机数据（覆盖确认在 UI 侧先行）。
+  Future<({int books, int bad, List<String> md5s})> importBundle(
+      Map<String, Object?> bundle) async {
+    if (bundle['v'] != 1) {
+      throw const FormatException('不支持的 .xraybak 版本');
+    }
+    final list = (bundle['indices'] as List?) ?? const [];
+    var books = 0, bad = 0;
+    final md5s = <String>[];
+    final dict = ((bundle['userdict'] as List?) ?? const [])
+        .cast<Map<String, Object?>>();
+    for (final raw in list) {
+      final item = (raw as Map).cast<String, Object?>();
+      final md5 = item['md5'] as String? ?? '';
+      if (!_md5Shape(md5)) {
+        bad++;
+        continue;
+      }
+      final ents =
+          ((item['entities'] as List?) ?? const []).cast<Map<String, Object?>>();
+      final ments =
+          ((item['mentions'] as List?) ?? const []).cast<Map<String, Object?>>();
+      final task = item['task'];
+      final same = ents.every((e) => e['book_md5'] == md5) &&
+          ments.every((m) => m['book_md5'] == md5) &&
+          (task == null || (task as Map<String, Object?>)['book_md5'] == md5);
+      if (!same) {
+        bad++; // 册内指纹不齐＝包被拼改，整册拒收
+        continue;
+      }
+      await _db.transaction((txn) async {
+        await txn.delete(DbSchema.tXrayMention,
+            where: 'book_md5 = ?', whereArgs: [md5]);
+        await txn.delete(DbSchema.tXrayEntity,
+            where: 'book_md5 = ?', whereArgs: [md5]);
+        await txn.delete(DbSchema.tXrayTask,
+            where: 'book_md5 = ?', whereArgs: [md5]);
+        final idMap = <Object?, Object?>{};
+        for (final e in ents) {
+          final old = e['id'];
+          final row = _strip(e, ['id']);
+          final newId = await txn.insert(DbSchema.tXrayEntity, row);
+          if (old != null) idMap[old] = newId;
+        }
+        for (final m in ments) {
+          final mapped = idMap[m['entity_id']];
+          if (mapped == null) continue;
+          await txn.insert(DbSchema.tXrayMention,
+              {...m, 'entity_id': mapped});
+        }
+        if (task != null) {
+          await txn.insert(DbSchema.tXrayTask,
+              (task as Map<Object?, Object?>).cast<String, Object?>());
+        }
+        for (final d in dict) {
+          final scope = d['scope'] as String? ?? '';
+          if (scope != xs.xrayScopeGlobal && scope != md5) continue;
+          await txn.insert(DbSchema.tXrayUserdict, d,
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      });
+      books++;
+      md5s.add(md5);
+    }
+    return (books: books, bad: bad, md5s: md5s);
+  }
+
+  static bool _md5Shape(String m) =>
+      RegExp(r'^[0-9a-f]{32}$').hasMatch(m);
+
+  /// 设置页备份行摘要：已有索引的本机书数。
+  Future<int> indexedBookCount() async {
+    final r = await _db.rawQuery(
+        'SELECT COUNT(DISTINCT book_md5) AS c FROM ${DbSchema.tXrayEntity}');
+    return (r.first['c'] as int?) ?? 0;
+  }
+
   /// 书架角标（F7）：一张联合查询取回**所有**有任务态的架位（md5→books.id 多架位共享）。
   /// 书架每轮刷新只打一发，不在每本封面各查一次。
   Future<Map<String, XrayTaskRow>> taskByBookIds() async {

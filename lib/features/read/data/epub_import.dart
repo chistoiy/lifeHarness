@@ -95,6 +95,9 @@ class EpubImportService {
   /// 测试注入：替换文件指纹计算（FakeAsync 禁真 IO）。
   final Future<String> Function(String path)? md5Hook;
 
+  /// F9 复用提示：最近一次 commit 命中的同指纹其它架位（该指纹已有解析任务才非空）。
+  List<String> lastReuseHits = const [];
+
   final Directory? _docsOverride;
 
   Future<EpubPick?> pick() => (pickHook ?? defaultPickEpub)();
@@ -241,9 +244,14 @@ class EpubImportService {
   Future<void> _stampMd5(String bookId, String copyPath) async {
     final dao = xray;
     if (dao == null) return;
+    lastReuseHits = const [];
     try {
       final m = await (md5Hook ?? xrayFileMd5)(copyPath);
       await dao.setBookMd5(bookId, m);
+      // 已有解析任务的同指纹架位＝索引直接复用（F9 路径 A，UI 拿字段发提示）。
+      if (await dao.task(m) != null) {
+        lastReuseHits = await dao.bookIdsWithMd5(m, exceptBookId: bookId);
+      }
     } catch (_) {}
   }
 

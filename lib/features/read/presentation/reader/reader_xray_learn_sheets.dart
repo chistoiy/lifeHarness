@@ -457,3 +457,128 @@ Future<void> showXrPeekSheet(
     ),
   );
 }
+
+/// 屏6 · X-Ray 索引备份半屏（sheets.frag sheetXrBak）：
+/// 导出 .xraybak（另存为）/ 从备份导入（选文件→MD5 校验→覆盖确认）。
+Future<void> showXrBakSheet(BuildContext context, WidgetRef ref) async {
+  final dao = ref.read(xrayDaoProvider);
+  final books = await dao.indexedBookCount();
+  if (!context.mounted) return;
+  return showModalBottomSheet<void>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (sc) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          key: const ValueKey('sheetXrBak'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Text('X-Ray 索引备份',
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                const Text('数据',
+                    style: TextStyle(fontSize: 9, color: _Lk.muted)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _bakRow(sc, 'xrBakExport', '导出备份（.xraybak）',
+                '$books 个索引', () async {
+              final svc = ref.read(xrayBackupServiceProvider);
+              final saved = await svc.exportAll();
+              if (sc.mounted) {
+                readToast(sc, saved == null
+                    ? '已取消导出'
+                    : '已导出 $saved');
+              }
+            }),
+            _bakRow(sc, 'xrBakImport', '从备份导入', '校验 MD5 · 覆盖需确认',
+                () async {
+              final svc = ref.read(xrayBackupServiceProvider);
+              Map<String, Object?>? bundle;
+              try {
+                bundle = await svc.readPick();
+              } catch (e) {
+                if (sc.mounted) readToast(sc, '包不可读：$e');
+                return;
+              }
+              if (bundle == null || !sc.mounted) return;
+              final n =
+                  ((bundle['indices'] as List?) ?? const []).length;
+              final ok = await showDialog<bool>(
+                context: sc,
+                builder: (d) => AlertDialog(
+                  title: const Text('导入索引备份'),
+                  content: Text('包内 $n 个索引 · 将覆盖本机同指纹词条'
+                      '（含你整理过的加词/屏蔽/合并结果）。'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(d, false),
+                        child: const Text('取消')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(d, true),
+                        child: const Text('确认导入')),
+                  ],
+                ),
+              );
+              if (ok != true || !sc.mounted) return;
+              final r = await svc.importBundle(bundle);
+              if (sc.mounted) {
+                readToast(sc,
+                    '导入完成 · $r.books 册生效 · MD5 校验拒收 $r.bad 册');
+              }
+              ref.read(xraySchedulerProvider).notifyDataChanged();
+            }),
+            const SizedBox(height: 10),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(sc).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                '整包备份已含索引数据 · 单书 .xraybak 供跨设备与分享',
+                style: TextStyle(
+                    fontSize: 10, height: 1.4, color: _Lk.muted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _bakRow(
+    BuildContext ctx, String key, String title, String sub, VoidCallback onTap) {
+  return GestureDetector(
+    key: ValueKey(key),
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0x1A94A3B8),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        children: [
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          Text(sub,
+              style: const TextStyle(fontSize: 10, color: _Lk.muted)),
+        ],
+      ),
+    ),
+  );
+}
