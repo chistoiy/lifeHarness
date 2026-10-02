@@ -9025,7 +9025,7 @@ function br35Seed(){
   };
   window.xrAiDemo=function(mode){
     var dn=Math.max(6,xrAiEst().n);
-    if(mode==='run'){XRAI.st='run';XRAI.n=dn;XRAI.b=5;XRAI.err=4;if(XRAI.t){clearInterval(XRAI.t);XRAI.t=0}xrAiBarRender();return}
+    if(mode==='run'){XRAI.st='run';XRAI.n=dn;XRAI.b=5;XRAI.err=4;XRAI.open=false;XRAI.log=[];for(var q=1;q<=5;q++)XRAI.log.push(xrAiSimRow(q,dn));if(XRAI.t){clearInterval(XRAI.t);XRAI.t=0}xrAiBarRender();return}
     if(mode==='rev'){XRAI.st='done';XRAI.n=dn;XRAI.b=dn;XRAI.err=4;XRAI.open=false;XRAI.log=[];for(var q=1;q<=dn;q++)XRAI.log.push(xrAiSimRow(q,dn));XRAI.sel={};XRAI_SUG.forEach(function(x){XRAI.sel[x.k]=true});xrAiBarRender();xrAiReview();return}
   };
   /* X-Ray 中心：三段（词条 / AI 精化 / 索引与备份）同页收口 */

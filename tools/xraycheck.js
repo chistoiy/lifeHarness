@@ -293,6 +293,42 @@ async function go(q) {
     return{resume:!!document.getElementById('xrAiResume'),txt:bar.innerText.replace(/\\s+/g,' '),
       toast:document.getElementById('toast').innerText};`);
   (r.resume && /断点在第 5 批/.test(r.toast) && /继续/.test(r.txt)) ? ok('批4 暂停留断点、原地可续跑', r.toast) : bad('批4 暂停续跑', JSON.stringify(r));
+  /* R3-3 批C · 精化过程可见性：汇总随跑随累 · 默认只显最近一批 · 展开见失败批归类原因 */
+  r = await ev(`var bar=document.getElementById('xrAiBar');
+    var tg=document.getElementById('xrAiLogTg'),sum=document.getElementById('xrAiSum');
+    var rows=[].slice.call(bar.querySelectorAll('[id^="xrAiRow-"]'));
+    return{sum:sum?sum.textContent:'',tg:tg?tg.textContent:'',collapsed:rows.length,all:XRAI.log.length,
+      last:rows.length?rows[rows.length-1].innerText.replace(/\\s+/g,' '):''};`);
+  (r.sum.indexOf('已出建议 删') === 0 && r.tg.indexOf('明细 ') === 0 && r.collapsed === 1 && r.all > 1
+    && /用时 .*s · 约 .* tokens/.test(r.last))
+    ? ok('批C 明细默认收起只显最近一批 + 顶部汇总随跑随累', r.sum + ' | ' + r.tg + ' | ' + r.last.slice(0, 46))
+    : bad('批C 明细默认态', JSON.stringify(r));
+  r = await ev(`xrAiLogToggle();
+    var bar=document.getElementById('xrAiBar');
+    var rows=[].slice.call(bar.querySelectorAll('[id^="xrAiRow-"]'));
+    var fail=rows.filter(function(x){return /已跳过 · 不影响后续/.test(x.innerText)});
+    var tg=document.getElementById('xrAiLogTg').textContent;
+    return{exp:rows.length,all:XRAI.log.length,tg:tg,failTxt:fail.length?fail[0].innerText.replace(/\\s+/g,' '):'',
+      first:rows.length?rows[0].innerText.replace(/\\s+/g,' '):''};`);
+  (r.exp === r.all && r.all > 1 && r.tg.indexOf('收起明细') === 0
+    && /^第 1\/\d+ 批 · 本批 \d+ 条（.+）· 建议 删\d+ 改\d+ 补\d+ · 用时 /.test(r.first)
+    && /超时|端点无响应|输出不合约定|未授权/.test(r.failTxt))
+    ? ok('批C 展开＝全量逐批一行（条数/词名预览/删改补/用时/tokens）+ 失败批给归类原因', r.first.slice(0, 60) + ' || ' + r.failTxt)
+    : bad('批C 明细展开', JSON.stringify(r));
+  r = await ev(`xrAiLogToggle();
+    var rows=[].slice.call(document.querySelectorAll('#xrAiBar [id^="xrAiRow-"]'));
+    return{collapsed:rows.length};`);
+  (r.collapsed === 1) ? ok('批C 明细可再收起（回落到只显最近一批）', 'rows=' + r.collapsed) : bad('批C 明细收起', JSON.stringify(r));
+  r = await ev(`navTo('p-xrwords');xrcTab('ai');
+    var l=document.getElementById('xrcAiLast');
+    return{sum:!!(l&&l.querySelector('#xrAiSum')),rows:l?l.querySelectorAll('[id^="xrAiRow-"]').length:0,
+      txt:l?l.innerText.replace(/\\s+/g,' ').slice(0,40):''};`);
+  (r.sum && r.rows >= 1 && /已出建议 删/.test(r.txt))
+    ? ok('批C X-Ray 中心精化段与面板同源（两处同构）', r.txt) : bad('批C 中心页同构', JSON.stringify(r));
+  r = await ev(`var keep=XRAI.log.length;xrAiReview();
+    return{kept:XRAI.log.length===keep,sh:!document.getElementById('sheetXrAiReview').classList.contains('hidden')};`);
+  (r.kept && r.sh)
+    ? ok('批C 进审阅后明细保留（供事后按「X-Ray 精化」日志追）', 'rows=' + r.kept) : bad('批C 明细保留', JSON.stringify(r));
   await go('xr=airev');
   r = await ev(`var v=document.getElementById('sheetXrAiReview');
     return{sh:!v.classList.contains('hidden'),sum:document.getElementById('xrAiRevSum').textContent,
