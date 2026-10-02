@@ -189,21 +189,30 @@ void main() {
       expect(find.byKey(const ValueKey('brBackPos')), findsNothing);
     });
 
-    testWidgets('外观弹层：亮度/缩进/背景/纹理一次落库', (t) async {
+    testWidgets('外观弹层：亮度/缩进/背景/纹理一次落库（R3-7 单层主面板+二级页）', (t) async {
       await openReader(t, 'v4', h: 1400);
       await t.tap(find.byKey(const ValueKey('brBtnLook')));
       await step(t, ms: 320, times: 3);
       expect(find.byKey(const ValueKey('sheetBrAppearance')), findsOne);
+      // 主面板在场键（R3-7 微信读书式单层）。
       for (final k in [
         'brApPrev',
+        'brApFs',
         'brApFsSlider',
+        'brApScopeTgl',
+        'brApSeg-mar',
+        'brApSeg-lh',
+        'brApSeg-ls',
+        'brApSubBtn-font',
+        'brApSubBtn-ind',
+        'brApSubBtn-turn',
+        'brApSubBtn-theme',
+        'brApSubBtn-bg',
+        'brApSubBtn-s2t',
+        'brApJust',
+        'brApBright',
+        'brApAuto',
         'brApLumSlider',
-        'brApBgs',
-        'brApHue',
-        'brApLite',
-        'brApTex',
-        'brApDimSlider',
-        'brApIndent',
         'brApSave',
       ]) {
         expect(find.byKey(ValueKey(k)), findsOne, reason: k);
@@ -211,15 +220,32 @@ void main() {
       // 亮度滑到左端（＝30）：草稿期只影响预览，保存后遮罩才出现。
       expect(find.byKey(const ValueKey('brLumMask')), findsNothing);
       await slideTo(t, 'brApLumSlider', 0);
-      // 背景预设（第 4 块＝#f6e7d3）→ custom 底色。
+      // 纸色主题二级页：背景预设（第 4 块＝#f6e7d3）→ custom 底色 + 取色滑杆在场。
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-theme')));
+      await step(t, ms: 320, times: 2);
+      for (final k in ['brApThemes', 'brApBgs', 'brApHue', 'brApLite']) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
       await t.tap(find.byKey(const ValueKey('brApBg-#f6e7d3')));
       await step(t);
-      // 纹理：纸纹。
+      await t.tap(find.byKey(const ValueKey('brApSub-back')));
+      await step(t, ms: 320, times: 2);
+      // 背景图片二级页：纹理纸纹 + 淡化滑杆在场。
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-bg')));
+      await step(t, ms: 320, times: 2);
+      expect(find.byKey(const ValueKey('brApTex')), findsOne);
+      expect(find.byKey(const ValueKey('brApDimSlider')), findsOne);
       await t.tap(find.byKey(const ValueKey('brApTex-paper')));
       await step(t);
-      // 首行缩进关。
-      await t.tap(find.byKey(const ValueKey('brApIndent')));
+      await t.tap(find.byKey(const ValueKey('brApSub-back')));
+      await step(t, ms: 320, times: 2);
+      // 首行缩进二级页：无缩进（R3-7 起 indent 收进 indMode 三档）。
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-ind')));
+      await step(t, ms: 320, times: 2);
+      await t.tap(find.byKey(const ValueKey('brApIndent-none')));
       await step(t);
+      await t.tap(find.byKey(const ValueKey('brApSubDone')));
+      await step(t, ms: 320, times: 2);
       await t.tap(find.byKey(const ValueKey('brApSave')));
       await step(t, ms: 320, times: 3);
       final patch = jsonDecode((await repo.kv('reader.cfg.v4'))!) as Map;
@@ -227,6 +253,7 @@ void main() {
       expect(patch['bg'], '#f6e7d3');
       expect(patch['bgTex'], 'paper');
       expect(patch['indent'], false);
+      expect(patch['indMode'], 'none');
       expect(patch['lum'], 30);
       expect(find.byKey(const ValueKey('brLumMask')), findsOne);
     });

@@ -190,8 +190,8 @@ void main() {
     testWidgets('取消＝丢弃草稿，不落逐书键', (t) async {
       await openReader(t, 'b2');
       await openAp(t);
-      final rect = t.getRect(find.byKey(const ValueKey('brApLhSlider')));
-      await t.tapAt(Offset(rect.left + 6, rect.center.dy));
+      // R3-7：行距滑杆已收进三列分段（行距·紧）。
+      await t.tap(find.byKey(const ValueKey('brApSeg-lh-s')));
       await step(t);
       await t.tap(find.byKey(const ValueKey('brApCancel')));
       await step(t, times: 2);
@@ -206,20 +206,28 @@ void main() {
         const Offset(60, 0),
       );
       await step(t);
-      await t.tap(find.byKey(const ValueKey('brApTheme-eye')));
-      await step(t);
+      // R3-7：主题收进「纸色主题」二级页（同一弹层内部页面栈）。
+      Future<void> pickTheme(String key) async {
+        await t.tap(find.byKey(const ValueKey('brApSubBtn-theme')));
+        await step(t);
+        await t.tap(find.byKey(ValueKey(key)));
+        await step(t);
+        await t.tap(find.byKey(const ValueKey('brApSubDone')));
+        await step(t);
+      }
+
+      await pickTheme('brApTheme-eye');
       await t.tap(find.byKey(const ValueKey('brApSave')));
       await step(t, times: 2);
       final patch = jsonDecode((await repo.kv('reader.cfg.b3'))!) as Map;
       expect((patch['fs'] as num) > 19, isTrue);
       expect(patch['theme'], 'eye');
-      // 作用域切「全部书籍」→ 夜间：写全局 reader.cfg。（先等保存提示条退场，
-      // 它盖在底栏上会吃掉 brBtnLook 的命中。）
+      // 作用域切「全部书籍」（行尾「仅当前书籍」开关关掉）→ 夜间：写全局 reader.cfg。
+      // （先等保存提示条退场，它盖在底栏上会吃掉 brBtnLook 的命中。）
       await step(t, ms: 1200, times: 4);
       await openAp(t);
-      await t.tap(find.byKey(const ValueKey('brApScope-global')));
-      await t.tap(find.byKey(const ValueKey('brApTheme-night')));
-      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApScopeTgl')));
+      await pickTheme('brApTheme-night');
       await t.tap(find.byKey(const ValueKey('brApSave')));
       await step(t, times: 2);
       final g = jsonDecode((await repo.kv('reader.cfg'))!) as Map;
@@ -256,6 +264,156 @@ void main() {
         t.widget<SwitchListTile>(find.byKey(const ValueKey('brApBright'))).value,
         isTrue,
       );
+    });
+  });
+
+  group('R3-7 · 单层主面板与二级页（微信读书式）', () {
+    testWidgets('主面板布局：预览/字号行/三分段/六入口卡/开关行/亮度同屏在场', (t) async {
+      await openReader(t, 'r1');
+      await openAp(t);
+      for (final k in [
+        'brApPrev',
+        'brApFs',
+        'brApFsSlider',
+        'brApScopeTgl',
+        'brApSeg-mar',
+        'brApSeg-lh',
+        'brApSeg-ls',
+        'brApSubBtn-font',
+        'brApSubBtn-ind',
+        'brApSubBtn-turn',
+        'brApSubBtn-theme',
+        'brApSubBtn-bg',
+        'brApSubBtn-s2t',
+        'brApJust',
+        'brApBright',
+        'brApAuto',
+        'brApLumSlider',
+        'brApSave',
+      ]) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
+      // 旧滑杆/开关布局已收进分段与二级页。
+      for (final k in ['brApLhSlider', 'brApLsSlider', 'brApMarSlider', 'brApIndent']) {
+        expect(find.byKey(ValueKey(k)), findsNothing, reason: k);
+      }
+      // 默认值就近命中档位：mar=22→中（选中 pill 描边 1.6）。
+      expect(
+        (t
+                .widget<Container>(
+                  find.descendant(
+                    of: find.byKey(const ValueKey('brApSeg-mar-m')),
+                    matching: find.byType(Container),
+                  ),
+                )
+                .decoration!
+                as BoxDecoration)
+            .border!
+            .top
+            .width,
+        1.6,
+      );
+    });
+
+    testWidgets('字体二级页：分类 chips 过滤→选衬线组字卡→回主页回显→保存落 font', (t) async {
+      await openReader(t, 'r2');
+      await openAp(t);
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-font')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brApFontCats')), findsOne);
+      expect(find.text('字体样式'), findsOne);
+      // 全部分类下 4 张字卡在场；点「衬线」只剩宋体一张。
+      expect(find.byKey(const ValueKey('brApFont-serif')), findsOne);
+      expect(find.byKey(const ValueKey('brApFont-hei')), findsOne);
+      await t.tap(find.byKey(const ValueKey('brApFontCat-衬线')));
+      await step(t);
+      expect(find.byKey(const ValueKey('brApFont-serif')), findsOne);
+      expect(find.byKey(const ValueKey('brApFont-hei')), findsNothing);
+      await t.tap(find.byKey(const ValueKey('brApFont-serif')));
+      await step(t);
+      // 子页副标题即时同步。
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApSubSub'))).data,
+        '当前选择 · 宋体',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSub-back')));
+      await step(t);
+      // 主页入口卡回显。
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('brApSubBtn-font')),
+          matching: find.byKey(const ValueKey('brApFontLbl')),
+        ),
+        findsOne,
+      );
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApFontLbl'))).data,
+        '宋体',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSave')));
+      await step(t, times: 2);
+      final patch = jsonDecode((await repo.kv('reader.cfg.r2'))!) as Map;
+      expect(patch['font'], 'serif');
+    });
+
+    testWidgets('首行缩进二级页：无缩进→保存 patch 同写 indent=false 与 indMode=none', (t) async {
+      await openReader(t, 'r3');
+      await openAp(t);
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-ind')));
+      await step(t);
+      for (final k in ['brApIndent-auto', 'brApIndent-2', 'brApIndent-none']) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
+      await t.tap(find.byKey(const ValueKey('brApIndent-none')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApSubDone')));
+      await step(t);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApIndLbl'))).data,
+        '无缩进',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSave')));
+      await step(t, times: 2);
+      final patch = jsonDecode((await repo.kv('reader.cfg.r3'))!) as Map;
+      expect(patch['indent'], false);
+      expect(patch['indMode'], 'none');
+    });
+
+    testWidgets('简繁二级页：选繁体→保存落 s2t=t · 翻页/字距分段落原数值字段', (t) async {
+      await openReader(t, 'r4');
+      await openAp(t);
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-s2t')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApS2T-t')));
+      await step(t);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApSubSub'))).data,
+        '当前选择 · 繁体',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSubDone')));
+      await step(t);
+      // 分段仍写原数值字段：字距·疏＝1，翻页方式二级页 scroll。
+      await t.tap(find.byKey(const ValueKey('brApSeg-ls-l')));
+      await t.tap(find.byKey(const ValueKey('brApSubBtn-turn')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brApTurn-scroll')));
+      await step(t);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApSubSub'))).data,
+        '当前选择 · 滚动',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSubDone')));
+      await step(t);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('brApTurnLbl'))).data,
+        '滚动',
+      );
+      await t.tap(find.byKey(const ValueKey('brApSave')));
+      await step(t, times: 2);
+      final patch = jsonDecode((await repo.kv('reader.cfg.r4'))!) as Map;
+      expect(patch['s2t'], 't');
+      expect(patch['ls'], 1);
+      expect(patch['mode'], 'scroll');
     });
   });
 

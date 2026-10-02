@@ -9,13 +9,17 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/reader_cfg.dart';
 import './reader_bg.dart';
 
-/// 阅读外观草稿制面板（V1.50 批4 · 轮5.1 扩到弹层全量：亮度/背景/取色/图片）。
+part 'reader_appearance_subs.dart';
+
+/// 阅读外观草稿制面板（V1.50 批4 · R3-7 微信读书式单层主面板 + 二级页）。
 ///
 /// 口径：改动只进草稿、实时预览；「取消」丢弃、「保存应用」按作用域落库
 /// （本书专属＝逐书补丁 kv `reader.cfg.<id>` · 全部书籍＝全局 kv `reader.cfg`）。
-/// 轮5.1：主题/亮度/字号三面板并到这一层（原型 sheetBrAppearance 唯一入口）；
-/// 自定义颜色用**自绘色相/明度滑杆**（禁系统取色器与 input[type=color]）；
-/// 图片背景可选相册图（保存时才拷进私有目录）＋淡化档。
+/// R3-7（原型 sheetBrAppearance + sheetBrApSub）：主面板自上而下＝固定预览样张 →
+/// 字号行（行尾「仅当前书籍」开关）→ 边距/行距/字距三列分段 → 两行三入口卡 →
+/// 开关行（两端对齐/常亮/自动翻页）→ 亮度滑杆；字体样式/首行缩进/翻页方式/纸色
+/// 主题/背景图片/简繁收进**同一弹层内部页面栈**的二级页（见 part 文件），
+/// 不再嵌套第二个 showModalBottomSheet（自动翻页间隔滚轮是既有嵌套先例，保留）。
 Future<void> showReaderAppearance(
   BuildContext context, {
   required ReaderCfg current,
@@ -47,6 +51,24 @@ Future<void> showReaderAppearance(
     ? ('自定义', c.bgColor, c.textColor)
     : (kBrThemes[c.theme] ?? kBrThemes['day']!);
 
+/// 分段映射（R3-7 · 原型 BR_AP_MAR/LH/LS）：s/m/l → 数值，当前值就近命中档位。
+const kApSegMar = {'s': 12.0, 'm': 22.0, 'l': 34.0};
+const kApSegLh = {'s': 1.45, 'm': 1.62, 'l': 1.9};
+const kApSegLs = {'s': 0.0, 'm': 0.4, 'l': 1.0};
+
+/// 首行缩进 / 简繁三档文案（原型 BR_IND_N / BR_S2T_N，key＝cfg 值）。
+const kApIndNames = {'auto': '跟随原书', '2': '两全角', 'none': '无缩进'};
+const kApS2TNames = {'orig': '跟随原书', 's': '简体', 't': '繁体'};
+
+/// 就近命中分段档位（原型 brApSegCol 的 near 同式：绝对值最小档）。
+String apSegNear(Map<String, double> bucket, double cur) {
+  var near = bucket.keys.first;
+  for (final e in bucket.entries) {
+    if ((e.value - cur).abs() < (bucket[near]! - cur).abs()) near = e.key;
+  }
+  return near;
+}
+
 class _ApSheet extends StatefulWidget {
   const _ApSheet({
     required this.initial,
@@ -65,6 +87,12 @@ class _ApSheetState extends State<_ApSheet> {
   late ReaderCfg _d = widget.initial;
   bool _scopeBook = true;
 
+  /// R3-7 二级页栈（同一弹层内部）：null＝主面板；否则 font/ind/turn/theme/bg/s2t。
+  String? _sub;
+
+  /// 字体二级页当前分类 chip（原型 brApFontCat，'全部' 起）。
+  String _fontCat = '全部';
+
   // 自绘取色（原型 brApPick：色相 0~360 + 明度 0~100，底色提亮、字色压暗）。
   String _pickTgt = 'bg';
   int _hue = 32;
@@ -76,7 +104,23 @@ class _ApSheetState extends State<_ApSheet> {
 
   void _set(ReaderCfg next) => setState(() => _d = next);
 
+  /// 二级页（part 扩展）统一走宿主这两个口，扩展体内免碰 protected setState。
+  void _rebuild(VoidCallback f) => setState(f);
+  void _openSub(String k) => setState(() => _sub = k);
+  void _closeSub() => setState(() => _sub = null);
+
   (String, Color, Color) get _th => brThemeResolved(_d);
+
+  // 入口卡/子页副标题的当前值回显（原型 brApFontLbl/IndLbl/TurnLbl/ThemeLbl/BgLbl/S2TLbl）。
+  String get _fontLbl => kBrFonts[_d.font] ?? kBrFonts['system']!;
+  String get _indLbl => kApIndNames[_d.indMode] ?? kApIndNames['auto']!;
+  String get _turnLbl => _d.mode == 'scroll' ? '滚动' : '翻页';
+  String get _themeLbl => _d.theme == 'custom' ? '自定义' : _th.$1;
+  String get _bgLbl =>
+      _d.bgTex.isEmpty && (_d.bgImg.isNotEmpty || _pickedImg != null)
+      ? '自选图片'
+      : (kBrTex[_d.bgTex] ?? '无');
+  String get _s2tLbl => kApS2TNames[_d.s2t] ?? kApS2TNames['orig']!;
 
   void _pickColor() {
     setState(() {
@@ -131,560 +175,334 @@ class _ApSheetState extends State<_ApSheet> {
         key: const ValueKey('sheetBrAppearance'),
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Text(
-                '阅读外观',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-              ),
-              const Spacer(),
-              for (final (k, label) in const [
-                (true, '本书专属'),
-                (false, '全部书籍'),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: TextButton(
-                    key: ValueKey('brApScope-${k ? 'book' : 'global'}'),
-                    onPressed: () => setState(() => _scopeBook = k),
-                    style: TextButton.styleFrom(
-                      backgroundColor: _scopeBook == k
-                          ? cs.primary.withValues(alpha: .12)
-                          : Colors.transparent,
-                      foregroundColor: _scopeBook == k
-                          ? cs.primary
-                          : cs.onSurfaceVariant,
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // 实时预览（原型 brApPrev 样张 · 含图片/纹理/淡化层）
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              key: const ValueKey('brApPrev'),
-              height: 132,
-              child: BrBackdrop(
-                cfg: _perviewCfg(),
-                base: _th.$2,
-                thumb: true,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    _d.mar * .55,
-                    _d.mar * .4,
-                    _d.mar * .55,
-                    _d.mar * .4,
-                  ),
-                  child: Text(
-                    '系统 2 是一种更为自动自发的功能，与系统 1 的规范有关。无论你是否有实施意图，都会在时间行为直接而迅速生成。',
-                    maxLines: 6,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.justify,
-                    style: TextStyle(
-                      fontSize: _d.fs * .62,
-                      height: _d.lh,
-                      letterSpacing: _d.ls,
-                      fontFamily: _d.fontFamily,
-                      color: _th.$3,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView(
-              controller: widget.scrollCtl,
-              children: [
-                _slider(
-                  label: '字号',
-                  valueLabel: '${_d.fs.round()}',
-                  min: 14,
-                  max: 30,
-                  divisions: 16,
-                  value: _d.fs,
-                  keyTag: 'Fs',
-                  onChanged: (v) => _set(_d.copyWith(fs: v.roundToDouble())),
-                ),
-                _slider(
-                  label: '行距',
-                  valueLabel: _d.lh.toStringAsFixed(2),
-                  min: 1.3,
-                  max: 2.4,
-                  divisions: 22,
-                  value: _d.lh,
-                  keyTag: 'Lh',
-                  onChanged: (v) => _set(
-                    _d.copyWith(lh: (v * 20).roundToDouble() / 20),
-                  ),
-                ),
-                _slider(
-                  label: '字间距',
-                  valueLabel: _d.ls.toStringAsFixed(1),
-                  min: 0,
-                  max: 3,
-                  divisions: 15,
-                  value: _d.ls,
-                  keyTag: 'Ls',
-                  onChanged: (v) => _set(
-                    _d.copyWith(ls: (v * 5).roundToDouble() / 5),
-                  ),
-                ),
-                _slider(
-                  label: '页边距（上下左右）',
-                  valueLabel: brMarLabel(_d.mar),
-                  min: 8,
-                  max: 40,
-                  divisions: 16,
-                  value: _d.mar,
-                  keyTag: 'Mar',
-                  onChanged: (v) => _set(_d.copyWith(mar: v.roundToDouble())),
-                ),
-                _slider(
-                  label: '亮度',
-                  valueLabel: '${_d.lum}',
-                  min: 30,
-                  max: 100,
-                  divisions: 70,
-                  value: _d.lum.toDouble(),
-                  keyTag: 'Lum',
-                  onChanged: (v) => _set(_d.copyWith(lum: v.round())),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '主题',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    for (final e in kBrThemes.entries)
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _themeCard(
-                            e.key,
-                            e.value.$1,
-                            e.value.$2,
-                            e.value.$3,
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: _themeCard(
-                        'custom',
-                        '自定义',
-                        _d.bgColor,
-                        _d.textColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '背景色',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  key: const ValueKey('brApBgs'),
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final hex in kBrBgs)
-                      GestureDetector(
-                        key: ValueKey('brApBg-$hex'),
-                        onTap: () => _set(
-                          _d.copyWith(
-                            theme: 'custom',
-                            bg: hex,
-                            bgImg: '',
-                          ),
-                        ),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: ReaderCfg(bg: hex).bgColor,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color:
-                                  _d.theme == 'custom' &&
-                                      _d.bg == hex &&
-                                      _d.bgImg.isEmpty
-                                  ? cs.primary
-                                  : cs.outlineVariant,
-                              width:
-                                  _d.theme == 'custom' &&
-                                          _d.bg == hex &&
-                                          _d.bgImg.isEmpty
-                                  ? 2
-                                  : 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  '自定义颜色',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      key: const ValueKey('brApSwBg'),
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _d.bgColor,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: cs.outlineVariant),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      key: const ValueKey('brApSwFg'),
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: _d.bgColor,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: cs.outlineVariant),
-                      ),
-                      child: Text(
-                        'A',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: _d.textColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _hueSlider(cs),
-                          const SizedBox(height: 6),
-                          _liteSlider(cs),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  key: const ValueKey('brApPickTgt'),
-                  children: [
-                    for (final (k, l) in const [('bg', '改底色'), ('fg', '改字色')])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _segPill(
-                          keyTag: 'brApTgt-$k',
-                          label: l,
-                          on: _pickTgt == k,
-                          onTap: () => setState(() => _pickTgt = k),
-                        ),
-                      ),
-                    const Spacer(),
-                    Text(
-                      _pickTgt == 'bg' ? '底色 ${_d.bg}' : '字色 ${_d.fg}',
-                      key: const ValueKey('brApHex'),
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: cs.onSurfaceVariant,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '图片背景',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  key: const ValueKey('brApTex'),
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final e in kBrTex.entries)
-                      Builder(
-                        builder: (_) {
-                          // 「无」只有在既无纹理也无图片时才算选中（原型同式）。
-                          final on =
-                              _d.bgTex == e.key &&
-                              (e.key.isNotEmpty ||
-                                  (_d.bgImg.isEmpty && _pickedImg == null));
-                          return GestureDetector(
-                            key: ValueKey(
-                              'brApTex-${e.key.isEmpty ? 'none' : e.key}',
-                            ),
-                            onTap: () => _set(_d.copyWith(bgTex: e.key)),
-                            child: SizedBox(
-                              width: 56,
-                              height: 44,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  BrBackdrop(
-                                    cfg: ReaderCfg(
-                                      bg: _d.bg,
-                                      fg: _d.fg,
-                                      theme: 'custom',
-                                      bgTex: e.key,
-                                    ),
-                                    base: _d.bgColor,
-                                    thumb: true,
-                                    child: const SizedBox.expand(),
-                                  ),
-                                  Center(
-                                    child: Text(
-                                      e.value,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: _d.textColor,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: on
-                                            ? cs.primary
-                                            : cs.outlineVariant,
-                                        width: on ? 2 : 1,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    if (_pickedImg != null || _d.bgImg.isNotEmpty)
-                      GestureDetector(
-                        key: const ValueKey('brApTex-img'),
-                        onTap: () => setState(() {
-                          _pickedImg = null;
-                          _d = _d.copyWith(bgImg: '');
-                        }),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SizedBox(
-                            width: 56,
-                            height: 44,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.file(
-                                  File(_pickedImg ?? _d.bgImg),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => ColoredBox(
-                                    color: cs.surfaceContainerHighest,
-                                  ),
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: cs.primary,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                const Positioned(
-                                  bottom: 2,
-                                  right: 0,
-                                  left: 0,
-                                  child: Text(
-                                    '清除',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      backgroundColor: Color(0x99000000),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const ValueKey('brApPickImg'),
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.image_outlined, size: 16),
-                        label: const Text(
-                          '从相册选择图片',
-                          style: TextStyle(fontSize: 11.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_pickErr.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _pickErr,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                _slider(
-                  label: '淡化',
-                  valueLabel: '${_d.dim}',
-                  min: 0,
-                  max: 90,
-                  divisions: 18,
-                  value: _d.dim.toDouble(),
-                  keyTag: 'Dim',
-                  onChanged: (v) => _set(_d.copyWith(dim: v.round())),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  '字体（系统字体 · 可扩展下载，控制包体积）',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    for (final e in kBrFonts.entries)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: TextButton(
-                          key: ValueKey('brApFont-${e.key}'),
-                          onPressed: () => _set(_d.copyWith(font: e.key)),
-                          style: TextButton.styleFrom(
-                            backgroundColor: _d.font == e.key
-                                ? cs.primary.withValues(alpha: .12)
-                                : cs.surfaceContainerHighest.withValues(
-                                  alpha: .5,
-                                ),
-                            foregroundColor: _d.font == e.key
-                                ? cs.primary
-                                : cs.onSurface,
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: ReaderCfg(
-                                font: e.key,
-                              ).fontFamily,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                SwitchListTile(
-                  key: const ValueKey('brApIndent'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    '首行缩进',
-                    style: TextStyle(fontSize: 12.5),
-                  ),
-                  value: _d.indent,
-                  onChanged: (v) => _set(_d.copyWith(indent: v)),
-                ),
-                SwitchListTile(
-                  key: const ValueKey('brApBright'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('屏幕常亮', style: TextStyle(fontSize: 12.5)),
-                  value: _d.bright,
-                  onChanged: (v) => _set(_d.copyWith(bright: v)),
-                ),
-                SwitchListTile(
-                  key: const ValueKey('brApAuto'),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    '自动翻页',
-                    style: TextStyle(fontSize: 12.5),
-                  ),
-                  subtitle: Text(
-                    _d.auto ? '${_d.autoSecs} 秒/页' : '关',
-                    key: const ValueKey('brApAutoLbl'),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  value: _d.auto,
-                  onChanged: (_) => _autoToggle(),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey('brApCancel'),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('取消'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: FilledButton(
-                  key: const ValueKey('brApSave'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tokens.accent,
-                  ),
-                  onPressed: () {
-                    final img = _pickedImg;
-                    final out = img == null
-                        ? _d
-                        : _d.copyWith(bgImg: img, theme: 'custom');
-                    widget.onSave(out, _scopeBook, img);
-                  },
-                  child: const Text('保存应用'),
-                ),
-              ),
-            ],
-          ),
-        ],
+        children: _sub == null ? _apMain(cs, tokens) : _apSub(cs),
       ),
     );
   }
+
+  // ---------- 主面板（原型 sheetBrAppearance 单层） ----------
+
+  List<Widget> _apMain(ColorScheme cs, ThemeTokens tokens) => [
+    Row(
+      children: [
+        const Text(
+          '阅读外观',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        ),
+        const Spacer(),
+        Text(
+          '草稿制 · 保存后生效',
+          style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
+        ),
+      ],
+    ),
+    const SizedBox(height: 10),
+    // 实时预览（原型 brApPrev 样张 · 含图片/纹理/淡化层）
+    ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        key: const ValueKey('brApPrev'),
+        height: 132,
+        child: BrBackdrop(
+          cfg: _perviewCfg(),
+          base: _th.$2,
+          thumb: true,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              _d.mar * .55,
+              _d.mar * .4,
+              _d.mar * .55,
+              _d.mar * .4,
+            ),
+            child: Text(
+              '系统 2 是一种更为自动自发的功能，与系统 1 的规范有关。无论你是否有实施意图，都会在时间行为直接而迅速生成。',
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+              textAlign: _d.just ? TextAlign.justify : TextAlign.left,
+              style: TextStyle(
+                fontSize: _d.fs * .62,
+                height: _d.lh,
+                letterSpacing: _d.ls,
+                fontFamily: _d.fontFamily,
+                color: _th.$3,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+    const SizedBox(height: 8),
+    Expanded(
+      child: ListView(
+        controller: widget.scrollCtl,
+        children: [
+          // ① 字号行：小A 滑杆 大A ＋ 行尾「仅当前书籍」开关（开＝本书专属）。
+          Row(
+            key: const ValueKey('brApFs'),
+            children: [
+              Text(
+                'A',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  key: const ValueKey('brApFsSlider'),
+                  min: 14,
+                  max: 30,
+                  divisions: 16,
+                  value: _d.fs.clamp(14, 30),
+                  label: '${_d.fs.round()}',
+                  onChanged: (v) => _set(_d.copyWith(fs: v.roundToDouble())),
+                ),
+              ),
+              const Text(
+                'A',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+              ),
+              Text(
+                '${_d.fs.round()}',
+                key: const ValueKey('brApFsV'),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: cs.primary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '仅当前书籍',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              Switch(
+                key: const ValueKey('brApScopeTgl'),
+                value: _scopeBook,
+                onChanged: (v) => setState(() {
+                  _scopeBook = v;
+                  _sub = null;
+                }),
+              ),
+            ],
+          ),
+          // ② 三列分段：边距（小/中/大）· 行距（紧/中/松）· 字距（密/标准/疏）。
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _segCol(
+                    'mar',
+                    '边距',
+                    const [('s', '小'), ('m', '中'), ('l', '大')],
+                    kApSegMar,
+                    _d.mar,
+                    (k) => _set(_d.copyWith(mar: kApSegMar[k])),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _segCol(
+                    'lh',
+                    '行距',
+                    const [('s', '紧'), ('m', '中'), ('l', '松')],
+                    kApSegLh,
+                    _d.lh,
+                    (k) => _set(_d.copyWith(lh: kApSegLh[k])),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _segCol(
+                    'ls',
+                    '字距',
+                    const [('s', '密'), ('m', '标准'), ('l', '疏')],
+                    kApSegLs,
+                    _d.ls,
+                    (k) => _set(_d.copyWith(ls: kApSegLs[k])),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // ③④ 两行三入口卡（卡内小字回显当前值 · 点开二级页）。
+          Row(
+            children: [
+              _entryCard('font', '字体样式', _fontLbl, 'brApFontLbl'),
+              const SizedBox(width: 8),
+              _entryCard('ind', '首行缩进', _indLbl, 'brApIndLbl'),
+              const SizedBox(width: 8),
+              _entryCard('turn', '翻页方式', _turnLbl, 'brApTurnLbl'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _entryCard('theme', '纸色主题', _themeLbl, 'brApThemeLbl'),
+              const SizedBox(width: 8),
+              _entryCard('bg', '背景图片', _bgLbl, 'brApBgLbl'),
+              const SizedBox(width: 8),
+              _entryCard('s2t', '简繁', _s2tLbl, 'brApS2TLbl'),
+            ],
+          ),
+          // ⑤ 开关行（自动翻页沿用既有间隔滚轮弹层）。
+          SwitchListTile(
+            key: const ValueKey('brApJust'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('两端对齐', style: TextStyle(fontSize: 12.5)),
+            value: _d.just,
+            onChanged: (v) => _set(_d.copyWith(just: v)),
+          ),
+          SwitchListTile(
+            key: const ValueKey('brApBright'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('屏幕常亮', style: TextStyle(fontSize: 12.5)),
+            value: _d.bright,
+            onChanged: (v) => _set(_d.copyWith(bright: v)),
+          ),
+          SwitchListTile(
+            key: const ValueKey('brApAuto'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('自动翻页', style: TextStyle(fontSize: 12.5)),
+            subtitle: Text(
+              _d.auto ? '${_d.autoSecs} 秒/页' : '关',
+              key: const ValueKey('brApAutoLbl'),
+              style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+            ),
+            value: _d.auto,
+            onChanged: (_) => _autoToggle(),
+          ),
+          // ⑥ 亮度滑杆行。
+          _slider(
+            label: '亮度',
+            valueLabel: '${_d.lum}',
+            min: 30,
+            max: 100,
+            divisions: 70,
+            value: _d.lum.toDouble(),
+            keyTag: 'Lum',
+            onChanged: (v) => _set(_d.copyWith(lum: v.round())),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    ),
+    Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: const ValueKey('brApCancel'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: FilledButton(
+            key: const ValueKey('brApSave'),
+            style: FilledButton.styleFrom(backgroundColor: tokens.accent),
+            onPressed: () {
+              final img = _pickedImg;
+              final out = img == null
+                  ? _d
+                  : _d.copyWith(bgImg: img, theme: 'custom');
+              widget.onSave(out, _scopeBook, img);
+            },
+            child: const Text('保存应用'),
+          ),
+        ),
+      ],
+    ),
+  ];
+
+  /// 一列分段（原型 brApSegCol：小标题 + 三档 pill · 当前值就近命中）。
+  Widget _segCol(
+    String tag,
+    String label,
+    List<(String, String)> names,
+    Map<String, double> bucket,
+    double cur,
+    ValueChanged<String> onPick,
+  ) {
+    final near = apSegNear(bucket, cur);
+    return Column(
+      key: ValueKey('brApSeg-$tag'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 9.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            for (final (i, e) in names.indexed) ...[
+              if (i > 0) const SizedBox(width: 4),
+              Expanded(
+                child: _segPill(
+                  keyTag: 'brApSeg-$tag-${e.$1}',
+                  label: e.$2,
+                  on: e.$1 == near,
+                  padH: 4,
+                  onTap: () => onPick(e.$1),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 二级页入口卡（原型 .card 三列：标题 + 当前值小字）。
+  Widget _entryCard(String k, String title, String value, String valKey) =>
+    Expanded(
+      child: GestureDetector(
+        key: ValueKey('brApSubBtn-$k'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _openSub(k),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                key: ValueKey(valKey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
   /// 预览用配置：图片未落私有目录前，用临时路径直接渲染。
   ReaderCfg _perviewCfg() => _pickedImg == null
@@ -696,6 +514,7 @@ class _ApSheetState extends State<_ApSheet> {
     required String label,
     required bool on,
     required VoidCallback onTap,
+    double padH = 10,
   }) {
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
@@ -703,7 +522,7 @@ class _ApSheetState extends State<_ApSheet> {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: EdgeInsets.symmetric(horizontal: padH, vertical: 5),
         decoration: BoxDecoration(
           color: on ? cs.primary.withValues(alpha: .12) : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
@@ -714,6 +533,7 @@ class _ApSheetState extends State<_ApSheet> {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
@@ -723,64 +543,6 @@ class _ApSheetState extends State<_ApSheet> {
       ),
     );
   }
-
-  /// 色相滑杆（自绘彩虹轨道 · 禁系统取色器）。
-  Widget _hueSlider(ColorScheme cs) => Container(
-    height: 26,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(8),
-      gradient: const LinearGradient(
-        colors: [
-          Color(0xFFFF0000),
-          Color(0xFFFFFF00),
-          Color(0xFF00FF00),
-          Color(0xFF00FFFF),
-          Color(0xFF0000FF),
-          Color(0xFFFF00FF),
-          Color(0xFFFF0000),
-        ],
-      ),
-    ),
-    child: Slider(
-      key: const ValueKey('brApHue'),
-      min: 0,
-      max: 360,
-      divisions: 360,
-      value: _hue.toDouble().clamp(0, 360),
-      activeColor: Colors.white,
-      inactiveColor: Colors.transparent,
-      onChanged: (v) {
-        setState(() => _hue = v.round());
-        _pickColor();
-      },
-    ),
-  );
-
-  /// 明度滑杆（黑→白轨道）。
-  Widget _liteSlider(ColorScheme cs) => Container(
-    height: 26,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(8),
-      gradient: const LinearGradient(
-        colors: [Color(0xFF000000), Color(0xFFFFFFFF)],
-      ),
-    ),
-    child: Slider(
-      key: const ValueKey('brApLite'),
-      min: 0,
-      max: 100,
-      divisions: 100,
-      value: _lite.toDouble().clamp(0, 100),
-      activeColor: Colors.transparent,
-      inactiveColor: Colors.transparent,
-      onChanged: (v) {
-        setState(() => _lite = v.round());
-        _pickColor();
-      },
-    ),
-  );
 
   Widget _slider({
     required String label,
@@ -799,10 +561,7 @@ class _ApSheetState extends State<_ApSheet> {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
             ),
           ),
           Text(
@@ -826,56 +585,6 @@ class _ApSheetState extends State<_ApSheet> {
       ),
     ],
   );
-
-  Widget _themeCard(String key, String name, Color bg, Color fg) {
-    final on = _d.theme == key;
-    return GestureDetector(
-      key: ValueKey('brApTheme-$key'),
-      onTap: () => setState(() {
-        _d = key == 'custom'
-            ? _d.copyWith(theme: 'custom')
-            : _d.copyWith(
-                theme: key,
-                bg:
-                    '#${(kBrThemes[key]!.$2.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-                fg:
-                    '#${(kBrThemes[key]!.$3.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-              );
-      }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: on
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              name,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-                color: fg,
-              ),
-            ),
-            Text(
-              'Aa 阅读示例',
-              style: TextStyle(
-                fontSize: 7.5,
-                color: fg.withValues(alpha: .7),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// 自绘取色（原型 brApPick 同式）：色相 + 明度两滑杆 → #rrggbb。

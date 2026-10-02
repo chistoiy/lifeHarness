@@ -25,6 +25,9 @@ class ReaderCfg {
     this.bgTex = '',
     this.bgImg = '',
     this.dim = 60,
+    this.just = false,
+    this.s2t = 'orig',
+    this.indMode = 'auto',
   });
 
   final double fs, lh, ls, mar;
@@ -52,7 +55,18 @@ class ReaderCfg {
   final int lum;
 
   /// 首行缩进（原型 .brp text-indent:2em；关掉则段首不缩进）。
+  /// R3-7 起为 [indMode] 的派生兼容位：indMode!='none' 即缩进开
+  /// （旧逐书补丁/既有断言只认 indent，两键 toMap 同写保持一致）。
   final bool indent;
+
+  /// 首行缩进三档（R3-7 · 原型 BR_IND_N）：auto 跟随原书 · 2 两全角 · none 无缩进。
+  final String indMode;
+
+  /// 两端对齐（R3-7 · 原型 brApJustTgl）。
+  final bool just;
+
+  /// 简繁（R3-7 · 原型 BR_S2T_N）：orig 跟随原书 · s 简体 · t 繁体。
+  final String s2t;
 
   /// 轮5.1 背景纹理预设键（kBrTex：'' 无 · paper 纸纹 · kraft 牛皮 · grid 网格）。
   final String bgTex;
@@ -82,6 +96,10 @@ class ReaderCfg {
       return v == null || v.isEmpty ? f : v;
     }
 
+    // R3-7：indMode 三档优先；旧数据无 indMode 时由 indent 回落（false→none）。
+    final im = const {'auto', '2', 'none'}.contains(m['indMode'])
+        ? m['indMode'] as String
+        : (m['indent'] == false ? 'none' : 'auto');
     return ReaderCfg(
       fs: dd('fs', 19).clamp(14, 30).toDouble(),
       lh: dd('lh', 1.62).clamp(1.3, 2.4).toDouble(),
@@ -100,10 +118,13 @@ class ReaderCfg {
       auto: m['auto'] == true,
       autoSecs: (m['autoSecs'] as num?)?.toInt() ?? 10,
       lum: ((m['lum'] as num?)?.toInt() ?? 100).clamp(30, 100),
-      indent: m['indent'] != false,
+      indent: im != 'none',
       bgTex: kBrTex.containsKey(ss('bgTex', '')) ? ss('bgTex', '') : '',
       bgImg: ss('bgImg', ''),
       dim: ((m['dim'] as num?)?.toInt() ?? 60).clamp(0, 90),
+      just: m['just'] == true,
+      s2t: const {'orig', 's', 't'}.contains(m['s2t']) ? m['s2t'] as String : 'orig',
+      indMode: im,
     );
   }
 
@@ -125,10 +146,13 @@ class ReaderCfg {
     'auto': auto,
     'autoSecs': autoSecs,
     'lum': lum,
-    'indent': indent,
+    'indent': indMode != 'none',
+    'indMode': indMode,
     'bgTex': bgTex,
     'bgImg': bgImg,
     'dim': dim,
+    'just': just,
+    's2t': s2t,
   };
 
   String encode() => jsonEncode(toMap());
@@ -148,28 +172,44 @@ class ReaderCfg {
     int? autoSecs,
     int? lum,
     bool? indent,
+    String? indMode,
     String? bgTex,
     String? bgImg,
     int? dim,
-  }) => ReaderCfg(
-    fs: fs ?? this.fs,
-    lh: lh ?? this.lh,
-    ls: ls ?? this.ls,
-    mar: mar ?? this.mar,
-    theme: theme ?? this.theme,
-    mode: mode ?? this.mode,
-    bg: bg ?? this.bg,
-    fg: fg ?? this.fg,
-    font: font ?? this.font,
-    bright: bright ?? this.bright,
-    auto: auto ?? this.auto,
-    autoSecs: autoSecs ?? this.autoSecs,
-    lum: lum ?? this.lum,
-    indent: indent ?? this.indent,
-    bgTex: bgTex ?? this.bgTex,
-    bgImg: bgImg ?? this.bgImg,
-    dim: dim ?? this.dim,
-  );
+    bool? just,
+    String? s2t,
+  }) {
+    // indMode 为准；只传 indent 时同步换算（true 时若原为 none 回落 auto）。
+    final im =
+        indMode ??
+        (indent == null
+            ? this.indMode
+            : indent
+            ? (this.indMode == 'none' ? 'auto' : this.indMode)
+            : 'none');
+    return ReaderCfg(
+      fs: fs ?? this.fs,
+      lh: lh ?? this.lh,
+      ls: ls ?? this.ls,
+      mar: mar ?? this.mar,
+      theme: theme ?? this.theme,
+      mode: mode ?? this.mode,
+      bg: bg ?? this.bg,
+      fg: fg ?? this.fg,
+      font: font ?? this.font,
+      bright: bright ?? this.bright,
+      auto: auto ?? this.auto,
+      autoSecs: autoSecs ?? this.autoSecs,
+      lum: lum ?? this.lum,
+      indent: im != 'none',
+      indMode: im,
+      bgTex: bgTex ?? this.bgTex,
+      bgImg: bgImg ?? this.bgImg,
+      dim: dim ?? this.dim,
+      just: just ?? this.just,
+      s2t: s2t ?? this.s2t,
+    );
+  }
 
   Color get bgColor => _parseHex(bg, const Color(0xFFFAF6EE));
   Color get textColor => _parseHex(fg, const Color(0xFF3B3630));
@@ -214,6 +254,16 @@ const kBrFonts = {
   'hei': '黑体',
   'mono': '等宽',
 };
+
+/// 字体分类（R3-7 字体二级页 chips · 原型 BR_FONTS 第三元口径）：
+/// 等宽/行书类归「其他」；kBrFonts 的 key 必须在此表内，缺归「其他」。
+const kBrFontCats = {
+  'system': '系统',
+  'serif': '衬线',
+  'hei': '黑体',
+  'mono': '其他',
+};
+String brFontCat(String key) => kBrFontCats[key] ?? '其他';
 
 /// 自动翻页间隔档位（原型 BR_AUTOS）。
 const kBrAutos = [3, 5, 8, 10, 15, 20, 30, 45, 60];
