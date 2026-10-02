@@ -3,6 +3,11 @@
 # 用法：bash tools/run_gate.sh [concurrency=N 由环境变量 CONC 传入]
 set -u
 cd "$(dirname "$0")/.."
+# 文档域守护（治理二轮）：doclint 红灯不起测试闸——先花 2 秒把文档账清了
+for PY in "D:/app_workplace/python3.11/python.exe" python; do
+  if command -v "$PY" >/dev/null 2>&1 && "$PY" -c "import sys" >/dev/null 2>&1; then break; fi
+done
+"$PY" tools/doclint.py || { echo "DOCLINT-RED 先清文档红灯再跑门禁（见 AGENTS 验证门禁行）"; exit 1; }
 PORT=${PORT:-8765}
 for p in $(netstat -ano | grep ":$PORT" | grep LISTENING | awk '{print $5}' | sort -u); do
   node -e "try{process.kill($p)}catch(e){}" || true
