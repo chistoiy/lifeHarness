@@ -42,7 +42,8 @@ import './reader_sel_layer.dart';
 import './reader_loupe.dart'; // V1.53.2 选区放大镜
 import '../selection_controller.dart';
 import './reader_toc_drawer.dart';
-import './reader_xray_refine.dart' show showXrRefineEntry, xrAiMenuStatus;
+import './reader_xray_refine.dart'
+    show showXrRefineEntry, xrAiMenuStatus, xrRefineForBook;
 part 'reader_models.dart';
 part 'reader_chrome.dart';
 part 'reader_sel_ops.dart';
@@ -629,7 +630,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       onXray: openXrTab,
       onXrWords: () => ctx.push('/read/xray-words'),
       // 批4 · AI 精化入口（状态字计算在 reader_xray_refine 里，别撑大本页行数预算）。
-      xrAiStatus: xrAiMenuStatus(ref.read(xrRefineHolderProvider)),
+      // R3-5：状态字只认当前书的 runner——别的书在跑/跑完不跨书显示。
+      xrAiStatus: xrAiMenuStatus(xrRefineForBook(
+          ref.read(xrRefineHolderProvider), _book?.id)),
       onXrRefine: () {
         final b = _book;
         if (b != null) unawaited(showXrRefineEntry(ctx, ref, b));

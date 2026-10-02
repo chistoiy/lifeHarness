@@ -246,7 +246,9 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
             child: _suggestionCard(sched, md5, sug),
           ),
         // 批4 · AI 精化进度卡（原型 #xrAiBar）：逐批进度/暂停续跑/失败提示/查看汇总。
-        if (ref.watch(xrRefineHolderProvider) case final xrR?)
+        // R3-5：holder 全局单槽——只显当前书的 runner，别的书的进度/汇总不跨书借用。
+        if (ref.watch(xrRefineHolderProvider) case final xrR?
+            when xrR.bookId == widget.book.id)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
             child: XrRefineCard(runner: xrR, md5: md5),

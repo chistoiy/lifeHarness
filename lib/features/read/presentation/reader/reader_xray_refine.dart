@@ -45,6 +45,7 @@ int xrRefineBudgetOf(String? raw) =>
     int.tryParse(raw ?? '') ?? kXrRefineBudgetDefault;
 
 /// ⋯菜单右侧状态字（原型 `brMoreXrAi`）：入口常在，状态跟着在跑的任务走。
+/// R3-5：调用方先用 [xrRefineForBook] 按当前书过滤，别的书的运行态不得借显示。
 String xrAiMenuStatus(XrRefineRunner? r) => switch (r) {
       null => 'AI · 未跑',
       final x when x.stage == XrRefineStage.done =>
@@ -52,6 +53,11 @@ String xrAiMenuStatus(XrRefineRunner? r) => switch (r) {
       final x when x.stage == XrRefineStage.cancelled => 'AI · 已中止',
       final x => 'AI · ${x.doneBatches}/${x.totalBatches} 批',
     };
+
+/// R3-5 归属过滤：holder 是全局单槽，只有属于 [bookId] 的 runner 才可见；
+/// 别的书在跑/跑完的进度卡与状态字一律按「无」处理（回那本书时自然复现）。
+XrRefineRunner? xrRefineForBook(XrRefineRunner? r, String? bookId) =>
+    (r != null && bookId != null && r.bookId == bookId) ? r : null;
 
 /// 生产 caller：一批词条 → 模型 JSON（走 core/ai 的批式出口，R7 同源门控与留痕）。
 /// 失败一律上抛，由 runner 计重试/跳过——本闭包不吞异常。
@@ -93,6 +99,7 @@ Future<void> showXrRefineEntry(
     showDragHandle: true,
     builder: (_) => _XrRefinePreSheet(
         md5: md5!,
+        bookId: book.id,
         bookTitle: book.title,
         rows: rows,
         budget: budget,
@@ -103,6 +110,7 @@ Future<void> showXrRefineEntry(
 class _XrRefinePreSheet extends ConsumerStatefulWidget {
   const _XrRefinePreSheet({
     required this.md5,
+    required this.bookId,
     required this.bookTitle,
     required this.rows,
     required this.budget,
@@ -110,6 +118,9 @@ class _XrRefinePreSheet extends ConsumerStatefulWidget {
   });
 
   final String md5;
+
+  /// R3-5：runner 归属书，入口带进来，进度只随这本书显示。
+  final String bookId;
   final String bookTitle;
   final List<XrayEntityRow> rows;
   final int budget;
@@ -138,7 +149,15 @@ class _XrRefinePreSheetState extends ConsumerState<_XrRefinePreSheet> {
   void _start() {
     final cands = _cands;
     final host = widget.hostRef;
+    // R3-5：holder 单槽——开跑新书前先中止在跑的旧任务，别留孤儿 runner
+    // 继续吃 AI 额度（它的建议已随槽位覆盖失去出口）。
+    if (host.read(xrRefineHolderProvider) case final prev?
+        when prev.stage == XrRefineStage.running ||
+            prev.stage == XrRefineStage.paused) {
+      prev.cancel();
+    }
     final runner = XrRefineRunner(
+        bookId: widget.bookId,
         budgetChars: _budget,
         caller: xrRefineCaller(host, widget.bookTitle));
     runner.plan(cands);
@@ -371,7 +390,8 @@ class XrRefineCard extends ConsumerWidget {
                       const Spacer(),
                       GestureDetector(
                         key: const ValueKey('xrAiShowRev'),
-                        onTap: () => showXrRefineReview(context, ref, md5: md5),
+                        onTap: () => showXrRefineReview(context, ref,
+                            runner: runner, md5: md5),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 7),
@@ -414,10 +434,11 @@ Widget _xrChip(BuildContext context, String text, {required bool filled}) {
 }
 
 /// 汇总审阅弹层（原型 `sheetXrAiReview`）：三段分组 + 勾选 + 写入范围 + 确认写入。
+/// R3-5：runner 由进度卡显式带入（卡已按当前书过滤），不再回读全局 holder——
+/// 回读可能拿到别的书的运行态，把它的建议写进本书 md5。
 Future<void> showXrRefineReview(BuildContext context, WidgetRef ref,
-    {required String md5}) async {
-  final runner = ref.read(xrRefineHolderProvider);
-  if (runner == null || runner.suggestions.isEmpty) return;
+    {required XrRefineRunner runner, required String md5}) async {
+  if (runner.suggestions.isEmpty) return;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,

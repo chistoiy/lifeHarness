@@ -130,13 +130,18 @@ List<XrRefineSuggestion> xrParseRefineJson(Map<String, dynamic> j) {
 enum XrRefineStage { idle, running, paused, done, cancelled }
 
 /// 逐批精化执行器（UI 侧只 watch 它的进度与建议，不碰网络）。
+/// R3-5：[bookId] 钉死归属书——进度/汇总只随该书显示，换书不得借用（跨书泄漏）。
 class XrRefineRunner extends ChangeNotifier {
   XrRefineRunner({
+    required this.bookId,
     required this.caller,
     this.budgetChars = 3000,
     this.retryLimit = 1,
     this.pace = Duration.zero,
   });
+
+  /// 归属书（R3-5）：holder 全局单槽，靠它判「这条进度是不是当前书的」。
+  final String bookId;
 
   final XrBatchCaller caller;
 

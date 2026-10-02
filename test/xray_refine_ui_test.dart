@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,7 +85,7 @@ void main() {
       container.read(xrRefineHolderProvider.notifier).state = r;
 
   XrRefineRunner baseRunner() =>
-      XrRefineRunner(budgetChars: 40, caller: (_) async => null);
+      XrRefineRunner(bookId: 'bk-1', budgetChars: 40, caller: (_) async => null);
 
   Future<void> pumpHost(WidgetTester t, Widget Function(BuildContext, WidgetRef) body) =>
       t.pumpWidget(UncontrolledProviderScope(
@@ -153,7 +155,7 @@ void main() {
           XrRefineCard(runner: r, md5: md5),
           TextButton(
               key: const ValueKey('probe'),
-              onPressed: () => showXrRefineReview(c, ref, md5: md5),
+              onPressed: () => showXrRefineReview(c, ref, runner: r, md5: md5),
               child: const Text('probe')),
         ]));
 
@@ -190,15 +192,38 @@ void main() {
     await drainLogTimer(t);
   });
 
-  testWidgets('持有位为空时点「查看汇总」＝不开层不崩', (t) async {
-    setHolder(null);
+  testWidgets('建议为空时点「查看汇总」＝不开层不崩', (t) async {
+    final r = baseRunner()..stage = XrRefineStage.done;
     await pumpHost(t, (c, ref) => TextButton(
           key: const ValueKey('probe'),
-          onPressed: () => showXrRefineReview(c, ref, md5: md5),
+          onPressed: () => showXrRefineReview(c, ref, runner: r, md5: md5),
           child: const Text('probe'),
         ));
     await t.tap(find.byKey(const ValueKey('probe')));
     await t.pump();
     expect(find.byKey(const ValueKey('xrAiRevBody')), findsNothing);
+  });
+
+  // R3-5（真机轮3补录）：精化进程跨书泄漏——holder 全局单槽，显示前必须按书过滤。
+  test('R3-5 xrRefineForBook：只有归属匹配的 runner 可见', () {
+    final mine = XrRefineRunner(
+        bookId: 'bk-1', budgetChars: 40, caller: (_) async => null);
+    final other = XrRefineRunner(
+        bookId: 'bk-2', budgetChars: 40, caller: (_) async => null);
+    expect(xrRefineForBook(other, 'bk-1'), isNull,
+        reason: '别的书的运行态透传=跨书泄漏（截图 14:02 的根因）');
+    expect(xrRefineForBook(mine, 'bk-1'), same(mine));
+    expect(xrRefineForBook(null, 'bk-1'), isNull);
+    expect(xrRefineForBook(mine, null), isNull,
+        reason: '当前书未就绪（_book 尚 null）时不得显示任何精化态');
+    // 状态字随之归位：他书在跑时菜单显「未跑」而非借来的批数。
+    expect(xrAiMenuStatus(xrRefineForBook(other, 'bk-1')), 'AI · 未跑');
+  });
+
+  test('R3-5 面板进度卡挂书归属闸（防接线被摘）', () {
+    final s = File('lib/features/read/presentation/reader/reader_xray_panel.dart')
+        .readAsStringSync();
+    expect(s, contains('when xrR.bookId == widget.book.id'),
+        reason: '面板摘掉归属条件=又回到跨书显示');
   });
 }

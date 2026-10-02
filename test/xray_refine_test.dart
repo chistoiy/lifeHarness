@@ -82,6 +82,7 @@ void main() {
     test('顺序跑完 · 批数由预算定 · 每批不重不漏', () async {
       final seen = <String>[];
       final r = XrRefineRunner(
+          bookId: 'b1',
           budgetChars: 40,
           caller: (b) async {
             seen.addAll(b.map((e) => e.name));
@@ -100,6 +101,7 @@ void main() {
     test('单批失败重试一次后跳过，不整链中断', () async {
       var calls = 0;
       final r = XrRefineRunner(
+          bookId: 'b1',
           budgetChars: 40,
           caller: (b) async {
             calls++;
@@ -120,6 +122,7 @@ void main() {
       var calls = 0;
       late XrRefineRunner r; // 闭包要回调 r.pause()，不能写成 final r = …（声明前引用）
       r = XrRefineRunner(
+          bookId: 'b1',
           budgetChars: 40,
           pace: const Duration(milliseconds: 2),
           caller: (b) async {
@@ -146,6 +149,7 @@ void main() {
     test('连续两批失败＝自动中止（端点/额度炸了不再往下烧 token）', () async {
       var calls = 0;
       final r = XrRefineRunner(
+          bookId: 'b1',
           budgetChars: 40,
           caller: (b) async {
             calls++;
@@ -163,6 +167,7 @@ void main() {
       late XrRefineRunner r;
       var calls = 0;
       r = XrRefineRunner(
+          bookId: 'b1',
           budgetChars: 40,
           pace: const Duration(milliseconds: 2),
           caller: (b) async {
