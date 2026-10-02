@@ -227,6 +227,10 @@ extension _ApSheetSubs on _ApSheetState {
                               fontWeight: FontWeight.w700,
                               height: 1.4,
                               fontFamily: ReaderCfg(font: e.key).fontFamily,
+                              // 每格用自身字族预览（LH-F01 后链首是中文族名，
+                              // 不给 fallback 会让九格看起来是同一个字）。
+                              fontFamilyFallback:
+                                  ReaderCfg(font: e.key).fontFamilyFallback,
                             ),
                           ),
                           const SizedBox(height: 4),

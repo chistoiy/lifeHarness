@@ -32,7 +32,10 @@ import 'read_repository.dart';
 class PagStore {
   const PagStore._();
 
-  static const tableVersion = 2;
+  /// v3（LH-F01）：三值族映射从泛族（'serif'/'sans-serif'）换成与原型同串的中文链，
+  /// 而指纹进的是 **枚举值** `fnt${l.font}`——值没变、实排变了，不升版本旧分页表
+  /// 会继续命中，真机表现为「改了字体页码/偏移与实排不符」。
+  static const tableVersion = 3;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   /// R3-2 ③：indMode 三档改变每段显示文本（自带缩进段不再叠加）→ 必须进指纹，

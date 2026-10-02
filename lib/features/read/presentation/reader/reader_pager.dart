@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_typography.dart' show LhFontRole, lhFontRoleOfReaderFont;
 import '../../data/epub_doc.dart';
 import '../../domain/reader_cfg.dart';
 import '../../domain/s2t_map.dart';
@@ -14,7 +15,7 @@ class ReaderLayout {
     this.lh = 1.62,
     this.ls = 0.4,
     this.mar = 22,
-    this.font = 'system',
+    this.font = 'serif', // 与 ReaderCfg 新默认同值（LH-F01）；生产恒走 ReaderLayout.of
     this.indent = true,
     this.indMode = 'auto',
     this.s2t = kS2TOrig,
@@ -65,19 +66,18 @@ class ReaderLayout {
   /// 上下让出 chrome 呼吸区（原型 padding mar+40 / mar+46）。
   double get contentH => (height - mar - 40 - mar - 46).clamp(120.0, 10000.0);
 
-  /// 泛族字体（与 ReaderCfg.fontFamily 同映射；测量与渲染必须一致）。
-  String? get fontFamily => switch (font) {
-    'serif' => 'serif',
-    'hei' => 'sans-serif',
-    'mono' => 'monospace',
-    _ => null,
-  };
+  /// 字族角色（LH-F01）：与 `ReaderCfg.fontRole` 调**同一个函数**，
+  /// 泛族串（'serif'/'sans-serif'）已换成与原型同串的中文字体链。
+  LhFontRole? get fontRole => lhFontRoleOfReaderFont(font);
+  String? get fontFamily => fontRole?.first;
+  List<String>? get fontFamilyFallback => fontRole?.fallback;
 
   TextStyle get base => TextStyle(
     fontSize: fs,
     height: lh,
     letterSpacing: ls,
     fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
   );
 
   ReaderLayout copyWith({

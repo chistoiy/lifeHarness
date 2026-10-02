@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:ui' show Color;
 
+import '../../../core/theme/app_typography.dart' show LhFontRole, lhFontRoleOfReaderFont;
+
 /// 阅读外观配置（V1.50 批4 · 原型 lh_reader_bs_v1 的 brCfg/brBooksCfg 口径）。
 ///
 /// 存储两档：kv `reader.cfg` ＝ 全局默认（完整对象）；
@@ -16,7 +18,7 @@ class ReaderCfg {
     this.mode = 'page',
     this.bg = '#faf6ee',
     this.fg = '#3b3630',
-    this.font = 'system',
+    this.font = 'serif', // LH-F01 拍板：正文默认族「系统默认」→「衬线」
     this.bright = false,
     this.auto = false,
     this.autoSecs = 10,
@@ -41,7 +43,7 @@ class ReaderCfg {
   /// 自定义底色/字色（#rrggbb）。
   final String bg, fg;
 
-  /// system | serif | hei | mono。
+  /// serif（**新默认**，LH-F01 拍板）| system（老用户落库的旧默认，白名单保留）| hei | mono。
   final String font;
 
   /// 屏幕常亮（wakelock）。
@@ -113,7 +115,7 @@ class ReaderCfg {
       fg: _hexOr(ss('fg', '#3b3630'), '#3b3630'),
       font: const {'system', 'serif', 'hei', 'mono'}.contains(m['font'])
           ? m['font'] as String
-          : 'system',
+          : 'serif', // 缺键/脏值＝吃新默认衬线；`system` 仍在白名单里＝老用户读得回
       bright: m['bright'] == true,
       auto: m['auto'] == true,
       autoSecs: (m['autoSecs'] as num?)?.toInt() ?? 10,
@@ -214,13 +216,12 @@ class ReaderCfg {
   Color get bgColor => _parseHex(bg, const Color(0xFFFAF6EE));
   Color get textColor => _parseHex(fg, const Color(0xFF3B3630));
 
-  /// Flutter 泛族字体映射（Android 内置族名；系统默认＝不指定）。
-  String? get fontFamily => switch (font) {
-    'serif' => 'serif',
-    'hei' => 'sans-serif',
-    'mono' => 'monospace',
-    _ => null,
-  };
+  /// 字族角色（LH-F01）：三值族 → CJK 回落链的映射**只此一处定义**
+  /// （`core/theme/app_typography.dart`），`ReaderLayout` 也走它——
+  /// 测量与渲染两边各算一份必出空页/错页。`system` 返回 null＝不指定，照旧跟随平台。
+  LhFontRole? get fontRole => lhFontRoleOfReaderFont(font);
+  String? get fontFamily => fontRole?.first;
+  List<String>? get fontFamilyFallback => fontRole?.fallback;
 
   static String _hexOr(String v, String def) =>
       RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(v) ? v.toLowerCase() : def;

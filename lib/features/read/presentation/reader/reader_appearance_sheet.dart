@@ -224,6 +224,7 @@ class _ApSheetState extends State<_ApSheet> {
                 height: _d.lh,
                 letterSpacing: _d.ls,
                 fontFamily: _d.fontFamily,
+                fontFamilyFallback: _d.fontFamilyFallback,
                 color: _th.$3,
               ),
             ),

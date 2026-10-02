@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'theme_tokens.dart';
+import 'app_typography.dart' show kFontUi;
 
 export 'theme_tokens.dart' show ThemeTokens, ThemeMeta;
 
@@ -37,11 +38,18 @@ class AppTheme {
       primary: tokens.accent,
     );
 
+    // LH-F01 全局字族：默认走 **UI 无衬线链**（标题·底栏·按钮·标签·表单都是这一档），
+    // 主题 json 里设了 `--app-font`（复古/秋日暖调走衬线）就**整档跟随主题**——
+    // 产品 2026-10-03 拍板口径＝角色链作默认、主题字体令牌作整档覆盖。
+    // 回落链固定给 UI 那份：主题指定的族名本机取不到时也不至于掉回引擎默认字。
+    // 长文正文（阅读器/日记/笔记/书摘）另按 body 角色取，见 `app_typography.dart`。
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: tokens.page,
       splashFactory: InkSparkle.splashFactory,
+      fontFamily: tokens.appFont ?? kFontUi.first,
+      fontFamilyFallback: kFontUi.fallback,
     );
 
     return base.copyWith(

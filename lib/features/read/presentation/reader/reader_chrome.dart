@@ -323,6 +323,7 @@ extension _ReaderChrome on _ReaderPageState {
         height: _cfg.lh,
         letterSpacing: _cfg.ls,
         fontFamily: _cfg.fontFamily,
+        fontFamilyFallback: _cfg.fontFamilyFallback,
         color: th.$3,
       ),
     );
@@ -370,6 +371,7 @@ extension _ReaderChrome on _ReaderPageState {
         height: _cfg.lh,
         letterSpacing: _cfg.ls,
         fontFamily: _cfg.fontFamily,
+        fontFamilyFallback: _cfg.fontFamilyFallback,
         color: th.$3,
       ),
     );
