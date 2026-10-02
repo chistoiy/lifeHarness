@@ -93,6 +93,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   ReaderCfg _global = ReaderCfg.defaults;
   Map<String, dynamic> _bookPatch = const {};
   Timer? _autoT;
+  // R3-8④：装载看门狗——isolate 解析在内存压力下可能永挂（真机 16:00 全书白屏），
+  // 8 秒未就绪即留痕并给「返回」出口，白屏不再只有强停一条路。
+  Timer? _loadWatch;
+  bool _slowHint = false;
   bool _brightOwned = false; // 本页启用过常亮才负责关闭
   _Pos _pos = _Pos();
   BookPagination? _pag;
@@ -193,6 +197,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   @override
   void dispose() {
+    _loadWatch?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     if (_readerCounted) {
       try {
@@ -259,6 +264,16 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       (d) => docR.complete((d, null)),
       onError: (Object e, StackTrace _) => docR.complete((null, e)),
     );
+    _slowHint = false;
+    _loadWatch?.cancel();
+    _loadWatch = Timer(const Duration(seconds: 8), () {
+      if (!mounted) return;
+      if (_doc == null && _err == null) {
+        AppLog.add('阅读器装载超时 书#${b.id} 8s 未就绪（大书/isolate 卡点）',
+            level: LhLevel.warn);
+        setState(() => _slowHint = true);
+      }
+    });
     // 外观/位置先读，渲染即按记忆恢复（CFI 自动定位 · V1.50 口径③）。
     // 批4：全局 reader.cfg + 逐书 reader.cfg.<id> 补丁合并生效。
     final fGlobal = repo.kv('reader.cfg');
@@ -324,6 +339,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       final doc = doc0!;
       // 现开的文档也回灌缓存（真机修⑥）：退出重进不再二次整本解析。
       svc.docs.put(b.id, doc);
+      _loadWatch?.cancel();
       if (!mounted) return;
       setState(() => _doc = doc);
       // 首帧已定 _viewport 时 LayoutBuilder 不会再触发；此处直接建分页。

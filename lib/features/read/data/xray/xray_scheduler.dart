@@ -397,7 +397,10 @@ class XrayScheduler extends ChangeNotifier {
   /// 同库内部类（XrayRun）驱动刷新的合法通道（notifyListeners 是 protected）。
   void ping() => notifyListeners();
 
-  /// 前台恢复：有活体 worker＝原地续喂；没有（进程重启后）＝从区间起点重跑。
+  /// 前台恢复：有活体 worker＝原地续喂；没有（进程重启后）＝**从断点续喂**（R3-8①）。
+  /// 旧实现从第 0 章全量重跑，而 UI 承诺「断点已存·继续生成」——语义相反，
+  /// 大书（474 万字/304 章）每点一次＝一场内存/CPU 风暴（真机轮3 16:00 白屏诱因）。
+  /// 锚点遍引擎态在 worker 里、断不了点：收集遍断点已越过总章数时才回落整本重跑。
   Future<void> resume(Book book, String md5) async {
     final run = _runs[book.id];
     if (run != null && run._worker != null) {
@@ -406,11 +409,14 @@ class XrayScheduler extends ChangeNotifier {
       return;
     }
     final task = await dao.task(md5);
+    final total = task?.totalCh ?? 1;
+    final done = task?.processedCh ?? 0;
+    final from = done > 0 && done < total ? done : 0;
     await start(
       book: book,
       md5: md5,
-      from: 0,
-      to: (task?.totalCh ?? 1) - 1,
+      from: from,
+      to: total - 1,
     );
   }
 
@@ -646,8 +652,13 @@ class XrayRun {
     if (_collecting) {
       live.doneCh = ci - live.rangeFrom + 1;
       _next = ci + 1;
+      // R3-8③：暂停瞬间在飞章的回执照常到达（isolate 消息不撤回）——
+      // 只许推进断点，状态必须跟着 _paused 写 pause，否则把库改回 running
+      // 就是谎报（真机面板与库态互相打架的根源）。
       _queuePersist(() => _sched.dao.patchTaskProgress(
-          md5: live.md5, processedCh: ci + 1, status: xs.xrayStatusRunning));
+          md5: live.md5,
+          processedCh: ci + 1,
+          status: _paused ? xs.xrayStatusPause : xs.xrayStatusRunning));
       _sched.ping();
       _pumpNext();
     } else {
@@ -715,6 +726,9 @@ class XrayRun {
     unawaited(() async {
       try {
         await _persistTail;
+        // 全量落库是分钟级大事务（大书）——前后各留一行：白屏/卡点若与写库窗口
+        // 重合，下轮真机日志即可判定（R3-8 取证补强）。
+        AppLog.add('X-Ray 全量词条落库开始 书#$bookId ${ents.length} 枚');
         await _sched.dao.writeRunResult(md5: live.md5, rows: [
           for (final m in ents) XrayWriteEntity.fromMap(m),
         ]);
@@ -738,6 +752,9 @@ class XrayRun {
   }
 
   void _onFail(String message) {
+    // 终态幂等：error 端口与 exit 监听可能双发（异常后 isolate 必退出），
+    // 只认第一声；已取消/已定稿的 run 也不再覆写。
+    if (_cancelled) return;
     AppLog.add('X-Ray 解析失败 书#$bookId 停在第 ${live.doneCh} 章: $message',
         level: LhLevel.error);
     _worker?.cancel();
@@ -768,10 +785,11 @@ class XrayRun {
 ///   main→w：{'t':'c',ci,p} 收集章 / {'t':'a',ci,p} 锚点章 / {'t':'e'} 收集结束 / {'t':'x'} 杀
 ///   w→main：首消息=worker 收件端口，随后 {'t':'d',ci} {'t':'w',ci} {'t':'r',ents} {'t':'f',m}
 class _IsoXrayWorker implements XrayWorker {
-  _IsoXrayWorker._(this._toWorker, this._port);
+  _IsoXrayWorker._(this._toWorker, this._port, this._exit);
 
   final SendPort _toWorker;
   final ReceivePort _port;
+  final ReceivePort _exit;
   StreamSubscription<Object?>? _sub;
   bool _dead = false;
 
@@ -779,9 +797,13 @@ class _IsoXrayWorker implements XrayWorker {
     final assets = await _loadAssets();
     final mainPort = ReceivePort();
     final errors = ReceivePort();
+    final exitPort = ReceivePort();
     final booted = Completer<SendPort>();
+    // 终态标记（result/fail/cancel 任一到达）：之后 error 与 exit 事件不再上报，
+    // 防「正常 Isolate.exit 定稿」被误判成静默死。
+    var settled = false;
     late StreamSubscription<Object?> sub;
-    Isolate.spawn(
+    final iso = await Isolate.spawn(
       _entry,
       _XrBoot(
         mainSend: mainPort.sendPort,
@@ -805,16 +827,27 @@ class _IsoXrayWorker implements XrayWorker {
         case 'w':
           ev.onWantAnchor(m['ci'] as int);
         case 'r':
+          settled = true;
           ev.onResult((m['ents'] as List).cast<Map<String, Object?>>());
         case 'f':
+          settled = true;
           ev.onFail('${m['m']}');
       }
     });
-    final w = _IsoXrayWorker._(await booted.future, mainPort);
+    final w = _IsoXrayWorker._(await booted.future, mainPort, exitPort);
     w._sub = sub;
     errors.listen((m) {
+      if (settled || w._dead) return;
       // 未捕获异常（errorsAreFatal）→ onFail 一次即终结；后续消息被 _dead 吞掉。
       ev.onFail('解析进程异常: $m');
+    });
+    // R3-8②：内存压力下 OS 直接回收 isolate **不走** errorsAreFatal——
+    // 真机 Run0(15:48)/RunB(15:59) 都是「解析开始」后零回执零错误静默蒸发，
+    // 调度态卡死、库态谎报。exit 事件接 onFail：静默死变显式失败（有日志有出口）。
+    iso.addOnExitListener(exitPort.sendPort, response: 'xray-exit');
+    exitPort.listen((_) {
+      if (settled || w._dead) return;
+      ev.onFail('解析进程意外退出（可能因内存压力被系统回收）· 可点「继续生成」从断点重试');
     });
     return w;
   }
@@ -840,6 +873,7 @@ class _IsoXrayWorker implements XrayWorker {
     _send({'t': 'x'});
     unawaited(_sub?.cancel());
     _port.close();
+    _exit.close();
   }
 }
 

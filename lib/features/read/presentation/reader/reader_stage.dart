@@ -36,11 +36,30 @@ extension _ReaderStage on _ReaderPageState {
     final doc = _doc;
     final pag = _pag;
     if (doc == null || pag == null) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.4),
+      // R3-8④：装载挂住 8 秒后给可读状态与出口（白屏转圈只有强停一条路是事故）。
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+            if (_slowHint) ...[
+              const SizedBox(height: 12),
+              const Text(
+                key: ValueKey('br-slow-hint'),
+                '整本书装载较慢 · 大书或内存紧张',
+                style: TextStyle(fontSize: 11, color: Color(0x99000000)),
+              ),
+              TextButton(
+                key: const ValueKey('br-load-giveup'),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('先返回 · 稍后再进'),
+              ),
+            ],
+          ],
         ),
       );
     }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -882,6 +883,89 @@ void main() {
           w.key is ValueKey<String> &&
           (w.key as ValueKey<String>).value.startsWith('xr-cand-'));
       expect(cand, findsOne, reason: '「李德先生」互含必出候选卡');
+    });
+  });
+
+  group('R3-8 · 断点续跑与暂停竞写（真机轮3 16:00 白屏批）', () {
+    test('冷启动后「继续生成」＝从 processedCh 续喂，不整本重跑', () async {
+      // 真机：474 万字/304 章，resume() 无活体 worker 时从第 0 章全量重跑，
+      // UI 却承诺「断点已存·继续生成」——语义相反，每点一次＝一场风暴。
+      final b = await addBook('r8a');
+      await dao.upsertTask(
+          md5: 'M',
+          totalCh: 2,
+          rangeStart: 0,
+          rangeEnd: 1,
+          status: 'pause',
+          processedCh: 1);
+      XrayJobSpec? seen;
+      final s = XrayScheduler(
+        dao: dao,
+        loadDoc: (_) async => _doc(),
+        md5Hook: (_) async => 'M',
+        workerFactory: (spec, ev) async {
+          seen = spec;
+          return _SilentWorker(ev);
+        },
+      );
+      await s.resume(b, 'M');
+      for (var i = 0; i < 500 && seen == null; i++) {
+        await dao.task('M');
+      }
+      expect(seen, isNotNull, reason: 'resume 应拉起新一路 run');
+      expect(seen!.rangeFrom, 1,
+          reason: '断点＝已处理 1 章，应从章 1 续喂；从 0 重跑＝全量风暴');
+      s.dispose();
+    });
+
+    test('暂停后在飞章回执：只推进 processedCh，status 不得竞写回 running', () async {
+      // 真机面板「已解析 153/304」与库里 running/pause 互相打架的来源。
+      final b = await addBook('r8b');
+      late XrayWorkerEvents heldEv;
+      final s = XrayScheduler(
+        dao: dao,
+        loadDoc: (_) async => _doc(),
+        md5Hook: (_) async => 'M',
+        workerFactory: (spec, ev) async {
+          heldEv = ev;
+          return _SilentWorker(ev); // 收章不回话，回执由测试手动补发
+        },
+      );
+      await s.start(book: b, md5: 'M', from: 0, to: 1);
+      var up = false;
+      for (var i = 0; i < 500 && !up; i++) {
+        await dao.task('M');
+        up = s.live('r8b')?.running ?? false;
+      }
+      expect(up, isTrue);
+      s.pauseBook('r8b');
+      // 暂停瞬间，章 0 的回执姗姗来迟（isolate 在飞消息）：
+      heldEv.onChapterDone(0);
+      var moved = false;
+      XrayTaskRow? t;
+      for (var i = 0; i < 500 && !moved; i++) {
+        t = await dao.task('M');
+        moved = (t?.processedCh ?? 0) >= 1;
+      }
+      expect(moved, isTrue, reason: '断点要落库（已解析的章不白跑）');
+      // 串行尾巴上 pause 写与回执写会先后落库：多轮空转让**终态**稳定后再断言，
+      // 否则轮询会撞见中间态假绿（写测试时实测抓到过）。
+      for (var i = 0; i < 30; i++) {
+        await dao.task('M');
+      }
+      t = await dao.task('M');
+      expect(t!.status, 'pause',
+          reason: '回执只许推进断点，把状态写回 running＝谎报（面板/库打架根源）');
+      s.dispose();
+    });
+
+    test('静默死护栏：worker 退出事件必须接 onFail（源码级钉）', () {
+      // 内存压力下 OS 杀 isolate 不走 errorsAreFatal——真机 Run0(15:48)/RunB(15:59)
+      // 都是「解析开始」后零日志静默蒸发。
+      final src = File('lib/features/read/data/xray/xray_scheduler.dart')
+          .readAsStringSync();
+      expect(src, contains('addOnExitListener'),
+          reason: '没有 exit 监听＝worker 静默死无留痕、调度态卡死、库态谎报');
     });
   });
 }
