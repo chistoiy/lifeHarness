@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:lifeharness/core/ai/ai_client.dart' show AiException, AiFailKind;
+import 'package:lifeharness/core/ai/ai_service.dart'
+    show AiBadOutput, AiDenied;
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/read/data/xray/xray_dao.dart';
 import 'package:lifeharness/features/read/data/xray/xray_engine.dart'
@@ -179,6 +184,215 @@ void main() {
       expect(r.stage, XrRefineStage.cancelled);
       expect(r.doneBatches, lessThan(r.totalBatches));
       expect(r.suggestions.length, r.doneBatches);
+    });
+  });
+
+  group('5 · R3-3 逐批明细与失败归类（过程可见性的数据面）', () {
+    test('每批一行明细：批序/条数/前 3 词名/删改补/tokens 全部成形', () async {
+      final r = XrRefineRunner(
+          bookId: 'b1',
+          budgetChars: 100,
+          caller: (b) async => {
+                'remove': [b.first.name],
+                'retype': [
+                  {'word': '玫瑰战争', 'type': 'org'}
+                ],
+                'add': [
+                  {'word': '波洛', 'type': 'per'}
+                ],
+              });
+      await r.run(cands(8));
+      expect(r.batchLogs, hasLength(r.totalBatches),
+          reason: '跑了几批就有几行，不许静默吞批');
+      expect(r.totalBatches, greaterThan(1), reason: '本用例要多批才有意义');
+      final head = r.batchLogs.first;
+      expect(head.i, 1);
+      expect(head.n, r.totalBatches);
+      expect(head.prev, hasLength(3), reason: '原型口径＝前 3 词名预览');
+      expect(head.prev.first, '词条0');
+      expect(head.cnt, greaterThanOrEqualTo(3));
+      expect(head.sum, 3, reason: '本批 删1 改1 补1');
+      expect(head.failed, isFalse);
+      expect(head.tokens, greaterThan(0));
+      // 顶部汇总随跑随累，且与明细同源（不是另算一份 suggestions 分组）。
+      expect(r.tallyRemoved, r.totalBatches);
+      expect(r.tallyRetyped, r.totalBatches);
+      expect(r.tallyAdded, r.totalBatches);
+      expect(r.tallyRemoved + r.tallyRetyped + r.tallyAdded,
+          r.batchLogs.fold<int>(0, (a, e) => a + e.sum));
+    });
+
+    test('用时是真量出来的：慢批的 ms 对得上注入的延迟', () async {
+      final r = XrRefineRunner(
+          bookId: 'b1',
+          budgetChars: 100,
+          caller: (b) async {
+            if (b.first.name == '词条0') {
+              await Future<void>.delayed(const Duration(milliseconds: 40));
+            }
+            return {'remove': [b.first.name]};
+          });
+      await r.run(cands(8));
+      expect(r.batchLogs.first.ms, greaterThanOrEqualTo(30),
+          reason: '明细「用时」必须是本批墙钟，不是常量也不是全程总时长');
+    });
+
+    test('失败归类四档只看类型不看文案（未知异常落端点无响应，不许出「其他」）', () {
+      expect(xrRefineFailOf(AiException(AiFailKind.timeout, 'x')),
+          XrRefineFailKind.timeout);
+      expect(xrRefineFailOf(TimeoutException('请求超时')), XrRefineFailKind.timeout);
+      expect(xrRefineFailOf(AiException(AiFailKind.unauthorized, '401')),
+          XrRefineFailKind.unauthorized);
+      expect(xrRefineFailOf(const AiDenied('AI 未启用')),
+          XrRefineFailKind.unauthorized);
+      expect(xrRefineFailOf(const AiBadOutput('缺 remove 段')),
+          XrRefineFailKind.badOutput);
+      expect(xrRefineFailOf(const FormatException('结果非 JSON')),
+          XrRefineFailKind.badOutput);
+      expect(xrRefineFailOf(AiException(AiFailKind.unreachable, 'x')),
+          XrRefineFailKind.noResponse);
+      expect(xrRefineFailOf(StateError('没见过的')),
+          XrRefineFailKind.noResponse);
+      // 四档文案是需求钉死的字（明细行直接显它，改字＝需求漂移）。
+      expect(xrRefineFailLabel(XrRefineFailKind.timeout), '超时');
+      expect(xrRefineFailLabel(XrRefineFailKind.noResponse), '端点无响应');
+      expect(xrRefineFailLabel(XrRefineFailKind.badOutput), '输出不合约定');
+      expect(xrRefineFailLabel(XrRefineFailKind.unauthorized), '未授权');
+    });
+
+    test('失败批进明细＝归类＋零计数，后续批照跑、汇总只累成功的', () async {
+      final r = XrRefineRunner(
+          bookId: 'b1',
+          budgetChars: 100,
+          caller: (b) async {
+            if (b.first.name == '词条0') {
+              throw AiException(AiFailKind.timeout, 'timeout 30s');
+            }
+            return {'remove': [b.first.name]};
+          });
+      await r.run(cands(8));
+      expect(r.stage, XrRefineStage.done, reason: '单批失败不整链中断');
+      expect(r.failedBatches, 1);
+      expect(r.batchLogs, hasLength(r.totalBatches));
+      final bad = r.batchLogs.first;
+      expect(bad.failed, isTrue);
+      expect(bad.failLabel, '超时');
+      expect(bad.sum, 0, reason: '失败批一条建议都没出，计数不许凭空长');
+      expect(bad.prev.first, '词条0', reason: '失败批也看得见送了什么');
+      expect(r.batchLogs.last.failed, isFalse);
+      expect(r.tallyRemoved, r.totalBatches - 1);
+      expect(r.suggestions, hasLength(r.totalBatches - 1));
+    });
+
+    test('注入缝返回 null＝端点没给应答（与「输出不合约定」分开归）', () async {
+      final r = XrRefineRunner(bookId: 'b1', budgetChars: 40, caller: (_) async => null);
+      await r.run(cands(12));
+      expect(r.stage, XrRefineStage.cancelled, reason: '连续两批无应答＝自动中止护额度');
+      expect(r.batchLogs.first.fail, XrRefineFailKind.noResponse);
+    });
+
+    test('游标停在失败批：续跑同批号覆盖那行，明细不出重复行', () async {
+      var broken = true;
+      final r = XrRefineRunner(
+          bookId: 'b1',
+          budgetChars: 100,
+          caller: (b) async {
+            if (broken) {
+              throw AiException(AiFailKind.unreachable, 'connection refused');
+            }
+            return {'remove': [b.first.name]};
+          });
+      await r.run(cands(8));
+      expect(r.stage, XrRefineStage.cancelled, reason: '连续两批无应答→自动中止');
+      expect(r.batchLogs.map((e) => e.i), [1, 2]);
+      expect(r.doneBatches, 1, reason: '第 2 批失败即止，游标没前推→续跑要重发它');
+      broken = false;
+      await r.run(cands(8));
+      expect(r.stage, XrRefineStage.done);
+      expect(r.batchLogs.map((e) => e.i), [1, 2],
+          reason: '重发的第 2 批必须覆盖旧行；追加＝明细里同一批出现两次，账就乱了');
+      expect(r.batchLogs[1].failed, isFalse);
+      expect(r.batchLogs[0].failed, isTrue, reason: '历史行不美化：第 1 批确实失败了');
+      expect(r.tallyRemoved, 1, reason: '只有续跑成功的那批进汇总');
+    });
+
+    test('中止后明细保留（回看「跑到哪儿断的」），reset 才清场', () async {
+      late XrRefineRunner r;
+      var calls = 0;
+      r = XrRefineRunner(
+          bookId: 'b1',
+          budgetChars: 40,
+          pace: const Duration(milliseconds: 2),
+          caller: (b) async {
+            calls++;
+            if (calls == 3) r.cancel();
+            return {'remove': [b.first.name]};
+          });
+      await r.run(cands(12));
+      expect(r.stage, XrRefineStage.cancelled);
+      expect(r.batchLogs, isNotEmpty, reason: '中止不清明细——日志页与面板都靠它定位断点');
+      expect(r.detailOpen, isFalse, reason: '默认收起只显最近一批');
+      r.toggleDetail();
+      expect(r.detailOpen, isTrue);
+      var fired = 0;
+      r.addListener(() => fired++);
+      r.toggleDetail();
+      expect(r.detailOpen, isFalse);
+      expect(fired, 1, reason: '展开态是状态源的一部分，两处 UI 才会同步');
+      r.reset();
+      expect(r.batchLogs, isEmpty);
+      expect(r.detailOpen, isFalse);
+    });
+
+    test('跨书不串：每本书的 runner 只带自己的明细与汇总（R3-5 同域）', () async {
+      final a = XrRefineRunner(
+          bookId: 'bk-1',
+          budgetChars: 100,
+          caller: (_) async => {'remove': ['几乎']});
+      final b = XrRefineRunner(
+          bookId: 'bk-2',
+          budgetChars: 100,
+          caller: (_) async => {
+                'add': [
+                  {'word': '波洛', 'type': 'per'}
+                ]
+              });
+      await a.run(cands(8));
+      await b.run(cands(4));
+      expect(identical(a.batchLogs, b.batchLogs), isFalse);
+      expect(a.tallyAdded, 0, reason: '他书的补词不累进本书汇总');
+      expect(b.tallyRemoved, 0);
+      expect(a.tallyRemoved, a.totalBatches);
+      expect(b.tallyAdded, b.totalBatches);
+    });
+
+    test('明细行展示口径与原型逐字一致：用时一位小数、tokens 破千折成 x.yk', () {
+      const slow = XrRefineBatchLog(
+          i: 3,
+          n: 9,
+          cnt: 12,
+          prev: ['几乎', '概念', '种种'],
+          removed: 2,
+          retyped: 1,
+          added: 0,
+          ms: 1840,
+          tokens: 1250);
+      expect(slow.secText, '1.8');
+      expect(slow.tokText, '1.3k');
+      const fast = XrRefineBatchLog(
+          i: 1,
+          n: 2,
+          cnt: 4,
+          prev: ['a'],
+          removed: 0,
+          retyped: 0,
+          added: 1,
+          ms: 40,
+          tokens: 480);
+      expect(fast.secText, '0.0');
+      expect(fast.tokText, '480');
+      expect(fast.failed, isFalse);
+      expect(fast.failLabel, isEmpty);
     });
   });
 

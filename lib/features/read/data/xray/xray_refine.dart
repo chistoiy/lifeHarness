@@ -10,12 +10,18 @@
 ///   的薄封装，测试＝假 caller），所以 FakeAsync 里没有真 HTTP 定时器（见记忆坑）。
 /// - 结果**不自动写库**：汇总给 [suggestions]，由 UI 侧审阅确认后走
 ///   [xrApplySuggestions]（R7：未授权零请求、确认后才落库）。
+/// - **R3-3 过程可见性**（V1.59 轮3）：每跑完一批落一条内存明细 [batchLogs]
+///   （条数 / 前 3 词名 / 删改补计数 / 用时 / tokens 估算 / 失败归类四档），
+///   中止与完成后**明细保留**供回看，只有 [reset] 清场；日志按「X-Ray 精化」可追，
+///   一条记录＝落盘一行。
 library;
 
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/ai/ai_client.dart' show AiException, AiFailKind;
+import '../../../../core/ai/ai_service.dart' show AiBadOutput, AiDenied;
 import '../../../../core/database/schema/xray.dart' as xs;
 import '../../../../core/logging/app_log.dart';
 import 'xray_dao.dart';
@@ -129,8 +135,107 @@ List<XrRefineSuggestion> xrParseRefineJson(Map<String, dynamic> j) {
 
 enum XrRefineStage { idle, running, paused, done, cancelled }
 
+/// tokens 估算（中文约 1.5 字/token）。预检卡「约 N tokens」与逐批明细**同一公式**，
+/// 收在数据层一处——两处各写一份 1.5，迟早和预估对不上账。
+int xrRefineEstTokens(int chars) => (chars / 1.5).round();
+
+/// 一批的预算字符数（行长度含换行，与切批口径一致）。
+int xrRefineBatchChars(List<XrRefineCandidate> batch) =>
+    batch.fold<int>(0, (a, e) => a + e.cost + 1);
+
+/// R3-3 过程可见性 · 失败归类四档（需求 V1.59 轮3 钉死的口径，UI 直接取 [label]）。
+enum XrRefineFailKind { timeout, noResponse, badOutput, unauthorized }
+
+String xrRefineFailLabel(XrRefineFailKind k) => switch (k) {
+      XrRefineFailKind.timeout => '超时',
+      XrRefineFailKind.noResponse => '端点无响应',
+      XrRefineFailKind.badOutput => '输出不合约定',
+      XrRefineFailKind.unauthorized => '未授权',
+    };
+
+/// 把一次调用抛出的异常归进四档。
+///
+/// 只认**类型**不认文案：文案是给日志页看的，归类是给明细行看的，绑在一起改文案就红。
+/// 认不出的（真·未知异常）落「端点无响应」——四档是封闭集，不许出现「其他」。
+XrRefineFailKind xrRefineFailOf(Object e) {
+  if (e is AiDenied) return XrRefineFailKind.unauthorized;
+  if (e is AiBadOutput || e is FormatException) return XrRefineFailKind.badOutput;
+  if (e is TimeoutException) return XrRefineFailKind.timeout;
+  if (e is AiException) {
+    return switch (e.kind) {
+      AiFailKind.timeout => XrRefineFailKind.timeout,
+      AiFailKind.unauthorized || AiFailKind.noKey =>
+        XrRefineFailKind.unauthorized,
+      AiFailKind.badResponse => XrRefineFailKind.badOutput,
+      // 404/400/429·503/断连/地址缺失＝端点侧没给出可用应答。
+      _ => XrRefineFailKind.noResponse,
+    };
+  }
+  return XrRefineFailKind.noResponse;
+}
+
+/// 一批跑完的明细行（R3-3）。**只在内存累积**：中止/完成后保留供回看，不落库、不跨重启。
+class XrRefineBatchLog {
+  const XrRefineBatchLog({
+    required this.i,
+    required this.n,
+    required this.cnt,
+    required this.prev,
+    required this.removed,
+    required this.retyped,
+    required this.added,
+    required this.ms,
+    required this.tokens,
+    this.fail,
+  });
+
+  /// 批序（1 基）与总批数。
+  final int i;
+  final int n;
+
+  /// 本批送出条数与前 3 词名预览（原型 `（a、b、c）`）。
+  final int cnt;
+  final List<String> prev;
+
+  /// 本批建议计数（失败批恒为 0）。
+  final int removed;
+  final int retyped;
+  final int added;
+
+  /// 本批墙钟用时（含重试；毫秒）与 tokens 估算（[xrRefineEstTokens]）。
+  final int ms;
+  final int tokens;
+
+  /// 失败归类；null＝本批成功。原始异常摘要只进日志行（`AppLog`），不塞进 UI。
+  final XrRefineFailKind? fail;
+
+  bool get failed => fail != null;
+  String get failLabel => fail == null ? '' : xrRefineFailLabel(fail!);
+
+  /// 本批建议总数（失败批＝0）。
+  int get sum => removed + retyped + added;
+
+  /// 展示口径与原型逐字符对齐：用时一位小数 + `s`，tokens 破千折成 `x.yk`。
+  String get secText => (ms / 1000).toStringAsFixed(1);
+  String get tokText =>
+      tokens >= 1000 ? '${(tokens / 1000).toStringAsFixed(1)}k' : '$tokens';
+}
+
+/// 单批结局（内部）：成功带建议，失败带归类＋摘要——不把「失败」压成 null 交给上层猜。
+class _XrOutcome {
+  const _XrOutcome.ok(this.suggestions)
+      : fail = null,
+        detail = null;
+  const _XrOutcome.fail(this.fail, this.detail) : suggestions = const [];
+
+  final List<XrRefineSuggestion> suggestions;
+  final XrRefineFailKind? fail;
+  final String? detail;
+}
+
 /// 逐批精化执行器（UI 侧只 watch 它的进度与建议，不碰网络）。
-/// R3-5：[bookId] 钉死归属书——进度/汇总只随该书显示，换书不得借用（跨书泄漏）。
+/// R3-5：[bookId] 钉死归属书——进度/汇总/明细只随该书显示，换书不得借用（跨书泄漏）。
+/// R3-3：[batchLogs] 逐批明细＋[detailOpen] 展开态同为**状态源**，两处 UI 共用同一渲染函数。
 class XrRefineRunner extends ChangeNotifier {
   XrRefineRunner({
     required this.bookId,
@@ -163,7 +268,24 @@ class XrRefineRunner extends ChangeNotifier {
   /// 最后一次失败的批次序号（1 基，供进度行显示「第 N 批失败」）。
   int? lastFailedBatch;
 
+  /// R3-3 · 逐批明细（内存累积；中止/完成保留，[reset] 清空）。
+  final List<XrRefineBatchLog> batchLogs = <XrRefineBatchLog>[];
+
+  /// R3-3 · 明细展开态。**放在状态源里而不是 widget 里**：面板与中心页两处同构，
+  /// 各自 setState 会让同一任务在两地一开一合。
+  bool detailOpen = false;
+
   final List<XrRefineSuggestion> suggestions = <XrRefineSuggestion>[];
+
+  /// 顶部汇总「已出建议 删 x · 改 y · 补 z」：随明细逐批累加（与明细同源）。
+  int get tallyRemoved => batchLogs.fold<int>(0, (a, e) => a + e.removed);
+  int get tallyRetyped => batchLogs.fold<int>(0, (a, e) => a + e.retyped);
+  int get tallyAdded => batchLogs.fold<int>(0, (a, e) => a + e.added);
+
+  void toggleDetail() {
+    detailOpen = !detailOpen;
+    notifyListeners();
+  }
 
   List<List<XrRefineCandidate>> _batches = <List<XrRefineCandidate>>[];
   bool _running = false;
@@ -196,12 +318,17 @@ class XrRefineRunner extends ChangeNotifier {
     for (var i = doneBatches; i < _batches.length; i++) {
       await _waitGate();
       if (_cancelRequested) break;
+      final watch = Stopwatch()..start();
       final got = await _tryBatch(_batches[i], i + 1);
-      if (got == null) {
+      watch.stop();
+      _recordLog(i + 1, _batches[i], got, watch.elapsedMilliseconds);
+      if (got.fail case final XrRefineFailKind fk) {
         failedBatches++;
         _consecFails++;
         lastFailedBatch = i + 1;
-        AppLog.add('X-Ray 精化第 ${i + 1}/${_batches.length} 批失败已跳过 · 已重试 $retriedBatches 次',
+        AppLog.add(
+            'X-Ray 精化第 ${i + 1}/${_batches.length} 批失败已跳过（归类 ${xrRefineFailLabel(fk)}：${got.detail}）'
+            '· 已重试 $retriedBatches 次 · 建议 删 $tallyRemoved 改 $tallyRetyped 补 $tallyAdded',
             level: LhLevel.warn);
         // 连续两批都失败＝端点/配额/Key 出问题了：再发下去只烧 token 不出结果，停。
         if (_consecFails >= 2) {
@@ -212,7 +339,7 @@ class XrRefineRunner extends ChangeNotifier {
         }
       } else {
         _consecFails = 0;
-        suggestions.addAll(got);
+        suggestions.addAll(got.suggestions);
       }
       doneBatches = i + 1;
       notifyListeners();
@@ -221,28 +348,59 @@ class XrRefineRunner extends ChangeNotifier {
     _running = false;
     stage = _cancelRequested ? XrRefineStage.cancelled : XrRefineStage.done;
     AppLog.add(
-        'X-Ray 精化收束：$stage · 批 $doneBatches/${_batches.length} · 失败 $failedBatches · 建议 ${suggestions.length} 条');
+        'X-Ray 精化收束：$stage · 批 $doneBatches/${_batches.length} · 失败 $failedBatches · 建议 ${suggestions.length} 条'
+        '· 明细 ${batchLogs.length} 行');
     notifyListeners();
   }
 
-  Future<List<XrRefineSuggestion>?> _tryBatch(
+  /// 明细落表：同一批号重发（游标停在失败批后续跑）＝覆盖那行，不出重复行。
+  void _recordLog(int no, List<XrRefineCandidate> batch, _XrOutcome got, int ms) {
+    final s = got.suggestions;
+    final log = XrRefineBatchLog(
+      i: no,
+      n: _batches.length,
+      cnt: batch.length,
+      prev: [for (final c in batch.take(3)) c.name],
+      removed: s.where((e) => e.kind == XrRefineKind.remove).length,
+      retyped: s.where((e) => e.kind == XrRefineKind.retype).length,
+      added: s.where((e) => e.kind == XrRefineKind.add).length,
+      ms: ms,
+      tokens: xrRefineEstTokens(xrRefineBatchChars(batch)),
+      fail: got.fail,
+    );
+    if (batchLogs.isNotEmpty && batchLogs.last.i == no) {
+      batchLogs[batchLogs.length - 1] = log;
+    } else {
+      batchLogs.add(log);
+    }
+  }
+
+  Future<_XrOutcome> _tryBatch(
       List<XrRefineCandidate> batch, int no) async {
+    Object? lastError;
     for (var attempt = 0; attempt <= retryLimit; attempt++) {
       try {
         final j = await caller(batch);
-        if (j == null) throw const FormatException('空响应');
-        return xrParseRefineJson(j);
+        if (j == null) {
+          // 应答为 null＝端点没给出可用内容（真链路里 core/ai 会抛 badResponse，
+          // 这条分支服务注入缝）：归「端点无响应」，不与「输出不合约定」混。
+          return _XrOutcome.fail(XrRefineFailKind.noResponse, '空应答');
+        }
+        return _XrOutcome.ok(xrParseRefineJson(j));
       } on Object catch (e) {
+        lastError = e;
         if (attempt < retryLimit) {
           retriedBatches++;
           AppLog.add('X-Ray 精化第 $no 批失败重试 ${attempt + 1}/$retryLimit：$e',
               level: LhLevel.warn);
           continue;
         }
-        return null;
       }
     }
-    return null;
+    // 重试用尽＝本批放弃：明细必须带归类，否则用户只看到「少了些词」。
+    return _XrOutcome.fail(
+        xrRefineFailOf(lastError ?? const FormatException('未知失败')),
+        '$lastError'.replaceAll('\n', ' ').trim());
   }
 
   Future<void> _waitGate() async {
@@ -286,6 +444,8 @@ class XrRefineRunner extends ChangeNotifier {
     retriedBatches = 0;
     lastFailedBatch = null;
     suggestions.clear();
+    batchLogs.clear();
+    detailOpen = false;
     stage = XrRefineStage.idle;
     notifyListeners();
   }

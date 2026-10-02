@@ -37,8 +37,8 @@ const String kXrRefineTask = 'read.xray_refine';
 const List<int> kXrRefineBudgets = [1000, 2000, 3000, 5000, 8000];
 const int kXrRefineBudgetDefault = 3000;
 
-/// tokens 估算：中文约 1.5 字/token，与预检卡「约 N tokens」同源。
-int xrRefineTokens(int chars) => (chars / 1.5).round();
+/// tokens 估算：与预检卡、逐批明细同源（公式已收进数据层，此处留名不动调用面）。
+int xrRefineTokens(int chars) => xrRefineEstTokens(chars);
 
 /// 读预算设置（KV 缺省＝[kXrRefineBudgetDefault]）。
 int xrRefineBudgetOf(String? raw) =>
@@ -172,7 +172,7 @@ class _XrRefinePreSheetState extends ConsumerState<_XrRefinePreSheet> {
     final cs = Theme.of(context).colorScheme;
     final cands = _cands;
     final batches = xrSplitBatches(cands, _budget).length;
-    final chars = cands.fold<int>(0, (a, e) => a + e.cost + 1);
+    final chars = xrRefineBatchChars(cands);
     return Padding(
       key: const ValueKey('xrAiPre'),
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
@@ -408,12 +408,81 @@ class XrRefineCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+              // R3-3：明细块收在进度/收场之后——跑动中随跑随累，中止、完成后仍留着。
+              xrRefineLogBlock(context, runner),
             ],
           ),
         );
       },
     );
   }
+}
+
+/// R3-3 · 逐批明细块（原型 `xrAiLogHtml()` 同构同字）。
+///
+/// **面板段内卡与（另立工单的）X-Ray 中心精化段共用本函数 + runner 自身状态**：
+/// 两地各写一份渲染迟早分叉——这是原型注释里钉过、需求 V1.59 轮3 又钉一遍的口径。
+/// 展开态在 [XrRefineRunner.detailOpen]（状态源），不在 widget 里 setState。
+Widget xrRefineLogBlock(BuildContext context, XrRefineRunner runner) {
+  final cs = Theme.of(context).colorScheme;
+  final logs = runner.batchLogs;
+  if (logs.isEmpty) return const SizedBox.shrink();
+  final rows = runner.detailOpen ? logs : <XrRefineBatchLog>[logs.last];
+  return Container(
+    key: const ValueKey('xrAiLog'),
+    margin: const EdgeInsets.only(top: 8),
+    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+    decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: .45),
+        borderRadius: BorderRadius.circular(12)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                  '已出建议 删 ${runner.tallyRemoved} · 改 ${runner.tallyRetyped} · 补 ${runner.tallyAdded}',
+                  key: const ValueKey('xrAiSum'),
+                  style: const TextStyle(
+                      fontSize: 9.5, fontWeight: FontWeight.w800)),
+            ),
+            GestureDetector(
+              key: const ValueKey('xrAiLogTg'),
+              onTap: runner.toggleDetail,
+              child: Text(
+                  runner.detailOpen ? '收起明细' : '明细 ${logs.length}/${runner.totalBatches}',
+                  style:
+                      TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant)),
+            ),
+          ],
+        ),
+        for (final r in rows)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text.rich(
+              TextSpan(
+                  style: TextStyle(
+                      fontSize: 9, height: 1.45, color: cs.onSurfaceVariant),
+                  children: [
+                    TextSpan(
+                        text: '第 ${r.i}/${r.n} 批 · 本批 ${r.cnt} 条'
+                        '（${r.prev.join('、')}）· '),
+                    if (r.failed)
+                      TextSpan(
+                          text: '${r.failLabel} · 已跳过 · 不影响后续',
+                          style: TextStyle(color: cs.error))
+                    else
+                      TextSpan(
+                          text: '建议 删${r.removed} 改${r.retyped} 补${r.added}'
+                              ' · 用时 ${r.secText}s · 约 ${r.tokText} tokens'),
+                  ]),
+              key: ValueKey('xrAiRow-${r.i}'),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 Widget _xrChip(BuildContext context, String text, {required bool filled}) {

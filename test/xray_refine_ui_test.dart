@@ -204,6 +204,95 @@ void main() {
     expect(find.byKey(const ValueKey('xrAiRevBody')), findsNothing);
   });
 
+  // ─── R3-3 过程可见性（原型 `xrAiLogHtml()` 同源）───────────────────────
+  XrRefineBatchLog row(int i, int n,
+          {int del = 0, int cls = 0, int add = 0, XrRefineFailKind? fail}) =>
+      XrRefineBatchLog(
+          i: i,
+          n: n,
+          cnt: 5,
+          prev: const ['几乎', '概念', '种种'],
+          removed: del,
+          retyped: cls,
+          added: add,
+          ms: 1840,
+          tokens: 1250,
+          fail: fail);
+
+  testWidgets('明细块：默认只显最近一批，点 xrAiLogTg 就地展开全部', (t) async {
+    final r = baseRunner()
+      ..totalBatches = 3
+      ..doneBatches = 3
+      ..stage = XrRefineStage.done;
+    r.batchLogs
+        .addAll([row(1, 3, del: 2), row(2, 3, cls: 1, add: 1), row(3, 3, del: 1)]);
+    setHolder(r);
+    await pumpHost(t, (c, ref) => SingleChildScrollView(
+        child: XrRefineCard(runner: r, md5: md5)));
+
+    expect(find.byKey(const ValueKey('xrAiLog')), findsOne);
+    expect(find.byKey(const ValueKey('xrAiRow-1')), findsNothing,
+        reason: '默认收起——三批全铺会把面板段挤没（原型 slice(-1) 同口径）');
+    expect(find.byKey(const ValueKey('xrAiRow-3')), findsOne);
+    expect(find.text('明细 3/3'), findsOne);
+    // 顶部汇总与明细同源：删 2+0+1 · 改 0+1+0 · 补 0+1+0。
+    expect(find.byKey(const ValueKey('xrAiSum')), findsOne);
+    expect(find.text('已出建议 删 3 · 改 1 · 补 1'), findsOne,
+        reason: '顶部汇总随跑随累，与明细同源');
+
+    await t.tap(find.byKey(const ValueKey('xrAiLogTg')));
+    await t.pump();
+    expect(find.byKey(const ValueKey('xrAiRow-1')), findsOne);
+    expect(find.byKey(const ValueKey('xrAiRow-2')), findsOne);
+    expect(find.text('收起明细'), findsOne);
+    expect(r.detailOpen, isTrue,
+        reason: '展开态必须落在 runner（状态源）——写进 widget 里两处就不同步了');
+
+    await t.tap(find.byKey(const ValueKey('xrAiLogTg')));
+    await t.pump();
+    expect(find.byKey(const ValueKey('xrAiRow-1')), findsNothing);
+    expect(r.detailOpen, isFalse);
+    await settleLogTimer(t);
+  });
+
+  testWidgets('明细行文案与原型逐字对齐 · 失败批给归类＋「已跳过 · 不影响后续」', (t) async {
+    final r = baseRunner()
+      ..totalBatches = 2
+      ..doneBatches = 2
+      ..stage = XrRefineStage.done;
+    r.batchLogs
+        .addAll([row(1, 2, fail: XrRefineFailKind.timeout), row(2, 2, del: 1)]);
+    setHolder(r);
+    await pumpHost(t, (c, ref) => SingleChildScrollView(
+        child: XrRefineCard(runner: r, md5: md5)));
+    await t.tap(find.byKey(const ValueKey('xrAiLogTg')));
+    await t.pump();
+
+    expect(
+        find.textContaining('第 2/2 批 · 本批 5 条（几乎、概念、种种）· 建议 删1 改0 补0'
+            ' · 用时 1.8s · 约 1.3k tokens', findRichText: true),
+        findsOne);
+    expect(
+        find.textContaining('第 1/2 批 · 本批 5 条（几乎、概念、种种）· 超时 · 已跳过 · 不影响后续',
+            findRichText: true),
+        findsOne,
+        reason: '失败批必须看得见「为什么少了一批」，且明写不拖垮后续');
+    expect(find.textContaining('输出不合约定'), findsNothing);
+    await settleLogTimer(t);
+  });
+
+  testWidgets('零明细不出块（未跑/预检阶段不占位）', (t) async {
+    final r = baseRunner()
+      ..totalBatches = 4
+      ..stage = XrRefineStage.running;
+    setHolder(r);
+    await pumpHost(t,
+        (c, ref) => XrRefineCard(runner: r, md5: md5));
+    expect(find.byKey(const ValueKey('xrAiLog')), findsNothing);
+    expect(find.byKey(const ValueKey('xrAiSum')), findsNothing);
+    await settleLogTimer(t);
+  });
+
   // R3-5（真机轮3补录）：精化进程跨书泄漏——holder 全局单槽，显示前必须按书过滤。
   test('R3-5 xrRefineForBook：只有归属匹配的 runner 可见', () {
     final mine = XrRefineRunner(
