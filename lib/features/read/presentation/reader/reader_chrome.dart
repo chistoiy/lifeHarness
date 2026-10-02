@@ -316,18 +316,22 @@ extension _ReaderChrome on _ReaderPageState {
 
   /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
   TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) {
-    final base = TextStyle(
-      fontSize: _cfg.fs,
-      height: _cfg.lh,
-      letterSpacing: _cfg.ls,
-      fontFamily: _cfg.fontFamily,
-      color: th.$3,
+    final base = paraStyle(
+      p,
+      TextStyle(
+        fontSize: _cfg.fs,
+        height: _cfg.lh,
+        letterSpacing: _cfg.ls,
+        fontFamily: _cfg.fontFamily,
+        color: th.$3,
+      ),
     );
     final a = q0.clamp(0, p.text.length);
     final b = q1.clamp(a, p.text.length);
     // 真机反馈（2026-09-28）：缩进前缀恒以普通文本渲染在最前——选中任何子串
     // 显示文本都与未选中一致，不再顶格重排；高亮也只包子串本体、不吞缩进。
-    final pre = _cfg.indent ? kParaIndent : '';
+    // R3-2 ③：前缀有无改按段判定（与 paraDisplayText 同一函数，两者不许分叉）。
+    final pre = paraIndented(p, _cfg.indMode) ? kParaIndent : '';
     return TextSpan(
       style: base,
       children: [
@@ -342,7 +346,8 @@ extension _ReaderChrome on _ReaderPageState {
     );
   }
 
-  /// 段渲染：2em 缩进 + 链接 span（点击区）+ 命中底色。
+  /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
+  /// ① 注释体走正文色小字；④ 只有外链给链接绿。
   TextSpan _textSpan(
     (String, Color, Color) th,
     EpubDoc doc,
@@ -351,21 +356,23 @@ extension _ReaderChrome on _ReaderPageState {
     int pi,
     bool hit,
   ) {
-    final base = TextStyle(
-      fontSize: _cfg.fs,
-      height: _cfg.lh,
-      letterSpacing: _cfg.ls,
-      fontFamily: _cfg.fontFamily,
-      color: th.$3,
+    final base = paraStyle(
+      p,
+      TextStyle(
+        fontSize: _cfg.fs,
+        height: _cfg.lh,
+        letterSpacing: _cfg.ls,
+        fontFamily: _cfg.fontFamily,
+        color: th.$3,
+      ),
     );
-    final display = paraDisplayText(p, indent: _cfg.indent);
-    // 段首缩进 2 全角空格＝2 显示偏移；关掉缩进则链接/命中偏移回落 0。
-    final ind = p.kind == EpubParaKind.text && _cfg.indent ? 2 : 0;
-    final linkStyle = base.copyWith(
-      color: const Color(0xFF6366F1),
-      decoration: TextDecoration.underline,
-      decorationColor: const Color(0xFF6366F1).withValues(alpha: .7),
+    final display = paraDisplayText(
+      p,
+      indent: _cfg.indent,
+      indMode: _cfg.indMode,
     );
+    // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2）。
+    final ind = display.length - p.text.length;
     final markStyle = base.copyWith(
       backgroundColor: const Color(0xFF6366F1).withValues(alpha: .28),
     );
@@ -393,11 +400,12 @@ extension _ReaderChrome on _ReaderPageState {
         cursor = to;
         return;
       }
-      final style = inLink > 0 ? linkStyle : (inMark > 0 ? markStyle : base);
       final link = p.links.firstWhere(
         (l) => l.start + ind == cursor || (cursor >= l.start + ind && cursor < l.end + ind),
         orElse: () => EpubLink(start: -1, end: -1, href: '', external: false),
       );
+      // ①④ 上色分派：外链绿 · 站内锚点正文色下划线 · 注释引用正文色小字。
+      final style = inLink > 0 ? linkStyleFor(base, link) : (inMark > 0 ? markStyle : base);
       children.add(
         TextSpan(
           text: t,

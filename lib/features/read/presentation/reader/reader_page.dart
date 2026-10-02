@@ -924,16 +924,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     });
   }
 
-  ReaderLayout _layout() => ReaderLayout(
-    width: _viewport.width,
-    height: _viewport.height,
-    fs: _cfg.fs,
-    lh: _cfg.lh,
-    ls: _cfg.ls,
-    mar: _cfg.mar,
-    font: _cfg.font,
-    indent: _cfg.indent,
-  );
+  /// 分页布局（R3-2 起与整本预载共用 [ReaderLayout.of]：indMode 三档进指纹后，
+  /// 两处各写一份映射迟早分叉，预载表就再也命中不了）。
+  ReaderLayout _layout() =>
+      ReaderLayout.of(_cfg, width: _viewport.width, height: _viewport.height);
 
 
   void _showFlash(String msg) {

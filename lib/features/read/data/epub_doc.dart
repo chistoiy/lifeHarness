@@ -40,6 +40,8 @@ class EpubLink {
     required this.end,
     required this.href,
     required this.external,
+    this.annotation = false,
+    this.sameDoc = false,
   });
 
   final int start;
@@ -47,7 +49,21 @@ class EpubLink {
 
   /// 内链＝解析后的 zip 内路径（含锚点已剥）；外链＝原样 URL。
   final String href;
+
+  /// href 带 scheme（http:/mailto:/tel:/…）或协议相对 //host——决定**行为**
+  /// （跳浏览器还是跳章），R3-2 ④ 的**上色**判定看 [usesLinkColor]。
   final bool external;
+
+  /// R3-2 ① 注释/脚注引用（自身 epub:type 含 note/footnote、类名含
+  /// note|footnote|annotation）：按正文色 + 小一号，绝不套链接绿。
+  final bool annotation;
+
+  /// R3-2 ④ 站内锚点：指向本文档自身（纯 `#fragment` 或解析后同文件）。
+  final bool sameDoc;
+
+  /// R3-2 ④ 链接色只给「外链」＝带 scheme 或跨章；站内锚点与注释引用一律正文色。
+  /// 判定收在模型层（工单：别散在 UI），渲染处只读它。
+  bool get usesLinkColor => !annotation && (external || !sameDoc);
 }
 
 /// 一个内容段落（章内下标即 CFI 段落号）。
@@ -59,6 +75,8 @@ class EpubPara {
     this.imgSrc = '',
     this.alt = '',
     this.links = const [],
+    this.annotation = false,
+    this.ownIndent = false,
   });
 
   final EpubParaKind kind;
@@ -75,6 +93,15 @@ class EpubPara {
 
   /// 段内链接（字符区间对齐 [text]）。
   final List<EpubLink> links;
+
+  /// R3-2 ① 注释/脚注体段落（`epub:type` 含 footnote/note · `<aside>` · 类名含
+  /// note|footnote|annotation，含祖先容器）：渲染按**正文色 + 小一号**。
+  /// 正文与引文两类参与（标题另有字号档，测量与上色必须同源，见 paraStyle）。
+  final bool annotation;
+
+  /// R3-2 ③ 书内自带首行缩进（段内 `style:text-indent` 或正文以全角空格起头）：
+  /// indMode=auto（跟随原书）时**不再叠加**我们的两全角缩进；按段判定不一刀切。
+  final bool ownIndent;
 
   int get charCount => kind == EpubParaKind.image ? 0 : text.length;
 }
@@ -736,17 +763,65 @@ List<EpubTocItem> _parseNcx(XmlDocument? ncx, String ncxPath) {
   return out;
 }
 
-/// XHTML → 段落序列（p/h1-6/blockquote/img/figure/li；其余块并入文本流）。
+/// XHTML → 段落序列（p/div/section/h1-6/blockquote/img/figure/li/aside；其余块并入文本流）。
 /// 段内 <a> 记为 [EpubLink]（内链解析成 zip 路径，外链保留原样）。
+/// R3-2 止血带出的语义（① 注释体 · ③ 自带缩进 · ④ 站内锚点）在此**一次判定完**，
+/// 渲染层只读 [EpubPara.annotation]/[EpubPara.ownIndent]/[EpubLink.usesLinkColor]。
 List<EpubPara> _extractParas(String xhtml, String docPath) {
   final out = <EpubPara>[];
   final doc = hparser.parse(xhtml);
   final body = doc.body ?? doc.documentElement;
   if (body == null) return out;
   final base = _dirName(docPath);
-  final extRe = RegExp(r'^(https?:|mailto:|tel:)', caseSensitive: false);
 
   String norm(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  // ④ 外链＝带 scheme（http:/https:/mailto:/tel:/ftp:/…）或协议相对 //host。
+  bool hasScheme(String href) =>
+      RegExp(r'^[a-zA-Z][a-zA-Z0-9+.\-]*:').hasMatch(href) ||
+      href.startsWith('//');
+
+  // ① 注释体判定（工单 R3-2 原文口径）：epub:type 含 footnote/note ·
+  // 类名含 note|footnote|annotation（noteref/notes/annotation-* 都落在这三词里）。
+  final noteTypeRe = RegExp(r'footnote|note', caseSensitive: false);
+  final noteClassRe = RegExp(r'note|footnote|annotation', caseSensitive: false);
+  bool isNoteEl(h.Element el) {
+    final t = el.attributes['epub:type'] ?? el.attributes['type'];
+    if (t != null && noteTypeRe.hasMatch(t)) return true;
+    final c = el.attributes['class'];
+    return c != null && noteClassRe.hasMatch(c);
+  }
+
+  // ③ 书内自带首行缩进：段内 style 的 text-indent（非 0/none），或正文本身以
+  // 全角空格/持续空白起头（中文古籍常见写法）。换行起头的源码缩进不算。
+  final textIndentRe = RegExp(
+    r'text-indent\s*:\s*([^;]+)',
+    caseSensitive: false,
+  );
+  bool ownIndentOf(h.Element el, String raw) {
+    final m = textIndentRe.firstMatch(el.attributes['style'] ?? '');
+    final v = m?.group(1)?.trim().toLowerCase();
+    if (v != null &&
+        v.isNotEmpty &&
+        v != 'none' &&
+        v != 'inherit' &&
+        v != 'initial' &&
+        !RegExp(r'^0([.,].*)?$').hasMatch(v)) {
+      return true;
+    }
+    // 段首空白码位：半角空格/制表/NBSP/全角空格（不含换行——源码缩进不算）。
+    const leadWs = {0x20, 0x09, 0x00a0, 0x3000};
+    var n = 0;
+    while (n < raw.length && leadWs.contains(raw.codeUnitAt(n))) {
+      n++;
+    }
+    if (n == 0) return false;
+    final lead = raw.substring(0, n);
+    // 全角空格/NBSP 单个即算自带缩进；普通空白要 2 个以上。
+    return lead.codeUnits.contains(0x3000) ||
+        lead.codeUnits.contains(0x00a0) ||
+        n >= 2;
+  }
 
   /// 收集元素文本 + 链接区间（a 只取其文字，不取 URL）。
   (String, List<EpubLink>) grab(h.Element el) {
@@ -769,13 +844,19 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
         for (final c in n.nodes) {
           walkNode(c);
         }
-        final isExt = extRe.hasMatch(href);
+        final isExt = hasScheme(href);
+        // ④ sameDoc＝纯 #fragment 或解析后仍落在本文档。**不改 href 口径**
+        // （内链点击行为沿用批2 的「命中 spine 章即跳章」，改它会顺手动到跳转语义）。
+        final same =
+            !isExt && (href.startsWith('#') || _resolve(base, href.split('#').first) == docPath);
         links.add(
           EpubLink(
             start: s,
             end: sb.length,
             href: isExt ? href : _resolve(base, href.split('#').first),
             external: isExt,
+            annotation: isNoteEl(n),
+            sameDoc: same,
           ),
         );
         return;
@@ -790,12 +871,26 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
     return (sb.toString(), links);
   }
 
-  void pushText(h.Element el, EpubParaKind k, {int level = 0}) {
+  void pushText(
+    h.Element el,
+    EpubParaKind k, {
+    int level = 0,
+    bool annotation = false,
+  }) {
     final (raw, links) = grab(el);
     final s = norm(raw);
     if (s.isEmpty) return;
     // norm 会折叠首尾空白，链接区间按折叠近似保留（渲染端以文本再定位兜底）。
-    out.add(EpubPara(kind: k, text: s, headingLevel: level, links: links));
+    out.add(
+      EpubPara(
+        kind: k,
+        text: s,
+        headingLevel: level,
+        links: links,
+        annotation: annotation || isNoteEl(el),
+        ownIndent: ownIndentOf(el, raw),
+      ),
+    );
   }
 
   void pushImg(String src, String alt) {
@@ -809,22 +904,35 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
     );
   }
 
-  void walk(h.Element el) {
+  /// [note]＝祖先容器已是注释体（`<div class="footnotes">`/`<section epub:type=...>`），
+  /// 段级继承下去——这是「按段判断、不一刀切」的另一半。
+  void walk(h.Element el, {bool note = false}) {
     final tag = el.localName ?? '';
+    final ann = note || isNoteEl(el);
     switch (tag) {
       case 'p':
+        pushText(el, EpubParaKind.text, annotation: ann);
       case 'div':
-        if (tag == 'p') {
-          pushText(el, EpubParaKind.text);
-          return;
-        }
-        // div 含子块则下钻，纯文本 div 当段落。
+      case 'section':
+      case 'article':
+      case 'footer':
+      case 'header':
+        // 容器含子块则下钻（注释语义随之下传），纯文本容器当段落。
         if (el.children.isEmpty) {
-          pushText(el, EpubParaKind.text);
+          pushText(el, EpubParaKind.text, annotation: ann);
           return;
         }
         for (final c in el.children) {
-          walk(c);
+          walk(c, note: ann);
+        }
+      case 'aside':
+        // ① aside 整块即注释体（工单原文点名）。
+        if (el.children.isEmpty) {
+          pushText(el, EpubParaKind.text, annotation: true);
+        } else {
+          for (final c in el.children) {
+            walk(c, note: true);
+          }
         }
       case 'h1':
       case 'h2':
@@ -832,13 +940,20 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
       case 'h4':
       case 'h5':
       case 'h6':
-        pushText(el, EpubParaKind.heading, level: int.parse(tag.substring(1)));
+        pushText(
+          el,
+          EpubParaKind.heading,
+          level: int.parse(tag.substring(1)),
+          annotation: ann,
+        );
       case 'blockquote':
         if (el.children.where((c) => c.localName == 'p').isEmpty) {
-          pushText(el, EpubParaKind.quote);
+          pushText(el, EpubParaKind.quote, annotation: ann);
         } else {
           for (final c in el.children) {
-            if (c.localName == 'p') pushText(c, EpubParaKind.quote);
+            if (c.localName == 'p') {
+              pushText(c, EpubParaKind.quote, annotation: ann);
+            }
           }
         }
       case 'img':
@@ -853,18 +968,18 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
           );
         }
       case 'li':
-        pushText(el, EpubParaKind.text);
+        pushText(el, EpubParaKind.text, annotation: ann);
         for (final c in el.children) {
           if (c.localName == 'li' ||
               c.localName == 'ul' ||
               c.localName == 'ol') {
-            walk(c);
+            walk(c, note: ann);
           }
         }
       case 'ul':
       case 'ol':
         for (final c in el.children) {
-          walk(c);
+          walk(c, note: ann);
         }
       case 'br':
         break;
@@ -873,7 +988,7 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
       case 'tbody':
       case 'thead':
         for (final c in el.children) {
-          walk(c);
+          walk(c, note: ann);
         }
       default:
         final s = norm(el.text);
@@ -881,7 +996,15 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
           final (raw, links) = grab(el);
           final t = norm(raw);
           if (t.isNotEmpty) {
-            out.add(EpubPara(kind: EpubParaKind.text, text: t, links: links));
+            out.add(
+              EpubPara(
+                kind: EpubParaKind.text,
+                text: t,
+                links: links,
+                annotation: ann,
+                ownIndent: ownIndentOf(el, raw),
+              ),
+            );
           }
         }
     }
@@ -894,7 +1017,13 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
   if (out.isEmpty && norm(body.text).isNotEmpty) {
     final (raw, links) = grab(body);
     out.add(
-      EpubPara(kind: EpubParaKind.text, text: norm(raw), links: links),
+      EpubPara(
+        kind: EpubParaKind.text,
+        text: norm(raw),
+        links: links,
+        annotation: isNoteEl(body),
+        ownIndent: ownIndentOf(body, raw),
+      ),
     );
   }
   return out;

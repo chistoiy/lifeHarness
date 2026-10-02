@@ -258,12 +258,17 @@ extension _ReaderStage on _ReaderPageState {
               ),
               child: Text(
                 p.text,
-                style: TextStyle(
-                  fontSize: _cfg.fs,
-                  height: _cfg.lh,
-                  letterSpacing: _cfg.ls,
-                  fontFamily: _cfg.fontFamily,
-                  color: th.$3.withValues(alpha: .85),
+                // ① 引文型注释体（blockquote epub:type=footnote 等）同样走正文色小字，
+                // 与 EpubPager.paraHeight 的测量共用 paraStyle，两边走样必出空页。
+                style: paraStyle(
+                  p,
+                  TextStyle(
+                    fontSize: _cfg.fs,
+                    height: _cfg.lh,
+                    letterSpacing: _cfg.ls,
+                    fontFamily: _cfg.fontFamily,
+                    color: th.$3.withValues(alpha: .85),
+                  ),
                 ),
               ),
             ),
@@ -281,7 +286,13 @@ extension _ReaderStage on _ReaderPageState {
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),
           child: wrap(
-            Text.rich(key: pk, span, textAlign: TextAlign.justify),
+            Text.rich(
+              key: pk,
+              span,
+              // R3-2 ②：中文正文默认左对齐（两端对齐会把末行不满的字距拉散，
+              // 真机读起来像表格）；两端对齐只在外观里显式开，默认关。
+              textAlign: _cfg.just ? TextAlign.justify : TextAlign.start,
+            ),
           ),
         );
     }

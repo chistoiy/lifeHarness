@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/epub_doc.dart';
+import '../../domain/reader_cfg.dart';
 
 /// 阅读排版参数（V1.50 批2 · 原型 BR_DEF 同源默认：fs19/lh1.62/ls0.4/mar22）。
 @immutable
@@ -14,7 +15,29 @@ class ReaderLayout {
     this.mar = 22,
     this.font = 'system',
     this.indent = true,
+    this.indMode = 'auto',
   });
+
+  /// 外观配置 → 分页布局（阅读主屏与整本预载**共用一条通道**：两处算法不同
+  /// 会让预载表与实读表指纹对不上，等于白排一遍）。
+  factory ReaderLayout.of(
+    ReaderCfg c, {
+    required double width,
+    required double height,
+  }) => ReaderLayout(
+    width: width,
+    height: height,
+    fs: c.fs,
+    lh: c.lh,
+    ls: c.ls,
+    mar: c.mar,
+    font: c.font,
+    // 以 indMode 为准换算 indent：ReaderCfg 的 const 构造不互推这两键（只有
+    // fromMap/copyWith 会），直接吃 c.indent 会让「indMode:none + indent:true」
+    // 这种手搓配置在分页与上屏两边各说各话。
+    indent: c.indMode != 'none',
+    indMode: c.indMode,
+  );
 
   /// 舞台可视宽高（翻页模式内容盒）。
   final double width, height;
@@ -23,6 +46,10 @@ class ReaderLayout {
 
   /// 首行缩进开关（V1.53 轮3 字号面板；影响测量与渲染，必须进分页指纹）。
   final bool indent;
+
+  /// 首行缩进三档（R3-2 ③ · 配置面 R3-7 交付）：auto 跟随原书 · 2 强制两全角 ·
+  /// none 无缩进。它改变**每段的显示文本** → 必须进分页指纹，否则真机假生效。
+  final String indMode;
 
   double get contentW => (width - mar * 2).clamp(80.0, 10000.0);
 
@@ -51,6 +78,7 @@ class ReaderLayout {
     double? mar,
     String? font,
     bool? indent,
+    String? indMode,
   }) => ReaderLayout(
     width: width,
     height: height,
@@ -60,14 +88,79 @@ class ReaderLayout {
     mar: mar ?? this.mar,
     font: font ?? this.font,
     indent: indent ?? this.indent,
+    indMode: indMode ?? this.indMode,
   );
 }
 
 /// 段首缩进 2em（原型 .brp text-indent:2em；两个全角空格的实测宽度恰为 2em）。
 const String kParaIndent = '\u3000\u3000';
 
-String paraDisplayText(EpubPara p, {bool indent = true}) =>
-    p.kind == EpubParaKind.text && indent ? '$kParaIndent${p.text}' : p.text;
+/// ① 注释/脚注体缩放与压暗系数（原型 .brp-fn font-size:.8em;opacity:.72）。
+const double kAnnotationFsFactor = .8;
+const double kAnnotationAlpha = .72;
+
+/// ③ 该段是否加**我们的**两全角缩进——按段判定，不一刀切：
+/// none 无缩进 · 2 强制两全角 · auto 跟随原书（书自带缩进的段不再叠加，
+/// 这正是《資治通鑑》双重缩进的止血点）。判定源＝解析层 EpubPara.ownIndent。
+bool paraIndented(EpubPara p, String indMode) =>
+    p.kind == EpubParaKind.text &&
+    switch (indMode) {
+      'none' => false,
+      '2' => true,
+      _ => !p.ownIndent,
+    };
+
+/// 段上屏文本（含缩进前缀）。[indMode] 为 R3-7 三档口径；只给 [indent] 时按
+/// 旧两档语义换算（true＝auto／false＝none），既有调用方零改动。
+String paraDisplayText(EpubPara p, {bool indent = true, String? indMode}) =>
+    paraIndented(p, indMode ?? (indent ? 'auto' : 'none'))
+    ? '$kParaIndent${p.text}'
+    : p.text;
+
+/// ① 注释体段落样式（正文色 + 小一号）。**测量与渲染共用同一函数**：只在分页
+/// 器里缩字号、上屏不缩，就会「按小字算页、按大字画页」溢出/空页。
+/// 正文与引文两类都算注释体；标题另有字号档（1.25×）不参与。
+TextStyle paraStyle(EpubPara p, TextStyle base) {
+  if (!p.annotation ||
+      p.kind == EpubParaKind.heading ||
+      p.kind == EpubParaKind.image) {
+    return base;
+  }
+  return base.copyWith(
+    fontSize: (base.fontSize ?? 19) * kAnnotationFsFactor,
+    // base.color 为空（测量用的裸样式）时只缩字号，不凭空造色。
+    color: base.color?.withValues(alpha: kAnnotationAlpha),
+  );
+}
+
+/// ④ 外链（href 带 scheme 或跨章）＝链接色 + 下划线（原 accent 口径）。
+TextStyle linkAccentStyle(TextStyle base) => base.copyWith(
+  color: const Color(0xFF6366F1),
+  decoration: TextDecoration.underline,
+  decorationColor: const Color(0xFF6366F1).withValues(alpha: .7),
+);
+
+/// ④ 站内锚点＝正文色 + 下划线（原型 .br-link 只加下划线、颜色继承正文）。
+TextStyle linkAnchorStyle(TextStyle base) => base.copyWith(
+  decoration: TextDecoration.underline,
+  decorationColor: (base.color ?? const Color(0xFF000000)).withValues(
+    alpha: .55,
+  ),
+);
+
+/// ① 段内注释/脚注引用（`<a epub:type="noteref">` 之类）＝正文色 + 小一号
+/// （原型 .br-supn：color:inherit;font-size:.72em）——绝不套链接绿。
+TextStyle noteRefStyle(TextStyle base) => base.copyWith(
+  fontSize: (base.fontSize ?? 19) * kAnnotationFsFactor,
+);
+
+/// ④① 一个链接该用哪种样式（外链/站内锚点/注释引用的判定入口收在模型层
+/// EpubLink.usesLinkColor，UI 只做分派）。
+TextStyle linkStyleFor(TextStyle base, EpubLink l) => l.annotation
+    ? noteRefStyle(base)
+    : l.usesLinkColor
+    ? linkAccentStyle(base)
+    : linkAnchorStyle(base);
 
 /// 分页引擎：TextPainter 真实测量（字号/行距/字距/边距变化 → 页数即时重排），
 /// 非字符数估算（V1.50 硬约束「分页引擎实算」）。
@@ -78,7 +171,10 @@ class EpubPager {
   static double paraHeight(EpubPara p, ReaderLayout l) {
     if (p.kind == EpubParaKind.image) return 190;
     final tp = TextPainter(
-      text: TextSpan(text: paraDisplayText(p, indent: l.indent), style: l.base),
+      text: TextSpan(
+        text: paraDisplayText(p, indent: l.indent, indMode: l.indMode),
+        style: paraStyle(p, l.base),
+      ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: l.contentW);
     final gap = p.kind == EpubParaKind.heading

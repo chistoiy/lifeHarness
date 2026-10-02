@@ -35,9 +35,12 @@ class PagStore {
   static const tableVersion = 2;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
+  /// R3-2 ③：indMode 三档改变每段显示文本（自带缩进段不再叠加）→ 必须进指纹，
+  /// 否则改了缩进设置不重排＝真机假生效。`just` 不入指纹：两端对齐只拉伸行内
+  /// 空隙、不改断行，TextPainter 实算高度与左对齐一致（进指纹反而每次白重排）。
   static String fingerprint(ReaderLayout l) =>
       '${l.width.round()}x${l.height.round()}|fs${l.fs}|lh${l.lh}|ls${l.ls}'
-      '|mar${l.mar}|fnt${l.font}|ind${l.indent ? 1 : 0}';
+      '|mar${l.mar}|fnt${l.font}|ind${l.indent ? 1 : 0}|im${l.indMode}';
 
   static String dirPath(String docsPath) => p.join(docsPath, 'epub_pag');
 
@@ -120,7 +123,10 @@ class DocStore {
 
   /// v2：轮4① 章节标题回落链（toc→文件名→章内首个标题）落盘后，
   /// 旧快照里的 part1394 类标题全部作废 → 版本 +1 让存量快照失效重解。
-  static const snapVersion = 2;
+  /// v3：R3-2 止血四条新增段级语义（注释体 / 自带缩进 / 链接站内-注释标记）。
+  /// 旧快照缺这些字段会**一律按 false 解出**＝注释体仍当正文、缩进仍叠加＝假生效，
+  /// 所以必须 +1 让存量快照整体失效重解（而不是兼容读默认值）。
+  static const snapVersion = 3;
 
   static String dirFor(String docsPath, String bookId) =>
       p.join(docsPath, 'epub_snap', bookId);
@@ -144,9 +150,22 @@ class DocStore {
     x.imgSrc,
     x.alt,
     [
-      for (final l in x.links) [l.start, l.end, l.href, l.external ? 1 : 0],
+      for (final l in x.links) [
+        l.start,
+        l.end,
+        l.href,
+        l.external ? 1 : 0,
+        // R3-2 ①④：注释引用与站内锚点（上色判定随快照一起落盘）。
+        l.annotation ? 1 : 0,
+        l.sameDoc ? 1 : 0,
+      ],
     ],
+    // R3-2 ①③：段级注释体与书内自带缩进标记。
+    x.annotation ? 1 : 0,
+    x.ownIndent ? 1 : 0,
   ];
+
+  static int _flag(List src, int i) => i < src.length ? src[i] as int : 0;
 
   static EpubPara _paraFromJson(List a) => EpubPara(
     kind: EpubParaKind.values[a[0] as int],
@@ -161,8 +180,12 @@ class DocStore {
           end: l[1] as int,
           href: l[2] as String,
           external: (l[3] as int) == 1,
+          annotation: _flag(l, 4) == 1,
+          sameDoc: _flag(l, 5) == 1,
         ),
     ],
+    annotation: _flag(a, 6) == 1,
+    ownIndent: _flag(a, 7) == 1,
   );
 
   /// 保存快照（覆盖式）。data.bin＝各章段落 JSON 的 UTF-8 拼接。

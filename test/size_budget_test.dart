@@ -26,6 +26,10 @@ void main() {
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
     'features/journal/presentation/diary_edit_page.dart': 1260,
+    // R3-2 批登记：reader_page 在实现批1（R3-7）后长到 1213 行、超线未登记＝门禁存量红。
+    // 本批把外观→布局映射收进 ReaderLayout.of 后回落到 1207，先按登记值钉住（只许减），
+    // 下一轮按 G7c 族口径把会话/计时群拆出主文件后**删掉本项**归还默认面。
+    'features/read/presentation/reader/reader_page.dart': 1207,
   };
 
   test('体积预算：lib 超线文件必须登记且只许减不许增', () {
