@@ -11,20 +11,26 @@
 <script>
 tailwind.config = {
   darkMode: 'class',
-  theme: { extend: { fontFamily: { sans: ['Inter','PingFang SC','Microsoft YaHei','sans-serif'] },
+  theme: { extend: { fontFamily: { sans: ['Inter','Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] },
     colors: { brand: {50:'#eef2ff',100:'#e0e7ff',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca'},
       mint:'#2dd4bf', peach:'#fb7185', sun:'#f59e0b' } } }
 }
 </script>
 <style>
-  html,body{height:100%;background:#0f172a;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;}
+  /* LH-F01 全局字体角色（产品 2026-10-02 定）：正文＝衬线（长文阅读），标题·UI·底栏＝无衬线，数字·代码＝等宽。
+     全部走系统回落链，不随包字体文件（Android 无 Microsoft YaHei，故它只作 Windows 预览兜底）。 */
+  :root{--f-ui:Inter,'Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+        --f-body:'Noto Serif SC','Source Han Serif SC','Songti SC','STSong','SimSun',Georgia,serif;
+        --f-code:ui-monospace,'JetBrains Mono',Consolas,Menlo,monospace}
+  .f-body{font-family:var(--f-body)}.f-code{font-family:var(--f-code)}
+  html,body{height:100%;background:#0f172a;font-family:var(--f-ui);}
   /* ---- 设计令牌 & 4套主题：简约minimal / 小清新fresh / 复古retro / 轻拟态neumorph ---- */
   :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;--page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);--nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0}
   html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b}
   html[data-theme="fresh"]{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88)}
   html[data-theme="fresh"].dark{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);--nav-bd:#16321f}
   html[data-theme="retro"]{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9}
-  html[data-theme="retro"] #phone{font-family:Georgia,'Songti SC','STSong','SimSun',serif;letter-spacing:.01em}
+  html[data-theme="retro"] #phone{font-family:var(--f-body);letter-spacing:.01em}
   html[data-theme="retro"] .grad{background:linear-gradient(135deg,#b45309 0%,#7c2d12 100%)}
   html[data-theme="retro"] .card{border-width:2px}
   html[data-theme="retro"].dark{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722}
@@ -33,7 +39,7 @@ tailwind.config = {
   html[data-theme="neumorph"] .grad{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),6px 6px 14px rgba(91,124,250,.35)}
   html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
   #phone{background-color:var(--page)!important;background-image:var(--page-img,none)!important;font-family:var(--app-font,inherit)}
-  nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important}
+  nav{background:var(--nav-bg)!important;border-color:var(--nav-bd)!important;font-family:var(--f-ui)}
   .no-scrollbar::-webkit-scrollbar{display:none}
   .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
   .page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -225,18 +231,18 @@ tailwind.config = {
   .md-table{border-collapse:collapse;margin:0 0 1.1em;font-size:12.5px;width:100%}
   .md-table th,.md-table td{border:1px solid rgba(120,110,90,.32);padding:5px 9px;text-align:left}
   .md-table th{background:rgba(120,110,90,.09);font-weight:800}
-  .md-pre{background:rgba(120,110,90,.09);border-radius:10px;padding:10px 12px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;line-height:1.7;overflow-x:auto;margin:0 0 1.1em;white-space:pre}
-  .md-view code{background:rgba(120,110,90,.12);border-radius:5px;padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:.85em}
+  .md-pre{background:rgba(120,110,90,.09);border-radius:10px;padding:10px 12px;font-family:var(--f-code);font-size:11.5px;line-height:1.7;overflow-x:auto;margin:0 0 1.1em;white-space:pre}
+  .md-view code{background:rgba(120,110,90,.12);border-radius:5px;padding:1px 5px;font-family:var(--f-code);font-size:.85em}
   .md-task{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;margin:0 0 .5em;line-height:1.8}
   .md-task input{accent-color:var(--accent);margin-top:5px;flex-shrink:0}
   .md-done{opacity:.5;text-decoration:line-through}
   .md-tasks{margin:0 0 1.1em}
-  .texi{font-family:Georgia,'Times New Roman',serif;background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:5px;padding:0 5px;white-space:nowrap}
-  .tex-block{font-family:Georgia,'Times New Roman',serif;text-align:center;font-size:17px;margin:1.1em 0;padding:12px 8px;background:rgba(120,110,90,.07);border-radius:12px;border:1px dashed rgba(120,110,90,.35);line-height:2.4;overflow-x:auto}
+  .texi{font-family:var(--f-body);background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:5px;padding:0 5px;white-space:nowrap}
+  .tex-block{font-family:var(--f-body);text-align:center;font-size:17px;margin:1.1em 0;padding:12px 8px;background:rgba(120,110,90,.07);border-radius:12px;border:1px dashed rgba(120,110,90,.35);line-height:2.4;overflow-x:auto}
   .frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.8em;line-height:1.2;margin:0 2px}
   .frac em{font-style:normal;display:block;padding:0 4px}
   .frac em:first-child{border-bottom:1.2px solid currentColor}
-  .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;line-height:1.9;letter-spacing:.02em}
+  .pw-ta{width:100%;height:60vh;background:transparent;outline:none;resize:none;font-family:var(--f-code);font-size:12.5px;line-height:1.9;letter-spacing:.02em}
   .pw-mode-btn{padding:5px;border-radius:9px;opacity:.45;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:inherit}
   .pw-mode-btn svg{width:19px;height:19px}
   .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
@@ -2749,15 +2755,15 @@ const THEMES=[['minimal','简约 · 默认','#6366f1','#8b5cf6','#d946ef'],['fre
 /* 主题即配置：下列令牌对象与 prototype/themes/*.json 同构，应用时直接写入设计令牌（热加载，无需刷新） */
 const THEME_TOKENS={
  cyber:{forceDark:true,meta:{name:'赛博朋克',ver:'1.0',author:'LifeHarness Team'},dark:{'--accent':'#a855f7','--accent-l':'#c084fc','--g1':'#7c3aed','--g2':'#22d3ee','--g3':'#e879f9','--page':'#0b0f1e','--card':'#151a2e','--card-bd':'rgba(168,85,247,.4)','--card-r':'14px','--card-sh':'0 0 16px rgba(168,85,247,.22), inset 0 0 0 1px rgba(34,211,238,.1)','--nav-bg':'rgba(11,15,30,.9)','--nav-bd':'rgba(34,211,238,.25)','--page-img':'repeating-linear-gradient(90deg,rgba(168,85,247,.05) 0 1px,transparent 1px 44px),repeating-linear-gradient(0deg,rgba(34,211,238,.04) 0 1px,transparent 1px 44px)'}},
- autumn:{meta:{name:'秋日暖调',ver:'1.0',author:'LifeHarness Team'},light:{'--accent':'#c2410c','--accent-l':'#f59e0b','--g1':'#d97706','--g2':'#b45309','--g3':'#92400e','--page':'#f7ecdb','--card':'#fff8ec','--card-bd':'#e8d5b3','--card-r':'18px','--card-sh':'0 2px 10px rgba(146,64,14,.12)','--nav-bg':'rgba(247,236,219,.92)','--nav-bd':'#e8d5b3',"--app-font":"Georgia,'Songti SC','SimSun',serif"},
-  dark:{'--accent':'#f59e0b','--accent-l':'#fbbf24','--g1':'#92400e','--g2':'#78350f','--g3':'#b45309','--page':'#221708','--card':'#2d1f0e','--card-bd':'#4f3a1b','--card-r':'18px','--card-sh':'0 2px 10px rgba(0,0,0,.4)','--nav-bg':'rgba(34,23,8,.92)','--nav-bd':'#4f3a1b',"--app-font":"Georgia,'Songti SC','SimSun',serif"}},
+ autumn:{meta:{name:'秋日暖调',ver:'1.0',author:'LifeHarness Team'},light:{'--accent':'#c2410c','--accent-l':'#f59e0b','--g1':'#d97706','--g2':'#b45309','--g3':'#92400e','--page':'#f7ecdb','--card':'#fff8ec','--card-bd':'#e8d5b3','--card-r':'18px','--card-sh':'0 2px 10px rgba(146,64,14,.12)','--nav-bg':'rgba(247,236,219,.92)','--nav-bd':'#e8d5b3',"--app-font":"var(--f-body)"},
+  dark:{'--accent':'#f59e0b','--accent-l':'#fbbf24','--g1':'#92400e','--g2':'#78350f','--g3':'#b45309','--page':'#221708','--card':'#2d1f0e','--card-bd':'#4f3a1b','--card-r':'18px','--card-sh':'0 2px 10px rgba(0,0,0,.4)','--nav-bg':'rgba(34,23,8,.92)','--nav-bd':'#4f3a1b',"--app-font":"var(--f-body)"}},
  ocean:{meta:{name:'海洋深蓝',ver:'1.0',author:'LifeHarness Team'},light:{'--accent':'#0284c7','--accent-l':'#38bdf8','--g1':'#0c4a6e','--g2':'#0369a1','--g3':'#0ea5e9','--page':'#eaf4fb','--card':'#ffffff','--card-bd':'#d3e6f5','--card-r':'20px','--card-sh':'0 4px 16px rgba(2,132,199,.12)','--nav-bg':'rgba(234,244,251,.9)','--nav-bd':'#d3e6f5','--page-img':'radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.22), transparent)'},
   dark:{'--accent':'#38bdf8','--accent-l':'#7dd3fc','--g1':'#0c4a6e','--g2':'#075985','--g3':'#0284c7','--page':'#082033','--card':'#0e2a44','--card-bd':'#1c4263','--card-r':'20px','--card-sh':'0 4px 16px rgba(0,0,0,.35)','--nav-bg':'rgba(8,32,51,.9)','--nav-bd':'#1c4263','--page-img':'radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.15), transparent)'}}};
 /* 主题市场：可下载的第三方主题配置（与 themes/ 目录 json 同构，模拟拉取后热加载） */
 const MKT={
  sakura:{meta:{name:'樱花粉系',ver:'0.9',author:'community'},light:{'--accent':'#db2777','--accent-l':'#f9a8d4','--g1':'#f472b6','--g2':'#fb7185','--g3':'#e879f9','--page':'#fdf2f6','--card':'#ffffff','--card-bd':'#fbd5e3','--card-r':'24px','--nav-bg':'rgba(253,242,246,.9)','--nav-bd':'#fbd5e3'},dark:{'--accent':'#f472b6','--accent-l':'#f9a8d4','--g1':'#be185d','--g2':'#9f1239','--g3':'#db2777','--page':'#1d0a12','--card':'#2a1019','--card-bd':'#4a1d2e','--card-r':'24px','--nav-bg':'rgba(29,10,18,.9)','--nav-bd':'#4a1d2e'}},
  mint:{meta:{name:'薄荷抹茶',ver:'1.1',author:'community'},light:{'--accent':'#059669','--accent-l':'#34d399','--g1':'#10b981','--g2':'#84cc16','--g3':'#14b8a6','--page':'#f1f8ee','--card':'#ffffff','--card-bd':'#d8ecd2','--card-r':'16px','--nav-bg':'rgba(241,248,238,.9)','--nav-bd':'#d8ecd2'},dark:{'--accent':'#34d399','--accent-l':'#6ee7b7','--g1':'#065f46','--g2':'#166534','--g3':'#0f766e','--page':'#07130d','--card':'#0d1d14','--card-bd':'#1d3b2a','--card-r':'16px','--nav-bg':'rgba(7,19,13,.9)','--nav-bd':'#1d3b2a'}},
- graphite:{meta:{name:'石墨黑白',ver:'1.0',author:'community'},light:{'--accent':'#18181b','--accent-l':'#52525b','--g1':'#27272a','--g2':'#52525b','--g3':'#18181b','--page':'#f4f4f5','--card':'#ffffff','--card-bd':'#e4e4e7','--card-r':'10px','--nav-bg':'rgba(244,244,245,.9)','--nav-bd':'#e4e4e7',"--app-font":"ui-monospace,Consolas,Inter,sans-serif"},dark:{'--accent':'#fafafa','--accent-l':'#e4e4e7','--g1':'#3f3f46','--g2':'#71717a','--g3':'#18181b','--page':'#101012','--card':'#1a1a1e','--card-bd':'#333338','--card-r':'10px','--nav-bg':'rgba(16,16,18,.9)','--nav-bd':'#333338',"--app-font":"ui-monospace,Consolas,Inter,sans-serif"}}};
+ graphite:{meta:{name:'石墨黑白',ver:'1.0',author:'community'},light:{'--accent':'#18181b','--accent-l':'#52525b','--g1':'#27272a','--g2':'#52525b','--g3':'#18181b','--page':'#f4f4f5','--card':'#ffffff','--card-bd':'#e4e4e7','--card-r':'10px','--nav-bg':'rgba(244,244,245,.9)','--nav-bd':'#e4e4e7',"--app-font":"var(--f-code)"},dark:{'--accent':'#fafafa','--accent-l':'#e4e4e7','--g1':'#3f3f46','--g2':'#71717a','--g3':'#18181b','--page':'#101012','--card':'#1a1a1e','--card-bd':'#333338','--card-r':'10px','--nav-bg':'rgba(16,16,18,.9)','--nav-bd':'#333338',"--app-font":"var(--f-code)"}}};
 const TOKEN_KEYS=['--accent','--accent-l','--g1','--g2','--g3','--page','--card','--card-bd','--card-r','--card-sh','--nav-bg','--nav-bd','--page-img','--app-font'];
 let curTheme='minimal';
 function themeSwatch(t){return `linear-gradient(135deg,${t[2]} 0%,${t[3]} 55%,${t[4]} 100%)`;}

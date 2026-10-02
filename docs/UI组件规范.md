@@ -22,6 +22,35 @@
 | 顶栏行 | header row | 页首日期+工具行（LH-K08 宿主） |
 | 胶囊提示 | toast | 全局深色胶囊 SnackBar（LH-T01） |
 | 滚轮 | wheel | 就地内嵌/弹层式数值滚轮（LH-K07） |
+| 字体角色 | type role | 正文衬线 / UI 无衬线 / 代码等宽三档，全局按角色取字体（LH-F01） |
+
+## 〇A、LH-F01 字体角色（2026-10-02 产品定 · 全局规范 · 实现待确认门）
+
+> **口径**：长文正文用**衬线**（阅读舒适、笔画有粗细），标题与一切 UI 标签用**无衬线**（密排清晰），
+> 数字/代码用**等宽**。全部走**系统回落字体链**——**不随包字体文件**（思源宋体一字重全量约 8–20MB，
+> 与《APK包体压缩可行性》「无无损压缩空间」直接冲突，已否决）。
+
+| 角色 | CSS 变量 | 字体链（原型与实现同一串） | 用在 |
+|---|---|---|---|
+| 正文 body | `--f-body` | `'Noto Serif SC','Source Han Serif SC','Songti SC','STSong','SimSun',Georgia,serif` | 阅读器正文与引文、日记/笔记正文、书摘正文、X-Ray 摘录卡正文 |
+| UI ui | `--f-ui` | `Inter,'Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif` | 页面与卡片标题、**书名**、底栏与顶栏文字、按钮/标签/表单、阅读器内的标题行（`.brp-h`） |
+| 代码 code | `--f-code` | `ui-monospace,'JetBrains Mono',Consolas,Menlo,monospace` | 数值/计时/日志/代码块与等宽字段 |
+
+**平台事实（别再按 Windows 观感做决定）**：`Microsoft YaHei` 只存在于 Windows，安卓真机上取不到，
+它在这条链里只作开发期 Windows 预览兜底；安卓/鸿蒙的衬线回落到 `Noto Serif CJK`（即思源宋体同源），
+无衬线回落到 `Noto Sans CJK`（思源黑体同源）——所以**真机观感与你在 Windows 上看到的接近，
+但各家 ROM 的衬线实现可能不完全一致**（部分 ROM 无衬线字体缺失时会回落成黑体＝衬线效果消失）。
+需要跨机型绝对一致时再议随包子集（体积代价由产品拍板）。
+
+**锚点**：原型 `prototype/index.html` / `prototype/index-bookshelf.html` 的 `:root{--f-ui/--f-body/--f-code}`
+与 `.f-body/.f-code` 工具类；阅读器字体目录 `BR_FONTS`（九款全带 CJK 回落链）、正文默认族 `BR_DEF.font='serif'`；
+校验脚本 `tools/f01typecheck.js`（三角色断言 + `prototype/shots/f01_shared_dash.png · f01_reader_serif.png`）。
+Flutter 侧待接：`core/theme/app_typography.dart` 的角色→家族映射、阅读器 `ReaderLayout.fontFamily`
+（现 `serif/hei/mono` 三值映射要换成同一串 CJK 链），以及 `ReaderCfg` 默认字体族改衬线（**老用户已存的选择不动**）。
+
+**已定/未定**：角色划分与「不随包字体」已定；**阅读器正文默认值是否从「系统默认」改成「衬线」需你确认**
+（改后：没手动选过字体的用户，正文首屏即衬线；选过的仍按其选择）。实现批在确认后开。
+
 
 ## 一、LH-T 提示类
 
