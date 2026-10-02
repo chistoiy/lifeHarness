@@ -1,3 +1,0 @@
-        <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="aiProvEdit(null)">+ 添加服务商</button></div>
-        <div class="mt-2 space-y-2 text-xs" id="aiProvList"></div>
-        <div class="text-[10px] text-slate-400 mt-2 leading-5">预置只是默认值，<b>不是白名单</b>：官方、中转站/自建网关、局域网 Ollama·LM Studio 都能添加，Base URL、模型名、协议都能改。请求只发往你填的地址，应用自身零埋点；每个服务商的 Key 各自存系统加密区。</div>

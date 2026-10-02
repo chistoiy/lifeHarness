@@ -1,5 +1,0 @@
-      <div class="mt-2.5 flex items-center gap-1.5">
-        <select id="hbSegSel" class="sel flex-1 !py-1.5 !text-[11px]" onchange="hbSegSet(this.value)"></select>
-        <select id="hbCatSel" class="sel flex-1 !py-1.5 !text-[11px]" onchange="hbCatPick(this.value)"></select>
-        <button id="hbViewBtn" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0" onclick="hbViewT()" title="切换视图"></button>
-      </div>

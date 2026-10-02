@@ -74,3 +74,7 @@ tools/**/.chrome-*/
 
 # Python 字节码缓存（预研脚本被工具复跑时产生）
 __pycache__/
+
+# 治理二轮（20261002）：验收截图与一次性脚本坟场永不入库（历史已出仓，留底 D:/dev_workplace/lh-artifacts-keep）
+docs/acceptance*
+tools/attic/

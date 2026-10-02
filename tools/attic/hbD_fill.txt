@@ -1,5 +1,0 @@
- const segs=[['all','全部'],['todo','待打卡'],['ok','已达成'],['grp','分组习惯'],['neg','负向控制'],['arch','已归档']];
- const cntOf={all:book.length,todo:t.length-done,ok:done,grp:book.filter(h=>h.group).length,neg:book.filter(h=>h.type==='neg').length,arch:HABITS.filter(h=>h.arch).length};
- const ss=document.getElementById('hbSegSel');if(ss)ss.innerHTML=segs.map(s=>`<option value="${s[0]}" ${hbSeg===s[0]?'selected':''}>${s[1]} ${cntOf[s[0]]}</option>`).join('');
- const cs=document.getElementById('hbCatSel');if(cs)cs.innerHTML=['全部'].concat(HB_CATS).map(c=>`<option value="${c}" ${hbCatF===c?'selected':''}>${c==='全部'?'全部分类':c} ${c==='全部'?book.length:book.filter(h=>h.cat===c).length}</option>`).join('');
- const vb=document.getElementById('hbViewBtn');if(vb){vb.innerHTML=hbi(hbView==='list'?'grid':'list','w-[15px] h-[15px]');vb.title=hbView==='list'?'切到方块视图':'切到列表视图'}
