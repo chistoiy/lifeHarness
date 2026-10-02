@@ -284,7 +284,7 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
                                       _minBtn(
                                         'rl-min-save',
                                         '保存',
-                                        tokens.accent as Color,
+                                        tokens.accent,
                                         () => _saveTotalMin(total, all),
                                       ),
                                       const SizedBox(width: 8),
@@ -586,7 +586,7 @@ class _LogCardState extends ConsumerState<_LogCard> {
     return [
       if (ch.isNotEmpty) ch,
       pg,
-      if (pc != null) pc,
+      ?pc,
     ].join(' · ');
   }
 

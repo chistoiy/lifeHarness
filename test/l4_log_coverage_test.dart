@@ -66,7 +66,7 @@ void main() {
     });
 
     test('落账 key 行把结算值直接写进行文（事后不必翻流水重算）', () async {
-      await repo.upsertEntry(h.id!, day: _dayKey(_today), value: 300);
+      await repo.upsertEntry(h.id, day: _dayKey(_today), value: 300);
       expect(logged('习惯落账：${h.id} · ${_dayKey(_today)} · checked=不改 value=300.0', key: true),
           isTrue, reason: AppLog.lines.map((l) => l.text).join(' | '));
       expect(logged('结算 streak='), isTrue,
@@ -75,12 +75,12 @@ void main() {
     });
 
     test('撤销流水留痕；未来日拒绝照旧抛错但也留 warn', () async {
-      await repo.upsertEntry(h.id!, day: _dayKey(_today), checked: true);
-      await repo.deleteEntry(h.id!, _dayKey(_today));
+      await repo.upsertEntry(h.id, day: _dayKey(_today), checked: true);
+      await repo.deleteEntry(h.id, _dayKey(_today));
       expect(logged('习惯撤销流水：${h.id} · ${_dayKey(_today)} · 结算 streak=', key: true),
           isTrue, reason: AppLog.lines.map((l) => l.text).join(' | '));
       await expectLater(
-          repo.upsertEntry(h.id!,
+          repo.upsertEntry(h.id,
               day: _dayKey(_today.add(const Duration(days: 1)))),
           throwsArgumentError);
       expect(logged('习惯未来日写入被拒', level: 'warn'), isTrue,
@@ -89,7 +89,7 @@ void main() {
     });
 
     test('负向触发登记留痕（落账行随后）', () async {
-      await repo.recordTrigger(h.id!,
+      await repo.recordTrigger(h.id,
           day: _dayKey(_today), amount: 1, reasons: const ['熬夜', '咖啡']);
       expect(
           logged('习惯触发登记：${h.id} · ${_dayKey(_today)} · 量=1.0 原因=熬夜/咖啡'),

@@ -80,7 +80,7 @@ void main() {
           (t.textSpan ?? TextSpan(text: t.data)).toPlainText().replaceAll(RegExp(r'\s+'), ' ').trim()))
       .toList();
 
-  const _stack = '#0 NavigatorState._routeNamed (navigator.dart:4646) | '
+  const stack = '#0 NavigatorState._routeNamed (navigator.dart:4646) | '
       '#1 NavigatorState.pushNamed (navigator.dart:4714) | '
       '#2 _ReaderPageState._openMoreSheet (reader_page.dart:579)';
 
@@ -125,7 +125,7 @@ void main() {
 
   testWidgets('R14-11 · 堆栈行默认折叠，可展开/收起', (tester) async {
     await seedPrefs();
-    AppLog.addStack(_stack);
+    AppLog.addStack(stack);
     await openLogPage(tester);
 
     // 折叠态：堆栈段整段不建 Text，只留「展开堆栈」钮。

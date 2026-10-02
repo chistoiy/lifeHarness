@@ -121,10 +121,10 @@ class EpubPager {
 class BookPagination {
   BookPagination.lazy(List<int> charWeights)
     : w = List.unmodifiable(charWeights) {
-    pages = List<List<List<int>>?>.filled(this.w.length, null);
-    cum = List.filled(this.w.length + 1, 0);
-    for (var i = 0; i < this.w.length; i++) {
-      cum[i + 1] = cum[i] + this.w[i];
+    pages = List<List<List<int>>?>.filled(w.length, null);
+    cum = List.filled(w.length + 1, 0);
+    for (var i = 0; i < w.length; i++) {
+      cum[i + 1] = cum[i] + w[i];
     }
   }
 
