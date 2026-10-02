@@ -264,6 +264,50 @@ void main() {
     final e = XrayLexicon(_bank());
     expect(e.blocked('李伟'), isFalse, reason: '没登记过就不该被屏蔽（默认放行）');
   });
+
+  group('R3-9 · 分块批量落库（真机 774 枚锁库白屏批）', () {
+    List<XrayWriteEntity> many(int n) => [
+          for (var i = 0; i < n; i++)
+            XrayWriteEntity(
+                name: '词$i',
+                type: 'term',
+                n: 3,
+                chs: 2,
+                score: 2.0 + i,
+                channels: 1,
+                tocFlag: false,
+                aliases: const [],
+                // 第 3 条与第 1 条同格（去重后每枚应剩 2 锚）。
+                anchors: [
+                  XrayMention(i, 0, '句甲'),
+                  XrayMention(i, 1),
+                  XrayMention(i, 0, null),
+                ]),
+        ];
+
+    test('跨块（150 枚>64）：全量在册 · 锚点段级去重 · 重跑不翻倍', () async {
+      await dao.writeRunResult(md5: md5, rows: many(150));
+      expect(await dao.entityCount(md5), 150,
+          reason: '块边界不许吞行/重行');
+      final e7 = await dao.entityByName(md5, '词7');
+      expect((await dao.anchorsOf(md5, e7!.id)), hasLength(2),
+          reason: '同格锚点去重后只留带 snippet 那条');
+      await dao.writeRunResult(md5: md5, rows: many(150));
+      expect(await dao.entityCount(md5), 150, reason: '重跑＝幂等 upsert');
+      expect((await dao.anchorsOf(md5, e7.id)), hasLength(2),
+          reason: '锚点删旧重建，不许翻倍');
+    });
+
+    test('用户状态跨块保留：banned 不被重解析洗回在册', () async {
+      await dao.writeRunResult(md5: md5, rows: many(150));
+      final e9 = (await dao.entityByName(md5, '词9'))!;
+      await db.update(DbSchema.tXrayEntity, {'status': 'deleted'},
+          where: 'id = ?', whereArgs: [e9.id]);
+      await dao.writeRunResult(md5: md5, rows: many(150));
+      expect((await dao.entityByName(md5, '词9'))!.status, 'deleted',
+          reason: '分块预取路径不许丢「用户状态优先」口径');
+    });
+  });
 }
 
 /// 真词表（与 lexicon 测试同源，走磁盘读取——本用例只关心 DAO，不测装载）。

@@ -148,12 +148,28 @@ class _HPickState extends State<HPick> {
         child: NotificationListener<ScrollEndNotification>(
           onNotification: (_) {
             if (_ctl.hasClients) {
-              final i = (_ctl.offset / widget.itemWidth).round().clamp(0, widget.items.length - 1);
+              // R3-9：索引与回中必须共用同一居中约定（target＝i*w-pad 的反算＝
+              // (offset+pad)/w），否则 end 回调的 animateTo 会把自己喂回去——
+              // 真机 16:36:45 自激 855 层栈溢出（日志页 HPick）。
+              final pad = (_viewport - widget.itemWidth) / 2;
+              final i = ((_ctl.offset + pad) / widget.itemWidth)
+                  .round()
+                  .clamp(0, widget.items.length - 1);
               if (i != _cur) {
                 setState(() => _cur = i);
                 widget.onChanged(i);
               }
-              _center(i, animate: true);
+              // 帧后回调 + 只有「未居中」才回中：收敛后 offset==target，不再产生新 end。
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!_ctl.hasClients) return;
+                final target = (_offsetFor(i) - pad)
+                    .clamp(0.0, _ctl.position.maxScrollExtent);
+                if ((_ctl.offset - target).abs() > 0.5) {
+                  _ctl.animateTo(target,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut);
+                }
+              });
             }
             return false;
           },

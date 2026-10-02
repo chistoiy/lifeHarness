@@ -318,18 +318,31 @@ class XrayDao {
       );
 
   /// 调度器（跨 isolate 回报的平铺结果）落库的同一出口。
+  /// R3-9：旧实现＝整本书单事务 + 逐枚 await（真机 774 枚×几十锚＝上万次串行往返，
+  /// 锁库约一分钟，期间一切读排队 → 阅读器白屏 + logcat「database has been locked」刷屏）。
+  /// 现改为**分小块事务（64 枚/块）+ Batch 合并提交 + 块间让帧**；语义不变：
+  /// 新行 active、已有行保留用户状态、锚点删旧重建（段级去重、优先带 snippet）。
+  /// 前提＝同一次结果内 name 唯一（引擎按名字典聚合产出，天然成立）。
   Future<void> writeRunResult({
     required String md5,
     required List<XrayWriteEntity> rows,
-  }) =>
-      _db.transaction((txn) async {
-        for (final e in rows) {
+  }) async {
+    const chunkSize = 64;
+    for (var off = 0; off < rows.length; off += chunkSize) {
+      final chunk =
+          rows.sublist(off, off + chunkSize > rows.length ? rows.length : off + chunkSize);
+      await _db.transaction((txn) async {
+        final ph = List.generate(chunk.length, (_) => '?').join(',');
+        final names = [for (final e in chunk) e.name];
+        // 一趟取回本块已有行（状态保留 + id），替代逐枚 SELECT。
+        final old = await txn.query(DbSchema.tXrayEntity,
+            columns: ['id', 'status', 'name'],
+            where: 'book_md5 = ? AND name IN ($ph)',
+            whereArgs: [md5, ...names]);
+        final byName = {for (final r in old) r['name'] as String: r};
+        final b1 = txn.batch();
+        for (final e in chunk) {
           final first = e.anchors.isEmpty ? null : e.anchors.first;
-          final existing = await txn.query(DbSchema.tXrayEntity,
-              columns: ['id', 'status'],
-              where: 'book_md5 = ? AND name = ?',
-              whereArgs: [md5, e.name],
-              limit: 1);
           final values = <String, Object?>{
             'book_md5': md5,
             'name': e.name,
@@ -343,31 +356,78 @@ class XrayDao {
             'first_para': first?.para,
             'toc_flag': e.tocFlag ? 1 : 0,
           };
-          if (existing.isEmpty) {
-            final id = await txn.insert(DbSchema.tXrayEntity,
+          final ex = byName[e.name];
+          if (ex == null) {
+            b1.insert(DbSchema.tXrayEntity,
                 {...values, 'status': xs.xrayEntityActive});
-            await _insertAnchors(txn, md5, id, e.anchors);
           } else {
-            final id = existing.first['id'] as int;
+            final id = ex['id'] as int;
             // 用户状态优先：解析无权把「用户屏蔽」洗回在册，也无权改走「用户加词」的来源标记。
-            final keep = existing.first['status'] as String;
-            await txn.update(DbSchema.tXrayEntity, {
-              ...values,
-              'status': keep == xs.xrayEntityActive ? xs.xrayEntityActive : keep,
-            }, where: 'id = ?', whereArgs: [id]);
-            await txn.delete(DbSchema.tXrayMention,
+            final keep = ex['status'] as String;
+            b1.update(
+                DbSchema.tXrayEntity,
+                {
+                  ...values,
+                  'status':
+                      keep == xs.xrayEntityActive ? xs.xrayEntityActive : keep,
+                },
+                where: 'id = ?',
+                whereArgs: [id]);
+            b1.delete(DbSchema.tXrayMention,
                 where: 'book_md5 = ? AND entity_id = ?', whereArgs: [md5, id]);
-            await _insertAnchors(txn, md5, id, e.anchors);
           }
         }
+        await b1.commit(noResult: true);
+        // 二趟取回本块 id（新插入行此刻可见）→ 锚点批量插入。
+        final idRows = await txn.query(DbSchema.tXrayEntity,
+            columns: ['id', 'name'],
+            where: 'book_md5 = ? AND name IN ($ph)',
+            whereArgs: [md5, ...names]);
+        final ids = {for (final r in idRows) r['name'] as String: r['id'] as int};
+        final b2 = txn.batch();
+        for (final e in chunk) {
+          final id = ids[e.name];
+          if (id == null) continue;
+          for (final m in _dedupeAnchors(e.anchors)) {
+            b2.insert(DbSchema.tXrayMention, {
+              'entity_id': id,
+              'book_md5': md5,
+              'ch': m.ch,
+              'para': m.para,
+              'snippet': m.snippet,
+            });
+          }
+        }
+        await b2.commit(noResult: true);
       });
+      // 块间让帧：给面板/kv/计时等排队读插队窗口，白屏不再复现。
+      // 只在「还有下一块」时延时——尾块后挂真定时器会把链尾拖出微任务域，
+      // 假通道测试（xray_panel 全链路微任务口径）会被饿死成假红。
+      if (off + chunkSize < rows.length) {
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+      }
+    }
+  }
 
+  /// 单词回填路径的逐条锚点插入（补扫只有一枚实体、量小；批量面走 writeRunResult）。
   Future<void> _insertAnchors(Transaction txn, String md5, int entityId,
       List<XrayMention> anchors) async {
-    // **段级去重**：引擎侧 `hit`/`anchorOnly` 每次出现都记一条，多通道合并
-    // （`win.mentions.addAll`）还会带来非相邻重复；真机表现＝F5 出场列表整行
-    // 重复、迷你分布条同位叠点（2026-10-01 人类简史「几乎」第一章段 42 连列两次）。
-    // 提及数 `n` 仍按出现次数计，这里只保证锚点一格一条（优先保留带 snippet 的那条）。
+    for (final m in _dedupeAnchors(anchors)) {
+      await txn.insert(DbSchema.tXrayMention, {
+        'entity_id': entityId,
+        'book_md5': md5,
+        'ch': m.ch,
+        'para': m.para,
+        'snippet': m.snippet,
+      });
+    }
+  }
+
+  /// **段级去重**：引擎侧 `hit`/`anchorOnly` 每次出现都记一条，多通道合并
+  /// （`win.mentions.addAll`）还会带来非相邻重复；真机表现＝F5 出场列表整行
+  /// 重复、迷你分布条同位叠点（2026-10-01 人类简史「几乎」第一章段 42 连列两次）。
+  /// 提及数 `n` 仍按出现次数计，这里只保证锚点一格一条（优先保留带 snippet 的那条）。
+  static List<XrayMention> _dedupeAnchors(List<XrayMention> anchors) {
     final byPos = <String, XrayMention>{};
     for (final m in anchors) {
       final k = '${m.ch}:${m.para}';
@@ -378,15 +438,7 @@ class XrayDao {
         byPos[k] = XrayMention(m.ch, m.para, m.snippet);
       }
     }
-    for (final m in byPos.values) {
-      await txn.insert(DbSchema.tXrayMention, {
-        'entity_id': entityId,
-        'book_md5': md5,
-        'ch': m.ch,
-        'para': m.para,
-        'snippet': m.snippet,
-      });
-    }
+    return byPos.values.toList();
   }
 
   /// 面板主查询：某类型按置信分倒序；读侧口径＝**在册两条状态**（active/user_added），
