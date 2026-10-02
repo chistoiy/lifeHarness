@@ -9,7 +9,7 @@ import os, re, subprocess, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
-out = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "docs", "AGENTS.md"],
+out = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "docs", "AGENTS.md", "README.md"],
                      capture_output=True, text=True, encoding="utf-8").stdout.splitlines()
 skip = ("docs/archive/", "docs/superpowers/", "docs/预研/")
 targets = [p for p in out if p.endswith(".md") and not p.startswith(skip)]

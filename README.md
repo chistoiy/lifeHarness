@@ -1,7 +1,7 @@
 # LifeHarness
 
-个人生活管理 Android 应用（Flutter + sqflite 离线优先，规划 WebDAV 多设备同步）。
-单一应用收纳 待办 / 日程 / 记录（日记·笔记·阅读·影音游）/ 收集箱 / 记账 / 习惯 / 母婴呵护 / 健康 等生活模块。
+个人生活管理 Android 应用（Flutter + sqflite 离线优先，WebDAV/S3 双云同步已落地）。
+单一应用收纳 待办 / 日程 / 记录（日记·笔记·阅读）/ 收集箱 / 记账 / 习惯 / 母婴呵护 / 日子·物品·目标 / X-Ray 全书索引 等生活模块。
 
 ## 安装（Release APK）
 
@@ -12,6 +12,7 @@
    - `app-x86_64-release.apk` — 模拟器 / x86 设备
 3. 安装前需允许「安装未知来源应用」。要求 Android 8.0+（minSdk 26）。
 4. 应用为本地数据版：卸载会删除本机数据库，升级安装（同签名）不会丢数据。
+5. 另有 Gitee 私有镜像同 tag 挂包（内网/国内下载更快）。
 
 ## 从源码运行
 
@@ -23,15 +24,19 @@ flutter run
 ```
 
 - sqlite3 原生库离线预置在 `tools/sqlite3/`（构建 workaround，见其 README）。
-- 测试：`flutter test --no-pub`（全 app 用例须独立文件，见 `test/helpers.dart` 注释）。
+- 测试：批内增量按点名文件跑（推荐 `bash tools/ftest.sh`，全仓单轨、勿并发）；
+  收口/发版才跑全量 `bash tools/run_gate.sh`（独占资源约 12 分钟，内置文档门禁前置）。
 
 ## 仓库导览
 
 | 路径 | 说明 |
 |---|---|
-| `prototype/index.html` | 高保真单文件原型（UI 唯一事实源，双击浏览器即可体验） |
-| `docs/需求清单.md` | 需求唯一依据（含版本决策记录） |
-| `docs/开发计划书.md` | 里程碑、SOP 门序、两档批次流程 |
-| `docs/交接文档.md` | 当前状态 / 下一步 / 完整变更日志（接手人先读） |
-| `docs/UI组件规范.md` | LH 编号组件词典 |
-| `lib/` | Flutter 源码（core / features / shared，架构守护测试 R1~R4） |
+| `AGENTS.md` + `CLAUDE.md` | **AI 协作者入口**：禁令/环境/门禁/会话口令（开工·收尾·记一下） |
+| `docs/STATUS.md` | 唯一状态源：当前 HEAD/发版/DB/门禁基线/下一站/并行互斥面 |
+| `docs/INDEX.md` | 文档地图：按任务路由该读哪几份，不通读 docs/ |
+| `docs/需求清单.md` | 现行需求定义（逐版修订在 `docs/archive/需求修订史-*.md`） |
+| `docs/开发计划书.md` | 流程口径：十道门 SOP、发版 §7.1、测试调度 §7.2、工程红线 §五 |
+| `docs/UI组件规范.md` | LH-xx 组件词典（UI 微调指令的公共语言） |
+| `prototype/index.html` | 高保真单文件原型（共享面 UI 唯一事实源；各模块另有专版） |
+| `docs/handoff/` · `docs/archive/` | 活工单（批次规格） · 闭环归档（卷宗只进不出） |
+| `tools/` | 门禁与工装：`run_gate.sh`、`ftest.sh`、`doclint.py`（文档死链+漂移守护） |
