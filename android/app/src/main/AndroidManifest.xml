@@ -30,6 +30,15 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- R3-1（真机轮3 P0）：关掉 embedding 的 deeplink 路由通路。默认为开：
+                 冷启动把 VIEW intent 的 data（content://…）当初始路由塞给 go_router
+                 （GoException 错误页），热启动同走 pushRouteInformation。本 App 没有
+                 URL 深链需求，打开方式 EPUB 由 MainActivity lh/intents 入队、Dart 侧
+                 takeEpubUri 消费，不依赖这条路由，整路掐掉。activity 级元数据，
+                 FlutterActivity 只读 ActivityInfo.metaData，不放 application 级。 -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

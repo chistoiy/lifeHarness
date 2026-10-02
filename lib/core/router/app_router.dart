@@ -29,6 +29,8 @@ import '../theme/app_theme.dart';
 
 import '../../shared/linkage/timer_bar_overlay.dart';
 
+import '../../shared/widgets/ui_kit.dart' show AppToast;
+
 // V1.52 批4：时间账本（L4 分类时长统计 · 日/周/月/年四档）。
 
 import '../../features/dashboard/presentation/dashboard_providers.dart';
@@ -56,6 +58,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: _rootKey,
 
     initialLocation: '/',
+
+    // R3-1③：未知 location 不再落 GoException 工程错误页（见 unknownRouteFallback）。
+
+    errorBuilder: unknownRouteFallback,
 
     routes: [
 
@@ -122,6 +128,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 
 });
+
+/// R3-1③ 通用护栏（真机轮3 P0 兜底）：任何未知 location —— 含冷启动 intent
+/// data 混进路由层这类 —— 不再落 go_router 的 GoException 工程错误页
+/// （白底甩异常文案、只有一个 Home 钮）。本帧落定后回首页并给一条可读提示；
+/// 首页是已注册路由，不会再二次进 fallback。
+
+Widget unknownRouteFallback(BuildContext context, GoRouterState state) =>
+    const _UnknownRouteHome();
+
+class _UnknownRouteHome extends StatefulWidget {
+  const _UnknownRouteHome();
+
+  @override
+  State<_UnknownRouteHome> createState() => _UnknownRouteHomeState();
+}
+
+class _UnknownRouteHomeState extends State<_UnknownRouteHome> {
+  @override
+  void initState() {
+    super.initState();
+    // errorBuilder 在 build 期被调用，导航与弹提示都必须等本帧落定。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppToast.show(context, '页面不存在，已回到首页');
+      context.go('/');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
 
 /// V1.27 G1 返回语义（纯函数便于守护）：
 
