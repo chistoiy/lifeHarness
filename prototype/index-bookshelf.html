@@ -1933,6 +1933,13 @@ tailwind.config = {
     #brBackJump{background:rgba(15,23,42,.9);color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.3)}
     #brNoteCard{box-shadow:0 10px 30px rgba(15,23,42,.28)}
     .br-sup{color:#6366F1;font-size:.72em;vertical-align:super;cursor:pointer;padding:0 1px}
+    /* R3-2 止血样本 · R3-6 简繁：注释编号=正文色（不套链接绿）；注释体小一号；标题分级读书内字号；书自带缩进段单缩不叠 */
+    .br-supn{color:inherit;font-size:.72em;vertical-align:super;cursor:pointer;padding:0 1px}
+    .brp-fn{font-size:.8em;opacity:.72;line-height:1.5;margin:0 0 .7em}
+    .brp-h1{font-size:1.65em;font-weight:900}
+    .brp-h2{font-size:1.4em;font-weight:800}
+    .brp-own{text-indent:2.4em}
+    .br-just .brp{text-align:justify}
     #brSelBar::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--card);border-bottom:0;filter:drop-shadow(0 1px 1px rgba(15,23,42,.22));pointer-events:none}
     #brSelBar.flip::after{bottom:auto;top:-7px;border-top-color:transparent;border-bottom:7px solid var(--card);filter:drop-shadow(0 -1px 1px rgba(15,23,42,.22))}
     .br-ibtn{width:46px;height:42px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;font-weight:700;opacity:.72;cursor:pointer}
@@ -3099,6 +3106,8 @@ tailwind.config = {
           <div class="text-[9px] text-slate-400">越淡越好读；点「无」回到纯色背景</div>
         </div>
 
+        <div><div class="text-xs font-bold mb-1.5">两端对齐</div><div class="flex gap-1.5" id="brApJust"></div></div>
+        <div><div class="text-xs font-bold mb-1.5">简繁（仅正文显示层 · 原文不动）</div><div class="flex gap-1.5" id="brApS2T"></div></div>
         <div><div class="text-xs font-bold mb-1.5">字体（系统字体 · 可扩展下载，控制包体积）</div><div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="brApFonts"></div></div>
         <div class="space-y-2.5 pb-1">
           <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
@@ -5201,7 +5210,8 @@ let BS_BOOKS=[
  {id:'b9',n:'万历十五年',a:'黄仁宇',st:'已读',p:100,pg:278,rp:278,q:33,tags:['历史'],c:2,rate:4.5,isbn:'9787101054491',pub:'中华书局',yr:2006,src:'自购',start:'01-06',end:'02-14',min:388,times:14,note:'数目字管理',fin:'大历史观的大头贴'},
  {id:'b10',n:'非暴力沟通',a:'马歇尔·卢森堡',st:'想读',p:0,pg:232,rp:0,q:0,tags:['心理学','方法论'],c:1,rate:4,isbn:'9787507419954',pub:'中国华夏',yr:2009,src:'豆瓣导入',start:'',end:'',min:0,times:0,note:'观察而非评判',fin:''},
  {id:'b11',n:'科学美国人·合集',a:'SA 编辑部',st:'已读',p:100,pg:120,rp:120,q:9,tags:['科普'],c:5,rate:3.5,isbn:'—',pub:'—',yr:2025,src:'导入 MD',start:'03-01',end:'08-30',min:150,times:30,note:'零散合集',fin:''},
- {id:'b12',n:'卡拉马佐夫兄弟',a:'陀思妥耶夫斯基',st:'想读',p:0,pg:780,rp:0,q:0,tags:['小说'],c:0,rate:5,isbn:'9787020024759',pub:'人民文学',yr:2002,src:'豆瓣导入',start:'',end:'',min:0,times:0,note:'信仰与自由意志',fin:''}];
+ {id:'b12',n:'卡拉马佐夫兄弟',a:'陀思妥耶夫斯基',st:'想读',p:0,pg:780,rp:0,q:0,tags:['小说'],c:0,rate:5,isbn:'9787020024759',pub:'人民文学',yr:2002,src:'豆瓣导入',start:'',end:'',min:0,times:0,note:'信仰与自由意志',fin:''},
+ {id:'b13',n:'資治通鑑 特殊標點版（古籍樣本）',a:'司馬光',st:'想读',p:0,pg:120,rp:0,q:0,tags:['历史','古籍'],c:2,rate:0,isbn:'—',pub:'中华书局',yr:2011,src:'本地 EPUB',start:'',end:'',min:0,times:0,note:'注释体/简繁演示样本',fin:''}];
 let BS_QUOTES=[
  {b:'b1',ty:'划线',tg:'重点',ch:'第1章',pg:24,dt:'08-02',x:'任何事物只要通过一个人人都能读懂的话语相互联系，就能形成一套信念体系。',th:''},
  {b:'b1',ty:'划线',tg:'待查证',ch:'第3章',pg:88,dt:'08-14',x:'损失厌恶系数约为 2，失去 100 元的痛大于得到 100 元的乐。',th:'这其实就是损失厌恶在日常决策里的投影：昨天砍价成功的快乐，抵不上今天丢件货物的心痛。',fav:1},
@@ -5226,6 +5236,7 @@ let BS_QUOTES=[
 /* 小节五元组＝[标题, 状态, 摘录数, 起始页, 页码是否为 AI 估算]（2026-09-26「真值优先 + 估算兜底」）：
    第 1~2 部分前段为粘贴目录带出的真值，第 2 部分后段与第 3 部分为估算值（行尾标「估」，编辑态可就地改）。 */
 let BS_TOC={b1:[['第1部分 系统1 · 系统2',null,[['1 两位主角：系统1与系统2','done',5,1,false],['2 多任务','done',3,23,false],['3 懒惰的大脑','done',4,41,false],['4 联想思维','done',2,57,false]]],['第2部分 启发式',null,[['5 系统1擅长天真轻信','done',6,85,false],['6 常态与异常','done',1,103,false],['7 确定效应','done',4,119,false],['8 时间折扣','read',2,137,false],['9 损失厌恶',null,3,153,true],['10 禀赋效应',null,1,171,true]]],['第3部分 自我控制',[['11 认知偏误',null,0,195,true],['12 事前验尸法',null,0,213,true],['15 社会偏好',null,0,237,true],['20 结论：两种自我',null,0,265,true]]]]};
+BS_TOC.b13=[['卷第一',null,[['周紀一 · 三家分晋',null,0,1,false],['周紀二 · 智氏之亡',null,0,24,false],['臣光曰 · 禮為大',null,0,41,false]]]];
 const BS_GOAL={year:2026,books:50,dayMin:30,weekMin:210,monthBooks:4,monthQuotes:40,weekDays:5,remind:true,remindMin:21*60};
 /* 全年阅读日志（确定性伪随机 · 时长分钟） */
 const BS_LOG=(()=>{const a=[];let s=20260101;for(let i=0;i<365;i++){s=(s*1103515245+12345)&0x7fffffff;const dow=(i+4)%7;let v=0;
@@ -7136,7 +7147,7 @@ function brRx(s){return (s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function brNorm(t){return (t||'').replace(/[，。、：；·！？,.\s:;!?《》]/g,'').toLowerCase()}
 
 /* ---- 配置 / 位置（逐书独立记忆 · localStorage 持久化） ---- */
-const BR_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'system',bright:false,auto:false,autoSecs:10,mode:'page'};
+const BR_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'system',bright:false,auto:false,autoSecs:10,mode:'page',just:false,s2t:'orig'};
 let brCfg=JSON.parse(JSON.stringify(BR_DEF)),brBooksCfg={},brPos={},BR_LOCAL_HL=[];/* brSync 关时的高亮暂存 */
 function brSt(bid){return Object.assign({},brCfg,brBooksCfg[bid]||{})}
 function brPersist(){try{localStorage.setItem('lh_reader_bs_v1',JSON.stringify({cfg:brCfg,bcfg:brBooksCfg,pos:brPos,hl:BR_LOCAL_HL}))}catch(e){}}
@@ -7189,6 +7200,30 @@ BR_TXT['b1|20 结论：两种自我']=[{k:'h',t:'20 结论：两种自我'},
  {k:'p',t:'体验的自我活在当下，记得的自我负责讲述。两者会打架：一段痛苦的旅程，若结尾平顺，回忆反而温柔。'},
  {k:'p',t:'峰终定律告诉我们：记忆给经历打分，只看峰值与结尾，几乎无视时长。'},
  {k:'p',t:'读书亦然。读完一本书的「你」，和读到一半的「你」，共享同一串被编辑过的记忆。'}];
+/* R3-2 古籍/注释体样本语料（自撰概要式文言·繁体）：脚注编号+页末注释小字+书自带缩进段+站内锚点+标题分级 */
+BR_TXT['b13|周紀一 · 三家分晋']=[
+ {k:'h',lv:1,t:'資治通鑑卷第一'},
+ {k:'h',lv:2,t:'周紀一'},
+ {k:'p',own:1,t:'起著雍攝提格，盡戊申，凡一年有奇。'},
+ {k:'p',t:'司馬光編年，上起三家分晉，下訖五代，千有餘載，刪繁就簡，勒為一編。',sup:1,fn:'溫公書成，奏進曰：專取關國家之盛衰、系生民之休戚者。'},
+ {k:'p',t:'初，智宣子將以瑤為後。智果曰：不如宵也。瑤之賢五，而甚一者三：美鬢長大則賢，賦資聽敏則作，善文能辯則通。',sup:2,fn:'智果，別族也。賢五，謂五事勝人；甚一，謂不仁過於人。'},
+ {k:'fn',t:'胡三省注：作，謂能創制；通，謂文辭明達。三者皆才之美，而不仁者藉之，是資盜糧也。'},
+ {k:'p',t:'卒立瑤。趙氏之禍，懸於晉陽之城，而機動於晉陽之外。事詳後卷，說在禮名。'},
+ {k:'p',t:'讀者欲知其詳，可參看',lnk:{to:1,label:'下一卷 · 智氏之亡'}},
+ {k:'h',lv:2,t:'臣光曰'},
+ {k:'p',t:'臣聞天子之職莫大於禮，禮莫大於分，分莫大於名。',sup:3,fn:'分，謂君臣位分；名，謂公侯卿大夫之名號。'},
+ {k:'q',t:'名位大事，上下之紀也。禮敗則國隨之。'},
+ {k:'p',t:'由此觀之，非禮則無以為治，古今一也。'}];
+/* R3-6 简繁演示字形表：仅覆盖古籍样本章与常用字（1:1 字形替换，不吞多音合并）；
+   正式实现＝全量映射表在渲染层转换，库存原文与检索/摘录一律不动。 */
+const BR_T='資鑑紀攝盡馬編晉訖載刪簡為將瑤後賢鬢長賦聽辯趙滅懸於陽機動詳說禮聞職觀隨國謂創辭達盜糧關則參進專讀';
+const BR_H='资鉴纪摄尽马编晋讫载删简为将瑶后贤鬓长赋听辩赵灭悬于阳机动详说礼闻职观随国谓创辞达盗粮关则参进专读';
+const BR_T2S={},BR_S2T={};
+for(let i=0;i<BR_T.length;i++){BR_T2S[BR_T[i]]=BR_H[i];BR_S2T[BR_H[i]]=BR_T[i]}
+function brConv(bid,t){if(!t)return t;const m=brSt(bid).s2t||'orig';
+  if(m==='s')return t.replace(/[資鑑紀攝盡馬編晉訖載刪簡為將瑤後賢鬢長賦聽辯趙滅懸於陽機動詳說禮聞職觀隨國謂創辭達盜糧關則參進專讀]/g,c=>BR_T2S[c]);
+  if(m==='t')return t.replace(/[资鉴纪摄尽马编晋讫载删简为将瑶后贤鬓长赋听辩赵灭悬于阳机动详说礼闻职观随国谓创辞达盗粮关则参进专读]/g,c=>BR_S2T[c]);
+  return t}
 function brChText(bid,ch){const key=bid+'|'+ch;if(BR_TXT[key])return BR_TXT[key];
   const n=6+(brHash(key)%5);const out=[{k:'h',t:ch}];
   for(let i=0;i<n;i++)out.push({k:'p',t:'围绕「'+ch+'」，'+BR_S[brHash(key+i)%BR_S.length]+'这一节在第 '+(brLeaves(bid).indexOf(ch)+1)+' 章的脉络里承上启下。'});
@@ -7200,13 +7235,16 @@ let brPagCache={};
 function brPagesOf(bid,ci){const st=brSt(bid);const ch=brLeaves(bid)[ci];const key=bid+'|'+ci+'|'+st.fs+'|'+st.lh+'|'+st.ls+'|'+st.mar;
   if(brPagCache[key])return brPagCache[key];
   const W=390-st.mar*2,H=700-st.mar*2,fs=st.fs;const cpl=Math.max(6,Math.floor(W/(fs*(1+st.ls*0.03))));
-  const arr=brChText(bid,ch);const ph=arr.map(x=>{const len=(x.t||'').length;
-    if(x.k==='h')return {h:fs*1.6+14};if(x.k==='img')return {h:190};
-    const lines=Math.max(1,Math.ceil((len+2)/cpl));return {h:lines*fs*st.lh+(x.k==='q'?18:7)}});
+  const arr=brChText(bid,ch);const ph=arr.map(x=>{const len=(x.t||'').length+(x.lnk?x.lnk.label.length+2:0);
+    if(x.k==='h')return {h:fs*(x.lv===1?2.4:x.lv===2?1.9:1.6)+14};if(x.k==='img')return {h:190};
+    const lines=Math.max(1,Math.ceil((len+2)/cpl));
+    if(x.k==='fn')return {h:lines*fs*.8*st.lh+6};
+    return {h:lines*fs*st.lh+(x.k==='q'?18:7)}});
   const pages=[];let cur=[],h=0;
   for(let i=0;i<arr.length;i++){const x=ph[i];const add=cur.length?8:0;
     if(h+add+x.h>H&&cur.length){pages.push(cur);cur=[];h=0}else if(cur.length)h+=8;
     cur.push(i);h+=x.h}
+  if(cur.length&&(!pages.length||pages[pages.length-1]!==cur))pages.push(cur);/* 修存量缺陷：末段 cur 从未入页=每章尾页丢失 */
   if(!pages.length)pages.push([0]);
   brPagCache={};brPagCache[key]=pages;return pages}
 function brTotal(bid){return brLeaves(bid).reduce((s,c,i)=>s+brPagesOf(bid,i).length,0)}
@@ -7236,10 +7274,13 @@ function brSvgFig(){return `<svg viewBox="0 0 300 170" style="width:100%;display
   <path d="M20 40 L 280 150" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4"/>
   <line x1="20" y1="156" x2="280" y2="156" stroke="#cbd5e1"/><line x1="20" y1="34" x2="20" y2="156" stroke="#cbd5e1"/>
   <text x="236" y="166" font-size="8" fill="#94a3b8">EPUB3 · image/svg+xml</text></svg>`}
-function brParaInner(bid,ci,x,pi){let inner=brEsc(x.t);
+function brParaInner(bid,ci,x,pi){let inner=brEsc(brConv(bid,x.t));
   const ch=brLeaves(bid)[ci];
   if(bid==='b1'&&ch==='4 联想思维'&&pi===2)inner+='<span class="br-sup" onclick="event.stopPropagation();brNoteShow(\'锚定：启发式之一，判断受最先取得的信息支配，见附录「启发式与偏差清单」。\',brV.ci,2)">1</span>';
   if(bid==='b1'&&ch==='4 联想思维'&&pi===8)inner='延伸阅读清单见附录（<span class="br-link" onclick="event.stopPropagation();brGotoCh(12)">内链跳 20 结论：两种自我</span>），原始材料发布于 <span class="br-link" onclick="event.stopPropagation();brExtLink(\'https://princeton.edu/kaneman/experiments\')">princeton.edu</span>（外链）。';
+  /* R3-2 数据驱动注入：脚注编号（正文色小字·点击出注释卡）与站内锚点（正文色+下划线） */
+  if(x.fn)inner+='<span class="br-supn" onclick="event.stopPropagation();brNoteShow(\''+brEsc(x.fn)+'\',brV.ci,'+pi+')">'+(x.sup||1)+'</span>';
+  if(x.lnk)inner+='（<span class="br-link" onclick="event.stopPropagation();brGotoCh('+x.lnk.to+')">'+brEsc(x.lnk.label)+'</span>）';
   if(brV.hit&&brV.hitPi===pi&&brV.hit&&brV.hit.ci===ci&&brV.hit.q)inner=inner.replace(new RegExp(brRx(brEsc(brV.hit.q)),'g'),m=>`<span class="br-cur">${m}</span>`);
   const sel=brV.sel;
   if(sel&&sel.ci===ci&&pi>=sel.p0&&pi<=sel.p1&&x.k!=='img'){
@@ -7252,14 +7293,16 @@ function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci
   document.getElementById('brBody').innerHTML='';const fam=BR_FONTS[st.font]?BR_FONTS[st.font][1]:BR_FONTS.system[1];
   const arr=brChText(bid,ch);
   const mk=(x,pi)=>{if(x.k==='img')return `<div class="brp-i" data-pi="${pi}" onclick="event.stopPropagation();brImgOpen('${brEsc(x.t)}')">${brSvgFig()}<figcaption>${brEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;
-    const hl=brHlAt(bid,brV.ci,pi);const sty=x.k==='h'?'class="brp brp-h"':x.k==='q'?'class="brp brp-q"':'class="brp"';
+    const hl=brHlAt(bid,brV.ci,pi);const sty=x.k==='h'?'class="brp brp-h'+(x.lv===1?' brp-h1':x.lv===2?' brp-h2':'')+'"':x.k==='q'?'class="brp brp-q"':x.k==='fn'?'class="brp brp-fn"':x.own?'class="brp brp-own"':'class="brp"';
     return `<p ${sty} data-pi="${pi}" ${hl?`style="background:${hl.c}44;padding:1px 2px;border-radius:3px"`:''}>${brParaInner(bid,brV.ci,x,pi)}${hl&&hl.th?`<span class="br-pulse" style="background:#f97316;margin-left:4px;display:inline-block" onclick="event.stopPropagation();brQuoteOf('${hl.rid}')"></span>`:''}</p>`};
   if(brV.mode==='scroll'){const box=document.createElement('div');
     box.style.cssText=`font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:${st.mar+30}px ${st.mar}px ${st.mar+56}px`;
+    if(st.just)box.classList.add('br-just');
     box.innerHTML=arr.map((x,pi)=>mk(x,pi)).join('');document.getElementById('brBody').appendChild(box)}
   else{const pages=brPagesOf(bid,brV.ci);brV.pg=Math.min(brV.pg,pages.length-1);
     const wrap=document.createElement('div');
     wrap.style.cssText=`display:flex;flex-direction:column;justify-content:center;height:100%;font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:calc(${st.mar}px + 40px) ${st.mar}px calc(${st.mar}px + 46px)`;
+    if(st.just)wrap.classList.add('br-just');
     let body=pages[brV.pg].map(pi=>mk(arr[pi],pi)).join('');
     if(brV.ci===brLeaves(bid).length-1&&brV.pg>=pages.length-1)body+='<p class="brp" style="text-indent:0;opacity:.55;text-align:center">—— 全书完 ——</p>';
     wrap.innerHTML=body;if(anim)wrap.classList.add('br-swig');
@@ -7787,6 +7830,8 @@ function brApCtl(){const d=brDraft;
   document.getElementById('brApLs').value=d.ls;document.getElementById('brApLsV').textContent=(+d.ls).toFixed(1);
   document.getElementById('brApMar').value=d.mar;document.getElementById('brApMarV').textContent=d.mar<=12?'窄':d.mar>=36?'宽':'中';
   document.getElementById('brApThemes').innerHTML=Object.entries(BR_THEMES).map(([k,v])=>`<button class="br-themecard ${d.theme===k?'on':''} rounded-xl p-2 text-center" style="background:${v.bg};color:${v.fg}" onclick="brApSet('theme','${k}')"><div class="text-[10px] font-black">${v.n}</div><div class="text-[7px] opacity-70 mt-0.5">Aa 阅读示例</div></button>`).join('');
+  document.getElementById('brApJust').innerHTML=[['off','左对齐'],['on','两端对齐']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${(!!d.just)===(k==='on')?'on':''}" onclick="brApSet('just',${k==='on'})">${l}</button>`).join('');
+  document.getElementById('brApS2T').innerHTML=[['orig','跟随原书'],['s','简体'],['t','繁体']].map(([k,l])=>`<button class="seg-pill !text-[11px] ${(d.s2t||'orig')===k?'on':''}" onclick="brApSet('s2t','${k}')">${l}</button>`).join('');
   document.getElementById('brApFonts').innerHTML=Object.entries(BR_FONTS).map(([k,v])=>`<button class="br-fs ${d.font===k?'on':''} rounded-xl px-3 py-2 text-[11px] font-bold shrink-0" style="font-family:${v[1]}" onclick="brApSet('font','${k}')">${v[0]}</button>`).join('');
   document.getElementById('brApBright').classList.toggle('on',!!d.bright);document.getElementById('brApAuto').classList.toggle('on',!!d.auto);
   document.getElementById('brApAutoLbl').textContent=d.auto?d.autoSecs+' 秒':'关';
@@ -8207,6 +8252,13 @@ function br35Seed(){
  if(m==='choice')brAiOpen();
  if(m==='review'){brAiOpen();brAiPick('explain')}
 }catch(e){console.warn('br57',e)}})();
+/* V1.54 真机轮3 R3-2/R3-6 深链：?r32=anc → 古籍注释体样本 · ?r32=s → 同屏简体态 · ?r32=ap → 外观弹层（两端对齐/简繁两行） */
+(function r32Boot(){try{
+  const m=(location.search.match(/r32=(\w+)/)||[])[1];if(!m)return;
+  if(m==='anc'||m==='s'){brOpen('b13');brShowChrome();
+    if(m==='s'){brBooksCfg.b13=Object.assign(brBooksCfg.b13||{},{s2t:'s'});brPagCache={};brRenderPage()}}
+  else if(m==='ap'){brOpen('b13');brShowChrome();openSheet('sheetBrAppearance');brApOpen()}
+}catch(e){console.warn('r32',e)}})();
 /* ================= V1.54 X-Ray 全书索引 · 批2 v2（上拉面板「目录｜X-Ray」· Kindle 图2/3 形态 · ?xr= 深链） =================
    屏1 解析范围 ?xr=scope ｜ 屏2 书架入口+角标 ?xr=shelf / ?xr=menu
    屏3 面板（上拉段内：范围段+类型段+当前页分组+词条行内分布条）?xr=panel ｜ 详情（段内子页）?xr=ent / 跳转 ?xr=jump
