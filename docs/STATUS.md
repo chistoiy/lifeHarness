@@ -2,7 +2,7 @@
 
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 
-- 分支 `feat/m0-skeleton`；远端进度：治理二轮与 F01 规格共 11 笔提交**已双端推送对齐**（Gitee https / GitHub ssh-on-443，2026-10-02 用户授权）；本地无未推提交链。
+- 分支 `feat/m0-skeleton`；远端进度：治理二轮+守护升级+方案库沉淀记录**已双端推送对齐**（Gitee https / GitHub ssh-on-443，2026-10-02 用户授权）；本地无未推提交链。
 - 最新预发布 **`v0.2.9-reader-r3`**（钉版 `79473f5`＝`0.2.9+4046`）· DB `DbSchema.version=34` · 全量门禁基线 **1786 绿 / 0 红**（治理二轮零代码改动，基线不变）。
 - 复测包 worktree：`D:/dev_workplace/flutter_te/lh-r31` 复用（`git reset --hard <自己的提交>`）；出包 `--release --target-platform android-arm64 --build-number=60xx`，**下一个编号 6047**。
 - 下一站：**治理二轮已收口（本会话 · 未推送，推送待用户同意）**→ 顺延批 = F01-批C-R32 精修（规格 `docs/handoff/交棒话术-20261002-下一版实现批-F01-批C-R32精修.md`）。治理后口径：文档路由看 INDEX，状态只看本文，死链体检 `python tools/doclint.py`（批次收口随跑）。

@@ -48,6 +48,17 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 
 `build/`、`.dart_tool/`、`flutter_0*.log`、`device_logcat.txt`、`docs/acceptance*`（历史截图目录，已出仓）、`tmp/`、根目录 `*.apk`、`tools/*.log`、`tools/attic/`、`prototype/shots/`、`tools/` 下浏览器用户数据目录（`.*-profile`、`.f01-probe`、`.xr-probe*`）。
 
+## 会话收尾仪式（每轮工作结束前，用户说「收尾」即按此执行）
+
+1. 门禁：受影响测试 + 文档改动随跑 `python tools/doclint.py`，红灯清零。
+2. 状态：只更新 `docs/STATUS.md`（HEAD/发版/DB/门禁数/下一站/互斥面）。
+3. 工单流转：已闭环批次 `git mv` 入 `docs/archive/`，INDEX 更新对应行。
+4. 登记：交接文档 §5 变更日志追加 ≤3 行（结论+提交+发版），细节留在工单里。
+5. 提交：文件级 pathspec 局部提交；推送/发版另行取得同意。
+6. 可复用方案按 developSummary 模板沉淀（用户点名时）。
+
+新会话开工只需一句：「读 AGENTS.md → docs/STATUS.md → docs/INDEX.md，按 STATUS 下一站指向的活工单开工」；复杂批次再按计划书 §7.4 开场白模板补规格引用。
+
 ## 下指令/接任务口径
 
 - 用户以「LH-xx 组件名 调整项」下 UI 指令；批次工单以对应 `docs/handoff/*.md` 为唯一规格，不复述内容。
