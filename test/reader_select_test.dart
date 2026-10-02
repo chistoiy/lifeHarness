@@ -187,6 +187,41 @@ void main() {
     return m == null ? -1 : int.parse(m.group(1)!);
   }
 
+  /// 轮4①：收集带底色 span 的文本（精确铺底的验表面；根样式无背景，只认子 span）。
+  List<String> paintedTexts(WidgetTester t, String key) {
+    final rt = t.widget<RichText>(
+      find.descendant(
+        of: find.byKey(ValueKey(key)),
+        matching: find.byType(RichText),
+      ),
+    );
+    final out = <String>[];
+    void walk(InlineSpan s) {
+      if (s is! TextSpan) return;
+      if (s.style?.backgroundColor != null && (s.text?.isNotEmpty ?? false)) {
+        out.add(s.text!);
+      }
+      for (final c in s.children ?? const <InlineSpan>[]) {
+        walk(c);
+      }
+    }
+    walk(rt.text);
+    return out;
+  }
+
+  /// 段 wrap Container 的底色（轮4① 后精确划线＝null，整段旧行＝非 null）。
+  Color? containerColor(WidgetTester t, String tapKey) {
+    final box = t.widget<Container>(
+      find
+          .descendant(
+            of: find.byKey(ValueKey(tapKey)),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    return (box.decoration as BoxDecoration?)?.color;
+  }
+
   /// 轮5①：拖选区手柄到目标段的某条边（tail＝下沿／head＝上沿），x＝段内横向比例。
   Future<void> dragHandle(
     WidgetTester t,
@@ -331,16 +366,12 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       expect(q.chapter, '第一章');
       expect(q.cf!.covers(0, 3), isTrue);
       expect(q.cf!.covers(0, 4), isFalse);
-      // 色底：该段 wrap Container 有非空底色装饰。
-      final box = t.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('brpTap-0-3')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      expect((box.decoration as BoxDecoration?)?.color, isNotNull);
+      // 轮4①：cf 带字符偏移落库，色底只铺所选字（span 级）；Container 不再整段涂。
+      expect(q.cf!.o0, isNotNull, reason: 'cf 必须携带字符偏移');
+      expect(q.cf!.o1, isNotNull);
+      expect(paintedTexts(t, 'brp-0-3').join(), q.body);
+      expect(containerColor(t, 'brpTap-0-3'), isNull,
+          reason: '精确划线不得整段铺底');
       await clearToasts(t);
 
       // 删除互清：再选同段 → 删划线 → 书摘行软删（quotesOf 不再返回）。
@@ -369,17 +400,10 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       expect(list.single['tg'], '重点');
       expect((list.single as Map)['c'], 0);
       // 真机反馈⑤候选2补票：这条分支旧实现只断言了 kv，渲染从未被覆盖——
-      // 暂存行同样必须让段落 Container 出现非空底色。
-      final box = t.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('brpTap-0-4')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
+      // 轮4① 后暂存行同样带偏移，色底走 span 级精确铺底（Container 不整段涂）。
+      expect(paintedTexts(t, 'brp-0-4').join(), isNotEmpty,
           reason: 'brSync 关的暂存划线也要真的铺上色底');
+      expect(containerColor(t, 'brpTap-0-4'), isNull);
       await clearToasts(t);
     });
 
@@ -410,16 +434,10 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       final qs = await repo.quotesOf('s13');
       expect(qs, hasLength(1), reason: '删后重划必须重新入账');
       expect(qs.single.cf, isNotNull);
-      final box = t.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('brpTap-0-3')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
-          reason: '重划后正文必须上色');
+      expect(paintedTexts(t, 'brp-0-3').join(), isNotEmpty,
+          reason: '重划后正文必须上色（span 级）');
+      expect(containerColor(t, 'brpTap-0-3'), isNull,
+          reason: '轮4① 重划也不得整段铺底');
       await clearToasts(t);
     });
 
@@ -444,15 +462,7 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       final r0 = t.getRect(find.byKey(const ValueKey('brpTap-0-4')));
       await t.tapAt(Offset(210, r0.bottom + 5));
       await step(t);
-      var box = t.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('brpTap-0-4')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      expect((box.decoration as BoxDecoration?)?.color, isNull,
+      expect(containerColor(t, 'brpTap-0-4'), isNull,
           reason: '无 cf 的书摘行不该铺色');
       // 再对同句划线：dedup 撞在库行 → 修法＝给该行补 cf 并提示已定位
       await selectPara(t, 'brpTap-0-4');
@@ -465,16 +475,64 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       expect(qs, hasLength(1), reason: '撞车不新增行，只给已有行补 cf');
       expect(qs.single.cf, isNotNull);
       expect(qs.single.tag, '重点');
-      box = t.widget<Container>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('brpTap-0-4')),
-              matching: find.byType(Container),
-            )
-            .first,
-      );
-      expect((box.decoration as BoxDecoration?)?.color, isNotNull,
-          reason: '补 cf 后当屏即上色');
+      expect(paintedTexts(t, 'brp-0-4').join(), isNotEmpty,
+          reason: '补 cf 后当屏即上色（轮4① span 级精确铺底）');
+      expect(containerColor(t, 'brpTap-0-4'), isNull);
+      await clearToasts(t);
+    });
+
+    testWidgets('轮4① 段中选一句划线 → 只该句铺底，段内其余字干净（重开仍精确）', (t) async {
+      // 真机反馈（图6）：选一句划线整段近满页涂色。根因＝cf 只存段区间。
+      await repo.setKv('read.brSelGran', '选句');
+      await openReader(t, _doc(), 's15');
+      const para = '三之0。$_lorem';
+      final r0 = t.getRect(find.byKey(const ValueKey('brpTap-0-3')));
+      // 末行中段长按 → 确定性命中第二句（o0>0，首句与缩进前缀都不该带色）。
+      await t.longPressAt(Offset(r0.left + r0.width * .5, r0.bottom - 5));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-共鸣')));
+      await step(t, ms: 300);
+      final q = (await repo.quotesOf('s15')).single;
+      expect(q.body, _lorem);
+      expect(q.cf!.o0, '三之0。'.length, reason: '偏移必须落库（变异校验点）');
+      expect(q.cf!.o1, para.length);
+      expect(paintedTexts(t, 'brp-0-3').join(), _lorem,
+          reason: '底色只吃所选句，不含缩进前缀与首句');
+      expect(containerColor(t, 'brpTap-0-3'), isNull,
+          reason: '精确划线不得整段铺底');
+      await clearToasts(t);
+      // 重开阅读器：库内行重读后仍按字符区间铺底（不是整段）。
+      await t.pumpWidget(wrap(const SizedBox.shrink(), _doc()));
+      await step(t);
+      await t.pumpWidget(wrap(ReaderPage(bookId: 's15'), _doc()));
+      await step(t, times: 4);
+      expect(paintedTexts(t, 'brp-0-3').join(), _lorem);
+      expect(containerColor(t, 'brpTap-0-3'), isNull);
+      await clearToasts(t);
+    });
+
+    testWidgets('轮4① 旧数据（cf 无偏移）→ 维持整段铺底旧行为', (t) async {
+      await openReader(t, _doc(), 's16');
+      await selectPara(t, 'brpTap-0-3');
+      await t.tap(find.byKey(const ValueKey('brSelHl')));
+      await step(t);
+      await t.tap(find.byKey(const ValueKey('brColor-共鸣')));
+      await step(t, ms: 300);
+      // 模拟 V1.59 轮4 前的存量行：抹掉偏移键（JSON 列内直改）。
+      final q = (await repo.quotesOf('s16')).single;
+      expect(q.cf!.isPrecise, isTrue);
+      await db.update('book_quotes', {'cf': '{"c":0,"p0":3,"p1":3}'},
+          where: 'id = ?', whereArgs: [q.id]);
+      await t.pumpWidget(wrap(const SizedBox.shrink(), _doc()));
+      await step(t);
+      await t.pumpWidget(wrap(ReaderPage(bookId: 's16'), _doc()));
+      await step(t, times: 4);
+      expect(containerColor(t, 'brpTap-0-3'), isNotNull,
+          reason: '旧行无偏移＝整段底色行为不许变（向后兼容）');
+      expect(paintedTexts(t, 'brp-0-3'), isEmpty,
+          reason: '整段口径不再叠 span 级底色');
       await clearToasts(t);
     });
   });

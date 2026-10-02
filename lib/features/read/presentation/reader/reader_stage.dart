@@ -136,6 +136,15 @@ extension _ReaderStage on _ReaderPageState {
     final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
     final s = _selController.sel;
     final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
+    // 轮4①：入库带偏移的 text 段＝span 级精确铺底（Container 不再整段涂）；
+    // 旧数据无偏移、引文/标题段＝维持整段底色。活跃选区在场时瞬态整段浅底照旧。
+    final hlRange = hl != null &&
+            p.kind == EpubParaKind.text &&
+            hl.cf.isPrecise &&
+            !inSel
+        ? hl.cf.rangeAt(pi, p.text.length)
+        : null;
+    final hlFull = hl != null && hlRange == null;
     // 轮4③：段内精确子串高亮（同段＝句选 o0/o1；跨段首尾各切一头）。
     var q0 = 0, q1 = p.text.length;
     if (s != null && inSel) {
@@ -161,7 +170,8 @@ extension _ReaderStage on _ReaderPageState {
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
         // V1.53.2 修②：选中态不再整段铺底——部分选中（首/尾/单段局部）交给
         // _subSpan 精确子串高亮；仅整段选中（跨段的中间段）才铺段级底色。
-        decoration: hl == null && !(inSel && !partSel)
+        // 轮4①：精确划线的稳态底色进 span（hlRange），Container 只在整段口径时铺。
+        decoration: !hlFull && !(inSel && !partSel)
             ? null
             : BoxDecoration(
                 color: inSel && !partSel
@@ -282,7 +292,16 @@ extension _ReaderStage on _ReaderPageState {
         );
         final span = partSel
             ? _subSpan(th, p, q0, q1)
-            : _textSpan(th, doc, ci, p, pi, isHit);
+            : _textSpan(
+                th,
+                doc,
+                ci,
+                p,
+                pi,
+                isHit,
+                hlRange: hlRange,
+                hlColor: hl?.c,
+              );
         return Padding(
           key: ValueKey('brp-$ci-$pi'),
           padding: const EdgeInsets.only(bottom: 8),

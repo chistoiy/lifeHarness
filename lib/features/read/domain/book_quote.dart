@@ -172,12 +172,23 @@ class BookQuote {
 ///
 /// [c]＝章序（0 基，对应阅读器 spine 叶子章），[p0]~[p1]＝段落下标闭区间。
 /// 原型形态 `cf:{c,p0,p1}`；阅读器高亮渲染与「跳原文」都以此为唯一锚点。
+/// V1.59 轮4① 扩字符级：[o0]＝`p0` 段内起始偏移、[o1]＝`p1` 段内结束偏移
+/// （原文坐标系，不含缩进前缀；简繁转换逐字等长不破坏对齐）。
+/// **旧行无偏移 decode 回 null＝维持整段旧行为**（向后兼容，JSON 列内零迁移）。
 class QuoteCf {
-  const QuoteCf({required this.c, required this.p0, required this.p1});
+  const QuoteCf({
+    required this.c,
+    required this.p0,
+    required this.p1,
+    this.o0,
+    this.o1,
+  });
 
   final int c;
   final int p0;
   final int p1;
+  final int? o0;
+  final int? o1;
 
   static QuoteCf? decode(String? raw) {
     if (raw == null || raw.isEmpty) return null;
@@ -188,15 +199,39 @@ class QuoteCf {
       final p0 = (v['p0'] as num?)?.toInt();
       final p1 = (v['p1'] as num?)?.toInt();
       if (c == null || p0 == null || p1 == null) return null;
-      return QuoteCf(c: c, p0: p0, p1: p1);
+      return QuoteCf(
+        c: c,
+        p0: p0,
+        p1: p1,
+        o0: (v['o0'] as num?)?.toInt(),
+        o1: (v['o1'] as num?)?.toInt(),
+      );
     } catch (_) {
       return null;
     }
   }
 
-  String encode() => jsonEncode({'c': c, 'p0': p0, 'p1': p1});
+  String encode() => jsonEncode({
+    'c': c,
+    'p0': p0,
+    'p1': p1,
+    if (o0 != null) 'o0': o0,
+    if (o1 != null) 'o1': o1,
+  });
 
   /// 命中判定：章相同且段落落在闭区间内（阅读器逐段上色用）。
   bool covers(int chapter, int para) =>
       chapter == c && para >= p0 && para <= p1;
+
+  /// 任一端带偏移＝可按字符区间精确铺底（旧整段行两皆 null → false）。
+  bool get isPrecise => o0 != null || o1 != null;
+
+  /// 段 [pi]（原文长 [len]）内的上色闭区间；未命中＝null。
+  /// 首尾段各切一头，中间段整段；缺省端按段边补齐。
+  ({int a, int b})? rangeAt(int pi, int len) {
+    if (pi < p0 || pi > p1) return null;
+    final a = pi == p0 ? (o0 ?? 0) : 0;
+    final b = pi == p1 ? (o1 ?? len) : len;
+    return (a: a.clamp(0, len), b: b.clamp(a.clamp(0, len), len));
+  }
 }

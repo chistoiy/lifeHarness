@@ -47,6 +47,9 @@ class _LocalHl {
     'c': cf.c,
     'p0': cf.p0,
     'p1': cf.p1,
+    // 轮4①：字符级偏移随暂存行落 kv（老行无键＝null＝整段旧行为）。
+    if (cf.o0 != null) 'o0': cf.o0,
+    if (cf.o1 != null) 'o1': cf.o1,
     'tg': tg,
   };
 
@@ -56,7 +59,13 @@ class _LocalHl {
     return _LocalHl(
       id: '${m['id']}',
       bookId: '${m['b']}',
-      cf: QuoteCf(c: c.toInt(), p0: p0.toInt(), p1: p1.toInt()),
+      cf: QuoteCf(
+        c: c.toInt(),
+        p0: p0.toInt(),
+        p1: p1.toInt(),
+        o0: (m['o0'] as num?)?.toInt(),
+        o1: (m['o1'] as num?)?.toInt(),
+      ),
       tg: '${m['tg']}',
     );
   }

@@ -351,14 +351,18 @@ extension _ReaderChrome on _ReaderPageState {
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
   /// ① 注释体走正文色小字；④ 只有外链给链接绿。
+  /// 轮4①：[hlRange]（原文坐标）＋[hlColor]＝已入库划线的**字符区间铺底**——
+  /// 底色与链接/命中样式可叠加（背景只加不改字色），旧整段数据不走这里。
   TextSpan _textSpan(
     (String, Color, Color) th,
     EpubDoc doc,
     int ci,
     EpubPara p,
     int pi,
-    bool hit,
-  ) {
+    bool hit, {
+    ({int a, int b})? hlRange,
+    Color? hlColor,
+  }) {
     final base = paraStyle(
       p,
       TextStyle(
@@ -381,8 +385,10 @@ extension _ReaderChrome on _ReaderPageState {
     final markStyle = base.copyWith(
       backgroundColor: const Color(0xFF6366F1).withValues(alpha: .28),
     );
+    // 轮4①：划线底色＝色标 27% 透明（与旧整段 Container 铺底同值，观感连续）。
+    final hlBg = hlColor?.withValues(alpha: .27);
     final children = <InlineSpan>[];
-    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）。
+    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止。
     final events = <(int, int, EpubLink?)>[
       for (final l in p.links) ...[
         (l.start + ind, 0, l),
@@ -394,10 +400,15 @@ extension _ReaderChrome on _ReaderPageState {
           (idx + ind + _hitQ.length, 3, null),
         ],
       ],
+      if (hlRange != null && hlBg != null && hlRange.b > hlRange.a) ...[
+        (hlRange.a + ind, 4, null),
+        (hlRange.b + ind, 5, null),
+      ],
     ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
     var cursor = 0;
     var inLink = 0;
     var inMark = 0;
+    var inHl = 0;
     void flush(int to) {
       if (to <= cursor) return;
       final t = display.substring(cursor.clamp(0, display.length), to.clamp(0, display.length));
@@ -410,7 +421,11 @@ extension _ReaderChrome on _ReaderPageState {
         orElse: () => EpubLink(start: -1, end: -1, href: '', external: false),
       );
       // ①④ 上色分派：外链绿 · 站内锚点正文色下划线 · 注释引用正文色小字。
-      final style = inLink > 0 ? linkStyleFor(base, link) : (inMark > 0 ? markStyle : base);
+      // 轮4①：划线底色独立叠加（在链接/命中样式之上 copyWith 背景）。
+      var style = inLink > 0 ? linkStyleFor(base, link) : (inMark > 0 ? markStyle : base);
+      if (inHl > 0 && hlBg != null) {
+        style = style.copyWith(backgroundColor: hlBg);
+      }
       children.add(
         TextSpan(
           text: t,
@@ -433,6 +448,10 @@ extension _ReaderChrome on _ReaderPageState {
           inMark++;
         case 3:
           inMark = (inMark - 1).clamp(0, 1 << 20);
+        case 4:
+          inHl++;
+        case 5:
+          inHl = (inHl - 1).clamp(0, 1 << 20);
       }
     }
     flush(display.length);

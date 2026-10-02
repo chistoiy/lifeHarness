@@ -164,14 +164,16 @@ extension _ReaderSelOps on _ReaderPageState {
   });
 
   /// 段生效划线（原型 brHlAt：库内行优先，多条取最后；回落暂存行）。
-  ({String tg, Color c, bool hasThought})? _hlAt(int ci, int pi) {
-    ({String tg, Color c, bool hasThought})? hit;
+  /// 轮4①：随带 cf——渲染层用 `cf.rangeAt` 按字符区间精确铺底，不再整段涂。
+  ({String tg, Color c, bool hasThought, QuoteCf cf})? _hlAt(int ci, int pi) {
+    ({String tg, Color c, bool hasThought, QuoteCf cf})? hit;
     for (final h in _localHl) {
       if (h.bookId == widget.bookId && h.cf.covers(ci, pi)) {
         hit = (
           tg: h.tg,
           c: Color(0xFF000000 | (BookQuote.hexToInt(BookQuote.colorHex[h.tg]) ?? 0xFDE047)),
           hasThought: false,
+          cf: h.cf,
         );
       }
     }
@@ -181,6 +183,7 @@ extension _ReaderSelOps on _ReaderPageState {
           tg: q.tag,
           c: Color(0xFF000000 | q.colorInt),
           hasThought: (q.thought ?? '').isNotEmpty,
+          cf: q.cf!,
         );
       }
     }
@@ -208,7 +211,15 @@ extension _ReaderSelOps on _ReaderPageState {
     final body = _selTxt;
     if (sel == null || doc == null || body.isEmpty) return;
     final repo = ref.read(readRepositoryProvider);
-    final cf = QuoteCf(c: sel.ci, p0: sel.p0, p1: sel.p1);
+    // 轮4①：偏移随选段落库（o0＝p0 段内起点，o1＝p1 段内终点）——
+    // 摘掉本行精确化必退化回整段铺底（变异校验点）。
+    final cf = QuoteCf(
+      c: sel.ci,
+      p0: sel.p0,
+      p1: sel.p1,
+      o0: sel.o0,
+      o1: sel.o1,
+    );
     final rid = 'r${DateTime.now().millisecondsSinceEpoch}';
     var flash = '已划线（$tg）· 同步进本书书摘';
     if (_brSync) {

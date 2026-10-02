@@ -156,6 +156,33 @@ void main() {
       expect(q.cf!.covers(2, 6), isFalse);
       expect(q.cf!.covers(1, 4), isFalse);
       expect(jsonDecode(q.toRow()['cf'] as String), {'c': 2, 'p0': 3, 'p1': 5});
+      // 轮4①：旧行无偏移 decode 回 null＝整段旧行为；rangeAt 按段边补齐。
+      expect(q.cf!.o0, isNull);
+      expect(q.cf!.isPrecise, isFalse);
+      expect(q.cf!.rangeAt(2, 10), isNull);
+      expect(q.cf!.rangeAt(3, 10), (a: 0, b: 10));
+      expect(q.cf!.rangeAt(5, 10), (a: 0, b: 10));
+    });
+
+    test('轮4① QuoteCf 偏移往返 · rangeAt 首尾段切分与越界钳制', () {
+      const pc = QuoteCf(c: 1, p0: 2, p1: 4, o0: 5, o1: 8);
+      expect(jsonDecode(pc.encode()), {'c': 1, 'p0': 2, 'p1': 4, 'o0': 5, 'o1': 8});
+      final back = QuoteCf.decode(pc.encode())!;
+      expect(back.isPrecise, isTrue);
+      expect(back.rangeAt(2, 20), (a: 5, b: 20)); // 首段：o0 起吃到段尾
+      expect(back.rangeAt(3, 20), (a: 0, b: 20)); // 中间段：整段
+      expect(back.rangeAt(4, 20), (a: 0, b: 8)); // 尾段：段首吃到 o1
+      const one = QuoteCf(c: 1, p0: 2, p1: 2, o0: 3, o1: 7); // 单段：两头都切
+      expect(one.rangeAt(2, 20), (a: 3, b: 7));
+      // 越界防御（落库后段文本变短/偏移倒挂都不许炸，退化为空区间）。
+      const wild = QuoteCf(c: 0, p0: 0, p1: 0, o0: 9, o1: 3);
+      expect(wild.rangeAt(0, 5), (a: 5, b: 5));
+      const wild2 = QuoteCf(c: 0, p0: 0, p1: 0, o0: -2, o1: 99);
+      expect(wild2.rangeAt(0, 5), (a: 0, b: 5));
+      // 半缺行（只有一端偏移）也按已知端精确。
+      const half = QuoteCf(c: 0, p0: 0, p1: 0, o0: 2);
+      expect(half.isPrecise, isTrue);
+      expect(half.rangeAt(0, 6), (a: 2, b: 6));
     });
   });
 
