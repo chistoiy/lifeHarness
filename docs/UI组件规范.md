@@ -24,7 +24,7 @@
 | 滚轮 | wheel | 就地内嵌/弹层式数值滚轮（LH-K07） |
 | 字体角色 | type role | 正文衬线 / UI 无衬线 / 代码等宽三档，全局按角色取字体（LH-F01） |
 
-## 〇A、LH-F01 字体角色（2026-10-02 产品定 · 全局规范 · 实现待确认门）
+## 〇A、LH-F01 字体角色（2026-10-02 产品定 · 全局规范 · **2026-10-03 Flutter 侧已接**）
 
 > **口径**：长文正文用**衬线**（阅读舒适、笔画有粗细），标题与一切 UI 标签用**无衬线**（密排清晰），
 > 数字/代码用**等宽**。全部走**系统回落字体链**——**不随包字体文件**（思源宋体一字重全量约 8–20MB，
@@ -45,13 +45,19 @@
 **锚点**：原型 `prototype/index.html` / `prototype/index-bookshelf.html` 的 `:root{--f-ui/--f-body/--f-code}`
 与 `.f-body/.f-code` 工具类；阅读器字体目录 `BR_FONTS`（九款全带 CJK 回落链）、正文默认族 `BR_DEF.font='serif'`；
 校验脚本 `tools/f01typecheck.js`（三角色断言 + `prototype/shots/f01_shared_dash.png · f01_reader_serif.png`）。
-Flutter 侧待接：`core/theme/app_typography.dart` 的角色→家族映射、阅读器 `ReaderLayout.fontFamily`
-（现 `serif/hei/mono` 三值映射要换成同一串 CJK 链），以及 `ReaderCfg` 默认字体族改衬线（**老用户已存的选择不动**）。
+**Flutter 侧已接（2026-10-03·批一）**：三串链的唯一来源＝`lib/core/theme/app_typography.dart`
+（`kFontBody/kFontUi/kFontCode`＋`lhFontRoleOfReaderFont`，链内容与上表逐字符一致，`TextStyle.fontFamily`
+吃链首、`fontFamilyFallback` 吃其余）；全局默认字族在 `AppTheme.build` 里＝UI 链，主题设了 `--app-font`
+则整档跟随主题；阅读器 `ReaderCfg.fontFamily` 与 `ReaderLayout.fontFamily/base` **调同一函数**（测量与渲染同源），
+默认族已改 `'serif'`，白名单保留 `system`（老用户落库值原样读回）；分页表 `PagStore.tableVersion` 2→3
+（枚举值没变而映射串变了，不升版本旧分页表会继续命中）。**遗留**：本表 body 角色列的「日记/笔记正文、
+书摘正文、X-Ray 摘录卡正文」四个面还没接（`F01 工单 §1 落点表`未列，需逐屏改样式并经真机观感确认）。
+回归钉子＝`test/reader_f01_font_test.dart`（11 例：同串/默认族/老值读回/同源/主题覆盖/表版本）。
 
-**已定/未定**：角色划分与「不随包字体」已定；阅读器正文默认族「系统默认」→**衬线**已由产品拍板
-（2026-10-02，见《需求清单》V1.59 段；已手动选过字体的老用户保持其选择，白名单里的 `system` 保留）。
-**仍未定**：7 套主题 json 的 `--app-font`（复古/秋日暖调走衬线）与三档角色链的覆盖关系——建议「角色链作默认、
-主题令牌作整档覆盖」，确认门归产品。Flutter 实现批规格与落点见 `docs/handoff/交棒话术-20261002-下一版实现批-F01-批C-R32精修.md` §1。
+**已定**：角色划分与「不随包字体」已定；阅读器正文默认族「系统默认」→**衬线**由产品 2026-10-02 拍板
+（见《需求清单》V1.59 段；已手动选过字体的老用户保持其选择，白名单里的 `system` 保留）；
+7 套主题 json 的 `--app-font`（复古/秋日暖调走衬线）与三档角色链的关系＝**角色链作默认、主题字体令牌作整档覆盖**
+（产品 2026-10-03 拍板，落点见 `docs/handoff/交棒话术-20261002-下一版实现批-F01-批C-R32精修.md` §1）。
 
 
 ## 一、LH-T 提示类
