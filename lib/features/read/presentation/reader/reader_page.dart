@@ -51,8 +51,6 @@ part 'reader_stage.dart';
 part 'reader_links.dart';
 part 'reader_xray.dart';
 
-
-
 /// 阅读主屏（V1.50 · 事实源 `#p-readerPage` BR-2 + V1.51 目录侧边抽屉）。
 ///
 /// 批2 全量：分页引擎实算（字号/行距/字距/边距即时重排页数）、翻页⇄滚动双模式、
@@ -928,7 +926,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   /// 两处各写一份映射迟早分叉，预载表就再也命中不了）。
   ReaderLayout _layout() =>
       ReaderLayout.of(_cfg, width: _viewport.width, height: _viewport.height);
-
 
   void _showFlash(String msg) {
     setState(() => _flash = msg);

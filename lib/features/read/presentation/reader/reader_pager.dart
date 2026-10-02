@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/epub_doc.dart';
 import '../../domain/reader_cfg.dart';
+import '../../domain/s2t_map.dart';
 
 /// 阅读排版参数（V1.50 批2 · 原型 BR_DEF 同源默认：fs19/lh1.62/ls0.4/mar22）。
 @immutable
@@ -16,6 +17,7 @@ class ReaderLayout {
     this.font = 'system',
     this.indent = true,
     this.indMode = 'auto',
+    this.s2t = kS2TOrig,
   });
 
   /// 外观配置 → 分页布局（阅读主屏与整本预载**共用一条通道**：两处算法不同
@@ -37,6 +39,7 @@ class ReaderLayout {
     // 这种手搓配置在分页与上屏两边各说各话。
     indent: c.indMode != 'none',
     indMode: c.indMode,
+    s2t: c.s2t,
   );
 
   /// 舞台可视宽高（翻页模式内容盒）。
@@ -50,6 +53,12 @@ class ReaderLayout {
   /// 首行缩进三档（R3-2 ③ · 配置面 R3-7 交付）：auto 跟随原书 · 2 强制两全角 ·
   /// none 无缩进。它改变**每段的显示文本** → 必须进分页指纹，否则真机假生效。
   final String indMode;
+
+  /// 简繁三档（R3-6 · 配置面批1 交付）：orig 跟随原书 · s 简体 · t 繁体。
+  /// 它改的是**上屏文本内容**（逐字等长换字），与 indMode 同口径进分页指纹：
+  /// 汉字同字号近等宽，但异体字在不同字族下度量会差（回退字体尤甚），
+  /// 漏进指纹的代价是「切了繁简不重排＝真机假生效」，进指纹的代价只是一次重排。
+  final String s2t;
 
   double get contentW => (width - mar * 2).clamp(80.0, 10000.0);
 
@@ -79,6 +88,7 @@ class ReaderLayout {
     String? font,
     bool? indent,
     String? indMode,
+    String? s2t,
   }) => ReaderLayout(
     width: width,
     height: height,
@@ -89,6 +99,7 @@ class ReaderLayout {
     font: font ?? this.font,
     indent: indent ?? this.indent,
     indMode: indMode ?? this.indMode,
+    s2t: s2t ?? this.s2t,
   );
 }
 
@@ -110,12 +121,21 @@ bool paraIndented(EpubPara p, String indMode) =>
       _ => !p.ownIndent,
     };
 
+/// 段正文的**上屏文本**（不含缩进前缀）＝原文过简繁转换器。
+/// R3-6 单点通道：所有渲染与测量都从这里取字，一处转换一处画＝必错位；
+/// 转换器逐字等长，所以原文偏移（选区/划线/链接命中/书摘切片）在这里仍然成立。
+String paraBody(EpubPara p, String s2t) => S2t.convert(p.text, s2t);
+
 /// 段上屏文本（含缩进前缀）。[indMode] 为 R3-7 三档口径；只给 [indent] 时按
 /// 旧两档语义换算（true＝auto／false＝none），既有调用方零改动。
-String paraDisplayText(EpubPara p, {bool indent = true, String? indMode}) =>
-    paraIndented(p, indMode ?? (indent ? 'auto' : 'none'))
-    ? '$kParaIndent${p.text}'
-    : p.text;
+String paraDisplayText(
+  EpubPara p, {
+  bool indent = true,
+  String? indMode,
+  String s2t = kS2TOrig,
+}) => paraIndented(p, indMode ?? (indent ? 'auto' : 'none'))
+    ? '$kParaIndent${paraBody(p, s2t)}'
+    : paraBody(p, s2t);
 
 /// ① 注释体段落样式（正文色 + 小一号）。**测量与渲染共用同一函数**：只在分页
 /// 器里缩字号、上屏不缩，就会「按小字算页、按大字画页」溢出/空页。
@@ -172,7 +192,12 @@ class EpubPager {
     if (p.kind == EpubParaKind.image) return 190;
     final tp = TextPainter(
       text: TextSpan(
-        text: paraDisplayText(p, indent: l.indent, indMode: l.indMode),
+        text: paraDisplayText(
+          p,
+          indent: l.indent,
+          indMode: l.indMode,
+          s2t: l.s2t,
+        ),
         style: paraStyle(p, l.base),
       ),
       textDirection: TextDirection.ltr,

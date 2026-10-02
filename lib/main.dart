@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +30,7 @@ import 'features/ledger/data/ledger_repository.dart';
 import 'features/ledger/presentation/ledger_notify.dart';
 import 'features/read/data/isbn_enrich.dart';
 import 'features/read/data/read_repository.dart';
+import 'features/read/domain/s2t_map.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
 
@@ -36,6 +38,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 0) 三处全局错误捕获先行挂上（R1 启动即记，先于一切初始化）。
   installGlobalErrorLogging();
+
+  // R3-6 简繁显示层：词表随启动预热一次（126KB JSON，读盘＋建表约毫秒级）。
+  // 不挂进阅读器装载链——rootBundle 走资源通道，widget 测试的 FakeAsync 下
+  // 永不返回，await 会把整组阅读器用例挂死；这里 fire-and-forget，
+  // 阅读器真正用到时表早已就位（冷启动首屏最坏是闪一下原文，随后重建）。
+  unawaited(S2t.ensureLoaded());
 
   // 0b) 日志落盘基建（设计稿 §2）：应用文档目录 logs/ 子目录，按天一个文件、
   //     单文件封顶 5MB 滚动、保留天数读 SharedPreferences 持久化值（Task 6

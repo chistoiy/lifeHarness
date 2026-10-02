@@ -91,9 +91,11 @@ flutter:
   # assets/read_import/：阅读导入渠道数据包（计划 §5 解析器数据包，格式变更不改码）
   # assets/habit_templates/：习惯模板库资源包（习惯计划 §7，社区扩展不改码）
   # assets/xray/dicts/：X-Ray 预置词表（需求 V1.54·设计书 §5 八张纯文本表，扩充只加行不改码）
+  # assets/read_s2t/：简繁显示层转换表（R3-6·生成期取自 zhconv 数据，运行时零依赖）
   assets:
     - assets/themes/
     - assets/read_import/
     - assets/habit_templates/
     - assets/ai_prompts/
     - assets/xray/dicts/
+    - assets/read_s2t/

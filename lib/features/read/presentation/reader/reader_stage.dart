@@ -236,7 +236,8 @@ extension _ReaderStage on _ReaderPageState {
           padding: const EdgeInsets.only(top: 16, bottom: 12),
           child: wrap(
             Text(
-              p.text,
+              // R3-6：标题与引文同样吃显示层简繁（走同一条 paraBody 通道）。
+              paraBody(p, _cfg.s2t),
               style: TextStyle(
                 fontSize: _cfg.fs * 1.25,
                 height: _cfg.lh,
@@ -257,7 +258,7 @@ extension _ReaderStage on _ReaderPageState {
                 border: Border(left: BorderSide(color: th.$3, width: 3)),
               ),
               child: Text(
-                p.text,
+                paraBody(p, _cfg.s2t),
                 // ① 引文型注释体（blockquote epub:type=footnote 等）同样走正文色小字，
                 // 与 EpubPager.paraHeight 的测量共用 paraStyle，两边走样必出空页。
                 style: paraStyle(

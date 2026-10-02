@@ -332,16 +332,19 @@ extension _ReaderChrome on _ReaderPageState {
     // 显示文本都与未选中一致，不再顶格重排；高亮也只包子串本体、不吞缩进。
     // R3-2 ③：前缀有无改按段判定（与 paraDisplayText 同一函数，两者不许分叉）。
     final pre = paraIndented(p, _cfg.indMode) ? kParaIndent : '';
+    // R3-6：高亮支路也必须走 paraBody——它按原文偏移切片，转换器逐字等长，
+    // 所以 a/b 在转换后的串上仍指同一个字；漏转＝选中一段就露出原文，简繁白切。
+    final body = paraBody(p, _cfg.s2t);
     return TextSpan(
       style: base,
       children: [
         if (pre.isNotEmpty) TextSpan(text: pre),
-        if (a > 0) TextSpan(text: p.text.substring(0, a)),
+        if (a > 0) TextSpan(text: body.substring(0, a)),
         TextSpan(
-          text: p.text.substring(a, b),
+          text: body.substring(a, b),
           style: base.copyWith(backgroundColor: const Color(0x4D6366F1)),
         ),
-        if (b < p.text.length) TextSpan(text: p.text.substring(b)),
+        if (b < p.text.length) TextSpan(text: body.substring(b)),
       ],
     );
   }
@@ -370,8 +373,10 @@ extension _ReaderChrome on _ReaderPageState {
       p,
       indent: _cfg.indent,
       indMode: _cfg.indMode,
+      s2t: _cfg.s2t,
     );
-    // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2）。
+    // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2；
+    // R3-6 的简繁转换逐字等长，所以这一差值仍然只反映缩进前缀）。
     final ind = display.length - p.text.length;
     final markStyle = base.copyWith(
       backgroundColor: const Color(0xFF6366F1).withValues(alpha: .28),
