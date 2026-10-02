@@ -256,15 +256,16 @@ async function go(q) {
     return{empty:/没有找到/.test(t),banner:/搜索「/.test(t)};`);
   (!r.empty && !r.banner) ? ok('批2修③ 清除搜索回全量列表') : bad('批2修③ 清除', JSON.stringify(r));
   await go('xr=more');
-  r = await ev(`var row=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).find(function(x){return /词库管理/.test(x.innerText)});
-    return{row:row?row.innerText.replace(/\\s+/g,' '):''};`);
-  (/X-Ray 词库管理/.test(r.row) && /养词库 开/.test(r.row)) ? ok('批2 ⋯菜单词库管理行', r.row) : bad('批2 菜单行', JSON.stringify(r));
+  r = await ev(`var rows=[].slice.call(document.querySelectorAll('#sheetBrMore [onclick^="closeSheet"]')).filter(function(x){return /X-Ray/.test(x.innerText)});
+    return{n:rows.length,txt:rows.map(function(x){return x.innerText.replace(/\\s+/g,' ')}).join(' || ')};`);
+  (r.n === 2 && /全书索引/.test(r.txt) && /X-Ray 中心/.test(r.txt) && /养词库 开/.test(r.txt))
+    ? ok('X-Ray 中心改版 · ⋯ 菜单三行收敛为两行', r.txt) : bad('⋯ 菜单收敛', JSON.stringify(r));
   await go('xr=bak');
   r = await ev(`rsPickTab(RS_SEC.length-1);renderReadSet();
     var row=[].slice.call(document.querySelectorAll('#rsGroups .mini-btn')).find(function(b){return false});
-    var nav=[].slice.call(document.querySelectorAll('#rsGroups b')).find(function(x){return /X-Ray 词库管理/.test(x.textContent)});
+    var nav=[].slice.call(document.querySelectorAll('#rsGroups b')).find(function(x){return /X-Ray (词库管理|中心)/.test(x.textContent)});
     return{nav:nav?nav.textContent:''};`);
-  (r.nav === 'X-Ray 词库管理') ? ok('批2 阅读设置「本地阅读器」入口行') : bad('批2 设置入口', JSON.stringify(r));
+  (r.nav === 'X-Ray 中心') ? ok('批2 阅读设置「本地阅读器」入口行（中心改版改名）') : bad('批2 设置入口', JSON.stringify(r));
 
   /* 批4 · AI 精化（预检→逐批→审阅→写入） */
   await go('xr=ai');
@@ -302,14 +303,49 @@ async function go(q) {
   r = await ev(`xrAiToggle('d2');xrAiScope('global');
     var bn=document.getElementById('xrAiApplyN').textContent;
     document.getElementById('xrAiApplyGo').click();
-    var lbl=document.getElementById('brMoreXrAi');
+    var lbl=document.getElementById('brMoreXrw');
     return{bn:bn,toast:document.getElementById('toast').innerText,lbl:lbl?lbl.textContent:''};`);
   (r.bn === '6' && /已写入 6 条/.test(r.toast) && /升级为全局/.test(r.toast) && /已写 6 条/.test(r.lbl))
-    ? ok('批4 勾除一条+升级全局：写入计数与 ⋯菜单状态字同步', r.toast + ' | ' + r.lbl) : bad('批4 写入', JSON.stringify(r));
+    ? ok('批4 勾除一条+升级全局：写入计数与 ⋯ 中心行状态字同步', r.toast + ' | ' + r.lbl) : bad('批4 写入', JSON.stringify(r));
+
+  /* X-Ray 中心改版（词条 / AI 精化 / 索引与备份 三段同页） */
+  await go('xr=center');
+  r = await ev(`return{title:(document.querySelector('#p-xrwords .font-extrabold')||{textContent:''}).textContent,
+    tabs:document.querySelectorAll('#xrcTabs .chip').length,
+    onWord:document.getElementById('xrc-t-word').className.indexOf('chip-on')>=0,
+    word:!document.getElementById('xrcWord').classList.contains('hidden'),
+    aiHid:document.getElementById('xrcAi').classList.contains('hidden'),
+    idxHid:document.getElementById('xrcIdx').classList.contains('hidden'),
+    rows:document.querySelectorAll('#xrwList .shelf-row').length};`);
+  (r.title === 'X-Ray 中心' && r.tabs === 3 && r.onWord && r.word && r.aiHid && r.idxHid && r.rows >= 3)
+    ? ok('中心 · 默认词条段（三段条在位 · 原词库面不回归）', JSON.stringify(r)) : bad('中心词条段', JSON.stringify(r));
+  await go('xr=center_ai');
+  r = await ev(`var st=document.getElementById('xrcAiStat').textContent;
+    var n0=+(st.match(/预计 (\\d+) 批/)||[0,0])[1];
+    document.getElementById('xrcB-1000').click();
+    var n1=+(document.getElementById('xrcAiStat').textContent.match(/预计 (\\d+) 批/)||[0,0])[1];
+    document.getElementById('xrcB-3000').click();
+    var n2=+(document.getElementById('xrcAiStat').textContent.match(/预计 (\\d+) 批/)||[0,0])[1];
+    return{ai:!document.getElementById('xrcAi').classList.contains('hidden'),wordHid:document.getElementById('xrcWord').classList.contains('hidden'),
+      chips:document.querySelectorAll('#xrcAiBchips .chip').length,n0:n0,n1:n1,n2:n2,go:document.getElementById('xrcAiGo').textContent};`);
+  (r.ai && r.wordHid && r.chips === 5 && r.n1 > r.n0 && r.n2 === r.n0 && /开始精化/.test(r.go))
+    ? ok('中心 · AI 精化段就地预算联动（预算小=批次多，可来回改）', JSON.stringify(r)) : bad('中心精化段', JSON.stringify(r));
+  await go('xr=center_idx');
+  r = await ev(`document.getElementById('xrcBak').click();
+    var bak=!document.getElementById('sheetXrBak').classList.contains('hidden');closeSheet('sheetXrBak');
+    document.getElementById('xrcReset').click();
+    var t=document.getElementById('sheetXrDel')&&!document.getElementById('sheetXrDel').classList.contains('hidden');
+    return{idx:!document.getElementById('xrcIdx').classList.contains('hidden'),
+      lbl:document.getElementById('xrcIdxLbl').textContent,rng:document.querySelectorAll('#xrcRange .chip').length,bak:bak,del:t};`);
+  (r.idx && /已解析/.test(r.lbl) && r.rng === 3 && r.bak)
+    ? ok('中心 · 索引与备份段（面板跳转/单书 .xraybak/重置三件齐）', JSON.stringify(r)) : bad('中心索引段', JSON.stringify(r));
+  r = await ev(`xrcTab('word');return{back:!document.getElementById('xrcWord').classList.contains('hidden'),
+    aiOff:document.getElementById('xrcAi').classList.contains('hidden')};`);
+  (r.back && r.aiOff) ? ok('中心 · 分段来回切换无残留') : bad('中心来回切换', JSON.stringify(r));
   /* 收尾：emoji 与异常 */
   const EM = '[\\u{1F300}-\\u{1FAFF}\\u{FE0F}]';
   r = await ev(`var re=new RegExp(${JSON.stringify(EM)},'gu');
-    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','p-xrwords','sheetXrAiPre','sheetXrAiReview','xrAiBar','sheetBrMore'].forEach(function(id){var el=document.getElementById(id);out+=(el?(el.innerText||el.textContent):'')});
+    var out='';['xrPane','sheetXrScope','sheetXrAdd','sheetXrBak','sheetXrFail','sheetXrDel','sheetXrMerge','p-xrwords','sheetXrAiPre','sheetXrAiReview','xrAiBar','sheetBrMore','p-xrwords','xrcAi','xrcIdx'].forEach(function(id){var el=document.getElementById(id);out+=(el?(el.innerText||el.textContent):'')});
     var m=out.match(re)||[];return{emoji:m.join(''),fns:[typeof xrRender,typeof xrPickEnt,typeof xrSelTool,typeof xrScopeOpen,typeof xrLpGo,typeof brTocTab,typeof xrAiOpen,typeof xrAiApply,typeof xrAiBarRender].join(',')};`);
   (!r.emoji && r.fns === 'function,function,function,function,function,function,function,function,function') ? ok('零 emoji · 关键函数在位') : bad('emoji/函数', JSON.stringify(r));
   if (errs.length) bad('运行期异常', errs.join(' | ')); else ok('全程零 JS 异常');
