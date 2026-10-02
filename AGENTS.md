@@ -48,6 +48,14 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 
 `build/`、`.dart_tool/`、`flutter_0*.log`、`device_logcat.txt`、`docs/acceptance*`（历史截图目录，已出仓）、`tmp/`、根目录 `*.apk`、`tools/*.log`、`tools/attic/`、`prototype/shots/`、`tools/` 下浏览器用户数据目录（`.*-profile`、`.f01-probe`、`.xr-probe*`）。
 
+## 会话口令（用户只需这几个词，其余全由本文件驱动）
+
+- **「开工」**（新会话唯一开场）＝ 读本文件 → `docs/STATUS.md` → 下一站行指向的 `docs/handoff/` 活工单，按其规格依批次顺序开工；无需任何背景复述。要限定范围就写「开工 <工单名>」。
+- **「收尾」**＝下面六步仪式；「收尾并推送」再追加双端 push（Gitee→GitHub）。
+- **「记一下 <主题>」**＝把该结论落进 STATUS/INDEX/变更日志对应处，不许只回「收到」。
+
+复杂批次（多会话并行交接）才用计划书 §7.4 开场白模板；日常批禁止再写长开场白——信息都应在 STATUS 下一站行里，STATUS 没写就是没做完收尾，先补收尾。
+
 ## 会话收尾仪式（每轮工作结束前，用户说「收尾」即按此执行）
 
 1. 门禁：受影响测试 + 文档改动随跑 `python tools/doclint.py`，红灯清零。
@@ -56,8 +64,6 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 4. 登记：交接文档 §5 变更日志追加 ≤3 行（结论+提交+发版），细节留在工单里。
 5. 提交：文件级 pathspec 局部提交；推送/发版另行取得同意。
 6. 可复用方案按 developSummary 模板沉淀（用户点名时）。
-
-新会话开工只需一句：「读 AGENTS.md → docs/STATUS.md → docs/INDEX.md，按 STATUS 下一站指向的活工单开工」；复杂批次再按计划书 §7.4 开场白模板补规格引用。
 
 ## 下指令/接任务口径
 
