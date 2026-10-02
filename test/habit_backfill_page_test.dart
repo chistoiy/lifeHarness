@@ -22,15 +22,24 @@ void main() {
 
   String key(int back) => dayKey(DateTime.now().subtract(Duration(days: back)));
 
-  /// 补卡日历按月渲染（锚＝今天所在月；可 `btn-hbf-prev` 翻月）。
-  /// 月初窗口里「昨天/前天」属上月——存在性检查式翻月，跨月/月内两种日历都成立。
+  /// 补卡日历按月渲染（锚＝今天所在月，`btn-hbf-prev`/`btn-hbf-next` 双向翻月）。
+  /// 月初窗口里「昨天/前天」可能一个在上月一个在本月：**存在性驱动双向翻**，
+  /// 两种日历都成立（2026-10-02 抓到旧写法只会往回翻——第一个日把日历翻到上月后，
+  /// 第二日落在本月时找不到 key，tap 直接炸在 getCenter）。
   Future<void> tapDay(WidgetTester tester, String day) async {
-    if (find.byKey(ValueKey('hbf-day-$day')).evaluate().isEmpty) {
-      await tester.tap(find.byKey(const ValueKey('btn-hbf-prev')));
-      await settle5(tester);
+    // 先往回扫 3 个月，再往前扫 6 个月：每一格先查后翻，命中即点。
+    for (final leg in const [(3, 'btn-hbf-prev'), (6, 'btn-hbf-next')]) {
+      for (var i = 0; i < leg.$1; i++) {
+        if (find.byKey(ValueKey('hbf-day-$day')).evaluate().isNotEmpty) {
+          await tester.tap(find.byKey(ValueKey('hbf-day-$day')));
+          await settle5(tester);
+          return;
+        }
+        await tester.tap(find.byKey(ValueKey(leg.$2)));
+        await settle5(tester);
+      }
     }
-    await tester.tap(find.byKey(ValueKey('hbf-day-$day')));
-    await settle5(tester);
+    fail('补卡日历双向翻月仍未出现 $day');
   }
 
   setUp(() async {
