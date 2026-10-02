@@ -31,6 +31,7 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 ## 验证门禁（两档）
 
 - 批内增量：只跑受影响测试文件（推荐经 `tools/ftest.sh`，治并发测试崩溃）；收口/发版才跑全量（独占约 12 分钟，勿与其他会话抢 CPU/IO）。
+- 文档域收口随跑 `python tools/doclint.py`（全路径 `D:\app_workplace\python3.11\python.exe`）：零死链 + 守护五检（工单落位/INDEX 登记/需求清单防复活/交接长行/三件套行数预算），红灯必须清零。
 - 全 app widget 测试必须拆分独立文件（同文件多大页会 isolate 污染挂死）；测试日期一律相对构造，23:55–00:30 不跑全量；涉及 pump 的用例注意 override `sharedPreferencesProvider`。
 - 脚本改源码：先快照（落 gitignored `tmp/`）、命中断言 + 体积校验，按文件真实编码读写，锚点跟随目标文件行尾；批量修改写成脚本文件执行，勿用 heredoc。
 

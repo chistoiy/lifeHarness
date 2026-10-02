@@ -44,4 +44,45 @@ if red:
     for p, n, ref in red:
         print(f"  {p}:{n} -> {ref}")
     sys.exit(1)
-print("PASS 零死链")
+
+# ---- 漂移守护（防「又来很多轮后重新腐化」）----
+g = []
+# 1) 工单不得落 docs 顶层
+ticket_pat = re.compile(r"^(交棒话术-|真机逐屏验收清单-|拍板记录-|.*开场白-)")
+for p in out:
+    if p.startswith("docs/") and p.count("/") == 1 and p.endswith(".md") and ticket_pat.match(p[5:]):
+        g.append(f"工单落错层（应建在 docs/handoff/）: {p}")
+# 2) INDEX 覆盖率：docs 顶层 + handoff 的跟踪 md 文件名必须出现在 INDEX.md
+idx = open("docs/INDEX.md", encoding="utf-8").read()
+for p in out:
+    if not p.endswith(".md"):
+        continue
+    base = os.path.basename(p)
+    if p == "docs/INDEX.md" or p == "docs/STATUS.md":
+        continue
+    if (p.startswith("docs/") and p.count("/") == 1) or p.startswith("docs/handoff/"):
+        if base not in idx:
+            g.append(f"INDEX 未登记: {p}")
+# 3) 需求清单不得复活第十节/修订长行
+req = open("docs/需求清单.md", encoding="utf-8").read().split("\n")
+if any(l.startswith("## 十") for l in req):
+    g.append("需求清单复活了「## 十、…」节（修订记录应写 docs/archive/需求修订史-*.md）")
+for n, l in enumerate(req, 1):
+    if len(l) > 1000:
+        g.append(f"需求清单超长行（>1000 字符，疑修订长文回填）: 行{n} len={len(l)}")
+# 4) 交接文档主文超长行
+for n, l in enumerate(open("docs/交接文档.md", encoding="utf-8").read().split("\n"), 1):
+    if len(l) > 800:
+        g.append(f"交接文档超长行（>800）: 行{n} len={len(l)}")
+# 5) 三件套行数预算
+budgets = {"AGENTS.md": 90, "docs/STATUS.md": 60, "docs/INDEX.md": 130}
+for p, lim in budgets.items():
+    nl = sum(1 for _ in open(p, encoding="utf-8"))
+    if nl > lim:
+        g.append(f"{p} 行数 {nl} 超预算 {lim}")
+if g:
+    print(f"守护红灯 {len(g)} 处:")
+    for x in g:
+        print("  " + x)
+    sys.exit(1)
+print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算）")
