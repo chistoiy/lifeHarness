@@ -71,6 +71,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     with WidgetsBindingObserver {
   Book? _book;
   EpubDoc? _doc;
+
+  /// 开书取证（2026-10-04 真机反馈「3~5 秒不是秒开」）：文档从哪来、花了多久。
+  String _docSrc = '';
+  int _docMs = 0;
   String? _err;
   bool _ownTimer = false;
 
@@ -243,18 +247,26 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     // 冷启动重进时省掉一段串行等待。
     final svc = ref.read(epubPreloadProvider);
     final docF = () async {
+      // 真机反馈（2026-10-04）：「打开书要等 3~5 秒」——先取证再优化，这里把
+      // **文档从哪来、花了多久**记进自建日志（一条记录＝落盘一行），日志页直接读数。
+      final swd = Stopwatch()..start();
+      var src = '内存缓存';
       var d = svc.docs.get(b.id);
       if (d == null) {
         await svc.warming(b.id);
         d = svc.docs.get(b.id);
+        if (d != null) src = '预热等待';
       }
       // 批5 秒开：无内存文档先吃排版快照（读索引+当前章＝毫秒级）；
       // 快照也没有才整本解析，且解析结果回灌快照让下次也秒开。
       d ??= await svc.snap(b);
       if (d == null) {
+        src = '整本解析';
         d = await ref.read(epubDocLoaderProvider)(b.epub!.path);
         unawaited(svc.saveSnap(b, d));
       }
+      _docSrc = src;
+      _docMs = swd.elapsedMilliseconds;
       return d;
     }();
     // 立即挂接错误：解析异常延后到 try 里再抛，避免成未处理异步错误。
@@ -343,6 +355,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       setState(() => _doc = doc);
       // 首帧已定 _viewport 时 LayoutBuilder 不会再触发；此处直接建分页。
       _rebuildPag();
+      // 真机反馈（2026-10-04）「开书要等 3~5 秒」的取证行：文档来源与耗时先落日志，
+      // 排版侧那半条在 reader_page_pag._applyPag 里（两条各一行＝一条记录落盘一行）。
+      AppLog.add(
+        '开书·文档 书#${widget.bookId} 源=$_docSrc ${_docMs}ms '
+        '章=${doc.chapters.length} 段=${doc.chapters.fold<int>(0, (s, c) => s + c.paras.length)}',
+      );
       if (_pag == null) _clampPos();
       // 轮5.2②：分页就绪＝位置可算 → 回填会话起始快照（此后无需手填）。
       _sessFrom = _locSnap();

@@ -21,18 +21,35 @@ extension _ReaderPag on _ReaderPageState {
   Future<void> _applyPag(EpubDoc doc, ReaderLayout l, int gen) async {
     final svc = ref.read(epubPreloadProvider);
     final fresh = BookPagination.lazy(_weights(doc));
+    // 开书取证第二半（2026-10-04 真机反馈「3~5 秒不是秒开」）：首章实算＝批三 span
+    // 排版的主成本，落盘表命中与否决定这次要不要真排；两条各落一行日志，只在
+    // 首次建表（gen==1）时记，改字号/切开关的后续重排不刷屏。
+    final swEns = Stopwatch()..start();
     _ensure(fresh, doc, l, _pos.ci.clamp(0, doc.chapters.length - 1));
+    final ensMs = swEns.elapsedMilliseconds;
     // ignore: invalid_use_of_protected_member // 同库扩展里调 State.setState（note_edit_* 先例）
     setState(() {
       _pag = fresh;
       _clampPos();
     });
-    if (svc.docsPath == null) return;
+    if (svc.docsPath == null) {
+      if (gen == 1) {
+        AppLog.add('开书·排版 书#${widget.bookId} 首章实算=${ensMs}ms 落盘表=无目录');
+      }
+      return;
+    }
     BookPagination? tab;
+    final swTab = Stopwatch()..start();
     try {
       tab = await svc.loadPag(widget.bookId, l, _weights(doc));
     } catch (_) {
       // catch-ok: 落盘分页表读不到就按现算走（懒排路径本来就自给），不值得为缓存打断开书。
+    }
+    if (gen == 1) {
+      AppLog.add(
+        '开书·排版 书#${widget.bookId} 首章实算=${ensMs}ms '
+        '落盘表=${tab == null ? "未命中" : "命中"} 取表=${swTab.elapsedMilliseconds}ms',
+      );
     }
     if (!mounted || gen != _pagGen || tab == null) return;
     final cur = _pag;

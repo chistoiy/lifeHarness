@@ -193,6 +193,21 @@ void main() {
       expect(_contrast(c, _nightBg), greaterThanOrEqualTo(kOrigContrastMin));
       await settle5(t);
     });
+
+    testWidgets('开书取证两条各落一行（文档来源/耗时＋首章实算/落盘表命中）', (t) async {
+      await open(t, 'o9');
+      final doc0 = AppLog.lines.where((l) => l.text.startsWith('开书·文档')).toList();
+      final pag0 = AppLog.lines.where((l) => l.text.startsWith('开书·排版')).toList();
+      expect(doc0, hasLength(1), reason: '一次开书一条文档记录');
+      expect(pag0, hasLength(1), reason: '一次开书一条排版记录');
+      expect(doc0.single.text, contains('源='), reason: '来源档位要能区分缓存/预热/快照/解析');
+      expect(doc0.single.text, allOf(contains('ms'), contains('章=')));
+      expect(pag0.single.text, contains('首章实算='));
+      for (final l in [...doc0, ...pag0]) {
+        expect(l.text, isNot(contains('\n')), reason: '一条记录＝落盘一行');
+      }
+      await drainLogTimer(t);
+    });
   });
 
   group('刀4 外观弹层 · 开关行与不支持项提示行', () {
