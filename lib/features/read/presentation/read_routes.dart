@@ -121,9 +121,13 @@ List<GoRoute> readPageRoutes() => [
               return BookMgrPage(kind: kinds.contains(k) ? k! : 'source');
             },
           ),
-        // V1.54.1 批2：X-Ray 词库管理（GLOBAL 养成词库 CRUD＋启用开关）。
+        // V1.54.1 批2 → V1.59 批3：X-Ray 中心三段同页（词条/AI 精化/索引与备份）。
+        // ?book= 阅读器入口带当前书（拍板①）；?seg= 设置页 xrBak 行直达索引备份段（拍板③）。
           GoRoute(
             path: '/read/xray-words',
-            builder: (_, _) => const XrayWordsPage(),
+            builder: (_, s) => XrayWordsPage(
+              bookId: s.uri.queryParameters['book'],
+              initialSeg: s.uri.queryParameters['seg'],
+            ),
           )
 ];

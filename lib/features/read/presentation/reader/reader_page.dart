@@ -697,9 +697,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       // V1.54 批A · 屏5 入口（more.frag 行）：状态字＋开 X-Ray 段。
       xrStatus: xrStatusLabel(),
       onXray: openXrTab,
-      onXrWords: () => ctx.push('/read/xray-words'),
-      // 批4 · AI 精化入口（状态字计算在 reader_xray_refine 里，别撑大本页行数预算）。
-      // R3-5：状态字只认当前书的 runner——别的书在跑/跑完不跨书显示。
+      // V1.59 批3 中心页拍板①：阅读器入口带当前书（AI/索引段直接可用）。
+      onXrWords: () => ctx.push('/read/xray-words?book=${widget.bookId}'),
+      // 批4 · AI 精化入口（状态字计算在 reader_xray_refine；R3-5＝只认当前书 runner，别的书不跨显）。
       xrAiStatus: xrAiMenuStatus(xrRefineForBook(
           ref.read(xrRefineHolderProvider), _book?.id)),
       onXrRefine: () {
