@@ -416,14 +416,37 @@ class _HeroCard extends ConsumerWidget {
             children: [
               const Text('今天有 ',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('$total',
-                  key: const ValueKey('hero-todo-count'),
-                  style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
+              // 真机反馈轮4②：数字可点直达对应列表页（LH-K15 虚线下划线语义）。
+              GestureDetector(
+                key: const ValueKey('hero-todo-tap'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => context.go(NavModule.todo.path),
+                child: Text('$total',
+                    key: const ValueKey('hero-todo-count'),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        decoration: TextDecoration.underline,
+                        decorationStyle: TextDecorationStyle.dashed,
+                        decorationColor: Colors.white54)),
+              ),
               const Text(' 个待办 · ',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-              Text('${plans.length}',
-                  key: const ValueKey('hero-plan-count'),
-                  style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
+              GestureDetector(
+                key: const ValueKey('hero-plan-tap'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => context.go(NavModule.calendar.path),
+                child: Text('${plans.length}',
+                    key: const ValueKey('hero-plan-count'),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        decoration: TextDecoration.underline,
+                        decorationStyle: TextDecorationStyle.dashed,
+                        decorationColor: Colors.white54)),
+              ),
               const Text(' 场安排',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
             ],
@@ -456,7 +479,11 @@ class _HeroCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _MiniGlass(
+                child: GestureDetector(
+                  key: const ValueKey('dash-todo-card'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.go(NavModule.todo.path),
+                  child: _MiniGlass(
                   label: '今日待办',
                   child: Row(
                     children: [
@@ -486,6 +513,7 @@ class _HeroCard extends ConsumerWidget {
                               color: Colors.white, fontSize: 11, height: 1.35)),
                     ],
                   ),
+                ),
                 ),
               ),
               const SizedBox(width: 12),

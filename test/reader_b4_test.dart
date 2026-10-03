@@ -15,6 +15,7 @@ import 'package:lifeharness/features/read/data/epub_cache.dart';
 import 'package:lifeharness/features/read/data/epub_doc.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/domain/book.dart';
+import 'package:lifeharness/features/read/domain/book_quote.dart';
 import 'package:lifeharness/features/read/presentation/shelf/book_detail.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/features/read/presentation/read_settings_page.dart';
@@ -422,7 +423,7 @@ void main() {
     });
   });
 
-  group('批4-D · 删除本地书两口径', () {
+  group('轮4⑤ · 删除书籍去留询问（保留/全删·两入口共用）', () {
     Future<void> openDetail(WidgetTester t, String id) async {
       await useSurface(t);
       await t.pumpWidget(
@@ -435,11 +436,19 @@ void main() {
       await step(t, times: 4);
     }
 
-    testWidgets('仅清除阅读数据：逐书键与分页表回收·副本与书摘计时保留', (t) async {
+    testWidgets('保留态（默认）：释放副本与源文件·逐书键与分页表回收·行进回收站·书摘计时保留', (t) async {
       final b = await addBook('d1');
       File(b.epub!.path).writeAsBytesSync([1, 2, 3]);
+      File(b.epub!.srcPath!).writeAsBytesSync([4, 5, 6]);
       await repo.setKv('reader.pos.d1', '{"ci":1,"pg":2}');
       await repo.setKv('reader.cfg.d1', '{"fs":22}');
+      await repo.addQuote(BookQuote(
+          bookId: 'd1',
+          kind: BookQuote.kKindMark,
+          body: '一句划线',
+          createdAt: 1,
+          updatedAt: 1));
+      await repo.startSession('d1');
       // FakeAsync 下真文件写会永挂（既有踩坑）：分页表预置走 runAsync。
       await t.runAsync(
         () => PagStore.save(
@@ -460,33 +469,49 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await step(t, times: 2);
-      expect(find.byKey(const ValueKey('brDelOpt-cache')), findsOne);
-      expect(find.byKey(const ValueKey('brDelOpt-src')), findsOne);
+      // 新口径两选项·默认保留
+      expect(find.byKey(const ValueKey('brDelOpt-keep')), findsOne);
+      expect(find.byKey(const ValueKey('brDelOpt-all')), findsOne);
+      expect(find.text('移除该书 · 保留阅读记录'), findsOne);
       await t.runAsync(() async {
         await t.tap(find.byKey(const ValueKey('brDelOk')));
         await Future<void>.delayed(const Duration(milliseconds: 300));
       });
       await step(t, times: 3);
       final after = (await repo.bookById('d1'))!;
-      expect(after.local, isFalse);
-      expect(after.epub, isNull);
-      expect(after.title, '批4书d1', reason: '书籍行与记录保留');
+      expect(after.deletedAt, isNotNull, reason: '保留态：书籍行进回收站');
       expect(await repo.kv('reader.pos.d1'), isNull);
       expect(await repo.kv('reader.cfg.d1'), isNull);
-      expect(File(b.epub!.path).existsSync(), isTrue, reason: 'cache 口径不删副本');
+      // 轮4⑤ 拍板：保留态也释放源文件与私有副本（原 cache 口径不删文件的轴已并入统一删除）
+      expect(File(b.epub!.path).existsSync(), isFalse, reason: '私有副本已释放');
+      expect(File(b.epub!.srcPath!).existsSync(), isFalse, reason: '源文件已释放');
+      // 阅读数据保留：书摘与计时不受保留态影响
+      expect(
+          await db.query('book_quotes', where: 'book_id = ?', whereArgs: ['d1']),
+          hasLength(1));
+      expect(
+          await db.query('book_sessions', where: 'book_id = ?', whereArgs: ['d1']),
+          hasLength(1));
     });
 
-    testWidgets('连源文件删除：私有副本与源文件本体回收', (t) async {
+    testWidgets('全量删除：阅读数据一并永久清除（划线书摘/计时/目录/复习态）', (t) async {
       final b = await addBook('d2');
       File(b.epub!.path).writeAsBytesSync([1, 2, 3]);
       File(b.epub!.srcPath!).writeAsBytesSync([4, 5, 6]);
+      await repo.addQuote(BookQuote(
+          bookId: 'd2',
+          kind: BookQuote.kKindMark,
+          body: '要一起删掉的划线',
+          createdAt: 1,
+          updatedAt: 1));
+      await repo.startSession('d2');
       await openDetail(t, 'd2');
       await t.runAsync(() async {
         await t.tap(find.byKey(const ValueKey('br-d-del')));
         await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await step(t, times: 2);
-      await t.tap(find.byKey(const ValueKey('brDelOpt-src')));
+      await t.tap(find.byKey(const ValueKey('brDelOpt-all')));
       await step(t);
       await t.runAsync(() async {
         await t.tap(find.byKey(const ValueKey('brDelOk')));
@@ -495,7 +520,14 @@ void main() {
       await step(t, times: 3);
       expect(File(b.epub!.path).existsSync(), isFalse);
       expect(File(b.epub!.srcPath!).existsSync(), isFalse);
-      expect((await repo.bookById('d2'))!.epub, isNull);
+      expect((await repo.bookById('d2'))!.deletedAt, isNotNull);
+      // 全删：该书名下阅读数据清零（一条不落）
+      expect(
+          await db.query('book_quotes', where: 'book_id = ?', whereArgs: ['d2']),
+          isEmpty);
+      expect(
+          await db.query('book_sessions', where: 'book_id = ?', whereArgs: ['d2']),
+          isEmpty);
     });
   });
 

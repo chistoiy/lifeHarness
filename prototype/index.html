@@ -103,7 +103,13 @@ tailwind.config = {
   .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px}
   /* V1.50 批3.6 V4 · 日志行版式（补齐搬移缺失：等宽/级别配色/来源标签/行分隔；色值沿用 sync 专版口径；字号滚轮经 #logBoxWrap 级联） */
   #logBoxWrap{font-size:11px}
-  .logline{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1em;line-height:1.7;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent)}
+  .logline{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1em;line-height:1.7;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent);cursor:pointer}
+  /* 真机反馈轮4④：点行勾选多条复制（长按=复制该行不变）·选中态=描边+底色 */
+  .logline.logsel{background:color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:inset 3px 0 0 var(--accent)}
+  /* 真机反馈轮4②：hero 行数字可点直达（LH-K15 同款虚线下划线语义·白卡上用半透明白） */
+  .tapnum{border-bottom:1px dashed rgba(255,255,255,.55);cursor:pointer}
+  /* 轮4③：我的页统计数字可点（LH-K15 灰底版·与 hero 同语义） */
+  .numtap{border-bottom:1px dashed rgba(100,116,139,.5)}
   /* V1.53.4 R14-11：日志行不分栏（时间/级别/来源/正文同一段行内流，长内容不再被挤进右栏） */
   .logline>span{display:inline}
   .logline:last-child{border-bottom:none}
@@ -405,12 +411,12 @@ tailwind.config = {
         <div class="absolute -right-8 -top-10 w-36 h-36 rounded-full bg-white/10"></div>
         <div class="absolute -right-2 top-12 w-20 h-20 rounded-full bg-white/10"></div>
         <div id="dashGreet" class="text-sm opacity-80">早上好，CHIST</div>
-        <div class="text-2xl font-extrabold mt-1">今天有 <span id="dashTodoN" class="text-3xl">4</span> 个待办 · <span id="dashPlanN" class="text-3xl">2</span> 场安排</div>
+        <div class="text-2xl font-extrabold mt-1">今天有 <span id="dashTodoN" class="text-3xl tapnum" onclick="navTab('p-todo')" title="待办清单">4</span> 个待办 · <span id="dashPlanN" class="text-3xl tapnum" onclick="navTab('p-calendar')" title="当日安排">2</span> 场安排</div>
         <div class="mt-3 flex items-center gap-2 text-xs bg-white/15 rounded-full px-3 py-1.5 w-fit">
           <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span> <span id="dashInsight">本周 62% 精力在「重要」象限，状态不错</span>
         </div>
         <div class="mt-4 flex gap-3">
-          <div class="flex-1 bg-white/15 rounded-2xl p-3">
+          <div class="flex-1 bg-white/15 rounded-2xl p-3 cursor-pointer active:scale-[.98] transition" onclick="navTab('p-todo')" title="今日待办清单">
             <div class="text-[11px] opacity-80">今日待办</div>
             <div class="flex items-end gap-2 mt-1">
               <div class="relative w-9 h-9">
@@ -780,13 +786,13 @@ tailwind.config = {
     <section id="p-profile" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center gap-4">
         <div id="pfAv" class="w-16 h-16 rounded-full grad flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-indigo-500/30">C</div>
-        <div><div id="pfName" class="font-extrabold text-lg">CHIST</div><div id="pfSub" class="text-xs text-slate-400">本地模式 · 无账号 · 已记录 55 天</div></div>
+        <div><div id="pfName" class="font-extrabold text-lg">CHIST</div><div id="pfSub" class="text-xs text-slate-400 cursor-pointer active:opacity-60 transition" onclick="navTab('p-records');switchRecord('diary')" title="日记记录">本地模式 · 无账号 · 已记录 55 天</div></div>
         <button id="pfEditBtn" class="ml-auto text-xs text-brand-500 font-bold" onclick="openProfileEdit()">编辑</button>
       </div>
       <div class="mt-4 grid grid-cols-3 text-center text-[11px]">
-        <div class="card !py-2.5"><b id="pfDone" class="text-base text-brand-500">128</b>完成任务</div>
-        <div class="card !py-2.5"><b id="pfStreak" class="text-base text-mint">55</b>连续记录天</div>
-        <div class="card !py-2.5"><b id="pfBooks" class="text-base text-sun">17</b>在册书籍</div>
+        <div class="card !py-2.5 cursor-pointer active:scale-[.98] transition" onclick="navTab('p-todo')" title="待办清单"><b id="pfDone" class="text-base text-brand-500 numtap">128</b>完成任务</div>
+        <div class="card !py-2.5 cursor-pointer active:scale-[.98] transition" onclick="navTab('p-records');switchRecord('diary')" title="日记记录"><b id="pfStreak" class="text-base text-mint numtap">55</b>连续记录天</div>
+        <div class="card !py-2.5 cursor-pointer active:scale-[.98] transition" onclick="navTab('p-records');switchRecord('book')" title="书架在册"><b id="pfBooks" class="text-base text-sun numtap">17</b>在册书籍</div>
       </div>
 
       <div class="card mt-4 !p-0 overflow-hidden">
@@ -1130,6 +1136,13 @@ tailwind.config = {
         <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
           <span class="lt">09-27 08:29:58.412</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span>
         </div>
+      </div>
+
+      <!-- 真机反馈轮4④：勾选多条复制操作条（点行勾选后浮现；与筛选/排序共存） -->
+      <div id="logSelBar" class="hidden fixed md:absolute bottom-24 left-1/2 -translate-x-1/2 z-40 items-center gap-2 rounded-full bg-[#0f172a]/95 text-white px-4 py-2.5 text-xs font-bold shadow-lg">
+        <b id="logSelN">已选 0 条</b>
+        <button class="rounded-full bg-white/15 px-3 py-1 active:bg-white/25" onclick="copySelLogs()">复制已选</button>
+        <button class="rounded-full px-2 py-1 opacity-75 active:opacity-100" onclick="clearLogSel()">取消</button>
       </div>
 
       <!-- 筛选配置弹层 -->
@@ -4229,6 +4242,32 @@ function copyAllLogs(){
   $$('#logBoxWrap .logline').forEach(function(l){t.push(l.textContent.replace(/\s+/g,' ').trim());});
   navigator.clipboard.writeText(t.join('\n')).then(function(){toast('已复制全量日志 · 凭据已脱敏');}).catch(function(){toast('复制失败');});
 }
+/* 真机反馈轮4④：点行勾选多条复制（长按一行=复制该行·不变）· 与筛选/排序共存 */
+function logSelToggle(l){l.classList.toggle('logsel');logSelUpdate();}
+function logSelUpdate(){
+  var n=$$('#logBoxWrap .logsel').length,bar=$('#logSelBar');
+  if(!bar)return;
+  bar.classList.toggle('hidden',n===0);bar.classList.toggle('flex',n>0);
+  $('#logSelN').textContent='已选 '+n+' 条';
+  var box=$('#logBoxWrap');if(box)box.style.maxHeight=n===0?'':'calc(100vh - 214px)';
+}
+function logLineText(line){
+  return line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent.trim()+
+    ' ['+line.querySelector('.ls').textContent+'] '+line.querySelector('.lm').textContent.replace(/\s+/g,' ').trim();
+}
+function copySelLogs(){
+  /* 与筛选共存：只复制当前可见的勾选行（按列表序），隐藏的不混入 */
+  var t=$$('#logBoxWrap .logsel').filter(function(l){return l.offsetParent!==null;}).map(logLineText);
+  if(!t.length){toast('当前视图无勾选行');return;}
+  navigator.clipboard.writeText(t.join('\n')).then(function(){toast('已复制 '+t.length+' 条日志');}).catch(function(){toast('复制失败');});
+}
+function clearLogSel(){$$('#logBoxWrap .logsel').forEach(function(l){l.classList.remove('logsel');});logSelUpdate();}
+(function(){var box=$('#logBoxWrap');if(!box)return;
+  box.addEventListener('click',function(e){
+    if(e.target.closest('button'))return; /* 展开堆栈等按钮不触发勾选 */
+    var l=e.target.closest('.logline');if(l)logSelToggle(l);
+  });
+})();
 </script>
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */

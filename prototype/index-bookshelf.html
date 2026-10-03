@@ -1871,7 +1871,7 @@ tailwind.config = {
         <div><div class="text-[9.5px] text-slate-400 mb-0.5">文件路径</div><div class="break-all rounded-xl bg-slate-50 dark:bg-slate-800/60 px-2.5 py-2 text-[10.5px]" id="brLiPath">—</div></div>
         <div class="flex items-center justify-between"><span class="text-slate-400">体积 / 加密 / 版式</span><b id="brLiMeta">—</b></div>
         <div class="flex items-center justify-between"><span class="text-slate-400">阅读位置 / 划线 / 进度</span><b id="brLiPos">—</b></div>
-        <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 leading-5">删除时分两种口径：仅清除阅读数据（保留源文件），或连源文件一并移除；书籍记录、书摘与计时始终保留。</div>
+        <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 leading-5">删除时询问阅读数据去留：默认保留（进度 · 划线与书摘 · 计时不动，释放源文件与缓存），或全量删除阅读数据；书籍记录进回收站，30 天内可恢复。</div>
         <div id="brLiCache" class="text-[10.5px] text-slate-500 leading-5"></div>
       </div>
       <div class="mt-4 flex gap-2">
@@ -2086,12 +2086,11 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- 本地书删除（源文件选项） -->
+  <!-- 本地书删除（轮4⑤：询问阅读数据去留·默认保留·后果照批3.6「保留/释放」口径写清） -->
   <div id="sheetBrDel" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrDel')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px] text-rose-500">删除《<span id="brDelName">—</span>》</b>
       <div class="mt-3 space-y-2 text-xs" id="brDelOpts"></div>
-      <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[10px] leading-5 text-slate-500 dark:text-slate-400">书摘与计时保留在书架数据中（与「移出书架」同口径）；阅读位置与外观记忆随删除清除。</div>
       <div class="mt-3 flex gap-2">
         <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrDel')">取消</button>
         <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-sm font-bold" onclick="brDelCommit()">确认删除</button>
@@ -4464,7 +4463,7 @@ function lpRun(o){const b=bsBook(lpCur);closeSheet('sheetLongPress');
   else if(o==='移书单')blQuickPick(b.id);
   else if(o==='标记读完'){b.st='已读';b.p=100;b.rp=b.pg;if(!b.end)b.end=shFmtDate();renderShelf();renderBookDetail();renderRecHub();toast('《'+b.n+'》已标记读完 · 自动进年度书单')}
   else if(o==='多选'){shBatchToggle(true);shSelTap(b.id)}
-  else if(o==='删除'){BS_BOOKS=BS_BOOKS.filter(x=>x.id!==b.id);renderShelf();renderRecHub();toast('已移出书架 · 笔记与时长保留 30 天')}}
+  else if(o==='删除'){brDelOpen(b.id)}} /* 轮4⑤：长按删除与本地书删除共用「保留/全删」去留询问，不再静默移除 */
 function blQuickPick(id){const L=BS_LISTS.filter(x=>!x.auto);if(!L.length){toast('还没有手动书单 · 先去书单管理创建');return}
   const b=bsBook(id);L.forEach(x=>{if(!x.ids.includes(id))x.ids.push(id)});renderBlPage();renderBooklists();toast('《'+b.n+'》已加入 '+L.length+' 个书单')}
 /* ---------- 摘录：识图取文 / 图片 / 剪贴板 ---------- */
@@ -6435,14 +6434,22 @@ function brTtsToggle(){const el=document.getElementById('brTtsPlay');if(brTtsTim
 function brTtsRate(){const r=BS_SET.brRate||1;BS_SET.brRate=r>=1.5?0.75:r+0.25;document.getElementById('brTtsRate').textContent=BS_SET.brRate.toFixed(2).replace(/0$/,'')+'x';
   if(brTtsTimer){clearInterval(brTtsTimer);brTtsTimer=setInterval(brTtsTick,3200/BS_SET.brRate)}try{renderReadSet()}catch(e){}toast('语速 '+BS_SET.brRate+'x')}
 function brTtsOff(quiet){clearInterval(brTtsTimer);brTtsTimer=0;document.getElementById('brTts').classList.add('hidden');if(!quiet)toast('已停止朗读')}
-let brDelId='',brDelOpt='cache';
-function brDelOpen(id){brDelId=id;brDelOpt='cache';const b=bsBook(id);document.getElementById('brDelName').textContent=b.n;brDelRender();openSheet('sheetBrDel')}
-function brDelRender(){document.getElementById('brDelOpts').innerHTML=[['cache','仅清除阅读数据','进度 · 外观记忆 · 分页缓存清除 · 保留 EPUB 源文件与书摘'],['src','连同源文件一起删除','经系统授权移除 .epub 文件本体（模拟 SAF）· 书摘与计时保留']].map(([k,l,s])=>`<button class="w-full card !py-2.5 text-left flex items-start gap-2.5" onclick="brDelOpt='${k}';brDelRender()"><span class="mt-0.5 w-4 h-4 rounded-full border-2 ${brDelOpt===k?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'} flex items-center justify-center text-[9px] text-white">${brDelOpt===k?'✓':''}</span><span><b>${l}</b><div class="text-[10px] text-slate-400 mt-0.5">${s}</div></span></button>`).join('')}
+let brDelId='',brDelOpt='keep',brDelLocal=false;
+function brDelOpen(id){brDelId=id;brDelOpt='keep';const b=bsBook(id);brDelLocal=!!b.local;document.getElementById('brDelName').textContent=b.n;brDelRender();openSheet('sheetBrDel')}
+/* 轮4⑤：删除询问阅读数据去留（默认保留）· 长按与本地书卡两入口共用 · 书籍行统一进回收站（拍板 2026-10-04） */
+function brDelRender(){const opts=brDelLocal
+  ?[['keep','移除该书 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 <b class="text-amber-600">释放</b> 源文件与缓存 · 回收站内 30 天可恢复'],['all','移除该书 · 全量删除','源文件与缓存之外，进度 · 划线与书摘 · 计时一并删除 · 不可恢复']]
+  :[['keep','移除该书 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 · 回收站内 30 天可恢复'],['all','移除该书 · 全量删除','进度 · 划线与书摘 · 计时一并删除 · 不可恢复']];
+document.getElementById('brDelOpts').innerHTML=opts.map(([k,l,s])=>`<button class="w-full card !py-2.5 text-left flex items-start gap-2.5" onclick="brDelOpt='${k}';brDelRender()"><span class="mt-0.5 w-4 h-4 rounded-full border-2 ${brDelOpt===k?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'} flex items-center justify-center text-[9px] text-white">${brDelOpt===k?'✓':''}</span><span><b${k==='all'?' class="!text-rose-500"':''}>${l}</b><div class="text-[10px] text-slate-400 mt-0.5">${s}</div></span></button>`).join('')}
 function brDelCommit(){const b=bsBook(brDelId);if(!b)return closeSheet('sheetBrDel');
   if(b.epub&&b.epub.st==='pre')brPreStop(b.id);
-  b.local=0;delete b.epub;delete brPos[b.id];delete brBooksCfg[b.id];brPagCache={};brPersist();
+  b.local=0;delete b.epub;delete brPos[b.id];delete brBooksCfg[b.id];brPagCache={};
+  BS_BOOKS=BS_BOOKS.filter(x=>x.id!==b.id); /* 书籍行进回收站（演示=移出书架·30 天口径见回收站批） */
+  if(brDelOpt==='all'){BS_QUOTES=BS_QUOTES.filter(q=>q.b!==b.id);delete BS_SESS_CACHE[b.id];}
+  brPersist();
   closeSheet('sheetBrDel');renderShelf();try{renderBookDetail()}catch(e){}
-  toast('《'+b.n+'》'+(brDelOpt==='src'?'源文件已删除':'仅清除阅读数据 · 源文件保留')+' · 书摘与计时保留')}
+  if(brDelOpt==='all'){try{renderQuotes();renderReadStat();renderRecHub()}catch(e){}}
+  toast('《'+b.n+'》已移除 · '+(brDelOpt==='all'?'阅读数据已一并删除':'书摘 · 划线 · 计时 · 进度保留'))}
 
 /* ---- 导入本地图书（四步向导） ---- */
 const BR_FILES={download:[

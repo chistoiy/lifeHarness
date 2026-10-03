@@ -75,12 +75,11 @@ Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
                 if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
               }),
               _ => row('lp-del', '删除', () async {
-                await ref2.read(readRepositoryProvider).softDeleteBooks([
-                  b.id,
-                ]);
-                ref2.read(readTickProvider.notifier).state++;
+                // 轮4⑤：长按删除与详情页「删除本地书」共用去留询问（保留/全删），
+                // 不再静默软删；书籍行进回收站的处置在弹层提交里统一做。
                 if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                if (context.mounted) readToast(context, '已移除《${b.title}》');
+                if (!context.mounted) return;
+                await showBrDelSheet(context, ref2, b);
               }),
             };
             return SingleChildScrollView(

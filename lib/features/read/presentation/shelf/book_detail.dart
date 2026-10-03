@@ -1515,8 +1515,8 @@ Future<void> showBrLocalInfo(
             ),
             const SizedBox(height: 10),
             Text(
-              '删除时分两种口径：仅清除阅读数据（保留源文件），或连源文件一并移除；'
-              '书籍记录、书摘与计时始终保留。',
+              '删除时询问阅读数据去留：默认保留（进度 · 划线与书摘 · 计时不动，释放源文件与缓存），'
+              '或全量删除阅读数据；书籍记录进回收站，30 天内可恢复。',
               style: TextStyle(
                 fontSize: 10.5,
                 height: 1.6,

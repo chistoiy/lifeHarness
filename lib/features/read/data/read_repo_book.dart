@@ -129,6 +129,34 @@ mixin _RepoBooks on _ReadRepoBase {
     whereArgs: ids,
   );
 
+  /// 轮4⑤「全量删除」：永久清除某本书的**阅读数据**（划线/书摘/计时/目录/复习态），
+  /// 书籍行本身仍走 [softDeleteBooks] 进回收站可恢复。返回清除的摘录行数。
+  /// 不动 X-Ray 派生索引（按内容指纹归属，另有清理通道）。
+  Future<int> hardDeleteReadingData(String bookId) async {
+    await db.delete(
+      DbSchema.tBookReviews,
+      where:
+          'quote_id IN (SELECT id FROM ${DbSchema.tBookQuotes} WHERE book_id = ?)',
+      whereArgs: [bookId],
+    );
+    final n = await db.delete(
+      DbSchema.tBookQuotes,
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+    );
+    await db.delete(
+      DbSchema.tBookSessions,
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+    );
+    await db.delete(
+      DbSchema.tBookTocNodes,
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+    );
+    return n;
+  }
+
   // ---- 购书费用 → L4/记账流水（read.feeTxn 默认开 · §9.5 已拍板③）----
 
   /// 书保存后同步「阅读-购书」支出流水：新增或改费用→同条更新；清零→删行。

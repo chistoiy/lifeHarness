@@ -259,7 +259,7 @@ class EpubImportService {
     }
   }
 
-  /// 删除本地书时清私有副本（BrDel「连源文件删除」用 · 批4 接线）。
+  /// 删除书籍时清私有副本（BrDel 保留/全删两态都释放源文件 · 轮4⑤ 接线）。
   static Future<void> deleteCopy(String path) async {
     final f = File(path);
     if (await f.exists()) await f.delete();

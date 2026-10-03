@@ -58,11 +58,17 @@ class SettingsPage extends ConsumerWidget {
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 3),
-                    Text(
-                        // 原型 p-profile 副行 + 顶栏副标题（App 顶栏无副标题位，签名并到这一行）。
-                        '本地模式 · 无账号 · 已记录 $streak 天'
-                        '${settings.profileBio.isEmpty ? '' : ' · ${settings.profileBio}'}',
-                        style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+                    // 真机反馈轮4③：副标题「已记录 N 天」点按直达日记（记录页）。
+                    GestureDetector(
+                      key: const ValueKey('profile-sub'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => context.go(NavModule.journal.path),
+                      child: Text(
+                          // 原型 p-profile 副行 + 顶栏副标题（App 顶栏无副标题位，签名并到这一行）。
+                          '本地模式 · 无账号 · 已记录 $streak 天'
+                          '${settings.profileBio.isEmpty ? '' : ' · ${settings.profileBio}'}',
+                          style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+                    ),
                   ],
                 ),
               ),
@@ -76,18 +82,29 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 14),
-          // 统计三宫格
+          // 统计三宫格（真机反馈轮4③：数字与模块同源，点卡直达对应列表页）
           Row(
             children: [
-              _StatCell(value: '$doneTasks', label: '完成任务', color: tokens.accent),
+              _StatCell(
+                  key: const ValueKey('stat-done'),
+                  value: '$doneTasks',
+                  label: '完成任务',
+                  color: tokens.accent,
+                  onTap: () => context.go(NavModule.todo.path)),
               const SizedBox(width: 10),
-              _StatCell(value: '$streak', label: '连续记录天', color: const Color(0xFF2DD4BF)),
+              _StatCell(
+                  key: const ValueKey('stat-streak'),
+                  value: '$streak',
+                  label: '连续记录天',
+                  color: const Color(0xFF2DD4BF),
+                  onTap: () => context.go(NavModule.journal.path)),
               const SizedBox(width: 10),
               _StatCell(
                   key: const ValueKey('stat-books'),
                   value: '$books',
                   label: '在册书籍',
-                  color: const Color(0xFFF59E0B)),
+                  color: const Color(0xFFF59E0B),
+                  onTap: () => context.push('/read/shelf')),
             ],
           ),
           const SizedBox(height: 14),
@@ -361,25 +378,40 @@ class _StatCell extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.onTap,
   });
 
   final String value;
   final String label;
   final Color color;
+  // 真机反馈轮4③：统计卡可点直达对应列表页（LH-K15 虚线下划线语义）。
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: context.cardDecoration,
-        child: Column(
-          children: [
-            Text(value,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color)),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: context.cardDecoration,
+          child: Column(
+            children: [
+              Text(value,
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      decoration: onTap == null
+                          ? null
+                          : TextDecoration.underline,
+                      decorationStyle: TextDecorationStyle.dashed,
+                      decorationColor: Colors.grey.withValues(alpha: .6))),
+              const SizedBox(height: 2),
+              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
         ),
       ),
     );

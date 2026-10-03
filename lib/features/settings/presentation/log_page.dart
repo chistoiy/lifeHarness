@@ -55,6 +55,10 @@ class _LogPageState extends ConsumerState<LogPage> {
 
   _LogFlt _flt = _LogFlt.all;
 
+  /// 真机反馈轮4④：点行勾选多条复制（对象身份集）；与筛选共存——
+  /// 复制只取当前可见的勾选行，切档不越筛选偷偷带走看不见的行。
+  final Set<LhLogLine> _sel = {};
+
   /// 来源筛选（null＝全部来源）与关键词（一眼看出是谁报的错、能筛）。
   String? _src;
   final TextEditingController _kwCtl = TextEditingController();
@@ -159,6 +163,22 @@ class _LogPageState extends ConsumerState<LogPage> {
     await Clipboard.setData(ClipboardData(text: l.formatted));
     if (!mounted) return;
     AppToast.show(context, '已复制该行日志');
+  }
+
+  void _toggleSel(LhLogLine l) =>
+      setState(() => _sel.contains(l) ? _sel.remove(l) : _sel.add(l));
+
+  /// 复制已选：按当前可见视图顺序取勾选行（一条一行 · 沿用 formatted）。
+  Future<void> _copySel() async {
+    final t = [for (final l in _visibleLines()) if (_sel.contains(l)) l.formatted];
+    if (!mounted) return;
+    if (t.isEmpty) {
+      AppToast.show(context, '当前视图无勾选行');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: t.join('\n')));
+    if (!mounted) return;
+    AppToast.show(context, '已复制 ${t.length} 条日志');
   }
 
   // ==================== 日志管理（归档 / 清理 · 弹层配置区） ====================
@@ -341,6 +361,8 @@ class _LogPageState extends ConsumerState<LogPage> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    // 环形缓冲淘汰兜底：被挤出的勾选行不再计数。
+    if (_sel.isNotEmpty) _sel.removeWhere((l) => !AppLog.lines.contains(l));
     return Scaffold(
       appBar: AppBar(
         title: const Text('日志'),
@@ -353,6 +375,60 @@ class _LogPageState extends ConsumerState<LogPage> {
           ),
         ],
       ),
+      // 真机反馈轮4④：勾选后浮出操作条（复制已选 · 取消），与筛选/排序共存。
+      bottomNavigationBar: _sel.isEmpty
+          ? null
+          : Material(
+              color: const Color(0xE60F172A),
+              child: SafeArea(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      Text('已选 ${_sel.length} 条',
+                          key: const ValueKey('log-sel-count'),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      GestureDetector(
+                        key: const ValueKey('log-sel-copy'),
+                        onTap: _copySel,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: tokens.accent,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('复制已选',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        key: const ValueKey('log-sel-clear'),
+                        onTap: () => setState(_sel.clear),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          child: const Text('取消',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
       body: SafeArea(
         child: Column(
           children: [
@@ -428,6 +504,8 @@ class _LogPageState extends ConsumerState<LogPage> {
                           levelText: _levelText(l.level),
                           levelColor: _levelColor(l.level),
                           onLongPress: () => _copyLine(l),
+                          selected: _sel.contains(l),
+                          onTap: () => _toggleSel(l),
                         );
                       },
                     );
@@ -452,6 +530,8 @@ class _LogLine extends StatefulWidget {
     required this.levelText,
     required this.levelColor,
     required this.onLongPress,
+    required this.selected,
+    required this.onTap,
   });
 
   final LhLogLine line;
@@ -459,6 +539,9 @@ class _LogLine extends StatefulWidget {
   final String levelText;
   final Color levelColor;
   final VoidCallback onLongPress;
+  // 真机反馈轮4④：点行勾选多条复制（选中态可辨），长按一行仍复制该行。
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   State<_LogLine> createState() => _LogLineState();
@@ -509,12 +592,18 @@ class _LogLineState extends State<_LogLine> {
       _ => Colors.transparent,
     };
     final (head, stack) = _isStack ? _split : (line.text, '');
+    final sel = widget.selected;
     final base = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: tint,
+        color: sel ? tokens.accent.withValues(alpha: .12) : tint,
         border: Border(
-            bottom: BorderSide(color: tokens.cardBorder.withValues(alpha: .6))),
+          bottom:
+              BorderSide(color: tokens.cardBorder.withValues(alpha: .6)),
+          left: sel
+              ? BorderSide(color: tokens.accent, width: 3)
+              : BorderSide.none,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,6 +612,15 @@ class _LogLineState extends State<_LogLine> {
             TextSpan(
               style: mono,
               children: [
+                if (sel)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(Icons.check_circle,
+                          size: widget.font + 4, color: tokens.accent),
+                    ),
+                  ),
                 TextSpan(
                     text: '$_ts ',
                     style: const TextStyle(color: Color(0xFF94A3B8))),
@@ -578,6 +676,7 @@ class _LogLineState extends State<_LogLine> {
     return GestureDetector(
       key: ValueKey('log-line-$_ts-${line.text.hashCode}'),
       behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       child: base,
     );

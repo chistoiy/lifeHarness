@@ -531,13 +531,15 @@ String brLocalStateLine(Book b) {
   };
 }
 
-// ---------- 批4 · 删除本地书两口径（原型 sheetBrDel） ----------
+// ---------- 轮4⑤ · 删除书籍去留询问（原型 sheetBrDel·与长按/详情两入口共用） ----------
 
-/// cache＝仅清除阅读数据（保留源文件与书摘计时）；src＝连同源文件一起删除。
-enum BrDelOpt { cache, src }
+/// keep＝移除该书但保留阅读记录（默认）；all＝连阅读数据一并全量删除（不可恢复）。
+/// 书籍行两者都进回收站（30 天可恢复）；「全量删除」只额外永久清除阅读数据。
+enum BrDelOpt { keep, all }
 
 Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
-  var opt = BrDelOpt.cache;
+  var opt = BrDelOpt.keep;
+  final isLocal = b.epub != null;
   await showModalBottomSheet<void>(
     context: context,
     shape: _sheetShape,
@@ -551,16 +553,20 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
             children: [
               _sheetTitle('删除《${b.title}》', color: const Color(0xFFE11D48)),
               const SizedBox(height: 4),
-              for (final (k, label, sub) in const [
+              for (final (k, label, sub) in [
                 (
-                  BrDelOpt.cache,
-                  '仅清除阅读数据',
-                  '进度 · 外观记忆 · 分页缓存清除 · 保留 EPUB 源文件与书摘',
+                  BrDelOpt.keep,
+                  '移除该书 · 保留阅读记录',
+                  isLocal
+                      ? '保留 进度 · 划线与书摘 · 计时，释放 源文件与缓存 · 回收站内 30 天可恢复'
+                      : '保留 进度 · 划线与书摘 · 计时 · 回收站内 30 天可恢复',
                 ),
                 (
-                  BrDelOpt.src,
-                  '连同源文件一起删除',
-                  '移除 .epub 文件本体 · 书摘与计时保留',
+                  BrDelOpt.all,
+                  '移除该书 · 全量删除',
+                  isLocal
+                      ? '源文件与缓存之外，进度 · 划线与书摘 · 计时一并删除 · 不可恢复'
+                      : '进度 · 划线与书摘 · 计时一并删除 · 不可恢复',
                 ),
               ])
                 RadioListTile<BrDelOpt>(
@@ -571,9 +577,12 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
                   groupValue: opt,
                   title: Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w800,
+                      color: k == BrDelOpt.all
+                          ? const Color(0xFFE11D48)
+                          : null,
                     ),
                   ),
                   subtitle: Text(
@@ -588,7 +597,7 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
               Padding(
                 padding: const EdgeInsets.only(top: 6, bottom: 10),
                 child: Text(
-                  '书摘与计时保留在书架数据中（与「移出书架」同口径）；阅读位置与外观记忆随删除清除。',
+                  '书籍记录移入回收站 · 到期自动清理。',
                   style: TextStyle(
                     fontSize: 10,
                     height: 1.5,
@@ -630,8 +639,8 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
   );
 }
 
-/// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本（src 口径再删源文件），
-/// 书籍行与书摘/计时保留、local 标记摘除。
+/// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本与源文件（本地书），
+/// 书籍行进回收站；「全量删除」再永久清除该书阅读数据（划线/书摘/计时/目录/复习态）。
 Future<void> brDelCommit(
   BuildContext context,
   WidgetRef ref,
@@ -639,11 +648,10 @@ Future<void> brDelCommit(
   BrDelOpt opt,
 ) async {
   final ep = b.epub;
-  if (ep == null) return;
   final repo = ref.read(readRepositoryProvider);
   final preload = ref.read(epubPreloadProvider);
   preload.docs.remove(b.id); // 释放懒归档句柄（Windows 句柄锁教训）
-  if (opt == BrDelOpt.src) {
+  if (ep != null) {
     try {
       final copy = File(ep.path);
       if (await copy.exists()) await copy.delete();
@@ -661,17 +669,20 @@ Future<void> brDelCommit(
         readToast(context, '源文件被系统保护 · 请在文件管理器手动删除：$src');
       }
     }
+    await repo.updateBook(b.copyWith(local: false, clearEpub: true));
   }
   await repo.removeKv('reader.pos.${b.id}');
   await repo.removeKv('reader.cfg.${b.id}');
   await preload.removePag(b.id);
   await preload.removeSnap(b.id);
-  await repo.updateBook(b.copyWith(local: false, clearEpub: true));
+  await repo.softDeleteBooks([b.id]);
+  if (opt == BrDelOpt.all) await repo.hardDeleteReadingData(b.id);
   ref.read(readTickProvider.notifier).state++;
   if (context.mounted) {
     readToast(
       context,
-      '《${b.title}》${opt == BrDelOpt.src ? '源文件已删除' : '仅清除阅读数据 · 源文件保留'} · 书摘与计时保留',
+      '《${b.title}》已移除 · '
+          '${opt == BrDelOpt.all ? '阅读数据已一并删除' : '书摘 · 划线 · 计时 · 进度保留'}',
     );
   }
 }
