@@ -125,7 +125,17 @@ class WeatherService {
     if (results is! List) {
       // 真机轮4①补：200 但结构不合（限流/防滥用返回 error JSON）＝服务异常，
       // 归「网络不可达」并留痕，不许静默算「查无此城」。
-      AppLog.add('城市搜索响应结构异常 host=geocoding-api.open-meteo.com',
+      // 真机 03:19 实锤此分支命中「常州」；再带上响应体前 60 字符定位是
+      // 限流 JSON 还是代理劫持页（geocoding 错误体不回显查询词，无隐私）。
+      var shape = 'unencodable';
+      try {
+        shape = r.json == null ? 'null' : jsonEncode(r.json);
+      } catch (_) {
+        // catch-ok: 仅诊断文本编码失败，回落占位符
+      }
+      if (shape.length > 60) shape = '${shape.substring(0, 60)}…';
+      AppLog.add(
+          '城市搜索响应结构异常 host=geocoding-api.open-meteo.com body=$shape',
           level: LhLevel.warn);
       return (hits: const <CityHit>[], err: 'bad-shape');
     }

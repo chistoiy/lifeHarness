@@ -11,6 +11,7 @@ import '../../../../core/database/schema/xray.dart'
         xrayStatusPause,
         xrayStatusFailed,
         xrayStatusSuccess;
+import '../../../../core/logging/app_log.dart';
 import '../../data/epub_cache.dart';
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
@@ -643,23 +644,32 @@ Future<void> brDelCommit(
   final repo = ref.read(readRepositoryProvider);
   final preload = ref.read(epubPreloadProvider);
   preload.docs.remove(b.id); // 释放懒归档句柄（Windows 句柄锁教训）
+  // 真机轮4 复验补诊断：一行回执写清档位与文件处置，下装即自证。
+  var copyGone = 'n/a', srcGone = 'n/a';
   if (ep != null) {
     try {
       final copy = File(ep.path);
       if (await copy.exists()) await copy.delete();
-    } catch (_) {}
+      copyGone = 'gone';
+    } catch (_) {
+      copyGone = 'fail';
+    }
     final src = ep.srcPath;
     if (src != null && src.isNotEmpty) {
       var failed = false;
       try {
         final f = File(src);
         if (await f.exists()) await f.delete();
+        srcGone = 'gone';
       } catch (_) {
         failed = true;
+        srcGone = 'fail';
       }
       if (failed && context.mounted) {
         readToast(context, '源文件被系统保护 · 请在文件管理器手动删除：$src');
       }
+    } else {
+      srcGone = 'none';
     }
     await repo.updateBook(b.copyWith(local: false, clearEpub: true));
   }
@@ -668,9 +678,14 @@ Future<void> brDelCommit(
   await preload.removePag(b.id);
   await preload.removeSnap(b.id);
   // keep+本地书＝留在书架（挂回态）；其余（非本地 keep / 任何 all）＝书行进回收站。
-  if (opt == BrDelOpt.all || ep == null) await repo.softDeleteBooks([b.id]);
+  final rowToTrash = opt == BrDelOpt.all || ep == null;
+  if (rowToTrash) await repo.softDeleteBooks([b.id]);
   if (opt == BrDelOpt.all) await repo.hardDeleteReadingData(b.id);
   ref.read(readTickProvider.notifier).state++;
+  AppLog.add(
+      '删除书籍《${b.title}》档=${opt.name} 副本=$copyGone 源=$srcGone '
+      '书行=${rowToTrash ? '回收站' : '留架'}',
+      src: '阅读');
   if (context.mounted) {
     readToast(
       context,
