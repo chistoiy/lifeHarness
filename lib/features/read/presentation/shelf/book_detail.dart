@@ -538,8 +538,17 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
                       brOpenBookSearch(context, ref, b)),
                   const SizedBox(width: 6),
                   mini('br-d-del', Icons.delete_outline_rounded,
-                      const Color(0xFFE11D48), () =>
-                      showBrDelSheet(context, ref, b)),
+                      const Color(0xFFE11D48), () async {
+                    // 轮4：弹层 resolve 时提交已落库。全删（或纸质/电子书写 keep
+                    // 直接进回收站）后书行已没——详情页不再有空壳可留，出栈回书架；
+                    // 本地书 keep＝留架摘缓存，页面随 readTick 重取自然转为无缓存态。
+                    await showBrDelSheet(context, ref, b);
+                    if (!mounted) return;
+                    final nb =
+                        await ref.read(readRepositoryProvider).bookById(b.id);
+                    if (!mounted) return;
+                    if (nb == null || nb.isDeleted) Navigator.of(context).pop();
+                  }),
                 ],
               ),
             ],

@@ -544,6 +544,10 @@ enum BrDelOpt { keep, all }
 Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
   var opt = BrDelOpt.keep;
   final isLocal = b.epub != null;
+  // 真机轮4 崩溃根因修复：长按入口会先销毁自身弹层再走本流程，届时传进来的
+  // ref 已失效（Cannot use "ref" after the widget was disposed）。容器是 app 级、
+  // 活过一切弹层，提交链路统一改用它，ref 参数仅为兼容调用方签名保留。
+  final container = ProviderScope.containerOf(context);
   Completer<void>? committed;
   final ok = await showModalBottomSheet<bool>(
     context: context,
@@ -619,7 +623,7 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
                       onPressed: () {
                         committed = Completer<void>();
                         Navigator.of(sc).pop(true);
-                        unawaited(brDelCommit(context, ref, b, opt)
+                        unawaited(brDelCommit(context, container, b, opt)
                             .whenComplete(() => committed!.complete()));
                       },
                       child: const Text('确认删除'),
@@ -639,15 +643,17 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
 /// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本与源文件（本地书）。
 /// keep：本地书卡片留在书架（local=0），非本地书进回收站；阅读数据一律不动。
 /// all：书籍记录进回收站，并永久清除该书阅读数据（划线书摘/计时/目录/复习态）。
+/// 用 [container]（app 级 ProviderContainer）而非 WidgetRef——真机轮4 崩溃根因＝
+/// 长按入口先销毁自身弹层，届时传入的 ref 已失效，提交首行 ref.read 即抛。
 Future<void> brDelCommit(
   BuildContext context,
-  WidgetRef ref,
+  ProviderContainer container,
   Book b,
   BrDelOpt opt,
 ) async {
   final ep = b.epub;
-  final repo = ref.read(readRepositoryProvider);
-  final preload = ref.read(epubPreloadProvider);
+  final repo = container.read(readRepositoryProvider);
+  final preload = container.read(epubPreloadProvider);
   preload.docs.remove(b.id); // 释放懒归档句柄（Windows 句柄锁教训）
   // 真机轮4 复验补诊断：一行回执写清档位与文件处置，下装即自证。
   var copyGone = 'n/a', srcGone = 'n/a';
@@ -686,7 +692,7 @@ Future<void> brDelCommit(
   final rowToTrash = opt == BrDelOpt.all || ep == null;
   if (rowToTrash) await repo.softDeleteBooks([b.id]);
   if (opt == BrDelOpt.all) await repo.hardDeleteReadingData(b.id);
-  ref.read(readTickProvider.notifier).state++;
+  container.read(readTickProvider.notifier).state++;
   AppLog.add(
       '删除书籍《${b.title}》档=${opt.name} 副本=$copyGone 源=$srcGone '
       '书行=${rowToTrash ? '回收站' : '留架'}',

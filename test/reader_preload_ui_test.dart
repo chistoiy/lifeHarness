@@ -325,6 +325,10 @@ void main() {
       expect(find.byKey(const ValueKey('cov-badge-bl')), findsOne,
           reason: '角标位让回进度徽标（单槽互斥）');
       expect(File(b.epub!.path).existsSync(), isFalse, reason: '私有副本已释放');
+      // 崩溃回归钉：长按入口先 pop 自身弹层销毁 ref，旧实现 brDelCommit 用
+      // WidgetRef.ref 读 provider → 「Cannot use "ref" after the widget was
+      // disposed」。改 app 级 container 后必须零异常。
+      expect(t.takeException(), isNull, reason: '去留提交不得抛 ref-after-disposed');
     });
   });
 }
