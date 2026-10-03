@@ -19,6 +19,8 @@ import 'package:path/path.dart' as p;
 /// R6 `context.go('/x')` 的字面目标必须是 ShellRoute 内的 tab 路径
 ///   （栈路由只许 push——go 清栈会让该页成为栈底，返回键直接退出 app；
 ///   tab 集合从 app_router 的 ShellRoute 块现场解析，加/撤栏目自动跟随）。
+/// R9 原书样式翻译器（`features/read/data/epub_css.dart`）源码内出现
+///   「按 class 名的字面量映射」即判红——只许 CSS 属性名/值关键字白名单（§5.4 通用性红线的机器闸）。
 /// 违反任何一条即测试失败——新增跨模块依赖必须先过架构评审并更新本白名单。
 void main() {
   const libDir = 'lib';
@@ -467,6 +469,46 @@ void main() {
             '${leaks.join(', ')}。端点三要素与 Key 只在 core/ai/* 与 AI 增强页处理。');
   });
 
+  /// R9 原书样式翻译器＝通用性红线（预研 `docs/预研/原书样式保真CSS画像-20261002.md` §5.4
+  /// 产品拍板 ＋ 批三工单 §3B「第一刀清单」：CSS 抽取器与这条源码守护**同批落**）。
+  ///
+  /// 闸的口径：`lib/features/read/data/epub_css.dart` 里凡是**类名形态**的字符串字面量
+  /// （ASCII、字母起头、只含字母/数字/下划线/连字符）**必须**是 CSS 属性名或 CSS 值关键字
+  /// （见 [kEpubCssAllowedLiterals]）。出现 `'note'`／`'reign-title'`／`'book-title'`
+  /// 这种「按 class 名特判」即判红。
+  ///
+  /// 为什么钉这么死：总原则＝**完全按原书展示**，且「将来再来别的精编本书不许定制代码」——
+  /// `.note`→绿 一旦写进代码，换一本 class 名不同的精编本书就全线失效，等于把通鉴做成了特例。
+  /// 画像 §5.1 那张 class→语义 表是**证据**（证明信息在包里、以 class 级联承载），不是实现依据。
+  ///
+  /// 范围说明：只扫翻译器本体。命名色表 `css_named_colors.dart` 是 CSS 标准值的事实查阅件
+  /// （不是 class→样式 映射）；`epub_doc.dart` 里的 `note|footnote|annotation` 判定是
+  /// **需求 R3-2① 已定的止血口径**（注释体一律小字正文色），早于本批、不属特判。
+  test('R9 原书样式翻译器禁 class 名映射（只许属性名白名单）', () {
+    const rel = 'features/read/data/epub_css.dart';
+    final src = sources[rel];
+    expect(src, isNotNull,
+        reason: '翻译器文件被改名/挪走会让 R9 静默失效——请同步这条守护的扫描面。');
+    // 逐行剥 `//` 注释：class 名只会出现在注释（画像引用）里，不剥就把文档当代码判红。
+    // 本文件不放含 `//` 的字面量（无 URL），所以按行截断安全。
+    final code = src!.split('\n').map((l) {
+      final i = l.indexOf('//');
+      return i < 0 ? l : l.substring(0, i);
+    }).join('\n');
+    final shapes = RegExp(r"'([A-Za-z][A-Za-z0-9_-]*)'")
+        .allMatches(code)
+        .map((m) => m.group(1)!)
+        .toSet();
+    expect(shapes.length, greaterThan(80),
+        reason: 'R9 空转自检：类名形态字面量只扫到 ${shapes.length} 个，扫描面大概变了');
+    final offenders = shapes.difference(kEpubCssAllowedLiterals).toList()..sort();
+    expect(offenders, isEmpty,
+        reason: '这些字面量既不是 CSS 属性名也不是 CSS 值关键字，出现在翻译器里就是'
+            '「按 class 名特判」：${offenders.join(', ')}。'
+            '总原则＝完全按原书展示、别的精编本书不许定制代码（预研 §5.4）；'
+            '要加词请确认它是 CSS 属性名/值关键字，并在本测试的白名单里注明出处。');
+  });
+
   test('守护自身有效性：确认真实扫到了文件', () {
     expect(imports.length, greaterThan(20));
     expect(imports.keys.where((k) => k.startsWith('features/')).length,
@@ -475,6 +517,138 @@ void main() {
         reason: 'R5 的豁免文件必须真实存在，否则守护退化为空转');
   });
 }
+
+/// R9 白名单：翻译器里允许的**类名形态字面量**＝CSS 属性名 ∪ CSS 值关键字 ∪ 边的形态名。
+/// 出处逐条可查（CSS 规范属性名/关键字），不是「某本书的 class 表」——新增词必须先确认它是
+/// 属性或值，并把出处写进本注释；否则就是按书特判，R9 会判红。
+const Set<String> kEpubCssAllowedLiterals = {
+  // —— CSS 属性名（含 logical／webkit 变体在源码里带前缀，形如 -webkit-margin-start 不是类名形态，不入本表）
+  'background',
+  'background-color',
+  'background-image',
+  'background-position',
+  'background-repeat',
+  'background-size',
+  'border',
+  'border-block-end',
+  'border-block-start',
+  'border-bottom',
+  'border-bottom-color',
+  'border-bottom-style',
+  'border-bottom-width',
+  'border-color',
+  'border-inline-end',
+  'border-inline-start',
+  'border-left',
+  'border-left-color',
+  'border-left-style',
+  'border-left-width',
+  'border-right',
+  'border-right-color',
+  'border-right-style',
+  'border-right-width',
+  'border-style',
+  'border-top',
+  'border-top-color',
+  'border-top-style',
+  'border-top-width',
+  'border-width',
+  'clear',
+  'color',
+  'column-count',
+  'column-width',
+  'columns',
+  'direction',
+  'display',
+  'fill',
+  'float',
+  'font-size',
+  'font-style',
+  'font-weight',
+  'letter-spacing',
+  'line-height',
+  'margin',
+  'margin-block-end',
+  'margin-block-start',
+  'margin-bottom',
+  'margin-inline-end',
+  'margin-inline-start',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'padding',
+  'padding-bottom',
+  'padding-inline-end',
+  'padding-inline-start',
+  'padding-left',
+  'padding-right',
+  'padding-top',
+  'stroke',
+  'text-align',
+  'text-decoration',
+  'text-decoration-color',
+  'text-decoration-line',
+  'text-indent',
+  'word-spacing',
+  'writing-mode',
+  // —— CSS 值关键字与单位
+  'bold',
+  'bolder',
+  'currentcolor',
+  'dashed',
+  'dotted',
+  'double',
+  'em',
+  'groove',
+  'hidden',
+  'hsl',
+  'inherit',
+  'initial',
+  'inset',
+  'italic',
+  'justify',
+  'large',
+  'larger',
+  'lighter',
+  'line-through',
+  'match-parent',
+  'medium',
+  'none',
+  'normal',
+  'oblique',
+  'outset',
+  'overline',
+  'pc',
+  'pt',
+  'px',
+  'rem',
+  'rgb',
+  'ridge',
+  'rtl',
+  'small',
+  'smaller',
+  'solid',
+  'transparent',
+  'underline',
+  'unset',
+  'x-large',
+  'x-small',
+  'xx-large',
+  'xx-small',
+  // —— 边/形态名（四边简写展开、装饰线分解用的内部名，非 class 名）
+  'all',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'start',
+  'end',
+  'center',
+  'through',
+  'vertical',
+  'table',
+  'important',
+};
 
 /// 取 `ShellRoute(...)` 调用括号内出现的全部 `path: '...'`（= 底部导航可达的
 /// tab 路径集合）。括号配平扫描，避免正则误吞后续顶层路由。
