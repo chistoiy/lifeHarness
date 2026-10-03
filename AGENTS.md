@@ -35,6 +35,7 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 - 文档域收口随跑 `python tools/doclint.py`（全路径 `D:\app_workplace\python3.11\python.exe`）：零死链 + 守护五检（工单落位/INDEX 登记/需求清单防复活/交接长行/三件套行数预算），红灯必须清零。
 - 全 app widget 测试必须拆分独立文件（同文件多大页会 isolate 污染挂死）；测试日期一律相对构造，23:55–00:30 不跑全量；涉及 pump 的用例注意 override `sharedPreferencesProvider`。
 - 脚本改源码：先快照（落 gitignored `tmp/`）、命中断言 + 体积校验，按文件真实编码读写，锚点跟随目标文件行尾；批量修改写成脚本文件执行，勿用 heredoc。
+- **出包预检（2026-10-04 拍板成文）**：任何 `flutter build apk`（复测包/发版同此）前先跑 `node tools/prebuild_check.js --dir <构建目录> --code <期望versionCode>`——红灯禁止构建，避免建完才现版本不对二次构建。该闸拦三类实锤坑：① `local.properties` 钉版盖过期望值；② `--split-per-abi` 抬 ABI 偏移（arm64 +2000：6051→8051）——**复测包形态须与机上包一致**（机上若是分包则打 base=期望-2000 的分包，勿赌 universal）；③ 忘带 `--build-number`（pubspec build≠期望时提示）。预检绿后按它打印的四项 aapt 复验清单执行（badging 版本/INTERNET/库集对齐/mtime 新）。
 
 ## 禁令（违反会被驳回）
 
