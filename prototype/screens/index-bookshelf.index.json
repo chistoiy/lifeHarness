@@ -1,6 +1,6 @@
 {
  "file": "index-bookshelf.html",
- "total": 762625,
+ "total": 766859,
  "cut": 0,
  "screens": [
   {
@@ -225,7 +225,7 @@
    "title": "",
    "role": "home",
    "size": 5239,
-   "hash": "c1966b70"
+   "hash": "44f346c0"
   },
   {
    "id": "p-readerPage",
@@ -328,8 +328,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 4124,
-   "hash": "f010bdb0"
+   "size": 4409,
+   "hash": "1c5fee1d"
   },
   {
    "id": "sheetBrApSub",
@@ -352,8 +352,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 1663,
-   "hash": "77601880"
+   "size": 1682,
+   "hash": "76c6ecb3"
   },
   {
    "id": "sheetXrScope",
@@ -496,8 +496,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 931,
-   "hash": "97d0c878"
+   "size": 753,
+   "hash": "030d280f"
   },
   {
    "id": "sheetBrCache",
@@ -512,8 +512,8 @@
    "kind": "sheet",
    "title": "",
    "role": "home",
-   "size": 907,
-   "hash": "a5f41758"
+   "size": 919,
+   "hash": "f914eb9c"
   },
   {
    "id": "sheetBrLost",

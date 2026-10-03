@@ -1180,7 +1180,7 @@ tailwind.config = {
         </div>
         <div class="mt-3 flex items-center justify-between text-[11px]"><span class="font-bold">加入「本地」标签与来源分组</span><span class="toggle on" id="brFTag" onclick="tgl(this)"></span></div>
         <button class="mt-4 w-full py-3 rounded-2xl grad text-white text-sm font-bold active:scale-[.99]" id="brSaveBtn" onclick="brImpCommit()">加入书架 · 开始阅读</button>
-        <div class="mt-2 text-[10px] text-slate-400 text-center">源文件保留原位 · 书架登记解析结果与分页缓存</div>
+        <div class="mt-2 text-[10px] text-slate-400 text-center">源文件保留原位 · 加入书架后整本分页后台续算</div>
       </div>
     </section>
 
@@ -2120,7 +2120,7 @@ tailwind.config = {
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <b class="text-[15px]">重新载入 · 《<span id="brReloadName">—</span>》</b>
       <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 text-[11px] leading-5" id="brReloadInfo"></div>
-      <div class="mt-3 text-[10px] leading-5 text-slate-400">将重新拷贝本地副本并预载整本书，完成前封面显示预载进度。</div>
+      <div class="mt-3 text-[10px] leading-5 text-slate-400">将重新拷贝本地副本并预载整本书，封面显示预载进度 · 期间点封面可直接进入阅读。</div>
       <div class="mt-4 flex gap-2">
         <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrReload')">稍后</button>
         <button class="flex-[2] py-3 rounded-2xl grad text-white text-sm font-bold" onclick="brReloadCommit()">重新拷贝并预载</button>
@@ -5641,7 +5641,7 @@ renderRecords(); renderImp(); tick(); renderGrid(); renderNav(); renderFab(); re
 const BR_TG={'重点':'#6366f1','共鸣':'#2dd4bf','待查证':'#fb7185','行动':'#f59e0b','疑问':'#8b5cf6'};
 const BR_THEMES={day:{n:'日间',bg:'#faf6ee',fg:'#3b3630'},eye:{n:'护眼',bg:'#cfe6cf',fg:'#2f4a33'},night:{n:'夜间',bg:'#101317',fg:'#9aa4b0'}};
 const BR_FONTS={system:['系统默认',"'Noto Sans SC','Source Han Sans SC','PingFang SC',system-ui,sans-serif",'系统'],serif:['衬线',"'Noto Serif SC','Source Han Serif SC','Songti SC','SimSun',serif",'衬线'],song:['宋体',"'Noto Serif SC','SimSun',serif",'衬线'],hei:['黑体',"'Noto Sans SC','Source Han Sans SC',SimHei,'Microsoft YaHei',sans-serif",'黑体'],yahei:['雅黑',"'Microsoft YaHei','Noto Sans SC',sans-serif",'黑体'],kaiti:['楷体',"KaiTi,STKaiti,'Noto Serif SC',serif",'楷体'],fangsong:['仿宋',"FangSong,STFangsong,'Noto Serif SC',serif",'楷体'],mono:['等宽',"ui-monospace,'JetBrains Mono',Consolas,monospace",'其他'],xingshu:['行书',"STXingkai,KaiTi,'Noto Serif SC',cursive",'其他']};
-const BR_TASKS=['容器校验 · mimetype','版本与结构识别','目录构建（NCX / nav）','封面与元数据抽取','分页预计算'];
+const BR_TASKS=['容器校验 · mimetype','版本与结构识别','目录构建（NCX / nav）','封面与元数据抽取'];
 const BR_AUTOS=[3,5,8,10,15,20,30,45,60];
 function brPad(n){return n<10?'0'+n:''+n}
 function brMS(s){s=Math.max(0,Math.floor(s));return brPad(Math.floor(s/60))+':'+brPad(s%60)}
@@ -6456,7 +6456,7 @@ const BR_FILES={download:[
  {n:'克拉拉与太阳.epub',sz:'5.2 MB',meta:{t:'克拉拉与太阳',a:'石黑一雄',press:'上海译文出版社',pub:'2021-04',fmt:'EPUB2',cover:'linear-gradient(150deg,#b91c1c,#f59e0b)',pages:288,intro:'一座被太阳祝福的城市里，人工智能朋友克拉拉的等待与牺牲。图文混排，含 12 幅内文插图。'}},
  {n:'思考快与慢.epub',sz:'8.4 MB',merge:'思考，快与慢'},
  {n:'古籍精藏本.epub',sz:'6.2 MB',drm:1},
- {n:'大英百科词典.epub',sz:'186 MB',warn:'大文件：解析与分页预计算可能需要 1-2 分钟'}],
+ {n:'大英百科词典.epub',sz:'186 MB',warn:'大文件：解析与目录构建可能需要 1-2 分钟'}],
  docs:[
  {n:'我们仨.epub',sz:'3.1 MB',meta:{t:'我们仨',a:'杨绛',press:'三联书店',pub:'2003-07',fmt:'EPUB2',cover:'linear-gradient(150deg,#94a3b8,#e2e8f0)',pages:234,intro:'一个单纯温馨的学术家庭的回忆：钱锺书、杨绛与女儿钱瑗。'}},
  {n:'产品方法论.pdf',sz:'12.4 MB',pdf:1}]};
@@ -6499,14 +6499,14 @@ function brImpMeta(){const f=brImp.file;const m=f.meta||{t:f.n.replace(/\.epub$/
   document.getElementById('brDup').classList.toggle('hidden',!dup);
   if(dup){document.getElementById('brDup').innerHTML=lost?`原文件丢失的《${lost.n}》仍在书架保留全部记录。本次将把选中的文件<b>挂回原记录</b>：书摘、计时、进度共用一条。`:`已存在《${dup.n}》（${dup.src} · ${dup.st}${dup.st==='在读'?' '+dup.p+'%':''}）。推荐把本地文件<b>挂到该记录</b>：书摘、计时、进度共用一条，点封面即可阅读。`}
   const at=document.getElementById('brAttachHint');if(at)at.classList.add('hidden');
-  document.getElementById('brSaveBtn').textContent=dup?(lost?'挂回原记录 · 重新预载':'合并到已有记录 · 附本地文件'):'加入书架 · 预载后可读';
+  document.getElementById('brSaveBtn').textContent=dup?(lost?'挂回原记录 · 重新预载':'合并到已有记录 · 附本地文件'):'加入书架 · 开始阅读';
   brImpGo(4)}
 function brImpCommit(){const m=brImp.meta;const tagOn=document.getElementById('brFTag').classList.contains('on');
   if(brImp.mergeTo){const b=bsBook(brImp.mergeTo);b.local=1;b.epub={fmt:m.fmt,size:brImp.file.sz,path:'内部存储/'+(brImp.dir==='download'?'下载':'文档')+'/'+brImp.file.n};
     if(tagOn&&!b.tags.includes('本地'))b.tags.push('本地');
     b.epub.name=b.epub.name||brImp.file.n;b.epub.cache=b.epub.cache||brImp.file.sz;b.epub.srcOk=1;
     if(brImp.lostId===b.id){b.epub.st='pre';b.epub.pr=4;delete b.epub.lostAt;brPreStart(b.id,4);}
-    renderShelf();renderQuotes();toast('《'+b.n+'》已'+(brImp.lostId===b.id?'重新挂回 · 正在预载':'附本地文件 · 预载完成后点封面进入阅读'));
+    renderShelf();renderQuotes();toast('《'+b.n+'》已'+(brImp.lostId===b.id?'重新挂回 · 正在预载':'附本地文件 · 点封面即可进入 · 整本分页后台续算'));
     brImpGo(1);goBack();return}
   const id='bl'+(Date.now()%100000);
   BS_BOOKS.push({id,n:m.t,a:m.a,st:'想读',p:0,pg:m.pages,rp:0,q:0,tags:tagOn?['本地']:[],c:BS_BOOKS.length%8,rate:0,isbn:'—',pub:m.press||'—',yr:(m.pub||'').slice(0,4)||2026,src:'本地导入',start:'',end:'',min:0,times:0,note:(m.intro||'').slice(0,14),fin:'',local:1,epub:{fmt:m.fmt,size:brImp.file.sz,path:'内部存储/'+(brImp.dir==='download'?'下载':'文档')+'/'+brImp.file.n,name:brImp.file.n,st:'pre',pr:4,cache:brImp.file.sz,srcOk:1},coverCss:m.cover||''});
@@ -6633,12 +6633,12 @@ setInterval(()=>{if(curPage==='p-readerPage'&&brV.chrome)document.getElementById
       if(p==='p-bookshelf'&&n!=null)window._r144Dl=['A','B','C'][Math.min(3,Math.max(1,n))-1]}}})();
 /* ================= 批3.5 · 导入预载 + 大书内存模型 + 单书清缓存 ================= */
 /* 数据口径：b.epub={fmt,size,path,name, st:'pre'|'rdy'|'cl', pr:0-100, cache:'约释放 MB', srcOk:1|0, lostAt}
-   三态：就绪→点封面秒进；已清缓存且原文件可读→提示后重新拷贝+预载；原文件丢失→引导重选文件走合并导入挂回原记录。
+   三态：就绪→点封面秒进；预载中→可直接进入（V1.60：开书后台续算全书分页）；已清缓存且原文件可读→提示后重新拷贝+预载；原文件丢失→引导重选文件走合并导入挂回原记录。
    清理只回收本地副本/封面衍生/分页缓存；记录·书摘划线·计时·进度全保留；原文件绝不删除。 */
 const BR35_OLD_COVBADGE=brCovBadge;
 brCovBadge=function(b){return BR35_OLD_COVBADGE(b)+(b&&b.epub&&b.epub.st==='cl'?'<span class="br-local br-cached"><svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 10 5-5 5 5"/><path d="M5 19h14"/></svg>已清缓存</span>':'')};
 const BR35_OLD_ROWBADGE=brRowBadge;
-brRowBadge=function(b){return BR35_OLD_ROWBADGE(b)+(b&&b.epub&&b.epub.st==='cl'?'<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white align-middle ml-1">已清缓存</span>':'')};
+brRowBadge=function(b){return BR35_OLD_ROWBADGE(b)+(b&&b.epub&&b.epub.st==='cl'?'<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-amber-500 text-white align-middle ml-1">已清缓存</span>':b&&b.epub&&b.epub.st==='pre'?'<span class="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-indigo-500 text-white align-middle ml-1" data-brpct="'+b.id+'">预载中 '+(b.epub.pr||0)+'%</span>':'')};
 function brCovOvl(b){const e=b&&b.epub;if(!b||!b.local||!e)return '';
   if(e.st==='pre')return '<div class="br-covovl pre"><div class="br-prebar"><i data-brpre="'+b.id+'" style="width:'+Math.round((e.pr||0)*0.9)+'%"></i></div><span class="br-prepct" data-brpct="'+b.id+'">预载中 '+(e.pr||0)+'%</span></div>';
   if(e.st==='cl')return '<div class="br-covovl cl"><span class="br-clchip"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V6"/><path d="m8 10 4-4 4 4"/><path d="M5 19h14"/></svg>已清缓存 · 点按重新载入</span></div>';
@@ -6654,7 +6654,7 @@ const BR35_SHBAR=b=>{const w=b.st==='想读'?0:b.p,cls=b.st==='已读'?'full':b.
 shWallRail=function(list){return '<div class="bk-rail no-scrollbar">'+list.map(b=>'<div class="relative" onclick="'+(shBatch?'shSelTap(\''+b.id+'\')':'shOpen(\''+b.id+'\')')+'" oncontextmenu="event.preventDefault();shLongMenu(\''+b.id+'\');return false">'+
   '<div class="bk-cov cov '+bsCovCls(b)+' w-full !h-[159px]" style="'+bsCovStyle(b)+'">'+bsCovInner(b)+bsProgressBadge(b)+(b.local?brCovBadge(b):'')+brCovOvl(b)+'<div class="au">'+b.a+'</div>'+(shBatch?'<span class="bsel '+(shSel.has(b.id)?'on':'')+'"></span>':'')+'</div>'+
   '<div class="text-[10px] font-extrabold leading-tight mt-1.5 truncate">'+b.n+'</div>'+shRailBar(b)+'</div>').join('')+'</div>'};
-/* 预载模拟：整本解析+分页计算（实算在 Flutter 侧后台 isolate，此处只演示进度与守卫） */
+/* 预载模拟：整本解析+分页计算（实算在 Flutter 侧首次开书后台续算，此处只演示进度；V1.60 预载中可点进） */
 const brPre={timers:{},
  stop(id){const t=brPre.timers[id];if(t){clearInterval(t);delete brPre.timers[id]}},
  start(id,from){brPre.stop(id);const b=bsBook(id);if(!b||!b.epub)return;b.epub.pr=Math.max(2,from||2);b.epub.st='pre';brPre.sync(id);
@@ -6662,20 +6662,20 @@ const brPre={timers:{},
     x.epub.pr=Math.min(100,x.epub.pr+9);brPre.sync(id);
     if(x.epub.pr>=100){brPre.stop(id);x.epub.st='rdy';
       if(curPage==='p-bookshelf'||curPage==='p-readhub'){renderShelf();try{renderRecHub()}catch(e){}try{renderBookDetail()}catch(e){}}
-      toast('《'+x.n+'》已预载完成 · 点封面秒进')}},420)},
+      toast('《'+x.n+'》整本预载完成 · 开书秒进')}},420)},
  sync(id){const b=bsBook(id);if(!b||!b.epub)return;const pct=Math.round((b.epub.pr||0)*0.9);
   document.querySelectorAll('[data-brpre="'+id+'"]').forEach(el=>{el.style.width=pct+'%'});
   document.querySelectorAll('[data-brpct="'+id+'"]').forEach(el=>{el.textContent='预载中 '+(b.epub.pr||0)+'%'})}};
 function brPreStart(id,from){brPre.start(id,from)}
 function brPreStop(id){brPre.stop(id)}
-/* 入口守卫：预载中不可点进阅读；已清缓存点封面→按源文件状态分流 */
+/* 入口守卫（V1.60）：预载中可点进·开书后台续算全书分页；已清缓存点封面→按源文件状态分流 */
 const BR35_OLD_SHOPEN=shOpen;
 shOpen=function(id){const b=bsBook(id);if(b&&b.local&&b.epub){
-  if(b.epub.st==='pre'){toast('正在预载整本书 · 完成后可进入');return}
-  if(b.epub.st==='cl'){brSrcTap(id);return}}
+  if(b.epub.st==='pre')toast('整本分页仍在后台续算 · 已按首次加载口径打开');
+  else if(b.epub.st==='cl'){brSrcTap(id);return}}
   BR35_OLD_SHOPEN(id)};
 function brLpRead(id){const b=bsBook(id);closeSheet('sheetLongPress');if(!b||!b.epub)return;
-  if(b.epub.st==='pre')return toast('正在预载整本书 · 完成后可进入');
+  if(b.epub.st==='pre'){toast('整本分页仍在后台续算 · 已按首次加载口径打开');return brOpen(id)}
   if(b.epub.st==='cl')return brSrcTap(id);
   brOpen(id)}
 function brSrcTap(id){const b=bsBook(id);if(!b||!b.epub)return;
@@ -6720,7 +6720,7 @@ renderBookDetail=function(){BR35_OLD_RBD();try{
   const card=document.getElementById('brDcard');if(!card||document.getElementById('brDcache'))return;
   card.insertAdjacentHTML('beforeend',brDcacheRow(b))}catch(e){}};
 function brDcacheRow(b){const e=b.epub;let inner='';
-  if(e.st==='pre')inner='<div class="text-[10px] text-slate-400">整本预载中 · 解析与分页计算 · 完成前不可进入阅读</div><div class="br-prebar mt-1.5" style="width:100%;background:rgba(148,163,184,.35)"><i data-brpre="'+b.id+'" style="width:'+Math.round((e.pr||0)*0.9)+'%;background:#6366f1"></i></div>';
+  if(e.st==='pre')inner='<div class="text-[10px] text-slate-400">整本预载中 · 分页后台续算 · 点封面可直接进入阅读</div><div class="br-prebar mt-1.5" style="width:100%;background:rgba(148,163,184,.35)"><i data-brpre="'+b.id+'" style="width:'+Math.round((e.pr||0)*0.9)+'%;background:#6366f1"></i></div>';
   else if(e.st==='cl'&&e.srcOk)inner='<div class="text-[10px] text-slate-400">本地副本已清理 · 重新载入约 '+(e.cache||e.size||'—')+' · 源文件仍可读 · 记录与书摘完整保留</div><button class="mt-1.5 py-2 px-3 rounded-xl grad text-white text-[11px] font-bold" onclick="brReloadOpen(\''+b.id+'\')">重新载入本地副本</button>';
   else if(e.st==='cl')inner='<div class="text-[10px] text-rose-500">本地副本已清理 · 原文件已不存在 · 记录与书摘完整保留</div><button class="mt-1.5 py-2 px-3 rounded-xl bg-amber-500 text-white text-[11px] font-bold" onclick="brLostOpen(\''+b.id+'\')">重新选择文件</button>';
   else inner='<div class="text-[10px] text-slate-400">本地副本 + 分页缓存约 <b>'+(e.cache||e.size||'—')+'</b> · 源文件在原始位置保留</div><button class="mt-1.5 py-2 px-3 rounded-xl border border-amber-300 dark:border-amber-500/40 text-amber-600 text-[11px] font-bold" onclick="brCacheOpen(\''+b.id+'\')">清理缓存 · 约释放 '+(e.cache||e.size||'—')+'</button>';
@@ -6729,7 +6729,7 @@ function brDcacheRow(b){const e=b.epub;let inner='';
 (()=>{const dl=document.querySelector('#p-localImport .desc');if(dl)dl.textContent='EPUB · 导入后后台预载整本 · 源文件保留原位';
   const st=document.querySelector('#p-localImport #brSteps');if(st)st.insertAdjacentHTML('afterend','<div id="brAttachHint" class="hidden mt-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-3 py-2 text-[10px] font-bold text-amber-700 dark:text-amber-400"></div>');})();
 /* 演示种子与深链：
-   ?br35=pre     b1 整本预载中（封面进度条实时跑 · 点封面被守卫）
+   ?br35=pre     b1 整本预载中（封面进度条实时跑 · 点封面可直接进入阅读）
    ?br35=frozen  b1 预载 64% 静态（截图用）
    ?br35=cl      b1 已清缓存·源文件可读（封面蒙层 + 点封面 → 重新载入弹层）
    ?br35=lost    b9 已清缓存·原文件丢失（点封面 → 引导重选 → 导入页选「万历十五年.epub」挂回）
@@ -6753,9 +6753,23 @@ function br35Seed(){
       else{b.epub.name='思考快与慢.epub';b.epub.cache='8.4 MB';b.epub.srcOk=1;b.epub.st='pre';
         if(k==='pre'){b.epub.pr=4;brPreStart('b1',4)}else b.epub.pr=64}
       setPage('p-bookshelf');renderShelf();
-      toast(k==='cl'?'演示：已清缓存 · 点封面重新载入':'演示：导入后后台整本预载 · 完成前封面不可点')}}
+      toast(k==='cl'?'演示：已清缓存 · 点封面重新载入':'演示：导入后后台整本预载 · 点封面可直接进入阅读')}}
   catch(e){}
 })();
+/* V1.60 导入流程改造深链：?imp=1授权|2选文件|3解析(仅四项)|4核对 ｜ pre 书架预载中书卡 ｜ enter 预载中点进阅读 */
+(function impBoot(){try{
+  const k=(location.search.match(/imp=(\w+)/)||[])[1];if(!k)return;
+  if(/^[1-4]$/.test(k)){const st=+k;brImp.file=BR_FILES.download[0];brImpGo(st);
+    if(st===3)brImpParse();if(st===4)brImpMeta();
+    navTo('p-localImport');toast('演示：导入向导第 '+st+' 步 · 解析步只有四项')}
+  else if(k==='pre'){const b=bsBook('b1');if(!b||!b.local)return;
+    b.epub.name='思考快与慢.epub';b.epub.cache='8.4 MB';b.epub.srcOk=1;b.epub.st='pre';b.epub.pr=4;brPreStart('b1',4);
+    setPage('p-bookshelf');renderShelf();toast('演示：预载中书卡 · 点封面直接进入阅读')}
+  else if(k==='enter'){const b=bsBook('b1');if(!b||!b.local)return;
+    b.epub.name='思考快与慢.epub';b.epub.cache='8.4 MB';b.epub.srcOk=1;b.epub.st='pre';b.epub.pr=42;brPreStop('b1');shOpen('b1');
+    toast('演示：预载中点进 · 全书分页后台续算')}
+}catch(e){console.warn('imp',e)}})();
+
 /* V1.53 轮3 深链：?br53=prog|bright|font|sel → 阅读主屏对应面板/选区态 */
 (function br53Boot(){try{
   const m=(location.search.match(/br53=(\w+)/)||[])[1];if(!m)return;
