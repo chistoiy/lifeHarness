@@ -765,148 +765,10 @@ tailwind.config = {
     </section>
 
     <!-- ===== P4b 阅读导入向导 ===== -->
-    <section id="p-import" class="page px-5 safe-pb no-scrollbar">
-      <div id="impStep" class="flex items-center gap-2 text-[11px] font-bold text-slate-400"></div>
-      <!-- 步骤1：选择来源 -->
-      <div id="imp1" class="mt-4 space-y-3">
-        <div class="text-sm font-extrabold mb-1">选择导入来源</div>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="微信读书">
-          <span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center text-lg">🟢</span>
-          <div class="flex-1"><div class="text-sm font-bold">微信读书</div><div class="text-[11px] text-slate-400">解析第三方工具导出的 Markdown / HTML（划线·想法·目录自动识别）</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Kindle">
-          <span class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center text-lg">🟠</span>
-          <div class="flex-1"><div class="text-sm font-bold">Kindle</div><div class="text-[11px] text-slate-400">解析 My Clippings.txt 剪藏格式</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="豆瓣清单">
-          <span class="w-10 h-10 rounded-xl bg-lime-50 dark:bg-lime-500/15 flex items-center justify-center text-lg">🫎</span>
-          <div class="flex-1"><div class="text-sm font-bold">豆瓣 · 书单/片单</div><div class="text-[11px] text-slate-400">已读/在读/想读（想看/已看）标记 + 评分 + 日期，导出文件自动解析</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Notion">
-          <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">⚫</span>
-          <div class="flex-1"><div class="text-sm font-bold">Notion / Obsidian / 通用</div><div class="text-[11px] text-slate-400">Markdown、TXT、HTML、CSV/JSON 导入</div></div><span class="text-slate-300">›</span></button>
-        <button class="card w-full flex items-center gap-3 text-left opacity-50" onclick="toast('Evernote (.enex) 导入规划于 V1.x')">
-          <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">🐘</span>
-          <div class="flex-1"><div class="text-sm font-bold">Evernote</div><div class="text-[11px] text-slate-400">V1.x 支持</div></div></button>
-      </div>
-      <!-- 步骤2：文件 -->
-      <div id="imp2" class="hidden mt-4">
-        <div class="text-sm font-extrabold">选择导出文件 · <span id="impSrcName" class="text-brand-500"></span></div>
-        <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
-          <div class="text-3xl">📄</div>
-          <div class="text-sm font-bold mt-2" id="impFileNm">weread_思考快与慢_导出.md</div>
-          <div class="text-[11px] text-slate-400 mt-1">486 KB · 点击重新选择（模拟）</div>
-        </div>
-        <div class="mt-3 card text-xs space-y-2">
-          <div class="row-title">解析设置（模拟）</div>
-          <label class="flex items-center justify-between"><span>自动识别「划线 / 想法 / 批注日期」结构</span><span class="toggle on" onclick="tgl(this)"></span></label>
-          <label class="flex items-center justify-between"><span>按「书名+原文哈希」去重</span><span class="toggle on" onclick="tgl(this)"></span></label>
-          <label class="flex items-center justify-between"><span>解析失败条目保存为普通笔记（容错）</span><span class="toggle on" onclick="tgl(this)"></span></label>
-        </div>
-      </div>
-      <!-- 步骤3：预览与映射 -->
-      <div id="imp3" class="hidden mt-4">
-        <div class="text-sm font-extrabold">预览解析结果</div>
-        <div class="mt-2 flex gap-3 text-center text-[11px]">
-          <div class="flex-1 card !py-2"><b class="text-mint text-sm">42</b><div class="text-slate-400">划线摘录</div></div>
-          <div class="flex-1 card !py-2"><b class="text-brand-500 text-sm">17</b><div class="text-slate-400">想法感想</div></div>
-          <div class="flex-1 card !py-2"><b class="text-sun text-sm">3</b><div class="text-slate-400">疑似重复</div></div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">字段映射确认</div>
-          <div class="mt-2 space-y-2 text-xs">
-            <div class="flex items-center justify-between"><span>原文引用</span><span class="text-slate-400">→</span><select class="sel"><option>摘录</option></select></div>
-            <div class="flex items-center justify-between"><span>我的想法</span><span class="text-slate-400">→</span><select class="sel"><option>感想</option><option>合并进摘录</option></select></div>
-            <div class="flex items-center justify-between"><span>划线颜色</span><span class="text-slate-400">→</span><select class="sel"><option>按标记自动分类</option></select></div>
-          </div>
-        </div>
-        <div class="mt-3 card space-y-2">
-          <div class="row-title">内容预览</div>
-          <div class="quote-line">「如果你视饮用威士忌加冰是一种堕落，那你就没法好好享受它。」<span class="text-[10px] text-slate-400 block text-right">— 划线 · 第3章 · 08-14</span></div>
-          <div class="text-xs bg-brand-50 dark:bg-brand-500/10 rounded-xl p-2.5 border-l-4 border-brand-500">💭 这其实就是损失厌恶在日常决策里的投影…<span class="text-[10px] text-slate-400 block text-right mt-1">— 想法 · 08-14</span></div>
-        </div>
-      </div>
-      <!-- 步骤4：完成 -->
-      <div id="imp4" class="hidden mt-10 text-center">
-        <div class="text-6xl">🎉</div>
-        <div class="text-lg font-extrabold mt-4">导入完成</div>
-        <div class="text-xs text-slate-400 mt-1 leading-6">已并入《思考，快与慢》：42 条摘录 · 17 条感想<br>跳过 3 条疑似重复 · 0 条解析失败</div>
-        <div class="mt-6 flex gap-3 justify-center">
-          <button onclick="navTo('p-bookDetail')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看书架详情</button>
-          <button onclick="resetImport()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一本</button>
-        </div>
-      </div>
-      <div id="impNav" class="mt-6 flex gap-3">
-        <button id="impPrev" onclick="impStep(-1)" class="hidden flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">上一步</button>
-        <button id="impNext" onclick="impStep(1)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">下一步</button>
-      </div>
-    </section>
+    
 
     <!-- ===== P4c 书籍详情 ===== -->
-    <section id="p-bookDetail" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-4">
-        <div class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0">思考，<br>快与慢<br><span class="opacity-50">丹尼尔·卡尼曼</span></div>
-        <div class="flex-1">
-          <div class="font-extrabold text-lg leading-6">思考，快与慢</div>
-          <div class="text-xs text-slate-400 mt-0.5">丹尼尔·卡尼曼</div>
-          <div class="flex items-center gap-1 text-sun text-sm mt-1">★★★★<span class="text-slate-300 dark:text-slate-600">★</span><span class="text-[11px] text-slate-400 ml-1">4.0</span></div>
-          <div class="mt-2 inline-flex items-center gap-1 text-[11px] bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 rounded-full px-2.5 py-0.5 font-bold">🔖 在读 · 62%</div>
-          <div class="flex gap-2 mt-2">
-            <button class="mini-btn" onclick="toast('进度 +1% （模拟）')">读到 62%</button>
-            <button class="mini-btn" onclick="openSheet('sheetAddExcerpt')">+ 记摘录</button>
-          </div>
-        </div>
-      </div>
-      <div class="mt-4 grid grid-cols-4 text-center text-[11px]">
-        <div class="card !py-2.5"><b class="text-base">59</b><div class="text-slate-400">摘录/感想</div></div>
-        <div class="card !py-2.5"><b class="text-base" id="bkTotal">4h32m</b><div class="text-slate-400">累计阅读</div></div>
-        <div class="card !py-2.5"><b class="text-base">12</b><div class="text-slate-400">计时次数</div></div>
-        <div class="card !py-2.5"><b class="text-base">3</b><div class="text-slate-400">关联日记</div></div>
-      </div>
-      <!-- 阅读计时卡 -->
-      <div class="mt-3 card">
-        <div class="flex items-center justify-between"><div class="row-title">⏱ 阅读计时</div><button id="readTimerBtn" class="mini-btn !text-xs !py-2" onclick="timerTap('read','《思考，快与慢》')">▶ 开始阅读</button></div>
-        <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-5">已读 62% · 均速 <b>3.8 分钟/页</b> · 本周 52 分钟<br>预计剩余 <b class="text-brand-500">2h24m</b> · 约 <b class="text-brand-500">4 天</b>读完（按当前节奏）</div>
-        <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:62%"></span></div>
-        <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="openProgress('read','《思考，快与慢》')">✍ 手动记进度</button><button class="mini-btn" onclick="toast('阅读轨迹：时间分布/节奏曲线（入周报 L4）')">📈 轨迹</button></div>
-      </div>
-      <div class="mt-4 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
-        <button id="btQuote" class="seg-pill on" onclick="switchBookTab('q')">💬 划线</button>
-        <button id="btThink" class="seg-pill" onclick="switchBookTab('i')">💭 想法</button>
-        <button id="btToc" class="seg-pill" onclick="switchBookTab('c')">📑 目录</button>
-        <button id="btSum" class="seg-pill" onclick="switchBookTab('s')">📋 一页总结</button>
-      </div>
-      <div id="bookToc" class="hidden mt-3 card">
-        <div class="flex items-center justify-between"><div class="row-title">目录 · 20 章</div>
-          <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocAI()">🤖 AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">📥 导入目录</button></span></div>
-        <div class="mt-2" id="tocList"></div>
-        <div class="text-[10px] text-slate-400 mt-2">目录节点标记状态与对应摘录数，点击直达笔记；支持微信读书导出/calibre/MD·TXT 目录自动解析</div>
-      </div>
-      <div id="bookQuotes" class="mt-3 space-y-3">
-        <div class="card quote-line !block">「任何事物只要通过一个人人都能读懂的话语相互联系，就能形成一套信念体系。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-brand-500"></span>重点 · 第1章 · 08-02
-            <span class="ml-auto flex gap-2"><button class="link-act" onclick="toast('已生成待办：查证该观点（联动L5）')">→待办</button><button class="link-act" onclick="toast('已插入今日日记草稿（联动L5）')">→日记</button></span></div>
-        </div>
-        <div class="card quote-line !block border-l-peach">「损失厌恶系数约为2，失去100元的痛大于得到100元的乐。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-peach"></span>待查证 · 第3章 · 08-14
-            <span class="ml-auto flex gap-2"><button class="link-act">→待办</button><button class="link-act">→日记</button></span></div>
-        </div>
-        <div class="card quote-line !block border-l-mint">「直觉不过是识别，别无其他。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-mint"></span>共鸣 · 第4章 · 09-01
-            <span class="ml-auto flex gap-2"><button class="link-act">→待办</button><button class="link-act">→日记</button></span></div>
-        </div>
-      </div>
-      <div id="bookThinks" class="hidden mt-3 space-y-3">
-        <div class="card text-xs leading-6">💭 这其实就是损失厌恶在日常决策里的投影。昨天砍价成功带来的快乐，远抵不上今天丢件货物的心痛。<div class="text-right text-[10px] text-slate-400 mt-1">08-14 · 来自微信读书导入</div></div>
-        <div class="card text-xs leading-6">💭 「专家直觉可信的条件」= 环境有规律 + 有足够练习时间。用这条标准审视自己行业的判断力，还挺扎心。<div class="text-right text-[10px] text-slate-400 mt-1">08-21 · 手动记录</div></div>
-      </div>
-      <div id="bookSumm" class="hidden mt-3 card">
-        <div class="row-title">一页式总结（自动生成 · 模拟）</div>
-        <div class="text-xs leading-6 mt-2 space-y-2">
-          <div><b>🥇 金句 Top：</b>「你能想象的一切都不恐怖…」</div>
-          <div><b>🧩 核心观点：</b><br>① 系统1快、直觉；系统2慢、费力<br>② 损失厌恶与锚定效应无处不在<br>③ 直觉判断需满足两个可信条件</div>
-          <div><b>✍️ 我的收获：</b>3 条感想已在 9 月日记中引用</div>
-        </div>
-        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('已导出为 Markdown（模拟）')">导出 MD</button><button class="mini-btn" onclick="toast('已存为笔记（联动L5）')">转存笔记</button><button class="mini-btn !bg-peach/15 !text-rose-500" onclick="toast('AI 基于 59 条摘录深化总结：补全论证链与反例（需 Key）')">🤖 AI 深化</button></div>
-      </div>
-    </section>
+    
 
 
     <!-- ===== P5 收集箱 ===== -->
@@ -955,71 +817,7 @@ tailwind.config = {
     </section>
 
     <!-- ===== P6b 账单导入向导 ===== -->
-    <section id="p-billImport" class="page px-5 safe-pb no-scrollbar">
-      <div id="billStep" class="flex items-center gap-2 text-[11px] font-bold text-slate-400"></div>
-      <!-- 步骤1 选平台 -->
-      <div id="bill1" class="mt-4 space-y-3">
-        <div class="text-sm font-extrabold mb-1">选择账单平台</div>
-        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="支付宝">
-          <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/15 flex items-center justify-center text-lg">🅰️</span>
-          <div class="flex-1"><div class="text-sm font-bold">支付宝</div><div class="text-[11px] text-slate-400 leading-4">我的 → 账单 → ⋯ → 开具账单 → 明细 CSV（zip）</div></div><span class="text-slate-300">›</span></button>
-        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="微信支付">
-          <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-lg">💚</span>
-          <div class="flex-1"><div class="text-sm font-bold">微信支付</div><div class="text-[11px] text-slate-400 leading-4">服务→钱包→账单→常见问题→下载账单（CSV 为 zip 加密包）</div></div><span class="text-slate-300">›</span></button>
-        <div class="card !bg-slate-100 dark:!bg-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-6">🔒 隐私承诺：账单文件<b>仅在本机解析</b>，不上传不联网；自动识别支付宝 18 行表头 / 微信 17 行表头前缀与列结构。</div>
-      </div>
-      <!-- 步骤2 选文件 -->
-      <div id="bill2" class="hidden mt-4">
-        <div class="text-sm font-extrabold"><span id="billPlatName">支付宝</span> · 选择导出文件</div>
-        <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
-          <div class="text-3xl">🗂</div>
-          <div class="text-sm font-bold mt-2" id="billFileName">alipay_record_202608.csv</div>
-          <div class="text-[11px] text-slate-400 mt-1">214 KB · 点击重新选择（模拟）</div>
-        </div>
-        <div class="mt-3 card text-xs space-y-2.5" id="billOpts"></div>
-      </div>
-      <!-- 步骤3 预览 -->
-      <div id="bill3" class="hidden mt-4">
-        <div class="text-sm font-extrabold">解析预览 · 去重确认</div>
-        <div class="mt-2 flex gap-3 text-center text-[11px]">
-          <div class="flex-1 card !py-2"><b class="text-sky-500 text-sm">128</b><div class="text-slate-400">解析流水</div></div>
-          <div class="flex-1 card !py-2"><b class="text-sun text-sm">41</b><div class="text-slate-400">重复跳过</div></div>
-          <div class="flex-1 card !py-2"><b class="text-mint text-sm">87</b><div class="text-slate-400">将写入</div></div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">分类自动映射（92% 命中 · 其余进「其他」可改）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between"><span class="text-slate-400">商业服务-餐饮美食 →</span><b>🍜 餐饮</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">交通出行-打车 →</span><b>🚇 交通</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">数码电器 →</span><b>💻 数码（可升级为物品档案 📦 · 联动 L12）</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">退款冲抵 →</span><b>负支出流水</b></div>
-          </div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">写入示例（前 3 条）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between cursor-pointer" onclick="billCatCycle(this)"><span>08-31 12:24 · 张记快餐</span><span class="text-right"><b class="text-rose-400">−¥32.00</b><div class="text-[9px] text-slate-400">分类：<b class="bc">🍜 餐饮</b> · 点击手动修改</div></span></div>
-            <div class="flex justify-between"><span>08-30 09:10 · T3 打车</span><b class="text-rose-400">−¥23.50</b></div>
-            <div class="flex justify-between"><span>08-29 21:02 · 退款-某宝店铺</span><b class="text-emerald-500">+¥89.00</b></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销 · 逐笔点击可手动改分类</div>
-        </div>
-      </div>
-      <!-- 步骤4 完成 -->
-      <div id="bill4" class="hidden mt-10 text-center">
-        <div class="text-6xl">✅</div>
-        <div class="text-lg font-extrabold mt-4">导入完成</div>
-        <div class="text-xs text-slate-400 mt-1 leading-6">已写入 87 条流水 · 跳过重复 41 条<br>月度报表与分类占比已自动更新（联动 L8：订阅项已生成续费提醒）</div>
-        <div class="mt-6 flex gap-3 justify-center">
-          <button onclick="stack.length=0;setPage('p-finance')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看账本</button>
-          <button onclick="billReset()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一份</button>
-        </div>
-      </div>
-      <div id="billNav" class="mt-6 flex gap-3">
-        <button id="billPrev" onclick="billStep(-1)" class="hidden flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">上一步</button>
-        <button id="billNext" onclick="billStep(1)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">下一步</button>
-      </div>
-    </section>
+    
 
     <!-- ===== P7 物品价值 ===== -->
     <section id="p-items" class="page px-5 safe-pb no-scrollbar">
@@ -1038,48 +836,7 @@ tailwind.config = {
     </section>
 
     <!-- ===== P7a 物品详情 ===== -->
-    <section id="p-itemDetail" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-4">
-        <div class="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl shrink-0">💻</div>
-        <div class="flex-1">
-          <div class="font-extrabold text-lg">MacBook Air M3</div>
-          <div class="text-xs text-slate-400 mt-0.5">数码 · 2025-03-12 购入 · 保修至 2026-03-12</div>
-          <div class="mt-1.5 inline-flex text-[11px] font-bold bg-mint/15 text-teal-600 dark:text-teal-400 rounded-full px-2.5 py-0.5">● 使用中 · 计费中</div>
-        </div>
-      </div>
-      <div class="mt-4 card">
-        <div class="flex items-end justify-between">
-          <div><div class="text-[11px] text-slate-400">当前日均成本（直线法）</div><div class="text-3xl font-extrabold text-mint">¥ 1.<span class="text-xl">22</span><span class="text-xs text-slate-400 font-semibold">/天</span></div></div>
-          <div class="text-right text-[11px] text-slate-400 leading-5">持有 556 天<br>净值余额 ¥676</div>
-        </div>
-        <svg viewBox="0 0 300 70" class="w-full h-20 mt-2">
-          <path d="M0,8 C40,26 90,40 150,50 C210,58 260,62 300,63" fill="none" stroke="#2dd4bf" stroke-width="2.5"/>
-          <path d="M0,8 C40,26 90,40 150,50 C210,58 260,62 300,63 L300,70 L0,70 Z" fill="url(#g1)" opacity=".18"/>
-          <circle cx="300" cy="63" r="4" fill="#2dd4bf"/>
-          <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></linearGradient></defs>
-          <text x="4" y="66" font-size="8" fill="#94a3b8">¥1.90</text><text x="262" y="58" font-size="8" fill="#2dd4bf">今日 ¥1.22</text>
-        </svg>
-        <div class="text-center text-[10px] text-slate-400">购入价 ¥9,999 ＋ 二次付费 ¥555 － 回收残值 ¥0 ＝ 成本池 ÷ 556 天 · 每天自动摊薄</div>
-      </div>
-      <div class="mt-3 grid grid-cols-3 gap-3">
-        <button onclick="openSheet('sheetExtra')" class="life-btn bg-sun/10 text-amber-600 dark:text-amber-400">💳<br>二次付费</button>
-        <button onclick="openSheet('sheetRecycle')" class="life-btn bg-mint/10 text-teal-600 dark:text-teal-400">♻️<br>回收/出售</button>
-        <button onclick="openSheet('sheetScrap')" class="life-btn bg-peach/10 text-rose-500">🗑<br>报废</button>
-      </div>
-      <div class="mt-4 card">
-        <div class="row-title">成本流水时间轴（审计记录）</div>
-        <div class="mt-3 space-y-0 text-xs relative ml-2 border-l-2 border-slate-200 dark:border-slate-700 pl-4 space-y-3">
-          <div class="relative"><span class="tl-dot bg-brand-500"></span><b>¥9,999</b> 购入 <span class="text-slate-400">2025-03-12</span><div class="text-[10px] text-slate-400">来源：记账流水同步生成（联动 L12）· 不可删除</div></div>
-          <div class="relative"><span class="tl-dot bg-sun"></span><b>+¥399</b> 二次付费：Type-C 扩展坞 <span class="text-slate-400">2025-06-02</span><div class="text-[10px] text-slate-400">摊回全周期 · 日均 ¥1.21 → ¥1.29（回升）</div></div>
-          <div class="relative"><span class="tl-dot bg-sun"></span><b>+¥156</b> 二次付费：官方换电池（补差） <span class="text-slate-400">2026-01-20</span></div>
-          <div class="relative"><span class="tl-dot bg-mint"></span><b>每日摊薄中</b> 近 30 天日均 ¥1.24 → ¥1.22 <span class="text-slate-400">2026-09</span></div>
-        </div>
-      </div>
-      <div class="mt-3 card opacity-90">
-        <div class="row-title">🔧 关联（联动 L13/L14）</div>
-        <div class="text-xs text-slate-400 leading-6 mt-1">保修到期提醒：已汇入「重要日子」提醒中心 ›<br>保养计划：待办「每年深度清洁一次」 ›</div>
-      </div>
-    </section>
+    
 
     <!-- ===== P8 重要日子 ===== -->
     <section id="p-days" class="page px-5 safe-pb no-scrollbar">
@@ -2197,45 +1954,11 @@ tailwind.config = {
   </div>
 
   <!-- ===== 物品：二次付费 / 回收 / 报废 ===== -->
-  <div id="sheetExtra" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetExtra')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">💳 记录二次付费</div>
-      <div class="text-[11px] text-slate-400">维修 / 配件 / 保养等追加支出，计入成本池</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="金额，如 399">
-      <input class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="说明，如 Type-C 扩展坞">
-      <div class="mt-3 text-xs bg-sun/10 rounded-xl p-3 leading-6">成本计算方式：<br>◉ 摊回全周期（日均 ¥1.21 → <b>¥1.29</b> 回升）<br>○ 自本次起重新计算</div>
-      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">同步生成一条记账流水（联动 L12）</label>
-      <button onclick="closeSheet('sheetExtra');toast('已计入成本池 ✓ 日均成本已更新（模拟）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
-    </div>
-  </div>
+  
 
-  <div id="sheetRecycle" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetRecycle')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">♻️ 回收 / 出售</div>
-      <div class="text-[11px] text-slate-400">残值将从总成本中扣减，生成净持有成本决算</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="回收金额，如 4200（闲鱼/以旧换新）">
-      <div class="mt-3 text-xs space-y-2">
-        <label class="flex gap-2"><input type="radio" name="rc" checked class="accent-indigo-500">已转出 — 停止计费，立即生成决算单</label>
-        <label class="flex gap-2"><input type="radio" name="rc" class="accent-indigo-500">残值抵扣后继续留用 — 以新净值继续每日摊薄</label>
-      </div>
-      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">生成收入记账流水（联动 L12）</label>
-      <button onclick="closeSheet('sheetRecycle');toast('决算单已生成：净持有 ¥6,354 · 真实日均 ¥11.43（模拟）')" class="mt-4 w-full py-3 rounded-xl bg-mint text-slate-900 text-sm font-extrabold py-3.5">生成决算并保存</button>
-    </div>
-  </div>
+  
 
-  <div id="sheetScrap" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetScrap')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold text-peach">🗑 报废登记</div>
-      <div class="mt-3 grid grid-cols-2 gap-2 text-xs" id="scrapReasons">
-        <button class="pick-chip on">损坏</button><button class="pick-chip">丢失</button><button class="pick-chip">技术淘汰</button><button class="pick-chip">其他</button>
-      </div>
-      <div class="mt-3 rounded-2xl bg-peach/10 border border-peach/30 p-3 text-xs leading-6">⚠️ 报废将<b>停止每日计费</b>并冻结决算报告（总投入 / 总天数 / 最终日均 / 回收率），档案转入历史库。<br>此操作需二次确认，且保留审计记录。</div>
-      <button onclick="closeSheet('sheetScrap');toast('已生成决算报告并归档（模拟）')" class="mt-4 w-full py-3 rounded-xl bg-peach text-white text-sm font-bold">确认报废（模拟二次确认）</button>
-    </div>
-  </div>
+  
 
   <!-- ===== 录入物品 ===== -->
   <div id="sheetAddItem" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddItem')">
@@ -2396,19 +2119,7 @@ tailwind.config = {
   </div>
 
   <!-- ===== 目录导入格式说明 ===== -->
-  <div id="sheetTocImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTocImport')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">📥 导入目录 · 支持格式</div>
-      <div class="mt-3 space-y-2 text-xs">
-        <div class="tri-row card !py-2.5 !px-3 flex justify-between items-center"><span>微信读书导出的 Markdown（含目录节）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>calibre .epub/.mobi 内嵌 toc.ncx</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>纯文本/MD 手打目录（每行一章）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center opacity-60"><span>按 ISBN 查询在线书目库</span><span class="vchip">V1.x</span></div>
-      </div>
-      <button onclick="tocImportDemo()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">选择文件并解析（演示）</button>
-    </div>
-  </div>
+  
 
 
   <!-- ===== 宝宝测量录入 ===== -->
@@ -3605,7 +3316,6 @@ function renderRecords(){
 }
 function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('chip-on')); el.classList.add('chip-on'); }
 function pickMoodEdit(el){ $$('#editMood .mood').forEach(m=>m.classList.remove('mood-on')); el.classList.add('mood-on'); }
-function switchBookTab(k){ [['q','btQuote','bookQuotes'],['i','btThink','bookThinks'],['c','btToc','bookToc'],['s','btSum','bookSumm']].forEach(([id,b,v])=>{ $('#'+v).classList.toggle('hidden',id!==k); $('#'+b).classList.toggle('on',id===k); }); }
 function insertSummary(){ const t=DI_TPLS[curTpl]; if(t.s.length){const el=$('#diaryBody textarea');if(el){el.value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ';el.dispatchEvent(new Event('input',{bubbles:true}))}} else { const ed=$('#diaryText');if(ed)ed.innerHTML='<div>【今日概览·自动生成】</div><div>✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00</div><div>💭 </div>';} toast('已插入自动概览，继续书写吧（联动 L2）'); }
 function saveDiary(){ const t=DI_TPLS[curTpl]; toast(t.s.length?`日记已保存 · ${t.n}（${t.s.length} 节）· 文中 ☐ 待办已同步（联动 L3）`:'日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
 /* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
@@ -3975,43 +3685,8 @@ function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为写作视
  const w=map[k]||['',''];const ta=PW_TA,s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,sel=v.slice(s,e);
  ta.value=v.slice(0,s)+w[0]+sel+w[1]+v.slice(e);ta.focus();
  const pos=s+w[0].length+(sel?sel.length:0);ta.setSelectionRange(pos,pos);pwSync();toast('已插入 '+k+' 语法（选中文本被包裹）');}
-/* ================= 账单导入向导（支付宝/微信） ================= */
-let billN=1,billPlat='支付宝';
-function billGo(){billN=1;billOpts();renderBill();navTo('p-billImport');}
-function billReset(){billN=1;renderBill();}
-function billOpts(){const wx=billPlat==='微信支付';
- $('#billOpts').innerHTML=`
-  <label class="flex items-center justify-between"><span>${wx?'微信 zip 加密包 · 自动用申请密码解压':'支付宝 zip 加密包 · 自动用申请密码解压'}</span><span class="toggle on" onclick="tgl(this)"></span></label>
-  <label class="flex items-center justify-between"><span>跳过「帮人代付 / 零钱通转入」等非支出流水</span><span class="toggle on" onclick="tgl(this)"></span></label>
-  <label class="flex items-center justify-between"><span>退款冲抵记为负支出</span><span class="toggle on" onclick="tgl(this)"></span></label>
-  <label class="flex items-center justify-between"><span>分类未命中时 AI 辅助归类（需 Key）</span><span class="toggle" onclick="tgl(this)"></span></label>
-  <div class="flex items-center justify-between text-slate-400"><span>CSV 编码自适应（UTF-8 含 BOM / GBK 兜底转码）</span><b class="text-emerald-500">自动 ✓</b></div>`;}
-function renderBill(){
- $('#billStep').innerHTML=[1,2,3,4].map(n=>`<span class="imp-dot ${n<billN?'imp-done':''} ${n===billN?'imp-on':''}">${n<billN?'✓':n}</span>${n<4?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<billN?' !bg-brand-500':'')+'"></span>':''}`).join('');
- [1,2,3,4].forEach(n=>$('#bill'+n).classList.toggle('hidden',n!==billN));
- $('#billNav').classList.toggle('hidden',billN===4);
- $('#billPrev').classList.toggle('hidden',billN===1);
- $('#billNext').textContent=billN===3?'确认导入 87 条':'下一步';}
-function billStep(d){if(d>0&&billN===1)toast('解析中… 识别到'+(billPlat==='微信支付'?'微信 17 行':'支付宝 18 行')+'表头前缀（模拟）');
- if(d>0&&billN===2)toast('解析完成：128 条 · 按交易单号命中重复 41 条');
- billN=Math.min(4,Math.max(1,billN+d));renderBill();
- if(d>0&&billN===4)toast('✔ 已写入 87 条 · 支持整批撤销 · 大额数码支出可一键升级物品建档（L12）');}
-function billCatCycle(el){const b=el.querySelector('.bc');if(!b)return;const seq=['🍜 餐饮','🧾 其他','🥤 饮品','💻 数码→可升级物品建档'];b.textContent=seq[(seq.indexOf(b.textContent)+1)%seq.length];toast('逐笔手动改分类演示 · 确认后将按修改值写入')}
-/* 导入向导 */
-let impN=1;
-function renderImp(){
-  $('#impStep').innerHTML=[1,2,3,4].map(n=>`<span class="imp-dot ${n<impN?'imp-done':''} ${n===impN?'imp-on':''}">${n<impN?'✓':n}</span>${n<4?'<span class="flex-1 h-px bg-slate-300 dark:bg-slate-700'+(n<impN?' !bg-brand-500':'')+'"></span>':''}`).join('');
-  [1,2,3,4].forEach(n=>$('#imp'+n).classList.toggle('hidden',n!==impN));
-  $('#impNav').classList.toggle('hidden',impN===4);
-  $('#impPrev').classList.toggle('hidden',impN===1);
-  $('#impNext').textContent=impN===3?'开始导入':'下一步';
-}
-function impStep(d){ if(d>0&&impN===2){ toast('解析中… 识别出 59 条记录（模拟）'); } impN=Math.min(4,Math.max(1,impN+d)); renderImp(); }
-function resetImport(){ impN=1; renderImp(); }
-document.addEventListener('click',e=>{ const s=e.target.closest('.src-pick'); if(s){ $('#impSrcName').textContent=s.dataset.src;
-  const FN={'微信读书':'weread_思考快与慢_导出.md','Kindle':'My Clippings.txt','豆瓣清单':'douban_我的书影音_导出.csv','Notion':'notion_export.zip'};
-  const fn=$('#impFileNm');if(fn)fn.textContent=FN[s.dataset.src]||'export_file.md'; impN=1; impStep(1); } });
-
+/* 治理批动刀②：账单导入向导已迁记账专版，入口保留、经 navTo 兜底重定向 */
+function billGo(){navTo('p-billImport');}
 /* ================= 收集箱 ================= */
 function renderInbox(){
   $('#inboxCount').textContent=D.inbox.length;
@@ -4446,10 +4121,6 @@ function saveProgress(){const v=$('#pIn1')&&$('#pIn1').value;if(!v){toast('请�
   const bk=progMode==='read';
   $('#progCalc').textContent='';toast('✔ 进度已存（'+v+(progWay==='page'?' 页':progWay==='pct'?' %':progWay==='chap'?' 章':'')+'）'+(sec?(' · 本次计时 '+Math.max(1,Math.round(sec/60))+' 分钟'):'')+' · 累计 '+(bk?'5h18m':'2h14m')+' · 预计'+(bk?'剩余 2h24m（约 4 天）':'剩 92 分钟')+' · 已入时间账本 L4');
   const el=$('#bkTotal');if(el&&bk&&sec)el.textContent='5h04m';}
-const BOOK_TOC=[['1 两位主角：系统1与系统2','done',5],['2 多任务','done',3],['3 懒惰的大脑','done',4],['4 联想思维','done',2],['5 系统1擅长天真轻信','done',6],['6 常态与异常','done',1],['7 确定效应','done',4],['8 时间折扣','read',2],['9 损失厌恶',null,3],['10 禀赋效应',null,1],['11 认知偏误',null,0],['12 事前验尸法',null,0],['15 社会偏好',null,0],['20 结论：两种自我',null,0]];
-function renderToc(){$('#tocList').innerHTML=BOOK_TOC.map(([t,st,q])=>`<div class="toc-row" onclick="toast('跳转至该章笔记/摘录')"><span class="toc-dot ${st==='done'?'bg-emerald-400':st==='read'?'bg-brand-500 animate-pulse':'bg-slate-200 dark:bg-slate-700'}"></span><span class="flex-1 truncate ${st?'':'text-slate-400'}">${t}</span>${q?`<span class="text-[10px] text-brand-500 font-bold">💬${q}</span>`:''}${st==='done'?'<span class="text-[10px] text-emerald-500">✓</span>':st==='read'?'<span class="text-[10px] text-brand-500 font-bold">在读</span>':''}</div>`).join('');}
-function tocAI(){toast('🤖 AI 根据书名/作者补全剩余章节中…（需先在设置验证 Key · 模拟插入 9 章待确认）');}
-function tocImportDemo(){closeSheet('sheetTocImport');renderToc();toast('✔ 解析成功：20 章/2 级 · 匹配 8 章 · 5 章自动标记摘录分布');}
 const MEDIA=[{n:'沙丘 2',t:'电影 · 2024 · 豆瓣 8.6',st:'在看',p:72,info:'72% · 累计 46min',g:'from-amber-600 to-orange-800',tm:'继续观影 · 上次 8min'},{n:'漫长的季节',t:'剧集 · 12 集 · 豆瓣 9.4',st:'在看',p:42,info:'第 5/12 集',g:'from-sky-500 to-indigo-700',tm:'第 6 集未看'},{n:'宇宙探索编辑部',t:'电影 · 想看 · 来自豆瓣',st:'想看',p:0,info:'',g:'from-slate-500 to-slate-800',tm:''}];
 function pickChip(sel,el){$$(sel).forEach(b=>b.classList.remove('on'));el.classList.add('on')}
 function addMedia(){const v=$('#mdTitle').value.trim();if(!v){toast('先起个名字');return}
@@ -4767,12 +4438,11 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr(); renderImp(); doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); renderBill(); billOpts(); renderToc(); renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
+migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes();  renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
 auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
 aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
 function timerSecsOK(){return true}
-document.addEventListener('click',e=>{const b=e.target.closest('.bill-pick');if(b){billPlat=b.dataset.p;$('#billPlatName').textContent=billPlat;$('#billFileName').textContent=billPlat==='支付宝'?'alipay_record_202608.csv':'wx_paybill_202608(1).csv';billOpts();billN=1;billStep(1);}});
 $('#themeDots').innerHTML=['#6366f1','#2dd4bf','#fb7185','#f59e0b','#0ea5e9'].map((c,i)=>`<button onclick="toast('主题色已切换（模拟）')" class="w-5 h-5 rounded-full border-2 ${i===0?'border-slate-900 dark:border-white':'border-transparent'}" style="background:${c}"></button>`).join('');
 
 /* V1.29轮8：编辑页左右滑动切换笔记（真实触摸手势；桌面演示用键盘 ←/→） */
@@ -4863,7 +4533,7 @@ function copyAllLogs(){
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"]};
+var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"]};
 var DROP=window.LH_DROPPED={};
 window.lhGone=function(id){var r=RED[id];
   if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+id;},700);return;}

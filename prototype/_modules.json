@@ -3806,14 +3806,10 @@
    "id": "sheetExtra",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-day_aim__goods.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
-     "size": 1124,
-     "hash": "0d6fe7c3"
-    },
     "index-bookshelf.html": {
      "size": 1135,
      "hash": "0d6fe7c3"
@@ -4921,15 +4917,9 @@
    "kind": "sheet",
    "title": "",
    "home": "index-day_aim__goods.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
-     "size": 1208,
-     "hash": "2a92b2d4"
-    },
     "index-bookshelf.html": {
      "size": 1221,
      "hash": "2a92b2d4"
@@ -4993,15 +4983,9 @@
    "kind": "sheet",
    "title": "",
    "home": "index-day_aim__goods.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
-     "size": 951,
-     "hash": "b699413b"
-    },
     "index-bookshelf.html": {
      "size": 961,
      "hash": "b699413b"
@@ -5289,15 +5273,9 @@
    "kind": "sheet",
    "title": "",
    "home": "index-bookshelf.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
-     "size": 1215,
-     "hash": "875467b3"
-    },
     "index-bookshelf.html": {
      "size": 1949,
      "hash": "1aeefc53"
@@ -8035,6 +8013,30 @@
    "id": "sheetPlugin",
    "home": "index.html",
    "exempt": "frozen"
+  },
+  {
+   "file": "index.html",
+   "id": "sheetExtra",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetRecycle",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetScrap",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetTocImport",
+   "home": "index-bookshelf.html",
+   "exempt": null
   }
  ],
  "redirects": [
@@ -9397,6 +9399,22 @@
   {
    "from": "index-day_aim__goods.html#sheetPlugin",
    "to": "index.html#sheetPlugin"
+  },
+  {
+   "from": "index.html#sheetExtra",
+   "to": "index-day_aim__goods.html#sheetExtra"
+  },
+  {
+   "from": "index.html#sheetRecycle",
+   "to": "index-day_aim__goods.html#sheetRecycle"
+  },
+  {
+   "from": "index.html#sheetScrap",
+   "to": "index-day_aim__goods.html#sheetScrap"
+  },
+  {
+   "from": "index.html#sheetTocImport",
+   "to": "index-bookshelf.html#sheetTocImport"
   }
  ],
  "frozen": [
