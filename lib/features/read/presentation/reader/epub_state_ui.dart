@@ -540,10 +540,13 @@ String brLocalStateLine(Book b) {
 /// 卡片与记录一起消失，与弹层承诺「保留阅读记录」相悖。
 enum BrDelOpt { keep, all }
 
+/// 打开去留弹层；**确认档会等 brDelCommit 落库完成才 resolve**（取消档直接返回），
+/// 外层入口（书籍操作弹层「移除书架」/阅读器 _openDelete）据此能读到删后真态。
 Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
   var opt = BrDelOpt.keep;
   final isLocal = b.epub != null;
-  await showModalBottomSheet<void>(
+  Completer<void>? committed;
+  final ok = await showModalBottomSheet<bool>(
     context: context,
     shape: _sheetShape,
     builder: (sc) => StatefulBuilder(
@@ -615,8 +618,10 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
                         backgroundColor: const Color(0xFFEF4444),
                       ),
                       onPressed: () {
-                        Navigator.of(sc).pop();
-                        unawaited(brDelCommit(context, ref, b, opt));
+                        committed = Completer<void>();
+                        Navigator.of(sc).pop(true);
+                        unawaited(brDelCommit(context, ref, b, opt)
+                            .whenComplete(() => committed!.complete()));
                       },
                       child: const Text('确认删除'),
                     ),
@@ -629,6 +634,7 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
       ),
     ),
   );
+  if (ok == true) await committed?.future;
 }
 
 /// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本与源文件（本地书）。

@@ -106,7 +106,43 @@ void main() {
 
     expect(find.text('网络不可达'), findsOneWidget);
     expect(find.text('无匹配城市'), findsNothing);
-    expect(failLogCount('响应结构异常'), 1);
+    // 裸名「常州」会自动并查「常州市」＝两趟各留一行（一次搜索一条留痕）。
+    expect(failLogCount('响应结构异常'), 2);
+  });
+
+  testWidgets('中文裸名自动并查「市」形态：市形命中排前（阜阳/常州真机案）',
+      (tester) async {
+    await openAndSearch(tester, (u) async {
+      final name = u.queryParameters['name'];
+      if (name == '常州市') {
+        return (
+          json: const {
+            'results': [
+              {'name': '常州市', 'latitude': 31.81, 'longitude': 119.97, 'admin1': '江苏'},
+            ]
+          },
+          err: null
+        );
+      }
+      // 裸名只回一个江苏的村（真机「阜阳」同款脏数据）
+      return (
+        json: const {
+          'results': [
+            {'name': '阜阳', 'latitude': 33.79, 'longitude': 119.70, 'admin1': '江苏'},
+          ]
+        },
+        err: null
+      );
+    }, '常州');
+
+    // 市形在前：列表首行是「常州市」，裸名的村排其后
+    final rows = tester
+        .widgetList<InkWell>(find.byType(InkWell))
+        .where((w) => w.key.toString().contains('city-hit'))
+        .toList();
+    expect(rows, isNotEmpty);
+    expect(find.textContaining('常州市'), findsOneWidget);
+    expect(find.text('网络不可达'), findsNothing);
   });
 
   testWidgets('正常命中=列表可选，无失败态', (tester) async {

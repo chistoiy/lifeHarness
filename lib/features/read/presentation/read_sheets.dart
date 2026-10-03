@@ -17,6 +17,7 @@ import '../domain/book_progress.dart';
 import '../domain/book_list.dart';
 import '../domain/book_quote.dart';
 import '../domain/book_toc.dart';
+import './reader/epub_state_ui.dart' show showBrDelSheet;
 import './shelf/book_form_page.dart' show openBiblioSearch, openBookForm;
 import 'read_providers.dart';
 import 'widgets/bs_cover.dart';
@@ -288,12 +289,15 @@ Future<bool?> showBookOpsSheet(BuildContext context, WidgetRef ref, Book b) =>
               OutlinedButton.icon(
                 key: const ValueKey('ops-del'),
                 onPressed: () async {
-                  await ref.read(readRepositoryProvider).softDeleteBooks([
-                    b.id,
-                  ]);
-                  ref.read(readTickProvider.notifier).state++;
-                  if (sheetCtx.mounted) Navigator.of(sheetCtx).pop(true);
-                  if (context.mounted) readToast(context, '已移除《${b.title}》');
+                  // 轮4⑤ 收口：本入口此前绕过询问直接软删（＝「删了还在/角标不消」
+                  // 第三入口），现与长按/详情统一走「保留/全删」去留弹层；
+                  // 弹层 resolve 时提交已落库，据书行真态回传 gone。
+                  await showBrDelSheet(context, ref, b);
+                  if (!sheetCtx.mounted) return;
+                  final nb = await ref.read(readRepositoryProvider).bookById(b.id);
+                  if (sheetCtx.mounted) {
+                    Navigator.of(sheetCtx).pop(nb == null || nb.isDeleted);
+                  }
                 },
                 icon: const Icon(BsIcons.trash, size: 17),
                 label: const Text('移除书架'),

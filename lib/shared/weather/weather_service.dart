@@ -111,54 +111,79 @@ class WeatherService {
 
   /// 城市搜索（geocoding · 中文支持 language=zh）。
   /// 返回带 err：取数失败≠查无此城，调用方（弹层）按 err 分三态显示。
+  /// 真机轮4①补二：该源中国地级市多按「常州市」式带后缀登记——裸名「常州」
+  /// 只回村甚至回错，故中文裸名自动并查「市」形态（市形在前·双查去重）。
   Future<({List<CityHit> hits, String? err})> searchCity(String query) async {
     final q = query.trim();
     if (q.isEmpty) return (hits: const <CityHit>[], err: null);
-    final r = await _fetch(Uri.https('geocoding-api.open-meteo.com', '/v1/search',
-        {'name': q, 'count': '10', 'language': 'zh', 'format': 'json'}));
-    if (r.err != null) {
-      // 服务层同样留痕：注入假 fetch 的用例也能断言「失败不落静默」。
-      AppLog.add('城市搜索失败 err=${r.err}', level: LhLevel.warn);
-      return (hits: const <CityHit>[], err: r.err);
+    final variants = <String>[q];
+    if (RegExp(r'^[\u4e00-\u9fa5]{2,6}$').hasMatch(q) &&
+        !q.endsWith('市') &&
+        !q.endsWith('县') &&
+        !q.endsWith('区') &&
+        !q.endsWith('旗') &&
+        !q.endsWith('盟')) {
+      // ignore: unnecessary_brace_in_string_interps
+      variants.insert(0, '${q}市'); // 花括号必需：$q市 会把汉字吸进标识符
     }
-    final results = r.json?['results'];
-    if (results is! List) {
-      // 真机轮4①补：200 但结构不合（限流/防滥用返回 error JSON）＝服务异常，
-      // 归「网络不可达」并留痕，不许静默算「查无此城」。
-      // 真机 03:19 实锤此分支命中「常州」；再带上响应体前 60 字符定位是
-      // 限流 JSON 还是代理劫持页（geocoding 错误体不回显查询词，无隐私）。
-      var shape = 'unencodable';
-      try {
-        shape = r.json == null ? 'null' : jsonEncode(r.json);
-      } catch (_) {
-        // catch-ok: 仅诊断文本编码失败，回落占位符
+    final seen = <String>{};
+    final hits = <CityHit>[];
+    String? firstErr;
+    var sawBadShape = false;
+    for (final v in variants) {
+      final r = await _fetch(Uri.https(
+          'geocoding-api.open-meteo.com', '/v1/search',
+          {'name': v, 'count': '10', 'language': 'zh', 'format': 'json'}));
+      if (r.err != null) {
+        firstErr ??= r.err;
+        continue;
       }
-      if (shape.length > 60) shape = '${shape.substring(0, 60)}…';
-      AppLog.add(
-          '城市搜索响应结构异常 host=geocoding-api.open-meteo.com body=$shape',
-          level: LhLevel.warn);
-      return (hits: const <CityHit>[], err: 'bad-shape');
+      final results = r.json?['results'];
+      if (results is! List) {
+        // 200 但结构不合（限流/防滥用 error JSON）＝服务异常留痕，不静默算无匹配。
+        // 带响应体前 60 字符定性（geocoding 错误体不回显查询词，无隐私）。
+        var shape = 'unencodable';
+        try {
+          shape = r.json == null ? 'null' : jsonEncode(r.json);
+        } catch (_) {
+          // catch-ok: 仅诊断文本编码失败，回落占位符
+        }
+        if (shape.length > 60) shape = '${shape.substring(0, 60)}…';
+        AppLog.add(
+            '城市搜索响应结构异常 host=geocoding-api.open-meteo.com body=$shape',
+            level: LhLevel.warn);
+        firstErr ??= 'bad-shape';
+        sawBadShape = true;
+        continue;
+      }
+      for (final item in results) {
+        if (item is Map &&
+            item['name'] is String &&
+            item['latitude'] is num &&
+            item['longitude'] is num) {
+          final hit = CityHit(
+            name: item['name'] as String,
+            lat: (item['latitude'] as num).toDouble(),
+            lon: (item['longitude'] as num).toDouble(),
+            admin1: item['admin1'] as String?,
+            country: item['country'] as String?,
+          );
+          if (seen.add('${hit.name}|${hit.lat}|${hit.lon}')) hits.add(hit);
+        }
+      }
     }
-    if (results.isEmpty) {
-      // 真空结果＝正当「无匹配城市」，但同样落一行 info 让真机可辨（不记查询词）。
+    if (hits.isEmpty) {
+      if (firstErr != null) {
+        // 服务层留痕：注入假 fetch 的用例也能断言「失败不落静默」。
+        // 一次搜索＝一条失败行（变体级结构异常已另记）。
+        if (!sawBadShape || variants.length == 1) {
+          AppLog.add('城市搜索失败 err=$firstErr', level: LhLevel.warn);
+        }
+        return (hits: const <CityHit>[], err: firstErr);
+      }
+      // 正当空结果也落一行，真机可辨（不记查询词）。
       AppLog.add('城市搜索无结果 host=geocoding-api.open-meteo.com');
     }
-    return (
-      hits: [
-        for (final item in results)
-          if (item is Map &&
-              item['name'] is String &&
-              item['latitude'] is num &&
-              item['longitude'] is num)
-            CityHit(
-              name: item['name'] as String,
-              lat: (item['latitude'] as num).toDouble(),
-              lon: (item['longitude'] as num).toDouble(),
-              admin1: item['admin1'] as String?,
-              country: item['country'] as String?,
-            ),
-      ],
-      err: null,
-    );
+    return (hits: hits, err: null);
   }
 }
