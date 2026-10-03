@@ -288,6 +288,52 @@ void main() {
     });
   });
 
+  group('⑥ 选中态同源：paraSelectionSpan 也吃分段表', () {
+    // 真机反馈（2026-10-04 图1/图2）：《資治通鑑》一长按选字，整段绿小字塌回黑大字
+    // ——选中态走的是另一条支路，只吃段级样式、没吃 runs。这条就是那处的回归。
+    const green = Color(0xFF006400);
+    final p = _para('甲乙丙丁戊', runs: [
+      const EpubStyleRun(
+          start: 1, end: 4, style: EpubStyle(color: green, fontRatio: .75)),
+    ]);
+
+    test('选中区间跨 run 边界：run 内外的字各自保色，只有被选中的那段上底色', () {
+      final s = paraSelectionSpan(p, _base(), orig: true, indMode: 'none', a: 2, b: 5);
+      final kids = s.children!.cast<TextSpan>();
+      expect(kids.map((k) => k.text!).join(), '甲乙丙丁戊', reason: '显示文本一字不能少');
+      final yi = kids.firstWhere((k) => k.text == '乙');
+      final bingding = kids.firstWhere((k) => k.text == '丙丁');
+      expect(yi.style!.color, green, reason: '未选中的 run 内字仍要保原书绿');
+      expect(yi.style!.fontSize, closeTo(19 * .75, .001));
+      expect(yi.style!.backgroundColor, isNull);
+      expect(bingding.style!.color, green);
+      expect(bingding.style!.backgroundColor, isNotNull, reason: '选中部分上底色');
+    });
+
+    test('run 之外的空隙仍用段级样式（不被 run 染色外溢）', () {
+      final s = paraSelectionSpan(p, _base(), orig: true, indMode: 'none', a: 0, b: 1);
+      final kids = s.children!.cast<TextSpan>();
+      final wu = kids.firstWhere((k) => k.text == '戊');
+      expect(wu.style!.color, _dayFg, reason: 'run 覆盖不到的字回到段级样式');
+      expect(wu.style!.fontSize, 19);
+    });
+
+    test('orig 关＝选中态也是单段止血样式（逐字节回到现状）', () {
+      final s = paraSelectionSpan(p, _base(), indMode: 'none', a: 0, b: 2);
+      for (final k in s.children!.cast<TextSpan>()) {
+        expect(k.style!.color, isNot(green));
+      }
+    });
+
+    test('缩进前缀仍按段级样式恒在最前（轮4③ 约定不破）', () {
+      final t = _para('正文段');
+      final s = paraSelectionSpan(t, _base(), orig: true, indMode: '2', a: 0, b: 2);
+      final first = s.children!.first as TextSpan;
+      expect(first.text, kParaIndent);
+      expect(first.style!.backgroundColor, isNull, reason: '高亮不吞缩进前缀');
+    });
+  });
+
   group('⑤ 测量同源：paraHeight 吃同一张表', () {
     test('含大字号 run 的段按 span 树整段量，比平文本高', () {
       final p = _para('正文' * 20, runs: [

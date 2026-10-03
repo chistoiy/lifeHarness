@@ -394,6 +394,62 @@ List<EpubRunSegment> paraRunStyles(
   return out;
 }
 
+/// 段 → **选中态**上屏 span（轮4③ 两条约定原样保留：缩进前缀恒按段级样式渲染在最前、
+/// 高亮只包子串本体不吞缩进）。批三真机反馈（2026-10-04 图1→图2）：选中态也必须吃
+/// [paraRunStyles] 这张分段表——否则《資治通鑑》一长按选字，整段原书绿小字塌回
+/// 主题黑大字，「选一下样式就变」在用户眼里就是 bug。底色只叠在与选区相交的那截上。
+TextSpan paraSelectionSpan(
+  EpubPara p,
+  TextStyle base, {
+  bool orig = false,
+  Color? pageBg,
+  String indMode = 'auto',
+  String s2t = kS2TOrig,
+  required int a,
+  required int b,
+  Color selBg = const Color(0x4D6366F1),
+}) {
+  final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
+  final body = paraBody(p, s2t);
+  final pre = paraIndented(p, indMode) ? kParaIndent : '';
+  final lo = a.clamp(0, body.length), hi = b.clamp(lo, body.length);
+  final kids = <InlineSpan>[
+    if (pre.isNotEmpty) TextSpan(text: pre, style: para),
+  ];
+  for (final s in paraRunStyles(p, base, orig: orig, pageBg: pageBg)) {
+    if (s.end <= lo || s.start >= hi) {
+      kids.add(TextSpan(text: body.substring(s.start, s.end), style: s.style));
+      continue; // 整截都在选区外：原样式照上
+    }
+    if (s.start < lo) {
+      kids.add(
+        TextSpan(
+          text: body.substring(s.start, lo),
+          style: s.style,
+        ),
+      );
+    }
+    final x0 = math.max(s.start, lo), x1 = math.min(s.end, hi);
+    if (x1 > x0) {
+      kids.add(
+        TextSpan(
+          text: body.substring(x0, x1),
+          style: s.style.copyWith(backgroundColor: selBg),
+        ),
+      );
+    }
+    if (s.end > hi) {
+      kids.add(
+        TextSpan(
+          text: body.substring(hi, s.end),
+          style: s.style,
+        ),
+      );
+    }
+  }
+  return TextSpan(style: para, children: kids);
+}
+
 /// 段 → 上屏用的富文本 span（**测量与渲染共用的唯一出口**：[EpubPager.paraHeight]、
 /// 引文块、正文事件流都从这张分段表取字取样式；两处各拼一份必分叉＝空页/错页）。
 /// 缩进前缀恒按段级样式渲染在最前（轮4③ 真机口径），不参与 runs 分段。

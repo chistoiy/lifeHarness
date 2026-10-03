@@ -315,44 +315,26 @@ extension _ReaderChrome on _ReaderPageState {
   }
 
   /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
-  /// 批三刀3：段级原书样式照吃；**runs 分段在选中态不细分**（选区只是一次性视图，
-  /// 且这里没有事件流可并切点）——退出选中即回到完整分段，见工单 §3D 挂账。
-  TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) {
-    final base = paraStyle(
-      p,
-      TextStyle(
-        fontSize: _cfg.fs,
-        height: _cfg.lh,
-        letterSpacing: _cfg.ls,
-        fontFamily: _cfg.fontFamily,
-        fontFamilyFallback: _cfg.fontFamilyFallback,
-        color: th.$3,
-      ),
-      orig: _cfg.orig,
-      pageBg: th.$2,
-    );
-    final a = q0.clamp(0, p.text.length);
-    final b = q1.clamp(a, p.text.length);
-    // 真机反馈（2026-09-28）：缩进前缀恒以普通文本渲染在最前——选中任何子串
-    // 显示文本都与未选中一致，不再顶格重排；高亮也只包子串本体、不吞缩进。
-    // R3-2 ③：前缀有无改按段判定（与 paraDisplayText 同一函数，两者不许分叉）。
-    final pre = paraIndented(p, _cfg.indMode) ? kParaIndent : '';
-    // R3-6：高亮支路也必须走 paraBody——它按原文偏移切片，转换器逐字等长，
-    // 所以 a/b 在转换后的串上仍指同一个字；漏转＝选中一段就露出原文，简繁白切。
-    final body = paraBody(p, _cfg.s2t);
-    return TextSpan(
-      style: base,
-      children: [
-        if (pre.isNotEmpty) TextSpan(text: pre),
-        if (a > 0) TextSpan(text: body.substring(0, a)),
-        TextSpan(
-          text: body.substring(a, b),
-          style: base.copyWith(backgroundColor: const Color(0x4D6366F1)),
+  /// 批三真机反馈（2026-10-04 图1→图2）：改吃 [paraSelectionSpan]——选中态与正文态
+  /// 共用同一张分段表，一长按选字不再把原书分层色/夹注小字塌回主题黑大字。
+  TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) =>
+      paraSelectionSpan(
+        p,
+        TextStyle(
+          fontSize: _cfg.fs,
+          height: _cfg.lh,
+          letterSpacing: _cfg.ls,
+          fontFamily: _cfg.fontFamily,
+          fontFamilyFallback: _cfg.fontFamilyFallback,
+          color: th.$3,
         ),
-        if (b < p.text.length) TextSpan(text: body.substring(b)),
-      ],
-    );
-  }
+        orig: _cfg.orig,
+        pageBg: th.$2,
+        indMode: _cfg.indMode,
+        s2t: _cfg.s2t,
+        a: q0,
+        b: q1,
+      );
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
   /// ① 注释体走正文色小字；④ 只有外链给链接绿。
