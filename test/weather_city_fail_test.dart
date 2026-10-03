@@ -128,20 +128,22 @@ void main() {
       return (
         json: const {
           'results': [
-            {'name': '阜阳', 'latitude': 33.79, 'longitude': 119.70, 'admin1': '江苏'},
+            {
+              'name': '阜阳',
+              'latitude': 33.79,
+              'longitude': 119.70,
+              'admin1': '江苏',
+              'admin2': '盐城市'
+            },
           ]
         },
         err: null
       );
     }, '常州');
 
-    // 市形在前：列表首行是「常州市」，裸名的村排其后
-    final rows = tester
-        .widgetList<InkWell>(find.byType(InkWell))
-        .where((w) => w.key.toString().contains('city-hit'))
-        .toList();
-    expect(rows, isNotEmpty);
+    // 市形在前：列表首行是「常州市」；裸名条目带二级区划可区分（产品口径=全展示自选）
     expect(find.textContaining('常州市'), findsOneWidget);
+    expect(find.text('阜阳 · 江苏 · 盐城市'), findsOneWidget);
     expect(find.text('网络不可达'), findsNothing);
   });
 

@@ -166,6 +166,7 @@ class WeatherService {
             lat: (item['latitude'] as num).toDouble(),
             lon: (item['longitude'] as num).toDouble(),
             admin1: item['admin1'] as String?,
+            admin2: item['admin2'] as String?,
             country: item['country'] as String?,
           );
           if (seen.add('${hit.name}|${hit.lat}|${hit.lon}')) hits.add(hit);

@@ -299,4 +299,32 @@ void main() {
       expect(find.textContaining('正在为《守卫书rb》重新选择文件'), findsOne);
     });
   });
+
+  group('轮4⑤ · 书架保留删除（真机复验：角标必须摘）', () {
+    testWidgets('长按→删除→保留：卡片留架且「本地」角标摘除、进度徽标回显', (t) async {
+      final b = await seed('bl', st: 'rdy');
+      File(b.epub!.path).writeAsBytesSync([1, 2, 3]);
+      await shelfWith(t, const []);
+      // 删前：本地角标在（封面右下）。
+      expect(find.byKey(const ValueKey('br-local-badge')), findsWidgets);
+      await t.longPress(find.byKey(const ValueKey('sh-item-bl')));
+      await step(t, times: 2);
+      await t.tap(find.byKey(const ValueKey('lp-del')));
+      await step(t, times: 2);
+      expect(find.byKey(const ValueKey('brDelOpt-keep')), findsOne,
+          reason: '统一去留弹层（长按入口已接入）');
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const ValueKey('brDelOk'))); // 默认保留档
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      });
+      await step(t, times: 4);
+      expect(find.byKey(const ValueKey('sh-item-bl')), findsOne,
+          reason: '保留态：卡片留在书架');
+      expect(find.byKey(const ValueKey('br-local-badge')), findsNothing,
+          reason: '真机报「角标未摘」＝此断言钉死：local 标记必须清除');
+      expect(find.byKey(const ValueKey('cov-badge-bl')), findsOne,
+          reason: '角标位让回进度徽标（单槽互斥）');
+      expect(File(b.epub!.path).existsSync(), isFalse, reason: '私有副本已释放');
+    });
+  });
 }

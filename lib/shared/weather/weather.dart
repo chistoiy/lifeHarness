@@ -43,20 +43,34 @@ class CityHit {
       required this.lat,
       required this.lon,
       this.admin1,
+      this.admin2,
       this.country});
 
   final String name;
   final double lat;
   final double lon;
   final String? admin1;
+  // 轮4：数据源同名条目多（「阜阳」既是安徽地级市也是江苏的村），
+  // 二级区划并进标签让全部结果可区分，由用户自选，不做过滤。
+  final String? admin2;
   final String? country;
 
-  /// 条目主文案：同名城市用省/国区分（杭州 · 浙江）。
+  /// 条目主文案：`名 · 省 · 市`（空段跳过；真机反馈轮4 产品口径）。
   String get label {
-    final region = admin1 != null && admin1!.isNotEmpty && admin1 != name
-        ? admin1
-        : (country != null && country!.isNotEmpty ? country : null);
-    return region == null ? name : '$name · $region';
+    final parts = <String>[
+      name,
+      if (admin1 != null && admin1!.isNotEmpty && admin1 != name) admin1!,
+      if (admin2 != null &&
+          admin2!.isNotEmpty &&
+          admin2 != name &&
+          admin2 != admin1)
+        admin2!,
+      if ((admin1 == null || admin1!.isEmpty) &&
+          country != null &&
+          country!.isNotEmpty)
+        country!,
+    ];
+    return parts.join(' · ');
   }
 }
 
