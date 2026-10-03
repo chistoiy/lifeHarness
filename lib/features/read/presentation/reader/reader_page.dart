@@ -124,6 +124,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   int _sessSecs = 0;
   Timer? _clock;
   DateTime? _t0;
+  /// 已封口段的累计秒（真机反馈轮4⑥：页面不在前台＝没在读，计时必须挂起）。
+  /// 当前段起点仍用 [_t0] 表示，清空即＝暂停。
+  int _accSecs = 0;
 
   // 抽屉
   bool _drawerOpen = false;
@@ -190,14 +193,48 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     });
   }
 
+  /// 本次阅读的**前台**秒数＝已封口段＋在跑的当前段（后台时长不计入，轮4⑥）。
+  int get _readSecs => _t0 == null
+      ? _accSecs
+      : _accSecs + DateTime.now().difference(_t0!).inSeconds;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // §8 生命周期：退后台自动暂停解析（断点已落库），回前台一键恢复。
-    if (state == AppLifecycleState.paused ||
+    final bg = state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden) {
+        state == AppLifecycleState.hidden;
+    if (bg) {
       xrNoteBackground();
+      _pauseReadingTimer();
+    } else if (state == AppLifecycleState.resumed) {
+      _resumeReadingTimer();
     }
+  }
+
+  /// 真机反馈轮4⑥：阅读页不在前台就不该继续计时。做法＝把当前会话段**就地封口**
+  /// （沿用既有 endSession 语义：未达门槛的短段整条丢弃），清空当前段起点＝暂停；
+  /// 回前台再为同一本书开新段。只动**本页自己开的计时**——沿用他处会话时不抢别人的条。
+  void _pauseReadingTimer() {
+    if (!_ownTimer || _t0 == null) return;
+    _accSecs += DateTime.now().difference(_t0!).inSeconds;
+    _t0 = null;
+    unawaited(
+      ref
+          .read(readRepositoryProvider)
+          .endSession(widget.bookId, to: _locSnap(), minSecs: _minSecs),
+    );
+  }
+
+  void _resumeReadingTimer() {
+    if (!_ownTimer || _t0 != null) return;
+    _t0 = DateTime.now();
+    unawaited(
+      ref
+          .read(readRepositoryProvider)
+          .startSession(widget.bookId, at: _locSnap())
+          .then((s) => _sessId = s.id),
+    );
   }
 
   @override
@@ -337,8 +374,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _t0 = DateTime.now();
     _clock = Timer.periodic(const Duration(seconds: 1), (_) {
       // 时钟胶囊只在 chrome/抽屉可见时展示；平时不整页重建（大书滑动掉帧根因之一）。
-      if (!mounted || _t0 == null) return;
-      final secs = DateTime.now().difference(_t0!).inSeconds;
+      if (!mounted || (_t0 == null && _accSecs == 0)) return;
+      final secs = _readSecs;
       if (_chrome || _drawerOpen) {
         setState(() => _sessSecs = secs);
       } else {
@@ -421,7 +458,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final to = _locSnap();
     final from = _sessFrom ?? to;
     final gate = _minSecs;
-    final secs = _t0 == null ? 0 : DateTime.now().difference(_t0!).inSeconds;
+    final secs = _readSecs;
     final ms = _ms;
     final title = _book?.title ?? '';
     unawaited(() async {
