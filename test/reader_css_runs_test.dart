@@ -164,6 +164,12 @@ void main() {
         doc.unsupported.firstWhere((u) => u.key == 'writing-mode').describe(),
         contains('竖排直排'),
       );
+      // 产品 2026-10-04 拍板：描边框画不成框＝按字线呈现，也要在这一行里说出来，不许静默。
+      expect(keys, contains('border'));
+      expect(
+        doc.unsupported.firstWhere((u) => u.key == 'border').describe(),
+        contains('画不出整框'),
+      );
     });
   });
 

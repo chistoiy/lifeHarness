@@ -281,6 +281,20 @@ class EpubUnsupported {
         'direction' => 'direction',
         'display' => 'display',
         'background' || 'background-image' => 'background-image',
+        'border' ||
+        'border-left' ||
+        'border-right' ||
+        'border-top' ||
+        'border-bottom' ||
+        'border-inline-start' ||
+        'border-inline-end' ||
+        'border-block-start' ||
+        'border-block-end' ||
+        '-webkit-border-start' ||
+        '-webkit-border-end' ||
+        '-webkit-border-before' ||
+        '-webkit-border-after' =>
+          'border',
         'padding' ||
         'padding-left' ||
         'padding-right' ||
@@ -304,11 +318,13 @@ class EpubUnsupported {
       'direction' => '从右向左书写',
       'padding' => '行内留白',
       'background-image' => '图片装饰线',
+      'border' => '框线描边',
       '-webkit-text-combine' => '数字压缩排布',
       'letter-spacing' => '字距微调',
       'word-spacing' => '词距微调',
       _ => property,
     };
+    if (key == 'border') return '$t（当前按文字上下的线显示，画不出整框）';
     return kind == EpubUnsupportedKind.cssStructural
         ? '$t（当前按横排单栏显示）'
         : '$t（已按近似样式显示）';
@@ -594,20 +610,13 @@ void _put(String prop, _Decl d, Map<String, _Decl> out, EpubUnsupportedSink? sin
       _expandBox(v, out, d.imp);
       return;
     // —— 描边：单边简写（专名线走这里，§5.4 拍板②）
-    case 'border-left':
-      _expandBorder('left', v, out, d.imp);
-      return;
-    case 'border-right':
-      _expandBorder('right', v, out, d.imp);
-      return;
-    case 'border-top':
-      _expandBorder('top', v, out, d.imp);
-      return;
-    case 'border-bottom':
-      _expandBorder('bottom', v, out, d.imp);
-      return;
     case 'border':
-      _expandBorder('all', v, out, d.imp);
+    case 'border-left':
+    case 'border-right':
+    case 'border-top':
+    case 'border-bottom':
+      _flatBorder(sink, v);
+      _expandBorder(prop == 'border' ? 'all' : prop.substring(7), v, out, d.imp);
       return;
     case 'border-inline-start':
       k = 'border-left';
@@ -727,6 +736,19 @@ void _expandBox(String value, Map<String, _Decl> out, bool imp) {
   w('right', right);
   w('bottom', bottom);
   w('left', left);
+}
+
+/// 描边声明的降级留痕（产品 2026-10-04 拍板）：Flutter 文本模型没有内联盒，四边框
+/// 画不成「框」，只能按通用映射落到字线（左/右/下边→下划线，上边→上划线）。
+/// 这是**能力边界**，不许静默——记近似降级，由该书外观页的提示行说出来
+/// （口径＝docs/阅读器排版路线说明-20261003.md「不支持的关键声明不许静默降级」）。
+void _flatBorder(EpubUnsupportedSink? sink, String value) {
+  final v = value.trim().toLowerCase();
+  if (v.isEmpty || v == 'none' || v == 'hidden') return;
+  final parts = v.split(RegExp(r'\s+'));
+  final w = cssLengthInEm(parts.first);
+  if (w != null && w == 0) return; // 零宽本来就不画，不算降级
+  sink?.add(EpubUnsupportedKind.cssFlattened, 'border', v);
 }
 
 /// `border: 3px double White`／`border-left: .12em solid` → 三要素长写法。

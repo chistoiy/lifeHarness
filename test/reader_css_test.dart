@@ -400,6 +400,35 @@ void main() {
       );
     });
 
+    test('描边框画不成框＝近似降级要留痕；本来不画的（none/零宽）不算降级', () {
+      final s = EpubStyleSheet.parse('''
+        .b1 { border: 2px solid red; }
+        .b2 { border-left: .12em solid; }
+        .b3 { border: none; }
+        .b4 { border-top: 0 solid; }
+      ''');
+      final sink = EpubUnsupportedSink();
+      // 同一条规则其余部分照用：边色/边宽都还在（降级只说「画不成框」，不是丢声明）。
+      final b1 = s.resolve([EpubElementRef('p', {'b1'}, null)], sink: sink);
+      expect(_hexOf(b1.borderTop!.color!.toARGB32()), 'FF0000');
+      expect(b1.borderTop!.widthPx, 2.0);
+      s.resolve([EpubElementRef('p', {'b2'}, null)], sink: sink);
+      final list = sink.toList();
+      expect(list.where((u) => u.key == 'border').length, 2,
+          reason: '四边简写与单边都归到 border 这一个判定键');
+      expect(
+        list.where((u) => u.key == 'border').every(
+              (u) => u.kind == EpubUnsupportedKind.cssFlattened,
+            ),
+        isTrue,
+      );
+      s.resolve([EpubElementRef('p', {'b3'}, null)], sink: sink);
+      s.resolve([EpubElementRef('p', {'b4'}, null)], sink: sink);
+      expect(sink.toList().where((u) => u.key == 'border').length, 2,
+          reason: 'none 与零宽本来就不画，不该混进降级名单');
+      expect(list.first.describe(), contains('画不出整框'));
+    });
+
     test('float:none 与 vertical-rl 之外的 writing-mode 不算结构性丢弃', () {
       final s = EpubStyleSheet.parse('.x { float: none; writing-mode: horizontal-tb; }');
       final sink = EpubUnsupportedSink();
