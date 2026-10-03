@@ -10,6 +10,8 @@ import 'package:html/dom.dart' as h;
 import 'package:html/parser.dart' as hparser;
 import 'package:xml/xml.dart';
 
+import 'epub_css.dart';
+
 /// 本地 EPUB 解析（V1.50 阅读器批1 · 选型验证结论＝自研容器层）。
 ///
 /// 选型记录（批1 交付说明）：pub.dev 现有 epubx（归档停更、只给裸元数据）、
@@ -66,6 +68,20 @@ class EpubLink {
   bool get usesLinkColor => !annotation && (external || !sameDoc);
 }
 
+/// 段内一个区间的原书排版语义（批三刀2）。坐标与 [EpubPara.text] 同系
+/// （折叠空白后的 UTF-16 码位），因此与 [EpubPara.links]、划线/书摘的原文偏移一样可直接对齐。
+class EpubStyleRun {
+  const EpubStyleRun({
+    required this.start,
+    required this.end,
+    required this.style,
+  });
+
+  final int start;
+  final int end;
+  final EpubStyle style;
+}
+
 /// 一个内容段落（章内下标即 CFI 段落号）。
 class EpubPara {
   const EpubPara({
@@ -77,6 +93,8 @@ class EpubPara {
     this.links = const [],
     this.annotation = false,
     this.ownIndent = false,
+    this.style,
+    this.runs = const [],
   });
 
   final EpubParaKind kind;
@@ -99,9 +117,18 @@ class EpubPara {
   /// 正文与引文两类参与（标题另有字号档，测量与上色必须同源，见 paraStyle）。
   final bool annotation;
 
-  /// R3-2 ③ 书内自带首行缩进（段内 `style:text-indent` 或正文以全角空格起头）：
-  /// indMode=auto（跟随原书）时**不再叠加**我们的两全角缩进；按段判定不一刀切。
+  /// R3-2 ③ 书内自带首行缩进（原书 CSS 声明了 `text-indent`、段内 `style:text-indent`，
+  /// 或正文以全角空格起头）：indMode=auto（跟随原书）时**不再叠加**我们的两全角缩进；
+  /// 按段判定不一刀切。
   final bool ownIndent;
+
+  /// 段级原书排版意图（批三刀2：`<link>`/`<style>`/内联 style 级联到本段的结果）。
+  /// 消费面＝缩进/对齐/边距/行距/底色；null＝包里没有与该段相关的声明，全走用户主题。
+  final EpubStyle? style;
+
+  /// 段内 span 级原书语义（分层注释色·小字·专名线…）。**裁剪判据＝有白名单声明**
+  /// （§5.4 拍板②），与 [style] 同值的区间不重复记，所以现代书面常为空。
+  final List<EpubStyleRun> runs;
 
   int get charCount => kind == EpubParaKind.image ? 0 : text.length;
 }
@@ -163,6 +190,7 @@ class EpubDoc {
     this.bookmarkCount = 0,
     this.images = const {},
     this.lazy,
+    this.unsupported = const [],
   });
 
   /// 'EPUB2' | 'EPUB3'（OPF package@version）。
@@ -200,6 +228,10 @@ class EpubDoc {
 
   /// 懒归档句柄（仅 [openFile] 路径非空；测试/内存路径为 null）。
   final LazyEpubArchive? lazy;
+
+  /// 包里声明了但我们表达不了的排版项（批三刀2 收集，刀3 落日志＋该书外观页提示行）。
+  /// 口径＝**不许静默降级**（docs/阅读器排版路线说明-20261003.md）。
+  final List<EpubUnsupported> unsupported;
 
   /// 每章起始全局段落的 CFI 章序即 chapters 下标（`epub/2/{章序+2}/{段}`）。
   static const cfiPrefix = 'epub/2';
@@ -305,6 +337,7 @@ class EpubDoc {
     fontCount: fontCount,
     bookmarkCount: bookmarkCount,
     images: const {},
+    unsupported: unsupported,
   );
 
   EpubDoc _withLazy(LazyEpubArchive lz) => EpubDoc(
@@ -325,6 +358,7 @@ class EpubDoc {
     bookmarkCount: bookmarkCount,
     images: const {},
     lazy: lz,
+    unsupported: unsupported,
   );
 
   static EpubDoc _build(
@@ -429,7 +463,8 @@ class EpubDoc {
     }
 
     // 章节正文：spine 中指向 XHTML 的项逐段抽取；标题取目录首命中。
-    final chapters = <EpubChapter>[];
+    final chapters = <EpubChapter>[];    final css = _CssSheets(files);
+    final uns = EpubUnsupportedSink();
     var imageCount = manifest.values.where((m) => m.type.startsWith('image/')).length;
     final spineDocs = spineIds
         .map((id) => manifest[id])
@@ -439,7 +474,7 @@ class EpubDoc {
     for (final m in spineDocs) {
       final raw = files.bytes(m.href);
       if (raw == null) continue;
-      final paras = _extractParas(_str(raw), m.href);
+      final paras = _extractParas(_str(raw), m.href, css, uns);
       var viaToc = toc
           .where((t) => t.href == m.href)
           .firstOrNull
@@ -530,6 +565,7 @@ class EpubDoc {
       bookmarkCount: bookmarkCount,
       images: images,
       lazy: lazy,
+      unsupported: uns.toList(),
     );
   }
 
@@ -767,12 +803,24 @@ List<EpubTocItem> _parseNcx(XmlDocument? ncx, String ncxPath) {
 /// 段内 <a> 记为 [EpubLink]（内链解析成 zip 路径，外链保留原样）。
 /// R3-2 止血带出的语义（① 注释体 · ③ 自带缩进 · ④ 站内锚点）在此**一次判定完**，
 /// 渲染层只读 [EpubPara.annotation]/[EpubPara.ownIndent]/[EpubLink.usesLinkColor]。
-List<EpubPara> _extractParas(String xhtml, String docPath) {
+///
+/// 批三实现批·刀2 追加：文档自带 CSS（`<link>`＋`<style>`）经 [EpubStyleSheet] 级联后，
+/// 段级排版意图进 [EpubPara.style]、段内区间语义进 [EpubPara.runs]。
+/// **裁剪判据＝有没有声明白名单属性**（[EpubStyle.hasSemantics]，§5.4 拍板②），
+/// 不看 class 名；与段级样式同值的区间不重复记一刀（省 span）。
+/// [css] 由调用方按包提供（同书多章共用解析结果）；[sink] 非空时顺手记「不支持声明」留痕。
+List<EpubPara> _extractParas(
+  String xhtml,
+  String docPath,
+  _CssSheets css, [
+  EpubUnsupportedSink? sink,
+]) {
   final out = <EpubPara>[];
   final doc = hparser.parse(xhtml);
   final body = doc.body ?? doc.documentElement;
   if (body == null) return out;
   final base = _dirName(docPath);
+  final sheet = css.sheetFor(doc, docPath);
 
   String norm(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
 
@@ -792,63 +840,113 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
     return c != null && noteClassRe.hasMatch(c);
   }
 
-  // ③ 书内自带首行缩进：段内 style 的 text-indent（非 0/none），或正文本身以
-  // 全角空格/持续空白起头（中文古籍常见写法）。换行起头的源码缩进不算。
-  final textIndentRe = RegExp(
-    r'text-indent\s*:\s*([^;]+)',
-    caseSensitive: false,
-  );
-  bool ownIndentOf(h.Element el, String raw) {
-    final m = textIndentRe.firstMatch(el.attributes['style'] ?? '');
-    final v = m?.group(1)?.trim().toLowerCase();
-    if (v != null &&
-        v.isNotEmpty &&
-        v != 'none' &&
-        v != 'inherit' &&
-        v != 'initial' &&
-        !RegExp(r'^0([.,].*)?$').hasMatch(v)) {
-      return true;
-    }
+  // ③ 书内自带缩进：原书 CSS 声明了 text-indent（含祖先 class，走级联），或正文
+  // 本身以全角空格/持续空白起头（中文古籍常见写法）。换行起头的源码缩进不算。
+  bool ownIndentOf(h.Element el, String lead, EpubStyle st) {
+    if (st.indentEm != null && st.indentEm != 0) return true;
     // 段首空白码位：半角空格/制表/NBSP/全角空格（不含换行——源码缩进不算）。
     const leadWs = {0x20, 0x09, 0x00a0, 0x3000};
     var n = 0;
-    while (n < raw.length && leadWs.contains(raw.codeUnitAt(n))) {
+    while (n < lead.length && leadWs.contains(lead.codeUnitAt(n))) {
       n++;
     }
     if (n == 0) return false;
-    final lead = raw.substring(0, n);
+    final head = lead.substring(0, n);
     // 全角空格/NBSP 单个即算自带缩进；普通空白要 2 个以上。
-    return lead.codeUnits.contains(0x3000) ||
-        lead.codeUnits.contains(0x00a0) ||
+    return head.codeUnits.contains(0x3000) ||
+        head.codeUnits.contains(0x00a0) ||
         n >= 2;
   }
 
-  /// 收集元素文本 + 链接区间（a 只取其文字，不取 URL）。
-  (String, List<EpubLink>) grab(h.Element el) {
+  /// 元素链（自内而外，`html` 收尾）——[EpubStyleSheet.resolve] 要的视图。
+  List<EpubElementRef> chainOf(h.Element el) {
+    final chain = <EpubElementRef>[];
+    h.Node? n = el;
+    while (n is h.Element) {
+      chain.add(EpubElementRef(n.localName ?? '', n.classes.toSet(), n.id));
+      n = n.parent;
+    }
+    return chain;
+  }
+
+  EpubStyle styleOf(h.Element el) => sheet.resolve(
+    chainOf(el),
+    inline: el.attributes['style'] ?? '',
+    sink: sink,
+  );
+
+  /// 收集元素文本 + 链接区间 + 样式区间。**折叠口径与 [norm] 同源**：
+  /// 空白串折成一个空格、首尾裁掉——偏移必须在折叠后的坐标上记，
+  /// 否则 runs/links 与 text 对不齐（旧实现先记原始偏移再 norm，链接区间只是近似）。
+  ({String lead, String text, List<EpubLink> links, List<EpubStyleRun> runs})
+      grab(h.Element el, EpubStyle paraStyle) {
     final sb = StringBuffer();
+    final leadSb = StringBuffer();
     final links = <EpubLink>[];
-    void walkNode(h.Node n) {
+    final runs = <EpubStyleRun>[];
+    var got = false, pendingWs = false;
+
+    void emit(int from, int to, EpubStyle st) {
+      if (to <= from || !st.hasSemantics || st == paraStyle) return;
+      if (runs.isNotEmpty) {
+        final last = runs.last;
+        if (last.style == st && last.end == from) {
+          runs[runs.length - 1] = EpubStyleRun(start: last.start, end: to, style: st);
+          return;
+        }
+      }
+      runs.add(EpubStyleRun(start: from, end: to, style: st));
+    }
+
+    void write(String s, EpubStyle st) {
+      final from = sb.length;
+      var wrote = false;
+      for (var i = 0; i < s.length; i++) {
+        final ch = s[i];
+        if (_spaceRunes.contains(ch.codeUnitAt(0))) {
+          if (!got) leadSb.write(ch); // 段首空白原样留着给 ③ 判缩进
+          pendingWs = true;
+          continue;
+        }
+        if (pendingWs) {
+          pendingWs = false;
+          if (got) sb.write(' ');
+        }
+        got = true;
+        wrote = true;
+        sb.write(ch);
+      }
+      if (wrote) emit(from, sb.length, st);
+    }
+
+    void walkNode(h.Node n, EpubStyle st) {
       if (n is h.Text) {
-        sb.write(n.text);
+        write(n.text, st);
         return;
       }
       if (n is! h.Element) return;
       final tag = n.localName ?? '';
       if (tag == 'br') {
-        sb.write(' ');
+        pendingWs = true; // 换行算空白，与旧 norm 口径一致
         return;
       }
+      // 快筛：自身没被样式表点到（无 class/id/内联 style 且标签不在索引）就沿用父样式，
+      // 672k span 逐个级联付不起（预研 §5.3；祖先的贡献在父元素解析时已进过一轮）。
+      final inline = n.attributes['style'] ?? '';
+      final child = sheet.mayAffect(tag, n.classes.toSet(), hasInline: inline.isNotEmpty)
+          ? sheet.resolve(chainOf(n), inline: inline, sink: sink)
+          : st;
       final href = n.attributes['href'];
       if (tag == 'a' && href != null && href.isNotEmpty) {
         final s = sb.length;
         for (final c in n.nodes) {
-          walkNode(c);
+          walkNode(c, child);
         }
         final isExt = hasScheme(href);
         // ④ sameDoc＝纯 #fragment 或解析后仍落在本文档。**不改 href 口径**
         // （内链点击行为沿用批2 的「命中 spine 章即跳章」，改它会顺手动到跳转语义）。
-        final same =
-            !isExt && (href.startsWith('#') || _resolve(base, href.split('#').first) == docPath);
+        final same = !isExt &&
+            (href.startsWith('#') || _resolve(base, href.split('#').first) == docPath);
         links.add(
           EpubLink(
             start: s,
@@ -862,13 +960,14 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
         return;
       }
       for (final c in n.nodes) {
-        walkNode(c);
+        walkNode(c, child);
       }
     }
+
     for (final c in el.nodes) {
-      walkNode(c);
+      walkNode(c, paraStyle);
     }
-    return (sb.toString(), links);
+    return (lead: leadSb.toString(), text: sb.toString(), links: links, runs: runs);
   }
 
   void pushText(
@@ -877,18 +976,19 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
     int level = 0,
     bool annotation = false,
   }) {
-    final (raw, links) = grab(el);
-    final s = norm(raw);
-    if (s.isEmpty) return;
-    // norm 会折叠首尾空白，链接区间按折叠近似保留（渲染端以文本再定位兜底）。
+    final st = styleOf(el);
+    final g = grab(el, st);
+    if (g.text.isEmpty) return;
     out.add(
       EpubPara(
         kind: k,
-        text: s,
+        text: g.text,
         headingLevel: level,
-        links: links,
+        links: g.links,
+        runs: g.runs,
+        style: st.isEmpty ? null : st,
         annotation: annotation || isNoteEl(el),
-        ownIndent: ownIndentOf(el, raw),
+        ownIndent: ownIndentOf(el, g.lead, st),
       ),
     );
   }
@@ -991,22 +1091,21 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
           walk(c, note: ann);
         }
       default:
-        final s = norm(el.text);
-        if (s.isNotEmpty) {
-          final (raw, links) = grab(el);
-          final t = norm(raw);
-          if (t.isNotEmpty) {
-            out.add(
-              EpubPara(
-                kind: EpubParaKind.text,
-                text: t,
-                links: links,
-                annotation: ann,
-                ownIndent: ownIndentOf(el, raw),
-              ),
-            );
-          }
-        }
+        // 未知块（span 直接挂 body 之类）：整块当一段，样式照走级联。
+        final st = styleOf(el);
+        final g = grab(el, st);
+        if (g.text.isEmpty) return;
+        out.add(
+          EpubPara(
+            kind: EpubParaKind.text,
+            text: g.text,
+            links: g.links,
+            runs: g.runs,
+            style: st.isEmpty ? null : st,
+            annotation: ann,
+            ownIndent: ownIndentOf(el, g.lead, st),
+          ),
+        );
     }
   }
 
@@ -1015,16 +1114,91 @@ List<EpubPara> _extractParas(String xhtml, String docPath) {
   }
   // body 只有裸文本（无包裹元素）时兜底整段。
   if (out.isEmpty && norm(body.text).isNotEmpty) {
-    final (raw, links) = grab(body);
+    final st = styleOf(body);
+    final g = grab(body, st);
     out.add(
       EpubPara(
         kind: EpubParaKind.text,
-        text: norm(raw),
-        links: links,
+        text: g.text,
+        links: g.links,
+        runs: g.runs,
+        style: st.isEmpty ? null : st,
         annotation: isNoteEl(body),
-        ownIndent: ownIndentOf(body, raw),
+        ownIndent: ownIndentOf(body, g.lead, st),
       ),
     );
   }
   return out;
+}
+
+/// 与 [norm] 里 `\s` 同集的码位表（**探测生成**：拿同一个正则引擎逐候选字符问一遍，
+/// 免得手写表与 RegExp 语义漂移——全角空格/NBSP 在 Dart 里也属 `\s`，实测确认）。
+final Set<int> _spaceRunes = {
+  for (final u in _wsCandidates.codeUnits)
+    if (RegExp(r'\s').hasMatch(String.fromCharCode(u))) u,
+};
+
+const String _wsCandidates =
+    '\t\n\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006'
+    '\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
+
+/// 一篇文档的样式表装载器（批三刀2）：`<link rel=stylesheet>` 指向的包内 CSS
+/// ＋文档内 `<style>` 块，按「外链在前、文档内块在后」合并规则序
+/// （同特异性时后写覆盖先写，所以文档内块压外链）。
+/// **按 zip 路径缓存**：通鉴 306 篇共用 2 份 CSS、阿加莎 85 册各一份，
+/// 逐篇重解＝白付几十倍解析成本（预研 §1 结论 A）。
+class _CssSheets {
+  _CssSheets(this._files);
+
+  final _Source _files;
+  final Map<String, EpubStyleSheet> _cache = {};
+
+  /// 跨表全局规则序（见 [_loadInline]）。
+  int _nextOrder = 0;
+
+  static final _cssRefRe = RegExp(
+    r'\.(css|style)(\?|#|$)',
+    caseSensitive: false,
+  );
+
+  EpubStyleSheet sheetFor(h.Document doc, String docPath) {
+    final base = _dirName(docPath);
+    final rules = <EpubRule>[];
+    for (final link in doc.querySelectorAll('link')) {
+      final rel = (link.attributes['rel'] ?? '').toLowerCase();
+      final href = link.attributes['href'] ?? '';
+      if (href.isEmpty) continue;
+      if (rel.isNotEmpty && !rel.contains('stylesheet')) continue;
+      if (!_cssRefRe.hasMatch(href) && rel.isEmpty) continue;
+      final path = _resolve(base, href);
+      rules.addAll((_cache[path] ??= _load(path)).rules);
+    }
+    for (final st in doc.querySelectorAll('style')) {
+      final text = st.text;
+      if (text.trim().isEmpty) continue;
+      // 文档内 style 块没有独立路径，按内容做缓存键（同一串重复出现在多章）。
+      final key = 'inline:${text.hashCode}:${text.length}';
+      rules.addAll((_cache[key] ??= _loadInline(text)).rules);
+    }
+    return rules.isEmpty ? EpubStyleSheet.empty() : EpubStyleSheet(rules);
+  }
+
+  /// 文档内 `<style>` 块：序号步长给足 1000，保证它压过同篇文档引用的外链 CSS
+  /// （同特异性时后写的规则胜；跨表合并不能各自从 0 编号）。
+  EpubStyleSheet _loadInline(String text) {
+    final at = _nextOrder;
+    _nextOrder += 1000;
+    return EpubStyleSheet.parse(text, orderBase: at);
+  }
+
+  EpubStyleSheet _load(String path) {
+    final bytes = _files.bytes(path);
+    if (bytes == null) return EpubStyleSheet.empty();
+    final sheet = EpubStyleSheet.parse(
+      utf8.decode(bytes, allowMalformed: true),
+      orderBase: _nextOrder,
+    );
+    _nextOrder += sheet.rules.length + 1;
+    return sheet;
+  }
 }

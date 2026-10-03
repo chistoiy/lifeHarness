@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/logging/app_log.dart';
 import '../domain/book.dart';
 import '../presentation/reader/reader_pager.dart';
+import 'epub_css.dart';
 import 'epub_doc.dart';
 import 'epub_first_img.dart';
 import 'read_repository.dart';
@@ -35,7 +37,9 @@ class PagStore {
   /// v3（LH-F01）：三值族映射从泛族（'serif'/'sans-serif'）换成与原型同串的中文链，
   /// 而指纹进的是 **枚举值** `fnt${l.font}`——值没变、实排变了，不升版本旧分页表
   /// 会继续命中，真机表现为「改了字体页码/偏移与实排不符」。
-  static const tableVersion = 3;
+  /// v4（批三刀2）：段内 span 级原书语义（分层注释色/小字/专名线）进上屏排版，
+  /// 而指纹进的是配置项——样式数据变了、配置没变，旧表继续命中＝按无样式排版画有样式书。
+  static const tableVersion = 4;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   /// R3-2 ③：indMode 三档改变每段显示文本（自带缩进段不再叠加）→ 必须进指纹，
@@ -131,7 +135,11 @@ class DocStore {
   /// v3：R3-2 止血四条新增段级语义（注释体 / 自带缩进 / 链接站内-注释标记）。
   /// 旧快照缺这些字段会**一律按 false 解出**＝注释体仍当正文、缩进仍叠加＝假生效，
   /// 所以必须 +1 让存量快照整体失效重解（而不是兼容读默认值）。
-  static const snapVersion = 3;
+  /// v4（批三刀2）：段落模型加了两层原书语义（段级 [EpubPara.style] 与 span 级
+  /// [EpubPara.runs]），旧快照一律缺这两项＝分层色与小字全丢＝假生效，必须 +1 整体失效重解。
+  /// 载荷形状同时改：data.bin 每章＝`[样式字典, 段落表]`（字典去重；通鉴全书 672k span
+  /// 只有个位数种风格，逐段重复写等价于把快照撑大一个量级）。
+  static const snapVersion = 4;
 
   static String dirFor(String docsPath, String bookId) =>
       p.join(docsPath, 'epub_snap', bookId);
@@ -148,7 +156,106 @@ class DocStore {
     }
   }
 
-  static List _paraJson(EpubPara x) => [
+  // —— 样式编解码（快照内字典去重；JSON 里 null＝该属性没声明）——
+
+  static const _alignCodes = ['left', 'center', 'right', 'justify'];
+  static const _borderStyleCodes = [
+    'solid',
+    'double',
+    'dotted',
+    'dashed',
+    'groove',
+    'ridge',
+    'inset',
+    'outset',
+    'hidden',
+  ];
+
+  static List _styleJson(EpubStyle s) => [
+    s.color?.toARGB32(),
+    s.backgroundColor?.toARGB32(),
+    s.fontRatio,
+    s.weight,
+    s.italic ? 1 : 0,
+    s.lineRatio,
+    s.indentEm,
+    s.align == null ? -1 : _alignCodes.indexOf(s.align!),
+    s.marginLeftEm,
+    s.marginRightEm,
+    s.marginTopEm,
+    s.marginBottomEm,
+    _borderJson(s.borderLeft),
+    _borderJson(s.borderRight),
+    _borderJson(s.borderTop),
+    _borderJson(s.borderBottom),
+    s.underline ? 1 : 0,
+    s.overline ? 1 : 0,
+    s.lineThrough ? 1 : 0,
+    s.lineColor?.toARGB32(),
+  ];
+
+  static List? _borderJson(EpubBorder? b) => b == null
+      ? null
+      : [
+          b.widthEm,
+          b.widthPx,
+          b.style == null ? -1 : _borderStyleCodes.indexOf(b.style!),
+          b.color?.toARGB32(),
+        ];
+
+  static Object? _at(List a, int i) => i < a.length ? a[i] : null;
+
+  static double? _dAt(List a, int i) {
+    final v = _at(a, i);
+    return v is num ? v.toDouble() : null;
+  }
+
+  static int? _iAt(List a, int i) {
+    final v = _at(a, i);
+    return v is num ? v.toInt() : null;
+  }
+
+  static EpubStyle _styleFromJson(List a) {
+    EpubBorder? bd(int i) {
+      final v = _at(a, i);
+      if (v is! List) return null;
+      final st = _iAt(v, 2);
+      if (st != null && st == _borderStyleCodes.length - 1) return EpubBorder.none;
+      return EpubBorder(
+        widthEm: _dAt(v, 0),
+        widthPx: _dAt(v, 1),
+        style: st == null || st < 0 ? null : _borderStyleCodes[st],
+        color: _iAt(v, 3) == null ? null : Color(_iAt(v, 3)!),
+      );
+    }
+
+    final al = _iAt(a, 7);
+    return EpubStyle(
+      color: _iAt(a, 0) == null ? null : Color(_iAt(a, 0)!),
+      backgroundColor: _iAt(a, 1) == null ? null : Color(_iAt(a, 1)!),
+      fontRatio: _dAt(a, 2),
+      weight: _iAt(a, 3),
+      italic: _flag(a, 4) == 1,
+      lineRatio: _dAt(a, 5),
+      indentEm: _dAt(a, 6),
+      align: al == null || al < 0 || al >= _alignCodes.length ? null : _alignCodes[al],
+      marginLeftEm: _dAt(a, 8),
+      marginRightEm: _dAt(a, 9),
+      marginTopEm: _dAt(a, 10),
+      marginBottomEm: _dAt(a, 11),
+      borderLeft: bd(12),
+      borderRight: bd(13),
+      borderTop: bd(14),
+      borderBottom: bd(15),
+      underline: _flag(a, 16) == 1,
+      overline: _flag(a, 17) == 1,
+      lineThrough: _flag(a, 18) == 1,
+      lineColor: _iAt(a, 19) == null ? null : Color(_iAt(a, 19)!),
+    );
+  }
+
+  /// [idOf]＝样式interning（同风格只入典一次，段与 runs 都只写下标）。
+  static List _paraJson(EpubPara x, int Function(EpubStyle) idOf) => [
     x.kind.index,
     x.text,
     x.headingLevel,
@@ -168,11 +275,16 @@ class DocStore {
     // R3-2 ①③：段级注释体与书内自带缩进标记。
     x.annotation ? 1 : 0,
     x.ownIndent ? 1 : 0,
+    // 批三刀2：段级原书样式下标（-1＝无声明）＋ span 区间 [起, 止, 样式下标]。
+    x.style == null ? -1 : idOf(x.style!),
+    [
+      for (final r in x.runs) [r.start, r.end, idOf(r.style)],
+    ],
   ];
 
   static int _flag(List src, int i) => i < src.length ? src[i] as int : 0;
 
-  static EpubPara _paraFromJson(List a) => EpubPara(
+  static EpubPara _paraFromJson(List a, List styles) => EpubPara(
     kind: EpubParaKind.values[a[0] as int],
     text: a[1] as String,
     headingLevel: a[2] as int,
@@ -191,7 +303,31 @@ class DocStore {
     ],
     annotation: _flag(a, 6) == 1,
     ownIndent: _flag(a, 7) == 1,
+    style: _styleAt(a, 8, styles),
+    runs: _runsAt(a, 9, styles),
   );
+
+  /// 缺位/越界都回落成「没有原书样式」——快照被截断或字段缺失不许炸（防御读）。
+  static EpubStyle? _styleAt(List a, int i, List styles) {
+    final id = _iAt(a, i);
+    if (id == null || id < 0 || id >= styles.length) return null;
+    final s = styles[id];
+    return s is List ? _styleFromJson(s) : null;
+  }
+
+  static List<EpubStyleRun> _runsAt(List a, int i, List styles) {
+    final v = _at(a, i);
+    if (v is! List) return const [];
+    final out = <EpubStyleRun>[];
+    for (final r in v) {
+      if (r is! List) continue;
+      final st = _styleAt(r, 2, styles);
+      final s0 = _iAt(r, 0), s1 = _iAt(r, 1);
+      if (st == null || s0 == null || s1 == null || s1 <= s0) continue;
+      out.add(EpubStyleRun(start: s0, end: s1, style: st));
+    }
+    return out;
+  }
 
   /// 保存快照（覆盖式）。data.bin＝各章段落 JSON 的 UTF-8 拼接。
   static Future<void> save(
@@ -209,8 +345,19 @@ class DocStore {
     var off = 0;
     try {
       for (final c in doc.chapters) {
-        final b =
-            utf8.encode(jsonEncode([for (final x in c.paras) _paraJson(x)]));
+        // 章级样式字典：同风格只存一份，段与 runs 存下标。
+        final styles = <List>[];
+        final ids = <EpubStyle, int>{};
+        int idOf(EpubStyle st) => ids.putIfAbsent(st, () {
+              styles.add(_styleJson(st));
+              return styles.length - 1;
+            });
+        final b = utf8.encode(
+          jsonEncode([
+            styles,
+            [for (final x in c.paras) _paraJson(x, idOf)],
+          ]),
+        );
         spine.add({
           'href': c.href,
           'title': c.title,
@@ -240,6 +387,12 @@ class DocStore {
       'chars': doc.totalChars,
       'fontC': doc.fontCount,
       'bmC': doc.bookmarkCount,
+      // 批三刀2：包内声明了我们表达不了的排版项（竖排/多栏/浮动/表格/行内留白…），
+      // 随快照落盘，重开也还在——刀3 用它落日志＋该书外观页提示行（不许静默降级）。
+      'uns': [
+        for (final u in doc.unsupported)
+          [u.kind.index, u.property, u.value, u.count],
+      ],
       'toc': [
         for (final t in doc.toc) [t.label, t.href, t.level],
       ],
@@ -298,6 +451,24 @@ class DocStore {
     } catch (_) {
       toc = const [];
     }
+    final uns = <EpubUnsupported>[];
+    final rawUns = m['uns'];
+    if (rawUns is List) {
+      for (final u in rawUns) {
+        if (u is! List || u.length < 3) continue;
+        final kind = u[0] is int && u[0] >= 0 && u[0] < EpubUnsupportedKind.values.length
+            ? EpubUnsupportedKind.values[u[0] as int]
+            : EpubUnsupportedKind.cssStructural;
+        uns.add(
+          EpubUnsupported(
+            kind: kind,
+            property: '${u[1]}',
+            value: '${u[2]}',
+            count: u.length > 3 && u[3] is num ? (u[3] as num).toInt() : 1,
+          ),
+        );
+      }
+    }
     LazyEpubArchive? lz;
     if (srcPath != null) {
       try {
@@ -328,6 +499,7 @@ class DocStore {
       fontCount: (m['fontC'] as int?) ?? 0,
       bookmarkCount: (m['bmC'] as int?) ?? 0,
       lazy: lz,
+      unsupported: uns,
     );
   }
 
@@ -402,7 +574,16 @@ class _LazyChapterList extends ListBase<EpubChapter> implements ChapterMetaSourc
         raf.setPositionSync(r.off);
         final bytes = raf.readSync(r.len);
         final raw = jsonDecode(utf8.decode(bytes)) as List;
-        paras = [for (final a in raw) DocStore._paraFromJson(a)];
+        // v4 载荷＝[样式字典, 段落表]；单表形态（缺字典）按无样式读，不炸。
+        final styles = raw.isNotEmpty && raw[0] is List && (raw[0] as List).isNotEmpty &&
+                (raw[0] as List).first is List
+            ? raw[0] as List
+            : const [];
+        final rows = raw.length == 2 && raw[1] is List ? raw[1] as List : raw;
+        paras = [
+          for (final a in rows)
+            if (a is List) DocStore._paraFromJson(a, styles),
+        ];
       } finally {
         raf.closeSync();
       }

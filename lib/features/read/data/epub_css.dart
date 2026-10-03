@@ -157,6 +157,56 @@ class EpubStyle {
       lineColor: other.lineColor ?? lineColor,
     );
   }
+
+  /// 相等判定（刀2 两处要用）：① runs 合并——相邻同风格的文字并成一刀，少切 span；
+  /// ② 快照样式表去重——通鉴全书 672k span 只有个位数种风格，字典化后段内只存下标。
+  @override
+  bool operator ==(Object other) =>
+      other is EpubStyle &&
+      other.color == color &&
+      other.backgroundColor == backgroundColor &&
+      other.fontRatio == fontRatio &&
+      other.weight == weight &&
+      other.italic == italic &&
+      other.lineRatio == lineRatio &&
+      other.indentEm == indentEm &&
+      other.align == align &&
+      other.marginLeftEm == marginLeftEm &&
+      other.marginRightEm == marginRightEm &&
+      other.marginTopEm == marginTopEm &&
+      other.marginBottomEm == marginBottomEm &&
+      other.borderLeft == borderLeft &&
+      other.borderRight == borderRight &&
+      other.borderTop == borderTop &&
+      other.borderBottom == borderBottom &&
+      other.underline == underline &&
+      other.overline == overline &&
+      other.lineThrough == lineThrough &&
+      other.lineColor == lineColor;
+
+  @override
+  int get hashCode => Object.hash(
+    color,
+    backgroundColor,
+    fontRatio,
+    weight,
+    italic,
+    lineRatio,
+    indentEm,
+    align,
+    marginLeftEm,
+    marginRightEm,
+    marginTopEm,
+    marginBottomEm,
+    borderLeft,
+    borderRight,
+    borderTop,
+    borderBottom,
+    underline,
+    overline,
+    lineThrough,
+    lineColor,
+  );
 }
 
 /// 一条边的声明（宽度按 em 或 px 给、样式、颜色；`.name{border-left:.12em solid}` 无颜色＝跟字色）。
@@ -176,6 +226,17 @@ class EpubBorder {
       style != 'none' &&
       style != 'hidden' &&
       ((widthEm ?? 0) > 0 || (widthPx ?? 0) > 0);
+
+  @override
+  bool operator ==(Object other) =>
+      other is EpubBorder &&
+      other.widthEm == widthEm &&
+      other.widthPx == widthPx &&
+      other.style == style &&
+      other.color == color;
+
+  @override
+  int get hashCode => Object.hash(widthEm, widthPx, style, color);
 }
 
 /// 「不支持声明」的分类（路线说明：不静默降级；可测＝用例断言标记非空且日志查得到）。
@@ -906,7 +967,8 @@ List<EpubUnsupported> _parseCollectUnsupported(String body) {
 class EpubStyleSheet {
   EpubStyleSheet(this.rules);
 
-  const EpubStyleSheet.empty() : rules = const [];
+  /// 空样式表（包里没有 CSS 时的回落；不建索引，直接返回空结果）。
+  EpubStyleSheet.empty() : rules = const [];
 
   final List<EpubRule> rules;
 
@@ -964,7 +1026,10 @@ class EpubStyleSheet {
   }) {
     final merged = <String, _Decl>{};
     final matched = <EpubRule>[];
-    for (final r in rules) {
+    // 快筛（预研 §5.3）：只取「最右复合段的 tag/class 落在链上某处」的规则做完整匹配，
+    // 85 册 85 份 CSS 的书不能逐元素全表扫。
+    for (final r in _candidates(chain)) {
+      if (matched.contains(r)) continue;
       if (r.matches(chain)) matched.add(r);
     }
     matched.sort((a, b) => a.specificity != b.specificity
@@ -993,6 +1058,60 @@ class EpubStyleSheet {
       }
     }
     return _buildStyle(merged);
+  }
+
+  /// 抽取侧的廉价前置判定：这个元素**自身**（标签/class/id/内联 style）有没有可能被样式表
+  /// 点到。为 false 时抽取器直接沿用父元素的解析结果——祖先的规则在解析父元素时已经进过
+  /// 一轮，沿链继承下来与整链级联同值，而 672k span 里绝大多数是纯文本内联（通鉴实测只有
+  /// ~15% 带语义 class），逐个解析付不起（预研 §5.3 性能口径）。
+  bool mayAffect(String tag, Set<String> classes, {bool hasInline = false}) {
+    if (hasInline || _index.always.isNotEmpty) return true;
+    if (_index.byKey.containsKey(tag)) return true;
+    for (final c in classes) {
+      if (_index.byKey.containsKey(c)) return true;
+    }
+    return false;
+  }
+
+  Iterable<EpubRule> _candidates(List<EpubElementRef> chain) {
+    final out = <EpubRule>[..._index.always];
+    for (final el in chain) {
+      final t = _index.byKey[el.tag];
+      if (t != null) out.addAll(t);
+      for (final c in el.classes) {
+        final r = _index.byKey[c];
+        if (r != null) out.addAll(r);
+      }
+    }
+    return out;
+  }
+
+  /// 按**最右复合段**建索引：选择器 `div.note p` 的落点是 `p`，所以按 `p` 建桶；
+  /// 最右段没有 tag 也没有 class（`*`、`*|x`）的规则进 `always` 桶，每次都参与。
+  late final ({Map<String, List<EpubRule>> byKey, List<EpubRule> always}) _index =
+      _buildIndex();
+
+  ({Map<String, List<EpubRule>> byKey, List<EpubRule> always}) _buildIndex() {
+    final byKey = <String, List<EpubRule>>{};
+    final always = <EpubRule>[];
+    for (final r in rules) {
+      var bucketed = false;
+      for (final s in r.selectors) {
+        if (!s.supported || s.chain.isEmpty) continue;
+        final last = s.chain.last;
+        final keys = <String>{...last.classes, if (last.tag != null && last.tag != '*') last.tag!};
+        if (keys.isEmpty) {
+          always.add(r);
+        } else {
+          for (final k in keys) {
+            (byKey[k] ??= <EpubRule>[]).add(r);
+          }
+        }
+        bucketed = true;
+      }
+      if (!bucketed) always.add(r); // 整条都不支持＝保守进 always（matches 会再否掉）
+    }
+    return (byKey: byKey, always: always);
   }
 }
 

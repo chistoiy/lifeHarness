@@ -531,5 +531,29 @@ void main() {
       expect(m.indentEm, 2.0);
       expect(para.merge(null), same(para));
     });
+
+    test('命中快筛按最右复合段建桶（672k span 不能逐元素全表扫，§5.3）', () {
+      expect(sheet.mayAffect('span', {'note'}), isTrue);
+      expect(sheet.mayAffect('body', const {}), isTrue, reason: 'body{…} 的落点就是 body');
+      expect(EpubStyleSheet.parse(_ztjTocCss).mayAffect('div', {'sgc-toc-title'}), isTrue,
+          reason: 'div.sgc-toc-title 复合段的两段都算落点');
+      expect(sheet.mayAffect('div', {'sgc-toc-title'}), isFalse,
+          reason: '另一份样式表里没有这条规则');
+      expect(sheet.mayAffect('em', const {}), isFalse, reason: '包里没有 em 规则');
+      expect(sheet.mayAffect('em', const {}, hasInline: true), isTrue,
+          reason: '内联 style 与样式表无关，必须解析');
+    });
+
+    test('相等判定与边/颜色同值合并（runs 合并与快照样式字典都靠它）', () {
+      const a = EpubStyle(color: null, fontRatio: 0.75);
+      const b = EpubStyle(color: null, fontRatio: 0.75);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+      expect(a.merge(const EpubStyle(weight: 700)), isNot(equals(a)));
+      expect(
+        EpubBorder(widthEm: 0.12, style: 'solid'),
+        equals(EpubBorder(widthEm: 0.12, style: 'solid')),
+      );
+    });
   });
 }
