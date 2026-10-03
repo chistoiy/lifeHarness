@@ -32,6 +32,15 @@ for (const v of (reg.violations || [])) {
 for (const s of reg.screens) {
   if (s.status === 'dropped' && ((s.files && s.files[f]) || html.includes('"' + s.id + '"') || html.includes("'" + s.id + "'"))) DROP[s.id] = 1;
 }
+/* 落位屏：删壳屏副本后 active 旗可能随之消失——取本文件 DOM 序第一个「家在此」的屏作启动 landing */
+let LANDING = null;
+{
+  const idsInDom = [...html.matchAll(/<section[^>]*\bid="([^"]+)"[^>]*class="page/g)].map(m => m[1]);
+  for (const id of idsInDom) {
+    const s = reg.screens.find(x => x.id === id);
+    if (s && (s.home === f || (s.status === 'collision' && s.homes && s.homes[f]))) { LANDING = id; break; }
+  }
+}
 /* 同文件更名/迁移重定向（reg.redirects 中 from/to 同属本文件的条目） */
 const SELF = {};
 for (const r of (reg.redirects || [])) {
@@ -75,6 +84,7 @@ const block = '<script>' + START + '\n' +
   'var RED=window.LH_REDIRECTS=' + JSON.stringify(RED) + ';\n' +
   'var DROP=window.LH_DROPPED=' + JSON.stringify(DROP) + ';\n' +
   'var SELF=window.LH_SELF=' + JSON.stringify(SELF) + ';\n' +
+  'window.LH_LANDING=' + JSON.stringify(LANDING) + ';\n' +
   'window.lhGone=function(id){\n' +
   "  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}\n" +
   '  var r=RED[id];\n' +
@@ -84,6 +94,7 @@ const block = '<script>' + START + '\n' +
   "  console.warn('[lh-gov] 目标不在本版:',id);\n" +
   '};\n' +
   "function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}\n" +
+  "  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}\n" +
   "  if(!h)return;var el=document.getElementById(h);\n" +
   "  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}\n" +
   "  if(SELF[h]){location.replace('#'+SELF[h]);return;}\n" +

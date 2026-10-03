@@ -7610,6 +7610,7 @@ renderPwBar();
 var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-diaryEdit":["index.html","壳与跨模块"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-pstore":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"]};
 var DROP=window.LH_DROPPED={"p-toolDetail":1,"p-tools":1};
 var SELF=window.LH_SELF={};
+window.LH_LANDING="p-records";
 window.lhGone=function(id){
   if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
   var r=RED[id];
@@ -7618,6 +7619,7 @@ window.lhGone=function(id){
   console.warn('[lh-gov] 目标不在本版:',id);
 };
 function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}
   if(!h)return;var el=document.getElementById(h);
   if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
   if(SELF[h]){location.replace('#'+SELF[h]);return;}

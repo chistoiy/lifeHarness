@@ -4611,5 +4611,30 @@ window.addEventListener('load',function(){window.lhBoot();});
 
 function plgInstall(){const u=$('#plgUrl').value.trim();if(!u){toast('请先填入插件包下载地址');return;}$('#plgProg').classList.remove('hidden');const bar=$('#plgBar');let w=0;const t=setInterval(()=>{w+=9+Math.random()*16;bar.style.width=Math.min(100,w)+'%';if(w>=100){clearInterval(t);PS.push({id:'barcode',ic:'▦',n:'条形码生成器',cat:'工具',ver:'1.0.0',host:'1.0',size:'0.4 MB',rating:'',state:'inst',weight:30,mount:['首页宫格'],tbl:'plugin_barcode',desc:'本地生成条码/二维码 · 导出 PNG',long:'H5 拓展工具：纯本地计算，不申请网络与后台常驻。',perm:['隔离表空间 plugin_barcode（SQLite）'],hist:['1.0.0 首发']});renderPstore();closeSheet('sheetPlugin');toast('✔ SHA-256 校验通过（模拟）· 已安装 · 可在「已安装」管理');}},140);}
 </script>
+<script>/*LH-GOV-START*/
+/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
+(function(){
+var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"]};
+var DROP=window.LH_DROPPED={};
+var SELF=window.LH_SELF={};
+window.LH_LANDING="p-dashboard";
+window.lhGone=function(id){
+  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
+  var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
+  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
+  console.warn('[lh-gov] 目标不在本版:',id);
+};
+function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}
+  if(!h)return;var el=document.getElementById(h);
+  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
+  if(SELF[h]){location.replace('#'+SELF[h]);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
+window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
+window.lhBoot();
+window.addEventListener('load',function(){window.lhBoot();});
+})();
+/*LH-GOV-END*/</script>
 </body>
 </html>
