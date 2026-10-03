@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/book.dart';
 import '../read_providers.dart';
-import '../reader/epub_state_ui.dart' show BrCoverStateOverlay;
+import '../reader/epub_state_ui.dart'
+    show BrCoverStateOverlay, brCoverXrChip;
 
 /// R14-4 三档回落模式（无真实封面时使用）。
 enum BsFallbackMode { aFirstImg, bSpineInitial, cPureText }
@@ -188,7 +189,15 @@ class BsCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    if (book._hasRealCover()) return _buildCover(book.coverPath!);
+    // 真机轮4 用户规则：右上角单槽——预载/已清缓存/解析中徽标在场时，
+    // 进度徽标让位（未加载完成不显阅读进度；「已索引」不占角标）。
+    final ep = book.epub;
+    final cornerBusy = showStateOverlay &&
+        book.local &&
+        ep != null &&
+        (ep.state == EpubRef.stPreload || ep.cleared ||
+            brCoverXrChip(ref, book) != null);
+    if (book._hasRealCover()) return _buildCover(book.coverPath!, cornerBusy);
     final mode =
         fallbackMode ??
         bsFallbackModeFromKv(
@@ -200,12 +209,12 @@ class BsCover extends ConsumerWidget {
     return switch (mode) {
       // A 档（默认）：本地书有正文首图即铺图，否则维持原渐变卡。
       BsFallbackMode.aFirstImg => book._hasFirstImg()
-          ? _buildCover(book.firstImgPath!, fiTag: true)
-          : _buildGradCard(pal),
+          ? _buildCover(book.firstImgPath!, cornerBusy, fiTag: true)
+          : _buildGradCard(pal, cornerBusy),
       // B 档：书脊色块（color_idx 取色）＋书名首字。
-      BsFallbackMode.bSpineInitial => _buildSpineCard(pal),
+      BsFallbackMode.bSpineInitial => _buildSpineCard(pal, cornerBusy),
       // C 档：纯文字卡（纸面底＋书名＋作者，无图无色）。
-      BsFallbackMode.cPureText => _buildTextCard(cs),
+      BsFallbackMode.cPureText => _buildTextCard(cs, cornerBusy),
     };
   }
 
@@ -223,17 +232,18 @@ class BsCover extends ConsumerWidget {
     );
   }
 
-  Widget _buildCover(String path, {bool fiTag = false}) => _shell(
+  Widget _buildCover(String path, bool cornerBusy, {bool fiTag = false}) =>
+      _shell(
     BoxDecoration(
       image: File(path).existsSync()
           ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
           : null,
     ),
-    _stackChildren(fiTag: fiTag),
+    _stackChildren(cornerBusy: cornerBusy, fiTag: fiTag),
   );
 
   /// A 档无首图的默认渐变卡（原 LH-C06 形态）。
-  Widget _buildGradCard((Color, Color, Color) pal) => _shell(
+  Widget _buildGradCard((Color, Color, Color) pal, bool cornerBusy) => _shell(
     BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -241,11 +251,11 @@ class BsCover extends ConsumerWidget {
         colors: [pal.$1, pal.$2],
       ),
     ),
-    _stackChildren(),
+    _stackChildren(cornerBusy: cornerBusy),
   );
 
   /// B 档书脊色块（原型 bsCovStyle：165deg 由书脊色渐变到自身 85% 透明）。
-  Widget _buildSpineCard((Color, Color, Color) pal) {
+  Widget _buildSpineCard((Color, Color, Color) pal, bool cornerBusy) {
     final spine = pal.$3;
     return _shell(
       BoxDecoration(
@@ -255,22 +265,23 @@ class BsCover extends ConsumerWidget {
           colors: [spine, spine.withValues(alpha: .85)],
         ),
       ),
-      _stackChildren(useB: true),
+      _stackChildren(cornerBusy: cornerBusy, useB: true),
     );
   }
 
   /// C 档纯文字卡（原型 bs-covC：纸面底 + 细边 + 居中书名）。
-  Widget _buildTextCard(ColorScheme cs) => _shell(
+  Widget _buildTextCard(ColorScheme cs, bool cornerBusy) => _shell(
     BoxDecoration(
       color: cs.surface,
       border: Border.all(color: cs.outlineVariant.withValues(alpha: .6)),
     ),
-    _stackChildren(useC: true, cs: cs),
+    _stackChildren(cornerBusy: cornerBusy, useC: true, cs: cs),
   );
 
   List<Widget> _stackChildren({
     bool useB = false,
     bool useC = false,
+    bool cornerBusy = false,
     bool fiTag = false,
     ColorScheme? cs,
   }) {
@@ -349,8 +360,9 @@ class BsCover extends ConsumerWidget {
     if (showStateOverlay && book.local) {
       children.add(Positioned.fill(child: BrCoverStateOverlay(book: book)));
     }
-    if (showBadge) {
+    if (showBadge && !cornerBusy) {
       children.add(Positioned(top: 5, right: 5, child: GestureDetector(
+        key: ValueKey('cov-badge-${book.id}'),
         onTap: onBadgeTap,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(
           color: bsStateColor(book.state), borderRadius: BorderRadius.circular(999)),

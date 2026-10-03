@@ -9,8 +9,7 @@ import '../../../../core/database/schema/xray.dart'
     show
         xrayStatusRunning,
         xrayStatusPause,
-        xrayStatusFailed,
-        xrayStatusSuccess;
+        xrayStatusFailed;
 import '../../../../core/logging/app_log.dart';
 import '../../data/epub_cache.dart';
 import '../../data/epub_doc.dart';
@@ -371,6 +370,38 @@ Future<void> brShowLostSheet(BuildContext context, WidgetRef ref, Book b) async 
 /// `Positioned.fill(child: BrCoverStateOverlay(book: b))` 挂进封面 Stack。
 /// V1.54 批A · F7：右上角另挂 X-Ray 四态小徽标（解析中%/已暂停/已索引/失败·重试），
 /// 与整本预载态互不遮蔽（轻抽取档全部不锁阅读）。
+/// 封面右上单槽仲裁（真机轮4 用户规则：加载态与阅读进度互斥，右上角至多一枚）。
+/// 返回 null＝无加载中徽标（封面自显进度/分区徽标）；「已索引」是完成态不再占封面角标
+/// （入口在长按菜单与阅读器 X-Ray 段）。
+({String text, Color bg})? brCoverXrChip(WidgetRef ref, Book book) {
+  ref.watch(xraySchedulerProvider); // 逐章进度刷新驱动
+  final live = ref.read(xraySchedulerProvider).live(book.id);
+  if (live != null) {
+    if (live.running) {
+      return (text: '解析中 ${live.pct}%', bg: const Color(0xCC0F172A));
+    }
+    if (live.error != null) {
+      return (text: '失败 · 重试', bg: const Color(0xEAF43F5E));
+    }
+    if (live.doneCh > 0 &&
+        live.totalCh > 0 &&
+        live.doneCh < live.rangeTo - live.rangeFrom + 1) {
+      return (text: '已暂停 ${live.pct}%', bg: const Color(0xE694A3B8));
+    }
+  }
+  final t = ref.watch(xrayTaskBadgeProvider).valueOrNull?[book.id];
+  if (t == null) return null;
+  final pct = t.totalCh == 0
+      ? 0
+      : (t.processedCh * 100 / t.totalCh).round();
+  return switch (t.status) {
+    xrayStatusRunning => (text: '解析中 $pct%', bg: const Color(0xCC0F172A)),
+    xrayStatusPause => (text: '已暂停 $pct%', bg: const Color(0xE694A3B8)),
+    xrayStatusFailed => (text: '失败 · 重试', bg: const Color(0xEAF43F5E)),
+    _ => null, // 已索引/取消/待办＝不占角标（进度优先）
+  };
+}
+
 class BrCoverStateOverlay extends ConsumerWidget {
   const BrCoverStateOverlay({super.key, required this.book});
 
@@ -384,7 +415,7 @@ class BrCoverStateOverlay extends ConsumerWidget {
     final base = (st != EpubRef.stPreload && !ep.cleared)
         ? null
         : _epubLayer(ref, ep, st);
-    final xr = _xrChipText(ref);
+    final xr = brCoverXrChip(ref, book);
     if (base == null && xr == null) return const SizedBox.shrink();
     return Stack(
       children: [
@@ -398,11 +429,11 @@ class BrCoverStateOverlay extends ConsumerWidget {
                 key: ValueKey('xr-badge-${book.id}'),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: xr.$2,
+                  color: xr.bg,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  xr.$1,
+                  xr.text,
                   style: const TextStyle(
                     fontSize: 8,
                     fontWeight: FontWeight.w900,
@@ -415,38 +446,6 @@ class BrCoverStateOverlay extends ConsumerWidget {
           ),
       ],
     );
-  }
-
-  /// X-Ray 角标文案与底色（live 优先＝实时进度；回落库内任务态·跨重启可见）。
-  (String, Color)? _xrChipText(WidgetRef ref) {
-    ref.watch(xraySchedulerProvider); // 逐章进度刷新驱动
-    final live = ref.read(xraySchedulerProvider).live(book.id);
-    if (live != null) {
-      if (live.running) {
-        return ('解析中 ${live.pct}%', const Color(0xCC0F172A));
-      }
-      if (live.error != null) return ('失败 · 重试', const Color(0xEAF43F5E));
-      if (live.doneCh > 0 &&
-          live.totalCh > 0 &&
-          live.doneCh < live.rangeTo - live.rangeFrom + 1) {
-        return ('已暂停 ${live.pct}%', const Color(0xE694A3B8));
-      }
-    }
-    final t = ref.watch(xrayTaskBadgeProvider).valueOrNull?[book.id];
-    if (t == null) return null;
-    return switch (t.status) {
-      xrayStatusRunning => (
-          '解析中 ${t.totalCh == 0 ? 0 : (t.processedCh * 100 / t.totalCh).round()}%',
-          const Color(0xCC0F172A)
-        ),
-      xrayStatusPause => (
-          '已暂停 ${t.totalCh == 0 ? 0 : (t.processedCh * 100 / t.totalCh).round()}%',
-          const Color(0xE694A3B8)
-        ),
-      xrayStatusFailed => ('失败 · 重试', const Color(0xEAF43F5E)),
-      xrayStatusSuccess => ('已索引', const Color(0xEB6366F1)),
-      _ => null,
-    };
   }
 
   Widget _epubLayer(WidgetRef ref, EpubRef ep, String st) {

@@ -3878,7 +3878,7 @@ function bsCovDemo(m){BS_SET.covFallback={A:'A 正文首图',B:'B 书脊色块',
 function bsCovDemoSync(){const el=document.getElementById('bsCovDemo');if(!el)return;
   el.querySelectorAll('[data-m]').forEach(x=>x.classList.toggle('on',bsCovMode()===x.dataset.m))}
 /* 旧 bsCovCls 已并入上方 R14-4 实现 */
-function bsProgressBadge(b){if(b.st==='已读')return `<span class="bk-badge bg-emerald-500">已读</span>`;if(b.st==='想读')return `<span class="bk-badge bg-amber-500">想读</span>`;if(b.st==='弃读')return `<span class="bk-badge bg-slate-500">弃读</span>`;return `<span class="bk-badge bg-indigo-500">${b.p}%</span>`}
+function bsProgressBadge(b){if(b.local&&b.epub&&(b.epub.st==='pre'||b.epub.st==='cl'))return '' /* 轮4：右上角单槽——预载/已清缓存覆盖层在场则进度让位 */;if(b.st==='已读')return `<span class="bk-badge bg-emerald-500">已读</span>`;if(b.st==='想读')return `<span class="bk-badge bg-amber-500">想读</span>`;if(b.st==='弃读')return `<span class="bk-badge bg-slate-500">弃读</span>`;return `<span class="bk-badge bg-indigo-500">${b.p}%</span>`}
 function shCards(list,cols){return shWall(list,cols)}
 function shWall(list,cols){
   const bar=b=>{const w=b.st==='想读'?0:b.p;const cls=b.st==='已读'?'full':b.st==='想读'?'zero':b.st==='弃读'?'give':'';
@@ -7306,7 +7306,7 @@ function br35Seed(){
     if(x.st==='run')return '解析中 '+x.p+'%';
     if(x.st==='pause')return '已暂停 '+x.p+'%';
     if(x.st==='fail')return '失败 · 重试';
-    return '已索引'
+    return '' /* 轮4：已索引＝完成态不占封面角标（右上角单槽·进度优先） */
   }
   window.xrPaintBadges=function(){
     try{
@@ -7319,10 +7319,13 @@ function br35Seed(){
           else if(c.parentElement&&getComputedStyle(c.parentElement).position==='relative')host=c.parentElement;
           if(!host)return;
           var old=host.querySelector(':scope > .xr-badge');if(old)old.remove();
+          var txt=xrBadgesHtml(b.xr);
+          if(!txt)return; /* 轮4：无加载徽标不占槽，右上角留给进度 */
           var span=document.createElement('span');
           span.className='xr-badge '+(b.xr.st==='run'?'':b.xr.st);
           span.id='xr-badge-'+b.id;
-          span.textContent=xrBadgesHtml(b.xr);
+          span.textContent=txt;
+          var bb=host.querySelector(':scope > .bk-badge');if(bb)bb.remove(); /* 单槽：加载徽标优先于进度徽标 */
           host.appendChild(span)
         })
       })

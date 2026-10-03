@@ -179,6 +179,8 @@ void main() {
       await shelfWith(t, const []);
       expect(find.byKey(const ValueKey('brCovPre-bp')), findsOne);
       expect(find.text('预载中 40%'), findsOne);
+      // 轮4 用户规则：右上角单槽——预载层在场时进度徽标让位（不许两枚叠显）。
+      expect(find.byKey(const ValueKey('cov-badge-bp')), findsNothing);
       await t.tap(find.byKey(const ValueKey('sh-item-bp')));
       await step(t, times: 2);
       expect(
@@ -187,7 +189,13 @@ void main() {
         reason: '守卫拦截后仍停留在书架',
       );
       expect(await pollText(t, '正在预载整本书 · 完成后可进入'), isTrue);
-      await clearToasts(t);
+      await clearToasts(t);    });
+
+    testWidgets('就绪本地书（无 X-Ray 任务）右上角照常显进度徽标（互斥不误伤）', (t) async {
+      await seed('ok', st: 'rdy');
+      await shelfWith(t, const []);
+      expect(find.byKey(const ValueKey('cov-badge-ok')), findsOne);
+      expect(find.byKey(const ValueKey('brCovPre-ok')), findsNothing);
     });
 
     testWidgets('阅读器防御页：预载书直达路由也只显守卫文案', (t) async {
