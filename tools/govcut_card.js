@@ -28,7 +28,7 @@ for (const m of html.matchAll(/<(?:section|div)[^>]*\bid="([^"]+)"/g)) {
   let role = 'home';
   if (s) role = (s.home === f) ? 'home' : ((s.reps || []).includes(f) ? 'rep' : (s.status === 'collision' && s.homes && s.homes[f] ? 'home' : s.status === 'dropped' ? 'ghost' : 'cut'));
   else role = 'unreg';
-  if (viol.has(id)) role = 'cut';
+  if (viol.has(id) && s && s.home !== f) role = 'cut'; else if (s && s.home === f) role = 'home';
   screens.push({ id, kind, title: (s && s.title) || '', role, size: b.length, hash: crypto.createHash('md5').update(b).digest('hex').slice(0, 8) });
 }
 const cut = screens.filter(s => s.role === 'cut' || s.role === 'ghost').length;

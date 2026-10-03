@@ -1,6 +1,6 @@
 {
  "file": "index-day_aim__goods.html",
- "total": 336841,
+ "total": 341731,
  "cut": 0,
  "screens": [
   {
@@ -106,6 +106,14 @@
    "role": "home",
    "size": 196,
    "hash": "396f44e9"
+  },
+  {
+   "id": "sheetExtra",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1175,
+   "hash": "374735a8"
   },
   {
    "id": "sheetRecycle",

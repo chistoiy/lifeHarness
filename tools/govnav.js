@@ -26,6 +26,7 @@ for (const v of (reg.violations || [])) {
   if (v.exempt || v.file !== f) continue;
   const s = reg.screens.find(x => x.id === v.id);
   if (!s || s.status === 'collision' || s.status === 'deferred' || !s.home) continue;
+  if (s.home === f) continue; // 改判后家即本文件（历史 violations 残留）→ 不进重定向表
   RED[v.id] = [s.home, modByFile[s.home] || s.home];
 }
 for (const s of reg.screens) {

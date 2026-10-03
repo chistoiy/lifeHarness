@@ -773,7 +773,20 @@ tailwind.config = {
   <!-- ===== 物品：二次付费 / 回收 / 报废 ===== -->
   
 
-  <div id="sheetRecycle" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetRecycle')">
+
+  <!-- 治理批动刀⑩：sheetExtra 家改判 items 专版后首份即家，从删前快照回灌（工单 §6） -->
+  <div id="sheetExtra" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetExtra')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">💳 记录二次付费</div>
+      <div class="text-[11px] text-slate-400">维修 / 配件 / 保养等追加支出，计入成本池 · 当前档案：<b id="exName" class="text-slate-300"></b></div>
+      <input id="exAmt" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" type="number" placeholder="金额，如 399">
+      <input id="exDesc" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="说明，如 Type-C 扩展坞">
+      <div class="mt-3 text-xs bg-sun/10 rounded-xl p-3 leading-6" id="exMode">成本计算方式：<br>◉ 摊回全周期 · 日均立即回升<br>○ 自本次起重新计算</div>
+      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">同步生成一条记账流水（联动 L12）</label>
+      <button onclick="extraPaySave()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
+    </div>
+  </div>  <div id="sheetRecycle" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetRecycle')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
       <div class="font-extrabold">♻️ 回收 / 出售</div>
@@ -3059,7 +3072,32 @@ renderPwBar();
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-diaryEdit":["index.html","壳与跨模块"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-health":["index-health.html","健康"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-pstore":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetWeatherPick":["index.html","壳与跨模块"],"sheetCityPick":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"]};
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-diaryEdit":["index.html","壳与跨模块"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-health":["index-health.html","健康"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-pstore":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetWeatherPick":["index.html","壳与跨模块"],"sheetCityPick":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"]};
+var DROP=window.LH_DROPPED={"p-toolDetail":1,"p-tools":1};
+window.lhGone=function(id){var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+id;},700);return;}
+  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
+  console.warn('[lh-gov] 目标不在本版:',id);
+};
+function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h)return;var el=document.getElementById(h);
+  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+h);}
+window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
+window.lhBoot();
+window.addEventListener('load',function(){window.lhBoot();});
+})();
+/*LH-GOV-END*/
+/* ==== 治理批 govcut_reflow：函数簇回灌（源＝index-day_aim__goods.html.before） ==== */
+function extraPaySave(){const it=D.items[curItem];const a=+$('#exAmt').value;if(!a||a<=0){toast('先填写二次付费金额');return}
+  const desc=$('#exDesc').value.trim()||'维修/配件';const before=costOf(it);
+  it.extra+=a;it.tl.push({a:'+'+fmtY(a),t:'二次付费：'+desc,d:'2026-09-19',c:'bg-sun',n:'摊回全周期 · 日均 ¥'+before.toFixed(2)+' → ¥'+costOf(it).toFixed(2)+'（回升）'});
+  closeSheet('sheetExtra');renderItems();renderItemDetail();toast('已计入成本池 ✓ 日均 '+fmtY(+before.toFixed(2))+' → '+fmtY(+costOf(it).toFixed(2)));}
+</script>
+<script>/*LH-GOV-START*/
+/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
+(function(){
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-diaryEdit":["index.html","壳与跨模块"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-health":["index-health.html","健康"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-pstore":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetWeatherPick":["index.html","壳与跨模块"],"sheetCityPick":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"]};
 var DROP=window.LH_DROPPED={"p-toolDetail":1,"p-tools":1};
 window.lhGone=function(id){var r=RED[id];
   if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+id;},700);return;}
