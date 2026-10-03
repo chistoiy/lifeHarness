@@ -1794,6 +1794,54 @@ tailwind.config = {
   </div>
 
   <!-- ===== 轮式日期选择（V1.23 恢复 · 图1 样式） ===== -->
+  <!-- 治理批动刀⑧：拍板弹层归壳/归家并入（原最富副本，来源见工单 §6） -->
+  <div id="sheetAddEvent" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddEvent')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">新建日程</div>
+      <input id="evTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="事件标题，如：与客户午餐">
+      <div class="mt-3 flex items-center gap-2 text-sm bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3">
+        <span class="font-bold" id="evDateLbl">9月19日</span><span class="text-slate-400">·</span><span>09:30</span><span class="text-slate-400">—</span><span>10:30</span>
+        <span class="ml-auto text-xs text-brand-500 font-bold" onclick="toast('日期时间选择器（模拟）· 默认=日历选中日，可任意改 → 支持事件补录')">修改</span>
+      </div>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="flex justify-between py-1"><span class="text-slate-400">地点</span><span class="text-slate-600 dark:text-slate-300">公司 3F 会议室 ›</span></div>
+        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">重复</span><span>每周三 ›</span></div>
+        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">关联待办</span><span class="text-brand-500 font-bold">选择任务（联动 L1）›</span></div>
+        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">冲突检测</span><span class="text-emerald-500 font-bold">✓ 无冲突</span></div>
+      </div>
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <button onclick="startNow()" class="py-3 rounded-xl bg-rose-500/90 text-white text-sm font-extrabold shadow-md shadow-rose-500/25">▶ 现在就开始</button>
+        <button onclick="closeSheet('sheetAddEvent');toast('日程已创建（预约未来事项·模拟）')" class="py-3 rounded-xl grad text-white text-sm font-bold">创建（预约）</button>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-400 text-center leading-5">「现在就开始」= 记录<b>正在做的事</b>：点击即设开始时间，事项进入进行中状态（时间轴/格子/日历点均实时标识），做完点「■ 结束」自动生成结束时间与耗时（回填 L1 · 入时间账本 L4）</div>
+    </div>
+  </div>
+  <!-- 治理批动刀⑧：拍板弹层归壳/归家并入（原最富副本，来源见工单 §6） -->
+  <div id="sheetEventDetail" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetEventDetail')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div id="evdBody"></div>
+    </div>
+  </div>
+  <!-- 治理批动刀⑧：拍板弹层归壳/归家并入（原最富副本，来源见工单 §6） -->
+  <div id="sheetGridMark" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetGridMark')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">标记时间块</div>
+      <div id="markRange" class="text-xs text-slate-400 mt-0.5"></div>
+      <div class="mt-3 text-xs font-bold text-slate-500">选择分类（分类可在设置中自定义）</div>
+      <div id="markCats" class="mt-2 grid grid-cols-4 gap-2 text-center text-[11px]"></div>
+      <input id="markNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="备注（可选），如：专注报销单">
+      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 同步在时间轴生成对应日程/时间块</label>
+      <label class="mt-1 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 计入时间账本统计（联动 L4）</label>
+      <div class="mt-4 flex gap-3">
+        <button id="markDelBtn" onclick="delMark()" class="hidden px-5 py-3 rounded-xl border border-rose-300 text-rose-500 text-sm font-bold">取消标记</button>
+        <button onclick="closeSheet('sheetGridMark')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">关闭</button>
+        <button onclick="doMark()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确认标记</button>
+      </div>
+    </div>
+  </div>
   <div id="sheetDatePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDatePick')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
@@ -4548,6 +4596,20 @@ window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.sta
 window.lhBoot();
 window.addEventListener('load',function(){window.lhBoot();});
 })();
-/*LH-GOV-END*/</script>
+/*LH-GOV-END*/
+/* ==== 治理批动刀⑧：过渡态弹层依赖函数回灌（源＝index-bookshelf.html.before 删前快照） ==== */
+function startNow(){const t=(($('#evTitle')&&$('#evTitle').value.trim())||'正在处理一件事');closeSheet('sheetAddEvent');
+ const now=new Date();const nm=now.getHours()*60+now.getMinutes();liveEv={t:t,s:nm};
+ blocks.push({s:nm,e:Math.min(1439,nm+60),cat:'工作',live:1,note:t});
+ if($('#evTitle'))$('#evTitle').value='';
+ if(calView!=='axis'&&calView!=='block')switchCalView('axis');
+ renderCal();toast('▶ 已开始：'+t+' · 开始时间 '+fmt(nm)+' · 完成后点「■ 结束」');}
+function doMark(){if(!markSel)return;const a=Math.min(markSel.a,markSel.b),b=Math.max(markSel.a,markSel.b);
+  blocks.push({s:cellMin(a),e:cellMin(b)+gran,cat:markCat,note:$('#markNote').value.trim()});
+  $('#markNote').value='';selA=selB=null;renderCal();closeSheet('sheetGridMark');
+  toast('✔ 已标记 '+fmt(cellMin(a))+'-'+fmt(cellMin(b)+gran)+' · '+markCat+' → 已写入时间账本（联动 L4 · 轴/日/周视图同步）');}
+function delMark(){if(!markSel)return;const blk=blockAt(cellMin(markSel.a));if(blk)blocks=blocks.filter(x=>x!==blk);
+  selA=selB=null;renderCal();closeSheet('sheetGridMark');toast('标记已取消，格子恢复空闲（五视图同步）');}
+</script>
 </body>
 </html>
