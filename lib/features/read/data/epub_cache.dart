@@ -159,6 +159,7 @@ class DocStore {
   // —— 样式编解码（快照内字典去重；JSON 里 null＝该属性没声明）——
 
   static const _alignCodes = ['left', 'center', 'right', 'justify'];
+  static const _decoCodes = ['solid', 'double', 'dotted', 'dashed', 'wavy'];
   static const _borderStyleCodes = [
     'solid',
     'double',
@@ -192,6 +193,7 @@ class DocStore {
     s.overline ? 1 : 0,
     s.lineThrough ? 1 : 0,
     s.lineColor?.toARGB32(),
+    s.deco == null ? -1 : _decoCodes.indexOf(s.deco!),
   ];
 
   static List? _borderJson(EpubBorder? b) => b == null
@@ -251,6 +253,10 @@ class DocStore {
       overline: _flag(a, 17) == 1,
       lineThrough: _flag(a, 18) == 1,
       lineColor: _iAt(a, 19) == null ? null : Color(_iAt(a, 19)!),
+      deco: (() {
+        final i = _iAt(a, 20);
+        return i == null || i < 0 || i >= _decoCodes.length ? null : _decoCodes[i];
+      })(),
     );
   }
 

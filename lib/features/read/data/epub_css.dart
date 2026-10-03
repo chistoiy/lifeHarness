@@ -69,6 +69,7 @@ class EpubStyle {
     this.overline = false,
     this.lineThrough = false,
     this.lineColor,
+    this.deco,
   });
 
   /// 字色 / 底色（`.ji` 标签块是白字灰底，两者都要管，预研 §5.2.5）。
@@ -98,6 +99,10 @@ class EpubStyle {
 
   /// 线的颜色（`text-decoration-color`；边线缺色＝跟字色）。
   final Color? lineColor;
+
+  /// 线的形态（`text-decoration-style`；`background-image` 平铺装饰线回落成 wavy＝
+  /// 原型 `?r32=st1` 的示意形态）。边线自己的形态在 [EpubBorder.style] 上，渲染处优先取它。
+  final String? deco;
 
   bool get hasBorder =>
       borderLeft?.isLine == true ||
@@ -155,6 +160,7 @@ class EpubStyle {
       overline: other.overline || overline,
       lineThrough: other.lineThrough || lineThrough,
       lineColor: other.lineColor ?? lineColor,
+      deco: other.deco ?? deco,
     );
   }
 
@@ -182,10 +188,12 @@ class EpubStyle {
       other.underline == underline &&
       other.overline == overline &&
       other.lineThrough == lineThrough &&
-      other.lineColor == lineColor;
+      other.lineColor == lineColor &&
+      other.deco == deco;
 
+  // 21 个字段超过 Object.hash 的 20 参上限，走 hashAll（列表分配只发生在建样式那一刻）。
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
     color,
     backgroundColor,
     fontRatio,
@@ -206,7 +214,8 @@ class EpubStyle {
     overline,
     lineThrough,
     lineColor,
-  );
+    deco,
+  ]);
 }
 
 /// 一条边的声明（宽度按 em 或 px 给、样式、颜色；`.name{border-left:.12em solid}` 无颜色＝跟字色）。
@@ -562,6 +571,8 @@ void _put(String prop, _Decl d, Map<String, _Decl> out, EpubUnsupportedSink? sin
       k = 'text-decoration';
     case 'text-decoration-color':
       k = 'text-decoration-color';
+    case 'text-decoration-style':
+      k = 'text-decoration-style';
     // —— 边距：物理 + logical + webkit 三路归一（预研 §5.2.4：只认 margin-left 会丢夹注层级缩进）
     case 'margin-left':
     case 'margin-inline-start':
@@ -838,6 +849,8 @@ EpubStyle _buildStyle(Map<String, _Decl> d) {
     overline: deco.overline,
     lineThrough: deco.through,
     lineColor: c('text-decoration-color'),
+    // 图片平铺线（书名线）没有对应文本线形态，按原型示意落 wavy；显式声明优先。
+    deco: d['text-decoration-style']?.v ?? (bg.contains('url(') ? 'wavy' : null),
   );
 }
 
