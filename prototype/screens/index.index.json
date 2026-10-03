@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 483442,
+ "total": 448628,
  "cut": 0,
  "screens": [
   {
@@ -26,14 +26,6 @@
    "role": "home",
    "size": 5637,
    "hash": "44660305"
-  },
-  {
-   "id": "p-records",
-   "kind": "screen",
-   "title": "记录",
-   "role": "rep",
-   "size": 5480,
-   "hash": "95a56d4e"
   },
   {
    "id": "p-diaryEdit",
@@ -76,54 +68,6 @@
    "hash": "be4e60cc"
   },
   {
-   "id": "p-finance",
-   "kind": "screen",
-   "title": "记账",
-   "role": "rep",
-   "size": 1980,
-   "hash": "78a5a00e"
-  },
-  {
-   "id": "p-items",
-   "kind": "screen",
-   "title": "物品价值",
-   "role": "rep",
-   "size": 1492,
-   "hash": "d8e6a18c"
-  },
-  {
-   "id": "p-days",
-   "kind": "screen",
-   "title": "重要日子",
-   "role": "rep",
-   "size": 1465,
-   "hash": "9db8d734"
-  },
-  {
-   "id": "p-health",
-   "kind": "screen",
-   "title": "健康",
-   "role": "rep",
-   "size": 4798,
-   "hash": "c57ed3b9"
-  },
-  {
-   "id": "p-goals",
-   "kind": "screen",
-   "title": "目标 OKR",
-   "role": "rep",
-   "size": 1244,
-   "hash": "d74f4155"
-  },
-  {
-   "id": "p-care",
-   "kind": "screen",
-   "title": "母婴呵护",
-   "role": "rep",
-   "size": 6656,
-   "hash": "002a44b2"
-  },
-  {
    "id": "p-pstore",
    "kind": "screen",
    "title": "插件中心",
@@ -138,14 +82,6 @@
    "role": "home",
    "size": 26300,
    "hash": "7b1b8996"
-  },
-  {
-   "id": "p-habits",
-   "kind": "screen",
-   "title": "习惯打卡",
-   "role": "rep",
-   "size": 1081,
-   "hash": "4d226173"
   },
   {
    "id": "p-sub-data",

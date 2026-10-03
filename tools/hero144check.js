@@ -66,7 +66,7 @@ function cmp(exp, got, tag, out) {
     ['ringPct', exp.ringPct + '%'], ['cost', exp.cost], ['costN', String(exp.costN)],
     ['itCost', exp.cost], ['itUse', String(exp.use)], ['itIdle', String(exp.idle)],
     ['itRec', String(exp.rec)], ['itScrap', String(exp.scrap)]];
-  chk.forEach(([k, want]) => { if (String(got[k]) !== want) out.push(tag + '.' + k + ' 期望 ' + want + ' 实得 ' + got[k]); });
+  chk.forEach(([k, want]) => { if (['itCost', 'itUse', 'itIdle', 'itRec', 'itScrap'].includes(k) && String(got[k]) === 'missing') return; /* 治理批拍板：物品总览随代表屏下架迁物品专版，壳侧只考核问候卡 */ if (String(got[k]) !== want) out.push(tag + '.' + k + ' 期望 ' + want + ' 实得 ' + got[k]); });
   // 「3/5<br>已完成」的 textContent 没有分隔符，只比对分子/分母前缀
   if (String(got.line).indexOf(exp.ringLine) !== 0) out.push(tag + '.line 期望以 ' + exp.ringLine + ' 开头 实得 ' + got.line);
   if (got.ring !== exp.ringPct + ' 100') out.push(tag + '.ring 期望 ' + exp.ringPct + ' 100 实得 ' + got.ring);
@@ -151,13 +151,13 @@ function cmp(exp, got, tag, out) {
 
   /* ⑥ 物品新增计费项 → 两处成本同步 */
   const act6 = await ev(`D.items.push({n:'校验用显示器',ic:'',days:100,cost:1000,extra:0,res:0,st:'使用中',calc:1});
-    renderItems(); return{ok:1};`);
+    renderHero(); return{ok:1};`);
   const exp6 = await ev(RECOMPUTE); const got6 = await ev(READ);
   const d6 = []; cmp(exp6, got6, '加物品后', d6);
-  (d6.length === 0 && got6.cost !== got0.cost && got6.itCost === got6.cost
-    ? ok : bad)('⑥ 新增计费物品 → 问候卡与物品页总览同步变化',
+  (d6.length === 0 && got6.cost !== got0.cost
+    ? ok : bad)('⑥ 新增计费物品 → 问候卡成本同步变化（物品页总览已迁物品专版）',
       d6.length ? d6.join(' | ') : got0.cost + ' → ' + got6.cost + ' · ' + got6.costN + ' 件');
-  await ev(`D.items.pop(); renderItems(); renderTodos(); return{ok:1};`);
+  await ev(`D.items.pop(); renderHero(); renderTodos(); return{ok:1};`);
   const got7 = await ev(READ);
   (got7.cost === got0.cost && got7.costN === got0.costN ? ok : bad)('⑦ 撤销物品后成本回落', got0.cost + ' vs ' + got7.cost);
 

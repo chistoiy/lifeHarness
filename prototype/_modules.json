@@ -737,9 +737,7 @@
    "kind": "screen",
    "title": "母婴呵护",
    "home": "index-maternity_bady.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -921,9 +919,7 @@
    "kind": "screen",
    "title": "重要日子",
    "home": "index-day_aim__goods.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1063,9 +1059,7 @@
    "kind": "screen",
    "title": "记账",
    "home": "index-ledger.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1149,9 +1143,7 @@
    "kind": "screen",
    "title": "目标 OKR",
    "home": "index-day_aim__goods.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1235,9 +1227,7 @@
    "kind": "screen",
    "title": "习惯打卡",
    "home": "index_habitcheck.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1307,9 +1297,7 @@
    "kind": "screen",
    "title": "健康",
    "home": "index-health.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1519,9 +1507,7 @@
    "kind": "screen",
    "title": "物品价值",
    "home": "index-day_aim__goods.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -1913,9 +1899,7 @@
    "kind": "screen",
    "title": "记录",
    "home": "index-bookshelf.html",
-   "reps": [
-    "index.html"
-   ],
+   "reps": [],
    "status": "shared",
    "files": {
     "index.html": {
@@ -8060,6 +8044,54 @@
    "id": "sheetAddMedia",
    "home": "index.html",
    "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-records",
+   "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-finance",
+   "home": "index-ledger.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-habits",
+   "home": "index_habitcheck.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-care",
+   "home": "index-maternity_bady.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-health",
+   "home": "index-health.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-days",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-items",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "p-goals",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
   }
  ],
  "redirects": [
@@ -9446,6 +9478,38 @@
   {
    "from": "index-health.html#p-report",
    "to": "index-ledger.html#p-report"
+  },
+  {
+   "from": "index.html#p-records",
+   "to": "index-bookshelf.html#p-records"
+  },
+  {
+   "from": "index.html#p-finance",
+   "to": "index-ledger.html#p-finance"
+  },
+  {
+   "from": "index.html#p-habits",
+   "to": "index_habitcheck.html#p-habits"
+  },
+  {
+   "from": "index.html#p-care",
+   "to": "index-maternity_bady.html#p-care"
+  },
+  {
+   "from": "index.html#p-health",
+   "to": "index-health.html#p-health"
+  },
+  {
+   "from": "index.html#p-days",
+   "to": "index-day_aim__goods.html#p-days"
+  },
+  {
+   "from": "index.html#p-items",
+   "to": "index-day_aim__goods.html#p-items"
+  },
+  {
+   "from": "index.html#p-goals",
+   "to": "index-day_aim__goods.html#p-goals"
   }
  ],
  "frozen": [

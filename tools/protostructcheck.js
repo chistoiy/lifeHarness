@@ -29,8 +29,9 @@ const secDiff = (src.match(/<section[\s>]/g) || []).length - (src.match(/<\/sect
 (divDiff === BASE_DIV_DIFF ? ok : bad)('静态 div 配平 = 基线 ' + BASE_DIV_DIFF, '实际 ' + divDiff);
 (secDiff === BASE_SECTION_DIFF ? ok : bad)('静态 section 配平 = 基线 ' + BASE_SECTION_DIFF, '实际 ' + secDiff);
 
-const PAGES = ['p-dashboard', 'p-todo', 'p-calendar', 'p-profile', 'p-inbox', 'p-records',
-  'p-sub-ai', 'p-aiUsage', 'p-logs', 'p-timeStats', 'p-habits'];
+/* 治理批拍板：p-records/p-habits 等代表屏已下架（直达专版），关键页表随之收敛为壳 home 屏 */
+const PAGES = ['p-dashboard', 'p-todo', 'p-calendar', 'p-profile', 'p-inbox',
+  'p-sub-ai', 'p-aiUsage', 'p-logs', 'p-timeStats'];
 
 (async () => {
   if (!fs.existsSync(CHROME)) { bad('chrome 存在'); return finish() }

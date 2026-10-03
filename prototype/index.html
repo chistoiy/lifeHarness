@@ -578,69 +578,7 @@ tailwind.config = {
     </section>
 
     <!-- ===== P4 记录（日记/笔记/阅读） ===== -->
-    <section id="p-records" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.29轮5：四段切换行移除 · 标题即「记录 · X」+ 右上切换钮 -->
-      <!-- 日记 tab -->
-      <div id="recDiary" class="mt-4">
-        <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
-          <div class="flex items-center justify-between"><b class="text-sm">九月 · 已记录 18 篇</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1 inline-flex items-center gap-1" onclick="openSheet('sheetDiaryReview')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10m5.5 10V4M15 20v-7m5.5 7V8"/></svg>回顾</button></div>
-          <div class="mt-2.5 flex items-end gap-[3px] h-9" id="moodMini"></div>
-          <div class="text-[10px] opacity-75 mt-1.5">连续记录 55 天 · 本月心情以 😌 平静居多 · 点色条看当天</div>
-        </div>
-        <button onclick="navTo('p-diaryEdit')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-          <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-brand-500/15 flex items-center justify-center text-lg">✍️</span>
-          <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
-          <span class="text-slate-300">›</span>
-        </button>
-        <!-- V1.29轮9g修正：本行=列表⇄INS切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签 -->
-        <div class="mt-2 flex items-center justify-end gap-2 relative">
-          <button id="diaryViewBtn" onclick="diaryLayout(dlLayout==='list'?'ins':'list')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="切换 列表/INS 卡片流">☰</button>
-          <button id="diaryFilterBtn" onclick="openSheet('sheetDiaryFilter')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
-        </div>
-        <div id="diaryList" class="mt-3"></div>
-      </div>
-
-      <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
-      <div id="recNote" class="hidden mt-1.5">
-        <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
-        <div class="flex items-center justify-end gap-2 relative">
-          <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
-          <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
-          <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
-          <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
-        </div>
-        <div id="noteList" class="mt-3"></div>
-      </div>
-
-      <!-- 阅读 tab -->
-      <div id="recBook" class="hidden mt-4">
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="bookStatusChips"></div>
-        <div class="mt-3 space-y-3" id="bookList"></div>
-        <button onclick="navTo('p-import')" class="mt-4 w-full card !py-3 flex items-center gap-3 text-left active:scale-[.99] transition">
-          <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">📥</span>
-          <div class="flex-1"><div class="text-sm font-bold">导入其他平台读书笔记</div><div class="text-[11px] text-slate-400">微信读书 / Kindle / Notion / Markdown…</div></div>
-          <span class="text-slate-300">›</span>
-        </button>
-      </div>
-
-      <!-- 影音游 tab（V1.25 · 与日记/笔记/阅读并列 · 原独立页并入） -->
-      <div id="recMedia" class="hidden mt-4">
-      <div class="grad rounded-3xl p-4 text-white">
-        <div class="text-sm font-extrabold">🎬 影音游 · 观影笔记</div>
-        <div class="text-[11px] opacity-85 mt-0.5 leading-5">与阅读笔记同构：观影计时 · 多方式进度 · 评分短评</div>
-        <div class="mt-2 flex gap-4 text-[11px]"><span>本年观影 <b>86h · 41 部</b></span><span>均速 <b>1.2 倍速</b></span><span>片单 <b>想看 12</b></span></div>
-      </div>
-      <div id="mediaList" class="mt-3 space-y-3"></div>
-      <button onclick="toast('豆瓣片单导入：与书单共用导入向导（已读/在看/想看 + 评分 + 日期）')" class="mt-4 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">📥</span>
-        <div class="flex-1"><div class="text-sm font-bold">导入豆瓣片单 / 书单</div><div class="text-[11px] text-slate-400">想看·在看·已看 + 豆瓣评分 + 标记日期 · 自动去重</div></div>
-        <span class="text-slate-300">›</span></button>
-      <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
-        <div class="card opacity-60" onclick="toast('游戏时长自动同步 V1.x')"><b>🎮 游戏</b><div class="text-[10px] text-slate-400 mt-1">存档时长同步 · V1.x</div></div>
-        <div class="card opacity-60" onclick="toast('剧集更新追踪 V1.x')"><b>📺 剧集追更</b><div class="text-[10px] text-slate-400 mt-1">更新提醒 · V1.x</div></div>
-      </div>
-      </div>
-    </section>
+    
 
     <!-- ===== P4a 日记编辑页（轮12：全屏沉浸自带返回头·去模式切换/媒体三格/hint/顶栏搜索） ===== -->
     <section id="p-diaryEdit" class="page px-5 safe-pb no-scrollbar">
@@ -791,233 +729,30 @@ tailwind.config = {
     </section>
 
     <!-- ===== P6 记账 ===== -->
-    <section id="p-finance" class="page px-5 safe-pb no-scrollbar">
-      <div class="grad rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/20">
-        <div class="flex justify-between items-center text-xs opacity-80"><span>9月账单</span><button onclick="toast('切换月份（模拟）')">‹ ›</button></div>
-        <div class="mt-2 text-3xl font-extrabold">¥ 4,286.<span class="text-lg">50</span></div>
-        <div class="mt-1 text-xs opacity-80">支出 ¥4,286.50 ｜ 收入 ¥12,000.00 ｜ 结余率 64%</div>
-        <div class="mt-3 h-2 rounded-full bg-white/20 overflow-hidden flex"><span class="bg-white/90" style="width:64%"></span></div>
-        <div class="mt-1.5 flex justify-between text-[10px] opacity-75"><span>月度预算 ¥12,000</span><span>已用 36% · 进度正常 ✓</span></div>
-      </div>
-      <div class="mt-4 grid grid-cols-5 gap-2 text-center text-[10px]">
-        <button class="fin-add" data-k="餐饮">🍜<br>餐饮</button><button class="fin-add" data-k="交通">🚇<br>交通</button>
-        <button class="fin-add" data-k="购物">🛍<br>购物</button><button class="fin-add" data-k="数码">💻<br>数码</button>
-        <button class="fin-add" data-k="其他">➕<br>更多</button>
-      </div>
-      <div class="card mt-4">
-        <div class="row-title">分类占比（点击类别可建物品档 · 联动L12）</div>
-        <div class="mt-3 space-y-2.5 text-xs" id="finBars"></div>
-      </div>
-      <div class="mt-5 flex items-center justify-between"><div class="row-title !mb-0">本月流水</div><span class="text-[10px] text-slate-400">仅本地存储 🔒</span></div>
-      <button onclick="billGo()" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-500/15 flex items-center justify-center">🧾</span>
-        <div class="flex-1"><div class="text-sm font-bold">导入支付宝 / 微信账单</div><div class="text-[11px] text-slate-400">CSV 导出自动解析 · 本地处理不上传 · 交易号去重</div></div>
-        <span class="text-slate-300">›</span></button>
-      <div id="txList" class="mt-2 space-y-2"></div>
-    </section>
+    
 
     <!-- ===== P6b 账单导入向导 ===== -->
     
 
     <!-- ===== P7 物品价值 ===== -->
-    <section id="p-items" class="page px-5 safe-pb no-scrollbar">
-      <div class="rounded-3xl p-5 bg-slate-900 dark:bg-slate-900 text-white shadow-lg relative overflow-hidden">
-        <div class="absolute -right-6 -bottom-8 text-[110px] opacity-10">📦</div>
-        <div class="text-xs text-slate-400">我的物品 · 今日合计持有成本</div>
-        <div class="text-3xl font-extrabold mt-1 text-mint">¥ <span id="itCost">47.20</span><span class="text-sm font-bold text-slate-400">/天</span></div>
-        <div class="mt-2 flex gap-4 text-[11px] text-slate-400"><span>使用中 <b id="itUse" class="text-white">12</b></span><span>闲置 <b id="itIdle" class="text-white">2</b></span><span>已回收 <b id="itRec" class="text-white">3</b></span><span>已报废 <b id="itScrap" class="text-white">1</b></span></div>
-        <div class="mt-3 text-[11px] bg-white/10 rounded-xl px-3 py-2">💸 本月它花掉了你：<b class="text-sun">MacBook ¥458</b> · 显示器 ¥162 · 跑鞋 ¥89</div>
-      </div>
-      <div class="mt-4 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
-        <button class="seg-pill on">全部</button><button class="seg-pill">数码</button><button class="seg-pill">家电</button><button class="seg-pill">服饰</button><button class="seg-pill">历史（决算）</button>
-      </div>
-      <button onclick="openSheet('sheetAddItem')" class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400">+ 录入新物品（或从记账流水一键升级）</button>
-      <div id="itemList" class="mt-3 space-y-3"></div>
-    </section>
+    
 
     <!-- ===== P7a 物品详情 ===== -->
     
 
     <!-- ===== P8 重要日子 ===== -->
-    <section id="p-days" class="page px-5 safe-pb no-scrollbar">
-      <div class="grid grid-cols-2 gap-3" id="dayCards"></div>
-      <button onclick="openSheet('sheetAddDay')" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400">+ 新建倒数日 / 纪念日本</button>
-      <div class="mt-5 card">
-        <div class="row-title">⏰ 到期提醒中心（证件 / 订阅 / 保修）</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800"><span>🛂 护照</span><span class="text-rose-500 font-bold">剩 47 天到期</span></div>
-          <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800"><span>📺 视频会员（订阅 ¥25/月）</span><span class="text-sun font-bold">3 天后续费</span></div>
-          <div class="flex justify-between items-center py-1.5"><span>💻 MacBook 保修</span><span class="text-slate-400">已于上月到期</span></div>
-        </div>
-        <div class="text-[10px] text-slate-400 mt-2">订阅项由记账模块自动生成（联动 L8）· 保修由物品档案汇入（联动 L13）</div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">📖 去年今天（联动 L10）</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400 leading-6 mt-1">2025-09-19 · 心情 😄<br>"今天和大学室友约了球，赢得很狼狈但很开心…"</div>
-        <button class="mt-2 text-xs text-brand-500 font-bold" onclick="toast('已打开 2025-09-19 日记')">查看当年的完整日记 ›</button>
-      </div>
-    </section>
+    
 
     <!-- ===== P9 健康 ===== -->
-    <section id="p-health" class="page px-5 safe-pb no-scrollbar">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="card">
-          <div class="row-title">💧 喝水</div>
-          <div class="text-2xl font-extrabold mt-1"><span id="waterN">5</span><span class="text-sm text-slate-400 font-semibold">/8 杯</span></div>
-          <div class="flex gap-1 mt-2" id="waterRow"></div>
-          <div class="flex gap-2 mt-2"><button class="flex-1 mini-btn" onclick="water(1)">+1 杯</button><button class="flex-1 mini-btn" onclick="water(-1)">撤销</button></div>
-        </div>
-        <div class="card">
-          <div class="row-title">😴 睡眠</div>
-          <div class="text-2xl font-extrabold mt-1">7.2<span class="text-sm text-slate-400 font-semibold"> 小时</span></div>
-          <svg viewBox="0 0 100 34" class="w-full h-12 mt-1">
-            <polyline points="0,26 14,20 28,22 42,12 56,16 70,8 84,10 100,6" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="0" y1="18" x2="100" y2="18" stroke="#94a3b8" stroke-dasharray="2 3" stroke-width="1"/>
-          </svg>
-          <div class="text-[10px] text-slate-400">近 7 天 · 达标线 7h ↗ 连续 3 天改善</div>
-        </div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">⚖️ 身体数据 · 体重 / 身高 / BMI</div>
-        <div class="mt-2 grid grid-cols-3 text-center gap-2">
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdW">—</b><span class="text-[9px] text-slate-400 block" id="bdWd">kg</span></div>
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg">175</b><span class="text-[9px] text-slate-400 block">cm 身高</span></div>
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdB">—</b><span class="text-[9px] block" id="bdBm">BMI</span></div>
-        </div>
-        <div class="mt-2.5 flex items-center justify-between"><span class="text-[10px] text-slate-400">近 30 天体重曲线 · 单位 kg</span><button class="mini-btn" onclick="bodyRec()">＋ 记录</button></div>
-        <svg id="bdSvg" viewBox="0 0 300 64" class="w-full h-16 mt-1"></svg>
-        <div class="text-[9px] text-slate-400 mt-0.5">身高体重手动记录 · BMI 自动计算分级 · 曲线随记录更新（联动 L11 健康趋势）</div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">🌙 昨晚睡眠详情（模拟）</div>
-        <div class="flex h-4 rounded-full overflow-hidden mt-2 text-[8px] text-white font-bold">
-          <span style="width:18%" class="bg-indigo-800">深睡</span><span style="width:47%" class="bg-brand-500">浅睡</span><span style="width:20%" class="bg-indigo-300">REM</span><span style="width:15%" class="bg-slate-300 text-slate-600">清醒</span>
-        </div>
-        <div class="flex justify-between text-[10px] text-slate-400 mt-1.5"><span>23:12 入睡</span><span>06:24 醒来</span><span>质量 82 分</span></div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">🏃 运动记录 · 多模进度（与阅读/观影同构）</div>
-        <div class="mt-2 flex gap-2 text-xs items-center"><input id="spKm" class="inp w-20 !py-2" type="number" step="0.1" value="5"><span class="text-slate-400">km</span><input id="spMin" class="inp w-20 !py-2" type="number" value="32"><span class="text-slate-400">min</span><button class="mini-btn" onclick="sportCalc()">算配速</button><button class="mini-btn" onclick="sportSave()">保存并计时</button></div>
-        <div id="spOut" class="mt-1.5 text-xs font-bold min-h-[16px]" style="color:var(--accent)"></div>
-        <div class="text-[10px] text-slate-400 mt-1">支持三模：距离 / 时长 / 配速互算；保存后写入时间账本「运动」分类并自动重算均配速趋势（联动 L11）</div>
-      </div>
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="card opacity-60" onclick="toast('运动记录排期 V1.x')"><div class="row-title">🏃 运动 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">跑步 32min · 将自动写入时间账本（联动 L11）</div></div>
-        <div class="card opacity-60" onclick="toast('用药提醒排期 V1.x')"><div class="row-title">💊 用药 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">定时提醒 + 服药打卡日历</div></div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">本月健康趋势</div>
-        <div class="mt-2 grid grid-cols-7 gap-1" id="heatCal"></div>
-        <div class="text-[10px] text-slate-400 mt-2">色块 = 喝水+睡眠综合达标度 · 数据将进入周报与仪表盘</div>
-      </div>
-      <button onclick="stack.length=0;setPage('p-care')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center">🌸👶</span>
-        <div class="flex-1"><div class="text-sm font-bold">母婴呵护</div><div class="text-[11px] text-slate-400">生理周期/排卵 · 宝宝喂养记录与生长曲线 ›</div></div>
-        <span class="text-slate-300">›</span></button>
-    </section>
+    
 
     <!-- ===== P10 目标 OKR ===== -->
-    <section id="p-goals" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center justify-between">
-        <div class="font-extrabold text-sm">2026 Q3 目标</div>
-        <button onclick="toast('OKR 完整版排期 V1.x')" class="text-xs text-brand-500 font-bold">+ 新建目标</button>
-      </div>
-      <div class="mt-3 space-y-3" id="okrList"></div>
-      <div class="mt-4 card opacity-70">
-        <div class="row-title">🧭 领域轮盘 <span class="vchip">V2</span></div>
-        <div class="flex items-center gap-3 mt-2">
-          <svg viewBox="0 0 80 80" class="w-20 h-20 shrink-0"><polygon points="40,8 62,20 70,44 52,66 28,66 12,42 20,18" fill="none" stroke="#e2e8f0"/><polygon points="40,14 58,26 62,42 48,58 30,60 18,40 26,24" fill="rgba(99,102,241,.25)" stroke="#6366f1" stroke-width="1.5"/><text x="40" y="43" text-anchor="middle" font-size="9" fill="#6366f1" font-weight="bold">68</text></svg>
-          <div class="text-xs text-slate-400 leading-5">健康·事业·学习·财务…各领域得分将由 记账/阅读/目标/时间账本 自动汇聚，季度复盘时对照。</div>
-        </div>
-      </div>
-      <div class="mt-3 card opacity-70"><div class="row-title">🪞 季度复盘引导 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">KPT 模板：做对了什么 / 做错了什么 / 下季度怎么改</div></div>
-    </section>
+    
 
     <!-- ===== P10b 影音游 · 观影笔记（与阅读同构） ===== -->
 
     <!-- ===== P10c 母婴呵护 ===== -->
-    <section id="p-care" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-        <button id="ctHer" class="seg-on flex-1 rounded-lg py-1.5" onclick="careTab('her')">🌸 她 · 生理周期</button>
-        <button id="ctBaby" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="careTab('baby')">👶 宝宝 · 喂养</button>
-      </div>
-
-      <!-- 她：经期/排卵 -->
-      <div id="careHer" class="mt-4">
-        <div class="rounded-3xl p-4 text-white shadow-lg shadow-pink-500/20" style="background:linear-gradient(135deg,#f472b6 0%,#e879a0 55%,#c084fc 100%)">
-          <div class="flex items-center justify-between"><b class="text-sm">周期第 12 天 · 卵泡期</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1 font-bold" onclick="logPeriod()">🩸 记录今天</button></div>
-          <div class="mt-2 text-[11px] leading-5 opacity-95">下次月经 <b>10-03</b>（还 14 天）· 排卵日 <b>09-27</b>（还 8 天）· 易孕期 09-24 ~ 10-01</div>
-          <div class="mt-2 h-1.5 rounded-full bg-white/25 overflow-hidden"><span class="block h-full bg-white/90" style="width:40%"></span></div>
-          <div class="text-[10px] opacity-80 mt-1">平均周期 28 天 · 波动 ±2 天 · 经期记录已续 14 个周期</div>
-        </div>
-        <div class="card mt-3">
-          <div class="flex items-center justify-between"><div class="row-title">9 月 · 周期日历</div>
-            <span class="flex gap-2 text-[9px] items-center text-slate-400"><span><i class="dot bg-peach"></i>月经</span><span><i class="dot bg-violet-400"></i>排卵</span><span><i class="dot bg-mint"></i>易孕</span></span></div>
-          <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mt-2 mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-          <div class="grid grid-cols-7 text-center gap-y-0.5" id="cycleCal"></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">今日感受（多选）</div>
-          <div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar text-[11px]" id="symChips"></div>
-          <div class="mt-2 flex gap-2"><input class="inp flex-1 !py-2 text-xs" placeholder="备注：如今天喝了红糖姜茶…"><button class="mini-btn" onclick="toast('症状+备注已存 · 周期趋势分析可接 AI 解读（V1.x）')">保存</button></div>
-        </div>
-        <div class="mt-3 grid grid-cols-3 text-center text-[11px]">
-          <div class="card !py-2.5"><b class="text-base">28天</b><div class="text-slate-400">平均周期</div></div>
-          <div class="card !py-2.5"><b class="text-base">5天</b><div class="text-slate-400">平均经期</div></div>
-          <div class="card !py-2.5"><b class="text-base text-rose-400">±2天</b><div class="text-slate-400">规律度优</div></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">🔔 周期提醒</div>
-          <div class="mt-2 space-y-2 text-xs">
-            <div class="flex justify-between items-center"><span>月经来潮提前 2 天</span><span class="toggle on" onclick="tgl(this)"></span></div>
-            <div class="flex justify-between items-center"><span>排卵日当天</span><span class="toggle on" onclick="tgl(this)"></span></div>
-            <div class="flex justify-between items-center"><span>易孕期开始</span><span class="toggle" onclick="tgl(this)"></span></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">预测自动计入「重要日子」倒数卡（联动 L10）· 异常波动超 ±7 天将温柔提醒就医参考</div>
-        </div>
-      </div>
-
-      <!-- 宝宝：护理记录 -->
-      <div id="careBaby" class="hidden mt-4">
-        <div class="grad rounded-3xl p-4 text-white" style="background:linear-gradient(135deg,#38bdf8 0%,#818cf8 60%,#c084fc 100%)">
-          <div class="flex items-center justify-between"><b class="text-sm">👶 团子 · 8 个月 12 天</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1" onclick="toast('多宝宝/记录人切换：妈妈・爸爸・长辈（演示）')">👨‍👩‍👧 妈妈记录中 ›</button></div>
-          <div class="mt-1.5 text-[11px] opacity-90">本周：喂养 46 次 · 尿布 35 片 · 睡眠 13.8h/天 · 体重 P62 ↑</div>
-        </div>
-        <div class="mt-3 text-[11px] font-bold text-slate-500">一键记录（点击即开始/入账）</div>
-        <div class="grid grid-cols-4 gap-2 mt-2 text-center text-[10px] font-bold">
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('milk')">🤱<br>母乳喂养</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('bottle')">🥣<br>配方奶</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('supp')">💊<br>补剂</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('poop')">💩<br>尿布·便</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('pee')">💧<br>尿布·尿</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('sleep')">😴<br>睡眠</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('play')">🧸<br>游戏</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('measure')">⚖️<br>测量</button>
-        </div>
-        <div id="feedTimer" class="hidden card mt-3 !py-3 flex items-center gap-2"></div>
-        <div class="card mt-3">
-          <div class="row-title">今日一览 · 09-19（<span id="babyCount">6</span> 条）</div>
-          <div id="babyToday" class="mt-2 space-y-2 text-xs"></div>
-        </div>
-        <div class="card mt-3">
-          <div class="flex items-center justify-between"><div class="row-title">📈 生长曲线（WHO 百分位）</div>
-            <span id="growthTabs" class="flex gap-1"><button class="gc on" data-k="w" onclick="drawGrowth('w')">体重</button><button class="gc" data-k="h" onclick="drawGrowth('h')">身高</button><button class="gc" data-k="head" onclick="drawGrowth('head')">头围</button></span></div>
-          <svg id="growthSvg" viewBox="0 0 320 142" class="w-full mt-2"></svg>
-          <div class="text-[10px] text-slate-400" id="growthInfo"></div>
-          <div class="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400">显示模式<button class="mini-btn !text-[9px]" id="gModeBtn" onclick="gCycle()">百分位 P</button><span id="gValHint"></span></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">💉 疫苗计划表</div>
-          <div id="vaxList" class="mt-2 space-y-2 text-xs"></div>
-          <div class="text-[10px] text-slate-400 mt-1">「下次接种」自动生成倒数提醒入「重要日子」（联动 L10）</div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">近 7 天概览</div>
-          <div class="mt-2 flex items-end gap-1.5 h-16" id="weekBars"></div>
-          <div class="text-[10px] text-slate-400 mt-1.5"><i class="dot bg-brand-500"></i>喂养次数/天　<i class="dot bg-mint"></i>睡眠时长 · 数据自动汇入周报</div>
-        </div>
-      </div>
-    </section>
+    
 
     <!-- ===== P10d 插件中心（大模块按需安装） ===== -->
     <section id="p-pstore" class="page px-5 safe-pb no-scrollbar">
@@ -1104,21 +839,7 @@ tailwind.config = {
     </section>
 
     <!-- ===== P12 习惯打卡 ===== -->
-    <section id="p-habits" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-2 items-center">
-        <div class="flex-1 flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-          <button id="hsW" class="seg-on flex-1 rounded-lg py-1.5" onclick="hsView('w')">本周统计</button>
-          <button id="hsM" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="hsView('m')">本月趋势</button>
-        </div>
-        <button onclick="openSheet('sheetAddHabit')" class="w-9 h-9 rounded-xl grad text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/30">+</button>
-      </div>
-      <div id="habStatRow" class="mt-3 grid grid-cols-3 text-center text-[11px]"></div>
-      <div id="habList" class="mt-3 space-y-3"></div>
-      <div class="card mt-4 text-[11px] text-slate-400 leading-6">
-        <b class="text-slate-600 dark:text-slate-300 text-xs">负向打卡逻辑</b><br>
-        为坏习惯设定周期内「目标不出现次数」（如奶茶：每周最多 2 次）：<b class="text-mint">每天未触发 → 正向积累 +1</b>；当天触发 → 扣减进度并记录触发日。周期末达成目标即视为「控制成功」，连续多个周期达成自动升级为「戒除中🎉」。
-      </div>
-    </section>
+    
 
     <!-- ===== P12a 二级：数据与同步 ===== -->
     <section id="p-sub-data" class="page px-5 safe-pb no-scrollbar">
@@ -3352,28 +3073,9 @@ function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
   m.innerHTML=Object.entries(REC_TABS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===recTab?'':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" ${k===recTab?`style="background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)"`:''} onclick="switchRecord('${k}')">${label}<span class="text-[11px]">${k===recTab?'✓':''}</span></button>`).join('');}
 function toggleRecSwitchMenu(){hideNoteFabMenu();hideTodoFabMenu();$('#recSwitchMenu').classList.toggle('hidden');}
 function hideRecSwitchMenu(){const m=$('#recSwitchMenu');if(m)m.classList.add('hidden');}
-function renderRecords(){
-  /* —— 日记：筛选 + 时间线卡片 —— */
-  /* V1.29轮7：筛选改为一行内的筛选钮下拉 */
-  syncDiaryFilterBtn();
-  renderDiaryList();
-  renderMoodMini();
-  /* —— 笔记：纯纯写作风列表（V1.29：文件夹 chips+回收站/新建 · 列表/卡片视图 · 左滑🗑） —— */
-  renderNotes();
-  const sts=['在读','想读','已读','全部'];
-  $('#bookStatusChips').innerHTML=sts.map((s,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${s}${s==='在读'?' 2':s==='已读'?' 1':''}</button>`).join('');
-  $('#bookList').innerHTML=D.books.map(b=>`<div class="card flex gap-3 items-center" onclick="navTo('p-bookDetail')">
-    <div class="w-12 h-[68px] rounded-lg bg-gradient-to-br ${b.cover} shrink-0"></div>
-    <div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${b.n}</div><div class="text-[10px] text-slate-400">${b.a} · ${b.q} 条笔记</div>
-      ${b.st==='在读'?`<div class="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"><span class="block h-full bg-brand-500" style="width:${b.p}%"></span></div>`:''}</div>
-    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${b.st==='在读'?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':b.st==='想读'?'bg-sun/10 text-amber-600':'bg-mint/10 text-teal-600'}">${b.st}</span></div>`).join('');
-  const ems=['😄','😌','😐','😪','😰','😢','😡'];
-  $('#editMood').innerHTML=ems.map((e,i)=>`<button class="mood ${i===1?'mood-on':''}" onclick="pickMoodEdit(this)">${e}</button>`).join('');
-  wxChipRender();
-  renderDiaryBody();
-}
+
 function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('chip-on')); el.classList.add('chip-on'); }
-function pickMoodEdit(el){ $$('#editMood .mood').forEach(m=>m.classList.remove('mood-on')); el.classList.add('mood-on'); }
+
 function insertSummary(){ const t=DI_TPLS[curTpl]; if(t.s.length){const el=$('#diaryBody textarea');if(el){el.value='【今日概览·自动生成】\n✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00\n💭 ';el.dispatchEvent(new Event('input',{bubbles:true}))}} else { const ed=$('#diaryText');if(ed)ed.innerHTML='<div>【今日概览·自动生成】</div><div>✅ 完成 3/5 待办 ｜ 📅 产品评审 10:00</div><div>💭 </div>';} toast('已插入自动概览，继续书写吧（联动 L2）'); }
 function saveDiary(){ const t=DI_TPLS[curTpl]; toast(t.s.length?`日记已保存 · ${t.n}（${t.s.length} 节）· 文中 ☐ 待办已同步（联动 L3）`:'日记已保存 · 文中 ☐ 待办已同步至任务列表（联动 L3）'); stack.length?goBack():navTab('p-records'); }
 /* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
@@ -3395,8 +3097,7 @@ function addTplSec(){tplDraft.push({t:'',ph:''});renderTplEdit()}
 function saveTplEdit(){const n=$('#tplName').value.trim();const secs=tplDraft.filter(s=>s.t.trim());if(!n||!secs.length){toast('请填写模板名称与至少一个分节');return}DI_TPLS.push({n,b:0,s:secs});renderDiaryTpls();closeSheet('sheetDiaryTplEdit');toast('模板已创建 · '+n)}
 /* ================= 心情迷你月历 & 纯写作编辑器 ================= */
 const DI_IMG=['from-orange-300 to-rose-400','from-sky-300 to-indigo-400','from-emerald-300 to-teal-500'];
-function renderMoodMini(){const hs=['#6366f1','#2dd4bf','#f59e0b','#fb7185','#8b5cf6','#0ea5e9'];
-  $('#moodMini').innerHTML=Array.from({length:30},(_,i)=>`<button class="flex-1 rounded-t-sm" style="height:${25+((i*53)%4)*23}%;background:${hs[(i*7)%6]};opacity:.9" onclick="event.stopPropagation();toast('查看 09-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`).join('');}
+
 const PW_PAPERS=[['#fbf8f1','#403a31'],['#ffffff','#334155'],['#edf3ea','#37412f'],['#1e1d1b','#cfc9bd']];
 let pwPaper=0;
 function renderPapers(){$('#pwPapers').innerHTML=PW_PAPERS.map((p,i)=>`<button class="w-5 h-5 rounded-full border ${i===0?'border-brand-500':'border-slate-300 dark:border-slate-600'}" style="background:${p[0]}" onclick="pwSetPaper(${i})"></button>`).join('');}
@@ -3565,14 +3266,12 @@ let noteSort='upd',noteAsc=false;
 function sortLabel(k){return k==='title'?(noteAsc?'标题 Z→A':'标题 A→Z'):k==='cre'?(noteAsc?'创建时间 ↑':'创建时间 ↓'):(noteAsc?'最后修改 ↑':'最后修改 ↓');}
 function noteSortClick(k){if(noteSort===k){noteAsc=!noteAsc;renderNoteSortMenu();}else{noteSort=k;noteAsc=false;$('#noteSortMenu').classList.add('hidden');}renderNotes();toast('排序：'+sortLabel(k));}
 function nkey(s){if(!s)return '';if(s.startsWith('今天'))return '2026-09-19';return /^\d{4}-/.test(s)?s:'2026-'+s;} /* 轮9s：跨年样本归一化排序 */
-function toggleNoteSortMenu(e){e.stopPropagation();renderNoteSortMenu();$('#noteSortMenu').classList.toggle('hidden');}
+
 function renderNoteSortMenu(){const m=$('#noteSortMenu');
   m.innerHTML=['upd','cre','title'].map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSortClick('${k}')">${sortLabel(k)}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
 document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
 let noteSelMode=false,noteSel=new Set();
-function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<3){noteCols++;}else{noteView='list';}
-  $('#noteViewBtn').textContent=noteView==='list'?'☰':(noteCols===2?'▦':'▤');
-  toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
+
 function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
   list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
     let r=noteSort==='title'?String(a.t).localeCompare(String(b.t),'en')
@@ -3669,7 +3368,7 @@ function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?
   +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
   +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
   +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`;}
-function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
+
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
 (function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
 let noteRestore='replace';
@@ -3743,7 +3442,7 @@ function pwMd(k){if(!PW_TA)return;if(pwMode==='focus'){toast('当前为写作视
  ta.value=v.slice(0,s)+w[0]+sel+w[1]+v.slice(e);ta.focus();
  const pos=s+w[0].length+(sel?sel.length:0);ta.setSelectionRange(pos,pos);pwSync();toast('已插入 '+k+' 语法（选中文本被包裹）');}
 /* 治理批动刀②：账单导入向导已迁记账专版，入口保留、经 navTo 兜底重定向 */
-function billGo(){navTo('p-billImport');}
+
 /* ================= 收集箱 ================= */
 function renderInbox(){
   $('#inboxCount').textContent=D.inbox.length;
@@ -3760,36 +3459,14 @@ function addInbox(){ const v=$('#inboxInput').value.trim(); if(!v){toast('先写
 function triage(i,msg){ D.inbox.splice(i,1); renderInbox(); toast(msg); }
 
 /* ================= 记账 ================= */
-function renderFin(){
-  $('#finBars').innerHTML=D.fin.map(f=>`<div><div class="flex justify-between text-[11px] mb-1"><span>${f.k}</span><b>${f.v}%</b></div>
-    <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${f.c} rounded-full" style="width:${f.v*2.4}%"></span></div></div>`).join('');
-  $('#txList').innerHTML=D.tx.map(t=>`<div class="card !py-2.5 flex items-center gap-3">
-    <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">${t.k.slice(0,2)}</div>
-    <div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">${t.n}</div><div class="text-[10px] text-slate-400">${t.d} · ${t.k.slice(2)}</div></div>
-    <b class="text-sm ${t.a>0?'text-emerald-500':''}">${t.a>0?'+':'−'}¥${Math.abs(t.a).toFixed(2)}</b></div>`).join('');
-  $$('.fin-add').forEach(b=>b.onclick=()=>{ toast('快速记账 · '+b.dataset.k+'（数字键盘模拟）'); });
-}
+
 
 /* ================= 物品 ================= */
 function costOf(it){ return it.calc? ((it.cost+it.extra-it.res)/it.days) : null; }
-function renderItems(){ renderHero();
-  $('#itemList').innerHTML=D.items.map((it,i)=>{ const c=costOf(it); const hist=it.calc===0;
-    return `<div class="card flex items-center gap-3 ${hist?'opacity-60':''}" onclick="navTo('p-itemDetail')">
-    <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0">${it.ic}</div>
-    <div class="flex-1 min-w-0"><div class="text-sm font-bold truncate">${it.n}</div>
-      <div class="text-[10px] text-slate-400">${hist?'已报废 · 决算已冻结':`持有 ${it.days} 天 · 成本池 ¥${(it.cost+it.extra-it.res).toLocaleString()}`}</div>
-      <div class="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden w-32"><span class="block h-full ${hist?'bg-slate-400':'bg-mint'}" style="width:${hist?100:Math.min(100,100-c/( (it.cost+it.extra)/900 )*100+30)}%"></span></div></div>
-    <div class="text-right shrink-0">${c?`<b class="text-mint text-base">¥${c.toFixed(2)}</b><div class="text-[9px] text-slate-400">/天 · 每日摊薄↓</div>`:`<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500">已归档</span>`}</div></div>`}).join('');
-}
+
 
 /* ================= 重要日子 / 健康 / OKR ================= */
-function renderDays(){
-  $('#dayCards').innerHTML=D.days.map(d=>`<div class="rounded-3xl p-4 text-white bg-gradient-to-br ${d.c} shadow-md relative overflow-hidden">
-    <span class="absolute right-2 bottom-1 text-5xl opacity-20">${d.g}</span>
-    <div class="text-xs font-semibold opacity-90">${d.t}</div>
-    <div class="text-3xl font-extrabold mt-2">${d.d>0?d.d:'—'}<span class="text-xs font-bold ml-1">${d.d>0?'天后':''}</span></div>
-    <div class="text-[10px] opacity-80 mt-1">${d.l}${d.d<0?' · 去处理 ›':''}</div></div>`).join('');
-}
+
 let waterN=5;
 let WEIGHTS=[69.2,69.1,69.3,69.0,68.8,69.1,69.0,68.9,69.2,68.8,68.7,69.0,68.6,68.9,68.5,68.8,68.6,68.4,68.7,68.5,68.3,68.6,68.4,68.2,68.5,68.3,68.1,68.4,68.2,68.5];
 function bmiOf(w){return w/Math.pow(1.75,2)}
@@ -3805,9 +3482,7 @@ function renderBody(){const el=$('#bdSvg');if(!el)return;
   $('#bdWd').textContent='kg · 周'+(cur>=w[n-8]?'+'+(cur-w[n-8]).toFixed(1):(cur-w[n-8]).toFixed(1));
   $('#bdB').textContent=b.toFixed(1);
   $('#bdBm').textContent='BMI '+tag[0];$('#bdBm').className='text-[9px] block '+tag[1]}
-function bodyRec(){const v=+(WEIGHTS[WEIGHTS.length-1]+(Math.random()*.6-.3)).toFixed(1);
-  WEIGHTS.push(v);if(WEIGHTS.length>30)WEIGHTS.shift();renderBody();
-  toast('⚖️ 已记录体重 '+v+' kg · BMI '+bmiOf(v).toFixed(1)+' · 曲线更新（联动 L11）')}
+
 function renderHealth(){renderBody();
   $('#waterRow').innerHTML=Array.from({length:8},(_,i)=>`<button onclick="setWater(${i+1})" class="flex-1 h-7 rounded-md text-[10px] ${i<waterN?'bg-sky-400 text-white':'bg-slate-200 dark:bg-slate-800'}">${i<waterN?'💧':''}</button>`).join('');
   $('#waterN').textContent=waterN;
@@ -3816,14 +3491,7 @@ function renderHealth(){renderBody();
 }
 function water(n){ waterN=Math.max(0,Math.min(8,waterN+n)); renderHealth(); if(waterN===8)toast('🎉 今日 8 杯达成，将写入日记与周报'); }
 function setWater(n){ waterN=n; renderHealth(); }
-function renderOkr(){
-  $('#okrList').innerHTML=D.okr.map(o=>`<div class="card">
-    <div class="flex items-center justify-between"><div class="text-sm font-extrabold">${o.o}</div><b class="text-brand-500">${o.p}%</b></div>
-    <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:${o.p}%"></span></div>
-    <div class="mt-3 space-y-2">${o.kr.map(([k,v])=>`<div class="flex items-center gap-2 text-xs"><span class="flex-1 truncate text-slate-500 dark:text-slate-400">${k}</span>
-      <div class="w-20 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full ${v>=100?'bg-emerald-500':v>0?'bg-brand-500':'bg-slate-300'}" style="width:${v}%"></span></div><b class="w-8 text-right">${v}%</b></div>`).join('')}</div>
-    <div class="mt-2 text-[10px] text-slate-400">进度由关联任务/阅读数据自动汇聚（联动 L7）</div></div>`).join('');
-}
+
 
 /* ================= 全局搜索 ================= */
 const SEARCH_DB=[['📅','产品评审','日程 · 今天 10:00'],['✅','预约牙医复诊','待办 · 重要不紧急'],['📔','09-17 跑步破 54 分','日记'],['📚','损失厌恶系数约为 2…','阅读摘录 · 思考快与慢'],['📝','SPACED 输出式学习框架','笔记'],['💰','跑鞋 −¥899.00','记账流水 · 已转物品'],['📦','MacBook Air M3','物品 · 日均 ¥1.22'],['🎂','妈妈生日','倒数日 · 农历八月廿七']];
@@ -4194,37 +3862,20 @@ function renderMedia(){const el=$('#mediaList');if(!el)return;
    <div class="text-right shrink-0">${x.st==='在看'?`<button class="mini-btn !text-[10px]" onclick="timerTap('watch','《${x.n}》')">${timer&&timerTarget==='《'+x.n+'》'?'■ 结束':'▶ 观影'}</button>`:`<button class="mini-btn !text-[10px]" onclick="toast('已标记在看 · 开始观影计时')">👀 开始看</button>`}<div class="text-[9px] text-slate-400 mt-1">${timer&&timerTarget==='《'+x.n+'》'?'计时中…':(x.tm.split(' · ')[0]||'')}</div></div></div>`).join('');}
 
 /* ================= 母婴呵护 ================= */
-function careTab(k){[['her','careHer','ctHer'],['baby','careBaby','ctBaby']].forEach(([id,w,b])=>{$('#'+w).classList.toggle('hidden',id!==k);const btn=$('#'+b);btn.className=(id===k?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500')+' flex-1 rounded-lg py-1.5';if(id===k)btn.classList.add('font-bold');});}
+
 /* —— 她：周期 —— */
-function renderCycle(){let cells='';for(let i=0;i<2;i++)cells+='<span></span>';
- for(let d=1;d<=30;d++){let cls='text-slate-500 dark:text-slate-400',tag='';
-  if(d>=1&&d<=5){cls='bg-rose-100 dark:bg-rose-500/15 text-rose-500 font-extrabold';tag='月经'}
-  else if(d===27){cls='bg-violet-100 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400 font-extrabold';tag='排卵'}
-  else if(d>=24&&d<=30){cls='bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold'}
-  if(d===19)cls+=' ring-2 ring-brand-500';
-  const desc=tag?('「'+tag+'期」'):'空闲';
-  const mark=tag?('<span class="absolute bottom-0 inset-x-0 text-[7px] leading-none opacity-80">'+tag+'</span>'):'';
-  cells+='<button class="relative py-1.5 rounded-xl text-[11px] '+cls+'" onclick="toast(\''+d+'日：'+desc+' · 可补录或修改状态\')">'+d+mark+'</button>'}
- $('#cycleCal').innerHTML=cells;}
-function logPeriod(){toast('✔ 已标记 9-19 为经期第 1 天 · 周期重新预测：下次 09-22 起 · 排卵日 10-06（演示回退旧预测已存档）');}
-function renderSym(){$('#symChips').innerHTML=['😊 心情好','😌 平静','⚡ 精力旺','🌀 痛经','🍫 食欲旺','😢 情绪低落','🌡 涨奶','💆 头痛'].map(s=>`<button class="chip whitespace-nowrap" onclick="this.classList.toggle('chip-on')">${s}</button>`).join('');}
+
+
+
 /* —— 宝宝：记录与计时 —— */
 let babyLogs=[{ic:'🤱',t:'母乳 · 共 14min（左8′/右6′）',at:'14:20'},{ic:'💧',t:'尿布 · 尿 · 重 240g',at:'13:05'},{ic:'🥣',t:'配方奶 150ml · 42°C',at:'12:30'},{ic:'😴',t:'睡眠结束 · 1h50min',at:'11:40'},{ic:'💊',t:'补剂 · 维 D3 400IU',at:'09:15'},{ic:'🧸',t:'游戏 · 俯卧时间 8min',at:'08:40'}];
 function bnow(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function renderBabyToday(){const el=$('#babyToday');if(!el)return;
  el.innerHTML=babyLogs.map(r=>`<div class="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span class="text-base">${r.ic}</span><div class="flex-1 min-w-0"><b>${r.t}</b><div class="text-[9px] text-slate-400">今天 ${r.at} · 记录人：妈妈</div></div><button class="text-[10px] text-rose-400 font-bold shrink-0" onclick="babyLogs.splice(babyLogs.indexOf(this.closest('div').__r),1);renderBabyToday();toast('记录已删除（可关联体重测量）')">删除</button></div>`).join('')||'<div class="text-center text-slate-400 py-4 text-[11px]">今天还没有记录，点上方一键开始</div>';
  $$('#babyToday > div').forEach((d,i)=>d.__r=babyLogs[i]);const c=$('#babyCount');if(c)c.textContent=babyLogs.length;}
-function qTap(k){
- if(k==='milk'||k==='sleep'){ if(ftTimer&&ftKind!==k){toast('请先结束当前计时');return;} if(ftTimer){if(k==='milk'){ftSwap(Math.round((Date.now()-ftT0)/60000));return} endFeed();return;} startFeed(k);return}
- const M={poop:()=>{babyLogs.unshift({ic:'💩',t:'尿布 · 便 · 糊状（布里斯托 6 级）',at:bnow()});toast('✔ 已记录 · 异常便便将温柔提醒就医参考')},
-  pee:()=>{babyLogs.unshift({ic:'💧',t:'尿布 · 尿',at:bnow()});toast('✔ 已记录')},
-  bottle:()=>{babyLogs.unshift({ic:'🥣',t:'配方奶 150ml · 42°C · 距上次喂养 65min',at:bnow()});toast('✔ 已记录 · 奶量将入每日统计')},
-  supp:()=>{babyLogs.unshift({ic:'💊',t:'补剂 · 维 D3 400IU',at:bnow()});toast('✔ 已记录 · 可设置每日提醒自动打卡')},
-  play:()=>{babyLogs.unshift({ic:'🧸',t:'游戏 · 亲子绘本 10min',at:bnow()});toast('✔ 已记录 · 大运/精细动作里程碑可打点（V1.x）')}};
- if(M[k]){M[k]();renderBabyToday()}}
+
 let ftTimer=null,ftT0=0,ftKind='',ftSide='左',ftSwapMin=0;
-function startFeed(kind){ftKind=kind;ftSide='左';ftSwapMin=0;ftT0=Date.now();ftTimer=setInterval(renderFeedBar,500);renderFeedBar();
- toast(kind==='milk'?'🤱 哺乳计时开始（默认左侧）':'😴 睡眠计时开始 · 界面可继续做别的')}
+
 function ftSwap(min){ftSwapMin=min;ftSide=ftSide==='左'?'右':'左';renderFeedBar();toast('已换边 → '+ftSide+'侧继续计时，分段会记录')}
 function renderFeedBar(){const s=Math.floor((Date.now()-ftT0)/1000);const mm=Math.floor(s/60),ss=String(s%60).padStart(2,'0');const bar=$('#feedTimer');bar.classList.remove('hidden');
  bar.innerHTML=ftKind==='milk'?`<span class="text-lg">🤱</span><div class="flex-1 min-w-0"><b class="text-xs">${ftSide}侧哺乳 · 累计 ${mm}:${ss}</b><div class="text-[9px] text-slate-400">换边继续计时，结束时自动生成分段记录</div></div><button class="mini-btn !text-[10px]" onclick="ftSwap(Math.round((Date.now()-ftT0)/60000))">🔄 换边</button><button class="mini-btn !text-[10px] !bg-rose-100 !text-rose-500 dark:!bg-rose-500/15" onclick="endFeed()">■ 结束</button>`
@@ -4252,16 +3903,14 @@ function drawGrowth(k){gCur=k;const g=GROWTH[k],el=$('#growthSvg');if(!el)return
 let gCur='w',gMode=0;
 const GVALS={w:['处于 P62 百分位','高于均值 +0.9 SD','Z 分数 +0.35'],h:['处于 P75 百分位','高于均值 +1.2 SD','Z 分数 +0.47'],head:['处于 P85 百分位','高于均值 +1.6 SD','Z 分数 +0.62']};
 function gPaint(){const b=$('#gModeBtn');if(!b)return;const names=['百分位 P','标准差 SD','Z 分数 Z'];b.textContent=names[gMode];const h=$('#gValHint');if(h)h.textContent=GVALS[gCur][gMode]+' · 点击切换';}
-function gCycle(){gMode=(gMode+1)%3;gPaint();const names=['百分位（对照 WHO P3/P50/P97 带）','标准差（SD，偏离均值倍数）','Z 分数（=SD 的同义学术表达）'];toast('显示模式：'+names[gMode])}
-function sportCalc(){const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;const el=$('#spOut');if(!km||!mn){el.textContent='请填写距离与时长';return}
- const p=mn/km,pm=Math.floor(p),sec=Math.round((p-pm)*60);el.textContent=`配速 ${pm}′${String(sec).padStart(2,'0')}″/km · ${km}km=${mn}min 三模互算 ✓`;}
-function sportSave(){sportCalc();const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;if(!km||!mn)return;toast('🏃 已存：运动 '+km+'km / '+mn+'min → 写入时间账本「运动」（L11）· 可发起运动计时（复用悬浮计时条）')}
+
+
+
 let VAX=[{n:'手足口病灭活疫苗 第1剂',due:'2026-10-12',st:'plan'},{n:'流脑 A群多糖 第1剂',due:'2026-11-02',st:'plan'},{n:'乙脑减毒 第1剂',due:'2026-09-08',st:'done'},{n:'乙肝第3剂',due:'2026-07-15',st:'done'}];
 function renderVax(){const el=$('#vaxList');if(!el)return;
  el.innerHTML=VAX.map((x,i)=>`<div class="flex items-center gap-2.5 ${x.st==='done'?'opacity-55':''} bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>${x.st==='done'?'✅':'💉'}</span><div class="flex-1 min-w-0"><b>${x.n}</b><div class="text-[9px] text-slate-400">${x.st==='done'?'已接种 · 接种记录可拍照归档':'计划 '+x.due+' · 提前 7 天提醒'}</div></div>${x.st==='plan'?`<button class="mini-btn !text-[10px]" onclick="vaxDone(${i})">完成</button>`:`<button class="text-[10px] text-slate-400 font-bold" onclick="toast('查看接种凭证照片（本地图档）')">凭证</button>`}</div>`).join('');}
 function vaxDone(i){VAX[i].st='done';renderVax();toast('✔ 已记录接种 · 下一针提醒已同步到「重要日子」（联动 L10）')}
-function renderWeekBaby(){const d=[[6,13.8],[7,14.1],[5,13.2],[7,14.6],[6,13.5],[8,14.0],[7,13.6]];
- $('#weekBars').innerHTML=d.map(([c,h],i)=>`<div class="flex-1 flex items-end gap-[2px] h-full" title="${i===6?'今天':'前'+(6-i)+'天'}：喂养${c}次 · 睡眠${h}h"><span class="w-1/2 rounded-t bg-brand-500/80" style="height:${c*11}%"></span><span class="w-1/2 rounded-t bg-mint/70" style="height:${(h-11.5)*22}%"></span></div>`).join('')}
+
 function saveMeasure(){const w=$('#mW').value,hh=$('#mH').value,hd=$('#mC').value;
  babyLogs.unshift({ic:'⚖️',t:`测量 · ${w}kg / ${hh}cm / ${hd}cm`,at:bnow()});renderBabyToday();closeSheet('sheetBabyMeasure');drawGrowth('w');
  toast('✔ 已描点生长曲线 · 本月 +0.7kg 正常 · 下次体检提醒已更新')}
@@ -4290,10 +3939,7 @@ let HABITS=[
  {n:'📱 深夜刷手机（每周≤3次）',type:'neg',target:3,triggers:2,w:[1,0,1,1,0,1,1],mAvoid:15}];
 function hbType(k,el){hbNewType=k;$$('#hbPos,#hbNeg').forEach(b=>b.classList.remove('on'));el.classList.add('on');
  $('#hbTargetWrap').classList.toggle('hidden',k!=='neg');}
-function hsView(k){hsDim=k;
- $('#hsW').className=(k==='w'?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500')+' flex-1 rounded-lg py-1.5';
- $('#hsM').className=(k==='m'?'seg-on ':'flex-1 rounded-lg py-1.5 text-slate-500')+' flex-1 rounded-lg py-1.5';
- renderHabits();}
+
 function hsDots(h){const base=h.w,n=hsDim==='w'?7:28,arr=[];
  for(let i=0;i<n;i++)arr.push(i<7?base[i%7]:((i*7+3)%4===0?0:base[i%7]));return arr}
 function renderHabits(){const el=$('#habList');if(!el)return;
@@ -4429,8 +4075,7 @@ function diaryReact(i,k){DI_LIKE[i][k]=!DI_LIKE[i][k];if(dlLayout==='ins')render
 function renderInsInto(sel,tip){$(sel).innerHTML=D.diary.map((d,i)=>insCardHtml(i)).join('')+(tip?'<div class="text-center text-[10px] text-slate-400 pb-4">📱 INS 卡片流</div>':'')}
 /* 轮12-4：编辑页不再有 文档/INS 模式切换（INS 浏览仅记录页保留·dlLayout 管列表⇄INS） */
 function openInsFull(i){$('#insFullBody').innerHTML=insCardHtml(i);$('#insFull').classList.remove('hidden')}
-function diaryLayout(k){dlLayout=k;const b=$('#diaryViewBtn');if(b)b.textContent=k==='list'?'☰':'▦';renderDiaryList();
-  toast(k==='ins'?'INS 卡片流预览':'列表视图');}
+
 /* V1.29轮9g：日记筛选=顶栏漏斗钮 + 底部浮层选择（全部/☐待办/标签·当前项✓） */
 let diaryFilter='全部';
 const DIARY_FILTERS=['全部','☐ 待办','#加班','#复盘'];
@@ -4493,7 +4138,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderRecords(); renderInbox(); renderFin(); renderItems(); renderDays(); renderHealth(); renderOkr();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes();  renderMedia(); renderCycle(); renderSym(); renderBabyToday(); drawGrowth('w'); renderVax(); renderWeekBaby(); renderHabits(); renderMkt(); renderPstore();
+migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); renderPstore();
 auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
 aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
@@ -4588,33 +4233,7 @@ function copyAllLogs(){
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"]};
-var DROP=window.LH_DROPPED={};
-var SELF=window.LH_SELF={};
-window.lhGone=function(id){
-  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
-  var r=RED[id];
-  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
-  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
-  console.warn('[lh-gov] 目标不在本版:',id);
-};
-function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
-  if(!h)return;var el=document.getElementById(h);
-  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
-  if(SELF[h]){location.replace('#'+SELF[h]);return;}
-  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
-window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
-window.lhBoot();
-window.addEventListener('load',function(){window.lhBoot();});
-})();
-/*LH-GOV-END*//* 治理批动刀⑪：plgInstall（适配壳新版插件中心 PS 机制） */
-
-function plgInstall(){const u=$('#plgUrl').value.trim();if(!u){toast('请先填入插件包下载地址');return;}$('#plgProg').classList.remove('hidden');const bar=$('#plgBar');let w=0;const t=setInterval(()=>{w+=9+Math.random()*16;bar.style.width=Math.min(100,w)+'%';if(w>=100){clearInterval(t);PS.push({id:'barcode',ic:'▦',n:'条形码生成器',cat:'工具',ver:'1.0.0',host:'1.0',size:'0.4 MB',rating:'',state:'inst',weight:30,mount:['首页宫格'],tbl:'plugin_barcode',desc:'本地生成条码/二维码 · 导出 PNG',long:'H5 拓展工具：纯本地计算，不申请网络与后台常驻。',perm:['隔离表空间 plugin_barcode（SQLite）'],hist:['1.0.0 首发']});renderPstore();closeSheet('sheetPlugin');toast('✔ SHA-256 校验通过（模拟）· 已安装 · 可在「已安装」管理');}},140);}
-</script>
-<script>/*LH-GOV-START*/
-/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
-(function(){
-var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"]};
+var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"p-records":["index-bookshelf.html","阅读·书架"],"p-finance":["index-ledger.html","记账"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-health":["index-health.html","健康"],"p-days":["index-day_aim__goods.html","目标"],"p-items":["index-day_aim__goods.html","目标"],"p-goals":["index-day_aim__goods.html","目标"]};
 var DROP=window.LH_DROPPED={};
 var SELF=window.LH_SELF={};
 window.LH_LANDING="p-dashboard";
