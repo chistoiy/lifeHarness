@@ -26,11 +26,8 @@ void main() {
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
     'features/journal/presentation/diary_edit_page.dart': 1260,
-    // 批三刀2 登记：`_extractParas` 接文档自带 CSS（样式表装载＋元素链级联＋runs 裁剪＋
-    // 降级留痕）后 epub_doc 从 1030 涨到 1204，超 1200 线未登记即红。
-    // 归还计划已写进工单 §3D（刀3 开工前置）：把抽取器拆成 `part 'epub_extract.dart';`
-    // 同库件（G7d⑤ 族口径，私有成员不用放宽），拆完**删本项**归还默认面。
-    'features/read/data/epub_doc.dart': 1204,
+    // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
+    // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记：reader_page 在实现批1（R3-7）后长到 1213 行、超线未登记＝门禁存量红。
     // 本批把外观→布局映射收进 ReaderLayout.of 后回落到 1207，先按登记值钉住（只许减），
     // 下一轮按 G7c 族口径把会话/计时群拆出主文件后**删掉本项**归还默认面。
