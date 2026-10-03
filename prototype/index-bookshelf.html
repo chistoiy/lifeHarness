@@ -1080,6 +1080,16 @@ tailwind.config = {
     .brp-h2{font-size:1.4em;font-weight:800}
     .brp-own{text-indent:2.4em}
     .br-just .brp{text-align:justify}
+    /* 批三 R3-2 原书样式保真·角色样式（值直取《資治通鑑》特殊標點版 style0001.css；brp- 前缀避让外观层 .br-bt 按钮类；仅「跟随原书样式」开时由 mk() 挂上） */
+    .brp-cmt{color:navy}
+    .brp-note{color:DarkGreen;font-size:.75em;margin-inline-start:.5em;margin-inline-end:.5em}
+    .brp-corr{color:Purple;font-size:.75em}
+    .brp-reign{color:SaddleBrown;font-weight:700}
+    .brp-gray{color:DimGray;font-size:.88em}
+    .brp-tag{background:DimGray;color:#fff;border:2px double #fff}
+    .brp-nm{border-left:.12em solid}
+    .brp-nm1{border:.1em solid}
+    .brp-bt{text-decoration:underline wavy}
     #brSelBar::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:7px solid transparent;border-top-color:var(--card);border-bottom:0;filter:drop-shadow(0 1px 1px rgba(15,23,42,.22));pointer-events:none}
     #brSelBar.flip::after{bottom:auto;top:-7px;border-top-color:transparent;border-bottom:7px solid var(--card);filter:drop-shadow(0 -1px 1px rgba(15,23,42,.22))}
     .br-ibtn{width:46px;height:42px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;font-weight:700;opacity:.72;cursor:pointer}
@@ -1759,6 +1769,8 @@ tailwind.config = {
         </div>
         <div class="space-y-2.5 pb-1">
           <div class="flex items-center justify-between text-xs"><span>两端对齐</span><span class="toggle" id="brApJustTgl" onclick="brApTgl('just',this)"></span></div>
+          <div class="flex items-center justify-between text-xs"><span>跟随原书样式</span><span class="toggle" id="brApOrigTgl" onclick="brApTgl('orig',this)"></span></div>
+          <div class="text-[9px] text-slate-400 leading-4 -mt-1.5 hidden" id="brApOrigWarn">本书含竖排排版，当前按横排单栏显示</div>
           <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
           <div class="flex items-center justify-between text-xs"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-400" id="brApAutoLbl">关</b><span class="toggle" id="brApAuto" onclick="brApTgl('auto',this)"></span></span></div>
         </div>
@@ -3703,7 +3715,7 @@ let BS_BOOKS=[
  {id:'b10',n:'非暴力沟通',a:'马歇尔·卢森堡',st:'想读',p:0,pg:232,rp:0,q:0,tags:['心理学','方法论'],c:1,rate:4,isbn:'9787507419954',pub:'中国华夏',yr:2009,src:'豆瓣导入',start:'',end:'',min:0,times:0,note:'观察而非评判',fin:''},
  {id:'b11',n:'科学美国人·合集',a:'SA 编辑部',st:'已读',p:100,pg:120,rp:120,q:9,tags:['科普'],c:5,rate:3.5,isbn:'—',pub:'—',yr:2025,src:'导入 MD',start:'03-01',end:'08-30',min:150,times:30,note:'零散合集',fin:''},
  {id:'b12',n:'卡拉马佐夫兄弟',a:'陀思妥耶夫斯基',st:'想读',p:0,pg:780,rp:0,q:0,tags:['小说'],c:0,rate:5,isbn:'9787020024759',pub:'人民文学',yr:2002,src:'豆瓣导入',start:'',end:'',min:0,times:0,note:'信仰与自由意志',fin:''},
- {id:'b13',n:'資治通鑑 特殊標點版（古籍樣本）',a:'司馬光',st:'想读',p:0,pg:120,rp:0,q:0,tags:['历史','古籍'],c:2,rate:0,isbn:'—',pub:'中华书局',yr:2011,src:'本地 EPUB',start:'',end:'',min:0,times:0,note:'注释体/简繁演示样本',fin:''}];
+ {id:'b13',n:'資治通鑑 特殊標點版（古籍樣本）',a:'司馬光',st:'想读',p:0,pg:120,rp:0,q:0,tags:['历史','古籍'],c:2,rate:0,isbn:'—',pub:'中华书局',yr:2011,src:'本地 EPUB',start:'',end:'',min:0,times:0,note:'注释体/简繁演示样本',unsupported:['vertical'],fin:''}];
 let BS_QUOTES=[
  {b:'b1',ty:'划线',tg:'重点',ch:'第1章',pg:24,dt:'08-02',x:'任何事物只要通过一个人人都能读懂的话语相互联系，就能形成一套信念体系。',th:''},
  {b:'b1',ty:'划线',tg:'待查证',ch:'第3章',pg:88,dt:'08-14',x:'损失厌恶系数约为 2，失去 100 元的痛大于得到 100 元的乐。',th:'这其实就是损失厌恶在日常决策里的投影：昨天砍价成功的快乐，抵不上今天丢件货物的心痛。',fav:1},
@@ -5639,7 +5651,7 @@ function brRx(s){return (s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function brNorm(t){return (t||'').replace(/[，。、：；·！？,.\s:;!?《》]/g,'').toLowerCase()}
 
 /* ---- 配置 / 位置（逐书独立记忆 · localStorage 持久化） ---- */
-const BR_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'serif',bright:false,auto:false,autoSecs:10,mode:'page',just:false,s2t:'orig',ind:'auto'};
+const BR_DEF={fs:19,lh:1.62,ls:0.4,mar:22,theme:'day',bg:'#faf6ee',fg:'#3b3630',font:'serif',bright:false,auto:false,autoSecs:10,mode:'page',just:false,s2t:'orig',ind:'auto',orig:true};
 let brCfg=JSON.parse(JSON.stringify(BR_DEF)),brBooksCfg={},brPos={},BR_LOCAL_HL=[];/* brSync 关时的高亮暂存 */
 function brSt(bid){return Object.assign({},brCfg,brBooksCfg[bid]||{})}
 function brPersist(){try{localStorage.setItem('lh_reader_bs_v1',JSON.stringify({cfg:brCfg,bcfg:brBooksCfg,pos:brPos,hl:BR_LOCAL_HL}))}catch(e){}}
@@ -5696,14 +5708,16 @@ BR_TXT['b1|20 结论：两种自我']=[{k:'h',t:'20 结论：两种自我'},
 BR_TXT['b13|周紀一 · 三家分晋']=[
  {k:'h',lv:1,t:'資治通鑑卷第一'},
  {k:'h',lv:2,t:'周紀一'},
- {k:'p',own:1,t:'起著雍攝提格，盡戊申，凡一年有奇。'},
- {k:'p',t:'司馬光編年，上起三家分晉，下訖五代，千有餘載，刪繁就簡，勒為一編。',sup:1,fn:'溫公書成，奏進曰：專取關國家之盛衰、系生民之休戚者。'},
- {k:'p',t:'初，智宣子將以瑤為後。智果曰：不如宵也。瑤之賢五，而甚一者三：美鬢長大則賢，賦資聽敏則作，善文能辯則通。',sup:2,fn:'智果，別族也。賢五，謂五事勝人；甚一，謂不仁過於人。'},
- {k:'fn',t:'胡三省注：作，謂能創制；通，謂文辭明達。三者皆才之美，而不仁者藉之，是資盜糧也。'},
+ {k:'p',own:1,r:'gray',t:'起著雍攝提格，盡戊申，凡一年有奇。'},
+ {k:'p',nm:['司馬光'],nm1:['三家分晉'],t:'司馬光編年，上起三家分晉，下訖五代，千有餘載，刪繁就簡，勒為一編。',sup:1,fn:'溫公書成，奏進曰：專取關國家之盛衰、系生民之休戚者。'},
+ {k:'p',bt:['資治通鑑','外紀','長編'],t:'光與劉恕、范祖禹同修，書成奏進，帝賜名曰資治通鑑，恕別作外紀，祖禹有長編。'},
+ {k:'p',r:'reign',nm:['智宣子','智果'],t:'初，智宣子將以瑤為後。智果曰：不如宵也。瑤之賢五，而甚一者三：美鬢長大則賢，賦資聽敏則作，善文能辯則通。',sup:2,fn:'智果，別族也。賢五，謂五事勝人；甚一，謂不仁過於人。'},
+ {k:'p',r:'corr',t:'「美鬢長大則賢」，「鬢」舊本訛作「鬣」，覆宋本正作「鬢」，今從之。'},
+ {k:'fn',r:'note',t:'胡三省注：作，謂能創制；通，謂文辭明達。三者皆才之美，而不仁者藉之，是資盜糧也。'},
  {k:'p',t:'卒立瑤。趙氏之禍，懸於晉陽之城，而機動於晉陽之外。事詳後卷，說在禮名。'},
  {k:'p',t:'讀者欲知其詳，可參看',lnk:{to:1,label:'下一卷 · 智氏之亡'}},
- {k:'h',lv:2,t:'臣光曰'},
- {k:'p',t:'臣聞天子之職莫大於禮，禮莫大於分，分莫大於名。',sup:3,fn:'分，謂君臣位分；名，謂公侯卿大夫之名號。'},
+ {k:'p',r:'tag',t:'臣光曰'},
+ {k:'p',r:'cmt',t:'臣聞天子之職莫大於禮，禮莫大於分，分莫大於名。',sup:3,fn:'分，謂君臣位分；名，謂公侯卿大夫之名號。'},
  {k:'q',t:'名位大事，上下之紀也。禮敗則國隨之。'},
  {k:'p',t:'由此觀之，非禮則無以為治，古今一也。'}];
 /* R3-6 简繁演示字形表：仅覆盖古籍样本章与常用字（1:1 字形替换，不吞多音合并）；
@@ -5766,7 +5780,8 @@ function brSvgFig(){return `<svg viewBox="0 0 300 170" style="width:100%;display
   <path d="M20 40 L 280 150" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4"/>
   <line x1="20" y1="156" x2="280" y2="156" stroke="#cbd5e1"/><line x1="20" y1="34" x2="20" y2="156" stroke="#cbd5e1"/>
   <text x="236" y="166" font-size="8" fill="#94a3b8">EPUB3 · image/svg+xml</text></svg>`}
-function brParaInner(bid,ci,x,pi){let inner=brEsc(brConv(bid,x.t));
+function brParaInner(bid,ci,x,pi){let inner=brEsc(brConv(bid,x.t));/* 批三 R3-2：专名线/书名线内联（nm/nm1/bt 字段驱动·跟随原书样式开时才挂） */
+  if(brSt(bid).orig){['nm','nm1','bt'].forEach(function(f){(x[f]||[]).forEach(function(w){var re=new RegExp(brRx(w),'g');inner=inner.replace(re,function(m){return '<span class="brp-'+f+'">'+m+'</span>'})})});}
   const ch=brLeaves(bid)[ci];
   if(bid==='b1'&&ch==='4 联想思维'&&pi===2)inner+='<span class="br-sup" onclick="event.stopPropagation();brNoteShow(\'锚定：启发式之一，判断受最先取得的信息支配，见附录「启发式与偏差清单」。\',brV.ci,2)">1</span>';
   if(bid==='b1'&&ch==='4 联想思维'&&pi===8)inner='延伸阅读清单见附录（<span class="br-link" onclick="event.stopPropagation();brGotoCh(12)">内链跳 20 结论：两种自我</span>），原始材料发布于 <span class="br-link" onclick="event.stopPropagation();brExtLink(\'https://princeton.edu/kaneman/experiments\')">princeton.edu</span>（外链）。';
@@ -5785,7 +5800,7 @@ function brRenderPage(anim){const bid=brV.b,st=brSt(bid),ch=brLeaves(bid)[brV.ci
   document.getElementById('brBody').innerHTML='';const fam=BR_FONTS[st.font]?BR_FONTS[st.font][1]:BR_FONTS.system[1];
   const arr=brChText(bid,ch);
   const mk=(x,pi)=>{if(x.k==='img')return `<div class="brp-i" data-pi="${pi}" onclick="event.stopPropagation();brImgOpen('${brEsc(x.t)}')">${brSvgFig()}<figcaption>${brEsc(x.t)} · 点击放大 / 保存</figcaption></div>`;
-    const hl=brHlAt(bid,brV.ci,pi);const sty=x.k==='h'?'class="brp brp-h'+(x.lv===1?' brp-h1':x.lv===2?' brp-h2':'')+'"':x.k==='q'?'class="brp brp-q"':x.k==='fn'?'class="brp brp-fn"':x.own?'class="brp brp-own"':'class="brp"';
+    const hl=brHlAt(bid,brV.ci,pi);let sty=(st.orig&&x.r)?'class="brp brp-'+x.r+(x.r==='note'?' brp-fn':'')+(x.own?' brp-own':'')+'"':(x.k==='h'?'class="brp brp-h'+(x.lv===1?' brp-h1':x.lv===2?' brp-h2':'')+'"':x.k==='q'?'class="brp brp-q"':x.k==='fn'?'class="brp brp-fn"':x.own?'class="brp brp-own"':'class="brp"');
     return `<p ${sty} data-pi="${pi}" ${hl?`style="background:${hl.c}44;padding:1px 2px;border-radius:3px"`:''}>${brParaInner(bid,brV.ci,x,pi)}${hl&&hl.th?`<span class="br-pulse" style="background:#f97316;margin-left:4px;display:inline-block" onclick="event.stopPropagation();brQuoteOf('${hl.rid}')"></span>`:''}</p>`};
   if(brV.mode==='scroll'){const box=document.createElement('div');
     box.style.cssText=`font-size:${st.fs}px;line-height:${st.lh};letter-spacing:${st.ls}px;font-family:${fam};padding:${st.mar+30}px ${st.mar}px ${st.mar+56}px`;
@@ -6362,6 +6377,8 @@ function brApCtl(){const d=brDraft;
   document.getElementById('brApBgLbl').textContent=d.bgImg?'自选图片':((BR_TEX.find(t=>t[1]===(d.bgTex||''))||['无'])[0]);
   document.getElementById('brApS2TLbl').textContent=BR_S2T_N[d.s2t||'orig'];
   document.getElementById('brApJustTgl').classList.toggle('on',!!d.just);
+  document.getElementById('brApOrigTgl').classList.toggle('on',!!d.orig);
+  document.getElementById('brApOrigWarn').classList.toggle('hidden',!(bsBook(brV.b)&&bsBook(brV.b).unsupported&&bsBook(brV.b).unsupported.indexOf('vertical')>=0));
   document.getElementById('brApBright').classList.toggle('on',!!d.bright);document.getElementById('brApAuto').classList.toggle('on',!!d.auto);
   document.getElementById('brApAutoLbl').textContent=d.auto?(d.autoSecs||10)+' 秒':'关';
   document.getElementById('brApThemes').innerHTML=Object.entries(BR_THEMES).map(([k,v])=>`<button class="br-themecard ${d.theme===k?'on':''} rounded-xl p-2 text-center" style="background:${v.bg};color:${v.fg}" onclick="brApSet('theme','${k}')"><div class="text-[10px] font-black">${v.n}</div><div class="text-[7px] opacity-70 mt-0.5">Aa 阅读示例</div></button>`).join('');
@@ -6790,12 +6807,15 @@ function br35Seed(){
  if(m==='review'){brAiOpen();brAiPick('explain')}
 }catch(e){console.warn('br57',e)}})();
 /* V1.54 真机轮3 R3-2/R3-6 深链：?r32=anc → 古籍注释体样本 · ?r32=s → 同屏简体态 · ?r32=ap → 外观弹层（两端对齐/简繁两行） */
+/* 批三 R3-2 原书样式保真深链：?r32=st1 → 跟随原书样式开（五层色+专名线） · ?r32=st0 → 关态对照（现状止血） · ?r32=stn → 外观弹层含不支持项提示行 */
 /* R3-7 外观微信化深链：?r37=font|ind|turn|theme|bg|s2t → 直达对应二级弹窗 */
 (function r32Boot(){try{
   const m=(location.search.match(/r32=(\w+)/)||[])[1];if(m){
   if(m==='anc'||m==='s'){brOpen('b13');brShowChrome();
     if(m==='s'){brBooksCfg.b13=Object.assign(brBooksCfg.b13||{},{s2t:'s'});brPagCache={};brRenderPage()}}
-  else if(m==='ap'){brOpen('b13');brShowChrome();openSheet('sheetBrAppearance');brApOpen()}}
+  else if(m==='ap'){brOpen('b13');brShowChrome();openSheet('sheetBrAppearance');brApOpen()}
+  else if(m==='st1'||m==='st0'){brBooksCfg.b13=Object.assign(brBooksCfg.b13||{},{orig:m==='st1'});brOpen('b13');brShowChrome();brPagCache={};brRenderPage()}
+  else if(m==='stn'){brOpen('b13');brShowChrome();openSheet('sheetBrAppearance');brApOpen()}}
   const s=(location.search.match(/r37=(\w+)/)||[])[1];
   if(s){brOpen('b13');brShowChrome();openSheet('sheetBrAppearance');brApOpen();brApSubOpen(s)}
 }catch(e){console.warn('r32',e)}})();
