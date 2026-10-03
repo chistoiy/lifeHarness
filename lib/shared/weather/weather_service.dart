@@ -122,7 +122,17 @@ class WeatherService {
       return (hits: const <CityHit>[], err: r.err);
     }
     final results = r.json?['results'];
-    if (results is! List) return (hits: const <CityHit>[], err: null);
+    if (results is! List) {
+      // 真机轮4①补：200 但结构不合（限流/防滥用返回 error JSON）＝服务异常，
+      // 归「网络不可达」并留痕，不许静默算「查无此城」。
+      AppLog.add('城市搜索响应结构异常 host=geocoding-api.open-meteo.com',
+          level: LhLevel.warn);
+      return (hits: const <CityHit>[], err: 'bad-shape');
+    }
+    if (results.isEmpty) {
+      // 真空结果＝正当「无匹配城市」，但同样落一行 info 让真机可辨（不记查询词）。
+      AppLog.add('城市搜索无结果 host=geocoding-api.open-meteo.com');
+    }
     return (
       hits: [
         for (final item in results)

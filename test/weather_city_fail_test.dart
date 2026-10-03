@@ -87,7 +87,7 @@ void main() {
     expect(failLogCount('城市搜索失败'), 2);
   });
 
-  testWidgets('查无此城=「无匹配城市」，不冒充网络不可达、不落失败日志', (tester) async {
+  testWidgets('查无此城=「无匹配城市」，不冒充网络不可达；空结果落 info 留痕', (tester) async {
     await openAndSearch(
         tester, (u) async => (json: const {'results': <Object>[]}, err: null),
             '不存在的城市名');
@@ -95,6 +95,18 @@ void main() {
     expect(find.text('无匹配城市'), findsOneWidget);
     expect(find.text('网络不可达'), findsNothing);
     expect(failLogCount('城市搜索失败'), 0);
+    expect(failLogCount('城市搜索无结果'), 1); // 正当空结果也有一行可辨
+  });
+
+  testWidgets('200 但结构不合（限流 error JSON）=归「网络不可达」并留痕，不伪装无匹配',
+      (tester) async {
+    await openAndSearch(tester,
+        (u) async => (json: const {'error': true, 'reason': 'abuse'}, err: null),
+        '常州');
+
+    expect(find.text('网络不可达'), findsOneWidget);
+    expect(find.text('无匹配城市'), findsNothing);
+    expect(failLogCount('响应结构异常'), 1);
   });
 
   testWidgets('正常命中=列表可选，无失败态', (tester) async {

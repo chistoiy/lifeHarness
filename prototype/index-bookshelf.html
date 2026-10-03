@@ -1871,7 +1871,7 @@ tailwind.config = {
         <div><div class="text-[9.5px] text-slate-400 mb-0.5">文件路径</div><div class="break-all rounded-xl bg-slate-50 dark:bg-slate-800/60 px-2.5 py-2 text-[10.5px]" id="brLiPath">—</div></div>
         <div class="flex items-center justify-between"><span class="text-slate-400">体积 / 加密 / 版式</span><b id="brLiMeta">—</b></div>
         <div class="flex items-center justify-between"><span class="text-slate-400">阅读位置 / 划线 / 进度</span><b id="brLiPos">—</b></div>
-        <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 leading-5">删除时询问阅读数据去留：默认保留（进度 · 划线与书摘 · 计时不动，释放源文件与缓存），或全量删除阅读数据；书籍记录进回收站，30 天内可恢复。</div>
+        <div class="pt-1 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 leading-5">删除时询问阅读数据去留：默认保留（释放源文件与缓存，卡片留在书架，重新导入自动挂回），或全量删除（阅读数据一并删除，书籍记录进回收站）。</div>
         <div id="brLiCache" class="text-[10.5px] text-slate-500 leading-5"></div>
       </div>
       <div class="mt-4 flex gap-2">
@@ -6436,15 +6436,15 @@ function brTtsRate(){const r=BS_SET.brRate||1;BS_SET.brRate=r>=1.5?0.75:r+0.25;d
 function brTtsOff(quiet){clearInterval(brTtsTimer);brTtsTimer=0;document.getElementById('brTts').classList.add('hidden');if(!quiet)toast('已停止朗读')}
 let brDelId='',brDelOpt='keep',brDelLocal=false;
 function brDelOpen(id){brDelId=id;brDelOpt='keep';const b=bsBook(id);brDelLocal=!!b.local;document.getElementById('brDelName').textContent=b.n;brDelRender();openSheet('sheetBrDel')}
-/* 轮4⑤：删除询问阅读数据去留（默认保留）· 长按与本地书卡两入口共用 · 书籍行统一进回收站（拍板 2026-10-04） */
+/* 轮4⑤（真机纠偏 2026-10-04）：保留态本地书卡片留在书架（挂回态·不软删）；非本地书 keep=移出书架；all=进回收站+清阅读数据 */
 function brDelRender(){const opts=brDelLocal
-  ?[['keep','移除该书 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 <b class="text-amber-600">释放</b> 源文件与缓存 · 回收站内 30 天可恢复'],['all','移除该书 · 全量删除','源文件与缓存之外，进度 · 划线与书摘 · 计时一并删除 · 不可恢复']]
-  :[['keep','移除该书 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 · 回收站内 30 天可恢复'],['all','移除该书 · 全量删除','进度 · 划线与书摘 · 计时一并删除 · 不可恢复']];
+  ?[['keep','移除该书 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 <b class="text-amber-600">释放</b> 源文件与缓存 · 重新导入自动挂回'],['all','移除该书 · 全量删除','源文件与缓存之外，进度 · 划线与书摘 · 计时一并删除 · 不可恢复']]
+  :[['keep','移出书架 · 保留阅读记录','<b class="text-emerald-500">保留</b> 进度 · 划线与书摘 · 计时 · 回收站内 30 天可恢复'],['all','移出书架 · 全量删除','进度 · 划线与书摘 · 计时一并删除 · 不可恢复']];
 document.getElementById('brDelOpts').innerHTML=opts.map(([k,l,s])=>`<button class="w-full card !py-2.5 text-left flex items-start gap-2.5" onclick="brDelOpt='${k}';brDelRender()"><span class="mt-0.5 w-4 h-4 rounded-full border-2 ${brDelOpt===k?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'} flex items-center justify-center text-[9px] text-white">${brDelOpt===k?'✓':''}</span><span><b${k==='all'?' class="!text-rose-500"':''}>${l}</b><div class="text-[10px] text-slate-400 mt-0.5">${s}</div></span></button>`).join('')}
 function brDelCommit(){const b=bsBook(brDelId);if(!b)return closeSheet('sheetBrDel');
   if(b.epub&&b.epub.st==='pre')brPreStop(b.id);
   b.local=0;delete b.epub;delete brPos[b.id];delete brBooksCfg[b.id];brPagCache={};
-  BS_BOOKS=BS_BOOKS.filter(x=>x.id!==b.id); /* 书籍行进回收站（演示=移出书架·30 天口径见回收站批） */
+  if(!brDelLocal||brDelOpt==='all')BS_BOOKS=BS_BOOKS.filter(x=>x.id!==b.id); /* 本地书保留态卡片留架（挂回）；其余进回收站 */
   if(brDelOpt==='all'){BS_QUOTES=BS_QUOTES.filter(q=>q.b!==b.id);delete BS_SESS_CACHE[b.id];}
   brPersist();
   closeSheet('sheetBrDel');renderShelf();try{renderBookDetail()}catch(e){}

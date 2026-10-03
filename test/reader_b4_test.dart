@@ -436,7 +436,7 @@ void main() {
       await step(t, times: 4);
     }
 
-    testWidgets('保留态（默认）：释放副本与源文件·逐书键与分页表回收·行进回收站·书摘计时保留', (t) async {
+    testWidgets('保留态（默认）：释放副本与源文件·逐书键与分页表回收·卡片留架不软删·书摘计时保留', (t) async {
       final b = await addBook('d1');
       File(b.epub!.path).writeAsBytesSync([1, 2, 3]);
       File(b.epub!.srcPath!).writeAsBytesSync([4, 5, 6]);
@@ -479,10 +479,12 @@ void main() {
       });
       await step(t, times: 3);
       final after = (await repo.bookById('d1'))!;
-      expect(after.deletedAt, isNotNull, reason: '保留态：书籍行进回收站');
+      expect(after.deletedAt, isNull,
+          reason: '真机轮4纠偏：保留态不软删书行（否则全查询面按 deleted_at 过滤，卡片与记录一起消失）');
+      expect(after.local, isFalse);
       expect(await repo.kv('reader.pos.d1'), isNull);
       expect(await repo.kv('reader.cfg.d1'), isNull);
-      // 轮4⑤ 拍板：保留态也释放源文件与私有副本（原 cache 口径不删文件的轴已并入统一删除）
+      // 保留态释放私有副本与源文件（重新导入自动挂回）
       expect(File(b.epub!.path).existsSync(), isFalse, reason: '私有副本已释放');
       expect(File(b.epub!.srcPath!).existsSync(), isFalse, reason: '源文件已释放');
       // 阅读数据保留：书摘与计时不受保留态影响

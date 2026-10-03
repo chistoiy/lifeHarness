@@ -533,8 +533,10 @@ String brLocalStateLine(Book b) {
 
 // ---------- 轮4⑤ · 删除书籍去留询问（原型 sheetBrDel·与长按/详情两入口共用） ----------
 
-/// keep＝移除该书但保留阅读记录（默认）；all＝连阅读数据一并全量删除（不可恢复）。
-/// 书籍行两者都进回收站（30 天可恢复）；「全量删除」只额外永久清除阅读数据。
+/// keep＝本地书释放文件与缓存、卡片留在书架（重新导入自动挂回）；非本地书＝移出书架（回收站可恢复）。
+/// all＝书籍记录进回收站，且该书名下阅读数据（划线/书摘/计时/进度）永久清除。
+/// 真机轮4 纠偏（2026-10-04）：保留态**不再软删书行**——否则全查询面按 deleted_at 过滤，
+/// 卡片与记录一起消失，与弹层承诺「保留阅读记录」相悖。
 enum BrDelOpt { keep, all }
 
 Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
@@ -556,14 +558,14 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
               for (final (k, label, sub) in [
                 (
                   BrDelOpt.keep,
-                  '移除该书 · 保留阅读记录',
+                  isLocal ? '移除该书 · 保留阅读记录' : '移出书架 · 保留阅读记录',
                   isLocal
-                      ? '保留 进度 · 划线与书摘 · 计时，释放 源文件与缓存 · 回收站内 30 天可恢复'
+                      ? '保留 进度 · 划线与书摘 · 计时，释放 源文件与缓存 · 重新导入自动挂回'
                       : '保留 进度 · 划线与书摘 · 计时 · 回收站内 30 天可恢复',
                 ),
                 (
                   BrDelOpt.all,
-                  '移除该书 · 全量删除',
+                  isLocal ? '移除该书 · 全量删除' : '移出书架 · 全量删除',
                   isLocal
                       ? '源文件与缓存之外，进度 · 划线与书摘 · 计时一并删除 · 不可恢复'
                       : '进度 · 划线与书摘 · 计时一并删除 · 不可恢复',
@@ -594,17 +596,6 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
                   ),
                   onChanged: (v) => setSel(() => opt = v!),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 10),
-                child: Text(
-                  '书籍记录移入回收站 · 到期自动清理。',
-                  style: TextStyle(
-                    fontSize: 10,
-                    height: 1.5,
-                    color: Theme.of(sc).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
               Row(
                 children: [
                   Expanded(
@@ -639,8 +630,9 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
   );
 }
 
-/// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本与源文件（本地书），
-/// 书籍行进回收站；「全量删除」再永久清除该书阅读数据（划线/书摘/计时/目录/复习态）。
+/// 执行删除：释放内存句柄与逐书键、回收分页表/私有副本与源文件（本地书）。
+/// keep：本地书卡片留在书架（local=0），非本地书进回收站；阅读数据一律不动。
+/// all：书籍记录进回收站，并永久清除该书阅读数据（划线书摘/计时/目录/复习态）。
 Future<void> brDelCommit(
   BuildContext context,
   WidgetRef ref,
@@ -675,7 +667,8 @@ Future<void> brDelCommit(
   await repo.removeKv('reader.cfg.${b.id}');
   await preload.removePag(b.id);
   await preload.removeSnap(b.id);
-  await repo.softDeleteBooks([b.id]);
+  // keep+本地书＝留在书架（挂回态）；其余（非本地 keep / 任何 all）＝书行进回收站。
+  if (opt == BrDelOpt.all || ep == null) await repo.softDeleteBooks([b.id]);
   if (opt == BrDelOpt.all) await repo.hardDeleteReadingData(b.id);
   ref.read(readTickProvider.notifier).state++;
   if (context.mounted) {
