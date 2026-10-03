@@ -1,199 +1,15 @@
 {
  "file": "index-ledger.html",
- "total": 194881,
- "cut": 60,
+ "total": 431158,
+ "cut": 0,
  "screens": [
-  {
-   "id": "p-profile",
-   "kind": "screen",
-   "title": "我的",
-   "role": "cut",
-   "size": 24393,
-   "hash": "0ca6464b"
-  },
-  {
-   "id": "p-billImport",
-   "kind": "screen",
-   "title": "导入账单",
-   "role": "home",
-   "size": 8019,
-   "hash": "0e7f8643"
-  },
-  {
-   "id": "sheetAddTask",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 7844,
-   "hash": "e28e33d9"
-  },
-  {
-   "id": "p-care",
-   "kind": "screen",
-   "title": "母婴呵护",
-   "role": "cut",
-   "size": 6737,
-   "hash": "002a44b2"
-  },
-  {
-   "id": "p-import",
-   "kind": "screen",
-   "title": "导入读书笔记",
-   "role": "cut",
-   "size": 6418,
-   "hash": "27b36ae3"
-  },
-  {
-   "id": "p-bookDetail",
-   "kind": "screen",
-   "title": "书籍详情",
-   "role": "cut",
-   "size": 5952,
-   "hash": "727292be"
-  },
-  {
-   "id": "p-calendar",
-   "kind": "screen",
-   "title": "时间",
-   "role": "cut",
-   "size": 5598,
-   "hash": "38b853a9"
-  },
-  {
-   "id": "p-records",
-   "kind": "screen",
-   "title": "记录",
-   "role": "cut",
-   "size": 5542,
-   "hash": "95a56d4e"
-  },
-  {
-   "id": "p-dashboard",
-   "kind": "screen",
-   "title": "今天",
-   "role": "cut",
-   "size": 5436,
-   "hash": "be3fa02e"
-  },
-  {
-   "id": "p-health",
-   "kind": "screen",
-   "title": "健康",
-   "role": "cut",
-   "size": 4853,
-   "hash": "c57ed3b9"
-  },
   {
    "id": "p-finance",
    "kind": "screen",
    "title": "记账",
    "role": "home",
    "size": 4244,
-   "hash": "b3a870c5"
-  },
-  {
-   "id": "sheetNoteKit",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 3970,
-   "hash": "63199778"
-  },
-  {
-   "id": "p-sub-data",
-   "kind": "screen",
-   "title": "数据与同步",
-   "role": "cut",
-   "size": 3729,
-   "hash": "c264890c"
-  },
-  {
-   "id": "p-sub-ai",
-   "kind": "screen",
-   "title": "AI 增强",
-   "role": "cut",
-   "size": 3587,
-   "hash": "6e5d9a9b"
-  },
-  {
-   "id": "p-itemDetail",
-   "kind": "screen",
-   "title": "物品详情",
-   "role": "cut",
-   "size": 3537,
-   "hash": "99c71f94"
-  },
-  {
-   "id": "p-noteEdit",
-   "kind": "screen",
-   "title": "",
-   "role": "cut",
-   "size": 3509,
-   "hash": "25d5483e"
-  },
-  {
-   "id": "sheetTimePick",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 3452,
-   "hash": "1f501927"
-  },
-  {
-   "id": "sheetAddHabit",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 3329,
-   "hash": "f2b54599"
-  },
-  {
-   "id": "p-sub-notify",
-   "kind": "screen",
-   "title": "提醒通知",
-   "role": "cut",
-   "size": 2833,
-   "hash": "471f9562"
-  },
-  {
-   "id": "p-sub-catAdd",
-   "kind": "screen",
-   "title": "添加分类",
-   "role": "cut",
-   "size": 2796,
-   "hash": "9f9362d2"
-  },
-  {
-   "id": "p-sub-recmg",
-   "kind": "screen",
-   "title": "记录管理",
-   "role": "cut",
-   "size": 2792,
-   "hash": "afd2e888"
-  },
-  {
-   "id": "p-diaryEdit",
-   "kind": "screen",
-   "title": "写日记",
-   "role": "cut",
-   "size": 2655,
-   "hash": "bb680802"
-  },
-  {
-   "id": "sheetAddMedia",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 2309,
-   "hash": "2b57ea42"
-  },
-  {
-   "id": "sheetAddEvent",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 2250,
-   "hash": "66a8f615"
+   "hash": "d739e5e2"
   },
   {
    "id": "p-txAdd",
@@ -201,567 +17,7 @@
    "title": "",
    "role": "home",
    "size": 2201,
-   "hash": "ab6373bb"
-  },
-  {
-   "id": "sheetLedgerCatAdd",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 2156,
-   "hash": "5e1a8514"
-  },
-  {
-   "id": "sheetLedgerCatPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 2123,
-   "hash": "4047702e"
-  },
-  {
-   "id": "sheetTask",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 2105,
-   "hash": "8e65e4ea"
-  },
-  {
-   "id": "p-pstore",
-   "kind": "screen",
-   "title": "插件中心",
-   "role": "cut",
-   "size": 1739,
-   "hash": "156dff0d"
-  },
-  {
-   "id": "sheetAddItem",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1716,
-   "hash": "da9f1430"
-  },
-  {
-   "id": "p-report",
-   "kind": "screen",
-   "title": "检查报告",
-   "role": "home",
-   "size": 1709,
-   "hash": "2a7dd355"
-  },
-  {
-   "id": "sheetDiaryReview",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1625,
-   "hash": "0afa3990"
-  },
-  {
-   "id": "sheetPlugin",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1584,
-   "hash": "b86c8f7b"
-  },
-  {
-   "id": "p-todo",
-   "kind": "screen",
-   "title": "待办",
-   "role": "cut",
-   "size": 1575,
-   "hash": "5375fff4"
-  },
-  {
-   "id": "sheetNoteShare",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1549,
-   "hash": "6c53903f"
-  },
-  {
-   "id": "sheetSnapshot",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1519,
-   "hash": "ff359f4e"
-  },
-  {
-   "id": "sheetGridMark",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1517,
-   "hash": "995bf744"
-  },
-  {
-   "id": "p-days",
-   "kind": "screen",
-   "title": "重要日子",
-   "role": "cut",
-   "size": 1482,
-   "hash": "9db8d734"
-  },
-  {
-   "id": "p-items",
-   "kind": "screen",
-   "title": "物品价值",
-   "role": "cut",
-   "size": 1462,
-   "hash": "fb1123b9"
-  },
-  {
-   "id": "p-sub-appearance",
-   "kind": "screen",
-   "title": "外观",
-   "role": "cut",
-   "size": 1442,
-   "hash": "66433a8e"
-  },
-  {
-   "id": "p-inbox",
-   "kind": "screen",
-   "title": "收集箱",
-   "role": "cut",
-   "size": 1390,
-   "hash": "be4e60cc"
-  },
-  {
-   "id": "sheetBillCat",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1361,
-   "hash": "ed43cb09"
-  },
-  {
-   "id": "p-cats",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 1320,
-   "hash": "4a4285e5"
-  },
-  {
-   "id": "sheetBabyMeasure",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1293,
-   "hash": "1608a18b"
-  },
-  {
-   "id": "sheetLedgerAcctAdd",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1277,
-   "hash": "ad017066"
-  },
-  {
-   "id": "p-goals",
-   "kind": "screen",
-   "title": "目标 OKR",
-   "role": "cut",
-   "size": 1258,
-   "hash": "d74f4155"
-  },
-  {
-   "id": "sheetAddExcerpt",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1251,
-   "hash": "1ad213c9"
-  },
-  {
-   "id": "sheetTocImport",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1227,
-   "hash": "875467b3"
-  },
-  {
-   "id": "sheetRecycle",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1221,
-   "hash": "2a92b2d4"
-  },
-  {
-   "id": "sheetDiaryTplEdit",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1139,
-   "hash": "8e072836"
-  },
-  {
-   "id": "sheetExtra",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1135,
-   "hash": "0d6fe7c3"
-  },
-  {
-   "id": "sheetLedgerUndo",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1107,
-   "hash": "03784f47"
-  },
-  {
-   "id": "sheetDatePick",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 1101,
-   "hash": "27e8e5ef"
-  },
-  {
-   "id": "p-habits",
-   "kind": "screen",
-   "title": "习惯打卡",
-   "role": "cut",
-   "size": 1095,
-   "hash": "4d226173"
-  },
-  {
-   "id": "sheetLedgerHero",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 1031,
-   "hash": "22a321a1"
-  },
-  {
-   "id": "sheetLedgerDate",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 998,
-   "hash": "c5ae0d9c"
-  },
-  {
-   "id": "sheetLedgerTag",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 994,
-   "hash": "16b186f4"
-  },
-  {
-   "id": "sheetScrap",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 961,
-   "hash": "b699413b"
-  },
-  {
-   "id": "sheetProgress",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 956,
-   "hash": "b6368a4c"
-  },
-  {
-   "id": "sheetAddDay",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 934,
-   "hash": "5cbe29ee"
-  },
-  {
-   "id": "p-tools",
-   "kind": "screen",
-   "title": "小工具合集",
-   "role": "cut",
-   "size": 917,
-   "hash": "36116424"
-  },
-  {
-   "id": "sheetYearShare",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 887,
-   "hash": "a4570c6b"
-  },
-  {
-   "id": "p-sub-cats",
-   "kind": "screen",
-   "title": "分类管理",
-   "role": "cut",
-   "size": 839,
-   "hash": "75b953f6"
-  },
-  {
-   "id": "p-txSearch",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 820,
-   "hash": "0b7fcdca"
-  },
-  {
-   "id": "sheetLedgerMerch",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 809,
-   "hash": "ebf95724"
-  },
-  {
-   "id": "sheetLedgerWho",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 802,
-   "hash": "0e96079f"
-  },
-  {
-   "id": "sheetBiAcctPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 785,
-   "hash": "ed4f74d9"
-  },
-  {
-   "id": "sheetSearch",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 780,
-   "hash": "92d431cf"
-  },
-  {
-   "id": "sheetThemeMarket",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 769,
-   "hash": "a17c56b4"
-  },
-  {
-   "id": "sheetLedgerWheel",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 747,
-   "hash": "d119164e"
-  },
-  {
-   "id": "sheetImgSrc",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 691,
-   "hash": "e4eb78ca"
-  },
-  {
-   "id": "sheetCatParent",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 686,
-   "hash": "dcad8fc6"
-  },
-  {
-   "id": "sheetWeatherPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 681,
-   "hash": "bb120148"
-  },
-  {
-   "id": "sheetLedgerAcct",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 662,
-   "hash": "0c7e947d"
-  },
-  {
-   "id": "sheetLedgerBatches",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 629,
-   "hash": "93775951"
-  },
-  {
-   "id": "sheetLedgerQuick",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 628,
-   "hash": "34357af1"
-  },
-  {
-   "id": "sheetCityPick",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 619,
-   "hash": "3eb6ab20"
-  },
-  {
-   "id": "sheetDiaryTpl",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 592,
-   "hash": "2ccc021f"
-  },
-  {
-   "id": "sheetLedgerBooks",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 565,
-   "hash": "db855b87"
-  },
-  {
-   "id": "sheetNoteMove",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 530,
-   "hash": "79853f35"
-  },
-  {
-   "id": "p-budget",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 496,
-   "hash": "cb88f16f"
-  },
-  {
-   "id": "p-yearly",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 485,
-   "hash": "ea3104de"
-  },
-  {
-   "id": "sheetLedgerParent2",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 451,
-   "hash": "51c4b9ce"
-  },
-  {
-   "id": "sheetLedgerMore",
-   "kind": "sheet",
-   "title": "",
-   "role": "home",
-   "size": 437,
-   "hash": "041ca816"
-  },
-  {
-   "id": "sheetDiaryFilter",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 408,
-   "hash": "d8886131"
-  },
-  {
-   "id": "sheetPSDetail",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 365,
-   "hash": "5978e67a"
-  },
-  {
-   "id": "sheetEventDetail",
-   "kind": "sheet",
-   "title": "",
-   "role": "cut",
-   "size": 342,
-   "hash": "4eac6fa6"
-  },
-  {
-   "id": "p-assetAcct",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 131,
-   "hash": "d0953017"
-  },
-  {
-   "id": "p-assets",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 128,
-   "hash": "a2a00d72"
-  },
-  {
-   "id": "p-export",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 128,
-   "hash": "2ed108a8"
-  },
-  {
-   "id": "p-recur",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 127,
-   "hash": "b6b7a9e5"
-  },
-  {
-   "id": "p-wish",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 127,
-   "hash": "c96f1f8b"
-  },
-  {
-   "id": "p-debt",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 127,
-   "hash": "6c71aaac"
-  },
-  {
-   "id": "p-lset",
-   "kind": "screen",
-   "title": "",
-   "role": "home",
-   "size": 127,
-   "hash": "30df950f"
-  },
-  {
-   "id": "p-toolDetail",
-   "kind": "screen",
-   "title": "小工具",
-   "role": "cut",
-   "size": 115,
-   "hash": "cb62630b"
+   "hash": "450e3c71"
   },
   {
    "id": "p-txDetail",
@@ -769,7 +25,271 @@
    "title": "",
    "role": "home",
    "size": 112,
-   "hash": "28e2226b"
+   "hash": "833f1f06"
+  },
+  {
+   "id": "p-report",
+   "kind": "screen",
+   "title": "检查报告",
+   "role": "home",
+   "size": 1709,
+   "hash": "f342937a"
+  },
+  {
+   "id": "p-yearly",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 485,
+   "hash": "aacf78e5"
+  },
+  {
+   "id": "p-budget",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 496,
+   "hash": "6e6bd32d"
+  },
+  {
+   "id": "p-assets",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 128,
+   "hash": "900559bf"
+  },
+  {
+   "id": "p-assetAcct",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 131,
+   "hash": "114d7fbd"
+  },
+  {
+   "id": "p-cats",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1320,
+   "hash": "0715c32a"
+  },
+  {
+   "id": "p-recur",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "3dbea0b4"
+  },
+  {
+   "id": "p-wish",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "e7360a2c"
+  },
+  {
+   "id": "p-debt",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "e43ee2de"
+  },
+  {
+   "id": "p-txSearch",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 820,
+   "hash": "4a2f1707"
+  },
+  {
+   "id": "p-lset",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 127,
+   "hash": "b4a73fb1"
+  },
+  {
+   "id": "p-export",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 128,
+   "hash": "bb8497cb"
+  },
+  {
+   "id": "p-billImport",
+   "kind": "screen",
+   "title": "导入账单",
+   "role": "home",
+   "size": 8019,
+   "hash": "b840e736"
+  },
+  {
+   "id": "sheetBillCat",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1361,
+   "hash": "42dd541a"
+  },
+  {
+   "id": "sheetBiAcctPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 785,
+   "hash": "1c925ecd"
+  },
+  {
+   "id": "sheetLedgerDate",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 998,
+   "hash": "740bb8dd"
+  },
+  {
+   "id": "sheetLedgerMore",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 437,
+   "hash": "90e6b93d"
+  },
+  {
+   "id": "sheetLedgerAcct",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 662,
+   "hash": "e087d2f9"
+  },
+  {
+   "id": "sheetLedgerCatAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2156,
+   "hash": "2c2db69d"
+  },
+  {
+   "id": "sheetLedgerParent2",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 451,
+   "hash": "97818f12"
+  },
+  {
+   "id": "sheetLedgerCatPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2123,
+   "hash": "406a6943"
+  },
+  {
+   "id": "sheetLedgerWho",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 802,
+   "hash": "b9742b50"
+  },
+  {
+   "id": "sheetLedgerTag",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 994,
+   "hash": "b2319937"
+  },
+  {
+   "id": "sheetLedgerMerch",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 809,
+   "hash": "cd3f7b03"
+  },
+  {
+   "id": "sheetLedgerQuick",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 628,
+   "hash": "bddc6e0d"
+  },
+  {
+   "id": "sheetLedgerHero",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1031,
+   "hash": "766d705d"
+  },
+  {
+   "id": "sheetLedgerBooks",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 565,
+   "hash": "39f2b831"
+  },
+  {
+   "id": "sheetLedgerAcctAdd",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1277,
+   "hash": "2bd4795c"
+  },
+  {
+   "id": "sheetLedgerBatches",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 629,
+   "hash": "15a77421"
+  },
+  {
+   "id": "sheetLedgerUndo",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1107,
+   "hash": "3afa374a"
+  },
+  {
+   "id": "sheetLedgerWheel",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 747,
+   "hash": "c3e9c7db"
+  },
+  {
+   "id": "sheetAddExcerpt",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1251,
+   "hash": "b873c739"
+  },
+  {
+   "id": "sheetYearShare",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 887,
+   "hash": "aed11b1a"
   }
  ]
 }

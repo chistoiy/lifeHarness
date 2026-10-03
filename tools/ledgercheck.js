@@ -32,13 +32,19 @@ for (const m of s.matchAll(/\bon(?:click|input|change|submit|keydown)=\\?["'`]([
 console.log('未定义处理器:', called.size ? [...called].map(x => x[0] + '(' + x[1] + ')').join(' ') : 'NONE');
 if (called.size) bad++;
 
-// 3) getElementById 字面量目标存在性
+// 3) getElementById 字面量目标存在性（屏单一归属后：已迁出 id 按注册表 deleted 段豁免，兜底＝重定向）
+let GONE = new Set();
+try {
+  const reg = JSON.parse(fs.readFileSync('prototype/_modules.json', 'utf8'));
+  const base = require('path').basename(F);
+  for (const rec of (reg.deleted || {})[base] || []) { GONE.add(rec.id); (rec.inner || []).forEach(x => GONE.add(x)); }
+} catch (e) { }
 const miss = new Set();
 for (const m of s.matchAll(/getElementById\(['"]([\w-]+)['"]\)/g)) {
-  if (!new RegExp('id="' + m[1] + '"').test(s) && !decl.has(m[1])) miss.add(m[1]);
+  if (!GONE.has(m[1]) && !new RegExp('id="' + m[1] + '"').test(s) && !decl.has(m[1])) miss.add(m[1]);
 }
 for (const m of s.matchAll(/\$\('#([\w-]+)'\)/g)) {
-  if (!new RegExp('id="' + m[1] + '"').test(s) && !decl.has(m[1])) miss.add(m[1]);
+  if (!GONE.has(m[1]) && !new RegExp('id="' + m[1] + '"').test(s) && !decl.has(m[1])) miss.add(m[1]);
 }
 const SHELL_LEGACY=new Set(['dashTip']);for(const x of SHELL_LEGACY)miss.delete(x);// dashTip=壳层既有缺口 非记账引入
 console.log('缺失 id 目标:', miss.size ? [...miss].join(' ') : 'NONE');
