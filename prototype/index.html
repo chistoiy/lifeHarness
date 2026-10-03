@@ -1033,6 +1033,7 @@ tailwind.config = {
       </div>
       <div class="mt-3 text-[10px] text-slate-400 px-1 leading-5">⚖️ 挂载冲突仲裁链：用户手动排序 &gt; 插件声明权重 &gt; 安装时序；单槽位挂载取最高权重，多槽位按序排布。</div>
       <div id="psList" class="mt-2 space-y-3"></div>
+      <button class="mt-3 w-full card !py-3 flex items-center gap-2 text-left active:scale-[.99] transition" onclick="openSheet('sheetPlugin')"><b class="text-sm flex-1">加载拓展工具（本地目录 / 下载链接）</b><span class="text-slate-300">›</span></button>
       <div class="card mt-4 text-[11px] text-slate-400 leading-6">
         <b class="text-slate-600 dark:text-slate-300 text-xs">自定义源</b><br>
         可指向任意兼容仓库的插件索引：<input class="inp w-full mt-1.5 !py-2 text-xs font-mono" value="https://github.com/lifeharness/plugins/releases/latest/download/index.json">
@@ -1411,6 +1412,20 @@ tailwind.config = {
       </div>
 
       <!-- 筛选配置弹层 -->
+  <!-- 治理批动刀⑪：sheetPlugin 按拍板归壳并入（去 emoji 标题；保存簇适配壳新版 PS 插件机制） -->
+  <div id="sheetPlugin" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetPlugin')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">加载拓展工具</div>
+      <div class="mt-3 text-xs font-bold text-slate-500">方式一 · 本地插件目录</div>
+      <div class="text-[11px] text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 mt-1 leading-5">将 <b>plugin.json + index.html</b> 打包为 xxx.h5.zip 放入：<br><span class="font-mono text-[10px]">/Android/data/…/lifeharness/plugins/</span><br>重启后自动扫描载入（模拟）</div>
+      <div class="mt-3 text-xs font-bold text-slate-500">方式二 · 下载链接（GitHub Release 等）</div>
+      <input id="plgUrl" class="mt-1 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-xs outline-none" placeholder="https://github.com/xxx/lh-plugin-barcode/releases/.../plugin.zip" value="https://github.com/lifeharness/plugins/releases/download/barcode-v1/plugin.zip">
+      <label class="mt-2 flex items-center justify-between text-xs"><span>安装前校验文件哈希（SHA-256 · 防篡改）</span><span class="toggle on" onclick="tgl(this)"></span></label>
+      <div id="plgProg" class="hidden mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><span id="plgBar" class="block h-full grad rounded-full transition-all" style="width:0"></span></div>
+      <button onclick="plgInstall()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">下载并安装（模拟）</button>
+    </div>
+  </div>
       <div id="sheetLogSettings" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLogSettings')">
         <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
           <div class="grabber"></div>
@@ -2797,7 +2812,6 @@ function posW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w|
 function wAbs(id){const w=WHEELS[id];return Math.max(0,Math.round(w._bx.scrollTop/WI_H))}
 function syncW(id){const w=WHEELS[id];if(!w._bx)return;const c=wAbs(id);w._bx.querySelectorAll('.witem').forEach((d,k)=>d.classList.toggle('on',k===c))}
 function commitW(id){const w=WHEELS[id];const n=w.items.length;const i=((wAbs(id)%n)+n)%n;if(i!==w.i){w.i=i;if(w.onch)w.onch()}}
-function wShift(id,d){const w=WHEELS[id];w.i=((w.i+d)%w.items.length+w.items.length)%w.items.length;renderW(id);if(w.onch)w.onch()}
 function openDatePick(){
   wReg('dpY',['2024','2025','2026','2027','2028'],2,dpHint);
   wReg('dpM',['01','02','03','04','05','06','07','08','09','10','11','12'],8,dpHint);
@@ -3014,9 +3028,7 @@ function renderDayHours(){const el=$('#calDayHourView');if(!el)return;
     return `<div onclick="event.stopPropagation();openBlockEdit(blocks[${id}])" class="mb-1 rounded-lg ${b.tm?'bg-rose-500 animate-pulse':(b.dn?'bg-emerald-400/90':blkColor(b))} text-white text-[10px] font-bold px-2 py-1.5 cursor-pointer flex items-center gap-2"><span class="flex-1 min-w-0 truncate">${fmt(b.s)} ${b.tailOf?'↩ ':''}${b.note||b.cat} ${lbl}</span><span class="shrink-0 opacity-80">${bend(b)-b.s}分</span></div>`}).join('');
    h+=`<div class="flex gap-2 border-b border-slate-100 dark:border-slate-800 min-h-[38px] cursor-pointer" onclick="openTimePick(calDay,${hr},0)"><span class="w-9 shrink-0 text-[10px] font-mono text-slate-400 pt-1.5">${hr}:00</span><div class="flex-1 py-1 pr-1">${chips}</div></div>`}
   el.innerHTML=h;}
-function addEventAtHour(hr){openTimePick(calDay,hr,0)}
 /* —— 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加 · V1.46⑤ 同格多项并排分段+「+N」徽标） —— */
-function blocksAt(m,d){return dayBlocks(d===undefined?TODAY:d).filter(b=>m>=b.s&&m<bend(b));}
 function blocksHour(d,a,b){return dayBlocks(d).filter(x=>x.s<b&&bend(x)>a).sort((x,y)=>x.s-y.s)}
 function weekCellSegments(bs){if(bs.length<=3)return bs.map(b=>({b,n:1}));
   return bs.slice(0,3).map(b=>({b,n:1})).concat([{b:bs[3],n:bs.length-3}]);}
@@ -3061,8 +3073,6 @@ function openTimePick(d,h,m,editBlk){const isNow=h===undefined&&m===undefined;
   wReg('tpEd',TP_DAYS,Math.min(29,di+eOff),tpUpd);wReg('tpEh',TP_HRS,Math.floor(e0%1440/60),tpUpd);wReg('tpEm',TP_MINS,e0%1440%60,tpUpd);
   const hint=$('#tpHintEl');if(hint)hint.textContent=bl?(tpTiming?'● 计时中 · 已 '+(e0-bl.s)+' 分钟':'✎ 编辑中 · 修改即保存'):(sd===TODAY&&isNow?'▶ 起止默认当前 · 确认后即为计时中':(sd!==TODAY?'补录 · 完全以所设时间为准':''));
   tpCats();tpSubsRender();tpFoot();tpUpd();openSheet('sheetTimePick')}
-function tpNow(){const n=nowMin();tpSetWheel('tpSd',TODAY-1);tpSetWheel('tpSh',Math.floor(n/60));tpSetWheel('tpSm',n%60);
-  tpSetWheel('tpEd',TODAY-1);tpSetWheel('tpEh',Math.floor(n/60));tpSetWheel('tpEm',n%60);tpUpd()}
 function tpUpd(){const s=tpMin('tpSh')*60+tpMin('tpSm'),e=tpEd();
   const sdW=WHEELS.tpSd.items[WHEELS.tpSd.i],edW=WHEELS.tpEd.items[WHEELS.tpEd.i],cross=sdW!==edW;
   $('#tpRange').textContent=sdW+' '+String(tpMin('tpSh')).padStart(2,'0')+':'+String(tpMin('tpSm')).padStart(2,'0')+' → '+(cross?edW+' ':'')+String(Math.floor(e/60)%24).padStart(2,'0')+':'+String(e%60).padStart(2,'0')+' · '+(e>=s?e-s:e+1440-s)+' 分钟'+(cross?' · 跨天':'');
@@ -3644,7 +3654,6 @@ function ntAdd(){const target=ntSel;
   arr.push({n:n,c:[]});renderNt();toast(target?'已在「'+target+'」下新建「'+n+'」':'已新建顶层文件夹「'+n+'」');}
 function ntRename(){toast(ntSel?'重命名「'+ntSel+'」（模拟）':'先点选树中的文件夹，再按此键');}
 let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
-function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortMode]);}
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
 function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
@@ -4246,7 +4255,6 @@ function gPaint(){const b=$('#gModeBtn');if(!b)return;const names=['百分位 P'
 function gCycle(){gMode=(gMode+1)%3;gPaint();const names=['百分位（对照 WHO P3/P50/P97 带）','标准差（SD，偏离均值倍数）','Z 分数（=SD 的同义学术表达）'];toast('显示模式：'+names[gMode])}
 function sportCalc(){const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;const el=$('#spOut');if(!km||!mn){el.textContent='请填写距离与时长';return}
  const p=mn/km,pm=Math.floor(p),sec=Math.round((p-pm)*60);el.textContent=`配速 ${pm}′${String(sec).padStart(2,'0')}″/km · ${km}km=${mn}min 三模互算 ✓`;}
-function sportCalc0(){sportCalc()}
 function sportSave(){sportCalc();const km=+$('#spKm').value||0,mn=+$('#spMin').value||0;if(!km||!mn)return;toast('🏃 已存：运动 '+km+'km / '+mn+'min → 写入时间账本「运动」（L11）· 可发起运动计时（复用悬浮计时条）')}
 let VAX=[{n:'手足口病灭活疫苗 第1剂',due:'2026-10-12',st:'plan'},{n:'流脑 A群多糖 第1剂',due:'2026-11-02',st:'plan'},{n:'乙脑减毒 第1剂',due:'2026-09-08',st:'done'},{n:'乙肝第3剂',due:'2026-07-15',st:'done'}];
 function renderVax(){const el=$('#vaxList');if(!el)return;
@@ -4459,7 +4467,6 @@ function diaryFmt(k){const ed=$('#diaryText');if(!ed||!ed.isContentEditable){toa
  else if(k==='quote')document.execCommand('formatBlock',false,'blockquote');
  else if(k==='todo'){document.execCommand('insertHTML',false,'<div><span class="diary-chk">☐</span>&nbsp;待办&nbsp;</div>');toast('已插入待办 · 保存后同步 L3');}
 }
-function diaryAttach(){imgTarget='diary';openSheet('sheetImgSrc');}
 /* 轮12-2：快捷栏 拍照/相册=直取来源插图（不再经来源弹层） */
 function diaryAttachDirect(src){imgTarget='diary';pwPickImg(src);}
 /* 轮12-1：今日概览草稿默认折叠·点标题行展开/收起 */
@@ -4583,33 +4590,26 @@ function copyAllLogs(){
 (function(){
 var RED=window.LH_REDIRECTS={"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-billImport":["index-ledger.html","记账"],"p-itemDetail":["index-day_aim__goods.html","目标"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetTocImport":["index-bookshelf.html","阅读·书架"]};
 var DROP=window.LH_DROPPED={};
-window.lhGone=function(id){var r=RED[id];
-  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+id;},700);return;}
+var SELF=window.LH_SELF={};
+window.lhGone=function(id){
+  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
+  var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
   if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
   console.warn('[lh-gov] 目标不在本版:',id);
 };
 function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
   if(!h)return;var el=document.getElementById(h);
   if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
-  var r=RED[h];if(r)location.replace(r[0]+'#'+h);}
+  if(SELF[h]){location.replace('#'+SELF[h]);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
 window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
 window.lhBoot();
 window.addEventListener('load',function(){window.lhBoot();});
 })();
-/*LH-GOV-END*/
-/* ==== 治理批动刀⑧：过渡态弹层依赖函数回灌（源＝index-bookshelf.html.before 删前快照） ==== */
-function startNow(){const t=(($('#evTitle')&&$('#evTitle').value.trim())||'正在处理一件事');closeSheet('sheetAddEvent');
- const now=new Date();const nm=now.getHours()*60+now.getMinutes();liveEv={t:t,s:nm};
- blocks.push({s:nm,e:Math.min(1439,nm+60),cat:'工作',live:1,note:t});
- if($('#evTitle'))$('#evTitle').value='';
- if(calView!=='axis'&&calView!=='block')switchCalView('axis');
- renderCal();toast('▶ 已开始：'+t+' · 开始时间 '+fmt(nm)+' · 完成后点「■ 结束」');}
-function doMark(){if(!markSel)return;const a=Math.min(markSel.a,markSel.b),b=Math.max(markSel.a,markSel.b);
-  blocks.push({s:cellMin(a),e:cellMin(b)+gran,cat:markCat,note:$('#markNote').value.trim()});
-  $('#markNote').value='';selA=selB=null;renderCal();closeSheet('sheetGridMark');
-  toast('✔ 已标记 '+fmt(cellMin(a))+'-'+fmt(cellMin(b)+gran)+' · '+markCat+' → 已写入时间账本（联动 L4 · 轴/日/周视图同步）');}
-function delMark(){if(!markSel)return;const blk=blockAt(cellMin(markSel.a));if(blk)blocks=blocks.filter(x=>x!==blk);
-  selA=selB=null;renderCal();closeSheet('sheetGridMark');toast('标记已取消，格子恢复空闲（五视图同步）');}
+/*LH-GOV-END*//* 治理批动刀⑪：plgInstall（适配壳新版插件中心 PS 机制） */
+
+function plgInstall(){const u=$('#plgUrl').value.trim();if(!u){toast('请先填入插件包下载地址');return;}$('#plgProg').classList.remove('hidden');const bar=$('#plgBar');let w=0;const t=setInterval(()=>{w+=9+Math.random()*16;bar.style.width=Math.min(100,w)+'%';if(w>=100){clearInterval(t);PS.push({id:'barcode',ic:'▦',n:'条形码生成器',cat:'工具',ver:'1.0.0',host:'1.0',size:'0.4 MB',rating:'',state:'inst',weight:30,mount:['首页宫格'],tbl:'plugin_barcode',desc:'本地生成条码/二维码 · 导出 PNG',long:'H5 拓展工具：纯本地计算，不申请网络与后台常驻。',perm:['隔离表空间 plugin_barcode（SQLite）'],hist:['1.0.0 首发']});renderPstore();closeSheet('sheetPlugin');toast('✔ SHA-256 校验通过（模拟）· 已安装 · 可在「已安装」管理');}},140);}
 </script>
 </body>
 </html>

@@ -32,6 +32,19 @@ for (const v of (reg.violations || [])) {
 for (const s of reg.screens) {
   if (s.status === 'dropped' && ((s.files && s.files[f]) || html.includes('"' + s.id + '"') || html.includes("'" + s.id + "'"))) DROP[s.id] = 1;
 }
+/* 同文件更名/迁移重定向（reg.redirects 中 from/to 同属本文件的条目） */
+const SELF = {};
+for (const r of (reg.redirects || [])) {
+  const [fp, fid] = String(r.from).split('#');
+  const [tp, tid] = String(r.to).split('#');
+  if (fp === f && tp === f && fid && tid) SELF[fid] = tid;
+}
+/* 历史深链重定向（redirects 中 from 属本文件、to 属他文件的更名/迁走条目） */
+for (const r of (reg.redirects || [])) {
+  const [fp, fid] = String(r.from).split('#');
+  const [tp, tid] = String(r.to).split('#');
+  if (fp === f && tp !== f && fid && !SELF[fid] && !RED[fid]) RED[fid] = tid !== fid ? [tp, modByFile[tp] || tp, tid] : [tp, modByFile[tp] || tp];
+}
 
 /* 2. 守卫插入：navTo / setPage / openSheet */
 function guardOnce(anchor, replacement, mark, name) {
@@ -61,16 +74,20 @@ const block = '<script>' + START + '\n' +
   '(function(){\n' +
   'var RED=window.LH_REDIRECTS=' + JSON.stringify(RED) + ';\n' +
   'var DROP=window.LH_DROPPED=' + JSON.stringify(DROP) + ';\n' +
-  'window.lhGone=function(id){var r=RED[id];\n' +
+  'var SELF=window.LH_SELF=' + JSON.stringify(SELF) + ';\n' +
+  'window.lhGone=function(id){\n' +
+  "  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}\n" +
+  '  var r=RED[id];\n' +
   "  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}" +
-  'setTimeout(function(){location.href=r[0]+\'#\'+id;},700);return;}\n' +
+  'setTimeout(function(){location.href=r[0]+\'#\'+(r[2]||id);},700);return;}\n' +
   "  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}\n" +
   "  console.warn('[lh-gov] 目标不在本版:',id);\n" +
   '};\n' +
   "function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}\n" +
   "  if(!h)return;var el=document.getElementById(h);\n" +
   "  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}\n" +
-  '  var r=RED[h];if(r)location.replace(r[0]+\'#\'+h);}\n' +
+  "  if(SELF[h]){location.replace('#'+SELF[h]);return;}\n" +
+  '  var r=RED[h];if(r)location.replace(r[0]+\'#\'+(r[2]||h));}\n' +
   "window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};\n" +
   'window.lhBoot();\n' +
   "window.addEventListener('load',function(){window.lhBoot();});\n" +

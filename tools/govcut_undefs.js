@@ -3,7 +3,7 @@
 // 循环至不动点。护栏：checkinline 语法由调用方复跑；--dry 只报告。
 const fs = require('fs');
 const f = process.argv[2];
-const dry = process.argv.includes('--dry');
+const dry = process.argv.includes('--dry');const ALLOW_PREDEAD = process.argv.includes('--predead');
 const F = 'prototype/' + f;
 let h = fs.readFileSync(F, 'utf8');
 // 只清"因本批删除而失去引用"的函数：删前快照中引用数须 >1（删前已死＝存量债，出本批范围）
@@ -38,7 +38,7 @@ while (iter++ < 12) {
   for (const n of [...new Set(names)]) {
     const cnt = cntIn(h, n);
     if (cnt !== 1) continue;
-    if (pre && cntIn(pre, n) <= 1) continue;
+    if (pre && !ALLOW_PREDEAD && cntIn(pre, n) <= 1) continue;
     const d = findDef(n, h);
     if (!d) continue;
     // 保险：定义段内不得再含其他 function 定义起点判断失误（粗查段落内 'function ' 个数==1）

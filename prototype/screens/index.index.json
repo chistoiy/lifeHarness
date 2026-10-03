@@ -1,6 +1,6 @@
 {
  "file": "index.html",
- "total": 482324,
+ "total": 483442,
  "cut": 0,
  "screens": [
   {
@@ -128,8 +128,8 @@
    "kind": "screen",
    "title": "插件中心",
    "role": "home",
-   "size": 1721,
-   "hash": "156dff0d"
+   "size": 1961,
+   "hash": "7963f1a7"
   },
   {
    "id": "p-profile",
@@ -224,8 +224,16 @@
    "kind": "screen",
    "title": "日志管理",
    "role": "home",
-   "size": 9608,
-   "hash": "e594976a"
+   "size": 11259,
+   "hash": "dcb7c8b0"
+  },
+  {
+   "id": "sheetPlugin",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 1581,
+   "hash": "411571e8"
   },
   {
    "id": "sheetLogSettings",
