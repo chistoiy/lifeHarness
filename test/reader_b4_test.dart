@@ -285,11 +285,6 @@ void main() {
         'brApSubBtn-theme',
         'brApSubBtn-bg',
         'brApSubBtn-s2t',
-        'brApJust',
-        'brApBright',
-        'brApAuto',
-        'brApLumSlider',
-        'brApSave',
       ]) {
         expect(find.byKey(ValueKey(k)), findsOne, reason: k);
       }
@@ -313,6 +308,16 @@ void main() {
             .width,
         1.6,
       );
+      // 批三刀4 在「两端对齐」下加了「跟随原书样式」开关行（＋不支持项提示行），
+      // 面板变长：开关行四件仍在原位，亮度滑杆落到懒建 ListView 的视口外，
+      // 要滚到才在场——不是布局丢了，是主面板本就滚动（原型 sheetBrAppearance 同）。
+      for (final k in ['brApJust', 'brApOrig', 'brApBright', 'brApAuto']) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
+      await apScrollTo(t, 'brApLumSlider');
+      for (final k in ['brApLumSlider', 'brApSave']) {
+        expect(find.byKey(ValueKey(k)), findsOne, reason: k);
+      }
     });
 
     testWidgets('字体二级页：分类 chips 过滤→选衬线组字卡→回主页回显→保存落 font', (t) async {

@@ -5,7 +5,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/logging/app_log.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/epub_css.dart';
 import '../../domain/reader_cfg.dart';
 import './reader_bg.dart';
 
@@ -25,6 +27,9 @@ Future<void> showReaderAppearance(
   required ReaderCfg current,
   required void Function(ReaderCfg draft, bool scopeBook, String? pickedImage)
   onSave,
+  /// 该书解析时留下的「不支持/近似降级」声明（`EpubDoc.unsupported`）。
+  /// 非空时开关行下方给一行提示——**画不成也要说出来**（路线说明 §五.2）。
+  List<EpubUnsupported> unsupported = const [],
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
@@ -37,6 +42,7 @@ Future<void> showReaderAppearance(
     maxChildSize: .92,
     builder: (_, scrollCtl) => _ApSheet(
       initial: current,
+      unsupported: unsupported,
       scrollCtl: scrollCtl,
       onSave: (d, book, img) {
         Navigator.of(sc).pop();
@@ -74,10 +80,14 @@ class _ApSheet extends StatefulWidget {
     required this.initial,
     required this.scrollCtl,
     required this.onSave,
+    this.unsupported = const [],
   });
   final ReaderCfg initial;
   final ScrollController scrollCtl;
   final void Function(ReaderCfg, bool, String?) onSave;
+
+  /// 本书的「不支持/近似降级」声明（打开时一次性给出，草稿改动不影响它）。
+  final List<EpubUnsupported> unsupported;
 
   @override
   State<_ApSheet> createState() => _ApSheetState();
@@ -86,6 +96,28 @@ class _ApSheet extends StatefulWidget {
 class _ApSheetState extends State<_ApSheet> {
   late ReaderCfg _d = widget.initial;
   bool _scopeBook = true;
+
+  /// 提示行文案：逐条 [EpubUnsupported.describe]，**按判定键去重**——
+  /// `.name` 的 `border-left` 与 `.name1` 的 `border` 归同一个键 `border`，
+  /// UI 上不许印两遍（2026-10-04 拍板：描边框画不成框也不许静默）。
+  late final List<String> _unsLines = () {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final u in widget.unsupported) {
+      if (seen.add(u.key)) out.add(u.describe());
+    }
+    return out;
+  }();
+
+  @override
+  void initState() {
+    super.initState();
+    // 「不许静默降级」的两条腿：提示行给人看，这一条给日志页与真机取证用
+    // （口径＝一条记录落盘一行；describe 串本身单行）。
+    if (_unsLines.isNotEmpty) {
+      AppLog.add('本书排版声明未能原样呈现：${_unsLines.join(' · ')}');
+    }
+  }
 
   /// R3-7 二级页栈（同一弹层内部）：null＝主面板；否则 font/ind/turn/theme/bg/s2t。
   String? _sub;
@@ -362,6 +394,27 @@ class _ApSheetState extends State<_ApSheet> {
             value: _d.just,
             onChanged: (v) => _set(_d.copyWith(just: v)),
           ),
+          // 批三刀4（原型 index-bookshelf.html:1772 已过门）：总开关「跟随原书样式」，
+          // 默认开＝§5.4 拍板③；就地一个开关，不拆子开关、不做两段式弹层。
+          SwitchListTile(
+            key: const ValueKey('brApOrig'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('跟随原书样式', style: TextStyle(fontSize: 12.5)),
+            value: _d.orig,
+            onChanged: (v) => _set(_d.copyWith(orig: v)),
+          ),
+          // 同一行下方＝本书不支持项提示（原型 brApOrigWarn）；按判定键去重，
+          // 竖排/表格这类结构性丢弃与描边框的近似降级都要说出来。
+          if (_unsLines.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 2, bottom: 6),
+              child: Text(
+                key: const ValueKey('brApOrigWarn'),
+                '本书含${_unsLines.join(' · ')}',
+                style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+              ),
+            ),
           SwitchListTile(
             key: const ValueKey('brApBright'),
             dense: true,

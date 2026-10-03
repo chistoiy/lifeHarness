@@ -409,8 +409,13 @@ extension _ReaderChrome on _ReaderPageState {
         (l.start + ind, 0, l),
         (l.end + ind, 1, l),
       ],
+      // 区间**起与止都要切**：只切起点会让整段一路披成第一个 run 的样式
+      // （真机表现＝注释段之后的正文跟着变绿变小）。
       if (_cfg.orig && p.runs.isNotEmpty)
-        for (final r in p.runs) (r.start + ind, 6, null),
+        for (final r in p.runs) ...[
+          (r.start + ind, 6, null),
+          (r.end + ind, 6, null),
+        ],
       if (hit && _hitQ.isNotEmpty) ...[
         for (var idx = p.text.indexOf(_hitQ); idx >= 0; idx = p.text.indexOf(_hitQ, idx + 1)) ...[
           (idx + ind, 2, null),

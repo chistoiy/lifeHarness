@@ -50,6 +50,7 @@ part 'reader_sel_ops.dart';
 part 'reader_stage.dart';
 part 'reader_links.dart';
 part 'reader_xray.dart';
+part 'reader_page_pag.dart';
 
 /// 阅读主屏（V1.50 · 事实源 `#p-readerPage` BR-2 + V1.51 目录侧边抽屉）。
 ///
@@ -743,6 +744,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     showReaderAppearance(
       context,
       current: _cfg,
+      // 批三刀4：本书解析留下的「不支持/近似降级」声明进外观页提示行（不许静默）。
+      unsupported: _doc?.unsupported ?? const [],
       onSave: (draft, scopeBook, pickedImage) async {
         var d = draft;
         // 相册图落进应用私有目录（草稿期用临时路径预览，退出即失效）。
@@ -860,72 +863,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   int _pagGen = 0;
   Timer? _pagSaveT;
 
-  void _rebuildPag() {
-    final doc = _doc;
-    if (doc == null || _viewport.width <= 0) return;
-    final gen = ++_pagGen;
-    final l = _layout();
-    unawaited(_applyPag(doc, l, gen));
-  }
 
-  List<int> _weights(EpubDoc doc) => doc.chapterCharCounts;
-
-  /// V1.53.1 轮4（foliate 模型）：分页**按章懒排**。打开＝当前章同步实算上屏
-  /// （毫秒级，一章而已），落盘表后台合并（允许部分章缺）；不再有任何整本循环
-  /// ——那正是大书打开后书摘/抽屉卡顿的主线程霸占者（真机反馈⑤⑥的最终形态）。
-  Future<void> _applyPag(EpubDoc doc, ReaderLayout l, int gen) async {
-    final svc = ref.read(epubPreloadProvider);
-    final fresh = BookPagination.lazy(_weights(doc));
-    _ensure(fresh, doc, l, _pos.ci.clamp(0, doc.chapters.length - 1));
-    setState(() {
-      _pag = fresh;
-      _clampPos();
-    });
-    if (svc.docsPath == null) return;
-    BookPagination? tab;
-    try {
-      tab = await svc.loadPag(widget.bookId, l, _weights(doc));
-    } catch (_) {}
-    if (!mounted || gen != _pagGen || tab == null) return;
-    final cur = _pag;
-    if (cur == null) return;
-    for (var i = 0; i < cur.pages.length && i < tab.pages.length; i++) {
-      if (cur.pages[i] == null) cur.pages[i] = tab.pages[i];
-    }
-    setState(_clampPos);
-  }
-
-  /// 指定章未排版则实算（同步读快照章 + TextPainter，单章毫秒级）。
-  void _ensure(BookPagination pag, EpubDoc doc, ReaderLayout l, int ci) {
-    if (ci < 0 || ci >= doc.chapters.length || pag.laidOut(ci)) return;
-    pag.setChapter(ci, EpubPager.layoutChapter(doc.chapters[ci].paras, l));
-    _pagSaveTick();
-  }
-
-  /// 确保当前章已排版（翻页/跳章/ seek 落章后统一走这里）。
-  void _ensureCur() {
-    final doc = _doc, pag = _pag;
-    if (doc == null || pag == null) return;
-    _ensure(pag, doc, _layout(), _pos.ci.clamp(0, doc.chapters.length - 1));
-  }
-
-  /// 分页表防抖落盘（连翻多章后 2s 写一次，不逐章打盘）。
-  void _pagSaveTick() {
-    _pagSaveT?.cancel();
-    _pagSaveT = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      final svc = ref.read(epubPreloadProvider);
-      final pag = _pag;
-      if (svc.docsPath != null && pag != null) {
-        unawaited(svc.savePag(widget.bookId, _layout(), pag));
-      }
-    });
-  }
-
-  /// 分页布局（R3-2 起与整本预载共用 [ReaderLayout.of]：indMode 三档进指纹后，
-  /// 两处各写一份映射迟早分叉，预载表就再也命中不了）。
-  ReaderLayout _layout() =>
-      ReaderLayout.of(_cfg, width: _viewport.width, height: _viewport.height);
 
   void _showFlash(String msg) {
     setState(() => _flash = msg);

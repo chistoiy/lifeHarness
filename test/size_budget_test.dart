@@ -28,10 +28,8 @@ void main() {
     'features/journal/presentation/diary_edit_page.dart': 1260,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
-    // R3-2 批登记：reader_page 在实现批1（R3-7）后长到 1213 行、超线未登记＝门禁存量红。
-    // 本批把外观→布局映射收进 ReaderLayout.of 后回落到 1207，先按登记值钉住（只许减），
-    // 下一轮按 G7c 族口径把会话/计时群拆出主文件后**删掉本项**归还默认面。
-    'features/read/presentation/reader/reader_page.dart': 1204,
+    // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展
+    // `part 'reader_page_pag.dart';`（G7c 族口径），主文件回到默认 1200 面以下。
   };
 
   test('体积预算：lib 超线文件必须登记且只许减不许增', () {
