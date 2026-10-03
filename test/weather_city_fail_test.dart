@@ -1,0 +1,122 @@
+import 'helpers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/logging/app_log.dart';
+import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/features/settings/presentation/weather_city_sheet.dart';
+import 'package:lifeharness/shared/weather/weather_dao.dart';
+import 'package:lifeharness/shared/weather/weather_service.dart';
+import 'package:lifeharness/shared/weather/weather_visual.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+/// 真机反馈轮4①：天气城市搜索的三态弹层回归（独立文件防 isolate 污染）。
+/// 口径＝「网络不可达」与「无匹配城市」必须分开，失败不许静默（落日志行）。
+void main() {
+  sqfliteFfiInit();
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Database db;
+  late SharedPreferences prefs;
+
+  setUp(() async {
+    AppLog.reset();
+    db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+  });
+
+  tearDown(() async {
+    await db.close();
+    AppLog.reset();
+  });
+
+  /// 打开弹层并搜一个词；返回后停在搜索结果态（busy 已落定）。
+  Future<void> openAndSearch(
+      WidgetTester tester, WeatherJsonFetcher fetch, String query) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        weatherServiceProvider
+            .overrideWithValue(WeatherService(WeatherDao(db), fetch: fetch)),
+      ],
+      child: MaterialApp(
+        home: Consumer(builder: (ctx, ref, _) => Scaffold(
+              body: Builder(
+                builder: (inner) => Center(
+                  child: ElevatedButton(
+                    onPressed: () => showWeatherCitySheet(inner, ref),
+                    child: const Text('open-sheet'),
+                  ),
+                ),
+              ),
+            )),
+      ),
+    ));
+    await tester.tap(find.text('open-sheet'));
+    await settle5(tester);
+    await tester.enterText(find.byKey(const ValueKey('city-search')), query);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle5(tester);
+  }
+
+  /// 失败日志按出现次数计（去重断言口径：禁 textContaining+findsOne 假绿）。
+  int failLogCount(String needle) => AppLog.lines
+      .where((l) => l.src == '天气' && l.text.contains(needle))
+      .length;
+
+  testWidgets('取数失败=「网络不可达」＋重试，绝不显示成「无匹配城市」，且落日志行',
+      (tester) async {
+    await openAndSearch(
+        tester, (u) async => (json: null, err: 'socket'), '杭州');
+
+    expect(find.text('网络不可达'), findsOneWidget);
+    expect(find.byKey(const ValueKey('city-retry')), findsOneWidget);
+    expect(find.text('无匹配城市'), findsNothing);
+    expect(failLogCount('城市搜索失败'), 1); // 一次搜索＝一条留痕
+
+    // 点「重试」＝再走一次搜索：仍不可达，日志累计两条（一条记录＝落盘一行）
+    await tester.tap(find.byKey(const ValueKey('city-retry')));
+    await settle5(tester);
+    expect(find.text('网络不可达'), findsOneWidget);
+    expect(failLogCount('城市搜索失败'), 2);
+  });
+
+  testWidgets('查无此城=「无匹配城市」，不冒充网络不可达、不落失败日志', (tester) async {
+    await openAndSearch(
+        tester, (u) async => (json: const {'results': <Object>[]}, err: null),
+            '不存在的城市名');
+
+    expect(find.text('无匹配城市'), findsOneWidget);
+    expect(find.text('网络不可达'), findsNothing);
+    expect(failLogCount('城市搜索失败'), 0);
+  });
+
+  testWidgets('正常命中=列表可选，无失败态', (tester) async {
+    await openAndSearch(tester, (u) async {
+      return (
+        json: const {
+          'results': [
+            {
+              'name': '杭州',
+              'latitude': 30.29,
+              'longitude': 120.16,
+              'admin1': '浙江'
+            },
+          ]
+        },
+        err: null
+      );
+    }, '杭州');
+
+    expect(find.byKey(const ValueKey('city-hit-杭州')), findsOneWidget);
+    expect(find.text('网络不可达'), findsNothing);
+    expect(find.text('无匹配城市'), findsNothing);
+    expect(failLogCount('城市搜索失败'), 0);
+  });
+}

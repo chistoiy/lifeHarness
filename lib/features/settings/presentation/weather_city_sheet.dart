@@ -29,7 +29,7 @@ class _CitySheetState extends ConsumerState<_CitySheet> {
   final _ctl = TextEditingController();
   List<CityHit>? _hits;
   bool _busy = false;
-  bool _failed = false;
+  String? _err; // 取数失败短码；非空=网络不可达（与「无匹配城市」分开，轮4①）
 
   @override
   void initState() {
@@ -47,19 +47,22 @@ class _CitySheetState extends ConsumerState<_CitySheet> {
   Future<void> _search() async {
     final q = _ctl.text.trim();
     if (q.isEmpty) {
-      setState(() => _hits = null);
+      setState(() {
+        _hits = null;
+        _err = null;
+      });
       return;
     }
     setState(() {
       _busy = true;
-      _failed = false;
+      _err = null;
     });
-    final hits = await ref.read(weatherServiceProvider).searchCity(q);
+    final r = await ref.read(weatherServiceProvider).searchCity(q);
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _hits = hits;
-      _failed = hits.isEmpty; // 含无网/无匹配（静默失败给一行提示位）
+      _hits = r.hits;
+      _err = r.err;
     });
   }
 
@@ -109,63 +112,105 @@ class _CitySheetState extends ConsumerState<_CitySheet> {
                         padding: EdgeInsets.all(20),
                         child:
                             SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
-                : hits == null
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                            child: Text('输入城市名搜索',
-                                style: TextStyle(
-                                    fontSize: 11, color: Colors.grey))),
-                      )
-                    : ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final h in hits)
-                            InkWell(
-                              key: ValueKey('city-hit-${h.name}'),
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => _pick(h),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 11),
-                                decoration: BoxDecoration(
-                                    color: h.name == widget.current?.name
-                                        ? scheme.primary.withValues(alpha: .08)
-                                        : scheme.surfaceContainerHighest
-                                            .withValues(alpha: .5),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: h.name == widget.current?.name
-                                            ? scheme.primary
-                                            : Colors.transparent)),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                        child: Text(h.label,
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700))),
-                                    if (h.name == widget.current?.name)
-                                      Icon(Icons.check,
-                                          size: 16, color: scheme.primary),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          if (_failed)
-                            const Center(
+                : _err != null
+                    ? _NetFail(onRetry: _search)
+                    : hits == null
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                                child: Text('输入城市名搜索',
+                                    style: TextStyle(
+                                        fontSize: 11, color: Colors.grey))),
+                          )
+                        : hits.isEmpty
+                            ? const Center(
+                                key: ValueKey('city-no-match'),
                                 child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 12),
                                     child: Text('无匹配城市',
                                         style: TextStyle(
                                             fontSize: 11,
                                             color: Colors.grey))),
-                            ),
-                        ],
-                      ),
+                              )
+                            : ListView(
+                                shrinkWrap: true,
+                                children: [
+                                  for (final h in hits)
+                                    InkWell(
+                                      key: ValueKey('city-hit-${h.name}'),
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () => _pick(h),
+                                      child: Container(
+                                        margin: const EdgeInsets.only(bottom: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 11),
+                                        decoration: BoxDecoration(
+                                            color: h.name == widget.current?.name
+                                                ? scheme.primary.withValues(alpha: .08)
+                                                : scheme.surfaceContainerHighest
+                                                    .withValues(alpha: .5),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: h.name == widget.current?.name
+                                                    ? scheme.primary
+                                                    : Colors.transparent)),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                                child: Text(h.label,
+                                                    style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w700))),
+                                            if (h.name == widget.current?.name)
+                                              Icon(Icons.check,
+                                                  size: 16, color: scheme.primary),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 网络不可达态：一行状态 + 一行「重试」（不写教学文案，AGENTS 口径）。
+class _NetFail extends StatelessWidget {
+  const _NetFail({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('网络不可达',
+                key: ValueKey('city-net-fail'),
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 6),
+            InkWell(
+              key: const ValueKey('city-retry'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: onRetry,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Text('重试',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.primary)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

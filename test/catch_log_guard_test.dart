@@ -87,7 +87,6 @@ void main() {
     'shared/calendar/lunar.dart': 1,
     'shared/linkage/ledger_mounts.dart': 1,
     'shared/widgets/image_attach.dart': 2,
-    'shared/weather/weather_service.dart': 1,
   };
 
   test('catch 必带日志：静默吞噬不得新增（登记面只许减不许增）', () {

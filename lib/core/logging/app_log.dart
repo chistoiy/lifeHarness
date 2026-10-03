@@ -164,6 +164,7 @@ class AppLog {
     'features/care': '呵护',
     'features/settings': '设置',
     'shared': '界面',
+    'shared/weather': '天气', // 真机反馈轮4①：取数失败留痕按此归类
   };
 
   static final RegExp _framePath = RegExp(

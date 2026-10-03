@@ -960,7 +960,7 @@ void main() {
       var calls = 0;
       final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
         calls++;
-        return wxJson(WeatherDao.dayKey(DateTime.now()));
+        return (json: wxJson(WeatherDao.dayKey(DateTime.now())), err: null);
       });
       final today = DateTime.now();
       final w = await svc.day(today, city);
@@ -973,27 +973,37 @@ void main() {
       expect(calls, 2); // 城市变更失效重抓
       expect(await svc.day(today.subtract(const Duration(days: 1)), city), isNull);
       expect(calls, 2); // 历史不查（只存当时）
-      final offline = WeatherService(WeatherDao(db), fetch: (u) async => null);
+      final offline = WeatherService(WeatherDao(db),
+          fetch: (u) async => (json: null, err: 'socket'));
       expect(await offline.day(DateTime(2020, 1, 1), city), isNull);
       expect(await db.query('weather_daily'), hasLength(1)); // 换城市 replace 同日行
     });
 
-    test('2e-0c searchCity：解析命中 · 空查询/无结果静默', () async {
+    test('2e-0c searchCity：解析命中 · 空查询静默 · 取数失败带 err（≠无匹配）', () async {
       final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
-        if (uri.host != 'geocoding-api.open-meteo.com') return null;
-        return {
-          'results': [
-            {'name': '杭州', 'latitude': 30.29, 'longitude': 120.16, 'admin1': '浙江', 'country': '中国'},
-            {'name': '杭州湾', 'latitude': 30.1, 'longitude': 121.0},
-          ]
-        };
+        if (uri.host != 'geocoding-api.open-meteo.com') {
+          return (json: null, err: null);
+        }
+        return (
+          json: {
+            'results': [
+              {'name': '杭州', 'latitude': 30.29, 'longitude': 120.16, 'admin1': '浙江', 'country': '中国'},
+              {'name': '杭州湾', 'latitude': 30.1, 'longitude': 121.0},
+            ]
+          },
+          err: null
+        );
       });
-      final hits = await svc.searchCity('杭州');
-      expect(hits, hasLength(2));
-      expect(hits.first.label, '杭州 · 浙江');
-      expect(await svc.searchCity('  '), isEmpty);
-      final bad = WeatherService(WeatherDao(db), fetch: (u) async => null);
-      expect(await bad.searchCity('上海'), isEmpty);
+      final r = await svc.searchCity('杭州');
+      expect(r.err, isNull);
+      expect(r.hits, hasLength(2));
+      expect(r.hits.first.label, '杭州 · 浙江');
+      expect((await svc.searchCity('  ')).hits, isEmpty);
+      final bad =
+          WeatherService(WeatherDao(db), fetch: (u) async => (json: null, err: 'socket'));
+      final failed = await bad.searchCity('上海');
+      expect(failed.hits, isEmpty);
+      expect(failed.err, 'socket'); // 无网不是「查无此城」
     });
 
     test('2e-0d repo：save 落天气字段 · attachWeather 直写不打乱 updated_at', () async {
@@ -1061,7 +1071,7 @@ void main() {
       var calls = 0;
       final svc = WeatherService(WeatherDao(db), fetch: (uri) async {
         calls++;
-        return wxJson(WeatherDao.dayKey(DateTime.now()));
+        return (json: wxJson(WeatherDao.dayKey(DateTime.now())), err: null);
       });
       await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now()), wx: svc));
       await settle5(tester);
@@ -1082,7 +1092,7 @@ void main() {
       var calls = 0;
       WeatherService svc() => WeatherService(WeatherDao(db), fetch: (uri) async {
             calls++;
-            return wxJson(WeatherDao.dayKey(DateTime.now()));
+            return (json: wxJson(WeatherDao.dayKey(DateTime.now())), err: null);
           });
       await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now()), wx: svc()));
       await settle5(tester);
@@ -1123,7 +1133,8 @@ void main() {
       await setCity(WeatherCity.encode(city));
       await tester.pumpWidget(scope(
           DiaryEditPage(day: DateTime.now()),
-          wx: WeatherService(WeatherDao(db), fetch: (u) async => null)));
+          wx: WeatherService(WeatherDao(db),
+              fetch: (u) async => (json: null, err: 'socket'))));
       await settle5(tester);
       expect(find.text('天气'), findsOneWidget);
       expect(await db.query('weather_daily'), isEmpty);
