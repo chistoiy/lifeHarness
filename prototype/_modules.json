@@ -2846,9 +2846,11 @@
    "id": "sheetAddMedia",
    "kind": "sheet",
    "title": "",
-   "home": "index-media.html",
-   "reps": [],
-   "status": "deferred",
+   "home": "index.html",
+   "reps": [
+    "index-bookshelf.html"
+   ],
+   "status": "shared",
    "files": {
     "index.html": {
      "size": 2280,
@@ -8036,6 +8038,30 @@
    "file": "index.html",
    "id": "sheetTocImport",
    "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index-ledger.html",
+   "id": "sheetAddMedia",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index_habitcheck.html",
+   "id": "sheetAddMedia",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-maternity_bady.html",
+   "id": "sheetAddMedia",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-day_aim__goods.html",
+   "id": "sheetAddMedia",
+   "home": "index.html",
    "exempt": null
   }
  ],
