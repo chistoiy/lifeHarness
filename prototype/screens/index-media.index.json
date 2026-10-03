@@ -1,0 +1,583 @@
+{
+ "file": "index-media.html",
+ "total": 170510,
+ "cut": 62,
+ "screens": [
+  {
+   "id": "p-profile",
+   "kind": "screen",
+   "title": "我的",
+   "role": "cut",
+   "size": 24332,
+   "hash": "0ca6464b"
+  },
+  {
+   "id": "sheetAddTask",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 7756,
+   "hash": "e28e33d9"
+  },
+  {
+   "id": "p-care",
+   "kind": "screen",
+   "title": "母婴呵护",
+   "role": "cut",
+   "size": 6656,
+   "hash": "002a44b2"
+  },
+  {
+   "id": "p-import",
+   "kind": "screen",
+   "title": "导入读书笔记",
+   "role": "cut",
+   "size": 6346,
+   "hash": "27b36ae3"
+  },
+  {
+   "id": "p-bookDetail",
+   "kind": "screen",
+   "title": "书籍详情",
+   "role": "cut",
+   "size": 5886,
+   "hash": "727292be"
+  },
+  {
+   "id": "p-records",
+   "kind": "screen",
+   "title": "记录",
+   "role": "cut",
+   "size": 5733,
+   "hash": "ce4eb42c"
+  },
+  {
+   "id": "p-calendar",
+   "kind": "screen",
+   "title": "时间",
+   "role": "cut",
+   "size": 5533,
+   "hash": "38b853a9"
+  },
+  {
+   "id": "p-dashboard",
+   "kind": "screen",
+   "title": "今天",
+   "role": "cut",
+   "size": 5349,
+   "hash": "be3fa02e"
+  },
+  {
+   "id": "p-billImport",
+   "kind": "screen",
+   "title": "导入账单",
+   "role": "cut",
+   "size": 5102,
+   "hash": "363915af"
+  },
+  {
+   "id": "p-health",
+   "kind": "screen",
+   "title": "健康",
+   "role": "cut",
+   "size": 4798,
+   "hash": "c57ed3b9"
+  },
+  {
+   "id": "sheetNoteKit",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 3940,
+   "hash": "63199778"
+  },
+  {
+   "id": "p-sub-data",
+   "kind": "screen",
+   "title": "数据与同步",
+   "role": "cut",
+   "size": 3691,
+   "hash": "c264890c"
+  },
+  {
+   "id": "p-sub-ai",
+   "kind": "screen",
+   "title": "AI 增强",
+   "role": "cut",
+   "size": 3554,
+   "hash": "6e5d9a9b"
+  },
+  {
+   "id": "p-itemDetail",
+   "kind": "screen",
+   "title": "物品详情",
+   "role": "cut",
+   "size": 3496,
+   "hash": "99c71f94"
+  },
+  {
+   "id": "p-noteEdit",
+   "kind": "screen",
+   "title": "",
+   "role": "cut",
+   "size": 3472,
+   "hash": "25d5483e"
+  },
+  {
+   "id": "sheetTimePick",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 3418,
+   "hash": "1f501927"
+  },
+  {
+   "id": "sheetAddHabit",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 3304,
+   "hash": "f2b54599"
+  },
+  {
+   "id": "m-shelf",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 2949,
+   "hash": "e0076fdc"
+  },
+  {
+   "id": "p-sub-notify",
+   "kind": "screen",
+   "title": "提醒通知",
+   "role": "cut",
+   "size": 2802,
+   "hash": "471f9562"
+  },
+  {
+   "id": "p-sub-catAdd",
+   "kind": "screen",
+   "title": "添加分类",
+   "role": "cut",
+   "size": 2759,
+   "hash": "9f9362d2"
+  },
+  {
+   "id": "p-sub-recmg",
+   "kind": "screen",
+   "title": "记录管理",
+   "role": "cut",
+   "size": 2758,
+   "hash": "afd2e888"
+  },
+  {
+   "id": "p-diaryEdit",
+   "kind": "screen",
+   "title": "写日记",
+   "role": "cut",
+   "size": 2625,
+   "hash": "bb680802"
+  },
+  {
+   "id": "sheetAddMedia",
+   "kind": "sheet",
+   "title": "",
+   "role": "home",
+   "size": 2280,
+   "hash": "2b57ea42"
+  },
+  {
+   "id": "sheetAddEvent",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 2229,
+   "hash": "66a8f615"
+  },
+  {
+   "id": "sheetTask",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 2083,
+   "hash": "8e65e4ea"
+  },
+  {
+   "id": "p-finance",
+   "kind": "screen",
+   "title": "记账",
+   "role": "cut",
+   "size": 1980,
+   "hash": "78a5a00e"
+  },
+  {
+   "id": "p-pstore",
+   "kind": "screen",
+   "title": "插件中心",
+   "role": "cut",
+   "size": 1721,
+   "hash": "156dff0d"
+  },
+  {
+   "id": "sheetAddItem",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1698,
+   "hash": "da9f1430"
+  },
+  {
+   "id": "sheetDiaryReview",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1602,
+   "hash": "0afa3990"
+  },
+  {
+   "id": "sheetPlugin",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1572,
+   "hash": "b86c8f7b"
+  },
+  {
+   "id": "p-todo",
+   "kind": "screen",
+   "title": "待办",
+   "role": "cut",
+   "size": 1547,
+   "hash": "5375fff4"
+  },
+  {
+   "id": "sheetNoteShare",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1537,
+   "hash": "6c53903f"
+  },
+  {
+   "id": "sheetSnapshot",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1507,
+   "hash": "ff359f4e"
+  },
+  {
+   "id": "sheetGridMark",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1501,
+   "hash": "995bf744"
+  },
+  {
+   "id": "p-days",
+   "kind": "screen",
+   "title": "重要日子",
+   "role": "cut",
+   "size": 1465,
+   "hash": "9db8d734"
+  },
+  {
+   "id": "p-items",
+   "kind": "screen",
+   "title": "物品价值",
+   "role": "cut",
+   "size": 1449,
+   "hash": "fb1123b9"
+  },
+  {
+   "id": "p-sub-appearance",
+   "kind": "screen",
+   "title": "外观",
+   "role": "cut",
+   "size": 1430,
+   "hash": "66433a8e"
+  },
+  {
+   "id": "p-inbox",
+   "kind": "screen",
+   "title": "收集箱",
+   "role": "cut",
+   "size": 1374,
+   "hash": "be4e60cc"
+  },
+  {
+   "id": "sheetBabyMeasure",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1280,
+   "hash": "1608a18b"
+  },
+  {
+   "id": "p-goals",
+   "kind": "screen",
+   "title": "目标 OKR",
+   "role": "cut",
+   "size": 1244,
+   "hash": "d74f4155"
+  },
+  {
+   "id": "m-timer",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 1243,
+   "hash": "1c1105d3"
+  },
+  {
+   "id": "sheetAddExcerpt",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1239,
+   "hash": "1ad213c9"
+  },
+  {
+   "id": "sheetTocImport",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1215,
+   "hash": "875467b3"
+  },
+  {
+   "id": "sheetRecycle",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1208,
+   "hash": "2a92b2d4"
+  },
+  {
+   "id": "sheetDiaryTplEdit",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1126,
+   "hash": "8e072836"
+  },
+  {
+   "id": "sheetExtra",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1124,
+   "hash": "0d6fe7c3"
+  },
+  {
+   "id": "sheetDatePick",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 1086,
+   "hash": "27e8e5ef"
+  },
+  {
+   "id": "p-habits",
+   "kind": "screen",
+   "title": "习惯打卡",
+   "role": "cut",
+   "size": 1081,
+   "hash": "4d226173"
+  },
+  {
+   "id": "sheetScrap",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 951,
+   "hash": "b699413b"
+  },
+  {
+   "id": "sheetProgress",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 945,
+   "hash": "b6368a4c"
+  },
+  {
+   "id": "m-detail",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 943,
+   "hash": "4b33a72c"
+  },
+  {
+   "id": "sheetAddDay",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 925,
+   "hash": "5cbe29ee"
+  },
+  {
+   "id": "m-stat",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 912,
+   "hash": "01e500b2"
+  },
+  {
+   "id": "p-tools",
+   "kind": "screen",
+   "title": "小工具合集",
+   "role": "cut",
+   "size": 905,
+   "hash": "36116424"
+  },
+  {
+   "id": "p-sub-cats",
+   "kind": "screen",
+   "title": "分类管理",
+   "role": "cut",
+   "size": 828,
+   "hash": "75b953f6"
+  },
+  {
+   "id": "sheetSearch",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 771,
+   "hash": "92d431cf"
+  },
+  {
+   "id": "sheetThemeMarket",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 761,
+   "hash": "a17c56b4"
+  },
+  {
+   "id": "m-notes",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 719,
+   "hash": "d4e8c065"
+  },
+  {
+   "id": "sheetImgSrc",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 682,
+   "hash": "e4eb78ca"
+  },
+  {
+   "id": "sheetCatParent",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 678,
+   "hash": "dcad8fc6"
+  },
+  {
+   "id": "sheetWeatherPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 673,
+   "hash": "bb120148"
+  },
+  {
+   "id": "sheetCityPick",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 612,
+   "hash": "3eb6ab20"
+  },
+  {
+   "id": "m-mgr",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 588,
+   "hash": "d1536ee3"
+  },
+  {
+   "id": "sheetDiaryTpl",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 585,
+   "hash": "2ccc021f"
+  },
+  {
+   "id": "sheetNoteMove",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 523,
+   "hash": "79853f35"
+  },
+  {
+   "id": "m-lists",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 523,
+   "hash": "0faf0f5d"
+  },
+  {
+   "id": "sheetDiaryFilter",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 402,
+   "hash": "d8886131"
+  },
+  {
+   "id": "sheetPSDetail",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 360,
+   "hash": "5978e67a"
+  },
+  {
+   "id": "m-import",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 349,
+   "hash": "e07f9489"
+  },
+  {
+   "id": "m-goal",
+   "kind": "screen",
+   "title": "",
+   "role": "home",
+   "size": 345,
+   "hash": "04673ce5"
+  },
+  {
+   "id": "sheetEventDetail",
+   "kind": "sheet",
+   "title": "",
+   "role": "cut",
+   "size": 337,
+   "hash": "4eac6fa6"
+  },
+  {
+   "id": "p-toolDetail",
+   "kind": "screen",
+   "title": "小工具",
+   "role": "cut",
+   "size": 113,
+   "hash": "cb62630b"
+  }
+ ]
+}

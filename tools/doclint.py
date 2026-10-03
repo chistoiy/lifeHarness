@@ -85,4 +85,11 @@ if g:
     for x in g:
         print("  " + x)
     sys.exit(1)
+# ---- 原型屏归属闸（治理批 §4-3；模式由 prototype/_modules.json.gateMode 决定，动刀批收口切 strict）----
+pr = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "protogate.py")],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace")
+print(pr.stdout.strip())
+if pr.returncode != 0:
+    print("protogate 红灯（strict），按上列明细处置后重跑")
+    sys.exit(1)
 print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算）")
