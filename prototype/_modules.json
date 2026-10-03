@@ -2301,16 +2301,16 @@
    }
   },
   {
-   "id": "p-sub-todoTrash",
+   "id": "p-sub-trash",
    "kind": "screen",
-   "title": "垃圾箱",
+   "title": "回收站",
    "home": "index.html",
    "reps": [],
    "status": "exclusive",
    "files": {
     "index.html": {
-     "size": 640,
-     "hash": "61dd53da"
+     "size": 746,
+     "hash": "c3b0afde"
     }
    }
   },
