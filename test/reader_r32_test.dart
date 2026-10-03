@@ -193,7 +193,11 @@ void main() {
       expect(s.fontSize, 19 * kAnnotationFsFactor);
       expect(s.color, const Color(0xFF3B3630).withValues(alpha: kAnnotationAlpha));
       expect(paraStyle(plain, base), same(base), reason: '未标记的段原对象返回');
-      expect(paraStyle(head, base), same(base), reason: '标题另有字号档，不在此叠');
+      // §3H-A 同源收口：标题的 1.25× 字号档与字重**必须也进测量**——
+      // 此前只有上屏侧乘 1.25，每条标题少算约 1/4 行高（页底裁字的 contributor 之一）。
+      final hs = paraStyle(head, base);
+      expect(hs.fontSize, 19 * 1.25);
+      expect(hs.fontWeight, FontWeight.w800);
       expect(
         paraStyle(
           const EpubPara(

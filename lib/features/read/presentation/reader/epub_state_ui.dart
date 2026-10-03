@@ -24,13 +24,17 @@ import './reader_search_page.dart' show ReaderSearchPage;
 /// 预载启动器。事实源 `prototype/index-bookshelf.html` 批3.5 增量
 /// （?br35=pre/frozen/cl/detail/lost 五演示态）。
 
-/// 预载布局基准：与阅读主屏同构（全屏视口 + reader.cfg 外观值·V1.53 起含 font/indent，
-/// R3-2 起含 indMode）——两边共用 [ReaderLayout.of]，指纹才不会分叉成「预载白排」。
-ReaderLayout brPreloadLayout(String? cfgJson, Size vp) => ReaderLayout.of(
-  ReaderCfg.decode(cfgJson),
-  width: vp.width,
-  height: vp.height,
-);
+/// 预载布局基准：与阅读主屏同构（**舞台高＝视口高减顶部安全区** ＋ reader.cfg 外观值·
+/// V1.53 起含 font/indent，R3-2 起含 indMode）——两边共用 [ReaderLayout.of] 与
+/// [brStageHeight]，指纹才不会分叉成「预载白排」（§3H-A：装箱吃视口高会虚增一个状态栏）。
+ReaderLayout brPreloadLayout(String? cfgJson, BuildContext context) {
+  final vp = MediaQuery.sizeOf(context);
+  return ReaderLayout.of(
+    ReaderCfg.decode(cfgJson),
+    width: vp.width,
+    height: brStageHeight(context, viewportH: vp.height),
+  );
+}
 
 /// MB 展示（一位小数 · 原型「约释放 N MB」口径）。
 String brFmtMb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
@@ -42,7 +46,7 @@ void brStartPreload(WidgetRef ref, Book b, BuildContext context) {
     () async {
       final cfg = await ref.read(readRepositoryProvider).kv('reader.cfg');
       if (!context.mounted) return;
-      await svc.preload(b, brPreloadLayout(cfg, MediaQuery.sizeOf(context)));
+      await svc.preload(b, brPreloadLayout(cfg, context));
     }(),
   );
 }

@@ -110,14 +110,23 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
     final per = widget.pager.pages[widget.ci];
     if (per == null) return const {};
     if (widget.pg >= per.length) return const {};
-    return per[widget.pg].toSet();
+    // 页内是块（段＋区间），判「这段在不在这页」只看段号。
+    return {for (final b in per[widget.pg]) b.pi};
   }
 
   /// 已读判定锚（章+段）：页模式＝当前页最后一段；滚动模式＝当前章末。
   ({int ch, int para}) get _readTo {
     final per = widget.pager.pages[widget.ci];
-    final pis = per != null && widget.pg < per.length ? per[widget.pg] : const <int>[];
-    return (ch: widget.ci, para: pis.isEmpty ? 1 << 30 : pis.reduce((a, b) => a > b ? a : b));
+    final bs = per != null && widget.pg < per.length
+        ? per[widget.pg]
+        : const <PagPiece>[];
+    // 已读锚仍按段号（X-Ray 锚点是段坐标）：取本页块里的最大段号。
+    return (
+      ch: widget.ci,
+      para: bs.isEmpty
+          ? 1 << 30
+          : bs.map((b) => b.pi).reduce((a, b) => a > b ? a : b),
+    );
   }
 
   bool _onPage(XrayEntityRow e, List<XrayAnchorRow>? ms) {

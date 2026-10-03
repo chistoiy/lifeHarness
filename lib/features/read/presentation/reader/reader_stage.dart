@@ -84,11 +84,13 @@ extension _ReaderStage on _ReaderPageState {
         itemCount: flat.length,
         itemBuilder: (_, k) {
           final (ci, pi) = flat[k];
-          return _para(th, doc, ci, doc.chapters[ci].paras[pi], pi);
+          // 滚动模式不分页＝整段一块（区间给 0..段长，与翻页模式走同一个 _para）。
+          final pp = doc.chapters[ci].paras[pi];
+          return _para(th, doc, ci, pp, pi, 0, pp.text.length);
         },
       );
     }
-    final pages = pag.pages[_pos.ci] ?? const <List<int>>[<int>[]];
+    final pages = pag.pages[_pos.ci] ?? const <PagPage>[<PagPiece>[]];
     final pg = _pos.pg.clamp(0, pages.length - 1);
     final isLast = _pos.ci == doc.chapters.length - 1 && pg == pages.length - 1;
     return AnimatedSwitcher(
@@ -104,14 +106,32 @@ extension _ReaderStage on _ReaderPageState {
         ),
       ),
       child: Container(
-        key: ValueKey('page-$_pos.ci-$pg'),
+        // 键里必须是**插值后的章号**：`'page-$_pos.ci-$pg'` 取的是 `_pos` 的
+        // toString＋字面量 ".ci"（探针按键找页容器时实测拿到
+        // `page-Instance of '_Pos'.ci-11`）。
+        key: ValueKey('page-${_pos.ci}-$pg'),
         alignment: Alignment.center,
-        padding: EdgeInsets.fromLTRB(_cfg.mar, _cfg.mar + 40, _cfg.mar, _cfg.mar + 46),
+        padding: EdgeInsets.fromLTRB(
+          _cfg.mar,
+          _cfg.mar + kBrChromeTopPad,
+          _cfg.mar,
+          _cfg.mar + kBrChromeBottomPad,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final pi in pages[pg]) _para(th, doc, _pos.ci, doc.chapters[_pos.ci].paras[pi], pi),
+            // 页内逐块上屏（块＝段＋段内区间；超长段跨页续排，工单 §3H-A）。
+            for (final b in pages[pg])
+              _para(
+                th,
+                doc,
+                _pos.ci,
+                doc.chapters[_pos.ci].paras[b.pi],
+                b.pi,
+                b.from,
+                b.to,
+              ),
             if (isLast)
               const Padding(
                 padding: EdgeInsets.only(top: 18),
@@ -129,21 +149,53 @@ extension _ReaderStage on _ReaderPageState {
 
 
 
-  Widget _para((String, Color, Color) th, EpubDoc doc, int ci, EpubPara p, int pi) {
-    final isHit =
-        _hitMark != null && _hitMark!.ci == ci && _hitMark!.pi == pi;
+  /// 用户外观 → 文本样式（字号/行距/字距/字族/正文色）。
+  /// **测量侧唯一对应物是 `ReaderLayout.base`**（两者字段必须一一对应，
+  /// 少一项就是「按 A 量、按 B 画」＝页底裁字，工单 §3H-A 同源红线）。
+  TextStyle _userText((String, Color, Color) th) => TextStyle(
+    fontSize: _cfg.fs,
+    height: _cfg.lh,
+    letterSpacing: _cfg.ls,
+    fontFamily: _cfg.fontFamily,
+    fontFamilyFallback: _cfg.fontFamilyFallback,
+    color: th.$3,
+  );
+
+  /// 页内一块的上屏（[from],[to]＝段内**原文坐标**区间；整段＝0..段长）。
+  /// 超长段跨页续排后，同一 `pi` 会在相邻两页各出现一块（工单 §3H-A），
+  /// 所以**容器键、命中闪底、GlobalKey 都必须带上 from**，只按 pi 判会两块同时命中。
+  Widget _para(
+    (String, Color, Color) th,
+    EpubDoc doc,
+    int ci,
+    EpubPara p,
+    int pi,
+    int from,
+    int to,
+  ) {
+    final isHit = _hitMark != null &&
+        _hitMark!.ci == ci &&
+        _hitMark!.pi == pi &&
+        _hitMark!.from == from;
     // 批3：划线色底（原型 background: c+'44'）与选中段高亮；点段即划词。
     final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
     final s = _selController.sel;
     final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
     // 轮4①：入库带偏移的 text 段＝span 级精确铺底（Container 不再整段涂）；
     // 旧数据无偏移、引文/标题段＝维持整段底色。活跃选区在场时瞬态整段浅底照旧。
-    final hlRange = hl != null &&
-            p.kind == EpubParaKind.text &&
-            hl.cf.isPrecise &&
-            !inSel
-        ? hl.cf.rangeAt(pi, p.text.length)
-        : null;
+    // 拆块后先与**本块区间求交**：交在外面的那段底色归另一页，本块不铺（§3H-A）。
+    final hlRange = (() {
+      if (!(hl != null &&
+              p.kind == EpubParaKind.text &&
+              hl.cf.isPrecise &&
+              !inSel)) {
+        return null;
+      }
+      final r = hl.cf.rangeAt(pi, p.text.length);
+      if (r == null) return null;
+      final a = r.a > from ? r.a : from, b = r.b < to ? r.b : to;
+      return b > a ? (a: a, b: b) : null;
+    })();
     final hlFull = hl != null && hlRange == null;
     // 轮4③：段内精确子串高亮（同段＝句选 o0/o1；跨段首尾各切一头）。
     var q0 = 0, q1 = p.text.length;
@@ -158,16 +210,22 @@ extension _ReaderStage on _ReaderPageState {
     }
     final partSel = s != null && inSel && (q0 > 0 || q1 < p.text.length);
     Widget wrap(Widget child) => GestureDetector(
-      key: ValueKey('brpTap-$ci-$pi'),
+      // 块级键：首块（from==0）沿用旧串 `brpTap-章-段`，只有续排块才带起点后缀
+      // ——同一段被拆两页时两个 GlobalKey 不会撞车，既有选区用例的命中键也不必整体改写。
+      key: ValueKey('brpTap-$ci-$pi${from == 0 ? '' : '-$from'}'),
       behavior: HitTestBehavior.translucent,
       // V1.53 轮3（参考图4）：长按选中段落才弹摘抄工具条；
       // 点按不再命中这里 → 冒泡到 body 层分派（收放 chrome / 清选区）。
       // 轮4③：长按落点命中整句（微信读书口径），d.globalPosition → 段内偏移。
       // V1.53.2：长按拖动跟手扩到手指下的句子；放大镜改挂到手柄微调（见 brHandleWidget）。
-      onLongPressStart: (d) => _selectPara(ci, pi, at: d.globalPosition),
+      onLongPressStart: (d) =>
+          _selectPara(ci, pi, at: d.globalPosition, from: from),
       onLongPressMoveUpdate: (d) => _extendSelTo(ci, d.globalPosition),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+        padding: const EdgeInsets.symmetric(
+          horizontal: kBrPadWrapH,
+          vertical: kBrPadWrapV,
+        ),
         // V1.53.2 修②：选中态不再整段铺底——部分选中（首/尾/单段局部）交给
         // _subSpan 精确子串高亮；仅整段选中（跨段的中间段）才铺段级底色。
         // 轮4①：精确划线的稳态底色进 span（hlRange），Container 只在整段口径时铺。
@@ -209,7 +267,7 @@ extension _ReaderStage on _ReaderPageState {
       case EpubParaKind.image:
         final bytes = doc.imageBytes(p.imgSrc);
         return Padding(
-          padding: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.only(bottom: kBrPadImageBottom),
           child: GestureDetector(
             key: ValueKey('brImg-$ci-$pi'),
             onTap: () => _openImage(p),
@@ -242,70 +300,68 @@ extension _ReaderStage on _ReaderPageState {
         );
       case EpubParaKind.heading:
         // 段间距放检测器外：空隙带仍归 body 分派（中区点按开收 chrome）。
+        // 样式改走 [paraStyle]（§3H-A 同源）：标题字号档与字重此前上屏自建、
+        // 测量按基准字号量，每条标题少算约 1/4 行高。
         return Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 12),
+          padding: const EdgeInsets.only(
+            top: kBrPadHeadTop,
+            bottom: kBrPadHeadBottom,
+          ),
           child: wrap(
             Text(
               // R3-6：标题与引文同样吃显示层简繁（走同一条 paraBody 通道）。
-              paraBody(p, _cfg.s2t),
-              // 批三刀3：开原书时标题吃**书内字号比**（rem＝用户基准字号），
-              // 书里没声明才维持 1.25×；色/字重/斜体/线照 applyOrigStyle 叠。
-              style: applyOrigStyle(
-                TextStyle(
-                  fontSize: _cfg.fs *
-                      (_cfg.orig ? (p.style?.fontRatio ?? 1.25) : 1.25),
-                  height: _cfg.lh,
-                  fontFamily: _cfg.fontFamily,
-                  fontFamilyFallback: _cfg.fontFamilyFallback,
-                  fontWeight: FontWeight.w800,
-                  color: th.$3,
-                ),
-                _cfg.orig ? p.style : null,
+              // 拆块后只画本块区间（标题极少超页，但口径与正文保持一致）。
+              paraBody(p, _cfg.s2t).substring(
+                from,
+                math.min(to, p.text.length),
+              ),
+              style: paraStyle(
+                p,
+                _userText(th),
+                orig: _cfg.orig,
                 pageBg: th.$2,
-                ratioBase: _cfg.fs,
               ),
             ),
           ),
         );
       case EpubParaKind.quote:
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: kBrPadQuoteBottom),
           child: wrap(
             Container(
-              padding: const EdgeInsets.only(left: 11),
+              padding: const EdgeInsets.only(left: kBrQuoteLeft),
               decoration: BoxDecoration(
-                border: Border(left: BorderSide(color: th.$3, width: 3)),
+                border: Border(
+                  left: BorderSide(color: th.$3, width: kBrQuoteBarW),
+                ),
               ),
               child: Text.rich(
                 // ① 引文型注释体（blockquote epub:type=footnote 等）同样走正文色小字，
-                // 与 EpubPager.paraHeight 的测量共用 paraStyle，两边走样必出空页。
-                // 批三刀3：改吃 [paraSpan] 的分段表——测量按 span 字号量、上屏按段字号画
-                // 会溢出，引文块与正文一样必须同源。
+                // 与 [EpubPager.pieceHeight] 共用 paraSpan/paraOuter/paraMeasureW
+                // ＋行高归一（§3H-A/B 同源红线：任何一件两边各算一份都会溢出或不齐）。
                 paraSpan(
                   p,
-                  TextStyle(
-                    fontSize: _cfg.fs,
-                    height: _cfg.lh,
-                    letterSpacing: _cfg.ls,
-                    fontFamily: _cfg.fontFamily,
-                    fontFamilyFallback: _cfg.fontFamilyFallback,
-                    color: th.$3.withValues(alpha: .85),
-                  ),
+                  _userText(th).copyWith(color: th.$3.withValues(alpha: .85)),
                   orig: _cfg.orig,
                   pageBg: th.$2,
                   s2t: _cfg.s2t,
+                  from: from,
+                  to: to,
                 ),
               ),
             ),
           ),
         );
       case EpubParaKind.text:
+        // 块级键：`$ci:$pi:$from`（同段两块＝两个不同的 GlobalKey，
+        // 只按 pi 建键会在拆页后撞「重复 GlobalKey」并把同段两块同时点亮）。
+        final bk = from == 0 ? '$ci:$pi' : '$ci:$pi:$from';
         final pk = _paraKeys.putIfAbsent(
-          '$ci:$pi',
-          () => GlobalKey(debugLabel: 'brp$ci-$pi'),
+          bk,
+          () => GlobalKey(debugLabel: 'brp$bk'),
         );
         final span = partSel
-            ? _subSpan(th, p, q0, q1)
+            ? _subSpan(th, p, q0, q1, from, to)
             : _textSpan(
                 th,
                 doc,
@@ -315,10 +371,12 @@ extension _ReaderStage on _ReaderPageState {
                 isHit,
                 hlRange: hlRange,
                 hlColor: hl?.c,
+                from: from,
+                to: to,
               );
         return Padding(
-          key: ValueKey('brp-$ci-$pi'),
-          padding: const EdgeInsets.only(bottom: 8),
+          key: ValueKey('brp-$ci-$pi${from == 0 ? '' : '-$from'}'),
+          padding: const EdgeInsets.only(bottom: kBrPadTextBottom),
           child: wrap(
             Text.rich(
               key: pk,
@@ -326,6 +384,7 @@ extension _ReaderStage on _ReaderPageState {
               // R3-2 ②：中文正文默认左对齐（两端对齐会把末行不满的字距拉散，
               // 真机读起来像表格）；两端对齐只在外观里显式开，默认关。
               textAlign: _cfg.just ? TextAlign.justify : TextAlign.start,
+              // 行距拉平（§3H-B 拍板）：span 里每个字档的 height 已按本段最大字号归一。
             ),
           ),
         );

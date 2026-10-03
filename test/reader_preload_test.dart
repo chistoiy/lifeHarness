@@ -202,15 +202,17 @@ void main() {
   group('批3.5 · 分页表落盘', () {
     ReaderLayout layout() => const ReaderLayout(width: 400, height: 800);
     // 轮4②：表带字符权重（进度加权），未排版章在表里为 null。
+    // 块夹具：to 给超大值＝整段（paraSpan 会夹到段长；见 PagPiece.encode 的 2 元组分流）。
+    PagPiece whole(int pi) => PagPiece(pi, 0, 1 << 30);
     BookPagination pag() => BookPagination.fromTable(
       [60, 30],
       [
         [
-          [0, 1],
-          [2],
+          [whole(0), whole(1)],
+          [whole(2)],
         ],
         [
-          [0],
+          [whole(0)],
         ],
       ],
     );
@@ -223,10 +225,12 @@ void main() {
       expect(hit!.totalChars, 90);
       expect(hit.chapterCount, 2);
       expect(hit.pages[0], [
-        [0, 1],
-        [2],
+        [whole(0), whole(1)],
+        [whole(2)],
       ]);
-      expect(hit.pages[1], [[0]]);
+      expect(hit.pages[1], [
+        [whole(0)],
+      ]);
       expect(await PagStore.load(tmp.path, 'bk1', '$fp|fs22', [60, 30]), isNull);
       await PagStore.remove(tmp.path, 'bk1');
       expect(await PagStore.load(tmp.path, 'bk1', fp, [60, 30]), isNull);
@@ -236,7 +240,7 @@ void main() {
       final fp = PagStore.fingerprint(layout());
       final withNull = BookPagination.fromTable([10, 20], [
         [
-          [0],
+          [whole(0)],
         ],
         null,
       ]);
@@ -337,9 +341,9 @@ void main() {
         tmp.path,
         'b1',
         PagStore.fingerprint(const ReaderLayout(width: 400, height: 800)),
-        BookPagination.fromTable([7], <List<List<int>>?>[
+        BookPagination.fromTable([7], <PagChapter?>[
           [
-            [0],
+            [PagPiece(0, 0, 1 << 30)],
           ],
         ]),
       );

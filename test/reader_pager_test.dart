@@ -46,7 +46,7 @@ void main() {
     test('layoutChapter：装箱完整有序；窄视口页数更多', () {
       final paras = List<EpubPara>.generate(60, (i) => _p('第$i段。$_lorem'));
       final wide = EpubPager.layoutChapter(paras, _l(w: 500, h: 900));
-      final flat = wide.expand((e) => e).toList();
+      final flat = [for (final pg in wide) for (final b in pg) b.pi];
       expect(flat, List.generate(paras.length, (i) => i), reason: '段落不重不漏且有序');
       final narrow = EpubPager.layoutChapter(paras, _l(w: 260, h: 480));
       expect(narrow.length, greaterThan(wide.length));
@@ -54,15 +54,33 @@ void main() {
 
     test('空章回落一张空页（渲染层不越界）', () {
       final pages = EpubPager.layoutChapter(const [], _l());
-      expect(pages, [<int>[]]);
+      expect(pages, <PagPage>[<PagPiece>[]]);
     });
 
-    test('超高单段独占一页且不丢段', () {
+    test('§3H-A 超高单段按行续排：每块装得下·拼起来不丢段', () {
       final giant = _p(_lorem * 30);
       final paras = [_p('前段'), giant, _p('后段')];
-      final pages = EpubPager.layoutChapter(paras, _l(h: 300));
-      expect(pages.expand((e) => e).length, 3);
-      expect(pages.any((pg) => pg.length == 1 && pg[0] == 1), isTrue);
+      final l = _l(h: 300);
+      final pages = EpubPager.layoutChapter(paras, l);
+      expect(pages.length, greaterThan(3), reason: '超高段没拆开＝页底继续裁字');
+      final blocks = [for (final pg in pages) for (final b in pg) b]
+          .where((b) => b.pi == 1)
+          .toList();
+      expect(blocks.length, greaterThan(1));
+      for (final b in blocks) {
+        expect(
+          EpubPager.pieceHeight(paras[b.pi], l, b.from, b.to),
+          lessThanOrEqualTo(l.contentH + .01),
+        );
+      }
+      expect(
+        blocks.map((b) => paras[1].text.substring(b.from, b.to)).join(),
+        paras[1].text,
+        reason: '续排丢字/重字',
+      );
+      final all = [for (final pg in pages) for (final b in pg) b.pi];
+      expect(all.first, 0);
+      expect(all.last, 2);
     });
   });
 
@@ -141,7 +159,7 @@ void main() {
     test('pageOfPara 与装箱表一致；未排版章回落 0、越界段末页', () {
       final pag = BookPagination.of(doc, _l());
       final pages = pag.pages[0]!;
-      expect(pag.pageOfPara(0, pages[1][0]), 1);
+      expect(pag.pageOfPara(0, pages[1][0].pi), 1);
       expect(pag.pageOfPara(0, 9999), pages.length - 1);
       final lazy = BookPagination.lazy([2, 2]);
       expect(lazy.pageOfPara(0, 1), 0);

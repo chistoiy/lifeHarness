@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui; // V1.53.2 放大镜抓帧
 
@@ -139,7 +140,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   List<({int ci, int pi, String text})> _hits = const [];
   int _hitI = -1;
   String _hitQ = '';
-  ({int ci, int pg, int pi})? _hitMark; // 当前高亮段
+  /// 当前高亮段（`from`＝块起点：段跨页续排后同段有两块，只按 pi 会两块同时点亮）。
+  ({int ci, int pg, int pi, int from})? _hitMark;
 
   // 批3 划词/划线（原型 brV.sel + BS_QUOTES.cf + BR_LOCAL_HL）。
   // 轮4③：同章闭区间 + 首/尾段内字符偏移（长按默认命中一句 · 轮5① 扩选改为首尾手柄拖动）。
@@ -926,12 +928,25 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       _hitI = i;
       _drawerOpen = false;
       if (_cfg.mode == 'page' && pag != null) {
+        // 命中词在该段里的位置＝决定落在被拆开的哪一块（§3H-A）。
+        final at = (() {
+          if (doc == null) return null;
+          final ps = doc.chapters[h.ci].paras;
+          if (h.pi >= ps.length) return null;
+          final o = ps[h.pi].text.indexOf(h.text);
+          return o < 0 ? null : o;
+        })();
         _pos.ci = h.ci;
-        _pos.pg = pag.pageOfPara(h.ci, h.pi);
-        _hitMark = (ci: h.ci, pg: _pos.pg, pi: h.pi);
+        _pos.pg = pag.pageOfPara(h.ci, h.pi, at: at);
+        _hitMark = (
+          ci: h.ci,
+          pg: _pos.pg,
+          pi: h.pi,
+          from: pag.pieceStartOf(h.ci, _pos.pg, h.pi, at: at),
+        );
       } else {
         _pos.ci = h.ci;
-        _hitMark = (ci: h.ci, pg: 0, pi: h.pi);
+        _hitMark = (ci: h.ci, pg: 0, pi: h.pi, from: 0);
       }
     });
     _savePos();

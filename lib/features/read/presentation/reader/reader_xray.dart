@@ -59,9 +59,14 @@ void xrJumpTo(int ch, int para) {
     _pos.ci = ci;
     if (_cfg.mode == 'page') {
       _pos.pg = pag.pageOfPara(ci, pi);
-      _hitMark = (ci: ci, pg: _pos.pg, pi: pi);
+      _hitMark = (
+        ci: ci,
+        pg: _pos.pg,
+        pi: pi,
+        from: pag.pieceStartOf(ci, _pos.pg, pi),
+      );
     } else {
-      _hitMark = (ci: ci, pg: 0, pi: pi);
+      _hitMark = (ci: ci, pg: 0, pi: pi, from: 0);
     }
     _flash = doc.chapters[ci].title;
   });
@@ -85,7 +90,8 @@ void _brFlashPara(int ci, int pi) {
   void visit(Element e) {
     if (found != null) return;
     final k = e.widget.key;
-    if (k is ValueKey<String> && k.value == 'brpTap-$ci-$pi') {
+    // 块级键（`brpTap-章-段-块起点`）：同段续排到下一页时只点亮**在场的那一块**。
+    if (k is ValueKey<String> && k.value.startsWith('brpTap-$ci-$pi-')) {
       found = e;
       return;
     }

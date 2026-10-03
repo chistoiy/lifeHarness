@@ -73,8 +73,13 @@ class ReaderLayout {
 
   double get contentW => (width - mar * 2).clamp(80.0, 10000.0);
 
-  /// 上下让出 chrome 呼吸区（原型 padding mar+40 / mar+46）。
-  double get contentH => (height - mar - 40 - mar - 46).clamp(120.0, 10000.0);
+  /// 上下让出 chrome 呼吸区（原型 padding mar+40 / mar+46；常数与上屏侧同源，
+  /// 见 [kBrChromeTopPad]）；高度另减顶部安全区，见 [brStageHeight]。
+  double get contentH =>
+      (height - mar - kBrChromeTopPad - mar - kBrChromeBottomPad).clamp(
+        120.0,
+        10000.0,
+      );
 
   /// 字族角色（LH-F01）：与 `ReaderCfg.fontRole` 调**同一个函数**，
   /// 泛族串（'serif'/'sans-serif'）已换成与原型同串的中文字体链。
@@ -115,8 +120,55 @@ class ReaderLayout {
   );
 }
 
+/// 舞台可视高＝视口高 − **顶部安全区**（工单 §3H-A 候选1）。
+/// 阅读主屏的 `LayoutBuilder` 挂在 SafeArea **外**（热区/选区层要全屏坐标），
+/// 正文舞台挂在 SafeArea **内**，所以两个高度不相等：装箱若吃视口高，
+/// 每一页都多塞一个状态栏（真机 ea028260＝44.67px ≈ 大半行），
+/// 页底最后一行被裁一半就是这么来的（2026-10-04 探针实测）。
+/// 预载侧**必须走同一个函数**：两边算法不同＝分页指纹分叉＝预载白排。
+double brStageHeight(BuildContext context, {required double viewportH}) =>
+    viewportH - MediaQuery.paddingOf(context).top;
+
 /// 段首缩进 2em（原型 .brp text-indent:2em；两个全角空格的实测宽度恰为 2em）。
 const String kParaIndent = '\u3000\u3000';
+
+/// **段外距的唯一口径**（工单 §3H-A 候选1/3 对账，2026-10-04）：
+/// 这些数字上屏侧（`reader_stage._para` 的 Padding）与测量侧
+/// （[EpubPager.paraHeight] / [EpubPager.pieceHeight]）**必须吃同一份常量**。
+/// 此前两边各写一份字面量（测量给正文加 7、上屏实际吃掉 10；标题 14 对 30；
+/// 引文 18 对 14），全书 34% 的页因此绘制高度＞可用高＝页底裁字。
+const double kBrPadWrapV = 1.0, // wrap 容器上下各 1（划线/选区底色的呼吸）
+    kBrPadWrapH = 2.0, // wrap 容器左右各 2（**会挤断行宽度**，测量必须扣）
+    kBrPadTextBottom = 8.0, // 正文段底空隙（＝装箱的段间距，同一个数）
+    kBrPadHeadTop = 16.0,
+    kBrPadHeadBottom = 12.0,
+    kBrPadQuoteBottom = 12.0,
+    kBrPadImageBottom = 14.0,
+    kBrQuoteLeft = 11.0, // 引文块左边距
+    kBrQuoteBarW = 3.0, // 引文块竖线宽
+    kBrImageBoxH = 190.0, // 插图固定块高（真图高按宽高比浮动，属已知挂账）
+    kBrChromeTopPad = 40.0, // 页容器上让位（顶栏呼吸区，装箱同源）
+    kBrChromeBottomPad = 46.0; // 页容器下让位（底栏呼吸区，装箱同源）
+
+/// 引文块吃掉的有效行宽＝左边距＋竖线（测量宽度同源，见 [paraMeasureW]）。
+const double kBrQuoteIndent = kBrQuoteLeft + kBrQuoteBarW;
+
+/// 一段在上屏时除文字本体之外**额外占掉**的竖向空间。
+double paraOuter(EpubParaKind k) => switch (k) {
+  EpubParaKind.text => kBrPadWrapV * 2 + kBrPadTextBottom,
+  EpubParaKind.heading => kBrPadWrapV * 2 + kBrPadHeadTop + kBrPadHeadBottom,
+  EpubParaKind.quote => kBrPadWrapV * 2 + kBrPadQuoteBottom,
+  // 插图分支不套 wrap（reader_stage 的 image case 直接是 Padding）
+  EpubParaKind.image => kBrPadImageBottom,
+};
+
+/// 该型段落在上屏时**真正能用到的行宽**（＝舞台内容宽扣掉容器内边距与引文缩进）。
+/// 测量按整幅宽、上屏被内边距吃掉 4px，实测通鉴因此多折 1911 行（§3H-A 候选3）。
+double paraMeasureW(ReaderLayout l, EpubParaKind k) =>
+    (l.contentW -
+            kBrPadWrapH * 2 -
+            (k == EpubParaKind.quote ? kBrQuoteIndent : 0))
+        .clamp(40.0, 10000.0);
 
 /// ① 注释/脚注体缩放与压暗系数（原型 .brp-fn font-size:.8em;opacity:.72）。
 const double kAnnotationFsFactor = .8;
@@ -257,7 +309,10 @@ TextStyle applyOrigStyle(
     if (w != null) s = s.copyWith(fontWeight: w);
   }
   if (st.italic) s = s.copyWith(fontStyle: FontStyle.italic);
-  if (st.lineRatio != null) s = s.copyWith(height: st.lineRatio);
+  // 原书 `line-height` **不再覆盖行距**（工单 §3H-B 拍板，2026-10-04 产品选「行距拉平」）：
+  // 通鉴全书 36064/36065 段声明了 line-height，一旦照吃，外观里的「行距」滑杆
+  // 对这本书就彻底失效（实测滑杆不动、字号滑杆照动）——行距归属定为「用户优先」。
+  // 声明本身仍由抽取层保留（EpubStyle.lineRatio 是画像证据），消费面在此止住。
   if (!_origDeclaresLine(st)) return s;
   // 边线→文本线的通用映射（上面的能力边界）；形态取** contributing 边线**自己的，
   // 缺省回落段级 deco（书名线的 gif 平铺线在刀2 已通用回落成 wavy）。
@@ -303,7 +358,7 @@ TextStyle _origOnto(TextStyle stop, TextStyle declared, EpubStyle st) {
   if (st.fontRatio != null) s = s.copyWith(fontSize: declared.fontSize);
   if (st.weight != null) s = s.copyWith(fontWeight: declared.fontWeight);
   if (st.italic) s = s.copyWith(fontStyle: declared.fontStyle);
-  if (st.lineRatio != null) s = s.copyWith(height: declared.height);
+  // lineRatio 同 applyOrigStyle：行距归用户滑杆（§3H-B 拍板），原书声明只留数据不上屏。
   if (_origDeclaresLine(st)) {
     s = s.copyWith(
       decoration: declared.decoration,
@@ -315,29 +370,97 @@ TextStyle _origOnto(TextStyle stop, TextStyle declared, EpubStyle st) {
   return s;
 }
 
+/// 标题段的字号档：原书声明了字号比就以原书为准（§5.4 拍板「完全按原书展示」），
+/// 没声明走我们自己的 1.25×。**测量与上屏都从这里取**——此前上屏自建 1.25×、
+/// 测量按基准字号量，每条标题少算约 1/4 行高（工单 §3H-A 对账新收的一条）。
+double headingFontRatio(EpubPara p, bool orig) =>
+    orig && p.style?.fontRatio != null ? p.style!.fontRatio! : 1.25;
+
 /// ① 注释体段落样式（正文色 + 小一号）；[orig] 开时**原书声明优先**、
 /// 未声明的属性仍走止血口径（§5.4 拍板：`.comment` 蓝＋1rem 压过 R3-2①）。
 /// **测量与渲染共用同一函数**：只在分页器里缩字号、上屏不缩，
 /// 就会「按小字算页、按大字画页」溢出/空页。
-/// 正文与引文两类都算注释体；标题另有字号档（1.25×）不参与。
+/// 正文与引文两类都算注释体；标题走 [headingFontRatio] 的字号档＋加粗，不参与注释体。
 TextStyle paraStyle(
   EpubPara p,
   TextStyle base, {
   bool orig = false,
   Color? pageBg,
+}) =>
+    _flattenLineHeight(
+      paraFont(p, base, orig: orig, pageBg: pageBg),
+      base,
+      p,
+      orig,
+    );
+
+/// 段落**字面**样式（字号档/注释体/原书声明都叠完，但**不做行高归一**）。
+/// 拆出来是给 [paraMaxFont] 用——归一要先知道全段最大字号，而最大字号不能吃归一后的值。
+TextStyle paraFont(
+  EpubPara p,
+  TextStyle base, {
+  bool orig = false,
+  Color? pageBg,
 }) {
+  // 标题档（§3H-A 收口）：字号档与字重都进测量——字重会影响西文与数字的字宽。
+  final head = p.kind == EpubParaKind.heading
+      ? base.copyWith(
+          fontSize: (base.fontSize ?? 19) * headingFontRatio(p, orig),
+          fontWeight: FontWeight.w800,
+        )
+      : base;
   final stop = !p.annotation ||
           p.kind == EpubParaKind.heading ||
           p.kind == EpubParaKind.image
-      ? base
-      : base.copyWith(
-          fontSize: (base.fontSize ?? 19) * kAnnotationFsFactor,
+      ? head
+      : head.copyWith(
+          fontSize: (head.fontSize ?? 19) * kAnnotationFsFactor,
           // base.color 为空（测量用的裸样式）时只缩字号，不凭空造色。
-          color: base.color?.withValues(alpha: kAnnotationAlpha),
+          color: head.color?.withValues(alpha: kAnnotationAlpha),
         );
+  // 注意：这里**不做行高归一**——paraMaxFont→paraFont→归一 会互相递归炸栈，
+  // 归一只在 paraStyle 出口做一次（§3H-B）。
   final st = p.style;
   if (!orig || st == null || st.isEmpty) return stop;
   return _origOnto(stop, applyOrigStyle(base, st, pageBg: pageBg), st);
+}
+
+/// **行距拉平**（工单 §3H-B 拍板，2026-10-04 产品选路）。
+/// Flutter 与浏览器一样：行盒取**该行最大字号**乘各自倍数——通鉴 82% 的段落内部混着
+/// 19px 正文与 14.3px 夹注，同一段里 29px／21px 交替（样包实测：抽样 310 个混字号段
+/// 有 233 段行高不齐），这就是用户说的「显示不均匀」。
+/// 口径＝**本段每一行的行盒都等于「本段最大字号 × 用户行距倍数」**：把每个字档的
+/// `height` 反算成 `maxFs × lh ÷ 本档字号`，行盒自然齐平。
+/// 不用 `StrutStyle.forceStrutHeight`：真书实测拉不平（混字号行的行盒仍按内容取大值）。
+/// 行距倍数只认外观滑杆（原书 `line-height` 不再覆盖，见 [applyOrigStyle] 内注释）。
+double paraMaxFont(EpubPara p, TextStyle base, {bool orig = false}) {
+  var m = paraFont(p, base, orig: orig).fontSize ?? base.fontSize ?? 19;
+  if (!orig) return m;
+  final st = p.style;
+  if (st?.fontRatio != null) {
+    final f = (base.fontSize ?? 19) * st!.fontRatio!;
+    if (f > m) m = f;
+  }
+  for (final r in p.runs) {
+    if (r.style.fontRatio == null) continue;
+    final f = (base.fontSize ?? 19) * r.style.fontRatio!;
+    if (f > m) m = f;
+  }
+  return m;
+}
+
+TextStyle _flattenLineHeight(
+  TextStyle s,
+  TextStyle base,
+  EpubPara p,
+  bool orig,
+) {
+  final lh = base.height;
+  if (lh == null) return s;
+  final fs = s.fontSize ?? base.fontSize ?? 19;
+  final maxFs = paraMaxFont(p, base, orig: orig);
+  if (maxFs <= fs) return s.copyWith(height: lh);
+  return s.copyWith(height: maxFs * lh / fs);
 }
 
 /// 段内一个显示区间的样式（[paraRunStyles] 的返回值）。
@@ -385,7 +508,14 @@ List<EpubRunSegment> paraRunStyles(
       EpubRunSegment(
         start: s,
         end: e,
-        style: _origOnto(para, applyOrigStyle(base, r.style, pageBg: pageBg), r.style),
+        // 区间样式也过一遍行高归一：小字档的倍数被放大到「与本段最大字号同高」，
+        // 于是整段每行行盒相等（§3H-B 行距拉平）。
+        style: _flattenLineHeight(
+          _origOnto(para, applyOrigStyle(base, r.style, pageBg: pageBg), r.style),
+          base,
+          p,
+          orig,
+        ),
       ),
     );
     cur = e;
@@ -407,42 +537,49 @@ TextSpan paraSelectionSpan(
   String s2t = kS2TOrig,
   required int a,
   required int b,
+  int from = 0,
+  int? to,
   Color selBg = const Color(0x4D6366F1),
 }) {
   final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
   final body = paraBody(p, s2t);
-  final pre = paraIndented(p, indMode) ? kParaIndent : '';
-  final lo = a.clamp(0, body.length), hi = b.clamp(lo, body.length);
+  final n = body.length;
+  final cutA = from.clamp(0, n), cutB = (to ?? n).clamp(cutA, n);
+  final pre = cutA == 0 && paraIndented(p, indMode) ? kParaIndent : '';
+  final lo = math.max(a.clamp(0, n), cutA), hi = math.min(b.clamp(0, n), cutB);
   final kids = <InlineSpan>[
     if (pre.isNotEmpty) TextSpan(text: pre, style: para),
   ];
-  for (final s in paraRunStyles(p, base, orig: orig, pageBg: pageBg)) {
-    if (s.end <= lo || s.start >= hi) {
-      kids.add(TextSpan(text: body.substring(s.start, s.end), style: s.style));
+  for (final seg in paraRunStyles(p, base, orig: orig, pageBg: pageBg)) {
+    // 块裁剪（§3H-A 拆页）：本块只画 [cutA,cutB)，选区 [lo,hi) 已经同样夹过。
+    final s0 = math.max(seg.start, cutA), s1 = math.min(seg.end, cutB);
+    if (s1 <= s0) continue; // 整截在别的页上
+    if (s1 <= lo || s0 >= hi) {
+      kids.add(TextSpan(text: body.substring(s0, s1), style: seg.style));
       continue; // 整截都在选区外：原样式照上
     }
-    if (s.start < lo) {
+    if (s0 < lo) {
       kids.add(
         TextSpan(
-          text: body.substring(s.start, lo),
-          style: s.style,
+          text: body.substring(s0, lo),
+          style: seg.style,
         ),
       );
     }
-    final x0 = math.max(s.start, lo), x1 = math.min(s.end, hi);
+    final x0 = math.max(s0, lo), x1 = math.min(s1, hi);
     if (x1 > x0) {
       kids.add(
         TextSpan(
           text: body.substring(x0, x1),
-          style: s.style.copyWith(backgroundColor: selBg),
+          style: seg.style.copyWith(backgroundColor: selBg),
         ),
       );
     }
-    if (s.end > hi) {
+    if (s1 > hi) {
       kids.add(
         TextSpan(
-          text: body.substring(hi, s.end),
-          style: s.style,
+          text: body.substring(hi, s1),
+          style: seg.style,
         ),
       );
     }
@@ -453,6 +590,9 @@ TextSpan paraSelectionSpan(
 /// 段 → 上屏用的富文本 span（**测量与渲染共用的唯一出口**：[EpubPager.paraHeight]、
 /// 引文块、正文事件流都从这张分段表取字取样式；两处各拼一份必分叉＝空页/错页）。
 /// 缩进前缀恒按段级样式渲染在最前（轮4③ 真机口径），不参与 runs 分段。
+/// [from]/[to]＝**段内字符区间**（工单 §3H-A：一段比一页还高时要跨页续排，
+/// 每页只画这一段的其中一截）。坐标始终是原文坐标（与链接/划线/书摘同一系），
+/// 只有 `from==0` 的那一截才带缩进前缀。
 TextSpan paraSpan(
   EpubPara p,
   TextStyle base, {
@@ -460,16 +600,27 @@ TextSpan paraSpan(
   Color? pageBg,
   String indMode = 'auto',
   String s2t = kS2TOrig,
+  int from = 0,
+  int? to,
 }) {
   final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
   final body = paraBody(p, s2t);
-  final pre = paraIndented(p, indMode) ? kParaIndent : '';
+  final n = body.length;
+  final a = from.clamp(0, n), b = (to ?? n).clamp(a, n);
+  final pre = a == 0 && paraIndented(p, indMode) ? kParaIndent : '';
   return TextSpan(
     style: para,
     children: <InlineSpan>[
       if (pre.isNotEmpty) TextSpan(text: pre, style: para),
       for (final s in paraRunStyles(p, base, orig: orig, pageBg: pageBg))
-        TextSpan(text: body.substring(s.start, s.end), style: s.style),
+        if (s.end > a && s.start < b)
+          TextSpan(
+            text: body.substring(
+              s.start > a ? s.start : a,
+              s.end < b ? s.end : b,
+            ),
+            style: s.style,
+          ),
     ],
   );
 }
@@ -503,51 +654,156 @@ TextStyle linkStyleFor(TextStyle base, EpubLink l) => l.annotation
     ? linkAccentStyle(base)
     : linkAnchorStyle(base);
 
+/// 页内一块＝段下标 ＋ 该段**上屏的字符区间** `[from,to)`（整段＝0..段长）。
+/// 工单 §3H-A：真机样包《資治通鑑》实测 **4.5% 的段落比一整页还高**（最长约 4958px＝
+/// 页高的 6 倍），旧模型「放不下就整段独占一页」对它无解——独占照样溢出 345px，
+/// 页底那一行就被裁一半。现在这种段按**行**切开续排到后续页。
+/// 坐标一律是**原文坐标**（与链接/划线/书摘/选区同一坐标系，页坐标不许渗进库）。
+@immutable
+class PagPiece {
+  const PagPiece(this.pi, this.from, this.to);
+
+  final int pi, from, to;
+
+  /// 落盘载荷：`[pi,to]`＝从段首起（绝大多数块，省一个数）；`[pi,from,to]`＝续排块。
+  /// 用长度分流＝没有歧义（`from==0` 的截断块也走两元组，`to` 照实记）。
+  List<int> encode() =>
+      from == 0 ? <int>[pi, to] : <int>[pi, from, to];
+
+  static PagPiece decode(List<dynamic> j) => j.length >= 3
+      ? PagPiece(
+          (j[0] as num).toInt(),
+          (j[1] as num).toInt(),
+          (j[2] as num).toInt(),
+        )
+      : PagPiece((j[0] as num).toInt(), 0, (j[1] as num).toInt());
+
+  // 值相等：落盘表往返、懒排合并、用例断言都按「同一块」比对，不比对象身份。
+  @override
+  bool operator ==(Object other) =>
+      other is PagPiece &&
+      other.pi == pi &&
+      other.from == from &&
+      other.to == to;
+
+  @override
+  int get hashCode => Object.hash(pi, from, to);
+
+  @override
+  String toString() => '#$pi:$from..$to';
+}
+
+typedef PagPage = List<PagPiece>;
+typedef PagChapter = List<PagPage>;
+
 /// 分页引擎：TextPainter 真实测量（字号/行距/字距/边距变化 → 页数即时重排），
 /// 非字符数估算（V1.50 硬约束「分页引擎实算」）。
 class EpubPager {
   const EpubPager._();
 
-  /// 单段块高（含原型间距口径：标题 +14 · 引文 +18 · 正文 +7 · 插图固定 190）。
-  /// 批三刀3：改吃 [paraRunStyles] 的分段表——em 字号进 span 之后，
+  /// 段内一块 `[from,to)` 的**上屏高度**＝文字本体 ＋ 该型段的段外距（[paraOuter]）。
+  /// 批三刀3：吃 [paraRunStyles] 的分段表——em 字号进 span 之后，
   /// 「按平文本量、按 span 树画」必出空页，两边走一张表才叫同源（预研 §3 红线）。
-  static double paraHeight(EpubPara p, ReaderLayout l) {
-    if (p.kind == EpubParaKind.image) return 190;
+  /// §3H-A 同源补刀：宽度按 [paraMeasureW]（扣容器内边距）、外距按 [paraOuter]、
+  /// 行盒走 [_flattenLineHeight]（§3H-B 行距拉平）——**装箱、拆分、上屏三处唯一的数**。
+  static double pieceHeight(EpubPara p, ReaderLayout l, int from, int to) {
+    // 插图＝固定 190 估计（真图高按宽高比浮动＝§3H 已知挂账，另批处理）；
+    // 数值维持旧口径，这一批不同时改两处语义。
+    if (p.kind == EpubParaKind.image) return kBrImageBoxH;
     final tp = TextPainter(
       // 测量路径不传 pageBg＝原书色不参与调和（色不影响度量），
       // 但**分段表与上屏同一张**（字号比会改行高，两边必须一致）。
-      text: paraSpan(p, l.base, orig: l.orig, indMode: l.indMode, s2t: l.s2t),
+      text: paraSpan(
+        p,
+        l.base,
+        orig: l.orig,
+        indMode: l.indMode,
+        s2t: l.s2t,
+        from: from,
+        to: to,
+      ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: l.contentW);
-    final gap = p.kind == EpubParaKind.heading
-        ? 14.0
-        : p.kind == EpubParaKind.quote
-        ? 18.0
-        : 7.0;
-    return tp.height + gap;
+    )..layout(maxWidth: paraMeasureW(l, p.kind));
+    return tp.height + paraOuter(p.kind);
   }
 
-  /// 一章 → 页列表（页内段落下标），贪心装箱：段间 8，超高换页（同原型）。
-  static List<List<int>> layoutChapter(List<EpubPara> paras, ReaderLayout l) {
-    // 空章（纯封面/版权页可能无段）：给一张空页，渲染层零段落，不越界。
-    if (paras.isEmpty) return const <List<int>>[<int>[]];
-    final pages = <List<int>>[];
-    var cur = <int>[];
-    var h = 0.0;
-    for (var i = 0; i < paras.length; i++) {
-      final x = paraHeight(paras[i], l);
-      final add = cur.isEmpty ? 0.0 : 8.0;
-      if (h + add + x > l.contentH && cur.isNotEmpty) {
-        pages.add(cur);
-        cur = <int>[];
-        h = 0;
-      } else if (cur.isNotEmpty) {
-        h += add;
-      }
-      cur.add(i);
-      h += x;
+  /// 单段块高（整段）。
+  static double paraHeight(EpubPara p, ReaderLayout l) =>
+      pieceHeight(p, l, 0, p.text.length);
+
+  /// 在 `[from, 段尾)` 里找**当前页剩余高 avail 放得下的最后一个行首**（原文坐标）。
+  /// 按行度量累计，切点一定落在行与行之间＝两页都不裁半行。
+  static int cutAfterLine(EpubPara p, ReaderLayout l, int from, double avail) {
+    final n = p.text.length;
+    if (from >= n) return n;
+    final ind = from == 0 && paraIndented(p, l.indMode) ? kParaIndent.length : 0;
+    final tp = TextPainter(
+      text: paraSpan(
+        p,
+        l.base,
+        orig: l.orig,
+        indMode: l.indMode,
+        s2t: l.s2t,
+        from: from,
+        to: n,
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: paraMeasureW(l, p.kind));
+    final budget = avail - paraOuter(p.kind);
+    var top = 0.0, cutDisp = 0;
+    for (final m in tp.computeLineMetrics()) {
+      if (top + m.height > budget) break;
+      top += m.height;
+      // 下一行的行首（显示坐标）；末行时取到段尾，调用方按 from 兜底推进。
+      cutDisp = tp.getPositionForOffset(Offset(0, top + 0.5)).offset;
     }
-    if (cur.isNotEmpty) pages.add(cur);
+    tp.dispose();
+    if (cutDisp < ind) cutDisp = ind; // 绝不在缩进前缀里切
+    final body = (cutDisp - ind) + from;
+    return body <= from ? from + 1 : body.clamp(from + 1, n);
+  }
+
+  /// 一章 → 页列表（页内是**块**）。贪心装箱：每块自带段外距（段间空隙＝正文段的
+  /// 段底 8，见 [paraOuter]，不再另加），超高换页；**换页后仍放不下的段按行切开续排**。
+  static PagChapter layoutChapter(List<EpubPara> paras, ReaderLayout l) {
+    // 空章（纯封面/版权页可能无段）：给一张空页，渲染层零块，不越界。
+    if (paras.isEmpty) return <PagPage>[<PagPiece>[]];
+    final pages = <PagPage>[];
+    var cur = <PagPiece>[];
+    var h = 0.0;
+    void flush() {
+      if (cur.isEmpty) return;
+      pages.add(cur);
+      cur = <PagPiece>[];
+      h = 0;
+    }
+
+    for (var i = 0; i < paras.length; i++) {
+      final p = paras[i];
+      final n = p.text.length;
+      var from = 0;
+      while (true) {
+        final rest = pieceHeight(p, l, from, n);
+        final avail = l.contentH - h;
+        if (cur.isNotEmpty && rest > avail) {
+          flush(); // 先换页，再在整页高度上重试这一块
+          continue;
+        }
+        if (rest <= avail || p.kind == EpubParaKind.image) {
+          cur.add(PagPiece(i, from, n));
+          h += rest;
+          break;
+        }
+        // 空页也装不下＝这段本身超一页：切一块上本页，剩下的续排（不许裁半字）。
+        final cut = cutAfterLine(p, l, from, avail);
+        final end = cut > n ? n : cut;
+        cur.add(PagPiece(i, from, end));
+        flush();
+        from = end;
+        if (from >= n) break;
+      }
+    }
+    flush();
     return pages;
   }
 }
@@ -559,7 +815,7 @@ class EpubPager {
 class BookPagination {
   BookPagination.lazy(List<int> charWeights)
     : w = List.unmodifiable(charWeights) {
-    pages = List<List<List<int>>?>.filled(w.length, null);
+    pages = List<PagChapter?>.filled(w.length, null);
     cum = List.filled(w.length + 1, 0);
     for (var i = 0; i < w.length; i++) {
       cum[i + 1] = cum[i] + w[i];
@@ -580,7 +836,7 @@ class BookPagination {
   /// 从落盘表直接构造（批3.5 分页表命中＝秒进；允许部分章为 null）。
   factory BookPagination.fromTable(
     List<int> charWeights,
-    List<List<List<int>>?> pages,
+    List<PagChapter?> pages,
   ) {
     final p = BookPagination.lazy(charWeights);
     for (var i = 0; i < pages.length && i < p.pages.length; i++) {
@@ -591,8 +847,8 @@ class BookPagination {
 
   /// 每章字符数（进度权重）。
   final List<int> w;
-  /// 章 → 页 → 段下标；null＝该章未排版（按需实算后回填）。
-  late final List<List<List<int>>?> pages;
+  /// 章 → 页 → 块（段＋段内区间）；null＝该章未排版（按需实算后回填）。
+  late final List<PagChapter?> pages;
   /// cum[i]＝前 i 章字符数前缀和。
   late final List<int> cum;
 
@@ -601,7 +857,7 @@ class BookPagination {
 
   bool laidOut(int ci) =>
       ci >= 0 && ci < pages.length && pages[ci] != null;
-  void setChapter(int ci, List<List<int>> pg) => pages[ci] = pg;
+  void setChapter(int ci, PagChapter pg) => pages[ci] = pg;
 
   /// 章内页数（未排版章按 1 页占位，仅影响章内插值不影响章间权重）。
   int chapterPages(int ci) => pages[ci]?.length ?? 1;
@@ -637,12 +893,30 @@ class BookPagination {
   int gPosEst(int ci, int pg) => (estTotal * frac(ci, pg)).round();
 
   /// 段落 pi 在该章的页号（检索命中跳转用；调用方须先 ensure 该章）。
-  int pageOfPara(int ci, int pi) {
+  /// 段跨页续排后**一块一页**：传 [at]（段内原文偏移）就返回覆盖该偏移的那一页，
+  /// 不传＝返回首块（旧语义）。
+  int pageOfPara(int ci, int pi, {int? at}) {
     final list = pages[ci];
     if (list == null) return 0;
     for (var p = 0; p < list.length; p++) {
-      if (list[p].contains(pi)) return p;
+      for (final b in list[p]) {
+        if (b.pi != pi) continue;
+        if (at == null) return p;
+        if (at >= b.from && at < b.to) return p;
+      }
     }
     return (list.length - 1).clamp(0, 1 << 30);
+  }
+
+  /// 第 pg 页里段 pi 的**块起点**（同段被切成多块时用 [at] 选其一）；找不到＝0。
+  /// 命中闪底/闪烁环的键都带块起点，跳转侧必须用它定位到**真正那一块**（§3H-A）。
+  int pieceStartOf(int ci, int pg, int pi, {int? at}) {
+    final list = pages[ci];
+    if (list == null || pg < 0 || pg >= list.length) return 0;
+    for (final b in list[pg]) {
+      if (b.pi != pi) continue;
+      if (at == null || (at >= b.from && at < b.to)) return b.from;
+    }
+    return 0;
   }
 }

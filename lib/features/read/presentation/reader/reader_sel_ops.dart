@@ -35,20 +35,99 @@ extension _ReaderSelOps on _ReaderPageState {
   /// 长按落点 → 段内字符偏移（纯原生 RenderParagraph，确定性）。
   /// V1.53.2：停用 ParaBoxCache 命中（缓存填充时机不定 + 与 anchor 坐标源不一致，
   /// 导致「时偏时不偏」）；shift 改动态取渲染前缀长度，与 _selAnchor 完全同源。
-  int? _charPosInPara(int ci, int pi, Offset global) {
+  int? _charPosInPara(int ci, int pi, Offset global, {int? from}) {
     final doc = _doc;
     if (doc == null) return null;
     final ps = doc.chapters[ci].paras;
     if (pi >= ps.length) return null;
-    final rb = _paraRender(ci, pi);
+    // 指定块＝按块键取；不给＝取该段**已上屏且离指针高度最近**的那一块
+    // （拆块后同段可能同时有两块在树里，见 _renderedBlocksOf）。
+    final blocks = _renderedBlocksOf(ci, pi);
+    if (blocks.isEmpty) return null;
+    final b = from != null
+        ? blocks.firstWhere((x) => x.from == from, orElse: () => blocks.first)
+        : _blockAtY(blocks, ci, pi, global);
+    final rb = _paraRender(ci, pi, from: b.from);
     if (rb == null) return null;
     final local = rb.globalToLocal(global);
     final pos = rb.getPositionForOffset(local);
-    final full = rb.text.toPlainText();
-    // 渲染文本比原文多出的＝缩进前缀（动态，与 _selAnchor 的 shift 同式）。
-    final shift = (full.length - ps[pi].text.length).clamp(0, full.length);
-    final r = (pos.offset - shift).clamp(0, ps[pi].text.length);
-    return r;
+    // 块首（原文坐标）＋前缀补偿（只有 from==0 的那块带 2em 缩进）。
+    final ind = b.from == 0 && paraIndented(ps[pi], _cfg.indMode)
+        ? kParaIndent.length
+        : 0;
+    return (b.from + pos.offset - ind).clamp(0, ps[pi].text.length);
+  }
+
+  /// 把命中区间钳进 `[from,to)` 且**保持非空**：两端同值时向块内让一格
+  /// （空选区＝工具条有、手柄无处落，真机表现为「选了字没有拖拽柄」）。
+  ({int a, int b}) _clampSelToBlock(({int a, int b}) raw, int from, int to) {
+    if (to <= from) return (a: from, b: from);
+    var a = raw.a.clamp(from, to), b = raw.b.clamp(from, to);
+    if (b <= a) {
+      a = raw.a < from ? from : (to - 1 > from ? to - 1 : from);
+      b = a < to ? to : a;
+    }
+    return (a: a, b: b);
+  }
+
+  /// 该段**已上屏的块**（键 `$ci:$pi:$from`）。块尾由渲染文本长度反推：
+  /// 显示文本＝缩进前缀＋块内正文，简繁转换逐字等长，所以长度差＝块跨度。
+  List<({int from, int to})> _renderedBlocksOf(int ci, int pi) {
+    final doc = _doc;
+    if (doc == null) return const [];
+    final ps = doc.chapters[ci].paras;
+    if (pi >= ps.length) return const [];
+    final prefix = '$ci:$pi:';
+    final plain = '$ci:$pi';
+    final pre = paraIndented(ps[pi], _cfg.indMode) ? kParaIndent.length : 0;
+    final out = <({int from, int to})>[];
+    for (final e in _paraKeys.entries) {
+      // 首块的键沿用旧串 `$ci:$pi`（from==0），续排块才是 `$ci:$pi:$from`。
+      final int from;
+      if (e.key == plain) {
+        from = 0;
+      } else if (e.key.startsWith(prefix)) {
+        from = int.tryParse(e.key.substring(prefix.length)) ?? -1;
+      } else {
+        continue;
+      }
+      if (from < 0) continue;
+      final ctx = e.value.currentContext;
+      if (ctx is! Element) continue;
+      final ro = ctx.renderObject;
+      if (ro == null) continue;
+      final rb = _firstRenderParagraph(ro);
+      if (rb == null || !rb.hasSize) continue;
+      final len = rb.text.toPlainText().length - (from == 0 ? pre : 0);
+      out.add((from: from, to: (from + len).clamp(from, ps[pi].text.length)));
+    }
+    out.sort((a, b) => a.from.compareTo(b.from));
+    return out;
+  }
+
+  /// 指针高度落在哪一块（不在任何块内＝按垂直距离最近的一块）。
+  ({int from, int to}) _blockAtY(
+    List<({int from, int to})> blocks,
+    int ci,
+    int pi,
+    Offset global,
+  ) {
+    var best = blocks.first;
+    var bestD = double.infinity;
+    for (final b in blocks) {
+      final rb = _paraRender(ci, pi, from: b.from);
+      if (rb == null || !rb.hasSize) continue;
+      final o = rb.localToGlobal(Offset.zero);
+      final rect = Rect.fromLTWH(o.dx, o.dy, rb.size.width, rb.size.height);
+      final d = global.dy < rect.top
+          ? rect.top - global.dy
+          : (global.dy > rect.bottom ? global.dy - rect.bottom : 0.0);
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    return best;
   }
 
 
@@ -61,7 +140,7 @@ extension _ReaderSelOps on _ReaderPageState {
 
   /// 真机反馈（2026-09-28）+ 轮4③：长按命中一句；同段再长按＝收起；
   /// 点其它段落＝移动选区。点按已不落到这里（冒泡 body 层收放 chrome）。
-  void _selectPara(int ci, int pi, {Offset? at}) {
+  void _selectPara(int ci, int pi, {Offset? at, int from = 0}) {
     final doc = _doc;
     if (doc == null) return;
     final ps = doc.chapters[ci].paras;
@@ -70,11 +149,21 @@ extension _ReaderSelOps on _ReaderPageState {
       _clearSel();
       return;
     }
-    final idx = at == null ? 0 : _charPosInPara(ci, pi, at) ?? 0;
+    final idx = at == null
+        ? from
+        : _charPosInPara(ci, pi, at, from: from) ?? from;
     // V1.53.4④ 长按选择粒度（read.brSelGran）：选字＝命中单字可拖手柄扩；选句＝整句。
-    final se = _brSelGran == '选句'
+    final raw = _brSelGran == '选句'
         ? _sentenceAt(ps[pi].text, idx)
         : _charSel(ps[pi].text, idx);
+    // 跨页的句子不合并（§3H-A）：命中区间钳回**本块**，句读扫到段尾也带不出这一页。
+    final bl = _renderedBlocksOf(ci, pi);
+    final b = bl.firstWhere(
+      (x) => x.from == from,
+      orElse: () => (from: 0, to: ps[pi].text.length),
+    );
+    // 钳回本块后仍要保证非空（raw 越到块尾时两端会同值＝选区消失、手柄无处落）。
+    final se = _clampSelToBlock(raw, b.from, b.to);
     _lpCi = ci;
     _lpPi = pi;
     // ignore: invalid_use_of_protected_member
@@ -133,9 +222,11 @@ extension _ReaderSelOps on _ReaderPageState {
     final ps = doc.chapters[ci].paras;
     if (hit.pi >= ps.length) return;
     // V1.53.4④ 拖动跟手同样按粒度档命中（选字＝单字随指走）。
-    final se = _brSelGran == '选句'
+    final raw = _brSelGran == '选句'
         ? _sentenceAt(ps[hit.pi].text, hit.off)
         : _charSel(ps[hit.pi].text, hit.off);
+    // 跨页的句子不合并：钳回命中那一块（§3H-A）。
+    final se = _clampSelToBlock(raw, hit.from, hit.to);
     _lpCi = ci;
     _lpPi = hit.pi;
     // ignore: invalid_use_of_protected_member
@@ -511,22 +602,33 @@ extension _ReaderSelOps on _ReaderPageState {
     final ps = doc.chapters[s.ci].paras;
     final pi = end ? s.p1 : s.p0;
     if (pi < 0 || pi >= ps.length) return null;
-    final rb = _paraRender(s.ci, pi);
+    // 端点落在哪一块（同段续排到下一页时，句柄要跟在这一页的那一块上，§3H-A）。
+    final off = (end ? s.o1 : s.o0).clamp(0, ps[pi].text.length);
+    final bl = _renderedBlocksOf(s.ci, pi);
+    if (bl.isEmpty) return null;
+    final blk = bl.lastWhere((x) => off >= x.from, orElse: () => bl.first);
+    final rb = _paraRender(s.ci, pi, from: blk.from);
     if (rb == null) return null;
     final full = rb.text.toPlainText();
     if (full.isEmpty) return null;
-    // 渲染文本比原始段文本多出的＝2em 缩进前缀（选中态也恒带前缀，见 _subSpan）。
-    final shift = (full.length - ps[pi].text.length).clamp(0, full.length);
-    final o = (end ? s.o1 : s.o0).clamp(0, ps[pi].text.length) + shift;
+    // 渲染文本比**块内正文**多出的＝2em 缩进前缀（只有首块带，选中态也恒带，见 _subSpan）。
+    final shift =
+        blk.from == 0 && paraIndented(ps[pi], _cfg.indMode)
+            ? kParaIndent.length
+            : 0;
+    final o = (off - blk.from).clamp(0, (full.length - shift).clamp(0, full.length)) + shift;
     final at = o.clamp(0, full.length);
+    // 端点落在文本首/尾边界时，向内的字符盒为零宽（getBoxesForSelection 返回空）
+    // ＝手柄画不出来（真机表现＝选到最后一个字后手柄消失），这里一律向段内取一格。
+    final edge = at <= 0 ? 1 : (at >= full.length ? full.length - 1 : at);
     final r = end
         ? TextSelection(
-            baseOffset: (at - 1).clamp(0, full.length),
-            extentOffset: at,
+            baseOffset: (edge - 1).clamp(0, full.length),
+            extentOffset: edge,
           )
         : TextSelection(
-            baseOffset: at,
-            extentOffset: (at + 1).clamp(0, full.length),
+            baseOffset: edge,
+            extentOffset: (edge + 1).clamp(0, full.length),
           );
     final boxes = rb.getBoxesForSelection(r);
     if (boxes.isEmpty) return null;
@@ -535,8 +637,11 @@ extension _ReaderSelOps on _ReaderPageState {
     return sb.globalToLocal(g);
   }
 
-  RenderParagraph? _paraRender(int ci, int pi) {
-    final ctx = _paraKeys['$ci:$pi']?.currentContext;
+  /// 段（块）的渲染段落：键＝`$ci:$pi:$from`，不给 from＝该段第一块。
+  RenderParagraph? _paraRender(int ci, int pi, {int? from}) {
+    final ctx =
+        _paraKeys[from == null || from == 0 ? '$ci:$pi' : '$ci:$pi:$from']
+            ?.currentContext;
     if (ctx is! Element) return null;
     final ro = ctx.renderObject;
     if (ro == null) return null;
@@ -544,10 +649,10 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   /// 当前页已渲染文字段的垂直范围（全局坐标）；一页都没渲染则 null。
-  ({double top, double bottom})? _pageRect(int ci, List<int> page) {
+  ({double top, double bottom})? _pageRect(int ci, PagPage page) {
     double? top, bottom;
-    for (final pi in page) {
-      final rb = _paraRender(ci, pi);
+    for (final b in page) {
+      final rb = _paraRender(ci, b.pi, from: b.from);
       if (rb == null || !rb.hasSize) continue;
       final o = rb.localToGlobal(Offset.zero);
       if (top == null || o.dy < top) top = o.dy;
@@ -558,10 +663,12 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   /// 页内首个/末个可命中文字段（与 _paraHitAt 同口径跳过非 text 段）。
-  int? _pageEdgePi(int ci, List<int> page, {required bool last}) {
+  /// 页内首/末个可命中**块**（与 _paraHitAt 同口径跳过非 text 段）。
+  /// 返回块而不是段号：跨页扩选落锚要把端点定在这一块的边界上（§3H-A）。
+  PagPiece? _pageEdgePiece(int ci, PagPage page, {required bool last}) {
     final ps = _doc!.chapters[ci].paras;
-    for (final pi in last ? page.reversed : page) {
-      if (ps[pi].kind == EpubParaKind.text) return pi;
+    for (final b in last ? page.reversed.toList() : page) {
+      if (ps[b.pi].kind == EpubParaKind.text) return b;
     }
     return null;
   }
@@ -587,16 +694,18 @@ extension _ReaderSelOps on _ReaderPageState {
     if (cur == null) return false;
     final outside = d < 0 ? global.dy < cur.top : global.dy > cur.bottom;
     if (!outside) return false;
-    final a = _pageEdgePi(s.ci, pages[target], last: d < 0);
+    final a = _pageEdgePiece(s.ci, pages[target], last: d < 0);
     if (a == null) return false;
     _flip(d);
     // ignore: invalid_use_of_protected_member
     setState(() {
       if (d < 0) {
-        _selController.setSelection(ci: s.ci, p0: a, p1: s.p1, o0: 0, o1: s.o1);
+        _selController.setSelection(
+          ci: s.ci, p0: a.pi, p1: s.p1, o0: a.from, o1: s.o1,
+        );
       } else {
         _selController.setSelection(
-          ci: s.ci, p0: s.p0, p1: a, o0: s.o0, o1: doc.chapters[s.ci].paras[a].text.length,
+          ci: s.ci, p0: s.p0, p1: a.pi, o0: s.o0, o1: a.to,
         );
       }
       _lpPi = d < 0 ? _selController.sel!.p0 : _selController.sel!.p1;
@@ -667,30 +776,41 @@ extension _ReaderSelOps on _ReaderPageState {
   }
 
   /// 指针 → (段序号, 段内字符偏移)：取垂直距离最近的可渲染文本段。
-  ({int pi, int off})? _paraHitAt(int ci, Offset g) {
+  /// 指针 → (段号, 段内偏移, 命中块的区间)。垂直最近，**按块**而不是按段。
+  ({int pi, int off, int from, int to})? _paraHitAt(int ci, Offset g) {
     final doc = _doc;
     if (doc == null) return null;
     final ps = doc.chapters[ci].paras;
-    int? best;
+    int? bestPi, bestFrom;
     var bestD = double.infinity;
     for (var pi = 0; pi < ps.length; pi++) {
       if (ps[pi].kind != EpubParaKind.text) continue;
-      final rb = _paraRender(ci, pi);
-      if (rb == null || !rb.hasSize) continue;
-      final top = rb.localToGlobal(Offset.zero);
-      final rect = Rect.fromLTWH(top.dx, top.dy, rb.size.width, rb.size.height);
-      final d = g.dy < rect.top
-          ? rect.top - g.dy
-          : (g.dy > rect.bottom ? g.dy - rect.bottom : 0.0);
-      if (d < bestD) {
-        bestD = d;
-        best = pi;
+      for (final b in _renderedBlocksOf(ci, pi)) {
+        final rb = _paraRender(ci, pi, from: b.from);
+        if (rb == null || !rb.hasSize) continue;
+        final top = rb.localToGlobal(Offset.zero);
+        final rect = Rect.fromLTWH(
+          top.dx,
+          top.dy,
+          rb.size.width,
+          rb.size.height,
+        );
+        final d = g.dy < rect.top
+            ? rect.top - g.dy
+            : (g.dy > rect.bottom ? g.dy - rect.bottom : 0.0);
+        if (d < bestD) {
+          bestD = d;
+          bestPi = pi;
+          bestFrom = b.from;
+        }
       }
     }
-    if (best == null) return null;
-    final off = _charPosInPara(ci, best, g);
+    if (bestPi == null || bestFrom == null) return null;
+    final off = _charPosInPara(ci, bestPi, g, from: bestFrom);
     if (off == null) return null;
-    return (pi: best, off: off);
+    final bl = _renderedBlocksOf(ci, bestPi);
+    final b = bl.firstWhere((x) => x.from == bestFrom, orElse: () => bl.first);
+    return (pi: bestPi, off: off, from: b.from, to: b.to);
   }
 }
 

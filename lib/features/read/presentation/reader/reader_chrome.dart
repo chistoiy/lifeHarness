@@ -317,24 +317,25 @@ extension _ReaderChrome on _ReaderPageState {
   /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
   /// 批三真机反馈（2026-10-04 图1→图2）：改吃 [paraSelectionSpan]——选中态与正文态
   /// 共用同一张分段表，一长按选字不再把原书分层色/夹注小字塌回主题黑大字。
-  TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) =>
-      paraSelectionSpan(
-        p,
-        TextStyle(
-          fontSize: _cfg.fs,
-          height: _cfg.lh,
-          letterSpacing: _cfg.ls,
-          fontFamily: _cfg.fontFamily,
-          fontFamilyFallback: _cfg.fontFamilyFallback,
-          color: th.$3,
-        ),
-        orig: _cfg.orig,
-        pageBg: th.$2,
-        indMode: _cfg.indMode,
-        s2t: _cfg.s2t,
-        a: q0,
-        b: q1,
-      );
+  TextSpan _subSpan(
+    (String, Color, Color) th,
+    EpubPara p,
+    int q0,
+    int q1,
+    int from,
+    int? to,
+  ) => paraSelectionSpan(
+    p,
+    _userText(th),
+    orig: _cfg.orig,
+    pageBg: th.$2,
+    indMode: _cfg.indMode,
+    s2t: _cfg.s2t,
+    a: q0,
+    b: q1,
+    from: from,
+    to: to,
+  );
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
   /// ① 注释体走正文色小字；④ 只有外链给链接绿。
@@ -349,15 +350,10 @@ extension _ReaderChrome on _ReaderPageState {
     bool hit, {
     ({int a, int b})? hlRange,
     Color? hlColor,
+    int from = 0,
+    int? to,
   }) {
-    final user = TextStyle(
-      fontSize: _cfg.fs,
-      height: _cfg.lh,
-      letterSpacing: _cfg.ls,
-      fontFamily: _cfg.fontFamily,
-      fontFamilyFallback: _cfg.fontFamilyFallback,
-      color: th.$3,
-    );
+    final user = _userText(th);
     final base = paraStyle(p, user, orig: _cfg.orig, pageBg: th.$2);
     final display = paraDisplayText(
       p,
@@ -368,6 +364,13 @@ extension _ReaderChrome on _ReaderPageState {
     // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2；
     // R3-6 的简繁转换逐字等长，所以这一差值仍然只反映缩进前缀）。
     final ind = display.length - p.text.length;
+    // 块窗口（显示坐标）：本块只画 [winLo, winHi)，其余留给相邻页的那一块。
+    // 所有事件（链接/命中/划线/runs 切点）一律**夹进这个窗口**——夹在窗口外的
+    // 起与止会同时落到边界上，状态机一进一出互相抵消，跨页的链接/划线不会漏上色。
+    // 窗口左沿＝**显示坐标 0**（首块要连缩进前缀一起画），只有续排块才从内容处起；
+    // 事件坐标（原文＋ind）落在窗口外的夹到边界——跨块的链接/划线一进一出互相抵消。
+    final winLo = from == 0 ? 0 : ind + from;
+    final winHi = ind + (to ?? p.text.length).clamp(from, p.text.length);
     // 批三刀3：段内原书区间（分层色·小字·专名线）与 `EpubPager.paraHeight`
     // 吃**同一张** [paraRunStyles] 分段表——两处各算一份必出空页（预研 §3 同源红线）。
     final segs = paraRunStyles(p, user, orig: _cfg.orig, pageBg: th.$2);
@@ -386,7 +389,7 @@ extension _ReaderChrome on _ReaderPageState {
     final children = <InlineSpan>[];
     // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止
     // ＋原书区间**切点**（kind 6 不改状态，只逼一次 flush，让每一段拿到自己的样式）。
-    final events = <(int, int, EpubLink?)>[
+    final eventsRaw = <(int, int, EpubLink?)>[
       for (final l in p.links) ...[
         (l.start + ind, 0, l),
         (l.end + ind, 1, l),
@@ -409,7 +412,12 @@ extension _ReaderChrome on _ReaderPageState {
         (hlRange.b + ind, 5, null),
       ],
     ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
-    var cursor = 0;
+    // 夹进块窗口后再排序：窗口外的起与止会同时落到边界上，一进一出互相抵消，
+    // 跨页的链接/划线在本块照样能正确上色（工单 §3H-A 拆块）。
+    final events = <(int, int, EpubLink?)>[
+      for (final e in eventsRaw) (e.$1.clamp(winLo, winHi), e.$2, e.$3),
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
+    var cursor = winLo;
     var inLink = 0;
     var inMark = 0;
     var inHl = 0;
@@ -465,7 +473,7 @@ extension _ReaderChrome on _ReaderPageState {
           break;
       }
     }
-    flush(display.length);
+    flush(winHi);
     return TextSpan(style: base, children: children);
   }
 }

@@ -90,6 +90,11 @@ extension _ReaderPag on _ReaderPageState {
 
   /// 分页布局（R3-2 起与整本预载共用 [ReaderLayout.of]：indMode 三档进指纹后，
   /// 两处各写一份映射迟早分叉，预载表就再也命中不了）。
-  ReaderLayout _layout() =>
-      ReaderLayout.of(_cfg, width: _viewport.width, height: _viewport.height);
+  /// 高＝**舞台可视高**而非视口高：正文在 SafeArea 内、`_viewport` 在 SafeArea 外，
+  /// 吃视口高会让每页多塞一个状态栏＝页底裁字（工单 §3H-A 候选1，2026-10-04 实测虚增 44.67px）。
+  ReaderLayout _layout() => ReaderLayout.of(
+    _cfg,
+    width: _viewport.width,
+    height: brStageHeight(context, viewportH: _viewport.height),
+  );
 }

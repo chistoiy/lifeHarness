@@ -39,7 +39,10 @@ class PagStore {
   /// 会继续命中，真机表现为「改了字体页码/偏移与实排不符」。
   /// v4（批三刀2）：段内 span 级原书语义（分层注释色/小字/专名线）进上屏排版，
   /// 而指纹进的是配置项——样式数据变了、配置没变，旧表继续命中＝按无样式排版画有样式书。
-  static const tableVersion = 4;
+  /// v5（§3H-A）：页载荷从「段下标」升成**块三元组 [pi,from,to]**（超长段跨页续排），
+  /// 形状变了必须让所有旧表整体失效；同批还有可视高口径（减顶部安全区）与
+  /// 段外距/测量宽/统一行盒三处同源修正，每一处都足以让旧页对不上新字。
+  static const tableVersion = 5;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   /// R3-2 ③：indMode 三档改变每段显示文本（自带缩进段不再叠加）→ 必须进指纹，
@@ -83,15 +86,26 @@ class PagStore {
     if (v is! Map || v['fp'] != fp || v['v'] != tableVersion) return null;
     final per = v['per'];
     if (per is! List) return null;
-    return BookPagination.fromTable(weights, [
-      for (final ch in per)
-        ch == null
-            ? null
-            : [
-                for (final pg in ch as List)
-                  [for (final i in pg as List) (i as num).toInt()],
-              ],
-    ]);
+    // 块编码：`[pi,to]`＝从段首起（绝大多数，省一个数）；`[pi,from,to]`＝续排块。
+    // 表体积实测会涨（§3G 口径：取表发生在首帧之后，不挡字），编码长度用 2/3 分流压回三成。
+    // 坏表（元素形状不对）整章作废，实算兜回来。
+    try {
+      return BookPagination.fromTable(weights, [
+        for (final ch in per)
+          ch == null
+              ? null
+              : [
+                  for (final pg in ch as List)
+                    [
+                      for (final b in pg as List) PagPiece.decode(b as List),
+                    ],
+                ],
+      ]);
+    } catch (_) {
+      // catch-ok: 坏表/形状不符＝静默回落整章实算。本函数跑在 compute 起的 isolate 里，
+      // 自建日志跨不了 isolate（读表侧本来就允许「无表」同语义）。
+      return null;
+    }
   }
 
   static Future<void> save(
@@ -106,7 +120,20 @@ class PagStore {
       jsonEncode({
         'v': tableVersion,
         'fp': fp,
-        'per': pag.pages,
+        // 块→载荷（见 PagPiece.encode 的 2/3 元组分流）。
+        // 挂账：编码与写盘仍在主 isolate（2409 章表数 MB），拆页后载荷涨约三成——
+        // §3G 口径下这发生在防抖 2s 后的后台写，不挡首帧；真要提速走 compute。
+        'per': [
+          for (final ch in pag.pages)
+            ch == null
+                ? null
+                : [
+                    for (final pg in ch)
+                      [
+                        for (final b in pg) b.encode(),
+                      ],
+                  ],
+        ],
       }),
       flush: true,
     );
