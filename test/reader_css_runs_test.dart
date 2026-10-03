@@ -176,8 +176,8 @@ void main() {
   group('落盘面：快照 round-trip 与版本双升', () {
     test('snapVersion 与 tableVersion 都已升（runs 改上屏排版＝两张表都要失效重算）', () {
       expect(DocStore.snapVersion, 4);
-      // v5（§3H-A）：页载荷升成块（段＋区间），加上可视高/段外距/测量宽/行盒四处同源。
-      expect(PagStore.tableVersion, 5);
+      // v6（V1.60 §3G）：单文件全书表改按章分片目录（开书只读当前章）。
+      expect(PagStore.tableVersion, 6);
     });
 
     test('存盘再读回：段级样式、区间、不支持声明逐字段一致', () async {

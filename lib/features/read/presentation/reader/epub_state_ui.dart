@@ -52,13 +52,16 @@ void brStartPreload(WidgetRef ref, Book b, BuildContext context) {
 }
 
 /// 本地书入口守卫（原型 shOpen 包装器同语义）。
-/// 返回 true＝本次点击已被状态态消化（预载中提示 / 已清缓存分流弹层）。
+/// 返回 true＝本次点击已被状态态消化（已清缓存分流弹层）。
+/// V1.60（§3G）：预载中**不再拦截**——放行进阅读器并提示一行（后台续算）。
 Future<bool> brTapGuarded(BuildContext context, WidgetRef ref, Book b) async {
   final ep = b.epub;
   if (!b.local || ep == null) return false;
   if (ep.state == EpubRef.stPreload) {
-    readToast(context, '正在预载整本书 · 完成后可进入');
-    return true;
+    // V1.60（§3G 拍板）：预载中可进——开书侧与在跑的解析并路，
+    // 全书分页首次开书后台续算；不再把人按在页上等预载完成。
+    readToast(context, '整本分页仍在后台续算 · 已按首次加载口径打开');
+    return false;
   }
   if (ep.cleared) {
     final kind = await ref.read(epubCacheServiceProvider).restoreKind(b);
@@ -523,7 +526,7 @@ String brLocalStateLine(Book b) {
   final ep = b.epub;
   if (ep == null) return '—';
   return switch (ep.state) {
-    EpubRef.stPreload => '整本预载中 · 完成前不可进入阅读',
+    EpubRef.stPreload => '整本预载中 · 点封面可直接进入阅读',
     EpubRef.stCleared => File(ep.srcPath ?? '').existsSync()
         ? '本地副本已清理 · 源文件仍可读 · 记录与书摘完整保留'
         : '本地副本已清理 · 原文件已不存在 · 记录与书摘完整保留',

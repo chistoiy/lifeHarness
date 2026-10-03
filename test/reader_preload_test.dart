@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -254,6 +255,59 @@ void main() {
     });
   });
 
+  group('V1.60 §3G · 按章分片表', () {
+    ReaderLayout layout() => const ReaderLayout(width: 400, height: 800);
+    PagPiece whole(int pi) => PagPiece(pi, 0, 1 << 30);
+    PagChapter chA() => [
+      [whole(0), whole(1)],
+      [whole(2)],
+    ];
+
+    test('分片写读往返；未写章与无档书＝null', () async {
+      final fp = PagStore.fingerprint(layout());
+      expect(await PagStore.hit(tmp.path, 'sh1', fp), isFalse);
+      expect(await PagStore.loadChapter(tmp.path, 'sh1', fp, 0), isNull);
+      await PagStore.saveChapter(tmp.path, 'sh1', fp, 1, chA(), 3);
+      expect(await PagStore.hit(tmp.path, 'sh1', fp), isTrue);
+      expect(await PagStore.loadChapter(tmp.path, 'sh1', fp, 1), chA());
+      expect(await PagStore.loadChapter(tmp.path, 'sh1', fp, 0), isNull);
+    });
+
+    test('指纹变化＝整档重置（旧分片出清，杜绝新旧混排）', () async {
+      final fp1 = PagStore.fingerprint(layout());
+      final fp2 = '$fp1|fs22';
+      await PagStore.saveChapter(tmp.path, 'sh2', fp1, 0, chA(), 2);
+      await PagStore.saveChapter(tmp.path, 'sh2', fp2, 1, chA(), 2);
+      expect(await PagStore.loadChapter(tmp.path, 'sh2', fp1, 0), isNull);
+      expect(await PagStore.loadChapter(tmp.path, 'sh2', fp2, 1), isNotNull);
+      expect(File('${tmp.path}/epub_pag/sh2/ch_0.json').existsSync(), isFalse,
+          reason: '换指纹＝整档作废——旧章不许被新表命中');
+    });
+
+    test('整本兼容面：save→目录分片、load→全章读回（缺章＝null）', () async {
+      final fp = PagStore.fingerprint(layout());
+      await PagStore.save(
+          tmp.path, 'sh3', fp, BookPagination.fromTable([9, 9], [chA(), null]));
+      expect(File('${tmp.path}/epub_pag/sh3/index.json').existsSync(), isTrue);
+      expect(File('${tmp.path}/epub_pag/sh3/ch_0.json').existsSync(), isTrue);
+      final back = await PagStore.load(tmp.path, 'sh3', fp, [9, 9]);
+      expect(back, isNotNull);
+      expect(back!.laidOut(0), isTrue);
+      expect(back.laidOut(1), isFalse);
+    });
+
+    test('旧 v5 单文件＝首次分片写入即出清；remove 目录与旧文件一并回收', () async {
+      final fp = PagStore.fingerprint(layout());
+      Directory('${tmp.path}/epub_pag').createSync(recursive: true);
+      File('${tmp.path}/epub_pag/sh4.json').writeAsStringSync('{"v":5}');
+      await PagStore.saveChapter(tmp.path, 'sh4', fp, 0, chA(), 1);
+      expect(File('${tmp.path}/epub_pag/sh4.json').existsSync(), isFalse,
+          reason: '升级不留旧形态（v5 全书表与 v6 分片无相容性）');
+      await PagStore.remove(tmp.path, 'sh4');
+      expect(Directory('${tmp.path}/epub_pag/sh4').existsSync(), isFalse);
+    });
+  });
+
   group('批3.5 · 整本预载', () {
     Future<Book> seedBook(String id, {String? srcPath}) async => repo.addBook(
       Book(
@@ -272,7 +326,7 @@ void main() {
       ),
     );
 
-    test('预载全程：pre→分页落盘→rdy；文档缓存秒进', () async {
+    test('预载全程：pre→解析/快照→rdy；**不再建分页表**（V1.60 §3G）', () async {
       final src = epubFile('src.epub', _epubWithImages(chapters: 3, images: 4));
       File(src).copySync('${tmp.path}/copy_b1.epub');
       final b = await seedBook('b1', srcPath: src);
@@ -286,14 +340,39 @@ void main() {
       final after = (await repo.bookById('b1'))!;
       expect(after.epub!.state, 'rdy');
       expect(svc.docs.get('b1'), isNotNull, reason: '预载完即内存驻留＝秒进');
-      final tab = await svc.loadPag(
+      // V1.60（§3G 拍板）：导入/预载链到此为止——分页表随首次开书后台续算，
+      // 预载阶段不许产出 epub_pag（表体积成本挪进「第一次加载」的开书段）。
+      expect(await svc.loadPag(
         'b1',
         layout,
         svc.docs.get('b1')?.chapterCharCounts ?? const [],
-      );
-      expect(tab, isNotNull);
-      expect(tab!.chapterCount, greaterThanOrEqualTo(3));
+      ), isNull, reason: '预载不再落分页表');
+      expect(Directory('${tmp.path}/epub_pag/b1').existsSync(), isFalse);
       expect(svc.info('b1')?.error, isNull);
+      svc.docs.clear();
+    });
+
+    test('预载中开书并路：解析一开跑 warming 就挂出同一份 future（V1.60 §3G）', () async {
+      final src = epubFile('src_wj.epub', _epubWithImages(chapters: 2, images: 1));
+      File(src).copySync('${tmp.path}/copy_wj.epub');
+      final b = await seedBook('wj', srcPath: src);
+      final gate = Completer<EpubDoc>();
+      final svc = EpubPreloadService(
+        repo,
+        docsPath: tmp.path,
+        parseOverride: (_) => gate.future,
+      );
+      final f = svc.preload(b, const ReaderLayout(width: 400, height: 800));
+      expect(
+        svc.warming('wj'),
+        isNotNull,
+        reason: '预载刚起步预热位就在——预载中点进的书 await 的是同一份解析，不再二次整本',
+      );
+      gate.complete(EpubDoc.parse(File(src).readAsBytesSync()));
+      await f;
+      expect(svc.docs.get('wj'), isNotNull);
+      expect(svc.warming('wj'), isNull, reason: '终态后预热位摘除');
+      expect((await repo.bookById('wj'))!.epub!.state, 'rdy');
       svc.docs.clear();
     });
 

@@ -570,7 +570,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '整本预载中 · 解析与分页计算 · 完成前不可进入阅读',
+              '整本预载中 · 分页后台续算 · 点封面可直接进入阅读',
               style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 6),
@@ -1424,7 +1424,7 @@ Future<void> showBrLocalInfo(
   final cs = Theme.of(context).colorScheme;
   final sizeMb = '${(ep.size / (1024 * 1024)).toStringAsFixed(1)} MB';
   final stateTxt = switch (ep.state) {
-    'pre' => '整本预载中（完成前不可进入阅读）',
+    'pre' => '整本预载中（点封面可直接进入阅读 · 后台续算）',
     'cl' => '本地副本已清理 · 记录与书摘保留',
     _ => '本地副本 + 分页缓存已就绪',
   };

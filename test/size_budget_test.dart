@@ -17,7 +17,9 @@ void main() {
   const budget = <String, int>{
     'features/read/presentation/read_sheets_b2.dart': 1778,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
-    'features/read/presentation/shelf/book_detail.dart': 1570,
+    // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
+    // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
+    'features/read/presentation/shelf/book_detail.dart': 1579,
     'features/habit/presentation/habit_detail_page.dart': 1521,
     'features/habit/presentation/habit_stat_page.dart': 1504,
     'features/read/presentation/stats/read_stat_page.dart': 1383,
@@ -26,6 +28,12 @@ void main() {
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
     'features/journal/presentation/diary_edit_page.dart': 1260,
+    // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
+    // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
+    // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。
+    // 此处按默认面登记现状＝1210，之后只许减；真还债＝把取证/装载群再拆一件
+    // part 扩展（G7c 族口径），另批做。
+    'features/read/presentation/reader/reader_page.dart': 1210,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展

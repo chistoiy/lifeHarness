@@ -178,12 +178,33 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('brMetaSum')))
           .data;
       expect(sum, contains('共 1 章'));
-      expect(find.text('加入书架 · 预载后可读'), findsOne);
+      expect(find.text('加入书架 · 开始阅读'), findsOne,
+          reason: 'V1.60 §3G：不再承诺「预载后可读」——预载中也可直接进入');
       await t.tap(find.byKey(const ValueKey('brSaveBtn')));
       await step(t);
       expect(fake.lastTagLocal, isTrue);
       expect(fake.lastDraft?.title, '导入测试书');
       expect(fake.mergedInto, isNull);
+    });
+
+    testWidgets('解析步任务恰好四项（V1.60 §3G：分页预计算下架）', (t) async {
+      await useSurface(t);
+      final fake = _FakeImport(repo);
+      await t.pumpWidget(wrap(
+        const LocalImportPage(startStep: 3),
+        extra: [epubImportServiceProvider.overrideWithValue(fake)],
+      ));
+      await step(t);
+      for (final label in [
+        '容器校验 · mimetype',
+        '版本与结构识别',
+        '目录构建（NCX / nav）',
+        '封面与元数据抽取',
+      ]) {
+        expect(find.text(label), findsWidgets, reason: label);
+      }
+      expect(find.text('分页预计算'), findsNothing,
+          reason: '第 3 步不许再出现「分页预计算」——表随首次开书后台续算（§3G 拍板）');
     });
 
     testWidgets('DRM 解析失败：错误卡 + 返回重选', (t) async {

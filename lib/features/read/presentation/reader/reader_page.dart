@@ -251,7 +251,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _clock?.cancel();
     _flashT?.cancel();
     _autoT?.cancel();
-    _pagSaveT?.cancel();
+    _bgTicket++; // V1.60：停后台全书续算循环
     if (_brightOwned) {
       _brightOwned = false;
       unawaited(_wake(false));
@@ -271,13 +271,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       return;
     }
     setState(() => _book = b);
-    // 批3.5 入口守卫（防御：正常路径书架/详情已拦截）：预载中不可进、
-    // 已清缓存回书架走三态恢复。
+    // 批3.5 入口守卫（防御：正常路径书架/详情已分流）：
+    // 已清缓存回书架走三态恢复。V1.60（§3G）：预载中**不再拦截**——
+    // 按首次加载口径直接开，[svc.warming] 与在跑的预载解析并路。
     final ep = b.epub!;
-    if (ep.state == EpubRef.stPreload) {
-      setState(() => _err = '正在预载整本书 · 完成后可进入');
-      return;
-    }
     if (ep.cleared) {
       setState(() => _err = '本地副本已清理 · 回书架点封面重新载入');
       return;
@@ -918,7 +915,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   }
 
   int _pagGen = 0;
-  Timer? _pagSaveT;
+  /// V1.60 后台全书续算循环票据（推进＝停旧循环；替代已退役的整本防抖写表 _pagSaveT）。
+  int _bgTicket = 0;
 
 
 

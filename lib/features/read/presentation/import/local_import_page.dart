@@ -16,7 +16,9 @@ import '../read_sheets.dart' show readToast;
 /// 导入本地图书（EPUB）四步向导 · V1.50 批1。
 ///
 /// 事实源 `prototype/index-bookshelf.html#p-localImport`（BR-1 屏）：
-/// 授权 → 选文件 → 解析五任务 → 元信息核对（含同书合并守卫）。
+/// 授权 → 选文件 → 解析四任务 → 元信息核对（含同书合并守卫）。
+/// V1.60（§3G 拍板）：解析步**不再有「分页预计算」**——分页表随首次开书后台
+/// 续算（reader_page_pag），导入第 3 步只跑到「封面与元数据抽取」即完成。
 /// 步骤深链语义（原型 `_bN`）在 Flutter 侧由 [startStep] 承载（测试直达）。
 /// 批3.5：[reattachBookId] ＝ 源丢失重选模式——选文件后强制挂回该原记录
 /// （书摘/计时/进度共用一条），提交即重新预载（原型 brAttachHint 链路）。
@@ -37,7 +39,6 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     '版本与结构识别',
     '目录构建（NCX / nav）',
     '封面与元数据抽取',
-    '分页预计算',
   ];
 
   late int _step = widget.startStep;
@@ -95,7 +96,7 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     _startParse();
   }
 
-  /// 解析：真实解析跑完前用任务步进动画对齐五任务视觉；失败进错误态。
+  /// 解析：真实解析跑完前用任务步进动画对齐四任务视觉；失败进错误态。
   void _startParse() {
     _tick?.cancel();
     _tick = Timer.periodic(const Duration(milliseconds: 160), (t) {
@@ -168,7 +169,8 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     );
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
-    // 批3.5：落库即后台整本预载（完成前封面显进度、不可点进）。
+    // 批3.5＋V1.60：落库即后台预载（解析＋快照＋封面衍生，不再建分页表）；
+    // 完成前封面显进度，期间点封面可直接进入（分页随首次开书续算）。
     brStartPreload(ref, b, context);
     readToast(
       context,
@@ -545,7 +547,7 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    '大文件：解析与分页预计算可能需要 1-2 分钟',
+                    '大文件：解析与目录构建可能需要 1-2 分钟',
                     style: TextStyle(
                       fontSize: 10.5,
                       color: cs.onSurfaceVariant,
@@ -795,13 +797,13 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
         _gradBtn(
           _dup != null
               ? (_reattach != null ? '挂回原记录 · 重新预载' : '合并到已有记录 · 附本地文件')
-              : '加入书架 · 预载后可读',
+              : '加入书架 · 开始阅读',
           const ValueKey('brSaveBtn'),
           _commit,
         ),
         const SizedBox(height: 8),
         Text(
-          '源文件保留原位 · 书架登记解析结果与分页缓存',
+          '源文件保留原位 · 加入书架后整本分页后台续算',
           style: TextStyle(
             fontSize: 10,
             color: cs.onSurfaceVariant,

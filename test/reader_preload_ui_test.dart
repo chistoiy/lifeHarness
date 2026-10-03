@@ -173,8 +173,8 @@ void main() {
     await step(t, times: 2);
   }
 
-  group('批3.5-U · 预载守卫', () {
-    testWidgets('预载书封面显进度层；点封面被守卫不进阅读器', (t) async {
+  group('批3.5-U · 预载守卫（V1.60 §3G 改造：预载中可进）', () {
+    testWidgets('预载书封面显进度层；点封面直接进阅读器（不再被守卫挡）', (t) async {
       await seed('bp', st: EpubRef.stPreload, pr: 40);
       await shelfWith(t, const []);
       expect(find.byKey(const ValueKey('brCovPre-bp')), findsOne);
@@ -183,13 +183,17 @@ void main() {
       expect(find.byKey(const ValueKey('cov-badge-bp')), findsNothing);
       await t.tap(find.byKey(const ValueKey('sh-item-bp')));
       await step(t, times: 2);
-      expect(
-        find.text('预载中 40%'),
-        findsOne,
-        reason: '守卫拦截后仍停留在书架',
-      );
-      expect(await pollText(t, '正在预载整本书 · 完成后可进入'), isTrue);
-      await clearToasts(t);    });
+      expect(await pollText(t, '整本分页仍在后台续算 · 已按首次加载口径打开'), isTrue,
+          reason: 'V1.60 拍板：放行＋一行提示，不承诺「完成后可进入」');
+      // 放行后开书链照常跑（假解析 override）：正文最终上屏。
+      for (var i = 0; i < 30; i++) {
+        if (find.textContaining('第一段守卫内容').evaluate().isNotEmpty) break;
+        await step(t);
+      }
+      expect(find.textContaining('第一段守卫内容'), findsWidgets,
+          reason: '预载中点进＝按首次加载口径直接读，全书分页开书后台续算');
+      await clearToasts(t);
+    });
 
     testWidgets('就绪本地书（无 X-Ray 任务）右上角照常显进度徽标（互斥不误伤）', (t) async {
       await seed('ok', st: 'rdy');
@@ -198,7 +202,7 @@ void main() {
       expect(find.byKey(const ValueKey('brCovPre-ok')), findsNothing);
     });
 
-    testWidgets('阅读器防御页：预载书直达路由也只显守卫文案', (t) async {
+    testWidgets('阅读器防御页：预载书直达路由不再被挡·照常开书（V1.60 §3G）', (t) async {
       await seed('bd', st: EpubRef.stPreload);
       await useSurface(t);
       await t.pumpWidget(
@@ -208,7 +212,14 @@ void main() {
         ),
       );
       await step(t, times: 3);
-      expect(find.text('正在预载整本书 · 完成后可进入'), findsOne);
+      expect(find.text('正在预载整本书 · 完成后可进入'), findsNothing,
+          reason: '旧防御拦截已摘——预载中按首次加载口径直接开');
+      for (var i = 0; i < 30; i++) {
+        if (find.textContaining('第一段守卫内容').evaluate().isNotEmpty) break;
+        await step(t);
+      }
+      expect(find.textContaining('第一段守卫内容'), findsWidgets,
+          reason: '直达也要能读：文档链走假解析 override');
     });
   });
 
@@ -236,9 +247,10 @@ void main() {
       expect(File(b.epub!.path).existsSync(), isTrue, reason: '副本已重拷');
       expect(
         File('${tmp.path}/epub_pag/cr.json').existsSync(),
-        isTrue,
-        reason: '分页表已落盘',
+        isFalse,
+        reason: 'V1.60 §3G：预载链不再建表——整本分页随首次开书后台续算',
       );
+      expect(Directory('${tmp.path}/epub_pag/cr').existsSync(), isFalse);
     });
 
     testWidgets('源文件丢失：点封面→引导弹层→重新选择文件挂回', (t) async {

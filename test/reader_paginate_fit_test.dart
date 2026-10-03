@@ -255,8 +255,9 @@ void main() {
 
   group('⑤ 落盘表版本闸', () {
     test('块载荷形状变了 → tableVersion 已升', () {
-      // v5＝页载荷从「段下标」升成「块（段＋区间）」；不升版＝旧表继续命中＝按旧页画新字。
-      expect(PagStore.tableVersion, 5);
+      // v6（V1.60 §3G）＝按章分片目录（旧 v5 单文件全书表作废重建）；
+      // v5＝页载荷从「段下标」升成「块（段＋区间）」。不升版＝旧表继续命中＝按旧页画新字。
+      expect(PagStore.tableVersion, 6);
       final fp = PagStore.fingerprint(l);
       expect(fp, contains('${_vpW.round()}x${(_vpH - _topPx / _dpr).round()}'),
           reason: '视口口径变了要反映在指纹里（旧表自动不命中）');

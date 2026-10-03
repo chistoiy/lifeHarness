@@ -16,21 +16,26 @@ import 'epub_doc.dart';
 import 'epub_first_img.dart';
 import 'read_repository.dart';
 
-/// 批3.5 · 大书内存模型与预载/清缓存服务。
+/// 批3.5 · 大书内存模型与预载/清缓存服务（V1.60 §3G 改造后口径）。
 ///
-/// 三条拍板口径（需求 V1.50 批3.5）：
-/// 1. **整本预载**：导入落库后后台异步「解析 + 全书分页实算」；完成前该书不可点进
-///    阅读（封面显进度）；预载完成后二次打开＝秒进（[EpubDocCache] + 分页表命中）。
+/// 三条拍板口径（需求 V1.50 批3.5 ＋ V1.60 §3G）：
+/// 1. **整本预载**：导入落库后后台异步「解析 + 排版快照 + 封面衍生」——V1.60 起
+///    **预载链不再建分页表**（表随首次开书后台按章续算）；预载中点封面可直接进入
+///    阅读（[warming] 与在跑的解析并路）；预载完成后二次打开＝秒进（[EpubDocCache]）。
 /// 2. **50/100MB 图文包**：生产路径 [EpubDoc.openFile] 懒归档（条目不点不解压），
 ///    图片按需解码 + LRU（≤12 张），章文本全量驻留；分页表落盘（[PagStore]），
 ///    按「外观 cfg + 视口指纹」失效。
 /// 3. **单书清缓存**：只回收私有副本 + 封面衍生 + 分页表；记录/书摘划线/计时/
 ///    进度全保留；**源文件绝不删除**。三态恢复见 [EpubCacheService]。
 
-// ---------- 分页表落盘 ----------
+// ---------- 分页表落盘（V1.60 · 按章分片） ----------
 
-/// 分页表持久层：`docs/epub_pag/<bookId>.json` ＝ 指纹 + perChapter 下标数组。
-/// 指纹不一致（外观/视口变化）即失效重算。
+/// 分页表持久层：`docs/epub_pag/<bookId>/`＝`index.json`（版本＋指纹＋章数）
+/// ＋ `ch_<i>.json`（单章页表分片）。分片口径（§3G 结论二，2026-10-04 拍板）：
+/// 旧单文件全书表一次取表随体积涨到约 1 秒（新书 7ms），**开书/续算一律只按章
+/// 读写**，取表成本不再随书体积增长；全书表由首次开书后的后台续算逐章补齐
+/// （导入/预载链不再建表）。
+/// 指纹不一致（外观/视口变化）＝整档作废：下一次分片写入时重置目录。
 class PagStore {
   const PagStore._();
 
@@ -42,7 +47,9 @@ class PagStore {
   /// v5（§3H-A）：页载荷从「段下标」升成**块三元组 [pi,from,to]**（超长段跨页续排），
   /// 形状变了必须让所有旧表整体失效；同批还有可视高口径（减顶部安全区）与
   /// 段外距/测量宽/统一行盒三处同源修正，每一处都足以让旧页对不上新字。
-  static const tableVersion = 5;
+  /// v6（V1.60 §3G）：单文件全书表改**按章分片目录**——旧 v5 单文件与本版无相容性，
+  /// 首次分片写入即出清旧文件；开书只读当前章，全书由首次开书后台续算补齐。
+  static const tableVersion = 6;
 
   /// 外观 cfg + 视口指纹（reader_pager.ReaderLayout 全字段参与）。
   /// R3-2 ③：indMode 三档改变每段显示文本（自带缩进段不再叠加）→ 必须进指纹，
@@ -58,49 +65,179 @@ class PagStore {
 
   static String dirPath(String docsPath) => p.join(docsPath, 'epub_pag');
 
+  /// 旧版（v≤5）单文件路径：v6 起只用于回收与体积兼容统计，不再写入。
   static File fileFor(String docsPath, String bookId) =>
       File(p.join(dirPath(docsPath), '$bookId.json'));
 
-  /// 读取与 [fp] 匹配的分页表（[weights]＝本书各章字符数，进度加权用）；
-  /// 无表/坏表/指纹不符返回 null（调用方实算）。未排版章在表里为 null。
+  static String bookDir(String docsPath, String bookId) =>
+      p.join(dirPath(docsPath), bookId);
+
+  static File _indexFile(String docsPath, String bookId) =>
+      File(p.join(bookDir(docsPath, bookId), 'index.json'));
+
+  static File _chapterFile(String docsPath, String bookId, int ci) =>
+      File(p.join(bookDir(docsPath, bookId), 'ch_$ci.json'));
+
+  static bool _indexOk(Object? j, String fp) =>
+      j is Map && j['v'] == tableVersion && j['fp'] == fp;
+
+  static Object? _readIndex(String docsPath, String bookId) {
+    final f = _indexFile(docsPath, bookId);
+    if (!f.existsSync()) return null;
+    try {
+      return jsonDecode(f.readAsStringSync());
+    } catch (_) {
+      // catch-ok: 坏索引＝无表语义（与旧「坏表实算兜回」同口径）。
+      return null;
+    }
+  }
+
+  /// 本书分片档是否存在且命中当前指纹（开书日志「落盘表=命中|未命中」读数用；
+  /// 只读几 KB 的 index，不是取表）。
+  static Future<bool> hit(String docsPath, String bookId, String fp) async =>
+      _indexOk(_readIndex(docsPath, bookId), fp);
+
+  /// 单章分片读：无档/指纹不符/该章未排/坏表＝null（调用方实算）。
+  static Future<PagChapter?> loadChapter(
+    String docsPath,
+    String bookId,
+    String fp,
+    int ci,
+  ) async {
+    try {
+      if (!_indexOk(_readIndex(docsPath, bookId), fp)) return null;
+      final f = _chapterFile(docsPath, bookId, ci);
+      if (!await f.exists()) return null;
+      final j = jsonDecode(await f.readAsString());
+      if (j is! Map || j['v'] != tableVersion || j['fp'] != fp) return null;
+      return _chapterFromJson(j['pages']);
+    } catch (_) {
+      // catch-ok: 坏分片＝该章未排（实算兜回），不打断开书。
+      return null;
+    }
+  }
+
+  /// 单章分片写（首次开书后台续算与翻页实算共用）。
+  /// 目录缺失或指纹已变＝整档重置后再写——杜绝新旧指纹分片混排。
+  static Future<void> saveChapter(
+    String docsPath,
+    String bookId,
+    String fp,
+    int ci,
+    PagChapter chapter,
+    int chapterCount,
+  ) async {
+    final idx = _readIndex(docsPath, bookId);
+    if (!_indexOk(idx, fp)) {
+      final dir = Directory(bookDir(docsPath, bookId));
+      if (await dir.exists()) await dir.delete(recursive: true);
+      await dir.create(recursive: true);
+    }
+    final n = chapterCount > 0 ? chapterCount : ci + 1;
+    await _indexFile(docsPath, bookId).writeAsString(
+      jsonEncode({'v': tableVersion, 'fp': fp, 'n': n}),
+      flush: true,
+    );
+    await _chapterFile(docsPath, bookId, ci).writeAsString(
+      jsonEncode({
+        'v': tableVersion,
+        'fp': fp,
+        // 块编码沿用 §3H-A 的 2/3 元组分流（PagPiece.encode）。
+        'pages': [
+          for (final pg in chapter) [for (final b in pg) b.encode()],
+        ],
+      }),
+      flush: true,
+    );
+    // 旧单文件形态出清（v5 及以前的一次性全书表，升级即作废重建）。
+    final legacy = fileFor(docsPath, bookId);
+    if (await legacy.exists()) await legacy.delete();
+  }
+
+  /// 分片 JSON → 章页表；形状不对抛异常由调用方按「未排」消化。
+  static PagChapter? _chapterFromJson(Object? pages) {
+    if (pages is! List) return null;
+    return [
+      for (final pg in pages)
+        [
+          for (final b in pg as List) PagPiece.decode(b as List),
+        ],
+    ];
+  }
+
+  /// 整本落盘（兼容 API：测试与小书一次性路径；阅读器开书线走分片）。
+  static Future<void> save(
+    String docsPath,
+    String bookId,
+    String fp,
+    BookPagination pag,
+  ) async {
+    final dir = Directory(bookDir(docsPath, bookId));
+    if (await dir.exists()) await dir.delete(recursive: true);
+    await dir.create(recursive: true);
+    await _indexFile(docsPath, bookId).writeAsString(
+      jsonEncode({'v': tableVersion, 'fp': fp, 'n': pag.chapterCount}),
+      flush: true,
+    );
+    for (var ci = 0; ci < pag.pages.length; ci++) {
+      final ch = pag.pages[ci];
+      if (ch == null) continue;
+      await _chapterFile(docsPath, bookId, ci).writeAsString(
+        jsonEncode({
+          'v': tableVersion,
+          'fp': fp,
+          'pages': [
+            for (final pg in ch) [for (final b in pg) b.encode()],
+          ],
+        }),
+        flush: true,
+      );
+    }
+    final legacy = fileFor(docsPath, bookId);
+    if (await legacy.exists()) await legacy.delete();
+  }
+
+  /// 整本读表（兼容 API；允许部分章缺＝null）。无档/坏档/指纹不符＝null。
+  /// 分片读＋解码全在 isolate 内（真机修⑥同源：2409 章级大表不碰主线程）。
   static Future<BookPagination?> load(
     String docsPath,
     String bookId,
     String fp,
     List<int> weights,
   ) async {
-    final f = fileFor(docsPath, bookId);
-    if (!await f.exists()) return null;
     try {
-      final src = await f.readAsString();
-      // 真机修⑥：2409 章表数 MB，jsonDecode 移入 isolate，主线程零阻塞。
-      return compute(_pagFromJson, (src, fp, weights));
+      final idx = _readIndex(docsPath, bookId);
+      if (!_indexOk(idx, fp)) return null;
+      final n = (idx as Map)['n'];
+      return compute(
+        _pagFromDir,
+        (
+          bookDir(docsPath, bookId),
+          fp,
+          n is num ? n.toInt() : weights.length,
+          weights,
+        ),
+      );
     } catch (_) {
       return null;
     }
   }
 
-  static BookPagination? _pagFromJson((String, String, List<int>) arg) {
-    final (src, fp, weights) = arg;
-    final v = jsonDecode(src);
-    if (v is! Map || v['fp'] != fp || v['v'] != tableVersion) return null;
-    final per = v['per'];
-    if (per is! List) return null;
-    // 块编码：`[pi,to]`＝从段首起（绝大多数，省一个数）；`[pi,from,to]`＝续排块。
-    // 表体积实测会涨（§3G 口径：取表发生在首帧之后，不挡字），编码长度用 2/3 分流压回三成。
-    // 坏表（元素形状不对）整章作废，实算兜回来。
+  static BookPagination? _pagFromDir((String, String, int, List<int>) arg) {
+    final (dir, fp, n, weights) = arg;
     try {
-      return BookPagination.fromTable(weights, [
-        for (final ch in per)
-          ch == null
-              ? null
-              : [
-                  for (final pg in ch as List)
-                    [
-                      for (final b in pg as List) PagPiece.decode(b as List),
-                    ],
-                ],
-      ]);
+      final chapters = <PagChapter?>[];
+      for (var ci = 0; ci < n && ci < weights.length; ci++) {
+        final f = File(p.join(dir, 'ch_$ci.json'));
+        if (!f.existsSync()) {
+          chapters.add(null);
+          continue;
+        }
+        final j = jsonDecode(f.readAsStringSync());
+        if (j is! Map || j['v'] != tableVersion || j['fp'] != fp) return null;
+        chapters.add(_chapterFromJson(j['pages']));
+      }
+      return BookPagination.fromTable(weights, chapters);
     } catch (_) {
       // catch-ok: 坏表/形状不符＝静默回落整章实算。本函数跑在 compute 起的 isolate 里，
       // 自建日志跨不了 isolate（读表侧本来就允许「无表」同语义）。
@@ -108,45 +245,24 @@ class PagStore {
     }
   }
 
-  static Future<void> save(
-    String docsPath,
-    String bookId,
-    String fp,
-    BookPagination pag,
-  ) async {
-    final dir = Directory(dirPath(docsPath));
-    await dir.create(recursive: true);
-    await fileFor(docsPath, bookId).writeAsString(
-      jsonEncode({
-        'v': tableVersion,
-        'fp': fp,
-        // 块→载荷（见 PagPiece.encode 的 2/3 元组分流）。
-        // 挂账：编码与写盘仍在主 isolate（2409 章表数 MB），拆页后载荷涨约三成——
-        // §3G 口径下这发生在防抖 2s 后的后台写，不挡首帧；真要提速走 compute。
-        'per': [
-          for (final ch in pag.pages)
-            ch == null
-                ? null
-                : [
-                    for (final pg in ch)
-                      [
-                        for (final b in pg) b.encode(),
-                      ],
-                  ],
-        ],
-      }),
-      flush: true,
-    );
-  }
-
   static Future<void> remove(String docsPath, String bookId) async {
-    final f = fileFor(docsPath, bookId);
-    if (await f.exists()) await f.delete();
+    final dir = Directory(bookDir(docsPath, bookId));
+    if (await dir.exists()) await dir.delete(recursive: true);
+    final legacy = fileFor(docsPath, bookId);
+    if (await legacy.exists()) await legacy.delete();
   }
 
   static Future<int> sizeOf(String docsPath, String bookId) async {
-    final f = fileFor(docsPath, bookId);
-    return f.existsSync() ? f.lengthSync() : 0;
+    var sum = 0;
+    final dir = Directory(bookDir(docsPath, bookId));
+    if (dir.existsSync()) {
+      for (final e in dir.listSync()) {
+        if (e is File) sum += e.lengthSync();
+      }
+    }
+    final legacy = fileFor(docsPath, bookId);
+    if (legacy.existsSync()) sum += legacy.lengthSync();
+    return sum;
   }
 }
 
@@ -673,8 +789,10 @@ class PreloadInfo {
   final String? error;
 }
 
-/// 整本预载服务：导入提交后后台跑「解析（isolate）→ 全书分页（分片让出 UI）→
-/// 分页表落盘 → 状态置 rdy」。进度经 [info] 暴露给封面；状态持久化在
+/// 整本预载服务（V1.60 §3G）：导入提交后后台跑「解析（isolate）→ 排版快照 →
+/// 封面衍生 → 状态置 rdy」——**不再建分页表**，表随首次开书按章后台续算
+/// （reader_page_pag）。预载中点封面＝可进：[warming] 挂的是这一份解析，开书侧
+/// 并路等待、不重复整本解析。进度经 [info] 暴露给封面；状态持久化在
 /// [EpubRef.st]/[EpubRef.pr]（跨重启可见）。
 class EpubPreloadService extends ChangeNotifier {
   EpubPreloadService(
@@ -787,13 +905,18 @@ class EpubPreloadService extends ChangeNotifier {
   /// 预载到终态（rdy/失败回退）时回调——provider 用它 bump readTick 重取书籍。
   void Function(String bookId)? onBookSettled;
 
-  /// 预载一本书（幂等：同书在跑则直接返回）。[layout] 为分页指纹基准视口/外观。
+  /// 预载一本书（幂等：同书在跑则直接返回）。
+  /// [layout] 保留兼容旧调用——V1.60 §3G 起预载链不再建分页表，本参数已不消费。
   Future<void> preload(Book b, ReaderLayout layout) async {
     final ep = b.epub;
     if (ep == null || ep.path.isEmpty) return;
     if (_running.contains(b.id)) return;
     _running.add(b.id);
     _info.remove(b.id); // 上轮错误不残留
+    // V1.60（§3G 拍板）：预载中点封面＝直接进阅读。把这一份解析挂进预热位，
+    // 开书侧 `await svc.warming` 等的是同一个 future，不再二次整本解析。
+    final gate = Completer<void>();
+    _warmTasks[b.id] = gate.future;
     final docs0 = await _docs0();
     try {
       await _mark(b, EpubRef.stPreload, 4);
@@ -801,27 +924,22 @@ class EpubPreloadService extends ChangeNotifier {
       final doc = await (parseOverride ??
               ((path) async => EpubDoc.openFileDetached(path)))(ep.path);
       docs.put(b.id, doc);
+      if (!gate.isCompleted) gate.complete();
       // 批5：解析结果按章落盘（下次冷启动打开＝读快照，不再整本重析）。
       if (docs0 != null && parseOverride == null) {
         await DocStore.save(docs0, b.id, DocStore.fingerprint(ep.path), doc);
       }
       await _mark(b, EpubRef.stPreload, 45);
-      // ② V1.53.1 轮4（foliate 模型）：**不再整本预排**——分页按章在打开时
-      //    懒算；进度百分比按章字符数插值，与全书页数无关。这里只排首章做种子
-      //    落盘（2409 章合集的整本循环正是真机书摘/抽屉卡顿的主线程霸占者）。
-      final pag = BookPagination.lazy([
-        for (final c in doc.chapters) c.charCount,
-      ]);
-      if (doc.chapters.isNotEmpty) {
-        pag.setChapter(0, EpubPager.layoutChapter(doc.chapters[0].paras, layout));
-      }
-      await PagStore.save(docs0!, b.id, PagStore.fingerprint(layout), pag);
+      // ② V1.60（§3G 拍板）：**导入/预载链到此为止，不再建分页表**——
+      //    表改由首次开书后按章后台续算逐片落盘（reader_page_pag），
+      //    「第一次加载耗时不限、加载完开书必须秒开」的账在这里付清。
+      //    （轮4 教训保留：主线程绝不跑整本循环。）
       // R14-4：无真封面的本地书在预载尾步生成 A 档正文首图衍生件（幂等；
       // 清缓存后的恢复重预载也走这里再生）。失败不阻断预载终态。
       if (b.coverPath == null) {
         try {
           final fi = await EpubFirstImg.ensure(
-            docsPath: docs0,
+            docsPath: docs0!,
             bookId: b.id,
             doc: doc,
             existing: b.firstImgPath,
@@ -846,6 +964,8 @@ class EpubPreloadService extends ChangeNotifier {
       AppLog.add('预载失败 书#${b.id}: $e', level: LhLevel.error);
     } finally {
       _running.remove(b.id);
+      _warmTasks.remove(b.id);
+      if (!gate.isCompleted) gate.complete();
     }
   }
 
@@ -869,6 +989,7 @@ class EpubPreloadService extends ChangeNotifier {
 
   /// 指纹命中的落盘分页表（秒进，可含未排版章＝null）；
   /// 无表/坏表/指纹不符/目录不可用＝null（调用方实算）。
+  /// 兼容 API：V1.60 起阅读器开书线只走下面的按章分片，整本读表面留给测试与小书路径。
   Future<BookPagination?> loadPag(
     String bookId,
     ReaderLayout l,
@@ -889,6 +1010,52 @@ class EpubPreloadService extends ChangeNotifier {
       await PagStore.save(d!, bookId, PagStore.fingerprint(l), pag);
     } catch (e) {
       AppLog.add('分页缓存写入失败 书#$bookId: $e', level: LhLevel.warn);
+    }
+  }
+
+  // ---------- V1.60 §3G · 按章分片读写（开书/续算唯一入口） ----------
+
+  /// 分片档是否命中当前指纹（开书日志「落盘表=命中|未命中」读数；只读 index）。
+  Future<bool> pagHit(String bookId, ReaderLayout l) async {
+    try {
+      final d = await _docs0();
+      return PagStore.hit(d!, bookId, PagStore.fingerprint(l));
+    } catch (e) {
+      AppLog.add('分页档状态读取失败 书#$bookId: $e', level: LhLevel.warn);
+      return false;
+    }
+  }
+
+  /// 单章分片读；无档/指纹不符/该章未排＝null（调用方实算）。
+  Future<PagChapter?> loadPagChapter(
+    String bookId,
+    ReaderLayout l,
+    int ci,
+  ) async {
+    try {
+      final d = await _docs0();
+      return PagStore.loadChapter(d!, bookId, PagStore.fingerprint(l), ci);
+    } catch (e) {
+      AppLog.add('分页分片读取失败 书#$bookId: $e', level: LhLevel.warn);
+      return null;
+    }
+  }
+
+  /// 单章分片写（后台续算与翻页实算共用；指纹变了整档重置）。
+  Future<void> savePagChapter(
+    String bookId,
+    ReaderLayout l,
+    int ci,
+    PagChapter chapter,
+    int chapterCount,
+  ) async {
+    try {
+      final d = await _docs0();
+      await PagStore.saveChapter(
+        d!, bookId, PagStore.fingerprint(l), ci, chapter, chapterCount,
+      );
+    } catch (e) {
+      AppLog.add('分页分片写入失败 书#$bookId: $e', level: LhLevel.warn);
     }
   }
 
