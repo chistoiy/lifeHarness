@@ -4,9 +4,11 @@ const s = fs.readFileSync(F, 'utf8').replace(/\r\n/g, '\n');
 
 // 1) emoji 扫描（只看习惯专版区域）
 const EM = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu;
+/* 治理动刀后适配（2026-10-03）：壳侧终止锚已迁出本文件，三段区域改钉在习惯模块自己的分区注释上
+   （语义＝只扫习惯专版自己的 pages/sheets/js，与删屏前一致）。emoji 扫描为提示性输出，判败只看 FAIL 行。 */
 const ranges = [
-  ['pages', s.indexOf('<section id="p-habits"'), s.indexOf('<section id="p-sub-data"')],
-  ['sheets', s.indexOf('<!-- ===== 习惯专版 · 新建'), s.indexOf('<!-- ===== 主题市场 =====')],
+  ['pages', s.indexOf('<!-- ===== 习惯专版 · P-H1'), s.indexOf('<!-- ===== 习惯专版 · 新建')],
+  ['sheets', s.indexOf('<!-- ===== 习惯专版 · 新建'), s.indexOf('/* ================= 习惯专版')],
   ['js', s.indexOf('/* ================= 习惯专版'), s.indexOf('/* ================= 插件中心')]
 ];
 for (const [n, a, b] of ranges) {
