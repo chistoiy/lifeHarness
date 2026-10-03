@@ -248,13 +248,21 @@ extension _ReaderStage on _ReaderPageState {
             Text(
               // R3-6：标题与引文同样吃显示层简繁（走同一条 paraBody 通道）。
               paraBody(p, _cfg.s2t),
-              style: TextStyle(
-                fontSize: _cfg.fs * 1.25,
-                height: _cfg.lh,
-                fontFamily: _cfg.fontFamily,
-                fontFamilyFallback: _cfg.fontFamilyFallback,
-                fontWeight: FontWeight.w800,
-                color: th.$3,
+              // 批三刀3：开原书时标题吃**书内字号比**（rem＝用户基准字号），
+              // 书里没声明才维持 1.25×；色/字重/斜体/线照 applyOrigStyle 叠。
+              style: applyOrigStyle(
+                TextStyle(
+                  fontSize: _cfg.fs *
+                      (_cfg.orig ? (p.style?.fontRatio ?? 1.25) : 1.25),
+                  height: _cfg.lh,
+                  fontFamily: _cfg.fontFamily,
+                  fontFamilyFallback: _cfg.fontFamilyFallback,
+                  fontWeight: FontWeight.w800,
+                  color: th.$3,
+                ),
+                _cfg.orig ? p.style : null,
+                pageBg: th.$2,
+                ratioBase: _cfg.fs,
               ),
             ),
           ),
@@ -268,11 +276,12 @@ extension _ReaderStage on _ReaderPageState {
               decoration: BoxDecoration(
                 border: Border(left: BorderSide(color: th.$3, width: 3)),
               ),
-              child: Text(
-                paraBody(p, _cfg.s2t),
+              child: Text.rich(
                 // ① 引文型注释体（blockquote epub:type=footnote 等）同样走正文色小字，
                 // 与 EpubPager.paraHeight 的测量共用 paraStyle，两边走样必出空页。
-                style: paraStyle(
+                // 批三刀3：改吃 [paraSpan] 的分段表——测量按 span 字号量、上屏按段字号画
+                // 会溢出，引文块与正文一样必须同源。
+                paraSpan(
                   p,
                   TextStyle(
                     fontSize: _cfg.fs,
@@ -282,6 +291,9 @@ extension _ReaderStage on _ReaderPageState {
                     fontFamilyFallback: _cfg.fontFamilyFallback,
                     color: th.$3.withValues(alpha: .85),
                   ),
+                  orig: _cfg.orig,
+                  pageBg: th.$2,
+                  s2t: _cfg.s2t,
                 ),
               ),
             ),

@@ -315,6 +315,8 @@ extension _ReaderChrome on _ReaderPageState {
   }
 
   /// 轮4③：段内子串选中（无链接事件，仅选区底色一段）。
+  /// 批三刀3：段级原书样式照吃；**runs 分段在选中态不细分**（选区只是一次性视图，
+  /// 且这里没有事件流可并切点）——退出选中即回到完整分段，见工单 §3D 挂账。
   TextSpan _subSpan((String, Color, Color) th, EpubPara p, int q0, int q1) {
     final base = paraStyle(
       p,
@@ -326,6 +328,8 @@ extension _ReaderChrome on _ReaderPageState {
         fontFamilyFallback: _cfg.fontFamilyFallback,
         color: th.$3,
       ),
+      orig: _cfg.orig,
+      pageBg: th.$2,
     );
     final a = q0.clamp(0, p.text.length);
     final b = q1.clamp(a, p.text.length);
@@ -364,17 +368,15 @@ extension _ReaderChrome on _ReaderPageState {
     ({int a, int b})? hlRange,
     Color? hlColor,
   }) {
-    final base = paraStyle(
-      p,
-      TextStyle(
-        fontSize: _cfg.fs,
-        height: _cfg.lh,
-        letterSpacing: _cfg.ls,
-        fontFamily: _cfg.fontFamily,
-        fontFamilyFallback: _cfg.fontFamilyFallback,
-        color: th.$3,
-      ),
+    final user = TextStyle(
+      fontSize: _cfg.fs,
+      height: _cfg.lh,
+      letterSpacing: _cfg.ls,
+      fontFamily: _cfg.fontFamily,
+      fontFamilyFallback: _cfg.fontFamilyFallback,
+      color: th.$3,
     );
+    final base = paraStyle(p, user, orig: _cfg.orig, pageBg: th.$2);
     final display = paraDisplayText(
       p,
       indent: _cfg.indent,
@@ -384,18 +386,31 @@ extension _ReaderChrome on _ReaderPageState {
     // 段首缩进前缀的显示偏移＝显示文本比原文多出来的长度（③ 后不再恒为 2；
     // R3-6 的简繁转换逐字等长，所以这一差值仍然只反映缩进前缀）。
     final ind = display.length - p.text.length;
-    final markStyle = base.copyWith(
-      backgroundColor: const Color(0xFF6366F1).withValues(alpha: .28),
-    );
+    // 批三刀3：段内原书区间（分层色·小字·专名线）与 `EpubPager.paraHeight`
+    // 吃**同一张** [paraRunStyles] 分段表——两处各算一份必出空页（预研 §3 同源红线）。
+    final segs = paraRunStyles(p, user, orig: _cfg.orig, pageBg: th.$2);
+    TextStyle segAt(int dispOff) {
+      if (dispOff < ind) return base; // 缩进前缀恒按段级样式（轮4③ 同口径）
+      final o = (dispOff - ind).clamp(0, p.text.length);
+      for (final s in segs) {
+        if (o >= s.start && o < s.end) return s.style;
+      }
+      return base;
+    }
+
+    final markBg = const Color(0xFF6366F1).withValues(alpha: .28);
     // 轮4①：划线底色＝色标 27% 透明（与旧整段 Container 铺底同值，观感连续）。
     final hlBg = hlColor?.withValues(alpha: .27);
     final children = <InlineSpan>[];
-    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止。
+    // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止
+    // ＋原书区间**切点**（kind 6 不改状态，只逼一次 flush，让每一段拿到自己的样式）。
     final events = <(int, int, EpubLink?)>[
       for (final l in p.links) ...[
         (l.start + ind, 0, l),
         (l.end + ind, 1, l),
       ],
+      if (_cfg.orig && p.runs.isNotEmpty)
+        for (final r in p.runs) (r.start + ind, 6, null),
       if (hit && _hitQ.isNotEmpty) ...[
         for (var idx = p.text.indexOf(_hitQ); idx >= 0; idx = p.text.indexOf(_hitQ, idx + 1)) ...[
           (idx + ind, 2, null),
@@ -424,7 +439,11 @@ extension _ReaderChrome on _ReaderPageState {
       );
       // ①④ 上色分派：外链绿 · 站内锚点正文色下划线 · 注释引用正文色小字。
       // 轮4①：划线底色独立叠加（在链接/命中样式之上 copyWith 背景）。
-      var style = inLink > 0 ? linkStyleFor(base, link) : (inMark > 0 ? markStyle : base);
+      // 批三刀3：底样式取**当前 run 分段**的样式，链接/命中/划线在其上叠。
+      final seg = segAt(cursor);
+      var style = inLink > 0
+          ? linkStyleFor(seg, link)
+          : (inMark > 0 ? seg.copyWith(backgroundColor: markBg) : seg);
       if (inHl > 0 && hlBg != null) {
         style = style.copyWith(backgroundColor: hlBg);
       }
@@ -454,6 +473,9 @@ extension _ReaderChrome on _ReaderPageState {
           inHl++;
         case 5:
           inHl = (inHl - 1).clamp(0, 1 << 20);
+        // kind 6＝原书区间切点（批三刀3）：只逼一次 flush，不改任何状态。
+        case 6:
+          break;
       }
     }
     flush(display.length);

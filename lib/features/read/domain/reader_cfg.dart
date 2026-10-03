@@ -30,6 +30,7 @@ class ReaderCfg {
     this.just = false,
     this.s2t = 'orig',
     this.indMode = 'auto',
+    this.orig = true,
   });
 
   final double fs, lh, ls, mar;
@@ -66,6 +67,13 @@ class ReaderCfg {
 
   /// 两端对齐（R3-7 · 原型 brApJustTgl）。
   final bool just;
+
+  /// **跟随原书样式**（批三刀3 · 原型 `?r32=st1` 外观弹层开关行）：
+  /// 开＝EPUB 自带 CSS 的声明（分层注释色·小字·专名线·底色块）叠在用户主题之上，
+  /// 关＝完全不读原书声明、逐字节回到止血口径。§5.4 拍板③＝**一个总开关、默认开、不拆子开关**，
+  /// 所以老用户落库缺键也吃开（不是遗漏，是拍板结论）。
+  /// 它改变**上屏排版** → 必须进 `PagStore.fingerprint`，否则切了开关不重排＝真机假生效。
+  final bool orig;
 
   /// 简繁（R3-7 · 原型 BR_S2T_N）：orig 跟随原书 · s 简体 · t 繁体。
   final String s2t;
@@ -127,6 +135,8 @@ class ReaderCfg {
       just: m['just'] == true,
       s2t: const {'orig', 's', 't'}.contains(m['s2t']) ? m['s2t'] as String : 'orig',
       indMode: im,
+      // 缺键＝开（§5.4 拍板③默认开）；只有明确写过 false 的老用户才关着。
+      orig: m['orig'] != false,
     );
   }
 
@@ -155,6 +165,7 @@ class ReaderCfg {
     'dim': dim,
     'just': just,
     's2t': s2t,
+    'orig': orig,
   };
 
   String encode() => jsonEncode(toMap());
@@ -180,6 +191,7 @@ class ReaderCfg {
     int? dim,
     bool? just,
     String? s2t,
+    bool? orig,
   }) {
     // indMode 为准；只传 indent 时同步换算（true 时若原为 none 回落 auto）。
     final im =
@@ -210,6 +222,7 @@ class ReaderCfg {
       dim: dim ?? this.dim,
       just: just ?? this.just,
       s2t: s2t ?? this.s2t,
+      orig: orig ?? this.orig,
     );
   }
 

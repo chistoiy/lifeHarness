@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_typography.dart' show LhFontRole, lhFontRoleOfReaderFont;
+import '../../data/epub_css.dart';
 import '../../data/epub_doc.dart';
 import '../../domain/reader_cfg.dart';
 import '../../domain/s2t_map.dart';
@@ -16,6 +19,7 @@ class ReaderLayout {
     this.ls = 0.4,
     this.mar = 22,
     this.font = 'serif', // 与 ReaderCfg 新默认同值（LH-F01）；生产恒走 ReaderLayout.of
+    this.orig = true,
     this.indent = true,
     this.indMode = 'auto',
     this.s2t = kS2TOrig,
@@ -35,6 +39,7 @@ class ReaderLayout {
     ls: c.ls,
     mar: c.mar,
     font: c.font,
+    orig: c.orig,
     // 以 indMode 为准换算 indent：ReaderCfg 的 const 构造不互推这两键（只有
     // fromMap/copyWith 会），直接吃 c.indent 会让「indMode:none + indent:true」
     // 这种手搓配置在分页与上屏两边各说各话。
@@ -47,6 +52,11 @@ class ReaderLayout {
   final double width, height;
   final double fs, lh, ls, mar;
   final String font;
+
+  /// **跟随原书样式**（批三刀3，§5.4 拍板③）：开＝把 EPUB 自带 CSS 的声明叠在
+  /// 用户主题之上，关＝一条都不读。它改变上屏排版 → 与 indMode/s2t 同口径进
+  /// `PagStore.fingerprint`（漏进去＝切了开关不重排＝真机假生效）。
+  final bool orig;
 
   /// 首行缩进开关（V1.53 轮3 字号面板；影响测量与渲染，必须进分页指纹）。
   final bool indent;
@@ -86,6 +96,7 @@ class ReaderLayout {
     double? ls,
     double? mar,
     String? font,
+    bool? orig,
     bool? indent,
     String? indMode,
     String? s2t,
@@ -97,6 +108,7 @@ class ReaderLayout {
     ls: ls ?? this.ls,
     mar: mar ?? this.mar,
     font: font ?? this.font,
+    orig: orig ?? this.orig,
     indent: indent ?? this.indent,
     indMode: indMode ?? this.indMode,
     s2t: s2t ?? this.s2t,
@@ -137,19 +149,272 @@ String paraDisplayText(
     ? '$kParaIndent${paraBody(p, s2t)}'
     : paraBody(p, s2t);
 
-/// ① 注释体段落样式（正文色 + 小一号）。**测量与渲染共用同一函数**：只在分页
-/// 器里缩字号、上屏不缩，就会「按小字算页、按大字画页」溢出/空页。
-/// 正文与引文两类都算注释体；标题另有字号档（1.25×）不参与。
-TextStyle paraStyle(EpubPara p, TextStyle base) {
-  if (!p.annotation ||
-      p.kind == EpubParaKind.heading ||
-      p.kind == EpubParaKind.image) {
-    return base;
+/// 原书色与**当前底色**的对比下限（预研 §3 调和规则：不达标先同色相调明度，
+/// 再不行回落主题正文色；数值取 WCAG AA 正文 4.5）。
+const double kOrigContrastMin = 4.5;
+
+/// 同色相调明度的允许区间。超出就把原书色推成极端色了——
+/// 宁回落主题正文色，也不画一个刺眼的假分层。
+const double _kOrigLightLo = 0.15, _kOrigLightHi = 0.90;
+
+/// WCAG 相对亮度（调和判据与用例共用同一算法，免得两边各测各的）。
+/// 注意 [Color.r]/[Color.g]/[Color.b] 在 Flutter 3.32+ 是 **0~1 的 double**，不再除 255。
+double _origLum(Color c) {
+  double lin(double v) =>
+      v <= 0.03928 ? v / 12.92 : _pow((v + 0.055) / 1.055, 2.4);
+  return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+}
+
+double _pow(double x, double e) => math.pow(x, e).toDouble();
+
+double _origContrast(Color a, Color b) {
+  final x = _origLum(a), y = _origLum(b);
+  return ((x > y ? x : y) + 0.05) / ((x > y ? y : x) + 0.05);
+}
+
+/// **深色调和**（§5.4 拍板④／预研 §3）：原书色在 [bg] 上读不出来时，
+/// 先保色相调明度（HSL 的 L——饱和度不动，但 L 推向两端时彩度自然回落，
+/// 这正是通鉴 `color:navy` 在黑底上要变的东西），调不到 [kOrigContrastMin]
+/// 就回落主题正文色 [fallback]（例如灰字压灰底，怎么调都糊）。
+/// [bg] 为 null＝测量路径，不参与调和（色不影响度量）。
+Color _origFgOn(Color fg, Color? bg, Color? fallback) {
+  if (bg == null) return fg;
+  if (_origContrast(fg, bg) >= kOrigContrastMin) return fg;
+  final hsl = HSLColor.fromColor(fg);
+  final up = _origLum(bg) <= 0.5; // 暗底往上提亮，亮底往下压暗
+  for (var i = 1; i <= 40; i++) {
+    final l = up
+        ? hsl.lightness + i * 0.02
+        : hsl.lightness - i * 0.02;
+    if (l < _kOrigLightLo || l > _kOrigLightHi) break;
+    final c = hsl.withLightness(l).toColor();
+    if (_origContrast(c, bg) >= kOrigContrastMin) {
+      return c.withValues(alpha: fg.a);
+    }
   }
-  return base.copyWith(
-    fontSize: (base.fontSize ?? 19) * kAnnotationFsFactor,
-    // base.color 为空（测量用的裸样式）时只缩字号，不凭空造色。
-    color: base.color?.withValues(alpha: kAnnotationAlpha),
+  return fallback ?? fg;
+}
+
+/// CSS 字重（100~900）→ Flutter 字重；认不了的值当没声明（调用方判空）。
+FontWeight? _origWeight(int? w) => switch (w) {
+  null => null,
+  _ => FontWeight.values[((w / 100).round() - 1).clamp(0, 7)],
+};
+
+/// `text-decoration-style` / `border-*-style` → Flutter 线的形态。
+/// 认不了的形态（`groove`/`inset` 这类要四个边的）回落实线——**能画成线**优先于画不出来。
+TextDecorationStyle? _origDecoStyle(String? s) => switch (s) {
+  null => null,
+  'solid' => TextDecorationStyle.solid,
+  'double' => TextDecorationStyle.double,
+  'dotted' => TextDecorationStyle.dotted,
+  'dashed' || 'dash' => TextDecorationStyle.dashed,
+  'wavy' => TextDecorationStyle.wavy,
+  _ => TextDecorationStyle.solid,
+};
+
+/// [EpubStyle] 有没有声明「线」（文本线或边线任一）。段级/区间级合并判定都取它。
+bool _origDeclaresLine(EpubStyle st) =>
+    st.underline ||
+    st.overline ||
+    st.lineThrough ||
+    st.hasBorder ||
+    st.lineColor != null ||
+    st.deco != null;
+
+/// 原书声明 → Flutter 文本样式（批三刀3 的唯一翻译口）。
+///
+/// 口径：**只改 [st] 声明过的字段**，其余原样保留 [base]——一条声明都没有时
+/// 返回同一个对象（`same`），这样「零原书声明的书」在测量与渲染两边都不会变样。
+/// 字号比 [EpubStyle.fontRatio] 乘的是**用户基准字号**（[ratioBase]，默认取 base 的字号；
+/// 标题档已经自己乘过 1.25×，调用时把 ratioBase 传成基准字号，免得二次叠加）。
+///
+/// **能力边界（路线说明 §五.2，产品 2026-10-04 拍板）**：Flutter 文本模型没有内联盒，
+/// 画不出四边框——`border-left/right/bottom` 一律落成**下划线**、`border-top` 落**上划线**，
+/// 这条近似已经由抽取器记进 `EpubDoc.unsupported` 并在该书外观页提示（不静默）。
+TextStyle applyOrigStyle(
+  TextStyle base,
+  EpubStyle? st, {
+  Color? pageBg,
+  double? ratioBase,
+}) {
+  if (st == null || st.isEmpty) return base;
+  var s = base;
+  // 底色声明一起判（`.ji` 白字灰底禁直接压黑底）：有底色块时，字色的对比按**块**算。
+  var bg = pageBg;
+  if (st.backgroundColor != null) {
+    s = s.copyWith(backgroundColor: st.backgroundColor);
+    bg = st.backgroundColor;
+  }
+  if (st.color != null) {
+    s = s.copyWith(color: _origFgOn(st.color!, bg, s.color));
+  }
+  if (st.fontRatio != null) {
+    s = s.copyWith(fontSize: (ratioBase ?? base.fontSize ?? 19) * st.fontRatio!);
+  }
+  if (st.weight != null) {
+    final w = _origWeight(st.weight);
+    if (w != null) s = s.copyWith(fontWeight: w);
+  }
+  if (st.italic) s = s.copyWith(fontStyle: FontStyle.italic);
+  if (st.lineRatio != null) s = s.copyWith(height: st.lineRatio);
+  if (!_origDeclaresLine(st)) return s;
+  // 边线→文本线的通用映射（上面的能力边界）；形态取** contributing 边线**自己的，
+  // 缺省回落段级 deco（书名线的 gif 平铺线在刀2 已通用回落成 wavy）。
+  final under = st.underline ||
+      st.borderLeft?.isLine == true ||
+      st.borderRight?.isLine == true ||
+      st.borderBottom?.isLine == true;
+  final over = st.overline || st.borderTop?.isLine == true;
+  final decos = <TextDecoration>[
+    if (under) TextDecoration.underline,
+    if (over) TextDecoration.overline,
+    if (st.lineThrough) TextDecoration.lineThrough,
+  ];
+  if (decos.isEmpty) return s;
+  final border = st.borderLeft ??
+      st.borderRight ??
+      st.borderBottom ??
+      st.borderTop;
+  final fs = s.fontSize ?? base.fontSize ?? 19;
+  final widthPx = border?.widthEm != null
+      ? border!.widthEm! * fs
+      : border?.widthPx;
+  return s.copyWith(
+    decoration: TextDecoration.combine(decos),
+    // 边色缺省＝跟字色（通鉴 `.name` 就是这个形态）。
+    decorationColor: st.lineColor ?? border?.color ?? s.color,
+    decorationStyle: _origDecoStyle(border?.style ?? st.deco),
+    decorationThickness: widthPx == null
+        ? null
+        : (widthPx / (fs * 0.05)).clamp(0.5, 4.0),
+  );
+}
+
+/// 把原书声明逐字段叠在 [stop] 上：**声明过的**用 [declared]，没声明的原样保留。
+/// （不能直接 `copyWith` 整个 [declared]——它的未声明字段带的是 base 值，
+/// 会把止血口径算好的注释体小字/压暗悄悄盖掉。）
+TextStyle _origOnto(TextStyle stop, TextStyle declared, EpubStyle st) {
+  var s = stop;
+  if (st.color != null) s = s.copyWith(color: declared.color);
+  if (st.backgroundColor != null) {
+    s = s.copyWith(backgroundColor: declared.backgroundColor);
+  }
+  if (st.fontRatio != null) s = s.copyWith(fontSize: declared.fontSize);
+  if (st.weight != null) s = s.copyWith(fontWeight: declared.fontWeight);
+  if (st.italic) s = s.copyWith(fontStyle: declared.fontStyle);
+  if (st.lineRatio != null) s = s.copyWith(height: declared.height);
+  if (_origDeclaresLine(st)) {
+    s = s.copyWith(
+      decoration: declared.decoration,
+      decorationColor: declared.decorationColor,
+      decorationStyle: declared.decorationStyle,
+      decorationThickness: declared.decorationThickness,
+    );
+  }
+  return s;
+}
+
+/// ① 注释体段落样式（正文色 + 小一号）；[orig] 开时**原书声明优先**、
+/// 未声明的属性仍走止血口径（§5.4 拍板：`.comment` 蓝＋1rem 压过 R3-2①）。
+/// **测量与渲染共用同一函数**：只在分页器里缩字号、上屏不缩，
+/// 就会「按小字算页、按大字画页」溢出/空页。
+/// 正文与引文两类都算注释体；标题另有字号档（1.25×）不参与。
+TextStyle paraStyle(
+  EpubPara p,
+  TextStyle base, {
+  bool orig = false,
+  Color? pageBg,
+}) {
+  final stop = !p.annotation ||
+          p.kind == EpubParaKind.heading ||
+          p.kind == EpubParaKind.image
+      ? base
+      : base.copyWith(
+          fontSize: (base.fontSize ?? 19) * kAnnotationFsFactor,
+          // base.color 为空（测量用的裸样式）时只缩字号，不凭空造色。
+          color: base.color?.withValues(alpha: kAnnotationAlpha),
+        );
+  final st = p.style;
+  if (!orig || st == null || st.isEmpty) return stop;
+  return _origOnto(stop, applyOrigStyle(base, st, pageBg: pageBg), st);
+}
+
+/// 段内一个显示区间的样式（[paraRunStyles] 的返回值）。
+/// 坐标与 [EpubPara.text] 同系（折叠空白后的 UTF-16 码位），
+/// 与 [EpubPara.links]／划线／书摘偏移一致；简繁转换器逐字等长，转换后仍对齐。
+@immutable
+class EpubRunSegment {
+  const EpubRunSegment({
+    required this.start,
+    required this.end,
+    required this.style,
+  });
+
+  final int start, end;
+  final TextStyle style;
+}
+
+/// runs → 分段样式表（批三刀3 · **测量与渲染共用这张表**，预研 §3 同源红线）。
+/// 无缝覆盖 `[0, text.length)`：runs 之间的空隙用段级样式填，
+/// 这样 [EpubPager.paraHeight] 与 `reader_chrome._textSpan` 拿到的是同一份分段。
+List<EpubRunSegment> paraRunStyles(
+  EpubPara p,
+  TextStyle base, {
+  bool orig = false,
+  Color? pageBg,
+}) {
+  final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
+  final n = p.text.length;
+  if (!orig || p.runs.isEmpty) {
+    return [EpubRunSegment(start: 0, end: n, style: para)];
+  }
+  final out = <EpubRunSegment>[];
+  var cur = 0;
+  void gap(int to) {
+    if (to <= cur) return;
+    out.add(EpubRunSegment(start: cur, end: to, style: para));
+    cur = to;
+  }
+
+  for (final r in p.runs) {
+    final s = r.start.clamp(0, n), e = r.end.clamp(s, n);
+    if (e <= cur) continue; // runs 应有序不重叠；乱序/重叠按先到者裁
+    gap(s);
+    out.add(
+      EpubRunSegment(
+        start: s,
+        end: e,
+        style: _origOnto(para, applyOrigStyle(base, r.style, pageBg: pageBg), r.style),
+      ),
+    );
+    cur = e;
+  }
+  gap(n);
+  return out;
+}
+
+/// 段 → 上屏用的富文本 span（**测量与渲染共用的唯一出口**：[EpubPager.paraHeight]、
+/// 引文块、正文事件流都从这张分段表取字取样式；两处各拼一份必分叉＝空页/错页）。
+/// 缩进前缀恒按段级样式渲染在最前（轮4③ 真机口径），不参与 runs 分段。
+TextSpan paraSpan(
+  EpubPara p,
+  TextStyle base, {
+  bool orig = false,
+  Color? pageBg,
+  String indMode = 'auto',
+  String s2t = kS2TOrig,
+}) {
+  final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
+  final body = paraBody(p, s2t);
+  final pre = paraIndented(p, indMode) ? kParaIndent : '';
+  return TextSpan(
+    style: para,
+    children: <InlineSpan>[
+      if (pre.isNotEmpty) TextSpan(text: pre, style: para),
+      for (final s in paraRunStyles(p, base, orig: orig, pageBg: pageBg))
+        TextSpan(text: body.substring(s.start, s.end), style: s.style),
+    ],
   );
 }
 
@@ -188,18 +453,14 @@ class EpubPager {
   const EpubPager._();
 
   /// 单段块高（含原型间距口径：标题 +14 · 引文 +18 · 正文 +7 · 插图固定 190）。
+  /// 批三刀3：改吃 [paraRunStyles] 的分段表——em 字号进 span 之后，
+  /// 「按平文本量、按 span 树画」必出空页，两边走一张表才叫同源（预研 §3 红线）。
   static double paraHeight(EpubPara p, ReaderLayout l) {
     if (p.kind == EpubParaKind.image) return 190;
     final tp = TextPainter(
-      text: TextSpan(
-        text: paraDisplayText(
-          p,
-          indent: l.indent,
-          indMode: l.indMode,
-          s2t: l.s2t,
-        ),
-        style: paraStyle(p, l.base),
-      ),
+      // 测量路径不传 pageBg＝原书色不参与调和（色不影响度量），
+      // 但**分段表与上屏同一张**（字号比会改行高，两边必须一致）。
+      text: paraSpan(p, l.base, orig: l.orig, indMode: l.indMode, s2t: l.s2t),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: l.contentW);
     final gap = p.kind == EpubParaKind.heading

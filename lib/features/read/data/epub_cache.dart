@@ -46,10 +46,12 @@ class PagStore {
   /// 否则改了缩进设置不重排＝真机假生效。`just` 不入指纹：两端对齐只拉伸行内
   /// 空隙、不改断行，TextPainter 实算高度与左对齐一致（进指纹反而每次白重排）。
   /// R3-6：s2t 同 indMode 口径——它换的是上屏字符（逐字等长但字形度量可能不同）。
+  /// 批三刀3：`orig`（跟随原书样式）同口径进指纹——它改的是**每段的字号比与线**，
+  /// 断行直接变；漏进去＝切了开关不重排＝真机假生效。
   static String fingerprint(ReaderLayout l) =>
       '${l.width.round()}x${l.height.round()}|fs${l.fs}|lh${l.lh}|ls${l.ls}'
       '|mar${l.mar}|fnt${l.font}|ind${l.indent ? 1 : 0}|im${l.indMode}'
-      '|s2t${l.s2t}';
+      '|s2t${l.s2t}|og${l.orig ? 1 : 0}';
 
   static String dirPath(String docsPath) => p.join(docsPath, 'epub_pag');
 
