@@ -9,9 +9,11 @@
 ///   前置校验失败时现库一字节不动；unpack 中途失败时现库已被 close，
 ///   失败路径重开原库恢复现场（事务回滚 + 自动备份先行，原库文件未受污染）
 ///   后冒泡异常。
-/// - 「另存到…」（SAF，2026-09-25 增补）：先落应用目录再经
-///   `flutter_file_dialog.saveFile` 由用户选任意位置；取消=null；上次成功
-///   目标仅记 prefs `backup_last_save_hint` 供展示，不做常驻目录授权。
+/// - 「另存到…」（SAF，2026-10-04 轮6 起走自研 `lh/saf` 通道）：先落应用目录
+///   再由用户经系统「创建文档」选任意位置；取消=null；上次成功目标仅记
+///   prefs `backup_last_save_hint` 供展示，不做常驻目录授权。
+///   （旧实现 flutter_file_dialog 在进程被杀后冷启动投递结果时 NPE 崩溃、
+///   目标停 0 字节——根因与证据见 lib/core/platform/saf.dart 文件头。）
 /// - 对话框钩子 [saveAsDialog]/[pickFileHook] 为可替换静态字段
 ///   （模式照 `LhBak.snapshotFactory`），widget/单测注入 fake。
 library;
@@ -20,17 +22,18 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../logging/app_log.dart';
 import '../logging/file_log_sink.dart';
+import '../platform/saf.dart';
 import 'lh_bak.dart';
 
 /// 「保存为」系统弹层钩子签名：入参 = 已生成的备份文件路径；
-/// 返回用户选定路径，取消 = null。
+/// 返回用户选定位置的显示文件名（轮6 起，旧插件返回的是 content URI 路径），
+/// 取消 = null；失败抛异常（由 UI 兜底可见）。
 typedef SaveAsHandler = Future<String?> Function(String srcPath);
 
 /// 备份文件选择器钩子签名：返回选中路径，取消 = null。
@@ -121,9 +124,9 @@ class BackupService {
 
   // ---- 可替换对话框钩子（模式照 LhBak.snapshotFactory）----
 
-  /// 「保存为」系统弹层实现（生产经 flutter_file_dialog SAF 创建文档）。
+  /// 「保存为」系统弹层实现（生产 = 自研 `lh/saf` 通道，SAF「创建文档」）。
   static SaveAsHandler saveAsDialog = defaultSaveAsDialog;
-  static final SaveAsHandler defaultSaveAsDialog = _saveViaFileDialog;
+  static final SaveAsHandler defaultSaveAsDialog = safSaveAs;
 
   /// 备份文件选择器实现（生产 file_picker，SAF 自动缓存副本按路径处理）。
   /// 2026-10-04 真机缺陷根治：`lhbak` 是自造扩展名、不在 Android MIME 表，
@@ -337,16 +340,6 @@ class BackupService {
   }
 
   // ---- 生产侧默认实现（测试被钩子替换，不触平台通道）----
-
-  static Future<String?> _saveViaFileDialog(String srcPath) {
-    return FlutterFileDialog.saveFile(
-      params: SaveFileDialogParams(
-        fileName: p.basename(srcPath),
-        sourceFilePath: srcPath,
-        mimeTypesFilter: const ['application/octet-stream'],
-      ),
-    );
-  }
 
   static Future<String?> _pickViaFilePicker() async {
     FilePickerResult? result;

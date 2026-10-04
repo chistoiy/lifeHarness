@@ -55,6 +55,11 @@ class _FakeBackupService extends BackupService {
   /// 非 null 时 pickBackupFile 抛出它（20261004 缺陷回归：选择器异常必须可见）。
   Object? pickError;
 
+  /// 非 null 时 exportBackup / saveCopyToUserLocation 抛出它
+  /// （轮6 缺陷回归：导出与另存异常同样必须可见，不再顺 async 通道蒸发）。
+  Object? exportError;
+  Object? saveCopyError;
+
   String? lastPassphrase;
   bool? lastWithLogs;
   bool? lastWithAttachments;
@@ -81,6 +86,7 @@ class _FakeBackupService extends BackupService {
     String? nameTag,
   }) async {
     exportCalls++;
+    if (exportError != null) throw exportError!;
     lastPassphrase = passphrase;
     lastWithLogs = withLogs;
     lastWithAttachments = withAttachments;
@@ -107,6 +113,7 @@ class _FakeBackupService extends BackupService {
   @override
   Future<String?> saveCopyToUserLocation(String srcPath) async {
     saveCopyCalls++;
+    if (saveCopyError != null) throw saveCopyError!;
     return saveCopyResult;
   }
 
@@ -245,11 +252,36 @@ void main() {
       expect(fake.importCalls, 0); // 取消不触发任何恢复类调用
       await clearToasts(tester);
 
-      // 另存成功：展示落点文件名
-      fake.saveCopyResult = r'/storage/emulated/0/Download/saved.lhbak';
+      // 另存成功：轮6 起通道返回「选定文件显示名」，直接展示。
+      fake.saveCopyResult = 'saved.lhbak';
       await tester.tap(find.byKey(const ValueKey('btn-export-save')));
       await pollText(tester, '已另存：saved.lhbak');
       expect(fake.saveCopyCalls, 2);
+      await clearToasts(tester);
+    });
+
+    testWidgets('轮6 另存层失败必须可见：toast＋包仍在应用导出目录，不静默蒸发',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      fake.saveCopyError = PlatformException(
+          code: 'save_failed', message: 'provider 未提供输出流');
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
+      await pollText(tester, '另存失败，包仍保留在应用导出目录');
+      expect(fake.exportCalls, 1);
+      expect(fake.saveCopyCalls, 1);
+      await clearToasts(tester);
+    });
+
+    testWidgets('轮6 非容器类导出异常同样可见（此前只接 LhBakException）',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      fake.exportError = StateError('磁盘写入失败');
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
+      await pollText(tester, '导出失败，详情见日志');
+      // 导出失败 → 绝不再弹另存层。
+      expect(fake.saveCopyCalls, 0);
       await clearToasts(tester);
     });
   });

@@ -13,13 +13,12 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/logging/app_log.dart';
+import '../../../../core/platform/saf.dart';
 import 'xray_backup.dart' show XrPick, XrSaveAs;
 import 'xray_dao.dart';
 import 'xray_lexicon.dart' show XrayWordBank;
@@ -184,26 +183,10 @@ class XrayWordsIoService {
     );
   }
 
-  static final XrSaveAs defaultSaveAs = _saveViaFileDialog;
+  static final XrSaveAs defaultSaveAs = safSaveAs;
   static final XrPick defaultPick = _pickViaFilePicker;
 }
 
-Future<String?> _saveViaFileDialog(String srcPath) {
-  // 与 BackupService/XrayBackupService 同通道（SAF「创建文档」），独立实例不复用状态。
-  return FlutterFileDialog.saveFile(
-    params: SaveFileDialogParams(
-      fileName: p.basename(srcPath),
-      sourceFilePath: srcPath,
-      mimeTypesFilter: const ['application/octet-stream'],
-    ),
-  );
-}
-
-Future<String?> _pickViaFilePicker() async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: const ['xrwords'],
-    withData: false,
-  );
-  return result?.files.firstOrNull?.path;
-}
+Future<String?> _pickViaFilePicker() =>
+    // 轮6 同缺陷口径：xrwords 自造扩展名会被 FileType.custom 拒→降级全文件。
+    safPickWithFallback(const ['xrwords'], logTag: '词库');

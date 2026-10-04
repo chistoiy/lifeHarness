@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show File;
+import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +11,7 @@ import 'app.dart';
 import 'core/ai/ai_providers.dart';
 import 'core/ai/ai_vault.dart';
 import 'core/backup/backup_service.dart';
+import 'core/backup/lh_bak.dart' show LhBak;
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
@@ -177,6 +179,9 @@ Future<void> main() async {
 
   // 5) V1.41 Task 10/18 组合根：备份服务实例（Task 18 同步快照复用同一实例，
   //    故提到 runApp 之前构造）。
+  //    轮6 ANR 根治：zip 打包/附件收集/加密整体挪进后台 isolate（默认内联是
+  //    测试路径），UI isolate 不再被压缩卡死十几秒 → 不再触发 bg ANR 杀进程。
+  LhBak.packRunner = Isolate.run;
   final backup = BackupService(
     exportDir: () => p.join(docsPath, 'backup'),
     db: () => AppDatabase.instance.open(),

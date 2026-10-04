@@ -245,7 +245,18 @@ class LhBak {
   /// 单元测试注入 databaseFactoryFfi 以打开临时快照文件。
   static DatabaseFactory snapshotFactory = databaseFactory;
 
-  /// 生成备份包：活库 `VACUUM INTO` 快照 → 计算逐表统计 → zip 打包。
+  /// 打包阶段执行器（2026-10-04 轮6 ANR 根治）：成员收集/manifest/zip 压缩/
+  /// 逐文件加密整体在 [packRunner] 内执行。默认＝内联（测试路径，与改造前
+  /// 行为一致）；生产在 main.dart 注入 `Isolate.run`——zip 是纯 Dart CPU 活、
+  /// 附件收集全同步 IO，跑在 UI isolate 上＝导出十几秒界面卡死 → 系统判
+  /// ANR 杀进程 → SAF 结果投给冷启动新进程 → 插件 NPE 崩溃、目标 0 字节。
+  static Future<R> Function<R>(Future<R> Function() task) packRunner =
+      _inlinePack;
+
+  static Future<R> _inlinePack<R>(Future<R> Function() task) => task();
+
+  /// 生成备份包：活库 `VACUUM INTO` 快照 → 计算逐表统计 → zip 打包
+  /// （打包阶段经 [packRunner]，生产在后台 isolate）。
   ///
   /// - [attachDirs]：附件根目录，成员名 `attachments/<目录名>/<相对路径>`；
   ///   不存在则跳过。
@@ -301,100 +312,29 @@ class LhBak {
         await snap?.close();
       }
 
-      // 3) 成员表：db.sqlite(.enc) + attachments/*(.enc) + logs/*（确定序）。
-      //    加密档：db 与附件成员名带 .enc 并整文件读入加密（GCM 单块上限远
-      //    大于本项目文件尺寸）；logs 与 manifest 恒明文。
-      final memberFiles = <String, String>{}; // 成员名 → 磁盘路径
-      final encryptNames = <String>{};
-      final skippedLarge = <String>[];
-      final dbMemberName = encrypted ? 'db.sqlite.enc' : 'db.sqlite';
-      memberFiles[dbMemberName] = snapshotPath;
-      if (encrypted) encryptNames.add(dbMemberName);
-      // 附件成员收口（目录递归 / 散文件共用）：加密档统一 .enc 命名与
-      // 单文件超限跳过口径。
-      void addAttachment(String memberName, File f) {
-        if (!encrypted) {
-          memberFiles[memberName] = f.path;
-          return;
-        }
-        if (f.lengthSync() > maxEncryptBytes) {
-          skippedLarge.add(memberName); // 记原始成员名（不含 .enc）
-          return;
-        }
-        memberFiles['$memberName.enc'] = f.path;
-        encryptNames.add('$memberName.enc');
-      }
-
-      for (final dirPath in attachDirs) {
-        final dir = Directory(dirPath);
-        if (!dir.existsSync()) continue;
-        final dirName = p.basename(dirPath);
-        final files = dir
-            .listSync(recursive: true)
-            .whereType<File>()
-            .toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
-        for (final f in files) {
-          final rel = p.posix
-              .joinAll(p.split(p.relative(f.path, from: dirPath)));
-          addAttachment('attachments/$dirName/$rel', f);
-        }
-      }
-      // 根目录散文件（记账 lifeharness_ledger.csv/.json 等，评审修复）。
-      for (final fpath in attachFiles) {
-        final f = File(fpath);
-        if (!f.existsSync()) continue;
-        addAttachment('attachments/${p.basename(fpath)}', f);
-      }
-      for (final logPath in logFiles) {
-        if (File(logPath).existsSync()) {
-          memberFiles['logs/${p.basename(logPath)}'] = logPath;
-        }
-      }
-
-      final manifest = LhBakManifest(
-        dbVersion: DbSchema.version,
-        appVersion: kAppVersion,
-        createdAt: ts,
-        tables: tables,
-        excludedTables: excluded,
-        encrypted: encrypted,
-        members: ['manifest.json', ...memberFiles.keys],
-        kdf: encrypted
-            ? {
-                'alg': 'PBKDF2-HMAC-SHA256',
-                'iterations': kPbkdf2Iterations,
-              }
-            : null,
-        skippedLarge: skippedLarge.isEmpty ? null : skippedLarge,
-      );
-
-      // 4) zip 落盘（明文大文件成员走 InputFileStream 流式；密文成员整读
-      //    加密后作为 ArchiveFile 写入，尺寸已受 maxEncryptBytes 约束）。
-      Directory(outDirPath).createSync(recursive: true);
-      final outPath =
-          p.join(outDirPath, uniqueFileNameInDir(outDirPath, _backupFileName(ts)));
-      final encoder = ZipFileEncoder();
-      encoder.create(outPath);
-      final cipher = passphrase != null ? _BlobCipher(passphrase) : null;
-      try {
-        final mBytes = utf8.encode(
-            const JsonEncoder.withIndent('  ').convert(manifest.toJson()));
-        encoder.addArchiveFile(
-            ArchiveFile('manifest.json', mBytes.length, mBytes));
-        for (final e in memberFiles.entries) {
-          if (encryptNames.contains(e.key)) {
-            final plain = await File(e.value).readAsBytes();
-            final blob = await cipher!.encrypt(plain);
-            encoder.addArchiveFile(ArchiveFile(e.key, blob.length, blob));
-          } else {
-            await encoder.addFile(File(e.value), e.key);
-          }
-        }
-      } finally {
-        await encoder.close();
-      }
-      return LhBakCreateResult(File(outPath), manifest);
+      // 3) 打包阶段整体交 [packRunner]（成员表构建/manifest/zip/加密均在
+      //    [_packInIsolate] 内完成，口径与改造前一致）；跨 isolate 只传 plain
+      //    数据：快照文件路径 + 目录/文件清单 + 逐表统计。
+      final packedJson = await packRunner(() => _packInIsolate({
+            'outDirPath': outDirPath,
+            'snapshotPath': snapshotPath,
+            'attachDirs': attachDirs,
+            'attachFiles': attachFiles,
+            'logFiles': logFiles,
+            'encrypted': encrypted,
+            'passphrase': passphrase,
+            'maxEncryptBytes': maxEncryptBytes,
+            'createdAtIso': ts.toIso8601String(),
+            'excludedTables': excluded,
+            'tables': {
+              for (final e in tables.entries)
+                e.key: <Object>[e.value.rows, e.value.checksum],
+            },
+          }));
+      final packed = jsonDecode(packedJson) as Map<String, dynamic>;
+      final manifest =
+          LhBakManifest.fromJson(packed['manifest'] as Map<String, dynamic>);
+      return LhBakCreateResult(File(packed['outPath'] as String), manifest);
     } finally {
       _deleteQuietly(temp);
     }
@@ -703,6 +643,125 @@ class LhBak {
       // 临时目录清理失败不影响结果（Windows 偶发文件占用）。
     }
   }
+}
+
+/// [LhBak.create] 的打包阶段（在 [LhBak.packRunner] 内执行，生产与 UI isolate
+/// 不同 isolate）。入参/返回均为 plain 数据（跨 isolate 安全）：返回
+/// `jsonEncode({'outPath': 备份文件路径, 'manifest': manifest 形态})`。
+/// 成员表/manifest/zip 口径与原实现逐行一致（2026-10-04 轮6 整体搬移）。
+Future<String> _packInIsolate(Map<String, Object?> req) async {
+  final outDirPath = req['outDirPath'] as String;
+  final snapshotPath = req['snapshotPath'] as String;
+  final attachDirs = (req['attachDirs'] as List).cast<String>();
+  final attachFiles = (req['attachFiles'] as List).cast<String>();
+  final logFiles = (req['logFiles'] as List).cast<String>();
+  final encrypted = req['encrypted'] as bool;
+  final passphrase = req['passphrase'] as String?;
+  final maxEncryptBytes = req['maxEncryptBytes'] as int;
+  final ts = DateTime.parse(req['createdAtIso'] as String);
+  final excluded = (req['excludedTables'] as List).cast<String>();
+  final tablesRaw = req['tables'] as Map;
+  final tables = <String, TableStat>{
+    for (final e in tablesRaw.entries)
+      e.key as String: TableStat(
+          rows: (e.value as List)[0] as int,
+          checksum: (e.value as List)[1] as String),
+  };
+
+  // 成员表：db.sqlite(.enc) + attachments/*(.enc) + logs/*（确定序）。
+  // 加密档：db 与附件成员名带 .enc 并整文件读入加密（GCM 单块上限远
+  // 大于本项目文件尺寸）；logs 与 manifest 恒明文。
+  final memberFiles = <String, String>{}; // 成员名 → 磁盘路径
+  final encryptNames = <String>{};
+  final skippedLarge = <String>[];
+  final dbMemberName = encrypted ? 'db.sqlite.enc' : 'db.sqlite';
+  memberFiles[dbMemberName] = snapshotPath;
+  if (encrypted) encryptNames.add(dbMemberName);
+  // 附件成员收口（目录递归 / 散文件共用）：加密档统一 .enc 命名与
+  // 单文件超限跳过口径。
+  void addAttachment(String memberName, File f) {
+    if (!encrypted) {
+      memberFiles[memberName] = f.path;
+      return;
+    }
+    if (f.lengthSync() > maxEncryptBytes) {
+      skippedLarge.add(memberName); // 记原始成员名（不含 .enc）
+      return;
+    }
+    memberFiles['$memberName.enc'] = f.path;
+    encryptNames.add('$memberName.enc');
+  }
+
+  for (final dirPath in attachDirs) {
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) continue;
+    final dirName = p.basename(dirPath);
+    final files = dir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final f in files) {
+      final rel = p.posix
+          .joinAll(p.split(p.relative(f.path, from: dirPath)));
+      addAttachment('attachments/$dirName/$rel', f);
+    }
+  }
+  // 根目录散文件（记账 lifeharness_ledger.csv/.json 等，评审修复）。
+  for (final fpath in attachFiles) {
+    final f = File(fpath);
+    if (!f.existsSync()) continue;
+    addAttachment('attachments/${p.basename(fpath)}', f);
+  }
+  for (final logPath in logFiles) {
+    if (File(logPath).existsSync()) {
+      memberFiles['logs/${p.basename(logPath)}'] = logPath;
+    }
+  }
+
+  final manifest = LhBakManifest(
+    dbVersion: DbSchema.version,
+    appVersion: kAppVersion,
+    createdAt: ts,
+    tables: tables,
+    excludedTables: excluded,
+    encrypted: encrypted,
+    members: ['manifest.json', ...memberFiles.keys],
+    kdf: encrypted
+        ? {
+            'alg': 'PBKDF2-HMAC-SHA256',
+            'iterations': kPbkdf2Iterations,
+          }
+        : null,
+    skippedLarge: skippedLarge.isEmpty ? null : skippedLarge,
+  );
+
+  // zip 落盘（明文大文件成员走 InputFileStream 流式；密文成员整读
+  // 加密后作为 ArchiveFile 写入，尺寸已受 maxEncryptBytes 约束）。
+  Directory(outDirPath).createSync(recursive: true);
+  final outPath = p.join(
+      outDirPath, uniqueFileNameInDir(outDirPath, LhBak._backupFileName(ts)));
+  final encoder = ZipFileEncoder();
+  encoder.create(outPath);
+  final cipher = passphrase != null ? _BlobCipher(passphrase) : null;
+  try {
+    final mBytes = utf8.encode(
+        const JsonEncoder.withIndent('  ').convert(manifest.toJson()));
+    encoder.addArchiveFile(
+        ArchiveFile('manifest.json', mBytes.length, mBytes));
+    for (final e in memberFiles.entries) {
+      if (encryptNames.contains(e.key)) {
+        final plain = await File(e.value).readAsBytes();
+        final blob = await cipher!.encrypt(plain);
+        encoder.addArchiveFile(ArchiveFile(e.key, blob.length, blob));
+      } else {
+        await encoder.addFile(File(e.value), e.key);
+      }
+    }
+  } finally {
+    await encoder.close();
+  }
+  return jsonEncode({'outPath': outPath, 'manifest': manifest.toJson()});
 }
 
 /// 目标目录内不重名的备份文件名：同秒二次导出（如导入恢复的

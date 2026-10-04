@@ -85,6 +85,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
     if (_busy) return;
     setState(() => _busy = true);
     final svc = ref.read(backupServiceProvider);
+    String? srcPath;
     try {
       final res = await svc.exportBackup(
         withLogs: _withLogs,
@@ -92,17 +93,27 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
         passphrase: pass,
       );
       _toast('已导出：${p.basename(res.file.path)}');
-      if (alsoSave) {
-        final saved = await svc.saveCopyToUserLocation(res.file.path);
-        _toast(saved == null
-            ? '另存已取消 · 包保留在应用导出目录'
-            : '已另存：${p.basename(saved)}');
-      }
+      srcPath = res.file.path;
     } on LhBakException catch (e) {
       _toast('导出失败：${e.code}');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+    } catch (e) {
+      // 轮6：非容器类导出异常同样必须可见（此前顺 async 通道蒸发）。
+      _toast('导出失败，详情见日志');
+      AppLog.add('备份导出异常（弹层兜底）：$e', level: LhLevel.error);
     }
+    if (alsoSave && srcPath != null) {
+      try {
+        final saved = await svc.saveCopyToUserLocation(srcPath);
+        _toast(saved == null
+            ? '另存已取消 · 包保留在应用导出目录'
+            : '已另存：$saved');
+      } catch (e) {
+        // 轮6：系统保存层失败（provider 无输出流等）不再静默。
+        _toast('另存失败，包仍保留在应用导出目录');
+        AppLog.add('备份另存异常：$e', level: LhLevel.error);
+      }
+    }
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _doPick() async {
@@ -262,7 +273,8 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                   child: FilledButton(
                     key: const ValueKey('btn-export'),
                     onPressed: _busy ? null : _doExport,
-                    child: const Text('导出备份'),
+                    // 轮6：打包在后台 isolate，界面不再卡死，但给出进行中态。
+                    child: Text(_busy ? '正在导出…' : '导出备份'),
                   ),
                 ),
                 const SizedBox(width: 8),

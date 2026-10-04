@@ -12,12 +12,11 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/logging/app_log.dart';
+import '../../../../core/platform/saf.dart';
 
 import 'xray_dao.dart';
 
@@ -40,7 +39,7 @@ class XrayBackupService {
   final XrPick? pickFile;
   final Directory? docsOverride;
 
-  static final XrSaveAs defaultSaveAs = _saveViaFileDialog;
+  static final XrSaveAs defaultSaveAs = safSaveAs;
   static final XrPick defaultPick = _pickViaFilePicker;
 
   /// 导出全部索引 → 返回另存后的最终路径（用户取消＝null）。
@@ -81,22 +80,6 @@ class XrayBackupService {
   }
 }
 
-Future<String?> _saveViaFileDialog(String srcPath) {
-  // 与 BackupService 同通道（flutter_file_dialog SAF「创建文档」），独立实例不复用其状态。
-  return FlutterFileDialog.saveFile(
-    params: SaveFileDialogParams(
-      fileName: p.basename(srcPath),
-      sourceFilePath: srcPath,
-      mimeTypesFilter: const ['application/octet-stream'],
-    ),
-  );
-}
-
-Future<String?> _pickViaFilePicker() async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: const ['xraybak'],
-    withData: false,
-  );
-  return result?.files.firstOrNull?.path;
-}
+Future<String?> _pickViaFilePicker() =>
+    // 轮6 同缺陷口径：xraybak 自造扩展名会被 FileType.custom 拒→降级全文件。
+    safPickWithFallback(const ['xraybak'], logTag: '索引包');

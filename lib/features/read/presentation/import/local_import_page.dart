@@ -187,9 +187,11 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     }
     // F5-1（轮5）：落架后直接返回书架并停在「全部」分区——旧行为＝退回
     // 「添加图书」搜索页，且书架 boot 默认「在读」分区，新书（未开始）看不见。
+    // R6 守护修正：/read/shelf 非 Shell tab，go 清栈会让返回键直接退出 app，
+    // 改 pushReplacement——替换导入页本身，下方栈保留。
     ref.read(shelfUiProvider.notifier).state = const ShelfUI();
     ref.read(shelfOpenTabArmedProvider.notifier).state = false;
-    if (mounted) context.go('/read/shelf');
+    if (mounted) context.pushReplacement('/read/shelf');
   }
 
   @override

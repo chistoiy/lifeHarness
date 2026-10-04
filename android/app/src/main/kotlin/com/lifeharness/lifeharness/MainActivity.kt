@@ -6,17 +6,28 @@ import android.os.Build
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.io.IOException
 
 /// V1.53.4⑥ 系统「打开方式」接收本地 EPUB。
 /// 冷启动经 configureFlutterEngine 里的 handle(intent) 入队；热启动（singleTop）
 /// 经 onNewIntent 入队。Dart 侧经 MethodChannel `lh/intents` 的 takeEpubUri
 /// 单次消费（取一次即清空），App 唤醒（resumed）时再取。
+///
+/// 轮6（2026-10-04）追加 `lh/saf` 通道：SAF「另存为」（备份/X-Ray 导出共用），
+/// 替换 flutter_file_dialog 插件——其在进程被杀后冷启动投递结果时
+/// `sourceFile!!` 必 NPE 崩溃（真机 0 字节事故根因），且拷贝强转
+/// FileOutputStream。本实现无挂起态时静默忽略过期结果，拷贝走通用流。
 class MainActivity : FlutterActivity() {
 
     private var pendingUri: Uri? = null
     private var pendingName: String? = null
+
+    // ---- lh/saf 挂起态（仅内存：进程死亡即失，结果过期被静默忽略）----
+    private var safResult: MethodChannel.Result? = null
+    private var safSource: String? = null
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -70,6 +81,73 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "lh/saf"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "saveAs" -> safSaveAs(call, result)
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    // ---- lh/saf：SAF「另存为」实现 ----
+
+    private fun safSaveAs(call: MethodCall, result: MethodChannel.Result) {
+        val src = call.argument<String>("srcPath")
+        val name = call.argument<String>("fileName")
+        if (src == null || name == null || !File(src).exists()) {
+            result.error("bad_args", "源文件不存在", null)
+            return
+        }
+        if (safResult != null) {
+            result.error("busy", "保存层已在进行中", null)
+            return
+        }
+        safResult = result
+        safSource = src
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_TITLE, name)
+        }
+        try {
+            startActivityForResult(intent, REQ_SAF_SAVE)
+        } catch (e: Exception) {
+            safResult = null
+            safSource = null
+            result.error("no_provider", e.localizedMessage, null)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_SAF_SAVE) return
+        val res = safResult
+        val src = safSource
+        safResult = null
+        safSource = null
+        // 过期结果（进程在选择器期间被杀后冷启动投递，或重复回调）：
+        // Dart 侧无人等待，静默忽略——旧插件正是在这里 `!!` 崩溃。
+        if (res == null || src == null) return
+        if (resultCode != RESULT_OK || data?.data == null) {
+            res.success(null) // 用户取消
+            return
+        }
+        val uri = data.data!!
+        try {
+            contentResolver.openOutputStream(uri, "w")?.use { out ->
+                File(src).inputStream().use { input -> input.copyTo(out) }
+            } ?: throw IOException("provider 未提供输出流")
+            res.success(queryName(uri) ?: uri.lastPathSegment)
+        } catch (e: Exception) {
+            // 失败可见：Dart 侧兜底 toast＋日志。SAF 已建的空文件留给用户自清。
+            res.error("save_failed", e.localizedMessage, null)
+        }
+    }
+
+    companion object {
+        private const val REQ_SAF_SAVE = 0x5AF1
     }
 
     /// 返回语义（Dart 侧同约定）：
