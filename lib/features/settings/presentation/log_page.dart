@@ -219,7 +219,7 @@ class _LogPageState extends ConsumerState<LogPage> {
           ms: 2200);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, '归档失败：$e', ms: 2600);
+      AppToast.showError(context, e, prefix: '归档失败');
     }
     if (mounted) _refreshFiles();
   }
@@ -235,7 +235,7 @@ class _LogPageState extends ConsumerState<LogPage> {
       AppToast.show(context, '已清理 $n 个落盘文件 · 缓冲已清空');
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, '清理失败：$e', ms: 2600);
+      AppToast.showError(context, e, prefix: '清理失败');
     }
     if (mounted) _refreshFiles();
   }
@@ -246,7 +246,7 @@ class _LogPageState extends ConsumerState<LogPage> {
       text = await FileLogSink.archiveText(a.name);
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, '归档打开失败：$e', ms: 2600);
+      AppToast.showError(context, e, prefix: '归档打开失败');
       return;
     }
     if (!mounted) return;

@@ -258,9 +258,11 @@ class _ServiceEditSheetState extends ConsumerState<_ServiceEditSheet> {
                   trailing: IconButton(
                     key: const ValueKey('edit-secret-eye'),
                     iconSize: 18,
+                    // T6：图标仍 18dp，但热区抬到 44dp 见方（原 constraints/padding
+                    // 清零把它压到 ≈18dp，真机误触即开/关显隐）。
                     visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    padding: const EdgeInsets.all(4),
                     tooltip: _secretVisible ? '隐藏密钥' : '显示密钥',
                     onPressed: () =>
                         setState(() => _secretVisible = !_secretVisible),

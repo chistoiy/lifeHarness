@@ -70,7 +70,9 @@ class _ProgressSheetState extends ConsumerState<_ProgressSheet> {
         _error = '$e';
         _finished = true;
       });
-      AppToast.show(context, '同步失败：$e');
+      // T7：弹层内已展示原文，提示条走人话＋3.2s，并补一条 warn 日志（双通道）。
+      AppToast.showError(context, e,
+          prefix: '同步失败', logDetail: '同步失败：$e');
     }
   }
 

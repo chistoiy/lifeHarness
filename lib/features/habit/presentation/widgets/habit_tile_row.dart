@@ -93,10 +93,17 @@ class HabitTileRow extends StatelessWidget {
             if (enabled)
               GestureDetector(
                 // 原型 hbCardMini：负向按钮 ok 态也走 hbAvoid（页面层 toast 守卫）
+                behavior: HitTestBehavior.opaque,
                 onTap: () =>
                     habit.isPos ? actions.tap(habit) : actions.avoid(habit),
-                child: habit.isPos
-                    ? Container(
+                // T6：打卡钮视觉仍 32dp，热区外扩到 44dp 见方（行内小钮误触族）。
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                      minWidth: 44, minHeight: 44),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: habit.isPos
+                        ? Container(
                       width: 32,
                       height: 32,
                       alignment: Alignment.center,
@@ -134,6 +141,8 @@ class HabitTileRow extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                ),
               ),
           ],
         ),

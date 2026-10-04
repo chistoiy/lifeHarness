@@ -220,7 +220,10 @@ Future<AiCallResult?> aiRunWithReview(
   }
   if (!context.mounted) return null;
   if (error != null) {
-    AppToast.show(context, 'AI 调用失败：$error', ms: 2600);
+    // T7：人话一句＋3.2s 下限；原文上面已按 error 级落日志（含 taskId 归类），
+    // 这里传 log:false 只出提示条，不重复刷行。
+    AppToast.showError(context, error ?? '未知错误',
+        prefix: 'AI 调用失败', log: false);
     return null;
   }
   return result;

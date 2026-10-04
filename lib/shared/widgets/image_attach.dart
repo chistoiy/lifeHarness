@@ -183,24 +183,33 @@ class ImageSquareCard extends StatelessWidget {
             ),
             if (onDelete != null)
               Positioned(
-                top: -6,
-                right: -6,
+                // T6：视觉仍是 20dp 角标，热区外扩到 36dp 方形（角标骑在卡角上，
+                // 再大会吃掉上一张卡的底部行）。behavior=opaque 保证空白处也可命中。
+                top: -12,
+                right: -12,
                 child: GestureDetector(
                   key: delKey,
+                  behavior: HitTestBehavior.opaque,
                   onTap: onDelete,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: Color(0xDC000000),
-                      shape: BoxShape.circle,
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Center(
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Color(0xDC000000),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Text('✕',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                      ),
                     ),
-                    child: const Text('✕',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white)),
                   ),
                 ),
               ),

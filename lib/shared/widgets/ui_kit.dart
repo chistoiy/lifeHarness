@@ -1,12 +1,111 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/logging/app_log.dart';
 import '../../core/theme/app_theme.dart';
 
 /// LH UI 原语库（《docs/UI组件规范.md》§七）。
 /// 新代码一律优先复用本文件组件；存量重复调用点按两档流程「路过替换」。
 /// 微调某类外观时只改本文件/theme 一处，全 app 生效。
+
+/// T7（交互整改批二）：把技术异常转成人话一句话——面向用户，细节留日志页。
+///
+/// 口径：只翻译「用户能自己处置」的类别（网络/超时/证书/磁盘/权限/取消），
+/// 认不出的**原样返回**（不编造解释），由调用方在末尾统一附「详情见日志」。
+String humanizeError(Object e) {
+  final t = e.toString();
+  final low = t.toLowerCase();
+  bool has(List<String> keys) {
+    for (final k in keys) {
+      if (low.contains(k)) return true;
+    }
+    return false;
+  }
+
+  if (e is TimeoutException ||
+      has(['timeout', 'timed out', 'deadline exceeded'])) {
+    return '请求超时，稍后重试';
+  }
+  if (e is SocketException ||
+      has([
+        'socketexception',
+        'failed host lookup',
+        'connection refused',
+        'network is unreachable',
+      ])) {
+    return '网络连接不上，检查网络或代理后重试';
+  }
+  if (has(['certificate', 'handshake'])) {
+    return '服务器证书校验失败，稍后重试或更换服务地址';
+  }
+  final status =
+      RegExp(r'(?:status(?:Code)?|statusCode)\s*[:=]?\s*(4\d\d|5\d\d)')
+          .firstMatch(t)
+          ?.group(1);
+  if (status != null) {
+    final code = int.parse(status);
+    if (code == 401 || code == 403) return '服务拒绝访问（$status），检查账号或密钥';
+    if (code == 404) return '服务上找不到该路径（404），检查目录或地址';
+    if (code >= 500) return '服务端出错（$status），稍后重试';
+    return '服务返回异常（$status）';
+  }
+  if (has(['enospc', 'no space left'])) {
+    return '本机存储空间不足，清理后重试';
+  }
+  if (has(['permission denied', 'eacces'])) {
+    return '没有该位置的读写权限';
+  }
+  if (has(['cancelled'])) return '已取消';
+  return t;
+}
+
+/// LH-K00 按压反馈原语（T5 · 交互整改批二）：全 app 统一的「按下即微缩」帧反馈。
+///
+/// 只观察指针、不参与手势竞技场（`Listener`），故与子树里的
+/// GestureDetector/InkWell/滚动父级零冲突：按下缩放、抬起/取消复原。
+/// 口径＝scale（不用 splash）：本原语要能安全套进横滑列表与卡片，
+/// Material splash 需要 Material 祖先且会在滚动面留残影（阅读器毛玻璃教训同族）。
+class Pressable extends StatefulWidget {
+  const Pressable({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.scale = .96,
+  });
+
+  final Widget child;
+  final bool enabled;
+
+  /// 按下缩放比例（0.9~1）；越接近 1 越含蓄。
+  final double scale;
+
+  @override
+  State<Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<Pressable> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down == v) return;
+    setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+        onPointerDown: widget.enabled ? (_) => _set(true) : null,
+        onPointerUp: widget.enabled ? (_) => _set(false) : null,
+        onPointerCancel: widget.enabled ? (_) => _set(false) : null,
+        child: AnimatedScale(
+          scale: _down ? widget.scale : 1,
+          duration: const Duration(milliseconds: 90),
+          curve: Curves.easeOut,
+          child: widget.child,
+        ),
+      );
+}
 
 /// LH-T01 胶囊提示：全局统一深色胶囊 SnackBar（样式基线在 app_theme snackBarTheme）。
 class AppToast {
@@ -29,6 +128,22 @@ class AppToast {
       ..hideCurrentSnackBar()
       ..showSnackBar(
           SnackBar(content: Text(msg), duration: Duration(milliseconds: ms)));
+  }
+
+  /// T7：失败条统一出口——异常转人话（[humanizeError]）＋时长下限 3.2s
+  /// （普通提示 1.6s 读不完错误句），技术细节按「双通道」口径落日志页。
+  /// [logDetail] 传 null 时按 `'$prefix：$e'` 记一条 [logLevel]；
+  /// 调用方**自己已留痕**时传 `log: false`，避免同一失败刷两行。
+  static void showError(
+    BuildContext context,
+    Object e, {
+    String prefix = '操作失败',
+    String? logDetail,
+    LhLevel logLevel = LhLevel.warn,
+    bool log = true,
+  }) {
+    show(context, '$prefix：${humanizeError(e)} · 详情见日志', ms: 3200);
+    if (log) AppLog.add(logDetail ?? '$prefix：$e', level: logLevel);
   }
 
   /// 带「撤销」的提示条（排他基建入口；context 须在弹层 pop 前取好 messenger，
@@ -110,24 +225,29 @@ class PillChip extends StatelessWidget {
     final tokens = context.tokens;
     final tap = enabled ? onTap : null;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: tap,
-      child: Opacity(
-        opacity: enabled ? 1 : .45,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: selected ? tokens.accent : tokens.card,
-            borderRadius: BorderRadius.circular(999),
-            border: selected ? null : Border.all(color: tokens.cardBorder),
-          ),
-          child: Text(
-            icon == null ? label : '$icon $label',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: selected
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurface,
+      // T5：原语级按压反馈（此前完全无反馈）。
+      child: Pressable(
+        enabled: enabled,
+        child: Opacity(
+          opacity: enabled ? 1 : .45,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? tokens.accent : tokens.card,
+              borderRadius: BorderRadius.circular(999),
+              border: selected ? null : Border.all(color: tokens.cardBorder),
+            ),
+            child: Text(
+              icon == null ? label : '$icon $label',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
         ),
@@ -253,7 +373,9 @@ class _HPickState extends State<HPick> {
                 key: ValueKey('hopt-${widget.items[i]}'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _select(i),
-                child: AnimatedContainer(
+                // T5：点选项给按压帧反馈（Listener 不进竞技场，惯性滚动不受影响）。
+                child: Pressable(
+                  child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   width: widget.itemWidth,
                   alignment: Alignment.center,
@@ -284,6 +406,7 @@ class _HPickState extends State<HPick> {
                               .withValues(alpha: .72),
                     ),
                   ),
+                ),
                 ),
               );
             },
@@ -351,13 +474,24 @@ class MoodRow extends StatelessWidget {
         for (var i = 0; i < emojis.length; i++)
           GestureDetector(
             key: ValueKey('$keyPrefix-$i'),
+            behavior: HitTestBehavior.opaque,
             onTap: () => onPick(i),
-            child: AnimatedScale(
-              scale: selected == i ? 1.25 : 1,
-              duration: const Duration(milliseconds: 150),
-              child: Opacity(
-                opacity: selected == null || selected == i ? 1 : .45,
-                child: Text(emojis[i], style: const TextStyle(fontSize: 24)),
+            child: Pressable(
+              // T6：视觉仍 24dp 表情，热区外扩到 44dp 方形（Material 触控下限）。
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: AnimatedScale(
+                    scale: selected == i ? 1.25 : 1,
+                    duration: const Duration(milliseconds: 150),
+                    child: Opacity(
+                      opacity: selected == null || selected == i ? 1 : .45,
+                      child:
+                          Text(emojis[i], style: const TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
