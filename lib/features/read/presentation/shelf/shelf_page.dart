@@ -171,6 +171,10 @@ class ShelfUI {
 
 final shelfUiProvider = StateProvider<ShelfUI>((ref) => const ShelfUI());
 
+/// F5-1（轮5）：`read.openTab` 启动分区的一次性闸——本地导入 commit 落架时置
+/// false，书架 boot 跳过「在读」默认分区、停在调用方写好的「全部」，消费后复位。
+final shelfOpenTabArmedProvider = StateProvider<bool>((ref) => true);
+
 /// 书架页（原型 p-bookshelf · §3.1 信息架构：目标卡→搜索行→分区chips→封面墙）。
 class ShelfPage extends ConsumerStatefulWidget {
   const ShelfPage({super.key});
@@ -236,6 +240,11 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
     if (!_tabBooted) {
       _tabBooted = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // F5-1：闸关＝本次跳过（导入落架直达「全部」），消费一次即复位。
+        if (!ref.read(shelfOpenTabArmedProvider)) {
+          ref.read(shelfOpenTabArmedProvider.notifier).state = true;
+          return;
+        }
         final t = await ref.read(readRepositoryProvider).kv('read.openTab') ??
             '在读';
         if (mounted &&

@@ -293,7 +293,11 @@ class _TimeHeader extends ConsumerWidget {
             key: const ValueKey('cal-view-switch'),
             tooltip: '切换 轴/块/日/周',
             icon: const Icon(Icons.sync_alt),
-            onSelected: (v) => ref.read(calViewModeProvider.notifier).state = v,
+            onSelected: (v) {
+              ref.read(calViewModeProvider.notifier).state = v;
+              // F5-2（轮5）：切档即按档重推日历展开态（块=折叠，其余=展开）。
+              ref.read(monthExpandedProvider.notifier).state = v != 'block';
+            },
             itemBuilder: (_) => [
               for (final e in const {
                 'axis': '☰ 轴 · 时间轴',

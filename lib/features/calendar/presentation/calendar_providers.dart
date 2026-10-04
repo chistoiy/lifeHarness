@@ -69,7 +69,10 @@ final calSelectedProvider = StateProvider<DateTime>((ref) {
 final calViewModeProvider = StateProvider<String>((ref) => 'block');
 
 /// 月历展开/收起（智能折叠：滚动或点内容区收起为周行）。
-final monthExpandedProvider = StateProvider<bool>((ref) => true);
+/// F5-2（轮5）：初始值随视图档推得——块视图默认折叠（给格子矩阵腾高度），
+/// 其余视图默认展开；切档时由视图切换处重新推导，手动翻切在当档内优先。
+final monthExpandedProvider =
+    StateProvider<bool>((ref) => ref.read(calViewModeProvider) != 'block');
 
 /// 日视图子模式：line=时间轴 / grid=格子·时间块（需求 V1.4）。
 final dayModeProvider = StateProvider<String>((ref) => 'line');

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
@@ -12,6 +13,8 @@ import '../../domain/book.dart';
 import '../reader/epub_state_ui.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
+import '../shelf/shelf_page.dart'
+    show ShelfUI, shelfOpenTabArmedProvider, shelfUiProvider;
 
 /// 导入本地图书（EPUB）四步向导 · V1.50 批1。
 ///
@@ -182,7 +185,11 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     if (svc.lastReuseHits.isNotEmpty && mounted) {
       readToast(context, '检测到同文件书籍 · 全书索引已直接复用');
     }
-    Navigator.of(context).pop();
+    // F5-1（轮5）：落架后直接返回书架并停在「全部」分区——旧行为＝退回
+    // 「添加图书」搜索页，且书架 boot 默认「在读」分区，新书（未开始）看不见。
+    ref.read(shelfUiProvider.notifier).state = const ShelfUI();
+    ref.read(shelfOpenTabArmedProvider.notifier).state = false;
+    if (mounted) context.go('/read/shelf');
   }
 
   @override

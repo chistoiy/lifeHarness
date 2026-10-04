@@ -96,6 +96,8 @@ void main() {
       overrides: [
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -119,6 +121,8 @@ void main() {
       overrides: [
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -168,6 +172,8 @@ void main() {
       overrides: [
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -190,6 +196,8 @@ void main() {
       overrides: [
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -219,6 +227,8 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -260,6 +270,8 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
