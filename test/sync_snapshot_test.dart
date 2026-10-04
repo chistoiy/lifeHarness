@@ -163,13 +163,19 @@ void main() {
       expect(report.autoBackupPath, isNotNull);
     });
 
-    test('careExcluded=false → 全量（呵护表在包内，excludedTables 空）',
+    test('careExcluded=false → 呵护表在包内（仅可再生 X-Ray 恒排除·轮7 拍板）',
         () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final svc = buildService(prefs, careExcluded: () async => false);
       final res = await svc.build(keepN: 5);
-      expect(res.manifest!.excludedTables, isEmpty);
+      // 轮7 拍板：X-Ray 派生表恒排除（与 careExcluded 开关正交）。
+      expect(res.manifest!.excludedTables, containsAll(kRegenerableExcluded));
+      expect(
+          res.manifest!.excludedTables
+              .any((t) => DbSchema.careTables.contains(t)),
+          isFalse,
+          reason: 'careExcluded=false 时呵护表不得被排除');
       for (final t in DbSchema.careTables) {
         expect(res.manifest!.tables.containsKey(t), isTrue,
             reason: '本机快照默认全量：$t 应在（红线 7 排除的是同步开关置位时）');

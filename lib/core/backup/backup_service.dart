@@ -26,6 +26,7 @@ import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../database/schema.dart';
 import '../logging/app_log.dart';
 import '../logging/file_log_sink.dart';
 import '../platform/saf.dart';
@@ -56,6 +57,16 @@ const String kAutoBeforeRestoreTag = 'auto_before_restore';
 /// 直落文件才入包：记账导出 `lifeharness_ledger.csv/.json` 及未来同层
 /// 导出件；logs/backup 等子目录内容不在此通道，防误收）。
 const Set<String> kRootAttachExts = {'.csv', '.json', '.md'};
+
+/// 备份/同步快照**恒排除**的可再生派生表（轮7 拍板 2026-10-04：X-Ray
+/// 全书解析产物按书可在阅读器重新解析生成——真机实测占全库 97.3%，
+/// 入包纯膨胀）。用户养成的词库 `xray_userdict` 不在其列，照常入包。
+/// 恢复后 unpack 按当前 schema 建空表（报告 missingTables），解析随用随补。
+const List<String> kRegenerableExcluded = [
+  DbSchema.tXrayMention,
+  DbSchema.tXrayEntity,
+  DbSchema.tXrayTask,
+];
 
 /// [BackupService.importBackup] 成功后的恢复报告（UI 据此渲染，
 /// 含 skippedLarge——导入报告必须列出「N 个超大附件未入包」）。
@@ -175,13 +186,17 @@ class BackupService {
               .toList();
         }
       }
+      // 轮7 拍板：调用方排除表 ∪ 可再生派生表（X-Ray 全书索引等），恒不进包；
+      // manifest.excludedTables 据实登记，恢复报告可见。
+      final effExcludes = {...excludeTables, ...kRegenerableExcluded}.toList()
+        ..sort();
       var res = await LhBak.create(
         db: await db(),
         outDirPath: out,
         attachDirs: withAttachments ? attachDirs : const [],
         attachFiles: withAttachments ? collectRootAttachFiles() : const [],
         logFiles: logFiles,
-        excludeTables: excludeTables,
+        excludeTables: effExcludes,
         passphrase: passphrase,
       );
       if (nameTag != null && nameTag.isNotEmpty) {
@@ -200,7 +215,7 @@ class BackupService {
       }
       AppLog.addKey(
         '备份导出成功：${p.basename(res.file.path)} · 表 ${res.manifest.tables.length} 张'
-        '${excludeTables.isNotEmpty ? ' · 排除 ${excludeTables.length} 张' : ''}'
+        '${effExcludes.isNotEmpty ? ' · 排除 ${effExcludes.length} 张' : ''}'
         '${passphrase != null ? ' · 口令加密' : ''}',
       );
       return res;

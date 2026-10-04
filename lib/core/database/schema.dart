@@ -24,7 +24,9 @@ class DbSchema {
   // 34：真机取证修正——_runMigrations 循环按「key=起始版本」取段，
   // ⑤ 索引迁移写在 migrations[33]（33→34 段），故目标版本必须到 34 才会在老库执行；
   // 33 只在 v0.2.7-reader2 上停留过（该批真机 user_version 已是 33，索引仍是全量唯一）。
-  static const int version = 34;
+  // 35：轮7 拍板 X-Ray 派生数据生命周期——migrations[34]（34→35）清扫所属书
+  // 已彻底删除的历史孤行（mention/entity/task + 该书专属词库，GLOBAL 保留）。
+  static const int version = 35;
  
 
   

@@ -181,6 +181,17 @@ mixin _RepoBooks on _ReadRepoBase {
   /// 与 [hardDeleteReadingData]（书行仍在架、全量清除）区分。
   /// 返回连带清除的摘录行数。
   Future<int> purgeBook(String id) async {
+    // 轮7 拍板：X-Ray 派生数据（出场锚点/实体/任务态 + 该书专属词库）随书清，
+    // 但同 md5 若仍有其它书行引用（多次导入共存的历史行/垃圾箱里的另一本）则保留，
+    // 故先取 md5、删书行后按「已无任何书行引用的 md5」精确清理。
+    final md5Rows = await db.query(
+      DbSchema.tBooks,
+      columns: ['md5'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    final md5 = md5Rows.isEmpty ? null : md5Rows.first['md5'] as String?;
     await db.delete(
       DbSchema.tBookReviews,
       where:
@@ -208,7 +219,30 @@ mixin _RepoBooks on _ReadRepoBase {
     await removeKv('reader.pos.$id');
     await removeKv('reader.cfg.$id');
     await db.delete(DbSchema.tBooks, where: 'id = ?', whereArgs: [id]);
+    if (md5 != null && md5.isNotEmpty) {
+      await _purgeXrayForOrphanMd5(md5);
+    }
     return n;
+  }
+
+  /// 删除某 md5 的全部 X-Ray 派生数据，前提是该 md5 已无任何书行引用
+  /// （含垃圾箱软删行）——[purgeBook] 与 v35 迁移共用。GLOBAL 词库行不受影响。
+  Future<void> _purgeXrayForOrphanMd5(String md5) async {
+    final still = Sqflite.firstIntValue(await db.rawQuery(
+          'SELECT COUNT(*) FROM ${DbSchema.tBooks} WHERE md5 = ?',
+          [md5],
+        )) ??
+        0;
+    if (still > 0) return; // 仍有书行（在册或垃圾箱）引用同指纹 → 派生数据保留
+    await db.delete(DbSchema.tXrayMention,
+        where: 'book_md5 = ?', whereArgs: [md5]);
+    await db.delete(DbSchema.tXrayEntity,
+        where: 'book_md5 = ?', whereArgs: [md5]);
+    await db.delete(DbSchema.tXrayTask,
+        where: 'book_md5 = ?', whereArgs: [md5]);
+    // a 类：仅本书作用域的用户词库随书删；b 类 GLOBAL 保留（scope 恒非 md5）。
+    await db.delete(DbSchema.tXrayUserdict,
+        where: 'scope = ?', whereArgs: [md5]);
   }
 
   /// 该书**在库**划线书摘条数（回收站书行副信息与彻底删除弹层连带读数）。

@@ -142,4 +142,18 @@ final Map<int, List<String>> mig = {
     'ALTER TABLE books ADD COLUMN md5 TEXT',
     'CREATE INDEX IF NOT EXISTS idx_books_md5 ON books(md5) WHERE md5 IS NOT NULL',
   ],
+  // v34→v35（轮7 拍板 2026-10-04）：X-Ray 派生数据＝可再生（按书从源 EPUB
+  // 重解析），清扫「所属书已彻底删除」的历史孤行——purgeBook 连带修复前，
+  // 旧删除路径会留下 mention/entity/task + 该书专属词库。GLOBAL 词库（b 类，
+  // 用户升级为全局公共的实体）不动；垃圾箱软删书的 md5 仍在 books 表 → 保留。
+  34: [
+    "DELETE FROM $tXrayMention WHERE book_md5 IS NOT NULL AND book_md5 <> '' "
+        'AND book_md5 NOT IN (SELECT md5 FROM books WHERE md5 IS NOT NULL AND md5 <> \'\')',
+    "DELETE FROM $tXrayEntity WHERE book_md5 IS NOT NULL AND book_md5 <> '' "
+        'AND book_md5 NOT IN (SELECT md5 FROM books WHERE md5 IS NOT NULL AND md5 <> \'\')',
+    "DELETE FROM $tXrayTask WHERE book_md5 IS NOT NULL AND book_md5 <> '' "
+        'AND book_md5 NOT IN (SELECT md5 FROM books WHERE md5 IS NOT NULL AND md5 <> \'\')',
+    "DELETE FROM $tXrayUserdict WHERE scope <> 'GLOBAL' "
+        'AND scope NOT IN (SELECT md5 FROM books WHERE md5 IS NOT NULL AND md5 <> \'\')',
+  ],
 };

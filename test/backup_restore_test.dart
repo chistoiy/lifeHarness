@@ -278,7 +278,8 @@ void main() {
       expect(report.tableCount, res.manifest.tables.length);
       expect(report.totalRows,
           res.manifest.tables.values.fold<int>(0, (a, t) => a + t.rows));
-      expect(report.missingTables, isEmpty);
+      // 轮7 拍板：X-Ray 派生表恒不进包 → 恢复时按当前 schema 建空表，如实入 missingTables。
+      expect(report.missingTables, unorderedEquals(kRegenerableExcluded));
       expect(report.skippedLarge, isEmpty);
       expect(await todoTitles(), unorderedEquals(['包内1', '包内2']));
 
