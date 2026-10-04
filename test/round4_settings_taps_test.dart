@@ -20,6 +20,8 @@ import 'package:lifeharness/features/settings/presentation/settings_page.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
+import 'package:lifeharness/shared/linkage/stats_providers.dart'
+    show shelfBookCountProvider;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -110,5 +112,29 @@ void main() {
     await t.tap(find.byKey(const ValueKey('profile-sub')));
     await settle5(t);
     expect(find.text('STUB-journal'), findsOne);
+  });
+
+  // 轮7（2026-10-04）：真机「我的 24 在册 vs 书架 6」——booksProvider 含
+  // 垃圾箱软删行（trash_repository 依赖，不能改 its 语义），「在册」计数
+  // 必须自行剔除 deleted_at 非空者。
+  test('在册书籍数剔除软删行', () async {
+    final now = DateTime(2026, 10, 4).millisecondsSinceEpoch;
+    await db.insert('books',
+        {'id': 'bk-a', 'title': '在册A', 'created_at': now, 'updated_at': now});
+    await db.insert('books',
+        {'id': 'bk-b', 'title': '在册B', 'created_at': now, 'updated_at': now});
+    await db.insert('books', {
+      'id': 'bk-c',
+      'title': '垃圾箱里的',
+      'created_at': now,
+      'updated_at': now,
+      'deleted_at': now - 86400000,
+    });
+    final c = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      readRepositoryProvider.overrideWithValue(ReadRepository(db)),
+    ]);
+    addTearDown(c.dispose);
+    expect(await c.read(shelfBookCountProvider.future), 2);
   });
 }

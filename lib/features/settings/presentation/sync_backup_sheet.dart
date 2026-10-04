@@ -45,6 +45,10 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   String? _passError;
   bool _busy = false;
 
+  /// 轮7：「正在导出…」只跟导出动作本身。_busy 是整屏共用（导出/选择/校验/
+  /// 恢复都置位），此前导入校验期间导出钮也显示「正在导出…」＝误导（真机反馈）。
+  bool _exporting = false;
+
   // 导入侧状态
   final TextEditingController _importPass = TextEditingController();
   String? _pickedPath;
@@ -83,7 +87,10 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
     final pass = _exportPassphrase();
     if (pass == _invalid) return;
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _exporting = true;
+    });
     final svc = ref.read(backupServiceProvider);
     String? srcPath;
     try {
@@ -101,6 +108,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       _toast('导出失败，详情见日志');
       AppLog.add('备份导出异常（弹层兜底）：$e', level: LhLevel.error);
     }
+    if (mounted) setState(() => _exporting = false);
     if (alsoSave && srcPath != null) {
       try {
         final saved = await svc.saveCopyToUserLocation(srcPath);
@@ -273,8 +281,8 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
                   child: FilledButton(
                     key: const ValueKey('btn-export'),
                     onPressed: _busy ? null : _doExport,
-                    // 轮6：打包在后台 isolate，界面不再卡死，但给出进行中态。
-                    child: Text(_busy ? '正在导出…' : '导出备份'),
+                    // 轮7：文案只跟导出动作（_exporting），不再被整屏 _busy 误带。
+                    child: Text(_exporting ? '正在导出…' : '导出备份'),
                   ),
                 ),
                 const SizedBox(width: 8),

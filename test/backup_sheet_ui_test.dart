@@ -8,6 +8,7 @@
 /// 展示 manifest.skippedLarge（功能标签式「N 个超大附件未入包」）。
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -68,6 +69,11 @@ class _FakeBackupService extends BackupService {
   String? saveCopyResult;
   LhBakManifest? inspectResult;
   Object? inspectError;
+
+  /// 非 null 时 exportBackup/inspect 挂起等待它（轮7 缺陷回归：验证
+  /// 「正在导出…」文案只跟导出动作，导入校验期间不得误显示）。
+  Completer<void>? gate;
+
   RestoreReport report = const RestoreReport(
     tableCount: 23,
     totalRows: 100,
@@ -86,6 +92,7 @@ class _FakeBackupService extends BackupService {
     String? nameTag,
   }) async {
     exportCalls++;
+    if (gate != null) await gate!.future;
     if (exportError != null) throw exportError!;
     lastPassphrase = passphrase;
     lastWithLogs = withLogs;
@@ -98,6 +105,7 @@ class _FakeBackupService extends BackupService {
   @override
   Future<LhBakManifest> inspect(String filePath, {String? passphrase}) async {
     inspectCalls++;
+    if (gate != null) await gate!.future;
     lastPassphrase = passphrase;
     if (inspectError != null) throw inspectError!;
     return inspectResult ?? buildManifest();
@@ -283,6 +291,45 @@ void main() {
       // 导出失败 → 绝不再弹另存层。
       expect(fake.saveCopyCalls, 0);
       await clearToasts(tester);
+    });
+
+    testWidgets('轮7 「正在导出…」只跟导出动作；导入校验期间钮文案不变',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+
+      // 导出进行中：显示「正在导出…」。
+      fake.gate = Completer<void>();
+      await tester.tap(find.byKey(const ValueKey('btn-export')));
+      await settle5(tester);
+      expect(find.text('正在导出…'), findsOneWidget);
+      fake.gate!.complete();
+      fake.gate = null;
+      await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
+      expect(find.text('正在导出…'), findsNothing);
+      await clearToasts(tester);
+
+      // 导入选择＋校验进行中：整屏禁用，但导出钮文案必须仍是「导出备份」
+      // （真机反馈＝校验 60 万行时误显示「正在导出…」）。
+      fake.pickedPath = '/fake/lifeharness_20261004_210019.lhbak';
+      fake.gate = Completer<void>();
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      await settle5(tester);
+      expect(fake.pickCalls, 1);
+      expect(fake.inspectCalls, 1); // 校验挂起在 gate 上
+      expect(find.text('正在导出…'), findsNothing);
+      expect(find.text('导出备份'), findsOneWidget);
+      fake.gate!.complete();
+      fake.gate = null;
+      await settle5(tester);
+      expect(find.text('manifest 校验通过'), findsOneWidget);
+      // 校验完成 → 恢复钮随勾选可用。
+      await tester.tap(find.byKey(const ValueKey('confirm-restore')));
+      await settle5(tester);
+      expect(
+          tester.widget<FilledButton>(find.byKey(const ValueKey('btn-restore')))
+              .onPressed,
+          isNotNull);
     });
   });
 

@@ -86,7 +86,9 @@ final doneTaskCountProvider = FutureProvider<int>((ref) async {
 /// 在册书籍数（R14-13·我的页统计宫格第三格）。
 /// 走 booksProvider 而不是直查库：加书/删书后随阅读侧心跳自动重算，
 /// 且 widget 测试可用 `readRepositoryProvider` 注入内存库（不依赖 AppDatabase 单例）。
+/// 轮7 口径修正：booksProvider 含软删行（垃圾箱依赖），「在册」必须剔除
+/// deleted_at 非空者——此前把垃圾箱里的书也计进（真机 24 vs 书架 6）。
 final shelfBookCountProvider = FutureProvider<int>((ref) async {
   final books = await ref.watch(booksProvider.future);
-  return books.length;
+  return books.where((b) => !b.isDeleted).length;
 });
