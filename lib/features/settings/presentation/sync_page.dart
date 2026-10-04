@@ -360,6 +360,15 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   sub: '未引用附件归档 · 彻底删除需确认',
                   onTap: active == null ? null : () => showCloudCleanSheet(context, config: active),
                 ),
+                const Divider(height: 1, indent: 14, endIndent: 14),
+                // B-4 数据库概览（原型 p-sub-data 追加行 · 轮7 产品自查诉求）。
+                _EntryRow(
+                  key: const ValueKey('sync-dbstats-entry'),
+                  icon: Icons.insights_outlined,
+                  title: '数据库概览',
+                  sub: '记录构成 · 可再生数据 · 异常自查',
+                  onTap: () => context.push('/settings/db-overview'),
+                ),
               ],
             ),
           ),

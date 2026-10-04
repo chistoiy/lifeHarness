@@ -11,6 +11,7 @@ import 'app.dart';
 import 'core/ai/ai_providers.dart';
 import 'core/ai/ai_vault.dart';
 import 'core/backup/backup_service.dart';
+import 'core/backup/db_overview.dart';
 import 'core/backup/lh_bak.dart' show LhBak;
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
@@ -221,6 +222,9 @@ Future<void> main() async {
             p.join(docsPath, 'book_covers'),
           ],
         )),
+        // B-4 数据库概览扫描器（工单 §7-3）：活库直连，只数行不取字节。
+        dbOverviewScannerProvider
+            .overrideWithValue(DbOverviewScanner(db: AppDatabase.instance.db)),
         // V1.41 Task 18：同步快照服务组合根装配（R2 白名单先例照上方
         // backupServiceProvider——core 不得 import features，careExcluded
         // 在此接线 CareRepository；快照复用 BackupService 同一实例，

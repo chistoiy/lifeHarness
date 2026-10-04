@@ -302,6 +302,9 @@ void main() {
       expect(find.text('备份导出/导入'), findsOneWidget);
       expect(find.text('控流'), findsOneWidget);
       expect(find.text('同步历史'), findsOneWidget);
+      // B-4 数据库概览入口（工单 §7-6：紧接「清理云端」后；常驻钉防入口静默下架）。
+      expect(find.text('数据库概览'), findsOneWidget);
+      expect(find.byKey(const ValueKey('sync-dbstats-entry')), findsOneWidget);
       // 2026-09-26：日志唯一入口在「设置 → 运行日志」，同步页不再挂日志行。
       expect(find.text('日志'), findsNothing);
       expect(find.textContaining('最近同步 今天'), findsOneWidget);

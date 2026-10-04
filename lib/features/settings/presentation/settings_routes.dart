@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'ai_usage_page.dart';
+import 'db_overview_page.dart';
 import 'log_page.dart';
 import 'media_clean_page.dart';
 import 'notify_settings_page.dart';
@@ -61,6 +62,11 @@ List<GoRoute> settingsPageRoutes() => [
             path: '/settings/trash',
             builder: (_, s) =>
                 TrashPage(initialSeg: s.uri.queryParameters['seg']),
+          ),
+        // B-4 数据库概览（原型 p-sub-dbstats · 轮7 产品自查诉求）。
+          GoRoute(
+            path: '/settings/db-overview',
+            builder: (_, _) => const DbOverviewPage(),
           ),
         // V1.41批1 Task 6 日志查看页（原型 p-log：120 条窗口/级别过滤/复制全量/
           // 保留天数滚轮；全屏栈页，设置页与将来同步历史均 context.go 跳入）。
