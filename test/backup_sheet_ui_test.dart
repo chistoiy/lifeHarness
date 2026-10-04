@@ -11,6 +11,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,9 @@ class _FakeBackupService extends BackupService {
   int saveCopyCalls = 0;
   int inspectCalls = 0;
   int pickCalls = 0;
+
+  /// 非 null 时 pickBackupFile 抛出它（20261004 缺陷回归：选择器异常必须可见）。
+  Object? pickError;
 
   String? lastPassphrase;
   bool? lastWithLogs;
@@ -96,6 +100,7 @@ class _FakeBackupService extends BackupService {
   @override
   Future<String?> pickBackupFile() async {
     pickCalls++;
+    if (pickError != null) throw pickError!;
     return pickedPath;
   }
 
@@ -296,6 +301,29 @@ void main() {
       await pollText(tester, '恢复完成：23 表 · 100 行');
       expect(fake.importCalls, 1);
       await clearToasts(tester);
+    });
+
+    testWidgets('选择器抛平台异常→可见失败条且可再点（20261004 缺陷回归）',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
+      // 复刻线上成因：file_picker 对未知扩展名 lhbak 抛 Unsupported filter。
+      fake.pickError = PlatformException(
+          code: 'FilePicker', message: 'Unsupported filter');
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      expect(
+        await pollText(tester, '系统选择器打开失败，请重试'),
+        isTrue,
+        reason: '选择器异常禁止静默蒸发（旧行为＝点了没反应）',
+      );
+      await clearToasts(tester);
+      // 失败后 _busy 必须复位：修好后可继续走通（按钮没死）。
+      fake.pickError = null;
+      fake.pickedPath = '/fake/ok.lhbak';
+      await tester.tap(find.byKey(const ValueKey('btn-pick-backup')));
+      await settle5(tester);
+      expect(fake.pickCalls, 2);
+      expect(find.text('manifest 校验通过'), findsOneWidget);
     });
 
     testWidgets('加密包校验报 needPassphrase → 口令输入+校验后才可恢复',

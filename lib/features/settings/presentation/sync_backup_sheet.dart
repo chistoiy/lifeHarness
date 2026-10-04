@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/backup/lh_bak.dart';
+import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -119,6 +120,11 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
         _confirmed = false;
       });
       await _verify();
+    } catch (e) {
+      // 2026-10-04 缺陷根治配套：选择器异常必须可见（此前 PlatformException
+      // 顺 async 通道蒸发＝「点了没反应」）。人话提示＋技术细节落日志页。
+      _toast('系统选择器打开失败，请重试');
+      AppLog.add('备份选择器异常：$e', level: LhLevel.warn);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

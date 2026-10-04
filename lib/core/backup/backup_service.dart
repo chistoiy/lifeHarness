@@ -19,6 +19,7 @@ library;
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -125,8 +126,17 @@ class BackupService {
   static final SaveAsHandler defaultSaveAsDialog = _saveViaFileDialog;
 
   /// 备份文件选择器实现（生产 file_picker，SAF 自动缓存副本按路径处理）。
+  /// 2026-10-04 真机缺陷根治：`lhbak` 是自造扩展名、不在 Android MIME 表，
+  /// FileType.custom 会被插件判 Unsupported filter 抛 PlatformException
+  /// （选择器根本不弹、异常被 async 通道吞＝「点了没反应」）。
+  /// 现先试过滤版，失败降级 [FileType.any]——选中后仍由 inspect() 校验包合法性。
   static PickBackupHandler pickFileHook = defaultPickFile;
   static final PickBackupHandler defaultPickFile = _pickViaFilePicker;
+
+  /// file_picker 薄注入点（单测验降级路径；生产 = 平台通道直调）。
+  static Future<FilePickerResult?> Function(FileType type, List<String>? exts)
+      pickFilesImpl = (type, exts) => FilePicker.platform.pickFiles(
+          type: type, allowedExtensions: exts, withData: false);
 
   /// 非 null 时替代 [LhBak.unpack]（仅供测试注入「中途失败」路径）。
   static UnpackImpl? unpackOverride;
@@ -248,7 +258,8 @@ class BackupService {
   }
 
   /// 选择备份文件（SAF 选择自动缓存副本，后续按路径处理不整读内存）。
-  /// 取消 = null；file_picker 平台异常时 UI 降级「本机导出记录」tab。
+  /// 取消 = null；未知扩展名被平台拒时降级全文件选择（见 [_pickViaFilePicker]），
+  /// 仍抛出的异常由 UI 层兜底可见提示（2026-10-04 起，不再承诺「导出记录 tab」）。
   Future<String?> pickBackupFile() => pickFileHook();
 
   /// 导入恢复（整库替换，不做记录级合并）。顺序钉死，见文件头注释。
@@ -338,11 +349,15 @@ class BackupService {
   }
 
   static Future<String?> _pickViaFilePicker() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['lhbak'],
-      withData: false,
-    );
+    FilePickerResult? result;
+    try {
+      result = await pickFilesImpl(FileType.custom, const ['lhbak']);
+    } on PlatformException catch (e) {
+      // 未知扩展名被拒 → 降级全文件选择（不再静默）。降级本身留痕可查。
+      AppLog.add('备份选择器扩展名被平台拒（降级全文件）：$e',
+          level: LhLevel.warn);
+      result = await pickFilesImpl(FileType.any, null);
+    }
     if (result == null || result.files.isEmpty) return null;
     return result.files.single.path;
   }
