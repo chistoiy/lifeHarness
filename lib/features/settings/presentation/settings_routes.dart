@@ -18,8 +18,11 @@ List<GoRoute> settingsShellRoutes() => [
         GoRoute(path: '/settings', builder: (_, _) => const SettingsPage())
 ];
 
-/// 全屏栈路由（治理G6 下沉）
-List<GoRoute> settingsPageRoutes() => [
+/// 全屏栈路由（治理G6 下沉）。[dbOverviewBackupSizeReader]＝测试注入缝：
+/// 概览屏的备份体积格走真 I/O（path_provider），widget 环境必须给桩，
+/// 否则整屏 FutureBuilder 落 error 分支（生产传 null 走默认实现）。
+List<GoRoute> settingsPageRoutes(
+        {Future<int?> Function()? dbOverviewBackupSizeReader}) => [
         // 提醒通知二级页（原型 p-sub-notify）。
           GoRoute(
             path: '/settings/notify',
@@ -66,7 +69,8 @@ List<GoRoute> settingsPageRoutes() => [
         // B-4 数据库概览（原型 p-sub-dbstats · 轮7 产品自查诉求）。
           GoRoute(
             path: '/settings/db-overview',
-            builder: (_, _) => const DbOverviewPage(),
+            builder: (_, _) => DbOverviewPage(
+                backupSizeReader: dbOverviewBackupSizeReader),
           ),
         // V1.41批1 Task 6 日志查看页（原型 p-log：120 条窗口/级别过滤/复制全量/
           // 保留天数滚轮；全屏栈页，设置页与将来同步历史均 context.go 跳入）。

@@ -18,7 +18,8 @@ import '../../../shared/trash/trash_providers.dart';
 
 /// 模块 → 管理页路由（工单 §7-4③「点按直达对应管理页」）。
 /// 词表新增模块若无入口，行仍显示（无箭头不可点），不造假热区。
-const Map<String, String> _moduleRoutes = {
+/// 公开供常驻守护核对：每条路径必须真实登记在对应 `*_routes.dart`。
+const Map<String, String> kDbOverviewModuleRoutes = {
   '阅读': '/read/shelf',
   '记账': '/ledger',
   '笔记': '/journal?tab=note',
@@ -34,6 +35,24 @@ const Map<String, String> _moduleRoutes = {
   '时间': '/time-stats',
   'AI': '/settings/ai/usage',
   '设置': '/settings',
+};
+
+/// 壳内 tab 路由（各 `*ShellRoutes()` 登记的 path 子集）。
+/// **push 这类路由会白屏**（6066 真机实锤：记账行只剩底栏）——它们只在
+/// ShellRoute 分支内被 `go` 解析；栈路由（如 `/read/shelf`）才用 push 保返回。
+/// 公开供常驻守护核对：必须与各 `*ShellRoutes()` 实际登记一致。
+const Set<String> kDbOverviewShellPaths = {
+  '/ledger',
+  '/journal',
+  '/todo',
+  '/calendar',
+  '/habits',
+  '/care',
+  '/items',
+  '/goals',
+  '/days',
+  '/inbox',
+  '/settings',
 };
 
 /// 扫描结果 + 备份包体积（字节；null＝取不到，UI 隐藏该格）。
@@ -280,7 +299,11 @@ class _DbOverviewPageState extends ConsumerState<DbOverviewPage> {
   }
 
   Widget _moduleRow(DbOverview o, String module, int rows, int tables) {
-    final route = _moduleRoutes[module];
+    final route = kDbOverviewModuleRoutes[module];
+    // 壳内 tab 只能 go（push 白屏，见 kDbOverviewShellPaths 注释）；
+    // 栈路由 push 保栈，返回键仍落回本概览屏。
+    final isShellTab =
+        route != null && kDbOverviewShellPaths.contains(route.split('?').first);
     // 模块内的最大可再生表（原型阅读行右侧「全书索引 58.7万 · 可再生」）。
     DbOverviewRow? regen;
     for (final r in o.rows) {
@@ -296,7 +319,9 @@ class _DbOverviewPageState extends ConsumerState<DbOverviewPage> {
             '${fmtCount(regen.rows)} · 可再生';
     return InkWell(
       key: ValueKey('dbo-mod-$module'),
-      onTap: route == null ? null : () => context.push(route),
+      onTap: route == null
+          ? null
+          : () => isShellTab ? context.go(route) : context.push(route),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Row(

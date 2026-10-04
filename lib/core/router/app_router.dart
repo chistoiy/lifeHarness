@@ -43,6 +43,12 @@ import '../../features/journal/presentation/journal_providers.dart'
 
 final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
+/// B-4 概览屏备份体积读取器的测试注入缝（生产 null＝页面走真 I/O 默认实现；
+/// widget 环境 path_provider 未注册，不注入则整屏落 error 分支）。
+final dbOverviewBackupSizeReaderProvider =
+    Provider<Future<int?> Function()?>(
+        (ref) => null);
+
 /// go_router 配置：单一 ShellRoute 承载可配置底部导航。
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -121,7 +127,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       ...readPageRoutes(),
 
-      ...settingsPageRoutes(),
+      ...settingsPageRoutes(
+        dbOverviewBackupSizeReader:
+            ref.watch(dbOverviewBackupSizeReaderProvider),
+      ),
 
     ],
 
