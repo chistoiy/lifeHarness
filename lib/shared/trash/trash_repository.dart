@@ -61,7 +61,7 @@ class TrashRepository {
       ));
     }
 
-    // 书行副信息：在库划线数 + 累计阅读分钟 + 进度（原型 gtSub book 分支）。
+    // 书行副信息：在库划线数 + 累计阅读分钟 + 进度（原型 gtSub book 分支·「在库」二字同名）。
     final agg = sessionAggByBook(await read.allSessions());
     for (final b in await read.trashedBooks()) {
       final quotes = await read.liveQuoteCountOf(b.id);
@@ -71,7 +71,7 @@ class TrashRepository {
         title: b.title,
         deletedAt: trashTimeOf(b.deletedAt),
         subs: [
-          '含划线·笔记 $quotes 条 · '
+          '含在库划线·笔记 $quotes 条 · '
               '阅读 ${(agg[b.id]?.minutes ?? 0)} 分钟 · '
               '进度 ${b.percent}%'
         ],
@@ -94,11 +94,15 @@ class TrashRepository {
         title: q.body.trim().isEmpty ? '（图片书摘）' : q.body.trim(),
         deletedAt: trashTimeOf(q.deletedAt),
         subs: [
-          if (parent != null) '所属《${parent.title}》',
           if (parent == null) '所属书已彻底删除',
+          if (parent != null && parent.isDeleted) '所属《${parent.title}》· 书还在回收站',
+          if (parent != null && !parent.isDeleted) '所属《${parent.title}》',
         ],
         orphan: orphan,
-        orphanHint: parent == null ? '所属书已彻底删除' : '所属书还在回收站',
+        // 提示语与原型 gtOrph 一字不差（置灰标签的说明＝为什么不能恢复＋下一步怎么走）
+        orphanHint: parent == null
+            ? '所属书已彻底删除'
+            : '所属书还在回收站，先恢复书或整体删除',
         src: q,
       ));
     }

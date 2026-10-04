@@ -203,7 +203,7 @@ void main() {
         findsOneWidget);
 
     expect(find.textContaining('写周报'), findsWidgets);
-    expect(find.textContaining('含划线·笔记 1 条'), findsOneWidget);
+    expect(find.textContaining('含在库划线·笔记 1 条'), findsOneWidget);
     expect(find.textContaining('所属书已彻底删除'), findsOneWidget);
     expect(find.textContaining('成员 1 本'), findsOneWidget);
     expect(find.text('剩 30 天'), findsNWidgets(6));
@@ -283,7 +283,7 @@ void main() {
     await tester.tap(find.byKey(ValueKey('tt-del-$key')));
     await settle5(tester);
     expect(find.textContaining('共 1 条 · 删除后不可恢复'), findsOneWidget);
-    expect(find.textContaining('连带清 划线·笔记 1 条 · 计时 · 进度'), findsOneWidget);
+    expect(find.textContaining('连带清 在库划线·笔记 1 条 · 计时 · 进度'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('tp-go')));
     await settle5(tester);
     expect(
@@ -307,10 +307,33 @@ void main() {
     expect(find.byKey(const ValueKey('tt-sel-bar')), findsOneWidget);
     expect(find.text('已选 1 项'), findsOneWidget);
 
+    // 弹层要按类写清后果（原型 T7c 同口径）：习惯只清定义，流水留在纪录墙
+    await tester.tap(find.byKey(const ValueKey('tt-purge-batch')));
+    await settle5(tester);
+    expect(find.text('只清定义 · 历史流水保留'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('tp-cancel')));
+    await settle5(tester);
+
     await tester.tap(find.byKey(const ValueKey('tt-restore-batch')));
     await settle5(tester);
     expect(find.text('已恢复到习惯列表'), findsOneWidget);
     expect((await habitRepo.allHabits()).map((h) => h.name), ['晨跑']);
+    await clearToasts(tester);
+  });
+
+  testWidgets('书单彻底删除弹层说明连带成员行·书本身保留', (tester) async {
+    await seedSix();
+    final key = await keyOf(TrashKind.list);
+    await tester.pumpWidget(trashApp(seg: 'list'));
+    await settle5(tester);
+
+    await tester.tap(find.byKey(ValueKey('tt-del-$key')));
+    await settle5(tester);
+    expect(find.text('连成员行一起清 · 书本身保留'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('tp-cancel')));
+    await settle5(tester);
+    expect((await trashRepo.items()).where((e) => e.kind == TrashKind.list),
+        hasLength(1), reason: '取消即一条不动');
     await clearToasts(tester);
   });
 

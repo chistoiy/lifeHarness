@@ -2401,6 +2401,12 @@ function ttAgo(t){const md=String(t.del||'').slice(0,5).split('-'); /* 原型今
 function ttLeft(t){const k=ttDaysVal();return k?k-ttAgo(t):null}
 function ttLeftTxt(t){const n=ttLeft(t);return n===null?'不清理':(n<=0?'待清理':'剩 '+n+' 天')}
 function gtCnt(k){return D.trash.filter(t=>(t.k||'todo')===k).length}
+function gtQSub(t){const nm='所属《'+(t.link||'—')+'》';
+  if(t.orphan)return '所属书已彻底删除';
+  return D.trash.some(function(x){return x.k==='book'&&x.t===t.link})?(nm+'· 书还在回收站'):nm}
+function gtOrph(t){if(t.k!=='quote')return '';
+  if(t.orphan)return '所属书已彻底删除';
+  return D.trash.some(function(x){return x.k==='book'&&x.t===t.link})?'所属书还在回收站，先恢复书或整体删除':''}
 function gtVis(){return D.trash.map((t,i)=>({t,i})).filter(o=>gtSeg==='all'||(o.t.k||'todo')===gtSeg)}
 function gtOpen(k){gtSeg=k||'all';ttExitSel();navTo('p-sub-trash')}
 function ttOpen(){gtOpen('todo')}   /* 待办页入口＝直达待办段（V1.57 兼容名） */
@@ -2413,20 +2419,20 @@ function gtSegs(){const el=document.getElementById('gtSegRow');if(!el)return;
   el.innerHTML=['all'].concat(Object.keys(GT_K)).map(k=>{const on=gtSeg===k,n=k==='all'?D.trash.length:gtCnt(k);
     return `<button class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${on?'grad text-white border-transparent':'border-slate-200 dark:border-slate-700 text-slate-500'}" onclick="gtSeg='${k}';ttExitSel()">${k==='all'?'全部':GT_K[k].n} ${n}</button>`}).join('')}
 function gtSub(t){const left=ttLeft(t);const base=`<span>删于 ${t.del}</span><span class="${left!==null&&left<=7?'text-rose-500 font-bold':'text-slate-400'}">${ttLeftTxt(t)}</span>`;
-  if(t.k==='book')return `<span class="text-amber-600 dark:text-amber-400">含划线·笔记 ${t.hl||0} 条 · 阅读 ${t.min||0} 分钟 · 进度 ${t.pct||0}%</span>`+base;
-  if(t.k==='quote')return `<span>所属《${t.link||'—'}》</span>`+base;
+  if(t.k==='book')return `<span class="text-amber-600 dark:text-amber-400">含在库划线·笔记 ${t.hl||0} 条 · 阅读 ${t.min||0} 分钟 · 进度 ${t.pct||0}%</span>`+base;
+  if(t.k==='quote')return `<span>${gtQSub(t)}</span>`+base;
   if(t.k==='list')return `<span>成员 ${t.cnt||0} 本</span>`+base;
   if((t.k||'todo')==='todo')return `<span>⏰ ${t.due||'—'}</span>${t.tag?`<span>#${t.tag}</span>`:''}`+base;
   return base}
 function renderTrash(){const el=document.getElementById('ttList');if(!el)return;gtSegs();ttSyncKeep();
   const rows=gtVis();
   if(!rows.length){el.innerHTML=`<div class="card !py-10 text-center text-xs text-slate-400">${gtSeg==='all'?'回收站是空的':'该分类回收站是空的'}</div>`;ttBar();return}
-  el.innerHTML=rows.map(({t,i})=>{const sel=ttSel.has(i),K=GT_K[t.k||'todo'],orph=t.k==='quote'&&t.orphan;
+  el.innerHTML=rows.map(({t,i})=>{const sel=ttSel.has(i),K=GT_K[t.k||'todo'],_o=gtOrph(t),orph=!!_o;
     return `<div class="card !py-3 flex items-center gap-3" onmousedown="ttPress(${i})" onmouseup="ttRelease()" onmouseleave="ttRelease()" ontouchstart="ttPress(${i})" ontouchend="ttRelease()" onclick="ttTap(${i})">
       ${ttMode?`<span class="nchk ${sel?'on':''} shrink-0">✓</span>`:`<span class="w-3 h-3 rounded-full ${K.dot} shrink-0" title="${K.n}"></span>`}
       <div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">${t.t}</div>
         <div class="text-[10px] text-slate-400 flex gap-2 mt-0.5 flex-wrap"><span class="px-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">${K.n}</span>${gtSub(t)}</div></div>
-      ${ttMode?'':(orph?`<span class="mini-btn shrink-0 !text-slate-300 dark:!text-slate-600" title="所属书已彻底删除">不可单独恢复</span>`
+      ${ttMode?'':(orph?`<span class="mini-btn shrink-0 !text-slate-300 dark:!text-slate-600" title="${_o}">不可单独恢复</span>`
         :`<button class="mini-btn shrink-0" onclick="event.stopPropagation();ttRestore([${i}])">恢复</button>
         <button class="mini-btn shrink-0 !text-rose-500" onclick="event.stopPropagation();tpAsk([${i}])">删除</button>`)}</div>`}).join('');
   ttBar()}
@@ -2458,7 +2464,10 @@ function ttBatchRestore(){if(!ttSel.size)return;ttRestore([...ttSel])}
 function tpAsk(ids){tpIds=ids.slice();const msg=document.getElementById('tpMsg'),lst=document.getElementById('tpList');
   if(msg)msg.textContent='共 '+tpIds.length+' 条 · 删除后不可恢复';
   if(lst)lst.innerHTML=tpIds.map(i=>{const t=D.trash[i];if(!t)return '';const K=GT_K[t.k||'todo'];
-    const tail=t.k==='book'?`<span class="text-rose-500 shrink-0">连带清 划线·笔记 ${t.hl||0} 条 · 计时 · 进度</span>`:`<span>${ttLeftTxt(t)}</span>`;
+    const tail=t.k==='book'?`<span class="text-rose-500 shrink-0">连带清 在库划线·笔记 ${t.hl||0} 条 · 计时 · 进度</span>`
+      :(t.k==='habit'?`<span class="text-slate-400 shrink-0">只清定义 · 历史流水保留</span>`
+      :(t.k==='list'?`<span class="text-slate-400 shrink-0">连成员行一起清 · 书本身保留</span>`
+      :`<span>${ttLeftTxt(t)}</span>`));
     return `<div class="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full ${K.dot} shrink-0"></span><span class="flex-1 min-w-0 truncate">${t.t}</span>${tail}</div>`}).join('');
   openSheet('sheetTrashPurge')}
 function ttBatchPurge(){if(!ttSel.size)return;tpAsk([...ttSel].sort((a,b)=>b-a))}

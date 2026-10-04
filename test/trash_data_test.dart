@@ -135,7 +135,7 @@ void main() {
       expect(todo.title, '写周报');
 
       final book = await seedOne(TrashKind.book);
-      expect(book.subs.single, contains('含划线·笔记 1 条'));
+      expect(book.subs.single, contains('含在库划线·笔记 1 条'));
       expect(book.subs.single, contains('进度 41%'));
       expect(book.cascadeQuotes, 1);
 
@@ -164,7 +164,9 @@ void main() {
       await read.softDeleteBooks([b.id]);
       row = (await trash.items()).firstWhere((e) => e.rawId == id);
       expect(row.orphan, isTrue);
-      expect(row.orphanHint, '所属书还在回收站');
+      expect(row.orphanHint, '所属书还在回收站，先恢复书或整体删除');
+      expect(row.subs, ['所属《在架的书》· 书还在回收站'],
+          reason: '父书在垃圾箱也要看得见原因（回灌后的原型同文案）');
     });
   });
 

@@ -314,7 +314,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                     children: [
                       _kindTag(t.kind),
                       for (final s in t.subs)
-                        s.startsWith('含划线')
+                        s.startsWith('含在库划线')
                             ? Text(s,
                                 key: ValueKey('tt-cascade-${t.key}'),
                                 style: const TextStyle(
@@ -452,6 +452,35 @@ class _PurgeSheet extends StatelessWidget {
   final DateTime now;
   final int keepDays;
 
+  /// 弹层行尾：逐类写清后果（原型 tpAsk tail 同分支·不许静默糊过）。
+  Widget _tail(TrashItem t) {
+    switch (t.kind) {
+      case TrashKind.book:
+        return Flexible(
+          child: Text(
+              '连带清 在库划线·笔记 ${t.cascadeQuotes ?? 0} 条 · 计时 · 进度',
+              key: ValueKey('tp-cascade-${t.key}'),
+              style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF43F5E))),
+        );
+      case TrashKind.habit:
+        return const Text('只清定义 · 历史流水保留',
+            key: ValueKey('tp-habit-note'),
+            style: TextStyle(fontSize: 10, color: Colors.grey));
+      case TrashKind.list:
+        return const Text('连成员行一起清 · 书本身保留',
+            key: ValueKey('tp-list-note'),
+            style: TextStyle(fontSize: 10, color: Colors.grey));
+      case TrashKind.todo:
+      case TrashKind.note:
+      case TrashKind.quote:
+        return Text(trashLeftTxt(t.deletedAt, keepDays, now),
+            style: const TextStyle(fontSize: 10, color: Colors.grey));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -501,19 +530,7 @@ class _PurgeSheet extends StatelessWidget {
                                 style: const TextStyle(fontSize: 12)),
                           ),
                           const SizedBox(width: 6),
-                          t.kind == TrashKind.book
-                              ? Flexible(
-                                  child: Text(
-                                      '连带清 划线·笔记 ${t.cascadeQuotes ?? 0} 条 · 计时 · 进度',
-                                      key: ValueKey('tp-cascade-${t.key}'),
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFFF43F5E))),
-                                )
-                              : Text(trashLeftTxt(t.deletedAt, keepDays, now),
-                                  style: const TextStyle(
-                                      fontSize: 10, color: Colors.grey)),
+                          _tail(t),
                         ],
                       ),
                     ),
