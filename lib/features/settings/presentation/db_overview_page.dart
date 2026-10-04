@@ -228,7 +228,8 @@ class _DbOverviewPageState extends ConsumerState<DbOverviewPage> {
                         fontSize: 13, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(
-                  '它们的全书索引约占数据库 $pct%。彻底删除可释放空间（保留期内仍可恢复；同内容多份只算一处）。',
+                  '可再生数据（全书索引为主）合计约占数据库 $pct%。'
+                  '彻底删除可释放空间（保留期内仍可恢复；同内容多份只算一处）。',
                   style: const TextStyle(
                       fontSize: 11, height: 1.5, color: Color(0xFF64748B)),
                 ),
