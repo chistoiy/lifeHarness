@@ -693,8 +693,6 @@ tailwind.config = {
         <div class="flex items-center justify-between"><span>回收站自动清理</span>
           <button id="recTrashOpt" class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
         <div class="text-[11px] text-slate-400">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 删除的内容统一进回收站，按此期限自动彻底删除</div>
-        <button class="w-full flex items-center gap-2 pt-1 text-left" onclick="gtOpen('all')">
-          <span class="flex-1 text-sm">回收站</span><span class="text-[11px] text-slate-400" id="recTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
       </div>
     </section>
 
@@ -816,6 +814,8 @@ tailwind.config = {
 
         <button onclick="navTo('p-logs')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-purple-50 dark:bg-purple-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5.6" y="5" width="12.8" height="15" rx="2"/><path d="M9.4 5V3.6h5.2V5M9.4 10.4h5.2m-5.2 3.4h5.2m-5.2 3.4h3.4"/></svg></span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
+        <button onclick="gtOpen('all')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span><div class="flex-1"><b class="text-sm">回收站</b><div class="text-[11px] text-slate-400">六类删除内容 · 保留期内可恢复</div></div><span class="text-[11px] text-slate-400" id="pfTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
@@ -2412,7 +2412,7 @@ function gtOpen(k){gtSeg=k||'all';ttExitSel();navTo('p-sub-trash')}
 function ttOpen(){gtOpen('todo')}   /* 待办页入口＝直达待办段（V1.57 兼容名） */
 function ttSyncKeep(){const k=ttKeepTxt(),m=document.getElementById('todoTrashMeta');
   if(m)m.textContent='待办 '+gtCnt('todo')+' 项 · 保留期内可恢复';
-  const r=document.getElementById('recTrashCnt');if(r)r.textContent=D.trash.length+' 项';
+  const r=document.getElementById('pfTrashCnt');if(r)r.textContent=D.trash.length+' 项';
   const c=document.getElementById('ttCnt');if(c)c.textContent=(gtSeg==='all'?D.trash.length:gtCnt(gtSeg))+' 项';
   const s=document.getElementById('ttKeep');if(s)s.textContent=' · '+k}
 function gtSegs(){const el=document.getElementById('gtSegRow');if(!el)return;

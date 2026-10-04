@@ -168,6 +168,18 @@ void main() {
       expect(row.subs, ['所属《在架的书》· 书还在回收站'],
           reason: '父书在垃圾箱也要看得见原因（回灌后的原型同文案）');
     });
+
+    test('空标题笔记在回收站行上兜底成「未命名笔记」（真机 6059 走查抓到）', () async {
+      final n = await notes.save(Note(
+          title: '   ',
+          content: '只有正文',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await notes.softDelete(n.id!);
+      final row = (await trash.items()).single;
+      expect(row.title, '未命名笔记');
+      expect(row.kind, TrashKind.note);
+    });
   });
 
   group('恢复＝回原模块原位（不新建条目）', () {

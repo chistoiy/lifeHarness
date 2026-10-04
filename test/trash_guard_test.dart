@@ -118,6 +118,22 @@ void main() {
         reason: '白名单里的文件已不再直碰这六张表，请删掉该条目：${stale.join(', ')}');
   });
 
+  test('回收站入口位置钉死（2026-10-04 产品「挪放到我的页面，与日志管理同级」）', () {
+    final mine = File('lib/features/settings/presentation/settings_page.dart')
+        .readAsStringSync();
+    final recmg =
+        File('lib/features/settings/presentation/recmg_page.dart')
+            .readAsStringSync();
+    expect(mine.contains("ValueKey('entry-trash')"), isTrue,
+        reason: '「我的」页缺同级回收站入口行');
+    expect(mine.contains('六类删除内容 · 保留期内可恢复'), isTrue,
+        reason: '入口副标题与屏内不一致');
+    expect(mine.contains("'/settings/trash'"), isTrue,
+        reason: '入口未指向统一屏');
+    expect(recmg.contains("'/settings/trash'"), isFalse,
+        reason: '记录管理只留「自动清理」档位，设置侧入口不得有两处（原型 p-sub-recmg 同步撤行）');
+  });
+
   test('六类垃圾箱五件套齐备（软删/列表/恢复/彻底删除/到期清理）', () {
     final src = {
       'features/todo/data/todo_dao.dart':

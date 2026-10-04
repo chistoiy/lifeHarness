@@ -353,6 +353,27 @@ void main() {
     await clearToasts(tester);
   });
 
+  testWidgets('模块写库后回收站自动重取（真机 6059 抓到：屏停在进屏前的缓存）', (tester) async {
+    final n = await noteDao.save(Note(
+        title: '走查项',
+        content: 'x',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now()));
+    await tester.pumpWidget(trashApp());
+    await settle5(tester);
+    expect(find.text('回收站是空的'), findsOneWidget);
+
+    // 笔记模块的写点本来就会 invalidate notesProvider；回收站必须跟着重取
+    await noteDao.softDelete(n.id!);
+    final c = ProviderScope.containerOf(tester.element(find.byType(TrashPage)));
+    c.invalidate(notesProvider);
+    await settle5(tester);
+    expect(find.textContaining('走查项'), findsOneWidget);
+    expect(find.textContaining('1 项 · 删除 30 天后自动彻底删除'), findsOneWidget);
+    expect(find.text('笔记 1'), findsOneWidget);
+    await clearToasts(tester);
+  });
+
   testWidgets('待办页入口行：直达回收站待办段，计数与屏内同源', (tester) async {
     await seedSix();
     await tester.pumpWidget(entryApp(const TodoTrashEntry()));

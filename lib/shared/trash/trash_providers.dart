@@ -18,8 +18,16 @@ final trashRepositoryProvider =
 final trashTickProvider = StateProvider<int>((ref) => 0);
 
 /// 六类垃圾箱条目（按删除时间倒序）。
+///
+/// 真机走查 6059 抓到：进屏前删的条目不会自动出现——FutureProvider 会缓存上一次结果。
+/// 修法＝**监听六类源模块的写信号并自我失效**，而不是在十处删除入口各埋一次刷新：
+/// 待办/笔记走各自 provider 的重取，习惯与阅读（书·划线·书单）走各自 tick。
 final trashItemsProvider = FutureProvider<List<TrashItem>>((ref) {
-  ref.watch(trashTickProvider);
+  ref.listen(todosProvider, (_, _) => ref.invalidateSelf());
+  ref.listen(notesProvider, (_, _) => ref.invalidateSelf());
+  ref.listen(habitTickProvider, (_, _) => ref.invalidateSelf());
+  ref.listen(readTickProvider, (_, _) => ref.invalidateSelf());
+  ref.listen(trashTickProvider, (_, _) => ref.invalidateSelf());
   return ref.watch(trashRepositoryProvider).items();
 });
 

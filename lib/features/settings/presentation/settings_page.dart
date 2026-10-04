@@ -11,6 +11,7 @@ import '../../../core/settings/user_settings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/weather/weather.dart';
 import 'profile_edit_sheet.dart';
 import 'weather_city_sheet.dart';
@@ -140,6 +141,17 @@ class SettingsPage extends ConsumerWidget {
                     trailing: '',
                     // R2 项④：go→push，从设置页进日志后返回回设置页而非退出 app。
                     onTap: () => context.push('/log')),
+                // V1.60 全局回收站：入口与「运行日志」同级（2026-10-04 产品「挪放到我的页面」，
+                // 方便查；记录管理里只留自动清理档位）。计数与屏内、待办页卡同源。
+                _EntryRow(
+                    key: const ValueKey('entry-trash'),
+                    iconWidget: const Icon(Icons.delete_outline,
+                        size: 18, color: Color(0xFF64748B)),
+                    bg: const Color(0xFF94A3B8).withValues(alpha: .14),
+                    title: '回收站',
+                    sub: '六类删除内容 · 保留期内可恢复',
+                    trailing: '${ref.watch(trashCountsProvider).total} 项',
+                    onTap: () => context.push('/settings/trash')),
                 // R5c：图片存储清理入口（本地孤儿图片勾选清理）。
                 _EntryRow(
                     key: const ValueKey('entry-media-clean'),

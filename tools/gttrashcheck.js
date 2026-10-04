@@ -93,15 +93,15 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
     return {habit:/只清定义 · 历史流水保留/.test(s),list:/连成员行一起清 · 书本身保留/.test(s)};`);
   (t7c.habit && t7c.list) ? ok('T7c 习惯只清定义留流水 · 书单连带成员行') : bad('T7c', JSON.stringify(t7c));
 
-  /* T8 三入口改道：记录管理回收站行 · 待办页卡 · 笔记抽屉行 */
+  /* T8 三入口改道：我的页回收站行（与日志管理同级）· 待办页卡 · 笔记抽屉行 */
   const t8 = await ev(`renderNt();setPage('p-sub-recmg');
-    return {recmg:!!document.querySelector('#p-sub-recmg [onclick="gtOpen(\\'all\\')"]'),
-      recCnt:$('#recTrashCnt').textContent,
+    return {mine:(setPage('p-profile'),!!document.querySelector('#p-profile [onclick="gtOpen(\\'all\\')"]')),
+      pfCnt:$('#pfTrashCnt').textContent,
       todo:!!document.querySelector('#p-todo [onclick="ttOpen()"]')||!!document.querySelector('[onclick="ttOpen()"]'),
       noteRow:!!document.querySelector('.nt-row[onclick*="gtOpen"]')};`);
-  (t8.recmg && +t8.recCnt.split(' ')[0] === 7 && t8.todo && t8.noteRow)
-    ? ok('T8 三入口全部改道回收站（记录管理 7 项计数同源）') : bad('T8', JSON.stringify(t8));
-  await shot('gt-04-recmg-entry');
+  (t8.mine && +t8.pfCnt.split(' ')[0] === 7 && t8.todo && t8.noteRow)
+    ? ok('T8 三入口全部改道回收站（我的页 7 项计数同源）') : bad('T8', JSON.stringify(t8));
+  await shot('gt-04-profile-entry');
 
   /* T9 保留期改档联动全页读数 */
   const t9 = await ev(`$('#recTrashOpt').textContent='7 天';renderTrash();

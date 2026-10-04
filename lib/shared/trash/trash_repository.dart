@@ -43,7 +43,8 @@ class TrashRepository {
       out.add(TrashItem(
         kind: TrashKind.note,
         rawId: n.id!,
-        title: n.title,
+        // 真机走查 6059：空标题笔记在行上会剩一个空白标题——与笔记列表同兜底。
+        title: n.title.trim().isEmpty ? '未命名笔记' : n.title,
         deletedAt: n.deletedAt,
         subs: [if (n.folder != null && n.folder!.isNotEmpty) n.folder!],
         src: n,
