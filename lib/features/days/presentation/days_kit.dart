@@ -497,7 +497,8 @@ Future<T?> showDaysSheet<T>(
           maxHeight: MediaQuery.sizeOf(bc).height * .88,
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          // T1（交互整改批一）：3.38 起模态底栏不随键盘自动抬升，底边距并入键盘高度。
+          padding: EdgeInsets.fromLTRB(20, 10, 20, 16 + MediaQuery.viewInsetsOf(bc).bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

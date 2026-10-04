@@ -252,13 +252,16 @@ Future<T?> showCareSheet<T>(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (bc) => SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(bc).height * .88,
-        ),
-        child: Column(
+    // T1（交互整改批一）：3.38 起模态底栏不随键盘自动抬升，含输入框的弹层由容器自理。
+    builder: (bc) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(bc).bottom),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(bc).height * .88,
+          ),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -272,6 +275,7 @@ Future<T?> showCareSheet<T>(
             ),
             Flexible(child: Builder(builder: builder)),
           ],
+        ),
         ),
       ),
     ),
