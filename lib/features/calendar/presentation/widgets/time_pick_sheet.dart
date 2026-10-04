@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/block_ops.dart';
 import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
@@ -214,9 +215,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
   /// 落库成功后的收口提示：**先关弹层，再在下一帧挂条**。
   /// 两条理由：① 弹层浮着时挂的条由页面 Scaffold 渲染，会被模态弹层与遮罩压住看不见；
   /// ② 撤销闭包要在弹层关闭后仍能刷新四视图，所以趁 mounted 把 messenger 与根容器取好。
-  /// 另注意框架默认 `SnackBar.persist = action != null`（snack_bar.dart:303）：
-  /// 带按钮的条会**永挂**直到点按钮——真机反馈「不点撤销就一直挂着」正是这个默认值，
-  /// 故下面显式 `persist: false` 并给足点击时间。
+  /// T4（交互整改批一）：带撤销的条改走 AppToast.showUndoWith 统一原语
+  /// （排他存续＋显式 persist:false，不被普通提示顶掉、也不永挂）。
   void _closeAndToast(String msg, {DateTime? alsoDay, Future<void> Function()? undo}) {
     if (!mounted) return;
     final ms = ScaffoldMessenger.of(context);
@@ -224,20 +224,21 @@ class _TimePickState extends ConsumerState<_TimePick> {
     Navigator.of(context).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _reloadOn(c, day, alsoDay);
-      ms
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(msg),
-          duration: Duration(milliseconds: undo == null ? 1600 : 5000),
-          // 框架里 `persist` 默认 = `action != null`（snack_bar.dart:303）：
-          // 带按钮的条会**永挂**直到点按钮——真机反馈②「不点撤销就一直挂着」即此。
-          persist: false,
-          action: undo == null
-              ? null
-              : SnackBarAction(
-                  label: '撤销',
-                  onPressed: () => undo().then((_) => _reloadOn(c, day, alsoDay))),
-        ));
+      if (undo == null) {
+        ms
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text(msg),
+            duration: const Duration(milliseconds: 1600),
+          ));
+      } else {
+        AppToast.showUndoWith(
+          ms,
+          msg,
+          ms: 5000,
+          onUndo: () => undo().then((_) => _reloadOn(c, day, alsoDay)),
+        );
+      }
     });
   }
 

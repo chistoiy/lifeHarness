@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -10,11 +12,77 @@ import '../../core/theme/app_theme.dart';
 class AppToast {
   AppToast._();
 
+  // T4（交互整改批一）：撤销条存续窗口内普通提示不顶掉它——普通 show 挂起排队
+  // （只留最新一条），窗口结束自动补挂；撤销条一律显式 `persist: false`
+  //（框架默认 persist = action != null，真机反馈「不点撤销就一直挂着」即此）。
+  static bool _undoOpen = false;
+  static int _undoToken = 0; // 新撤销条顶掉旧条时，旧条退场回调不再关窗
+  static (ScaffoldMessengerState, String, int)? _deferred;
+
   static void show(BuildContext context, String msg, {int ms = 1600}) {
-    ScaffoldMessenger.of(context)
+    final messenger = ScaffoldMessenger.of(context);
+    if (_undoOpen) {
+      _deferred = (messenger, msg, ms); // 排他：不打扰撤销窗口，退场后补挂
+      return;
+    }
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
           SnackBar(content: Text(msg), duration: Duration(milliseconds: ms)));
+  }
+
+  /// 带「撤销」的提示条（排他基建入口；context 须在弹层 pop 前取好 messenger，
+  /// 跨弹层场景改用 [showUndoWith] 直接传 messenger）。
+  static void showUndo(
+    BuildContext context,
+    String msg, {
+    String label = '撤销',
+    int ms = 4000,
+    required void Function() onUndo,
+  }) =>
+      showUndoWith(ScaffoldMessenger.of(context), msg,
+          label: label, ms: ms, onUndo: onUndo);
+
+  static void showUndoWith(
+    ScaffoldMessengerState messenger,
+    String msg, {
+    String label = '撤销',
+    int ms = 4000,
+    required void Function() onUndo,
+  }) {
+    final token = ++_undoToken;
+    _undoOpen = true;
+    void closeWindow() {
+      if (token != _undoToken) return; // 已被更新撤销条接管
+      _undoOpen = false;
+      final d = _deferred;
+      _deferred = null;
+      if (d != null) {
+        d.$1
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+              SnackBar(content: Text(d.$2), duration: Duration(milliseconds: d.$3)));
+      }
+    }
+
+    messenger.hideCurrentSnackBar();
+    // 关窗时机＝条真正退场（到期/被顶掉/点了撤销）：用 controller.closed 跟随
+    // 框架动画时钟，不另起裸 Timer（FakeAsync 下裸定时器会炸测试不变量）。
+    final controller = messenger.showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: Duration(milliseconds: ms),
+      persist: false,
+      action: SnackBarAction(
+        label: label,
+        onPressed: () {
+          closeWindow();
+          onUndo();
+        },
+      ),
+    ));
+    unawaited(controller.closed
+        .catchError((Object _) => SnackBarClosedReason.hide)
+        .whenComplete(closeWindow));
   }
 }
 

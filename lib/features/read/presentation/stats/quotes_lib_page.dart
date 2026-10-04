@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/ai/ai_review.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
 import '../read_providers.dart';
@@ -750,27 +751,23 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
 
   /// V1.46④：卡内删除＝软删 + SnackBar 撤销（无二次弹层，撤销即恢复；
   /// 与全 app「删除可撤销」纪律一致，见 log/物品批同款）。
+  /// T4（交互整改批一）：改走 AppToast.showUndo——带撤销的条排他存续，
+  /// 且显式 persist:false 不再永挂（框架默认 action != null 即永挂）。
   Future<void> _delQuote(BookQuote q) async {
     final repo = ref.read(readRepositoryProvider);
     await repo.softDeleteQuote(q.id!);
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('已删除这条记录'),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: '撤销',
-            onPressed: () async {
-              await repo.restoreQuote(q.id!);
-              if (!mounted) return;
-              ref.read(readTickProvider.notifier).state++;
-            },
-          ),
-        ),
-      );
+    AppToast.showUndo(
+      context,
+      '已删除这条记录',
+      ms: 4000,
+      onUndo: () async {
+        await repo.restoreQuote(q.id!);
+        if (!mounted) return;
+        ref.read(readTickProvider.notifier).state++;
+      },
+    );
   }
 
   /// 卡内快捷动作（复用 b3 的 quoteToDiary/quoteToTodo/quoteToNote/setStarred 链路）。
