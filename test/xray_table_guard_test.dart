@@ -21,6 +21,14 @@ void main() {
     'features/read/data/xray/xray_dao.dart': '四表唯一出口',
     'core/database/schema/xray.dart': '建表 DDL 与迁移（表名定义处）',
     'core/database/schema.dart': 'G5 中枢转发（只转发不查询）',
+    // 生命周期批（`333a22f`·轮7 拍板 F1/a-b 分类）的两处有意直碰，补登记归因：
+    'core/backup/backup_service.dart':
+        'kRegenerableExcluded 排除表名清单（只列名零 SQL·恢复后按 schema 建空表）',
+    'features/read/data/read_repo_book.dart':
+        'purgeBook 连带清 a 类派生数据 + md5 孤行判定（xray_lifecycle_test 钉死）',
+    // B-4 数据库概览：人话词表以表名字面量为键（纯展示词条，零 SQL），
+    // 与 db_overview_guard_test 的全覆盖/防残留守护配套。
+    'core/backup/db_overview.dart': 'B-4 人话表名词条（不执行 SQL）',
   };
 
   // 判定式由 `tables` 现拼：以后加第五张表若忘了登记这里，守护会照旧漏网——
@@ -88,6 +96,9 @@ void main() {
       final rel = f.path.replaceAll('\\', '/').replaceFirst('lib/', '');
       if (rel == 'features/read/data/xray/xray_dao.dart') continue;
       if (rel.startsWith('core/database/')) continue;
+      // 生命周期批（333a22f）拍板口径：purgeBook 的「同 md5 是否仍有他书引用」
+      // 孤行判定归 books 仓储（XrayDao 不拥有 books 表），md5 在此是入参不是散落查询。
+      if (rel == 'features/read/data/read_repo_book.dart') continue;
       final lines = f.readAsLinesSync()
         ..removeWhere((l) => l.trim().startsWith('//'));
       // 判定用「包含」而不是「正则形状」：形状正则容易写成漏网版（我上一版就是），
