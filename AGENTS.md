@@ -35,7 +35,7 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 - 文档域收口随跑 `python tools/doclint.py`（全路径 `D:\app_workplace\python3.11\python.exe`）：零死链 + 守护五检（工单落位/INDEX 登记/需求清单防复活/交接长行/三件套行数预算），红灯必须清零。
 - 全 app widget 测试必须拆分独立文件（同文件多大页会 isolate 污染挂死）；测试日期一律相对构造，23:55–00:30 不跑全量；涉及 pump 的用例注意 override `sharedPreferencesProvider`。
 - 脚本改源码：先快照（落 gitignored `tmp/`）、命中断言 + 体积校验，按文件真实编码读写，锚点跟随目标文件行尾；批量修改写成脚本文件执行，勿用 heredoc。
-- **出包预检（2026-10-04 拍板成文）**：任何 `flutter build apk`（复测包/发版同此）前先跑 `node tools/prebuild_check.js --dir <构建目录> --code <期望versionCode>`——红灯禁止构建，避免建完才现版本不对二次构建。该闸拦三类实锤坑：① `local.properties` 钉版盖过期望值；② `--split-per-abi` 抬 ABI 偏移（arm64 +2000：6051→8051）——**复测包形态须与机上包一致**（机上若是分包则打 base=期望-2000 的分包，勿赌 universal）；③ 忘带 `--build-number`（pubspec build≠期望时提示）。预检绿后按它打印的四项 aapt 复验清单执行（badging 版本/INTERNET/库集对齐/mtime 新）。
+- **出包预检（2026-10-04 拍板成文 · 2026-10-05 分包口径同步）**：任何 `flutter build apk`（复测包/发版同此）前先跑 `node tools/prebuild_check.js --dir <构建目录> --code <期望versionCode>`——红灯禁止构建，避免建完才现版本不对二次构建。该闸拦三类实锤坑：① `local.properties` 钉版盖过期望值；② `--split-per-abi` 抬 ABI 偏移（arm64 +2000：4067→6067）——分包要带 `--split`，`--code` 仍传**装机期望编号**（60xx），闸自动折算 base＝期望-2000 并要求钉版/`--build-number` 都用 base；把 base 当期望传会被判「误传 base」红。**复测包形态须与机上包一致**（机上仍是 universal 期间照旧打 universal，勿赌分包；换包那轮起按下方拍板改 arm64 分包）；③ 忘带 `--build-number`（pubspec build≠base 时提示）。预检绿后按它打印的四项 aapt 复验清单执行（badging 版本/INTERNET/库集对齐/mtime 新）。
 - **出包时序纪律（2026-10-05 拍板）**：该编号的 dart 改动**全部落定**才起构建——build6066 剖析实证耗时大头＝dart AOT 全量重算占全程 97%，且源码与 `FLUTTER_BUILD_NUMBER`（注入 dart-defines）任一变化都必换全量，没有「只改编号」快路径；构建中途发现要改 dart，一律攒到下一枚编号，不重打本轮。**复测包自下次换机装包起与机上包统一改 arm64 分包**（`--split-per-abi`，base＝期望编号-2000，随发版形态对齐；机上仍是 universal 期间照旧 universal，细则＝开发计划书 §7.1 拍板段）。
 
 ## 禁令（违反会被驳回）
