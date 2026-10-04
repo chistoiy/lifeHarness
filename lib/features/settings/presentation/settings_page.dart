@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/trash/trash_providers.dart';
+import '../../../shared/widgets/scroll_pad.dart';
 import '../../../shared/weather/weather.dart';
 import 'profile_edit_sheet.dart';
 import 'weather_city_sheet.dart';
@@ -34,7 +35,10 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
-      body: ListView(
+      body: ScrollPad(
+        // T2-B：「我的」主屏滚动垫（切栏回来原位）。
+        id: 'profile',
+        child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // 资料卡（原型 p-profile：渐变字母头像 + 昵称 + 本地模式副行 + 编辑）
@@ -319,6 +323,7 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

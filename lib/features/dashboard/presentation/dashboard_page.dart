@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+import '../../../shared/widgets/scroll_pad.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import 'dashboard_providers.dart';
 import 'widgets/today_schedule_card.dart';
@@ -231,7 +232,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
             ],
           )
-        : ListView(
+        : ScrollPad(
+            // T2-B：切栏销毁子路由，滚动位经常驻 provider 垫回。
+            id: 'dash',
+            child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
             children: [
               // V1.27 H1：长按任意卡片 550ms → 进入编排模式（原型 dashLongPress）
@@ -250,7 +254,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
               ),
             ],
-          );
+          ),
+        );
 
     return Scaffold(
       appBar: AppBar(

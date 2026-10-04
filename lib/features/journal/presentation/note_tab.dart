@@ -7,6 +7,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/note_dao.dart';
 import '../domain/note.dart';
 import 'journal_providers.dart';
+import '../../../shared/widgets/scroll_pad.dart';
 import 'note_paper.dart';
 import 'widgets/note_tree_drawer.dart';
 
@@ -169,7 +170,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                   onTap: () => context.push('/note/edit'),
                 )
               : cols == 0
-                  ? ListView(
+                  ? ScrollPad(
+                      // T2-B：记录栏笔记列表滚动垫（切栏回来原位）。
+                      id: 'journal-notes',
+                      child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                       children: [
                         for (final n in notes)
@@ -180,6 +184,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                           ),
                         // V1.29轮9l：底部「共 N 篇 · 左滑删除 · 长按批量」教学文案移除（无价值）。
                       ],
+                    ),
                     )
                   : LayoutBuilder(builder: (context, box) =>
                       _masonry(context, ref, notes, cols, sel,

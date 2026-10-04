@@ -16,6 +16,7 @@ import 'note_edit_page.dart';
 import 'note_tab.dart';
 import 'widgets/diary_review_sheet.dart';
 import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
+import '../../../shared/widgets/scroll_pad.dart';
 import 'widgets/ins_card.dart';
 
 /// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选
@@ -357,7 +358,10 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
       child: Column(
         children: [
           Expanded(
-            child: ListView(
+            child: ScrollPad(
+              // T2-B：日记段长列表滚动垫（切栏回来原位）。
+              id: 'journal-diary',
+              child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
         // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
@@ -651,6 +655,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
           },
         ),
       ],
+            ),
             ),
           ),
           if (_selMode) _selBar(),

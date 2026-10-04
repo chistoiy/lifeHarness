@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../shared/widgets/scroll_pad.dart';
 import '../../domain/todo.dart';
 import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
@@ -162,7 +163,10 @@ class _QuadrantCell extends ConsumerWidget {
                   style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               Expanded(
-                child: ListView(
+                child: ScrollPad(
+                  // T2-B：每象限格独立滚动垫，切栏回来逐格原位。
+                  id: 'todo-q-${quadrant.name}',
+                  child: ListView(
                   children: [
                     for (final t in todos)
                       Draggable<Todo>(
@@ -262,6 +266,7 @@ class _QuadrantCell extends ConsumerWidget {
                         ),
                       ),
                   ],
+                ),
                 ),
               ),
               InkWell(

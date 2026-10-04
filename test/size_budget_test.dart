@@ -23,7 +23,9 @@ void main() {
     'features/habit/presentation/habit_detail_page.dart': 1521,
     'features/habit/presentation/habit_stat_page.dart': 1504,
     'features/read/presentation/stats/read_stat_page.dart': 1383,
-    'features/calendar/presentation/calendar_page.dart': 1377,
+    // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
+    // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
+    'features/calendar/presentation/calendar_page.dart': 1382,
     'features/read/presentation/shelf/book_form_page.dart': 1362,
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,

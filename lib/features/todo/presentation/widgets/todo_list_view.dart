@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/scroll_pad.dart';
 import '../../domain/todo.dart';
 import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
@@ -132,7 +133,10 @@ class TodoListView extends ConsumerWidget {
         ref.watch(settingsControllerProvider).notify.overdueEscalate;
     final escalate = escalateOn ? escalateSuggestions(todos) : <Todo>[];
 
-    return ReorderableListView(
+    return ScrollPad(
+      // T2-B：切栏销毁子路由，滚动位经常驻 provider 垫回。
+      id: 'todo-list',
+      child: ReorderableListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       // T6：清单长按拖拽排序（仅「全部」筛选下持久化，避免子集写序污染全表）
       onReorder: (oldIndex, newIndex) async {
@@ -242,6 +246,7 @@ class TodoListView extends ConsumerWidget {
             ),
           ),
       ],
+    ),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
+import '../../../shared/widgets/scroll_pad.dart';
 import 'calendar_providers.dart';
 import 'widgets/grid_day_view.dart';
 import 'widgets/time_pick_sheet.dart';
@@ -76,7 +77,10 @@ class CalendarPage extends ConsumerWidget {
                   }
                   return false;
                 },
-                child: ListView(
+                child: ScrollPad(
+                  // T2-B：时间主屏滚动垫；智能折叠通知照常穿层上抛。
+                  id: 'cal',
+                  child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                   children: [
                     _CalendarRegion(selected: selected, events: events),
@@ -90,6 +94,7 @@ class CalendarPage extends ConsumerWidget {
                       _ => _WeekBoard(selected: selected, events: events),
                     },
                   ],
+                ),
                 ),
               ),
             ),
