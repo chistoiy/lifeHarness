@@ -1,6 +1,6 @@
 {
  "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。",
- "updated": "2026-10-03",
+ "updated": "2026-10-04",
  "gateMode": "strict",
  "cutPolicy": {
   "placeholder": false,
@@ -2213,6 +2213,20 @@
     "index-media.html": {
      "size": 3691,
      "hash": "c264890c"
+    }
+   }
+  },
+  {
+   "id": "p-sub-dbstats",
+   "kind": "screen",
+   "title": "数据库概览",
+   "home": "index.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index.html": {
+     "size": 6469,
+     "hash": "98703ba0"
     }
    }
   },
