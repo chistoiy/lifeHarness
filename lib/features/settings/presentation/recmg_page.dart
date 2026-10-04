@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
+import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
 /// V1.29轮3①+轮6③ 记录管理二级页（原型 p-sub-recmg）：
@@ -124,18 +126,25 @@ class RecmgSettingsPage extends ConsumerWidget {
           Consumer(builder: (ctx, ref, _) {
             final keep =
                 ref.watch(settingsControllerProvider).trashKeepDays;
+            final n = ref.watch(trashCountsProvider).total;
             return _Card(children: [
               _Row(
                   keyName: 'trash-days',
                   title: '回收站自动清理',
                   trailing: keep > 0 ? '$keep 天' : '不清理',
-                  last: true,
                   onTap: () => _pickTrashKeep(ctx, ref, keep)),
+              // V1.60 全局回收站：六类删除内容统一进这一屏（计数与屏内同源）。
+              _Row(
+                  keyName: 'trash-open',
+                  title: '回收站',
+                  trailing: '$n 项',
+                  last: true,
+                  onTap: () => ctx.push('/settings/trash')),
             ]);
           }),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-            child: Text('待办 / 日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除',
+            child: Text('待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 删除的内容统一进回收站，按此期限自动彻底删除',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
           ),
         ],

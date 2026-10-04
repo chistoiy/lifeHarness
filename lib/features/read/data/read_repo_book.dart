@@ -157,6 +157,91 @@ mixin _RepoBooks on _ReadRepoBase {
     return n;
   }
 
+  // ---- V1.60 全局回收站：书行垃圾箱三件套 + 六表到期清理汇总口 ----
+
+  /// 垃圾箱里的书行（按删除时间倒序）。
+  Future<List<Book>> trashedBooks() async => (await db.query(
+    DbSchema.tBooks,
+    where: 'deleted_at IS NOT NULL',
+    orderBy: 'deleted_at DESC, id DESC',
+  )).map(Book.fromRow).toList();
+
+  /// 恢复书行＝deleted_at 置空回书架。软删期阅读数据从未被动过，
+  /// 源文件/缓存态由书架与阅读器的既有挂回守卫按现状处理（不在此重建）。
+  Future<void> restoreBook(String id) => db.update(
+    DbSchema.tBooks,
+    {'deleted_at': null, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  /// 回收站「彻底删除」书籍＝需求 V1.60 连带口径：
+  /// 清该书**在库**划线书摘（含复习档位）、计时、目录与阅读位置 kv，再删书行。
+  /// **垃圾箱里的该书划线不删**——留作孤行由回收站置灰展示（父已删不可单独恢复），
+  /// 与 [hardDeleteReadingData]（书行仍在架、全量清除）区分。
+  /// 返回连带清除的摘录行数。
+  Future<int> purgeBook(String id) async {
+    await db.delete(
+      DbSchema.tBookReviews,
+      where:
+          'quote_id IN (SELECT id FROM ${DbSchema.tBookQuotes} '
+          'WHERE book_id = ? AND deleted_at IS NULL)',
+      whereArgs: [id],
+    );
+    final n = await db.delete(
+      DbSchema.tBookQuotes,
+      where: 'book_id = ? AND deleted_at IS NULL',
+      whereArgs: [id],
+    );
+    await db.delete(
+      DbSchema.tBookSessions,
+      where: 'book_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      DbSchema.tBookTocNodes,
+      where: 'book_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(DbSchema.tBookListItems,
+        where: 'book_id = ?', whereArgs: [id]);
+    await removeKv('reader.pos.$id');
+    await removeKv('reader.cfg.$id');
+    await db.delete(DbSchema.tBooks, where: 'id = ?', whereArgs: [id]);
+    return n;
+  }
+
+  /// 该书**在库**划线书摘条数（回收站书行副信息与彻底删除弹层连带读数）。
+  Future<int> liveQuoteCountOf(String bookId) async =>
+      Sqflite.firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM ${DbSchema.tBookQuotes} '
+          'WHERE book_id = ? AND deleted_at IS NULL',
+          [bookId],
+        ),
+      ) ??
+      0;
+
+  /// 到期自动清理：删过早于保留期的垃圾箱书行（连带口径同 [purgeBook]）。
+  /// [keepDays]<=0＝不清理。返回清除行数（书行＋其连带在库摘录）。
+  Future<int> purgeExpiredTrashBooks(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now()
+            .subtract(Duration(days: keepDays))
+            .millisecondsSinceEpoch;
+    var n = 0;
+    for (final id in (await db.query(
+          DbSchema.tBooks,
+          columns: ['id'],
+          where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+          whereArgs: [cutoff],
+        )).map((r) => r['id'] as String)) {
+      n += 1 + await purgeBook(id); // 书行 + 其连带在库摘录
+    }
+    return n;
+  }
+
   // ---- 购书费用 → L4/记账流水（read.feeTxn 默认开 · §9.5 已拍板③）----
 
   /// 书保存后同步「阅读-购书」支出流水：新增或改费用→同条更新；清零→删行。

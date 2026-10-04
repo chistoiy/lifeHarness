@@ -165,6 +165,7 @@ class AppLog {
     'features/settings': '设置',
     'shared': '界面',
     'shared/weather': '天气', // 真机反馈轮4①：取数失败留痕按此归类
+    'shared/trash': '回收站', // V1.60 全局回收站：六类恢复/彻底删除留痕
   };
 
   static final RegExp _framePath = RegExp(

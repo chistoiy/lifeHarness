@@ -237,6 +237,31 @@ void main() {
           5);
     });
 
+    test('垃圾箱里的已读书不计入 KR（V1.60 回收站 E 批审计）', () async {
+      final inQ3 = DateTime(2026, 9, 10).millisecondsSinceEpoch;
+      await db.insert(DbSchema.tBooks, {
+        'id': 'bk1',
+        'title': '在册的已读',
+        'state': '已读',
+        'ended_at': inQ3,
+        'created_at': inQ3,
+        'updated_at': inQ3
+      });
+      await db.insert(DbSchema.tBooks, {
+        'id': 'bk2',
+        'title': '回收站里的已读',
+        'state': '已读',
+        'ended_at': inQ3,
+        'deleted_at': inQ3,
+        'created_at': inQ3,
+        'updated_at': inQ3
+      });
+      await seedGoal('O 审计', '2026 Q3', [k('阅读', tgt: 6, src: KrSource.read)]);
+      final d = await repo.loadAll(now: now);
+      expect(d.goals.first.krs.first.cur, 1,
+          reason: '软删书行不得再聚进 KR——漏一处就是「删了还在计数」');
+    });
+
     test('归档周期冻结不重算', () async {
       await seedSources();
       await seedGoal('O1 冻结', '2026 Q3', [k('待办', tgt: 4, cur: 7, src: KrSource.todo)]);

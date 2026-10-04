@@ -126,6 +126,62 @@ class HabitRepository {
     whereArgs: [id],
   );
 
+  // ---- V1.60 全局回收站：垃圾箱三件套 + 到期清理 ----
+
+  /// 垃圾箱里的习惯（按删除时间倒序）。
+  Future<List<Habit>> trashedHabits() async {
+    final rows = await db.query(
+      DbSchema.tHabits,
+      where: 'deleted_at IS NOT NULL',
+      orderBy: 'deleted_at DESC, id DESC',
+    );
+    final subs = await db.query(DbSchema.tHabitSubs, orderBy: 'sort ASC');
+    final byHabit = <String, List<HabitSub>>{};
+    for (final r in subs) {
+      final s = HabitSub.fromRow(r);
+      byHabit.putIfAbsent(r['habit_id'] as String, () => []).add(s);
+    }
+    return [
+      for (final r in rows)
+        Habit.fromRow(r).copyWith(subs: byHabit[r['id']] ?? const []),
+    ];
+  }
+
+  /// 恢复＝deleted_at 置空，回习惯列表（定义与流水原样，不新建）。
+  Future<void> restoreHabit(String id) => db.update(
+    DbSchema.tHabits,
+    {'deleted_at': null, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  /// 彻底删除：只清定义与子项；按日流水按计划 §2.1「历史流水保留」口径留下
+  /// （纪录墙与统计仍能追溯到已下架习惯的历史值）。
+  Future<void> purgeHabit(String id) => db.transaction((txn) async {
+    await txn.delete(DbSchema.tHabitSubs,
+        where: 'habit_id = ?', whereArgs: [id]);
+    await txn.delete(
+        DbSchema.tHabitGoalHist, where: 'habit_id = ?', whereArgs: [id]);
+    await txn.delete(DbSchema.tHabits, where: 'id = ?', whereArgs: [id]);
+  });
+
+  /// 到期自动清理：删早于保留期的垃圾箱习惯；[keepDays]<=0＝不清理。返回删除数。
+  Future<int> purgeExpiredHabits(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now().subtract(Duration(days: keepDays)).millisecondsSinceEpoch;
+    final ids = (await db.query(DbSchema.tHabits,
+            columns: ['id'],
+            where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+            whereArgs: [cutoff]))
+        .map((r) => r['id'] as String)
+        .toList();
+    for (final id in ids) {
+      await purgeHabit(id);
+    }
+    return ids.length;
+  }
+
   // ---- habit_entries（★ 按日流水）----
 
   /// 该习惯全流水 day→entry（含组子项值）。

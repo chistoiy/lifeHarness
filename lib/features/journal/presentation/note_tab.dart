@@ -58,8 +58,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         .toList();
     final cols = ref.watch(noteViewColsProvider);
     final sel = ref.watch(noteSelProvider);
-    final inTrash = filter.folder == kNoteTrash;
-    final selMode = !inTrash && sel.isNotEmpty;
+    final selMode = sel.isNotEmpty;
 
     final list = Column(
       children: [
@@ -135,7 +134,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                 onPressed: () => showNoteTreeDrawer(context),
                 icon: Icon(Icons.folder_outlined,
                     size: 22,
-                    color: filter.folder.isEmpty || inTrash
+                    color: filter.folder.isEmpty
                         ? scheme.onSurfaceVariant
                         : tokens.accent),
               ),
@@ -164,11 +163,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         Expanded(
           child: notes.isEmpty
               ? EmptyDashRow(
-                  text: inTrash
-                      ? '回收站是空的'
-                      : filter.folder.isEmpty
-                          ? '还没有笔记 · 点右下角 ＋ 开始'
-                          : '「${filter.folder}」下还没有笔记',
+                  text: filter.folder.isEmpty
+                      ? '还没有笔记 · 点右下角 ＋ 开始'
+                      : '「${filter.folder}」下还没有笔记',
                   onTap: () => context.push('/note/edit'),
                 )
               : cols == 0
@@ -178,20 +175,20 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                         for (final n in notes)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _card(context, ref, n, inTrash, sel,
+                            child: _card(context, ref, n, sel,
                                 cardMode: false),
                           ),
                         // V1.29轮9l：底部「共 N 篇 · 左滑删除 · 长按批量」教学文案移除（无价值）。
                       ],
                     )
                   : LayoutBuilder(builder: (context, box) =>
-                      _masonry(context, ref, notes, cols, inTrash, sel,
+                      _masonry(context, ref, notes, cols, sel,
                           box.maxWidth - 32)),
         ),
       ],
     );
 
-    if (inTrash || !selMode) return list;
+    if (!selMode) return list;
     // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
     final byId = {for (final n in notes) n.id: n};
     final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
@@ -268,7 +265,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
 
   /// 轮9b：卡片视图=瀑布流错落（按最短列分配·非 GridView 行对齐）。
   Widget _masonry(BuildContext context, WidgetRef ref, List<Note> notes,
-      int cols, bool inTrash, Set<int> sel, double width) {
+      int cols, Set<int> sel, double width) {
     final colW = (width - _gap * (cols - 1)) / cols;
     final buckets = List.generate(cols, (_) => <int>[]);
     final totals = List.filled(cols, 0.0);
@@ -293,7 +290,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                   for (final i in buckets[c])
                     Padding(
                       padding: const EdgeInsets.only(bottom: _gap),
-                      child: _card(context, ref, notes[i], inTrash, sel,
+                      child: _card(context, ref, notes[i], sel,
                           cardMode: true),
                     ),
                 ],
@@ -328,12 +325,11 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         14;
   }
 
-  Widget _card(BuildContext context, WidgetRef ref, Note n, bool inTrash,
-      Set<int> sel,
+  Widget _card(BuildContext context, WidgetRef ref, Note n, Set<int> sel,
       {required bool cardMode}) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final selMode = !inTrash && sel.isNotEmpty;
+    final selMode = sel.isNotEmpty;
     final selected = sel.contains(n.id);
     // 轮9n修正：纸色仅在卡片视图体现条目底色（列表视图不体现）·按笔记独立。
     final paperOn = cardMode && n.paper.isNotEmpty;
@@ -349,12 +345,8 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         context.push('/note/edit', extra: n.id);
       },
       onLongPress: () {
-        if (inTrash) {
-          _trashActions(context, ref, n);
-        } else {
-          // 轮9②：进入批量不再 toast 提示
-          ref.read(noteSelProvider.notifier).state = {n.id!};
-        }
+        // 轮9②：进入批量不再 toast 提示（回收站操作在全局回收站屏，V1.60）
+        ref.read(noteSelProvider.notifier).state = {n.id!};
       },
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -399,9 +391,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                     children: [
                       Flexible(
                         child: Text(
-                            inTrash
-                                ? '删于 ${_timeLabel(n.deletedAt!)}'
-                                : _timeLabel(n.updatedAt),
+                            _timeLabel(n.updatedAt),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -410,7 +400,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                                     ? pFg!.withValues(alpha: .6)
                                     : scheme.onSurfaceVariant)),
                       ),
-                      if (n.pinned && !inTrash) ...[
+                      if (n.pinned) ...[
                         const SizedBox(width: 6),
                         Icon(Icons.push_pin,
                             size: 13, color: const Color(0xFFF59E0B)),
@@ -437,7 +427,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       ),
     );
 
-    if (inTrash || selMode) return card;
+    if (selMode) return card;
     // 左滑入回收站（原型 note-sw：红色删除区跟手露出）
     return Dismissible(
       key: ValueKey('note-swipe-${n.id}'),
@@ -500,38 +490,5 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     ref.invalidate(notesProvider);
     ref.invalidate(noteTreeProvider);
     AppToast.show(context, msg);
-  }
-
-  Future<void> _trashActions(
-      BuildContext context, WidgetRef ref, Note n) async {
-    final dao = ref.read(noteDaoProvider);
-    final act = await showModalBottomSheet<String>(
-      context: context,
-      builder: (bc) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-                title: const Text('恢复'),
-                onTap: () => Navigator.of(bc).pop('restore')),
-            ListTile(
-                title: const Text('彻底删除',
-                    style: TextStyle(color: Color(0xFFF43F5E))),
-                onTap: () => Navigator.of(bc).pop('purge')),
-          ],
-        ),
-      ),
-    );
-    if (act == null) return;
-    if (act == 'restore') {
-      await dao.restore(n.id!);
-    } else {
-      await dao.purge(n.id!);
-    }
-    ref.invalidate(notesProvider);
-    ref.invalidate(noteTreeProvider);
-    if (context.mounted) {
-      AppToast.show(context, act == 'restore' ? '已恢复' : '已彻底删除');
-    }
   }
 }

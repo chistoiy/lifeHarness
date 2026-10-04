@@ -57,7 +57,8 @@ mixin _RepoQuotes on _ReadRepoBase {
     if (key.isNotEmpty) {
       final dup = await db.query(
         DbSchema.tBookQuotes,
-        where: 'dedup_hash = ? AND id <> ?',
+        // 同 addQuote：判重只认在库行，垃圾箱里的旧行不挡编辑回同文。
+        where: 'dedup_hash = ? AND deleted_at IS NULL AND id <> ?',
         whereArgs: [key, q.id],
         limit: 1,
       );
@@ -178,6 +179,57 @@ mixin _RepoQuotes on _ReadRepoBase {
         ),
       ) ??
       0;
+
+  // ---- V1.60 全局回收站：划线书摘垃圾箱三件套 + 到期清理 ----
+
+  /// 垃圾箱里的划线/书摘（按删除时间倒序）。
+  Future<List<BookQuote>> trashedQuotes() async => (await db.query(
+    DbSchema.tBookQuotes,
+    where: 'deleted_at IS NOT NULL',
+    orderBy: 'deleted_at DESC, id DESC',
+  )).map(BookQuote.fromRow).toList();
+
+  /// 回收站「彻底删除」单条：真删行（复习档位已在软删时清掉，这里兜一次）。
+  Future<void> purgeQuote(int id) async {
+    await db.delete(
+      DbSchema.tBookReviews,
+      where: 'quote_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete(
+      DbSchema.tBookQuotes,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// 到期自动清理：真删过早于保留期的垃圾箱摘录。[keepDays]<=0＝不清理。
+  Future<int> purgeExpiredTrashQuotes(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now()
+            .subtract(Duration(days: keepDays))
+            .millisecondsSinceEpoch;
+    final ids = (await db.query(
+      DbSchema.tBookQuotes,
+      columns: ['id'],
+      where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+      whereArgs: [cutoff],
+    )).map((r) => r['id'] as int).toList();
+    if (ids.isEmpty) return 0;
+    final ph = ids.map((_) => '?').join(',');
+    await db.delete(
+      DbSchema.tBookReviews,
+      where: 'quote_id IN ($ph)',
+      whereArgs: ids,
+    );
+    await db.delete(
+      DbSchema.tBookQuotes,
+      where: 'id IN ($ph)',
+      whereArgs: ids,
+    );
+    return ids.length;
+  }
 
   /// 指定时刻之后新增的摘录条数（统计页周报 toast · 批D）。
   Future<int> quoteCountSince(int startMs) async =>

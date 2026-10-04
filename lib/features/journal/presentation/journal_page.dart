@@ -57,7 +57,7 @@ class _NoteFabState extends ConsumerState<_NoteFab> {
                   context.push('/note/edit',
                       extra: NoteEditArg(
                           kind: kind,
-                          folder: folder == kNoteTrash ? '' : folder));
+                          folder: folder));
                 },
                 child: Container(
                   padding:

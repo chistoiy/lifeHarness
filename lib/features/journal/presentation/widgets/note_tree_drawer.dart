@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
@@ -154,17 +155,17 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                           selected: selName == '',
                           onTap: () => _pick('')),
                       ..._nodes(tree, 0),
+                      // V1.60 全局回收站：抽屉行改道统一屏并落「笔记」段
+                      // （页内垃圾箱视图随本批下架，恢复/彻底删除只在此屏做）。
                       _row(context,
                           keyName: 'nt-trash',
                           icon: Icons.delete_outline,
                           label: '回收站',
                           depth: 0,
-                          selected: selName == kNoteTrash,
                           onTap: () {
-                            final cur = ref.read(noteFilterProvider);
-                            ref.read(noteFilterProvider.notifier).state =
-                                (folder: kNoteTrash, sort: cur.sort, asc: cur.asc);
+                            final router = GoRouter.of(context);
                             Navigator.of(context).pop();
+                            router.push('/settings/trash?seg=note');
                           }),
                       _row(context,
                           keyName: 'nt-add',

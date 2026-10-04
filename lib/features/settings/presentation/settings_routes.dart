@@ -10,6 +10,7 @@ import 'sync_history_page.dart';
 import 'sync_page.dart';
 import 'ai_page.dart';
 import 'recmg_page.dart';
+import 'trash_page.dart';
 
 /// 底部导航壳内路由（原 ShellRoute 登记 · 治理G6 下沉）
 List<GoRoute> settingsShellRoutes() => [
@@ -54,6 +55,12 @@ List<GoRoute> settingsPageRoutes() => [
           GoRoute(
             path: '/settings/recmg',
             builder: (_, _) => const RecmgSettingsPage(),
+          ),
+        // V1.60 全局回收站（原型 p-sub-trash · ?seg= 直达六类分段）。
+          GoRoute(
+            path: '/settings/trash',
+            builder: (_, s) =>
+                TrashPage(initialSeg: s.uri.queryParameters['seg']),
           ),
         // V1.41批1 Task 6 日志查看页（原型 p-log：120 条窗口/级别过滤/复制全量/
           // 保留天数滚轮；全屏栈页，设置页与将来同步历史均 context.go 跳入）。

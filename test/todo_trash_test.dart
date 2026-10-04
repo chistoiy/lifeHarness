@@ -4,7 +4,7 @@ import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
-import 'package:lifeharness/features/todo/presentation/todo_trash_page.dart'
+import 'package:lifeharness/shared/trash/trash_models.dart'
     show trashLeftDays, trashLeftTxt, trashDelStamp;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

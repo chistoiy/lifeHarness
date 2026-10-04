@@ -98,8 +98,9 @@ class GoalsRepository {
             [s, e]);
         return (r.first['c'] as int).toDouble();
       case KrSource.read:
+        // V1.60 回收站审计：垃圾箱里的书行不得再计入 KR（同上 todos 口径）。
         final r = await db.rawQuery(
-            "SELECT COUNT(*) c FROM ${DbSchema.tBooks} WHERE state = '已读' AND ended_at >= ? AND ended_at < ?",
+            "SELECT COUNT(*) c FROM ${DbSchema.tBooks} WHERE state = '已读' AND ended_at >= ? AND ended_at < ? AND deleted_at IS NULL",
             [s, e]);
         return (r.first['c'] as int).toDouble();
       case KrSource.journal:

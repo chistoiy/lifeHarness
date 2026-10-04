@@ -1,122 +1,107 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/trash/trash_models.dart';
+import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
-import '../domain/todo.dart';
-import 'todo_providers.dart';
-import 'widgets/todo_edit_sheet.dart' show dueLabel;
 
-/// 垃圾箱条目剩余保留天数（与「记录管理 · 通用 · 回收站自动清理」同档）。
-/// 返回 null＝设置为「不清理」；<=0＝已到期、下次启动清理（文案「待清理」）。
-int? trashLeftDays(DateTime? deletedAt, int keepDays, DateTime now) {
-  if (keepDays <= 0) return null;
-  if (deletedAt == null) return keepDays;
-  final ago = DateTime(now.year, now.month, now.day)
-      .difference(DateTime(deletedAt.year, deletedAt.month, deletedAt.day))
-      .inDays;
-  return keepDays - ago;
-}
-
-/// 剩余天数文案（原型 ttLeftTxt：不清理 / 待清理 / 剩 N 天）。
-String trashLeftTxt(DateTime? deletedAt, int keepDays, DateTime now) {
-  final left = trashLeftDays(deletedAt, keepDays, now);
-  if (left == null) return '不清理';
-  return left <= 0 ? '待清理' : '剩 $left 天';
-}
-
-String _two(int v) => v.toString().padLeft(2, '0');
-
-/// 「删于 09-19 14:20」（原型口径：月-日 时:分）。
-String trashDelStamp(DateTime? deletedAt) => deletedAt == null
-    ? '删于 --'
-    : '删于 ${_two(deletedAt.month)}-${_two(deletedAt.day)} '
-        '${_two(deletedAt.hour)}:${_two(deletedAt.minute)}';
-
-/// /todo/trash · V1.57 E 批待办垃圾箱（软删条目 · 保留期内可恢复）。
+/// /settings/trash · V1.60 全局回收站（原型 p-sub-trash · 需求 §四 末条）。
 ///
-/// 口径：行＝象限点＋标题＋截止／标签／删于时间／剩余天数（≤7 天标红）＋行内恢复·删除；
-/// 右上「选择」或长按进批量（底栏 恢复／彻底删除／✕，与笔记·日记同款语言）；
-/// 彻底删除走二次确认弹层并逐条列出；恢复＝回原象限原截止，不新建条目。
-class TodoTrashPage extends ConsumerStatefulWidget {
-  const TodoTrashPage({super.key});
+/// 口径：六类全纳（待办/笔记/习惯/书籍/划线书摘/书单）· 家＝设置·记录管理二级；
+/// 行＝模块标签＋正文＋副信息＋删于＋剩余天数（≤7 天标红）＋行内恢复·删除；
+/// 右上「选择」或长按进批量；彻底删除走二次确认并逐条列出（书籍写明连带数量）；
+/// 父书已不在架的划线＝孤行，置灰「不可单独恢复」（需求防幽灵口径）。
+class TrashPage extends ConsumerStatefulWidget {
+  const TrashPage({super.key, this.initialSeg});
+
+  /// 深链直达分段（?seg=note；null/未知＝全部段）。
+  final String? initialSeg;
 
   @override
-  ConsumerState<TodoTrashPage> createState() => _TodoTrashPageState();
+  ConsumerState<TrashPage> createState() => _TrashPageState();
 }
 
-class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
+class _TrashPageState extends ConsumerState<TrashPage> {
+  TrashKind? _seg;
   bool _selMode = false;
-  final Set<int> _sel = {};
+  final Set<String> _sel = {};
 
-  void _toast(String m) {
-    if (mounted) AppToast.show(context, m);
+  @override
+  void initState() {
+    super.initState();
+    _seg = _kindOf(widget.initialSeg);
   }
 
-  void _refresh() {
-    ref.invalidate(todosProvider);
-    ref.invalidate(overdueCountProvider);
-    ref.invalidate(todoTrashProvider);
+  static TrashKind? _kindOf(String? name) {
+    for (final k in TrashKind.values) {
+      if (k.name == name) return k;
+    }
+    return null;
   }
+
+  List<TrashItem> _visible(List<TrashItem> all) => _seg == null
+      ? all
+      : all.where((e) => e.kind == _seg).toList(growable: false);
 
   void _exitSel() => setState(() {
         _selMode = false;
         _sel.clear();
       });
 
-  void _enterSel(int id) => setState(() {
+  void _enterSel(String key) => setState(() {
         _selMode = true;
         _sel
           ..clear()
-          ..add(id);
+          ..add(key);
       });
 
-  void _tapRow(int id) {
+  void _tapRow(TrashItem it) {
     if (!_selMode) return;
     setState(() {
-      _sel.contains(id) ? _sel.remove(id) : _sel.add(id);
+      _sel.contains(it.key) ? _sel.remove(it.key) : _sel.add(it.key);
       if (_sel.isEmpty) _selMode = false;
     });
   }
 
-  void _selAll(List<Todo> items) {
-    setState(() {
-      if (_sel.length == items.length) {
-        _sel.clear();
-      } else {
-        _sel
-          ..clear()
-          ..addAll(items.map((t) => t.id!).whereType<int>());
-      }
-    });
+  void _selAll(List<TrashItem> visible) => setState(() {
+        if (_sel.length == visible.length && visible.isNotEmpty) {
+          _sel.clear();
+        } else {
+          _sel
+            ..clear()
+            ..addAll(visible.map((e) => e.key));
+        }
+      });
+
+  void _toast(String m) {
+    if (mounted) AppToast.show(context, m);
   }
 
-  /// 恢复（单条/批量）：回原象限原截止，即时补回清单/四象限/今日数字。
-  Future<void> _restore(List<Todo> items) async {
-    final repo = ref.read(todoRepositoryProvider);
-    for (final t in items) {
-      await repo.restore(t);
-    }
-    _refresh();
-    if (!mounted) return;
-    _toast(items.length == 1
-        ? '已恢复到「${items.first.quadrant.label}」'
-        : '已恢复 ${items.length} 项到原象限');
-  }
-
-  /// 彻底删除（真 DELETE）：先关确认弹层再给页面级提示条（模态层内挂 SnackBar 看不见）。
-  Future<void> _purge(List<Todo> items) async {
-    final n = await ref.read(todoRepositoryProvider).purge(
-        items.map((t) => t.id!).whereType<int>().toList());
-    _refresh();
+  Future<void> _restore(List<TrashItem> items) async {
+    final picked = items.where((e) => !e.orphan).toList(growable: false);
+    if (picked.isEmpty) return;
+    final svc = ref.read(trashServiceProvider);
+    await svc.restore(picked);
     if (!mounted) return;
     _exitSel();
-    _toast('已彻底删除 $n 条');
+    _toast(picked.length == 1
+        ? svc.restoreToastFor(picked.first)
+        : '已恢复 ${picked.length} 项到各自模块');
   }
 
-  Future<void> _askPurge(List<Todo> items) async {
+  Future<void> _purge(List<TrashItem> items) async {
+    await ref.read(trashServiceProvider).purge(items);
+    if (!mounted) return;
+    _exitSel();
+    final n = items.length;
+    _toast(items.any((e) => e.kind == TrashKind.book)
+        ? '已彻底删除 $n 条 · 该书名下划线书摘不可再单独恢复'
+        : '已彻底删除 $n 条');
+  }
+
+  Future<void> _askPurge(List<TrashItem> items) async {
     final keep = ref.read(settingsControllerProvider).trashKeepDays;
     final now = DateTime.now();
     final ok = await showModalBottomSheet<bool>(
@@ -133,10 +118,12 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
   Widget build(BuildContext context) {
     final keep = ref.watch(settingsControllerProvider).trashKeepTxt;
     final now = DateTime.now();
-    final async = ref.watch(todoTrashProvider);
-    final items = async.valueOrNull ?? const <Todo>[];
+    final async = ref.watch(trashItemsProvider);
+    final all = async.valueOrNull ?? const <TrashItem>[];
+    final counts = ref.watch(trashCountsProvider);
+    final visible = _visible(all);
     final selItems =
-        items.where((t) => _sel.contains(t.id)).toList(growable: false);
+        all.where((t) => _sel.contains(t.key)).toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -145,8 +132,8 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('垃圾箱'),
-            Text('删除的待办 · 保留期内可恢复',
+            Text('回收站'),
+            Text('六类删除内容 · 保留期内可恢复',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
           ],
         ),
@@ -154,7 +141,7 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 2),
             child: Row(
               children: [
                 Expanded(
@@ -163,7 +150,7 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                       children: [
                         TextSpan(
-                          text: '${items.length} 项',
+                          text: '${visible.length} 项',
                           style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF475569)),
@@ -176,22 +163,36 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
                 if (_selMode)
                   TextButton(
                     key: const ValueKey('tt-all'),
-                    onPressed: items.isEmpty ? null : () => _selAll(items),
-                    child: Text(_sel.length == items.length && items.isNotEmpty
+                    onPressed: visible.isEmpty ? null : () => _selAll(visible),
+                    child: Text(_sel.isNotEmpty &&
+                            _sel.length ==
+                                visible.where((e) => !e.orphan).length
                         ? '取消全选'
                         : '全选'),
                   ),
                 TextButton(
                   key: const ValueKey('tt-pick'),
-                  onPressed: items.isEmpty ? null : () {
-                    if (_selMode) {
-                      _exitSel();
-                    } else {
-                      setState(() => _selMode = true);
-                    }
-                  },
+                  onPressed: all.isEmpty
+                      ? null
+                      : () => setState(() => _selMode = !_selMode),
                   child: Text(_selMode ? '取消' : '选择'),
                 ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+            child: Wrap(
+              key: const ValueKey('tt-segs'),
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final e in _segEntries(counts))
+                  _chip(e.$1, e.$2, e.$1 == null ? _seg == null : _seg == e.$1,
+                      () => setState(() {
+                            _exitSel();
+                            _seg = e.$1;
+                          }))
               ],
             ),
           ),
@@ -199,21 +200,22 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('加载失败：$e')),
-              data: (list) => list.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
+              data: (_) => visible.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                       child: Center(
-                        child: Text('暂无已删除的待办',
-                            key: ValueKey('tt-empty'),
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.grey)),
+                        child: Text(
+                            _seg == null ? '回收站是空的' : '该分类回收站是空的',
+                            key: const ValueKey('tt-empty'),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey)),
                       ),
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      itemCount: list.length,
+                      itemCount: visible.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _tile(list[i], now),
+                      itemBuilder: (_, i) => _tile(visible[i], now),
                     ),
             ),
           ),
@@ -223,27 +225,58 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
     );
   }
 
-  Widget _tile(Todo t, DateTime now) {
+  /// 分段 chips：全部＋六类（计数随动作同步 · 原型 gtSegs）。
+  List<(TrashKind?, int)> _segEntries(({int total, Map<TrashKind, int> byKind}) c) =>
+      [(null, c.total), for (final k in TrashKind.values) (k, c.byKind[k] ?? 0)];
+
+  Widget _chip(TrashKind? kind, int n, bool on, VoidCallback onTap) {
+    final tokens = context.tokens;
+    return InkWell(
+      key: ValueKey('tt-seg-${kind?.name ?? 'all'}'),
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: on ? tokens.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+              color: on ? tokens.accent : const Color(0xFFCBD5E1), width: 1),
+        ),
+        child: Text(
+          '${kind?.label ?? '全部'} $n',
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: on ? Colors.white : const Color(0xFF64748B)),
+        ),
+      ),
+    );
+  }
+
+  Widget _tile(TrashItem t, DateTime now) {
     final accent = context.tokens.accent;
-    final left = trashLeftDays(t.deletedAt, ref.watch(settingsControllerProvider).trashKeepDays, now);
+    final keep = ref.watch(settingsControllerProvider).trashKeepDays;
+    final left = trashLeftDays(t.deletedAt, keep, now);
     final urgent = left != null && left <= 7;
-    final selected = _sel.contains(t.id);
+    final selected = _sel.contains(t.key);
     return GestureDetector(
-      key: ValueKey('tt-row-${t.id}'),
+      key: ValueKey('tt-row-${t.key}'),
       behavior: HitTestBehavior.opaque,
-      onLongPress: () => _enterSel(t.id!),
-      onTap: () => _tapRow(t.id!),
+      onLongPress: () => _enterSel(t.key),
+      onTap: () => _tapRow(t),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: context.cardDecoration,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_selMode)
               Container(
-                key: ValueKey('tt-chk-${t.id}'),
+                key: ValueKey('tt-chk-${t.key}'),
                 width: 18,
                 height: 18,
-                margin: const EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 8, top: 2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: selected ? accent : Colors.transparent,
@@ -257,12 +290,12 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
               )
             else
               Container(
-                key: ValueKey('tt-qdot-${t.id}'),
+                key: ValueKey('tt-dot-${t.key}'),
                 width: 12,
                 height: 12,
-                margin: const EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 8, top: 4),
                 decoration: BoxDecoration(
-                    shape: BoxShape.circle, color: t.quadrant.colorOf(accent)),
+                    shape: BoxShape.circle, color: t.kind.dot),
               ),
             Expanded(
               child: Column(
@@ -279,17 +312,24 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
                     runSpacing: 2,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (t.dueAt != null)
-                        _meta('⏰ ${dueLabel(t)}'),
-                      if (t.tag != null) _meta('#${t.tag}'),
+                      _kindTag(t.kind),
+                      for (final s in t.subs)
+                        s.startsWith('含划线')
+                            ? Text(s,
+                                key: ValueKey('tt-cascade-${t.key}'),
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFD97706)))
+                            : _meta(s),
                       _meta(trashDelStamp(t.deletedAt)),
                       Text(
-                        trashLeftTxt(t.deletedAt,
-                            ref.watch(settingsControllerProvider).trashKeepDays, now),
-                        key: ValueKey('tt-left-${t.id}'),
+                        trashLeftTxt(t.deletedAt, keep, now),
+                        key: ValueKey('tt-left-${t.key}'),
                         style: TextStyle(
                             fontSize: 10,
-                            fontWeight: urgent ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight:
+                                urgent ? FontWeight.w800 : FontWeight.w600,
                             color: urgent
                                 ? const Color(0xFFF43F5E)
                                 : Colors.grey),
@@ -301,10 +341,14 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
             ),
             if (!_selMode) ...[
               const SizedBox(width: 6),
-              _btn('tt-restore-${t.id}', '恢复', accent, () => _restore([t])),
-              const SizedBox(width: 4),
-              _btn('tt-del-${t.id}', '删除', const Color(0xFFF43F5E),
-                  () => _askPurge([t])),
+              if (t.orphan)
+                _orphanTag(t)
+              else ...[
+                _btn('tt-restore-${t.key}', '恢复', accent, () => _restore([t])),
+                const SizedBox(width: 4),
+                _btn('tt-del-${t.key}', '删除', const Color(0xFFF43F5E),
+                    () => _askPurge([t])),
+              ],
             ],
           ],
         ),
@@ -312,8 +356,34 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
     );
   }
 
-  Widget _meta(String text) => Text(text,
-      style: const TextStyle(fontSize: 10, color: Colors.grey));
+  Widget _kindTag(TrashKind kind) => Container(
+        key: ValueKey('tt-kind-${kind.name}'),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        color: const Color(0xFFF1F5F9),
+        child: Text(kind.label,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+      );
+
+  /// 孤行说明（需求：置灰并说明连带，不许静默）。
+  Widget _orphanTag(TrashItem t) => Tooltip(
+        message: t.orphanHint ?? '所属书已彻底删除',
+        child: Container(
+          key: ValueKey('tt-orphan-${t.key}'),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: const Text('不可单独恢复',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF94A3B8))),
+        ),
+      );
+
+  Widget _meta(String text) =>
+      Text(text, style: const TextStyle(fontSize: 10, color: Colors.grey));
 
   Widget _btn(String key, String label, Color color, VoidCallback onTap) =>
       InkWell(
@@ -332,8 +402,8 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
         ),
       );
 
-  /// 批量底栏：已选 N 项 + 恢复 + 彻底删除 + ✕（笔记·日记同款语言）。
-  Widget _selBar(List<Todo> selItems) {
+  /// 批量底栏：已选 N 项 + 恢复 + 彻底删除 + ✕（与待办垃圾箱同款语言）。
+  Widget _selBar(List<TrashItem> selItems) {
     final tokens = context.tokens;
     return Container(
       key: const ValueKey('tt-sel-bar'),
@@ -373,17 +443,17 @@ class _TodoTrashPageState extends ConsumerState<TodoTrashPage> {
   }
 }
 
-/// sheetTrashPurge：彻底删除二次确认（逐条列出，确认才真 DELETE）。
+/// sheetTrashPurge：彻底删除二次确认（逐条列出；书籍行写明连带清除内容）。
 class _PurgeSheet extends StatelessWidget {
-  const _PurgeSheet({required this.items, required this.now, required this.keepDays});
+  const _PurgeSheet(
+      {required this.items, required this.now, required this.keepDays});
 
-  final List<Todo> items;
+  final List<TrashItem> items;
   final DateTime now;
   final int keepDays;
 
   @override
   Widget build(BuildContext context) {
-    final accent = context.tokens.accent;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(
@@ -407,7 +477,7 @@ class _PurgeSheet extends StatelessWidget {
                 children: [
                   for (final t in items)
                     Container(
-                      key: ValueKey('tp-item-${t.id}'),
+                      key: ValueKey('tp-item-${t.key}'),
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
@@ -422,8 +492,7 @@ class _PurgeSheet extends StatelessWidget {
                             height: 8,
                             margin: const EdgeInsets.only(right: 8),
                             decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: t.quadrant.colorOf(accent)),
+                                shape: BoxShape.circle, color: t.kind.dot),
                           ),
                           Expanded(
                             child: Text(t.title,
@@ -431,9 +500,20 @@ class _PurgeSheet extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontSize: 12)),
                           ),
-                          Text(trashLeftTxt(t.deletedAt, keepDays, now),
-                              style: const TextStyle(
-                                  fontSize: 10, color: Colors.grey)),
+                          const SizedBox(width: 6),
+                          t.kind == TrashKind.book
+                              ? Flexible(
+                                  child: Text(
+                                      '连带清 划线·笔记 ${t.cascadeQuotes ?? 0} 条 · 计时 · 进度',
+                                      key: ValueKey('tp-cascade-${t.key}'),
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFFF43F5E))),
+                                )
+                              : Text(trashLeftTxt(t.deletedAt, keepDays, now),
+                                  style: const TextStyle(
+                                      fontSize: 10, color: Colors.grey)),
                         ],
                       ),
                     ),
@@ -464,60 +544,6 @@ class _PurgeSheet extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 待办页底部入口行（清单/四象限两视图共用）：计数＋期限同源，点击 push 垃圾箱。
-class TodoTrashEntry extends ConsumerWidget {
-  const TodoTrashEntry({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final n = ref.watch(todoTrashProvider).valueOrNull?.length ?? 0;
-    final keep = ref.watch(settingsControllerProvider).trashKeepTxt;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-      child: InkWell(
-        key: const ValueKey('todo-trash-entry'),
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/todo/trash'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: context.cardDecoration,
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.delete_outline,
-                    size: 18, color: Color(0xFF64748B)),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('垃圾箱',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text('$n 项 · $keep',
-                        key: const ValueKey('todo-trash-meta'),
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
-                  ],
-                ),
-              ),
-              const Text('›',
-                  style: TextStyle(fontSize: 16, color: Color(0xFFCBD5E1))),
-            ],
-          ),
-        ),
       ),
     );
   }

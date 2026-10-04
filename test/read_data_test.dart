@@ -846,7 +846,9 @@ void main() {
       expect((await repo.listMembers(l)).map((x) => x.title), ['甲']);
       await repo.softDeleteList(l.id!);
       expect(await repo.allLists(), isEmpty);
-      expect(await db.query('book_list_items'), isEmpty);
+      // V1.60 翻案：软删书单不再连带删成员行——回收站恢复要「回原位」，
+      // 成员跟着删就恢复不出原书单（彻底删除时才清 items，见 trash_data_test）。
+      expect(await db.query('book_list_items'), hasLength(1));
       expect(await repo.allBooks(), hasLength(3)); // 书本身保留
     });
 

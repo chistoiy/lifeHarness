@@ -43,18 +43,8 @@ final overdueCountProvider = FutureProvider<int>((ref) async {
   }
 });
 
-/// 垃圾箱清单（V1.57 E 批 · 软删条目）。
-/// 跟随 [todosProvider] 失效：软删/恢复/彻底删除都必然触动在册列表，
-/// 各写点因此无需再单独 invalidate 本 provider（漏一处就是计数不刷新）。
-final todoTrashProvider = FutureProvider<List<Todo>>((ref) async {
-  ref.watch(todosProvider);
-  try {
-    return await ref.watch(todoRepositoryProvider).trashed();
-  } catch (e) {
-    _logReadErrOnce('垃圾箱读取失败（页面将显示为空）', e);
-    rethrow;
-  }
-});
+// V1.60 全局回收站：待办垃圾箱专屏 `/todo/trash` 与 `todoTrashProvider` 一并下架，
+// 六类删除内容统一由 `shared/trash` 读数、`/settings/trash?seg=todo` 展示。
 
 /// 番茄会话（V1.20 · 单活：全局同时仅一个番茄，与日程「进行中」同规则）。
 class PomoSession {

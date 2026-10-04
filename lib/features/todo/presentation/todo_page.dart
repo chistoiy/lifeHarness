@@ -5,10 +5,10 @@ import '../../../core/providers.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import 'todo_providers.dart';
-import 'todo_trash_page.dart';
 import 'widgets/quadrant_board.dart';
 import 'widgets/todo_edit_sheet.dart';
 import 'widgets/todo_list_view.dart';
+import 'widgets/todo_trash_entry.dart';
 
 /// 模块2 待办 + 四象限（M0 · 已对齐高保真原型 p-todo）：
 /// 清单/四象限双视图、引导式两问单表单、拖拽换象限、智能筛选 chips、逾期提示卡。

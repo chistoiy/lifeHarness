@@ -219,7 +219,8 @@ void main() {
   });
 
   group('笔记 tab（原型 recNote · V1.29轮6 重构）', () {
-    testWidgets('无页内搜索与写笔记钮；精简卡；长按批量→删除入回收站；回收站长按恢复', (tester) async {
+    testWidgets('无页内搜索与写笔记钮；精简卡；长按批量→删除入回收站（屏面回归见 trash_page_test）',
+        (tester) async {
       await dao.save(note('WebDAV 选型', folder: '工作', content: '坚果云应用密码模式'));
       await tester.pumpWidget(scope(const NoteTab()));
       await tester.pumpAndSettle();
@@ -245,19 +246,8 @@ void main() {
       await settle5(tester);
       expect((await dao.trash()).map((n) => n.title), ['WebDAV 选型']); // 先验 DB
       expect(find.textContaining('WebDAV 选型'), findsNothing); // 再验 UI
-
-      // 回收站视图：长按=恢复
-      mutate(tester, (c) => c.read(noteFilterProvider.notifier).state =
-          (folder: kNoteTrash,
-              sort: c.read(noteFilterProvider).sort,
-              asc: c.read(noteFilterProvider).asc));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('WebDAV 选型'), findsOneWidget);
-      await tester.longPress(find.byKey(const ValueKey('note-card-1')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('恢复'));
-      await tester.pumpAndSettle();
-      expect((await dao.trash()), isEmpty);
+      // V1.60：页内回收站视图已下架（六类统一进 `/settings/trash`），
+      // 恢复/彻底删除的屏面回归见 test/trash_page_test.dart。
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
 

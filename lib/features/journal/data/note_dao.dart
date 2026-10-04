@@ -146,6 +146,26 @@ class NoteDao {
     await db.delete(table, where: 'id IN ($ph)', whereArgs: ids);
   }
 
+  /// V1.60 到期自动清理：真删早于保留期的回收站笔记（连带快照）。
+  /// [keepDays]<=0＝不清理。返回删除条数。
+  Future<int> purgeExpired(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now().subtract(Duration(days: keepDays)).millisecondsSinceEpoch;
+    final ids = (await db.query(table,
+            columns: ['id'],
+            where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+            whereArgs: [cutoff]))
+        .map((r) => r['id'] as int)
+        .toList();
+    if (ids.isEmpty) return 0;
+    final ph = ids.map((_) => '?').join(',');
+    await db.delete(DbSchema.tNoteSnapshots,
+        where: 'note_id IN ($ph)', whereArgs: ids);
+    await db.delete(table, where: 'id IN ($ph)', whereArgs: ids);
+    return ids.length;
+  }
+
   // ---- 版本快照（1d 使用；表与写入通道先建好） ----
 
   Future<void> snapshot(int noteId, String content) =>

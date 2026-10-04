@@ -106,6 +106,8 @@ mixin _RepoLists on _ReadRepoBase {
     whereArgs: [listId, bookId],
   );
 
+  /// 书单进回收站（V1.60 全局回收站）：**成员行保留**——需求口径＝恢复回原位，
+  /// 成员表跟着删就恢复不出原书单（旧实装随手删 items，本批翻案，用例 5-1 同步改断言）。
   Future<void> softDeleteList(int id) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.update(
@@ -114,11 +116,60 @@ mixin _RepoLists on _ReadRepoBase {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // ---- V1.60 全局回收站：书单垃圾箱三件套 + 到期清理 ----
+
+  /// 垃圾箱里的书单（按删除时间倒序）。
+  Future<List<BookList>> trashedLists() async => (await db.query(
+    DbSchema.tBookLists,
+    where: 'deleted_at IS NOT NULL',
+    orderBy: 'deleted_at DESC, id DESC',
+  )).map(BookList.fromRow).toList();
+
+  /// 恢复书单＝deleted_at 置空（成员行软删期一直保留，原位原成员回来）。
+  Future<void> restoreList(int id) => db.update(
+    DbSchema.tBookLists,
+    {'deleted_at': null, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  /// 回收站「彻底删除」书单：行与成员一起真删（成员指向的书本身不动）。
+  Future<void> purgeList(int id) async {
     await db.delete(
       DbSchema.tBookListItems,
       where: 'list_id = ?',
       whereArgs: [id],
     );
+    await db.delete(DbSchema.tBookLists, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// 手动单的成员条数（回收站书单行副信息「成员 N 本」；年度单成员动态求）。
+  Future<int> listItemCount(int listId) async => Sqflite.firstIntValue(
+    await db.rawQuery(
+      'SELECT COUNT(*) FROM ${DbSchema.tBookListItems} WHERE list_id = ?',
+      [listId],
+    ),
+  ) ?? 0;
+
+  /// 到期自动清理：真删过早于保留期的垃圾箱书单（含成员行）。
+  Future<int> purgeExpiredTrashLists(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now()
+            .subtract(Duration(days: keepDays))
+            .millisecondsSinceEpoch;
+    final ids = (await db.query(
+      DbSchema.tBookLists,
+      columns: ['id'],
+      where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+      whereArgs: [cutoff],
+    )).map((r) => r['id'] as int).toList();
+    for (final id in ids) {
+      await purgeList(id);
+    }
+    return ids.length;
   }
 
   /// 成员解析：年度单按「已读 && ended_at∈该年」动态求（[desc]＝read.yearSort）；

@@ -27,14 +27,14 @@ final noteDaoProvider =
     Provider<NoteDao>((ref) => NoteDao(AppDatabase.instance.db));
 
 /// 笔记列表筛选（V1.29轮6：页内搜索移除·query 恒空由全局搜索承接；
-/// folder：''=全部 · '__trash__'=回收站 · 其余=文件夹名；
+/// folder：''=全部 · 其余=文件夹名；
 /// 轮8④ asc=方向翻转·再点当前排序项切换 降⇄升/ A→Z⇄Z→A）。
 final noteFilterProvider =
     StateProvider<({String folder, NoteSort sort, bool asc})>(
         (ref) => (folder: '', sort: NoteSort.updated, asc: false));
 
-/// 回收站特殊文件夹值。
-const kNoteTrash = '__trash__';
+// V1.60 全局回收站：笔记不再有 `__trash__` 特殊筛选值与页内垃圾箱视图，
+// 回收站六类统一进 `/settings/trash`（抽屉入口改道），故本屏只出在册笔记。
 
 /// 笔记视图（0=列表；2/3=卡片每行列数 · 轮9b 循环收为 列表→2→3·瀑布流错落）。
 final noteViewColsProvider = StateProvider<int>((ref) => 0);
@@ -46,7 +46,6 @@ final noteSelProvider = StateProvider<Set<int>>((ref) => const {});
 final notesProvider = FutureProvider<List<Note>>((ref) async {
   final f = ref.watch(noteFilterProvider);
   final dao = ref.watch(noteDaoProvider);
-  if (f.folder == kNoteTrash) return dao.trash();
   return dao.list(
       folder: f.folder.isEmpty ? null : f.folder, sort: f.sort, asc: f.asc);
 });

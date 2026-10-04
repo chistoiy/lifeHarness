@@ -33,6 +33,7 @@ import 'features/read/data/read_repository.dart';
 import 'features/read/domain/s2t_map.dart';
 import 'features/todo/data/todo_dao.dart';
 import 'features/todo/domain/todo.dart';
+import 'shared/trash/trash_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,13 +142,20 @@ Future<void> main() async {
     AppLog.add('启动提醒重排失败（小结/体检）：$e', level: LhLevel.warn);
   }
 
-  // 4.4b) V1.57 E 批：垃圾箱到期自动清理（保留期读「记录管理 · 通用」档位，
-  //       0＝不清理）。只真 DELETE 已过期的软删条目，失败不阻断启动。
+  // 4.4b) V1.57 E 批立、V1.60 扩表：回收站到期自动清理（保留期读「记录管理 · 通用」
+  //       档位，0＝不清理）。范围从「仅待办」扩到全部六类纳入党表（待办/笔记/
+  //       习惯/书籍/划线书摘/书单），只真 DELETE 已过期的软删条目，失败不阻断启动。
   try {
-    final n = await TodoDao(AppDatabase.instance.db)
-        .purgeExpired(settings.trashKeepDays);
+    final per = await TrashRepository(AppDatabase.instance.db)
+        .purgeExpiredByTable(settings.trashKeepDays);
+    final n = per.values.fold(0, (a, b) => a + b);
+    final detail = per.entries
+        .where((e) => e.value > 0)
+        .map((e) => '${e.key}=${e.value}')
+        .join(' ');
     AppLog.addKey(
-        '垃圾箱自动清理：删除 $n 条 · 保留期 ${settings.trashKeepDays > 0 ? '${settings.trashKeepDays} 天' : '不清理'}');
+        '垃圾箱自动清理：删除 $n 条 · 保留期 ${settings.trashKeepDays > 0 ? '${settings.trashKeepDays} 天' : '不清理'}'
+        '${detail.isEmpty ? '' : ' · 明细 $detail'}');
   } catch (e) {
     AppLog.add('垃圾箱自动清理失败：$e', level: LhLevel.warn);
   }
