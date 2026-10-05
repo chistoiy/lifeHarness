@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/care_models.dart';
 import 'care_kit.dart';
@@ -347,6 +348,9 @@ class _VaxFormState extends ConsumerState<_VaxForm> {
                 GestureDetector(
                   key: const ValueKey('va-del'),
                   onTap: () async {
+                    // T3（批六·拍板②）：点删即真删改成先确认（不可恢复，说清楚）。
+                    if (!await lhConfirm(context, '删除该疫苗计划？删除后不可恢复')) return;
+                    if (!context.mounted) return;
                     final messenger = ScaffoldMessenger.of(context);
                     await ref.read(careRepositoryProvider).delVaccine(widget.edit!.id!);
                     careTouch(ref);

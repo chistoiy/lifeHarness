@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/scroll_pad.dart';
+import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/todo.dart';
 import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
@@ -116,22 +119,39 @@ class SmartFilterBar extends ConsumerWidget {
 
 /// 清单视图（原型 p-todo listWrap · V1.26 筛选移入顶栏面板后只留列表）：
 /// 任务卡 + 逾期提示大卡 + 快速添加。
-class TodoListView extends ConsumerWidget {
+class TodoListView extends ConsumerStatefulWidget {
   const TodoListView({super.key, required this.todos});
 
   final List<Todo> todos;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodoListView> createState() => _TodoListViewState();
+}
+
+/// 清单宿主：除了渲染，还管一件小事——**乐观出树**。
+/// Dismissible 的契约是回调触发后本帧必须出树，而 `todosProvider` 重查是异步的；
+/// 笔记左滑（note_tab）早就用同一张 `_gone` 集合解掉这个问题，此处同式。
+class _TodoListViewState extends ConsumerState<TodoListView> {
+  /// 已滑掉、等重查落定的条目 id（点撤销放回时移除）。
+  final Set<int> _gone = {};
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final filter = ref.watch(todoFilterProvider);
-    final shown = todos.where((t) => matchTodo(t, filter)).toList();
-    final overdueCount = todos.where((t) => t.overdue).length;
-    final overdueImportant = todos.where((t) => t.overdue && (t.quadrant == Quadrant.q1 || t.quadrant == Quadrant.q2)).length;
+    final shown = widget.todos
+        .where((t) => !_gone.contains(t.id) && matchTodo(t, filter))
+        .toList();
+    final overdueCount =
+        widget.todos.where((t) => t.overdue).length;
+    final overdueImportant = widget.todos
+        .where((t) => t.overdue && (t.quadrant == Quadrant.q1 || t.quadrant == Quadrant.q2))
+        .length;
     // M0末B 临期升紧急建议（受设置「逾期/临期升级建议」开关控制）
     final escalateOn =
         ref.watch(settingsControllerProvider).notify.overdueEscalate;
-    final escalate = escalateOn ? escalateSuggestions(todos) : <Todo>[];
+    final escalate =
+        escalateOn ? escalateSuggestions(widget.todos) : <Todo>[];
 
     return ScrollPad(
       // T2-B：切栏销毁子路由，滚动位经常驻 provider 垫回。
@@ -150,7 +170,13 @@ class TodoListView extends ConsumerWidget {
         ref.invalidate(todosProvider);
       },
       children: [
-        for (final t in shown) _TodoTile(key: ValueKey('todo-${t.id}'), todo: t),
+        for (final t in shown)
+          _TodoTile(
+            key: ValueKey('todo-${t.id}'),
+            todo: t,
+            onGone: (id) => setState(() => _gone.add(id)),
+            onBack: (id) => setState(() => _gone.remove(id)),
+          ),
         if (shown.isEmpty)
           const Padding(
             key: ValueKey('todo-empty'),
@@ -284,9 +310,18 @@ class _EscalateCardState extends ConsumerState<_EscalateCard> {
 }
 
 class _TodoTile extends ConsumerWidget {
-  const _TodoTile({super.key, required this.todo});
+  const _TodoTile({
+    super.key,
+    required this.todo,
+    required this.onGone,
+    required this.onBack,
+  });
 
   final Todo todo;
+
+  /// 乐观出树 / 撤销放回（集合由清单宿主持有）。
+  final ValueChanged<int> onGone;
+  final ValueChanged<int> onBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -307,9 +342,29 @@ class _TodoTile extends ConsumerWidget {
         child: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
       ),
       onDismissed: (_) {
-        ref.read(todoRepositoryProvider).remove(todo);
-        ref.invalidate(todosProvider);
-        ref.invalidate(overdueCountProvider);
+        // T3（批六·拍板①）：左滑＝软删进全局回收站（可恢复），不再真 DELETE。
+        // 撤销条沿用批一 T4 的排他基建；restore 只清 deleted_at，回原象限原截止。
+        // 本枚 tile 马上要随 Dismissible 出树，所以 container/messenger 都在此先取，
+        // 回调里不再碰 `ref`/`context`（ref-after-disposed 既定坑）。
+        final container = ProviderScope.containerOf(context, listen: false);
+        final messenger = ScaffoldMessenger.of(context);
+        final repo = container.read(todoRepositoryProvider);
+        // 写库不 await：Dismissible 要求本帧出树，invalidate 必须紧跟着发；
+        // 与旧真删路径同一时序，sqflite 按连接串行，重查读到的是写完之后的行。
+        onGone(todo.id!); // 本帧出树（不等重查）
+        unawaited(repo.softRemove(todo));
+        container.invalidate(todosProvider);
+        container.invalidate(overdueCountProvider);
+        // 提示条推到下一帧：showUndoWith 里的 hideCurrentSnackBar 会强制本帧重绘，
+        // 而 Dismissible 要求「回调触发后本帧不得再被重建」——同帧挂条＝框架断言炸。
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          AppToast.showUndoWith(messenger, '已移入回收站', onUndo: () {
+            onBack(todo.id!); // 放回清单（随后重查会自洽）
+            unawaited(repo.restore(todo));
+            container.invalidate(todosProvider);
+            container.invalidate(overdueCountProvider);
+          });
+        });
       },
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),

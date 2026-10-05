@@ -192,7 +192,16 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.text('编辑疫苗计划'), findsOneWidget);
+    // T3·拍板②：点删先出确认；取消＝不删，确认＝才删
     await tapK(tester, const ValueKey('va-del'));
+    expect(find.text('删除该疫苗计划？删除后不可恢复'), findsOneWidget);
+    await tapK(tester, const ValueKey('d-confirm-cancel'));
+    await settle5(tester);
+    expect((await repo.vaccines(babyId)).map((v) => v.id), contains(p.id),
+        reason: '取消不该删掉计划');
+    await tapK(tester, const ValueKey('va-del'));
+    expect(find.text('删除该疫苗计划？删除后不可恢复'), findsOneWidget);
+    await tapK(tester, const ValueKey('d-confirm-ok'));
     await pollText(tester, '计划已删除');
     expect((await repo.vaccines(babyId)).map((v) => v.id), isNot(contains(p.id)));
     await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
@@ -234,7 +243,16 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate, const Duration(seconds: 3));
     expect(find.text('编辑里程碑'), findsOneWidget);
+    // T3·拍板②：同上（里程碑）
     await tapK(tester, const ValueKey('ms-del'));
+    expect(find.text('删除这条里程碑？删除后不可恢复'), findsOneWidget);
+    await tapK(tester, const ValueKey('d-confirm-cancel'));
+    await settle5(tester);
+    expect((await repo.milestones(babyId)).map((m) => m.id), contains(j.id),
+        reason: '取消不该删掉里程碑');
+    await tapK(tester, const ValueKey('ms-del'));
+    expect(find.text('删除这条里程碑？删除后不可恢复'), findsOneWidget);
+    await tapK(tester, const ValueKey('d-confirm-ok'));
     await pollText(tester, '里程碑已删除');
     await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });

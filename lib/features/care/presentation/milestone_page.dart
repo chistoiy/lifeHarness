@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/care_models.dart';
 import 'care_kit.dart';
@@ -262,6 +263,9 @@ class _MilestoneFormState extends ConsumerState<_MilestoneForm> {
                 GestureDetector(
                   key: const ValueKey('ms-del'),
                   onTap: () async {
+                    // T3（批六·拍板②）：同上，删除前先确认（不可恢复）。
+                    if (!await lhConfirm(context, '删除这条里程碑？删除后不可恢复')) return;
+                    if (!context.mounted) return;
                     final messenger = ScaffoldMessenger.of(context);
                     await ref.read(careRepositoryProvider).delMilestone(widget.edit!.id!);
                     careTouch(ref);

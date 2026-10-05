@@ -3120,7 +3120,7 @@ function saveVax(){const nm=$('#vaName').value.trim();if(!nm){toast('先填疫�
  if(vaxEdit<0){VAXS[curBaby].unshift(Object.assign(o,{st:'plan'}));toast('已加入「'+BABIES[curBaby].n+'」计划 · 提前 '+o.lead+' 天提醒已生成（联动 L10）');}
  else{const x=VAXS[curBaby][vaxEdit];if(x.st==='plan')delete o.st;Object.assign(x,o);toast('✔ 已更新接种计划');}
  closeSheet('sheetVaxAdd');renderVax();}
-function delVax(){if(vaxEdit<0)return;VAXS[curBaby].splice(vaxEdit,1);vaxEdit=-1;closeSheet('sheetVaxAdd');renderVax();toast('计划已删除');}
+function delVax(){if(vaxEdit<0)return;if(!confirm('删除该疫苗计划？删除后不可恢复'))return;VAXS[curBaby].splice(vaxEdit,1);vaxEdit=-1;closeSheet('sheetVaxAdd');renderVax();toast('计划已删除');}
 /* —— 发育里程碑 —— */
 let MILES={0:[
  {n:'独坐',cat:'大运动',d:'2026-07-20',done:1},
@@ -3152,7 +3152,7 @@ function saveMile(){const n=$('#msName').value.trim();if(!n){toast('先填里程
  const cat=getChip('msCatBox')||'大运动',d=$('#msDate').value||'2026-09-19';
  if(msEdit<0)MILES[curBaby].push({n,cat,d,done:1});else{const m=MILES[curBaby][msEdit];m.n=n;m.cat=cat;m.d=d;m.done=1;}
  closeSheet('sheetMilestone');renderMiles();toast('✔ 里程碑已保存');}
-function delMile(){if(msEdit<0)return;MILES[curBaby].splice(msEdit,1);msEdit=-1;closeSheet('sheetMilestone');renderMiles();toast('里程碑已删除');}
+function delMile(){if(msEdit<0)return;if(!confirm('删除这条里程碑？删除后不可恢复'))return;MILES[curBaby].splice(msEdit,1);msEdit=-1;closeSheet('sheetMilestone');renderMiles();toast('里程碑已删除');}
 function renderWeekBaby(){const el=$('#weekBars');if(!el)return;const d=curBaby===0?[[6,13.8],[7,14.1],[5,13.2],[7,14.6],[6,13.5],[8,14.0],[7,13.6]]:[[5,12.8],[6,13.0],[5,13.4],[6,12.6],[5,13.1],[6,13.5],[5,13.2]];
  el.innerHTML=d.map(([c,h],i)=>`<div class="flex-1 flex items-end gap-[2px] h-full" title="${i===6?'今天':'前'+(6-i)+'天'}：喂养${c}次 · 睡眠${h}h"><span class="w-1/2 rounded-t bg-brand-500/80" style="height:${c*11}%"></span><span class="w-1/2 rounded-t bg-mint/70" style="height:${(h-11.5)*22}%"></span></div>`).join('');}
 /* —— 喂养分析（C10 · tab换肤 + 7×24时间规律 + 量堆叠 + 筛选） —— */

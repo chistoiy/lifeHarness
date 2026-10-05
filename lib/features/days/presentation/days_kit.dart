@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../domain/day_models.dart';
 
 /// 原型 tailwind 色板里 days 用到的语义色（rose / amber(sun) / slate-400）。
@@ -527,28 +528,8 @@ Future<T?> showDaysSheet<T>(
   );
 }
 
-/// 破坏性操作二次确认（showDialog；文案与原型 confirm 一致，调用方传入）。
+/// 破坏性操作二次确认（批六 T3：本体已提升为公共原语 [lhConfirm]，
+/// 呵护侧的疫苗/里程碑删除共用同一版式；本函数保留＝日子侧调用点与用例锚点不动）。
 Future<bool> daysConfirm(BuildContext context, String message,
-    {String okLabel = '删除'}) async {
-  final r = await showDialog<bool>(
-    context: context,
-    builder: (bc) => AlertDialog(
-      content: Text(message, style: const TextStyle(fontSize: 13)),
-      actions: [
-        TextButton(
-          key: const ValueKey('d-confirm-cancel'),
-          onPressed: () => Navigator.pop(bc, false),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          key: const ValueKey('d-confirm-ok'),
-          onPressed: () => Navigator.pop(bc, true),
-          child: Text(okLabel,
-              style: const TextStyle(
-                  color: kDaysRose, fontWeight: FontWeight.w800)),
-        ),
-      ],
-    ),
-  );
-  return r ?? false;
-}
+        {String okLabel = '删除'}) =>
+    lhConfirm(context, message, okLabel: okLabel);
