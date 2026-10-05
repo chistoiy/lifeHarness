@@ -316,7 +316,7 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (d) {
           if (!_inited) _initFrom(d);
-          return _body(d);
+          return TabularNums(child: _body(d));
         },
       ),
     );

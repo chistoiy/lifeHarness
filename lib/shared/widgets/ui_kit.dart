@@ -133,6 +133,32 @@ class FieldError extends StatelessWidget {
   }
 }
 
+/// LH-K33 等宽数字作用域（T12 · 交互整改批四）：子树里的数字按等宽字形排，防列抖动。
+///
+/// 口径：**不换字族**（主题字族、LH-F01 三档角色照旧），只给文本挂 `tnum` 字形特性——
+/// 只影响数字的宽度，不动观感，故属纯行为修复、不走原型门。
+/// 用法＝在含数字列的页面/卡片外**包一层**，不必逐处改样式：
+/// `TextStyle.merge` 对 `fontFeatures` 走「子级没写就沿袭上级」的继承链（已在
+/// flutter/painting/text_style.dart 的 merge→copyWith 里核过），
+/// 因此页内 `Text(style: TextStyle(fontSize: 13 …))` 这类自带样式也会吃到等宽。
+/// 已自写 `fontFeatures` 的存量点（阅读器 chrome/计时 9 处）不受本层影响。
+/// 边界：字族本身没有 `tnum` 特性时该特性为空操作——观感不变、列宽仍可能微抖，
+/// 这是系统回落字体链（〇A「不随包字体文件」）的已知代价。
+class TabularNums extends StatelessWidget {
+  const TabularNums({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+        style: const TextStyle(fontFeatures: kTabularNumFeatures),
+        child: child,
+      );
+}
+
+/// [TabularNums] 的字形特性串（单独露出：调用方自带整套 `TextStyle` 时直接引用）。
+const List<FontFeature> kTabularNumFeatures = [FontFeature.tabularFigures()];
+
 /// LH-T01 胶囊提示：全局统一深色胶囊 SnackBar（样式基线在 app_theme snackBarTheme）。
 class AppToast {
   AppToast._();

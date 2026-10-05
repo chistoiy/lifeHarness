@@ -201,7 +201,7 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
         data: (d) => rA.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('加载失败：$e')),
-          data: (rs) => _body(d, rs),
+          data: (rs) => TabularNums(child: _body(d, rs)),
         ),
       ),
     );

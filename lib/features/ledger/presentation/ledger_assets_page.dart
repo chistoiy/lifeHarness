@@ -47,7 +47,7 @@ class LedgerAssetsPage extends ConsumerWidget {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (d) => _body(context, ref, d),
+        data: (d) => TabularNums(child: _body(context, ref, d)),
       ),
     );
   }

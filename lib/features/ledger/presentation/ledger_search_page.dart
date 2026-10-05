@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_models.dart';
 import '../domain/ledger_search.dart';
@@ -89,7 +90,7 @@ class _LedgerSearchPageState extends ConsumerState<LedgerSearchPage> {
       ),
       body: d == null
           ? const Center(child: CircularProgressIndicator())
-          : _body(d),
+          : TabularNums(child: _body(d)),
     );
   }
 

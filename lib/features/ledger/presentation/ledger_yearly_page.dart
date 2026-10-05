@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../../../shared/widgets/share_card.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_txn.dart';
@@ -38,7 +39,7 @@ class _LedgerYearlyPageState extends ConsumerState<LedgerYearlyPage> {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: _body,
+        data: (d) => TabularNums(child: _body(d)),
       ),
     );
   }

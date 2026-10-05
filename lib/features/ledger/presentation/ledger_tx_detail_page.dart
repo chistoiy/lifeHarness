@@ -78,7 +78,7 @@ class _LedgerTxDetailPageState extends ConsumerState<LedgerTxDetailPage> {
             });
             return const SizedBox.shrink();
           }
-          return _body(d, hits.first);
+          return TabularNums(child: _body(d, hits.first));
         },
       ),
     );

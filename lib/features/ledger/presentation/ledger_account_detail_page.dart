@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../data/ledger_repository.dart';
 import '../domain/ledger_calc.dart';
 import '../domain/ledger_models.dart';
@@ -76,7 +77,7 @@ class _LedgerAccountDetailPageState
               child: Text('账户不存在', style: TextStyle(fontSize: 12)),
             );
           }
-          return _body(d, a);
+          return TabularNums(child: _body(d, a));
         },
       ),
     );

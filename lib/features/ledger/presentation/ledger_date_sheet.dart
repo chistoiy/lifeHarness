@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/wheel_date.dart' show daysInMonthOf;
 import '../domain/ledger_calc.dart';
+import '../../../shared/widgets/ui_kit.dart';
 
 /// S2 日期/年月/时刻滚轮（原型 sheetLedgerDate · 就地内嵌滚轮，禁点选模拟）。
 /// mode：'day'=年月日三列 · 'month'=年月两列 · 'time'=时分两列。
@@ -365,6 +366,7 @@ class _WheelColState extends State<_WheelCol> {
             child: Text(
               widget.items[i],
               style: TextStyle(
+                fontFeatures: kTabularNumFeatures,
                 fontSize: i == widget.index ? 18 : 11.5,
                 fontWeight: i == widget.index
                     ? FontWeight.w800

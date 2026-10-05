@@ -953,7 +953,8 @@ class _LedgerImportPageState extends ConsumerState<LedgerImportPage> {
               child: Text(
                 '$pre${money(r.amt)}',
                 textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: col),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                    color: col, fontFeatures: kTabularNumFeatures),
               ),
             ),
             SizedBox(

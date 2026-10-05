@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -7,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/ui_kit.dart';
 import '../../data/epub_css.dart';
 import '../../domain/reader_cfg.dart';
 import './reader_bg.dart';
@@ -15,13 +17,20 @@ part 'reader_appearance_subs.dart';
 
 /// 阅读外观草稿制面板（V1.50 批4 · R3-7 微信读书式单层主面板 + 二级页）。
 ///
-/// 口径：改动只进草稿、实时预览；「取消」丢弃、「保存应用」按作用域落库
+/// 口径：改动只进草稿、实时预览；「取消」丢弃（**丢弃可撤销**，见下）、
+/// 「保存应用」按作用域落库
 /// （本书专属＝逐书补丁 kv `reader.cfg.<id>` · 全部书籍＝全局 kv `reader.cfg`）。
 /// R3-7（原型 sheetBrAppearance + sheetBrApSub）：主面板自上而下＝固定预览样张 →
 /// 字号行（行尾「仅当前书籍」开关）→ 边距/行距/字距三列分段 → 两行三入口卡 →
 /// 开关行（两端对齐/常亮/自动翻页）→ 亮度滑杆；字体样式/首行缩进/翻页方式/纸色
 /// 主题/背景图片/简繁收进**同一弹层内部页面栈**的二级页（见 part 文件），
 /// 不再嵌套第二个 showModalBottomSheet（自动翻页间隔滚轮是既有嵌套先例，保留）。
+///
+/// T14（交互整改批四）：面板带着**未保存的草稿**离场时，给一条带「撤销」的提示条，
+/// 点了＝原样带着那份草稿重开面板（「撤销优于确认」口径，撤销基建＝批一 T4 的
+/// [AppToast.showUndo]）。三种离场（取消按钮 / 下滑 / 系统返回）同一路径：
+/// 后两种 Flutter 不给回调，所以草稿态由面板每次重建登记进 [_ApExit]，
+/// 面板关闭后由这里统一判定该不该给找回机会。
 Future<void> showReaderAppearance(
   BuildContext context, {
   required ReaderCfg current,
@@ -30,27 +39,61 @@ Future<void> showReaderAppearance(
   /// 该书解析时留下的「不支持/近似降级」声明（`EpubDoc.unsupported`）。
   /// 非空时开关行下方给一行提示——**画不成也要说出来**（路线说明 §五.2）。
   List<EpubUnsupported> unsupported = const [],
-}) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-  ),
-  builder: (sc) => DraggableScrollableSheet(
-    expand: false,
-    initialChildSize: .86,
-    maxChildSize: .92,
-    builder: (_, scrollCtl) => _ApSheet(
-      initial: current,
-      unsupported: unsupported,
-      scrollCtl: scrollCtl,
-      onSave: (d, book, img) {
-        Navigator.of(sc).pop();
-        onSave(d, book, img);
-      },
-    ),
-  ),
-);
+}) async {
+  /// `start`＝本次打开的起始草稿（首次＝页面现行配置；撤销重开＝被丢弃的草稿）。
+  Future<void> open(ReaderCfg start, String? startImg) async {
+    final exit = _ApExit();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sc) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: .86,
+        maxChildSize: .92,
+        builder: (_, scrollCtl) => _ApSheet(
+          base: current,
+          initial: start,
+          initialPicked: startImg,
+          exit: exit,
+          unsupported: unsupported,
+          scrollCtl: scrollCtl,
+          onSave: (d, book, img) {
+            exit.saved = true; // 保存＝草稿已落库，不再给撤销
+            Navigator.of(sc).pop();
+            onSave(d, book, img);
+          },
+        ),
+      ),
+    );
+    final lost = exit.draft;
+    // 撤销条挂在**页面**的 messenger 上（此时弹层已关，不存在「模态层里挂页面条
+    // 被遮罩压住」那个既定坑）；宿主页已离场就不给条（context.mounted 守护）。
+    if (exit.saved || lost == null || !context.mounted) return;
+    AppToast.showUndo(context, '外观改动已丢弃', onUndo: () {
+      if (exit.saved || !context.mounted) return;
+      unawaited(open(exit.draft ?? lost, exit.pickedImage));
+    });
+  }
+  await open(current, null);
+}
+
+/// 面板 → 宿主的出场登记口（T14）：面板每次重建把「当前是否仍是未保存草稿」写进来。
+///
+/// 为什么不是取消按钮里直接交草稿：下滑与系统返回两条离场路径**不给任何回调**，
+/// 只在关闭后拿到 null；故草稿必须在存活期间持续登记，关闭后由宿主读。
+class _ApExit {
+  /// 有未保存改动时＝那份草稿；无改动（或改动又调回原值）＝null。
+  ReaderCfg? draft;
+
+  /// 草稿配套的相册临时图（面板内选的图，`draft.bgImg` 里没有它）。
+  String? pickedImage;
+
+  /// 走过「保存应用」＝置 true，撤销条不再出现。
+  bool saved = false;
+}
 
 /// 主题键 → 生效 (名称, 底色, 字色)。custom 走 cfg.bg/fg，其余查内置表。
 (String, Color, Color) brThemeResolved(ReaderCfg c) => c.theme == 'custom'
@@ -77,14 +120,27 @@ String apSegNear(Map<String, double> bucket, double cur) {
 
 class _ApSheet extends StatefulWidget {
   const _ApSheet({
+    required this.base,
     required this.initial,
     required this.scrollCtl,
     required this.onSave,
+    required this.exit,
+    this.initialPicked,
     this.unsupported = const [],
   });
+
+  /// 页面**已生效**的配置＝判脏基准（撤销重开时 [initial] 已是草稿，
+  /// 若拿它当基准，「再点一次取消」就会被判成没改动、撤销条消失）。
+  final ReaderCfg base;
   final ReaderCfg initial;
+
+  /// 撤销重开时带回的相册临时图（首次打开＝null）。
+  final String? initialPicked;
   final ScrollController scrollCtl;
   final void Function(ReaderCfg, bool, String?) onSave;
+
+  /// 出场登记口（T14）：见 [_ApExit]。
+  final _ApExit exit;
 
   /// 本书的「不支持/近似降级」声明（打开时一次性给出，草稿改动不影响它）。
   final List<EpubUnsupported> unsupported;
@@ -96,6 +152,12 @@ class _ApSheet extends StatefulWidget {
 class _ApSheetState extends State<_ApSheet> {
   late ReaderCfg _d = widget.initial;
   bool _scopeBook = true;
+
+  /// 上一次交给宿主的草稿态（同实例不重复编码：亮度/字号滑杆每帧都重建，
+  /// 判脏只在**草稿真换了对象**时算一次）。
+  ReaderCfg? _reportedCfg;
+  String? _reportedImg;
+  late final String _baseEnc = widget.base.encode();
 
   /// 提示行文案：逐条 [EpubUnsupported.describe]，**按判定键去重**——
   /// `.name` 的 `border-left` 与 `.name1` 的 `border` 归同一个键 `border`，
@@ -131,10 +193,22 @@ class _ApSheetState extends State<_ApSheet> {
   int _lite = 96;
 
   /// 本次从相册选的图（草稿期用临时路径预览，保存时才落私有目录）。
-  String? _pickedImg;
+  /// `late`＝撤销重开时从宿主那里带回那张临时图（字段初始化器取不到 widget）。
+  late String? _pickedImg = widget.initialPicked;
   String _pickErr = '';
 
   void _set(ReaderCfg next) => setState(() => _d = next);
+
+  /// 出场登记（T14）：把「当前草稿是否仍不同于已生效配置」交给宿主。
+  /// 只在草稿换了对象或换了那张临时图时算一次编码，滑杆拖动不逐帧 json。
+  void _reportExit() {
+    if (identical(_reportedCfg, _d) && _reportedImg == _pickedImg) return;
+    _reportedCfg = _d;
+    _reportedImg = _pickedImg;
+    final dirty = _d.encode() != _baseEnc || _pickedImg != null;
+    widget.exit.draft = dirty ? _d : null;
+    widget.exit.pickedImage = dirty ? _pickedImg : null;
+  }
 
   /// 二级页（part 扩展）统一走宿主这两个口，扩展体内免碰 protected setState。
   void _rebuild(VoidCallback f) => setState(f);
@@ -201,6 +275,8 @@ class _ApSheetState extends State<_ApSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tokens = context.tokens;
+    // T14：面板的每次重建都把草稿态登记给宿主（取消之外的两条离场路径没有回调）。
+    _reportExit();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
       child: Column(

@@ -185,7 +185,7 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
         data: (d) => wA.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('加载失败：$e')),
-          data: (ws) => _body(d, ws),
+          data: (ws) => TabularNums(child: _body(d, ws)),
         ),
       ),
     );

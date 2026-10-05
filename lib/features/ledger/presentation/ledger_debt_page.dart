@@ -174,7 +174,7 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
         data: (d) => tA.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('加载失败：$e')),
-          data: (ts) => _body(d, ts),
+          data: (ts) => TabularNums(child: _body(d, ts)),
         ),
       ),
     );

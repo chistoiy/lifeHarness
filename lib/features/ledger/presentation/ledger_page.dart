@@ -87,7 +87,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (d) => _body(d),
+        data: (d) => TabularNums(child: _body(d)),
       ),
     );
   }
