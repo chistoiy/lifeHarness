@@ -13,13 +13,20 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:enableOnBackInvokedCallback="true">
-        <!-- U2（UX 审计真机批 2026-10-05）：声明本应用走 Android 13+ 预测返回通道。
-             实测记录要写准：6072 带着这行属性装机后，壳层页一次返回**仍退 app**，所以
-             它**不是**那条现象的解（工单 §1 的「go 断历史」与本会话的这个假设都已否证，
-             判法与否证记录＝工单 §4 真机门结果）。留着无害且是 Android 15+ 的常规要求，
-             真正的差异已缩到「壳层根路由上 HomeShell 的 PopScope 拦不住系统默认动作」，
-             待插桩包判「进没进回调」。 -->
+        android:enableOnBackInvokedCallback="false">
+        <!-- U2（UX 审计真机批 2026-10-05）返回通道判别记录，三轮实测都在这里：
+             · 6071（不写该属性）＝一次返回退 app；6072/6073（写 true）＝同样退。
+               targetSdk 35+ 缺省即启用预测返回，所以「不写」与「写 true」同形。
+             · 6073 带插桩实测：壳层页（今天/宫格模块页）按返回后 **120ms 内焦点已离开**，
+               应用内日志页 `U2BACK` 留痕 0 条 ⇒ HomeShell 的 PopScope 根本没被咨询，
+               不是「来不及落盘」（同码在雷电 API28 走 legacy 按键通道，7/7 正常且留痕读到）。
+             · 同机对照：push 路由（记账→统计报表）返回正常弹回 ⇒ Flutter 在「顶路由可弹」时
+               确实注册并处理了回调；壳层是 `canPop:false`，预测返回通道下这个 back 不归它，
+               平台按默认动作把应用挪后台。
+             ⇒ 本轮试 **显式 false**（退回 legacy 按键通道），让壳层那套「今天」唯一根出口
+               判定重新被咨询。判据＝tile_back_probe 七条翻绿＋今天页首次返回出提醒条＋
+               `U2BACK` 留痕出现。若 false 仍退，则回到 Dart 侧改拦截位置（app 根层），
+               不许把这条当已修。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
