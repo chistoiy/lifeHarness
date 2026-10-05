@@ -39,9 +39,22 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
   int? _acctId;
   String? _next;
 
+  // T9（交互整改批三）：校验落在字段旁，不再叠提示条；保存钮防重入。
+  String? _nameErr;
+  String? _amtErr;
+  bool _saving = false;
+
+  /// 失焦刷新：仅在已亮错时复核当前值（不在用户第一次离开空字段时提前催）。
+  late final FocusNode _nameFocus = FocusNode()
+    ..addListener(() {
+      if (_nameFocus.hasFocus || _nameErr == null || !mounted) return;
+      setState(() => _nameErr = _name.text.trim().isEmpty ? _nameErr : null);
+    });
+
   @override
   void dispose() {
     _name.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -63,6 +76,8 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
         _freq = 'month';
         _acctId = null;
         _next = null;
+        _nameErr = null;
+        _amtErr = null;
       });
 
   void _openCreate(LedgerData d) => setState(() {
@@ -70,6 +85,8 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
         _addOpen = true;
         _name.clear();
         _amt = 0;
+        _nameErr = null;
+        _amtErr = null;
         final first = d.majors(LedgerCat.kExpense).where((c) => !c.hidden).firstOrNull;
         _catId = first?.id;
         _sub = '';
@@ -88,15 +105,26 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
         _freq = r.freq;
         _acctId = r.accountId;
         _next = r.nextDate;
+        _nameErr = null;
+        _amtErr = null;
       });
+
+  /// T9：逐字段就地校验（原合并句「请填写名称与金额」拆到两枚字段旁）。
+  void _validate() {
+    _nameErr = _name.text.trim().isEmpty ? '请填写名称' : null;
+    _amtErr = _amt <= 0 ? '请填写金额' : null;
+  }
 
   /// 原型 recAddSave（编辑态走 updateRecur）。
   Future<void> _save(LedgerData d) async {
-    final n = _name.text.trim();
-    if (n.isEmpty || _amt <= 0) {
-      _toast('请填写名称与金额');
+    if (_saving) return;
+    _validate();
+    if (_nameErr != null || _amtErr != null) {
+      setState(() {});
       return;
     }
+    setState(() => _saving = true);
+    final n = _name.text.trim();
     final r = LedgerRecur(
       id: _editId ?? 0,
       bk: d.curBook.id,
@@ -109,16 +137,21 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
       nextDate: _next ?? _today,
       active: true,
     );
-    if (_editId == null) {
-      await _repo.addRecur(r);
-      _toast('周期账单已创建');
-    } else {
-      final old = (await _repo.recurs(d.curBook.id)).firstWhere((x) => x.id == _editId);
-      await _repo.updateRecur(_editId!, r.copyWithKeepBk(old));
-      _toast('周期账单已更新');
+    try {
+      if (_editId == null) {
+        await _repo.addRecur(r);
+        _toast('周期账单已创建');
+      } else {
+        final old =
+            (await _repo.recurs(d.curBook.id)).firstWhere((x) => x.id == _editId);
+        await _repo.updateRecur(_editId!, r.copyWithKeepBk(old));
+        _toast('周期账单已更新');
+      }
+      _closeForm();
+      _tick();
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    _closeForm();
-    _tick();
   }
 
   /// 原型 recGenDue：批量生成到期行（next 推进一个周期），toast 逐字。
@@ -389,32 +422,52 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
                   ),
                   child: TextField(
                     controller: _name,
+                    focusNode: _nameFocus,
                     maxLength: 12,
                     style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
+                    onChanged: (v) {
+                      if (_nameErr != null && v.trim().isNotEmpty) {
+                        setState(() => _nameErr = null);
+                      }
+                    },
+                    decoration: InputDecoration(
                       hintText: '名称 · 如 爱奇艺会员',
                       counterText: '',
+                      errorText: _nameErr,
                       contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () async {
-                  final v = await showLAmountWheel(context,
-                      title: '周期账单金额', value: _amt);
-                  if (v != null) setState(() => _amt = v);
-                },
-                child: chip(
-                  SizedBox(
-                      width: 88,
-                      child: fieldLabel(
-                          _amt > 0 ? money(_amt) : '金额')),
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      final v = await showLAmountWheel(context,
+                          title: '周期账单金额', value: _amt);
+                      if (v != null) {
+                        setState(() {
+                          _amt = v;
+                          if (v > 0) _amtErr = null;
+                        });
+                      }
+                    },
+                    child: chip(
+                      SizedBox(
+                          width: 88,
+                          child: fieldLabel(
+                              _amt > 0 ? money(_amt) : '金额')),
+                    ),
+                  ),
+                  // 滚轮控件没有失焦语义，错误落在它自己下面一行（LH-K32）。
+                  FieldError(_amtErr),
+                ],
               ),
             ],
           ),

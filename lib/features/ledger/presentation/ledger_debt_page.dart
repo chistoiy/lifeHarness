@@ -48,9 +48,23 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
   final _person = TextEditingController();
   double _amount = 0;
 
+  // T9（交互整改批三）：校验落在字段旁，不再叠提示条；保存钮防重入。
+  String? _personErr;
+  String? _amtErr;
+  bool _saving = false;
+
+  /// 失焦刷新：仅在已亮错时复核当前值（不在用户第一次离开空字段时提前催）。
+  late final FocusNode _personFocus = FocusNode()
+    ..addListener(() {
+      if (_personFocus.hasFocus || _personErr == null || !mounted) return;
+      setState(() => _personErr =
+          _person.text.trim().isEmpty ? _personErr : null);
+    });
+
   @override
   void dispose() {
     _person.dispose();
+    _personFocus.dispose();
     super.dispose();
   }
 
@@ -65,6 +79,8 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
         _newSide = 'lend';
         _person.clear();
         _amount = 0;
+        _personErr = null;
+        _amtErr = null;
       });
 
   void _openCreate() => setState(() {
@@ -72,27 +88,37 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
         _newSide = 'lend';
         _person.clear();
         _amount = 0;
+        _personErr = null;
+        _amtErr = null;
       });
 
-  /// 原型 debtAdd：side + person + amount（person/amount 守卫文案同 L2 借贷 tab）。
+  /// T9：逐字段就地校验（文案与 L2 借贷 tab 同句），返回是否可落库。
+  void _validate() {
+    _personErr = _person.text.trim().isEmpty ? '请填写对方' : null;
+    _amtErr = _amount <= 0 ? '请输入金额' : null;
+  }
+
+  /// 原型 debtAdd：side + person + amount（错误落字段旁 · 保存防重入）。
   Future<void> _save(LedgerData d) async {
-    final p = _person.text.trim();
-    if (p.isEmpty) {
-      _toast('请填写对方');
+    if (_saving) return;
+    _validate();
+    if (_personErr != null || _amtErr != null) {
+      setState(() {});
       return;
     }
-    if (_amount <= 0) {
-      _toast('请输入金额');
-      return;
+    setState(() => _saving = true);
+    try {
+      await _repo.addDebt(
+        bk: d.curBook.id,
+        side: _newSide,
+        person: _person.text.trim(),
+        total: _amount,
+      );
+      _closeForm();
+      _tick();
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    await _repo.addDebt(
-      bk: d.curBook.id,
-      side: _newSide,
-      person: p,
-      total: _amount,
-    );
-    _closeForm();
-    _tick();
   }
 
   /// 原型 debtPay：金额滚轮 → 记还款流水 + paid 回写。
@@ -444,37 +470,57 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
                   ),
                   child: TextField(
                     controller: _person,
+                    focusNode: _personFocus,
                     maxLength: 12,
                     style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
+                    onChanged: (v) {
+                      if (_personErr != null && v.trim().isNotEmpty) {
+                        setState(() => _personErr = null);
+                      }
+                    },
+                    decoration: InputDecoration(
                       hintText: '对方',
                       counterText: '',
+                      errorText: _personErr,
                       contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () async {
-                  final v = await showLAmountWheel(context,
-                      title: '借贷金额', value: _amount);
-                  if (v != null) setState(() => _amount = v);
-                },
-                child: chip(
-                  SizedBox(
-                    width: 100,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      child: Text(_amount > 0 ? money(_amount) : '金额',
-                          style: const TextStyle(fontSize: 12)),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      final v = await showLAmountWheel(context,
+                          title: '借贷金额', value: _amount);
+                      if (v != null) {
+                        setState(() {
+                          _amount = v;
+                          if (v > 0) _amtErr = null;
+                        });
+                      }
+                    },
+                    child: chip(
+                      SizedBox(
+                        width: 100,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          child: Text(_amount > 0 ? money(_amount) : '金额',
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  // 滚轮控件没有失焦语义，错误落在它自己下面一行（LH-K32）。
+                  FieldError(_amtErr),
+                ],
               ),
             ],
           ),

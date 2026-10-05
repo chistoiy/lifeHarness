@@ -11,6 +11,18 @@ import 'package:lifeharness/features/ledger/domain/ledger_txn.dart';
 import 'package:lifeharness/features/ledger/presentation/ledger_add_page.dart';
 import 'package:lifeharness/features/ledger/presentation/ledger_providers.dart';
 
+/// T9 防重入用例专用：把落库钉慢，制造「写入进行中」这一帧
+/// （真 IO 在 FakeAsync 下的完成时机不可预测，慢仓才稳）。
+class _SlowLedgerRepo extends LedgerRepository {
+  _SlowLedgerRepo(super.db);
+
+  @override
+  Future<int> addTxn(LedgerTxn t) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return super.addTxn(t);
+  }
+}
+
 /// 记账批1c · L2 记一笔用例。独立文件防 isolate 污染。
 void main() {
   sqfliteFfiInit();
@@ -28,9 +40,10 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Future<void> pump(WidgetTester tester, {LedgerAddPage? page}) async {
+  Future<void> pump(WidgetTester tester,
+      {LedgerAddPage? page, LedgerRepository? data}) async {
     final container = ProviderContainer(
-      overrides: [ledgerRepositoryProvider.overrideWithValue(repo)],
+      overrides: [ledgerRepositoryProvider.overrideWithValue(data ?? repo)],
     );
     addTearDown(container.dispose);
     await tester.pumpWidget(
@@ -108,13 +121,15 @@ void main() {
     expect(find.text('1.50'), findsOneWidget);
   });
 
-  testWidgets('金额=0 保存 → 提示请输入金额；输入后保存 → 落库并回 L1', (tester) async {
+  testWidgets('金额=0 保存 → 金额旁就地报错（T9·不走提示条）；输入后保存 → 落库并回 L1',
+      (tester) async {
     await useSurface(tester);
     await pump(tester);
     await tapKey(tester, '保存');
     expect(find.text('请输入金额'), findsOneWidget);
-    await clearToasts(tester);
+    expect(find.byType(SnackBar), findsNothing); // 就地：不许再挂条
     await tapKey(tester, '8');
+    expect(find.text('请输入金额'), findsNothing); // 金额一有值即撤错
     await tapKey(tester, '8');
     await tapKey(tester, '.');
     await tapKey(tester, '5');
@@ -131,6 +146,21 @@ void main() {
     expect(txns.first.unpaid, false);
     expect(txns.first.nb, false);
     expect(txns.first.who, isNull);
+  });
+
+  testWidgets('保存连点两次只落一条（T9 防重入）', (tester) async {
+    await useSurface(tester);
+    final slow = _SlowLedgerRepo(db); // 写入钉慢，才测得到「进行中」那一帧
+    await pump(tester, data: slow);
+    await tapKey(tester, '6');
+    await tester.tap(find.text('保存'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('L1-STUB'), findsNothing); // 还在写＝页面没跳走
+    await tester.tap(find.text('保存')); // 第二次必须被 _saving 拦掉
+    await tester.pump(const Duration(milliseconds: 600));
+    await settle5(tester);
+    expect(await slow.bookTxns(1), hasLength(1));
+    expect(find.text('L1-STUB'), findsOneWidget);
   });
 
   testWidgets('未付款 chip：只计收支不动余额', (tester) async {
@@ -169,6 +199,7 @@ void main() {
     await tapKey(tester, '9');
     await tapKey(tester, '保存');
     expect(find.text('转出与转入账户不能相同'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing); // T9：互斥校验落账户卡下方
   });
 
   testWidgets('借贷 tab：对方必填，保存直写 ledger_debts', (tester) async {
@@ -178,9 +209,14 @@ void main() {
     await tapKey(tester, '5');
     await tapKey(tester, '0');
     await tapKey(tester, '保存');
-    expect(find.text('请填写对方'), findsOneWidget);
-    await clearToasts(tester);
+    // T9：错误走框架 errorText 挂在「对方」字段旁，不挂提示条。
+    expect(tester.widget<TextField>(find.byType(TextField).first)
+        .decoration!
+        .errorText, '请填写对方');
+    expect(find.byType(SnackBar), findsNothing);
     await tester.enterText(find.byType(TextField).first, '老王');
+    await tester.pump();
+    expect(find.text('请填写对方'), findsNothing); // 输入即撤错
     await tapKey(tester, '保存');
     await settle5(tester);
     final rows = await db.query('ledger_debts');

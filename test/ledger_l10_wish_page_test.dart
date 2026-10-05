@@ -114,8 +114,8 @@ void main() {
     });
   });
 
-  group('3 · 新建表单（校验 toast + 金额滚轮落库）', () {
-    testWidgets('空表单保存→请填写名称与目标金额；取消关闭', (tester) async {
+  group('3 · 新建表单（校验落字段旁 + 金额滚轮落库）', () {
+    testWidgets('空表单保存→名称与目标金额各自亮错；取消关闭', (tester) async {
       await useSurface(tester);
       await pump(tester);
       await tester.tap(find.text('＋ 新建心愿'));
@@ -123,8 +123,13 @@ void main() {
       expect(find.text('新建心愿'), findsOneWidget);
       expect(find.text('心愿名称'), findsOneWidget); // hint
       await tester.tap(find.text('保存'));
-      expect(await pollText(tester, '请填写名称与目标金额'), isTrue);
-      await clearToasts(tester);
+      await settle5(tester);
+      // T9：合并句拆成两枚字段旁错误，且不挂提示条。
+      expect(tester.widget<TextField>(find.byType(TextField))
+          .decoration!
+          .errorText, '请填写心愿名称');
+      expect(find.text('请填写目标金额'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
       await tester.tap(find.text('取消'));
       await settle5(tester);
       expect(find.text('新建心愿'), findsNothing);

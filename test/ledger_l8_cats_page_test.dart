@@ -90,6 +90,29 @@ void main() {
   });
 
   group('2 · 新增/编辑大类（复用 S3 showLCatSheet，无第二套表单）', () {
+    testWidgets('空名称保存→字段旁行内红字（T9·弹层内不借道提示条）',
+        (tester) async {
+      await useSurface(tester);
+      await pump(tester);
+      await tester.tap(find.text('＋ 大类'));
+      await settle5(tester);
+      expect(find.text('新增'), findsOneWidget);
+      await tester.tap(find.byTooltip('保存'));
+      await settle5(tester);
+      expect(tester.widget<TextField>(find.byType(TextField))
+          .decoration!
+          .errorText, '请输入类别名称');
+      expect(find.byType(SnackBar), findsNothing);
+      // 输入即撤错（弹层保持打开）。报错行使输入框变高，
+      // 对着可编辑区（EditableText）聚焦才点得准。
+      await tester.enterText(find.byType(EditableText), '养猫');
+      await settle5(tester);
+      expect(tester.widget<TextField>(find.byType(TextField))
+          .decoration!
+          .errorText, isNull);
+      expect(find.text('新增'), findsOneWidget);
+    });
+
     testWidgets('＋ 大类 → 输入 → 保存 → toast 与左栏出现；编辑改名', (tester) async {
       await useSurface(tester);
       await pump(tester);

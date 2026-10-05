@@ -1281,6 +1281,7 @@ class _CatSheetState extends ConsumerState<_CatSheet> {
   late String _icon;
   String? _color; // null=自动
   late int? _parent;
+  String? _err; // T9（批三）：弹层内校验走行内红字（页面提示条会被遮罩压住看不见）
 
   LedgerCat? _catById;
 
@@ -1300,10 +1301,7 @@ class _CatSheetState extends ConsumerState<_CatSheet> {
   Future<void> _save() async {
     final n = _name.text.trim();
     final repo = ref.read(ledgerRepositoryProvider);
-    if (n.isEmpty) {
-      AppToast.show(context, '请输入类别名称');
-      return;
-    }
+    if (n.isEmpty) { setState(() => _err = '请输入类别名称'); return; }
     if (widget.catId != null) {
       await repo.renameMajorCat(widget.catId!, n);
       await repo.setCatStyle(
@@ -1440,10 +1438,12 @@ class _CatSheetState extends ConsumerState<_CatSheet> {
                     child: TextField(
                       controller: _name,
                       maxLength: 8,
+                      onChanged: (v) { if (_err != null) setState(() => _err = null); },
                       style: const TextStyle(fontSize: 13),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: '请输入类别名称',
                         counterText: '',
+                        errorText: _err,
                         border: InputBorder.none,
                       ),
                     ),

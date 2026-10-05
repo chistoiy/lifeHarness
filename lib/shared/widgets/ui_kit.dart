@@ -107,6 +107,32 @@ class _PressableState extends State<Pressable> {
       );
 }
 
+/// LH-K32 表单就地错误行（T9 · 交互整改批三）：校验失败写在字段旁，不借道提示条。
+///
+/// 口径：文案沿用原 toast 的短句（只换呈现位置，不加解释）；样式＝弹层内提示行既有
+/// 定式（10.5 / w700 / 玫红，见 LH-S03 `_hint`）。`message == null` 时不占位。
+/// 输入框类字段优先走框架 `InputDecoration.errorText`；滚轮/选择器这类
+/// 「点开后回填」的控件没有失焦语义，用本原语在控件下方补一行。
+class FieldError extends StatelessWidget {
+  const FieldError(this.message, {super.key});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = message;
+    if (m == null || m.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 3, left: 4),
+      child: Text(m,
+          style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFF43F5E))),
+    );
+  }
+}
+
 /// LH-T01 胶囊提示：全局统一深色胶囊 SnackBar（样式基线在 app_theme snackBarTheme）。
 class AppToast {
   AppToast._();

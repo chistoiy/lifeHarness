@@ -111,8 +111,9 @@ void main() {
     });
   });
 
-  group('3 · 新建表单（校验 toast + 落库互认）', () {
-    testWidgets('空对方→请填写对方；无金额→请输入金额', (tester) async {
+  group('3 · 新建表单（校验落字段旁 + 落库互认）', () {
+    testWidgets('空对方→对方字段旁报错；无金额→金额下方报错（均不挂提示条）',
+        (tester) async {
       await useSurface(tester);
       await pump(tester);
       await tester.tap(find.text('＋ 记一笔借出 / 借入'));
@@ -120,12 +121,21 @@ void main() {
       expect(find.text('记一笔借出 / 借入'), findsOneWidget);
       expect(find.text('对方'), findsOneWidget); // hint
       await tester.tap(find.text('保存'));
-      expect(await pollText(tester, '请填写对方'), isTrue);
-      await clearToasts(tester);
-      await tester.enterText(find.byType(TextField), '王五');
+      await settle5(tester);
+      // T9：对方＝框架 errorText；金额＝滚轮下方 FieldError 行；两条一次亮齐。
+      expect(tester.widget<TextField>(find.byType(TextField))
+          .decoration!
+          .errorText, '请填写对方');
+      expect(find.text('请输入金额'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+      // 报错行使输入框变高，直接点 TextField 中心会落到错误行上，
+      // 所以这里对着可编辑区（EditableText）聚焦再输入。
+      await tester.enterText(find.byType(EditableText), '王五');
+      await tester.pump();
+      expect(find.text('请填写对方'), findsNothing); // 输入只撤自己那条
       await tester.tap(find.text('保存'));
       expect(await pollText(tester, '请输入金额'), isTrue);
-      await clearToasts(tester);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets('选借入 + 对方 + 滚轮金额 → 落 ledger_debts（同 L2 表）', (tester) async {

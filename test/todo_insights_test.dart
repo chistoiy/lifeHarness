@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
+import 'package:lifeharness/core/logging/app_log.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
@@ -13,6 +14,20 @@ import 'package:lifeharness/features/todo/presentation/todo_page.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import 'helpers.dart';
+
+/// T9 防重入用例专用：把逐条改象限钉慢，才测得到「写入进行中」那一帧
+/// （真 IO 在 FakeAsync 下的完成时机不可预测，慢仓才稳）。
+class _SlowEscalateRepo extends TodoRepository {
+  _SlowEscalateRepo(super.dao, super.bus);
+
+  @override
+  Future<void> moveQuadrant(Todo t, Quadrant q) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return super.moveQuadrant(t, q);
+  }
+}
 
 void main() {
   sqfliteFfiInit();
@@ -119,9 +134,9 @@ void main() {
       await bus.dispose();
     });
 
-    Widget app() => ProviderScope(
+    Widget app({TodoRepository? data}) => ProviderScope(
           overrides: [
-            todoRepositoryProvider.overrideWithValue(repo),
+            todoRepositoryProvider.overrideWithValue(data ?? repo),
             sharedPreferencesProvider.overrideWithValue(prefs),
           ],
           child: const MaterialApp(home: TodoPage()),
@@ -179,6 +194,36 @@ void main() {
       expect(find.text('已升入「重要且紧急」，先救最要紧的火'), findsOneWidget);
       expect(s.id, isNotNull);
       expect(find.byKey(const ValueKey('escalate-card')), findsNothing); // 升完即消失
+    });
+
+    testWidgets('T9 批三：一键升紧急写入期间禁用＋连点只执行一次', (tester) async {
+      final slow = _SlowEscalateRepo(TodoDao(db), bus);
+      await slow.add(Todo(
+          title: '写规划', quadrant: Quadrant.q2,
+          dueAt: DateTime.now().add(const Duration(hours: 3))));
+      await tester.pumpWidget(app(data: slow));
+      await tester.pumpAndSettle();
+      await drainLogTimer(tester); // 先落定建页时留下的节流行
+      int logged() => AppLog.lines
+          .where((l) => l.text.contains('待办一键升紧急'))
+          .length;
+      final before = logged();
+
+      await tester.tap(find.byKey(const ValueKey('escalate-go')));
+      await tester.pump(const Duration(milliseconds: 100)); // 第一条还在 await
+      expect(
+          tester
+              .widget<TextButton>(
+                  find.byKey(const ValueKey('escalate-go')))
+              .onPressed,
+          isNull,
+          reason: '批量改写进行中，按钮必须处于禁用帧（否则连点=重复写库）');
+      await tester.tap(find.byKey(const ValueKey('escalate-go'))); // 点不动
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
+      await drainLogTimer(tester);
+      expect(logged() - before, 1, reason: '连点两次只许执行一次批量改写');
+      expect((await slow.list()).single.quadrant, Quadrant.q1);
     });
 
     testWidgets('设置关闭升级建议后卡片不再出现', (tester) async {

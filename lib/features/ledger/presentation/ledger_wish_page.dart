@@ -44,9 +44,22 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
   final _name = TextEditingController();
   double _target = 0;
 
+  // T9（交互整改批三）：校验落在字段旁，不再叠提示条；保存钮防重入。
+  String? _nameErr;
+  String? _targetErr;
+  bool _saving = false;
+
+  /// 失焦刷新：仅在已亮错时复核当前值（不在用户第一次离开空字段时提前催）。
+  late final FocusNode _nameFocus = FocusNode()
+    ..addListener(() {
+      if (_nameFocus.hasFocus || _nameErr == null || !mounted) return;
+      setState(() => _nameErr = _name.text.trim().isEmpty ? _nameErr : null);
+    });
+
   @override
   void dispose() {
     _name.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -61,6 +74,8 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
         _editId = null;
         _name.clear();
         _target = 0;
+        _nameErr = null;
+        _targetErr = null;
       });
 
   void _openCreate() => setState(() {
@@ -68,6 +83,8 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
         _formOpen = true;
         _name.clear();
         _target = 0;
+        _nameErr = null;
+        _targetErr = null;
       });
 
   void _openEdit(LedgerWish w) => setState(() {
@@ -75,21 +92,36 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
         _formOpen = true;
         _name.text = w.name;
         _target = w.target;
+        _nameErr = null;
+        _targetErr = null;
       });
 
+  /// T9：逐字段就地校验（原合并句「请填写名称与目标金额」拆到两枚字段旁）。
+  void _validate() {
+    _nameErr = _name.text.trim().isEmpty ? '请填写心愿名称' : null;
+    _targetErr = _target <= 0 ? '请填写目标金额' : null;
+  }
+
   Future<void> _save(LedgerData d) async {
-    final n = _name.text.trim();
-    if (n.isEmpty || _target <= 0) {
-      _toast('请填写名称与目标金额');
+    if (_saving) return;
+    _validate();
+    if (_nameErr != null || _targetErr != null) {
+      setState(() {});
       return;
     }
-    if (_editId == null) {
-      await _repo.addWish(bk: d.curBook.id, name: n, target: _target);
-    } else {
-      await _repo.updateWish(_editId!, name: n, target: _target);
+    setState(() => _saving = true);
+    final n = _name.text.trim();
+    try {
+      if (_editId == null) {
+        await _repo.addWish(bk: d.curBook.id, name: n, target: _target);
+      } else {
+        await _repo.updateWish(_editId!, name: n, target: _target);
+      }
+      _closeForm();
+      _tick();
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    _closeForm();
-    _tick();
   }
 
   /// 原型 wishSave：金额滚轮 → saved += v（不落流水）。
@@ -402,37 +434,58 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
                   ),
                   child: TextField(
                     controller: _name,
+                    focusNode: _nameFocus,
                     maxLength: 12,
                     style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
+                    onChanged: (v) {
+                      if (_nameErr != null && v.trim().isNotEmpty) {
+                        setState(() => _nameErr = null);
+                      }
+                    },
+                    decoration: InputDecoration(
                       hintText: '心愿名称',
                       counterText: '',
+                      errorText: _nameErr,
                       contentPadding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () async {
-                  final v = await showLAmountWheel(context,
-                      title: '目标金额', value: _target);
-                  if (v != null) setState(() => _target = v);
-                },
-                child: chip(
-                  SizedBox(
-                    width: 100,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      child: Text(_target > 0 ? '目标 ${money(_target)}' : '目标金额',
-                          style: const TextStyle(fontSize: 12)),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      final v = await showLAmountWheel(context,
+                          title: '目标金额', value: _target);
+                      if (v != null) {
+                        setState(() {
+                          _target = v;
+                          if (v > 0) _targetErr = null;
+                        });
+                      }
+                    },
+                    child: chip(
+                      SizedBox(
+                        width: 100,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          child: Text(
+                              _target > 0 ? '目标 ${money(_target)}' : '目标金额',
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  // 滚轮控件没有失焦语义，错误落在它自己下面一行（LH-K32）。
+                  FieldError(_targetErr),
+                ],
               ),
             ],
           ),

@@ -194,59 +194,91 @@ class TodoListView extends ConsumerWidget {
             ),
           ),
         // M0末B 临期升紧急建议卡：Q2 任务已逾期/24h 内到期 → 一键升入「重要且紧急」
+        // （T9 批三：整卡外提成 _EscalateCard，逐条 await 的批量改写要防重入；
+        //  key 必须留在列表子项上——ReorderableListView 断言全部子项带 key）
         if (escalate.isNotEmpty)
-          Container(
-            key: const ValueKey('escalate-card'),
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: .08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: .3)),
-            ),
-            child: Row(
+          _EscalateCard(key: const ValueKey('escalate-card'), todos: escalate),
+      ],
+    ),
+    );
+  }
+}
+
+/// 临期升紧急建议卡（M0末B）：按钮一次改多条，需防连点重复写库（T9）。
+/// key 由父侧给（列表子项必须带 key），卡内不再重复挂。
+class _EscalateCard extends ConsumerStatefulWidget {
+  const _EscalateCard({super.key, required this.todos});
+
+  final List<Todo> todos;
+
+  @override
+  ConsumerState<_EscalateCard> createState() => _EscalateCardState();
+}
+
+class _EscalateCardState extends ConsumerState<_EscalateCard> {
+  bool _saving = false;
+
+  Future<void> _escalate() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final repo = ref.read(todoRepositoryProvider);
+    final escalate = widget.todos;
+    try {
+      for (final t in escalate) {
+        await repo.moveQuadrant(t, Quadrant.q1);
+      }
+      // 一次改多条，留「改了哪些 id」才可能事后逐条核对。
+      AppLog.addKey('待办一键升紧急：${escalate.length} 项 重要不紧急→重要且紧急 '
+          '（id ${escalate.map((t) => t.id).join('/')}）');
+      ref.invalidate(todosProvider);
+      ref.invalidate(overdueCountProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+            content: Text('已升入「重要且紧急」，先救最要紧的火'),
+            duration: Duration(milliseconds: 1600)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final escalate = widget.todos;
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: .3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('📌', style: TextStyle(fontSize: 15)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📌', style: TextStyle(fontSize: 15)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${escalate.length} 项「重要不紧急」已临近截止。',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      Text('再不动手就会变成救火任务，建议升入紧急象限排优先。',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  key: const ValueKey('escalate-go'),
-                  onPressed: () async {
-                    final repo = ref.read(todoRepositoryProvider);
-                    for (final t in escalate) {
-                      await repo.moveQuadrant(t, Quadrant.q1);
-                    }
-                    // 一次改多条，留「改了哪些 id」才可能事后逐条核对。
-                    AppLog.addKey('待办一键升紧急：${escalate.length} 项 重要不紧急→重要且紧急 '
-                        '（id ${escalate.map((t) => t.id).join('/')}）');
-                    ref.invalidate(todosProvider);
-                    ref.invalidate(overdueCountProvider);
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(
-                          content: Text('已升入「重要且紧急」，先救最要紧的火'),
-                          duration: Duration(milliseconds: 1600)));
-                  },
-                  style: TextButton.styleFrom(foregroundColor: const Color(0xFFB45309)),
-                  child: const Text('一键升紧急', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
+                Text('${escalate.length} 项「重要不紧急」已临近截止。',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                Text('再不动手就会变成救火任务，建议升入紧急象限排优先。',
+                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
               ],
             ),
           ),
-      ],
-    ),
+          TextButton(
+            key: const ValueKey('escalate-go'),
+            onPressed: _saving ? null : _escalate,
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB45309)),
+            child: const Text('一键升紧急', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
     );
   }
 }

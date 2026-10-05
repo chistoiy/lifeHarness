@@ -12,6 +12,18 @@ import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+/// T9 防重入用例专用：把插入钉慢，制造「写入进行中」那一帧
+/// （真 IO 在 FakeAsync 下的完成时机不可预测，慢仓才稳）。
+class _SlowTodoRepo extends TodoRepository {
+  _SlowTodoRepo(super.dao, super.bus);
+
+  @override
+  Future<Todo> add(Todo t) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return super.add(t);
+  }
+}
+
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,9 +50,9 @@ void main() {
     await bus.dispose();
   });
 
-  Widget app() => ProviderScope(
+  Widget app({TodoRepository? data}) => ProviderScope(
         overrides: [
-          todoRepositoryProvider.overrideWithValue(repo),
+          todoRepositoryProvider.overrideWithValue(data ?? repo),
           sharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: const MaterialApp(home: TodoPage()),
@@ -74,6 +86,51 @@ void main() {
     expect(saved.single.title, '救火任务');
     expect(saved.single.quadrant, Quadrant.q1);
     expect(find.text('已保存到「重要且紧急」象限 ✓'), findsOneWidget);
+  });
+
+  testWidgets('T9 批三：空标题就地报错（不挂提示条）＋保存连点只落一条',
+      (tester) async {
+    final slow = _SlowTodoRepo(TodoDao(db), bus); // 写入钉慢才测得到「进行中」
+    await tester.pumpWidget(app(data: slow));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('✅ 普通待办'));
+    await tester.pumpAndSettle();
+    expect(find.text('新建待办'), findsOneWidget);
+
+    // 空标题点保存：错误挂字段旁，弹层内不借道页面提示条
+    await tester.tap(find.text('保存'));
+    await tester.pump();
+    expect(
+        tester
+            .widget<TextField>(find.byType(TextField).first)
+            .decoration!
+            .errorText,
+        '请先输入任务标题');
+    expect(find.byType(SnackBar), findsNothing);
+
+    // 报错行使输入框变高，点对 TextField 中心会落到错误行上，
+    // 所以对着可编辑区（EditableText）聚焦再输入。
+    await tester.enterText(
+        find.descendant(
+            of: find.byType(TextField).first,
+            matching: find.byType(EditableText)),
+        '一条任务');
+    await tester.pump();
+    expect(find.text('请先输入任务标题'), findsNothing); // 输入即撤错
+
+    // 连点两次：第一次逐条 await 未完时，第二次不许再写一遍
+    await tester.ensureVisible(find.text('保存'));
+    await tester.tap(find.text('保存'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('新建待办'), findsOneWidget); // 还在写＝弹层没关
+    await tester.tap(find.text('保存'));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    final saved = await repo.list();
+    expect(saved, hasLength(1));
+    expect(saved.single.title, '一条任务');
   });
 
   testWidgets('勾选完成 → L2 联动 toast，任务划线保留', (tester) async {

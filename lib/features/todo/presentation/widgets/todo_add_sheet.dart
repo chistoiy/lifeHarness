@@ -39,6 +39,19 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   int _remind = 1; // 0 不提醒 1 当天HH:MM(默认09:00) 2 提前1小时 3 自定义时刻
   TimeOfDay _remindAt = const TimeOfDay(hour: 9, minute: 0); // 自定义提醒时刻
 
+  // T9（交互整改批三）：标题必填的反馈落字段旁（弹层内行内红字，不借道页面条），
+  // 保存钮防重入。
+  String? _titleErr;
+  bool _saving = false;
+
+  /// 失焦刷新：仅在已亮错时复核当前值（不在用户第一次离开空字段时提前催）。
+  late final FocusNode _titleFocus = FocusNode()
+    ..addListener(() {
+      if (_titleFocus.hasFocus || _titleErr == null || !mounted) return;
+      setState(
+          () => _titleErr = _title.text.trim().isEmpty ? _titleErr : null);
+    });
+
   // ===== 原型 sheetAddTask 扩展字段 =====
   late final String _type = widget.editing != null
       ? (widget.editing!.isPomo ? 'pomo' : 'norm')
@@ -183,7 +196,8 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   Future<void> _aiQuadrant() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      _toast(context, 'AI 判象限：请先输入任务标题');
+      // T9：标题必填就地报错（弹层内行内红字；页面条会被遮罩压在弹层后看不见）。
+      setState(() => _titleErr = 'AI 判象限：请先输入任务标题');
       return;
     }
     final result = await aiRunWithReview(context, ref,
@@ -199,11 +213,14 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
-      _toast(context, '请先输入任务标题');
+      // T9：就地报错，不借道页面提示条（模态弹层里看不见）。
+      setState(() => _titleErr = '请先输入任务标题');
       return;
     }
+    _saving = true;
     DateTime? remindAt;
     if (_remind == 1) {
       remindAt = DateTime(
@@ -272,6 +289,7 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
     }
     ref.invalidate(todosProvider);
     ref.invalidate(overdueCountProvider);
+    _saving = false; // 弹层随即 pop；异常路径留在 true 只影响本弹层，重开即复位
     if (!mounted) return;
     Navigator.of(context).pop();
     _toast(context, _isEdit ? '修改已保存 ✓' : '已保存到「${q.label}」象限 ✓');
@@ -298,9 +316,17 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
             // V1.27 T4：类型由 FAB 前置二选一决定，弹层内不再放类型段；名称置顶。
             TextField(
               controller: _title,
+              focusNode: _titleFocus,
               autofocus: !_isEdit,
-              decoration: const InputDecoration(
-                  hintText: '任务标题，如：给绿植浇水', isDense: true),
+              onChanged: (v) {
+                if (_titleErr != null && v.trim().isNotEmpty) {
+                  setState(() => _titleErr = null);
+                }
+              },
+              decoration: InputDecoration(
+                  hintText: '任务标题，如：给绿植浇水',
+                  isDense: true,
+                  errorText: _titleErr),
               textInputAction: TextInputAction.next,
             ),
             // ===== V1.27 T5：番茄配置卡（倒计时=横向进度条 1~60 分 + 5/15/30/45 快捷点） =====

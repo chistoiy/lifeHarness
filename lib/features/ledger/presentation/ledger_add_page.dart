@@ -74,12 +74,27 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
   bool _inited = false;
   int _opIdx = 0;
 
+  // T9（交互整改批三）：校验落字段旁（null=无错）＋保存/再记防重入。
+  String? _personErr;
+  String? _amtErr;
+  String? _acctErr;
+  bool _saving = false;
+
+  /// 失焦刷新：仅在已亮错时复核当前值（不在用户第一次离开空字段时提前催）。
+  late final FocusNode _personFocus = FocusNode()
+    ..addListener(() {
+      if (_personFocus.hasFocus || _personErr == null || !mounted) return;
+      setState(
+          () => _personErr = _f.person.trim().isEmpty ? _personErr : null);
+    });
+
   static const _ops = ['+', '−', '×', '÷'];
 
   @override
   void dispose() {
     _noteCtl.dispose();
     _personCtl.dispose();
+    _personFocus.dispose();
     super.dispose();
   }
 
@@ -139,6 +154,10 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       _ => 101,
     };
     _f.sub = '';
+    // 换 tab 时旧校验不残留（各 tab 必填面不同）。
+    _personErr = null;
+    _amtErr = null;
+    _acctErr = null;
   }
 
   // ---- 键盘（§4：数字追加/小数点唯一/段长限 9；运算符经 ⌗ 轮插） ----
@@ -161,103 +180,113 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
         if (tail.length >= 9) return;
         _f.expr += k;
       }
+      // 金额一有值就把「请输入金额」那行撤掉（就地报错只反映当前态）。
+      if (_amtErr != null && exprVal(_f.expr) > 0) _amtErr = null;
     });
   }
 
   double get _amt => exprVal(_f.expr);
 
+  /// T9：保存前逐字段就地校验（文案沿用原提示条短句，只换呈现位置）。
+  /// 返回是否仍有错；调用方负责 setState 重绘。
+  bool _markErrors(double amt) {
+    _personErr = _f.kind == txTabDebt && _f.person.trim().isEmpty
+        ? '请填写对方'
+        : null;
+    _amtErr = amt > 0
+        ? null
+        : _f.kind == LedgerTxn.kTransfer
+            ? '请输入转账金额'
+            : '请输入金额';
+    _acctErr = _f.kind == LedgerTxn.kTransfer && _f.acct == _f.to
+        ? '转出与转入账户不能相同'
+        : null;
+    return _personErr != null || _amtErr != null || _acctErr != null;
+  }
+
   // ---- 保存（§4 校验 + 统一写路径五处联动） ----
 
   Future<void> _save({bool stay = false}) async {
+    if (_saving) return;
     final d = ref.read(ledgerDataProvider).valueOrNull;
     if (d == null) return;
     final repo = ref.read(ledgerRepositoryProvider);
     final amt = _amt;
-    if (_f.kind == txTabDebt) {
-      if (_f.person.trim().isEmpty) {
-        _toast('请填写对方');
-        return;
-      }
-      if (amt <= 0) {
-        _toast('请输入金额');
-        return;
-      }
-      await repo.addDebt(
-        bk: d.curBook.id,
-        side: _f.debtDir,
-        person: _f.person.trim(),
-        total: amt,
-        note: _f.note.trim().isEmpty ? '记一笔借贷' : _f.note.trim(),
-      );
-      ledgerTouch(ref);
-      _toast('${_f.debtDir == 'lend' ? '借出' : '借入'} ${money(amt)} 已记入借贷'
-          ' · ${_f.person.trim()}');
-      if (mounted) context.go('/ledger');
+    if (_markErrors(amt)) {
+      setState(() {});
       return;
     }
-    if (_f.kind == LedgerTxn.kTransfer) {
-      if (amt <= 0) {
-        _toast('请输入转账金额');
-        return;
-      }
-      if (_f.acct == _f.to) {
-        _toast('转出与转入账户不能相同');
-        return;
-      }
-    } else if (amt <= 0) {
-      _toast('请输入金额');
-      return;
-    }
-    final tags = [..._f.tags];
-    if (_f.reim && !tags.contains('报销')) tags.add('报销');
-    final isEdit = widget.editId != null;
-    final note = _f.note.trim();
-    final txn = LedgerTxn(
-      id: isEdit ? widget.editId! : 0,
-      kind: _f.kind,
-      amt: amt,
-      catId: _f.kind == LedgerTxn.kTransfer ? 114 : _f.cat,
-      sub: _f.kind == LedgerTxn.kTransfer ? '' : _f.sub,
-      accountId: _f.acct!,
-      toAccountId: _f.kind == LedgerTxn.kTransfer ? _f.to : null,
-      date: _f.date,
-      time: _f.time,
-      note: note.isEmpty && _f.kind == LedgerTxn.kTransfer
-          ? '${d.acct(_f.acct)?.name} → ${d.acct(_f.to)?.name}'
-          : note,
-      tags: tags,
-      bk: d.curBook.id,
-      unpaid: !_f.paid,
-      nb: !_f.incB,
-      merchant: _f.merchant.isEmpty ? null : _f.merchant,
-      who: _f.who == d.whoDef ? null : _f.who,
-    );
-    if (isEdit) {
-      await repo.editTxn(txn.id, txn.toRow()..remove('id'));
-      _toast('已更新流水 · 各视图同步回算');
-    } else {
-      await repo.addTxn(txn);
-      _toast('已记一笔 · ${money(amt)} · ${d.curBook.name}');
-    }
-    // V1.57 B 批：本笔落库后检查预算 80%/100% 档（同档期各一次 · 免打扰顺延）。
+    setState(() => _saving = true);
     try {
-      await checkBudgetAlert(
-          repo, dnd: ref.read(settingsRepositoryProvider).load().notify.dnd);
-    } catch (e) {
-      AppLog.add('预算超支提醒检查失败：$e', level: LhLevel.warn, src: '记账');
+      if (_f.kind == txTabDebt) {
+        await repo.addDebt(
+          bk: d.curBook.id,
+          side: _f.debtDir,
+          person: _f.person.trim(),
+          total: amt,
+          note: _f.note.trim().isEmpty ? '记一笔借贷' : _f.note.trim(),
+        );
+        ledgerTouch(ref);
+        _toast('${_f.debtDir == 'lend' ? '借出' : '借入'} ${money(amt)} 已记入借贷'
+            ' · ${_f.person.trim()}');
+        if (mounted) context.go('/ledger');
+        return;
+      }
+      final tags = [..._f.tags];
+      if (_f.reim && !tags.contains('报销')) tags.add('报销');
+      final isEdit = widget.editId != null;
+      final note = _f.note.trim();
+      final txn = LedgerTxn(
+        id: isEdit ? widget.editId! : 0,
+        kind: _f.kind,
+        amt: amt,
+        catId: _f.kind == LedgerTxn.kTransfer ? 114 : _f.cat,
+        sub: _f.kind == LedgerTxn.kTransfer ? '' : _f.sub,
+        accountId: _f.acct!,
+        toAccountId: _f.kind == LedgerTxn.kTransfer ? _f.to : null,
+        date: _f.date,
+        time: _f.time,
+        note: note.isEmpty && _f.kind == LedgerTxn.kTransfer
+            ? '${d.acct(_f.acct)?.name} → ${d.acct(_f.to)?.name}'
+            : note,
+        tags: tags,
+        bk: d.curBook.id,
+        unpaid: !_f.paid,
+        nb: !_f.incB,
+        merchant: _f.merchant.isEmpty ? null : _f.merchant,
+        who: _f.who == d.whoDef ? null : _f.who,
+      );
+      if (isEdit) {
+        await repo.editTxn(txn.id, txn.toRow()..remove('id'));
+        _toast('已更新流水 · 各视图同步回算');
+      } else {
+        await repo.addTxn(txn);
+        _toast('已记一笔 · ${money(amt)} · ${d.curBook.name}');
+      }
+      // V1.57 B 批：本笔落库后检查预算 80%/100% 档（同档期各一次 · 免打扰顺延）。
+      try {
+        await checkBudgetAlert(repo,
+            dnd: ref.read(settingsRepositoryProvider).load().notify.dnd);
+      } catch (e) {
+        AppLog.add('预算超支提醒检查失败：$e',
+            level: LhLevel.warn, src: '记账');
+      }
+      ledgerTouch(ref);
+      // 再记=必留；保存=按 afterSave 设置（back 回 L1 · stay 清金额留表单）。
+      final back = !stay && d.afterSave == 'back';
+      if (back) {
+        if (mounted) context.go('/ledger');
+        return;
+      }
+      setState(() {
+        _f.expr = '';
+        _f.note = '';
+        _noteCtl.clear();
+        _amtErr = null;
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    ledgerTouch(ref);
-    // 再记=必留；保存=按 afterSave 设置（back 回 L1 · stay 清金额留表单）。
-    final back = !stay && d.afterSave == 'back';
-    if (back) {
-      if (mounted) context.go('/ledger');
-      return;
-    }
-    setState(() {
-      _f.expr = '';
-      _f.note = '';
-      _noteCtl.clear();
-    });
   }
 
   @override
@@ -577,6 +606,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                   color: amtColor,
                 ),
               ),
+              // T9：金额校验落金额旁（就地，不叠提示条）。
+              FieldError(_amtErr),
               if (RegExp(r'[+−×÷]').hasMatch(_f.expr))
                 Text(
                   '${_f.expr} =',
@@ -662,9 +693,16 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
       const SizedBox(height: 10),
       TextField(
         controller: _personCtl,
-        onChanged: (v) => _f.person = v,
+        focusNode: _personFocus,
+        onChanged: (v) {
+          _f.person = v;
+          if (_personErr != null && v.trim().isNotEmpty) {
+            setState(() => _personErr = null);
+          }
+        },
         style: const TextStyle(fontSize: 13),
-        decoration: const InputDecoration(hintText: '对方（如：老王）'),
+        decoration:
+            InputDecoration(hintText: '对方（如：老王）', errorText: _personErr),
       ),
       const SizedBox(height: 12),
       Row(
@@ -674,6 +712,8 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
             money(_amt),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
           ),
+          // T9：金额校验落金额旁。
+          FieldError(_amtErr),
         ],
       ),
     ];
@@ -702,11 +742,15 @@ class _LedgerAddPageState extends ConsumerState<LedgerAddPage> {
                   } else {
                     _f.to = id;
                   }
+                  _acctErr = null;
                 });
               }
             },
           ),
         ),
+      // T9：金额与「同账户互斥」都落在卡片下方，不再只弹提示条。
+      FieldError(_amtErr),
+      FieldError(_acctErr),
     ];
   }
 

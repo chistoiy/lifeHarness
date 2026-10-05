@@ -187,6 +187,7 @@
 
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 / 可调旋钮 |
 |---|---|---|---|---|
+| LH-K00 | 按压反馈原语（批二 T5） | 无独立屏（全 app 通用态） | ui_kit `Pressable` | `Listener` 只观察指针不进手势竞技场；按下 `AnimatedScale(.96)`、抬起/取消复原；选 scale 不选 splash（要能安全套进横滑列表与卡片，splash 需 Material 祖先且在滚动面留残影）；`enabled=false` 时零开销直通 |
 | LH-K01 | 渐变悬浮钮 FAB | .fab | core/widgets/grad_fab.dart:9 GradFab | 渐变+白＋；尺寸/位置 |
 | LH-K02 | FAB 行卡 | fabGo 行 | grad_fab.dart:66 FabActionCard | 快捷记录展开项（首页/待办共用） |
 | LH-K03 | 胶囊筛选 chip | .chip/.chip-on | ui_kit `PillChip`（journal 全部/列表/INS、待办筛选同源化） | 选中=accent 底白字；未选=卡底描边；字号/圆角/间距 |
@@ -218,6 +219,7 @@
 | LH-K29 | **线性图标原语 kit-ico**（V1.47） | `KIT_ICOS` + `kitSvg()`（index-kits） | 规划 `lib/shared/widgets/lh_icons.dart` 图标表 | `svg.kit-ico{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.7;round}`；**新增工具/分类只往表里加键**，不在 UI 处内联画路径；缺键回落 `_def` 而非 emoji；分类名与图标解耦（`cat-网络` 这类键查表，名字本身保持纯词）；**齿轮用标准齿形路径，禁用形似太阳的辐条式画法**（沿用 LH-K14 旧口径） |
 | LH-K30 | **掩码密钥输入 + 眼睛切换**（V1.53.1） | `#apKey`/`#gkKey` + `apPeek()` | `ai_page.dart` Key 卡与服务商表单 | **默认掩码**（HTML `type=password` / Flutter `obscureText: true`），右侧线性 SVG 眼睛点切明文、再点回掩码，**禁 emoji 眼睛**；编辑已有条目时把已存 Key 掩码预填并在下方给状态提示「已存 Key（末 4 位 xxxx）· 覆盖即改，清空后保存＝删除该 Key」；明文只在本机显示，绝不进日志/备份/同步 |
 | LH-K31 | **服务商条目行**（V1.53.1） | `#aiProvList`（`aiProvRender()`） | `ai_page.dart` `_ProviderRow` | 一行两条信息带：上行＝名称（+「预置」徽）＋动作区（当前＝绿点「● 当前」文字，非当前＝「选用」；一律给「编辑」，非当前再加红字「删」）；下行＝Base URL 等宽省略号 ＋「模型 · 协议 · Key 已单独保存/沿用旧全局 Key/未填」，`http://` 端点追加黄字「http 明文（局域网）」。**当前端点不给删除入口**（数据层同样拒删，双保险） |
+| LH-K32 | **表单就地错误行**（批三 T9） | 原型侧仍是 toast（`index-ledger.html` 各 save 分支，待回灌） | ui_kit `FieldError` | 校验失败写**在字段旁**，不借道提示条（模态弹层里页面 SnackBar 会被遮罩压住看不见＝既定坑）。文案＝原短句一字不动（只换呈现位置），必填类按字段拆开各写各的（「请填写名称与目标金额」→「请填写心愿名称」＋「请填写目标金额」）。样式＝LH-S03 `_hint` 定式：10.5 / w700 / 玫红 `F43F5E`；`message` 为 null 或空串时不占位。**输入框优先走框架 `InputDecoration.errorText`**（自带红字与描边联动），滚轮/选择卡这类「点开回填」的控件没有失焦语义，才用本原语在其下方补一行；失焦只**复核已亮错的那枚**，不在用户第一次离开空字段时提前催 |
 
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 |
 |---|---|---|---|---|
