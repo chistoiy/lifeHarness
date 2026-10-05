@@ -1,5 +1,5 @@
 {
- "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。",
+ "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。 【size/hash 两列的口径与盲区（2026-10-05 实测）】size＝`tools/pslice.js` 取块字符数，随内容变、可信；hash＝登记时写的 md5 前 8 位，但**算法不统一**：255 条里 146 条可用「pslice 块 md5[:8]」复现、122 条 size 相同而 hash 复现不了（登记侧块边界/归一不同）、34 条 size 已随内容漂移、380 处登记的块在文件里已不存在（越权副本删除所致）。`tools/protogate.py` 只校验归属/登记/别名/勿复活，**没有任何工具读 size/hash**——这两列是人读台账，不是闸；按统一口径重算并回写请单列一批（见 `docs/排期池.md`）。",
  "updated": "2026-10-04",
  "gateMode": "strict",
  "cutPolicy": {
