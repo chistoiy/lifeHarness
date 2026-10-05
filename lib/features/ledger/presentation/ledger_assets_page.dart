@@ -27,7 +27,6 @@ class LedgerAssetsPage extends ConsumerWidget {
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

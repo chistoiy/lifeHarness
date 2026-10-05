@@ -318,7 +318,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
     final on = xrUserDictOn(ref);
     final rows = _filtered;
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('X-Ray 中心')),
+      appBar: AppBar(title: const Text('X-Ray 中心')),
       body: Column(
         children: [
           _segTabs(cs),

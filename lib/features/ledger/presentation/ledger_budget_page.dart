@@ -84,7 +84,6 @@ class _LedgerBudgetPageState extends ConsumerState<LedgerBudgetPage> {
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

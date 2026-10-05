@@ -1165,7 +1165,6 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
 
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Text(
           // 标题三态（原型 bfRender）：编辑 / 豆瓣带入 / 手动。
           widget.bookId != null

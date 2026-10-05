@@ -182,7 +182,6 @@ class _LedgerRecurPageState extends ConsumerState<LedgerRecurPage> {
     final rA = ref.watch(ledgerRecurProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

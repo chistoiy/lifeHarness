@@ -899,7 +899,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     return Scaffold(
       // 轮12-6/8：头部仅返回钮 + 居中日期周几（无标题/篇序/字数/保存态/搜索）
       appBar: AppBar(
-        centerTitle: true,
         title: Text(_headerDate,
             key: const ValueKey('diary-head-date'),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),

@@ -31,7 +31,6 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage> {
     final async = ref.watch(itemsDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

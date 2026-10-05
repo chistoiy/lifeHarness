@@ -225,7 +225,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     final tokens = context.tokens;
     final sec = _secs[_sec];
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('阅读设置')),
+      appBar: AppBar(title: const Text('阅读设置')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

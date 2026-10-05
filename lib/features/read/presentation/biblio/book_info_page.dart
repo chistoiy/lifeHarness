@@ -57,7 +57,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
         .firstOrNull;
     if (b == null) {
       return Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text('书籍资料')),
+        appBar: AppBar(title: const Text('书籍资料')),
         body: const SizedBox.shrink(),
       );
     }
@@ -90,7 +90,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
 
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true, // 轮5：页面标题居中
+        // 轮5：页面标题居中
         title: Text('书籍资料', style: const TextStyle(fontSize: 15)),
         actions: [
           IconButton(

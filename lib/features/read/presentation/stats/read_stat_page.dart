@@ -196,7 +196,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
       (i) => 2021 + i,
     );
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('阅读统计')),
+      appBar: AppBar(title: const Text('阅读统计')),
       body: s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(

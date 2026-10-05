@@ -42,7 +42,6 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     final async = ref.watch(itemsDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

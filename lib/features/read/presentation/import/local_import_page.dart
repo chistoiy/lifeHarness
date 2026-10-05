@@ -200,7 +200,6 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('导入本地图书', style: TextStyle(fontSize: 15)),
       ),
       body: SafeArea(

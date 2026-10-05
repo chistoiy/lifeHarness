@@ -125,7 +125,7 @@ class _ReadImportPageState extends ConsumerState<ReadImportPage> {
     final pack = _pack;
     final ch = _ch;
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('导入其他平台读书笔记')),
+      appBar: AppBar(title: const Text('导入其他平台读书笔记')),
       body: pack == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(

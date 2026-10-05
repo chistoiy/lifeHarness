@@ -114,7 +114,6 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
     final tokens = context.tokens;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('添加图书', style: TextStyle(fontSize: 15)),
       ),
       body: Padding(

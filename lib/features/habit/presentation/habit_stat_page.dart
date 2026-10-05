@@ -328,7 +328,6 @@ class _HabitStatPageState extends ConsumerState<HabitStatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           children: [
             const Text('习惯统计', style: TextStyle(fontSize: 16)),

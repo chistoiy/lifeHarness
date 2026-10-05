@@ -256,7 +256,6 @@ class _HabitDetailPageState extends ConsumerState<HabitDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           children: [
             const Text('习惯详情', style: TextStyle(fontSize: 16)),

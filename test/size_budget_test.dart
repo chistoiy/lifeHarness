@@ -20,19 +20,19 @@ void main() {
     // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
     // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
     'features/read/presentation/shelf/book_detail.dart': 1579,
-    'features/habit/presentation/habit_detail_page.dart': 1521,
-    'features/habit/presentation/habit_stat_page.dart': 1504,
-    'features/read/presentation/stats/read_stat_page.dart': 1383,
+    'features/habit/presentation/habit_detail_page.dart': 1520,
+    'features/habit/presentation/habit_stat_page.dart': 1503,
+    'features/read/presentation/stats/read_stat_page.dart': 1359,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行
     // 发生在轮5批A（ce5acee，F5-2 展开默认随视图档），该批批内增量没带 size 闸，
     // 非 B-4 造成——B-4 未动日历一行。之后只许减。
     'features/calendar/presentation/calendar_page.dart': 1386,
-    'features/read/presentation/shelf/book_form_page.dart': 1362,
+    'features/read/presentation/shelf/book_form_page.dart': 1361,
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
-    'features/journal/presentation/diary_edit_page.dart': 1260,
+    'features/journal/presentation/diary_edit_page.dart': 1259,
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。

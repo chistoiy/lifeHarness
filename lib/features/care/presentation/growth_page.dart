@@ -27,7 +27,6 @@ class _GrowthPageState extends ConsumerState<GrowthPage> {
     final tokens = context.tokens;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

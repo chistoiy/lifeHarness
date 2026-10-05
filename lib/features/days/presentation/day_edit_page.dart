@@ -98,7 +98,7 @@ class _DayEditPageState extends ConsumerState<DayEditPage> {
       final async = ref.watch(daysDataProvider);
       if (!async.hasValue) {
         return Scaffold(
-          appBar: AppBar(centerTitle: true, title: const Text('编辑日子')),
+          appBar: AppBar(title: const Text('编辑日子')),
           body: const Center(child: CircularProgressIndicator()),
         );
       }
@@ -110,7 +110,6 @@ class _DayEditPageState extends ConsumerState<DayEditPage> {
     final editing = _origin != null;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

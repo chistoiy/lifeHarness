@@ -64,7 +64,6 @@ class _LedgerAccountDetailPageState
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('账户详情'),
       ),
       body: async.when(

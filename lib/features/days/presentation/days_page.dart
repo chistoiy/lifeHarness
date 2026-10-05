@@ -47,7 +47,6 @@ class _DaysPageState extends ConsumerState<DaysPage> {
     final async = ref.watch(daysDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         automaticallyImplyLeading: false,
         title: Column(
           mainAxisSize: MainAxisSize.min,

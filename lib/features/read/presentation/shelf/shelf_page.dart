@@ -275,7 +275,7 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
         : ShelfQuery.dimValueCounts(ui.dim, all);
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('书架')),
+      appBar: AppBar(title: const Text('书架')),
       floatingActionButton: ui.batch
           ? null
           : GradShelfFab(onTap: () => showAddBookSheet(context, ref)),

@@ -75,7 +75,6 @@ class _LedgerSearchPageState extends ConsumerState<LedgerSearchPage> {
     final d = ref.watch(ledgerDataProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -33,7 +33,6 @@ class _LedgerYearlyPageState extends ConsumerState<LedgerYearlyPage> {
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('年度总结'),
       ),
       body: async.when(

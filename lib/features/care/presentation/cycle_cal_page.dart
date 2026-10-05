@@ -28,7 +28,6 @@ class _CycleCalPageState extends ConsumerState<CycleCalPage> {
     final today = DateTime.now().withoutTimeCare();
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

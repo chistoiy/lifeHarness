@@ -190,7 +190,6 @@ class _LedgerCatsPageState extends ConsumerState<LedgerCatsPage> {
     final d = ref.watch(ledgerDataProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -25,7 +25,6 @@ class CarePage extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         automaticallyImplyLeading: false, // 无返回键（红线 2）
         title: GestureDetector(
           key: const ValueKey('care-swap'),

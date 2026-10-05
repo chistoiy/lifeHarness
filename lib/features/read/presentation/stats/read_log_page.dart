@@ -138,7 +138,7 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
     });
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true, // 轮5：标题居中
+        // 轮5：标题居中
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [

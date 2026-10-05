@@ -223,6 +223,10 @@ String shellBackAction(
 
 }
 
+/// U1 壳内底部余量（dp）：原型 `.safe-pb` 96 与 70dp 底栏之差（见 HomeShell.body 注释）。
+/// 常驻用例 `test/shell_bottom_slack_test.dart` 按本值钉几何，改这里必须同步原型。
+const double shellBottomSlack = 26;
+
 /// 底部导航（原型规范：线性图标 + 文字在下 + 选中态主题色 + 顶部小横条；
 
 /// 栏目可配置，今天/我的固定，≤5）。
@@ -397,7 +401,16 @@ class HomeShell extends ConsumerWidget {
 
       child: Scaffold(
 
-        body: TimerBarOverlay(child: child),
+        // U1（UX 审计真机批 2026-10-05）：壳内统一垫底部余量，治「贴底行吞点击」。
+        // 真机铁证：「我的」页滚到底时「外观」行的文字区（y2370/2400）点不动，
+        // 行下部（y2430/2450）才生效，上滑一格同一条立刻可点——中部行对照始终可点，
+        // 判定＝末行贴着视口下沿停住时，命中区与语义标签错位。
+        // 口径＝原型 `.safe-pb{padding-bottom:96px}`（prototype/index.html:62）
+        // 减去 Scaffold 已为底栏预留的 70dp＝26dp 手势/视觉余量，一处改覆盖全部壳内屏。
+        body: Padding(
+          padding: const EdgeInsets.only(bottom: shellBottomSlack),
+          child: TimerBarOverlay(child: child),
+        ),
 
         bottomNavigationBar: Container(
 

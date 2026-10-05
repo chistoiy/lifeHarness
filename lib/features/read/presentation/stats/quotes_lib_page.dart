@@ -97,7 +97,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
     final thN = all.where((q) => q.kind == BookQuote.kKindThought).length;
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('笔记库')), // 轮5：标题居中
+      appBar: AppBar(title: const Text('笔记库')), // 轮5：标题居中
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [

@@ -61,7 +61,6 @@ class _HabitsPageState extends ConsumerState<HabitsPage> {
     final async = ref.watch(habitDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

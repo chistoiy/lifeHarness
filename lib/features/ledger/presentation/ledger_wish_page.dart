@@ -162,7 +162,6 @@ class _LedgerWishPageState extends ConsumerState<LedgerWishPage> {
     final wA = ref.watch(ledgerWishProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

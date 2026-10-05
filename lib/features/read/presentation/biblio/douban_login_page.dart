@@ -115,7 +115,6 @@ class _DoubanLoginPageState extends ConsumerState<DoubanLoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('豆瓣登录'),
         leading: TextButton(
           key: const ValueKey('dbl-cancel'),

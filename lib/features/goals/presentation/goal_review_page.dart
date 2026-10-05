@@ -136,7 +136,6 @@ class _GoalReviewPageState extends ConsumerState<GoalReviewPage> {
     final async = ref.watch(goalsDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

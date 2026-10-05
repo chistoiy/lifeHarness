@@ -109,7 +109,6 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
     final view = ref.watch(goalsViewProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         automaticallyImplyLeading: false,
         title: Column(
           mainAxisSize: MainAxisSize.min,

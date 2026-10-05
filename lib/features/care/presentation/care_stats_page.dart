@@ -74,7 +74,6 @@ class _CareStatsPageState extends ConsumerState<CareStatsPage> {
     final async = ref.watch(careDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

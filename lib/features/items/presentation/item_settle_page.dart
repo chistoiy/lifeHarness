@@ -29,7 +29,6 @@ class _ItemSettlePageState extends ConsumerState<ItemSettlePage> {
     final async = ref.watch(itemsDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -27,7 +27,6 @@ class DayDetailPage extends ConsumerWidget {
     final async = ref.watch(daysDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

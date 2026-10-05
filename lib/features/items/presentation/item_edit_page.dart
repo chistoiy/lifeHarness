@@ -126,7 +126,6 @@ class _ItemEditPageState extends ConsumerState<ItemEditPage> {
     final upgrading = widget.prefill != null;
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

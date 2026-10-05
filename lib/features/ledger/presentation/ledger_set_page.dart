@@ -137,7 +137,6 @@ class _LedgerSetPageState extends ConsumerState<LedgerSetPage> {
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('记账设置'),
       ),
       body: async.when(

@@ -151,7 +151,6 @@ class _LedgerDebtPageState extends ConsumerState<LedgerDebtPage> {
     final tA = ref.watch(ledgerDebtProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

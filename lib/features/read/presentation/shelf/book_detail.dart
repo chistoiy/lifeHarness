@@ -58,7 +58,7 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
     final b = books.where((e) => e.id == widget.bookId).firstOrNull;
     if (b == null) {
       return Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text('书籍')),
+        appBar: AppBar(title: const Text('书籍')),
         body: const SizedBox.shrink(),
       );
     }

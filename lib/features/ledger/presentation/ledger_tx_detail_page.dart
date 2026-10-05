@@ -63,7 +63,6 @@ class _LedgerTxDetailPageState extends ConsumerState<LedgerTxDetailPage> {
     final async = ref.watch(ledgerDataProvider);
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: const Text('流水详情'),
       ),
       body: async.when(
