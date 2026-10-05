@@ -31,20 +31,30 @@ class CarePage extends ConsumerWidget {
           onTap: () => ref
               .read(careViewProvider.notifier)
               .state = baby ? 'cycle' : 'baby',
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t[0]),
-              Text(
-                t[1],
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.normal,
-                  color: scheme.onSurfaceVariant,
+          child: Semantics(
+            key: const ValueKey('care-swap-sem'),
+            // U9（UX 审计真机批）：这个入口零示能——标题上没有箭头/分段控件，
+            // TalkBack 原来只会读成静态标题，纯靠运气发现。补一条读屏语义，
+            // **不改任何视觉**（可见文案一个字没动；U5 禁的是屏上教学句式，
+            // 读屏标签不在屏上，工单 §1 U8/U9 已批准此法）。
+            button: true,
+            label: '点击切换周期/宝宝',
+            hint: '当前视图随标题文字变化',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t[0]),
+                Text(
+                  t[1],
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.normal,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [

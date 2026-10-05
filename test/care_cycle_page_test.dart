@@ -99,6 +99,16 @@ void main() {
     await useSurface(tester);
     await repo.addBaby(name: '团子', sex: '女', birth: '2026-01-07', color: 'sky');
     await pump(tester);
+    // U9（UX 审计真机批）：隐式切换入口必须有读屏语义，否则 TalkBack 只读到静态标题。
+    // 断在这里（互切动作之前）＝摘掉 care_page 那层 Semantics 本用例立刻红。
+    final semHandle = tester.ensureSemantics();
+    await tester.pump(); // 语义树要等一帧才生成，ensureSemantics 后立刻查必空
+    // 注：`find.bySemanticsLabel` 在本页取不到（AppBar title 的语义节点被上层合并），
+    // 改按 key 取合并后的节点标签——摘掉 care_page 那层 Semantics 一样红。
+    final swapNode =
+        tester.getSemantics(find.byKey(const ValueKey('care-swap-sem')));
+    expect(swapNode.label, contains('点击切换周期/宝宝'));
+    semHandle.dispose(); // 句柄必须在测试体内释放（挂 addTearDown 会撞收尾校验）
     expect(find.text('呵护 · 周期'), findsOneWidget);
     expect(find.byKey(const ValueKey('care-stats-btn')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('care-swap')));
