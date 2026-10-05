@@ -116,6 +116,23 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     ? ok('G8 四钮行无溢出·无截字（430 宽实测）', '宽度 ' + g8.widths.join('/')) : bad('G8', JSON.stringify(g8));
   await shot('id-04-geometry');
 
+  /* G9 报废钮图标回灌（2026-10-05 产品「可以」）＝线性 SVG 且与删除钮不撞脸：
+     前三钮原本是 emoji（💳♻️🗑），报废那枚和新的删除钮都是垃圾桶，并排分不清——
+     实现侧已换成 delete_forever（桶里带叉）并由 item_delete_ui_test 钉住，原型照此对齐。
+     二次付费/回收两枚的 emoji 属 T13「emoji 三档分拣」专项批，本条不扩面。 */
+  const g9 = await ev(`itemOpen(0);
+    var bs=[].slice.call(document.querySelectorAll('#p-itemDetail .life-btn'));
+    var scrap=bs.filter(function(b){return b.textContent.trim()==='报废'})[0];
+    var del=document.getElementById('itemDelBtn');
+    var ps=function(n){return [].slice.call(n.querySelectorAll('path')).map(function(p){return p.getAttribute('d')}).sort().join('|')};
+    return {found:!!scrap,emoji:scrap?/[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}]/u.test(scrap.textContent):true,
+      svg:scrap?scrap.querySelectorAll('svg').length:-1,br:scrap?scrap.innerHTML.indexOf('<br>')>=0:true,
+      diff:scrap&&del?ps(scrap)!==ps(del):false,delSvg:del?del.querySelectorAll('svg').length:-1};`);
+  (g9.found && g9.emoji === false && g9.svg === 1 && g9.br === false && g9.diff === true && g9.delSvg === 1)
+    ? ok('G9 报废钮＝线性 SVG（桶里带叉）· 与删除钮图标不撞脸', '无 emoji·无 <br>·路径不同')
+    : bad('G9', JSON.stringify(g9));
+  await shot('id-05-scrap-icon');
+
   finish();
 })().catch(e => { bad('harness 崩溃 ' + String(e).slice(0, 200)); finish() });
 function finish() { log((fail ? 'RESULT FAIL ' : 'RESULT PASS ') + pass + '/' + (pass + fail));
