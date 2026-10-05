@@ -188,6 +188,8 @@ tailwind.config = {
   #pwBody.pw-ln{counter-reset:pwl}
   #pwBody.pw-ln p{position:relative;padding-left:2.4em}
   #pwBody.pw-ln p::before{counter-increment:pwl;content:counter(pwl);position:absolute;left:0;top:.2em;font-size:10px;opacity:.35;font-variant-numeric:tabular-nums}
+.fld-err{display:none;font-size:10.5px;font-weight:700;color:#f43f5e;padding:3px 0 0 4px}
+.fld-bad{box-shadow:inset 0 0 0 1.5px #f43f5e}
   .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
   .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
   .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
@@ -1498,7 +1500,8 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="font-extrabold" id="ntSheetTitle">新建待办</div>
       <!-- V1.27：类型由右下 FAB 行卡菜单二选一（与首页快捷记录同款样式），弹层内不再显示类型切换；名称置顶 -->
-      <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水" autofocus>
+      <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水" oninput="fldErr('ntTitleErr','','ntTitle')" autofocus>
+      <div class="fld-err" id="ntTitleErr"></div>
       <div id="tyPomoRow" class="hidden mt-3 rounded-xl bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 p-3">
         <div class="flex items-center justify-between text-xs">
           <b class="text-rose-500">🍅 番茄计时</b>
@@ -1575,7 +1578,7 @@ tailwind.config = {
         </div>
         <div class="mt-2 flex items-center justify-between text-[11px]"><span>绑定习惯打卡（完成即回写）</span><select id="tkHabit" class="sel !py-1"><option>不绑定</option></select></div>
       </div>
-      <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
+      <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="aiQuad()">🤖 AI 自动判象限（依据标题）</button></div>
       <div class="mt-3 flex gap-3">
         <button onclick="closeSheet('sheetAddTask')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
         <button onclick="addTask()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
@@ -2310,6 +2313,9 @@ let toastTimer;
 function toast(msg,act){ const t=$('#toast'); t.innerHTML=''; const sp=document.createElement('span'); sp.textContent=msg; t.appendChild(sp);
  if(act){const b=document.createElement('button'); b.textContent=act+' · 撤销'; b.className='ml-3 text-white/95 font-extrabold underline'; b.onclick=()=>{undoAct();t.classList.add('hidden')}; t.appendChild(b)}
  t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2800); }
+/* LH-K32 表单就地错误行（批三 T9 回灌）：校验失败写在字段旁，不借道提示条。
+   输入框类字段连描边一起变红（fldId 传输入框 id）；滚轮/账户卡这类回填控件只补红字行。*/
+function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'';e.style.display=msg?'block':'none'}if(fldId){const f=$('#'+fldId);if(f)f.classList.toggle('fld-bad',!!msg)}}
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
@@ -2578,8 +2584,10 @@ function landUpd(){ const el=$('#ntLand'); if(!el)return; const imp=askState.imp
   if(imp===null||urg===null){el.classList.add('hidden');el.innerHTML='';return}
   const q=(imp&&urg)?0:imp?1:(urg?2:3); el.classList.remove('hidden'); el.style.color=getComputedStyle(document.documentElement).getPropertyValue('--accent')||'#6366f1';
   el.innerHTML=`<i class="dot ${D.quads[q].cls}"></i>保存后进入「${D.quads[q].name}」象限`; }
+/* T9 回灌：AI 判象限的入口也走就地红字（Flutter 同款：空标题先拦住，不发请求）*/
+function aiQuad(){if(!$('#ntTitle').value.trim()){fldErr('ntTitleErr','AI 判象限：请先输入任务标题','ntTitle');return}toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')}
 function addTask(){
-  const v=$('#ntTitle').value.trim(); if(!v){ toast('请先输入任务标题'); return; }
+  const v=$('#ntTitle').value.trim(); if(!v){ fldErr('ntTitleErr','请先输入任务标题','ntTitle'); return; }
   const imp=askState.imp??false, urg=askState.urg??false;
   const q=(imp&&urg)?0:imp?1:(urg?2:3);
   const rec={t:v,tag:'',q,due:'今天',done:tsSel==='done',dropped:tsSel==='drop',imp,urg};

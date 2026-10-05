@@ -1740,7 +1740,7 @@ tailwind.config = {
   <!-- 目录：V1.51 起改为阅读主屏内侧边抽屉 #brTocDrawer（微信读书式·可折叠），原底部弹层已移除 -->
 
   <!-- 外观（固定预览 + 草稿保存制） -->
-  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBrAppearance')">
+  <div id="sheetBrAppearance" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)brApCancel()">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[86vh] flex flex-col">
       <div class="flex items-center justify-between"><b class="text-[15px]">阅读外观</b><span class="text-[9px] text-slate-400">草稿制 · 保存后生效</span></div>
       <div class="mt-3 shrink-0 rounded-2xl border border-slate-200/70 dark:border-slate-700 overflow-hidden">
@@ -1780,7 +1780,7 @@ tailwind.config = {
         </div>
       </div>
       <div class="mt-3 flex gap-2 shrink-0">
-        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="closeSheet('sheetBrAppearance');toast('草稿已丢弃')">取消</button>
+        <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold" onclick="brApCancel()">取消</button>
         <button class="flex-[2] py-3 rounded-2xl grad text-white text-sm font-bold" onclick="brApSave()">保存应用</button>
       </div>
     </div>
@@ -2299,7 +2299,7 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 
 /* ================= 通用交互 ================= */
 let toastTimer;
-function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
+function toast(msg,undo){ const t=$('#toast'); t.innerHTML='';const sp=document.createElement('span'); sp.textContent=msg; t.appendChild(sp); if(undo){const b=document.createElement('button'); b.textContent='撤销';b.className='ml-3 text-white/95 font-extrabold underline';b.onclick=()=>{clearTimeout(toastTimer);t.classList.add('hidden');undo()}; t.appendChild(b)} t.classList.remove('hidden'); clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.add('hidden'),undo?4000:2200); }
 function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
@@ -6327,7 +6327,15 @@ function brApplyStageBg(){if(!brV.b)return;const stg=document.getElementById('br
   stg.style.backgroundImage=c.image||'none';
   stg.style.backgroundSize=c.size||'auto'}
 
-function brApOpen(){brApScopeK='book';brDraft=JSON.parse(JSON.stringify(Object.assign({},brCfg,brBooksCfg[brV.b]||{})));brApScopeRender();brApCtl();brApPrev()}
+/* T14（批四回灌）：「取消」＝丢弃草稿，但丢弃可找回——提示条带「撤销」，点了带着那份草稿重开面板。
+   判脏基准＝**已生效配置**（不是本次打开的草稿），所以撤销重开后再取消仍给一次找回；
+   取消按钮／点遮罩／系统返回三条离场同一路口径（Flutter 侧同理：后两条没有回调，靠面板持续登记草稿）。*/
+let apLost=null;
+function brApBase(){return JSON.parse(JSON.stringify(brApScopeK==='book'?Object.assign({},brCfg,brBooksCfg[brV.b]||{}):brCfg))}
+function brApDirty(){return !!Object.keys(brDraft).length&&JSON.stringify(brDraft)!==JSON.stringify(brApBase())}
+function brApCancel(){apLost=brApDirty()?JSON.parse(JSON.stringify(brDraft)):null;closeSheet('sheetBrAppearance');if(apLost)toast('外观改动已丢弃',brApUndo)}
+function brApUndo(){if(!apLost)return;const d=apLost;apLost=null;openSheet('sheetBrAppearance');brDraft=JSON.parse(JSON.stringify(d));brApScopeRender();brApCtl();brApPrev()}
+function brApOpen(){apLost=null;brApScopeK='book';brDraft=JSON.parse(JSON.stringify(Object.assign({},brCfg,brBooksCfg[brV.b]||{})));brApScopeRender();brApCtl();brApPrev()}
 function brApScopeRender(){const t=document.getElementById('brApScopeTgl');if(t)t.classList.toggle('on',brApScopeK==='book')}
 function brApScope(k){brApScopeK=k;brDraft=JSON.parse(JSON.stringify(k==='book'?Object.assign({},brCfg,brBooksCfg[brV.b]||{}):brCfg));brApScopeRender();brApCtl();brApPrev()}
 /* R3-7 微信读书式改版：主面板只留 字号/分段/入口/开关/亮度，其余收进二级弹窗（sheetBrApSub）。
@@ -6400,7 +6408,7 @@ function brApPrev(){const d=brDraft;const el=document.getElementById('brApPrev')
   el.style.fontFamily=BR_FONTS[d.font]?BR_FONTS[d.font][1]:'';
   el.style.textAlign=d.just?'justify':'left';
   el.innerHTML=`<div style="font-size:${d.fs*0.62}px;line-height:${d.lh};letter-spacing:${d.ls}px;padding:${d.mar*0.4}px ${d.mar*0.55}px">系统 2 有一个鲜为人知的身份：它其实是系统 1 的公关秘书。它不总是发号施令，更多时候在为直觉决定寻找理由。</div>`}
-function brApSave(){const d=brDraft;
+function brApSave(){apLost=null;const d=brDraft;
   if(brApScopeK==='book')brBooksCfg[brV.b]=Object.assign(brBooksCfg[brV.b]||{},d);else brCfg=Object.assign(brCfg,d);
   brPagCache={};brPersist();brLumMaskV=d.lum==null?100:d.lum;brBrightSet(brLumMaskV);
   document.getElementById('brStage').classList.toggle('no-indent',brV.indent===false||d.ind==='none');

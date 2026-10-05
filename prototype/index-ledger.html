@@ -112,6 +112,8 @@ tailwind.config = {
   #pwBody.pw-ln{counter-reset:pwl}
   #pwBody.pw-ln p{position:relative;padding-left:2.4em}
   #pwBody.pw-ln p::before{counter-increment:pwl;content:counter(pwl);position:absolute;left:0;top:.2em;font-size:10px;opacity:.35;font-variant-numeric:tabular-nums}
+.fld-err{display:none;font-size:10.5px;font-weight:700;color:#f43f5e;padding:3px 0 0 4px}
+.fld-bad{box-shadow:inset 0 0 0 1.5px #f43f5e}
   .pw-body p{margin-bottom:1.15em;transition:opacity .25s;cursor:text;border-radius:8px;padding:2px 6px;margin-left:-6px}
   .pw-body p.pw-cur{background:rgba(120,110,90,.07)}
   .dark .pw-body p.pw-cur{background:rgba(255,255,255,.04)}
@@ -458,11 +460,14 @@ tailwind.config = {
         </div>
         <div class="mt-3 overflow-x-auto no-scrollbar -mx-5 px-5"><div class="flex gap-2 w-max" id="txFreqRail"></div></div>
       </div>
+        <div class="fld-err" id="txAmtErr"></div>
       <div id="txDebtWrap" class="hidden mt-3 space-y-2">
         <div class="flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold" id="txDebtSeg"></div>
-        <input id="txDebtPerson" class="inp" placeholder="对方（如：老王）" oninput="txState.person=this.value">
+        <input id="txDebtPerson" class="inp" placeholder="对方（如：老王）" oninput="txState.person=this.value;fldErr('txPersonErr','','txDebtPerson')">
+        <div class="fld-err" id="txPersonErr"></div>
       </div>
       <div id="txTransferWrap" class="hidden mt-3 space-y-2"></div>
+      <div class="fld-err" id="txAcctErr"></div>
       <button class="mt-3 w-full flex items-center text-left px-1 py-2.5 border-b border-slate-100 dark:border-slate-800" id="txAcctRow" onclick="openLedgerAcctPick(a=>{txState.acct=a;renderTxAdd()},'选择付款账户')"></button>
       <div class="mt-1 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
         <input id="txNote" class="flex-1 bg-transparent text-[13px] outline-none placeholder:text-slate-400" placeholder="备注…" oninput="txState.note=this.value">
@@ -791,8 +796,9 @@ tailwind.config = {
       </div>
       <div class="mt-3 flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-800 px-3.5 py-3">
         <span class="fin-ico !w-8 !h-8" id="lcPrev"></span>
-        <input id="caNameInp" class="flex-1 bg-transparent outline-none text-[13px] placeholder:text-slate-400" placeholder="请输入类别名称" oninput="catPrevName()">
+        <input id="caNameInp" class="flex-1 bg-transparent outline-none text-[13px] placeholder:text-slate-400" placeholder="请输入类别名称" oninput="catPrevName();fldErr('caNameErr','','caNameInp')">>
       </div>
+      <div class="fld-err" id="caNameErr"></div>
       <button class="mt-2.5 w-full card !py-3.5 flex items-center text-left" onclick="openCatParentPick()">
         <span class="text-[13px] font-bold flex-1">所属大类</span><span class="text-[12px] text-slate-400" id="lcParentLbl">请选择</span><span class="text-slate-300 ml-1">›</span></button>
       <div class="mt-3 text-[12px] font-extrabold">颜色</div>
@@ -1312,6 +1318,9 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
+/* LH-K32 表单就地错误行（批三 T9 回灌）：校验失败写在字段旁，不借道提示条。
+   输入框类字段连描边一起变红（fldId 传输入框 id）；滚轮/账户卡这类回填控件只补红字行。*/
+function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'';e.style.display=msg?'block':'none'}if(fldId){const f=$('#'+fldId);if(f)f.classList.toggle('fld-bad',!!msg)}}
 function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
@@ -3135,7 +3144,7 @@ function openL2(opt={}){Object.assign(txState,{kind:opt.kind||'expense',cat:opt.
 function saveTx(){const s=txState,amt=exprVal(s.expr);
  if(s.kind==='transfer'){if(!amt)return toast('请输入转账金额');
   if(s.acct===s.to)return toast('转出与转入账户不能相同')}
- else if(!amt)return toast('请输入金额');
+ else if(!amt){fldErr('txAmtErr','请输入金额','txAmtShow');return}
  const t={kind:s.kind,cat:s.cat,sub:s.sub,n:s.note.trim(),amt,a:s.acct,d:s.date,tags:[...s.tags],src:'manual'};
  if(s.kind==='transfer'){t.cat='oe';t.sub='';t.a=s.acct;t.to=s.to;t.n=s.note.trim()||`${LA(s.acct).n} → ${LA(s.to).n}`}
  if(s.editId){ledgerEdit(s.editId,Object.assign(t,{id:s.editId}));toast('已更新流水 · 各视图同步回算')}
@@ -3601,7 +3610,8 @@ function renderRecur(){
    <span class="toggle ${r.on?'on':''}" onclick="L.recur.find(x=>x.id==='${r.id}').on=!L.recur.find(x=>x.id==='${r.id}').on;renderRecur();toast('周期账单已'+(L.recur.find(x=>x.id==='${r.id}').on?'恢复':'暂停'))"></span>
    <button class="text-slate-400" onclick="recDel('${r.id}')">${svgIco('trash','w-4 h-4')}</button></div>`}).join('')+`</div>`;
  h+=recAddOpen?`<div class="card"><div class="row-title !text-[12px]">新建周期账单</div>
-   <div class="mt-2 flex gap-2"><input id="raName" class="inp flex-1 !py-2" placeholder="名称 · 如 爱奇艺会员"><input id="raAmt" class="inp w-24 !py-2" type="number" placeholder="金额"></div>
+   <div class="mt-2 flex gap-2"><input id="raName" class="inp flex-1 !py-2" placeholder="名称 · 如 爱奇艺会员" oninput="fldErr('raNameErr','','raName')">><input id="raAmt" class="inp w-24 !py-2" type="number" placeholder="金额" oninput="fldErr('raAmtErr','','raAmt')"></div>
+   <div class="mt-1 flex gap-2"><div class="fld-err flex-1 !pl-0" id="raNameErr"></div><div class="fld-err w-24 !pl-0 text-right" id="raAmtErr"></div></div>
    <div class="mt-2 flex gap-2"><select id="raCat" class="sel flex-1">${LCATS.expense.map(c=>`<option value="${c.id}">${c.n}</option>`).join('')}</select>
     <select id="raFreq" class="sel flex-1">${FREQS.map(f=>`<option value="${f[0]}">${f[1]}</option>`).join('')}</select>
     <select id="raAcct" class="sel flex-1">${L.accounts.map(a=>`<option value="${a.id}">${a.n}</option>`).join('')}</select></div>
@@ -3613,7 +3623,10 @@ function renderRecur(){
  $('#recBody').innerHTML=h}
 function recDel(id){L.recur=L.recur.filter(r=>r.id!==id);renderRecur()}
 function recAddSave(){const n=$('#raName').value.trim(),amt=+$('#raAmt').value;
- if(!n||!amt)return toast('请填写名称与金额');
+ fldErr('raNameErr','');fldErr('raAmtErr','');let rbad=false;
+ if(!n){rbad=true;fldErr('raNameErr','请填写名称','raName')}
+ if(!amt){rbad=true;fldErr('raAmtErr','请填写金额','raAmt')}
+ if(rbad)return;
  L.recur.push({id:'r'+Date.now()%1e6,bk:curBook,n,amt,cat:$('#raCat').value,sub:'',acct:$('#raAcct').value,freq:$('#raFreq').value,next:$('#raNext').value||TODAY,on:true});
  recAddOpen=false;renderRecur();toast('周期账单已创建')}
 
@@ -3878,13 +3891,19 @@ function renderTxAdd(){
 function renderTxShow(){const v=exprVal(txState.expr);const el=$('#txAmtShow');
  el.textContent=L.set.hide?'••••':v.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
  el.className='text-[26px] tracking-tight '+(txState.kind==='income'?'text-emerald-500':txState.kind==='transfer'?'text-brand-500':'text-rose-500')}
+ if(exprVal(txState.expr)>0)fldErr('txAmtErr','')
 function saveTx(mode){const s=txState,amt=exprVal(s.expr);
- if(s.kind==='debt'){if(!s.person.trim())return toast('请填写对方');if(!amt)return toast('请输入金额');
+ if(s.kind==='debt'){fldErr('txPersonErr','');fldErr('txAmtErr','');let bad=false;
+  if(!s.person.trim()){bad=true;fldErr('txPersonErr','请填写对方','txDebtPerson')}
+  if(!amt){bad=true;fldErr('txAmtErr','请输入金额','txAmtShow')}
+  if(bad)return;
   L.debts.push({id:'d'+Date.now()%1e6,bk:curBook,side:s.debtDir,p:s.person.trim(),total:amt,paid:0,note:s.note.trim()||'记一笔借贷'});
   finTouch();toast((s.debtDir==='lend'?'借出':'借入')+' '+money(amt)+' 已记入借贷 · '+s.person);
   stack.length=0;setPage('p-finance');return}
- if(s.kind==='transfer'){if(!amt)return toast('请输入转账金额');if(s.acct===s.to)return toast('转出与转入账户不能相同')}
- else if(!amt)return toast('请输入金额');
+ if(s.kind==='transfer'){fldErr('txAmtErr','');fldErr('txAcctErr','');
+  if(!amt){fldErr('txAmtErr','请输入转账金额','txAmtShow');return}
+  if(s.acct===s.to){fldErr('txAcctErr','转出与转入账户不能相同');return}}
+ else if(!amt){fldErr('txAmtErr','请输入金额','txAmtShow');return}
  const tags=[...s.tags];if(s.reim&&!tags.includes('报销'))tags.push('报销');
  const t={kind:s.kind,cat:s.cat,sub:s.sub,n:s.note.trim(),amt,a:s.acct,d:s.date,tags,src:'manual',
   unpaid:!s.paid,nb:!s.incB,merchant:s.merchant||undefined,who:s.who!=='自己'?s.who:undefined};
@@ -3975,7 +3994,7 @@ function openCatParentPick(){
  $('#catParentList2').innerHTML=LCATS[catKind].map(c=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold active:bg-slate-100 dark:active:bg-slate-800 ${lcParent===c.id?'text-brand-500':''}" onclick="lcParentPick('${c.id}')"><span>${c.n}</span>${lcParent===c.id?'✓':''}</button>`).join('');
  openSheet('sheetLedgerParent2')}
 function lcParentPick(id){lcParent=id;$('#lcParentLbl').textContent=lcat(id)?.n||'请选择';closeSheet('sheetLedgerParent2')}
-function catSheetSave(){const n=$('#caNameInp').value.trim();if(!n)return toast('请输入类别名称');
+function catSheetSave(){const n=$('#caNameInp').value.trim();if(!n){fldErr('caNameErr','请输入类别名称','caNameInp');return}
  if(lcSel){const c=LCATS[catKind].find(x=>x.id===lcSel);Object.assign(c,{n,i:lcIcon,c:lcColor||c.c});toast('已更新大类')}
  else if(lcParent){const p=LCATS[catKind].find(x=>x.id===lcParent);
   if(p&&!p.s.includes(n)){p.s.push(n);if(lcColor)p.c=p.c}
