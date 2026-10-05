@@ -14,6 +14,7 @@ import 'ledger_providers.dart';
 import 'ledger_sheets.dart';
 import 'widgets/ledger_kit.dart';
 import 'widgets/ledger_ring.dart';
+import '../../../shared/widgets/load_error_state.dart';
 
 /// L1 记账主页（原型 p-finance · TITLES ['记账','本地账本 · 全离线']）。
 /// hero 顶部卡（账本/月份/大数字/三数据位/预算条/五宫格）+ 到期横幅 + 快速记一笔
@@ -86,7 +87,11 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
+        error: (e, _) => LoadErrorBanner(
+              title: '这个账本没加载出来',
+              error: e,
+              onRetry: () => ref.invalidate(ledgerDataProvider),
+            ),
         data: (d) => TabularNums(child: _body(d)),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import '../../../shared/widgets/load_error_state.dart';
 import '../domain/care_models.dart';
 import 'care_kit.dart';
 import 'care_providers.dart';
@@ -38,7 +39,11 @@ class _VaccinePageState extends ConsumerState<VaccinePage> {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
+        error: (e, _) => LoadErrorBanner(
+              title: '疫苗接种计划没加载出来',
+              error: e,
+              onRetry: () => ref.invalidate(careDataProvider),
+            ),
         data: (d) {
           final baby = d.currentBaby;
           if (baby == null) {

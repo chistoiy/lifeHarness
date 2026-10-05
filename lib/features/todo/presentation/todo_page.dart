@@ -9,6 +9,7 @@ import 'widgets/quadrant_board.dart';
 import 'widgets/todo_edit_sheet.dart';
 import 'widgets/todo_list_view.dart';
 import 'widgets/todo_trash_entry.dart';
+import '../../../shared/widgets/load_error_state.dart';
 
 /// 模块2 待办 + 四象限（M0 · 已对齐高保真原型 p-todo）：
 /// 清单/四象限双视图、引导式两问单表单、拖拽换象限、智能筛选 chips、逾期提示卡。
@@ -110,7 +111,11 @@ class _TodoPageState extends ConsumerState<TodoPage> {
           Expanded(
             child: todosAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('加载失败：$e')),
+              error: (e, _) => LoadErrorBanner(
+                    title: '待办清单没加载出来',
+                    error: e,
+                    onRetry: () => ref.invalidate(todosProvider),
+                  ),
               data: (todos) => quadrantMode
                   ? QuadrantBoard(todos: todos)
                   : TodoListView(todos: todos),

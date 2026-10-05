@@ -23,6 +23,8 @@ import '../ai/ai_review.dart' show aiRootNavKey;
 
 import '../nav/nav_module.dart';
 
+import '../nav/nav_badge.dart';
+
 import '../providers.dart';
 
 import '../theme/app_theme.dart';
@@ -38,6 +40,10 @@ import '../../features/dashboard/presentation/dashboard_providers.dart';
 import '../../features/journal/presentation/journal_providers.dart'
 
     show noteSelProvider;
+
+import '../../features/todo/presentation/todo_providers.dart'
+
+    show overdueCountProvider;
 
 /// 全局导航 Key（Shell 内 Navigator 使用）。
 
@@ -241,6 +247,18 @@ class HomeShell extends ConsumerWidget {
 
   static bool _fromToday = false;
 
+  /// T11 底栏角标的「已读」集合：进过该栏目就不再显（内存态，
+
+  /// 冷启动重来＝原型 `navSeen` 口径）。
+
+  static final Set<String> _navSeen = {};
+
+  /// 同文件多用例共享上面那张集合，测试开头调它复位。
+
+  @visibleForTesting
+
+  static void resetNavBadgeSeenForTest() => _navSeen.clear();
+
   @override
 
   Widget build(BuildContext context, WidgetRef ref) {
@@ -255,6 +273,8 @@ class HomeShell extends ConsumerWidget {
 
       _lastBackAt = null;
 
+      _navSeen.add(currentPath); // T11 进入即清（清标记，不动逾期读数）
+
       _prevPath = currentPath;
 
     }
@@ -268,6 +288,16 @@ class HomeShell extends ConsumerWidget {
     final tokens = context.tokens;
 
     final selectedIndex = navModules.indexWhere((m) => m.path == currentPath);
+
+    // T11 角标数据源（登记过的栏目才可能显；扫描失败时 provider 自己记过日志，
+
+    // 这里回落 0＝不显角标，与待办页头部共用同一读数口径，不另造第二份算法）。
+
+    final navBadgeSources = <String, int>{
+
+      NavModule.todo.path: ref.watch(overdueCountProvider).valueOrNull ?? 0,
+
+    };
 
     // V1.28⑥：主页编排态下返回键=退出编排并保存（不进二次退出判定）。
 
@@ -403,6 +433,10 @@ class HomeShell extends ConsumerWidget {
 
                         accent: tokens.accent,
 
+                        badge: navBadgeCount(navModules[i].path,
+
+                            sources: navBadgeSources, seen: _navSeen),
+
                         onTap: () {
 
                           final m = navModules[i];
@@ -443,6 +477,8 @@ class _NavTab extends StatelessWidget {
 
     required this.accent,
 
+    required this.badge,
+
     required this.onTap,
 
   });
@@ -452,6 +488,10 @@ class _NavTab extends StatelessWidget {
   final bool selected;
 
   final Color accent;
+
+  /// T11 角标未读数（0＝不渲染）。
+
+  final int badge;
 
   final VoidCallback onTap;
 
@@ -495,13 +535,21 @@ class _NavTab extends StatelessWidget {
 
           const SizedBox(height: 5),
 
-          Icon(
+          NavBadge(
 
-            selected ? module.iconActive : module.icon,
+            count: badge,
 
-            size: 22,
+            badgeKey: ValueKey('navbadge-${module.id}'),
 
-            color: color,
+            child: Icon(
+
+              selected ? module.iconActive : module.icon,
+
+              size: 22,
+
+              color: color,
+
+            ),
 
           ),
 
