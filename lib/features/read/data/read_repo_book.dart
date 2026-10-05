@@ -204,6 +204,19 @@ mixin _RepoBooks on _ReadRepoBase {
       where: 'book_id = ? AND deleted_at IS NULL',
       whereArgs: [id],
     );
+    // 阅读计时会在时间模块落一条块（`book_sessions.txn_id` 指向它，计划 §7 L4 差量写入）。
+    // **整批删会话必须先把这些块带走**：`deleteSession` 单条删是做连带删的，而这里以前只
+    // 删会话行——于是彻底删一本书会在时间模块留下没有主人的「阅读」块，今天页时间分布与
+    // 时间账本继续计入（2026-10-06 真机现场：阅读统计本周 0′，今天页本周阅读 10 时 29 分）。
+    // 回收站「彻底删除」与 30 天到期自动清理都走本函数，所以这一处改覆盖两条路径。
+    // 存量已产生的孤儿不在这里回填（块上 `source='mark'` 与你手动打点同值，分不清来源，
+    // 自动删会误伤），要清请在时间账本里手删——那些块本来就没有主人。
+    await db.rawDelete(
+      'DELETE FROM ${DbSchema.tTimeBlocks} WHERE id IN ('
+      'SELECT txn_id FROM ${DbSchema.tBookSessions} '
+      'WHERE book_id = ? AND txn_id IS NOT NULL)',
+      [id],
+    );
     await db.delete(
       DbSchema.tBookSessions,
       where: 'book_id = ?',

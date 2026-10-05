@@ -141,6 +141,70 @@ void main() {
       await ReadRepository(db).purgeBook('nomd5');
       expect(await _count(db, 'SELECT COUNT(*) FROM xray_mention'), 1);
     });
+
+    test('彻底删书 → 会话名下的时间块一并清除（不留孤儿阅读计时）', () async {
+      // 缺陷原状：`purgeBook` 只删 book_sessions 行，不删其 `txn_id` 指向的 time_blocks，
+      // 于是今天页「本周时间分布」与时间账本继续计入已经没有主人的「阅读」块
+      // （2026-10-06 真机现场：阅读统计本周 0′，今天页本周阅读 10 时 29 分）。
+      // 回收站彻底删除与 30 天到期清理都走这条路，所以这条用例同时钉住两个入口。
+      Future<int> seedPair(String book) async {
+        final blk = await db.insert(DbSchema.tTimeBlocks, {
+          'day': 1730000000000,
+          'start_min': 600,
+          'end_min': 660,
+          'category': '阅读',
+          'note': '《书$book》',
+          'source': 'mark',
+          'cat_id': DbSchema.catReadingId,
+          'created_at': 1,
+          'updated_at': 1,
+        });
+        await db.insert(DbSchema.tBookSessions, {
+          'book_id': book,
+          'started_at': 1,
+          'ended_at': 2,
+          'minutes': 60,
+          'source': 'timer',
+          'txn_id': blk,
+        });
+        return blk;
+      }
+
+      await _seedBook(db, 'rb1', md5: 'm-rb1');
+      await _seedBook(db, 'rb2', md5: 'm-rb2');
+      final mine = await seedPair('rb1');
+      final theirs = await seedPair('rb2');
+      // 用户手动打点的阅读块（没有任何会话认领）不在连带范围内，必须原样留着。
+      final manual = await db.insert(DbSchema.tTimeBlocks, {
+        'day': 1730000000000,
+        'start_min': 900,
+        'end_min': 930,
+        'category': '阅读',
+        'note': '手打的一段',
+        'source': 'mark',
+        'cat_id': DbSchema.catReadingId,
+        'created_at': 1,
+        'updated_at': 1,
+      });
+
+      await ReadRepository(db).purgeBook('rb1');
+
+      final t = DbSchema.tTimeBlocks;
+      expect(
+        await _count(db, 'SELECT COUNT(*) FROM $t WHERE id = $mine'),
+        0,
+        reason: '被删会话名下的块必须连带删，否则时间模块留下算得进去、点又点不开的孤儿',
+      );
+      expect(await _count(db, 'SELECT COUNT(*) FROM $t WHERE id = $theirs'), 1,
+          reason: '另一本书的块不许被牵连');
+      expect(await _count(db, 'SELECT COUNT(*) FROM $t WHERE id = $manual'), 1,
+          reason: '无主的手打块不是本次清理对象（source 同为 mark，无法凭来源区分）');
+      expect(
+        await _count(
+            db, "SELECT COUNT(*) FROM ${DbSchema.tBookSessions} WHERE book_id = 'rb1'"),
+        0,
+      );
+    });
   });
 
   group('备份恒排除可再生派生表', () {
