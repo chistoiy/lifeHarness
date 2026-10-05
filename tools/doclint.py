@@ -80,6 +80,31 @@ for p, lim in budgets.items():
     nl = sum(1 for _ in open(p, encoding="utf-8"))
     if nl > lim:
         g.append(f"{p} 行数 {nl} 超预算 {lim}")
+# 6) 施工类活工单必须带「⚙ 执行面板」（2026-10-06 单批20分钟流水线口径，计划书 §7.5；存量豁免名单只许减）
+PANEL_EXEMPT = {  # 口径生效（20261006）前立案的存量活施工工单；其下一批开工须先补面板并出名单
+    "docs/handoff/交棒话术-20261002-下一版实现批-F01-批C-R32精修.md": "立单早于口径",
+    "docs/handoff/交棒话术-20261002-划线精确化批.md": "立单早于口径",
+    "docs/handoff/交棒话术-20261004-笔记本地导入导出与系统打开方式.md": "立单早于口径",
+    "docs/handoff/交棒话术-20261004-备份管理与图片预览批.md": "立单早于口径",
+    "docs/handoff/交棒话术-20261004-真机反馈轮5三条.md": "立单早于口径",
+    "docs/handoff/交棒话术-20260929-R15-1整批撤销.md": "立单早于口径",
+    "docs/handoff/交棒话术-20261005-UX审计真机批-贴底行吞点击与工装转正.md": "立单早于口径",
+}
+for _l in idx.split("\n"):
+    _m = re.search(r"docs/handoff/([^\s|`*（(]+\.md)", _l)
+    if not _m or "活" not in _l:
+        continue
+    _name = _m.group(1)
+    if not re.match(r"^(交棒话术-|.*开场白-)", _name):
+        continue
+    _p = "docs/handoff/" + _name
+    if _p in PANEL_EXEMPT:
+        continue
+    if not os.path.exists(_p):
+        g.append(f"守护六：INDEX 活工单文件缺失: {_p}")
+        continue
+    if "⚙ 执行面板" not in open(_p, encoding="utf-8", errors="replace").read():
+        g.append(f"守护六：活施工工单缺「执行面板」小节（标题匹配串＝gear符+空格+执行面板，见计划书 §7.5）: {_p}")
 if g:
     print(f"守护红灯 {len(g)} 处:")
     for x in g:
@@ -92,4 +117,4 @@ print(pr.stdout.strip())
 if pr.returncode != 0:
     print("protogate 红灯（strict），按上列明细处置后重跑")
     sys.exit(1)
-print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算）")
+print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板）")
