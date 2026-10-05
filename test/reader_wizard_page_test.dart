@@ -144,6 +144,35 @@ void main() {
         child: MaterialApp(home: home),
       );
 
+  /// 走「落库 → `context.pushReplacement('/read/shelf')`」全链的用例专用装配。
+  ///
+  /// 他批遗留红灯归位（肇事提交 `35aab6e` 轮6 R6 守护修正：导入落库由 `go` 改
+  /// `pushReplacement`，避免返回键直接退 app）——`MaterialApp(home:)` 里没有
+  /// GoRouter，这类用例会炸「No GoRouter found in context」。
+  /// **只给需要路由的两条用例换装配**，其余用例保持原样（全局换会把依赖
+  /// 返回栈的「阅读主屏退出结算」那条碰坏——本批实测踩过一次）。
+  Widget wrapRouted(Widget home, {List<Override> extra = const []}) =>
+      ProviderScope(
+        overrides: [
+          readRepositoryProvider.overrideWithValue(repo),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          ...extra,
+        ],
+        child: MaterialApp.router(
+          routerConfig: GoRouter(
+            initialLocation: '/',
+            routes: [
+              GoRoute(path: '/', builder: (_, _) => home),
+              GoRoute(
+                path: '/read/shelf',
+                builder: (_, _) => const Scaffold(
+                    body: Center(child: Text('书架（测试桩）'))),
+              ),
+            ],
+          ),
+        ),
+      );
+
   Future<void> step(WidgetTester t, {int ms = 200, int times = 1}) async {
     for (var i = 0; i < times; i++) {
       await t.pump(Duration(milliseconds: ms));
@@ -154,7 +183,8 @@ void main() {
     testWidgets('四步全链：授权→选文件→解析五任务→核对→落库 pop', (t) async {
       await useSurface(t);
       final fake = _FakeImport(repo);
-      await t.pumpWidget(wrap(const LocalImportPage(), extra: [
+      // 本条走完「落库 → pushReplacement('/read/shelf')」全链，需要 GoRouter。
+      await t.pumpWidget(wrapRouted(const LocalImportPage(), extra: [
         epubImportServiceProvider.overrideWithValue(fake),
       ]));
       // 步1 授权
@@ -234,7 +264,8 @@ void main() {
         updatedAt: 1,
       ));
       final fake = _FakeImport(repo, dup: existing);
-      await t.pumpWidget(wrap(const LocalImportPage(), extra: [
+      // 合并确认后同样走落库全链 → 需要 GoRouter。
+      await t.pumpWidget(wrapRouted(const LocalImportPage(), extra: [
         epubImportServiceProvider.overrideWithValue(fake),
       ]));
       await t.tap(find.byKey(const ValueKey('br-imp1-go')));
