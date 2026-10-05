@@ -228,14 +228,12 @@ void main() {
       expect(paraStyle(p, _base(), orig: true), paraStyle(p, _base()));
     });
 
-    test('段级行距声明进 height（测量与渲染同吃一份）', () {
-      final s = paraStyle(
-        _para('段', style: const EpubStyle(lineRatio: 2.0)),
-        _base(),
-        orig: true,
-      );
-      expect(s.height, 2.0);
-    });
+    // 「段级行距声明进 height」这条旧用例随 §3H-B 拍板（2026-10-04 真机反馈轮2
+    // 「行距拉平」）**作废删除**，别照旧契约补回来：paraStyle 出口有 _flattenLineHeight
+    // 归一，原书 lineRatio 在样式层与测量层都到不了 height（写一条「height==base.lh」
+    // 的断言是死闸——变异塞回 lineRatio 也照样绿，实测两刀都不红）。
+    // 现行口径的活判定在 test/reader_paginate_fit_test.dart ④「原书 line-height 不再
+    // 覆盖用户行距（滑杆必须动得了段高）」，那份吃 EpubPager.paraHeight，咬得住。
   });
 
   group('④ paraRunStyles：测量与渲染共用的分段表', () {
