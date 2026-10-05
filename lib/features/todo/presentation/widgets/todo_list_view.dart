@@ -355,8 +355,9 @@ class _TodoTile extends ConsumerWidget {
         unawaited(repo.softRemove(todo));
         container.invalidate(todosProvider);
         container.invalidate(overdueCountProvider);
-        // 提示条推到下一帧：showUndoWith 里的 hideCurrentSnackBar 会强制本帧重绘，
-        // 而 Dismissible 要求「回调触发后本帧不得再被重建」——同帧挂条＝框架断言炸。
+        // 提示条推到下一帧＝保守写法（不与出树同帧抢一次 ScaffoldMessenger 重绘）。
+        // 注：2026-10-05 变异实验摘掉这层延后、T3 五例仍全绿，所以「同帧必炸」不成立，
+        // 本行不作为硬约束、也不写守护用例钉它。
         WidgetsBinding.instance.addPostFrameCallback((_) {
           AppToast.showUndoWith(messenger, '已移入回收站', onUndo: () {
             onBack(todo.id!); // 放回清单（随后重查会自洽）
