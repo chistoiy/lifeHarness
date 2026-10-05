@@ -184,8 +184,8 @@ tailwind.config = {
   .dark .navtab{color:#64748b}.dark .navtab.on{color:var(--accent-l)}.dark .navtab.on::after{background:var(--accent-l)}
   /* T11 底栏角标（批六原型门 · 交互整改）：逾期/待处理计数挂对应枚，进入该栏目即清。
      纯数字胶囊，禁 emoji；>99 收敛成 99+；颜色走强调玫红（与表单错误同族，不与 brand 混） */
-  .navbadge{position:absolute;top:2px;left:calc(50% + 7px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#f43f5e;color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center}
-  .dark .navbadge{background:#fb7185}
+  .navbadge{position:absolute;top:2px;left:calc(50% + 7px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#e11d48;color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center;font-style:normal}
+  .dark .navbadge{background:#fb7185;color:#0f172a}
   .setnav svg{width:16px;height:16px;color:#94a3b8}
   .pw-ic-btn{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:inherit;flex-shrink:0}
   .pw-ic-btn:active{background:rgba(120,110,90,.12)}
@@ -2206,7 +2206,7 @@ const navSeen={};
 function navBadge(p){if(!NAV_BADGE_SRC[p]||navSeen[p])return 0;return NAV_BADGE_SRC[p]()}
 function navClear(p){navSeen[p]=1}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);const bn=navBadge(p);
-  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<i class="navbadge">${bn>99?'99+':bn}</i>`:''}</button>`}).join('');}
+  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<span class="navbadge">${bn>99?'99+':bn}</span>`:''}</button>`}).join('');}
 function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label,fix])=>{const on=activeTabs.includes(p);
   return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span><span class="toggle ${on?'on':''}" onclick="navToggle('${p}',this)"></span></div>`}).join('');
   $('#navCount').textContent=activeTabs.length;}
