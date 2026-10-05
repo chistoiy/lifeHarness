@@ -18,6 +18,11 @@ tailwind.config = {
 </script>
 <style>
   html,body{height:100%;background:#0f172a;font-family:Inter,'PingFang SC','Microsoft YaHei',sans-serif;}
+  /* 〇A 字体角色 · 数字用等宽（2026-10-05 批五补落原型）：金额/计数列逐行对齐不抖。
+     只挂 OpenType `tnum`（等宽数字字形），**不换字族、不动观感**；
+     Flutter 侧同口径＝LH-K33 `TabularNums`（批四 T12）。字段级等宽字族（--f-code：
+     计时/日志/代码）另按 〇A 走，两者不冲突。 */
+  body{font-variant-numeric:tabular-nums}
   /* ---- 设计令牌 & 4套主题：简约minimal / 小清新fresh / 复古retro / 轻拟态neumorph ---- */
   :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;--page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);--nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0}
   html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b}
