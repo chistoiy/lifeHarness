@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -9,9 +10,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/items_repository.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
-import 'item_detail_page.dart';
 import 'item_edit_page.dart';
-import 'item_stats_page.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
@@ -36,12 +35,10 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
     // 仪表盘 FAB「记物品」→ 本页自动展开建档表单（跨页经事件总线，守 R1）。
     ref.read(eventBusProvider).on<QuickAddEvent>().listen((e) {
       if (!mounted || e.target != 'items') return;
-      _push(const ItemEditPage());
+      context.push('/items/edit');
     });
   }
 
-  void _push(Widget page) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +64,7 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
         key: const ValueKey('i-fab'),
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         tooltip: '录入新物品',
-        onTap: () => _push(const ItemEditPage()),
+        onTap: () => context.push('/items/edit'),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -146,7 +143,7 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
                   ),
                   GestureDetector(
                     key: const ValueKey('i-stats-btn'),
-                    onTap: () => _push(const ItemStatsPage()),
+                    onTap: () => context.push('/items/stats'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
@@ -264,7 +261,7 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
           child: EmptyDashRow(
             key: const ValueKey('i-add-item'),
             text: '＋ 录入新物品',
-            onTap: () => _push(const ItemEditPage()),
+            onTap: () => context.push('/items/edit'),
           ),
         ),
         const SizedBox(width: 8),
@@ -373,7 +370,9 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
               ],
             ),
     );
-    if (picked != null && mounted) _push(ItemEditPage(prefill: picked));
+    if (picked != null && mounted) {
+      context.push('/items/edit', extra: ItemEditArg(prefill: picked));
+    }
   }
 
   Widget _itemRow(ItemProfile it, double maxC, DateTime now, bool hist) {
@@ -382,7 +381,7 @@ class _ItemsPageState extends ConsumerState<ItemsPage> {
     final pool = poolOf(it);
     return GestureDetector(
       key: ValueKey('i-item-row-${it.id}'),
-      onTap: () => _push(ItemDetailPage(itemId: it.id!)),
+      onTap: () => context.push('/items/detail?id=${it.id}'),
       child: Opacity(
         opacity: hist ? .6 : 1,
         child: Container(

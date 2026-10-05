@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lifeharness/features/goals/presentation/goals_routes.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -36,8 +38,29 @@ void main() {
       goalsClockProvider.overrideWithValue(() => now),
     ]);
     addTearDown(container.dispose);
+    // T10 路由收口：模块内跳转全走命名路由，测试侧直接挂**生产路由表**
+    // （`MaterialApp(home:)` 直挂会炸 No GoRouter found in context）。
+    final router = GoRouter(
+      initialLocation: '/root',
+      routes: [
+        GoRoute(
+          path: '/root',
+          builder: (_, _) => const Scaffold(body: SizedBox.shrink()),
+        ),
+        GoRoute(path: '/x', builder: (_, _) => home),
+        ...goalsPageRoutes(),
+      ],
+    );
     await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: MaterialApp(home: home)));
+      container: container,
+      child: MaterialApp.router(
+        routerConfig: router,
+      ),
+    ));
+    // 被测页压在根桩之上：页内「保存后 pop」「连退」才有落点，
+    // 否则 go_router 会撞「popped the last page」断言（不是产品缺陷）。
+    router.push('/x');
+    await settle5(tester);
     await settle5(tester);
   }
 

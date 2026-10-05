@@ -10,6 +10,20 @@ import '../domain/item_models.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
+/// `/items/edit` 的 typed extra（T10 路由收口）：路由表只认这一个形状。
+///
+/// 深链 `/items/edit`（**无 extra**）＝空白新建（仪表盘 FAB 那条路）；
+/// 「编辑某件」「记账流水升级预填」必须带本对象——不许再往 `extra:` 塞裸 Object。
+class ItemEditArg {
+  const ItemEditArg({this.origin, this.prefill});
+
+  /// 非空＝编辑该档案。
+  final ItemProfile? origin;
+
+  /// 记账流水升级候选（新建预填路径）。
+  final LedgerCandidate? prefill;
+}
+
 /// P7b 物品档案编辑（新建/修改共用一版全屏表单，HG-H1 同表单单版本）。
 ///
 /// 口径：购入/保修日期就地内嵌滚轮（HG-D1）；计费方式三 chip + 条件区

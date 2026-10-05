@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/share_card.dart';
@@ -7,7 +8,6 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/days_repository.dart';
 import '../domain/day_calc.dart';
 import '../domain/day_models.dart';
-import 'day_edit_page.dart';
 import 'days_kit.dart';
 import 'days_providers.dart';
 
@@ -278,10 +278,10 @@ class DayDetailPage extends ConsumerWidget {
                   key: const ValueKey('d-detail-edit'),
                   label: '编辑',
                   onTap: () async {
-                    final r = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => DayEditPage(dayId: day.id)));
+                    // T10：改走命名路由（深链可达·未知路由兜底盖得到；
+                    // 编辑页删除带 'purged' 回来，与本屏连退的口径不变）
+                    final r = await context.push<String>(
+                        '/days/edit?id=${day.id}');
                     if (r == 'purged' && context.mounted) {
                       Navigator.pop(context); // 日子已删：详情连退
                     }

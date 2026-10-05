@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lifeharness/features/days/data/days_repository.dart';
+import 'package:lifeharness/features/days/presentation/days_providers.dart';
+import 'package:lifeharness/features/days/presentation/days_routes.dart';
+import 'package:lifeharness/features/items/presentation/items_routes.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -44,10 +49,35 @@ void main() {
       itemsRepositoryProvider.overrideWithValue(repo),
       ledgerRepositoryProvider.overrideWithValue(LedgerRepository(db)),
       itemsClockProvider.overrideWithValue(() => now),
+      // 跨模块跳转目标屏（日子·提醒中心）要读 days 库：同一张内存表接上
+      daysRepositoryProvider.overrideWithValue(DaysRepository(db)),
     ]);
     addTearDown(container.dispose);
+    // T10 路由收口：模块内跳转全走命名路由，测试侧直接挂**生产路由表**
+    // （`MaterialApp(home:)` 直挂会炸 No GoRouter found in context）。
+    final router = GoRouter(
+      initialLocation: '/root',
+      routes: [
+        GoRoute(
+          path: '/root',
+          builder: (_, _) => const Scaffold(body: SizedBox.shrink()),
+        ),
+        GoRoute(path: '/x', builder: (_, _) => home),
+        ...itemsPageRoutes(),
+        // 详情屏「保修到期提醒」跨模块跳日子·提醒中心（生产同一路径）
+        ...daysPageRoutes(),
+      ],
+    );
     await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: MaterialApp(home: home)));
+      container: container,
+      child: MaterialApp.router(
+        routerConfig: router,
+      ),
+    ));
+    // 被测页压在根桩之上：页内「保存后 pop」「连退」才有落点，
+    // 否则 go_router 会撞「popped the last page」断言（不是产品缺陷）。
+    router.push('/x');
+    await settle5(tester);
     await settle5(tester);
   }
 
@@ -198,9 +228,11 @@ void main() {
       // 状态 chip + 冻结无决算入口
       expect(find.textContaining('● 使用中 · 计费中'), findsOneWidget);
       expect(find.byKey(const ValueKey('i-detail-settle')), findsNothing);
-      // 保修关联：无 go_router 环境 → toast 登记差异
+      // 保修关联（T10 后＝真跳转）：命名路由 push 到日子·提醒中心
       await tester.tap(find.byKey(const ValueKey('i-link-remind')));
-      expect(await pollContains(tester, '保修提醒已汇入提醒中心'), isTrue);
+      await settle5(tester);
+      expect(find.byKey(const ValueKey('d-remind-tab-保修')), findsOneWidget,
+          reason: '应真落到 /days/remind 提醒中心（不是兜底 toast）');
     });
 
     testWidgets('times 双口径卡 + stop 止损卡 + 闲置建议回收', (tester) async {

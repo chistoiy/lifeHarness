@@ -2,13 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/share_card.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
-import 'item_detail_page.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
@@ -147,10 +147,8 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: GestureDetector(
                       key: ValueKey('i-stats-top-${x.id}'),
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ItemDetailPage(itemId: x.id!))),
+                      onTap: () =>
+                          context.push('/items/detail?id=${x.id}'),
                       child: Row(
                         children: [
                           Icon(itemCatIcon(x.category), size: 16),

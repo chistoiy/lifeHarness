@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
@@ -8,7 +9,6 @@ import '../../../../shared/widgets/scroll_pad.dart';
 import '../../domain/todo.dart';
 import '../../domain/todo_insights.dart';
 import '../todo_providers.dart';
-import 'pomo_screen.dart';
 import 'todo_edit_sheet.dart';
 
 /// 智能筛选定义（原型 todoChips：今天/最近7天/四象限入口/已安排/已完成/已过期）。
@@ -437,7 +437,7 @@ void startPomoFromList(BuildContext context, WidgetRef ref, Todo todo) {
           mode: todo.pomoMode ?? 'up',
           minutes: todo.pomoMin);
   if (cur == null) ref.read(activePomoProvider.notifier).state = s;
-  // T7：rootNavigator 直推全屏专注页（覆盖壳层·无底部导航）
-  Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-      fullscreenDialog: true, builder: (_) => PomoScreen(session: s)));
+  // T7→T10：全屏专注页改走命名路由 `/pomo`（登记在 todo_routes：它在壳层之外，
+  // 照样覆盖壳层无底栏，`fullscreenDialog` 由路由侧的 pageBuilder 保留）
+  context.push('/pomo', extra: s);
 }

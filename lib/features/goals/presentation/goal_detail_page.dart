@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/goal_calc.dart';
 import '../domain/goal_models.dart';
-import 'goal_edit_page.dart';
-import 'goal_review_page.dart';
 import 'goals_kit.dart';
 import 'goals_providers.dart';
 
@@ -27,8 +26,6 @@ class GoalDetailPage extends ConsumerStatefulWidget {
 class _GoalDetailPageState extends ConsumerState<GoalDetailPage> {
   void _toast(String msg) => AppToast.show(context, msg);
 
-  void _push(Widget page) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   /// 回填弹层：数字输入 + 保存 → bumpKr（kind 手动回填留痕）。
   Future<void> _bumpSheet(GoalKr k) async {
@@ -371,9 +368,15 @@ class _GoalDetailPageState extends ConsumerState<GoalDetailPage> {
                       key: const ValueKey('g-detail-edit'),
                       icon: Icons.edit_outlined,
                       label: '编辑目标',
-                      onTap: () => _push(GoalEditPage(
-                          goalId: g.id,
-                          onDeleted: () => Navigator.pop(context))),
+                      onTap: () async {
+                        // T10：删除＝等命名路由带回 'purged'。原先往子页塞
+                        // `onDeleted` 闭包，路由表里带闭包＝深链不可用也查不到
+                        final r = await context.push<String>(
+                            '/goals/edit?id=${g.id}');
+                        if (r == 'purged' && mounted) {
+                          Navigator.pop(context); // 目标已删：详情连退
+                        }
+                      },
                     ),
             ),
             const SizedBox(width: 8),
@@ -384,7 +387,7 @@ class _GoalDetailPageState extends ConsumerState<GoalDetailPage> {
                     : const ValueKey('g-detail-add-review'),
                 label: arch ? '查看最近复盘' : '加入复盘',
                 onTap: arch
-                    ? () => _push(const GoalReviewPage())
+                    ? () => context.push('/goals/review')
                     : () => _toast('本目标已加入「季度复盘」对照清单'),
               ),
             ),

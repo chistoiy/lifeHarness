@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
@@ -7,9 +8,6 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/days_repository.dart';
 import '../domain/day_calc.dart';
 import '../domain/day_models.dart';
-import 'day_detail_page.dart';
-import 'day_edit_page.dart';
-import 'day_remind_page.dart';
 import 'days_kit.dart';
 import 'days_providers.dart';
 
@@ -33,15 +31,13 @@ class _DaysPageState extends ConsumerState<DaysPage> {
   Future<List<DiaryEcho>>? _annFuture;
   String? _annKey;
 
-  void _push(Widget page) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   void _tapDay(DayEntry d, DateTime now) {
     if (d.archived || !isOverdue(d, now)) {
-      _push(DayDetailPage(dayId: d.id!));
+      context.push('/days/detail?id=${d.id}');
     } else {
       // once 已过期 → 提醒中心（原型 dayTap d.d<0 → goRemind）
-      _push(const DayRemindPage());
+      context.push('/days/remind');
     }
   }
 
@@ -69,7 +65,7 @@ class _DaysPageState extends ConsumerState<DaysPage> {
         key: const ValueKey('d-fab'),
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         tooltip: '新建日子',
-        onTap: () => _push(DayEditPage(dayId: null)),
+        onTap: () => context.push('/days/edit'),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -173,7 +169,7 @@ class _DaysPageState extends ConsumerState<DaysPage> {
         EmptyDashRow(
           key: const ValueKey('d-new-day'),
           text: '＋ 新建倒数日 / 纪念日',
-          onTap: () => _push(DayEditPage(dayId: null)),
+          onTap: () => context.push('/days/edit'),
         ),
         const SizedBox(height: 20),
         _remindPreviewCard(unhandled, now),
@@ -362,7 +358,7 @@ class _DaysPageState extends ConsumerState<DaysPage> {
   Widget _remindPreviewCard(List<ReminderItem> unhandled, DateTime now) {
     return GestureDetector(
       key: const ValueKey('d-remind-preview'),
-      onTap: () => _push(const DayRemindPage()),
+      onTap: () => context.push('/days/remind'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: context.cardDecoration,

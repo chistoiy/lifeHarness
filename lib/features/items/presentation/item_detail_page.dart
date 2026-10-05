@@ -10,7 +10,6 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
 import 'item_edit_page.dart';
-import 'item_settle_page.dart';
 import 'items_kit.dart';
 import 'items_providers.dart';
 
@@ -30,8 +29,6 @@ class ItemDetailPage extends ConsumerStatefulWidget {
 }
 
 class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
-  void _push(Widget page) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   ItemProfile? _find() {
     final d = ref.read(itemsDataProvider).valueOrNull;
@@ -145,7 +142,8 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
                         minimumSize: const Size(0, 28),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: () => _push(ItemEditPage(origin: it)),
+                      onPressed: () => context.push(
+                          '/items/edit', extra: ItemEditArg(origin: it)),
                       child: Text('编辑档案',
                           style: TextStyle(
                               fontSize: 11,
@@ -181,7 +179,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
     final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       key: const ValueKey('i-detail-settle'),
-      onTap: () => _push(ItemSettlePage(itemId: it.id!)),
+      onTap: () => context.push('/items/settle?id=${it.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: context.cardDecoration,
@@ -779,7 +777,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
                   } else {
                     AppToast.show(
                         context, '决算单已生成 · 净持有 ${fmtY(poolOf(fresh))}');
-                    _push(ItemSettlePage(itemId: it.id!));
+                    context.push('/items/settle?id=${it.id}');
                   }
                 },
                 child: Container(
@@ -842,7 +840,7 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           if (!mounted) return;
           itemsTouch(ref);
           AppToast.show(context, '已生成决算报告并归档 · 转入历史库');
-          _push(ItemSettlePage(itemId: it.id!));
+          context.push('/items/settle?id=${it.id}');
         },
       ),
     );

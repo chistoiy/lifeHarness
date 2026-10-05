@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/goal_calc.dart';
 import '../domain/goal_models.dart';
-import 'goal_detail_page.dart';
-import 'goal_edit_page.dart';
-import 'goal_review_page.dart';
 import 'goals_kit.dart';
 import 'goals_providers.dart';
 
@@ -26,8 +24,6 @@ class GoalsPage extends ConsumerStatefulWidget {
 }
 
 class _GoalsPageState extends ConsumerState<GoalsPage> {
-  void _push(Widget page) =>
-      Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
   void _toast(String msg) => AppToast.show(context, msg);
 
@@ -71,7 +67,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
       _toast('目标数量上限提醒：$period 已有 $kMaxOkrPerPeriod 个 O，建议先归档/收敛一个');
       return;
     }
-    _push(GoalEditPage(goalId: null));
+    context.push('/goals/edit');
   }
 
   /// 复制上期（原型 goalCopyPrev）：回退找有内容周期 → 上限校验 → 清零重编号。
@@ -284,7 +280,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
         // 季度复盘引导卡（原型 L1241-1244）
         GestureDetector(
           key: const ValueKey('g-review-entry'),
-          onTap: () => _push(const GoalReviewPage()),
+          onTap: () => context.push('/goals/review'),
           child: Container(
             margin: const EdgeInsets.only(top: 12),
             padding: const EdgeInsets.all(12),
@@ -330,7 +326,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
     final tokens = context.tokens;
     return GestureDetector(
       key: ValueKey('g-okr-${g.id}'),
-      onTap: () => _push(GoalDetailPage(goalId: g.id!)),
+      onTap: () => context.push('/goals/detail?id=${g.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),

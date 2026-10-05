@@ -14,12 +14,11 @@ import 'goals_providers.dart';
 /// 归档/未来均可选但保存时归档拦截）+ KR 行卡族（≥2 才可删、上限 4、
 /// 目标值数字输入、单位/数据源底部弹层选项）+ 校验链逐字 + 删除二次确认。
 class GoalEditPage extends ConsumerStatefulWidget {
-  const GoalEditPage({this.goalId, this.onDeleted, super.key});
+  const GoalEditPage({this.goalId, super.key});
 
   final int? goalId;
 
-  /// 从详情页进入时注入：删除成功后由详情页一并退场（连退回列表）。
-  final VoidCallback? onDeleted;
+  /// 路由表里不许塞闭包（深链不可用·兜底查不到），故本参数已摘。
 
   @override
   ConsumerState<GoalEditPage> createState() => _GoalEditPageState();
@@ -201,8 +200,8 @@ class _GoalEditPageState extends ConsumerState<GoalEditPage> {
     if (!mounted) return;
     goalsTouch(ref);
     _toast('目标已删除');
-    Navigator.pop(context);
-    widget.onDeleted?.call();
+    // T10：带结果出栈，发起页（目标详情）收到 'purged' 后连退。
+    Navigator.pop(context, 'purged');
   }
 
   @override

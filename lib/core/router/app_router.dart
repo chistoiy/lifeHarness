@@ -249,6 +249,12 @@ class HomeShell extends ConsumerWidget {
 
       _fromToday = _prevPath == NavModule.today.path;
 
+      // 挂账修复（T10）：切栏目必须清零「再按一次返回退出」的计时窗口——
+
+      // 否则在今天页按过一次返回、2 秒内切到别的栏目再按返回＝直接退 app。
+
+      _lastBackAt = null;
+
       _prevPath = currentPath;
 
     }
