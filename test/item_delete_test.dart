@@ -87,6 +87,22 @@ void main() {
     expect(row.deletedAt, isNotNull);
   });
 
+  test('回收站行的「成本池」＝净值（含二次付费），不是购入价（真机 6071 纠偏）', () async {
+    // 真机抓到的缺陷：行上读的是 item_profiles.price，做过 ¥50 二次付费的档案
+    // 明明成本池 ¥249，回收站却写「成本池 ¥199」。修＝trashedItems 挂回时间轴
+    // 子记录，行上改吃 poolOf（与列表/详情同一个公式，在册口径一处定义）。
+    final id = await addProfile(price: 199);
+    await items.addExtraPay(id, 50, '维修/配件');
+    await items.softDeleteItem(id);
+
+    final row = (await trash.items()).singleWhere((r) => r.kind.name == 'item');
+    expect(row.subs.first, contains('成本池 ¥249'),
+        reason: '回收站行只读购入价＝把二次付费抹掉了（真机 6071 现象）');
+    expect(row.subs.first, isNot(contains('成本池 ¥199')));
+    // 后果读数同源：时间轴两条（购入＋二次付费）。
+    expect(row.cascadeNotes, contains('成本时间轴 2 条'));
+  });
+
   test('恢复＝清软删标记，状态与计费口径原样回来（不新建条目）', () async {
     final id = await addProfile(status: kItemStatusScrapped, billing: false);
     await items.softDeleteItem(id);

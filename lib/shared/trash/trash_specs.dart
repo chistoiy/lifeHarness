@@ -6,7 +6,7 @@ import '../../features/habit/presentation/habit_providers.dart';
 import '../../features/journal/data/note_dao.dart';
 import '../../features/journal/presentation/journal_providers.dart';
 import '../../features/items/data/items_repository.dart';
-import '../../features/items/domain/item_calc.dart' show daysHeld;
+import '../../features/items/domain/item_calc.dart' show daysHeld, poolOf;
 import '../../features/items/presentation/items_kit.dart' show itemMoney;
 import '../../features/items/presentation/items_providers.dart';
 import '../../features/read/data/read_repository.dart';
@@ -321,7 +321,8 @@ final List<TrashKindSpec> trashKindSpecs = [
           title: it.name.trim().isEmpty ? '未命名物品' : it.name,
           deletedAt: trashTimeOf(it.deletedAt),
           subs: [
-            '${it.category} · 成本池 ${itemMoney(it.price)} · 持有 ${daysHeld(it.buyDate, DateTime.now())} 天',
+            // 成本池＝净值（购入＋二次付费−回收残值），不是购入价（真机 6071 纠偏）。
+            '${it.category} · 成本池 ${itemMoney(poolOf(it))} · 持有 ${daysHeld(it.buyDate, DateTime.now())} 天',
             '关联流水 ${ro.txns} 条保留',
           ],
           cascadeNotes: '连带清 成本时间轴 ${ro.events} 条 · 按次用量 ${ro.usages} 次 · 关联流水保留',

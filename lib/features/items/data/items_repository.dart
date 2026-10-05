@@ -77,10 +77,28 @@ class ItemsRepository {
       ).then((_) => AppLog.addKey('物品删除：#$id 已移入回收站 · 保留期内可恢复'));
 
   /// 回收站列表（按删除时间倒序，与其余各类同序）。
+  ///
+  /// 与 [loadAll] 一样把成本时间轴与用量**挂回档案**：行上的「成本池」是净值
+  /// （购入＋二次付费−回收残值），只读 `item_profiles` 一行会把做过二次付费的
+  /// 档案写成购入价（真机 6071 抓到：¥249 的档案行上显示「成本池 ¥199」）。
   Future<List<ItemProfile>> trashedItems() async {
     final rows = await db.query(DbSchema.tItemProfiles,
         where: 'deleted_at IS NOT NULL', orderBy: 'deleted_at DESC, id DESC');
-    return [for (final r in rows) ItemProfile.fromRow(r)];
+    final evs = await db.query(DbSchema.tItemEvents, orderBy: 'id ASC');
+    final uss = await db.query(DbSchema.tItemUsages, orderBy: 'id ASC');
+    return [
+      for (final r in rows)
+        ItemProfile.fromRow(r).copyWith(
+          events: [
+            for (final e in evs)
+              if (e['item_id'] == r['id']) ItemEvent.fromRow(e)
+          ],
+          usages: [
+            for (final u in uss)
+              if (u['item_id'] == r['id']) ItemUsage.fromRow(u)
+          ],
+        ),
+    ];
   }
 
   /// 恢复＝清 `deleted_at`。`status`/`billing`/`mode` 一律不动——
