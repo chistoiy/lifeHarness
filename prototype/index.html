@@ -703,11 +703,11 @@ tailwind.config = {
       <div class="card space-y-3 text-sm">
         <div class="flex items-center justify-between"><span>回收站自动清理</span>
           <button id="recTrashOpt" class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
-        <div class="text-[11px] text-slate-400">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 删除的内容统一进回收站，按此期限自动彻底删除</div>
+        <div class="text-[11px] text-slate-400">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品 删除的内容统一进回收站，按此期限自动彻底删除</div>
       </div>
     </section>
 
-    <!-- ===== P4a2b 全局回收站（V1.60 · 六类软删保留期内可恢复 · 批量彻底删除/恢复 · 书连带清防幽灵） ===== -->
+    <!-- ===== P4a2b 全局回收站（V1.60 · 七类软删保留期内可恢复 · 批量彻底删除/恢复 · 书连带清防幽灵） ===== -->
     <section id="p-sub-trash" class="page px-5 safe-pb no-scrollbar">
       <div class="flex items-center justify-between mt-1">
         <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="ttCnt">10 项</b><span id="ttKeep"> · 删除 30 天后自动彻底删除</span></div>
@@ -716,7 +716,7 @@ tailwind.config = {
           <button class="text-slate-500" id="ttPickBtn" onclick="ttToggleSel()">选择</button>
         </div>
       </div>
-      <!-- V1.60：六类分段 chips（计数随动作同步） -->
+      <!-- V1.60：七类分段 chips（计数随动作同步） -->
       <div class="flex gap-1.5 mt-2 flex-wrap" id="gtSegRow"></div>
       <div class="mt-2 space-y-2" id="ttList"></div>
     </section>
@@ -826,7 +826,7 @@ tailwind.config = {
         <button onclick="navTo('p-logs')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-purple-50 dark:bg-purple-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5.6" y="5" width="12.8" height="15" rx="2"/><path d="M9.4 5V3.6h5.2V5M9.4 10.4h5.2m-5.2 3.4h5.2m-5.2 3.4h3.4"/></svg></span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
         <button onclick="gtOpen('all')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span><div class="flex-1"><b class="text-sm">回收站</b><div class="text-[11px] text-slate-400">六类删除内容 · 保留期内可恢复</div></div><span class="text-[11px] text-slate-400" id="pfTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span><div class="flex-1"><b class="text-sm">回收站</b><div class="text-[11px] text-slate-400">七类删除内容 · 保留期内可恢复</div></div><span class="text-[11px] text-slate-400" id="pfTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
@@ -1398,7 +1398,7 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
-  <!-- V1.60：回收站批量操作条（恢复 / 彻底删除 · 六类通用 · 与笔记·日记批量同款语言） -->
+  <!-- V1.60：回收站批量操作条（恢复 / 彻底删除 · 七类通用 · 与笔记·日记批量同款语言） -->
   <div id="ttSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
     <span id="ttSelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 项</span>
     <button onclick="ttBatchRestore()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-teal-600 dark:text-teal-400 active:bg-slate-100 dark:active:bg-slate-700">
@@ -2120,7 +2120,8 @@ const D = {
          {t:'每晚拉伸 10 分钟',k:'habit',del:'08-26 22:40'},
          {t:'控制器入门（EPUB）',k:'book',hl:23,min:186,pct:41,del:'09-12 16:20'},
          {t:'先想清楚，再动手',k:'quote',link:'控制器入门（EPUB）',del:'09-13 08:15'},
-         {t:'2026 阅读计划',k:'list',cnt:12,del:'09-10 12:00'}],
+         {t:'2026 阅读计划',k:'list',cnt:12,del:'09-10 12:00'},
+         {t:'旧显示器',k:'item',cat:'数码',cost:'¥1,499',days:1210,txn:1,tl:2,use:0,del:'09-18 11:24'}],
   todoChips:['📅 今天 4','🗓 最近7天 9','⭐ 四象限','🗃 已安排','☑️ 已完成 128','⏰ 已过期 2'],
   todos:[
     {t:'提交周报',tag:'工作',q:0,due:'今天 18:00',done:true,imp:1,urg:1},
@@ -2178,7 +2179,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','六类删除内容 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2478,8 +2479,8 @@ function tkToggle(i){ const t=D.todos[i]; t.done=!t.done; renderTodos(); renderQ
 function delTaskFromSheet(){const t=D.todos.splice(stIdx,1)[0];t.del='09-19 14:20';t.k='todo';D.trash.unshift(t);
   closeSheet('sheetTask');renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
   toast('已移入垃圾箱 · '+ttKeepTxt())}
-/* ================= V1.60 全局回收站（六类软删 · 保留期与记录管理同源 · 批量恢复/彻底删除 · 书连带清防幽灵） ================= */
-const GT_K={todo:{n:'待办',dot:'bg-indigo-400'},note:{n:'笔记',dot:'bg-sky-400'},habit:{n:'习惯',dot:'bg-teal-400'},book:{n:'书籍',dot:'bg-amber-400'},quote:{n:'划线书摘',dot:'bg-rose-400'},list:{n:'书单',dot:'bg-violet-400'}};
+/* ================= V1.60 全局回收站（七类软删 · 保留期与记录管理同源 · 批量恢复/彻底删除 · 书连带清防幽灵） ================= */
+const GT_K={todo:{n:'待办',dot:'bg-indigo-400'},note:{n:'笔记',dot:'bg-sky-400'},habit:{n:'习惯',dot:'bg-teal-400'},book:{n:'书籍',dot:'bg-amber-400'},quote:{n:'划线书摘',dot:'bg-rose-400'},list:{n:'书单',dot:'bg-violet-400'},item:{n:'物品',dot:'bg-orange-400'}};
 let gtSeg='all',ttMode=false,ttSel=new Set(),tpIds=[],ttPressTimer=null;
 function ttDaysVal(){const el=document.getElementById('recTrashOpt');const v=el?el.textContent.trim():'30 天';
   return v==='不清理'?0:(parseInt(v,10)||30)}
@@ -2510,6 +2511,7 @@ function gtSub(t){const left=ttLeft(t);const base=`<span>删于 ${t.del}</span><
   if(t.k==='book')return `<span class="text-amber-600 dark:text-amber-400">含在库划线·笔记 ${t.hl||0} 条 · 阅读 ${t.min||0} 分钟 · 进度 ${t.pct||0}%</span>`+base;
   if(t.k==='quote')return `<span>${gtQSub(t)}</span>`+base;
   if(t.k==='list')return `<span>成员 ${t.cnt||0} 本</span>`+base;
+  if(t.k==='item')return `<span>${t.cat||'—'} · 成本池 ${t.cost||'—'} · 持有 ${t.days||0} 天</span><span class="text-teal-600 dark:text-teal-400">关联流水 ${t.txn||0} 条保留</span>`+base;
   if((t.k||'todo')==='todo')return `<span>⏰ ${t.due||'—'}</span>${t.tag?`<span>#${t.tag}</span>`:''}`+base;
   return base}
 function renderTrash(){const el=document.getElementById('ttList');if(!el)return;gtSegs();ttSyncKeep();
@@ -2545,7 +2547,7 @@ function ttRestore(ids){const list=ids.slice().sort((a,b)=>a-b);const back=list.
   ttSel.clear();if(!ttSel.size)ttMode=false;
   renderTodos();renderQuad();renderTimeline();renderChips();renderTrash();
   const b=back[0],one=back.length===1;
-  const msg=one?(b.k==='todo'?'已恢复到「'+D.quads[b.q].name+'」':({note:'已恢复到原文件夹',habit:'已恢复到习惯列表',book:'已回到书架 · 缓存态按源文件现状走守卫',quote:'已恢复到《'+(b.link||'原书')+'》',list:'已恢复到书单列表'})[b.k||'todo'])
+  const msg=one?(b.k==='todo'?'已恢复到「'+D.quads[b.q].name+'」':({note:'已恢复到原文件夹',habit:'已恢复到习惯列表',book:'已回到书架 · 缓存态按源文件现状走守卫',quote:'已恢复到《'+(b.link||'原书')+'》',list:'已恢复到书单列表',item:'已回到物品列表 · 每日计费按删除前状态继续'})[b.k||'todo'])
    :('已恢复 '+back.length+' 项到各自模块');
   toast(msg)}
 function ttBatchRestore(){if(!ttSel.size)return;ttRestore([...ttSel])}
@@ -2555,7 +2557,8 @@ function tpAsk(ids){tpIds=ids.slice();const msg=document.getElementById('tpMsg')
     const tail=t.k==='book'?`<span class="text-rose-500 shrink-0">连带清 在库划线·笔记 ${t.hl||0} 条 · 计时 · 进度</span>`
       :(t.k==='habit'?`<span class="text-slate-400 shrink-0">只清定义 · 历史流水保留</span>`
       :(t.k==='list'?`<span class="text-slate-400 shrink-0">连成员行一起清 · 书本身保留</span>`
-      :`<span>${ttLeftTxt(t)}</span>`));
+      :(t.k==='item'?`<span class="text-rose-500 shrink-0">连带清 成本时间轴 ${t.tl||0} 条 · 按次用量 ${t.use||0} 次 · 关联流水保留</span>`
+      :`<span>${ttLeftTxt(t)}</span>`)));
     return `<div class="rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2 flex items-center gap-2"><span class="w-2 h-2 rounded-full ${K.dot} shrink-0"></span><span class="flex-1 min-w-0 truncate">${t.t}</span>${tail}</div>`}).join('');
   openSheet('sheetTrashPurge')}
 function ttBatchPurge(){if(!ttSel.size)return;tpAsk([...ttSel].sort((a,b)=>b-a))}

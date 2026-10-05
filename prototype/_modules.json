@@ -4970,6 +4970,20 @@
    }
   },
   {
+   "id": "sheetItemDel",
+   "kind": "sheet",
+   "title": "删除档案",
+   "home": "index-day_aim__goods.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-day_aim__goods.html": {
+     "size": 923,
+     "hash": "005c9d0b"
+    }
+   }
+  },
+  {
    "id": "sheetScrap",
    "kind": "sheet",
    "title": "",

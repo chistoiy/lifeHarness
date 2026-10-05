@@ -1,4 +1,5 @@
-/* V1.60「全局回收站」原型回归（p-sub-trash 六类分段 · 书连带清防幽灵 · 三入口改道 · 计数同源）
+/* V1.60「全局回收站」原型回归（p-sub-trash 七类分段 · 书连带清防幽灵 · 三入口改道 · 计数同源）
+ * V1.61 追加：物品成为第七类（T1b 分段行副信息 · T7c 彻底删除后果 · T11 恢复文案）
  * 用法：node --experimental-websocket tools/gttrashcheck.js（截图：GT_SHOTS=1，落仓库外 tempWork） */
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), url = require('url');
@@ -42,12 +43,23 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
   await cmd('Runtime.enable'); await cmd('Page.enable');
   await cmd('Page.navigate', { url: URLF }); await wait(2800);
 
-  /* T1 进屏：六类分段 chips + 全部 9 行 + 计数同源 */
+  /* T1 进屏：七类分段 chips + 全部 10 行 + 计数同源 */
   const t1 = await ev(`gtOpen('all');
     return {p:curPage,chips:$$('#gtSegRow button').length,rows:${ROWS},cnt:$('#ttCnt').textContent};`);
-  (t1.p === 'p-sub-trash' && t1.chips === 7 && t1.rows.length === 9 && /^9 项$/.test(t1.cnt))
-    ? ok('T1 回收站屏：7 段 chips · 全部 9 行 · 计数 9 项') : bad('T1', JSON.stringify(t1));
+  (t1.p === 'p-sub-trash' && t1.chips === 8 && t1.rows.length === 10 && /^10 项$/.test(t1.cnt))
+    ? ok('T1 回收站屏：8 段 chips（含物品） · 全部 10 行 · 计数 10 项') : bad('T1', JSON.stringify(t1));
   await shot('gt-01-all');
+
+  /* T1b V1.61 物品分段：单行 · 副信息带分类/成本池/持有天数与「关联流水保留」（截图后再回全部段） */
+  const t1b = await ev(`gtSeg='item';ttExitSel();
+    return {rows:$$('#ttList .card').length,txt:$('#ttList').textContent,cnt:$('#ttCnt').textContent,
+      seg:[].map.call($$('#gtSegRow button'),function(b){return b.textContent.trim()}).join('|')};`);
+  await wait(400);   // 等一帧重绘，否则样张拍到过滤前的旧帧
+  await shot('gt-01b-item-seg');
+  await ev(`gtSeg='all';ttExitSel();return 1;`);
+  (t1b.rows === 1 && t1b.cnt === '1 项' && /成本池 ¥1,499/.test(t1b.txt) && /持有 1210 天/.test(t1b.txt)
+    && /关联流水 1 条保留/.test(t1b.txt) && /物品 1/.test(t1b.seg))
+    ? ok('T1b 物品行副信息＝分类·成本池·持有·流水保留（分段计数同源）') : bad('T1b', JSON.stringify(t1b));
 
   /* T2 书行连带文案（进屏即可见，不用先点开删除） */
   const t2 = await ev(`return {txt:${ROWS}.join('|'),book:($('#ttList').textContent.includes('含在库划线·笔记 23 条 · 阅读 186 分钟 · 进度 41%'))};`);
@@ -72,7 +84,7 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
   /* T5 恢复待办：回清单且入口计数同步 */
   const t5 = await ev(`gtSeg='all';ttExitSel();var b=D.todos.length,ti=D.trash.findIndex(function(t){return (t.k||'todo')==='todo'});
     ttRestore([ti]);return {d:D.todos.length-b,trash:D.trash.length,meta:$('#todoTrashMeta').textContent};`);
-  (t5.d === 1 && t5.trash === 8 && /待办 3 项/.test(t5.meta)) ? ok('T5 恢复回原位 · 待办页入口计数同步') : bad('T5', JSON.stringify(t5));
+  (t5.d === 1 && t5.trash === 9 && /待办 3 项/.test(t5.meta)) ? ok('T5 恢复回原位 · 待办页入口计数同步') : bad('T5', JSON.stringify(t5));
 
   /* T6 彻底删除书籍：确认弹层带连带清单 */
   const t6 = await ev(`var bi=D.trash.findIndex(function(t){return t.k==='book'});tpAsk([bi]);
@@ -86,12 +98,19 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
   (t7.orphan === 1 && t7.row && /所属书已彻底删除/.test(t7.txt)) ? ok('T7 父书彻底删除后孤行置灰并说明成因') : bad('T7', JSON.stringify(t7));
   await shot('gt-03-quote-orphan');
 
-  /* T7c 习惯/书单在彻底删除弹层里也要看清后果（V1.60 实现口径回灌） */
+  /* T7c 习惯/书单/物品在彻底删除弹层里也要看清后果（V1.60 口径回灌 · V1.61 物品追加） */
   const t7c = await ev(`gtSeg='all';ttExitSel();
     var hi=D.trash.findIndex(function(t){return t.k==='habit'}),li=D.trash.findIndex(function(t){return t.k==='list'});
     tpAsk([hi,li]);var s=$('#tpList').textContent;closeSheet('sheetTrashPurge');
     return {habit:/只清定义 · 历史流水保留/.test(s),list:/连成员行一起清 · 书本身保留/.test(s)};`);
   (t7c.habit && t7c.list) ? ok('T7c 习惯只清定义留流水 · 书单连带成员行') : bad('T7c', JSON.stringify(t7c));
+
+  /* T7d V1.61 物品彻底删除：列连带清除的子记录，并明说记账流水保留 */
+  const t7d = await ev(`gtSeg='all';ttExitSel();
+    var ii=D.trash.findIndex(function(t){return t.k==='item'});
+    tpAsk([ii]);var s=$('#tpList').textContent;closeSheet('sheetTrashPurge');
+    return {hit:ii>=0,purge:/连带清 成本时间轴 2 条 · 按次用量 0 次 · 关联流水保留/.test(s)};`);
+  (t7d.hit && t7d.purge) ? ok('T7d 物品彻底删除后果＝时间轴+用量连带清 · 流水保留') : bad('T7d', JSON.stringify(t7d));
 
   /* T8 三入口改道：我的页回收站行（与日志管理同级）· 待办页卡 · 笔记抽屉行 */
   const t8 = await ev(`renderNt();setPage('p-sub-recmg');
@@ -99,8 +118,8 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
       pfCnt:$('#pfTrashCnt').textContent,
       todo:!!document.querySelector('#p-todo [onclick="ttOpen()"]')||!!document.querySelector('[onclick="ttOpen()"]'),
       noteRow:!!document.querySelector('.nt-row[onclick*="gtOpen"]')};`);
-  (t8.mine && +t8.pfCnt.split(' ')[0] === 7 && t8.todo && t8.noteRow)
-    ? ok('T8 三入口全部改道回收站（我的页 7 项计数同源）') : bad('T8', JSON.stringify(t8));
+  (t8.mine && +t8.pfCnt.split(' ')[0] === 8 && t8.todo && t8.noteRow)
+    ? ok('T8 三入口全部改道回收站（我的页 8 项计数同源）') : bad('T8', JSON.stringify(t8));
   await shot('gt-04-profile-entry');
 
   /* T9 保留期改档联动全页读数 */
@@ -111,6 +130,14 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
   /* T10 旧屏下架：p-sub-todoTrash 不再存在 */
   const t10 = await ev(`return {gone:!document.getElementById('p-sub-todoTrash'),bar:!!document.getElementById('ttSelBar')};`);
   (t10.gone && t10.bar) ? ok('T10 待办旧专屏已下架 · 批量操作条保留为通用') : bad('T10', JSON.stringify(t10));
+
+  /* T11 V1.61 恢复物品：出回收站且提示说清回哪、计费怎么接 */
+  const t11 = await ev(`gtSeg='all';ttExitSel();
+    var ii=D.trash.findIndex(function(t){return t.k==='item'}),b=D.trash.length;
+    ttRestore([ii]);return {n:b-D.trash.length,txt:$('#toast').textContent,left:D.trash.length};`);
+  (t11.n === 1 && t11.left === 7 && /已回到物品列表 · 每日计费按删除前状态继续/.test(t11.txt))
+    ? ok('T11 恢复物品＝回到物品列表并按删除前状态续计费') : bad('T11', JSON.stringify(t11));
+  await shot('gt-05-item-restore');
 
   finish();
 })().catch(e => { bad('harness 崩溃 ' + String(e).slice(0, 200)); finish() });

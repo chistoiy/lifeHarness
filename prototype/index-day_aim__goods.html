@@ -814,6 +814,20 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== V1.61 删除档案（进全局回收站 · 后果清单三行 · 取消左/删除右玫红） ===== -->
+  <div id="sheetItemDel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetItemDel')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold text-rose-500">删除档案</div>
+      <div class="text-[11px] text-slate-400 mb-1">当前档案：<b id="idName" class="text-slate-300"></b></div>
+      <div class="mt-3 rounded-2xl bg-rose-500/5 border border-rose-500/25 p-3 text-xs leading-6" id="idConseq"></div>
+      <div class="mt-4 flex gap-3">
+        <button onclick="closeSheet('sheetItemDel')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-sm font-bold">取消</button>
+        <button onclick="itemDelGo()" class="flex-1 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold">删除</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== 录入物品（半屏 · 完整版式建档走全屏 p-itemEdit） ===== -->
   <div id="sheetAddItem" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddItem')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2050,6 +2064,8 @@ function aiTab(k){$('#aiMan').classList.toggle('hidden',k!=='man');$('#aiBill').
   $('#aiTabMan').classList.toggle('on',k==='man');$('#aiTabBill').classList.toggle('on',k==='bill');}
 function goItemStats(){renderItemStats();navTo('p-itemStats')}
 function itemOpen(i){curItem=i;renderItemDetail();navTo('p-itemDetail')}
+/* —— V1.61 删除钮单一来源：栅格内与已归档通栏两个落点共用同一钮体 —— */
+function itemDelBtn(cls){return `<button onclick="openItemDelSheet()" id="itemDelBtn" class="${cls}"><svg class="w-[15px] h-[15px] mx-auto mb-0.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>删除</button>`}
 function renderItemDetail(){const it=D.items[curItem],c=costOf(it),hist=it.calc===0;
   $('#pageTitle').textContent='物品详情';$('#pageSub').textContent=it.n;
   $('#itemDetailBody').innerHTML=`
@@ -2062,7 +2078,7 @@ function renderItemDetail(){const it=D.items[curItem],c=costOf(it),hist=it.calc=
       <button class="ml-2 text-[11px] text-brand-500 font-bold" onclick="itemEdit(${curItem})">✎ 编辑档案</button>
     </div>
   </div>
-  ${hist?`<button class="mt-3 w-full card flex items-center gap-3 text-left" onclick="itemSettleOpen(${curItem})"><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">🧾</span><span class="flex-1"><b class="text-sm">查看决算报告</b><div class="text-[11px] text-slate-400">净持有 ${fmtY(poolOf(it))} · 真实日均 ${fmtY(+(poolOf(it)/it.days).toFixed(2))}/天 · 已冻结 ›</div></span><span class="text-slate-300">›</span></button>`:`
+  ${hist?`<button class="mt-3 w-full card flex items-center gap-3 text-left" onclick="itemSettleOpen(${curItem})"><span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">🧾</span><span class="flex-1"><b class="text-sm">查看决算报告</b><div class="text-[11px] text-slate-400">净持有 ${fmtY(poolOf(it))} · 真实日均 ${fmtY(+(poolOf(it)/it.days).toFixed(2))}/天 · 已冻结 ›</div></span><span class="text-slate-300">›</span></button>${itemDelBtn('mt-3 w-full py-3 rounded-xl border border-rose-300 dark:border-rose-500/40 text-rose-500 text-sm font-extrabold')}`:`
   <div class="mt-4 card">
     <div class="flex items-end justify-between">
       <div><div class="text-[11px] text-slate-400">当前日均成本（${it.mode==='times'?'按次×近30天频次折算':it.mode==='stop'?'直线基线 · 附止损预估':'直线法'}）</div><div class="text-3xl font-extrabold text-mint">${fmtY(+c.toFixed(2))}<span class="text-xs text-slate-400 font-semibold">/天</span></div></div>
@@ -2086,10 +2102,11 @@ function renderItemDetail(){const it=D.items[curItem],c=costOf(it),hist=it.calc=
     <div class="text-[10px] text-slate-400 mt-2">双口径并列：按次看「用得值不值」，折算日均看「今天背了多少」· 计划次数与单位在档案中可改</div>
   </div>`:''}
   ${it.mode==='stop'?stopCardHtml(it):''}
-  <div class="mt-3 grid grid-cols-3 gap-3">
+  <div class="mt-3 grid grid-cols-4 gap-2">
     <button onclick="openExtraSheet()" class="life-btn bg-sun/10 text-amber-600 dark:text-amber-400">💳<br>二次付费</button>
     <button onclick="openRecycleSheet()" class="life-btn bg-mint/10 text-teal-600 dark:text-teal-400">♻️<br>回收/出售</button>
     <button onclick="openScrapSheet()" class="life-btn bg-peach/10 text-rose-500">🗑<br>报废</button>
+    ${itemDelBtn('life-btn border border-rose-300 dark:border-rose-500/40 text-rose-500')}
   </div>`}
   <div class="mt-4 card">
     <div class="row-title">成本流水时间轴（审计记录）</div>
@@ -2109,6 +2126,14 @@ function openExtraSheet(){$('#exName').textContent=D.items[curItem].n;$('#exAmt'
 function openRecycleSheet(){$('#rcName').textContent=D.items[curItem].n;$('#rcAmt').value='';openSheet('sheetRecycle')}
 let scArmed=false;
 function openScrapSheet(){$('#scName').textContent=D.items[curItem].n;scArmed=false;$('#scOkBtn').textContent='确认报废';openSheet('sheetScrap')}
+/* —— V1.61 删除档案：任意状态可删，进全局回收站（回收站屏的家在壳，专版不留副本） —— */
+function openItemDelSheet(){const it=D.items[curItem];$('#idName').textContent=it.n;
+  const tl=(it.tl||[]).length,us=it.used||0,tx=(it.tl||[]).filter(e=>/^¥/.test(String(e.a))).length;
+  $('#idConseq').innerHTML=`成本时间轴 <b>${tl}</b> 条 · 按次用量 <b>${us}</b> 次：随档案一并进回收站，恢复后原样回来<br>关联记账流水 <b>${tx}</b> 条：<b>保留在记账</b>，不随档案删除<br>回收站保留 <b>30 天</b>，到期自动彻底删除；期间可在「我的 · 回收站」找回`;
+  openSheet('sheetItemDel')}
+function itemDelGo(){const it=D.items[curItem];closeSheet('sheetItemDel');
+  D.items.splice(curItem,1);curItem=0;renderItems();navTo('p-items');
+  toast(`「${it.n}」已移入回收站 · 保留期内可在「我的」页找回`)}
 function scPick(el){$$('#scrapReasons .pick-chip').forEach(b=>b.classList.remove('on'));el.classList.add('on')}
 function scrapArm(e){const it=D.items[curItem];
   if(!scArmed){scArmed=true;$('#scOkBtn').textContent='再次点击 · 确认冻结决算';toast('二次确认：报废不可撤销 · 审计记录将保留');return}
