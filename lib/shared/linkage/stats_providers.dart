@@ -66,7 +66,8 @@ final streakDaysProvider = FutureProvider<int>((ref) async {
   final db = AppDatabase.instance.db;
   final rows = await db.rawQuery('''
     SELECT COUNT(DISTINCT (created_at / 86400000)) c FROM (
-      SELECT created_at FROM todos
+      -- V1.61：删进回收站的待办不算「当天有过活动」（在册口径，与物品/笔记同源）
+      SELECT created_at FROM todos WHERE deleted_at IS NULL
       UNION ALL SELECT created_at FROM journal_entries
       UNION ALL SELECT created_at FROM events
     )

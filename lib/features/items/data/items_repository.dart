@@ -18,8 +18,9 @@ class ItemsRepository {
   // ==================== 加载 ====================
 
   Future<ItemsData> loadAll() async {
-    final rows = await db
-        .query(DbSchema.tItemProfiles, orderBy: 'billing DESC, id ASC');
+    // 在册口径＝deleted_at IS NULL：回收站里的档案不进列表/统计/每日成本（V1.61）。
+    final rows = await db.query(DbSchema.tItemProfiles,
+        where: 'deleted_at IS NULL', orderBy: 'billing DESC, id ASC');
     final evs = await db.query(DbSchema.tItemEvents, orderBy: 'id ASC');
     final uss = await db.query(DbSchema.tItemUsages, orderBy: 'id ASC');
     return ItemsData(
@@ -56,8 +57,96 @@ class ItemsRepository {
         'photo': it.photo,
         'source': it.source,
         'source_txn_id': it.sourceTxnId,
+        'deleted_at': it.deletedAt,
         'updated_at': ts,
       };
+
+  // ==================== 回收站（V1.61 物品档案删除） ====================
+
+  /// 软删＝只打 `deleted_at`，档案与子记录原地保留，回收站可恢复。
+  /// **不往成本时间轴写事件**——时间轴记的是资产变动（仅追加口径），
+  /// 自删动作的留痕走应用日志（`shared/trash` 统一记）。
+  Future<void> softDeleteItem(int id) => db.update(
+        DbSchema.tItemProfiles,
+        {
+          'deleted_at': DateTime.now().millisecondsSinceEpoch,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ? AND deleted_at IS NULL',
+        whereArgs: [id],
+      ).then((_) => AppLog.addKey('物品删除：#$id 已移入回收站 · 保留期内可恢复'));
+
+  /// 回收站列表（按删除时间倒序，与其余各类同序）。
+  Future<List<ItemProfile>> trashedItems() async {
+    final rows = await db.query(DbSchema.tItemProfiles,
+        where: 'deleted_at IS NOT NULL', orderBy: 'deleted_at DESC, id DESC');
+    return [for (final r in rows) ItemProfile.fromRow(r)];
+  }
+
+  /// 恢复＝清 `deleted_at`。`status`/`billing`/`mode` 一律不动——
+  /// 删除前后是同一份档案，计费按删除前状态继续（需求 V1.61 拍板①）。
+  Future<void> restoreItem(int id) => db.update(
+        DbSchema.tItemProfiles,
+        {
+          'deleted_at': null,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+
+  /// 彻底删除＝真删三表该档案的行（档案＋成本时间轴＋按次用量）。
+  /// **记账流水一行不碰**（拍板②：记账是独立账本，物品不反向删账）。
+  Future<void> purgeItem(int id) => db.transaction((txn) async {
+        await txn.delete(DbSchema.tItemEvents,
+            where: 'item_id = ?', whereArgs: [id]);
+        await txn.delete(DbSchema.tItemUsages,
+            where: 'item_id = ?', whereArgs: [id]);
+        await txn.delete(DbSchema.tItemProfiles,
+            where: 'id = ?', whereArgs: [id]);
+      });
+
+  /// 到期清理（与待办同款 cutoff 语义：`deleted_at < now-keepDays`）。
+  /// 先按 id 清单连子表一起真删，不做「无父即孤儿」式全表扫——那会顺手清掉
+  /// 别处尚未落定的行，语义太大。
+  /// 回收站行与彻底删除确认的**同源读数**：成本时间轴条数 · 按次用量条数 ·
+  /// 关联记账流水条数（`source='item' AND link_id=本档案`，含建档/二次付费/回收收入）。
+  /// 流水只数不改——拍板②要求「保留」，读数也得看得见才敢承诺。
+  Future<({int events, int usages, int txns})> trashReadout(int id) async {
+    Future<int> cnt(String table, String where, List<Object?> args) async {
+      final r = await db.rawQuery(
+          'SELECT COUNT(*) AS c FROM $table WHERE $where', args);
+      return (r.first['c'] as int?) ?? 0;
+    }
+
+    return (
+      events: await cnt(DbSchema.tItemEvents, 'item_id = ?', [id]),
+      usages: await cnt(DbSchema.tItemUsages, 'item_id = ?', [id]),
+      txns: await cnt(DbSchema.tLedgerTxns, "source = 'item' AND link_id = ?",
+          ['$id']),
+    );
+  }
+
+  Future<int> purgeExpiredItems(int keepDays) async {
+    if (keepDays <= 0) return 0;
+    final cutoff =
+        DateTime.now().subtract(Duration(days: keepDays)).millisecondsSinceEpoch;
+    return db.transaction((txn) async {
+      final due = await txn.query(DbSchema.tItemProfiles,
+          columns: ['id'],
+          where: 'deleted_at IS NOT NULL AND deleted_at < ?',
+          whereArgs: [cutoff]);
+      if (due.isEmpty) return 0;
+      final ids = [for (final r in due) r['id'] as int];
+      final ph = List.generate(ids.length, (_) => '?').join(',');
+      await txn.delete(DbSchema.tItemEvents,
+          where: 'item_id IN ($ph)', whereArgs: ids);
+      await txn.delete(DbSchema.tItemUsages,
+          where: 'item_id IN ($ph)', whereArgs: ids);
+      return txn.delete(DbSchema.tItemProfiles,
+          where: 'id IN ($ph)', whereArgs: ids);
+    });
+  }
 
   // ==================== 建档 / 编辑 ====================
 

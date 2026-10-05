@@ -42,8 +42,12 @@
       source TEXT NOT NULL DEFAULT 'manual',
       source_txn_id INTEGER,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
     )
+    ''',
+    '''
+    CREATE INDEX IF NOT EXISTS idx_item_profiles_deleted ON $tItemProfiles(deleted_at)
     ''',
     '''
     CREATE TABLE IF NOT EXISTS $tItemEvents (
@@ -79,5 +83,11 @@ final Map<int, List<String>> mig = {
     
     20: [
       ...itemSchemaStatements,
+    ],
+    // 35→36（V1.61 物品档案删除）：item_profiles 加软删列，子表不加（随父行判在册）。
+    // 老库全部行 deleted_at=NULL＝在册，零数据风险；索引同批建（回收站与在册读都吃它）。
+    35: [
+      'ALTER TABLE $tItemProfiles ADD COLUMN deleted_at INTEGER',
+      'CREATE INDEX IF NOT EXISTS idx_item_profiles_deleted ON $tItemProfiles(deleted_at)',
     ]
 };

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/item_mounts.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/item_calc.dart';
 import '../domain/item_models.dart';
@@ -16,7 +17,7 @@ import 'items_providers.dart';
 /// P7a 物品详情（需求 V1.42 模块9 · 原型 renderItemDetail 3691-3743 对译）。
 ///
 /// 口径：hero 当前日均实算 + 摊薄曲线 CustomPaint + 口径公式行；times 双口径卡；
-/// stop 止损卡（stopInfoOf）；三生命周期钮全联动写库（item_mounts）→ itemsTouch
+/// stop 止损卡（stopInfoOf）；三生命周期钮＋第四钮「删除」全联动写库（item_mounts）→ itemsTouch
 /// → 全页重算；toast 复述前后值；报废两击确认；冻结条目以「查看决算报告」入口卡
 /// 替代 hero；时间轴仅追加（HG-D2）；来源徽标在购入行 note 呈现。
 class ItemDetailPage extends ConsumerStatefulWidget {
@@ -159,6 +160,12 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
         const SizedBox(height: 12),
         if (!billing) ...[
           _settleEntryCard(it, now),
+          // V1.61 拍板③：已报废/已回收转出的冻结档案同样可删——三钮行整块不渲染时，
+          // 删除钮单独常驻（原型同款口径）。
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: _deleteBtn(full: true),
+          ),
         ] else ...[
           _heroCard(it, now),
           if (it.mode == ItemMode.times) _timesCard(it, now),
@@ -459,6 +466,72 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
   }
 
   /// 三生命周期钮（计费中条目）。
+  static const Color _kDel = Color(0xFFF43F5E);
+
+  /// 删除钮**单一来源**：三钮行的第四枚（竖排小钮）与冻结档案的通栏钮共用钮体，
+  /// 只换外框排布——两处各写一遍迟早分叉（原型侧同理，见 `itemDelBtn(cls)`）。
+  Widget _deleteBtn({bool full = false}) {
+    const icon = Icon(Icons.delete_outline, size: 20, color: _kDel);
+    const label = Text('删除',
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _kDel));
+    return GestureDetector(
+      key: const ValueKey('i-life-del'),
+      onTap: _confirmDelete,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: full ? 14 : 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kDel.withValues(alpha: .45)),
+        ),
+        child: full
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  icon,
+                  SizedBox(width: 6),
+                  Text('删除',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _kDel)),
+                ],
+              )
+            : const Column(children: [icon, SizedBox(height: 4), label]),
+      ),
+    );
+  }
+
+  /// 删除＝软删进全局回收站（可恢复）：先读同源后果读数 → LH-S31 二次确认 →
+  /// 软删 → 离场 → 全量重算 → 撤销条（撤销＝当场清回 `deleted_at`，回原状态续计费）。
+  Future<void> _confirmDelete() async {
+    final it = _find();
+    if (it == null || it.id == null) return;
+    final id = it.id!;
+    final repo = ref.read(itemsRepositoryProvider);
+    // 读数走回收站同一个出口：弹层里写的条数与回收站行上看到的必须一模一样。
+    final ro = await repo.trashReadout(id);
+    if (!mounted) return;
+    final ok = await lhConfirm(
+        context,
+        '删除「${it.name}」？\n'
+        '· 成本时间轴 ${ro.events} 条 · 按次用量 ${ro.usages} 次：随档案进回收站，恢复后原样回来\n'
+        '· 关联记账流水 ${ro.txns} 条：保留在记账，不随档案删除\n'
+        '· 回收站保留期内可在「我的 · 回收站」找回',
+        okLabel: '删除');
+    if (!ok || !mounted) return;
+    // 跨 await 的写库与刷新一律用 container，页面离场后 `ref` 会失效（既定坑）。
+    final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    await repo.softDeleteItem(id);
+    if (mounted) Navigator.of(context).pop(); // 先离场，免得重建时读到「档案不存在」闪一帧
+    container.read(itemsTickProvider.notifier).state++;
+    AppToast.showUndoWith(messenger, '「${it.name}」已移入回收站 · 保留期内可找回',
+        onUndo: () async {
+          await repo.restoreItem(id);
+          container.read(itemsTickProvider.notifier).state++;
+        });
+  }
+
   Widget _lifeButtonsRow() {
     Widget btn(
             {required Key key,
@@ -511,11 +584,14 @@ class _ItemDetailPageState extends ConsumerState<ItemDetailPage> {
           const SizedBox(width: 12),
           btn(
               key: const ValueKey('i-life-scrap'),
-              icon: Icons.delete_outline,
+              icon: Icons.delete_forever_outlined,
               label: '报废',
               bg: kItemPeach.withValues(alpha: .10),
               fg: kItemPeach,
               onTap: _openScrapSheet),
+          const SizedBox(width: 12),
+          // 第四钮＝删除（破坏性一档：玫红描边，不与三个生命周期钮同色底）。
+          Expanded(child: _deleteBtn()),
         ],
       ),
     );

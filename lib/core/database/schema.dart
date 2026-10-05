@@ -26,7 +26,9 @@ class DbSchema {
   // 33 只在 v0.2.7-reader2 上停留过（该批真机 user_version 已是 33，索引仍是全量唯一）。
   // 35：轮7 拍板 X-Ray 派生数据生命周期——migrations[34]（34→35）清扫所属书
   // 已彻底删除的历史孤行（mention/entity/task + 该书专属词库，GLOBAL 保留）。
-  static const int version = 35;
+  // 36：V1.61 物品档案删除——migrations[35]（35→36）给 item_profiles 加 deleted_at
+  // （回收站第七类；子表 item_events/item_usages 不加列，随父行判在册）。
+  static const int version = 36;
  
 
   

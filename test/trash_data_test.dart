@@ -3,6 +3,8 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/habit/data/habit_repository.dart';
 import 'package:lifeharness/features/habit/domain/habit.dart';
+import 'package:lifeharness/features/items/data/items_repository.dart';
+import 'package:lifeharness/features/items/domain/item_models.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
@@ -16,7 +18,8 @@ import 'package:lifeharness/shared/trash/trash_models.dart';
 import 'package:lifeharness/shared/trash/trash_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// V1.60 全局回收站 · 数据层（六类全纳 / 恢复回原位 / 彻底删除连带 / 孤行判定 / 到期清理扩表）。
+/// V1.60 全局回收站 · 数据层（各类全纳 / 恢复回原位 / 彻底删除连带 / 孤行判定 / 到期清理扩表）。
+/// V1.61 追加第七类「物品」（工单 `交棒话术-20261005-物品档案删除批` §C）。
 ///
 /// 规格来源＝需求清单 §四「全局回收站（V1.60 新增）」＋工单 §5 实现批工作面。
 void main() {
@@ -29,6 +32,7 @@ void main() {
   late NoteDao notes;
   late HabitRepository habits;
   late ReadRepository read;
+  late ItemsRepository items;
   late TrashRepository trash;
 
   setUp(() async {
@@ -42,6 +46,7 @@ void main() {
     notes = NoteDao(db);
     habits = HabitRepository(db);
     read = ReadRepository(db);
+    items = ItemsRepository(db);
     trash = TrashRepository(db);
   });
 
@@ -50,7 +55,7 @@ void main() {
     await bus.dispose();
   });
 
-  // ---- 六类各造一条「已删除」内容 ----
+  // ---- 各类各造一条「已删除」内容（V1.61 起七类） ----
 
   Future<TrashItem> seedOne(TrashKind kind) async {
     switch (kind) {
@@ -106,13 +111,17 @@ void main() {
             bookIds: [b.id]);
         final l = (await read.allLists()).first;
         await read.softDeleteList(l.id!);
+      case TrashKind.item:
+        final iid = await items.addItem(ItemProfile(
+            name: '测试相机', buyDate: '2026-01-01', price: 199));
+        await items.softDeleteItem(iid);
     }
     final all = await trash.items();
     return all.firstWhere((e) => e.kind == kind);
   }
 
-  group('六类全纳与行读数（需求 §四 全局回收站）', () {
-    test('六类各一条全部进屏，按删除时间倒序', () async {
+  group('七类全纳与行读数（需求 §四 全局回收站）', () {
+    test('七类各一条全部进屏，按删除时间倒序', () async {
       for (final k in TrashKind.values) {
         await seedOne(k);
         // 让 deleted_at 有先后，避免同毫秒乱序
@@ -386,9 +395,14 @@ void main() {
       final live = (await read.allLists()).single;
       await read.softDeleteList(live.id!);
       await stampDeletedAt(DbSchema.tBookLists, live.id, 31);
+
+      final iid = await items.addItem(ItemProfile(
+          name: '物品过期', buyDate: '2026-01-01', price: 99));
+      await items.softDeleteItem(iid);
+      await stampDeletedAt(DbSchema.tItemProfiles, iid, 31);
     }
 
-    test('过保留期的六表软删行全部清走，未过期的一律不动', () async {
+    test('过保留期的七表软删行全部清走，未过期的一律不动', () async {
       await seedSixExpired();
       final keep = await todoRepo.add(Todo(title: '未过期', quadrant: Quadrant.q1));
       await todoRepo.softRemove(keep);
@@ -400,6 +414,7 @@ void main() {
       expect(per['书籍'], 1, reason: '过期书行本身');
       expect(per['划线书摘'], 1, reason: '该书那条过期划线按自己的档位清');
       expect(per['书单'], 1);
+      expect(per['物品'], 1, reason: 'V1.61 第七类：到期清理按注册表逐类跑');
       expect((await trash.items()).map((e) => e.title), ['未过期']);
       expect(await db.query(DbSchema.tBookLists), isEmpty);
       expect(await db.query(DbSchema.tHabitEntries), isEmpty);
@@ -408,7 +423,8 @@ void main() {
     test('档位＝不清理时一行都不删', () async {
       await seedSixExpired();
       expect(await trash.purgeExpiredByTable(0), isEmpty);
-      expect(await trash.items(), hasLength(6));
+      // 数量随类别走（V1.61 起七类），不再写死 6。
+      expect(await trash.items(), hasLength(TrashKind.values.length));
     });
 
     test('书到期清理后其垃圾箱划线不会被同轮连带清走（孤行归孤行）', () async {

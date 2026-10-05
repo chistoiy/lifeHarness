@@ -133,7 +133,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('回收站'),
-            Text('六类删除内容 · 保留期内可恢复',
+            Text('七类删除内容 · 保留期内可恢复',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
           ],
         ),
@@ -473,6 +473,13 @@ class _PurgeSheet extends StatelessWidget {
         return const Text('连成员行一起清 · 书本身保留',
             key: ValueKey('tp-list-note'),
             style: TextStyle(fontSize: 10, color: Colors.grey));
+      case TrashKind.item:
+        return Text(t.cascadeNotes ?? '连带清 成本时间轴与按次用量 · 关联流水保留',
+            key: ValueKey('tp-item-note'),
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFF43F5E)));
       case TrashKind.todo:
       case TrashKind.note:
       case TrashKind.quote:

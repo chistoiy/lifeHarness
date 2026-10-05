@@ -8,6 +8,8 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/habit/data/habit_repository.dart';
 import 'package:lifeharness/features/habit/domain/habit.dart';
 import 'package:lifeharness/features/habit/presentation/habit_providers.dart';
+import 'package:lifeharness/features/items/data/items_repository.dart';
+import 'package:lifeharness/features/items/domain/item_models.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
@@ -45,6 +47,7 @@ void main() {
   late NoteDao noteDao;
   late HabitRepository habitRepo;
   late ReadRepository readRepo;
+  late ItemsRepository itemsRepo;
   late TrashRepository trashRepo;
   late SharedPreferences prefs;
 
@@ -65,6 +68,7 @@ void main() {
     noteDao = NoteDao(db);
     habitRepo = HabitRepository(db);
     readRepo = ReadRepository(db);
+    itemsRepo = ItemsRepository(db);
     trashRepo = TrashRepository(db);
     await boot();
   });
@@ -74,7 +78,7 @@ void main() {
     await bus.dispose();
   });
 
-  /// 六类各塞一条垃圾箱内容（quote 的父书已彻底删除＝孤行）。
+  /// 各类各塞一条垃圾箱内容（V1.61 起七类；quote 的父书已彻底删除＝孤行）。
   ///
   /// 注意：`testWidgets` 跑在 FakeAsync 里，用例体内**不许** `Future.delayed`
   /// （不等时间就挂死，既有教训）；跨类排序断言由 test/trash_data_test.dart 负责。
@@ -125,6 +129,10 @@ void main() {
               updatedAt: 1));
           await readRepo.softDeleteQuote(q!);
           await readRepo.purgeBook(b.id);
+        case TrashKind.item:
+          final iid = await itemsRepo.addItem(ItemProfile(
+              name: '测试相机', buyDate: '2026-01-01', price: 199));
+          await itemsRepo.softDeleteItem(iid);
         case TrashKind.list:
           final b = await readRepo.addBook(
               Book(title: '成员甲', createdAt: 1, updatedAt: 1));
@@ -182,7 +190,7 @@ void main() {
     await clearToasts(tester);
   });
 
-  testWidgets('六类分段 chips 计数同源 · 分段过滤 · 行副信息', (tester) async {
+  testWidgets('七类分段 chips 计数同源 · 分段过滤 · 行副信息', (tester) async {
     await seedSix();
     await tester.pumpWidget(trashApp());
     await settle5(tester);
@@ -199,14 +207,17 @@ void main() {
     expect(
         find.descendant(
             of: find.byKey(const ValueKey('tt-segs')),
-            matching: find.text('全部 6')),
+            matching: find.text('全部 ${TrashKind.values.length}')),
         findsOneWidget);
 
     expect(find.textContaining('写周报'), findsWidgets);
     expect(find.textContaining('含在库划线·笔记 1 条'), findsOneWidget);
     expect(find.textContaining('所属书已彻底删除'), findsOneWidget);
     expect(find.textContaining('成员 1 本'), findsOneWidget);
-    expect(find.text('剩 30 天'), findsNWidgets(6));
+    // V1.61 第七类：物品行的分类/成本池/流水保留三件都在行上读得到。
+    expect(find.textContaining('数码 · 成本池'), findsOneWidget);
+    expect(find.textContaining('关联流水 0 条保留'), findsOneWidget);
+    expect(find.text('剩 30 天'), findsNWidgets(TrashKind.values.length));
 
     await tester.tap(find.text('笔记 1'));
     await settle5(tester);
@@ -238,7 +249,7 @@ void main() {
     final left = await trashRepo.items();
     expect(left.map((e) => e.kind), isNot(contains(TrashKind.todo)),
         reason: '恢复后待办行出垃圾箱');
-    expect(left, hasLength(5));
+    expect(left, hasLength(TrashKind.values.length - 1));
     await clearToasts(tester);
   });
 
@@ -269,7 +280,8 @@ void main() {
     expect(find.text('已彻底删除 1 条'), findsOneWidget);
     final left = await trashRepo.items();
     expect(left.map((e) => e.kind), isNot(contains(TrashKind.quote)));
-    expect(left, hasLength(5), reason: '只清这一条孤行，其余五类不动');
+    expect(left, hasLength(TrashKind.values.length - 1),
+        reason: '只清这一条孤行，其余各类不动');
     await clearToasts(tester);
   });
 
@@ -341,7 +353,7 @@ void main() {
     await seedSix();
     await tester.pumpWidget(trashApp());
     await settle5(tester);
-    expect(find.text('剩 30 天'), findsNWidgets(6));
+    expect(find.text('剩 30 天'), findsNWidgets(TrashKind.values.length));
     await clearToasts(tester);
 
     // 走真实用户路径：档位是「记录管理 · 通用」那一个开关，改它＝改同一个 provider 态
@@ -349,7 +361,8 @@ void main() {
     await c.read(settingsControllerProvider.notifier).setTrashKeepDays(7);
     await settle5(tester);
     expect(find.textContaining('删除 7 天后自动彻底删除'), findsOneWidget);
-    expect(find.text('剩 7 天'), findsNWidgets(6), reason: '≤7 天全部标红');
+    expect(find.text('剩 7 天'), findsNWidgets(TrashKind.values.length),
+        reason: '≤7 天全部标红（数量随类别走，V1.61 起七类）');
     await clearToasts(tester);
   });
 

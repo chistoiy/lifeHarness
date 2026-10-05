@@ -103,6 +103,7 @@ class ItemProfile {
     this.photo,
     this.source = 'manual',
     this.sourceTxnId,
+    this.deletedAt,
     this.events = const [],
     this.usages = const [],
   });
@@ -129,9 +130,14 @@ class ItemProfile {
   final String source;
   final int? sourceTxnId;
 
+  /// V1.61 软删时刻（epoch ms）；null＝在册。非空＝在回收站，保留期内可恢复。
+  final int? deletedAt;
+
   final List<ItemEvent> events;
   final List<ItemUsage> usages;
 
+  /// 在册判定唯一口径：回收站里的档案不进列表、不进统计、不计每日成本。
+  bool get isDeleted => deletedAt != null;
   bool get recycledOut => status == kItemStatusRecycleOut;
   bool get scrapped => status == kItemStatusScrapped;
   bool get archived => !billing; // 历史（决算）分组口径
@@ -153,6 +159,7 @@ class ItemProfile {
     String? photo,
     String? source,
     int? sourceTxnId,
+    int? deletedAt,
     List<ItemEvent>? events,
     List<ItemUsage>? usages,
   }) =>
@@ -174,6 +181,9 @@ class ItemProfile {
         photo: photo ?? this.photo,
         source: source ?? this.source,
         sourceTxnId: sourceTxnId ?? this.sourceTxnId,
+        // 漏带 deletedAt 会把回收站里的档案洗成在册态（习惯模块踩过，这里显式带上）；
+        // 清空只能走 restoreItem，故沿用 `?? this.` 语义。
+        deletedAt: deletedAt ?? this.deletedAt,
         events: events ?? this.events,
         usages: usages ?? this.usages,
       );
@@ -196,6 +206,7 @@ class ItemProfile {
         photo: r['photo'] as String?,
         source: r['source'] as String,
         sourceTxnId: r['source_txn_id'] as int?,
+        deletedAt: r['deleted_at'] as int?,
       );
 }
 

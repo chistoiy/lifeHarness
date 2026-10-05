@@ -2,7 +2,7 @@ import 'dart:ui';
 
 /// V1.60 全局回收站（需求清单 §四「全局回收站」·真机轮4 批C⑦）。
 ///
-/// 六类「删除但保留记录」的内容统一进一屏：待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单。
+/// 七类「删除但保留记录」的内容统一进一屏：待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品。
 /// 行＝模块标签＋正文＋副信息＋删于时间＋剩余天数（≤7 天标红）；
 /// 恢复＝回原模块原位（不新建条目）；彻底删除走二次确认并逐条列出。
 enum TrashKind {
@@ -11,7 +11,8 @@ enum TrashKind {
   habit('习惯', Color(0xFF2DD4BF)),
   book('书籍', Color(0xFFFBBF24)),
   quote('划线书摘', Color(0xFFFB7185)),
-  list('书单', Color(0xFF8B5CF6));
+  list('书单', Color(0xFF8B5CF6)),
+  item('物品', Color(0xFFFB923C));
 
   const TrashKind(this.label, this.dot);
 
@@ -27,11 +28,12 @@ enum TrashKind {
         TrashKind.habit => '已恢复到习惯列表',
         TrashKind.book => '已回到书架 · 缓存态按源文件现状走守卫',
         TrashKind.list => '已恢复到书单列表',
+        TrashKind.item => '已回到物品列表 · 每日计费按删除前状态继续',
         _ => '已恢复',
       };
 }
 
-/// 回收站里的一行（跨六类的统一视图模型）。
+/// 回收站里的一行（跨各类的统一视图模型）。
 class TrashItem {
   const TrashItem({
     required this.kind,
@@ -42,6 +44,7 @@ class TrashItem {
     this.amberSub = false,
     this.orphan = false,
     this.orphanHint,
+    this.cascadeNotes,
     this.cascadeQuotes,
     this.src,
   });
@@ -67,6 +70,10 @@ class TrashItem {
 
   /// 仅书籍：彻底删除时连带清除的**在库**划线书摘条数（确认弹层读数）。
   final int? cascadeQuotes;
+
+  /// 彻底删除确认弹层里那句玫红后果（逐类自填人话，如物品＝「连带清 成本时间轴 N 条…」）。
+  /// 不给则弹层按类别走各自既有分支——**有连带清除内容的类必须给**，不许静默。
+  final String? cascadeNotes;
 
   /// 源模型对象（Todo/Note/Habit/Book/BookQuote/BookList），按类型分派恢复与彻底删除。
   final Object? src;

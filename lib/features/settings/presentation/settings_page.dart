@@ -153,7 +153,7 @@ class SettingsPage extends ConsumerWidget {
                         size: 18, color: Color(0xFF64748B)),
                     bg: const Color(0xFF94A3B8).withValues(alpha: .14),
                     title: '回收站',
-                    sub: '六类删除内容 · 保留期内可恢复',
+                    sub: '七类删除内容 · 保留期内可恢复',
                     trailing: '${ref.watch(trashCountsProvider).total} 项',
                     onTap: () => context.push('/settings/trash')),
                 // R5c：图片存储清理入口（本地孤儿图片勾选清理）。

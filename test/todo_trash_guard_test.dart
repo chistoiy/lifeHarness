@@ -23,6 +23,11 @@ void main() {
     'core/database/schema.dart': '建表 DDL（deleted_at 列定义处）',
     'core/database/schema/core.dart': '迁移 ALTER 语句（加列，不选数据）',
     'features/read/data/read_repo_quote.dart': '仅 insert 生成引用待办，不读在册集',
+    // 他批遗留红灯归位（批2a 六类回归跑出，肇事提交＝B-4 `8eee214`，全量基线当时未重跑）：
+    // 这里是「表名 → 人话标签」的展示映射与逐表 COUNT(*)（存储口径，软删行也占空间），
+    // 不读在册集；真正取数在 rawQuery('... FROM "$name"') 的动态表名上，本守护按行扫不到。
+    'core/backup/db_overview.dart':
+        'B-4 数据库概览：表→模块词条映射＋按表数行（含软删行的存储口径），不读在册集',
   };
 
   bool isComment(String line) {

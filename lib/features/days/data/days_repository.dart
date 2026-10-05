@@ -257,31 +257,33 @@ class DaysRepository {
           whereArgs: keepSub.toList());
     }
     // —— 保修 ← item_profiles（批2 建表后生效） ——
-    final hasItemTable = await db.rawQuery(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='item_profiles'")
-        .then((v) => v.isNotEmpty);
-    if (hasItemTable) {
-      await _syncWarranty(ts);
-    }
+    // 原先这里先探一次「表在不在」，探针语句本身写着表名却不带软删谓词，
+    // 会被 E 批 deleted_at 守护按读语句拦红。_syncWarranty 内部已有 try/catch
+    // （读失败落 warn 日志并跳过本路派生），缺表的表现与探针为假时完全一致，故直调。
+    final warrantyOk = await _syncWarranty(ts);
     // syncDerived 随每次 loadAll 触发，同一状态只落一行（同 L2「防刷满环形缓冲」口径）；
     // 数值变了才记，正好留下「订阅 3→4」这类变化轨迹。
     final sig = '订阅 ${keepSub.length} 项 · '
-        '保修表${hasItemTable ? '已同步' : '不存在（跳过）'}';
+        '保修表${warrantyOk ? '已同步' : '不存在（跳过）'}';
     if (sig != _lastDerivedSig) {
       _lastDerivedSig = sig;
       AppLog.addKey('日子派生刷新：$sig');
     }
   }
 
-  Future<void> _syncWarranty(int ts) async {
+  /// 返回 true＝保修已同步；false＝读失败（多为老库缺表），本路派生跳过。
+  Future<bool> _syncWarranty(int ts) async {
     List<Map<String, Object?>> items;
     try {
+      // V1.61：档案在回收站期间不进提醒中心（在册口径＝deleted_at IS NULL，
+      // 与物品列表/每日成本同源）；恢复后下一次派生自动回来。
       items = await db.rawQuery(
-          'SELECT id, name, warranty FROM item_profiles WHERE warranty IS NOT NULL AND warranty <> \'\'');
+          'SELECT id, name, warranty FROM item_profiles WHERE warranty IS NOT NULL'
+          " AND warranty <> '' AND deleted_at IS NULL");
     } catch (e) {
       AppLog.add('日子派生：物品保修表读取失败（保修提醒会缺项）：$e',
           level: LhLevel.warn);
-      return;
+      return false;
     }
     final keep = <String>{};
     for (final it in items) {
@@ -323,6 +325,7 @@ class DaysRepository {
               "kind = 'warranty' AND source_key NOT IN (${List.filled(keep.length, '?').join(',')})",
           whereArgs: keep.toList());
     }
+    return true;
   }
 
   // ==================== 去年今日（联动 L5 · 只读日记） ====================

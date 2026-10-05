@@ -137,7 +137,7 @@ class RecmgSettingsPage extends ConsumerWidget {
           }),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-            child: Text('待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 删除的内容统一进回收站，按此期限自动彻底删除',
+            child: Text('待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品 删除的内容统一进回收站，按此期限自动彻底删除',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
           ),
         ],
