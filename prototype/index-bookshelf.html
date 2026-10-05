@@ -1648,7 +1648,7 @@ tailwind.config = {
         <div class="flex items-center justify-between"><div class="text-[11px] font-extrabold text-slate-500 dark:text-slate-400">未读提醒</div><span class="toggle on" id="goalRemindTg" onclick="this.classList.toggle('on');shGoalPreview()"></span></div>
         <div id="goalRemindWrap" class="mt-1.5">
           <div class="flex justify-center gap-1 -mt-1"><div id="glRH" class="w-12"></div><div id="glRM" class="w-12"></div></div>
-          <div class="text-[9px] text-slate-400 text-center">当天未达每日目标时提醒 · 走系统通知（免打扰时段除外）</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400 text-center">当天未达每日目标时提醒 · 走系统通知（免打扰时段除外）</div>
         </div>
       </div>
 
@@ -1834,7 +1834,7 @@ tailwind.config = {
           <div class="mt-2 flex items-center gap-2 text-[11px]"><span class="shrink-0 text-slate-400">淡化</span>
             <input type="range" min="0" max="90" step="5" class="br-range flex-1" id="brApDim" oninput="brApSet('dim',+this.value)">
             <b id="brApDimV" class="text-brand-500 w-7 text-right">60</b></div>
-          <div class="text-[9px] text-slate-400">越淡越好读；点「无」回到纯色背景</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400">越淡越好读；点「无」回到纯色背景</div>
         </div>
       </div>
       <div class="mt-3 shrink-0"><button class="w-full py-3 rounded-2xl grad text-white text-sm font-bold" onclick="brApSubBack()">完成 · 返回外观</button></div>
@@ -1847,11 +1847,11 @@ tailwind.config = {
       <div class="flex items-center justify-between"><b class="text-[15px]">阅读进度</b><span class="text-[9px] text-slate-400 tabular-nums" id="brProgCfi">—</span></div>
       <div class="mt-4 grid grid-cols-3 text-center">
         <div><div class="text-xl font-black leading-none"><span id="brStPct">0</span><span class="text-[10px]">%</span></div><div class="text-[9px] text-slate-400 mt-1" id="brStEta">—</div></div>
-        <div><div class="text-xl font-black leading-none"><span id="brStMin">0</span><span class="text-[10px]">分钟</span></div><div class="text-[9px] text-slate-400 mt-1">本次时长</div></div>
-        <div><div class="text-xl font-black leading-none"><span id="brStNote">0</span><span class="text-[10px]">条</span></div><div class="text-[9px] text-slate-400 mt-1">本书笔记</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStMin">0</span><span class="text-[10px]">分钟</span></div><div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">本次时长</div></div>
+        <div><div class="text-xl font-black leading-none"><span id="brStNote">0</span><span class="text-[10px]">条</span></div><div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">本书笔记</div></div>
       </div>
       <div class="mt-5"><input type="range" min="0" max="100" value="0" class="br-range" id="brProg" oninput="brSeek(this.value)">
-        <div class="text-center text-[9px] text-slate-400 mt-1">拖动到全书任意位置 · 目标章节即时实算</div></div>
+        <div class="text-center text-[10px] text-slate-500 dark:text-slate-400 mt-1">拖动到全书任意位置 · 目标章节即时实算</div></div>
       <div class="mt-5 flex gap-2">
         <button class="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetBrProg');bsSessOpen(brV.b)">阅读明细</button>
         <button class="flex-1 py-3 rounded-2xl grad text-white text-xs font-bold" id="brBtnAuto" onclick="brQuickToggleAuto()">开启自动翻页</button>
@@ -1884,14 +1884,14 @@ tailwind.config = {
   <!-- V1.54 X-Ray 批2 弹层群（?xr=scope|ent|del|add|peek|bak|fail） -->
   <div id="sheetXrScope" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrScope')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="flex items-center justify-between"><b class="text-[15px]">解析范围</b><span class="text-[9px] text-slate-400">全书索引 · X-Ray</span></div>
+      <div class="flex items-center justify-between"><b class="text-[15px]">解析范围</b><span class="text-[10px] text-slate-500 dark:text-slate-400">全书索引 · X-Ray</span></div>
       <div id="xrScopeOpts" class="mt-3 space-y-2"></div>
       <div id="xrScopeRange" class="hidden mt-2.5 flex items-center gap-2 text-[11px]">
         <span class="text-slate-400 font-bold">起</span><select id="xrFrom" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2.5 py-2 font-bold" onchange="xrScopeEst()"></select>
         <span class="text-slate-400 font-bold">止</span><select id="xrTo" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-2.5 py-2 font-bold" onchange="xrScopeEst()"></select>
       </div>
       <div class="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] leading-5 flex items-center gap-2"><span class="text-slate-400">预估文本量</span><b id="xrScopeEst" class="ml-auto tabular-nums">—</b></div>
-      <div class="mt-2 text-[9px] text-slate-400 text-center">前台轻抽取 · 解析期间书保持可读 · 断点可续</div>
+      <div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400 text-center">前台轻抽取 · 解析期间书保持可读 · 断点可续</div>
       <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetXrScope')">取消</button><button id="xrScopeGoBtn" class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="xrScopeStart()">开始解析</button></div>
     </div>
   </div>
@@ -1905,7 +1905,7 @@ tailwind.config = {
   </div>
   <div id="sheetXrAdd" class="sheet hidden fixed md:absolute inset-0 z-[80] bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetXrAdd')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="flex items-center justify-between"><b class="text-[15px]">加为词条</b><span class="text-[9px] text-slate-400">全书索引 · X-Ray</span></div>
+      <div class="flex items-center justify-between"><b class="text-[15px]">加为词条</b><span class="text-[10px] text-slate-500 dark:text-slate-400">全书索引 · X-Ray</span></div>
       <div class="mt-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5 text-[11px] flex items-center gap-2"><span class="text-slate-400">词条</span><input id="xrAddWordIn" class="xr-kw !text-right !font-bold" placeholder="要加入的词"></div>
       <div class="mt-2.5 text-[10px] font-bold text-slate-400">类型</div>
       <div class="mt-1.5 flex gap-1.5 flex-wrap" id="xrAddTypes"></div>
@@ -2001,7 +2001,7 @@ tailwind.config = {
       </div>
       <div class="mt-3 flex gap-2"><button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="closeSheet('sheetAiReview')">取消</button>
         <button class="flex-1 py-2.5 rounded-xl grad text-white text-xs font-bold" onclick="brAiSend()">发送</button></div>
-      <div class="mt-2 text-[9px] text-slate-400 text-center">只发送以上两部分 · 模板可在「提示词管理」逐段修改</div>
+      <div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400 text-center">只发送以上两部分 · 模板可在「提示词管理」逐段修改</div>
     </div>
   </div>
 
@@ -2015,7 +2015,7 @@ tailwind.config = {
         <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiCopy()">复制</button>
         <button class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="brAiToQuote()">存为感想</button>
       </div>
-      <div class="mt-2 text-[9px] text-slate-400 text-center">选中原文仅用于本次解读 · 不留存、不参与训练（AI 安全规范）</div>
+      <div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400 text-center">选中原文仅用于本次解读 · 不留存、不参与训练（AI 安全规范）</div>
     </div>
   </div>
 

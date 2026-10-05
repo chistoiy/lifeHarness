@@ -427,7 +427,7 @@ tailwind.config = {
           <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span id="hl-sleep"></span><b class="text-[13px]">睡眠</b></span><button class="mini-btn" onclick="hSleepOpen()">＋ 记录</button></div>
           <div class="text-2xl font-extrabold mt-1"><span id="slN">—</span><span class="text-sm text-slate-400 font-semibold"> 小时</span></div>
           <div class="flex items-end gap-[3px] h-10 mt-2" id="slBars"></div>
-          <div class="text-[9px] text-slate-400 mt-1.5">目标 <b id="slT">—</b> · 近 7 天按时入睡 <b id="slOndt">—</b> 天</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">目标 <b id="slT">—</b> · 近 7 天按时入睡 <b id="slOndt">—</b> 天</div>
         </div>
         <div class="card min-w-0">
           <div class="flex items-center justify-between"><span class="flex items-center gap-1.5"><span id="hl-ex"></span><b class="text-[13px]">运动 <span class="vchip">V1.x</span></b></span><button class="mini-btn" onclick="htNav('p-exLog')">记录 ›</button></div>
@@ -505,8 +505,8 @@ tailwind.config = {
       <div class="grid grid-cols-4 gap-2 text-center mt-3">
         <div class="card !p-2.5"><b class="text-lg block" id="elN">—</b><span class="text-[9px] text-slate-400">次数</span></div>
         <div class="card !p-2.5"><b class="text-lg block" id="elMin">—</b><span class="text-[9px] text-slate-400">总时长 · 分</span></div>
-        <div class="card !p-2.5"><b class="text-lg block" id="elKm">—</b><span class="text-[9px] text-slate-400">总距离 · km</span></div>
-        <div class="card !p-2.5"><b class="text-lg block" id="elPc">—</b><span class="text-[9px] text-slate-400">总消耗 · kcal</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="elKm">—</b><span class="text-[10px] text-slate-500 dark:text-slate-400">总距离 · km</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="elPc">—</b><span class="text-[10px] text-slate-500 dark:text-slate-400">总消耗 · kcal</span></div>
       </div>
       <div class="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar pb-1" id="exFilterRow"></div>
       <div class="card mt-2 !p-0">
@@ -547,7 +547,7 @@ tailwind.config = {
       <div class="grid grid-cols-3 gap-2 text-center mt-3">
         <div class="card !p-2.5"><b class="text-lg block" id="snOndt">—</b><span class="text-[9px] text-slate-400">按时入睡天</span></div>
         <div class="card !p-2.5"><b class="text-lg block" id="snAvg">—</b><span class="text-[9px] text-slate-400">均时长h</span></div>
-        <div class="card !p-2.5"><b class="text-lg block" id="snBest">—</b><span class="text-[9px] text-slate-400">最长连续达标</span></div>
+        <div class="card !p-2.5"><b class="text-lg block" id="snBest">—</b><span class="text-[10px] text-slate-500 dark:text-slate-400">最长连续达标</span></div>
       </div>
       <div class="flex items-center justify-between mt-4 mb-2"><b class="text-[13px]">睡眠流水</b><button class="mini-btn" onclick="hSleepOpen()">＋ 记录</button></div>
       <div class="card !p-0">
@@ -575,7 +575,7 @@ tailwind.config = {
         <div class="card !p-2.5"><b class="text-lg block" id="tv4">—</b><span class="text-[9px] text-slate-400 block" id="tl4">—</span></div>
       </div>
       <div class="card mt-3">
-        <div class="flex items-center justify-between"><b class="text-[13px]" id="trCurTx">曲线</b><span class="text-[9px] text-slate-400">虚线 = 目标值</span></div>
+        <div class="flex items-center justify-between"><b class="text-[13px]" id="trCurTx">曲线</b><span class="text-[10px] text-slate-500 dark:text-slate-400">虚线 = 目标值</span></div>
         <svg id="trSvg" viewBox="0 0 300 90" class="w-full h-24 mt-1"></svg>
         <div class="text-[10px] text-slate-400 mt-1" id="trCompare"></div>
       </div>
@@ -595,8 +595,8 @@ tailwind.config = {
         <div><b class="text-[15px]">今日目标达成</b><div class="text-[11px] opacity-85 mt-0.5" id="goalSum">—</div><div class="text-[9px] opacity-70 mt-0.5">目标变更即时生效 · 历史数据不追改</div></div>
       </div>
       <div class="card mt-3 !p-0 divide-y divide-slate-100 dark:divide-slate-800">
-        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">每日喝水</b><div class="text-[9px] text-slate-400 mt-0.5">达成率分母 = 目标杯数</div></div><button class="mini-btn" id="gbWater" onclick="hGoalPick('water')">—</button></div>
-        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">睡眠时长</b><div class="text-[9px] text-slate-400 mt-0.5">按醒来日归属 · 跨天自动标注</div></div><button class="mini-btn" id="gbSleep" onclick="hGoalPick('sleep')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">每日喝水</b><div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">达成率分母 = 目标杯数</div></div><button class="mini-btn" id="gbWater" onclick="hGoalPick('water')">—</button></div>
+        <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">睡眠时长</b><div class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">按醒来日归属 · 跨天自动标注</div></div><button class="mini-btn" id="gbSleep" onclick="hGoalPick('sleep')">—</button></div>
         <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">按时入睡线</b><div class="text-[9px] text-slate-400 mt-0.5">统计「入睡早于该点」的天数</div></div><button class="mini-btn" id="gbBed" onclick="hGoalPick('bed')">—</button></div>
         <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">每周运动次数</b><div class="text-[9px] text-slate-400 mt-0.5">≥10 分钟计 1 次 </div></div><button class="mini-btn" id="gbEx" onclick="hGoalPick('ex')">—</button></div>
         <div class="px-4 py-3 flex items-center"><div class="flex-1"><b class="text-[13px]">目标体重</b><div class="text-[9px] text-slate-400 mt-0.5">身体数据页显示差值</div></div><button class="mini-btn" id="gbW" onclick="hGoalPick('w')">—</button></div>
@@ -999,7 +999,7 @@ tailwind.config = {
       <div class="mt-1.5 space-y-1.5" id="hrDiff"></div>
       <div class="mt-3 text-[10px] text-slate-400">指标构成（本周）</div>
       <div class="mt-1.5 space-y-1.5" id="hrBars"></div>
-      <div class="text-[9px] text-slate-400 mt-2">全部本机计算 · 无网络上传</div>
+      <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-2">全部本机计算 · 无网络上传</div>
       <div class="flex gap-2 mt-4"><button class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold" onclick="toast('周报文本已复制到剪贴板（模拟）')">复制文本</button><button class="flex-[2] py-3 rounded-xl grad text-white text-sm font-bold" onclick="toast('已生成长图 · 9 项指标 + 环比（模拟）')">生成长图分享</button></div>
     </div>
   </div>

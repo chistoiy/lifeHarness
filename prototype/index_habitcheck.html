@@ -712,7 +712,7 @@ tailwind.config = {
         <button id="hbCycW" class="tag-chip justify-center" onclick="hbCyc('week',this)">每周 · 选固定日</button>
       </div>
       <div id="hbWdWrap" class="hidden mt-2 flex-wrap gap-1.5 text-[11px]"><span class="text-slate-400 self-center">固定日：</span><span class="flex gap-1.5 flex-wrap"><button class="tag-chip justify-center hb-wd" data-d="一" onclick="this.classList.toggle('on')">一</button><button class="tag-chip justify-center hb-wd" data-d="二" onclick="this.classList.toggle('on')">二</button><button class="tag-chip justify-center hb-wd" data-d="三" onclick="this.classList.toggle('on')">三</button><button class="tag-chip justify-center hb-wd" data-d="四" onclick="this.classList.toggle('on')">四</button><button class="tag-chip justify-center hb-wd" data-d="五" onclick="this.classList.toggle('on')">五</button><button class="tag-chip justify-center hb-wd" data-d="六" onclick="this.classList.toggle('on')">六</button><button class="tag-chip justify-center hb-wd" data-d="日" onclick="this.classList.toggle('on')">日</button></span></div>
-      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">自动生成关联待办<br><span class="text-[9px] font-normal text-slate-400">完成待办即回写打卡 · 时间段型走番茄</span></span><span class="toggle on" id="hbTodoT" onclick="tgl(this)"></span></div>
+      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">自动生成关联待办<br><span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">完成待办即回写打卡 · 时间段型走番茄</span></span><span class="toggle on" id="hbTodoT" onclick="tgl(this)"></span></div>
       <div class="mt-2 text-xs"><div class="font-bold text-slate-500 mb-1">待办形态</div><div class="flex gap-2">
         <button id="hbTkN" class="tag-chip justify-center on" onclick="hbTkMode('norm',this)">✅ 常规（勾选完成）</button>
         <button id="hbTkP" class="tag-chip justify-center" onclick="hbTkMode('pomo',this)">🍅 时间段 · 番茄</button>
@@ -770,7 +770,7 @@ tailwind.config = {
       </div>
       <div class="mt-3 text-[11px] font-bold text-slate-500">自动达成源<span class="font-normal text-slate-400">（满足任一即自动打卡，无需手动）</span></div>
       <div class="mt-1.5 flex gap-1.5 flex-wrap" id="heSrcs"></div>
-      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">生成关联待办<br><span class="text-[9px] font-normal text-slate-400">勾选待办即回写打卡</span></span><span class="toggle on" id="heTodoT" onclick="tgl(this);heTodoChg()"></span></div>
+      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">生成关联待办<br><span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">勾选待办即回写打卡</span></span><span class="toggle on" id="heTodoT" onclick="tgl(this);heTodoChg()"></span></div>
       <div id="heTodoWrap" class="mt-1.5 flex gap-2"></div>
       <div class="mt-4 flex gap-2"><button class="flex-1 card !py-3 text-xs font-bold" onclick="closeSheet('sheetHabitEdit')">取消</button><button class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold" onclick="heSave()">保存</button></div>
     </div>
