@@ -182,6 +182,10 @@ tailwind.config = {
   .navtab.on{color:var(--accent)}
   .navtab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:18px;height:3px;border-radius:0 0 4px 4px;background:var(--accent)}
   .dark .navtab{color:#64748b}.dark .navtab.on{color:var(--accent-l)}.dark .navtab.on::after{background:var(--accent-l)}
+  /* T11 底栏角标（批六原型门 · 交互整改）：逾期/待处理计数挂对应枚，进入该栏目即清。
+     纯数字胶囊，禁 emoji；>99 收敛成 99+；颜色走强调玫红（与表单错误同族，不与 brand 混） */
+  .navbadge{position:absolute;top:2px;left:calc(50% + 7px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#f43f5e;color:#fff;font-size:9px;font-weight:800;line-height:15px;text-align:center}
+  .dark .navbadge{background:#fb7185}
   .setnav svg{width:16px;height:16px;color:#94a3b8}
   .pw-ic-btn{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:inherit;flex-shrink:0}
   .pw-ic-btn:active{background:rgba(120,110,90,.12)}
@@ -2195,8 +2199,14 @@ const ICONS={
 const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-profile','我的','fix']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
-function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
-  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span></button>`}).join('');}
+/* T11 角标数据源（演示口径＝从在册数据实算，不写死数字）：待办枚＝未完成的逾期条数。
+   阅读侧 X-Ray 徽标的数据在书架专版本模块，壳不代管——要挂哪枚等产品定，接法同本表。 */
+const NAV_BADGE_SRC={'p-todo':()=>D.todos.filter(x=>!x.done&&String(x.due||'').includes('逾期')).length};
+const navSeen={};
+function navBadge(p){if(!NAV_BADGE_SRC[p]||navSeen[p])return 0;return NAV_BADGE_SRC[p]()}
+function navClear(p){navSeen[p]=1}
+function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);const bn=navBadge(p);
+  return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<i class="navbadge">${bn>99?'99+':bn}</i>`:''}</button>`}).join('');}
 function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label,fix])=>{const on=activeTabs.includes(p);
   return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span><span class="toggle ${on?'on':''}" onclick="navToggle('${p}',this)"></span></div>`}).join('');
   $('#navCount').textContent=activeTabs.length;}
@@ -2236,7 +2246,7 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-profile')renderProfile();
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
-  renderNav();renderFab();
+  navClear(p);renderNav();renderFab();
 }
 /* ===== 我的 · 资料与统计联动 =====
 /* 统计卡＝历史基数 + 当前演示数据聚合：勾完一条待办/新增一本书/多记一天日记都会即时反映 */
