@@ -69,6 +69,21 @@ if (split) {
 if (pubBuild && buildBase && pubBuild !== buildBase)
   oks.push(`提示：pubspec build=${pubBuild} ≠ 构建 base ${buildBase} → 构建命令必须带 --build-number ${buildBase}`);
 
+// 4) 返回通道闸（2026-10-06 真机判别定案，违反＝把 P0 放回来）
+//    targetSdk 35+ 缺省即启用 Android 预测返回通道；该通道下**壳层根路由的
+//    `PopScope(canPop:false)` 不会被咨询**——真机 6071（不写属性）与 6073（写 true）
+//    实测：今天页/宫格模块页一次返回＝平台按默认动作把应用挪后台，插桩留痕 0 条；
+//    6074 显式写 false 退回 legacy 按键通道后：宫格七条全「回今天」＋今天页首次返回出
+//    提醒条＋留痕出现（壳层「今天」唯一根出口语义成立）。
+//    所以这条属性必须**存在且为 false**：缺失（＝缺省启用）或改回 true 都判红。
+try {
+  const mf = fs.readFileSync(path.join(dir, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8');
+  const m = mf.match(/android:enableOnBackInvokedCallback\s*=\s*"([^"]*)"/);
+  if (!m) fails.push('主清单缺 android:enableOnBackInvokedCallback（targetSdk 35+ 缺省＝启用预测返回，壳层返回判定不会被咨询）→ 必须显式写 "false"');
+  else if (m[1] !== 'false') fails.push(`主清单 android:enableOnBackInvokedCallback="${m[1]}" 必须为 "false"（true/缺省＝真机一次返回直接挪后台，见本文件注释 4）`);
+  else oks.push('返回通道：enableOnBackInvokedCallback=false（legacy 按键通道，壳层 PopScope 生效）');
+} catch (e) { fails.push('读 android/app/src/main/AndroidManifest.xml 失败：' + e.message); }
+
 console.log('── prebuild_check ──');
 for (const o of oks) console.log('  ok  ' + o);
 for (const f of fails) console.log('  ✗   ' + f);

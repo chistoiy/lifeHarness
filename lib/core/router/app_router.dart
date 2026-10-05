@@ -29,8 +29,6 @@ import '../providers.dart';
 
 import '../theme/app_theme.dart';
 
-import '../logging/app_log.dart';
-
 import '../../shared/linkage/timer_bar_overlay.dart';
 
 import '../../shared/widgets/ui_kit.dart' show AppToast;
@@ -314,10 +312,6 @@ class HomeShell extends ConsumerWidget {
       canPop: false,
 
       onPopInvokedWithResult: (didPop, _) {
-        // 临时插桩（6073 判别轮，判完即摘·工单 §4「真机门结果」）：
-        // 留痕出现＝返回确实进了 Dart；真机上留痕缺失＝系统没把返回交给这枚 PopScope。
-        // 雷电 API 28（legacy 按键通道）＝已知 OK 对照组；真机 API 36＝实验组。
-        AppLog.add('U2BACK 进回调 path=$currentPath didPop=$didPop');
         if (didPop) return;
 
         // V1.29轮9：笔记批量多选态下返回=先退出多选（不导航不退出 app）
