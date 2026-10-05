@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/app.dart';
@@ -14,9 +13,13 @@ import 'helpers.dart';
 ///
 /// 现象（真机 ea028260 铁证）：「我的」页滚到底，「外观」行**文字区**（y2370/2400）
 /// 点不动、行下部（y2430/2450）才生效；中部行（运行日志 y1145）始终可点，同一条上滑
-/// 一格也立刻可点——末行贴着视口下沿停住时，命中区与语义标签错位。
-/// 整改＝壳层 body 统一垫 `shellBottomSlack`（原型 96 减掉 Scaffold 已预留的 70dp 底栏），
-/// 一处改覆盖全部壳内屏。本用例钉几何：页面可视区下沿必须停在底栏上沿之上 ≥26dp。
+/// 一格也立刻可点。
+///
+/// **本用例钉的是「余量口径」，不是「U1 已修」**：6072 装机实测余量确实生效（末行行底
+/// 距底栏顶边 −81px＝27dp），但部分可见的末行**仍然点不动**（外观行节点 2357–2379，点
+/// 2368 无效）⇒ 「贴视口下沿」这个机理假设被否证，垫余量治不了它，U1 判为未闭环
+/// （进展与否证记录＝工单 §4「真机门结果」）。原型 `.safe-pb{padding-bottom:96px}`
+/// 减掉 Scaffold 已预留的 70dp 底栏＝26dp，这个口径本身是对的，所以留着并钉住。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

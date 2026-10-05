@@ -14,13 +14,12 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:enableOnBackInvokedCallback="true">
-        <!-- U2（UX 审计真机批 2026-10-05）：Android 15+/targetSdk 35+ 起，系统把返回
-             事件改走 OnBackInvoked 通道，不再投给窗口的按键链；本属性缺省时 Flutter
-             不注册回调，系统直接 finish activity —— 实测真机 HyperOS（1200x2670）从
-             今天页/底栏栏目页/宫格模块页按一次返回（侧滑手势与注入 keyevent 同现象）
-             一律退 app，Dart 侧 HomeShell 的 PopScope（V1.27 G1「再按一次退出」、
-             V1.46⑥「返回先回主页」）从未被触发。声明为 true 后返回回到 Dart 判定，
-             壳层返回语义（「今天」唯一根出口）才成立。判定口径＝真机 back_probe。 -->
+        <!-- U2（UX 审计真机批 2026-10-05）：声明本应用走 Android 13+ 预测返回通道。
+             实测记录要写准：6072 带着这行属性装机后，壳层页一次返回**仍退 app**，所以
+             它**不是**那条现象的解（工单 §1 的「go 断历史」与本会话的这个假设都已否证，
+             判法与否证记录＝工单 §4 真机门结果）。留着无害且是 Android 15+ 的常规要求，
+             真正的差异已缩到「壳层根路由上 HomeShell 的 PopScope 拦不住系统默认动作」，
+             待插桩包判「进没进回调」。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

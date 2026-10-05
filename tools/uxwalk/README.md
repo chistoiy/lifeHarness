@@ -26,4 +26,4 @@
 7. **贴底行判定必须带对照**：单看「最底下一行点了没反应」不算证据——语义节点边界与 Flutter 命中区不是一回事（本轮实测：贴底行**文字区** y2370/2400 无效、行下部 y2430/2450 有效）。要同时给出「同屏中部行可点」＋「同一条上滑一格后可点」两条对照才算坐实。
 8. **widget 测试的字体是 1em 方块**：窄视口跑全 app 用例会虚报「横向溢出 N 像素」（`¥ 0.00` 被放大），真机 Inter/Noto 下并不溢出——别跟着这种红去改布局（本批差点误改今天页成本卡）。
 
-> 结论修正记录：`back_probe.sh` 6070 轮报的「宫格 7/7 EXIT-APP」**观察是真的**（6071 上按今天页/栏目页/宫格模块页各一次返回同样退 app，侧滑手势与注入 keyevent 一致），但工单 §1 当时的根因「`context.go` 断历史」**不成立**——真根因＝targetSdk 35+ 下清单缺 `android:enableOnBackInvokedCallback`，系统直接 finish activity，Dart 侧 `HomeShell` 的 `PopScope` 一行都跑不到。详见 `docs/handoff/交棒话术-20261005-UX审计真机批-贴底行吞点击与工装转正.md` §4。
+> 结论修正记录（两条都记着，别再抄错）：6070 轮「宫格 7/7 EXIT-APP」**观察是真的**（6071/6072 两轮复现，侧滑手势与注入 keyevent 同现象）。但工单 §1 当时的根因「`context.go` 断历史」**不成立**（`shellBackAction` 三分支本就与拍板一致）；本会话加的第二个假设「清单缺 `android:enableOnBackInvokedCallback`」**也被 6072 否证**（`aapt2 dump xmltree` 已核属性在 `<application>` 上，一次返回仍退 app）。**已证的只有一条**：`tile_back_probe` 之外另跑的 push 路由对照（记账→统计报表 `/ledger/report`）返回正常弹回、留在 app ⇒ 返回确实进了 Dart，差异缩到「壳层根路由的 `PopScope(canPop:false)` 拦不住系统默认动作」这一格；下一步＝`onPopInvokedWithResult` 里留一行痕装机看「进没进回调」，别再靠猜下结论。详见工单 §4「真机门结果」。
