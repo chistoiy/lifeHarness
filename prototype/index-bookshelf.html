@@ -1758,21 +1758,21 @@ tailwind.config = {
         </div>
         <div class="grid grid-cols-3 gap-2" id="brApSegs"></div>
         <div class="grid grid-cols-3 gap-2">
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('font')"><div class="text-xs font-bold">字体样式</div><div class="text-[9px] text-slate-400 truncate" id="brApFontLbl">系统默认</div></button>
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('ind')"><div class="text-xs font-bold">首行缩进</div><div class="text-[9px] text-slate-400" id="brApIndLbl">跟随原书</div></button>
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('turn')"><div class="text-xs font-bold">翻页方式</div><div class="text-[9px] text-slate-400" id="brApTurnLbl">翻页</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('font')"><div class="text-xs font-bold">字体样式</div><div class="text-[10px] text-slate-500 dark:text-slate-400 truncate" id="brApFontLbl">系统默认</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('ind')"><div class="text-xs font-bold">首行缩进</div><div class="text-[10px] text-slate-500 dark:text-slate-400" id="brApIndLbl">跟随原书</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('turn')"><div class="text-xs font-bold">翻页方式</div><div class="text-[10px] text-slate-500 dark:text-slate-400" id="brApTurnLbl">翻页</div></button>
         </div>
         <div class="grid grid-cols-3 gap-2">
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('theme')"><div class="text-xs font-bold">纸色主题</div><div class="text-[9px] text-slate-400 truncate" id="brApThemeLbl">日间</div></button>
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('bg')"><div class="text-xs font-bold">背景图片</div><div class="text-[9px] text-slate-400 truncate" id="brApBgLbl">无</div></button>
-          <button class="card !py-2.5 text-center" onclick="brApSubOpen('s2t')"><div class="text-xs font-bold">简繁</div><div class="text-[9px] text-slate-400" id="brApS2TLbl">跟随原书</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('theme')"><div class="text-xs font-bold">纸色主题</div><div class="text-[10px] text-slate-500 dark:text-slate-400 truncate" id="brApThemeLbl">日间</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('bg')"><div class="text-xs font-bold">背景图片</div><div class="text-[10px] text-slate-500 dark:text-slate-400 truncate" id="brApBgLbl">无</div></button>
+          <button class="card !py-2.5 text-center" onclick="brApSubOpen('s2t')"><div class="text-xs font-bold">简繁</div><div class="text-[10px] text-slate-500 dark:text-slate-400" id="brApS2TLbl">跟随原书</div></button>
         </div>
         <div class="space-y-2.5 pb-1">
           <div class="flex items-center justify-between text-xs"><span>两端对齐</span><span class="toggle" id="brApJustTgl" onclick="brApTgl('just',this)"></span></div>
           <div class="flex items-center justify-between text-xs"><span>跟随原书样式</span><span class="toggle" id="brApOrigTgl" onclick="brApTgl('orig',this)"></span></div>
-          <div class="text-[9px] text-slate-400 leading-4 -mt-1.5 hidden" id="brApOrigWarn">本书含竖排排版，当前按横排单栏显示</div>
+          <div class="text-[10px] text-slate-500 dark:text-slate-400 leading-4 -mt-1.5 hidden" id="brApOrigWarn">本书含竖排排版，当前按横排单栏显示</div>
           <div class="flex items-center justify-between text-xs"><span>屏幕常亮</span><span class="toggle" id="brApBright" onclick="brApTgl('bright',this)"></span></div>
-          <div class="flex items-center justify-between text-xs"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-400" id="brApAutoLbl">关</b><span class="toggle" id="brApAuto" onclick="brApTgl('auto',this)"></span></span></div>
+          <div class="flex items-center justify-between text-xs"><span>自动翻页</span><span class="flex items-center gap-2"><b class="text-[10px] text-slate-500 dark:text-slate-400" id="brApAutoLbl">关</b><span class="toggle" id="brApAuto" onclick="brApTgl('auto',this)"></span></span></div>
         </div>
         <div>
           <div class="flex items-center justify-between text-xs font-bold"><span>亮度</span><b id="brApLumV" class="text-brand-500">100</b></div>
