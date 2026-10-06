@@ -122,8 +122,8 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
     ? ok('T8 三入口全部改道回收站（我的页 8 项计数同源）') : bad('T8', JSON.stringify(t8));
   await shot('gt-04-profile-entry');
 
-  /* T9 保留期改档联动全页读数 */
-  const t9 = await ev(`$('#recTrashOpt').textContent='7 天';renderTrash();
+  /* T9 保留期改档联动全页读数（F5-3 后档位改由回收站屏半屏选，不再走记录管理那枚按钮） */
+  const t9 = await ev(`openSheet('sheetTrashKeep');tkPick(7);
     return {keep:$('#ttKeep').textContent,red:[].map.call($$('#ttList .text-rose-500'),function(e){return e.textContent}).join(',')};`);
   (/删除 7 天/.test(t9.keep)) ? ok('T9 保留期档位改档即时联动（期限文案随动）', t9.keep) : bad('T9', JSON.stringify(t9));
 
@@ -138,6 +138,31 @@ const ROWS = "[].map.call($$('#ttList .card'),function(c){return c.querySelector
   (t11.n === 1 && t11.left === 7 && /已回到物品列表 · 每日计费按删除前状态继续/.test(t11.txt))
     ? ok('T11 恢复物品＝回到物品列表并按删除前状态续计费') : bad('T11', JSON.stringify(t11));
   await shot('gt-05-item-restore');
+
+  /* T12 F5-3（轮5③）：档位入口改道——记录管理撤该行，回收站右上角图标钮→半屏四档单选 */
+  const t12 = await ev(`setPage('p-sub-recmg');var recmgTxt=$('#p-sub-recmg').innerText;
+    setPage('p-sub-trash');openSheet('sheetTrashKeep');
+    var rows=[].slice.call(document.querySelectorAll('#tkRows button'));
+    var names=rows.map(function(r){return r.querySelector('b').textContent});
+    var on=rows.filter(function(r){return /border-brand-500/.test(r.className)}).map(function(r){return r.querySelector('b').textContent});
+    var svg=document.querySelector('#ttKeepBtn svg');
+    return {recmg:/回收站自动清理/.test(recmgTxt),oldBtn:!!document.getElementById('recTrashOpt'),
+      btn:!!document.getElementById('ttKeepBtn'),icon:(!!svg&&!!svg.querySelector('path,circle'))?1:0,
+      n:names.join('|'),onN:on.length,cur:on[0]||''};`);
+  (!t12.recmg && !t12.oldBtn && t12.btn && t12.icon && t12.n === '7 天|30 天|90 天|不清理' && t12.onN === 1 && t12.cur === '7 天')
+    ? ok('T12 档位入口改道＝记录管理撤该行＋右上角图标钮＋半屏四档单选（当前档高亮唯一）', JSON.stringify(t12))
+    : bad('T12', JSON.stringify(t12));
+  await wait(420);   // 等一帧重绘，否则弹层刚 open 拍不到（T1b 同坑）
+  await shot('gt-06-trash-keep-sheet');
+
+  /* T13 选「不清理」＝期限与行内剩数同改口径；改回 30 天可逆 */
+  const t13 = await ev(`tkPick(0);
+    var a={keep:$('#ttKeep').textContent,clean:(document.getElementById('ttList').innerText.match(/不清理/g)||[]).length,
+      rose:document.querySelectorAll('#ttList .text-rose-500').length};
+    openSheet('sheetTrashKeep');tkPick(30);
+    return {a:a,keep2:$('#ttKeep').textContent,cur:[].slice.call(document.querySelectorAll('#tkRows button')).filter(function(r){return /border-brand-500/.test(r.className)}).map(function(r){return r.querySelector('b').textContent}).join('')};`);
+  (/不自动清理/.test(t13.a.keep) && t13.a.clean > 0 && t13.a.rose === 0 && /删除 30 天/.test(t13.keep2) && t13.cur === '30 天')
+    ? ok('T13 「不清理」＝期限与行内剩数同口径 · 改回 30 天可逆', JSON.stringify(t13)) : bad('T13', JSON.stringify(t13));
 
   finish();
 })().catch(e => { bad('harness 崩溃 ' + String(e).slice(0, 200)); finish() });

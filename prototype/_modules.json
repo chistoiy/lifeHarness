@@ -4583,6 +4583,20 @@
     }
    }
   },
+   {
+     "id": "sheetTrashKeep",
+     "kind": "sheet",
+     "title": "",
+     "home": "index.html",
+     "reps": [],
+     "status": "exclusive",
+     "files": {
+       "index.html": {
+         "size": 716,
+         "hash": "afec799f"
+       }
+     }
+   },
   {
    "id": "sheetLongPress",
    "kind": "sheet",

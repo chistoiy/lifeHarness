@@ -60,16 +60,17 @@ async function ready(names, maxMs) {
   (!r0 ? bad : ok)('⓪ 共享面脚本就绪', r0 ? '垃圾箱模块函数已可用' : '60s 未就绪 · 断言不可信');
   if (!r0) { try { chrome.kill(); } catch (e) { } process.exit(1); }
 
-  /* ① 入口行：计数与期限同源 */
+  /* ① 入口行：计数与期限同源（F5-3 后期限住在回收站屏头部，档位半屏改档；记录管理那枚按钮已撤） */
   const c1 = await ev(`
     navTo('p-todo');
     var row=document.querySelector('#p-todo button[onclick="ttOpen()"]');
     var meta=document.getElementById('todoTrashMeta');
-    var set=document.getElementById('recTrashOpt');
-    return {row:!!row, meta:meta?meta.textContent:'', seed:D.trash.length,
-      keep:set?set.textContent.trim():'', tt:ttDaysVal()};`);
-  (c1.row && c1.meta.indexOf(c1.seed + ' 项') === 0 && c1.meta.indexOf(c1.keep) > 0 && c1.tt === 30
-    ? ok : bad)('① 待办页垃圾箱入口·计数与期限与记录管理同源', c1.meta + ' · 设置档 ' + c1.keep);
+    renderTrash();
+    return {row:!!row, meta:meta?meta.textContent:'', seed:D.trash.length, todo:gtCnt('todo'),
+      keep:tkName(ttDaysVal()), keepLine:document.getElementById('ttKeep').textContent, tt:ttDaysVal()};`);
+  (c1.row && c1.meta.indexOf(c1.todo + ' 项') >= 0 && c1.keepLine.indexOf(c1.keep) > 0 && c1.tt === 30
+    ? ok : bad)('① 待办页垃圾箱入口·计数与期限同源（期限在回收站屏头部）',
+      c1.meta + ' · 档 ' + c1.keep + ' · 屏头 ' + c1.keepLine);
 
   /* ② 删除走软删 */
   const c2 = await ev(`
@@ -112,17 +113,16 @@ async function ready(names, maxMs) {
     var txt=document.getElementById('ttList').innerText;
     var btns=document.querySelectorAll('#ttList button').length;
     var head=document.getElementById('ttCnt').textContent+'|'+document.getElementById('ttKeep').textContent;
-    var el=document.getElementById('recTrashOpt');
     var before=txt.match(/剩 (\\d+) 天/g)||[];
-    cycleRecSet(el,'trash',['30 天','7 天','90 天','不清理']); /* → 7 天 */
+    tkPick(7); /* → 7 天（F5-3：档位改走回收站半屏，不再循环切记录管理那枚按钮） */
     var after=(document.getElementById('ttList').innerText.match(/剩 (\\d+) 天/g)||[]);
     var afterTxt=document.getElementById('ttList').innerText;
     var red=document.querySelectorAll('#ttList .text-rose-500').length;
-    cycleRecSet(el,'trash',['30 天','7 天','90 天','不清理']); /* → 90 天 */
-    cycleRecSet(el,'trash',['30 天','7 天','90 天','不清理']); /* → 不清理 */
+    tkPick(90);
+    tkPick(0); /* → 不清理 */
     var none=document.getElementById('ttList').innerText.indexOf('不清理')>=0;
     var keepLine=document.getElementById('ttKeep').textContent;
-    cycleRecSet(el,'trash',['30 天','7 天','90 天','不清理']); /* → 30 天（复位） */
+    tkPick(30); /* → 30 天（复位） */
     renderTrash();
     return {rows:rows, btns:btns, head:head, before:before.length, after:after.length,
       red:red, none:none, keepLine:keepLine, meta:document.getElementById('todoTrashMeta').textContent};`);
@@ -132,6 +132,11 @@ async function ready(names, maxMs) {
   await shot('t6_1_trash_list.png');
 
   /* ⑤ 批量选择 → 恢复回原象限 */
+  /* ⑤ 全选批量恢复
+   * ⚠ 已知陈旧红灯（2026-10-06 F5-3 批实测＝改动前后同样红，非本批造成）：本断言写于 V1.60 之前
+   *   （D.trash 只有待办、恢复按原序回补），七类改造后恢复＝追加到清单末尾且 trash 混类，
+   *   `backQ` 与 `q0` 的**顺序**比较必然不成立。现行活判据＝gttrashcheck T5（恢复回原位·入口计数同步）。
+   *   归位待办：把本条改成「逐条象限值随条目回来」（按 id 对齐而非顺序），另批做。 */
   const c5 = await ev(`
     ttExitSel();
     var q0=D.trash.map(function(t){return t.q});

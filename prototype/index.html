@@ -701,12 +701,8 @@ tailwind.config = {
         <div class="flex items-center justify-between"><span>默认进度方式</span>
           <button class="mini-btn" onclick="cycleRecSet(this,'mg',['集数','百分比','时间点'])">集数</button></div>
       </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">通用</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>回收站自动清理</span>
-          <button id="recTrashOpt" class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
-        <div class="text-[11px] text-slate-400">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品 删除的内容统一进回收站，按此期限自动彻底删除</div>
-      </div>
+      <!-- F5-3（轮5③·2026-10-06）：「回收站自动清理」档位已从本页撤出——改放回收站屏右上角图标钮→档位半屏（sheetTrashKeep）。
+           本页只留日记/笔记/阅读/影音游四组。 -->
     </section>
 
     <!-- ===== P4a2b 全局回收站（V1.60 · 七类软删保留期内可恢复 · 批量彻底删除/恢复 · 书连带清防幽灵） ===== -->
@@ -716,11 +712,25 @@ tailwind.config = {
         <div class="flex items-center gap-3 text-[11px] font-bold">
           <button class="text-brand-500 hidden" id="ttAllBtn" onclick="ttSelAll()">全选</button>
           <button class="text-slate-500" id="ttPickBtn" onclick="ttToggleSel()">选择</button>
+          <!-- F5-3：档位入口＝右上角图标钮（线性 SVG，无教学文案），当前档由左侧期限行读出 -->
+          <button class="text-slate-500" id="ttKeepBtn" aria-label="自动清理保留期" onclick="openSheet('sheetTrashKeep')">
+            <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l3 1.9"/></svg>
+          </button>
         </div>
       </div>
       <!-- V1.60：七类分段 chips（计数随动作同步） -->
       <div class="flex gap-1.5 mt-2 flex-wrap" id="gtSegRow"></div>
       <div class="mt-2 space-y-2" id="ttList"></div>
+      <!-- F5-3（轮5③）· 自动清理保留期半屏：家＝回收站屏（页内弹层，与 p-logs 的 sheetLogSettings 同口径），
+           档位四枚单选（当前档高亮），选完即改并回显期限；原「记录管理 › 通用」那行已撤出。 -->
+      <div id="sheetTrashKeep" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTrashKeep')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
+          <div class="grabber"></div>
+          <div class="flex items-center justify-between"><div class="font-extrabold">自动清理保留期</div><button class="mini-btn !text-[10px]" onclick="closeSheet('sheetTrashKeep')">关闭</button></div>
+          <div class="text-[11px] text-slate-400 mt-1">待办 / 笔记 / 习惯 / 书籍 / 划线书摘 / 书单 / 物品 删除的内容统一进回收站，按此期限自动彻底删除</div>
+          <div id="tkRows" class="mt-3 space-y-2"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ===== P4b 阅读导入向导 ===== -->
@@ -2339,7 +2349,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2486,8 +2496,16 @@ function delTaskFromSheet(){const t=D.todos.splice(stIdx,1)[0];t.del='09-19 14:2
 /* ================= V1.60 全局回收站（七类软删 · 保留期与记录管理同源 · 批量恢复/彻底删除 · 书连带清防幽灵） ================= */
 const GT_K={todo:{n:'待办',dot:'bg-indigo-400'},note:{n:'笔记',dot:'bg-sky-400'},habit:{n:'习惯',dot:'bg-teal-400'},book:{n:'书籍',dot:'bg-amber-400'},quote:{n:'划线书摘',dot:'bg-rose-400'},list:{n:'书单',dot:'bg-violet-400'},item:{n:'物品',dot:'bg-orange-400'}};
 let gtSeg='all',ttMode=false,ttSel=new Set(),tpIds=[],ttPressTimer=null;
-function ttDaysVal(){const el=document.getElementById('recTrashOpt');const v=el?el.textContent.trim():'30 天';
-  return v==='不清理'?0:(parseInt(v,10)||30)}
+/* F5-3（轮5③）：档位状态自「记录管理页那枚按钮的文案」改成独立变量——该行已从记录管理撤出，
+   改由回收站屏右上角图标钮→半屏选档（档位口径与四档取值一字未动）。 */
+const TK_OPTS=[[7,'7 天','到期当日晚清理'],[30,'30 天','默认档'],[90,'90 天','长期保留'],[0,'不清理','只在回收站里手动彻底删除']];
+let TRASH_KEEP=30;
+function ttDaysVal(){return TRASH_KEEP}
+function tkName(k){const o=TK_OPTS.find(x=>x[0]===k);return o?o[1]:'30 天'}
+function renderTrashKeep(){const el=document.getElementById('tkRows');if(!el)return;
+  el.innerHTML=TK_OPTS.map(o=>{const on=o[0]===TRASH_KEEP;
+    return `<button class="w-full flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left ${on?'border-brand-500 bg-brand-50 dark:bg-brand-500/10':'border-slate-200 dark:border-slate-800'}" onclick="tkPick(${o[0]})"><span class="flex-1"><b class="text-sm">${o[1]}</b><span class="block text-[10.5px] text-slate-400 mt-0.5">${o[2]}</span></span><span class="w-4 h-4 shrink-0 rounded-full border-2 ${on?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'}"></span></button>`}).join('')}
+function tkPick(k){TRASH_KEEP=k;renderTrash();renderTrashKeep();closeSheet('sheetTrashKeep');toast('已设为「'+tkName(k)+'」（模拟持久化）')}
 function ttKeepTxt(){const k=ttDaysVal();return k?'删除 '+k+' 天后自动彻底删除':'不自动清理'}
 function ttAgo(t){const md=String(t.del||'').slice(0,5).split('-'); /* 原型今天=09-19 */
   return (9*30+19)-((+md[0]||9)*30+(+md[1]||19))}
