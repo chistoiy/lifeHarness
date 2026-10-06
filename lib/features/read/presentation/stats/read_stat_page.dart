@@ -480,15 +480,22 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
         '在读 ${s.readingNow} 本 · 今年读完 ${s.doneYear} / ${w?.goalBooks ?? 50} 本',
       ),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
+    // U11 同治：四宫格原来按 `childAspectRatio: 2.6` 定高，窄屏下格子被压到 41px
+    // 而内容是三行（标签／大字／副行，副行还会折行）→ 390dp 直接溢出 16px。
+    // 原型是 CSS grid 自动行高（不裁内容），这里改固定主轴高度＝与原型同行为。
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 2.6,
-      children: [
-        for (final (t, v, sub) in items)
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        mainAxisExtent: 96,
+      ),
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final (t, v, sub) = items[i];
+        return
           Container(
             padding: const EdgeInsets.all(12),
             decoration: _deco(cs),
@@ -515,8 +522,8 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
               ],
             ),
-          ),
-      ],
+          );
+      },
     );
   }
 
@@ -1106,30 +1113,32 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
+          // U11：三枚按钮照原型 `.mini-btn` 档位收尺寸，并用 Wrap 兜住更窄窗口
+          // （旧写法在 390dp 直接 RenderFlex overflow；原型实测单行有余量＝实现漂移）。
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              OutlinedButton(
+              ReadStatMiniBtn(
                 key: const ValueKey('rs-weekly'),
-                onPressed: () => readToast(
+                text: '生成周报',
+                onTap: () => readToast(
                   context,
                   // 原型 926 逐字格式的真实数据版。
                   '周报已生成：阅读 ${bsFmt(w?.minutesWeek ?? 0)} · '
                   '新增摘录 ${w?.weekQuotes ?? 0} 条 · 已联动 L4/L7',
                 ),
-                child: const Text('生成周报', style: TextStyle(fontSize: 11.5)),
               ),
-              const SizedBox(width: 8),
               // 轮4：补年度总结报告入口（原型 bsYearReport）。
-              OutlinedButton(
+              ReadStatMiniBtn(
                 key: const ValueKey('rs-year'),
-                onPressed: () => _yearReport(cs, s, w),
-                child: const Text('年度总结报告', style: TextStyle(fontSize: 11.5)),
+                text: '年度总结报告',
+                onTap: () => _yearReport(cs, s, w),
               ),
-              const SizedBox(width: 8),
-              OutlinedButton(
+              ReadStatMiniBtn(
                 key: const ValueKey('rs-goal-edit'),
-                onPressed: () => showGoalSheet(context, ref),
-                child: const Text('调整年度目标', style: TextStyle(fontSize: 11.5)),
+                text: '调整年度目标',
+                onTap: () => showGoalSheet(context, ref),
               ),
             ],
           ),

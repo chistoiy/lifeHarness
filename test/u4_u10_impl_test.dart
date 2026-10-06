@@ -201,6 +201,26 @@ void main() {
     });
   });
 
+  group('U11 目标卡三枚按钮：窄屏不溢出', () {
+    testWidgets('390 宽下三枚按钮全在屏内且布局零溢出', (tester) async {
+      await repo.addBook(bk('u5', '丁本', Book.kStateDone, rp: 100));
+      await tester.pumpWidget(scope(const ReadStatPage()));
+      await settle(tester);
+      await waitFinder(tester, find.byKey(const ValueKey('rs-ctl')));
+      await useSurface(tester, const Size(390, 2400));
+      await settle(tester);
+      // 旧写法（默认尺寸 OutlinedButton × 3 硬排一行）在这里必炸 RenderFlex overflow。
+      expect(tester.takeException(), isNull, reason: 'U11：布局溢出即失败');
+      for (final k in ['rs-weekly', 'rs-year', 'rs-goal-edit']) {
+        final f = find.byKey(ValueKey(k));
+        expect(f, findsOneWidget, reason: '缺按钮 $k');
+        final r = tester.getRect(f);
+        expect(r.left, greaterThanOrEqualTo(-0.5));
+        expect(r.right, lessThanOrEqualTo(390.5), reason: '$k 出屏右缘');
+      }
+    });
+  });
+
   group('U10 底栏栏目：固定项＝常开＋不可点', () {
     Widget grid(UserSettings s) => ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],

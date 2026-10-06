@@ -25,7 +25,10 @@ void main() {
     // U4 批（2026-10-06）：热力图卡整段抽进同目录件 `read_stat_heat_card.dart`
     // （格面行为零改动·只加月份刻度与默认视口定位），1359→1210；仍超默认 1200 线，
     // 登记值按现状收紧，真还债＝统计页其余卡群拆 part，另批做。
-    'features/read/presentation/stats/read_stat_page.dart': 1210,
+    // 1210→1219 同批 U11：目标卡三枚按钮换紧凑胶囊＋Wrap（消 RenderFlex overflow），
+    // 四宫格由 childAspectRatio 改 mainAxisExtent（390dp 下格子被压到 41px 装不下三行）——
+    // 两处都是窄屏真溢出修复，不是新功能。
+    'features/read/presentation/stats/read_stat_page.dart': 1219,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行

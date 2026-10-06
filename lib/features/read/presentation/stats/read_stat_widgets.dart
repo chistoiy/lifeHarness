@@ -200,3 +200,34 @@ class ReadStatDonutPainter extends CustomPainter {
   bool shouldRepaint(ReadStatDonutPainter old) =>
       old.fracs.join() != fracs.join();
 }
+
+/// 原型 `.mini-btn` 对译：小描边胶囊＋11.5 字，配 `Wrap` 用（U11）。
+///
+/// 为什么单独一件：目标卡那三枚按钮原来用默认样式的 `OutlinedButton`，
+/// 390dp 下三枚合计超出卡内宽度直接 `RenderFlex overflow`；原型同位置实测
+/// 单行有余量（390 宽余 64px）＝**实现漂移**，不是设计要换行。本件把尺寸收到
+/// 原型档位，并用 `Wrap` 兜住更窄的窗口，溢出这条路彻底封掉。
+class ReadStatMiniBtn extends StatelessWidget {
+  const ReadStatMiniBtn({
+    super.key,
+    required this.text,
+    required this.onTap,
+  });
+
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 11.5)),
+    );
+  }
+}
