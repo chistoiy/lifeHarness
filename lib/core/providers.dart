@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'backup/backup_files.dart';
 import 'backup/backup_service.dart';
 import 'backup/db_overview.dart';
 import 'media/media_usage_scanner.dart';
@@ -48,6 +49,13 @@ final mediaScannerProvider = Provider<MediaUsageScanner>(
 /// B-4 数据库概览扫描器（工单 §7-3）：活库在 main 组合根装配；
 /// widget 测试注入 fake（真实库扫描不进 widget 测试红线）。
 final dbOverviewScannerProvider = Provider<DbOverviewScanner>(
+  (ref) =>
+      throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
+);
+
+/// B-1 备份文件清单扫描器（工单 §2 B-1）：导出目录与下载台账在 main 组合根装配；
+/// widget 测试注入 fake（真实文件 I/O 不进 widget 测试红线）。
+final backupFileScannerProvider = Provider<BackupFileScanner>(
   (ref) =>
       throw UnimplementedError('需在 main 中 overrideWithValue（测试注入 fake）'),
 );

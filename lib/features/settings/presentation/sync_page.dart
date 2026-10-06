@@ -361,6 +361,15 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   onTap: active == null ? null : () => showCloudCleanSheet(context, config: active),
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),
+                // B-1 备份文件（原型 p-sub-data 追加行 · 导入主通道：
+                // 云下载的包落在应用 exports/，SAF 逛不到，恢复链路此前断在这）。
+                _EntryRow(
+                  key: const ValueKey('sync-backupfiles-entry'),
+                  icon: Icons.folder_zip_outlined,
+                  title: '备份文件',
+                  sub: '本机导出 · 云端下载 · 恢复前自动',
+                  onTap: () => context.push('/settings/backup-files'),
+                ),
                 // B-4 数据库概览（原型 p-sub-data 追加行 · 轮7 产品自查诉求）。
                 _EntryRow(
                   key: const ValueKey('sync-dbstats-entry'),

@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'ai_usage_page.dart';
+import 'backup_files_page.dart';
 import 'db_overview_page.dart';
 import 'log_page.dart';
 import 'media_clean_page.dart';
@@ -65,6 +66,11 @@ List<GoRoute> settingsPageRoutes(
             path: '/settings/trash',
             builder: (_, s) =>
                 TrashPage(initialSeg: s.uri.queryParameters['seg']),
+          ),
+        // B-1 备份文件管理（原型 p-sub-backup · 导入主通道）。
+          GoRoute(
+            path: '/settings/backup-files',
+            builder: (_, _) => const BackupFilesPage(),
           ),
         // B-4 数据库概览（原型 p-sub-dbstats · 轮7 产品自查诉求）。
           GoRoute(

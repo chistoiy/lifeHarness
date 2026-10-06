@@ -19,19 +19,25 @@ import '../../../shared/widgets/ui_kit.dart';
 ///   附件未入包」行）→ 勾选「恢复将替换当前数据」二次确认 → 才可调
 ///   importBackup（恢复按钮置于确认勾选之后）。
 /// - 文案一律功能标签式，无教学句（UI 规范）。
-Future<void> showBackupSheet(BuildContext context) {
+Future<void> showBackupSheet(BuildContext context, {String? restorePath}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    builder: (_) => const BackupSheet(),
+    builder: (_) => BackupSheet(restorePath: restorePath),
   );
 }
 
 /// S5 弹层组件（/sync 空壳页与批5 同步主页共用入口）。
+///
+/// B-1：[restorePath] 非空＝从「备份文件」屏带着某个包进来——跳过系统选择器，
+/// 直接落进既有的 **校验 → 口令 → 二次确认 → 整库替换** 链（同一套 UI 与文案，不另造一份）。
 class BackupSheet extends ConsumerStatefulWidget {
-  const BackupSheet({super.key});
+  const BackupSheet({super.key, this.restorePath});
+
+  /// 预选包的绝对路径（null＝走原「选择 .lhbak 文件」路径）。
+  final String? restorePath;
 
   @override
   ConsumerState<BackupSheet> createState() => _BackupSheetState();
@@ -56,6 +62,16 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   String? _verifyError; // 非 needPassphrase 的校验失败 code
   bool _needPass = false;
   bool _confirmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final path = widget.restorePath;
+    if (path == null) return;
+    _pickedPath = path;
+    // 帧后再校验：校验要读盘解包，且在 initState 里跑异步会撞上弹层尚未挂载。
+    WidgetsBinding.instance.addPostFrameCallback((_) => _verify());
+  }
 
   @override
   void dispose() {

@@ -22,6 +22,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../backup/backup_files.dart';
 import '../logging/app_log.dart';
 import 'diff_service.dart';
 import 'remote_store.dart';
@@ -438,6 +439,10 @@ class SyncOrchestrator {
               outcome.placed++;
             } else {
               outcome.downloadedToExports++;
+              // B-1：记名进「云端下载台账」——备份文件屏在 exports/ 里分不清
+              // 哪个包是自己导的、哪个是云上拉下来的，角标只能靠这条留痕。
+              await BackupFileScanner.markDownloaded(
+                  prefs, p.basename(dest));
             }
             return size;
           });

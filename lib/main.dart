@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/ai/ai_providers.dart';
 import 'core/ai/ai_vault.dart';
+import 'core/backup/backup_files.dart';
 import 'core/backup/backup_service.dart';
 import 'core/backup/db_overview.dart';
 import 'core/backup/lh_bak.dart' show LhBak;
@@ -222,6 +223,10 @@ Future<void> main() async {
             p.join(docsPath, 'book_covers'),
           ],
         )),
+        // B-1：备份文件屏的扫描器——只扫 exports/ 浅层（同步下载与本地导出都落这里），
+        // 来源角标读「云端下载台账」（SyncOrchestrator 落盘成功时记名）。
+        backupFileScannerProvider.overrideWithValue(
+            BackupFileScanner(dir: p.join(docsPath, 'exports'), prefs: prefs)),
         // B-4 数据库概览扫描器（工单 §7-3）：活库直连，只数行不取字节。
         dbOverviewScannerProvider
             .overrideWithValue(DbOverviewScanner(db: AppDatabase.instance.db)),
