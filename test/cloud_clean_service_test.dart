@@ -26,6 +26,9 @@ class _FakeStore implements RemoteStore {
   final List<String> deletes = [];
   int listCalls = 0;
 
+  /// 指名让某条 move/delete 抛错（进度必须照推进，失败≠没耗时）。
+  final Set<String> throwOn = {};
+
   @override
   Future<CloudListing> list(ServiceConfig c, String dir,
       {bool force = false}) async {
@@ -34,11 +37,17 @@ class _FakeStore implements RemoteStore {
   }
 
   @override
-  Future<void> move(ServiceConfig c, String from, String to) async =>
-      moves.add((from, to));
+  Future<void> move(ServiceConfig c, String from, String to) async {
+    if (throwOn.contains(from)) throw Exception('boom');
+    moves.add((from, to));
+  }
+
   @override
-  Future<void> delete(ServiceConfig c, String rel) async =>
-      deletes.add(rel);
+  Future<void> delete(ServiceConfig c, String rel) async {
+    if (throwOn.contains(rel)) throw Exception('boom');
+    deletes.add(rel);
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('RemoteStore.${invocation.memberName}');
@@ -111,5 +120,42 @@ void main() {
     await s.autoCleanAfterSync(store, cfg, now: DateTime.utc(2026, 9, 25));
     expect(store.deletes, ['media_archive/attachments/old.jpg'],
         reason: '仅归档区超 30 天条目被删，new.jpg 保留');
+  });
+
+  // 真机反馈轮③：批量几十条期间屏面「像卡死」＝没进度没取消。服务侧必须逐条
+  // 回报进度（失败条也推进度：失败≠没耗时），并在当前条落定后按取消停手。
+  test('archive/purge：逐条进度（含失败条）· 取消在当前条之后停手', () async {
+    final store = _FakeStore(CloudListing([]));
+    final s = svc(_FakeScanner(''));
+    final prog = <int>[];
+    final n = await s.archive(
+        store, cfg, [fe('attachments/a.jpg'), fe('attachments/b.jpg')],
+        onProgress: (d, t) {
+      expect(t, 2, reason: '总数一次给全，UI 才能画比例条');
+      prog.add(d);
+    });
+    expect(prog, [1, 2]);
+    expect(n, 2);
+
+    // 中间一条失败：成功数少一，进度仍走满。
+    store.throwOn.add('attachments/b.jpg');
+    final prog2 = <int>[];
+    final n2 = await s.archive(
+        store, cfg, [fe('attachments/a.jpg'), fe('attachments/b.jpg')],
+        onProgress: (d, _) => prog2.add(d));
+    expect(prog2, [1, 2], reason: '失败条也计入已完成，进度条不许倒退或卡住');
+    expect(n2, 1);
+
+    // 取消：第 2 条落定后请求停 → 第 3 条不再发出。
+    final store2 = _FakeStore(CloudListing([]));
+    final prog3 = <int>[];
+    final n3 = await svc(_FakeScanner('')).purge(
+        store2, cfg,
+        [fe('x.jpg'), fe('y.jpg'), fe('z.jpg')],
+        onProgress: (d, _) => prog3.add(d),
+        cancelRequested: () => store2.deletes.length >= 2);
+    expect(store2.deletes, ['x.jpg', 'y.jpg'], reason: '取消后剩余条目不动');
+    expect(n3, 2);
+    expect(prog3, [1, 2]);
   });
 }

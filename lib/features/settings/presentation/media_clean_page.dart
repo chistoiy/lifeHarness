@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/media/media_usage_scanner.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/image_lightbox.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
 /// R5c：图片存储清理页（原型口径：本地孤儿图片列表 + 勾选清理）。
@@ -49,9 +53,6 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final r = snap.data!;
-          final selectedBytes = r.orphans
-              .where((e) => _checked.contains(e.path))
-              .fold<int>(0, (a, e) => a + e.size);
           return Column(
             children: [
               Padding(
@@ -81,28 +82,7 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
                     ? const SizedBox.shrink()
                     : ListView.builder(
                         itemCount: r.orphans.length,
-                        itemBuilder: (context, i) {
-                          final e = r.orphans[i];
-                          return CheckboxListTile(
-                            key: ValueKey('mc-row-${e.name}'),
-                            value: _checked.contains(e.path),
-                            dense: true,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            onChanged: (v) => setState(
-                                () => v == null
-                                    ? _checked.remove(e.path)
-                                    : v
-                                        ? _checked.add(e.path)
-                                        : _checked.remove(e.path)),
-                            title: Text(e.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 12, fontFamily: 'monospace')),
-                            subtitle: Text(_fmt(e.size),
-                                style: const TextStyle(fontSize: 11)),
-                          );
-                        },
+                        itemBuilder: (context, i) => _row(r.orphans[i], i, r),
                       ),
               ),
               SafeArea(
@@ -115,32 +95,22 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
                       onPressed: _checked.isEmpty
                           ? null
                           : () async {
-                              final ok = await showDialog<bool>(
-                                context: context,
-                                builder: (bc) => AlertDialog(
-                                  title: const Text('清理选中图片'),
-                                  content: Text(
-                                      '将删除 ${_checked.length} 个文件 · ${_fmt(selectedBytes)}，不可恢复。'),
-                                  actions: [
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(bc, false),
-                                        child: const Text('取消')),
-                                    FilledButton(
-                                        key: const ValueKey('mc-confirm'),
-                                        onPressed: () =>
-                                            Navigator.pop(bc, true),
-                                        child: const Text('删除')),
-                                  ],
-                                ),
-                              );
-                              if (ok == true && context.mounted) {
-                                final n = ref
-                                    .read(mediaScannerProvider)
-                                    .deleteOrphans(_checked.toList());
-                                AppToast.show(context, '已清理 $n 个文件');
-                                _rescan();
-                              }
+                              final n = _checked.length;
+                              final bytes = r.orphans
+                                  .where((e) => _checked.contains(e.path))
+                                  .fold<int>(0, (a, e) => a + e.size);
+                              // 确认版式全仓只一份（批六钉·B-1 同口径）＝公共原语 lhConfirm。
+                              final ok = await lhConfirm(
+                                  context,
+                                  '将删除 $n 个文件 · ${_fmt(bytes)}\n'
+                                  '· 本机文件直接删除 · 不进回收站 · 不可恢复',
+                                  okLabel: '删除');
+                              if (!ok || !context.mounted) return;
+                              final m = ref
+                                  .read(mediaScannerProvider)
+                                  .deleteOrphans(_checked.toList());
+                              AppToast.show(context, '已清理 $m 个文件');
+                              _rescan();
                             },
                       child: Text(_checked.isEmpty
                           ? '清理选中'
@@ -154,5 +124,93 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
         },
       ),
     );
+  }
+
+  /// 行＝勾选框（唯一勾选靶点 `mc-chk-*`）＋缩略图＋人话主文案（U3）。
+  /// 缩略图与主文案＝预览热区（B-3）；裸哈希退到副行「编号 8 位」，全路径只进预览底部。
+  /// 版式照已过门样张：整行不当勾选靶（原型里只有勾选框管选中，点字是看大图）。
+  Widget _row(MediaScanEntry e, int i, MediaScanResult r) {
+    final tokens = context.tokens;
+    final on = _checked.contains(e.path);
+    return Padding(
+      key: ValueKey('mc-row-${e.name}'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: tokens.card,
+          border: Border.all(color: tokens.cardBorder),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Checkbox(
+                key: ValueKey('mc-chk-${e.name}'),
+                value: on,
+                visualDensity: VisualDensity.compact,
+                onChanged: (v) => setState(() =>
+                    v == null ? _checked.remove(e.path) : _checked.add(e.path))),
+            GestureDetector(
+              key: ValueKey('mc-view-${e.name}'),
+              onTap: () => _view(r, i),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Image.file(File(e.path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFF94A3B8),
+                                  strokeAlign: BorderSide.strokeAlignInside),
+                            ),
+                            child: const Icon(Icons.image_outlined,
+                                size: 16, color: Color(0xFF94A3B8)),
+                          )),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                key: ValueKey('mc-title-${e.name}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _view(r, i),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${e.rootLabel} · ${e.timeText}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text('${_fmt(e.size)} · ${e.extText} · 编号 ${e.codeShort}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 预览＝共享查看件（列表档位：i/N·±缩放·翻页·底部人话名＋全路径）。
+  void _view(MediaScanResult r, int i) {
+    final items = r.orphans
+        .map((e) => LhViewItem(
+            path: e.path,
+            label: '${e.rootLabel} · ${e.timeText}',
+            meta: '${e.extText} · ${_fmt(e.size)} · ${e.path}'))
+        .toList(growable: false);
+    showImageViewer(context, items, i);
   }
 }

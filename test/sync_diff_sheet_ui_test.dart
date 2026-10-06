@@ -22,6 +22,7 @@ import 'package:lifeharness/core/sync/http_gate.dart';
 import 'package:lifeharness/core/sync/remote_store.dart';
 import 'package:lifeharness/core/sync/s3_store.dart';
 import 'package:lifeharness/core/sync/service_config.dart';
+import 'package:lifeharness/core/sync/snapshot_service.dart' show AttachRoot;
 import 'package:lifeharness/core/sync/sync_orchestrator.dart';
 import 'package:lifeharness/core/sync/sync_providers.dart';
 import 'package:lifeharness/features/settings/presentation/sync_history_page.dart';
@@ -69,7 +70,16 @@ void main() {
     fake = FakeRemoteStore();
     tmpDocs = Directory.systemTemp.createTempSync('lh_t18_docs_');
     snap = FakeSnapshotService(
-        backup: fakeBackupService(), prefs: prefs, docsDir: () => tmpDocs.path);
+        backup: fakeBackupService(),
+        prefs: prefs,
+        docsDir: () => tmpDocs.path,
+        // 批②b：附件根与生产同协议（`localPathOf` 靠它把 attachments/<根>/… 反查成绝对路径）。
+        attachRoots: [
+          AttachRoot(
+              cloudName: 'note_images', localDir: '${tmpDocs.path}/note_images'),
+          AttachRoot(
+              cloudName: 'book_covers', localDir: '${tmpDocs.path}/book_covers'),
+        ]);
     orch = SyncOrchestrator(
       snapshotService: snap,
       prefs: prefs,
@@ -163,6 +173,48 @@ void main() {
   }
 
   group('S3 差异半屏（s-diff）', () {
+    // 真机反馈轮②＋批②b B-2：重扫必须穿透缓存；图片行只在「本机有文件」时给热区。
+    testWidgets('重新扫描必带 force · 本机图片行可进共享预览 · 仅云端图片行无热区',
+        (tester) async {
+      seedServices();
+      seedInventory(fake, snap);
+      fake.files = [
+        ...fake.files,
+        FileEntry(
+            relativePath: 'attachments/book_covers/remote.jpg', size: 102400),
+      ];
+      snap.inventory = [
+        ...snap.inventory,
+        FileEntry(relativePath: 'attachments/note_images/pic.jpg', size: 204800),
+      ];
+      await useSurface(tester, const Size(800, 2400));
+      await boot(tester);
+      await openDiffSheet(tester);
+
+      expect(fake.listForces, [true],
+          reason: '进屏首扫＝用户显式要看最新两端，必须穿透 60s 清单缓存');
+      expect(find.byKey(const ValueKey('diff-view-attachments/note_images/pic.jpg')),
+          findsOneWidget,
+          reason: '本机有的图片行给热区');
+      expect(
+          find.byKey(const ValueKey('diff-view-attachments/book_covers/remote.jpg')),
+          findsNothing,
+          reason: '仅云端＝本机没这个文件，绝不画成可点（不做假热区）');
+
+      await tapKey(tester, 'diff-view-attachments/note_images/pic.jpg');
+      expect(find.byKey(const ValueKey('lb-pos')), findsOneWidget);
+      expect(
+          tester.widget<Text>(find.byKey(const ValueKey('lb-meta'))).data,
+          contains('attachments/note_images/pic.jpg'),
+          reason: '预览底部给人话类型·体积·相对路径（技术明细下钻位）');
+      await tapKey(tester, 'lb-close');
+      expect(find.byKey(const ValueKey('lb-pos')), findsNothing);
+
+      fake.listForces.clear();
+      await tapKey(tester, 'btn-diff-rescan');
+      expect(fake.listForces, [true], reason: '「重新扫描」同样必须 force');
+    });
+
     testWidgets('四态分组 · 合计行 · 一致组折叠 · staleHint 角标 · 勾选联动',
         (tester) async {
       seedServices();

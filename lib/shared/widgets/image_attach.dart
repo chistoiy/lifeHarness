@@ -7,7 +7,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'image_lightbox.dart';
 import 'ui_kit.dart';
+
+// 批②b 起「点缩略图看大图」统一走共享查看件（`shared/widgets/image_lightbox.dart`）：
+// 本文件只做转发出口，笔记/日记既有调用点一字不改，差异行与清理行也接同一件
+// （红线 §3「预览两处同一查看件·禁各造一套」）。
+export 'image_lightbox.dart' show LhViewItem, showImageLightbox, showImageViewer;
 
 /// M1批2a · 插图公共链（笔记/日记共用·原型 sheetImgSrc）：
 /// 相册/拍照弹层 → ImagePicker → 拷贝应用目录 note_images/ → 返回落盘路径
@@ -110,26 +116,6 @@ class NoteImageEmbedBuilder extends EmbedBuilder {
       ),
     );
   }
-}
-
-/// 点缩略图看大图（原型 #imgLight：全屏黑底 · 再点任意处关闭）。
-void showImageLightbox(BuildContext context, String path) {
-  showDialog<void>(
-    context: context,
-    barrierColor: const Color(0xD9000000),
-    builder: (bc) => GestureDetector(
-      key: const ValueKey('note-img-light'),
-      behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(bc).pop(),
-      child: Center(
-        child: InteractiveViewer(
-          child: Image.file(File(path),
-              errorBuilder: (_, _, _) => const Text('图片已丢失',
-                  style: TextStyle(color: Colors.white54))),
-        ),
-      ),
-    ),
-  );
 }
 
 /// 120×120 方形缩略卡（原型轮9c ins-img · 点图看大图 · 右上✕删）。

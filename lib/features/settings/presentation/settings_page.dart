@@ -8,6 +8,7 @@ import '../../../core/database/schema.dart';
 import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/user_settings.dart';
+import '../../../core/sync/sync_providers.dart' show activeSyncServiceProvider;
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
@@ -126,8 +127,15 @@ class SettingsPage extends ConsumerWidget {
                                         bg: const Color(0xFF10B981).withValues(alpha: .12),
                     title: '数据与同步',
                     sub: 'WebDAV · 备份 · 加密 · 同步历史',
-                    trailing: '● 未配置',
-                    trailingColor: Colors.grey,
+                    // 真机反馈轮①：此处曾是写死的「● 未配置」——配好 WebDAV 也永远不亮。
+                    // 现在读激活服务真值；措辞用「已配置」不用「已连接」（本机只知道自己存了
+                    // 端点，连通性＝同步页「测试连接」的口径，不许在这儿冒充）。
+                    trailing: ref.watch(activeSyncServiceProvider) == null
+                        ? '● 未配置'
+                        : '● 已配置',
+                    trailingColor: ref.watch(activeSyncServiceProvider) == null
+                        ? Colors.grey
+                        : const Color(0xFF10B981),
                     // V1.41 Task 10：占位 toast 改真实 /sync 路由（空壳页）。
                     // R2 项④：go→push——push 压栈保留设置页，系统返回回设置页；
                     // go 会替换整栈致返回直接退出 app。
@@ -255,7 +263,7 @@ class SettingsPage extends ConsumerWidget {
                     size: 18, color: const Color(0xFF8B5CF6)),
                                         bg: const Color(0xFF8B5CF6).withValues(alpha: .12),
                     title: '记录管理',
-                    sub: '版本恢复 · 快照 · 回收站清理',
+                    sub: '版本恢复 · 快照 · 文件夹',
                     trailing: '',
                     last: true,
                     onTap: () => context.push('/settings/recmg')),

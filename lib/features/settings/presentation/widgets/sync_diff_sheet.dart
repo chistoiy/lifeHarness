@@ -53,7 +53,10 @@ class _DiffSheetState extends ConsumerState<_DiffSheet> {
       _error = null;
     });
     try {
-      final diffs = await ref.read(syncOrchestratorProvider).compare();
+      // 真机反馈轮②：进屏与「重新扫描」都是用户显式要看最新两端，必须穿透 60s 清单缓存
+      // （否则第二次点拿到同一份缓存＝「无反应」）。自动同步/调度侧仍走缓存档。
+      final diffs =
+          await ref.read(syncOrchestratorProvider).compare(force: true);
       if (!mounted) return;
       setState(() {
         _diffs = diffs;
@@ -83,6 +86,52 @@ class _DiffSheetState extends ConsumerState<_DiffSheet> {
         _off.remove(d.relativePath);
       }
     });
+  }
+
+  /// B-2 热区口径（原型 `#sheetSyncDiff`·过门 F）：扩展名 ∈ 图片五类 **且本机有这个文件**
+  /// （`local != null`＝差异引擎的本地侧证据；「仅云端」行不给热区，虚线空框都不画——不做假热区）。
+  static const _imgExt = {'.jpg', '.jpeg', '.png', '.webp', '.gif'};
+  bool _viewable(FileDiff d) =>
+      d.local != null &&
+      _imgExt.contains(p.extension(d.relativePath).toLowerCase());
+
+  /// 预览列表＝当前差异里全部可看图片行（与原型 `ivSdList` 同集合，翻页顺序才与列表一致）。
+  List<LhViewItem> _viewItems() => _diffs.where(_viewable).map((d) {
+        final ext = p.extension(d.relativePath).toUpperCase();
+        return LhViewItem(
+            path: ref
+                .read(syncOrchestratorProvider)
+                .snapshotService
+                .localPathOf(d.relativePath)!,
+            label: '本机图片',
+            meta: '${ext.isEmpty ? '未知类型' : ext.substring(1)} '
+                '· ${formatBytes(_diffBytes(d))} · ${d.relativePath}');
+      }).toList(growable: false);
+
+  void _view(FileDiff d) {
+    final items = _viewItems();
+    final i = _diffs.where(_viewable).toList(growable: false).indexOf(d);
+    if (i < 0 || i >= items.length) return;
+    showImageViewer(context, items, i);
+  }
+
+  /// 路径文案：可看＝主色＋虚下划线（＋点按），不可看＝原样等宽黑字。
+  Widget _pathText(FileDiff d, {double size = 11}) {
+    final base = TextStyle(
+        fontSize: size, fontFamily: 'monospace', fontWeight: FontWeight.w700);
+    if (!_viewable(d)) return Text(d.relativePath, style: base);
+    final tokens = context.tokens;
+    return GestureDetector(
+      key: ValueKey('diff-view-${d.relativePath}'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _view(d),
+      child: Text(d.relativePath,
+          style: base.copyWith(
+              color: tokens.accent,
+              decoration: TextDecoration.underline,
+              decorationStyle: TextDecorationStyle.dotted,
+              decorationColor: tokens.accent)),
+    );
   }
 
   List<FileDiff> get _checkedActionable => _diffs
@@ -320,11 +369,7 @@ class _DiffSheetState extends ConsumerState<_DiffSheet> {
               children: [
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(d.relativePath,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          fontWeight: FontWeight.w700)),
+                  child: _pathText(d),
                 ),
                 if (d.status == DiffStatus.modified)
                   Text(

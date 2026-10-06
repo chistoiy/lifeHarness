@@ -42,10 +42,19 @@ class CloudCleanService {
   }
 
   /// 归档：逐条 move 到归档区；单条失败 warn 不中断。返回成功数。
+  ///
+  /// 真机反馈轮③：批量可达几十上百条，UI 侧必须能显示进度并中途收手——
+  /// [onProgress]（已完成条数, 总条数）逐条回调（失败条也计入已完成，如实反映耗时）；
+  /// [cancelRequested] 返回 true 时**当前条落定后**停手（与同步链路同一取消语义，
+  /// 绝不在请求中途硬切）。两者为空＝旧行为一字不变（自动归档钩子走这条）。
   Future<int> archive(RemoteStore store, ServiceConfig c,
-      List<FileEntry> sel) async {
+      List<FileEntry> sel,
+      {void Function(int done, int total)? onProgress,
+      bool Function()? cancelRequested}) async {
     var n = 0;
-    for (final e in sel) {
+    for (var i = 0; i < sel.length; i++) {
+      if (cancelRequested?.call() == true) break;
+      final e = sel[i];
       try {
         await store.move(
             c, e.relativePath, '$archivePrefix${e.relativePath}');
@@ -54,16 +63,21 @@ class CloudCleanService {
         AppLog.add('云端归档失败（跳过不中断）：${e.relativePath} $err',
             level: LhLevel.warn);
       }
+      onProgress?.call(i + 1, sel.length);
     }
     if (n > 0) AppLog.add('云端归档 $n 个未引用附件（media_archive/，未删除）');
     return n;
   }
 
   /// 彻底删除：仅限用户在清理半屏显式确认的条目。单条失败不中断。
-  Future<int> purge(RemoteStore store, ServiceConfig c,
-      List<FileEntry> sel) async {
+  /// 进度与取消语义同 [archive]（真机反馈轮③：删除同样可能几十上百条）。
+  Future<int> purge(RemoteStore store, ServiceConfig c, List<FileEntry> sel,
+      {void Function(int done, int total)? onProgress,
+      bool Function()? cancelRequested}) async {
     var n = 0;
-    for (final e in sel) {
+    for (var i = 0; i < sel.length; i++) {
+      if (cancelRequested?.call() == true) break;
+      final e = sel[i];
       try {
         await store.delete(c, e.relativePath);
         n++;
@@ -71,6 +85,7 @@ class CloudCleanService {
         AppLog.add('云端删除失败（跳过不中断）：${e.relativePath} $err',
             level: LhLevel.warn);
       }
+      onProgress?.call(i + 1, sel.length);
     }
     if (n > 0) AppLog.add('云端彻底删除 $n 个条目（用户逐项确认）');
     return n;

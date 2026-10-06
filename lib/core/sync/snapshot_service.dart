@@ -192,8 +192,26 @@ class SnapshotService {
   /// 计算 MD5 摘要随行，diff 引擎在远端 etag 为 32-hex 时走严格档；关＝digest=null
   /// （严格档自动关闭，同 R8 降级口径）；附件根单文件 >64MB 跳过摘要（超大件成本闸门）。
   /// relativePath 以 sync/ 为根、posix 分隔、非空保证（basename 兜底）。
-  Future<List<FileEntry>> localInventory({bool withDigest = false}) async {
-    final out = <FileEntry>[];
+  /// 相对路径 → 本机绝对路径（批②b B-2 预览用·纯字符串映射，不触文件系统）。
+  /// 口径与 [localInventory] 完全一致：`attachments/<cloudName>/…` 反查附件根，
+  /// 其余落 [syncDir]；前缀不认识（如仅云端条目的假想路径）返回 null，
+  /// 调用侧据此**不给热区**——本机没有的文件绝不画成可点。
+  String? localPathOf(String relativePath) {
+    const pre = 'attachments/';
+    if (relativePath.startsWith(pre)) {
+      final rest = relativePath.substring(pre.length);
+      for (final root in attachRoots) {
+        final tag = '${root.cloudName}/';
+        if (rest.startsWith(tag)) {
+          return p.join(root.localDir, rest.substring(tag.length));
+        }
+      }
+      return null;
+    }
+    return p.join(syncDir, relativePath);
+  }
+
+  Future<List<FileEntry>> localInventory({bool withDigest = false}) async {    final out = <FileEntry>[];
     _collectInto(out, Directory(syncDir), '', withDigest);
     for (final root in attachRoots) {
       _collectInto(out, Directory(root.localDir),

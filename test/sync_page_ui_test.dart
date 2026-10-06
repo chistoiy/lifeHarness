@@ -65,10 +65,14 @@ class FakeRemoteStore implements RemoteStore {
   Object? listError;
   int listCount = 0;
 
+  /// 每次 list 的 force 档位留痕（真机反馈轮②：差异半屏重扫必须穿透缓存）。
+  final List<bool> listForces = [];
+
   @override
   Future<CloudListing> list(ServiceConfig c, String cloudDirName,
           {bool force = false}) async {
     listCount++;
+    listForces.add(force);
     syncActionOrder.add('list');
     await listGate?.future;
     if (listError != null) throw listError!;
@@ -119,6 +123,9 @@ class FakeSnapshotService extends SnapshotService {
     required super.prefs,
     super.docsDir = _fakeDocsDir,
     super.careExcluded = _fakeCareExcluded,
+    // 批②b：附件根要能被假件带上——`localPathOf` 的反查依赖它，
+    // 假件不给根就等于「生产有附件、测试没附件」两套协议（既定坑）。
+    super.attachRoots = const [],
   });
 
   List<FileEntry> inventory = const [];

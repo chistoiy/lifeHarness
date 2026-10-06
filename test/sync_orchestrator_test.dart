@@ -78,10 +78,15 @@ class _FakeStore implements RemoteStore {
       ..writeAsStringSync('remote-content:$cloudRelative');
   }
 
+  /// 每次 list 的 force 档位留痕（真机反馈轮②判据用）。
+  final List<bool> listForces = [];
+
   @override
   Future<CloudListing> list(ServiceConfig c, String cloudDirName,
-          {bool force = false}) async =>
-      CloudListing(files.values.toList());
+      {bool force = false}) async {
+    listForces.add(force);
+    return CloudListing(files.values.toList());
+  }
 
   @override
   Future<void> ensureDirectory(ServiceConfig c, String cloudRelativeDir) async {}
@@ -221,6 +226,18 @@ void main() {
       final diffs = await orch.compare();
       expect(diffs.single.relativePath, 'new.txt');
       expect(diffs.single.staleHint, isFalse);
+    });
+
+    // 真机反馈轮②：差异半屏「重新扫描」点了没反应＝吃满 60s 清单缓存。
+    // 默认档（自动同步/调度）继续复用缓存，显式 force 必须穿透——两档都要有闸。
+    test('compare 默认走缓存档、force:true 穿透（差异半屏重扫必用后者）', () async {
+      final snap = _FakeSnap(syncDir: syncDir, docsDirRoot: docsDir);
+      final store = _FakeStore(files: {'a.log': fe('a.log', size: 3)});
+      final orch = build(snap, store);
+      await orch.compare();
+      await orch.compare(force: true);
+      expect(store.listForces, [false, true],
+          reason: '第二次是用户显式重扫，必须带 force 穿透 store 的 60s 缓存');
     });
   });
 

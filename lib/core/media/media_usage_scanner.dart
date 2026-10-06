@@ -13,6 +13,25 @@ import '../logging/app_log.dart';
 ///   hash 命名下 basename 即内容指纹，误判概率≈0）；
 /// - 只扫媒体根目录（note_images / book_covers），别的目录一概不碰；
 /// - [deleteOrphans] 带路径护栏：目标必须位于注册根内，否则拒绝。
+/// 批②b U3：媒体根＝人话标签的唯一来源（新增根必须同时给人话名，
+/// 否则 `test/media_human_name_test.dart` 红灯——「每表必有人话名」的文件面同款闸）。
+const List<String> kMediaRootDirNames = ['note_images', 'book_covers'];
+
+const Map<String, String> kMediaRootLabels = {
+  'note_images': '笔记插图',
+  'book_covers': '书籍封面',
+};
+
+/// 路径所属根的人话名；根外/未知目录回落目录原名（如实呈现，不编造）。
+String mediaRootLabelOfPath(String path) {
+  final segs = path.split(RegExp(r'[\\/]')).where((s) => s.isNotEmpty).toList();
+  for (final s in segs.reversed) {
+    final label = kMediaRootLabels[s];
+    if (label != null) return label;
+  }
+  return segs.length >= 2 ? segs[segs.length - 2] : '本机图片';
+}
+
 class MediaScanEntry {
   const MediaScanEntry({
     required this.path,
@@ -25,6 +44,30 @@ class MediaScanEntry {
   final DateTime? modified;
 
   String get name => p.basename(path);
+
+  /// 人话主文案的归属段（U3：不露 `note_images` 这种目录原名）。
+  String get rootLabel => mediaRootLabelOfPath(path);
+
+  /// 落盘时间「MM-dd HH:mm」；取不到时间如实说，不假装有值。
+  String get timeText {
+    final m = modified;
+    if (m == null) return '时间未知';
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(m.month)}-${two(m.day)} ${two(m.hour)}:${two(m.minute)}';
+  }
+
+  /// 扩展名大写（无扩展名给「未知」）。
+  String get extText {
+    final e = p.extension(name);
+    return e.isEmpty ? '未知类型' : e.substring(1).toUpperCase();
+  }
+
+  /// 内容寻址文件名的短编号（前 8 位）——完整哈希只在预览底部出现。
+  String get codeShort {
+    final stem = name.substring(
+        0, name.length - (p.extension(name).isEmpty ? 0 : p.extension(name).length));
+    return stem.length <= 8 ? stem : stem.substring(0, 8);
+  }
 }
 
 class MediaScanResult {

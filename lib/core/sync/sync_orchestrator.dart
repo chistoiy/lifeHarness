@@ -266,11 +266,15 @@ class SyncOrchestrator {
         .toSet();
   }
 
-  /// 差异对比：远端 1 次 list（60s 缓存在 store 内建）+ 本地快照目录清单 +
-  /// 台账 knownPaths（D2 残留提示）→ [computeDiff]，结果入 [state]。
-  Future<List<FileDiff>> compare() async {
+  /// 差异对比：远端 1 次 list + 本地快照目录清单 + 台账 knownPaths（D2 残留提示）
+  /// → [computeDiff]，结果入 [state]。
+  ///
+  /// [force]＝穿透 store 的 60s 清单缓存（真机反馈轮②：差异半屏的「重新扫描」是
+  /// **用户显式要求看最新两端**，吃缓存＝点了像没反应；自动同步/调度侧照旧复用缓存，
+  /// 免得每轮多打一次 PROPFIND。同 `CloudCleanService.cloudOrphans` 的既有口径）。
+  Future<List<FileDiff>> compare({bool force = false}) async {
     final cfg = activeConfig();
-    final listing = await _store(cfg).list(cfg, cfg.cloudDirName);
+    final listing = await _store(cfg).list(cfg, cfg.cloudDirName, force: force);
     // #7：「允许严格校验（MD5）」开＝本地清单带 MD5 摘要，引擎按 32-hex 门槛走严格档。
     final local = await snapshotService.localInventory(withDigest: cfg.verifyContent);
     final diffs = computeDiff(

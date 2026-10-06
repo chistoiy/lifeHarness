@@ -54,6 +54,16 @@ final cloudCleanServiceProvider = Provider<CloudCleanService>(
   ),
 );
 
+/// 「我的」页状态行数据源：当前激活云服务配置（未配置＝null）。
+/// 与 [readActiveService] 同一判据，但**不抛错**——主页只读状态，绝不因未配置弹条。
+/// 注意：这只表示「本机存了可用端点」，不代表连得上（连通性＝同步页「测试连接」的口径），
+/// 因此 UI 文案用「已配置」而非「已连接」。
+final activeSyncServiceProvider = Provider<ServiceConfig?>((ref) {
+  final snap = ref.watch(syncConfigStoreProvider).load();
+  final id = snap.activeId;
+  return id == null ? null : snap.services.where((c) => c.id == id).firstOrNull;
+});
+
 /// 读取当前激活服务；无激活项抛 [StateError]（编排层与 UI 共用同一判空口径）。
 ServiceConfig readActiveService(SyncConfigStore store) {
   final snap = store.load();

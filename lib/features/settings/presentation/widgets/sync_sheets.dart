@@ -13,6 +13,7 @@ import '../../../../core/sync/sync_ledger.dart';
 import '../../../../core/sync/sync_orchestrator.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/image_lightbox.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 
 part 'sync_mini_widgets.dart';
