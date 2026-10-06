@@ -925,10 +925,12 @@ void main() {
       await tester.pumpWidget(scope(const RecmgSettingsPage()));
       await tester.pumpAndSettle();
 
-      for (final label in ['日记', '笔记', '阅读', '影音游', '通用']) { // R14-7：段标题去 emoji 前缀
+      for (final label in ['日记', '笔记', '阅读', '影音游']) { // R14-7：段标题去 emoji 前缀
         expect(find.text(label), findsOneWidget);
       }
-      expect(find.text('回收站自动清理'), findsOneWidget);
+      // F5-3（轮5③）：「通用 · 回收站自动清理」整组撤出本页，档位入口挪到回收站屏右上角
+      expect(find.text('通用'), findsNothing);
+      expect(find.text('回收站自动清理'), findsNothing);
       final container =
           ProviderScope.containerOf(tester.element(find.byType(RecmgSettingsPage)));
       expect(container.read(settingsControllerProvider).noteRestoreMode,

@@ -114,6 +114,57 @@ class _TrashPageState extends ConsumerState<TrashPage> {
     if (ok == true) await _purge(items);
   }
 
+  /// F5-3（轮5③·原型已过门）：保留期档位入口从「记录管理 › 通用」挪到本屏右上角图标钮。
+  /// 档位取值与写通道一字未动（30/7/90 天 · 不清理，默认 30）；顺序与副注照原型 `sheetTrashKeep`。
+  Future<void> _askKeep() async {
+    final cur = ref.read(settingsControllerProvider).trashKeepDays;
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      // 四档带副注比旧版高，窄视口下会溢出（widget 实测 7.5px）——照原型
+      // `sheetTrashKeep` 的 max-h-[80vh] overflow-y-auto 口径改成可滚。
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bc) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text('自动清理保留期',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+            ),
+            for (final (v, lab, note) in const [
+              (7, '7 天', '到期当日晚清理'),
+              (30, '30 天', '默认档'),
+              (90, '90 天', '长期保留'),
+              (0, '不清理', '只在回收站里手动彻底删除'),
+            ])
+              ListTile(
+                key: ValueKey('tt-keep-$v'),
+                dense: true,
+                title: Text(lab),
+                subtitle: Text(note, style: const TextStyle(fontSize: 11)),
+                trailing: v == cur
+                    ? Icon(Icons.check,
+                        size: 18, color: Theme.of(bc).colorScheme.primary)
+                    : null,
+                onTap: () => Navigator.of(bc).pop(v),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await ref.read(settingsControllerProvider.notifier).setTrashKeepDays(picked);
+    if (!mounted) return;
+    _toast(picked > 0 ? '回收站内容保留 $picked 天后自动彻底删除' : '回收站不再自动清理');
+  }
+
   @override
   Widget build(BuildContext context) {
     final keep = ref.watch(settingsControllerProvider).trashKeepTxt;
@@ -175,6 +226,14 @@ class _TrashPageState extends ConsumerState<TrashPage> {
                       ? null
                       : () => setState(() => _selMode = !_selMode),
                   child: Text(_selMode ? '取消' : '选择'),
+                ),
+                // F5-3：档位入口＝右上角时钟图标钮（线性图标·无教学文案），
+                // 当前档由左侧期限行读出，不在钮上重复标数。
+                IconButton(
+                  key: const ValueKey('tt-keep'),
+                  tooltip: '自动清理保留期',
+                  onPressed: _askKeep,
+                  icon: const Icon(Icons.schedule_outlined, size: 20),
                 ),
               ],
             ),

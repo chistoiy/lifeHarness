@@ -82,12 +82,13 @@ void main() {
     await settle(tester);
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('记录管理')),
         findsOneWidget); // AppBar 标题
-    for (var i = 0;
-        i < 8 && find.text('回收站自动清理').evaluate().isEmpty;
-        i++) {
+    // F5-3（轮5③）：档位行已撤出记录管理（入口在回收站屏右上角图标钮），
+    // 这里改钉「滚到底也不出现」——防止只是没滚到造成的假绿。
+    for (var i = 0; i < 8; i++) {
       await tester.drag(find.byType(ListView).last, const Offset(0, -220));
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('回收站自动清理'), findsOneWidget);
+    expect(find.text('回收站自动清理'), findsNothing);
+    expect(find.text('影音游'), findsWidgets, reason: '已滚到末组，断言不是没渲染');
   });
 }

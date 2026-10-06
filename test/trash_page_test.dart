@@ -366,6 +366,52 @@ void main() {
     await clearToasts(tester);
   });
 
+  testWidgets('F5-3 档位入口＝屏右上角图标钮：半屏四档·选后落盘·屏头随动', (tester) async {
+    await seedSix();
+    await tester.pumpWidget(trashApp());
+    await settle5(tester);
+    final btn = find.byKey(const ValueKey('tt-keep'));
+    expect(btn, findsOneWidget, reason: '入口在本屏右上角（记录管理那行已撤出）');
+    await tester.tap(btn);
+    await settle5(tester);
+    expect(find.text('自动清理保留期'), findsOneWidget);
+    for (final v in [7, 30, 90, 0]) {
+      expect(find.byKey(ValueKey('tt-keep-$v')), findsOneWidget, reason: '缺档 $v');
+    }
+    expect(find.text('默认档'), findsOneWidget, reason: '副注在册（原型 sheetTrashKeep 同口径）');
+    await tester.tap(find.byKey(const ValueKey('tt-keep-7')));
+    await settle5(tester);
+    expect(prefs.getInt('lh.trash_keep_days'), 7,
+        reason: '必须落盘——只改内存态＝重启回 30 天，属假承诺');
+    expect(find.textContaining('删除 7 天后自动彻底删除'), findsOneWidget);
+    await clearToasts(tester);
+  });
+
+  testWidgets('F5-3 「不清理」档：屏头改口且行内不再显示剩余天数', (tester) async {
+    await seedSix();
+    await tester.pumpWidget(trashApp());
+    await settle5(tester);
+    await tester.tap(find.byKey(const ValueKey('tt-keep')));
+    await settle5(tester);
+    await tester.tap(find.byKey(const ValueKey('tt-keep-0')));
+    await settle5(tester);
+    expect(prefs.getInt('lh.trash_keep_days'), 0);
+    expect(find.textContaining('不自动清理'), findsOneWidget);
+    expect(find.textContaining('剩 '), findsNothing, reason: '不清理档＝无期限读数');
+    await clearToasts(tester);
+  });
+
+  testWidgets('F5-3 已落盘档位冷重载后仍回显·当前档高亮唯一', (tester) async {
+    await boot(keepDays: 90);
+    await tester.pumpWidget(trashApp());
+    await settle5(tester);
+    expect(find.textContaining('删除 90 天后自动彻底删除'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('tt-keep')));
+    await settle5(tester);
+    expect(find.byIcon(Icons.check), findsOneWidget);
+    await clearToasts(tester);
+  });
+
   testWidgets('模块写库后回收站自动重取（真机 6059 抓到：屏停在进屏前的缓存）', (tester) async {
     final n = await noteDao.save(Note(
         title: '走查项',
