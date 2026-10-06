@@ -284,7 +284,7 @@ class SettingsPage extends ConsumerWidget {
                 const Text('开启的栏目实时出现在底部导航；「今天」「我的」固定',
                     style: TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 6),
-                _NavToggleGrid(settings: settings),
+                NavToggleGrid(settings: settings),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
@@ -607,9 +607,9 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-/// 底栏栏目两列开关网格。
-class _NavToggleGrid extends ConsumerWidget {
-  const _NavToggleGrid({required this.settings});
+/// 底栏栏目两列开关网格（U10 批转公开：固定项锁定态要能在不设整页依赖的情况下直达取证）。
+class NavToggleGrid extends ConsumerWidget {
+  const NavToggleGrid({super.key, required this.settings});
 
   final UserSettings settings;
 
@@ -636,7 +636,12 @@ class _NavToggleGrid extends ConsumerWidget {
                       ),
                     ),
                     Switch(
-                      value: settings.navIds.contains(m.id),
+                      key: ValueKey('nav-sw-${m.id}'),
+                      // U10：固定栏目出「常开＋不可点」的锁定态——原读 navIds 在
+                      // pinned 时取到 false，画成「关」＝误导（原型同款已改）。
+                      value:
+                          pinned.contains(m.id) ||
+                          settings.navIds.contains(m.id),
                       onChanged: pinned.contains(m.id)
                           ? null
                           : (_) async {

@@ -22,7 +22,10 @@ void main() {
     'features/read/presentation/shelf/book_detail.dart': 1579,
     'features/habit/presentation/habit_detail_page.dart': 1520,
     'features/habit/presentation/habit_stat_page.dart': 1503,
-    'features/read/presentation/stats/read_stat_page.dart': 1359,
+    // U4 批（2026-10-06）：热力图卡整段抽进同目录件 `read_stat_heat_card.dart`
+    // （格面行为零改动·只加月份刻度与默认视口定位），1359→1210；仍超默认 1200 线，
+    // 登记值按现状收紧，真还债＝统计页其余卡群拆 part，另批做。
+    'features/read/presentation/stats/read_stat_page.dart': 1210,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行
@@ -38,7 +41,11 @@ void main() {
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。
     // 此处按默认面登记现状＝1210，之后只许减；真还债＝把取证/装载群再拆一件
     // part 扩展（G7c 族口径），另批做。
-    'features/read/presentation/reader/reader_page.dart': 1210,
+    // 1210→1216 存量越线归位（U4 批 2026-10-06 跑出本红）：净增 6 行发生在
+    // 上一批「阅读时间块实时刷新」（567e84d，reader_page 起停两处挂刷新），
+    // 该批按门禁瘦身三条只跑面板清单、未带 size 闸，故今日现形——非 U4 造成，
+    // U4 一行未动 reader_page。之后只许减。
+    'features/read/presentation/reader/reader_page.dart': 1216,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展

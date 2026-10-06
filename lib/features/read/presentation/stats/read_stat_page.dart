@@ -10,6 +10,7 @@ import '../shelf/read_lists_page.dart' show openYearBooklist;
 import '../read_providers.dart';
 import '../read_sheets.dart';
 import 'read_stat_widgets.dart';
+import 'read_stat_heat_card.dart';
 
 /// 阅读统计（原型 p-readstat · §3.4：年×月钻取 + 度量/构成切换 + 四卡 +
 /// 热力图 + 月度柱 + 构成环 + 时段 + 均速 + 购书支出/完读书字数 + 目标五路）。
@@ -115,14 +116,6 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     Color(0xFF8B5CF6),
     Color(0xFF0EA5E9),
   ];
-  static const _heat = [
-    Color(0xFFE2E8F0),
-    Color(0xFFC7D2FE),
-    Color(0xFFA5B4FC),
-    Color(0xFF818CF8),
-    Color(0xFF6366F1),
-  ];
-
   late int _year = DateTime.now().year;
   int _month = 0; // 0＝全年
   String _metric = 'min'; // min / q / day
@@ -250,7 +243,28 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 const SizedBox(height: 8),
                 _fourCards(cs, s, w),
                 const SizedBox(height: 12),
-                _heatCard(cs, tokens, s, w?.goalDay ?? 30),
+                ReadStatHeatCard(
+                  key: ValueKey('rs-heat-$_year-$_month-$_metric'),
+                  year: s.year,
+                  month: _month,
+                  scopeTag: '$_year-$_month-$_metric',
+                  metricName: _metName(),
+                  goalDay: w?.goalDay ?? 30,
+                  valueAt: (i) =>
+                      _val(DateTime(s.year).add(Duration(days: i)), s),
+                  minutesAt: (d) => s.dayMinutes[d] ?? 0,
+                  summary: _heatSummary(s),
+                  onTapDay: (ctx, d, i) {
+                    final m = s.dayMinutes[d] ?? 0;
+                    final gd = w?.goalDay ?? 30;
+                    readToast(
+                      ctx,
+                      '${d.year} 年第 ${i + 1} 天 · $m 分钟 · '
+                      '摘录约 ${s.dayQuotes[d] ?? 0} 条'
+                      '${m > 0 && m >= gd ? ' · 已打卡' : ''}',
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 _monthCard(cs, tokens, s),
                 const SizedBox(height: 12),
@@ -430,11 +444,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     );
   }
 
-  BoxDecoration _deco(ColorScheme cs) => BoxDecoration(
-    color: cs.surfaceContainerLow,
-    borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
-  );
+  BoxDecoration _deco(ColorScheme cs) => readStatCardDeco(cs);
 
   Widget _fourCards(ColorScheme cs, StatData s, WorkbenchData? w) {
     final days = _rangeDays(s.year, _month);
@@ -510,171 +520,12 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     );
   }
 
-  /// 热力图（原型 .hm CSS 296 + 渲染 4957：7 行×按周列流 · 横向可滚 ·
-  /// 格 title→Tooltip · 点格 toast「{年} 年第 {N} 天 · X 分钟 · 摘录约 Y 条」）。
-  Widget _heatCard(ColorScheme cs, ThemeTokens tokens, StatData s, int goalDay) {
-    final first = DateTime(s.year);
-    final n = DateTime(s.year, 12, 31).difference(first).inDays + 1;
-    var mx = 1;
-    for (var i = 0; i < n; i++) {
-      mx = max(mx, _val(first.add(Duration(days: i)), s).round());
-    }
-    // 原型 4961：右侧汇总随所选范围（月/全年）取值。
+  /// U4：热力卡右下汇总（原 `_heatCard` 内算法逐字搬出，口径＝所选范围日账分钟）。
+  String _heatSummary(StatData s) {
     final range = _rangeDays(s.year, _month);
     final tot = range.fold<int>(0, (t, d) => t + (s.dayMinutes[d] ?? 0));
     final days = range.where((d) => (s.dayMinutes[d] ?? 0) > 0).length;
-    const cell = 13.0, gap = 3.0;
-    final cols = (n / 7).ceil();
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _deco(cs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${s.year} 年阅读热力图 · ${_metName()}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: cs.onSurface,
-                  ),
-                ),
-              ),
-              Text(
-                '每格＝一天 · 色深＝${_metName()}',
-                style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            key: const ValueKey('rs-heat'),
-            height: 7 * cell + 6 * gap,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var c = 0; c < cols; c++)
-                    Padding(
-                      padding: EdgeInsets.only(right: c == cols - 1 ? 0 : gap),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          for (var r = 0; r < 7; r++)
-                            _heatCell(first, c * 7 + r, n, mx, cs, s, goalDay),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '少',
-                style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(width: 4),
-              for (final c in _heat)
-                Padding(
-                  padding: const EdgeInsets.only(right: 3),
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: c,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              Text(
-                '多',
-                style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
-              ),
-              const Spacer(),
-              Text.rich(
-                TextSpan(
-                  text: '全年 ',
-                  children: [
-                    TextSpan(
-                      text: '${(tot / 60).round()} 小时 · $days 天在读',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-                style: TextStyle(fontSize: 9.5, color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _heatCell(
-    DateTime first,
-    int i,
-    int n,
-    int mx,
-    ColorScheme cs,
-    StatData s,
-    int goalDay,
-  ) {
-    if (i >= n) {
-      return const SizedBox(width: 13, height: 13);
-    }
-    final d = first.add(Duration(days: i));
-    final m = s.dayMinutes[d] ?? 0;
-    // 轮3：日历视图体现打卡（当日分钟数 ≥ 每日目标＝已打卡 √）。
-    final ck = m > 0 && m >= goalDay;
-    final v = _val(d, s).round();
-    final lvl = v == 0
-        ? 0
-        : v > mx * .7
-        ? 4
-        : v > mx * .45
-        ? 3
-        : v > mx * .22
-        ? 2
-        : 1;
-    final inM = _month == 0 || d.month == _month;
-    return Tooltip(
-      message: '$m 分钟${ck ? ' · 已打卡' : ''}',
-      child: GestureDetector(
-        key: ValueKey('rs-heat-$i'),
-        onTap: () => readToast(
-          context,
-          '${d.year} 年第 ${i + 1} 天 · $m 分钟 · 摘录约 ${s.dayQuotes[d] ?? 0} 条'
-          '${ck ? ' · 已打卡' : ''}',
-        ),
-        child: Container(
-          width: 13,
-          height: 13,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2.5),
-            color: _heat[lvl].withValues(alpha: inM ? 1 : .34),
-          ),
-          child: ck
-              ? const Text(
-                  '√',
-                  style: TextStyle(
-                    fontSize: 8,
-                    height: 1,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                )
-              : null,
-        ),
-      ),
-    );
+    return '${(tot / 60).round()} 小时 · $days 天在读';
   }
 
   Widget _monthCard(ColorScheme cs, ThemeTokens tokens, StatData s) {
