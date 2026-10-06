@@ -364,5 +364,46 @@ void main() {
       expect(got, expected,
           reason: '跨页的每一块都得铺到自己那一段交集，不重复不遗漏');
     });
+    testWidgets('⑦删划线只删与选区相交的那条，不同段连坐（F-15 真机反馈）',
+        (t) async {
+      // A＝段首 4 字；B＝第 11 字起到末尾。两条同段不重叠。
+      await seedHl('f7', a: 0, b: 4, tag: BookQuote.kTagKey, at: 1000);
+      await seedHl('f7', a: 10, b: 26, tag: BookQuote.kTagReso, at: 2000);
+      await openReader(t, _shortDoc(), 'f7');
+      final colA = _bg(BookQuote.kTagKey), colB = _bg(BookQuote.kTagReso);
+      expect(painted(t).where((e) => e.c == colA), isNotEmpty);
+      expect(painted(t).where((e) => e.c == colB), isNotEmpty);
+
+      Future<void> pressHead() async {
+        final r = t.getRect(find.byKey(const ValueKey('brpTap-0-1')));
+        await t.longPressAt(Offset(r.left + 12, r.top + 5));
+        await step(t);
+        expect(find.byKey(const ValueKey('brSelBar')), findsOne);
+        await t.tap(find.byKey(const ValueKey('brSelHl')));
+        await step(t);
+        await t.tap(find.byKey(const ValueKey('brDelHl')));
+        await step(t, ms: 300);
+      }
+
+      // (a) 选区落在 A 那一截 → 只删 A，B 必须在库也在屏。
+      await pressHead();
+      expect(find.textContaining('已删除划线'), findsOne);
+      await clearToasts(t);
+      var qs = await repo.quotesOf('f7');
+      expect(qs, hasLength(1), reason: '只该删掉与选区相交的那条（F-15＝两条一起没了）');
+      expect(qs.single.tag, BookQuote.kTagReso, reason: '留下的必须是 B');
+      final ps = painted(t);
+      expect(ps.where((e) => e.c == colA), isEmpty, reason: 'A 已删，不该再铺色');
+      expect(ps.where((e) => e.c == colB).map((e) => e.t).join(),
+          _alpha.substring(10, 26), reason: 'B 必须整条照旧在');
+
+      // (b) 选区落在没有划线的字上 → 一条都不许删。
+      await pressHead();
+      expect(find.textContaining('此处没有划线可删'), findsOne);
+      await clearToasts(t);
+      qs = await repo.quotesOf('f7');
+      expect(qs, hasLength(1), reason: '不相交就不许连坐');
+      expect(painted(t).where((e) => e.c == colB), isNotEmpty);
+    });
   });
 }

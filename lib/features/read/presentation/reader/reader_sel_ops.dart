@@ -383,23 +383,47 @@ extension _ReaderSelOps on _ReaderPageState {
     readToast(context, '高亮即一条划线书摘 · 笔记库可查（联动 L5）');
   }
 
+  /// F-15（2026-10-07 真机反馈·产品「删划线会把同段几条一起删掉」）：删除口必须按
+  /// **字符区间相交**判定。旧口径只比 `cf.p0/p1 == sel.p0/p1`——一段一条时代够用，
+  /// F-13 放开多条并存后，选任意一截就把同段所有划线一起软删。
+  /// 无偏移的旧行（`cf` 只有章段）＝整段区间，按段边补齐后照样判相交。
+  bool _cfHitsSel(
+    QuoteCf cf,
+    ({int ci, int p0, int p1, int o0, int o1}) sel,
+    EpubDoc doc,
+  ) {
+    if (cf.c != sel.ci) return false;
+    final lo = cf.p0 > sel.p0 ? cf.p0 : sel.p0;
+    final hi = cf.p1 < sel.p1 ? cf.p1 : sel.p1;
+    if (hi < lo) return false;
+    final paras = doc.chapters[sel.ci].paras;
+    for (var pi = lo; pi <= hi; pi++) {
+      if (pi < 0 || pi >= paras.length) continue;
+      final len = paras[pi].text.length;
+      final sa = pi == sel.p0 ? sel.o0 : 0, sb = pi == sel.p1 ? sel.o1 : len;
+      final q = cf.rangeAt(pi, len);
+      if (q == null) continue;
+      if (q.a < sb && sa < q.b) return true; // 这一截上字符区间真相交
+    }
+    return false;
+  }
+
   Future<void> _delHl() async {
     final sel = _selController.sel;
-    if (sel == null) return;
+    final doc = _doc;
+    if (sel == null || doc == null) return;
     final repo = ref.read(readRepositoryProvider);
     var n = 0;
     // 删除互清：删划线＝软删对应书摘行（笔记库同款可撤销语义）。
+    // F-15：只删与选区**相交**的那些条（选多大范围删多大，不再整段连坐）。
     for (final q in _hlQuotes) {
-      final cf = q.cf!;
-      if (q.id != null && cf.c == sel.ci && cf.p0 == sel.p0 && cf.p1 == sel.p1) {
+      if (q.id != null && _cfHitsSel(q.cf!, sel, doc)) {
         await repo.softDeleteQuote(q.id!);
         n++;
       }
     }
-    final keep = _localHl.where((h) {
-      final cf = h.cf;
-      return !(h.bookId == widget.bookId && cf.c == sel.ci && cf.p0 == sel.p0 && cf.p1 == sel.p1);
-    }).toList();
+    final keep = _localHl.where((h) =>
+        !(h.bookId == widget.bookId && _cfHitsSel(h.cf, sel, doc))).toList();
     if (keep.length != _localHl.length) {
       n += _localHl.length - keep.length;
       await repo.setKv('reader.hl', _LocalHl.encodeAll(keep));
@@ -409,7 +433,8 @@ extension _ReaderSelOps on _ReaderPageState {
     // ignore: invalid_use_of_protected_member
     setState(() => _selController.clear());
     ref.read(readTickProvider.notifier).state++;
-    readToast(context, n > 0 ? '已删除划线（书摘同步移除）' : '此处没有划线可删');
+    readToast(context,
+        n > 0 ? '已删除划线 $n 条（书摘同步移除）' : '此处没有划线可删');
   }
 
   void _actCopy() {
