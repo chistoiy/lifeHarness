@@ -117,4 +117,16 @@ print(pr.stdout.strip())
 if pr.returncode != 0:
     print("protogate 红灯（strict），按上列明细处置后重跑")
     sys.exit(1)
+# ---- 注册表 size/hash 体检（排期池候选批 2026-10-06：两列自登记后无人读过＝装饰，从此读它）----
+# 改过任何原型屏/弹层后须 `node tools/proto_registry.js --write` 重算再收口；漂移即红灯。
+try:
+    rr = subprocess.run(["node", os.path.join(ROOT, "tools", "proto_registry.js"), "--check"],
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
+    tail = [x for x in (rr.stdout or "").strip().splitlines() if x.startswith(("file 条目合计", "REGISTRY"))]
+    print(" / ".join(tail) if tail else (rr.stdout or "").strip()[:200])
+    if rr.returncode != 0:
+        print("注册表 size/hash 漂移（红灯）：跑 `node tools/proto_registry.js --write` 重算后复跑本闸")
+        sys.exit(1)
+except FileNotFoundError:
+    print("WARN 未找到 node，注册表体检跳过（本机应有 node，出现此行请先查 PATH）")
 print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板）")
