@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -93,7 +94,11 @@ void main() {
   });
   tearDown(() => db.close());
 
-  Widget wrap(Widget home, EpubDoc doc, {AiClient? ai}) => ProviderScope(
+  /// [withSettingsRoute]＝给「阅读器设置」那条 `pushNamed('/read/settings?sec=5')`
+  /// 挂一条桩路由（F-12 用例要跑真实的「推进设置页→改库→返回」往返；
+  /// 其余用例不需要，保持原 `MaterialApp(home:)` 形态不受影响）。
+  Widget wrap(Widget home, EpubDoc doc, {AiClient? ai, bool withSettingsRoute = false}) =>
+      ProviderScope(
     overrides: [
       readRepositoryProvider.overrideWithValue(repo),
       sharedPreferencesProvider.overrideWithValue(prefs),
@@ -105,7 +110,17 @@ void main() {
       // 接通统一入口的用例注入 MockClient（零真实网络）；不传＝用默认实现。
       if (ai != null) aiClientProvider.overrideWithValue(ai),
     ],
-    child: MaterialApp(home: home),
+    child: withSettingsRoute
+        ? MaterialApp.router(
+            routerConfig: GoRouter(initialLocation: '/', routes: [
+              GoRoute(path: '/', builder: (_, _) => home),
+              GoRoute(
+                  path: '/read/settings',
+                  builder: (_, _) =>
+                      const Scaffold(body: Text('ROUTE-STUB'))),
+            ]),
+          )
+        : MaterialApp(home: home),
   );
 
   /// 换一套 SharedPreferences 种子（AI 开关类用例需在测试内改 pref）。
@@ -138,7 +153,7 @@ void main() {
   }
 
   Future<void> openReader(WidgetTester t, EpubDoc doc, String id,
-      {AiClient? ai}) async {
+      {AiClient? ai, bool settings = false}) async {
     await useSurface(t, const Size(420, 780));
     await repo.addBook(Book(
       id: id,
@@ -148,7 +163,8 @@ void main() {
       createdAt: 1,
       updatedAt: 1,
     ));
-    await t.pumpWidget(wrap(ReaderPage(bookId: id), doc, ai: ai));
+    await t.pumpWidget(
+        wrap(ReaderPage(bookId: id), doc, ai: ai, withSettingsRoute: settings));
     await step(t, times: 4);
     // 段落空隙带点 chrome（段内长按才是划词，点按只走 body 分派）。
     final r = t.getRect(find.byKey(const ValueKey('brpTap-0-2')));
@@ -336,6 +352,27 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       final n = await copiedLen(t);
       expect(n, greaterThan(0));
       expect(n, lessThan(latin.length), reason: '只选一个词组范围，非整段');
+    });
+    // 真机反馈 F-12：在阅读器里改「阅读设置 → 选区工具条工具」再返回，工具条必须当场换名单。
+    // 本例钉**数据面**（工具条严格按当前 `read.brSelBar` 渲染，改完重开即生效）；
+    // 「从设置页返回这一动作会触发重读」的接线在 `onReadSet` 的 await-pop → `_reloadHls()`，
+    // 桩路由在测试里推不动（go_router 的 push 在本夹具不生效），**由真机 6082 复验**。
+    testWidgets('工具条名单按当前设置渲染（改完重开阅读器即生效）', (t) async {
+      await repo.setKv('read.brSelBar', '复制,查询');
+      await openReader(t, _doc(), 's15');
+      await selectPara(t, 'brpTap-0-1');
+      expect(find.byKey(const ValueKey('brSelCopy')), findsOne);
+      expect(find.byKey(const ValueKey('brSelDict')), findsOne,
+          reason: '进页时名单含「查询」');
+      // 改名单（＝设置页落库的同一句 setKv），重开阅读器读到的就是新名单。
+      await repo.setKv('read.brSelBar', '复制');
+      await t.pumpWidget(wrap(const SizedBox.shrink(), _doc()));
+      await step(t);
+      await openReader(t, _doc(), 's15');
+      await selectPara(t, 'brpTap-0-1');
+      expect(find.byKey(const ValueKey('brSelCopy')), findsOne);
+      expect(find.byKey(const ValueKey('brSelDict')), findsNothing,
+          reason: '名单里已经没有「查询」，工具条不许再画它');
     });
   });
 

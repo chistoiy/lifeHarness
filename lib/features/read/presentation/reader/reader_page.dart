@@ -720,7 +720,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       onDetail: () => ctx.push('/read/book/${widget.bookId}'),
       onAppearance: _openAppearance,
       onDelete: _openDelete,
-      onReadSet: () => ctx.push('/read/settings?sec=5'),
+      onReadSet: () async {
+        await ctx.push('/read/settings?sec=5');
+        // 真机反馈 F-12：在阅读器里改「阅读设置」（选区工具条名单／长按粒度／划线自动存书摘）
+        // 再返回，工具条仍是旧名单——这三项过去只在**进阅读器**时读一次，
+        // 唯一的重读口 `_reloadHls()` 又只挂在划线增删之后。返回即重读，设置才算说了算。
+        if (mounted) await _reloadHls();
+      },
       onMode: (m) {
         if (m == _cfg.mode) return;
         _setMode(m);
