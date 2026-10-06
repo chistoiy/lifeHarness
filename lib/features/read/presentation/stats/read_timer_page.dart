@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/book.dart';
+import '../read_actions.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart';
 import '../widgets/bs_cover.dart';
@@ -42,7 +43,9 @@ class _ReadTimerPageState extends ConsumerState<ReadTimerPage> {
 
   Future<void> _startStop(Book b, bool running) async {
     if (running) {
+      final c = ProviderScope.containerOf(context, listen: false);
       final closed = await ref.read(readRepositoryProvider).endSession(b.id);
+      refreshTimeAfterSession(c, [closed?.startedAt, closed?.endedAt]);
       ref.read(readTickProvider.notifier).state++;
       if (!mounted) return;
       if (closed != null) {

@@ -2,9 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/linkage/stats_providers.dart'
+    show dayBlocksProvider, monthBlockDaysProvider;
 import '../domain/book.dart';
 import 'read_providers.dart';
 import 'read_sheets.dart';
+
+/// 阅读会话结算/编辑/删除后通知时间模块（6075 实机测出：L4 块是 repo 层落库，
+/// 时间侧日视图与月圆点不 invalidate 不会重取——此前只有冷启动才看得到新块）。
+/// 传入全部新旧起止时刻即可，按自然日去重后逐日失效。
+void refreshTimeAfterSession(ProviderContainer c, Iterable<int?> atMs) {
+  final days = <DateTime>{};
+  for (final ms in atMs.whereType<int>()) {
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    days.add(DateTime(d.year, d.month, d.day));
+  }
+  for (final day in days) {
+    c.invalidate(dayBlocksProvider(day));
+    c.invalidate(monthBlockDaysProvider((day.year, day.month)));
+  }
+}
 
 /// 读书计时起停（工作台今日卡 / 胶囊态顶栏 / 书脊行共用一处语义 · §3.4）。
 /// 在跑→结束并回显（read.autoAsk 开启时结束即弹记进度）；
@@ -15,9 +32,11 @@ Future<void> readTimerTap(
   Book? target,
 }) async {
   final repo = ref.read(readRepositoryProvider);
+  final c = ProviderScope.containerOf(context, listen: false);
   final running = await repo.runningSession();
   if (running != null) {
     final closed = await repo.endSession(running.bookId);
+    refreshTimeAfterSession(c, [closed?.startedAt, closed?.endedAt]);
     ref.read(readTickProvider.notifier).state++;
     final books = await repo.allBooks();
     if (!context.mounted) return;

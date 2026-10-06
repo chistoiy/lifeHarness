@@ -11,7 +11,7 @@ import '../../features/todo/presentation/todo_providers.dart';
 export '../../features/todo/presentation/todo_providers.dart' show todosProvider, todoRepositoryProvider, activePomoProvider, PomoSession;
 export '../../features/todo/domain/todo.dart' show Todo, Quadrant;
 export '../../features/todo/domain/todo_insights.dart' show energyCaption;
-export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider;
+export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider, monthBlockDaysProvider;
 export '../../features/calendar/presentation/calendar_providers.dart' show eventsProvider;
 export '../../features/calendar/domain/cal_event.dart' show CalEvent, EventStatus;
 export '../../features/calendar/domain/time_block.dart' show TimeBlock;

@@ -42,6 +42,7 @@ import './reader_search_page.dart';
 import './reader_sel_layer.dart';
 import './reader_loupe.dart'; // V1.53.2 选区放大镜
 import '../selection_controller.dart';
+import '../read_actions.dart';
 import './reader_toc_drawer.dart';
 import './reader_xray_refine.dart'
     show showXrRefineEntry, xrAiMenuStatus, xrRefineForBook;
@@ -219,10 +220,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (!_ownTimer || _t0 == null) return;
     _accSecs += DateTime.now().difference(_t0!).inSeconds;
     _t0 = null;
+    final c = ProviderScope.containerOf(context, listen: false);
     unawaited(
       ref
           .read(readRepositoryProvider)
-          .endSession(widget.bookId, to: _locSnap(), minSecs: _minSecs),
+          .endSession(widget.bookId, to: _locSnap(), minSecs: _minSecs)
+          .then((closed) =>
+              refreshTimeAfterSession(c, [closed?.startedAt, closed?.endedAt])),
     );
   }
 
@@ -458,6 +462,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     final secs = _readSecs;
     final ms = _ms;
     final title = _book?.title ?? '';
+    final c = ProviderScope.containerOf(context, listen: false);
     unawaited(() async {
       final closed = own
           ? await repo.endSession(
@@ -466,6 +471,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
               minSecs: gate,
             )
           : null;
+      refreshTimeAfterSession(c, [closed?.startedAt, closed?.endedAt]);
       if (doc != null && pag != null && _book != null) {
         final pct = pag.pct(_pos.ci, _pos.pg);
         final b = _book!;

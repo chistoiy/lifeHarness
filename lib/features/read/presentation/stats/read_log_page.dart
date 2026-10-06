@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/book.dart';
 import '../../domain/book_session.dart';
+import '../read_actions.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 import '../widgets/bs_cover.dart' show BsIcons;
@@ -45,19 +46,25 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
     final d = v - total;
     if (d != 0) {
       final repo = ref.read(readRepositoryProvider);
+      final c = ProviderScope.containerOf(context, listen: false);
       if (all.isNotEmpty) {
         // 差量记到最近一次会话上（时间线总量＝设定值）。
         final last = all.first;
+        final nm = (last.minutes + d).clamp(0, 1 << 31);
         await repo.editSession(
           last.id!,
-          minutes: (last.minutes + d).clamp(0, 1 << 31),
+          minutes: nm,
         );
+        refreshTimeAfterSession(
+            c, [last.startedAt, last.endedAt, last.startedAt + nm * 60000]);
       } else if (v > 0) {
         await repo.addManualSession(
           bookId: widget.bookId,
           day: DateTime.now(),
           minutes: v,
         );
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        refreshTimeAfterSession(c, [nowMs]);
       }
       if (!mounted) return;
       ref.read(readTickProvider.notifier).state++;
@@ -554,6 +561,7 @@ class _LogCardState extends ConsumerState<_LogCard> {
     final minutes = int.tryParse(_min.text.trim()) ?? s.minutes;
     final from = int.tryParse(_from.text.trim());
     final to = int.tryParse(_to.text.trim());
+    final c = ProviderScope.containerOf(context, listen: false);
     await ref.read(readRepositoryProvider).editSession(
       s.id!,
       startedAtMs: s.startedAt,
@@ -561,6 +569,8 @@ class _LogCardState extends ConsumerState<_LogCard> {
       fromPage: from,
       toPage: to,
     );
+    refreshTimeAfterSession(
+        c, [s.startedAt, s.endedAt, s.startedAt + minutes * 60000]);
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
     readToast(
@@ -591,6 +601,7 @@ class _LogCardState extends ConsumerState<_LogCard> {
   }
 
   Future<void> _apply({int? minutes, int? fromPage, int? toPage, int? startedAtMs}) async {
+    final c = ProviderScope.containerOf(context, listen: false);
     await ref.read(readRepositoryProvider).editSession(
       widget.s.id!,
       startedAtMs: startedAtMs ?? widget.s.startedAt,
@@ -598,6 +609,13 @@ class _LogCardState extends ConsumerState<_LogCard> {
       fromPage: fromPage,
       toPage: toPage,
     );
+    final ns = startedAtMs ?? widget.s.startedAt;
+    refreshTimeAfterSession(c, [
+      widget.s.startedAt,
+      widget.s.endedAt,
+      ns,
+      ns + (minutes ?? widget.s.minutes) * 60000,
+    ]);
     if (!mounted) return;
     ref.read(readTickProvider.notifier).state++;
   }
@@ -885,9 +903,13 @@ class _LogCardState extends ConsumerState<_LogCard> {
                                     '删除这次',
                                     cs.error,
                                   () async {
+                                    final c = ProviderScope.containerOf(
+                                        context, listen: false);
                                     await ref
                                         .read(readRepositoryProvider)
                                         .deleteSession(s.id!);
+                                    refreshTimeAfterSession(
+                                        c, [s.startedAt, s.endedAt]);
                                     if (!context.mounted) return;
                                     ref.read(readTickProvider.notifier).state++;
                                   }),
