@@ -528,6 +528,9 @@ List<EpubRunSegment> paraRunStyles(
 /// 高亮只包子串本体不吞缩进）。批三真机反馈（2026-10-04 图1→图2）：选中态也必须吃
 /// [paraRunStyles] 这张分段表——否则《資治通鑑》一长按选字，整段原书绿小字塌回
 /// 主题黑大字，「选一下样式就变」在用户眼里就是 bug。底色只叠在与选区相交的那截上。
+/// F-14（2026-10-07 真机反馈）：[hlSpans]＝段内已入库划线的精确区间，**长按选区在场时
+/// 也要照铺**——旧口径靠 Container 整段浅底兜，改成多区间后若不在这里铺，选区一按下去
+/// 已有划线就地消失（用户读成「划线被选区吃掉了」）。选区带本身仍吃 [selBg]（选区优先）。
 TextSpan paraSelectionSpan(
   EpubPara p,
   TextStyle base, {
@@ -540,6 +543,7 @@ TextSpan paraSelectionSpan(
   int from = 0,
   int? to,
   Color selBg = const Color(0x4D6366F1),
+  List<({int a, int b, Color c})> hlSpans = const [],
 }) {
   final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
   final body = paraBody(p, s2t);
@@ -550,22 +554,50 @@ TextSpan paraSelectionSpan(
   final kids = <InlineSpan>[
     if (pre.isNotEmpty) TextSpan(text: pre, style: para),
   ];
+  // F-14：把 [x0,x1) 按划线区间切开逐截铺底；重叠处取**列表靠后**那条（＝最新），
+  // 与 `_textSpan` 同一口径（F-13 步骤2），不许整段抹掉前一条。
+  void addHlPainted(int x0, int x1, TextStyle Function(int at) stAt) {
+    var cur = x0;
+    while (cur < x1) {
+      Color? bg;
+      var coverEnd = x1;
+      for (final sp in hlSpans) {
+        if (sp.a <= cur && cur < sp.b) {
+          bg = sp.c;
+          coverEnd = sp.b < x1 ? sp.b : x1;
+        }
+      }
+      if (bg == null) {
+        var nx = x1;
+        for (final sp in hlSpans) {
+          if (cur < sp.a && sp.a < nx) nx = sp.a;
+        }
+        if (nx <= cur) nx = x1;
+        kids.add(TextSpan(text: body.substring(cur, nx), style: stAt(cur)));
+        cur = nx;
+      } else {
+        kids.add(
+          TextSpan(
+            text: body.substring(cur, coverEnd),
+            style: stAt(cur).copyWith(
+              backgroundColor: bg.withValues(alpha: .27),
+            ),
+          ),
+        );
+        cur = coverEnd;
+      }
+    }
+  }
+
   for (final seg in paraRunStyles(p, base, orig: orig, pageBg: pageBg)) {
     // 块裁剪（§3H-A 拆页）：本块只画 [cutA,cutB)，选区 [lo,hi) 已经同样夹过。
     final s0 = math.max(seg.start, cutA), s1 = math.min(seg.end, cutB);
     if (s1 <= s0) continue; // 整截在别的页上
     if (s1 <= lo || s0 >= hi) {
-      kids.add(TextSpan(text: body.substring(s0, s1), style: seg.style));
-      continue; // 整截都在选区外：原样式照上
+      addHlPainted(s0, s1, (_) => seg.style);
+      continue; // 整截都在选区外：原样式照上（划线底色仍在，F-14）
     }
-    if (s0 < lo) {
-      kids.add(
-        TextSpan(
-          text: body.substring(s0, lo),
-          style: seg.style,
-        ),
-      );
-    }
+    if (s0 < lo) addHlPainted(s0, lo, (_) => seg.style);
     final x0 = math.max(s0, lo), x1 = math.min(s1, hi);
     if (x1 > x0) {
       kids.add(
@@ -575,14 +607,7 @@ TextSpan paraSelectionSpan(
         ),
       );
     }
-    if (s1 > hi) {
-      kids.add(
-        TextSpan(
-          text: body.substring(hi, s1),
-          style: seg.style,
-        ),
-      );
-    }
+    if (s1 > hi) addHlPainted(hi, s1, (_) => seg.style);
   }
   return TextSpan(style: para, children: kids);
 }

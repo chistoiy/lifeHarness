@@ -292,6 +292,34 @@ void main() {
           reason: '另一条必须照旧在');
     });
 
+    testWidgets('⑥长按选区在场时，段内已有划线不许就地消失（F-14 真机反馈）',
+        (t) async {
+      await seedHl('f6', a: 2, b: 8, tag: BookQuote.kTagKey, at: 1000);
+      await seedHl('f6', a: 12, b: 20, tag: BookQuote.kTagReso, at: 2000);
+      await openReader(t, _shortDoc(), 'f6');
+      final colA = _bg(BookQuote.kTagKey), colB = _bg(BookQuote.kTagReso);
+      expect(painted(t).where((e) => e.c == colA), isNotEmpty, reason: '进屏时两条都在');
+      expect(painted(t).where((e) => e.c == colB), isNotEmpty);
+      // 长按段中（选字档＝命中单字）→ 选区在场，产品图1 的现场。
+      final r = t.getRect(find.byKey(const ValueKey('brpTap-0-1')));
+      await t.longPressAt(Offset(r.left + r.width * .5, r.top + r.height * .5));
+      await step(t);
+      expect(find.byKey(const ValueKey('brSelBar')), findsOne,
+          reason: '前提＝选区浮条已出（选区在场）');
+      final ps = painted(t);
+      expect(ps.where((e) => e.c == colA).map((e) => e.t).join(),
+          isNotEmpty,
+          reason: '长按期间先划的那条必须照旧铺着（F-14＝它当时整段消失）');
+      expect(ps.where((e) => e.c == colB).map((e) => e.t).join(),
+          isNotEmpty,
+          reason: '长按期间后划的那条也必须照旧铺着');
+      expect(
+        ps.where((e) => e.c == const Color(0x4D6366F1)).map((e) => e.t).join(),
+        isNotEmpty,
+        reason: '选区那一截仍要吃选区色（划线不许把选区盖掉）');
+      await clearToasts(t);
+    });
+
     testWidgets('⑤同段两条被拆到两页 → 每条只与本块求交，跨块不漏铺（§3H-A）',
         (t) async {
       // A 跨页（前块铺一头、后块铺另一头）；B 落在更靠后的那一页。

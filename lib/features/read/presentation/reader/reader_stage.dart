@@ -187,9 +187,11 @@ extension _ReaderStage on _ReaderPageState {
     // 旧数据无偏移、引文/标题段＝维持整段底色。活跃选区在场时瞬态整段浅底照旧。
     // 拆块后先与**本块区间求交**：交在外面的那段底色归另一页，本块不铺（§3H-A）。
     // F-13：多条各自求交成 hlSpans（createdAt 升序，重叠字符靠 `_textSpan` 取靠后者色）。
+    // F-14（2026-10-07 真机反馈）：**选区在场时也算**——旧口径靠 Container 整段浅底兜住
+    // 已有划线，改成多区间后不铺就会让划线在长按那一刻整段消失（产品图1）。
     final hlSpans = <({int a, int b, Color c})>[];
     bool hlLegacy = false; // 段内存在无精确 cf 的旧数据行
-    if (!inSel && p.kind == EpubParaKind.text) {
+    if (p.kind == EpubParaKind.text) {
       for (final hl in hls) {
         if (!hl.cf.isPrecise) {
           hlLegacy = true;
@@ -372,7 +374,7 @@ extension _ReaderStage on _ReaderPageState {
           () => GlobalKey(debugLabel: 'brp$bk'),
         );
         final span = partSel
-            ? _subSpan(th, p, q0, q1, from, to)
+            ? _subSpan(th, p, q0, q1, from, to, hlSpans: hlSpans)
             : _textSpan(
                 th,
                 doc,
@@ -380,7 +382,9 @@ extension _ReaderStage on _ReaderPageState {
                 p,
                 pi,
                 isHit,
-                hlSpans: hlSpans,
+                // 整段选中（跨段的中间段）时选区色优先，不再叠划线底色；
+                // 部分选中走 _subSpan，那里划线与选区各铺各的（F-14）。
+                hlSpans: inSel ? const [] : hlSpans,
                 from: from,
                 to: to,
               );

@@ -323,8 +323,9 @@ extension _ReaderChrome on _ReaderPageState {
     int q0,
     int q1,
     int from,
-    int? to,
-  ) => paraSelectionSpan(
+    int? to, {
+    List<({int a, int b, Color c})> hlSpans = const [],
+  }) => paraSelectionSpan(
     p,
     _userText(th),
     orig: _cfg.orig,
@@ -335,6 +336,7 @@ extension _ReaderChrome on _ReaderPageState {
     b: q1,
     from: from,
     to: to,
+    hlSpans: hlSpans,
   );
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
