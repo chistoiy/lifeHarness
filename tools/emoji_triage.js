@@ -8,6 +8,12 @@ const fs = require('fs'), path = require('path');
 const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu;
 /* 符号级白名单（几何/勾叉/星号类，非表情图形） */
 const SYMBOL = new Set(['✓', '✔', '✕', '', '×', '', '☐', '★', '☆', '›', '‹', '→', '←', '↑', '↓', '•', '·', '▪', '▸', '', '', '', '…']);
+/* 档③ 白名单：代码自造但**当前不判红**的例外，必须写理由；新增文件不在列即红灯。
+ * care_events 的 4 枚是**数据层默认图标**（随 DB 落库），换 key 要迁移，归 T13 专项拍板。 */
+const ALLOW3 = {
+  'lib/features/care/domain/care_events.dart': '数据层默认图标（随 DB 落库·换 key 需迁移）＝T13 专项待拍板',
+};
+const CHECK = process.argv.includes('--check');
 const out = process.argv.indexOf('--md');
 const MD = out > -1 ? process.argv[out + 1] : null;
 
@@ -66,3 +72,13 @@ const text = head.concat(body).join('\n') + '\n\n' + sec3 + '\n口径：⓪符�
 if (MD) { fs.writeFileSync(MD, text, 'utf8'); console.log('已写 ' + MD) }
 console.log(text.split('\n').slice(0, 8).join('\n'));
 console.log('…（共 ' + list.length + ' 个字形分档）');
+if (CHECK) {
+  /* 闸口径：档③（代码自造表情）只许出现在白名单文件里，且白名单必须写理由；
+     新增即红灯——与 uxlint 的「基线只许减」同族，但这条是硬零面＋例外清单。 */
+  const viol = rows.filter(r => r.tier === '③' && !ALLOW3[r.file]);
+  const stale = Object.keys(ALLOW3).filter(f => !rows.some(r => r.file === f && r.tier === '③'));
+  console.log('档③ 违规 ' + viol.length + ' 枚 · 白名单文件 ' + Object.keys(ALLOW3).length +
+    ' 个（例外已失效 ' + stale.length + ' 个：' + stale.join(' ') + '）');
+  for (const v of viol.slice(0, 12)) console.log('  EMOJI3 ' + v.file + ':' + v.line + ' ' + v.glyph);
+  process.exit(viol.length || stale.length ? 1 : 0);
+}

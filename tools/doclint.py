@@ -129,4 +129,16 @@ try:
         sys.exit(1)
 except FileNotFoundError:
     print("WARN 未找到 node，注册表体检跳过（本机应有 node，出现此行请先查 PATH）")
+# ---- T13 档③ 硬零闸：代码自造表情只许在白名单文件（须写理由），新增即红灯 ----
+try:
+    re3 = subprocess.run(["node", os.path.join(ROOT, "tools", "emoji_triage.js"), "--check"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=ROOT)
+    tail3 = [x for x in (re3.stdout or "").strip().splitlines() if x.startswith(("档③ 违规", "  EMOJI3"))]
+    print(" / ".join(tail3[:1]) if tail3 else (re3.stdout or "").strip()[:160])
+    if re3.returncode != 0:
+        print("T13 档③ 红灯：上列 EMOJI3 是「代码里有、原型里没有」的表情符号——换线性图标/删字符，"
+              "确需保留才进 tools/emoji_triage.js 的 ALLOW3 并写理由（例外失效也会红）")
+        sys.exit(1)
+except FileNotFoundError:
+    print("WARN 未找到 node，T13 档③ 闸跳过")
 print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板）")

@@ -135,7 +135,8 @@ extension _NoteRich on _NoteEditPageState {
     urlCtl.dispose();
     if (url == null || url.isEmpty || !mounted) return;
     c.formatSelection(LinkAttribute(url));
-    AppToast.show(context, '🔗 已添加链接');
+    // T13 档③ 清零：提示条不带表情符号（图标位已由 Icons.link 线性图标承担）
+    AppToast.show(context, '已添加链接');
   }
 
   /// Aa 字号：滑杆弹层（与底栏字号滑杆同一状态源）。

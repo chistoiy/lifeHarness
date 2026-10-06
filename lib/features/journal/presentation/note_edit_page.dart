@@ -30,7 +30,13 @@ part 'note_edit_layout.dart';
 enum NoteEditMode { focus, src, view }
 
 /// MD 底部主条（原型轮8 renderPwBar · pw-tool 顺序与图形）：
-/// ↺↻ | H#（点开二级 H1~H6）B I S <> ❝ ≡ ☑ ▦ 🖼 🔗 ƒx ∑ —
+/// ↺↻ | H#（点开二级 H1~H6）B I S <> ❝ ≡ ☑ ▦ 图片 链接 ƒx ∑ —
+///
+/// T13 档③ 清零：`img`/`link` 两行的 glyph 位**从来不上屏**——渲染侧
+/// （`note_edit_rich.dart` 的 MD 工具条）对这两个键走 `_pwIconBtn(Icons.image_outlined /
+/// Icons.link)`，只有其余键才吃这里的文本。原来这两格写着表情符号，属**代码自造**
+/// （原型 `renderPwBar` 的 MD 条根本没有图片/链接两枚），留着只会在扫描里当违令存量，
+/// 现改留空并注明由图标件接管，别再往这里塞表情。
 const _mdTools = <(String, String, String)>[
   ('undo', '↺', '撤销'),
   ('redo', '↻', '重做'),
@@ -43,8 +49,8 @@ const _mdTools = <(String, String, String)>[
   ('ul', '≡', '无序列表'),
   ('task', '☑', '待办项'),
   ('table', '▦', '表格'),
-  ('img', '🖼', '图片'),
-  ('link', '🔗', '链接'),
+  ('img', '', '图片'),
+  ('link', '', '链接'),
   ('math', 'ƒx', '行内公式'),
   ('mathb', '∑', '块级公式 LaTeX'),
   ('hr', '—', '分割线'),
