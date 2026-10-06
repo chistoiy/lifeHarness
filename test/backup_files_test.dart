@@ -45,7 +45,7 @@ void main() {
       await BackupFileScanner.markDownloaded(prefs, 'cloud_pull_20261004.lhbak');
 
       final list =
-          await BackupFileScanner(dir: tmp.path, prefs: prefs).scan();
+          await BackupFileScanner(dirs: [tmp.path], prefs: prefs).scan();
       expect(
           list.map((e) => e.name),
           [
@@ -64,13 +64,13 @@ void main() {
       await mk('note.txt', 10, DateTime(2026, 10, 5));
       Directory(p.join(tmp.path, 'sub')).createSync();
       File(p.join(tmp.path, 'sub', 'deep.lhbak')).writeAsBytesSync([0]);
-      final list = await BackupFileScanner(dir: tmp.path, prefs: prefs).scan();
+      final list = await BackupFileScanner(dirs: [tmp.path], prefs: prefs).scan();
       expect(list.map((e) => e.name), ['keep.lhbak']);
     });
 
     test('目录不存在＝空清单（首启没有导出记录，不许抛）', () async {
       final list = await BackupFileScanner(
-              dir: p.join(tmp.path, 'nope'), prefs: prefs)
+              dirs: [p.join(tmp.path, 'nope')], prefs: prefs)
           .scan();
       expect(list, isEmpty);
     });
@@ -78,13 +78,55 @@ void main() {
     test('purge＝物理删（文件真没了）并回报释放字节；缺失路径跳过不抛', () async {
       await mk('a.lhbak', 3000, DateTime(2026, 10, 5));
       await mk('b.lhbak', 1000, DateTime(2026, 10, 4));
-      final sc = BackupFileScanner(dir: tmp.path, prefs: prefs);
+      final sc = BackupFileScanner(dirs: [tmp.path], prefs: prefs);
       final freed = await sc.purge(
           [p.join(tmp.path, 'a.lhbak'), p.join(tmp.path, 'gone.lhbak')]);
       expect(freed, 3000);
       expect(File(p.join(tmp.path, 'a.lhbak')).existsSync(), isFalse);
       expect(File(p.join(tmp.path, 'b.lhbak')).existsSync(), isTrue,
           reason: '只删点名的包，其余不许被牵连');
+    });
+
+    // 真机 6080 抓的落点错配：本机导出落 `backup/`、云下载落 `exports/`，
+    // 曾只扫后者 ⇒ 自己导出的包在本屏永远看不见（日志有、屏上没有）。
+    test('两根并扫：backup/ 的本机导出与 exports/ 的云端下载同屏在册', () async {
+      final backupDir = Directory(p.join(tmp.path, 'backup'))..createSync();
+      final exportsDir = Directory(p.join(tmp.path, 'exports'))..createSync();
+      // mtime 必须显式钉开：`List.sort` 不保证稳定，三枚同秒会得出随机顺序（假绿/假红都 possible）。
+      void put(Directory d, String name, int bytes, DateTime t) {
+        final f = File(p.join(d.path, name))..writeAsBytesSync(List.filled(bytes, 1));
+        f.setLastModifiedSync(t);
+      }
+
+      put(backupDir, 'lifeharness_20261006_212830.lhbak', 2000,
+          DateTime(2026, 10, 6, 21, 28));
+      put(backupDir, 'auto_before_restore_1.lhbak', 1000,
+          DateTime(2026, 10, 5, 7, 58));
+      put(exportsDir, 'lifeharness_20261005_080000.lhbak', 500,
+          DateTime(2026, 10, 4, 8, 0));
+      await BackupFileScanner.markDownloaded(
+          prefs, 'lifeharness_20261005_080000.lhbak');
+      final list =
+          await BackupFileScanner(dirs: [backupDir.path, exportsDir.path], prefs: prefs)
+              .scan();
+      expect(list.map((e) => e.name), [
+        'lifeharness_20261006_212830.lhbak',
+        'auto_before_restore_1.lhbak',
+        'lifeharness_20261005_080000.lhbak',
+      ], reason: '按 mtime 倒序；本机导出侧的两个包必须在册');
+      expect(list.map((e) => e.source).toList(),
+          [BackupFileSource.local, BackupFileSource.auto, BackupFileSource.cloud]);
+    });
+
+    test('purge 越界护栏：不在登记根内的路径一个字都不删', () async {
+      await mk('inside.lhbak', 1000, DateTime(2026, 10, 5));
+      final outside = File(p.join(tmp.parent.path, 'outside-do-not-touch.lhbak'))
+        ..writeAsBytesSync(List.filled(4096, 1));
+      addTearDown(() => outside.deleteSync());
+      final freed = await BackupFileScanner(dirs: [tmp.path], prefs: prefs)
+          .purge([outside.path, p.join(tmp.path, 'inside.lhbak')]);
+      expect(freed, 1000, reason: '只释放登记根内的字节');
+      expect(outside.existsSync(), isTrue, reason: '根外文件绝不删');
     });
 
     test('下载台账有上限（只服务角标，不无界增长）', () async {
@@ -304,7 +346,7 @@ void main() {
 /// 屏层替身：清单可换、purge 只记账（真 I/O 已在数据层组覆盖）。
 class _FakeScanner extends BackupFileScanner {
   _FakeScanner(this.list, SharedPreferences prefs)
-      : super(dir: '/nonexistent-lh-b1', prefs: prefs);
+      : super(dirs: const ['/nonexistent-lh-b1'], prefs: prefs);
 
   /// 可变清单＝模拟「别的入口刚导出／下载了新包」。
   List<BackupFileEntry> list;

@@ -184,8 +184,9 @@ Future<void> main() async {
   //    轮6 ANR 根治：zip 打包/附件收集/加密整体挪进后台 isolate（默认内联是
   //    测试路径），UI isolate 不再被压缩卡死十几秒 → 不再触发 bg ANR 杀进程。
   LhBak.packRunner = Isolate.run;
+  final backupExportDir = p.join(docsPath, 'backup');
   final backup = BackupService(
-    exportDir: () => p.join(docsPath, 'backup'),
+    exportDir: () => backupExportDir,
     db: () => AppDatabase.instance.open(),
     closeDb: AppDatabase.instance.close,
     attachDirs: [
@@ -225,8 +226,12 @@ Future<void> main() async {
         )),
         // B-1：备份文件屏的扫描器——只扫 exports/ 浅层（同步下载与本地导出都落这里），
         // 来源角标读「云端下载台账」（SyncOrchestrator 落盘成功时记名）。
+        // 真机 6080：两个落点都要扫——`backup/`＝本机导出与恢复前自动，
+        // `exports/`＝云同步下载落点；只扫后者会让本屏看不见自己导出的包。
         backupFileScannerProvider.overrideWithValue(
-            BackupFileScanner(dir: p.join(docsPath, 'exports'), prefs: prefs)),
+            BackupFileScanner(
+                dirs: [backupExportDir, p.join(docsPath, 'exports')],
+                prefs: prefs)),
         // B-4 数据库概览扫描器（工单 §7-3）：活库直连，只数行不取字节。
         dbOverviewScannerProvider
             .overrideWithValue(DbOverviewScanner(db: AppDatabase.instance.db)),

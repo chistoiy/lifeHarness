@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../logging/app_log.dart';
 import 'backup_service.dart' show kAutoBeforeRestoreTag;
 
 /// B-1 备份文件清单（原型 `p-sub-backup` 对译）。
@@ -55,9 +56,14 @@ class BackupFileEntry {
 /// 其余＝本地导出。台账自本批起在下载落盘时记名（[markDownloaded]）——**早于本批**的
 /// 历史下载包会被读成「本地导出」，只影响角标文字、不影响任何动作，随新包自然收敛。
 class BackupFileScanner {
-  BackupFileScanner({required this.dir, required this.prefs});
+  /// **两个落点都得扫**（真机 6080 抓的缺陷）：
+  /// `<docs>/backup/`＝`BackupService.exportDir`，本机导出与「恢复前自动」都在这儿；
+  /// `<docs>/exports/`＝`SyncOrchestrator.exportsDir`，云同步下载落这儿。
+  /// 曾只扫 `exports/` ⇒ 本机导出的包在本屏永远看不到（日志记着「备份导出成功」、
+  /// 屏上仍是「0 包」）——B-1 的本职正好被扫反了。
+  BackupFileScanner({required this.dirs, required this.prefs});
 
-  final String dir;
+  final List<String> dirs;
   final SharedPreferences prefs;
 
   static const downloadedKey = 'lh.backup_downloaded';
@@ -79,38 +85,55 @@ class BackupFileScanner {
   }
 
   Future<List<BackupFileEntry>> scan() async {
-    final d = Directory(dir);
-    if (!await d.exists()) return const [];
     final known = downloadedNames(prefs);
     final out = <BackupFileEntry>[];
-    await for (final e in d.list(recursive: false, followLinks: false)) {
-      if (e is! File || !e.path.toLowerCase().endsWith('.lhbak')) continue;
-      final st = await e.stat();
-      final name = p.basename(e.path);
-      out.add(BackupFileEntry(
-        path: e.path,
-        name: name,
-        bytes: st.size,
-        mtime: st.modified,
-        source: name.startsWith(kAutoBeforeRestoreTag)
-            ? BackupFileSource.auto
-            : known.contains(name)
-                ? BackupFileSource.cloud
-                : BackupFileSource.local,
-      ));
+    final seen = <String>{};
+    for (final root in dirs) {
+      final d = Directory(root);
+      if (!await d.exists()) continue; // 目录未建过＝该侧还没有包（首启即此态）
+      await for (final e in d.list(recursive: false, followLinks: false)) {
+        if (e is! File || !e.path.toLowerCase().endsWith('.lhbak')) continue;
+        final path = p.canonicalize(e.path);
+        if (!seen.add(path)) continue; // 两根重叠时不重复列
+        final st = await e.stat();
+        final name = p.basename(path);
+        out.add(BackupFileEntry(
+          path: path,
+          name: name,
+          bytes: st.size,
+          mtime: st.modified,
+          source: name.startsWith(kAutoBeforeRestoreTag)
+              ? BackupFileSource.auto
+              : known.contains(name)
+                  ? BackupFileSource.cloud
+                  : BackupFileSource.local,
+        ));
+      }
     }
     out.sort((a, b) => b.mtime.compareTo(a.mtime));
     return out;
   }
 
   /// 物理删除，返回释放字节数（缺失文件跳过不报错：列表可能已过期）。
+  ///
+  /// 护栏同媒体清理：目标必须落在已登记的扫描根内，越界一律拒删并留痕
+  /// （本函数是全屏唯一删除口，调用方给什么路径就得防什么路径）。
   Future<int> purge(List<String> paths) async {
-    var freed = 0;
+    final roots = dirs.map((d) => p.canonicalize(d) + p.separator).toList();
+    var freed = 0, refused = 0;
     for (final path in paths) {
-      final f = File(path);
+      if (!roots.any((r) => p.canonicalize(path).startsWith(r))) {
+        refused++;
+        continue;
+      }
+      final f = File(p.canonicalize(path));
       if (!await f.exists()) continue;
       freed += (await f.stat()).size;
       await f.delete();
+    }
+    if (refused > 0) {
+      AppLog.add('备份文件删除越界拒绝（不在登记根内）：$refused 个',
+          level: LhLevel.warn);
     }
     return freed;
   }
