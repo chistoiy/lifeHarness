@@ -153,6 +153,50 @@ void main() {
       expect(find.text('从其他位置选择'), findsOneWidget);
     });
 
+    // 真机 6078 走查抓的驻留缺陷：日志明明记着「备份导出成功：lifeharness_…lhbak」，
+    // 本屏当场与重进都仍是「0 包」＝`backupFilesProvider` 的值跨屏驻留，
+    // 不失效就得冷启动才看得见新包。进屏即失效重扫才是对的。
+    testWidgets('进屏即重扫：屏外新导出的包不必冷启动就该出现', (tester) async {
+      final sc = _FakeScanner([seed().first], prefs);
+      final container = ProviderContainer(
+          overrides: [backupFileScannerProvider.overrideWithValue(sc)]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+              home: Builder(
+                  builder: (c) => Scaffold(
+                          body: Center(
+                              child: ElevatedButton(
+                        key: const ValueKey('go'),
+                        onPressed: () => Navigator.push(
+                            c,
+                            MaterialPageRoute(
+                                builder: (_) => const BackupFilesPage())),
+                        child: const Text('go'),
+                      )))))));
+
+      int rowCount() => tester
+          .widgetList(find.byWidgetPredicate((w) =>
+              w.key is ValueKey &&
+              '${(w.key as ValueKey).value}'.startsWith('bk-row-')))
+          .length;
+
+      await tester.tap(find.byKey(const ValueKey('go')));
+      await settle5(tester);
+      expect(rowCount(), 1, reason: '首进＝替身里那一枚包');
+      await tester.pageBack();
+      await settle5(tester);
+
+      // 屏外又导出两枚（替身清单变三枚），再进一次屏。
+      sc.list = seed();
+      await tester.tap(find.byKey(const ValueKey('go')));
+      await settle5(tester);
+      expect(rowCount(), 3,
+          reason: '进屏必须重扫——不失效就会假绿地停在 1 行（真机症状原样）');
+      await clearToasts(tester);
+    });
+
     testWidgets('删除单条＝先出后果（物理删·不进回收站），确认后才真删并回报',
         (tester) async {
       final sc = _FakeScanner(seed(), prefs);
@@ -257,21 +301,22 @@ void main() {
   });
 }
 
-/// 屏层替身：清单固定、purge 只记账（真 I/O 已在数据层组覆盖）。
+/// 屏层替身：清单可换、purge 只记账（真 I/O 已在数据层组覆盖）。
 class _FakeScanner extends BackupFileScanner {
-  _FakeScanner(this._list, SharedPreferences prefs)
+  _FakeScanner(this.list, SharedPreferences prefs)
       : super(dir: '/nonexistent-lh-b1', prefs: prefs);
 
-  final List<BackupFileEntry> _list;
+  /// 可变清单＝模拟「别的入口刚导出／下载了新包」。
+  List<BackupFileEntry> list;
   final List<String> purged = [];
 
   @override
-  Future<List<BackupFileEntry>> scan() async => _list;
+  Future<List<BackupFileEntry>> scan() async => list;
 
   @override
   Future<int> purge(List<String> paths) async {
     purged.addAll(paths);
     return paths.fold<int>(
-        0, (t, path) => t + _list.firstWhere((e) => e.path == path).bytes);
+        0, (t, path) => t + list.firstWhere((e) => e.path == path).bytes);
   }
 }

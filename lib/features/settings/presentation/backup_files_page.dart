@@ -41,6 +41,17 @@ class _BackupFilesPageState extends ConsumerState<BackupFilesPage> {
   Set<String> _sel = {};
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // 真机 6078 走查抓的缺陷：`backupFilesProvider` 是 app 作用域的 FutureProvider，
+    // 值会跨屏驻留——刚导出的包／云上下好的包在本屏永远看不到（显示「0 包」），
+    // 除非冷启动。进屏即失效重扫，屏才与磁盘一致。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(backupFilesProvider);
+    });
+  }
+
   void _exitSel() => setState(() {
         _selMode = false;
         _sel.clear();
