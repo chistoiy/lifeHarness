@@ -48,7 +48,11 @@ void main() {
     // 上一批「阅读时间块实时刷新」（567e84d，reader_page 起停两处挂刷新），
     // 该批按门禁瘦身三条只跑面板清单、未带 size 闸，故今日现形——非 U4 造成，
     // U4 一行未动 reader_page。之后只许减。
-    'features/read/presentation/reader/reader_page.dart': 1216,
+    // 1216→1222 存量越线归位（F-13 批 2026-10-07 跑出本红）：净增 6 行发生在
+    // 上一批「真机反馈 F-12」（1ac1e10，onReadSet 改 await push 后 _reloadHls），
+    // 该批门禁＝backup/sync 4 文件＋doclint，未带 size 闸，故今日现形——非 F-13 造成，
+    // F-13 一行未动 reader_page（改的是同库 part：sel_ops/stage/chrome/models，均在默认面下）。
+    'features/read/presentation/reader/reader_page.dart': 1222,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展

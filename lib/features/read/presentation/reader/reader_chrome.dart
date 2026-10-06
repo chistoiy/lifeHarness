@@ -339,8 +339,11 @@ extension _ReaderChrome on _ReaderPageState {
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
   /// ① 注释体走正文色小字；④ 只有外链给链接绿。
-  /// 轮4①：[hlRange]（原文坐标）＋[hlColor]＝已入库划线的**字符区间铺底**——
-  /// 底色与链接/命中样式可叠加（背景只加不改字色），旧整段数据不走这里。
+  /// 轮4①：已入库划线的**字符区间铺底**——底色与链接/命中样式可叠加
+  /// （背景只加不改字色），旧整段数据不走这里。
+  /// F-13（2026-10-07）：[hlSpans]＝同段**全部**精确划线（createdAt 升序），
+  /// 每条各切起/止两点；重叠字符取**列表靠后**那条的色（＝最新），
+  /// 不许出现「后一条把前一条整段抹掉」。
   TextSpan _textSpan(
     (String, Color, Color) th,
     EpubDoc doc,
@@ -348,8 +351,7 @@ extension _ReaderChrome on _ReaderPageState {
     EpubPara p,
     int pi,
     bool hit, {
-    ({int a, int b})? hlRange,
-    Color? hlColor,
+    List<({int a, int b, Color c})> hlSpans = const [],
     int from = 0,
     int? to,
   }) {
@@ -385,42 +387,52 @@ extension _ReaderChrome on _ReaderPageState {
 
     final markBg = const Color(0xFF6366F1).withValues(alpha: .28);
     // 轮4①：划线底色＝色标 27% 透明（与旧整段 Container 铺底同值，观感连续）。
-    final hlBg = hlColor?.withValues(alpha: .27);
+    // F-13：逐条各一份底色，重叠处按列表下标取靠后的那条（新线盖旧线，仅重叠区）。
+    final hlBg = [
+      for (final sp in hlSpans) sp.c.withValues(alpha: .27),
+    ];
+    final hlOn = List<bool>.filled(hlSpans.length, false);
     final children = <InlineSpan>[];
     // 事件流：链接起/止 + 命中起/止（显示文本偏移＝原始 +ind 缩进）+ 划线起/止
     // ＋原书区间**切点**（kind 6 不改状态，只逼一次 flush，让每一段拿到自己的样式）。
-    final eventsRaw = <(int, int, EpubLink?)>[
+    // 划线事件（4/5）第四元＝该条在 [hlSpans] 里的下标（F-13 多条并存）。
+    final eventsRaw = <(int, int, EpubLink?, int)>[
       for (final l in p.links) ...[
-        (l.start + ind, 0, l),
-        (l.end + ind, 1, l),
+        (l.start + ind, 0, l, 0),
+        (l.end + ind, 1, l, 0),
       ],
       // 区间**起与止都要切**：只切起点会让整段一路披成第一个 run 的样式
       // （真机表现＝注释段之后的正文跟着变绿变小）。
       if (_cfg.orig && p.runs.isNotEmpty)
         for (final r in p.runs) ...[
-          (r.start + ind, 6, null),
-          (r.end + ind, 6, null),
+          (r.start + ind, 6, null, 0),
+          (r.end + ind, 6, null, 0),
         ],
       if (hit && _hitQ.isNotEmpty) ...[
         for (var idx = p.text.indexOf(_hitQ); idx >= 0; idx = p.text.indexOf(_hitQ, idx + 1)) ...[
-          (idx + ind, 2, null),
-          (idx + ind + _hitQ.length, 3, null),
+          (idx + ind, 2, null, 0),
+          (idx + ind + _hitQ.length, 3, null, 0),
         ],
       ],
-      if (hlRange != null && hlBg != null && hlRange.b > hlRange.a) ...[
-        (hlRange.a + ind, 4, null),
-        (hlRange.b + ind, 5, null),
-      ],
+      for (var k = 0; k < hlSpans.length; k++)
+        if (hlSpans[k].b > hlSpans[k].a) ...[
+          (hlSpans[k].a + ind, 4, null, k),
+          (hlSpans[k].b + ind, 5, null, k),
+        ],
     ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
     // 夹进块窗口后再排序：窗口外的起与止会同时落到边界上，一进一出互相抵消，
     // 跨页的链接/划线在本块照样能正确上色（工单 §3H-A 拆块）。
-    final events = <(int, int, EpubLink?)>[
-      for (final e in eventsRaw) (e.$1.clamp(winLo, winHi), e.$2, e.$3),
+    final events = <(int, int, EpubLink?, int)>[
+      for (final e in eventsRaw) (
+        e.$1.clamp(winLo, winHi),
+        e.$2,
+        e.$3,
+        e.$4,
+      ),
     ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
     var cursor = winLo;
     var inLink = 0;
     var inMark = 0;
-    var inHl = 0;
     void flush(int to) {
       if (to <= cursor) return;
       final t = display.substring(cursor.clamp(0, display.length), to.clamp(0, display.length));
@@ -439,8 +451,12 @@ extension _ReaderChrome on _ReaderPageState {
       var style = inLink > 0
           ? linkStyleFor(seg, link)
           : (inMark > 0 ? seg.copyWith(backgroundColor: markBg) : seg);
-      if (inHl > 0 && hlBg != null) {
-        style = style.copyWith(backgroundColor: hlBg);
+      // F-13：重叠时取**下标最大**的活动划线（＝最新那条）；一条都没活动就不叠底。
+      for (var k = hlOn.length - 1; k >= 0; k--) {
+        if (hlOn[k]) {
+          style = style.copyWith(backgroundColor: hlBg[k]);
+          break;
+        }
       }
       children.add(
         TextSpan(
@@ -453,7 +469,7 @@ extension _ReaderChrome on _ReaderPageState {
       );
       cursor = to;
     }
-    for (final (at, kind, _) in events) {
+    for (final (at, kind, _, hlIdx) in events) {
       flush(at);
       switch (kind) {
         case 0:
@@ -465,9 +481,9 @@ extension _ReaderChrome on _ReaderPageState {
         case 3:
           inMark = (inMark - 1).clamp(0, 1 << 20);
         case 4:
-          inHl++;
+          if (hlIdx >= 0 && hlIdx < hlOn.length) hlOn[hlIdx] = true;
         case 5:
-          inHl = (inHl - 1).clamp(0, 1 << 20);
+          if (hlIdx >= 0 && hlIdx < hlOn.length) hlOn[hlIdx] = false;
         // kind 6＝原书区间切点（批三刀3）：只逼一次 flush，不改任何状态。
         case 6:
           break;

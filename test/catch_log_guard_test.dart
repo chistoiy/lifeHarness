@@ -72,7 +72,9 @@ void main() {
     'features/read/presentation/reader/reader_appearance_sheet.dart': 2,
     'features/read/presentation/reader/reader_links.dart': 1,
     'features/read/presentation/reader/reader_models.dart': 2,
-    'features/read/presentation/reader/reader_page.dart': 6,
+    // 6→5 归位（F-13 批 2026-10-07 跑出提醒）：少掉的那一处静默 catch 消失于
+    // F-12 批（`1ac1e10`，onReadSet 改 await push 后 _reloadHls），该批未跑本闸。
+    'features/read/presentation/reader/reader_page.dart': 5,
     'features/read/presentation/shelf/shelf_page.dart': 1,
     'features/read/presentation/stats/quotes_lib_page.dart': 1,
     'features/settings/presentation/ai_page_form.dart': 2,

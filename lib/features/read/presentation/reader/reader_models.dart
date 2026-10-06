@@ -26,6 +26,16 @@ class _Pos {
   String encode() => jsonEncode({'ci': ci, 'pg': pg, if (bm != null) 'bm': bm});
 }
 
+/// F-13（2026-10-07）：段生效划线的一条——同段可以有多条，渲染层按 createdAt
+/// 升序逐条铺色（列表靠后＝最新＝重叠区取它）。暂存行无时间戳，按加入顺序编号。
+typedef BrHl = ({
+  String tg,
+  Color c,
+  bool hasThought,
+  QuoteCf cf,
+  int createdAt,
+});
+
 /// brSync 关时的划线暂存行（原型 BR_LOCAL_HL · 全量存 kv `reader.hl`）。
 /// 与 book_quotes 同构语义：cf 章段区间 + 颜色分类 tg + 稳定 rid。
 class _LocalHl {

@@ -178,25 +178,33 @@ extension _ReaderStage on _ReaderPageState {
         _hitMark!.pi == pi &&
         _hitMark!.from == from;
     // 批3：划线色底（原型 background: c+'44'）与选中段高亮；点段即划词。
-    final hl = p.kind == EpubParaKind.image ? null : _hlAt(ci, pi);
+    // F-13（2026-10-07）：一段吃**全部**生效划线，旧实现单条＝同段后划的线把先划的挤掉。
+    const noHl = <BrHl>[];
+    final hls = p.kind == EpubParaKind.image ? noHl : _hlsAt(ci, pi);
     final s = _selController.sel;
     final inSel = s != null && s.ci == ci && pi >= s.p0 && pi <= s.p1;
     // 轮4①：入库带偏移的 text 段＝span 级精确铺底（Container 不再整段涂）；
     // 旧数据无偏移、引文/标题段＝维持整段底色。活跃选区在场时瞬态整段浅底照旧。
     // 拆块后先与**本块区间求交**：交在外面的那段底色归另一页，本块不铺（§3H-A）。
-    final hlRange = (() {
-      if (!(hl != null &&
-              p.kind == EpubParaKind.text &&
-              hl.cf.isPrecise &&
-              !inSel)) {
-        return null;
+    // F-13：多条各自求交成 hlSpans（createdAt 升序，重叠字符靠 `_textSpan` 取靠后者色）。
+    final hlSpans = <({int a, int b, Color c})>[];
+    bool hlLegacy = false; // 段内存在无精确 cf 的旧数据行
+    if (!inSel && p.kind == EpubParaKind.text) {
+      for (final hl in hls) {
+        if (!hl.cf.isPrecise) {
+          hlLegacy = true;
+          continue;
+        }
+        final r = hl.cf.rangeAt(pi, p.text.length);
+        if (r == null) continue;
+        final a = r.a > from ? r.a : from, b = r.b < to ? r.b : to;
+        if (b > a) hlSpans.add((a: a, b: b, c: hl.c));
       }
-      final r = hl.cf.rangeAt(pi, p.text.length);
-      if (r == null) return null;
-      final a = r.a > from ? r.a : from, b = r.b < to ? r.b : to;
-      return b > a ? (a: a, b: b) : null;
-    })();
-    final hlFull = hl != null && hlRange == null;
+    }
+    // 整段底色只给「无任一精确区间」的旧数据口径（F-13 步骤3）；有 span 在场不再整段涂。
+    final hlFull = hlLegacy && hlSpans.isEmpty;
+    // 段内任一条带感想即出小标记（旧实现只看单条）。
+    final hasThought = hls.any((h) => h.hasThought);
     // 轮4③：段内精确子串高亮（同段＝句选 o0/o1；跨段首尾各切一头）。
     var q0 = 0, q1 = p.text.length;
     if (s != null && inSel) {
@@ -228,16 +236,19 @@ extension _ReaderStage on _ReaderPageState {
         ),
         // V1.53.2 修②：选中态不再整段铺底——部分选中（首/尾/单段局部）交给
         // _subSpan 精确子串高亮；仅整段选中（跨段的中间段）才铺段级底色。
-        // 轮4①：精确划线的稳态底色进 span（hlRange），Container 只在整段口径时铺。
+        // 轮4①：精确划线的稳态底色进 span（hlSpans），Container 只在整段口径时铺。
+        // F-13：整段底色（旧数据无 cf 偏移）取**最新**那条的色标。
         decoration: !hlFull && !(inSel && !partSel)
             ? null
             : BoxDecoration(
                 color: inSel && !partSel
                     ? const Color(0x4D6366F1)
-                    : hl?.c.withValues(alpha: .27),
+                    : (hls.isEmpty
+                        ? null
+                        : hls.last.c.withValues(alpha: .27)),
                 borderRadius: BorderRadius.circular(3),
               ),
-        child: (hl?.hasThought ?? false)
+        child: hasThought
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -369,8 +380,7 @@ extension _ReaderStage on _ReaderPageState {
                 p,
                 pi,
                 isHit,
-                hlRange: hlRange,
-                hlColor: hl?.c,
+                hlSpans: hlSpans,
                 from: from,
                 to: to,
               );

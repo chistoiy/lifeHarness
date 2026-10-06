@@ -254,31 +254,54 @@ extension _ReaderSelOps on _ReaderPageState {
     _loupeFocal = null;
   });
 
-  /// 段生效划线（原型 brHlAt：库内行优先，多条取最后；回落暂存行）。
+  /// 段生效划线**全量**（F-13 2026-10-07：同段多条都该渲染，旧实现单 `hit`
+  /// 循环覆盖＝后一条把前一条挤掉——库里都在、页上只见一条）。
+  /// 排序＝createdAt 升序（靠后＝新，铺色重叠区归它）；createdAt 未知的行
+  /// （暂存行无时间戳）按加入顺序占递增序号，与库内 `rid` 同一编号空间。
+  /// 去重＝`_LocalHl.id` 与书摘行 `rid` 同源（`_addHl` 落库/暂存共用 rid）：
+  /// 同一条线既在暂存又在库里时只留库内行（带 thought/真实时间戳），不许铺两层色。
   /// 轮4①：随带 cf——渲染层用 `cf.rangeAt` 按字符区间精确铺底，不再整段涂。
-  ({String tg, Color c, bool hasThought, QuoteCf cf})? _hlAt(int ci, int pi) {
-    ({String tg, Color c, bool hasThought, QuoteCf cf})? hit;
+  List<BrHl> _hlsAt(int ci, int pi) {
+    // 一次扫描建 rid→最新 createdAt 映射：attachCfOnDup 改行不新增行，取 max。
+    final byRid = <String, int>{};
+    for (final q in _hlQuotes) {
+      final rid = q.rid;
+      if (rid != null) {
+        byRid[rid] = math.max(byRid[rid] ?? -1, q.createdAt);
+      }
+    }
+    final seqOrder = <String, int>{};
+    for (var i = 0; i < _localHl.length; i++) {
+      seqOrder.putIfAbsent(_localHl[i].id, () => i);
+    }
+    final hits = <BrHl>[];
     for (final h in _localHl) {
-      if (h.bookId == widget.bookId && h.cf.covers(ci, pi)) {
-        hit = (
+      // 同 rid 书摘在场时暂存行让位（下面库内循环会收那条）。
+      if (h.bookId == widget.bookId &&
+          !byRid.containsKey(h.id) &&
+          h.cf.covers(ci, pi)) {
+        hits.add((
           tg: h.tg,
           c: Color(0xFF000000 | (BookQuote.hexToInt(BookQuote.colorHex[h.tg]) ?? 0xFDE047)),
           hasThought: false,
           cf: h.cf,
-        );
+          createdAt: seqOrder[h.id] ?? 0,
+        ));
       }
     }
     for (final q in _hlQuotes) {
       if (q.cf!.covers(ci, pi)) {
-        hit = (
+        hits.add((
           tg: q.tag,
           c: Color(0xFF000000 | q.colorInt),
           hasThought: (q.thought ?? '').isNotEmpty,
           cf: q.cf!,
-        );
+          createdAt: byRid[q.rid] ?? q.createdAt,
+        ));
       }
     }
-    return hit;
+    hits.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return hits;
   }
 
   Future<void> _reloadHls() async {
