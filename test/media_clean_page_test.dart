@@ -63,9 +63,11 @@ void main() {
     // 主行＝人话（笔记插图／书籍封面），取不到时间如实说「时间未知」。
     expect(find.text('笔记插图 · 09-12 14:03'), findsOneWidget);
     expect(find.text('书籍封面 · 时间未知'), findsOneWidget);
-    // 副行＝体积 · 类型 · 编号短哈希。
+    // 副行＝体积 · 类型 · 编号短哈希（内容寻址名）或有语义的文件名。
     expect(find.textContaining('1.0 KB · JPG · 编号 3f9a2cb7'), findsOneWidget);
-    expect(find.textContaining('2.0 KB · JPG · 编号 cover99'), findsOneWidget);
+    // 真机 6078 走查抓的坑：`epub_b17-fi.jpg` 这类有语义的名字截前 8 位会彼此撞车，
+    // 只有名字本身是 16 位以上十六进制哈希时才写「编号」。
+    expect(find.textContaining('2.0 KB · JPG · cover99.jpg'), findsOneWidget);
     // 整屏文案里不得出现 20 位以上的裸哈希（完整串只许进预览底部）。
     expect(_allText(tester).any((t) => RegExp(r'[0-9a-f]{20,}').hasMatch(t)),
         isFalse,
@@ -117,16 +119,19 @@ void main() {
     expect(tester.widget<Text>(find.byKey(const ValueKey('lb-pos'))).data, '1 / 2');
     expect(tester.widget<Text>(find.byKey(const ValueKey('lb-label'))).data,
         '笔记插图 · 09-12 14:03');
-    // 完整路径与全哈希只在这里出现（技术明细下钻位）。
-    expect(
-        tester
-            .widget<Text>(find.byKey(const ValueKey('lb-meta')))
-            .data!
-            .contains(hashA),
-        isTrue);
+    // 完整哈希只在这里出现（技术明细下钻位）；路径给「目录/文件名」可读形态，
+    // 不是 `/data/user/0/…` 绝对路径（真机 6078：尾部被省略号截掉＝看不见文件名）。
+    final meta0 =
+        tester.widget<Text>(find.byKey(const ValueKey('lb-meta'))).data!;
+    expect(meta0, contains(hashA));
+    expect(meta0, contains('note_images/'));
+    expect(meta0, isNot(contains('C:\\')));
     await tester.tap(find.byKey(const ValueKey('lb-next')));
     await settle5(tester);
     expect(tester.widget<Text>(find.byKey(const ValueKey('lb-pos'))).data, '2 / 2');
+    expect(
+        tester.widget<Text>(find.byKey(const ValueKey('lb-meta'))).data,
+        contains('book_covers/cover99.jpg'));
     expect(find.byKey(const ValueKey('lb-prev')), findsOneWidget);
     // 末张禁用「下一张」（到界不许空转）。
     expect(

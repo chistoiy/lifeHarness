@@ -188,7 +188,7 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
                         style: const TextStyle(
                             fontSize: 12.5, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text('${_fmt(e.size)} · ${e.extText} · 编号 ${e.codeShort}',
+                    Text('${_fmt(e.size)} · ${e.extText} · ${e.codeText}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style:
@@ -209,7 +209,7 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
         .map((e) => LhViewItem(
             path: e.path,
             label: '${e.rootLabel} · ${e.timeText}',
-            meta: '${e.extText} · ${_fmt(e.size)} · ${e.path}'))
+            meta: '${e.extText} · ${_fmt(e.size)} · ${e.relPath}'))
         .toList(growable: false);
     showImageViewer(context, items, i);
   }

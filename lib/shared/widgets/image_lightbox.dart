@@ -41,7 +41,9 @@ void _openLhLightbox(BuildContext context, List<LhViewItem> items,
     {required bool listMode, int index = 0}) {
   showDialog<void>(
     context: context,
-    barrierColor: const Color(0xD9000000),
+    // 列表档带顶栏与页脚：85% 黑会让底下页面文字透上来跟页脚叠成两行
+    // （真机 6078 走查抓到），这里加浓到约 95%；单图档（笔记/日记）保持原观感不动。
+    barrierColor: listMode ? const Color(0xF2000000) : const Color(0xD9000000),
     builder: (bc) => _LhLightbox(items: items, listMode: listMode, index: index),
   );
 }

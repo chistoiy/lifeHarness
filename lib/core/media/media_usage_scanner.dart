@@ -68,6 +68,23 @@ class MediaScanEntry {
         0, name.length - (p.extension(name).isEmpty ? 0 : p.extension(name).length));
     return stem.length <= 8 ? stem : stem.substring(0, 8);
   }
+
+  /// 真机反馈（6078 走查）：只有**名字本身是内容哈希**时才给「编号 8 位」；
+  /// 有语义的文件名（EPUB 封面 `epub_17-fi.jpg` 一类）截前 8 位会撞成同一串
+  /// `epub_b17`＝等于没给信息，这类直接如实显示文件名。
+  String get codeText {
+    final stem = name.substring(
+        0, name.length - (p.extension(name).isEmpty ? 0 : p.extension(name).length));
+    final isHash = RegExp(r'^[0-9a-fA-F]{16,}$').hasMatch(stem);
+    return isHash ? '编号 $codeShort' : name;
+  }
+
+  /// 预览底部用的可读路径＝「所属目录 / 文件名」（真机反馈：`/data/user/0/…`
+  /// 绝对路径既看不懂又会被省略号截掉尾部真正有信息量的文件名）。
+  String get relPath {
+    final dir = p.basename(p.dirname(path));
+    return '$dir/$name';
+  }
 }
 
 class MediaScanResult {
