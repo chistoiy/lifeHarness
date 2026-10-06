@@ -839,6 +839,9 @@ tailwind.config = {
           <span class="set-ic bg-purple-50 dark:bg-purple-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="5.6" y="5" width="12.8" height="15" rx="2"/><path d="M9.4 5V3.6h5.2V5M9.4 10.4h5.2m-5.2 3.4h5.2m-5.2 3.4h3.4"/></svg></span><div class="flex-1"><b class="text-sm">日志管理</b><div class="text-[11px] text-slate-400">环形缓冲 300 · 复制永远全量</div></div><span class="text-slate-300">›</span></button>
         <button onclick="gtOpen('all')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span><div class="flex-1"><b class="text-sm">回收站</b><div class="text-[11px] text-slate-400">七类删除内容 · 保留期内可恢复</div></div><span class="text-[11px] text-slate-400" id="pfTrashCnt">10 项</span><span class="text-slate-300">›</span></button>
+        <button onclick="navTo('p-sub-mediaclean')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <span class="set-ic bg-emerald-50 dark:bg-emerald-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="5.4" width="15.6" height="13.2" rx="2.4"/><path d="M7.6 14.6l2.5-2.7 2.2 2.3 1.9-2 2.2 2.4"/><circle cx="9.2" cy="9.2" r="1.2"/></svg></span><div class="flex-1"><b class="text-sm">图片存储清理</b><div class="text-[11px] text-slate-400">未引用图片扫描 · 勾选清理</div></div><span class="text-[11px] text-slate-400" id="pfMcCnt">6 个</span><span class="text-slate-300">›</span>
+        </button>
       </div>
 
       <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
@@ -920,6 +923,25 @@ tailwind.config = {
       <button onclick="navTo('p-sub-dbstats')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
         <span class="set-ic bg-sky-100 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span><div class="flex-1"><b class="text-sm">数据库概览</b><div class="text-[11px] text-slate-400">记录构成 · 可再生数据 · 异常自查</div></div><span class="text-slate-300">›</span>
       </button>
+      <!-- 批②b B-2：差异对比入口（S3 半屏的家＝本屏；此前该屏从未有此行，Flutter sync-diff-entry 早已存在） -->
+      <button onclick="openSheet('sheetSyncDiff')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v13.5M7 4.5 4 7.8M7 4.5l3 3.3"/><path d="M17 19.5V6M17 19.5l-3-3.3M17 19.5 20 16.2"/></svg></span><div class="flex-1"><b class="text-sm">差异对比</b><div class="text-[11px] text-slate-400">本地快照目录 · 云端目录 · 四态差异</div></div><span class="text-[11px] text-slate-400" id="sdEntryCnt">7 项差异</span><span class="text-slate-300">›</span>
+      </button>
+      <!-- 批②b · S3 差异半屏（页内弹层·家在本屏）：四态分组＋一致折叠＋逐条勾选＋吸底合计；
+           图片行本机有文件＝缩略方块可点开全屏预览，「仅云端」＝虚线空框不可点（不做假热区） -->
+      <div id="sheetSyncDiff" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSyncDiff')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl px-5 pt-1 pb-0 flex flex-col max-h-[88vh]">
+          <div class="grabber"></div>
+          <div class="flex items-center justify-between mt-1"><div class="text-base font-extrabold">差异对比</div>
+            <button class="text-[11.5px] font-bold text-brand-500" onclick="sdScan()">重新扫描</button></div>
+          <div class="text-[11px] text-slate-400 mt-1" id="sdSub"></div>
+          <div class="mt-1 overflow-y-auto no-scrollbar flex-1" id="sdBody"></div>
+          <div class="-mx-5 mt-2 px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+            <div class="flex-1 text-[12px] font-extrabold" id="sdSum"></div>
+            <button class="px-4 py-2.5 rounded-xl bg-brand-500 text-white text-xs font-extrabold" onclick="sdRun()">同步已勾选</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ===== P12a2 二级：数据库概览（轮7 产品自查·人话分组为主·技术明细折叠） ===== -->
@@ -950,6 +972,30 @@ tailwind.config = {
       </div>
     </section>
 
+    <!-- ===== P12a3 二级：图片存储清理（批②b B-3 底屏·家＝我的页设置列表；Flutter /settings/media-clean） =====
+         U3＝行不再只露裸哈希：主行＝目录人话标签＋落盘时间，副行＝体积·类型·编号短哈希，
+         完整路径与 64 位哈希收进全屏预览底部；勾选清理交互照现状（只列不自动删）。 -->
+    <section id="p-sub-mediaclean" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[12px] font-extrabold" id="mcSum"></div>
+        <button class="text-[11.5px] font-bold text-brand-500" onclick="mcScan()">重新扫描</button>
+      </div>
+      <div class="mt-2 space-y-2" id="mcList"></div>
+      <button id="mcDelBtn" class="mt-3 w-full py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold disabled:opacity-40" onclick="mcAskDel()">清理选中</button>
+      <!-- 删除二次确认（页内弹层·家在本屏）：逐条列出数量与体积·不可恢复 -->
+      <div id="sheetMcDel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetMcDel')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+          <div class="grabber"></div>
+          <div class="text-center mt-1"><div class="text-base font-extrabold">清理选中图片</div>
+            <div class="text-[12px] text-slate-400 mt-2 leading-5" id="mcDelSum"></div>
+            <div class="text-[12px] text-amber-600 dark:text-amber-400 mt-1.5 leading-5" id="mcDelWarn">本机文件直接删除 · 不进回收站</div></div>
+          <div class="mt-5 flex gap-2">
+            <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetMcDel')">取消</button>
+            <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold" onclick="mcDelGo()">删除</button>
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="p-sub-dbstats" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
         <div class="flex items-center justify-between">
@@ -2147,6 +2193,28 @@ tailwind.config = {
 
   <!-- ===== Toast ===== -->
   <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
+  <!-- 批②b · 全屏图片预览（B-2 差异行与 B-3 清理行共用的同一查看件·红线§3「禁各造一套」）
+       形态照 Flutter showImageLightbox：黑底·点空白关闭·缩放（真机＝InteractiveViewer 双指，这里给档位钮）·页滑（真机＝左右滑动，这里给钮）
+       底部＝人话名（U3）＋完整路径与 64 位哈希（技术明细只在这里出现） -->
+  <div id="imgView" class="hidden fixed md:absolute inset-0 z-[70] bg-black/90 flex-col">
+    <div class="flex items-center gap-2 px-4 pt-3 text-white/75 text-[11px] font-extrabold">
+      <span id="ivPos">1 / 1</span><span class="flex-1"></span>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivZoom(-1)" title="缩小"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M6 12h12"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivZoom(1)" title="放大"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivClose()" title="关闭"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+    </div>
+    <div class="flex-1 flex items-center justify-center overflow-hidden" onclick="ivClose()">
+      <span id="ivImg" class="ins-img rounded-2xl transition-transform" style="width:78%;aspect-ratio:4/3;transform:scale(1)" onclick="event.stopPropagation();ivZoom(0)"></span>
+    </div>
+    <div class="px-4 pb-6 pt-3">
+      <div class="text-[12.5px] font-bold text-white/90" id="ivName"></div>
+      <div class="text-[11px] text-white/50 mt-1 break-all font-mono" id="ivMeta"></div>
+      <div class="mt-3 flex items-center justify-between">
+        <button id="ivPrev" class="px-3.5 py-2 rounded-xl bg-white/10 text-white text-[11.5px] font-extrabold flex items-center gap-1 disabled:opacity-30" onclick="ivNav(-1)"><svg class="w-[14px] h-[14px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>上一张</button>
+        <button id="ivNext" class="px-3.5 py-2 rounded-xl bg-white/10 text-white text-[11.5px] font-extrabold flex items-center gap-1 disabled:opacity-30" onclick="ivNav(1)">下一张<svg class="w-[14px] h-[14px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
+      </div>
+    </div>
+  </div>
 </div><!-- /phone -->
 
 <script>
@@ -2222,7 +2290,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2292,7 +2360,8 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-profile')renderProfile();
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
-  if(p==='p-sub-backup')bkRender(); /* B-1：进屏即按当前列表重画（含选择态与计数） */
+  if(p==='p-sub-backup')bkRender();
+  if(p==='p-sub-mediaclean')mcRender(); /* B-1：进屏即按当前列表重画（含选择态与计数） */
   navClear(p);renderNav();renderFab();
 }
 /* ===== 我的 · 资料与统计联动 =====
@@ -2381,7 +2450,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2646,6 +2715,161 @@ function bkRender(){const el=document.getElementById('bkList');if(!el)return;
 function bkToggleSel(){bkMode=!bkMode;bkSel.clear();bkRender()}
 function bkTap(i){if(bkSel.has(i))bkSel.delete(i);else bkSel.add(i);bkRender()}
 function bkSelAll(){bkSel=new Set(bkSel.size===BK_FILES.length?[]:BK_FILES.map((_,i)=>i));bkRender()}
+/* ===== 批②b · S3 差异半屏（B-2）＋图片存储清理屏（B-3）＋两处共用全屏预览（U3 人话化） =====
+   口径来源＝Flutter 现状：sync_diff_sheet.dart（四态分组·一致折叠·逐条勾选·吸底合计·仅云端带「下载」·残留角标）
+   与 media_clean_page.dart＋media_usage_scanner.dart（孤儿行＝内容寻址文件名·只列不自动删·勾选+确认双门槛）。
+   新增面只有两处：本机有文件的图片行＝可点开预览（仅云端＝虚线空框，不做假热区）；清理行主文案改人话（目录标签＋落盘时间），
+   裸哈希与完整路径退到副行/预览底部。 */
+const IMG_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+const SD_DIR = '/LifeHarness/';
+const SD_ROWS = [
+  {p:'note_images/3f9a2cb71e0d4a86b5c0f7d29a1e6b3c4d5f6a7b8c9d0e1f2a3b4c5d6e7f80911.jpg', s:842137, st:'local'},
+  {p:'note_images/9b74c9897bac777ad9b9a447268cc5e1f8d4b0a63ed1c9f2b5a7d8e4c3f10a2b.png', s:1263104, st:'local'},
+  {p:'exports/lifeharness_20261005_0812.lhbak', s:24117248, st:'local'},
+  {p:'book_covers/epub_17-fi.jpg', s:73140, st:'remote'},
+  {p:'note_images/1c68b5639f4a2d70e8b3f5a9c2d4e6f80719b3d5f7a1c3e5d9b7f3a1c9e5d3b7.jpg', s:512300, st:'remote', stale:true},
+  {p:'note_images/7cd3556f025ed8c0ab04e05f8e963b2d1f4a7c0e3b6d9f2a5c8e1b4d7a0c3f69.jpg', s:489211, st:'mod', rs:503880},
+  {p:'share/diary_20261001_long.png', s:1048576, st:'mod', rs:995328},
+  {p:'note_images/2ea1b4d5c07f8e9a1b6d3f0c5a7e9d124b8f6a2c0e4d8b1f7a3c5e9d2b6f0a8c.jpg', s:220045, st:'same'},
+  {p:'book_covers/isbn_9787115427614.jpg', s:98304, st:'same'},
+  {p:'exports/auto_before_restore_20261005_0758.lhbak', s:18874368, st:'same'},
+];
+const MC_ROOTS = {note_images:'笔记插图', book_covers:'书籍封面'};
+const MC_FILES = [
+  {d:'note_images', h:'3f9a2cb71e0d4a86b5c0f7d29a1e6b3c4d5f6a7b8c9d0e1f2a3b4c5d6e7f80911', e:'jpg', s:842137, t:'09-12 14:03'},
+  {d:'note_images', h:'9b74c9897bac777ad9b9a447268cc5e1f8d4b0a63ed1c9f2b5a7d8e4c3f10a2b', e:'png', s:1263104, t:'09-18 21:47'},
+  {d:'note_images', h:'1c68b5639f4a2d70e8b3f5a9c2d4e6f80719b3d5f7a1c3e5d9b7f3a1c9e5d3b7', e:'jpg', s:512300, t:'09-21 08:12'},
+  {d:'book_covers', h:'7cd3556f025ed8c0ab04e05f8e963b2d1f4a7c0e3b6d9f2a5c8e1b4d7a0c3f69', e:'jpg', s:489211, t:'09-24 19:30'},
+  {d:'book_covers', h:'2ea1b4d5c07f8e9a1b6d3f0c5a7e9d124b8f6a2c0e4d8b1f7a3c5e9d2b6f0a8c', e:'jpg', s:220045, t:'10-01 07:55'},
+  {d:'note_images', h:'5a3c8e1b4d7a0c3f69b2d6a9e5c1f8b40d7a3c6e9b2f5a8c1d4e7b0a3f6c95d2', e:'webp', s:96432, t:'10-03 22:08'},
+];
+let MC_TOTAL = 214;
+let sdOff = new Set(), sdSameOpen = false, mcOn = new Set();
+function fmtB(b){ return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB' }
+function extOf(p){ const i = p.lastIndexOf('.'); return i < 0 ? '' : p.slice(i+1).toLowerCase() }
+function isImg(p){ return IMG_EXT.includes(extOf(p)) }
+function sdLocal(r){ return r.st !== 'remote' }              // 「仅云端」＝本机没这个文件
+function sdGroup(k){ return SD_ROWS.filter(r => r.st === k) }
+function sdSel(r){ return !sdOff.has(r.p) }
+function sdToggle(p, on){ on ? sdOff.delete(p) : sdOff.add(p); sdRender() }
+function sdAll(k){ sdGroup(k).forEach(r => sdOff.delete(r.p)); sdRender() }
+function sdScan(){ sdOff.clear(); sdSameOpen = false; sdRender(); toast('已重扫本地快照目录与云端 ' + SD_DIR + '（模拟）') }
+function sdChecked(){ return SD_ROWS.filter(r => r.st !== 'same' && sdSel(r)) }
+// 无参＝同步全部已勾选；带路径＝「仅云端」行内「下载」单条即时传输
+function sdRun(p){
+  const c = typeof p === 'string' ? SD_ROWS.filter(r => r.p === p) : sdChecked();
+  if (!c.length){ toast('请先勾选要同步的文件'); return }
+  const up = c.filter(r => r.st !== 'remote').length, dn = c.filter(r => r.st === 'remote').length;
+  toast('已按勾选传输：上传 ' + up + ' · 下载 ' + dn + '（模拟）');
+  closeSheet('sheetSyncDiff');
+}
+const IV_PAL = ['linear-gradient(135deg,#7dd3fc,#818cf8)', 'linear-gradient(135deg,#fbcfe8,#c4b5fd)', 'linear-gradient(135deg,#bbf7d0,#7dd3fc)', 'linear-gradient(135deg,#fde68a,#fca5a5)', 'linear-gradient(135deg,#a5b4fc,#67e8f9)'];
+function ivGrad(k){ let n = 0; for (const ch of String(k)) n += ch.charCodeAt(0); return IV_PAL[n % IV_PAL.length] }
+const IV_SVG = '<svg class="w-[26%] h-[26%] opacity-70" fill="none" stroke="#fff" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="5.2" width="16.8" height="13.6" rx="2.4"/><path d="M7 15.2l2.8-3.2 2.4 2.6 2-2.2 2.4 2.8"/><circle cx="9.4" cy="9.2" r="1.3"/></svg>';
+let ivList = [], ivI = 0, ivK = 1;
+function ivSdList(){ return SD_ROWS.filter(r => isImg(r.p) && sdLocal(r)).map(r => ({p:r.p, s:r.s, name:'本机图片', t:''})) }
+function ivMcList(){ return MC_FILES.map(f => ({p:mcPath(f), s:f.s, name:mcHuman(f), t:f.t})) }
+function mcPath(f){ return f.d + '/' + f.h + '.' + f.e }
+function mcHuman(f){ return (MC_ROOTS[f.d] || f.d) + ' · ' + f.t }
+function ivOpen(src, i){
+  ivList = src === 'mc' ? ivMcList() : ivSdList();
+  if (!ivList.length) return;
+  ivI = Math.max(0, Math.min(i, ivList.length - 1)); ivK = 1;
+  const v = $('#imgView'); v.classList.remove('hidden'); v.classList.add('flex'); ivRender();
+}
+function ivRender(){
+  const it = ivList[ivI]; if (!it) return;
+  const img = $('#ivImg');
+  img.style.background = ivGrad(it.p); img.style.transform = 'scale(' + ivK + ')';
+  img.innerHTML = IV_SVG;
+  $('#ivPos').textContent = (ivI + 1) + ' / ' + ivList.length;
+  $('#ivName').textContent = it.name;
+  $('#ivMeta').textContent = extOf(it.p).toUpperCase() + ' · ' + fmtB(it.s) + ' · ' + it.p;
+  $('#ivPrev').disabled = ivI <= 0; $('#ivNext').disabled = ivI >= ivList.length - 1;
+}
+function ivNav(d){ const j = ivI + d; if (j < 0 || j >= ivList.length) return; ivI = j; ivK = 1; ivRender() }
+function ivZoom(d){ ivK = d === 0 ? (ivK > 1 ? 1 : 2) : Math.max(1, Math.min(4, ivK + d)); ivRender() }
+function ivClose(){ const v = $('#imgView'); v.classList.add('hidden'); v.classList.remove('flex') }
+const SD_UP = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 19V5m0 0-5.5 5.5M12 5l5.5 5.5"/></svg>';
+const SD_DN = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14m0 0-5.5-5.5M12 19l5.5-5.5"/></svg>';
+const SD_OK = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12.5 10 17.5 19 7.5"/></svg>';
+function sdSec(key, title, rows, dirIcon, bulk){
+  if (!rows.length) return '';
+  return '<div class="flex items-center gap-1.5 pt-3 pb-1 text-slate-400">' + dirIcon +
+    '<b class="text-[11.5px] font-extrabold">' + title + '</b><b class="text-[11.5px] text-slate-700 dark:text-slate-200">' + rows.length + '</b>' +
+    '<span class="flex-1"></span>' + (bulk ? '<button class="chip" onclick="sdAll(\'' + key + '\')">' + bulk + '</button>' : '') + '</div>';
+}
+function sdTile(r){
+  if (!isImg(r.p)) return '<span class="w-4 flex-shrink-0"></span>';
+  return sdLocal(r)
+    ? '<span class="ins-img w-4 h-4 rounded-[5px] flex-shrink-0 cursor-pointer" style="background:' + ivGrad(r.p) + '" onclick="ivOpen(\'sd\',' + SD_ROWS.filter(x => isImg(x.p) && sdLocal(x)).indexOf(r) + ')"></span>'
+    : '<span class="w-4 h-4 rounded-[5px] flex-shrink-0 border border-dashed border-slate-300 dark:border-slate-600"></span>';
+}
+function sdRowHtml(r, chk){
+  const idx = SD_ROWS.indexOf(r);
+  const sub = r.st === 'mod' ? '<div class="text-[10px] text-slate-400 mt-0.5">两端内容不同 · 本机 ' + fmtB(r.s) + ' / 云端 ' + fmtB(r.rs || r.s) + ' · 冲突本机为准</div>' : '';
+  const stale = r.stale ? '<div class="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-extrabold text-amber-700 dark:text-amber-400 bg-amber-400/15 border border-amber-500/50">残留 · 台账记本机曾上传，本机已无此文件</div>' : '';
+  const get = r.st === 'remote' ? '<button class="mini-btn mt-1.5" onclick="sdRun(\'' + r.p + '\')">下载</button>' : '';
+  const pathCls = isImg(r.p) && sdLocal(r) ? 'text-brand-600 dark:text-brand-400 underline decoration-dotted underline-offset-2' : '';
+  return '<div class="flex items-start gap-2 py-1.5' + (chk === null ? ' opacity-65' : '') + '">' +
+    (chk === null ? '<span class="w-4 flex-shrink-0"></span>' : '<input type="checkbox" class="accent-indigo-500 mt-1 flex-shrink-0" ' + (chk ? 'checked' : '') + ' onchange="sdToggle(\'' + r.p + '\',this.checked)">') +
+    sdTile(r) +
+    '<div class="flex-1 min-w-0">' +
+      '<div class="text-[11px] font-mono font-bold break-all cursor-default ' + pathCls + '"' + (isImg(r.p) && sdLocal(r) ? ' onclick="ivOpen(\'sd\',' + SD_ROWS.filter(x => isImg(x.p) && sdLocal(x)).indexOf(r) + ')"' : '') + '>' + r.p + '</div>' +
+      sub + stale + get +
+    '</div>' +
+    '<div class="text-[10.5px] font-bold text-slate-400 flex-shrink-0 ml-1">' + fmtB(r.s) + (chk === null ? ' · 一致' : '') + '</div></div>';
+}
+function sdRender(){
+  const b = $('#sdBody'); if (!b) return;
+  const same = sdGroup('same');
+  b.innerHTML =
+    sdSec('local', '仅本地', sdGroup('local'), SD_UP, '全选上传') + sdGroup('local').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    sdSec('remote', '仅云端', sdGroup('remote'), SD_DN, '全选下载') + sdGroup('remote').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    sdSec('mod', '已修改', sdGroup('mod'), SD_UP, null) + sdGroup('mod').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    '<div class="flex items-center gap-1.5 pt-3 pb-1 text-slate-400 cursor-pointer" onclick="sdSameOpen=!sdSameOpen;sdRender()">' + SD_OK +
+      '<b class="text-[11.5px] font-extrabold">一致</b><b class="text-[11.5px] text-slate-700 dark:text-slate-200">' + same.length + ' 条</b>' +
+      '<span class="flex-1"></span><span class="text-[10px] text-slate-300">' + (sdSameOpen ? '收起 ▴' : '展开 ▾') + '</span></div>' +
+    (sdSameOpen ? same.map(r => sdRowHtml(r, null)).join('') : '') +
+    (!SD_ROWS.length ? '<div class="py-6 text-center text-xs text-slate-400">两端一致 · 无差异</div>' : '');
+  const c = sdChecked(), up = c.filter(r => r.st !== 'remote').length, dn = c.filter(r => r.st === 'remote').length;
+  $('#sdSum').textContent = '上传 ' + up + ' · 下载 ' + dn + ' · 共 ' + fmtB(c.reduce((a, r) => a + r.s, 0));
+  const e = $('#sdEntryCnt'); if (e) e.textContent = SD_ROWS.filter(r => r.st !== 'same').length + ' 项差异';
+}
+function mcToggle(h, on){ on ? mcOn.add(h) : mcOn.delete(h); mcRender() }
+function mcScan(){ mcOn.clear(); mcRender(); toast('已重扫媒体目录（模拟）') }
+function mcBytes(){ return MC_FILES.filter(f => mcOn.has(f.h)).reduce((a, f) => a + f.s, 0) }
+function mcRowHtml(f, i){
+  const on = mcOn.has(f.h);
+  return '<div class="card !py-2.5 flex items-center gap-3">' +
+    '<input type="checkbox" class="accent-indigo-500 flex-shrink-0" ' + (on ? 'checked' : '') + ' onchange="mcToggle(\'' + f.h + '\',this.checked)">' +
+    '<span class="ins-img w-10 h-10 rounded-xl flex-shrink-0 cursor-pointer" style="background:' + ivGrad(mcPath(f)) + '" onclick="ivOpen(\'mc\',' + i + ')">' + IV_SVG + '</span>' +
+    '<div class="flex-1 min-w-0">' +
+      '<div class="text-[12.5px] font-bold truncate cursor-pointer" onclick="ivOpen(\'mc\',' + i + ')">' + mcHuman(f) + '</div>' +
+      '<div class="text-[11px] text-slate-400 mt-0.5">' + fmtB(f.s) + ' · ' + f.e.toUpperCase() + ' · 编号 ' + f.h.slice(0, 8) + '</div>' +
+    '</div></div>';
+}
+function mcRender(){
+  const b = $('#mcList'); if (!b) return;
+  const n = MC_FILES.length;
+  b.innerHTML = n ? MC_FILES.map(mcRowHtml).join('')
+    : '<div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-400">无未引用图片</div>';
+  const s = $('#mcSum'); if (s) s.textContent = n ? ('未引用 ' + n + ' / 共 ' + MC_TOTAL + ' · ' + fmtB(MC_FILES.reduce((a, f) => a + f.s, 0))) : '无未引用图片';
+  const d = $('#mcDelBtn'); if (d) d.textContent = mcOn.size ? ('清理选中（' + mcOn.size + '）') : '清理选中';
+  if (d) d.disabled = !mcOn.size;
+  const pf = $('#pfMcCnt'); if (pf) pf.textContent = n + ' 个';
+}
+function mcAskDel(){
+  if (!mcOn.size){ toast('请先勾选要清理的图片'); return }
+  $('#mcDelSum').textContent = '将删除 ' + mcOn.size + ' 个文件 · ' + fmtB(mcBytes()) + '，不可恢复。';
+  openSheet('sheetMcDel');
+}
+function mcDelGo(){
+  const n = mcOn.size;
+  for (let i = MC_FILES.length - 1; i >= 0; i--) if (mcOn.has(MC_FILES[i].h)) MC_FILES.splice(i, 1);
+  MC_TOTAL = Math.max(0, MC_TOTAL - n);
+  mcOn.clear(); closeSheet('sheetMcDel'); mcRender(); toast('已清理 ' + n + ' 个文件');
+}
 function bkRestore(i){const f=BK_FILES[i];toast('送入恢复校验：'+f.n+' · 口令 → 二次确认 → 整库替换（当前库先存 safety 快照）')}
 function bkAskDel(i){bkPend=[i];bkDelAsk()}
 function bkAskDelBatch(){if(!bkSel.size){toast('先勾选要删除的备份');return}bkPend=[...bkSel].sort((x,y)=>x-y);bkDelAsk()}
