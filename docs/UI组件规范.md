@@ -229,6 +229,7 @@
 | LH-K35 | **顶栏标题（左标题唯一口径）**（UX 审计真机批 U2 附项 · 2026-10-05 产品拍板「全仓统一左」） | 壳与七份专版共用的 `#topHead` ＋ `#pageTitle`（class=`text-xl font-extrabold tracking-tight truncate`，返回钮在左、动作钮在右、标题占 flex-1） | `app_theme.dart` `AppBarTheme(centerTitle:false, toolbarHeight:48)`；页面**只给 title，不许再写 centerTitle** | 一律**左标题**，两行形态＝标题 20/700 ＋ 副标题 11 小字，同一左缘与内容卡基线对齐。**全仓禁 `centerTitle: true`**：它居中的是「两行块」，块宽由**副标题**撑出——390dp 屏实测「习惯」二字落在 x=101.5 而屏中心是 195，属**伪居中**，且副标题一改就横向漂移、顶栏带动作钮时槽位不让（本批一次性摘掉 67 处/62 文件）。硬零面守护＝`test/u5_copy_banned_guard_test.dart` 的「顶栏居中」档＋主题默认值不许翻面那条；要留沉浸屏例外＝**先改原型过门**再登记例外面。 |
 | LH-K36 | **设置开关的第三态＝固定项（不可改）**（UX 审计真机批 U10 · 2026-10-06 原型门＋实现） | 壳 `index.html` `renderNavSet()`：固定两枚出 `.toggle.on.lock`（常开＋opacity .45＋`pointer-events:none`＋无 onclick） | `settings_page.dart` `NavToggleGrid`（转公开供直达取证）：`Switch(value: pinned.contains(id) \|\| navIds.contains(id), onChanged: null)` ＋键 `nav-sw-<id>` | 「不可改」**禁止**画成「关」——关态读作「现在没生效」，用户会去点它（真机现场＝底栏自定义卡「今天（固定）」「我的（固定）」两枚显示为关闭）。固定项一律**常开＋置灰＋点不动**，旁边给「固定」小标；非固定项照旧可切。守护＝`test/u4_u10_impl_test.dart` 两例（含「固定项不在 navIds 里也读成开」）＋变异一刀（退回只读 navIds 即红） |
 | LH-K37 | **横向长内容＝位置刻度＋默认视口落到近期**（UX 审计真机批 U4 · 2026-10-06） | 书架专版 `#rsHeatWrap`＋`.rs-hm-m`（月份刻度与格子同滚动容器，节距＝格宽＋间隙） | `read_stat_heat_card.dart` `ReadStatHeatCard`（自统计页抽出；`_focus`/`_targetFor` 三档定位，换范围由调用方换 key 重建） | 横向可滚且**内容比视口宽**的图表，不许默认停在最左端又不给位置提示（真机现场＝阅读热力图「全年 2h18m·5 天在读」却看着整片灰：有数据的月份滚在屏外）。定式＝① 进屏/换范围自动定位（当期数据贴右缘、选定范围贴该范围首列、历史区间贴首个有数据列）② 同容器内给**月份/区间刻度**，刻度与列严格同节距 ③ 不给「向右看近期」这类教学句式（撞 U5 禁词）。常驻用例＝`test/u4_u10_impl_test.dart` 三例（500 宽视口，见该文件注释）＋变异两刀 |
+| LH-K38 | **枚举 ≤4 档＝等宽可见分段，禁把某档藏进文字点击**（深色模式三档 · 2026-10-07 产品令） | 壳 `index.html` `#darkModeSeg`（三枚 `.seg-on` 分段＋动态副注 `#darkModeSub`；`DARK_MODE` 状态机吃 `prefers-color-scheme` 并挂 change；`forceDark` 主题下三枚 `disabled`＋置灰＋原因副注） | `shared/widgets/ui_kit.dart` `SegRow<T>`（键 `<keyPrefix>-<id 尾段>`；`enabled=false` 整条置灰且点不动；配色吃 M3 scheme＋主题令牌，深浅两态自适应）·落点 `settings_page.dart` 外观屏深色行（键 `dark-mode-seg`） | 两态控件装不下三档：旧形态是一枚 Switch＋「跟随系统」藏在副标小字点击里，用户读不到当前档也找不到第三态。定式＝① 三档一次看全、点哪个是哪个 ② 副注必须是**当前档读数**（跟随系统时要报出系统此刻深浅），不许写死常量 ③ 不可选时整条置灰＋一行原因，点了不许静默改值 ④ 测试侧每步要 settle 到主题动画落定（MaterialApp 切换带插值）。闸＝`tools/dark3check.js` 16/16＋`test/dark_mode_seg_test.dart` 4 例＋变异两刀（摘 enabled→③／system 分支退回 light→①） |
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 |
 |---|---|---|---|---|
 | LH-L01 | 待办条目 | .task-row | todo_list_view `_TodoTile` | chk+标题+⏰/#tag/🔁 信息行+象限色点 |
@@ -258,5 +259,5 @@
 
 ## 七、ui_kit 原语清单（本批已抽 · lib/shared/widgets/ui_kit.dart）
 
-`AppToast.show` / `PillChip` / `DotLegend` / `MoodRow` / `SectionCard` / `EmptyDashRow`
+`AppToast.show` / `PillChip` / `DotLegend` / `MoodRow` / `SectionCard` / `EmptyDashRow` / `SegRow`
 ——新代码必须优先复用；存量调用点按两档流程「路过替换」，不做专项重构批。

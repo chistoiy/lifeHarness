@@ -610,3 +610,76 @@ class EmptyDashRow extends StatelessWidget {
     );
   }
 }
+
+/// LH-K38 等宽分段选择条（原型外观屏 `.seg-on` 分段 · 2026-10-07 深色模式三档首个落点）。
+///
+/// 口径＝**枚举 ≤4 档一次看全、点哪个是哪个**：不许「点一下循环切」，也不许把某一档
+/// 藏进副标小字的点击里（深色模式的「跟随系统」此前就是这么藏着的，产品判为形态缺陷）。
+/// [enabled]=false 时整条置灰且点不动，并**由调用方给一行副注说明为什么不可选**
+/// （强制深色主题下三档暂不可选＝同一口径），绝不静默改值。
+/// 每项 key=`<keyPrefix>-<id>` 供测试点选；配色全吃 M3 scheme＋主题令牌，深浅两态自适应。
+class SegRow<T> extends StatelessWidget {
+  const SegRow({
+    super.key,
+    required this.items,
+    required this.value,
+    required this.onChanged,
+    this.keyPrefix = 'seg',
+    this.enabled = true,
+  });
+
+  final List<({T id, String label})> items;
+  final T value;
+  final ValueChanged<T>? onChanged;
+  final String keyPrefix;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = context.tokens;
+    return Opacity(
+      opacity: enabled ? 1 : .4,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            for (final it in items)
+              Expanded(
+                child: GestureDetector(
+                  // 枚举项的 `$id` 直插会是 `ThemeModeOption.dark`，取尾段做键名更可用。
+                  key: ValueKey(
+                      '$keyPrefix-${it.id.toString().split('.').last}'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: enabled ? () => onChanged?.call(it.id) : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: BoxDecoration(
+                      color: it.id == value ? tokens.card : null,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      it.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: it.id == value ? FontWeight.w800 : FontWeight.w600,
+                        color: it.id == value
+                            ? tokens.accent
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

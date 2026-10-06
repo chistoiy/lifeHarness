@@ -14,6 +14,7 @@ import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
+import '../../../shared/widgets/ui_kit.dart';
 import '../../../shared/weather/weather.dart';
 import 'profile_edit_sheet.dart';
 import 'weather_city_sheet.dart';
@@ -682,6 +683,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
     final tokens = context.tokens;
     final settings = ref.watch(settingsControllerProvider);
     final registry = ref.watch(themeRegistryProvider);
+    // 强制深色主题（赛博朋克）要让深色三档置灰——按当前主题包判，不写死主题名。
+    final bundle = ref.watch(currentThemeBundleProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('外观')),
       body: ListView(
@@ -711,41 +714,48 @@ class AppearanceSettingsPage extends ConsumerWidget {
                     style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 const SizedBox(height: 10),
                 _ThemeGrid(registry: registry, selectedId: settings.themeId),
-                // 深色模式（原型：单 toggle · 与主题正交）
+                // 深色模式三档（2026-10-07 产品令 · 原型 p-sub-appearance 同步改）：
+                // 旧形态＝一枚 Switch＋把「跟随系统」藏在副标小字的点击里——枚举三档必须
+                // 一次看全、点哪个是哪个（LH-K38 SegRow 首个落点）；强制深色主题下整条置灰，
+                // 副注说清为什么不可选，绝不静默改值。
                 Row(
                   children: [
                     _SetIc(icon: Icons.dark_mode_outlined),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('深色模式',
-                              style: TextStyle(
-                                  fontSize: 13.5, fontWeight: FontWeight.w700)),
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(settingsControllerProvider.notifier)
-                                .setMode(ThemeModeOption.system),
-                            child: Text(
-                              settings.mode == ThemeModeOption.system
-                                  ? '与任意主题风格叠加生效 · 当前跟随系统（点此锁定/解锁）'
-                                  : '与任意主题风格叠加生效 · ${settings.mode == ThemeModeOption.dark ? '已锁定深色' : '已锁定浅色'}（点此跟随系统）',
-                              style: const TextStyle(
-                                  fontSize: 10.5, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: SettingsPage._isDarkNow(context, settings),
-                      onChanged: (v) => ref
-                          .read(settingsControllerProvider.notifier)
-                          .setMode(v ? ThemeModeOption.dark : ThemeModeOption.light),
-                    ),
+                    const Expanded(
+                        child: Text('深色模式',
+                            style: TextStyle(
+                                fontSize: 13.5, fontWeight: FontWeight.w700))),
                   ],
                 ),
+                const SizedBox(height: 8),
+                SegRow<ThemeModeOption>(
+                  key: const ValueKey('dark-mode-seg'),
+                  keyPrefix: 'dark-mode',
+                  enabled: !bundle.forceDark,
+                  value: settings.mode,
+                  items: const [
+                    (id: ThemeModeOption.system, label: '跟随系统'),
+                    (id: ThemeModeOption.light, label: '浅色'),
+                    (id: ThemeModeOption.dark, label: '深色'),
+                  ],
+                  onChanged: (m) =>
+                      ref.read(settingsControllerProvider.notifier).setMode(m),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    bundle.forceDark
+                        ? '当前主题强制深色 · 三档暂不可选'
+                        : settings.mode == ThemeModeOption.system
+                            ? '跟随系统 · 现在是${SettingsPage._isDarkNow(context, settings) ? '深色' : '浅色'} · 与任意主题风格叠加生效'
+                            : '${settings.mode == ThemeModeOption.dark ? '已锁定深色' : '已锁定浅色'} · 与任意主题风格叠加生效',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: 6),
                 // 主题色（原型 themeDots：一排色点，点击=切对应主题）
                 Row(
                   children: [
