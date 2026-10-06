@@ -64,10 +64,28 @@ for (const s of reg.screens) {
     if (WRITE) { e.size = g.size; e.hash = g.hash }
   }
 }
-/* 反向：现行文件里画着、注册表没登记的屏级 id（与 protogate 闸1 同源，这里只统计） */
+/* 反向：现行文件里画着、注册表没登记的屏级 id（与 protogate 闸1 同源） */
 const known = new Set(reg.screens.map(s => s.id));
+const missing = [];
 for (const f of files) {
-  for (const id of got(f).keys()) if (!known.has(id)) { unreg++; log.push('未登记 ' + id + ' @ ' + f) }
+  for (const [id, g] of got(f)) {
+    if (!g || known.has(id)) continue;
+    if (!missing.some(m => m.id === id)) missing.push({ id, file: f, g });
+  }
+}
+unreg = missing.length;
+for (const m of missing) log.push('未登记 ' + m.id + ' @ ' + m.file)
+/* --add-missing：把未登记 id 入册（家＝首次出现的文件；kind 由标签定；size/hash 实测）。
+   只在单文件出现时按 exclusive 登记；多文件出现不自动决定归属，交人判（屏单一归属规矩）。 */
+if (WRITE && argv.includes('--add-missing')) {
+  for (const m of missing) {
+    const where = files.filter(f => got(f).has(m.id));
+    if (where.length !== 1) { console.log('SKIP 多文件同款，需人工定家：' + m.id + ' → ' + where.join(' ')); continue }
+    reg.screens.push({ id: m.id, kind: m.id.startsWith('sheet') || m.id.startsWith('drawer') ? 'sheet' : 'screen',
+      title: '', home: where[0], reps: [], status: 'exclusive',
+      files: { [where[0]]: { size: m.g.size, hash: m.g.hash } } });
+    console.log('入册 ' + m.id + ' @ ' + where[0]);
+  }
 }
 const total = Object.values(reg.screens).reduce((t, s) => t + Object.keys(s.files || {}).length, 0);
 console.log('file 条目合计 ' + total + ' · 完全复现 ' + okN + ' · size 漂移 ' + driftSize + ' · hash 漂移 ' + driftHash + ' · 块已不存在 ' + gone + ' · 配平失败 ' + unparsed + ' · 未登记 id ' + unreg);

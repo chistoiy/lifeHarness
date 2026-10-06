@@ -913,12 +913,43 @@ tailwind.config = {
           <div class="flex items-center gap-2"><span class="text-sun">◈</span><div class="flex-1">09-15 · 全量备份 .lhbak · 含 217 附件</div><button class="mini-btn !text-[10px]" onclick="toast('已验证快照完整性（模拟）')">验证</button></div>
         </div>
       </div>
+      <!-- B-1：备份文件管理入口（导入主通道——云下载的包落在应用目录，SAF 逛不到，恢复链路此前断在最后一环） -->
+      <button onclick="navTo('p-sub-backup')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-violet-100 dark:bg-violet-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h3.2l1.6 2h6.2A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/><path d="M9.5 13.5h5M12 11v5"/></svg></span><div class="flex-1"><b class="text-sm">备份文件</b><div class="text-[11px] text-slate-400">本机导出 · 云端下载 · 恢复前自动 · 共 <span id="bkEntryCnt">4</span> 包</div></div><span class="text-slate-300">›</span>
+      </button>
       <button onclick="navTo('p-sub-dbstats')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
         <span class="set-ic bg-sky-100 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span><div class="flex-1"><b class="text-sm">数据库概览</b><div class="text-[11px] text-slate-400">记录构成 · 可再生数据 · 异常自查</div></div><span class="text-slate-300">›</span>
       </button>
     </section>
 
     <!-- ===== P12a2 二级：数据库概览（轮7 产品自查·人话分组为主·技术明细折叠） ===== -->
+    <!-- ===== P12a1 二级：备份文件管理（B-1 · 导入主通道；删除＝物理删不进回收站，必二次确认） ===== -->
+    <section id="p-sub-backup" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="bkCnt">4 包</b><span id="bkSum"> · 合计 59.3 MB</span></div>
+        <div class="flex items-center gap-3 text-[11px] font-bold">
+          <button class="text-brand-500 hidden" id="bkAllBtn" onclick="bkSelAll()">全选</button>
+          <button class="text-slate-500" id="bkPickBtn" onclick="bkToggleSel()">选择</button>
+          <button class="text-rose-500 hidden" id="bkDelBtn" onclick="bkAskDelBatch()">删除</button>
+        </div>
+      </div>
+      <div class="mt-2 space-y-2" id="bkList"></div>
+      <button class="mt-3 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="toast('系统文件选择器（SAF）· 公共存储里的包从这里进（次通道）')">从其他位置选择</button>
+      <!-- B-1 删除二次确认（页内弹层：家在本屏） -->
+      <div id="sheetBkDel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBkDel')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+          <div class="grabber"></div>
+          <div class="text-center mt-1"><div class="text-base font-extrabold">彻底删除备份文件</div>
+            <div class="text-[12px] text-slate-400 mt-2 leading-5" id="bkDelSum"></div>
+            <div class="text-[12px] text-amber-600 dark:text-amber-400 mt-1.5 leading-5 hidden" id="bkDelWarn"></div></div>
+          <div class="mt-5 flex gap-2">
+            <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetBkDel')">取消</button>
+            <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold" onclick="bkDelGo()">确认删除</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="p-sub-dbstats" class="page px-5 safe-pb no-scrollbar">
       <div class="card">
         <div class="flex items-center justify-between">
@@ -2191,7 +2222,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2261,6 +2292,7 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   if(p==='p-timeStats')renderTimeStats();
   if(p==='p-profile')renderProfile();
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
+  if(p==='p-sub-backup')bkRender(); /* B-1：进屏即按当前列表重画（含选择态与计数） */
   navClear(p);renderNav();renderFab();
 }
 /* ===== 我的 · 资料与统计联动 =====
@@ -2592,6 +2624,40 @@ function tpGo(){const ids=tpIds.slice().sort((a,b)=>b-a);const bk=ids.map(i=>D.t
   toast('已彻底删除 '+ids.length+' 条'+(bk.length?' · 该书名下划线书摘不可再单独恢复':''))}
 /* 记录管理·通用·回收站自动清理 改档后，回收站各处读数同步 */
 function recSetChanged(key){if(key==='trash')renderTrash()}
+/* ===== B-1 备份文件管理（导入主通道 · 三档来源角标 · 删除＝物理删不进回收站 · 选择态批量） ===== */
+const BK_SRC={local:{n:'本地导出',c:'#0EA5E9'},cloud:{n:'云端下载',c:'#8B5CF6'},auto:{n:'恢复前自动',c:'#F59E0B'}};
+let BK_FILES=[{n:'lifeharness_20261006_0830.lhbak',b:16112543,ts:'10-06 08:30',s:'local'},
+ {n:'lifeharness_20261004_2102.lhbak',b:15874021,ts:'10-04 21:02',s:'cloud'},
+ {n:'auto_before_restore_20261003_1915.lhbak',b:15204887,ts:'10-03 19:15',s:'auto'},
+ {n:'lifeharness_20261001_0730.lhbak',b:14988231,ts:'10-01 07:30',s:'local'}];
+let bkMode=false,bkSel=new Set(),bkPend=[];
+function bkMB(b){return (b/1048576).toFixed(1)}
+function bkSumB(list){return list.reduce((t,x)=>t+x.b,0)}
+function bkRender(){const el=document.getElementById('bkList');if(!el)return;
+ el.innerHTML=!BK_FILES.length?'<div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-400">暂无备份文件</div>'
+  :BK_FILES.map((f,i)=>{const S=BK_SRC[f.s],ck=bkMode&&bkSel.has(i);
+  return `<div class="card !p-3 flex items-center gap-3" id="bk-row-${i}">${bkMode?`<span class="w-5 h-5 rounded-full border-2 shrink-0 ${ck?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'}" onclick="bkTap(${i})"></span>`:''}<span class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background:${S.c}1a;color:${S.c}"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M13.5 3.8V8h4"/></svg></span><div class="flex-1 min-w-0" onclick="${bkMode?'bkTap('+i+')':''}"><div class="text-[13px] font-bold truncate">${f.n}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${bkMB(f.b)} MB · ${f.ts} · <b style="color:${S.c}">${S.n}</b></div></div>${bkMode?'':'<button class="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-bold" onclick="bkRestore('+i+')">恢复</button><button class="px-3 py-1.5 rounded-full border border-rose-400 text-rose-500 text-[11px] font-bold" onclick="bkAskDel('+i+')">删除</button>'}</div>`}).join('');
+ const c=document.getElementById('bkCnt');if(c)c.textContent=BK_FILES.length+' 包';
+ const s=document.getElementById('bkSum');if(s)s.textContent=BK_FILES.length?' · 合计 '+bkMB(bkSumB(BK_FILES))+' MB':'';
+ const e=document.getElementById('bkEntryCnt');if(e)e.textContent=BK_FILES.length;
+ const a=document.getElementById('bkAllBtn'),p=document.getElementById('bkPickBtn'),d=document.getElementById('bkDelBtn');
+ if(a)a.classList.toggle('hidden',!bkMode);if(p)p.textContent=bkMode?'取消':'选择';
+ if(d){d.classList.toggle('hidden',!bkMode);d.textContent='删除 '+(bkSel.size||0)+' 项'}}
+function bkToggleSel(){bkMode=!bkMode;bkSel.clear();bkRender()}
+function bkTap(i){if(bkSel.has(i))bkSel.delete(i);else bkSel.add(i);bkRender()}
+function bkSelAll(){bkSel=new Set(bkSel.size===BK_FILES.length?[]:BK_FILES.map((_,i)=>i));bkRender()}
+function bkRestore(i){const f=BK_FILES[i];toast('送入恢复校验：'+f.n+' · 口令 → 二次确认 → 整库替换（当前库先存 safety 快照）')}
+function bkAskDel(i){bkPend=[i];bkDelAsk()}
+function bkAskDelBatch(){if(!bkSel.size){toast('先勾选要删除的备份');return}bkPend=[...bkSel].sort((x,y)=>x-y);bkDelAsk()}
+function bkDelAsk(){const L=bkPend.map(i=>BK_FILES[i]);if(!L.length)return;
+ const auto=L.filter(f=>f.s==='auto').length;
+ document.getElementById('bkDelSum').innerHTML='共 '+L.length+' 个文件 · '+bkMB(bkSumB(L))+' MB<br>物理删除 · 不进回收站 · 不可恢复';
+ const w=document.getElementById('bkDelWarn');w.classList.toggle('hidden',!auto);
+ if(auto)w.textContent='其中 '+auto+' 个是恢复前自动备份＝回滚资产，删掉后无法回退到那次恢复前的库';
+ openSheet('sheetBkDel')}
+function bkDelGo(){const n=bkPend.length,mb=bkMB(bkSumB(bkPend.map(i=>BK_FILES[i])));
+ BK_FILES=BK_FILES.filter((_,i)=>!bkPend.includes(i));bkPend=[];bkMode=false;bkSel.clear();
+ closeSheet('sheetBkDel');bkRender();toast('已彻底删除 '+n+' 个备份文件 · '+mb+' MB 已释放')}
 
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
 function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
