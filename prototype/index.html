@@ -174,6 +174,8 @@ tailwind.config = {
   .toggle.on{background:var(--accent)}
   .toggle.on::after{left:19px}
   .dark .toggle{background:#475569}
+  /* U10：固定栏目＝开且不可改的锁定态，不给「可关」观感 */
+  .toggle.lock{opacity:.45;cursor:default;pointer-events:none}
   .set-ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
   .vchip{font-size:9px;background:#e2e8f0;color:#64748b;border-radius:6px;padding:1px 5px;vertical-align:middle}
   .dark .vchip{background:#334155;color:#94a3b8}
@@ -2209,7 +2211,9 @@ function navClear(p){navSeen[p]=1}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);const bn=navBadge(p);
   return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<span class="navbadge">${bn>99?'99+':bn}</span>`:''}</button>`}).join('');}
 function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label,fix])=>{const on=activeTabs.includes(p);
-  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span><span class="toggle ${on?'on':''}" onclick="navToggle('${p}',this)"></span></div>`}).join('');
+  /* U10：固定栏目出锁定态开关（常开·不可点），非固定项照常可切 */
+  const sw=fix?'<span class="toggle on lock" data-locked="1"></span>':'<span class="toggle '+(on?'on':'')+'" onclick="navToggle(\''+p+'\',this)"></span>';
+  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span>${sw}</div>`}).join('');
   $('#navCount').textContent=activeTabs.length;}
 function navToggle(p,el){const on=el.classList.contains('on');
   if(!on){if(activeTabs.length>=5){toast('底部导航最多同时显示 5 个栏目，请先关闭一个');renderNavSet();return;}
