@@ -1410,7 +1410,12 @@ tailwind.config = {
         <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
       </div>
       <div class="card mt-4 space-y-3 text-sm">
-        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"/></svg></span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
+        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"/></svg></span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400" id="darkModeSub">跟随系统 · 与任意主题风格叠加生效</div></div></div>
+        <div class="flex gap-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold" id="darkModeSeg">
+          <button id="dm-system" class="seg-on flex-1 rounded-lg py-1.5" onclick="setDarkMode('system')">跟随系统</button>
+          <button id="dm-light" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('light')">浅色</button>
+          <button id="dm-dark" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setDarkMode('dark')">深色</button>
+        </div>
         <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c3 4 5.4 6.3 5.4 9.3a5.4 5.4 0 0 1-10.8 0c0-3 2.4-5.3 5.4-9.3Z"/></svg></span><div class="flex-1"><b>主题色</b></div>
           <div class="flex gap-2" id="themeDots"></div></div>
         <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
@@ -2469,8 +2474,23 @@ function renderSearchScope(){$('#searchScopeChips').innerHTML=SEARCH_SCOPES.map(
 function pickSearchScope(s){searchScope=s;renderSearchScope();$('#searchInput').focus();}
 function closeSheet(id){ const s=$('#'+id); if(!s)return; s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 function tgl(el){ el.classList.toggle('on'); }
-function toggleDark(el){ tgl(el); document.documentElement.classList.toggle('dark'); if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);
- toast(document.documentElement.classList.contains('dark')?'已切换深色模式（实时预览）':'已切换浅色模式'); }
+/* 深色模式三档（外观屏）：跟随系统／浅色／深色——与主题风格正交；forceDark 主题（赛博朋克）下三档置灰。
+   旧版是一枚 toggle＋把「跟随系统」藏在副标文字点击里（App 侧同款），枚举三档必须可见可点，不做隐式循环切。 */
+let DARK_MODE=(function(){try{return localStorage.getItem('lh.darkMode')||'system'}catch(e){return 'system'}})();
+function darkForced(){const t=THEME_TOKENS[curTheme]||MKT[curTheme];return !!(t&&t.forceDark)}
+function darkWant(){return darkForced()||(DARK_MODE==='dark')||(DARK_MODE==='system'&&matchMedia('(prefers-color-scheme: dark)').matches)}
+function darkApply(){const on=darkWant();document.documentElement.classList.toggle('dark',on);
+ if(THEME_TOKENS[curTheme]||MKT[curTheme])applyTokens(curTheme);renderDarkSeg()}
+function renderDarkSeg(){const f=darkForced();
+ ['system','light','dark'].forEach(m=>{const b=document.getElementById('dm-'+m);if(!b)return;
+  const on=!f&&DARK_MODE===m;b.classList.toggle('seg-on',on);b.classList.toggle('text-slate-500',!on);
+  b.classList.toggle('opacity-40',f);b.disabled=f});
+ const s=document.getElementById('darkModeSub');if(!s)return;
+ s.textContent=f?'当前主题强制深色 · 三档暂不可选':(DARK_MODE==='system'?'跟随系统 · 现在是'+(darkWant()?'深色':'浅色')
+  :(DARK_MODE==='dark'?'已锁定深色 · 与任意主题风格叠加生效':'已锁定浅色 · 与任意主题风格叠加生效'))}
+function setDarkMode(m){DARK_MODE=m;try{localStorage.setItem('lh.darkMode',m)}catch(e){}
+ darkApply();toast(m==='system'?'深色已跟随系统':(m==='dark'?'已锁定深色':'已锁定浅色'))}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(DARK_MODE==='system'&&!darkForced())darkApply()});
 /* ================= 主题风格系统（内置 CSS 主题 + 令牌主题热加载） ================= */
 const THEMES=[['minimal','简约 · 默认','#6366f1','#8b5cf6','#d946ef'],['fresh','小清新','#34d399','#22d3ee','#60a5fa'],['retro','复古','#d97706','#b45309','#7c2d12'],['neumorph','轻拟态','#cfd9ea','#5b7cfa','#f8fafc'],
  ['cyber','赛博朋克','#0f0524','#a855f7','#22d3ee'],['autumn','秋日暖调','#f5e7cd','#d97706','#b45309'],['ocean','海洋深蓝','#0c2a4d','#0ea5e9','#38bdf8']];
@@ -2496,8 +2516,9 @@ function applyTokens(k){const set=tokenSet(k);if(!set)return;const r=document.do
 function clearTokens(){const r=document.documentElement;TOKEN_KEYS.forEach(p=>r.style.removeProperty(p));}
 function setTheme(k){curTheme=k;const r=document.documentElement;
  const tokenTheme=THEME_TOKENS[k]||MKT[k];
- if(tokenTheme){r.dataset.theme=tokenTheme.forceDark?'cyber-base':'minimal';if(tokenTheme.forceDark)r.classList.add('dark');applyTokens(k)}
+ if(tokenTheme){r.dataset.theme=tokenTheme.forceDark?'cyber-base':'minimal';applyTokens(k)}
  else{r.dataset.theme=k;clearTokens();r.style.removeProperty('--page-img')}
+ darkApply()
  const meta=(THEMES.find(x=>x[0]===k)||[k,'主题']);
  renderThemeRow();renderSideThemes();
  toast('已切换主题：'+(tokenTheme?tokenTheme.meta.name:meta[1].split(' · ')[0])+(tokenTheme?' · 配置热加载✓ 无需刷新':''));}
@@ -4608,7 +4629,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); renderPstore();
+migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); darkApply();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); renderPstore();
 auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
 aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);
