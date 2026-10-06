@@ -823,7 +823,7 @@ tailwind.config = {
       <div class="card mt-4 !p-0 overflow-hidden">
         <button onclick="navTo('p-sub-data')" class="w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-emerald-100 dark:bg-emerald-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 18.5h9.3a3.6 3.6 0 0 0 .5-7.16 5.2 5.2 0 0 0-9.9-1.4 3.9 3.9 0 0 0 .1 8.56Z"/><path d="M12 15.4V9.2m0 0-2.1 2.1M12 9.2l2.1 2.1"/></svg></span><div class="flex-1"><b class="text-sm">数据与同步</b><div class="text-[11px] text-slate-400">WebDAV · 备份 · 加密 · 同步历史</div></div>
-          <span class="text-[10px] text-emerald-500 font-bold mr-1">● 已连接</span><span class="text-slate-300">›</span></button>
+          <span class="text-[10px] text-emerald-500 font-bold mr-1" id="pfSyncState">● 已配置</span><span class="text-slate-300">›</span></button>
         <button onclick="navTo('p-sub-notify')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
           <span class="set-ic bg-brand-50 dark:bg-brand-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 16.2v-5.1a5.4 5.4 0 0 1 10.8 0v5.1l1.4 2H5.2l1.4-2Z"/><path d="M10.2 20.4a1.9 1.9 0 0 0 3.6 0"/></svg></span><div class="flex-1"><b class="text-sm">提醒通知</b><div class="text-[11px] text-slate-400">日程 · 日记复盘 · 收集箱清理 · 习惯</div></div>
           <span class="text-[10px] text-slate-400 mr-1">3 项开启</span><span class="text-slate-300">›</span></button>
@@ -2361,7 +2361,8 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   if(p==='p-profile')renderProfile();
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   if(p==='p-sub-backup')bkRender();
-  if(p==='p-sub-mediaclean')mcRender(); /* B-1：进屏即按当前列表重画（含选择态与计数） */
+  if(p==='p-sub-mediaclean')mcRender();
+  if(p==='p-profile')renderSyncState(); /* F-1 回灌：主页同步状态两态 */ /* B-1：进屏即按当前列表重画（含选择态与计数） */
   navClear(p);renderNav();renderFab();
 }
 /* ===== 我的 · 资料与统计联动 =====
@@ -2620,6 +2621,13 @@ function gtOrph(t){if(t.k!=='quote')return '';
   if(t.orphan)return '所属书已彻底删除';
   return D.trash.some(function(x){return x.k==='book'&&x.t===t.link})?'所属书还在回收站，先恢复书或整体删除':''}
 function gtVis(){return D.trash.map((t,i)=>({t,i})).filter(o=>gtSeg==='all'||(o.t.k||'todo')===gtSeg)}
+/* 主页「数据与同步」状态点（真机反馈 F-1 回灌）：措辞取「已配置」不取「已连接」——
+   本机只知道自己存了可用端点，连通与否是同步页「测试连接」的口径，主页不许冒充。
+   两态＝有无激活服务（App 侧＝activeSyncServiceProvider 真值；未配置态画灰点）。 */
+let SYNC_CONFIGURED=true;
+function renderSyncState(){const e=$('#pfSyncState');if(!e)return;
+  e.textContent=SYNC_CONFIGURED?'● 已配置':'● 未配置';
+  e.className='text-[10px] font-bold mr-1 '+(SYNC_CONFIGURED?'text-emerald-500':'text-slate-400');}
 function gtOpen(k){gtSeg=k||'all';ttExitSel();navTo('p-sub-trash')}
 function ttOpen(){gtOpen('todo')}   /* 待办页入口＝直达待办段（V1.57 兼容名） */
 function ttSyncKeep(){const k=ttKeepTxt(),m=document.getElementById('todoTrashMeta');

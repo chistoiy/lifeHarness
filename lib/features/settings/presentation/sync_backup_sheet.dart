@@ -60,6 +60,11 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   String? _pickedPath;
   LhBakManifest? _manifest;
   String? _verifyError; // 非 needPassphrase 的校验失败 code
+
+  /// F-10（方案 A·产品 2026-10-07 点头）：从「备份文件」屏带包进来＝为了恢复，
+  /// 但本面板上半屏是导出段，校验卡沉在最底＝进来先看到不相干的一半。
+  /// 校验成功后把校验卡滚到可见（导出段仍在，往上滑就是，不拆第二种形态）。
+  final GlobalKey _verifyCardKey = GlobalKey();
   bool _needPass = false;
   bool _confirmed = false;
 
@@ -179,6 +184,17 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
         _needPass = false;
         _confirmed = false;
       });
+      // F-10：带包进来（restorePath 非空）＝目标是恢复，校验卡滚到可见。
+      if (widget.restorePath != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _verifyCardKey.currentContext;
+          if (!mounted || ctx == null) return;
+          Scrollable.ensureVisible(ctx,
+              alignment: 0.08,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut);
+        });
+      }
     } on LhBakException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -360,6 +376,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
             if (m != null) ...[
               const SizedBox(height: 10),
               Container(
+                key: _verifyCardKey,
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
