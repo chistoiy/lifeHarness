@@ -15,8 +15,8 @@ skip = ("docs/archive/", "docs/superpowers/", "docs/预研/")
 targets = [p for p in out if p.endswith(".md") and not p.startswith(skip)]
 
 pat = re.compile(r"(?<![A-Za-z0-9_/.-])(?:docs|prototype|tools)/[^\s`\"'()（）,，、；;|>]*\.(?:md|html|json|yaml|xml|js|sh|dart|py)")
-EXEMPT_LINE = ("已删除", "找回", "git log", "瘦身前存档")
-EXEMPT_REF = {"prototype/x.html"}  # 泛指示例
+EXEMPT_LINE = ("已删除", "找回", "git log", "瘦身前存档", "提案路径")
+EXEMPT_REF = {"prototype/x.html", "docs/xxx.md"}  # 泛指示例
 # 文件级豁免（原因注释）：
 FILE_EXEMPT = {
     "docs/影音游模块开发计划-20260922.md": "并行会话 M 中，禁改写；其工具链引用按延后裁定处理",
