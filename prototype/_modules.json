@@ -4331,42 +4331,6 @@
   },
   {
    "file": "index-bookshelf.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-ledger.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-health.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index_habitcheck.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-maternity_bady.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-day_aim__goods.html",
-   "id": "p-pstore",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-bookshelf.html",
    "id": "p-profile",
    "home": "index.html",
    "exempt": null
@@ -5519,42 +5483,6 @@
   },
   {
    "file": "index-bookshelf.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-ledger.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-health.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index_habitcheck.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-maternity_bady.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-day_aim__goods.html",
-   "id": "sheetPSDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-bookshelf.html",
    "id": "sheetAddHabit",
    "home": "index_habitcheck.html",
    "exempt": null
@@ -5796,42 +5724,6 @@
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetEventDetail",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-bookshelf.html",
-   "id": "sheetPlugin",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-ledger.html",
-   "id": "sheetPlugin",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-health.html",
-   "id": "sheetPlugin",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index_habitcheck.html",
-   "id": "sheetPlugin",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-maternity_bady.html",
-   "id": "sheetPlugin",
-   "home": "index.html",
-   "exempt": null
-  },
-  {
-   "file": "index-day_aim__goods.html",
-   "id": "sheetPlugin",
    "home": "index.html",
    "exempt": null
   },

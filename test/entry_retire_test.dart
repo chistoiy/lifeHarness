@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// 两条都是**入口下架**，不是功能下架：回收站本体（七类聚合屏 `/settings/trash`）与
 /// 插件中心的占位屏都还在，摘的只是主页宫格与待办页末卡这两枚入口。
+/// （插件中心线随后于 2026-10-07 同日升级为一整簇「删屏」——本文件该组用例已翻面断
+///   壳/影音游专版/注册表三处全无，本段注释留作当时口径史。）
 /// 所以守护是双向的：入口不许回来，留下的入口不许被顺手删掉。
 void main() {
   const todoPage = 'lib/features/todo/presentation/todo_page.dart';
@@ -87,9 +90,19 @@ void main() {
       expect(shell.contains(gone), isFalse, reason: '$gone 残留');
     }
     // 唯一副本留在影音游专版（冻结文件），注册表的家必须跟着改过去，别留「家在壳、壳里没屏」。
+    // ↑ 该口径已于 2026-10-07 批2 第一刀作废：index-media.html 解冻清理，那两份副本与宫格演示一并摘净，
+    //   注册表的 p-pstore 屏条目按「files 空＝整条作废」规矩出表——现在断的是**三处全无**。
+    for (final path in ['prototype/index.html', 'prototype/index-media.html']) {
+      final src = File(path).readAsStringSync();
+      for (final gone in ['p-pstore', 'renderPstore', 'sheetPSDetail', 'id="sheetPlugin"']) {
+        expect(src.contains(gone), isFalse, reason: '$path 残留 $gone');
+      }
+    }
     final reg = File('prototype/_modules.json').readAsStringSync();
-    expect(reg.contains('"id": "p-pstore"'), isTrue, reason: '屏条目留着（影音游侧仍有副本）');
-    expect(reg.split('"id": "p-pstore"')[1].contains('index-media.html'), isTrue,
-        reason: '家已改指唯一留副本的专版文件');
+    // 屏条目与 violations 都不许留；`deleted.<file>` 里的 id 是「该副本已摘净」的出仓台账，属正当留痕。
+    final regJson = jsonDecode(reg) as Map<String, dynamic>;
+    final stillRegistered = (regJson['screens'] as List).any((s) => s['id'] == 'p-pstore') ||
+        (regJson['violations'] as List).any((v) => v['id'] == 'p-pstore');
+    expect(stillRegistered, isFalse, reason: 'p-pstore 仍在 screens/violations 在册（已整簇下架）');
   });
 }
