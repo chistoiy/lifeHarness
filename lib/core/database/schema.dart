@@ -34,7 +34,10 @@ class DbSchema {
   // （档案中心＋五类按日记录＋目标/体征/症状/报告/提醒）；新模块只建表不搬数据。
   // 38：影音游解禁批1——migrations[37]（37→38）建 media_* 七表
   // （条目/会话/笔记/子项/字典/影音单/成员）；新模块只建表不搬数据。
-  static const int version = 38;
+  // 39：影音游批5 数据层——migrations[38]（38→39）给 media_notes 加复习三列
+  // （review_stage/reviewed_at/next_review_at，零搬数据纯加列）＋到期索引；
+  // 列不进基础 DDL 的理由＝media.dart 的 mediaReviewStatements 段注。
+  static const int version = 39;
  
 
   
@@ -305,6 +308,8 @@ class DbSchema {
     ...xraySchemaStatements,
     ...hd.healthSchemaStatements,
     ...md.mediaSchemaStatements,
+    // 批5 复习三列：与 mig[38] 同一段（基础 DDL 冻结在 v38 形态，理由见 media.dart 段注）。
+    ...md.mediaReviewStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart

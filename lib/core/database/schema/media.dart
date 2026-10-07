@@ -202,10 +202,33 @@ final List<String> mediaSchemaStatements = [
       "('source','Letterboxd',13),('source','自建',14)",
 ];
 
+/// 批5 · v38→v39 复习三列（工单 §1.2 定案＝零搬数据纯加列）。
+///
+/// **勿把这三列写进上面的基础 DDL**：基础 DDL 冻结在 v38 形态、由 `mig[37]` 原样重放，
+/// 本段由 `mig[38]`（38→39）与 `DbSchema.createStatements` 尾部各吃一次。这样老库从
+/// v37 直升 v39 时「[37] 建表 → [38] 加列」相接不撞列；若列进基础 DDL，同一条链上
+/// [38] 的 ALTER 必炸 duplicate column（撞列留档教训＝read.dart 的 [32]/[33] 段注）。
+final List<String> mediaReviewStatements = [
+  'ALTER TABLE $tMediaNotes ADD COLUMN review_stage INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE $tMediaNotes ADD COLUMN reviewed_at INTEGER',
+  'ALTER TABLE $tMediaNotes ADD COLUMN next_review_at INTEGER',
+  // 到期队列按 next_review_at 升序取（NULL＝未排期/已走完，不进队列）。
+  'CREATE INDEX IF NOT EXISTS idx_mnote_due ON $tMediaNotes(next_review_at)',
+  // 判重索引改「仅在库行」局部唯一（与阅读侧真机反馈⑤同一条坑，这里在零数据时先纠）：
+  // 旧索引让软删行永久占键——删掉一条笔记再记同一句话必撞 2067。先把历史脏行的键位让出，
+  // 再按 live 局部重建（在库行本就互斥，重建必成）。
+  'UPDATE $tMediaNotes SET dedup_hash = NULL WHERE deleted_at IS NOT NULL',
+  'DROP INDEX IF EXISTS idx_mnote_dedup',
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_mnote_dedup ON $tMediaNotes(dedup_hash) '
+      'WHERE dedup_hash IS NOT NULL AND deleted_at IS NULL',
+];
+
 /// 治理G5：本域承接的版本迁移条目（聚合于 DbSchema.migrations·键互斥）
 final Map<int, List<String>> mig = {
   // 37→38（影音游解禁批1）：新模块只建表不搬数据。
   37: [
     ...mediaSchemaStatements,
-  ]
+  ],
+  // 38→39（影音游批5 数据层）：media_notes 加复习三列＋到期索引。
+  38: [...mediaReviewStatements],
 };

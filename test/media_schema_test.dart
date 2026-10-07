@@ -23,8 +23,9 @@ void main() {
       .map((r) => r['name'] as String)
       .toSet();
 
-  test('版本号 38，37→38 段就是影音游建表，七表齐', () async {
-    expect(DbSchema.version, 38);
+  test('版本号 39，37→38 段就是影音游建表，七表齐', () async {
+    expect(DbSchema.version, 39,
+        reason: '批5 数据层给 media_notes 加了复习三列（38→39 段）');
     expect(DbSchema.migrations.containsKey(37), isTrue,
         reason: '缺这段＝老库升级不建影音游表（新装有、老库没有）');
     final t = await tables();
