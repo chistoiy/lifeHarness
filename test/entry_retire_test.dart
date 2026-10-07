@@ -76,4 +76,20 @@ void main() {
   test('图片存储清理有全选钮', () {
     expect(File(mediaClean).readAsStringSync().contains("'mc-all'"), isTrue);
   });
+
+  test('插件中心整簇下架：设置页占位行与壳原型那屏都不许回来', () {
+    // 2026-10-07 产品拍板「插件中心 删屏」。插件化平台的调研与设计文档仍在，
+    // 摘的是**入口与演示屏**——日后要做＝另批先过原型门，别从这堆残留里复活。
+    expect(File(settings).readAsStringSync().contains("title: '插件中心'"), isFalse,
+        reason: '设置页占位行（注释里提这个词是留痕，不算残留）');
+    final shell = File('prototype/index.html').readAsStringSync();
+    for (final gone in ['p-pstore', 'renderPstore', 'sheetPSDetail', 'id="sheetPlugin"']) {
+      expect(shell.contains(gone), isFalse, reason: '$gone 残留');
+    }
+    // 唯一副本留在影音游专版（冻结文件），注册表的家必须跟着改过去，别留「家在壳、壳里没屏」。
+    final reg = File('prototype/_modules.json').readAsStringSync();
+    expect(reg.contains('"id": "p-pstore"'), isTrue, reason: '屏条目留着（影音游侧仍有副本）');
+    expect(reg.split('"id": "p-pstore"')[1].contains('index-media.html'), isTrue,
+        reason: '家已改指唯一留副本的专版文件');
+  });
 }

@@ -210,18 +210,10 @@ class SettingsPage extends ConsumerWidget {
                     title: '分类管理',
                     sub: '时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组',
                     trailing: '',
-                    onTap: () => context.push('/categories')),
-                // V1.58 反馈轮5：「小工具合集」入口行摘除——与「今天」页
-                // 全部功能宫格的「小工具」重复，入口只留一处。
-                _EntryRow(
-                    iconWidget: Icon(Icons.extension_outlined,
-                    size: 18, color: const Color(0xFF6B7280)),
-                                        bg: Colors.grey.withValues(alpha: .12),
-                    title: '插件中心',
-                    sub: '大模块按需安装 · 更新 · 回滚',
-                    trailing: '',
+                    // 2026-10-07 产品拍板「插件中心 删屏」：这枚「敬请期待」占位行连同原型那屏一起摘，
+                    // 分类管理成为本组末行（描边随之上移）。
                     last: true,
-                    onTap: () => _toast(context, '插件中心 · 敬请期待')),
+                    onTap: () => context.push('/categories')),
               ],
             ),
           ),

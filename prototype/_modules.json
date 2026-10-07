@@ -1221,8 +1221,8 @@
    "status": "exclusive",
    "files": {
     "index.html": {
-     "size": 11776,
-     "hash": "98ed072f"
+     "size": 10205,
+     "hash": "1a79b093"
     }
    }
   },
@@ -1308,14 +1308,10 @@
    "id": "p-pstore",
    "kind": "screen",
    "title": "插件中心",
-   "home": "index.html",
+   "home": "index-media.html",
    "reps": [],
-   "status": "shared",
+   "status": "exclusive",
    "files": {
-    "index.html": {
-     "size": 1961,
-     "hash": "7963f1a7"
-    },
     "index-media.html": {
      "size": 1721,
      "hash": "156dff0d"
@@ -3427,9 +3423,9 @@
    "id": "sheetPlugin",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-media.html",
    "reps": [],
-   "status": "shared",
+   "status": "exclusive",
    "files": {
     "index-media.html": {
      "size": 1572,
@@ -3479,14 +3475,10 @@
    "id": "sheetPSDetail",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-media.html",
    "reps": [],
-   "status": "shared",
+   "status": "exclusive",
    "files": {
-    "index.html": {
-     "size": 360,
-     "hash": "5978e67a"
-    },
     "index-media.html": {
      "size": 360,
      "hash": "5978e67a"

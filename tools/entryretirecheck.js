@@ -36,8 +36,10 @@ const prof = block('p-profile') || '';
 (prof.includes('pfTrashCnt') && (block('p-sub-trash') || '').length > 500)
   ? ok('E4 「我的」页入口与回收站屏在位') : bad('E4', JSON.stringify({ prof: prof.includes('pfTrashCnt') }));
 
-/* E5 p-pstore 屏本体留着（本批只摘入口，屏的去留等产品裁定） */
-((block('p-pstore') || '').length > 200) ? ok('E5 插件中心屏仍在册待裁定') : bad('E5', '屏被误删');
+/* E5 插件中心屏已整簇下架（2026-10-07 产品拍板「删屏」），壳里不许再出现任何一件 */
+(!block('p-pstore') && !s.includes('renderPstore') && !s.includes('sheetPSDetail')
+    && !s.includes("id=\"sheetPlugin\""))
+  ? ok('E5 插件中心屏·弹层·JS 簇已摘净') : bad('E5', '仍有残留');
 
 /* E6 批①新屏已登记（防「改了原型没入册」） */
 const v = reg.screens.filter(x => x.id === 'p-sub-aiVerify')[0];
