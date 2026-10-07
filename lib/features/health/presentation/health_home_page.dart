@@ -440,12 +440,19 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
               const Text('睡眠',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
               const Spacer(),
-              Text('$line 前', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+              // 原型 427 行＝卡头右侧只有 mini-btn「＋ 记录」；界线时间沉进副注（slT），
+              // 半宽卡里两处并排会溢出（真机口径 420vp 下 RenderFlex +19px）。
               // 流水与改记录在 `/health/sleep`（批2 第二屏），这里只给入口不给编辑面。
               TextButton(
                 key: const ValueKey('health-sleep-all'),
                 onPressed: () => context.push('/health/sleep'),
-                child: const Text('记录', style: TextStyle(fontSize: 11)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('＋ 记录', style: TextStyle(fontSize: 11)),
               ),
             ],
           ),
@@ -459,7 +466,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 6),
             Text(
-              '目标 ${(sleepGoalMin / 60).toStringAsFixed(0)} 小时 · '
+              '目标 ${(sleepGoalMin / 60).toStringAsFixed(0)} 小时 · $line 前 · '
               '${fellAsleepOnTime(night.bedTime, line) ? '按时入睡' : '晚于界线'}',
               style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
             ),

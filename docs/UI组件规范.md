@@ -167,7 +167,7 @@
   文案按 kind 四词（观影中/追剧中/听歌中/游玩中），■ 结束就地结算并弹 LH-S33（`media.autoAsk`）。
 
 ### LH-C16 影音游条目资料屏（影音游批4 · 2026-10-07 原型定稿）
-- 原型：`prototype/index-media.html` `#m-info`（`mRenderInfo`）。代码：`features/media/presentation/media_info_page.dart`（待实现批·路由 `/media/item/:id/info`）。
+- 原型：`prototype/index-media.html` `#m-info`（`mRenderInfo`）。代码：`features/media/presentation/media_info_page.dart`（**已实装**·路由 `/media/item/:id/info`·用例 `test/media_info_page_test.dart` 5 例）。
 - 入口三处＝条目详情动作条「条目资料」·操作弹层 LH-S34·明细屏返回；与 LH-C15 的分工＝**详情看内容，资料查档案与写总结**（同构阅读侧 `p-bookInfo`）。
 - 构成：头卡（实物小卡＋题名/主创/发行/年＋平台评分与**我的评分**两列，未打＝虚线）·数据卡四格
   （观影/追剧/听歌/游玩时长 · 计时次数（音乐＝循环次数）· 日均 · **第四格按 kind 各出各的词**（片长/总集数/曲目数/周目），前两格点开 LH-C17）·
@@ -177,7 +177,7 @@
 - 三条纪律沿用 LH-C15：空态虚线不造演示数据 · 能力未开放置灰不隐藏（「转存笔记」属笔记批） · 不铺后续批次入口（影音轨迹/导出属统计批）。
 
 ### LH-C17 影音游计时明细屏（影音游批4 · 2026-10-07 原型定稿）
-- 原型：`prototype/index-media.html` `#m-sesslog`（`mRenderSess`）。代码：`features/media/presentation/media_sesslog_page.dart`（待实现批·路由 `/media/item/:id/sessions`）。
+- 原型：`prototype/index-media.html` `#m-sesslog`（`mRenderSess`）。代码：`features/media/presentation/media_sesslog_page.dart`（**已实装**·路由 `/media/item/:id/sessions`·用例 `test/media_sesslog_page_test.dart` 6 例）。
 - **形态拍板**＝整屏，不做半屏弹层（计划 §四 原 `m-sheet-sess` 作废）——与阅读侧 `p-readlog` 同形（那边在真机验收轮1e 已把半屏改整屏，理由＝逐条要改要删、半屏放不下）。
 - 构成：条目头卡·汇总四格（**真实时长**/折算时长/次数/日均）·范围三档 chips（全部/本月/近 3 月，**点选不循环**）·按月分组（月头带该月合计）·逐条行＝日期与周几／起讫时刻／真实时长／
   倍速角标与折算读数（**1x 行不重复显示折算**）／该次进度起讫快照（按 kind：时间点·集号·曲目·主线%）／来源（计时｜补记）。

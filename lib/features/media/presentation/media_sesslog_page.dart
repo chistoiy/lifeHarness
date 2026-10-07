@@ -373,7 +373,7 @@ class _MediaSesslogPageState extends ConsumerState<MediaSesslogPage> {
                           ),
                           if (speed > 1) ...[
                             const SizedBox(width: 6),
-                            _miniChip('${speed}x'),
+                            _miniChip(_spdLabel(speed)),
                           ],
                           const Spacer(),
                           if (!draft && s != null)
@@ -438,7 +438,7 @@ class _MediaSesslogPageState extends ConsumerState<MediaSesslogPage> {
                         for (final v in _speeds)
                           _scopeChip(
                             key: 'mds-sess-speed-$v',
-                            label: '${v}x',
+                            label: _spdLabel(v),
                             on: _speed == v,
                             onTap: () => setState(() => _speed = v),
                           ),
@@ -567,6 +567,10 @@ class _MediaSesslogPageState extends ConsumerState<MediaSesslogPage> {
       );
 
   // ---- 读数口径（全模块同一套措辞）----
+
+  /// 倍速标签＝原型的 `1x/1.25x/1.5x/2x`（整数不带小数点，Dart double 会印成 1.0x）。
+  static String _spdLabel(double v) =>
+      v == v.truncateToDouble() ? '${v.round()}x' : '${v}x';
   static String _kindWord(String k) => switch (k) {
         MediaItem.kMovie => '观影',
         MediaItem.kSeries => '追剧',
