@@ -8,7 +8,6 @@ import 'todo_providers.dart';
 import 'widgets/quadrant_board.dart';
 import 'widgets/todo_edit_sheet.dart';
 import 'widgets/todo_list_view.dart';
-import 'widgets/todo_trash_entry.dart';
 import '../../../shared/widgets/load_error_state.dart';
 
 /// 模块2 待办 + 四象限（M0 · 已对齐高保真原型 p-todo）：
@@ -121,8 +120,6 @@ class _TodoPageState extends ConsumerState<TodoPage> {
                   : TodoListView(todos: todos),
             ),
           ),
-          // V1.57 E 批：底部垃圾箱入口（清单/四象限两视图共用·计数与保留期同源）
-          const TodoTrashEntry(),
         ],
       ),
       // 原型同款：FAB 展开行卡菜单（✅ 普通待办 / 🍅 番茄计时），与首页快捷记录风格统一

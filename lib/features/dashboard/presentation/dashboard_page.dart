@@ -990,7 +990,6 @@ class _AllModulesCard extends StatelessWidget {
     ('🔁', '习惯', '/habits', null),
     ('🧭', '目标', '/goals', null),
     ('🍼', '呵护', '/care', null),
-    ('🧩', '插件中心', null, 'V1.x'),
     (Icons.smart_toy_outlined, 'AI 验证', _aiVerifyRoute, null),
     ('⚙️', '设置', '/settings', null),
   ];

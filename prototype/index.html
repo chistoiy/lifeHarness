@@ -519,12 +519,7 @@ tailwind.config = {
           <button class="text-[11px] text-amber-600 font-bold shrink-0" onclick="toast('已进入引导规划（模拟）')">去规划</button>
         </div>
       </div>
-      <!-- ===== V1.60 回收站入口（原 V1.57 待办垃圾箱升级·直达待办段·计数与全局同源） ===== -->
-      <button class="mt-4 w-full card !py-3 flex items-center gap-3 text-left" onclick="ttOpen()">
-        <span class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg></span>
-        <span class="flex-1 min-w-0"><b class="text-sm">回收站</b>
-          <div class="text-[10px] text-slate-400" id="todoTrashMeta">待办 4 项 · 保留期内可恢复</div></span>
-        <span class="text-slate-300">›</span></button>
+      <!-- 回收站入口已下架（2026-10-07 产品令）：待办页不挂末卡，统一走「我的」页与记录管理两处入口 -->
     </section>
 
     <!-- ===== P3 日程/日历 ===== -->
@@ -1111,7 +1106,7 @@ tailwind.config = {
           <div id="apCur" class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-[11px]">当前端点：<b>DeepSeek</b></div>
           <div class="flex gap-2"><button class="mini-btn flex-1" onclick="aiProvEdit(aiCurProv().id)">编辑当前服务商</button><button class="mini-btn flex-1" onclick="aiProvEdit(null)">+ 新服务商</button></div>
           <div class="text-[10px] text-slate-400 leading-5">Key 存系统级加密区（flutter_secure_storage）：不入备份明文、不落日志、不随 WebDAV 同步。</div>
-          <div class="flex justify-between items-center"><span>验证状态</span><b class="text-emerald-500">✓ 今日 08:12 通过 · 812ms</b></div>
+          <div class="flex justify-between items-center gap-2"><span>验证状态</span><span class="flex items-center gap-2 shrink-0"><b id="apVerifyState" class="text-emerald-500 text-[11px]">✓ 今日 08:12 通过 · 812ms</b><button class="mini-btn" onclick="aiVfOpen()">重新验证 ›</button></span></div>
         </div>
       </div>
       <div class="card mt-3">
@@ -1142,6 +1137,29 @@ tailwind.config = {
         <div class="flex items-center justify-between"><div class="row-title">提示词管理</div><button class="mini-btn" onclick="navTo('p-sub-aiPrompts');aiRenderPrompts()">按模块调整 ›</button></div>
         <div class="text-[10px] text-slate-400 mt-1 leading-5">每个 AI 能力点的 System / User 模板可查看与覆盖；保存后立即生效，调整请求内容不需要修改代码。占位符（如 title、today）按当次数据注入。</div>
       </div>
+    </section>
+
+    <!-- ===== P12c1b 二级：AI API 验证（实现真页 /settings/ai/verify 对齐 · 三态＝通过/凭据错误/网络失败） ===== -->
+    <section id="p-sub-aiVerify" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="row-title">端点与凭据</div>
+        <div id="avChips" class="flex flex-wrap gap-2 mt-2"></div>
+        <input id="avUrl" class="inp w-full mt-3 font-mono text-[11px]" type="text" placeholder="https://api.xxx.com/v1">
+        <div class="flex gap-2 mt-2">
+          <div class="relative flex-1">
+            <input id="avKey" class="inp w-full pr-10 font-mono text-[11px]" type="password" placeholder="API Key">
+            <button id="avEye" class="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 active:bg-slate-100 dark:active:bg-slate-800" onclick="apPeek('avKey','avEye')" title="显示或隐藏明文" aria-label="显示或隐藏明文"></button>
+          </div>
+          <input id="avModel" class="inp flex-1 text-[11px]" type="text" placeholder="模型名">
+        </div>
+        <textarea id="avPrompt" class="inp w-full mt-2 text-[11px]" rows="2" placeholder="请只回复四个字：连接成功"></textarea>
+        <button id="avSend" class="w-full py-3 mt-3 rounded-xl grad text-white text-sm font-bold" onclick="aiVfSend()">真实发送验证</button>
+      </div>
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">验证结果</div><span id="avLat" class="text-[10px] text-slate-400"></span></div>
+        <div id="avRes" class="mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 px-3 py-2.5 font-mono text-[10.5px] leading-5" style="white-space:pre-wrap;color:#94a3b8">结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 · 404 模型名 · 429 限流 · 超时）。</div>
+      </div>
+      <div class="text-[10px] text-slate-400 mt-2 leading-5">请求仅发往上方地址 · 应用自身零埋点；Key 存系统加密区，不入备份明文、不落日志。</div>
     </section>
 
     <!-- ===== P12c2 二级：提示词管理（AI批 · 能力点模板按模块查看/覆盖 · 默认来自内置资产） ===== -->
@@ -2286,7 +2304,7 @@ const D = {
   grid:[['✅','待办','p-todo'],['⏱️','时间','p-calendar'],['📚','阅读','p-records','book'],
         ['⚡','收集箱','p-inbox'],['💰','记账','p-finance'],['📦','物品','p-items'],['🎂','日子','p-days'],['🏃','健康','p-health'],
         ['🔁','习惯','p-habits'],
-        ['🧭','目标','p-goals'],['🍼','母婴','p-care'],['🧩','插件中心','p-pstore'],['🤖','AI 验证','p-sub-ai'],['⚙️','设置','p-profile']]
+        ['🧭','目标','p-goals'],['🍼','母婴','p-care'],['🤖','AI 验证','p-sub-ai'],['⚙️','设置','p-profile']]
 };
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 
@@ -2295,7 +2313,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','七类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2650,7 +2668,6 @@ function renderSyncState(){const e=$('#pfSyncState');if(!e)return;
   e.textContent=SYNC_CONFIGURED?'● 已配置':'● 未配置';
   e.className='text-[10px] font-bold mr-1 '+(SYNC_CONFIGURED?'text-emerald-500':'text-slate-400');}
 function gtOpen(k){gtSeg=k||'all';ttExitSel();navTo('p-sub-trash')}
-function ttOpen(){gtOpen('todo')}   /* 待办页入口＝直达待办段（V1.57 兼容名） */
 function ttSyncKeep(){const k=ttKeepTxt(),m=document.getElementById('todoTrashMeta');
   if(m)m.textContent='待办 '+gtCnt('todo')+' 项 · 保留期内可恢复';
   const r=document.getElementById('pfTrashCnt');if(r)r.textContent=D.trash.length+' 项';
@@ -4182,7 +4199,48 @@ function auKeep(k){auKeepDays=k;
 /* ================= V1.53.1 服务商可增删改（预置=默认值而非白名单 · 支持中转站与局域网 Ollama） =================
    与实现同口径：业务模块只调 aiRunWithReview，端点/模型/协议/Key 全在 AI 侧，
    所以这一层的可配置性不需要任何模块配合改动。 */
+/* ===== AI API 验证屏（p-sub-aiVerify · 对齐实现 AiVerifyPage：三态＝通过/凭据错误/网络失败） ===== */
+let avBusy=false,avTimer=null;
+const AV_IDLE='结果将显示在此：模型回复 / 延迟 / token 用量，或精确错误原因（401 Key 无效 · 404 模型名 · 429 限流 · 超时）。';
+function aiVfNorm(u){return String(u||'').trim().replace(/\/+$/,'');}
+function aiVfProto(u){var p=aiProvs().filter(function(x){return aiVfNorm(x.u)===aiVfNorm(u);})[0];return p?p.p:'openai';}
+function aiVfChips(){var box=document.getElementById('avChips');if(!box)return;
+ box.innerHTML=aiProvs().map(function(p){var on=aiVfNorm(p.u)===aiVfNorm(document.getElementById('avUrl').value);
+  return '<button class="mini-btn" style="'+(on?'background:#0f172a;color:#fff':'')+'" data-avp="'+p.id+'" onclick="aiVfPick(\''+p.id+'\')">'+p.n+'</button>';}).join('');}
+function aiVfPick(id){var p=aiProvById(id);if(!p)return;
+ document.getElementById('avUrl').value=p.u;document.getElementById('avModel').value=p.m;
+ document.getElementById('avKey').value=p.k?'sk-demo-'+p.id:'';aiVfChips();}
+function aiVfFill(){var p=aiCurProv();
+ document.getElementById('avUrl').value=p.u;document.getElementById('avModel').value=p.m;
+ document.getElementById('avKey').value=p.k?'sk-demo-'+p.id:'';
+ document.getElementById('avPrompt').value='请只回复四个字：连接成功';
+ document.getElementById('avRes').textContent=AV_IDLE;
+ document.getElementById('avRes').style.color='#94a3b8';
+ document.getElementById('avLat').textContent='';
+ document.getElementById('avEye').innerHTML=AP_EYE;aiVfChips();}
+function aiVfOpen(){navTo('p-sub-aiVerify');aiVfFill();}
+function aiVfJudge(u,m,k){
+ if(!/^https?:\/\//.test(u))return {ok:false,lat:0,t:'✕ 网络失败：无法连接 '+(u||'（地址为空）')+'\n请检查 Base URL 是否带 http(s):// 且拼写正确'};
+ if(!k)return {ok:false,lat:0,t:'✕ 401 未授权：API Key 无效或未填\n该服务商的 Key 请在「服务商管理」里补齐'};
+ if(!m)return {ok:false,lat:0,t:'✕ 404 模型不存在：模型名留空或拼写错误'};
+ return {ok:true,lat:812,t:'✓ 812ms · 200 OK\n模型回复：连接成功\nusage: 12 + 4 tokens\n验证通过 · 可回 AI 增强页逐项开启能力矩阵'};}
+function aiVfSend(){if(avBusy)return;
+ var u=document.getElementById('avUrl').value,m=document.getElementById('avModel').value.trim(),k=document.getElementById('avKey').value.trim();
+ var path=aiVfProto(u)==='anthropic'?'/messages':'/chat/completions';
+ avBusy=true;var btn=document.getElementById('avSend');btn.classList.add('opacity-40');btn.textContent='请求中…';
+ var res=document.getElementById('avRes');res.style.color='#64748b';
+ res.textContent='⏳ POST '+aiVfNorm(u)+path+' · model='+(m||'—')+' …';
+ clearTimeout(avTimer);
+ avTimer=setTimeout(function(){avBusy=false;btn.classList.remove('opacity-40');btn.textContent='真实发送验证';
+  var r=aiVfJudge(u,m,k);res.textContent=r.t;res.style.color=r.ok?'#10b981':'#f43f5e';
+  document.getElementById('avLat').textContent=r.ok?'延迟 '+r.lat+'ms':'未通过';
+  var s=document.getElementById('apVerifyState');
+  if(s){s.textContent=r.ok?'✓ 刚刚通过 · '+r.lat+'ms':'✕ 刚刚失败';s.style.color=r.ok?'#10b981':'#f43f5e';}
+  toast(r.ok?'验证通过 · Key 已存入该服务商加密槽':'验证未通过 · 原因见结果区');
+ },620);}
+function aiVfBusy(){return avBusy;}
 let AI_PROVS=null,apEdit=null;
+
 function aiProvSeed(){return [
  {id:'deepseek',n:'DeepSeek',u:'https://api.deepseek.com/v1',m:'deepseek-flash',p:'openai',k:1,b:1,cur:true},
  {id:'anthropic',n:'Anthropic claude',u:'https://api.anthropic.com/v1',m:'claude-3-5-haiku-latest',p:'anthropic',k:0,b:1,cur:false},

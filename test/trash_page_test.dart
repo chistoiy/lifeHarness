@@ -23,7 +23,6 @@ import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
 import 'package:lifeharness/features/todo/presentation/todo_providers.dart';
-import 'package:lifeharness/features/todo/presentation/widgets/todo_trash_entry.dart';
 import 'package:lifeharness/shared/trash/trash_models.dart';
 import 'package:lifeharness/shared/trash/trash_providers.dart';
 import 'package:lifeharness/shared/trash/trash_repository.dart';
@@ -433,20 +432,6 @@ void main() {
     await clearToasts(tester);
   });
 
-  testWidgets('待办页入口行：直达回收站待办段，计数与屏内同源', (tester) async {
-    await seedSix();
-    await tester.pumpWidget(entryApp(const TodoTrashEntry()));
-    await settle5(tester);
-
-    expect(find.text('回收站'), findsOneWidget);
-    expect(find.textContaining('待办 1 项 · 保留期内可恢复'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('todo-trash-entry')));
-    await settle5(tester);
-    expect(find.byType(TrashPage), findsOneWidget);
-    expect(find.textContaining('写周报'), findsOneWidget);
-    expect(find.textContaining('晨跑'), findsNothing,
-        reason: '入口落待办段，不是一屏全出');
-    await clearToasts(tester);
-  });
+  // 待办页底部回收站入口已随 2026-10-07 产品令下架（TodoTrashEntry 整件删除）：
+  // 回收站入口只剩「我的」页与记录管理两处，各自由 profile/recmg 用例钉住，此处不再留翻面断言。
 }

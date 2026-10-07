@@ -1517,8 +1517,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 4652,
-     "hash": "10cdcbe3"
+     "size": 4804,
+     "hash": "7f76b6d9"
     },
     "index-media.html": {
      "size": 3554,
@@ -1551,6 +1551,20 @@
     "index.html": {
      "size": 249,
      "hash": "3251ae01"
+    }
+   }
+  },
+  {
+   "id": "p-sub-aiVerify",
+   "kind": "screen",
+   "title": "AI API 验证",
+   "home": "index.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index.html": {
+     "size": 1754,
+     "hash": "97989639"
     }
    }
   },
@@ -1727,8 +1741,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 2261,
-     "hash": "61db54bf"
+     "size": 1613,
+     "hash": "165b9332"
     },
     "index-media.html": {
      "size": 1547,
