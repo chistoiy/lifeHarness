@@ -47,9 +47,10 @@ class HealthSleepPage extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('hsl-fab'),
-        onPressed: () => showHealthAddSheet(context),
+        // 本屏只有睡眠一件事：FAB 直达睡眠录入，不再让用户在「喝水／睡眠」里二选一。
+        onPressed: () => showHealthSleepSheet(context),
         icon: const Icon(Icons.add),
-        label: const Text('记一笔'),
+        label: const Text('记一晚'),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 84),

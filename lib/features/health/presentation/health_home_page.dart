@@ -8,6 +8,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
+import 'health_goal_row.dart';
 import 'health_providers.dart';
 
 /// 健康工作台（原型 `prototype/index-health.html#p-health` · 路由 `/health`）。
@@ -155,6 +156,8 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
         ),
         const SizedBox(height: 12),
         _overview(context, hub, waterGoal, sleepGoalMin),
+        const SizedBox(height: 12),
+        _goalsCard(context, st),
         const SizedBox(height: 16),
         const Text('最近记录',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
@@ -162,6 +165,56 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
         ..._stream(hub),
       ],
     );
+  }
+
+  // ==================== 每日目标（就地滚轮·选到哪档当场生效） ====================
+
+  Widget _goalsCard(BuildContext context, HealthSettings st) {
+    final cups = st.waterGoal();
+    final hours = st.sleepGoalHours();
+    return Container(
+      key: const ValueKey('health-goals'),
+      decoration: context.cardDecoration,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('每日目标',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+          HealthGoalRow(
+            rowKey: const ValueKey('health-goal-water'),
+            wheelKey: const ValueKey('health-goal-water-wheel'),
+            icon: Icons.water_drop_outlined,
+            label: '喝水',
+            valueText: '$cups 杯',
+            labels: [for (var i = 1; i <= 12; i++) '$i 杯'],
+            currentIndex: (cups - 1).clamp(0, 11),
+            onChanged: (i) => _saveGoal(water: i + 1),
+          ),
+          HealthGoalRow(
+            rowKey: const ValueKey('health-goal-sleep'),
+            wheelKey: const ValueKey('health-goal-sleep-wheel'),
+            icon: Icons.nightlight_outlined,
+            label: '睡眠',
+            valueText: '$hours 小时',
+            labels: [for (var i = 4; i <= 12; i++) '$i 小时'],
+            currentIndex: (hours - 4).clamp(0, 8),
+            onChanged: (i) => _saveGoal(sleepHours: i + 4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 目标写完当场生效：设置重取 → 今日读数与环／卡／热力同帧重算（不留"要重启才生效"的缝）。
+  Future<void> _saveGoal({int? water, int? sleepHours}) async {
+    final st = ref.read(healthSettingsProvider);
+    if (water != null) await st.setWaterGoal(water);
+    if (sleepHours != null) await st.setSleepGoal(sleepHours);
+    if (!mounted) return;
+    ref.invalidate(healthSettingsProvider);
+    ref.invalidate(healthTodayProvider);
+    healthTouch(ref);
   }
 
   // ==================== hero ====================
@@ -314,8 +367,9 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                 child: FilledButton.icon(
                   key: const ValueKey('health-water-plus'),
                   onPressed: () => _bumpCups(1),
+                  // 图标已是加号，标签不再重复「＋」（真机 6090 实拍出双加号并折行）
                   icon: const Icon(Icons.add, size: 16),
-                  label: const Text('＋1 杯'),
+                  label: const Text('1 杯', maxLines: 1, softWrap: false),
                 ),
               ),
               const SizedBox(width: 8),
@@ -323,7 +377,10 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                 child: OutlinedButton(
                   key: const ValueKey('health-water-undo'),
                   onPressed: cups == 0 ? null : () => _bumpCups(-1),
-                  child: const Text('撤销'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  child: const Text('撤销', maxLines: 1, softWrap: false),
                 ),
               ),
             ],

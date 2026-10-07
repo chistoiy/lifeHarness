@@ -4,26 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
-import '../data/health_repository.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
 import 'health_providers.dart';
 
-/// 健康 · 记录入口与睡眠录入（原型 `sheetHAdd` / `sheetHSleep` · 规格＝LH-S 弹层族）。
+/// 健康 · 睡眠录入（原型 `sheetHSleep` · 规格＝LH-S 弹层族）。
+///
+/// 「记一笔」二选一入口已摘：两卡各自直达（喝水＝卡内 ＋1 杯；睡眠＝睡眠屏 FAB/顶栏钮），不再让用户在类别里挑。
 ///
 /// 三条口径写在离代码最近的地方：
 /// - **时间选择一律就地内嵌滚轮**（LH-K39），禁「点击→弹层→再选」两段式，也不拉系统选择器；
 /// - 弹层自带 `viewInsets` 抬升（Flutter 3.38 起 `showModalBottomSheet` 不再自动抬升，既定坑）；
 /// - 跨弹层的写库不携带发起页的失效 ref：入口先抓 container，关闭后只用它失效 provider。
-Future<void> showHealthAddSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => const _AddSheet(),
-  );
-}
-
 Future<void> showHealthSleepSheet(BuildContext context, {SleepRecord? editing}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -31,49 +23,6 @@ Future<void> showHealthSleepSheet(BuildContext context, {SleepRecord? editing}) 
     backgroundColor: Colors.transparent,
     builder: (_) => _SleepSheet(editing: editing),
   );
-}
-
-class _AddSheet extends ConsumerWidget {
-  const _AddSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 本版只有喝水与睡眠两类落点存在；运动/身体数据/用药在批 3~批 5，
-    // 那三行**整条不出现**（AGENTS 禁铺假入口），不是置灰骗点。
-    return _sheetShell(
-      context,
-      title: '记一笔',
-      children: [
-        _row(
-          context,
-          key: const ValueKey('hadd-water'),
-          icon: Icons.water_drop_outlined,
-          label: '喝水 ＋1 杯',
-          onTap: () async {
-            final pid = ref.read(activeHealthProfileProvider);
-            final day = dayKey(ref.read(healthClockProvider)());
-            final HealthRepository repo = ref.read(healthRepositoryProvider);
-            await repo.bumpCups(pid, day, 1);
-            if (!context.mounted) return;
-            Navigator.of(context).pop();
-            ref.invalidate(healthTodayProvider);
-            healthTouch(ref);
-            AppToast.show(context, '已记 1 杯');
-          },
-        ),
-        _row(
-          context,
-          key: const ValueKey('hadd-sleep'),
-          icon: Icons.bedtime_outlined,
-          label: '记一晚睡眠',
-          onTap: () {
-            Navigator.of(context).pop();
-            showHealthSleepSheet(context);
-          },
-        ),
-      ],
-    );
-  }
 }
 
 class _SleepSheet extends ConsumerStatefulWidget {
@@ -382,25 +331,6 @@ Widget _chip(BuildContext context, {required String label, required bool on, req
       ),
       child: Text(label,
           style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: on ? scheme.onPrimary : scheme.onSurfaceVariant)),
-    ),
-  );
-}
-
-Widget _row(BuildContext context, {required Key key, required IconData icon, required String label, required VoidCallback onTap}) {
-  final scheme = Theme.of(context).colorScheme;
-  return InkWell(
-    key: key,
-    borderRadius: BorderRadius.circular(12),
-    onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 17, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        ],
-      ),
     ),
   );
 }
