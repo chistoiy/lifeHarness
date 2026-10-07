@@ -216,7 +216,10 @@ void main() {
         .map((r) => r['name'] as String)
         .toList();
     expect(idx, contains('idx_item_profiles_deleted'));
-    expect(DbSchema.version, 36, reason: '加了迁移段必须抬目标版本，否则老库不会执行');
+    // 断言的是「版本已抬过本段目标 35」，不钉死具体号（36 起后续批次还会继续抬，
+    // 写死 36 的那条在健康批与影音游批抬到 37/38 时必然假红）。
+    expect(DbSchema.version, greaterThan(35),
+        reason: '加了迁移段必须抬目标版本，否则老库不会执行');
   });
 
   test('档案在回收站期间，其来源流水仍不可再次升级建档（防一水流两档）', () async {

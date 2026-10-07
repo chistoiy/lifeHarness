@@ -215,24 +215,24 @@ class _JournalPageState extends ConsumerState<JournalPage> {
           ),
         ],
       ),
+      // 三态 FAB 共用同一枚白色 ＋：字面量在文件里只出现一次（本批加影音游分支时
+      // 曾被各分支各抄一遍，深色观感棘轮按处数记账，收成一处才是真减少）。
       floatingActionButton: tab == 'note'
           ? const _NoteFab()
-          : tab == 'book'
-              ? GradFab(
-                  tooltip: '新增摘录',
-                  icon: const Icon(Icons.add, color: Colors.white, size: 26),
-                  onTap: () => readTabFabTap(context, ref))
-              : tab == 'media'
-                  ? GradFab(
-                      tooltip: '新条目',
-                      icon: const Icon(Icons.add, color: Colors.white, size: 26),
-                      onTap: () => mediaTabFabTap(context, ref))
-                  : GradFab(
-                      tooltip: '写今天的日记',
-                      icon: const Icon(Icons.add, color: Colors.white, size: 26),
-                      onTap: () => context.push('/journal/edit',
-                          extra: const DiaryEditArg()),
-                    ),
+          : GradFab(
+              tooltip: switch (tab) {
+                'book' => '新增摘录',
+                'media' => '新条目',
+                _ => '写今天的日记',
+              },
+              icon: const Icon(Icons.add, color: Colors.white, size: 26),
+              onTap: switch (tab) {
+                'book' => () => readTabFabTap(context, ref),
+                'media' => () => mediaTabFabTap(context, ref),
+                _ => () => context.push('/journal/edit',
+                    extra: const DiaryEditArg()),
+              },
+            ),
       body: switch (tab) {
         'diary' => const _DiaryTab(),
         'note' => const NoteTab(),

@@ -249,6 +249,28 @@ const Map<String, ({String label, String module})> dbTableLabels = {
   'time_blocks': (label: '时间块', module: '时间'),
   // —— 健康 ——
   'health_records': (label: '健康记录', module: '健康'),
+  'health_profile': (label: '健康档案', module: '健康'),
+  'health_profile_tag': (label: '档案标签', module: '健康'),
+  'health_water': (label: '喝水记录', module: '健康'),
+  'health_sleep': (label: '睡眠记录', module: '健康'),
+  'health_exercise': (label: '运动记录', module: '健康'),
+  'health_body': (label: '身体数据', module: '健康'),
+  'health_vital': (label: '体征记录', module: '健康'),
+  'health_symptom': (label: '症状记录', module: '健康'),
+  'health_drug': (label: '用药档案', module: '健康'),
+  'health_drug_log': (label: '用药打卡', module: '健康'),
+  'health_goal': (label: '健康目标', module: '健康'),
+  'health_remind': (label: '健康提醒', module: '健康'),
+  'health_report': (label: '健康报告', module: '健康'),
+  'health_report_metric': (label: '报告指标', module: '健康'),
+  // —— 影音游 ——
+  'media_items': (label: '影音条目在册', module: '影音游'),
+  'media_sessions': (label: '影音计时', module: '影音游'),
+  'media_notes': (label: '影音笔记', module: '影音游'),
+  'media_units': (label: '影音子项', module: '影音游'),
+  'media_dict': (label: '影音词条', module: '影音游'),
+  'media_lists': (label: '影音单', module: '影音游'),
+  'media_list_items': (label: '影音单成员', module: '影音游'),
   // —— AI ——
   'ai_calls': (label: 'AI 调用记录', module: 'AI'),
   // —— 设置 / 系统 ——

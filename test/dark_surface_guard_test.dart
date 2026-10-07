@@ -32,12 +32,18 @@ const _exempt = <String, String>{
 const _baseline = <String, int>{
     // 深色观感棘轮基线（2026-10-07 生成·只许减）：不透明近白字面用作背景/表面处数
     'lib/features/dashboard/presentation/dashboard_page.dart': 22,
+    // 影音游批2 两枚新面：命中处全是 FAB 图标与卡面图上白字/白图标（渐变与封面之上的前景），
+    // 底面一律吃 scheme/色板渐变，随主题与深色自动跟随——与 journal_page 那 7 处同一形态。
+    // 登记≠放行：影音架的深色观感仍要走真机门＝复测包 6089 自验清单第 8 条。
+    'lib/features/media/presentation/widgets/media_card.dart': 8,
+    'lib/features/media/presentation/media_shelf_page.dart': 1,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
     'lib/features/read/presentation/stats/read_timer_page.dart': 9,
     'lib/features/care/presentation/cycle_view.dart': 8,
     'lib/features/habit/presentation/habits_page.dart': 8,
-    'lib/features/journal/presentation/journal_page.dart': 7,
+    // 影音游批2：记录页三态 FAB 收成一枚（该文件近白字面 7→6，登记值按实测收紧）。
+    'lib/features/journal/presentation/journal_page.dart': 6,
     'lib/features/journal/presentation/widgets/ins_card.dart': 7,
     'lib/features/ledger/presentation/ledger_assets_page.dart': 6,
     'lib/features/care/presentation/vaccine_page.dart': 5,
