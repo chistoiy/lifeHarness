@@ -658,11 +658,16 @@ tailwind.config = {
     </section>
 
     <!-- ===== 影音游专版 · M-NOTES 影音笔记库 ===== -->
-    <section id="m-notes" class="page mds-desk no-scrollbar">
-      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音笔记库</div><button class="mds-vbtn" onclick="openSheet('m-sheet-note-edit')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteTypeChips"></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteKindChips"></div>
-      <div id="mNotesBody" class="mds-grid"></div>
+<section id="m-notes" class="page mds-desk no-scrollbar">
+      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音笔记库</div><button class="mds-vbtn" style="position:relative" onclick="mOpenReview('due')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="mds-badge st-d" id="mNoteRevBadge" style="display:none">0</span></button><button class="mds-vbtn" onclick="mOpenNoteEdit('')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteTypeChips"></div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteKindChips"></div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteItemChips"></div>
+      <div class="flex gap-2 mb-2 items-center"><input id="mNoteQ" class="inp" style="flex:1;min-width:0;padding:6px 10px;font-size:11px;background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="搜索正文/条目/批注" oninput="mNoteQ=this.value;mRenderNotes()"><button class="mds-chip" id="mNoteStarChip" onclick="mNoteStar=!mNoteStar;mRenderNotes()">标星</button></div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteTagChips"></div>
+      <div class="flex gap-1 mb-2" id="mNoteViewSeg"></div>
+      <div id="mNotesCount" class="text-[10px] mds-mono mb-2" style="opacity:.55"></div>
+      <div id="mNotesBody"></div>
     </section>
 
     <!-- ===== 影音游专版 · M-MGR 通用管理器（五类实体） ===== -->
@@ -713,7 +718,7 @@ tailwind.config = {
         <div class="text-[11px] mds-mono" style="opacity:.55">观影中 · 倍速 1.0x</div>
       </div>
       <div class="flex items-center justify-center gap-6 mt-6">
-        <button class="mds-chip" onclick="openSheet('m-sheet-note-edit')">＋ 名场面</button>
+        <button class="mds-chip" onclick="mOpenNoteEdit(mCurDetail?mCurDetail.id:'')">＋ 名场面</button>
         <button class="mds-chip on" style="padding:12px 22px" onclick="mTimerTap()" id="mdsTimerGoBtn">▶ 开始</button>
         <button class="mds-chip" onclick="openSheet('m-sheet-progress')">＋ 进度</button>
       </div>
@@ -757,10 +762,34 @@ tailwind.config = {
       <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
         <div class="grabber"></div>
         <div class="mds-title text-[15px] mb-3">记一条影音笔记</div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">条目</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsNoteItemChips"></div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">类型</div>
         <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsNoteTypeChips"></div>
-        <textarea class="inp !py-2.5 text-sm mb-2" rows="3" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="正文：一句台词 / 一段歌词 / 一张截图旁的批注…"></textarea>
-        <div class="flex gap-2 text-[11px] mb-2"><input class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时间点 1:52:14 / 第 5 集 / 曲目 3"><input class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"></div>
-        <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="toast('插入今日日记草稿（L5 联动）')">→ 日记</button><button class="mds-chip" onclick="toast('生成待办（L5 联动）')">→ 待办</button><button class="mds-chip on" style="margin-left:auto" onclick="closeSheet('m-sheet-note-edit')">保存</button></div>
+        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteUnit" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="第 5 集 / 曲目 3 / 章节"><input id="mdNoteAt" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时间点 1:52:14"></div>
+        <textarea id="mdNoteBody" class="inp !py-2.5 text-sm mb-1" rows="3" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="正文：一句台词 / 一段歌词 / 一张截图旁的批注…" oninput="document.getElementById('mdNoteErr').classList.add('hidden')"></textarea>
+        <div id="mdNoteErr" class="hidden text-[10px] mb-1" style="color:#dc2626">先写正文</div>
+        <input id="mdNoteAnno" class="inp !py-2 text-[11px] mb-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="批注（复习背面显示，可选）">
+        <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" title="未安装识别库" onclick="toast('OCR 识图暂不可用 · 可粘贴文本')">识图</button></div>
+        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteTag" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"><input id="mdNoteWhen" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="创建时间"></div>
+        <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="toast('已插入今日日记草稿（L5 联动）')">→ 日记</button><button class="mds-chip" onclick="toast('已生成待办（L5 联动）')">→ 待办</button><button class="mds-chip on" style="margin-left:auto" onclick="mNoteSave()">保存</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 影音游专版 · M-REVIEW 名场面复习卡（翻面 · 艾宾浩斯 1/3/7） ===== -->
+    <div id="m-review" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-review')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="flex items-center gap-2 mb-3"><div class="mds-title text-[15px]">名场面复习</div><span id="mRevPos" class="text-[10px] mds-mono" style="opacity:.6"></span><button class="mds-chip ml-auto" style="padding:3px 10px;font-size:10px" onclick="closeSheet('m-review')">关闭</button></div>
+        <div id="mRevWrap">
+          <div class="mds-rev" id="mdsRevCard" onclick="mFlipReview()"><div class="mds-rev-inner">
+            <div class="mds-rev-face" id="mdsRevFront"></div>
+            <div class="mds-rev-face mds-rev-back" id="mdsRevBack"></div>
+          </div></div>
+          <div class="flex gap-2 mt-3 items-center" id="mRevStageChips"></div>
+          <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="mReviewSkip()">跳过这条</button><button class="mds-chip on" style="margin-left:auto" onclick="mReviewDone()">记住了</button></div>
+        </div>
+        <div id="mRevEmpty" class="mempty hidden mt-1" style="padding:14px 10px;border-bottom:1px dashed currentColor;opacity:.45;font-size:11px">今天没有到期的复习</div>
       </div>
     </div>
 
@@ -2699,11 +2728,13 @@ let MDEMO=[
   {id:'gm6',kind:'game',mode:'网游',title:'原神',year:2020,creator:'米哈游',cRole:'工作室',pub:'米哈游',pRole:'发行',plat:'多端',mainPct:60,state:'在玩',rating:8.4,tags:['开放世界','二游'],grp:'',src:'自建',withWho:'女朋友',hours:410,glogs:[{when:'上周末',who:'女朋友',hrs:3,what:'一起清体力·深境螺旋'},{when:'两周前',who:'一个人',hrs:2,what:'纳塔主线'}]}
 ];
 const MNOTES=[
-  {id:'nt1',itemId:'mv2',kind:'movie',type:'line',title:'奥本海默',body:'「现在我们都知道世界是毁灭了。」',at:'1:52:14',tag:'共鸣',starred:1},
-  {id:'nt2',itemId:'tv2',kind:'series',type:'scene',title:'Severance',body:'会议室里 Lumon 的极简美学 — 白色与地毯花纹的对撞。',at:'S02E04',tag:'重点'},
-  {id:'nt3',itemId:'mu1',kind:'music',type:'lyric',title:'范特西',body:'「爱在西元前 古巴比伦墙上」— 方文山的词把时间和空间都折叠了。',at:'曲目 2',tag:'共鸣',starred:1},
-  {id:'nt4',itemId:'gm1',kind:'game',type:'shot',title:'旷野之息',body:'初始台地日出 — 第一次看到 Render 距离把整片海拉鲁铺开。',at:'约 2h',tag:'行动'},
-  {id:'nt5',itemId:'tv1',kind:'series',type:'long',title:'漫长的季节',body:'辛爽把 90 年代东北的锈带美学拍到极致 — 玉米地、KTV、下岗潮。配乐与色调像散文诗。',at:'',tag:'重点',starred:1}
+  {id:'nt1',itemId:'mv2',kind:'movie',type:'line',title:'奥本海默',body:'「现在我们都知道世界是毁灭了。」',at:'1:52:14',tag:'共鸣',starred:1,thought:'奥本海默把台词停在核爆前的安静上',created:Date.now()-2*86400000,img:null,rev:0},
+  {id:'nt2',itemId:'tv2',kind:'series',type:'scene',title:'Severance',body:'会议室里 Lumon 的极简美学 — 白色与地毯花纹的对撞。',at:'S02E04',tag:'重点',starred:0,thought:'',created:Date.now()-4*86400000,img:'linear-gradient(135deg,#e7e2d6,#b9b0a0)',rev:1},
+  {id:'nt3',itemId:'mu1',kind:'music',type:'lyric',title:'范特西',body:'「爱在西元前 古巴比伦墙上」— 方文山的词把时间和空间都折叠了。',at:'曲目 2',tag:'共鸣',starred:1,thought:'第一次听只觉得快',created:Date.now()-8*86400000,img:null,rev:3},
+  {id:'nt4',itemId:'gm1',kind:'game',type:'shot',title:'旷野之息',body:'初始台地日出 — 第一次看到 Render 距离把整片海拉鲁铺开。',at:'约 2h',tag:'行动',starred:0,thought:'',created:Date.now()-1*86400000,img:'linear-gradient(135deg,#7fb2d9,#3e6a8f)',rev:0},
+  {id:'nt5',itemId:'tv1',kind:'series',type:'long',title:'漫长的季节',body:'辛爽把 90 年代东北的锈带美学拍到极致 — 玉米地、KTV、下岗潮。配乐与色调像散文诗。',at:'',tag:'重点',starred:1,thought:'值得一周后再看一遍',created:Date.now()-12*86400000,img:null,rev:2},
+  {id:'nt6',itemId:'mv1',kind:'movie',type:'scene',title:'沙丘 2',body:'保罗驯沙虫 — 大远景把声音全剪掉，只剩沙暴。',at:'1:12:40',tag:'重点',starred:0,thought:'',created:Date.now()-1*86400000,img:'linear-gradient(135deg,#c9932a,#6d4b12)',rev:0},
+  {id:'nt7',itemId:'mu2',kind:'music',type:'lyric',title:'Random Access Memories',body:'Get Lucky 前奏一响，vocoder 出来那拍整个房间都在闪光。',at:'曲目 3',tag:'共鸣',starred:0,thought:'',created:Date.now()-3*86400000,img:null,rev:0}
 ];
 const MPLISTS=[{name:'通勤循环',src:'网易云',n:42},{name:'加班背景',src:'Spotify',n:60},{name:'写代码',src:'Apple Music',n:35},{name:'一个人的地铁',src:'QQ音乐',n:28}];
 const MMOMENTS=[
@@ -2717,7 +2748,7 @@ const MSTATE_MAP={movie:['未看','在看','看完','搁置'],series:['未看','
 const MSRT=['recent','rating','added','year','title','progress'];
 const MTYPE_LABEL={scene:'名场面',line:'台词',lyric:'歌词',shot:'截图',long:'长评'};
 const MTYPE_COLOR={scene:'#dc2626',line:'#f59e0b',lyric:'#059669',shot:'#6366f1',long:'#94a3b8'};
-let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src';
+let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='card',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[];
 
 function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));return l}
 function mKindCounts(){const o={movie:0,series:0,game:0};MDEMO.forEach(x=>{if(x.kind!=='music')o[x.kind]++});o.music=MMOMENTS.length;o.all=o.movie+o.series+o.game+o.music;return o}
@@ -2782,10 +2813,10 @@ function mRenderDetail(){
   if(x.kind==='series'){extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-1">季 · 单集</div><div class="flex gap-2 mb-2">${Array.from({length:x.seasons},(_,i)=>`<button class="mds-chip ${i===0?'on':''}">S${i+1}</button>`).join('')}</div><div class="mds-grid" style="grid-template-columns:repeat(6,1fr);gap:8px">${Array.from({length:Math.min(x.eps,12)},(_,i)=>`<div class="mds-card" style="aspect-ratio:1/1;background:radial-gradient(circle at 50% 50%,#f5c842 0 5px,#111 5px 7px,#333 7px 12px,#111 12px);box-shadow:0 2px 6px rgba(0,0,0,.35)" title="第 ${i+1} 集"></div>`).join('')}</div></div>`}
   else if(x.kind==='music'){extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-1">曲目</div><div class="space-y-1 text-[11px] mds-mono">${Array.from({length:Math.min(x.tracks,12)},(_,i)=>`<div class="flex justify-between p-2" style="background:rgba(255,255,255,.55);border-radius:6px;color:var(--mds-ink)"><span>${i<5?'A':'B'}${i<5?i+1:i-4} · 曲目 ${i+1}</span><span style="opacity:.6">${3+((i*7)%4)}:${String(11+(i*13)%60).padStart(2,'0')}</span></div>`).join('')}</div><div class="mt-2 text-[10px] mds-mono" style="opacity:.65">总循环 ${x.loops} 次 · 最常 <b>${x.fav}</b></div></div>`}
   else if(x.kind==='game'){const logs=x.glogs||[];const ring=(l,v)=>`<div class="text-center p-2" style="background:rgba(255,255,255,.4);border-radius:8px;color:var(--mds-ink)"><svg width="42" height="42" viewBox="0 0 42 42" class="ring-progress"><circle cx="21" cy="21" r="17" fill="none" stroke="rgba(0,0,0,.1)" stroke-width="4"/><circle cx="21" cy="21" r="17" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="${(v*106/100).toFixed(1)} 106" stroke-linecap="round"/></svg><div class="text-[10px] mds-mono mt-1">${l}</div><div class="text-[12px] mds-title">${v}%</div></div>`;const prog=(x.mainPct!=null)?`<div class="mds-title text-[12px] mb-2">进度</div><div class="grid grid-cols-3 gap-2">${[['主线',x.mainPct],['支线',x.sidePct],['全成就',x.achPct]].filter(p=>p[1]!=null).map(([l,v])=>ring(l,v)).join('')}</div>`:'';const chips=`<div class="mt-3 flex gap-2 flex-wrap text-[10px] mds-mono"><span class="mds-chip">${x.plat}</span><span class="mds-chip">${x.year}</span>${x.plays?`<span class="mds-chip">周目 ${x.plays}</span>`:''}</div>`;const stats=`<div class="grid grid-cols-3 gap-2 mb-1.5">${[['累计',(x.hours||0)+'h'],['游玩次数',logs.length||'—'],['最近和',x.withWho||'—']].map(([l,v])=>`<div class="text-center p-2" style="background:rgba(15,23,42,.05);border-radius:8px;color:var(--mds-ink)"><div class="text-[10px] mds-mono" style="opacity:.6">${l}</div><div class="text-[12px] mds-title mt-0.5">${v}</div></div>`).join('')}</div>`;extra=`<div class="mt-3">${prog}${chips}<div class="mds-title text-[12px] mt-3 mb-1">游玩日志 · 每次追加（谁一起玩 · 时长 · 玩了什么）</div>${stats}<div class="space-y-1.5">${logs.length?logs.map(g=>`<div class="flex justify-between gap-2 text-[11px] p-2" style="background:rgba(15,23,42,.04);border-radius:8px;color:var(--mds-ink)"><span class="min-w-0"><b>${g.who}</b> · ${g.what}<span style="opacity:.5"> · ${g.when}</span></span><span class="mds-mono shrink-0" style="opacity:.6">${g.hrs}h</span></div>`).join(''):'<div class="text-[11px] mds-mono" style="opacity:.55">还没有游玩记录 · 点下方「＋ 记一次游玩」</div>'}</div></div>`}
-  else{const notes=MNOTES.filter(n=>n.itemId===x.id);extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-2">名场面时间线</div><div class="space-y-2">${notes.length?notes.map(n=>`<div class="p-2.5 text-[11px]" style="background:rgba(255,255,255,.55);border-radius:8px;color:var(--mds-ink)"><div class="mds-mono" style="opacity:.6">${n.at}</div><div class="mt-1 leading-6">${n.body}</div></div>`).join(''):'<div class="text-[11px] mds-mono" style="opacity:.55">还没有名场面 · 点下方「＋ 记笔记」</div>'}</div></div>`}
-  const notes=MNOTES.filter(n=>n.itemId===x.id);
+  else{const notes=MNOTES.filter(n=>!n.gone&&n.itemId===x.id);extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-2">名场面时间线</div><div class="space-y-2">${notes.length?notes.map(n=>`<div class="p-2.5 text-[11px]" style="background:rgba(255,255,255,.55);border-radius:8px;color:var(--mds-ink)"><div class="mds-mono" style="opacity:.6">${n.at}</div><div class="mt-1 leading-6">${n.body}</div></div>`).join(''):'<div class="text-[11px] mds-mono" style="opacity:.55">还没有名场面 · 点下方「＋ 记笔记」</div>'}</div></div>`}
+  const notes=MNOTES.filter(n=>!n.gone&&n.itemId===x.id);
   const progressLine=x.kind==='movie'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">进度 <b class="mds-underline" onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.pct}%</b> · 时长 ${x.dur}min</div>`:x.kind==='series'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">看到 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">S${x.seasons}E${x.cur}</b> · ${x.airState}</div>`:x.kind==='music'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">循环 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.loops}</b> 次 · 最常 ${x.fav}</div>`:`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">${x.mainPct!=null?`主线 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.mainPct}%</b> · ${x.plays||1} 周目`:`累计 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.hours||0}h</b> · 最近和 ${x.withWho||'—'}`}</div>`;
-  b.innerHTML=`<div class="flex gap-3 items-start" style="max-width:220px">${mCardHTML(x)}<div class="flex-1 pt-1" style="min-width:0"><div class="text-[10px] mds-mono" style="opacity:.55">${x.sub||''}</div><div class="mds-title text-[16px] mt-0.5">${x.title}</div><div class="text-[11px] mt-1">${x.cRole||''} · ${x.creator}</div><div class="text-[11px] mds-mono" style="opacity:.7">${x.pRole||''} ${x.pub} · ${x.year}</div>${progressLine}</div></div><div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">${(x.tags||[]).map(t=>`<span class="mds-chip">${t}</span>`).join('')}<span class="mds-chip" style="border:1.5px dashed currentColor;background:transparent;opacity:.75">${x.src}</span>${x.grp?`<span class="mds-chip" style="opacity:.8">分组 · ${x.grp}</span>`:''}</div><div class="mt-3 text-[12px] leading-7" style="opacity:.9">${x.intro||('演示简介：'+x.title+' 由 '+x.creator+' 创作，'+x.year+' 年发行，'+x.pRole+' '+x.pub+'。评分 '+x.rating+'。')}</div>${extra}<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="openSheet('m-sheet-progress')">＋ 记进度</button><button class="mds-chip" onclick="openSheet('m-sheet-note-edit')">＋ 记笔记</button><button class="mds-chip" onclick="openSheet('m-sheet-ops')">操作</button><button class="mds-chip" onclick="mInfoOpen()">条目资料</button><button class="mds-chip" onclick="mTimerTap()">${['▶ 计时','■ 结束'][0]}</button></div>`;
+  b.innerHTML=`<div class="flex gap-3 items-start" style="max-width:220px">${mCardHTML(x)}<div class="flex-1 pt-1" style="min-width:0"><div class="text-[10px] mds-mono" style="opacity:.55">${x.sub||''}</div><div class="mds-title text-[16px] mt-0.5">${x.title}</div><div class="text-[11px] mt-1">${x.cRole||''} · ${x.creator}</div><div class="text-[11px] mds-mono" style="opacity:.7">${x.pRole||''} ${x.pub} · ${x.year}</div>${progressLine}</div></div><div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">${(x.tags||[]).map(t=>`<span class="mds-chip">${t}</span>`).join('')}<span class="mds-chip" style="border:1.5px dashed currentColor;background:transparent;opacity:.75">${x.src}</span>${x.grp?`<span class="mds-chip" style="opacity:.8">分组 · ${x.grp}</span>`:''}</div><div class="mt-3 text-[12px] leading-7" style="opacity:.9">${x.intro||('演示简介：'+x.title+' 由 '+x.creator+' 创作，'+x.year+' 年发行，'+x.pRole+' '+x.pub+'。评分 '+x.rating+'。')}</div>${extra}<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="openSheet('m-sheet-progress')">＋ 记进度</button><button class="mds-chip" onclick="mOpenNoteEdit(x.id)">＋ 记笔记</button><button class="mds-chip" onclick="openSheet('m-sheet-ops')">操作</button><button class="mds-chip" onclick="mInfoOpen()">条目资料</button><button class="mds-chip" onclick="mTimerTap()">${['▶ 计时','■ 结束'][0]}</button></div>`;
 }
 /* ================= 影音游批4 · 条目资料（m-info）与计时明细（m-sesslog） ================= */
 /* 会话演示行：min＝真实耗时（账本吃这个数），speed 大于 1 才在行上出折算；p0/p1＝该次进度起讫快照（按 kind 解释）；src 计时|补记 */
@@ -2917,11 +2948,99 @@ function mRenderHub(){
 }
 function mStartTimerFor(){const x=MDEMO.find(i=>['在看','在追','在玩','在听','循环中'].includes(i.state))||MDEMO[0];mOpen(x.id)}
 function mTimerTap(){toast('计时起停（演示 · 悬浮计时条按 kind 切换文案）')}
-function mFlipReview(){mReviewFlipped=!mReviewFlipped;const el=$('#mdsHubRev');if(el)el.classList.toggle('flipped',mReviewFlipped)}
+function mFlipReview(){mReviewFlipped=!mReviewFlipped;const el=$('#mdsRevCard');if(el)el.classList.toggle('flipped',mReviewFlipped)}
+const MNOTE_KINDTXT={movie:'电影',series:'剧集',music:'音乐',game:'游戏'};
+const MNOTE_VIEWS=[['card','卡片'],['list','行'],['byitem','按条目'],['wall','截图墙']];
+const MNOTE_EMPTY_STYLE='padding:18px 4px;border-bottom:1px dashed currentColor;opacity:.45;font-size:11px';
+function mNotesLive(){return MNOTES.filter(n=>!n.gone)}
+function mRevNextDays(n){return (n.rev||0)>=3?Infinity:[1,3,7][n.rev||0]}
+function mRevDue(n){return !n.gone&&(Date.now()-(n.created||Date.now()))/86400000>=mRevNextDays(n)}
+function mNoteFiltered(){const q=(mNoteQ||'').trim();return mNotesLive().filter(n=>(mNoteType==='all'||n.type===mNoteType)&&(mNoteKind==='all'||n.kind===mNoteKind)&&(mNoteItem==='all'||n.itemId===mNoteItem)&&(!mNoteStar||n.starred)&&(mNoteTag==='all'||n.tag===mNoteTag)&&(!q||((n.body||'')+(n.title||'')+(n.thought||'')).indexOf(q)>=0))}
+function mUpdateRevBadge(){const b=$('#mNoteRevBadge');if(!b)return;const d=mNotesLive().filter(mRevDue).length;b.textContent=d;b.style.display=d?'':'none'}
+function mNoteActs(n){return `<button class="mds-chip" style="padding:2px 8px;font-size:9px" onclick="event.stopPropagation();mNoteStarToggle('${n.id}')">${n.starred?'取消标星':'标星'}</button><button class="mds-chip" style="padding:2px 8px;font-size:9px" onclick="event.stopPropagation();if(confirm('把这条笔记移入回收站？'))mNoteDel('${n.id}')">删除</button>`}
+function mNoteHead(n){return `<div class="text-[9px] mds-mono" style="opacity:.6">${MNOTE_KINDTXT[n.kind]} · 《${n.title}》${n.at?' · '+n.at:''} · ${MTYPE_LABEL[n.type]}</div>`}
 function mRenderNotes(){
+  const all=mNotesLive();
   const t=$('#mNoteTypeChips');if(t)t.innerHTML=[['all','全部'],...Object.entries(MTYPE_LABEL)].map(([k,l])=>`<button class="mds-chip ${mNoteType===k?'on':''}" onclick="mNoteType='${k}';mRenderNotes()">${l}</button>`).join('');
-  const k=$('#mNoteKindChips');if(k)k.innerHTML=[['all','不限 kind'],['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([kk,l])=>`<button class="mds-chip" onclick="toast('kind 筛选（演示）')">${l}</button>`).join('');
-  const b=$('#mNotesBody');if(b)b.innerHTML=MNOTES.filter(n=>mNoteType==='all'||n.type===mNoteType).map(n=>`<div class="p-3" style="background:rgba(255,255,255,.55);border-radius:10px;border-left:3px solid ${MTYPE_COLOR[n.type]};color:var(--mds-ink)"><div class="text-[9px] mds-mono" style="opacity:.6">${n.kind==='movie'?'电影':n.kind==='series'?'剧集':n.kind==='music'?'音乐':'游戏'} · 《${n.title}》${n.at?' · '+n.at:''} · ${MTYPE_LABEL[n.type]}</div><div class="text-[11px] mt-1 leading-6">${n.body}</div></div>`).join('');
+  const k=$('#mNoteKindChips');if(k)k.innerHTML=[['all','不限 kind'],['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([kk,l])=>`<button class="mds-chip ${mNoteKind===kk?'on':''}" onclick="mNoteKind='${kk}';mRenderNotes()">${l}</button>`).join('');
+  const seen={};const items=[];all.forEach(n=>{if(!seen[n.itemId]){seen[n.itemId]=1;items.push(n)}});
+  const it=$('#mNoteItemChips');if(it)it.innerHTML=[['all','不限条目','不限条目'],...items.map(n=>[n.itemId,'《'+n.title+'》'])].map(([kk,l])=>`<button class="mds-chip ${mNoteItem===kk?'on':''}" onclick="mNoteItem='${kk}';mRenderNotes()">${l}</button>`).join('');
+  const tg=$('#mNoteTagChips');if(tg){const tags=[...new Set(all.map(n=>n.tag).filter(Boolean))];tg.innerHTML=[['all','不限标签'],...tags.map(x=>[x,x])].map(([kk,l])=>`<button class="mds-chip ${mNoteTag===kk?'on':''}" onclick="mNoteTag='${kk}';mRenderNotes()">${l}</button>`).join('')}
+  const sc=$('#mNoteStarChip');if(sc)sc.className='mds-chip'+(mNoteStar?' on':'');
+  const seg=$('#mNoteViewSeg');if(seg)seg.innerHTML=MNOTE_VIEWS.map(([kk,l])=>`<button class="mds-chip${mNoteView===kk?' on':''}" style="flex:1;justify-content:center" onclick="mNoteView='${kk}';mRenderNotes()">${l}</button>`).join('');
+  const list=mNoteFiltered();
+  const cnt=$('#mNotesCount');if(cnt)cnt.textContent=`${list.length} 条 · 标星 ${list.filter(n=>n.starred).length}`;
+  const b=$('#mNotesBody');if(!b){mUpdateRevBadge();return}
+  if(!all.length){b.innerHTML=`<div class="mempty" style="${MNOTE_EMPTY_STYLE}">还没有影音笔记 · 点右上＋记一条</div>`;mUpdateRevBadge();return}
+  if(!list.length){b.innerHTML=`<div class="mempty" style="${MNOTE_EMPTY_STYLE}">当前筛选没有笔记</div>`;mUpdateRevBadge();return}
+  if(mNoteView==='card')b.innerHTML=`<div class="mds-grid">`+list.map(n=>`<div class="mrow p-3" style="background:rgba(255,255,255,.55);border-radius:10px;border-left:3px solid ${MTYPE_COLOR[n.type]};color:var(--mds-ink);cursor:pointer" onclick="mOpenReview('one','${n.id}')">${mNoteHead(n)}<div class="text-[11px] mt-1 leading-6">${n.body}</div><div class="flex gap-2 mt-2">${mNoteActs(n)}</div></div>`).join('')+`</div>`;
+  else if(mNoteView==='list')b.innerHTML=list.map(n=>`<div class="mrow flex items-center gap-2 py-2" style="border-bottom:1px solid rgba(0,0,0,.08);cursor:pointer" onclick="mOpenReview('one','${n.id}')"><i style="width:8px;height:8px;border-radius:99px;background:${MTYPE_COLOR[n.type]};flex-shrink:0"></i><span class="text-[9px] mds-mono" style="opacity:.6;white-space:nowrap">${MNOTE_KINDTXT[n.kind]}·${n.title}${n.at?'·'+n.at:''}</span><span class="text-[11px]" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.body}</span>${mNoteActs(n)}</div>`).join('');
+  else if(mNoteView==='byitem'){const g={};list.forEach(n=>{(g[n.itemId]=g[n.itemId]||{t:n.title,rows:[]}).rows.push(n)});b.innerHTML=Object.values(g).map(gr=>`<div class="mb-3"><div class="mds-title text-[12px] mb-1.5">《${gr.t}》 · ${gr.rows.length} 条</div><div class="mds-grid">`+gr.rows.map(n=>`<div class="mrow p-3" style="background:rgba(255,255,255,.55);border-radius:10px;border-left:3px solid ${MTYPE_COLOR[n.type]};color:var(--mds-ink);cursor:pointer" onclick="mOpenReview('one','${n.id}')"><div class="text-[9px] mds-mono" style="opacity:.6">${n.at?n.at+' · ':''}${MTYPE_LABEL[n.type]}</div><div class="text-[11px] mt-1 leading-6">${n.body}</div></div>`).join('')+`</div></div>`).join('')}
+  else b.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`+list.map(n=>`<div class="mrow" style="cursor:pointer" onclick="mOpenReview('one','${n.id}')"><div style="aspect-ratio:16/10;border-radius:10px;${n.img?'background:'+n.img:'background:transparent;border:1.5px dashed rgba(0,0,0,.25)'}"></div><div class="text-[9px] mds-mono mt-1" style="opacity:.6">${MNOTE_KINDTXT[n.kind]}·${n.title}${n.at?' · '+n.at:''}${n.img?'':' · 无截图'}</div></div>`).join('')+`</div>`;
+  mUpdateRevBadge();
+}
+function mNoteStarToggle(id){const n=MNOTES.find(x=>x.id===id);if(n){n.starred=n.starred?0:1;mRenderNotes()}}
+function mNoteDel(id){const n=MNOTES.find(x=>x.id===id);if(n){n.gone=Date.now();mRenderNotes();toast('已移入回收站（演示）')}}
+function mOpenReview(mode,noteId){
+  mReviewFlipped=false;
+  mRevQueue=mode==='one'?MNOTES.filter(x=>x.id===noteId):mNotesLive().filter(mRevDue);
+  mRevSingle=(mode==='one');mRevIdx=0;
+  openSheet('m-review');mRenderReview();
+}
+function mRenderReview(){
+  const wrap=$('#mRevWrap'),empty=$('#mRevEmpty');
+  if(!mRevQueue.length){if(wrap)wrap.style.display='none';if(empty)empty.classList.remove('hidden');const pos=$('#mRevPos');if(pos)pos.textContent='';return}
+  if(wrap)wrap.style.display='';if(empty)empty.classList.add('hidden');
+  const n=mRevQueue[Math.min(mRevIdx,mRevQueue.length-1)];
+  const card=$('#mdsRevCard');if(card)card.classList.remove('flipped');
+  const f=$('#mdsRevFront');if(f)f.innerHTML=`<div class="text-[9px] mds-mono mb-2" style="opacity:.55">${MTYPE_LABEL[n.type]}${n.img?' · 截图':''}</div>${n.img?`<div style="height:84px;border-radius:10px;background:${n.img};margin-bottom:10px"></div>`:''}<div class="text-[13px] leading-7">${n.body}</div>`;
+  const bk=$('#mdsRevBack');if(bk)bk.innerHTML=`<div class="text-[9px] mds-mono mb-2" style="opacity:.55">出处</div><div class="mds-title text-[14px]">${MNOTE_KINDTXT[n.kind]} · 《${n.title}》${n.at?' · '+n.at:''}</div><div class="text-[12px] leading-6 mt-3"><span class="mds-mono text-[10px]" style="opacity:.55">我的批注</span><div class="mt-1"${n.thought?'':';border-bottom:1px dashed currentColor;opacity:.45'}>${n.thought||'未写批注'}</div></div>`;
+  const pos=$('#mRevPos');if(pos)pos.textContent=mRevSingle?'单条':(mRevIdx+1)+' / '+mRevQueue.length;
+  const st=$('#mRevStageChips');if(st){const rev=n.rev||0;st.innerHTML=['1 天','3 天','7 天'].map((l,i)=>`<span class="mds-chip${i<rev?' on':''}" style="${i===rev?'outline:1.5px solid currentColor':''}">${l}</span>`).join('')+`<span class="text-[10px] mds-mono ml-auto" style="opacity:.55">档位 ${['1 天','3 天','7 天','已学完'][Math.min(rev,3)]}</span>`}
+}
+function mReviewDone(){
+  if(!mRevQueue.length)return;
+  const n=mRevQueue[mRevIdx];
+  if(!mRevSingle){n.rev=(n.rev||0)+1;toast(n.rev>=3?'三档复习完成':'已通过 · 下次 '+['1 天','3 天','7 天','已学完'][Math.min(n.rev,3)]+'档')}
+  else toast('已通过（单条模式 · 不改档位）');
+  mRevQueue.splice(mRevIdx,1);
+  if(mRevIdx>=mRevQueue.length)mRevIdx=0;
+  mRenderReview();mUpdateRevBadge();
+}
+function mReviewSkip(){
+  if(!mRevQueue.length)return;
+  mRevQueue.splice(mRevIdx,1);
+  if(mRevIdx>=mRevQueue.length)mRevIdx=0;
+  mRenderReview();mUpdateRevBadge();
+}
+function mOpenNoteEdit(itemId,preType){
+  mNoteSelItem=itemId||'';mNoteSelType=preType||'scene';mNoteImgs=[];
+  openSheet('m-sheet-note-edit');mRenderNoteEdit();
+}
+function mRenderNoteEdit(){
+  const cur=mNoteSelItem||MDEMO[0].id;
+  const ic=$('#mdsNoteItemChips');if(ic)ic.innerHTML=MDEMO.map(x=>`<button class="mds-chip${cur===x.id?' on':''}" onclick="mNoteSelItem='${x.id}';mRenderNoteEdit()">《${x.title}》</button>`).join('');
+  const tc=$('#mdsNoteTypeChips');if(tc)tc.innerHTML=Object.entries(MTYPE_LABEL).map(([kk,l])=>`<button class="mds-chip${mNoteSelType===kk?' on':''}" style="border-left:3px solid ${MTYPE_COLOR[kk]}" onclick="mNoteSelType='${kk}';mRenderNoteEdit()">${l}</button>`).join('');
+  const kind=(MDEMO.find(x=>x.id===cur)||{}).kind;
+  const u=$('#mdNoteUnit');if(u)u.placeholder={movie:'时间点外的备注（可选）',series:'第 5 集',music:'曲目 3',game:'章节 / 周目'}[kind]||'第 5 集 / 曲目 3 / 章节';
+  const im=$('#mdNoteImgs');if(im)im.innerHTML=(mNoteImgs.map((g,i)=>`<div style="position:relative;width:56px;height:36px;border-radius:6px;flex-shrink:0;background:${g}"><button onclick="mNoteImgs.splice(${i},1);mRenderNoteEdit()" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:99px;border:1px solid currentColor;background:var(--mds-desk-bg);font-size:9px;line-height:1">×</button></div>`).join(''))||'<span class="text-[10px] mds-mono" style="opacity:.45">无附件</span>';
+  const when=$('#mdNoteWhen');if(when&&!when.value)when.value='现在';
+}
+function mNoteAddImg(){const c=MD_COV[mNoteImgs.length%MD_COV.length];mNoteImgs.push('linear-gradient(135deg,'+c[0]+','+c[1]+')');mRenderNoteEdit()}
+function mNotePaste(){const ta=$('#mdNoteBody');if(ta){ta.value=(ta.value?ta.value+' ':'')+'［粘贴］雨后天台那一场，镜头从水洼里先抬起头。';ta.dispatchEvent(new Event('input'))}toast('已粘贴剪贴板文本（演示）')}
+function mNoteSave(){
+  const ta=$('#mdNoteBody');const body=((ta&&ta.value)||'').trim();
+  const err=$('#mdNoteErr');
+  if(!body){if(err)err.classList.remove('hidden');return}
+  if(err)err.classList.add('hidden');
+  const item=MDEMO.find(x=>x.id===(mNoteSelItem||MDEMO[0].id))||MDEMO[0];
+  const gv=id=>{const e=$('#'+id);return e?e.value.trim():''};
+  const n={id:'nt'+Date.now(),itemId:item.id,kind:item.kind,type:mNoteSelType,title:item.title,body,at:gv('mdNoteAt')||gv('mdNoteUnit'),tag:gv('mdNoteTag'),thought:gv('mdNoteAnno'),starred:0,created:Date.now(),img:mNoteImgs.length?mNoteImgs[0]:null,rev:0};
+  MNOTES.unshift(n);
+  closeSheet('m-sheet-note-edit');
+  if(ta)ta.value='';
+  if(curPage==='m-notes')mRenderNotes();
+  toast('已记一条'+MTYPE_LABEL[mNoteSelType]+' · 《'+item.title+'》');
 }
 function mRenderMgr(){
   const tab=$('#mMgrTabs');if(tab)tab.innerHTML=[['src','来源'],['grp','分组'],['creator','创作者'],['pub','发行'],['tags','标签']].map(([k,l])=>`<button class="mds-chip ${mMgrTab===k?'on':''}" onclick="mMgrTab='${k}';mRenderMgr()">${l}</button>`).join('');

@@ -6,6 +6,10 @@
 必须真实存在；含通配符或行内有「已删除/找回/git log」豁免词的行跳过。任何红灯 exit 1。"""
 import os, re, subprocess, sys
 
+if hasattr(sys.stdout, "reconfigure"):      # GBK 控制台吃中文（2026-10-08 实踩）：统一按 UTF-8 出
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
@@ -105,6 +109,17 @@ for _l in idx.split("\n"):
         continue
     if "⚙ 执行面板" not in open(_p, encoding="utf-8", errors="replace").read():
         g.append(f"守护六：活施工工单缺「执行面板」小节（标题匹配串＝gear符+空格+执行面板，见计划书 §7.5）: {_p}")
+# 7) STATUS 体量硬闸（2026-10-08 治理批立·细则＝tools/status_set.py 头注释）
+#    行数预算（守护五）拦不住「一行滚到 8 千字符」，这里补单行/全文/字段级数三道闸；
+#    收尾改 STATUS 一律走 `python tools/status_set.py --rotate` + `--set 本批 --text-file`，禁手改表头行。
+st = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "status_set.py"), "--check"],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace")
+for _l in (st.stdout or "").splitlines():
+    if _l.strip() and st.returncode != 0:
+        g.append("守护七：" + _l.strip())
+if st.returncode != 0 and not (st.stdout or "").strip():
+    g.append("守护七：status_set.py --check 异常退出 rc=%s（stderr=%s）"
+             % (st.returncode, (st.stderr or "").strip()[:160]))
 if g:
     print(f"守护红灯 {len(g)} 处:")
     for x in g:
