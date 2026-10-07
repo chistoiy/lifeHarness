@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
 import '../domain/media_session.dart';
 import 'media_actions.dart';
+import 'media_ops_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
 import 'widgets/media_card.dart';
@@ -44,13 +44,13 @@ class MediaDetailPage extends ConsumerWidget {
             key: const ValueKey('mds-detail-ops'),
             tooltip: '更多',
             icon: const Icon(Icons.more_horiz),
-            onSelected: (v) async {
-              if (v == 'trash' && item.valueOrNull != null && context.mounted) {
-                await _trashItem(context, ref, item.valueOrNull!);
-              }
+            onSelected: (v) {
+              final x = item.valueOrNull;
+              if (x == null || !context.mounted) return;
+              showMediaOpsSheet(context, ref, x);
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'trash', child: Text('移入回收站')),
+              PopupMenuItem(value: 'ops', child: Text('条目操作')),
             ],
           ),
         ],
@@ -73,20 +73,6 @@ class MediaDetailPage extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  Future<void> _trashItem(
-    BuildContext context,
-    WidgetRef ref,
-    MediaItem x,
-  ) async {
-    final ok = await lhConfirm(context, '把「${x.title}」移入回收站？7 天内可找回。');
-    if (!ok || !context.mounted) return;
-    await ref.read(mediaRepositoryProvider).softDelete([x.id]);
-    if (!context.mounted) return;
-    final tick = ref.read(mediaTickProvider.notifier);
-    tick.state = tick.state + 1;
-    context.pop();
   }
 
   Widget _body(BuildContext context, WidgetRef ref, MediaItem x) {

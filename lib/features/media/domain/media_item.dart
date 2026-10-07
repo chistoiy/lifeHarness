@@ -247,6 +247,58 @@ class MediaItem {
   /// 仓储取数时回填，未回填时 null＝卡面按 0 读）。
   final int? listenLoops;
 
+
+  /// 编辑保存的合并口径：表单能改的字段用新值，**表单没露出去的字段照旧**
+  /// （评分/简介/各家外部 id/起止与活动时刻/创建时间/软删标记）。
+  /// [old] 为 null（理论不会发生）＝原样返回自己。
+  MediaItem mergedOnto(MediaItem? old) {
+    if (old == null) return this;
+    return MediaItem(
+      id: id.isEmpty ? old.id : id,
+      kind: kind,
+      title: title,
+      subtitle: subtitle ?? old.subtitle,
+      creator: creator,
+      creatorRole: creatorRole ?? old.creatorRole,
+      publisher: publisher,
+      publisherRole: publisherRole ?? old.publisherRole,
+      releaseYear: releaseYear,
+      country: old.country,
+      language: old.language,
+      coverPath: old.coverPath,
+      colorIdx: old.colorIdx,
+      state: state,
+      rating: old.rating,
+      myRating: old.myRating,
+      durationMin: durationMin,
+      seasonsCount: seasonsCount,
+      episodesTotal: episodesTotal,
+      tracksCount: tracksCount,
+      playthroughs: playthroughs,
+      mainPct: mainPct,
+      sidePct: old.sidePct,
+      achPct: old.achPct,
+      completed: old.completed,
+      progressWay: progressWay,
+      progressFrom: old.progressFrom,
+      progressTo: progressTo,
+      source: source ?? old.source,
+      grp: grp ?? old.grp,
+      externalIds: old.externalIds,
+      tags: old.tags,
+      startedAt: old.startedAt,
+      endedAt: old.endedAt,
+      lastActivityAt: old.lastActivityAt,
+      intro: old.intro,
+      note: old.note,
+      finalNote: old.finalNote,
+      createdAt: old.createdAt,
+      updatedAt: updatedAt,
+      deletedAt: old.deletedAt,
+      listenLoops: old.listenLoops,
+    );
+  }
+
   MediaItem copyWith({
     String? title,
     String? state,

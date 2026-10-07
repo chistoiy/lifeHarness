@@ -90,6 +90,48 @@ class MediaWorkbench extends ConsumerWidget {
         ),
         // 计时中行（批3）：有在跑会话才出现，实时分钟随 mediaTick/分钟刷新。
         const _RunningRow(),
+        const SizedBox(height: 14),
+        // 影音资料入口（原型 mdsEntryBar「资料」一枚＝通用管理器，本批交付）
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('media-open-mgr'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => context.push('/media/mgr'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.category_outlined,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      '影音资料',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    '来源 · 分组 · 创作者 · 发行 · 标签',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         if (recent.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(

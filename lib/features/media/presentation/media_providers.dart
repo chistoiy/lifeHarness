@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/media_repo_dict.dart';
 import '../data/media_repo_session.dart';
 import '../data/media_repository.dart';
 import '../domain/media_item.dart';
@@ -121,4 +122,19 @@ final mediaSessionsProvider = FutureProvider.family<List<MediaSession>, String>(
 final mediaMinutesProvider = FutureProvider.family<int, String>((ref, id) {
   ref.watch(mediaTickProvider);
   return ref.watch(mediaRepositoryProvider).minutesOfItem(id);
+});
+
+/// 管理器当前类（原型 mMgrTab＝src/grp/creator/pub/tags）。
+final mediaDictTabProvider = StateProvider<String>((ref) => 'source');
+
+/// 一类名册清单（名册 ∪ 条目实际值＋引用数；写库后随 mediaTick 重取）。
+final mediaDictRowsProvider =
+    FutureProvider.family<List<({String name, int refCount})>, String>((
+  ref,
+  tab,
+) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).dictRows(
+    MediaDictRepo.dictKinds[tab] ?? tab,
+  );
 });

@@ -145,6 +145,13 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
             ],
           ),
           _ViewBtn(
+            key: const ValueKey('mds-mgr-entry'),
+            icon: Icons.category_outlined,
+            label: '影音资料',
+            selected: false,
+            onTap: () => context.push('/media/mgr'),
+          ),
+          _ViewBtn(
             key: const ValueKey('mds-manage'),
             icon: Icons.checklist_outlined,
             label: '管理',

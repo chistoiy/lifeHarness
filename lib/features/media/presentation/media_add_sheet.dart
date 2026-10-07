@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/ui_kit.dart';
+import '../data/media_repo_dict.dart';
 import '../domain/media_item.dart';
 import 'media_providers.dart';
 
@@ -19,19 +20,26 @@ Future<void> showMediaAddSheet(
   BuildContext context,
   WidgetRef ref, {
   String initialKind = MediaItem.kMovie,
+  MediaItem? existing,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _MediaAddSheet(initialKind: initialKind),
+    builder: (_) => _MediaAddSheet(
+      initialKind: existing?.kind ?? initialKind,
+      existing: existing,
+    ),
   );
 }
 
 class _MediaAddSheet extends ConsumerStatefulWidget {
-  const _MediaAddSheet({required this.initialKind});
+  const _MediaAddSheet({required this.initialKind, this.existing});
 
   final String initialKind;
+
+  /// 编辑模式（原型 `m-sheet-edit`：复用新条目表单结构，尾句「（含各家 ID）」）。
+  final MediaItem? existing;
 
   @override
   ConsumerState<_MediaAddSheet> createState() => _MediaAddSheetState();
@@ -39,6 +47,9 @@ class _MediaAddSheet extends ConsumerStatefulWidget {
 
 class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
   late String _kind = widget.initialKind;
+
+  /// 非空＝编辑（保存走 updateItem 而非 addItem）。
+  String? _id;
 
   /// 进度方式随类型走：换类即回到该类默认档（刀3 钉这里）。
   late String _way = MediaItem.defaultWay(widget.initialKind);
@@ -56,6 +67,26 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
   final _playthroughs = TextEditingController();
   bool _saving = false;
   String? _titleErr;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e == null) return;
+    _id = e.id;
+    _title.text = e.title;
+    _creator.text = e.creator == '未知' ? '' : e.creator;
+    _publisher.text = e.publisher ?? '';
+    _year.text = (e.releaseYear ?? 0) > 0 ? '${e.releaseYear}' : '';
+    _duration.text = e.durationMin > 0 ? '${e.durationMin}' : '';
+    _progress.text = e.progressTo ?? '';
+    _seasons.text = e.seasonsCount > 0 ? '${e.seasonsCount}' : '';
+    _episodes.text = e.episodesTotal > 0 ? '${e.episodesTotal}' : '';
+    _curEp.text = e.kind == MediaItem.kSeries ? (e.progressTo ?? '') : '';
+    _tracks.text = e.tracksCount > 0 ? '${e.tracksCount}' : '';
+    _playthroughs.text = e.playthroughs > 0 ? '${e.playthroughs}' : '';
+    _way = e.progressWay;
+  }
 
   @override
   void dispose() {
@@ -77,10 +108,14 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
     super.dispose();
   }
 
-  void _pickKind(String k) => setState(() {
-    _kind = k;
-    _way = MediaItem.defaultWay(k);
-  });
+  void _pickKind(String k) {
+    // 编辑模式不换类型：四类各写各的进度列，串档＝假账（要换类型走重建条目）。
+    if (widget.existing != null || k == _kind) return;
+    setState(() {
+      _kind = k;
+      _way = MediaItem.defaultWay(k);
+    });
+  }
 
   int _num(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
 
@@ -99,6 +134,7 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
     final now = DateTime.now().millisecondsSinceEpoch;
     final prog = _num(_progress);
     final item = MediaItem(
+      id: _id ?? '',
       kind: _kind,
       title: title,
       creator: _creator.text.trim().isEmpty ? '未知' : _creator.text.trim(),
@@ -142,7 +178,22 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
       updatedAt: now,
       lastActivityAt: now,
     );
-    final id = await ref.read(mediaRepositoryProvider).addItem(item);
+    final repo = ref.read(mediaRepositoryProvider);
+    final String id;
+    if (_id == null) {
+      id = await repo.addItem(item);
+      // 自动入库：创作者/发行方/来源/标签/分组进名册（幂等，空值不进）
+      await repo.registerItemNames(item);
+    } else {
+      // 编辑＝整行覆盖（外部 id/简介/评分等未列字段随 item 原样带过），
+      // 新名字同样补登记——名册只增不删，删走管理器。
+      id = _id!;
+      final old = await repo.itemById(id);
+      // 表单没这一栏的字段一律照原样带过（评分/简介/外部各家 id/起止时间…），
+      // 编辑不许把没填的东西清成空。
+      await repo.updateItem(item.mergedOnto(old));
+      await repo.registerItemNames(item);
+    }
     if (!mounted) return;
     final tick = ref.read(mediaTickProvider.notifier);
     tick.state = tick.state + 1;
@@ -176,9 +227,9 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
                   ),
                 ),
               ),
-              const Text(
-                '新条目',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              Text(
+                widget.existing == null ? '新条目' : '编辑条目',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -190,7 +241,8 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
                       key: ValueKey('mds-add-kind-$k'),
                       label: MediaItem.labelOf(k),
                       selected: _kind == k,
-                      onTap: () => _pickKind(k),
+                      // 编辑态＝常亮不可点（置灰不隐藏口径的另一半：看得见自己是谁）
+                      onTap: widget.existing == null ? () => _pickKind(k) : null,
                     ),
                 ],
               ),
@@ -242,7 +294,9 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
                     child: FilledButton(
                       key: const ValueKey('mds-add-save'),
                       onPressed: _saving ? null : _save,
-                      child: const Text('保存 · 进入影音架'),
+                      child: Text(
+                        widget.existing == null ? '保存 · 进入影音架' : '保存改动',
+                      ),
                     ),
                   ),
                 ],

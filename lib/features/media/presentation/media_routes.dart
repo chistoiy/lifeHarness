@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'media_detail_page.dart';
+import 'media_mgr_page.dart';
 import 'media_shelf_page.dart';
 import 'media_timer_page.dart';
 
@@ -27,5 +28,12 @@ List<GoRoute> mediaPageRoutes() => [
   GoRoute(
     path: '/media/timer/:id',
     builder: (_, s) => MediaTimerPage(itemId: s.pathParameters['id']!),
+  ),
+  // 通用管理器（原型 m-mgr）：`?tab=` 指定类，缺省＝来源。
+  GoRoute(
+    path: '/media/mgr',
+    builder: (_, s) => MediaMgrPage(
+      initialTab: s.uri.queryParameters['tab'],
+    ),
   ),
 ];
