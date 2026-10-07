@@ -78,3 +78,13 @@ __pycache__/
 # 治理二轮（20261002）：验收截图与一次性脚本坟场永不入库（历史已出仓，留底 D:/dev_workplace/lh-artifacts-keep）
 docs/acceptance*
 tools/attic/
+
+# 20261007 并行会话残留登记（可再生取证/临时件，不入库；本会话开工前盘点）
+tempWork/
+.zcodeignore
+/tmp_*.js
+tools/**/.*-probe*/
+tools/**/*_before.html
+tools/**/*.xml
+# 小工具模块已下架（V1.58）：tools/kits 未入库的一次性施工脚本原地留底即可（34 枚已跟踪文件不受影响）
+tools/kits/
