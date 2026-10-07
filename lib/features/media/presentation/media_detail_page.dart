@@ -40,6 +40,14 @@ class MediaDetailPage extends ConsumerWidget {
                 ? null
                 : () => mediaTimerTap(context, ref, item.valueOrNull!),
           ),
+          IconButton(
+            key: const ValueKey('mds-detail-info'),
+            tooltip: '条目资料',
+            icon: const Icon(Icons.info_outline),
+            onPressed: item.valueOrNull == null
+                ? null
+                : () => context.push('/media/item/${item.valueOrNull!.id}/info'),
+          ),
           PopupMenuButton<String>(
             key: const ValueKey('mds-detail-ops'),
             tooltip: '更多',

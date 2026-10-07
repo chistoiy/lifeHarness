@@ -1,7 +1,9 @@
 import 'package:go_router/go_router.dart';
 
 import 'media_detail_page.dart';
+import 'media_info_page.dart';
 import 'media_mgr_page.dart';
+import 'media_sesslog_page.dart';
 import 'media_shelf_page.dart';
 import 'media_timer_page.dart';
 
@@ -22,6 +24,16 @@ List<GoRoute> mediaPageRoutes() => [
   GoRoute(
     path: '/media/item/:id',
     builder: (_, s) => MediaDetailPage(itemId: s.pathParameters['id']!),
+  ),
+  // 条目资料（原型 m-info · LH-C16）：档案全字段＋一页总结＋明细入口。
+  GoRoute(
+    path: '/media/item/:id/info',
+    builder: (_, s) => MediaInfoPage(itemId: s.pathParameters['id']!),
+  ),
+  // 计时明细（原型 m-sesslog · LH-C17）：整屏逐条改／删／补记。
+  GoRoute(
+    path: '/media/item/:id/sessions',
+    builder: (_, s) => MediaSesslogPage(itemId: s.pathParameters['id']!),
   ),
   // 沉浸计时（原型 m-timer）：入口＝详情页计时钮（timerUI=full 直落本页；
   // capsule 档起停走悬浮条，进本页只作展开视图）。

@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'health_home_page.dart';
+import 'health_sleep_page.dart';
 
 /// 健康 · 模块路由（批2 起逐屏补，路径与 `docs/健康管理模块开发计划-20260927.md` §三 路由表同形）。
 ///
@@ -12,5 +13,10 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health',
     builder: (_, _) => const HealthHomePage(),
+  ),
+  // 睡眠记录（原型 p-sleepLog）：近 7 天柱状＋流水，点行就地改。
+  GoRoute(
+    path: '/health/sleep',
+    builder: (_, _) => const HealthSleepPage(),
   ),
 ];

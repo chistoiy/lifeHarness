@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -108,6 +109,22 @@ class _OpsSheet extends ConsumerWidget {
               () async {
                 Navigator.of(context).pop();
                 await showMediaProgressSheet(context, ref, item);
+              },
+            ),
+            (
+              '条目资料',
+              () async {
+                Navigator.of(context).pop();
+                if (!context.mounted) return;
+                context.push('/media/item/${item.id}/info');
+              },
+            ),
+            (
+              '计时明细',
+              () async {
+                Navigator.of(context).pop();
+                if (!context.mounted) return;
+                context.push('/media/item/${item.id}/sessions');
               },
             ),
             (

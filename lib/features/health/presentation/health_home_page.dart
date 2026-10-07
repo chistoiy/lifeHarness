@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/load_error_state.dart';
@@ -255,6 +256,20 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
     );
   }
 
+  /// ＋1 杯／撤销（B3）：连点**不弹确认**、当场生效（写库后 invalidate＋tick 重取），
+  /// 撤销到 0 就停住——按钮进禁用帧而不是把杯数减成负数。
+  Future<void> _bumpCups(int delta) async {
+    final pid = ref.read(activeHealthProfileProvider);
+    final day = dayKey(ref.read(healthClockProvider)());
+    final repo = ref.read(healthRepositoryProvider);
+    final cur = await repo.cupsOf(pid, day);
+    if (cur + delta < 0) return;
+    await repo.bumpCups(pid, day, delta);
+    if (!mounted) return;
+    ref.invalidate(healthTodayProvider);
+    healthTouch(ref);
+  }
+
   // ==================== 喝水卡 ====================
 
   Widget _waterCard(BuildContext context, HealthSettings st, double waterGoal) {
@@ -292,6 +307,27 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
             Text('${st.waterMl(cups)} ml',
                 style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
           ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  key: const ValueKey('health-water-plus'),
+                  onPressed: () => _bumpCups(1),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('＋1 杯'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('health-water-undo'),
+                  onPressed: cups == 0 ? null : () => _bumpCups(-1),
+                  child: const Text('撤销'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -348,6 +384,12 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
               const Spacer(),
               Text('$line 前', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+              // 流水与改记录在 `/health/sleep`（批2 第二屏），这里只给入口不给编辑面。
+              TextButton(
+                key: const ValueKey('health-sleep-all'),
+                onPressed: () => context.push('/health/sleep'),
+                child: const Text('记录', style: TextStyle(fontSize: 11)),
+              ),
             ],
           ),
           const SizedBox(height: 6),
