@@ -13,6 +13,7 @@ import 'schema/health.dart' as hd;
 import 'schema/habit.dart' as h;
 import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
+import 'schema/media.dart' as md;
 import 'schema/read.dart' as r;
 import 'schema/xray.dart' as x;
 class DbSchema {
@@ -31,7 +32,9 @@ class DbSchema {
   // （回收站第七类；子表 item_events/item_usages 不加列，随父行判在册）。
   // 37：V1.48/V1.48.1 健康管理模块——migrations[36]（36→37）建 health_* 十四表
   // （档案中心＋五类按日记录＋目标/体征/症状/报告/提醒）；新模块只建表不搬数据。
-  static const int version = 37;
+  // 38：影音游解禁批1——migrations[37]（37→38）建 media_* 七表
+  // （条目/会话/笔记/子项/字典/影音单/成员）；新模块只建表不搬数据。
+  static const int version = 38;
  
 
   
@@ -301,6 +304,7 @@ class DbSchema {
     ...aiCallSchemaStatements,
     ...xraySchemaStatements,
     ...hd.healthSchemaStatements,
+    ...md.mediaSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -419,5 +423,6 @@ class DbSchema {
     ...r.mig,
     ...x.mig,
     ...hd.mig,
+    ...md.mig,
   };
 }

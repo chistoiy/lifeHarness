@@ -24,8 +24,9 @@ void main() {
       .map((r) => r['name'] as String)
       .toSet();
 
-  test('版本号已到 37，且 36→37 段就是健康建表', () {
-    expect(DbSchema.version, 37);
+  test('健康建表段在册（36→37），当前版本已推进到其后', () {
+    expect(DbSchema.version, greaterThanOrEqualTo(38),
+        reason: '影音游批1 已把版本推到 38；健康段必须留在链上');
     expect(DbSchema.migrations.containsKey(36), isTrue,
         reason: '缺这段＝老库升级时不会建健康表（新装库有、老库没有＝最坏的一种不一致）');
   });

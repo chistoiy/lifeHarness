@@ -230,16 +230,18 @@
    "name": "影音游",
    "file": "index-media.html",
    "req": "V1.5x",
-   "status": "deferred",
+   "status": "current",
    "dev": "notStarted",
    "aliases": [
     "影音",
     "电影",
     "音乐",
-    "游戏"
+    "游戏",
+    "影音游",
+    "剧集",
+    "片单"
    ],
-   "rep": null,
-   "note": "延后裁定；文件冻结不动"
+   "rep": "m-shelf"
   },
   {
    "id": "sync",
@@ -1301,20 +1303,6 @@
     "index-media.html": {
      "size": 24332,
      "hash": "0ca6464b"
-    }
-   }
-  },
-  {
-   "id": "p-pstore",
-   "kind": "screen",
-   "title": "插件中心",
-   "home": "index-media.html",
-   "reps": [],
-   "status": "exclusive",
-   "files": {
-    "index-media.html": {
-     "size": 1721,
-     "hash": "156dff0d"
     }
    }
   },
@@ -3420,20 +3408,6 @@
    }
   },
   {
-   "id": "sheetPlugin",
-   "kind": "sheet",
-   "title": "",
-   "home": "index-media.html",
-   "reps": [],
-   "status": "exclusive",
-   "files": {
-    "index-media.html": {
-     "size": 1572,
-     "hash": "b86c8f7b"
-    }
-   }
-  },
-  {
    "id": "sheetProfile",
    "kind": "sheet",
    "title": "",
@@ -3468,20 +3442,6 @@
     "index-media.html": {
      "size": 945,
      "hash": "b6368a4c"
-    }
-   }
-  },
-  {
-   "id": "sheetPSDetail",
-   "kind": "sheet",
-   "title": "",
-   "home": "index-media.html",
-   "reps": [],
-   "status": "exclusive",
-   "files": {
-    "index-media.html": {
-     "size": 360,
-     "hash": "5978e67a"
     }
    }
   },
@@ -8009,8 +7969,8 @@
  "frozen": [
   "v2.html",
   "index-v2.html",
-  "index-media.html",
-  "index-sync.html"
+  "index-sync.html",
+  "index-media.html"
  ],
  "deleted": {
   "index.html": [
