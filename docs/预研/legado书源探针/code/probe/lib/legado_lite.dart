@@ -665,7 +665,7 @@ class Analyzer {
     if (axis == 'following-sibling' && tag != '*') {
       pool = pool.where((c) => c.localName == tag);
     }
-    var list = pool.where((c) => pred == null || _matchPred(c, pred!)).toList();
+    var list = pool.where((c) => pred == null || _matchPred(c, pred)).toList();
     if (last && list.isNotEmpty) list = [list.last];
     return list;
   }
@@ -1377,7 +1377,7 @@ class SourceEngine {
     final sb = StringBuffer();
     for (final ru in text.runes) {
       if (ru >= 0xE000 && ru <= 0xF8FF) {
-        final rep = fontMap['${ru.toRadixString(16).toUpperCase()}'];
+        final rep = fontMap[ru.toRadixString(16).toUpperCase()];
         sb.write(rep != null && rep.isNotEmpty ? rep : String.fromCharCode(ru));
       } else {
         sb.writeCharCode(ru);

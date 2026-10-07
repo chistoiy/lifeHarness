@@ -419,7 +419,7 @@ Future<void> downloadCmd(List<String> a) async {
   final eng = engineFor(name);
   final info = await eng.bookInfo(bookUrl);
   final chapters = await eng.toc(info.tocUrl.isNotEmpty ? info.tocUrl : bookUrl);
-  final dirName = '${out}/${_safe(info.name.isEmpty ? name : info.name)}';
+  final dirName = '$out/${_safe(info.name.isEmpty ? name : info.name)}';
   Directory('$dirName/chapters').createSync(recursive: true);
   final manifest = File('$dirName/manifest.json');
   Map<String, dynamic> m = {};
