@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/media_mounts.dart';
 import '../../../shared/linkage/read_mounts.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
@@ -221,47 +222,23 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                   tooltip: '新增摘录',
                   icon: const Icon(Icons.add, color: Colors.white, size: 26),
                   onTap: () => readTabFabTap(context, ref))
-              : GradFab(
-                  tooltip: '写今天的日记',
-                  icon: const Icon(Icons.add, color: Colors.white, size: 26),
-                  onTap: () =>
-                      context.push('/journal/edit', extra: const DiaryEditArg()),
-                ),
+              : tab == 'media'
+                  ? GradFab(
+                      tooltip: '新条目',
+                      icon: const Icon(Icons.add, color: Colors.white, size: 26),
+                      onTap: () => mediaTabFabTap(context, ref))
+                  : GradFab(
+                      tooltip: '写今天的日记',
+                      icon: const Icon(Icons.add, color: Colors.white, size: 26),
+                      onTap: () => context.push('/journal/edit',
+                          extra: const DiaryEditArg()),
+                    ),
       body: switch (tab) {
         'diary' => const _DiaryTab(),
         'note' => const NoteTab(),
         'book' => readWorkbench(),
-        _ => const _TabSoon('🎬', '影音游 · 与阅读同构', '规划 V1.1 · M3'),
+        _ => mediaWorkbench(),
       },
-    );
-  }
-}
-
-class _TabSoon extends StatelessWidget {
-  const _TabSoon(this.emoji, this.title, this.plan);
-
-  final String emoji, title, plan;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 40)),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(plan,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text('敬请期待',
-              style: TextStyle(fontSize: 11, color: tokens.accent, fontWeight: FontWeight.w700)),
-        ],
-      ),
     );
   }
 }

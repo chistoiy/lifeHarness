@@ -106,7 +106,6 @@ void main() {
       'features/care/presentation/care_stats_page.dart': 1,
       'features/dashboard/presentation/dashboard_page.dart': 1,
       'features/journal/presentation/diary_edit_page.dart': 2,
-      'features/journal/presentation/journal_page.dart': 1,
       'features/journal/presentation/widgets/ins_card.dart': 2,
       'features/journal/presentation/widgets/note_sheets.dart': 1,
       'features/ledger/presentation/ledger_pick_sheets.dart': 1,

@@ -19,6 +19,7 @@ import '../../features/items/presentation/items_routes.dart';
 import '../../features/goals/presentation/goals_routes.dart';
 import '../../features/settings/presentation/settings_routes.dart';
 import '../../features/read/presentation/read_routes.dart';
+import '../../features/media/presentation/media_routes.dart';
 import '../ai/ai_review.dart' show aiRootNavKey;
 
 import '../nav/nav_module.dart';
@@ -133,6 +134,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       ...readPageRoutes(),
 
+      ...mediaPageRoutes(),
       ...settingsPageRoutes(
         dbOverviewBackupSizeReader:
             ref.watch(dbOverviewBackupSizeReaderProvider),

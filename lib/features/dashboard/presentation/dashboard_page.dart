@@ -978,10 +978,16 @@ class _AllModulesCard extends StatelessWidget {
   /// AI批4-A：AI 验证已接线（图标位支持线性 IconData，替代 emoji 占位）。
   static const _aiVerifyRoute = '/settings/ai/verify';
 
+  /// 非底栏栏目的栈页：进这些一律 push（go 清栈会让它成为栈底，返回键直接退 app）。
+  static const _stackRoutes = {_aiVerifyRoute, '/media/shelf'};
+
   static const _mods = <(Object, String, String?, String?)>[
     ('✅', '待办', '/todo', null),
     ('⏱️', '时间', '/calendar', null),
     ('📚', '阅读', '/journal?tab=book', null),
+    // 影音游批2（2026-10-07 解禁）：该枚去 V1.0 灰位——线性图标不吃 emoji 闸，
+    // 路由是栈页，走下面 _stackRoutes 分派 push（go 会把它变成栈底）。
+    (Icons.movie_outlined, '影音游', '/media/shelf', null),
     ('⚡', '收集箱', '/inbox', null),
     ('💰', '记账', '/ledger', null),
     ('📦', '物品', '/items', null),
@@ -1021,8 +1027,8 @@ class _AllModulesCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         onTap: route == null
                             ? () => _toastOf(context, '「$label」· 规划 $ver')
-                            : () => route == _aiVerifyRoute
-                                // AI批4-A：二级工具页走 push 保留返回栈，其余行机制不变。
+                            : () => _stackRoutes.contains(route)
+                                // 二级/模块栈页走 push 保留返回栈，栏目行仍 go。
                                 ? context.push(route)
                                 : context.go(route),
                         child: Opacity(

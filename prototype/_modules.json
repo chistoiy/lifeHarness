@@ -231,7 +231,7 @@
    "file": "index-media.html",
    "req": "V1.5x",
    "status": "current",
-   "dev": "notStarted",
+   "dev": "delivered",
    "aliases": [
     "影音",
     "电影",
@@ -7536,6 +7536,10 @@
   {
    "from": "index.html#p-goals",
    "to": "index-day_aim__goods.html#p-goals"
+  },
+  {
+   "from": "index.html#m-shelf",
+   "to": "index-media.html#m-shelf"
   }
  ],
  "frozen": [
