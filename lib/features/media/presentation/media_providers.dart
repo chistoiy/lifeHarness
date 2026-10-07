@@ -6,6 +6,7 @@ import '../data/media_repo_session.dart';
 import '../data/media_repository.dart';
 import '../domain/media_item.dart';
 import '../domain/media_session.dart';
+import '../domain/media_summary.dart';
 
 /// 影音游模块 providers（批2 · 影音架）。
 ///
@@ -107,6 +108,15 @@ final mediaItemDetailProvider = FutureProvider.family<MediaItem?, String>((
 ) {
   ref.watch(mediaTickProvider);
   return ref.watch(mediaRepositoryProvider).itemById(id);
+});
+
+/// 条目「一页总结」（final_note JSON 三键；空＝MediaSummary()，UI 侧出虚线属 A3）。
+final mediaSummaryProvider = FutureProvider.family<MediaSummary, String>((
+  ref,
+  id,
+) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).summaryOf(id);
 });
 
 /// 单条目会话明细（倒序；进行中那条置顶由页面处理）。

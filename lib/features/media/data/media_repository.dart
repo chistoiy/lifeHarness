@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema/media.dart';
 import '../domain/media_item.dart';
+import '../domain/media_summary.dart';
 
 /// 影音游仓储（批2 · 计划 §2.1 表结构）。
 ///
@@ -77,6 +78,34 @@ class MediaRepository {
     final loops = await loopCounts();
     final n = loops[x.id];
     return n == null ? x : x.copyWith(listenLoops: n);
+  }
+
+  /// 保存条目「一页总结」（批4b · final_note JSON 三键，零迁移不动 schema）。
+  /// 只改 `final_note` 与 `updated_at` 两列；全空＝列落 NULL，不写 `"{}"` 占位。
+  Future<void> saveSummary(String itemId, MediaSummary s) async {
+    await db.update(
+      tMediaItems,
+      {
+        'final_note': s.isEmpty ? null : s.encode(),
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ? AND $_live',
+      whereArgs: [itemId],
+    );
+  }
+
+  /// 读「一页总结」：软删行/缺行/旧裸文本一律空（decode 不抛，读侧容错）。
+  Future<MediaSummary> summaryOf(String itemId) async {
+    final rows = await db.query(
+      tMediaItems,
+      columns: ['final_note'],
+      where: 'id = ? AND $_live',
+      whereArgs: [itemId],
+      limit: 1,
+    );
+    return MediaSummary.decode(
+      rows.isEmpty ? null : rows.first['final_note'] as String?,
+    );
   }
 
   /// 在册条目（四类 chip × 分区 chip × 关键词，原型 mItems＋mFilter 同口径）。
