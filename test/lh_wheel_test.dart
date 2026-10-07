@@ -26,6 +26,27 @@ void main() {
     expect((sel.dy - guide.dy).abs(), lessThan(0.5));
   });
 
+  testWidgets('第一下拖动就要上报（回归既定坑：首次回调无条件吞＝用户改动被吞）', (tester) async {
+    int? got;
+    await tester.pumpWidget(wrap(LHWheel(
+        labels: [for (var i = 0; i < 24; i++) i.toString().padLeft(2, '0')],
+        initialIndex: 7,
+        onSelect: (i) => got = i,
+        keyPrefix: 'w',
+        height: 108,
+        itemExtent: 28)));
+    await settle5(tester);
+    expect(got, isNull, reason: '首帧若回调，报的就是初始档＝仍然不外泄');
+    // 时柱这类档（24 档、初始 index 7）首帧并不自动回调；旧实现把「第一次回调」无条件当噪音吞掉，
+    // 吞掉的其实是用户的第一下真实改动——读数纹丝不动，第二下才动。
+    await tester.drag(find.byType(CupertinoPicker), const Offset(0, -28));
+    await settle5(tester);
+    expect(got, 8);
+    // 项键挂在 Center 上（Text 是它的孩子），别按 Text 直取。
+    expect(find.descendant(of: find.byKey(const ValueKey('witem8')), matching: find.text('08')),
+        findsOneWidget);
+  });
+
   testWidgets('容器高度改 160 后仍居中（回归既定坑：改高后导引线偏）', (tester) async {
     int? got;
     await tester.pumpWidget(wrap(LHWheel(

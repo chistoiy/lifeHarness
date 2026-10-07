@@ -8,6 +8,7 @@ import '../../../shared/widgets/ui_kit.dart';
 import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
+import '../domain/health_vital.dart';
 import 'health_goal_row.dart';
 import 'health_providers.dart';
 
@@ -154,6 +155,8 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
             Expanded(child: _sleepCard(context, st, sleepGoalMin, hub)),
           ],
         ),
+        const SizedBox(height: 12),
+        _vitalStrip(context),
         const SizedBox(height: 12),
         _overview(context, hub, waterGoal, sleepGoalMin),
         const SizedBox(height: 12),
@@ -476,6 +479,52 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                   style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
             ],
           ],
+        ],
+      ),
+    );
+  }
+
+  // ==================== 体征条（原型 hpStrip · 批2.5） ====================
+
+  /// 五枚等分＝各指标**最近一条**读数（`latestVitals` 一次取数，不分五路读数）。
+  /// 三条口径：无记录出「—」不补 0；超范围只换色不作结论（§11.3.1 异常只作提示）；
+  /// 点击带 `kind` 进体征屏并选中该指标——栈页一律 push（漏加就会把返回键变成退 app）。
+  Widget _vitalStrip(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final strip = ref.watch(healthVitalStripProvider).valueOrNull ?? const <String, HealthVital?>{};
+    return Container(
+      key: const ValueKey('health-vital-strip'),
+      decoration: context.cardDecoration,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      child: Row(
+        children: [
+          for (final k in vitalOrder)
+            Expanded(
+              child: InkWell(
+                key: ValueKey('health-vital-$k'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => context.push('/health/vitals?kind=$k'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Column(
+                    children: [
+                      Text(vitalSpecs[k]!.name,
+                          style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+                      const SizedBox(height: 2),
+                      Text(strip[k]?.valueText ?? '—',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              color: strip[k] != null && strip[k]!.flag != 'normal'
+                                  ? scheme.error
+                                  : context.tokens.accent)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import 'health_home_page.dart';
 import 'health_sleep_page.dart';
+import 'health_vitals_page.dart';
 
 /// 健康 · 模块路由（批2 起逐屏补，路径与 `docs/健康管理模块开发计划-20260927.md` §三 路由表同形）。
 ///
@@ -18,5 +19,10 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/sleep',
     builder: (_, _) => const HealthSleepPage(),
+  ),
+  // 体征记录（原型 p-vitals · 批2.5）：`?kind=` 决定进来先选哪枚指标（工作台体征条带进来）。
+  GoRoute(
+    path: '/health/vitals',
+    builder: (_, s) => HealthVitalsPage(initialKind: s.uri.queryParameters['kind']),
   ),
 ];

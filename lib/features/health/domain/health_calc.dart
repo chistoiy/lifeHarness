@@ -13,6 +13,12 @@ String dayKey(DateTime d) =>
 
 DateTime dayOf(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// `yyyy-MM-dd` → 「周x」（原型 `htWd`）：纯展示换算，解析不出就出空串（不参与任何判定）。
+String dayWd(String dateKey) {
+  final d = DateTime.tryParse(dateKey);
+  return d == null ? '' : '周${'日一二三四五六'[d.weekday % 7]}';
+}
+
 /// `HH:mm` → 当日分钟数；非法输入返回 null（调用侧按「未填」处理，不猜）。
 int? hhmmToMin(String? s) {
   if (s == null) return null;

@@ -6,6 +6,7 @@ import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
+import '../domain/health_vital.dart';
 
 /// 健康模块 providers（仿 items/care：写库后 tick++ 全量重取快照）。
 /// UI 尚未接（批2 起），但数据面出口先定下来，避免各屏各读各的。
@@ -30,6 +31,15 @@ final activeHealthProfileProvider = StateProvider<int>(
 final healthProfilesProvider = FutureProvider<List<HealthProfile>>((ref) {
   ref.watch(healthTickProvider);
   return ref.watch(healthRepositoryProvider).profiles(includeArchived: true);
+});
+
+/// 工作台体征条（原型 `hpStrip`）：五类各取最近一条，缺的类留 null（UI 出「—」，不补 0）。
+final healthVitalStripProvider = FutureProvider<Map<String, HealthVital?>>((ref) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  return ref
+      .watch(healthRepositoryProvider)
+      .latestVitals(pid, dayKey(ref.watch(healthClockProvider)()));
 });
 
 final healthTodayProvider = FutureProvider<HealthToday>((ref) {

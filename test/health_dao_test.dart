@@ -5,6 +5,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/database/schema/health.dart' as h;
 import 'package:lifeharness/features/health/data/health_repository.dart';
 import 'package:lifeharness/features/health/domain/health_models.dart';
+import 'package:lifeharness/features/health/domain/health_vital.dart';
 
 /// 批0/批1 · 健康仓储：档案隔离、同日覆盖、归档保留流水、级联删除、目标 upsert。
 /// 独立文件防 isolate 污染（AGENTS 门禁段）。
@@ -167,5 +168,78 @@ void main() {
     expect(t.takenSlots, 1);
     expect(t.score(waterGoalCups: 8, sleepGoalHours: 8), 73,
         reason: '喝水 3/8×40=15 ＋ 睡眠 450/480×35=32.8125 ＋ 运动满 25 ＝ 72.8125 → 四舍五入 73');
+  });
+
+  // ==================== 体征五类（批2.5） ====================
+
+  test('体征跨档案不聚合：读口的 profile_id 一摘就串味（刀1 靶）', () async {
+    final other = await repo.saveProfile(
+        const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-05', time: '07:00', kind: 'bp', sys: 118, dia: 76));
+    await repo.saveVital(HealthVital(
+        profileId: other, date: '2026-01-05', time: '07:00', kind: 'bp', sys: 145, dia: 92));
+
+    final mine = await repo.vitals(1, '2026-01-01', '2026-01-31');
+    expect(mine.single.sys, 118);
+    final theirs = await repo.vitals(other, '2026-01-01', '2026-01-31');
+    expect(theirs.single.sys, 145);
+    // 快照口同口径：按档案各取各的最近一条。
+    expect((await repo.latestVitals(1, '2026-01-31'))['bp']?.sys, 118);
+    expect((await repo.latestVitals(other, '2026-01-31'))['bp']?.sys, 145);
+  });
+
+  test('体征：新增给 id，改是就地改同一行，删除只删这一行', () async {
+    final id = await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-05', time: '07:00', kind: 'bp', sys: 118, dia: 76, hr: 62));
+    expect(await countOf(h.tHealthVital), 1);
+
+    final edited = await repo.vitals(1, '2026-01-01', '2026-01-31');
+    await repo.saveVital(HealthVital(
+        id: id, profileId: 1, date: '2026-01-05', time: '07:00', kind: 'bp',
+        sys: 132, dia: 88, hr: 62, slot: edited.single.slot, note: '复测'));
+    final rows = await repo.vitals(1, '2026-01-01', '2026-01-31');
+    expect(rows.length, 1, reason: '流水点行就地改：不许插第二行');
+    expect(rows.single.sys, 132);
+    expect(rows.single.dia, 88, reason: '血压两值都要落库，只回显收缩压会漏掉舒张压');
+    expect(rows.single.note, '复测');
+
+    await repo.deleteVital(id);
+    expect(await repo.vitals(1, '2026-01-01', '2026-01-31'), isEmpty);
+  });
+
+  test('体征窗口＋按类过滤：窗口外的读数进不来', () async {
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-05', time: '08:00', kind: 'hr', val: 64));
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-20', time: '08:00', kind: 'hr', val: 70));
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-06', time: '08:00', kind: 'temp', val: 36.5));
+
+    final window = await repo.vitals(1, '2026-01-01', '2026-01-10');
+    expect(window.map((v) => v.kind), containsAll(['hr', 'temp']));
+    expect(window.any((v) => v.val == 70), isFalse, reason: '20 日那条在窗口外');
+    final hrOnly = await repo.vitals(1, '2026-01-01', '2026-01-31', kind: 'hr');
+    expect(hrOnly.map((v) => v.val), [64.0, 70.0], reason: 'date,time 升序＝曲线自左向右的序');
+    expect(hrOnly.every((v) => v.kind == 'hr'), isTrue);
+  });
+
+  test('latestVitals：五类齐出定长 map，没记的类留 null，同类取同日最晚一条', () async {
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-05', time: '07:00', kind: 'bp', sys: 116, dia: 74));
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-05', time: '20:30', kind: 'bp', sys: 128, dia: 82));
+    await repo.saveVital(const HealthVital(
+        profileId: 1, date: '2026-01-03', time: '09:00', kind: 'spo2', val: 98));
+
+    final m = await repo.latestVitals(1, '2026-01-06');
+    expect(m.keys.toList(), vitalOrder, reason: '工作台体征条按五类定序，缺类也要占位');
+    expect(m['bp']?.sys, 128, reason: '同日多条取最晚那次（晚间值才是「当前」）');
+    expect(m['spo2']?.val, 98);
+    expect(m['hr'], isNull);
+    expect(m['glu'], isNull);
+    expect(m['temp'], isNull);
+    // 晚于查询日上界的记录不许提前露面
+    expect((await repo.latestVitals(1, '2026-01-02'))['bp'], isNull);
   });
 }

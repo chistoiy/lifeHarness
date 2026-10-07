@@ -4,6 +4,7 @@ import '../../../core/database/schema/health.dart' as h;
 import '../../../core/logging/app_log.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
+import '../domain/health_vital.dart';
 
 /// 健康模块数据层（仿 items/care 范式：一个仓储吃全部表，写库后由 providers 的 tick 触发重取）。
 ///
@@ -186,6 +187,51 @@ class HealthRepository {
         orderBy: 'date DESC', limit: 1);
     return rows.isEmpty ? null : BodyRecord.fromRow(rows.first);
   }
+
+  // ==================== 体征（批2.5） ====================
+
+  /// 保存一次测量：`id==null` 新增，否则按 id 覆盖原行（流水点行就地改）。
+  Future<int> saveVital(HealthVital v) {
+    final row = v.toRow();
+    if (v.id == null) {
+      return db.insert(h.tHealthVital,
+          {...row, 'created_at': DateTime.now().millisecondsSinceEpoch});
+    }
+    return db
+        .update(h.tHealthVital, row, where: 'id=?', whereArgs: [v.id])
+        .then((_) => v.id!);
+  }
+
+  /// 窗口内读数（升序＝日期+时刻；`kind` 为空＝五类一起取，页面四处共用同一份）。
+  /// `profile_id=?` 是本模块每个读口的第一道 where（§11.1 跨档案不聚合），别在这里"顺手"放宽。
+  Future<List<HealthVital>> vitals(int profileId, String from, String to, {String? kind}) async {
+    final rows = await db.query(
+      h.tHealthVital,
+      where: kind == null
+          ? 'profile_id=? AND date>=? AND date<=?'
+          : 'profile_id=? AND kind=? AND date>=? AND date<=?',
+      whereArgs: kind == null ? [profileId, from, to] : [profileId, kind, from, to],
+      orderBy: 'date ASC, time ASC, id ASC',
+    );
+    return rows.map(HealthVital.fromRow).toList();
+  }
+
+  /// 工作台体征条：五类各取「最近一条」。**一次查询按序覆盖**，不留五路读数各自取数的错位。
+  Future<Map<String, HealthVital?>> latestVitals(int profileId, String upto) async {
+    final rows = await db.query(h.tHealthVital,
+        where: 'profile_id=? AND date<=?',
+        whereArgs: [profileId, upto],
+        orderBy: 'date ASC, time ASC, id ASC');
+    final last = <String, HealthVital>{};
+    for (final r in rows) {
+      final v = HealthVital.fromRow(r);
+      last[v.kind] = v; // 升序遍历，后写的盖住前一条——留下的即该类最近一次测量
+    }
+    return {for (final k in vitalOrder) k: last[k]};
+  }
+
+  Future<void> deleteVital(int id) =>
+      db.delete(h.tHealthVital, where: 'id=?', whereArgs: [id]);
 
   // ==================== 用药 ====================
 

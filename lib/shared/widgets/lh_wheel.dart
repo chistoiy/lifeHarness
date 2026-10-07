@@ -36,9 +36,13 @@ class LHWheel extends StatefulWidget {
 class _LHWheelState extends State<LHWheel> {
   late final FixedExtentScrollController _ctl = FixedExtentScrollController(
       initialItem: widget.initialIndex.clamp(0, widget.labels.length - 1));
-  late int _last = widget.initialIndex;
-  // CupertinoPicker 首帧布局必定自动回调一次，且回调发生在 build scope 内；
-  // 直接透传 onSelect 会触发「setState during build」。首次回调无条件吞掉。
+  // 与控制器同源：`initialIndex` 越界时 CupertinoPicker 实际落在的是夹紧后的档，
+  // `_last` 若不夹紧就会把「夹紧」当成用户改动上报（并且会让首帧噪音判据失效）。
+  late int _last = widget.initialIndex.clamp(0, widget.labels.length - 1);
+  // CupertinoPicker 首帧布局**通常**会自动回调一次，且回调发生在 build scope 内；
+  // 直接透传会触发「setState during build」。但「首次回调」不等于「首帧回调」：
+  // 实测时柱这类档（24 档、初始 index 7）首帧并不回调，于是用户的第一下真实改动会被
+  // 当成首次噪音吞掉——读数纹丝不动，第二下才动。故只在**报的就是初始档**时才吞。
   bool _firstCallback = true;
 
   @override
@@ -73,8 +77,12 @@ class _LHWheelState extends State<LHWheel> {
               onSelectedItemChanged: (i) {
                 if (_firstCallback) {
                   _firstCallback = false;
-                  _last = i;
-                  return;
+                  // 报的就是初始档＝首帧噪音，吞掉（契约：未选中即未上报，见 lh_wheel_test）；
+                  // 报了别的档＝真的改动，继续往下走，不能吞。
+                  if (i == _last) {
+                    _last = i;
+                    return;
+                  }
                 }
                 if (i == _last) return;
                 _last = i;
