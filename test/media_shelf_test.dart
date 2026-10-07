@@ -199,6 +199,18 @@ void main() {
     expect(find.byKey(const ValueKey('mds-multi-bar')), findsNothing);
   });
 
+  testWidgets('点架卡＝直达条目详情（批3：速览半屏撤位，读数落 m-detail）', (tester) async {
+    await useSurface(tester, const Size(420, 1000));
+    await pump(tester, const MediaShelfPage());
+    final id = ids['电影甲']!;
+    await tester.tap(find.byKey(ValueKey('mds-card-$id')));
+    await settle5(tester);
+    // 详情屏在场：进度行＋底部动作条（速览那套临时面不再出现）
+    expect(find.byKey(const ValueKey('mds-detail-progline')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mds-detail-timerbtn')), findsOneWidget);
+    expect(find.text('电影甲'), findsWidgets);
+  });
+
   testWidgets('记录页影音游 tab＝真实影音架入口＋四类计数（面板第 4 项回灌面）', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     final router = GoRouter(

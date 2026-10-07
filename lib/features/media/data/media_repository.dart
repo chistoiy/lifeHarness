@@ -17,7 +17,10 @@ class MediaRepository {
 
   final Database db;
 
-  static const String _live = 'deleted_at IS NULL';
+  /// 在册谓词（唯一口径；会话扩展 `media_repo_session.dart` 同吃这一份）。
+  static const String rawLive = 'deleted_at IS NULL';
+
+  static const String _live = rawLive;
 
   /// 排序键白名单（§七 media.sortDefault）：非白名单一律回落 recent，
   /// 排序串全部是本类内常量，不吃外部拼接。
@@ -59,6 +62,22 @@ class MediaRepository {
     where: 'id = ?',
     whereArgs: [item.id],
   );
+
+  /// 单条在册条目（详情/计时页取数口；软删行返回 null）。
+  Future<MediaItem?> itemById(String id) async {
+    final rows = await db.query(
+      tMediaItems,
+      where: 'id = ? AND $_live',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final x = MediaItem.fromMap(rows.first);
+    if (x.kind != MediaItem.kMusic) return x;
+    final loops = await loopCounts();
+    final n = loops[x.id];
+    return n == null ? x : x.copyWith(listenLoops: n);
+  }
 
   /// 在册条目（四类 chip × 分区 chip × 关键词，原型 mItems＋mFilter 同口径）。
   ///

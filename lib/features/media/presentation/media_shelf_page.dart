@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -18,10 +19,13 @@ import 'widgets/media_card.dart';
 /// · 脊视图**电影不出现**（`.mds-spine` 只有剧集/音乐/游戏三类形态）；
 /// · 桌面视图按四类各自的扁平卡形态渲染，条目数＝卡数。
 class MediaShelfPage extends ConsumerStatefulWidget {
-  const MediaShelfPage({super.key, this.initialKind});
+  const MediaShelfPage({super.key, this.initialKind, this.initialQuery});
 
   /// 深链带进来的类型（如记录页「音乐」入口 → `/media/shelf?kind=music`）。
   final String? initialKind;
+
+  /// 深链关键词（详情页创作者/发行方芯片的反查落点 → `/media/shelf?q=`）。
+  final String? initialQuery;
 
   @override
   ConsumerState<MediaShelfPage> createState() => _MediaShelfPageState();
@@ -41,6 +45,13 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
       // initState 期不能同步改 provider，落到本帧之后（壳层同款处理）。
       Future<void>.microtask(() {
         if (mounted) ref.read(mediaKindProvider.notifier).state = k;
+      });
+    }
+    final q = (widget.initialQuery ?? '').trim();
+    if (q.isNotEmpty) {
+      _search.text = q;
+      Future<void>.microtask(() {
+        if (mounted) ref.read(mediaQueryProvider.notifier).state = q;
       });
     }
   }
@@ -283,7 +294,7 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
           for (final x in spines)
             MediaSpineRow(
               item: x,
-              onTap: () => showMediaPeekSheet(context, ref, x),
+              onTap: () => context.push('/media/item/${x.id}'),
             ),
         ],
       );
@@ -301,7 +312,7 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
                 selectionMode: _selMode,
                 onTap: () => _selMode
                     ? _toggleSel(x.id)
-                    : showMediaPeekSheet(context, ref, x),
+                    : context.push('/media/item/${x.id}'),
                 onLongPress: () => _enterSel(x.id),
               ),
             ),
@@ -324,8 +335,9 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
           item: x,
           selected: _sel.contains(x.id),
           selectionMode: _selMode,
-          onTap: () =>
-              _selMode ? _toggleSel(x.id) : showMediaPeekSheet(context, ref, x),
+          onTap: () => _selMode
+              ? _toggleSel(x.id)
+              : context.push('/media/item/${x.id}'),
           onLongPress: () => _enterSel(x.id),
         );
       },

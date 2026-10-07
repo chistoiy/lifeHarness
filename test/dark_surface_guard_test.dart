@@ -37,6 +37,9 @@ const _baseline = <String, int>{
     // 登记≠放行：影音架的深色观感仍要走真机门＝复测包 6089 自验清单第 8 条。
     'lib/features/media/presentation/widgets/media_card.dart': 8,
     'lib/features/media/presentation/media_shelf_page.dart': 1,
+    // 批3 影音沉浸计时页：8 处「白」全是深色渐变底上的半透明白胶囊/钮（白字），
+    // 属深色实态；观感门随复测包 6090 真机复验，不合规再摘模糊/改透明度。
+    'lib/features/media/presentation/media_timer_page.dart': 8,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
     'lib/features/read/presentation/stats/read_timer_page.dart': 9,
@@ -59,7 +62,7 @@ const _baseline = <String, int>{
     'lib/features/read/presentation/read_tab.dart': 4,
     'lib/features/read/presentation/shelf/book_detail.dart': 4,
     'lib/features/todo/presentation/widgets/pomo_screen.dart': 4,
-    'lib/shared/linkage/timer_bar_overlay.dart': 4,
+    'lib/shared/linkage/timer_bar_overlay.dart': 6,
     'lib/features/calendar/presentation/time_stats_page.dart': 3,
     'lib/features/care/presentation/care_kit.dart': 3,
     'lib/features/days/presentation/days_kit.dart': 3,

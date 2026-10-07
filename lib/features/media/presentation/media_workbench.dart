@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/media_item.dart';
+import 'media_actions.dart';
 import 'media_providers.dart';
 import 'widgets/media_card.dart';
 
@@ -87,6 +88,8 @@ class MediaWorkbench extends ConsumerWidget {
               ),
           ],
         ),
+        // 计时中行（批3）：有在跑会话才出现，实时分钟随 mediaTick/分钟刷新。
+        const _RunningRow(),
         if (recent.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(
@@ -118,6 +121,60 @@ class MediaWorkbench extends ConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 工作台「计时中」行（批3 面板第 4 项回灌）：只吃库内单活会话，
+/// 无在跑会话＝整行不渲染（不留 00:00 假读数）。点行＝进沉浸计时页。
+class _RunningRow extends ConsumerWidget {
+  const _RunningRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(mediaTickProvider);
+    final s = ref.watch(mediaRunningSessionProvider).valueOrNull;
+    if (s == null) return const SizedBox.shrink();
+    final item = ref.watch(mediaItemDetailProvider(s.itemId)).valueOrNull;
+    final title = item?.title ?? '影音';
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: InkWell(
+        key: const ValueKey('media-running-row'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push('/media/timer/${s.itemId}'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: mdsStateColor('i').withValues(alpha: .10),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: mdsStateColor('i'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '《$title》 · ${mediaTimerWord(s.kind)} ${mediaLiveMinutes(s)} 分钟',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

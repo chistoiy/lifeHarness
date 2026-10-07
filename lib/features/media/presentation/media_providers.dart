@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/media_repo_session.dart';
 import '../data/media_repository.dart';
 import '../domain/media_item.dart';
+import '../domain/media_session.dart';
 
 /// 影音游模块 providers（批2 · 影音架）。
 ///
@@ -54,3 +56,69 @@ final mediaRecentProvider = FutureProvider<List<MediaItem>>((ref) {
 
 /// 排序键（§七 media.sortDefault＝recent）。
 final mediaSortProvider = StateProvider<String>((ref) => 'recent');
+
+/// settings 表 `media.*` 键通用取值（计划 §七：KV 存 settings 表，不散落 SharedPreferences）。
+final mediaKvProvider =
+    FutureProvider.family<String, (String key, String def)>((ref, arg) async {
+  ref.watch(mediaTickProvider);
+  final raw = await ref.watch(mediaRepositoryProvider).kv(arg.$1);
+  return raw ?? arg.$2;
+});
+
+/// 计时形态（§七 media.timerUI＝capsule；full＝起停直接进沉浸页）。
+final mediaTimerUIProvider = FutureProvider<String>(
+  (ref) => ref.watch(mediaKvProvider(('media.timerUI', 'capsule')).future),
+);
+
+/// 悬浮计时条开关（media.floatBar，默认开）。
+final mediaFloatBarProvider = FutureProvider<bool>(
+  (ref) async =>
+      (await ref.watch(mediaKvProvider(('media.floatBar', 'true')).future)) ==
+      'true',
+);
+
+/// 结束计时即弹记进度（media.autoAsk，默认开）。
+final mediaAutoAskProvider = FutureProvider<bool>(
+  (ref) async =>
+      (await ref.watch(mediaKvProvider(('media.autoAsk', 'true')).future)) ==
+      'true',
+);
+
+/// 影音悬浮条可见＝有在跑会话 × floatBar 开（与 read 侧 readTimerBarVisibleProvider 同法）。
+/// 两路读数都按「取不到＝不显示」的 AsyncValue 口径走，不硬断言非空。
+final mediaTimerBarVisibleProvider = Provider<bool>((ref) {
+  // floatBar 默认开＝装载中也按开处理，读数落地后再校正。
+  final floatOn = ref.watch(mediaFloatBarProvider).valueOrNull ?? true;
+  final running = ref.watch(mediaRunningSessionProvider).valueOrNull;
+  return floatOn && running != null;
+});
+
+/// 全库单活的影音会话（杀进程重开延续靠这条库内读数，不存内存态）。
+final mediaRunningSessionProvider = FutureProvider<MediaSession?>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).runningSession();
+});
+
+/// 详情/计时页条目取数（软删行＝null＝屏走「已不在架」空态）。
+final mediaItemDetailProvider = FutureProvider.family<MediaItem?, String>((
+  ref,
+  id,
+) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).itemById(id);
+});
+
+/// 单条目会话明细（倒序；进行中那条置顶由页面处理）。
+final mediaSessionsProvider = FutureProvider.family<List<MediaSession>, String>((
+  ref,
+  id,
+) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).sessionsOf(id);
+});
+
+/// 单条目累计入账分钟（详情统计行）。
+final mediaMinutesProvider = FutureProvider.family<int, String>((ref, id) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).minutesOfItem(id);
+});
