@@ -9,6 +9,7 @@ import 'schema/care.dart' as e;
 import 'schema/core.dart' as c;
 import 'schema/days.dart' as d;
 import 'schema/goals.dart' as g;
+import 'schema/health.dart' as hd;
 import 'schema/habit.dart' as h;
 import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
@@ -28,7 +29,9 @@ class DbSchema {
   // 已彻底删除的历史孤行（mention/entity/task + 该书专属词库，GLOBAL 保留）。
   // 36：V1.61 物品档案删除——migrations[35]（35→36）给 item_profiles 加 deleted_at
   // （回收站第七类；子表 item_events/item_usages 不加列，随父行判在册）。
-  static const int version = 36;
+  // 37：V1.48/V1.48.1 健康管理模块——migrations[36]（36→37）建 health_* 十四表
+  // （档案中心＋五类按日记录＋目标/体征/症状/报告/提醒）；新模块只建表不搬数据。
+  static const int version = 37;
  
 
   
@@ -297,6 +300,7 @@ class DbSchema {
     ...doubanMetaSchemaStatements,
     ...aiCallSchemaStatements,
     ...xraySchemaStatements,
+    ...hd.healthSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -414,5 +418,6 @@ class DbSchema {
     ...l.mig,
     ...r.mig,
     ...x.mig,
+    ...hd.mig,
   };
 }
