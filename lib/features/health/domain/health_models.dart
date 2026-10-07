@@ -389,16 +389,20 @@ class DrugLog {
       );
 }
 
-/// 目标键（§六）：缺键＝未设，读取侧回落默认，不写库。
+/// 目标键（计划 §六 键表原文）：缺键＝未设，读取侧回落默认，不写库。
+///
+/// 存储分治（批3 工单 §0）：`water`/`sleep`/`weekEx` 与按时入睡线的**现行读写口在 prefs**
+/// （`HealthSettings`，工作台「每日目标」卡与达标环已在读），本表只装身体属性四键——
+/// 身体目标属于档案，跟着档案走（跨档案不聚合）；`health_goal` 表本身仍是通用键值表。
 class GoalKeys {
-  static const water = 'water'; // 杯/日
-  static const sleep = 'sleep'; // 小时/日
-  static const weekEx = 'week_ex'; // 次/周
-  static const weight = 'weight'; // kg
-  static const waist = 'waist'; // cm
-  static const hip = 'hip'; // cm
-  static const neck = 'neck'; // cm
-  static const all = [water, sleep, weekEx, weight, waist, hip, neck];
+  static const water = 'water'; // 杯/日·prefs
+  static const sleep = 'sleep'; // 小时/日·prefs
+  static const weekEx = 'week_ex'; // 次/周·prefs
+  static const weightGoal = 'weight_goal'; // kg·DB
+  static const waistGoal = 'waist_goal'; // cm·DB
+  static const hipGoal = 'hip_goal'; // cm·DB
+  static const neckGoal = 'neck_goal'; // cm·DB
+  static const all = [water, sleep, weekEx, weightGoal, waistGoal, hipGoal, neckGoal];
 }
 
 /// times / photos / files 三列的 JSON 编解码收在一处（脏数据不炸列表：解不出按空处理）。

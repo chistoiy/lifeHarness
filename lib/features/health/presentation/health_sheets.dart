@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import '../domain/health_body.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
 import '../domain/health_vital.dart';
@@ -658,3 +659,250 @@ class _VitalSheetState extends ConsumerState<_VitalSheet> {
 
 /// 给既有私有小件补一枚 Key（不改 `_chip` 签名，免得睡眠弹层跟着改）。
 Widget _keyed(Widget w, Key k) => KeyedSubtree(key: k, child: w);
+
+// ==================== 身体数据录入（批3 · 原型 sheetHWeight） ====================
+
+/// 体重两柱（整 kg + 0.1 kg）＋身高柱＋四枚选填柱，「—」＝不写入／不改写。
+///
+/// 四条口径写在最近处：
+/// · 档表、单位、周变化基线**只吃 `health_body` 域层**——此处不出现第二份 35~120，改档不漏屏；
+/// · 录入柱恒按 kg（存储单位，§五.10）：原型把 `HT.kgUnit` 标在这根 kg 柱旁是演示错位，
+///   照抄会让「斤」档的用户以为在录斤，落库数直接翻倍；
+/// · 同日重记＝整行覆盖（`saveBody` 按 (profile_id,date) 唯一索引 replace），所以「—」档
+///   必须**回填原值**而不是写 null，否则改一次体重会把该行的腰围/体脂清掉（刀2 钉的就是这条）；
+/// · 预览行与落库共用同一组取值函数，所见即所存，不在两处各算一次 BMI。
+Future<void> showHealthWeightSheet(BuildContext context, {BodyRecord? editing}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _WeightSheet(editing: editing),
+  );
+}
+
+class _WeightSheet extends ConsumerStatefulWidget {
+  const _WeightSheet({this.editing});
+
+  final BodyRecord? editing;
+
+  @override
+  ConsumerState<_WeightSheet> createState() => _WeightSheetState();
+}
+
+class _WeightSheetState extends ConsumerState<_WeightSheet> {
+  /// 一条记录都没有时的起步体重＝原型 `hBodyPreview` 的 `||69`。
+  static const double _fallbackKg = 69;
+
+  /// null＝还没点过日期：新建按「今天」，编辑保持原日期（chips 里点别的才改归属日）。
+  late String? _date = widget.editing?.date;
+
+  /// null＝还没滚过＝起步档由 `_kgWholeIdx`/`_heightIndex` 现算（不能用 `late`：
+  /// 读未赋值的 late 字段直接 LateError，批3 首跑弹层当场抓到）。
+  int? _kgWhole;
+  int? _kgDec;
+  int? _heightIdx;
+  final Map<String, int?> _opt = {};
+
+  List<BodyRecord> get _all => ref.read(healthBodyProvider).valueOrNull ?? const [];
+
+  double get _kg => kgAt(_kgWholeIdx(_all), _kgDecIdx(_all));
+
+  /// 身高柱的起步档：编辑＝本条自己的（没填就停「—」），新建＝带出档案最近一次填过的。
+  /// 新建回填是为了让 BMI 一开屏就有读数；编辑不回填是为了不把「没填」悄悄写成 170。
+  int get _heightIndex => _heightIdx ??
+      heightIndexOf(widget.editing != null ? widget.editing!.heightCm : latestHeightCm(_all));
+
+  double? get _heightCm => heightValueAt(_heightIndex) ?? widget.editing?.heightCm;
+
+  /// 「—」＝保留原值（整行覆盖下写 null 会清掉同列旧读数）。
+  double? _optional(String col) {
+    final f = bodyField(col);
+    final prev = bodyFieldValue(widget.editing, col);
+    return f.valueAt(_opt[col] ?? f.indexOf(prev)) ?? prev;
+  }
+
+  BodyRecord _draft(int pid, DateTime now) => BodyRecord(
+        id: widget.editing?.id,
+        profileId: pid,
+        date: _date ?? dayKey(now),
+        kg: _kg,
+        heightCm: _heightCm,
+        fatPct: _optional('fat'),
+        waistCm: _optional('waist'),
+        hipCm: _optional('hip'),
+        neckCm: _optional('neck'),
+      );
+
+  /// 预览/落库的 BMI 回落链＝本条身高 → 档案最近身高 → 没有就算不出（出「—」，不拿 170 兜底）。
+  double? _bmiOf(BodyRecord r) => bmi(kg: r.kg, cm: r.heightCm ?? latestHeightCm(_all));
+
+  Future<void> _save() async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final pid = container.read(activeHealthProfileProvider);
+    final rec = _draft(pid, container.read(healthClockProvider)());
+    await container.read(healthRepositoryProvider).saveBody(rec);
+    container.invalidate(healthTodayProvider);
+    container.read(healthTickProvider.notifier).state++;
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    final b = _bmiOf(rec);
+    AppToast.show(context,
+        '已记录 ${rec.date} · ${rec.kg!.toStringAsFixed(1)} kg · BMI ${bodyBmiTx(b)}${b == null ? '' : '（${bodyLevelTx(b)}）'}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final now = ref.watch(healthClockProvider)();
+    final today = dayKey(now);
+    final days = [for (var i = 0; i < 8; i++) dayKey(now.subtract(Duration(days: i)))];
+    final date = _date ?? today;
+    final all = ref.watch(healthBodyProvider).valueOrNull ?? const <BodyRecord>[];
+    final goalKg = ref.watch(healthGoalsProvider).valueOrNull?['weight_goal'];
+    final kg = _kg;
+    final heightCm = _heightCm;
+    final b = bmi(kg: kg, cm: heightCm ?? latestHeightCm(all));
+    final baseline = bodyWeekBaseline(all);
+    return _sheetShell(
+      context,
+      title: widget.editing == null ? '记录身体数据' : '修改 ${widget.editing!.date.substring(5)} 的记录',
+      children: [
+        Text('日期', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+        const SizedBox(height: 4),
+        SizedBox(
+          key: const ValueKey('hw-dates'),
+          height: 30,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final d in days)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: PillChip(
+                    key: ValueKey('hw-date-$d'),
+                    label: '${d == today ? '今天' : d.substring(5)} ${dayWd(d).substring(1)}',
+                    selected: d == date,
+                    onTap: () => setState(() => _date = d),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: _wheel(context,
+                  label: '体重 kg',
+                  labels: kgWholeLabels,
+                  index: _kgWholeIdx(all),
+                  onSelect: (v) => setState(() => _kgWhole = v),
+                  key: const ValueKey('hw-kg-i'),
+                  keyPrefix: 'hwKgI'),
+            ),
+            const SizedBox(width: 2),
+            SizedBox(
+              width: 10,
+              child: Text('.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: scheme.onSurfaceVariant)),
+            ),
+            const SizedBox(width: 2),
+            Expanded(
+              child: _wheel(context,
+                  label: '小数',
+                  labels: kgDecLabels,
+                  index: _kgDecIdx(all),
+                  onSelect: (v) => setState(() => _kgDec = v),
+                  key: const ValueKey('hw-kg-d'),
+                  keyPrefix: 'hwKgD'),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 34),
+              child: Text(kg.toStringAsFixed(1),
+                  key: const ValueKey('hw-kg'),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        _wheel(context,
+            label: '身高 cm · 选「—」则不改',
+            labels: heightLabels,
+            index: _heightIndex,
+            onSelect: (v) => setState(() => _heightIdx = v),
+            key: const ValueKey('hw-height'),
+            keyPrefix: 'hwH'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text('选填项', style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
+            const Spacer(),
+            Text('「—」＝不写入', style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          key: const ValueKey('hw-fields'),
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final f in bodyOptionalFields)
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: f == bodyOptionalFields.last ? 0 : 4),
+                  child: _wheel(context,
+                      label: f.unit == '%' ? '${f.label} %' : '${f.label} cm',
+                      labels: f.labels,
+                      index: _opt[f.col] ?? f.indexOf(bodyFieldValue(widget.editing, f.col)),
+                      onSelect: (i) => setState(() => _opt[f.col] = i),
+                      key: ValueKey('hw-${f.col}'),
+                      keyPrefix: 'hw-${f.col}'),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          key: const ValueKey('hw-preview'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: scheme.onSurface.withValues(alpha: .05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '预览 ${kg.toStringAsFixed(1)} kg · BMI ${bodyBmiTx(b)}'
+            '${b == null ? '' : ' ${bodyLevelTx(b)}'} · 距目标 ${goalKg == null ? '未设' : bodyGoalTx(kg - goalKg)}'
+            ' · 周变化 ${bodyDeltaTx(baseline == null ? null : kg - baseline, 'kg')}',
+            style: const TextStyle(fontSize: 10.5),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const ValueKey('hw-cancel'),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('取消'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: FilledButton(key: const ValueKey('hw-save'), onPressed: _save, child: const Text('保存')),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 起步档＝**用户没滚过**时用种子值，滚过就用滚轮的档（种子要依赖 watch 到的实测序列）。
+  int _kgWholeIdx(List<BodyRecord> all) =>
+      _kgWhole ?? kgWholeIndexOf(widget.editing?.kg ?? latestKg(all) ?? _fallbackKg);
+
+  int _kgDecIdx(List<BodyRecord> all) =>
+      _kgDec ?? kgDecIndexOf(widget.editing?.kg ?? latestKg(all) ?? _fallbackKg);
+}

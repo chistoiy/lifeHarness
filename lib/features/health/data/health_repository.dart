@@ -188,6 +188,10 @@ class HealthRepository {
     return rows.isEmpty ? null : BodyRecord.fromRow(rows.first);
   }
 
+  /// 删除一条测量：**带 profile 归属**（跨档案删不到别人的行，与体征同一道闸）。
+  Future<void> deleteBody(int profileId, int id) =>
+      db.delete(h.tHealthBody, where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+
   // ==================== 体征（批2.5） ====================
 
   /// 保存一次测量：`id==null` 新增，否则按 id 覆盖原行（流水点行就地改）。

@@ -17,12 +17,16 @@ class HealthGoalRow extends StatefulWidget {
     required this.labels,
     required this.currentIndex,
     required this.onChanged,
+    this.hint,
   });
 
   final Key rowKey;
   final Key wheelKey;
   final IconData icon;
   final String label;
+
+  /// 行首下方的一行小字（原型目标页每行都带口径注，如「≥10 分钟计 1 次」）；不传就不占位。
+  final String? hint;
 
   /// 行首读数（如「8 杯」），由调用侧按当前设置格式化。
   final String valueText;
@@ -60,8 +64,16 @@ class _HealthGoalRowState extends State<HealthGoalRow> {
               children: [
                 Icon(widget.icon, size: 15, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 6),
-                Text(widget.label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.label,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    if (widget.hint != null)
+                      Text(widget.hint!,
+                          style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
                 const Spacer(),
                 Text(widget.valueText,
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: scheme.primary)),

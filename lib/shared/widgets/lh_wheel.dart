@@ -50,8 +50,12 @@ class _LHWheelState extends State<LHWheel> {
     super.didUpdateWidget(old);
     final idx = widget.initialIndex.clamp(0, widget.labels.length - 1);
     if (idx != _last && _ctl.hasClients && _ctl.selectedItem != idx) {
-      _ctl.jumpToItem(idx);
+      // **先认档再跳**：`jumpToItem` 会让 CupertinoPicker 回调一次这个档，
+      // 若 `_last` 还是旧档，那次回调就被当成「用户滚到了这一档」上报给 onSelect——
+      // 调用侧据此写库，写库又触发刷新，刷新再跳一次＝回写自循环
+      // （健康批3 目标页 DB 作用域档位在 loading 帧被打回首档时实锤：pumpAndSettle 永动）。
       _last = idx;
+      _ctl.jumpToItem(idx);
     }
   }
 

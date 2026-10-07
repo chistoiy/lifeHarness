@@ -1,5 +1,7 @@
 import 'package:go_router/go_router.dart';
 
+import 'health_body_page.dart';
+import 'health_goals_page.dart';
 import 'health_home_page.dart';
 import 'health_sleep_page.dart';
 import 'health_vitals_page.dart';
@@ -24,5 +26,15 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/vitals',
     builder: (_, s) => HealthVitalsPage(initialKind: s.uri.queryParameters['kind']),
+  ),
+  // 身体数据（原型 p-body · 批3）：体重曲线＋流水，录入用同一张弹层改。
+  GoRoute(
+    path: '/health/body',
+    builder: (_, _) => const HealthBodyPage(),
+  ),
+  // 健康目标（原型 p-goalsH · 批3）：环形今日四项＋就地滚轮改档。
+  GoRoute(
+    path: '/health/goals',
+    builder: (_, _) => const HealthGoalsPage(),
   ),
 ];

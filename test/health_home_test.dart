@@ -11,6 +11,7 @@ import 'package:lifeharness/features/dashboard/presentation/dashboard_page.dart'
 import 'package:lifeharness/features/health/data/health_repository.dart';
 import 'package:lifeharness/features/health/domain/health_calc.dart';
 import 'package:lifeharness/features/health/domain/health_models.dart';
+import 'package:lifeharness/features/health/presentation/health_body_page.dart';
 import 'package:lifeharness/features/health/presentation/health_providers.dart';
 import 'package:lifeharness/features/health/presentation/health_routes.dart';
 import 'package:lifeharness/shared/widgets/ui_kit.dart';
@@ -160,17 +161,33 @@ void main() {
     expect(find.byKey(const ValueKey('health-heat-cell-2026-09-10')), findsNothing);
   });
 
-  testWidgets('运动／身体数据两格整格不渲染（批 4/批 3 未上线，不铺假入口）',
+  testWidgets('身体数据位与直达行随批 3 上线（落点屏就绪才铺）；运动位仍整格不渲染',
       (tester) async {
     await seedTwoOfFour();
     await pumpHealth(tester, prefsValues: waterPrefs);
     expect(find.byKey(const ValueKey('health-cell-water')), findsOneWidget);
     expect(find.byKey(const ValueKey('health-cell-sleep')), findsOneWidget);
+    // 体重位：这条种子没写身体数据 → 读数出「—」，但整格必须在（落点屏已经就绪）。
+    final cell = find.byKey(const ValueKey('health-cell-weight'));
+    expect(cell, findsOneWidget);
+    expect(find.descendant(of: cell, matching: find.text('—')), findsOneWidget);
+    expect(find.descendant(of: cell, matching: find.text('最近体重')), findsOneWidget);
+    // 直达行随批 3 铺三枚；用药／趋势／设置的入口在批 5/6，落点屏没有就不出现。
+    expect(find.byKey(const ValueKey('health-entry-all')), findsOneWidget);
+    for (final id in ['body', 'sleep', 'goals']) {
+      expect(find.byKey(ValueKey('health-entry-$id')), findsOneWidget);
+    }
+    for (final id in ['ex', 'drug', 'trend', 'settings']) {
+      expect(find.byKey(ValueKey('health-entry-$id')), findsNothing);
+    }
+    // 运动位（批 4）整格不渲染：铺出来就是一枚点不动的假入口。
     expect(find.byKey(const ValueKey('health-cell-ex')), findsNothing);
-    expect(find.byKey(const ValueKey('health-cell-weight')), findsNothing);
-    expect(find.byKey(const ValueKey('health-entry-all')), findsNothing);
-    expect(find.text('身体数据'), findsNothing);
     expect(find.text('运动'), findsNothing);
+
+    await tester.tap(cell);
+    await settle5(tester);
+    expect(find.byKey(HealthBodyPage.kCells), findsOneWidget,
+        reason: '体重位直达＝批 3 真落地的身体数据屏，不是空路由');
   });
 
   testWidgets('宫格「健康」枚去灰位后点击进工作台，返回落回仪表盘（push 语义）',

@@ -242,4 +242,53 @@ void main() {
     // 晚于查询日上界的记录不许提前露面
     expect((await repo.latestVitals(1, '2026-01-02'))['bp'], isNull);
   });
+
+  // ==================== 身体数据与目标（批3） ====================
+
+  test('身体数据同日覆盖＝整行替换：这次没填的围度清空，合并在弹层回填（刀2 口径的另一半）', () async {
+    await repo.saveBody(const BodyRecord(
+        profileId: 1, date: '2026-01-05', kg: 70, heightCm: 175,
+        fatPct: 18, waistCm: 76, hipCm: 93, neckCm: 36));
+    await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-05', kg: 69.5));
+
+    expect(await countOf(h.tHealthBody), 1,
+        reason: '唯一索引 (profile_id,date)：同日只可能一行');
+    final r = (await repo.bodyRange(1, '2026-01-01', '2026-01-31')).single;
+    expect(r.kg, 69.5);
+    for (final v in [r.heightCm, r.fatPct, r.waistCm, r.hipCm, r.neckCm]) {
+      expect(v, isNull, reason: '仓储层不合并旧值：留空＝留空，「—」回填是弹层的职责');
+    }
+  });
+
+  test('删除一条测量带 profile 归属：跨档案删不到别人的行（与体征同一道闸）', () async {
+    final other = await repo.saveProfile(
+        const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-05', kg: 70));
+    await repo.saveBody(BodyRecord(profileId: other, date: '2026-01-05', kg: 55));
+    final mine = (await repo.bodyRange(1, '2026-01-01', '2026-01-31')).single.id!;
+    final theirs = (await repo.bodyRange(other, '2026-01-01', '2026-01-31')).single.id!;
+
+    await repo.deleteBody(1, theirs);
+    expect(await countOf(h.tHealthBody, where: 'id=$theirs'), 1,
+        reason: '只给 id 删不动：where 里的 profile_id 是第二道闸');
+    await repo.deleteBody(other, theirs);
+    expect(await countOf(h.tHealthBody, where: 'id=$theirs'), 0);
+    expect(await countOf(h.tHealthBody, where: 'id=$mine'), 1,
+        reason: '删另一档案的行也不许顺手带走本档案的行');
+  });
+
+  test('身体数据与目标跨档案不聚合：读数、身高、目标各归各', () async {
+    final other = await repo.saveProfile(
+        const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-05', kg: 70, heightCm: 175));
+    await repo.saveBody(BodyRecord(profileId: other, date: '2026-01-05', kg: 55, heightCm: 160));
+    await repo.setGoal(other, GoalKeys.weightGoal, 50);
+
+    final mine = await repo.bodyRange(1, '2026-01-01', '2026-01-31');
+    expect(mine.single.kg, 70);
+    expect(mine.single.heightCm, 175, reason: 'BMI 回落链只看本档案身高，不串到 160');
+    expect((await repo.latestBody(1, '2026-01-31'))?.kg, 70);
+    expect(await repo.goals(1), isEmpty, reason: '另一档案设的目标体重不进本档案');
+    expect((await repo.goals(other))[GoalKeys.weightGoal], 50);
+  });
 }

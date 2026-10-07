@@ -56,6 +56,16 @@ final healthGoalsProvider = FutureProvider<Map<String, double>>((ref) {
       .goals(ref.watch(activeHealthProfileProvider));
 });
 
+/// 身体数据全历史（date 升序）。30/90/365 窗口切片与三统计都在 `domain/health_body.dart` 里算——
+/// 一次取数喂四数据位/曲线/三统计/流水四处，免得两处读数各看各的窗口。
+final healthBodyProvider = FutureProvider<List<BodyRecord>>((ref) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  return ref
+      .watch(healthRepositoryProvider)
+      .bodyRange(pid, '0000-01-01', dayKey(ref.watch(healthClockProvider)()));
+});
+
 /// 工作台达成度环：目标分母一律取设置值（§五.1），不设「读不到就按 8 杯」的隐式回落——
 /// 设置项本身有默认值，这里只吃 HealthSettings 的读数。
 final healthTodayScoreProvider = Provider<double>((ref) {

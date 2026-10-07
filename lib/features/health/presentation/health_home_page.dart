@@ -7,6 +7,7 @@ import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/health_repository.dart';
 import '../data/health_settings.dart';
+import '../domain/health_body.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_vital.dart';
 import 'health_goal_row.dart';
@@ -18,8 +19,9 @@ import 'health_providers.dart';
 /// 三条本版口径（就写在离代码最近的地方）：
 /// · **达标度分母只吃 `HealthSettings` 读数**（计划 §五.1，与 `health_providers.dart` 里那条注释同源），
 ///   UI 里不许出现写死的 8 杯/8 小时；
-/// · **运动位·体重位与七枚直达行整格不渲染**——落点屏在批 3/批 4，现在铺出来就是点不动的假入口
-///   （AGENTS「禁铺假入口」）；键名留在这里，随批启用，不另起第二个名字；
+/// · **直达行与 hero 数据位只渲染落点屏已存在的枚**（批3 起：体重位＋身体数据/睡眠/目标三枚直达）；
+///   运动位与用药·趋势·设置入口随批 4/5/6 逐枚点亮，缺落点就整格不出现，不铺点不动的假入口
+///   （AGENTS「禁铺假入口」）；键名留在 `HealthHomePage` 里随批启用，不另起第二个名字；
 /// · 无记录＝空槽「—」＋虚线行，任何一格都不许拿 0 当读数（原型演示数据不照抄）。
 class HealthHomePage extends ConsumerWidget {
   const HealthHomePage({super.key});
@@ -30,7 +32,7 @@ class HealthHomePage extends ConsumerWidget {
   static const Key kCardWater = ValueKey('health-card-water');
   static const Key kCardSleep = ValueKey('health-card-sleep');
 
-  /// 预留位（本版不渲染）：运动＝批 4、身体数据＝批 3、直达行＝随各自屏落地。
+  /// 预留位（落点屏没就绪就不渲染）：运动位＝批 4；直达行的用药/趋势/设置＝批 5/6。
   static const Key kCellEx = ValueKey('health-cell-ex');
   static const Key kCellWeight = ValueKey('health-cell-weight');
   static const Key kEntryAll = ValueKey('health-entry-all');
@@ -147,6 +149,8 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
       children: [
         _hero(context, score, now, st),
         const SizedBox(height: 12),
+        _entryRow(context),
+        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -225,6 +229,10 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
   Widget _hero(BuildContext context, double score, DateTime now, HealthSettings st) {
     final cups = widget.today.cups;
     final sleep = widget.today.lastNight;
+    // 体重读数＝最近一次实测换算到当前单位（§五.10：存储恒 kg，只有展示跟着 kgUnit 走）。
+    final kg = widget.today.kg;
+    final unit = st.kgUnit();
+    final kgTx = kg == null ? '—' : bodyKgTx(kg, unit);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -298,8 +306,19 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                             onTap: () => _gotoCard(_sleepCardKey),
                           ),
                         ),
-                        // 运动位（HealthHomePage.kCellEx · 批 4）与体重位（kCellWeight · 批 3）
-                        // 本版没有落点屏，整格不渲染——铺出来就是点不动的假入口。
+                        // 体重位（批3 落地）：读数＝最近一次实测（跨到昨天也算「最近」，
+                        // 与身体数据页 hero 同源 `HealthToday.latestBody`），无记录出「—」。
+                        SizedBox(
+                          width: w,
+                          child: _HeroCell(
+                            k: HealthHomePage.kCellWeight,
+                            value: kg == null ? '—' : '$kgTx $unit',
+                            label: '最近体重',
+                            onTap: () => context.push('/health/body'),
+                          ),
+                        ),
+                        // 运动位（HealthHomePage.kCellEx）落点屏在批 4，本版仍整格不渲染——
+                        // 铺出来就是点不动的假入口（AGENTS「禁铺假入口」）。
                       ],
                     );
                   },
@@ -307,6 +326,55 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== 直达行（原型 hEntryRow · 只渲染落点已存在的枚） ====================
+
+  /// 运动·用药·趋势·设置四枚随批 4/5/6 逐枚点亮：落点屏不存在就整枚不出现，
+  /// 而不是铺一排点不动的假入口（AGENTS「禁铺假入口」）。
+  Widget _entryRow(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final items = <(String, IconData, String, String)>[
+      ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
+      ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
+      ('goals', Icons.flag_outlined, '目标', '/health/goals'),
+    ];
+    return Container(
+      key: HealthHomePage.kEntryAll,
+      decoration: context.cardDecoration,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      child: Row(
+        children: [
+          for (final (id, icon, label, route) in items)
+            Expanded(
+              child: InkWell(
+                key: ValueKey('health-entry-$id'),
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => context.push(route),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(label,
+                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

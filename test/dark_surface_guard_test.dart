@@ -43,6 +43,9 @@ const _baseline = <String, int>{
     // 健康批2 工作台：6 处命中全是 hero 渐变卡上的前景字（white/white70 读数与小标签），
     // 底面走主题渐变随深浅自动跟随——与 media_card 同一形态的深色实态，非白底面缺陷。
     'lib/features/health/presentation/health_home_page.dart': 6,
+    // 批3：健康目标页 hero＝accent 渐变上的白读数/白副注四处（`Colors.white`/`white70` 是**字色**不是底面），
+    // 与工作台 hero 同族同形——深色下仍是渐变底上的白字，非不透明近白底面缺陷；深色观感随 6092 真机门逐屏走查。
+    'lib/features/health/presentation/health_goals_page.dart': 4,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
     'lib/features/read/presentation/stats/read_timer_page.dart': 9,
