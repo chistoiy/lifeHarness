@@ -162,8 +162,32 @@ class HealthRepository {
     return rows.map(ExerciseRecord.fromRow).toList();
   }
 
-  Future<void> deleteExercise(int id) =>
-      db.delete(h.tHealthExercise, where: 'id=?', whereArgs: [id]);
+  /// 就地改一条运动流水：**按 id＋档案归属**双闸（同日可多条，故不是 UPSERT 而是 update）。
+  /// 空列回落与 `addExercise` 同式——距离/配速算不出就写 null，kcal 用户没填按 MET 估。
+  Future<int> updateExercise(ExerciseRecord e) async {
+    final pace = e.paceSec ?? paceSecOf(distanceKm: e.distanceKm, durationMin: e.durationMin);
+    final kcal = e.kcal ?? estKcal(e.type, e.durationMin);
+    return db.update(
+      h.tHealthExercise,
+      {
+        'date': e.date,
+        'type': e.type,
+        'distance_km': e.distanceKm,
+        'duration_min': e.durationMin,
+        'pace_sec': pace,
+        'kcal': kcal,
+        'note': e.note,
+        'source': e.source,
+        'started_at': e.startedAt,
+      },
+      where: 'id=? AND profile_id=?',
+      whereArgs: [e.id, e.profileId],
+    );
+  }
+
+  /// 删除一条运动：**带 profile 归属**（与体征/身体数据同一道闸，跨档案删不到别人的行）。
+  Future<int> deleteExercise(int profileId, int id) =>
+      db.delete(h.tHealthExercise, where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
 
   // ==================== 身体数据 ====================
 

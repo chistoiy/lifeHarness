@@ -66,6 +66,16 @@ final healthBodyProvider = FutureProvider<List<BodyRecord>>((ref) {
       .bodyRange(pid, '0000-01-01', dayKey(ref.watch(healthClockProvider)()));
 });
 
+/// 运动流水（批4 · 升序）：一次取全量喂四数据位/类型过滤/流水/配速趋势四处——
+/// 本周与本月只是 `exWindow` 的两种切片，别为两个 seg 各开一路查询（两处读数会错位）。
+final healthExerciseProvider = FutureProvider<List<ExerciseRecord>>((ref) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  return ref
+      .watch(healthRepositoryProvider)
+      .exerciseRange(pid, '0000-01-01', dayKey(ref.watch(healthClockProvider)()));
+});
+
 /// 工作台达成度环：目标分母一律取设置值（§五.1），不设「读不到就按 8 杯」的隐式回落——
 /// 设置项本身有默认值，这里只吃 HealthSettings 的读数。
 final healthTodayScoreProvider = Provider<double>((ref) {

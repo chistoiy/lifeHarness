@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,9 +11,12 @@ import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_body.dart';
 import '../domain/health_calc.dart';
+import '../domain/health_ex.dart';
+import '../domain/health_models.dart';
 import '../domain/health_vital.dart';
 import 'health_goal_row.dart';
 import 'health_providers.dart';
+import 'health_sheets.dart';
 
 /// 健康工作台（原型 `prototype/index-health.html#p-health` · 路由 `/health`）。
 ///
@@ -19,8 +24,8 @@ import 'health_providers.dart';
 /// 三条本版口径（就写在离代码最近的地方）：
 /// · **达标度分母只吃 `HealthSettings` 读数**（计划 §五.1，与 `health_providers.dart` 里那条注释同源），
 ///   UI 里不许出现写死的 8 杯/8 小时；
-/// · **直达行与 hero 数据位只渲染落点屏已存在的枚**（批3 起：体重位＋身体数据/睡眠/目标三枚直达）；
-///   运动位与用药·趋势·设置入口随批 4/5/6 逐枚点亮，缺落点就整格不出现，不铺点不动的假入口
+/// · **直达行与 hero 数据位只渲染落点屏已存在的枚**（批4 起：四枚数据位＋运动/身体数据/睡眠/目标四枚直达）；
+///   用药·趋势·设置入口随批 5/6 逐枚点亮，缺落点就整格不出现，不铺点不动的假入口
 ///   （AGENTS「禁铺假入口」）；键名留在 `HealthHomePage` 里随批启用，不另起第二个名字；
 /// · 无记录＝空槽「—」＋虚线行，任何一格都不许拿 0 当读数（原型演示数据不照抄）。
 class HealthHomePage extends ConsumerWidget {
@@ -34,6 +39,7 @@ class HealthHomePage extends ConsumerWidget {
 
   /// 预留位（落点屏没就绪就不渲染）：运动位＝批 4；直达行的用药/趋势/设置＝批 5/6。
   static const Key kCellEx = ValueKey('health-cell-ex');
+  static const Key kCardEx = ValueKey('health-card-ex');
   static const Key kCellWeight = ValueKey('health-cell-weight');
   static const Key kEntryAll = ValueKey('health-entry-all');
 
@@ -128,6 +134,52 @@ class _HealthHub extends ConsumerStatefulWidget {
 class _HealthHubState extends ConsumerState<_HealthHub> {
   final _waterCardKey = GlobalKey();
   final _sleepCardKey = GlobalKey();
+  final _exKm = TextEditingController();
+  final _exMin = TextEditingController();
+
+  /// 计时器两态：`_timerStart == null`＝未跑。Ticker 只在点「开始计时」后挂上，
+  /// 页面 dispose 必收（常驻周期 Timer 会把 pumpAndSettle 的测试拖挂）。
+  Timer? _ticker;
+  int? _timerStart;
+  int _elapsedSec = 0;
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _exKm.dispose();
+    _exMin.dispose();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    setState(() {
+      _timerStart = ref.read(healthClockProvider)().millisecondsSinceEpoch;
+      _elapsedSec = 0;
+    });
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final start = _timerStart;
+      if (start == null) return;
+      setState(() => _elapsedSec =
+          (ref.read(healthClockProvider)().millisecondsSinceEpoch - start) ~/ 1000);
+    });
+  }
+
+  /// 结束计时＝把秒数折成分钟（不足 1 分钟记 1 分钟）带进运动弹层，来源预置「计时」。
+  /// 先收 Timer 再开弹层：弹层里用户改主意（取消）也不该让计时继续在后台跑。
+  void _finishTimer() {
+    final start = _timerStart;
+    _ticker?.cancel();
+    _ticker = null;
+    setState(() {
+      _timerStart = null;
+    });
+    if (start == null) return;
+    final mins = exMinutesOf(_elapsedSec);
+    setState(() => _elapsedSec = 0);
+    showHealthExerciseSheet(context,
+        presetMinutes: mins, presetSource: '计时', presetStartedAt: start);
+  }
 
   void _gotoCard(GlobalKey key) {
     final ctx = key.currentContext;
@@ -159,6 +211,8 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
             Expanded(child: _sleepCard(context, st, sleepGoalMin, hub)),
           ],
         ),
+        const SizedBox(height: 12),
+        _exerciseCard(context, st),
         const SizedBox(height: 12),
         _vitalStrip(context),
         const SizedBox(height: 12),
@@ -233,6 +287,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
     final kg = widget.today.kg;
     final unit = st.kgUnit();
     final kgTx = kg == null ? '—' : bodyKgTx(kg, unit);
+    final exMin = widget.today.exerciseMin;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -283,7 +338,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                 child: LayoutBuilder(
                   builder: (context, c) {
                     const gap = 8.0;
-                    final w = (c.maxWidth - gap * 2) / 3;
+                    final w = (c.maxWidth - gap) / 2;
                     return Wrap(
                       spacing: gap,
                       runSpacing: gap,
@@ -317,8 +372,17 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
                             onTap: () => context.push('/health/body'),
                           ),
                         ),
-                        // 运动位（HealthHomePage.kCellEx）落点屏在批 4，本版仍整格不渲染——
-                        // 铺出来就是点不动的假入口（AGENTS「禁铺假入口」）。
+                        // 运动位（批4 落地）：今日分钟数＝`HealthToday.exercises` 求和，与运动卡、
+                        // 概览、流水同源；无记录出「—」（不补 0，补 0 会被读成「练了但没记」）。
+                        SizedBox(
+                          width: w,
+                          child: _HeroCell(
+                            k: HealthHomePage.kCellEx,
+                            value: exMin > 0 ? '$exMin' : '—',
+                            label: '今日运动 · 分钟',
+                            onTap: () => context.push('/health/exercise'),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -333,11 +397,12 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
 
   // ==================== 直达行（原型 hEntryRow · 只渲染落点已存在的枚） ====================
 
-  /// 运动·用药·趋势·设置四枚随批 4/5/6 逐枚点亮：落点屏不存在就整枚不出现，
+  /// 运动枚批4 已点亮；用药·趋势·设置三枚随批 5/6 逐枚点亮：落点屏不存在就整枚不出现，
   /// 而不是铺一排点不动的假入口（AGENTS「禁铺假入口」）。
   Widget _entryRow(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final items = <(String, IconData, String, String)>[
+      ('ex', Icons.directions_run_outlined, '运动', '/health/exercise'),
       ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
       ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
@@ -550,6 +615,177 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
         ],
       ),
     );
+  }
+
+  // ==================== 运动卡（原型 hp 第四卡 · 批4） ====================
+
+  /// 今日分钟／本周有效次数（≥10 分钟才算一次，§五.9）／快速算配速／记一笔／计时。
+  /// 用药卡（原型第五卡）在批5，本行先让运动卡占满整行——落点屏没就绪的卡不铺（禁假入口）。
+  Widget _exerciseCard(BuildContext context, HealthSettings st) {
+    final scheme = Theme.of(context).colorScheme;
+    final todayMin = widget.today.exerciseMin;
+    final all = ref.watch(healthExerciseProvider).valueOrNull ?? const <ExerciseRecord>[];
+    final week = exWindow(all,
+        days: 7, today: dayKey(ref.watch(healthClockProvider)()));
+    final sessions = exWeekSessions(week);
+    final goal = st.weekExGoal();
+    final running = _timerStart != null;
+    final kmVal = double.tryParse(_exKm.text.trim());
+    final minVal = int.tryParse(_exMin.text.trim());
+    final pace = kmVal == null || minVal == null || kmVal <= 0 || minVal <= 0
+        ? null
+        : paceSecOf(distanceKm: kmVal, durationMin: minVal);
+    final unit = ref.watch(healthSettingsProvider).kmUnit();
+    return Container(
+      key: HealthHomePage.kCardEx,
+      decoration: context.cardDecoration,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.directions_run_outlined, size: 15, color: context.tokens.accent),
+              const SizedBox(width: 4),
+              const Text('运动', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              TextButton(
+                key: const ValueKey('health-ex-all'),
+                onPressed: () => context.push('/health/exercise'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('记录 ›', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(todayMin > 0 ? '今日 $todayMin 分钟' : '未记录',
+              key: const ValueKey('health-ex-today'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text('本周 $sessions/$goal 次 · ≥10 分钟计一次',
+              key: const ValueKey('health-ex-week'),
+              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: _quickField('距离 · $unit', 'health-ex-km', _exKm, numeric: true)),
+              const SizedBox(width: 6),
+              Expanded(child: _quickField('时长 · 分', 'health-ex-min', _exMin, numeric: true)),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 66,
+                child: OutlinedButton(
+                  key: const ValueKey('health-ex-calc'),
+                  onPressed: _quickSave,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: const Size(0, 34),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('算配速', maxLines: 1, style: TextStyle(fontSize: 10.5)),
+                ),
+              ),
+            ],
+          ),
+          Text(pace == null ? '' : '均配速 ${paceLabelFor(pace, unit)} ${exDistUnitTx(unit)}',
+              key: const ValueKey('health-ex-out'),
+              maxLines: 1,
+              style: TextStyle(
+                  fontSize: 10.5, fontWeight: FontWeight.w800, color: context.tokens.accent)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  key: const ValueKey('health-ex-add'),
+                  onPressed: () => showHealthExerciseSheet(context),
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 36)),
+                  child: const Text('记一笔', maxLines: 1, softWrap: false),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('health-ex-timer'),
+                  onPressed: running ? _finishTimer : _startTimer,
+                  style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 36)),
+                  child: Text(running ? _timerTx(_elapsedSec) : '开始计时',
+                      maxLines: 1, softWrap: false, style: const TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 计时中按钮就是计时读数（不再另摆一行数字：卡里位置有限，读数跟着动作走）。
+  String _timerTx(int sec) => '${sec ~/ 60}:${(sec % 60).toString().padLeft(2, '0')} 中';
+
+  Widget _quickField(String label, String key, TextEditingController c, {bool numeric = true}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            key: ValueKey('$key-label'),
+            style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant)),
+        TextField(
+          key: ValueKey(key),
+          controller: c,
+          // 填一位数就重算一次：「均配速」回显与入账吃同一对读数（点了才有变化的假联动不认）。
+          onChanged: (_) => setState(() {}),
+          keyboardType: numeric ? TextInputType.number : TextInputType.text,
+          style: const TextStyle(fontSize: 12),
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 快速算配速＝算完直接入账（原型 `sportCalc` 同形：填两值点一下即一条「跑步」记录今日入账）。
+  /// 少一个入口就少一次「算了没存」的落差；要改类型/备注走弹层。
+  Future<void> _quickSave() async {
+    final kmVal = double.tryParse(_exKm.text.trim());
+    final minVal = int.tryParse(_exMin.text.trim());
+    if (kmVal == null || minVal == null || kmVal <= 0 || minVal <= 0) {
+      AppToast.show(context, '请填距离与时长');
+      return;
+    }
+    final container = ProviderScope.containerOf(context, listen: false);
+    final now = container.read(healthClockProvider)();
+    final rec = exDraft(
+      profileId: container.read(activeHealthProfileProvider),
+      date: dayKey(now),
+      type: '跑步',
+      mode: ExMode.pace,
+      km: kmVal,
+      min: minVal,
+    );
+    await container.read(healthRepositoryProvider).addExercise(rec);
+    container.invalidate(healthTodayProvider);
+    container.read(healthTickProvider.notifier).state++;
+    _exKm.clear();
+    _exMin.clear();
+    if (!mounted) return;
+    final unit = ref.read(healthSettingsProvider).kmUnit();
+    AppToast.show(context,
+        '已存 · 均配速 ${paceLabelFor(rec.paceSec, unit)} ${exDistUnitTx(unit)} · ${rec.kcal ?? estKcal(rec.type, rec.durationMin)} kcal');
   }
 
   // ==================== 体征条（原型 hpStrip · 批2.5） ====================

@@ -94,6 +94,43 @@ void main() {
     expect(strength.paceSec, isNull, reason: '无距离类算不出配速，留空不编造');
     expect(strength.countsAsSession, isTrue);
   });
+  test('运动：就地改＝按 id 覆盖同一行（同日可多条，改一条不长成两条）', () async {
+    final id = await repo.addExercise(const ExerciseRecord(
+        profileId: 1, date: '2026-01-05', type: '骑行', distanceKm: 10, durationMin: 40, note: '通勤'));
+    expect(await repo.updateExercise(ExerciseRecord(id: id, profileId: 1, date: '2026-01-05',
+        type: '骑行', distanceKm: 12.5, durationMin: 50, note: '通勤·改')), 1);
+    final rows = await repo.exerciseRange(1, '2026-01-01', '2026-01-31');
+    expect(rows.length, 1, reason: '运动不按日期唯一，所以改是 update 而不是再插一行');
+    expect(rows.single.id, id, reason: '就地改：id 不变，流水那一行不会被替换成新行');
+    expect(rows.single.distanceKm, 12.5);
+    expect(rows.single.durationMin, 50);
+    expect(rows.single.note, '通勤·改');
+    // 空列回落与 addExercise 同式：这次没填配速/kcal，按 距离÷时长 与 MET 现算（两处不会算出两个数）。
+    expect(rows.single.paceSec, 240);
+    expect(rows.single.kcal, 375);
+  });
+
+  test('运动删除带档案归属：跨档案删不到别人的行（与体征/身体数据同一道闸）', () async {
+    final other = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    final mine = await repo.addExercise(const ExerciseRecord(
+        profileId: 1, date: '2026-01-05', type: '跑步', distanceKm: 5, durationMin: 30));
+    final theirs = await repo.addExercise(ExerciseRecord(
+        profileId: other, date: '2026-01-05', type: '跑步', distanceKm: 8, durationMin: 60));
+    expect(await repo.deleteExercise(other, mine), 0, reason: 'profile_id 条件一摘就删掉了别人的行（刀3 靶）');
+    expect(await repo.deleteExercise(1, theirs), 0, reason: '反向同样拦：别人的行不在我的归属里');
+    expect(
+        await repo.updateExercise(ExerciseRecord(
+            id: mine, profileId: other, date: '2026-01-05', type: '跑步', distanceKm: 5, durationMin: 99)),
+        0,
+        reason: '改别人的行同样被归属条件挡住（刀3 的另一半）');
+    expect((await repo.exerciseRange(1, '2026-01-01', '2026-01-31')).single.durationMin, 30,
+        reason: '两条写路径吃同一道闸，不会一处拦一处放行');
+    expect((await repo.exerciseRange(1, '2026-01-01', '2026-01-31')).length, 1);
+    expect((await repo.exerciseRange(other, '2026-01-01', '2026-01-31')).length, 1);
+    expect(await repo.deleteExercise(1, mine), 1);
+    expect(await repo.exerciseRange(1, '2026-01-01', '2026-01-31'), isEmpty);
+  });
+
 
   test('用药：归档只停用在读，打卡流水与历史档案都还在', () async {
     final id = await repo.saveDrug(const DrugPlan(

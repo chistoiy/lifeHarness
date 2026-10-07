@@ -12,6 +12,8 @@ import 'package:lifeharness/features/health/data/health_repository.dart';
 import 'package:lifeharness/features/health/domain/health_calc.dart';
 import 'package:lifeharness/features/health/domain/health_models.dart';
 import 'package:lifeharness/features/health/presentation/health_body_page.dart';
+import 'package:lifeharness/features/health/presentation/health_exercise_page.dart';
+import 'package:lifeharness/features/health/presentation/health_home_page.dart';
 import 'package:lifeharness/features/health/presentation/health_providers.dart';
 import 'package:lifeharness/features/health/presentation/health_routes.dart';
 import 'package:lifeharness/shared/widgets/ui_kit.dart';
@@ -47,9 +49,11 @@ void main() {
   tearDown(() => db.close());
 
   /// 工作台 pump：建库＋固定钟＋prefs 档位，路由用模块真实注册表（栈页入口按 push）。
+  /// `clock` 只在计时用例里给（能往前走的假钟），其余用例吃冻住的 `now`。
   Future<(ProviderContainer, GoRouter)> pumpHealth(
     WidgetTester tester, {
     Map<String, Object> prefsValues = const {},
+    DateTime Function()? clock,
   }) async {
     await useSurface(tester, const Size(420, 1500));
     SharedPreferences.setMockInitialValues(prefsValues);
@@ -57,7 +61,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
       healthRepositoryProvider.overrideWithValue(repo),
-      healthClockProvider.overrideWithValue(() => now),
+      healthClockProvider.overrideWithValue(clock ?? () => now),
     ]);
     addTearDown(container.dispose);
     final router = GoRouter(initialLocation: '/root', routes: [
@@ -102,6 +106,10 @@ void main() {
   const waterPrefs = {'health.water_goal': 4, 'health.sleep_goal': 8};
 
   Finder heroRing() => find.byKey(const ValueKey('health-hero-ring'));
+
+  /// 挂在读数 Text 上的键（运动卡三行回显都直取，别用 textContaining 数出现次数）。
+  String keyTx(WidgetTester t, String key) =>
+      (t.widget<Text>(find.byKey(ValueKey(key)))).data ?? '';
 
   testWidgets('综合达标＝喝水40＋睡眠35＋运动25，分母一律取当日目标（2/4＋480/480＝55%）',
       (tester) async {
@@ -161,33 +169,131 @@ void main() {
     expect(find.byKey(const ValueKey('health-heat-cell-2026-09-10')), findsNothing);
   });
 
-  testWidgets('身体数据位与直达行随批 3 上线（落点屏就绪才铺）；运动位仍整格不渲染',
+  testWidgets('四枚数据位齐（批4 点亮运动位）＋直达行四枚；用药/趋势/设置仍不铺',
       (tester) async {
     await seedTwoOfFour();
-    await pumpHealth(tester, prefsValues: waterPrefs);
+    final (_, router) = await pumpHealth(tester, prefsValues: waterPrefs);
     expect(find.byKey(const ValueKey('health-cell-water')), findsOneWidget);
     expect(find.byKey(const ValueKey('health-cell-sleep')), findsOneWidget);
     // 体重位：这条种子没写身体数据 → 读数出「—」，但整格必须在（落点屏已经就绪）。
-    final cell = find.byKey(const ValueKey('health-cell-weight'));
-    expect(cell, findsOneWidget);
-    expect(find.descendant(of: cell, matching: find.text('—')), findsOneWidget);
-    expect(find.descendant(of: cell, matching: find.text('最近体重')), findsOneWidget);
-    // 直达行随批 3 铺三枚；用药／趋势／设置的入口在批 5/6，落点屏没有就不出现。
+    final weight = find.byKey(const ValueKey('health-cell-weight'));
+    expect(find.descendant(of: weight, matching: find.text('—')), findsOneWidget);
+    expect(find.descendant(of: weight, matching: find.text('最近体重')), findsOneWidget);
+    // 运动位（批4）：今日没记同样出「—」，不补 0（补 0 会被读成「练了但没记」）。
+    final ex = find.byKey(HealthHomePage.kCellEx);
+    expect(ex, findsOneWidget);
+    expect(find.descendant(of: ex, matching: find.text('—')), findsOneWidget);
+    expect(find.descendant(of: ex, matching: find.text('今日运动 · 分钟')), findsOneWidget);
+
+    // 直达行随批 4 铺四枚；用药／趋势／设置的落点屏在批 5/6，没就绪就不出现。
     expect(find.byKey(const ValueKey('health-entry-all')), findsOneWidget);
-    for (final id in ['body', 'sleep', 'goals']) {
+    for (final id in ['ex', 'body', 'sleep', 'goals']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsOneWidget);
     }
-    for (final id in ['ex', 'drug', 'trend', 'settings']) {
+    for (final id in ['drug', 'trend', 'settings']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsNothing);
     }
-    // 运动位（批 4）整格不渲染：铺出来就是一枚点不动的假入口。
-    expect(find.byKey(const ValueKey('health-cell-ex')), findsNothing);
-    expect(find.text('运动'), findsNothing);
 
-    await tester.tap(cell);
+    await tester.tap(weight);
     await settle5(tester);
     expect(find.byKey(HealthBodyPage.kCells), findsOneWidget,
         reason: '体重位直达＝批 3 真落地的身体数据屏，不是空路由');
+    expect(find.byKey(const ValueKey('hex-add')), findsNothing, reason: '别把两屏叠在栈上');
+
+    router.pop();  // 需要拿返回值
+    await settle5(tester);
+    await tester.tap(ex);
+    await settle5(tester);
+    expect(find.byKey(HealthExercisePage.kCells), findsOneWidget,
+        reason: '运动位直达＝批 4 真落地的运动记录屏');
+    expect(find.text('运动记录'), findsOneWidget);
+    await drainLogTimer(tester);
+  });
+
+  testWidgets('运动卡两处读数同源：今日分钟＝流水求和，周次数按 ≥10 分钟门槛（与流水「次数」两套口径）',
+      (tester) async {
+    final dk = dayKey(now);
+    await repo.addExercise(ExerciseRecord(profileId: 1, date: dk, type: '步行', durationMin: 8));
+    await repo.addExercise(
+        ExerciseRecord(profileId: 1, date: dk, type: '跑步', distanceKm: 1.5, durationMin: 12));
+    await pumpHealth(tester, prefsValues: waterPrefs);
+    final card = find.byKey(HealthHomePage.kCardEx);
+    expect(card, findsOneWidget);
+    await tester.ensureVisible(card);
+    expect(keyTx(tester, 'health-ex-today'), '今日 20 分钟', reason: '8＋12：同一天两条都算进今日');
+    expect(keyTx(tester, 'health-ex-week'), '本周 1/3 次 · ≥10 分钟计一次',
+        reason: '流水里是 2 条，但 8 分钟那条不够门槛——两处口径不同、各自算各自的');
+    expect(find.descendant(of: find.byKey(HealthHomePage.kCellEx), matching: find.text('20')),
+        findsOneWidget, reason: 'hero 数据位与运动卡吃同一份 today 快照，不许一处 20 一处 12');
+  });
+
+  testWidgets('快速算配速：边填边回显，点一下当场入账并清空输入（不留「算了没存」的落差）',
+      (tester) async {
+    await seedTwoOfFour();
+    await pumpHealth(tester, prefsValues: waterPrefs);
+    final card = find.byKey(HealthHomePage.kCardEx);
+    await tester.ensureVisible(card);
+    expect(keyTx(tester, 'health-ex-out'), '', reason: '没填就没有配速，不印「—」凑一行');
+    expect(keyTx(tester, 'health-ex-today'), '未记录');
+
+    // 缺项＝只出提示条，不写一条 0 分钟记录。
+    await tester.enterText(find.byKey(const ValueKey('health-ex-km')), '4');
+    await tester.tap(find.byKey(const ValueKey('health-ex-calc')));
+    await settle5(tester);
+    expect(find.text('请填距离与时长'), findsOneWidget);
+    expect(await repo.exerciseRange(1, dayKey(now), dayKey(now)), isEmpty);
+    await clearToasts(tester);
+
+    await tester.enterText(find.byKey(const ValueKey('health-ex-min')), '20');
+    await settle5(tester);
+    expect(keyTx(tester, 'health-ex-out'), '均配速 5′00″ /km',
+        reason: '20 分 ÷4 km＝300 秒/公里；回显跟着输入走，不是按下才现');
+
+    await tester.tap(find.byKey(const ValueKey('health-ex-calc')));
+    await settle5(tester);
+    expect(find.text('已存 · 均配速 5′00″ /km · 210 kcal'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('health-ex-km'))).controller!.text, '');
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('health-ex-min'))).controller!.text, '');
+    expect(keyTx(tester, 'health-ex-today'), '今日 20 分钟');
+    expect(keyTx(tester, 'health-ex-week'), '本周 1/3 次 · ≥10 分钟计一次');
+    // 落库的是「跑步」＋公制 4 km＋MET 估的 210 kcal（来源手动）。
+    final stored = (await repo.exerciseRange(1, dayKey(now), dayKey(now))).single;
+    expect(stored.type, '跑步');
+    expect(stored.distanceKm, 4.0);
+    expect(stored.paceSec, 300);
+    expect(stored.kcal, 210);
+    expect(stored.source, '手动');
+    await clearToasts(tester);
+  });
+
+  testWidgets('计时两态：按下才起表，再按＝收表并把分钟数带进弹层（来源预置「计时」）',
+      (tester) async {
+    var elapsedSec = 0;
+    DateTime tick() => now.add(Duration(seconds: elapsedSec));
+    await pumpHealth(tester, prefsValues: waterPrefs, clock: tick);
+    await tester.ensureVisible(find.byKey(HealthHomePage.kCardEx));
+
+    await tester.tap(find.byKey(const ValueKey('health-ex-timer')));
+    await tester.pump();
+    expect(find.text('0:00 中'), findsOneWidget, reason: '按钮本身当读数，不另摆一行数字');
+
+    elapsedSec = 65;
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('1:05 中'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('health-ex-timer')));
+    await settle5(tester);
+    expect(find.text('记录运动'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('hx-min'))).controller!.text, '1',
+        reason: '65 秒折 1 分钟（跑不满 1 分钟也记 1，否则进不了流水也进不了周次数）');
+    expect(find.byKey(const ValueKey('hx-src-计时')), findsOneWidget);
+    // 收表在开弹层之前：弹层里取消也不该让计时在后台继续跑。
+    await tester.tap(find.byKey(const ValueKey('hx-cancel')));
+    await settle5(tester);
+    expect(find.byKey(const ValueKey('hx-save')), findsNothing);
+    expect(find.text('开始计时'), findsOneWidget);
+    expect(await repo.exerciseRange(1, dayKey(now), dayKey(now)), isEmpty,
+        reason: '取消＝什么都不写');
   });
 
   testWidgets('宫格「健康」枚去灰位后点击进工作台，返回落回仪表盘（push 语义）',

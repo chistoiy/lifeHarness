@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import 'health_body_page.dart';
+import 'health_exercise_page.dart';
 import 'health_goals_page.dart';
 import 'health_home_page.dart';
 import 'health_sleep_page.dart';
@@ -31,6 +32,11 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/body',
     builder: (_, _) => const HealthBodyPage(),
+  ),
+  // 运动记录（原型 p-exLog · 批4）：本周/本月窗口＋类型过滤＋流水＋配速趋势。
+  GoRoute(
+    path: '/health/exercise',
+    builder: (_, _) => const HealthExercisePage(),
   ),
   // 健康目标（原型 p-goalsH · 批3）：环形今日四项＋就地滚轮改档。
   GoRoute(

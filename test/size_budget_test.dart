@@ -57,6 +57,10 @@ void main() {
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展
     // `part 'reader_page_pag.dart';`（G7c 族口径），主文件回到默认 1200 面以下。
+    // 健康批4（2026-10-08）登记现状＝1266：运动录入弹层（三模互算＋只读回显列）整段落在
+    // 本件第七张弹层里。真还债＝按模块把 `health_sheets.dart` 拆成 `part` 群（喝水/睡眠/
+    // 体征/身体/目标一组、运动/用药一组），批5 用药弹层进来前做，否则下一批必红。
+    'features/health/presentation/health_sheets.dart': 1266,
   };
 
   test('体积预算：lib 超线文件必须登记且只许减不许增', () {
