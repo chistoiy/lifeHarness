@@ -8,7 +8,6 @@ import 'package:lifeharness/features/media/data/media_repository.dart';
 import 'package:lifeharness/features/media/domain/media_item.dart';
 import 'package:lifeharness/features/media/presentation/media_providers.dart';
 import 'package:lifeharness/features/media/presentation/media_routes.dart';
-import 'package:lifeharness/features/media/presentation/media_shelf_page.dart';
 
 import 'helpers.dart';
 
