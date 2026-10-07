@@ -107,11 +107,13 @@ void main() {
   testWidgets('AI 增强页：默认渲染 + 总开关写盘与提示', (tester) async {
     await useSurface(tester);
     await pumpPage(tester);
-    expect(find.text('服务商管理'), findsOneWidget);
-    expect(find.text('Key 配置'), findsOneWidget);
+    expect(find.text('服务商'), findsOneWidget);
+    expect(find.text('Key 配置'), findsNothing, reason: '与服务商卡重复的 Key 配置卡已摘（2026-10-07 产品令）');
     expect(find.text('AI 总开关'), findsOneWidget);
-    expect(find.text('DeepSeek'), findsOneWidget);
-    expect(find.text('● 当前'), findsOneWidget, reason: '默认端点=DeepSeek');
+    expect(find.textContaining('DeepSeek'), findsWidgets,
+        reason: '服务商卡只显当前一行');
+    expect(find.text('● 当前'), findsNothing,
+        reason: '整份清单收进「选择服务商」半屏，页面不铺开');
     expect(find.text('提示词管理'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('ai-master-switch')));

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import 'weather_city_sheet.dart';
 
 /// V1.29轮3①+轮6③ 记录管理二级页（原型 p-sub-recmg）：
 /// 按 日记/笔记/阅读/影音游 四段 + 通用 分组收纳记录类设置。
@@ -22,6 +24,15 @@ class RecmgSettingsPage extends ConsumerWidget {
         children: [
           const _Label('日记'),
           _Card(children: [
+            // 2026-10-07 产品令：日记天气从「我的」主页挪进来（一次选定 · 写日记当天自动抓快照 · 不申请定位权限）。
+            _Row(
+                keyName: 'recmg-weather',
+                title: '日记天气',
+                trailing: WeatherCity.decode(
+                            ref.watch(settingsControllerProvider).weatherCity)
+                        ?.name ??
+                    '未设置',
+                onTap: () => showWeatherCitySheet(context, ref)),
             _Row(
                 title: '默认新建模板',
                 trailing: '纯文本',

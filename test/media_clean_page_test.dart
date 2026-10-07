@@ -107,6 +107,40 @@ void main() {
     await clearToasts(tester);
   });
 
+  testWidgets('全选：一次勾满 ↔ 取消全选', (tester) async {
+    // 2026-10-07 产品令「图片清理页面无全选按钮」——与云端清理屏（cc-all）同形补齐。
+    final fake = _FakeScanner(MediaScanResult(orphans: orphans, totalFiles: 5));
+    await tester.pumpWidget(app(fake));
+    await settle5(tester);
+
+    expect(find.text('全选'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('mc-all')));
+    await tester.pump();
+    expect(
+        (tester.widget<FilledButton>(find.byKey(const ValueKey('mc-delete')))
+                .child
+            as Text)
+            .data,
+        '清理选中（2）',
+        reason: '全选＝两行都进选中集，底钮读数同步');
+    expect(find.text('取消全选'), findsOneWidget);
+    expect(
+        tester
+            .widget<Checkbox>(find.byKey(ValueKey('mc-chk-$hashA.jpg')))
+            .value,
+        isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('mc-all')));
+    await tester.pump();
+    expect(find.text('全选'), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(find.byKey(const ValueKey('mc-delete')))
+            .onPressed,
+        isNull,
+        reason: '取消全选要真的清干净，不能留半截选中');
+  });
+
   testWidgets('B-3 预览热区：点缩略图进共享查看件，可翻页、底部给完整路径',
       (tester) async {
     final fake = _FakeScanner(MediaScanResult(orphans: orphans, totalFiles: 5));
@@ -150,6 +184,8 @@ void main() {
     await settle5(tester);
     expect(find.text('无未引用图片'), findsOneWidget);
     expect(find.byKey(const ValueKey('mc-row-$hashA.jpg')), findsNothing);
+    expect(find.byKey(const ValueKey('mc-all')), findsNothing,
+        reason: '没东西可选时不摆一个点不动的钮');
     await clearToasts(tester);
   });
 }

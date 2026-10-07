@@ -15,9 +15,7 @@ import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/trash/trash_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import '../../../shared/widgets/ui_kit.dart';
-import '../../../shared/weather/weather.dart';
 import 'profile_edit_sheet.dart';
-import 'weather_city_sheet.dart';
 
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/主题/深色/底栏配置。
@@ -229,7 +227,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           // V1.27 P2：主题风格/深色/主题色/字号 收进「外观」二级页，主页只留一行入口
-          _Card(
+          _EntryCard(
             child: _EntryRow(
                     key: const ValueKey('entry-appearance'),
                     iconWidget: Icon(Icons.palette_outlined,
@@ -242,22 +240,9 @@ class SettingsPage extends ConsumerWidget {
                     onTap: () => context.push('/settings/appearance')),
           ),
           const SizedBox(height: 14),
-          // 批2e：日记天气城市（一次选定 · 写日记当天自动抓快照 · 不申请定位权限）
-          _Card(
-            child: _EntryRow(
-                    key: const ValueKey('entry-weather'),
-                    iconWidget: const Icon(Icons.wb_sunny_outlined,
-                        size: 18, color: Color(0xFF0284C7)),
-                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
-                    title: '日记天气',
-                    sub: '城市 · ${WeatherCity.decode(ref.watch(settingsControllerProvider).weatherCity)?.name ?? '未设置'}',
-                    trailing: '',
-                    last: true,
-                    onTap: () => showWeatherCitySheet(context, ref)),
-          ),
-          const SizedBox(height: 14),
           // V1.29批A4：记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）
-          _Card(
+          // 日记天气已挪进记录管理（2026-10-07 产品令），主页这一路只留入口。
+          _EntryCard(
             child: _EntryRow(
                     key: const ValueKey('entry-recmg'),
                     iconWidget: Icon(Icons.menu_book_outlined,
@@ -362,6 +347,25 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: context.cardDecoration,
+      child: child,
+    );
+  }
+}
+
+/// 单行入口卡：与上方多行组卡**同一缩进基准**。
+/// 组卡本身不加 16 内边距（行自带 14），所以单行卡也必须零内边距——
+/// 否则同页两类卡左缘差 16px（2026-10-07 产品指出「外观/记录管理与上方条目缩进不一致」）。
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: context.cardDecoration,
+      clipBehavior: Clip.antiAlias,
       child: child,
     );
   }

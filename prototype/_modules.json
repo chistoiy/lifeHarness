@@ -1295,8 +1295,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 28340,
-     "hash": "1c90e3f6"
+     "size": 27537,
+     "hash": "3eaefe1b"
     },
     "index-media.html": {
      "size": 24332,
@@ -1517,8 +1517,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 4804,
-     "hash": "7f76b6d9"
+     "size": 4274,
+     "hash": "39a5f4a0"
     },
     "index-media.html": {
      "size": 3554,
@@ -1681,8 +1681,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 2425,
-     "hash": "9a2a783d"
+     "size": 2601,
+     "hash": "b2b251d8"
     },
     "index-media.html": {
      "size": 2758,
@@ -2046,6 +2046,20 @@
     "index-media.html": {
      "size": 7756,
      "hash": "e28e33d9"
+    }
+   }
+  },
+  {
+   "id": "sheetAiPick",
+   "kind": "sheet",
+   "title": "选择服务商",
+   "home": "index.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index.html": {
+     "size": 572,
+     "hash": "728a9121"
     }
    }
   },
@@ -3986,8 +4000,8 @@
    "status": "exclusive",
    "files": {
     "index.html": {
-     "size": 1564,
-     "hash": "3729a063"
+     "size": 1738,
+     "hash": "710519c9"
     }
    }
   },

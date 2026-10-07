@@ -69,6 +69,23 @@ class _MediaCleanPageState extends ConsumerState<MediaCleanPage> {
                             fontSize: 12.5, fontWeight: FontWeight.w800),
                       ),
                     ),
+                    // 全选/取消全选（2026-10-07 产品令：本屏此前只能逐张勾，与云端清理屏不同形）。
+                    if (r.orphans.isNotEmpty)
+                      TextButton(
+                        key: const ValueKey('mc-all'),
+                        onPressed: () => setState(() {
+                          if (_checked.length == r.orphans.length) {
+                            _checked.clear();
+                          } else {
+                            _checked
+                              ..clear()
+                              ..addAll(r.orphans.map((e) => e.path));
+                          }
+                        }),
+                        child: Text(
+                            _checked.length == r.orphans.length ? '取消全选' : '全选',
+                            style: const TextStyle(fontSize: 12)),
+                      ),
                     TextButton(
                       key: const ValueKey('mc-rescan'),
                       onPressed: _rescan,

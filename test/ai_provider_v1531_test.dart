@@ -246,7 +246,20 @@ void main() {
   List<dynamic> storedProviders() =>
       jsonDecode(prefs.getString('ai.providers') ?? '[]') as List<dynamic>;
 
+  /// 打开「选择服务商」半屏（V1.62：页面上只留当前一行，整份清单住在选单里）。
+  Future<void> openPicker(WidgetTester tester) async {
+    final f = find.byKey(const ValueKey('ai-cur-endpoint'));
+    await tester.ensureVisible(f);
+    await tester.pumpAndSettle();
+    await tester.tap(f);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ai-prov-row-deepseek')), findsOneWidget,
+        reason: '选单没开成：多半是提示条盖住了当前行');
+  }
+
   Future<void> openForm(WidgetTester tester, String addKey) async {
+    // 行内按钮（编辑/删）在选单里：目标不在页面上时先开选单，用例其余步骤照旧。
+    if (find.byKey(ValueKey(addKey)).evaluate().isEmpty) await openPicker(tester);
     await tester.ensureVisible(find.byKey(ValueKey(addKey)));
     await tester.tap(find.byKey(ValueKey(addKey)));
     await tester.pumpAndSettle();
@@ -269,10 +282,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('服务商卡运行时渲染：预置 7 行 · 当前标记 · 本地端点标 http 明文',
+  testWidgets('服务商收成一行：页面不铺开，选单里才是 7 行清单',
       (tester) async {
     await useSurface(tester, const Size(560, 2000));
     await pumpPage(tester);
+    // 页面上只有当前那一行（V1.62 产品令：不要全列表展示）。
+    expect(find.byKey(const ValueKey('ai-cur-endpoint')), findsOneWidget);
+    expect(find.text('DeepSeek · OpenAI 兼容'), findsOneWidget);
+    expect(find.textContaining('Key '), findsWidgets,
+        reason: '当前行带 Key 状态读数');
+    expect(find.byKey(const ValueKey('ai-prov-row-deepseek')), findsNothing,
+        reason: '清单不在页面上铺开');
+    expect(find.text('Key 配置'), findsNothing, reason: '重复的 Key 配置卡已摘');
+    expect(find.byKey(const ValueKey('ai-key-field')), findsNothing);
+    // 验证状态与重新验证钮留在服务商卡里（API 验证入口不许丢）。
+    expect(find.text('验证状态'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-verify-btn')), findsOneWidget);
+
+    await openPicker(tester);
     expect(find.byKey(const ValueKey('ai-prov-row-deepseek')), findsOneWidget);
     expect(find.byKey(const ValueKey('ai-prov-row-ollama')), findsOneWidget);
     expect(find.byKey(const ValueKey('ai-prov-cur-deepseek')), findsOneWidget);
@@ -285,10 +312,6 @@ void main() {
     // 当前端点不给删（其他行给）。
     expect(find.byKey(const ValueKey('ai-prov-del-deepseek')), findsNothing);
     expect(find.byKey(const ValueKey('ai-prov-del-glm')), findsOneWidget);
-    // Key 配置卡只显当前端点摘要（模型名已并入服务商编辑）。
-    expect(find.byKey(const ValueKey('ai-cur-endpoint')), findsOneWidget);
-    expect(find.textContaining('当前端点：DeepSeek'), findsOneWidget);
-    expect(find.byKey(const ValueKey('ai-model-field')), findsNothing);
   });
 
   testWidgets('添加服务商：缺项行内报错拒存 · 补齐后落盘并自动选用',
@@ -325,7 +348,8 @@ void main() {
     expect(prefs.getString('ai.activeProvider'), relay['id'],
         reason: '新增即选用（原型 aiProvUse 同口径）');
     expect(await vault.readOwn('${relay['id']}'), 'sk-relay');
-    expect(find.textContaining('当前端点：公司中转站'), findsOneWidget);
+    expect(find.text('公司中转站 · OpenAI 兼容'), findsOneWidget,
+        reason: '新增即选用，服务商卡那一行当场换人');
   });
 
   testWidgets('http 明文端点：未确认拒存，确认后落盘且行上标黄',
@@ -347,7 +371,9 @@ void main() {
     await clearToasts(tester);
     expect(storedProviders().length, 8);
     final id = (storedProviders().last as Map)['id'];
-    expect(find.byKey(ValueKey('ai-prov-http-$id')), findsOneWidget);
+    await openPicker(tester);
+    expect(find.byKey(ValueKey('ai-prov-http-$id')), findsOneWidget,
+        reason: '选单里必须一次看全所有行（含新加的那家）');
   });
 
   testWidgets('编辑预置条目：改地址与协议即刻生效（业务模块零改动）',
@@ -370,6 +396,7 @@ void main() {
     expect(container.read(aiConfigProvider).providers
         .firstWhere((p) => p.id == 'glm')
         .isAnthropic, isTrue);
+    await openPicker(tester);
     expect(find.textContaining('glm-4.5-air · Anthropic Messages'),
         findsOneWidget);
   });
@@ -384,12 +411,15 @@ void main() {
     await clearToasts(tester);
     expect(await vault.readOwn('kimi'), 'sk-kimi');
 
+    await openPicker(tester);
     await tapKey(tester, 'ai-prov-del-kimi');
     expect(find.byKey(const ValueKey('ai-prov-del-confirm')), findsOneWidget,
         reason: '破坏性操作两段式');
     await tapKey(tester, 'ai-prov-del-confirm');
     expect(storedProviders().any((e) => (e as Map)['id'] == 'kimi'), isFalse);
     expect(await vault.readOwn('kimi'), isNull);
+    // 删除会先收起选单（两段式确认在页面层）：重新开选单才谈「行不再出现」。
+    await openPicker(tester);
     expect(find.byKey(const ValueKey('ai-prov-row-kimi')), findsNothing);
     await clearToasts(tester);
   });

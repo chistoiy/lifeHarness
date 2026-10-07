@@ -62,31 +62,10 @@ class AiSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
-  final _keyCtrl = TextEditingController();
-  bool _keyMasked = true;
-
-  /// 已填入 [_keyCtrl] 的服务商 id（切换当前端点后需重填）。
-  String? _keyFilledFor;
-
-  /// 各服务商是否**自己**存过 Key（未存者沿用旧全局 Key）。
+  /// 各服务商是否**自己**存过 Key（本页不再有 Key 输入框——录入与查看都在
+  /// 「服务商表单」弹层与「API 验证」页里，V1.62 产品令：Key 配置卡与列表重复，摘掉）。
   final Set<String> _ownKeyIds = {};
   bool _keyStatesLoadedFor = false;
-
-  @override
-  void dispose() {
-    _keyCtrl.dispose();
-    super.dispose();
-  }
-
-  /// 载入「当前端点」的 Key 到输入框（掩码展示）。
-  Future<void> _loadKey(String providerId) async {
-    if (_keyFilledFor == providerId) return;
-    final k = await ref.read(aiKeyVaultProvider).read(providerId) ?? '';
-    if (!mounted || k.isEmpty) return;
-    _keyCtrl.text = k;
-    _keyFilledFor = providerId;
-    setState(() {});
-  }
 
   /// 服务商列表的 Key 状态行（加密区只读探测，内存版测试注入即刻返回）。
   Future<void> _loadKeyStates() async {
@@ -104,28 +83,80 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
     });
   }
 
-  Future<void> _saveKey() async {
-    final pid = ref.read(aiConfigProvider).active.id;
-    final k = _keyCtrl.text.trim();
-    final vault = ref.read(aiKeyVaultProvider);
-    if (k.isEmpty) {
-      await vault.clear(providerId: pid);
-      _keyFilledFor = pid;
-      _refreshKeyStates();
-      if (!mounted) return;
-      AppToast.show(context, 'Key 为空：已清除当前端点存的 Key');
-      return;
-    }
-    final ok = await vault.write(k, providerId: pid);
-    _keyFilledFor = pid;
-    _refreshKeyStates();
-    if (!mounted) return;
-    AppToast.show(context, ok ? 'Key 已存入系统加密区' : 'Key 写入失败：保险箱异常');
-  }
-
   void _refreshKeyStates() {
     _keyStatesLoadedFor = false;
     _loadKeyStates();
+  }
+
+  /// 服务商选单（半屏）：全量清单收在这里，页面上只留当前一行。
+  /// 口径＝枚举实体选择走选择弹层，不做「点一下循环切」，也不引 DropdownButton（U5 禁词闸在册）。
+  Future<void> _openProviderPicker() async {
+    final cfg = ref.read(aiConfigProvider);
+    final activeId = cfg.active.id;
+    final messenger = ScaffoldMessenger.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height -
+            MediaQuery.of(context).padding.top -
+            24,
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Text('选择服务商',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                // 用 Column 而非 shrinkWrap ListView：懒建会让末尾几行不进树（选单里必须一次看全）。
+                child: Column(
+                  children: [
+                    for (final p in cfg.providers)
+                      _ProviderRow(
+                        provider: p,
+                        isCurrent: p.id == activeId,
+                        keyState: _ownKeyIds.contains(p.id) ? '已单独保存' : '未填',
+                        onUse: () async {
+                          Navigator.pop(ctx);
+                          await ref
+                              .read(aiConfigProvider.notifier)
+                              .useProvider(p.id);
+                          _refreshKeyStates();
+                          messenger
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(
+                                content: Text(
+                                    '已切换到「${p.name}」· 后续请求走该端点与其 Key'),
+                                persist: false));
+                        },
+                        onEdit: () {
+                          Navigator.pop(ctx);
+                          _openProviderForm(provider: p);
+                        },
+                        onDelete: () {
+                          Navigator.pop(ctx);
+                          _deleteProvider(p);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 14),
+              child: Text('预置只是默认值，不是白名单：官方、中转站/自建网关、局域网 Ollama 都能添加，'
+                  'Base URL、模型名、协议都可改。',
+                  style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 打开服务商添加/编辑弹层（V1.53.1：预置也只是种子，同样可改地址）。
@@ -161,7 +192,6 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
       if (p != null) await _deleteProvider(p);
       return;
     }
-    _keyFilledFor = null; // 端点/Key 可能已变，强制重填
     _refreshKeyStates();
     AppToast.show(context, '已保存 · 端点即刻生效（业务模块无需任何改动）');
   }
@@ -193,12 +223,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
         await ref.read(aiConfigProvider.notifier).deleteProvider(p.id);
     if (!mounted) return;
     if (!done) {
-      _keyFilledFor = null;
-      setState(() {});
       AppToast.show(context, '当前端点不可删除：先选用其他服务商');
       return;
     }
-    _keyFilledFor = null;
     _refreshKeyStates();
     AppToast.show(context, '已删除「${p.name}」（其 Key 一并从加密区清除）');
   }
@@ -208,7 +235,6 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
     final cfg = ref.watch(aiConfigProvider);
     ref.watch(aiKeyVaultProvider); // 触发首次载入
     final active = cfg.active;
-    _loadKey(active.id);
     if (!_keyStatesLoadedFor) _loadKeyStates();
     return Scaffold(
       appBar: AppBar(title: const Text('AI 增强')),
@@ -223,7 +249,7 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                 Row(
                   children: [
                     const Expanded(
-                        child: Text('服务商管理',
+                        child: Text('服务商',
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w800))),
                     TextButton(
@@ -234,101 +260,44 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                     ),
                   ],
                 ),
-                for (final p in cfg.providers)
-                  _ProviderRow(
-                    provider: p,
-                    isCurrent: p.id == active.id,
-                    keyState: _ownKeyIds.contains(p.id)
-                        ? '已单独保存'
-                        : (p.id == active.id && _keyCtrl.text.trim().isNotEmpty
-                            ? '沿用旧全局 Key'
-                            : '未填'),
-                    onUse: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      await ref
-                          .read(aiConfigProvider.notifier)
-                          .useProvider(p.id);
-                      if (!mounted) return;
-                      _keyFilledFor = null;
-                      setState(() {});
-                      messenger
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(SnackBar(
-                            content: Text('已切换到「${p.name}」· 后续请求走该端点与其 Key'),
-                            persist: false));
-                    },
-                    onEdit: () => _openProviderForm(provider: p),
-                    onDelete: () => _deleteProvider(p),
-                  ),
-                const Text(
-                    '预置只是默认值，不是白名单：官方、中转站/自建网关、局域网 Ollama 都能添加，'
-                    'Base URL、模型名、协议都可改。请求只发往你填的地址，应用自身零埋点。',
-                    style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // —— Key 配置（原型：当前端点摘要 + 掩码 Key + 验证状态 + 重新验证钮）——
-          _Card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Key 配置',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
-                Container(
+                // V1.62 产品令：全量列表收成一行「当前服务商」，点开进半屏选单。
+                InkWell(
                   key: const ValueKey('ai-cur-endpoint'),
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '当前端点：${active.name} · ${active.baseUrl} · ${active.model}'
-                    ' · ${aiProtocolLabel(active.protocol)}',
-                    style: const TextStyle(fontSize: 11, height: 1.5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  key: const ValueKey('ai-key-field'),
-                  controller: _keyCtrl,
-                  obscureText: _keyMasked,
-                  style: const TextStyle(fontSize: 12.5),
-                  decoration: InputDecoration(
-                    hintText: 'API Key · sk-…',
-                    isDense: true,
-                    suffixIcon: IconButton(
-                      icon: Icon(_keyMasked ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
-                      onPressed: () => setState(() => _keyMasked = !_keyMasked),
+                  onTap: _openProviderPicker,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${active.name} · ${aiProtocolLabel(active.protocol)}',
+                                  style: const TextStyle(
+                                      fontSize: 12.5, fontWeight: FontWeight.w700)),
+                              Text(
+                                  '${active.baseUrl} · ${active.model} · '
+                                  '${_ownKeyIds.contains(active.id) ? 'Key 已单独保存' : 'Key 未填'}',
+                                  style: const TextStyle(
+                                      fontSize: 10.5, color: Colors.grey, height: 1.4)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.unfold_more, size: 16, color: Color(0xFF94A3B8)),
+                      ],
                     ),
                   ),
-                  onSubmitted: (_) => _saveKey(),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        key: const ValueKey('ai-prov-edit-current'),
-                        onPressed: () => _openProviderForm(provider: active),
-                        child: const Text('编辑当前服务商',
-                            style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                    Expanded(
-                      child: TextButton(
-                        key: const ValueKey('ai-prov-add-2'),
-                        onPressed: () => _openProviderForm(),
-                        child: const Text('+ 新服务商',
-                            style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text('Key 存系统级加密区：不入备份明文、不落日志、不随同步导出。',
+                const Text(
+                    '请求只发往所选地址 · 应用自身零埋点；Key 存系统加密区，'
+                    '不入备份明文、不落日志、不随同步导出。',
                     style: TextStyle(fontSize: 10, color: Colors.grey, height: 1.5)),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -339,8 +308,7 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                         ? '未验证'
                         : (cfg.verifyOk
                             ? '✓ ${_fmtTime(cfg.verifyAtMs!)} 通过 · ${cfg.verifyLatencyMs ?? '?'}ms'
-                            : '✕ ${_fmtTime(cfg.verifyAtMs!)} 失败')
-                        ,
+                            : '✕ ${_fmtTime(cfg.verifyAtMs!)} 失败'),
                     key: const ValueKey('ai-verify-status'),
                     style: TextStyle(
                         fontSize: 11,
@@ -356,11 +324,7 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                   width: double.infinity,
                   child: FilledButton.icon(
                     key: const ValueKey('ai-verify-btn'),
-                    onPressed: () async {
-                      final router = GoRouter.of(context);
-                      await _saveKey();
-                      router.push('/settings/ai/verify');
-                    },
+                    onPressed: () => context.push('/settings/ai/verify'),
                     icon: const Icon(Icons.bolt_outlined, size: 18),
                     label: const Text('重新验证 / 测试新 Key'),
                   ),
