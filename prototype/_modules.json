@@ -301,6 +301,20 @@
    }
   },
   {
+   "id": "m-info",
+   "kind": "screen",
+   "title": "",
+   "home": "index-media.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-media.html": {
+     "size": 878,
+     "hash": "968e08fe"
+    }
+   }
+  },
+  {
    "id": "m-lists",
    "kind": "screen",
    "title": "",
@@ -339,6 +353,20 @@
     "index-media.html": {
      "size": 719,
      "hash": "d4e8c065"
+    }
+   }
+  },
+  {
+   "id": "m-sesslog",
+   "kind": "screen",
+   "title": "",
+   "home": "index-media.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-media.html": {
+     "size": 552,
+     "hash": "f272ff07"
     }
    }
   },
