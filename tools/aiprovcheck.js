@@ -101,10 +101,12 @@ const ROWS = "[].map.call(document.querySelectorAll('#aiProvList > div'),functio
     var resBg=getComputedStyle(document.getElementById('apRes')).backgroundColor;
     var hint=$('#apKeyHint').textContent.slice(0,7);
     var gk=$('#gkKey')?$('#gkKey').type:'-';
+    var gkCard=/Key 配置/.test(document.getElementById('p-sub-ai').textContent);
     closeSheet('sheetAiProv');
-    return {masked:masked,eyeIcon:eyeIcon,shown:shown,back:back,resBg:resBg,hint:hint,gk:gk};`);
-  (p12.masked && p12.eyeIcon && p12.shown && p12.back && p12.resBg.indexOf('15, 23, 42') < 0 && /已存 Key/.test(p12.hint) && p12.gk === 'password')
-    ? ok('P12 Key 默认掩码 · 点眼睛切明文再点回掩码 · 结果区改浅色描边框', JSON.stringify(p12)) : bad('P12', JSON.stringify(p12));
+    return {masked:masked,eyeIcon:eyeIcon,shown:shown,back:back,resBg:resBg,hint:hint,gk:gk,gkCard:gkCard};`);
+  /* V1.62 产品令：Key 配置整卡与服务商卡重复已摘——Key 只在表单与验证页里录，页面不许再有第二个输入框。 */
+  (p12.masked && p12.eyeIcon && p12.shown && p12.back && p12.resBg.indexOf('15, 23, 42') < 0 && /已存 Key/.test(p12.hint) && p12.gk === '-' && !p12.gkCard)
+    ? ok('P12 Key 默认掩码 · 点眼睛切明文再点回掩码 · 页面重复的 Key 配置卡已摘', JSON.stringify(p12)) : bad('P12', JSON.stringify(p12));
   await ev(`aiProvEdit('deepseek');return 1;`); await wait(200);
   await shot('aip-form-edit');
   await ev(`closeSheet('sheetAiProv');return 1;`);
@@ -114,9 +116,9 @@ const ROWS = "[].map.call(document.querySelectorAll('#aiProvList > div'),functio
     return {curRelay:/● 当前/.test(r.filter(function(t){return /自建中转站/.test(t)})[0]),
       dsUse:/选用/.test(r.filter(function(t){return /DeepSeek/.test(t)})[0]),
       curNoDel:!(/删/.test(r.filter(function(t){return /自建中转站/.test(t)})[0])),
-      sum:$('#apCur').textContent.replace(/\\s+/g,'')};`);
+      sum:$('#aiCurName').textContent.replace(/\\s+/g,'')+$('#apCur').textContent.replace(/\\s+/g,'')};`);
   (p6.curRelay && p6.dsUse && p6.curNoDel && /自建中转站/.test(p6.sum))
-    ? ok('P6 「选用」切换当前端点 · Key 配置卡摘要同步', JSON.stringify(p6)) : bad('P6', JSON.stringify(p6));
+    ? ok('P6 「选用」切换当前端点 · 服务商卡那一行摘要同步', JSON.stringify(p6)) : bad('P6', JSON.stringify(p6));
 
   /* P7 删除非当前项=两段式确认 */
   const p7 = await ev(`var btns=[].filter.call(document.querySelectorAll('#aiProvList .mini-btn'),function(b){return b.textContent.trim()==='删'});
