@@ -555,802 +555,42 @@ tailwind.config = {
     </div>
 
     <!-- ===== P1 今日仪表盘 ===== -->
-    <section id="p-dashboard" class="page active px-5 safe-pb no-scrollbar">
-      <!-- 顶部问候卡 -->
-      <div class="grad rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden">
-        <div class="absolute -right-8 -top-10 w-36 h-36 rounded-full bg-white/10"></div>
-        <div class="absolute -right-2 top-12 w-20 h-20 rounded-full bg-white/10"></div>
-        <div class="text-sm opacity-80">早上好，CHIST ☀️</div>
-        <div class="text-2xl font-extrabold mt-1">今天有 <span class="text-3xl">4</span> 个待办 · <span class="text-3xl">2</span> 场安排</div>
-        <div class="mt-3 flex items-center gap-2 text-xs bg-white/15 rounded-full px-3 py-1.5 w-fit">
-          <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span> 本周 62% 精力在「重要」象限，状态不错
-        </div>
-        <div class="mt-4 flex gap-3">
-          <div class="flex-1 bg-white/15 rounded-2xl p-3">
-            <div class="text-[11px] opacity-80">今日待办</div>
-            <div class="flex items-end gap-2 mt-1">
-              <div class="relative w-9 h-9">
-                <svg viewBox="0 0 36 36" class="w-9 h-9 ring-progress"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="18" cy="18" r="15" fill="none" stroke="#fff" stroke-width="5" stroke-dasharray="60 100" stroke-linecap="round"/></svg>
-                <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">60%</span>
-              </div>
-              <div class="text-xs leading-4">3/5<br>已完成</div>
-            </div>
-          </div>
-          <div class="flex-1 bg-white/15 rounded-2xl p-3">
-            <div class="text-[11px] opacity-80">今日持有成本</div>
-            <div class="text-xl font-extrabold mt-1">¥ 47.2<span class="text-xs font-medium opacity-80">/天</span></div>
-            <div class="text-[10px] opacity-70">12 件物品计费中</div>
-          </div>
-        </div>
-        <div class="mt-3 flex items-center justify-between text-[10px] text-white/75">
-          <span>长按任意卡片可编排顺序</span>
-        </div>
-      </div>
-
-      <!-- 今日心情 -->
-      <div class="card mt-4">
-        <div class="row-title">今日心情</div>
-        <div id="moodRow" class="flex justify-between px-2 mt-1">
-          <button class="mood" data-m="开心">😄</button><button class="mood" data-m="平静">😌</button>
-          <button class="mood" data-m="一般">😐</button><button class="mood" data-m="疲惫">😪</button>
-          <button class="mood" data-m="焦虑">😰</button><button class="mood" data-m="低落">😢</button>
-          <button class="mood" data-m="愤怒">😡</button>
-        </div>
-        <div id="moodTip" class="text-[11px] text-slate-400 text-center mt-1">点一下，记录今天的心情</div>
-      </div>
-
-      <!-- 今日日程 -->
-      <div class="card mt-4">
-        <div class="flex items-center justify-between">
-          <div class="row-title">今日日程</div>
-          <button onclick="navTo('p-calendar')" class="text-xs text-brand-500 font-semibold">查看全部 ›</button>
-        </div>
-        <div class="mt-2 space-y-2" id="dashEvents"></div>
-      </div>
-
-      <!-- 快捷记录条 -->
-      <button onclick="navTo('p-inbox')" class="mt-4 w-full card flex items-center gap-3 !py-3 text-left active:scale-[.99] transition">
-        <span class="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center text-base">⚡</span>
-        <div class="flex-1"><div class="text-sm font-bold">收集箱 · 3 条未整理</div><div class="text-[11px] text-slate-400">快速记下，稍后再分类</div></div>
-        <span class="text-slate-300">›</span>
-      </button>
-
-      <!-- 时间分布 -->
-      <div class="card mt-4">
-        <div class="row-title">本周时间分布</div>
-        <div class="flex items-center gap-4 mt-3">
-          <svg viewBox="0 0 42 42" class="w-24 h-24 shrink-0 -rotate-90">
-            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="6" class="dark:opacity-10"/>
-            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#6366f1" stroke-width="6" stroke-dasharray="38 100" stroke-dashoffset="0"/>
-            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2dd4bf" stroke-width="6" stroke-dashoffset="-38" stroke-dasharray="24 100"/>
-            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dashoffset="-62" stroke-dasharray="18 100"/>
-            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#fb7185" stroke-width="6" stroke-dashoffset="-80" stroke-dasharray="20 100"/>
-          </svg>
-          <div class="text-xs space-y-1.5 flex-1">
-            <div class="flex justify-between"><span><i class="dot bg-brand-500"></i>工作学习</span><b>38%</b></div>
-            <div class="flex justify-between"><span><i class="dot bg-mint"></i>睡眠休息</span><b>24%</b></div>
-            <div class="flex justify-between"><span><i class="dot bg-sun"></i>运动健康</span><b>18%</b></div>
-            <div class="flex justify-between"><span><i class="dot bg-peach"></i>娱乐休闲</span><b>20%</b></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 全部功能宫格 -->
-      <div class="card mt-4">
-        <div class="row-title">全部功能</div>
-        <div class="grid grid-cols-4 gap-y-4 mt-3 text-center text-[11px] font-medium" id="appGrid"></div>
-      </div>
-
-      <div id="dashFooter" class="text-center text-[10px] text-slate-300 dark:text-slate-600 mt-6 pb-2">LifeHarness 原型 · 页面底部可切换主导航</div>
-    </section>
 
     <!-- ===== P2 待办 ===== -->
-    <section id="p-todo" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.27：⇄切换与漏斗筛选均在全局顶栏（与搜索同行），页内不放工具行 -->
-
-      <!-- V1.26 智能筛选面板（顶栏漏斗按钮开合 · V1.27 清单与四象限两视图均生效） -->
-      <div id="todoFilterPanel" class="hidden mt-3 card !p-3">
-        <div class="text-[10px] font-bold text-slate-400 mb-2">智能筛选 · 选择后自动收起 · 对清单与四象限同时生效</div>
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="smartChips"></div>
-      </div>
-
-      <!-- 清单视图 -->
-      <div id="todoListWrap" class="mt-4">
-        <div class="text-[10px] text-slate-400 mb-1">长按条目可拖拽排序</div>
-        <div class="space-y-2" id="todoList"></div>
-        <!-- 过期提示 -->
-        <div class="mt-4 rounded-2xl bg-peach/10 border border-peach/30 p-3 flex gap-2 items-start">
-          <span>⚠️</span><div class="text-xs leading-5"><b>2 项任务已逾期</b>，其中 1 项标记为「重要且紧急」。<div class="text-slate-500">临近截止的任务会被自动建议升入紧急象限</div></div>
-          <button class="ml-auto text-[11px] text-rose-500 font-bold shrink-0" onclick="switchTodoView('quad')">处理</button>
-        </div>
-      </div>
-
-      <!-- 四象限视图 -->
-      <div id="quadWrap" class="hidden mt-4">
-        <div class="grid grid-cols-2 gap-3" id="quadBoard"></div>
-        <div class="mt-3 rounded-2xl bg-sun/10 border border-sun/30 p-3 text-xs flex items-center gap-2">
-          <span>🧭</span><div class="flex-1"><b>失衡提醒：</b>「重要不紧急」象限已 3 天空置，长期如此容易陷入救火模式。</div>
-          <button class="text-[11px] text-amber-600 font-bold shrink-0" onclick="toast('已进入引导规划（模拟）')">去规划</button>
-        </div>
-      </div>
-    </section>
 
     <!-- ===== P3 日程/日历 ===== -->
-    <section id="p-calendar" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center justify-between gap-2">
-        <div id="hdWrap" style="position:relative">
-          <div class="flex items-baseline gap-1.5 text-xl font-extrabold">
-            <span id="hdY" class="hidden text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">2026<span class="text-[10px] font-bold text-slate-400">年</span></span>
-            <span id="hdM" class="text-brand-500 cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">09<span class="text-[10px] font-bold text-slate-400">月</span></span>
-            <span id="hdD" class="cursor-pointer active:opacity-60" onclick="openDatePick()" title="轮式选择年月日">19<span class="text-[10px] font-bold text-slate-400">日</span></span>
-          </div>
-        </div>
-        <div class="flex items-center gap-1.5" id="calTools" style="position:relative">
-          <!-- V1.29轮6：搜索/视图按钮与全局顶栏同款线性风格·视图切换改⇄钮+同款下拉菜单 -->
-          <button onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" title="搜索"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg></button>
-          <button id="btnToday" class="hidden w-9 h-9 rounded-full font-extrabold text-[15px] items-center justify-center active:bg-slate-200 dark:active:bg-slate-800 text-brand-500" onclick="goToday()" title="回到今天">今</button>
-          <button class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" onclick="toggleViewMenu(event)" title="切换 轴/块/日/周">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.5 20 7.5l-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/></svg>
-          </button>
-          <div id="viewMenu" class="hidden absolute right-0 top-11 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
-        </div>
-      </div>
-      <!-- 展开态：迷你月历（有事项的天右下角显圆点） -->
-      <div id="monthPanel" class="mt-2 card !p-3" style="touch-action:pan-y">
-        <!-- V1.27：去「‹上月 2026年9月 下月›」行；展开态左右滑动切月（initCalSwipe） -->
-        <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-        <div class="grid grid-cols-7 text-center gap-y-0.5" id="monthGrid"></div>
-        <div class="flex justify-center gap-3 text-[9px] text-slate-400 mt-1.5"><span><i class="dot bg-emerald-400"></i>已完成</span><span><i class="dot bg-brand-400"></i>计划中</span><span><i class="dot bg-rose-400"></i>进行中</span><span>同日多态取最高优先级</span></div>
-      </div>
-      <!-- 收起态：单周行（左右滑动切天，滑动幅度超阈值即换天） -->
-      <div id="weekStrip" class="hidden mt-2 card !p-2 select-none" style="touch-action:pan-y">
-        <div class="flex justify-end px-1 mb-0.5"><span class="text-[9px] text-brand-500 font-bold cursor-pointer" onclick="expandMonth()">展开 ▾</span></div>
-        <div class="grid grid-cols-7 text-center gap-x-1" id="weekStripCells"></div>
-      </div>
-      <div id="conflictTip" class="mt-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 p-3 text-xs hidden">⏱ <b>时间冲突：</b>「产品评审」与「与客户午餐」重叠 30 分钟，点击调整 ›</div>
-      <!-- ① 轴视图：竖向时间轴（V1.22.1 去右侧分类栏·速记仅在块视图） -->
-      <div id="calAxisView" class="hidden mt-3">
-        <div id="dayLabel" class="text-xs font-extrabold text-brand-500 mb-1"></div>
-        <div id="calDayView" class="relative pl-14">
-          <div class="absolute left-12 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-800"></div>
-          <div id="timeAxis" class="space-y-0"></div>
-        </div>
-      </div>
-      <!-- ② 块视图：全天 0-24 格子（总面积固定·粒度滑选）+ 分类速记列（图1/图3） -->
-      <div id="calBlockView" class="mt-3">
-        <div class="flex gap-2 items-start">
-          <div class="flex-1 min-w-0 select-none" style="touch-action:none">
-            <div class="flex items-center justify-between mb-1.5 gap-2">
-              <div class="text-[10px] text-slate-400">🖐 滑选 → 点右列分类=直接标记 · 1格=<b id="granLabel">15</b>分 · 全天0-24 · ⚡事件/✓块点击可管理</div>
-              <span class="flex items-center gap-1 text-[10px] text-slate-400 shrink-0">粒度
-                <select id="granSel" onchange="setGran(+this.value)" class="sel !py-1">
-                  <option value="1">1 分钟</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15" selected>15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option>
-                </select>
-              </span>
-            </div>
-            <div id="gridCells" class="grid gap-1"></div>
-            <div id="gridSelInfo" class="mt-2 text-xs font-bold text-brand-500 min-h-[20px]"></div>
-          </div>
-          <div class="w-[70px] shrink-0">
-            <div class="text-[9px] text-slate-400 text-center mb-1">选中=标记 · 未选=记到此刻</div>
-            <div id="catRail2" class="space-y-1.5"></div>
-          </div>
-        </div>
-      </div>
-      <!-- ③ 日视图：0-23 小时刻度（图4 · 点空白小时补录 · 点事件管理） -->
-      <div id="calDayHourView" class="hidden mt-3"></div>
-      <!-- ⑤ 周视图：7×24 网格（图6 · 点格子 → 日期时间+分类+继续添加） -->
-      <div id="calWeekGrid" class="hidden mt-3"></div>
-    </section>
 
     <!-- ===== P4 记录（日记/笔记/阅读） ===== -->
-    <section id="p-records" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.29轮5：四段切换行移除 · 标题即「记录 · X」+ 右上切换钮 -->
-      <!-- 日记 tab -->
-      <div id="recDiary" class="mt-4">
-        <div class="grad rounded-3xl p-4 text-white shadow-lg shadow-indigo-500/20">
-          <div class="flex items-center justify-between"><b class="text-sm">九月 · 已记录 18 篇</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1 inline-flex items-center gap-1" onclick="openSheet('sheetDiaryReview')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10m5.5 10V4M15 20v-7m5.5 7V8"/></svg>回顾</button></div>
-          <div class="mt-2.5 flex items-end gap-[3px] h-9" id="moodMini"></div>
-          <div class="text-[10px] opacity-75 mt-1.5">连续记录 55 天 · 本月心情以 😌 平静居多 · 点色条看当天</div>
-        </div>
-        <button onclick="navTo('p-diaryEdit')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-          <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-brand-500/15 flex items-center justify-center text-lg">✍️</span>
-          <div class="flex-1"><div class="text-sm font-bold">写今天的日记</div><div class="text-[11px] text-slate-400">已生成今日概览草稿 · 昨晚 46 字未发送草稿可续写（联动 L2）</div></div>
-          <span class="text-slate-300">›</span>
-        </button>
-        <!-- V1.29轮9g修正：本行=列表⇄INS切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签 -->
-        <div class="mt-2 flex items-center justify-end gap-2 relative">
-          <button id="diaryViewBtn" onclick="diaryLayout(dlLayout==='list'?'ins':'list')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="切换 列表/INS 卡片流">☰</button>
-          <button id="diaryFilterBtn" onclick="openSheet('sheetDiaryFilter')" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
-        </div>
-        <div id="diaryList" class="mt-3"></div>
-      </div>
-
-      <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
-      <div id="recNote" class="hidden mt-1.5">
-        <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
-        <div class="flex items-center justify-end gap-2 relative">
-          <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
-          <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
-          <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
-          <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
-        </div>
-        <div id="noteList" class="mt-3"></div>
-      </div>
-
-      <!-- 阅读 tab -->
-      <div id="recBook" class="hidden mt-4">
-        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" id="bookStatusChips"></div>
-        <div class="mt-3 space-y-3" id="bookList"></div>
-        <button onclick="navTo('p-import')" class="mt-4 w-full card !py-3 flex items-center gap-3 text-left active:scale-[.99] transition">
-          <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">📥</span>
-          <div class="flex-1"><div class="text-sm font-bold">导入其他平台读书笔记</div><div class="text-[11px] text-slate-400">微信读书 / Kindle / Notion / Markdown…</div></div>
-          <span class="text-slate-300">›</span>
-        </button>
-      </div>
-
-      <!-- 影音游 tab（V1.25 · 与日记/笔记/阅读并列 · 原独立页并入） -->
-      <div id="recMedia" class="hidden mt-4">
-        <div class="mds-ring">
-          <svg width="42" height="42" viewBox="0 0 42 42" class="ring-progress"><circle cx="21" cy="21" r="17" fill="none" stroke="rgba(0,0,0,.1)" stroke-width="4"/><circle id="mdsTodayRing" cx="21" cy="21" r="17" fill="none" stroke="var(--mds-ink)" stroke-width="4" stroke-dasharray="0 106" stroke-linecap="round"/></svg>
-          <div class="flex-1">
-            <div class="text-[11px] mds-mono" style="opacity:.65">今日观影 · 分钟</div>
-            <div class="text-[17px] mds-title"><b id="mdsTodayMin">46</b><span class="text-[10px]" style="opacity:.6"> / 60 min</span></div>
-          </div>
-          <button class="mds-chip on" onclick="mStartTimerFor()">▶ 计时</button>
-        </div>
-        <div class="mds-ibar mt-3" id="mdsEntryBar"></div>
-        <div class="mt-4 text-[10px] mds-mono" style="opacity:.55">桌面俯瞰 · 最近四条</div>
-        <div class="mds-grid mt-1" id="mdsHubDesk"></div>
-        <div class="mt-4"><div class="text-[10px] mds-mono mb-1" style="opacity:.55">名场面复习</div>
-          <div class="mds-rev" id="mdsHubRev" onclick="mFlipReview()"><div class="mds-rev-inner">
-            <div class="mds-rev-face"><div class="text-[9px] mds-mono" style="opacity:.55">《奥本海默》1:52:14</div><div class="mt-2 text-[14px] mds-title leading-6">「现在我们都知道世界是毁灭了。」</div></div>
-            <div class="mds-rev-face mds-rev-back"><div class="text-[9px] mds-mono" style="opacity:.55">我的批注</div><div class="mt-2 text-[12px] leading-6">诺兰把奥本海默引《薄吉梵歌》这句用作核试验后的自省；台词与画面节奏对位极准。</div></div>
-          </div></div>
-        </div>
-      </div>
-    </section>
 
     <!-- ===== P4a 日记编辑页（轮12：全屏沉浸自带返回头·去模式切换/媒体三格/hint/顶栏搜索） ===== -->
-    <section id="p-diaryEdit" class="page px-5 safe-pb no-scrollbar">
-      <!-- 轮12-8：头部=仅返回钮+居中日期(跨年显年月日)周几，无标题；轮13：右侧删除本篇 -->
-      <div class="sticky top-0 z-20 -mx-5 px-2 pt-1 pb-1 flex items-center bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur">
-        <button onclick="goBack()" class="pw-ic-btn text-xl">‹</button>
-        <div class="flex-1 text-center text-[14px] font-extrabold tracking-tight">09-19 周六</div>
-        <button onclick="dlDeleteCur()" class="pw-ic-btn text-slate-400" title="删除本篇">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
-        </button>
-      </div>
-      <div class="mt-1 flex items-center gap-2">
-        <div class="flex gap-2" id="editMood"></div>
-        <!-- 批2e：心情行右侧=天气小 chip（写日记当天自动获取·点按可手动覆盖） -->
-        <button id="diaryWxChip" onclick="openSheet('sheetWeatherPick')" class="ml-auto flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 active:scale-95 transition"><span id="diaryWxIco" class="flex items-center"></span><span id="diaryWxTxt">晴 20~30°</span></button>
-      </div>
-      <div id="diaryBody"></div>
-      <div class="mt-3 card">
-        <!-- 轮12-1：今日概览草稿默认折叠·点标题行展开 -->
-        <div id="dwSumHead" class="flex items-center justify-between cursor-pointer" onclick="dwSummaryToggle()">
-          <div class="row-title">今日概览草稿（自动生成 · 联动L2）</div>
-          <span id="dwSumChev" class="text-slate-400 text-xs transition-transform duration-200 select-none">⌄</span>
-        </div>
-        <div id="dwSummary" class="hidden">
-          <div class="text-xs text-slate-500 dark:text-slate-400 leading-6 mt-1">✅ 完成「提交周报」等 3 项待办 ｜ 📅 参加「产品评审」10:00-11:00<br>📖 阅读《思考，快与慢》12 分钟，新增 2 条摘录<br>💰 今日支出 ¥86.00（餐饮 2 笔）</div>
-          <div class="flex gap-3 mt-2"><button class="text-xs text-brand-500 font-bold" onclick="insertSummary()">插入正文 ↑</button><button class="text-xs text-rose-400 font-bold" onclick="toast('AI 今日反思草稿已生成，请审阅后插入（需 Key 验证）')">🤖 AI 生成反思草稿</button></div>
-        </div>
-      </div>
-      <div class="mt-4 flex gap-3">
-        <button id="diaryTplBtn" onclick="openSheet('sheetDiaryTpl')" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs px-3 py-2.5 text-left">📋 模板：自由书写 ▾</button>
-        <button onclick="saveDiary()" class="px-6 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">保存</button>
-      </div>
-    </section>
 
     <!-- ===== P4d 笔记编辑器（纯纯写作风 · 写作视图+源码/预览切换 · V1.29轮9e 去分屏 · 轮9o 去专注钮） ===== -->
-    <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
-      <div class="px-4 pt-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
-        <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
-        <div class="flex-1 min-w-0">
-          <div id="pwTitle" class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
-          <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
-        </div>
-        <!-- V1.29轮9h/9o：MD 顶行=写作(默认·无钮)+源码+预览 两个可再点回落的切换图标 · 段落聚焦由 ⋯ 笔记选项开关管 -->
-        <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
-          <button class="pw-mode-btn" data-m="src" onclick="pwSetMode(pwMode==='src'?'focus':'src')" title="MD 源码">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5m8-10 5 5-5 5"/></svg></button>
-          <button class="pw-mode-btn" data-m="view" onclick="pwSetMode(pwMode==='view'?'focus':'view')" title="预览">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-        </div>
-        <button onclick="openSheet('sheetNoteKit')" class="pw-ic-btn">⋯</button>
-      </div>
-
-      <!-- 写作视图（默认态·现有段落·无模式钮） -->
-      <div class="px-7 pt-5 pb-28 pw-body pw-focus" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
-        <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
-        <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
-        <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
-        <p>克制不等于简陋。自动保存、版本快照、断点续写，这些防丢稿的地基应该平时看不见，塌了才知道它重要。</p>
-        <p>☑ 待办行样式：勾选后自动同步为任务列表新任务（联动 L3，与日记同构）</p>
-        <p>Markdown、LaTeX 公式、实时渲染——都在，但只在你需要时才出现。</p>
-        <p class="opacity-60">（点击任意段落试试聚焦模式 · 本段以下为演示占位）字距、行距、纸色，是中文写作工具被低估的三件套。行高 2.15、字距 0.03em，是长时间盯屏不累的经验值。</p>
-        <!-- V1.29轮8①：纯文本也可插图=正文尾部「＋」附件卡 → 图库/拍照 -->
-        <button id="pwAttach" class="hidden mt-4 w-24 h-24 rounded-2xl items-center justify-center text-2xl active:scale-95 transition" style="background:rgba(120,110,90,.12);color:var(--pw-fg)" onclick="imgTarget='note';openSheet('sheetImgSrc')">＋</button>
-      </div>
-      <!-- 模式②③：源码 / 预览（V1.29轮9e：分屏移除·手机屏太小用不起来） -->
-      <div id="pwSrcWrap" class="hidden px-5 pt-3 pb-28"><div id="pwSrcBox"></div></div>
-      <div id="pwViewWrap" class="hidden px-7 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
-        <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
-      <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
-      <!-- V1.29轮8②：快捷操作栏移到底部（拇指热区·横向滑动）；H#/Tt/≡ 点开二级行也在底部，滑到尾部或 ✕ 收起 -->
-      <div id="pwSubRow" class="hidden sticky bottom-[46px] z-20 px-3 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.08)"></div>
-      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-3 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
-    </section>
 
     <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
-    <section id="p-sub-recmg" class="page px-5 safe-pb no-scrollbar">
-      <div class="text-xs font-extrabold text-slate-400 mt-2 mb-1.5">📔 日记</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>默认新建模板</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'tpl',['纯文本','KPT 复盘','晨间三问'])">纯文本</button></div>
-        <div class="flex items-center justify-between"><span>连续记录提醒</span><b class="text-xs text-slate-400">断签 2 天时提醒</b></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📝 笔记</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>🕘 版本恢复方式</span>
-          <button id="nrMode" onclick="tglNoteRestore()" class="mini-btn">直接替换正文</button></div>
-        <div class="text-[11px] text-slate-400">恢复快照时：直接替换当前正文（替换前自动留快照，可反悔）⇄ 新增为一条副本笔记</div>
-        <div class="flex items-center justify-between"><span>自动快照节奏</span><b class="text-xs text-slate-400">停输 30 秒 / 每 500 字</b></div>
-        <!-- V1.29轮9k：LaTeX 语法渲染开关（默认关·关=预览/分屏按原文显示 $..$/$$..$$） -->
-        <div class="flex items-center justify-between"><span>LaTeX 公式渲染</span><span id="latexTgl" class="toggle" onclick="tgl(this);PW_LATEX=!PW_LATEX;pwSync();toast(PW_LATEX?'已开启 LaTeX 渲染：$..$ 与 $$..$$ 显示为公式':'已关闭 LaTeX 渲染：公式按原文显示')"></span></div>
-        <div class="flex items-center justify-between"><span>🗂 文件夹管理</span><button class="mini-btn" onclick="toast('在 记录 › 笔记 tab 点 📂 打开树状侧栏管理（增删改/拖动嵌套）')">前往 ›</button></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">📚 阅读</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>默认进度方式</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'pg',['页数','百分比','章节'])">页数</button></div>
-        <div class="flex items-center justify-between"><span>阅读计时</span><b class="text-xs text-slate-400">开始阅读时询问</b></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">🎬 影音游</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>默认进度方式</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'mg',['集数','百分比','时间点'])">集数</button></div>
-      </div>
-      <div class="text-xs font-extrabold text-slate-400 mt-4 mb-1.5">⚙️ 通用</div>
-      <div class="card space-y-3 text-sm">
-        <div class="flex items-center justify-between"><span>回收站自动清理</span>
-          <button class="mini-btn" onclick="cycleRecSet(this,'trash',['30 天','7 天','90 天','不清理'])">30 天</button></div>
-        <div class="text-[11px] text-slate-400">日记 / 笔记 / 阅读 / 影音游 删除的内容统一进各模块回收站，按此期限自动彻底删除</div>
-      </div>
-    </section>
 
     <!-- ===== P4b 阅读导入向导 ===== -->
-    <section id="p-import" class="page px-5 safe-pb no-scrollbar">
-      <div id="impStep" class="flex items-center gap-2 text-[11px] font-bold text-slate-400"></div>
-      <!-- 步骤1：选择来源 -->
-      <div id="imp1" class="mt-4 space-y-3">
-        <div class="text-sm font-extrabold mb-1">选择导入来源</div>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="微信读书">
-          <span class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center text-lg">🟢</span>
-          <div class="flex-1"><div class="text-sm font-bold">微信读书</div><div class="text-[11px] text-slate-400">解析第三方工具导出的 Markdown / HTML（划线·想法·目录自动识别）</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Kindle">
-          <span class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center text-lg">🟠</span>
-          <div class="flex-1"><div class="text-sm font-bold">Kindle</div><div class="text-[11px] text-slate-400">解析 My Clippings.txt 剪藏格式</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="豆瓣清单">
-          <span class="w-10 h-10 rounded-xl bg-lime-50 dark:bg-lime-500/15 flex items-center justify-center text-lg">🫎</span>
-          <div class="flex-1"><div class="text-sm font-bold">豆瓣 · 书单/片单</div><div class="text-[11px] text-slate-400">已读/在读/想读（想看/已看）标记 + 评分 + 日期，导出文件自动解析</div></div><span class="text-slate-300">›</span></button>
-        <button class="src-pick card w-full flex items-center gap-3 text-left" data-src="Notion">
-          <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">⚫</span>
-          <div class="flex-1"><div class="text-sm font-bold">Notion / Obsidian / 通用</div><div class="text-[11px] text-slate-400">Markdown、TXT、HTML、CSV/JSON 导入</div></div><span class="text-slate-300">›</span></button>
-        <button class="card w-full flex items-center gap-3 text-left opacity-50" onclick="toast('Evernote (.enex) 导入规划于 V1.x')">
-          <span class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">🐘</span>
-          <div class="flex-1"><div class="text-sm font-bold">Evernote</div><div class="text-[11px] text-slate-400">V1.x 支持</div></div></button>
-      </div>
-      <!-- 步骤2：文件 -->
-      <div id="imp2" class="hidden mt-4">
-        <div class="text-sm font-extrabold">选择导出文件 · <span id="impSrcName" class="text-brand-500"></span></div>
-        <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
-          <div class="text-3xl">📄</div>
-          <div class="text-sm font-bold mt-2" id="impFileNm">weread_思考快与慢_导出.md</div>
-          <div class="text-[11px] text-slate-400 mt-1">486 KB · 点击重新选择（模拟）</div>
-        </div>
-        <div class="mt-3 card text-xs space-y-2">
-          <div class="row-title">解析设置（模拟）</div>
-          <label class="flex items-center justify-between"><span>自动识别「划线 / 想法 / 批注日期」结构</span><span class="toggle on" onclick="tgl(this)"></span></label>
-          <label class="flex items-center justify-between"><span>按「书名+原文哈希」去重</span><span class="toggle on" onclick="tgl(this)"></span></label>
-          <label class="flex items-center justify-between"><span>解析失败条目保存为普通笔记（容错）</span><span class="toggle on" onclick="tgl(this)"></span></label>
-        </div>
-      </div>
-      <!-- 步骤3：预览与映射 -->
-      <div id="imp3" class="hidden mt-4">
-        <div class="text-sm font-extrabold">预览解析结果</div>
-        <div class="mt-2 flex gap-3 text-center text-[11px]">
-          <div class="flex-1 card !py-2"><b class="text-mint text-sm">42</b><div class="text-slate-400">划线摘录</div></div>
-          <div class="flex-1 card !py-2"><b class="text-brand-500 text-sm">17</b><div class="text-slate-400">想法感想</div></div>
-          <div class="flex-1 card !py-2"><b class="text-sun text-sm">3</b><div class="text-slate-400">疑似重复</div></div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">字段映射确认</div>
-          <div class="mt-2 space-y-2 text-xs">
-            <div class="flex items-center justify-between"><span>原文引用</span><span class="text-slate-400">→</span><select class="sel"><option>摘录</option></select></div>
-            <div class="flex items-center justify-between"><span>我的想法</span><span class="text-slate-400">→</span><select class="sel"><option>感想</option><option>合并进摘录</option></select></div>
-            <div class="flex items-center justify-between"><span>划线颜色</span><span class="text-slate-400">→</span><select class="sel"><option>按标记自动分类</option></select></div>
-          </div>
-        </div>
-        <div class="mt-3 card space-y-2">
-          <div class="row-title">内容预览</div>
-          <div class="quote-line">「如果你视饮用威士忌加冰是一种堕落，那你就没法好好享受它。」<span class="text-[10px] text-slate-400 block text-right">— 划线 · 第3章 · 08-14</span></div>
-          <div class="text-xs bg-brand-50 dark:bg-brand-500/10 rounded-xl p-2.5 border-l-4 border-brand-500">💭 这其实就是损失厌恶在日常决策里的投影…<span class="text-[10px] text-slate-400 block text-right mt-1">— 想法 · 08-14</span></div>
-        </div>
-      </div>
-      <!-- 步骤4：完成 -->
-      <div id="imp4" class="hidden mt-10 text-center">
-        <div class="text-6xl">🎉</div>
-        <div class="text-lg font-extrabold mt-4">导入完成</div>
-        <div class="text-xs text-slate-400 mt-1 leading-6">已并入《思考，快与慢》：42 条摘录 · 17 条感想<br>跳过 3 条疑似重复 · 0 条解析失败</div>
-        <div class="mt-6 flex gap-3 justify-center">
-          <button onclick="navTo('p-bookDetail')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看书架详情</button>
-          <button onclick="resetImport()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一本</button>
-        </div>
-      </div>
-      <div id="impNav" class="mt-6 flex gap-3">
-        <button id="impPrev" onclick="impStep(-1)" class="hidden flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">上一步</button>
-        <button id="impNext" onclick="impStep(1)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">下一步</button>
-      </div>
-    </section>
 
     <!-- ===== P4c 书籍详情 ===== -->
-    <section id="p-bookDetail" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-4">
-        <div class="w-24 h-36 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800 text-white p-2.5 text-[9px] leading-[14px] font-bold shadow-lg shrink-0">思考，<br>快与慢<br><span class="opacity-50">丹尼尔·卡尼曼</span></div>
-        <div class="flex-1">
-          <div class="font-extrabold text-lg leading-6">思考，快与慢</div>
-          <div class="text-xs text-slate-400 mt-0.5">丹尼尔·卡尼曼</div>
-          <div class="flex items-center gap-1 text-sun text-sm mt-1">★★★★<span class="text-slate-300 dark:text-slate-600">★</span><span class="text-[11px] text-slate-400 ml-1">4.0</span></div>
-          <div class="mt-2 inline-flex items-center gap-1 text-[11px] bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 rounded-full px-2.5 py-0.5 font-bold">🔖 在读 · 62%</div>
-          <div class="flex gap-2 mt-2">
-            <button class="mini-btn" onclick="toast('进度 +1% （模拟）')">读到 62%</button>
-            <button class="mini-btn" onclick="openSheet('sheetAddExcerpt')">+ 记摘录</button>
-          </div>
-        </div>
-      </div>
-      <div class="mt-4 grid grid-cols-4 text-center text-[11px]">
-        <div class="card !py-2.5"><b class="text-base">59</b><div class="text-slate-400">摘录/感想</div></div>
-        <div class="card !py-2.5"><b class="text-base" id="bkTotal">4h32m</b><div class="text-slate-400">累计阅读</div></div>
-        <div class="card !py-2.5"><b class="text-base">12</b><div class="text-slate-400">计时次数</div></div>
-        <div class="card !py-2.5"><b class="text-base">3</b><div class="text-slate-400">关联日记</div></div>
-      </div>
-      <!-- 阅读计时卡 -->
-      <div class="mt-3 card">
-        <div class="flex items-center justify-between"><div class="row-title">⏱ 阅读计时</div><button id="readTimerBtn" class="mini-btn !text-xs !py-2" onclick="timerTap('read','《思考，快与慢》')">▶ 开始阅读</button></div>
-        <div class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-5">已读 62% · 均速 <b>3.8 分钟/页</b> · 本周 52 分钟<br>预计剩余 <b class="text-brand-500">2h24m</b> · 约 <b class="text-brand-500">4 天</b>读完（按当前节奏）</div>
-        <div class="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span class="block h-full grad" style="width:62%"></span></div>
-        <div class="mt-2 flex gap-2"><button class="mini-btn" onclick="openProgress('read','《思考，快与慢》')">✍ 手动记进度</button><button class="mini-btn" onclick="toast('阅读轨迹：时间分布/节奏曲线（入周报 L4）')">📈 轨迹</button></div>
-      </div>
-      <div class="mt-4 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
-        <button id="btQuote" class="seg-pill on" onclick="switchBookTab('q')">💬 划线</button>
-        <button id="btThink" class="seg-pill" onclick="switchBookTab('i')">💭 想法</button>
-        <button id="btToc" class="seg-pill" onclick="switchBookTab('c')">📑 目录</button>
-        <button id="btSum" class="seg-pill" onclick="switchBookTab('s')">📋 一页总结</button>
-      </div>
-      <div id="bookToc" class="hidden mt-3 card">
-        <div class="flex items-center justify-between"><div class="row-title">目录 · 20 章</div>
-          <span class="flex gap-1.5"><button class="mini-btn !text-[10px]" onclick="tocAI()">🤖 AI 补全</button><button class="mini-btn !text-[10px]" onclick="openSheet('sheetTocImport')">📥 导入目录</button></span></div>
-        <div class="mt-2" id="tocList"></div>
-        <div class="text-[10px] text-slate-400 mt-2">目录节点标记状态与对应摘录数，点击直达笔记；支持微信读书导出/calibre/MD·TXT 目录自动解析</div>
-      </div>
-      <div id="bookQuotes" class="mt-3 space-y-3">
-        <div class="card quote-line !block">「任何事物只要通过一个人人都能读懂的话语相互联系，就能形成一套信念体系。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-brand-500"></span>重点 · 第1章 · 08-02
-            <span class="ml-auto flex gap-2"><button class="link-act" onclick="toast('已生成待办：查证该观点（联动L5）')">→待办</button><button class="link-act" onclick="toast('已插入今日日记草稿（联动L5）')">→日记</button></span></div>
-        </div>
-        <div class="card quote-line !block border-l-peach">「损失厌恶系数约为2，失去100元的痛大于得到100元的乐。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-peach"></span>待查证 · 第3章 · 08-14
-            <span class="ml-auto flex gap-2"><button class="link-act">→待办</button><button class="link-act">→日记</button></span></div>
-        </div>
-        <div class="card quote-line !block border-l-mint">「直觉不过是识别，别无其他。」
-          <div class="flex items-center mt-2 text-[10px] text-slate-400"><span class="qtag bg-mint"></span>共鸣 · 第4章 · 09-01
-            <span class="ml-auto flex gap-2"><button class="link-act">→待办</button><button class="link-act">→日记</button></span></div>
-        </div>
-      </div>
-      <div id="bookThinks" class="hidden mt-3 space-y-3">
-        <div class="card text-xs leading-6">💭 这其实就是损失厌恶在日常决策里的投影。昨天砍价成功带来的快乐，远抵不上今天丢件货物的心痛。<div class="text-right text-[10px] text-slate-400 mt-1">08-14 · 来自微信读书导入</div></div>
-        <div class="card text-xs leading-6">💭 「专家直觉可信的条件」= 环境有规律 + 有足够练习时间。用这条标准审视自己行业的判断力，还挺扎心。<div class="text-right text-[10px] text-slate-400 mt-1">08-21 · 手动记录</div></div>
-      </div>
-      <div id="bookSumm" class="hidden mt-3 card">
-        <div class="row-title">一页式总结（自动生成 · 模拟）</div>
-        <div class="text-xs leading-6 mt-2 space-y-2">
-          <div><b>🥇 金句 Top：</b>「你能想象的一切都不恐怖…」</div>
-          <div><b>🧩 核心观点：</b><br>① 系统1快、直觉；系统2慢、费力<br>② 损失厌恶与锚定效应无处不在<br>③ 直觉判断需满足两个可信条件</div>
-          <div><b>✍️ 我的收获：</b>3 条感想已在 9 月日记中引用</div>
-        </div>
-        <div class="flex gap-2 mt-3"><button class="mini-btn" onclick="toast('已导出为 Markdown（模拟）')">导出 MD</button><button class="mini-btn" onclick="toast('已存为笔记（联动L5）')">转存笔记</button><button class="mini-btn !bg-peach/15 !text-rose-500" onclick="toast('AI 基于 59 条摘录深化总结：补全论证链与反例（需 Key）')">🤖 AI 深化</button></div>
-      </div>
-    </section>
 
     <!-- ===== P4e 小工具合集 ===== -->
-    <section id="p-tools" class="page px-5 safe-pb no-scrollbar">
-      <div class="grad rounded-3xl p-4 text-white relative overflow-hidden">
-        <div class="absolute -right-3 -top-5 text-[88px] opacity-15">🧰</div>
-        <div class="text-sm font-extrabold">小工具合集</div>
-        <div class="text-[11px] opacity-85 mt-0.5 leading-5">全部本地计算 · 离线可用 · 无广告<br>支持插件式拓展（HTML/JS 工具包热加载）</div>
-      </div>
-      <div id="toolGrid"></div>
-      <div class="card mt-4">
-        <div class="flex items-center justify-between"><div class="row-title">🧩 拓展工具</div><button class="mini-btn" onclick="openSheet('sheetPlugin')">+ 加载新插件</button></div>
-        <div id="pluginList" class="mt-2 space-y-2 text-xs"></div>
-        <div class="mt-2 text-[10px] text-slate-400 leading-5">拓展原理：将符合插件规范的工具包放入应用私有 <b>plugins/</b> 目录即自动扫描加载；后续版本支持填入 <b>GitHub Release 下载链接</b>一键获取安装（附文件哈希校验与沙箱运行）。</div>
-      </div>
-    </section>
 
     <!-- ===== P4f 小工具详情（动态内容） ===== -->
-    <section id="p-toolDetail" class="page px-5 safe-pb no-scrollbar">
-      <div id="toolBody"></div>
-    </section>
 
     <!-- ===== P5 收集箱 ===== -->
-    <section id="p-inbox" class="page px-5 safe-pb no-scrollbar">
-      <div class="rounded-2xl grad p-0.5">
-        <div class="bg-white dark:bg-slate-900 rounded-[14px] p-3">
-          <textarea id="inboxInput" rows="2" class="w-full text-sm bg-transparent outline-none resize-none" placeholder="脑中任何念头，扔进来…（Ctrl+Enter 存入）"></textarea>
-          <div class="flex items-center justify-between mt-1">
-            <span class="text-[10px] text-slate-400">📷 附件 · @ 提及 · （通知栏/桌面可快捷直达）</span>
-            <button onclick="addInbox()" class="px-4 py-1.5 rounded-lg grad text-white text-xs font-bold">存入</button>
-          </div>
-        </div>
-      </div>
-      <div class="flex items-center justify-between mt-4 text-xs text-slate-400"><b class="text-slate-600 dark:text-slate-300 text-sm">未整理 · <span id="inboxCount">3</span></b><span class="flex gap-3 items-center"><button class="text-brand-500 font-bold" onclick="toast('AI 逐条给出分流建议与理由（需验证 API Key）')">🤖 AI 一键分流</button><button class="text-brand-500 font-bold" onclick="toast('已进入批量整理模式（模拟）')">批量整理</button></span></div>
-      <div id="inboxList" class="mt-2 space-y-3"></div>
-      <div class="mt-6 card opacity-80">
-        <div class="row-title">🗓 整理节律（设置模拟）</div>
-        <div class="text-xs text-slate-400 leading-6 mt-1">每天 21:00 提醒清空收集箱 · 每条 10 秒内分流为：<br>待办 / 日记片段 / 笔记 / 阅读摘录（联动 L6）</div>
-      </div>
-    </section>
 
     <!-- ===== P6 记账 ===== -->
-    <section id="p-finance" class="page px-5 safe-pb no-scrollbar">
-      <div class="grad rounded-3xl p-5 text-white shadow-lg shadow-indigo-500/20">
-        <div class="flex justify-between items-center text-xs opacity-80"><span>9月账单</span><button onclick="toast('切换月份（模拟）')">‹ ›</button></div>
-        <div class="mt-2 text-3xl font-extrabold">¥ 4,286.<span class="text-lg">50</span></div>
-        <div class="mt-1 text-xs opacity-80">支出 ¥4,286.50 ｜ 收入 ¥12,000.00 ｜ 结余率 64%</div>
-        <div class="mt-3 h-2 rounded-full bg-white/20 overflow-hidden flex"><span class="bg-white/90" style="width:64%"></span></div>
-        <div class="mt-1.5 flex justify-between text-[10px] opacity-75"><span>月度预算 ¥12,000</span><span>已用 36% · 进度正常 ✓</span></div>
-      </div>
-      <div class="mt-4 grid grid-cols-5 gap-2 text-center text-[10px]">
-        <button class="fin-add" data-k="餐饮">🍜<br>餐饮</button><button class="fin-add" data-k="交通">🚇<br>交通</button>
-        <button class="fin-add" data-k="购物">🛍<br>购物</button><button class="fin-add" data-k="数码">💻<br>数码</button>
-        <button class="fin-add" data-k="其他">➕<br>更多</button>
-      </div>
-      <div class="card mt-4">
-        <div class="row-title">分类占比（点击类别可建物品档 · 联动L12）</div>
-        <div class="mt-3 space-y-2.5 text-xs" id="finBars"></div>
-      </div>
-      <div class="mt-5 flex items-center justify-between"><div class="row-title !mb-0">本月流水</div><span class="text-[10px] text-slate-400">仅本地存储 🔒</span></div>
-      <button onclick="billGo()" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-500/15 flex items-center justify-center">🧾</span>
-        <div class="flex-1"><div class="text-sm font-bold">导入支付宝 / 微信账单</div><div class="text-[11px] text-slate-400">CSV 导出自动解析 · 本地处理不上传 · 交易号去重</div></div>
-        <span class="text-slate-300">›</span></button>
-      <div id="txList" class="mt-2 space-y-2"></div>
-    </section>
 
     <!-- ===== P6b 账单导入向导 ===== -->
-    <section id="p-billImport" class="page px-5 safe-pb no-scrollbar">
-      <div id="billStep" class="flex items-center gap-2 text-[11px] font-bold text-slate-400"></div>
-      <!-- 步骤1 选平台 -->
-      <div id="bill1" class="mt-4 space-y-3">
-        <div class="text-sm font-extrabold mb-1">选择账单平台</div>
-        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="支付宝">
-          <span class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/15 flex items-center justify-center text-lg">🅰️</span>
-          <div class="flex-1"><div class="text-sm font-bold">支付宝</div><div class="text-[11px] text-slate-400 leading-4">我的 → 账单 → ⋯ → 开具账单 → 明细 CSV（zip）</div></div><span class="text-slate-300">›</span></button>
-        <button class="bill-pick card w-full flex items-center gap-3 text-left" data-p="微信支付">
-          <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-lg">💚</span>
-          <div class="flex-1"><div class="text-sm font-bold">微信支付</div><div class="text-[11px] text-slate-400 leading-4">服务→钱包→账单→常见问题→下载账单（CSV 为 zip 加密包）</div></div><span class="text-slate-300">›</span></button>
-        <div class="card !bg-slate-100 dark:!bg-slate-800/60 text-[11px] text-slate-500 dark:text-slate-400 leading-6">🔒 隐私承诺：账单文件<b>仅在本机解析</b>，不上传不联网；自动识别支付宝 18 行表头 / 微信 17 行表头前缀与列结构。</div>
-      </div>
-      <!-- 步骤2 选文件 -->
-      <div id="bill2" class="hidden mt-4">
-        <div class="text-sm font-extrabold"><span id="billPlatName">支付宝</span> · 选择导出文件</div>
-        <div class="mt-3 rounded-2xl border-2 border-dashed border-brand-400 bg-brand-50/50 dark:bg-brand-500/5 p-8 text-center">
-          <div class="text-3xl">🗂</div>
-          <div class="text-sm font-bold mt-2" id="billFileName">alipay_record_202608.csv</div>
-          <div class="text-[11px] text-slate-400 mt-1">214 KB · 点击重新选择（模拟）</div>
-        </div>
-        <div class="mt-3 card text-xs space-y-2.5" id="billOpts"></div>
-      </div>
-      <!-- 步骤3 预览 -->
-      <div id="bill3" class="hidden mt-4">
-        <div class="text-sm font-extrabold">解析预览 · 去重确认</div>
-        <div class="mt-2 flex gap-3 text-center text-[11px]">
-          <div class="flex-1 card !py-2"><b class="text-sky-500 text-sm">128</b><div class="text-slate-400">解析流水</div></div>
-          <div class="flex-1 card !py-2"><b class="text-sun text-sm">41</b><div class="text-slate-400">重复跳过</div></div>
-          <div class="flex-1 card !py-2"><b class="text-mint text-sm">87</b><div class="text-slate-400">将写入</div></div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">分类自动映射（92% 命中 · 其余进「其他」可改）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between"><span class="text-slate-400">商业服务-餐饮美食 →</span><b>🍜 餐饮</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">交通出行-打车 →</span><b>🚇 交通</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">数码电器 →</span><b>💻 数码（可升级为物品档案 📦 · 联动 L12）</b></div>
-            <div class="flex justify-between"><span class="text-slate-400">退款冲抵 →</span><b>负支出流水</b></div>
-          </div>
-        </div>
-        <div class="mt-3 card">
-          <div class="row-title">写入示例（前 3 条）</div>
-          <div class="mt-2 space-y-1.5 text-[11px]">
-            <div class="flex justify-between cursor-pointer" onclick="billCatCycle(this)"><span>08-31 12:24 · 张记快餐</span><span class="text-right"><b class="text-rose-400">−¥32.00</b><div class="text-[9px] text-slate-400">分类：<b class="bc">🍜 餐饮</b> · 点击手动修改</div></span></div>
-            <div class="flex justify-between"><span>08-30 09:10 · T3 打车</span><b class="text-rose-400">−¥23.50</b></div>
-            <div class="flex justify-between"><span>08-29 21:02 · 退款-某宝店铺</span><b class="text-emerald-500">+¥89.00</b></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">去重规则：交易单号唯一键优先；缺失时以「时间+金额+对方」MD5 兜底 · 支持整批导入记录一键撤销 · 逐笔点击可手动改分类</div>
-        </div>
-      </div>
-      <!-- 步骤4 完成 -->
-      <div id="bill4" class="hidden mt-10 text-center">
-        <div class="text-6xl">✅</div>
-        <div class="text-lg font-extrabold mt-4">导入完成</div>
-        <div class="text-xs text-slate-400 mt-1 leading-6">已写入 87 条流水 · 跳过重复 41 条<br>月度报表与分类占比已自动更新（联动 L8：订阅项已生成续费提醒）</div>
-        <div class="mt-6 flex gap-3 justify-center">
-          <button onclick="stack.length=0;setPage('p-finance')" class="px-6 py-2.5 rounded-xl grad text-white text-sm font-bold">查看账本</button>
-          <button onclick="billReset()" class="px-6 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">再导一份</button>
-        </div>
-      </div>
-      <div id="billNav" class="mt-6 flex gap-3">
-        <button id="billPrev" onclick="billStep(-1)" class="hidden flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">上一步</button>
-        <button id="billNext" onclick="billStep(1)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold shadow-md shadow-indigo-500/30">下一步</button>
-      </div>
-    </section>
 
     <!-- ===== P7 物品价值 ===== -->
-    <section id="p-items" class="page px-5 safe-pb no-scrollbar">
-      <div class="rounded-3xl p-5 bg-slate-900 dark:bg-slate-900 text-white shadow-lg relative overflow-hidden">
-        <div class="absolute -right-6 -bottom-8 text-[110px] opacity-10">📦</div>
-        <div class="text-xs text-slate-400">我的物品 · 今日合计持有成本</div>
-        <div class="text-3xl font-extrabold mt-1 text-mint">¥ 47.<span class="text-xl">20</span><span class="text-sm font-bold text-slate-400">/天</span></div>
-        <div class="mt-2 flex gap-4 text-[11px] text-slate-400"><span>使用中 <b class="text-white">12</b></span><span>闲置 <b class="text-white">2</b></span><span>已回收 <b class="text-white">3</b></span><span>已报废 <b class="text-white">1</b></span></div>
-        <div class="mt-3 text-[11px] bg-white/10 rounded-xl px-3 py-2">💸 本月它花掉了你：<b class="text-sun">MacBook ¥458</b> · 显示器 ¥162 · 跑鞋 ¥89</div>
-      </div>
-      <div class="mt-4 flex gap-2 text-xs font-bold overflow-x-auto no-scrollbar">
-        <button class="seg-pill on">全部</button><button class="seg-pill">数码</button><button class="seg-pill">家电</button><button class="seg-pill">服饰</button><button class="seg-pill">历史（决算）</button>
-      </div>
-      <button onclick="openSheet('sheetAddItem')" class="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400">+ 录入新物品（或从记账流水一键升级）</button>
-      <div id="itemList" class="mt-3 space-y-3"></div>
-    </section>
 
     <!-- ===== P7a 物品详情 ===== -->
-    <section id="p-itemDetail" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-4">
-        <div class="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-4xl shrink-0">💻</div>
-        <div class="flex-1">
-          <div class="font-extrabold text-lg">MacBook Air M3</div>
-          <div class="text-xs text-slate-400 mt-0.5">数码 · 2025-03-12 购入 · 保修至 2026-03-12</div>
-          <div class="mt-1.5 inline-flex text-[11px] font-bold bg-mint/15 text-teal-600 dark:text-teal-400 rounded-full px-2.5 py-0.5">● 使用中 · 计费中</div>
-        </div>
-      </div>
-      <div class="mt-4 card">
-        <div class="flex items-end justify-between">
-          <div><div class="text-[11px] text-slate-400">当前日均成本（直线法）</div><div class="text-3xl font-extrabold text-mint">¥ 1.<span class="text-xl">22</span><span class="text-xs text-slate-400 font-semibold">/天</span></div></div>
-          <div class="text-right text-[11px] text-slate-400 leading-5">持有 556 天<br>净值余额 ¥676</div>
-        </div>
-        <svg viewBox="0 0 300 70" class="w-full h-20 mt-2">
-          <path d="M0,8 C40,26 90,40 150,50 C210,58 260,62 300,63" fill="none" stroke="#2dd4bf" stroke-width="2.5"/>
-          <path d="M0,8 C40,26 90,40 150,50 C210,58 260,62 300,63 L300,70 L0,70 Z" fill="url(#g1)" opacity=".18"/>
-          <circle cx="300" cy="63" r="4" fill="#2dd4bf"/>
-          <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></linearGradient></defs>
-          <text x="4" y="66" font-size="8" fill="#94a3b8">¥1.90</text><text x="262" y="58" font-size="8" fill="#2dd4bf">今日 ¥1.22</text>
-        </svg>
-        <div class="text-center text-[10px] text-slate-400">购入价 ¥9,999 ＋ 二次付费 ¥555 － 回收残值 ¥0 ＝ 成本池 ÷ 556 天 · 每天自动摊薄</div>
-      </div>
-      <div class="mt-3 grid grid-cols-3 gap-3">
-        <button onclick="openSheet('sheetExtra')" class="life-btn bg-sun/10 text-amber-600 dark:text-amber-400">💳<br>二次付费</button>
-        <button onclick="openSheet('sheetRecycle')" class="life-btn bg-mint/10 text-teal-600 dark:text-teal-400">♻️<br>回收/出售</button>
-        <button onclick="openSheet('sheetScrap')" class="life-btn bg-peach/10 text-rose-500">🗑<br>报废</button>
-      </div>
-      <div class="mt-4 card">
-        <div class="row-title">成本流水时间轴（审计记录）</div>
-        <div class="mt-3 space-y-0 text-xs relative ml-2 border-l-2 border-slate-200 dark:border-slate-700 pl-4 space-y-3">
-          <div class="relative"><span class="tl-dot bg-brand-500"></span><b>¥9,999</b> 购入 <span class="text-slate-400">2025-03-12</span><div class="text-[10px] text-slate-400">来源：记账流水同步生成（联动 L12）· 不可删除</div></div>
-          <div class="relative"><span class="tl-dot bg-sun"></span><b>+¥399</b> 二次付费：Type-C 扩展坞 <span class="text-slate-400">2025-06-02</span><div class="text-[10px] text-slate-400">摊回全周期 · 日均 ¥1.21 → ¥1.29（回升）</div></div>
-          <div class="relative"><span class="tl-dot bg-sun"></span><b>+¥156</b> 二次付费：官方换电池（补差） <span class="text-slate-400">2026-01-20</span></div>
-          <div class="relative"><span class="tl-dot bg-mint"></span><b>每日摊薄中</b> 近 30 天日均 ¥1.24 → ¥1.22 <span class="text-slate-400">2026-09</span></div>
-        </div>
-      </div>
-      <div class="mt-3 card opacity-90">
-        <div class="row-title">🔧 关联（联动 L13/L14）</div>
-        <div class="text-xs text-slate-400 leading-6 mt-1">保修到期提醒：已汇入「重要日子」提醒中心 ›<br>保养计划：待办「每年深度清洁一次」 ›</div>
-      </div>
-    </section>
 
     <!-- ===== P8 重要日子 ===== -->
-    <section id="p-days" class="page px-5 safe-pb no-scrollbar">
-      <div class="grid grid-cols-2 gap-3" id="dayCards"></div>
-      <button onclick="openSheet('sheetAddDay')" class="mt-4 w-full py-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400">+ 新建倒数日 / 纪念日本</button>
-      <div class="mt-5 card">
-        <div class="row-title">⏰ 到期提醒中心（证件 / 订阅 / 保修）</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800"><span>🛂 护照</span><span class="text-rose-500 font-bold">剩 47 天到期</span></div>
-          <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-800"><span>📺 视频会员（订阅 ¥25/月）</span><span class="text-sun font-bold">3 天后续费</span></div>
-          <div class="flex justify-between items-center py-1.5"><span>💻 MacBook 保修</span><span class="text-slate-400">已于上月到期</span></div>
-        </div>
-        <div class="text-[10px] text-slate-400 mt-2">订阅项由记账模块自动生成（联动 L8）· 保修由物品档案汇入（联动 L13）</div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">📖 去年今天（联动 L10）</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400 leading-6 mt-1">2025-09-19 · 心情 😄<br>"今天和大学室友约了球，赢得很狼狈但很开心…"</div>
-        <button class="mt-2 text-xs text-brand-500 font-bold" onclick="toast('已打开 2025-09-19 日记')">查看当年的完整日记 ›</button>
-      </div>
-    </section>
 
     <!-- ===== P9 健康 ===== -->
-    <section id="p-health" class="page px-5 safe-pb no-scrollbar">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="card">
-          <div class="row-title">💧 喝水</div>
-          <div class="text-2xl font-extrabold mt-1"><span id="waterN">5</span><span class="text-sm text-slate-400 font-semibold">/8 杯</span></div>
-          <div class="flex gap-1 mt-2" id="waterRow"></div>
-          <div class="flex gap-2 mt-2"><button class="flex-1 mini-btn" onclick="water(1)">+1 杯</button><button class="flex-1 mini-btn" onclick="water(-1)">撤销</button></div>
-        </div>
-        <div class="card">
-          <div class="row-title">😴 睡眠</div>
-          <div class="text-2xl font-extrabold mt-1">7.2<span class="text-sm text-slate-400 font-semibold"> 小时</span></div>
-          <svg viewBox="0 0 100 34" class="w-full h-12 mt-1">
-            <polyline points="0,26 14,20 28,22 42,12 56,16 70,8 84,10 100,6" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="0" y1="18" x2="100" y2="18" stroke="#94a3b8" stroke-dasharray="2 3" stroke-width="1"/>
-          </svg>
-          <div class="text-[10px] text-slate-400">近 7 天 · 达标线 7h ↗ 连续 3 天改善</div>
-        </div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">⚖️ 身体数据 · 体重 / 身高 / BMI</div>
-        <div class="mt-2 grid grid-cols-3 text-center gap-2">
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdW">—</b><span class="text-[9px] text-slate-400 block" id="bdWd">kg</span></div>
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg">175</b><span class="text-[9px] text-slate-400 block">cm 身高</span></div>
-          <div class="rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5"><b class="text-lg" id="bdB">—</b><span class="text-[9px] block" id="bdBm">BMI</span></div>
-        </div>
-        <div class="mt-2.5 flex items-center justify-between"><span class="text-[10px] text-slate-400">近 30 天体重曲线 · 单位 kg</span><button class="mini-btn" onclick="bodyRec()">＋ 记录</button></div>
-        <svg id="bdSvg" viewBox="0 0 300 64" class="w-full h-16 mt-1"></svg>
-        <div class="text-[9px] text-slate-400 mt-0.5">身高体重手动记录 · BMI 自动计算分级 · 曲线随记录更新（联动 L11 健康趋势）</div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">🌙 昨晚睡眠详情（模拟）</div>
-        <div class="flex h-4 rounded-full overflow-hidden mt-2 text-[8px] text-white font-bold">
-          <span style="width:18%" class="bg-indigo-800">深睡</span><span style="width:47%" class="bg-brand-500">浅睡</span><span style="width:20%" class="bg-indigo-300">REM</span><span style="width:15%" class="bg-slate-300 text-slate-600">清醒</span>
-        </div>
-        <div class="flex justify-between text-[10px] text-slate-400 mt-1.5"><span>23:12 入睡</span><span>06:24 醒来</span><span>质量 82 分</span></div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">🏃 运动记录 · 多模进度（与阅读/观影同构）</div>
-        <div class="mt-2 flex gap-2 text-xs items-center"><input id="spKm" class="inp w-20 !py-2" type="number" step="0.1" value="5"><span class="text-slate-400">km</span><input id="spMin" class="inp w-20 !py-2" type="number" value="32"><span class="text-slate-400">min</span><button class="mini-btn" onclick="sportCalc()">算配速</button><button class="mini-btn" onclick="sportSave()">保存并计时</button></div>
-        <div id="spOut" class="mt-1.5 text-xs font-bold min-h-[16px]" style="color:var(--accent)"></div>
-        <div class="text-[10px] text-slate-400 mt-1">支持三模：距离 / 时长 / 配速互算；保存后写入时间账本「运动」分类并自动重算均配速趋势（联动 L11）</div>
-      </div>
-      <div class="mt-3 grid grid-cols-2 gap-3">
-        <div class="card opacity-60" onclick="toast('运动记录排期 V1.x')"><div class="row-title">🏃 运动 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">跑步 32min · 将自动写入时间账本（联动 L11）</div></div>
-        <div class="card opacity-60" onclick="toast('用药提醒排期 V1.x')"><div class="row-title">💊 用药 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">定时提醒 + 服药打卡日历</div></div>
-      </div>
-      <div class="mt-3 card">
-        <div class="row-title">本月健康趋势</div>
-        <div class="mt-2 grid grid-cols-7 gap-1" id="heatCal"></div>
-        <div class="text-[10px] text-slate-400 mt-2">色块 = 喝水+睡眠综合达标度 · 数据将进入周报与仪表盘</div>
-      </div>
-      <button onclick="stack.length=0;setPage('p-care')" class="mt-3 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-pink-50 dark:bg-pink-500/15 flex items-center justify-center">🌸👶</span>
-        <div class="flex-1"><div class="text-sm font-bold">母婴呵护</div><div class="text-[11px] text-slate-400">生理周期/排卵 · 宝宝喂养记录与生长曲线 ›</div></div>
-        <span class="text-slate-300">›</span></button>
-    </section>
 
     <!-- ===== P10 目标 OKR ===== -->
-    <section id="p-goals" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center justify-between">
-        <div class="font-extrabold text-sm">2026 Q3 目标</div>
-        <button onclick="toast('OKR 完整版排期 V1.x')" class="text-xs text-brand-500 font-bold">+ 新建目标</button>
-      </div>
-      <div class="mt-3 space-y-3" id="okrList"></div>
-      <div class="mt-4 card opacity-70">
-        <div class="row-title">🧭 领域轮盘 <span class="vchip">V2</span></div>
-        <div class="flex items-center gap-3 mt-2">
-          <svg viewBox="0 0 80 80" class="w-20 h-20 shrink-0"><polygon points="40,8 62,20 70,44 52,66 28,66 12,42 20,18" fill="none" stroke="#e2e8f0"/><polygon points="40,14 58,26 62,42 48,58 30,60 18,40 26,24" fill="rgba(99,102,241,.25)" stroke="#6366f1" stroke-width="1.5"/><text x="40" y="43" text-anchor="middle" font-size="9" fill="#6366f1" font-weight="bold">68</text></svg>
-          <div class="text-xs text-slate-400 leading-5">健康·事业·学习·财务…各领域得分将由 记账/阅读/目标/时间账本 自动汇聚，季度复盘时对照。</div>
-        </div>
-      </div>
-      <div class="mt-3 card opacity-70"><div class="row-title">🪞 季度复盘引导 <span class="vchip">V1.x</span></div><div class="text-xs text-slate-400 mt-1">KPT 模板：做对了什么 / 做错了什么 / 下季度怎么改</div></div>
-    </section>
 
     <!-- ===== P10b 影音游 · 观影笔记（与阅读同构） ===== -->
     <!-- ===== 影音游专版 · M-HUB 工作台（记录页第四 tab 的进入点，从这里跳各二级屏） ===== -->
@@ -1537,349 +777,22 @@ tailwind.config = {
     </div>
 
     <!-- ===== P10c 母婴呵护 ===== -->
-    <section id="p-care" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-        <button id="ctHer" class="seg-on flex-1 rounded-lg py-1.5" onclick="careTab('her')">🌸 她 · 生理周期</button>
-        <button id="ctBaby" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="careTab('baby')">👶 宝宝 · 喂养</button>
-      </div>
-
-      <!-- 她：经期/排卵 -->
-      <div id="careHer" class="mt-4">
-        <div class="rounded-3xl p-4 text-white shadow-lg shadow-pink-500/20" style="background:linear-gradient(135deg,#f472b6 0%,#e879a0 55%,#c084fc 100%)">
-          <div class="flex items-center justify-between"><b class="text-sm">周期第 12 天 · 卵泡期</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1 font-bold" onclick="logPeriod()">🩸 记录今天</button></div>
-          <div class="mt-2 text-[11px] leading-5 opacity-95">下次月经 <b>10-03</b>（还 14 天）· 排卵日 <b>09-27</b>（还 8 天）· 易孕期 09-24 ~ 10-01</div>
-          <div class="mt-2 h-1.5 rounded-full bg-white/25 overflow-hidden"><span class="block h-full bg-white/90" style="width:40%"></span></div>
-          <div class="text-[10px] opacity-80 mt-1">平均周期 28 天 · 波动 ±2 天 · 经期记录已续 14 个周期</div>
-        </div>
-        <div class="card mt-3">
-          <div class="flex items-center justify-between"><div class="row-title">9 月 · 周期日历</div>
-            <span class="flex gap-2 text-[9px] items-center text-slate-400"><span><i class="dot bg-peach"></i>月经</span><span><i class="dot bg-violet-400"></i>排卵</span><span><i class="dot bg-mint"></i>易孕</span></span></div>
-          <div class="grid grid-cols-7 text-center text-[10px] text-slate-400 font-semibold mt-2 mb-1"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-          <div class="grid grid-cols-7 text-center gap-y-0.5" id="cycleCal"></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">今日感受（多选）</div>
-          <div class="mt-2 flex gap-1.5 overflow-x-auto no-scrollbar text-[11px]" id="symChips"></div>
-          <div class="mt-2 flex gap-2"><input class="inp flex-1 !py-2 text-xs" placeholder="备注：如今天喝了红糖姜茶…"><button class="mini-btn" onclick="toast('症状+备注已存 · 周期趋势分析可接 AI 解读（V1.x）')">保存</button></div>
-        </div>
-        <div class="mt-3 grid grid-cols-3 text-center text-[11px]">
-          <div class="card !py-2.5"><b class="text-base">28天</b><div class="text-slate-400">平均周期</div></div>
-          <div class="card !py-2.5"><b class="text-base">5天</b><div class="text-slate-400">平均经期</div></div>
-          <div class="card !py-2.5"><b class="text-base text-rose-400">±2天</b><div class="text-slate-400">规律度优</div></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">🔔 周期提醒</div>
-          <div class="mt-2 space-y-2 text-xs">
-            <div class="flex justify-between items-center"><span>月经来潮提前 2 天</span><span class="toggle on" onclick="tgl(this)"></span></div>
-            <div class="flex justify-between items-center"><span>排卵日当天</span><span class="toggle on" onclick="tgl(this)"></span></div>
-            <div class="flex justify-between items-center"><span>易孕期开始</span><span class="toggle" onclick="tgl(this)"></span></div>
-          </div>
-          <div class="text-[10px] text-slate-400 mt-2">预测自动计入「重要日子」倒数卡（联动 L10）· 异常波动超 ±7 天将温柔提醒就医参考</div>
-        </div>
-      </div>
-
-      <!-- 宝宝：护理记录 -->
-      <div id="careBaby" class="hidden mt-4">
-        <div class="grad rounded-3xl p-4 text-white" style="background:linear-gradient(135deg,#38bdf8 0%,#818cf8 60%,#c084fc 100%)">
-          <div class="flex items-center justify-between"><b class="text-sm">👶 团子 · 8 个月 12 天</b><button class="text-[11px] bg-white/20 rounded-full px-2.5 py-1" onclick="toast('多宝宝/记录人切换：妈妈・爸爸・长辈（演示）')">👨‍👩‍👧 妈妈记录中 ›</button></div>
-          <div class="mt-1.5 text-[11px] opacity-90">本周：喂养 46 次 · 尿布 35 片 · 睡眠 13.8h/天 · 体重 P62 ↑</div>
-        </div>
-        <div class="mt-3 text-[11px] font-bold text-slate-500">一键记录（点击即开始/入账）</div>
-        <div class="grid grid-cols-4 gap-2 mt-2 text-center text-[10px] font-bold">
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('milk')">🤱<br>母乳喂养</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('bottle')">🥣<br>配方奶</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('supp')">💊<br>补剂</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('poop')">💩<br>尿布·便</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('pee')">💧<br>尿布·尿</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('sleep')">😴<br>睡眠</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('play')">🧸<br>游戏</button>
-          <button class="card !p-2.5 active:scale-95 transition" onclick="qTap('measure')">⚖️<br>测量</button>
-        </div>
-        <div id="feedTimer" class="hidden card mt-3 !py-3 flex items-center gap-2"></div>
-        <div class="card mt-3">
-          <div class="row-title">今日一览 · 09-19（<span id="babyCount">6</span> 条）</div>
-          <div id="babyToday" class="mt-2 space-y-2 text-xs"></div>
-        </div>
-        <div class="card mt-3">
-          <div class="flex items-center justify-between"><div class="row-title">📈 生长曲线（WHO 百分位）</div>
-            <span id="growthTabs" class="flex gap-1"><button class="gc on" data-k="w" onclick="drawGrowth('w')">体重</button><button class="gc" data-k="h" onclick="drawGrowth('h')">身高</button><button class="gc" data-k="head" onclick="drawGrowth('head')">头围</button></span></div>
-          <svg id="growthSvg" viewBox="0 0 320 142" class="w-full mt-2"></svg>
-          <div class="text-[10px] text-slate-400" id="growthInfo"></div>
-          <div class="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400">显示模式<button class="mini-btn !text-[9px]" id="gModeBtn" onclick="gCycle()">百分位 P</button><span id="gValHint"></span></div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">💉 疫苗计划表</div>
-          <div id="vaxList" class="mt-2 space-y-2 text-xs"></div>
-          <div class="text-[10px] text-slate-400 mt-1">「下次接种」自动生成倒数提醒入「重要日子」（联动 L10）</div>
-        </div>
-        <div class="card mt-3">
-          <div class="row-title">近 7 天概览</div>
-          <div class="mt-2 flex items-end gap-1.5 h-16" id="weekBars"></div>
-          <div class="text-[10px] text-slate-400 mt-1.5"><i class="dot bg-brand-500"></i>喂养次数/天　<i class="dot bg-mint"></i>睡眠时长 · 数据自动汇入周报</div>
-        </div>
-      </div>
-    </section>
 
     <!-- ===== P11 我的 / 设置 ===== -->
-    <section id="p-profile" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center gap-4">
-        <div class="w-16 h-16 rounded-full grad flex items-center justify-center text-white text-2xl font-extrabold shadow-lg shadow-indigo-500/30">C</div>
-        <div><div class="font-extrabold text-lg">CHIST</div><div class="text-xs text-slate-400">本地模式 · 无账号 🔒 · 已记录 55 天</div></div>
-        <button class="ml-auto text-xs text-brand-500 font-bold" onclick="toast('编辑资料（模拟）')">编辑</button>
-      </div>
-      <div class="mt-4 grid grid-cols-3 text-center text-[11px]">
-        <div class="card !py-2.5"><b class="text-base text-brand-500">128</b>完成任务</div>
-        <div class="card !py-2.5"><b class="text-base text-mint">55</b>连续记录天</div>
-        <div class="card !py-2.5"><b class="text-base text-sun">17</b>在册书籍</div>
-      </div>
-
-      <div class="card mt-4 !p-0 overflow-hidden">
-        <button onclick="navTo('p-sub-data')" class="w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-emerald-100 dark:bg-emerald-500/15">☁️</span><div class="flex-1"><b class="text-sm">数据与同步</b><div class="text-[11px] text-slate-400">WebDAV · 备份 · 加密 · 同步历史</div></div>
-          <span class="text-[10px] text-emerald-500 font-bold mr-1">● 已连接</span><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-sub-notify')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-brand-50 dark:bg-brand-500/15">🔔</span><div class="flex-1"><b class="text-sm">提醒通知</b><div class="text-[11px] text-slate-400">日程 · 日记复盘 · 收集箱清理 · 习惯</div></div>
-          <span class="text-[10px] text-slate-400 mr-1">3 项开启</span><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-sub-ai')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-violet-50 dark:bg-violet-500/15">🤖</span><div class="flex-1"><b class="text-sm">AI 增强</b><div class="text-[11px] text-slate-400">服务商 · Key · 能力矩阵 · API 验证</div></div>
-          <span class="text-[10px] text-slate-400 mr-1">默认关闭</span><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-sub-cats')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-orange-50 dark:bg-orange-500/15">🏷</span><div class="flex-1"><b class="text-sm">分类管理</b><div class="text-[11px] text-slate-400">时间块/日程两级分类 · 颜色 · 标签 · 拖拽换组</div></div><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-sub-recmg')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">📔</span><div class="flex-1"><b class="text-sm">记录管理</b><div class="text-[11px] text-slate-400">笔记版本恢复方式 · 快照策略 · 文件夹与回收站</div></div><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-tools')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧰</span><div class="flex-1"><b class="text-sm">小工具合集</b><div class="text-[11px] text-slate-400">11 个本地工具 · 插件拓展</div></div><span class="text-slate-300">›</span></button>
-        <button onclick="navTo('p-pstore')" class="w-full flex items-center gap-3 p-3.5 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
-          <span class="set-ic bg-slate-100 dark:bg-slate-800">🧩</span><div class="flex-1"><b class="text-sm">插件中心</b><div class="text-[11px] text-slate-400">大模块按需安装 · 更新 · 回滚</div></div>
-          <span class="text-[10px] text-amber-500 font-bold mr-1">1 项可更新</span><span class="text-slate-300">›</span></button>
-      </div>
-
-      <!-- V1.27：主题风格/深色/主题色/字号 收进「外观」二级页 -->
-      <button onclick="navTo('p-sub-appearance')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
-        <span class="set-ic bg-indigo-50 dark:bg-indigo-500/15">🎨</span><div class="flex-1"><b class="text-sm">外观</b><div class="text-[11px] text-slate-400">主题风格 · 深色模式 · 主题色 · 字体大小</div></div><span class="text-slate-300">›</span></button>
-
-      <!-- 批2e：日记天气城市（一次选定 · 写日记当天自动抓取） -->
-      <button onclick="openSheet('sheetCityPick')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
-        <span class="set-ic bg-sky-50 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5 5l1.6 1.6M17.4 17.4 19 19M19 5l-1.6 1.6M6.6 17.4 5 19"/></svg></span><div class="flex-1"><b class="text-sm">日记天气</b><div class="text-[11px] text-slate-400">城市 · 当前 <b id="setCityName" class="text-slate-600 dark:text-slate-200">杭州</b></div></div><span class="text-slate-300">›</span></button>
-
-      <div class="card mt-4">
-        <div class="flex items-center justify-between"><div class="row-title">🧭 底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
-        <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」固定；新增「习惯」栏目可在下方启用</div>
-        <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
-        <div class="mt-2.5 flex gap-2">
-          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">🧩 主页编排直达（或长按卡片）›</button>
-        </div>
-      </div>
-
-      <div class="card mt-4 text-[11px] text-slate-400 leading-6">
-        <div class="flex items-center gap-2.5 mb-1.5">
-          <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCAEAAQADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAAAAIBAwQFBgcI/8QAOhAAAgECBAMFBgQFBAMAAAAAAAECAxEEEiExE0FRBSJhcZEUMlJTcpIjM0KBBmKhsdEVQ7LBVILh/8QAGgEBAQEBAQEBAAAAAAAAAAAAAAECAwQFBv/EACERAQEAAgIDAAMBAQAAAAAAAAABAhEDEiExQQQTIhRC/9oADAMBAAIRAxEAPwD9UtiOVhpFMtSWixTJzFSRNibFmYLiE3Gw2YjMKSA2YMwoWAnMGYUVDYsUgzChYofMGYQkBswZhbCtX5kFikGYS2gDYfMGcQhrUosUwzCJAA+YLiEgNmDMKQNh8wZhCQHUiUIh0IIlsJYeQgoEgAEQC1CwABF7Be5NgSAAJsFgIsFiQAixJAAFgAAJIsAAAWIJALBYLAAAAADAkgogAsSQLbUawABI0RRkUEhB5CEoESxSbgDAETYA3JSIclC19W9kt2LKVvflb+WI8B24x3aXmxXUp/EhE/hgl4kvP8Ri5rpPFpv9aJ4kPiQlqnxBap8RO5o+eHxBxIfEhVn+Im0/iL3NJ4lP4kGen8SItPqFp/EO5pPEp/Eg4tP40Llm/wBRDhP4h3Qzq0vjQcel8aK2p85Mhxn8Rewt49L5kSOPR+ZEqyy6kOEviLtPK72ij82HqPFwn7slLyZlyS6iSoX1sr9VoNq3WCxijXrUOfEj0e/qaqFeniIuUHtunujSbSwGasKFAAToQCGiKMiwDEbHkVt6koCUgSJQBYJSyJc29EuoyRWndyn00iLdCH3XprN7sFDm9WTFW15ktnHLJoAyCbGPa+hcLkpBYslQEkEVJ8OnKdr5Vc1EMBk49f3ouMl0asWUsZTqSyTTpz6Pn5MmOeN8NXjs8rwCwM1WEMVjMV6hSEDSQppAAMCwLKGYy1adShUVai7TXpLwZsuJNKSsWJZtdhsTDFUlOOj2lF7xfQdrU5tKfsmKUtoVO7L/AKZ0maJUMgGSiKB4sQeJYCWxXzLJCcyUSShRkBFWWWnJ/sLFWjFBX9xeYxzzvlYNiCWQc9iQIC4UwC3JLtNJFrfkz+l/2GKcbU4eFqPqrepfU2sm7pmo1L0o+QtWEaq1QtN2pxXgDkeLfh69au4swmMlCaoVndPSM3/Zm9nHqxU4m7A4h1qWWb78NH4+J34uS3+a5c3H/wBRpIY3K7BOM13Wn5M9GnBVK4pZOJWVEBcGAAKSSWQZsVTU4NdTRh67q0ISe7WvmLUXdZRhJ5YuPSTNJ9b1qgK4yHuFMNEUeJQS2EHkISiUiUiEMgKq/urzHe4tb3V5jPc5Z+1iGGxLIOdii4IglIRRYZIEjHWxzz8OjrbeRq2YzdJLldRtsc7tOpnqU6CfPNIt/wBQjDC8SbjxNVlXUwU80pSrVHeUjnzck69cfrtw8dl3fi1uwrkDdxXqeV6PRs1ycPU4WJi1tLusrI2kn0aNzx5cssvjqYtt4SbW6Sf9Tn3lTlxaMss/6PzNeMrKGCn1l3Uc/NaOp3y82V5bdR1cLi4Yundd2cfej0GkrM4Tryw1VV6fvLddV0O1RxEMTRjVg9JL08DvjbXGZy3QYBJEGvTogm5AFEVPdZkw+jl9TNdT3TFR0lJfzMJ9b4PQuWpRTZdHYqmGiIPEQTIS48tisUSMhRkAlb3V5jMTEPur6kM9zln7WAglkHOtQDJEImUlTg5y0UVdmsYlZO0cU6UVRpvvz/ojLSSpRtze7M8Kjr1p4if6n3fBDuqePPk7Xb3YcXWdUzjByzNXZDmI53BanPbppbShOtLJBXdr7hOMqUss45ZGrs2k1mqvn3V/2aMXh1iKTS9+OsWejDi3jv68vJy6y05gstVoQpXRDkJNuGeejVJzrZeI75duSKpSJcnJ2Su3okjbT7InON6lTI3ySvY7Y47ebLK5+nKqO6Y/ZOMdDEvDyfcqPu+Eh+0cDVwaUm1Om3bMuXmcevNxanF2lF3TO0mnizzuGfl7JO4MzYTErE4enWX64p/5NFzT6GGW4GCIbJT0DaJ7GKmu/LzNs9jHT9+XmPo10y+OxTTWhdE0GGiLYeIgJbFb3LJbCMlAhkKtxkBVifcX1IfmJivy19SJv3jll7WGIBsE7mK1IZGHtqs6WDyR3qSUTcjkduz/ABcNDq5P+xjmy68drpwY9uSRmTUKaiuSFuLNirVnz9vpyLY6mzC4WVZ3d4wW8v8AAmBwvGbnP8uO/wDM+h1VG6XJckuR6eHh3/WTyc/Lq9YElFKMVaKVkSpA1ZCXsz2x4q49ZZMTWhtabEs5NJK7eyR1cTgI4pqopZKi0va6fmNhcFDCLPOSnPrbbyMzDy5ZY20uCwUcLHi1bOp/x/8AomIxbcrReiIxWLzXSehklLLq9ZPZDLLf84uuOMwjRi8RGfZ9dVX/ALcm78tDyXFVSnd80L25297S5YHCyzRbtVqLZ/yrw6sroaU0mdsZ4fH/ADOWZZePj0P8O4hywkqbf5c7fsztRlc8x/D07VcRHyZ6OnLQter8XLeEWsCLgnqR7Ez2McPzJeZrm9DHDWpLzH0baexdEqp7FqNBrjxKyyOwgJbCIeQhKJRKFGQFWK/LX1Im/eIxX5a+pBvM55e1gYLcZinOtnTOR29G1bCz+pf2Osjn9u03PBqpFXdKSl+2xy55vjsdPx715Y5klqTFERanFMtpr8SC5Zl/c8OM2+lldR2aNNUaUKS/StfPmNXq8GjKa5f0D9TJlK8Wmk0+R9TXjUfJ93dYaXaElO83eD5c0b1lnFSi009mjj4rDujJygu50+EswWMdCVnrB7roYwzsusms8ZfOLrK0FdnOxmNzPLF6C4zHZrqL0MOayzy1fJG8rvxHLelkqmXvS3eyKquFnj8PWpZpRdSLipJ2abJpwlVneR0aEFC1jeGOmMvPivnmFwqpaSVmtH5m6MkkV4l2x+KitlWn/wAmGay1PRMX53K6unV7Bf4laXkj0lJ3RwexqHDoJveTud2krI519b8Sawi5MlCoYj3CTuZKfvy8zU2ZaXvS+pk+jbT2L1sU03oXLY2JuNEUZATIQeQhKAZCjLYCnFu1JfUgv3iMa7Uo/WgekjGSwzuFiLk3Maa2ZC1IRqQlGavGSsyUxmrksPVeb4M8NWlRn+l6Pqh9VtudTHYVV46aTWzOXZxdpKzR4MsOt09+PL3nl24TVSEZraSuSYMBiUnwZPf3X/0b2e7DOZTbxZ43G6VVInMxOHlTblTV1zj0Os9SirSzo1cXO+Zpy13VmmteUQp05VZXZoeEea7L6dHLyLIzJpFKkoosq1YYejOtN2jTi5N+CGSseb/iztO8P9NoO8pWdZrkuUf3OsjjzckwxuVcClUdWU6st5ycn+7ua8NQeJrRitlqzPQozk1CCbZ3sDg/Z4KO83udbdPicXFc8m/CwSslstEdGnsZsPSypGuKscq+3xY6hiSGyLkdzMzUvel9TNDZmpby+pj6jbT2Llcpp7FydzSpLIlY8RBMtiu5YytkolDCoZAZ8d+VH60Dd2GP/Jj9aIRjIntNyUQTcy3s0R0hI7jynGnHNJ2Q0lROKtduy6sy1MLd5kk/2F7QxUXQWXMnmW6DB4+jHDwg814qz0OeXW5dXWY5THtEeyxlo6cHbpyNCi4pJvw1erOdg8fSo1m6kpWlGysr3DHY+lOrFxbypJ6q2zMY5YzHtGrhlctV0sv7BkurrVeBjxXaeHrYWXDc7uzV425hge0sPCjw5OWZNuyi2dZnO2tuf67120uCba0ut10EqZKUVKpOME3ZOTtd9DFT7Qo0ca6lRvK8yWmurG7QxuHxMYqCzJXupR8iftnW0/Ve0jVKDs0rq/NHLfYmETco0VJt3bzXuzbPtbCVMPJRlPM42TyPcpwfauFo56dZyUpSzJRjc6fsm9OGfBMsd5fFEOzoUn+HTjFl1LC5dWhJ4+j7Yq15cK9/d12tsbF2hg2r/ir/ANGMeTttn/PMNaEI5R7jRdOpBTpSUovZoV6G25NDclCp3GKqWZaL1l9TNLZmoPWX1MifW6nsXJWKKRoRpUjR2FY0QJlsVsslsV21JQIdCIdAZsf+RfpJMIPMkWYmHFozhza08zJhKvEgr7man1oAGQYaiynuZe1JNOjFPRt3/oaIuxnx8HVhCaesHdrwM5+m8PbJj6VSphVGk0tU3prbwMuHc1Oby5FyXSx1YZZwVqlP7kLLDReqlT+5Hnyxvt6JlPTi1rxqKMKbV5ZnJ/2Q1aaSUnTc3HbXT9zoVsNbd0/vRn4Lel6X3ox523uaZqF/Z1GSvpqhaU2q7ag4wskr7vxZujhpW0dP70EsPJc6X3o3MXLLJgxc1KyjTam2ryvpp0GdWMIJzpymlraLszUsLOXy/vQs8JOPOn96OsxefLOzy5+HqSScnFe83l5eQspqeIjkpuEYq3ed27mvgyT2p/eg4Lbv3PvR0mDy5cuXpRVknDKqbc2sqd9F4+ZtwkW4pMKVFt7Q+9HQw2Eas5ZEvqQ8R1wuWXtnw8/Zpyh+mcr2NbeZXRg7QqRWLhCntFavqzTRleJvC+HS+1y0GEzWGTuaRJkpO0murbNdnlb9DHTadRtbXsh9HQpO6L4meiXxKHGiImWRdygkIO1oI9yURzGFJuAs3oYJfgYhte7N38mb6mxixK3urkqVfGaaC5ko1eV7mhO5hYsFqK8WgUrA3dGbG5XKq4SVOo5R5gnVS3OjOKZXw0crxx2nJXOqRqz0bKvZZnW4KYcFCccS8lcpUakURKhNnVdFdCOEuhuYRzyyrmRpzjsLOnUludPhoV0kzcxjnXJdCZHAmdd0URwUb0x0c6lCcHexqjiKsY6F/BQcFdDNwldMbZ6Y1CU6ueW5upKyIVJIdKxuTSHGgnJqK3YsYubsldmidSl2dRdSrLvclzfghaM/aVZYWgqcX35aL/JkwqskZalaeLxDqz57Louhtw8RJobqTL1qU00XIoZIsiIPEsEsRjy2E5kogkEAES1RmrU7o1MrkrkHKqRlTlmiNRx0Pdq91+O3qaq1K6OfWw5mwdGLjJXjNND5G+a9Th8OdN3i3HydgdfE8q9RfuZqx3HB9UJw5dV6nG9oxX/kVPUhYjFfPqfcZ1Wu0dxUpdV6k8KXVepw/aMT8+p6jPEYn59T7hqnZ2XTl4eojpy8PU47r4n59T7iHXxPzqn3FkrNrrOnLw9SHFrp6nKVXEPetU9Q4lf5s/U1GLXUenNEX8Ucp1K/zJ+ornX+bP1NRntXXuuqJVuq9TjcSv8ANn6kxq1/mz9Sktdm3ivULRSvKVkcni1/mz9RJRlN96Tl5u4a8upV7Wo4eLjQWeXVbepzKtSri6nEqyzPl0XkEaVy+lR12GlFCkzoUaeUSjRsaoQsVVkFYcVaDJXAZNFkStKxZEQTIqbsWyKZLUUSpajXEW49iAuK1cmwAVzjcoqUrmtq4rhcDm1MP4FEqHgdWVO5U6KGhzeB4BwDoOj4EcEDAqA3BN3BRDpXGhh4KDg3N3BJ4I0MKoeAcBm5UrE8K5TTnugyHQN/CJVEJpzvZn0BYc6HCRKpILpg9mBYfXY38IlUQMcMOXwopcjRGkOqdgEhC3ItSJUQZADWsQhigHiKNFlgmRWy1q4uQWCtkofIGUmgtyB8gZBoIA+QMiGhXa5GQtyBlGhTk1DJ4F+VBlQ0KVAhwL8pGUaFGULF+QHAaFGUMpdkDINCnLcFEuyBkGhTlIymjIgyIaFKiGQvykZS6FWUgvyojIhoZaspRej5bCOc1md726Pwv0NVTDxqO7s9LWauK8JF3V9Hra2g0K80r2TlppoufK/oQ6knZpys+m5dHDKK0b/wHssbWvddGhoVOpJNx1062uW4eblfWTVk9dweFi23fd30Wm9x6VJUtm3y1A//2Q==" class="w-10 h-10 rounded-xl shadow-sm" alt="LifeHarness">
-          <div class="text-left"><b class="text-slate-700 dark:text-slate-200 text-[13px]">LifeHarness</b>
-            <div class="text-[10px] text-slate-400">本地优先 · 自我记录 Harness</div></div>
-        </div>
-        <img src="data:image/jpeg;base64,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" class="w-3.5 h-3.5 rounded-[4px] inline-block align-[-2px] mr-1" alt=""><b class="text-slate-600 dark:text-slate-300 text-xs">关于</b><br>
-        LifeHarness 原型 · 需求 V1.17 · 全模块导航演示<br>
-        仅中文 ｜ 纯本地无账号 ｜ Android 8.0+ ｜ 离线优先 ｜ AI 能力可选增强<br>
-        <span class="text-slate-300 dark:text-slate-600">习惯打卡已提前落地演示 · 番茄钟等其余 V1.x 功能入口带灰显 + 版本角标</span>
-      </div>
-    </section>
 
     <!-- ===== P12 习惯打卡 ===== -->
-    <section id="p-habits" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex gap-2 items-center">
-        <div class="flex-1 flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-          <button id="hsW" class="seg-on flex-1 rounded-lg py-1.5" onclick="hsView('w')">本周统计</button>
-          <button id="hsM" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="hsView('m')">本月趋势</button>
-        </div>
-        <button onclick="openSheet('sheetAddHabit')" class="w-9 h-9 rounded-xl grad text-white flex items-center justify-center text-xl shadow-md shadow-indigo-500/30">+</button>
-      </div>
-      <div id="habStatRow" class="mt-3 grid grid-cols-3 text-center text-[11px]"></div>
-      <div id="habList" class="mt-3 space-y-3"></div>
-      <div class="card mt-4 text-[11px] text-slate-400 leading-6">
-        <b class="text-slate-600 dark:text-slate-300 text-xs">负向打卡逻辑</b><br>
-        为坏习惯设定周期内「目标不出现次数」（如奶茶：每周最多 2 次）：<b class="text-mint">每天未触发 → 正向积累 +1</b>；当天触发 → 扣减进度并记录触发日。周期末达成目标即视为「控制成功」，连续多个周期达成自动升级为「戒除中🎉」。
-      </div>
-    </section>
 
     <!-- ===== P12a 二级：数据与同步 ===== -->
-    <section id="p-sub-data" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="row-title">🔄 WebDAV 配置</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center justify-between"><span class="text-slate-400">预设</span><select class="sel" onchange="toast('已填入'+this.value+'端点（模拟）')"><option>坚果云</option><option>Dropbox</option><option>Nextcloud</option><option>自定义</option></select></div>
-          <input class="inp w-full" value="https://dav.jianguoyun.com/dav/">
-          <div class="grid grid-cols-2 gap-2"><input class="inp" placeholder="账号邮箱"><input class="inp" type="password" value="sk••••••••••" placeholder="应用密码（非登录密码）"></div>
-          <input class="inp w-full" value="/LifeHarness/" placeholder="远程目录">
-          <div class="flex items-center justify-between py-1"><span>仅 Wi-Fi 下自动同步</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <button onclick="toast('✓ 连接成功：PROPFIND /LifeHarness/ 返回 207 · 耗时 412ms（模拟）')" class="w-full py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold">测试连接</button>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">💾 本地备份</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center justify-between"><span>自动备份（每 3 天夜间 · 仅 Wi-Fi）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span class="text-slate-400">快照保留份数</span><select class="sel"><option>10 份</option><option>5 份</option><option>20 份</option></select></div>
-          <div class="flex gap-2"><button class="mini-btn flex-1 !py-2" onclick="toast('已导出 lifeharness_backup_0919.lhbak（DB快照+附件包·模拟）')">⬇ 导出一键备份</button><button class="mini-btn flex-1 !py-2" onclick="toast('选择 .lhbak 文件恢复（校验后覆盖前自动存当前库·模拟）')">⬆ 从文件恢复</button></div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">🔐 加密设置</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center justify-between"><span>备份口令加密（AES-GCM · 云商不可见）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <button class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold" onclick="toast('修改备份口令：旧口令解密→重新加密存量快照（模拟）')">🔑 修改备份口令</button>
-          <div class="flex items-center justify-between opacity-55"><span>应用锁（PIN / 生物识别）</span><span class="text-[10px] text-slate-400">产品决策：不提供 · 纯本地无找回通道，防数据永久丢失</span></div>
-          <div class="flex items-center justify-between text-slate-400"><span>母婴等敏感数据排除同步（模块级）</span><span class="toggle" onclick="tgl(this)"></span></div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">🕘 同步历史</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">今天 08:30 · 2.1 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚前将当前库存为 safety 快照（模拟）')">回滚</button></div>
-          <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">昨天 21:02 · 0.8 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚（模拟）')">回滚</button></div>
-          <div class="flex items-center gap-2 text-slate-400"><span>—</span><div class="flex-1">09-17 · Wi-Fi 外跳过</div></div>
-          <div class="flex items-center gap-2"><span class="text-sun">◈</span><div class="flex-1">09-15 · 全量备份 .lhbak · 含 217 附件</div><button class="mini-btn !text-[10px]" onclick="toast('已验证快照完整性（模拟）')">验证</button></div>
-        </div>
-      </div>
-    </section>
 
     <!-- ===== P12b 二级：提醒通知 ===== -->
-    <section id="p-sub-notify" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex justify-between items-center"><div class="row-title">📅 日程与任务提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 space-y-2 text-xs text-slate-500 dark:text-slate-400">
-          <div class="flex justify-between"><span>默认提前量</span><select class="sel"><option>10 分钟</option><option>30 分钟</option><option>1 小时</option></select></div>
-          <div class="flex justify-between"><span>重复事件提醒策略</span><select class="sel"><option>仅当天</option><option>每次重复都提醒</option></select></div>
-          <div class="flex justify-between items-center"><span>逾期任务升级提醒</span><span class="toggle on" onclick="tgl(this)"></span></div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">📔 日记复盘</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>晚间复盘提醒时间</span><select class="sel"><option>21:30</option><option>22:00</option><option>自定义</option></select></div>
-        <div class="mt-2 flex justify-between items-center text-xs"><span>含今日概览草稿自动预览</span><span class="toggle on" onclick="tgl(this)"></span></div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">⚡ 收集箱清理</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>每天 21:00 · 未整理≥3 条时提醒</span><span class="toggle on" onclick="tgl(this)"></span></div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex justify-between items-center"><div class="row-title">🔁 习惯提醒</div><span class="toggle on" onclick="tgl(this)"></span></div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center"><span>🏃 晨间跑步 · 07:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex justify-between items-center"><span>📚 阅读 30min · 21:00</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex justify-between items-center"><span>🧋 奶茶控制 · 20:00 晚确认</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="text-[10px] text-slate-400">负向习惯每天晚间一次确认：「今天没有做 → 自动正向积累 +1」</div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">⛔ 免打扰时段</div>
-        <div class="mt-2 flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>23:00 – 07:00 · 仅逾期紧急项可穿透</span><button class="mini-btn" onclick="toast('编辑时段（模拟）')">设置</button></div>
-      </div>
-    </section>
 
     <!-- ===== P12c 二级：AI 增强 ===== -->
-    <section id="p-sub-ai" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">🧩 服务商管理</div><button class="mini-btn" onclick="toast('添加自定义 OpenAI 兼容端点（模拟）')">+ 添加</button></div>
-        <div class="mt-2 space-y-2 text-xs">
-          <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2"><span>🐋 DeepSeek · <span class="font-mono text-[10px]">api.deepseek.com/v1</span></span><span class="flex items-center gap-2"><b class="text-emerald-500 text-[10px]">● 当前</b><span class="toggle on" onclick="tgl(this)"></span></span></div>
-          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🟤 Anthropic claude · <span class="font-mono text-[10px]">api.anthropic.com/v1</span>（Messages 协议适配，Key 独立存储）</span><span class="toggle" onclick="tgl(this)"></span></div>
-                 <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 rounded-xl px-3 py-2 opacity-60"><span>🦙 Ollama 本地 · <span class="font-mono text-[10px]">127.0.0.1:11434/v1</span>（全离线）</span><span class="toggle" onclick="tgl(this)"></span></div>
-          <div class="text-[10px] text-slate-400">协议：OpenAI 兼容 Chat Completions · 请求仅发往已配置端点，应用自身零埋点</div>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="row-title">🔑 Key 配置</div>
-        <div class="mt-2 space-y-2 text-xs">
-          <input class="inp w-full" type="password" placeholder="API Key · sk-••••••••••••" value="sk-demo-key">
-          <input class="inp w-full" placeholder="模型名，如 deepseek-chat" value="deepseek-chat">
-          <div class="text-[10px] text-slate-400 leading-5">Key 存系统级加密区（flutter_secure_storage）：不入备份明文、不落日志、不随 WebDAV 同步。</div>
-          <div class="flex justify-between items-center"><span>验证状态</span><b class="text-emerald-500">✓ 今日 08:12 通过 · 812ms</b></div>
-          <button onclick="openTool('aiapi')" class="w-full py-2.5 rounded-xl grad text-white text-xs font-bold">🔌 重新验证 / 测试新 Key</button>
-        </div>
-      </div>
-      <div class="card mt-3">
-        <div class="flex items-center justify-between"><div class="row-title">🤖 AI 总开关</div><span class="toggle" onclick="tgl(this);toast(this.classList.contains('on')?'总开关已开：各能力仍逐项授权':'总开关已关：全应用零 AI 请求')"></span></div>
-        <div class="mt-2 text-[11px] font-bold text-slate-500">能力矩阵（逐项授权）</div>
-        <div class="mt-1 text-xs space-y-2">
-          <div class="flex items-center justify-between"><span>✅ 待办：自然语言速记 + AI 判象限</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📔 日记：复盘生成 / KPT 草稿</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📚 阅读：总结深化 / 目录 AI 补全</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>⚡ 收集箱：智能分流建议</span><span class="toggle" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between"><span>📊 周报 AI 点评（只发聚合数据）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <div class="flex items-center justify-between opacity-50"><span>💰📦 记账/物品智能归类（V2）</span><span class="toggle" onclick="tgl(this)"></span></div>
-        </div>
-        <div class="text-[10px] text-slate-400 mt-2 leading-5">隐私：每次调用前弹层展示完整发送内容可审阅；敏感模块支持「仅摘要发送」；AI 结果带标识，写入前需确认。</div>
-      </div>
-    </section>
 
     <!-- ===== P12d 二级：分类管理（V1.19 · 两级分类树 · 拖拽换父组 · 全局唯一分类表） ===== -->
-    <section id="p-sub-cats" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex items-center justify-between">
-        <div class="text-[10px] text-slate-400">🖐 长按拖拽 = 调整顺序 / 拖入其他父级换组 · 分类供 轴/块/日/日程/周 与时间账本共用</div>
-      </div>
-      <div class="flex gap-2 mt-2 text-sm font-bold">
-        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" onclick="catsCollapseAll()">⏷ 全部折叠</button>
-        <button class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800" id="catsSortBtn" onclick="catsSortMode()">⇅ 排序</button>
-        <button class="flex-1 py-2 rounded-xl grad text-white" onclick="openCatAdd()">＋ 添加分类</button>
-      </div>
-      <div id="catTree" class="mt-3 space-y-1"></div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">计数 = 该分类下时间块/日程数（L4 账本引用同一表）</div>
-    </section>
 
     <!-- ===== P12e 二级：添加分类（V1.19 · 一级/次级 · 名称/描述/标签/颜色） ===== -->
-    <section id="p-sub-catAdd" class="page px-5 safe-pb no-scrollbar">
-      <div class="flex justify-end">
-        <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
-          <button id="caPriBtn" class="seg-on px-4 rounded-lg py-1.5" onclick="caMode('pri')">一级分类</button>
-          <button id="caSubBtn" class="px-4 rounded-lg py-1.5 text-slate-500" onclick="caMode('sub')">次级分类</button>
-        </div>
-      </div>
-      <div class="card mt-3 !p-0 overflow-hidden text-sm">
-        <div id="caParentRow" class="hidden flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-          <span class="font-bold">上级分类</span>
-          <!-- V1.27：改底部弹层选择，与全局滚轮/弹层风格统一（隐藏 select 仅作数据位） -->
-          <b class="text-brand-500 cursor-pointer text-sm" onclick="openCatParentPick()"><span id="caParentLbl">请选择上级分类</span> ›</b>
-          <select id="caParent" class="hidden"></select>
-        </div>
-        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-          <span class="font-bold shrink-0">分类名称</span>
-          <input id="caName" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入标题">
-        </div>
-        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-          <span class="font-bold shrink-0">默认描述</span>
-          <input id="caDesc" class="flex-1 text-right outline-none bg-transparent placeholder:text-slate-300" placeholder="请输入描述">
-        </div>
-        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-slate-800">
-          <span class="font-bold shrink-0">默认标签</span>
-          <select id="caTag" class="sel !py-1.5"><option>无</option><option>#工作</option><option>#开会</option><option>#加班</option><option>#睡觉</option><option>#摸鱼</option></select>
-        </div>
-        <div class="flex items-center justify-between px-4 py-3.5">
-          <span class="font-bold shrink-0">颜色</span>
-          <span class="flex items-center gap-2"><span id="caSwatch" class="w-10 h-6 rounded-full bg-yellow-700"></span>
-          <select id="caColor" class="sel !py-1.5" onchange="caColorPrev()"></select></span>
-        </div>
-      </div>
-      <div class="mt-4 flex gap-3">
-        <button onclick="caSave(1)" class="flex-1 py-3 rounded-xl bg-brand-100 dark:bg-brand-500/15 text-brand-500 text-sm font-bold">继续添加</button>
-        <button onclick="caSave(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保 存</button>
-      </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">保存后即时生效：分类速记列 / 标记面板 / 添加事件弹层 / 时间账本统计同源引用</div>
-    </section>
 
     <!-- ===== P12f 二级：外观（V1.27 · 主题风格/深色/主题色/字号 收拢） ===== -->
-    <section id="p-sub-appearance" class="page px-5 safe-pb no-scrollbar">
-      <div class="card">
-        <div class="flex items-center justify-between"><div class="row-title">🎨 主题风格</div><button onclick="openSheet('sheetThemeMarket')" class="text-[11px] text-brand-500 font-bold">🛍 更多主题 ›</button></div>
-        <div class="text-[11px] text-slate-400 mb-2">7 套内置 · 支持配置文件热加载 · 与深色模式正交 · 赛博朋克强制深色</div>
-        <div class="grid grid-cols-3 gap-2" id="themeStyleRow"></div>
-      </div>
-      <div class="card mt-4 space-y-3 text-sm">
-        <div class="flex items-center gap-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🌙</span><div class="flex-1"><b>深色模式</b><div class="text-[11px] text-slate-400">与任意主题风格叠加生效</div></div><span class="toggle" id="darkTgl" onclick="toggleDark(this)"></span></div>
-        <div class="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">🎨</span><div class="flex-1"><b>主题色</b></div>
-          <div class="flex gap-2" id="themeDots"></div></div>
-        <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
-      </div>
-    </section>
 
   </main>
 
@@ -1959,624 +872,65 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="dlExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
-  <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">移动到文件夹</div>
-      <div class="text-[11px] text-slate-400 mt-0.5">将所选 <b id="nmCount" class="text-brand-500">0</b> 篇笔记移入（嵌套夹缩进展示）</div>
-      <div id="nmList" class="mt-3 space-y-1"></div>
-    </div>
-  </div>
 
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
 
   <!-- ===== 全局搜索弹层 ===== -->
-  <div id="sheetSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSearch')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <input id="searchInput" oninput="doSearch(this.value)" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="🔍 搜索…">
-      <!-- V1.29轮6：默认范围标签=从哪个页面出发就搜哪类 -->
-      <div class="mt-2.5 flex gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1" id="searchScopeChips"></div>
-      <div id="searchResult" class="mt-4 space-y-2 text-sm"></div>
-      <div class="mt-3 text-[10px] text-slate-400">一个入口搜遍全模块 · 结果为模拟数据</div>
-    </div>
-  </div>
 
   <!-- ===== 新建待办（引导式四象限） ===== -->
-  <div id="sheetAddTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddTask')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold" id="ntSheetTitle">新建待办</div>
-      <!-- V1.27：类型由右下 FAB 行卡菜单二选一（与首页快捷记录同款样式），弹层内不再显示类型切换；名称置顶 -->
-      <input id="ntTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="任务标题，如：给绿植浇水" autofocus>
-      <div id="tyPomoRow" class="hidden mt-3 rounded-xl bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 p-3">
-        <div class="flex items-center justify-between text-xs">
-          <b class="text-rose-500">🍅 番茄计时</b>
-          <span class="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 text-[10px] font-bold">
-            <button id="pmUpB" class="seg-on px-3 py-1 rounded-md" onclick="pmMode('up')">正计时</button>
-            <button id="pmDownB" class="px-3 py-1 rounded-md text-slate-500" onclick="pmMode('down')">倒计时</button>
-          </span>
-        </div>
-        <!-- V1.27：倒计时=横向进度条 · 5/15/30/45 快捷点 · 可拖拽 1~60 分钟 -->
-        <div id="pmBarWrap" class="hidden mt-3">
-          <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1"><span>1 分</span><b id="pmMinLbl" class="text-rose-500 text-xs">25 分钟</b><span>60 分</span></div>
-          <div class="relative h-1.5 rounded-full bg-rose-100 dark:bg-rose-500/15">
-            <div id="pmBarFill" class="absolute left-0 top-0 h-full rounded-full grad" style="width:41.6%"></div>
-            <input id="pmRange" type="range" min="1" max="60" value="25" class="absolute -inset-y-2 inset-x-0 w-full opacity-0 cursor-pointer" oninput="pmSet(+this.value)">
-          </div>
-          <div class="mt-2 flex gap-1.5 justify-center">
-            <button class="tag-chip" onclick="pmSet(5)">5′</button><button class="tag-chip" onclick="pmSet(15)">15′</button>
-            <button class="tag-chip" onclick="pmSet(30)">30′</button><button class="tag-chip" onclick="pmSet(45)">45′</button>
-          </div>
-        </div>
-        <div class="text-[10px] text-slate-400 mt-2">完成后自动写入时间模块（L4）· 上限 60 分钟</div>
-      </div>
-      <div class="mt-3 text-xs font-bold text-slate-500">引导式判象限（推荐）</div>
-      <div class="mt-2 grid grid-cols-2 gap-3">
-        <button id="gImp" class="q-ask" onclick="askTap(this,'imp')">这件事重要吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">对目标/价值有贡献</span></button>
-        <button id="gUrg" class="q-ask" onclick="askTap(this,'urg')">这件事紧急吗？<span class="block text-[10px] font-normal text-slate-400 mt-1">有明确近期期限</span></button>
-      </div>
-      <div id="ntLand" class="hidden mt-2 text-[11px] font-extrabold"></div>
-      <div class="mt-3 flex items-center justify-between text-xs">
-        <b class="text-slate-500">状态</b>
-        <span class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 text-[10px] font-bold">
-          <button id="tsOpenB" class="seg-on px-3 py-1 rounded-md" onclick="tsMode('open')">未完成</button>
-          <button id="tsDoneB" class="px-3 py-1 rounded-md text-emerald-500/70" onclick="tsMode('done')">完成</button>
-          <button id="tsDropB" class="px-3 py-1 rounded-md text-rose-400/80" onclick="tsMode('drop')">放弃</button>
-        </span>
-      </div>
-      <div class="mt-2 flex gap-3 text-xs items-center">
-        <div class="flex-1 flex items-center justify-between"><span class="font-bold">颜色<span class="text-slate-400 font-normal">(体现在时间模块)</span></span><select id="tsColor" class="sel !py-1.5"></select></div>
-        <div class="flex-1 flex items-center justify-between"><span class="font-bold">分组</span><b class="text-brand-500 cursor-pointer" onclick="toast('分组管理（模拟）· 默认未分组')">未分组 ›</b></div>
-      </div>
-      <div class="mt-3 flex gap-3 text-xs">
-        <!-- V1.27：截止日期改滑动滚轮（复用时间模块 sheetDatePick 三列轮） -->
-        <div class="flex-1"><label class="text-slate-400">截止日期</label>
-          <div class="sel w-full mt-1 !py-2 flex items-center justify-between cursor-pointer" onclick="ntDatePick()"><span id="ntDueLbl">📅 2026-09-21</span><span class="text-slate-400">›</span></div></div>
-        <div class="flex-1"><label class="text-slate-400">提醒（默认当天 09:00 · 可改）</label>
-          <select id="ntRemind" class="sel w-full mt-1 !py-2" onchange="ntRemindChg(this)"><option>当天 09:00</option><option>自定义时间…</option><option>提前1小时</option><option>不提醒</option></select></div>
-      </div>
-      <div class="mt-3 text-xs text-slate-400">重复：不重复 <b class="text-brand-500 mx-1 cursor-pointer" onclick="toast('周期规则面板（模拟）')">›</b>　子任务：<b class="text-brand-500 cursor-pointer" onclick="toast('可添加 2 级子任务（模拟）')">+ 添加</b></div>
-      <!-- V1.19 · 待办设置时间三态（时间点/时间段/全天）→ 落入日程视图（联动 L1） -->
-      <div class="mt-3 rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
-        <div class="flex items-center justify-between text-xs">
-          <b>设置时间</b>
-          <span class="flex bg-white dark:bg-slate-900 rounded-lg p-0.5 text-[10px] font-bold">
-            <button id="tkNoneB" class="seg-on px-2.5 py-1 rounded-md" onclick="tkMode('none')">无</button>
-            <button id="tkPointB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('point')">时间点</button>
-            <button id="tkRangeB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('range')">时间段</button>
-            <button id="tkAllB" class="px-2.5 py-1 rounded-md text-slate-500" onclick="tkMode('all')">全天</button>
-          </span>
-        </div>
-        <div id="tkPointRow" class="hidden mt-2 items-center gap-1.5 text-xs">
-          <span class="text-slate-400 shrink-0">时间点</span>
-          <div class="flex-1 flex items-center justify-center gap-0.5"><div id="tkPh" class="flex-1 max-w-[64px]"></div><span class="font-extrabold">:</span><div id="tkPm" class="flex-1 max-w-[64px]"></div></div>
-        </div>
-        <div id="tkRangeRow" class="hidden mt-2 items-center gap-1.5 text-xs">
-          <span class="text-slate-400 shrink-0">起</span>
-          <div class="flex-1 flex items-center justify-center gap-0.5"><div id="tkSh" class="flex-1 max-w-[64px]"></div><span class="font-extrabold">:</span><div id="tkSm" class="flex-1 max-w-[64px]"></div></div>
-          <span class="text-slate-400 shrink-0">止</span>
-          <div class="flex-1 flex items-center justify-center gap-0.5"><div id="tkEh" class="flex-1 max-w-[64px]"></div><span class="font-extrabold">:</span><div id="tkEm" class="flex-1 max-w-[64px]"></div></div>
-        </div>
-        <div id="tkAllRow" class="hidden mt-2 text-[10px] text-slate-400">全天 · 在日程视图顶部以横幅展示；时间段起止相同将自动转为全天</div>
-        <div class="mt-2 flex items-center justify-between text-[11px]">
-          <label class="flex items-center gap-1.5"><input type="checkbox" id="tkLink" class="accent-indigo-500"> 关联计时分类（完成后按实际耗时入 L4 账本）</label>
-          <select id="tkCat" class="sel !py-1 hidden"></select>
-        </div>
-        <div class="mt-2 flex items-center justify-between text-[11px]"><span>绑定习惯打卡（完成即回写）</span><select id="tkHabit" class="sel !py-1"><option>不绑定</option></select></div>
-      </div>
-      <div class="mt-2 flex gap-2 text-[11px]"><button class="flex-1 py-2 rounded-xl border border-dashed border-brand-400 text-brand-500 font-bold" onclick="toast('已发送标题给 AI：判定为「重要且紧急」（需先在设置验证 API Key）')">🤖 AI 自动判象限（依据标题）</button></div>
-      <div class="mt-3 flex gap-3">
-        <button onclick="closeSheet('sheetAddTask')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="addTask()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== 新建日程 ===== -->
-  <div id="sheetAddEvent" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddEvent')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">新建日程</div>
-      <input id="evTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="事件标题，如：与客户午餐">
-      <div class="mt-3 flex items-center gap-2 text-sm bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3">
-        <span class="font-bold" id="evDateLbl">9月19日</span><span class="text-slate-400">·</span><span>09:30</span><span class="text-slate-400">—</span><span>10:30</span>
-        <span class="ml-auto text-xs text-brand-500 font-bold" onclick="toast('日期时间选择器（模拟）· 默认=日历选中日，可任意改 → 支持事件补录')">修改</span>
-      </div>
-      <div class="mt-3 space-y-2 text-xs">
-        <div class="flex justify-between py-1"><span class="text-slate-400">地点</span><span class="text-slate-600 dark:text-slate-300">公司 3F 会议室 ›</span></div>
-        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">重复</span><span>每周三 ›</span></div>
-        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">关联待办</span><span class="text-brand-500 font-bold">选择任务（联动 L1）›</span></div>
-        <div class="flex justify-between py-1 border-t border-slate-100 dark:border-slate-800"><span class="text-slate-400">冲突检测</span><span class="text-emerald-500 font-bold">✓ 无冲突</span></div>
-      </div>
-      <div class="mt-4 grid grid-cols-2 gap-3">
-        <button onclick="startNow()" class="py-3 rounded-xl bg-rose-500/90 text-white text-sm font-extrabold shadow-md shadow-rose-500/25">▶ 现在就开始</button>
-        <button onclick="closeSheet('sheetAddEvent');toast('日程已创建（预约未来事项·模拟）')" class="py-3 rounded-xl grad text-white text-sm font-bold">创建（预约）</button>
-      </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center leading-5">「现在就开始」= 记录<b>正在做的事</b>：点击即设开始时间，事项进入进行中状态（时间轴/格子/日历点均实时标识），做完点「■ 结束」自动生成结束时间与耗时（回填 L1 · 入时间账本 L4）</div>
-    </div>
-  </div>
 
   <!-- ===== 格子标记时间块 ===== -->
-  <div id="sheetGridMark" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetGridMark')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">标记时间块</div>
-      <div id="markRange" class="text-xs text-slate-400 mt-0.5"></div>
-      <div class="mt-3 text-xs font-bold text-slate-500">选择分类（分类可在设置中自定义）</div>
-      <div id="markCats" class="mt-2 grid grid-cols-4 gap-2 text-center text-[11px]"></div>
-      <input id="markNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="备注（可选），如：专注报销单">
-      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 同步在时间轴生成对应日程/时间块</label>
-      <label class="mt-1 flex items-center gap-2 text-xs"><input type="checkbox" class="accent-indigo-500" checked> 计入时间账本统计（联动 L4）</label>
-      <div class="mt-4 flex gap-3">
-        <button id="markDelBtn" onclick="delMark()" class="hidden px-5 py-3 rounded-xl border border-rose-300 text-rose-500 text-sm font-bold">取消标记</button>
-        <button onclick="closeSheet('sheetGridMark')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">关闭</button>
-        <button onclick="doMark()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确认标记</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== 统一事件详情弹层（V1.19 · 五视图共用 · 任意状态可查改删） ===== -->
-  <div id="sheetEventDetail" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetEventDetail')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div id="evdBody"></div>
-    </div>
-  </div>
 
   <!-- ===== 统一添加事件/时间块弹层（V1.19 · 轴/块/日/周共用 · 滚轮日期时间+两级分类+标签+继续添加） ===== -->
-  <div id="sheetTimePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTimePick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="flex items-center"><div class="font-extrabold flex-1">添加事件 / 时间块</div><span id="tpRange" class="text-[10px] text-slate-400"></span></div>
-      <div class="mt-3 flex gap-2 text-xs">
-        <div class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-2">
-          <span class="inline-block px-2 py-0.5 rounded-md bg-slate-900 text-white text-[9px] font-bold dark:bg-white dark:text-slate-900">上尾 · 起始</span>
-          <div class="flex items-center justify-center mt-1"><div id="tpSd"></div><span class="text-slate-300 mx-0.5">/</span><div id="tpSh"></div><span class="text-slate-400 font-bold mx-0.5">:</span><div id="tpSm"></div></div>
-        </div>
-        <div class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-2">
-          <span class="inline-block px-2 py-0.5 rounded-md bg-slate-900 text-white text-[9px] font-bold dark:bg-white dark:text-slate-900">当前 · 结束</span>
-          <div class="flex items-center justify-center mt-1"><div id="tpEd"></div><span class="text-slate-300 mx-0.5">/</span><div id="tpEh"></div><span class="text-slate-400 font-bold mx-0.5">:</span><div id="tpEm"></div></div>
-        </div>
-      </div>
-      <div class="mt-2 flex items-center gap-1.5 text-[10px] font-bold flex-wrap">时长
-        <button class="tag-chip justify-center" onclick="tpDur(0)">0分</button>
-        <button class="tag-chip justify-center" onclick="tpDur(15)">15分</button>
-        <button class="tag-chip justify-center" onclick="tpDur(30)">30分</button>
-        <button class="tag-chip justify-center" onclick="tpDur(60)">1时</button>
-        <button class="tag-chip justify-center" onclick="tpDur(120)">2时</button>
-        <span class="ml-auto flex gap-1"><button class="tag-chip" onclick="toast('标签选择面板（模拟）· 默认带分类默认标签')">标签 ›</button><button class="tag-chip" onclick="closeSheet('sheetTimePick');navTo('p-sub-cats')">无分类 ›</button></span>
-      </div>
-      <div class="mt-3 text-xs font-bold text-slate-500">一级分组</div>
-      <div id="tpCats" class="mt-2 flex flex-wrap gap-2 text-[11px]"></div>
-      <div class="mt-3 pt-3 border-t-2 border-dashed border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500">子分组<span class="font-normal text-[10px] text-slate-400 ml-1">属于上方选中的一级分组 · 再点可取消</span></div>
-      <div id="tpSubs" class="mt-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 p-2.5 flex flex-wrap gap-2 text-[11px] min-h-[38px]"></div>
-      <textarea id="tpNote" rows="2" maxlength="5000" oninput="$('#tpNoteC').textContent=$('#tpNote').value.length+'/5000'" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="请输入备注"></textarea>
-      <div class="flex justify-end text-[9px] text-slate-400"><span id="tpNoteC">0/5000</span></div>
-      <div class="mt-2 flex gap-3">
-        <button onclick="tpAdd(1)" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">继续添加</button>
-        <button onclick="tpAdd(0)" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">添加</button>
-      </div>
-      <div class="mt-1 text-[10px] text-slate-400 text-center">5 分一档</div>
-    </div>
-  </div>
 
   <!-- ===== 轮式日期选择（V1.23 恢复 · 图1 样式） ===== -->
-  <div id="sheetDatePick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDatePick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="text-center font-extrabold">选择日期</div>
-      <div class="mt-1 text-center text-xs text-slate-400" id="dpHint"></div>
-      <div class="mt-3 grid grid-cols-3 text-center">
-        <div><div id="dpY"></div><span class="text-[9px] text-slate-400">年</span></div>
-        <div><div id="dpM"></div><span class="text-[9px] text-slate-400">月</span></div>
-        <div><div id="dpD"></div><span class="text-[9px] text-slate-400">日</span></div>
-      </div>
-      <div class="mt-4 flex gap-3">
-        <button onclick="closeSheet('sheetDatePick')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="dpOk()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">确定</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== 记一条影音游（V1.25.1 · 影音游 tab 专属 FAB） ===== -->
-  <div id="sheetAddMedia" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddMedia')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🎬 记一条影音游</div>
-      <input id="mdTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称，如：沙丘 2 / 漫长的季节 / 黑神话·悟空">
-      <div class="mt-3 flex gap-2 text-xs items-center">
-        <span class="text-slate-400 shrink-0">类型</span>
-        <button class="tag-chip justify-center md-type on" data-t="电影">电影</button>
-        <button class="tag-chip justify-center md-type" data-t="剧集">剧集</button>
-        <button class="tag-chip justify-center md-type" data-t="综艺">综艺</button>
-        <button class="tag-chip justify-center md-type" data-t="游戏">游戏</button>
-      </div>
-      <div class="mt-2 flex gap-2 text-xs items-center">
-        <span class="text-slate-400 shrink-0">状态</span>
-        <button class="tag-chip justify-center md-st on" data-s="在看">在看</button>
-        <button class="tag-chip justify-center md-st" data-s="想看">想看</button>
-        <button class="tag-chip justify-center md-st" data-s="完成">完成</button>
-      </div>
-      <div class="mt-3 flex gap-3 text-xs items-center">
-        <div class="flex-1"><label class="text-slate-400">评分（豆瓣可选）</label><input id="mdRate" class="sel w-full mt-1 !py-2" placeholder="如 8.6"></div>
-        <div class="flex-1"><label class="text-slate-400">时长/集数</label><input id="mdLen" class="sel w-full mt-1 !py-2" placeholder="124min / 12集"></div>
-      </div>
-      <input id="mdNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="一句话短评（可选）">
-      <div class="mt-4 flex gap-3">
-        <button onclick="closeSheet('sheetAddMedia')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="addMedia()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存 · 可开始计时</button>
-      </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">保存后进入影音游列表 · 点「▶ 观影/游戏」接入全局悬浮计时条（与阅读同构）</div>
-    </div>
-  </div>
 
   <!-- ===== V1.28 日记模板管理（编辑页弹层） ===== -->
-  <div id="sheetDiaryTpl" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTpl')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">📋 日记模板</div>
-      <div class="mt-3" id="diaryTplList"></div>
-      <button onclick="openTplEdit()" class="mt-2 w-full py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 dark:border-brand-500/40 text-sm font-bold">＋ 新建模板</button>
-    </div>
-  </div>
   <!-- ===== 批2e 本篇天气手动覆盖（自动=写日记当天抓取 · 手动选择后不再自动更新） ===== -->
-  <div id="sheetWeatherPick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetWeatherPick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">本篇天气</div>
-      <div class="text-[10px] text-slate-400 mt-0.5">自动 · 写日记当天获取 · 手动选择后不再自动更新</div>
-      <div class="mt-3 grid grid-cols-4 gap-2" id="wxPickGrid"></div>
-      <button id="wxAutoBtn" onclick="wxAuto()" class="mt-3 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">恢复自动获取</button>
-    </div>
-  </div>
   <!-- ===== 批2e 天气城市选择（设置页入口 · 搜索一次选定） ===== -->
-  <div id="sheetCityPick" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetCityPick')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">天气城市</div>
-      <input id="citySearch" oninput="renderCityList()" placeholder="输入城市名" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 text-sm outline-none">
-      <div id="cityList" class="mt-2 space-y-1.5 max-h-72 overflow-y-auto no-scrollbar"></div>
-    </div>
-  </div>
   <!-- ===== V1.28 新建/编辑模板（分节结构） ===== -->
-  <div id="sheetDiaryTplEdit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryTplEdit')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">新建模板</div>
-      <input id="tplName" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="模板名称，如：每日三省">
-      <div class="mt-3 text-xs font-bold text-slate-400">分节</div>
-      <div id="tplSecs" class="mt-2"></div>
-      <button onclick="addTplSec()" class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400">＋ 添加分节</button>
-      <div class="mt-4 flex gap-3">
-        <button onclick="closeSheet('sheetDiaryTplEdit')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="saveTplEdit()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存模板</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ===== 任务详情 ===== -->
   <!-- V1.27 上级分类选择弹层（底部列表 · 与全局弹层风格统一） -->
-  <div id="sheetCatParent" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetCatParent')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">选择上级分类</div>
-      <div class="text-[10px] text-slate-400 mt-0.5">次级分类将挂在所选一级分组下</div>
-      <div id="catParentList" class="mt-3 space-y-1 max-h-[300px] overflow-y-auto"></div>
-      <button onclick="closeSheet('sheetCatParent')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-    </div>
-  </div>
-
-
-  <div id="sheetTask" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTask')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="flex items-start gap-2">
-        <button onclick="toast('完成状态已切换（模拟）')" class="w-6 h-6 rounded-full border-2 border-brand-500 shrink-0 mt-0.5"></button>
-        <div class="flex-1"><div id="stTitle" class="font-extrabold">整理季度报销单</div>
-        <div class="text-[11px] text-slate-400 mt-0.5">⏰ 逾期 1 天 · 提醒 09-18 09:00</div></div>
-        <button class="text-brand-500 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-brand-300 shrink-0 mr-1" onclick="editTaskFromSheet()" title="复用新建表单修改时间等数据">✏️ 编辑</button>
-        <button class="text-rose-500 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-rose-300 shrink-0" onclick="delTaskFromSheet()">🗑 删除</button>
-      </div>
-      <div class="mt-3 grid grid-cols-4 gap-2 text-center text-[10px]">
-        <button class="q-move on" onclick="qMove(this,0)">立即做</button><button class="q-move" onclick="qMove(this,1)">计划做</button>
-        <button class="q-move" onclick="qMove(this,2)">委托</button><button class="q-move" onclick="qMove(this,3)">淘汰</button>
-      </div>
-      <div class="mt-3 text-xs space-y-2">
-        <div class="flex justify-between"><span class="text-slate-400">子任务</span><span>1/2 ✓</span></div>
-        <div class="flex justify-between"><span class="text-slate-400">计划时间块</span><span class="text-brand-500 font-bold">今日 14:00-15:00（联动L1）</span></div>
-        <div class="flex justify-between"><span class="text-slate-400">实际耗时</span><span>手动回填（番茄钟 V1.x 自动）</span></div>
-        <div class="flex justify-between"><span class="text-slate-400">关联目标</span><span class="text-sun font-bold">O2-KR1 财务合规 ›</span></div>
-      </div>
-      <button onclick="closeSheet('sheetTask')" class="mt-4 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">关闭</button>
-    </div>
-  </div>
 
   <!-- ===== 新增摘录 ===== -->
-  <div id="sheetAddExcerpt" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddExcerpt')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">新增摘录 · 《思考，快与慢》</div>
-      <textarea rows="3" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 p-4 text-sm outline-none resize-none" placeholder="粘贴或手抄原文…"></textarea>
-      <textarea rows="2" class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 p-4 text-sm outline-none resize-none" placeholder="你的感想（可选）…"></textarea>
-      <div class="mt-2 flex items-center gap-2 text-xs"><span class="text-slate-400">标记：</span>
-        <button class="tag-chip on"><i class="qtag bg-brand-500"></i>重点</button><button class="tag-chip"><i class="qtag bg-mint"></i>共鸣</button>
-        <button class="tag-chip"><i class="qtag bg-sun"></i>疑问</button><button class="tag-chip"><i class="qtag bg-peach"></i>待查证</button>
-      </div>
-      <button onclick="closeSheet('sheetAddExcerpt');toast('摘录已保存 ✦ 可一键转日记素材（联动L5）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
-    </div>
-  </div>
 
   <!-- ===== 物品：二次付费 / 回收 / 报废 ===== -->
-  <div id="sheetExtra" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetExtra')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">💳 记录二次付费</div>
-      <div class="text-[11px] text-slate-400">维修 / 配件 / 保养等追加支出，计入成本池</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="金额，如 399">
-      <input class="mt-2 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="说明，如 Type-C 扩展坞">
-      <div class="mt-3 text-xs bg-sun/10 rounded-xl p-3 leading-6">成本计算方式：<br>◉ 摊回全周期（日均 ¥1.21 → <b>¥1.29</b> 回升）<br>○ 自本次起重新计算</div>
-      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">同步生成一条记账流水（联动 L12）</label>
-      <button onclick="closeSheet('sheetExtra');toast('已计入成本池 ✓ 日均成本已更新（模拟）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存</button>
-    </div>
-  </div>
-
-  <div id="sheetRecycle" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetRecycle')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">♻️ 回收 / 出售</div>
-      <div class="text-[11px] text-slate-400">残值将从总成本中扣减，生成净持有成本决算</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="回收金额，如 4200（闲鱼/以旧换新）">
-      <div class="mt-3 text-xs space-y-2">
-        <label class="flex gap-2"><input type="radio" name="rc" checked class="accent-indigo-500">已转出 — 停止计费，立即生成决算单</label>
-        <label class="flex gap-2"><input type="radio" name="rc" class="accent-indigo-500">残值抵扣后继续留用 — 以新净值继续每日摊薄</label>
-      </div>
-      <label class="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked class="accent-indigo-500">生成收入记账流水（联动 L12）</label>
-      <button onclick="closeSheet('sheetRecycle');toast('决算单已生成：净持有 ¥6,354 · 真实日均 ¥11.43（模拟）')" class="mt-4 w-full py-3 rounded-xl bg-mint text-slate-900 text-sm font-extrabold py-3.5">生成决算并保存</button>
-    </div>
-  </div>
-
-  <div id="sheetScrap" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetScrap')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold text-peach">🗑 报废登记</div>
-      <div class="mt-3 grid grid-cols-2 gap-2 text-xs" id="scrapReasons">
-        <button class="pick-chip on">损坏</button><button class="pick-chip">丢失</button><button class="pick-chip">技术淘汰</button><button class="pick-chip">其他</button>
-      </div>
-      <div class="mt-3 rounded-2xl bg-peach/10 border border-peach/30 p-3 text-xs leading-6">⚠️ 报废将<b>停止每日计费</b>并冻结决算报告（总投入 / 总天数 / 最终日均 / 回收率），档案转入历史库。<br>此操作需二次确认，且保留审计记录。</div>
-      <button onclick="closeSheet('sheetScrap');toast('已生成决算报告并归档（模拟）')" class="mt-4 w-full py-3 rounded-xl bg-peach text-white text-sm font-bold">确认报废（模拟二次确认）</button>
-    </div>
-  </div>
 
   <!-- ===== 录入物品 ===== -->
-  <div id="sheetAddItem" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddItem')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">📦 录入新物品</div>
-      <div class="mt-2 flex gap-2 text-xs"><button class="tag-chip on">手动录入</button><button class="tag-chip" onclick="toast('将从记账流水选择（联动L12）')">从记账流水升级</button></div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称 · 品牌型号">
-      <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <input class="inp" placeholder="购入价格 ¥">
-        <input class="inp" type="date" value="2026-09-19">
-      </div>
-      <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
-        <select class="inp"><option>分类：数码</option><option>家电</option><option>家具</option><option>服饰</option><option>车</option></select>
-        <select class="inp"><option>计费：直线法(按天)</option><option>按次均摊 V1.x</option><option>预估止损 V1.x</option></select>
-      </div>
-      <div class="mt-2 flex items-center justify-between text-xs bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3"><span>预期使用年限（可选，用于止损预估）</span><select class="sel"><option>3 年</option><option>5 年</option></select></div>
-      <label class="mt-2 flex items-center justify-between text-xs"><span>保修期到期并入提醒中心（联动 L13）</span><span class="toggle on" onclick="tgl(this)"></span></label>
-      <button onclick="closeSheet('sheetAddItem');toast('物品已建档，今日成本 ¥0.91 起计（模拟）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">建档并开始计费</button>
-    </div>
-  </div>
 
   <!-- ===== 新建倒数日 ===== -->
-  <div id="sheetAddDay" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddDay')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">新建倒数日</div>
-      <input class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="标题，如：妈妈生日">
-      <div class="mt-2 flex gap-2 text-xs"><button class="tag-chip on">按农历 🌙</button><button class="tag-chip">按公历</button></div>
-      <div class="mt-2 text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 leading-5">提前提醒：7 天 ✓ · 3 天 ✓ · 当天 ✓（多级可配）<br>准备事项可一键生成待办（联动 L10）</div>
-      <button onclick="closeSheet('sheetAddDay');toast('倒数日已创建（模拟）')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">创建</button>
-    </div>
-  </div>
 
   <!-- ===== 版本快照（纯纯写作式防丢稿） ===== -->
-  <div id="sheetSnapshot" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSnapshot')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🕘 版本快照</div>
-      <div class="text-[11px] text-slate-400 mb-3 mt-0.5">停止输入 30 秒 / 每 500 字自动留存 · 恢复默认直接替换当前正文（替换前自动留快照），恢复方式可在设置切换为「新增副本」</div>
-      <div class="space-y-2 text-xs max-h-64 overflow-y-auto">
-        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>今天 15:42</b><div class="text-[10px] text-slate-400">289 字 · +64 字 · 完成一段论述</div></div><button class="mini-btn" onclick="toast('已预览该版本（模拟）')">预览</button><button class="mini-btn" onclick="toast('已恢复 · 当前正文已替换（替换前已留快照）')">恢复</button></div>
-        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>今天 15:18</b><div class="text-[10px] text-slate-400">225 字 · 修改标题</div></div><button class="mini-btn">预览</button><button class="mini-btn">恢复</button></div>
-        <div class="card !py-2.5 flex items-center gap-3"><div class="flex-1"><b>昨天 23:05</b><div class="text-[10px] text-slate-400">148 字 · 初稿</div></div><button class="mini-btn">预览</button><button class="mini-btn">恢复</button></div>
-      </div>
-      <button onclick="closeSheet('sheetSnapshot')" class="mt-3 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
-    </div>
-  </div>
 
   <!-- ===== 笔记 · 右上角 ⋯ 二级子项（V1.29：字号/纸色/聚焦/文件夹/类型 等收进来·轮9r 置顶移除+导出改分享钮） ===== -->
-  <div id="sheetImgSrc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetImgSrc')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🖼 插入图片</div>
-      <div class="mt-3 space-y-2 text-xs">
-        <div class="card !py-3 px-4 flex items-center gap-2.5 cursor-pointer active:bg-slate-50" onclick="pwPickImg('gallery')">🌄 从图库选择</div>
-        <div class="card !py-3 px-4 flex items-center gap-2.5 cursor-pointer active:bg-slate-50" onclick="pwPickImg('camera')">📷 拍照</div>
-      </div>
-    </div>
-  </div>
   <!-- V1.29轮9g：日记筛选底部浮层（顶栏漏斗钮唤起） -->
-  <div id="sheetDiaryFilter" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryFilter')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">筛选</div>
-      <div id="dfList" class="mt-2 space-y-1"></div>
-    </div>
-  </div>
   <!-- V1.29批2：回顾底部弹层（心情趋势 + 词云 + 那年今日·与笔记选项同语言） -->
-  <div id="sheetDiaryReview" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetDiaryReview')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[82%] overflow-y-auto no-scrollbar">
-      <div class="grabber"></div>
-      <div class="flex items-center"><b class="text-[15px] flex-1">回顾</b>
-        <button class="pw-ic-btn" onclick="drMonth(-1)" aria-label="上一月">‹</button>
-        <span id="drMonthLbl" class="text-xs font-bold w-16 text-center">2026-09</span>
-        <button class="pw-ic-btn" onclick="drMonth(1)" aria-label="下一月">›</button>
-      </div>
-      <div class="mt-3 rounded-2xl border border-slate-100 dark:border-slate-800 p-3">
-        <div class="row-title">心情趋势</div>
-        <div class="mt-2 flex items-end gap-[3px] h-14" id="drTrend"></div>
-        <div class="mt-1.5 flex items-center gap-1.5" id="drMoodLegend"></div>
-        <div id="drSummary" class="text-[10px] text-slate-400 mt-1"></div>
-      </div>
-      <div class="mt-3 rounded-2xl border border-slate-100 dark:border-slate-800 p-3">
-        <div class="row-title">词云 · 本月高频</div>
-        <div id="drCloud" class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 leading-none"></div>
-      </div>
-      <div class="mt-3 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 cursor-pointer" onclick="toast('打开 2025-09-19 日记（模拟）')">
-        <div class="text-[10px] text-slate-400">那年今日 · 1 年前 09-19</div>
-        <div class="text-xs font-bold mt-0.5">「今天和室友约了球，输得很惨但笑到肚子疼…」</div>
-      </div>
-    </div>
-  </div>
   <!-- V1.29轮9c：点缩略图看大图（全屏黑底 · 再点任意处关闭） -->
   <div id="imgLight" class="hidden fixed md:absolute inset-0 z-[60] items-center justify-center bg-black/85" onclick="this.classList.add('hidden');this.classList.remove('flex')">
     <span class="ins-img" style="width:76%;border-radius:16px;background:linear-gradient(135deg,#7dd3fc,#818cf8);font-size:64px">🌇</span>
   </div>
-  <div id="sheetNoteKit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteKit')">
-    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
-      <div class="grabber"></div>
-      <!-- V1.29轮9q：标题去「⋯」前缀（入口钮已有）·统计信息上移至标题右侧，原统计行移除 -->
-      <!-- V1.29轮9r：置顶行移除（置顶走列表批量操作）·导出行改为标题行统计右侧分享钮 -->
-      <div class="flex items-center justify-between"><div class="font-extrabold">笔记选项</div>
-        <div class="flex items-center gap-1.5"><b class="text-xs opacity-60" id="pwCount">312 字 · 约 1 分钟</b>
-        <button class="pw-ic-btn" title="分享 / 导出" onclick="closeSheet('sheetNoteKit');openSheet('sheetNoteShare')"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button></div></div>
-      <div class="mt-3 space-y-2 text-xs">
-        <!-- V1.29轮9j：行内去 emoji（纯文字简约风） -->
-        <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">类型</span>
-          <div class="flex gap-1.5 flex-1" id="pwTypes">
-            <button class="chip !py-1" data-t="rich" onclick="pwSetType('rich')">富文本</button>
-            <button class="chip !py-1" data-t="plain" onclick="pwSetType('plain')">纯文本</button>
-            <button class="chip chip-on !py-1" data-t="md" onclick="pwSetType('md')">MD 文档</button>
-          </div></div>
-        <div class="card !py-3 px-4 flex items-center gap-2.5"><span class="opacity-50 w-14 flex-shrink-0">字号</span><input type="range" min="13" max="19" value="15" oninput="pwFont(this.value)" class="flex-1"><span class="opacity-50 w-14 text-right flex-shrink-0" id="pwKitFont">15 px</span></div>
-        <!-- V1.29轮9n修正：纸色一行一体=预置4点+自定义色条+当前名（纸色仅对当前笔记生效·仅卡片视图条目底色跟随） -->
-        <div class="card !py-3 px-4 flex items-center gap-2"><span class="opacity-50 w-14 flex-shrink-0">纸色</span><div class="flex gap-1.5 flex-shrink-0" id="pwPapers"></div><input type="range" min="0" max="359" value="40" id="pwHue" oninput="pwSetPaperHue(this.value)" class="flex-1 min-w-0" style="background:linear-gradient(to right,hsl(0,60%,88%),hsl(60,60%,88%),hsl(120,60%,88%),hsl(180,60%,88%),hsl(240,60%,88%),hsl(300,60%,88%),hsl(359,60%,88%));border-radius:999px;height:14px;appearance:none;-webkit-appearance:none;outline:none"><span class="opacity-55 flex-shrink-0 text-right w-10" id="pwPaperName">米纸</span></div>
-        <!-- V1.29轮9j补正2/9o：聚焦=纸面默认开·开关在此（当前段高亮其余淡出·写作视图不再有专注钮）·开关靠右对齐 -->
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">聚焦</span><span id="pwFocusTgl" class="toggle on ml-auto" onclick="pwFocusToggle(this)"></span></div>
-        <!-- V1.29轮9p：行号开关（仅纯文本类型显示本行·默认关） -->
-        <div class="card !py-3 px-4 flex items-center hidden" id="pwLnRow"><span class="opacity-50 w-14 flex-shrink-0">行号</span><span id="pwLnTgl" class="toggle ml-auto" onclick="pwLnToggle(this)"></span></div>
-        <!-- V1.29轮9t：「分类」改口「文件夹」=同一 folder 字段（管理入口在列表 📂 树抽屉） -->
-        <div class="card !py-3 px-4 flex items-center"><span class="opacity-50 w-14 flex-shrink-0">文件夹</span><span class="ml-auto">灵感</span><span class="text-slate-400 ml-1">▾</span></div>
-        <!-- V1.29轮9r：置顶行移除（置顶=列表批量操作）·导出行移除（改标题行分享钮→sheetNoteShare） -->
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteKit');openSheet('sheetSnapshot')"><span class="opacity-50 w-14 flex-shrink-0 text-left">快照</span><b class="ml-auto text-slate-400">版本快照 · 恢复 ›</b></button>
-      </div>
-      <button onclick="closeSheet('sheetNoteKit')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">收起</button>
-    </div>
-  </div>
   <!-- V1.29轮9r：分享/导出弹层（笔记选项标题行分享钮唤起·原导出三项+图片分享） -->
   <!-- V1.29轮10-8：分享弹层与笔记选项同语言=纸色面板+整行条目(名称左 · ›右) -->
-  <div id="sheetNoteShare" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" style="--pw-bg:#fbf8f1;--pw-fg:#403a31" onclick="if(event.target===this)closeSheet('sheetNoteShare')">
-    <div class="sheet-panel w-full rounded-t-3xl p-5 pb-8" style="background:var(--pw-bg);color:var(--pw-fg)">
-      <div class="grabber"></div>
-      <div class="font-extrabold">分享</div>
-      <div class="mt-3 space-y-2 text-xs">
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 TXT（真实版=系统分享面板）')"><b class="text-left">导出 TXT</b><span class="ml-auto opacity-40">›</span></button>
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已导出 Markdown（真实版=系统分享面板）')"><b class="text-left">导出 Markdown</b><span class="ml-auto opacity-40">›</span></button>
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已复制全文到剪贴板')"><b class="text-left">复制全文</b><span class="ml-auto opacity-40">›</span></button>
-        <button class="card w-full !py-3 px-4 flex items-center" onclick="closeSheet('sheetNoteShare');toast('已生成笔记图片卡片 · 存至 exports（系统分享面板规划 V1.x）')"><b class="text-left">以图片形式分享</b><span class="ml-auto opacity-40">›</span></button>
-      </div>
-      <button onclick="closeSheet('sheetNoteShare')" class="mt-3 w-full py-3 rounded-xl border text-sm font-bold" style="border-color:color-mix(in srgb,var(--pw-fg) 22%,transparent)">取消</button>
-    </div>
-  </div>
 
 
   <!-- ===== 阅读/观影进度录入（多方式） ===== -->
-  <div id="sheetProgress" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetProgress')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold" id="progTitle">记录阅读进度</div>
-      <div class="text-[11px] text-slate-400 mt-0.5" id="progTimerLine">本次未计时 · 手动记录</div>
-      <div id="progChips" class="mt-3 flex gap-2 text-xs"></div>
-      <div id="progInputWrap" class="mt-3 flex gap-2 items-center"></div>
-      <div id="progCalc" class="mt-2 text-xs text-brand-500 font-bold min-h-[18px]"></div>
-      <button onclick="saveProgress()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存记录 · 累计总耗时</button>
-      <div class="mt-2 text-[10px] text-slate-400 text-center leading-5">保存后：写入时间账本（L4）· 更新目标进度（L7）· 重算预计读完时间 · 运动/观影同理入对应分类</div>
-    </div>
-  </div>
 
   <!-- ===== 目录导入格式说明 ===== -->
-  <div id="sheetTocImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetTocImport')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">📥 导入目录 · 支持格式</div>
-      <div class="mt-3 space-y-2 text-xs">
-        <div class="tri-row card !py-2.5 !px-3 flex justify-between items-center"><span>微信读书导出的 Markdown（含目录节）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>calibre .epub/.mobi 内嵌 toc.ncx</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center"><span>纯文本/MD 手打目录（每行一章）</span><span class="text-emerald-500 font-bold">✓ 自动识别</span></div>
-        <div class="card !py-2.5 !px-3 flex justify-between items-center opacity-60"><span>按 ISBN 查询在线书目库</span><span class="vchip">V1.x</span></div>
-      </div>
-      <button onclick="tocImportDemo()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">选择文件并解析（演示）</button>
-    </div>
-  </div>
 
   <!-- ===== 宝宝测量录入 ===== -->
-  <div id="sheetBabyMeasure" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBabyMeasure')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">⚖️ 宝宝测量记录</div>
-      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
-        <div><input id="mW" class="inp !py-2 text-xs" type="number" step="0.01" value="8.9"><span class="text-slate-400">体重 kg</span></div>
-        <div><input id="mH" class="inp !py-2 text-xs" type="number" step="0.1" value="71"><span class="text-slate-400">身高 cm</span></div>
-        <div><input id="mC" class="inp !py-2 text-xs" type="number" step="0.1" value="44.5"><span class="text-slate-400">头围 cm</span></div>
-      </div>
-      <div class="mt-2 flex gap-2 text-xs"><span class="text-slate-400 py-1.5">记录人：</span><button class="tag-chip on">妈妈</button><button class="tag-chip">爸爸</button><button class="tag-chip">长辈</button></div>
-      <div class="mt-2 text-[10px] text-slate-400">保存后自动描点生长曲线并计算偏离预警（跨越 2 条百分位带时提醒）</div>
-      <button onclick="saveMeasure()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">保存测量</button>
-    </div>
-  </div>
 
   <!-- ===== 新建习惯 ===== -->
-  <div id="sheetAddHabit" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddHabit')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🔁 新建习惯</div>
-      <input id="hbTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="习惯名称，如：晨间跑步 30 分钟">
-      <div class="mt-3 text-xs font-bold text-slate-500">类型</div>
-      <div class="mt-1 grid grid-cols-2 gap-2 text-xs">
-        <button id="hbPos" class="tag-chip justify-center on" onclick="hbType('pos',this)">✅ 正向 · 好习惯要坚持</button>
-        <button id="hbNeg" class="tag-chip justify-center" onclick="hbType('neg',this)">🚯 负向 · 坏习惯要减少</button>
-      </div>
-      <div id="hbTargetWrap" class="mt-3 hidden items-center justify-between text-xs"><span>目标不出现次数上限（次/周）</span><select id="hbTarget" class="sel"><option>2</option><option>1</option><option>3</option><option>5</option></select></div>
-      <div class="mt-3 text-xs font-bold text-slate-500">打卡周期</div>
-      <div class="mt-1 flex gap-2 text-xs">
-        <button id="hbCycD" class="tag-chip justify-center on" onclick="hbCyc('day',this)">每天</button>
-        <button id="hbCycW" class="tag-chip justify-center" onclick="hbCyc('week',this)">每周 · 选固定日</button>
-      </div>
-      <div id="hbWdWrap" class="hidden mt-2 flex-wrap gap-1.5 text-[11px]"><span class="text-slate-400 self-center">固定日：</span><span class="flex gap-1.5 flex-wrap"><button class="tag-chip justify-center hb-wd" data-d="一" onclick="this.classList.toggle('on')">一</button><button class="tag-chip justify-center hb-wd" data-d="二" onclick="this.classList.toggle('on')">二</button><button class="tag-chip justify-center hb-wd" data-d="三" onclick="this.classList.toggle('on')">三</button><button class="tag-chip justify-center hb-wd" data-d="四" onclick="this.classList.toggle('on')">四</button><button class="tag-chip justify-center hb-wd" data-d="五" onclick="this.classList.toggle('on')">五</button><button class="tag-chip justify-center hb-wd" data-d="六" onclick="this.classList.toggle('on')">六</button><button class="tag-chip justify-center hb-wd" data-d="日" onclick="this.classList.toggle('on')">日</button></span></div>
-      <div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-slate-500">自动生成关联待办<br><span class="text-[9px] font-normal text-slate-400">完成待办即回写打卡 · 时间段型走番茄</span></span><span class="toggle on" id="hbTodoT" onclick="tgl(this)"></span></div>
-      <div class="mt-2 text-xs"><div class="font-bold text-slate-500 mb-1">待办形态</div><div class="flex gap-2">
-        <button id="hbTkN" class="tag-chip justify-center on" onclick="hbTkMode('norm',this)">✅ 常规（勾选完成）</button>
-        <button id="hbTkP" class="tag-chip justify-center" onclick="hbTkMode('pomo',this)">🍅 时间段 · 番茄</button>
-      </div></div>
-      <div class="mt-3 flex items-center justify-between text-xs"><span class="text-slate-400">提醒时间</span><select class="sel"><option>07:00</option><option>20:00</option><option>21:30 晚确认</option></select></div>
-      <button onclick="addHabit()" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">创建习惯</button>
-    </div>
-  </div>
 
   <!-- ===== 主题市场 ===== -->
-  <div id="sheetThemeMarket" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetThemeMarket')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🛍 主题市场</div>
-      <div class="text-[11px] text-slate-400 mb-3 mt-0.5 leading-5">主题即配置文件（<span class="font-mono">themes/*.json</span> 设计令牌）：颜色/字体/圆角/阴影/纹理 · 下载即热加载，无需刷新 · 正式版支持从仓库拉取并校验签名</div>
-      <div id="mktList"></div>
-      <button onclick="closeSheet('sheetThemeMarket')" class="mt-2 w-full py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">收起</button>
-    </div>
-  </div>
 
   <!-- ===== INS 全屏查看 ===== -->
   <div id="insFull" class="hidden fixed md:absolute inset-0 z-[62] bg-black/95 overflow-y-auto" onclick="if(event.target===this)this.classList.add('hidden')">
@@ -2667,7 +1021,8 @@ const ICONS={
 
  'p-care':'<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/>',
  'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
- '今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-tools','工具',''],['p-pstore','插件',''],['p-profile','我的','fix']];
+};
+const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-profile','我的','fix']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);
@@ -2681,7 +1036,7 @@ function navToggle(p,el){const on=el.classList.contains('on');
   else{if(p==='p-dashboard'||p==='p-profile'){toast('「今天」与「我的」为固定栏目，不可关闭');renderNavSet();return;}
     activeTabs=activeTabs.filter(x=>x!==p);}
   renderNav();renderNavSet();toast('导航栏已更新（模拟持久化）');}
-function setPage(p){
+function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);return;}
   $$('.page').forEach(s=>s.classList.remove('active'));
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
   const [t,s]=TITLES[p]||['LifeHarness','']; $('#pageTitle').textContent=t; $('#pageSub').textContent=s;
@@ -2706,7 +1061,7 @@ function setPage(p){
   $$('.navtab').forEach(b=>b.classList.toggle('on', b.dataset.p===p));
   renderNav();renderFab();
 }
-function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p);} }
+function navTo(p){/*LH-GOV-G*/if(!document.getElementById(p)){lhGone(p);return;} if(p!==curPage){ stack.push(curPage); setPage(p);} }
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
 function goBack(){
   if(curPage==='p-records'&&noteSelMode){noteExitSel();return;} /* 轮9：多选态返回=退出多选 */
@@ -2737,7 +1092,7 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
-function openSheet(id){ const s=$('#'+id); s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -4454,9 +2809,34 @@ function mAddSave(){const t=$('#mdsAddTitle').value.trim();if(!t){toast('先起�
 /* ---- openSheet 钩子：m-sheet 弹层渲染 ---- */
 ;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
 
-/* ---- 专版落地：打开即完整 app 记录页 · 影音游为第4 tab（底栏/顶栏可见·其余模块可切） ---- */
-try{ if(typeof stack!=='undefined')stack.length=0; recTab='media'; setPage('p-records'); switchRecord('media'); }catch(e){ console.error('media landing failed',e); }
+/* ---- 专版落地：影音架为本版首页（记录页工作台 tab 属共享面，回灌走变更单·2026-10-07 批2 第一刀） ---- */
+try{ if(typeof stack!=='undefined')stack.length=0; navTab('m-shelf'); }catch(e){ console.error('media landing failed',e); }
 
 </script>
+<script>/*LH-GOV-START*/
+/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
+(function(){
+var RED=window.LH_REDIRECTS={"p-billImport":["index-ledger.html","记账"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-calendar":["index.html","壳与跨模块"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-dashboard":["index.html","壳与跨模块"],"p-days":["index-day_aim__goods.html","目标"],"p-diaryEdit":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-goals":["index-day_aim__goods.html","目标"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-health":["index-health.html","健康"],"p-import":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-items":["index-day_aim__goods.html","目标"],"p-noteEdit":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"sheetAddDay":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddMedia":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetCatParent":["index.html","壳与跨模块"],"sheetCityPick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetGridMark":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetSearch":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetWeatherPick":["index.html","壳与跨模块"]};
+var DROP=window.LH_DROPPED={"p-toolDetail":1,"p-tools":1};
+var SELF=window.LH_SELF={};
+window.LH_LANDING="m-shelf";
+window.lhGone=function(id){
+  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
+  var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
+  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
+  console.warn('[lh-gov] 目标不在本版:',id);
+};
+function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}
+  if(!h)return;var el=document.getElementById(h);
+  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
+  if(SELF[h]){location.replace('#'+SELF[h]);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
+window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
+window.lhBoot();
+window.addEventListener('load',function(){window.lhBoot();});
+})();
+/*LH-GOV-END*/</script>
 </body>
 </html>
