@@ -165,7 +165,7 @@ void main() {
     expect(byKind[MediaItem.kGame]!['publisher_role'], '发行商');
   });
 
-  testWidgets('保存连点只落一条（防重入）', (tester) async {
+  testWidgets('保存进行中按钮给禁用帧，一次点按只落一条（防重入）', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     await openSheet(tester);
     await tester.enterText(
@@ -175,9 +175,13 @@ void main() {
     await settle5(tester);
     final save = find.byKey(const ValueKey('mds-add-save'));
     await tester.tap(save);
-    await tester.tap(save);
+    // 写入未落定前那一帧：按钮必须显式禁用（不给「连点两下靠运气」的证据）
+    await tester.pump();
+    expect(tester.widget<FilledButton>(save).onPressed, isNull,
+        reason: '保存进行中要给可见禁用帧（LH-K32 防重入口径）');
     await settle5(tester);
     await clearToasts(tester);
-    expect(await db.query(md.tMediaItems), hasLength(1));
+    expect(await db.query(md.tMediaItems), hasLength(1),
+        reason: '一次点按只落一条');
   });
 }

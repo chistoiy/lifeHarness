@@ -142,7 +142,9 @@ void main() {
     // 点不动＝视图不切换（LH-K36 口径：置灰项点了不许静默改状态）
     await tester.tap(find.byKey(const ValueKey('mds-view-spine')));
     await settle5(tester);
-    expect(cardsOnShelf(), findsNWidgets(2), reason: '置灰钮被点动了');
+    // 点不动＝视图不切换（LH-K36 口径）：判据用「桌面卡仍在场」，不去断脊视图里电影有没有——
+    // 那条判定在脊视图本身就不画电影，拿它当「没切过去」的证据是空断言。
+    expect(cardsOnShelf(), findsNWidgets(2), reason: '置灰钮被点动了＝视图切到脊');
     expect(find.text('电影无侧脊 · 请切桌面或列表视图'), findsNothing);
   });
 
