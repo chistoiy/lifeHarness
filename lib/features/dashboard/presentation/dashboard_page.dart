@@ -979,7 +979,7 @@ class _AllModulesCard extends StatelessWidget {
   static const _aiVerifyRoute = '/settings/ai/verify';
 
   /// 非底栏栏目的栈页：进这些一律 push（go 清栈会让它成为栈底，返回键直接退 app）。
-  static const _stackRoutes = {_aiVerifyRoute, '/media/shelf'};
+  static const _stackRoutes = {_aiVerifyRoute, '/media/shelf', '/health'};
 
   static const _mods = <(Object, String, String?, String?)>[
     ('✅', '待办', '/todo', null),
@@ -992,7 +992,9 @@ class _AllModulesCard extends StatelessWidget {
     ('💰', '记账', '/ledger', null),
     ('📦', '物品', '/items', null),
     ('🎂', '日子', '/days', null),
-    ('🏃', '健康', null, 'V1.0'),
+    // 健康批2（2026-10-07）：该枚去灰位（线性图标不吃 emoji 闸），路由是栈页，
+    // 走下面 _stackRoutes 分派 push（漏加就会 go：工作台成栈底，返回键直接退 app）。
+    (Icons.directions_run_outlined, '健康', '/health', null),
     ('🔁', '习惯', '/habits', null),
     ('🧭', '目标', '/goals', null),
     ('🍼', '呵护', '/care', null),

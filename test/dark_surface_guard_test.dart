@@ -40,6 +40,9 @@ const _baseline = <String, int>{
     // 批3 影音沉浸计时页：8 处「白」全是深色渐变底上的半透明白胶囊/钮（白字），
     // 属深色实态；观感门随复测包 6090 真机复验，不合规再摘模糊/改透明度。
     'lib/features/media/presentation/media_timer_page.dart': 8,
+    // 健康批2 工作台：6 处命中全是 hero 渐变卡上的前景字（white/white70 读数与小标签），
+    // 底面走主题渐变随深浅自动跟随——与 media_card 同一形态的深色实态，非白底面缺陷。
+    'lib/features/health/presentation/health_home_page.dart': 6,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
     'lib/features/read/presentation/stats/read_timer_page.dart': 9,
