@@ -115,10 +115,15 @@ class MediaSession {
     'txn_id': txnId,
   };
 
+  /// 全字段透传合并（同 [MediaItem.mergedOnto] 纪律）：**未露的参数一律保留原值**，
+  /// 尤其 [speed] 与 [txnId]——明细屏差量写口一次只改一两列，
+  /// 把倍速或块 id 洗成空＝账本错位（另起新块）。
   MediaSession copyWith({
     int? id,
+    int? startedAt,
     int? endedAt,
     int? minutes,
+    double? speed,
     int? toMin,
     int? toPct,
     int? toUnit,
@@ -128,10 +133,10 @@ class MediaSession {
     id: id ?? this.id,
     itemId: itemId,
     kind: kind,
-    startedAt: startedAt,
+    startedAt: startedAt ?? this.startedAt,
     endedAt: endedAt ?? this.endedAt,
     minutes: minutes ?? this.minutes,
-    speed: speed,
+    speed: speed ?? this.speed,
     fromMin: fromMin,
     toMin: toMin ?? this.toMin,
     fromPct: fromPct,

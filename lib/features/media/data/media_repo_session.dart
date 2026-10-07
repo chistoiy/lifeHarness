@@ -224,6 +224,44 @@ extension MediaSessionsRepo on MediaRepository {
     return id;
   }
 
+  /// 明细屏「补记」写口（批4b A1）：来源＝手动补记，会话行与 L4 娱乐块同场落定，
+  /// 返回回填了 `id`/`txnId` 的行对象（差量改口据此沿用同一条块，不新建）。
+  /// [minutes] 只落真实耗时，[speed] 单列存值——折算一律读侧 [MediaSession.billedMinutes]。
+  Future<MediaSession> addManualDetail({
+    required String itemId,
+    required String kind,
+    required int startedAtMs,
+    required int minutes,
+    double? speed,
+    int? toPct,
+    int? toUnit,
+    String? toText,
+  }) async {
+    final endedAt = startedAtMs + minutes * 60000;
+    final draft = MediaSession(
+      itemId: itemId,
+      kind: kind,
+      startedAt: startedAtMs,
+      endedAt: endedAt,
+      minutes: minutes,
+      speed: speed,
+      toPct: toPct,
+      toUnit: toUnit,
+      toText: toText,
+      source: MediaSession.kSrcManual,
+    );
+    final id = await db.insert(tMediaSessions, draft.toRow());
+    await db.update(
+      tMediaItems,
+      {'last_activity_at': endedAt, 'updated_at': endedAt},
+      where: 'id = ? AND ${MediaRepository.rawLive}',
+      whereArgs: [itemId],
+    );
+    final s = draft.copyWith(id: id);
+    final txnId = await _syncTxn(s);
+    return txnId == null ? s : s.copyWith(txnId: txnId);
+  }
+
   /// 明细行内改（日期/时长）：重排 ended_at 并**差量回写同一条 L4 块**。
   Future<void> editSession(int id, {int? startedAtMs, int? minutes}) async {
     final rows = await db.query(
@@ -245,6 +283,53 @@ extension MediaSessionsRepo on MediaRepository {
     // 差量回写：txn_id 显式带上——缺块的旧行据此补建，已有块的沿用同一条。
     await _syncTxn(
       s.copyWith(endedAt: start + mins * 60000, minutes: mins),
+    );
+  }
+
+  /// 明细屏差量写口（批4b A1）：改日期/时长/倍速/结束进度快照，
+  /// 已结算会话同场把结束点重排并按 `txn_id` **UPDATE 同一条娱乐块**（绝不新建）；
+  /// 未露的入参一律保持原值（copyWith 全字段透传，别把 speed/toText 洗成空）。
+  Future<void> updateSessionDetail(
+    int id, {
+    int? startedAtMs,
+    int? minutes,
+    double? speed,
+    int? toPct,
+    int? toUnit,
+    String? toText,
+  }) async {
+    final rows = await db.query(
+      tMediaSessions,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+    final s = MediaSession.fromRow(rows.first);
+    final patch = <String, Object?>{};
+    if (startedAtMs != null) patch['started_at'] = startedAtMs;
+    if (minutes != null) patch['minutes'] = minutes;
+    if (speed != null) patch['speed'] = speed;
+    if (toPct != null) patch['to_pct'] = toPct;
+    if (toUnit != null) patch['to_unit'] = toUnit;
+    if (toText != null) patch['to_text'] = toText;
+    if (patch.isEmpty) return;
+    final start = startedAtMs ?? s.startedAt;
+    final mins = minutes ?? s.minutes;
+    // 结束点只在已结算行上重排；进行中行不替它落 ended_at（单活语义归 endSession）。
+    final endedAt = s.endedAt == null ? null : start + mins * 60000;
+    if (endedAt != null) patch['ended_at'] = endedAt;
+    await db.update(tMediaSessions, patch, where: 'id = ?', whereArgs: [id]);
+    await _syncTxn(
+      s.copyWith(
+        startedAt: start,
+        endedAt: endedAt,
+        minutes: mins,
+        speed: speed,
+        toPct: toPct,
+        toUnit: toUnit,
+        toText: toText,
+      ),
     );
   }
 

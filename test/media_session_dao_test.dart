@@ -314,4 +314,50 @@ void main() {
     expect(s.billedMinutes(speedFold: true), 60, reason: '折算只在读取侧');
     expect(s.billedMinutes(speedFold: false), 30);
   });
+
+  group('明细屏写口', () {
+    /// 就地相对构造：今天 [hour]:[minute]（禁写死日期，23:55 门槛外不跑）。
+    int t(int hour, int minute) {
+      final n = DateTime.now();
+      return DateTime(n.year, n.month, n.day, hour, minute).millisecondsSinceEpoch;
+    }
+
+    test('明细改时长＝差量回写同一条娱乐块（txn_id 复用不新建）', () async {
+      final it = await addItem();
+      final s = await repo.addManualDetail(
+          itemId: it, kind: MediaItem.kMovie,
+          startedAtMs: t(20, 0), minutes: 60, speed: 1.5, toPct: 40);
+      final before = await db.query('time_blocks',
+          where: 'category = ?', whereArgs: ['娱乐']);
+      expect(before.length, 1);
+      expect(s.txnId, isNotNull, reason: '补记即回填块 id，改口才有沿用依据');
+      await repo.updateSessionDetail(s.id!, minutes: 30);
+      final after = await db.query('time_blocks', where: 'category = ?', whereArgs: ['娱乐']);
+      expect(after.length, 1, reason: '不新建');
+      expect(after.single['id'], s.txnId); // 还是那一条
+      // 块面跨度＝真实耗时 30 分钟，不是折算出来的 45（60×1.5 那类编数）。
+      expect((after.single['end_min'] as int) - (after.single['start_min'] as int), 30);
+      expect((await repo.minutesOfItem(it)), 30);
+      final row = (await repo.sessionsOf(it)).single;
+      expect(row.minutes, 30);
+      expect(row.endedAt, t(20, 30), reason: '结束点跟时长重排，不留旧尾巴');
+      expect(row.speed, 1.5, reason: '未露的入参不被洗成空');
+      expect(row.toPct, 40);
+      expect(row.source, MediaSession.kSrcManual, reason: '补记来源＝手动');
+    });
+
+    test('倍速只落 speed 列：minutes 恒真实耗时', () async {
+      final it = await addItem();
+      await repo.addManualDetail(itemId: it, kind: MediaItem.kMovie,
+          startedAtMs: t(20, 0), minutes: 30, speed: 2);
+      final rows = await repo.sessionsOf(it);
+      expect(rows.last.minutes, 30);
+      expect(rows.last.speed, 2);
+      expect(rows.last.billedMinutes(), 60); // 折算只在读侧
+      final blocks = await db.query('time_blocks', where: 'category = ?', whereArgs: ['娱乐']);
+      expect((blocks.single['end_min'] as int) - (blocks.single['start_min'] as int), 30,
+          reason: '账本吃墙钟分钟，折算绝不下沉到写侧');
+      expect(await repo.minutesOfItem(it), 30);
+    });
+  });
 }
