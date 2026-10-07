@@ -142,8 +142,10 @@ class _EvSectionState extends ConsumerState<_EvSection> {
                             ? null
                             : () => showEventLogSheet(context, kind: order[i]),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: context.cardDecoration,
+                          // 产品令（2026-10-07）：小瓦片不再整块吃卡片底＋全局大圆角
+                          // （实测 39×71、圆角 20＝竖胶囊，图标下面那行字也被包进胶囊里），
+                          // 只留图标的着色方块，名字落在卡外。
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Column(
                             children: [
                               Container(

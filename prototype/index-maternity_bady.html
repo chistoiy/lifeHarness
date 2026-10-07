@@ -2600,7 +2600,7 @@ let evSortOn=false;
 function saveEvOrder(){try{localStorage.setItem('lh_ev_order',JSON.stringify(evOrder));localStorage.setItem('lh_ev_custom',JSON.stringify(CUSTOM_EV))}catch(e){}}
 function renderEvGrid(){const g=$('#evGrid');if(!g)return;
  g.innerHTML=evOrder.map((k,i)=>{const E=evDef(k);
-  return `<div class="relative"><button class="card w-full !p-2 flex flex-col items-center gap-1 active:scale-95 transition" onclick="${evSortOn?'':'openEvent(\''+k+'\')'}">
+  return `<div class="relative"><button class="w-full !p-1 flex flex-col items-center gap-1 active:scale-95 transition" onclick="${evSortOn?'':'openEvent(\''+k+'\')'}">
    <span class="w-9 h-9 rounded-2xl ${E.tint||'bg-slate-100 dark:bg-slate-800'} flex items-center justify-center text-lg">${E.ic}</span><span class="truncate w-full">${E.n}</span></button>
    ${evSortOn?`<span class="absolute top-0.5 right-0.5 flex flex-col gap-0.5 text-[9px] font-bold text-brand-500"><button onclick="evMove(${i},-1)">▲</button><button onclick="evMove(${i},1)">▼</button></span>`:''}</div>`}).join('');
  $('#evSortBtn').className='text-[10px] font-bold '+(evSortOn?'text-brand-500':'text-slate-400');
