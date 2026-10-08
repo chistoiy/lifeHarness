@@ -555,4 +555,97 @@ void main() {
     expect(await countOf(h.tHealthReportMetric, where: 'report_id=$rid'), 0,
         reason: '检验项只挂 report_id，删档案时必须先按父表反查清掉，否则永远查不到也删不掉');
   });
+
+  // ==================== 批6a · trendDays 区间一次取数 ====================
+
+  group('trendDays 逐日出格（批6a）', () {
+    test('区间内一天一格：空日出 null 格、运动同日求和、睡眠同日取最后一条、配速收集', () async {
+      await repo.bumpCups(1, '2026-01-02', 3);
+      await repo.saveSleep(const SleepRecord(
+          profileId: 1, date: '2026-01-02', bedTime: '23:00', wakeTime: '07:00', durationMin: 0));
+      await repo.addExercise(const ExerciseRecord(
+          profileId: 1, date: '2026-01-02', type: '跑步', distanceKm: 5, durationMin: 30));
+      await repo.addExercise(const ExerciseRecord(
+          profileId: 1, date: '2026-01-02', type: '骑行', distanceKm: 10, durationMin: 40));
+      await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-04', kg: 70));
+
+      final days = await repo.trendDays(1, '2026-01-01', '2026-01-05');
+      expect(days.map((d) => d.date),
+          ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'],
+          reason: '旧→新逐日出格，缺记录日也占一格（热力才数得出空格）');
+
+      final empty = days.first;
+      expect([empty.cups, empty.sleepMin, empty.exMin, empty.kg, empty.medPlanned, empty.medTaken],
+          [null, null, null, null, null, null]);
+      expect(empty.recorded, isFalse, reason: '整日缺席＝null 格，不补 0 假点');
+
+      final d2 = days[1];
+      expect(d2.cups, 3);
+      expect(d2.sleepMin, 480);
+      expect(d2.exMin, 70, reason: '同日两条运动求和（六指标共用一条流水，不再按 chip 各开查询）');
+      expect(d2.paces, [360, 240], reason: '跑步 5k/30min→360″、骑行 10k/40min→240″（周报取均值）');
+      expect(d2.kg, isNull);
+      expect(d2.medPlanned, isNull);
+
+      expect(days[3].kg, 70);
+      expect(days[3].exMin, isNull);
+    });
+
+    test('同日多条睡眠取最后写入（与原型「一条为准」同形）', () async {
+      await repo.saveSleep(const SleepRecord(
+          profileId: 1, date: '2026-01-06', bedTime: '23:00', wakeTime: '06:00', durationMin: 0));
+      await repo.saveSleep(const SleepRecord(
+          profileId: 1, date: '2026-01-06', bedTime: '23:30', wakeTime: '07:30', durationMin: 0));
+      final d = (await repo.trendDays(1, '2026-01-06', '2026-01-06')).single;
+      expect(d.sleepMin, 480, reason: '按 date ASC 覆盖读数，最后一条为准');
+    });
+
+    test('归档药只在当日有流水时计进依从分母（批5 §2 偏离②的前置兑现）', () async {
+      final active = await repo.addDrug(
+          const DrugPlan(profileId: 1, name: '钙片', times: ['08:00', '20:00']));
+      final old = await repo.addDrug(
+          const DrugPlan(profileId: 1, name: '旧药', times: ['09:00']));
+      await repo.logDrug(DrugLog(
+          profileId: 1, drugId: active, date: '2026-01-02', time: '08:00', state: 'taken'));
+      await repo.logDrug(DrugLog(
+          profileId: 1, drugId: old, date: '2026-01-02', time: '09:00', state: 'taken'));
+      await repo.logDrug(DrugLog(
+          profileId: 1, drugId: active, date: '2026-01-04', time: '20:00', state: 'taken'));
+      expect(await repo.archiveDrug(1, old), 1);
+
+      final days = await repo.trendDays(1, '2026-01-01', '2026-01-04');
+      // 01-01：整日无任何流水 → 依从缺席（null），曲线不画假点；在册药不当分母
+      expect(days.first.medPlanned, isNull);
+      expect(days.first.medTaken, isNull);
+      expect(days.first.medRate, isNull);
+      // 01-02：归档药有当日流水 → 计进分母，历史依从不被多年前停用的药拖着失真
+      expect(days[1].medPlanned, 3, reason: '在册 2 时刻＋归档当日在场 1 时刻');
+      expect(days[1].medTaken, 2);
+      expect(days[1].medRate, 67);
+      // 01-03：无任何流水，即便在册钙片天天有计划也不出格（口径＝有交代的日子才参与依从轴）
+      expect(days[2].medPlanned, isNull, reason: '分母只在当日有该药流水时计——无流水日整格缺席');
+      // 01-04：只有在册药有流水 → 分母＝2（归档药那日无流水不计）
+      expect(days[3].medPlanned, 2);
+      expect(days[3].medTaken, 1);
+    });
+
+    test('跨档案不串：另一档案的杯数与药都读进不来', () async {
+      final other = await repo.saveProfile(
+          const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+      await repo.bumpCups(1, '2026-01-02', 3);
+      await repo.bumpCups(other, '2026-01-02', 9);
+      final theirDrug = await repo.addDrug(
+          DrugPlan(profileId: other, name: '降压药', times: const ['21:00']));
+      await repo.logDrug(DrugLog(
+          profileId: other, drugId: theirDrug, date: '2026-01-02', time: '21:00', state: 'taken'));
+
+      final mine = await repo.trendDays(1, '2026-01-02', '2026-01-02');
+      expect(mine.single.cups, 3);
+      expect(mine.single.medPlanned, isNull, reason: '别人的药不给我的依从率当分母');
+      final theirs = await repo.trendDays(other, '2026-01-02', '2026-01-02');
+      expect(theirs.single.cups, 9);
+      expect(theirs.single.medPlanned, 1);
+      expect(theirs.single.medTaken, 1);
+    });
+  });
 }
