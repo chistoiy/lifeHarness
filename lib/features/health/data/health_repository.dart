@@ -261,6 +261,37 @@ class HealthRepository {
   Future<void> deleteVital(int id) =>
       db.delete(h.tHealthVital, where: 'id=?', whereArgs: [id]);
 
+  // ==================== 症状（批3.5a） ====================
+
+  /// 记一条症状：**同日可多条**（表无唯一索引），所以只有 INSERT 与「按 id 的 UPDATE」两种写法，
+  /// 不存在体征/身体数据那种同日覆盖——覆盖会把用户下午与夜里两次发作并成一条。
+  Future<int> addSymptom(SymptomRecord s) => db.insert(h.tHealthSymptom, s.toRow());
+
+  /// 某档案的全部症状（日期升序；页面自己按 `symListDesc` 倒排，仓储不替 UI 决定顺序）。
+  Future<List<SymptomRecord>> symptoms(int profileId) async {
+    final rows = await db.query(h.tHealthSymptom,
+        where: 'profile_id=?', whereArgs: [profileId], orderBy: 'date ASC, id ASC');
+    return rows.map(SymptomRecord.fromRow).toList();
+  }
+
+  /// 就地改一条症状：**按 id＋档案归属**双闸；`created_at` 用模型里的原值写回，
+  /// 免得一次编辑把建档时间冲成现在（备份与「最近新增」都读这列）。
+  Future<int> updateSymptom(SymptomRecord s) => db.update(
+        h.tHealthSymptom,
+        s.toRow(),
+        where: 'id=? AND profile_id=?',
+        whereArgs: [s.id, s.profileId],
+      );
+
+  /// 标记结束＝「ongoing 落下 且 持续 +15 分钟」两件事一次写完（原型 `syEnd` 是一处赋值，
+  /// 拆成两次调用会让中途失败留下「已结束但时长没加」的半态）。
+  Future<int> endSymptom(SymptomRecord s) => updateSymptom(s.ended());
+
+  /// 删除一条症状：带 profile 归属（跨档案删不到别人的行），照片文件不在此处清——
+  /// 附件回收属既有备份/清理服务的职责（批3.5 工单 §2「删除报告只清 DB 行」同一条口径）。
+  Future<int> deleteSymptom(int profileId, int id) =>
+      db.delete(h.tHealthSymptom, where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+
   // ==================== 用药 ====================
 
   Future<List<DrugPlan>> drugs(int profileId, {bool includeArchived = false}) async {

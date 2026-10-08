@@ -389,6 +389,143 @@ class DrugLog {
       );
 }
 
+/// 症状与不适（批3.5 · 原型 `p-symptom` / `sheetHSymptom`）：**同日可多条**，编辑按 id 更新（无唯一索引）。
+///
+/// 四条列面口径写在最近处：
+/// · `parts` 存**全量**多选结果（库里以 `,` 连接）——原型只取 `parts[0]||'全身'`，实现按「全量存·全量显示·筛选按包含」，
+///   空选择才落「全身」（偏离一条＝批3.5 工单 §2）；
+/// · `photos` 是应用目录绝对路径的 JSON 数组（脏数据按空处理，同 [DrugPlan] 的 `times` 口径）；
+/// · `trig` / `descTxt` 两个列名是 v37 DDL 刻意避开 SQL 关键词（`trigger`/`desc`），模型侧就叫 `trig`/`desc`；
+/// · `level` 是疼痛 0~10 的整数档，`ongoing` 才决定它进不进「正在发作」卡。
+class SymptomRecord {
+  const SymptomRecord({
+    this.id,
+    required this.profileId,
+    required this.date,
+    this.time = '',
+    required this.name,
+    this.level = 0,
+    this.parts = const [],
+    this.durationMin,
+    this.trig,
+    this.relief,
+    this.desc,
+    this.ongoing = false,
+    this.drugRelated = false,
+    this.photos = const [],
+    this.createdAt = 0,
+  });
+
+  final int? id;
+  final int profileId;
+  final String date;
+
+  /// `HH:mm`，开始时刻（原型 `s.t`）。
+  final String time;
+  final String name;
+
+  /// 疼痛 0~10。
+  final int level;
+  final List<String> parts;
+  final int? durationMin;
+  final String? trig;
+  final String? relief;
+  final String? desc;
+  final bool ongoing;
+  final bool drugRelated;
+  final List<String> photos;
+  final int createdAt;
+
+  /// 主部位＝多选的第一枚（展示与「部位筛选」都按全量包含判，这里只给个兜底称谓）。
+  String get primaryPart => parts.isEmpty ? '全身' : parts.first;
+
+  factory SymptomRecord.fromRow(Map<String, Object?> r) => SymptomRecord(
+        id: _i(r['id']),
+        profileId: r['profile_id'] as int,
+        date: r['date'] as String,
+        time: _s(r['time']) ?? '',
+        name: r['name'] as String,
+        level: _i(r['level']) ?? 0,
+        parts: _splitParts(r['parts']),
+        durationMin: _i(r['duration_min']),
+        trig: _s(r['trig']),
+        relief: _s(r['relief']),
+        desc: _s(r['desc_txt']),
+        ongoing: (_i(r['ongoing']) ?? 0) == 1,
+        drugRelated: (_i(r['drug_related']) ?? 0) == 1,
+        photos: (() {
+          final raw = _s(r['photos']);
+          if (raw == null || raw.isEmpty) return const <String>[];
+          try {
+            return jsonDecodeList(raw);
+          } catch (_) {
+            // catch-ok: 坏 photos 列按「无图」处理，不让一条脏数据炸掉整张症状流水（无网络、无副作用）。
+            return const <String>[];
+          }
+        })(),
+        createdAt: _i(r['created_at']) ?? 0,
+      );
+
+  Map<String, Object?> toRow() => {
+        'profile_id': profileId,
+        'date': date,
+        'time': time,
+        'name': name,
+        'level': level,
+        'parts': parts.join(','),
+        'duration_min': durationMin,
+        'trig': trig,
+        'relief': relief,
+        'desc_txt': desc,
+        'ongoing': ongoing ? 1 : 0,
+        'drug_related': drugRelated ? 1 : 0,
+        'photos': jsonEncodeList(photos),
+        'created_at': createdAt == 0 ? DateTime.now().millisecondsSinceEpoch : createdAt,
+      };
+
+  /// 标记结束：发作位落下、持续时长 +15 分钟（原型 `syEnd` 原话「持续时长 +15 分钟」）。
+  SymptomRecord ended() => copyWith(ongoing: false, durationMin: (durationMin ?? 0) + 15);
+
+  SymptomRecord copyWith({
+    int? id,
+    String? date,
+    String? time,
+    String? name,
+    int? level,
+    List<String>? parts,
+    int? durationMin,
+    String? trig,
+    String? relief,
+    String? desc,
+    bool? ongoing,
+    bool? drugRelated,
+    List<String>? photos,
+  }) =>
+      SymptomRecord(
+        id: id ?? this.id,
+        profileId: profileId,
+        date: date ?? this.date,
+        time: time ?? this.time,
+        name: name ?? this.name,
+        level: level ?? this.level,
+        parts: parts ?? this.parts,
+        durationMin: durationMin ?? this.durationMin,
+        trig: trig ?? this.trig,
+        relief: relief ?? this.relief,
+        desc: desc ?? this.desc,
+        ongoing: ongoing ?? this.ongoing,
+        drugRelated: drugRelated ?? this.drugRelated,
+        photos: photos ?? this.photos,
+        createdAt: createdAt,
+      );
+}
+
+List<String> _splitParts(Object? v) {
+  final raw = v == null ? '' : v.toString();
+  if (raw.trim().isEmpty) return const [];
+  return [for (final p in raw.split(',')) if (p.trim().isNotEmpty) p.trim()];
+}
+
 /// 目标键（计划 §六 键表原文）：缺键＝未设，读取侧回落默认，不写库。
 ///
 /// 存储分治（批3 工单 §0）：`water`/`sleep`/`weekEx` 与按时入睡线的**现行读写口在 prefs**

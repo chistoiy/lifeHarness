@@ -26,6 +26,7 @@ class HealthSettings {
   static const kFabQuickWater = 'health.fab_quick_water'; // 延后项，键先占位
   static const kIncludeInBackup = 'health.include_in_backup';
   static const kActiveProfile = 'health.active_profile';
+  static const kSymNames = 'health.sym_names'; // 批3.5a 常用症状自定义名单（种子十枚在域层）
 
   /// 默认值（与需求清单模块 12 逐项对齐；围度目标无默认＝未设）。
   static const defaults = <String, Object>{
@@ -61,6 +62,9 @@ class HealthSettings {
   bool includeInBackup() => _prefs.getBool(kIncludeInBackup) ?? defaults[kIncludeInBackup] as bool;
   int activeProfileId() => _prefs.getInt(kActiveProfile) ?? defaults[kActiveProfile] as int;
 
+  /// 自定义症状名（种子十枚固定在 `domain/health_symptom.dart`，这里只装用户加的）。
+  List<String> symCustomNames() => _prefs.getStringList(kSymNames) ?? const [];
+
   Future<void> setWaterGoal(int v) => _prefs.setInt(kWaterGoal, v);
   Future<void> setCupMl(int v) => _prefs.setInt(kCupMl, v);
   Future<void> setSleepGoal(int v) => _prefs.setInt(kSleepGoal, v);
@@ -75,6 +79,7 @@ class HealthSettings {
   Future<void> setShowDashCard(bool v) => _prefs.setBool(kShowDashCard, v);
   Future<void> setIncludeInBackup(bool v) => _prefs.setBool(kIncludeInBackup, v);
   Future<void> setActiveProfileId(int v) => _prefs.setInt(kActiveProfile, v);
+  Future<void> setSymCustomNames(List<String> v) => _prefs.setStringList(kSymNames, v);
 
   /// 一杯折多少毫升（展示与导出用；库内永远只有杯数）。
   int waterMl(int cups) => cups * cupMl();

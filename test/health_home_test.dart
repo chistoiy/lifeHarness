@@ -185,9 +185,10 @@ void main() {
     expect(find.descendant(of: ex, matching: find.text('—')), findsOneWidget);
     expect(find.descendant(of: ex, matching: find.text('今日运动 · 分钟')), findsOneWidget);
 
-    // 直达行随批 4 铺四枚；用药／趋势／设置的落点屏在批 5/6，没就绪就不出现。
+    // 直达行只铺真落地的屏（批 4 运动／批 3.5a 症状＋既有三枚）；
+    // 用药／趋势／设置的落点屏在批 5/6，没就绪就不出现——禁铺假入口。
     expect(find.byKey(const ValueKey('health-entry-all')), findsOneWidget);
-    for (final id in ['ex', 'body', 'sleep', 'goals']) {
+    for (final id in ['ex', 'body', 'sleep', 'symptom', 'goals']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsOneWidget);
     }
     for (final id in ['drug', 'trend', 'settings']) {

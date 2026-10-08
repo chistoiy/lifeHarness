@@ -5,6 +5,7 @@ import 'health_exercise_page.dart';
 import 'health_goals_page.dart';
 import 'health_home_page.dart';
 import 'health_sleep_page.dart';
+import 'health_symptom_page.dart';
 import 'health_vitals_page.dart';
 
 /// 健康 · 模块路由（批2 起逐屏补，路径与 `docs/健康管理模块开发计划-20260927.md` §三 路由表同形）。
@@ -37,6 +38,11 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/exercise',
     builder: (_, _) => const HealthExercisePage(),
+  ),
+  // 症状与不适（原型 p-symptom · 批3.5a）：发作卡＋疼痛直方图＋部位筛选＋词云＋流水。
+  GoRoute(
+    path: '/health/symptom',
+    builder: (_, _) => const HealthSymptomPage(),
   ),
   // 健康目标（原型 p-goalsH · 批3）：环形今日四项＋就地滚轮改档。
   GoRoute(

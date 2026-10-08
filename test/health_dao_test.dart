@@ -328,4 +328,65 @@ void main() {
     expect(await repo.goals(1), isEmpty, reason: '另一档案设的目标体重不进本档案');
     expect((await repo.goals(other))[GoalKeys.weightGoal], 50);
   });
+
+  // ==================== 症状（批3.5a） ====================
+
+  test('症状同日可多条：表无唯一索引，两次 INSERT 长两行（同日覆盖会把下午与夜里并成一条）', () async {
+    await repo.addSymptom(const SymptomRecord(
+        profileId: 1, date: '2026-01-05', time: '14:00', name: '头痛', level: 3));
+    await repo.addSymptom(const SymptomRecord(
+        profileId: 1, date: '2026-01-05', time: '21:00', name: '头痛', level: 6));
+    final rows = await repo.symptoms(1);
+    expect(rows.length, 2);
+    expect(rows.map((r) => r.time), ['14:00', '21:00'],
+        reason: '取数按 date/id 升序，「最新在上」是 UI 侧 symListDesc 的事');
+  });
+
+  test('症状多部位与照片往返：库里逗号连接＋JSON，读回不丢第二枚；脏值吞成空而不是炸', () async {
+    final id = await repo.addSymptom(const SymptomRecord(profileId: 1,
+        date: '2026-01-05', name: '腹痛', parts: ['头部', '四肢'], photos: ['a.jpg', 'b.jpg']));
+    final r = (await repo.symptoms(1)).single;
+    expect(r.id, id);
+    expect(r.parts, ['头部', '四肢'], reason: '原型只取第一枚，本实现全量存');
+    expect(r.photos, ['a.jpg', 'b.jpg']);
+
+    await db.update(h.tHealthSymptom, {'parts': '头部,,', 'photos': '{bad json'});
+    final dirty = (await repo.symptoms(1)).single;
+    expect(dirty.parts, ['头部'], reason: '多余的逗号只丢空段，不炸整张流水');
+    expect(dirty.photos, isEmpty, reason: '坏 photos 按「无图」处理（catch-ok 只在这一处）');
+  });
+
+  test('症状就地改与删除都带档案归属：别人的 profile_id 拿去动我的行，一道闸就挡住', () async {
+    final other = await repo.saveProfile(const HealthProfile(id: 0, name: '小明', rel: '子'));
+    final id = await repo.addSymptom(const SymptomRecord(
+        profileId: 1, date: '2026-01-05', name: '头痛', level: 4, durationMin: 30, ongoing: true));
+    expect(
+        await repo.updateSymptom(SymptomRecord(
+            id: id, profileId: other, date: '2026-01-05', name: '冒充', level: 9)),
+        0);
+    expect(await repo.deleteSymptom(other, id), 0);
+    final r = (await repo.symptoms(1)).single;
+    expect(r.name, '头痛');
+    expect(r.level, 4);
+    expect(await repo.deleteSymptom(1, id), 1);
+    expect(await repo.symptoms(1), isEmpty);
+  });
+
+  test('标记结束＝ongoing 落下且时长 +15 一次写完；建档时间不被编辑冲成现在', () async {
+    final id = await repo.addSymptom(const SymptomRecord(
+        profileId: 1, date: '2026-01-05', name: '胸闷', level: 5, durationMin: 45, ongoing: true));
+    final loaded = (await repo.symptoms(1)).single;
+    await repo.endSymptom(loaded);
+    final row = await db.query(h.tHealthSymptom, where: 'id=?', whereArgs: [id]);
+    expect(row.single['ongoing'], 0);
+    expect(row.single['duration_min'], 60);
+    expect(row.single['created_at'], loaded.createdAt, reason: 'update 写回模型原值，不是 now');
+  });
+
+  test('档案删除级联清掉症状行：healthTables 少登记一张就留孤儿', () async {
+    final id = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    await repo.addSymptom(SymptomRecord(profileId: id, date: '2026-01-05', name: '头痛', level: 2));
+    await repo.deleteProfile(id);
+    expect(await countOf(h.tHealthSymptom, where: 'profile_id=$id'), 0);
+  });
 }

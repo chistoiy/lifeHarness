@@ -399,12 +399,17 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
 
   /// 运动枚批4 已点亮；用药·趋势·设置三枚随批 5/6 逐枚点亮：落点屏不存在就整枚不出现，
   /// 而不是铺一排点不动的假入口（AGENTS「禁铺假入口」）。
+  ///
+  /// 症状/报告两枚是**对原型的偏离**：原型 `hEntryRow` 只有七枚（身体/睡眠/运动/用药/趋势/目标/设置），
+  /// 症状与报告走「记一笔」八类 `sheetHAdd`——那张八类弹层本仓未实现（工单 §2 登记）。
+  /// 屏已落地却没有入口等于做了一张进不去的屏，所以先挂在直达行上，八类弹层落地时这两枚再收回去。
   Widget _entryRow(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final items = <(String, IconData, String, String)>[
       ('ex', Icons.directions_run_outlined, '运动', '/health/exercise'),
       ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
       ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
+      ('symptom', Icons.coronavirus_outlined, '症状', '/health/symptom'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
     ];
     return Container(

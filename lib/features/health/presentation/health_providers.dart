@@ -6,6 +6,7 @@ import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
+import '../domain/health_symptom.dart' show symNamesWith;
 import '../domain/health_vital.dart';
 
 /// 健康模块 providers（仿 items/care：写库后 tick++ 全量重取快照）。
@@ -86,4 +87,19 @@ final healthTodayScoreProvider = Provider<double>((ref) {
     waterGoalCups: st.waterGoal().toDouble(),
     sleepGoalHours: st.sleepGoalHours().toDouble(),
   );
+});
+
+/// 症状流水（批3.5a · 升序）：一次取全量喂发作卡/直方图/部位筛选/词云/流水五处——
+/// 五块看的是同一份列表，为任何一块单开一路查询都会让读数错位。
+final healthSymptomProvider = FutureProvider<List<SymptomRecord>>((ref) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  return ref.watch(healthRepositoryProvider).symptoms(pid);
+});
+
+/// 常用症状列表＝十枚种子＋用户自定义。自定义名单写 prefs，写完 tick++ 让 chips 当场重读
+/// （设置「当场生效」口径：不允许「存了但这一屏看不到，下次进屏才有」）。
+final healthSymNamesProvider = Provider<List<String>>((ref) {
+  ref.watch(healthTickProvider);
+  return symNamesWith(ref.watch(healthSettingsProvider).symCustomNames());
 });
