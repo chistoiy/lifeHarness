@@ -133,11 +133,11 @@ void main() {
 
 
   test('用药：归档只停用在读，打卡流水与历史档案都还在', () async {
-    final id = await repo.saveDrug(const DrugPlan(
+    final id = await repo.addDrug(const DrugPlan(
         profileId: 1, name: '维生素D', times: ['08:00', '20:00'], remind: true));
     await repo.logDrug(DrugLog(
         profileId: 1, drugId: id, date: '2026-01-05', time: '08:00', state: 'taken'));
-    await repo.archiveDrug(id);
+    expect(await repo.archiveDrug(1, id), 1);
 
     expect(await repo.drugs(1), isEmpty, reason: '在册列表不再出现');
     final all = await repo.drugs(1, includeArchived: true);
@@ -149,8 +149,83 @@ void main() {
         profileId: 1, drugId: id, date: '2026-01-05', time: '08:00', state: 'skipped'));
     expect((await repo.drugLogs(1, '2026-01-05'))[id]!['08:00'], 'skipped',
         reason: '同刻重复打卡＝覆盖状态，不插第二行');
-    await repo.undoDrugLog(id, '2026-01-05', '08:00');
+    expect(await countOf(h.tHealthDrugLog), 1, reason: '唯一槽位索引真的在拦第二行');
+    expect(await repo.undoDrugLog(1, id, '2026-01-05', '08:00'), 1);
     expect(await repo.drugLogs(1, '2026-01-05'), isEmpty);
+  });
+
+  test('用药：改档与归档都带档案归属（刀3 靶＝摘掉 profile_id 就改到别人的药）', () async {
+    final other = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    final mine = await repo.addDrug(const DrugPlan(
+        profileId: 1, name: '钙片', times: ['08:00'], dose: 1));
+    final theirs = await repo.addDrug(DrugPlan(
+        profileId: other, name: '降压药', times: const ['21:00'], dose: 2));
+
+    expect(
+        await repo.updateDrug(DrugPlan(
+            id: mine, profileId: other, name: '改名尝试', times: const ['09:00'])),
+        0,
+        reason: '用别人的 profile_id 发起改档＝归属条件挡住');
+    expect(
+        await repo.updateDrug(DrugPlan(
+            id: theirs, profileId: 1, name: '覆盖尝试', times: const ['07:00'])),
+        0,
+        reason: '反向同理：我的档案改不到别人的行');
+    expect(await repo.archiveDrug(other, mine), 0, reason: '跨档案停不掉别人的药（刀3）');
+    expect(await repo.archiveDrug(1, theirs), 0, reason: '反向同理');
+    expect((await repo.drugs(1)).single.name, '钙片', reason: '两条写路径吃同一道闸');
+    expect((await repo.drugs(other)).single.archived, isFalse);
+
+    // 本档案内改档成功，且就地改同一行（不插第二份档案）。
+    expect(
+        await repo.updateDrug(DrugPlan(
+            id: mine, profileId: 1, name: '钙片', spec: '600mg', times: const ['08:00', '20:00'])),
+        1);
+    final rows = await repo.drugs(1);
+    expect(rows.length, 1);
+    expect(rows.single.spec, '600mg');
+    expect(rows.single.times, ['08:00', '20:00']);
+  });
+
+  test('用药：总开关只覆写非归档行，单药开关带归属', () async {
+    final other = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    final a = await repo.addDrug(const DrugPlan(profileId: 1, name: 'A', times: ['08:00'], remind: true));
+    await repo.addDrug(const DrugPlan(profileId: 1, name: 'B', times: ['20:00'], remind: true));
+    final c = await repo.addDrug(const DrugPlan(profileId: 1, name: 'C', times: ['12:00'], remind: true));
+    await repo.archiveDrug(1, c);
+
+    expect(await repo.setAllDrugRemind(1, false), 2, reason: '覆写行数＝非归档两行（偏离⑤＝全量覆写不记得原状态）');
+    final m = {for (final d in await repo.drugs(1, includeArchived: true)) d.name: d.remind};
+    expect(m['A'], isFalse);
+    expect(m['B'], isFalse);
+    expect(m['C'], isTrue, reason: '归档档案不参与总开关（它已不在卡列表里）');
+
+    expect(await repo.setDrugRemind(1, a, true), 1);
+    expect((await repo.drugs(1)).firstWhere((d) => d.id == a).remind, isTrue);
+    expect(await repo.setDrugRemind(other, a, false), 0, reason: '跨档案改不到别人的提醒位');
+    expect(await repo.setAllDrugRemind(other, true), 0, reason: '总开关按档案作用域，不越界覆写');
+  });
+
+  test('用药：近 7 天流水一次取数按「日期→药→时刻」分层，跨档案不串味', () async {
+    final id = await repo.addDrug(const DrugPlan(profileId: 1, name: '钙片', times: ['08:00', '20:00']));
+    await repo.logDrug(DrugLog(profileId: 1, drugId: id, date: '2026-01-01', time: '08:00', state: 'taken'));
+    await repo.logDrug(DrugLog(profileId: 1, drugId: id, date: '2026-01-03', time: '20:00', state: 'taken'));
+    // 归档之后历史仍要在区间里（热力与批6 趋势都读它）
+    final old = await repo.addDrug(const DrugPlan(profileId: 1, name: '旧药', times: ['09:00']));
+    await repo.logDrug(DrugLog(profileId: 1, drugId: old, date: '2026-01-02', time: '09:00', state: 'taken'));
+    await repo.archiveDrug(1, old);
+    // 别的档案 / 区间外的日子都不该出现
+    final other = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    final theirs = await repo.addDrug(DrugPlan(profileId: other, name: '降压药', times: const ['21:00']));
+    await repo.logDrug(DrugLog(profileId: other, drugId: theirs, date: '2026-01-02', time: '21:00', state: 'taken'));
+    await repo.logDrug(DrugLog(profileId: 1, drugId: id, date: '2026-02-01', time: '08:00', state: 'taken'));
+
+    final r = await repo.drugLogRange(1, '2026-01-01', '2026-01-07');
+    expect(r.keys.toList()..sort(), ['2026-01-01', '2026-01-02', '2026-01-03'],
+        reason: '区间外的日期与别的档案都不出现（热力七格吃这一份）');
+    expect(r['2026-01-01'], {id: {'08:00': 'taken'}});
+    expect(r['2026-01-02'], {old: {'09:00': 'taken'}}, reason: '归档药的历史不过滤（软删父行藏子记录是本仓踩过的坑）');
+    expect(r['2026-01-03']![id]!['20:00'], 'taken');
   });
 
   test('目标：同键重复设置只留一行（改目标不动历史记录）', () async {
@@ -167,7 +242,7 @@ void main() {
     final id = await repo.saveProfile(const HealthProfile(id: 0, name: '爸爸', rel: '父'));
     await repo.bumpCups(id, '2026-01-05', 4);
     await repo.saveBody(BodyRecord(profileId: id, date: '2026-01-05', kg: 80));
-    final drugId = await repo.saveDrug(DrugPlan(profileId: id, name: '降压药', times: ['08:00']));
+    final drugId = await repo.addDrug(DrugPlan(profileId: id, name: '降压药', times: ['08:00']));
     await repo.logDrug(DrugLog(
         profileId: id, drugId: drugId, date: '2026-01-05', time: '08:00', state: 'taken'));
 
@@ -191,7 +266,7 @@ void main() {
     await repo.addExercise(const ExerciseRecord(
         profileId: 1, date: '2026-01-05', type: '步行', durationMin: 25));
     await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-05', kg: 68));
-    final drugId = await repo.saveDrug(const DrugPlan(profileId: 1, name: '钙片', times: ['21:00']));
+    final drugId = await repo.addDrug(const DrugPlan(profileId: 1, name: '钙片', times: ['21:00']));
     await repo.logDrug(DrugLog(
         profileId: 1, drugId: drugId, date: '2026-01-05', time: '21:00', state: 'taken'));
 

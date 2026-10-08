@@ -365,7 +365,7 @@ class HealthRepository {
   Future<int> deleteMetric(int reportId, int id) => db.delete(h.tHealthReportMetric,
       where: 'id=? AND report_id=?', whereArgs: [id, reportId]);
 
-  // ==================== 用药 ====================
+  // ==================== 用药（批5） ====================
 
   Future<List<DrugPlan>> drugs(int profileId, {bool includeArchived = false}) async {
     final rows = await db.query(h.tHealthDrug,
@@ -375,21 +375,42 @@ class HealthRepository {
     return rows.map(DrugPlan.fromRow).toList();
   }
 
-  Future<int> saveDrug(DrugPlan d) {
-    if (d.id == null) {
-      return db.insert(h.tHealthDrug,
-          {...d.toRow(), 'created_at': DateTime.now().millisecondsSinceEpoch});
-    }
-    return db.update(h.tHealthDrug, d.toRow(), where: 'id=?', whereArgs: [d.id]).then((_) => d.id!);
-  }
+  /// 建档（`times` 由域层 `mdCleanTimes` 去过重排过序，这里只管落库）。
+  Future<int> addDrug(DrugPlan d) => db.insert(h.tHealthDrug, {
+        ...d.toRow(),
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+      });
+
+  /// 改档：**按 id＋档案归属**双闸（跨档案改不到别人的药，同症状/体征一道闸）。
+  Future<int> updateDrug(DrugPlan d) => db.update(
+        h.tHealthDrug,
+        d.toRow(),
+        where: 'id=? AND profile_id=?',
+        whereArgs: [d.id, d.profileId],
+      );
 
   /// 删除档案＝置 archived，**打卡流水保留**（历史依从率不因此失真）。
-  Future<void> archiveDrug(int id) async {
-    await db.update(h.tHealthDrug, {'archived': 1}, where: 'id=?', whereArgs: [id]);
-    AppLog.addKey('用药档案归档：#$id 已停用 · 打卡流水保留');
+  ///
+  /// 只动父行的这一个标记位：不软删子树、不碰 `health_drug_log`——
+  /// 「归档把历史一起藏了」是需求明令禁止的形态（工单 §2 偏离②，批6 趋势读侧带 `includeArchived`）。
+  Future<int> archiveDrug(int profileId, int id) async {
+    final n = await db.update(h.tHealthDrug, {'archived': 1},
+        where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+    if (n > 0) AppLog.addKey('用药档案归档：#$id 已停用 · 打卡流水保留');
+    return n;
   }
 
-  /// 打卡：一个 (drug,date,time) 一行，重复打卡＝覆盖该时刻状态（点一下已服↔待服互切在调用侧算）。
+  /// 单药提醒开关（原型 `hDrugRem`）：带归属，跨档案改不到。
+  Future<int> setDrugRemind(int profileId, int id, bool on) => db.update(
+      h.tHealthDrug, {'remind': on ? 1 : 0},
+      where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+
+  /// 「全部提醒」总开关（原型 `tgMedAll`）：**全量覆写**非归档行的 remind，
+  /// 关掉再打开不记得单药原状态（工单 §2 偏离⑤）；归档档案不参与（它已经不在卡列表里）。
+  Future<int> setAllDrugRemind(int profileId, bool on) => db.update(h.tHealthDrug,
+      {'remind': on ? 1 : 0}, where: 'profile_id=? AND archived=0', whereArgs: [profileId]);
+
+  /// 打卡：一个 (drug,date,time) 一行，重复打卡＝覆盖该时刻状态（唯一索引 `idx_hdruglog_slot`）。
   Future<void> logDrug(DrugLog l) => db.insert(h.tHealthDrugLog, {
         'profile_id': l.profileId,
         'drug_id': l.drugId,
@@ -400,15 +421,37 @@ class HealthRepository {
         'created_at': DateTime.now().millisecondsSinceEpoch,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-  Future<void> undoDrugLog(int drugId, String date, String time) => db.delete(
+  /// 撤销打卡＝删行（回到「待服」；留痕在 `created_at` 之外不补软删列，流水语义就是「现在算不算服过」）。
+  Future<int> undoDrugLog(int profileId, int drugId, String date, String time) => db.delete(
       h.tHealthDrugLog,
-      where: 'drug_id=? AND date=? AND time=?',
-      whereArgs: [drugId, date, time]);
+      where: 'drug_id=? AND date=? AND time=? AND profile_id=?',
+      whereArgs: [drugId, date, time, profileId]);
 
   /// 当日全部打卡（按 drug_id 分组给 UI 判「已服/跳过」）。
   Future<Map<int, Map<String, String>>> drugLogs(int profileId, String date) async {
     final rows = await db.query(h.tHealthDrugLog,
         where: 'profile_id=? AND date=?', whereArgs: [profileId, date]);
+    return _groupByDrug(rows);
+  }
+
+  /// 日期区间的全部打卡（批5 近 7 天热力**一次取数**，不按天开七路查询——
+  /// 七路查询会让七格来自七份快照，翻页时会出现「昨天那格和今天不一致」）。
+  /// 返回 日期 →（drug_id →（时刻 → 状态）），归档档案的历史照样在里面（读侧不过滤，见 §2）。
+  Future<Map<String, Map<int, Map<String, String>>>> drugLogRange(
+      int profileId, String from, String to) async {
+    final rows = await db.query(h.tHealthDrugLog,
+        where: 'profile_id=? AND date>=? AND date<=?', whereArgs: [profileId, from, to]);
+    final out = <String, Map<int, Map<String, String>>>{};
+    for (final r in rows) {
+      final byDrug = out.putIfAbsent(r['date'] as String, () => <int, Map<String, String>>{});
+      byDrug
+          .putIfAbsent(r['drug_id'] as int, () => <String, String>{})[r['time'] as String] =
+          r['state'] as String;
+    }
+    return out;
+  }
+
+  static Map<int, Map<String, String>> _groupByDrug(List<Map<String, Object?>> rows) {
     final out = <int, Map<String, String>>{};
     for (final r in rows) {
       out.putIfAbsent(r['drug_id'] as int, () => {})[r['time'] as String] = r['state'] as String;

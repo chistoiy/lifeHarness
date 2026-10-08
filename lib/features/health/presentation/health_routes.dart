@@ -4,6 +4,7 @@ import 'health_body_page.dart';
 import 'health_exercise_page.dart';
 import 'health_goals_page.dart';
 import 'health_home_page.dart';
+import 'health_med_page.dart';
 import 'health_report_page.dart';
 import 'health_sleep_page.dart';
 import 'health_symptom_page.dart';
@@ -54,5 +55,10 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/goals',
     builder: (_, _) => const HealthGoalsPage(),
+  ),
+  // 用药管理（原型 p-med · 批5）：档案卡列表＋打卡＋近 7 天热力＋设置三行。
+  GoRoute(
+    path: '/health/med',
+    builder: (_, _) => const HealthMedPage(),
   ),
 ];

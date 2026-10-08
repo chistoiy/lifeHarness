@@ -15,6 +15,7 @@ import '../domain/health_ex.dart';
 import '../domain/health_models.dart';
 import '../domain/health_vital.dart';
 import 'health_goal_row.dart';
+import 'health_med_card.dart';
 import 'health_providers.dart';
 import 'health_sheets.dart';
 
@@ -24,7 +25,8 @@ import 'health_sheets.dart';
 /// 三条本版口径（就写在离代码最近的地方）：
 /// · **达标度分母只吃 `HealthSettings` 读数**（计划 §五.1，与 `health_providers.dart` 里那条注释同源），
 ///   UI 里不许出现写死的 8 杯/8 小时；
-/// · **直达行与 hero 数据位只渲染落点屏已存在的枚**（批4 起：四枚数据位＋运动/身体数据/睡眠/目标四枚直达）；
+/// · **直达行与 hero 数据位只渲染落点屏已存在的枚**（批5 起：四枚数据位＋运动/身体数据/睡眠/用药/目标
+///   五枚直达）；
 ///   用药·趋势·设置入口随批 5/6 逐枚点亮，缺落点就整格不出现，不铺点不动的假入口
 ///   （AGENTS「禁铺假入口」）；键名留在 `HealthHomePage` 里随批启用，不另起第二个名字；
 /// · 无记录＝空槽「—」＋虚线行，任何一格都不许拿 0 当读数（原型演示数据不照抄）。
@@ -37,9 +39,10 @@ class HealthHomePage extends ConsumerWidget {
   static const Key kCardWater = ValueKey('health-card-water');
   static const Key kCardSleep = ValueKey('health-card-sleep');
 
-  /// 预留位（落点屏没就绪就不渲染）：运动位＝批 4；直达行的用药/趋势/设置＝批 5/6。
+  /// 落点屏没就绪就不渲染：直达行的趋势/设置＝批 6。
   static const Key kCellEx = ValueKey('health-cell-ex');
   static const Key kCardEx = ValueKey('health-card-ex');
+  static const Key kCardMed = ValueKey('health-card-med');
   static const Key kCellWeight = ValueKey('health-cell-weight');
   static const Key kEntryAll = ValueKey('health-entry-all');
 
@@ -213,6 +216,11 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
         ),
         const SizedBox(height: 12),
         _exerciseCard(context, st),
+        const SizedBox(height: 12),
+        // 用药卡（原型第五卡 · 批5）：卡体在 `health_med_card.dart`（那文件贴着体积闸，单独成件）。
+        // 原型把运动/用药并排两列，本实现的运动卡两个输入框＋两个按钮在半宽下折行，
+        // 所以两卡都整行铺（工单 §3 偏离⑩）。
+        const HealthMedCard(key: ValueKey('health-card-med')),
         const SizedBox(height: 12),
         _vitalStrip(context),
         const SizedBox(height: 12),
@@ -397,7 +405,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
 
   // ==================== 直达行（原型 hEntryRow · 只渲染落点已存在的枚） ====================
 
-  /// 运动枚批4 已点亮；用药·趋势·设置三枚随批 5/6 逐枚点亮：落点屏不存在就整枚不出现，
+  /// 运动·用药两枚已点亮（批 4／批 5）；直达行的趋势·设置两枚随批 6 点亮：落点屏不存在就整枚不出现，
   /// 而不是铺一排点不动的假入口（AGENTS「禁铺假入口」）。
   ///
   /// 症状/报告两枚是**对原型的偏离**：原型 `hEntryRow` 只有七枚（身体/睡眠/运动/用药/趋势/目标/设置），
@@ -409,6 +417,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
       ('ex', Icons.directions_run_outlined, '运动', '/health/exercise'),
       ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
       ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
+      ('med', Icons.medical_services_outlined, '用药', '/health/med'),
       ('symptom', Icons.coronavirus_outlined, '症状', '/health/symptom'),
       ('report', Icons.description_outlined, '报告', '/health/report'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
@@ -626,7 +635,8 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
   // ==================== 运动卡（原型 hp 第四卡 · 批4） ====================
 
   /// 今日分钟／本周有效次数（≥10 分钟才算一次，§五.9）／快速算配速／记一笔／计时。
-  /// 用药卡（原型第五卡）在批5，本行先让运动卡占满整行——落点屏没就绪的卡不铺（禁假入口）。
+  /// 原型把运动与用药并排两列（`grid-cols-2`），本卡两个输入框＋两个按钮在半宽下折行，
+  /// 所以两张卡各占整行、上下排（工单 §3 偏离⑩）；用药卡＝下一格，见 `health_med_card.dart`。
   Widget _exerciseCard(BuildContext context, HealthSettings st) {
     final scheme = Theme.of(context).colorScheme;
     final todayMin = widget.today.exerciseMin;

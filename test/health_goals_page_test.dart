@@ -122,7 +122,7 @@ void main() {
         profileId: 1, date: dk, bedTime: '23:00', wakeTime: '07:00', durationMin: 0)); // 480 分达标
     await repo.addExercise(
         ExerciseRecord(profileId: 1, date: dk, type: '步行', durationMin: 5));
-    final id = await repo.saveDrug(
+    final id = await repo.addDrug(
         const DrugPlan(profileId: 1, name: '钙片', times: ['08:00', '20:00']));
     for (final time in ['08:00', '20:00']) {
       await repo.logDrug(DrugLog(
@@ -147,7 +147,7 @@ void main() {
     final container = await pumpGoals(tester);
     expect(keyText(tester, 'hg-ring-tx'), '3/4', reason: 'plannedSlots=0 ⇒ 用药项不达标');
 
-    final id = await repo.saveDrug(
+    final id = await repo.addDrug(
         const DrugPlan(profileId: 1, name: '降压药', times: ['08:00']));
     await repo.logDrug(
         DrugLog(profileId: 1, drugId: id, date: dk, time: '08:00', state: 'taken'));

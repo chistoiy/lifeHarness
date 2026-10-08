@@ -10,10 +10,12 @@ import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/dashboard/presentation/dashboard_page.dart';
 import 'package:lifeharness/features/health/data/health_repository.dart';
 import 'package:lifeharness/features/health/domain/health_calc.dart';
+import 'package:lifeharness/features/health/domain/health_drug.dart';
 import 'package:lifeharness/features/health/domain/health_models.dart';
 import 'package:lifeharness/features/health/presentation/health_body_page.dart';
 import 'package:lifeharness/features/health/presentation/health_exercise_page.dart';
 import 'package:lifeharness/features/health/presentation/health_home_page.dart';
+import 'package:lifeharness/features/health/presentation/health_med_card.dart';
 import 'package:lifeharness/features/health/presentation/health_providers.dart';
 import 'package:lifeharness/features/health/presentation/health_routes.dart';
 import 'package:lifeharness/shared/widgets/ui_kit.dart';
@@ -169,7 +171,7 @@ void main() {
     expect(find.byKey(const ValueKey('health-heat-cell-2026-09-10')), findsNothing);
   });
 
-  testWidgets('四枚数据位齐（批4 点亮运动位）＋直达行四枚；用药/趋势/设置仍不铺',
+  testWidgets('四枚数据位齐（批4 点亮运动位）＋直达行七枚；用药枚随批 5 点亮，趋势/设置仍不铺',
       (tester) async {
     await seedTwoOfFour();
     final (_, router) = await pumpHealth(tester, prefsValues: waterPrefs);
@@ -185,13 +187,13 @@ void main() {
     expect(find.descendant(of: ex, matching: find.text('—')), findsOneWidget);
     expect(find.descendant(of: ex, matching: find.text('今日运动 · 分钟')), findsOneWidget);
 
-    // 直达行只铺真落地的屏（批 4 运动／批 3 身体数据／批 3.5a 症状／批 3.5b 报告＋既有三枚）；
-    // 用药／趋势／设置的落点屏在批 5/6，没就绪就不出现——禁铺假入口。
+    // 直达行只铺真落地的屏（批 4 运动／批 3 身体数据／睡眠／批 5 用药／批 3.5a 症状／批 3.5b 报告＋目标）；
+    // 趋势／设置的落点屏在批 6，没就绪就不出现——禁铺假入口。
     expect(find.byKey(const ValueKey('health-entry-all')), findsOneWidget);
-    for (final id in ['ex', 'body', 'sleep', 'symptom', 'report', 'goals']) {
+    for (final id in ['ex', 'body', 'sleep', 'med', 'symptom', 'report', 'goals']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsOneWidget);
     }
-    for (final id in ['drug', 'trend', 'settings']) {
+    for (final id in ['trend', 'settings']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsNothing);
     }
 
@@ -295,6 +297,71 @@ void main() {
     expect(find.text('开始计时'), findsOneWidget);
     expect(await repo.exerciseRange(1, dayKey(now), dayKey(now)), isEmpty,
         reason: '取消＝什么都不写');
+  });
+
+  /// 用药卡（批5）在长页中段：点 chip／「管理 ›」之前先滚进视口，否则坐标算到屏幕外。
+  Future<void> tapCard(WidgetTester t, Key k) async {
+    final f = find.byKey(k);
+    await t.ensureVisible(f);
+    await settle5(t);
+    await t.tap(f);
+    await settle5(t);
+  }
+
+  Future<int> addDrug(String name, List<String> times) =>
+      repo.addDrug(DrugPlan(profileId: 1, name: name, times: times));
+
+  testWidgets('用药卡空态：读数出「—」不铺 0/0，空态句直达建档屏（卡／屏同一句域层原话）',
+      (tester) async {
+    await pumpHealth(tester, prefsValues: waterPrefs);
+    final card = find.byKey(HealthHomePage.kCardMed);
+    expect(card, findsOneWidget);
+    await tester.ensureVisible(find.byKey(HealthMedCard.kPlan));
+    expect(keyTx(tester, 'health-med-plan'), '—', reason: '一支档案都没建≠一次没吃');
+    expect(find.descendant(of: card, matching: find.text(medChipEmptyTx)), findsOneWidget);
+    expect(find.byKey(HealthMedCard.kChips), findsNothing, reason: '没槽位就不铺空 Wrap');
+
+    await tapCard(tester, HealthMedCard.kManage);
+    expect(find.byKey(const ValueKey('hmed-empty')), findsOneWidget,
+        reason: '「管理 ›」直达批 5 落地屏，不是假入口');
+  });
+
+  testWidgets('卡内 chip 点一下就打卡：读数与写库同帧，再点撤销；提示条吃原型原话', (tester) async {
+    final id = await addDrug('钙片', ['08:00', '20:00']);
+    await pumpHealth(tester, prefsValues: waterPrefs);
+    await tester.ensureVisible(find.byKey(HealthMedCard.kChips));
+    expect(keyTx(tester, 'health-med-plan'), '0/2 次 · 今日');
+    expect(find.byKey(ValueKey('health-med-chip-$id-08:00')), findsOneWidget);
+    expect(find.text('08:00 钙片 · 待服'), findsOneWidget, reason: 'chip 文案与卡内时刻行同源');
+
+    await tapCard(tester, ValueKey('health-med-chip-$id-08:00'));
+    expect(keyTx(tester, 'health-med-plan'), '1/2 次 · 今日');
+    expect(find.text('08:00 钙片 · 已服'), findsOneWidget);
+    expect(find.text('08:00 · 钙片 打卡成功'), findsOneWidget);
+    expect((await repo.drugLogs(1, dayKey(now)))[id]?['08:00'], 'taken');
+    await clearToasts(tester);
+
+    await tapCard(tester, ValueKey('health-med-chip-$id-08:00'));
+    expect(keyTx(tester, 'health-med-plan'), '0/2 次 · 今日');
+    expect(await repo.drugLogs(1, dayKey(now)), isEmpty, reason: '撤销＝删行');
+    await clearToasts(tester);
+  });
+
+  testWidgets('chips 只铺前五枚，余下收进「+n 全部」整枚跳管理屏（原型 slice(0,5)）',
+      (tester) async {
+    final id = await addDrug('六次药', ['01:00', '08:00', '09:00', '10:00', '11:00', '12:00']);
+    await pumpHealth(tester, prefsValues: waterPrefs);
+    await tester.ensureVisible(find.byKey(HealthMedCard.kChips));
+    expect(keyTx(tester, 'health-med-plan'), '0/6 次 · 今日');
+    for (final t in ['01:00', '08:00', '09:00', '10:00', '11:00']) {
+      expect(find.byKey(ValueKey('health-med-chip-$id-$t')), findsOneWidget);
+    }
+    expect(find.byKey(ValueKey('health-med-chip-$id-12:00')), findsNothing,
+        reason: '第六枚不铺（屏宽下会把卡挤爆），收进「+1 全部」');
+    expect(find.text('+1 全部'), findsOneWidget);
+
+    await tapCard(tester, HealthMedCard.kMore);
+    expect(find.byKey(const ValueKey('hmed-plan')), findsOneWidget);
   });
 
   testWidgets('宫格「健康」枚去灰位后点击进工作台，返回落回仪表盘（push 语义）',

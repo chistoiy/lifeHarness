@@ -5,6 +5,7 @@ import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
+import '../domain/health_drug.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart' show ReportBundle;
 import '../domain/health_symptom.dart' show symNamesWith;
@@ -112,4 +113,20 @@ final healthReportProvider = FutureProvider<List<ReportBundle>>((ref) {
   ref.watch(healthTickProvider);
   final pid = ref.watch(activeHealthProfileProvider);
   return ref.watch(healthRepositoryProvider).reportBundles(pid);
+});
+
+/// 用药屏快照（批5）：档案＋今日打卡＋近 7 天打卡**一次取齐**。
+/// 热力七格若按天开七路查询，七格就来自七份快照（翻页时会互相不一致）；
+/// 今日读数与卡内时刻行也必须是同一份 `todayLogs`，否则「2/4 次」与行上的「已服用」会打脸。
+final healthMedProvider = FutureProvider<MedBundle>((ref) async {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  final now = ref.watch(healthClockProvider)();
+  final days = mdDaysBack(now, 7);
+  final date = dayKey(now);
+  final repo = ref.watch(healthRepositoryProvider);
+  final drugs = await repo.drugs(pid);
+  final todayLogs = await repo.drugLogs(pid, date);
+  final byDay = await repo.drugLogRange(pid, days.first, days.last);
+  return (drugs: drugs, todayLogs: todayLogs, byDay: byDay, days: days, date: date);
 });

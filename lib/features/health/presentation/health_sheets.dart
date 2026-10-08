@@ -17,6 +17,7 @@ import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/health_body.dart';
 import '../domain/health_calc.dart';
+import '../domain/health_drug.dart';
 import '../domain/health_ex.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart';
@@ -25,6 +26,7 @@ import '../domain/health_vital.dart';
 import 'health_providers.dart';
 
 part 'health_sheets_ex.dart';
+part 'health_sheets_drug.dart';
 part 'health_sheets_sym.dart';
 part 'health_sheets_report.dart';
 
