@@ -424,6 +424,12 @@ tailwind.config = {
   .mds-item:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(15,23,42,.14)}
   .mds-item:active{transform:translateY(-1px)}
   .mds-item .cover{position:relative;aspect-ratio:3/4;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 9px;color:#fff}
+  .mds-item .cover .covimg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+  .mds-item .cover>*:not(.covimg){position:relative;z-index:1}
+  .mds-item .cover::after{z-index:2}
+  #mdsAddCover{position:relative;overflow:hidden}
+  #mdsAddCover .covimg{position:absolute;inset:0;background-size:cover;background-position:center}
+  #mdsAddCover .covmono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:rgba(255,255,255,.32)}
   .mds-item .cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.06) 0%,transparent 42%,rgba(0,0,0,.52) 100%);pointer-events:none}
   .mds-item .kic{position:absolute;top:7px;left:7px;width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,.24);display:flex;align-items:center;justify-content:center;z-index:2}
   .mds-item .kic svg{width:13px;height:13px;color:#fff}
@@ -745,12 +751,21 @@ tailwind.config = {
         <div class="grabber"></div>
         <div class="mds-title text-[15px] mb-3">新条目</div>
         <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsAddKindChips"></div>
+        <div class="flex items-center gap-2 mb-3" id="mdsAddCoverRow">
+          <div id="mdsAddCover" style="width:64px;height:64px;border-radius:12px;background:linear-gradient(160deg,#6366f1,#312e81)"></div>
+          <div class="flex-1 flex gap-2 justify-end">
+            <button class="mds-chip" id="mdsAddCoverCam" onclick="mCoverPick('camera')">拍照</button>
+            <button class="mds-chip" id="mdsAddCoverLib" onclick="mCoverPick('gallery')">相册</button>
+            <button class="mds-chip hidden" id="mdsAddCoverDel" onclick="mCoverClear()">移除</button>
+          </div>
+        </div>
+        <input type="file" accept="image/*" class="hidden" id="mdsAddCoverFile" onchange="mCoverRead(this.files[0])">
         <input id="mdsAddTitle" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="片名 / 专辑 / 游戏名">
         <input id="mdsAddCreator" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="导演 / 主创 / 艺人 / 工作室">
         <input id="mdsAddPub" class="inp !py-2.5 text-sm mb-2" style="background:rgba(255,255,255,.5);border-color:rgba(0,0,0,.06);color:var(--mds-ink)" placeholder="制片 / 流媒体 / 唱片公司 / 发行">
         <div class="flex gap-2 text-xs mb-3"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="年份"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时长/集数/曲目"><input class="inp flex-1 !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="评分"></div>
         <div id="mdsAddKindFields" class="mb-3 text-[11px]" style="opacity:.85"></div>
-        <div class="flex gap-2 mt-4"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-add')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="mAddSave()">保存 · 进入影音架</button></div>
+        <div class="flex gap-2 mt-4"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-add')">取消</button><button class="mds-chip on" id="mdsAddSaveBtn" style="flex:1;justify-content:center" onclick="mAddSave()">保存 · 进入影音架</button></div>
       </div>
     </div>
 
@@ -2764,7 +2779,7 @@ const MSTATE_MAP={movie:['未看','在看','看完','搁置'],series:['未看','
 const MSRT=['recent','rating','added','year','title','progress'];
 const MTYPE_LABEL={scene:'名场面',line:'台词',lyric:'歌词',shot:'截图',long:'长评'};
 const MTYPE_COLOR={scene:'#dc2626',line:'#f59e0b',lyric:'#059669',shot:'#6366f1',long:'#94a3b8'};
-let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[];
+let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[],mAddCoverImg=null,mAddEditing=false;
 
 function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));return l}
 function mKindCounts(){const o={movie:0,series:0,game:0};MDEMO.forEach(x=>{if(x.kind!=='music')o[x.kind]++});o.music=MMOMENTS.length;o.all=o.movie+o.series+o.game+o.music;return o}
@@ -2776,13 +2791,14 @@ let mSelMode=false;
 function mProg(x){if(x.kind==='movie')return x.state==='想看'?0:x.state==='看完'?100:x.pct;if(x.kind==='series')return x.state==='未看'?0:Math.round(x.cur/x.eps*100);if(x.kind==='game')return x.mainPct==null?null:(x.state==='未玩'?0:x.mainPct);return null}
 function mProgCls(x){return x.state==='看完'||x.state==='追完'||x.state==='通关'?'done':x.state==='搁置'?'give':''}
 function mMeta(x){return x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.year+' · 第'+x.cur+'/'+x.eps+'集':x.kind==='music'?x.creator+' · '+x.tracks+'曲':x.kind==='game'?('和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'):x.creator+' · '+x.plat}
+function mCovImgHTML(x){return (x&&x.coverImg)?'<i class="covimg" style="background-image:url(' + x.coverImg + ')"></i>':''}
 function mCardHTML(x){
   const c=MD_COV[MD_CI[x.id]||0],p=mProg(x);
   const kic=`<span class="kic">${MKIND_ICON[x.kind]}</span>`,rt=`<span class="rt">${x.rating.toFixed(1)}</span>`,sel=`<span class="sel${mSel.has(x.id)?' on':''}" onclick="event.stopPropagation();mToggleSel('${x.id}')"></span>`,ttl=`<div class="ttl">${x.title}</div>`,yr=`<div class="yr">${mMeta(x)}</div>`;
   let cover,cls='mds-item';
-  if(x.kind==='music'){cls+=' vinyl';cover=`<div class="cover" style="--c1:${c[0]};--c2:${c[1]}"><div class="vwrap"><div class="sleeve"></div><div class="disc"><div class="lbl">${x.creator.length>6?x.creator.slice(0,5)+'…':x.creator}</div></div></div>${kic}${rt}${sel}${ttl}${yr}</div>`}
-  else if(x.kind==='game'){cls+=' gmcard';cover=`<div class="cover" style="--c1:${c[0]};--c2:${c[1]}"><div class="gcart"><span class="gmono">${(x.title)[0]}</span><span class="gmode">${x.mode}</span><span class="gplf">${x.plat}</span></div>${kic}${rt}${sel}${ttl}${yr}</div>`}
-  else{cover=`<div class="cover" style="background:linear-gradient(160deg,${c[0]},${c[1]})">${kic}${rt}${sel}${ttl}${yr}</div>`}
+  if(x.kind==='music'){cls+=' vinyl';cover=`<div class="cover" style="--c1:${c[0]};--c2:${c[1]}">${mCovImgHTML(x)}<div class="vwrap"><div class="sleeve"></div><div class="disc"><div class="lbl">${x.creator.length>6?x.creator.slice(0,5)+'…':x.creator}</div></div></div>${kic}${rt}${sel}${ttl}${yr}</div>`}
+  else if(x.kind==='game'){cls+=' gmcard';cover=`<div class="cover" style="--c1:${c[0]};--c2:${c[1]}">${mCovImgHTML(x)}<div class="gcart"><span class="gmono">${(x.title)[0]}</span><span class="gmode">${x.mode}</span><span class="gplf">${x.plat}</span></div>${kic}${rt}${sel}${ttl}${yr}</div>`}
+  else{cover=`<div class="cover" style="background:linear-gradient(160deg,${c[0]},${c[1]})">${mCovImgHTML(x)}${kic}${rt}${sel}${ttl}${yr}</div>`}
   if(mSelMode)cls+=' selmode';
   const bar=(p===null)?'':`<div class="pbar"><i class="${mProgCls(x)}" style="width:${p}%"></i></div>`;
   return `<div class="${cls}" data-id="${x.id}" onclick="${mSelMode?`mToggleSel('${x.id}')`:`mOpen('${x.id}')`}">${cover}${bar}</div>`;
@@ -2806,7 +2822,7 @@ function mRenderShelf(){
     +MMOMENTS.map(mMomentHTML).join('');return}
   if(mCurView==='desk'){body.innerHTML='<div class="mds-grid">'+list.map(mCardHTML).join('')+'</div>'}
   else if(mCurView==='spine'){const items=list.filter(x=>x.kind!=='movie');body.innerHTML=(items.length?'<div class="mds-spine-row">'+items.map(x=>`<div class="mds-spine ${x.kind}" onclick="mOpen('${x.id}')">${x.title}<span class="sub">${x.kind==='series'?x.seasons+' 季':x.kind==='music'?x.creator:x.plat}</span></div>`).join('')+'</div>':'<div class="text-[11px] mds-mono" style="opacity:.55">电影无侧脊 · 请切桌面或列表视图</div>')}
-  else{body.innerHTML='<div class="space-y-2">'+list.map(x=>`<div class="mds-list-row" onclick="mOpen('${x.id}')"><div class="thumb ${x.kind}" style="${x.kind==='movie'?'background:'+(x.cover||'#3a2a15'):''}"></div><div class="flex-1"><div class="ttl">${x.title}</div><div class="meta">${x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.seasons+'季·'+x.eps+'集 · 看到 '+x.cur:x.kind==='music'?x.tracks+' 曲 · 循环 '+x.loops+' 次':'和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'}</div></div><span class="mds-badge ${mStateCls(x.state)}" style="position:static">${x.state}</span></div>`).join('')+'</div>'}
+  else{body.innerHTML='<div class="space-y-2">'+list.map(x=>`<div class="mds-list-row" onclick="mOpen('${x.id}')"><div class="thumb ${x.kind}" style="${x.coverImg?'background-image:url('+x.coverImg+');background-size:cover;background-position:center':(x.kind==='movie'?'background:'+(x.cover||'#3a2a15'):'')}"></div><div class="flex-1"><div class="ttl">${x.title}</div><div class="meta">${x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.seasons+'季·'+x.eps+'集 · 看到 '+x.cur:x.kind==='music'?x.tracks+' 曲 · 循环 '+x.loops+' 次':'和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'}</div></div><span class="mds-badge ${mStateCls(x.state)}" style="position:static">${x.state}</span></div>`).join('')+'</div>'}
   ['desk','spine','list'].forEach(v=>{const el=$('#mdsVbtn'+(v==='desk'?'Desk':v==='spine'?'Spine':'List'));if(el)el.classList.toggle('on',mCurView===v)});
   const spineBtn=$('#mdsVbtnSpine');if(spineBtn){if(mCurKind==='movie'){spineBtn.style.opacity='.3';spineBtn.title='电影无侧脊'}else{spineBtn.style.opacity='';spineBtn.title='脊视图'}}
 }
@@ -2825,6 +2841,7 @@ function mSeriesTap(el,id){if(!el.classList.contains('open')){el.classList.add('
 function mOpen(id){const x=MDEMO.find(k=>k.id===id);if(!x)return;mCurDetail=x;const t=$('#mdsDetailTitle');if(t)t.textContent=x.title;navTo('m-detail');mRenderDetail()}
 function mRenderDetail(){
   const x=mCurDetail;const b=$('#mdsDetailBody');if(!x||!b)return;
+  const ht=$('#mdsDetailTitle');if(ht)ht.textContent=x.title;
   let extra='';
   if(x.kind==='series'){extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-1">季 · 单集</div><div class="flex gap-2 mb-2">${Array.from({length:x.seasons},(_,i)=>`<button class="mds-chip ${i===0?'on':''}">S${i+1}</button>`).join('')}</div><div class="mds-grid" style="grid-template-columns:repeat(6,1fr);gap:8px">${Array.from({length:Math.min(x.eps,12)},(_,i)=>`<div class="mds-card" style="aspect-ratio:1/1;background:radial-gradient(circle at 50% 50%,#f5c842 0 5px,#111 5px 7px,#333 7px 12px,#111 12px);box-shadow:0 2px 6px rgba(0,0,0,.35)" title="第 ${i+1} 集"></div>`).join('')}</div></div>`}
   else if(x.kind==='music'){extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-1">曲目</div><div class="space-y-1 text-[11px] mds-mono">${Array.from({length:Math.min(x.tracks,12)},(_,i)=>`<div class="flex justify-between p-2" style="background:rgba(255,255,255,.55);border-radius:6px;color:var(--mds-ink)"><span>${i<5?'A':'B'}${i<5?i+1:i-4} · 曲目 ${i+1}</span><span style="opacity:.6">${3+((i*7)%4)}:${String(11+(i*13)%60).padStart(2,'0')}</span></div>`).join('')}</div><div class="mt-2 text-[10px] mds-mono" style="opacity:.65">总循环 ${x.loops} 次 · 最常 <b>${x.fav}</b></div></div>`}
@@ -3076,11 +3093,34 @@ function mRenderStat(){const heat=$('#mHeat');if(heat){let s='';for(let i=0;i<45
 function mRenderGoal(){const goals=[['每日观影','46','60','min'],['每周听歌','12','15','h'],['每月游玩','32','40','h'],['每年看完','28','50','部'],['每周影音天数','5','7','天'],['每月名场面','14','20','条']];const b=$('#mGoalBody');if(b)b.innerHTML=goals.map(([l,v,t,u])=>`<div class="py-2.5 px-1 flex items-center justify-between" style="border-bottom:1px solid rgba(0,0,0,.08)"><div class="mds-title text-[12px]">${l}</div><div class="text-[11px] mds-mono"><span class="mds-chip">${v} / ${t} ${u}</span></div></div>`).join('')+'<div class="mt-4 text-[10px] mds-mono" style="opacity:.55">时间/数值选择就地滚轮 · 待批实现</div>'}
 function mRenderImport(){const src=['豆瓣','IMDb','TMDB','TVMAZE','MusicBrainz','RateYourMusic','Discogs','Steam','IGDB','B 站','网易云','Spotify','Letterboxd'];const b=$('#mImportBody');if(b)b.innerHTML=src.map(s=>`<div class="flex items-center justify-between py-2.5 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${s}</span><button class="mds-chip" onclick="toast('从 ${s} 导入（演示）')">导入</button></div>`).join('')+'<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="toast(\'粘贴文本自动识别（演示）\')">粘贴文本</button><button class="mds-chip">上传 CSV</button><button class="mds-chip">扫描 Steam 库</button></div>'}
 function mRenderSortSheet(){const el=$('#mSortOpts');if(el)el.innerHTML=MSRT.map(k=>`<div class="py-2 flex justify-between text-[12px]" onclick="mSortKey='${k}';mRenderShelf();closeSheet('m-sheet-sort')"><span>${{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]}</span><span style="opacity:.6">${mSortKey===k?'●':''}</span></div>`).join('')}
-function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"toast('编辑条目信息（演示）')"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"toast('影音轨迹（演示）')"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
+function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"toast('影音轨迹（演示）')"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
 function mRenderProgressSheet(){const x=mCurDetail||MDEMO[0];let body='';const inp='class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink);border-color:rgba(0,0,0,.06)"';if(x.kind==='movie')body=`<div class="text-[11px] mds-mono mb-2">电影 · 时间点 / 百分比 + 评分</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="1:52:14" value="1:52:14"><input ${inp} placeholder="72%" value="${x.pct}%"></div>`;else if(x.kind==='series')body=`<div class="text-[11px] mds-mono mb-2">剧集 · 季 + 集 + 追更状态</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="S01" value="S${String(x.seasons).padStart(2,'0')}"><input ${inp} placeholder="E05" value="E${String(x.cur).padStart(2,'0')}"></div><div class="flex gap-2 text-[11px]"><span class="mds-chip on">在追</span><span class="mds-chip">完结</span><span class="mds-chip">弃剧</span><span class="mds-chip">待续</span></div>`;else if(x.kind==='music')body=`<div class="text-[11px] mds-mono mb-2">音乐 · 整专循环 / 单曲循环 + 最常曲目</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="循环 42 次" value="${x.loops}"><input ${inp} placeholder="最常：${x.fav}" value="${x.fav}"></div>`;else if(x.kind==='game'){const hasP=x.mainPct!=null;body=`<div class="text-[11px] mds-mono mb-2">记一次游玩 · 谁一起玩 · 时长 · 玩了什么</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="谁一起玩（朋友/搭档/一个人）" value="${x.withWho||''}"><input ${inp} placeholder="本次时长 (h)" value=""><input ${inp} style="grid-column:span 2" placeholder="这次玩了什么 · 如「和女朋友合过树章节」" value=""></div>`+(hasP?`<div class="text-[11px] mds-mono mb-1 mt-1" style="opacity:.7">进度更新（本作有剧情进度）</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="主线 ${x.mainPct}%" value="${x.mainPct}"><input ${inp} placeholder="周目 ${x.plays||1}" value="${x.plays||1}"></div>`:'')+`<div class="flex gap-2 text-[11px]"><span class="mds-chip">未玩</span><span class="mds-chip ${x.state==='在玩'?'on':''}">在玩</span><span class="mds-chip ${x.state==='通关'||x.state==='退坑'?'on':''}">${hasP?'通关':'退坑'}</span><span class="mds-chip">搁置</span></div>`}const el=$('#mProgressBody');if(el)el.innerHTML=body+`<div class="mt-4 flex gap-2"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-progress')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="toast('进度已保存 · L4 已入账 · 重算预计完成日');closeSheet('m-sheet-progress')">保存</button></div>`}
-function mRenderAddKindChips(){const el=$('#mdsAddKindChips');if(!el)return;el.innerHTML=[['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([k,l],i)=>`<button class="mds-chip ${i===0?'on':''}" data-kind="${k}" onclick="mSetAddKind('${k}')">${l}</button>`).join('');mSetAddKind('movie')}
-function mSetAddKind(k){const el=$('#mdsAddKindChips');if(el)el.querySelectorAll('.mds-chip').forEach(b=>b.classList.toggle('on',b.dataset.kind===k));const f=$('#mdsAddKindFields');if(f)f.textContent='类型专属字段：'+{movie:'时长（min）· 制片公司 · IMDb/TMDB ID',series:'季数 · 每季集数 · 电视台/流媒体 · TVMAZE ID',music:'曲目数 · 唱片公司 · MusicBrainz Release ID',game:'平台 · 工作室 · 发行商 · Steam AppID / IGDB ID'}[k]}
-function mAddSave(){const t=$('#mdsAddTitle').value.trim();if(!t){toast('先起个名字');return}MDEMO.unshift({id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear(),creator:$('#mdsAddCreator').value||'未知',cRole:'导演',pub:$('#mdsAddPub').value||'未知',pRole:'制片',state:'想看',pct:0,dur:0,rating:0,tags:[],grp:'',src:'自建',cover:'linear-gradient(135deg,#8a6839,#3e2c1a)'});closeSheet('m-sheet-add');navTo('m-shelf');mRenderShelf();toast('已入影音架')}
+function mRenderAddKindChips(){const el=$('#mdsAddKindChips');if(!el)return;el.innerHTML=[['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([k,l],i)=>`<button class="mds-chip ${i===0?'on':''}" data-kind="${k}" onclick="mSetAddKind('${k}')">${l}</button>`).join('');if(!mAddEditing){mAddCoverImg=null;const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存 · 进入影音架'}mSetAddKind('movie')}
+function mRenderAddCover(){const el=document.getElementById('mdsAddCover');if(!el)return;
+  const t=(document.getElementById('mdsAddTitle')||{}).value||'';const mono=t.trim()?t.trim()[0]:'';
+  el.innerHTML=mAddCoverImg?'<i class="covimg" style="background-image:url(' + mAddCoverImg + ')"></i>':'<span class="covmono">' + mono + '</span>';
+  const del=document.getElementById('mdsAddCoverDel');if(del)del.classList.toggle('hidden',!mAddCoverImg);}
+function mCoverPick(k){const i=document.getElementById('mdsAddCoverFile');if(!i)return;
+  if(k==='camera')i.setAttribute('capture','environment');else i.removeAttribute('capture');i.click();}
+function mCoverDownscale(s,max){return new Promise(function(res){const im=new Image();im.onload=function(){
+  const sc=Math.min(1,max/Math.max(im.width,im.height));const w=Math.max(1,Math.round(im.width*sc)),h=Math.max(1,Math.round(im.height*sc));
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);
+  res({url:cv.toDataURL('image/jpeg',.82),w:w,h:h,sw:im.width,sh:im.height})};im.onerror=function(){res(null)};im.src=s;})}
+async function mCoverApply(s){const r=await mCoverDownscale(s,480);if(!r){toast('图读不出来');return null}
+  mAddCoverImg=r.url;mRenderAddCover();return r;}
+function mCoverRead(f){const i=document.getElementById('mdsAddCoverFile');if(i)i.value='';if(!f)return;const fr=new FileReader();fr.onload=function(){mCoverApply(fr.result)};fr.readAsDataURL(f);}
+function mCoverClear(){mAddCoverImg=null;mRenderAddCover();}
+function mAddEdit(){const x=mCurDetail;if(!x)return;mAddEditing=true;openSheet('m-sheet-add');
+  document.getElementById('mdsAddTitle').value=x.title;document.getElementById('mdsAddCreator').value=x.creator||'';
+  document.getElementById('mdsAddPub').value=x.pub||'';mAddCoverImg=x.coverImg||null;mRenderAddCover();
+  const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存改动';}
+function mSetAddKind(k){const el=$('#mdsAddKindChips');if(el)el.querySelectorAll('.mds-chip').forEach(b=>b.classList.toggle('on',b.dataset.kind===k));const f=$('#mdsAddKindFields');if(f)f.textContent='类型专属字段：'+{movie:'时长（min）· 制片公司 · IMDb/TMDB ID',series:'季数 · 每季集数 · 电视台/流媒体 · TVMAZE ID',music:'曲目数 · 唱片公司 · MusicBrainz Release ID',game:'平台 · 工作室 · 发行商 · Steam AppID / IGDB ID'}[k];mRenderAddCover()}
+function mAddSave(){const t=$('#mdsAddTitle').value.trim();if(!t){toast('先起个名字');return}if(mAddEditing){const cur=mCurDetail;if(cur){cur.title=document.getElementById('mdsAddTitle').value.trim()||cur.title;
+  cur.creator=document.getElementById('mdsAddCreator').value||cur.creator;cur.pub=document.getElementById('mdsAddPub').value||cur.pub;
+  cur.coverImg=mAddCoverImg}
+  mAddEditing=false;mAddCoverImg=null;const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存 · 进入影音架';
+  closeSheet('m-sheet-add');mRenderShelf();if(mCurDetail){navTo('m-detail');mRenderDetail()}toast('改动已保存');return}
+MDEMO.unshift({id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear(),creator:$('#mdsAddCreator').value||'未知',cRole:'导演',pub:$('#mdsAddPub').value||'未知',pRole:'制片',state:'想看',pct:0,dur:0,rating:0,tags:[],grp:'',src:'自建',cover:'linear-gradient(135deg,#8a6839,#3e2c1a)',coverImg:mAddCoverImg});mAddCoverImg=null;mRenderAddCover();closeSheet('m-sheet-add');navTo('m-shelf');mRenderShelf();toast('已入影音架')}
 
 /* ---- 影音游工作台已并入共享记录页 #recMedia（第4 tab）· 无需 renderMedia 追加按钮 ---- */
 

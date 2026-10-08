@@ -191,6 +191,12 @@
 - 行内动作＝标星就地改（**不跳页不弹层**）·删除走 LH-S31 公共确认（取消即不删）；点行＝开 LH-S36 单条复习；四视图与计数在任一筛选下条数必等。
 - 空态两档各说各话（都走虚线，不摆假数据）＝空库「还没有影音笔记 · 点右上＋记一条」／筛空「当前筛选没有笔记」；截图墙无图者如实标「无截图」。
 
+### LH-C19 条目封面位与封面图层（影音游批6 · 2026-10-08 原型定稿·**待过门·未实现**）
+- 原型：`prototype/index-media.html` `#m-sheet-add`（`mRenderAddCover`／`mCoverPick`／`mCoverApply`／`mCovImgHTML`）＋架面 `mCardHTML`。代码（待接）：`features/media/presentation/media_add_sheet.dart`＋`widgets/media_card.dart`·常驻用例 `test/media_add_sheet_test.dart`＋`test/media_shelf_test.dart`＋`test/media_cover_test.dart`·无头闸 `tools/media_b6check.js`。
+- 构成＝录入/编辑弹层顶部**封面行**：缩略位＋「拍照」「相册」「移除」三枚（移除钮仅在有图时现身）；取图两档复用日记那套共享工装（拍照挂 `capture`、相册不挂），**不再往下多弹一层**。
+- 铁口径＝① 选图先降采样（长边钉 480·JPEG .82）再落值，读不出图只提示、不落半个字节；② 无封面＝**色板＋标题首字**回落（首字现算），永不摆假图；③ 图层顺序钉死：封面图 0 < 形态装饰（片名/评分/进度/黑胶盘/卡带）1 < 暗角遮罩 2，四类实物形态一件不摘；④ 编辑态保存＝回写原条目，**不新建重复条目**。
+- 行内只留功能词（拍照／相册／移除），无教学性说明文案。
+
 ## 三、LH-S 弹层类（sheet 家族）
 
 **公共骨架**：showModalBottomSheet · isScrollControlled · 内边距 LTRB(16,14,16,24) · 标题 15 w900 · 行卡=LH-C01+选中描边 accent 2px+✓
