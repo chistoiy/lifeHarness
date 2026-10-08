@@ -718,6 +718,12 @@ tailwind.config = {
       <div id="mListsBody" class="mds-grid"></div>
     </section>
 
+    <!-- ===== 影音游专版 · M-LIST 影音单详情（成员可拖拽·底稿只读·分享长图半屏预览＝批8b 从零补） ===== -->
+    <section id="m-list" class="page mds-desk no-scrollbar">
+      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand" id="mListTitle">影音单</div><button class="mds-vbtn" id="mlEditBtn" onclick="mlRenameOpen()" title="改名"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></div>
+      <div id="mListBody"></div>
+    </section>
+
     <!-- ===== 影音游专版 · M-STAT 全站统计（真实/折算口径 · 年×月×度量×构成 屏内钻取 · 影音游批7 原型先行） ===== -->
     <section id="m-stat" class="page mds-desk no-scrollbar">
       <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音统计</div><button class="mds-vbtn" id="mStatResetBtn" onclick="mStatReset()" title="回到默认"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div>
@@ -812,6 +818,42 @@ tailwind.config = {
         <div class="grabber"></div>
         <div class="mds-title text-[15px] mb-3">排序</div>
         <div id="mSortOpts"></div>
+      </div>
+    </div>
+
+    <!-- ===== 影音游专版 · M-SHEET-MLIST 移入影音单（条目侧唯一入口·已在不重复铺） ===== -->
+    <div id="m-sheet-mlist" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-mlist')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="mds-title text-[15px]">移入影音单</div>
+        <div id="mListPickBody" class="mt-2"></div>
+      </div>
+    </div>
+
+    <!-- ===== 影音游批8b · M-SHEET-MLIST-NEW 新建影音单（名就地写·类型五档 chips） ===== -->
+    <div id="m-sheet-mlist-new" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-mlist-new')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="mds-title text-[15px]">新建影音单</div>
+        <input id="mlNewName" class="inp !py-2 text-sm mt-3 w-full" placeholder="单名" />
+        <div class="flex gap-1.5 mt-3 flex-wrap" id="mlTypeChips"></div>
+        <button id="mlNewGo" class="mds-chip on mt-4" onclick="mlNewGo()">建好并进入</button>
+      </div>
+    </div>
+
+    <!-- ===== 影音游批8b · M-SHEET-SHARE 分享长图（半屏预览＋复制文字版·存图＝模拟＝习惯定式） ===== -->
+    <div id="m-sheet-share" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-share')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="mds-title text-[15px]">分享这张影音单</div>
+        <div class="mt-3" style="max-width:300px;margin-inline:auto">
+          <div class="mds-title text-[13px]" id="mlShareCap"></div>
+          <div class="grid grid-cols-4 gap-1.5 mt-2" id="mlShareGrid"></div>
+          <div class="text-[9.5px] mds-mono mt-2" style="opacity:.55">长图预览＝封面轨道 · 1080 宽出图随 Flutter 批</div>
+        </div>
+        <div class="flex gap-2 mt-4"><span class="mds-chip on" id="mlFmt-txt" onclick="mlFmtPick('txt')">TXT</span><span class="mds-chip" id="mlFmt-md" onclick="mlFmtPick('md')">MD</span></div>
+        <textarea id="mlShareText" class="w-full mt-2 text-[10px] mds-mono" style="min-height:96px;background:transparent;color:inherit;border:1px solid currentColor;border-radius:8px;padding:8px;opacity:.8" readonly></textarea>
+        <div class="flex gap-2 mt-3"><button class="mds-chip" id="mlShareCopy" onclick="mlCopyText()">复制文字版</button><button class="mds-chip" id="mlShareSave" onclick="mlFakeSave()">存图</button></div>
       </div>
     </div>
 
@@ -2791,6 +2833,7 @@ let MDEMO=[
   {id:'mv1',kind:'movie',title:'沙丘 2',sub:'Dune: Part Two',year:2024,creator:'Denis Villeneuve',cRole:'导演',pub:'Legendary',pRole:'制片',state:'在看',pct:72,dur:166,rating:8.6,tags:['科幻','史诗'],grp:'2024 院线',src:'豆瓣',cover:'linear-gradient(160deg,#4f46e5 0%,#1e1b4b 100%)'},
   {id:'mv2',kind:'movie',title:'奥本海默',sub:'Oppenheimer',year:2023,creator:'Christopher Nolan',cRole:'导演',pub:'Universal',pRole:'制片',endedAt:'2026-09-28',state:'看完',pct:100,dur:181,rating:8.9,tags:['传记','历史'],grp:'奥斯卡',src:'IMDb',cover:'linear-gradient(160deg,#7c3aed 0%,#2e1065 100%)'},
   {id:'mv3',kind:'movie',title:'宇宙探索编辑部',year:2023,creator:'孔大山',cRole:'导演',pub:'坏猴子',pRole:'制片',state:'想看',pct:0,dur:118,rating:8.3,tags:['国产','科幻'],grp:'',src:'豆瓣',cover:'linear-gradient(160deg,#0ea5e9 0%,#0c4a6e 100%)'},
+  {id:'mv4',kind:'movie',title:'千与千寻',sub:'千と千尋の神隠し',year:2001,creator:'宫崎骏',cRole:'导演',pub:'东宝',pRole:'制片',endedAt:'2025-08-11',state:'看完',pct:100,dur:125,rating:9.2,tags:['动画','奇幻'],grp:'',src:'豆瓣',cover:'linear-gradient(160deg,#0f766e 0%,#134e4a 100%)'},
   {id:'tv1',kind:'series',title:'漫长的季节',year:2023,creator:'辛爽',cRole:'导演',pub:'腾讯视频',pRole:'流媒体',seasons:1,eps:12,cur:12,airState:'完结',endedAt:'2026-09-19',state:'追完',rating:9.4,tags:['悬疑','国产'],grp:'',src:'豆瓣'},
   {id:'tv2',kind:'series',title:'Severance',year:2022,creator:'Dan Erickson',cRole:'主创',pub:'Apple TV+',pRole:'流媒体',seasons:2,eps:19,cur:14,airState:'在更',state:'在追',rating:8.7,tags:['科幻','职场'],grp:'通勤看',src:'IMDb'},
   {id:'tv3',kind:'series',title:'The Bear',year:2022,creator:'Christopher Storer',cRole:'主创',pub:'FX on Hulu',pRole:'流媒体',seasons:3,eps:28,cur:22,airState:'在更',state:'在追',rating:8.5,tags:['剧情','餐饮'],grp:'',src:'TMDB'},
@@ -3138,7 +3181,230 @@ function mRenderMgr(){
   const vals=mMgrTab==='tags'?[...new Set(MDEMO.flatMap(x=>x.tags||[]))]:[...new Set(MDEMO.map(x=>x[mMgrTab]).filter(Boolean))];
   const b=$('#mMgrBody');if(b)b.innerHTML=vals.map(n=>{const cnt=mMgrTab==='tags'?MDEMO.filter(x=>x.tags?.includes(n)).length:MDEMO.filter(x=>x[mMgrTab]===n).length;return `<div class="flex items-center justify-between py-2 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${n}</span><span class="text-[10px] mds-mono" style="opacity:.55">${cnt} 条 · 点击反查</span></div>`}).join('');
 }
-function mRenderLists(){const L=[{name:'2026 年度影音',auto:'本年度 · 底稿',cnt:32},{name:'通勤看',cnt:8},{name:'通勤听',cnt:12},{name:'周末 4 小时',cnt:5},{name:'奥斯卡 20 部',cnt:20}];const b=$('#mListsBody');if(b)b.innerHTML=L.map(x=>`<div class="p-3" style="background:rgba(255,255,255,.55);border-radius:10px;color:var(--mds-ink)"><div class="mds-title text-[13px]">${x.name}</div><div class="text-[10px] mds-mono mt-1" style="opacity:.65">${x.auto?x.auto+' · ':''}${x.cnt} 条</div></div>`).join('')}
+/* ================= 影音游批8b · 影音单两面（m-lists 重做＋m-list 从零补） =================
+ * 六路＝五种手动单（片单/剧单/歌单/游戏单/混合单）＋年度底稿（当年完结档现算）。
+ * 三条口径在算面钉死：① 年度底稿成员＝完结档（看完/追完/通关）且 endedAt 落在本年，动态求得、
+ * 不写库（真机＝media_items.state IN 完结档 AND ended_at 在本年，零新表列）；
+ * ② 拖拽改的序只对**手动单**落库（media_list_items.pos），底稿无 pos 可写；
+ * ③ 分享形态照习惯模块定式＝半屏预览＋复制文字版（存图一律「模拟」，不铺 canvas 桌面拼贴）。 */
+(function () {
+  const _done = ['看完', '追完', '通关'];
+  MDEMO.forEach(function (x) {
+    if (_done.indexOf(x.state) >= 0 && !x.endedAt) x.endedAt = '2026-09-15';
+  });
+})();
+const M_STAT_TODAY=[2026,10,9];
+const ML_YEAR = String(M_STAT_TODAY[0]);
+const ML_DONE = ['看完', '追完', '通关'];
+const MLS = [
+  { id: 'auto', name: ML_YEAR + ' 影音', type: 'year', coverStyle: 'desk', note: '', members: null },
+  { id: 'l1', name: '通勤看', type: 'movie', coverStyle: 'desk', note: '单程 40 分钟能吃下的', members: ['mv1', 'tv2', 'mv3'] },
+  { id: 'l2', name: '通勤听', type: 'music', coverStyle: 'spine', note: '', members: ['mu1', 'mu2', 'mu3', 'mu4'] },
+  { id: 'l3', name: '周末 4 小时', type: 'game', coverStyle: 'desk', note: '两人一下午', members: ['gm1', 'gm3'] },
+  { id: 'l4', name: '奥斯卡 20 部', type: 'movie', coverStyle: 'wall', note: '', members: ['mv2', 'mv3', 'mv1'] },
+  { id: 'l5', name: '跨类混着看', type: 'mix', coverStyle: 'spine', note: '四类同屏', members: ['mv1', 'tv1', 'mu1', 'gm1'] },
+];
+const ML_TYPE = { movie: '片单', series: '剧单', music: '歌单', game: '游戏单', mix: '混合单', year: '年度底稿' };
+let mCurList = null;
+let mShareFmt = 'txt';
+function mlOf(id) { return MLS.find(function (x) { return x.id === id; }) || null; }
+function mlYearMembers() {
+  return MDEMO.filter(function (x) {
+    return ML_DONE.indexOf(x.state) >= 0 && String(x.endedAt || '').slice(0, 4) === ML_YEAR;
+  })
+    .map(function (x) { return { x: x, k: String(x.endedAt) }; })
+    .sort(function (a, b) { return b.k.localeCompare(a.k) || a.x.id.localeCompare(b.x.id); })
+    .map(function (o) { return o.x.id; });
+}
+function mlMembers(L) { return L.type === 'year' ? mlYearMembers() : (L.members || []).filter(function (id) { return !!MDEMO.find(function (x) { return x.id === id; }); }); }
+function mlCount(id) { const L = mlOf(id); return L ? mlMembers(L).length : 0; }
+function mlSumMin(ids) {
+  return ids.map(function (i) { return MDEMO.find(function (x) { return x.id === i; }); })
+    .filter(function (x) { return !!x; })
+    .reduce(function (a, x) { return a + (x.dur || 0); }, 0);
+}
+function mlTypeCls(t) { return t === 'year' ? 'b' : (t === 'mix' ? 'w' : 'm'); }
+function mlNavDetail(id) { mCurList = id; navTo('m-list'); }
+function mRenderLists() {
+  const b = document.getElementById('mListsBody');
+  if (!b) return;
+  b.innerHTML = MLS.map(function (L) {
+    const ids = mlMembers(L), m = mlSumMin(ids);
+    return '<div class="p-3 mlrow" data-ml="' + L.id + '" data-mlname="' + L.name + '" onclick="mlNavDetail(\'' + L.id + '\')" style="background:rgba(255,255,255,.55);border-radius:10px;color:var(--mds-ink);cursor:pointer">'
+      + '<div class="flex items-center gap-2"><div class="mds-title text-[13px]" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + L.name + '</div>'
+      + '<span class="mltype" data-mlt="' + L.id + '" style="font-size:9px;padding:1px 6px;border-radius:6px;border:1px solid currentColor;opacity:.7">' + ML_TYPE[L.type] + '</span></div>'
+      + '<div class="text-[10px] mds-mono mt-1" style="opacity:.65">'
+      + (L.type === 'year' ? '本年度 · ' : '') + '<span data-mlcnt="' + L.id + '">' + ids.length + ' 条</span>'
+      + (m ? ' · ' + (m / 60).toFixed(1) + ' h' : '') + '</div>'
+      + (L.note ? '<div class="text-[10px] mt-1" style="opacity:.5">' + L.note + '</div>' : '')
+      + '</div>';
+  }).join('');
+}
+function mRenderList() {
+  const L = mlOf(mCurList);
+  const b = document.getElementById('mListBody');
+  if (!b) return;
+  const _t = document.getElementById('mListTitle'); if (_t) _t.textContent = L.name;
+  const _e = document.getElementById('mlEditBtn'); if (_e) _e.style.display = L.type === 'year' ? 'none' : '';
+  if (!L) { b.innerHTML = '<div class="text-[11px] py-4" style="opacity:.55">影音单不在了</div>'; return; }
+  const t = document.getElementById('mListTitle');
+  if (t) t.textContent = L.name;
+  const ids = mlMembers(L);
+  const cell = function (id) {
+    const x = MDEMO.find(function (k) { return k.id === id; });
+    const c = MD_COV[(MD_CI && MD_CI[id]) || 0];
+    return '<div class="flex items-center gap-3 py-2 mlmem" draggable="' + (L.type === 'year' ? 'false' : 'true') + '" data-mid="' + id + '" ondragstart="mlDrag(event,\'' + id + '\')" ondragover="event.preventDefault()" ondrop="mlDrop(event,\'' + id + '\')">'
+      + '<div style="width:34px;height:46px;border-radius:5px;flex:none;background:linear-gradient(160deg,' + c[0] + ',' + c[1] + ');overflow:hidden">' + mCovImgHTML(x) + '</div>'
+      + '<div style="min-width:0;flex:1"><div class="mds-title text-[12.5px]">' + x.title + '</div>'
+      + '<div class="text-[10px] mds-mono" style="opacity:.6">' + x.kind + ' · ' + x.state
+      + (x.endedAt ? ' · ' + x.endedAt : '') + '</div></div>'
+      + (L.type === 'year'
+        ? '<span class="text-[9.5px]" style="opacity:.5">底稿只读</span>'
+        : '<button class="mds-chip" style="font-size:9.5px;padding:2px 8px" onclick="mlRemove(\'' + id + '\')">移出</button>')
+      + '</div>';
+  };
+  const sum = mlSumMin(ids);
+  b.innerHTML = ids.map(cell).join('')
+    + (ids.length ? '' : '<div class="py-4 text-[11px]" style="border:1px dashed currentColor;border-radius:10px;opacity:.55;text-align:center">这张单还是空的 · 点下面添加</div>')
+    + '<div class="flex gap-2 mt-4 flex-wrap">'
+    + (L.type === 'year' ? '' : '<button class="mds-chip" id="ml-add-btn" onclick="openSheet(\'m-sheet-mlist\')">＋ 添加条目</button><button class="mds-chip" id="ml-export-btn" onclick="mlExport(\'md\')">导出 MD</button>')
+    + '<button class="mds-chip" id="ml-share-btn" onclick="mlShareOpen()">分享长图</button>'
+    + '</div>'
+    + '<div class="text-[10px] mds-mono mt-3" style="opacity:.6" id="mlStatLine" data-mlsum="' + sum + '">' + ids.length + ' 条 · 合计 ' + (sum / 60).toFixed(1) + ' h</div>';
+}
+let mlDragId = null;
+function mlDrag(e, id) { mlDragId = id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }
+function mlDrop(e, into) {
+  e.preventDefault();
+  const L = mlOf(mCurList);
+  if (!L || L.type === 'year' || !mlDragId || mlDragId === into) return;
+  const arr = L.members.slice();
+  const f = arr.indexOf(mlDragId), t = arr.indexOf(into);
+  if (f < 0 || t < 0) return;
+  arr.splice(f, 1);
+  arr.splice(t, 0, mlDragId);
+  L.members = arr;
+  mRenderList();
+}
+function mlRemove(id) {
+  const L = mlOf(mCurList);
+  if (!L || L.type === 'year') return;
+  L.members = L.members.filter(function (x) { return x !== id; });
+  mRenderList();
+}
+function mlCreate(name, type) {
+  const id = 'l' + (Date.now() % 100000);
+  MLS.push({ id: id, name: name, type: type, coverStyle: 'desk', note: '', members: [] });
+  closeSheet('m-sheet-mlist-new');
+  mlNavDetail(id);
+}
+function mRenderListPickSheet() {
+  const el = document.getElementById('mListPickBody');
+  if (!el) return;
+  const cur = mlOf(mCurList);
+  const rows = MLS.filter(function (L) { return L.type !== 'year' && (!cur || !L || L.type === 'mix' || cur.type === L.type || true); });
+  el.innerHTML = (rows.length ? rows : MLS.filter(function (L) { return L.type !== 'year'; })).map(function (L) {
+    const has = (L.members || []).indexOf((mCurDetail || {}).id) >= 0;
+    return '<div class="py-2.5 flex items-center gap-2 text-[12px]" data-pick="' + L.id + '" onclick="mlToggleMember(\'' + L.id + '\')">'
+      + '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + L.name + '</span>'
+      + '<span class="text-[9.5px]" style="opacity:.55">' + ML_TYPE[L.type] + ' · ' + (L.members || []).length + ' 条</span>'
+      + '<span style="margin-left:auto;font-size:10px" data-pickmark="' + L.id + '">' + (has ? '已在单内' : '加入') + '</span></div>';
+  }).join('') + '<div class="py-2.5 text-[12px]" style="border-top:1px dashed currentColor;opacity:.8" onclick="closeSheet(\'m-sheet-mlist\');openSheet(\'m-sheet-mlist-new\')">＋ 新建影音单</div>';
+}
+function mlToggleMember(listId) {
+  const L = mlOf(listId), id = (mCurDetail || {}).id;
+  if (!L || L.type === 'year' || !id) return;
+  const arr = L.members || [];
+  L.members = arr.indexOf(id) >= 0 ? arr.filter(function (x) { return x !== id; }) : arr.concat([id]);
+  mRenderListPickSheet();
+}
+function mRenderListNewSheet() {
+  const el = document.getElementById('mlTypeChips');
+  if (!el || el.dataset.init) return;
+  el.dataset.init = '1';
+  el.innerHTML = ['movie', 'series', 'music', 'game', 'mix'].map(function (k) {
+    return '<span class="mds-chip mln-type' + (k === 'movie' ? ' on' : '') + '" data-newtype="' + k + '" onclick="mlPickNewType(\'' + k + '\')">' + ML_TYPE[k] + '</span>';
+  }).join('');
+}
+let mlNewType = 'movie';
+function mlPickNewType(k) {
+  mlNewType = k;
+  document.querySelectorAll('.mln-type').forEach(function (e) { e.classList.toggle('on', e.getAttribute('data-newtype') === k); });
+}
+function mlNewGo() {
+  const inp = document.getElementById('mlNewName');
+  const v = (inp && inp.value || '').trim();
+  if (!v) { toast('请先写单名'); return; }
+  mlCreate(v, mlNewType);
+}
+function mlShareText() {
+  const L = mlOf(mCurList);
+  const ids = L ? mlMembers(L) : [];
+  return [L ? L.name : '', L && L.type === 'year' ? ML_YEAR + ' 年度底稿 · 完结档动态求得' : (L ? ML_TYPE[L.type] : ''),
+    ids.map(function (id, i) {
+      const x = MDEMO.find(function (k) { return k.id === id; });
+      return (i + 1) + '. ' + x.title + ' · ' + x.kind + ' · ' + x.state + (x.endedAt ? ' · ' + x.endedAt : '');
+    }).join('\n'),
+    '共 ' + ids.length + ' 条 · 合计 ' + (mlSumMin(ids) / 60).toFixed(1) + ' h'].join('\n');
+}
+function mlShareMd() {
+  const L = mlOf(mCurList);
+  const ids = L ? mlMembers(L) : [];
+  return ['# ' + (L ? L.name : ''), '> ' + ids.length + ' 条 · 合计 ' + (mlSumMin(ids) / 60).toFixed(1) + ' h',
+    '', '| 条目 | 类型 | 状态 |', '| --- | --- | --- |',
+    ids.map(function (id) {
+      const x = MDEMO.find(function (k) { return k.id === id; });
+      return '| ' + x.title + ' | ' + x.kind + ' | ' + x.state + ' |';
+    }).join('\n')].join('\n');
+}
+function mlRenameOpen() {
+  const L = mlOf(mCurList);
+  if (!L || L.type === 'year') return;
+  const t = document.getElementById('mListTitle');
+  if (!t || t.querySelector('input')) return;
+  t.innerHTML = '<input id="mlRenameIn" value="' + L.name + '" style="width:100%;text-align:center" />';
+  const inp = document.getElementById('mlRenameIn'); inp.focus(); inp.select();
+  const save = function () {
+    const v = inp.value.trim();
+    if (v && v !== L.name) { L.name = v; toast('单名已改'); }
+    t.textContent = L.name;
+    mRenderLists();
+  };
+  inp.addEventListener('blur', save);
+  inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { inp.removeEventListener('blur', save); save(); } });
+}
+function mlShareOpen() { mShareFmt = 'txt'; mRenderShareSheet(); openSheet('m-sheet-share'); }
+function mRenderShareSheet() {
+  const L = mlOf(mCurList);
+  if (!L) return;
+  const ids = mlMembers(L);
+  const grid = document.getElementById('mlShareGrid');
+  if (grid) {
+    grid.innerHTML = ids.map(function (id) {
+      const x = MDEMO.find(function (k) { return k.id === id; });
+      const c = MD_COV[(MD_CI && MD_CI[id]) || 0];
+      return '<div style="aspect-ratio:2/3;border-radius:5px;background:linear-gradient(160deg,' + c[0] + ',' + c[1] + ');overflow:hidden">' + mCovImgHTML(x) + '</div>';
+    }).join('');
+  }
+  const cap = document.getElementById('mlShareCap');
+  if (cap) cap.textContent = L.name + ' · ' + ids.length + ' 条';
+  const txt = document.getElementById('mlShareText');
+  if (txt) txt.value = mShareFmt === 'md' ? mlShareMd() : mlShareText();
+  ['txt', 'md'].forEach(function (f) {
+    const el = document.getElementById('mlFmt-' + f);
+    if (el) el.classList.toggle('on', f === mShareFmt);
+  });
+}
+function mlFmtPick(f) { mShareFmt = f; mRenderShareSheet(); }
+function mlCopyText() {
+  const el = document.getElementById('mlShareText');
+  if (!el) return;
+  var okc = false;
+  try { el.select(); okc = document.execCommand('copy'); } catch (e) { okc = false; }
+  toast(okc ? '文字版已可粘贴' : '浏览器不允许直接写剪贴板·请长按文本框复制');
+}
+function mlFakeSave() { toast('存图为模拟 · 真图随 Flutter 批接'); }
+function mlExport(f) { mShareFmt = f; mRenderShareSheet(); openSheet('m-sheet-share'); }
 /* ================= 影音游批7 · 全站统计（m-stat）＋单条目轨迹（m-sheet-track） =================
  * 读数全部现算，无 Math.random：演示历史 MHIST 由固定种子生成（真机侧＝media_sessions 全表聚合，零迁移）。
  * 四条口径＝工单 §0（2026-10-09 产品四问四答）：屏内「真实/折算」切换（＝media.speedFold 的可见表达，默认真实）·
@@ -3146,7 +3412,6 @@ function mRenderLists(){const L=[{name:'2026 年度影音',auto:'本年度 · �
  * 轨迹＝半屏弹层（与阅读侧同形，只读，改与删仍走批4 计时明细整屏）。
  * 算不出／没记录一律虚线整行不出现，不编数。
  */
-const M_STAT_TODAY=[2026,10,9];
 const MKIND_COLOR={movie:'#c9932a',series:'#2c3a54',music:'#8a6839',game:'#a89e8c'};
 const M_METRICS=[['min','时长'],['cnt','次数'],['rate','平均评分']];
 const M_HOURS=[['dawn','凌晨',0,5],['am','上午',6,11],['pm','午后',12,16],['eve','傍晚',17,20],['night','深夜',21,23]];
@@ -3434,7 +3699,7 @@ function mTimerScreenTap(){if(mTimerOn){mTimerEnd()}else{mTimerBegin(mCurDetail|
 function mTimerGoBtnSync(){const g=$('#mdsTimerGoBtn');if(g)g.textContent=mTimerOn?'■ 结束':'▶ 开始'}
 function mRenderImport(){const src=['豆瓣','IMDb','TMDB','TVMAZE','MusicBrainz','RateYourMusic','Discogs','Steam','IGDB','B 站','网易云','Spotify','Letterboxd'];const b=$('#mImportBody');if(b)b.innerHTML=src.map(s=>`<div class="flex items-center justify-between py-2.5 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${s}</span><button class="mds-chip" onclick="toast('从 ${s} 导入（演示）')">导入</button></div>`).join('')+'<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="toast(\'粘贴文本自动识别（演示）\')">粘贴文本</button><button class="mds-chip">上传 CSV</button><button class="mds-chip">扫描 Steam 库</button></div>'}
 function mRenderSortSheet(){const el=$('#mSortOpts');if(el)el.innerHTML=MSRT.map(k=>`<div class="py-2 flex justify-between text-[12px]" onclick="mSortKey='${k}';mRenderShelf();closeSheet('m-sheet-sort')"><span>${{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]}</span><span style="opacity:.6">${mSortKey===k?'●':''}</span></div>`).join('')}
-function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"closeSheet('m-sheet-ops');mTrackOpen()"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
+function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"closeSheet('m-sheet-ops');openSheet('m-sheet-mlist')"],['影音轨迹',"closeSheet('m-sheet-ops');mTrackOpen()"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
 function mRenderProgressSheet(){const x=mCurDetail||MDEMO[0];let body='';const inp='class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink);border-color:rgba(0,0,0,.06)"';if(x.kind==='movie')body=`<div class="text-[11px] mds-mono mb-2">电影 · 时间点 / 百分比 + 评分</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="1:52:14" value="1:52:14"><input ${inp} placeholder="72%" value="${x.pct}%"></div>`;else if(x.kind==='series')body=`<div class="text-[11px] mds-mono mb-2">剧集 · 季 + 集 + 追更状态</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="S01" value="S${String(x.seasons).padStart(2,'0')}"><input ${inp} placeholder="E05" value="E${String(x.cur).padStart(2,'0')}"></div><div class="flex gap-2 text-[11px]"><span class="mds-chip on">在追</span><span class="mds-chip">完结</span><span class="mds-chip">弃剧</span><span class="mds-chip">待续</span></div>`;else if(x.kind==='music')body=`<div class="text-[11px] mds-mono mb-2">音乐 · 整专循环 / 单曲循环 + 最常曲目</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="循环 42 次" value="${x.loops}"><input ${inp} placeholder="最常：${x.fav}" value="${x.fav}"></div>`;else if(x.kind==='game'){const hasP=x.mainPct!=null;body=`<div class="text-[11px] mds-mono mb-2">记一次游玩 · 谁一起玩 · 时长 · 玩了什么</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="谁一起玩（朋友/搭档/一个人）" value="${x.withWho||''}"><input ${inp} placeholder="本次时长 (h)" value=""><input ${inp} style="grid-column:span 2" placeholder="这次玩了什么 · 如「和女朋友合过树章节」" value=""></div>`+(hasP?`<div class="text-[11px] mds-mono mb-1 mt-1" style="opacity:.7">进度更新（本作有剧情进度）</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="主线 ${x.mainPct}%" value="${x.mainPct}"><input ${inp} placeholder="周目 ${x.plays||1}" value="${x.plays||1}"></div>`:'')+`<div class="flex gap-2 text-[11px]"><span class="mds-chip">未玩</span><span class="mds-chip ${x.state==='在玩'?'on':''}">在玩</span><span class="mds-chip ${x.state==='通关'||x.state==='退坑'?'on':''}">${hasP?'通关':'退坑'}</span><span class="mds-chip">搁置</span></div>`}const el=$('#mProgressBody');if(el)el.innerHTML=body+`<div class="mt-4 flex gap-2"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-progress')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="toast('进度已保存 · L4 已入账 · 重算预计完成日');closeSheet('m-sheet-progress')">保存</button></div>`}
 function mRenderAddKindChips(){const el=$('#mdsAddKindChips');if(!el)return;el.innerHTML=[['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([k,l],i)=>`<button class="mds-chip ${i===0?'on':''}" data-kind="${k}" onclick="mSetAddKind('${k}')">${l}</button>`).join('');if(!mAddEditing){mAddCoverImg=null;const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存 · 进入影音架'}mSetAddKind('movie')}
 function mRenderAddCover(){const el=document.getElementById('mdsAddCover');if(!el)return;
@@ -3467,13 +3732,13 @@ const mdsRec={id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear
 /* ---- 影音游工作台已并入共享记录页 #recMedia（第4 tab）· 无需 renderMedia 追加按钮 ---- */
 
 /* ---- setPage 钩子：m-* 子页渲染（工作台在 #recMedia 由 switchRecord 钩子驱动） ---- */
-;(function(){const old=window.setPage;if(typeof old==='function'){window.setPage=function(p){old.apply(this,arguments);const map={'m-shelf':mRenderShelf,'m-detail':mRenderDetail,'m-info':mRenderInfo,'m-sesslog':mRenderSess,'m-notes':mRenderNotes,'m-mgr':mRenderMgr,'m-lists':mRenderLists,'m-stat':mRenderStat,'m-goal':mRenderGoal,'m-set':mRenderSet,'m-import':mRenderImport};const f=map[p];if(f)try{f()}catch(e){}};setPage=window.setPage}})();
+;(function(){const old=window.setPage;if(typeof old==='function'){window.setPage=function(p){old.apply(this,arguments);const map={'m-shelf':mRenderShelf,'m-detail':mRenderDetail,'m-info':mRenderInfo,'m-sesslog':mRenderSess,'m-notes':mRenderNotes,'m-mgr':mRenderMgr,'m-lists':mRenderLists,'m-list':mRenderList,'m-stat':mRenderStat,'m-goal':mRenderGoal,'m-set':mRenderSet,'m-import':mRenderImport};const f=map[p];if(f)try{f()}catch(e){}};setPage=window.setPage}})();
 
 /* ---- switchRecord 钩子：切到影音游 tab 即渲染工作台（今日环/入口条/桌面俯瞰） ---- */
 ;(function(){const old=window.switchRecord;if(typeof old==='function'){window.switchRecord=function(k){old.apply(this,arguments);if(k==='media'){try{mRenderHub()}catch(e){}}};switchRecord=window.switchRecord}})();
 
 /* ---- openSheet 钩子：m-sheet 弹层渲染 ---- */
-;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-track':mRenderTrackSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
+;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-track':mRenderTrackSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips,'m-sheet-mlist':mRenderListPickSheet,'m-sheet-mlist-new':mRenderListNewSheet,'m-sheet-share':mRenderShareSheet};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
 
 /* ---- 专版落地：影音架为本版首页（记录页工作台 tab 属共享面，回灌走变更单·2026-10-07 批2 第一刀） ---- */
 try{ if(typeof stack!=='undefined')stack.length=0; navTab('m-shelf'); }catch(e){ console.error('media landing failed',e); }
