@@ -151,6 +151,9 @@ class SnapshotService {
       outDirOverride: dir,
       excludeTables: excluded,
       nameTag: 'sync',
+      // 批6b：健康的「随本地备份」开关只管本地包，不扩到云端——
+      // 同步排除另有 `care.syncExcluded` 那枚，健康侧目前没有同步开关。
+      applyHealthExclusion: false,
     );
     final pruned = await pruneSnapshots(keepN: n, protect: res.file.path);
     return SyncSnapshotResult(file: res.file, manifest: res.manifest, pruned: pruned);

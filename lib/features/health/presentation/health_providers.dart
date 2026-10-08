@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
@@ -23,6 +24,12 @@ final healthSettingsProvider =
 
 /// 时间源缝：测试固定「今天」，日期窗口/漏服判定都按单一 now 实算（禁写死日期）。
 final healthClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// 导出落点（批6b）：生产＝应用文档目录（与记账导出同一落点，备份附件面已含 `exports/`）；
+/// 测试注入临时目录——widget 测试里真异步 I/O 与 plugin 通道都不能碰（MissingPluginException
+/// 在 FakeAsync 下表现为用例永不完成）。
+final healthExportDirProvider = Provider<Future<String> Function()>((ref) => () async =>
+    (await getApplicationDocumentsDirectory()).path);
 
 final healthTickProvider = StateProvider<int>((ref) => 0);
 void healthTouch(WidgetRef ref) => ref.read(healthTickProvider.notifier).state++;

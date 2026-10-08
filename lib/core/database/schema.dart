@@ -385,6 +385,8 @@ class DbSchema {
   static const String tDoubanMeta = r.tDoubanMeta;  // G5: read.dart
   static const String tAiCalls = a.tAiCalls;  // G5: ai.dart
   static const List<String> careTables = e.careTables;  // G5: care.dart
+  // 健康十四表整份清单（批6b 备份排除用；表侧唯一登记面，别在各模块手抄表名）。
+  static const List<String> healthTables = hd.healthTables;
   static const int ledgerCatOtherExpense = l.ledgerCatOtherExpense;  // G5: ledger.dart
   static const int ledgerCatOtherIncome = l.ledgerCatOtherIncome;  // G5: ledger.dart
   static const List<String> categorySeed = c.categorySeed;  // G5: core.dart

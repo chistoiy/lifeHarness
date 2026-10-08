@@ -90,6 +90,7 @@ class _FakeBackupService extends BackupService {
     List<String> excludeTables = const [],
     String? outDirOverride,
     String? nameTag,
+    bool applyHealthExclusion = true,
   }) async {
     exportCalls++;
     if (gate != null) await gate!.future;

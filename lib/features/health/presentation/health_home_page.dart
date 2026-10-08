@@ -39,7 +39,7 @@ class HealthHomePage extends ConsumerWidget {
   static const Key kCardWater = ValueKey('health-card-water');
   static const Key kCardSleep = ValueKey('health-card-sleep');
 
-  /// 落点屏没就绪就不渲染：直达行的趋势/设置＝批 6。
+  /// 落点屏没就绪就不渲染（批6b 起直达行九枚已齐，此约束留给后续新增枚）。
   static const Key kCellEx = ValueKey('health-cell-ex');
   static const Key kCardEx = ValueKey('health-card-ex');
   static const Key kCardMed = ValueKey('health-card-med');
@@ -424,6 +424,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
       ('symptom', Icons.coronavirus_outlined, '症状', '/health/symptom'),
       ('report', Icons.description_outlined, '报告', '/health/report'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
+      ('settings', Icons.settings_outlined, '设置', '/health/settings'),
     ];
     return Container(
       key: HealthHomePage.kEntryAll,

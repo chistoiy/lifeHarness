@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/schema/health.dart' as h;
 import '../../../core/logging/app_log.dart';
 import '../domain/health_calc.dart';
+import '../domain/health_export.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart';
 import '../domain/health_trend.dart';
@@ -537,6 +538,85 @@ class HealthRepository {
       ));
       cursor = cursor.add(const Duration(days: 1));
     }
+    return out;
+  }
+
+  // ==================== 导出（批6b） ====================
+
+  /// 健康流水导出取数：五类**一次取齐**后按日期升序合并（类型内序固定喝水·睡眠·运动·身体·用药，
+  /// 同一天多类不至于每次导出换序——文件是要被人拿去对账的）。
+  ///
+  /// · 用药侧 `includeArchived: true` 且流水读侧不过滤＝归档档案的历史打卡照样进流水（批5 §2 偏离②）；
+  /// · **写公制原值**：kg/km/分钟，屏上单位切换不参与导出（§五.10，同一列出现两种单位就没法再读）；
+  /// · 只出「有行的日子」——导出不是热力格，缺记录日不占位、也不补 0。
+  Future<List<HealthExportRow>> exportRows(int profileId, String from, String to) async {
+    final water = await waterRange(profileId, from, to);
+    final sleep = await sleepRange(profileId, from, to);
+    final ex = await exerciseRange(profileId, from, to);
+    final body = await bodyRange(profileId, from, to);
+    final drugs = await this.drugs(profileId, includeArchived: true);
+    final nameOf = {for (final d in drugs) d.id: d.name};
+    final logRows = await db.query(h.tHealthDrugLog,
+        where: 'profile_id=? AND date>=? AND date<=?',
+        whereArgs: [profileId, from, to],
+        orderBy: 'date ASC, time ASC');
+
+    final out = <HealthExportRow>[
+      for (final w in water)
+        (date: w.date, kind: '喝水', value: '${w.cups} 杯', detail: '', note: ''),
+      for (final s in sleep)
+        (
+          date: s.date,
+          kind: '睡眠',
+          value: '${s.durationMin} 分钟',
+          detail: [
+            '入睡 ${s.bedTime}',
+            '醒 ${s.wakeTime}',
+            if (s.deepMin != null || s.lightMin != null || s.remMin != null || s.awakeMin != null)
+              '深${s.deepMin ?? 0} 浅${s.lightMin ?? 0} REM${s.remMin ?? 0} 醒${s.awakeMin ?? 0}',
+          ].join(' · '),
+          note: s.quality ?? '',
+        ),
+      for (final e in ex)
+        (
+          date: e.date,
+          kind: '运动',
+          value: '${e.durationMin} 分钟',
+          detail: [
+            e.type,
+            if (e.distanceKm != null) '${e.distanceKm} km',
+            if (e.paceSec != null) paceLabel(e.paceSec),
+            if (e.kcal != null) '${e.kcal} kcal',
+          ].join(' · '),
+          note: e.note ?? '',
+        ),
+      for (final b in body)
+        (
+          date: b.date,
+          kind: '身体',
+          value: b.kg == null ? '—' : '${b.kg} kg',
+          detail: [
+            if (b.heightCm != null) '身高 ${b.heightCm} cm',
+            if (b.fatPct != null) '体脂 ${b.fatPct} %',
+            if (b.waistCm != null) '腰 ${b.waistCm}',
+            if (b.hipCm != null) '臀 ${b.hipCm}',
+            if (b.neckCm != null) '颈 ${b.neckCm}',
+          ].join(' · '),
+          note: '',
+        ),
+      for (final r in logRows)
+        (
+          date: r['date'] as String,
+          kind: '用药',
+          value: r['state'] == 'taken' ? '已服' : '跳过',
+          detail: nameOf[r['drug_id'] as int] ?? '已删除档案',
+          note: (r['note'] as String?) ?? '',
+        ),
+    ]..sort((a, b) {
+        final d = a.date.compareTo(b.date);
+        if (d != 0) return d;
+        return exportKindOrder.indexOf(a.kind).compareTo(exportKindOrder.indexOf(b.kind));
+      });
     return out;
   }
 

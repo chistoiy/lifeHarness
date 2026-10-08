@@ -6,6 +6,7 @@ import 'health_goals_page.dart';
 import 'health_home_page.dart';
 import 'health_med_page.dart';
 import 'health_report_page.dart';
+import 'health_settings_page.dart';
 import 'health_sleep_page.dart';
 import 'health_symptom_page.dart';
 import 'health_trend_page.dart';
@@ -66,5 +67,10 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/trend',
     builder: (_, _) => const HealthTrendPage(),
+  ),
+  // 健康设置（原型 p-hSet · 批6b）：单位/换算/提醒时刻＋本地备份开关＋流水导出 CSV·JSON。
+  GoRoute(
+    path: '/health/settings',
+    builder: (_, _) => const HealthSettingsPage(),
   ),
 ];

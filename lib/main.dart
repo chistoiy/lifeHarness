@@ -30,6 +30,7 @@ import 'features/care/data/care_repository.dart';
 import 'features/care/presentation/care_notify.dart';
 import 'features/habit/data/habit_repository.dart';
 import 'features/habit/domain/habit_calc.dart';
+import 'features/health/data/health_settings.dart';
 import 'features/ledger/data/ledger_repository.dart';
 import 'features/ledger/presentation/ledger_notify.dart';
 import 'features/read/data/isbn_enrich.dart';
@@ -189,6 +190,10 @@ Future<void> main() async {
     exportDir: () => backupExportDir,
     db: () => AppDatabase.instance.open(),
     closeDb: AppDatabase.instance.close,
+    // 批6b 组合根接线：健康的「随本地备份」开关（core 不得 import features，
+    // 形状照下方 SnapshotService 的 careExcluded）。关掉时 health_* 十四表整模块
+    // 不进 .lhbak；只管本地包，同步快照那条腿自己传 applyHealthExclusion:false。
+    healthExcluded: () => !HealthSettings(prefs).includeInBackup(),
     attachDirs: [
       p.join(docsPath, 'note_images'),
       p.join(docsPath, 'book_covers'),

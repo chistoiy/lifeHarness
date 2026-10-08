@@ -104,6 +104,7 @@ class BackupService {
     this.attachRootDirs = const [],
     this.closeDb,
     this.prefs,
+    this.healthExcluded,
   });
 
   /// 应用导出目录（生产 = `<docs>/backup`，测试 = 临时目录）。
@@ -133,6 +134,16 @@ class BackupService {
   /// 仅用于记录「另存到…」上次成功目标提示串（可空 = 测试不关心）。
   final SharedPreferences? prefs;
 
+  /// 健康模块「随本地备份」的反向读取器（批6b · 需求 176 行，形状照组合根给
+  /// `SnapshotService.careExcluded` 的那枚）：返回 true＝健康十四表不进本地包。
+  /// core 不得 import features，所以这里只吃函数，由 `main.dart` 接
+  /// `HealthSettings.includeInBackup()`；null＝不启用（测试与旧调用侧行为不变）。
+  ///
+  /// 只管**本地备份**：同步快照那条腿显式关掉这枚（`applyHealthExclusion: false`），
+  /// 因为「本地不进包」与「上不上云」是两件事——云端另有 `care.syncExcluded` 的形，
+  /// 健康侧目前没有对应的同步开关。
+  final bool Function()? healthExcluded;
+
   // ---- 可替换对话框钩子（模式照 LhBak.snapshotFactory）----
 
   /// 「保存为」系统弹层实现（生产 = 自研 `lh/saf` 通道，SAF「创建文档」）。
@@ -158,12 +169,30 @@ class BackupService {
   /// 上次「另存到…」成功目标（仅展示用）。
   String? get lastSaveHint => prefs?.getString(kBackupLastSaveHintKey);
 
+  /// 健康排除读取兜底（与 `SnapshotService._careExcludedSafe` **反向**钉死）：
+  /// 读取失败按 **false**（＝照常含进包）＋ warn。
+  /// 理由：本地包少一张表＝用户以为备份了却没备到（不可逆的数据面缺口）；
+  /// 含进去只是本机多存一份，随时能再关掉。同步那条腿的兜底之所以取反，
+  /// 是因为它多传＝隐私外流，两害不同级。
+  bool _healthExcludedSafe() {
+    final f = healthExcluded;
+    if (f == null) return false;
+    try {
+      return f();
+    } catch (e) {
+      AppLog.add('健康备份开关读取失败，照常含进包：$e', level: LhLevel.warn);
+      return false;
+    }
+  }
+
   /// 导出备份：默认全量（含呵护表——红线 7 排除的是同步不是备份）。
   ///
   /// - [withLogs]：随包 [FileLogSink.dayFiles] 全部落盘日志（含分卷）。
   /// - [withAttachments]：随包 [attachDirs] 清单目录。
   /// - [passphrase]：非空 = AES-GCM 口令加密档。
   /// - [excludeTables]/[outDirOverride]：批4 SnapshotService 复用于产同步快照。
+  /// - [applyHealthExclusion]：false＝无视健康本地备份开关（同步快照那条腿用，
+  ///   见 `SnapshotService.build` 的注释）。
   /// - [nameTag]：非空时改名 `<nameTag>_YYYYMMDD_HHmmss.lhbak`
   ///   （恢复前自动备份 = `auto_before_restore_*`）。
   Future<LhBakCreateResult> exportBackup({
@@ -173,6 +202,7 @@ class BackupService {
     List<String> excludeTables = const [],
     String? outDirOverride,
     String? nameTag,
+    bool applyHealthExclusion = true,
   }) async {
     // L1 日志批：备份导出全程可查（成功=key 带终名与表数；失败=error 带成因）。
     try {
@@ -186,9 +216,13 @@ class BackupService {
               .toList();
         }
       }
-      // 轮7 拍板：调用方排除表 ∪ 可再生派生表（X-Ray 全书索引等），恒不进包；
-      // manifest.excludedTables 据实登记，恢复报告可见。
-      final effExcludes = {...excludeTables, ...kRegenerableExcluded}.toList()
+      // 轮7 拍板：调用方排除表 ∪ 健康本地备份排除（批6b）∪ 可再生派生表
+      // （X-Ray 全书索引等），恒不进包；manifest.excludedTables 据实登记，恢复报告可见。
+      final healthEx = applyHealthExclusion && _healthExcludedSafe()
+          ? DbSchema.healthTables
+          : const <String>[];
+      final effExcludes = {...excludeTables, ...healthEx, ...kRegenerableExcluded}
+          .toList()
         ..sort();
       var res = await LhBak.create(
         db: await db(),

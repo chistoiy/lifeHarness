@@ -648,4 +648,75 @@ void main() {
       expect(theirs.single.medTaken, 1);
     });
   });
+
+  group('导出取数（批6b）', () {
+    test('五类一次取齐并按日期升序、同日按固定内序（喝水·睡眠·运动·身体·用药）', () async {
+      await repo.bumpCups(1, '2026-01-05', 3);
+      await repo.saveSleep(const SleepRecord(
+          profileId: 1, date: '2026-01-05', bedTime: '23:00', wakeTime: '07:00', durationMin: 0));
+      await repo.addExercise(const ExerciseRecord(
+          profileId: 1, date: '2026-01-05', type: '跑步', distanceKm: 5, durationMin: 30));
+      await repo.saveBody(const BodyRecord(profileId: 1, date: '2026-01-05', kg: 70, heightCm: 175));
+      final drugId = await repo.addDrug(
+          DrugPlan(profileId: 1, name: '阿司匹林', times: const ['08:00']));
+      await repo.logDrug(DrugLog(
+          profileId: 1, drugId: drugId, date: '2026-01-05', time: '08:00', state: 'taken'));
+      await repo.bumpCups(1, '2026-01-04', 2);
+
+      final rows = await repo.exportRows(1, '2026-01-01', '2026-01-31');
+      expect(rows.map((e) => e.date).toList(),
+          ['2026-01-04', '2026-01-05', '2026-01-05', '2026-01-05', '2026-01-05', '2026-01-05'],
+          reason: '日期升序；缺记录日不占位（01-02/03 整日缺席）');
+      expect(rows.skip(1).map((e) => e.kind).toList(),
+          ['喝水', '睡眠', '运动', '身体', '用药']);
+      final sleep = rows.firstWhere((e) => e.kind == '睡眠');
+      expect(sleep.value, '480 分钟', reason: '时长用写入侧算好的值，跨天不重算');
+      expect(sleep.detail, '入睡 23:00 · 醒 07:00');
+      final ex = rows.firstWhere((e) => e.kind == '运动');
+      expect(ex.detail, contains('跑步'));
+      expect(ex.detail, contains('5.0 km'));
+      expect(ex.detail, contains('6′00″'), reason: '配速按存储的公制秒算出展示串');
+      expect(rows.firstWhere((e) => e.kind == '用药').detail, '阿司匹林');
+    });
+
+    test('导出恒公制：屏上单位切换不进文件（同一列不许两种单位）', () async {
+      await repo.addExercise(const ExerciseRecord(
+          profileId: 1, date: '2026-01-05', type: '骑行', distanceKm: 10, durationMin: 40));
+      final rows = await repo.exportRows(1, '2026-01-01', '2026-01-31');
+      expect(rows.single.detail, contains('km'), reason: '不是 mile');
+    });
+
+    test('归档用药的历史打卡照样进流水（删除档案保留历史＝需求口径）', () async {
+      final drugId = await repo.addDrug(
+          DrugPlan(profileId: 1, name: '旧药', times: const ['21:00']));
+      await repo.logDrug(DrugLog(
+          profileId: 1, drugId: drugId, date: '2026-01-02', time: '21:00', state: 'skipped'));
+      await repo.archiveDrug(1, drugId);
+
+      final rows = await repo.exportRows(1, '2026-01-01', '2026-01-31');
+      expect(rows, hasLength(1));
+      expect(rows.single.value, '跳过');
+      expect(rows.single.detail, '旧药', reason: '归档只停父行，流水读侧不过滤');
+    });
+
+    test('跨档案不串：别人的流水不出现在我的导出里', () async {
+      final other = await repo.saveProfile(
+          const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+      await repo.bumpCups(1, '2026-01-05', 3);
+      await repo.bumpCups(other, '2026-01-05', 9);
+      final mine = await repo.exportRows(1, '2026-01-01', '2026-01-31');
+      expect(mine, hasLength(1));
+      expect(mine.single.value, '3 杯');
+      final theirs = await repo.exportRows(other, '2026-01-01', '2026-01-31');
+      expect(theirs.single.value, '9 杯');
+    });
+
+    test('区间边界闭开：to 之外的日子不捞', () async {
+      await repo.bumpCups(1, '2026-01-05', 1);
+      await repo.bumpCups(1, '2026-02-01', 1);
+      final rows = await repo.exportRows(1, '2026-01-01', '2026-01-31');
+      expect(rows, hasLength(1));
+      expect(rows.single.date, '2026-01-05');
+    });
+  });
 }
