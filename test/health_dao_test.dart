@@ -389,4 +389,95 @@ void main() {
     await repo.deleteProfile(id);
     expect(await countOf(h.tHealthSymptom, where: 'profile_id=$id'), 0);
   });
+
+  // ==================== 检查报告与检验项（批3.5b） ====================
+
+  test('报告拼包一次到位：父行按档案隔离、子项挂在各自父行下', () async {
+    final mine = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-05', name: '血常规', files: ['a.pdf'], kind: 'pdf'));
+    await repo.addMetric(ReportMetric(
+        reportId: mine, name: '血红蛋白', value: 100, unit: 'g/L', refLo: 115, refHi: 150));
+    final theirs = await repo.addReport(const HealthReport(
+        profileId: 2, date: '2026-01-06', name: '别人的报告', files: ['x.pdf'], kind: 'pdf'));
+    await repo.addMetric(ReportMetric(reportId: theirs, name: '尿蛋白', value: 1));
+
+    final bs = await repo.reportBundles(1);
+    expect(bs, hasLength(1), reason: '别人的父行不该混进我的读数');
+    expect(bs.single.report.name, '血常规');
+    // files 与 kind 走 JSON 往返：库里一列文本，读回还是列表。
+    expect(bs.single.report.files, ['a.pdf']);
+    expect(bs.single.report.kind, 'pdf');
+    expect(bs.single.metrics.map((e) => e.name).toList(), ['血红蛋白']);
+    expect(bs.single.abnormalCount, 1, reason: '100 落在 115~150 之外＝偏低');
+
+    // 没有检验项的报告也要成包（卡片要出「尚未录入检验项」，而不是整张报告消失）。
+    final bare = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-07', name: '体检', files: []));
+    final bs2 = await repo.reportBundles(1);
+    expect(bs2.map((b) => b.report.id).toList(), contains(bare));
+    expect(bs2.firstWhere((b) => b.report.id == bare).metrics, isEmpty);
+    expect(await repo.reportBundles(3), isEmpty, reason: '空档案出空列表，不出 null');
+  });
+
+  test('检验项位次＝现有 MAX+1：追加在尾、删中间不回填空洞', () async {
+    final rid = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-05', name: '血常规'));
+    final a = await repo.addMetric(ReportMetric(reportId: rid, name: '甲', value: 1));
+    await repo.addMetric(ReportMetric(reportId: rid, name: '乙', value: 2));
+    await repo.addMetric(ReportMetric(reportId: rid, name: '丙', value: 3));
+    expect((await repo.metrics(rid)).map((e) => e.sort).toList(), [0, 1, 2],
+        reason: '原型 r.ms.push＝新项永远排最后；回读按 sort ASC 才不会把「刚录的」插进中间');
+
+    await repo.deleteMetric(rid, a);
+    final d = await repo.addMetric(ReportMetric(reportId: rid, name: '丁', value: 4));
+    expect((await repo.metrics(rid)).map((e) => e.sort).toList(), [1, 2, 3],
+        reason: 'MAX+1 不回收空洞：位次只表示录入先后，不是行号');
+    expect((await repo.metrics(rid)).map((e) => e.id).toList(), contains(d));
+  });
+
+  test('删报告＝归属双闸＋连带清检验项；跨档案的 id 动不了我的行', () async {
+    final rid = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-05', name: '血常规'));
+    await repo.addMetric(ReportMetric(reportId: rid, name: '血红蛋白', value: 100));
+    await repo.addMetric(ReportMetric(reportId: rid, name: '白细胞', value: 6.5));
+
+    expect(await repo.deleteReport(2, rid), 0, reason: 'profile_id 不匹配就删不到');
+    expect(await countOf(h.tHealthReportMetric, where: 'report_id=$rid'), 2,
+        reason: '父行没删动，子行一枚都不该被连带清掉');
+
+    expect(await repo.deleteReport(1, rid), 1);
+    expect(await countOf(h.tHealthReport, where: 'id=$rid'), 0);
+    expect(await countOf(h.tHealthReportMetric, where: 'report_id=$rid'), 0,
+        reason: '不留「报告没了、检验项还在表里」的孤儿行');
+  });
+
+  test('检验项删除带归属闸：拿别人的 report_id 动我的行，一道闸就挡住', () async {
+    final mine = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-05', name: '我的'));
+    final other = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-06', name: '另一份'));
+    final mid = await repo.addMetric(ReportMetric(reportId: mine, name: '血红蛋白', value: 100));
+    expect(await repo.deleteMetric(other, mid), 0, reason: 'id 对但归属错＝删不动');
+    expect(await countOf(h.tHealthReportMetric, where: 'id=$mid'), 1);
+    expect(await repo.deleteMetric(mine, mid), 1);
+  });
+
+  test('坏 files 列按「无附件」读，不炸整张报告列表', () async {
+    final rid = await repo.addReport(const HealthReport(
+        profileId: 1, date: '2026-01-05', name: '血常规', files: ['a.pdf']));
+    await db.update(h.tHealthReport, {'files': '{bad json'}, where: 'id=?', whereArgs: [rid]);
+    final r = (await repo.reports(1)).single;
+    expect(r.files, isEmpty, reason: '一条脏数据不该把归档轴与统计一起带崩');
+    expect(r.name, '血常规');
+  });
+
+  test('档案删除级联清掉报告与检验项两张表：healthTables 少登记一张就留孤儿', () async {
+    final pid = await repo.saveProfile(const HealthProfile(id: 0, name: '妈妈', rel: '母'));
+    final rid = await repo.addReport(HealthReport(profileId: pid, date: '2026-01-05', name: '血常规'));
+    await repo.addMetric(ReportMetric(reportId: rid, name: '血红蛋白', value: 100));
+    await repo.deleteProfile(pid);
+    expect(await countOf(h.tHealthReport, where: 'profile_id=$pid'), 0);
+    expect(await countOf(h.tHealthReportMetric, where: 'report_id=$rid'), 0,
+        reason: '检验项只挂 report_id，删档案时必须先按父表反查清掉，否则永远查不到也删不掉');
+  });
 }

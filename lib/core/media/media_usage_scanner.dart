@@ -8,7 +8,7 @@ import '../logging/app_log.dart';
 /// R5c：本地孤儿图片扫描/清理（存储卫生）。
 ///
 /// 口径：
-/// - 引用判定 = 六列文本（笔记/快照/日记/日记小节/书摘图/封面）里是否
+/// - 引用判定 = 八列文本（笔记/快照/日记/日记小节/书摘图/封面/症状照片/报告附件）里是否
 ///   含文件 **basename**（路径前缀可能因迁移/恢复变化，名字是唯一稳定键；
 ///   hash 命名下 basename 即内容指纹，误判概率≈0）；
 /// - 只扫媒体根目录（note_images / book_covers），别的目录一概不碰；
@@ -114,9 +114,13 @@ class MediaUsageScanner {
     ('journal_sections', 'body'),
     ('book_quotes', 'image_paths'),
     ('books', 'cover_path'),
+    // 健康批3.5 起症状照片与报告附件（图片/PDF）也落 `note_images/`：
+    // 引用列少了这两列，「存了就等于没存」——清理扫描会把在档的附件当孤儿删掉。
+    ('health_symptom', 'photos'),
+    ('health_report', 'files'),
   ];
 
-  /// 六列引用全文（一次性拉入内存；R5c 孤儿判定与 R5d 云端清理共用）。
+  /// 引用列全文（一次性拉入内存；R5c 孤儿判定与 R5d 云端清理共用）。
   Future<String> referenceText() async {
     final buf = StringBuffer();
     for (final (table, col) in _refColumns) {

@@ -526,6 +526,140 @@ List<String> _splitParts(Object? v) {
   return [for (final p in raw.split(',')) if (p.trim().isNotEmpty) p.trim()];
 }
 
+/// 检查报告（批3.5b · 表 `health_report`）。
+///
+/// 三条口径写在最近处：
+/// · **检验项不在本模型里**：原型 `rpaPrev` 原话「检验项需建档后逐条录入」，建档一次只写
+///   元信息＋附件，检验项是 `ReportMetric` 另表另写（域层 `ReportBundle` 才把两者拼一起）；
+/// · `files` 存 JSON 路径数组（图片与 PDF 同存 `note_images/`，不另造目录），
+///   `kind` 记末次附件类型（'img'/'pdf'）——读数由 `files` 内容派生，`kind` 只作存储侧标注；
+/// · `hospital` 空值落 '—'（原型 `rpaSave` 的 `||'—'`，无医院时卡片副注不至于断一句）。
+class HealthReport {
+  const HealthReport({
+    this.id,
+    required this.profileId,
+    required this.date,
+    required this.name,
+    this.hospital,
+    this.doctorAdvice,
+    this.files = const [],
+    this.kind = 'img',
+    this.noteRef,
+    this.createdAt = 0,
+  });
+
+  final int? id;
+  final int profileId;
+
+  /// `yyyy-MM-dd`（月份归档轴从这列取）。
+  final String date;
+  final String name;
+  final String? hospital;
+  final String? doctorAdvice;
+  final List<String> files;
+
+  /// 'img' | 'pdf'。
+  final String kind;
+
+  /// 双向链接的笔记 id（批7 共享面接线，本期只落列不写值）。
+  final int? noteRef;
+  final int createdAt;
+
+  factory HealthReport.fromRow(Map<String, Object?> r) => HealthReport(
+        id: _i(r['id']),
+        profileId: r['profile_id'] as int,
+        date: r['date'] as String,
+        name: r['name'] as String,
+        hospital: _s(r['hospital']),
+        doctorAdvice: _s(r['doctor_advice']),
+        files: (() {
+          final raw = _s(r['files']);
+          if (raw == null || raw.isEmpty) return const <String>[];
+          try {
+            return jsonDecodeList(raw);
+          } catch (_) {
+            // catch-ok: 坏 files 列按「无附件」处理，一条脏数据不该炸掉整张报告列表（无网络、无副作用）。
+            return const <String>[];
+          }
+        })(),
+        kind: _s(r['kind']) ?? 'img',
+        noteRef: _i(r['note_ref']),
+        createdAt: _i(r['created_at']) ?? 0,
+      );
+
+  Map<String, Object?> toRow() => {
+        'profile_id': profileId,
+        'date': date,
+        'name': name,
+        'hospital': hospital,
+        'doctor_advice': doctorAdvice,
+        'files': jsonEncodeList(files),
+        'kind': kind,
+        'note_ref': noteRef,
+        'created_at': createdAt == 0 ? DateTime.now().millisecondsSinceEpoch : createdAt,
+      };
+}
+
+/// 报告检验项（批3.5b · 表 `health_report_metric`）。
+///
+/// **不落状态列**：偏高/偏低按行内 `refLo`/`refHi` 实时算（v37 DDL 注释已定），
+/// 判据在 `health_report.dart` 的 `hkFlagOf`，这里只存读数与参考范围。
+class ReportMetric {
+  const ReportMetric({
+    this.id,
+    this.reportId,
+    required this.name,
+    this.value,
+    this.unit,
+    this.refLo,
+    this.refHi,
+    this.sort = 0,
+  });
+
+  final int? id;
+  final int? reportId;
+  final String name;
+  final double? value;
+  final String? unit;
+  final double? refLo;
+  final double? refHi;
+
+  /// 录入序（原型 `r.ms.push` 追加在尾）：同报告内按这列升序回读。
+  final int sort;
+
+  factory ReportMetric.fromRow(Map<String, Object?> r) => ReportMetric(
+        id: _i(r['id']),
+        reportId: _i(r['report_id']),
+        name: r['name'] as String,
+        value: _d(r['value']),
+        unit: _s(r['unit']),
+        refLo: _d(r['ref_lo']),
+        refHi: _d(r['ref_hi']),
+        sort: _i(r['sort']) ?? 0,
+      );
+
+  Map<String, Object?> toRow() => {
+        'report_id': reportId,
+        'name': name,
+        'value': value,
+        'unit': unit,
+        'ref_lo': refLo,
+        'ref_hi': refHi,
+        'sort': sort,
+      };
+
+  /// 位次由仓储按「现有最大 +1」发（原型是数组 push），模型侧只提供换一位次的能力。
+  ReportMetric copyWith({int? id, int? reportId, int? sort}) => ReportMetric(
+      id: id ?? this.id,
+      reportId: reportId ?? this.reportId,
+      name: name,
+      value: value,
+      unit: unit,
+      refLo: refLo,
+      refHi: refHi,
+      sort: sort ?? this.sort);
+}
+
 /// 目标键（计划 §六 键表原文）：缺键＝未设，读取侧回落默认，不写库。
 ///
 /// 存储分治（批3 工单 §0）：`water`/`sleep`/`weekEx` 与按时入睡线的**现行读写口在 prefs**

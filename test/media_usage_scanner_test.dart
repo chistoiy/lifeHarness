@@ -54,6 +54,21 @@ void main() {
     expect(outside.existsSync(), isTrue, reason: '媒体根之外绝不删');
   });
 
+  test('健康附件两列也算引用：报告 files 与症状 photos 少登记一列就在档的被删', () async {
+    // 批3.5 起症状照片与报告附件落进 note_images/：引用清单不认这两列，
+    // 清理扫描会把用户存进去的原件当孤儿删掉（「存了就等于没存」）。
+    await db.execute('CREATE TABLE health_report (id INTEGER PRIMARY KEY, files TEXT)');
+    await db.execute('CREATE TABLE health_symptom (id INTEGER PRIMARY KEY, photos TEXT)');
+    File(p.join(imgDir, 'rp.pdf')).writeAsBytesSync([1]);
+    File(p.join(imgDir, 'sym.jpg')).writeAsBytesSync([2]);
+    await db.insert('health_report', {'files': '["/data/x/rp.pdf"]'});
+    await db.insert('health_symptom', {'photos': '["/data/x/sym.jpg"]'});
+
+    final r = await scanner().scan();
+    expect(r.totalFiles, 2);
+    expect(r.orphans, isEmpty, reason: 'basename 命中即算引用，路径前缀换了也认');
+  });
+
   test('空目录/无表 → 零孤儿不抛', () async {
     final r = await scanner().scan();
     expect(r.orphans, isEmpty);

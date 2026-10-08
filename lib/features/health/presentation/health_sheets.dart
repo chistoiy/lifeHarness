@@ -1,7 +1,16 @@
+import 'dart:io';
+
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
+import '../../../core/logging/app_log.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/image_attach.dart' show ImageSquareCard, pickAndStoreImage;
 import '../../../shared/widgets/lh_wheel.dart';
@@ -10,12 +19,14 @@ import '../domain/health_body.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_ex.dart';
 import '../domain/health_models.dart';
+import '../domain/health_report.dart';
 import '../domain/health_symptom.dart';
 import '../domain/health_vital.dart';
 import 'health_providers.dart';
 
 part 'health_sheets_ex.dart';
 part 'health_sheets_sym.dart';
+part 'health_sheets_report.dart';
 
 /// 健康 · 睡眠录入（原型 `sheetHSleep` · 规格＝LH-S 弹层族）。
 ///

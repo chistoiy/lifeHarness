@@ -410,6 +410,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
       ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
       ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
       ('symptom', Icons.coronavirus_outlined, '症状', '/health/symptom'),
+      ('report', Icons.description_outlined, '报告', '/health/report'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
     ];
     return Container(

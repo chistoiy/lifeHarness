@@ -6,6 +6,7 @@ import '../data/health_repository.dart';
 import '../data/health_settings.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
+import '../domain/health_report.dart' show ReportBundle;
 import '../domain/health_symptom.dart' show symNamesWith;
 import '../domain/health_vital.dart';
 
@@ -102,4 +103,13 @@ final healthSymptomProvider = FutureProvider<List<SymptomRecord>>((ref) {
 final healthSymNamesProvider = Provider<List<String>>((ref) {
   ref.watch(healthTickProvider);
   return symNamesWith(ref.watch(healthSettingsProvider).symCustomNames());
+});
+
+/// 报告列表＝父行＋子表检验项**一次拼好**（批3.5b）。
+/// 分两路取数会出现「报告已换档案、检验项还是上一档案的」的错位帧，所以拼装在仓储侧做完，
+/// 页面只管月份筛选与折叠；统计三位与卡片角标吃的都是这同一份。
+final healthReportProvider = FutureProvider<List<ReportBundle>>((ref) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  return ref.watch(healthRepositoryProvider).reportBundles(pid);
 });

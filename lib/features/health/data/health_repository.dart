@@ -4,6 +4,7 @@ import '../../../core/database/schema/health.dart' as h;
 import '../../../core/logging/app_log.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
+import '../domain/health_report.dart';
 import '../domain/health_vital.dart';
 
 /// 健康模块数据层（仿 items/care 范式：一个仓储吃全部表，写库后由 providers 的 tick 触发重取）。
@@ -291,6 +292,78 @@ class HealthRepository {
   /// 附件回收属既有备份/清理服务的职责（批3.5 工单 §2「删除报告只清 DB 行」同一条口径）。
   Future<int> deleteSymptom(int profileId, int id) =>
       db.delete(h.tHealthSymptom, where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+
+  // ==================== 检查报告（批3.5b） ====================
+
+  /// 建档一张报告（原型 `rpaSave`：一次只写元信息＋附件，检验项之后逐条 `addMetric`）。
+  ///
+  /// **没有改档出口**：原型里 `rpaOpen(idx)` 只有定义、没有调用点（`v2_js.js:387`），
+  /// 也即报告建档后只能删除重传——按「不铺假入口」不替它补一个原型没有的编辑弹层（偏离登记工单 §3）。
+  Future<int> addReport(HealthReport r) => db.insert(h.tHealthReport, r.toRow());
+
+  /// 某档案的报告（日期升序；页面按 `rpDesc` 倒排，仓储不替 UI 决定顺序）。
+  Future<List<HealthReport>> reports(int profileId) async {
+    final rows = await db.query(h.tHealthReport,
+        where: 'profile_id=?', whereArgs: [profileId], orderBy: 'date ASC, id ASC');
+    return rows.map(HealthReport.fromRow).toList();
+  }
+
+  /// 报告＋它的检验项一次拼好（原型 `HP.reports[i].ms` 天生是一个对象里的数组，
+  /// 页面若分两路取数，切档案时会出现「报告已换、检验项还是上一档案的」的错位帧）。
+  Future<List<ReportBundle>> reportBundles(int profileId) async {
+    final rs = await reports(profileId);
+    if (rs.isEmpty) return const [];
+    final rows = await db.query(
+      h.tHealthReportMetric,
+      where: 'report_id IN (${List.filled(rs.length, '?').join(',')})',
+      whereArgs: [for (final r in rs) r.id],
+      orderBy: 'report_id ASC, sort ASC, id ASC',
+    );
+    final by = <int, List<ReportMetric>>{};
+    for (final row in rows) {
+      final m = ReportMetric.fromRow(row);
+      (by[m.reportId!] ??= []).add(m);
+    }
+    return [
+      for (final r in rs)
+        ReportBundle(report: r, metrics: by[r.id] ?? const <ReportMetric>[]),
+    ];
+  }
+
+  /// 删除报告＝先按档案归属删父行，删到了才连带清它的检验项（一个事务，
+  /// 不留「报告没了、检验项还在表里」的孤儿行）。附件文件不在此处删——
+  /// 回收归既有附件清理服务（批3.5 工单 §2）。
+  Future<int> deleteReport(int profileId, int id) => db.transaction((txn) async {
+        final n = await txn.delete(h.tHealthReport,
+            where: 'id=? AND profile_id=?', whereArgs: [id, profileId]);
+        if (n > 0) await txn.delete(h.tHealthReportMetric, where: 'report_id=?', whereArgs: [id]);
+        return n;
+      });
+
+  // ==================== 检验项 ====================
+
+  /// 加一项（原型 `hmkAdd` 的 `push`＝追加在尾）：`sort` 取该报告现有最大位次 +1，
+  /// 回读按 `sort ASC` 才不会把新项插到中间去。
+  Future<int> addMetric(ReportMetric m) async {
+    final rows = await db.query(h.tHealthReportMetric,
+        columns: ['MAX(sort) AS s'],
+        where: 'report_id=?',
+        whereArgs: [m.reportId],
+        limit: 1);
+    final next = ((rows.first['s'] as int? ?? -1) + 1);
+    return db.insert(h.tHealthReportMetric, m.copyWith(sort: next).toRow());
+  }
+
+  Future<List<ReportMetric>> metrics(int reportId) async {
+    final rows = await db.query(h.tHealthReportMetric,
+        where: 'report_id=?', whereArgs: [reportId], orderBy: 'sort ASC, id ASC');
+    return rows.map(ReportMetric.fromRow).toList();
+  }
+
+  /// 删一项（原型 `hmkList` 行末「删」钮）：按 id＋归属报告双闸，
+  /// 别人的报告里的行改不到（reportId 由调用侧从当前档案的bundle 拿）。
+  Future<int> deleteMetric(int reportId, int id) => db.delete(h.tHealthReportMetric,
+      where: 'id=? AND report_id=?', whereArgs: [id, reportId]);
 
   // ==================== 用药 ====================
 

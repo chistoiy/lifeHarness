@@ -4,6 +4,7 @@ import 'health_body_page.dart';
 import 'health_exercise_page.dart';
 import 'health_goals_page.dart';
 import 'health_home_page.dart';
+import 'health_report_page.dart';
 import 'health_sleep_page.dart';
 import 'health_symptom_page.dart';
 import 'health_vitals_page.dart';
@@ -43,6 +44,11 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/symptom',
     builder: (_, _) => const HealthSymptomPage(),
+  ),
+  // 检查报告（原型 p-report · 批3.5b）：统计三位＋月份筛选＋逐份可展开的报告卡。
+  GoRoute(
+    path: '/health/report',
+    builder: (_, _) => const HealthReportPage(),
   ),
   // 健康目标（原型 p-goalsH · 批3）：环形今日四项＋就地滚轮改档。
   GoRoute(
