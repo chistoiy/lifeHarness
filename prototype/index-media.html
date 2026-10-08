@@ -570,6 +570,11 @@ tailwind.config = {
       <b id="timerSec" class="font-mono text-sm">0:00</b>
       <button onclick="endTimer()" class="text-[11px] font-extrabold bg-white/15 rounded-lg px-2.5 py-1.5 ml-1">■ 结束</button>
     </div>
+    <div id="mdsTimerBar" class="hidden absolute top-2 left-4 right-4 z-40 rounded-2xl px-3.5 py-2.5 items-center gap-2 shadow-xl" style="background:var(--card);color:var(--mds-ink);border:1px solid rgba(0,0,0,.08)" onclick="mTimerEnd()">
+      <span class="w-2 h-2 rounded-full shrink-0" style="background:#fb7185"></span>
+      <div class="flex-1 min-w-0 text-[11px] leading-4"><b id="mdsTimerKind">计时</b> <span id="mdsTimerTitle" class="opacity-75"></span></div>
+      <span class="text-[10px] mds-mono" style="opacity:.65">点按结束</span>
+    </div>
 
     <!-- ===== P1 今日仪表盘 ===== -->
 
@@ -746,6 +751,13 @@ tailwind.config = {
       <div id="mGoalBody"></div>
     </section>
 
+    <!-- ===== 影音游专版 · M-SET 设置（media.* 生效面 · 影音游批8a 原型先行） ===== -->
+    <section id="m-set" class="page mds-desk no-scrollbar">
+      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音游设置</div><span></span></div>
+      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mSetTabs"></div>
+      <div id="mSetBody"></div>
+    </section>
+
     <!-- ===== 影音游专版 · M-IMPORT 导入 ===== -->
     <section id="m-import" class="page mds-desk no-scrollbar">
       <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音导入</div><span></span></div>
@@ -765,7 +777,7 @@ tailwind.config = {
       </div>
       <div class="flex items-center justify-center gap-6 mt-6">
         <button class="mds-chip" onclick="mOpenNoteEdit(mCurDetail?mCurDetail.id:'')">＋ 名场面</button>
-        <button class="mds-chip on" style="padding:12px 22px" onclick="mTimerTap()" id="mdsTimerGoBtn">▶ 开始</button>
+        <button class="mds-chip on" style="padding:12px 22px" onclick="mTimerScreenTap()" id="mdsTimerGoBtn">▶ 开始</button>
         <button class="mds-chip" onclick="openSheet('m-sheet-progress')">＋ 进度</button>
       </div>
     </section>
@@ -834,7 +846,7 @@ tailwind.config = {
         <textarea id="mdNoteBody" class="inp !py-2.5 text-sm mb-1" rows="3" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="正文：一句台词 / 一段歌词 / 一张截图旁的批注…" oninput="document.getElementById('mdNoteErr').classList.add('hidden')"></textarea>
         <div id="mdNoteErr" class="hidden text-[10px] mb-1" style="color:#dc2626">先写正文</div>
         <input id="mdNoteAnno" class="inp !py-2 text-[11px] mb-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="批注（复习背面显示，可选）">
-        <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" onclick="toast('未安装识别库')">识图</button></div>
+        <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" id="mdNotePasteBtn" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" onclick="toast('未安装识别库')">识图</button></div>
         <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteTag" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"></div>
         <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="toast('已插入今日日记草稿（L5 联动）')">→ 日记</button><button class="mds-chip" onclick="toast('已生成待办（L5 联动）')">→ 待办</button><button class="mds-chip on" style="margin-left:auto" onclick="mNoteSave()">保存</button></div>
       </div>
@@ -2777,9 +2789,9 @@ renderPwBar();
 /* ================= 影音游专版 · 桌面微拟物 (mds) 数据 / 渲染 / 路由 ================= */
 let MDEMO=[
   {id:'mv1',kind:'movie',title:'沙丘 2',sub:'Dune: Part Two',year:2024,creator:'Denis Villeneuve',cRole:'导演',pub:'Legendary',pRole:'制片',state:'在看',pct:72,dur:166,rating:8.6,tags:['科幻','史诗'],grp:'2024 院线',src:'豆瓣',cover:'linear-gradient(160deg,#4f46e5 0%,#1e1b4b 100%)'},
-  {id:'mv2',kind:'movie',title:'奥本海默',sub:'Oppenheimer',year:2023,creator:'Christopher Nolan',cRole:'导演',pub:'Universal',pRole:'制片',state:'看完',pct:100,dur:181,rating:8.9,tags:['传记','历史'],grp:'奥斯卡',src:'IMDb',cover:'linear-gradient(160deg,#7c3aed 0%,#2e1065 100%)'},
+  {id:'mv2',kind:'movie',title:'奥本海默',sub:'Oppenheimer',year:2023,creator:'Christopher Nolan',cRole:'导演',pub:'Universal',pRole:'制片',endedAt:'2026-09-28',state:'看完',pct:100,dur:181,rating:8.9,tags:['传记','历史'],grp:'奥斯卡',src:'IMDb',cover:'linear-gradient(160deg,#7c3aed 0%,#2e1065 100%)'},
   {id:'mv3',kind:'movie',title:'宇宙探索编辑部',year:2023,creator:'孔大山',cRole:'导演',pub:'坏猴子',pRole:'制片',state:'想看',pct:0,dur:118,rating:8.3,tags:['国产','科幻'],grp:'',src:'豆瓣',cover:'linear-gradient(160deg,#0ea5e9 0%,#0c4a6e 100%)'},
-  {id:'tv1',kind:'series',title:'漫长的季节',year:2023,creator:'辛爽',cRole:'导演',pub:'腾讯视频',pRole:'流媒体',seasons:1,eps:12,cur:12,airState:'完结',state:'追完',rating:9.4,tags:['悬疑','国产'],grp:'',src:'豆瓣'},
+  {id:'tv1',kind:'series',title:'漫长的季节',year:2023,creator:'辛爽',cRole:'导演',pub:'腾讯视频',pRole:'流媒体',seasons:1,eps:12,cur:12,airState:'完结',endedAt:'2026-09-19',state:'追完',rating:9.4,tags:['悬疑','国产'],grp:'',src:'豆瓣'},
   {id:'tv2',kind:'series',title:'Severance',year:2022,creator:'Dan Erickson',cRole:'主创',pub:'Apple TV+',pRole:'流媒体',seasons:2,eps:19,cur:14,airState:'在更',state:'在追',rating:8.7,tags:['科幻','职场'],grp:'通勤看',src:'IMDb'},
   {id:'tv3',kind:'series',title:'The Bear',year:2022,creator:'Christopher Storer',cRole:'主创',pub:'FX on Hulu',pRole:'流媒体',seasons:3,eps:28,cur:22,airState:'在更',state:'在追',rating:8.5,tags:['剧情','餐饮'],grp:'',src:'TMDB'},
   {id:'mu1',kind:'music',title:'范特西',year:2001,creator:'周杰伦',cRole:'艺人',pub:'阿尔发',pRole:'唱片公司',tracks:10,loops:42,fav:'爱在西元前',state:'循环中',rating:9.5,tags:['华语','流行'],grp:'通勤听',src:'网易云'},
@@ -2787,7 +2799,7 @@ let MDEMO=[
   {id:'mu3',kind:'music',title:'Dune OST',sub:'Hans Zimmer',year:2021,creator:'Hans Zimmer',cRole:'艺人',pub:'Decca',pRole:'唱片公司',tracks:22,loops:6,fav:'Ripples in the Sand',state:'在听',rating:8.7,tags:['原声'],grp:'',src:'Spotify'},
   {id:'gm1',kind:'game',mode:'主机',title:'旷野之息',sub:'Zelda BOTW',year:2017,creator:'Nintendo EPD',cRole:'工作室',pub:'Nintendo',pRole:'发行',plat:'Switch',mainPct:78,sidePct:34,achPct:52,state:'在玩',plays:1,rating:9.7,tags:['开放世界'],grp:'周末 4 小时',src:'Steam',withWho:'一个人',hours:62,glogs:[{when:'本周日',who:'一个人',hrs:4,what:'神兽·瓦罗尼亚'},{when:'上周六',who:'弟弟',hrs:3,what:'海拉鲁城堡探索'}]},
   {id:'gm2',kind:'game',mode:'主机',title:'黑神话·悟空',year:2024,creator:'游戏科学',cRole:'工作室',pub:'游戏科学',pRole:'发行',plat:'PC/PS5',mainPct:35,sidePct:12,achPct:8,state:'在玩',plays:1,rating:9.2,tags:['动作','西游'],grp:'',src:'Steam',withWho:'一个人',hours:28,glogs:[{when:'昨晚',who:'一个人',hrs:2.5,what:'小西天·亢金星君'},{when:'上周',who:'发小来家一起看',hrs:4,what:'亢金龙 Boss 轮流通关'}]},
-  {id:'gm3',kind:'game',mode:'主机',title:'艾尔登法环',sub:'Elden Ring',year:2022,creator:'FromSoftware',cRole:'工作室',pub:'万代南梦宫',pRole:'发行',plat:'PC/PS/XS',mainPct:100,sidePct:88,achPct:72,state:'通关',plays:2,rating:9.6,tags:['魂系','开放世界'],grp:'',src:'Steam',withWho:'网友帮打',hours:210,glogs:[{when:'2026-03',who:'网友远程帮打',hrs:5,what:'女武神玛莲妮亚'},{when:'2025-12',who:'一个人',hrs:8,what:'圆桌厅堂·火巨人'}]},
+  {id:'gm3',kind:'game',mode:'主机',title:'艾尔登法环',sub:'Elden Ring',year:2022,creator:'FromSoftware',cRole:'工作室',pub:'万代南梦宫',pRole:'发行',plat:'PC/PS/XS',mainPct:100,sidePct:88,achPct:72,endedAt:'2026-03-14',state:'通关',plays:2,rating:9.6,tags:['魂系','开放世界'],grp:'',src:'Steam',withWho:'网友帮打',hours:210,glogs:[{when:'2026-03',who:'网友远程帮打',hrs:5,what:'女武神玛莲妮亚'},{when:'2025-12',who:'一个人',hrs:8,what:'圆桌厅堂·火巨人'}]},
   {id:'gm4',kind:'game',mode:'派对',title:'双人成行',sub:'It Takes Two',year:2021,creator:'Hazelight',cRole:'工作室',pub:'EA',pRole:'发行',plat:'PC/PS5',mainPct:45,state:'在玩',plays:1,rating:9.4,tags:['合作','双人'],grp:'',src:'Steam',withWho:'女朋友',hours:12,glogs:[{when:'上周六',who:'女朋友',hrs:3,what:'合过「树」章节'},{when:'上周日',who:'女朋友',hrs:2,what:'玫瑰·翘翘板谜题'}]},
   {id:'gm5',kind:'game',mode:'网游',title:'王者荣耀',year:2015,creator:'天美工作室',cRole:'工作室',pub:'腾讯',pRole:'发行',plat:'安卓/iOS',state:'在玩',rating:7.8,tags:['MOBA','手游'],grp:'开黑',src:'自建',withWho:'室友 · 老李',hours:186,glogs:[{when:'昨晚',who:'室友 · 老李',hrs:2,what:'排位 3 把'},{when:'前天',who:'随机队友',hrs:1,what:'深渊大乱斗'}]},
   {id:'gm6',kind:'game',mode:'网游',title:'原神',year:2020,creator:'米哈游',cRole:'工作室',pub:'米哈游',pRole:'发行',plat:'多端',mainPct:60,state:'在玩',rating:8.4,tags:['开放世界','二游'],grp:'',src:'自建',withWho:'女朋友',hours:410,glogs:[{when:'上周末',who:'女朋友',hrs:3,what:'一起清体力·深境螺旋'},{when:'两周前',who:'一个人',hrs:2,what:'纳塔主线'}]}
@@ -2815,7 +2827,9 @@ const MTYPE_LABEL={scene:'名场面',line:'台词',lyric:'歌词',shot:'截图',
 const MTYPE_COLOR={scene:'#dc2626',line:'#f59e0b',lyric:'#059669',shot:'#6366f1',long:'#94a3b8'};
 let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[],mAddCoverImg=null,mAddEditing=false;
 
-function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));return l}
+function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));const lastAct=x=>{const ss=mAllSess().filter(s=>s.itemId===x.id).map(mSessDate).sort((a,b)=>b-a);return ss.length?ss[0].getTime():0};
+const cmp={recent:(a,b)=>lastAct(b)-lastAct(a),rating:(a,b)=>(+b.rating||0)-(+a.rating||0),added:(a,b)=>String(b.addedAt||'').localeCompare(String(a.addedAt||'')),year:(a,b)=>(+b.year||0)-(+a.year||0),title:(a,b)=>String(a.title).localeCompare(String(b.title),'zh'),progress:(a,b)=>((+b.pct||+b.mainPct||0)-(+a.pct||+a.mainPct||0))}[mSortKey]||((a,b)=>lastAct(b)-lastAct(a));
+return l.slice().sort((a,b)=>cmp(a,b)||String(a.id).localeCompare(String(b.id)))}
 function mKindCounts(){const o={movie:0,series:0,game:0};MDEMO.forEach(x=>{if(x.kind!=='music')o[x.kind]++});o.music=MMOMENTS.length;o.all=o.movie+o.series+o.game+o.music;return o}
 function mStateCls(s){return['在看','在追','在玩','在听','循环中'].includes(s)?'st-i':['想看','未看','未听','未玩'].includes(s)?'st-w':['看完','追完','通关'].includes(s)?'st-d':'st-s'}
 const MD_COV=[['#6366f1','#312e81'],['#7c3aed','#2e1065'],['#0ea5e9','#075985'],['#db2777','#831843'],['#059669','#065f46'],['#f59e0b','#92400e'],['#475569','#1e293b'],['#14b8a6','#115e59']];
@@ -2854,7 +2868,7 @@ function mRenderShelf(){
   if(mCurKind==='music'){body.innerHTML=`<div class="mds-mom-row"><button class="mds-mom-add" onclick="openSheet('m-sheet-moment')">＋ 记一条听后感</button><button class="mds-mom-imp" onclick="mImportPlaylist()">导入歌单</button></div>`
     +`<div class="mds-pl-strip">${MPLISTS.map(p=>`<div class="mds-pl"><div class="pl-n">${p.name}</div><div class="pl-s">${p.src} · ${p.n} 首</div></div>`).join('')}</div>`
     +MMOMENTS.map(mMomentHTML).join('');return}
-  if(mCurView==='desk'){body.innerHTML='<div class="mds-grid">'+list.map(mCardHTML).join('')+'</div>'}
+  if(mCurView==='desk'){body.innerHTML='<div class="mds-grid" style="grid-template-columns:repeat('+MSET.wallCols+',minmax(0,1fr))">'+list.map(mCardHTML).join('')+'</div>'}
   else if(mCurView==='spine'){const items=list.filter(x=>x.kind!=='movie');body.innerHTML=(items.length?'<div class="mds-spine-row">'+items.map(x=>`<div class="mds-spine ${x.kind}" onclick="mOpen('${x.id}')">${x.title}<span class="sub">${x.kind==='series'?x.seasons+' 季':x.kind==='music'?x.creator:x.plat}</span></div>`).join('')+'</div>':'<div class="text-[11px] mds-mono" style="opacity:.55">电影无侧脊 · 请切桌面或列表视图</div>')}
   else{body.innerHTML='<div class="space-y-2">'+list.map(x=>`<div class="mds-list-row" onclick="mOpen('${x.id}')"><div class="thumb ${x.kind}" style="${x.coverImg?'background-image:url('+x.coverImg+');background-size:cover;background-position:center':(x.kind==='movie'?'background:'+(x.cover||'#3a2a15'):'')}"></div><div class="flex-1"><div class="ttl">${x.title}</div><div class="meta">${x.kind==='movie'?x.year+' · '+x.dur+'m':x.kind==='series'?x.seasons+'季·'+x.eps+'集 · 看到 '+x.cur:x.kind==='music'?x.tracks+' 曲 · 循环 '+x.loops+' 次':'和 '+(x.withWho||'—')+' · 累计 '+(x.hours||0)+'h'}</div></div><span class="mds-badge ${mStateCls(x.state)}" style="position:static">${x.state}</span></div>`).join('')+'</div>'}
   ['desk','spine','list'].forEach(v=>{const el=$('#mdsVbtn'+(v==='desk'?'Desk':v==='spine'?'Spine':'List'));if(el)el.classList.toggle('on',mCurView===v)});
@@ -3009,11 +3023,11 @@ function mSumSave(){const x=mCurDetail;if(!x)return;['sumA','sumB','sumC'].forEa
 function mSumAuto(){const x=mCurDetail;if(!x)return;x.sumA=x.sumB=x.sumC='';mInfoSum=false;mRenderInfo();toast('已按笔记与进度重算')}
 function mRenderHub(){
   const bar=$('#mdsEntryBar');
-  if(bar){const items=[['m-shelf','影音架','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="18"/><rect x="17" y="3" width="4" height="18"/></svg>'],['m-lists','影音单','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>'],['m-notes','笔记库','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M14 2v6h6"/></svg>'],['m-stat','统计','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 15l3-3 3 3 5-5"/></svg>'],['m-goal','目标','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'],['m-mgr','资料','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>'],['m-import','导入','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>']];bar.innerHTML=items.map(([p,l,ic])=>`<button onclick="navTo('${p}')" title="${l}">${ic}<span>${l}</span></button>`).join('')}
+  if(bar){const items=[['m-shelf','影音架','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="18"/><rect x="17" y="3" width="4" height="18"/></svg>'],['m-lists','影音单','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>'],['m-notes','笔记库','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M14 2v6h6"/></svg>'],['m-stat','统计','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18M7 15l3-3 3 3 5-5"/></svg>'],['m-goal','目标','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>'],['m-mgr','资料','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>'],['m-import','导入','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>'],['m-set','设置','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9"/></svg>']];bar.innerHTML=items.map(([p,l,ic])=>`<button onclick="${p==='m-shelf'?'mOpenShelf()':"navTo('"+p+"')"}" title="${l}">${ic}<span>${l}</span></button>`).join('')}
   const desk=$('#mdsHubDesk');if(desk){const picks=['movie','series','music','game'].map(k=>MDEMO.find(x=>x.kind===k)).filter(Boolean);desk.innerHTML=picks.map(mCardHTML).join('')}
-  const ring=$('#mdsTodayRing');if(ring){const pct=Math.min(1,46/60);ring.setAttribute('stroke-dasharray',(pct*106).toFixed(1)+' 106')}
+  const ring=$('#mdsTodayRing');if(ring){const g0=MGOALS[0];const rd=mGoalRead('movieMin');const den=(g0.target!=null&&g0.target>0)?g0.target:60;const pct=Math.min(1,rd/den);ring.setAttribute('stroke-dasharray',(pct*106).toFixed(1)+' 106')}
 }
-function mStartTimerFor(){const x=MDEMO.find(i=>['在看','在追','在玩','在听','循环中'].includes(i.state))||MDEMO[0];mOpen(x.id)}
+function mStartTimerFor(){const x=MDEMO.find(i=>['在看','在追','在玩','在听','循环中'].includes(i.state))||MDEMO[0];mOpen(x.id);if(MSET.timerUI==='full')navTo('m-timer');else mTimerBegin(x)}
 function mTimerTap(){toast('计时起停（演示 · 悬浮计时条按 kind 切换文案）')}
 function mFlipReview(){mReviewFlipped=!mReviewFlipped;const el=$('#mdsRevCard');if(el)el.classList.toggle('flipped',mReviewFlipped)}
 const MNOTE_KINDTXT={movie:'电影',series:'剧集',music:'音乐',game:'游戏'};
@@ -3100,6 +3114,8 @@ function mRenderNoteEdit(){
   const u=$('#mdNoteUnit');if(u)u.placeholder={movie:'时间点外的备注（可选）',series:'第 5 集',music:'曲目 3',game:'章节 / 周目'}[kind]||'第 5 集 / 曲目 3 / 章节';
   const im=$('#mdNoteImgs');if(im)im.innerHTML=(mNoteImgs.map((g,i)=>`<div style="position:relative;width:56px;height:36px;border-radius:6px;flex-shrink:0;background:${g}"><button onclick="mNoteImgs.splice(${i},1);mRenderNoteEdit()" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:99px;border:1px solid currentColor;background:var(--mds-desk-bg);font-size:9px;line-height:1">×</button></div>`).join(''))||'<span class="text-[10px] mds-mono" style="opacity:.45">无附件</span>';
   const when=$('#mdNoteWhen');if(when&&!when.value)when.value='现在';
+  const pb=$('#mdNotePasteBtn');if(pb)pb.classList.toggle('hidden',!MSET.clipAuto);
+  const at=$('#mdNoteAt');if(at){if(MSET.autoPos&&!at.value){const ls=mSessSorted(cur)||[];at.value=(ls.length&&ls[ls.length-1].p1)||''}else if(!MSET.autoPos)at.value=''}
 }
 function mNoteAddImg(){const c=MD_COV[mNoteImgs.length%MD_COV.length];mNoteImgs.push('linear-gradient(135deg,'+c[0]+','+c[1]+')');mRenderNoteEdit()}
 function mNotePaste(){const ta=$('#mdNoteBody');if(ta){ta.value=(ta.value?ta.value+' ':'')+'［粘贴］雨后天台那一场，镜头从水洼里先抬起头。';ta.dispatchEvent(new Event('input'))}toast('已粘贴剪贴板文本（演示）')}
@@ -3262,10 +3278,12 @@ function mRenderStatRating(){
     '<div class="flex gap-2 flex-wrap text-[10px] mds-mono">'+per.map(o=>'<span class="mrating-k" data-k="'+o.k+'" style="color:'+MKIND_COLOR[o.k]+'">'+MNOTE_KINDTXT[o.k]+' '+o.v.toFixed(1)+'</span>').join('')+'</div>';
 }
 function mRenderStatGoal(){
-  const el=$('#mStatGoal');if(!el)return;
-  el.innerHTML=mEmptyRow('未设目标')+
-    '<div class="mentry mt-2 flex items-center gap-2 p-3" style="background:rgba(255,255,255,.55);border-radius:10px;cursor:pointer;color:var(--mds-ink)" onclick="navTo(\'m-goal\')"><span class="mds-title text-[12px]">影音目标</span>'+
-    '<svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
+const el=$('#mStatGoal');if(!el)return;
+const entry='<div class="mentry mt-2 flex items-center gap-2 p-3" style="background:rgba(255,255,255,.55);border-radius:10px;cursor:pointer;color:var(--mds-ink)" onclick="navTo(\'m-goal\')"><span class="mds-title text-[12px]">影音目标</span><svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
+const set=MGOALS.filter(g=>g.target!=null&&g.target>0);
+if(!set.length){el.innerHTML=mEmptyRow('未设目标')+entry;return}
+el.innerHTML=set.map(g=>{const rd=mGoalRead(g.k);const pct=Math.min(100,Math.round(rd/g.target*100));
+return '<div class="mgoalrow mb-1.5" data-mgoal="'+g.k+'"><div class="flex items-center justify-between text-[10.5px] mds-mono" style="margin-bottom:3px"><span>'+g.label+'</span><span data-mgoalread="'+g.k+'">'+mGoalNum(g.k,rd)+' / '+g.target+' '+g.unit+' · '+pct+'%</span></div><div style="height:3px;border-radius:2px;background:rgba(0,0,0,.08)"><div data-mgfill="'+g.k+'" style="width:'+pct+'%;height:100%;border-radius:2px;background:var(--accent)"></div></div></div>'}).join('')+entry;
 }
 function mRenderStatTotals(){
   const el=$('#mTotals');if(!el)return;
@@ -3275,13 +3293,13 @@ function mRenderStatTotals(){
   el.innerHTML=list.map(o=>'<span class="mds-chip mtotalchip" data-k="'+o.k+'">'+mKindWord(o.k)+' '+(o.v?mHMtxt(Math.round(o.v)):'—')+'</span>').join('')+
     '<span class="mds-chip mtotalchip" data-k="total" style="border-color:var(--accent)">总计 '+(tot?mHMtxt(Math.round(tot)):'—')+'</span>';
 }
-function mStatFoldPick(v){mStatFold=!!v;mStatDay='';mRenderStat()}
+function mStatFoldPick(v){mStatFold=!!v;MSET.speedFold=!!v;mStatDay='';mRenderStat()}
 function mStatYearPick(v){mStatYear=String(v);if(mStatYear==='all')mStatMonth=0;mRenderStat()}
 function mStatMonthPick(v){mStatMonth=+v;mRenderStat()}
 function mStatMetricPick(v){mStatMetric=String(v);mRenderStat()}
 function mStatKindPick(v){mStatKind=String(v);mRenderStat()}
 function mStatDayPick(k){mStatDay=mStatDay===k?'':k;mRenderStatHeat()}
-function mStatReset(){mStatFold=false;mStatMetric='min';mStatKind='all';mStatYear='all';mStatMonth=0;mStatDay='';mRenderStat()}
+function mStatReset(){mStatFold=!!MSET.speedFold;mStatMetric='min';mStatKind='all';mStatYear='all';mStatMonth=0;mStatDay='';mRenderStat()}
 /* ---------- 单条目轨迹（半屏只读；改与删在计时明细整屏） ---------- */
 function mTrackRows(id){return mAllSess().filter(s=>s.itemId===id).sort((a,b)=>mSessKey(a)<mSessKey(b)?-1:(mSessKey(a)>mSessKey(b)?1:0))}
 function mTrackOpen(id){if(id){const t=MDEMO.find(x=>x.id===id);if(t)mCurDetail=t}openSheet('m-sheet-track')}
@@ -3326,7 +3344,94 @@ function mRenderTrackSheet(){
     '<span class="ml-auto text-[10px] mds-mono" style="opacity:.6">'+rows.length+' 条 · 真实 '+mHMtxt(Math.round(rows.reduce((t,s)=>t+(+s.min||0),0)))+'</span>'+
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
 }
-function mRenderGoal(){const goals=[['每日观影','46','60','min'],['每周听歌','12','15','h'],['每月游玩','32','40','h'],['每年看完','28','50','部'],['每周影音天数','5','7','天'],['每月名场面','14','20','条']];const b=$('#mGoalBody');if(b)b.innerHTML=goals.map(([l,v,t,u])=>`<div class="py-2.5 px-1 flex items-center justify-between" style="border-bottom:1px solid rgba(0,0,0,.08)"><div class="mds-title text-[12px]">${l}</div><div class="text-[11px] mds-mono"><span class="mds-chip">${v} / ${t} ${u}</span></div></div>`).join('')+'<div class="mt-4 text-[10px] mds-mono" style="opacity:.55">时间/数值选择就地滚轮 · 待批实现</div>'}
+/* ---- 影音游批8a · 目标屏：固定六行（计划 §八 L7 六路汇聚），读数恒吃真实时长（账本口径 §九.1） ---- */
+const MGOALS=[
+{k:'movieMin',label:'每日观影',unit:'min',per:'day'},
+{k:'musicH',label:'每周听歌',unit:'h',per:'week'},
+{k:'gameH',label:'每月游玩',unit:'h',per:'month'},
+{k:'doneN',label:'每年看完',unit:'部',per:'year'},
+{k:'dayN',label:'每周影音天数',unit:'天',per:'week'},
+{k:'sceneN',label:'每月名场面',unit:'条',per:'month'}
+];
+MGOALS.forEach(g=>{g.target=null});
+let mGoalOpen=null;
+const M_PER_WORD={day:'今天',week:'本周',month:'本月',year:'今年'};
+const M_DONE_STATES=['看完','追完','通关'];
+function mSessDate(s){const p=String(s.dt||'').split('-');return new Date(+(s.yr||2026),+p[0]-1,+p[1])}
+function mWeekStart(t){const d=new Date(t.getFullYear(),t.getMonth(),t.getDate());const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);return d}
+function mDayEq(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()}
+function mGoalRead(k){const t=new Date(M_STAT_TODAY[0],M_STAT_TODAY[1]-1,M_STAT_TODAY[2]);const ws=mWeekStart(t);const S=mAllSess();
+if(k==='movieMin')return S.filter(s=>['movie','series'].indexOf(mKindOfSess(s))>=0&&mDayEq(mSessDate(s),t)).reduce((a,s)=>a+(+s.min||0),0);
+if(k==='musicH')return S.filter(s=>mKindOfSess(s)==='music'&&mSessDate(s)>=ws).reduce((a,s)=>a+(+s.min||0),0)/60;
+if(k==='gameH')return S.filter(s=>mKindOfSess(s)==='game'&&mSessDate(s).getFullYear()===t.getFullYear()&&mSessDate(s).getMonth()===t.getMonth()).reduce((a,s)=>a+(+s.min||0),0)/60;
+if(k==='dayN')return Array.from(new Set(S.filter(s=>mSessDate(s)>=ws).map(mSessKey))).length;
+if(k==='doneN')return MDEMO.filter(x=>M_DONE_STATES.indexOf(x.state)>=0&&String(x.endedAt||'').slice(0,4)===String(t.getFullYear())).length;
+if(k==='sceneN')return MNOTES.filter(n=>n.type==='scene'&&!n.gone&&new Date(n.created).getFullYear()===t.getFullYear()&&new Date(n.created).getMonth()===t.getMonth()).length;
+return 0}
+function mGoalNum(k,v){if(k==='musicH'||k==='gameH')return(+v).toFixed(1);return String(Math.round(v))}
+function mGoalItems(g){const a=[];
+if(g.k==='movieMin')for(let v=10;v<=300;v+=10)a.push(v);
+else if(g.k==='musicH')for(let v=1;v<=48;v++)a.push(v);
+else if(g.k==='gameH')for(let v=5;v<=300;v+=5)a.push(v);
+else if(g.k==='dayN')for(let v=1;v<=7;v++)a.push(v);
+else for(let v=1;v<=100;v++)a.push(v);
+return a.map(String)}
+function mGoalIdx(g){const it=mGoalItems(g);if(g.target==null)return Math.floor(it.length/2);
+let bi=0,bd=Infinity;it.forEach((s,i)=>{const d=Math.abs(+s-g.target);if(d<bd){bd=d;bi=i}});return bi}
+function mGoalToggle(k){mGoalOpen=mGoalOpen===k?null:k;mRenderGoal();if(mGoalOpen)posW('mgW_'+k)}
+function mGoalClear(k){const g=MGOALS.find(x=>x.k===k);if(g)g.target=null;mGoalOpen=null;mRenderGoal()}
+function mGoalPick(k,v){const g=MGOALS.find(x=>x.k===k);if(!g)return;g.target=(+v>0)?+v:null;mRenderGoal()}
+function mRenderGoal(){const b=$('#mGoalBody');if(!b)return;
+b.innerHTML=MGOALS.map(g=>{const rd=mGoalRead(g.k);const has=g.target!=null;const pct=(has&&g.target>0)?Math.round(rd/g.target*100):0;
+let h='<div class="py-2.5 px-1 mgrow" data-mg="'+g.k+'" style="border-bottom:1px solid rgba(0,0,0,.08);cursor:pointer" onclick="mGoalToggle(\''+g.k+'\')">';
+h+='<div class="flex items-center justify-between gap-2"><div style="min-width:0"><div class="mds-title text-[12px]">'+g.label+'</div>';
+h+='<div class="text-[10px] mds-mono" style="opacity:.6;margin-top:2px" data-mgread="'+g.k+'">'+M_PER_WORD[g.per]+' '+mGoalNum(g.k,rd)+' '+g.unit+'</div></div>';
+h+=has?'<div style="text-align:right"><span class="mds-chip mgtarget" data-mgt="'+g.k+'">'+g.target+' '+g.unit+'</span><span class="mgpct text-[10px] mds-mono" data-mgpct="'+g.k+'" style="opacity:.65"> · '+pct+'%</span></div>'
+:'<span class="mds-mono text-[10px] mgunset" data-mgunset="'+g.k+'" style="opacity:.5;border:1px dashed currentColor;border-radius:8px;padding:4px 10px">设目标</span>';
+h+='</div>';
+if(has)h+='<div data-mgbar="'+g.k+'" style="height:3px;border-radius:2px;background:rgba(0,0,0,.08);margin-top:6px"><div style="width:'+Math.min(100,pct)+'%;height:100%;border-radius:2px;background:var(--accent)"></div></div>';
+if(mGoalOpen===g.k){h+='<div class="mgwheel" data-mgwheel="'+g.k+'" style="margin-top:6px" onclick="event.stopPropagation()">';
+h+='<div class="flex gap-1 mb-1"><button class="mds-chip" style="font-size:9.5px;padding:2px 10px" onclick="mGoalClear(\''+g.k+'\')">不设目标</button></div>';
+h+='<div id="mgW_'+g.k+'" style="max-width:140px"></div></div>';}
+return h+'</div>'}).join('');
+if(mGoalOpen){const g=MGOALS.find(x=>x.k===mGoalOpen);if(g)wReg('mgW_'+g.k,mGoalItems(g),mGoalIdx(g),function(){const w=WHEELS['mgW_'+g.k];mGoalPick(g.k,+w.items[w.i])})}}
+/* ---- 影音游批8a · 设置屏：media.* 键读写与当场生效（死键 deskTexture/cardLiftPx/spineCols/longPress 已作废＝工单 §0.5） ---- */
+const MSET={defaultView:'desk',wallCols:2,sortDefault:'recent',newPos:'head',ocr:true,autoPos:true,clipAuto:true,timerUI:'capsule',floatBar:true,speedFold:false,autoAsk:true,dailyQ:true};
+const MSET_GROUPS=[
+['shelf','架面',[['defaultView','默认视图','seg',[['desk','桌面'],['spine','脊'],['list','列表']]],['wallCols','桌面列数','seg',[['2','2 列'],['3','3 列']]]]],
+['sort','排序',[['sortDefault','默认排序','seg',MSRT.map(k=>[k,{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]])],['newPos','新增插入','seg',[['head','置顶'],['tail','置底']]]]],
+['note','笔记',[['ocr','识图取文','off'],['autoPos','默认带时间点','bool'],['clipAuto','剪贴板识别','bool']]],
+['timer','计时',[['timerUI','计时形态','seg',[['capsule','胶囊'],['full','全屏']]],['floatBar','悬浮计时条','bool'],['speedFold','倍速折算','bool'],['autoAsk','结束即弹记进度','bool'],['dailyQ','晚间补记提醒','bool']]],
+['notify','更新提醒',[['notifyNewEpisode','新集上线','off'],['notifyNewAlbum','新专上线','off'],['notifySequel','续作与 DLC','off']]],
+['data','数据',[['goImport','导入向导','go'],['expMd','导出 MD','off'],['expJson','导出 JSON','off']]]
+];
+let mSetTab='shelf';
+function mSetPick(t){mSetTab=t;mRenderSet()}
+function mSetChg(k,v){MSET[k]=(k==='wallCols'?+v:v);mApplySetting(k);mRenderSet()}
+function mSetTgl(k){MSET[k]=!MSET[k];mApplySetting(k);mRenderSet()}
+function mApplySetting(k){
+if(k==='wallCols'||k==='sortDefault')mRenderShelf();
+if(k==='speedFold'){mStatFold=!!MSET.speedFold;mRenderStat()}
+if(k==='floatBar')mTimerBarSync();
+}
+function mOpenShelf(){mCurView=MSET.defaultView;mSortKey=MSET.sortDefault;navTo('m-shelf')}
+function mRenderSet(){const tb=$('#mSetTabs');if(tb)tb.innerHTML=MSET_GROUPS.map(gp=>'<button class="mds-chip mset-tab'+(mSetTab===gp[0]?' on':'')+'" data-t="'+gp[0]+'" onclick="mSetPick(\''+gp[0]+'\')">'+gp[1]+'</button>').join('');
+const b=$('#mSetBody');if(!b)return;const g=MSET_GROUPS.find(x=>x[0]===mSetTab)||MSET_GROUPS[0];
+b.innerHTML=g[2].map(r=>{const k=r[0],lab=r[1],type=r[2],opts=r[3];
+if(type==='seg'){const cur=String(MSET[k]);return '<div class="mset-row flex items-center justify-between gap-2 py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px] shrink-0">'+lab+'</span><div class="flex gap-1.5 overflow-x-auto no-scrollbar" style="justify-content:flex-end">'+opts.map(o=>'<button class="mds-chip mset-seg'+(String(o[0])===cur?' on':'')+'" data-v="'+o[0]+'" onclick="mSetChg(\''+k+'\',\''+o[0]+'\')">'+o[1]+'</button>').join('')+'</div></div>'}
+if(type==='bool')return '<div class="mset-row flex items-center justify-between py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">'+lab+'</span><span class="toggle mset-tgl'+(MSET[k]?' on':'')+'" data-k="'+k+'" onclick="mSetTgl(\''+k+'\')"></span></div>';
+if(type==='go')return '<div class="mset-row flex items-center justify-between py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08);cursor:pointer" onclick="navTo(\'m-import\')"><span class="text-[12px]">'+lab+'</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
+return '<div class="mset-row mset-off flex items-center justify-between py-2.5 px-1" data-k="'+k+'" style="border-bottom:1px solid rgba(0,0,0,.08);opacity:.45"><span class="text-[12px]">'+lab+'</span>'+(type==='off'&&(k==='ocr'||/^notify/.test(k))?'<span class="toggle'+(MSET[k]?' on':'')+' mset-tgl"></span>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.35"><path d="m9 18 6-6-6-6"/></svg>')+'</div>';
+}).join('')}
+/* ---- 批8a · 计时状态机（设置生效面：timerUI 两条路径／floatBar 控显隐／autoAsk 控结束弹层） ---- */
+let mTimerOn=null;
+function mTimerWord(k){return{movie:'观影中',series:'追剧中',music:'聆听中',game:'游玩中'}[k]||'计时中'}
+function mTimerBarSync(){const b=$('#mdsTimerBar');if(!b)return;if(b&&b.dataset && b.classList){b.querySelector('#mdsTimerKind').textContent=mTimerOn?mTimerWord(mTimerOn.kind):'计时';b.querySelector('#mdsTimerTitle').textContent=mTimerOn?('《'+mTimerOn.title+'》'):'';b.classList.toggle('hidden',!(mTimerOn&&MSET.floatBar));b.classList.toggle('flex',!!(mTimerOn&&MSET.floatBar))}}
+function mTimerTap(){if(mTimerOn){mTimerEnd();return}if(MSET.timerUI==='full'){navTo('m-timer');mTimerBegin(mCurDetail||MDEMO[0]);return}mTimerBegin(mCurDetail||MDEMO[0])}
+function mTimerBegin(x){mTimerOn=x;mTimerBarSync();mTimerGoBtnSync()}
+function mTimerEnd(){if(!mTimerOn)return;const x=mTimerOn;mTimerOn=null;mTimerBarSync();mTimerGoBtnSync();toast('「'+x.title+'」计时已结束');if(MSET.autoAsk)openSheet('m-sheet-progress')}
+function mTimerScreenTap(){if(mTimerOn){mTimerEnd()}else{mTimerBegin(mCurDetail||MDEMO[0])}mTimerGoBtnSync()}
+function mTimerGoBtnSync(){const g=$('#mdsTimerGoBtn');if(g)g.textContent=mTimerOn?'■ 结束':'▶ 开始'}
 function mRenderImport(){const src=['豆瓣','IMDb','TMDB','TVMAZE','MusicBrainz','RateYourMusic','Discogs','Steam','IGDB','B 站','网易云','Spotify','Letterboxd'];const b=$('#mImportBody');if(b)b.innerHTML=src.map(s=>`<div class="flex items-center justify-between py-2.5 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${s}</span><button class="mds-chip" onclick="toast('从 ${s} 导入（演示）')">导入</button></div>`).join('')+'<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="toast(\'粘贴文本自动识别（演示）\')">粘贴文本</button><button class="mds-chip">上传 CSV</button><button class="mds-chip">扫描 Steam 库</button></div>'}
 function mRenderSortSheet(){const el=$('#mSortOpts');if(el)el.innerHTML=MSRT.map(k=>`<div class="py-2 flex justify-between text-[12px]" onclick="mSortKey='${k}';mRenderShelf();closeSheet('m-sheet-sort')"><span>${{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]}</span><span style="opacity:.6">${mSortKey===k?'●':''}</span></div>`).join('')}
 function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"closeSheet('m-sheet-ops');mTrackOpen()"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
@@ -3356,12 +3461,13 @@ function mAddSave(){const t=$('#mdsAddTitle').value.trim();if(!t){toast('先起�
   cur.coverImg=mAddCoverImg}
   mAddEditing=false;mAddCoverImg=null;const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存 · 进入影音架';
   closeSheet('m-sheet-add');mRenderShelf();if(mCurDetail){navTo('m-detail');mRenderDetail()}toast('改动已保存');return}
-MDEMO.unshift({id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear(),creator:$('#mdsAddCreator').value||'未知',cRole:'导演',pub:$('#mdsAddPub').value||'未知',pRole:'制片',state:'想看',pct:0,dur:0,rating:0,tags:[],grp:'',src:'自建',cover:'linear-gradient(135deg,#8a6839,#3e2c1a)',coverImg:mAddCoverImg});mAddCoverImg=null;mRenderAddCover();closeSheet('m-sheet-add');navTo('m-shelf');mRenderShelf();toast('已入影音架')}
+const mdsRec={id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear(),creator:$('#mdsAddCreator').value||'未知',cRole:'导演',pub:$('#mdsAddPub').value||'未知',pRole:'制片',state:'想看',pct:0,dur:0,rating:0,tags:[],grp:'',src:'自建',cover:'linear-gradient(135deg,#8a6839,#3e2c1a)',coverImg:mAddCoverImg};if(MSET.newPos==='head')MDEMO.unshift(mdsRec);else MDEMO.push(mdsRec);mAddCoverImg=null;mRenderAddCover();closeSheet('m-sheet-add');navTo('m-shelf');mRenderShelf();toast('已入影音架')
+}
 
 /* ---- 影音游工作台已并入共享记录页 #recMedia（第4 tab）· 无需 renderMedia 追加按钮 ---- */
 
 /* ---- setPage 钩子：m-* 子页渲染（工作台在 #recMedia 由 switchRecord 钩子驱动） ---- */
-;(function(){const old=window.setPage;if(typeof old==='function'){window.setPage=function(p){old.apply(this,arguments);const map={'m-shelf':mRenderShelf,'m-detail':mRenderDetail,'m-info':mRenderInfo,'m-sesslog':mRenderSess,'m-notes':mRenderNotes,'m-mgr':mRenderMgr,'m-lists':mRenderLists,'m-stat':mRenderStat,'m-goal':mRenderGoal,'m-import':mRenderImport};const f=map[p];if(f)try{f()}catch(e){}};setPage=window.setPage}})();
+;(function(){const old=window.setPage;if(typeof old==='function'){window.setPage=function(p){old.apply(this,arguments);const map={'m-shelf':mRenderShelf,'m-detail':mRenderDetail,'m-info':mRenderInfo,'m-sesslog':mRenderSess,'m-notes':mRenderNotes,'m-mgr':mRenderMgr,'m-lists':mRenderLists,'m-stat':mRenderStat,'m-goal':mRenderGoal,'m-set':mRenderSet,'m-import':mRenderImport};const f=map[p];if(f)try{f()}catch(e){}};setPage=window.setPage}})();
 
 /* ---- switchRecord 钩子：切到影音游 tab 即渲染工作台（今日环/入口条/桌面俯瞰） ---- */
 ;(function(){const old=window.switchRecord;if(typeof old==='function'){window.switchRecord=function(k){old.apply(this,arguments);if(k==='media'){try{mRenderHub()}catch(e){}}};switchRecord=window.switchRecord}})();
