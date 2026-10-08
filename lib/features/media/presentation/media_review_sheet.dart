@@ -128,8 +128,12 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
                 Text(_single ? '复习卡' : '名场面复习',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
                 const Spacer(),
-                if (!_single && !_loading && n != null)
-                  Text('剩 ${_queue.length - _idx} 条',
+                // 位置槽（原型 `#mRevPos`）：队列模式给剩几条，单条模式写「单条」——
+                // 「看完不蹭档位」这件事得在屏上看得出来，不能只靠没有按钮。
+                // 口径偏离登记：原型是「当前 / 总数」，实现取「剩 N 条」（＝队列摘除语义更直白），
+                // 留产品一句话定夺（批5 工单观察项）。
+                if (!_loading && n != null)
+                  Text(_single ? '单条' : '剩 ${_queue.length - _idx} 条',
                       key: const ValueKey('mdr-left'),
                       style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
               ],
@@ -179,6 +183,9 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
   }
 
   /// 翻面卡（正面＝正文；背面＝出处＋批注；卡角两枚小箭头是不写字的翻面线索）。
+  ///
+  /// 色标＝左侧 3px 竖条走叠层，不写进 `Border(left: …)`：`BoxDecoration` 的圆角只容得下
+  /// 四边同色的边框，单边色＋圆角在 paint 阶段直接断言炸卡（笔记库卡片同一条，批5 常驻例现形）。
   Widget _flipCard(BuildContext context, MediaNote n) {
     final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
@@ -187,20 +194,31 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
       onTap: () => setState(() => _flipped = !_flipped),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
-        child: Container(
+        child: ClipRRect(
           key: ValueKey(_flipped ? 'back' : 'front'),
-          constraints: const BoxConstraints(minHeight: 180),
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 30),
-          decoration: BoxDecoration(
-            color: _flipped
-                ? scheme.surfaceContainerHighest
-                : scheme.surfaceContainerHighest.withValues(alpha: .55),
-            borderRadius: BorderRadius.circular(16),
-            border: Border(
-              left: BorderSide(color: mediaNoteTypeColor(n.noteType), width: 3),
-            ),
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              Container(
+                constraints: const BoxConstraints(minHeight: 180),
+                padding: const EdgeInsets.fromLTRB(17, 14, 14, 30),
+                color: _flipped
+                    ? scheme.surfaceContainerHighest
+                    : scheme.surfaceContainerHighest.withValues(alpha: .55),
+                child: _flipped ? _back(n, scheme) : _front(n, scheme),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  key: const ValueKey('mdr-accent'),
+                  color: mediaNoteTypeColor(n.noteType),
+                  child: const SizedBox(width: 3),
+                ),
+              ),
+            ],
           ),
-          child: _flipped ? _back(n, scheme) : _front(n, scheme),
         ),
       ),
     );

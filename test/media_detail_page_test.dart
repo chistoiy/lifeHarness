@@ -4,11 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/database/schema/core.dart' as core;
 import 'package:lifeharness/core/database/schema/media.dart' as md;
+import 'package:lifeharness/features/media/data/media_repo_note.dart';
 import 'package:lifeharness/features/media/data/media_repo_session.dart';
 import 'package:lifeharness/features/media/data/media_repository.dart';
 import 'package:lifeharness/features/media/domain/media_item.dart';
+import 'package:lifeharness/features/media/domain/media_note.dart';
 import 'package:lifeharness/features/media/presentation/media_providers.dart';
 import 'package:lifeharness/features/media/presentation/media_routes.dart';
 
@@ -28,6 +31,10 @@ void main() {
   setUp(() async {
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
     for (final sql in md.mediaSchemaStatements) {
+      await db.execute(sql);
+    }
+    // 基础 DDL 冻结在 v38；本页批5 起读写 media_notes 的复习三列 ⇒ 补放 mig[38]
+    for (final sql in DbSchema.migrations[38]!) {
       await db.execute(sql);
     }
     await db.execute(
@@ -91,7 +98,7 @@ void main() {
     return id;
   }
 
-  testWidgets('电影详情＝名场面空态＋进度行＋计时/记进度钮，记笔记钮置灰不隐藏', (tester) async {
+  testWidgets('电影详情＝名场面空态＋进度行＋三钮齐，记笔记钮与虚线都接录入表单', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     final id = await add(() => MediaItem(
           kind: MediaItem.kMovie,
@@ -108,22 +115,53 @@ void main() {
     await pumpDetail(tester, id);
     expect(find.text('沙丘 2'), findsWidgets);
     expect(find.textContaining('进度 40%'), findsOneWidget);
-    // 名场面属笔记批＝空态虚线行，不造演示数据
-    expect(find.textContaining('名场面记录随影音笔记批开放'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('mds-detail-note')),
-      findsOneWidget,
-      reason: '能力边界要显式声明：置灰不隐藏',
-    );
-    expect(
-      tester.widget<OutlinedButton>(find.byKey(const ValueKey('mds-detail-note'))).onPressed,
-      isNull,
-    );
+    // 名场面＝批5 真数据面：库里没笔记就是空态虚线，不造演示数据
+    expect(find.text('还没有名场面 · 点下方「＋ 记笔记」'), findsOneWidget);
+    final noteBtn = tester.widget<OutlinedButton>(
+        find.byKey(const ValueKey('mds-detail-note')));
+    expect(noteBtn.onPressed, isNotNull, reason: '批5 已开工＝不再置灰');
+    // 空态虚线行＝补录入口（LH-L04），点它直达唯一录入表单
+    await tester.tap(find.byKey(const ValueKey('mds-detail-notedash')));
+    await settle5(tester);
+    expect(find.text('记一条影音笔记'), findsOneWidget);
+    await tester.tapAt(const Offset(6, 6)); // 遮罩收起
+    await settle5(tester);
+    expect(find.text('记一条影音笔记'), findsNothing);
     // 创作者芯片点＝反查同值条目（带 q 直达架面）
     await tester.tap(find.byKey(const ValueKey('mds-chip-creator')));
     await settle5(tester);
     expect(find.text('影音架'), findsOneWidget, reason: '反查落点＝架面');
     expect(find.text('电影 1'), findsOneWidget);
+  });
+
+  testWidgets('记一条名场面＝时间线当场出行，虚线空态退场（批5 回灌：与笔记库同源）', (tester) async {
+    await useSurface(tester, const Size(420, 1000));
+    final id = await add(() => MediaItem(
+          kind: MediaItem.kMovie,
+          title: '沙丘 2',
+          state: '看完',
+          progressWay: MediaItem.kWayPct,
+          progressTo: '100',
+          durationMin: 155,
+          createdAt: 1,
+          updatedAt: 1,
+        ));
+    final container = await pumpDetail(tester, id);
+    expect(find.text('还没有名场面 · 点下方「＋ 记笔记」'), findsOneWidget);
+    final nid = await repo.addNote(MediaNote(
+      itemId: id,
+      kind: MediaItem.kMovie,
+      noteType: MediaNote.kScene,
+      body: '保罗站在水面上的那一眼',
+      atMin: 112,
+    ));
+    container.read(mediaTickProvider.notifier).state++; // 等价保存后的模块重取
+    await settle5(tester);
+    expect(find.byKey(ValueKey('mds-detail-scene-$nid')), findsOneWidget);
+    expect(find.text('保罗站在水面上的那一眼'), findsOneWidget);
+    expect(find.text('1:52'), findsOneWidget, reason: '时间点读数＝mediaNoteAtTx');
+    expect(find.text('还没有名场面 · 点下方「＋ 记笔记」'), findsNothing,
+        reason: '有真数据＝空态虚线退场，不两态并存');
   });
 
   testWidgets('剧集详情＝季集读数（已看集数从库取，不是原型演示的 S01E05）', (tester) async {

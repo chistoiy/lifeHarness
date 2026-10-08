@@ -3,11 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'media_detail_page.dart';
 import 'media_info_page.dart';
 import 'media_mgr_page.dart';
+import 'media_notes_page.dart';
 import 'media_sesslog_page.dart';
 import 'media_shelf_page.dart';
 import 'media_timer_page.dart';
 
-/// 影音游 · 全屏栈路由（批2 架面 · 批3 详情/计时）。
+/// 影音游 · 全屏栈路由（批2 架面 · 批3 详情/计时 · 批5 笔记库）。
 ///
 /// 模块**不新增底部 tab**（需求 V1.25：影音游＝记录页第四 tab），因此这里全部是栈页，
 /// 入口侧一律 `push`、不许 `go`（R6：go 会把栈页变成栈底，返回键直接退 app）。
@@ -20,6 +21,8 @@ List<GoRoute> mediaPageRoutes() => [
       initialQuery: s.uri.queryParameters['q'],
     ),
   ),
+  // 影音笔记库（原型 m-notes · 词典 LH-C18 · 批5）：入口＝架顶栏与记录页影音段各一行直达。
+  GoRoute(path: '/media/notes', builder: (_, _) => const MediaNotesPage()),
   // 条目详情（原型 m-detail）：点架卡/速览的正式落面。
   GoRoute(
     path: '/media/item/:id',

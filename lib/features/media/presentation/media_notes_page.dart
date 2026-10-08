@@ -87,7 +87,7 @@ class MediaNotesPage extends ConsumerWidget {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       children: [
-                        _countRow(context, list.length, view),
+                        _countRow(context, list),
                         _seg(context, ref, view),
                         const SizedBox(height: 10),
                         ..._body(context, ref, view, list, titles),
@@ -187,12 +187,15 @@ class MediaNotesPage extends ConsumerWidget {
     return parts.isEmpty ? '未加筛选 · 看在册全部笔记' : '已选：${parts.join(' · ')}';
   }
 
-  Widget _countRow(BuildContext context, int n, String view) {
+  /// 计数行（原型 `#mNotesCount` 同式：`N 条 · 标星 M`，M 取当前筛选结果里的标星数；
+  /// 视图名不重复播报——四档 seg 自己就带选中态）。
+  Widget _countRow(BuildContext context, List<MediaNote> list) {
     final scheme = Theme.of(context).colorScheme;
+    final starred = list.where((n) => n.starred).length;
     return Padding(
       key: kCount,
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text('$n 条 · ${views.firstWhere((v) => v.$1 == view).$2}',
+      child: Text('${list.length} 条 · 标星 $starred',
           style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant)),
     );
   }
@@ -268,6 +271,12 @@ class MediaNotesPage extends ConsumerWidget {
     ];
   }
 
+  /// 卡片视图一枚（词典 LH-C18 色标＝左侧 3px 竖条）。
+  ///
+  /// **一条框架硬账留此备查**：`BoxDecoration` 的 `borderRadius` 只容得下**四边同色**的
+  /// `Border`——把色标写成 `Border(left: BorderSide(某类色))` ＋圆角，paint 阶段直接
+  /// 断言「A borderRadius can only be given on borders with uniform colors」（批5 常驻例
+  /// 首跑现形；卡片视图＝整卡炸红）。所以色标走 ClipRRect＋叠层竖条，圆角与单边色两全。
   Widget _card(BuildContext context, WidgetRef ref, MediaNote n,
       Map<String, String> titles, bool compact) {
     final scheme = Theme.of(context).colorScheme;
@@ -277,30 +286,43 @@ class MediaNotesPage extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => showMediaReviewSheet(context, ref, singleNoteId: n.id),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: .5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border(
-              left: BorderSide(color: mediaNoteTypeColor(n.noteType), width: 3),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
             children: [
-              Text(
-                compact
-                    ? '${n.atMin == null ? '' : '${mediaNoteAtTx(n.atMin)} · '}${MediaNote.typeLabels[n.noteType] ?? ''}'
-                    : '${MediaNote.typeLabels[n.noteType] ?? ''} · ${titles[n.itemId] ?? '已删条目'}',
-                style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+              Container(
+                padding: const EdgeInsets.fromLTRB(15, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: .5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      compact
+                          ? '${n.atMin == null ? '' : '${mediaNoteAtTx(n.atMin)} · '}${MediaNote.typeLabels[n.noteType] ?? ''}'
+                          : '${MediaNote.typeLabels[n.noteType] ?? ''} · ${titles[n.itemId] ?? '已删条目'}',
+                      style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(n.body,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, height: 1.5)),
+                    if (!compact) _actions(context, ref, n),
+                  ],
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(n.body,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, height: 1.5)),
-              if (!compact) _actions(context, ref, n),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  key: ValueKey('mdn-accent-${n.id}'),
+                  color: mediaNoteTypeColor(n.noteType),
+                  child: const SizedBox(width: 3),
+                ),
+              ),
             ],
           ),
         ),

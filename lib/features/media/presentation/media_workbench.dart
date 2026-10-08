@@ -10,7 +10,8 @@ import 'widgets/media_card.dart';
 /// 记录页·影音游 tab（计划 §〇 S-01 的批2 落点）：真实影音架入口＋四类在册计数
 /// ＋最近四条俯瞰（原型 #recMedia「桌面俯瞰」同段）。
 ///
-/// 今日时长环/名场面复习两块分属计时批与笔记批，这里不留假读数占位。
+/// 今日时长环没有会话即整行不渲染（不留 00:00 假读数）；名场面复习的落面在笔记库
+/// 与条目详情，这里只补一行笔记库直达（批5 回灌）。
 class MediaWorkbench extends ConsumerWidget {
   const MediaWorkbench({super.key});
 
@@ -18,6 +19,7 @@ class MediaWorkbench extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final counts = ref.watch(mediaKindCountsProvider).valueOrNull ?? const {};
     final recent = ref.watch(mediaRecentProvider).valueOrNull ?? const [];
+    final noteTotal = ref.watch(mediaNoteTotalProvider).valueOrNull ?? 0;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
@@ -126,6 +128,55 @@ class MediaWorkbench extends ConsumerWidget {
                       fontSize: 10.5,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // 影音笔记库入口（批5 回灌：原型入口条 m-notes 一枚＝Flutter 侧的直达行）
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('media-open-notes'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => context.push('/media/notes'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      '影音笔记库',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    '笔记 $noteTotal',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontFeatures: kMediaTabular,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),

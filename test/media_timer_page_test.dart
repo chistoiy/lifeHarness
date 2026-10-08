@@ -111,15 +111,45 @@ void main() {
     whereArgs: [sessionId],
   );
 
-  testWidgets('未开始＝00:00:00 且状态行读「未开始」；名场面钮置灰不隐藏', (tester) async {
+  testWidgets('未开始＝00:00:00 且状态行读「未开始」；名场面钮已开工＝点它开表单且不预填 0 分', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     final id = await add();
     await pumpTimer(tester, id);
     expect(find.text('00:00:00'), findsOneWidget);
     expect(find.text('未开始'), findsOneWidget);
-    // §九.4 同口径：能力未开放＝置灰，不是摘掉
-    expect(find.byKey(const ValueKey('mds-timer-scene')), findsOneWidget);
-    expect(find.text('名场面记录随影音笔记批开放'), findsOneWidget);
+    // 批5 回灌：占位旁注退场（禁令「不写教学性说明文案」同口径，不留替代文案）
+    expect(find.text('名场面记录随影音笔记批开放'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('mds-timer-scene')));
+    await beat(tester, n: 14);
+    expect(find.text('记一条影音笔记'), findsOneWidget, reason: '名场面＝唯一录入表单');
+    expect(
+      tester.widget<TextField>(find.byKey(const ValueKey('mde-at'))).controller!.text,
+      isEmpty,
+      reason: '未起计时＝不预填 0 分，时间点留空',
+    );
+    await tester.tapAt(const Offset(6, 6)); // 遮罩收起
+    await beat(tester, n: 14);
+  });
+
+  testWidgets('计时在跑＝名场面钮把当前读数带进时间点', (tester) async {
+    await useSurface(tester, const Size(420, 1000));
+    final id = await add();
+    final container = await pumpTimer(tester, id);
+    await tester.tap(find.byKey(const ValueKey('mds-timer-toggle')));
+    await beat(tester);
+    final run = await repo.runningSession();
+    await shiftStart(run!.id!, 185); // 3 分 5 秒
+    container.read(mediaTickProvider.notifier).state++; // 等价写库后的模块重取
+    await beat(tester);
+    await tester.tap(find.byKey(const ValueKey('mds-timer-scene')));
+    await beat(tester, n: 14);
+    expect(
+      tester.widget<TextField>(find.byKey(const ValueKey('mde-at'))).controller!.text,
+      '3 分',
+      reason: '在跑读数＝secs~/60 走 mediaNoteAtTx',
+    );
+    await tester.tap(find.byKey(const ValueKey('mde-cancel')));
+    await beat(tester, n: 14);
   });
 
   testWidgets('点开始＝会话落库、大计时走字、分区自动进「在看」', (tester) async {

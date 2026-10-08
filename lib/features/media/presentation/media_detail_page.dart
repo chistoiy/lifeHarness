@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
+import '../domain/media_note.dart';
 import '../domain/media_session.dart';
 import 'media_actions.dart';
+import 'media_note_edit_sheet.dart';
 import 'media_ops_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
@@ -17,8 +19,9 @@ import 'widgets/media_card.dart';
 /// ＋按 kind 四套结构＋统计行（累计/次数/日均·预计完成日）＋底部动作条。
 ///
 /// 三条诚实口径：
-/// - 名场面时间线/曲目列表/成就墙＝**笔记批与资料面未开工**，空态虚线行，不照抄原型演示数据；
-/// - 「记笔记」「识图」钮置灰不隐藏（§九.4 能力边界显式声明）；
+/// - 名场面时间线＝批5 真数据（`mediaItemNotesProvider`，与笔记库同一出口），
+///   曲目列表/成就墙＝资料面未开工，空态虚线行，不照抄原型演示数据；
+/// - 「记笔记」钮与时间线空态虚线都接唯一录入表单（`showMediaNoteEditSheet`）；
 /// - 均速/预计剩余/预计完成日只在真算得出时出现（[mediaEtaOf] 返回 null 即隐藏）。
 class MediaDetailPage extends ConsumerWidget {
   const MediaDetailPage({super.key, required this.itemId});
@@ -215,8 +218,8 @@ class MediaDetailPage extends ConsumerWidget {
             Expanded(
               child: OutlinedButton(
                 key: const ValueKey('mds-detail-note'),
-                // 笔记批未开工＝置灰不隐藏（能力边界显式声明）
-                onPressed: null,
+                onPressed: () =>
+                    showMediaNoteEditSheet(context, ref, initialItemId: x.id),
                 child: const Text('＋ 记笔记'),
               ),
             ),
@@ -449,15 +452,54 @@ class MediaDetailPage extends ConsumerWidget {
           ],
         );
       default: // movie
+        // 名场面时间线（原型 m-detail extra 的 movie 分支）：吃 notesOfItem 同一出口，
+        // 与笔记库/复习队列同源；空态虚线行＝补录入口（LH-L04）。
+        final notes =
+            ref.watch(mediaItemNotesProvider(x.id)).valueOrNull ?? const <MediaNote>[];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle(scheme, '名场面时间线'),
-            const EmptyDashRow(text: '名场面记录随影音笔记批开放 · 现在可计时与记进度'),
+            if (notes.isEmpty)
+              EmptyDashRow(
+                key: const ValueKey('mds-detail-notedash'),
+                text: '还没有名场面 · 点下方「＋ 记笔记」',
+                onTap: () => showMediaNoteEditSheet(context, ref, initialItemId: x.id),
+              )
+            else
+              for (final n in notes) _sceneRow(scheme, n),
           ],
         );
     }
   }
+
+  /// 时间线一行：时间点（无点＝整行不出现时间）＋正文，与原型同形（不带色标，
+  /// 五类色标属笔记库卡片/行视图，词典 LH-C18）。
+  Widget _sceneRow(ColorScheme scheme, MediaNote n) => Container(
+    key: ValueKey('mds-detail-scene-${n.id}'),
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerHighest.withValues(alpha: .5),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (n.atMin != null)
+          Text(
+            mediaNoteAtTx(n.atMin),
+            style: TextStyle(
+              fontSize: 10.5,
+              color: scheme.onSurfaceVariant,
+              fontFeatures: kMediaTabular,
+            ),
+          ),
+        const SizedBox(height: 4),
+        Text(n.body, style: const TextStyle(fontSize: 11.5, height: 1.6)),
+      ],
+    ),
+  );
 
   Widget _ring(BuildContext context, String label, int v) => SizedBox(
     key: ValueKey('mds-ring-$label'),

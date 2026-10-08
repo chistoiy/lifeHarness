@@ -145,6 +145,13 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
             ],
           ),
           _ViewBtn(
+            key: const ValueKey('mds-notes-entry'),
+            icon: Icons.description_outlined,
+            label: '影音笔记库',
+            selected: false,
+            onTap: () => context.push('/media/notes'),
+          ),
+          _ViewBtn(
             key: const ValueKey('mds-mgr-entry'),
             icon: Icons.category_outlined,
             label: '影音资料',

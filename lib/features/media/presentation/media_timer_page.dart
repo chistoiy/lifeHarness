@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/media_repo_session.dart';
 import '../domain/media_item.dart';
+import '../domain/media_note.dart';
 import 'media_actions.dart';
+import 'media_note_edit_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
 import 'widgets/media_card.dart';
@@ -16,7 +18,8 @@ import 'widgets/media_card.dart';
 ///
 /// 实物色板铺底（不叠 BackdropFilter——整页模糊是产品已否的既定坑）；
 /// 大计时恒 HH:MM:SS；状态行与悬浮条共用 [mediaTimerWord] 按 kind 切文案；
-/// 三钮＝名场面（笔记批未开工＝置灰不隐藏）/ 起停 / 记进度。
+/// 三钮＝名场面（批5：直达唯一录入表单，来源列＝session，在跑时把计时读数带进时间点）/
+/// 起停 / 记进度。
 /// 计时态落库（`media_sessions` 单活行），杀进程重开从库里续——不存内存态。
 class MediaTimerPage extends ConsumerStatefulWidget {
   const MediaTimerPage({super.key, required this.itemId});
@@ -236,8 +239,15 @@ class _MediaTimerPageState extends ConsumerState<MediaTimerPage> {
                       _roundBtn(
                         'mds-timer-scene',
                         Icons.auto_awesome_outlined,
-                        enabled: false, // 名场面属笔记批（置灰不隐藏）
-                        onTap: () {},
+                        // 名场面＝笔记批唯一录入表单，在跑时把当前计时读数带进「时间点」
+                        // （未开始＝不预填 0 分，表单里那格留空）；来源列落 session。
+                        onTap: () => showMediaNoteEditSheet(
+                          context,
+                          ref,
+                          initialItemId: x.id,
+                          initialAtMin: on ? secs ~/ 60 : null,
+                          origin: MediaNote.kOriginSession,
+                        ),
                       ),
                       const SizedBox(width: 30),
                       GestureDetector(
@@ -277,17 +287,6 @@ class _MediaTimerPageState extends ConsumerState<MediaTimerPage> {
                       ),
                     ],
                   ),
-                  if (!on)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        '名场面记录随影音笔记批开放',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withValues(alpha: .6),
-                        ),
-                      ),
-                    ),
                   const SizedBox(height: 22),
                   GestureDetector(
                     key: const ValueKey('mds-timer-open-detail'),
@@ -320,17 +319,10 @@ class _MediaTimerPageState extends ConsumerState<MediaTimerPage> {
     );
   }
 
-  Widget _roundBtn(
-    String key,
-    IconData ic, {
-    required VoidCallback onTap,
-    bool enabled = true,
-  }) => GestureDetector(
-    key: ValueKey(key),
-    onTap: enabled ? onTap : null,
-    child: Opacity(
-      // 置灰不隐藏＝能力边界显式声明（§九.4 同口径）
-      opacity: enabled ? 1 : .35,
+  Widget _roundBtn(String key, IconData ic, {required VoidCallback onTap}) =>
+    GestureDetector(
+      key: ValueKey(key),
+      onTap: onTap,
       child: Container(
         width: 48,
         height: 48,
@@ -340,6 +332,5 @@ class _MediaTimerPageState extends ConsumerState<MediaTimerPage> {
         ),
         child: Icon(ic, size: 20, color: Colors.white),
       ),
-    ),
-  );
+    );
 }

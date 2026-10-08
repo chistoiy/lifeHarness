@@ -167,7 +167,8 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
     if (_busy) return;
     if (_body.text.trim().isEmpty) {
       // 就地红字，补输入即撤（不弹提示条——提示条会自己消失，用户回头看不到成因）。
-      setState(() => _bodyErr = '先写内容再保存');
+      // 文案照原型 `#mdNoteErr`＝「先写正文」（另两句＝另造口径，产品未拍）。
+      setState(() => _bodyErr = '先写正文');
       return;
     }
     final item = _item;
@@ -218,7 +219,7 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
   Future<void> _link({required bool toTodo}) async {
     final body = _body.text.trim();
     if (body.isEmpty) {
-      setState(() => _bodyErr = '先写内容再联动');
+      setState(() => _bodyErr = '先写正文');
       return;
     }
     if (toTodo ? _linkedTodo : _linkedJournal) {
@@ -296,7 +297,10 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              // —— 类型五 chips（选中项左边色标跟变）——
+              // —— 类型五 chips（每枚自带该类色标；选中态＝描边＋底色）——
+              // 原型的 `border-left:3px solid 类色` 在 Flutter 里不能与圆角共存
+              // （BoxDecoration 的圆角只容得下四边同色的 Border，paint 阶段直接炸表单），
+              // 落面＝同色竖条画进胶囊内部，视觉语义与词典 LH-C18 一致。
               _fieldLabel('类型'),
               Wrap(
                 spacing: 8,
@@ -313,26 +317,31 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
                               ? mediaNoteTypeColor(t).withValues(alpha: .16)
                               : scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(999),
-                          border: Border(
-                            left: BorderSide(color: mediaNoteTypeColor(t), width: 3),
-                            top: BorderSide(
-                                color: _type == t
-                                    ? mediaNoteTypeColor(t)
-                                    : scheme.outlineVariant),
-                            right: BorderSide(
-                                color: _type == t
-                                    ? mediaNoteTypeColor(t)
-                                    : scheme.outlineVariant),
-                            bottom: BorderSide(
-                                color: _type == t
-                                    ? mediaNoteTypeColor(t)
-                                    : scheme.outlineVariant),
+                          border: Border.all(
+                            color: _type == t
+                                ? mediaNoteTypeColor(t)
+                                : scheme.outlineVariant,
                           ),
                         ),
-                        child: Text(
-                          MediaNote.typeLabels[t] ?? t,
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              key: ValueKey('mde-type-accent-$t'),
+                              width: 3,
+                              height: 13,
+                              decoration: BoxDecoration(
+                                color: mediaNoteTypeColor(t),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              MediaNote.typeLabels[t] ?? t,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -665,15 +674,22 @@ String mediaNoteAtTx(int? atMin) {
 }
 
 /// 时间点输入 → 分钟（支持 `1:52:14`／`1:52`／`112`；看不懂＝null 不落值，不猜）。
+///
+/// **出端与反解必须同式**（批5 常驻例抓到）：`mediaNoteAtTx(112)` 出 `1:52`，
+/// 所以 `1:52` 必须解回 112 分钟——原先写成 `h * 60 + m ~/ 60`（把分钟又除了一次 60），
+/// 表现＝从计时页带进来的时间点一保存变成 1 小时整，且用户重开表单看到 `1:00`。
 int? mediaNoteParseAt(String raw) {
   final t = raw.trim();
   if (t.isEmpty) return null;
-  final parts = t.split(':');
+  // 「59 分」这种读数由 [mediaNoteAtTx] 自己产出（计时页预填就走这一式）——
+  // 出端能写出来的，反解必须能吃回去，否则保存时时间点会静默丢失。
+  final body = t.endsWith('分') ? t.substring(0, t.length - 1).trim() : t;
+  final parts = body.split(':');
   if (parts.length == 1) return int.tryParse(parts.first);
   if (parts.length == 2) {
     final h = int.tryParse(parts[0]), m = int.tryParse(parts[1]);
     if (h == null || m == null) return null;
-    return h * 60 + m ~/ 60;
+    return h * 60 + m;
   }
   if (parts.length == 3) {
     final h = int.tryParse(parts[0]),
