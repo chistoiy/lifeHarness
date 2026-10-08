@@ -40,6 +40,11 @@ const _baseline = <String, int>{
     // 批3 影音沉浸计时页：8 处「白」全是深色渐变底上的半透明白胶囊/钮（白字），
     // 属深色实态；观感门随复测包 6090 真机复验，不合规再摘模糊/改透明度。
     'lib/features/media/presentation/media_timer_page.dart': 8,
+    // 影音游批5 笔记库＋名录入面各 1 处：命中的都是**前景字/图标**（黑 54 圆钮上的白叉、
+    // 红角标上的白读数），底面一律吃 scheme，深色下不产生白底面缺陷——与 media_card 同形态。
+    // 登记≠放行：本批两屏的深色观感随其真机复验轮走查（复测包尚未出）。
+    'lib/features/media/presentation/media_notes_page.dart': 1,
+    'lib/features/media/presentation/media_note_edit_sheet.dart': 1,
     // 健康批2 工作台：6 处命中全是 hero 渐变卡上的前景字（white/white70 读数与小标签），
     // 底面走主题渐变随深浅自动跟随——与 media_card 同一形态的深色实态，非白底面缺陷。
     'lib/features/health/presentation/health_home_page.dart': 6,

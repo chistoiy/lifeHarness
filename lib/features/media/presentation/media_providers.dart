@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../data/media_repo_dict.dart';
+import '../data/media_repo_note.dart';
 import '../data/media_repo_session.dart';
 import '../data/media_repository.dart';
 import '../domain/media_item.dart';
+import '../domain/media_note.dart';
 import '../domain/media_session.dart';
 import '../domain/media_summary.dart';
 
@@ -147,4 +149,125 @@ final mediaDictRowsProvider =
   return ref.watch(mediaRepositoryProvider).dictRows(
     MediaDictRepo.dictKinds[tab] ?? tab,
   );
+});
+
+// ==================== 影音笔记库＋复习（批5 UI） ====================
+
+/// 笔记库六路筛选的唯一状态（类型／kind／条目／标星／标签／关键词）。
+///
+/// 用 record 而不是六枚 StateProvider：**family 键要整体换**，六枚各 watch 会让
+/// 「改一路就重建整段查询」与「漏 watch 一路＝读数来自旧快照」两类坑同时存在。
+/// 拍板①＝屏面只留筛选钮＋摘要行，六组条件都在筛选面板里改，「应用筛选」一次性落。
+typedef MediaNoteFilter = ({
+  String? type,
+  String? kind,
+  String? itemId,
+  String? tag,
+  bool starred,
+  String query,
+});
+
+const MediaNoteFilter kMediaNoteFilterAll = (
+  type: null,
+  kind: null,
+  itemId: null,
+  tag: null,
+  starred: false,
+  query: '',
+);
+
+final mediaNoteFilterProvider = StateProvider<MediaNoteFilter>(
+    (ref) => kMediaNoteFilterAll);
+
+/// 六路筛选各自的「换一路、其余原样」构造（record 没有 `copyWith`，
+/// 而面板里「选回全部／不限」＝**显式清成 null**，用 `?? 原值` 那种写法清不掉，
+/// 所以每路一个整份重建的小函数，别在 UI 里手拼六次字段）。
+MediaNoteFilter nfType(MediaNoteFilter f, String? v) =>
+    (type: v, kind: f.kind, itemId: f.itemId, tag: f.tag, starred: f.starred, query: f.query);
+
+MediaNoteFilter nfKind(MediaNoteFilter f, String? v) =>
+    (type: f.type, kind: v, itemId: f.itemId, tag: f.tag, starred: f.starred, query: f.query);
+
+MediaNoteFilter nfItem(MediaNoteFilter f, String? v) =>
+    (type: f.type, kind: f.kind, itemId: v, tag: f.tag, starred: f.starred, query: f.query);
+
+MediaNoteFilter nfTag(MediaNoteFilter f, String? v) =>
+    (type: f.type, kind: f.kind, itemId: f.itemId, tag: v, starred: f.starred, query: f.query);
+
+MediaNoteFilter nfStarred(MediaNoteFilter f, bool v) =>
+    (type: f.type, kind: f.kind, itemId: f.itemId, tag: f.tag, starred: v, query: f.query);
+
+MediaNoteFilter nfQuery(MediaNoteFilter f, String v) =>
+    (type: f.type, kind: f.kind, itemId: f.itemId, tag: f.tag, starred: f.starred, query: v);
+
+/// 四视图档（卡片／行／按条目／截图墙）；**拍板②＝默认「按条目」**。
+final mediaNoteViewProvider = StateProvider<String>((ref) => 'byitem');
+
+/// 在册条目全量（笔记条目的标题与条目选择页共用）。
+///
+/// 不吃架面那三枚筛选（kind/state/query）：笔记库的「条目 chips」与表单的「选条目」
+/// 都要看全库，跟着架面筛选走会让「这条笔记的条目名」在某些架面状态下取不到。
+final mediaAllItemsProvider = FutureProvider<List<MediaItem>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).items();
+});
+
+/// 笔记列表（六路筛选的唯一出口；四视图都画这一份，计数天然一致＝工单 §1.1 的构造性保证）。
+final mediaNotesProvider = FutureProvider<List<MediaNote>>((ref) {
+  ref.watch(mediaTickProvider);
+  final f = ref.watch(mediaNoteFilterProvider);
+  return ref.watch(mediaRepositoryProvider).notes(
+        noteType: f.type,
+        kind: f.kind,
+        itemId: f.itemId,
+        tag: f.tag,
+        query: f.query,
+        starredOnly: f.starred,
+      );
+});
+
+/// 条目 chips 的档位来源（只列有笔记的条目，**不吃 itemId 自身**——仓储侧已钉）。
+final mediaNoteFacetProvider = FutureProvider<List<({String itemId, int count})>>((ref) {
+  ref.watch(mediaTickProvider);
+  final f = ref.watch(mediaNoteFilterProvider);
+  return ref.watch(mediaRepositoryProvider).noteItemFacet(
+        kind: f.kind,
+        noteType: f.type,
+        tag: f.tag,
+        query: f.query,
+        starredOnly: f.starred,
+      );
+});
+
+/// 标签 chips 来源（在册行 tag 去重）。
+final mediaNoteTagsProvider = FutureProvider<List<String>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).noteTags();
+});
+
+/// 复习角标读数＝**吃同一份筛选**的到期队列长度（工单 §1.2：队列来源＝筛过的笔记）。
+final mediaDueCountProvider = FutureProvider<int>((ref) {
+  ref.watch(mediaTickProvider);
+  final f = ref.watch(mediaNoteFilterProvider);
+  return ref.watch(mediaRepositoryProvider).dueReviewCount(
+        noteType: f.type,
+        kind: f.kind,
+        itemId: f.itemId,
+        tag: f.tag,
+        query: f.query,
+        starredOnly: f.starred,
+      );
+});
+
+/// 在册笔记总数（**不受筛选影响**）：空态两档分话术用——
+/// 0 条＝「还没有影音笔记」，非 0 但当前筛选空＝「当前筛选没有笔记」。
+final mediaNoteTotalProvider = FutureProvider<int>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).noteCount();
+});
+
+/// 某条目的在册笔记（详情页名场面时间线）。
+final mediaItemNotesProvider = FutureProvider.family<List<MediaNote>, String>((ref, id) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).notesOfItem(id);
 });
