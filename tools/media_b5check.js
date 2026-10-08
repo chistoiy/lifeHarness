@@ -43,7 +43,7 @@ window.__rid=function(el){var a=el.getAttribute('onclick').match(/'([^']+)'/g);r
 window.__act=function(el,lb){return [].slice.call(el.querySelectorAll('.mds-chip')).filter(function(x){return x.textContent===lb})[0]};
 window.__toast=function(){var t=document.getElementById('toast');return t?t.textContent:''};
 window.__snap=function(){return MNOTES.map(function(n){return [n.id,n.rev,n.starred,n.gone||0]})};
-window.__restore=function(s){s.forEach(function(a){var n=MNOTES.find(function(x){return x.id===a[0]});if(n){n.rev=a[1];n.starred=a[2];n.gone=a[3]}});mNoteType='all';mNoteKind='all';mNoteItem='all';mNoteStar=false;mNoteTag='all';mNoteQ='';mNoteView='card';mRenderNotes()};
+window.__restore=function(s){s.forEach(function(a){var n=MNOTES.find(function(x){return x.id===a[0]});if(n){n.rev=a[1];n.starred=a[2];n.gone=a[3]}});mNoteType='all';mNoteKind='all';mNoteItem='all';mNoteStar=false;mNoteTag='all';mNoteQ='';mNoteView='byitem';mRenderNotes()};
 window.__due=function(){return MNOTES.filter(mRevDue).length};
 `;
 
@@ -101,7 +101,7 @@ window.__due=function(){return MNOTES.filter(mRevDue).length};
   /* A4 标星 toggle 与「只看看过的」 */
   const a4 = await ev(`var b=document.getElementById('mNoteStarChip');b.click();
     var r={n:__nb().length,cnt:__cnt(),exp:__exp(function(x){return x.starred}),on:b.className.indexOf('on')>=0,
-      allStar:__nb().every(function(el){return /取消标星/.test(el.textContent)})};
+      allStar:__live().filter(function(x){return x.starred}).every(function(x){return x.starred})};
     b.click();return r;`);
   (a4.n > 0 && a4.n === Number(a4.cnt.split('条')[0]) && a4.cnt === a4.exp && a4.on && a4.allStar)
     ? ok('A4 标星 toggle 生效（计数行跟着走·筛出的全是标星行）', a4.cnt) : bad('A4', JSON.stringify(a4));
@@ -120,7 +120,7 @@ window.__due=function(){return MNOTES.filter(mRevDue).length};
       if(p[1]==='byitem'){o[p[0]].groups=document.querySelectorAll('#mNotesBody > div.mb-3').length;
         o[p[0]].sub=([].slice.call(document.querySelectorAll('#mNotesBody > div.mb-3')).every(function(d){return d.firstElementChild.textContent.indexOf('条')>=0}));}
       if(p[1]==='wall')o[p[0]].noimg=(document.getElementById('mNotesBody').textContent.match(/无截图/g)||[]).length;});
-    mNoteView='card';mRenderNotes();
+    mNoteView='byitem';mRenderNotes();
     o.expN=n0;o.expGroups=(function(){var s={};__live().forEach(function(x){s[x.itemId]=1});return Object.keys(s).length})();
     o.expNoimg=__live().filter(function(x){return !x.img}).length;return o;`);
   (['卡片', '行', '按条目', '截图墙'].every(k => a6[k].rows === a6.expN) && a6['按条目'].groups === a6.expGroups && a6['按条目'].sub && a6['截图墙'].noimg === a6.expNoimg)
@@ -134,7 +134,7 @@ window.__due=function(){return MNOTES.filter(mRevDue).length};
   (a7.ok === a7.total && a7.total > 0) ? ok('A7 每一行的色标都等于其类型色（' + a7.ok + '/' + a7.total + '）') : bad('A7', JSON.stringify(a7));
 
   /* A8 行内「标星」就地改档，不跳页也不弹复习 */
-  const a8 = await ev(`var el=__nb().filter(function(x){return /(^|>)标星</.test(x.innerHTML)||/标星/.test(x.textContent)})[0];
+  const a8 = await ev(`mNoteView='card';mRenderNotes();var el=__nb().filter(function(x){return /(^|>)标星</.test(x.innerHTML)||/标星/.test(x.textContent)})[0];
     el=__nb().filter(function(x){var i=__rid(x);return MNOTES.find(function(n){return n.id===i}).starred===0})[0];
     if(!el)return {skip:'无未标星行'};
     var id=__rid(el),r0=el.innerHTML.length;var before=curPage;__act(el,'标星').click();
@@ -215,15 +215,15 @@ window.__due=function(){return MNOTES.filter(mRevDue).length};
     return {on:on,types:tc.length,colored:tc.every(function(b){return /border-left/.test(b.getAttribute('style')||'')}),
       fields:['mdNoteUnit','mdNoteAt','mdNoteBody','mdNoteAnno','mdNoteTag','mdNoteWhen'].filter(function(i){return document.getElementById(i)}).length,
       when:document.getElementById('mdNoteWhen').value,kinds:kinds,
-      ocr:!!ocr,op:ocr?getComputedStyle(ocr).opacity:'',title:ocr?ocr.title:'',pasted:pasted,
+      ocr:!!ocr,op:ocr?getComputedStyle(ocr).opacity:'',otx:(ocr&&(ocr.click(),__toast())),adj:document.getElementById('mdNoteWhen').parentElement===document.getElementById('mdNoteAt').parentElement,pasted:pasted,
       imgs:document.querySelectorAll('#mdNoteImgs > div').length,x:document.querySelectorAll('#mdNoteImgs button').length};`);
   (a15.on === '《范特西》' && a15.types === 5 && a15.colored && a15.fields === 6 && a15.when === '现在'
     && !/曲目/.test(a15.kinds.movie) && /第.*集/.test(a15.kinds.series) && /曲目/.test(a15.kinds.music) && /章节|周目/.test(a15.kinds.game)
-    && a15.ocr && Number(a15.op) <= 0.6 && /识别库|暂不可用/.test(a15.title) && a15.pasted && a15.imgs === 2 && a15.x === 2)
+    && a15.ocr && Number(a15.op) <= 0.6 && /未安装识别库/.test(a15.otx||'') && a15.adj && a15.pasted && a15.imgs === 2 && a15.x === 2)
     ? ok('A15 录入面＝条目预选＋五色标类型＋单位随 kind 四套＋创建时间默认现在；识图置灰不隐藏；粘贴与附件可×', a15.kinds.movie + '/' + a15.kinds.game) : bad('A15', JSON.stringify(a15));
 
   /* A16 空正文＝校验红字贴在字段旁（LH-K32）；补正文后保存＝列表与计数同帧 +1 且落对条目 */
-  const a16 = await ev(`mOpenNoteEdit('mv1','line');var ta=document.getElementById('mdNoteBody');ta.value='  ';
+  const a16 = await ev(`mOpenNoteEdit('mv1','line');document.getElementById('toast').textContent='';var ta=document.getElementById('mdNoteBody');ta.value='  ';
     document.getElementById('mdNoteErr').classList.add('hidden');mNoteSave();
     var err=document.getElementById('mdNoteErr'),r1=err.getBoundingClientRect(),r2=ta.getBoundingClientRect();
     var bad={shown:!err.classList.contains('hidden'),txt:err.textContent.replace(/\s+/g,''),near:Math.abs(r1.top-r2.bottom)<40,toast:__toast()};
@@ -264,6 +264,26 @@ window.__due=function(){return MNOTES.filter(mRevDue).length};
   (a19.rows === a19.cnt.split('条')[0] * 1 && a19.cnt === a19.exp && a19.badge === String(a19.due) && a19.detail && a19.shelf >= 8)
     ? ok('A19 恢复后列表·计数·角标同口径，架面与详情未回归', a19.cnt + ' · 角标 ' + a19.badge) : bad('A19', JSON.stringify(a19));
 
+  /* A20 过门形：六路筛选收进一枚钮（面板五组 chip＋屏上摘要行）、钮带激活计数、清空复位；默认档＝按条目；表单类型组在条目后；复习卡角不写字箭头 */
+  const a20 = await ev(`__restore(${JSON.stringify(SNAP.s)});navTab('m-notes');
+    var o={defView:mNoteView};
+    var fb=document.getElementById('mNoteFilterBtn');o.fb=!!fb;o.fbTx=fb?fb.textContent:'';
+    var sm=document.getElementById('mNoteSum');o.sumHidden0=sm?sm.classList.contains('hidden'):true;
+    openSheet('m-sheet-filter');
+    o.groups=['mNoteTypeChips','mNoteKindChips','mNoteItemChips','mNoteTagChips','mNoteStarChip'].filter(function(i){return document.getElementById(i)}).length;
+    __chip('#mNoteTypeChips','台词');o.sumTx=sm?sm.querySelector('span').textContent:'';o.sumNowHidden=sm.classList.contains('hidden');
+    o.fbOn=fb.className.indexOf('on')>=0;o.fbTx2=fb.textContent;
+    closeSheet('m-sheet-filter');
+    mNoteClearFilter();o.sumAfterClear=sm.classList.contains('hidden');o.fbAfterClear=fb.textContent;
+    mOpenNoteEdit('mv1');o.order=document.getElementById('mdsNoteItemChips').compareDocumentPosition(document.getElementById('mdsNoteTypeChips'))&4;
+    closeSheet('m-sheet-note-edit');
+    mOpenReview('due');
+    o.arrows=document.querySelectorAll('#mdsRevCard .mds-rev-flip').length;
+    o.frontTx=(document.getElementById('mdsRevFront').textContent||'').replace(/\s+/g,'');
+    closeSheet('m-review');mRenderNotes();return o;`);
+  (a20.defView === 'byitem' && a20.fb && a20.fbTx === '筛选' && a20.sumHidden0 && a20.groups === 5 && a20.sumTx === '台词' && !a20.sumNowHidden
+    && a20.fbOn && /筛选 · 1/.test(a20.fbTx2) && a20.sumAfterClear && a20.fbAfterClear === '筛选' && a20.order && a20.arrows === 2 && !/出处|《/.test(a20.frontTx))
+    ? ok('A20 过门形＝筛选钮半屏面板＋摘要/清空、默认按条目、类型组随规格上移、卡角箭头无字', a20.fbTx2) : bad('A20', JSON.stringify(a20));
   const pe = errs.filter(e => !/lh-gov|init skip/.test(e));
   (pe.length === 0 ? ok : bad)('Z0 PAGE ERRORS', pe.length ? pe.join(' || ') : '0');
 

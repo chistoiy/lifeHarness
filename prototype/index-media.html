@@ -367,6 +367,8 @@ tailwind.config = {
   .mds-rev-face{position:absolute;inset:0;backface-visibility:hidden;padding:16px;border-radius:14px;background:rgba(255,255,255,.7);box-shadow:var(--mds-shadow-contact),var(--mds-shadow-ambient);overflow:hidden}
   .dark .mds-rev-face{background:rgba(45,32,22,.85)}
   .mds-rev-back{transform:rotateY(180deg)}
+  .mds-rev-flip{position:absolute;top:10px;right:10px;width:16px;height:16px;opacity:.35;pointer-events:none;z-index:2;color:var(--mds-ink)}
+  .mds-chip.block{pointer-events:none;opacity:.45}
   /* 桌面热力图 */
   .mds-heat{display:grid;grid-template-columns:repeat(15,1fr);gap:3px}
   .mds-heat-cell{aspect-ratio:1/1;border-radius:2px;background:rgba(0,0,0,.06);position:relative}
@@ -660,15 +662,28 @@ tailwind.config = {
     <!-- ===== 影音游专版 · M-NOTES 影音笔记库 ===== -->
 <section id="m-notes" class="page mds-desk no-scrollbar">
       <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音笔记库</div><button class="mds-vbtn" style="position:relative" onclick="mOpenReview('due')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="mds-badge st-d" id="mNoteRevBadge" style="display:none">0</span></button><button class="mds-vbtn" onclick="mOpenNoteEdit('')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteTypeChips"></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteKindChips"></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteItemChips"></div>
-      <div class="flex gap-2 mb-2 items-center"><input id="mNoteQ" class="inp" style="flex:1;min-width:0;padding:6px 10px;font-size:11px;background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="搜索正文/条目/批注" oninput="mNoteQ=this.value;mRenderNotes()"><button class="mds-chip" id="mNoteStarChip" onclick="mNoteStar=!mNoteStar;mRenderNotes()">标星</button></div>
-      <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mNoteTagChips"></div>
+      <div class="flex gap-2 mb-2 items-center"><input id="mNoteQ" class="inp" style="flex:1;min-width:0;padding:6px 10px;font-size:11px;background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="搜索正文/条目/批注" oninput="mNoteQ=this.value;mRenderNotes()"><button class="mds-chip" id="mNoteFilterBtn" onclick="openSheet('m-sheet-filter')">筛选</button></div>
+      <div id="mNoteSum" class="flex gap-2 mb-2 items-center hidden"><span class="text-[9.5px] mds-mono" style="opacity:.6;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button class="mds-chip" style="padding:3px 10px;font-size:10px" onclick="mNoteClearFilter()">清空</button></div>
       <div class="flex gap-1 mb-2" id="mNoteViewSeg"></div>
       <div id="mNotesCount" class="text-[10px] mds-mono mb-2" style="opacity:.55"></div>
       <div id="mNotesBody"></div>
     </section>
+
+    <div id="m-sheet-filter" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-filter')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="flex items-center gap-2 mb-3"><div class="mds-title text-[15px]">筛选</div><button class="mds-chip ml-auto" style="padding:3px 10px;font-size:10px" onclick="mNoteClearFilter()">重置</button><button class="mds-chip on" style="padding:3px 12px;font-size:10px" onclick="closeSheet('m-sheet-filter')">完成</button></div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">类型</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteTypeChips"></div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">kind</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteKindChips"></div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">条目</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteItemChips"></div>
+        <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">标签</div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mNoteTagChips"></div>
+        <div class="flex gap-2 items-center"><button class="mds-chip" id="mNoteStarChip" onclick="mNoteStar=!mNoteStar;mRenderNotes()">标星</button><span class="text-[9.5px] mds-mono" style="opacity:.55">只看标星</span></div>
+      </div>
+    </div>
 
     <!-- ===== 影音游专版 · M-MGR 通用管理器（五类实体） ===== -->
     <section id="m-mgr" class="page mds-desk no-scrollbar">
@@ -763,15 +778,15 @@ tailwind.config = {
         <div class="grabber"></div>
         <div class="mds-title text-[15px] mb-3">记一条影音笔记</div>
         <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">条目</div>
-        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsNoteItemChips"></div>
+        <div class="flex gap-2 overflow-x-auto no-scrollbar mb-2" id="mdsNoteItemChips"></div>
         <div class="text-[9.5px] mds-mono mb-1" style="opacity:.55">类型</div>
         <div class="flex gap-2 overflow-x-auto no-scrollbar mb-3" id="mdsNoteTypeChips"></div>
-        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteUnit" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="第 5 集 / 曲目 3 / 章节"><input id="mdNoteAt" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时间点 1:52:14"></div>
+        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteUnit" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="第 5 集 / 曲目 3 / 章节"><input id="mdNoteWhen" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="创建时间"><input id="mdNoteAt" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="时间点 1:52:14"></div>
         <textarea id="mdNoteBody" class="inp !py-2.5 text-sm mb-1" rows="3" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="正文：一句台词 / 一段歌词 / 一张截图旁的批注…" oninput="document.getElementById('mdNoteErr').classList.add('hidden')"></textarea>
         <div id="mdNoteErr" class="hidden text-[10px] mb-1" style="color:#dc2626">先写正文</div>
         <input id="mdNoteAnno" class="inp !py-2 text-[11px] mb-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="批注（复习背面显示，可选）">
-        <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" title="未安装识别库" onclick="toast('OCR 识图暂不可用 · 可粘贴文本')">识图</button></div>
-        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteTag" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"><input id="mdNoteWhen" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="创建时间"></div>
+        <div class="flex items-center gap-2 mb-2"><span class="text-[9.5px] mds-mono shrink-0" style="opacity:.55">附件截图</span><div id="mdNoteImgs" class="flex gap-2 overflow-x-auto no-scrollbar" style="flex:1;min-width:0"></div><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNoteAddImg()">＋ 附件</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px" onclick="mNotePaste()">粘贴文本</button><button class="mds-chip shrink-0" style="padding:3px 10px;font-size:10px;opacity:.45" onclick="toast('未安装识别库')">识图</button></div>
+        <div class="flex gap-2 text-[11px] mb-2"><input id="mdNoteTag" class="inp flex-1 !py-2" style="background:rgba(255,255,255,.5);color:var(--mds-ink)" placeholder="标签"></div>
         <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="toast('已插入今日日记草稿（L5 联动）')">→ 日记</button><button class="mds-chip" onclick="toast('已生成待办（L5 联动）')">→ 待办</button><button class="mds-chip on" style="margin-left:auto" onclick="mNoteSave()">保存</button></div>
       </div>
     </div>
@@ -785,6 +800,7 @@ tailwind.config = {
           <div class="mds-rev" id="mdsRevCard" onclick="mFlipReview()"><div class="mds-rev-inner">
             <div class="mds-rev-face" id="mdsRevFront"></div>
             <div class="mds-rev-face mds-rev-back" id="mdsRevBack"></div>
+            <svg class="mds-rev-flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><svg class="mds-rev-flip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
           </div></div>
           <div class="flex gap-2 mt-3 items-center" id="mRevStageChips"></div>
           <div class="flex gap-2 mt-3"><button class="mds-chip" onclick="mReviewSkip()">跳过这条</button><button class="mds-chip on" style="margin-left:auto" onclick="mReviewDone()">记住了</button></div>
@@ -2748,7 +2764,7 @@ const MSTATE_MAP={movie:['未看','在看','看完','搁置'],series:['未看','
 const MSRT=['recent','rating','added','year','title','progress'];
 const MTYPE_LABEL={scene:'名场面',line:'台词',lyric:'歌词',shot:'截图',long:'长评'};
 const MTYPE_COLOR={scene:'#dc2626',line:'#f59e0b',lyric:'#059669',shot:'#6366f1',long:'#94a3b8'};
-let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='card',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[];
+let mCurKind='all',mCurState='all',mCurView='desk',mSel=new Set(),mSortKey='recent',mReviewFlipped=false,mCurDetail=null,mNoteType='all',mMgrTab='src',mNoteKind='all',mNoteItem='all',mNoteStar=false,mNoteTag='all',mNoteQ='',mNoteView='byitem',mRevQueue=[],mRevIdx=0,mRevSingle=false,mNoteSelItem='',mNoteSelType='scene',mNoteImgs=[];
 
 function mItems(){let l=MDEMO.filter(x=>(mCurKind==='all'||x.kind===mCurKind)&&(mCurState==='all'||x.state===mCurState));return l}
 function mKindCounts(){const o={movie:0,series:0,game:0};MDEMO.forEach(x=>{if(x.kind!=='music')o[x.kind]++});o.music=MMOMENTS.length;o.all=o.movie+o.series+o.game+o.music;return o}
@@ -2961,6 +2977,7 @@ function mNoteActs(n){return `<button class="mds-chip" style="padding:2px 8px;fo
 function mNoteHead(n){return `<div class="text-[9px] mds-mono" style="opacity:.6">${MNOTE_KINDTXT[n.kind]} · 《${n.title}》${n.at?' · '+n.at:''} · ${MTYPE_LABEL[n.type]}</div>`}
 function mRenderNotes(){
   const all=mNotesLive();
+  mNoteSumRender();
   const t=$('#mNoteTypeChips');if(t)t.innerHTML=[['all','全部'],...Object.entries(MTYPE_LABEL)].map(([k,l])=>`<button class="mds-chip ${mNoteType===k?'on':''}" onclick="mNoteType='${k}';mRenderNotes()">${l}</button>`).join('');
   const k=$('#mNoteKindChips');if(k)k.innerHTML=[['all','不限 kind'],['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([kk,l])=>`<button class="mds-chip ${mNoteKind===kk?'on':''}" onclick="mNoteKind='${kk}';mRenderNotes()">${l}</button>`).join('');
   const seen={};const items=[];all.forEach(n=>{if(!seen[n.itemId]){seen[n.itemId]=1;items.push(n)}});
@@ -2979,6 +2996,13 @@ function mRenderNotes(){
   else b.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`+list.map(n=>`<div class="mrow" style="cursor:pointer" onclick="mOpenReview('one','${n.id}')"><div style="aspect-ratio:16/10;border-radius:10px;${n.img?'background:'+n.img:'background:transparent;border:1.5px dashed rgba(0,0,0,.25)'}"></div><div class="text-[9px] mds-mono mt-1" style="opacity:.6">${MNOTE_KINDTXT[n.kind]}·${n.title}${n.at?' · '+n.at:''}${n.img?'':' · 无截图'}</div></div>`).join('')+`</div>`;
   mUpdateRevBadge();
 }
+function mNoteSumRender(){
+  const a=[];if(mNoteType!=='all')a.push(MTYPE_LABEL[mNoteType]);if(mNoteKind!=='all')a.push({movie:'电影',series:'剧集',music:'音乐',game:'游戏'}[mNoteKind]);if(mNoteItem!=='all'){const n=mNotesLive().find(x=>x.itemId===mNoteItem);a.push('《'+(n?n.title:'?')+'》')}if(mNoteTag!=='all')a.push('#'+mNoteTag);if(mNoteStar)a.push('标星');
+  const sm=$('#mNoteSum');if(sm){sm.classList.toggle('hidden',!a.length);const sp=sm.querySelector('span');if(sp)sp.textContent=a.join(' · ')}
+  const bt=$('#mNoteFilterBtn');if(bt)bt.className='mds-chip'+(a.length?' on':'');if(bt)bt.textContent=a.length?'筛选 · '+a.length:'筛选';
+}
+function mNoteClearFilter(){mNoteType='all';mNoteKind='all';mNoteItem='all';mNoteTag='all';mNoteStar=false;mNoteQ='';const q=$('#mNoteQ');if(q)q.value='';mRenderNotes()}
+function mOpenNoteFilter(){openSheet('m-sheet-filter')}
 function mNoteStarToggle(id){const n=MNOTES.find(x=>x.id===id);if(n){n.starred=n.starred?0:1;mRenderNotes()}}
 function mNoteDel(id){const n=MNOTES.find(x=>x.id===id);if(n){n.gone=Date.now();mRenderNotes();toast('已移入回收站（演示）')}}
 function mOpenReview(mode,noteId){
