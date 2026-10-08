@@ -183,6 +183,46 @@ class MediaWorkbench extends ConsumerWidget {
             ),
           ),
         ),
+        // 全站统计入口（批7 回灌：原型入口条 m-stat 一枚＝直达行）
+        const SizedBox(height: 14),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('media-open-stat'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => context.push('/media/stat'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.donut_small_outlined,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      '影音统计',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         if (recent.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(

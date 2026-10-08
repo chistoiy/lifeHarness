@@ -43,6 +43,17 @@ IconData mdsKindIcon(String kind) => switch (kind) {
   _ => Icons.bookmark_outline,
 };
 
+/// 四类**扁平主色**（原型 `MKIND_COLOR` 逐值对齐）。
+/// 统计屏的热力格、构成条、趋势柱与轨迹弹层全吃这一份——
+/// 微拟物材质渐变已由产品否决（计划 §三 反转横幅），这里不再出现渐变。
+Color mdsKindColor(String kind) => switch (kind) {
+  MediaItem.kMovie => const Color(0xFFC9932A),
+  MediaItem.kSeries => const Color(0xFF2C3A54),
+  MediaItem.kMusic => const Color(0xFF8A6839),
+  MediaItem.kGame => const Color(0xFFA89E8C),
+  _ => const Color(0xFF64748B),
+};
+
 /// 进度条填充色（原型 `.pbar>i` 的 done/give 两档覆写）。
 Color mdsProgressColor(BuildContext context, String tone) => switch (tone) {
   'done' => const Color(0xFF10B981),

@@ -9,11 +9,12 @@ import 'media_add_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
 import 'media_sheets.dart';
+import 'media_track_sheet.dart';
 
 /// 条目操作弹层（LH-S34 · 原型 `m-sheet-ops`）：详情页顶栏「更多」与架面长按共用的动作面。
 ///
-/// 原型那列动作里，**影音单/轨迹/导出属后续批次**（批4 统计与影音单），
-/// 本批不铺假入口：只给真做得动的五项，做不了的整条不出现（不是置灰骗点）。
+/// 原型那列动作里，**影音单/导出属后续批次**（批8 影音单），本批不铺假入口：
+/// 只给真做得动的几项（轨迹＝批7 已上线），做不了的整条不出现（不是置灰骗点）。
 Future<void> showMediaOpsSheet(
   BuildContext context,
   WidgetRef ref,
@@ -117,6 +118,14 @@ class _OpsSheet extends ConsumerWidget {
                 Navigator.of(context).pop();
                 if (!context.mounted) return;
                 context.push('/media/item/${item.id}/info');
+              },
+            ),
+            (
+              '影音轨迹',
+              () async {
+                Navigator.of(context).pop();
+                if (!context.mounted) return;
+                await showMediaTrackSheet(context, ref, item);
               },
             ),
             (

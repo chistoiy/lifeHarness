@@ -5,10 +5,12 @@ import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
 import '../data/media_repo_note.dart';
 import '../data/media_repo_session.dart';
+import '../data/media_repo_stat.dart';
 import '../data/media_repository.dart';
 import '../domain/media_item.dart';
 import '../domain/media_note.dart';
 import '../domain/media_session.dart';
+import '../domain/media_stats.dart';
 import '../domain/media_summary.dart';
 
 /// 影音游模块 providers（批2 · 影音架）。
@@ -280,4 +282,53 @@ final mediaNoteTotalProvider = FutureProvider<int>((ref) {
 final mediaItemNotesProvider = FutureProvider.family<List<MediaNote>, String>((ref, id) {
   ref.watch(mediaTickProvider);
   return ref.watch(mediaRepositoryProvider).notesOfItem(id);
+});
+
+// ==================== 统计屏与条目轨迹（批7 UI · LH-C21／LH-S37） ====================
+
+/// 倍速折算开关（§七 `media.speedFold`）：**默认为真实耗时**。
+///
+/// 计划 §七 表里那行「默认 true」写在 §九.1 定案之前，已过期——批4 拍板＝账本吃真实、
+/// 折算只在读侧算，所以统计屏顶部那两枚 chip（真实时长／折算时长）就是这枚设置的可见表达，
+/// 切换当场写回，别处不散存第二份态。
+final mediaSpeedFoldProvider = FutureProvider<bool>((ref) async {
+  ref.watch(mediaTickProvider);
+  return (await ref.watch(mediaKvProvider(('media.speedFold', 'false')).future)) == 'true';
+});
+
+/// 四行筛选条的唯一状态（年／月／度量／构成；**口径不在这份里**，见 [mediaStatProvider]）。
+final mdsStatFilterProvider = StateProvider<MdsStatFilter>(
+    (ref) => const MdsStatFilter());
+
+/// 全库已结算会话（统计屏八块的原料；进行中那条不入账＝不进统计）。
+final mediaClosedSessionsProvider = FutureProvider<List<MediaSession>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).closedSessions();
+});
+
+/// 统计屏八块读数的唯一出口。
+///
+/// [MdsStatFilter.fold] 在这里**由设置注入**，不让筛选态与设置各存一份口径：
+/// chip 的选中态读 [mediaSpeedFoldProvider]，点 chip 只写 KV＋失效重取，
+/// 屏上所有读数因此永远同源（刀1 摘掉算面里的折算分支时，页面不需要改一行就会红）。
+final mediaStatProvider = FutureProvider<MdsStatRead>((ref) async {
+  final f = ref.watch(mdsStatFilterProvider);
+  final fold = ref.watch(mediaSpeedFoldProvider).valueOrNull ?? false;
+  final sessions = await ref.watch(mediaClosedSessionsProvider.future);
+  final items = await ref.watch(mediaAllItemsProvider.future);
+  return mdsComputeStat(
+    sessions: sessions,
+    items: items,
+    filter: f.copyWith(fold: fold),
+    now: DateTime.now(),
+  );
+});
+
+/// 单条目已结算会话（轨迹弹层逐次柱与里程碑；日期升序）。
+final mediaTrackSessionsProvider = FutureProvider.family<List<MediaSession>, String>((
+  ref,
+  id,
+) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).closedSessionsOfItem(id);
 });

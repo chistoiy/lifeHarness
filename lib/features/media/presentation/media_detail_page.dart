@@ -12,6 +12,7 @@ import 'media_note_edit_sheet.dart';
 import 'media_ops_sheet.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
+import 'media_track_sheet.dart';
 import 'widgets/media_card.dart';
 
 /// 条目详情（原型 `m-detail` · 路由 `/media/item/:id`）：
@@ -50,6 +51,14 @@ class MediaDetailPage extends ConsumerWidget {
             onPressed: item.valueOrNull == null
                 ? null
                 : () => context.push('/media/item/${item.valueOrNull!.id}/info'),
+          ),
+          IconButton(
+            key: const ValueKey('mds-detail-track'),
+            tooltip: '条目轨迹',
+            icon: const Icon(Icons.timeline_outlined),
+            onPressed: item.valueOrNull == null
+                ? null
+                : () => showMediaTrackSheet(context, ref, item.valueOrNull!),
           ),
           PopupMenuButton<String>(
             key: const ValueKey('mds-detail-ops'),

@@ -82,16 +82,16 @@ void main() {
     await settle5(tester);
   }
 
-  testWidgets('操作弹层只列真做得动的动作；影音单/轨迹/导出属后批＝整条不出现', (tester) async {
+  testWidgets('操作弹层只列真做得动的动作；影音单/导出属后批＝整条不出现（批7 轨迹已上线）', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     final item = (await repo.itemById(id))!;
     await openSheet(tester, (ctx, ref) => showMediaOpsSheet(ctx, ref, item));
-    for (final label in ['编辑条目信息', '改分区（当前：在追）', '记进度', '移入回收站']) {
+    for (final label in ['编辑条目信息', '改分区（当前：在追）', '记进度', '条目资料', '影音轨迹', '计时明细', '移入回收站']) {
       expect(find.byKey(ValueKey('mds-ops-$label')), findsOneWidget);
     }
     // 剧集没「看完」＝完结档动作按 kind 现算，不硬铺
     expect(find.byKey(const ValueKey('mds-ops-标记「看完」')), findsNothing);
-    for (final absent in ['移入影音单', '轨迹', '导出']) {
+    for (final absent in ['移入影音单', '导出']) {
       expect(find.textContaining(absent), findsNothing, reason: '后批能力不铺假入口');
     }
   });

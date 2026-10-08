@@ -6,6 +6,7 @@ import 'media_mgr_page.dart';
 import 'media_notes_page.dart';
 import 'media_sesslog_page.dart';
 import 'media_shelf_page.dart';
+import 'media_stat_page.dart';
 import 'media_timer_page.dart';
 
 /// 影音游 · 全屏栈路由（批2 架面 · 批3 详情/计时 · 批5 笔记库）。
@@ -23,6 +24,8 @@ List<GoRoute> mediaPageRoutes() => [
   ),
   // 影音笔记库（原型 m-notes · 词典 LH-C18 · 批5）：入口＝架顶栏与记录页影音段各一行直达。
   GoRoute(path: '/media/notes', builder: (_, _) => const MediaNotesPage()),
+  // 全站统计（原型 m-stat · 词典 LH-C21 · 批7）：入口＝工作台图标条「统计」一枚。
+  GoRoute(path: '/media/stat', builder: (_, _) => const MediaStatPage()),
   // 条目详情（原型 m-detail）：点架卡/速览的正式落面。
   GoRoute(
     path: '/media/item/:id',
