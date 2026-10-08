@@ -8,6 +8,7 @@ import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
+import '../../../shared/linkage/health_mounts.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
@@ -146,6 +147,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             }),
           'events' => const TodayScheduleCard(),
           'inboxBar' => const _InboxBar(),
+          // 健康批7：今日健康卡（环＋杯数＋运动分钟＋当前血压位）。卡体与读数装配在
+          // shared/linkage/health_mounts.dart（R1：仪表盘不直连健康 feature）；
+          // 开关 health.show_dash_card 关＝卡内整块不出现。
+          'health' => const HealthDashCard(),
           'days' => const _RecentDaysCard(),
           'chart' => const _TimeDistCard(),
           'grid' => const _AllModulesCard(),

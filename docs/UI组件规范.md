@@ -197,6 +197,12 @@
 - 铁口径＝① 选图先降采样（长边钉 480·JPEG .82）再落值，读不出图只提示、不落半个字节；② 无封面＝**色板＋标题首字**回落（首字现算），永不摆假图；③ 图层顺序钉死：封面图 0 < 形态装饰（片名/评分/进度/黑胶盘/卡带）1 < 暗角遮罩 2，四类实物形态一件不摘；④ 编辑态保存＝回写原条目，**不新建重复条目**；⑤ 详情头图吃用户封面、**侧脊视图不吃**（拍板③）。
 - 行内只留功能词（拍照／相册／移除），无教学性说明文案。
 
+### LH-C20 今日仪表盘健康卡（健康批7 · 2026-10-08 实现已交付·原型已回灌待过门）
+- 原型：`prototype/index.html` `#p-dashboard` 内 `#dashHealth`（`renderDashHealth()` 现算）。代码：`lib/shared/linkage/health_mounts.dart` `HealthDashCard`（仪表盘只挂一行，`features/dashboard` 不 import 健康 feature＝R1）·常驻用例 `test/health_dash_card_test.dart`·无头闸 `tools/health_b7check.js`。
+- 构成＝**达成度环 56（12 点起顺时针按分数走）＋三枚读数**（喝水／运动分钟／当前血压位·需求 V1.63），右上日期、尾部 ›；读数标签人话、杯数位把当日目标写进标签（「喝水 · 目标 4 杯」）才验得出分母随目标走。
+- 铁口径＝① 环与读数**全部取工作台同源 provider**（`healthTodayScoreProvider`／`HealthToday`／`healthVitalStripProvider`），仪表盘侧不许另算一套分；② 开关 `health.show_dash_card` 关＝**整卡不出现**，不留空槽不写「已隐藏」；③ 没记录的格子出「—」，永不补 0／0/0 假读数；④ 点卡＝`push('/health')`（栈页不许 `go`，R6）。
+- 卡序入 `kHomeCardIds`（`inboxBar` 之后），老用户已存顺序由 `_sanitizeHomeOrder` 补尾，不插中间。
+
 ## 三、LH-S 弹层类（sheet 家族）
 
 **公共骨架**：showModalBottomSheet · isScrollControlled · 内边距 LTRB(16,14,16,24) · 标题 15 w900 · 行卡=LH-C01+选中描边 accent 2px+✓

@@ -475,6 +475,23 @@ tailwind.config = {
         <span class="text-slate-300">›</span>
       </button>
 
+      <!-- 今日健康（健康批7 共享面挂载 · 计划 §批7＝达成度环＋杯数＋运动分钟，需求 V1.63 增「当前血压位」；开关 health.show_dash_card 属实现面） -->
+      <button id="dashHealth" onclick="navTo('p-health')" class="mt-4 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
+        <span class="relative w-14 h-14 shrink-0">
+          <svg viewBox="0 0 36 36" class="w-14 h-14 ring-progress"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(99,102,241,.15)" stroke-width="5"/><circle id="dashHealthRing" cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="0 100" stroke-linecap="round" class="text-brand-500"/></svg>
+          <span id="dashHealthPct" class="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold">0%</span>
+        </span>
+        <span class="flex-1 min-w-0">
+          <span class="flex items-center justify-between"><span class="text-sm font-bold">今日健康</span><span id="dashHealthDay" class="text-[10px] text-slate-400"></span></span>
+          <span class="mt-1.5 flex gap-4">
+            <span class="flex-1 min-w-0"><span id="dashHealthWater" class="block text-base font-extrabold leading-5">—</span><span class="block text-[10px] text-slate-400 truncate">喝水 · 目标 <b id="dashHealthGoal">8</b> 杯</span></span>
+            <span class="flex-1 min-w-0"><span id="dashHealthEx" class="block text-base font-extrabold leading-5">—</span><span class="block text-[10px] text-slate-400 truncate">运动分钟</span></span>
+            <span class="flex-1 min-w-0"><span id="dashHealthBp" class="block text-base font-extrabold leading-5">—</span><span class="block text-[10px] text-slate-400 truncate">血压</span></span>
+          </span>
+        </span>
+        <span class="text-slate-300">›</span>
+      </button>
+
       <!-- 时间分布 -->
       <button onclick="navTo('p-timeStats')" class="card mt-4 w-full text-left active:scale-[.99] transition">
         <div class="row-title">本周时间分布</div>
@@ -2524,7 +2541,26 @@ function mktInstall(k){const m=MKT_META.find(x=>x.k===k);if(MKT_LOADED.some(x=>x
   setTheme(k);renderMkt();toast('🎨 '+m.n+' 已热加载并应用 · 未刷新页面')},650);}
 
 /* ================= 仪表盘 ================= */
+/* 健康批7 共享面挂载：今日健康卡（计划 §批7＝环＋杯数＋运动分钟，需求 V1.63 增血压位）。
+ * 达成度与 lib 侧 health_calc.dailyScore 同式：喝水 40＋睡眠 35＋运动 25（运动≥10 分钟记满），
+ * 分母一律取当日目标；环上百分比**页面内现算**，不写死。 */
+const DASH_HEALTH={cups:2,waterGoal:4,sleepMin:480,sleepGoalMin:480,exMin:30,bp:null};
+function renderDashHealth(){
+  const el=$('#dashHealth'); if(!el) return;
+  const cap=(a,b)=>b<=0?0:Math.min(100,a/b*100);
+  const s=Math.round(cap(DASH_HEALTH.cups,DASH_HEALTH.waterGoal)*0.4
+    +cap(DASH_HEALTH.sleepMin,DASH_HEALTH.sleepGoalMin)*0.35
+    +(DASH_HEALTH.exMin>=10?100:0)*0.25);
+  const ring=$('#dashHealthRing'); if(ring)ring.setAttribute('stroke-dasharray',s+' 100');
+  const set=(id,v)=>{const e=$(id); if(e)e.textContent=v;};
+  set('#dashHealthPct',s+'%'); set('#dashHealthGoal',DASH_HEALTH.waterGoal);
+  set('#dashHealthWater',DASH_HEALTH.cups>0?DASH_HEALTH.cups:'—');
+  set('#dashHealthEx',DASH_HEALTH.exMin>0?DASH_HEALTH.exMin:'—');
+  set('#dashHealthBp',DASH_HEALTH.bp||'—');
+  const n=new Date(); set('#dashHealthDay',(n.getMonth()+1)+'月'+n.getDate()+'日');
+}
 function renderDash(){
+  renderDashHealth();
   /* R14-14：今日安排与问候卡「N 场安排」同源，统一由 blocks 渲染（见 renderHero） */
   $('#appGrid').innerHTML = D.grid.map(g=>{
     /* 反馈轮5：带第4位段名的宫格（如「阅读」）先落 tab 再切该段视图 */
@@ -2536,7 +2572,7 @@ function renderDash(){
     const mt=$('#moodTip'); mt.innerHTML=`已记录：<b>${b.dataset.m}</b> · 将进入今晚日记与心情趋势（联动 L4）`; mt.classList.remove('hidden'); });
 }
 /* ================= 主页自由编排（拖拽/上下移动/保存） ================= */
-const DASH_IDS=['greeting','mood','events','inboxBar','chart','grid'];
+const DASH_IDS=['greeting','mood','events','inboxBar','health','chart','grid'];
 let dashEditing=false,dragCard=null;
 function initDashOrder(){const p=$('#p-dashboard');
   const tip=document.createElement('div');tip.id='dashTip';tip.className='hidden mb-3 rounded-xl bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/30 px-3 py-2 text-[11px] text-brand-600 dark:text-brand-400 font-bold';

@@ -168,6 +168,7 @@ class UserSettings {
     'mood',
     'events',
     'inboxBar',
+    'health',
     'days',
     'chart',
     'grid',
