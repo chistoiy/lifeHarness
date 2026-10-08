@@ -378,6 +378,15 @@ tailwind.config = {
   .mds-heat-cell.k-series{background:var(--mds-box-blue)}
   .mds-heat-cell.k-music{background:radial-gradient(circle,#5a3a1a,#1a1208)}
   .mds-heat-cell.k-game{background:linear-gradient(180deg,#a89e8c,#5c5240)}
+  .mds-heat-cell.k-none{background:transparent;border:1px dashed rgba(15,23,42,.3)}
+  .dark .mds-heat-cell.k-none{border-color:rgba(255,255,255,.32)}
+  .mds-heat-cell.sel{box-shadow:0 0 0 2px var(--accent)}
+  .mds-bars{display:flex;align-items:flex-end;gap:3px;height:56px}
+  .mds-bars .bcol{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;height:100%}
+  .mds-bars .bzero{width:100%;height:2px;border-top:1px dashed currentColor;opacity:.35}
+  .mds-bars .bfill{width:100%;border-radius:3px 3px 0 0}
+  .mkindrow-v{white-space:nowrap}
+  .mds-track .bcol span{white-space:nowrap}
   /* 三视图工具条 */
   .mds-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:6px 2px}
   .mds-toolbar .brand{font-family:var(--mds-font-title);font-size:15px;font-weight:800;letter-spacing:.5px}
@@ -704,15 +713,31 @@ tailwind.config = {
       <div id="mListsBody" class="mds-grid"></div>
     </section>
 
-    <!-- ===== 影音游专版 · M-STAT 全站统计 ===== -->
+    <!-- ===== 影音游专版 · M-STAT 全站统计（真实/折算口径 · 年×月×度量×构成 屏内钻取 · 影音游批7 原型先行） ===== -->
     <section id="m-stat" class="page mds-desk no-scrollbar">
-      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音统计</div><button class="mds-vbtn" onclick="toast('年份/月份/度量 钻取（演示）')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/></svg></button></div>
-      <div class="mds-title text-[13px] mb-1">近 30 天 · 桌面热力</div>
-      <div class="mds-heat mb-4" id="mHeat"></div>
-      <div class="mds-title text-[13px] mb-2">类型占比</div>
+      <div class="mds-toolbar"><button class="mds-vbtn" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button><div class="brand">影音统计</div><button class="mds-vbtn" id="mStatResetBtn" onclick="mStatReset()" title="回到默认"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button></div>
+      <div class="flex gap-2 mb-3" id="mStatFoldChips"></div>
+      <div id="mStatDrill" class="mb-4">
+        <div class="mstat-drill flex items-center gap-2 mb-1.5"><span class="mstat-lbl text-[9.5px] mds-mono" style="width:26px;opacity:.55">年</span><div class="flex gap-2 overflow-x-auto no-scrollbar flex-1" id="mStatYearChips"></div></div>
+        <div class="mstat-drill flex items-center gap-2 mb-1.5"><span class="mstat-lbl text-[9.5px] mds-mono" style="width:26px;opacity:.55">月</span><div class="flex gap-2 overflow-x-auto no-scrollbar flex-1" id="mStatMonthChips"></div></div>
+        <div class="mstat-drill flex items-center gap-2 mb-1.5"><span class="mstat-lbl text-[9.5px] mds-mono" style="width:26px;opacity:.55">度量</span><div class="flex gap-2 overflow-x-auto no-scrollbar flex-1" id="mStatMetricChips"></div></div>
+        <div class="mstat-drill flex items-center gap-2"><span class="mstat-lbl text-[9.5px] mds-mono" style="width:26px;opacity:.55">构成</span><div class="flex gap-2 overflow-x-auto no-scrollbar flex-1" id="mStatKindChips"></div></div>
+      </div>
+      <div class="mds-title text-[13px] mb-1" id="mStatHeatTitle">近 30 天</div>
+      <div class="mds-heat mb-2" id="mHeat"></div>
+      <div id="mStatDay" class="mb-3"></div>
+      <div class="mds-title text-[13px] mb-2" id="mStatTrendTitle">趋势</div>
+      <div id="mStatTrend" class="mb-4"></div>
+      <div class="mds-title text-[13px] mb-2">类型构成</div>
       <div id="mKindPie" class="mb-4"></div>
+      <div class="mds-title text-[13px] mb-2">时段分布</div>
+      <div id="mStatHours" class="mb-4"></div>
+      <div class="mds-title text-[13px] mb-2">平均评分</div>
+      <div id="mStatRating" class="mb-4"></div>
+      <div class="mds-title text-[13px] mb-2">目标达成</div>
+      <div id="mStatGoal" class="mb-4"></div>
       <div class="mds-title text-[13px] mb-2">跨 kind 总时长</div>
-      <div class="flex gap-2 text-[11px] mds-mono mb-4" id="mTotals"></div>
+      <div class="flex gap-2 flex-wrap text-[11px] mds-mono" id="mTotals"></div>
     </section>
 
     <!-- ===== 影音游专版 · M-GOAL 目标 ===== -->
@@ -787,6 +812,15 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- ===== 影音游专版 · M-SHEET-TRACK 单条目轨迹（逐次柱状 · 时段分布 · 里程碑 · 只读 · 影音游批7 原型先行） ===== -->
+    <div id="m-sheet-track" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-track')">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
+        <div class="grabber"></div>
+        <div class="flex items-end gap-2 mb-3"><div class="mds-title text-[15px]">条目轨迹</div><div class="ml-auto text-[10px] mds-mono" id="mTrackSub" style="opacity:.6"></div></div>
+        <div class="mds-title text-[12px] mb-2" id="mTrackTitle">—</div>
+        <div id="mTrackBody"></div>
+      </div>
+    </div>
     <!-- ===== 影音游专版 · M-SHEET-NOTE-EDIT 影音笔记录入 ===== -->
     <div id="m-sheet-note-edit" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-note-edit')">
       <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
@@ -2849,7 +2883,7 @@ function mRenderDetail(){
   else{const notes=MNOTES.filter(n=>!n.gone&&n.itemId===x.id);extra=`<div class="mt-3"><div class="mds-title text-[12px] mb-2">名场面时间线</div><div class="space-y-2">${notes.length?notes.map(n=>`<div class="p-2.5 text-[11px]" style="background:rgba(255,255,255,.55);border-radius:8px;color:var(--mds-ink)"><div class="mds-mono" style="opacity:.6">${n.at}</div><div class="mt-1 leading-6">${n.body}</div></div>`).join(''):'<div class="text-[11px] mds-mono" style="opacity:.55">还没有名场面 · 点下方「＋ 记笔记」</div>'}</div></div>`}
   const notes=MNOTES.filter(n=>!n.gone&&n.itemId===x.id);
   const progressLine=x.kind==='movie'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">进度 <b class="mds-underline" onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.pct}%</b> · 时长 ${x.dur}min</div>`:x.kind==='series'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">看到 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">S${x.seasons}E${x.cur}</b> · ${x.airState}</div>`:x.kind==='music'?`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">循环 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.loops}</b> 次 · 最常 ${x.fav}</div>`:`<div class="mt-2 text-[11px] mds-mono" style="opacity:.75">${x.mainPct!=null?`主线 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.mainPct}%</b> · ${x.plays||1} 周目`:`累计 <b onclick="openSheet('m-sheet-progress')" style="border-bottom:1px dashed currentColor;cursor:pointer">${x.hours||0}h</b> · 最近和 ${x.withWho||'—'}`}</div>`;
-  b.innerHTML=`<div class="flex gap-3 items-start" style="max-width:220px">${mCardHTML(x)}<div class="flex-1 pt-1" style="min-width:0"><div class="text-[10px] mds-mono" style="opacity:.55">${x.sub||''}</div><div class="mds-title text-[16px] mt-0.5">${x.title}</div><div class="text-[11px] mt-1">${x.cRole||''} · ${x.creator}</div><div class="text-[11px] mds-mono" style="opacity:.7">${x.pRole||''} ${x.pub} · ${x.year}</div>${progressLine}</div></div><div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">${(x.tags||[]).map(t=>`<span class="mds-chip">${t}</span>`).join('')}<span class="mds-chip" style="border:1.5px dashed currentColor;background:transparent;opacity:.75">${x.src}</span>${x.grp?`<span class="mds-chip" style="opacity:.8">分组 · ${x.grp}</span>`:''}</div><div class="mt-3 text-[12px] leading-7" style="opacity:.9">${x.intro||('演示简介：'+x.title+' 由 '+x.creator+' 创作，'+x.year+' 年发行，'+x.pRole+' '+x.pub+'。评分 '+x.rating+'。')}</div>${extra}<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="openSheet('m-sheet-progress')">＋ 记进度</button><button class="mds-chip" onclick="mOpenNoteEdit(x.id)">＋ 记笔记</button><button class="mds-chip" onclick="openSheet('m-sheet-ops')">操作</button><button class="mds-chip" onclick="mInfoOpen()">条目资料</button><button class="mds-chip" onclick="mTimerTap()">${['▶ 计时','■ 结束'][0]}</button></div>`;
+  b.innerHTML=`<div class="flex gap-3 items-start" style="max-width:220px">${mCardHTML(x)}<div class="flex-1 pt-1" style="min-width:0"><div class="text-[10px] mds-mono" style="opacity:.55">${x.sub||''}</div><div class="mds-title text-[16px] mt-0.5">${x.title}</div><div class="text-[11px] mt-1">${x.cRole||''} · ${x.creator}</div><div class="text-[11px] mds-mono" style="opacity:.7">${x.pRole||''} ${x.pub} · ${x.year}</div>${progressLine}</div></div><div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">${(x.tags||[]).map(t=>`<span class="mds-chip">${t}</span>`).join('')}<span class="mds-chip" style="border:1.5px dashed currentColor;background:transparent;opacity:.75">${x.src}</span>${x.grp?`<span class="mds-chip" style="opacity:.8">分组 · ${x.grp}</span>`:''}</div><div class="mt-3 text-[12px] leading-7" style="opacity:.9">${x.intro||('演示简介：'+x.title+' 由 '+x.creator+' 创作，'+x.year+' 年发行，'+x.pRole+' '+x.pub+'。评分 '+x.rating+'。')}</div>${extra}<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="openSheet('m-sheet-progress')">＋ 记进度</button><button class="mds-chip" onclick="mOpenNoteEdit(x.id)">＋ 记笔记</button><button class="mds-chip" onclick="openSheet('m-sheet-ops')">操作</button><button class="mds-chip" onclick="mInfoOpen()">条目资料</button><button class="mds-chip" id="mdsTrackBtn" onclick="mTrackOpen()">轨迹</button><button class="mds-chip" onclick="mTimerTap()">${['▶ 计时','■ 结束'][0]}</button></div>`;
 }
 /* ================= 影音游批4 · 条目资料（m-info）与计时明细（m-sesslog） ================= */
 /* 会话演示行：min＝真实耗时（账本吃这个数），speed 大于 1 才在行上出折算；p0/p1＝该次进度起讫快照（按 kind 解释）；src 计时|补记 */
@@ -3089,11 +3123,213 @@ function mRenderMgr(){
   const b=$('#mMgrBody');if(b)b.innerHTML=vals.map(n=>{const cnt=mMgrTab==='tags'?MDEMO.filter(x=>x.tags?.includes(n)).length:MDEMO.filter(x=>x[mMgrTab]===n).length;return `<div class="flex items-center justify-between py-2 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${n}</span><span class="text-[10px] mds-mono" style="opacity:.55">${cnt} 条 · 点击反查</span></div>`}).join('');
 }
 function mRenderLists(){const L=[{name:'2026 年度影音',auto:'本年度 · 底稿',cnt:32},{name:'通勤看',cnt:8},{name:'通勤听',cnt:12},{name:'周末 4 小时',cnt:5},{name:'奥斯卡 20 部',cnt:20}];const b=$('#mListsBody');if(b)b.innerHTML=L.map(x=>`<div class="p-3" style="background:rgba(255,255,255,.55);border-radius:10px;color:var(--mds-ink)"><div class="mds-title text-[13px]">${x.name}</div><div class="text-[10px] mds-mono mt-1" style="opacity:.65">${x.auto?x.auto+' · ':''}${x.cnt} 条</div></div>`).join('')}
-function mRenderStat(){const heat=$('#mHeat');if(heat){let s='';for(let i=0;i<45;i++){const k=['movie','series','music','game'][Math.floor(Math.random()*4)];const d=Math.floor(Math.random()*4);s+=`<span class="mds-heat-cell d${d} ${d>0?'k-'+k:''}"></span>`}heat.innerHTML=s}const pie=$('#mKindPie');if(pie){const cs={movie:35,series:28,music:22,game:15};pie.innerHTML='<div class="flex gap-2 flex-wrap flex-1">'+Object.entries(cs).map(([k,v])=>{const c={movie:'#c9932a',series:'#2c3a54',music:'#8a6839',game:'#a89e8c'}[k];return `<span class="mds-chip" style="background:${c};color:#fff">${k} ${v}%</span>`}).join('')+'</div>'}const t=$('#mTotals');if(t)t.innerHTML=[['观影','128h'],['剧集','264h'],['听歌','186h'],['游玩','412h'],['总计','990h']].map(([l,v])=>`<span class="mds-chip">${l} ${v}</span>`).join('')}
+/* ================= 影音游批7 · 全站统计（m-stat）＋单条目轨迹（m-sheet-track） =================
+ * 读数全部现算，无 Math.random：演示历史 MHIST 由固定种子生成（真机侧＝media_sessions 全表聚合，零迁移）。
+ * 四条口径＝工单 §0（2026-10-09 产品四问四答）：屏内「真实/折算」切换（＝media.speedFold 的可见表达，默认真实）·
+ * 近 30 天热力恒 30 天窗口（只吃口径/度量/构成，不吃年月）·年×月×度量×构成＝屏内四行筛选条（不做二级屏）·
+ * 轨迹＝半屏弹层（与阅读侧同形，只读，改与删仍走批4 计时明细整屏）。
+ * 算不出／没记录一律虚线整行不出现，不编数。
+ */
+const M_STAT_TODAY=[2026,10,9];
+const MKIND_COLOR={movie:'#c9932a',series:'#2c3a54',music:'#8a6839',game:'#a89e8c'};
+const M_METRICS=[['min','时长'],['cnt','次数'],['rate','平均评分']];
+const M_HOURS=[['dawn','凌晨',0,5],['am','上午',6,11],['pm','午后',12,16],['eve','傍晚',17,20],['night','深夜',21,23]];
+let mStatFold=false,mStatMetric='min',mStatKind='all',mStatYear='all',mStatMonth=0,mStatDay='';
+function mLCG(seed){let s=(seed>>>0)||1;return()=>((s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296)}
+function mPad2(n){return String(n).padStart(2,'0')}
+function mSessY(s){const p=String(s.dt||'').split('-');return{y:+(s.yr||2026),m:+p[0],d:+p[1]}}
+function mSessKey(s){const y=mSessY(s);return y.y+'-'+mPad2(y.m)+'-'+mPad2(y.d)}
+function mKindOfSess(s){return s.kind||(MDEMO.find(x=>x.id===s.itemId)||{}).kind||''}
+function mHourOfSess(s){const h=parseInt(String(s.from||'').split(':')[0],10);return isNaN(h)?22:h}
+function mEmptyRow(txt){return '<div class="mempty text-[11px] mds-mono" style="padding:10px;border:1px dashed currentColor;border-radius:8px;opacity:.5">'+txt+'</div>'}
+/* 演示历史：回铺 430 天，每天 0~2 条；空档日＝热力出虚线格。想看／未看档条目不铺（没计时过） */
+const MHIST=(function(){const r=mLCG(20261009),out=[];
+  const pool=MDEMO.filter(x=>['想看','未看','未听','未玩'].indexOf(x.state)<0);
+  const base={movie:[90,180],series:[35,80],music:[18,45],game:[60,200]};
+  const hrs={movie:[19,23],series:[20,23],music:[7,9],game:[13,23]};
+  const t=new Date(M_STAT_TODAY[0],M_STAT_TODAY[1]-1,M_STAT_TODAY[2]);
+  for(let d=1;d<=430;d++){if(r()<0.34)continue;
+    const day=new Date(t.getFullYear(),t.getMonth(),t.getDate()-d),dt=mPad2(day.getMonth()+1)+'-'+mPad2(day.getDate()),yr=day.getFullYear();
+    const n=r()<0.26?2:1;
+    for(let i=0;i<n;i++){const x=pool[Math.floor(r()*pool.length)],b=base[x.kind],hb=hrs[x.kind];
+      const min=b[0]+Math.floor(r()*(b[1]-b[0]+1)),h=hb[0]+Math.floor(r()*(hb[1]-hb[0]+1)),sp=r()<0.12?1.5:(r()<0.1?1.25:1);
+      out.push({id:'mh'+out.length,itemId:x.id,kind:x.kind,dt:dt,yr:yr,from:mPad2(h)+':'+mPad2(Math.floor(r()*6)*10),min:min,speed:sp,src:'计时'});}
+  }
+  return out})();
+function mAllSess(){return MSESS.concat(MHIST)}
+function mYMPass(s){const y=mSessY(s);if(mStatYear!=='all'&&y.y!==+mStatYear)return false;if(mStatMonth&&y.m!==+mStatMonth)return false;return true}
+function mWinPass(s){return mYMPass(s)&&(mStatKind==='all'||mKindOfSess(s)===mStatKind)}
+function mValOf(s){return mStatFold?mFoldOf(s):(+s.min||0)}
+function mStatVal(rows){
+  if(mStatMetric==='cnt')return rows.length;
+  if(mStatMetric==='min')return rows.reduce((t,s)=>t+mValOf(s),0);
+  const ids=Array.from(new Set(rows.map(s=>s.itemId)));
+  const rs=ids.map(i=>(MDEMO.find(x=>x.id===i)||{}).myRate).filter(v=>typeof v==='number'&&v>0);
+  return rs.length?rs.reduce((a,b)=>a+b,0)/rs.length:0;
+}
+function mStatFmt(v){if(mStatMetric==='cnt')return Math.round(v)+' 次';if(mStatMetric==='rate')return v?(+v).toFixed(1):'—';return v?mHMtxt(Math.round(v)):'—'}
+function mMetricWord(){return (M_METRICS.find(o=>o[0]===mStatMetric)||['','时长'])[1]}
+function mChip(txt,on,fn,v){return '<button class="mds-chip mstat-chip'+(on?' on':'')+'" data-v="'+v+'" onclick="'+fn+'">'+txt+'</button>'}
+function mStatDays(){const t=new Date(M_STAT_TODAY[0],M_STAT_TODAY[1]-1,M_STAT_TODAY[2]),out=[];
+  for(let i=29;i>=0;i--){const d=new Date(t.getFullYear(),t.getMonth(),t.getDate()-i);
+    out.push({k:d.getFullYear()+'-'+mPad2(d.getMonth()+1)+'-'+mPad2(d.getDate()),wd:MWD[d.getDay()]})}
+  return out}
+function mDayRows(key){const y=+key.slice(0,4),md=key.slice(5).split('-');
+  return mAllSess().filter(s=>s.dt===md.join('-')&&mSessY(s).y===y&&(mStatKind==='all'||mKindOfSess(s)===mStatKind))}
+function mTopKind(rows){const by={};rows.forEach(s=>{const k=mKindOfSess(s);by[k]=(by[k]||0)+mValOf(s)});
+  let bk='',bv=0;Object.keys(by).forEach(k=>{if(by[k]>bv){bv=by[k];bk=k}});return bk}
+function mLevelOf(v,pos){if(!pos.length)return 1;const q=f=>pos[Math.min(pos.length-1,Math.floor(pos.length*f))];
+  return v>=q(0.75)?3:(v>=q(0.5)?2:1)}
+function mRenderStat(){
+  const fc=$('#mStatFoldChips');
+  if(fc)fc.innerHTML=mChip('真实时长',!mStatFold,'mStatFoldPick(0)','real')+mChip('折算时长',mStatFold,'mStatFoldPick(1)','fold');
+  const ys=Array.from(new Set(mAllSess().map(s=>mSessY(s).y))).sort((a,b)=>b-a);
+  const yc=$('#mStatYearChips');
+  if(yc)yc.innerHTML=mChip('全部',mStatYear==='all',"mStatYearPick('all')",'all')+ys.map(y=>mChip(String(y),String(mStatYear)===String(y),'mStatYearPick('+y+')',String(y))).join('');
+  const mc=$('#mStatMonthChips');
+  if(mc)mc.innerHTML=mChip('全年',!mStatMonth,'mStatMonthPick(0)','0')+Array.from({length:12},(_,i)=>i+1).map(m=>mChip(m+' 月',mStatMonth===m,'mStatMonthPick('+m+')',String(m))).join('');
+  const xc=$('#mStatMetricChips');
+  if(xc)xc.innerHTML=M_METRICS.map(o=>mChip(o[1],mStatMetric===o[0],"mStatMetricPick('"+o[0]+"')",o[0])).join('');
+  const kc=$('#mStatKindChips');
+  if(kc)kc.innerHTML=mChip('全部',mStatKind==='all',"mStatKindPick('all')",'all')+['movie','series','music','game'].map(k=>mChip(MNOTE_KINDTXT[k],mStatKind===k,"mStatKindPick('"+k+"')",k)).join('');
+  mRenderStatHeat();mRenderStatTrend();mRenderStatPie();mRenderStatHours();mRenderStatRating();mRenderStatGoal();mRenderStatTotals();
+}
+function mRenderStatHeat(){
+  const ttl=$('#mStatHeatTitle');if(ttl)ttl.textContent='近 30 天 · '+mMetricWord()+'热力 · '+(mStatFold?'折算':'真实');
+  const days=mStatDays(),vals=days.map(d=>mStatVal(mDayRows(d.k))),pos=vals.filter(v=>v>0).sort((a,b)=>a-b);
+  const heat=$('#mHeat');
+  if(heat)heat.innerHTML=days.map((d,i)=>{const v=vals[i],rows=mDayRows(d.k),lv=v>0?mLevelOf(v,pos):0;
+    const k=v>0?mTopKind(rows):'';
+    return '<span class="mds-heat-cell mheatcell'+(v>0?' d'+lv+' k-'+k:' k-none')+(mStatDay===d.k?' sel':'')+'"'+(v>0?' style="background:'+MKIND_COLOR[k]+'"':'')+' data-d="'+d.k+'" data-v="'+(Math.round(v*100)/100)+'" onclick="mStatDayPick(\''+d.k+'\')"></span>'}).join('');
+  mRenderStatDay();
+}
+function mRenderStatDay(){
+  const box=$('#mStatDay');if(!box)return;
+  if(!mStatDay){box.innerHTML='';return}
+  const d=mStatDays().find(x=>x.k===mStatDay)||{k:mStatDay,wd:''},rows=mDayRows(mStatDay);
+  if(!rows.length){box.innerHTML=mEmptyRow(d.k.slice(5)+' · '+d.wd+' · 没记录');return}
+  const ks=Array.from(new Set(rows.map(s=>mKindOfSess(s))));
+  box.innerHTML='<div class="mdayread flex gap-2 flex-wrap items-center text-[11px] mds-mono" data-day="'+d.k+'"><span style="opacity:.75">'+d.k.slice(5)+' · '+d.wd+'</span>'+
+    ks.map(k=>'<span class="mdayread-k" data-k="'+k+'" style="color:'+MKIND_COLOR[k]+'">'+mKindWord(k)+' '+mStatFmt(mStatVal(rows.filter(s=>mKindOfSess(s)===k)))+'</span>').join('')+
+    '<span style="opacity:.6">'+rows.length+' 条</span></div>';
+}
+function mRenderStatTrend(){
+  const el=$('#mStatTrend');if(!el)return;
+  const ttl=$('#mStatTrendTitle');if(ttl)ttl.textContent=(mStatYear==='all'?'按年':'按月')+'趋势 · '+mMetricWord()+' · '+(mStatFold?'折算':'真实');
+  const buckets=mStatYear==='all'?Array.from(new Set(mAllSess().map(s=>mSessY(s).y))).sort((a,b)=>a-b).map(y=>({k:String(y),l:String(y),f:s=>mSessY(s).y===y}))
+    :Array.from({length:12},(_,i)=>i+1).map(m=>({k:mPad2(m),l:m+'月',f:s=>{const y=mSessY(s);return y.y===+mStatYear&&y.m===m}}));
+  const rows=mAllSess().filter(s=>mStatKind==='all'||mKindOfSess(s)===mStatKind);
+  const vals=buckets.map(b=>mStatVal(rows.filter(b.f))),mx=Math.max.apply(null,vals.concat([1]));
+  if(!buckets.length){el.innerHTML=mEmptyRow('没有可统计的记录');return}
+  const col=mStatKind==='all'?'var(--accent)':MKIND_COLOR[mStatKind];
+  el.innerHTML='<div class="mds-bars mb-1">'+buckets.map((b,i)=>{const v=vals[i];
+    return v>0?'<div class="bcol mtrendbar" data-m="'+b.k+'" data-v="'+(Math.round(v*100)/100)+'"><span class="mtrend-v text-[8px] mds-mono" style="opacity:.65">'+mStatFmt(v)+'</span><div class="bfill" style="height:'+Math.max(8,Math.round(v/mx*40))+'px;background:'+col+'"></div></div>'
+      :'<div class="bcol mtrendbar mtrend-zero" data-m="'+b.k+'"><div class="bzero"></div></div>'}).join('')+'</div>'+
+    '<div class="flex gap-1 text-[8px] mds-mono" style="opacity:.5">'+buckets.map(b=>'<span class="flex-1 text-center">'+b.l+'</span>').join('')+'</div>';
+}
+function mRenderStatPie(){
+  const el=$('#mKindPie');if(!el)return;
+  const win=mAllSess().filter(mWinPass);
+  const list=['movie','series','music','game'].map(k=>({k:k,v:mStatVal(win.filter(s=>mKindOfSess(s)===k))})).filter(o=>o.v>0);
+  const tot=list.reduce((t,o)=>t+o.v,0);
+  if(!list.length){el.innerHTML=mEmptyRow('这个窗口没有记录');return}
+  el.innerHTML=list.map(o=>{const p=Math.round(o.v/tot*100);
+    return '<div class="mkindrow flex items-center gap-2 mb-1.5" data-k="'+o.k+'" data-p="'+p+'"><span style="width:8px;height:8px;border-radius:2px;flex:none;background:'+MKIND_COLOR[o.k]+'"></span>'+
+      '<span class="text-[11px]" style="width:34px">'+MNOTE_KINDTXT[o.k]+'</span>'+
+      '<span class="flex-1" style="height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.07)"><span style="display:block;height:100%;width:'+p+'%;background:'+MKIND_COLOR[o.k]+'"></span></span>'+
+      '<span class="mkindrow-v text-[10px] mds-mono" style="width:96px;text-align:right;opacity:.7">'+mStatFmt(mStatMetric==='min'?Math.round(o.v):o.v)+' · '+p+'%</span></div>'}).join('');
+}
+function mRenderStatHours(){
+  const el=$('#mStatHours');if(!el)return;
+  const rows=mAllSess().filter(mWinPass);
+  const buckets=M_HOURS.map(h=>({k:h[0],l:h[1],v:mStatVal(rows.filter(s=>{const hr=mHourOfSess(s);return hr>=h[2]&&hr<=h[3]}))}));
+  const mx=Math.max.apply(null,buckets.map(b=>b.v).concat([1]));
+  el.innerHTML=buckets.map(b=>'<div class="mhourbar flex items-center gap-2 mb-1.5" data-h="'+b.k+'" data-v="'+(Math.round(b.v*100)/100)+'">'+
+    '<span class="text-[10px]" style="width:28px">'+b.l+'</span>'+
+    '<span class="flex-1" style="height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.07)"><span class="mhour-fill" style="display:block;height:100%;width:'+(b.v>0?Math.max(4,Math.round(b.v/mx*100)):0)+'%;background:var(--accent);opacity:.8"></span></span>'+
+    '<span class="mhour-v text-[10px] mds-mono" style="width:64px;text-align:right;opacity:.75">'+(b.v>0?mStatFmt(mStatMetric==='min'?Math.round(b.v):b.v):'—')+'</span></div>').join('');
+}
+function mRenderStatRating(){
+  const el=$('#mStatRating');if(!el)return;
+  const rows=mAllSess().filter(mWinPass);
+  const items=Array.from(new Set(rows.map(s=>s.itemId))).map(i=>MDEMO.find(x=>x.id===i)).filter(Boolean);
+  const rated=items.filter(x=>typeof x.myRate==='number'&&x.myRate>0);
+  if(!rated.length){el.innerHTML=mEmptyRow('这个窗口没有评分记录');return}
+  const avg=rated.reduce((t,x)=>t+x.myRate,0)/rated.length;
+  const per=['movie','series','music','game'].map(k=>{const g=rated.filter(x=>x.kind===k);return g.length?{k:k,v:g.reduce((t,x)=>t+x.myRate,0)/g.length}:null}).filter(Boolean);
+  el.innerHTML='<div class="flex items-end gap-2 mb-1.5"><span class="mds-title text-[22px]" id="mStatRatingAvg">'+avg.toFixed(1)+'</span>'+
+    '<span class="text-[10px] mds-mono" style="opacity:.6">分 · '+rated.length+' 部已评分</span></div>'+
+    '<div class="flex gap-2 flex-wrap text-[10px] mds-mono">'+per.map(o=>'<span class="mrating-k" data-k="'+o.k+'" style="color:'+MKIND_COLOR[o.k]+'">'+MNOTE_KINDTXT[o.k]+' '+o.v.toFixed(1)+'</span>').join('')+'</div>';
+}
+function mRenderStatGoal(){
+  const el=$('#mStatGoal');if(!el)return;
+  el.innerHTML=mEmptyRow('未设目标')+
+    '<div class="mentry mt-2 flex items-center gap-2 p-3" style="background:rgba(255,255,255,.55);border-radius:10px;cursor:pointer;color:var(--mds-ink)" onclick="navTo(\'m-goal\')"><span class="mds-title text-[12px]">影音目标</span>'+
+    '<svg class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
+}
+function mRenderStatTotals(){
+  const el=$('#mTotals');if(!el)return;
+  const rows=mAllSess().filter(mYMPass);
+  const list=['movie','series','music','game'].filter(k=>mStatKind==='all'||k===mStatKind).map(k=>({k:k,v:rows.filter(s=>mKindOfSess(s)===k).reduce((t,s)=>t+mValOf(s),0)}));
+  const tot=list.reduce((t,o)=>t+o.v,0);
+  el.innerHTML=list.map(o=>'<span class="mds-chip mtotalchip" data-k="'+o.k+'">'+mKindWord(o.k)+' '+(o.v?mHMtxt(Math.round(o.v)):'—')+'</span>').join('')+
+    '<span class="mds-chip mtotalchip" data-k="total" style="border-color:var(--accent)">总计 '+(tot?mHMtxt(Math.round(tot)):'—')+'</span>';
+}
+function mStatFoldPick(v){mStatFold=!!v;mStatDay='';mRenderStat()}
+function mStatYearPick(v){mStatYear=String(v);if(mStatYear==='all')mStatMonth=0;mRenderStat()}
+function mStatMonthPick(v){mStatMonth=+v;mRenderStat()}
+function mStatMetricPick(v){mStatMetric=String(v);mRenderStat()}
+function mStatKindPick(v){mStatKind=String(v);mRenderStat()}
+function mStatDayPick(k){mStatDay=mStatDay===k?'':k;mRenderStatHeat()}
+function mStatReset(){mStatFold=false;mStatMetric='min';mStatKind='all';mStatYear='all';mStatMonth=0;mStatDay='';mRenderStat()}
+/* ---------- 单条目轨迹（半屏只读；改与删在计时明细整屏） ---------- */
+function mTrackRows(id){return mAllSess().filter(s=>s.itemId===id).sort((a,b)=>mSessKey(a)<mSessKey(b)?-1:(mSessKey(a)>mSessKey(b)?1:0))}
+function mTrackOpen(id){if(id){const t=MDEMO.find(x=>x.id===id);if(t)mCurDetail=t}openSheet('m-sheet-track')}
+function mEpSeen(x,str){const m=/^S(\d+)E(\d+)$/i.exec(String(str||''));if(!m)return 0;
+  const per=x.seasons?Math.ceil((x.eps||0)/x.seasons):0;return (+m[1]-1)*per+(+m[2])}
+function mPctSeen(str){const m=/(\d+)\s*%/.exec(String(str||''));return m?+m[1]:0}
+function mMilesOf(x,rows){
+  const out=[];if(!rows.length)return out;
+  out.push(['开始'+mKindWord(x.kind),rows[0].dt]);
+  let hd='';
+  if(x.kind==='movie'){const need=(x.dur||0)/2;let acc=0;for(const s of rows){acc+=+s.min||0;if(!hd&&need&&acc>=need)hd=s.dt}}
+  if(x.kind==='series'){const need=(x.eps||0)/2;if(need)for(const s of rows){if(!hd&&mEpSeen(x,s.p1)>=need)hd=s.dt}}
+  if(x.kind==='game'){for(const s of rows){if(!hd&&mPctSeen(s.p1)>=50)hd=s.dt}}
+  if(x.kind==='music'&&rows.length>=100)hd=rows[99].dt;
+  const half={movie:'看过一半',series:'看到一半',game:'主线半程',music:'循环 100 次'}[x.kind];
+  if(hd)out.push([half,hd]);
+  const done={movie:'看完',series:'追完',game:'通关'}[x.kind];
+  if(done&&x.state===done)out.push([done,rows[rows.length-1].dt]);
+  return out;
+}
+function mRenderTrackSheet(){
+  const el=$('#mTrackBody');if(!el)return;
+  const x=mCurDetail||MDEMO[0],rows=mTrackRows(x.id);
+  const ttl=$('#mTrackTitle');if(ttl)ttl.textContent=x.title;
+  const sub=$('#mTrackSub');if(sub)sub.textContent=rows.length?rows.length+' 次 · 真实 '+mHMtxt(Math.round(rows.reduce((t,s)=>t+(+s.min||0),0))):'';
+  if(!rows.length){el.innerHTML=mEmptyRow('还没有计时记录');return}
+  const last=rows.slice(-14),mx=Math.max.apply(null,last.map(s=>+s.min||0).concat([1]));
+  const bars='<div class="mds-track mb-1"><div class="mds-bars" style="height:74px">'+last.map((s,i)=>{const h=Math.max(6,Math.round(((+s.min||0)/mx)*48));
+    return '<div class="bcol mtrackcol" data-i="'+i+'" data-min="'+(+s.min||0)+'">'+(mSpdOf(s)>1?'<span class="mtrack-spd text-[8px] mds-mono" style="opacity:.7">'+mSpdOf(s)+'x</span>':'<span></span>')+
+      '<div style="width:100%;border-radius:3px 3px 0 0;height:'+h+'px;background:'+MKIND_COLOR[x.kind]+';opacity:.85"></div>'+
+      '<span class="text-[7.5px] mds-mono" style="opacity:.5">'+s.dt+'</span></div>'}).join('')+'</div></div>';
+  const buckets=M_HOURS.map(h=>({k:h[0],l:h[1],min:rows.filter(s=>{const hr=mHourOfSess(s);return hr>=h[2]&&hr<=h[3]}).reduce((t,s)=>t+(+s.min||0),0)}));
+  const bmx=Math.max.apply(null,buckets.map(b=>b.min).concat([1]));
+  const hours='<div class="mt-1">'+buckets.map(b=>'<div class="mhourbar flex items-center gap-2 mb-1.5" data-h="'+b.k+'" data-v="'+b.min+'">'+
+    '<span class="text-[10px]" style="width:28px">'+b.l+'</span>'+
+    '<span class="flex-1" style="height:6px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.07)"><span class="mhour-fill" style="display:block;height:100%;width:'+(b.min>0?Math.max(4,Math.round(b.min/bmx*100)):0)+'%;background:'+MKIND_COLOR[x.kind]+';opacity:.8"></span></span>'+
+    '<span class="mhour-v text-[10px] mds-mono" style="width:56px;text-align:right;opacity:.75">'+(b.min>0?mHMtxt(Math.round(b.min)):'—')+'</span></div>').join('')+'</div>';
+  const miles=mMilesOf(x,rows);
+  const mileHtml='<div class="mds-title text-[12px] mt-4 mb-2">里程碑</div>'+(miles.length?'<div class="space-y-1 text-[11px]">'+miles.map(m=>'<div class="mmile flex items-center gap-2" data-l="'+m[0]+'"><span style="width:6px;height:6px;border-radius:999px;flex:none;background:var(--accent)"></span><span>'+m[0]+'</span><span class="ml-auto mds-mono" style="opacity:.6">'+m[1]+'</span></div>').join('')+'</div>':mEmptyRow('还没有达成的里程碑'));
+  el.innerHTML='<div class="mds-title text-[12px] mb-2">逐次</div>'+bars+'<div class="mds-title text-[12px] mt-3 mb-2">时段分布</div>'+hours+mileHtml+
+    '<div class="mentry mt-4 flex items-center gap-2 p-3" style="background:rgba(255,255,255,.55);border-radius:10px;cursor:pointer;color:var(--mds-ink)" onclick="closeSheet(\'m-sheet-track\');mSessOpen()"><span class="mds-title text-[12px]">计时明细</span>'+
+    '<span class="ml-auto text-[10px] mds-mono" style="opacity:.6">'+rows.length+' 条 · 真实 '+mHMtxt(Math.round(rows.reduce((t,s)=>t+(+s.min||0),0)))+'</span>'+
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6"><path d="m9 18 6-6-6-6"/></svg></div>';
+}
 function mRenderGoal(){const goals=[['每日观影','46','60','min'],['每周听歌','12','15','h'],['每月游玩','32','40','h'],['每年看完','28','50','部'],['每周影音天数','5','7','天'],['每月名场面','14','20','条']];const b=$('#mGoalBody');if(b)b.innerHTML=goals.map(([l,v,t,u])=>`<div class="py-2.5 px-1 flex items-center justify-between" style="border-bottom:1px solid rgba(0,0,0,.08)"><div class="mds-title text-[12px]">${l}</div><div class="text-[11px] mds-mono"><span class="mds-chip">${v} / ${t} ${u}</span></div></div>`).join('')+'<div class="mt-4 text-[10px] mds-mono" style="opacity:.55">时间/数值选择就地滚轮 · 待批实现</div>'}
 function mRenderImport(){const src=['豆瓣','IMDb','TMDB','TVMAZE','MusicBrainz','RateYourMusic','Discogs','Steam','IGDB','B 站','网易云','Spotify','Letterboxd'];const b=$('#mImportBody');if(b)b.innerHTML=src.map(s=>`<div class="flex items-center justify-between py-2.5 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${s}</span><button class="mds-chip" onclick="toast('从 ${s} 导入（演示）')">导入</button></div>`).join('')+'<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="toast(\'粘贴文本自动识别（演示）\')">粘贴文本</button><button class="mds-chip">上传 CSV</button><button class="mds-chip">扫描 Steam 库</button></div>'}
 function mRenderSortSheet(){const el=$('#mSortOpts');if(el)el.innerHTML=MSRT.map(k=>`<div class="py-2 flex justify-between text-[12px]" onclick="mSortKey='${k}';mRenderShelf();closeSheet('m-sheet-sort')"><span>${{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]}</span><span style="opacity:.6">${mSortKey===k?'●':''}</span></div>`).join('')}
-function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"toast('影音轨迹（演示）')"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
+function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"toast('移入影音单（演示）')"],['影音轨迹',"closeSheet('m-sheet-ops');mTrackOpen()"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
 function mRenderProgressSheet(){const x=mCurDetail||MDEMO[0];let body='';const inp='class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink);border-color:rgba(0,0,0,.06)"';if(x.kind==='movie')body=`<div class="text-[11px] mds-mono mb-2">电影 · 时间点 / 百分比 + 评分</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="1:52:14" value="1:52:14"><input ${inp} placeholder="72%" value="${x.pct}%"></div>`;else if(x.kind==='series')body=`<div class="text-[11px] mds-mono mb-2">剧集 · 季 + 集 + 追更状态</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="S01" value="S${String(x.seasons).padStart(2,'0')}"><input ${inp} placeholder="E05" value="E${String(x.cur).padStart(2,'0')}"></div><div class="flex gap-2 text-[11px]"><span class="mds-chip on">在追</span><span class="mds-chip">完结</span><span class="mds-chip">弃剧</span><span class="mds-chip">待续</span></div>`;else if(x.kind==='music')body=`<div class="text-[11px] mds-mono mb-2">音乐 · 整专循环 / 单曲循环 + 最常曲目</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="循环 42 次" value="${x.loops}"><input ${inp} placeholder="最常：${x.fav}" value="${x.fav}"></div>`;else if(x.kind==='game'){const hasP=x.mainPct!=null;body=`<div class="text-[11px] mds-mono mb-2">记一次游玩 · 谁一起玩 · 时长 · 玩了什么</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="谁一起玩（朋友/搭档/一个人）" value="${x.withWho||''}"><input ${inp} placeholder="本次时长 (h)" value=""><input ${inp} style="grid-column:span 2" placeholder="这次玩了什么 · 如「和女朋友合过树章节」" value=""></div>`+(hasP?`<div class="text-[11px] mds-mono mb-1 mt-1" style="opacity:.7">进度更新（本作有剧情进度）</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="主线 ${x.mainPct}%" value="${x.mainPct}"><input ${inp} placeholder="周目 ${x.plays||1}" value="${x.plays||1}"></div>`:'')+`<div class="flex gap-2 text-[11px]"><span class="mds-chip">未玩</span><span class="mds-chip ${x.state==='在玩'?'on':''}">在玩</span><span class="mds-chip ${x.state==='通关'||x.state==='退坑'?'on':''}">${hasP?'通关':'退坑'}</span><span class="mds-chip">搁置</span></div>`}const el=$('#mProgressBody');if(el)el.innerHTML=body+`<div class="mt-4 flex gap-2"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-progress')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="toast('进度已保存 · L4 已入账 · 重算预计完成日');closeSheet('m-sheet-progress')">保存</button></div>`}
 function mRenderAddKindChips(){const el=$('#mdsAddKindChips');if(!el)return;el.innerHTML=[['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([k,l],i)=>`<button class="mds-chip ${i===0?'on':''}" data-kind="${k}" onclick="mSetAddKind('${k}')">${l}</button>`).join('');if(!mAddEditing){mAddCoverImg=null;const b=document.getElementById('mdsAddSaveBtn');if(b)b.textContent='保存 · 进入影音架'}mSetAddKind('movie')}
 function mRenderAddCover(){const el=document.getElementById('mdsAddCover');if(!el)return;
@@ -3131,7 +3367,7 @@ MDEMO.unshift({id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYea
 ;(function(){const old=window.switchRecord;if(typeof old==='function'){window.switchRecord=function(k){old.apply(this,arguments);if(k==='media'){try{mRenderHub()}catch(e){}}};switchRecord=window.switchRecord}})();
 
 /* ---- openSheet 钩子：m-sheet 弹层渲染 ---- */
-;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
+;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-track':mRenderTrackSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
 
 /* ---- 专版落地：影音架为本版首页（记录页工作台 tab 属共享面，回灌走变更单·2026-10-07 批2 第一刀） ---- */
 try{ if(typeof stack!=='undefined')stack.length=0; navTab('m-shelf'); }catch(e){ console.error('media landing failed',e); }
