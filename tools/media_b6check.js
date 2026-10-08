@@ -1,5 +1,5 @@
 /* media_b6check.js · 影音游批6「条目封面」原型先行无头闸
- * 规格依据＝docs/handoff/交棒话术-20261008-影音游批6条目封面原型.md §2（三源口径：计划 §四 L216「封面上传 canvas 压缩」＋ 需求侧无新键；原型此前零命中）
+ * 规格依据＝docs/archive/交棒话术-20261008-影音游批6条目封面原型.md §2（三源口径：计划 §四 L216「封面上传 canvas 压缩」＋ 需求侧无新键；原型此前零命中）
  * 纪律沿用 media_b5check.js＝期望值一律页面内现算不硬编码；截图默认关（MB6_SHOTS=1 才拍）；工装改名复用同一 boot
  * 标记类：.mds-item 架面卡 · .cover 封面层 · .covimg 用户上传图层 · .covmono 色板首字回落
  * 用法：node --experimental-websocket tools/media_b6check.js */

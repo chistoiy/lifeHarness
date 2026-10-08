@@ -50,18 +50,29 @@ Color mdsProgressColor(BuildContext context, String tone) => switch (tone) {
   _ => Theme.of(context).colorScheme.primary,
 };
 
+/// 条目当前是否真有一张可用的用户封面（批6 写入端落 `cover_path`）。
+/// 判定只此一处：卡片、列表缩略、表单预览都问它，别各写一套 `File(...).existsSync()`
+/// ——路径在而文件被清理掉的条目必须整体回落色板，不能有的地方有图有的地方没图。
+bool mdsHasCoverFile(MediaItem item) {
+  final f = item.coverPath;
+  return f != null && f.isNotEmpty && File(f).existsSync();
+}
+
 /// 封面本体：本地文件优先，缺失回落色板渐变＋首字水印
 /// （不拉第三方 API＝§九.3；读图失败铺底色板，条目仍可见）。
 class MdsCoverArt extends StatelessWidget {
-  const MdsCoverArt({super.key, required this.item});
+  const MdsCoverArt({super.key, required this.item, this.monoSize = 34});
 
   final MediaItem item;
+
+  /// 回落首字字号（列表缩略/表单预览位小，字号跟着缩）。
+  final double monoSize;
 
   @override
   Widget build(BuildContext context) {
     final (c1, c2) = kMdsCov[item.paletteIdx];
     final file = item.coverPath;
-    final hasFile = file != null && file.isNotEmpty && File(file).existsSync();
+    final hasFile = mdsHasCoverFile(item);
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -72,7 +83,9 @@ class MdsCoverArt extends StatelessWidget {
       ),
       child: hasFile
           ? Image.file(
-              File(file),
+              File(file!),
+              // 图层锚点（原型 `.covimg`）：卡面数「吃到图的卡」就数这个键。
+              key: ValueKey('mds-covimg-${item.id}'),
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => _watermark(),
             )
@@ -82,8 +95,8 @@ class MdsCoverArt extends StatelessWidget {
 
   Widget _watermark() => Text(
     item.title.characters.first,
-    style: const TextStyle(
-      fontSize: 34,
+    style: TextStyle(
+      fontSize: monoSize,
       height: 1,
       fontWeight: FontWeight.w900,
       color: Colors.white24,
@@ -252,25 +265,23 @@ class MediaItemCard extends StatelessWidget {
                 top: c.maxHeight * .1,
                 width: side,
                 height: side,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [c1, c2],
-                    ),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: .18),
+                // 封套＝封面本体（批6：用户封面吃在这里），黑胶盘与文字角标都压在它上面。
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      MdsCoverArt(item: item, monoSize: side * .42),
+                      // 封套描边是形态装饰，抬在图之上（层级：图 0 < 装饰 1）。
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: .18),
+                          ),
+                          borderRadius: BorderRadius.circular(3),
                         ),
-                        borderRadius: BorderRadius.circular(3),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -302,7 +313,6 @@ class MediaItemCard extends StatelessWidget {
   /// 游戏＝16:10 key-art＋周目/发行角标（原型 `.gmcard`）。
   Widget _gameFace(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (c1, c2) = kMdsCov[item.paletteIdx];
     return Container(
       color: scheme.surface,
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
@@ -312,28 +322,15 @@ class MediaItemCard extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [c1, c2],
-                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Center(
-                    child: Text(
-                      item.title.characters.first,
-                      style: const TextStyle(
-                        fontSize: 30,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white24,
-                      ),
-                    ),
-                  ),
+                  // key-art＝封面本体（批6），无图时 MdsCoverArt 自己铺色板＋首字；
+                  // 周目/发行两枚角标压在图上（层级：图 0 < 装饰 1）。
+                  MdsCoverArt(item: item, monoSize: 30),
                   if ((item.publisher ?? '').isNotEmpty)
                     Positioned(
                       bottom: 6,
@@ -512,6 +509,8 @@ class _VinylPainter extends CustomPainter {
 
 /// 脊视图行（原型 `.mds-spine`：等宽标题＋右侧副注，色板止色铺底）。
 /// 电影没有侧脊＝由架面按 kind 过滤后不出现（刀2 钉这条判定）。
+/// **侧脊不吃用户封面**（批6 拍板③）：脊面本就该是书脊色块＋烫金字，铺照片反而不像一件实物，
+/// 所以这里刻意不引 [MdsCoverArt]——详情头图吃、侧脊不吃，两条各钉一处。
 class MediaSpineRow extends StatelessWidget {
   const MediaSpineRow({super.key, required this.item, this.onTap});
 
@@ -605,22 +604,24 @@ class MediaListRow extends StatelessWidget {
             SizedBox(
               width: 30,
               height: 40,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      kMdsCov[item.paletteIdx].$1,
-                      kMdsCov[item.paletteIdx].$2,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Icon(
-                  mdsKindIcon(item.kind),
-                  size: 14,
-                  color: Colors.white70,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 列表缩略吃同一张封面（批6·层级：图 0 < 装饰 1）；
+                    // 没图的条目照旧铺色板，类型图标压在色板上作装饰件（有图时不压，
+                    // 免得白图标糊在照片上）。
+                    MdsCoverArt(item: item, monoSize: 14),
+                    if (!mdsHasCoverFile(item))
+                      Center(
+                        child: Icon(
+                          mdsKindIcon(item.kind),
+                          size: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

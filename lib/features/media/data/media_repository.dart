@@ -64,6 +64,19 @@ class MediaRepository {
     whereArgs: [item.id],
   );
 
+  /// 封面单独一条写口（批6）：`cover_path` 只此一列，不夹进 [updateItem] 的整行覆盖——
+  /// 表单没这一栏的字段一律照原样带过（`mergedOnto` 的口径），而「移除封面」要能把值写成 null，
+  /// 两者混在一条 UPDATE 里就会出现「编辑改名顺手把封面清了」或「移除点不动」的错账。
+  Future<int> setItemCover(String id, String? path) => db.update(
+    tMediaItems,
+    {
+      'cover_path': path,
+      'updated_at': DateTime.now().millisecondsSinceEpoch,
+    },
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
   /// 单条在册条目（详情/计时页取数口；软删行返回 null）。
   Future<MediaItem?> itemById(String id) async {
     final rows = await db.query(

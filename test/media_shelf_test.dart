@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:lifeharness/core/database/schema/media.dart' as md;
 import 'package:lifeharness/features/media/data/media_repository.dart';
@@ -23,6 +27,7 @@ void main() {
 
   late Database db;
   late MediaRepository repo;
+  late Directory tmp;
   final ids = <String, String>{};
 
   setUp(() async {
@@ -31,6 +36,8 @@ void main() {
       await db.execute(sql);
     }
     repo = MediaRepository(db);
+    // 封面夹具＝真文件（同步写；异步 I/O 在 FakeAsync 下永不返回＝既定坑）。
+    tmp = Directory.systemTemp.createTempSync('lh_shelfcover6');
     ids.clear();
     // 四类各两条（面板第 3 项）：桌面视图应数得出 8 张卡。
     for (final (kind, title) in [
@@ -54,7 +61,12 @@ void main() {
       ));
     }
   });
-  tearDown(() => db.close());
+  tearDown(() async {
+    await db.close();
+    try {
+      tmp.deleteSync(recursive: true);
+    } catch (_) {}
+  });
 
   Future<ProviderContainer> pump(
     WidgetTester tester,
@@ -158,6 +170,109 @@ void main() {
     await settle5(tester);
     expect(find.byKey(ValueKey('mds-row-${ids['专辑乙']}')), findsOneWidget);
     expect(find.byKey(ValueKey('mds-row-${ids['专辑甲']}')), findsNothing);
+  });
+
+  // ==================== 批6 · 封面图层 ====================
+
+  /// 四类各挑一条挂上真图（其余四条没图＝同屏验回落）。
+  Future<void> seedCovers() async {
+    for (final title in ['电影甲', '剧集甲', '专辑甲', '游戏甲']) {
+      final f = File(p.join(tmp.path, 'cov-${title.codeUnitAt(0)}.png'))
+        ..writeAsBytesSync(
+          base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          ),
+        );
+      await repo.setItemCover(ids[title]!, f.path);
+    }
+  }
+
+  Finder covImg(String title) =>
+      find.byKey(ValueKey('mds-covimg-${ids[title]}'));
+
+  testWidgets('桌面视图＝有封面的四类卡各吃到图，没封面的照旧色板首字回落', (tester) async {
+    await useSurface(tester, const Size(420, 1400));
+    await seedCovers();
+    await pump(tester, const MediaShelfPage());
+    for (final title in ['电影甲', '剧集甲', '专辑甲', '游戏甲']) {
+      expect(covImg(title), findsOneWidget, reason: '$title 挂了封面却没吃到图');
+    }
+    for (final title in ['电影乙', '剧集乙', '专辑乙', '游戏乙']) {
+      expect(covImg(title), findsNothing, reason: '$title 没封面却凭空出了图层');
+      // 回落＝标题首字水印（现算，不是别的条目的字）
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('mds-card-${ids[title]}')),
+          matching: find.text(title.characters.first),
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('形态装饰一件不摘：挂了封面的黑胶卡仍有唱片盘与片名，卡带卡仍有角标',
+      (tester) async {
+    await useSurface(tester, const Size(420, 1400));
+    await seedCovers();
+    await pump(tester, const MediaShelfPage());
+    // 音乐＝黑胶盘（CustomPaint 件）＋标题
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('mds-card-${ids['专辑甲']}')),
+        matching: find.byType(CustomPaint),
+      ),
+      findsWidgets,
+      reason: '封面上来的同时黑胶盘被摘了＝形态没了',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('mds-card-${ids['专辑甲']}')),
+        matching: find.text('专辑甲'),
+      ),
+      findsOneWidget,
+    );
+    // 影视＝片名压在图上
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('mds-card-${ids['电影甲']}')),
+        matching: find.text('电影甲'),
+      ),
+      findsOneWidget,
+    );
+    // 类型角标：影视与音乐三张卡都在（游戏＝卡带形态，原型本就不给角标，改验片名与周目位）；
+    // 图层顺序没把装饰件盖到看不见＝键仍在树里。
+    for (final title in ['电影甲', '剧集甲', '专辑甲']) {
+      expect(
+        find.byKey(ValueKey('mds-kind-${ids[title]}')),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('mds-card-${ids['游戏甲']}')),
+        matching: find.text('游戏甲'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('侧脊视图不吃封面（拍板③），列表缩略吃（图 0 < 装饰 1）', (tester) async {
+    await useSurface(tester, const Size(420, 1400));
+    await seedCovers();
+    await pump(tester, const MediaShelfPage());
+    await tester.tap(find.byKey(const ValueKey('mds-view-spine')));
+    await settle5(tester);
+    expect(covImg('剧集甲'), findsNothing, reason: '脊面该是书脊色块，铺照片反而不像一件实物');
+    expect(find.byKey(ValueKey('mds-spine-${ids['剧集甲']}')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mds-view-list')));
+    await settle5(tester);
+    expect(covImg('游戏甲'), findsOneWidget, reason: '列表缩略与卡面吃同一张封面');
+    expect(
+      find.byKey(ValueKey('mds-row-${ids['游戏乙']}')),
+      findsOneWidget,
+      reason: '没封面的行仍要在（回落色板，不是整行消失）',
+    );
   });
 
   testWidgets('长按进管理态→删除走二次确认→软删后卡出列（不物理删）', (tester) async {

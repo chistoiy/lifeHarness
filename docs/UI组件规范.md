@@ -151,7 +151,8 @@
 - 原型：`prototype/index-media.html` `.mds-item`（扁平 V3 卡集，非微拟物——计划 §三 顶部横幅 2026-09-23 已按产品令反转）
 - 代码：`features/media/presentation/widgets/media_card.dart`（`MediaItemCard`／`MediaSpineRow`／`MediaListRow`）
 - 三形态：**影视＝3:4 竖版封面**（左上类型图标·右上评分·左下分区徽标·底部标题带）·**音乐＝封套＋探出的黑胶**（`CustomPainter` 盘面纹路＋中心标）·**游戏＝16:10 key-art**（右上周目角标·右下发行商）；卡底 3px 进度条只在「有进度语义」时出现（音乐与无剧情进度的网游不画条＝不编数）
-- 色板：`kMdsCov` 8 组（原型 `MD_COV` 逐色对齐），**无封面按 `color_idx` 取色**（与书籍侧 LH-C06 同构机制，§九.3 版权边界＝只做本地上传，不拉第三方 API）
+- 色板：`kMdsCov` 8 组（原型 `MD_COV` 逐色对齐），**用户封面优先**（批6 写入端落地：`cover_path` 有值且文件在＝上真图，`MdsCoverArt` 内一处判定 `mdsHasCoverFile`），**没封面才按 `color_idx` 取色＋标题首字回落**（与书籍侧 LH-C06 同构机制，§九.3 版权边界＝只做本地上传，不拉第三方 API）
+- 封面图层（批6）＝影视竖卡／音乐封套／游戏 key-art／列表缩略四处**吃同一张封面**，层级＝图 0 < 形态装饰 1 < 暗角遮罩 2（黑胶盘、周目与发行角标、片名一件不摘）；**侧脊不吃封面**（拍板③：脊面该是书脊色块＋烫金字）；锚点键＝`mds-covimg-<id>`
 - 状态徽标四档语义色＝待看 amber／在场 indigo／完结 emerald／搁置 slate；分区徽标只读，**改分区一律走速览半屏或长按批量**（枚举值不作循环钮）
 - 三视图：桌面（3 列网格）·脊（等高侧脊，**电影自动缺席**）·列表（缩略＋分类型 meta 行）；管理态由顶栏「管理」钮或长按任一张卡进入，卡面右上换选中圈
 
@@ -191,8 +192,8 @@
 - 行内动作＝标星就地改（**不跳页不弹层**）·删除走 LH-S31 公共确认（取消即不删）；点行＝开 LH-S36 单条复习；四视图与计数在任一筛选下条数必等。
 - 空态两档各说各话（都走虚线，不摆假数据）＝空库「还没有影音笔记 · 点右上＋记一条」／筛空「当前筛选没有笔记」；截图墙无图者如实标「无截图」。
 
-### LH-C19 条目封面位与封面图层（影音游批6 · 2026-10-08 原型定稿·**三条拍板已回灌·待实现**）
-- 原型：`prototype/index-media.html` `#m-sheet-add`（`mRenderAddCover`／`mCoverPick`／`mCoverApply`／`mCovImgHTML`）＋架面 `mCardHTML`。代码（待接）：`features/media/presentation/media_add_sheet.dart`＋`widgets/media_card.dart`·常驻用例 `test/media_add_sheet_test.dart`＋`test/media_shelf_test.dart`＋`test/media_cover_test.dart`·无头闸 `tools/media_b6check.js`。
+### LH-C19 条目封面位与封面图层（影音游批6 · 2026-10-08 原型定稿·三条拍板已回灌·**批6 已实现**）
+- 原型：`prototype/index-media.html` `#m-sheet-add`（`mRenderAddCover`／`mCoverPick`／`mCoverApply`／`mCovImgHTML`）＋架面 `mCardHTML`。代码：`features/media/presentation/media_add_sheet.dart`（封面行＝`_coverRow`，取图两档＝`mds-add-cover-cam`/`-lib`/`-del`）＋`features/media/data/media_cover.dart`（取图口口径与落盘）＋`widgets/media_card.dart`（`MdsCoverArt`/`mdsHasCoverFile` 图层）·常驻用例 `test/media_add_sheet_test.dart`＋`test/media_shelf_test.dart`＋`test/media_cover_test.dart`·无头闸 `tools/media_b6check.js`。
 - 构成＝录入/编辑弹层顶部**封面行**：**66×88 缩略位（统一 3:4 竖版，与架面主形态一致·拍板①）**＋「拍照」「相册」「移除」三枚（移除钮仅在有图时现身）；取图两档复用日记那套共享工装（拍照挂 `capture`、相册不挂），**不再往下多弹一层**。
 - 铁口径＝① 选图先降采样（长边钉 480·JPEG .82）再落值，读不出图只提示、不落半个字节；② 无封面＝**色板＋标题首字**回落（首字现算），永不摆假图；③ 图层顺序钉死：封面图 0 < 形态装饰（片名/评分/进度/黑胶盘/卡带）1 < 暗角遮罩 2，四类实物形态一件不摘；④ 编辑态保存＝回写原条目，**不新建重复条目**；⑤ 详情头图吃用户封面、**侧脊视图不吃**（拍板③）。
 - 行内只留功能词（拍照／相册／移除），无教学性说明文案。

@@ -118,6 +118,9 @@ class MediaUsageScanner {
     // 引用列少了这两列，「存了就等于没存」——清理扫描会把在档的附件当孤儿删掉。
     ('health_symptom', 'photos'),
     ('health_report', 'files'),
+    // 影音游批6 条目封面（同落 `note_images/`）：软删条目行仍在，其封面因此继续算「在档」，
+    // 彻底删除后行没了才会掉进孤儿面——与「删除不删磁盘文件」的口径同一条。
+    ('media_items', 'cover_path'),
   ];
 
   /// 引用列全文（一次性拉入内存；R5c 孤儿判定与 R5d 云端清理共用）。

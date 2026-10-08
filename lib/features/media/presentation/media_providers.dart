@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
+import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
 import '../data/media_repo_note.dart';
 import '../data/media_repo_session.dart';
@@ -19,6 +20,15 @@ final mediaRepositoryProvider = Provider<MediaRepository>(
 );
 
 final mediaTickProvider = StateProvider<int>((ref) => 0);
+
+/// 封面取图口（批6）：生产＝[mdsPickAndStoreCover]（选图 → 平台侧按长边 480·JPEG .82 降采样
+/// → 解码自证 → 落媒体根 → 返回路径；取消/读不出各有交代）。
+/// 测试注入固定返回值＝弹层只验自己的状态机（选上/移除/失败不落值），
+/// 取图与落盘的真身由 `test/media_cover_test.dart` 直接对真实现下判
+/// （widget 测试里真插件通道与异步文件 I/O 在 FakeAsync 下永不返回，同 `healthExportDirProvider` 定式）。
+final mediaCoverPickProvider = Provider<MdsCoverPick>(
+  (ref) => (src) => mdsPickAndStoreCover(source: src),
+);
 
 /// 影音架视图：桌面 / 脊 / 列表（原型 mCurView，偏好属 §七 media.defaultView）。
 final mediaViewProvider = StateProvider<String>((ref) => 'desk');

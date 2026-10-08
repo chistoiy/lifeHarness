@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../shared/widgets/ui_kit.dart';
+import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
 import '../domain/media_item.dart';
 import 'media_providers.dart';
+import 'widgets/media_card.dart';
 
 /// 色板组数（无封面时取色下标回绕用，与 widgets/media_card.dart 的 kMdsCov 同数）。
 /// 录入时就把 colorIdx 定下来，避免两处各写一套取色逻辑。
@@ -68,28 +73,45 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
   bool _saving = false;
   String? _titleErr;
 
+  /// 封面（批6）：`_coverPath`＝当前生效值（编辑态初值＝条目已有封面），
+  /// `_coverDirty` 才在保存末尾单列写回——「移除」要能写成 null，
+  /// 混进整行覆盖就会和 `mergedOnto`「没填的照原样带过」打架。
+  String? _coverPath;
+  bool _coverDirty = false;
+  bool _coverBusy = false;
+
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    if (e == null) return;
-    _id = e.id;
-    _title.text = e.title;
-    _creator.text = e.creator == '未知' ? '' : e.creator;
-    _publisher.text = e.publisher ?? '';
-    _year.text = (e.releaseYear ?? 0) > 0 ? '${e.releaseYear}' : '';
-    _duration.text = e.durationMin > 0 ? '${e.durationMin}' : '';
-    _progress.text = e.progressTo ?? '';
-    _seasons.text = e.seasonsCount > 0 ? '${e.seasonsCount}' : '';
-    _episodes.text = e.episodesTotal > 0 ? '${e.episodesTotal}' : '';
-    _curEp.text = e.kind == MediaItem.kSeries ? (e.progressTo ?? '') : '';
-    _tracks.text = e.tracksCount > 0 ? '${e.tracksCount}' : '';
-    _playthroughs.text = e.playthroughs > 0 ? '${e.playthroughs}' : '';
-    _way = e.progressWay;
+    if (e != null) {
+      _id = e.id;
+      _coverPath = e.coverPath;
+      _title.text = e.title;
+      _creator.text = e.creator == '未知' ? '' : e.creator;
+      _publisher.text = e.publisher ?? '';
+      _year.text = (e.releaseYear ?? 0) > 0 ? '${e.releaseYear}' : '';
+      _duration.text = e.durationMin > 0 ? '${e.durationMin}' : '';
+      _progress.text = e.progressTo ?? '';
+      _seasons.text = e.seasonsCount > 0 ? '${e.seasonsCount}' : '';
+      _episodes.text = e.episodesTotal > 0 ? '${e.episodesTotal}' : '';
+      _curEp.text = e.kind == MediaItem.kSeries ? (e.progressTo ?? '') : '';
+      _tracks.text = e.tracksCount > 0 ? '${e.tracksCount}' : '';
+      _playthroughs.text = e.playthroughs > 0 ? '${e.playthroughs}' : '';
+      _way = e.progressWay;
+    }
+    // 挂监听放在回填之后：回填那一下不该触发重绘。
+    _title.addListener(_repaintCover);
+  }
+
+  /// 标题改动 → 缩略位回落字与取色下标当场跟着变（不等到保存后才发现预览是旧的）。
+  void _repaintCover() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _title.removeListener(_repaintCover);
     for (final c in [
       _title,
       _creator,
@@ -119,6 +141,122 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
 
   int _num(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
 
+  // ==================== 封面行（批6） ====================
+
+  /// 取图两档各开各的（拍照＝`ImageSource.camera`，相册＝gallery），**不再往下多弹一层**；
+  /// 读不出＝一句实话，条目不落半个值（取消＝静默）。
+  Future<void> _pickCover(ImageSource src) async {
+    if (_coverBusy) return;
+    setState(() => _coverBusy = true);
+    final r = await ref.read(mediaCoverPickProvider)(src);
+    if (!mounted) return;
+    setState(() {
+      _coverBusy = false;
+      if (r.outcome == MdsCoverOutcome.ok) {
+        _coverPath = r.path;
+        _coverDirty = true;
+      }
+    });
+    if (r.outcome == MdsCoverOutcome.failed) {
+      AppToast.show(context, '图读不出来 · 未改封面');
+    }
+  }
+
+  void _clearCover() => setState(() {
+    _coverPath = null;
+    _coverDirty = true;
+  });
+
+  /// 缩略位取色下标＝**与保存时同一式**（两处各写一套就会出现「预览一个样、上架另一个样」）。
+  static int coverPaletteIdx(String title) => title.isEmpty
+      ? 0
+      : (title.codeUnitAt(0) + title.length) % kMediaPaletteCount;
+
+  /// 66×88 竖版缩略位（拍板①＝与架面主形态同比例）＋三枚功能钮。
+  /// 无图＝色板＋标题首字回落（首字现算，随输入当场变），永不摆假图。
+  Widget _coverRow() {
+    final path = _coverPath;
+    final has = path != null && path.isNotEmpty;
+    final (c1, c2) = kMdsCov[coverPaletteIdx(_title.text.trim())];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        key: const ValueKey('mds-add-cover-row'),
+        children: [
+          SizedBox(
+            key: const ValueKey('mds-add-cover'),
+            width: 66,
+            height: 88,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [c1, c2],
+                  ),
+                ),
+                child: _coverBusy
+                    ? const Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : has
+                    ? Image.file(
+                        File(path),
+                        key: const ValueKey('mds-add-cover-img'),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _coverMono(),
+                      )
+                    : _coverMono(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          _coverBtn('mds-add-cover-cam', '拍照', () => _pickCover(ImageSource.camera)),
+          const SizedBox(width: 8),
+          _coverBtn('mds-add-cover-lib', '相册', () => _pickCover(ImageSource.gallery)),
+          if (has) ...[
+            const SizedBox(width: 8),
+            _coverBtn('mds-add-cover-del', '移除', _clearCover),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 回落＝色板＋标题首字（首字**现算**，标题一空就整块收起来，不摆一个空字占位）。
+  Widget _coverMono() {
+    final t = _title.text.trim();
+    if (t.isEmpty) return const SizedBox.shrink();
+    return Center(
+      child: Text(
+        t.characters.first,
+        style: TextStyle(
+          fontSize: 26,
+          height: 1,
+          fontWeight: FontWeight.w900,
+          color: Colors.white.withValues(alpha: .24),
+        ),
+      ),
+    );
+  }
+
+  Widget _coverBtn(String key, String label, VoidCallback onTap) => OutlinedButton(
+    key: ValueKey(key),
+    onPressed: _coverBusy ? null : onTap,
+    style: OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      minimumSize: Size.zero,
+      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    ),
+    child: Text(label, style: const TextStyle(fontSize: 12)),
+  );
+
   Future<void> _save() async {
     if (_saving) return;
     final title = _title.text.trim();
@@ -144,7 +282,7 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
           : _publisher.text.trim(),
       publisherRole: MediaItem.publisherRoleLabel[_kind],
       releaseYear: int.tryParse(_year.text.trim()),
-      colorIdx: (title.codeUnitAt(0) + title.length) % kMediaPaletteCount,
+      colorIdx: coverPaletteIdx(title),
       state: MediaItem.initialState(_kind),
       // 时长：电影＝总时长，游戏＝主线时长，剧集＝单集时长（§2.1 列注释同口径）
       durationMin: _kind == MediaItem.kMusic ? 0 : _num(_duration),
@@ -194,6 +332,8 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
       await repo.updateItem(item.mergedOnto(old));
       await repo.registerItemNames(item);
     }
+    // 封面板动过才写（单列 UPDATE）：新建时它把落盘路径补上，编辑时它管换图与移除。
+    if (_coverDirty) await repo.setItemCover(id, _coverPath);
     if (!mounted) return;
     final tick = ref.read(mediaTickProvider.notifier);
     tick.state = tick.state + 1;
@@ -246,7 +386,8 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+              _coverRow(),
               _field(
                 controller: _title,
                 label: '片名 / 专辑 / 游戏名',
