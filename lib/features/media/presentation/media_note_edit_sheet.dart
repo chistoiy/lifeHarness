@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/linkage/media_mounts.dart';
 import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import '../data/media_repo_goal.dart';
 import '../data/media_repo_note.dart';
 import '../domain/media_item.dart';
 import '../domain/media_note.dart';
@@ -91,6 +92,18 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
     _itemId = widget.initialItemId;
     if (widget.initialAtMin != null) _at.text = mediaNoteAtTx(widget.initialAtMin);
     // 默认「现在」＝创建时间留空（仓储侧落当下时刻），改过才带值（工单 §1.3）。
+    _initAutoPos();
+  }
+
+  /// autoPos 生效面（LH-C23 铁口径①）：开着且没带时间点进来＝预填该条最近流水终点；
+  /// 没会话/读数取不到＝留空不编（算不出不编数＝批4 §0.2）。
+  Future<void> _initAutoPos() async {
+    final id = widget.initialItemId;
+    if (id == null || widget.initialAtMin != null || _at.text.isNotEmpty) return;
+    final repo = ref.read(mediaRepositoryProvider);
+    if (await mediaKvSafe(repo, 'media.autoPos', 'true') != 'true') return;
+    final to = await repo.lastSessionToMin(id);    if (to == null || !mounted || _at.text.isNotEmpty) return;
+    setState(() => _at.text = mediaNoteAtTx(to));
   }
 
   @override
@@ -476,12 +489,15 @@ class _MediaNoteEditSheetState extends ConsumerState<MediaNoteEditSheet> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  PillChip(
-                    key: const ValueKey('mde-paste'),
-                    label: '粘贴文本',
-                    onTap: _busy ? null : _paste,
-                  ),
-                  const SizedBox(width: 8),
+                  // clipAuto 控粘贴钮显隐（LH-C23 铁口径①；关＝不铺，不铺假钮）。
+                  if (ref.watch(mediaClipAutoProvider).valueOrNull ?? true) ...[
+                    PillChip(
+                      key: const ValueKey('mde-paste'),
+                      label: '粘贴文本',
+                      onTap: _busy ? null : _paste,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   // OCR 置灰不隐藏：点击给实话（手机端 title 取不到，拍板⑤）。
                   Opacity(
                     opacity: .45,

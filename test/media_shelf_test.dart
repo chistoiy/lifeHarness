@@ -279,6 +279,9 @@ void main() {
     await useSurface(tester, const Size(420, 1000));
     await pump(tester, const MediaShelfPage());
     final id = ids['电影乙']!;
+    // 桌面列数自批8a 起吃设置 KV（默认 2 列＝原型 MSET.wallCols），窄视口下卡可能沉底。
+    await tester.ensureVisible(find.byKey(ValueKey('mds-card-$id')));
+    await tester.pump();
     await tester.longPress(find.byKey(ValueKey('mds-card-$id')));
     await settle5(tester);
     expect(find.byKey(const ValueKey('mds-multi-bar')), findsOneWidget);
@@ -318,6 +321,8 @@ void main() {
     await useSurface(tester, const Size(420, 1000));
     await pump(tester, const MediaShelfPage());
     final id = ids['电影甲']!;
+    await tester.ensureVisible(find.byKey(ValueKey('mds-card-$id')));
+    await tester.pump();
     await tester.tap(find.byKey(ValueKey('mds-card-$id')));
     await settle5(tester);
     // 详情屏在场：进度行＋底部动作条（速览那套临时面不再出现）

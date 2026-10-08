@@ -8,7 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:lifeharness/core/database/schema/core.dart' as core;
 import 'package:lifeharness/core/database/schema/media.dart' as md;
+import 'package:lifeharness/features/media/data/media_repo_goal.dart';
+import 'package:lifeharness/features/media/data/media_repo_session.dart';
 import 'package:lifeharness/features/media/data/media_cover.dart';
 import 'package:lifeharness/features/media/data/media_repository.dart';
 import 'package:lifeharness/features/media/domain/media_item.dart';
@@ -37,6 +40,10 @@ void main() {
       await db.execute(sql);
     }
     repo = MediaRepository(db);
+    // 批8a 新增插入位吃 settings 表 KV（缺表＝mediaKvSafe 回落 head，照 stat 页件补表定式）。
+    await db.execute(
+      'CREATE TABLE IF NOT EXISTS ${core.tSettings} (key TEXT PRIMARY KEY, value TEXT)',
+    );
     // 封面图夹具＝真文件（`Image.file` 解码失败会走 errorBuilder，键就取不到了）；
     // 建文件用同步写，异步 I/O 在 FakeAsync 下永不返回（既定坑）。
     tmp = Directory.systemTemp.createTempSync('lh_addcover6');
@@ -438,5 +445,43 @@ void main() {
     expect(rows.single['title'], '新名');
     expect(rows.single['id'], id);
     expect(rows.single['cover_path'], img, reason: '没动封面＝原值保留（mergedOnto 口径）');
+  });
+
+  testWidgets('新增插入位（media.newPos）：置顶＝created_at now，置底＝全库最小-1',
+      (tester) async {
+    await useSurface(tester, const Size(420, 1000));
+    // 先在库一条基准条目（created_at=1000），tail 的落位基准＝min-1=999。
+    await repo.addItem(MediaItem(
+      id: 'base0',
+      kind: MediaItem.kMovie,
+      title: '基准片',
+      state: '在看',
+      progressWay: MediaItem.kWayPct,
+      createdAt: 1000,
+      updatedAt: 1000,
+    ));
+    await openSheet(tester);
+    await tester.enterText(
+        find.byKey(const ValueKey('mds-add-field-片名 / 专辑 / 游戏名')), '置顶新片');
+    await tester.tap(find.byKey(const ValueKey('mds-add-save')));
+    await settle5(tester);
+    await clearToasts(tester);
+    final head = await repo.itemById(
+        ((await db.query(md.tMediaItems, where: "id != 'base0'")).first['id'])
+            as String);
+    expect(head!.createdAt! > 1000, isTrue, reason: '默认置顶档＝now，不早于既有条目');
+
+    await repo.setKv('media.newPos', 'tail');
+    await openSheet(tester);
+    await tester.enterText(
+        find.byKey(const ValueKey('mds-add-field-片名 / 专辑 / 游戏名')), '置底新片');
+    await tester.tap(find.byKey(const ValueKey('mds-add-save')));
+    await settle5(tester);
+    await clearToasts(tester);
+    final tail = (await db.query(md.tMediaItems, where: 'id != ?',
+            whereArgs: ['base0'], orderBy: 'created_at ASC'))
+        .first;
+    expect(tail['created_at'], await repo.minLiveCreatedAt(),
+        reason: 'tail＝全库在册最小-1 落位（原型「追加到末尾」同语义）');
   });
 }

@@ -34,6 +34,8 @@ class MediaRepository {
     // 拼音比较器目前在阅读模块内部（R1 禁跨 feature import），要推全需先抽进 shared，另批做。
     'name': 'title COLLATE NOCASE ASC',
     'duration': 'duration_min DESC, updated_at DESC',
+    // 批8a 设置屏默认排序六档之「发行年」（原型 MSRT）；无发行年沉底。
+    'year': 'COALESCE(release_year, 0) DESC, updated_at DESC',
   };
 
   static final Random _rnd = Random();

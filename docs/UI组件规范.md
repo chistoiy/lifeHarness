@@ -216,13 +216,13 @@
   ⑤ 目标未设＝该块只出「未设目标」虚线＋跳影音目标屏（`m-goal`＝LH-C22·批8a 原型已定稿）的入口行，**块内不许出现任何百分比**（目标批落地后才换成真达成条。实现批口径：入口在场但**置灰**，点＝提示「影音目标还没上线」，目标屏上线后改真跳转；批8a 原型面两屏已同源＝`mRenderStatGoal` 现读 `MGOALS`）。
 - 计划 §十一 预登记的「每格按主导 kind 显示对应实物缩略」属**已否决的微拟物方向**，本屏按扁平主色执行。
 
-### LH-C22 影音游目标屏（影音游批8a · 2026-10-09 原型定稿·待过门）
-- 原型：`prototype/index-media.html` `#m-goal`（`mRenderGoal`＋读数算面 `mGoalRead`，就地滚轮复用本文件 WHEELS 基建）。无头闸 `tools/media_b8acheck.js`（26 断言）。实现＝待实现批（路由 `/media/goal`，新表 `media_goals`＝DB v40，工单 `docs/handoff/交棒话术-20261009-影音游批8a目标屏与设置生效面原型.md` §⚙）。
+### LH-C22 影音游目标屏（影音游批8a · 2026-10-09 原型＋实现同日交付）
+- 原型：`prototype/index-media.html` `#m-goal`（`mRenderGoal`＋读数算面 `mGoalRead`，就地滚轮复用本文件 WHEELS 基建）。无头闸 `tools/media_b8acheck.js`（26 断言）。实现＝已交付（路由 `/media/goal`＝`media_goal_page.dart`，表 `media_goals`＝DB v40，工单 `docs/archive/交棒话术-20261009-影音游批8a目标屏与设置生效面原型.md` §⚙）。
 - 构成＝**固定六行**（逐字对齐计划 §八 L7 六路汇聚）：每日观影 min · 每周听歌 h · 每月游玩 h · 每年看完 部 · 每周影音天数 天 · 每月名场面条数 条；每行＝行名＋当前周期达成读数（左）＋目标态（右）；未设＝虚线「设目标」入口、**行内零百分比**；已设＝目标 chip＋百分比＋细进度条（封顶 100%，达成＝满格）。
 - 铁口径＝① 周期窗口钉自然日历：日＝今天、**周＝周一起**、月/年＝当前自然月年，读数一律相对当日现算；② 时长读数**恒吃真实耗时**（与账本 §九.1 同一条，不随统计屏折算 chip 变）；③ 点行就地展开单列滚轮（禁两段式弹层），吸中即落值，「不设目标」清档回虚线；④ 「看完」＝完结档（看完/追完/通关）且达成日在本年——「观影」含电影与剧集，分 kind 明细只走统计屏构成块（屏内一行合并）；⑤ 目标态与统计屏「目标达成」块**同源**（设/清两屏同帧变，入口行恒在）；⑥ 名场面条数吃本月 scene 类笔记（软删不入）。
 
-### LH-C23 影音游设置屏（影音游批8a · 2026-10-09 原型定稿·待过门）
-- 原型：`prototype/index-media.html` `#m-set`（`MSET` 态＋`mRenderSet`＋生效口 `mApplySetting`／`mOpenShelf`）。实现＝待实现批（KV `media.*` 读写＋路由 `/media/settings`，工作台直达入口落 `lib/shared/linkage/media_mounts.dart`）。
+### LH-C23 影音游设置屏（影音游批8a · 2026-10-09 原型＋实现同日交付）
+- 原型：`prototype/index-media.html` `#m-set`（`MSET` 态＋`mRenderSet`＋生效口 `mApplySetting`／`mOpenShelf`）。实现＝已交付（KV `media.*` 读写＋路由 `/media/settings`＝`media_set_page.dart`，工作台直达入口落 `lib/shared/linkage/media_mounts.dart`）。
 - 构成＝**横向分组 tab 六组**：架面（默认视图·桌面列数）／排序（默认排序六档·新增插入位）／笔记（识图取文＝灰态·默认带时间点·剪贴板识别）／计时（形态胶囊/全屏·悬浮条·倍速折算·结束即弹记进度·晚间补记提醒）／更新提醒（新集·新专·续作与 DLC＝**三行灰态**）／数据（导入向导直达＋导出 MD/JSON 灰态）。
 - 铁口径＝① **逐行当场生效**：defaultView/sortDefault 吃进架（`mOpenShelf`），wallCols＝架面网格内联轨道，newPos＝新建条目落位，**speedFold 与统计屏口径 chip 双向同源**，timerUI 分派胶囊/全屏两条真路径，floatBar 控悬浮条显隐，autoAsk 控结束弹层，autoPos/clipAuto 控笔记弹层时间点预填与粘贴钮显隐，dailyQ＝工作台「今天还没有计时」提示行（应用内，不占系统通知＝实现批）；② 能力未开放＝**灰态点不动、零说明文案**（更新提醒三行·导出两枚·识图）；③ 死键不铺＝`media.deskTexture`／`media.cardLiftPx`／`media.spineCols`／`media.longPress`（微拟物已否＋动作面 LH-S34 固定＝工单 §0.5），存储位置/服务集成＝壳层「数据与同步」职责，模块屏不重复；④ 键一律走 `settings` 表 KV `media.*` 前缀，不散落 SharedPreferences（计划 §七 存储行）。
 

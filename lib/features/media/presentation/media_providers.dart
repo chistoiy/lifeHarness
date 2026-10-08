@@ -1,12 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logging/app_log.dart';
+
 import '../../../core/database/app_database.dart';
 import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
+import '../data/media_repo_goal.dart';
 import '../data/media_repo_note.dart';
 import '../data/media_repo_session.dart';
 import '../data/media_repo_stat.dart';
 import '../data/media_repository.dart';
+import '../domain/media_goal.dart';
 import '../domain/media_item.dart';
 import '../domain/media_note.dart';
 import '../domain/media_session.dart';
@@ -331,4 +335,109 @@ final mediaTrackSessionsProvider = FutureProvider.family<List<MediaSession>, Str
 ) {
   ref.watch(mediaTickProvider);
   return ref.watch(mediaRepositoryProvider).closedSessionsOfItem(id);
+});
+
+// ==================== 目标屏＋设置生效面（批8a · LH-C22／LH-C23） ====================
+
+/// 目标屏一行的视图模型（定义＋落库目标＋现算读数；goal=null＝未设出虚线）。
+typedef MediaGoalRow = ({
+  ({String k, String label, String unit, String per}) def,
+  MediaGoal? goal,
+  num read,
+});
+
+/// `media_goals` 全行（未设＝无行）。
+final mediaGoalsProvider = FutureProvider<List<MediaGoal>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref.watch(mediaRepositoryProvider).goalRows();
+});
+
+/// 六路达成读数（**恒吃真实耗时**＝账本 §九.1；折算 chip 不参与，LH-C22 铁口径②）。
+final mediaGoalReadsProvider = FutureProvider<Map<String, num>>((ref) async {
+  final sessions = await ref.watch(mediaClosedSessionsProvider.future);
+  final items = await ref.watch(mediaAllItemsProvider.future);
+  final now = DateTime.now();
+  final sceneN = await ref
+      .watch(mediaRepositoryProvider)
+      .sceneNotesBetween(DateTime(now.year, now.month), DateTime(now.year, now.month + 1));
+  return mdsComputeGoalReads(
+    sessions: sessions,
+    items: items,
+    sceneNotesThisMonth: sceneN,
+    now: now,
+  );
+});
+
+/// 目标屏六行的唯一出口（行序＝kMdsGoalDefs 固定序；与统计屏目标块同源）。
+final mediaGoalRowsProvider = FutureProvider<List<MediaGoalRow>>((ref) async {
+  final goals = await ref.watch(mediaGoalsProvider.future);
+  final reads = await ref.watch(mediaGoalReadsProvider.future);
+  return [
+    for (final d in kMdsGoalDefs)
+      (
+        def: d,
+        goal: goals.where((g) => g.metric == d.k).firstOrNull,
+        read: reads[d.k] ?? 0,
+      ),
+  ];
+});
+
+/// settings KV 通用**读侧带回落**：表缺席/读失败一律回落默认（老测试库不建 settings 表
+/// 也不炸；计划 §九.2 的回落口径，读写都只走 settings 表 KV＝LH-C23 铁口径④）。
+Future<String> mediaKvSafe(MediaRepository repo, String key, String def) async {
+  try {
+    return await repo.kv(key) ?? def;
+  } catch (e) {
+    AppLog.add('影音 KV 读取失败（回落默认 $key）：$e', src: '数据库');
+    return def;
+  }
+}
+
+/// 默认视图（media.defaultView＝desk）。进架入口在点「影音架」时吃进 mediaViewProvider。
+final mediaDefaultViewProvider = FutureProvider<String>((ref) async {
+  ref.watch(mediaTickProvider);
+  return mediaKvSafe(
+      ref.watch(mediaRepositoryProvider), 'media.defaultView', 'desk');
+});
+
+/// 默认排序（media.sortDefault＝recent；六档键在进架口映射进架面排序）。
+final mediaSortDefaultProvider = FutureProvider<String>((ref) async {
+  ref.watch(mediaTickProvider);
+  return mediaKvSafe(
+      ref.watch(mediaRepositoryProvider), 'media.sortDefault', 'recent');
+});
+
+/// 桌面列数（media.wallCols＝2，原型 MSET 同档；进架网格内联轨道吃这一份）。
+final mediaWallColsProvider = FutureProvider<int>((ref) async {
+  ref.watch(mediaTickProvider);
+  return int.tryParse(await mediaKvSafe(
+              ref.watch(mediaRepositoryProvider), 'media.wallCols', '2')) ??
+          2;
+});
+
+/// 新增插入位（media.newPos＝head|tail；录入弹层保存时读，tail＝created_at 取全库最小-1）。
+final mediaNewPosProvider = FutureProvider<String>((ref) async {
+  ref.watch(mediaTickProvider);
+  return mediaKvSafe(ref.watch(mediaRepositoryProvider), 'media.newPos', 'head');
+});
+
+/// 笔记弹层「默认带时间点」（media.autoPos＝true）。
+final mediaAutoPosProvider = FutureProvider<bool>((ref) async =>
+    (await mediaKvSafe(
+            ref.watch(mediaRepositoryProvider), 'media.autoPos', 'true')) ==
+        'true');
+
+/// 笔记弹层「剪贴板识别」＝粘贴钮显隐（media.clipAuto＝true）。
+final mediaClipAutoProvider = FutureProvider<bool>((ref) async =>
+    (await mediaKvSafe(
+            ref.watch(mediaRepositoryProvider), 'media.clipAuto', 'true')) ==
+        'true');
+
+/// 晚间补记提醒（media.dailyQ＝true）：今日无已结算会话才在工作台出提示行（应用内＝§0.4）。
+final mediaDailyQHintProvider = FutureProvider<bool>((ref) async {
+  ref.watch(mediaTickProvider);
+  final repo = ref.watch(mediaRepositoryProvider);
+  if ((await mediaKvSafe(repo, 'media.dailyQ', 'true')) != 'true') return false;
+  final now = DateTime.now();
+  return !(await repo.hasSessionOnDay(DateTime(now.year, now.month, now.day)));
 });

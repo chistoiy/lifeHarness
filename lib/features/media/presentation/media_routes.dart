@@ -1,9 +1,11 @@
 import 'package:go_router/go_router.dart';
 
 import 'media_detail_page.dart';
+import 'media_goal_page.dart';
 import 'media_info_page.dart';
 import 'media_mgr_page.dart';
 import 'media_notes_page.dart';
+import 'media_set_page.dart';
 import 'media_sesslog_page.dart';
 import 'media_shelf_page.dart';
 import 'media_stat_page.dart';
@@ -26,6 +28,10 @@ List<GoRoute> mediaPageRoutes() => [
   GoRoute(path: '/media/notes', builder: (_, _) => const MediaNotesPage()),
   // 全站统计（原型 m-stat · 词典 LH-C21 · 批7）：入口＝工作台图标条「统计」一枚。
   GoRoute(path: '/media/stat', builder: (_, _) => const MediaStatPage()),
+  // 影音目标（原型 m-goal · 词典 LH-C22 · 批8a）：入口＝统计屏目标块＋工作台「目标」。
+  GoRoute(path: '/media/goal', builder: (_, _) => const MediaGoalPage()),
+  // 影音设置（原型 m-set · 词典 LH-C23 · 批8a）：入口＝工作台图标条第 8 枚「设置」。
+  GoRoute(path: '/media/settings', builder: (_, _) => const MediaSetPage()),
   // 条目详情（原型 m-detail）：点架卡/速览的正式落面。
   GoRoute(
     path: '/media/item/:id',

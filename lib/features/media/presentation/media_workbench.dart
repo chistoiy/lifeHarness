@@ -24,13 +24,39 @@ class MediaWorkbench extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
+        // 晚间补记提示行（dailyQ＝应用内、不占系统通知；今天还没有已结算计时才出＝§0.4）。
+        if (ref.watch(mediaDailyQHintProvider).valueOrNull ?? false)
+          Padding(
+            key: const ValueKey('mds-dailyq-row'),
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Icon(Icons.bolt_outlined,
+                    size: 15, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '今天还没有计时 · 有空补记一条',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ),
         // 影音架入口（点=直达架面，管理动作都在那边）
         Material(
           color: Colors.transparent,
           child: InkWell(
             key: const ValueKey('media-open-shelf'),
             borderRadius: BorderRadius.circular(16),
-            onTap: () => context.push('/media/shelf'),
+            onTap: () {
+              // 进架口吃设置屏默认视图/排序（原型 mOpenShelf＝LH-C23 铁口径①）。
+              applyMediaShelfPrefs(
+                  ProviderScope.containerOf(context, listen: false));
+              context.push('/media/shelf');
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               decoration: BoxDecoration(
@@ -86,7 +112,11 @@ class MediaWorkbench extends ConsumerWidget {
                 key: ValueKey('media-kind-$k'),
                 avatar: Icon(mdsKindIcon(k), size: 16),
                 label: Text('${MediaItem.labelOf(k)} ${counts[k] ?? 0}'),
-                onPressed: () => context.push('/media/shelf?kind=$k'),
+                onPressed: () {
+                  applyMediaShelfPrefs(
+                      ProviderScope.containerOf(context, listen: false));
+                  context.push('/media/shelf?kind=$k');
+                },
               ),
           ],
         ),
@@ -223,6 +253,20 @@ class MediaWorkbench extends ConsumerWidget {
             ),
           ),
         ),
+        // 目标屏直达（批8a：图标条「目标」一枚的 Flutter 形态＝直达行）
+        _EntryRow(
+          key: const ValueKey('media-open-goal'),
+          icon: Icons.track_changes_outlined,
+          title: '影音目标',
+          onTap: () => context.push('/media/goal'),
+        ),
+        // 设置屏直达（批8a 拍板⑤：图标条第 8 枚「设置」的 Flutter 形态＝直达行）
+        _EntryRow(
+          key: const ValueKey('media-open-set'),
+          icon: Icons.settings_outlined,
+          title: '影音设置',
+          onTap: () => context.push('/media/settings'),
+        ),
         if (recent.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(
@@ -245,7 +289,11 @@ class MediaWorkbench extends ConsumerWidget {
                       padding: const EdgeInsets.only(right: 10),
                       child: MediaItemCard(
                         item: x,
-                        onTap: () => context.push('/media/shelf?kind=${x.kind}'),
+                        onTap: () {
+                          applyMediaShelfPrefs(
+                              ProviderScope.containerOf(context, listen: false));
+                          context.push('/media/shelf?kind=${x.kind}');
+                        },
                       ),
                     ),
                   ),
@@ -305,6 +353,62 @@ class _RunningRow extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 工作台直达行（图标＋题名＋可选副注＋chevron；批8a 目标/设置两枚入口共用）。
+class _EntryRow extends StatelessWidget {
+  const _EntryRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon,
+                    size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
       ),

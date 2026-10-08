@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/load_error_state.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/media_repo_session.dart';
+import '../domain/media_goal.dart';
 import '../domain/media_item.dart';
 import '../domain/media_stats.dart';
 import 'media_providers.dart';
@@ -440,30 +442,81 @@ class _MediaStatPageState extends ConsumerState<MediaStatPage> {
 
   Widget _goalCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final rowsAsync = ref.watch(mediaGoalRowsProvider);
+    final rows = rowsAsync.valueOrNull ?? const <MediaGoalRow>[];
+    final set = rows.where((r) => r.goal != null).toList();
     return _card(
       key: const ValueKey('mds-stat-goal'),
       title: '目标达成',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          EmptyDashRow(text: '未设目标'),
+          // 批8a 同源（LH-C22 铁口径⑤）：现读 mediaGoalRowsProvider，设/清两屏同帧变；
+          // 全未设＝只出「未设目标」虚线，**块内零百分比**（未设行不在此铺）。
+          if (set.isEmpty) const EmptyDashRow(text: '未设目标'),
+          for (final r in set)
+            Padding(
+              key: ValueKey('mds-stat-goalrow-${r.def.k}'),
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${kMdsPerWord[r.def.per]} ${r.def.label}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  Text(
+                    '${mdsGoalReadText(r.def.k, r.read)}/${mdsGoalTargetText(r.goal!)}'
+                    ' · ${(r.read / r.goal!.target * 100).round()}%',
+                    style: TextStyle(
+                        fontSize: 11, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          for (final r in set)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: LayoutBuilder(
+                builder: (_, c) {
+                  final pct =
+                      ((r.read / r.goal!.target * 100).clamp(0, 100)) / 100.0;
+                  return Container(
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      color: scheme.surfaceContainerHighest,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: pct,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           const SizedBox(height: 8),
-          // 目标屏属下一批：能力未开放＝置灰不隐藏（批3 §2 判断2 同口径），不铺假读数。
-          Opacity(
-            opacity: .55,
-            child: InkWell(
-              key: const ValueKey('mds-stat-goal-entry'),
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => AppToast.show(context, '影音目标还没上线'),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                child: Row(
-                  children: [
-                    const Expanded(
-                        child: Text('影音目标', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800))),
-                    Icon(Icons.chevron_right, size: 16, color: scheme.onSurfaceVariant),
-                  ],
-                ),
+          InkWell(
+            key: const ValueKey('mds-stat-goal-entry'),
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => context.push('/media/goal'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              child: Row(
+                children: [
+                  const Expanded(
+                      child: Text('影音目标', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800))),
+                  Icon(Icons.chevron_right, size: 16, color: scheme.onSurfaceVariant),
+                ],
               ),
             ),
           ),

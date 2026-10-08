@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/linkage/stats_providers.dart'
     show dayBlocksProvider, monthBlockDaysProvider;
@@ -47,6 +48,12 @@ Future<void> mediaTimerTap(BuildContext context, WidgetRef ref, MediaItem item) 
     }
     return;
   }
+  // LH-C23 铁口径①：timerUI 两条真路径——全屏档＝起停直接进沉浸页（胶囊档就地起停＋悬浮条）。
+  if ((await mediaKvSafe(repo, 'media.timerUI', 'capsule')) == 'full' &&
+      ref.context.mounted) {
+    context.push('/media/timer/${item.id}');
+    return;
+  }
   if (running != null) {
     // 别的条目在跑：起新先结旧（同阅读单活语义），结旧结果如实报。
     final closed = await repo.endSession(running.itemId);
@@ -73,4 +80,21 @@ int mediaLiveMinutes(MediaSession s) => DateTime.now()
 void _bump(WidgetRef ref) {
   final t = ref.read(mediaTickProvider.notifier);
   t.state = t.state + 1;
+}
+
+/// 进架口：把设置屏的默认视图/默认排序吃进架面态（原型 `mOpenShelf`＝LH-C23 铁口径①，
+/// 刀3 摘掉本函数＝进架硬钉 desk/recent，设置生效连线断言独红）。
+/// 默认排序六档按原型实态映射（工单 §3 偏离②）：title/progress 落架面既有键，不造第七档。
+Future<void> applyMediaShelfPrefs(ProviderContainer c) async {
+  final repo = c.read(mediaRepositoryProvider);
+  final view = await mediaKvSafe(repo, 'media.defaultView', 'desk');
+  if (const {'desk', 'spine', 'list'}.contains(view)) {
+    c.read(mediaViewProvider.notifier).state = view;
+  }
+  final sort = await mediaKvSafe(repo, 'media.sortDefault', 'recent');
+  c.read(mediaSortProvider.notifier).state = switch (sort) {
+    'title' => 'name',
+    'progress' => 'recent',
+    _ => sort,
+  };
 }

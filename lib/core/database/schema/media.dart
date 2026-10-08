@@ -14,6 +14,7 @@ const String tMediaUnits = 'media_units';
 const String tMediaDict = 'media_dict';
 const String tMediaLists = 'media_lists';
 const String tMediaListItems = 'media_list_items';
+const String tMediaGoals = 'media_goals';
 
 /// 本模块全部表名（备份登记、概览在册、守护清单都吃这一份）。
 const List<String> mediaTables = [
@@ -24,6 +25,7 @@ const List<String> mediaTables = [
   tMediaDict,
   tMediaLists,
   tMediaListItems,
+  tMediaGoals,
 ];
 
 /// 四类（综艺并入剧集＝§九.5 已定案；播客留 V1.x 不建 kind）。
@@ -194,6 +196,18 @@ final List<String> mediaSchemaStatements = [
   )
   ''',
   'CREATE INDEX IF NOT EXISTS idx_mlistitem_item ON $tMediaListItems(item_id)',
+  // 批8a · v39→v40：目标屏一指标一行（工单 §1＝media_goals 纯建表零搬数据）。
+  // 未设＝删行；unit 随行存真、target 存该指标最小整数刻度（游玩 h 存 0.1h 整数）。
+  '''
+  CREATE TABLE IF NOT EXISTS $tMediaGoals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    metric TEXT NOT NULL UNIQUE,
+    unit TEXT NOT NULL,
+    target INTEGER NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    updated_at INTEGER
+  )
+  ''',
   // 字典 source 预置（§2.2）：改名/停用走字典，条目侧只存名字。
   "INSERT OR IGNORE INTO $tMediaDict(kind,name,sort) VALUES"
       "('source','豆瓣',1),('source','IMDb',2),('source','TMDB',3),('source','TVMAZE',4),"
@@ -231,4 +245,18 @@ final Map<int, List<String>> mig = {
   ],
   // 38→39（影音游批5 数据层）：media_notes 加复习三列＋到期索引。
   38: [...mediaReviewStatements],
+  // 39→40（影音游批8a）：media_goals 建表（新表纯建，零搬数据；
+  // 建表语句已随基础 DDL 进 createStatements，本段＝老库升级通道）。
+  39: [
+    '''
+    CREATE TABLE IF NOT EXISTS $tMediaGoals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metric TEXT NOT NULL UNIQUE,
+      unit TEXT NOT NULL,
+      target INTEGER NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      updated_at INTEGER
+    )
+    ''',
+  ],
 };

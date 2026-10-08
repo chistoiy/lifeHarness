@@ -23,17 +23,21 @@ void main() {
       .map((r) => r['name'] as String)
       .toSet();
 
-  test('版本号 39，37→38 段就是影音游建表，七表齐', () async {
-    expect(DbSchema.version, 39,
-        reason: '批5 数据层给 media_notes 加了复习三列（38→39 段）');
+  test('版本号 40，37→38 建七表＋39→40 建目标表，八表齐', () async {
+    expect(DbSchema.version, 40,
+        reason: '批8a 目标屏建 media_goals（39→40 段）；批5 复习三列在 38→39 段');
     expect(DbSchema.migrations.containsKey(37), isTrue,
         reason: '缺这段＝老库升级不建影音游表（新装有、老库没有）');
     final t = await tables();
     for (final name in md.mediaTables) {
       expect(t, contains(name), reason: '$name 未随 v38 建出');
     }
-    expect(md.mediaTables, hasLength(7));
+    expect(md.mediaTables, hasLength(8), reason: '批8a 起含 media_goals＝八表');
     expect(md.mediaKinds, ['movie', 'series', 'music', 'game']);
+    expect(DbSchema.migrations.containsKey(39), isTrue,
+        reason: '批8a v39→v40 段在场＝建 media_goals（老库升级通道）');
+    expect((DbSchema.migrations[39] ?? const []).join(' '), contains(md.tMediaGoals),
+        reason: '39→40 段必须真建目标表，不是空段');
   });
 
   test('条目 id 是 TEXT 主键；重复插入不静默吞（导入去重第一道）', () async {

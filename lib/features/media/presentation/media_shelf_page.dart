@@ -333,14 +333,15 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
         ],
       );
     }
-    // 桌面视图：三列网格（原型 .mds-grid 3 列）
+    // 桌面视图：网格列数吃设置屏 media.wallCols（LH-C23 铁口径①，原型内联轨道同口径）
+    final cols = ref.watch(mediaWallColsProvider).valueOrNull ?? 2;
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: cols,
         mainAxisSpacing: 12,
         crossAxisSpacing: 10,
-        childAspectRatio: .6,
+        childAspectRatio: cols > 2 ? .6 : .8,
       ),
       itemCount: list.length,
       itemBuilder: (_, i) {

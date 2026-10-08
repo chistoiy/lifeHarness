@@ -37,7 +37,9 @@ class DbSchema {
   // 39：影音游批5 数据层——migrations[38]（38→39）给 media_notes 加复习三列
   // （review_stage/reviewed_at/next_review_at，零搬数据纯加列）＋到期索引；
   // 列不进基础 DDL 的理由＝media.dart 的 mediaReviewStatements 段注。
-  static const int version = 39;
+  // 40：影音游批8a 目标屏——migrations[39]（39→40）建 media_goals
+  // （一指标一行·未设＝删行；新表纯建零搬数据）。
+  static const int version = 40;
  
 
   
@@ -310,6 +312,7 @@ class DbSchema {
     ...md.mediaSchemaStatements,
     // 批5 复习三列：与 mig[38] 同一段（基础 DDL 冻结在 v38 形态，理由见 media.dart 段注）。
     ...md.mediaReviewStatements,
+    // 批8a media_goals 建表：已在 mediaSchemaStatements 尾部（mig[37]/mig[39] 同段重放，互不撞）。
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart

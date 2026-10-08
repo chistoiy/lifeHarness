@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
+import '../data/media_repo_goal.dart';
 import '../domain/media_item.dart';
 import 'media_providers.dart';
 import 'widgets/media_card.dart';
@@ -270,6 +271,14 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
       _titleErr = null;
     });
     final now = DateTime.now().millisecondsSinceEpoch;
+    // 新增插入位（media.newPos＝LH-C23 铁口径①）：置底＝created_at 取全库最小-1
+    // （added 档「加入时间」升序末位，原型 mAddSave 追加语义；其余排序档不动时间真值）。
+    final pos = await ref.read(mediaNewPosProvider.future);
+    int ts = now;
+    if (pos == 'tail') {
+      final mn = await ref.read(mediaRepositoryProvider).minLiveCreatedAt();
+      ts = (mn ?? now + 1) - 1;
+    }
     final prog = _num(_progress);
     final item = MediaItem(
       id: _id ?? '',
@@ -312,7 +321,7 @@ class _MediaAddSheetState extends ConsumerState<_MediaAddSheet> {
         _ => null,
       },
       source: '自建',
-      createdAt: now,
+      createdAt: ts,
       updatedAt: now,
       lastActivityAt: now,
     );
