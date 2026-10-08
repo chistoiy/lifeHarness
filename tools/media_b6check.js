@@ -87,9 +87,10 @@ window.__shot=function(){var e=document.querySelector('#mdsAddCover .covimg');re
     var slot=document.getElementById('mdsAddCover');
     return {ids:['mdsAddCoverRow','mdsAddCover','mdsAddCoverCam','mdsAddCoverLib','mdsAddCoverDel','mdsAddCoverFile'].filter(function(i){return document.getElementById(i)}).length,
       btns:btns.join('/'),del:__delHidden(),mono:__mono(),slotTx:__txt(slot).length,
-      fileAccept:(document.getElementById('mdsAddCoverFile')||{}).accept};`);
-  (a1.ids === 6 && a1.btns === '拍照/相册/移除' && a1.del === true && a1.mono !== null && a1.slotTx === 0 && a1.fileAccept === 'image/*')
-    ? ok('A1 封面行到位：三枚按钮＋隐藏取图口，行内除按钮无文案', '按钮=' + a1.btns + ' · 移除钮先藏') : bad('A1', JSON.stringify(a1));
+      fileAccept:(document.getElementById('mdsAddCoverFile')||{}).accept,
+      ar:(function(){var e=document.getElementById('mdsAddCover');return e?+(e.offsetHeight/e.offsetWidth).toFixed(2):0})()};`);
+  (a1.ids === 6 && a1.btns === '拍照/相册/移除' && a1.del === true && a1.mono !== null && a1.slotTx === 0 && a1.fileAccept === 'image/*' && a1.ar === 1.33)
+    ? ok('A1 封面行到位：三枚按钮＋隐藏取图口，缩略位 3:4 竖版，行内除按钮无文案', '按钮=' + a1.btns + ' · 高宽比 ' + a1.ar) : bad('A1', JSON.stringify(a1));
 
   /* A2 首字预览随标题现算（不是写死） */
   const a2 = await ev(`document.getElementById('mdsAddTitle').value='  沙丘 2  ';mRenderAddCover();
@@ -142,6 +143,14 @@ window.__shot=function(){var e=document.querySelector('#mdsAddCover .covimg');re
       opsDemo:/演示/.test(document.getElementById('mOpsList').textContent)};`);
   (a7.same && a7.editTx === '保存改动' && a7.backTx === '保存 · 进入影音架' && a7.title === '沙丘 2（重剪版）' && a7.eq && a7.detail && !a7.opsDemo)
     ? ok('A7 编辑态改封面＝原条目回写，不新建重复条目；「编辑信息」不再是演示') : bad('A7', JSON.stringify(a7));
+
+  /* A10 详情面同吃封面（拍板③）：详情体走同一张卡，头图与卡片同源不另造一套 */
+  const a10 = await ev(`mOpen(MDEMO[0].id);
+    var body=document.getElementById('mdsDetailBody');
+    return {hero:!!body.querySelector('.covimg'),mono:!!body.querySelector('.covmono'),
+      ttl:!!body.querySelector('.mds-item .ttl'),title:__txt(document.getElementById('mdsDetailTitle'))===MDEMO[0].title.replace(/\\s+/g,'')};`);
+  (a10.hero && a10.ttl && a10.title)
+    ? ok('A10 详情头图吃用户封面（与架面同一张卡，形态件仍在）') : bad('A10', JSON.stringify(a10));
 
   /* A8 其余条目仍走色板回落（四类形态件一个不丢） */
   const a8 = await ev(`navTo('m-shelf');mRenderShelf();
