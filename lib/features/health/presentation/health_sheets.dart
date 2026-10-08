@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/services.dart' show PlatformException, Clipboard, ClipboardData;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,12 +22,14 @@ import '../domain/health_ex.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart';
 import '../domain/health_symptom.dart';
+import '../domain/health_trend.dart';
 import '../domain/health_vital.dart';
 import 'health_providers.dart';
 
 part 'health_sheets_ex.dart';
 part 'health_sheets_drug.dart';
 part 'health_sheets_sym.dart';
+part 'health_sheets_trend.dart';
 part 'health_sheets_report.dart';
 
 /// 健康 · 睡眠录入（原型 `sheetHSleep` · 规格＝LH-S 弹层族）。
