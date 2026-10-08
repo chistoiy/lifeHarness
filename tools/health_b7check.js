@@ -133,6 +133,9 @@ window.__ids=function(){return [].map.call(document.querySelectorAll('#p-dashboa
   (a8.n === 7 && a8.hero && a8.grid && a8.mood === 7 && a8.footLast === 'dashFooter')
     ? ok('A8 主页其余六卡与心情排布照旧（新卡是第七张，页脚仍在尾）', '卡数 ' + a8.n) : bad('A8', JSON.stringify(a8));
 
+  /* 取证图：把新卡滚到视口中段再拍（默认截图只到页首，看不见卡） */
+  await ev(`var c=__card();if(c)c.scrollIntoView({block:'center'});return 1;`);
+  await wait(400);
   await shot('A-final-dash');
   const pe = errs.filter(e => !/lh-gov|init skip/.test(e));
   (pe.length === 0 ? ok : bad)('Z0 PAGE ERRORS', pe.length ? pe.join(' || ') : '0');
