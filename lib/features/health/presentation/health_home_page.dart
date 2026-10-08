@@ -405,12 +405,14 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
 
   // ==================== 直达行（原型 hEntryRow · 只渲染落点已存在的枚） ====================
 
-  /// 运动·用药两枚已点亮（批 4／批 5）；直达行的趋势·设置两枚随批 6 点亮：落点屏不存在就整枚不出现，
+  /// 运动·用药·趋势三枚已点亮（批 4／批 5／批 6a）；直达行的设置一枚随批 6b 点亮：落点屏不存在就整枚不出现，
   /// 而不是铺一排点不动的假入口（AGENTS「禁铺假入口」）。
   ///
   /// 症状/报告两枚是**对原型的偏离**：原型 `hEntryRow` 只有七枚（身体/睡眠/运动/用药/趋势/目标/设置），
   /// 症状与报告走「记一笔」八类 `sheetHAdd`——那张八类弹层本仓未实现（工单 §2 登记）。
   /// 屏已落地却没有入口等于做了一张进不去的屏，所以先挂在直达行上，八类弹层落地时这两枚再收回去。
+  ///
+  /// 排布照原型 `grid grid-cols-7`：七列网格、超出换行（批6 加趋势/设置后共九枚，Row 摊八份会挤爆窄屏）。
   Widget _entryRow(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final items = <(String, IconData, String, String)>[
@@ -418,6 +420,7 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
       ('body', Icons.monitor_weight_outlined, '身体数据', '/health/body'),
       ('sleep', Icons.bedtime_outlined, '睡眠', '/health/sleep'),
       ('med', Icons.medical_services_outlined, '用药', '/health/med'),
+      ('trend', Icons.show_chart_outlined, '趋势', '/health/trend'),
       ('symptom', Icons.coronavirus_outlined, '症状', '/health/symptom'),
       ('report', Icons.description_outlined, '报告', '/health/report'),
       ('goals', Icons.flag_outlined, '目标', '/health/goals'),
@@ -425,33 +428,39 @@ class _HealthHubState extends ConsumerState<_HealthHub> {
     return Container(
       key: HealthHomePage.kEntryAll,
       decoration: context.cardDecoration,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
+      child: GridView.count(
+        crossAxisCount: 7,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: .78,
         children: [
           for (final (id, icon, label, route) in items)
-            Expanded(
-              child: InkWell(
-                key: ValueKey('health-entry-$id'),
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => context.push(route),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: scheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Icon(icon, size: 18, color: scheme.onSurfaceVariant),
+            InkWell(
+              key: ValueKey('health-entry-$id'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => context.push(route),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                      const SizedBox(height: 4),
-                      Text(label,
-                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+                      child: Icon(icon, size: 17, color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(label,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 8.5, height: 1.15, fontWeight: FontWeight.w700)),
+                  ],
                 ),
               ),
             ),

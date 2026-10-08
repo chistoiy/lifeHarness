@@ -8,6 +8,7 @@ import 'health_med_page.dart';
 import 'health_report_page.dart';
 import 'health_sleep_page.dart';
 import 'health_symptom_page.dart';
+import 'health_trend_page.dart';
 import 'health_vitals_page.dart';
 
 /// 健康 · 模块路由（批2 起逐屏补，路径与 `docs/健康管理模块开发计划-20260927.md` §三 路由表同形）。
@@ -60,5 +61,10 @@ List<GoRoute> healthPageRoutes() => [
   GoRoute(
     path: '/health/med',
     builder: (_, _) => const HealthMedPage(),
+  ),
+  // 健康趋势（原型 p-trends · 批6a）：三档跨度×六指标热力＋四数据位＋曲线＋周报入口。
+  GoRoute(
+    path: '/health/trend',
+    builder: (_, _) => const HealthTrendPage(),
   ),
 ];

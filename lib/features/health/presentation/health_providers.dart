@@ -9,6 +9,7 @@ import '../domain/health_drug.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart' show ReportBundle;
 import '../domain/health_symptom.dart' show symNamesWith;
+import '../domain/health_trend.dart';
 import '../domain/health_vital.dart';
 
 /// 健康模块 providers（仿 items/care：写库后 tick++ 全量重取快照）。
@@ -129,4 +130,32 @@ final healthMedProvider = FutureProvider<MedBundle>((ref) async {
   final todayLogs = await repo.drugLogs(pid, date);
   final byDay = await repo.drugLogRange(pid, days.first, days.last);
   return (drugs: drugs, todayLogs: todayLogs, byDay: byDay, days: days, date: date);
+});
+
+// ==================== 趋势与周报（批6a） ====================
+
+/// 趋势一次取数：`range`＝7 天／30 天／12 **个月**（`trFetchDays` 把窗口按两倍取，环比吃后半段）。
+/// 跨度**只进 `from` 的计算、不进 watch**：把 `now` watch 起来会让每一分钟重建整个跨度
+/// （年视图 731 天重取一次库），进屏时的新鲜度由 `healthTickProvider` 与路由重建保证。
+final healthTrendProvider = FutureProvider.family<List<TrDay>, int>((ref, range) {
+  ref.watch(healthTickProvider);
+  final pid = ref.watch(activeHealthProfileProvider);
+  final now = ref.read(healthClockProvider)();
+  final from = dayKey(now.subtract(Duration(days: trFetchDays(range) - 1)));
+  return ref.watch(healthRepositoryProvider).trendDays(pid, from, dayKey(now));
+});
+
+/// 趋势目标读数：**只吃设置与目标表的读数**（计划 §五.1）。
+/// 喝水/睡眠/周运动次数在 `HealthSettings`，目标体重在 `health_goal`——改目标后 tick++ 会带着
+/// 这两路一起重算，趋势曲线目标线与周报「全达标天」当场跟（真机门②钉这条）。
+final healthTrGoalsProvider = Provider<TrGoals>((ref) {
+  ref.watch(healthTickProvider);
+  final st = ref.watch(healthSettingsProvider);
+  final goals = ref.watch(healthGoalsProvider).valueOrNull ?? const <String, double>{};
+  return TrGoals(
+    waterCups: st.waterGoal().toDouble(),
+    sleepHours: st.sleepGoalHours().toDouble(),
+    weekExGoal: st.weekExGoal(),
+    bodyKg: goals['weight_goal'],
+  );
 });

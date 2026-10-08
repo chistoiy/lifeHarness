@@ -171,7 +171,7 @@ void main() {
     expect(find.byKey(const ValueKey('health-heat-cell-2026-09-10')), findsNothing);
   });
 
-  testWidgets('四枚数据位齐（批4 点亮运动位）＋直达行七枚；用药枚随批 5 点亮，趋势/设置仍不铺',
+  testWidgets('四枚数据位齐（批4 点亮运动位）＋直达行八枚；趋势枚随批 6a 点亮，设置仍不铺',
       (tester) async {
     await seedTwoOfFour();
     final (_, router) = await pumpHealth(tester, prefsValues: waterPrefs);
@@ -187,13 +187,13 @@ void main() {
     expect(find.descendant(of: ex, matching: find.text('—')), findsOneWidget);
     expect(find.descendant(of: ex, matching: find.text('今日运动 · 分钟')), findsOneWidget);
 
-    // 直达行只铺真落地的屏（批 4 运动／批 3 身体数据／睡眠／批 5 用药／批 3.5a 症状／批 3.5b 报告＋目标）；
-    // 趋势／设置的落点屏在批 6，没就绪就不出现——禁铺假入口。
+    // 直达行只铺真落地的屏（批 4 运动／批 3 身体数据／睡眠／批 5 用药／批 6a 趋势／批 3.5a 症状／
+    // 批 3.5b 报告＋目标，共八枚·七列网格换行）；设置的落点屏在批 6b，没就绪就不出现——禁铺假入口。
     expect(find.byKey(const ValueKey('health-entry-all')), findsOneWidget);
-    for (final id in ['ex', 'body', 'sleep', 'med', 'symptom', 'report', 'goals']) {
+    for (final id in ['ex', 'body', 'sleep', 'med', 'trend', 'symptom', 'report', 'goals']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsOneWidget);
     }
-    for (final id in ['trend', 'settings']) {
+    for (final id in ['settings']) {
       expect(find.byKey(ValueKey('health-entry-$id')), findsNothing);
     }
 

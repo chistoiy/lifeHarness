@@ -5,6 +5,7 @@ import '../../../core/logging/app_log.dart';
 import '../domain/health_calc.dart';
 import '../domain/health_models.dart';
 import '../domain/health_report.dart';
+import '../domain/health_trend.dart';
 import '../domain/health_vital.dart';
 
 /// 健康模块数据层（仿 items/care 范式：一个仓储吃全部表，写库后由 providers 的 tick 触发重取）。
@@ -472,6 +473,72 @@ class HealthRepository {
         'value': value,
         'updated_at': DateTime.now().millisecondsSinceEpoch,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+  // ==================== 趋势（批6a） ====================
+
+  /// 趋势与周报的一次取数出口：`from..to` 之间**每个自然日都出一格**（没记录的日子整格 null，
+  /// 热力画空格、曲线跳过该点——原型拿哈希补空槽的写法不照抄，§五.11「不造假数据」）。
+  ///
+  /// 六枚指标共用这一条流水：为每枚 chip 各开一路查询会让切 chip 时读数来自不同快照，
+  /// 热力格与曲线就会出现「同一天两个值」。
+  /// 用药侧的**计划分母含已归档档案**（`includeArchived: true`＝批5 工单 §2 偏离②的前置兑现），
+  /// 但归档药只在自己当天有打卡流水时才计进分母，否则多年前的停用药会把历史依从率一直拖着。
+  Future<List<TrDay>> trendDays(int profileId, String from, String to) async {
+    final water = await waterRange(profileId, from, to);
+    final sleep = await sleepRange(profileId, from, to);
+    final ex = await exerciseRange(profileId, from, to);
+    final body = await bodyRange(profileId, from, to);
+    final drugs = await this.drugs(profileId, includeArchived: true);
+    final logs = await drugLogRange(profileId, from, to);
+
+    final cups = {for (final w in water) w.date: w.cups};
+    // 同日多条睡眠：按 date ASC 取最后写入的那条（与原型 `find(x=>x.d===d)` 的「一条为准」同形）。
+    final sleepMin = <String, int>{};
+    for (final s in sleep) {
+      sleepMin[s.date] = s.durationMin;
+    }
+    final exMin = <String, int>{};
+    final paces = <String, List<int>>{};
+    for (final e in ex) {
+      exMin[e.date] = (exMin[e.date] ?? 0) + e.durationMin;
+      if (e.paceSec != null) (paces[e.date] ??= []).add(e.paceSec!);
+    }
+    final kg = {for (final b in body) if (b.kg != null) b.date: b.kg!};
+
+    final planned = <String, int>{}, taken = <String, int>{};
+    for (final d in drugs) {
+      final n = d.times.length;
+      if (n == 0) continue;
+      logs.forEach((date, byDrug) {
+        final st = byDrug[d.id!];
+        if (st == null) return; // 该日无此药流水
+        planned[date] = (planned[date] ?? 0) + n;
+        for (final t in d.times) {
+          if (st[t] == 'taken') taken[date] = (taken[date] ?? 0) + 1;
+        }
+      });
+    }
+
+    final out = <TrDay>[];
+    var cursor = DateTime.parse(from);
+    final end = DateTime.parse(to);
+    while (!cursor.isAfter(end)) {
+      final k = dayKey(cursor);
+      final p = planned[k];
+      out.add(TrDay(
+        date: k,
+        cups: cups[k],
+        sleepMin: sleepMin[k],
+        exMin: exMin[k],
+        kg: kg[k],
+        medPlanned: p,
+        medTaken: p == null ? null : taken[k] ?? 0,
+        paces: paces[k] ?? const <int>[],
+      ));
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return out;
+  }
 
   // ==================== 工作台快照 ====================
 
