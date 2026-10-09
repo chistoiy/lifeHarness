@@ -6,6 +6,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/media_item.dart';
 import 'media_add_sheet.dart';
+import 'media_list_sheets.dart';
 import 'media_progress_sheet.dart';
 import 'media_providers.dart';
 import 'media_sheets.dart';
@@ -13,8 +14,8 @@ import 'media_track_sheet.dart';
 
 /// 条目操作弹层（LH-S34 · 原型 `m-sheet-ops`）：详情页顶栏「更多」与架面长按共用的动作面。
 ///
-/// 原型那列动作里，**影音单/导出属后续批次**（批8 影音单），本批不铺假入口：
-/// 只给真做得动的几项（轨迹＝批7 已上线），做不了的整条不出现（不是置灰骗点）。
+/// 原型那列动作里，**导出属后续批次**，本批不铺假入口：
+/// 只给真做得动的几项（影音单＝批8b 已真接线），做不了的整条不出现（不是置灰骗点）。
 Future<void> showMediaOpsSheet(
   BuildContext context,
   WidgetRef ref,
@@ -126,6 +127,16 @@ class _OpsSheet extends ConsumerWidget {
                 Navigator.of(context).pop();
                 if (!context.mounted) return;
                 await showMediaTrackSheet(context, ref, item);
+              },
+            ),
+            (
+              // 批8b 回灌成句：动作面「移入影音单」由占位改真接线（勾选态＝在列即勾）。
+              '移入影音单',
+              () async {
+                final c = ProviderScope.containerOf(context, listen: false);
+                Navigator.of(context).pop();
+                if (!context.mounted) return;
+                await showMediaListMoveSheet(context, c, item);
               },
             ),
             (

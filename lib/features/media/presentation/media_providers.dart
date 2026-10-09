@@ -6,12 +6,14 @@ import '../../../core/database/app_database.dart';
 import '../data/media_cover.dart';
 import '../data/media_repo_dict.dart';
 import '../data/media_repo_goal.dart';
+import '../data/media_repo_list.dart';
 import '../data/media_repo_note.dart';
 import '../data/media_repo_session.dart';
 import '../data/media_repo_stat.dart';
 import '../data/media_repository.dart';
 import '../domain/media_goal.dart';
 import '../domain/media_item.dart';
+import '../domain/media_list.dart';
 import '../domain/media_note.dart';
 import '../domain/media_session.dart';
 import '../domain/media_stats.dart';
@@ -440,4 +442,58 @@ final mediaDailyQHintProvider = FutureProvider<bool>((ref) async {
   if ((await mediaKvSafe(repo, 'media.dailyQ', 'true')) != 'true') return false;
   final now = DateTime.now();
   return !(await repo.hasSessionOnDay(DateTime(now.year, now.month, now.day)));
+});
+
+/// 影音单一次装载的三面读数（批8b）：手动单行 × 各单成员 × 年度底稿。
+///
+/// 打包成一个 provider 而不是 family 逐单取：列表面每枚瓦片都要「n 条 · x.x h」，
+/// 逐单异步各取各的会让瓦片计数错峰跳；一 tick 一次全取＝整屏同帧。
+class MediaListsBundle {
+  const MediaListsBundle({
+    required this.lists,
+    required this.members,
+    required this.year,
+  });
+
+  final List<MediaList> lists;
+
+  /// listId → 成员条目（pos 序 × 在册过滤）。
+  final Map<int, List<MediaItem>> members;
+
+  /// 年度底稿成员（完结档本年 · 达成日倒序 · 零落行）。
+  final List<MediaItem> year;
+
+  List<MediaItem> of(MediaList row) => members[row.id] ?? const [];
+
+  /// 底稿合成行（名字＝年份拼出来；id 用 -1 占位，路由侧一律走 'auto' 串）。
+  MediaList get yearRow => MediaList(
+        id: -1,
+        name: '${DateTime.now().year} 影音',
+        kindFilter: 'mix',
+        createdAt: 0,
+      );
+}
+
+final mediaListsBundleProvider = FutureProvider<MediaListsBundle>((ref) async {
+  ref.watch(mediaTickProvider);
+  final repo = ref.watch(mediaRepositoryProvider);
+  final lists = await repo.listRows();
+  final members = <int, List<MediaItem>>{};
+  for (final l in lists) {
+    members[l.id] = await repo.listMemberItems(l.id);
+  }
+  return MediaListsBundle(
+    lists: lists,
+    members: members,
+    year: await repo.yearDraftItems(DateTime.now()),
+  );
+});
+
+/// 全量在册条目（影音单「添加条目」候选专用）：与 [mediaItemsProvider] 分家，
+/// 后者吃架面 kind/分区/关键词筛选态——选择面候选不能被别的屏的筛选态污染。
+final mediaAllLiveItemsProvider = FutureProvider<List<MediaItem>>((ref) {
+  ref.watch(mediaTickProvider);
+  return ref
+      .watch(mediaRepositoryProvider)
+      .items(kind: 'all', stateGroup: 'all', query: '', sort: 'recent');
 });

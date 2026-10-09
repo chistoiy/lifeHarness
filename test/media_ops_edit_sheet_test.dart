@@ -82,7 +82,7 @@ void main() {
     await settle5(tester);
   }
 
-  testWidgets('操作弹层只列真做得动的动作；影音单/导出属后批＝整条不出现（批7 轨迹已上线）', (tester) async {
+  testWidgets('操作弹层只列真做得动的动作；移入影音单已真接线（批8b）·导出仍不铺', (tester) async {
     await useSurface(tester, const Size(420, 1000));
     final item = (await repo.itemById(id))!;
     await openSheet(tester, (ctx, ref) => showMediaOpsSheet(ctx, ref, item));
@@ -91,9 +91,11 @@ void main() {
     }
     // 剧集没「看完」＝完结档动作按 kind 现算，不硬铺
     expect(find.byKey(const ValueKey('mds-ops-标记「看完」')), findsNothing);
-    for (final absent in ['移入影音单', '导出']) {
-      expect(find.textContaining(absent), findsNothing, reason: '后批能力不铺假入口');
-    }
+    // 批8b 回灌成句：「移入影音单」由占位改真接线＝点它开选择半屏（标题带条目名）。
+    await tester.tap(find.byKey(const ValueKey('mds-ops-移入影音单')));
+    await settle5(tester);
+    expect(find.textContaining('移入影音单 ·'), findsOneWidget);
+    expect(find.textContaining('导出'), findsNothing, reason: '后批能力不铺假入口');
   });
 
   testWidgets('标记完结＝改分区＋completed 同场落；移入回收站走公共二次确认', (tester) async {

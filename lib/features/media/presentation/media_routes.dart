@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'media_detail_page.dart';
 import 'media_goal_page.dart';
 import 'media_info_page.dart';
+import 'media_list_page.dart';
+import 'media_lists_page.dart';
 import 'media_mgr_page.dart';
 import 'media_notes_page.dart';
 import 'media_set_page.dart';
@@ -32,6 +34,13 @@ List<GoRoute> mediaPageRoutes() => [
   GoRoute(path: '/media/goal', builder: (_, _) => const MediaGoalPage()),
   // 影音设置（原型 m-set · 词典 LH-C23 · 批8a）：入口＝工作台图标条第 8 枚「设置」。
   GoRoute(path: '/media/settings', builder: (_, _) => const MediaSetPage()),
+  // 影音单列表面（原型 m-lists · 批8b）：入口＝工作台直达行；底稿置顶零落库。
+  GoRoute(path: '/media/lists', builder: (_, _) => const MediaListsPage()),
+  // 影音单详情面（原型 m-list · 批8b）：`:id`＝auto（年度底稿·只读）或手动单 id。
+  GoRoute(
+    path: '/media/list/:id',
+    builder: (_, s) => MediaListPage(listId: s.pathParameters['id']!),
+  ),
   // 条目详情（原型 m-detail）：点架卡/速览的正式落面。
   GoRoute(
     path: '/media/item/:id',

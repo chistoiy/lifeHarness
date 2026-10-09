@@ -253,6 +253,13 @@ class MediaWorkbench extends ConsumerWidget {
             ),
           ),
         ),
+        // 影音单直达（批8b 回灌成句：列表面＝工作台一行，底稿置顶零落库）
+        _EntryRow(
+          key: const ValueKey('media-open-lists'),
+          icon: Icons.playlist_play_outlined,
+          title: '影音单',
+          onTap: () => context.push('/media/lists'),
+        ),
         // 目标屏直达（批8a：图标条「目标」一枚的 Flutter 形态＝直达行）
         _EntryRow(
           key: const ValueKey('media-open-goal'),

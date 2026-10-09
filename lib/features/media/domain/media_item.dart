@@ -91,11 +91,14 @@ class MediaItem {
     kGame: [kWayMainPct, kWayPlaythrough, kWayAchv],
   };
 
+  /// 完结态三值（影音游批8b 年度底稿与「n 单」角标共用；音乐无「听完」＝循环中不算完结）。
+  static const doneStates = ['看完', '追完', '通关'];
+
   /// 全部状态筛选 chip（影音架「全部分区」按语义归并成四档，原型 mStateCls 同口径）。
   static const stateGroups = <(String, List<String>)>[
     ('未看', ['未看', '想看', '未听', '未玩']),
     ('在看/追/玩', ['在看', '在追', '在玩', '在听', '循环中']),
-    ('看完/追完/通关', ['看完', '追完', '通关']),
+    ('看完/追完/通关', doneStates),
     ('搁置', ['搁置', '弃剧']),
   ];
 
