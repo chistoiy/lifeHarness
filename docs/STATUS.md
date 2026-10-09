@@ -4,7 +4,7 @@
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。
 
 - **上一批＝** 影音游批8a 目标屏＋设置生效面·实现批（DB v40＝media_goals 纯建零搬·已交付待复测包 6096）＝`/media/goal` 六行就地滚轮（未设虚线零百分比·读数恒吃真实）＋`/media/settings` 六组 tab（灰态点不动零说明·死键四条不铺）·生效面九条＝进架口 defaultView/sortDefault／wallCols 网格／newPos 落位／timerUI 直达／autoPos·clipAuto／dailyQ 应用内提示行／speedFold 与统计 chip 双向／统计目标块真读数真跳。闸＝新增常驻 25＋回归与守护全绿·analyze 零错·三刀各红其位·md5 复原；实锤＝滚轮 bump 重建再回报的爬档自循环（修＝同值不写＋本屏最近上报吞报）。细节＝归档工单 §5。
-- **本批＝** 影音游批8b 影音单两面·实现批（零迁移·DB 停 v40）＝`media_lists`/`media_list_items` 读写口＋`/media/lists`·`/media/list/:id` 两面＋四弹层（新建/改名/添加条目/分享＝半屏预览＋复制文字版 TXT/MD＋保存图片真渲染）＋年度底稿零落行动态求得只读＋工作台直达行与动作面「移入影音单」真接线；常驻新增 10 枚·批内增量 8 文件 56 绿·变异三刀各红其位；原型与实现同日闭环（过门五点照交付态＝工单 §4），工单入 archive；dart 攒复测包 **6097**（未构建）
+- **本批＝** 影音游批8b 影音单两面·实现批（零迁移·DB 停 v40）＝`media_lists`/`media_list_items` 读写口＋`/media/lists`·`/media/list/:id` 两面＋四弹层（新建/改名/添加条目/分享＝半屏预览＋复制文字版 TXT/MD＋保存图片真渲染）＋年度底稿零落行动态求得只读＋工作台直达行与动作面「移入影音单」真接线；常驻新增 10 枚·批内增量 8 文件 56 绿·变异三刀各红其位；原型与实现同日闭环（过门五点照交付态＝工单 §4），工单入 archive；dart 攒复测包 **6097**（未构建）；批8b/批9 五提交已双端推送（Gitee→GitHub ssh:443·两端 ls-remote 等值 `68de0d6`）
 
 ## 基线（八项，其余不写）
 
