@@ -857,6 +857,47 @@ tailwind.config = {
       </div>
     </div>
 
+    <style>/* 影音游批9a · 导入段样式（矩阵/五步点条/预览行） */
+    #mImportBody .mi-tier{display:flex;align-items:baseline;gap:8px;margin:14px 2px 6px}
+    #mImportBody .mi-tname{font-size:11px;font-weight:700}
+    #mImportBody .mi-tdesc{font-size:9.5px;opacity:.55}
+    #mImportBody .mi-chrow{padding:8px 4px;border-bottom:1px solid rgba(0,0,0,.08);cursor:pointer}
+    #mImportBody .mi-bdg{font-size:9px;padding:1px 6px;border:1px solid currentColor;border-radius:999px;opacity:.65}
+    #mImportBody .mi-fmt{opacity:.6;margin-top:2px}
+    #mImportBody .mi-cliphit{display:flex;align-items:center;gap:8px;font-size:11px;flex-wrap:wrap}
+    #sheet-m-import .mi-dot{font-size:9.5px;padding:2px 7px;border:1px solid currentColor;border-radius:999px;opacity:.5}
+    #sheet-m-import .mi-dot.on{opacity:1;border-width:2px}
+    #sheet-m-import .mi-dot.dn{opacity:.8}
+    #sheet-m-import .mi-sep{flex:1;height:1px;background:currentColor;opacity:.25}
+    .mi-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px dashed rgba(0,0,0,.12);font-size:11px}
+    .mi-v{font-size:10px;opacity:.75;white-space:nowrap}
+    #sheet-m-import .mi-undo,#sheet-m-playlist .mi-undo{margin-top:10px;padding:8px 2px;border-top:1px dashed currentColor;font-size:12px;cursor:pointer}
+    </style>
+    <!-- ===== 影音游批9a · SHEET-M-IMPORT 导入五步向导（选渠道→给料→解析预览→确认→结果·撤销本批是真动作） ===== -->
+    <div id="sheet-m-import" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)miClose()">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk" style="padding-bottom:36px">
+        <div class="grabber"></div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="mds-title text-[15px]" id="miHead">导入</div>
+          <div class="flex gap-2"><button class="mds-chip" id="miBack" onclick="miGo(-1)">上一步</button><button class="mds-chip" id="miX" onclick="miClose()">收起</button></div>
+        </div>
+        <div class="flex items-center gap-1 mb-4" id="miDots"></div>
+        <div id="miBody"></div>
+      </div>
+    </div>
+
+    <!-- ===== 影音游批9a · SHEET-M-PLAYLIST 导入歌单（四源×文件/粘贴两法·预览复用五步③④段） ===== -->
+    <div id="sheet-m-playlist" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)miplClose()">
+      <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk" style="padding-bottom:36px">
+        <div class="grabber"></div>
+        <div class="flex items-center justify-between"><div class="mds-title text-[15px]">导入歌单</div><button class="mds-chip" onclick="miplClose()">收起</button></div>
+        <div class="flex gap-1.5 mt-3 flex-wrap" id="miplSrc"></div>
+        <div class="flex gap-1.5 mt-2" id="miplMode"></div>
+        <div id="miplGiven" class="mt-3"></div>
+        <div id="miplBody" class="mt-2"></div>
+      </div>
+    </div>
+
     <!-- ===== 影音游专版 · M-SHEET-OPS 条目操作 ===== -->
     <div id="m-sheet-ops" class="sheet hidden fixed md:absolute inset-0 z-50" style="background:rgba(20,14,6,.55)" onclick="if(event.target===this)closeSheet('m-sheet-ops')">
       <div class="sheet-panel w-full p-5 pb-8 rounded-t-3xl mds-desk">
@@ -2896,7 +2937,7 @@ function mCardHTML(x){
 }
 function mMomentHTML(m){const c=MD_COV[(parseInt(String(m.id).replace(/\D/g,''))||0)%MD_COV.length];return `<div class="mds-moment" style="--c1:${c[0]};--c2:${c[1]}"><div class="mm-disc"><div class="mm-lbl">${(m.song||'音')[0]}</div></div><div class="mm-main"><div class="mm-song">${m.song}<span class="mm-ar"> · ${m.artist}</span></div><div class="mm-text">${m.text}</div><div class="mm-foot"><span class="mm-when">${m.when}</span>${m.list?`<span class="mds-chip">${m.list}</span>`:''}</div></div></div>`}
 function mSaveMoment(){const s=$('#moSong').value.trim(),a=$('#moArtist').value.trim(),t=$('#moText').value.trim();if(!s&&!t){toast('写点什么吧');return}const list=$('#moList').value.trim();MMOMENTS.unshift({id:'mo'+Date.now(),song:s||'随手记',artist:a,list:list,when:'刚刚',text:t||''});['#moSong','#moArtist','#moText','#moList'].forEach(x=>{$(x).value=''});closeSheet('m-sheet-moment');mRenderShelf();toast('已记下这条听后感')}
-function mImportPlaylist(){toast('从 网易云 / Spotify / QQ音乐 / Apple Music 导入歌单（演示）')}
+function mImportPlaylist(){miplOpen()}
 function mRenderChips(){
   const kc=mKindCounts();
   const kEl=$('#mKindChips');if(kEl)kEl.innerHTML=[['all','全部'],['movie','电影'],['series','剧集'],['music','音乐'],['game','游戏']].map(([k,l])=>`<button class="mds-chip ${mCurKind===k?'on':''}" onclick="mPickKind('${k}')">${l}<span class="cnt">${kc[k]}</span></button>`).join('');
@@ -3697,7 +3738,141 @@ function mTimerBegin(x){mTimerOn=x;mTimerBarSync();mTimerGoBtnSync()}
 function mTimerEnd(){if(!mTimerOn)return;const x=mTimerOn;mTimerOn=null;mTimerBarSync();mTimerGoBtnSync();toast('「'+x.title+'」计时已结束');if(MSET.autoAsk)openSheet('m-sheet-progress')}
 function mTimerScreenTap(){if(mTimerOn){mTimerEnd()}else{mTimerBegin(mCurDetail||MDEMO[0])}mTimerGoBtnSync()}
 function mTimerGoBtnSync(){const g=$('#mdsTimerGoBtn');if(g)g.textContent=mTimerOn?'■ 结束':'▶ 开始'}
-function mRenderImport(){const src=['豆瓣','IMDb','TMDB','TVMAZE','MusicBrainz','RateYourMusic','Discogs','Steam','IGDB','B 站','网易云','Spotify','Letterboxd'];const b=$('#mImportBody');if(b)b.innerHTML=src.map(s=>`<div class="flex items-center justify-between py-2.5 px-1" style="border-bottom:1px solid rgba(0,0,0,.08)"><span class="text-[12px]">${s}</span><button class="mds-chip" onclick="toast('从 ${s} 导入（演示）')">导入</button></div>`).join('')+'<div class="mt-4 flex gap-2 flex-wrap"><button class="mds-chip on" onclick="toast(\'粘贴文本自动识别（演示）\')">粘贴文本</button><button class="mds-chip">上传 CSV</button><button class="mds-chip">扫描 Steam 库</button></div>'}
+/* ===== 影音游批9a · m-import 重建：取法五档×13 家矩阵 · 粘贴三 id 识别 · 五步向导 · 歌单四源（读数全现算·零随机·零「演示」） ===== */
+const MI_TIER=[['auth','授权','在对方站点点头授权，数据直接拉回'],['pair','电脑端配对','电脑上用工具导出，本地配对接过文件'],['api','API','按编号或名称现场查库补齐'],['file','文件','把导出的文件传上来逐条解析'],['clip','剪贴板','复制页面文本，粘贴即自动识别来源']];
+const MI_CH=[
+ {n:'Letterboxd',t:'auth',x:['授权','文件','剪贴板'],fmt:'Diary CSV 一行一部看完记录'},
+ {n:'Steam',t:'auth',x:['授权','文件','剪贴板'],fmt:'playtime CSV · 或授权直拉游戏库'},
+ {n:'Spotify',t:'auth',x:['授权','文件'],fmt:'歌单 txt · 或授权直拉收藏'},
+ {n:'网易云音乐',t:'pair',x:['电脑端配对','文件','剪贴板'],fmt:'电脑端配对导出歌单 · 或传 m3u8'},
+ {n:'B 站追番',t:'pair',x:['电脑端配对','文件'],fmt:'追番清单由导出工具出 JSON'},
+ {n:'IMDb',t:'api',x:['API','文件','剪贴板'],fmt:'ratings CSV · 或按 tt 编号直查'},
+ {n:'TMDB',t:'api',x:['API'],fmt:'按片名或编号查影视元数据'},
+ {n:'TVMAZE',t:'api',x:['API','剪贴板'],fmt:'按剧名查季与集数'},
+ {n:'MusicBrainz',t:'api',x:['API'],fmt:'按名称或编号查音乐发行'},
+ {n:'IGDB',t:'api',x:['API','文件'],fmt:'按游戏名查库 · 或传 JSON'},
+ {n:'豆瓣',t:'file',x:['文件','剪贴板'],fmt:'片单导出 CSV · 或复制片单页文本'},
+ {n:'RateYourMusic',t:'file',x:['文件','剪贴板'],fmt:'评分清单页复制文本'},
+ {n:'Discogs',t:'file',x:['文件','剪贴板'],fmt:'Collection 导出 CSV'}
+];
+const MI_CLIP8=['豆瓣','IMDb','Letterboxd','TVMAZE','RateYourMusic','Discogs','Steam','网易云'];
+/* 固定样例行（e＝外部 id·k＝kind）；新建/更新/跳过判定一律对账 MDEMO 现算，不预写结论 */
+const MI_SMP={
+ '豆瓣':[{t:'宇宙探索编辑部',y:2023,k:'movie',e:'d:26264956',c:'孔大山',p:'坏猴子',r:8.3},{t:'千与千寻',y:2001,k:'movie',e:'d:1291583',c:'宫崎骏',p:'东宝',r:9.2},{t:'奥本海默',y:2024,k:'movie',e:'d:30465979',c:'诺兰',p:'Universal',r:8.9},{t:'机器人之梦',y:2024,k:'movie',e:'d:35177748',c:'巴勃罗·贝格尔',p:'Anywhere',r:8.1},{t:'坠落的审判',y:2023,k:'movie',e:'d:35267224',c:'茹斯蒂娜·特里叶',p:'Le Pacte',r:8.5}],
+ 'Letterboxd':[{t:'沙丘 2',y:2024,k:'movie',e:'lb:9f1a',c:'Denis Villeneuve',p:'Legendary',r:8.6},{t:'千与千寻',y:2002,k:'movie',e:'lb:1a4f',c:'宫崎骏',p:'吉卜力',r:9.2},{t:'利益区域',y:2023,k:'movie',e:'lb:5c8d',c:'乔纳森·格雷泽',p:'A24',r:7.9}],
+ 'IMDb':[{t:'肖申克的救赎',y:1994,k:'movie',e:'tt0111166',c:'弗兰克·德拉邦特',p:'Castle Rock',r:9.3},{t:'奥本海默',y:2023,k:'movie',e:'tt15398776',c:'诺兰',p:'Universal',r:8.9}],
+ 'TMDB':[{t:'Severance',y:2022,k:'series',e:'tm:95489',c:'Dan Erickson',p:'Apple TV+',r:8.7},{t:'熊家餐馆',y:2022,k:'series',e:'tm:204986',c:'克里斯托弗·斯托勒',p:'FX on Hulu',r:8.5}],
+ 'TVMAZE':[{t:'The Bear',y:2022,k:'series',e:'tv:81831',c:'FX',p:'Hulu',r:8.5},{t:'Slow Horses',y:2022,k:'series',e:'tv:106255',c:'Will Smith',p:'Apple TV+',r:8.2}],
+ 'MusicBrainz':[{t:'Random Access Memories',y:2013,k:'music',e:'mb:8d8bfd',c:'Daft Punk',p:'Columbia',r:9.1},{t:'Human After All',y:2005,k:'music',e:'mb:2e6c19',c:'Daft Punk',p:'Virgin',r:8.6}],
+ 'IGDB':[{t:'双人成行',y:2021,k:'game',e:'ig:13457',c:'Hazelight',p:'EA',r:9.4},{t:'塞尔达传说：王国之泪',y:2023,k:'game',e:'ig:22134',c:'Nintendo EPD',p:'Nintendo',r:9.6}],
+ 'Steam':[{t:'黑神话·悟空',y:2024,k:'game',e:'app/2358720',c:'游戏科学',p:'游戏科学',r:9.2},{t:'艾尔登法环',y:2023,k:'game',e:'app/1245620',c:'FromSoftware',p:'万代南梦宫',r:9.6},{t:'Portal 2',y:2011,k:'game',e:'app/620',c:'Valve',p:'Valve',r:9.5}],
+ 'Spotify':[{t:'Random Access Memories',y:2013,k:'music',e:'sp:4nZ9Ee',c:'Daft Punk',p:'Columbia',r:9.1},{t:'Discovery',y:2001,k:'music',e:'sp:7yB2Kd',c:'Daft Punk',p:'Virgin',r:9.0}],
+ '网易云音乐':[{t:'范特西',y:2001,k:'music',e:'ne:1414',c:'周杰伦',p:'阿尔发',r:9.5},{t:'七里香',y:2004,k:'music',e:'ne:1908',c:'周杰伦',p:'阿尔发',r:9.3}],
+ 'B 站追番':[{t:'漫长的季节',y:2023,k:'series',e:'bl:55842',c:'辛爽',p:'腾讯视频',r:9.4},{t:'中国奇谭',y:2023,k:'series',e:'bl:61023',c:'上海美术电影制片厂',p:'B 站',r:9.1}],
+ 'RateYourMusic':[{t:'范特西',y:2001,k:'music',e:'rym:2461',c:'周杰伦',p:'阿尔发',r:8.8},{t:'Discovery',y:2001,k:'music',e:'rym:7892',c:'Daft Punk',p:'Virgin',r:8.9}],
+ 'Discogs':[{t:'Dune OST',y:2021,k:'music',e:'dgs:1502',c:'Hans Zimmer',p:'Decca',r:8.7},{t:'十天',y:2020,k:'music',e:'dgs:2244',c:'陈奕迅',p:'环球',r:8.0}]
+};
+let MI={ch:null,step:2,rows:null,batch:null,undone:false,given:'',fromClip:false,seq:0,clipIn:'',hit:null};
+function miNorm(s){return String(s).toLowerCase().replace(/[\s《》·:：'"‘’“”\-—、,.!？?]/g,'')}
+function miOf(n){return MI_CH.find(function(c){return c.n===n})||{n:n,t:'file',x:['文件'],fmt:''}}
+function miDup(r){return MDEMO.find(function(x){return miNorm(x.title)===miNorm(r.t)})}
+function miJudge(r){var h=miDup(r);if(!h)return 'add';return h.year===r.y?'dup':'upd'}
+function miCompute(){return (MI_SMP[MI.ch]||[]).map(function(r){return {r:r,j:miJudge(r)}})}
+function miCount(rows){return {a:rows.filter(function(o){return o.j==='add'}).length,u:rows.filter(function(o){return o.j==='upd'}).length,d:rows.filter(function(o){return o.j==='dup'}).length}}
+/* 五步③④共用的预览行＋对账行渲染（歌单面同函数复用） */
+function miRowsHTML(rows){var s={a:0,u:0,d:0};rows.forEach(function(o){if(o.j==='add')s.a++;else if(o.j==='upd')s.u++;else s.d++});
+ return '<div id="'+(MI.pfx||'mi')+'Rows">'+rows.map(function(o){var v=o.j==='add'?'将新建':o.j==='upd'?'将更新':'已存在·跳过';
+  return '<div class="mi-row" data-mij="'+o.j+'"><span>'+o.nm+'</span><span class="mi-v">'+(o.ex?o.ex+' · ':'')+v+'</span></div>'}).join('')+'</div>'
+ +'<div class="text-[10.5px] mds-mono mt-2" id="'+(MI.pfx||'mi')+'Sum" data-misum="'+s.a+','+s.u+','+s.d+'">将新建 '+s.a+' · 将更新 '+s.u+' · 重复跳过 '+s.d+'（共 '+rows.length+' 行）</div>'}
+function miNew(r,id){var base={id:id,title:r.t,year:r.y,kind:r.k,creator:r.c,pub:r.p,rating:r.r,src:MI.ch,tags:[],grp:''};
+ if(r.k==='movie')return Object.assign(base,{state:'未看',pct:0,dur:120});
+ if(r.k==='series')return Object.assign(base,{state:'未看',seasons:1,eps:0,cur:0,airState:'在更'});
+ if(r.k==='music')return Object.assign(base,{state:'未听',tracks:0,loops:0,fav:''});
+ return Object.assign(base,{state:'未玩',mode:'主机',plat:'—',plays:0,hours:0,glogs:[],withWho:''})}
+function miOpen(ch,clip){MI.ch=ch;MI.step=2;MI.rows=null;MI.batch=null;MI.undone=false;MI.fromClip=!!clip;MI.given=clip||'';openSheet('sheet-m-import')}
+function miClose(){closeSheet('sheet-m-import');MI.rows=null;MI.batch=null}
+function miGo(d){var n=Math.min(5,Math.max(1,MI.step+d));if(n>=3&&!MI.rows)MI.rows=miCompute();if(n>=5){return}MI.step=n;miRender()}
+function miFetch(){MI.rows=miCompute();MI.step=3;miRender()}
+function miRender(){const b=$('#miBody');if(!b||!MI.ch){if(b)b.innerHTML='';return}
+ $('#miHead').textContent='导入 · '+MI.ch;
+ var labs=['渠道','给料','预览','确认','结果'];
+ $('#miDots').innerHTML=labs.map(function(l,i){var n=i+1;return '<span class="mi-dot'+(n===MI.step?' on':'')+(n<MI.step?' dn':'')+'" data-mistep="'+n+'">'+l+'</span>'+(n<5?'<span class="mi-sep"></span>':'')}).join('');
+ $('#miBack').style.visibility=MI.step>2?'visible':'hidden';
+ var c=miOf(MI.ch);
+ if(MI.step===1){b.innerHTML='<div class="text-[12px] py-2">'+c.n+' · '+c.x.join(' · ')+'</div><div class="text-[10.5px] mds-mono mb-3" style="opacity:.6">'+c.fmt+'</div><button class="mds-chip on" onclick="miGo(1)">下一步 · 给料</button>';return}
+ if(MI.step===2){var g='';
+  if(MI.fromClip)g='<textarea id="miGivenIn" class="w-full text-[10.5px] mds-mono" style="min-height:64px;background:transparent;color:inherit;border:1px solid currentColor;border-radius:8px;padding:8px;opacity:.8" readonly>'+MI.given.replace(/</g,'&lt;')+'</textarea><button class="mds-chip on mt-2" onclick="miFetch()">解析</button>';
+  else if(c.t==='auth')g='<div class="text-[12px] py-1">在 '+c.n+' 授权影音游读取清单</div><button class="mds-chip on mt-2" onclick="miFetch()">已授权 · 开始拉取</button>';
+  else if(c.t==='pair')g='<div class="text-[12px] py-1">电脑运行导出工具 · 与本机配对成功后接管文件</div><button class="mds-chip on mt-2" onclick="miFetch()">检测配对 · 开始拉取</button>';
+  else if(c.t==='api')g='<input id="miGivenIn" class="inp w-full !py-2 text-sm" placeholder="片单链接 / 条目编号" value="'+MI.given.replace(/"/g,'&quot;')+'"><button class="mds-chip on mt-2" onclick="miFetch()">解析</button>';
+  else g='<div class="flex items-center gap-2"><button class="mds-chip" onclick="$(\'#miFileIn\').click()">选择文件</button><span class="text-[10.5px] mds-mono" id="miFileNm" style="opacity:.6">未选择</span></div><input type="file" id="miFileIn" class="hidden" onchange="$(\'#miFileNm\').textContent=this.files[0]?this.files[0].name:\'未选择\'"><button class="mds-chip on mt-2" onclick="miFetch()">解析文件</button>';
+  b.innerHTML=g;return}
+ if(MI.step===3){MI.rows=miCompute();
+  var rows=MI.rows.map(function(o){return {nm:o.r.t+' · '+o.r.y,ex:o.r.e,j:o.j}});
+  MI.pfx='mi';b.innerHTML=miRowsHTML(rows)+'<button class="mds-chip on mt-3" onclick="miGo(1)">下一步 · 确认导入</button>';MI.pfx=null;return}
+ if(MI.step===4){var s4=miCount(MI.rows||miCompute());
+  b.innerHTML='<div class="text-[12px] py-1">写入影音架：新建 '+s4.a+' · 更新 '+s4.u+' · 跳过 '+s4.d+'</div><div class="text-[10.5px] mds-mono mb-3" style="opacity:.6">重复行不写入 · 整批一次落定</div><button class="mds-chip on" onclick="miApply()">确认导入 · 写入 '+(s4.a+s4.u)+' 行</button>';return}
+ /* 结果态 */
+ var s5=miCount(MI.rows||[]);
+ if(MI.undone){b.innerHTML='<div class="text-[12.5px] py-1" id="miRes" data-mires="undone">已撤销 · 移出新建 '+MI.batch.add.length+' 行'+(MI.batch.upd.length?' · 年份更正回退 '+MI.batch.upd.length+' 行':'')+'</div><button class="mds-chip on mt-3" onclick="miClose()">完成</button>'}
+ else b.innerHTML='<div class="text-[12.5px] py-1" id="miRes" data-mires>已导入 新增 '+MI.batch.add.length+' · 更新 '+MI.batch.upd.length+' · 跳过 '+s5.d+'</div><div class="mi-undo" id="miUndoRow" onclick="miUndo()">撤销本批 · 移出 '+MI.batch.add.length+' 行新建</div><button class="mds-chip on mt-3" onclick="miClose()">完成</button>'}
+function miApply(){var rows=miCompute();MI.rows=rows;var add=[],upd=[];
+ rows.forEach(function(o){if(o.j==='add'){var id='imp'+(++MI.seq);MDEMO.push(miNew(o.r,id));add.push(id)}
+  else if(o.j==='upd'){var h=miDup(o.r);if(h){upd.push({id:h.id,old:h.year});h.year=o.r.y}}});
+ MI.batch={add:add,upd:upd};MI.undone=false;MI.step=5;miRender()}
+function miUndo(){if(!MI.batch||MI.undone)return;
+ MI.batch.add.forEach(function(id){var i=MDEMO.findIndex(function(x){return x.id===id});if(i>=0)MDEMO.splice(i,1)});
+ MI.batch.upd.forEach(function(u){var x=MDEMO.find(function(k){return k.id===u.id});if(x)x.year=u.old});
+ MI.undone=true;miRender()}
+function miClipCheck(v){MI.clipIn=v||'';var hit=null;
+ var m=MI.clipIn.match(/tt\d{7,8}/);if(m)hit={src:'IMDb',ext:m[0]};
+ if(!hit){m=MI.clipIn.match(/subject\/(\d{6,10})/);if(m)hit={src:'豆瓣',ext:m[0]}}
+ if(!hit){m=MI.clipIn.match(/app\/(\d{2,10})/);if(m)hit={src:'Steam',ext:m[0]}}
+ MI.hit=hit;var el=$('#miClipHit');if(!el)return;
+ el.innerHTML=hit?'<div class="mi-cliphit" data-miclip="'+hit.src+'">识别为 '+hit.src+' · '+hit.ext+'<button class="mds-chip" onclick="miClipEnter()">去录入</button><button class="mds-chip on" onclick="miClipImport()">去导入</button></div>':''}
+function miClipEnter(){openSheet('m-sheet-add')}
+function miClipImport(){if(MI.hit)miOpen(MI.hit.src,MI.clipIn)}
+/* 歌单导入：四源×文件/粘贴两法·预览复用五步③④行式（n＝该单曲目行数·判定对账 MPLISTS 现算） */
+const MIPL_SRC=['网易云','Spotify','QQ音乐','Apple Music'];
+const MIPL_SMP={
+ '网易云':[{t:'通勤循环',n:42},{t:'夜航西飞',n:28}],
+ 'Spotify':[{t:'加班背景',n:60},{t:'Daft Punk 精选',n:24}],
+ 'QQ音乐':[{t:'一个人的地铁',n:28},{t:'红玫瑰白玫瑰',n:16}],
+ 'Apple Music':[{t:'写代码',n:35},{t:'深夜兜风',n:21}]};
+let MIPL={src:'网易云',mode:'file',step:'given',applied:null,given:''};
+function miplOpen(){MIPL={src:'网易云',mode:'file',step:'given',applied:null,given:''};openSheet('sheet-m-playlist')}
+function miplClose(){closeSheet('sheet-m-playlist');if(MIPL.applied){mRenderShelf();MIPL.applied=null}}
+function miplPick(v){MIPL.src=v;MIPL.step='given';miplRender()}
+function miplMode(v){MIPL.mode=v;MIPL.step='given';miplRender()}
+function miplRows(){return MIPL_SMP[MIPL.src].map(function(p){return {nm:p.t+' · '+p.n+' 首',ex:MIPL.src,j:MPLISTS.some(function(m){return m.name===p.t})?'dup':'add',n:p.n}})}
+function miplParse(){MIPL.step='prev';miplRender()}
+function miplApply(){var rows=miplRows().filter(function(o){return o.j==='add'});
+ rows.forEach(function(o){MPLISTS.push({name:o.nm.split(' · ')[0],src:MIPL.src,n:o.n})});
+ MIPL.applied={a:rows.length,tracks:rows.reduce(function(a,o){return a+o.n},0)};MIPL.step='done';miplRender()}
+function miplRender(){const b=$('#miplBody');if(!b)return;
+ $('#miplSrc').innerHTML=MIPL_SRC.map(function(s){return '<span class="mds-chip'+(MIPL.src===s?' on':'')+'" data-mipl-src="'+s+'" onclick="miplPick(\''+s+'\')">'+s+'</span>'}).join('');
+ $('#miplMode').innerHTML=[['file','文件'],['clip','粘贴']].map(function(m){return '<span class="mds-chip'+(MIPL.mode===m[0]?' on':'')+'" data-mipl-mode="'+m[0]+'" onclick="miplMode(\''+m[0]+'\')">'+m[1]+'</span>'}).join('');
+ var g=$('#miplGiven');
+ if(MIPL.step==='given'){g.innerHTML=MIPL.mode==='file'
+   ?'<div class="flex items-center gap-2"><button class="mds-chip" onclick="$(\'#miplFileIn\').click()">选择文件</button><span class="text-[10.5px] mds-mono" id="miplFileNm" style="opacity:.6">未选择</span></div><input type="file" id="miplFileIn" class="hidden" onchange="$(\'#miplFileNm\').textContent=this.files[0]?this.files[0].name:\'未选择\'">'
+   :'<textarea id="miplPasteIn" class="w-full text-[10.5px] mds-mono" style="min-height:56px;background:transparent;color:inherit;border:1px solid currentColor;border-radius:8px;padding:8px;opacity:.8" placeholder="#EXTM3U 粘贴文本"></textarea>';
+  b.innerHTML='<button class="mds-chip on" onclick="miplParse()">解析</button>';return}
+ g.innerHTML='';
+ if(MIPL.step==='prev'){var rows=miplRows();MI.pfx='mipl';
+  b.innerHTML=miRowsHTML(rows)+'<button class="mds-chip on mt-3" onclick="miplApply()">确认导入歌单</button>';MI.pfx=null;return}
+ b.innerHTML='<div class="text-[12.5px] py-1" id="miplRes" data-miplres>已导入 新增 '+MIPL.applied.a+' 单 · '+MIPL.applied.tracks+' 首</div><button class="mds-chip on mt-3" onclick="miplClose()">完成</button>'}
+function mRenderImport(){const b=$('#mImportBody');if(!b)return;var out='';
+ MI_TIER.forEach(function(tr){var key=tr[0];
+  if(key==='clip'){out+='<div class="mi-tier" data-mit="clip"><span class="mi-tname">'+tr[1]+'</span><span class="mi-tdesc">'+tr[2]+'</span></div>'
+   +'<input id="miClipIn" class="inp w-full !py-2 text-sm" placeholder="粘贴页面文本或编号" oninput="miClipCheck(this.value)">'
+   +'<div id="miClipHit" class="mt-2"></div>'
+   +'<div class="flex gap-1.5 flex-wrap mt-1">'+MI_CLIP8.map(function(s){return '<span class="mds-chip mi-c8" data-mi-c8="'+s+'">'+s+'</span>'}).join('')+'</div>';return}
+  out+='<div class="mi-tier" data-mit="'+key+'"><span class="mi-tname">'+tr[1]+'</span><span class="mi-tdesc">'+tr[2]+'</span></div>';
+  MI_CH.filter(function(c){return c.t===key}).forEach(function(c){out+='<div class="mi-chrow" data-mi-ch="'+c.n+'" onclick="miOpen(\''+c.n+'\')">'
+   +'<div class="flex items-center gap-2 flex-wrap"><span class="text-[12px]">'+c.n+'</span>'+c.x.map(function(x){return '<span class="mi-bdg">'+x+'</span>'}).join('')+'</div>'
+   +'<div class="mi-fmt text-[10px]" data-mi-fmt>'+c.fmt+'</div></div>'})});
+ out+='<div class="mt-4"><button class="mds-chip" id="miSteam" style="opacity:.45;pointer-events:none">扫描 Steam 库</button></div>';
+ b.innerHTML=out}
 function mRenderSortSheet(){const el=$('#mSortOpts');if(el)el.innerHTML=MSRT.map(k=>`<div class="py-2 flex justify-between text-[12px]" onclick="mSortKey='${k}';mRenderShelf();closeSheet('m-sheet-sort')"><span>${{recent:'最近活动',rating:'评分',added:'加入时间',year:'发行年',title:'标题',progress:'进度'}[k]}</span><span style="opacity:.6">${mSortKey===k?'●':''}</span></div>`).join('')}
 function mRenderOpsSheet(){const el=$('#mOpsList');if(el)el.innerHTML=[['编辑信息',"closeSheet('m-sheet-ops');mAddEdit()"],['改分区',"toast('改分区（演示）')"],['标记看完/通关',"toast('标记完结档（演示）')"],['条目资料',"closeSheet('m-sheet-ops');mInfoOpen()"],['移入影音单',"closeSheet('m-sheet-ops');openSheet('m-sheet-mlist')"],['影音轨迹',"closeSheet('m-sheet-ops');mTrackOpen()"],['计时明细',"closeSheet('m-sheet-ops');mSessOpen()"],['导出 MD',"toast('导出 MD（演示）')"],['从影音架移除',"toast('从影音架移除（演示）')"]].map(o=>'<div class="py-2" onclick="'+o[1]+'">'+o[0]+'</div>').join('')}
 function mRenderProgressSheet(){const x=mCurDetail||MDEMO[0];let body='';const inp='class="inp !py-2 text-sm" style="background:rgba(255,255,255,.5);color:var(--mds-ink);border-color:rgba(0,0,0,.06)"';if(x.kind==='movie')body=`<div class="text-[11px] mds-mono mb-2">电影 · 时间点 / 百分比 + 评分</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="1:52:14" value="1:52:14"><input ${inp} placeholder="72%" value="${x.pct}%"></div>`;else if(x.kind==='series')body=`<div class="text-[11px] mds-mono mb-2">剧集 · 季 + 集 + 追更状态</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="S01" value="S${String(x.seasons).padStart(2,'0')}"><input ${inp} placeholder="E05" value="E${String(x.cur).padStart(2,'0')}"></div><div class="flex gap-2 text-[11px]"><span class="mds-chip on">在追</span><span class="mds-chip">完结</span><span class="mds-chip">弃剧</span><span class="mds-chip">待续</span></div>`;else if(x.kind==='music')body=`<div class="text-[11px] mds-mono mb-2">音乐 · 整专循环 / 单曲循环 + 最常曲目</div><div class="flex gap-2 mb-2"><input ${inp} placeholder="循环 42 次" value="${x.loops}"><input ${inp} placeholder="最常：${x.fav}" value="${x.fav}"></div>`;else if(x.kind==='game'){const hasP=x.mainPct!=null;body=`<div class="text-[11px] mds-mono mb-2">记一次游玩 · 谁一起玩 · 时长 · 玩了什么</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="谁一起玩（朋友/搭档/一个人）" value="${x.withWho||''}"><input ${inp} placeholder="本次时长 (h)" value=""><input ${inp} style="grid-column:span 2" placeholder="这次玩了什么 · 如「和女朋友合过树章节」" value=""></div>`+(hasP?`<div class="text-[11px] mds-mono mb-1 mt-1" style="opacity:.7">进度更新（本作有剧情进度）</div><div class="grid grid-cols-2 gap-2 mb-2"><input ${inp} placeholder="主线 ${x.mainPct}%" value="${x.mainPct}"><input ${inp} placeholder="周目 ${x.plays||1}" value="${x.plays||1}"></div>`:'')+`<div class="flex gap-2 text-[11px]"><span class="mds-chip">未玩</span><span class="mds-chip ${x.state==='在玩'?'on':''}">在玩</span><span class="mds-chip ${x.state==='通关'||x.state==='退坑'?'on':''}">${hasP?'通关':'退坑'}</span><span class="mds-chip">搁置</span></div>`}const el=$('#mProgressBody');if(el)el.innerHTML=body+`<div class="mt-4 flex gap-2"><button class="mds-chip" style="flex:1;justify-content:center" onclick="closeSheet('m-sheet-progress')">取消</button><button class="mds-chip on" style="flex:1;justify-content:center" onclick="toast('进度已保存 · L4 已入账 · 重算预计完成日');closeSheet('m-sheet-progress')">保存</button></div>`}
@@ -3738,7 +3913,7 @@ const mdsRec={id:'n'+Date.now(),kind:'movie',title:t,year:new Date().getFullYear
 ;(function(){const old=window.switchRecord;if(typeof old==='function'){window.switchRecord=function(k){old.apply(this,arguments);if(k==='media'){try{mRenderHub()}catch(e){}}};switchRecord=window.switchRecord}})();
 
 /* ---- openSheet 钩子：m-sheet 弹层渲染 ---- */
-;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-track':mRenderTrackSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips,'m-sheet-mlist':mRenderListPickSheet,'m-sheet-mlist-new':mRenderListNewSheet,'m-sheet-share':mRenderShareSheet};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
+;(function(){const old=window.openSheet;if(typeof old==='function'){window.openSheet=function(id){old.apply(this,arguments);const map={'m-sheet-sort':mRenderSortSheet,'m-sheet-ops':mRenderOpsSheet,'m-sheet-track':mRenderTrackSheet,'m-sheet-progress':mRenderProgressSheet,'m-sheet-add':mRenderAddKindChips,'m-sheet-mlist':mRenderListPickSheet,'m-sheet-mlist-new':mRenderListNewSheet,'m-sheet-share':mRenderShareSheet,'sheet-m-import':miRender,'sheet-m-playlist':miplRender};const f=map[id];if(f)try{f()}catch(e){}};openSheet=window.openSheet}})();
 
 /* ---- 专版落地：影音架为本版首页（记录页工作台 tab 属共享面，回灌走变更单·2026-10-07 批2 第一刀） ---- */
 try{ if(typeof stack!=='undefined')stack.length=0; navTab('m-shelf'); }catch(e){ console.error('media landing failed',e); }
