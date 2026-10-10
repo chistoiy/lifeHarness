@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。
 
-- **上一批＝** 影音游批9a 导入矩阵与导出尾项·原型先行（零 dart·DB 停 v40）＝`m-import` 薄壳重建：五档取法 3/2/5/3×13 家分组行＋剪贴板框三 id 识别（裸数字不误判）＋Steam 扫描灰态；新两弹层＝`sheet-m-import` 五步向导（给料随取法分派·预览带外部 id·对账三计数现算·撤销本批真动作）＋`sheet-m-playlist` 四源两法复用五步③④行式；闸＝media_b9acheck 16/16·三刀各红其位 md5 复原全等·registry CLEAN·protogate strict 0；过门五点（工单 §2）待产品定·9b 面板过门后另补·dart 攒 6097；样张＝tempWork/media-b9a-shots。
-- **本批＝** V1.64 批1 笔记 open-with 泛化＋回写实现批（DB v41＝notes 来源四列纯加列零搬）＝manifest md/text 三组入口＋`takeOpenFile` 多类型（分派上收组合根守 R1）；md 归集固定「系统打开」夹直达编辑、同名同 URI 覆盖更新·回收站行不判重·夹删除有守卫；保存回写原文件（授权失效/不在两式人话降级）。闸＝新常驻 `note_open_with_test` 11 例＋面板八件逐档绿＋变异三刀各红其位；原型批 13/13 已过门；工装 `ftest_waves.sh` 拆波硬闸（AGENTS/§7.5 改口；当晚三次「挂死」真根因＝测试 deliver 误 await 弹层自锁，已修记工单 §9）。批2（N-1＋N-1c 挂载移除·拍板 H 待答）/批3（N-2 导出）待开工＝同工单 §5；dart 攒复测包 **6098**（未构建）。
+- **本批＝** V1.64 批2 笔记目录导入层级＋挂载移除·原型先行（零 dart·DB 停 v41）＝`niMount` 还原磁盘子层级（子夹各成带「本地」标节点·导入后展开挂载根＝需求①「展示到文件树上」）；新弹层 `sheetNoteUnmount`＝长按本地/导出挂载节点进「移除挂载」确认，后果三行现算（只摘挂载连子夹／手机目录与文件不删／n 条笔记保留在库可筛＝拍板 H 定案）；手建夹与固定「系统打开」无移除入口，单文件挂标不另设 UI。闸＝`tools/note64check.js` 18/18·PAGE ERRORS 0·新常驻变异工装 `tools/note64_mut.js` 三刀各红其位（md5 复原）·registry 260 CLEAN·protogate strict 0；**过门五点＝工单 §11**，点头后按 §12 面板开实现批（DB v42·dart 攒 6098）。
+- **上一批＝** V1.64 批1 笔记 open-with 泛化＋回写实现批（DB v41＝notes 来源四列纯加列零搬）＝manifest md/text 三组入口＋`takeOpenFile` 多类型（分派上收组合根守 R1）；md 归集固定「系统打开」夹直达编辑、同名同 URI 覆盖更新·回收站行不判重·夹删除有守卫；保存回写原文件（授权失效/不在两式人话降级）。闸＝新常驻 `note_open_with_test` 11 例＋面板八件逐档绿＋变异三刀各红其位；原型批 13/13 已过门；工装 `ftest_waves.sh` 拆波硬闸（AGENTS/§7.5 改口；当晚三次「挂死」真根因＝测试 deliver 误 await 弹层自锁，已修记工单 §9）。批2（N-1＋N-1c 挂载移除·拍板 H 待答）/批3（N-2 导出）待开工＝同工单 §5；dart 攒复测包 **6098**（未构建）。
 
 ## 基线（八项，其余不写）
 

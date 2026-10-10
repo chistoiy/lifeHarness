@@ -1432,6 +1432,20 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- V1.64 批2 · N-1c 挂载移除（拍板 H＝移除只摘挂载，原文件与库内笔记都不动）· 长按本地/导出挂载节点进入 -->
+  <div id="sheetNoteUnmount" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteUnmount')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2"><b id="nuTitle" class="text-[15px] flex-1 truncate">移除挂载</b><span id="nuBadge" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0"></span></div>
+      <div id="nuPath" class="text-[10px] text-slate-400 truncate mt-1"></div>
+      <div id="nuList" class="mt-3 space-y-1.5"></div>
+      <div class="mt-4 flex gap-2">
+        <button onclick="closeSheet('sheetNoteUnmount')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
+        <button onclick="nuDo()" class="flex-[2] py-3 rounded-xl bg-rose-500 text-white text-[13px] font-bold active:opacity-80">确认移除</button>
+      </div>
+    </div>
+  </div>
+
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
@@ -3124,7 +3138,10 @@ function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEac
 function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
 function ntPick(n,has){const nd=ntNode(n);if(nd&&nd.src==='export'){toast('导出目录为只读挂载 · 保存只落在应用内');return;}ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
 function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
-function ntLong(n){toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
+function ntLong(n){const nd=ntNode(n);
+  /* V1.64 批2 · N-1c：本地导入／导出目录的挂载节点长按＝给「移除挂载」；普通手建夹维持原语义 */
+  if(nd&&(nd.src==='local'||nd.src==='export')){nuOpen(nd);return;}
+  toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
 function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
   return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
     <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
@@ -3147,20 +3164,29 @@ function ntBadge(k){const b=NT_BADGE[k];return b?'<span class="ml-1 text-[8px] f
 function ntNode(name){const p=ntFindPath(name);return p?p.arr[p.i]:null;}
 let niKind='dir';
 function niOpen(){renderNi();openSheet('sheetNoteImport');}
+/* V1.64 批2 · 目录导入＝还原子层级（产品 2026-10-11 定，样张原为单节点）：磁盘每个子夹各成一个带「本地」标的树节点；同名节点复用不重复建 */
+const NI_DEMO={n:'外来笔记夹',p:'/Download/外来笔记夹',t:['外来总览'],c:[
+  {n:'会议记录',t:['协议草稿','复盘意见'],c:[]},
+  {n:'摘录',t:['任务拆分'],c:[]}]};
+function niMount(node,arr){let hit=null;
+  for(let i=0;i<arr.length;i++){if(arr[i].n===node.n)hit=arr[i];}
+  if(!hit){hit={n:node.n,p:node.p,src:'local',c:[]};arr.push(hit);}
+  const out=[{f:hit.n,t:node.t||[]}];
+  (node.c||[]).forEach(function(k){out.push.apply(out,niMount(k,hit.c));});
+  return out;}
 function niKindChg(k){niKind=k;renderNi();}
 function renderNi(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg-slate-800 text-slate-500';
  $('#niSegDir').textContent='目录';$('#niSegFile').textContent='文件';
  $('#niSegDir').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='dir'?on:off);
  $('#niSegFile').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='file'?on:off);
- $('#niHint').textContent=niKind==='dir'?'递归收目录内 .md · 按内容哈希判重 · 树上新增带「本地」角标节点':'多选 .md 文件 · 建于当前目录 · 该目录带「本地」角标';
+ $('#niHint').textContent=niKind==='dir'?'递归收目录内 .md · 按内容哈希判重 · 子文件夹各成带「本地」角标节点':'多选 .md 文件 · 建于当前目录 · 该目录带「本地」角标';
  $('#niGo').textContent=niKind==='dir'?'选择目录并导入':'选择文件并导入';
  $('#niProg').classList.add('hidden');}
 function niDo(){$('#niProg').classList.remove('hidden');
  $('#niProg').textContent=niKind==='dir'?'扫描目录 · 抽取 .md 中…':'读取所选文件…';
  setTimeout(function(){let add=0,skip=0;
   const push=(t,f,src)=>{if(D.notes.some(x=>x.t===t)){skip++;return;}add++;D.notes.push({t:t,txt:'（本地导入 · '+src+'）',folder:f,words:320,time:'刚刚',cre:'10-10',pin:0,md:1,src:src});};
-  if(niKind==='dir'){if(!ntFindPath('外来笔记夹'))NTREE.push({n:'外来笔记夹',src:'local',c:[]});
-    ['协议草稿','复盘意见','任务拆分'].forEach(t=>push(t,'外来笔记夹','local_dir'));}
+  if(niKind==='dir'){niMount(NI_DEMO,NTREE).forEach(function(g){g.t.forEach(function(t){push(t,g.f,'local_dir');});});ntOpen[ntKeyOf(NI_DEMO.n)]=true;/* 导入后展开挂载根节点＝需求①「导入后展示到文件树上」 */}
   else{const f=ntSel||'灵感';const nd=ntNode(f);if(nd)nd.src='local';['引文摘抄','译注备忘'].forEach(t=>push(t,f,'local_file'));}
   closeSheet('sheetNoteImport');renderNt();renderNotes();
   toast('已导入 '+add+' 条 · 跳过重复 '+skip+' 条');},500);}
@@ -3176,9 +3202,30 @@ function renderNx(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg
  $('#nxProg').classList.add('hidden');}
 function nxDo(){$('#nxProg').classList.remove('hidden');$('#nxProg').textContent='写入 .md 与 _assets/ 附件中…';
  setTimeout(function(){const n=nxSc==='all'?D.notes.length:D.notes.filter(x=>x.folder===ntSel).length;
-  if(!ntFindPath('笔记导出'))NTREE.push({n:'笔记导出',src:'export',c:[]});
+  if(!ntFindPath('笔记导出'))NTREE.push({n:'笔记导出',p:'/Download/笔记导出',src:'export',c:[]});
   closeSheet('sheetNoteExport');renderNt();
   toast('已导出 '+n+' 篇 · md＋附件目录包');},500);}
+/* —— V1.64 批2 · N-1c 挂载移除（工单 §1.2 + 拍板 H＝2026-10-11 产品定「保留在库」）：
+ *     移除＝只摘文件树上的挂载节点（连子夹），磁盘原文件不删，已导入成库的笔记全部保留、来源标仍可筛。
+ *     固定「系统打开」夹不在可移除之列（批1 已在 DAO 落删除守卫）；单文件导入的挂标不另设移除入口。 —— */
+let nuNode=null,nuKeep=0;
+function nuSub(node,acc){acc=acc||[];acc.push(node.n);(node.c||[]).forEach(function(k){nuSub(k,acc);});return acc;}
+function nuCount(node){let m=0;nuSub(node).forEach(function(nm){m+=D.notes.filter(function(x){return x.folder===nm;}).length;});return m;}
+function nuOpen(nd){nuNode=nd;nuKeep=nuCount(nd);const kids=(nd.c||[]).length;
+ $('#nuTitle').textContent='移除挂载 · '+nd.n;
+ const b=NT_BADGE[nd.src]||NT_BADGE.local,el=$('#nuBadge');
+ el.textContent=b[0];el.setAttribute('style','color:'+b[1]+';border:1px solid '+b[1]);
+ $('#nuPath').textContent=(nd.p||'本机的挂载目录')+' · 子夹 '+kids+' 个';
+ $('#nuList').innerHTML=['只从文件树摘掉该挂载'+(kids?'及其 '+kids+' 个子夹':''),
+   '手机里的目录与文件不删除',
+   '已导入的 '+nuKeep+' 条笔记保留在库 · 来源标仍可筛']
+   .map(function(s){return '<div class="flex items-start gap-2 text-[12px] leading-5">'
+     +'<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span><span>'+s+'</span></div>';}).join('');
+ openSheet('sheetNoteUnmount');}
+function nuDo(){if(!nuNode)return;const nm=nuNode.n,keep=nuKeep;
+ const p=ntFindPath(nm);if(p)p.arr.splice(p.i,1);
+ nuNode=null;closeSheet('sheetNoteUnmount');renderNt();renderNotes();
+ toast('已移除挂载「'+nm+'」 · '+keep+' 条笔记保留在库 · 原文件不动');}
 let nohArmed=false;
 function nohOpen(){nohArmed=false;nohArmTxt();renderNoh();openSheet('sheetNoteOpenHist');}
 function nohArmTxt(){const b=$('#nohClr');if(b)b.textContent=nohArmed?'确认清空？':'清空';}

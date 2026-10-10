@@ -117,18 +117,30 @@ let child = null;
     ? ok('N7 导入面板就地两取法 · 主钮与说明随档换') : bad('N7', JSON.stringify(n7));
   await shot('n7-import');
 
-  /* N8 目录导入：树增「外来笔记夹」行带「本地」角标 · toast 汇总；再跑一遍＝全判重跳过（计数现算） */
+  /* N8 目录导入＝还原子层级：根夹＋两个子夹各带「本地」角标 · 笔记按子夹归位 · toast 汇总（计数现算） */
   const n8a = await ev(`niKindChg('dir');niDo();return {prog:$('#niProg').textContent,vis:!$('#niProg').classList.contains('hidden')};`);
   (/扫描/.test(n8a.prog) && n8a.vis) ? ok('N8a 目录导入有可见进度行', n8a.prog) : bad('N8a', JSON.stringify(n8a));
   await wait(800);
-  const n8 = await ev(`var row=[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /外来笔记夹/.test(r.textContent)})[0];
+  const n8 = await ev(`var rows=[].slice.call($('#noteTree').querySelectorAll('.nt-row'));
+    var hit=function(re){return rows.filter(function(r){return re.test(r.textContent)})};
+    var root=hit(/外来笔记夹/),meet=hit(/会议记录/),quote=hit(/摘录/);
+    var byName=function(n){return D.notes.filter(function(x){return x.folder===n}).length};
     var cnt=D.notes.length;niDo();
-    return {node:!!row,badgeOnRow:!!row&&/本地/.test(row.textContent),t1:$('#toast').textContent,added:cnt};`);
+    return {root:root.length,rootBadge:!!root[0]&&/本地/.test(root[0].textContent),
+      meet:meet.length,meetBadge:!!meet[0]&&/本地/.test(meet[0].textContent),
+      quote:quote.length,quoteBadge:!!quote[0]&&/本地/.test(quote[0].textContent),
+      dist:byName('外来笔记夹')+byName('会议记录')+byName('摘录'),
+      t1:$('#toast').textContent,added:cnt};`);
   await wait(800);
-  const n8b = await ev(`return {t:$('#toast').textContent,nodes:[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /外来笔记夹/.test(r.textContent)}).length,notes:D.notes.length};`);
-  (n8.node && n8.badgeOnRow && /已导入 3 条 · 跳过重复 0 条/.test(n8.t1) && n8.added >= 8 &&
-    /已导入 0 条 · 跳过重复 3 条/.test(n8b.t) && n8b.nodes === 1 && n8b.notes === n8.added)
-    ? ok('N8 目录导入建角标节点 · 二次全判重不堆副本', n8.t1 + ' / ' + n8b.t) : bad('N8', JSON.stringify(n8) + JSON.stringify(n8b));
+  const n8b = await ev(`var rows=[].slice.call($('#noteTree').querySelectorAll('.nt-row'));
+    var c=function(re){return rows.filter(function(r){return re.test(r.textContent)}).length};
+    return {t:$('#toast').textContent,root:c(/外来笔记夹/),meet:c(/会议记录/),quote:c(/摘录/),notes:D.notes.length};`);
+  (n8.root === 1 && n8.rootBadge && n8.meet === 1 && n8.meetBadge && n8.quote === 1 && n8.quoteBadge &&
+    n8.dist === 4 && /已导入 4 条 · 跳过重复 0 条/.test(n8.t1) && n8.added >= 8 &&
+    /已导入 0 条 · 跳过重复 4 条/.test(n8b.t) && n8b.root === 1 && n8b.meet === 1 && n8b.quote === 1 && n8b.notes === n8.added)
+    ? ok('N8 目录导入还原子层级（三节点各带本地标·归位 4 条） · 二次全判重不堆副本', n8.t1 + ' / ' + n8b.t) : bad('N8', JSON.stringify(n8) + JSON.stringify(n8b));
+  await ev(`ntOpenDrawer();ntExpandAll();return {};`);
+  await shot('n8-tree-hierarchy');
 
   /* N9 文件导入：落当前目录（未选→灵感兜底）· 该目录挂本地标 */
   await ev(`niKindChg('file');niDo();return {};`);
@@ -154,8 +166,55 @@ let child = null;
     ? ok('N11 导出目录点击被只读挂载拦下', n11.toast.slice(0, 34)) : bad('N11', JSON.stringify(n11));
   await shot('n11-mount');
 
-  /* N12 三弹层新增文案零 emoji（线性/纯文字口径·禁令同源） */
-  const n12 = await ev(`closeSheet('sheetNoteExport');var t=[$('#sheetNoteImport').innerText,$('#sheetNoteExport').innerText,$('#sheetNoteOpenHist').innerText,$('#noteTree').innerText].join('|');
+  /* N13 长按挂载节点＝出「移除挂载」确认弹层：后果三行齐·子夹数与保留条数现算·未确认前节点仍在 */
+  const n13 = await ev(`var row=[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /外来笔记夹/.test(r.textContent)})[0];
+    var bound=/ntLong/.test(row.getAttribute('oncontextmenu')||'');
+    var before=D.notes.length;ntLong('外来笔记夹');
+    var s=$('#sheetNoteUnmount'),txt=s.innerText,has=function(a){return txt.indexOf(a)>=0};
+    var still=[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /外来笔记夹/.test(r.textContent)}).length;
+    return {bound:bound,open:s.classList.contains('sheet-open'),still:still,
+      title:has('移除挂载 · 外来笔记夹'),badge:$('#nuBadge').textContent,path:has('/Download/外来笔记夹'),
+      kids:has('子夹 2 个'),keep:has('已导入的 4 条笔记保留在库'),disk:has('手机里的目录与文件不删除'),
+      keptNotes:D.notes.length===before};`);
+  (n13.bound && n13.open && n13.still === 1 && n13.title && n13.badge === '本地' && n13.kids && n13.keep && n13.disk && n13.path && n13.keptNotes)
+    ? ok('N13 长按挂载＝移除确认弹层 · 后果三行现算 · 未确认不动手', n13.title) : bad('N13', JSON.stringify(n13));
+  await shot('n13-unmount');
+
+  /* N14 确认移除＝摘挂载节点（连子夹一起摘）· 库内笔记一条不少 · toast 三要素 */
+  const n14 = await ev(`nuDo();var rows=[].slice.call($('#noteTree').querySelectorAll('.nt-row'));
+    var c=function(re){return rows.filter(function(r){return re.test(r.textContent)}).length};
+    var kept=0;['外来笔记夹','会议记录'].forEach(function(n){kept+=D.notes.filter(function(x){return x.folder===n}).length});
+    return {root:c(/外来笔记夹/),meet:c(/会议记录/),kept:kept,toast:$('#toast').textContent};`);
+  (n14.root === 0 && n14.meet === 0 && n14.kept === 3 && /已移除挂载「外来笔记夹」 · 4 条笔记保留在库 · 原文件不动/.test(n14.toast))
+    ? ok('N14 确认移除只摘挂载 · 笔记保留 4 条（含子夹归属）', n14.toast.slice(0, 46)) : bad('N14', JSON.stringify(n14));
+
+  /* N15 非挂载不给移除入口：手建夹长按维持原语义；「系统打开」固定行无长按绑定 */
+  const n15 = await ev(`ntLong('方法论');var s=$('#sheetNoteUnmount');
+    var o=[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /系统打开/.test(r.textContent)})[0];
+    return {closed:!s.classList.contains('sheet-open'),toast:$('#toast').textContent,
+      sysBound:o?/ntLong/.test(o.getAttribute('oncontextmenu')||''):'no-row'};`);
+  (n15.closed && /重命名/.test(n15.toast) && n15.sysBound === false)
+    ? ok('N15 手建夹与「系统打开」不出移除入口', n15.toast.slice(0, 26)) : bad('N15', JSON.stringify(n15));
+
+  /* N16 导出挂载节点同族可移除：长按进弹层（角标＝导出）→ 确认后树行消失 */
+  const n16 = await ev(`ntLong('笔记导出');var s=$('#sheetNoteUnmount');var op=s.classList.contains('sheet-open');
+    var bg=$('#nuBadge').textContent,ttl=$('#nuTitle').textContent;nuDo();
+    var gone=[].slice.call($('#noteTree').querySelectorAll('.nt-row')).filter(function(r){return /笔记导出/.test(r.textContent)}).length;
+    return {open:op,badge:bg,ttl:ttl,gone:gone,toast:$('#toast').textContent};`);
+  (n16.open && n16.badge === '导出' && /笔记导出/.test(n16.ttl) && n16.gone === 0 && /已移除挂载「笔记导出」/.test(n16.toast))
+    ? ok('N16 导出挂载节点可移除（只读挂载同族语义）', n16.toast.slice(0, 40)) : bad('N16', JSON.stringify(n16));
+
+  /* N17 移除后重导＝挂载节点重建、笔记不重复（拍板 H 的可逆性自证） */
+  const n17 = await ev(`niKindChg('dir');niDo();return {};`);
+  await wait(800);
+  const n17b = await ev(`var rows=[].slice.call($('#noteTree').querySelectorAll('.nt-row'));
+    var c=function(re){return rows.filter(function(r){return re.test(r.textContent)}).length};
+    return {root:c(/外来笔记夹/),meet:c(/会议记录/),toast:$('#toast').textContent};`);
+  (n17b.root === 1 && n17b.meet === 1 && /已导入 0 条 · 跳过重复 4 条/.test(n17b.toast))
+    ? ok('N17 移除后重导＝节点重建 · 笔记仍判重不复制', n17b.toast) : bad('N17', JSON.stringify(n17b));
+
+  /* N12 新增面零 emoji（线性/纯文字口径·禁令同源） */
+  const n12 = await ev(`closeSheet('sheetNoteExport');var t=[$('#sheetNoteImport').innerText,$('#sheetNoteExport').innerText,$('#sheetNoteOpenHist').innerText,$('#sheetNoteUnmount').innerText,$('#noteTree').innerText].join('|');
     var EM=[/\\u{1F000}-\\u{1FAFF}/u,/\\u{2600}-\\u{27BF}/u,/\\u{2B00}-\\u{2BFF}/u];
     return {emoji:EM.some(function(r){return r.test(t)}),len:t.length};`);
   !n12.emoji ? ok('N12 新增面零 emoji') : bad('N12', JSON.stringify(n12));

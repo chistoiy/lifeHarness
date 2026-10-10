@@ -65,6 +65,8 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 ## 会话收尾仪式（每轮工作结束前，用户说「收尾」即按此执行）
 
 > **收尾走快车道（2026-10-11 立，V1.64 批1 五分钟内收口口径）**：「收尾」＝先把整条验证链后台化——一条 `tmp/<批>/closeout.sh` 串完「门禁→三刀→doclint→STATUS→日志/工单→本地提交→CLOSEOUT 判定行」，任一红步即 STOP 不提交；主会话不阻塞盯梢，读数由一次性 cron 或下一条消息一次取回。盯梢式轮询/有界 sleep 均违此口径（本批实伤：三轮盯空转 30 分钟）。
+>
+> **两段式回知（同日补，产品问「为何不主动通知」）**：closeout 主链仍用 nohup+disown 起（免疫会话后台 10 分钟掐长任务），但**脱离监护＝跑完无事件**；所以起链后必须立刻另发一条**会话内后台监听**（Bash run_in_background：`until grep -qE 'ALL-DONE|STOP@' CLOSEOUT; do sleep 5; done; cat CLOSEOUT`）——监听命中判定行即退出，会话收到完成通知自动向用户播报。≤10 分钟的链直接整条用 run_in_background 起（免监听）；预计超 10 分钟才用「nohup 主链＋监听」两段式。禁只留 cron 或让用户来问进展。
 
 1. 门禁：受影响测试 + 文档改动随跑 `python tools/doclint.py`，红灯清零；跑 `bash tools/timelog.sh report` 并贴判定行（超 20 分钟＝变更日志行尾归因）。
 2. 状态：只更新 `docs/STATUS.md`（HEAD/发版/DB/门禁数/下一站/互斥面）。
