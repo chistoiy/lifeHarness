@@ -23,7 +23,8 @@ async function ev(x) {
   const m = await cmd('Runtime.evaluate', { expression: 'JSON.stringify((function(){' + x + '})())' });
   const r = m.result && m.result.result; try { return JSON.parse(r.value) } catch (e) { return { __err: (r && r.value) || JSON.stringify(m).slice(0, 240) } }
 }
-async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursive: true });
+async function shot(name) { if (!SHOTS) return; await wait(2300); /* 等弹层上滑动效落定＋toast 自行退场（2.2s），否则样张被半截面板与提示条糊住 */
+  fs.mkdirSync(SHOTDIR, { recursive: true });
   const m = await cmd('Page.captureScreenshot', { format: 'png' });
   if (m.result && m.result.data) fs.writeFileSync(path.join(SHOTDIR, name + '.png'), Buffer.from(m.result.data, 'base64')) }
 function finish() { log('— 结果 ' + pass + ' PASS / ' + fail + ' FAIL · PAGE ERRORS ' + errs.length);
@@ -35,7 +36,7 @@ let child = null;
   if (!fs.existsSync(CHROME)) { bad('chrome 存在'); return finish() }
   child = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=' + PORT,
     '--user-data-dir=' + path.resolve('tools/.note64-profile'), '--disable-extensions', '--no-default-browser-check',
-    '--window-size=430,900', '--allow-file-access-from-files', 'about:blank'], { stdio: 'ignore' });
+    '--window-size=430,' + Number(process.env.NOTE64_H || 900), '--allow-file-access-from-files', 'about:blank'], { stdio: 'ignore' });
   let data = null;
   for (let i = 0; i < 60; i++) { const d = await get('http://127.0.0.1:' + PORT + '/json'); if (d) { try { data = JSON.parse(d); if (data.some(x => x.type === 'page')) break } catch (e) { } } await wait(300) }
   if (!data) { bad('chrome 起服'); return finish() }
