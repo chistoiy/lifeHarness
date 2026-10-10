@@ -39,7 +39,10 @@ class DbSchema {
   // 列不进基础 DDL 的理由＝media.dart 的 mediaReviewStatements 段注。
   // 40：影音游批8a 目标屏——migrations[39]（39→40）建 media_goals
   // （一指标一行·未设＝删行；新表纯建零搬数据）。
-  static const int version = 40;
+  // 41：V1.64 批1 笔记打开方式——migrations[40]（40→41）给 notes 加来源四列
+  // （source/origin_path/origin_uri/opened_at；纯加列零搬数据；
+  //  值域 source=''|'open_with'|'local_dir'|'local_file'，工单 §4 拍板 E）。
+  static const int version = 41;
  
 
   
@@ -173,6 +176,10 @@ class DbSchema {
       archived INTEGER NOT NULL DEFAULT 0,
       deleted_at INTEGER,
       paper TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT '',
+      origin_path TEXT NOT NULL DEFAULT '',
+      origin_uri TEXT NOT NULL DEFAULT '',
+      opened_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )

@@ -1,5 +1,10 @@
-/// 模块3 笔记文件夹（note_folders 表 · V1.29 多层嵌套树）。
-/// notes.folder 仍存文件夹名（筛选按名精确匹配），本表只承载层级与重命名/删除语义。
+// 模块3 笔记文件夹（note_folders 表 · V1.29 多层嵌套树）。
+// notes.folder 仍存文件夹名（筛选按名精确匹配），本表只承载层级与重命名/删除语义。
+
+/// V1.64 批1（工单 §4 拍板 D/F）：系统「打开方式」进来的 md 归集的固定临时夹。
+/// N-4 历史列表即该夹内容；删除守卫见 NoteFolderDao.deleteTree。
+const kSystemOpenFolder = '系统打开';
+
 class NoteFolder {
   const NoteFolder({
     this.id,

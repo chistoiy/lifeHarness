@@ -80,6 +80,17 @@ class NoteDao {
     return rows.isEmpty ? null : Note.fromRow(rows.first);
   }
 
+  /// V1.64 批1 N-3（拍板 C）：同名文件二次打开＝按原始 URI 找回在册条目覆盖更新。
+  /// E 批红线＝回收站行不参与判重（deleted_at IS NULL）。
+  Future<Note?> byOriginUri(String uri) async {
+    if (uri.isEmpty) return null;
+    final rows = await db.query(table,
+        where: 'origin_uri = ? AND deleted_at IS NULL',
+        whereArgs: [uri],
+        limit: 1);
+    return rows.isEmpty ? null : Note.fromRow(rows.first);
+  }
+
   Future<int> insert(Note n) => db.insert(table, n.toRow());
 
   Future<Note> save(Note n) async {

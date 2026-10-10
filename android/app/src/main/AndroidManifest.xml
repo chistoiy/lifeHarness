@@ -47,8 +47,8 @@
             <!-- R3-1（真机轮3 P0）：关掉 embedding 的 deeplink 路由通路。默认为开：
                  冷启动把 VIEW intent 的 data（content://…）当初始路由塞给 go_router
                  （GoException 错误页），热启动同走 pushRouteInformation。本 App 没有
-                 URL 深链需求，打开方式 EPUB 由 MainActivity lh/intents 入队、Dart 侧
-                 takeEpubUri 消费，不依赖这条路由，整路掐掉。activity 级元数据，
+                 URL 深链需求，打开方式文件由 MainActivity lh/intents 入队、Dart 侧
+                 takeOpenFile 消费，不依赖这条路由，整路掐掉。activity 级元数据，
                  FlutterActivity 只读 ActivityInfo.metaData，不放 application 级。 -->
             <meta-data
               android:name="flutter_deeplinking_enabled"
@@ -76,6 +76,28 @@
                 <action android:name="android.intent.action.SEND"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="application/epub+zip"/>
+            </intent-filter>
+            <!-- V1.64 批1 N-3（工单 交棒话术-20261004 §2 · 拍板已过门）：
+                 md/markdown/text 同三路（content VIEW / file pathPattern / SEND），
+                 导入落笔记「系统打开」临时夹；txt 吃 text/plain 广谱入口。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content" android:mimeType="text/markdown"/>
+                <data android:scheme="content" android:mimeType="text/plain"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.md"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\.markdown"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/markdown"/>
+                <data android:mimeType="text/plain"/>
             </intent-filter>
         </activity>
         <!-- flutter_local_notifications：定时通知发送 + 开机重传（需 ScheduleNotificationReceiver 权限声明） -->

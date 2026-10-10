@@ -14,6 +14,10 @@ class Note {
     this.archived = false,
     this.deletedAt,
     this.paper = '',
+    this.source = '',
+    this.originPath = '',
+    this.originUri = '',
+    this.openedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,6 +33,19 @@ class Note {
 
   /// V1.29轮9n：按篇纸色 hex（0xFFRRGGBB）；''=默认米纸。仅卡片视图条目底色跟随。
   final String paper;
+
+  /// V1.64 批1（工单 §4 拍板 B/E）：来源标记＝''(应用内自建) | open_with(系统打开)
+  /// | local_dir / local_file(本地导入)。编辑不抹标；判重/回写按此分派。
+  final String source;
+
+  /// 来源展示名（文件名/目录内相对路径；仅本地来源与打开方式有值）。
+  final String originPath;
+
+  /// 原始 content URI 字符串（open_with 回写锚点；local_* 为空）。
+  final String originUri;
+
+  /// 经系统打开的最近一次导入时间（N-4 历史行读数；其余为 null）。
+  final DateTime? openedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -98,6 +115,12 @@ class Note {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row['deleted_at'] as int),
         paper: (row['paper'] as String?) ?? '',
+        source: (row['source'] as String?) ?? '',
+        originPath: (row['origin_path'] as String?) ?? '',
+        originUri: (row['origin_uri'] as String?) ?? '',
+        openedAt: row['opened_at'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row['opened_at'] as int),
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
         updatedAt:
@@ -114,6 +137,10 @@ class Note {
         'archived': archived ? 1 : 0,
         'deleted_at': deletedAt?.millisecondsSinceEpoch,
         'paper': paper,
+        'source': source,
+        'origin_path': originPath,
+        'origin_uri': originUri,
+        'opened_at': openedAt?.millisecondsSinceEpoch,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
       };
@@ -128,6 +155,10 @@ class Note {
     bool? archived,
     DateTime? deletedAt,
     String? paper,
+    String? source,
+    String? originPath,
+    String? originUri,
+    DateTime? openedAt,
     DateTime? updatedAt,
   }) =>
       Note(
@@ -140,6 +171,10 @@ class Note {
         archived: archived ?? this.archived,
         deletedAt: deletedAt ?? this.deletedAt,
         paper: paper ?? this.paper,
+        source: source ?? this.source,
+        originPath: originPath ?? this.originPath,
+        originUri: originUri ?? this.originUri,
+        openedAt: openedAt ?? this.openedAt,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

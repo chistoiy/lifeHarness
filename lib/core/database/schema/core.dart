@@ -90,6 +90,14 @@
 final Map<int, List<String>> mig = {
     // V1.57 E 批 · v29：待办垃圾箱软删列（NULL=在册）。只加列，不动任何既有行数据。
     28: ['ALTER TABLE $tTodos ADD COLUMN deleted_at INTEGER'],
+    // 40→41（V1.64 批1 · 工单 交棒话术-20261004 §2 N-3/N-4）：notes 来源四列。
+    // 纯加列不动行；基础 DDL（schema.dart notes 建表段）同步带列，两路互不撞。
+    40: [
+      "ALTER TABLE $tNotes ADD COLUMN source TEXT NOT NULL DEFAULT ''",
+      "ALTER TABLE $tNotes ADD COLUMN origin_path TEXT NOT NULL DEFAULT ''",
+      "ALTER TABLE $tNotes ADD COLUMN origin_uri TEXT NOT NULL DEFAULT ''",
+      'ALTER TABLE $tNotes ADD COLUMN opened_at INTEGER',
+    ],
     1: ['ALTER TABLE $tTodos ADD COLUMN tag TEXT'],
     2: [
       '''

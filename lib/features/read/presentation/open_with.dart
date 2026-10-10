@@ -1,9 +1,10 @@
 // V1.53.4⑥ 系统「打开方式」接收本地 EPUB → 导入/定位（原型 sheetBrOpen 两态·
 // index-bookshelf.html ?br57=open|dup 已放行，文案与形态按原型钉死）。
+// V1.64 批1：通道泛化到多类型——take/consume 上收 core/platform/open_intent.dart
+// 与组合根 app.dart 分派（R1），本文件只留 EPUB 支路的「两态弹层→导入或定位」。
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
@@ -17,37 +18,12 @@ import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
 import 'reader/epub_state_ui.dart' show brStartPreload;
 
-/// 原生侧暂存意图通道（MainActivity.kt 同约定）：
-/// takeEpubUri 单次消费——null=无待处理文件；''=收到非 EPUB（toast「只支持 EPUB」）；
-/// 其余=已拷入 cacheDir/lh_open/ 的绝对路径。通道缺失（测试/桌面）按无处理返回。
-const _intentsChannel = MethodChannel('lh/intents');
-
-Future<String?> takeEpubUri() async {
-  try {
-    return await _intentsChannel.invokeMethod<String>('takeEpubUri');
-  } catch (_) {
-    // catch-ok: 原生侧未挂到 intents（非打开方式进入）＝无待接文件，属正常分支。
-    return null;
-  }
-}
-
 /// 书架待定位书 id（「前往书架定位」/导入成功后置位，ShelfPage 消费后清空）。
 final locateBookProvider = StateProvider<String?>((_) => null);
 
 /// 文件大小读取位：widget 测试替换，避免 FakeAsync 下真磁盘 IO 挂死
 /// （既有踩坑：测禁真异步 I/O）。
 Future<int> Function(String path) brOpenFileSize = (path) => File(path).length();
-
-/// 根壳层每次「首帧后 / resumed」调用一次：取值→两态弹层→导入或定位。
-Future<void> brOpenConsumeOnce(BuildContext context, WidgetRef ref) async {
-  final v = await takeEpubUri();
-  if (v == null) return;
-  if (v.isEmpty) {
-    if (context.mounted) readToast(context, '只支持 EPUB');
-    return;
-  }
-  if (context.mounted) await handleOpenWithEpub(context, ref, v);
-}
 
 Future<void> handleOpenWithEpub(
   BuildContext context,

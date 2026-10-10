@@ -9,17 +9,19 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 
-/// V1.53.4⑥ 系统「打开方式」接收本地 EPUB。
-/// 冷启动经 configureFlutterEngine 里的 handle(intent) 入队；热启动（singleTop）
-/// 经 onNewIntent 入队。Dart 侧经 MethodChannel `lh/intents` 的 takeEpubUri
-/// 单次消费（取一次即清空），App 唤醒（resumed）时再取。
-///
-/// 轮6（2026-10-04）追加 `lh/saf` 通道：SAF「另存为」（备份/X-Ray 导出共用），
-/// 替换 flutter_file_dialog 插件——其在进程被杀后冷启动投递结果时
-/// `sourceFile!!` 必 NPE 崩溃（真机 0 字节事故根因），且拷贝强转
-/// FileOutputStream。本实现无挂起态时静默忽略过期结果，拷贝走通用流。
+/// V1.53.4⑥ 系统「打开方式」接收本地文件 → V1.64 批1 泛化多类型（工单
+/// 交棒话术-20261004 §2 N-3 · 拍板 G）。冷启动经 configureFlutterEngine 里的
+/// handle(intent) 入队；热启动（singleTop）经 onNewIntent 入队。Dart 侧经
+/// MethodChannel `lh/intents` 的 takeOpenFile 单次消费（Map：kind/path/name/uri；
+/// null=无待处理，kind ""=不支持类型），App 唤醒（resumed）时再取。
+/// `lh/saf` 通道两枚：saveAs＝「另存为」（备份/X-Ray 导出共用）；
+/// writeBack＝按打开方式原始 content URI 覆写（授权失效/文件不在按码返回，不抛错）。
+/// 轮6 换通道根因：flutter_file_dialog 在 onActivityResult 对 sourceFile `!!`
+/// 冷投必 NPE（真机 0 字节事故），且拷贝强转 FileOutputStream——本实现无挂起态
+/// 静默忽略过期结果、拷贝走通用流。
 class MainActivity : FlutterActivity() {
 
     private var pendingUri: Uri? = null
@@ -75,8 +77,8 @@ class MainActivity : FlutterActivity() {
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger, "lh/intents"
         ).setMethodCallHandler { call, result ->
-            if (call.method == "takeEpubUri") {
-                result.success(takeEpub())
+            if (call.method == "takeOpenFile") {
+                result.success(takeOpen())
             } else {
                 result.notImplemented()
             }
@@ -86,6 +88,7 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "saveAs" -> safSaveAs(call, result)
+                "writeBack" -> writeBack(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -146,30 +149,67 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    companion object {
-        private const val REQ_SAF_SAVE = 0x5AF1
+    /// V1.64 批1（拍板 G）：按打开方式记住的原始 content URI 覆写正文。
+    /// 返回码（不抛 PlatformException）：ok / no_perm（授权失效——VIEW 给的临时
+    /// 读授权本就未必可写、进程重启后必失效）/ missing（原文件已不在）/ error。
+    private fun writeBack(call: MethodCall, result: MethodChannel.Result) {
+        val uriStr = call.argument<String>("uri")
+        val src = call.argument<String>("srcPath")
+        if (uriStr == null || src == null || !File(src).exists()) {
+            result.success("missing")
+            return
+        }
+        try {
+            contentResolver.openOutputStream(Uri.parse(uriStr), "w")?.use { out ->
+                File(src).inputStream().use { input -> input.copyTo(out) }
+            } ?: throw IOException("provider 未提供输出流")
+            result.success("ok")
+        } catch (_: SecurityException) {
+            result.success("no_perm")
+        } catch (_: FileNotFoundException) {
+            result.success("missing")
+        } catch (_: Exception) {
+            result.success("error")
+        }
     }
 
-    /// 返回语义（Dart 侧同约定）：
-    /// null ＝ 没有待处理文件；"" ＝ 收到了非 .epub 文件（Dart toast「只支持 EPUB」）；
-    /// 其余 ＝ 已拷入私有缓存 `cacheDir/lh_open/<原文件名>` 的绝对路径。
+    companion object {
+        private const val REQ_SAF_SAVE = 0x5AF1
+        private val NOTE_EXT = listOf(".md", ".markdown", ".txt")
+    }
+
+    /// 返回语义（Dart 侧 core/platform/open_intent.dart 同约定）：
+    /// null ＝ 没有待处理文件；map kind="" ＝ 收到不支持的类型；
+    /// 其余 ＝ kind(epub|note) + 已拷入私有缓存 `cacheDir/lh_open/<原文件名>`
+    /// 的绝对路径 + 原文件名 + 原始 URI 字符串（回写锚点）。
     /// content 授权失效/读取失败按 null 处理（Dart 无感，不误弹）。
-    private fun takeEpub(): String? {
+    private fun takeOpen(): Map<String, String>? {
         val uri = pendingUri ?: return null
-        val raw = pendingName ?: "book.epub"
+        val raw = pendingName ?: (uri.path?.substringAfterLast('/') ?: "")
         pendingUri = null
         pendingName = null
-        val name = raw.substringAfterLast('/').ifBlank { "book.epub" }
-        if (!name.lowercase().endsWith(".epub")) return ""
+        val name = raw.substringAfterLast('/').ifBlank { "file" }
+        val lower = name.lowercase()
+        val kind = when {
+            lower.endsWith(".epub") -> "epub"
+            NOTE_EXT.any { lower.endsWith(it) } -> "note"
+            else -> ""
+        }
+        if (kind.isEmpty()) return mapOf("kind" to "")
         val dir = File(cacheDir, "lh_open").apply { mkdirs() }
-        // 清掉上次暂存，避免缓存副本逐本累积（一本可达百 MB 级）。
+        // 清掉上次暂存，避免缓存副本逐件累积（EPUB 可达百 MB 级）。
         dir.listFiles()?.forEach { it.delete() }
         val dst = File(dir, name)
         return try {
             contentResolver.openInputStream(uri)?.use { input ->
                 dst.outputStream().use { out -> input.copyTo(out) }
             } ?: return null
-            dst.absolutePath
+            mapOf(
+                "kind" to kind,
+                "path" to dst.absolutePath,
+                "name" to name,
+                "uri" to uri.toString(),
+            )
         } catch (_: Exception) {
             null
         }

@@ -37,9 +37,12 @@ class NoteFolderDao {
       table, {'parent_id': parentId}, where: 'id = ?', whereArgs: [id]);
 
   /// 删除文件夹：子夹整体上移到其父级，夹内笔记 folder 置空（无分类），不删笔记。
+  /// V1.64 批1（拍板 F）：固定「系统打开」夹不可删——它是 N-4 历史列表的载体，
+  /// 删除请求按无操作吞掉（入口侧本不该给这枚节点删钮，此处为 DAO 层兜底守卫）。
   Future<void> deleteTree(int id) async {
     final row = await db.query(table, where: 'id = ?', whereArgs: [id], limit: 1);
     if (row.isEmpty) return;
+    if ((row.first['name'] as String?) == kSystemOpenFolder) return;
     final parentId = row.first['parent_id'] as int?;
     await db.update(table, {'parent_id': parentId},
         where: 'parent_id = ?', whereArgs: [id]);

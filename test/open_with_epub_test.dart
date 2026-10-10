@@ -25,8 +25,10 @@ import 'package:lifeharness/features/read/presentation/reader/reader_pager.dart'
 import 'package:lifeharness/features/read/presentation/shelf/shelf_page.dart';
 
 // V1.53.4⑥ 系统「打开方式」EPUB→导入 · 独立文件（全 app 级 pump 拆分铁律）。
-// 通道走 TestDefaultBinaryMessenger mock，doc/导入/预载全 fake，FakeAsync 下
-// 不触真磁盘（既有踩坑：测禁真异步 I/O）。
+// doc/导入/预载全 fake，FakeAsync 下不触真磁盘（既有踩坑：测禁真异步 I/O）。
+// V1.64 批1：通道泛化——take/分派上收 core/platform/open_intent.dart＋app.dart
+// （三态与拒收 toast 的守护随迁 note_open_with_test），本件只测 EPUB 支路本体：
+// 直接调 handleOpenWithEpub(path)。
 
 Uint8List _miniEpubBytes({String title = '打开测试书', String author = '丁一'}) {
   ArchiveFile f(String n, List<int> b) => ArchiveFile(n, b.length, b);
@@ -123,8 +125,6 @@ void main() {
   late Database db;
   late ReadRepository repo;
   late SharedPreferences prefs;
-  const channel = MethodChannel('lh/intents');
-  String? channelReturn;
   late _FakeImport fake;
   late _NoopPreload preloadSvc;
   bool loaderThrows = false;
@@ -139,14 +139,9 @@ void main() {
     repo = ReadRepository(db);
     fake = _FakeImport(repo);
     preloadSvc = _NoopPreload(repo);
-    channelReturn = null;
     loaderThrows = false;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async => channelReturn);
   });
   tearDown(() async {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
     brOpenFileSize = (path) => Future.value(0);
     await db.close();
   });
@@ -197,30 +192,15 @@ void main() {
     brOpenFileSize = (path) async => 2048;
   }
 
-  Future<void> deliver(WidgetTester t, String? value) async {
-    channelReturn = value;
-    unawaited(brOpenConsumeOnce(nav.currentContext!, capRef!));
+  // 注意：handleOpenWithEpub 内部会「等弹层被点」——必须 unawaited 发射，
+  // 否则测试 await 自己该点的弹层＝死锁（本批三次「挂死」真根因，非并发污染）。
+  Future<void> deliver(WidgetTester t, String path) async {
+    unawaited(handleOpenWithEpub(nav.currentContext!, capRef!, path));
     await t.pump();
     await t.pump(const Duration(milliseconds: 80));
   }
 
-  group('⑥ 打开方式接收链', () {
-    testWidgets('无待处理（null）：不打扰，仅通道被取一次', (t) async {
-      await pumpApp(t);
-      await deliver(t, null);
-      expect(find.text('HOME'), findsOne);
-      expect(find.byKey(const ValueKey('br-open-info')), findsNothing);
-      await settle5(t);
-    });
-
-    testWidgets('非 EPUB（空串）：toast「只支持 EPUB」', (t) async {
-      await pumpApp(t);
-      await deliver(t, '');
-      expect(await pollText(t, '只支持 EPUB'), isTrue);
-      await clearToasts(t);
-      await settle5(t);
-    });
-
+  group('⑥ 打开方式接收链（EPUB 支路本体）', () {
     testWidgets('解析失败（DRM）：toast 异常原因', (t) async {
       loaderThrows = true;
       await pumpApp(t);

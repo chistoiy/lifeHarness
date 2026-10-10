@@ -3804,6 +3804,48 @@
      "hash": "55d96ff4"
     }
    }
+  },
+  {
+   "id": "sheetNoteImport",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 1171,
+     "hash": "68b3c07b"
+    }
+   }
+  },
+  {
+   "id": "sheetNoteExport",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 1190,
+     "hash": "ec7fbf5e"
+    }
+   }
+  },
+  {
+   "id": "sheetNoteOpenHist",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 803,
+     "hash": "83ee691e"
+    }
+   }
   }
  ],
  "violations": [

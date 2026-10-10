@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。
 
-- **本批＝** 影音游批9a 导入矩阵与导出尾项·原型先行（零 dart·DB 停 v40）＝`m-import` 薄壳重建：五档取法 3/2/5/3×13 家分组行＋剪贴板框三 id 识别（裸数字不误判）＋Steam 扫描灰态；新两弹层＝`sheet-m-import` 五步向导（给料随取法分派·预览带外部 id·对账三计数现算·撤销本批真动作）＋`sheet-m-playlist` 四源两法复用五步③④行式；闸＝media_b9acheck 16/16·三刀各红其位 md5 复原全等·registry CLEAN·protogate strict 0；过门五点（工单 §2）待产品定·9b 面板过门后另补·dart 攒 6097；样张＝tempWork/media-b9a-shots。
-- **上一批＝** 影音游批8b 影音单两面·实现批（零迁移·DB 停 v40）＝`media_lists`/`media_list_items` 读写口＋`/media/lists`·`/media/list/:id` 两面＋四弹层（新建/改名/添加条目/分享＝半屏预览＋复制文字版 TXT/MD＋保存图片真渲染）＋年度底稿零落行动态求得只读＋工作台直达行与动作面「移入影音单」真接线；常驻新增 10 枚·批内增量 8 文件 56 绿·变异三刀各红其位；原型与实现同日闭环（过门五点照交付态＝工单 §4），工单入 archive；dart 攒复测包 **6097**（未构建）；批8b/批9 五提交已双端推送（Gitee→GitHub ssh:443·两端 ls-remote 等值 `68de0d6`）
+- **上一批＝** 影音游批9a 导入矩阵与导出尾项·原型先行（零 dart·DB 停 v40）＝`m-import` 薄壳重建：五档取法 3/2/5/3×13 家分组行＋剪贴板框三 id 识别（裸数字不误判）＋Steam 扫描灰态；新两弹层＝`sheet-m-import` 五步向导（给料随取法分派·预览带外部 id·对账三计数现算·撤销本批真动作）＋`sheet-m-playlist` 四源两法复用五步③④行式；闸＝media_b9acheck 16/16·三刀各红其位 md5 复原全等·registry CLEAN·protogate strict 0；过门五点（工单 §2）待产品定·9b 面板过门后另补·dart 攒 6097；样张＝tempWork/media-b9a-shots。
+- **本批＝** V1.64 批1 笔记 open-with 泛化＋回写实现批（DB v41＝notes 来源四列纯加列零搬）＝manifest md/text 三组入口＋`takeOpenFile` 多类型（分派上收组合根守 R1）；md 归集固定「系统打开」夹直达编辑、同名同 URI 覆盖更新·回收站行不判重·夹删除有守卫；保存回写原文件（授权失效/不在两式人话降级）。闸＝新常驻 `note_open_with_test` 11 例＋面板八件逐档绿＋变异三刀各红其位；原型批 13/13 已过门；工装 `ftest_waves.sh` 拆波硬闸（AGENTS/§7.5 改口；当晚三次「挂死」真根因＝测试 deliver 误 await 弹层自锁，已修记工单 §9）。批2（N-1＋N-1c 挂载移除·拍板 H 待答）/批3（N-2 导出）待开工＝同工单 §5；dart 攒复测包 **6098**（未构建）。
 
 ## 基线（八项，其余不写）
 

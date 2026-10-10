@@ -1359,6 +1359,7 @@ tailwind.config = {
     <div class="border-t border-slate-100 dark:border-slate-800 px-2 py-1.5 flex items-center justify-around">
       <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
       <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
+      <button class="pw-ic-btn nt-ic" title="导出为本地目录" onclick="nxOpen()" id="ntBtExport"></button>
       <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
       <button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntBtClose"></button>
     </div>
@@ -1386,6 +1387,50 @@ tailwind.config = {
     <button onclick="dlExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
   
+
+  <!-- V1.64：笔记本地导入／导出为目录／系统打开（open-with）临时夹与历史列表 · 规格＝docs/handoff/交棒话术-20261004-笔记本地导入导出与系统打开方式.md -->
+  <div id="sheetNoteImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteImport')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">导入本地</div>
+      <div class="mt-2 flex gap-2">
+        <button id="niSegDir" onclick="niKindChg('dir')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
+        <button id="niSegFile" onclick="niKindChg('file')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
+      </div>
+      <div id="niHint" class="text-[11px] text-slate-400 mt-2"></div>
+      <div id="niProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
+      <div class="mt-3 flex gap-2">
+        <button onclick="closeSheet('sheetNoteImport')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
+        <button id="niGo" onclick="niDo()" class="flex-[2] py-3 rounded-xl bg-brand-500 text-white text-[13px] font-bold active:opacity-80"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sheetNoteExport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteExport')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="font-extrabold">导出为本地目录</div>
+      <div class="mt-2 flex gap-2">
+        <button id="nxScCur" onclick="nxScChg('cur')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
+        <button id="nxScAll" onclick="nxScChg('all')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
+      </div>
+      <div class="text-[11px] text-slate-400 mt-2">每篇一个 .md · 图片附件随导至同级 _assets/</div>
+      <div id="nxProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
+      <div class="mt-3 flex gap-2">
+        <button onclick="closeSheet('sheetNoteExport')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
+        <button id="nxGo" onclick="nxDo()" class="flex-[2] py-3 rounded-xl bg-brand-500 text-white text-[13px] font-bold active:opacity-80">选择目录并导出</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sheetNoteOpenHist" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteOpenHist')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="flex items-center gap-2"><b class="text-[15px] flex-1">系统打开</b><span id="nohClr" onclick="nohClr()" class="text-[11px] font-bold text-rose-500 px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-800">清空</span></div>
+      <div id="nohList" class="mt-3 space-y-2"></div>
+      <button onclick="nohSim()" class="mt-3 w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[12px] font-bold text-slate-500">演示：系统里打开一个 .md</button>
+    </div>
+  </div>
 
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
@@ -3057,7 +3102,7 @@ const NT_IC={
  folderMove:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>',
  caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
-const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',c:[]}];
+const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',src:'local',c:[]}];
 let ntOpen={},ntSel='';
 /* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
 function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';
@@ -3077,21 +3122,84 @@ function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortM
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
 function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
-function ntPick(n,has){ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
+function ntPick(n,has){const nd=ntNode(n);if(nd&&nd.src==='export'){toast('导出目录为只读挂载 · 保存只落在应用内');return;}ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
 function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
 function ntLong(n){toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
 function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
   return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
     <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
-    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
+    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}${ntBadge(n.src)}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
     +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
 function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
+  +`<div class="nt-row" onclick="nohOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">系统打开${ntBadge('temp')}</span><span class="text-[9px] text-slate-400">${OF.length}</span></div>`
   +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
   +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
-  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`;}
+  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`
+  +`<div class="nt-row" onclick="niOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folderAdd}</span><span class="flex-1">导入本地 · 目录或文件</span></div>`;}
 function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
+/* —— V1.64：本地导入／导出为目录／系统打开临时夹与历史（工单 §2 N-1~N-4 · 拍板 A~G＝§4） —— */
+const NT_BADGE={local:['本地','#0d9488'],export:['导出','#d97706'],temp:['临时','#64748b']};
+const OF_ST={written:['已回写原文件','#0d9488'],app:['仅应用内','#e11d48'],moved:['已转正式目录','#64748b']};
+let OF=[{f:'会议纪要.md',p:'/Download/会议纪要.md',ts:'10-08 21:14',st:'written'},
+ {f:'灵感速记.md',p:'/Documents/灵感速记.md',ts:'10-09 08:02',st:'app'},
+ {f:'读书笔记.md',p:'/Download/读书笔记.md',ts:'10-06 19:30',st:'moved'}];
+function ntBadge(k){const b=NT_BADGE[k];return b?'<span class="ml-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style="color:'+b[1]+';border:1px solid '+b[1]+'">'+b[0]+'</span>':'';}
+function ntNode(name){const p=ntFindPath(name);return p?p.arr[p.i]:null;}
+let niKind='dir';
+function niOpen(){renderNi();openSheet('sheetNoteImport');}
+function niKindChg(k){niKind=k;renderNi();}
+function renderNi(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg-slate-800 text-slate-500';
+ $('#niSegDir').textContent='目录';$('#niSegFile').textContent='文件';
+ $('#niSegDir').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='dir'?on:off);
+ $('#niSegFile').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='file'?on:off);
+ $('#niHint').textContent=niKind==='dir'?'递归收目录内 .md · 按内容哈希判重 · 树上新增带「本地」角标节点':'多选 .md 文件 · 建于当前目录 · 该目录带「本地」角标';
+ $('#niGo').textContent=niKind==='dir'?'选择目录并导入':'选择文件并导入';
+ $('#niProg').classList.add('hidden');}
+function niDo(){$('#niProg').classList.remove('hidden');
+ $('#niProg').textContent=niKind==='dir'?'扫描目录 · 抽取 .md 中…':'读取所选文件…';
+ setTimeout(function(){let add=0,skip=0;
+  const push=(t,f,src)=>{if(D.notes.some(x=>x.t===t)){skip++;return;}add++;D.notes.push({t:t,txt:'（本地导入 · '+src+'）',folder:f,words:320,time:'刚刚',cre:'10-10',pin:0,md:1,src:src});};
+  if(niKind==='dir'){if(!ntFindPath('外来笔记夹'))NTREE.push({n:'外来笔记夹',src:'local',c:[]});
+    ['协议草稿','复盘意见','任务拆分'].forEach(t=>push(t,'外来笔记夹','local_dir'));}
+  else{const f=ntSel||'灵感';const nd=ntNode(f);if(nd)nd.src='local';['引文摘抄','译注备忘'].forEach(t=>push(t,f,'local_file'));}
+  closeSheet('sheetNoteImport');renderNt();renderNotes();
+  toast('已导入 '+add+' 条 · 跳过重复 '+skip+' 条');},500);}
+let nxSc='all';
+function nxOpen(){renderNx();openSheet('sheetNoteExport');}
+function nxScChg(s){if(s==='cur'&&!ntSel){toast('先在树中点选文件夹，或改选「全部笔记」');return;}nxSc=s;renderNx();}
+function renderNx(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg-slate-800 text-slate-500';
+ const dis=!ntSel;
+ $('#nxScCur').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(nxSc==='cur'?on:off)+(dis?' opacity-40':'');
+ $('#nxScCur').textContent='当前目录'+(ntSel?' · '+ntSel:'');
+ $('#nxScAll').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(nxSc==='all'?on:off);
+ $('#nxScAll').textContent='全部笔记';
+ $('#nxProg').classList.add('hidden');}
+function nxDo(){$('#nxProg').classList.remove('hidden');$('#nxProg').textContent='写入 .md 与 _assets/ 附件中…';
+ setTimeout(function(){const n=nxSc==='all'?D.notes.length:D.notes.filter(x=>x.folder===ntSel).length;
+  if(!ntFindPath('笔记导出'))NTREE.push({n:'笔记导出',src:'export',c:[]});
+  closeSheet('sheetNoteExport');renderNt();
+  toast('已导出 '+n+' 篇 · md＋附件目录包');},500);}
+let nohArmed=false;
+function nohOpen(){nohArmed=false;nohArmTxt();renderNoh();openSheet('sheetNoteOpenHist');}
+function nohArmTxt(){const b=$('#nohClr');if(b)b.textContent=nohArmed?'确认清空？':'清空';}
+function nohClr(){if(!OF.length)return;
+ if(!nohArmed){nohArmed=true;nohArmTxt();return;}
+ OF=[];nohArmed=false;nohArmTxt();renderNoh();renderNt();toast('已清空 · 已转入的笔记不受影响');}
+function renderNoh(){const L=$('#nohList');if(!L)return;
+ if(!OF.length){L.innerHTML='<div class="py-6 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">还没有经系统打开的文件</div>';return;}
+ L.innerHTML=OF.map(function(o,i){const st=OF_ST[o.st];
+  return '<div class="rounded-xl border border-slate-100 dark:border-slate-800 px-3 py-2.5" onclick="nohGo('+i+')">'
+   +'<div class="flex items-center gap-2"><span class="text-[13px] font-bold flex-1 truncate">'+o.f+'</span>'
+   +'<span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style="color:'+st[1]+';border:1px solid '+st[1]+'">'+st[0]+'</span></div>'
+   +'<div class="text-[10px] text-slate-400 truncate mt-0.5">'+o.p+' · '+o.ts+'</div>'
+   +(o.st==='moved'?'':'<div class="flex items-center gap-2 mt-1.5"><button onclick="event.stopPropagation();nohMove('+i+')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">转入正式目录</button>'
+     +(o.st==='app'?'<span class="text-[9px] text-rose-500">原文件不在 · 改动仅存应用内</span>':'')+'</div>')+'</div>';}).join('');}
+function nohGo(i){closeSheet('sheetNoteOpenHist');if(curPage!=='p-records'||recTab!=='note'){navTab('p-records');switchRecord('note');}toast('已打开笔记「'+OF[i].f.replace(/\.md$/,'')+'」');}
+function nohMove(i){const to=ntSel||'方法论';OF[i].st='moved';renderNoh();renderNt();toast('已转入「'+to+'」 · 清除临时标记');}
+function nohSim(){const t='新建笔记'+(OF.length+1)+'.md';OF.unshift({f:t,p:'/Download/'+t,ts:'刚刚',st:'written'});
+ renderNoh();renderNt();toast('已导入到「系统打开」 · 进入编辑 · 保存将回写原文件');}
 function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
-(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
+(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;$('#ntBtExport').innerHTML=NT_IC.folderMove;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
 let noteRestore='replace';
 
 

@@ -54,6 +54,17 @@ extension _NoteSave on _NoteEditPageState {
             updatedAt: now));
     _existing = saved;
     _dirty = false;
+    // V1.64 批1（工单 §4 拍板 G）：open_with 条目保存＝回写手机里的原始文件；
+    // 原文件不在/授权失效按人话降级（改动仅存应用内），非在场来源不打扰。
+    final wb = await noteWriteBackGuard(
+        source: saved.source,
+        originUri: saved.originUri,
+        content: saved.content);
+    if (wb != null && wb != 'ok' && mounted) {
+      AppToast.show(context, wb == 'missing'
+          ? '原文件已不在 · 改动仅存应用内'
+          : '原文件授权失效 · 改动仅存应用内');
+    }
     ref.invalidate(notesProvider);
     ref.invalidate(noteFoldersProvider);
     return saved;
