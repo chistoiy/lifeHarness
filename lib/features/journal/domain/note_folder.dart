@@ -11,6 +11,9 @@ class NoteFolder {
     required this.name,
     this.parentId,
     this.sort = 0,
+    this.source = '',
+    this.originPath = '',
+    this.originUri = '',
   });
 
   final int? id;
@@ -18,11 +21,28 @@ class NoteFolder {
   final int? parentId;
   final int sort;
 
+  /// V1.64 批2（工单 §1.2 N-1c · 拍板 H）：该夹是否＝「手机里某目录的挂载」。
+  /// ''=应用内手建 | local_dir(本地导入的目录) | export(导出目录·只读挂载)。
+  /// 挂载夹在树内长按给「移除」＝只摘本表这些行，磁盘原件与库内笔记都不动。
+  final String source;
+
+  /// 挂载来源展示路径（目录名/相对路径；仅挂载夹有值，确认层与列表用）。
+  final String originPath;
+
+  /// 挂载的 SAF tree URI（权限持久化锚点；手建夹为空）。
+  final String originUri;
+
+  /// 树上可给「移除挂载」入口的两类（手建夹与固定「系统打开」夹都不在内）。
+  bool get isMount => source == 'local_dir' || source == 'export';
+
   static NoteFolder fromRow(Map<String, Object?> row) => NoteFolder(
         id: row['id'] as int?,
         name: row['name'] as String,
         parentId: row['parent_id'] as int?,
         sort: (row['sort'] as int?) ?? 0,
+        source: (row['source'] as String?) ?? '',
+        originPath: (row['origin_path'] as String?) ?? '',
+        originUri: (row['origin_uri'] as String?) ?? '',
       );
 
   Map<String, Object?> toRow() => {
@@ -30,6 +50,9 @@ class NoteFolder {
         'name': name,
         'parent_id': parentId,
         'sort': sort,
+        'source': source,
+        'origin_path': originPath,
+        'origin_uri': originUri,
       };
 }
 

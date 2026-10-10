@@ -18,6 +18,7 @@ class Note {
     this.originPath = '',
     this.originUri = '',
     this.openedAt,
+    this.srcHash = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -46,6 +47,11 @@ class Note {
 
   /// 经系统打开的最近一次导入时间（N-4 历史行读数；其余为 null）。
   final DateTime? openedAt;
+
+  /// V1.64 批2（N-1）：内容哈希（sha256 前 16 位十六进制）。仅本地导入/打开方式
+  /// 写入时算好落库；导入侧按「同哈希＋在册行」判重跳过（回收站行不参与）。
+  /// ''＝应用内自建或批2 前的存量行（不参与判重，避免把老数据误判成重复）。
+  final String srcHash;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -121,6 +127,7 @@ class Note {
         openedAt: row['opened_at'] == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row['opened_at'] as int),
+        srcHash: (row['src_hash'] as String?) ?? '',
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
         updatedAt:
@@ -141,6 +148,7 @@ class Note {
         'origin_path': originPath,
         'origin_uri': originUri,
         'opened_at': openedAt?.millisecondsSinceEpoch,
+        'src_hash': srcHash,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
       };
@@ -159,6 +167,7 @@ class Note {
     String? originPath,
     String? originUri,
     DateTime? openedAt,
+    String? srcHash,
     DateTime? updatedAt,
   }) =>
       Note(
@@ -175,6 +184,7 @@ class Note {
         originPath: originPath ?? this.originPath,
         originUri: originUri ?? this.originUri,
         openedAt: openedAt ?? this.openedAt,
+        srcHash: srcHash ?? this.srcHash,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

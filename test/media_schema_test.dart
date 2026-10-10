@@ -23,10 +23,10 @@ void main() {
       .map((r) => r['name'] as String)
       .toSet();
 
-  test('版本号 41，37→38 建七表＋39→40 建目标表，八表齐', () async {
-    expect(DbSchema.version, 41,
-        reason: 'V1.64 批1 notes 来源四列升 41（40→41 段随批 bump）；'
-            '批8a 目标屏建 media_goals（39→40 段）与批5 复习三列（38→39 段）不动');
+  test('版本号 42，37→38 建七表＋39→40 建目标表，八表齐', () async {
+    expect(DbSchema.version, 42,
+        reason: 'V1.64 批2 本地导入升 42（41→42 段＝note_folders 挂载三列＋notes.src_hash，'
+            '纯加列零搬）；批8a 目标屏建 media_goals（39→40 段）与批5 复习三列（38→39 段）不动');
     expect(DbSchema.migrations.containsKey(37), isTrue,
         reason: '缺这段＝老库升级不建影音游表（新装有、老库没有）');
     final t = await tables();

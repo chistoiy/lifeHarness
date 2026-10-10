@@ -75,6 +75,16 @@ class NoteDao {
     return {for (final r in rows) r['folder'] as String: r['c'] as int};
   }
 
+  /// V1.64 批2 N-1c：仍含本地来源笔记的夹名（单文件导入的「本地」挂标据此自动回落，
+  /// 夹内本地笔记清空后不再画标；回收站行不算）。
+  Future<Set<String>> foldersHoldingLocalNotes() async {
+    final rows = await db.rawQuery(
+        "SELECT DISTINCT folder FROM $table WHERE source IN "
+        "('local_dir','local_file','open_with') AND deleted_at IS NULL "
+        "AND folder IS NOT NULL AND folder != ''");
+    return {for (final r in rows) r['folder'] as String};
+  }
+
   Future<Note?> byId(int id) async {
     final rows = await db.query(table, where: 'id = ?', whereArgs: [id], limit: 1);
     return rows.isEmpty ? null : Note.fromRow(rows.first);
@@ -87,6 +97,17 @@ class NoteDao {
     final rows = await db.query(table,
         where: 'origin_uri = ? AND deleted_at IS NULL',
         whereArgs: [uri],
+        limit: 1);
+    return rows.isEmpty ? null : Note.fromRow(rows.first);
+  }
+
+  /// V1.64 批2 N-1（工单 §2 · 内容哈希判重）：同哈希的在册行；回收站行不参与
+  /// （E 批红线，同 [byOriginUri]）。'' 哈希＝应用内自建/存量行一律不判重。
+  Future<Note?> bySrcHash(String hash) async {
+    if (hash.isEmpty) return null;
+    final rows = await db.query(table,
+        where: 'src_hash = ? AND deleted_at IS NULL',
+        whereArgs: [hash],
         limit: 1);
     return rows.isEmpty ? null : Note.fromRow(rows.first);
   }

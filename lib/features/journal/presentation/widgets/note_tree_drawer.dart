@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/platform/saf_tree.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
+import '../note_local_import.dart';
 
 /// V1.29 批A3 · 文件夹树抽屉（原型 noteTree · Obsidian 形态）：
 /// 左滑入 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
@@ -66,6 +68,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
   }
 
   Future<void> _nodeActions(FolderNode node) async {
+    // V1.64 批2 N-1c（工单 §1.2 · 拍板 H）：挂载节点（本地导入的目录／导出目录）
+    // 长按＝进「移除挂载」确认层；手建夹维持原「重命名／删除」菜单。
+    if (node.folder.isMount) return _unmount(node);
     final act = await showModalBottomSheet<String>(
       context: context,
       builder: (bc) => SafeArea(
@@ -93,7 +98,11 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       if (name == null || name.trim().isEmpty) return;
       await dao.rename(node.id, name);
     } else {
-      await dao.deleteTree(node.id);
+      final ok = await dao.deleteTree(node.id);
+      // 批1 的 DAO 守卫原本静默吞掉「系统打开」的删除请求＝点了没反应；批2 补可见提示。
+      if (!ok && mounted) {
+        AppToast.show(context, '「$kSystemOpenFolder」是系统夹 · 不能删除');
+      }
       final sel = ref.read(noteFilterProvider).folder;
       if (sel == node.name) {
         ref.read(noteFilterProvider.notifier).state = (folder: '',
@@ -105,10 +114,81 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     setState(() {});
   }
 
+  /// 移除挂载（N-1c）：确认层后果三行现算；确认后只摘挂载行，笔记与磁盘原件都不动。
+  Future<void> _unmount(FolderNode node) async {
+    final dao = ref.read(noteFolderDaoProvider);
+    final notes = ref.read(noteDaoProvider);
+    final ids = await dao.subtreeIds(node.id);
+    final keep = await mountNoteCount(dao, notes, node.id);
+    if (!mounted) return;
+    await showNoteUnmountSheet(context,
+        folder: node.folder,
+        childCount: ids.length - 1,
+        keepCount: keep,
+        onConfirm: () async {
+          final removed =
+              await unmountFolder(folders: dao, notes: notes, folder: node.folder);
+          if (ref.read(noteFilterProvider).folder == node.name) {
+            ref.read(noteFilterProvider.notifier).state = (folder: '',
+                sort: ref.read(noteFilterProvider).sort,
+                asc: ref.read(noteFilterProvider).asc);
+          }
+          ref.invalidate(noteFolderListProvider);
+          ref.invalidate(notesProvider);
+          ref.invalidate(noteLocalFoldersProvider);
+          setState(() {});
+          if (mounted && removed > 0) {
+            AppToast.show(context,
+                '已移除挂载「${node.name}」 · $keep 条笔记保留在库 · 原文件不动');
+          }
+        });
+  }
+
+  /// 「导入本地」面板（N-1 目录档／文件档）；选择器与导入都在回调里跑。
+  Future<void> _importLocal() async {
+    final dao = ref.read(noteDaoProvider);
+    final folders = ref.read(noteFolderDaoProvider);
+    await showNoteLocalImportSheet(context, onRun: (kind) async {
+      final LocalImportReport? r;
+      try {
+        if (kind == 'dir') {
+          final treeUri = await safPickTree();
+          if (treeUri == null) return null; // 用户在系统选择器里取消＝不出提示
+          r = await importLocalTree(
+              notes: dao,
+              folders: folders,
+              root: await safListTree(treeUri),
+              readText: safReadText);
+        } else {
+          final docs = await safPickFiles();
+          if (docs.isEmpty) return null;
+          r = await importLocalFiles(
+              notes: dao,
+              folders: folders,
+              docs: docs,
+              currentFolder: ref.read(noteFilterProvider).folder,
+              readText: safReadText);
+        }
+      } catch (_) {
+        // catch-ok: 授权失效/provider 拒绝都要可见（工单 §3「点了必须有看得见的变化」）。
+        if (mounted) AppToast.show(context, '读不到所选内容（授权可能已失效）');
+        return null;
+      }
+      ref.invalidate(noteFolderListProvider);
+      ref.invalidate(notesProvider);
+      ref.invalidate(noteLocalFoldersProvider);
+      setState(() {});
+      return r;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tree = ref.watch(noteTreeProvider).valueOrNull ?? const [];
+    // 单文件导入的「本地」挂标随该夹是否还有本地来源笔记自动回落（工单 §1.2）。
+    final localFolders =
+        ref.watch(noteLocalFoldersProvider).valueOrNull ?? const <String>{};
     final total =
         (ref.watch(notesProvider).valueOrNull ?? const []).length;
     final selName = ref.watch(noteFilterProvider).folder;
@@ -154,7 +234,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                           depth: 0,
                           selected: selName == '',
                           onTap: () => _pick('')),
-                      ..._nodes(tree, 0),
+                      ..._nodes(tree, 0, localFolders),
                       // V1.60 全局回收站：抽屉行改道统一屏并落「笔记」段
                       // （页内垃圾箱视图随本批下架，恢复/彻底删除只在此屏做）。
                       _row(context,
@@ -173,6 +253,13 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                           label: '添加文件夹 · ${selNode?.name ?? '顶层'}',
                           depth: 0,
                           onTap: () => _add(selNode)),
+                      // V1.64 批2 N-1：树底「导入本地」入口（目录／文件就地两取法）。
+                      _row(context,
+                          keyName: 'nt-import',
+                          icon: Icons.drive_folder_upload_outlined,
+                          label: '导入本地 · 目录或文件',
+                          depth: 0,
+                          onTap: _importLocal),
                     ],
                   ),
                 ),
@@ -230,12 +317,22 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     );
   }
 
-  List<Widget> _nodes(List<FolderNode> nodes, int depth) => [
+  /// 树上角标来源（''＝不画）：挂载夹直取；`local_file` 挂标随本地来源笔记清空自动回落。
+  String _badgeOf(FolderNode n, Set<String> localFolders) {
+    final s = n.folder.source;
+    if (s == 'local_file') return localFolders.contains(n.name) ? s : '';
+    return s;
+  }
+
+  List<Widget> _nodes(List<FolderNode> nodes, int depth,
+          Set<String> localFolders) =>
+      [
         for (final n in nodes) ...[
           _row(context,
               keyName: 'nt-${n.name}',
               icon: Icons.folder_outlined,
               label: n.name,
+              badgeSource: _badgeOf(n, localFolders),
               count: n.noteCount,
               depth: depth,
               selected: ref.watch(noteFilterProvider).folder == n.name,
@@ -248,7 +345,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                   _open.contains(n.id) ? _open.remove(n.id) : _open.add(n.id)),
               onTap: () => _pick(n.name, hasKids: n.children.isNotEmpty, id: n.id),
               onLongPress: () => _nodeActions(n)),
-          if (_open.contains(n.id)) ..._nodes(n.children, depth + 1),
+          if (_open.contains(n.id)) ..._nodes(n.children, depth + 1, localFolders),
         ],
       ];
 
@@ -256,6 +353,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       {required String keyName,
       required IconData icon,
       required String label,
+      String badgeSource = '',
       int? count,
       int depth = 0,
       bool selected = false,
@@ -295,13 +393,21 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                 color: selected ? tokens.accent : scheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
-                child: Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                        color: selected ? tokens.accent : null))),
+                child: Row(
+              children: [
+                Flexible(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600,
+                            color: selected ? tokens.accent : null))),
+                // V1.64 批2：挂载来源角标（纯文字线性胶囊·零 emoji）。
+                if (badgeSource.isNotEmpty) MountBadge(source: badgeSource),
+              ],
+            )),
             if (count != null)
               Text('$count',
                   style: TextStyle(

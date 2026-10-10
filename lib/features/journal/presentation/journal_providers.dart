@@ -70,6 +70,10 @@ final noteTreeProvider = FutureProvider<List<FolderNode>>((ref) async {
   return NoteFolderDao.buildTree(all, noteCounts: counts);
 });
 
+/// V1.64 批2 N-1c：仍含本地来源笔记的夹名（树上「本地」挂标的自动回落判据）。
+final noteLocalFoldersProvider = FutureProvider<Set<String>>(
+    (ref) => ref.watch(noteDaoProvider).foldersHoldingLocalNotes());
+
 /// 全部日记（新→旧；保存/回望操作后 invalidate 刷新）。
 final journalsProvider = FutureProvider<List<JournalEntry>>(
     (ref) => ref.watch(journalRepositoryProvider).list());

@@ -42,7 +42,11 @@ class DbSchema {
   // 41：V1.64 批1 笔记打开方式——migrations[40]（40→41）给 notes 加来源四列
   // （source/origin_path/origin_uri/opened_at；纯加列零搬数据；
   //  值域 source=''|'open_with'|'local_dir'|'local_file'，工单 §4 拍板 E）。
-  static const int version = 41;
+  // 42：V1.64 批2 本地导入与挂载移除——migrations[41]（41→42）给 note_folders 加
+  // 挂载三列（source(''|'local_dir'|'export')/origin_path/origin_uri＝移除时只摘这些
+  // 记录、磁盘原件与库内笔记都不动＝工单 §4 拍板 H），notes 加 src_hash（N-1 内容哈希
+  // 判重锚点）＋非唯一索引；三处均纯加列零搬数据，基础 DDL 同段带列（两路互不撞）。
+  static const int version = 42;
  
 
   
@@ -180,6 +184,7 @@ class DbSchema {
       origin_path TEXT NOT NULL DEFAULT '',
       origin_uri TEXT NOT NULL DEFAULT '',
       opened_at INTEGER,
+      src_hash TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -193,13 +198,18 @@ class DbSchema {
     )
     ''',
     'CREATE INDEX idx_snap_note ON $tNoteSnapshots(note_id)',
+    // V1.64 批2（N-1 内容哈希判重）：非唯一，只给导入侧「在册行按哈希找回」提速。
+    'CREATE INDEX IF NOT EXISTS idx_notes_src_hash ON $tNotes(src_hash)',
     
     '''
     CREATE TABLE IF NOT EXISTS $tNoteFolders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       parent_id INTEGER,
       name TEXT NOT NULL,
-      sort INTEGER NOT NULL DEFAULT 0
+      sort INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT '',
+      origin_path TEXT NOT NULL DEFAULT '',
+      origin_uri TEXT NOT NULL DEFAULT ''
     )
     ''',
 
