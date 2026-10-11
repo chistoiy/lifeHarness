@@ -8,7 +8,7 @@
 
 ## 基线（八项，其余不写）
 
-推送台账＝`3c215d0` 已双端（Gitee https＋GitHub ssh:443 均 ls-remote 复验 tip 相同）；分支＝`feat/m0-skeleton`；发版＝tag 打在钉版提交上，分支 tip 不钉 sha；未推送提交看 `git log --oneline origin/feat/m0-skeleton..HEAD`。推送/发版须先取得产品同意。
+推送台账＝`b5c39c4` 已双端（Gitee https＋GitHub ssh:443 均 ls-remote 复验 tip 相同＝`b5c39c464f73`；本轮五枚＝真机反馈批 `001c6bb`＋Kotlin 修 `e1c45cf`＋6099 读数 `b44e631`＋固化清理 `68aa69e`＋收尾轮 `b5c39c4`）；分支＝`feat/m0-skeleton`；发版＝tag 打在钉版提交上，分支 tip 不钉 sha；未推送提交看 `git log --oneline origin/feat/m0-skeleton..HEAD`。推送/发版须先取得产品同意。
 - 最新预发布＝**`v0.2.15-note-local`**（钉版 `1bd4e99`＝`0.2.15+4098`·按产品令只挂一枚 arm64＝worktree `lh-rel1bd4e99` 从钉版提交构建·`prebuild_check --split --code 6098` 四条 ok → Gradle 392.2s → aapt 复验（装机 versionCode 6098／versionName 0.2.15／INTERNET 在主清单／库集与 6093 逐条无差异）·包 39,656,222 字节·Gitee release id `1196184`＋GitHub prerelease 同尺寸·**DB v39→v42 三级连跳·覆盖安装自动升级**；装机自验与更早轮补验共十六条＝`tools/release_body_v0215.md`；本轮按产品令**跳过独占全量**（攒到下轮正式版前补）·设备 `ea028260`）
 - 再前＝`v0.2.14-health-media`（钉版 `11b73ba`＝`0.2.14+4093`·arm64 单枚 39,327,846 字节·Gitee id `1190180`·DB v39·自验十二条＝`tools/release_body_v0214.md`）／`v0.2.13-media`（`20c5a51`·三包 6089/5089/8089·Gitee id `1187632`·DB v38）／`v0.2.12-ux2`（`54fd65a`·id `1185986`）／`v0.2.11-ux`（`758aeef`·arm64 6075）。逐枚取证与双端推送台账＝沉档 §复测包链段。
 - DB＝`DbSchema.version=42`（v40＝影音游批8a 建 `media_goals`（一指标一行·未设＝删行）；v41＝V1.64 批1 给 `notes` 加来源四列（source/origin_path/origin_uri/opened_at）；v42＝V1.64 批2 给 `note_folders` 加挂载三列（source/origin_path/origin_uri）＋`notes.src_hash`＋非唯一索引；三级均纯加列/纯建表零搬数据·守护例在册（`note_local_import_test` ① 组钉两路同段带列））
