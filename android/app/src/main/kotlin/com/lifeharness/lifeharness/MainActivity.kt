@@ -320,10 +320,10 @@ class MainActivity : FlutterActivity() {
     /// 一律按码返回不抛错——写回失败必须可见但不许吞掉应用内的保存。
     private fun safCreateInTree(call: MethodCall, result: MethodChannel.Result) {
         val treeStr = call.argument<String>("tree")
-        val want = call.argument<String>("name")
+        val want = call.argument<String>("name") ?: ""
         val text = call.argument<String>("text") ?: ""
         val rel = call.argument<String>("relPath") ?: ""
-        if (treeStr.isNullOrEmpty() || want.isNullOrEmpty()) {
+        if (treeStr.isNullOrEmpty() || want.isEmpty()) {
             result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
             return
         }
@@ -363,7 +363,7 @@ class MainActivity : FlutterActivity() {
                 "uri" to doc.toString(),
                 "name" to candidate,
                 // 人话位置（提示条要说「写到哪」）：relPath/实际文件名
-                "localPath" to (if (rel.isEmpty) candidate else "$rel/$candidate")
+                "localPath" to (if (rel.isEmpty()) candidate else "$rel/$candidate")
             ))
         } catch (_: SecurityException) {
             // 只读挂载（当初只拿到 READ）＝写回必失败，按码回给 Dart 出实话。
