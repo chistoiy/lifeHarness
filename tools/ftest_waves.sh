@@ -17,6 +17,7 @@ cd "$(dirname "$0")/.."
 TAG="${1:?用法: ftest_waves.sh <批次名> test/xxx.dart ...}"; shift
 [ $# -ge 1 ] || { echo "没有点名任何测试文件"; exit 2; }
 LOGD="tmp/gate_$TAG"; mkdir -p "$LOGD"; : > "$LOGD/progress.txt"
+WAVES_T0=$(date +%s)   # 门禁总墙钟自记（口径见 run_wave 注释）
 DLL="build/native_assets/windows/sqlite3.dll"
 NAJ="build/native_assets/windows/native_assets.json"
 
@@ -35,7 +36,8 @@ done
 
 run_wave() {
   local name="$1"; shift
-  local i rc
+  local i rc t0
+  t0=$(date +%s)
   for i in 1 2 3 4; do
     rm -f "$DLL" "$NAJ"
     flutter test --timeout 90s "$@" > "$LOGD/$name.log" 2>&1
@@ -44,7 +46,9 @@ run_wave() {
       echo "$name retry$i native_assets 抢占（并发会话），10s 后重试" >> "$LOGD/progress.txt"
       sleep 10; continue
     fi
-    echo "$name rc=$rc | $(tail -1 "$LOGD/$name.log" | cut -c1-72)" >> "$LOGD/progress.txt"
+    # 每波自带墙钟（2026-10-11 加：门禁快慢从此由工装自证，不再靠会话打点——
+    # 段末补打 mark 会把上一段耗时记进下一段，本会话就把 2'12" 的门禁误报成 20'）。
+    echo "$name rc=$rc | $(( $(date +%s) - t0 ))s | $(tail -1 "$LOGD/$name.log" | cut -c1-72)" >> "$LOGD/progress.txt"
     return $rc
   done
   echo "$name GATE-BUSY（连续 4 次被抢占）" >> "$LOGD/progress.txt"
@@ -58,9 +62,9 @@ for f in "$@"; do
 done
 
 if [ $FAIL -eq 0 ]; then
-  echo "WAVES-DONE $TAG ALL-GREEN $(date +%T)" >> "$LOGD/progress.txt"
+  echo "WAVES-DONE $TAG ALL-GREEN $(date +%T) · 门禁总墙钟 $(( $(date +%s) - WAVES_T0 ))s（$# 波）" >> "$LOGD/progress.txt"
 else
-  echo "WAVES-DONE $TAG HAS-RED（看各波 rc 与日志） $(date +%T)" >> "$LOGD/progress.txt"
+  echo "WAVES-DONE $TAG HAS-RED（看各波 rc 与日志） $(date +%T) · 门禁总墙钟 $(( $(date +%s) - WAVES_T0 ))s（$# 波）" >> "$LOGD/progress.txt"
 fi
 tail -12 "$LOGD/progress.txt"
 exit $FAIL
