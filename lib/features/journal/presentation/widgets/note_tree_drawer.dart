@@ -644,6 +644,10 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
 
   /// T-E 行内动作（原型 nt-act-rename／nt-act-del）：行尾就地两枚线性图标钮，
   /// 点哪枚即收起动作态；不再开白色半屏菜单。
+  ///
+  /// **命中区不许压到图标尺寸**（模拟器装机验出的真缺陷：`constraints: BoxConstraints()`
+  /// ＋zero padding 把 IconButton 缩成图标大小，手指点在图标上仍落到整行＝变成"选中目录"，
+  /// 而 widget 测试按 key 点中心永远点得中，抓不到）。下限 44×44（U6 同一口径）。
   Widget _actBtns(FolderNode node) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -652,7 +656,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
               tooltip: '重命名',
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () => _rename(node),
               icon: const Icon(Icons.edit_outlined, size: 18)),
           IconButton(
@@ -660,7 +664,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
               tooltip: '删除文件夹',
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () => _delete(node),
               icon: Icon(Icons.delete_outline,
                   size: 18, color: Theme.of(context).colorScheme.error)),

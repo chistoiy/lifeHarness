@@ -108,7 +108,14 @@ void main() {
     await openTree(t);
     await t.longPress(find.byKey(const ValueKey('nt-甲夹')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const ValueKey('nt-act-del')));
+    // 模拟器装机验出的真缺陷：命中区被压到图标尺寸时，手指点在图标上会落到整行＝变成「选中目录」，
+    // 而按 key 点中心永远点得中＝用例抓不到。所以这里断尺寸＋**故意点角落**。
+    final box = t.getSize(find.byKey(const ValueKey('nt-act-del')));
+    expect(box.width, greaterThanOrEqualTo(40),
+        reason: '动作钮命中区下限 40（U6 同口径），不许缩成图标大小');
+    expect(box.height, greaterThanOrEqualTo(40));
+    await t.tapAt(t.getCenter(find.byKey(const ValueKey('nt-act-del'))) +
+        Offset(-box.width / 2 + 3, box.height / 2 - 3));
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('nt-甲夹')), findsNothing,
         reason: '删除钮必须真删（就地化不改语义）');
