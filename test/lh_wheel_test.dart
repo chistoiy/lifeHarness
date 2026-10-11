@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/shared/widgets/lh_wheel.dart';
 
@@ -45,6 +46,29 @@ void main() {
     // 项键挂在 Center 上（Text 是它的孩子），别按 Text 直取。
     expect(find.descendant(of: find.byKey(const ValueKey('witem8')), matching: find.text('08')),
         findsOneWidget);
+  });
+
+  testWidgets('吸中上报必带 SelectionClick 触觉；首帧零震（2026-10-11 手感批四锚·工单 §1）', (tester) async {
+    final patterns = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'HapticFeedback.vibrate') patterns.add('${call.arguments}');
+      return null;
+    });
+    int? got;
+    await tester.pumpWidget(wrap(LHWheel(
+        labels: ['—', '1 杯', '2 杯', '3 杯'],
+        initialIndex: 2,
+        onSelect: (i) => got = i,
+        keyPrefix: 'w')));
+    await settle5(tester);
+    expect(got, isNull);
+    expect(patterns, isEmpty, reason: '没用户滚动＝不许震（含首帧自动回调）');
+    await tester.drag(find.byType(CupertinoPicker), const Offset(0, -34));
+    await settle5(tester);
+    expect(got, 3);
+    expect(patterns, ['HapticFeedbackType.selectionClick'],
+        reason: '真实改档上报必须同路一记轻嗒（摘此行本例即红＝变异刀①；参数名取当前框架枚举序列化实读值）');
   });
 
   testWidgets('容器高度改 160 后仍居中（回归既定坑：改高后导引线偏）', (tester) async {

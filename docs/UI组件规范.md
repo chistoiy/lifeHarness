@@ -64,6 +64,17 @@
 7 套主题 json 的 `--app-font`（复古/秋日暖调走衬线）与三档角色链的关系＝**角色链作默认、主题字体令牌作整档覆盖**
 （产品 2026-10-03 拍板，落点见 `docs/handoff/交棒话术-20261002-下一版实现批-F01-批C-R32精修.md` §1）。
 
+## 〇B、手感与动效约定（2026-10-11 手感批立 · 外部「Qoder 生成 Flutter 手感方案」仅吸收这三项）
+
+> 批次规格、采纳/否决对照与概念纠错留档＝`docs/handoff/交棒话术-20261011-手感批-触觉四锚与色值棘轮与边缘右滑内收.md`。本节是给写码代理的硬约定，验收随批走。
+
+- **微动效**：新写控件级动画默认 120~180ms＋`Curves.easeOut`；页面/弹层转场不手写——吃框架 M3 默认（~300ms 标准曲线即现状）。改全局转场＝视觉语言变更，先过原型门。
+- **按压反馈**：可点物只许两种形态——LH-K00 `Pressable`（scale .96，可进横滑/卡面）或 `InkWell`（Material 滚动面内带水波纹）；禁止裸 `GestureDetector` 吞可点区不反馈。
+- **触觉锚（全 app 只许四处，新增须产品拍板）**：滚轮吸中＝`LHWheel` 真实改动上报分支 → `selectionClick`；破坏确认＝`lhConfirm` 按下 destructive 钮 → `mediumImpact`（取消不震）；长按进管理态＝影音架 `_enterSel` → `mediumImpact`；复习卡翻面＝`mdr-card` → `selectionClick`。滚动/路由/普通点按不震；App 内不造开关（系统级触感归系统设置）。
+- **色值**：新样式一律走主题令牌（tokens/scheme）；硬编码 `Color(0x` 只许色板/语义文件，机器闸＝doclint 守护十（`tools/color_ratchet.py` 对 `tools/color_ratchet_baseline.json`，只拦新增不溯存量）——确需新增＝人审后 `--write` 钉基线并在收口行写一句理由。
+- **滚动**：长内容默认平台原生 physics，不覆写；滚轮/内嵌选中带这类**有意** `NeverScrollableScrollPhysics` 是既定定式，不算违规（外部方案「禁写死 physics」一刀切已否）。安卓钳位边缘叫 Clamping、Bouncing 是 iOS 弹簧——外部方案把两者说反，按本条为准。
+
+
 
 ## 一、LH-T 提示类
 

@@ -20,13 +20,15 @@ class EdgeSwipeToOpen extends StatefulWidget {
       {super.key,
       required this.onOpen,
       required this.child,
-      this.edgeZone = 28,
+      this.edgeZone = 110,
       this.triggerPx = 56});
 
   final VoidCallback onOpen;
   final Widget child;
 
-  /// 起点判定带（逻辑像素）：Android 系统「边缘返回」也吃这段，若机型冲突可调窄。
+  /// 起点判定带（逻辑像素）。2026-10-11 真机反馈轮2：贴边 ~20–30dp 被 Android 10+
+  /// 系统「边缘返回」吃掉（Flutter 收不到该段指针），带宽由 28 放宽到 110——
+  /// **起点从内侧起手右滑可靠开树**；贴边起手保留判定（关了系统手势的机器不亏）。
   final double edgeZone;
 
   /// 触发所需的累计右移量。

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -76,12 +77,17 @@ class _MediaShelfPageState extends ConsumerState<MediaShelfPage> {
     }
   });
 
-  void _enterSel(String id) => setState(() {
-    _selMode = true;
-    _sel
-      ..clear()
-      ..add(id);
-  });
+  void _enterSel(String id) {
+    // 手感批（2026-10-11）：长按进管理态＝模式切换，一记确认震。
+    // 顶栏「管理」钮走 `_enterSelMulti`（tap 已有按压反馈），不在此加震。
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selMode = true;
+      _sel
+        ..clear()
+        ..add(id);
+    });
+  }
 
   Future<void> _deleteSelected() async {
     final ids = _sel.toList();

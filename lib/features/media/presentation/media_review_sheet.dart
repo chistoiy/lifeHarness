@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/ui_kit.dart';
@@ -191,7 +192,11 @@ class _ReviewSheetState extends ConsumerState<_ReviewSheet> {
     return GestureDetector(
       key: const ValueKey('mdr-card'),
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _flipped = !_flipped),
+      // 手感批（2026-10-11）：翻面＝状态翻转，一记轻嗒。
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _flipped = !_flipped);
+      },
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
         child: ClipRRect(

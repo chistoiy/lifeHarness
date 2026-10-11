@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// LH-S31 破坏性操作二次确认（批六 T3 · 由日子模块 `daysConfirm` 提升为公共原语）。
 ///
@@ -23,7 +24,11 @@ Future<bool> lhConfirm(BuildContext context, String message,
         ),
         TextButton(
           key: const ValueKey('d-confirm-ok'),
-          onPressed: () => Navigator.pop(bc, true),
+          // 手感批（2026-10-11）：按下 destructive 钮＝一记确认震；取消不震（不可逆才值得震）。
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            Navigator.pop(bc, true);
+          },
           child: Text(okLabel,
               style: const TextStyle(
                   color: Color(0xFFF43F5E), fontWeight: FontWeight.w800)),

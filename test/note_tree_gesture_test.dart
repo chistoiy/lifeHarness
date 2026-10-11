@@ -13,7 +13,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // 2026-10-11 真机反馈轮（产品定「左边缘右滑开树·点树外收起」）·独立文件（全 app pump 拆分铁律）。
-// 默认测试画布 800×600：边缘判定带 28、抽屉宽 62%＝496 → 右侧空白取 x=700。
+// 默认测试画布 800×600：起点判定带 110（真机反馈轮2 由 28 放宽——贴边 ~20–30dp 被 Android
+// 系统「边缘返回」吃掉，内收段才是真机可靠起手区）、抽屉宽 62%＝496 → 右侧空白取 x=700。
 
 void main() {
   sqfliteFfiInit();
@@ -62,6 +63,16 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsOneWidget, reason: '边缘右滑必须能开树');
     expect(find.text('导入本地 · 目录或文件'), findsOneWidget);
+    await drainLogTimer(t);
+  });
+
+  testWidgets('起点内移（x=80）右滑照样开树（真机反馈轮2：贴边段被系统吃，判定带 28→110）', (t) async {
+    await open(t);
+    expect(find.text('全部笔记'), findsNothing);
+    await t.dragFrom(const Offset(80, 320), const Offset(150, 0));
+    await t.pumpAndSettle();
+    expect(find.text('全部笔记'), findsOneWidget,
+        reason: '离边一指宽起手是真机上唯一稳的形态，必须开得出树');
     await drainLogTimer(t);
   });
 

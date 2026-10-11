@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// 共享层数字滚轮（LH-K39 · 健康模块批2 起为全仓唯一滚轮原语）。
 /// 就地内嵌（红线：时间/数值输入禁「点击→弹层→再操作」两段式）。
@@ -90,6 +91,10 @@ class _LHWheelState extends State<LHWheel> {
                 }
                 if (i == _last) return;
                 _last = i;
+                // 手感批（2026-10-11）：吸中上报＝一记轻嗒。只挂真实改动分支——
+                // didUpdateWidget 的 jumpToItem 回调在上面已被上报闸拦（i==_last 早退），
+                // 所以回写自循环不会震；震动与上报同路，判据一致。
+                HapticFeedback.selectionClick();
                 // 惯性滚动结束回调可能落在别的 widget 构建期，统一延一帧再上报。
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) widget.onSelect(i);
