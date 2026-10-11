@@ -1350,10 +1350,11 @@ tailwind.config = {
   </div>
 
   <!-- ===== 底部导航 ===== -->
-  <!-- V1.29 三轮：文件夹树状侧边栏抽屉（参考 Obsidian：顶部入口·左滑出树·底部操作条） -->
+  <!-- V1.29 三轮：文件夹树状侧边栏抽屉（参考 Obsidian：顶部入口·左滑出树·底部操作条）
+       2026-10-11 真机反馈轮3：直角满高→Obsidian 悬浮圆角卡（四周留边·圆角 16·卡内底部条） -->
   <div id="ntMask" class="hidden fixed md:absolute inset-0 z-40 bg-black/40" onclick="ntClose()"></div>
-  <div id="noteTree" class="hidden fixed md:absolute left-0 top-0 bottom-0 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col">
-    <div class="px-4 pt-10 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
+  <div id="noteTree" class="hidden fixed md:absolute left-2 top-2 bottom-2 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col rounded-2xl overflow-hidden border border-slate-200/70 dark:border-slate-700/70">
+    <div class="px-4 pt-3 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
     <div class="px-2 pb-2 overflow-y-auto no-scrollbar flex-1" id="ntList"></div>
     <!-- V1.29轮11-2：底部操作条恢复线性图标钮（重命名/添加文件夹/展开折叠/关闭） -->
     <div class="border-t border-slate-100 dark:border-slate-800 px-2 py-1.5 flex items-center justify-around">
@@ -3117,7 +3118,7 @@ const NT_IC={
  caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
 const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',src:'local',c:[]}];
-let ntOpen={},ntSel='';
+let ntOpen={},ntSel='',ntAct='';
 /* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
 function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';
   for(let i=0;i<list.length;i++){const n=list[i],k=key===''?String(i):key+'.'+i;
@@ -3135,19 +3136,25 @@ let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长
 function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortMode]);}
 let ntAllOpen=false;
 function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
-function ntToggle(i){ntOpen[i]=!ntOpen[i];renderNt();}
-function ntPick(n,has){const nd=ntNode(n);if(nd&&nd.src==='export'){toast('导出目录为只读挂载 · 保存只落在应用内');return;}ntSel=n;noteFolder=n;if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
+function ntToggle(i){ntOpen[i]=!ntOpen[i];ntAct='';renderNt();}
+function ntPick(n,has){const nd=ntNode(n);if(nd&&nd.src==='export'){toast('导出目录为只读挂载 · 保存只落在应用内');return;}ntSel=n;noteFolder=n;ntAct='';if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
 function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
 function ntLong(n){const nd=ntNode(n);
-  /* V1.64 批2 · N-1c：本地导入／导出目录的挂载节点长按＝给「移除挂载」；普通手建夹维持原语义 */
+  /* V1.64 批2 · N-1c：本地导入／导出目录的挂载节点长按＝给「移除挂载」；
+     笔记树手感批 T-E（2026-10-11）：普通手建夹长按＝行内就地动作（不再 toast），再长按同夹收起 */
   if(nd&&(nd.src==='local'||nd.src==='export')){nuOpen(nd);return;}
-  toast('长按「'+n+'」：重命名 / 删除（内有笔记时提示迁移）· 拖动排序（拖入另一夹=变子级）');}
+  const p=ntFindPath(n);const k=p?p.k:'';
+  ntAct=(ntAct===k?'':k);renderNt();}
+/* 笔记树手感批 T-E 样张：行尾就地两枚线性钮（重命名/删除），点别处/收起 */
+function ntActBtns(n){return '<button class="pw-ic-btn nt-ic" id="nt-act-rename" title="重命名" onclick="event.stopPropagation();ntSel=&quot;'+n+'&quot;;ntRename()">'+NT_IC.edit+'</button>'
+ +'<button class="pw-ic-btn nt-ic" id="nt-act-del" title="删除文件夹" onclick="event.stopPropagation();ntDel(&quot;'+n+'&quot;)">'+NT_IC.trash+'</button>';}
+function ntDel(n){toast('删除「'+n+'」：内有笔记时提示迁移（模拟）');ntAct='';renderNt();}
 function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
   return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
     <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
-    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}${ntBadge(n.src)}</span><span class="text-[9px] text-slate-400">${2+n.n.length}</span></div>`
+    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}${ntBadge(n.src)}</span>${ntAct===i?'<span class="nt-acts">'+ntActBtns(n.n)+'</span>':'<span class="text-[9px] text-slate-400">'+(2+n.n.length)+'</span>'}</div>`
     +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
-function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
+function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';ntAct='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
   +`<div class="nt-row" onclick="nohOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">系统打开${ntBadge('temp')}</span><span class="text-[9px] text-slate-400">${OF.length}</span></div>`
   +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
   +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`

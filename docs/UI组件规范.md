@@ -283,11 +283,21 @@
 | LH-S37 | **影音游单条目轨迹弹层**（影音游批7 · 2026-10-09 原型定稿·同日实现批落地） | `m-sheet-track`（`index-media.html`，`mRenderTrackSheet`/`mMilesOf`） | 实装 `features/media/presentation/media_track_sheet.dart` `showMediaTrackSheet`（无路由·半屏，key `mds-track-*`）；里程碑算面 `domain/media_stats.dart` `mdsMilestonesOf`；取数 `data/media_repo_stat.dart` `closedSessionsOfItem`；用例 `test/media_track_sheet_test.dart`（8 例·经详情动作条真入口） | **只读**动作面（与阅读侧 `sheetTrack` 同形）：逐次柱状（最近 14 次·日期升序·柱高＝真实时长·**倍速 >1 才在柱顶出 `1.25x/1.5x` 角标**）＋时段分布五档（凌晨/上午/午后/傍晚/深夜，空档出「—」）＋里程碑＋底部「计时明细」入口行（点了收起弹层进 LH-C17 整屏）。**改与删一律在明细屏**，本弹层不铺编辑态。里程碑四类各一套（开始观影·看过一半·看完／开始追剧·看到一半·追完／开始听歌·循环 100 次／开始游玩·主线半程·通关），**未达成＝整行不出现**（不铺「未达成」占位），一个都没达成出虚线空态；无会话条目＝只有虚线「还没有计时记录」，明细入口行也不铺。演示侧完结档达成日取最近一条会话日，真机＝`media_items.ended_at`（零迁移） |
 - 可调旋钮：标题字号、行卡高度、选中描边色——**弹层内字段结构变更走原型确认门**。
 
+### LH-S38 笔记树悬浮卡（树手感批 · 2026-10-11 产品定稿）
+| 项 | 值 |
+|---|---|
+| 原型锚点 | `prototype/index-bookshelf.html` `#noteTree`（`left-2 top-2 bottom-2 rounded-2xl overflow-hidden border`；长按就地动作样张＝`ntAct` 态＋`nt-act-rename`/`nt-act-del`，演示＝右键） |
+| 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `_TreeDrawer`（容器 key `nt-card-shape`）＋`EdgeSwipeToOpen`（判定带 110） |
+| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable` |
+| 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡 |
+| 待落地 | 批2＝T-B 跟手抽屉＋T-E 长按就地动作（规格与面板＝`docs/handoff/交棒话术-20261011-笔记树手感批-悬浮圆角卡与跟手抽屉与就地动作.md`） |
+| 回归钉子 | `test/note_tree_gesture_test.dart` T-A/T-C/T-D 三例（圆角 16／AnimatedSize 宿主／Pressable 包裹） |
+
 ## 四、LH-K 控件类
 
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 / 可调旋钮 |
 |---|---|---|---|---|
-| LH-K00 | 按压反馈原语（批二 T5） | 无独立屏（全 app 通用态） | ui_kit `Pressable` | `Listener` 只观察指针不进手势竞技场；按下 `AnimatedScale(.96)`、抬起/取消复原；选 scale 不选 splash（要能安全套进横滑列表与卡片，splash 需 Material 祖先且在滚动面留残影）；`enabled=false` 时零开销直通 |
+| LH-K00 | 按压反馈原语（批二 T5） | 无独立屏（全 app 通用态） | ui_kit `Pressable` | `Listener` 只观察指针不进手势竞技场；按下 `AnimatedScale(.96)`、抬起/取消复原；选 scale 不选 splash（要能安全套进横滑列表与卡片，splash 需 Material 祖先且在滚动面留残影）；`enabled=false` 时零开销直通。**树手感批实锤（2026-10-11）**：挂在「点一下会重建自己」的卡上（进选择态/Dismissible 移除），抬手会在已 dispose 的 State 上 setState＝断言炸（note_test 两例红抓到），`_set` 已补 mounted 守卫——挂此类卡勿退回无守卫形态 |
 | LH-K01 | 渐变悬浮钮 FAB | .fab | core/widgets/grad_fab.dart:9 GradFab | 渐变+白＋；尺寸/位置 |
 | LH-K02 | FAB 行卡 | fabGo 行 | grad_fab.dart:66 FabActionCard | 快捷记录展开项（首页/待办共用） |
 | LH-K03 | 胶囊筛选 chip | .chip/.chip-on | ui_kit `PillChip`（journal 全部/列表/INS、待办筛选同源化） | 选中=accent 底白字；未选=卡底描边；字号/圆角/间距 |

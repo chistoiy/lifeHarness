@@ -90,6 +90,9 @@ class _PressableState extends State<Pressable> {
 
   void _set(bool v) {
     if (_down == v) return;
+    // 树手感批实锤：挂在「点一下会重建自己」的卡上，按下后卡被摘出树（进选择态/左滑移除），
+    // pointer-up 会在已 dispose 的 State 上回调——无 mounted 守卫＝ setState after dispose 断言。
+    if (!mounted) return;
     setState(() => _down = v);
   }
 

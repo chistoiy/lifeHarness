@@ -347,7 +347,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final paperOn = cardMode && n.paper.isNotEmpty;
     final pFg = paperOn ? paperFg(n.paper) : null;
 
-    Widget card = GestureDetector(
+    // 笔记树手感批 T-D：卡外套 LH-K00 Pressable（Listener 只观察不进竞技场，
+    // 与 Dismissible 左滑回收站无冲突）——裸 GestureDetector 无按压态＝实锤缺口。
+    Widget card = Pressable(
+      child: GestureDetector(
       key: ValueKey('note-card-${n.id}'),
       onTap: () {
         if (selMode) {
@@ -436,6 +439,7 @@ class _NoteTabState extends ConsumerState<NoteTab> {
             ],
           ],
         ),
+      ),
       ),
     );
 

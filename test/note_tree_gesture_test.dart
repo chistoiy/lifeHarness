@@ -9,6 +9,7 @@ import 'package:lifeharness/features/journal/data/note_folder_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
 import 'package:lifeharness/features/journal/presentation/note_tab.dart';
+import 'package:lifeharness/shared/widgets/ui_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -115,6 +116,41 @@ void main() {
     await t.pumpAndSettle();
     expect((await dao.trash()).single.title, '左滑我');
     expect(find.text('全部笔记'), findsNothing, reason: '左滑卡片不该顺手把树也开出来');
+    await drainLogTimer(t);
+  });
+
+  testWidgets('笔记树手感批 T-A：树面板＝悬浮圆角卡（圆角 16·产品 2026-10-11 定稿）', (t) async {
+    await open(t);
+    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.pumpAndSettle();
+    final shape = find.byKey(const ValueKey('nt-card-shape'));
+    expect(shape, findsOneWidget);
+    final rr = t.widget<ClipRRect>(shape);
+    expect((rr.borderRadius as BorderRadius).topLeft, const Radius.circular(16),
+        reason: '直角回潮＝红（Obsidian 式悬浮圆角卡）');
+    await drainLogTimer(t);
+  });
+
+  testWidgets('笔记树手感批 T-C：文件夹子层挂 AnimatedSize（展开/折叠有动画宿主）', (t) async {
+    await NoteFolderDao(db).create('甲夹');
+    await open(t);
+    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.pumpAndSettle();
+    expect(find.text('甲夹'), findsOneWidget);
+    expect(find.byType(AnimatedSize), findsWidgets,
+        reason: '摘掉 AnimatedSize＝展开折叠退回整树瞬建跳变（变异刀②）');
+    await drainLogTimer(t);
+  });
+
+  testWidgets('笔记树手感批 T-D：笔记卡外套 Pressable（按压有缩放反馈）', (t) async {
+    final saved = await dao.save(note('按我'));
+    await open(t);
+    expect(
+        find.ancestor(
+            of: find.byKey(ValueKey('note-card-${saved.id}')),
+            matching: find.byType(Pressable)),
+        findsOneWidget,
+        reason: '裸 GestureDetector 无按压态＝本批实锤缺口（摘包裹层即红＝刀①）');
     await drainLogTimer(t);
   });
 }

@@ -264,15 +264,36 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     final selNode = selName.isEmpty ? null : _find(tree, selName);
     final w = MediaQuery.sizeOf(context).width * .62;
 
+    // 笔记树手感批 T-A（真机反馈轮3·产品确认）：直角满高贴边 → Obsidian 式悬浮圆角卡
+    // （留边 8·圆角 16·描边＋阴影；原型 #noteTree 同形）。点树外收起/返回键/底部条沿用。
     return SafeArea(
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: SizedBox(
-          width: w,
-          height: double.infinity,
-          child: Material(
-            color: scheme.surface,
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: w,
+            height: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: .18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8))
+                ],
+              ),
+              child: ClipRRect(
+                key: const ValueKey('nt-card-shape'),
+                borderRadius: BorderRadius.circular(16),
+                child: Material(
+                  color: scheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: context.tokens.cardBorder),
+                  ),
+                  child: Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 10, 4, 4),
@@ -381,6 +402,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
               ],
             ),
           ),
+            ),
+            ),
+          ),
         ),
       ),
     );
@@ -414,7 +438,17 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                   _open.contains(n.id) ? _open.remove(n.id) : _open.add(n.id)),
               onTap: () => _pick(n.name, hasKids: n.children.isNotEmpty, id: n.id),
               onLongPress: () => _nodeActions(n)),
-          if (_open.contains(n.id)) ..._nodes(n.children, depth + 1, localFolders),
+          // 笔记树手感批 T-C：展开/折叠＝AnimatedSize 150ms easeOut（〇B 微动档），不再跳变。
+          AnimatedSize(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _open.contains(n.id)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _nodes(n.children, depth + 1, localFolders))
+                : const SizedBox(width: double.infinity),
+          ),
         ],
       ];
 
