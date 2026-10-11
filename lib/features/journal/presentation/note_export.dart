@@ -181,9 +181,8 @@ String _deltaToMd(String content, Map<String, String> assetOf) {
       final img = ins['image'];
       if (img is String) {
         final name = assetOf[img];
-        line.write(name == null
-            ? '![图片]($kNoteExportAssetsDir)' // 没进包（非本地路径）：不留假链接
-            : '![图片]($kNoteExportAssetsDir/$name)');
+        // 没进包的（http 外链等）＝原样留着，绝不编一个指不到文件的 `_assets/` 链接。
+        line.write(name == null ? '![图片]($img)' : '![图片]($kNoteExportAssetsDir/$name)');
       } else {
         line.write('▪'); // 其它嵌入物（视频等）沿用既有占位口径
       }

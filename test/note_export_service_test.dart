@@ -168,6 +168,19 @@ void main() {
       expect(md, '![图](_assets/z.jpg) 与 ![网](https://a.b/c.png)');
     });
 
+    test('富文本里的 http 图嵌＝原样留着，不造一个指不到的 _assets 链接', () {
+      final delta = jsonEncode([
+        {
+          'insert': {'image': 'https://a.b/remote.png'}
+        },
+        {'insert': '\n'},
+      ]);
+      final md = noteToMarkdown(richNote(delta), const {});
+      expect(md, contains('![图片](https://a.b/remote.png)'));
+      expect(md, isNot(contains('_assets')),
+          reason: '没进包的引用不许换成 _assets/ 相对路径＝导出包里根本没有那枚文件');
+    });
+
     test('脏稿（kind=rich 但正文非 JSON）容错回退纯文本，不抛', () {
       expect(noteToMarkdown(make('t', '手输的一段', kind: 'rich'), const {}),
           contains('手输的一段'));
