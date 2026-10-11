@@ -11,6 +11,7 @@ import 'journal_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import 'note_paper.dart';
 import 'widgets/note_tree_drawer.dart';
+import 'widgets/note_tree_overlay.dart';
 
 /// 笔记 tab（原型 recNote · V1.29轮9）：卡片三行=标题1/正文(列表1行·卡片≤4行)/时间行
 /// （时间右=置顶黄色小钉·线性图标非 emoji）；多选圈在条目右侧；长按进入批量无 toast；
@@ -29,6 +30,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
 
   /// 轮8④：翻转当前排序项后重开菜单（等效原型的「菜单保持打开」）。
   final _sortKey = GlobalKey<PopupMenuButtonState<NoteSort>>();
+
+  /// 常驻叠层批：树面板的开合动画挂在叠层件上，文件夹钮经这条 key 复用同一开合。
+  final GlobalKey<NoteTreeOverlayState> _treeKey =
+      GlobalKey<NoteTreeOverlayState>();
 
   static const double _gap = 10;
 
@@ -133,7 +138,8 @@ class _NoteTabState extends ConsumerState<NoteTab> {
               IconButton(
                 key: const ValueKey('note-folder'),
                 tooltip: '文件夹',
-                onPressed: () => showNoteTreeDrawer(context),
+                onPressed: () =>
+                    _treeKey.currentState?.open(), // 常驻叠层：开树＝钉同一条动画
                 icon: Icon(Icons.folder_outlined,
                     size: 22,
                     color: filter.folder.isEmpty
@@ -195,13 +201,10 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     );
 
     // 真机反馈轮（2026-10-11）：右滑＝开文件树（批量选择态不给该手势，避免误开）。
-    // 轮4 口径：起手面放开为整屏（Obsidian 逻辑），过阈即交路由补间开树——
-    // 「拖拽中途 push 再跟手」这条在路由式弹层上不成立（依据＝EdgeSwipeToOpen 头注）。
+    // 常驻叠层批：承载从路由式弹层换成 NoteTreeOverlay（body 之上 Stack 常驻＋自带整屏起手监听）——
+    // 拖拽中途 push 会被 Navigator 取消指针（轮4 定位），叠层形态下面板才可能真随指推出。
     if (!selMode) {
-      return EdgeSwipeToOpen(
-          key: const ValueKey('note-edge-swipe'),
-          onOpen: () => showNoteTreeDrawer(context),
-          child: list);
+      return NoteTreeOverlay(key: _treeKey, child: list);
     }
     // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
     final byId = {for (final n in notes) n.id: n};

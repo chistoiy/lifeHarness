@@ -296,8 +296,14 @@ void main() {
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');
       expect(src, contains("'导入本地 · 目录或文件'"), reason: 'N-1 入口被摘＝功能没有门');
-      expect(src, contains('if (node.folder.isMount) return _unmount(node);'),
-          reason: '长按分派被摘＝挂载节点再也摘不掉');
+      // 断言必须跟被守护代码的**现行形态**：批2（6c50401）把 T-E 就地化时这处分派从
+      // 单行 `if (...) return _unmount(node);` 改成了块形式，测试串没同步＝此后一直红
+      // （本批路过抓到）。同款分派另有底部条 `_renameOrUnmount` 一处，故只断在场不数次数。
+      expect(src, contains('''
+    if (node.folder.isMount) {
+      _unmount(node);
+      return;
+    }'''), reason: '长按分派被摘＝挂载节点再也摘不掉');
       expect(src, contains('MountBadge(source: badgeSource)'),
           reason: '角标被摘＝「本地/导出」标全树消失');
       expect(src, contains('importLocalTree('));

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +65,18 @@ void main() {
     expect(find.byKey(const ValueKey('nt-act-del')), findsOneWidget);
     expect(find.text('删除文件夹'), findsNothing,
         reason: '长按不许再叠一层白色半屏菜单（旧菜单条目是文字标题，就地钮只有图标＋tooltip）');
+
+    // 常驻叠层批·命中闭环（工单 §1：图标中心必须执行动作而不是选中）：
+    // 成因一＝动作钮摘掉 opaque 包裹后被行 InkWell 抢走；成因二＝行 onTap 在动作态接住落空点击。
+    await t.tap(find.byKey(const ValueKey('nt-act-rename')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('nt-name-input')), findsOneWidget,
+        reason: '点铅笔中心＝真开重命名输入框（去掉钮的 opaque 包裹即红＝刀③）');
+    await t.enterText(find.byKey(const ValueKey('nt-name-input')), '甲改名');
+    await t.tap(find.byKey(const ValueKey('nt-name-ok')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('nt-甲改名')), findsOneWidget,
+        reason: '中心点击这条链必须真走到落库，不是只弹了个框');
     await drainLogTimer(t);
   });
 
@@ -135,6 +149,25 @@ void main() {
     expect(find.byKey(const ValueKey('nt-act-rename')), findsNothing,
         reason: '开输入即收起动作态');
     await drainLogTimer(t);
+  });
+
+  // 常驻叠层批·命中闭环的**结构守护**（源码形态·代码行原文，注释不喂它）：
+  // 真机报的「点了只变选中」实锤成因是命中区太小（已断 44×44＋点角落）；中心点击本就由
+  // IconButton 赢竞技场——单摘 opaque 包裹或行 onTap 让位都测不出红（两刀各跑一遍实测 0 红），
+  // 故这两件按「保险件」用源码闸钉住，防日后随手摘掉把风险请回来。
+  test('命中闭环两件套在册（源码守护）：动作钮 opaque 包裹＋行 onTap 让位', () {
+    final src = File(
+            'lib/features/journal/presentation/widgets/note_tree_drawer.dart')
+        .readAsStringSync()
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .join('\n');
+    expect(src, contains('behavior: HitTestBehavior.opaque'),
+        reason: '动作钮的 opaque 包裹被摘＝行抢子级点击的风险回来了');
+    expect(src, contains('onTap: actions == null ? onTap : null'),
+        reason: '动作态下行让位这条被摘＝点钮落空时整行接住变成选中目录');
+    expect(src.split('behavior: HitTestBehavior.opaque').length - 1, 2,
+        reason: '铅笔与垃圾桶两枚都要包，缺一枚＝半边没闭环');
   });
 
   testWidgets('T-E：挂载节点长按仍走「移除挂载」半屏（不就地化）', (t) async {

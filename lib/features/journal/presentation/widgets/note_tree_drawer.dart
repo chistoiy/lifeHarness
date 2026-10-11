@@ -9,180 +9,45 @@ import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
 import '../note_local_import.dart';
 
-/// 整屏右滑开文件树（真机反馈轮4·产品定「Obsidian 逻辑＝整块屏幕只要右滑都开侧栏」）。
-///
-/// 为什么用 `Listener` 而不挂 `GestureDetector`：卡片那层的 `Dismissible`（左滑＝移入回收站）
-/// 与本手势同为横向拖拽识别器，进了手势竞技场必然是**更深的子级赢**——那样手势在卡片上永远
-/// 不触发。`Listener` 不参与竞技场，只观察原始指针：累计右移够距且横向位移大于纵向（避开竖滚
-/// 列表误触）才开一次，抬手前不再重复触发。
-///
-/// **为什么「开树跟手」不能在这一侧做（轮4 的定位结论，别再走回头路）**：`NavigatorState` 在
-/// 路由插入时会把在场指针逐个 cancel 掉（flutter/lib/src/widgets/navigator.dart:5822
-/// `_activePointers...forEach(WidgetsBinding.instance.cancelPointer)`）——**拖拽中途 push 弹层
-/// ＝这一路指针当场被取消**，之后的 move/up 再也回不到这个 `Listener`。批2 那套「过阈即 push
-/// 再逐帧钉进度」因此架构上不成立，真机表现就是产品说的「侧滑整段没反应」（push 那一帧收到
-/// cancel，此刻位移才刚过阈、速度又被记成 0 → 判定不够 → 当场回弹）。
-/// 现在＝**过阈即开并交路由自己补间到全开**（确定性行为）。要做到面板真随指推出，抽屉必须换成
-/// **常驻叠层**（Scaffold 的 `_DrawerController` 形态：拖拽期间不往 Navigator 插任何东西）
-/// ＝工单 §2 记的下一批。
-///
-/// 反过来，**弹层已经在场时**在面板上左滑收起＝真跟手成立（拖拽期间没有路由插入，指针不被取消），
-/// 那条留在 [_TreeDrawerState] 里照旧工作。
-///
-/// **起手面沿革**：轮2 曾因「贴边 ~20–30dp 被 Android 系统返回吃掉」把判定带由 28 放宽到 110；
-/// 轮4 产品明确要整屏起手 → 判定带作废（字段保留给用例与变异刀调），贴边不再是前提。
-class EdgeSwipeToOpen extends StatefulWidget {
-  const EdgeSwipeToOpen(
-      {super.key,
-      required this.onOpen,
-      required this.child,
-      this.edgeZone = double.infinity,
-      this.triggerPx = 24});
+/// 面板开合补间时长（原路由 transitionDuration 同值；叠层与本件都用）。
+/// 开侧阈值 24 与甩速 500 常量在 `note_tree_overlay.dart`（手势执行点）。
+/// 沿革：轮2 贴边判定带 110 → 轮4 整屏口径作废判定带；轮4 阈值 56→24（更早入树）。
+const Duration kNoteTreeAnimDur = Duration(milliseconds: 220);
 
-  final VoidCallback onOpen;
-  final Widget child;
-
-  /// 起点判定带（逻辑像素）。默认＝整屏（轮4 产品口径）；竖滚不误触仍靠「横位移>纵位移」。
-  final double edgeZone;
-
-  /// 触发所需的累计右移量（轮4 由 56 下调到 24＝更早入树）。
-  final double triggerPx;
-
-  @override
-  State<EdgeSwipeToOpen> createState() => _EdgeSwipeToOpenState();
-}
-
-class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
-  int? _pid;
-  bool _armed = false, _fired = false;
-  double _dx = 0, _dy = 0;
-
-  void _reset() => _pid = null;
-
-  void _onPointer(PointerEvent e) {
-    if (e is PointerDownEvent) {
-      _pid = e.pointer;
-      _armed = e.position.dx <= widget.edgeZone;
-      _fired = false;
-      _dx = 0;
-      _dy = 0;
-    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed && !_fired) {
-      _dx += e.delta.dx;
-      _dy += e.delta.dy.abs();
-      if (_dx >= widget.triggerPx && _dx > _dy) {
-        _fired = true;
-        // 开＝交给路由补间；这一路指针随后会被 Navigator 取消，不再指望它。
-        widget.onOpen();
-      }
-    } else if ((e is PointerUpEvent || e is PointerCancelEvent) &&
-        e.pointer == _pid) {
-      _reset();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Listener(
-        key: const ValueKey('note-edge-follow'),
-        onPointerDown: _onPointer,
-        onPointerMove: _onPointer,
-        onPointerUp: _onPointer,
-        onPointerCancel: _onPointer,
-        child: widget.child,
-      );
-}
-
-/// V1.29 批A3 · 文件夹树抽屉（原型 noteTree · Obsidian 形态）：
-/// 整屏右滑或右上文件夹钮开 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
-/// 点树外内容区＝收起（真机反馈轮显式钉死 barrierDismissible）；
+/// V1.29 批A3 · 文件夹树面板（原型 noteTree · Obsidian 形态）：
+/// 整屏右滑或右上文件夹钮开 62% 悬浮圆角卡（承载＝常驻叠层 `NoteTreeOverlay`，不走 Navigator）；
+/// 点文件夹=选中当前目录（不关面板·自动展开）；点树外遮罩＝收起（全开时遮罩才参与命中）；
 /// 「添加文件夹」建在选中目录下（未选=顶层）；长按手建夹=行内就地重命名/删除（T-E），
 /// 长按本地/导出挂载节点=移除挂载（V1.64 批2）；底部操作条：重命名/添加/展开折叠/关闭。
-Future<void> showNoteTreeDrawer(BuildContext context) =>
-    Navigator.of(context).push<void>(_NoteTreeDrawerRoute());
+///
+/// 树内再弹的**输入框/导入面板/移除挂载半屏仍走路由**——它们发生在抬手之后，不影响手势。
+class NoteTreePanel extends ConsumerStatefulWidget {
+  const NoteTreePanel(
+      {super.key,
+      required this.onClose,
+      required this.follow,
+      required this.settleClose});
 
-/// 树抽屉路由（批2 落面·轮4 收敛）：`createAnimation()` 直取路由自己的控制器，
-/// 所以面板面上的左滑可以**逐帧钉住动画值**＝真跟手收起（此时没有路由插入，指针不会被取消）；
-/// 遮罩透明度由 `ModalRoute` 按同一条 animation 淡入 `barrierColor`，不用另算。
-class _NoteTreeDrawerRoute extends ModalRoute<void> {
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 220);
+  /// 六处「收起自己」入口统一走它（不许再 Navigator.pop）。
+  final VoidCallback onClose;
 
-  @override
-  bool get opaque => false;
+  /// 面板左滑逐帧钉进度（T-B：位移与遮罩淡入同帧跟随）。
+  final ValueChanged<double> follow;
 
-  @override
-  bool get maintainState => true;
-
-  @override
-  Color get barrierColor => Colors.black54;
-
-  @override
-  String get barrierLabel => '文件夹';
-
-  // 真机反馈轮：点树外（右侧内容区）必收起——写死显式值，防默认值漂移。
-  @override
-  bool get barrierDismissible => true;
-
-  /// 面板跟手用的控制器（继承的受保护成员，在本类内以公开口交出）。
-  AnimationController get drag => controller!;
-
-  /// 路由已释放（控制器随 dispose 走）＝外部手势别再碰它。
-  /// 双指竞态：一路手指在面板上拖着，另一路点遮罩把弹层收起。
-  bool _gone = false;
-  bool get drivable => !_gone;
+  /// 面板左滑松手判定交回叠层（p∈[0,1] 剩开度，vx 横向甩速）。
+  final void Function(double p, double vx) settleClose;
 
   @override
-  void dispose() {
-    _gone = true;
-    super.dispose();
-  }
-
-  /// 跟手进度：把 p∈[0,1] 直接钉到动画值（面板位移与遮罩淡入同帧跟随）。
-  void followTo(double p) {
-    if (!drivable) return;
-    drag.value = p.clamp(0.0, 1.0);
-  }
-
-  @override
-  Animation<double> createAnimation() => controller!;
-
-  @override
-  Widget buildPage(BuildContext context, Animation<double> animation,
-          Animation<double> secondaryAnimation) =>
-      _TreeDrawer(route: this);
-
-  @override
-  Widget buildTransitions(BuildContext context, Animation<double> animation,
-          Animation<double> secondaryAnimation, Widget child) =>
-      // 抽屉本体是整宽的 Align(centerLeft)，位移按屏宽计：62% 面板正好整体推出。
-      SlideTransition(
-        position:
-            Tween(begin: const Offset(-.6, 0), end: Offset.zero).animate(animation),
-        child: child,
-      );
+  ConsumerState<NoteTreePanel> createState() => _TreeDrawerState();
 }
 
-/// 面板左滑收起的速度腿：横向甩速过此值即算关（真机反馈轮4「速度优先」口径，取反向）。
-const double _kFlingVx = 500; // px/s
-
-
-
-class _TreeDrawer extends ConsumerStatefulWidget {
-  const _TreeDrawer({required this.route});
-
-  /// 所属路由（T-B：面板左滑收起要反向驱动它的动画值）。
-  final _NoteTreeDrawerRoute route;
-
-  @override
-  ConsumerState<_TreeDrawer> createState() => _TreeDrawerState();
-}
-
-class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
+class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
   final Set<int> _open = {};
 
   /// T-E（原型 ntAct 同款）：当前展开行内动作的文件夹 id（同一时刻只有一行有动作钮）。
   int? _actId;
 
-  /// T-B：面板左滑收起过程中的进度累计（拖起手时以路由当前值打底）。
+  /// T-B：面板左滑收起过程中的进度累计（拖起手时以叠层当前值打底）。
   double? _closeFrom;
 
   void _pick(String folder, {bool hasKids = false, int? id}) {
@@ -348,16 +213,17 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
 
     // 笔记树手感批 T-A（真机反馈轮3·产品确认）：直角满高贴边 → Obsidian 式悬浮圆角卡
     // （留边 8·圆角 16·描边＋阴影；原型 #noteTree 同形）。点树外收起/返回键/底部条沿用。
-    // T-B：面板面上左滑＝同一路由动画反向跟手收起（跟手开、跟手收是成对要求）。
+    // T-B：面板面上左滑＝叠层同一条 controller 反向跟手收起（跟手开、跟手收是成对要求）。
     return GestureDetector(
       key: const ValueKey('nt-swipe-close'),
-      onHorizontalDragStart: (_) => _closeFrom = widget.route.drag.value,
+      // 面板只在遮罩全开时才接收指针（叠层 IgnorePointer 钉 value==1），起手开度恒 1 打底。
+      onHorizontalDragStart: (_) => _closeFrom = 1,
       onHorizontalDragUpdate: (d) {
         final from = _closeFrom;
         if (from == null) return;
         final p = (from + (d.primaryDelta ?? d.delta.dx) / w).clamp(0.0, 1.0);
         _closeFrom = p;
-        widget.route.followTo(p);
+        widget.follow(p);
       },
       onHorizontalDragEnd: (d) => _settleClose(d.velocity.pixelsPerSecond.dx),
       onHorizontalDragCancel: () => _settleClose(0),
@@ -401,7 +267,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                                   fontSize: 15))),
                       IconButton(
                           key: const ValueKey('nt-close-hd'),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: widget.onClose,
                           icon: const Icon(Icons.close, size: 20)),
                     ],
                   ),
@@ -429,7 +295,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                           depth: 0,
                           onTap: () {
                             final router = GoRouter.of(context);
-                            Navigator.of(context).pop();
+                            widget.onClose(); // 常驻叠层批：跳转前收起＝本地 close()
                             router.push('/settings/trash?seg=note');
                           }),
                       _row(context,
@@ -489,7 +355,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                       IconButton(
                           key: const ValueKey('nt-bt-close'),
                           tooltip: '关闭',
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: widget.onClose,
                           icon: const Icon(Icons.close, size: 20)),
                     ],
                   ),
@@ -506,17 +372,12 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     );
   }
 
-  /// T-B：面板左滑松手判定（轮4 与开侧对称＝速度优先）：左甩过速即关；不看速度时拖回剩不到七成＝关，
-  /// 否则补间回全开。
+  /// T-B：面板左滑松手判定（常驻叠层批口径＝工单 §1：剩开度 p<0.6 或左甩过速即关，否则补间回全开）。
   void _settleClose(double vx) {
     final p = _closeFrom;
     _closeFrom = null;
-    if (p == null || !widget.route.drivable) return;
-    if (vx < -_kFlingVx || p < .7) {
-      if (mounted) Navigator.of(context).pop();
-    } else {
-      widget.route.drag.animateTo(1, curve: Curves.easeOutCubic);
-    }
+    if (p == null) return;
+    widget.settleClose(p, vx);
   }
 
   /// 树上角标来源（''＝不画）：挂载夹直取；`local_file` 挂标随本地来源笔记清空自动回落。
@@ -586,7 +447,9 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
       key: ValueKey(keyName),
-      onTap: onTap,
+      // 常驻叠层批·命中闭环（工单 §1 成因二）：动作态下行 onTap 让位给行尾两钮，
+      // 免得点钮落空时被整行接走＝「点了只变选中」。
+      onTap: actions == null ? onTap : null,
       onLongPress: onLongPress,
       child: Container(
         // 轮10-9：行卡圆角化（与弹层条目同语言）。
@@ -651,15 +514,22 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
   Widget _actBtns(FolderNode node) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
+          // opaque 包裹＝该矩形命中必落此处，祖先 InkWell 抢不走（摘掉＝中心命中例红＝刀③）。
+          GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: IconButton(
               key: const ValueKey('nt-act-rename'),
               tooltip: '重命名',
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () => _rename(node),
-              icon: const Icon(Icons.edit_outlined, size: 18)),
-          IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18))),
+          GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: IconButton(
               key: const ValueKey('nt-act-del'),
               tooltip: '删除文件夹',
               visualDensity: VisualDensity.compact,
@@ -667,7 +537,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               onPressed: () => _delete(node),
               icon: Icon(Icons.delete_outline,
-                  size: 18, color: Theme.of(context).colorScheme.error)),
+                  size: 18, color: Theme.of(context).colorScheme.error))),
         ],
       );
 }
