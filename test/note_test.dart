@@ -1499,7 +1499,8 @@ void main() {
           reason: '预览内容须左对齐（20 内边距），不得居中留大片空白');
     });
 
-    testWidgets('11-2 树抽屉底部=图标四钮（重命名/添加/展开/关闭）', (tester) async {
+    testWidgets('11-2 树抽屉底部=图标五钮（重命名/添加/导出/展开/关闭）·窄屏不溢出',
+        (tester) async {
       await tester.pumpWidget(scope(const NoteTab()));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('note-folder')));
@@ -1507,6 +1508,7 @@ void main() {
       for (final k in [
         'nt-bt-rename',
         'nt-bt-add',
+        'nt-bt-export', // V1.64 批3 N-2：原型 ntBtExport 一直有，dart 侧补齐
         'nt-bt-expand',
         'nt-bt-close'
       ]) {
@@ -1514,6 +1516,21 @@ void main() {
         expect(tester.widget<IconButton>(find.byKey(ValueKey(k))),
             isA<IconButton>(),
             reason: '$k 应为图标钮（轮11 恢复图标样式）');
+      }
+      // 360dp 屏（面板 62%＝223）里五枚钮必须都装得下且命中区≥44——
+      // 旧 `spaceEvenly` 版加第 5 枚会把右端挤出卡面（Expanded 等分后每格 44.6）。
+      await useSurface(tester, const Size(360, 800));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '底条五钮在 360dp 溢出');
+      for (final k in [
+        'nt-bt-rename',
+        'nt-bt-add',
+        'nt-bt-export',
+        'nt-bt-expand',
+        'nt-bt-close'
+      ]) {
+        final sz = tester.getSize(find.byKey(ValueKey(k)));
+        expect(sz.width, greaterThanOrEqualTo(44), reason: '$k 命中区低于 U6 的 44 下限');
       }
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });

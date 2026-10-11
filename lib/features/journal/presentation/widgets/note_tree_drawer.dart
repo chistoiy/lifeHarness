@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
+import '../note_export.dart';
 import '../note_local_import.dart';
 
 /// 面板开合补间时长（原路由 transitionDuration 同值；叠层与本件都用）。
@@ -198,6 +199,47 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
     });
   }
 
+  /// 「导出为本地目录」半屏（批3 N-2·原型 `sheetNoteExport`/`nxDo`）。
+  /// 选择器与写盘都在回调里跑；取消＝`null`＝不出提示。
+  Future<void> _exportLocal() async {
+    final dao = ref.read(noteDaoProvider);
+    final folders = ref.read(noteFolderDaoProvider);
+    final sel = ref.read(noteFilterProvider).folder;
+    await showNoteExportSheet(context,
+        hasCurrentFolder: sel.isNotEmpty,
+        folderLabel: sel, onRun: (scope) async {
+      final String tree;
+      try {
+        final picked = await safPickTree();
+        if (picked == null) return null; // 用户在系统选择器里取消
+        tree = picked;
+      } catch (_) {
+        // catch-ok: 拿不到授权也要出声，否则就是「点了没反应」。
+        if (mounted) AppToast.show(context, '没能拿到目录授权（可再选一次）');
+        return null;
+      }
+      String treePath;
+      try {
+        treePath = (await safListTree(tree)).path;
+      } catch (_) {
+        // 列不出＝这个 tree 读不到（授权失效/provider 拒绝），别往下写。
+        if (mounted) AppToast.show(context, '读不到所选目录（授权可能已失效）');
+        return const NoteExportReport(errorCode: 'error');
+      }
+      final r = await exportNotesToTree(
+          notes: dao,
+          folders: folders,
+          treeUri: tree,
+          treePath: treePath,
+          scope: scope);
+      ref.invalidate(noteFolderListProvider);
+      ref.invalidate(notesProvider);
+      ref.invalidate(noteLocalFoldersProvider);
+      setState(() {});
+      return r;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -315,13 +357,15 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                   ),
                 ),
                 const Divider(height: 1),
-                // 轮11-2：底部操作条恢复线性图标四钮（用户反馈文字钮不如图标直观）。
+                // 轮11-2：底部操作条恢复线性图标钮（用户反馈文字钮不如图标直观）。
+                // 批3 起第 5 枚＝导出：五钮改**等分单元格**（原 `spaceEvenly` 加一枚会在 360dp
+                // 窄屏把右端挤出卡面；Expanded 后 360dp 面板每格 44.6≥U6 的 44 下限）。
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                  padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      IconButton(
+                      Expanded(
+                        child: IconButton(
                           key: const ValueKey('nt-bt-rename'),
                           tooltip: selNode == null
                               ? '先点选文件夹'
@@ -329,14 +373,30 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                           onPressed: () => selNode == null
                               ? AppToast.show(context, '先点选文件夹')
                               : _renameOrUnmount(selNode),
-                          icon: const Icon(Icons.edit_outlined, size: 20)),
-                      IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
                           key: const ValueKey('nt-bt-add'),
                           tooltip: '添加文件夹',
                           onPressed: () => _add(selNode),
                           icon: const Icon(Icons.create_new_folder_outlined,
-                              size: 20)),
-                      IconButton(
+                              size: 20),
+                        ),
+                      ),
+                      // V1.64 批3 N-2：底条第 5 枚＝导出为本地目录
+                      // （原型 `ntBtExport` 一直有这枚，dart 侧此前缺；顺序照原型 edit/add/export/expand/close）。
+                      Expanded(
+                        child: IconButton(
+                          key: const ValueKey('nt-bt-export'),
+                          tooltip: '导出为本地目录',
+                          onPressed: _exportLocal,
+                          icon: const Icon(Icons.output, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
                           key: const ValueKey('nt-bt-expand'),
                           tooltip: '全部展开/折叠',
                           onPressed: () {
@@ -351,12 +411,17 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                             collect(tree);
                             setState(() => _open.addAll(all));
                           },
-                          icon: const Icon(Icons.unfold_more, size: 20)),
-                      IconButton(
+                          icon: const Icon(Icons.unfold_more, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: IconButton(
                           key: const ValueKey('nt-bt-close'),
                           tooltip: '关闭',
                           onPressed: widget.onClose,
-                          icon: const Icon(Icons.close, size: 20)),
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ),
                     ],
                   ),
                 ),

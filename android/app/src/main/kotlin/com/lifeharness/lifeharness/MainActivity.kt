@@ -102,6 +102,7 @@ class MainActivity : FlutterActivity() {
                 "listTree" -> safListTree(call, result)
                 "readDoc" -> safReadDoc(call, result)
                 "createInTree" -> safCreateInTree(call, result)
+                "ensureDirInTree" -> safEnsureDirInTree(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -318,11 +319,19 @@ class MainActivity : FlutterActivity() {
     /// name＝期望文件名、text＝正文。返回 Map：code=ok|no_perm|error，uri＝落盘文档 URI，
     /// name＝**实际**文件名（同名自动追加 (2)(3)…，与需求「同名追加序号」同口径）。
     /// 一律按码返回不抛错——写回失败必须可见但不许吞掉应用内的保存。
+    ///
+    /// **批3（N-2 导出）新增两个可选形参，缺省行为逐字节不变**（防改坏批2 的挂载写回）：
+    /// `mime`＝文档类型（缺省 text/markdown；导出附件要 image/*）；
+    /// `srcPath`＝给定时改按**字节流**拷这个本地文件（`text` 忽略——图片是二进制，写字符串必坏）。
+    /// 目录一律由 `ensureDirInTree` 先建好（这里只查找，批2「老目录被删就落浅层」的语义不动）。
     private fun safCreateInTree(call: MethodCall, result: MethodChannel.Result) {
         val treeStr = call.argument<String>("tree")
         val want = call.argument<String>("name") ?: ""
         val text = call.argument<String>("text") ?: ""
         val rel = call.argument<String>("relPath") ?: ""
+        val mimeArg = call.argument<String>("mime")
+        val mime = if (mimeArg.isNullOrEmpty()) "text/markdown" else mimeArg
+        val srcPath = call.argument<String>("srcPath")
         if (treeStr.isNullOrEmpty() || want.isEmpty()) {
             result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
             return
@@ -349,14 +358,26 @@ class MainActivity : FlutterActivity() {
                 tree, DocumentsContract.getDocumentId(parent)
             )
             val doc = DocumentsContract.createDocument(
-                contentResolver, children, "text/markdown", candidate
+                contentResolver, children, mime, candidate
             )
             if (doc == null) {
                 result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
                 return
             }
-            contentResolver.openOutputStream(doc, "w")?.use { out ->
-                out.write(text.toByteArray(Charsets.UTF_8))
+            if (!srcPath.isNullOrEmpty()) {
+                // 附件档（批3）：二进制按流拷，绝不用 write(String)——那会毁图。
+                val src = File(srcPath)
+                if (!src.exists()) {
+                    result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+                    return
+                }
+                contentResolver.openOutputStream(doc, "w")?.use { out ->
+                    src.inputStream().use { input -> input.copyTo(out) }
+                } ?: throw IOException("provider 未提供输出流")
+            } else {
+                contentResolver.openOutputStream(doc, "w")?.use { out ->
+                    out.write(text.toByteArray(Charsets.UTF_8))
+                }
             }
             result.success(mapOf(
                 "code" to "ok",
@@ -373,9 +394,68 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /// 在某目录下按显示名找一个子项（wantDir=true 只要目录，false 只要文件）。
-    private fun findChild(tree: Uri, parent: Uri, name: String, wantDir: Boolean): Uri? {
+    /// 建（或复用）一层子目录——导出包的 `_assets/` 与子目录节点都靠它（批3 N-2）。
+    /// SAF 里「复用已有」必须先查：`createDocument(MIME_TYPE_DIR, name)` 撞上同名目录会自己
+    /// 追加「 (2)」，导出两次就得到两个 `_assets (2)`——那是脏盘，不是幂等。
+    private fun ensureChildDir(tree: Uri, parent: Uri, name: String): Uri? {
+        findChild(tree, parent, name, true)?.let { return it }
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+            tree, DocumentsContract.getDocumentId(parent)
+        )
+        return try {
+            DocumentsContract.createDocument(
+                contentResolver, children, DocumentsContract.Document.MIME_TYPE_DIR, name
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /// 批3（N-2 导出）：在授权树里按 relPath 逐级建目录后再建（或复用）`name` 目录。
+    /// 返回 Map：code=ok|no_perm|error ＋ uri（后续 createInTree 拿它当 tree 的锚不需要，
+    /// 这里回的是目录文档 URI，仅供日志与人话路径核对）＋实际目录名。
+    private fun safEnsureDirInTree(call: MethodCall, result: MethodChannel.Result) {
+        val treeStr = call.argument<String>("tree")
+        val want = call.argument<String>("name") ?: ""
+        val rel = call.argument<String>("relPath") ?: ""
+        if (treeStr.isNullOrEmpty() || want.isEmpty()) {
+            result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+            return
+        }
+        val tree = Uri.parse(treeStr)
+        try {
+            var parent = DocumentsContract.buildDocumentUriUsingTree(
+                tree, DocumentsContract.getTreeDocumentId(tree)
+            )
+            for (seg in rel.split('/').filter { it.isNotEmpty() }) {
+                val next = ensureChildDir(tree, parent, seg)
+                    ?: run {
+                        result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+                        return
+                    }
+                parent = next
+            }
+            val dir = ensureChildDir(tree, parent, want)
+            if (dir == null) {
+                result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+                return
+            }
+            result.success(mapOf(
+                "code" to "ok",
+                "uri" to dir.toString(),
+                "name" to want,
+                "localPath" to (if (rel.isEmpty()) want else "$rel/$want")
+            ))
+        } catch (_: SecurityException) {
+            // 只读授权（当初只拿到 READ）＝建目录必失败，按码回给 Dart 出实话。
+            result.success(mapOf("code" to "no_perm", "uri" to "", "name" to ""))
+        } catch (_: Exception) {
+            result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+        }
+    }
+
+    /// 在某目录下按显示名找一个子项（wantDir=true 只要目录，false 只要文件）。
+    private fun findChild(tree: Uri, parent: Uri, name: String, wantDir: Boolean): Uri? {        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
             tree, DocumentsContract.getDocumentId(parent)
         )
         contentResolver.query(

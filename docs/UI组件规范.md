@@ -288,10 +288,21 @@
 |---|---|
 | 原型锚点 | `prototype/index-bookshelf.html` `#noteTree`（`left-2 top-2 bottom-2 rounded-2xl overflow-hidden border`；长按就地动作样张＝`ntAct` 态＋`nt-act-rename`/`nt-act-del`，演示＝右键） |
 | 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `NoteTreePanel`（容器 key `nt-card-shape`）＋`widgets/note_tree_overlay.dart` `NoteTreeOverlay`（常驻叠层：自持 `AnimationController`＋整屏起手 `Listener`·阈值 24）；`note_tab.dart` 仅包一层叠层，**树不进 Navigator**（旧 `_NoteTreeDrawerRoute`/`EdgeSwipeToOpen`/`showNoteTreeDrawer` 整套摘除） |
-| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable`；**承载＝常驻叠层**＝面板与遮罩作为 body 之上的 Stack 层，位移与透明度由同一条 `AnimationController` 逐帧驱动；**开树手势**＝整屏任意位置起手右滑、累计 24px 且横>纵才入树（轮4 产品口径＝Obsidian 逻辑；轮2 贴边 110 判定带作废），入树后 `p＝净位移/面板宽` 钉控制器＝**面板随指、遮罩透明度 `p*0.54` 同帧**；抬手判定＝**位置腿 `p>0.4` 或 速度腿 甩速>500px/s** 补间全开，否则反向补间回弹；**面板面上左滑收起＝同一条 controller 反向跟手**（`GestureDetector` key `nt-swipe-close`），剩开度 `p<0.6` 或左甩过速即关；**遮罩只在**全开时参与命中**（`IgnorePointer` 钉 value==1）＝中途态手指仍归列表，卡片左滑回收站/竖滚不被叠层抢走；**返回键＝`PopScope(canPop:false)` 走同一条 close 动画**，树内六处收起入口全部本地 `close()`，不许再 `Navigator.pop`；树内再弹的输入框/导入面板/移除挂载半屏仍走路由（发生在抬手之后，不影响手势）；T-E 就地动作见 LH-K40 |
+| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内（**五枚线性钮等分**＝重命名／添加／**导出**（批3 补，原型 `ntBtExport` 一直有）／展开折叠／关闭；用 `Expanded` 等分而非 `spaceEvenly`＝360dp 窄屏第五枚会把右端挤出卡面，等分后每格 44.6≥U6 的 44 下限）；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable`；**承载＝常驻叠层**＝面板与遮罩作为 body 之上的 Stack 层，位移与透明度由同一条 `AnimationController` 逐帧驱动；**开树手势**＝整屏任意位置起手右滑、累计 24px 且横>纵才入树（轮4 产品口径＝Obsidian 逻辑；轮2 贴边 110 判定带作废），入树后 `p＝净位移/面板宽` 钉控制器＝**面板随指、遮罩透明度 `p*0.54` 同帧**；抬手判定＝**位置腿 `p>0.4` 或 速度腿 甩速>500px/s** 补间全开，否则反向补间回弹；**面板面上左滑收起＝同一条 controller 反向跟手**（`GestureDetector` key `nt-swipe-close`），剩开度 `p<0.6` 或左甩过速即关；**遮罩只在**全开时参与命中**（`IgnorePointer` 钉 value==1）＝中途态手指仍归列表，卡片左滑回收站/竖滚不被叠层抢走；**返回键＝`PopScope(canPop:false)` 走同一条 close 动画**，树内六处收起入口全部本地 `close()`，不许再 `Navigator.pop`；树内再弹的输入框/导入面板/移除挂载半屏仍走路由（发生在抬手之后，不影响手势）；T-E 就地动作见 LH-K40 |
 | 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡（批1）；同日批2 补面板左滑跟手收起＋长按就地化；同日轮4 起手面放开为整屏、阈值 56→24，并临时撤销「开树侧跟手」（当时仍是路由式弹层，成因＝路由插入取消指针）；同日**常驻叠层批**换承载＝开树侧真跟手三判定全部恢复（中途随指／过半或甩速补间全开／不足回弹），动作钮命中两件套一并落 |
 | 承载沿革 | 轮4 曾判「路由式弹层做不到跟手」＝`NavigatorState` 在路由插入时逐个 cancel 在场指针（`flutter/lib/src/widgets/navigator.dart:5822`），拖拽中途 push＝这路指针当场作废；**常驻叠层批（2026-10-11）把这条硬边界拆掉**＝承载换成 `NoteTreeOverlay`，拖拽期间不往 Navigator 插任何东西，真跟手成立（解法与代价＝工单 `docs/archive/交棒话术-20261011-笔记树常驻叠层批-真跟手与命中闭环.md`） |
 | 回归钉子 | `test/note_tree_gesture_test.dart`（常驻叠层下 17 例＝轮4 整屏起手三例＋T-A/T-C/T-D＋T-B 面板左滑反向跟手＋本批新增「中途随指与遮罩同帧」「慢拖过半＝位置腿」「轻甩＝速度腿」「不足四成回弹」「只挪 20px 不入树」「返回键＝收起不退模块」）＋`test/note_tree_inline_actions_test.dart`（T-E 五例＋中心点击执行动作＋命中两件套源码守护）；甩速这条腿在 widget 测试要用带 `timeStamp` 的 `moveBy` 才造得出（同帧事件 dt=0 算不出速度） |
+
+
+### LH-S39 笔记导出半屏（V1.64 批3 · 2026-10-11）
+| 项 | 值 |
+|---|---|
+| 原型锚点 | `prototype/index-bookshelf.html` `sheetNoteExport`（两档 chips `nxScCur`/`nxScAll`＋进度行 `nxProg`；底条入口 `ntBtExport`） |
+| 代码锚点 | `features/journal/presentation/note_export.dart` `showNoteExportSheet`（档键 `nx-sc-cur`/`nx-sc-all`·主钮 `nx-go`·进度行 `nx-progress`）＋服务口 `exportNotesToTree`；入口＝LH-S38 底条第 3 枚 `nt-bt-export` |
+| 规格 | 默认档＝**全部笔记**（照原型 `let nxSc='all'`）；「当前目录 · <夹名>」只在树里已点选文件夹时可切——**点了拒切换并出一句实话**（原型 `nxScChg` 原话「先在树中点选文件夹，或改选「全部笔记」」，置灰不隐藏）；范围口径＝**只所选夹本身**（原型 `nxDo` 的 `x.folder===ntSel`，不含子夹）·软删行一律不参与（E 批红线）；主钮按下＝进度行在场（红线「长耗时必须有可见进度」）＋系统目录选择器（SAF 树授权·禁 MANAGE_EXTERNAL_STORAGE） |
+| 落盘形态 | 目标目录下建（**或复用**）一枚根「笔记导出」，`<标题>.md` **平铺**（子层级只在导入侧还原）·同名由原生追加 (2)·非法字符换横杠·空标题落「未命名笔记」；图片附件拷同级 `_assets/`，md 内引用**相对路径**；库内只挂一枚 `source='export'` 节点（画「导出」胶囊＝`MountBadge` 既有词表），**只读挂载·不回写** |
+| 出声口径 | 汇总句**恒出声**（含 0 篇／no_perm／目录建不出来／个别篇或附件没写进去）——导入侧那种「没动就没提示」在导出侧不成立：导出至少该回答「为什么没导」 |
+| 回归钉子 | `test/note_export_service_test.dart`（17 例＝Delta→md 逐形态·图片相对化·附件去重与序号·mime 按扩展名·挂载节点与只读守卫·再导刷新锚点·建不出目录不出假标·回收站不参与·文件名词法·失败进汇总·通道源码守护）＋`test/note_export_sheet_test.dart`（4 例＝默认档与换档·拒切换出实话·取消不提示／没权限必须出声·树上入口在册）＋`test/note_test.dart`「11-2 底条五钮·360dp 不溢出」 |
 
 ## 四、LH-K 控件类
 

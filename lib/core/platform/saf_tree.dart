@@ -89,21 +89,60 @@ class MountWriteResult {
   bool get ok => code == 'ok';
 }
 
-/// 在已授权目录树里新建（或覆写）一个 .md 并写正文（真机反馈批③·挂载即双向）。
+/// 在已授权目录树里新建（或覆写）一个文件并落内容（真机反馈批③·挂载即双向；批3 导出附件）。
 /// 同名由原生自动追加 (2)(3)…；失败按码返回不抛（写盘失败绝不吞掉应用内的保存）。
+///
+/// 批3 新增两个**可选**形参（不传＝批2 行为逐字节不变）：
+///  · [mime]＝文档类型（缺省 md；附件传 image/* 等，原生按此建档）；
+///  · [srcPath]＝给定时**按字节流拷这个本地文件**（图片是二进制，走 text 必坏），此时 [text] 忽略。
+/// [relPath] 只**查找**、不建目录——要目录先走 [safEnsureDirInTree]（批2 写回「老挂载目录
+/// 被删了就落浅层」的语义因此不动，导出包的 `_assets/` 也不靠这条暗道）。
 Future<MountWriteResult> Function(
         {required String tree,
         required String relPath,
         required String name,
-        required String text})
+        required String text,
+        String mime,
+        String srcPath})
     safCreateInTree = ({
   required String tree,
   required String relPath,
   required String name,
   required String text,
+  String mime = 'text/markdown',
+  String srcPath = '',
 }) async {
-  final raw = await _safChannel.invokeMethod<Map<Object?, Object?>>('createInTree',
-      {'tree': tree, 'relPath': relPath, 'name': name, 'text': text});
+  final raw = await _safChannel.invokeMethod<Map<Object?, Object?>>(
+      'createInTree', {
+    'tree': tree,
+    'relPath': relPath,
+    'name': name,
+    'text': text,
+    'mime': mime,
+    if (srcPath.isNotEmpty) 'srcPath': srcPath,
+  });
+  if (raw == null) return const MountWriteResult(code: 'error');
+  return MountWriteResult(
+    code: (raw['code'] as String?) ?? 'error',
+    uri: (raw['uri'] as String?) ?? '',
+    name: (raw['name'] as String?) ?? '',
+    localPath: (raw['localPath'] as String?) ?? '',
+  );
+};
+
+/// 在授权树里按 [relPath] 逐级建目录后再建（**或复用**）一层 [name] 目录（批3 导出）。
+/// 复用是硬要求：`createDocument(MIME_TYPE_DIR)` 撞同名会自己追加「 (2)」，
+/// 导两次就得到两个 `_assets (2)`＝脏盘。失败按码返回不抛。
+Future<MountWriteResult> Function(
+        {required String tree, required String relPath, required String name})
+    safEnsureDirInTree = ({
+  required String tree,
+  required String relPath,
+  required String name,
+}) async {
+  final raw = await _safChannel.invokeMethod<Map<Object?, Object?>>(
+      'ensureDirInTree',
+      {'tree': tree, 'relPath': relPath, 'name': name});
   if (raw == null) return const MountWriteResult(code: 'error');
   return MountWriteResult(
     code: (raw['code'] as String?) ?? 'error',
