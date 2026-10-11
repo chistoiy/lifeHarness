@@ -151,7 +151,7 @@ if st.returncode != 0 and not (st.stdout or "").strip():
     g.append("守护七：status_set.py --check 异常退出 rc=%s（stderr=%s）"
              % (st.returncode, (st.stderr or "").strip()[:160]))
 # 10) 色值棘轮（2026-10-11 手感批：新增硬编码 Color(0x 即红；条文＝docs/UI组件规范.md 〇B，
-#     工单＝docs/handoff/交棒话术-20261011-手感批-触觉四锚与色值棘轮与边缘右滑内收.md §2。
+#     工单＝docs/archive/交棒话术-20261011-手感批-触觉四锚与色值棘轮与边缘右滑内收.md §2。
 #     存量不溯；确需新增＝人审后 `python tools/color_ratchet.py --write` 钉基线并在收口行写理由。）
 cr = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "color_ratchet.py"), "--check"],
                     capture_output=True, text=True, encoding="utf-8", errors="replace")
