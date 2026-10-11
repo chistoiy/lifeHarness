@@ -60,7 +60,7 @@ void main() {
   testWidgets('左边缘右滑＝开文件树（不需要先按文件夹钮）', (t) async {
     await open(t);
     expect(find.text('全部笔记'), findsNothing);
-    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(6, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsOneWidget, reason: '边缘右滑必须能开树');
     expect(find.text('导入本地 · 目录或文件'), findsOneWidget);
@@ -70,7 +70,7 @@ void main() {
   testWidgets('起点内移（x=80）右滑照样开树（真机反馈轮2：贴边段被系统吃，判定带 28→110）', (t) async {
     await open(t);
     expect(find.text('全部笔记'), findsNothing);
-    await t.dragFrom(const Offset(80, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(80, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsOneWidget,
         reason: '离边一指宽起手是真机上唯一稳的形态，必须开得出树');
@@ -79,7 +79,7 @@ void main() {
 
   testWidgets('树开着时点右侧内容区＝自动收起', (t) async {
     await open(t);
-    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(6, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsOneWidget);
     await t.tapAt(const Offset(700, 300));
@@ -90,7 +90,7 @@ void main() {
 
   testWidgets('起点不在边缘的右滑＝不开树（防误触）', (t) async {
     await open(t);
-    await t.dragFrom(const Offset(400, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(400, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsNothing);
     await drainLogTimer(t);
@@ -121,7 +121,7 @@ void main() {
 
   testWidgets('笔记树手感批 T-A：树面板＝悬浮圆角卡（圆角 16·产品 2026-10-11 定稿）', (t) async {
     await open(t);
-    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(6, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     final shape = find.byKey(const ValueKey('nt-card-shape'));
     expect(shape, findsOneWidget);
@@ -134,7 +134,7 @@ void main() {
   testWidgets('笔记树手感批 T-C：文件夹子层挂 AnimatedSize（展开/折叠有动画宿主）', (t) async {
     await NoteFolderDao(db).create('甲夹');
     await open(t);
-    await t.dragFrom(const Offset(6, 320), const Offset(150, 0));
+    await t.dragFrom(const Offset(6, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('甲夹'), findsOneWidget);
     expect(find.byType(AnimatedSize), findsWidgets,
@@ -151,6 +151,60 @@ void main() {
             matching: find.byType(Pressable)),
         findsOneWidget,
         reason: '裸 GestureDetector 无按压态＝本批实锤缺口（摘包裹层即红＝刀①）');
+    await drainLogTimer(t);
+  });
+
+  // ---- 树手感批2 · T-B 跟手抽屉（2026-10-11）----
+  // 面板宽 62%＝496、阈值 56：抬手判定＝阈值后净位移过半（>0.4）或甩速，测试指针事件
+  // 时间戳恒等（vx 读 0），所以这里全部由位置决定——正是「跟手」要钉的那条。
+
+  testWidgets('T-B：拖到中途面板随指，抬手位置不足＝回弹关闭', (t) async {
+    await open(t);
+    final g = await t.startGesture(const Offset(6, 320));
+    await g.moveBy(const Offset(120, 0)); // 阈值后净 64 → p≈.13
+    await t.pump();
+    expect(find.text('全部笔记'), findsOneWidget, reason: '过阈即入树，不等抬手');
+    final mid = t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx;
+    expect(mid, lessThan(7.0), reason: '还没全开');
+    expect(mid, greaterThan(-471.0),
+        reason: '已从全闭位（-472）跟手推出＝中途态；动画不吃进度会定值跳变（变异刀①）');
+    await g.up();
+    await t.pumpAndSettle();
+    expect(find.text('全部笔记'), findsNothing, reason: '净位移没过 40% 且无甩速＝回弹收起');
+    await drainLogTimer(t);
+  });
+
+  testWidgets('T-B：拖过半松手＝补间全开（位置判定）', (t) async {
+    await open(t);
+    final g = await t.startGesture(const Offset(6, 320));
+    await g.moveBy(const Offset(400, 0)); // 阈值后净 344 → p≈.69
+    await t.pump();
+    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx,
+        lessThan(7.0), reason: '抬手前仍是跟手中途值，不许提前跳全开');
+    await g.up();
+    await t.pumpAndSettle();
+    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx,
+        closeTo(8, 1), reason: '抬手补间到位＝留边 8 的悬浮卡全开位');
+    await drainLogTimer(t);
+  });
+
+  testWidgets('T-B：面板面上左滑＝同一路由反向跟手收起', (t) async {
+    await open(t);
+    await t.dragFrom(const Offset(6, 320), const Offset(400, 0));
+    await t.pumpAndSettle();
+    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx,
+        closeTo(8, 1));
+    // 起手取卡内一处可命中锚点（顶栏 ✕ 是 IconButton，命中区稳），只往左拖不点它。
+    final g = await t.startGesture(t.getCenter(find.byKey(const ValueKey('nt-close-hd'))));
+    await g.moveBy(const Offset(-19, 0)); // 识别器在这一步被接受，该段位移按 start 语义不计入
+    await g.moveBy(const Offset(-250, 0)); // p＝1-250/496≈.50
+    await t.pump();
+    final back = t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx;
+    expect(back, lessThan(7.0), reason: '左滑要跟手往回走，不是松手才弹');
+    expect(back, greaterThan(-471.0), reason: '仍在开合之间＝中途态');
+    await g.up();
+    await t.pumpAndSettle();
+    expect(find.text('全部笔记'), findsNothing);
     await drainLogTimer(t);
   });
 }

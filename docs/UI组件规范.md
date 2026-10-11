@@ -287,11 +287,11 @@
 | 项 | 值 |
 |---|---|
 | 原型锚点 | `prototype/index-bookshelf.html` `#noteTree`（`left-2 top-2 bottom-2 rounded-2xl overflow-hidden border`；长按就地动作样张＝`ntAct` 态＋`nt-act-rename`/`nt-act-del`，演示＝右键） |
-| 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `_TreeDrawer`（容器 key `nt-card-shape`）＋`EdgeSwipeToOpen`（判定带 110） |
-| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable` |
-| 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡 |
-| 待落地 | 批2＝T-B 跟手抽屉＋T-E 长按就地动作（规格与面板＝`docs/handoff/交棒话术-20261011-笔记树手感批-悬浮圆角卡与跟手抽屉与就地动作.md`） |
-| 回归钉子 | `test/note_tree_gesture_test.dart` T-A/T-C/T-D 三例（圆角 16／AnimatedSize 宿主／Pressable 包裹） |
+| 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `_TreeDrawer`（容器 key `nt-card-shape`·路由 `_NoteTreeDrawerRoute`）＋`EdgeSwipeToOpen`（判定带 110·跟手钩子 `startFollow`） |
+| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable`；**T-B 跟手**：边缘右滑过阈（56）即入树并把路由动画值按 `p=(净位移)/面板宽` 逐帧钉住（面板随指、遮罩透明度同帧跟随），抬手按 `p>0.4` 或甩速 >600px/s 补间全开，否则反向补间收起；面板面上左滑走同一路由反向跟手（过半或左甩即关）；**T-E 就地动作**见 LH-K40 |
+| 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡（批1）；同日批2 补跟手抽屉＋长按就地化 |
+| 待落地 | 无（批1＝T-A/T-C/T-D，批2＝T-B/T-E 已交付；真机门六条随复测包 6101） |
+| 回归钉子 | `test/note_tree_gesture_test.dart`（T-A/T-C/T-D 三例＋T-B 中途态/位置全开/面板左滑三例）＋`test/note_tree_inline_actions_test.dart`（T-E 五例） |
 
 ## 四、LH-K 控件类
 
@@ -337,6 +337,7 @@
 | LH-K37 | **横向长内容＝位置刻度＋默认视口落到近期**（UX 审计真机批 U4 · 2026-10-06） | 书架专版 `#rsHeatWrap`＋`.rs-hm-m`（月份刻度与格子同滚动容器，节距＝格宽＋间隙） | `read_stat_heat_card.dart` `ReadStatHeatCard`（自统计页抽出；`_focus`/`_targetFor` 三档定位，换范围由调用方换 key 重建） | 横向可滚且**内容比视口宽**的图表，不许默认停在最左端又不给位置提示（真机现场＝阅读热力图「全年 2h18m·5 天在读」却看着整片灰：有数据的月份滚在屏外）。定式＝① 进屏/换范围自动定位（当期数据贴右缘、选定范围贴该范围首列、历史区间贴首个有数据列）② 同容器内给**月份/区间刻度**，刻度与列严格同节距 ③ 不给「向右看近期」这类教学句式（撞 U5 禁词）。常驻用例＝`test/u4_u10_impl_test.dart` 三例（500 宽视口，见该文件注释）＋变异两刀 |
 | LH-K38 | **枚举 ≤4 档＝等宽可见分段，禁把某档藏进文字点击**（深色模式三档 · 2026-10-07 产品令） | 壳 `index.html` `#darkModeSeg`（三枚 `.seg-on` 分段＋动态副注 `#darkModeSub`；`DARK_MODE` 状态机吃 `prefers-color-scheme` 并挂 change；`forceDark` 主题下三枚 `disabled`＋置灰＋原因副注） | `shared/widgets/ui_kit.dart` `SegRow<T>`（键 `<keyPrefix>-<id 尾段>`；`enabled=false` 整条置灰且点不动；配色吃 M3 scheme＋主题令牌，深浅两态自适应）·落点 `settings_page.dart` 外观屏深色行（键 `dark-mode-seg`） | 两态控件装不下三档：旧形态是一枚 Switch＋「跟随系统」藏在副标小字点击里，用户读不到当前档也找不到第三态。定式＝① 三档一次看全、点哪个是哪个 ② 副注必须是**当前档读数**（跟随系统时要报出系统此刻深浅），不许写死常量 ③ 不可选时整条置灰＋一行原因，点了不许静默改值 ④ 测试侧每步要 settle 到主题动画落定（MaterialApp 切换带插值）。闸＝`tools/dark3check.js` 16/16＋`test/dark_mode_seg_test.dart` 4 例＋变异两刀（摘 enabled→③／system 分支退回 light→①） |
 | LH-K39 | **共享层数字滚轮 LHWheel**（健康模块批2 B1 · 2026-10-07） | 健康录入就地内嵌滚轮（形态同 care/days/items 三处既有滚轮，不做两段式弹层） | `lib/shared/widgets/lh_wheel.dart` `LHWheel`（`FixedExtentScrollController(initialItem:)` ＋ `LayoutBuilder` 选中带 `top=(maxHeight-itemExtent)/2`；导引线键 `wheel-guide-line`、项键 `${keyPrefix}item$i`；`hourLabel/minuteLabel/cupsLabel` 纯函数标签） | 全仓 shared 层唯一滚轮：`itemExtent` 默认 34、`keyPrefix` 为测试钩子，二者是**硬接口勿改名**（健康批2 四枚并排录入直接用）。居中判定＝**选中项中心与导引线中心重合**——导引线做成高 `itemExtent` 的选中带，其几何中心即容器中心，**容器改高不偏**（回归既定坑：改高后导引线偏）。首帧自动回调无条件吞掉，`onSelect` 只在用户滚动时上报（延一帧，避开 build scope setState）；「—」置首＝未记录语义，index 0 由调用侧读回 null 而非数值 0。**三处私有 `CWheel`（care_kit/days_kit/items_kit）待后续收敛（排期池候选），禁再新增第四份模块私有滚轮**。闸＝`test/lh_wheel_test.dart` 4 例＋变异刀3（居中改按首项 `initialIndex*itemExtent` → 居中两例须红，md5 复原全等） |
+| LH-K40 | **列表行内就地动作**（树手感批2 · 2026-10-11） | `index-bookshelf.html` `ntLong`/`ntAct` 态＋`nt-act-rename`/`nt-act-del` | `features/journal/presentation/widgets/note_tree_drawer.dart` `_longPress`/`_actBtns`（动作钮 key `nt-act-*`） | 长按一行＝行尾**就地**换出两枚线性图标钮（替掉原计数位），不再叠 `showModalBottomSheet` 白色半屏菜单（与胶囊语言不符、多一层转场）。清态四条＝再长按同夹／点别的行／点 caret 展开折叠／按下动作钮本身；**输入类动作（重命名）仍可弹层**，删除类就地即执行；挂载节点不走就地化（维持「移除挂载」半屏＝N-1c）。色标只取 `colorScheme.error`，不新增硬编码色值。本形态暂只在笔记树落地，其余模块长按菜单要就地化时复用（闸＝`test/note_tree_inline_actions_test.dart` 5 例＋刀②摘清态/刀③回退白弹单各红其位） |
 | 编号 | 名称 | 原型 | 代码锚点 | 规格要点 |
 |---|---|---|---|---|
 | LH-L01 | 待办条目 | .task-row | todo_list_view `_TodoTile` | chk+标题+⏰/#tag/🔁 信息行+象限色点 |

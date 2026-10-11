@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,19 +11,43 @@ import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
 import '../note_local_import.dart';
 
+/// T-B（树手感批2 · 2026-10-11）：边缘右滑的**跟手接管句柄**。
+///
+/// 老形态是「累计够距就调一次 onOpen，弹层自己补间」＝门不跟手（真机反馈轮3 指出的
+/// 「操作不流畅」最大头）。现在起手势过阈后把后续累计位移与抬手都回灌给句柄，
+/// 由句柄逐帧钉住路由动画值——面板随指推出、遮罩透明度同帧跟随。
+abstract class EdgeFollow {
+  /// 进度分母（逻辑像素）：阈值之后再多拖这么远＝全开。
+  double get panelWidth;
+
+  /// 过阈瞬间调用一次：开弹层并把进度钉在起点。
+  void start();
+
+  /// 拖拽中：[dx]＝阈值之后的净右移像素（≥0）。
+  void update(double dx);
+
+  /// 抬手：按位置＋横向速度决定补间全开还是回弹关闭。
+  void finish(double dx, double vx);
+}
+
 /// 左边缘右滑开文件树（2026-10-11 真机反馈轮·产品定「左边缘右滑开树」）。
 ///
 /// 为什么用 `Listener` 而不挂 `GestureDetector`：卡片那层的 `Dismissible`（左滑＝移入回收站）
 /// 与本手势同为横向拖拽识别器，进了手势竞技场必然是**更深的子级赢**——那样边缘手势在卡片上
 /// 永远不触发。`Listener` 不参与竞技场，只观察原始指针：起点贴左边缘、累计右移够距且横向
 /// 位移大于纵向（避开竖滚列表误触）才开一次，抬手前不再重复触发。
+///
+/// T-B 起：抬手前的**每一帧**也要回灌（跟手），所以指针路径不能只观察到阈值为止——
+/// Flutter 的 move/up 沿用 down 时的命中测试结果，弹层盖上来之后本 `Listener` 仍能收到
+/// 同一路指针，这正是跟手需要的形态。
 class EdgeSwipeToOpen extends StatefulWidget {
   const EdgeSwipeToOpen(
       {super.key,
       required this.onOpen,
       required this.child,
       this.edgeZone = 110,
-      this.triggerPx = 56});
+      this.triggerPx = 56,
+      this.startFollow});
 
   final VoidCallback onOpen;
   final Widget child;
@@ -34,6 +60,10 @@ class EdgeSwipeToOpen extends StatefulWidget {
   /// 触发所需的累计右移量。
   final double triggerPx;
 
+  /// 跟手模式（T-B）：提供则过阈时向它取句柄接管整段拖拽，不再走 [onOpen]；
+  /// 取不到句柄（返回 null）时照旧一次性开。
+  final EdgeFollow? Function()? startFollow;
+
   @override
   State<EdgeSwipeToOpen> createState() => _EdgeSwipeToOpenState();
 }
@@ -41,9 +71,14 @@ class EdgeSwipeToOpen extends StatefulWidget {
 class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
   int? _pid;
   bool _armed = false, _fired = false;
-  double _dx = 0, _dy = 0;
+  double _dx = 0, _dy = 0, _vx = 0;
+  Duration _lastT = Duration.zero;
+  EdgeFollow? _follow;
 
-  void _reset() => _pid = null;
+  void _reset() {
+    _pid = null;
+    _follow = null;
+  }
 
   void _onPointer(PointerEvent e) {
     if (e is PointerDownEvent) {
@@ -52,21 +87,40 @@ class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
       _fired = false;
       _dx = 0;
       _dy = 0;
-    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed && !_fired) {
+      _vx = 0;
+      _lastT = e.timeStamp;
+    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed) {
       _dx += e.delta.dx;
       _dy += e.delta.dy.abs();
-      if (_dx >= widget.triggerPx && _dx > _dy) {
+      final dtUs = (e.timeStamp - _lastT).inMicroseconds;
+      if (dtUs > 0) {
+        _vx = _vx * .5 + (e.delta.dx / dtUs * 1000000) * .5;
+        _lastT = e.timeStamp;
+      }
+      if (_follow != null) {
+        _follow!.update(math.max(0, _dx - widget.triggerPx));
+      } else if (!_fired && _dx >= widget.triggerPx && _dx > _dy) {
         _fired = true;
-        widget.onOpen();
+        final f = widget.startFollow?.call();
+        if (f == null) {
+          widget.onOpen();
+        } else {
+          _follow = f;
+          f.start();
+          f.update(math.max(0, _dx - widget.triggerPx));
+        }
       }
     } else if ((e is PointerUpEvent || e is PointerCancelEvent) &&
         e.pointer == _pid) {
+      _follow?.finish(
+          math.max(0, _dx - widget.triggerPx), e is PointerUpEvent ? _vx : 0);
       _reset();
     }
   }
 
   @override
   Widget build(BuildContext context) => Listener(
+        key: const ValueKey('note-edge-follow'),
         onPointerDown: _onPointer,
         onPointerMove: _onPointer,
         onPointerUp: _onPointer,
@@ -78,25 +132,134 @@ class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
 /// V1.29 批A3 · 文件夹树抽屉（原型 noteTree · Obsidian 形态）：
 /// 左边缘右滑或右上文件夹钮开 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
 /// 点树外内容区＝收起（真机反馈轮显式钉死 barrierDismissible）；
-/// 「添加文件夹」建在选中目录下（未选=顶层）；长按节点=重命名/删除，
+/// 「添加文件夹」建在选中目录下（未选=顶层）；长按手建夹=行内就地重命名/删除（T-E），
 /// 长按本地/导出挂载节点=移除挂载（V1.64 批2）；底部操作条：重命名/添加/展开折叠/关闭。
-Future<void> showNoteTreeDrawer(BuildContext context) => showGeneralDialog(
-      context: context,
-      barrierLabel: '文件夹',
-      barrierColor: Colors.black54,
-      // 真机反馈轮：点树外（右侧内容区）必收起——写死显式值，防默认值漂移。
-      barrierDismissible: true,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (_, _, _) => const _TreeDrawer(),
-      transitionBuilder: (_, anim, _, child) => SlideTransition(
-        position: Tween(begin: const Offset(-.6, 0), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+Future<void> showNoteTreeDrawer(BuildContext context) =>
+    Navigator.of(context).push<void>(_NoteTreeDrawerRoute());
+
+/// T-B（树手感批2）：树抽屉路由——动画值可被**外部指针**直接钉住（边缘右滑跟手开、
+/// 面板左滑跟手收），抬手/松手才补间到底或回弹。
+///
+/// 遮罩不必另算：`ModalRoute` 按同一条 animation 淡入 `barrierColor`，
+/// 所以把值从 0 拖到 1 的过程里遮罩透明度天然跟着走（全开＝black54）。
+class _NoteTreeDrawerRoute extends ModalRoute<void> {
+  _NoteTreeDrawerRoute({this.interactive = false});
+
+  /// true＝由边缘起手势接管进度（不自动补间）；false＝文件夹钮点开（框架补间）。
+  final bool interactive;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 220);
+
+  @override
+  bool get opaque => false;
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Color get barrierColor => Colors.black54;
+
+  @override
+  String get barrierLabel => '文件夹';
+
+  // 真机反馈轮：点树外（右侧内容区）必收起——写死显式值，防默认值漂移。
+  @override
+  bool get barrierDismissible => true;
+
+  /// 面板跟手用的控制器（继承的受保护成员，在本类内以公开口交出）。
+  AnimationController get drag => controller!;
+
+  /// 还能不能由手势驱动：路由已释放（控制器随之 dispose）＝不再插手。
+  /// 双指竞态会走到这里——一路手指在面板上拖着，另一路点遮罩把弹层收起。
+  bool _gone = false;
+  bool get drivable => !_gone;
+
+  @override
+  void dispose() {
+    _gone = true;
+    super.dispose();
+  }
+
+  /// 跟手进度：把 p∈[0,1] 直接钉到动画值（面板位移与遮罩淡入同帧跟随）。
+  void followTo(double p) {
+    if (!drivable) return;
+    drag.value = p.clamp(0.0, 1.0);
+  }
+
+  @override
+  Animation<double> createAnimation() => controller!;
+
+  @override
+  TickerFuture didPush() {
+    final f = super.didPush();
+    // 跟手形态：起手势会在同一次指针回调里逐帧钉进度，框架的自动补间当场摘掉。
+    if (interactive) drag.value = 0;
+    return f;
+  }
+
+  @override
+  Widget buildPage(BuildContext context, Animation<double> animation,
+          Animation<double> secondaryAnimation) =>
+      _TreeDrawer(route: this);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation,
+          Animation<double> secondaryAnimation, Widget child) =>
+      // 抽屉本体是整宽的 Align(centerLeft)，位移按屏宽计：62% 面板正好整体推出。
+      SlideTransition(
+        position:
+            Tween(begin: const Offset(-.6, 0), end: Offset.zero).animate(animation),
         child: child,
-      ),
-    );
+      );
+}
+
+/// T-B：笔记 tab 边缘右滑的跟手接管（`EdgeSwipeToOpen.startFollow` 提供）。
+EdgeFollow? noteTreeFollow(BuildContext context) => _NoteTreeFollow(context);
+
+class _NoteTreeFollow implements EdgeFollow {
+  _NoteTreeFollow(this._ctx);
+
+  final BuildContext _ctx;
+  _NoteTreeDrawerRoute? _route;
+
+  @override
+  double get panelWidth => MediaQuery.sizeOf(_ctx).width * .62;
+
+  @override
+  void start() {
+    if (!_ctx.mounted) return;
+    final r = _NoteTreeDrawerRoute(interactive: true);
+    _route = r;
+    Navigator.of(_ctx).push<void>(r);
+    r.followTo(0);
+  }
+
+  @override
+  void update(double dx) => _route?.followTo(dx / panelWidth);
+
+  @override
+  void finish(double dx, double vx) {
+    final r = _route;
+    _route = null;
+    if (r == null || !r.drivable || !_ctx.mounted) return;
+    final p = (dx / panelWidth).clamp(0.0, 1.0);
+    if (p > .4 || vx > _kFlingVx) {
+      r.drag.animateTo(1, curve: Curves.easeOutCubic);
+    } else {
+      Navigator.of(_ctx).pop(); // 位置没过半也没甩速＝回弹收起（反向补间同一条动画）
+    }
+  }
+}
+
+/// 抬手判定：阈值后净位移过半（见 [_NoteTreeFollow.finish]）或横向甩速过此值即算开树。
+const double _kFlingVx = 600; // px/s
 
 class _TreeDrawer extends ConsumerStatefulWidget {
-  const _TreeDrawer();
+  const _TreeDrawer({required this.route});
+
+  /// 所属路由（T-B：面板左滑收起要反向驱动它的动画值）。
+  final _NoteTreeDrawerRoute route;
 
   @override
   ConsumerState<_TreeDrawer> createState() => _TreeDrawerState();
@@ -105,11 +268,18 @@ class _TreeDrawer extends ConsumerStatefulWidget {
 class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
   final Set<int> _open = {};
 
+  /// T-E（原型 ntAct 同款）：当前展开行内动作的文件夹 id（同一时刻只有一行有动作钮）。
+  int? _actId;
+
+  /// T-B：面板左滑收起过程中的进度累计（拖起手时以路由当前值打底）。
+  double? _closeFrom;
+
   void _pick(String folder, {bool hasKids = false, int? id}) {
     ref.read(noteFilterProvider.notifier).state = (folder: folder,
         sort: ref.read(noteFilterProvider).sort,
         asc: ref.read(noteFilterProvider).asc);
     if (hasKids && id != null) _open.add(id);
+    _actId = null; // 原型 ntPick：点别的行＝行内动作收起
     setState(() {});
   }
 
@@ -136,51 +306,52 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     }
   }
 
-  Future<void> _nodeActions(FolderNode node) async {
-    // V1.64 批2 N-1c（工单 §1.2 · 拍板 H）：挂载节点（本地导入的目录／导出目录）
-    // 长按＝进「移除挂载」确认层；手建夹维持原「重命名／删除」菜单。
-    if (node.folder.isMount) return _unmount(node);
-    final act = await showModalBottomSheet<String>(
-      context: context,
-      builder: (bc) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-                leading: const Icon(Icons.drive_file_rename_outline),
-                title: Text('重命名「${node.name}」'),
-                onTap: () => Navigator.of(bc).pop('rename')),
-            ListTile(
-                leading: const Icon(Icons.delete_outline,
-                    color: Color(0xFFF43F5E)),
-                title: const Text('删除文件夹'),
-                onTap: () => Navigator.of(bc).pop('delete')),
-          ],
-        ),
-      ),
-    );
-    if (act == null || !mounted) return;
+  /// T-E（树手感批2·真机反馈轮3）：长按手建夹＝行尾**就地**现「重命名/删除」两钮
+  /// （原型 ntLong/ntAct 同款，再长按同夹收起）；挂载节点维持「移除挂载」半屏（N-1c）。
+  /// 旧的白色 `showModalBottomSheet` 菜单撤掉——与胶囊语言不符，且多一层转场。
+  void _longPress(FolderNode node) {
+    if (node.folder.isMount) {
+      _unmount(node);
+      return;
+    }
+    setState(() => _actId = _actId == node.id ? null : node.id);
+  }
+
+  Future<void> _rename(FolderNode node) async {
+    setState(() => _actId = null);
     final dao = ref.read(noteFolderDaoProvider);
-    if (act == 'rename') {
-      final name = await _promptName(context,
-          title: '重命名', initial: node.name);
-      if (name == null || name.trim().isEmpty) return;
-      await dao.rename(node.id, name);
-    } else {
-      final ok = await dao.deleteTree(node.id);
-      // 批1 的 DAO 守卫原本静默吞掉「系统打开」的删除请求＝点了没反应；批2 补可见提示。
-      if (!ok && mounted) {
-        AppToast.show(context, '「$kSystemOpenFolder」是系统夹 · 不能删除');
-      }
-      final sel = ref.read(noteFilterProvider).folder;
-      if (sel == node.name) {
-        ref.read(noteFilterProvider.notifier).state = (folder: '',
-            sort: ref.read(noteFilterProvider).sort,
-            asc: ref.read(noteFilterProvider).asc);
-      }
+    final name = await _promptName(context, title: '重命名', initial: node.name);
+    if (name == null || name.trim().isEmpty || !mounted) return;
+    await dao.rename(node.id, name);
+    ref.invalidate(noteFolderListProvider);
+    setState(() {});
+  }
+
+  Future<void> _delete(FolderNode node) async {
+    setState(() => _actId = null);
+    final dao = ref.read(noteFolderDaoProvider);
+    final ok = await dao.deleteTree(node.id);
+    // 批1 的 DAO 守卫原本静默吞掉「系统打开」的删除请求＝点了没反应；批2 补可见提示。
+    if (!ok && mounted) {
+      AppToast.show(context, '「$kSystemOpenFolder」是系统夹 · 不能删除');
+    }
+    final sel = ref.read(noteFilterProvider).folder;
+    if (sel == node.name) {
+      ref.read(noteFilterProvider.notifier).state = (folder: '',
+          sort: ref.read(noteFilterProvider).sort,
+          asc: ref.read(noteFilterProvider).asc);
     }
     ref.invalidate(noteFolderListProvider);
     setState(() {});
+  }
+
+  /// 底部条「重命名」钮：手建夹直接开输入弹层，挂载节点走「移除挂载」（菜单撤了，入口得留着）。
+  void _renameOrUnmount(FolderNode node) {
+    if (node.folder.isMount) {
+      _unmount(node);
+    } else {
+      _rename(node);
+    }
   }
 
   /// 移除挂载（N-1c）：确认层后果三行现算；确认后只摘挂载行，笔记与磁盘原件都不动。
@@ -266,7 +437,20 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
 
     // 笔记树手感批 T-A（真机反馈轮3·产品确认）：直角满高贴边 → Obsidian 式悬浮圆角卡
     // （留边 8·圆角 16·描边＋阴影；原型 #noteTree 同形）。点树外收起/返回键/底部条沿用。
-    return SafeArea(
+    // T-B：面板面上左滑＝同一路由动画反向跟手收起（跟手开、跟手收是成对要求）。
+    return GestureDetector(
+      key: const ValueKey('nt-swipe-close'),
+      onHorizontalDragStart: (_) => _closeFrom = widget.route.drag.value,
+      onHorizontalDragUpdate: (d) {
+        final from = _closeFrom;
+        if (from == null) return;
+        final p = (from + (d.primaryDelta ?? d.delta.dx) / w).clamp(0.0, 1.0);
+        _closeFrom = p;
+        widget.route.followTo(p);
+      },
+      onHorizontalDragEnd: (d) => _settleClose(d.velocity.pixelsPerSecond.dx),
+      onHorizontalDragCancel: () => _settleClose(0),
+      child: SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
         child: Align(
@@ -367,7 +551,7 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                               : '重命名「${selNode.name}」',
                           onPressed: () => selNode == null
                               ? AppToast.show(context, '先点选文件夹')
-                              : _nodeActions(selNode),
+                              : _renameOrUnmount(selNode),
                           icon: const Icon(Icons.edit_outlined, size: 20)),
                       IconButton(
                           key: const ValueKey('nt-bt-add'),
@@ -407,7 +591,20 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
           ),
         ),
       ),
+      ),
     );
+  }
+
+  /// T-B：面板左滑松手判定——收起过半（p 已低于 .6，或明显左甩）＝关，否则补间回全开。
+  void _settleClose(double vx) {
+    final p = _closeFrom;
+    _closeFrom = null;
+    if (p == null || !widget.route.drivable) return;
+    if (p < .6 || vx < -_kFlingVx) {
+      if (mounted) Navigator.of(context).pop();
+    } else {
+      widget.route.drag.animateTo(1, curve: Curves.easeOutCubic);
+    }
   }
 
   /// 树上角标来源（''＝不画）：挂载夹直取；`local_file` 挂标随本地来源笔记清空自动回落。
@@ -434,10 +631,18 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                       ? Icons.expand_more
                       : Icons.chevron_right)
                   : null,
-              onCaret: () => setState(() =>
-                  _open.contains(n.id) ? _open.remove(n.id) : _open.add(n.id)),
+              onCaret: () => setState(() {
+                    // 原型 ntToggle：展开/折叠同时收起行内动作。
+                    if (_open.contains(n.id)) {
+                      _open.remove(n.id);
+                    } else {
+                      _open.add(n.id);
+                    }
+                    _actId = null;
+                  }),
               onTap: () => _pick(n.name, hasKids: n.children.isNotEmpty, id: n.id),
-              onLongPress: () => _nodeActions(n)),
+              onLongPress: () => _longPress(n),
+              actions: _actId == n.id ? _actBtns(n) : null),
           // 笔记树手感批 T-C：展开/折叠＝AnimatedSize 150ms easeOut（〇B 微动档），不再跳变。
           AnimatedSize(
             duration: const Duration(milliseconds: 150),
@@ -463,7 +668,8 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       IconData? caret,
       VoidCallback? onCaret,
       required VoidCallback onTap,
-      VoidCallback? onLongPress}) {
+      VoidCallback? onLongPress,
+      Widget? actions}) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     return InkWell(
@@ -511,7 +717,10 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
                 if (badgeSource.isNotEmpty) MountBadge(source: badgeSource),
               ],
             )),
-            if (count != null)
+            // T-E：动作态下行尾两钮替掉计数位（原型 ntAct 同款）。
+            if (actions != null)
+              actions
+            else if (count != null)
               Text('$count',
                   style: TextStyle(
                       fontSize: 10, color: scheme.onSurfaceVariant)),
@@ -520,6 +729,31 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
       ),
     );
   }
+
+  /// T-E 行内动作（原型 nt-act-rename／nt-act-del）：行尾就地两枚线性图标钮，
+  /// 点哪枚即收起动作态；不再开白色半屏菜单。
+  Widget _actBtns(FolderNode node) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+              key: const ValueKey('nt-act-rename'),
+              tooltip: '重命名',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _rename(node),
+              icon: const Icon(Icons.edit_outlined, size: 18)),
+          IconButton(
+              key: const ValueKey('nt-act-del'),
+              tooltip: '删除文件夹',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _delete(node),
+              icon: Icon(Icons.delete_outline,
+                  size: 18, color: Theme.of(context).colorScheme.error)),
+        ],
+      );
 }
 
 Future<String?> _promptName(BuildContext context,
