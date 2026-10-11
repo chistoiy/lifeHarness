@@ -76,6 +76,11 @@ Future<NoteFolder> ensureMountFolder(NoteFolderDao folders, String name,
     if (hit.source.isEmpty && source.isNotEmpty) {
       await folders.setMount(hit.id!,
           source: source, originUri: originUri, originPath: originPath);
+    } else if (hit.isMount && originUri.isNotEmpty) {
+      // 真机反馈批③（工单 §4）：**重新导入同一个目录＝刷新挂载锚点**——老挂载点当初只拿了
+      // 读授权，重选一次才带得上写权限；URI 不更新则写回永远 no_perm。
+      await folders.setMount(hit.id!,
+          source: hit.source, originUri: originUri, originPath: originPath);
     }
     return hit;
   }

@@ -14,6 +14,7 @@ import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/md_shortcut.dart';
 import 'journal_providers.dart';
+import 'note_mount_write.dart';
 import 'note_paper.dart';
 import '../../../shared/widgets/image_attach.dart';
 import 'widgets/md_view.dart';

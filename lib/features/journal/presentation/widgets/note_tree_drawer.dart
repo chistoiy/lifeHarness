@@ -9,14 +9,81 @@ import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
 import '../note_local_import.dart';
 
+/// 左边缘右滑开文件树（2026-10-11 真机反馈轮·产品定「左边缘右滑开树」）。
+///
+/// 为什么用 `Listener` 而不挂 `GestureDetector`：卡片那层的 `Dismissible`（左滑＝移入回收站）
+/// 与本手势同为横向拖拽识别器，进了手势竞技场必然是**更深的子级赢**——那样边缘手势在卡片上
+/// 永远不触发。`Listener` 不参与竞技场，只观察原始指针：起点贴左边缘、累计右移够距且横向
+/// 位移大于纵向（避开竖滚列表误触）才开一次，抬手前不再重复触发。
+class EdgeSwipeToOpen extends StatefulWidget {
+  const EdgeSwipeToOpen(
+      {super.key,
+      required this.onOpen,
+      required this.child,
+      this.edgeZone = 28,
+      this.triggerPx = 56});
+
+  final VoidCallback onOpen;
+  final Widget child;
+
+  /// 起点判定带（逻辑像素）：Android 系统「边缘返回」也吃这段，若机型冲突可调窄。
+  final double edgeZone;
+
+  /// 触发所需的累计右移量。
+  final double triggerPx;
+
+  @override
+  State<EdgeSwipeToOpen> createState() => _EdgeSwipeToOpenState();
+}
+
+class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
+  int? _pid;
+  bool _armed = false, _fired = false;
+  double _dx = 0, _dy = 0;
+
+  void _reset() => _pid = null;
+
+  void _onPointer(PointerEvent e) {
+    if (e is PointerDownEvent) {
+      _pid = e.pointer;
+      _armed = e.position.dx <= widget.edgeZone;
+      _fired = false;
+      _dx = 0;
+      _dy = 0;
+    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed && !_fired) {
+      _dx += e.delta.dx;
+      _dy += e.delta.dy.abs();
+      if (_dx >= widget.triggerPx && _dx > _dy) {
+        _fired = true;
+        widget.onOpen();
+      }
+    } else if ((e is PointerUpEvent || e is PointerCancelEvent) &&
+        e.pointer == _pid) {
+      _reset();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+        onPointerDown: _onPointer,
+        onPointerMove: _onPointer,
+        onPointerUp: _onPointer,
+        onPointerCancel: _onPointer,
+        child: widget.child,
+      );
+}
+
 /// V1.29 批A3 · 文件夹树抽屉（原型 noteTree · Obsidian 形态）：
-/// 左滑入 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
-/// 「添加文件夹」建在选中目录下（未选=顶层）；长按节点=重命名/删除；
-/// 底部操作条：重命名 / 添加 / 展开折叠 / 关闭。
+/// 左边缘右滑或右上文件夹钮开 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
+/// 点树外内容区＝收起（真机反馈轮显式钉死 barrierDismissible）；
+/// 「添加文件夹」建在选中目录下（未选=顶层）；长按节点=重命名/删除，
+/// 长按本地/导出挂载节点=移除挂载（V1.64 批2）；底部操作条：重命名/添加/展开折叠/关闭。
 Future<void> showNoteTreeDrawer(BuildContext context) => showGeneralDialog(
       context: context,
       barrierLabel: '文件夹',
       barrierColor: Colors.black54,
+      // 真机反馈轮：点树外（右侧内容区）必收起——写死显式值，防默认值漂移。
+      barrierDismissible: true,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) => const _TreeDrawer(),
       transitionBuilder: (_, anim, _, child) => SlideTransition(

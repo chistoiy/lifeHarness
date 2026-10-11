@@ -7,6 +7,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/platform/saf_tree.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/data/note_folder_dao.dart';
+import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/domain/note_folder.dart';
 import 'package:lifeharness/features/journal/presentation/note_local_import.dart';
 
@@ -313,6 +314,38 @@ void main() {
       expect(kt, contains('takePersistableUriPermission'),
           reason: '不取持久化授权＝重启后挂载读不到（工单 §3 红线）');
       expect(kt, isNot(contains('MANAGE_EXTERNAL_STORAGE')));
+    });
+  });
+
+  group('⑥ 树计数与列表同源（真机反馈 2026-10-11·工单 交棒话术-20261011 §3）', () {
+    test('目录里的一篇＋应用内新建的一篇＝树上计 2，列表也必须见 2', () async {
+      const root = SafDoc(
+          name: 'obsidian',
+          uri: 'content://tree/o',
+          isDir: true,
+          children: [
+            SafDoc(name: '未命名', uri: 'content://tree/u', isDir: true, children: [
+              SafDoc(name: '外来的一篇.md', uri: 'content://doc/x', isDir: false),
+            ]),
+          ]);
+      await importLocalTree(
+          notes: notes,
+          folders: folders,
+          root: root,
+          readText: (uri) async => '目录里本来就有的正文');
+      final now = DateTime.now();
+      await notes.save(Note(
+          title: '我手动加的',
+          content: '手输正文',
+          folder: '未命名',
+          createdAt: now,
+          updatedAt: now));
+      final counts = await notes.folderCounts();
+      expect(counts['未命名'], 2, reason: '导入的那篇必须归到子夹名下');
+      expect((await notes.list(folder: '未命名')).length, counts['未命名'],
+          reason: '树上计数与列表条数不同源＝产品报的「计 2 只见 1」；'
+              '两条查询的过滤条件（archived/deleted_at/folder）必须逐字一致');
+      expect(await notes.trash(), isEmpty, reason: '那条不该躺在回收站里');
     });
   });
 }

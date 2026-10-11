@@ -73,3 +73,42 @@ Future<List<SafDoc>> Function() safPickFiles = () async => parseSafDocs(
 /// 按 URI 读文本正文（UTF-8；读不到抛）。
 Future<String?> Function(String uri) safReadText = (uri) async =>
     await _safChannel.invokeMethod<String>('readDoc', {'uri': uri});
+
+/// 目录树里落盘的返回（code＝ok|no_perm|error；name＝实际文件名）。
+class MountWriteResult {
+  const MountWriteResult(
+      {required this.code, this.uri = '', this.name = '', this.localPath = ''});
+
+  final String code;
+  final String uri;
+  final String name;
+
+  /// 人话位置（原生给的 document 尾段，提示里要说「写到哪」）。
+  final String localPath;
+
+  bool get ok => code == 'ok';
+}
+
+/// 在已授权目录树里新建（或覆写）一个 .md 并写正文（真机反馈批③·挂载即双向）。
+/// 同名由原生自动追加 (2)(3)…；失败按码返回不抛（写盘失败绝不吞掉应用内的保存）。
+Future<MountWriteResult> Function(
+        {required String tree,
+        required String relPath,
+        required String name,
+        required String text})
+    safCreateInTree = ({
+  required String tree,
+  required String relPath,
+  required String name,
+  required String text,
+}) async {
+  final raw = await _safChannel.invokeMethod<Map<Object?, Object?>>('createInTree',
+      {'tree': tree, 'relPath': relPath, 'name': name, 'text': text});
+  if (raw == null) return const MountWriteResult(code: 'error');
+  return MountWriteResult(
+    code: (raw['code'] as String?) ?? 'error',
+    uri: (raw['uri'] as String?) ?? '',
+    name: (raw['name'] as String?) ?? '',
+    localPath: (raw['localPath'] as String?) ?? '',
+  );
+};

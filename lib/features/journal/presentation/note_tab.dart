@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/logging/app_log.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../data/note_dao.dart';
@@ -193,7 +194,13 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       ],
     );
 
-    if (!selMode) return list;
+    // 真机反馈轮（2026-10-11）：左边缘右滑＝开文件树（批量选择态不给该手势，避免误开）。
+    if (!selMode) {
+      return EdgeSwipeToOpen(
+          key: const ValueKey('note-edge-swipe'),
+          onOpen: () => showNoteTreeDrawer(context),
+          child: list);
+    }
     // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
     final byId = {for (final n in notes) n.id: n};
     final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
@@ -447,7 +454,23 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       ),
       onDismissed: (_) async {
         setState(() => _gone.add(n.id!));
-        await ref.read(noteDaoProvider).softDelete(n.id!);
+        final dao = ref.read(noteDaoProvider);
+        final id = n.id!;
+        try {
+          await dao.softDelete(id);
+        } catch (e) {
+          // catch-ok: 抛出去也没人接（异步回调里），至少留一行日志。
+          AppLog.add('笔记移入回收站失败：${n.title} · $e', level: LhLevel.warn);
+        }
+        // 真机反馈轮（2026-10-11·工单 交棒话术-20261011 §3）：`_gone` 是"先隐藏再异步软删"
+        // 的动画垫片。若那次软删没落库，卡片就永久隐身而树上计数照算＝产品报的
+        // 「计 2 条、只见 1 条」。当场核验：仍在册即交还列表并留痕，绝不静默吞。
+        final back = await dao.byId(id);
+        if (back != null && back.deletedAt == null) {
+          AppLog.add('笔记软删未落库，卡片已交还列表：${n.title}',
+              level: LhLevel.warn);
+          if (mounted) setState(() => _gone.remove(id));
+        }
         ref.invalidate(notesProvider);
         ref.invalidate(noteTreeProvider);
         if (context.mounted) AppToast.show(context, '已移入回收站 · 30 天内可恢复');

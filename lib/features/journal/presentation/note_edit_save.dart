@@ -65,6 +65,14 @@ extension _NoteSave on _NoteEditPageState {
           ? '原文件已不在 · 改动仅存应用内'
           : '原文件授权失效 · 改动仅存应用内');
     }
+    // 真机反馈批③（工单 交棒话术-20261011 §4·拍板「挂载即双向」）：挂在本地导入目录下
+    // 的笔记，保存即写回那个目录（新建落 <标题>.md、已有则覆写）；失败只出声不吞稿。
+    final ms = await syncNoteToMount(
+        saved: saved,
+        notes: dao,
+        folders: ref.read(noteFolderDaoProvider));
+    if (ms.note != null && ms.note!.id == saved.id) _existing = ms.note;
+    if (ms.toastLine.isNotEmpty && mounted) AppToast.show(context, ms.toastLine);
     ref.invalidate(notesProvider);
     ref.invalidate(noteFoldersProvider);
     return saved;

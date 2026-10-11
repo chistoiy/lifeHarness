@@ -101,6 +101,7 @@ class MainActivity : FlutterActivity() {
                 "pickFiles" -> safPickFiles(result)
                 "listTree" -> safListTree(call, result)
                 "readDoc" -> safReadDoc(call, result)
+                "createInTree" -> safCreateInTree(call, result)
                 else -> result.notImplemented()
             }
         }
@@ -146,14 +147,24 @@ class MainActivity : FlutterActivity() {
                 return
             }
             val tree = data.data!!
+            // 工单 §3 红线：目录授权必须持久化（重启后还能按原挂载继续导入）。
+            // 2026-10-11 真机反馈批③（拍板「挂载即双向」）：一次拿够读＋写；个别 provider
+            // 只给只读（DocumentsUI 的「仅查看」档），拿写失败退回只读——导入照旧能用，
+            // 写回那侧由 Dart 按 no_perm 出一行人话，不因授权档位让整条入口失败。
             try {
-                // 工单 §3 红线：目录授权必须持久化（重启后还能按原挂载继续导入）。
                 contentResolver.takePersistableUriPermission(
-                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    tree,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
-            } catch (e: Exception) {
-                res.error("no_perm", e.localizedMessage, null)
-                return
+            } catch (_: Exception) {
+                try {
+                    contentResolver.takePersistableUriPermission(
+                        tree, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    res.error("no_perm", e.localizedMessage, null)
+                    return
+                }
             }
             res.success(tree.toString())
             return
@@ -300,6 +311,94 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             result.error("read_failed", e.localizedMessage, null)
         }
+    }
+
+    /// 真机反馈批③（工单 交棒话术-20261011 §4）：在已授权的目录树里落一个 .md 并写正文。
+    /// 参数 tree＝目录 tree URI、relPath＝相对挂载根的子路径（可空，'/' 分隔）、
+    /// name＝期望文件名、text＝正文。返回 Map：code=ok|no_perm|error，uri＝落盘文档 URI，
+    /// name＝**实际**文件名（同名自动追加 (2)(3)…，与需求「同名追加序号」同口径）。
+    /// 一律按码返回不抛错——写回失败必须可见但不许吞掉应用内的保存。
+    private fun safCreateInTree(call: MethodCall, result: MethodChannel.Result) {
+        val treeStr = call.argument<String>("tree")
+        val want = call.argument<String>("name")
+        val text = call.argument<String>("text") ?: ""
+        val rel = call.argument<String>("relPath") ?: ""
+        if (treeStr.isNullOrEmpty() || want.isNullOrEmpty()) {
+            result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+            return
+        }
+        val tree = Uri.parse(treeStr)
+        try {
+            var parent = DocumentsContract.buildDocumentUriUsingTree(
+                tree, DocumentsContract.getTreeDocumentId(tree)
+            )
+            for (seg in rel.split('/').filter { it.isNotEmpty() }) {
+                val next = findChild(tree, parent, seg, true)
+                if (next != null) parent = next
+            }
+            val dot = want.lastIndexOf('.')
+            val base = if (dot > 0) want.substring(0, dot) else want
+            val ext = if (dot > 0) want.substring(dot) else ""
+            var candidate = want
+            var n = 1
+            while (findChild(tree, parent, candidate, false) != null && n < 50) {
+                n++
+                candidate = "$base($n)$ext"
+            }
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+                tree, DocumentsContract.getDocumentId(parent)
+            )
+            val doc = DocumentsContract.createDocument(
+                contentResolver, children, "text/markdown", candidate
+            )
+            if (doc == null) {
+                result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+                return
+            }
+            contentResolver.openOutputStream(doc, "w")?.use { out ->
+                out.write(text.toByteArray(Charsets.UTF_8))
+            }
+            result.success(mapOf(
+                "code" to "ok",
+                "uri" to doc.toString(),
+                "name" to candidate,
+                // 人话位置（提示条要说「写到哪」）：relPath/实际文件名
+                "localPath" to (if (rel.isEmpty) candidate else "$rel/$candidate")
+            ))
+        } catch (_: SecurityException) {
+            // 只读挂载（当初只拿到 READ）＝写回必失败，按码回给 Dart 出实话。
+            result.success(mapOf("code" to "no_perm", "uri" to "", "name" to ""))
+        } catch (_: Exception) {
+            result.success(mapOf("code" to "error", "uri" to "", "name" to ""))
+        }
+    }
+
+    /// 在某目录下按显示名找一个子项（wantDir=true 只要目录，false 只要文件）。
+    private fun findChild(tree: Uri, parent: Uri, name: String, wantDir: Boolean): Uri? {
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+            tree, DocumentsContract.getDocumentId(parent)
+        )
+        contentResolver.query(
+            children,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE
+            ),
+            null, null, null
+        )?.use { c ->
+            val idi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val nmi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            val mmi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+            while (c.moveToNext()) {
+                if (c.getString(nmi) != name) continue
+                val isDir = c.getString(mmi) == DocumentsContract.Document.MIME_TYPE_DIR
+                if (isDir == wantDir) {
+                    return DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(idi))
+                }
+            }
+        }
+        return null
     }
 
     private fun docNode(tree: Uri, doc: Uri, depth: Int): Map<String, Any> {
