@@ -118,6 +118,10 @@ class UserSettings {
     this.noteLatex = false,
     this.notePlainLineNum = false,
     this.noteSwipe = false,
+    this.noteFolder = '',
+    this.noteSort = 'updated',
+    this.noteSortAsc = false,
+    this.noteViewCols = 0,
     this.trashKeepDays = 30,
     this.weatherCity = '',
     this.profileNick = '',
@@ -147,6 +151,19 @@ class UserSettings {
 
   /// V1.29轮10-2·记录管理：编辑页左右滑动切换上下篇开关（默认关=轮8②常开改为可选）。
   final bool noteSwipe;
+
+  /// 批5③（2026-10-12）·笔记段「当前文件夹」持久化（'' = 全部；其余 = 文件夹名）。
+  /// 冷启动恢复上次所在目录；夹被删/改名后由 `NoteTab` 侧校验回落「全部」。
+  final String noteFolder;
+
+  /// 批5③·笔记排序键（NoteSort.name：'updated' / 'created' / 'title'）。
+  final String noteSort;
+
+  /// 批5③·排序方向（false = 降序/A→Z，true = 升序/Z→A）。
+  final bool noteSortAsc;
+
+  /// 批5③·笔记视图档（0 = 列表；2/3 = 卡片每行列数；脏值在 provider 侧收敛到 0）。
+  final int noteViewCols;
 
   /// V1.57 E 批 · 记录管理「通用 · 回收站自动清理」：待办垃圾箱保留天数
   /// 档位 30/7/90，0＝不清理（默认 30）。垃圾箱入口/期限文案与冷启动自动清理同源读这里。
@@ -213,6 +230,10 @@ class UserSettings {
     bool? noteLatex,
     bool? notePlainLineNum,
     bool? noteSwipe,
+    String? noteFolder,
+    String? noteSort,
+    bool? noteSortAsc,
+    int? noteViewCols,
     int? trashKeepDays,
     String? weatherCity,
     String? profileNick,
@@ -231,6 +252,10 @@ class UserSettings {
         noteLatex: noteLatex ?? this.noteLatex,
         notePlainLineNum: notePlainLineNum ?? this.notePlainLineNum,
         noteSwipe: noteSwipe ?? this.noteSwipe,
+        noteFolder: noteFolder ?? this.noteFolder,
+        noteSort: noteSort ?? this.noteSort,
+        noteSortAsc: noteSortAsc ?? this.noteSortAsc,
+        noteViewCols: noteViewCols ?? this.noteViewCols,
         trashKeepDays: trashKeepDays ?? this.trashKeepDays,
         weatherCity: weatherCity ?? this.weatherCity,
         profileNick: profileNick ?? this.profileNick,
@@ -250,6 +275,10 @@ class UserSettings {
         'noteLatex': noteLatex,
         'notePlainLineNum': notePlainLineNum,
         'noteSwipe': noteSwipe,
+        'noteFolder': noteFolder,
+        'noteSort': noteSort,
+        'noteSortAsc': noteSortAsc,
+        'noteViewCols': noteViewCols,
         'trashKeepDays': trashKeepDays,
         'weatherCity': weatherCity,
         'profileNick': profileNick,
@@ -271,6 +300,14 @@ class UserSettings {
         noteLatex: m['noteLatex'] as bool? ?? false,
         notePlainLineNum: m['notePlainLineNum'] as bool? ?? false,
         noteSwipe: m['noteSwipe'] as bool? ?? false,
+        noteFolder: m['noteFolder'] as String? ?? '',
+        noteSort: const {'updated', 'created', 'title'}.contains(m['noteSort'])
+            ? m['noteSort'] as String
+            : 'updated',
+        noteSortAsc: m['noteSortAsc'] as bool? ?? false,
+        noteViewCols: const {0, 2, 3}.contains(m['noteViewCols'])
+            ? m['noteViewCols'] as int
+            : 0,
         trashKeepDays: const {0, 7, 30, 90}.contains(m['trashKeepDays'])
             ? m['trashKeepDays'] as int
             : 30,

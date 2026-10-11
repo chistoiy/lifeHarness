@@ -17,6 +17,13 @@ class SettingsRepository {
   static const _kNoteLatex = 'lh.note_latex';
   static const _kNoteLineNum = 'lh.note_plain_linenum';
   static const _kNoteSwipe = 'lh.note_swipe';
+
+  /// 批5③（2026-10-12）·笔记段筛选/视图持久化（文件夹 / 排序键 / 方向 / 视图档）。
+  static const _kNoteFolder = 'lh.note_folder';
+  static const _kNoteSort = 'lh.note_sort';
+  static const _kNoteSortAsc = 'lh.note_sort_asc';
+  static const _kNoteViewCols = 'lh.note_view_cols';
+
   static const _kWeatherCity = 'lh.weather_city';
 
   /// R14-12·我的页资料（本地模式无账号：昵称/签名只是偏好，不建表、不进业务备份口径）。
@@ -31,6 +38,8 @@ class SettingsRepository {
   static const _kNavGestureOn = 'lh.nav_gesture_on';
   static const _kNavLineStyle = 'lh.nav_line_style';
   static const _kNavLineGap = 'lh.nav_line_gap';
+
+  /// 「我的」页版式（2026-10-12）：'hero'|'chapters'|'minimal'，默认 hero。
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
@@ -48,6 +57,10 @@ class SettingsRepository {
         latex == null &&
         _prefs.getBool(_kNoteLineNum) == null &&
         _prefs.getBool(_kNoteSwipe) == null &&
+        _prefs.getString(_kNoteFolder) == null &&
+        _prefs.getString(_kNoteSort) == null &&
+        _prefs.getBool(_kNoteSortAsc) == null &&
+        _prefs.getInt(_kNoteViewCols) == null &&
         _prefs.getString(_kWeatherCity) == null &&
         _prefs.getString(_kProfileNick) == null &&
         _prefs.getInt(_kTrashKeep) == null &&
@@ -66,6 +79,10 @@ class SettingsRepository {
       'noteLatex': ?_prefs.getBool(_kNoteLatex),
       'notePlainLineNum': ?_prefs.getBool(_kNoteLineNum),
       'noteSwipe': ?_prefs.getBool(_kNoteSwipe),
+      'noteFolder': ?_prefs.getString(_kNoteFolder),
+      'noteSort': ?_prefs.getString(_kNoteSort),
+      'noteSortAsc': ?_prefs.getBool(_kNoteSortAsc),
+      'noteViewCols': ?_prefs.getInt(_kNoteViewCols),
       'weatherCity': ?_prefs.getString(_kWeatherCity),
       'profileNick': ?_prefs.getString(_kProfileNick),
       'profileBio': ?_prefs.getString(_kProfileBio),
@@ -87,6 +104,10 @@ class SettingsRepository {
     await _prefs.setBool(_kNoteLatex, m['noteLatex']! as bool);
     await _prefs.setBool(_kNoteLineNum, m['notePlainLineNum']! as bool);
     await _prefs.setBool(_kNoteSwipe, m['noteSwipe']! as bool);
+    await _prefs.setString(_kNoteFolder, m['noteFolder']! as String);
+    await _prefs.setString(_kNoteSort, m['noteSort']! as String);
+    await _prefs.setBool(_kNoteSortAsc, m['noteSortAsc']! as bool);
+    await _prefs.setInt(_kNoteViewCols, m['noteViewCols']! as int);
     await _prefs.setString(_kWeatherCity, m['weatherCity']! as String);
     await _prefs.setString(_kProfileNick, m['profileNick']! as String);
     await _prefs.setString(_kProfileBio, m['profileBio']! as String);

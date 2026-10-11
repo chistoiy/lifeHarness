@@ -1275,8 +1275,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 3472,
-     "hash": "25d5483e"
+     "size": 3762,
+     "hash": "e73bd24c"
     }
    }
   },
@@ -1289,8 +1289,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 27537,
-     "hash": "3eaefe1b"
+     "size": 30699,
+     "hash": "dcd244b6"
     }
    }
   },
@@ -1429,8 +1429,8 @@
    "status": "shared",
    "files": {
     "index-bookshelf.html": {
-     "size": 5084,
-     "hash": "c0afe4a4"
+     "size": 5988,
+     "hash": "23bfe430"
     }
    }
   },
@@ -1541,8 +1541,8 @@
    "status": "shared",
    "files": {
     "index.html": {
-     "size": 4525,
-     "hash": "1d03f568"
+     "size": 5896,
+     "hash": "ce2346a2"
     }
    }
   },
@@ -3188,7 +3188,9 @@
    "kind": "sheet",
    "title": "",
    "home": "index.html",
-   "reps": [],
+   "reps": [
+    "index-bookshelf.html"
+   ],
    "status": "shared",
    "files": {
     "index.html": {
@@ -3814,8 +3816,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1171,
-     "hash": "68b3c07b"
+     "size": 1068,
+     "hash": "1d1e8401"
     }
    }
   },
@@ -3828,8 +3830,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1190,
-     "hash": "ec7fbf5e"
+     "size": 1001,
+     "hash": "c300acf2"
     }
    }
   },
@@ -3842,8 +3844,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 803,
-     "hash": "83ee691e"
+     "size": 870,
+     "hash": "d88e6921"
     }
    }
   },
@@ -3856,8 +3858,50 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 997,
-     "hash": "6adb11aa"
+     "size": 825,
+     "hash": "dd145b6a"
+    }
+   }
+  },
+  {
+   "id": "sheetNoteSearch",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 1217,
+     "hash": "47bb2d10"
+    }
+   }
+  },
+  {
+   "id": "sheetNoteSrc",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 442,
+     "hash": "699537bf"
+    }
+   }
+  },
+  {
+   "id": "sheetNoteDelBatch",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-bookshelf.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-bookshelf.html": {
+     "size": 643,
+     "hash": "1f64462d"
     }
    }
   }

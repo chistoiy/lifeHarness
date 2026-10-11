@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。
 
-- **本批＝** V1.65＝**底栏双指收起态**（双指张开＝收起·内容通底；捏合＝还原）：新件 `core/nav/nav_collapse.dart`＝`Listener` 不抢子级手势（ratio>1.15 收·<0.87 还原）＋会话态 `NavCollapseController`＋`ShellFabInset`（悬浮球补偿 69＝不落底）＋线索件 Grip/Capsule；壳 `app_router.dart` 加 `_CollapsibleNav`/`_NavLineHint`；设置 `navGestureOn`(默认关)/`navLineStyle`(a|b)/`navLineGap`(8..48) 三件贯通；`grad_fab.dart` 读补偿。闸＝三波 49 绿＋回归 25 绿；原型四闸全绿（工单 `docs/handoff/交棒话术-20261011-底栏双指收起态.md`）
-- **上一批＝** V1.64 批4＝**N-4「系统打开」树顶固定行＋历史半屏·DB v42→v43**：新列 `notes.wb_at`＝最后一次成功回写的时间（＝三态里「已回写／仅应用内」的唯一依据）；新件 `note_open_history.dart`＝三态纯函数（先判已转入）＋词表照原型 `OF_ST`＋就地两步确认清空（只软删仍在临时夹的进件、已转入不动）＋转入复用既有「移动到」弹层；树加恒定 `nt-sysopen` 行（「临时」标·计数与列表同一份读数·该夹从下方节点排除防重复）；`MountBadge` 扩「临时」取 token＝零新增色值。闸＝九波 149 绿／0 红·新增常驻 22·三刀各红其位·analyze/doclint 全绿；三条如实登记＝工单 §19。出包按新口径**不建**＝攒 6106
+- **上一批＝** V1.65＝**底栏双指收起态**（双指张开＝收起·内容通底；捏合＝还原）：新件 `core/nav/nav_collapse.dart`＝`Listener` 不抢子级手势（ratio>1.15 收·<0.87 还原）＋会话态 `NavCollapseController`＋`ShellFabInset`（悬浮球补偿 69＝不落底）＋线索件 Grip/Capsule；壳 `app_router.dart` 加 `_CollapsibleNav`/`_NavLineHint`；设置 `navGestureOn`(默认关)/`navLineStyle`(a|b)/`navLineGap`(8..48) 三件贯通；`grad_fab.dart` 读补偿。闸＝三波 49 绿＋回归 25 绿；原型四闸全绿（工单 `docs/handoff/交棒话术-20261011-底栏双指收起态.md`）
+- **本批＝** V1.66＝笔记模块六批收口（工单 docs/handoff/交棒话术-20261011-笔记模块结构与手感优化.md §4d·四条裁定＝全做完一起看/实现搜索/兑现来源筛选/行高44真机兜底）：批1 顺滑＋批2 手感三欠账＋批3 编辑页五条＋批4 树四缺口（展开态持久化·行高44·弹层语言单源·顺修移动弹层冷读空壳）＋批5 功能五条（搜索半屏/顶栏更多/筛选视图四键贯通三段/批量删二次确认/来源筛选）＋批6 微动效三条。闸＝七波 ALL-GREEN＋12刀各红其位（刀⑧假绿＝用例没点确认钮·补断言后全红）＋protogate 0红＋doclint 全绿；danger 色抽 kNoteDanger 单源消棘轮红。未出包＝攒批
 
 ## 基线（八项，其余不写）
 

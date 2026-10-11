@@ -157,63 +157,88 @@ extension _NoteLayout on _NoteEditPageState {
   }
 
   Widget _bodyArea() {
-    if (_isRich) return _richEditor();
-    // 模式行=MD 文档专属；纯文本恒为专注段落形态（原型 pwModes 仅 md 渲染）。
+    // 批3⑤（工单 §2）：各视图带独立 key ⇒ AnimatedSwitcher 才认作「换件」并播过渡。
+    if (_isRich) {
+      return KeyedSubtree(
+          key: const ValueKey('body-rich'), child: _richEditor());
+    }    // 模式行=MD 文档专属；纯文本恒为专注段落形态（原型 pwModes 仅 md 渲染）。
     final m = _kind == 'md' ? _mode : NoteEditMode.focus;
     // 轮9p：行号仅纯文本 + 设置位开启时呈现段左序号。
     final showLn = _kind == 'plain' &&
         ref.watch(settingsControllerProvider).notePlainLineNum;
     switch (m) {
       case NoteEditMode.focus:
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-          children: [
-            TextField(
-              key: const ValueKey('note-title'),
-              controller: _titleCtl,
-              focusNode: _titleFocus,
-              onChanged: _onChanged,
-              style: TextStyle(
-                  fontSize: _font + 6,
-                  fontWeight: FontWeight.w900,
-                  color: _fg,
-                  height: 1.5),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-              ),
-            ),
-            Divider(color: _fg.withValues(alpha: .1), height: 28),
-            for (var i = 0; i < _paras.length; i++)
-              _paraField(i, lineNum: showLn),
-            // 轮8①（原型 pwAttach）：纯文本正文尾部「＋」附件卡 → 插独立图片段。
-            if (_kind == 'plain')
-              Align(
-                alignment: Alignment.centerLeft,
-                child: GestureDetector(
-                  key: const ValueKey('note-attach'),
-                  onTap: _plainAttach,
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    margin: const EdgeInsets.only(top: 16),
-                    decoration: BoxDecoration(
-                      color: _fg.withValues(alpha: .08),
-                      borderRadius: BorderRadius.circular(16),
+        // 批1 顺滑：专注段懒构建（原 `ListView(children: [标题, 分隔, …段, 附件卡])`
+        // 一次性建满 N 个输入框，长笔记进屏／切视图／切篇都整屏重建）。
+        // 零视觉：padding 与各件顺序一字不改；段的 controller/focusNode 由
+        // `_paras`/`_paraNodes` 持有，懒构建不丢输入态与焦点。
+        {
+          final attach = _kind == 'plain';
+          final paraCount = _paras.length;
+          return KeyedSubtree(
+            key: const ValueKey('body-focus'),
+            child: ListView.builder(
+              key: const ValueKey('note-focus-list'),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              itemCount: 2 + paraCount + (attach ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == 0) {
+                  return TextField(
+                    key: const ValueKey('note-title'),
+                    controller: _titleCtl,
+                    focusNode: _titleFocus,
+                    onChanged: _onChanged,
+                    style: TextStyle(
+                        fontSize: _font + 6,
+                        fontWeight: FontWeight.w900,
+                        color: _fg,
+                        height: 1.5),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
                     ),
-                    alignment: Alignment.center,
-                    child: Text('＋',
-                        style: TextStyle(
-                            fontSize: 26,
-                            color: _fg.withValues(alpha: .6))),
+                  );
+                }
+                if (i == 1) {
+                  return Divider(
+                      color: _fg.withValues(alpha: .1), height: 28);
+                }
+                if (i < 2 + paraCount) {
+                  return _paraField(i - 2, lineNum: showLn);
+                }
+                // 轮8①（原型 pwAttach）：纯文本正文尾部「＋」附件卡 → 插独立图片段。
+                return Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    key: const ValueKey('note-attach'),
+                    onTap: _plainAttach,
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      margin: const EdgeInsets.only(top: 16),
+                      decoration: BoxDecoration(
+                        color: _fg.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('＋',
+                          style: TextStyle(
+                              fontSize: 26,
+                              color: _fg.withValues(alpha: .6))),
+                    ),
                   ),
-                ),
-              ),
-          ],
-        );
+                );
+              },
+            ),
+          );
+        }
       case NoteEditMode.src:
-        return SingleChildScrollView(child: _srcEditor());
+        return KeyedSubtree(
+            key: const ValueKey('body-src'),
+            child: SingleChildScrollView(child: _srcEditor()));
       case NoteEditMode.view:
-        return _preview(fontSize: _font);
+        return KeyedSubtree(
+            key: const ValueKey('body-view'),
+            child: _preview(fontSize: _font));
     }
   }
 }

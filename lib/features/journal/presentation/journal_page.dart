@@ -14,11 +14,14 @@ import '../domain/journal_entry.dart';
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'note_edit_page.dart';
+import 'note_search.dart';
 import 'note_tab.dart';
 import 'widgets/diary_review_sheet.dart';
 import '../../../shared/widgets/image_attach.dart' show showImageLightbox;
 import '../../../shared/widgets/scroll_pad.dart';
 import 'widgets/ins_card.dart';
+import 'widgets/note_tree_drawer.dart'
+    show noteImportLocalAction, noteExportLocalAction, noteOpenHistoryAction;
 
 /// 笔记段 FAB（V1.29轮2 原型 noteFabMenu）：与主页同款竖排三选
 /// 📝富文本 / 📃纯文本 / ⌨️MD 文档；新建默认归属当前选中文件夹。
@@ -204,15 +207,49 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                 ),
             ],
           ),
+          // 批5①（2026-10-12）：搜索钮**兑现**——原只弹「全局搜索 · 即将开放」
+          //（DAO 的 `list(query:)` 早已在册，缺的只是一个入口）。
           IconButton(
-            tooltip: '搜索',
+            key: const ValueKey('rec-search'),
+            tooltip: '搜索笔记',
             icon: const Icon(Icons.search),
-            onPressed: () => ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
-                  content: Text('全局搜索 · 即将开放'),
-                  duration: Duration(milliseconds: 1500))),
+            onPressed: () => showNoteSearchSheet(context, ref),
           ),
+          // 批5②：笔记段的「更多」——把原本只藏在文件树里的 导入/导出/打开历史
+          // 提到顶栏（列表页此前零入口，要先用整屏右滑开树才够得着）。
+          if (tab == 'note')
+            PopupMenuButton<String>(
+              key: const ValueKey('rec-more'),
+              tooltip: '更多',
+              icon: const Icon(Icons.more_horiz),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              onSelected: (v) {
+                if (v == 'import') noteImportLocalAction(context, ref);
+                if (v == 'export') noteExportLocalAction(context, ref);
+                if (v == 'history') noteOpenHistoryAction(context, ref);
+              },
+              itemBuilder: (_) => [
+                for (final (v, label) in const [
+                  ('import', '导入本地'),
+                  ('export', '导出为本地目录'),
+                  ('history', '系统打开历史'),
+                ])
+                  PopupMenuItem<String>(
+                    value: v,
+                    height: 46,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.centerLeft,
+                      child: Text(label,
+                          style: const TextStyle(
+                              fontSize: 13.5, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+              ],
+            ),
         ],
       ),
       // 三态 FAB 共用同一枚白色 ＋：字面量在文件里只出现一次（本批加影音游分支时
@@ -233,12 +270,34 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                     extra: const DiaryEditArg()),
               },
             ),
-      body: switch (tab) {
-        'diary' => const _DiaryTab(),
-        'note' => const NoteTab(),
-        'book' => readWorkbench(),
-        _ => mediaWorkbench(),
-      },
+      // 批6①（工单 §2 · 2026-10-12）：四段（日记/笔记/阅读/影音游）切换＝180ms
+      // 淡入＋微上移（〇B 微动档 120~180ms·easeOut；原 `switch(tab)` 是硬切）。
+      // 每段带 key：阅读/影音游两个工作台若返回同型 widget，无 key 时 AnimatedSwitcher
+      // 会判「同一件」而不补间。`layoutBuilder` 只留当前件＝只做入场、旧段立即移除。
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeOut,
+        layoutBuilder: (cur, _) => cur ?? const SizedBox.shrink(),
+        transitionBuilder: (c, a) => FadeTransition(
+          opacity: a,
+          child: SlideTransition(
+            position:
+                Tween(begin: const Offset(0, .012), end: Offset.zero).animate(a),
+            child: c,
+          ),
+        ),
+        child: switch (tab) {
+          'diary' => const KeyedSubtree(
+              key: ValueKey('rec-body-diary'), child: _DiaryTab()),
+          'note' =>
+            const KeyedSubtree(key: ValueKey('rec-body-note'), child: NoteTab()),
+          'book' => KeyedSubtree(
+              key: const ValueKey('rec-body-book'), child: readWorkbench()),
+          _ => KeyedSubtree(
+              key: const ValueKey('rec-body-media'), child: mediaWorkbench()),
+        },
+      ),
     );
   }
 }

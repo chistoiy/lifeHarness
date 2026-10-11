@@ -106,7 +106,9 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
   bool _pinned = false;
   String _kind = 'plain';
   bool _dirty = false;
-  bool _saved = false;
+  /// 批3④（工单 §2）：无未落库改动＝已保存——打开既有篇/新建空白即此态。
+  /// 原实现初值 false ⇒ 一进编辑页就显示「编辑中」，与事实不符。
+  bool _saved = true;
   Timer? _debounce;
 
   // 版本快照（批1d · 原型 sheetSnapshot）：停输 30s / 每 +500 字自动留存。
@@ -145,6 +147,32 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
       _richFocus.hasFocus ||
       _titleFocus.hasFocus ||
       _paraNodes.any((f) => f.hasFocus);
+
+  /// 批3①（工单 §2）：头部小标题「滚动浮出」——写作视图下标题仍在视口内时
+  /// 头部不显示，滚出阈值后才显；源码/预览视图常显（那两个视图没有体部标题位）。
+  bool _headScrolledIn = false;
+
+  /// 头部吸顶分隔（原型 `#pwHead.pw-stuck`：滚过 4px 起出现一条下分隔）。
+  bool _headStuck = false;
+
+  bool get _headTitleShown =>
+      _mode != NoteEditMode.focus || _headScrolledIn;
+
+  /// 批3①：正文滚动 → 头部小标题显隐＋吸顶分隔（原型 `pwHeadSync`）。
+  bool _onBodyScroll(ScrollNotification n) {
+    if (n.depth != 0) return false; // 只管最外层正文滚动
+    final st = n.metrics.pixels;
+    final scrolledIn = st > 80;
+    final stuck = st > 4;
+    if (scrolledIn != _headScrolledIn || stuck != _headStuck) {
+      // 只在跨阈值那一次重建（逐像素 setState 会拖垮滚动手感）。
+      setState(() {
+        _headScrolledIn = scrolledIn;
+        _headStuck = stuck;
+      });
+    }
+    return false;
+  }
 
   bool get _isRich => _kind == 'rich';
 
@@ -238,38 +266,83 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
             // 短行（如标题）整体居中、看似「左右留白太多」→ 强制撑满宽度。
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),
+              // 批3②（工单 §2）：三段基线归一——头/体/尾内容左沿统一 20（原型 px-5），
+              // 与正文（focus/src/预览 均 20）落在同一条竖轴上。
+              // 批3①：滚过 4px 起头部与正文之间补一条分隔（原型 #pwHead.pw-stuck）。
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.fromLTRB(20, 6, 16, 0),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom: BorderSide(
+                          color: _headStuck
+                              ? _fg.withValues(alpha: .12)
+                              : Colors.transparent,
+                          width: 1)),
+                ),
                 child: Row(
                   children: [
-                    IconButton(
-                      key: const ValueKey('note-back'),
-                      onPressed: _saveAndExit,
-                      icon: Icon(Icons.keyboard_arrow_left,
-                          size: 26, color: _fg),
+                    // 44×44 命中区（U6 触达下限）·图标贴左沿 ⇒ 视觉左沿 20
+                    //（原 IconButton 内建居中偏移，左沿随 icon 尺寸漂移）。
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: InkWell(
+                        key: const ValueKey('note-back'),
+                        borderRadius: BorderRadius.circular(22),
+                        onTap: _saveAndExit,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Icon(Icons.keyboard_arrow_left,
+                              size: 26, color: _fg),
+                        ),
+                      ),
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _titleCtl.text.trim().isEmpty
-                                ? '未命名笔记'
-                                : _titleCtl.text.trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: _fg),
-                          ),
+                          // 批3①（工单 §2）：标题「滚动浮出」——写作视图下标题仍在
+                          // 视口内时头部不显示（同一屏只出现一次标题，消掉「头与体
+                          // 争同一份内容」）；标题滚出 80px 才淡入吸顶小标题。
+                          // 源码/预览视图常显（这两个视图没有体部标题位）。
                           AnimatedOpacity(
-                            duration: const Duration(milliseconds: 250),
-                            opacity: _saved ? 1 : .55,
+                            key: const ValueKey('note-head-title'),
+                            duration: const Duration(milliseconds: 180),
+                            opacity: _headTitleShown ? 1 : 0,
                             child: Text(
-                              _saved ? '自动保存 ✓ 刚刚 · 输入即存' : '编辑中…',
-                              style: TextStyle(fontSize: 10, color: _fg),
+                              _titleCtl.text.trim().isEmpty
+                                  ? '未命名笔记'
+                                  : _titleCtl.text.trim(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: _fg),
                             ),
+                          ),
+                          // 批3④（工单 §2）：保存态降噪——删「自动保存 ✓ 刚刚 · 输入即存」
+                          // 教学文案与每键明暗闪烁（原 AnimatedOpacity .55↔1），收敛成一个
+                          // 安静的两态点：无改动＝已保存，改动未落库＝编辑中。
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _fg.withValues(
+                                        alpha: _saved ? .38 : .18)),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(_saved ? '已保存' : '编辑中',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: _fg.withValues(alpha: .45))),
+                            ],
                           ),
                         ],
                       ),
@@ -307,10 +380,52 @@ class _NoteEditPageState extends ConsumerState<NoteEditPage> {
                   key: const ValueKey('note-swipe'),
                   onPointerDown: _onSwipeDown,
                   onPointerMove: _onSwipeMove,
-                  child: _bodyArea(),
+                  // 批3①：头部小标题随正文滚动浮出（原型 pwHeadSync）。
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: _onBodyScroll,
+                    // 批3⑤（工单 §2）：三视图切换＝180ms 淡入＋上移（原型 .pw-anim-in）。
+                    // 富文本不参与：kind 切换时旧 Quill 件会与 _disposeLater 的
+                    // 控制器回收抢时序，风险不对等。
+                    child: _isRich
+                        ? _bodyArea()
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 180),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeOut,
+                            // 只做入场淡入、旧件立即移除（与原型一致：旧目标直接
+                            // hidden，仅新目标加 .pw-anim-in）——同时规避旧件滞留
+                            // 期间持有已被回收的段控制器。
+                            layoutBuilder: (cur, _) =>
+                                cur ?? const SizedBox.shrink(),
+                            transitionBuilder: (c, a) => FadeTransition(
+                              opacity: a,
+                              child: SlideTransition(
+                                position: Tween(
+                                        begin: const Offset(0, .012),
+                                        end: Offset.zero)
+                                    .animate(a),
+                                child: c,
+                              ),
+                            ),
+                            child: _bodyArea(),
+                          ),
+                  ),
                 ),
               ),
-              _toolBarArea(),
+              // 批3③（工单 §2）：尾部随模式出现/收起＝180ms 高度＋淡入过渡
+              //（原为瞬现瞬消，切类型时体高瞬变）。
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeOut,
+                layoutBuilder: (cur, _) => cur ?? const SizedBox.shrink(),
+                transitionBuilder: (c, a) => SizeTransition(
+                  sizeFactor: a,
+                  axisAlignment: -1,
+                  child: FadeTransition(opacity: a, child: c),
+                ),
+                child: _toolBarArea(),
+              ),
             ],
           ),
         ),

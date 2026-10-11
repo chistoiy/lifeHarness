@@ -84,6 +84,29 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 批5③（2026-10-12）·笔记段筛选持久化：当前文件夹 / 排序键 / 方向**一次写回**
+  /// （三档是一组状态，分三次 persist 会写三遍 prefs）。排序键未知值收敛 'updated'。
+  Future<void> setNoteFilter(
+      {required String folder, required String sort, required bool asc}) async {
+    final s =
+        const {'updated', 'created', 'title'}.contains(sort) ? sort : 'updated';
+    if (folder == state.noteFolder &&
+        s == state.noteSort &&
+        asc == state.noteSortAsc) {
+      return;
+    }
+    state = state.copyWith(noteFolder: folder, noteSort: s, noteSortAsc: asc);
+    await _persist();
+  }
+
+  /// 批5③·笔记视图档（0=列表 / 2/3=卡片列数；越界收敛到 0）。同值不写盘。
+  Future<void> setNoteViewCols(int cols) async {
+    final v = const {0, 2, 3}.contains(cols) ? cols : 0;
+    if (v == state.noteViewCols) return;
+    state = state.copyWith(noteViewCols: v);
+    await _persist();
+  }
+
   /// 日记天气城市（M1批2e·设置页一次选定；编码 `name|lat|lon`，''=未设置）。
   Future<void> setWeatherCity(String city) async {
     state = state.copyWith(weatherCity: city);

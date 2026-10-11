@@ -27,6 +27,7 @@ import '../data/note_dao.dart';
 import '../data/note_folder_dao.dart';
 import '../domain/note.dart';
 import 'note_local_import.dart' show ensureMountFolder;
+import 'widgets/note_sheet_lang.dart';
 
 /// 导出包根目录名（原型 `nxDo` 里就是这一个节点名）。
 const String kNoteExportRoot = '笔记导出';
@@ -353,12 +354,8 @@ Future<void> showNoteExportSheet(BuildContext context,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(
-                  child: Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text('导出为本地目录',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-              )),
+              // 批4④：弹层语言单源（grabber＋左标题）；原为「居中标题、无 grabber」。
+              const NoteSheetHeader(title: '导出为本地目录'),
               SegRow<String>(
                 keyPrefix: 'nx-sc',
                 items: [
@@ -393,30 +390,22 @@ Future<void> showNoteExportSheet(BuildContext context,
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                      child: OutlinedButton(
-                          onPressed: busy ? null : () => Navigator.pop(bc),
-                          child: const Text('取消'))),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      flex: 2,
-                      child: FilledButton(
-                          key: const ValueKey('nx-go'),
-                          onPressed: busy
-                              ? null
-                              : () async {
-                                  setSheet(() => busy = true);
-                                  final r = await onRun(pick == 'cur' ? folderLabel : '');
-                                  if (!bc2.mounted) return;
-                                  Navigator.pop(bc);
-                                  if (r != null && context.mounted) {
-                                    AppToast.show(context, r.line);
-                                  }
-                                },
-                          child: const Text('选择目录并导出'))),
-                ],
+              // 批4④：确认行收成 NoteSheetActions（与导入/卸载/搜索同一套语言）。
+              NoteSheetActions(
+                onCancel: busy ? null : () => Navigator.pop(bc),
+                primaryLabel: '选择目录并导出',
+                primaryKey: const ValueKey('nx-go'),
+                onPrimary: busy
+                    ? null
+                    : () async {
+                        setSheet(() => busy = true);
+                        final r = await onRun(pick == 'cur' ? folderLabel : '');
+                        if (!bc2.mounted) return;
+                        Navigator.pop(bc);
+                        if (r != null && context.mounted) {
+                          AppToast.show(context, r.line);
+                        }
+                      },
               ),
             ],
           ),

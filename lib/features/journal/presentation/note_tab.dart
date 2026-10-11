@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,8 +11,14 @@ import '../domain/note.dart';
 import 'journal_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import 'note_paper.dart';
+import 'widgets/note_sheet_lang.dart';
 import 'widgets/note_tree_drawer.dart';
 import 'widgets/note_tree_overlay.dart';
+
+/// 瀑布流高度估算的**实际计算次数**（缓存命中不计数）——仅供用例钉
+/// 「按篇缓存生效」（批1 顺滑：原每帧对每篇重跑 TextPainter）。
+@visibleForTesting
+int kNoteEstComputeCount = 0;
 
 /// 笔记 tab（原型 recNote · V1.29轮9）：卡片三行=标题1/正文(列表1行·卡片≤4行)/时间行
 /// （时间右=置顶黄色小钉·线性图标非 emoji）；多选圈在条目右侧；长按进入批量无 toast；
@@ -64,32 +71,52 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         .where((n) => !_gone.contains(n.id))
         .toList();
     final cols = ref.watch(noteViewColsProvider);
+    // 批5⑤：当前来源筛选键（''=全部）。
+    final src = ref.watch(noteSourceProvider);
     final sel = ref.watch(noteSelProvider);
     final selMode = sel.isNotEmpty;
 
     final list = Column(
       children: [
         // 轮9：多选态顶部「已选择 x 项」（原型 noteSelTop）
-        if (selMode)
-          Padding(
-            key: const ValueKey('note-sel-top'),
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-            child: Row(
-              children: [
-                Text('已选择 ${sel.length} 项',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: scheme.onSurface)),
-              ],
-            ),
-          ),
+        // 批6②：进出同走 160ms AnimatedSize（与底部多选条同一档，进出对称）。
+        AnimatedSize(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: selMode
+              ? Padding(
+                  key: const ValueKey('note-sel-top'),
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: Row(
+                    children: [
+                      Text('已选择 ${sel.length} 项',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: scheme.onSurface)),
+                    ],
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
         // V1.29轮6：右侧一行三钮 = 排序 / 文件夹树 / 视图循环（轮9i 行距收紧）
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              // 批5⑤（工单 §2 · 2026-10-12）：按来源筛选——兑现卸载弹层
+              //「已导入的 N 条笔记保留在库 · 来源标仍可筛」；激活时图标转 accent。
+              IconButton(
+                key: const ValueKey('note-source'),
+                tooltip: '按来源筛选',
+                onPressed: () => _pickSource(context),
+                icon: Icon(
+                    src.isEmpty ? Icons.filter_alt_outlined : Icons.filter_alt,
+                    size: 22,
+                    color: src.isEmpty ? scheme.onSurfaceVariant : tokens.accent),
+              ),
               // 轮8④：再点当前项=方向翻转（菜单保持打开·箭头变化可见）；
               // 选其他项=切换并回默认方向。
               KeyedSubtree(
@@ -102,8 +129,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                     final cur = ref.read(noteFilterProvider);
                     final flip = s == cur.sort;
                     final asc = flip ? !cur.asc : false;
-                    ref.read(noteFilterProvider.notifier).state =
-                        (folder: cur.folder, sort: s, asc: asc);
+                    // 批5③：走 helper 写回设置（排序键/方向持久化）。
+                    saveNoteFilter(ref,
+                        (folder: cur.folder, sort: s, asc: asc));
                     AppToast.show(context, '排序：${_sortLabel(s, asc)}');
                     if (flip) {
                       WidgetsBinding.instance.addPostFrameCallback(
@@ -154,9 +182,8 @@ class _NoteTabState extends ConsumerState<NoteTab> {
                     : cols == 2
                         ? '卡片视图 · 每行 3 个'
                         : '列表视图',
-                onPressed: () =>
-                    ref.read(noteViewColsProvider.notifier).state =
-                        cols == 0 ? 2 : (cols >= 3 ? 0 : cols + 1),
+                onPressed: () => saveNoteViewCols(
+                    ref, cols == 0 ? 2 : (cols >= 3 ? 0 : cols + 1)),
                 icon: Icon(
                     cols == 0
                         ? Icons.menu
@@ -171,27 +198,29 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         Expanded(
           child: notes.isEmpty
               ? EmptyDashRow(
-                  text: filter.folder.isEmpty
-                      ? '还没有笔记 · 点右下角 ＋ 开始'
-                      : '「${filter.folder}」下还没有笔记',
+                  text: src.isNotEmpty
+                      ? '该来源下暂无笔记'
+                      : filter.folder.isEmpty
+                          ? '还没有笔记 · 点右下角 ＋ 开始'
+                          : '「${filter.folder}」下还没有笔记',
                   onTap: () => context.push('/note/edit'),
                 )
               : cols == 0
                   ? ScrollPad(
                       // T2-B：记录栏笔记列表滚动垫（切栏回来原位）。
                       id: 'journal-notes',
-                      child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                      children: [
-                        for (final n in notes)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _card(context, ref, n, sel,
-                                cardMode: false),
-                          ),
-                        // V1.29轮9l：底部「共 N 篇 · 左滑删除 · 长按批量」教学文案移除（无价值）。
-                      ],
-                    ),
+                      // 批1 顺滑：列表改懒构建（原 `ListView(children: [for …])` 全量建条目，
+                      // 笔记一多首帧与滚动都偏重）。零视觉：padding 与条目间距不变。
+                      child: ListView.builder(
+                        key: const ValueKey('note-list'),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                        itemCount: notes.length,
+                        itemBuilder: (_, i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child:
+                              _card(context, ref, notes[i], sel, cardMode: false),
+                        ),
+                      ),
                     )
                   : LayoutBuilder(builder: (context, box) =>
                       _masonry(context, ref, notes, cols, sel,
@@ -200,59 +229,76 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       ],
     );
 
+    // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
+    // 批2②（工单 §2 · 准则 HG-H4）：多选态系统返回＝**先退多选**、不退出记录页
+    //（日记段 _DiaryTab 同构，笔记段此前漏接 ⇒ 一按返回整页退出、选择全丢）。
+    final byId = {for (final n in notes) n.id: n};
+    final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
+    final bar = Container(
+      key: const ValueKey('note-sel-bar'),
+      decoration: BoxDecoration(
+          color: tokens.card,
+          border: Border(top: BorderSide(color: tokens.cardBorder))),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+                child: _barBtn(
+                    'sel-pin',
+                    Icons.push_pin_outlined,
+                    allPinned ? '取消置顶' : '置顶',
+                    () => _batch(context, ref, sel, 'pin'),
+                    scheme)),
+            Expanded(
+                child: _barBtn(
+                    'sel-move',
+                    Icons.folder_outlined,
+                    '移动到',
+                    () => _batch(context, ref, sel, 'move'),
+                    scheme)),
+            Expanded(
+                child: _barBtn(
+                    'sel-del',
+                    Icons.delete_outline,
+                    '删除',
+                    () => _batch(context, ref, sel, 'del'),
+                    scheme,
+                    color: kNoteDanger)),
+            IconButton(
+                key: const ValueKey('sel-exit'),
+                onPressed: () =>
+                    ref.read(noteSelProvider.notifier).state = const {},
+                icon: const Icon(Icons.close, size: 18)),
+          ],
+        ),
+      ),
+    );
+
     // 真机反馈轮（2026-10-11）：右滑＝开文件树（批量选择态不给该手势，避免误开）。
     // 常驻叠层批：承载从路由式弹层换成 NoteTreeOverlay（body 之上 Stack 常驻＋自带整屏起手监听）——
     // 拖拽中途 push 会被 Navigator 取消指针（轮4 定位），叠层形态下面板才可能真随指推出。
-    if (!selMode) {
-      return NoteTreeOverlay(key: _treeKey, child: list);
-    }
-    // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
-    final byId = {for (final n in notes) n.id: n};
-    final allPinned = sel.every((id) => byId[id]?.pinned ?? false);
-    return Column(
-      children: [
-        Expanded(child: list),
-        Container(
-          key: const ValueKey('note-sel-bar'),
-          decoration: BoxDecoration(
-              color: tokens.card,
-              border: Border(top: BorderSide(color: tokens.cardBorder))),
-          child: SafeArea(
-            top: false,
-            child: Row(
-              children: [
-                Expanded(
-                    child: _barBtn(
-                        'sel-pin',
-                        Icons.push_pin_outlined,
-                        allPinned ? '取消置顶' : '置顶',
-                        () => _batch(context, ref, sel, 'pin'),
-                        scheme)),
-                Expanded(
-                    child: _barBtn(
-                        'sel-move',
-                        Icons.folder_outlined,
-                        '移动到',
-                        () => _batch(context, ref, sel, 'move'),
-                        scheme)),
-                Expanded(
-                    child: _barBtn(
-                        'sel-del',
-                        Icons.delete_outline,
-                        '删除',
-                        () => _batch(context, ref, sel, 'del'),
-                        scheme,
-                        color: const Color(0xFFF43F5E))),
-                IconButton(
-                    key: const ValueKey('sel-exit'),
-                    onPressed: () =>
-                        ref.read(noteSelProvider.notifier).state = const {},
-                    icon: const Icon(Icons.close, size: 18)),
-              ],
-            ),
+    //
+    // 批6②（工单 §2 · 2026-10-12）：多选条进出＝160ms AnimatedSize（〇B 微动档）。
+    // 为此把「叠层 / 非叠层」两条互斥分支收进**同一个 Column**：底条槽位恒在（非多选态高 0），
+    // 才存在可补间的同一实例（挂在两棵互斥子树上就没有所谓「进出」——那只是硬换）。
+    final body = selMode ? list : NoteTreeOverlay(key: _treeKey, child: list);
+    return PopScope(
+      canPop: !selMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) ref.read(noteSelProvider.notifier).state = const {};
+      },
+      child: Column(
+        children: [
+          Expanded(child: body),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: selMode ? bar : const SizedBox(width: double.infinity),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -320,7 +366,20 @@ class _NoteTabState extends ConsumerState<NoteTab> {
   }
 
   /// 瀑布流分列用的卡片高度估算（标题1行+正文≤4行+时间行+内边距）。
+  /// 批1 顺滑：按 `(id, 标题, 正文, 列宽)` 记忆化——原实现每次 rebuild 都对每篇
+  /// 重跑一次 `TextPainter.layout`，而多选点选会整屏重建 ⇒ 点一下卡一下。
+  static final Map<(int?, String, String, double), double> _hCache = {};
+
   static double _estHeight(Note n, double colW) {
+    final key = (n.id, n.title, n.preview, colW);
+    final hit = _hCache[key];
+    if (hit != null) return hit;
+    if (_hCache.length > 600) _hCache.clear(); // 防无界（笔记量级远小于此）
+    kNoteEstComputeCount++;
+    return _hCache[key] = _estHeightRaw(n, colW);
+  }
+
+  static double _estHeightRaw(Note n, double colW) {
     final inner = colW - 28;
     double blockH(String text, double fs, double lh, int maxLines) {
       if (text.isEmpty) return fs * lh;
@@ -366,6 +425,9 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       },
       onLongPress: () {
         // 轮9②：进入批量不再 toast 提示（回收站操作在全局回收站屏，V1.60）
+        // 批2③（工单 §2）：长按进管理态＝触觉锚（〇B 四处之一），与影音架
+        // `_enterSel` 的 mediumImpact 同语义（产品随样张点头）。
+        HapticFeedback.mediumImpact();
         ref.read(noteSelProvider.notifier).state = {n.id!};
       },
       child: Container(
@@ -462,9 +524,14 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         child: const Icon(Icons.delete_outline, color: Colors.white),
       ),
       onDismissed: (_) async {
-        setState(() => _gone.add(n.id!));
-        final dao = ref.read(noteDaoProvider);
+        // 批2①（工单 §2）：左滑＝**一划即删**，删后给一次「撤销」后悔药
+        //（长时效退路仍在回收站）。Dismissible 本帧出树 ⇒ messenger / container
+        // 必须在出树前取好；撤销回调可能在页面离场后触发，故一律走 container。
+        final messenger = ScaffoldMessenger.of(context);
+        final container = ProviderScope.containerOf(context, listen: false);
+        final dao = container.read(noteDaoProvider);
         final id = n.id!;
+        setState(() => _gone.add(id));
         try {
           await dao.softDelete(id);
         } catch (e) {
@@ -475,14 +542,23 @@ class _NoteTabState extends ConsumerState<NoteTab> {
         // 的动画垫片。若那次软删没落库，卡片就永久隐身而树上计数照算＝产品报的
         // 「计 2 条、只见 1 条」。当场核验：仍在册即交还列表并留痕，绝不静默吞。
         final back = await dao.byId(id);
+        container.invalidate(notesProvider);
+        container.invalidate(noteTreeProvider);
         if (back != null && back.deletedAt == null) {
           AppLog.add('笔记软删未落库，卡片已交还列表：${n.title}',
               level: LhLevel.warn);
           if (mounted) setState(() => _gone.remove(id));
+          return;
         }
-        ref.invalidate(notesProvider);
-        ref.invalidate(noteTreeProvider);
-        if (context.mounted) AppToast.show(context, '已移入回收站 · 30 天内可恢复');
+        AppToast.showUndoWith(messenger, '已移入回收站 · 30 天内可恢复',
+            onUndo: () async {
+          await dao.restore(id);
+          // 撤销后必须撤掉「立即隐藏」垫片，否则卡片不回归（`_gone` 只加不删
+          // ⇒ 撤销了也看不见，本批实锤）。
+          if (mounted) setState(() => _gone.remove(id));
+          container.invalidate(notesProvider);
+          container.invalidate(noteTreeProvider);
+        });
       },
       child: card,
     );
@@ -492,6 +568,48 @@ class _NoteTabState extends ConsumerState<NoteTab> {
     final cur = {...ref.read(noteSelProvider)};
     cur.contains(id) ? cur.remove(id) : cur.add(id);
     ref.read(noteSelProvider.notifier).state = cur;
+  }
+
+  /// 批5⑤：按来源筛选弹层（走 NoteSheetHeader / NoteSheetRow 单源语言）。
+  Future<void> _pickSource(BuildContext context) async {
+    const opts = <(String, String)>[
+      ('', '全部来源'),
+      ('local', '本地导入'),
+      ('export', '导出目录'),
+      ('open_with', '系统打开'),
+    ];
+    final cur = ref.read(noteSourceProvider);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (bc) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const NoteSheetHeader(title: '按来源筛选'),
+              for (final (v, label) in opts)
+                NoteSheetRow(
+                  key: ValueKey('nsrc-$v'),
+                  icon: v == cur
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  label: label,
+                  color: v == cur ? context.tokens.accent : null,
+                  onTap: () => Navigator.of(bc).pop(v),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    ref.read(noteSourceProvider.notifier).state = picked;
+    if (context.mounted) {
+      AppToast.show(
+          context, '来源：${opts.firstWhere((o) => o.$1 == picked).$2}');
+    }
   }
 
   Future<void> _batch(
@@ -517,6 +635,29 @@ class _NoteTabState extends ConsumerState<NoteTab> {
           un ? '已取消置顶 ${ids.length} 篇' : '已置顶 ${ids.length} 篇');
       return;
     }
+    // 批5④（工单 §2 · 2026-10-12）：批量删除补**二次确认**——与日记段
+    // `_DiaryTab._batchDelete` 对齐（同 App 内两段删批此前一个要确认一个不要，
+    // 属口径不一致而非新设计）。取消＝原样留在多选态（不清选择，可重试）。
+    final n = ids.length;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (bc) => AlertDialog(
+        title: Text('删除选中的 $n 篇笔记？'),
+        content: const Text('删除后可在回收站保留 30 天，期间可恢复。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(bc).pop(false),
+              child: const Text('取消')),
+          TextButton(
+            key: const ValueKey('note-del-batch-ok'),
+            onPressed: () => Navigator.of(bc).pop(true),
+            child:
+                const Text('删除', style: TextStyle(color: kNoteDanger)),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !context.mounted) return;
     await dao.softDeleteMany(ids);
     if (!context.mounted) return;
     _finishBatch(context, ref, '已移入回收站 ${ids.length} 篇 · 30 天内可恢复');

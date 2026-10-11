@@ -241,8 +241,12 @@ void main() {
       expect(find.byKey(const ValueKey('note-sel-bar')), findsOneWidget);
       expect(find.text('置顶'), findsOneWidget); // 未置顶笔记→钮=置顶
 
-      // 批量删除 → 回收站（toast 会临时盖住底部条，直接触发回调验证逻辑）
+      // 批量删除 → 二次确认（批5④）→ 回收站（toast 会临时盖住底部条，直接触发回调验证逻辑）
       tester.widget<InkWell>(find.byKey(const ValueKey('sel-del'))).onTap!();
+      await tester.pumpAndSettle();
+      // 批5④：删除前先问一句（与日记段同口径），确认后才落库。
+      expect(find.text('删除选中的 1 篇笔记？'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('note-del-batch-ok')));
       await settle5(tester);
       expect((await dao.trash()).map((n) => n.title), ['WebDAV 选型']); // 先验 DB
       expect(find.textContaining('WebDAV 选型'), findsNothing); // 再验 UI
@@ -394,6 +398,10 @@ void main() {
       await settle5(tester);
       expect((await dao.trash()).single.title, '滑动删除我');
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
+      // 批2①（工单 §2）后本路径会开「撤销窗口」（AppToast T4 排他：窗口内普通提示
+      // 一律排队）。必须在此跑完撤销条 4s 存活期，否则同文件后续用例的普通 toast
+      // 全被 defer ⇒ 13 条 toast 断言连锁假红（本轮实测）。
+      await clearToasts(tester, ms: 120);
     });
 
     testWidgets('文件夹树抽屉：顶层新建→点选目录（不关抽屉）→在其下建子夹', (tester) async {
@@ -489,20 +497,19 @@ void main() {
   });
 
   group('笔记编辑页（批1b · 四模式+快捷栏+字号纸色）', () {
-    testWidgets('轮8底部 MD 条：专注守卫；源码态 H# 开二级直选 H2；↺ 撤销',
+    testWidgets('轮8/批3③ 底部 MD 条：仅源码视图显示（写作/预览无僵尸键）；H# 二级直选 H2；↺ 撤销',
         (tester) async {
       await tester.pumpWidget(scope(const NoteEditPage(initialKind: 'md')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('note-md-bold')));
-      await tester.pump();
-      expect(find.textContaining('当前为写作视图'), findsOneWidget);
-      // 守卫 toast 需完全退场再点底部条（floating SnackBar 盖住工具条命中区·
-      // fake 时间下单次大 pump 不触发其关闭定时器 → helpers.clearToasts）
-      await clearToasts(tester);
-
+      // 批3③（工单 §2）：尾部按模式收敛——写作视图不再整条常显（原实现点了只弹
+      // 「当前为写作视图…」的僵尸键），MD 键仅在源码视图出现。
+      expect(find.byKey(const ValueKey('note-md-bold')), findsNothing,
+          reason: '写作视图不挂 MD 条');
       await tester.tap(find.byKey(const ValueKey('note-mode-src')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note-md-bold')), findsOneWidget,
+          reason: '源码视图才显示 MD 条');
       await tester.enterText(
           find.byKey(const ValueKey('note-body')), '# 标题');
       // 轮8⑥：H 折叠为 H#，点开后二级行在下方展开 H1~H6+✕

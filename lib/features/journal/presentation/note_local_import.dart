@@ -22,6 +22,7 @@ import '../data/note_dao.dart';
 import '../data/note_folder_dao.dart';
 import '../domain/note.dart';
 import '../domain/note_folder.dart';
+import 'widgets/note_sheet_lang.dart';
 
 /// 目录档收哪些扩展名（工单 §2 N-1＝`.md`；markdown 视为同族，txt 只走打开方式）。
 const kLocalImportExts = ['.md', '.markdown'];
@@ -255,12 +256,8 @@ Future<void> showNoteLocalImportSheet(BuildContext context,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(
-                  child: Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text('导入本地',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-              )),
+              // 批4④：弹层语言单源（grabber＋左标题）。
+              const NoteSheetHeader(title: '导入本地'),
               SegRow<String>(
                 keyPrefix: 'ni-kind',
                 items: const [
@@ -288,30 +285,22 @@ Future<void> showNoteLocalImportSheet(BuildContext context,
                           fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                      child: OutlinedButton(
-                          onPressed: busy ? null : () => Navigator.pop(bc),
-                          child: const Text('取消'))),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      flex: 2,
-                      child: FilledButton(
-                          key: const ValueKey('ni-go'),
-                          onPressed: busy
-                              ? null
-                              : () async {
-                                  setSheet(() => busy = true);
-                                  final r = await onRun(kind);
-                                  if (!bc2.mounted) return;
-                                  Navigator.pop(bc);
-                                  if (r != null && context.mounted) {
-                                    AppToast.show(context, r.line);
-                                  }
-                                },
-                          child: Text(kind == 'dir' ? '选择目录并导入' : '选择文件并导入'))),
-                ],
+              // 批4④：确认行收成 NoteSheetActions。
+              NoteSheetActions(
+                onCancel: busy ? null : () => Navigator.pop(bc),
+                primaryLabel: kind == 'dir' ? '选择目录并导入' : '选择文件并导入',
+                primaryKey: const ValueKey('ni-go'),
+                onPrimary: busy
+                    ? null
+                    : () async {
+                        setSheet(() => busy = true);
+                        final r = await onRun(kind);
+                        if (!bc2.mounted) return;
+                        Navigator.pop(bc);
+                        if (r != null && context.mounted) {
+                          AppToast.show(context, r.line);
+                        }
+                      },
               ),
             ],
           ),
@@ -383,15 +372,11 @@ Future<void> showNoteUnmountSheet(BuildContext context,
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                    child: Text('移除挂载 · ${folder.name}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900, fontSize: 15))),
-                MountBadge(source: folder.source),
-              ],
-            ),
+            // 批4④：头收成 NoteSheetHeader（grabber＋左标题；原为「无 grabber、
+            // 标题左对齐但内边距自成一档」），来源角标作 trailing。
+            NoteSheetHeader(
+                title: '移除挂载 · ${folder.name}',
+                trailing: MountBadge(source: folder.source)),
             const SizedBox(height: 4),
             Text(
                 '${folder.originPath.isEmpty ? '本机的挂载目录' : folder.originPath}'
@@ -425,24 +410,16 @@ Future<void> showNoteUnmountSheet(BuildContext context,
                 ),
               ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                    child: OutlinedButton(
-                        onPressed: () => Navigator.pop(bc), child: const Text('取消'))),
-                const SizedBox(width: 10),
-                Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                        key: const ValueKey('nu-confirm'),
-                        style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF43F5E)),
-                        onPressed: () async {
-                          Navigator.pop(bc);
-                          await onConfirm();
-                        },
-                        child: const Text('确认移除'))),
-              ],
+            // 批4④：确认行收成 NoteSheetActions（破坏性主钮＝danger）。
+            NoteSheetActions(
+              onCancel: () => Navigator.pop(bc),
+              primaryLabel: '确认移除',
+              primaryKey: const ValueKey('nu-confirm'),
+              danger: true,
+              onPrimary: () async {
+                Navigator.pop(bc);
+                await onConfirm();
+              },
             ),
           ],
         ),

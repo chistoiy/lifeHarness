@@ -11,6 +11,8 @@ extension _NoteModeKit on _NoteEditPageState {
     // ignore: invalid_use_of_protected_member
     setState(() {
       _mode = m;
+      // 批3①（工单 §2）：换视图＝正文滚动归零，头部小标题浮出态随之重判。
+      _headScrolledIn = false;
       if (m == NoteEditMode.focus) _resetParas(_bodyCtl.text);
     });
     if (m != NoteEditMode.focus) {

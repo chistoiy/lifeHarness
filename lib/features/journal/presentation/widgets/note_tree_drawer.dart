@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,6 +12,7 @@ import '../journal_providers.dart';
 import '../note_export.dart';
 import '../note_local_import.dart';
 import '../note_open_history.dart';
+import 'note_sheet_lang.dart';
 
 /// 面板开合补间时长（原路由 transitionDuration 同值；叠层与本件都用）。
 /// 开侧阈值 24 与甩速 500 常量在 `note_tree_overlay.dart`（手势执行点）。
@@ -45,7 +47,18 @@ class NoteTreePanel extends ConsumerStatefulWidget {
 }
 
 class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
-  final Set<int> _open = {};
+  /// 批4①（工单 §2 · 2026-10-12）：展开集合住 [noteTreeOpenProvider]（**跨开合保留**）。
+  /// 原为本地 `final Set<int> _open`，面板收起时 `NoteTreeOverlay` 把面板换成
+  /// `SizedBox.shrink()` ⇒ 本 State dispose ⇒ 展开态全丢（只剩选中项自动展开）；
+  /// 原型 `ntOpen` 是模块级、跨开关保留。挂到 provider 后与面板生命周期解耦。
+  Set<int> get _open => ref.read(noteTreeOpenProvider);
+
+  /// 改展开集合（写回 provider；build 已 `ref.watch` 故自带重建）。
+  void _mutateOpen(void Function(Set<int> o) f) {
+    final o = {..._open};
+    f(o);
+    ref.read(noteTreeOpenProvider.notifier).state = o;
+  }
 
   /// T-E（原型 ntAct 同款）：当前展开行内动作的文件夹 id（同一时刻只有一行有动作钮）。
   int? _actId;
@@ -54,10 +67,10 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
   double? _closeFrom;
 
   void _pick(String folder, {bool hasKids = false, int? id}) {
-    ref.read(noteFilterProvider.notifier).state = (folder: folder,
-        sort: ref.read(noteFilterProvider).sort,
-        asc: ref.read(noteFilterProvider).asc);
-    if (hasKids && id != null) _open.add(id);
+    final cur = ref.read(noteFilterProvider);
+    // 批5③：走 helper 写回设置（当前文件夹也持久化）。
+    saveNoteFilter(ref, (folder: folder, sort: cur.sort, asc: cur.asc));
+    if (hasKids && id != null) _mutateOpen((o) => o.add(id));
     _actId = null; // 原型 ntPick：点别的行＝行内动作收起
     setState(() {});
   }
@@ -76,7 +89,7 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
         title: parent == null ? '新建文件夹（顶层）' : '在「${parent.name}」下新建');
     if (name == null || name.trim().isEmpty) return;
     await ref.read(noteFolderDaoProvider).create(name, parentId: parent?.id);
-    if (parent != null) _open.add(parent.id);
+    if (parent != null) _mutateOpen((o) => o.add(parent.id));
     ref.invalidate(noteFolderListProvider);
     setState(() {});
     if (mounted) {
@@ -93,6 +106,9 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
       _unmount(node);
       return;
     }
+    // 批4③（工单 §2）：树内长按进管理态＝触觉锚 〇B「长按进管理态」的**触发位置扩张**
+    //（与列表长按进多选、影音架 `_enterSel` 同语义；产品随样张一并点头）。
+    HapticFeedback.mediumImpact();
     setState(() => _actId = _actId == node.id ? null : node.id);
   }
 
@@ -116,9 +132,8 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
     }
     final sel = ref.read(noteFilterProvider).folder;
     if (sel == node.name) {
-      ref.read(noteFilterProvider.notifier).state = (folder: '',
-          sort: ref.read(noteFilterProvider).sort,
-          asc: ref.read(noteFilterProvider).asc);
+      final cur = ref.read(noteFilterProvider);
+      saveNoteFilter(ref, (folder: '', sort: cur.sort, asc: cur.asc));
     }
     ref.invalidate(noteFolderListProvider);
     setState(() {});
@@ -148,9 +163,8 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
           final removed =
               await unmountFolder(folders: dao, notes: notes, folder: node.folder);
           if (ref.read(noteFilterProvider).folder == node.name) {
-            ref.read(noteFilterProvider.notifier).state = (folder: '',
-                sort: ref.read(noteFilterProvider).sort,
-                asc: ref.read(noteFilterProvider).asc);
+            final cur = ref.read(noteFilterProvider);
+            saveNoteFilter(ref, (folder: '', sort: cur.sort, asc: cur.asc));
           }
           ref.invalidate(noteFolderListProvider);
           ref.invalidate(notesProvider);
@@ -163,122 +177,28 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
         });
   }
 
-  /// 「导入本地」面板（N-1 目录档／文件档）；选择器与导入都在回调里跑。
-  Future<void> _importLocal() async {
-    final dao = ref.read(noteDaoProvider);
-    final folders = ref.read(noteFolderDaoProvider);
-    await showNoteLocalImportSheet(context, onRun: (kind) async {
-      final LocalImportReport? r;
-      try {
-        if (kind == 'dir') {
-          final treeUri = await safPickTree();
-          if (treeUri == null) return null; // 用户在系统选择器里取消＝不出提示
-          r = await importLocalTree(
-              notes: dao,
-              folders: folders,
-              root: await safListTree(treeUri),
-              readText: safReadText);
-        } else {
-          final docs = await safPickFiles();
-          if (docs.isEmpty) return null;
-          r = await importLocalFiles(
-              notes: dao,
-              folders: folders,
-              docs: docs,
-              currentFolder: ref.read(noteFilterProvider).folder,
-              readText: safReadText);
-        }
-      } catch (_) {
-        // catch-ok: 授权失效/provider 拒绝都要可见（工单 §3「点了必须有看得见的变化」）。
-        if (mounted) AppToast.show(context, '读不到所选内容（授权可能已失效）');
-        return null;
-      }
-      ref.invalidate(noteFolderListProvider);
-      ref.invalidate(notesProvider);
-      ref.invalidate(noteLocalFoldersProvider);
-      setState(() {});
-      return r;
-    });
-  }
+  /// 「导入本地」面板（N-1 目录档／文件档）——批5② 起实现提到顶层
+  /// [noteImportLocalAction]，树与顶栏「更多」共用同一份。
+  Future<void> _importLocal() => noteImportLocalAction(context, ref);
 
-  /// 「导出为本地目录」半屏（批3 N-2·原型 `sheetNoteExport`/`nxDo`）。
-  /// 选择器与写盘都在回调里跑；取消＝`null`＝不出提示。
-  Future<void> _exportLocal() async {
-    final dao = ref.read(noteDaoProvider);
-    final folders = ref.read(noteFolderDaoProvider);
-    final sel = ref.read(noteFilterProvider).folder;
-    await showNoteExportSheet(context,
-        hasCurrentFolder: sel.isNotEmpty,
-        folderLabel: sel, onRun: (scope) async {
-      final String tree;
-      try {
-        final picked = await safPickTree();
-        if (picked == null) return null; // 用户在系统选择器里取消
-        tree = picked;
-      } catch (_) {
-        // catch-ok: 拿不到授权也要出声，否则就是「点了没反应」。
-        if (mounted) AppToast.show(context, '没能拿到目录授权（可再选一次）');
-        return null;
-      }
-      String treePath;
-      try {
-        treePath = (await safListTree(tree)).path;
-      } catch (_) {
-        // 列不出＝这个 tree 读不到（授权失效/provider 拒绝），别往下写。
-        if (mounted) AppToast.show(context, '读不到所选目录（授权可能已失效）');
-        return const NoteExportReport(errorCode: 'error');
-      }
-      final r = await exportNotesToTree(
-          notes: dao,
-          folders: folders,
-          treeUri: tree,
-          treePath: treePath,
-          scope: scope);
-      ref.invalidate(noteFolderListProvider);
-      ref.invalidate(notesProvider);
-      ref.invalidate(noteLocalFoldersProvider);
-      setState(() {});
-      return r;
-    });
-  }
+  /// 「导出为本地目录」半屏（批3 N-2）——同上，见 [noteExportLocalAction]。
+  Future<void> _exportLocal() => noteExportLocalAction(context, ref);
 
   /// 批4 N-4：树顶固定「系统打开」行＝开历史半屏（原型 `nohOpen`，**不是切目录**）。
-  /// 三个动作都在回调里做：跳编辑（先收树＝与回收站行同法）／转入（复用既有「移动到」弹层）／
-  /// 清空（就地两步确认后只软删未转入的进件）。计数与列表同源＝都读 `notesProvider` 这一份。
-  void _openHist(List<Note> hist) {
-    final dao = ref.read(noteDaoProvider);
-    showNoteOpenHistorySheet(context,
-        notes: hist,
-        onOpen: (n) {
-          final router = GoRouter.of(context);
-          widget.onClose(); // 常驻叠层：跳走前先收树
-          router.push('/note/edit', extra: n.id);
-        },
-        onMove: (n) async {
-          final to = await showFolderPickSheet(context, ref);
-          if (to == null || to.isEmpty) return;
-          await dao.setFolderMany([n.id!], to);
-          ref.invalidate(notesProvider);
-          ref.invalidate(noteTreeProvider);
-          if (mounted) {
-            AppToast.show(context, '已转入「$to」 · 临时标记已解除 · 来源标保留');
-          }
-        },
-        onClear: () async {
-          // 语义＝只软删**仍在临时夹**的进件，已转入的一行不动（产品裁定）；句子照原型原话。
-          final moved = await openHistClear(dao);
-          ref.invalidate(notesProvider);
-          ref.invalidate(noteTreeProvider);
-          return moved == 0
-              ? '本来就是空的 · 临时夹里没有待清的进件'
-              : '已清空 $moved 条 · 已转入的笔记不受影响';
-        });
-  }
+  /// 批5② 起实现提到顶层 [noteOpenHistoryAction]；树侧自带「跳转前收树」。
+  void _openHist() =>
+      noteOpenHistoryAction(context, ref, onBeforeNavigate: widget.onClose);
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tree = ref.watch(noteTreeProvider).valueOrNull ?? const [];
+    // 批4①：订阅展开集合（跨开合保留的根就在这条 watch 上）。
+    ref.watch(noteTreeOpenProvider);
+    final treeAsync = ref.watch(noteTreeProvider);
+    // 批6③：首帧骨架——FutureProvider 未落定时原 `?? const []` 会先铺一帧空树（闪一下），
+    // 骨架顶住这一帧，落定后整体换真行。
+    final treeLoading = !treeAsync.hasValue;
+    final tree = treeAsync.valueOrNull ?? const [];
     // 单文件导入的「本地」挂标随该夹是否还有本地来源笔记自动回落（工单 §1.2）。
     final localFolders =
         ref.watch(noteLocalFoldersProvider).valueOrNull ?? const <String>{};
@@ -354,7 +274,9 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: ListView(
+                  child: treeLoading
+                      ? const _TreeSkeleton()
+                      : ListView(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     children: [
                       _row(context,
@@ -375,7 +297,7 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                           badgeSource: 'temp',
                           count: hist.length,
                           depth: 0,
-                          onTap: () => _openHist(hist)),
+                          onTap: _openHist),
                       ..._nodes(tree, 0, localFolders),
                       // V1.60 全局回收站：抽屉行改道统一屏并落「笔记」段
                       // （页内垃圾箱视图随本批下架，恢复/彻底删除只在此屏做）。
@@ -448,6 +370,9 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                         child: IconButton(
                           key: const ValueKey('nt-bt-expand'),
                           tooltip: '全部展开/折叠',
+                          // 批1 缺陷修复：原实现只有 `_open.addAll(all)`（全文件无清除 `_open`
+                          // 的路径）⇒ 全展开后再点**无反应**。原型 `ntExpandAll` 是 `ntAllOpen`
+                          // 翻转的 toggle、规范 LH-S38 钮名「展开折叠」，两处都判它该双向。
                           onPressed: () {
                             final all = <int>[];
                             void collect(List<FolderNode> ns) {
@@ -458,7 +383,16 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                             }
 
                             collect(tree);
-                            setState(() => _open.addAll(all));
+                            if (all.isEmpty) return; // 无文件夹＝无可展开
+                            _mutateOpen((o) {
+                              if (all.every(o.contains)) {
+                                o.clear(); // 已全展开 → 全部折叠
+                              } else {
+                                o.addAll(all); // 否则展开全部
+                              }
+                            });
+                            // 与单夹 caret 同口径：收起行内动作态。
+                            setState(() => _actId = null);
                           },
                           icon: const Icon(Icons.unfold_more, size: 20),
                         ),
@@ -520,15 +454,17 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                       ? Icons.expand_more
                       : Icons.chevron_right)
                   : null,
-              onCaret: () => setState(() {
-                    // 原型 ntToggle：展开/折叠同时收起行内动作。
-                    if (_open.contains(n.id)) {
-                      _open.remove(n.id);
-                    } else {
-                      _open.add(n.id);
-                    }
-                    _actId = null;
-                  }),
+              onCaret: () {
+                // 原型 ntToggle：展开/折叠同时收起行内动作。
+                _mutateOpen((o) {
+                  if (o.contains(n.id)) {
+                    o.remove(n.id);
+                  } else {
+                    o.add(n.id);
+                  }
+                });
+                setState(() => _actId = null);
+              },
               onTap: () => _pick(n.name, hasKids: n.children.isNotEmpty, id: n.id),
               onLongPress: () => _longPress(n),
               actions: _actId == n.id ? _actBtns(n) : null),
@@ -570,6 +506,10 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
       child: Container(
         // 轮10-9：行卡圆角化（与弹层条目同语言）。
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        // 批4②（2026-10-12）：行高对齐 U6 的 44dp 热区（原 padding 11+11 与内容
+        // 自然高 17~18 ＝ 约 40 < 44）。用 minHeight 而非加 padding：带 caret 的行
+        // 内容 18、不带 caret 的 17，两者自然高不同 ⇒ 只有兜底下限能让**所有行**都是 44。
+        constraints: const BoxConstraints(minHeight: 44),
         decoration: BoxDecoration(
           color: selected ? tokens.accent.withValues(alpha: .10) : null,
           borderRadius: BorderRadius.circular(12),
@@ -708,35 +648,57 @@ class _NameDialogState extends State<_NameDialog> {
 /// 「移动到」选择弹层（批量操作 · 原型 sheetNoteMove）：返回目标文件夹名。
 Future<String?> showFolderPickSheet(BuildContext context,
     WidgetRef ref) async {
-  final tree = ref.read(noteTreeProvider).valueOrNull ?? const [];
+  // 树是 FutureProvider：冷读（此前没开过树）时它处于 loading，`valueOrNull` 会是空表 ⇒
+  // 弹层开成空壳（有夹也列不出）。先等它落定（读失败退空表），保证「有夹就列得出」。
+  List<FolderNode> tree;
+  try {
+    tree = await ref.read(noteTreeProvider.future);
+  } catch (_) {
+    tree = const [];
+  }
+  if (!context.mounted) return null;
   return showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     builder: (bc) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(14),
-            child: Text('移动到文件夹',
-                style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final (name, depth) in _flatten(tree))
-                  ListTile(
-                    key: ValueKey('mv-$name'),
-                    dense: true,
-                    contentPadding: EdgeInsets.only(left: 12.0 + depth * 18),
-                    leading: const Icon(Icons.folder_outlined, size: 18),
-                    title: Text(name),
-                    onTap: () => Navigator.of(bc).pop(name),
-                  ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 批4④：原为裸 `ListTile`（默认主题白底），与本模块其它弹层的自绘描边卡行
+            // 是两套语言；收进 NoteSheetHeader + NoteSheetRow 统一。
+            const NoteSheetHeader(title: '移动到文件夹'),
+            Flexible(
+              child: tree.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      child: Text('还没有文件夹 · 先在文件树里新建',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color:
+                                  Theme.of(bc).colorScheme.onSurfaceVariant)),
+                    )
+                  : ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final (name, depth) in _flatten(tree))
+                          Padding(
+                            padding: EdgeInsets.only(left: depth * 18.0),
+                            child: NoteSheetRow(
+                              key: ValueKey('mv-$name'),
+                              icon: Icons.folder_outlined,
+                              label: name,
+                              dense: true,
+                              onTap: () => Navigator.of(bc).pop(name),
+                            ),
+                          ),
+                      ],
+                    ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -745,3 +707,158 @@ Future<String?> showFolderPickSheet(BuildContext context,
 List<(String, int)> _flatten(List<FolderNode> nodes, [int depth = 0]) => [
       for (final n in nodes) ...[(n.name, depth), ..._flatten(n.children, depth + 1)],
     ];
+
+// ---------------------------------------------------------------------------
+// 批5②（2026-10-12）·笔记级动作（顶层）——原只藏在树面板内部（列表页与编辑页零入口，
+// 要先用整屏右滑开树才够得着）。提成顶层后：树底行 / 树顶历史行 / 顶栏「更多」三处共用
+// 同一份实现，不再各处抄一遍。
+// ---------------------------------------------------------------------------
+
+/// 「导入本地」（目录 / 文件两取法）。取消＝静默；读不到必出声（「点了必须有看得见的变化」）。
+Future<void> noteImportLocalAction(BuildContext context, WidgetRef ref) async {
+  final dao = ref.read(noteDaoProvider);
+  final folders = ref.read(noteFolderDaoProvider);
+  await showNoteLocalImportSheet(context, onRun: (kind) async {
+    final LocalImportReport? r;
+    try {
+      if (kind == 'dir') {
+        final treeUri = await safPickTree();
+        if (treeUri == null) return null; // 用户在系统选择器里取消＝不出提示
+        r = await importLocalTree(
+            notes: dao,
+            folders: folders,
+            root: await safListTree(treeUri),
+            readText: safReadText);
+      } else {
+        final docs = await safPickFiles();
+        if (docs.isEmpty) return null;
+        r = await importLocalFiles(
+            notes: dao,
+            folders: folders,
+            docs: docs,
+            currentFolder: ref.read(noteFilterProvider).folder,
+            readText: safReadText);
+      }
+    } catch (_) {
+      // catch-ok: 授权失效/provider 拒绝都要可见。
+      if (context.mounted) {
+        AppToast.show(context, '读不到所选内容（授权可能已失效）');
+      }
+      return null;
+    }
+    ref.invalidate(noteFolderListProvider);
+    ref.invalidate(notesProvider);
+    ref.invalidate(noteLocalFoldersProvider);
+    return r;
+  });
+}
+
+/// 「导出为本地目录」（原型 `sheetNoteExport`/`nxDo`）。取消＝`null`＝不出提示。
+Future<void> noteExportLocalAction(BuildContext context, WidgetRef ref) async {
+  final dao = ref.read(noteDaoProvider);
+  final folders = ref.read(noteFolderDaoProvider);
+  final sel = ref.read(noteFilterProvider).folder;
+  await showNoteExportSheet(context,
+      hasCurrentFolder: sel.isNotEmpty,
+      folderLabel: sel, onRun: (scope) async {
+    final String tree;
+    try {
+      final picked = await safPickTree();
+      if (picked == null) return null; // 用户在系统选择器里取消
+      tree = picked;
+    } catch (_) {
+      // catch-ok: 拿不到授权也要出声，否则就是「点了没反应」。
+      if (context.mounted) AppToast.show(context, '没能拿到目录授权（可再选一次）');
+      return null;
+    }
+    String treePath;
+    try {
+      treePath = (await safListTree(tree)).path;
+    } catch (_) {
+      // 列不出＝这个 tree 读不到（授权失效/provider 拒绝），别往下写。
+      if (context.mounted) AppToast.show(context, '读不到所选目录（授权可能已失效）');
+      return const NoteExportReport(errorCode: 'error');
+    }
+    final r = await exportNotesToTree(
+        notes: dao,
+        folders: folders,
+        treeUri: tree,
+        treePath: treePath,
+        scope: scope);
+    ref.invalidate(noteFolderListProvider);
+    ref.invalidate(notesProvider);
+    ref.invalidate(noteLocalFoldersProvider);
+    return r;
+  });
+}
+
+/// 「系统打开」历史半屏（原型 `nohOpen`）。计数与列表同源＝读 `notesProvider` 这一份。
+/// [onBeforeNavigate]：树侧传入「收起面板」；顶栏调用传 null（无面板可收）。
+void noteOpenHistoryAction(BuildContext context, WidgetRef ref,
+    {VoidCallback? onBeforeNavigate}) {
+  final dao = ref.read(noteDaoProvider);
+  final hist = openHistFrom(ref.read(notesProvider).valueOrNull ?? const <Note>[]);
+  showNoteOpenHistorySheet(context,
+      notes: hist,
+      onOpen: (n) {
+        final router = GoRouter.of(context);
+        onBeforeNavigate?.call(); // 常驻叠层：跳走前先收树
+        router.push('/note/edit', extra: n.id);
+      },
+      onMove: (n) async {
+        final to = await showFolderPickSheet(context, ref);
+        if (to == null || to.isEmpty) return;
+        await dao.setFolderMany([n.id!], to);
+        ref.invalidate(notesProvider);
+        ref.invalidate(noteTreeProvider);
+        if (context.mounted) {
+          AppToast.show(context, '已转入「$to」 · 临时标记已解除 · 来源标保留');
+        }
+      },
+      onClear: () async {
+        // 语义＝只软删**仍在临时夹**的进件，已转入的一行不动（产品裁定）；句子照原型原话。
+        final moved = await openHistClear(dao);
+        ref.invalidate(notesProvider);
+        ref.invalidate(noteTreeProvider);
+        return moved == 0
+            ? '本来就是空的 · 临时夹里没有待清的进件'
+            : '已清空 $moved 条 · 已转入的笔记不受影响';
+      });
+}
+
+/// 批6③（工单 §2 · 2026-10-12）·文件树首帧骨架。
+/// `noteTreeProvider` 是 FutureProvider：未落定时原实现 `?? const []` 直接铺空列表 ⇒
+/// 开树第一帧是「空」、下一帧才见内容（闪一下）。骨架顶住这一帧：几枚中性占位条
+/// （纯几何、零 emoji、不引新色值），落定后整体换成真行。
+class _TreeSkeleton extends StatelessWidget {
+  const _TreeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final c =
+        Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: .12);
+    Widget bar(double w, {double h = 10}) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+            color: c, borderRadius: BorderRadius.circular(6)));
+    const rows = <(double, double)>[
+      (0, 132), (0, 158), (16, 112), (16, 96), (0, 140),
+    ];
+    return ListView(
+      key: const ValueKey('nt-skeleton'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      children: [
+        for (final (indent, w) in rows)
+          Padding(
+            padding: EdgeInsets.only(left: indent, top: 7, bottom: 7),
+            child: Row(children: [
+              bar(16, h: 16),
+              const SizedBox(width: 10),
+              bar(w),
+            ]),
+          ),
+      ],
+    );
+  }
+}

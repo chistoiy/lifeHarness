@@ -303,6 +303,12 @@ tailwind.config = {
   .pw-mode-btn{padding:5px;border-radius:9px;opacity:.45;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:inherit}
   .pw-mode-btn svg{width:19px;height:19px}
   .pw-mode-btn.on{opacity:1;background:color-mix(in srgb,var(--pw-fg) 12%,transparent)}
+  /* 批3：编辑页三段基线归一（头/体/尾统一 px-5）＋ 头部滚动浮出吸顶分隔 ＋ 视图/工具条淡入 */
+  #pwHead.pw-stuck{box-shadow:0 1px 0 rgba(120,110,90,.12)}
+  .dark #pwHead.pw-stuck{box-shadow:0 1px 0 rgba(255,255,255,.09)}
+  #pwTitle.pw-hid{opacity:0}
+  @keyframes pwIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .pw-anim-in{animation:pwIn .18s ease}
   .note-sw{position:relative;overflow:hidden;border-radius:var(--card-r)}
   .note-del{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ef4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;border-radius:0 var(--card-r) var(--card-r) 0;opacity:0;transition:opacity .15s}
   .note-sw.show-del .note-del{opacity:1}
@@ -684,11 +690,12 @@ tailwind.config = {
 
     <!-- ===== P4d 笔记编辑器（纯纯写作风 · 写作视图+源码/预览切换 · V1.29轮9e 去分屏 · 轮9o 去专注钮） ===== -->
     <section id="p-noteEdit" class="page no-scrollbar" style="--pw-bg:#fbf8f1;--pw-fg:#403a31;background:var(--pw-bg);color:var(--pw-fg)">
-      <div class="px-4 pt-2.5 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg)">
+      <!-- 批3-方案1/2/4：头部左右与体/尾统一 px-5；pwTitle 在写作视图下「滚动浮出」（标题滚出视口后才淡入吸顶），src/预览视图常显；保存态降噪成一个安静的点 -->
+      <div id="pwHead" class="px-5 pt-2.5 pb-2 flex items-center gap-2 sticky top-0 z-10" style="background:var(--pw-bg);transition:box-shadow .18s">
         <button onclick="exitNoteEdit()" class="pw-ic-btn text-xl">‹</button>
         <div class="flex-1 min-w-0">
-          <div id="pwTitle" class="text-[12px] font-bold truncate">论写作工具的克制设计</div>
-          <div class="text-[10px] opacity-45">自动保存 ✓ 刚刚 · 输入即存</div>
+          <div id="pwTitle" class="text-[13px] font-bold truncate" style="transition:opacity .18s">论写作工具的克制设计</div>
+          <div class="flex items-center gap-1.5 text-[10px] opacity-45"><span class="inline-block w-1.5 h-1.5 rounded-full bg-current"></span><span id="pwSaveState">已保存</span></div>
         </div>
         <!-- V1.29轮9h/9o：MD 顶行=写作(默认·无钮)+源码+预览 两个可再点回落的切换图标 · 段落聚焦由 ⋯ 笔记选项开关管 -->
         <div class="flex gap-0.5 flex-shrink-0" id="pwModes">
@@ -701,7 +708,7 @@ tailwind.config = {
       </div>
 
       <!-- 写作视图（默认态·现有段落·无模式钮） -->
-      <div class="px-7 pt-5 pb-28 pw-body pw-focus" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
+      <div class="px-5 pt-5 pb-28 pw-body pw-focus" id="pwBody" style="background:var(--pw-bg);color:var(--pw-fg)">
         <h1 class="text-[22px] font-extrabold leading-8 mb-5">论写作工具的克制设计</h1>
         <p class="pw-cur">写作工具的第一要务，是让人忘记工具的存在。每一次弹窗、每一个闪烁的光标动画、每一处为了“智能”而打断心流的补全，都是对作者的干扰。</p>
         <p>好的编辑器应该像一张纸：安静、退到背景里、只在被需要的瞬间出现。纸不会建议你写什么，但纸会诚实地接住你写下的一切——包括那些只写了一半的句子。</p>
@@ -714,12 +721,12 @@ tailwind.config = {
       </div>
       <!-- 模式②③：源码 / 预览（V1.29轮9e：分屏移除·手机屏太小用不起来） -->
       <div id="pwSrcWrap" class="hidden px-5 pt-3 pb-28"><div id="pwSrcBox"></div></div>
-      <div id="pwViewWrap" class="hidden px-7 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
+      <div id="pwViewWrap" class="hidden px-5 pt-4 pb-28"><div id="pwViewBox" class="md-view"></div>
         <div class="mt-4 text-[10px] opacity-45">公式渲染：原型为手写 LaTeX 子集演示 · 正式版采用 flutter_math_fork（KaTeX 语法）全量渲染；MD 语法支持：标题/粗斜删/代码块/引用/列表/待办/表格/链接/图片/分割线/行内与块级公式。</div></div>
       <!-- V1.29：原底栏（字号/纸色/统计/聚焦/分类/置顶）整体移入右上角 ⋯ 二级子项 sheetNoteKit -->
       <!-- V1.29轮8②：快捷操作栏移到底部（拇指热区·横向滑动）；H#/Tt/≡ 点开二级行也在底部，滑到尾部或 ✕ 收起 -->
-      <div id="pwSubRow" class="hidden sticky bottom-[46px] z-20 px-3 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.08)"></div>
-      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-3 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
+      <div id="pwSubRow" class="hidden sticky bottom-[46px] z-20 px-5 py-1.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.08)"></div>
+      <div id="pwBottomBar" class="hidden sticky bottom-0 z-20 px-5 py-2.5 overflow-x-auto no-scrollbar items-center gap-1" style="background:var(--pw-bg);border-top:1px solid rgba(120,110,90,.12)"></div>
     </section>
 
     <!-- ===== P12g 二级：记录管理（V1.29轮6：按日记/笔记/阅读/影音游分类 + 通用设置） ===== -->
@@ -3704,7 +3711,13 @@ function pwSetPaperHue(h){const bg=`hsl(${h},60%,88%)`;pwApplyPaperVars(bg,'#403
  const nm=$('#pwPaperName');if(nm)nm.textContent='自定义';}
 function pwLoadNotePaper(t){const p=NOTE_PAPER[t];
  if(p){pwApplyPaperVars(p.bg,p.fg);const i=PW_PAPERS.findIndex(x=>x[0]===p.bg);const nm=$('#pwPaperName');if(nm)nm.textContent=i>=0?PW_PAPER_NM[i]:'自定义';}
- else{pwApplyPaperVars(PW_PAPERS[0][0],PW_PAPERS[0][1]);const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[0];}}
+ else{pwApplyPaperVars(PW_PAPERS[0][0],PW_PAPERS[0][1]);const nm=$('#pwPaperName');if(nm)nm.textContent=PW_PAPER_NM[0];}
+ requestAnimationFrame(()=>{const pg=$('#p-noteEdit');if(pg)pg.scrollTop=0;pwHeadSync();});}
+/* 批3-方案1：头部标题「滚动浮出」——写作视图下标题尚在视口内时不显示吸顶标题，滚过标题后才淡入；src/预览视图恒显（该视图下头部是唯一能看到并可改标题处）。滚动位置同时给头部加吸顶分隔。 */
+function pwHeadSync(){const pg=$('#p-noteEdit'),t=$('#pwTitle');if(!pg||!t)return;
+  const st=pg.scrollTop;
+  t.classList.toggle('pw-hid',pwMode==='focus'&&st<=80);
+  const h=$('#pwHead');if(h)h.classList.toggle('pw-stuck',st>4);}
 function pwFont(v){$('#pwBody').style.fontSize=v+'px';const l=$('#pwKitFont');if(l)l.textContent=v+' px';}
 /* V1.29轮9j补正2：聚焦开关（默认开·⋯ 笔记选项内）·纯文本/富文本/MD 通用 */
 function pwFocusToggle(el){const on=$('#pwBody').classList.toggle('pw-focus');if(el)el.classList.toggle('on',on);
@@ -3786,9 +3799,13 @@ function renderCityList(){const q=($('#citySearch')?.value||'').trim();
 function pickCity(c){curCity=c;const n=$('#setCityName');if(n)n.textContent=c;closeSheet('sheetCityPick');toast('天气城市已设置 · '+c)}
 const IC_MIC=_pwSvg('<rect x="9.4" y="3.5" width="5.2" height="10.5" rx="2.6"/><path d="M5.8 11.5a6.2 6.2 0 0 0 12.4 0M12 17.8V21"/>');
 const _pwSep='<span class="w-px h-4 flex-shrink-0" style="background:rgba(120,110,90,.25);margin:0 4px"></span>';
+/* 批3-方案3：工具条只在「有真可用键」时出现——富文本＝全量键；MD＝仅源码视图；写作/预览视图不再挂一排点不通的语法键（去僵尸键） */
 function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)return;
-  if(pwType==='plain'){bar.classList.add('hidden');bar.classList.remove('flex');sub.classList.add('hidden');sub.classList.remove('flex');pwSub='';return;}
+  const show=pwType==='rich'||(pwType==='md'&&pwMode==='src');
+  if(!show){bar.classList.add('hidden');bar.classList.remove('flex');sub.classList.add('hidden');sub.classList.remove('flex');pwSub='';return;}
+  const _wasOff=bar.classList.contains('hidden');
   bar.classList.remove('hidden');bar.classList.add('flex');
+  if(_wasOff){bar.classList.remove('pw-anim-in');void bar.offsetWidth;bar.classList.add('pw-anim-in');}
   bar.innerHTML=pwType==='md'
     ?[_pwb('↺',"pwUndo('undo')","撤销"),_pwb('↻',"pwUndo('redo')","重做"),_pwSep,
       _pwb('H#',"pwSubToggle('h')",'标题（点开后在下方选 H1~H6）'),
@@ -3965,7 +3982,11 @@ function tglNoteRestore(){noteRestore=noteRestore==='replace'?'copy':'replace';
 function cycleRecSet(el,key,opts){let i=opts.indexOf(el.textContent.trim());i=(i+1)%opts.length;el.textContent=opts[i];toast('已设为「'+opts[i]+'」（模拟持久化）');if(key==='trash')recSetChanged(key);}
 function newNote(t){t=t||'plain';pwSetType(t);toast(`已新建${t==='rich'?'富文本':t==='plain'?'纯文本':'MD 文档'}笔记 · 归属${noteFolder?'「'+noteFolder+'」':'未归类'}（可改）`);navTo('p-noteEdit');}
 function initPW(){renderPapers();
-  $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});}
+  $('#pwBody').addEventListener('click',e=>{const p=e.target.closest('p');if(!p)return;$$('#pwBody p').forEach(x=>x.classList.remove('pw-cur'));p.classList.add('pw-cur');});
+  /* 批3-方案1：编辑页滚动容器＝section.page 自身，滚动时驱动头部标题浮出与吸顶分隔 */
+  const _pg=$('#p-noteEdit');
+  if(_pg)_pg.addEventListener('scroll',()=>pwHeadSync(),{passive:true});
+  pwHeadSync();}
 /* ================= 笔记 · Markdown 引擎与视图（写作=默认·顶行源码/预览可切换回落 · 轮9o 去专注钮） ================= */
 let PW_LATEX=false; /* V1.29轮9k：LaTeX 语法渲染开关（记录管理·笔记段·默认关） */
 const PW_MD='# 论写作工具的克制设计\n\n**写作工具的第一要务**，是让人 *忘记* 工具的存在。\n\n- [x] 自动保存，与纯纯写作对齐\n- [ ] 打字机居中跟随\n- [ ] 段落级拖拽重排\n\n> 纸不会建议你写什么，但会诚实地接住你写下的一切——包括那些只写了一半的句子。\n\n行内公式 $E=mc^2$ ，以及二次方程求根：\n\n$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$\n\n| 模式 | 用途 |\n| --- | --- |\n| ✍️ 写作 | 沉浸式写作 |\n| ⌨️ 源码 | Markdown 语法 |\n| 👁 预览 | 渲染阅读 |\n\n`行内代码`、~~删除线~~、[官方博客](https://example.com)。\n\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$\n';
@@ -3978,6 +3999,9 @@ function latexMini(s){
  s=s.replace(/\^\{([^{}]*)\}/g,'<sup>$1</sup>').replace(/\^([0-9A-Za-z+\-])/g,'<sup>$1</sup>');
  s=s.replace(/_\{([^{}]*)\}/g,'<sub>$1</sub>').replace(/_([0-9A-Za-z+\-])/g,'<sub>$1</sub>');
  return s;}
+/* 补：esc2 在本文件被 mdInline/mdRender 调用但全文件无定义（HEAD 版亦然＝既有缺陷），致源码/预览视图一渲染即 ReferenceError。
+   最小补回 HTML 转义（只把 & < > 转义，不改其余语义）。 */
+function esc2(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function mdInline(s){s=esc2(s);
  if(PW_LATEX)s=s.replace(/\$([^$]+)\$/g,function(m,x){return '<span class="texi">'+latexMini(x)+'</span>';});
  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
@@ -4010,10 +4034,14 @@ let PW_TA=null,pwMode='focus';
 function initPW2(){PW_TA=document.createElement('textarea');PW_TA.id='pwTa';PW_TA.className='pw-ta';PW_TA.value=PW_MD;PW_TA.spellcheck=false;PW_TA.oninput=pwSync;
  PW_TA.style.color='var(--pw-fg)';PW_TA.style.background='transparent';$('#pwSrcBox').appendChild(PW_TA);}
 function pwSetMode(m){pwMode=m;$$('#pwModes .pw-mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
- $('#pwBody').classList.toggle('hidden',m!=='focus');$('#pwSrcWrap').classList.toggle('hidden',m!=='src');
- $('#pwViewWrap').classList.toggle('hidden',m!=='view');
+ /* 批3-方案5：三视图淡入切换（不再整块硬跳），落项目 120~180ms 轻动效档 */
+ [['focus','pwBody'],['src','pwSrcWrap'],['view','pwViewWrap']].forEach(kv=>{const el=$('#'+kv[1]);const on=kv[0]===m;
+   el.classList.toggle('hidden',!on);
+   if(on){el.classList.remove('pw-anim-in');void el.offsetWidth;el.classList.add('pw-anim-in');}});
  if(m==='src'&&!PW_TA.closest('#pwSrcBox'))$('#pwSrcBox').appendChild(PW_TA);
  pwSync();
+ pwHeadSync();
+ renderPwBar();
  if(m==='src')setTimeout(()=>PW_TA.focus(),60);
  if(m==='view')toast('渲染预览：排版/表格/待办/LaTeX 公式');}
 function pwSync(){if(!PW_TA)return;const html=mdRender(PW_TA.value);

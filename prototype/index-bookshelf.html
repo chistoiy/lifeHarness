@@ -193,6 +193,31 @@ tailwind.config = {
   .nt-row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
   .nt-row:active{background:rgba(99,102,241,.08)}
   .nt-row.nt-on{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  /* ===== 笔记模块 · 批4/批5/批6（2026-10-12 · 工单《笔记模块结构与手感优化》） ===== */
+  /* 批4②：树行高对齐 U6 44（原 ~36） */
+  .nt-row{min-height:44px}
+  /* 批4④：弹层语言统一——头（grabber＋左对齐标题＋副标）／描边卡行／双钮动作行 */
+  .ns-hd{margin-bottom:6px}
+  .ns-hd b{display:block;font-size:15px;font-weight:900;letter-spacing:.01em}
+  .ns-sub{font-size:10.5px;color:#94a3b8;margin-top:3px}
+  .ns-row{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:10px 12px;margin-bottom:8px;border-radius:12px;border:1px solid rgba(148,163,184,.28);font-size:13px;font-weight:700;text-align:left;cursor:pointer}
+  .ns-row:active{background:rgba(99,102,241,.06)}
+  .ns-actions{display:flex;gap:8px;margin-top:12px}
+  .ns-cancel{flex:1;padding:12px 0;border-radius:12px;border:1px solid rgba(148,163,184,.35);font-size:13px;font-weight:700}
+  .ns-go{flex:2;padding:12px 0;border-radius:12px;background:var(--accent);color:#fff;font-size:13px;font-weight:700}
+  .ns-go.ns-danger{background:#f43f5e}
+  /* 批6①：四段切换过渡（120~180ms easeOut 档） */
+  @keyframes recIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .rec-anim-in{animation:recIn .18s cubic-bezier(.2,.8,.2,1)}
+  /* 批6②：多选条进出过渡——槽位恒在，走 max-height/opacity 补间（切 display 就没过渡） */
+  #noteSelTop{display:flex;max-height:0;opacity:0;overflow:hidden;transition:max-height .16s ease,opacity .16s ease}
+  #noteSelTop.sel-on{max-height:34px;opacity:1}
+  #noteSelBar{display:flex;opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+  #noteSelBar.sel-on{opacity:1;transform:none;pointer-events:auto}
+  /* 批6③：侧栏首帧空树骨架 */
+  @keyframes ntShimmer{0%,100%{opacity:.45}50%{opacity:.9}}
+  .nt-skel{padding:4px 2px}
+  .nt-skel i{display:block;height:12px;border-radius:6px;background:rgba(148,163,184,.28);margin:11px 0;animation:ntShimmer 1.2s ease-in-out infinite}
   .nt-caret{width:14px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#94a3b8}
   .nt-ic{display:inline-flex;align-items:center;justify-content:center}
   .pw-tool{width:30px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;color:inherit;opacity:.75}
@@ -377,7 +402,7 @@ tailwind.config = {
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.5 20 7.5l-4 4M20 7.5H4M8 20.5l-4-4 4-4M4 16.5h16"/></svg>
     </button>
     <div id="hdrActs" class="hidden items-center gap-1.5"></div>
-    <button id="btnHdrSearch" onclick="openSheet('sheetSearch')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
+    <button id="btnHdrSearch" onclick="hdrSearchGo()" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
     </button>
     <div id="recSwitchMenu" class="hidden absolute right-4 top-full w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5 z-40"></div>
@@ -435,10 +460,13 @@ tailwind.config = {
       <div id="recNote" class="hidden mt-1.5">
         <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
         <div class="flex items-center justify-end gap-2 relative">
+          <button id="noteSrcBtn" onclick="nsrcOpen()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 mr-auto" title="按来源筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
           <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
           <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
           <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
           <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
+          <button id="noteMoreBtn" onclick="noteMoreOpen(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="更多"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
+          <div id="noteMoreMenu" class="hidden absolute right-0 top-10 z-40 w-44 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
         </div>
         <div id="noteList" class="mt-3"></div>
       </div>
@@ -1393,16 +1421,16 @@ tailwind.config = {
   <div id="sheetNoteImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteImport')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="font-extrabold">导入本地</div>
+      <div class="ns-hd"><b>导入本地</b><div class="ns-sub">目录按内容哈希判重 · 子文件夹各成带「本地」标的节点</div></div>
       <div class="mt-2 flex gap-2">
         <button id="niSegDir" onclick="niKindChg('dir')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
         <button id="niSegFile" onclick="niKindChg('file')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
       </div>
       <div id="niHint" class="text-[11px] text-slate-400 mt-2"></div>
       <div id="niProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
-      <div class="mt-3 flex gap-2">
-        <button onclick="closeSheet('sheetNoteImport')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
-        <button id="niGo" onclick="niDo()" class="flex-[2] py-3 rounded-xl bg-brand-500 text-white text-[13px] font-bold active:opacity-80"></button>
+      <div class="ns-actions">
+        <button onclick="closeSheet('sheetNoteImport')" class="ns-cancel">取消</button>
+        <button id="niGo" onclick="niDo()" class="ns-go"></button>
       </div>
     </div>
   </div>
@@ -1410,16 +1438,15 @@ tailwind.config = {
   <div id="sheetNoteExport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteExport')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="font-extrabold">导出为本地目录</div>
+      <div class="ns-hd"><b>导出为本地目录</b><div class="ns-sub">每篇一个 .md · 图片附件随导至同级 _assets/</div></div>
       <div class="mt-2 flex gap-2">
         <button id="nxScCur" onclick="nxScChg('cur')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
         <button id="nxScAll" onclick="nxScChg('all')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
       </div>
-      <div class="text-[11px] text-slate-400 mt-2">每篇一个 .md · 图片附件随导至同级 _assets/</div>
       <div id="nxProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
-      <div class="mt-3 flex gap-2">
-        <button onclick="closeSheet('sheetNoteExport')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
-        <button id="nxGo" onclick="nxDo()" class="flex-[2] py-3 rounded-xl bg-brand-500 text-white text-[13px] font-bold active:opacity-80">选择目录并导出</button>
+      <div class="ns-actions">
+        <button onclick="closeSheet('sheetNoteExport')" class="ns-cancel">取消</button>
+        <button id="nxGo" onclick="nxDo()" class="ns-go">选择目录并导出</button>
       </div>
     </div>
   </div>
@@ -1427,8 +1454,8 @@ tailwind.config = {
   <div id="sheetNoteOpenHist" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteOpenHist')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="flex items-center gap-2"><b class="text-[15px] flex-1">系统打开</b><span id="nohClr" onclick="nohClr()" class="text-[11px] font-bold text-rose-500 px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-800">清空</span></div>
-      <div id="nohList" class="mt-3 space-y-2"></div>
+      <div class="ns-hd"><div class="flex items-center gap-2"><b class="flex-1">系统打开</b><span id="nohClr" onclick="nohClr()" class="text-[11px] font-bold text-rose-500 px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-800">清空</span></div><div class="ns-sub">经系统「打开方式」交给本应用的文件 · 保存可回写原文件</div></div>
+      <div id="nohList" class="mt-1 space-y-2"></div>
       <button onclick="nohSim()" class="mt-3 w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[12px] font-bold text-slate-500">演示：系统里打开一个 .md</button>
     </div>
   </div>
@@ -1437,12 +1464,57 @@ tailwind.config = {
   <div id="sheetNoteUnmount" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteUnmount')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
       <div class="grabber"></div>
-      <div class="flex items-center gap-2"><b id="nuTitle" class="text-[15px] flex-1 truncate">移除挂载</b><span id="nuBadge" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0"></span></div>
-      <div id="nuPath" class="text-[10px] text-slate-400 truncate mt-1"></div>
+      <div class="ns-hd"><div class="flex items-center gap-2"><b id="nuTitle" class="flex-1 truncate">移除挂载</b><span id="nuBadge" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0"></span></div><div class="ns-sub" id="nuPath"></div></div>
       <div id="nuList" class="mt-3 space-y-1.5"></div>
-      <div class="mt-4 flex gap-2">
-        <button onclick="closeSheet('sheetNoteUnmount')" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold">取消</button>
-        <button onclick="nuDo()" class="flex-[2] py-3 rounded-xl bg-rose-500 text-white text-[13px] font-bold active:opacity-80">确认移除</button>
+      <div class="ns-actions">
+        <button onclick="closeSheet('sheetNoteUnmount')" class="ns-cancel">取消</button>
+        <button onclick="nuDo()" class="ns-go ns-danger">确认移除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2026-10-12 批4④：移动到弹层回归本文件（此前只引用了壳里的同名 sheet · openSheet 落在 lhGone 空转＝死引用） -->
+  <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="ns-hd"><b>移动到文件夹</b><div class="ns-sub">已选 <span id="nmCount">0</span> 篇 · 只改归属，不改内容</div></div>
+      <div id="nmList" class="mt-2 max-h-[46vh] overflow-y-auto no-scrollbar"></div>
+      <div class="ns-actions"><button onclick="closeSheet('sheetNoteMove')" class="ns-cancel">取消</button></div>
+    </div>
+  </div>
+
+  <!-- 2026-10-12 批5①：笔记搜索半屏（顶栏放大镜进入）· 标题与正文同时匹配 -->
+  <div id="sheetNoteSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteSearch')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="ns-hd"><b>搜索笔记</b><div class="ns-sub">标题与正文同时匹配 · 点命中行直接进编辑页</div></div>
+      <div class="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input id="nsqIn" oninput="nsqRun()" placeholder="输入关键词" class="flex-1 bg-transparent outline-none text-[13px] font-medium">
+        <button id="nsqClr" onclick="nsqClr()" class="text-[11px] font-bold text-slate-400">清空</button>
+      </div>
+      <div id="nsqList" class="mt-3 max-h-[46vh] overflow-y-auto no-scrollbar"></div>
+      <div id="nsqEmpty" class="py-8 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">输入关键词开始搜索</div>
+    </div>
+  </div>
+
+  <!-- 2026-10-12 批5⑤：来源筛选（兑现「来源标仍可筛」）· 四档来源 -->
+  <div id="sheetNoteSrc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteSrc')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="ns-hd"><b>按来源筛选</b><div class="ns-sub">来源标由导入／导出／系统打开自动打上，可随时改</div></div>
+      <div id="nsrcList" class="mt-2"></div>
+    </div>
+  </div>
+
+  <!-- 2026-10-12 批5④：批量删除二次确认（与日记段口径一致·破坏性操作必确认） -->
+  <div id="sheetNoteDelBatch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteDelBatch')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+      <div class="grabber"></div>
+      <div class="ns-hd"><b id="ndbTitle">删除选中的 0 篇笔记？</b><div class="ns-sub">删除后可在回收站保留 30 天，期间可恢复。</div></div>
+      <div class="ns-actions">
+        <button onclick="closeSheet('sheetNoteDelBatch')" class="ns-cancel">取消</button>
+        <button id="ndbOk" onclick="ndbDo()" class="ns-go ns-danger">删除</button>
       </div>
     </div>
   </div>
@@ -2856,7 +2928,9 @@ const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
 function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
   if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
   if(k!=='diary'&&dlSelMode){dlSelMode=false;dlSel.clear();const _d=$('#diarySelBar');if(_d){_d.classList.add('hidden');_d.classList.remove('flex');}} /* 轮13：离开日记段静默退出批量 */
-  [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
+  /* 批6①：四段切换 180ms 淡入＋上移（与三视图切换同档曲线） */
+  [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>{const el=$('#'+w);el.classList.toggle('hidden',id!==k);
+    if(id===k){el.classList.remove('rec-anim-in');void el.offsetWidth;el.classList.add('rec-anim-in');}});
   const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
   syncDiaryFilterBtn();
   renderRecSwitch();
@@ -3052,18 +3126,36 @@ let noteSelMode=false,noteSel=new Set();
 function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<3){noteCols++;}else{noteView='list';}
   $('#noteViewBtn').textContent=noteView==='list'?'☰':(noteCols===2?'▦':'▤');
   toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
-function noteSorted(){const list=D.notes.filter(n=>!noteFolder||n.folder===noteFolder);
+/* 批5⑤：来源筛选（兑现「来源标仍可筛」）——local 覆盖 local_dir／local_file 两种来源标 */
+let noteSrcFilter='';
+const N_SRC=[['','全部来源'],['local','本地文件'],['export','导出目录'],['open_with','系统打开']];
+function nSrcLabel(v){const f=N_SRC.filter(x=>x[0]===v)[0];return f?f[1]:'全部来源';}
+function nSrcMatch(n){if(!noteSrcFilter)return true;
+  if(noteSrcFilter==='local')return n.src==='local_dir'||n.src==='local_file';
+  return n.src===noteSrcFilter;}
+function syncNoteSrcBtn(){const b=$('#noteSrcBtn');if(!b)return;const on=!!noteSrcFilter;
+  b.title=on?'按来源筛选 · '+nSrcLabel(noteSrcFilter):'按来源筛选';
+  b.style.color=on?'var(--accent)':'';b.style.borderColor=on?'var(--accent)':'';}
+function nsrcOpen(){const L=$('#nsrcList');if(!L)return;
+  L.innerHTML=N_SRC.map(function(x){const on=x[0]===noteSrcFilter;
+    return '<button class="ns-row" onclick="nsrcPick(\''+x[0]+'\')"><span class="flex-1">'+x[1]+'</span><span class="text-[11px] font-bold" style="color:var(--accent)">'+(on?'已选':'')+'</span></button>';}).join('');
+  openSheet('sheetNoteSrc');}
+function nsrcPick(v){noteSrcFilter=v;closeSheet('sheetNoteSrc');renderNotes();toast('来源筛选：'+nSrcLabel(v));}
+function noteSorted(){const list=D.notes.filter(n=>(!noteFolder||n.folder===noteFolder)&&nSrcMatch(n));
   list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
     let r=noteSort==='title'?String(a.t).localeCompare(String(b.t),'en')
       :nkey(noteSort==='cre'?b.cre:b.time).localeCompare(nkey(noteSort==='cre'?a.cre:a.time));
     return noteAsc?-r:r;});
   return list;}
-function renderNotes(){const L=$('#noteList');
+function renderNotes(){const L=$('#noteList');syncNoteSrcBtn();
   const list=noteSorted();
   /* V1.29轮9b：卡片视图=瀑布流错落（CSS columns）·卡片 1 标题 + 最多 4 行正文 + 1 时间行 */
   const card=noteView==='card';
   L.className=card?'mt-2 note-masonry':'';
   L.style.columnCount=card?noteCols:'';
+  /* 批5⑤：来源筛选命中空集时给专用文案（不再是「这个文件夹还没有笔记」） */
+  if(!list.length){L.innerHTML='<div class="py-10 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">'
+    +(noteSrcFilter?'该来源下暂无笔记 · 换个来源试试':'这个文件夹还没有笔记 · 点右下角新建')+'</div>';return;}
   L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
     const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${n.txt}</div>`
       :`<div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>`;
@@ -3074,34 +3166,51 @@ function renderNotes(){const L=$('#noteList');
     ${body}
     <div class="flex items-center gap-1.5 mt-1.5"><span class="text-[10px] text-slate-400">${n.time}</span>${n.pin?`<span class="inline-flex text-amber-500" style="transform:rotate(45deg);width:13px;height:13px">${NT_IC.pin.replace(/width="15" height="15"/,'width="13" height="13"')}</span>`:''}</div>
     </div>${noteSelMode?`<span class="nchk ${sel?'on':''} flex-shrink-0">✓</span>`:''}</div></div></div>`;}).join('');
+  /* 批2-①：左滑＝一划即删（与待办同款手感）——跟手位移，松手过阈值直接删除并给一次「撤销」；不再停在「露出删除区再点」的中间态 */
   $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
-    c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
-    c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-84,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
-    c.addEventListener('touchend',()=>{if(noteSelMode)return;c.style.transform='';if(dx<-36){$$('#noteList .note-card.open').forEach(o=>{if(o!==c){o.classList.remove('open');o.parentElement.classList.remove('show-del')}});c.classList.add('open');w.classList.add('show-del');}else{c.classList.remove('open');w.classList.remove('show-del');}});});}
+    c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;c.style.transition='';},{passive:true});
+    c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-120,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
+    c.addEventListener('touchend',()=>{if(noteSelMode)return;
+      const bt=c.querySelector('b');const t=bt?bt.textContent:'';
+      if(dx<-72){c.style.transition='transform .16s ease';c.style.transform='translateX(-110%)';setTimeout(()=>noteTrash(t),150);}
+      else{c.style.transition='transform .16s ease';c.style.transform='';w.classList.remove('show-del');}});});}
 function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}
   if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
     if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
   pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
-function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);}
+function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);if(navigator.vibrate)navigator.vibrate(12);/* 批2-③：长按进管理态＝触觉锚，与影音架同款（原型不可见·实现侧走 HapticFeedback） */}
   else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
   updateNoteSelBar();renderNotes();}
 function noteAllPinned(){return [...noteSel].every(t=>{const x=D.notes.find(y=>y.t===t);return x&&x.pin;});}
+/* 批6②：进出走 max-height／opacity 补间（槽位恒在），不再切 display（切了就没过渡） */
 function updateNoteSelBar(){const b=$('#noteSelBar');if(!b)return;
   if(!noteSelMode||!noteSel.size){noteExitSel();return;}
-  b.classList.remove('hidden');b.classList.add('flex');
-  const top=$('#noteSelTop');top.classList.remove('hidden');top.classList.add('flex');
+  b.classList.add('sel-on');
+  const top=$('#noteSelTop');if(top)top.classList.add('sel-on');
   $('#noteSelTopN').textContent=noteSel.size;
   $('#notePinLabel').textContent=noteAllPinned()?'取消置顶':'置顶';}
-function noteExitSel(){noteSelMode=false;noteSel.clear();const b=$('#noteSelBar');if(b){b.classList.add('hidden');b.classList.remove('flex');}
-  const top=$('#noteSelTop');if(top){top.classList.add('hidden');top.classList.remove('flex');}renderNotes();}
+function noteExitSel(){noteSelMode=false;noteSel.clear();
+  const b=$('#noteSelBar');if(b)b.classList.remove('sel-on');
+  const top=$('#noteSelTop');if(top)top.classList.remove('sel-on');renderNotes();}
 function noteBatchPin(){const n=noteSel.size,un=noteAllPinned();D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=un?0:1;});noteExitSel();toast(un?`已取消置顶 ${n} 篇`:`已置顶 ${n} 篇`);}
-function noteBatchTrash(){const n=noteSel.size;noteExitSel();toast(`已移入回收站 ${n} 篇 · 保留期内可恢复`);}
+/* 批5④：批量删除补二次确认（与日记段口径一致：破坏性操作必确认，取消则留在多选态） */
+function noteBatchTrash(){const n=noteSel.size;if(!n)return;
+  $('#ndbTitle').textContent='删除选中的 '+n+' 篇笔记？';openSheet('sheetNoteDelBatch');}
+/* 批5④：确认后真移除（与左滑同款留底＋撤销）；撤销回调沿用本文件 toast(msg,回调) 口径 */
+function ndbDo(){const baks=[];
+ for(let i=D.notes.length-1;i>=0;i--){if(noteSel.has(D.notes[i].t))baks.unshift(D.notes.splice(i,1)[0]);}
+ const n=baks.length;closeSheet('sheetNoteDelBatch');noteExitSel();renderNotes();
+ toast('已移入回收站 '+n+' 篇 · 保留期内可恢复',()=>{D.notes=D.notes.concat(baks);renderNotes();toast('已恢复 '+n+' 篇');});}
 function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
-function noteBatchMove(){if(!noteSel.size)return;$('#nmCount').textContent=noteSel.size;
-  $('#nmList').innerHTML=ntFlat().map(f=>`<button class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[13px] font-bold active:bg-slate-100 dark:active:bg-slate-700" style="padding-left:${12+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span>${f.n}</button>`).join('');
+function noteBatchMove(){if(!noteSel.size)return;const c=$('#nmCount');if(c)c.textContent=noteSel.size;
+  $('#nmList').innerHTML=ntFlat().map(f=>`<button class="ns-row" style="padding-left:${14+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span><span class="flex-1 truncate">${f.n}</span></button>`).join('');
   openSheet('sheetNoteMove');}
 function noteMoveTo(f){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.folder=f;});closeSheet('sheetNoteMove');noteExitSel();toast(`已移动 ${n} 篇到「${f}」`);}
-function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});toast(`已移入回收站 · 30 天内可在 🗑 回收站恢复（${t}）`);}
+/* 批2-①：左滑一划即删——数据侧真移除并给一次「撤销」后悔药（长时效退路仍在回收站）。本文件 toast(msg,undo) 第二参即回调。 */
+function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});
+  const i=D.notes.findIndex(x=>x.t===t);const bak=i>=0?D.notes.splice(i,1)[0]:null;renderNotes();
+  if(!bak){toast('未找到该笔记');return;}
+  toast(`已移入回收站 · ${t}`,()=>{D.notes.splice(Math.min(i,D.notes.length),0,bak);renderNotes();toast(`已恢复「${t}」`);});}
 /* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
 const NT_IC={
  all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
@@ -3142,8 +3251,10 @@ function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
 function ntLong(n){const nd=ntNode(n);
   /* V1.64 批2 · N-1c：本地导入／导出目录的挂载节点长按＝给「移除挂载」；
      笔记树手感批 T-E（2026-10-11）：普通手建夹长按＝行内就地动作（不再 toast），再长按同夹收起 */
-  if(nd&&(nd.src==='local'||nd.src==='export')){nuOpen(nd);return;}
+  /* 批4③：树内长按进管理态＝触觉锚扩张（原型不可见·实现侧 HapticFeedback.mediumImpact） */
+  if(nd&&(nd.src==='local'||nd.src==='export')){if(navigator.vibrate)navigator.vibrate(12);nuOpen(nd);return;}
   const p=ntFindPath(n);const k=p?p.k:'';
+  if(navigator.vibrate)navigator.vibrate(12);
   ntAct=(ntAct===k?'':k);renderNt();}
 /* 笔记树手感批 T-E 样张：行尾就地两枚线性钮（重命名/删除），点别处/收起 */
 function ntActBtns(n){return '<button class="pw-ic-btn nt-ic" id="nt-act-rename" title="重命名" onclick="event.stopPropagation();ntSel=&quot;'+n+'&quot;;ntRename()">'+NT_IC.edit+'</button>'
@@ -3160,7 +3271,12 @@ function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?
   +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
   +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`
   +`<div class="nt-row" onclick="niOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folderAdd}</span><span class="flex-1">导入本地 · 目录或文件</span></div>`;}
-function ntOpenDrawer(){renderNt();$('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');}
+let ntSkelT=0;
+const NT_SKEL='<div class="nt-skel"><i style="width:72%"></i><i style="width:56%"></i><i style="width:64%"></i><i style="width:48%"></i><i style="width:60%"></i></div>';
+/* 批6③：侧栏首帧先给空树骨架（树数据冷读时不再白屏），260ms 后落真树 */
+function ntOpenDrawer(){$('#ntList').innerHTML=NT_SKEL;
+ $('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');
+ clearTimeout(ntSkelT);ntSkelT=setTimeout(function(){renderNt();},260);}
 /* —— V1.64：本地导入／导出为目录／系统打开临时夹与历史（工单 §2 N-1~N-4 · 拍板 A~G＝§4） —— */
 const NT_BADGE={local:['本地','#0d9488'],export:['导出','#d97706'],temp:['临时','#64748b']};
 const OF_ST={written:['已回写原文件','#0d9488'],app:['仅应用内','#e11d48'],moved:['已转正式目录','#64748b']};
@@ -3242,7 +3358,7 @@ function nohClr(){if(!OF.length)return;
 function renderNoh(){const L=$('#nohList');if(!L)return;
  if(!OF.length){L.innerHTML='<div class="py-6 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">还没有经系统打开的文件</div>';return;}
  L.innerHTML=OF.map(function(o,i){const st=OF_ST[o.st];
-  return '<div class="rounded-xl border border-slate-100 dark:border-slate-800 px-3 py-2.5" onclick="nohGo('+i+')">'
+  return '<div class="rounded-xl border border-slate-200/70 dark:border-slate-700/70 px-3 py-2.5" onclick="nohGo('+i+')">'
    +'<div class="flex items-center gap-2"><span class="text-[13px] font-bold flex-1 truncate">'+o.f+'</span>'
    +'<span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style="color:'+st[1]+';border:1px solid '+st[1]+'">'+st[0]+'</span></div>'
    +'<div class="text-[10px] text-slate-400 truncate mt-0.5">'+o.p+' · '+o.ts+'</div>'
@@ -3252,8 +3368,30 @@ function nohGo(i){closeSheet('sheetNoteOpenHist');if(curPage!=='p-records'||recT
 function nohMove(i){const to=ntSel||'方法论';OF[i].st='moved';renderNoh();renderNt();toast('已转入「'+to+'」 · 清除临时标记');}
 function nohSim(){const t='新建笔记'+(OF.length+1)+'.md';OF.unshift({f:t,p:'/Download/'+t,ts:'刚刚',st:'written'});
  renderNoh();renderNt();toast('已导入到「系统打开」 · 进入编辑 · 保存将回写原文件');}
-function ntClose(){$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
+function ntClose(){clearTimeout(ntSkelT);$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
 (function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;$('#ntBtExport').innerHTML=NT_IC.folderMove;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
+/* ===== 2026-10-12 批5：顶栏「更多」收拢导入/导出/打开历史 ＋ 笔记搜索半屏 ===== */
+/* 批5①：记录页·笔记段时顶栏放大镜改投「搜索笔记」半屏（其余页/段维持原全局搜索；实现侧对应 rec-search 钮） */
+function hdrSearchGo(){if(curPage==='p-records'&&recTab==='note'){nsqOpen();return;}openSheet('sheetSearch');}
+function noteMoreOpen(e){if(e)e.stopPropagation();const m=$('#noteMoreMenu');if(!m)return;
+  m.innerHTML=[['niOpen()','导入本地'],['nxOpen()','导出为本地目录'],['nohOpen()','系统打开历史']]
+    .map(x=>'<button class="w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700" onclick="noteMoreHide();'+x[0]+'">'+x[1]+'</button>').join('');
+  m.classList.toggle('hidden');}
+function noteMoreHide(){const m=$('#noteMoreMenu');if(m)m.classList.add('hidden');}
+document.addEventListener('pointerdown',e=>{const m=$('#noteMoreMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
+function nsqOpen(){const i=$('#nsqIn');if(i)i.value='';nsqRun();openSheet('sheetNoteSearch');
+  setTimeout(function(){const j=$('#nsqIn');if(j)j.focus();},80);}
+function nsqClr(){const i=$('#nsqIn');if(!i)return;i.value='';nsqRun();i.focus();}
+function nsqRun(){const el=$('#nsqIn');const L=$('#nsqList'),E=$('#nsqEmpty');if(!L)return;
+  const k=el?String(el.value).trim().toLowerCase():'';
+  if(!k){L.innerHTML='';E.textContent='输入关键词开始搜索';E.classList.remove('hidden');return;}
+  const hits=D.notes.filter(n=>String(n.t).toLowerCase().indexOf(k)>=0||String(n.txt).toLowerCase().indexOf(k)>=0);
+  E.textContent='没有匹配「'+k+'」的笔记 · 换个词试试';E.classList.toggle('hidden',hits.length>0);
+  L.innerHTML=hits.map(n=>'<button class="ns-row" onclick="nsqGo(\''+n.t+'\')"><span class="nt-ic text-slate-400">'+NT_IC.all+'</span>'
+    +'<span class="flex-1 min-w-0"><span class="block truncate">'+n.t+'</span>'
+    +'<span class="block text-[10px] font-medium text-slate-400 truncate mt-0.5">'+(n.folder||'未归类')+' · '+n.time+' · '+n.txt.slice(0,22)+'</span></span>'
+    +'<span class="text-slate-300">›</span></button>').join('');}
+function nsqGo(t){closeSheet('sheetNoteSearch');pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
 let noteRestore='replace';
 
 

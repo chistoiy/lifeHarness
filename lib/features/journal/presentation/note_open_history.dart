@@ -21,6 +21,7 @@ import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../data/note_dao.dart';
 import '../domain/note.dart';
 import '../domain/note_folder.dart';
+import 'widgets/note_sheet_lang.dart';
 
 /// 历史行三态（原型 `OF_ST` 的三个键＝同一组词，不许另造句子）。
 enum NoteHistState { written, app, moved }
@@ -115,12 +116,8 @@ Future<void> showNoteOpenHistorySheet(BuildContext context,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text('系统打开 · 共 ${notes.length} 条',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900, fontSize: 15)),
-              ),
+              // 批4④：弹层语言单源（grabber＋左标题；原为「无 grabber」）。
+              NoteSheetHeader(title: '系统打开 · 共 ${notes.length} 条'),
               Flexible(
                 child: notes.isEmpty
                     ? Container(

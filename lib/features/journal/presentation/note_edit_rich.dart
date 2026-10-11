@@ -398,8 +398,14 @@ extension _NoteRich on _NoteEditPageState {
   /// 轮8②⑥：主条+二级行整体贴底（拇指热区）；plain 无条（＋附件卡承担插图）。
   Widget _toolBarArea() {
     final rich = _isRich;
-    if (!rich && _kind != 'md') return const SizedBox.shrink();
+    // 批3③（工单 §2）：按模式收敛——富文本恒显；MD **仅源码视图**显
+    //（原型 renderPwBar：`pwType==='rich' || (pwType==='md' && pwMode==='src')`）。
+    // 写作/预览视图下不再挂一排点了只弹「当前为写作视图…」的僵尸键。
+    final mdSrc = _kind == 'md' && _mode == NoteEditMode.src;
+    if (!rich && !mdSrc) return const SizedBox.shrink();
     return Container(
+      // 批3③：rich 与 md 条互切时也要播过渡（默认类型相同会被判作同件）。
+      key: ValueKey(rich ? 'note-bar-rich' : 'note-bar-md'),
       decoration: BoxDecoration(
         color: _bg,
         border: Border(top: BorderSide(color: _fg.withValues(alpha: .12))),
@@ -410,7 +416,8 @@ extension _NoteRich on _NoteEditPageState {
           if (_pwSub.isNotEmpty) _pwSubRow(rich),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            // 批3②：尾条左沿与头/体统一到 20（原型 px-5）。
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
             child: Row(
               children: rich
                   ? [
@@ -512,7 +519,8 @@ extension _NoteRich on _NoteEditPageState {
       },
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(10, 3, 10, 1),
+        // 批3②：二级行与主条/头/体同一条左沿（原型 px-5）。
+        padding: const EdgeInsets.fromLTRB(20, 3, 20, 1),
         child: Row(
           children: [
             ...items,

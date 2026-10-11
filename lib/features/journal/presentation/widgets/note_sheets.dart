@@ -14,6 +14,7 @@ import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note.dart';
 import '../journal_providers.dart';
 import '../note_paper.dart';
+import 'note_sheet_lang.dart';
 
 String _snapTimeLabel(int ms) {
   final t = DateTime.fromMillisecondsSinceEpoch(ms);
@@ -48,29 +49,14 @@ Future<void> showSnapshotSheet(BuildContext context, WidgetRef ref, Note? note,
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                    color: fg.withValues(alpha: .18),
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Text('🕘 版本快照',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: fg)),
-            Padding(
-              padding: const EdgeInsets.only(top: 3, bottom: 10),
-              child: Text(
-                  '停止输入 30 秒 / 每 500 字自动留存 · '
+            // 批4④：头收成 NoteSheetHeader（grabber＋左标题＋副标单源）。
+            NoteSheetHeader(
+              title: '🕘 版本快照',
+              fg: fg,
+              sub: '停止输入 30 秒 / 每 500 字自动留存 · '
                   '${mode == 'replace' ? '恢复默认直接替换当前正文（替换前自动留快照），恢复方式可在记录管理切换' : '恢复=新增一条副本笔记，当前正文不动'}',
-                  style: TextStyle(
-                      fontSize: 10.5, color: fg.withValues(alpha: .45))),
             ),
+            const SizedBox(height: 10),
             if (snaps.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 18),
@@ -339,49 +325,36 @@ Future<void> showNoteKitSheet(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                        color: fg.withValues(alpha: .18),
-                        borderRadius: BorderRadius.circular(2)),
-                  ),
-                ),
-                // 轮9q：标题去「⋯」前缀 · 统计信息上移至标题右侧；轮9r：分享钮进标题行。
-                // 轮10-7：统计+分享贴右缘——统计必须是**非 flex** 子件：
-                // Flexible(flex:1) 会与 Expanded 标题平分剩余空间，把钮停在中间。
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('笔记选项',
+                // 批4④：头收成 NoteSheetHeader（grabber＋左标题），右侧「统计+分享」作 trailing
+                //（轮10-7 那条「统计必须是非 flex 子件」的约束由 trailing 的 Row(min) 天然满足）。
+                NoteSheetHeader(
+                  title: '笔记选项',
+                  fg: fg,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(countText,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              color: fg)),
-                    ),
-                    Text(countText,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11, color: fg.withValues(alpha: .6))),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      key: const ValueKey('kit-share'),
-                      tooltip: '分享 / 导出',
-                      onPressed: () {
-                        Navigator.of(bc).pop();
-                        onShare();
-                      },
-                      visualDensity: VisualDensity.compact,
-                      style: IconButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(32, 32)),
-                      icon: Icon(Icons.ios_share, size: 19, color: fg),
-                    ),
-                  ],
+                              fontSize: 11, color: fg.withValues(alpha: .6))),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        key: const ValueKey('kit-share'),
+                        tooltip: '分享 / 导出',
+                        onPressed: () {
+                          Navigator.of(bc).pop();
+                          onShare();
+                        },
+                        visualDensity: VisualDensity.compact,
+                        style: IconButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(32, 32)),
+                        icon: Icon(Icons.ios_share, size: 19, color: fg),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Flexible(
@@ -684,22 +657,10 @@ Future<void> showNoteShareSheet(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 轮10-8：与笔记选项同款 grabber+标题头（弹层语言统一）。
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 8),
-              decoration: BoxDecoration(
-                  color: fg.withValues(alpha: .18),
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
+          // 批4④：头统一走 NoteSheetHeader（轮10-8 起就是同款 grabber+标题，本批收成单源）。
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-            child: Text('分享',
-                style: TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w900, color: fg)),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+            child: NoteSheetHeader(title: '分享', fg: fg),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
