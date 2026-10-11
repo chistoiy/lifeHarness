@@ -85,7 +85,8 @@ void main() {
 
   group('① schema v42（挂载三列＋内容哈希列）', () {
     test('版本 42·41→42 段真含四列 ALTER＋索引·基础 DDL 同段带列', () {
-      expect(DbSchema.version, 42);
+      expect(DbSchema.version, 43,
+          reason: '批4（notes.wb_at）又升一级；41→42 段必须仍在册');
       expect(DbSchema.migrations.containsKey(41), isTrue,
           reason: '缺这段＝老库升级没有挂载列（新装有、老库没有）');
       final seg = DbSchema.migrations[41]!.join(' ');

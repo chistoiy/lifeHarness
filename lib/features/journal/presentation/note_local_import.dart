@@ -332,7 +332,9 @@ class MountBadge extends StatelessWidget {
   static const _label = {
     'local_dir': '本地',
     'local_file': '本地',
-    'export': '导出'
+    'export': '导出',
+    // 批4 N-4：固定「系统打开」行的「临时」标（原型 NT_BADGE.temp 同词）。
+    'temp': '临时',
   };
   static const _color = {
     'local_dir': Color(0xFF0D9488),
@@ -344,7 +346,10 @@ class MountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = _label[source];
     if (label == null) return const SizedBox.shrink();
-    final color = _color[source]!;
+    // 「临时」是中性状态标（不是来源品牌色）＝取主题档，**不新增硬编码色值**（〇B 棘轮）。
+    final color = source == 'temp'
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : _color[source]!;
     return Container(
       margin: const EdgeInsets.only(left: 6),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),

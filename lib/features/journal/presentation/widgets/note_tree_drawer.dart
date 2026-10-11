@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/platform/saf_tree.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
+import '../../domain/note.dart';
 import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
 import '../note_export.dart';
 import '../note_local_import.dart';
+import '../note_open_history.dart';
 
 /// 面板开合补间时长（原路由 transitionDuration 同值；叠层与本件都用）。
 /// 开侧阈值 24 与甩速 500 常量在 `note_tree_overlay.dart`（手势执行点）。
@@ -240,6 +242,39 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
     });
   }
 
+  /// 批4 N-4：树顶固定「系统打开」行＝开历史半屏（原型 `nohOpen`，**不是切目录**）。
+  /// 三个动作都在回调里做：跳编辑（先收树＝与回收站行同法）／转入（复用既有「移动到」弹层）／
+  /// 清空（就地两步确认后只软删未转入的进件）。计数与列表同源＝都读 `notesProvider` 这一份。
+  void _openHist(List<Note> hist) {
+    final dao = ref.read(noteDaoProvider);
+    showNoteOpenHistorySheet(context,
+        notes: hist,
+        onOpen: (n) {
+          final router = GoRouter.of(context);
+          widget.onClose(); // 常驻叠层：跳走前先收树
+          router.push('/note/edit', extra: n.id);
+        },
+        onMove: (n) async {
+          final to = await showFolderPickSheet(context, ref);
+          if (to == null || to.isEmpty) return;
+          await dao.setFolderMany([n.id!], to);
+          ref.invalidate(notesProvider);
+          ref.invalidate(noteTreeProvider);
+          if (mounted) {
+            AppToast.show(context, '已转入「$to」 · 临时标记已解除 · 来源标保留');
+          }
+        },
+        onClear: () async {
+          // 语义＝只软删**仍在临时夹**的进件，已转入的一行不动（产品裁定）；句子照原型原话。
+          final moved = await openHistClear(dao);
+          ref.invalidate(notesProvider);
+          ref.invalidate(noteTreeProvider);
+          return moved == 0
+              ? '本来就是空的 · 临时夹里没有待清的进件'
+              : '已清空 $moved 条 · 已转入的笔记不受影响';
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -247,8 +282,11 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
     // 单文件导入的「本地」挂标随该夹是否还有本地来源笔记自动回落（工单 §1.2）。
     final localFolders =
         ref.watch(noteLocalFoldersProvider).valueOrNull ?? const <String>{};
-    final total =
-        (ref.watch(notesProvider).valueOrNull ?? const []).length;
+    final allNotes =
+        ref.watch(notesProvider).valueOrNull ?? const <Note>[];
+    final total = allNotes.length;
+    // 批4 N-4：树顶固定行的读数＝**同一份列表**里挑来源（不另查库＝计数与列表同源）。
+    final hist = openHistFrom(allNotes);
     final selName = ref.watch(noteFilterProvider).folder;
     final selNode = selName.isEmpty ? null : _find(tree, selName);
     final w = MediaQuery.sizeOf(context).width * .62;
@@ -327,6 +365,17 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
                           depth: 0,
                           selected: selName == '',
                           onTap: () => _pick('')),
+                      // V1.64 批4 N-4（工单 §18.1·原型树顶固定行）：恒定在场的「系统打开」行＝
+                      // 点它开历史半屏（不是切目录），带「临时」标与计数（与列表同源）；
+                      // 该夹同时从下方树节点里排除（见 _nodes），故不会出现两处。
+                      _row(context,
+                          keyName: 'nt-sysopen',
+                          icon: Icons.history,
+                          label: kSystemOpenFolder,
+                          badgeSource: 'temp',
+                          count: hist.length,
+                          depth: 0,
+                          onTap: () => _openHist(hist)),
                       ..._nodes(tree, 0, localFolders),
                       // V1.60 全局回收站：抽屉行改道统一屏并落「笔记」段
                       // （页内垃圾箱视图随本批下架，恢复/彻底删除只在此屏做）。
@@ -455,7 +504,9 @@ class _TreeDrawerState extends ConsumerState<NoteTreePanel> {
   List<Widget> _nodes(List<FolderNode> nodes, int depth,
           Set<String> localFolders) =>
       [
-        for (final n in nodes) ...[
+        // 批4 N-4：固定「系统打开」夹只在树顶那一行出现（点它开历史半屏），这里排除＝
+        // 防「固定行＋普通节点」两处重复（同一夹两种语义；摘掉这层 where＝刀③红）。
+        for (final n in nodes.where((x) => x.name != kSystemOpenFolder)) ...[
           _row(context,
               keyName: 'nt-${n.name}',
               icon: Icons.folder_outlined,

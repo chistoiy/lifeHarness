@@ -60,7 +60,13 @@ extension _NoteSave on _NoteEditPageState {
         source: saved.source,
         originUri: saved.originUri,
         content: saved.content);
-    if (wb != null && wb != 'ok' && mounted) {
+    if (wb == 'ok') {
+      // 批4（工单 §18.1）：回写成功**必须落库**，否则历史列表分不清「已回写」与「仅应用内」
+      // ——这条写不进去，三态就永远退化成两态（原实现只弹 toast，读数不在库里）。
+      final at = DateTime.now();
+      await dao.setWrittenAt(saved.id!, at);
+      _existing = saved.copyWith(wbAt: at);
+    } else if (wb != null && mounted) {
       AppToast.show(context, wb == 'missing'
           ? '原文件已不在 · 改动仅存应用内'
           : '原文件授权失效 · 改动仅存应用内');

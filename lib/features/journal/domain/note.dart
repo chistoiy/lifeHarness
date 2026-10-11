@@ -19,6 +19,7 @@ class Note {
     this.originUri = '',
     this.openedAt,
     this.srcHash = '',
+    this.wbAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -47,6 +48,11 @@ class Note {
 
   /// 经系统打开的最近一次导入时间（N-4 历史行读数；其余为 null）。
   final DateTime? openedAt;
+
+  /// V1.64 批4（DB v43·工单 §18.1）：**最后一次成功回写原始文件**的时间。
+  /// null＝从没回写成功过（含从没保存过）。三态里「已回写原文件」与「仅应用内」的唯一依据＝
+  /// 本列与 `updatedAt` 的先后（`wbAt != null && wbAt >= updatedAt`＝回写后没再改过）。
+  final DateTime? wbAt;
 
   /// V1.64 批2（N-1）：内容哈希（sha256 前 16 位十六进制）。仅本地导入/打开方式
   /// 写入时算好落库；导入侧按「同哈希＋在册行」判重跳过（回收站行不参与）。
@@ -128,6 +134,9 @@ class Note {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row['opened_at'] as int),
         srcHash: (row['src_hash'] as String?) ?? '',
+        wbAt: row['wb_at'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row['wb_at'] as int),
         createdAt:
             DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
         updatedAt:
@@ -149,6 +158,7 @@ class Note {
         'origin_uri': originUri,
         'opened_at': openedAt?.millisecondsSinceEpoch,
         'src_hash': srcHash,
+        'wb_at': wbAt?.millisecondsSinceEpoch,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
       };
@@ -168,6 +178,7 @@ class Note {
     String? originUri,
     DateTime? openedAt,
     String? srcHash,
+    DateTime? wbAt,
     DateTime? updatedAt,
   }) =>
       Note(
@@ -185,6 +196,7 @@ class Note {
         originUri: originUri ?? this.originUri,
         openedAt: openedAt ?? this.openedAt,
         srcHash: srcHash ?? this.srcHash,
+        wbAt: wbAt ?? this.wbAt,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

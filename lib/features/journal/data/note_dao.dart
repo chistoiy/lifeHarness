@@ -147,6 +147,20 @@ class NoteDao {
       {'folder': folder?.isEmpty == true ? null : folder, 'updated_at': _now()},
       where: 'id IN (${_ph(ids)})', whereArgs: ids);
 
+  /// 记下「这次真的写回了手机里的原文件」（V1.64 批4·DB v43·工单 §18.1）。
+  /// **只由回写成功那一路调**——失败或未在场一律不落，否则历史行会把「仅应用内」谎报成「已回写」。
+  /// 不动 `updated_at`：三态靠 `wb_at` 与它的先后比较，顺手刷它会让「刚改完没回写」看起来像回写过。
+  Future<void> setWrittenAt(int id, DateTime at) => db.update(table,
+      {'wb_at': at.millisecondsSinceEpoch}, where: 'id = ?', whereArgs: [id]);
+
+  /// 经系统打开的在册进件（N-4 历史列表）：**已转入正式目录的也在内**——不查它就画不出
+  /// 「已转正式目录」这一态。软删行不参与（E 批红线）；按最近打开时间倒序，同刻按修改时间兜底。
+  Future<List<Note>> openWithHistory() async => (await db.query(table,
+          where: "source = 'open_with' AND deleted_at IS NULL",
+          orderBy: 'opened_at DESC, updated_at DESC'))
+      .map(Note.fromRow)
+      .toList();
+
   Future<void> softDeleteMany(List<int> ids) => db.update(table,
       {'deleted_at': _now(), 'updated_at': _now()},
       where: 'id IN (${_ph(ids)})', whereArgs: ids);

@@ -46,7 +46,11 @@ class DbSchema {
   // 挂载三列（source(''|'local_dir'|'export')/origin_path/origin_uri＝移除时只摘这些
   // 记录、磁盘原件与库内笔记都不动＝工单 §4 拍板 H），notes 加 src_hash（N-1 内容哈希
   // 判重锚点）＋非唯一索引；三处均纯加列零搬数据，基础 DDL 同段带列（两路互不撞）。
-  static const int version = 42;
+  // 43：V1.64 批4 N-4 历史列表——migrations[42]（42→43）给 notes 加 wb_at
+  // （最后一次**成功**回写原始文件的时间戳；NULL＝从没回写成功过）。三态里
+  // 「已回写原文件 / 仅应用内」的唯一依据＝本列（`noteWriteBackGuard` 只弹 toast 不落库时
+  // 推不出来＝工单 §18.1 拍板「加一列上三态」）；纯加列零搬数据，基础 DDL 同段带列。
+  static const int version = 43;
  
 
   
@@ -185,6 +189,7 @@ class DbSchema {
       origin_uri TEXT NOT NULL DEFAULT '',
       opened_at INTEGER,
       src_hash TEXT NOT NULL DEFAULT '',
+      wb_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
