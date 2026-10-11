@@ -70,7 +70,13 @@ void main() {
     await tester.pageBack();
     await settle(tester);
 
-    // V1.29批A4：「记录管理」二级页入口（外观卡下方一行）。
+    // V1.29批A4：「记录管理」二级页入口（2026-10-12 三版式后落进首组「记录」内）。
+    // 三版式落实现后页面变高，记录组与「外观」行不再同屏——先回顶部再向下找；
+    // 否则上一段停在外观行附近时「记录管理」已在视口上方，只会越拖越远。
+    for (var i = 0; i < 6; i++) {
+      await tester.drag(settingsList.first, const Offset(0, 400));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     final recmg = find.byKey(const ValueKey('entry-recmg'));
     for (var i = 0; i < 12 && recmg.evaluate().isEmpty; i++) {
       await tester.drag(settingsList.first, const Offset(0, -200));

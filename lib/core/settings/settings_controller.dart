@@ -151,5 +151,14 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 「我的」页版式（hero/chapters/minimal）。未知值收敛到默认 'hero'，
+  /// 同值不写盘（与 setNavLineStyle 同口径）。
+  Future<void> setMyLayout(String v) async {
+    final lay = const {'hero', 'chapters', 'minimal'}.contains(v) ? v : 'hero';
+    if (lay == state.myLayout) return;
+    state = state.copyWith(myLayout: lay);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }

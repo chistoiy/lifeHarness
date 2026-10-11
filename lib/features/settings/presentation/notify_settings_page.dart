@@ -34,8 +34,8 @@ class NotifySettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final n = ref.watch(settingsControllerProvider.select((s) => s.notify));
-    final enabledCount =
-        [n.todoEvent, n.diaryReview, n.inboxClean].where((e) => e).length;
+    // 计数走 NotifySettings.scheduledOnCount（与「我的」页该行读数同源，2026-10-11 批A）。
+    final enabledCount = n.scheduledOnCount;
 
     return Scaffold(
       appBar: AppBar(title: const Text('提醒通知')),

@@ -40,6 +40,7 @@ class SettingsRepository {
   static const _kNavLineGap = 'lh.nav_line_gap';
 
   /// 「我的」页版式（2026-10-12）：'hero'|'chapters'|'minimal'，默认 hero。
+  static const _kMyLayout = 'lh.my_layout';
 
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
@@ -66,7 +67,8 @@ class SettingsRepository {
         _prefs.getInt(_kTrashKeep) == null &&
         _prefs.getBool(_kNavGestureOn) == null &&
         _prefs.getString(_kNavLineStyle) == null &&
-        _prefs.getInt(_kNavLineGap) == null) {
+        _prefs.getInt(_kNavLineGap) == null &&
+        _prefs.getString(_kMyLayout) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -90,6 +92,7 @@ class SettingsRepository {
       'navGestureOn': ?_prefs.getBool(_kNavGestureOn),
       'navLineStyle': ?_prefs.getString(_kNavLineStyle),
       'navLineGap': ?_prefs.getInt(_kNavLineGap),
+      'myLayout': ?_prefs.getString(_kMyLayout),
     });
   }
 
@@ -115,5 +118,6 @@ class SettingsRepository {
     await _prefs.setBool(_kNavGestureOn, m['navGestureOn']! as bool);
     await _prefs.setString(_kNavLineStyle, m['navLineStyle']! as String);
     await _prefs.setInt(_kNavLineGap, m['navLineGap']! as int);
+    await _prefs.setString(_kMyLayout, m['myLayout']! as String);
   }
 }

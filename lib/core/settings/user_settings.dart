@@ -59,6 +59,12 @@ class NotifySettings {
 
   bool get anyDailyOn => diaryReview || inboxClean;
 
+  /// 已开启的「真排程」提醒类数（日程与任务 / 日记复盘 / 收集箱清理）。
+  /// 规格单源（2026-10-11 批A 立）：「我的」页该行读数与通知页表头同吃这一个计数，
+  /// 不许两处各写一遍；习惯提醒与免打扰是存储位，不计入。
+  int get scheduledOnCount =>
+      (todoEvent ? 1 : 0) + (diaryReview ? 1 : 0) + (inboxClean ? 1 : 0);
+
   NotifySettings copyWith({
     bool? todoEvent,
     int? leadMin,
@@ -129,6 +135,7 @@ class UserSettings {
     this.navGestureOn = false,
     this.navLineStyle = 'a',
     this.navLineGap = kNavLineGapDefault,
+    this.myLayout = 'hero',
   });
 
   final String themeId;
@@ -196,6 +203,12 @@ class UserSettings {
   /// 越界值在 [fromMap] / 控制器里统一收敛，界面不出现越界读数。
   final int navLineGap;
 
+  /// 「我的」页版式（原型 p-profile 三版式，2026-10-12 产品令 · 设置内可切换）。
+  /// 'hero'＝记录仪表（默认·渐变身份卡＋连击环＋读数带＋里程碑）；'chapters'＝编辑章节
+  /// （编号章节标＋连续卷轴＋居中签名页脚）；'minimal'＝极简卷轴（去编号去发丝·纯留白分组）。
+  /// 未知值在 [fromMap] 收敛到 'hero'（照 trashKeepDays / navLineStyle 先例，界面不出现越界档）。
+  final String myLayout;
+
   /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
   String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
 
@@ -241,6 +254,7 @@ class UserSettings {
     bool? navGestureOn,
     String? navLineStyle,
     int? navLineGap,
+    String? myLayout,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -263,6 +277,7 @@ class UserSettings {
         navGestureOn: navGestureOn ?? this.navGestureOn,
         navLineStyle: navLineStyle ?? this.navLineStyle,
         navLineGap: navLineGap ?? this.navLineGap,
+        myLayout: myLayout ?? this.myLayout,
       );
 
   Map<String, Object> toMap() => {
@@ -286,6 +301,7 @@ class UserSettings {
         'navGestureOn': navGestureOn,
         'navLineStyle': navLineStyle,
         'navLineGap': navLineGap,
+        'myLayout': myLayout,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -319,6 +335,10 @@ class UserSettings {
         // 越界值一律收敛到档位闭区间（照 trashKeepDays 的先例，界面不出现越界读数）。
         navLineGap: (m['navLineGap'] as int? ?? kNavLineGapDefault).clamp(
             kNavLineGapMin, kNavLineGapMax),
+        // 未知档一律收敛到默认 hero（界面不出现越界版式；与 navLineStyle 同口径）。
+        myLayout: const {'hero', 'chapters', 'minimal'}.contains(m['myLayout'])
+            ? m['myLayout'] as String
+            : 'hero',
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

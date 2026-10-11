@@ -23,6 +23,8 @@ dependencies:
   # 数据库/附件文件路径 + 路径拼接（app_database 直接使用，显式声明避免依赖传递）
   path_provider: ^2.1.5
   path: ^1.9.0
+  # 读安装包真实 versionName/versionCode（我的 › 关于 展示装机编号；原为传递依赖，显式声明）
+  package_info_plus: ^9.0.1
   # 设置项键值存储（主题/导航配置等）
   shared_preferences: ^2.3.3
   # 日期/数字格式化
@@ -92,6 +94,7 @@ flutter:
   # assets/habit_templates/：习惯模板库资源包（习惯计划 §7，社区扩展不改码）
   # assets/xray/dicts/：X-Ray 预置词表（需求 V1.54·设计书 §5 八张纯文本表，扩充只加行不改码）
   # assets/read_s2t/：简繁显示层转换表（R3-6·生成期取自 zhconv 数据，运行时零依赖）
+  # assets/brand/：品牌图（我的 › 关于 卡头像位，取自 android launcher icon 最高密度）
   assets:
     - assets/themes/
     - assets/read_import/
@@ -99,3 +102,4 @@ flutter:
     - assets/ai_prompts/
     - assets/xray/dicts/
     - assets/read_s2t/
+    - assets/brand/
