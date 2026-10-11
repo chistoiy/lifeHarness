@@ -19,7 +19,7 @@ skip = ("docs/archive/", "docs/superpowers/", "docs/预研/")
 targets = [p for p in out if p.endswith(".md") and not p.startswith(skip)]
 
 pat = re.compile(r"(?<![A-Za-z0-9_/.-])(?:docs|prototype|tools)/[^\s`\"'()（）,，、；;|>]*\.(?:md|html|json|yaml|xml|js|sh|dart|py)")
-EXEMPT_LINE = ("已删除", "找回", "git log", "瘦身前存档", "提案路径")
+EXEMPT_LINE = ("已删除", "找回", "git log", "瘦身前存档", "提案路径", "反例")
 EXEMPT_REF = {"prototype/x.html", "docs/xxx.md"}  # 泛指示例
 # 文件级豁免（原因注释）：
 FILE_EXEMPT = {
@@ -109,6 +109,36 @@ for _l in idx.split("\n"):
         continue
     if "⚙ 执行面板" not in open(_p, encoding="utf-8", errors="replace").read():
         g.append(f"守护六：活施工工单缺「执行面板」小节（标题匹配串＝gear符+空格+执行面板，见计划书 §7.5）: {_p}")
+# 8) 文档里禁「花括号路径展开」（2026-10-11 实踩：`docs/{STATUS.md,INDEX.md}` 被本闸当字面量路径
+#    判成死链，红得莫名其妙；写文档的人省了八个字，闸多绕一圈。代码签名里的 `{a, b}` 不带斜杠前缀
+#    也不带扩展名，两条同时要求＝零误报。）
+BRACE_PATH = re.compile(r"[\w/.-]*/\{([A-Za-z0-9_.-]+(?:,[A-Za-z0-9_.-]+)+)\}")
+for p in targets:
+    try:
+        lines = open(p, encoding="utf-8", errors="replace").read().split("\n")
+    except OSError:
+        continue
+    for n, line in enumerate(lines, 1):
+        if any(e in line for e in EXEMPT_LINE):
+            continue  # 反例行（如守护八自己条文里举的坏例子）不判
+        for m in BRACE_PATH.finditer(line):
+            inner = m.group(1)
+            if "." not in inner or "*" in m.group(0):
+                continue  # 无扩展名＝多半是代码形参；带通配符＝死链检查本来就跳过
+            g.append("守护八：路径别用花括号展开（本闸会当字面量判死链），逐条写全：%s:%d -> %s"
+                     % (p, n, m.group(0)))
+# 9) STATUS 必登记「未出编号」（2026-10-11 实伤：dart 攒两天没出装机包，产品没法真机验；
+#    出装机包不是发布闸不需请示，所以「有没有欠着一枚包」必须每轮摆在台面上）。
+stxt = open("docs/STATUS.md", encoding="utf-8").read()
+m = re.search(r"^- 未出编号＝(.*)$", stxt, re.M)
+if not m:
+    g.append("守护九：docs/STATUS.md 缺「- 未出编号＝」行（收尾必报项；确实没有也要写「无」）")
+else:
+    declared = m.group(1)
+    pending = set(re.findall(r"攒[^。\n]{0,24}?(\d{4})[^。\n]{0,12}?(?:未构建|未出)", stxt))
+    for num in sorted(pending):
+        if num not in declared:
+            g.append("守护九：正文出现「攒 %s（未构建/未出）」但未写进「未出编号」行" % num)
 # 7) STATUS 体量硬闸（2026-10-08 治理批立·细则＝tools/status_set.py 头注释）
 #    行数预算（守护五）拦不住「一行滚到 8 千字符」，这里补单行/全文/字段级数三道闸；
 #    收尾改 STATUS 一律走 `python tools/status_set.py --rotate` + `--set 本批 --text-file`，禁手改表头行。
