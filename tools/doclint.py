@@ -139,6 +139,18 @@ else:
     for num in sorted(pending):
         if num not in declared:
             g.append("守护九：正文出现「攒 %s（未构建/未出）」但未写进「未出编号」行" % num)
+    # 9B) 出包攒批口径（2026-10-11 产品拍板改口：复测包**不再每批自动构建**，
+    #     只在产品说「这轮要装机/出包」时出一枚，覆盖攒下的所有批次。
+    #     本闸强制两件事：① 台面行必须写明当前口径；② 说了「收口即出 NNNN」就必须真已出。
+    if "攒批" not in declared and "待产品令" not in declared and "产品令装机" not in declared:
+        g.append("守护九B：「- 未出编号＝」行未写明出包口径（须含「攒批」或「产品令装机」字样）"
+                 "——口径＝复测包只在产品令装机时一枚打包，不每批自动构建")
+    claimed = set(re.findall(r"(?:收口即出|即时出|收口出)\s*(\d{4})", stxt))
+    pkg_line = re.search(r"^- 复测包＝(.*)$", stxt, re.M)
+    built = pkg_line.group(1) if pkg_line else ""
+    for num in sorted(claimed):
+        if ("%s 已出" % num) not in built and ("**%s 已出**" % num) not in built:
+            g.append("守护九B：正文声称「收口即出 %s」，但「- 复测包＝」行没有「%s 已出」＝说没做等于没做" % (num, num))
 # 7) STATUS 体量硬闸（2026-10-08 治理批立·细则＝tools/status_set.py 头注释）
 #    行数预算（守护五）拦不住「一行滚到 8 千字符」，这里补单行/全文/字段级数三道闸；
 #    收尾改 STATUS 一律走 `python tools/status_set.py --rotate` + `--set 本批 --text-file`，禁手改表头行。
