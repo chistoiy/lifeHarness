@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,58 +9,44 @@ import '../../domain/note_folder.dart';
 import '../journal_providers.dart';
 import '../note_local_import.dart';
 
-/// T-B（树手感批2 · 2026-10-11）：边缘右滑的**跟手接管句柄**。
-///
-/// 老形态是「累计够距就调一次 onOpen，弹层自己补间」＝门不跟手（真机反馈轮3 指出的
-/// 「操作不流畅」最大头）。现在起手势过阈后把后续累计位移与抬手都回灌给句柄，
-/// 由句柄逐帧钉住路由动画值——面板随指推出、遮罩透明度同帧跟随。
-abstract class EdgeFollow {
-  /// 进度分母（逻辑像素）：阈值之后再多拖这么远＝全开。
-  double get panelWidth;
-
-  /// 过阈瞬间调用一次：开弹层并把进度钉在起点。
-  void start();
-
-  /// 拖拽中：[dx]＝阈值之后的净右移像素（≥0）。
-  void update(double dx);
-
-  /// 抬手：按位置＋横向速度决定补间全开还是回弹关闭。
-  void finish(double dx, double vx);
-}
-
-/// 左边缘右滑开文件树（2026-10-11 真机反馈轮·产品定「左边缘右滑开树」）。
+/// 整屏右滑开文件树（真机反馈轮4·产品定「Obsidian 逻辑＝整块屏幕只要右滑都开侧栏」）。
 ///
 /// 为什么用 `Listener` 而不挂 `GestureDetector`：卡片那层的 `Dismissible`（左滑＝移入回收站）
-/// 与本手势同为横向拖拽识别器，进了手势竞技场必然是**更深的子级赢**——那样边缘手势在卡片上
-/// 永远不触发。`Listener` 不参与竞技场，只观察原始指针：起点贴左边缘、累计右移够距且横向
-/// 位移大于纵向（避开竖滚列表误触）才开一次，抬手前不再重复触发。
+/// 与本手势同为横向拖拽识别器，进了手势竞技场必然是**更深的子级赢**——那样手势在卡片上永远
+/// 不触发。`Listener` 不参与竞技场，只观察原始指针：累计右移够距且横向位移大于纵向（避开竖滚
+/// 列表误触）才开一次，抬手前不再重复触发。
 ///
-/// T-B 起：抬手前的**每一帧**也要回灌（跟手），所以指针路径不能只观察到阈值为止——
-/// Flutter 的 move/up 沿用 down 时的命中测试结果，弹层盖上来之后本 `Listener` 仍能收到
-/// 同一路指针，这正是跟手需要的形态。
+/// **为什么「开树跟手」不能在这一侧做（轮4 的定位结论，别再走回头路）**：`NavigatorState` 在
+/// 路由插入时会把在场指针逐个 cancel 掉（flutter/lib/src/widgets/navigator.dart:5822
+/// `_activePointers...forEach(WidgetsBinding.instance.cancelPointer)`）——**拖拽中途 push 弹层
+/// ＝这一路指针当场被取消**，之后的 move/up 再也回不到这个 `Listener`。批2 那套「过阈即 push
+/// 再逐帧钉进度」因此架构上不成立，真机表现就是产品说的「侧滑整段没反应」（push 那一帧收到
+/// cancel，此刻位移才刚过阈、速度又被记成 0 → 判定不够 → 当场回弹）。
+/// 现在＝**过阈即开并交路由自己补间到全开**（确定性行为）。要做到面板真随指推出，抽屉必须换成
+/// **常驻叠层**（Scaffold 的 `_DrawerController` 形态：拖拽期间不往 Navigator 插任何东西）
+/// ＝工单 §2 记的下一批。
+///
+/// 反过来，**弹层已经在场时**在面板上左滑收起＝真跟手成立（拖拽期间没有路由插入，指针不被取消），
+/// 那条留在 [_TreeDrawerState] 里照旧工作。
+///
+/// **起手面沿革**：轮2 曾因「贴边 ~20–30dp 被 Android 系统返回吃掉」把判定带由 28 放宽到 110；
+/// 轮4 产品明确要整屏起手 → 判定带作废（字段保留给用例与变异刀调），贴边不再是前提。
 class EdgeSwipeToOpen extends StatefulWidget {
   const EdgeSwipeToOpen(
       {super.key,
       required this.onOpen,
       required this.child,
-      this.edgeZone = 110,
-      this.triggerPx = 56,
-      this.startFollow});
+      this.edgeZone = double.infinity,
+      this.triggerPx = 24});
 
   final VoidCallback onOpen;
   final Widget child;
 
-  /// 起点判定带（逻辑像素）。2026-10-11 真机反馈轮2：贴边 ~20–30dp 被 Android 10+
-  /// 系统「边缘返回」吃掉（Flutter 收不到该段指针），带宽由 28 放宽到 110——
-  /// **起点从内侧起手右滑可靠开树**；贴边起手保留判定（关了系统手势的机器不亏）。
+  /// 起点判定带（逻辑像素）。默认＝整屏（轮4 产品口径）；竖滚不误触仍靠「横位移>纵位移」。
   final double edgeZone;
 
-  /// 触发所需的累计右移量。
+  /// 触发所需的累计右移量（轮4 由 56 下调到 24＝更早入树）。
   final double triggerPx;
-
-  /// 跟手模式（T-B）：提供则过阈时向它取句柄接管整段拖拽，不再走 [onOpen]；
-  /// 取不到句柄（返回 null）时照旧一次性开。
-  final EdgeFollow? Function()? startFollow;
 
   @override
   State<EdgeSwipeToOpen> createState() => _EdgeSwipeToOpenState();
@@ -71,14 +55,9 @@ class EdgeSwipeToOpen extends StatefulWidget {
 class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
   int? _pid;
   bool _armed = false, _fired = false;
-  double _dx = 0, _dy = 0, _vx = 0;
-  Duration _lastT = Duration.zero;
-  EdgeFollow? _follow;
+  double _dx = 0, _dy = 0;
 
-  void _reset() {
-    _pid = null;
-    _follow = null;
-  }
+  void _reset() => _pid = null;
 
   void _onPointer(PointerEvent e) {
     if (e is PointerDownEvent) {
@@ -87,33 +66,16 @@ class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
       _fired = false;
       _dx = 0;
       _dy = 0;
-      _vx = 0;
-      _lastT = e.timeStamp;
-    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed) {
+    } else if (e is PointerMoveEvent && e.pointer == _pid && _armed && !_fired) {
       _dx += e.delta.dx;
       _dy += e.delta.dy.abs();
-      final dtUs = (e.timeStamp - _lastT).inMicroseconds;
-      if (dtUs > 0) {
-        _vx = _vx * .5 + (e.delta.dx / dtUs * 1000000) * .5;
-        _lastT = e.timeStamp;
-      }
-      if (_follow != null) {
-        _follow!.update(math.max(0, _dx - widget.triggerPx));
-      } else if (!_fired && _dx >= widget.triggerPx && _dx > _dy) {
+      if (_dx >= widget.triggerPx && _dx > _dy) {
         _fired = true;
-        final f = widget.startFollow?.call();
-        if (f == null) {
-          widget.onOpen();
-        } else {
-          _follow = f;
-          f.start();
-          f.update(math.max(0, _dx - widget.triggerPx));
-        }
+        // 开＝交给路由补间；这一路指针随后会被 Navigator 取消，不再指望它。
+        widget.onOpen();
       }
     } else if ((e is PointerUpEvent || e is PointerCancelEvent) &&
         e.pointer == _pid) {
-      _follow?.finish(
-          math.max(0, _dx - widget.triggerPx), e is PointerUpEvent ? _vx : 0);
       _reset();
     }
   }
@@ -130,24 +92,17 @@ class _EdgeSwipeToOpenState extends State<EdgeSwipeToOpen> {
 }
 
 /// V1.29 批A3 · 文件夹树抽屉（原型 noteTree · Obsidian 形态）：
-/// 左边缘右滑或右上文件夹钮开 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
+/// 整屏右滑或右上文件夹钮开 62% 面板；点文件夹=选中当前目录（不关抽屉·自动展开）；
 /// 点树外内容区＝收起（真机反馈轮显式钉死 barrierDismissible）；
 /// 「添加文件夹」建在选中目录下（未选=顶层）；长按手建夹=行内就地重命名/删除（T-E），
 /// 长按本地/导出挂载节点=移除挂载（V1.64 批2）；底部操作条：重命名/添加/展开折叠/关闭。
 Future<void> showNoteTreeDrawer(BuildContext context) =>
     Navigator.of(context).push<void>(_NoteTreeDrawerRoute());
 
-/// T-B（树手感批2）：树抽屉路由——动画值可被**外部指针**直接钉住（边缘右滑跟手开、
-/// 面板左滑跟手收），抬手/松手才补间到底或回弹。
-///
-/// 遮罩不必另算：`ModalRoute` 按同一条 animation 淡入 `barrierColor`，
-/// 所以把值从 0 拖到 1 的过程里遮罩透明度天然跟着走（全开＝black54）。
+/// 树抽屉路由（批2 落面·轮4 收敛）：`createAnimation()` 直取路由自己的控制器，
+/// 所以面板面上的左滑可以**逐帧钉住动画值**＝真跟手收起（此时没有路由插入，指针不会被取消）；
+/// 遮罩透明度由 `ModalRoute` 按同一条 animation 淡入 `barrierColor`，不用另算。
 class _NoteTreeDrawerRoute extends ModalRoute<void> {
-  _NoteTreeDrawerRoute({this.interactive = false});
-
-  /// true＝由边缘起手势接管进度（不自动补间）；false＝文件夹钮点开（框架补间）。
-  final bool interactive;
-
   @override
   Duration get transitionDuration => const Duration(milliseconds: 220);
 
@@ -170,8 +125,8 @@ class _NoteTreeDrawerRoute extends ModalRoute<void> {
   /// 面板跟手用的控制器（继承的受保护成员，在本类内以公开口交出）。
   AnimationController get drag => controller!;
 
-  /// 还能不能由手势驱动：路由已释放（控制器随之 dispose）＝不再插手。
-  /// 双指竞态会走到这里——一路手指在面板上拖着，另一路点遮罩把弹层收起。
+  /// 路由已释放（控制器随 dispose 走）＝外部手势别再碰它。
+  /// 双指竞态：一路手指在面板上拖着，另一路点遮罩把弹层收起。
   bool _gone = false;
   bool get drivable => !_gone;
 
@@ -191,14 +146,6 @@ class _NoteTreeDrawerRoute extends ModalRoute<void> {
   Animation<double> createAnimation() => controller!;
 
   @override
-  TickerFuture didPush() {
-    final f = super.didPush();
-    // 跟手形态：起手势会在同一次指针回调里逐帧钉进度，框架的自动补间当场摘掉。
-    if (interactive) drag.value = 0;
-    return f;
-  }
-
-  @override
   Widget buildPage(BuildContext context, Animation<double> animation,
           Animation<double> secondaryAnimation) =>
       _TreeDrawer(route: this);
@@ -214,46 +161,10 @@ class _NoteTreeDrawerRoute extends ModalRoute<void> {
       );
 }
 
-/// T-B：笔记 tab 边缘右滑的跟手接管（`EdgeSwipeToOpen.startFollow` 提供）。
-EdgeFollow? noteTreeFollow(BuildContext context) => _NoteTreeFollow(context);
+/// 面板左滑收起的速度腿：横向甩速过此值即算关（真机反馈轮4「速度优先」口径，取反向）。
+const double _kFlingVx = 500; // px/s
 
-class _NoteTreeFollow implements EdgeFollow {
-  _NoteTreeFollow(this._ctx);
 
-  final BuildContext _ctx;
-  _NoteTreeDrawerRoute? _route;
-
-  @override
-  double get panelWidth => MediaQuery.sizeOf(_ctx).width * .62;
-
-  @override
-  void start() {
-    if (!_ctx.mounted) return;
-    final r = _NoteTreeDrawerRoute(interactive: true);
-    _route = r;
-    Navigator.of(_ctx).push<void>(r);
-    r.followTo(0);
-  }
-
-  @override
-  void update(double dx) => _route?.followTo(dx / panelWidth);
-
-  @override
-  void finish(double dx, double vx) {
-    final r = _route;
-    _route = null;
-    if (r == null || !r.drivable || !_ctx.mounted) return;
-    final p = (dx / panelWidth).clamp(0.0, 1.0);
-    if (p > .4 || vx > _kFlingVx) {
-      r.drag.animateTo(1, curve: Curves.easeOutCubic);
-    } else {
-      Navigator.of(_ctx).pop(); // 位置没过半也没甩速＝回弹收起（反向补间同一条动画）
-    }
-  }
-}
-
-/// 抬手判定：阈值后净位移过半（见 [_NoteTreeFollow.finish]）或横向甩速过此值即算开树。
-const double _kFlingVx = 600; // px/s
 
 class _TreeDrawer extends ConsumerStatefulWidget {
   const _TreeDrawer({required this.route});
@@ -595,12 +506,13 @@ class _TreeDrawerState extends ConsumerState<_TreeDrawer> {
     );
   }
 
-  /// T-B：面板左滑松手判定——收起过半（p 已低于 .6，或明显左甩）＝关，否则补间回全开。
+  /// T-B：面板左滑松手判定（轮4 与开侧对称＝速度优先）：左甩过速即关；不看速度时拖回剩不到七成＝关，
+  /// 否则补间回全开。
   void _settleClose(double vx) {
     final p = _closeFrom;
     _closeFrom = null;
     if (p == null || !widget.route.drivable) return;
-    if (p < .6 || vx < -_kFlingVx) {
+    if (vx < -_kFlingVx || p < .7) {
       if (mounted) Navigator.of(context).pop();
     } else {
       widget.route.drag.animateTo(1, curve: Curves.easeOutCubic);

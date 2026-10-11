@@ -13,9 +13,11 @@ import 'package:lifeharness/shared/widgets/ui_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-// 2026-10-11 真机反馈轮（产品定「左边缘右滑开树·点树外收起」）·独立文件（全 app pump 拆分铁律）。
-// 默认测试画布 800×600：起点判定带 110（真机反馈轮2 由 28 放宽——贴边 ~20–30dp 被 Android
-// 系统「边缘返回」吃掉，内收段才是真机可靠起手区）、抽屉宽 62%＝496 → 右侧空白取 x=700。
+// 2026-10-11 真机反馈轮（产品定「右滑开树·点树外收起」）·独立文件（全 app pump 拆分铁律）。
+// 默认测试画布 800×600：抽屉宽 62%＝496 → 右侧空白取 x=700。
+// **真机反馈轮4 口径变更**：起手判定带 110（轮2 为绕开 Android 系统边缘返回而立）作废，
+// 改按 Obsidian 逻辑＝**整块屏幕任意位置右滑都开树**，起手阈值 56→24，
+// 抬手＝速度优先（甩速 >500px/s 即开）＋三成位移兜底（净位移过 496*.3 才开）。
 
 void main() {
   sqfliteFfiInit();
@@ -67,13 +69,13 @@ void main() {
     await drainLogTimer(t);
   });
 
-  testWidgets('起点内移（x=80）右滑照样开树（真机反馈轮2：贴边段被系统吃，判定带 28→110）', (t) async {
+  testWidgets('离边一指宽（x=80）右滑开树（真机反馈轮4：整屏都算起手，判定带 110 作废）', (t) async {
     await open(t);
     expect(find.text('全部笔记'), findsNothing);
     await t.dragFrom(const Offset(80, 320), const Offset(400, 0));
     await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsOneWidget,
-        reason: '离边一指宽起手是真机上唯一稳的形态，必须开得出树');
+        reason: '起手不必贴边——贴边段还会被 Android 系统返回吃掉');
     await drainLogTimer(t);
   });
 
@@ -88,11 +90,13 @@ void main() {
     await drainLogTimer(t);
   });
 
-  testWidgets('起点不在边缘的右滑＝不开树（防误触）', (t) async {
+  testWidgets('屏幕中部起手右滑＝也开树（真机反馈轮4 整屏口径；旧「非边缘不开」作废）', (t) async {
     await open(t);
-    await t.dragFrom(const Offset(400, 320), const Offset(400, 0));
-    await t.pumpAndSettle();
     expect(find.text('全部笔记'), findsNothing);
+    await t.dragFrom(const Offset(400, 320), const Offset(300, 0));
+    await t.pumpAndSettle();
+    expect(find.text('全部笔记'), findsOneWidget,
+        reason: '产品要的是 Obsidian 逻辑：整块屏幕只要右滑都开侧栏（起手带退回 110 即红＝刀②）');
     await drainLogTimer(t);
   });
 
@@ -154,37 +158,21 @@ void main() {
     await drainLogTimer(t);
   });
 
-  // ---- 树手感批2 · T-B 跟手抽屉（2026-10-11）----
-  // 面板宽 62%＝496、阈值 56：抬手判定＝阈值后净位移过半（>0.4）或甩速，测试指针事件
-  // 时间戳恒等（vx 读 0），所以这里全部由位置决定——正是「跟手」要钉的那条。
+  // ---- 树手感批2 T-B ＋ 真机反馈轮4：开树侧的确定性形态 ----
+  // 轮4 定位结论：**拖拽中途 push 路由＝这路指针被 Navigator 取消**（navigator.dart:5822），
+  // 所以「面板随指推出」在路由式弹层上做不到；开＝过阈即交路由补间到底。
+  // 常驻守护落三处：小位移即开（阈值 24＝刀①）·整屏起手（判定带作废＝刀②）·面板左滑真跟手（刀③）。
+  // 面板宽 62%＝496。
 
-  testWidgets('T-B：拖到中途面板随指，抬手位置不足＝回弹关闭', (t) async {
+  testWidgets('轮4：贴边轻推 40px 即开树并补间到全开（阈值 24 守护＝刀①，退回 56 即红）', (t) async {
     await open(t);
-    final g = await t.startGesture(const Offset(6, 320));
-    await g.moveBy(const Offset(120, 0)); // 阈值后净 64 → p≈.13
-    await t.pump();
-    expect(find.text('全部笔记'), findsOneWidget, reason: '过阈即入树，不等抬手');
-    final mid = t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx;
-    expect(mid, lessThan(7.0), reason: '还没全开');
-    expect(mid, greaterThan(-471.0),
-        reason: '已从全闭位（-472）跟手推出＝中途态；动画不吃进度会定值跳变（变异刀①）');
-    await g.up();
+    expect(find.text('全部笔记'), findsNothing);
+    await t.dragFrom(const Offset(6, 320), const Offset(40, 0));
     await t.pumpAndSettle();
-    expect(find.text('全部笔记'), findsNothing, reason: '净位移没过 40% 且无甩速＝回弹收起');
-    await drainLogTimer(t);
-  });
-
-  testWidgets('T-B：拖过半松手＝补间全开（位置判定）', (t) async {
-    await open(t);
-    final g = await t.startGesture(const Offset(6, 320));
-    await g.moveBy(const Offset(400, 0)); // 阈值后净 344 → p≈.69
-    await t.pump();
-    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx,
-        lessThan(7.0), reason: '抬手前仍是跟手中途值，不许提前跳全开');
-    await g.up();
-    await t.pumpAndSettle();
-    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx,
-        closeTo(8, 1), reason: '抬手补间到位＝留边 8 的悬浮卡全开位');
+    expect(find.text('全部笔记'), findsOneWidget,
+        reason: '小位移轻推也要开得出——旧形态要推足一指宽才动');
+    expect(t.getTopLeft(find.byKey(const ValueKey('nt-card-shape'))).dx, closeTo(8, 1),
+        reason: '开＝路由补间到底，不再等抬手判位置/速度');
     await drainLogTimer(t);
   });
 
@@ -207,4 +195,5 @@ void main() {
     expect(find.text('全部笔记'), findsNothing);
     await drainLogTimer(t);
   });
+
 }

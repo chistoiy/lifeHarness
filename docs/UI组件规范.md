@@ -287,11 +287,11 @@
 | 项 | 值 |
 |---|---|
 | 原型锚点 | `prototype/index-bookshelf.html` `#noteTree`（`left-2 top-2 bottom-2 rounded-2xl overflow-hidden border`；长按就地动作样张＝`ntAct` 态＋`nt-act-rename`/`nt-act-del`，演示＝右键） |
-| 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `_TreeDrawer`（容器 key `nt-card-shape`·路由 `_NoteTreeDrawerRoute`）＋`EdgeSwipeToOpen`（判定带 110·跟手钩子 `startFollow`） |
-| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable`；**T-B 跟手**：边缘右滑过阈（56）即入树并把路由动画值按 `p=(净位移)/面板宽` 逐帧钉住（面板随指、遮罩透明度同帧跟随），抬手按 `p>0.4` 或甩速 >600px/s 补间全开，否则反向补间收起；面板面上左滑走同一路由反向跟手（过半或左甩即关）；**T-E 就地动作**见 LH-K40 |
-| 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡（批1）；同日批2 补跟手抽屉＋长按就地化 |
-| 待落地 | 无（批1＝T-A/T-C/T-D，批2＝T-B/T-E 已交付；真机门六条随复测包 6101） |
-| 回归钉子 | `test/note_tree_gesture_test.dart`（T-A/T-C/T-D 三例＋T-B 中途态/位置全开/面板左滑三例）＋`test/note_tree_inline_actions_test.dart`（T-E 五例） |
+| 代码锚点 | `features/journal/presentation/widgets/note_tree_drawer.dart` `_TreeDrawer`（容器 key `nt-card-shape`·路由 `_NoteTreeDrawerRoute`）＋`EdgeSwipeToOpen`（整屏起手·阈值 24） |
+| 规格 | 四周留边 8 · 圆角 16 · 描边 `tokens.cardBorder`＋阴影（黑 18% blur24）· 宽 62% · 底部操作条收进卡内；子层展开＝`AnimatedSize` 150ms `Curves.easeOut`（〇B 微动档）；笔记卡外层＝LH-K00 `Pressable`；**开树手势**＝整屏任意位置起手右滑、累计 24px 且横>纵即开（真机反馈轮4 产品口径＝Obsidian 逻辑；轮2 立的贴边 110 判定带作废），**开＝交路由补间到全开**；**硬边界（勿再走回头路）**：拖拽中途 `Navigator.push` 会被框架取消这一路指针（`navigator.dart:5822`）⇒「面板随指推出」在路由式弹层上做不到，要真跟手必须改**常驻叠层**（Scaffold `_DrawerController` 形态）；**面板面上左滑收起＝真跟手成立**（弹层已在场、拖拽期间无插入）：`GestureDetector`（key `nt-swipe-close`）逐帧钉路由动画值，遮罩透明度由 `ModalRoute` 按同一条 animation 同帧淡入；T-E 就地动作见 LH-K40 |
+| 沿革 | V1.29 起为直角满高贴边（当时只参考 Obsidian「形态」未搬悬浮卡）；2026-10-11 真机反馈轮3 产品看图定稿改悬浮圆角卡（批1）；同日批2 补面板左滑跟手收起＋长按就地化；同日轮4 起手面放开为整屏、阈值 56→24，并撤销「开树侧跟手」这条做不出的形态（成因＝路由插入取消指针），改回过阈即开 |
+| 待落地 | 真·跟手开树＝抽屉改**常驻叠层**（规格与代价＝`docs/handoff/交棒话术-20261011-笔记树真机反馈轮4-整屏右滑与速度优先.md` §1A，待产品点头开工） |
+| 回归钉子 | `test/note_tree_gesture_test.dart`（T-A/T-C/T-D＋轮4「中部起手也开」「贴边轻推 40px 即开」＋批2「面板左滑反向跟手」）＋`test/note_tree_inline_actions_test.dart`（T-E 五例） |
 
 ## 四、LH-K 控件类
 

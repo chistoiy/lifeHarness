@@ -194,13 +194,13 @@ class _NoteTabState extends ConsumerState<NoteTab> {
       ],
     );
 
-    // 真机反馈轮（2026-10-11）：左边缘右滑＝开文件树（批量选择态不给该手势，避免误开）。
-    // 树手感批2 T-B：过阈后交跟手接管，面板随指推出／抬手按位置＋甩速决定开或回弹。
+    // 真机反馈轮（2026-10-11）：右滑＝开文件树（批量选择态不给该手势，避免误开）。
+    // 轮4 口径：起手面放开为整屏（Obsidian 逻辑），过阈即交路由补间开树——
+    // 「拖拽中途 push 再跟手」这条在路由式弹层上不成立（依据＝EdgeSwipeToOpen 头注）。
     if (!selMode) {
       return EdgeSwipeToOpen(
           key: const ValueKey('note-edge-swipe'),
           onOpen: () => showNoteTreeDrawer(context),
-          startFollow: () => noteTreeFollow(context),
           child: list);
     }
     // 轮9③：底部批量条=线性图标+文字三钮（无 emoji）·置顶钮智能切换
