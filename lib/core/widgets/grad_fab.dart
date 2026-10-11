@@ -2,10 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../nav/nav_collapse.dart' show ShellFabInset, kNavCollapseDuration;
 import '../theme/app_theme.dart';
 
 /// 渐变悬浮球（原型 #fab：56px 圆、grad 渐变、白字 ＋、点击旋转 45°）。
 /// 通用壳层组件，不依赖任何 feature（守 R2）。
+///
+/// **底栏收起态补偿**（V1.65）：悬浮球是页面级 `floatingActionButton`，锚在**页面** Scaffold
+/// 底边；壳层底栏一收，body 变高、页面底边下移，球就会跟着往下掉（产品拍板「不落底」）。
+/// 这里读壳层的 [ShellFabInset] 把这段高度补回去，让球**按屏幕位置钉住**。壳外页面读不到＝0，
+/// 行为与从前完全一致。
 class GradFab extends StatelessWidget {
   const GradFab({
     super.key,
@@ -58,7 +64,15 @@ class GradFab extends StatelessWidget {
         ),
       ),
     );
-    return tooltip == null ? fab : Tooltip(message: tooltip!, child: fab);
+    final out = tooltip == null ? fab : Tooltip(message: tooltip!, child: fab);
+    // 底栏收起时把「飘出来的那段高度」补在球下方＝球的**屏幕上位置不动**。
+    // 一律包一层（哪怕是 0）——否则 0↔正数 切换时首帧会跳而不是补间。
+    return AnimatedPadding(
+      duration: kNavCollapseDuration,
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: ShellFabInset.of(context)),
+      child: out,
+    );
   }
 }
 

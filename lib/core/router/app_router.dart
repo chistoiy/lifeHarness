@@ -25,6 +25,8 @@ import '../ai/ai_review.dart' show aiRootNavKey;
 
 import '../nav/nav_module.dart';
 
+import '../nav/nav_collapse.dart';
+
 import '../nav/nav_badge.dart';
 
 import '../providers.dart';
@@ -231,6 +233,10 @@ String shellBackAction(
 /// 常驻用例 `test/shell_bottom_slack_test.dart` 按本值钉几何，改这里必须同步原型。
 const double shellBottomSlack = 26;
 
+/// 底栏**实际占位**高度＝nav 内容 [kShellNavHeight] 70 加 Container 的 1px 上描边。
+/// 收起时要让出的就是这一段（悬浮球补偿量按它算：70＋1＋26−28＝69）。
+const double _navSlotHeight = kShellNavHeight + 1;
+
 /// 底部导航（原型规范：线性图标 + 文字在下 + 选中态主题色 + 顶部小横条；
 
 /// 栏目可配置，今天/我的固定，≤5）。
@@ -310,6 +316,22 @@ class HomeShell extends ConsumerWidget {
     // V1.28⑥：主页编排态下返回键=退出编排并保存（不进二次退出判定）。
 
     final dashEditing = ref.watch(dashDraftProvider) != null;
+
+    // V1.65 底栏收起态：手势总开关 + 线索形态 / 距底（全在设置项里）＋会话内的收起状态。
+    // 总开关关掉时一律按展开算（不残留收起态），这是「默认关」能真正零影响的前提。
+    final navGestureOn = ref.watch(
+      settingsControllerProvider.select((s) => s.navGestureOn),
+    );
+    final navLineStyle = ref.watch(
+      settingsControllerProvider.select((s) => s.navLineStyle),
+    );
+    final navLineGap = ref.watch(
+      settingsControllerProvider.select((s) => s.navLineGap),
+    );
+    final navCollapsed = navGestureOn && ref.watch(navCollapsedProvider);
+    // 系统底部安全区（手势条）：收起后内容通底，得自己把它让出来（壳层 context 在
+    // Scaffold 之上，读到的是真实读数；body 内的读数可能已被 Scaffold 处理过）。
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
 
     return PopScope(
 
@@ -412,62 +434,103 @@ class HomeShell extends ConsumerWidget {
         // 「贴视口下沿」这个机理假设被否证，U1 未闭环；判法与否证记录＝工单 §4 真机门结果。
         // 现象原始读数：「我的」页滚到底时「外观」行文字区（y2370/2400）点不动、行下部
         // （y2430/2450）才生效，上滑一格同一条立刻可点，中部行对照始终可点。
-        body: Padding(
-          padding: const EdgeInsets.only(bottom: shellBottomSlack),
-          child: TimerBarOverlay(child: child),
+        body: Stack(
+          children: [
+            // V1.65：双指手势层**只观察不消费**（Listener，不进手势竞技场，不抢子级任何手势）；
+            // 外面再套一层 ShellFabInset —— 收起时把飘出来的那段高度补给页面内悬浮球，
+            // 让球按**屏幕位置**钉住（产品拍板「不落底」）。
+            ShellFabInset(
+              bottom: navCollapsed
+                  ? _navSlotHeight + shellBottomSlack - kNavCollapsedSlack
+                  : 0,
+              child: NavPinchListener(
+                enabled: navGestureOn,
+                onHide: () => ref.read(navCollapsedProvider.notifier).hide(),
+                onShow: () => ref.read(navCollapsedProvider.notifier).show(),
+                // U1（UX 审计真机批 2026-10-05）：壳内统一垫底部余量＝原型口径。
+                // 口径＝原型 `.safe-pb{padding-bottom:96px}`（prototype/index.html:62）
+                // 减去 Scaffold 已为底栏预留的 70dp＝26dp，一处改覆盖全部壳内屏。
+                // **注意：垫高不是「贴底行吞点击」的解**——6072 装机实测余量已生效（末行行底距底栏
+                // 顶边 27dp），但部分可见的末行仍点不动（外观行节点 2357–2379，点 2368 无效），
+                // 「贴视口下沿」这个机理假设被否证，U1 未闭环；判法与否证记录＝工单 §4 真机门结果。
+                // 现象原始读数：「我的」页滚到底时「外观」行文字区（y2370/2400）点不动、行下部
+                // （y2430/2450）才生效，上滑一格同一条立刻可点，中部行对照始终可点。
+                // V1.65：收起态改垫 kNavCollapsedSlack＋安全区（原型 `body.tbdemo .page.safe-pb
+                // {padding-bottom:28px}`）——底栏整条不在，内容通底但仍让过系统手势条。
+                child: Padding(
+                  padding: EdgeInsets.only(
+                      bottom: navCollapsed
+                          ? kNavCollapsedSlack + safeBottom
+                          : shellBottomSlack),
+                  child: TimerBarOverlay(child: child),
+                ),
+              ),
+            ),
+            // 收起后的「可见线索」：防「底栏去哪了」（纯线索，不占点击区）。
+            if (navCollapsed)
+              _NavLineHint(style: navLineStyle, gap: navLineGap),
+          ],
         ),
 
-        bottomNavigationBar: Container(
+        bottomNavigationBar: _CollapsibleNav(
 
-          decoration: BoxDecoration(
+          collapsed: navCollapsed,
 
-            color: tokens.navBg,
+          child: Container(
 
-            border: Border(top: BorderSide(color: tokens.navBorder)),
+            decoration: BoxDecoration(
 
-          ),
+              color: tokens.navBg,
 
-          child: SafeArea(
+              border: Border(top: BorderSide(color: tokens.navBorder)),
 
-            child: SizedBox(
+            ),
 
-              // 原型 nav 高度 70px
+            child: SafeArea(
 
-              height: 70,
+              child: SizedBox(
 
-              child: Row(
+                key: const ValueKey('shell-nav'),
 
-                children: [
+                // 原型 nav 高度 70px（kShellNavHeight；收起态补偿量同源取它）
 
-                  for (var i = 0; i < navModules.length; i++)
+                height: kShellNavHeight,
 
-                    Expanded(
+                child: Row(
 
-                      child: _NavTab(
+                  children: [
 
-                        module: navModules[i],
+                    for (var i = 0; i < navModules.length; i++)
 
-                        selected: i == selectedIndex,
+                      Expanded(
 
-                        accent: tokens.accent,
+                        child: _NavTab(
 
-                        badge: navBadgeCount(navModules[i].path,
+                          module: navModules[i],
 
-                            sources: navBadgeSources, seen: _navSeen),
+                          selected: i == selectedIndex,
 
-                        onTap: () {
+                          accent: tokens.accent,
 
-                          final m = navModules[i];
+                          badge: navBadgeCount(navModules[i].path,
 
-                          if (m.path != currentPath) context.go(m.path);
+                              sources: navBadgeSources, seen: _navSeen),
 
-                        },
+                          onTap: () {
+
+                            final m = navModules[i];
+
+                            if (m.path != currentPath) context.go(m.path);
+
+                          },
+
+                        ),
 
                       ),
 
-                    ),
+                  ],
 
-                ],
+                ),
 
               ),
 
@@ -590,6 +653,151 @@ class _NavTab extends StatelessWidget {
           ),
 
         ],
+
+      ),
+
+    );
+
+  }
+
+}
+
+/// V1.65 底栏收放：高度因子 t 从 1 收到 0（＋淡出），170ms easeOutCubic。
+///
+/// 为什么用高度因子而不是「隐藏＋留位」：Scaffold 会按 bottomNavigationBar 的**实际高度**
+/// 给 body 让位，高度收掉＝body 顺势长大＝内容通底（本批的正题）。t=0 时整条既不可见也不占位。
+///
+/// 代价（轮4 工单 §3 代价①，已知且接受）：收放期间 body 每帧重排，五张 tab 的懒列表/宫格
+/// 会重算一次。这是本形态的固有成本，不是缺陷。
+class _CollapsibleNav extends StatefulWidget {
+
+  const _CollapsibleNav({required this.collapsed, required this.child});
+
+  final bool collapsed;
+
+  final Widget child;
+
+  @override
+
+  State<_CollapsibleNav> createState() => _CollapsibleNavState();
+
+}
+
+class _CollapsibleNavState extends State<_CollapsibleNav>
+
+    with SingleTickerProviderStateMixin {
+
+  late final AnimationController _c = AnimationController(
+
+    vsync: this,
+
+    duration: kNavCollapseDuration,
+
+    value: widget.collapsed ? 0 : 1,
+
+  );
+
+  @override
+
+  void didUpdateWidget(covariant _CollapsibleNav oldWidget) {
+
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.collapsed != oldWidget.collapsed) {
+
+      if (widget.collapsed) {
+
+        _c.reverse();
+
+      } else {
+
+        _c.forward();
+
+      }
+
+    }
+
+  }
+
+  @override
+
+  void dispose() {
+
+    _c.dispose();
+
+    super.dispose();
+
+  }
+
+  @override
+
+  Widget build(BuildContext context) => AnimatedBuilder(
+
+        animation: _c,
+
+        builder: (context, _) => ClipRect(
+
+          // 槽位尺寸＝底栏当前占位（测试按它判「收干净了没有」）。
+          key: const ValueKey('shell-nav-slot'),
+
+          child: Align(
+
+            alignment: Alignment.topCenter,
+
+            heightFactor: _c.value,
+
+            child: Opacity(opacity: _c.value, child: widget.child),
+
+          ),
+
+        ),
+
+      );
+
+}
+
+/// 底栏收起态的「可见线索」（原型 #tbGrab / #tbBadge）：防「东西去哪了」。
+///
+/// 两条形态由设置项切换：'a' 细握把 / 'b' 胶囊折角（产品 2026-10-11：两条都留）。
+/// 距屏幕底部＝设置档位，并**再让过系统手势条**（贴底会落进系统边缘手势区，本机踩过）。
+/// 纯线索、不占点击区（[IgnorePointer]）——它不承担「点一下还原」，还原靠双指捏合。
+class _NavLineHint extends StatelessWidget {
+
+  const _NavLineHint({required this.style, required this.gap});
+
+  final String style;
+
+  final int gap;
+
+  @override
+
+  Widget build(BuildContext context) {
+
+    final bottom = gap + MediaQuery.paddingOf(context).bottom;
+
+    return Positioned(
+
+      key: const ValueKey('shell-nav-line'),
+
+      left: 0,
+
+      right: 0,
+
+      bottom: 0,
+
+      child: IgnorePointer(
+
+        child: Padding(
+
+          padding: EdgeInsets.only(bottom: bottom.toDouble()),
+
+          child: Center(
+
+            child: style == 'b' ? const NavLineCapsule() : const NavLineGrip(),
+
+          ),
+
+        ),
 
       ),
 

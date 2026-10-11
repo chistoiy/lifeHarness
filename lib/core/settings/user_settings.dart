@@ -2,6 +2,12 @@ import 'dart:convert';
 
 import '../nav/nav_module.dart';
 
+/// V1.65·底栏收起线索「距屏幕底部」的档位（px，闭区间）——设置滑杆与
+/// [UserSettings.fromMap] 的越界收敛**同源读这一份**，防两处各写一套数字。
+const int kNavLineGapMin = 8;
+const int kNavLineGapMax = 48;
+const int kNavLineGapDefault = 16;
+
 /// 深色模式偏好（与主题风格正交，可叠加）。
 enum ThemeModeOption {
   system('system'),
@@ -116,6 +122,9 @@ class UserSettings {
     this.weatherCity = '',
     this.profileNick = '',
     this.profileBio = '',
+    this.navGestureOn = false,
+    this.navLineStyle = 'a',
+    this.navLineGap = kNavLineGapDefault,
   });
 
   final String themeId;
@@ -158,6 +167,17 @@ class UserSettings {
   /// R14-12·我的页资料：一句话签名（''=不显示）。
   final String profileBio;
 
+  /// V1.65·底栏手势总开关（**默认关**，产品 2026-10-11 裁定）：开＝壳内双指张开收起底栏、
+  /// 双指捏合还原。默认关＝装完不改变老用户行为，用户到「设置 › 外观 › 底栏手势」自己开。
+  final bool navGestureOn;
+
+  /// V1.65·底栏收起后的「可见线索」形态：'a'＝细握把（默认）· 'b'＝胶囊折角。
+  /// 两条都保留、由设置切换（产品 2026-10-11 拍板）。
+  final String navLineStyle;
+
+  /// V1.65·线索距屏幕底部的距离（px，档位闭区间 [kNavLineGapMin,kNavLineGapMax]）。
+  /// 越界值在 [fromMap] / 控制器里统一收敛，界面不出现越界读数。
+  final int navLineGap;
 
   /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
   String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
@@ -197,6 +217,9 @@ class UserSettings {
     String? weatherCity,
     String? profileNick,
     String? profileBio,
+    bool? navGestureOn,
+    String? navLineStyle,
+    int? navLineGap,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -212,6 +235,9 @@ class UserSettings {
         weatherCity: weatherCity ?? this.weatherCity,
         profileNick: profileNick ?? this.profileNick,
         profileBio: profileBio ?? this.profileBio,
+        navGestureOn: navGestureOn ?? this.navGestureOn,
+        navLineStyle: navLineStyle ?? this.navLineStyle,
+        navLineGap: navLineGap ?? this.navLineGap,
       );
 
   Map<String, Object> toMap() => {
@@ -228,6 +254,9 @@ class UserSettings {
         'weatherCity': weatherCity,
         'profileNick': profileNick,
         'profileBio': profileBio,
+        'navGestureOn': navGestureOn,
+        'navLineStyle': navLineStyle,
+        'navLineGap': navLineGap,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -248,6 +277,11 @@ class UserSettings {
         weatherCity: m['weatherCity'] as String? ?? '',
         profileNick: m['profileNick'] as String? ?? '',
         profileBio: m['profileBio'] as String? ?? '',
+        navGestureOn: m['navGestureOn'] as bool? ?? false,
+        navLineStyle: m['navLineStyle'] == 'b' ? 'b' : 'a',
+        // 越界值一律收敛到档位闭区间（照 trashKeepDays 的先例，界面不出现越界读数）。
+        navLineGap: (m['navLineGap'] as int? ?? kNavLineGapDefault).clamp(
+            kNavLineGapMin, kNavLineGapMax),
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

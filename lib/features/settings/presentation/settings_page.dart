@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/ai/ai_providers.dart' show aiConfigProvider;
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
+import '../../../core/nav/nav_collapse.dart'
+    show NavLineCapsule, NavLineGrip;
 import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/user_settings.dart';
@@ -819,6 +821,177 @@ class AppearanceSettingsPage extends ConsumerWidget {
                   ],
                 ),
               ],
+            ),
+          ),
+          // V1.65 底栏手势（原型 p-sub-appearance #tbSetCard）：
+          // 总开关（默认关）+ 收起线索形态（A/B）+ 线索距屏幕底部；卡内预览框与壳内
+          // 全屏线索共用同一对件，所见即所得，不用真去收起底栏。
+          _Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const _SetIc(icon: Icons.pinch_outlined),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('底栏手势',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w800)),
+                          Text('双指张开收起底栏 · 捏合还原',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      key: const ValueKey('nav-gesture-sw'),
+                      value: settings.navGestureOn,
+                      onChanged: (v) => ref
+                          .read(settingsControllerProvider.notifier)
+                          .setNavGesture(v),
+                    ),
+                  ],
+                ),
+                // 开关关＝下半区置灰且不可点（原型 tglTb 同口径：看得见有什么、但明确不生效）。
+                Opacity(
+                  opacity: settings.navGestureOn ? 1 : .4,
+                  child: IgnorePointer(
+                    ignoring: !settings.navGestureOn,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        const Text('收起后的可见线索',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        SegRow<String>(
+                          key: const ValueKey('nav-line-seg'),
+                          keyPrefix: 'nav-line',
+                          value: settings.navLineStyle,
+                          items: const [
+                            (id: 'a', label: '细握把'),
+                            (id: 'b', label: '胶囊折角'),
+                          ],
+                          onChanged: (v) => ref
+                              .read(settingsControllerProvider.notifier)
+                              .setNavLineStyle(v),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('线索距屏幕底部',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant)),
+                            ),
+                            Text('${settings.navLineGap} px',
+                                key: const ValueKey('nav-gap-val'),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant)),
+                          ],
+                        ),
+                        Slider(
+                          key: const ValueKey('nav-gap-range'),
+                          value: settings.navLineGap.toDouble(),
+                          min: kNavLineGapMin.toDouble(),
+                          max: kNavLineGapMax.toDouble(),
+                          divisions: kNavLineGapMax - kNavLineGapMin,
+                          onChanged: (v) => ref
+                              .read(settingsControllerProvider.notifier)
+                              .setNavLineGap(v.round()),
+                        ),
+                        _NavLinePreview(
+                          style: settings.navLineStyle,
+                          gap: settings.navLineGap,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '悬浮球保持原位（不随底栏落底）· 预览仅示意线索相对屏幕底部的位置',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// V1.65 设置卡里的「线索预览框」（原型 #tbSetPrev）：底部虚线＝屏幕下沿，
+/// 线索按当前距底值定位。与壳内全屏线索**共用 [NavLineGrip]/[NavLineCapsule]**。
+class _NavLinePreview extends StatelessWidget {
+  const _NavLinePreview({required this.style, required this.gap});
+
+  final String style;
+  final int gap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('nav-line-prev'),
+      height: 112,
+      margin: const EdgeInsets.only(top: 12),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: tokens.page,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tokens.cardBorder),
+      ),
+      child: Stack(
+        children: [
+          // 屏幕下沿：一排小短横（原型 repeating-linear-gradient）。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Row(
+              children: List.generate(
+                14,
+                (i) => Expanded(
+                  child: Container(
+                    height: 2,
+                    margin: EdgeInsets.only(right: i == 13 ? 0 : 6),
+                    color: scheme.outlineVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: gap.toDouble()),
+              child: Center(
+                child: style == 'b' ? const NavLineCapsule() : const NavLineGrip(),
+              ),
             ),
           ),
         ],

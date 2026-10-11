@@ -27,6 +27,11 @@ class SettingsRepository {
   /// V1.57 批E·回收站自动清理期限（天；0=不清理）。垃圾箱屏与待办页入口行同源读它。
   static const _kTrashKeep = 'lh.trash_keep_days';
 
+  /// V1.65·底栏手势：总开关（默认关）/ 线索形态 'a'|'b' / 线索距底 px。
+  static const _kNavGestureOn = 'lh.nav_gesture_on';
+  static const _kNavLineStyle = 'lh.nav_line_style';
+  static const _kNavLineGap = 'lh.nav_line_gap';
+
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
     // V1.58 小工具整模块下架：历史遗留 lh.kit（四项模块开关）读到即清，
@@ -45,7 +50,10 @@ class SettingsRepository {
         _prefs.getBool(_kNoteSwipe) == null &&
         _prefs.getString(_kWeatherCity) == null &&
         _prefs.getString(_kProfileNick) == null &&
-        _prefs.getInt(_kTrashKeep) == null) {
+        _prefs.getInt(_kTrashKeep) == null &&
+        _prefs.getBool(_kNavGestureOn) == null &&
+        _prefs.getString(_kNavLineStyle) == null &&
+        _prefs.getInt(_kNavLineGap) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -62,6 +70,9 @@ class SettingsRepository {
       'profileNick': ?_prefs.getString(_kProfileNick),
       'profileBio': ?_prefs.getString(_kProfileBio),
       'trashKeepDays': ?_prefs.getInt(_kTrashKeep),
+      'navGestureOn': ?_prefs.getBool(_kNavGestureOn),
+      'navLineStyle': ?_prefs.getString(_kNavLineStyle),
+      'navLineGap': ?_prefs.getInt(_kNavLineGap),
     });
   }
 
@@ -80,5 +91,8 @@ class SettingsRepository {
     await _prefs.setString(_kProfileNick, m['profileNick']! as String);
     await _prefs.setString(_kProfileBio, m['profileBio']! as String);
     await _prefs.setInt(_kTrashKeep, m['trashKeepDays']! as int);
+    await _prefs.setBool(_kNavGestureOn, m['navGestureOn']! as bool);
+    await _prefs.setString(_kNavLineStyle, m['navLineStyle']! as String);
+    await _prefs.setInt(_kNavLineGap, m['navLineGap']! as int);
   }
 }

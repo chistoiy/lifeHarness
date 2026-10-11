@@ -104,5 +104,29 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// V1.65·底栏手势总开关（双指张开＝收起底栏 / 捏合＝还原）。默认关；
+  /// 关＝壳层整层手势不工作（不改变老用户行为）。
+  Future<void> setNavGesture(bool on) async {
+    if (on == state.navGestureOn) return;
+    state = state.copyWith(navGestureOn: on);
+    await _persist();
+  }
+
+  /// V1.65·收起后线索形态：'a' 细握把（默认）/ 'b' 胶囊折角。未知值收敛到 'a'。
+  Future<void> setNavLineStyle(String style) async {
+    final v = style == 'b' ? 'b' : 'a';
+    if (v == state.navLineStyle) return;
+    state = state.copyWith(navLineStyle: v);
+    await _persist();
+  }
+
+  /// V1.65·线索距屏幕底部（px）。越界值收敛到档位闭区间，界面不出现越界读数。
+  Future<void> setNavLineGap(int gap) async {
+    final v = gap.clamp(kNavLineGapMin, kNavLineGapMax);
+    if (v == state.navLineGap) return;
+    state = state.copyWith(navLineGap: v);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }

@@ -60,6 +60,44 @@ tailwind.config = {
   input[type=range]{accent-color:#6366f1}
   .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
   .safe-pb{padding-bottom:96px}
+  /* 底栏收起态样张（2026-10-11 · 待产品过门，非正式形态；定形并落实现后本段整体摘除）：
+     双指张开＝底栏收起·内容通底；双指捏合＝底栏回来。收起后 main 吃回 70px 底栏高、
+     页面底留白 96→28；底部另给一条「可见线索」防「东西去哪了」。
+     **方向口径（产品 2026-10-11 二次裁定）＝张开收起 / 捏合还原**（回轮4 原始需求；
+     早先文案写反成「捏合收起」，已改）。
+     产品 2026-10-11 拍板：两条线索都保留、由「设置 › 外观 › 底栏手势」切换（A 细握把／B 胶囊折角）；
+     线索距底可调（走 --tb-gap，设置滑杆实时改）；悬浮球保持原位、不随底栏落底；
+     手势总开关**默认关**（新装用户零行为变化）。
+     演示开关＝地址带 ?tbdemo=grab|badge|gest；也可控制台 setTbDemo('grab') / setTbDemo('')。 */
+  body.tbdemo #tabNav{display:none!important}
+  body.tbdemo main{height:calc(100% - 78px)!important}
+  body.tbdemo .page.safe-pb{padding-bottom:28px!important}
+  /* 线索两条都居中贴底（右下角有悬浮球，角标式线索会被它压住——实测踩过，故不用右下角）：
+     A＝一条素净细握把；B＝带向上折角的胶囊（更像「可拉起」）。两者都不占点击区（纯线索）。 */
+  #tbGrab,#tbBadge,#tbGest{display:none;position:absolute;pointer-events:none}
+  #tbGrab{left:0;right:0;bottom:0;z-index:29;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbGrab i{display:block;width:56px;height:4px;border-radius:999px;background:#94a3b8;opacity:.7}
+  .dark #tbGrab i{background:#64748b}
+  #tbBadge{left:0;right:0;bottom:0;z-index:29;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbBadge i{display:flex;align-items:center;justify-content:center;width:44px;height:20px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.10)}
+  .dark #tbBadge i{background:#1e293b;border-color:#334155;color:#a5b4fc;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  /* 线索样式由设置项开（本体 tb-line-a／tb-line-b），距底走 --tb-gap（设置滑杆实时改，全屏与预览同源） */
+  body.tbdemo.tb-line-a #tbGrab,body.tbdemo.tb-gest #tbGrab{display:flex}
+  body.tbdemo.tb-line-b #tbBadge{display:flex}
+  /* 捏合示意＝整屏薄纱＋居中卡片（避免与悬浮球/内容抢位，也一眼看出是「示意」） */
+  #tbGest{inset:0;z-index:31;align-items:center;justify-content:center;background:rgba(15,23,42,.34)}
+  body.tbdemo.tb-gest #tbGest{display:flex}
+  /* 设置卡内的预览框（外观屏·底栏手势卡）：一条迷你底边虚线 + 线索，实时反映形态与距底 */
+  #tbSetPrev{position:relative;height:112px;border-radius:14px;overflow:hidden;background:var(--page);border:1px solid var(--card-bd)}
+  #tbSetPrev::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:repeating-linear-gradient(90deg,#cbd5e1 0 7px,transparent 7px 13px)}
+  .dark #tbSetPrev::after{background:repeating-linear-gradient(90deg,#475569 0 7px,transparent 7px 13px)}
+  #tbSetPrev .tpHint{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:flex-end;padding-bottom:var(--tb-gap,16px)}
+  #tbSetPrev .tpA{display:none;width:56px;height:4px;border-radius:999px;background:#94a3b8;opacity:.7}
+  .dark #tbSetPrev .tpA{background:#64748b}
+  #tbSetPrev .tpB{display:none;align-items:center;justify-content:center;width:44px;height:20px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.10)}
+  .dark #tbSetPrev .tpB{background:#1e293b;border-color:#334155;color:#a5b4fc;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  body.tb-line-a #tbSetPrev .tpA{display:block}
+  body.tb-line-b #tbSetPrev .tpB{display:flex}
   .blur-bd{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
   /* ---- 组件类 ---- */
   .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:14px 16px;box-shadow:var(--card-sh)}
@@ -1416,6 +1454,32 @@ tailwind.config = {
           <div class="flex gap-2" id="themeDots"></div></div>
         <div class="flex items-center gap-3 text-xs text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3"><span class="set-ic bg-slate-100 dark:bg-slate-800">Aa</span><div class="flex-1"><b class="text-sm text-slate-900 dark:text-slate-100">字体大小</b></div><input type="range" class="w-28" min="1" max="3" value="2"></div>
       </div>
+
+      <!-- ===== 底栏手势设置（2026-10-11 样张 · 待产品过门；定形落实现后本卡整体摘除） =====
+           产品拍板：线索 A 细握把 / B 胶囊折角两条都留、此处切换；线索距底可调；悬浮球不落底。 -->
+      <div class="card mt-4" id="tbSetCard">
+        <div class="flex items-center gap-3">
+          <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 15h15"/><path d="M8 19h8"/><path d="M12 11V4.5m0 0-2.3 2.3M12 4.5l2.3 2.3"/></svg></span>
+          <div class="flex-1"><b class="text-sm">底栏手势</b><div class="text-[11px] text-slate-400">双指张开收起底栏 · 捏合还原</div></div>
+          <span class="toggle" id="tbSetToggle" onclick="tglTb(this)"></span>
+        </div>
+
+        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800" id="tbSetBody" style="opacity:.4;pointer-events:none">
+          <div class="text-[11px] font-bold text-slate-500 mb-2">收起后的可见线索</div>
+          <div class="flex gap-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold" id="tbLineSeg">
+            <button id="tbLA" class="seg-on flex-1 rounded-lg py-1.5" onclick="setTbLine('a')">细握把</button>
+            <button id="tbLB" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setTbLine('b')">胶囊折角</button>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between text-[11px]"><span class="text-slate-400">线索距屏幕底部</span><b id="tbGapVal" class="text-slate-600 dark:text-slate-300">16 px</b></div>
+          <input id="tbGapRange" type="range" min="8" max="48" step="1" value="16" class="w-full mt-1.5" oninput="setTbGap(this.value)">
+
+          <div id="tbSetPrev" class="mt-3">
+            <div class="tpHint"><i class="tpA"></i><i class="tpB"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></i></div>
+          </div>
+          <div class="text-[10px] text-slate-400 mt-2">悬浮球保持原位（不随底栏落底）· 预览仅示意线索相对屏幕底部的位置</div>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -1588,6 +1652,20 @@ tailwind.config = {
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
+
+  <!-- ===== 底栏收起态样张 · 线索与捏合示意（2026-10-11 待产品过门，非正式形态；设置项在外观屏） ===== -->
+  <div id="tbGrab" aria-hidden="true"><i></i></div>
+  <div id="tbBadge" aria-hidden="true"><i><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></i></div>
+  <div id="tbGest" aria-hidden="true">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl px-6 py-5 border border-slate-200/70 dark:border-slate-700 shadow-xl flex flex-col items-center gap-2">
+      <svg class="w-40 h-12 text-slate-400 dark:text-slate-500" viewBox="0 0 160 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="20" cy="26" r="7"/><circle cx="140" cy="26" r="7"/>
+        <path d="M44 26h-14M116 26h14"/><path d="M36 20l-6 6 6 6M124 20l6 6-6 6"/>
+      </svg>
+      <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">双指张开＝收起底栏 · 捏合＝还原</span>
+      <span class="text-[10px] text-slate-400 dark:text-slate-500">（样张示意，非正式形态）</span>
+    </div>
+  </div>
 
   <!-- ===== 全局搜索弹层 ===== -->
   <div id="sheetSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSearch')">
@@ -4760,6 +4838,44 @@ function clearLogSel(){$$('#logBoxWrap .logsel').forEach(function(l){l.classList
     if(e.target.closest('button'))return; /* 展开堆栈等按钮不触发勾选 */
     var l=e.target.closest('.logline');if(l)logSelToggle(l);
   });
+})();
+
+/* ===== 底栏收起态样张（2026-10-11 · 待产品过门，非正式形态；定形并落实现后本块整体摘除） =====
+   演示开关＝地址带 ?tbdemo=grab|badge|gest；也可在控制台 setTbDemo('grab') / setTbDemo('')。
+   grab＝线索 A（居中细握把）；badge＝线索 B（居中胶囊折角）；gest＝收起态上叠双指张示意。
+   产品拍板（2026-10-11）：A/B 两条都留、由「设置 › 外观 › 底栏手势」切换（setTbLine）；
+   线索距底可调（setTbGap → --tb-gap，滑杆实时改，全屏与设置预览同源）；悬浮球保持原位不落底；
+   **方向＝双指张开收起 / 双指捏合还原**（二次裁定，回轮4 原始需求）；总开关默认关。
+   真实形态（壳层双指手势）等产品点头后再按 §⚙ 面板开实现批，本轮只出样张、不动实现、不写需求。 */
+(function(){
+  var b=document.body;
+  /* 演示值 → 线索样式（grab=A 细握把／badge=B 胶囊折角／gest=A 再叠双指张开示意） */
+  var demo={grab:'a',badge:'b',gest:'a'};
+  function seg(on,el){ if(el)el.className=(on?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(on?'':' text-slate-500'); }
+  window.setTbLine=function(v){
+    b.classList.toggle('tb-line-a',v!=='b');
+    b.classList.toggle('tb-line-b',v==='b');
+    seg(v!=='b',$('#tbLA')); seg(v==='b',$('#tbLB'));
+  };
+  window.setTbGap=function(px){
+    px=Math.max(8,Math.min(48,parseInt(px,10)||16));
+    b.style.setProperty('--tb-gap',px+'px');
+    var r=$('#tbGapRange'); if(r&&+r.value!==px)r.value=px;
+    var s=$('#tbGapVal'); if(s)s.textContent=px+' px';
+  };
+  window.tglTb=function(el){
+    if(typeof tgl==='function')tgl(el);
+    var on=el.classList.contains('on'), bd=$('#tbSetBody');
+    if(bd){ bd.style.opacity=on?'1':'.4'; bd.style.pointerEvents=on?'':'none'; }
+  };
+  window.setTbDemo=function(v){
+    b.classList.remove('tbdemo','tb-gest');
+    if(v&&demo[v]){ b.classList.add('tbdemo'); window.setTbLine(demo[v]); if(v==='gest')b.classList.add('tb-gest'); }
+    if(typeof renderFab==='function')renderFab();
+  };
+  window.setTbGap(16); window.setTbLine('a');
+  var m=/[?&]tbdemo=([a-z]+)/.exec(location.search);
+  if(m&&demo[m[1]])window.setTbDemo(m[1]);
 })();
 </script>
 <script>/*LH-GOV-START*/
