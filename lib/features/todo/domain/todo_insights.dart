@@ -57,9 +57,11 @@ List<Todo> escalateSuggestions(List<Todo> todos, [DateTime? now]) {
   }).toList();
 }
 
-/// 仪表盘精力胶囊分级文案（原型 62% 「状态不错」/ 低位「把重心挪回重要的事」）。
+/// 仪表盘精力胶囊分级文案——**逐字对齐原型** `dashInsight` 三档
+/// （index.html：≥60 状态不错 / ≥40 还能更聚焦 / 其余 紧急事偏多）。
+/// 6110 实锤：曾扩写为长句（「试试把重心挪回重要的事」等）⇒ 胶囊行溢出 13px。
 String energyCaption(int pct) {
   if (pct >= 60) return '，状态不错';
-  if (pct >= 40) return '，尚可，重要事再多一点';
-  return '，试试把重心挪回重要的事';
+  if (pct >= 40) return '，还能更聚焦';
+  return '，紧急事偏多';
 }

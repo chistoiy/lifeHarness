@@ -103,12 +103,12 @@ void main() {
   });
 
   group('energyCaption 精力占比分级', () {
-    test('≥60 状态不错 / 40~59 尚可 / <40 提醒挪重心', () {
+    test('≥60 状态不错 / 40~59 还能更聚焦 / <40 紧急事偏多（原型三档逐字）', () {
       expect(energyCaption(62), '，状态不错');
       expect(energyCaption(60), '，状态不错');
-      expect(energyCaption(50), contains('尚可'));
-      expect(energyCaption(40), contains('尚可'));
-      expect(energyCaption(30), contains('把重心挪回重要的事'));
+      expect(energyCaption(50), '，还能更聚焦');
+      expect(energyCaption(40), '，还能更聚焦');
+      expect(energyCaption(30), '，紧急事偏多');
     });
   });
 

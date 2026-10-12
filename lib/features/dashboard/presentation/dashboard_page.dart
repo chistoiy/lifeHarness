@@ -478,9 +478,15 @@ class _HeroCard extends ConsumerWidget {
                       decoration: const BoxDecoration(
                           shape: BoxShape.circle, color: Color(0xFF6EE7B7))),
                   const SizedBox(width: 8),
-                  Text(
+                  // 防御：Column 横向松约束，文案超长即溢出——Flexible＋单行省略兜底。
+                  Flexible(
+                    child: Text(
                       '本周 $impPct% 精力在「重要」象限${energyCaption(impPct)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 11.5)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 11.5),
+                    ),
+                  ),
                 ],
               ),
             ),
