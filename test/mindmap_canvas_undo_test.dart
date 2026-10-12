@@ -6,6 +6,8 @@ import 'package:lifeharness/features/mindmap/presentation/mindmap_canvas_page.da
 import 'package:lifeharness/features/mindmap/data/mindmap_dao.dart';
 
 import 'mindmap_test_harness.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
 
 /// 批2 F4-1 · 画布撤销/重做接线守护（工单 §4c.3 ① UI 面）。
 /// 全 app widget 独立文件口径：本文件只泵画布页。
@@ -13,7 +15,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late dynamic db;
+  late SharedPreferences mmPrefs;
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    mmPrefs = await SharedPreferences.getInstance();
     db = await openMmDb();
   });
   tearDown(() async {
@@ -25,7 +30,7 @@ void main() {
     final dao = mindmapDaoOf(db);
     final mapId = await dao.createMap('图');
     await dao.addNode(mapId: mapId, title: '中心主题');
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
       child: MaterialApp(
           home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
     ));
@@ -66,7 +71,7 @@ void main() {
     final dao = mindmapDaoOf(db);
     final mapId = await dao.createMap('图');
     await dao.addNode(mapId: mapId, title: '原名');
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
       child: MaterialApp(
           home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
     ));
@@ -99,7 +104,7 @@ void main() {
     final mapId = await dao.createMap('图');
     final root = await dao.addNode(mapId: mapId, title: '根');
     final child = await dao.addNode(mapId: mapId, parentId: root.id, title: '子');
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
       child: MaterialApp(
           home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
     ));

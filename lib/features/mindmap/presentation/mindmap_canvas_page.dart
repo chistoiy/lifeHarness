@@ -8,15 +8,18 @@ import 'package:sqflite/sqflite.dart' show Database;
 
 import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../data/mindmap_dao.dart';
 import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_measure.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_style.dart';
 import '../domain/mindmap_undo.dart';
 import '../domain/mindmap_viewport.dart';
 import 'mindmap_export_actions.dart';
 import 'mindmap_painter.dart';
 import 'mindmap_sheets.dart';
+import 'mindmap_style_sheet.dart';
 
 /// 画布主屏（原型 mm-canvas · push 路由 `/mindmap/canvas?id=`）。
 ///
@@ -105,6 +108,14 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   static const double _nodeH = 40;
   static const double _nodePad = 12;
 
+  /// 批3 样式层：当前图的档位（null＝未设样式，走批2 基线绘制面）。
+  /// 每图一套，存 prefs（`lh.mm_styles` 的 mapId 那一格）。
+  MmStyle? _style;
+
+  /// 绘制面（画布与 PNG 导出同源；度量也吃同一 [MmPaintStyle.fontSize]）。
+  MmPaintStyle get _paintStyle =>
+      MmPaintStyle.of(_style, Theme.of(context).colorScheme);
+
   bool _loading = true;
 
   @override
@@ -124,10 +135,12 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     final map = await _dao.mapById(widget.mapId);
     final nodes = await _dao.nodesOf(widget.mapId);
     await _refreshMountedTitlesData(nodes);
+    final style = MmStyleStore(ref.read(sharedPreferencesProvider)).load(widget.mapId);
     if (!mounted) return;
     setState(() {
       _map = map;
       _nodes = nodes;
+      _style = style;
       _loading = false;
     });
     _relayout();
@@ -228,10 +241,18 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
 
   Size _measure(MindmapNode n) {
     final title = _displayTitle(n);
-    final cached = _textSizeCache[title];
+    // 批3 样式层：字号档进缓存键（换字号必须重算盒宽——度量与 painter 同源，
+    // 否则 lg 档文字会溢出旧盒）。
+    final fs = _paintStyle.fontSize;
+    final cached = _textSizeCache['$fs|$title'];
     if (cached != null) return cached;
-    final s = mmNodeMeasure(title, hPad: _nodePad, minH: _nodeH);
-    _textSizeCache[title] = s;
+    final s = mmNodeMeasure(
+      title,
+      style: TextStyle(fontSize: fs, fontWeight: FontWeight.w600),
+      hPad: _nodePad,
+      minH: _nodeH,
+    );
+    _textSizeCache['$fs|$title'] = s;
     return s;
   }
 
@@ -479,6 +500,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
         dxOf: _dxOf,
         dyOf: _dyOf,
         cs: Theme.of(context).colorScheme,
+        style: _style,
       );
 
   // ==================== 撤销/重做（批2 F4-1） ====================
@@ -710,6 +732,54 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
           content: Text(msg), duration: const Duration(milliseconds: 1600)));
   }
 
+  // ==================== 样式层（批3 F4-7） ====================
+
+  /// 打开样式弹层（原型 `mmOpenStyle`：画布高频直达）。改档即时生效并入
+  /// 撤销栈（原型 `mmSetStyle` 走 `mmPushHistory`，同款语义）。
+  /// 打开样式弹层（原型 `mmOpenStyle`：画布高频直达）。改档**即时生效**并
+  /// 入撤销栈（原型 `mmSetStyle` 走 `mmPushHistory`，同款语义）——所以关闭
+  /// 弹层不做任何回滚：关掉即定稿（含「恢复默认」＝显式写默认档）。
+  Future<void> _openStyle() async {
+    final store = MmStyleStore(ref.read(sharedPreferencesProvider));
+    await showMmStyleSheet(
+      context,
+      initial: _style ?? MmStyle.defaults,
+      onChanged: (next) => _applyStyle(store, next),
+    );
+  }
+
+  /// 应用一份样式档：改状态 → 清度量缓存（字号变则盒宽重算）→ 落 prefs。
+  /// 每次改档入撤销栈一步（原型 `mmPushHistory('调整样式')` 同款语义）。
+  Future<void> _applyStyle(MmStyleStore store, MmStyle next) async {
+    final before = _style;
+    if (before == next) return;
+    setState(() => _style = next);
+    _textSizeCache.clear();
+    _relayout();
+    _undo.push(MmCommand(
+      label: '调整样式',
+      redo: (_) async {
+        await store.save(widget.mapId, next);
+        if (!mounted) return;
+        setState(() => _style = next);
+        _textSizeCache.clear();
+        _relayout();
+      },
+      undo: (_) async {
+        if (before == null) {
+          await store.reset(widget.mapId);
+        } else {
+          await store.save(widget.mapId, before);
+        }
+        if (!mounted) return;
+        setState(() => _style = before);
+        _textSizeCache.clear();
+        _relayout();
+      },
+    ));
+    await store.save(widget.mapId, next);
+  }
+
   // ==================== build ====================
 
   @override
@@ -831,14 +901,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                                 for (final n in _nodes)
                                   if (n.id != null) n.id!: _dyOf(n),
                               },
-                              bg: cs.surface,
-                              grid: cs.onSurface.withValues(alpha: .06),
-                              nodeBg: cs.surfaceContainerHighest,
-                              nodeBorder: cs.outlineVariant,
-                              nodeText: cs.onSurface,
-                              edge: cs.outline,
-                              accent: cs.primary,
-                              accentSoft: cs.primary.withValues(alpha: .14),
+                              style: _paintStyle,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -867,7 +930,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                         ),
                       ),
                     ),
-                    // 右下缩放条（＋/－/fit）。
+                    // 右下缩放条（＋/－/fit）＋样式层直达（原型 mmZoomBar 同款：
+// 样式是画布高频项，先于「更多」菜单直达）。
                     Positioned(
                       right: 10,
                       bottom: 72,
@@ -886,6 +950,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                           }),
                           const SizedBox(height: 6),
                           _zoomBtn(context, Icons.center_focus_weak, _fit),
+                          const SizedBox(height: 6),
+                          _zoomBtn(
+                              context, Icons.palette_outlined, _openStyle),
                         ],
                       ),
                     ),

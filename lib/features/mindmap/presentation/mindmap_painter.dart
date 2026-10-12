@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 
 import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_style.dart';
 
 /// 画布绘制器（批1 画布与批2 PNG 导出共用一份——导出即所见）。
 ///
 /// 画布绘制器：网点底纹＋连线（批量 drawPath）＋节点（RRect＋TextPainter）。
 /// 只画 [nodes] 里已裁剪过的可见节点（cull 在 build 侧算好）。
+///
+/// 批3 样式层：绘制面整体收进 [style]（一份 `MmPaintStyle`）——画布页与
+/// PNG 导出调同一个工厂，导出即所见；「未设样式」时工厂返回批2 基线值
+/// （逐值相等＝默认态零视觉变化）。
 class MmCanvasPainter extends CustomPainter {
   MmCanvasPainter({
     required this.nodes,
@@ -19,14 +24,7 @@ class MmCanvasPainter extends CustomPainter {
     required this.mountedIds,
     required this.dxs,
     required this.dys,
-    required this.bg,
-    required this.grid,
-    required this.nodeBg,
-    required this.nodeBorder,
-    required this.nodeText,
-    required this.edge,
-    required this.accent,
-    required this.accentSoft,
+    required this.style,
   });
 
   final List<MindmapNode> nodes;
@@ -38,7 +36,18 @@ class MmCanvasPainter extends CustomPainter {
   final Set<int> mountedIds;
   final Map<int, double> dxs;
   final Map<int, double> dys;
-  final Color bg, grid, nodeBg, nodeBorder, nodeText, edge, accent, accentSoft;
+
+  /// 批3 样式层解析结果（档位 → 令牌实际色，含连线粗细/字号/网点开关）。
+  final MmPaintStyle style;
+
+  Color get bg => style.bg;
+  Color get grid => style.grid;
+  Color get nodeBg => style.nodeBg;
+  Color get nodeBorder => style.nodeBorder;
+  Color get nodeText => style.nodeText;
+  Color get edge => style.edge;
+  Color get accent => style.accent;
+  Color get accentSoft => style.accentSoft;
 
   Rect _nodeRect(MindmapNode n) {
     final l = layout!;
@@ -51,14 +60,17 @@ class MmCanvasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = bg);
-    // 网点底纹（§5.1：--mm-canvas 令牌对应物）。
+    // 网点底纹（§5.1：--mm-canvas 令牌对应物）。批3 样式层：画布背景档
+    // 非「网点」时整层不画（对应原型 `cv.style.background` 覆盖底纹）。
     const gap = 22.0;
-    final gp = Paint()..color = grid..strokeWidth = 1.4;
-    final startX = pan.dx % gap;
-    final startY = pan.dy % gap;
-    for (var x = startX; x < size.width; x += gap) {
-      for (var y = startY; y < size.height; y += gap) {
-        canvas.drawCircle(Offset(x, y), 1, gp);
+    if (style.dots) {
+      final gp = Paint()..color = grid..strokeWidth = 1.4;
+      final startX = pan.dx % gap;
+      final startY = pan.dy % gap;
+      for (var x = startX; x < size.width; x += gap) {
+        for (var y = startY; y < size.height; y += gap) {
+          canvas.drawCircle(Offset(x, y), 1, gp);
+        }
       }
     }
     final l = layout;
@@ -85,7 +97,11 @@ class MmCanvasPainter extends CustomPainter {
       path.cubicTo(midX, a.center.dy, midX, b.center.dy, ix, b.center.dy);
     }
     canvas.drawPath(
-        path, Paint()..color = edge..style = PaintingStyle.stroke..strokeWidth = 1.2);
+        path,
+        Paint()
+          ..color = edge
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = style.lineW);
 
     // ── 节点。
     for (final n in nodes) {
@@ -113,11 +129,13 @@ class MmCanvasPainter extends CustomPainter {
       // 标题（TextPainter 缓存量宽在 build 侧已算好尺寸；此处重排文本本身
       // 的成本由裁剪兜住——视口外节点不进本循环）。批2 F4-6：多行
       //（\n 换行、宽度按节点盒封顶），垂直居中于节点盒。
+      // 批3 样式层：字号走样式档（基准值来自 MmPaintStyle.fontSize，
+      // 与度量 `mmNodeMeasure` 同源——档位改字号时盒宽随之重算）。
       final tp = TextPainter(
         text: TextSpan(
           text: nodeTitles[n.id] ?? n.title,
           style: TextStyle(
-              fontSize: 13.5 * scale.clamp(0.5, 1.6),
+              fontSize: style.fontSize * scale.clamp(0.5, 1.6),
               fontWeight: FontWeight.w600,
               color: nodeText),
         ),
@@ -145,5 +163,8 @@ class MmCanvasPainter extends CustomPainter {
       !identical(old.nodes, nodes) ||
       // 拖拽偏移走旁路 map（build 侧每次新字面量）——漏比＝拖拽帧不重画。
       !identical(old.dxs, dxs) ||
-      !identical(old.dys, dys);
+      !identical(old.dys, dys) ||
+      // 批3 样式层：换档后画布必须重画。MmPaintStyle 是不可变值对象，
+      // 逐值 == 即可（漏比＝改样式不重画，与批2 dx/dy 漏比同族）。
+      old.style != style;
 }

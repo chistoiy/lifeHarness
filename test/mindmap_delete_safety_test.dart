@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/features/mindmap/presentation/mindmap_canvas_page.dart';
 
 import 'mindmap_test_harness.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
 
 /// 思维导图批1 · 删除安全守护（工单 §4b.3 ⑤：H1/F1-11/C1）。
 /// 删节点＝二次确认且文案含连带子级数、取消＝零副作用、确认＝级联；
@@ -12,7 +14,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late dynamic db;
+  late SharedPreferences mmPrefs;
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    mmPrefs = await SharedPreferences.getInstance();
     db = await openMmDb();
   });
   tearDown(() async {
@@ -32,7 +37,7 @@ void main() {
     final root = await dao.addNode(mapId: mapId, title: '根');
     final c1 = await dao.addNode(mapId: mapId, parentId: root.id, title: '子1');
     await dao.addNode(mapId: mapId, parentId: c1.id, title: '孙');
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
       child: MaterialApp(
           home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
     ));
@@ -81,7 +86,7 @@ void main() {
     await dao.addNode(mapId: mapId, parentId: c1.id, title: '孙');
     // 折叠「子1」——孙仍在库里，删除根时连带数必须按库里算（不是按可见算）。
     await dao.updateNode(c1.copyWith(folded: true, updatedAt: 2));
-    await tester.pumpWidget(ProviderScope(
+    await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
       child: MaterialApp(
           home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
     ));

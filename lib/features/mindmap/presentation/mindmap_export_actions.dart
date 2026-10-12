@@ -27,6 +27,7 @@ import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_measure.dart';
 import '../../../shared/export/png_encode.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_style.dart';
 import 'mindmap_painter.dart';
 
 /// 导出选项（弹层返回值）。
@@ -238,11 +239,13 @@ Future<Uint8List?> mmCanvasPngSnapshot({
   required double Function(MindmapNode n) dxOf,
   required double Function(MindmapNode n) dyOf,
   required ColorScheme cs,
+  MmStyle? style,
 }) async {
   if (layout == null || nodes.isEmpty || bounds == Rect.zero) return null;
   const margin = 24.0;
   final size = Size(bounds.width + margin * 2, bounds.height + margin * 2);
   final recorder = ui.PictureRecorder();
+  // 批3 样式层：与屏上 painter 同一个工厂解析（导出＝所见，不各算一套）。
   MmCanvasPainter(
     nodes: nodes,
     layout: layout,
@@ -253,14 +256,7 @@ Future<Uint8List?> mmCanvasPngSnapshot({
     mountedIds: {for (final n in nodes) if (n.noteId != null) n.id!},
     dxs: {for (final n in nodes) if (n.id != null) n.id!: dxOf(n)},
     dys: {for (final n in nodes) if (n.id != null) n.id!: dyOf(n)},
-    bg: cs.surface,
-    grid: cs.onSurface.withValues(alpha: .06),
-    nodeBg: cs.surfaceContainerHighest,
-    nodeBorder: cs.outlineVariant,
-    nodeText: cs.onSurface,
-    edge: cs.outline,
-    accent: cs.primary,
-    accentSoft: cs.primary.withValues(alpha: .14),
+    style: MmPaintStyle.of(style, cs),
   ).paint(ui.Canvas(recorder), size);
   return encodeOffscreenPng(recorder, size.width, size.height);
 }

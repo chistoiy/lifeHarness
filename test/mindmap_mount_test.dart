@@ -8,6 +8,8 @@ import 'package:lifeharness/shared/linkage/mindmap_mounts.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'mindmap_test_harness.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lifeharness/core/providers.dart' show sharedPreferencesProvider;
 
 /// 思维导图批1 · 挂载与笔记连通守护（工单 §4b.3 ④：H3/H4）＋
 /// md 解析三通道优先序与超限截断（B2/B3）。
@@ -19,8 +21,11 @@ void main() {
   databaseFactory = databaseFactoryFfiNoIsolate;
 
   late dynamic db;
+  late SharedPreferences mmPrefs;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    mmPrefs = await SharedPreferences.getInstance();
     db = await openMmDb();
   });
 
@@ -114,7 +119,7 @@ void main() {
       final root = await dao.addNode(mapId: mapId, title: '自身标题');
       await dao.updateNode(
           root.copyWith(noteId: noteId, updatedAt: 1));
-      await tester.pumpWidget(ProviderScope(
+      await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
         child: MaterialApp(
             home: MindmapCanvasPage(mapId: mapId, dao: dao, db: db)),
       ));
@@ -129,7 +134,7 @@ void main() {
           where: 'id = ?', whereArgs: [noteId]);
       // 触发一次刷新（换 key＝强制重建，等价重新进图；同型 pumpWidget 只会
       // didUpdateWidget 复用 State，不重载 _noteTitles 缓存）。
-      await tester.pumpWidget(ProviderScope(
+      await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
         child: MaterialApp(
             home: MindmapCanvasPage(
                 key: const ValueKey('v2'), mapId: mapId, dao: dao, db: db)),
@@ -138,7 +143,7 @@ void main() {
       expect(semaOf('改过名了'), findsOneWidget);
       // 删除 → 占位（B6）。
       await db.delete(DbSchema.tNotes, where: 'id = ?', whereArgs: [noteId]);
-      await tester.pumpWidget(ProviderScope(
+      await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
         child: MaterialApp(
             home: MindmapCanvasPage(
                 key: const ValueKey('v3'), mapId: mapId, dao: dao, db: db)),
@@ -160,7 +165,7 @@ void main() {
       final root = await dao.addNode(mapId: mapId, title: '根');
       await dao.updateNode(root.copyWith(noteId: noteId, updatedAt: 1));
       final opened = <int>[];
-      await tester.pumpWidget(ProviderScope(
+      await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
         child: MaterialApp(
           home: MindmapCanvasPage(
             mapId: mapId,
@@ -193,7 +198,7 @@ void main() {
       final mapId = await dao.createMap('图');
       await dao.addNode(mapId: mapId, title: '根');
       final opened = <int>[];
-      await tester.pumpWidget(ProviderScope(
+      await tester.pumpWidget(ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(mmPrefs)],
         child: MaterialApp(
           home: MindmapCanvasPage(
             mapId: mapId,
