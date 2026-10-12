@@ -1290,7 +1290,7 @@
    "files": {
     "index.html": {
      "size": 30699,
-     "hash": "dcd244b6"
+     "hash": "8f7529df"
     }
    }
   },
@@ -1639,8 +1639,8 @@
    "status": "exclusive",
    "files": {
     "index.html": {
-     "size": 2034,
-     "hash": "9a4053c7"
+     "size": 2039,
+     "hash": "eda29667"
     }
    }
   },
@@ -3122,8 +3122,8 @@
    "status": "exclusive",
    "files": {
     "index.html": {
-     "size": 716,
-     "hash": "afec799f"
+     "size": 721,
+     "hash": "1f2989c3"
     }
    }
   },
