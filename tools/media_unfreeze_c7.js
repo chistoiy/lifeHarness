@@ -38,5 +38,5 @@ console.log(JSON.stringify({ copies: copies.length, idsInDom: ids.size,
   frozen: before.frozen + '→' + reg.frozen.length, vio: before.vio + '→' + reg.violations.length }));
 if (dry) { console.log('DRY 未写盘'); process.exit(0); }
 fs.writeFileSync('tmp/media_unfreeze_snapshot_c7.json', JSON.stringify(JSON.parse(fs.readFileSync(REGP, 'utf8')), null, 1), 'utf8');
-fs.writeFileSync(REGP, JSON.stringify(reg, null, 1) + '\n', 'utf8');
+fs.writeFileSync(REGP, JSON.stringify(reg, null, 2) + '\n', 'utf8');
 console.log('WROTE ' + REGP);

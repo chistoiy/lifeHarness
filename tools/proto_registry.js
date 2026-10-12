@@ -95,17 +95,17 @@ if (WRITE) {
   const before = fs.readFileSync(REG, 'utf8');
   /* 格式自证（对**未改写**的解析结果做序列化）：证明「parse→stringify(indent 1)+换行」逐字节等于原文件，
      否则禁写——不然一次回写会把整份注册表重排，diff 炸成不可读，还可能吞字段。 */
-  const pristine = JSON.stringify(JSON.parse(before), null, 1) + '\n';
+  const pristine = JSON.stringify(JSON.parse(before), null, 2) + '\n';
   if (pristine !== before) {
     let d = -1; for (let i = 0; i < Math.min(before.length, pristine.length); i++) { if (before[i] !== pristine[i]) { d = i; break } }
     console.log('REFUSE 回写：JSON.parse→stringify(.,null,1) 与原文件不逐字节相等（原 ' + before.length + ' · 序列化 ' + pristine.length + ' · 首个差异第 ' + d + ' 字符），先对齐序列化口径');
     process.exit(2);
   }
-  const after = JSON.stringify(reg, null, 1) + '\n';
+  const after = JSON.stringify(reg, null, 2) + '\n';
   /* 剪掉块已不存在的 file 条目后，files 空＝该屏在现行原型里彻底没了 → 整条登记作废 */
   const dead = reg.screens.filter(s => !Object.keys(s.files || {}).length).map(s => s.id);
   if (dead.length) reg.screens = reg.screens.filter(s => Object.keys(s.files || {}).length);
-  fs.writeFileSync(REG, JSON.stringify(reg, null, 1) + '\n', 'utf8');
+  fs.writeFileSync(REG, JSON.stringify(reg, null, 2) + '\n', 'utf8');
   JSON.parse(fs.readFileSync(REG, 'utf8'));
   console.log('已回写 ' + REG + ' · screens ' + reg.screens.length + ' 条（整条作废 ' + dead.length + '：' + dead.slice(0, 12).join(' ') + (dead.length > 12 ? ' …' : '') + '）');
 }

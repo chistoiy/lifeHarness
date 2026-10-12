@@ -43,6 +43,6 @@ reg.screens = reg.screens.filter(s => {
 });
 if (dropped.length !== 2) throw new Error('插件中心条目摘除数=' + dropped.length + '——中止');
 if (Array.isArray(reg.frozen)) reg.frozen = reg.frozen.filter(f => f !== 'index-media.html');
-fs.writeFileSync(REGF, JSON.stringify(reg, null, 1) + '\n', 'utf8');
+fs.writeFileSync(REGF, JSON.stringify(reg, null, 2) + '\n', 'utf8');
 log.push('注册表(media=current·家=m-shelf·摘 ' + dropped.join(',') + '·frozen 去 index-media)');
 console.log('DONE ' + log.join(' ｜ '));

@@ -28,5 +28,5 @@ for (const sc of reg.screens) {
   if (Array.isArray(sc.reps)) sc.reps = [];
 }
 if (moved !== ids.length) throw new Error('home 改动数=' + moved + '（期望 ' + ids.length + '）——中止');
-fs.writeFileSync(REG, JSON.stringify(reg, null, 1) + '\n', 'utf8');
+fs.writeFileSync(REG, JSON.stringify(reg, null, 2) + '\n', 'utf8');
 console.log('REHOMED ' + ids.join(' ') + ' → index-media.html');

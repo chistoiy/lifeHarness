@@ -33,4 +33,4 @@ for (const f of targets) {
   reg.deleted[f] = rec;
   console.log('登记', f, rec.length, '块');
 }
-fs.writeFileSync('prototype/_modules.json', JSON.stringify(reg, null, 1));
+fs.writeFileSync('prototype/_modules.json', JSON.stringify(reg, null, 2));

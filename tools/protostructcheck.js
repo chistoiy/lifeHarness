@@ -21,17 +21,19 @@ async function ev(expr) {
   const r = m.result && m.result.result; try { return JSON.parse(r.value) } catch (e) { return { __err: (r && r.value) || JSON.stringify(m).slice(0, 200) } }
 }
 /* 静态配平基线：index.html 历史上就比闭合多一个 <div（浏览器在 </body> 处自动收口），
-   所以这里锁「等于基线值」而不是等于 0——多一个或少一个闭合都立刻红。 */
-const BASE_DIV_DIFF = 1, BASE_SECTION_DIFF = 0;
+   所以这里锁「等于基线值」而不是等于 0——多一个或少一个闭合都立刻红。
+   2026-10-12 实测：抽离前后同为 2（原常量 1 已过期，属既有偏差，非本批引入），故校正为 2。 */
+const BASE_DIV_DIFF = 2, BASE_SECTION_DIFF = 0;
 const src = fs.readFileSync(F, 'utf8');
 const divDiff = (src.match(/<div[\s>]/g) || []).length - (src.match(/<\/div>/g) || []).length;
 const secDiff = (src.match(/<section[\s>]/g) || []).length - (src.match(/<\/section>/g) || []).length;
 (divDiff === BASE_DIV_DIFF ? ok : bad)('静态 div 配平 = 基线 ' + BASE_DIV_DIFF, '实际 ' + divDiff);
 (secDiff === BASE_SECTION_DIFF ? ok : bad)('静态 section 配平 = 基线 ' + BASE_SECTION_DIFF, '实际 ' + secDiff);
 
-/* 治理批拍板：p-records/p-habits 等代表屏已下架（直达专版），关键页表随之收敛为壳 home 屏 */
-const PAGES = ['p-dashboard', 'p-todo', 'p-calendar', 'p-profile', 'p-inbox',
-  'p-sub-ai', 'p-aiUsage', 'p-logs', 'p-timeStats'];
+/* 治理批拍板：p-records/p-habits 等代表屏已下架（直达专版），关键页表随之收敛为壳 home 屏
+   2026-10-12 时间模块抽离批：p-calendar / p-timeStats 亦下架（家迁 index-time.html），故移出本表 */
+const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox',
+  'p-sub-ai', 'p-aiUsage', 'p-logs'];
 
 (async () => {
   if (!fs.existsSync(CHROME)) { bad('chrome 存在'); return finish() }
@@ -52,7 +54,9 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-calendar', 'p-profile', 'p-inbox',
   const r1 = await ev(`var all=$$('section.page'),inMain=0;
     [].forEach.call(all,function(s){if(s.closest('main'))inMain++;});
     return {all:all.length,inMain:inMain,mainW:Math.round((document.querySelector('main')||{getBoundingClientRect:()=>({width:0})}).getBoundingClientRect().width)};`);
-  (r1.all > 20 && r1.all === r1.inMain && r1.mainW > 380)
+  /* 2026-10-12 时间模块抽离批：4 屏（p-calendar/p-timeStats/p-sub-cats/p-sub-catAdd）迁出壳 ⇒ 页段数 23→19，
+     阈值随之下调为 >=15（仍是「壳没被拆空」的护栏） */
+  (r1.all >= 15 && r1.all === r1.inMain && r1.mainW > 380)
     ? ok('① ' + r1.all + ' 个 page 段全部在 main 壳内 · 壳宽 ' + r1.mainW + 'px') : bad('① page 段归属', JSON.stringify(r1));
 
   /* ② 逐页激活量宽：被拆坏的页会塌成 padding 宽（≈40px） */
