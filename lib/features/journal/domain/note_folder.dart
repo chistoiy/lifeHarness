@@ -5,6 +5,10 @@
 /// N-4 历史列表即该夹内容；删除守卫见 NoteFolderDao.deleteTree。
 const kSystemOpenFolder = '系统打开';
 
+/// V1.67（产品令「所有笔记必须有目录归属」）：未选夹的新笔记自动归入的兜底夹。
+/// 夹不存在则建（顶层·sort 顺延）；用户自建同名夹直接复用。删除守卫见 NoteFolderDao。
+const kDefaultNoteFolder = '默认';
+
 class NoteFolder {
   const NoteFolder({
     this.id,

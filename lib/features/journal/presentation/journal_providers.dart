@@ -112,8 +112,14 @@ final noteFolderDaoProvider =
     Provider<NoteFolderDao>((ref) => NoteFolderDao(AppDatabase.instance.db));
 
 /// 文件夹原始列表（增删改后 invalidate）。
+/// V1.67：读值前先做「默认归属兜底」（幂等·零散笔记零写入）——本 provider 是
+/// 列表 chips 与树的共同上游，兜底挂这里＝树/弹层/列表任何入口都先归位再出数。
 final noteFolderListProvider = FutureProvider<List<NoteFolder>>(
-    (ref) => ref.watch(noteFolderDaoProvider).list());
+    (ref) async {
+  final dao = ref.watch(noteFolderDaoProvider);
+  await dao.ensureDefaultOwnership();
+  return dao.list();
+});
 
 /// 渲染树（含各夹直属笔记数；随笔记与文件夹变化刷新）。
 final noteTreeProvider = FutureProvider<List<FolderNode>>((ref) async {

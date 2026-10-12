@@ -85,6 +85,30 @@ class NoteFolderDao {
     return rows.isEmpty ? null : NoteFolder.fromRow(rows.first);
   }
 
+  /// V1.67 默认归属：「默认」夹不存在则建（顶层·sort 顺延）。返回是否新建。
+  /// 用户自建同名夹直接复用（byName 命中即不建）；幂等可随保存路径高频调。
+  Future<bool> ensureDefaultFolder() async {
+    if (await byName(kDefaultNoteFolder) != null) return false;
+    await create(kDefaultNoteFolder);
+    return true;
+  }
+
+  /// V1.67 默认归属兜底（树加载前调·幂等）：把散笔记（folder NULL/''·未删）归入
+  /// 「默认」夹——产品令「所有笔记必须有目录归属」；删夹后重读树即重建归位。
+  /// 零散笔记时零写入；返回是否有变更（建夹或归位）。
+  Future<bool> ensureDefaultOwnership() async {
+    final created = await ensureDefaultFolder();
+    const cond = "(folder IS NULL OR folder = '') AND deleted_at IS NULL";
+    // 谓词内联进语句文本（trash_guard 按语句文本判定，变量引用看不见谓词）。
+    final rows = await db.rawQuery(
+        "SELECT COUNT(*) c FROM ${DbSchema.tNotes} "
+        "WHERE (folder IS NULL OR folder = '') AND deleted_at IS NULL");
+    if ((rows.first['c'] as int) == 0) return created;
+    await db.update(DbSchema.tNotes, {'folder': kDefaultNoteFolder},
+        where: cond);
+    return true;
+  }
+
   /// V1.64 批2 N-1c（工单 §1.2 · 拍板 H＝保留在库）：**摘挂载**＝删本表这些行
   /// （连子夹一起摘），notes 一行不动、磁盘原件一行不动。与 [deleteTree] 的区别＝
   /// 后者是「删文件夹」语义（子夹上移＋夹内笔记归未归类），本口只服务挂载节点。

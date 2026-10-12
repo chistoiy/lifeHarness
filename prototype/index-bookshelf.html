@@ -2315,7 +2315,8 @@ const D = {
          {t:'《海街日记》台词摘抄',txt:'镰仓 rainy road 上的四姐妹…镜头语言比文字克制，适合改编成日记写法。',folder:'关联阅读',words:175,time:'09-12',cre:'09-12',pin:0,md:0},
          {t:'WebDAV 同步选型笔记',txt:'坚果云应用密码模式、快照保留策略、冲突逐条选择原则，避免静默合并丢数据。',folder:'工作',words:631,time:'09-10',cre:'09-10',pin:0,md:1},
          /* V1.29轮9s：跨年笔记=时间显示完整年月日（今天 时:分 / 今年 MM-DD / 跨年 YYYY-MM-DD） */
-         {t:'去年翻出的旧书笔记',txt:'《思考，快与慢》读后残稿：系统1的自动联想值得单独整理成方法论条目。',folder:'关联阅读',words:97,time:'2025-03-05',cre:'2025-03-05',pin:0,md:0}],
+         {t:'去年翻出的旧书笔记',txt:'《思考，快与慢》读后残稿：系统1的自动联想值得单独整理成方法论条目。',folder:'关联阅读',words:97,time:'2025-03-05',cre:'2025-03-05',pin:0,md:0},
+         {t:'随手记（未选夹自动入默认）',txt:'新建笔记没有选文件夹时，自动落到「默认」这里，之后可以再移动。',folder:'默认',words:38,time:'昨天 21:05',cre:'10-11',pin:0,md:0}],
   books:[{n:'思考，快与慢',a:'卡尼曼',st:'在读',p:62,q:59,cover:'from-slate-700 to-slate-900'},{n:'原子习惯',a:'詹姆斯·克利尔',st:'在读',p:31,q:22,cover:'from-teal-500 to-emerald-700'},
          {n:'置身事内',a:'兰小欢',st:'已读',p:100,q:41,cover:'from-amber-500 to-orange-700'},{n:'金钱心理学',a:'豪泽尔',st:'想读',p:0,q:0,cover:'from-indigo-400 to-violet-600'}],
   tx:[{d:'09-19',k:'🍜 餐饮',n:'午餐 · 公司楼下',a:-32.00},{d:'09-19',k:'🚇 交通',n:'地铁通勤',a:-6.00},
@@ -3226,7 +3227,8 @@ const NT_IC={
  folderMove:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>',
  caretR:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
  caretD:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'};
-const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',src:'local',c:[]}];
+/* V1.67 默认归属：新建笔记未选夹＝归「默认」（夹不存在则建·排末位）；树保证每篇笔记有目录归属 */
+const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',src:'local',c:[]},{n:'默认',c:[]}];
 let ntOpen={},ntSel='',ntAct='';
 /* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
 function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';

@@ -34,12 +34,17 @@ extension _NoteSave on _NoteEditPageState {
   Future<Note> _persist() async {
     final now = DateTime.now();
     final dao = ref.read(noteDaoProvider);
+    // V1.67：所有笔记必须有目录归属——未选夹＝归「默认」（夹不存在则建·幂等）。
+    if (_folder.isEmpty) {
+      await ref.read(noteFolderDaoProvider).ensureDefaultFolder();
+    }
+    final folder = _folder.isEmpty ? kDefaultNoteFolder : _folder;
     final saved = await dao.save(_existing != null
         ? _existing!.copyWith(
             title: _titleCtl.text.trim(),
             content: _bodyCtl.text,
             kind: _kind,
-            folder: _folder.isEmpty ? null : _folder,
+            folder: folder,
             pinned: _pinned,
             paper: _paper,
             updatedAt: now)
@@ -47,7 +52,7 @@ extension _NoteSave on _NoteEditPageState {
             title: _titleCtl.text.trim(),
             content: _bodyCtl.text,
             kind: _kind,
-            folder: _folder.isEmpty ? null : _folder,
+            folder: folder,
             pinned: _pinned,
             paper: _paper,
             createdAt: now,
