@@ -993,7 +993,10 @@ class _MmCanvasPainter extends CustomPainter {
     final l = layout;
     if (l == null || nodes.isEmpty) return;
 
-    // ── 连线：折线批量进同一 Path（渲染层七条之五）。
+    // ── 连线：贝塞尔批量进同一 Path（渲染层七条之五）。
+    // 横向树画法（真机 6113 实锤：旧纵向阶梯公式套横向布局＝斜穿节点＋
+    // 子低于父时折点越界出悬空 V）：从父**侧边**中点水平切线出弧、进子
+    // 侧边中点，两端切线全水平——子在上/下/平任何方位都平滑不穿节点。
     // 父子连线只在**两端都可见**时画（裁剪口径：视口外节点不进 draw 列表，
     // 单端可见的边也一并省略——树布局下行相邻，端点成对裁剪足够）。
     final byId = {for (final n in nodes) n.id!: n};
@@ -1003,10 +1006,12 @@ class _MmCanvasPainter extends CustomPainter {
       if (p == null || !byId.containsKey(p)) continue;
       final a = _nodeRect(byId[p]!);
       final b = _nodeRect(n);
-      path.moveTo(a.center.dx, a.bottom);
-      path.lineTo(a.center.dx, a.center.dy + (b.top - a.center.dy) / 2);
-      path.lineTo(b.center.dx, b.center.dy + (b.top - a.center.dy) / 2);
-      path.lineTo(b.center.dx, b.top);
+      final childLeft = (l.assignedSides[n.id!] ?? 'r') == 'l';
+      final ox = childLeft ? a.left : a.right;
+      final ix = childLeft ? b.right : b.left;
+      final midX = (ox + ix) / 2;
+      path.moveTo(ox, a.center.dy);
+      path.cubicTo(midX, a.center.dy, midX, b.center.dy, ix, b.center.dy);
     }
     canvas.drawPath(
         path, Paint()..color = edge..style = PaintingStyle.stroke..strokeWidth = 1.2);
@@ -1067,5 +1072,8 @@ class _MmCanvasPainter extends CustomPainter {
       old.pan != pan ||
       old.selectedId != selectedId ||
       !identical(old.layout, layout) ||
-      !identical(old.nodes, nodes);
+      !identical(old.nodes, nodes) ||
+      // 拖拽偏移走旁路 map（build 侧每次新字面量）——漏比＝拖拽帧不重画。
+      !identical(old.dxs, dxs) ||
+      !identical(old.dys, dys);
 }
