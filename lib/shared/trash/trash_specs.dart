@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/presentation/habit_providers.dart';
+import '../../features/journal/data/journal_dao.dart';
 import '../../features/journal/data/note_dao.dart';
 import '../../features/journal/presentation/journal_providers.dart';
 import '../../features/items/data/items_repository.dart';
@@ -338,6 +339,42 @@ final List<TrashKindSpec> trashKindSpecs = [
     },
     refresh: (ref) => ref.read(itemsTickProvider.notifier).state++,
     purgeExpired: (db, keepDays) => ItemsRepository(db).purgeExpiredItems(keepDays),
+  ),
+
+  // ==================== 日记（语义断链批 2026-10-12 · 第八类） ====================
+  TrashKindSpec(
+    kind: TrashKind.journal,
+    refreshGroup: 'journal',
+    signals: [journalsProvider],
+    rows: (db) async {
+      final out = <TrashItem>[];
+      for (final e in await JournalDao(db).trash()) {
+        // 副信息＝日期（同日多篇由篇数副行区辨）；标题＝正文预览（篇目无标题列）。
+        final preview = e.plainBody.trim();
+        final two = (int v) => v.toString().padLeft(2, '0');
+        final clipped =
+            preview.length <= 24 ? preview : '${preview.substring(0, 24)}…';
+        out.add(TrashItem(
+          kind: TrashKind.journal,
+          rawId: e.id!,
+          title: clipped.isEmpty ? '只打了心情卡' : clipped.replaceAll('\n', ' '),
+          deletedAt: e.deletedAt,
+          subs: [
+            '${e.day.year}-${two(e.day.month)}-${two(e.day.day)}'
+                '${e.templateId != null ? ' · 结构化' : ''}',
+          ],
+          cascadeNotes: '连带清 分节行（恢复可回；图片文件保留）',
+          src: e,
+        ));
+      }
+      return out;
+    },
+    restore: (ref, it) =>
+        ref.read(journalRepositoryProvider).restoreJournal(it.rawId as int),
+    purge: (ref, it) =>
+        ref.read(journalRepositoryProvider).purgeJournal(it.rawId as int),
+    refresh: (ref) => ref.invalidate(journalsProvider),
+    purgeExpired: (db, keepDays) => JournalDao(db).purgeExpired(keepDays),
   ),
 ];
 

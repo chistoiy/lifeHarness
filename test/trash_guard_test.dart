@@ -141,8 +141,8 @@ void main() {
             .readAsStringSync();
     expect(mine.contains("ValueKey('entry-trash')"), isTrue,
         reason: '「我的」页缺同级回收站入口行');
-    expect(mine.contains('七类删除内容 · 保留期内可恢复'), isTrue,
-        reason: '入口副标题与屏内不一致（V1.61 物品入册后为七类）');
+    expect(mine.contains('八类删除内容 · 保留期内可恢复'), isTrue,
+        reason: '入口副标题与屏内不一致（语义断链批日记入册后为八类）');
     expect(mine.contains("'/settings/trash'"), isTrue,
         reason: '入口未指向统一屏');
     expect(recmg.contains("'/settings/trash'"), isFalse,

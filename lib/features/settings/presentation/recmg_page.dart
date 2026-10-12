@@ -33,15 +33,32 @@ class RecmgSettingsPage extends ConsumerWidget {
                         ?.name ??
                     '未设置',
                 onTap: () => showWeatherCitySheet(context, ref)),
+            // 演示残留批（2026-10-12）：原两死键按原型 p-sub-recmg 口径兑现——
+            // ①「默认新建模板」=三档循环真键（原型 cycleRecSet）；②「连续记录提醒」
+            // 原型本就是灰态展示行（b.text-slate-400 无点击）→ 摘 _soon 改展示行。
             _Row(
+                keyName: 'recmg-def-tpl',
                 title: '默认新建模板',
-                trailing: '纯文本',
-                onTap: () => _soon(context, '日记默认模板')),
+                trailing:
+                    ref.watch(settingsControllerProvider).journalDefaultTpl,
+                onTap: () async {
+                  const cycles = ['纯文本', 'KPT 复盘', '晨间三问'];
+                  final cur = ref.read(settingsControllerProvider)
+                      .journalDefaultTpl;
+                  final next = cycles[(cycles.indexOf(cur) + 1) % cycles.length];
+                  await ref
+                      .read(settingsControllerProvider.notifier)
+                      .setJournalDefaultTpl(next);
+                  if (context.mounted) {
+                    AppToast.show(context,
+                        next == '纯文本' ? '新建日记默认自由书写' : '新建日记默认套用「$next」',
+                        ms: 1400);
+                  }
+                }),
             _Row(
                 title: '连续记录提醒',
                 trailing: '断签 2 天时提醒',
-                last: true,
-                onTap: () => _soon(context, '连续记录提醒')),
+                last: true),
           ]),
           const _Label('笔记'),
           _Card(children: [
@@ -213,13 +230,16 @@ class _Row extends StatelessWidget {
       required this.title,
       required this.trailing,
       this.last = false,
-      required this.onTap});
+      this.onTap});
 
   final String? keyName;
   final String title;
   final String trailing;
   final bool last;
-  final VoidCallback onTap;
+
+  /// 演示残留批：null=灰态展示行（原型 b.text-slate-400 无点击）——InkWell 置空、
+  /// 去掉「›」引导符（避免看得见点不通的假键感）。
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -240,7 +260,8 @@ class _Row extends StatelessWidget {
                           fontSize: 13.5, fontWeight: FontWeight.w700))),
               Text(trailing,
                   style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
-              const Text(' ›', style: TextStyle(color: Colors.grey)),
+              if (onTap != null)
+                const Text(' ›', style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),

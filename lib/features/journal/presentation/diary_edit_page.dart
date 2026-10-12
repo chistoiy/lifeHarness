@@ -16,6 +16,7 @@ import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import 'journal_providers.dart';
 import '../../../shared/widgets/image_attach.dart';
+import '../../../shared/widgets/ui_kit.dart' show AppToast;
 
 /// 路由参数：day=新建当天的第 N+1 篇；entryId=编辑既有某一篇（V1.28 一天多篇）。
 class DiaryEditArg {
@@ -45,6 +46,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   int? _mood;
   JournalEntry? _existing;
   bool _dirty = false;
+  bool _saving = false; // 修复批（评估件 #5）：保存防重入，双击不出重篇
   Timer? _debounce;
 
   /// 当前模板（自由书写=单富文本；structured=分节卡·分节仍纯文本）。
@@ -82,6 +84,12 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       e = await repo.open(widget.entryId!); // 含分节装配
     }
     if (!mounted) return;
+    // 修复批（评估件 #1·P0）：既有结构化篇先按 templateId 回填模板名与分节定义
+    // 再 setState（旧实现置空分节并注释「名称由列表刷新回填」，但全文件无回填，
+    // 重开必在 _structuredBody 取标题处越界）。
+    final defs =
+        (e == null || e.sections.isEmpty) ? null : await _tplDefsFor(e);
+    if (!mounted) return;
     setState(() {
       _existing = e;
       _mood = e?.mood;
@@ -89,22 +97,62 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       _wxMax = e?.tempMax;
       _wxMin = e?.tempMin;
       _wxManual = e?.weatherManual ?? false;
-      if (e != null && e.sections.isNotEmpty) {
+      if (defs != null) {
         _applySections(
-            e.sections.map((s) => TemplateSection(title: s.title)).toList(),
-            bodies: e.sections.map((s) => s.body).toList());
+            defs.$2, bodies: e!.sections.map((s) => s.body).toList());
         _tpl = DiaryTemplate(
-            id: e.templateId, name: '模板', sections: const []); // 名称由列表刷新回填
+            id: e.templateId, name: defs.$1, sections: defs.$2);
       }
     });
     _rebuildRich(e == null || e.kind != 'rich'
         ? _seedRichFromPlain(e)
         : e.content);
+    // 演示残留批（2026-10-12）：设置·记录管理「默认新建模板」= 新建时预选。
+    // '纯文本'=维持自由书写；其余按名查模板（查无/无分节=回落，界面不出空模板）。
+    // _pickTemplate 自带迁移防抖与 setState，此处无旧文不会误标脏。
+    if (e == null) {
+      final want = ref.read(settingsControllerProvider).journalDefaultTpl;
+      if (want != '纯文本') {
+        final tpls = await ref.read(diaryTemplateDaoProvider).list();
+        for (final t in tpls) {
+          if (t.name == want && t.sections.isNotEmpty) {
+            _pickTemplate(t);
+            break;
+          }
+        }
+      }
+    }
     if (e != null && e.id != null) {
       await repo.markViewed(e.id!);
-      ref.invalidate(journalsProvider);
+      // 语义断链批 #26：回望计数单篇补丁（原整表 invalidate·每次打开全量重拉）。
+      ref.read(journalsProvider.notifier).patch(e.copyWith(viewCount: e.viewCount + 1));
     }
     _ensureTodayWeather();
+  }
+
+  /// 既有结构化篇的分节定义解析（修复批 #1）：优先按 templateId 查 DAO 模板
+  /// （回填真名与占位）；查无（模板已删/被改）或节数对不上 → 以既有篇存储分节补齐，
+  /// 保证返回 defs.length == e.sections.length（_secCtrls 与 _tpl.sections
+  /// 等长不变量由此建立，取标题/占位处不再越界）。
+  Future<(String, List<TemplateSection>)> _tplDefsFor(JournalEntry e) async {
+    final stored =
+        e.sections.map((s) => TemplateSection(title: s.title)).toList();
+    final tid = e.templateId;
+    if (tid != null) {
+      final tpls = await ref.read(diaryTemplateDaoProvider).list();
+      for (final t in tpls) {
+        if (t.id == tid && t.sections.isNotEmpty) {
+          return (
+            t.name,
+            [
+              for (var i = 0; i < stored.length; i++)
+                i < t.sections.length ? t.sections[i] : stored[i],
+            ],
+          );
+        }
+      }
+    }
+    return ('模板', stored);
   }
 
   /// 批2e：写日记当天自动抓一次天气（城市未设置/已手动/已有快照=跳过；
@@ -127,10 +175,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           .read(journalRepositoryProvider)
           .attachWeather(id, code: w.code, tmax: w.tmax, tmin: w.tmin);
       if (!mounted) return;
-      ref.invalidate(journalsProvider);
-    } else {
-      await _persist(notify: false); // 新草稿：随首次落库带快照
+      // #26：天气快照单篇补丁（原整表 invalidate）。
+      ref.read(journalsProvider.notifier).patch(_existing!.copyWith(
+          weatherCode: w.code, tempMax: w.tmax, tempMin: w.tmin));
     }
+    // 修复批（评估件 #6·拍板「打开不落库」）：新草稿天气快照仅存页内态，
+    // 随首次落库（输入自动存/退出 flush/手动保存）一并写入——
+    // 不再打开编辑页即建空篇（列表幽灵篇源头）。
   }
 
   /// chip 点按：手动覆盖七选项（选后本篇不再自动更新）/ 恢复自动。
@@ -151,17 +202,20 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     if (id != null) {
       await ref.read(journalRepositoryProvider).attachWeather(id,
           code: _wxCode, tmax: _wxMax, tmin: _wxMin, manual: _wxManual);
+      // #26：手动覆盖单篇补丁；无 id（新草稿）走 _persist 落库，列表尚无该篇不需补。
+      ref.read(journalsProvider.notifier).patch(_existing!.copyWith(
+          weatherCode: _wxCode,
+          tempMax: _wxMax,
+          tempMin: _wxMin,
+          weatherManual: _wxManual));
     } else {
       await _persist(notify: false);
     }
     if (!mounted) return;
-    ref.invalidate(journalsProvider);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text(
-              r.restore ? '已恢复自动获取' : '本篇天气已手动设置 · 不再自动更新'),
-          duration: const Duration(milliseconds: 1300)));
+    // UI/UX批（2026-10-12）：裸 SnackBar → AppToast 统一口径（下同，全文件共 6 处）。
+    AppToast.show(context,
+        r.restore ? '已恢复自动获取' : '本篇天气已手动设置 · 不再自动更新',
+        ms: 1300);
     if (r.restore) _ensureTodayWeather();
   }
 
@@ -197,7 +251,6 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     super.dispose();
   }
 
-  /// 应用模板：structured=生成分节控制器；自由书写=回富文本单区（内容保留）。
   void _applySections(List<TemplateSection> secs, {List<String>? bodies}) {
     for (final c in _secCtrls) {
       c.dispose();
@@ -208,18 +261,54 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     ];
   }
 
+  /// 应用模板：structured=生成分节控制器；自由书写=回富文本单区。
+  /// 修复批（评估件 #4·拍板「旧文并入」）：切模板不弃稿——
+  /// 结构化→结构化按节顺序搬（溢出非空节并入末节）；→自由书写合并为一段替换富文本
+  /// （替换式回填：往返切换不重复叠加）；自由书写→结构化：富文本纯文进首节。
+  /// 有迁移即标脏走既有防抖自动存。
   void _pickTemplate(DiaryTemplate t) {
-    setState(() {
-      _tpl = t;
-      if (t.structured) {
-        _applySections(t.sections);
-      } else {
-        for (final c in _secCtrls) {
-          c.dispose();
+    var migrated = false;
+    final oldTexts = [for (final c in _secCtrls) c.text];
+    _tpl = t;
+    if (t.structured) {
+      final bodies = List<String>.filled(t.sections.length, '');
+      if (oldTexts.isNotEmpty) {
+        for (var i = 0; i < oldTexts.length; i++) {
+          if (oldTexts[i].trim().isEmpty) continue;
+          migrated = true;
+          if (i < bodies.length) {
+            bodies[i] = oldTexts[i];
+          } else {
+            bodies[bodies.length - 1] = bodies[bodies.length - 1].isEmpty
+                ? oldTexts[i]
+                : '${bodies[bodies.length - 1]}\n${oldTexts[i]}';
+          }
         }
-        _secCtrls = const [];
+      } else {
+        final plain = _richCtl?.document.toPlainText().trim() ?? '';
+        if (plain.isNotEmpty) {
+          bodies[0] = plain;
+          migrated = true;
+        }
       }
-    });
+      _applySections(t.sections, bodies: bodies);
+    } else {
+      final merged = oldTexts.where((s) => s.trim().isNotEmpty).join('\n');
+      for (final c in _secCtrls) {
+        c.dispose();
+      }
+      _secCtrls = const [];
+      if (merged.isNotEmpty) {
+        migrated = true;
+        _rebuildRich('$merged\n');
+      }
+    }
+    if (migrated) {
+      _dirty = true;
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 900), _autoSave);
+    }
+    setState(() {});
   }
 
   /// 模板管理底部弹层（原型 sheetDiaryTpl）：应用/删除/＋新建。
@@ -459,9 +548,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                                       : secPh[i].text.trim()),
                         ];
                         if (name.isEmpty || secs.isEmpty) {
-                          ScaffoldMessenger.of(bc2).showSnackBar(const SnackBar(
-                              content: Text('请填写模板名称与至少一个分节'),
-                              duration: Duration(milliseconds: 1400)));
+                          AppToast.show(bc2, '请填写模板名称与至少一个分节',
+                              ms: 1400);
                           return;
                         }
                         final id = await dao
@@ -469,12 +557,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                         if (!bc2.mounted) return;
                         Navigator.of(bc2).pop(true);
                         if (bc2.mounted) {
-                          ScaffoldMessenger.of(bc2)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(SnackBar(
-                                content: Text('模板已创建 · $name'),
-                                duration:
-                                    const Duration(milliseconds: 1400)));
+                          AppToast.show(bc2, '模板已创建 · $name', ms: 1400);
                         }
                         // 直接应用新模板
                         final all = await dao.list();
@@ -509,7 +592,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     return null;
   }
 
-  /// 轮13：删除本篇（确认弹层；分节随删·图片文件保留应用目录）。
+  /// 轮13 → 语义断链批（2026-10-12）：删除改进回收站（第八类），文案同步。
+  /// 分节随篇保留（恢复可回）；图片文件保留应用目录。
   Future<void> _confirmDelete() async {
     final id = _existing?.id;
     if (id == null) return;
@@ -517,7 +601,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
       context: context,
       builder: (bc) => AlertDialog(
         title: const Text('删除这篇日记？'),
-        content: const Text('删除后不可恢复。'),
+        content: const Text('删除后进回收站，可随时恢复。'),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(bc).pop(false),
@@ -536,11 +620,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     await ref.read(journalRepositoryProvider).remove(id);
     if (!mounted) return;
     ref.invalidate(journalsProvider);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-          content: Text('日记已删除'),
-          duration: Duration(milliseconds: 1400)));
+    AppToast.show(context, '已删除 · 回收站可恢复', ms: 1400);
     Navigator.of(context).pop();
   }
 
@@ -606,13 +686,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   Future<JournalEntry> _persist({bool notify = true}) async {
     final repo = ref.read(journalRepositoryProvider);
+    final titles = _secTitles(); // 修复批 #1：标题一律带回落（模板/既有篇/占位）
     final secs = [
       for (var i = 0; i < _secCtrls.length; i++)
-        DiarySection(
-            title: i < _tpl.sections.length
-                ? _tpl.sections[i].title
-                : '分节 ${i + 1}',
-            body: _secCtrls[i].text),
+        DiarySection(title: titles[i], body: _secCtrls[i].text),
     ];
     final saved = await repo.save(JournalEntry(
       id: _existing?.id,
@@ -654,20 +731,47 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     return created;
   }
 
-  Future<void> _save() async {
-    final entry = await _persist();
-    final n = await _syncTodoLines(entry.todoLines());
-    _dirty = false;
-    if (!mounted) return;
-    final head = entry.structured
-        ? '日记已保存 · ${_tpl.name}（${entry.sections.length} 节）'
-        : '日记已保存';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text(n > 0 ? '$head · ☐ 待办已同步（$n 条）' : head),
-          duration: const Duration(milliseconds: 1600)));
-    Navigator.of(context).pop();
+  /// 保存钮（manual=true）与返回拦截共用出口：flush 防抖尾稿 → 落库 → ☐ 同步 → 退。
+  /// 修复批（评估件 #3 退出不保尾 + #5 防重入）：对齐笔记编辑页批3 同款；
+  /// 空页点保存不落空篇（评估件 #6 同源）。
+  Future<void> _save() => _saveAndExit(manual: true);
+
+  bool get _hasInput =>
+      _mood != null ||
+      _secCtrls.any((c) => c.text.trim().isNotEmpty) ||
+      (_richCtl?.document.toPlainText().trim().isNotEmpty ?? false);
+
+  Future<void> _saveAndExit({bool manual = false}) async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      if (manual && _existing?.id == null && !_dirty && !_hasInput) {
+        if (!mounted) return;
+        Navigator.of(context).pop(); // 空页保存=直接退，不建幽灵篇
+        return;
+      }
+      _debounce?.cancel();
+      if (manual || _dirty) {
+        final entry = await _persist(notify: true);
+        final n = await _syncTodoLines(entry.todoLines());
+        _dirty = false;
+        if (!mounted) return;
+        if (manual) {
+          final head = entry.structured
+              ? '日记已保存 · ${_tpl.name}（${entry.sections.length} 节）'
+              : '日记已保存';
+          AppToast.show(
+              context, n > 0 ? '$head · ☐ 待办已同步（$n 条）' : head);
+        } else if (n > 0) {
+          AppToast.show(context, '已自动保存 · ☐ 待办已同步');
+        }
+      }
+      if (!mounted) return;
+      // canPop=false 只拦系统返回（maybePop）；页内 pop 为强退，不再回环。
+      Navigator.of(context).pop();
+    } finally {
+      _saving = false;
+    }
   }
 
   /* ---------- 批2b · 富文本（与笔记 rich 同构·note_edit_page 同款手法） ---------- */
@@ -791,9 +895,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   /* ---------- 批4-B · AI 反思草稿（journal.reflect 能力点接线） ---------- */
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 1600)));
+    AppToast.show(context, msg);
   }
 
   /// 各节标题（编辑既有篇时 _tpl.sections 可能为空，回落既有篇/占位名）。
@@ -896,7 +998,15 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
     final events = ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[];
 
-    return Scaffold(
+    return PopScope(
+      // 修复批（评估件 #3）：退出拦截 flush 尾稿（对齐笔记编辑页批3 同款）。
+      // canPop=false 只拦系统返回（maybePop → _saveAndExit flush 后强退）；
+      // 页内 pop（保存钮/删除后退出）为强退，直接真退不回环。
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _saveAndExit();
+      },
+      child: Scaffold(
       // 轮12-6/8：头部仅返回钮 + 居中日期周几（无标题/篇序/字数/保存态/搜索）
       appBar: AppBar(
         title: Text(_headerDate,
@@ -952,6 +1062,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 : _structuredBody(context, tokens, scheme, todos, events),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1038,6 +1149,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   /// 结构化模板：分节卡 ListView（分节仍纯文本）。
   Widget _structuredBody(BuildContext context, tokens, scheme,
       List<Todo> todos, List<CalEvent> events) {
+    final titles = _secTitles(); // 修复批 #1：带回落统一取，不裸下标
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
       children: [
@@ -1059,7 +1171,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-                  child: Text(_tpl.sections[i].title,
+                  child: Text(titles[i],
                       style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w800,
@@ -1076,10 +1188,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
-                      hintText:
-                          _tpl.sections[i].placeholder ?? '写点什么…',
+                      hintText: i < _tpl.sections.length
+                          ? (_tpl.sections[i].placeholder ?? '写点什么…')
+                          : '写点什么…',
                     ),
-                    onChanged: (_) => setState(() => _dirty = true),
+                    // 修复批（评估件 #2）：结构化分节同走防抖自动存
+                    // （旧实现只置脏不排 Timer，「输入即存」在结构化模式失效）。
+                    onChanged: _onChanged,
                   ),
                 ),
               ],
@@ -1248,11 +1363,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   }
 
   void _soon(String what) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-          content: Text('$what · 敬请期待'),
-          duration: const Duration(milliseconds: 1500)));
+    AppToast.show(context, '$what · 敬请期待', ms: 1500);
   }
 
   static String _two(int v) => v.toString().padLeft(2, '0');

@@ -164,6 +164,24 @@ abstract class _ReadRepoBase {
     orderBy: 'created_at ASC',
   )).map(BookQuote.fromRow).toList();
 
+  /// 语义断链批（L5 · 2026-10-12）：按自然日分组的在库摘录（日记「本页关联」块用）。
+  /// 值＝当日创建的摘录（新→旧）＋所属书名（显示侧免二跳）。
+  Future<Map<int, List<({BookQuote q, String book})>>> quotesGroupedByDay() async {
+    final quotes = await allQuotes();
+    final books = {for (final b in await allBooks()) b.id: b.title};
+    final out = <int, List<({BookQuote q, String book})>>{};
+    DateTime dayStart(DateTime d) => DateTime(d.year, d.month, d.day);
+    for (final q in quotes) {
+      // allQuotes ASC → 倒序插入，组内新→旧（与日记列表同序口径）。
+      final key = dayStart(
+              DateTime.fromMillisecondsSinceEpoch(q.createdAt))
+          .millisecondsSinceEpoch;
+      out.putIfAbsent(key, () => []).insert(
+          0, (q: q, book: books[q.bookId] ?? ''));
+    }
+    return out;
+  }
+
   // ---- 书架资料字典（§3.4 五类 CRUD · 改名事务内回写 books）----
 
   Future<List<DictEntry>> dictOf(String kind) async => (await db.query(

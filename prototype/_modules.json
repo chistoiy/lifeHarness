@@ -1,6 +1,6 @@
 {
  "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。 【size/hash 两列的口径与盲区（2026-10-05 实测）】size＝`tools/pslice.js` 取块字符数，随内容变、可信；hash＝登记时写的 md5 前 8 位，但**算法不统一**：255 条里 146 条可用「pslice 块 md5[:8]」复现、122 条 size 相同而 hash 复现不了（登记侧块边界/归一不同）、34 条 size 已随内容漂移、380 处登记的块在文件里已不存在（越权副本删除所致）。`tools/protogate.py` 只校验归属/登记/别名/勿复活。【2026-10-06 已收口】统一口径＝`tools/proto_registry.js`（块＝pslice 口径：外层块**不跳过**内层 id，页内弹层照收；size＝块字符数；hash＝块 md5[:8]），已按此重算全表并剪掉块已不存在的登记（256→243 屏 · 682→305 file 条目 · 全部可复现）；`--check` 已接进 `tools/doclint.py`，改过原型屏后不重算即红灯（篡改一处 hash / 屏改 id 两刀变异各自判红）。改完原型跑：`node tools/proto_registry.js --write`。",
- "updated": "2026-10-07",
+ "updated": "2026-10-11",
  "gateMode": "strict",
  "cutPolicy": {
   "placeholder": false,
@@ -183,7 +183,7 @@
   {
    "id": "journal",
    "name": "日记·笔记",
-   "file": null,
+   "file": "index-journal.html",
    "req": "V1.14/M1",
    "status": "current",
    "dev": "delivered",
@@ -192,7 +192,7 @@
     "笔记",
     "写日记"
    ],
-   "rep": "p-diaryEdit"
+   "rep": "p-diaryHome"
   },
   {
    "id": "settings",
@@ -463,8 +463,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 131,
-     "hash": "114d7fbd"
+     "size": 129,
+     "hash": "d0953017"
     }
    }
   },
@@ -477,8 +477,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 128,
-     "hash": "900559bf"
+     "size": 126,
+     "hash": "a2a00d72"
     }
    }
   },
@@ -561,8 +561,8 @@
    "status": "shared",
    "files": {
     "index-ledger.html": {
-     "size": 8019,
-     "hash": "b840e736"
+     "size": 7928,
+     "hash": "0e7f8643"
     }
    }
   },
@@ -575,8 +575,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 910,
-     "hash": "28c2667a"
+     "size": 901,
+     "hash": "58032fc2"
     }
    }
   },
@@ -589,8 +589,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2346,
-     "hash": "fe039520"
+     "size": 2319,
+     "hash": "74ddb453"
     }
    }
   },
@@ -603,8 +603,8 @@
    "status": "shared",
    "files": {
     "index-bookshelf.html": {
-     "size": 113,
-     "hash": "437c2d7d"
+     "size": 111,
+     "hash": "de396620"
     }
    }
   },
@@ -645,8 +645,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 113,
-     "hash": "ed50d42f"
+     "size": 111,
+     "hash": "20b9a154"
     }
    }
   },
@@ -659,8 +659,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 396,
-     "hash": "26173406"
+     "size": 392,
+     "hash": "2b272d05"
     }
    }
   },
@@ -673,8 +673,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 3847,
-     "hash": "6166448e"
+     "size": 3809,
+     "hash": "9ed93487"
     }
    }
   },
@@ -687,8 +687,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 496,
-     "hash": "6e6bd32d"
+     "size": 489,
+     "hash": "cb88f16f"
     }
    }
   },
@@ -743,8 +743,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1320,
-     "hash": "0715c32a"
+     "size": 1307,
+     "hash": "4a4285e5"
     }
    }
   },
@@ -799,8 +799,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 119,
-     "hash": "51335914"
+     "size": 117,
+     "hash": "b1462474"
     }
    }
   },
@@ -813,8 +813,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 3150,
-     "hash": "1e976024"
+     "size": 3108,
+     "hash": "08eac240"
     }
    }
   },
@@ -827,8 +827,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 523,
-     "hash": "8f0767b1"
+     "size": 517,
+     "hash": "09527502"
     }
    }
   },
@@ -841,8 +841,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1661,
-     "hash": "d2d4dc63"
+     "size": 1639,
+     "hash": "c7adc9e7"
     }
    }
   },
@@ -855,8 +855,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 127,
-     "hash": "e43ee2de"
+     "size": 125,
+     "hash": "6c71aaac"
     }
    }
   },
@@ -864,11 +864,11 @@
    "id": "p-diaryEdit",
    "kind": "screen",
    "title": "写日记",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 2625,
      "hash": "bb680802"
     }
@@ -883,8 +883,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1188,
-     "hash": "2b7adaf6"
+     "size": 1174,
+     "hash": "f3463912"
     }
    }
   },
@@ -897,8 +897,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 1659,
-     "hash": "995828c2"
+     "size": 1639,
+     "hash": "553e00c4"
     }
    }
   },
@@ -911,8 +911,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 128,
-     "hash": "bb8497cb"
+     "size": 126,
+     "hash": "2ed108a8"
     }
    }
   },
@@ -925,8 +925,8 @@
    "status": "shared",
    "files": {
     "index-ledger.html": {
-     "size": 4296,
-     "hash": "932a1e93"
+     "size": 4251,
+     "hash": "4bd8cb21"
     }
    }
   },
@@ -939,8 +939,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 121,
-     "hash": "af5f9db0"
+     "size": 119,
+     "hash": "11857298"
     }
    }
   },
@@ -953,8 +953,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1366,
-     "hash": "26d7a3f5"
+     "size": 1351,
+     "hash": "82ae9cd6"
     }
    }
   },
@@ -967,8 +967,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 196,
-     "hash": "396f44e9"
+     "size": 193,
+     "hash": "b150348f"
     }
    }
   },
@@ -981,8 +981,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1405,
-     "hash": "c912b78a"
+     "size": 1386,
+     "hash": "954cd67f"
     }
    }
   },
@@ -995,8 +995,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 3308,
-     "hash": "68a9fdb0"
+     "size": 3284,
+     "hash": "a60bf496"
     }
    }
   },
@@ -1023,8 +1023,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 114,
-     "hash": "8bbeda17"
+     "size": 112,
+     "hash": "4a6f4835"
     }
    }
   },
@@ -1037,8 +1037,8 @@
    "status": "shared",
    "files": {
     "index_habitcheck.html": {
-     "size": 3190,
-     "hash": "91762af1"
+     "size": 3158,
+     "hash": "bca2d6da"
     }
    }
   },
@@ -1051,8 +1051,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 810,
-     "hash": "d9242238"
+     "size": 802,
+     "hash": "8d23b191"
     }
    }
   },
@@ -1065,8 +1065,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 5785,
-     "hash": "ac8434f4"
+     "size": 5735,
+     "hash": "6fa7ced5"
     }
    }
   },
@@ -1079,8 +1079,8 @@
    "status": "shared",
    "files": {
     "index-health.html": {
-     "size": 6437,
-     "hash": "27340da7"
+     "size": 6365,
+     "hash": "65e4fca2"
     }
    }
   },
@@ -1093,8 +1093,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 3543,
-     "hash": "f8636820"
+     "size": 3521,
+     "hash": "501c2330"
     }
    }
   },
@@ -1107,8 +1107,8 @@
    "status": "shared",
    "files": {
     "index-bookshelf.html": {
-     "size": 6418,
-     "hash": "ef80a320"
+     "size": 6346,
+     "hash": "27b36ae3"
     }
    }
   },
@@ -1135,8 +1135,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 121,
-     "hash": "da7b88aa"
+     "size": 119,
+     "hash": "c1804df8"
     }
    }
   },
@@ -1149,8 +1149,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 3680,
-     "hash": "0966a4b8"
+     "size": 3639,
+     "hash": "09e5df87"
     }
    }
   },
@@ -1163,8 +1163,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1406,
-     "hash": "b3fc94b7"
+     "size": 1389,
+     "hash": "ec5fde49"
     }
    }
   },
@@ -1177,8 +1177,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 117,
-     "hash": "28fe9b2c"
+     "size": 115,
+     "hash": "c281cd6d"
     }
    }
   },
@@ -1191,8 +1191,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1811,
-     "hash": "d774bcf9"
+     "size": 1782,
+     "hash": "df20479e"
     }
    }
   },
@@ -1205,8 +1205,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 5239,
-     "hash": "44f346c0"
+     "size": 5182,
+     "hash": "ae9e35bc"
     }
    }
   },
@@ -1233,8 +1233,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 127,
-     "hash": "b4a73fb1"
+     "size": 125,
+     "hash": "30df950f"
     }
    }
   },
@@ -1247,8 +1247,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 1310,
-     "hash": "cfcf9166"
+     "size": 1301,
+     "hash": "cd8ebd1f"
     }
    }
   },
@@ -1303,8 +1303,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1963,
-     "hash": "c987850e"
+     "size": 1940,
+     "hash": "2a2dd0ca"
     }
    }
   },
@@ -1317,8 +1317,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1826,
-     "hash": "4b23bf6e"
+     "size": 1804,
+     "hash": "5676dd5c"
     }
    }
   },
@@ -1331,8 +1331,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 11971,
-     "hash": "86c25578"
+     "size": 11874,
+     "hash": "2123d922"
     }
    }
   },
@@ -1345,8 +1345,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 918,
-     "hash": "ba57164f"
+     "size": 908,
+     "hash": "35870a68"
     }
    }
   },
@@ -1359,8 +1359,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 352,
-     "hash": "fff2c163"
+     "size": 348,
+     "hash": "608a2a6d"
     }
    }
   },
@@ -1387,8 +1387,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 230,
-     "hash": "8f0d323a"
+     "size": 227,
+     "hash": "17886e61"
     }
    }
   },
@@ -1401,8 +1401,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 3851,
-     "hash": "15378651"
+     "size": 3804,
+     "hash": "fdc5a331"
     }
    }
   },
@@ -1415,8 +1415,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 2732,
-     "hash": "fa458391"
+     "size": 2713,
+     "hash": "0eb28ace"
     }
    }
   },
@@ -1429,8 +1429,8 @@
    "status": "shared",
    "files": {
     "index-bookshelf.html": {
-     "size": 5988,
-     "hash": "23bfe430"
+     "size": 3843,
+     "hash": "855fc5d8"
     }
    }
   },
@@ -1443,8 +1443,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 127,
-     "hash": "3dbea0b4"
+     "size": 125,
+     "hash": "b6b7a9e5"
     }
    }
   },
@@ -1457,8 +1457,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1709,
-     "hash": "f342937a"
+     "size": 1698,
+     "hash": "2a7dd355"
     }
    }
   },
@@ -1471,8 +1471,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 1880,
-     "hash": "e93d3216"
+     "size": 1859,
+     "hash": "c1a488c3"
     }
    }
   },
@@ -1695,8 +1695,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2594,
-     "hash": "a6c2cd5a"
+     "size": 2567,
+     "hash": "4360f0fe"
     }
    }
   },
@@ -1709,8 +1709,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 2396,
-     "hash": "d43c3d60"
+     "size": 2369,
+     "hash": "abfca132"
     }
    }
   },
@@ -1723,8 +1723,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 112,
-     "hash": "833f1f06"
+     "size": 110,
+     "hash": "28e2226b"
     }
    }
   },
@@ -1737,8 +1737,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 820,
-     "hash": "4a2f1707"
+     "size": 811,
+     "hash": "0b7fcdca"
     }
    }
   },
@@ -1765,8 +1765,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 127,
-     "hash": "e7360a2c"
+     "size": 125,
+     "hash": "c96f1f8b"
     }
    }
   },
@@ -1779,8 +1779,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 4710,
-     "hash": "105fd9d5"
+     "size": 4659,
+     "hash": "5322fd57"
     }
    }
   },
@@ -1793,8 +1793,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 485,
-     "hash": "aacf78e5"
+     "size": 478,
+     "hash": "ea3104de"
     }
    }
   },
@@ -1841,8 +1841,8 @@
      "hash": "1ad213c9"
     },
     "index-ledger.html": {
-     "size": 1251,
-     "hash": "b873c739"
+     "size": 1239,
+     "hash": "1ad213c9"
     }
    },
    "inferred": true
@@ -1878,8 +1878,8 @@
      "hash": "da9f1430"
     },
     "index-day_aim__goods.html": {
-     "size": 3010,
-     "hash": "646340e5"
+     "size": 2982,
+     "hash": "4aab3e2b"
     }
    }
   },
@@ -1898,8 +1898,8 @@
      "hash": "2b57ea42"
     },
     "index-bookshelf.html": {
-     "size": 2309,
-     "hash": "70349886"
+     "size": 2280,
+     "hash": "2b57ea42"
     }
    }
   },
@@ -1954,8 +1954,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1971,
-     "hash": "4388d469"
+     "size": 1954,
+     "hash": "b214c614"
     }
    }
   },
@@ -1996,8 +1996,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 546,
-     "hash": "84e984f1"
+     "size": 539,
+     "hash": "21907203"
     }
    }
   },
@@ -2044,8 +2044,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 785,
-     "hash": "1c925ecd"
+     "size": 777,
+     "hash": "ed4f74d9"
     }
    }
   },
@@ -2058,8 +2058,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1361,
-     "hash": "42dd541a"
+     "size": 1347,
+     "hash": "ed43cb09"
     }
    }
   },
@@ -2072,8 +2072,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 877,
-     "hash": "c70e407c"
+     "size": 865,
+     "hash": "49fc9eeb"
     }
    }
   },
@@ -2086,8 +2086,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 435,
-     "hash": "cb7a2e8e"
+     "size": 429,
+     "hash": "a89a68c9"
     }
    }
   },
@@ -2100,8 +2100,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1237,
-     "hash": "ae30e6ea"
+     "size": 1226,
+     "hash": "14d82883"
     }
    }
   },
@@ -2114,8 +2114,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1859,
-     "hash": "35dda1ab"
+     "size": 1846,
+     "hash": "f8870295"
     }
    }
   },
@@ -2128,8 +2128,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 4523,
-     "hash": "bb4af500"
+     "size": 4479,
+     "hash": "9a2d9650"
     }
    }
   },
@@ -2142,8 +2142,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 3911,
-     "hash": "26802e74"
+     "size": 3859,
+     "hash": "08b204fc"
     }
    }
   },
@@ -2156,8 +2156,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 606,
-     "hash": "ee0dfd63"
+     "size": 599,
+     "hash": "a225ce76"
     }
    }
   },
@@ -2170,8 +2170,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1372,
-     "hash": "6825623f"
+     "size": 1358,
+     "hash": "e168b15f"
     }
    }
   },
@@ -2184,8 +2184,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 753,
-     "hash": "030d280f"
+     "size": 744,
+     "hash": "c622bc1f"
     }
    }
   },
@@ -2198,8 +2198,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 898,
-     "hash": "54b5c9c6"
+     "size": 889,
+     "hash": "05c9d170"
     }
    }
   },
@@ -2212,8 +2212,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 965,
-     "hash": "df40a948"
+     "size": 954,
+     "hash": "accb2f2f"
     }
    }
   },
@@ -2226,8 +2226,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 862,
-     "hash": "bc63472b"
+     "size": 852,
+     "hash": "d05c10e2"
     }
    }
   },
@@ -2240,8 +2240,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1682,
-     "hash": "76c6ecb3"
+     "size": 1667,
+     "hash": "5a1ddefa"
     }
    }
   },
@@ -2254,8 +2254,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 927,
-     "hash": "158267e0"
+     "size": 917,
+     "hash": "b7911ca4"
     }
    }
   },
@@ -2268,8 +2268,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1978,
-     "hash": "755e092f"
+     "size": 1963,
+     "hash": "e9f374b7"
     }
    }
   },
@@ -2282,8 +2282,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 277,
-     "hash": "ef38e5f1"
+     "size": 275,
+     "hash": "dd5b04a6"
     }
    }
   },
@@ -2296,8 +2296,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 2157,
-     "hash": "6db190bb"
+     "size": 2138,
+     "hash": "1819381e"
     }
    }
   },
@@ -2310,8 +2310,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 919,
-     "hash": "f914eb9c"
+     "size": 909,
+     "hash": "42960985"
     }
    }
   },
@@ -2375,11 +2375,11 @@
    "id": "sheetCityPick",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 612,
      "hash": "3eb6ab20"
     }
@@ -2431,11 +2431,11 @@
    "id": "sheetDiaryFilter",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 402,
      "hash": "d8886131"
     }
@@ -2445,11 +2445,11 @@
    "id": "sheetDiaryReview",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 1602,
      "hash": "0afa3990"
     }
@@ -2459,11 +2459,11 @@
    "id": "sheetDiaryTpl",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 585,
      "hash": "2ccc021f"
     }
@@ -2473,11 +2473,11 @@
    "id": "sheetDiaryTplEdit",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 1126,
      "hash": "8e072836"
     }
@@ -2492,8 +2492,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 5117,
-     "hash": "ee353b0d"
+     "size": 5070,
+     "hash": "2ad1d75e"
     }
    }
   },
@@ -2562,8 +2562,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1175,
-     "hash": "374735a8"
+     "size": 1164,
+     "hash": "fa8de3dd"
     }
    }
   },
@@ -2576,8 +2576,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 3558,
-     "hash": "aec24b8a"
+     "size": 3509,
+     "hash": "28d928ea"
     }
    }
   },
@@ -2590,8 +2590,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 3460,
-     "hash": "78d8cba1"
+     "size": 3432,
+     "hash": "001f2083"
     }
    }
   },
@@ -2604,8 +2604,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 2047,
-     "hash": "aa087584"
+     "size": 2033,
+     "hash": "70b62970"
     }
    }
   },
@@ -2618,8 +2618,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 5038,
-     "hash": "59c7e20e"
+     "size": 4984,
+     "hash": "b86ea9d0"
     }
    }
   },
@@ -2632,8 +2632,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 1307,
-     "hash": "8989bd5e"
+     "size": 1297,
+     "hash": "e342e3f5"
     }
    }
   },
@@ -2646,8 +2646,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 1159,
-     "hash": "258e788a"
+     "size": 1149,
+     "hash": "f8847f38"
     }
    }
   },
@@ -2660,8 +2660,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 425,
-     "hash": "52c34708"
+     "size": 419,
+     "hash": "5a64d0b8"
     }
    }
   },
@@ -2674,8 +2674,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 662,
-     "hash": "25a3614f"
+     "size": 654,
+     "hash": "b11b7ed5"
     }
    }
   },
@@ -2688,8 +2688,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 889,
-     "hash": "4430718f"
+     "size": 880,
+     "hash": "e57a8720"
     }
    }
   },
@@ -2702,8 +2702,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 771,
-     "hash": "ae22eee4"
+     "size": 762,
+     "hash": "37a46eec"
     }
    }
   },
@@ -2716,8 +2716,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 663,
-     "hash": "9fb23549"
+     "size": 655,
+     "hash": "07c9037d"
     }
    }
   },
@@ -2730,8 +2730,8 @@
    "status": "exclusive",
    "files": {
     "index_habitcheck.html": {
-     "size": 1267,
-     "hash": "c7870a46"
+     "size": 1256,
+     "hash": "52e2bbd8"
     }
    }
   },
@@ -2744,8 +2744,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2722,
-     "hash": "1184cf89"
+     "size": 2708,
+     "hash": "ea4286f1"
     }
    }
   },
@@ -2758,8 +2758,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 1717,
-     "hash": "faf9a7c1"
+     "size": 1702,
+     "hash": "70a8bb1e"
     }
    }
   },
@@ -2772,8 +2772,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 934,
-     "hash": "294a57c9"
+     "size": 924,
+     "hash": "6679ca9a"
     }
    }
   },
@@ -2786,8 +2786,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 1541,
-     "hash": "1686aa61"
+     "size": 1524,
+     "hash": "1c7b6fc2"
     }
    }
   },
@@ -2800,8 +2800,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2719,
-     "hash": "298b5a02"
+     "size": 2691,
+     "hash": "022ce23a"
     }
    }
   },
@@ -2814,8 +2814,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2860,
-     "hash": "b43c6007"
+     "size": 2833,
+     "hash": "1f8d20df"
     }
    }
   },
@@ -2828,8 +2828,8 @@
    "status": "exclusive",
    "files": {
     "index-health.html": {
-     "size": 2324,
-     "hash": "8c116aba"
+     "size": 2296,
+     "hash": "a35a7596"
     }
    }
   },
@@ -2856,8 +2856,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 466,
-     "hash": "2528c61a"
+     "size": 460,
+     "hash": "52b9b108"
     }
    }
   },
@@ -2870,8 +2870,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 662,
-     "hash": "e087d2f9"
+     "size": 655,
+     "hash": "0c7e947d"
     }
    }
   },
@@ -2884,8 +2884,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1277,
-     "hash": "2bd4795c"
+     "size": 1258,
+     "hash": "ad017066"
     }
    }
   },
@@ -2898,8 +2898,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 629,
-     "hash": "15a77421"
+     "size": 622,
+     "hash": "93775951"
     }
    }
   },
@@ -2912,8 +2912,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 565,
-     "hash": "39f2b831"
+     "size": 558,
+     "hash": "db855b87"
     }
    }
   },
@@ -2926,8 +2926,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 2242,
-     "hash": "493af22f"
+     "size": 2222,
+     "hash": "02dc5411"
     }
    }
   },
@@ -2940,8 +2940,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 2123,
-     "hash": "406a6943"
+     "size": 2107,
+     "hash": "4047702e"
     }
    }
   },
@@ -2954,8 +2954,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 998,
-     "hash": "740bb8dd"
+     "size": 981,
+     "hash": "c5ae0d9c"
     }
    }
   },
@@ -2968,8 +2968,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1031,
-     "hash": "766d705d"
+     "size": 1020,
+     "hash": "22a321a1"
     }
    }
   },
@@ -2982,8 +2982,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 809,
-     "hash": "cd3f7b03"
+     "size": 797,
+     "hash": "ebf95724"
     }
    }
   },
@@ -2996,8 +2996,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 437,
-     "hash": "90e6b93d"
+     "size": 431,
+     "hash": "041ca816"
     }
    }
   },
@@ -3010,8 +3010,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 451,
-     "hash": "97818f12"
+     "size": 445,
+     "hash": "51c4b9ce"
     }
    }
   },
@@ -3024,8 +3024,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 628,
-     "hash": "bddc6e0d"
+     "size": 621,
+     "hash": "34357af1"
     }
    }
   },
@@ -3038,8 +3038,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 994,
-     "hash": "b2319937"
+     "size": 979,
+     "hash": "16b186f4"
     }
    }
   },
@@ -3052,8 +3052,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 1107,
-     "hash": "3afa374a"
+     "size": 1094,
+     "hash": "03784f47"
     }
    }
   },
@@ -3066,8 +3066,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 747,
-     "hash": "c3e9c7db"
+     "size": 735,
+     "hash": "d119164e"
     }
    }
   },
@@ -3080,8 +3080,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 802,
-     "hash": "b9742b50"
+     "size": 790,
+     "hash": "0e96079f"
     }
    }
   },
@@ -3094,8 +3094,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1440,
-     "hash": "c4d07a17"
+     "size": 1424,
+     "hash": "96251474"
     }
    }
   },
@@ -3136,8 +3136,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 601,
-     "hash": "e9448e40"
+     "size": 594,
+     "hash": "fab0e4a4"
     }
    }
   },
@@ -3164,8 +3164,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 4527,
-     "hash": "002d7137"
+     "size": 4492,
+     "hash": "b7eb8a5c"
     }
    }
   },
@@ -3242,8 +3242,8 @@
      "hash": "b6368a4c"
     },
     "index-bookshelf.html": {
-     "size": 956,
-     "hash": "ccce4702"
+     "size": 945,
+     "hash": "b6368a4c"
     }
    }
   },
@@ -3256,8 +3256,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 509,
-     "hash": "3fdc6b2c"
+     "size": 502,
+     "hash": "0e690206"
     }
    }
   },
@@ -3270,8 +3270,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1256,
-     "hash": "8eef908d"
+     "size": 1243,
+     "hash": "f4730e92"
     }
    }
   },
@@ -3284,8 +3284,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 808,
-     "hash": "71a09c17"
+     "size": 799,
+     "hash": "e75f3138"
     }
    }
   },
@@ -3298,8 +3298,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1695,
-     "hash": "e9118910"
+     "size": 1672,
+     "hash": "aef4cf44"
     }
    }
   },
@@ -3312,8 +3312,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 923,
-     "hash": "005c9d0b"
+     "size": 912,
+     "hash": "2599c986"
     }
    }
   },
@@ -3326,8 +3326,8 @@
    "status": "shared",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 1131,
-     "hash": "455927c2"
+     "size": 1120,
+     "hash": "d652eb38"
     }
    }
   },
@@ -3354,8 +3354,8 @@
    "status": "exclusive",
    "files": {
     "index-day_aim__goods.html": {
-     "size": 876,
-     "hash": "c5febc14"
+     "size": 867,
+     "hash": "3ef20975"
     }
    }
   },
@@ -3368,8 +3368,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 431,
-     "hash": "8780b49a"
+     "size": 425,
+     "hash": "8b710e4d"
     }
    }
   },
@@ -3382,8 +3382,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 834,
-     "hash": "025b3062"
+     "size": 825,
+     "hash": "54829bb1"
     }
    }
   },
@@ -3452,8 +3452,8 @@
    "status": "shared",
    "files": {
     "index-bookshelf.html": {
-     "size": 1949,
-     "hash": "a9ae8530"
+     "size": 1932,
+     "hash": "1aeefc53"
     }
    }
   },
@@ -3466,8 +3466,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 711,
-     "hash": "8d3f0cda"
+     "size": 703,
+     "hash": "e58bdfd5"
     }
    }
   },
@@ -3517,11 +3517,11 @@
    "id": "sheetWeatherPick",
    "kind": "sheet",
    "title": "",
-   "home": "index.html",
+   "home": "index-journal.html",
    "reps": [],
    "status": "shared",
    "files": {
-    "index.html": {
+    "index-journal.html": {
      "size": 673,
      "hash": "bb120148"
     }
@@ -3536,8 +3536,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1262,
-     "hash": "980ba098"
+     "size": 1252,
+     "hash": "d7468022"
     }
    }
   },
@@ -3550,8 +3550,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1252,
-     "hash": "0f68e3c1"
+     "size": 1240,
+     "hash": "75f98c8b"
     }
    }
   },
@@ -3564,8 +3564,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1217,
-     "hash": "e3945026"
+     "size": 1206,
+     "hash": "25f63087"
     }
    }
   },
@@ -3578,8 +3578,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1078,
-     "hash": "01907793"
+     "size": 1069,
+     "hash": "adc12113"
     }
    }
   },
@@ -3592,8 +3592,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 881,
-     "hash": "10d1589c"
+     "size": 874,
+     "hash": "42986c95"
     }
    }
   },
@@ -3606,8 +3606,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1128,
-     "hash": "7a3110a4"
+     "size": 1118,
+     "hash": "3893570c"
     }
    }
   },
@@ -3620,8 +3620,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 291,
-     "hash": "8e042c20"
+     "size": 289,
+     "hash": "59a83221"
     }
    }
   },
@@ -3634,8 +3634,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1643,
-     "hash": "f4a135ae"
+     "size": 1631,
+     "hash": "b0b190ce"
     }
    }
   },
@@ -3648,8 +3648,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 674,
-     "hash": "45dac8bd"
+     "size": 668,
+     "hash": "3089c8ed"
     }
    }
   },
@@ -3662,8 +3662,8 @@
    "status": "exclusive",
    "files": {
     "index-ledger.html": {
-     "size": 887,
-     "hash": "aed11b1a"
+     "size": 878,
+     "hash": "a4570c6b"
     }
    }
   },
@@ -3816,8 +3816,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1068,
-     "hash": "1d1e8401"
+     "size": 1053,
+     "hash": "6b1c0485"
     }
    }
   },
@@ -3830,8 +3830,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1001,
-     "hash": "c300acf2"
+     "size": 987,
+     "hash": "bd226e55"
     }
    }
   },
@@ -3844,8 +3844,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 870,
-     "hash": "d88e6921"
+     "size": 863,
+     "hash": "f747af09"
     }
    }
   },
@@ -3858,8 +3858,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 825,
-     "hash": "dd145b6a"
+     "size": 815,
+     "hash": "1ce0f2a1"
     }
    }
   },
@@ -3872,8 +3872,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 1217,
-     "hash": "47bb2d10"
+     "size": 1205,
+     "hash": "7efea08f"
     }
    }
   },
@@ -3886,8 +3886,8 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 442,
-     "hash": "699537bf"
+     "size": 436,
+     "hash": "5b085e40"
     }
    }
   },
@@ -3900,8 +3900,22 @@
    "status": "exclusive",
    "files": {
     "index-bookshelf.html": {
-     "size": 643,
-     "hash": "1f64462d"
+     "size": 634,
+     "hash": "ac549c15"
+    }
+   }
+  },
+  {
+   "id": "p-diaryHome",
+   "kind": "screen",
+   "title": "日记",
+   "home": "index-journal.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-journal.html": {
+     "size": 2134,
+     "hash": "16b6a794"
     }
    }
   }
@@ -4048,37 +4062,37 @@
   {
    "file": "index-bookshelf.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "p-diaryEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
@@ -4978,133 +4992,133 @@
   {
    "file": "index-bookshelf.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetWeatherPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetWeatherPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetWeatherPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetWeatherPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetWeatherPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetCityPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetCityPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetCityPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetCityPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetCityPick",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-bookshelf.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
@@ -5434,73 +5448,73 @@
   {
    "file": "index-bookshelf.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-bookshelf.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-ledger.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-health.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index_habitcheck.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-maternity_bady.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
    "file": "index-day_aim__goods.html",
    "id": "sheetDiaryReview",
-   "home": "index.html",
+   "home": "index-journal.html",
    "exempt": null
   },
   {
@@ -6046,7 +6060,7 @@
   {
    "file": "index-media.html",
    "id": "p-diaryEdit",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
@@ -6191,7 +6205,7 @@
   {
    "file": "index-media.html",
    "id": "sheetCityPick",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
@@ -6201,22 +6215,22 @@
   {
    "file": "index-media.html",
    "id": "sheetDiaryFilter",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
    "id": "sheetDiaryReview",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
    "id": "sheetDiaryTpl",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
    "id": "sheetDiaryTplEdit",
-   "home": "index.html"
+   "home": "index-journal.html"
   },
   {
    "file": "index-media.html",
@@ -6301,7 +6315,469 @@
   {
    "file": "index-media.html",
    "id": "sheetWeatherPick",
-   "home": "index.html"
+   "home": "index-journal.html"
+  },
+  {
+   "file": "index.html",
+   "id": "p-diaryEdit",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetDiaryTpl",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetDiaryTplEdit",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetDiaryFilter",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetDiaryReview",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetWeatherPick",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index.html",
+   "id": "sheetCityPick",
+   "home": "index-journal.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-dashboard",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-todo",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-calendar",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-noteEdit",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-recmg",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-import",
+   "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-bookDetail",
+   "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-inbox",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-items",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-itemDetail",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-days",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-health",
+   "home": "index-health.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-goals",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-care",
+   "home": "index-maternity_bady.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-profile",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-habits",
+   "home": "index_habitcheck.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-data",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-notify",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-ai",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-cats",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-catAdd",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-appearance",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetNoteMove",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetSearch",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddTask",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTimePick",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetDatePick",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetCatParent",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTask",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetExtra",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetRecycle",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetScrap",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddItem",
+   "home": "index-day_aim__goods.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddDay",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetSnapshot",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetImgSrc",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetNoteKit",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetNoteShare",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetProgress",
+   "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTocImport",
+   "home": "index-bookshelf.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetBabyMeasure",
+   "home": "index-maternity_bady.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddHabit",
+   "home": "index_habitcheck.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetThemeMarket",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-tools",
+   "home": null,
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-toolDetail",
+   "home": null,
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddEvent",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetGridMark",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetEventDetail",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddMedia",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-aiUsage",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-logs",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-aiPromptEdit",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-aiPrompts",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-aiVerify",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-backup",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-dbstats",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-mediaclean",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-sub-trash",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "p-timeStats",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAddExcerpt",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAiPick",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAiProv",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetAiUsageCfg",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetBkDel",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetLogSettings",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetMcDel",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetProfile",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTrashKeep",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTrashPurge",
+   "home": "index.html",
+   "exempt": null
+  },
+  {
+   "file": "index-journal.html",
+   "id": "sheetTsCat",
+   "home": "index.html",
+   "exempt": null
   }
  ],
  "redirects": [
@@ -11104,6 +11580,222 @@
      "plgUrl",
      "plgProg",
      "plgBar"
+    ]
+   }
+  ],
+  "index-journal.html": [
+   {
+    "id": "p-aiUsage",
+    "inner": [
+     "auSum",
+     "auBar",
+     "auPop",
+     "auKw",
+     "auBox",
+     "auHint"
+    ]
+   },
+   {
+    "id": "p-logs",
+    "inner": [
+     "logBoxWrap",
+     "logStk1",
+     "logSelBar",
+     "logSelN",
+     "sheetLogSettings",
+     "logTabF",
+     "logTabC",
+     "logFilterTab",
+     "logLvAll",
+     "logLvWarn",
+     "logLvErr",
+     "logSrcRow",
+     "logKwInp",
+     "logConfigTab",
+     "logFontVal",
+     "logFont",
+     "logKeepVal",
+     "logKeep"
+    ]
+   },
+   {
+    "id": "p-sub-aiPromptEdit",
+    "inner": [
+     "apeTitle",
+     "apeBadge",
+     "apeVars",
+     "apeSys",
+     "apeUser"
+    ]
+   },
+   {
+    "id": "p-sub-aiPrompts",
+    "inner": [
+     "aiPromptRows"
+    ]
+   },
+   {
+    "id": "p-sub-aiVerify",
+    "inner": [
+     "avChips",
+     "avUrl",
+     "avKey",
+     "avEye",
+     "avModel",
+     "avPrompt",
+     "avSend",
+     "avLat",
+     "avRes"
+    ]
+   },
+   {
+    "id": "p-sub-backup",
+    "inner": [
+     "bkCnt",
+     "bkSum",
+     "bkAllBtn",
+     "bkPickBtn",
+     "bkDelBtn",
+     "bkList",
+     "sheetBkDel",
+     "bkDelSum",
+     "bkDelWarn"
+    ]
+   },
+   {
+    "id": "p-sub-dbstats",
+    "inner": []
+   },
+   {
+    "id": "p-sub-mediaclean",
+    "inner": [
+     "mcSum",
+     "mcAllBtn",
+     "mcList",
+     "mcDelBtn",
+     "sheetMcDel",
+     "mcDelSum",
+     "mcDelWarn"
+    ]
+   },
+   {
+    "id": "p-sub-trash",
+    "inner": [
+     "ttCnt",
+     "ttKeep",
+     "ttAllBtn",
+     "ttPickBtn",
+     "ttKeepBtn",
+     "gtSegRow",
+     "ttList",
+     "sheetTrashKeep",
+     "tkRows"
+    ]
+   },
+   {
+    "id": "p-timeStats",
+    "inner": [
+     "tsSegs",
+     "tsPeriod",
+     "tsBody"
+    ]
+   },
+   {
+    "id": "sheetAddExcerpt",
+    "inner": []
+   },
+   {
+    "id": "sheetAiPick",
+    "inner": [
+     "aiProvList"
+    ]
+   },
+   {
+    "id": "sheetAiProv",
+    "inner": [
+     "apTitle",
+     "apName",
+     "apUrl",
+     "apModel",
+     "apProto",
+     "apKey",
+     "apEye",
+     "apKeyHint",
+     "apHttpRow",
+     "apHttpOk",
+     "apRes",
+     "apDelBtn"
+    ]
+   },
+   {
+    "id": "sheetAiUsageCfg",
+    "inner": [
+     "auCfgBody",
+     "auKeepRow",
+     "auSize"
+    ]
+   },
+   {
+    "id": "sheetBkDel",
+    "inner": [
+     "bkDelSum",
+     "bkDelWarn"
+    ]
+   },
+   {
+    "id": "sheetLogSettings",
+    "inner": [
+     "logTabF",
+     "logTabC",
+     "logFilterTab",
+     "logLvAll",
+     "logLvWarn",
+     "logLvErr",
+     "logSrcRow",
+     "logKwInp",
+     "logConfigTab",
+     "logFontVal",
+     "logFont",
+     "logKeepVal",
+     "logKeep"
+    ]
+   },
+   {
+    "id": "sheetMcDel",
+    "inner": [
+     "mcDelSum",
+     "mcDelWarn"
+    ]
+   },
+   {
+    "id": "sheetProfile",
+    "inner": [
+     "pfNameIn",
+     "pfNameErr",
+     "pfBioIn"
+    ]
+   },
+   {
+    "id": "sheetTrashKeep",
+    "inner": [
+     "tkRows"
+    ]
+   },
+   {
+    "id": "sheetTrashPurge",
+    "inner": [
+     "tpMsg",
+     "tpList"
+    ]
+   },
+   {
+    "id": "sheetTsCat",
+    "inner": [
+     "tscDot",
+     "tscTitle",
+     "tscPeriod",
+     "tscStat",
+     "tscList"
     ]
    }
   ]

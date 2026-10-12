@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
@@ -17,6 +20,7 @@ import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
+import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/diary_template.dart';
 import 'package:lifeharness/features/journal/domain/journal_entry.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
@@ -24,6 +28,7 @@ import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/diary_edit_page.dart';
 import 'package:lifeharness/features/journal/presentation/journal_page.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
+import 'package:lifeharness/features/journal/presentation/journal_routes.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
@@ -56,6 +61,20 @@ class _FakePathProvider extends PathProviderPlatform {
   final String dir;
   @override
   Future<String?> getApplicationDocumentsPath() async => dir;
+}
+
+/// 修复批 #5 变异验证用：首击 save 挂在门闸上，制造真实并发窗口
+/// （无门闸时两击间微任务已排空，第二击走既有篇更新路径，防重入测不到）。
+class _GatedJournalRepo extends JournalRepository {
+  _GatedJournalRepo(super.dao);
+  final Completer<void> gate = Completer<void>();
+  var calls = 0;
+  @override
+  Future<JournalEntry> save(JournalEntry e) async {
+    calls++;
+    if (calls == 1) await gate.future;
+    return super.save(e);
+  }
 }
 
 void main() {
@@ -95,6 +114,9 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           readRepositoryProvider
               .overrideWithValue(ReadRepository(db)), // 阅读 tab 真实化后需库
+          // UIUX批（2026-10-12）：搜索半屏纳入日记，笔记源也接测试库
+          //（原 noteDaoProvider 默认读 AppDatabase.instance，测试内未开库）。
+          noteDaoProvider.overrideWithValue(NoteDao(db)),
           if (wx != null) weatherServiceProvider.overrideWithValue(wx),
         ],
         child: MaterialApp(home: home),
@@ -373,7 +395,8 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('diary-view')));
       await tester.pumpAndSettle();
-      expect(find.text('CHIST · ${_two(DateTime.now().month)}-${_two(DateTime.now().day)}'),
+      // 演示残留批：INS 卡头改读昵称 helper（未设置回落「本地用户」，原硬编 CHIST）。
+      expect(find.text('本地用户 · ${_two(DateTime.now().month)}-${_two(DateTime.now().day)}'),
           findsOneWidget);
 
       await tester.tap(find.byKey(ValueKey('ins-like-${e.id}')));
@@ -802,6 +825,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(await jrepo.open(e.id!), isNull);
       expect(await jrepo.list(), isEmpty);
+      // 语义断链批（2026-10-12）：软删进回收站（原硬删不可恢复）；恢复回原位。
+      expect((await jrepo.trashed()).map((x) => x.id), contains(e.id!));
+      await jrepo.restoreJournal(e.id!);
+      expect((await jrepo.list()).map((x) => x.id), contains(e.id!));
     });
 
     testWidgets('13-2 列表长按→已选底栏→多选→批量删除确认落库', (tester) async {
@@ -838,6 +865,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(await jrepo.open(e1.id!), isNull);
       expect(await jrepo.open(e2.id!), isNull);
+      // 语义断链批：批量删除同样进回收站（两篇都在册）。
+      expect((await jrepo.trashed()).map((x) => x.id),
+          containsAll([e1.id!, e2.id!]));
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsNothing);
       await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
     });
@@ -854,7 +884,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('diary-view')));
       await settle5(tester);
 
-      await tester.longPress(find.text('CHIST · ${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}'));
+      await tester.longPress(find.text('本地用户 · ${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}'));
       await settle5(tester);
       expect(find.byKey(const ValueKey('diary-sel-bar')), findsOneWidget);
       expect(find.byKey(ValueKey('insel-${e.id}')), findsOneWidget);
@@ -1076,14 +1106,28 @@ void main() {
       await tester.pumpWidget(scope(DiaryEditPage(day: DateTime.now()), wx: svc));
       await settle5(tester);
       expect(find.byKey(const ValueKey('diary-wx-chip')), findsOneWidget);
-      await waitFinder(tester, find.text('晴 20~30°')); // 自动抓链含 ffi 落库
+      await waitFinder(tester, find.text('晴 20~30°')); // 自动抓链落定
       expect(calls, 1);
-      final e = (await jrepo.listByDay(DateTime.now())).first;
-      expect(e.weatherCode, 0);
-      expect(e.tempMax, 30.4);
+      // 修复批 #6（拍板「打开不落库」）：自动抓只进页内态，不再落空篇幽灵行
+      expect(await jrepo.listByDay(DateTime.now()), isEmpty);
       final cache = await db.query('weather_daily');
       expect(cache, hasLength(1));
       expect(cache.first['city'], '杭州');
+      // 打字 → 防抖自动存：快照随首次落库一并写入
+      final ctl = tester.widget<QuillEditor>(
+              find.byKey(const ValueKey('diary-rich-editor')))
+          .controller;
+      ctl.replaceText(0, 0, '今天不错',
+          const TextSelection.collapsed(offset: 4));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1000)); // 推过 900ms 防抖
+      await tester.pump();
+      final day = await jrepo.listByDay(DateTime.now());
+      expect(day, hasLength(1));
+      expect(day.first.weatherCode, 0);
+      expect(day.first.tempMax, 30.4);
+      expect(Note.richToPlain(day.first.content), contains('今天不错'));
+      await drainLogTimer(tester); // 自动存落库 → AppLog 节流 Timer 需排空
     });
 
     testWidgets('2e-2 点 chip 手动覆盖：落库 manual=1 · 重开不再自动抓 · 恢复自动',
@@ -1140,6 +1184,427 @@ void main() {
       expect(await db.query('weather_daily'), isEmpty);
     });
   });
+
+  group('M1 修复批 · 日记编辑能力六刀（评估件 20261012 高危 #1~#6）', () {
+    QuillEditor richCtlOf(WidgetTester tester) => tester.widget<QuillEditor>(
+        find.byKey(const ValueKey('diary-rich-editor')));
+
+    Finder secField(int i) => find.descendant(
+        of: find.byKey(ValueKey('sec-$i')), matching: find.byType(TextField));
+
+    Future<void> openTpl(WidgetTester tester, String rowKey) async {
+      await tester.tap(find.byKey(const ValueKey('tpl-open-sheet')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey(rowKey)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('#1 P0 重开结构化模板篇：回填模板名与分节标题/正文，不越界',
+        (tester) async {
+      await useSurface(tester);
+      final saved = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          templateId: 2,
+          kind: '',
+          content: '',
+          sections: const [
+            DiarySection(title: 'Keep · 做对了什么', body: '晨跑了三公里'),
+            DiarySection(title: 'Problem · 哪里不顺', body: '睡晚了'),
+            DiarySection(title: 'Try · 下一步怎么改', body: '十一点前放下手机'),
+          ],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await tester.pumpWidget(
+          scope(DiaryEditPage(key: UniqueKey(), entryId: saved.id)));
+      await tester.pumpAndSettle(); // 修复前：此处 RangeError（空 sections 下标越界）
+      expect(find.textContaining('KPT 复盘 · 3 节'), findsOneWidget); // 真名回填
+      expect(find.text('Keep · 做对了什么'), findsOneWidget);
+      expect(find.text('Try · 下一步怎么改'), findsOneWidget);
+      expect(
+          tester
+              .widget<TextField>(secField(0))
+              .controller!
+              .text,
+          '晨跑了三公里');
+      await drainLogTimer(tester);
+
+      // 回落：模板已删（id 查无）→ 用既有篇存储分节回填，同样不炸
+      final orphan = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          templateId: 999,
+          kind: '',
+          content: '',
+          sections: const [
+            DiarySection(title: '自留节甲', body: '甲内容'),
+            DiarySection(title: '自留节乙', body: '乙内容'),
+          ],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await tester.pumpWidget(
+          scope(DiaryEditPage(key: UniqueKey(), entryId: orphan.id)));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('模板 · 2 节'), findsOneWidget);
+      expect(find.text('自留节甲'), findsOneWidget);
+      expect(find.text('自留节乙'), findsOneWidget);
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('#2 结构化分节输入=防抖自动存（不等手动保存）', (tester) async {
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await tester.pumpAndSettle();
+      await openTpl(tester, 'tpl-row-2'); // KPT
+      await tester.enterText(secField(0), '自动存进首节');
+      await tester.pump(const Duration(milliseconds: 1000)); // 推过 900ms 防抖
+      await tester.pump();
+      final day = await jrepo.listByDay(DateTime.now());
+      expect(day, hasLength(1));
+      expect(day.first.sections.first.body, '自动存进首节');
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('#3 打字后立即返回=PopScope flush 尾稿不丢（<900ms 窗口）',
+        (tester) async {
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await tester.pumpAndSettle();
+      richCtlOf(tester).controller.replaceText(
+          0, 0, '临走前打的几行字', const TextSelection.collapsed(offset: 8));
+      await tester.pump(); // 置脏＋排防抖（尚未到期）
+      // 系统返回（home 路由无 AppBar 返回钮，pageBack 不可用）→
+      // maybePop → PopScope 拦截 → flush 尾稿 → 强退
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      final day = await jrepo.listByDay(DateTime.now());
+      expect(day, hasLength(1));
+      expect(Note.richToPlain(day.first.content), contains('临走前打的几行字'));
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('#4 切模板不弃稿：按节顺序搬/溢出并末节/自由合并/富文进首节',
+        (tester) async {
+      await useSurface(tester);
+      await tester.pumpWidget(scope(const DiaryEditPage()));
+      await tester.pumpAndSettle();
+
+      // 自由书写写字 → KPT：富文本纯文进首节
+      richCtlOf(tester).controller.replaceText(
+          0, 0, '自由的一段', const TextSelection.collapsed(offset: 5));
+      await tester.pump();
+      await openTpl(tester, 'tpl-row-2');
+      expect(tester.widget<TextField>(secField(0)).controller!.text,
+          '自由的一段');
+
+      // 再写两节 → 感恩三件事：按节顺序搬，原首节内容进新首节
+      await tester.enterText(secField(0), '甲节内容');
+      await tester.pump();
+      await tester.enterText(secField(1), '乙节内容');
+      await tester.pump();
+      await openTpl(tester, 'tpl-row-1'); // 感恩三件事（3 节）
+      expect(tester.widget<TextField>(secField(0)).controller!.text, '甲节内容');
+      expect(tester.widget<TextField>(secField(1)).controller!.text, '乙节内容');
+      expect(tester.widget<TextField>(secField(2)).controller!.text, isEmpty);
+
+      // 3 节 → 2 节模板不存在，改走 →自由书写：合并为一段替换富文本（不重复叠加）
+      await tester.enterText(secField(2), '丙节内容');
+      await tester.pump();
+      await openTpl(tester, 'tpl-row-free');
+      final plain = richCtlOf(tester).controller.document.toPlainText();
+      expect(plain, contains('甲节内容'));
+      expect(plain, contains('乙节内容'));
+      expect(plain, contains('丙节内容'));
+      expect('甲节内容'.allMatches(plain), hasLength(1)); // 往返不叠加
+    });
+
+    testWidgets('#5 保存钮连点两下=只落一篇（防重入·门闸制造并发窗口）',
+        (tester) async {
+      final gated = _GatedJournalRepo(JournalDao(db));
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          journalRepositoryProvider.overrideWithValue(gated),
+          todoRepositoryProvider.overrideWithValue(trepo),
+          diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
+          eventRepositoryProvider
+              .overrideWithValue(EventRepository(EventDao(db), bus)),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          readRepositoryProvider.overrideWithValue(ReadRepository(db)),
+        ],
+        child: MaterialApp(home: DiaryEditPage(key: UniqueKey())),
+      ));
+      await tester.pumpAndSettle();
+      richCtlOf(tester).controller.replaceText(
+          0, 0, '只此一篇', const TextSelection.collapsed(offset: 4));
+      await tester.pump();
+      // 第一击：挂起在门闸前（_persist 未归，_existing 仍无 id）
+      await tester.tap(find.byKey(const ValueKey('diary-save')),
+          warnIfMissed: false);
+      await tester.pump(); // 推进到 save 门闸挂起点
+      expect(gated.calls, 1);
+      // 第二击：无护栏＝并发第二插（两篇）；有护栏＝被 _saving 拦下
+      await tester.tap(find.byKey(const ValueKey('diary-save')),
+          warnIfMissed: false);
+      await tester.pump();
+      gated.gate.complete(); // 放行第一击
+      await tester.pumpAndSettle();
+      expect(await jrepo.list(), hasLength(1));
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('#6 打开抓天气不落库＋无稿退出零残留（幽灵篇不再生成）',
+        (tester) async {
+      const city = WeatherCity(name: '杭州', lat: 30.29, lon: 120.16);
+      SharedPreferences.setMockInitialValues(
+          {'lh.weather_city': WeatherCity.encode(city)});
+      prefs = await SharedPreferences.getInstance(); // scope() 读外层变量，同 2e 组 setCity 手法
+      final wx = WeatherService(WeatherDao(db),
+          fetch: (uri) async => (
+                json: {
+                  'daily': {
+                    'time': [WeatherDao.dayKey(DateTime.now())],
+                    'weather_code': [0],
+                    'temperature_2m_max': [30.4],
+                    'temperature_2m_min': [20.2],
+                  },
+                },
+                err: null
+              ));
+      await tester.pumpWidget(scope(DiaryEditPage(key: UniqueKey()), wx: wx));
+      await settle5(tester);
+      // 打开即抓但零落库
+      expect(await jrepo.list(), isEmpty);
+      // 无稿退出（系统返回）：不 flush 不残留
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(await jrepo.list(), isEmpty);
+    });
+  });
+
+  group('UIUX/流畅批 · 日记交互与列表（2026-10-12 评估件 §四）', () {
+    /// 路由化 pump：context.push('/journal/edit') 需 GoRouter（scope 的裸 MaterialApp 推不了栈）。
+    Future<void> pumpRouted(WidgetTester tester) async {
+      final router =
+          GoRouter(routes: [...journalShellRoutes(), ...journalPageRoutes()]);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          journalRepositoryProvider.overrideWithValue(jrepo),
+          todoRepositoryProvider.overrideWithValue(trepo),
+          diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
+          eventRepositoryProvider
+              .overrideWithValue(EventRepository(EventDao(db), bus)),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          readRepositoryProvider.overrideWithValue(ReadRepository(db)),
+          noteDaoProvider.overrideWithValue(NoteDao(db)),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      router.go('/journal');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('U1 月历色条=「点色条看当天」：有篇日直开既有篇', (tester) async {
+      final now = DateTime.now();
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime(now.year, now.month, 5),
+          mood: 5,
+          content: '公园野餐真开心',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await pumpRouted(tester);
+
+      await tester.tap(find.byKey(const ValueKey('moodbar-5')));
+      await settle5(tester);
+      expect(find.byType(DiaryEditPage), findsOneWidget);
+      // 既有篇回填（原行为=一律新建该日 N+1 篇，与脚注「点色条看当天」相悳）；
+      // 富文本正文不在 Text 树，断言走 Quill 文档（同「打开既有篇=回填」用例手法）。
+      expect(_richOf(tester).controller.document.toPlainText(),
+          contains('公园野餐真开心'));
+      expect(e.id, isNotNull);
+      await drainLogTimer(tester); // 打开既有篇落浏览计数 → AppLog Timer
+    });
+
+    testWidgets('U2 色条无篇日仍可点：整格 36px 热区（原无心情日 ~4px 点不中）',
+        (tester) async {
+      await pumpRouted(tester);
+      final bar = find.byKey(const ValueKey('moodbar-10'));
+      expect(tester.getRect(bar).height, 36, reason: '热区=整格高度');
+      await tester.tap(bar);
+      await settle5(tester);
+      expect(find.byType(DiaryEditPage), findsOneWidget); // 新建入口保留
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('U3 回顾弹层月份切换有界：禁未来（连点›停当月）', (tester) async {
+      final now = DateTime.now();
+      await tester.pumpWidget(scope(const JournalPage()));
+      await settle5(tester);
+      await tester.tap(find.text('📊 回顾'));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('dr-next')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('dr-next')));
+      await settle5(tester);
+      expect(find.text('${now.year}年${now.month}月'), findsOneWidget,
+          reason: '当月=上界，再点不得越界');
+      // disabled IconButton 仍有 RenderBox（hitTestable 不为空），断言 onPressed 已置空
+      expect(
+          tester.widget<IconButton>(find.byKey(const ValueKey('dr-next')))
+              .onPressed,
+          isNull,
+          reason: '上界处禁用›（对齐原型 drMonth off≤0）');
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('U4 趋势柱逐柱可点：命中日号开该篇（原整块 CustomPaint 不可点）',
+        (tester) async {
+      final now = DateTime.now();
+      await jrepo.save(JournalEntry(
+          day: DateTime(now.year, now.month, 15),
+          mood: 4,
+          content: '山顶的日出真美',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await pumpRouted(tester);
+      await tester.tap(find.text('📊 回顾'));
+      await settle5(tester);
+
+      final rect = tester.getRect(find.byKey(const ValueKey('dr-trend')));
+      final days = DateTime(now.year, now.month + 1, 0).day;
+      // 15 日槽位中心：(15-1+0.5)/days
+      final dx = rect.left + rect.width * 14.5 / days;
+      await tester.tapAt(Offset(dx, rect.center.dy));
+      await settle5(tester);
+      expect(find.byType(DiaryEditPage), findsOneWidget);
+      expect(_richOf(tester).controller.document.toPlainText(),
+          contains('山顶的日出真美'));
+      await drainLogTimer(tester);
+    });
+
+    testWidgets('U5 搜索半屏纳入日记：日记/笔记双源命中，点日记行开编辑页',
+        (tester) async {
+      final now = DateTime.now();
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime(now.year, now.month, 8),
+          content: '公园野餐真开心',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await NoteDao(db).insert(Note(
+          title: '损失厌恶笔记',
+          content: '锚定效应与框架效应',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await pumpRouted(tester);
+
+      await tester.tap(find.byKey(const ValueKey('rec-search')));
+      await settle5(tester);
+      final input = find.byKey(const ValueKey('note-search-input'));
+      expect(input, findsOneWidget);
+      await tester.enterText(input, '野餐');
+      await settle5(tester);
+      // 命中判定限定在搜索结果列表内——半屏背后仍压着完整日记列表（批5① 同坑同解）。
+      final results = find.byKey(const ValueKey('note-search-list'));
+      expect(results, findsOneWidget);
+      expect(
+          find.descendant(
+              of: results,
+              matching: find.byKey(ValueKey('diary-search-hit-${e.id}'))),
+          findsOneWidget);
+      // 点日记行 → 收屏开编辑页
+      await tester.tap(
+          find.descendant(
+              of: results,
+              matching: find.byKey(ValueKey('diary-search-hit-${e.id}'))),
+          warnIfMissed: false);
+      await settle5(tester);
+      expect(find.byType(DiaryEditPage), findsOneWidget);
+      expect(_richOf(tester).controller.document.toPlainText(),
+          contains('公园野餐真开心'));
+      await drainLogTimer(tester);
+    });
+  });
+
+  group('语义断链批 · 回收站/L3 回勾/标签减法/持久化（2026-10-12 评估件 §三）', () {
+    test('S1 回收站第八类：彻底删除连带清分节；到期清理按档跑', () async {
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime(2026, 9, 20),
+          content: '带分节的回收站篇',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      await jrepo.remove(e.id!);
+      expect(await jrepo.list(), isEmpty);
+      expect((await jrepo.trashed()).map((x) => x.id), contains(e.id!));
+      // 彻底删除＝真删（返回连带分节行数；本篇无分节＝0）
+      expect(await jrepo.purgeJournal(e.id!), 0);
+      expect((await jrepo.trashed()).map((x) => x.id), isNot(contains(e.id!)));
+      // 到期清理：keepDays=30，刚删的行未到期不被清
+      expect(await jrepo.purgeExpired(30), 0);
+    });
+
+    test('S2 L3 反向回勾：纯文本篇 ☐→☑（完成待办后同名行置勾）', () async {
+      await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '☐ 买菜\n其他正文',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      expect(await jrepo.tickTodoLine('买菜'), isTrue);
+      expect((await jrepo.list()).first.plainBody, contains('☑ 买菜'));
+      // 未命中静默：非同名待办不写任何篇
+      expect(await jrepo.tickTodoLine('不存在的待办'), isFalse);
+    });
+
+    test('S3 L3 回勾·结构化篇：分节 body 置勾且快照同步重渲', () async {
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          templateId: 1,
+          sections: const [
+            DiarySection(title: '感恩 ①', body: '☐ 谢天'),
+            DiarySection(title: '感恩 ②', body: '谢地'),
+          ],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      expect(await jrepo.tickTodoLine('谢天'), isTrue);
+      final re = await jrepo.open(e.id!);
+      expect(re!.sections[0].body, '☑ 谢天');
+      expect(re.sections[1].body, '谢地');
+      expect(re.content, contains('☑ 谢天')); // 渲染快照同步
+    });
+
+    test('S4 标签减法：正文删掉 #词后 tags 同步剔除（不再残留死标签）', () async {
+      final e = await jrepo.save(JournalEntry(
+          day: DateTime.now(),
+          content: '#晨跑 #复盘 今天跑了一圈',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now()));
+      expect(e.tags, containsAll(['晨跑', '复盘']));
+      // 改稿删掉 #晨跑 → tags 只剩 复盘
+      final e2 = await jrepo.save(e.copyWith(content: '今天跑了 #复盘 记录'));
+      expect(e2.tags, ['复盘']);
+    });
+
+    test('S5 INS 布局/筛选持久化：settings 往返（冷启动恢复上次态）', () async {
+      final container = ProviderContainer(overrides: [
+        settingsRepositoryProvider
+            .overrideWithValue(SettingsRepository(prefs)),
+      ]);
+      addTearDown(container.dispose);
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setJournalIns(true);
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setJournalFilter('todo');
+      // 新仓库实例读同一 prefs＝冷启动等价
+      final loaded = SettingsRepository(prefs).load();
+      expect(loaded.journalIns, isTrue);
+      expect(loaded.journalFilter, 'todo');
+      expect(loaded.journalDefaultTpl, '纯文本'); // 默认值不受影响
+    });
+  });
 }
 
 String _two(int v) => v.toString().padLeft(2, '0');
+
+/// UIUX批守护组用：编辑页富文本控件（原为「输入正文+选心情」用例内局部函数，
+/// 跨用例复用提为文件级；正文断言走 Quill 文档，find.textContaining 找不到）。
+QuillEditor _richOf(WidgetTester tester) => tester.widget<QuillEditor>(
+    find.byKey(const ValueKey('diary-rich-editor')));

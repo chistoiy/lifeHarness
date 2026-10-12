@@ -8,6 +8,7 @@ import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/habit_mounts.dart';
+import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
 import 'shared/widgets/ui_kit.dart' show AppToast;
 
@@ -76,6 +77,8 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
   Widget build(BuildContext context) {
     // L10 习惯联动订阅（待办完成 → 打卡回写 · 应用全程存活）。
     ref.watch(habitLinkageProvider);
+    // L3 日记联动订阅（语义断链批：待办完成 → 日记 ☐ 行回勾 · 应用全程存活）。
+    ref.watch(journalLinkageProvider);
     // 记账批2d §5：周期账单 App 启动到期扫尾（一次性静默生成，无常驻 Timer）。
     ref.watch(ledgerRecurMountProvider);
     return MaterialApp.router(

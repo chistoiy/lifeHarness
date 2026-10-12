@@ -588,15 +588,7 @@ tailwind.config = {
       <span>删除</span></button>
     <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
   </div>
-  <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->
-  <div id="diarySelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-center gap-2 text-[10px] font-bold shadow-xl">
-    <span id="diarySelLbl" class="px-2 text-slate-500 dark:text-slate-300">已选 0 篇</span>
-    <button onclick="dlBatchDel()" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
-      <span>删除</span></button>
-    <button onclick="dlExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
-  </div>
-  
+  <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->  
 
   <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
@@ -920,12 +912,6 @@ tailwind.config = {
   
 
   <!-- ===== INS 全屏查看 ===== -->
-  <div id="insFull" class="hidden fixed md:absolute inset-0 z-[62] bg-black/95 overflow-y-auto" onclick="if(event.target===this)this.classList.add('hidden')">
-    <button onclick="insFull.classList.add('hidden')" class="absolute top-3 right-4 z-10 w-9 h-9 rounded-full bg-white/15 text-white text-lg">✕</button>
-    <div id="insFullBody" class="max-w-[400px] mx-auto pt-12 pb-10"></div>
-    <div class="text-center text-[10px] text-white/40 pb-6">单帖全屏浏览 · 点击空白处关闭 · 左右滑切换（模拟）</div>
-  </div>
-
   <!-- ===== Toast ===== -->
   <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-24 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
 </div><!-- /phone -->
@@ -1053,7 +1039,6 @@ function navTo(p){/*LH-GOV-G*/if(!document.getElementById(p)){lhGone(p);return;}
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
 function goBack(){
   if(curPage==='p-records'&&noteSelMode){noteExitSel();return;} /* 轮9：多选态返回=退出多选 */
-  if(curPage==='p-records'&&dlSelMode){dlExitSel();return;} /* 轮13：日记多选态返回=退出多选 */
   if(stack.length){ setPage(stack.pop()); return; }
   if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
   if(dashEditing){ dashToggle(); return; }
@@ -1080,7 +1065,7 @@ function fabPick(t){hideTodoFabMenu();openAddTask(t);}
 /* ================= 通用交互 ================= */
 let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200); }
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetDiaryTpl')renderDiaryTpls(); if(id==='sheetDiaryFilter')renderDiaryFilterSheet(); if(id==='sheetDiaryReview')renderDiaryReview(); if(id==='sheetWeatherPick')renderWxPick(); if(id==='sheetCityPick')renderCityList(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -1573,12 +1558,14 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
 /* ================= 记录 ================= */
 /* V1.29轮5：四段切换行移除 · 段名进入标题「记录 · X」+ 右上切换钮菜单 */
 const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
-function switchRecord(k){ recTab=k; hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
+function switchRecord(k){ hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
+  /* 日记抽离批 2026-10-12：日记面现居日记专版(index-journal.html) · 本版驻笔记/阅读/影音游 */
+  if(k==='diary'){try{toast('「日记」现居「日记专版」· 跳转中');}catch(e){}setTimeout(function(){location.href='index-journal.html#p-diaryHome';},700);return;}
+  recTab=k;
   if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
-  if(k!=='diary'&&dlSelMode){dlSelMode=false;dlSel.clear();const _d=$('#diarySelBar');if(_d){_d.classList.add('hidden');_d.classList.remove('flex');}} /* 轮13：离开日记段静默退出批量 */
-  [['diary','recDiary'],['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>$('#'+w).classList.toggle('hidden',id!==k));
+  [['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>{const el=$('#'+w);if(!el)return;el.classList.toggle('hidden',id!==k);
+    if(id===k){el.classList.remove('rec-anim-in');void el.offsetWidth;el.classList.add('rec-anim-in');}});
   const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
-  syncDiaryFilterBtn();
   renderRecSwitch();
 }
 function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
@@ -1592,22 +1579,6 @@ function pickChip(el){ el.parentElement.querySelectorAll('.chip').forEach(c=>c.c
 
 
 /* ---- V1.28 日记模板：真结构分节 · 编辑页弹层管理（一天多篇·每篇各带心情） ---- */
-let DI_TPLS=[{n:'自由书写',b:1,s:[]},
- {n:'感恩三件事',b:1,s:[{t:'感恩 ①',ph:'小事也可以'},{t:'感恩 ②',ph:''},{t:'感恩 ③',ph:''}]},
- {n:'KPT 复盘',b:1,s:[{t:'Keep · 做对了什么',ph:''},{t:'Problem · 哪里不顺',ph:''},{t:'Try · 下一步怎么改',ph:''}]},
- {n:'晨间页',b:0,s:[{t:'梦到的 / 最先想到的',ph:''},{t:'今天在意的事',ph:''},{t:'今日意图',ph:'一句话'}]}];
-let curTpl=0,tplDraft=[];
-function diaryToolbar(){return `<div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="flex gap-1 px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400"><button class="fmt-btn" title="加粗" onclick="diaryFmt('b')"><b>B</b></button><button class="fmt-btn" title="列表" onclick="diaryFmt('ul')">≡</button><button class="fmt-btn" title="待办勾选" onclick="diaryFmt('todo')">☑</button><button class="fmt-btn" title="拍照" onclick="diaryAttachDirect('camera')">${IC_CAM}</button><button class="fmt-btn" title="相册" onclick="diaryAttachDirect('gallery')">${IC_IMG}</button><button class="fmt-btn opacity-40" title="语音 V1.x" onclick="toast('语音 · V1.x')">${IC_MIC}</button><button class="fmt-btn" title="引用" onclick="diaryFmt('quote')">❝</button></div>`}
-function renderDiaryBody(){const t=DI_TPLS[curTpl],el=$('#diaryBody');if(!el)return;
- if(!t.s.length){el.innerHTML=`<div class="mt-3">${diaryToolbar()}<div id="diaryText" contenteditable="true" class="w-full min-h-[256px] p-4 text-sm leading-7 outline-none diary-rich"></div><div id="diaryMedia" class="mt-1 px-1 flex flex-wrap gap-2"></div></div>`;return}
- el.innerHTML=`<div class="mt-3 text-xs font-bold text-brand-600">📋 ${t.n} · ${t.s.length} 节 · 各节独立保存</div>`+t.s.map(s=>`<div class="mt-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"><div class="px-4 pt-3 text-xs font-extrabold text-slate-500 dark:text-slate-400">${s.t}</div><textarea class="w-full min-h-[64px] px-4 pb-3 pt-1 text-sm leading-6 bg-transparent outline-none resize-none" placeholder="${s.ph||'写点什么…'}"></textarea></div>`).join('')}
-function renderDiaryTpls(){const el=$('#diaryTplList');if(!el)return;el.innerHTML=DI_TPLS.map((t,i)=>`<div class="card mb-2 flex items-center gap-2 ${i===curTpl?'ring-2 ring-brand-500':''}" onclick="applyTpl(${i})"><div class="flex-1 min-w-0"><b class="text-sm">${t.n}</b><div class="text-[10px] text-slate-400 mt-0.5">${t.s.length?t.s.length+' 节 · 结构化分节':'单文本 · 自由书写'}</div></div>${t.b?`<span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 shrink-0">内置</span>`:`<button class="text-xs text-rose-400 font-bold px-2 shrink-0" onclick="event.stopPropagation();delTpl(${i})">删除</button>`}${i===curTpl?'<span class="text-brand-500 font-black shrink-0">✓</span>':''}</div>`).join('')}
-function applyTpl(i){curTpl=i;const b=$('#diaryTplBtn');if(b)b.textContent='📋 模板：'+DI_TPLS[i].n+' ▾';renderDiaryBody();renderDiaryTpls();closeSheet('sheetDiaryTpl');toast(DI_TPLS[i].s.length?`模板已应用 · 正文按 ${DI_TPLS[i].s.length} 节书写`:'模板已应用 · 回到单文本')}
-function delTpl(i){DI_TPLS.splice(i,1);if(curTpl===i){curTpl=0;applyTpl(0)}else renderDiaryTpls();toast('模板已删除')}
-
-function renderTplEdit(){const el=$('#tplSecs');el.innerHTML=tplDraft.map((s,j)=>`<div class="card mb-2"><div class="flex gap-2 items-center"><input value="${s.t}" oninput="tplDraft[${j}].t=this.value" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 text-sm outline-none font-bold" placeholder="分节 ${j+1} 标题，如：今日高光"><button class="text-rose-400 text-base px-1.5" onclick="tplDraft.splice(${j},1);renderTplEdit()">✕</button></div><input value="${s.ph}" oninput="tplDraft[${j}].ph=this.value" class="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent px-3 py-2 text-xs outline-none" placeholder="占位提示（可选）"></div>`).join('')}
-
-
 /* ================= 心情迷你月历 & 纯写作编辑器 ================= */
 const DI_IMG=['from-orange-300 to-rose-400','from-sky-300 to-indigo-400','from-emerald-300 to-teal-500'];
 
@@ -1677,32 +1648,6 @@ const IC_FULL=_pwSvg('<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>');
 /* 轮12-2：拍照/相册/语音入日记快捷操作栏（线性 SVG·禁 emoji） */
 const IC_CAM=_pwSvg('<path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3v10.5H4Z"/><circle cx="12" cy="13.2" r="3.3"/>');
 /* ===== 批2e 天气：线性图标 · 编辑页 chip · 手动覆盖 · 城市选择 ===== */
-const _wxCloud='<path d="M7.2 18.4a4.3 4.3 0 0 1 .3-8.6 5.5 5.5 0 0 1 10.3 1.7 3.5 3.5 0 0 1-.8 6.9Z"/>';
-const IC_WX_SUN=_pwSvg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5 5l1.6 1.6M17.4 17.4 19 19M19 5l-1.6 1.6M6.6 17.4 5 19"/>');
-const IC_WX_PARTLY=_pwSvg('<path d="M15.6 5.5V3.6M20.4 8.6h1.9M19 13.2l1.4 1.3"/><circle cx="16.6" cy="8.6" r="2.4"/><path d="M7.2 19.6a4 4 0 0 1 .3-8 5.1 5.1 0 0 1 9.7 1.6 3.3 3.3 0 0 1-.8 6.4Z"/>');
-const IC_WX_CLOUD=_pwSvg(_wxCloud);
-const IC_WX_RAIN=_pwSvg(_wxCloud+'<path d="M9 20.4l-.8 1.8M13 20.4l-.8 1.8M17 20.4l-.8 1.8"/>');
-const IC_WX_SNOW=_pwSvg(_wxCloud+'<path d="M9.5 20.6v2M13.5 20.6v2M17 20.6v2"/>');
-const IC_WX_FOG=_pwSvg(_wxCloud+'<path d="M5.5 21h13M7.5 23h9"/>');
-const IC_WX_STORM=_pwSvg(_wxCloud+'<path d="m12.8 19.2-1.8 2.7h2l-.8 2.1"/>');
-const WX_OPTS=[['晴',IC_WX_SUN],['多云',IC_WX_PARTLY],['阴',IC_WX_CLOUD],['雨',IC_WX_RAIN],['雪',IC_WX_SNOW],['雾',IC_WX_FOG],['雷阵雨',IC_WX_STORM]];
-const WX_ICO=Object.fromEntries(WX_OPTS);
-let wxCur={lab:'晴',rng:'20~30°',manual:false};
-function wxChipRender(){const b=$('#diaryWxChip');if(!b)return;
-  $('#diaryWxIco').innerHTML=(WX_ICO[wxCur.lab]||IC_WX_CLOUD);
-  $('#diaryWxTxt').textContent=wxCur.lab+(wxCur.rng?' '+wxCur.rng:'')+(wxCur.manual?' ·手动':'');}
-function renderWxPick(){$('#wxPickGrid').innerHTML=WX_OPTS.map(([lab,ico])=>
-  `<button onclick="wxPick('${lab}')" class="flex flex-col items-center gap-1 py-2.5 rounded-xl text-[11px] font-bold ${lab===wxCur.lab?'bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 ring-1 ring-brand-400':'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}">${ico}${lab}</button>`).join('');
-  $('#wxAutoBtn').style.display=wxCur.manual?'':'none';}
-function wxPick(lab){wxCur.lab=lab;wxCur.manual=true;wxChipRender();closeSheet('sheetWeatherPick');toast('本篇天气已手动设置 · 不再自动更新')}
-
-const CITIES=['杭州','上海','北京','深圳','广州','成都','武汉','西安','南京','重庆'];
-let curCity='杭州';
-function renderCityList(){const q=($('#citySearch')?.value||'').trim();
-  $('#cityList').innerHTML=CITIES.filter(c=>!q||c.includes(q)).map(c=>
-   `<button onclick="pickCity('${c}')" class="w-full flex items-center justify-between p-3 rounded-xl text-[13px] font-bold ${c===curCity?'bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400':'bg-slate-100 dark:bg-slate-800'}"><span>${c}</span><span class="text-[10px] font-normal text-slate-400">${c===curCity?'✓':'选择'}</span></button>`).join('')||'<div class="text-center text-[11px] text-slate-400 py-6">无匹配城市</div>';}
-function pickCity(c){curCity=c;const n=$('#setCityName');if(n)n.textContent=c;closeSheet('sheetCityPick');toast('天气城市已设置 · '+c)}
-const IC_MIC=_pwSvg('<rect x="9.4" y="3.5" width="5.2" height="10.5" rx="2.6"/><path d="M5.8 11.5a6.2 6.2 0 0 0 12.4 0M12 17.8V21"/>');
 const _pwSep='<span class="w-px h-4 flex-shrink-0" style="background:rgba(120,110,90,.25);margin:0 4px"></span>';
 function renderPwBar(){const bar=$('#pwBottomBar'),sub=$('#pwSubRow');if(!bar)return;
   if(pwType==='plain'){bar.classList.add('hidden');bar.classList.remove('flex');sub.classList.add('hidden');sub.classList.remove('flex');pwSub='';return;}
@@ -2235,7 +2180,7 @@ function vaxDone(i){VAX[i].st='done';renderVax();toast('✔ 已记录接种 · �
 
 
 /* ================= FAB 按需显示配置 ================= */
-let recTab='diary';
+let recTab='note';
 const FAB_CFG={
  'p-dashboard':{ico:'＋',menu:true},
  'p-inbox':{ico:'⚡',act:()=>{$('#inboxInput').focus();toast('输入想法后 Ctrl+Enter 存入收集箱')}},
@@ -3328,101 +3273,12 @@ function psUninstall(id){const p=PS.find(x=>x.id===id);p.state='idle';closeSheet
  toast('🗑 已卸载 '+p.n+'：程序与缓存清除 · 数据快照按政策保留 30 天可恢复')}
 function psRollback(){const p=PS.find(x=>x.id===psSel);toast('↩ 已回滚 '+p.n+' 至 N-1 版本（表迁移反向脚本执行 · 数据无损）');closeSheet('sheetPSDetail')}
 
-/* ================= 日记 INS 风格 ================= */
-let dlLayout='list';
-const DI_LIKE=D.diary.map((d,i)=>({like:false,star:false,n:[42,28,17][i%3]||i*7+13}));
-function insCardHtml(i){const d=D.diary[i],lk=DI_LIKE[i];
- return `<div class="ins-card ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlInsTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
- ${dlSelMode?`<span class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${dlSel.has(i)?'bg-brand-500 text-white':'border border-slate-300 text-transparent'}">✓</span>`:''}
- <div class="ins-hd"><span class="ins-av">C</span><div class="flex-1"><b class="text-xs">CHIST · 09-${d.d.split('-')[1]}</b><div class="text-[10px] text-slate-400">${d.wd} · ${d.wx} · 心情 ${d.emo} ${d.m}</div></div><button class="text-slate-400 px-1" onclick="toast('分享日记卡片（保存为图片·模拟）')">⤴</button><button class="text-slate-400" onclick="toast('更多操作（模拟）')">⋯</button></div>
- ${d.img?`<div class="ins-imgs">${Array.from({length:Math.min(4,d.img)},(_,k)=>`<span class="ins-img bg-gradient-to-br ${DI_IMG[k%3]}" onclick="insImgView(${i},${k})">${['🌇','🍰','🏃','📖'][k%4]}</span>`).join('')}</div>`:''}
- <div class="px-4 py-2 text-[13px] leading-7">${d.txt}</div>
- <!-- 轮12-11：关联信息=右下角小图标（全屏钮左侧）·点击展开 -->
- <div class="ins-act"><button onclick="diaryReact(${i},'like')" style="${lk.like?'color:#e11d48':''}">${lk.like?IC_HEART_F:IC_HEART}</button><button onclick="diaryReact(${i},'star')" style="${lk.star?'color:#f59e0b':''}">${lk.star?IC_STAR_F:IC_STAR}</button><button onclick="toast('评论/批注（本地笔记式评论 V1.x）')">${IC_CHAT}</button>${d.linked?`<button class="ml-auto text-slate-400" id="insRefBtn${i}" onclick="insRefToggle(${i})" title="本页关联">${IC_LINK}</button>`:''}<button class="${d.linked?'':'ml-auto'} !text-[11px] font-bold flex items-center gap-1" onclick="openInsFull(${i})">${IC_FULL} 全屏</button></div>
- ${d.linked?`<div class="ins-ref hidden" id="insRef${i}">本页关联 · ☑ ${d.linked} 个待办同步 · 📚 摘录「损失厌恶系数约为 2…」</div>`:''}
- <div class="px-4 pb-3 text-[11px] text-slate-400">${lk.n+(lk.like?1:0)} 次回望 · ${d.tags.map(t=>'#'+t).join(' ')}</div>
-</div>`}
-/* 轮12-11：INS 卡/列表行 关联信息展开切换 */
-function insRefToggle(i){const r=$('#insRef'+i);if(r)r.classList.toggle('hidden')}
-function dlRefToggle(i){const r=$('#dlRef'+i);if(r)r.classList.toggle('hidden')}
-/* 大图查看：INS/列表缩略点图 → 与笔记同款全屏黑底 lightbox（再点任意处关） */
-function insImgView(i,k){pwImgView()}
-/* ===== V1.29轮13：日记删除 + 长按批量选中（与笔记 noteSel 同款范式） ===== */
-let dlSelMode=false,dlSel=new Set();
-function dlEnterSel(i){if(!dlSelMode){dlSelMode=true;dlSel=new Set();}
-  if(!dlSel.has(i))dlSel.add(i);updateDiarySelBar();renderDiaryList();}
-function dlRowTap(i){if(dlSelMode){dlToggle(i);return}navTo('p-diaryEdit')}
-function dlInsTap(i){if(dlSelMode)dlToggle(i)}
-function dlToggle(i){if(dlSel.has(i))dlSel.delete(i);else dlSel.add(i);
-  if(!dlSel.size){dlExitSel();return;}updateDiarySelBar();renderDiaryList();}
-function updateDiarySelBar(){const b=$('#diarySelBar');if(!b)return;
-  if(!dlSelMode||!dlSel.size){dlExitSel();return;}
-  $('#diarySelLbl').textContent='已选 '+dlSel.size+' 篇';
-  b.classList.remove('hidden');b.classList.add('flex');}
-function dlExitSel(){dlSelMode=false;dlSel.clear();const b=$('#diarySelBar');
-  if(b){b.classList.add('hidden');b.classList.remove('flex');}renderDiaryList();}
-function dlBatchDel(){const n=dlSel.size;[...dlSel].sort((a,b)=>b-a).forEach(i=>D.diary.splice(i,1));
-  dlExitSel();toast(`已删除 ${n} 篇日记`);}
-
-function diaryReact(i,k){DI_LIKE[i][k]=!DI_LIKE[i][k];if(dlLayout==='ins')renderInsInto('#diaryList',false);toast(k==='like'?(DI_LIKE[i].like?'已收藏这页人生':'取消收藏'):(DI_LIKE[i].star?'已加亮':'取消加亮'))}
-function renderInsInto(sel,tip){$(sel).innerHTML=D.diary.map((d,i)=>insCardHtml(i)).join('')+(tip?'<div class="text-center text-[10px] text-slate-400 pb-4">📱 INS 卡片流</div>':'')}
-/* 轮12-4：编辑页不再有 文档/INS 模式切换（INS 浏览仅记录页保留·dlLayout 管列表⇄INS） */
-function openInsFull(i){$('#insFullBody').innerHTML=insCardHtml(i);$('#insFull').classList.remove('hidden')}
-
-/* V1.29轮9g：日记筛选=顶栏漏斗钮 + 底部浮层选择（全部/☐待办/标签·当前项✓） */
-let diaryFilter='全部';
-const DIARY_FILTERS=['全部','☐ 待办','#加班','#复盘'];
-function renderDiaryFilterSheet(){const m=$('#dfList');if(!m)return;
-  m.innerHTML=DIARY_FILTERS.map(f=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${f===diaryFilter?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="diaryFilterSet('${f}')">${f}<span class="text-[11px]">${f===diaryFilter?'✓':''}</span></button>`).join('');
-  syncDiaryFilterBtn();}
-function diaryFilterSet(f){diaryFilter=f;closeSheet('sheetDiaryFilter');renderDiaryFilterSheet();toast('已按「'+f+'」筛选（模拟）');}
-/* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） ================= */
-let drMonthOff=0;
-const DR_MOODS=['😖','😔','😐','😌','🙂','😄',''];
+/* ================= 日记 INS 风格 ================= */const DIARY_FILTERS=['全部','☐ 待办','#加班','#复盘'];/* ================= V1.29批2 · 回顾弹层（心情趋势+词云+那年今日） ================= */const DR_MOODS=['😖','😔','😐','😌','🙂','😄',''];
 const DR_COLORS=['#fb7185','#f59e0b','#a3a3a3','#2dd4bf','#0ea5e9','#8b5cf6','#6366f1'];
-
-function renderDiaryReview(){const lbl=$('#drMonthLbl');if(!lbl)return;
- const base=8+drMonthOff;const y=base<0?2025:2026,m=((base%12)+12)%12+1;
- lbl.textContent=y+'-'+String(m).padStart(2,'0');
- const days=m===2?28:([4,6,9,11].includes(m)?30:31);const seed=m*7;
- let rec=0;const bars=[];
- for(let i=0;i<days;i++){const h=(seed+i*53)%4;const mood=(seed+i*29)%7;const has=h!==3;if(has)rec++;
-  bars.push(has?`<button class="flex-1 rounded-t-sm" style="height:${30+((mood+1)*9)%70}%;background:${DR_COLORS[mood]};opacity:.92" onclick="toast('查看 ${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')} 当天记录（模拟）')"></button>`
-   :`<span class="flex-1 rounded-t-sm" style="height:6%;background:rgba(120,110,90,.15)"></span>`);}
- $('#drTrend').innerHTML=bars.join('');
- $('#drMoodLegend').innerHTML=DR_MOODS.map((e,i)=>`<span class="text-[11px]">${e}</span><span class="w-2 h-2 rounded-full mr-1.5" style="background:${DR_COLORS[i]}"></span>`).join('');
- $('#drSummary').textContent=`本月记录 ${rec} 篇 · 以 ${DR_MOODS[(seed+3)%7]} 居多 · 连续记录中`;
- const ws=[['散步',3],['复盘',2],['电影',3],['朋友',4],['周末',2],['读书',3],['咖啡',2],['运动',4],['睡眠',1],['项目',2],['灵感',3],['做饭',1],['雨',2],['展会',3]];
- $('#drCloud').innerHTML=ws.map(([w,k])=>{const i=(seed+k*13)%ws.length;const sz=[11,13,16,20,26][ (i+k*7)%5 ];const c=DR_COLORS[(i*5+k)%7];
-  return `<span style="font-size:${sz}px;font-weight:${sz>16?800:600};color:${c};opacity:.9;cursor:pointer" onclick="toast('查看含「${w}」的日记（模拟）')">${w}</span>`;}).join('');}
 /* V1.29批2：日记编辑器工具栏兑现（B/≡/☑/❝ 插标记·🖼 走插图链·富文本=所见即所得模拟） */
 let imgTarget='note';
-/* 轮12-9：日记正文=富文本框（所见即所得·按钮直接施加格式，不插 MD 语法） */
-function diaryFmt(k){const ed=$('#diaryText');if(!ed||!ed.isContentEditable){toast('结构化模板分节内暂用纯文本');return}
- ed.focus();
- if(k==='b')document.execCommand('bold');
- else if(k==='ul')document.execCommand('insertUnorderedList');
- else if(k==='quote')document.execCommand('formatBlock',false,'blockquote');
- else if(k==='todo'){document.execCommand('insertHTML',false,'<div><span class="diary-chk">☐</span>&nbsp;待办&nbsp;</div>');toast('已插入待办 · 保存后同步 L3');}
-}
-function diaryAttach(){imgTarget='diary';openSheet('sheetImgSrc');}
-/* 轮12-2：快捷栏 拍照/相册=直取来源插图（不再经来源弹层） */
-function diaryAttachDirect(src){imgTarget='diary';pwPickImg(src);}
-/* 轮12-1：今日概览草稿默认折叠·点标题行展开/收起 */
-
-function syncDiaryFilterBtn(){const b=$('#diaryFilterBtn');if(!b)return;
-  b.classList.toggle('text-brand-500',diaryFilter!=='全部');b.classList.toggle('text-slate-500',diaryFilter==='全部');}
-function renderDiaryList(){const el=$('#diaryList');if(!el)return;
- if(dlLayout==='ins'){renderInsInto('#diaryList',false);return}
- el.innerHTML=D.diary.map((d,i)=>`<div class="card mb-3 ${dlSelMode&&dlSel.has(i)?'ring-2 ring-brand-500':''}" onclick="dlRowTap(${i})" oncontextmenu="event.preventDefault();dlEnterSel(${i})">
-    <div class="flex items-center gap-2"><b class="text-sm">${d.d}</b><span class="text-[10px] text-slate-400">${d.wd} · ${d.wx}</span>
-      <span class="ml-auto flex items-center gap-1"><span class="text-lg">${d.emo}</span><span class="text-[10px] text-slate-400">${d.m}</span></span></div>
-    <div class="text-sm leading-6 mt-1.5 text-slate-600 dark:text-slate-300">${d.txt}</div>
-    ${d.img?`<div class="mt-2 flex gap-1.5">${Array.from({length:Math.min(4,d.img)},(_,k)=>`<span class="w-14 h-14 rounded-xl bg-gradient-to-br ${DI_IMG[k%3]}" onclick="event.stopPropagation();insImgView(${i},${k})"></span>`).join('')}${d.img>4?`<span class="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-slate-400">+${d.img-4}</span>`:''}</div>`:''}
-    <div class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">${d.tags.map(t=>`<span class="chip !text-[9px] !py-0.5">#${t}</span>`).join('')}<span class="ml-auto flex items-center gap-2">${d.linked?`<button class="flex items-center gap-0.5 text-slate-400" id="dlRefBtn${i}" onclick="event.stopPropagation();dlRefToggle(${i})" title="本页关联">${IC_LINK}<b>${d.linked}</b></button>`:''}<span>${d.tm} 保存</span></span></div>
-    ${d.linked?`<div class="ins-ref hidden" id="dlRef${i}">本页关联 · ☑ ${d.linked} 个待办同步</div>`:''}</div>`).join('')
-    +`<div class="mt-4 rounded-2xl bg-brand-50 dark:bg-brand-500/10 p-3 text-xs text-center text-slate-500 dark:text-slate-400" onclick="toast('打开 2025-09-19 日记')">🗓 那年今日 · 1 年前 09-19<br><b>「今天和室友约了球…」</b> 点击查看</div>`}
-
+/* 轮12-9：日记正文=富文本框（所见即所得·按钮直接施加格式，不插 MD 语法） */function diaryAttach(){imgTarget='diary';openSheet('sheetImgSrc');}
+/* 轮12-2：快捷栏 拍照/相册=直取来源插图（不再经来源弹层） *//* 轮12-1：今日概览草稿默认折叠·点标题行展开/收起 */
 /* ================= 其他 ================= */
 function tick(){ const d=new Date(); $('#clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'); }
 setInterval(tick,10000);
@@ -3448,8 +3304,8 @@ renderPwBar();
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-diaryEdit":["index.html","壳与跨模块"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-pstore":["index.html","壳与跨模块"],"p-profile":["index.html","壳与跨模块"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index.html","壳与跨模块"],"sheetWeatherPick":["index.html","壳与跨模块"],"sheetCityPick":["index.html","壳与跨模块"],"sheetDiaryTplEdit":["index.html","壳与跨模块"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index.html","壳与跨模块"],"sheetDiaryReview":["index.html","壳与跨模块"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"]};
-var DROP=window.LH_DROPPED={"p-toolDetail":1,"p-tools":1};
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index.html","壳与跨模块"],"p-records":["index-bookshelf.html","阅读·书架"],"p-diaryEdit":["index-journal.html","日记·笔记"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-import":["index-bookshelf.html","阅读·书架"],"p-bookDetail":["index-bookshelf.html","阅读·书架"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-profile":["index.html","壳与跨模块"],"p-sub-data":["index.html","壳与跨模块"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index.html","壳与跨模块"],"p-sub-cats":["index.html","壳与跨模块"],"p-sub-catAdd":["index.html","壳与跨模块"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index.html","壳与跨模块"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index-journal.html","日记·笔记"],"sheetWeatherPick":["index-journal.html","日记·笔记"],"sheetCityPick":["index-journal.html","日记·笔记"],"sheetDiaryTplEdit":["index-journal.html","日记·笔记"],"sheetCatParent":["index.html","壳与跨模块"],"sheetTask":["index.html","壳与跨模块"],"sheetAddExcerpt":["index-ledger.html","记账"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index-journal.html","日记·笔记"],"sheetDiaryReview":["index-journal.html","日记·笔记"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetProgress":["index-bookshelf.html","阅读·书架"],"sheetTocImport":["index-bookshelf.html","阅读·书架"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetGridMark":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"sheetAddMedia":["index.html","壳与跨模块"],"p-pstore":["index.html","壳与跨模块"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"]};
+var DROP=window.LH_DROPPED={};
 var SELF=window.LH_SELF={};
 window.LH_LANDING="p-habits";
 window.lhGone=function(id){

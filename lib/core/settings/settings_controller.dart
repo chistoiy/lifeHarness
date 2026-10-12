@@ -160,5 +160,31 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 演示残留批（2026-10-12）·记录管理「默认新建模板」：三档循环
+  /// （cycleRecSet：纯文本/KPT 复盘/晨间三问），脏值收敛 '纯文本'，同值不写盘。
+  Future<void> setJournalDefaultTpl(String v) async {
+    final t = const {'纯文本', 'KPT 复盘', '晨间三问'}.contains(v)
+        ? v
+        : '纯文本';
+    if (t == state.journalDefaultTpl) return;
+    state = state.copyWith(journalDefaultTpl: t);
+    await _persist();
+  }
+
+  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键（'all'|'todo'|标签名，
+  /// 空值收敛 'all'）与 INS 布局开关。同值不写盘。
+  Future<void> setJournalFilter(String v) async {
+    final f = v.trim().isEmpty ? 'all' : v.trim();
+    if (f == state.journalFilter) return;
+    state = state.copyWith(journalFilter: f);
+    await _persist();
+  }
+
+  Future<void> setJournalIns(bool on) async {
+    if (on == state.journalIns) return;
+    state = state.copyWith(journalIns: on);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }

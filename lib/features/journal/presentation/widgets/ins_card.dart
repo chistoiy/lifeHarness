@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/weather/weather.dart';
 import '../../domain/journal_entry.dart';
 import '../journal_providers.dart';
 import '../../../../shared/widgets/image_attach.dart';
+import '../../../../shared/widgets/ui_kit.dart' show AppToast;
 
 /// INS 卡片流单卡（原型 ins-card：头像行 · 正文 · 图片 2×2 · 回望操作 · 次数与标签）。
 class InsDiaryCard extends ConsumerStatefulWidget {
@@ -47,10 +49,14 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
     final imgs = entry.imagePaths;
     final todoCount = entry.todoLines().length;
 
-    void react(bool liked, bool starred) {
-      ref.read(journalRepositoryProvider).setFlags(entry.id!,
-          liked: liked, starred: starred);
-      ref.invalidate(journalsProvider);
+    Future<void> react(bool liked, bool starred) async {
+      await ref
+          .read(journalRepositoryProvider)
+          .setFlags(entry.id!, liked: liked, starred: starred);
+      // 语义断链批 #26：点赞/星标单篇补丁（原整表 invalidate·全量重拉重组建卡片流）。
+      ref
+          .read(journalsProvider.notifier)
+          .patch(entry.copyWith(liked: liked, starred: starred));
     }
 
     return GestureDetector(
@@ -79,8 +85,15 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                         shape: BoxShape.circle, gradient: tokens.gradient),
-                    child: const Text('C',
-                        style: TextStyle(
+                    // 演示残留批（2026-10-12）：演示名「CHIST」→ 读 R14-12 昵称
+                    // helper（nickOrFallback），头像首字同源（settings_page 先例）。
+                    child: Text(
+                        ref
+                            .watch(settingsControllerProvider)
+                            .nickOrFallback
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
                             fontSize: 13)),
@@ -90,7 +103,8 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CHIST · ${_two(d.month)}-${_two(d.day)}',
+                        Text(
+                            '${ref.watch(settingsControllerProvider).nickOrFallback} · ${_two(d.month)}-${_two(d.day)}',
                             style: const TextStyle(
                                 fontSize: 12, fontWeight: FontWeight.w700)),
                         Text(
@@ -119,9 +133,9 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                     )
                   else
                     IconButton(
-                        onPressed: () => ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(
-                                content: Text('分享日记卡片 · 规划 V1.x'))),
+                        // UI/UX批：裸 SnackBar → AppToast 统一口径。
+                        onPressed: () =>
+                            AppToast.show(context, '分享日记卡片 · 规划 V1.x'),
                         icon: const Icon(Icons.ios_share, size: 16)),
                 ],
               ),
@@ -168,9 +182,9 @@ class _InsDiaryCardState extends ConsumerState<InsDiaryCard> {
                             : null),
                   ),
                   IconButton(
-                      onPressed: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(const SnackBar(
-                              content: Text('评论/批注 · 规划 V1.x'))),
+                      // UI/UX批：裸 SnackBar → AppToast 统一口径。
+                      onPressed: () =>
+                          AppToast.show(context, '评论/批注 · 规划 V1.x'),
                       icon: const Icon(Icons.chat_bubble_outline, size: 19)),
                   const Spacer(),
                   // 轮12-11：关联信息收进小图标（全屏钮左侧），点击展开明细
@@ -283,6 +297,9 @@ class _InsImageGrid extends StatelessWidget {
             children: [
               Image.file(File(path),
                   fit: BoxFit.cover,
+                  // UI/流畅批：缩略图降采样（原整图解码；格宽约半卡宽，200 逻辑像素足够）。
+                  cacheWidth:
+                      (MediaQuery.devicePixelRatioOf(context) * 200).round(),
                   errorBuilder: (_, _, _) => const ColoredBox(
                       color: Color(0x14000000),
                       child: Center(

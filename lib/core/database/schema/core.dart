@@ -95,6 +95,9 @@ final Map<int, List<String>> mig = {
     // 三态里「已回写原文件 / 仅应用内」只能靠这列推（回写成功原先只弹 toast 不落库）；
     // 纯加列零搬数据，基础 DDL（schema.dart notes 建表段）同段带列，两路互不撞。
     42: ['ALTER TABLE $tNotes ADD COLUMN wb_at INTEGER'],
+    // 语义断链批（2026-10-12）：43→44 给 journal_entries 加 deleted_at（回收站第八类）。
+    // 纯加列零搬数据；基础 DDL（schema.dart journal 建表段）同段带列，两路互不撞。
+    43: ['ALTER TABLE $tJournal ADD COLUMN deleted_at INTEGER'],
     // V1.64 批2（工单 交棒话术-20261004 §12 面板 · N-1/N-1c）：挂载与判重锚点。
     // note_folders 三列＝该夹是不是「手机里某个目录的挂载」（移除只摘这些行，
     // 磁盘原件与库内笔记都不动＝拍板 H）；notes.src_hash＝内容哈希（导入侧按哈希

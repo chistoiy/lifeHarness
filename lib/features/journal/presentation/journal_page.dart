@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/media_mounts.dart';
@@ -11,6 +12,9 @@ import '../../../shared/linkage/read_mounts.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 import '../domain/journal_entry.dart';
+import '../../read/domain/book_quote.dart';
+import '../../read/presentation/read_providers.dart'
+    show readRepositoryProvider, readTickProvider;
 import 'diary_edit_page.dart';
 import 'journal_providers.dart';
 import 'note_edit_page.dart';
@@ -211,7 +215,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
           //（DAO 的 `list(query:)` 早已在册，缺的只是一个入口）。
           IconButton(
             key: const ValueKey('rec-search'),
-            tooltip: '搜索笔记',
+            tooltip: '搜索',
             icon: const Icon(Icons.search),
             onPressed: () => showNoteSearchSheet(context, ref),
           ),
@@ -330,14 +334,14 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
         _sel.clear();
       });
 
-  /// 批量删除：确认弹层 → 逐篇删（分节随删）→ 刷新列表。
+  /// 批量删除：确认弹层 → 软删进回收站 → 刷新列表（语义断链批 2026-10-12）。
   Future<void> _batchDelete() async {
     final n = _sel.length;
     final yes = await showDialog<bool>(
       context: context,
       builder: (bc) => AlertDialog(
         title: Text('删除选中的 $n 篇日记？'),
-        content: const Text('删除后不可恢复。'),
+        content: const Text('删除后进回收站，可随时恢复。'),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(bc).pop(false),
@@ -356,7 +360,7 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
     if (!mounted) return;
     _exitSel();
     ref.invalidate(journalsProvider);
-    AppToast.show(context, '已删除 $n 篇日记');
+    AppToast.show(context, '已删除 $n 篇 · 回收站可恢复');
   }
 
   @override
@@ -369,22 +373,60 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
     final insMode = ref.watch(journalInsProvider);
     final entries = entriesAsync.valueOrNull ?? const <JournalEntry>[];
 
-    final shown = switch (filter) {
-      'all' => entries,
-      'todo' => entries.where((e) => e.todoLines().isNotEmpty).toList(),
-      _ => entries
-          .where((e) => e.tags.any((t) => t == filter || '#$t' == filter))
-          .toList(),
-    };
-
     final tags = <String>{
       for (final e in entries) ...e.tags,
     }.take(4).map((t) => '#$t').toList();
+
+    // #27：持久化的筛选键若指向已不存在的标签（改名/删除后冷启动）回落 'all'。
+    final rawTags = <String>{for (final e in entries) ...e.tags};
+    final effFilter = (filter == 'all' || filter == 'todo' || rawTags.contains(filter))
+        ? filter
+        : 'all';
+
+    final shown = switch (effFilter) {
+      'all' => entries,
+      'todo' => entries.where((e) => e.todoLines().isNotEmpty).toList(),
+      _ => entries
+          .where((e) => e.tags.any((t) => t == effFilter || '#$t' == effFilter))
+          .toList(),
+    };
 
     final now = DateTime.now();
     final today = entries.where((e) => JournalEntry.sameDay(e.day, now)).firstOrNull;
     final monthEntries =
         entries.where((e) => e.day.year == now.year && e.day.month == now.month).toList();
+
+    // UI/流畅批（2026-10-12）：月历逐日 O(31×N) 过滤 → 一次建 map
+    //（monthEntries 新→旧，首见=当日最新篇；byDayAll 供点按打开该日全篇选择）。
+    final byDayFirst = <int, JournalEntry>{};
+    final byDayAll = <int, List<JournalEntry>>{};
+    for (final e in monthEntries) {
+      byDayAll.putIfAbsent(e.day.day, () => []).add(e);
+      byDayFirst.putIfAbsent(e.day.day, () => e);
+    }
+    // 那年今日：原 FutureBuilder 在 build 里现建 future，每次 setState 重查 DB；
+    // 改 provider 缓存（随列表失效刷新），此处只读值。
+    final onThisDay = ref.watch(onThisDayProvider).valueOrNull;
+    Widget tailItem() => onThisDay == null
+        ? const SizedBox.shrink()
+        : Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: GestureDetector(
+              onTap: () => context
+                  .push('/journal/edit', extra: DiaryEditArg(entryId: onThisDay.id)),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: tokens.accent.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(16)),
+                child: Text(
+                  '🗓 那年今日 · ${onThisDay.day.year}-${_two(onThisDay.day.month)}-${_two(onThisDay.day.day)}\n'
+                  '「${onThisDay.previewText.replaceAll('\n', ' ').clampText(24)}」点击查看',
+                  style: const TextStyle(fontSize: 11, height: 1.6),
+                ),
+              ),
+            ),
+          );
 
     return PopScope(
       canPop: !_selMode,
@@ -397,11 +439,17 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
             child: ScrollPad(
               // T2-B：日记段长列表滚动垫（切栏回来原位）。
               id: 'journal-diary',
-              child: ListView(
+              // UI/流畅批（2026-10-12）：列表改懒构建（原 `ListView(children: […])` 全量
+              // 建卡片·每卡含 Image，同笔记批1 定式；零视觉：padding 与间距不变）。
+              // item 序：0 月历卡 / 1,3,5 间隙 / 2 入口卡 / 4 切换行 / 6.. 篇卡（空态占 6）/ 尾=那年今日。
+              child: ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      children: [
-        // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
-        Container(
+      itemCount: shown.isEmpty ? 8 : 7 + shown.length,
+      itemBuilder: (context, i) {
+        final n = shown.length;
+        if (i == 0) {
+          return Container(
+            // 渐变心情月历卡（原型 moodCard：标题+回顾钮+30 色条+脚注）
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
               gradient: tokens.gradient,
@@ -440,15 +488,29 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
                   children: [
                     for (var d = 1; d <= DateTime(now.year, now.month + 1, 0).day; d++)
                       Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 1),
-                          child: GestureDetector(
-                            onTap: () => context
-                                .push('/journal/edit', extra: DiaryEditArg(day: DateTime(now.year, now.month, d))),
+                        // UI/UX批（2026-10-12）：色条=「点色条看当天」对齐原型——有既有篇
+                        // 直开（多篇弹选择）、无篇才新建（新建入口已有 FAB＋入口卡两处）；
+                        // 热区垫满整格 36px（无心情日原 ~4px 点不中），bar 仍贴底零视觉差。
+                        child: GestureDetector(
+                          key: ValueKey('moodbar-$d'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            final dayList = byDayAll[d];
+                            if (dayList == null || dayList.isEmpty) {
+                              context.push('/journal/edit',
+                                  extra: DiaryEditArg(day: DateTime(now.year, now.month, d)));
+                            } else {
+                              openDiaryPickSheet(
+                                  context, '${now.month}-${_two(d)} 的日记', dayList);
+                            }
+                          },
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
                             child: Container(
-                              height: 36 * _barHeight(now, d, entries),
+                              height: 36 * _barHeightOf(byDayFirst[d]),
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
                               decoration: BoxDecoration(
-                                color: _barColor(now, d, entries),
+                                color: _barColorOf(byDayFirst[d]),
                                 borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(3)),
                               ),
@@ -468,11 +530,13 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        // 写今天的日记（原型入口卡）
-        _card(
-          context,
+        );
+        }
+        if (i == 1) return const SizedBox(height: 12);
+        if (i == 2) {
+          return _card(
+            context,
+            // 写今天的日记（原型入口卡）
           child: InkWell(
             borderRadius: BorderRadius.circular(tokens.cardRadius),
             onTap: () => context.push('/journal/edit', extra: const DiaryEditArg()),
@@ -513,17 +577,21 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        // V1.29轮9g：本行=列表⇄INS 切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签
-        Row(
+        );
+        }
+        if (i == 3) return const SizedBox(height: 12);
+        if (i == 4) {
+          // V1.29轮9g：本行=列表⇄INS 切换钮 + 筛选钮（右）·筛选点击弹底部浮层 全部/☐待办/标签
+          return Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             IconButton(
               key: const ValueKey('diary-view'),
               tooltip: insMode ? '切换到列表' : '切换到 INS 卡片流',
-              onPressed: () => ref.read(journalInsProvider.notifier).state =
-                  !insMode,
+              // #27：布局写 settings（持久化，冷启动恢复）。
+              onPressed: () => ref
+                  .read(settingsControllerProvider.notifier)
+                  .setJournalIns(!insMode),
               icon: Icon(insMode ? Icons.menu : Icons.grid_view, size: 22),
             ),
             IconButton(
@@ -541,33 +609,38 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 2),
-        if (shown.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 30),
-            child: Center(
-              child: Text(
-                entries.isEmpty ? '还没有日记 · 点上方「写今天的日记」开始' : '该筛选下暂无日记',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+        );
+        }
+        if (i == 5) return const SizedBox(height: 2);
+        if (shown.isEmpty) {
+          if (i == 6) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30),
+              child: Center(
+                child: Text(
+                  entries.isEmpty ? '还没有日记 · 点上方「写今天的日记」开始' : '该筛选下暂无日记',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
               ),
-            ),
-          )
-        else if (insMode)
-          for (final e in shown)
-            InsDiaryCard(
-                entry: e,
-                selected: _sel.contains(e.id),
-                onLongPress: () => _enterSel(e.id!),
-                onOpen: () => _selMode
-                    ? _toggleSel(e.id!)
-                    : context.push('/journal/edit',
-                        extra: DiaryEditArg(entryId: e.id)))
-        else
-          for (final e in shown)
-            Padding(
+            );
+          }
+          return tailItem(); // 空列表时尾卡仍兜底（无数据自然 shrink）
+        }
+        if (i >= 6 + n) return tailItem();
+        final e = shown[i - 6];
+        if (insMode) {
+          return InsDiaryCard(
+              entry: e,
+              selected: _sel.contains(e.id),
+              onLongPress: () => _enterSel(e.id!),
+              onOpen: () => _selMode
+                  ? _toggleSel(e.id!)
+                  : context.push('/journal/edit',
+                      extra: DiaryEditArg(entryId: e.id)));
+        }
+        return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _card(
                 context,
@@ -664,33 +737,8 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
                   ),
                 ),
               ),
-            ),
-        // 那年今日
-        FutureBuilder(
-          future: ref.read(journalRepositoryProvider).onThisDayLastYear(),
-          builder: (context, snap) {
-            final old = snap.data;
-            if (old == null) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: GestureDetector(
-                onTap: () => context.push('/journal/edit', extra: DiaryEditArg(entryId: old.id)),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: tokens.accent.withValues(alpha: .08),
-                      borderRadius: BorderRadius.circular(16)),
-                  child: Text(
-                    '🗓 那年今日 · ${old.day.year}-${_two(old.day.month)}-${_two(old.day.day)}\n'
-                    '「${old.previewText.replaceAll('\n', ' ').clampText(24)}」点击查看',
-                    style: const TextStyle(fontSize: 11, height: 1.6),
-                  ),
-                ),
-              ),
             );
-          },
-        ),
-      ],
+        }
             ),
             ),
           ),
@@ -738,19 +786,14 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
 
   static String _two(int v) => v.toString().padLeft(2, '0');
 
-  double _barHeight(DateTime now, int day, List<JournalEntry> entries) {
-    final e = entries
-        .where((x) => x.day.year == now.year && x.day.month == now.month && x.day.day == day)
-        .firstOrNull;
+  /// UI/流畅批：色条高度/颜色改收当日篇（build 侧已建 map，逐日 O(N) 过滤取消）。
+  double _barHeightOf(JournalEntry? e) {
     if (e == null) return .12;
     final mood = e.mood;
     return mood == null ? .35 : 0.35 + mood / kJournalMoods.length * 0.65;
   }
 
-  Color _barColor(DateTime now, int day, List<JournalEntry> entries) {
-    final e = entries
-        .where((x) => x.day.year == now.year && x.day.month == now.month && x.day.day == day)
-        .firstOrNull;
+  Color _barColorOf(JournalEntry? e) {
     if (e == null) return Colors.white.withValues(alpha: .22);
     const palette = [
       Color(0xFF6366F1), Color(0xFF2DD4BF), Color(0xFFF59E0B),
@@ -822,7 +865,8 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
       ),
     );
     if (pick == null) return;
-    ref.read(journalFilterProvider.notifier).state = valOf(pick);
+    // #27：筛选写 settings（持久化）。
+    ref.read(settingsControllerProvider.notifier).setJournalFilter(valOf(pick));
     if (context.mounted) AppToast.show(context, '筛选：${labelOf(pick)}');
   }
 
@@ -842,16 +886,25 @@ class _DiaryTabState extends ConsumerState<_DiaryTab> {
 }
 
 /// 轮12-11 · 列表行底栏：标签 chips + 关联小图标（☑ N 收起态·点击展开明细）+ 保存时间。
-class _DiaryMeta extends StatefulWidget {
+/// 语义断链批（L5 · 2026-10-12）：关联块补当日阅读摘录（原型 ins-ref「📚 摘录…」行）。
+
+/// 当日阅读摘录（按自然日分组；摘录变动随 readTick 失效）。
+final dayQuotesProvider =
+    FutureProvider<Map<int, List<({BookQuote q, String book})>>>((ref) async {
+  ref.watch(readTickProvider);
+  return ref.read(readRepositoryProvider).quotesGroupedByDay();
+});
+
+class _DiaryMeta extends ConsumerStatefulWidget {
   const _DiaryMeta({required this.entry});
 
   final JournalEntry entry;
 
   @override
-  State<_DiaryMeta> createState() => _DiaryMetaState();
+  ConsumerState<_DiaryMeta> createState() => _DiaryMetaState();
 }
 
-class _DiaryMetaState extends State<_DiaryMeta> {
+class _DiaryMetaState extends ConsumerState<_DiaryMeta> {
   bool _open = false;
 
   @override
@@ -860,6 +913,12 @@ class _DiaryMetaState extends State<_DiaryMeta> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final n = e.todoLines().length;
+    // L5：当日新建的阅读摘录（划线/感想）＝本页关联素材（原型关联块同口径）。
+    final quotes = ref
+            .watch(dayQuotesProvider)
+            .valueOrNull?[JournalEntry.dayStart(e.day).millisecondsSinceEpoch] ??
+        const <({BookQuote q, String book})>[];
+    final qm = quotes.length;
     String two(int v) => v.toString().padLeft(2, '0');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,7 +941,7 @@ class _DiaryMetaState extends State<_DiaryMeta> {
                 ),
               ),
             const Spacer(),
-            if (n > 0)
+            if (n + qm > 0)
               IconButton(
                 key: ValueKey('jref-${e.id}'),
                 tooltip: '本页关联',
@@ -898,7 +957,7 @@ class _DiaryMetaState extends State<_DiaryMeta> {
                         size: 14,
                         color: _open ? tokens.accent : scheme.onSurfaceVariant),
                     const SizedBox(width: 3),
-                    Text('$n',
+                    Text('${n + qm}',
                         style: TextStyle(
                             fontSize: 10,
                             color: scheme.onSurfaceVariant)),
@@ -912,7 +971,7 @@ class _DiaryMetaState extends State<_DiaryMeta> {
             ),
           ],
         ),
-        if (_open && n > 0)
+        if (_open && n + qm > 0)
           Container(
             margin: const EdgeInsets.only(top: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -922,9 +981,35 @@ class _DiaryMetaState extends State<_DiaryMeta> {
               border:
                   Border(left: BorderSide(color: tokens.accent, width: 3)),
             ),
-            child: Text('本页关联 · ☑ $n 个待办同步',
-                style: TextStyle(
-                    fontSize: 11, color: scheme.onSurfaceVariant)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (n > 0)
+                  Text('本页关联 · ☑ $n 个待办同步',
+                      style: TextStyle(
+                          fontSize: 11, color: scheme.onSurfaceVariant)),
+                // L5：摘录行（最多展示 3 条，全量去阅读模块看——不做第二入口）。
+                for (final (:q, :book) in quotes.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      '📚 「${q.body.replaceAll('\n', ' ').clampText(20)}」'
+                      '${book.isEmpty ? '' : ' · $book'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                if (qm > 3)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text('📚 …共 $qm 条当日摘录',
+                        style: TextStyle(
+                            fontSize: 11, color: scheme.onSurfaceVariant)),
+                  ),
+              ],
+            ),
           ),
       ],
     );
@@ -958,6 +1043,9 @@ class _DiaryThumbs extends StatelessWidget {
                   children: [
                     Image.file(File(shown[i]),
                         fit: BoxFit.cover,
+                        // UI/流畅批：44px 缩略降采样（原整图解码，多图长列表滚动偏重）。
+                        cacheWidth:
+                            (MediaQuery.devicePixelRatioOf(context) * 96).round(),
                         errorBuilder: (_, _, _) => const ColoredBox(
                             color: Color(0x14000000),
                             child: Center(

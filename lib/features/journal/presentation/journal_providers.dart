@@ -133,9 +133,31 @@ final noteTreeProvider = FutureProvider<List<FolderNode>>((ref) async {
 final noteLocalFoldersProvider = FutureProvider<Set<String>>(
     (ref) => ref.watch(noteDaoProvider).foldersHoldingLocalNotes());
 
-/// 全部日记（新→旧；保存/回望操作后 invalidate 刷新）。
-final journalsProvider = FutureProvider<List<JournalEntry>>(
-    (ref) => ref.watch(journalRepositoryProvider).list());
+/// 全部日记（新→旧）。
+/// 语义断链批 #26（2026-10-12）：FutureProvider → AsyncNotifier——热路径
+/// （点赞/星标/天气/回望计数）改单篇 patch（改哪篇补哪篇），不再整表重拉；
+/// 保存/删除/联动等结构性变化仍走 ref.invalidate 全量刷新。
+/// 读法兼容：AsyncValue 与 FutureProvider 同形，既有 `.valueOrNull`/`.when` 不动。
+class JournalsNotifier extends AsyncNotifier<List<JournalEntry>> {
+  @override
+  Future<List<JournalEntry>> build() =>
+      ref.watch(journalRepositoryProvider).list();
+
+  /// 单篇原位替换：列表未载入/该篇不在库＝丢弃，等下次全量刷新对齐。
+  /// 入参应是**页内当前完整对象**（copyWith 出来的，保留 sections），勿传裸 DB 行。
+  void patch(JournalEntry e) {
+    final cur = state.valueOrNull;
+    if (cur == null || e.id == null) return;
+    state = AsyncData([
+      for (final x in cur)
+        if (x.id == e.id) e else x,
+    ]);
+  }
+}
+
+final journalsProvider =
+    AsyncNotifierProvider<JournalsNotifier, List<JournalEntry>>(
+        JournalsNotifier.new);
 
 /// 连续记录天数（记录页渐变卡）。
 final journalStreakProvider = FutureProvider<int>((ref) {
@@ -143,11 +165,22 @@ final journalStreakProvider = FutureProvider<int>((ref) {
   return ref.watch(journalRepositoryProvider).streak();
 });
 
-/// 记录页筛选（'all' 或标签名）。
-final journalFilterProvider = StateProvider<String>((ref) => 'all');
+/// 那年今日（记录页日记段尾卡）。UI/流畅批（2026-10-12）：原在 build 里
+/// 现建 future——多选勾选等每次 setState 都重查 DB；提为 provider 后
+/// 结果按列表失效缓存（增删日记才重查），setState 不再触发。
+final onThisDayProvider = FutureProvider<JournalEntry?>((ref) {
+  ref.watch(journalsProvider); // 列表增删后随之刷新
+  return ref.watch(journalRepositoryProvider).onThisDayLastYear();
+});
 
-/// 记录页布局（false=列表 true=INS 卡片流）。
-final journalInsProvider = StateProvider<bool>((ref) => false);
+/// 记录页筛选（'all' 或标签名）。
+/// 语义断链批 #27（2026-10-12）：日记段筛选/INS 布局持久化（笔记批5③ 同族）。
+/// 读＝settings 派生（冷启动恢复上次态）；写＝走 SettingsController 落盘
+/// （原两 StateProvider 纯内存态，冷启动复位）。
+final journalFilterProvider = Provider<String>(
+    (ref) => ref.watch(settingsControllerProvider).journalFilter);
+final journalInsProvider =
+    Provider<bool>((ref) => ref.watch(settingsControllerProvider).journalIns);
 
 /// 记录页四段 tab（diary/note/book/media）。
 final recordTabProvider = StateProvider<String>((ref) => 'diary');

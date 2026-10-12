@@ -10,6 +10,7 @@ import '../journal_providers.dart';
 /// M1批2c · 回顾底部弹层（原型 sheetDiaryReview）：
 /// 月份切换 ‹ YYYY年M月 › + 心情趋势柱状（CustomPaint·高度=心情1~7）
 /// + 词云（高频词字号分级·无图表依赖）+ 去年本月卡（点按打开该篇）。
+/// UI/UX批（2026-10-12）：逐柱/逐词可点对齐原型、月份切换有界（限往前 12 个月禁未来）。
 Future<void> openDiaryReview(BuildContext context, {DateTime? month}) =>
     showModalBottomSheet<void>(
       context: context,
@@ -24,6 +25,53 @@ Future<void> openDiaryReview(BuildContext context, {DateTime? month}) =>
             _DiaryReview(month ?? DateTime.now(), scrollCtrl),
       ),
     );
+
+/// UI/UX批（2026-10-12）· 日记篇目选择半屏：单篇直开、多篇列选。
+/// 主屏月历色条（该日多篇）与回顾弹层词云（含词篇目）共用；空列表不弹。
+Future<void> openDiaryPickSheet(
+    BuildContext context, String title, List<JournalEntry> entries) async {
+  if (entries.isEmpty) return;
+  if (entries.length == 1) {
+    final e = entries.first;
+    context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id));
+    return;
+  }
+  await showModalBottomSheet<void>(
+    context: context,
+    builder: (bc) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        children: [
+          Text(title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          for (final e in entries)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                  '${e.day.year}-${e.day.month.toString().padLeft(2, '0')}-'
+                  '${e.day.day.toString().padLeft(2, '0')} '
+                  '${e.day.hour.toString().padLeft(2, '0')}:${e.day.minute.toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+              subtitle: Text(
+                e.content.isEmpty ? '（只打了心情卡）' : e.previewText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: moodEmoji(e.mood) == null ? null : Text(moodEmoji(e.mood)!),
+              onTap: () {
+                Navigator.of(bc).pop();
+                context.push('/journal/edit', extra: DiaryEditArg(entryId: e.id));
+              },
+            ),
+        ],
+      ),
+    ),
+  );
+}
 
 class _DiaryReview extends ConsumerStatefulWidget {
   const _DiaryReview(this.month, this.scrollCtrl);
@@ -43,12 +91,22 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
 
   late DateTime _m = widget.month;
 
+  /// UI/UX批：月份偏移有界（对齐原型 drMonth：当月 0、最早往前 11 个月）。
+  int _off = 0;
+
   Future<List<JournalEntry>> _load() =>
       ref.read(journalRepositoryProvider).month(_m);
 
   void _shift(int delta) => setState(() {
-        _m = DateTime(_m.year, _m.month + delta);
+        final next = _off + delta;
+        if (next > 0 || next < -11) return; // 禁未来 · 限往前 12 个月
+        _off = next;
+        _m = DateTime(widget.month.year, widget.month.month + _off);
       });
+
+  /// UI/流畅批：同月内重复 build 不重建 future（切月才重查）。
+  Future<List<JournalEntry>>? _lastYearFut;
+  String? _lastYearKey;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +117,13 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
       future: _load(),
       builder: (bc, snap) {
         final entries = snap.data ?? const <JournalEntry>[];
+        // UI/流畅批：逐日首篇 map 建一次（趋势柱绘制与点按命中共用，
+        // 词云词表也算一次——原 build 每帧 _topWords 两遍）。
+        final byDay = <int, JournalEntry>{};
+        for (final e in entries) {
+          byDay.putIfAbsent(e.day.day, () => e); // 同日多篇取首篇（列表新→旧）
+        }
+        final words = _topWords(entries);
         return ListView(
           controller: widget.scrollCtrl,
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
@@ -82,7 +147,7 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                 const Spacer(),
                 IconButton(
                     key: const ValueKey('dr-prev'),
-                    onPressed: () => _shift(-1),
+                    onPressed: _off <= -11 ? null : () => _shift(-1),
                     icon: const Icon(Icons.chevron_left)),
                 Text('${_m.year}年${_m.month}月',
                     key: const ValueKey('dr-month-label'),
@@ -90,18 +155,34 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                         fontSize: 13, fontWeight: FontWeight.w800)),
                 IconButton(
                     key: const ValueKey('dr-next'),
-                    onPressed: () => _shift(1),
+                    onPressed: _off >= 0 ? null : () => _shift(1),
                     icon: const Icon(Icons.chevron_right)),
               ],
             ),
             const SizedBox(height: 8),
             _card(bc, tokens, scheme, '心情趋势', [
-              SizedBox(
-                key: const ValueKey('dr-trend'),
-                height: 96,
-                child: CustomPaint(
-                    size: const Size(double.infinity, 96),
-                    painter: _TrendPainter(month: _m, entries: entries)),
+              // UI/UX批：逐柱可点对齐原型——命中按 x 折算日号，有记录日直开该篇
+              //（同日多篇取首篇，与绘制口径一致），无记录淡条不可点。
+              LayoutBuilder(
+                builder: (lc, cons) => GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (d) {
+                    final days = DateTime(_m.year, _m.month + 1, 0).day;
+                    final day = (d.localPosition.dx / cons.maxWidth * days).floor() + 1;
+                    final e = byDay[day];
+                    if (e == null) return;
+                    Navigator.of(bc).pop();
+                    context.push('/journal/edit',
+                        extra: DiaryEditArg(entryId: e.id));
+                  },
+                  child: SizedBox(
+                    key: const ValueKey('dr-trend'),
+                    height: 96,
+                    child: CustomPaint(
+                        size: const Size(double.infinity, 96),
+                        painter: _TrendPainter(month: _m, byDay: byDay)),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               // 心情图例（7 表情·线性文字）
@@ -144,18 +225,29 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
                 alignment: WrapAlignment.center,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  for (final (w, freq) in _topWords(entries))
-                    Text(w,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: _fs(freq),
-                            height: 1.3,
-                            color: Color.lerp(scheme.onSurface,
-                                tokens.accent, _fs(freq) / 24))),
+                  // UI/UX批：逐词可点对齐原型——点开本月含词篇目（单篇直开/多篇列选）。
+                  for (final (w, freq) in words)
+                    GestureDetector(
+                      onTap: () {
+                        final hits = entries
+                            .where((e) => e.plainBody.contains(w))
+                            .toList();
+                        if (hits.isEmpty) return;
+                        Navigator.of(bc).pop();
+                        openDiaryPickSheet(context, '含「$w」的日记', hits);
+                      },
+                      child: Text(w,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: _fs(freq),
+                              height: 1.3,
+                              color: Color.lerp(scheme.onSurface,
+                                  tokens.accent, _fs(freq) / 24))),
+                    ),
                 ],
                 // 空月份兜底
               ),
-              if (_topWords(entries).isEmpty)
+              if (words.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text('本月文字还太少 · 多写几篇再回来看',
@@ -198,10 +290,14 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
   /// 去年本月卡：repo.range 取去年同月条目，点最新一篇进编辑。
   Widget _lastYearCard(
       BuildContext bc, ThemeTokens tokens, ColorScheme scheme) {
+    final key = '${_m.year - 1}-${_m.month}';
+    if (key != _lastYearKey) {
+      _lastYearKey = key;
+      _lastYearFut =
+          ref.read(journalRepositoryProvider).month(DateTime(_m.year - 1, _m.month, 1));
+    }
     return FutureBuilder<List<JournalEntry>>(
-      future: ref
-          .read(journalRepositoryProvider)
-          .month(DateTime(_m.year - 1, _m.month, 1)),
+      future: _lastYearFut,
       builder: (bc2, snap) {
         final old = snap.data ?? const <JournalEntry>[];
         if (old.isEmpty) return const SizedBox.shrink();
@@ -297,11 +393,12 @@ class _DiaryReviewState extends ConsumerState<_DiaryReview> {
 }
 
 /// 心情趋势柱：当月每天一根，高度=心情 1~7（无记录=12% 淡条）。
+/// UI/流畅批：逐日 map 由 build 侧建一次传入（绘制与点按命中共用）。
 class _TrendPainter extends CustomPainter {
-  _TrendPainter({required this.month, required this.entries});
+  _TrendPainter({required this.month, required this.byDay});
 
   final DateTime month;
-  final List<JournalEntry> entries;
+  final Map<int, JournalEntry> byDay;
 
   static const _palette = [
     Color(0xFF6366F1), Color(0xFF2DD4BF), Color(0xFFF59E0B),
@@ -311,10 +408,6 @@ class _TrendPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final days = DateTime(month.year, month.month + 1, 0).day;
-    final byDay = <int, JournalEntry>{};
-    for (final e in entries) {
-      byDay.putIfAbsent(e.day.day, () => e); // 同日多篇取首篇（列表新→旧）
-    }
     final slot = size.width / days;
     final w = (slot * 0.62).clamp(2.0, 14.0);
     for (var d = 1; d <= days; d++) {
@@ -338,7 +431,7 @@ class _TrendPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TrendPainter old) =>
-      old.month != month || old.entries != entries;
+      old.month != month || !identical(old.byDay, byDay);
 }
 
 extension on String {

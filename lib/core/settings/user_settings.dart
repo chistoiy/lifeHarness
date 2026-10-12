@@ -136,6 +136,9 @@ class UserSettings {
     this.navLineStyle = 'a',
     this.navLineGap = kNavLineGapDefault,
     this.myLayout = 'hero',
+    this.journalDefaultTpl = '纯文本',
+    this.journalFilter = 'all',
+    this.journalIns = false,
   });
 
   final String themeId;
@@ -209,6 +212,18 @@ class UserSettings {
   /// 未知值在 [fromMap] 收敛到 'hero'（照 trashKeepDays / navLineStyle 先例，界面不出现越界档）。
   final String myLayout;
 
+  /// 演示残留批（2026-10-12）·记录管理「默认新建模板」：新建日记预选模板名。
+  /// '纯文本'=自由书写（默认）；其余为模板名（编辑页按名查模板，查无回落自由书写）。
+  /// 档位与原型 cycleRecSet 对齐：纯文本/KPT 复盘/晨间三问；脏值在 [fromMap] 收敛。
+  final String journalDefaultTpl;
+
+  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化（笔记批5③ 同族）：
+  /// 筛选键（'all'|'todo'|标签名）。标签被改删后由 UI 侧按当前标签集校验回落 'all'。
+  final String journalFilter;
+
+  /// #27：INS 卡片流布局（false=列表·默认）。
+  final bool journalIns;
+
   /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
   String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
 
@@ -255,6 +270,9 @@ class UserSettings {
     String? navLineStyle,
     int? navLineGap,
     String? myLayout,
+    String? journalDefaultTpl,
+    String? journalFilter,
+    bool? journalIns,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -278,6 +296,9 @@ class UserSettings {
         navLineStyle: navLineStyle ?? this.navLineStyle,
         navLineGap: navLineGap ?? this.navLineGap,
         myLayout: myLayout ?? this.myLayout,
+        journalDefaultTpl: journalDefaultTpl ?? this.journalDefaultTpl,
+        journalFilter: journalFilter ?? this.journalFilter,
+        journalIns: journalIns ?? this.journalIns,
       );
 
   Map<String, Object> toMap() => {
@@ -302,6 +323,9 @@ class UserSettings {
         'navLineStyle': navLineStyle,
         'navLineGap': navLineGap,
         'myLayout': myLayout,
+        'journalDefaultTpl': journalDefaultTpl,
+        'journalFilter': journalFilter,
+        'journalIns': journalIns,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -339,6 +363,17 @@ class UserSettings {
         myLayout: const {'hero', 'chapters', 'minimal'}.contains(m['myLayout'])
             ? m['myLayout'] as String
             : 'hero',
+        // 演示残留批：脏值收敛到三档（照 myLayout 先例；查无模板时编辑页再回落自由书写）。
+        journalDefaultTpl:
+            const {'纯文本', 'KPT 复盘', '晨间三问'}.contains(m['journalDefaultTpl'])
+                ? m['journalDefaultTpl'] as String
+                : '纯文本',
+        // #27：空串/脏值回落 'all'（标签名不在此校验，UI 侧按当前标签集回落）。
+        journalFilter: (m['journalFilter'] as String?) is String &&
+                (m['journalFilter'] as String).isNotEmpty
+            ? m['journalFilter'] as String
+            : 'all',
+        journalIns: m['journalIns'] as bool? ?? false,
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

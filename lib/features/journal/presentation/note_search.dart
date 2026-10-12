@@ -1,8 +1,11 @@
-/// 批5①（工单 §2 · 2026-10-12）·**笔记搜索**（原顶栏搜索钮只弹
+/// 批5①（工单 §2 · 2026-10-12）· 记录页搜索（原顶栏搜索钮只弹
 /// 「全局搜索 · 即将开放」＝看得见点不通的僵尸钮）。
 ///
-/// 基建其实早在：`NoteDao.list(query:)` 已是 `title LIKE ? OR content LIKE ?`
-/// （见 note_dao.dart），缺的只是一个入口——故本批是「兑现」而非「新建能力」。
+/// UI/UX批（2026-10-12）：纳入日记——原型壳全局搜索（sheetSearch）的
+/// SEARCH_DB 与范围 chips 本就含「日记」，此前只搜笔记是欠账。
+///
+/// 基建其实早在：`NoteDao.list(query:)` 已是 `title LIKE ? OR content LIKE ?`；
+/// 日记侧本批补 `JournalDao.search()`（正文＋结构化分节 LIKE）。缺的只是入口。
 /// 形态＝搜索半屏：输入即时过滤（DAO 侧 LIKE），点结果收屏跳编辑页。
 library;
 
@@ -11,6 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/note.dart';
+import '../domain/journal_entry.dart';
+import 'diary_edit_page.dart' show DiaryEditArg;
 import 'journal_providers.dart';
 import 'widgets/note_sheet_lang.dart';
 
@@ -37,7 +42,12 @@ class _NoteSearchBody extends ConsumerStatefulWidget {
 class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
   final _ctl = TextEditingController();
   String _q = '';
-  Future<List<Note>> _fut = Future.value(const <Note>[]);
+
+  /// UI/UX批（2026-10-12）：日记纳入搜索（原型壳 sheetSearch 全局搜索
+  /// SEARCH_DB 本就含「📔 日记」条目与「日记」范围 chip——此批兑现该口径，
+  /// 不再只搜笔记）。双源并发查询，结果笔记在前、日记在后。
+  Future<(List<Note>, List<JournalEntry>)> _fut =
+      Future.value((const <Note>[], const <JournalEntry>[]));
 
   @override
   void dispose() {
@@ -50,8 +60,11 @@ class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
     setState(() {
       _q = q;
       _fut = q.isEmpty
-          ? Future.value(const <Note>[])
-          : ref.read(noteDaoProvider).list(query: q);
+          ? Future.value((const <Note>[], const <JournalEntry>[]))
+          : Future(() async => (
+                await ref.read(noteDaoProvider).list(query: q),
+                await ref.read(journalRepositoryProvider).search(q),
+              ));
     });
   }
 
@@ -65,7 +78,7 @@ class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const NoteSheetHeader(title: '搜索笔记', sub: '标题与正文同时匹配'),
+            const NoteSheetHeader(title: '搜索', sub: '笔记与日记 · 标题/正文/分节同时匹配'),
             const SizedBox(height: 6),
             TextField(
               key: const ValueKey('note-search-input'),
@@ -98,7 +111,7 @@ class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
                                   fontSize: 12,
                                   color: scheme.onSurfaceVariant))),
                     )
-                  : FutureBuilder<List<Note>>(
+                  : FutureBuilder<(List<Note>, List<JournalEntry>)>(
                       future: _fut,
                       builder: (c, snap) {
                         if (snap.connectionState != ConnectionState.done) {
@@ -112,13 +125,14 @@ class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
                                         strokeWidth: 2))),
                           );
                         }
-                        final hits = snap.data ?? const <Note>[];
-                        if (hits.isEmpty) {
+                        final (notes, diaries) =
+                            snap.data ?? (const <Note>[], const <JournalEntry>[]);
+                        if (notes.isEmpty && diaries.isEmpty) {
                           return Padding(
                             key: const ValueKey('note-search-empty'),
                             padding: const EdgeInsets.symmetric(vertical: 24),
                             child: Center(
-                                child: Text('没有匹配「$_q」的笔记',
+                                child: Text('没有匹配「$_q」的笔记或日记',
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: scheme.onSurfaceVariant))),
@@ -127,18 +141,35 @@ class _NoteSearchBodyState extends ConsumerState<_NoteSearchBody> {
                         return ListView.builder(
                           key: const ValueKey('note-search-list'),
                           shrinkWrap: true,
-                          itemCount: hits.length,
+                          itemCount: notes.length + diaries.length,
                           itemBuilder: (_, i) {
-                            final n = hits[i];
+                            // 笔记在前（原口径不动）；日记行=日期＋预览（篇目无标题列）。
+                            if (i < notes.length) {
+                              final n = notes[i];
+                              return NoteSheetRow(
+                                key: ValueKey('note-search-hit-${n.id}'),
+                                icon: Icons.article_outlined,
+                                label: n.title.isEmpty ? '未命名笔记' : n.title,
+                                onTap: () {
+                                  // 先取 router 再收屏：pop 后本 context 即失效。
+                                  final router = GoRouter.of(context);
+                                  Navigator.of(context).pop();
+                                  router.push('/note/edit', extra: n.id);
+                                },
+                              );
+                            }
+                            final e = diaries[i - notes.length];
+                            String two(int v) => v.toString().padLeft(2, '0');
                             return NoteSheetRow(
-                              key: ValueKey('note-search-hit-${n.id}'),
-                              icon: Icons.article_outlined,
-                              label: n.title.isEmpty ? '未命名笔记' : n.title,
+                              key: ValueKey('diary-search-hit-${e.id}'),
+                              icon: Icons.auto_stories_outlined,
+                              label: '${two(e.day.month)}-${two(e.day.day)} '
+                                  '${e.content.isEmpty ? '（只打了心情卡）' : e.previewText.replaceAll('\n', ' ')}',
                               onTap: () {
-                                // 先取 router 再收屏：pop 后本 context 即失效。
                                 final router = GoRouter.of(context);
                                 Navigator.of(context).pop();
-                                router.push('/note/edit', extra: n.id);
+                                router.push('/journal/edit',
+                                    extra: DiaryEditArg(entryId: e.id));
                               },
                             );
                           },

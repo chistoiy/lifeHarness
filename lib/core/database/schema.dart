@@ -129,7 +129,8 @@ class DbSchema {
       weather_code INTEGER,
       temp_max REAL,
       temp_min REAL,
-      weather_manual INTEGER NOT NULL DEFAULT 0
+      weather_manual INTEGER NOT NULL DEFAULT 0,
+      deleted_at INTEGER
     )
     ''',
     'CREATE INDEX idx_journal_date ON $tJournal(entry_date)',

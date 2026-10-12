@@ -12,6 +12,9 @@ class JournalRepository {
 
   Future<List<JournalEntry>> list() => dao.list();
 
+  /// UI/流畅批（2026-10-12）：关键词搜索（正文＋结构化分节）· 搜索半屏共用。
+  Future<List<JournalEntry>> search(String query) => dao.search(query);
+
   /// 当日全部篇（新→旧）；结构化篇装配分节（单日篇数小，逐条水合可接受）。
   Future<List<JournalEntry>> listByDay(DateTime day) async {
     final list = await dao.listByDay(day);
@@ -26,18 +29,28 @@ class JournalRepository {
     return e == null ? null : dao.hydrate(e);
   }
 
-  /// 轮13：删除单篇 / 批量删除（编辑页与记录页长按多选共用）。
+  /// 轮13 → 语义断链批（2026-10-12）：删除改软删进回收站（第八类·拍板「进回收站」）。
+  /// 彻底删除走回收站屏的 purge（分节连带清）；图片文件保留（恢复零损耗）。
   Future<void> remove(int id) async {
-    await dao.remove(id);
-    AppLog.addKey('日记删除单篇：#$id');
+    await dao.softDelete(id);
+    AppLog.addKey('日记删除单篇：#$id（进回收站）');
   }
 
   Future<void> removeAll(Iterable<int> ids) async {
-    for (final id in ids) {
-      await dao.remove(id);
-    }
-    AppLog.addKey('日记批量删除：${ids.length} 篇（${ids.join('/')}）');
+    await dao.softDeleteMany(ids.toList());
+    AppLog.addKey('日记批量删除：${ids.length} 篇（进回收站）');
   }
+
+  // ---- 回收站第八类（trash_specs 登记项回调）----
+
+  Future<List<JournalEntry>> trashed() => dao.trash();
+
+  Future<void> restoreJournal(int id) => dao.restore(id);
+
+  /// 彻底删除：返回连带清除的分节行数（回执读数）。
+  Future<int> purgeJournal(int id) => dao.purge(id);
+
+  Future<int> purgeExpired(int keepDays) => dao.purgeExpired(keepDays);
 
   Future<List<JournalEntry>> month(DateTime any) => dao.range(
         DateTime(any.year, any.month),
@@ -53,7 +66,13 @@ class JournalRepository {
         '日 ${e.day.toString().substring(0, 10)} · 结构化=${e.structured}');
     final content = e.structured ? JournalEntry.renderSections(e.sections) : e.content;
     final base = e.copyWith(content: content);
-    final tags = {...e.tags, ...base.hashTags()}.toList();
+    // 语义断链批（2026-10-12）·标签减法：tags 唯一来源＝正文 #词（评估件 §三）。
+    // 旧实现只并入不剔除，正文删掉 #词后 tags 残留＝死标签筛出空结果；
+    // 现按「仍在正文中的旧标签（保序）＋新出现的 #词」重建。
+    final nowTags = base.hashTags().toSet();
+    final kept = e.tags.where(nowTags.contains).toList();
+    final added = nowTags.where((t) => !e.tags.contains(t)).toList();
+    final tags = [...kept, ...added];
     if (e.id == null) {
       final fresh = base.copyWith(tags: tags, createdAt: now, updatedAt: now);
       final id = await dao.insert(fresh);
@@ -129,5 +148,92 @@ class JournalRepository {
   Future<JournalEntry?> onThisDayLastYear() {
     final now = DateTime.now();
     return dao.byDay(DateTime(now.year - 1, now.month, now.day));
+  }
+
+  /// 语义断链批（2026-10-12）·L3 反向回勾：待办完成 → 日记正文同名 ☐ 行置 ☑。
+  /// 命中最新一篇含该 ☐ 行的在库篇（链路唯一真源＝标题约定，同 habit_mounts L10）。
+  /// rich=Delta 属性 todo→checked；纯文本/分节=文本替换；结构化同步重渲快照。
+  /// 返回命中与否（未命中静默，不报错——待办可能已与日记解钩）。
+  Future<bool> tickTodoLine(String title) async {
+    final t = title.trim();
+    if (t.isEmpty) return false;
+    final entries = await dao.list(); // 新→旧
+    for (final e in entries) {
+      if (e.kind == 'rich') {
+        final hit = _tickRich(e.content, t);
+        if (hit == null) continue;
+        await dao.updateById(e.id!, {
+          'content': hit,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        });
+        return true;
+      }
+      if (e.templateId != null) {
+        final secs = await dao.sectionsOf(e.id!);
+        var changed = false;
+        final newSecs = <DiarySection>[];
+        for (final s in secs) {
+          final hit = _tickPlain(s.body, t);
+          if (hit == null) {
+            newSecs.add(s);
+          } else {
+            changed = true;
+            newSecs.add(DiarySection(title: s.title, body: hit));
+          }
+        }
+        if (!changed) continue;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await dao.updateById(
+            e.id!, {'content': JournalEntry.renderSections(newSecs), 'updated_at': now});
+        await dao.replaceSections(e.id!, newSecs, now);
+        return true;
+      }
+      final hit = _tickPlain(e.content, t);
+      if (hit == null) continue;
+      await dao.updateById(e.id!, {
+        'content': hit,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /// 纯文本正文/分节：行级 ☐→☑（仅整行标题匹配，不误伤同词正文）。
+  /// 注意：raw string 不做插值（r'...${...}' 里 ${} 是字面量）——标题须用拼接并入。
+  static String? _tickPlain(String body, String title) {
+    final re = RegExp(
+        r'^(\s*(?:[-*]\s*)?)☐(\s*' + RegExp.escape(title) + r'\s*)$');
+    var changed = false;
+    final out = body.split('\n').map((l) {
+      final m = re.firstMatch(l);
+      if (m == null) return l;
+      changed = true;
+      return '${m.group(1)}☑${m.group(2)}';
+    }).toList();
+    return changed ? out.join('\n') : null;
+  }
+
+  /// rich（Quill Delta JSON）：list 属性 todo/unchecked → checked（渲染与 richToPlain 同出 ☑）。
+  static String? _tickRich(String content, String title) {
+    try {
+      final ops = jsonDecode(content);
+      if (ops is! List) return null;
+      var changed = false;
+      for (final op in ops) {
+        if (op is! Map || op['insert'] is! String) continue;
+        final attrs = op['attributes'];
+        if (attrs is! Map) continue;
+        final list = attrs['list'];
+        if ((list == 'todo' || list == 'unchecked') &&
+            (op['insert'] as String).trim() == title) {
+          attrs['list'] = 'checked';
+          changed = true;
+        }
+      }
+      return changed ? jsonEncode(ops) : null;
+    } catch (_) {
+      return null; // 正文非 Delta JSON：不猜，不写（防损稿）
+    }
   }
 }

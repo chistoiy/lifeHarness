@@ -42,6 +42,13 @@ class SettingsRepository {
   /// 「我的」页版式（2026-10-12）：'hero'|'chapters'|'minimal'，默认 hero。
   static const _kMyLayout = 'lh.my_layout';
 
+  /// 演示残留批（2026-10-12）·记录管理「默认新建模板」（模板名，'纯文本'=自由书写）。
+  static const _kJournalDefTpl = 'lh.journal_default_tpl';
+
+  /// 语义断链批 #27（2026-10-12）·记录页日记段持久化：筛选键 / INS 布局。
+  static const _kJournalFilter = 'lh.journal_filter';
+  static const _kJournalIns = 'lh.journal_ins';
+
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
     // V1.58 小工具整模块下架：历史遗留 lh.kit（四项模块开关）读到即清，
@@ -68,7 +75,10 @@ class SettingsRepository {
         _prefs.getBool(_kNavGestureOn) == null &&
         _prefs.getString(_kNavLineStyle) == null &&
         _prefs.getInt(_kNavLineGap) == null &&
-        _prefs.getString(_kMyLayout) == null) {
+        _prefs.getString(_kMyLayout) == null &&
+        _prefs.getString(_kJournalDefTpl) == null &&
+        _prefs.getString(_kJournalFilter) == null &&
+        _prefs.getBool(_kJournalIns) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -93,6 +103,9 @@ class SettingsRepository {
       'navLineStyle': ?_prefs.getString(_kNavLineStyle),
       'navLineGap': ?_prefs.getInt(_kNavLineGap),
       'myLayout': ?_prefs.getString(_kMyLayout),
+      'journalDefaultTpl': ?_prefs.getString(_kJournalDefTpl),
+      'journalFilter': ?_prefs.getString(_kJournalFilter),
+      'journalIns': ?_prefs.getBool(_kJournalIns),
     });
   }
 
@@ -119,5 +132,8 @@ class SettingsRepository {
     await _prefs.setString(_kNavLineStyle, m['navLineStyle']! as String);
     await _prefs.setInt(_kNavLineGap, m['navLineGap']! as int);
     await _prefs.setString(_kMyLayout, m['myLayout']! as String);
+    await _prefs.setString(_kJournalDefTpl, m['journalDefaultTpl']! as String);
+    await _prefs.setString(_kJournalFilter, m['journalFilter']! as String);
+    await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
   }
 }

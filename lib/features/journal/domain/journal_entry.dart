@@ -43,6 +43,7 @@ class JournalEntry {
     this.tempMin,
     this.weatherManual = false,
     this.sections = const [],
+    this.deletedAt,
   });
 
   final int? id;
@@ -71,6 +72,9 @@ class JournalEntry {
   final double? tempMax;
   final double? tempMin;
   final bool weatherManual;
+
+  /// 语义断链批（2026-10-12）·回收站第八类：非 null＝已在垃圾箱（拍板「进回收站」）。
+  final DateTime? deletedAt;
 
   /// 面向展示/计数/解析的正文（rich 去 Delta JSON 痕迹；纯文本去图片本地语法
   /// →「图片」，与笔记 displayBody 同口径·imagePaths 仍解析原 content）。
@@ -149,6 +153,9 @@ class JournalEntry {
         tempMax: (row['temp_max'] as num?)?.toDouble(),
         tempMin: (row['temp_min'] as num?)?.toDouble(),
         weatherManual: (row['weather_manual'] as int? ?? 0) == 1,
+        deletedAt: row['deleted_at'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(row['deleted_at'] as int),
       );
 
   Map<String, Object?> toRow() => {
@@ -168,6 +175,8 @@ class JournalEntry {
         'temp_max': tempMax,
         'temp_min': tempMin,
         'weather_manual': weatherManual ? 1 : 0,
+        if (deletedAt != null)
+          'deleted_at': deletedAt!.millisecondsSinceEpoch,
       };
 
   static List<String> _decodeTags(String? raw) {
@@ -237,6 +246,7 @@ class JournalEntry {
     double? tempMax,
     double? tempMin,
     bool? weatherManual,
+    DateTime? deletedAt,
     List<DiarySection>? sections,
   }) =>
       JournalEntry(
@@ -257,5 +267,6 @@ class JournalEntry {
         tempMin: tempMin ?? this.tempMin,
         weatherManual: weatherManual ?? this.weatherManual,
         sections: sections ?? this.sections,
+        deletedAt: deletedAt ?? this.deletedAt,
       );
 }
