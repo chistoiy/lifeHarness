@@ -17,6 +17,7 @@ library;
 
 import 'dart:ui' show Offset, Size;
 
+import 'mindmap_layout.dart' show MmEdgeKind;
 import 'mindmap_models.dart';
 
 // ==================== md ====================
@@ -123,12 +124,17 @@ String mmExportHtml({
   required double boundsWidth,
   required double boundsHeight,
   required bool landscapePreset,
+
+  /// 批4：连线画法随布局形态（`stair`＝纵向阶梯贝塞尔／`branch`·`radial`
+  /// ＝父中心到子中心直线）。不传按 `stair`＝批2 既有行为逐值不变。
+  MmEdgeKind edgeKind = MmEdgeKind.stair,
   required String exportedAt,
 }) {
   final data = <String, Object?>{
     'title': mapTitle,
     'landscape': landscapePreset,
     'bounds': [boundsWidth, boundsHeight],
+    'edgeKind': edgeKind.name,
     'exportedAt': exportedAt,
     'nodes': [
       for (final n in nodes)
@@ -245,8 +251,17 @@ function render(){
     d.addEventListener('click',function(e){e.stopPropagation();pick(n);});
     frag.appendChild(d);
     if(n.pid!=null&&byId[n.pid]&&visible(n)&&visible(byId[n.pid])){
-      var p=byId[n.pid];var x1=p.x+p.w/2,y1=p.y+p.h,x2=n.x+n.w/2,y2=n.y;
-      svg+='<path d="M'+x1+' '+y1+' C'+x1+' '+(y1+14)+' '+x2+' '+(y2-14)+' '+x2+' '+y2+'" fill="none" stroke="var(--line)" stroke-width="1.5"/>';
+      var p=byId[n.pid];
+      /* 批4：连线画法跟布局形态（DATA.edgeKind）。纵向大纲走父底→子顶的
+         竖向贝塞尔；横向树/放射走父中心→子中心直线（套阶梯公式会斜穿节点）。 */
+      var d;
+      if(DATA.edgeKind==='stair'){
+        var x1=p.x+p.w/2,y1=p.y+p.h,x2=n.x+n.w/2,y2=n.y;
+        d='M'+x1+' '+y1+' C'+x1+' '+(y1+14)+' '+x2+' '+(y2-14)+' '+x2+' '+y2;
+      }else{
+        d='M'+(p.x+p.w/2)+' '+(p.y+p.h/2)+' L'+(n.x+n.w/2)+' '+(n.y+n.h/2);
+      }
+      svg+='<path d="'+d+'" fill="none" stroke="var(--line)" stroke-width="1.5"/>';
     }
   });
   edges.innerHTML=svg;nodesEl.appendChild(frag);

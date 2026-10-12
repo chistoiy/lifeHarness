@@ -24,6 +24,7 @@ import '../../../core/platform/saf.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import '../domain/mindmap_export.dart';
 import '../domain/mindmap_layout.dart';
+import '../domain/mindmap_layout_preset.dart';
 import '../domain/mindmap_measure.dart';
 import '../../../shared/export/png_encode.dart';
 import '../domain/mindmap_models.dart';
@@ -173,6 +174,10 @@ Future<void> mmRunExport(
   required Future<String?> Function(MindmapNode n) noteTitleOf,
   required Future<String?> Function(MindmapNode n) noteBodyOf,
   required Future<Uint8List?> Function() pngSnapshot,
+
+  /// 批4：HTML 初始坐标跟当前布局预设（导出即所见；null ＝纵向树默认）。
+  /// 列表页发起导出时传 null＝用默认纵向树（该页无画布局语境）。
+  MmLayoutPreset? preset,
 }) async {
   final choice = await showMmExportSheet(context);
   if (choice == null || !context.mounted) return;
@@ -213,6 +218,7 @@ Future<void> mmRunExport(
           noteTitles: titles,
           noteBodies: bodies,
           landscape: choice.landscape,
+          preset: preset ?? MmLayoutPreset.defaults,
         );
         final f = File('$base.html')..writeAsStringSync(html);
         savedName = await safSaveAs(f.path);
@@ -261,20 +267,26 @@ Future<Uint8List?> mmCanvasPngSnapshot({
   return encodeOffscreenPng(recorder, size.width, size.height);
 }
 
-/// 导出 HTML 组装：引擎布局＋显示标题合成（挂载笔记标题优先，失效回落节点标题
-/// ——与画布显示口径一致）。
+/// 导出 HTML 组装：按**当前布局预设**跑引擎＋显示标题合成（挂载笔记标题
+/// 优先，失效回落节点标题——与画布显示口径一致）。
+///
+/// 批4：预设经 [MmLayoutPreset.engine] 挑引擎，**初始坐标＝屏上所见**；
+/// 连线画法随 `layout.edgeKind` 写进 HTML（横向/放射布局在导出文件里也走
+/// 中心直线，不会套阶梯公式斜穿节点）。
 String _buildHtml({
   required String mapTitle,
   required List<MindmapNode> rows,
   required Map<int, String?> noteTitles,
   required Map<int, String?> noteBodies,
   required bool landscape,
+  required MmLayoutPreset preset,
 }) {
-  final engine = TreeLayoutEngine();
   // 度量与画布同源：按**合成后显示标题**（挂载笔记标题优先）量宽。
-  engine.measure = (n) =>
-      mmNodeMeasure(noteTitles[n.id] ?? n.title);
-  final layout = engine.layout(rows);
+  final layout = mmLayoutOf(
+    preset,
+    rows,
+    measure: (n) => mmNodeMeasure(noteTitles[n.id] ?? n.title),
+  );
   var boundsW = 0.0;
   var boundsH = 0.0;
   final exportNodes = <MmExportNode>[];
@@ -304,6 +316,7 @@ String _buildHtml({
     boundsWidth: boundsW,
     boundsHeight: boundsH,
     landscapePreset: landscape,
+    edgeKind: layout.edgeKind,
     exportedAt: DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
   );
 }

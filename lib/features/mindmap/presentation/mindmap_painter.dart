@@ -77,24 +77,31 @@ class MmCanvasPainter extends CustomPainter {
     if (l == null || nodes.isEmpty) return;
 
     // ── 连线：贝塞尔批量进同一 Path（渲染层七条之五）。
-    // 横向树画法（真机 6113 实锤：旧纵向阶梯公式套横向布局＝斜穿节点＋
-    // 子低于父时折点越界出悬空 V）：从父**侧边**中点水平切线出弧、进子
-    // 侧边中点，两端切线全水平——子在上/下/平任何方位都平滑不穿节点。
+    // **画法由布局形态决定**（批4：`layout.edgeKind` 声明、painter 只照办）：
+    // · 纵向大纲（`stair`）＝**保持批2 既有横向贝塞尔**（真机 6113 实锤修形、
+    //   6115 已装机验证）——本批不动默认形态的连线，一个像素都不改
+    //   （批4 验收项②「默认态零视觉变化」的实现手段）。
+    // · 横向树/放射（`branch`/`radial`）＝父中心 → 子中心直线：父左子右或
+    //   根居中发散，套纵向阶梯公式会斜穿节点（6113 实锤同族坑：阶梯公式套
+    //   横向布局＝连线斜穿＋折点越界出悬空 V）。
     // 父子连线只在**两端都可见**时画（裁剪口径：视口外节点不进 draw 列表，
     // 单端可见的边也一并省略——树布局下行相邻，端点成对裁剪足够）。
-    final byId = {for (final n in nodes) n.id!: n};
     final path = Path();
-    for (final n in nodes) {
-      final p = n.parentId;
-      if (p == null || !byId.containsKey(p)) continue;
-      final a = _nodeRect(byId[p]!);
-      final b = _nodeRect(n);
-      final childLeft = (l.assignedSides[n.id!] ?? 'r') == 'l';
-      final ox = childLeft ? a.left : a.right;
-      final ix = childLeft ? b.right : b.left;
-      final midX = (ox + ix) / 2;
-      path.moveTo(ox, a.center.dy);
-      path.cubicTo(midX, a.center.dy, midX, b.center.dy, ix, b.center.dy);
+    for (final route in mmEdgeRoutes(
+      nodes: nodes,
+      edgeKind: l.edgeKind,
+      assignedSides: l.assignedSides,
+      rectOf: _nodeRect,
+    )) {
+      final pts = route.points;
+      path.moveTo(pts.first.dx, pts.first.dy);
+      if (pts.length == 2) {
+        path.lineTo(pts.last.dx, pts.last.dy);
+      } else {
+        // 阶梯贝塞尔的控制点镜像（批2 口径：两端切线全水平）。
+        path.cubicTo(pts[1].dx, pts[1].dy, pts[2].dx, pts[2].dy,
+            pts[3].dx, pts[3].dy);
+      }
     }
     canvas.drawPath(
         path,
@@ -167,4 +174,61 @@ class MmCanvasPainter extends CustomPainter {
       // 批3 样式层：换档后画布必须重画。MmPaintStyle 是不可变值对象，
       // 逐值 == 即可（漏比＝改样式不重画，与批2 dx/dy 漏比同族）。
       old.style != style;
+}
+
+/// 一条连线的路由点列（[MmEdgeRoutes] 的元素）。
+///
+/// `points` 长度 2＝直线（父中心→子中心）；长度 4＝阶梯贝塞尔的
+/// 「起点/控制点1/控制点2/终点」。做成数据而不是直接在 paint 里画，
+/// 是为了让**画法分派本身可被常驻用例直接断言**（批4 变异刀3 钉位：
+/// 横向树/放射必须走两点直线，套阶梯公式＝斜穿节点）。
+class MmEdgeRoute {
+  const MmEdgeRoute({required this.childId, required this.points});
+
+  final int childId;
+  final List<Offset> points;
+
+  bool get isStraight => points.length == 2;
+}
+
+/// 批量算本帧所有父子连线（批4）。**画法只由 [edgeKind] 决定**：
+/// · [MmEdgeKind.stair]＝纵向大纲（批2 修形的横向贝塞尔，两端切线全水平）；
+/// · [MmEdgeKind.branch]／[MmEdgeKind.radial]＝父中心 → 子中心直线。
+///
+/// 单端可见的边一并省略（与 paint 侧裁剪口径一致：树布局下行相邻，
+/// 端点成对裁剪足够）。
+List<MmEdgeRoute> mmEdgeRoutes({
+  required List<MindmapNode> nodes,
+  required MmEdgeKind edgeKind,
+  required Map<int, String> assignedSides,
+  required Rect Function(MindmapNode n) rectOf,
+}) {
+  final byId = {for (final n in nodes) n.id!: n};
+  final out = <MmEdgeRoute>[];
+  for (final n in nodes) {
+    final p = n.parentId;
+    if (p == null || !byId.containsKey(p)) continue;
+    final parent = byId[p]!;
+    final a = rectOf(parent);
+    final b = rectOf(n);
+    if (edgeKind == MmEdgeKind.stair) {
+      final childLeft = (assignedSides[n.id!] ?? 'r') == 'l';
+      final ox = childLeft ? a.left : a.right;
+      final ix = childLeft ? b.right : b.left;
+      final midX = (ox + ix) / 2;
+      out.add(MmEdgeRoute(
+        childId: n.id!,
+        points: [
+          Offset(ox, a.center.dy),
+          Offset(midX, a.center.dy),
+          Offset(midX, b.center.dy),
+          Offset(ix, b.center.dy),
+        ],
+      ));
+    } else {
+      out.add(MmEdgeRoute(
+          childId: n.id!, points: [a.center, b.center]));
+    }
+  }
+  return out;
 }

@@ -11,12 +11,14 @@ import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../data/mindmap_dao.dart';
 import '../domain/mindmap_layout.dart';
+import '../domain/mindmap_layout_preset.dart';
 import '../domain/mindmap_measure.dart';
 import '../domain/mindmap_models.dart';
 import '../domain/mindmap_style.dart';
 import '../domain/mindmap_undo.dart';
 import '../domain/mindmap_viewport.dart';
 import 'mindmap_export_actions.dart';
+import 'mindmap_layout_sheet.dart';
 import 'mindmap_painter.dart';
 import 'mindmap_sheets.dart';
 import 'mindmap_style_sheet.dart';
@@ -61,6 +63,13 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   List<MindmapNode> _nodes = const [];
   late final TreeLayoutEngine _engine = TreeLayoutEngine()..measure = _measure;
   MmLayoutResult? _layout;
+
+  /// 批4 布局家族：当前预设（null ＝未设过，走 [MmLayoutPreset.defaults]
+  /// ＝纵向树，**默认态零视觉变化**）。每图一套，存 prefs。
+  MmLayoutPreset? _preset;
+
+  /// 当前预设（未设回落默认）。
+  MmLayoutPreset get _view => _preset ?? MmLayoutPreset.defaults;
 
   /// 撤销/重做命令栈（批2 F4-1：增删改移折叠各一步·本图一份，切图即弃）。
   final MmUndoStack _undo = MmUndoStack();
@@ -135,21 +144,34 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     final map = await _dao.mapById(widget.mapId);
     final nodes = await _dao.nodesOf(widget.mapId);
     await _refreshMountedTitlesData(nodes);
-    final style = MmStyleStore(ref.read(sharedPreferencesProvider)).load(widget.mapId);
+    final prefs = ref.read(sharedPreferencesProvider);
+    final style = MmStyleStore(prefs).load(widget.mapId);
+    final preset = MmLayoutStore(prefs).load(widget.mapId);
     if (!mounted) return;
     setState(() {
       _map = map;
       _nodes = nodes;
       _style = style;
+      _preset = preset;
       _loading = false;
     });
     _relayout();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fit());
   }
 
-  /// 重算布局（不 fit——fit 只在进图/按 fit 钮时发生）。
+  /// 重算布局（不 fit——fit 只在进图/按 fit 钮/切布局时发生）。
+  ///
+  /// **换预设只重算基线，拖拽偏移 `dx/dy` 原样保留**（2d 冻结口径：偏移存的是
+  /// 相对基线的量，基线变了偏移直接叠加上去；「归位到自动布局」才清零）。
   void _relayout() {
-    setState(() => _layout = _engine.layout(_nodes));
+    setState(() => _layout = _layoutFor(_view));
+  }
+
+  /// 按当前预设算基线。**纵向树走批1 那个引擎实例**（默认形态逐值不变＝
+  /// 默认态零视觉变化），其余预设走预设工厂。
+  MmLayoutResult _layoutFor(MmLayoutPreset preset) {
+    if (preset == MmLayoutPreset.defaults) return _engine.layout(_nodes);
+    return mmLayoutOf(preset, _nodes, measure: _measure);
   }
 
   /// 可见节点集（折叠整枝跳过；画布绘制与命中共用一份）。
@@ -488,6 +510,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
       },
       noteBodyOf: (n) => mmNoteContentOf(n.noteId!, _mmDb),
       pngSnapshot: _pngSnapshot,
+      preset: _view,
     );
   }
 
@@ -780,6 +803,63 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     await store.save(widget.mapId, next);
   }
 
+  // ==================== 布局家族（批4 F4-8） ====================
+
+  /// 打开布局弹层（原型 `mmOpenLayout`：画布高频直达，缩放条上布局钮）。
+  /// 点预设**即时生效并入撤销栈一步**（原型 `mmApplyPreset` 走
+  /// `mmPushHistory('切换布局')`，同款语义）——关闭弹层不回滚。
+  Future<void> _openLayout() async {
+    final store = MmLayoutStore(ref.read(sharedPreferencesProvider));
+    await showMmLayoutSheet(
+      context,
+      initial: _view,
+      onChanged: (next) => _applyPreset(store, next),
+    );
+  }
+
+  /// 应用一份布局预设：重算基线 → fit 全图可见 → 落 prefs → 入撤销栈。
+  ///
+  /// **不清 `dx/dy`**（批4 验收项③）：切布局只重算基线，用户拖过的节点仍在
+  /// 相对原位——否则「换个布局看看」会把用户摆好的位置全丢掉。
+  Future<void> _applyPreset(
+      MmLayoutStore store, MmLayoutPreset next) async {
+    final before = _preset;
+    if (before == next) return;
+    setState(() => _preset = next);
+    _relayout();
+    _fit();
+    _undo.push(MmCommand(
+      label: '切换布局',
+      redo: (_) async {
+        await store.save(widget.mapId, next);
+        if (!mounted) return;
+        setState(() => _preset = next);
+        _relayout();
+        _fit();
+      },
+      undo: (_) async {
+        if (before == null) {
+          await store.reset(widget.mapId);
+        } else {
+          await store.save(widget.mapId, before);
+        }
+        if (!mounted) return;
+        setState(() => _preset = before);
+        _relayout();
+        _fit();
+      },
+    ));
+    await store.save(widget.mapId, next);
+    if (mounted) _toast('布局＝${_presetLabel(next)}');
+  }
+
+  String _presetLabel(MmLayoutPreset p) {
+    for (final c in mmLayoutCards) {
+      if (c.preset == p) return c.title;
+    }
+    return p.key;
+  }
+
   // ==================== build ====================
 
   @override
@@ -930,8 +1010,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                         ),
                       ),
                     ),
-                    // 右下缩放条（＋/－/fit）＋样式层直达（原型 mmZoomBar 同款：
-// 样式是画布高频项，先于「更多」菜单直达）。
+                    // 右下缩放条（＋/－/fit）＋布局/样式直达（原型 mmZoomBar 同款顺序：
+                    // 放大·缩小·fit·**布局**·**样式**——两者都是画布高频项，
+                    // 先于「更多」直达）。
                     Positioned(
                       right: 10,
                       bottom: 72,
@@ -949,7 +1030,12 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                             });
                           }),
                           const SizedBox(height: 6),
-                          _zoomBtn(context, Icons.center_focus_weak, _fit),
+                          _zoomBtn(context, Icons.center_focus_weak, _fit,
+                              key: 'mm-layout-open'),
+                          const SizedBox(height: 6),
+                          _zoomBtn(
+                              context, Icons.account_tree_outlined, _openLayout,
+                              key: 'mm-layout-btn'),
                           const SizedBox(height: 6),
                           _zoomBtn(
                               context, Icons.palette_outlined, _openStyle),
@@ -1030,7 +1116,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     );
   }
 
-  Widget _zoomBtn(BuildContext context, IconData icon, VoidCallback onTap) {
+  Widget _zoomBtn(BuildContext context, IconData icon, VoidCallback onTap,
+      {String? key}) {
     final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 40,
@@ -1039,6 +1126,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
         color: cs.surfaceContainerHighest.withValues(alpha: .9),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
+          key: key == null ? null : ValueKey(key),
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Icon(icon, size: 20, color: cs.onSurface),
