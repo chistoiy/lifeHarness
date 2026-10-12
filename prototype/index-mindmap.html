@@ -92,6 +92,7 @@ tailwind.config = {
   .mm-node.root{border-color:var(--mm-branch);background:color-mix(in srgb,var(--accent) 9%,var(--card));font-weight:800;font-size:15px;padding:9px 14px}
   .mm-node.sel{border-color:var(--mm-branch);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent),var(--card-sh)}
   .mm-node:active{transform:scale(.97)}
+  .mm-node.dragging{opacity:.85;box-shadow:0 10px 28px rgba(15,23,42,.22);transform:scale(1.02);z-index:5}
   /* flex 里的 .mm-txt 默认 flex-shrink:1，会被兄弟图标挤到只剩省略号宽度 —— 节点明明
    量得够宽（诊断实测 r 宽 152 / 文字需 105+）却仍显示「深度工作…」。故锁成不收缩，
    省略交给外层 max-width:MAXW 兜底。 */
@@ -353,6 +354,7 @@ tailwind.config = {
         <button class="nm" onclick="mmBindNote()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h13v14.5H7A2.5 2.5 0 0 0 4.5 20z"/><path d="M9 7.5h7M9 11h5"/></svg>挂载笔记</button>
         <button class="nm" onclick="mmRenameNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.5L19 9.5a2.1 2.1 0 0 0-3-3L5.5 17z"/><path d="M14.5 7.5l2 2"/></svg>重命名</button>
         <button class="nm" onclick="mmToggleFold()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.5 15.5 12 8 19.5"/></svg><span id="mmFoldLbl">折叠子节点</span></button>
+        <button class="nm" onclick="mmResetPos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg>归位到自动布局</button>
         <div class="nm-div"></div>
         <button class="nm danger" onclick="mmDelNode()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>删除节点（含子级）</button>
       </div>
@@ -680,8 +682,11 @@ function layout(boxIn){
   })('r',0);
   let maxX=0,maxY=0;
   cur.nodes.forEach(n=>{
-    n.x=INDENT*depth[n.id];
-    n.y=n.ly;
+    /* 2d 裁定（2026-10-12 产品改口：产品要**自由拖拽定位**）：
+       布局算基线坐标（lx/ly），用户拖拽只写 dx/dy 偏移，实际坐标＝基线＋偏移。
+       这样「自动布局」与「自由摆放」共存：没拖过的节点仍跟着树走，拖过的守在自己位置。*/
+    n.x=INDENT*depth[n.id]+(n.dx||0);
+    n.y=n.ly+(n.dy||0);
     maxX=Math.max(maxX,n.x+(box[n.id]||60));
     maxY=Math.max(maxY,n.y+NODE_H);
   });
@@ -703,19 +708,21 @@ function renderCanvas(boxIn){
       '<span class="mm-txt">'+n.t.replace(/</g,'&lt;')+'</span>'+
       ((TREE[n.id]&&TREE[n.id].length)?'<span class="mm-fold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>':'');
     el.addEventListener('click',()=>mmSelect(n.id));
-    let lp=0;
-    el.addEventListener('pointerdown',ev=>{ lp=ev.clientX; });
-    el.addEventListener('pointerup',ev=>{
-      if(Math.abs(ev.clientX-lp)>6) return;              /* 拖动过＝平移画布，不算点选 */
-      if(cur.sel===n.id) openNodeMenuAt(n,ev.clientX,ev.clientY); /* 二次点＝长按菜单 */
-    });
+    bindNodeDrag(el,n);
     host.appendChild(el);
   });
   /* 第二趟：用真实 scrollWidth 修正宽度后重排一次（图标/箭头的实际占宽只有 DOM 知道） */
   const fixed=refineBox(host,L.box);
   if(fixed){ renderCanvas(fixed); return; }
-  /* 连线（纵向树）：父节点左下方接子节点左侧的竖折线，中间带一小段横向拐角。
-     竖线走子节点的缩进列，横段接进子节点左缘，层级感来自缩进而非曲线。 */
+  drawEdges(L);
+  $('#mmStage').style.width=L.w+'px'; $('#mmStage').style.height=L.h+'px';
+  $('#mmEdges').setAttribute('width',L.w); $('#mmEdges').setAttribute('height',L.h);
+  applyTransform();
+}
+/* 连线单独抽出来：拖拽过程中每帧只重画线、不重建 DOM（否则节点会闪）。
+   纵向树：父左下方接子左侧的竖折线；节点被拖到别处时，线自然跟着变形。*/
+function drawEdges(L){
+  const svg=$('#mmEdges');
   svg.innerHTML='';
   Object.keys(TREE).forEach(pid=>{
     (TREE[pid]||[]).forEach(kid=>{
@@ -729,14 +736,101 @@ function renderCanvas(boxIn){
         '<path d="M'+px+' '+py+' V'+(cy-7)+' Q'+px+' '+cy+' '+(px+9)+' '+cy+' H'+(vx+3)+'"/>');
     });
   });
-  $('#mmStage').style.width=L.w+'px'; $('#mmStage').style.height=L.h+'px';
-  svg.setAttribute('width',L.w); svg.setAttribute('height',L.h);
-  applyTransform();
+}
+/* ---- 自由拖拽定位节点（2d 裁定 2026-10-12 产品改口：产品要自由拖拽定位）----
+   口径：拖节点＝写该节点的 dx/dy（相对自动布局基线的偏移）；
+   拖空白＝平移画布；双指捏合＝缩放。落库只存 dx/dy，不存绝对坐标，
+   这样换布局类型时基线变了、用户的偏移仍可叠加上去。 */
+function bindNodeDrag(el,n){
+  let sx=0,sy=0,ox=0,oy=0,moved=false,dragging=false;
+  el.addEventListener('pointerdown',ev=>{
+    if(ev.button!==0)return;
+    ev.stopPropagation();          /* 关键：点在节点上不让画布平移分支接手 */
+    sx=ev.clientX; sy=ev.clientY; ox=n.dx||0; oy=n.dy||0; moved=false;
+    /* setPointerCapture 在真机保证「指针滑出节点仍继续拖」，但它会改派事件到捕获元素，
+       合成事件（CDP/测试）下偶有拿不到后续 move 的情形；失败就不捕获，事件仍绑在本元素上，
+       退化成「滑出节点即松手」，真机行为不受影响。*/
+    try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+    dragging=true;
+    el.classList.add('dragging');
+  });
+  el.addEventListener('pointermove',ev=>{
+    /* 不用 hasPointerCapture 做守卫：没捕获成功时它恒 false，move 永远进不来
+       （2026-10-12 拖拽探针实锤：down/up 都到、move 一次没进）。
+       改用「本元素正处在拖拽态」这个自有标志判断。 */
+    if(!dragging)return;
+    const ddx=(ev.clientX-sx)/cur.scale, ddy=(ev.clientY-sy)/cur.scale;
+    if(!moved&&Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)<5)return;  /* 5px 内当点击 */
+    moved=true;
+    n.dx=ox+ddx; n.dy=oy+ddy;
+    /* 移动中只改这一枚节点的 left/top ＋ 重画线，不重建 DOM（否则节点闪） */
+    const L=layout();
+    const q=cur.nodes.find(x=>x.id===n.id);
+    if(q){ el.style.left=q.x+'px'; el.style.top=q.y+'px'; }
+    drawEdges(L);
+  });
+  el.addEventListener('pointerup',ev=>{
+    try{ if(el.hasPointerCapture(ev.pointerId))el.releasePointerCapture(ev.pointerId); }catch(e){}
+    dragging=false;
+    el.classList.remove('dragging');
+    if(moved){ renderCanvas(); toast('已挪动「'+n.t+'」· 可在「更多」里归位'); return; }
+    /* 没动：二次点击＝长按菜单（首次点击已由 click 选中） */
+    if(cur.sel===n.id) openNodeMenuAt(n,ev.clientX,ev.clientY);
+  });
+  el.addEventListener('pointercancel',()=>{
+    dragging=false; el.classList.remove('dragging'); if(moved)renderCanvas();
+  });
 }
 function applyTransform(){
   $('#mmStage').style.transform='translate('+cur.tx+'px,'+cur.ty+'px) scale('+cur.scale+')';
   $('#mmScaleTag').textContent=Math.round(cur.scale*100)+'%';
 }
+/* 画布手势仲裁（2d 裁定：拖空白＝平移、双指＝缩放、拖节点＝移动节点，三者互不抢）：
+   监听挂在 #mmCanvas 上，用 pointer 事件自己在 JS 里分流，不进 GestureDetector 竞技场——
+   节点上的 pointerdown 会被 stopPropagation 拦掉，所以「点在节点上」不会走到平移分支。
+   与底栏双指收起手势的共存口径：底栏监听只在壳内页生效且是 Listener 级原始事件，
+   画布在自己的 touch-action:none 区域内优先消费，两边不互抢（原型层示意，实现批须真机验）。*/
+(function bindCanvasGestures(){
+  const cv=$('#mmCanvas');
+  const pts=new Map();
+  let panning=false, pinch0=null;
+  cv.addEventListener('pointerdown',ev=>{
+    if(ev.target.closest('.mm-node'))return;      /* 点在节点上＝拖节点，不平移 */
+    pts.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(pts.size===1){ panning=true; cv.setPointerCapture(ev.pointerId); }
+    else if(pts.size===2){ panning=false; pinch0=pinchState(); }
+  });
+  cv.addEventListener('pointermove',ev=>{
+    if(!pts.has(ev.pointerId))return;
+    const prev=pts.get(ev.pointerId);
+    pts.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(pts.size===2&&pinch0){ applyPinch(); return; }
+    if(!panning)return;
+    cur.tx+=ev.clientX-prev.x; cur.ty+=ev.clientY-prev.y;
+    applyTransform();
+  });
+  const up=ev=>{
+    pts.delete(ev.pointerId);
+    if(pts.size<2)pinch0=null;
+    if(pts.size===0)panning=false;
+  };
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  function pinchState(){
+    const a=Array.from(pts.values());
+    return {d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:cur.scale,tx:cur.tx,ty:cur.ty,
+            mid:{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+  }
+  function applyPinch(){
+    const a=Array.from(pts.values());
+    const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+    const vp=cv.getBoundingClientRect();
+    const cx=pinch0.mid.x-vp.left, cy=pinch0.mid.y-vp.top;
+    const ns=Math.max(.6,Math.min(pinch0.scale*(d/(pinch0.d||1)),2.4));
+    cur.tx=cx-(cx-pinch0.tx)*(ns/pinch0.scale);
+    cur.ty=cy-(cy-pinch0.ty)*(ns/pinch0.scale);
+    cur.scale=ns; applyTransform();
+  }
+})();
 function mmFit(){
   const L=layout();
   const vp=$('#mmCanvas').getBoundingClientRect();
@@ -838,6 +932,15 @@ function mmToggleFold(){
   cur.folded[id]=!cur.folded[id];
   cur.sel=null; renderCanvas(); $('#mmToolbar').classList.add('hide');
   toast(cur.folded[id]?'已折叠':'已展开');
+}
+/* 归位：清掉该节点的拖拽偏移 dx/dy，回到自动布局给的基线坐标。
+   落库只存偏移不存绝对坐标，正是为了让「归位」与「换布局」都只需清偏移。 */
+function mmResetPos(){
+  closeNodeMenu();
+  const id=cur.sel; if(!id)return;
+  const n=cur.nodes.find(x=>x.id===id); if(!n||(!n.dx&&!n.dy)){ toast('该节点本来就在自动布局位上'); return; }
+  n.dx=0; n.dy=0; renderCanvas();
+  toast('「'+n.t+'」已归位到自动布局');
 }
 function mmRenameSave(){
   const v=$('#mmRenameInput').value.trim(); if(!v)return;

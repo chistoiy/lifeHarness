@@ -105,6 +105,42 @@ function inject(shot) {
       ' scale=' + d.scale + ' title=' + d.title);
   }
 
+  /* ---- 交互断言：自由拖拽定位（2d 裁定 2026-10-12 改口）必须真能拖动 ----
+     只截静态图证明不了「拖得动」，故真发 pointer 事件拖一枚节点，
+     验 dx/dy 已写、屏幕 left/top 变了、连线跟着变。 */
+  await p.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+  await p.goto('file:///' + tmp.replace(/\\/g, '/') + '?shot=canvas#mm-canvas', { waitUntil: 'load' });
+  await new Promise(r => setTimeout(r, 700));
+  const drag = await p.evaluate(async () => {
+    const el = document.querySelector('.mm-node[data-id="n2"]');
+    if (!el) return { err: '找不到 n2 节点' };
+    const before = { left: el.style.left, top: el.style.top, dx: (cur.nodes.find(n => n.id === 'n2') || {}).dx || 0 };
+    const edgeBefore = document.querySelectorAll('#mmEdges path').length
+      + ':' + (document.querySelector('#mmEdges path') || {}).getAttribute('d');
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const opts = (x, y) => ({ pointerId: 1, isPrimary: true, button: 0, buttons: 1, clientX: x, clientY: y, bubbles: true, cancelable: true });
+    el.dispatchEvent(new PointerEvent('pointerdown', opts(cx, cy)));
+    await new Promise(r2 => setTimeout(r2, 30));
+    el.dispatchEvent(new PointerEvent('pointermove', opts(cx + 60, cy + 90)));
+    await new Promise(r2 => setTimeout(r2, 30));
+    el.dispatchEvent(new PointerEvent('pointerup', opts(cx + 60, cy + 90)));
+    await new Promise(r2 => setTimeout(r2, 120));
+    const el2 = document.querySelector('.mm-node[data-id="n2"]');
+    const after = { left: el2 ? el2.style.left : '', top: el2 ? el2.style.top : '', dx: (cur.nodes.find(n => n.id === 'n2') || {}).dx || 0 };
+    const edgeAfter = (document.querySelector('#mmEdges path') || {}).getAttribute('d');
+    return { before, after, edgeBefore, edgeAfter };
+  });
+  if (drag.err) bad.push('拖拽探针：' + drag.err);
+  else {
+    if (!drag.after.dx) bad.push('拖拽未写 dx（节点拖不动）');
+    if (drag.after.left === drag.before.left && drag.after.top === drag.before.top) bad.push('拖拽后屏幕坐标未变');
+    if (drag.edgeAfter === drag.edgeBefore) bad.push('拖拽后连线未跟随变形');
+    console.log('== 拖拽探针 ==\n  前 ' + JSON.stringify(drag.before) + '\n  后 ' + JSON.stringify(drag.after) +
+      '\n  连线 ' + (drag.edgeBefore === drag.edgeAfter ? '未变（红）' : '已跟随变形'));
+  }
+  await p.screenshot({ path: path.join(OUT, '12-light-dragged.png') });
+
   console.log('== 视口/状态回读 ==');
   diag.forEach(d => console.log('  ' + d));
   console.log(errs.length ? 'JS 报错 ' + errs.length + ' 条：\n  ' + errs.join('\n  ') : 'JS 报错 0 条');
