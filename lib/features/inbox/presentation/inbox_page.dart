@@ -7,6 +7,8 @@ import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/linkage_events.dart';
 import '../../../shared/linkage/stats_providers.dart';
+// UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
+import '../../../shared/linkage/search_mounts.dart';
 import '../domain/inbox_item.dart';
 import 'inbox_providers.dart';
 
@@ -297,7 +299,8 @@ class _InboxPageState extends ConsumerState<InboxPage> {
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
-            onPressed: () => _toast('全局搜索 · 即将开放'),
+            // UIUX批（2026-10-12）：僵尸钮兑现——接全局搜索半屏（笔记＋日记）。
+            onPressed: () => showGlobalSearch(context, ref),
           ),
         ],
       ),

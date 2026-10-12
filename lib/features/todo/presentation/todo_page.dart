@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/linkage_events.dart';
+// UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
+import '../../../shared/linkage/search_mounts.dart';
 import 'todo_providers.dart';
 import 'widgets/quadrant_board.dart';
 import 'widgets/todo_edit_sheet.dart';
@@ -96,11 +98,8 @@ class _TodoPageState extends ConsumerState<TodoPage> {
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
-            onPressed: () => ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
-                  content: Text('全局搜索 · 即将开放'),
-                  duration: Duration(milliseconds: 1500))),
+            // UIUX批（2026-10-12）：僵尸钮兑现——接全局搜索半屏（笔记＋日记）。
+            onPressed: () => showGlobalSearch(context, ref),
           ),
         ],
       ),
@@ -122,7 +121,7 @@ class _TodoPageState extends ConsumerState<TodoPage> {
           ),
         ],
       ),
-      // 原型同款：FAB 展开行卡菜单（✅ 普通待办 / 🍅 番茄计时），与首页快捷记录风格统一
+      // 原型同款：FAB 展开行卡菜单（普通待办 / 番茄计时），与首页快捷记录风格统一
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -133,15 +132,17 @@ class _TodoPageState extends ConsumerState<TodoPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  for (final (type, label) in const [
-                    ('norm', '✅ 普通待办'),
-                    ('pomo', '🍅 番茄计时'),
+                  // UIUX批（2026-10-13）：两枚 emoji 迁线性 IconData（原型 todoFabMenu 段已先行）。
+                  for (final (type, label, icon) in const [
+                    ('norm', '普通待办', Icons.check_circle_outline),
+                    ('pomo', '番茄计时', Icons.timer_outlined),
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: FabActionCard(
                           key: ValueKey('fab-$type'),
                           label: label,
+                          icon: icon,
                           onTap: () {
                             setState(() => _fabMenu = false);
                             showTodoAddSheet(context, ref, type: type);

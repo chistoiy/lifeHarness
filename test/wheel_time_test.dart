@@ -104,7 +104,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('✅ 普通待办'));
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
 
@@ -152,7 +152,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('✅ 普通待办'));
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '带时间段的任务');
     await tester.tap(find.text('时间段'));

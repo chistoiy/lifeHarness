@@ -201,11 +201,17 @@ String shellBackAction(
 
   bool dashEditing = false,
 
+  bool dashFabOpen = false,
+
   DateTime? lastBackAt,
 
   DateTime? at,
 
 }) {
+
+  // UIUX批（2026-10-12）：FAB 快捷记录菜单开着按返回＝收菜单（优先级最高）。
+  // 菜单开态只在今天页成立（dispose 即清），不会劫走其他页的 goToday 语义。
+  if (dashFabOpen) return 'closeFabMenu';
 
   if (currentPath != NavModule.today.path && (!inNav || enteredFromToday)) {
 
@@ -281,6 +287,18 @@ class HomeShell extends ConsumerWidget {
 
       _fromToday = _prevPath == NavModule.today.path;
 
+      // UIUX批（2026-10-12）：离开今天页即收 FAB 快捷记录菜单（开态只活在
+      // 今天页在台面上的窗口）。清态挂这里而非页面 dispose——dispose 阶段
+      // riverpod 禁用 ref；build 期间同步 state= 也被 riverpod 禁止
+      //（r3 波 w4 实锤），故走 microtask 延迟到本帧构建结束后执行。
+
+      if (currentPath != NavModule.today.path &&
+          ref.read(dashFabOpenProvider)) {
+
+        Future.microtask(() => ref.read(dashFabOpenProvider.notifier).close());
+
+      }
+
       // 挂账修复（T10）：切栏目必须清零「再按一次返回退出」的计时窗口——
 
       // 否则在今天页按过一次返回、2 秒内切到别的栏目再按返回＝直接退 app。
@@ -316,6 +334,9 @@ class HomeShell extends ConsumerWidget {
     // V1.28⑥：主页编排态下返回键=退出编排并保存（不进二次退出判定）。
 
     final dashEditing = ref.watch(dashDraftProvider) != null;
+
+    // UIUX批（2026-10-12）：FAB 菜单开态读进返回决策（closeFabMenu 优先级最高）。
+    final dashFabOpen = ref.watch(dashFabOpenProvider);
 
     // V1.65 底栏收起态：手势总开关 + 线索形态 / 距底（全在设置项里）＋会话内的收起状态。
     // 总开关关掉时一律按展开算（不残留收起态），这是「默认关」能真正零影响的前提。
@@ -362,9 +383,17 @@ class HomeShell extends ConsumerWidget {
 
           dashEditing: dashEditing,
 
+          dashFabOpen: dashFabOpen,
+
           lastBackAt: _lastBackAt,
 
         )) {
+
+          case 'closeFabMenu':
+
+            _lastBackAt = null;
+
+            ref.read(dashFabOpenProvider.notifier).close();
 
           case 'goToday':
 

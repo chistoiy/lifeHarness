@@ -51,7 +51,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('✅ 普通待办'));
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '一分钟粒度校验');
     await tester.tap(find.text('时间点'));

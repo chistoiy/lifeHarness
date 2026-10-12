@@ -64,9 +64,9 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一（T4）
     await tester.pumpAndSettle();
-    expect(find.text('✅ 普通待办'), findsOneWidget);
-    expect(find.text('🍅 番茄计时'), findsOneWidget);
-    await tester.tap(find.text('✅ 普通待办'));
+    expect(find.text('普通待办'), findsOneWidget);
+    expect(find.text('番茄计时'), findsOneWidget);
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
     expect(find.text('引导式判象限（推荐）'), findsOneWidget);
@@ -95,7 +95,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('✅ 普通待办'));
+    await tester.tap(find.text('普通待办'));
     await tester.pumpAndSettle();
     expect(find.text('新建待办'), findsOneWidget);
 
@@ -227,10 +227,10 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 二选一
     await tester.pumpAndSettle();
-    await tester.tap(find.text('🍅 番茄计时'));
+    await tester.tap(find.text('番茄计时'));
     await tester.pumpAndSettle();
 
-    expect(find.text('🍅 番茄计时'), findsOneWidget);
+    expect(find.text('番茄计时'), findsOneWidget);
     expect(find.text('倒计时'), findsOneWidget);
     // 切倒计时 → 进度条 + 快捷点（5/15/30/45）出现
     await tester.tap(find.text('倒计时'));

@@ -25,3 +25,18 @@ class DashEditor extends Notifier<List<String>?> {
 
 final dashDraftProvider =
     NotifierProvider<DashEditor, List<String>?>(DashEditor.new);
+
+/// UIUX批（2026-10-12）：FAB 快捷记录菜单开态。提升为 provider 的唯一原因＝
+/// 壳层返回键要读（shellBackAction 优先级最高：菜单开着按返回＝收菜单，不退栈）。
+/// 单一状态源在本 provider，页面不再持有同名 setState 字段（旧实现无遮罩、
+/// 返回键直接退 app＝收不掉）。
+class DashFabOpen extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+
+  void close() => state = false;
+}
+
+final dashFabOpenProvider = NotifierProvider<DashFabOpen, bool>(DashFabOpen.new);

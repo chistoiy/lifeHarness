@@ -345,11 +345,19 @@ class _TodoAddSheetState extends ConsumerState<_TodoAddSheet> {
                   children: [
                     Row(
                       children: [
-                        const Text('🍅 番茄计时',
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFE11D48))),
+                        // UIUX批（2026-10-13）：🍅 emoji 迁线性 IconData（原型同位已先行）。
+                        const Row(
+                          children: [
+                            Icon(Icons.timer_outlined,
+                                size: 14, color: Color(0xFFE11D48)),
+                            SizedBox(width: 4),
+                            Text('番茄计时',
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFE11D48))),
+                          ],
+                        ),
                         const Spacer(),
                         _MiniSeg(
                           options: const [('up', '正计时'), ('down', '倒计时')],

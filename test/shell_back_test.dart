@@ -61,4 +61,20 @@ void main() {
             inNav: true, enteredFromToday: true, lastBackAt: null, at: t0),
         'remind');
   });
+
+  // UIUX批（2026-10-12）：FAB 快捷记录菜单开着按返回＝收菜单，优先级最高
+  //（旧实现返回键直接退 app＝菜单收不掉）。菜单开态只在今天页成立
+  //（dispose 即清），所以只需钉今天页路径；编排态并存时菜单先收。
+  test('dashFabOpen：优先收菜单，压过 endEdit 与 remind/exit', () {
+    final t0 = DateTime(2026, 10, 12, 4, 0, 0);
+    expect(shellBackAction('/', dashFabOpen: true, lastBackAt: t0, at: t0),
+        'closeFabMenu');
+    // 编排态＋菜单同开 → 先收菜单，再按一次才 endEdit。
+    expect(
+        shellBackAction('/',
+            dashFabOpen: true, dashEditing: true, lastBackAt: t0, at: t0),
+        'closeFabMenu');
+    expect(shellBackAction('/', dashFabOpen: false, lastBackAt: null, at: t0),
+        'remind');
+  });
 }

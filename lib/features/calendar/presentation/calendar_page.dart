@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
+// UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
+import '../../../shared/linkage/search_mounts.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
 import '../../../shared/widgets/scroll_pad.dart';
@@ -270,11 +272,8 @@ class _TimeHeader extends ConsumerWidget {
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
-            onPressed: () => ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(const SnackBar(
-                  content: Text('全局搜索 · 即将开放'),
-                  duration: Duration(milliseconds: 1500))),
+            // UIUX批（2026-10-12）：僵尸钮兑现——接全局搜索半屏（笔记＋日记）。
+            onPressed: () => showGlobalSearch(context, ref),
           ),
           if (!isToday)
             IconButton(

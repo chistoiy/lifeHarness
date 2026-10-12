@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/database/app_database.dart';
 import '../../features/calendar/presentation/calendar_providers.dart';
 import '../../features/inbox/presentation/inbox_providers.dart';
+// UIUX批（2026-10-12）：dashMoodOfTodayProvider 要在本文件作用域内用到这三者
+//（下方 export 只对导入方可见，不进本文件命名空间）。
+import '../../features/journal/presentation/journal_providers.dart'
+    show journalRepositoryProvider, journalsProvider;
+import '../../features/journal/domain/journal_entry.dart' show JournalEntry;
 import '../../features/read/presentation/read_providers.dart'
     show booksProvider;
 import '../../features/todo/presentation/todo_providers.dart';
@@ -73,6 +78,20 @@ final streakDaysProvider = FutureProvider<int>((ref) async {
     )
   ''');
   return (rows.first['c'] as int?) ?? 0;
+});
+
+/// 今天页心情回填（UIUX批 2026-10-12）：当天最新带心情篇的 mood（1..7；无＝null）。
+/// 此前仪表盘 `_mood` 是纯内存态，切栏销毁子路由即丢——DB 里当天明明已打卡，
+/// 回页却显示未选，再点会静默覆盖。现 watch journalsProvider：打卡落库与
+/// 日记编辑页改心情后自动重算（listByDay 新→旧，取首个非空 mood＝最新一次）。
+final dashMoodOfTodayProvider = FutureProvider<int?>((ref) async {
+  ref.watch(journalsProvider);
+  final entries = await ref.watch(journalRepositoryProvider)
+      .listByDay(JournalEntry.dayStart(DateTime.now()));
+  for (final e in entries) {
+    if (e.mood != null) return e.mood;
+  }
+  return null;
 });
 
 /// 已完成任务总数（我的页统计宫格）。

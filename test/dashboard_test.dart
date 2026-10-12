@@ -117,13 +117,118 @@ void main() {
         child: const MaterialApp(home: DashboardPage())));
     await tester.pumpAndSettle();
 
-    expect(find.text('⚡ 记一条想法'), findsNothing); // 未展开
+    expect(find.text('记一条想法'), findsNothing); // 未展开
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
-    for (final item in ['⚡ 记一条想法', '✅ 记待办', '📔 记日记', '💰 记一笔', '📦 记物品']) {
+    for (final item in ['记一条想法', '记待办', '记日记', '记一笔', '记物品']) {
       expect(find.text(item), findsOneWidget);
     }
     await db.close();
     await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
+  });
+
+  // UIUX批（2026-10-12）：心情回填——旧实现 _mood 是纯内存态，切栏销毁即丢；
+  // 现进页从当天日记读回最新打卡（DB 里已有就不显示未选）。
+  testWidgets('心情回填：当天日记已有打卡 → 进页即显示选中（无需再点）', (tester) async {
+    final db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    final journalRepo = JournalRepository(JournalDao(db));
+    // 先落一次打卡（写进当天日记），再进页。
+    await journalRepo.setMoodOfDay(DateTime.now(), 2); // 2=平静
+    final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      journalRepositoryProvider.overrideWithValue(journalRepo),
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DashboardPage())));
+    await tester.pumpAndSettle();
+
+    // 未点任何表情，反馈文案已在 = 回填成功。
+    expect(find.textContaining('已记录：平静'), findsOneWidget);
+    await db.close();
+    await drainLogTimer(tester);
+  });
+
+  // UIUX批（2026-10-12）：编辑态吞卡片内部点按——点「收集箱」不再跳走
+  //（裸 MaterialApp 无 GoRouter，跳走必抛异常＝天然红位；修复后吞点零异常）。
+  testWidgets('编排态：点卡片内容不跳转（长按拖拽保留），仍在编排模式', (tester) async {
+    final db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      journalRepositoryProvider
+          .overrideWithValue(JournalRepository(JournalDao(db))),
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DashboardPage())));
+    await tester.pumpAndSettle();
+
+    // 长按收集箱卡 → 进编排模式（横幅＋toast 双命中，≥1 即成）。
+    await tester.longPress(find.byKey(const ValueKey('card-press-inboxBar')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('编排模式'), findsWidgets);
+
+    // 编辑态点卡片内容（收集箱行）——被吞点层拦截，不得触发导航。
+    await tester.tap(find.textContaining('收集箱'), warnIfMissed: true);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: '编辑态点卡片内容不应触发跳转');
+    // 编排横幅＋进入 toast 各一条，≥1 即在编排态（textContaining 会双命中）。
+    expect(find.textContaining('编排模式'), findsWidgets,
+        reason: '应仍在编排模式');
+    await db.close();
+    await drainLogTimer(tester);
+  });
+
+  // UIUX批（2026-10-12）：FAB 菜单开态盖遮罩，点空白处收起（旧实现无遮罩
+  // ＋返回键退栈＝收不掉；遮罩收起是除再点 FAB 外的第二条路径）。
+  testWidgets('FAB 菜单：点遮罩空白处收起', (tester) async {
+    final db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
+    for (final sql in DbSchema.createStatements) {
+      await db.execute(sql);
+    }
+    final repo = TodoRepository(TodoDao(db), EventBus());
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(overrides: [
+      todoRepositoryProvider.overrideWithValue(repo),
+      journalRepositoryProvider
+          .overrideWithValue(JournalRepository(JournalDao(db))),
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: DashboardPage())));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('记一条想法'), findsOneWidget);
+
+    // 点遮罩（屏幕中上空白处，避开 FAB 与菜单项）→ 菜单收起。
+    await tester.tapAt(const Offset(60, 200));
+    await tester.pumpAndSettle();
+    expect(find.text('记一条想法'), findsNothing);
+    await db.close();
+    await drainLogTimer(tester);
   });
 }

@@ -77,21 +77,31 @@ class GradFab extends StatelessWidget {
 }
 
 /// 快捷记录菜单卡（原型 .fab-act：白底描边圆角卡 + 阴影）。
+/// UIUX批（2026-10-12）：新增可选线性图标位——原型 FAB 五项已去 emoji 改线性
+/// SVG（对齐「UI 禁 emoji 图标」禁令），实现侧同批把 emoji 标签拆成 icon+文案。
 class FabActionCard extends StatelessWidget {
   const FabActionCard({
     super.key,
     required this.label,
     required this.onTap,
+    this.icon,
   });
 
   final String label;
   final VoidCallback onTap;
+
+  /// 线性图标位（null=只有文案）。
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final dark = ThemeData.estimateBrightnessForColor(tokens.card) == Brightness.dark;
+    final textStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: dark ? const Color(0xFFE2E8F0) : scheme.onSurface);
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: onTap,
@@ -106,11 +116,15 @@ class FabActionCard extends StatelessWidget {
             BoxShadow(color: Color(0x1E0F172A), blurRadius: 12, offset: Offset(0, 4)),
           ],
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: dark ? const Color(0xFFE2E8F0) : scheme.onSurface)),
+        child: icon == null
+            ? Text(label, style: textStyle)
+            : Row(
+                children: [
+                  Icon(icon, size: 15, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: 7),
+                  Expanded(child: Text(label, style: textStyle)),
+                ],
+              ),
       ),
     );
   }

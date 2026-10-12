@@ -56,13 +56,14 @@ void main() {
     await settle5(tester); // 内含排空 AppLog 节流 Timer（未 override 待办仓储 → 读取失败会落日志）
   }
 
-  /// 空态：倒数卡占位 + 持有成本 ¥0 + 0 件计费中。
-  testWidgets('空态：暂无日子 · ¥ 0 · 0 件物品计费中', (tester) async {
+  /// 空态：倒数卡占位 + 持有成本 ¥0 + 空态话（UIUX批 2026-10-12：
+  /// 「0 件物品计费中」假口径改「暂无计费物品」）。
+  testWidgets('空态：暂无日子 · ¥ 0 · 暂无计费物品', (tester) async {
     await pump(tester);
     expect(find.text('最近的日子'), findsOneWidget);
     expect(find.text('暂无日子'), findsOneWidget);
     expect(find.text('¥ 0.00'), findsOneWidget);
-    expect(find.text('0 件物品计费中 ›'), findsOneWidget);
+    expect(find.text('暂无计费物品 ›'), findsOneWidget);
     await drainLogTimer(tester); // 仓库写入落 key 行 → 排空 AppLog 节流 Timer
   });
 

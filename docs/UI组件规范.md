@@ -390,3 +390,7 @@
 
 `AppToast.show` / `PillChip` / `DotLegend` / `MoodRow` / `SectionCard` / `EmptyDashRow` / `SegRow`
 ——新代码必须优先复用；存量调用点按两档流程「路过替换」，不做专项重构批。
+
+## 棘轮基线追加理由（2026-10-12 UIUX 批）
+
+- `todo_add_sheet.dart` 11→12 处＝番茄计时区块标题由「🍅 番茄计时」emoji 迁线性 `Icon(Icons.timer_outlined)`，Icon 色 `Color(0xFFE11D48)` 与该区块标题既有 rose 主题色同值对译（原型同位 `text-rose-500` 同色块），非新色相。人审＝本批产品令「待办页也修改」。

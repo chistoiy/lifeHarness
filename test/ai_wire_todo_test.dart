@@ -94,7 +94,7 @@ void main() {
     await settle5(tester);
     await tester.tap(find.byIcon(Icons.add).last); // FAB → 类型二选一
     await settle5(tester);
-    await tester.tap(find.text('✅ 普通待办'));
+    await tester.tap(find.text('普通待办'));
     await settle5(tester);
     expect(find.text('新建待办'), findsOneWidget);
   }

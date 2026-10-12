@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/health_mounts.dart';
 import '../../../shared/linkage/linkage_events.dart';
+import '../../../shared/linkage/search_mounts.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -44,8 +46,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     '愤怒': '深呼吸，晚点再处理这件事',
   };
 
-  String? _mood;
-  bool _fabMenu = false;
+  // UIUX批（2026-10-12）：编排直达事件监听必须持有引用并在 dispose 取消——
+  // 旧实现 listen() 返回值丢弃，切栏销毁重建一次就累积一个监听器（泄漏）。
+  StreamSubscription<void>? _editSub;
 
   // ===== M0末C 主页卡片自由编排（原型 dashToggle/dashMove/drop 排序） =====
   // V1.28⑥：编排态上移 dashDraftProvider（非 null=编排中），壳层返回键可拦截为
@@ -55,9 +58,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   void initState() {
     super.initState();
     // V1.27 P3：设置页「主页编排直达」→ 本页直接进编排模式（事件总线，守 R1）。
-    ref.read(eventBusProvider).on<EnterDashEditEvent>().listen((_) {
+    _editSub = ref.read(eventBusProvider).on<EnterDashEditEvent>().listen((_) {
       if (mounted) _enterEdit();
     });
+  }
+
+  @override
+  void dispose() {
+    _editSub?.cancel();
+    // FAB 菜单开态不在 dispose 清：dispose 阶段 riverpod 禁用 ref，且同步
+    // state= 会 markNeedsBuild 已 defunct 的订阅者（框架断言炸）。清态挂壳层
+    // 路径变化处（app_router HomeShell：离开今天页即 close），语义等价。
+    super.dispose();
   }
 
   /// V1.27 H1：长按卡片 / P3 编排直达 共用入口。
@@ -94,7 +106,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   /// FAB 菜单动作（原型 fabGo：跳转目标模块；未开放模块给出版本提示）。
   void _fabAction(int i) {
-    setState(() => _fabMenu = false);
+    ref.read(dashFabOpenProvider.notifier).close();
     switch (i) {
       case 0:
         context.go(NavModule.inbox.path);
@@ -134,11 +146,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final order =
         draft ?? ref.watch(settingsControllerProvider).homeCardOrder;
 
+    // UIUX批（2026-10-12）：心情回填——当天日记里最新一次打卡（1..7）映射回
+    // 表情标签；无打卡=null。旧实现是纯内存态，切栏回来必丢。
+    final moodIdx = ref.watch(dashMoodOfTodayProvider).valueOrNull;
+    final moodNow = moodIdx == null || moodIdx < 1 || moodIdx > _moods.length
+        ? null
+        : _moods[moodIdx - 1].$2;
+
     Widget card(String id) => switch (id) {
           'greeting' => _HeroCard(greet: '$greet，$nickNow'),
-          'mood' => _MoodCard(mood: _mood, onPick: (m) {
-              setState(() => _mood = m);
+          'mood' => _MoodCard(mood: moodNow, onPick: (m) {
               // L4：心情写入今晚日记（经 shared/linkage 门面，守 R1）。
+              // dashMoodOfTodayProvider watch journalsProvider，落库后自动回填。
               final idx = _moods.indexWhere((e) => e.$2 == m) + 1;
               if (idx > 0) {
                 ref.read(journalRepositoryProvider).setMoodOfDay(DateTime.now(), idx);
@@ -205,6 +224,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   child: Stack(
                     children: [
                       card(id),
+                      // UIUX批（2026-10-12）：编辑态卡片仍可点＝点「收集箱/健康」
+                      // 直接跳走、编排半途被劫。盖一层只吞**点按**的透明层
+                      // （无长按识别器 ⇒ 长按起拖 / ⠿ 把手不受影响）。
+                      Positioned.fill(
+                        child: GestureDetector(
+                          key: ValueKey('card-eat-tap-$id'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {},
+                        ),
+                      ),
                       Positioned(
                         right: 2,
                         top: 34,
@@ -262,6 +291,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         );
 
+    // UIUX批（2026-10-12）：FAB 菜单开态收进 dashFabOpenProvider（壳层返回键
+    // 收菜单的唯一状态源）；菜单开着时 body 顶部盖半透明遮罩——点任意空白处
+    // 收起。旧实现无遮罩、返回键直接退 app＝菜单收不掉。
+    final fabOpen = ref.watch(dashFabOpenProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -279,48 +313,65 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ],
         ),
         actions: [
-          // V1.27 H1：右上角「⇄ 编排」按钮移除（长按卡片进入编排，✓完成在提示条内）
+          // UIUX批（2026-10-12）：僵尸钮兑现——全局搜索（笔记＋日记双源半屏，
+          // 走 shared/linkage 出口守 R1）。旧实现只弹「即将开放」。
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
-            onPressed: () => _toastOf(context, '全局搜索 · 即将开放'),
+            onPressed: () => showGlobalSearch(context, ref),
           ),
         ],
       ),
-      body: body,
+      body: Stack(
+        children: [
+          body,
+          if (fabOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                key: const ValueKey('dash-fab-scrim'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => ref.read(dashFabOpenProvider.notifier).close(),
+                child: const ColoredBox(color: Colors.black12),
+              ),
+            ),
+        ],
+      ),
       // 原型 p-dashboard FAB：＋ 点开快捷记录菜单
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (_fabMenu)
+          if (fabOpen)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  for (final (i, label) in const [
-                    (0, '⚡ 记一条想法'),
-                    (1, '✅ 记待办'),
-                    (2, '📔 记日记'),
-                    (3, '💰 记一笔'),
-                    (4, '📦 记物品'),
+                  // UIUX批（2026-10-12）：五项去 emoji 改线性图标（原型 fab-act 同批）。
+                  for (final (i, ic, label) in const [
+                    (0, Icons.bolt_outlined, '记一条想法'),
+                    (1, Icons.check_box_outlined, '记待办'),
+                    (2, Icons.menu_book_outlined, '记日记'),
+                    (3, Icons.currency_yuan_outlined, '记一笔'),
+                    (4, Icons.inventory_2_outlined, '记物品'),
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: FabActionCard(
-                          label: label, onTap: () => _fabAction(i)),
+                          label: label,
+                          icon: ic,
+                          onTap: () => _fabAction(i)),
                     ),
                 ],
               ),
             ),
           AnimatedRotation(
             duration: const Duration(milliseconds: 180),
-            turns: _fabMenu ? 1 / 8 : 0,
+            turns: fabOpen ? 1 / 8 : 0,
             child: GradFab(
               tooltip: '快速记录',
               icon: const Icon(Icons.add, color: Colors.white, size: 26),
-              onTap: () => setState(() => _fabMenu = !_fabMenu),
+              onTap: () => ref.read(dashFabOpenProvider.notifier).toggle(),
             ),
           ),
         ],
@@ -350,11 +401,12 @@ class _ArrowBtn extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
-          width: 28,
-          height: 28,
+          // UIUX批（2026-10-12）：28px < 44px 最小触达标准（编排钮是高频微操）。
+          width: 44,
+          height: 44,
           child: Center(
             child: Text(label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           ),
         ),
       ),
@@ -373,9 +425,16 @@ class _HeroCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
-    final todos = ref.watch(todosProvider).valueOrNull ?? const [];
+    // UIUX批（2026-10-12）：冷启动加载态不再显示「0 个待办」假数——数据未落位
+    // （value 为 null 且 loading）显示「—」，落位后跳真数（重载沿用上帧数据不闪）。
+    final todosAsync = ref.watch(todosProvider);
+    final todosData = todosAsync.valueOrNull;
+    final todosLoading = todosAsync.isLoading && todosData == null;
+    final todos = todosData ?? const [];
     // V1.42 批4（L12/L13 挂载点）：今日持有成本由 items 计费引擎实算汇入。
-    final itemsData = ref.watch(itemsDataProvider).valueOrNull;
+    final itemsAsync = ref.watch(itemsDataProvider);
+    final itemsData = itemsAsync.valueOrNull;
+    final itemsLoading = itemsAsync.isLoading && itemsData == null;
     final itemsNow = ref.watch(itemsClockProvider)();
     final billingCount = itemsData?.active.length ?? 0;
     final dailyCost =
@@ -401,9 +460,13 @@ class _HeroCard extends ConsumerWidget {
         ? null
         : (important * 100 / pending.length).round();
     // 场安排＝今日日程列表条数（事件 + 手动/计时块，与 TodayScheduleCard 同一函数出数）。
+    final eventsAsync = ref.watch(eventsProvider);
+    final blocksAsync = ref.watch(dayBlocksProvider(day0));
+    final plansLoading = (eventsAsync.isLoading && eventsAsync.valueOrNull == null) ||
+        (blocksAsync.isLoading && blocksAsync.valueOrNull == null);
     final plans = mergeTodayPlans(
-      ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[],
-      ref.watch(dayBlocksProvider(day0)).valueOrNull ?? const <TimeBlock>[],
+      eventsAsync.valueOrNull ?? const <CalEvent>[],
+      blocksAsync.valueOrNull ?? const <TimeBlock>[],
       now: now,
       catColors: const {},
       accent: tokens.accent,
@@ -431,7 +494,7 @@ class _HeroCard extends ConsumerWidget {
                 key: const ValueKey('hero-todo-tap'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => context.go(NavModule.todo.path),
-                child: Text('$total',
+                child: Text(todosLoading ? '—' : '$total',
                     key: const ValueKey('hero-todo-count'),
                     style: const TextStyle(
                         color: Colors.white,
@@ -447,7 +510,7 @@ class _HeroCard extends ConsumerWidget {
                 key: const ValueKey('hero-plan-tap'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => context.go(NavModule.calendar.path),
-                child: Text('${plans.length}',
+                child: Text(plansLoading ? '—' : '${plans.length}',
                     key: const ValueKey('hero-plan-count'),
                     style: const TextStyle(
                         color: Colors.white,
@@ -499,6 +562,8 @@ class _HeroCard extends ConsumerWidget {
                   key: const ValueKey('dash-todo-card'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => context.go(NavModule.todo.path),
+                  // UIUX批：按压缩放反馈（原型 active:scale-[.98] 对译）。
+                  child: _Pressable(
                   child: _MiniGlass(
                   label: '今日待办',
                   child: Row(
@@ -529,7 +594,8 @@ class _HeroCard extends ConsumerWidget {
                               color: Colors.white, fontSize: 11, height: 1.35)),
                     ],
                   ),
-                ),
+                  ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -537,27 +603,34 @@ class _HeroCard extends ConsumerWidget {
                 child: GestureDetector(
                   key: const ValueKey('dash-cost-card'),
                   onTap: () => context.push('/items/stats'),
-                  child: _MiniGlass(
-                    label: '今日持有成本',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text('¥ ${dailyCost.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-                            const Text('/天',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 11)),
-                          ],
-                        ),
-                        Text('$billingCount 件物品计费中 ›',
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 10)),
-                      ],
+                  child: _Pressable(
+                    child: _MiniGlass(
+                      label: '今日持有成本',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(itemsLoading ? '¥ —' : '¥ ${dailyCost.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                              const Text('/天',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                          // UIUX批：0 件计费不再是「0 件物品计费中」假口径，给空态话。
+                          Text(itemsLoading
+                                  ? '…'
+                                  : billingCount == 0
+                                      ? '暂无计费物品 ›'
+                                      : '$billingCount 件物品计费中 ›',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 10)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -572,6 +645,35 @@ class _HeroCard extends ConsumerWidget {
 
 void _toastOf(BuildContext context, String msg) =>
     AppToast.show(context, msg, ms: 1500);
+
+/// UIUX批：按压缩放反馈（原型 hero 小卡 active:scale-[.98] 对译）。
+/// 只管按压视觉，点击行为仍由外层 GestureDetector 承担。
+class _Pressable extends StatefulWidget {
+  const _Pressable({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => setState(() => _down = true),
+      onPointerUp: (_) => setState(() => _down = false),
+      onPointerCancel: (_) => setState(() => _down = false),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 120),
+        scale: _down ? 0.98 : 1,
+        child: widget.child,
+      ),
+    );
+  }
+}
 
 class _MiniGlass extends StatelessWidget {
   const _MiniGlass({required this.label, required this.child});
@@ -661,7 +763,7 @@ class _RecentDaysCard extends ConsumerWidget {
                             Row(
                               children: [
                                 Icon(dayIconOf(d.iconId),
-                                    size: 11,
+                                    size: 12,
                                     color: Colors.white.withValues(alpha: .85)),
                                 const SizedBox(width: 4),
                                 Expanded(
@@ -669,7 +771,8 @@ class _RecentDaysCard extends ConsumerWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                          fontSize: 9,
+                                          // UIUX批：9px→10px（390 屏实测偏小）。
+                                          fontSize: 10,
                                           color: Colors.white,
                                           fontWeight: FontWeight.w700)),
                                 ),
@@ -791,7 +894,8 @@ class _InboxBar extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('收集箱 · $pending 条未整理',
+                  // UIUX批：0 条未整理不再是「0 条未整理」假口径，给清空态话（入口保留）。
+                  Text(pending == 0 ? '收集箱 · 已清空' : '收集箱 · $pending 条未整理',
                       style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
                   Text('快速记下，稍后再分类',
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
@@ -992,25 +1096,23 @@ class _AllModulesCard extends StatelessWidget {
   /// 非底栏栏目的栈页：进这些一律 push（go 清栈会让它成为栈底，返回键直接退 app）。
   static const _stackRoutes = {_aiVerifyRoute, '/media/shelf', '/health'};
 
-  static const _mods = <(Object, String, String?, String?)>[
-    ('✅', '待办', '/todo', null),
-    ('⏱️', '时间', '/calendar', null),
-    ('📚', '阅读', '/journal?tab=book', null),
-    // 影音游批2（2026-10-07 解禁）：该枚去 V1.0 灰位——线性图标不吃 emoji 闸，
-    // 路由是栈页，走下面 _stackRoutes 分派 push（go 会把它变成栈底）。
+  /// UIUX批（2026-10-12）：宫格 emoji 图标全量迁线性 IconData（原型 D.grid 同批
+  /// 去 emoji 改线性 SVG；影音游/健康/AI 三枚此前已线性）。
+  static const _mods = <(IconData, String, String, String?)>[
+    (Icons.check_box_outlined, '待办', '/todo', null),
+    (Icons.schedule_outlined, '时间', '/calendar', null),
+    (Icons.menu_book_outlined, '阅读', '/journal?tab=book', null),
     (Icons.movie_outlined, '影音游', '/media/shelf', null),
-    ('⚡', '收集箱', '/inbox', null),
-    ('💰', '记账', '/ledger', null),
-    ('📦', '物品', '/items', null),
-    ('🎂', '日子', '/days', null),
-    // 健康批2（2026-10-07）：该枚去灰位（线性图标不吃 emoji 闸），路由是栈页，
-    // 走下面 _stackRoutes 分派 push（漏加就会 go：工作台成栈底，返回键直接退 app）。
-    (Icons.directions_run_outlined, '健康', '/health', null),
-    ('🔁', '习惯', '/habits', null),
-    ('🧭', '目标', '/goals', null),
-    ('🍼', '呵护', '/care', null),
+    (Icons.bolt_outlined, '收集箱', '/inbox', null),
+    (Icons.currency_yuan_outlined, '记账', '/ledger', null),
+    (Icons.inventory_2_outlined, '物品', '/items', null),
+    (Icons.cake_outlined, '日子', '/days', null),
+    (Icons.monitor_heart_outlined, '健康', '/health', null),
+    (Icons.repeat_outlined, '习惯', '/habits', null),
+    (Icons.explore_outlined, '目标', '/goals', null),
+    (Icons.child_care_outlined, '呵护', '/care', null),
     (Icons.smart_toy_outlined, 'AI 验证', _aiVerifyRoute, null),
-    ('⚙️', '设置', '/settings', null),
+    (Icons.settings_outlined, '设置', '/settings', null),
   ];
 
   @override
@@ -1033,20 +1135,18 @@ class _AllModulesCard extends StatelessWidget {
                 spacing: gap,
                 runSpacing: gap,
                 children: [
+                  // UIUX批（2026-10-12）：14 枚全部已建（route 非空），灰位分支
+                  // 随 emoji 迁移一并摘除；ver 角标位保留（后续新模块占位用）。
                   for (final (ic, label, route, ver) in _mods)
                     SizedBox(
                       width: w,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: route == null
-                            ? () => _toastOf(context, '「$label」· 规划 $ver')
-                            : () => _stackRoutes.contains(route)
-                                // 二级/模块栈页走 push 保留返回栈，栏目行仍 go。
-                                ? context.push(route)
-                                : context.go(route),
-                        child: Opacity(
-                          opacity: route == null ? .45 : 1,
-                          child: Padding(
+                        onTap: () => _stackRoutes.contains(route)
+                            // 二级/模块栈页走 push 保留返回栈，栏目行仍 go。
+                            ? context.push(route)
+                            : context.go(route),
+                        child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: Column(
                               children: [
@@ -1061,11 +1161,8 @@ class _AllModulesCard extends StatelessWidget {
                                         color: scheme.onSurface.withValues(alpha: .06),
                                         borderRadius: BorderRadius.circular(14),
                                       ),
-                                      // 图标位：emoji 或线性 IconData（AI批4-A 最小扩展）。
-                                      child: ic is IconData
-                                          ? Icon(ic, size: 20, color: scheme.onSurfaceVariant)
-                                          : Text(ic as String,
-                                              style: const TextStyle(fontSize: 20)),
+                                      // 图标位：UIUX批起全部线性 IconData（emoji 已迁）。
+                                      child: Icon(ic, size: 20, color: scheme.onSurfaceVariant),
                                     ),
                                     if (ver != null)
                                       Positioned(
@@ -1092,7 +1189,6 @@ class _AllModulesCard extends StatelessWidget {
                                         fontSize: 11, color: scheme.onSurface)),
                               ],
                             ),
-                          ),
                         ),
                       ),
                     ),
