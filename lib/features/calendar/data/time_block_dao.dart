@@ -74,11 +74,34 @@ class TimeBlockDao {
   }
 
   /// V1.52：■ 结束计时——落实际结束时刻并转回普通块。
+  /// C8/B2（冻结）：结束时刻早于起始（跨 0 点）⇒ 不再 clamp 1440 丢时长，
+  /// 拆两段行落库：首日 `[startMin,1440)` ＋ 次日 `[0,atMin)`（atMin==0 时无次日尾巴）。
   Future<TimeBlock?> endTiming(int? id, int atMin) async {
     if (id == null) return null;
     final rows = await db.query(table, where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     final b = TimeBlock.fromRow(rows.first);
+    if (atMin < b.startMin) {
+      // 跨 0 点收口：首日到 24:00，次日尾巴另起一行（同分类/备注/事件关联）。
+      await db.update(
+          table,
+          {'end_min': 1440, 'source': kSrcMark, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+          where: 'id = ?', whereArgs: [id]);
+      if (atMin > 0) {
+        await insert(TimeBlock(
+            day: DateTime(b.day.year, b.day.month, b.day.day + 1),
+            startMin: 0,
+            endMin: atMin,
+            catId: b.catId,
+            catName: b.catName,
+            note: b.note,
+            source: kSrcMark,
+            eventId: b.eventId));
+      }
+      AppLog.addKey('日程计时收口（跨0点拆两段）：块 #$id '
+          '${fmtMin(b.startMin)}→24:00 + 次日 00:00→${fmtMin(atMin)}（请求 ${fmtMin(atMin)}）');
+      return b.copyWith(endMin: 1440, source: kSrcMark);
+    }
     final e = atMin.clamp(b.startMin + 1, 1440);
     await db.update(
         table,
@@ -135,6 +158,29 @@ class TimeBlockDao {
   Future<void> updateEnd(int id, int endMin) => db.update(
       table, {'end_min': endMin, 'updated_at': DateTime.now().millisecondsSinceEpoch},
       where: 'id = ?', whereArgs: [id]);
+
+  /// B6（时间模块批1 · 冻结口径）：分类（含其次级）删除后，其下时间块归入
+  /// 「其他」——`cat_id` 置空、`category` 归 [kCatOther]。按 id 与名称双条件命中
+  /// （历史行可能只有名称没有 cat_id）。返回改写行数。
+  Future<int> reassignToOther(
+      {required List<int> catIds, required List<String> catNames}) async {
+    if (catIds.isEmpty && catNames.isEmpty) return 0;
+    final where = <String>[
+      if (catIds.isNotEmpty)
+        'cat_id IN (${List.filled(catIds.length, '?').join(',')})',
+      if (catNames.isNotEmpty)
+        'category IN (${List.filled(catNames.length, '?').join(',')})',
+    ].join(' OR ');
+    return db.update(
+        table,
+        {
+          'cat_id': null,
+          'category': kCatOther,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: where,
+        whereArgs: [...catIds, ...catNames]);
+  }
 
   /// 与日程事件区间重叠的标记块（事件回填时避免重复着色）。
   Future<void> removeOverlapping(DateTime day, int startMin, int endMin) =>

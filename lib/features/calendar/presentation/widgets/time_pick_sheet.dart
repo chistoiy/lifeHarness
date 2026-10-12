@@ -66,7 +66,11 @@ class _TimePickState extends ConsumerState<_TimePick> {
   late final List<String> _minItems;
   late final ValueNotifier<int> _dayN;
   late final ValueNotifier<int> _sMinN;
-  late final ValueNotifier<int> _eDayN;
+
+  /// B1（冻结）：结束日=起始日 +0..7 天的**动态窗口**（可跨月，如 9/30→10/1），
+  /// 滚轮只存偏移；起始日变化时重建标签实例（_Wheel 靠 items 实例感知，位置=偏移不变）。
+  late ValueNotifier<int> _eOffN;
+  late List<String> _eOffItems;
   late final ValueNotifier<int> _eMinN;
   late final Listenable _all;
   int? _catId;
@@ -107,16 +111,22 @@ class _TimePickState extends ConsumerState<_TimePick> {
     _hourItems = List.generate(24, (h) => h.toString().padLeft(2, '0'));
     _minItems = List.generate(60, (i) => i.toString().padLeft(2, '0')); // 1 分一档
 
-    int s0, e0;
+    int s0, e0, off0 = 0;
     if (b != null) {
       s0 = b.startMin;
       e0 = b.effEnd(now);
     } else if (e != null) {
       s0 = e.start.hour * 60 + e.start.minute;
-      e0 = e.end == null ? (s0 + 60).clamp(0, 1440) : e.end!.hour * 60 + e.end!.minute;
+      final endAt = e.end;
+      e0 = endAt == null ? s0 + 60 : endAt.hour * 60 + endAt.minute;
+      if (endAt != null) {
+        off0 = DateTime(endAt.year, endAt.month, endAt.day)
+            .difference(DateTime(_date.year, _date.month, _date.day))
+            .inDays;
+      }
     } else if (widget.startMin != null) {
       s0 = widget.startMin!;
-      e0 = (s0 + 60).clamp(0, 1440);
+      e0 = s0 + 60; // 允许 >1440：统一走下方 off/e 折算（B1/C8），勿先 clamp 丢跨天
     } else if (_isTodaySel) {
       s0 = _nowMin;
       e0 = _nowMin; // 今天默认起止=当前
@@ -124,16 +134,16 @@ class _TimePickState extends ConsumerState<_TimePick> {
       s0 = 9 * 60;
       e0 = 10 * 60;
     }
+    // 段尾 1440（=次日 00:00）折算为「跨一天 + 0 分」（C8/B2 口径），滚轮不出现 24:00。
+    off0 += e0 ~/ 1440;
+    e0 = e0 % 1440;
+    off0 = off0.clamp(0, 7);
     _dayN = ValueNotifier<int>(_date.day);
     _sMinN = ValueNotifier<int>(s0.clamp(0, 1439));
-    // 跨天块在本库按「两段行」存储，故结束日=块自身日；事件取 end 的日。
-    final endAt = e?.end;
-    final eDate = b != null
-        ? b.day
-        : (endAt != null ? DateTime(endAt.year, endAt.month, endAt.day) : _date);
-    _eDayN = ValueNotifier<int>(eDate.day.clamp(1, _daysInMonth));
-    _eMinN = ValueNotifier<int>(e0.clamp(0, 1440));
-    _all = Listenable.merge([_dayN, _sMinN, _eDayN, _eMinN]);
+    _eOffN = ValueNotifier<int>(off0);
+    _eOffItems = _buildEndItems();
+    _eMinN = ValueNotifier<int>(e0.clamp(0, 1439));
+    _all = Listenable.merge([_dayN, _sMinN, _eOffN, _eMinN]);
 
     // 分类回填：categoriesProvider 是异步的，initState 时通常还没值——
     // 先记下待回填的 catId/catName，等 build 里拿到 cats 再解析（否则编辑弹层预填不到分类）。
@@ -181,18 +191,30 @@ class _TimePickState extends ConsumerState<_TimePick> {
     _note.dispose();
     _dayN.dispose();
     _sMinN.dispose();
-    _eDayN.dispose();
+    _eOffN.dispose();
     _eMinN.dispose();
     super.dispose();
   }
 
+  /// 结束日轮 8 档标签：起始日 +0..7（B1 动态窗口 · 跨月直接表达）。
+  List<String> _buildEndItems() {
+    final s = _sDate;
+    return List.generate(8, (i) {
+      final d = s.add(Duration(days: i));
+      return '${d.month}/${d.day}';
+    });
+  }
+
+  /// 起始日变化后重建结束日标签（items 实例变化驱动 _Wheel 重建，选中位=偏移不变）。
+  void _refreshEndItems() => setState(() => _eOffItems = _buildEndItems());
+
   int get _s => _sMinN.value;
-  int get _eDay => _eDayN.value;
+  int get _eOff => _eOffN.value;
   int get _e => _eMinN.value;
-  int get _durMin => _e - _s;
+  int get _durMin => _eOff * 1440 + _e - _s;
   DateTime get _sDate => DateTime(_date.year, _date.month, _dayN.value);
-  DateTime get _eDate => DateTime(_date.year, _date.month, _eDay);
-  bool get _crossDay => !_eDate.isAtSameMomentAs(_sDate);
+  DateTime get _eDate => _sDate.add(Duration(days: _eOff));
+  bool get _crossDay => _eOff > 0;
   String get _pickedCat => _subName ?? _catName;
 
   int? _catIdForName(String name) {
@@ -255,7 +277,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
   /// 添加（含继续添加）：今天起止=当前 → 计时块；否则普通块（跨天自动拆两段）。
   Future<void> _add({bool keepOpen = false}) async {
     final dao = ref.read(timeBlockDaoProvider);
-    final s = _s, e = _e, eDate = _eDate;
+    final s = _s, e = _e;
     final note = _note.text.trim().isEmpty ? null : _note.text.trim();
     final cat = _pickedCat, catId = _catIdForName(cat);
 
@@ -263,7 +285,11 @@ class _TimePickState extends ConsumerState<_TimePick> {
     if (t != null &&
         DateTime(t.day.year, t.day.month, t.day.day) ==
             DateTime(_sDate.year, _sDate.month, _sDate.day)) {
-      if (addRejected(timing: t, bStart: s, bEnd: e <= s ? s + 1 : e)) {
+      if (addRejected(
+          timing: t,
+          bStart: s,
+          // 跨天补录的首段是 [s,1440)，按整段判定是否吞掉计时中区间。
+          bEnd: _eOff == 0 ? (e <= s ? s + 1 : e) : 1440)) {
         _hintAt('✕ 补录事件的结束不能晚于计时中事件的开始（${fmtMin(t.startMin)}）· 请调整');
         return;
       }
@@ -274,15 +300,22 @@ class _TimePickState extends ConsumerState<_TimePick> {
       _closeAndToast('▶ 已按当前时间开始计时 · 下次点击该事件可「■ 结束计时」');
       return;
     }
-    // 跨天在库中是「两段行」（起始日到 24:00 + 次日 00:00 到结束），结束日需一并刷新。
-    final other = eDate == _sDate ? null : eDate;
+    // B3（冻结）：同日 e ≤ s ⇒ 拦截 + 就地红字，不落库（原「静默兜底 s+1」作废）。
+    if (_eOff == 0 && e <= s) {
+      _hintAt('✕ 结束不能早于开始');
+      return;
+    }
+    // B1（冻结）：跨天段按两段行落库（首日 [s,1440) ＋ 次日 [0,e)），结束日一并刷新；
+    // 结束恰为次日 00:00（e==0）时次日尾巴零长，只落首日到 24:00。
+    final other = _crossDay ? _eDate : null;
     if (other == null) {
-      await dao.markRange(_sDate, s, e <= s ? s + 1 : e,
+      await dao.markRange(_sDate, s, e,
           catId: catId, catName: cat, note: note);
     } else {
       await dao.markRange(_sDate, s, 1440, catId: catId, catName: cat, note: note);
-      await dao.markRange(eDate, 0, e <= 0 ? 1 : e,
-          catId: catId, catName: cat, note: note);
+      if (e > 0) {
+        await dao.markRange(other, 0, e, catId: catId, catName: cat, note: note);
+      }
     }
     if (keepOpen) {
       _reload(other);
@@ -299,29 +332,70 @@ class _TimePickState extends ConsumerState<_TimePick> {
   }
 
   /// 编辑保存：块改起止/分类/备注；事件改起止/分类/标题。
+  /// B3（冻结）：非计时中且同日 e ≤ s ⇒ 拦截 + 就地红字，不落库。
+  /// B1（冻结）：跨天保存拆两段行——首日 [s,1440) 落原行，次日 [0,e) 新行（可撤销）。
   Future<void> _save() async {
     final s = _s, e = _e;
+    if (_eOff == 0 && e <= s && !_timing) {
+      _hintAt('✕ 结束不能早于开始');
+      return;
+    }
     if (_blk != null) {
       final dao = ref.read(timeBlockDaoProvider);
       final b = _blk;
       final wasTiming = b.isTiming;
       final cat = _pickedCat;
+      final catId = _catIdForName(cat);
+      final note = _note.text.trim().isEmpty ? cat : _note.text.trim();
+      final src = wasTiming && (e != _nowMin || s != b.startMin) ? kSrcMark : b.source;
+      var endMin = e;
+      if (endMin <= s) endMin = s + 1; // 计时中同分兜底 1 分（B3 只拦非计时）
+      if (_eOff == 0) {
+        await dao.save(b.copyWith(
+            day: _sDate,
+            startMin: s,
+            endMin: endMin.clamp(0, 1440),
+            catId: catId,
+            catName: cat,
+            note: note,
+            source: src));
+        _closeAndToast('✔ 已保存 · 轴/块/日/周四视图与时间账本同步（L4）');
+        return;
+      }
+      final snapA = await dao.snapshotDay(_sDate);
+      final snapB = await dao.snapshotDay(_eDate);
       await dao.save(b.copyWith(
-        day: _sDate,
-        startMin: s,
-        endMin: (e <= s ? s + 1 : e).clamp(0, 1440),
-        catId: _catIdForName(cat),
-        catName: cat,
-        note: _note.text.trim().isEmpty ? cat : _note.text.trim(),
-        source: wasTiming && (e != _nowMin || s != b.startMin) ? kSrcMark : b.source,
-      ));
-      _closeAndToast('✔ 已保存 · 轴/块/日/周四视图与时间账本同步（L4）');
+          day: _sDate,
+          startMin: s,
+          endMin: 1440,
+          catId: catId,
+          catName: cat,
+          note: note,
+          source: src));
+      if (e > 0) {
+        await dao.insert(TimeBlock(
+            day: _eDate,
+            startMin: 0,
+            endMin: e,
+            catId: catId,
+            catName: cat,
+            note: note,
+            source: kSrcMark));
+      }
+      _closeAndToast(
+          '✔ 已保存 · 跨天拆两段行（首日到 24:00 ＋ 次日尾巴）· 四视图与账本同步',
+          alsoDay: _eDate,
+          undo: () async {
+            await dao.restoreDay(_sDate, snapA);
+            await dao.restoreDay(_eDate, snapB);
+          });
       return;
     }
     if (_ev != null) {
       final e0 = _ev;
       final st = DateTime(_sDate.year, _sDate.month, _sDate.day, s ~/ 60, s % 60);
-      final en = DateTime(_eDate.year, _eDate.month, _eDate.day, e ~/ 60 % 24, e % 60);
+      // B1：结束日=起始日+偏移（DateTime 日溢出自动跨月归一）。
+      final en = DateTime(_eDate.year, _eDate.month, _eDate.day, e ~/ 60, e % 60);
       final title = _note.text.trim().isEmpty ? e0.title : _note.text.trim();
       await ref.read(eventRepositoryProvider).update(e0.copyWith(
           start: st, end: en, title: title, catId: _catIdForName(_pickedCat)));
@@ -427,14 +501,19 @@ class _TimePickState extends ConsumerState<_TimePick> {
                 Expanded(
                     child: Text(_editing ? '编辑事件 / 时间块' : '添加事件 / 时间块',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
-                AnimatedBuilder(
-                  animation: _all,
-                  builder: (context, _) => Text(
-                      '${_dayItems[_dayN.value - 1]} ${fmtMin(_s)} → '
-                      '${_dayItems[_eDay - 1]} ${fmtMin(_e)} · ${_durMin < 0 ? _durMin + 1440 : _durMin} 分钟'
-                      '${_crossDay ? ' · 跨天' : ''}',
-                      style: TextStyle(
-                          fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                // 非弹性子项：加「· 跨天」后缀后文本变长会撑爆 Row（4.8px 溢出），须 Flexible。
+                Flexible(
+                  child: AnimatedBuilder(
+                    animation: _all,
+                    builder: (context, _) => Text(
+                        '${_dayItems[_dayN.value - 1]} ${fmtMin(_s)} → '
+                        '${_eOffItems[_eOff]} ${fmtMin(_e)} · $_durMin 分钟'
+                        '${_crossDay ? ' · 跨天' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 10.5, color: scheme.onSurfaceVariant)),
+                  ),
                 ),
               ],
             ),
@@ -476,7 +555,11 @@ class _TimePickState extends ConsumerState<_TimePick> {
                       _Wheel(
                           items: _dayItems,
                           initialIndex: _dayN.value - 1,
-                          onSel: (i) => _dayN.value = i + 1),
+                          onSel: (i) {
+                            _dayN.value = i + 1;
+                            // B1：结束日窗口随起始日走（标签重建，选中偏移不变）。
+                            _refreshEndItems();
+                          }),
                       _Wheel(
                           items: _hourItems,
                           initialIndex: _s ~/ 60,
@@ -494,9 +577,9 @@ class _TimePickState extends ConsumerState<_TimePick> {
                     label: '当前 · 结束',
                     children: [
                       _Wheel(
-                          items: _dayItems,
-                          initialIndex: (_eDay - 1).clamp(0, _daysInMonth - 1),
-                          onSel: (i) => _eDayN.value = i + 1),
+                          items: _eOffItems,
+                          initialIndex: _eOff,
+                          onSel: (i) => _eOffN.value = i),
                       _Wheel(
                           items: _hourItems,
                           initialIndex: _e ~/ 60,
@@ -517,13 +600,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
                     style: TextStyle(
                         fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 const Spacer(),
-                GestureDetector(
-                  onTap: () => _hintAt('标签将取所选分类的默认标签'),
-                  child: Text('标签 ›',
-                      style: TextStyle(
-                          fontSize: 10.5, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-                ),
-                const SizedBox(width: 10),
+                // C9（冻结）：「标签 ›」假入口已摘除——标签维护下沉到分类管理的默认标签。
                 GestureDetector(
                   onTap: () {
                     Navigator.of(context).pop();

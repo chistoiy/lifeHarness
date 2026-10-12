@@ -48,6 +48,8 @@ void main() {
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calViewModeProvider.overrideWith((ref) => view),
+        // 批1 C2：切档不再自动改展开态——按旧前提显式给（axis=展开）。
+        monthExpandedProvider.overrideWith((ref) => view != 'block'),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));
@@ -163,6 +165,8 @@ void main() {
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calSelectedProvider.overrideWith((ref) => other),
+        // 批1 C2：块视图旧前提=折叠，显式给（不再随档推导）。
+        monthExpandedProvider.overrideWith((ref) => false),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));

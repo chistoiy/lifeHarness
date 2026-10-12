@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
@@ -10,6 +12,7 @@ import 'package:lifeharness/features/calendar/domain/cal_event.dart';
 import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'helpers.dart';
@@ -50,14 +53,18 @@ void main() {
     late Database db;
     late EventRepository repo;
     late EventBus bus;
+    // F2-2 后切档持久化走 settingsController ⇒ pump 须给真仓（mock prefs）。
+    late SharedPreferences prefs;
 
     setUp(() async {
+      SharedPreferences.setMockInitialValues({});
       db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
       for (final sql in DbSchema.createStatements) {
         await db.execute(sql);
       }
       bus = EventBus();
       repo = EventRepository(EventDao(db), bus, tbDao: TimeBlockDao(db));
+      prefs = await SharedPreferences.getInstance();
     });
 
     tearDown(() async {
@@ -85,24 +92,28 @@ void main() {
           eventRepositoryProvider.overrideWithValue(repo),
           timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
           categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+          // 批1 C2：本用例切到周视图后月历需展开，显式给（不再随档推导）。
+          settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
+          monthExpandedProvider.overrideWith((ref) => true),
         ],
         child: const MaterialApp(home: CalendarPage()),
       ));
       await tester.pumpAndSettle();
 
-      // 切周视图（7×24）；选中日=今天=中间列 di=3。
+      // 切周视图（7×24）；C6 自然周（周日起算）选中日列 di = weekday % 7。
+      final di = now.weekday % 7;
       await tester.tap(find.byType(PopupMenuButton<String>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('▤ 周 · 7×24'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('wk-seg-3-10-0')), findsOneWidget);
-      expect(find.byKey(const ValueKey('wk-seg-3-10-1')), findsOneWidget);
+      expect(find.byKey(ValueKey('wk-seg-$di-10-0')), findsOneWidget);
+      expect(find.byKey(ValueKey('wk-seg-$di-10-1')), findsOneWidget);
 
       // 点第二段（并排B 10:00-10:50）→ 开 B 的统一编辑弹层（预填 B 的起止）。
-      await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-1')));
+      await tester.ensureVisible(find.byKey(ValueKey('wk-seg-$di-10-1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-1')));
+      await tester.tap(find.byKey(ValueKey('wk-seg-$di-10-1')));
       await tester.pumpAndSettle();
       expect(find.text('编辑事件 / 时间块'), findsOneWidget);
       expect(find.textContaining('10:00 → '), findsOneWidget);
@@ -111,9 +122,9 @@ void main() {
       // 遮罩关闭后点第一段（并排A 09:00-10:30）→ 开 A 的编辑弹层。
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('wk-seg-3-10-0')));
+      await tester.ensureVisible(find.byKey(ValueKey('wk-seg-$di-10-0')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('wk-seg-3-10-0')));
+      await tester.tap(find.byKey(ValueKey('wk-seg-$di-10-0')));
       await tester.pumpAndSettle();
       expect(find.textContaining('09:00 → '), findsOneWidget);
       await tester.tapAt(const Offset(20, 20));

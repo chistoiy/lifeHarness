@@ -24,6 +24,10 @@ class GridDayView extends ConsumerStatefulWidget {
 
   final DateTime day;
 
+  /// 测试钩子（grid_sel_repaint_test / 变异刀3）：State.build 与格子构建计数。
+  static int debugStateBuilds = 0;
+  static int debugCellBuilds = 0;
+
   @override
   ConsumerState<GridDayView> createState() => _GridDayViewState();
 }
@@ -33,6 +37,14 @@ class _GridDayViewState extends ConsumerState<GridDayView>
   int? _selA;
   int? _selB;
   bool _selecting = false;
+
+  /// F1-4（时间模块批1 · 冻结口径）拖选重绘隔离：选区态走 ValueNotifier，
+  /// **不整页 setState**——拖动全程网格 State 不重建，只有进/出选区的格子
+  /// 经各自的 `ValueNotifier<bool>` 重绘（1440 格 1 分档下不整棵重建）。
+  final ValueNotifier<(int, int)?> _selRangeN = ValueNotifier(null);
+  List<ValueNotifier<bool>> _selCells = const [];
+  int _selCellsN = -1;
+
   late final AnimationController _pulse;
 
   static const _startMin = 0; // V1.19.2 全天起点 00:00
@@ -58,7 +70,30 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     return row * cols + col;
   }
 
-  void _clearSel() => setState(() => _selA = _selB = null);
+  /// 选区态同步（静默，无 setState）：格子列表随粒度变化重建；
+  /// 只有进/出选区的格子收到通知，选区横幅走 [_selRangeN]。
+  void _syncSelCells(int n) {
+    if (_selCellsN != n) {
+      for (final c in _selCells) {
+        c.dispose();
+      }
+      _selCells = List.generate(n, (_) => ValueNotifier<bool>(false));
+      _selCellsN = n;
+    }
+    final lo = _selA == null || _selB == null ? null : math.min(_selA!, _selB!);
+    final hi = lo == null ? null : math.max(_selA!, _selB!);
+    for (var i = 0; i < _selCells.length; i++) {
+      final v = lo != null && hi != null && i >= lo && i <= hi;
+      if (_selCells[i].value != v) _selCells[i].value = v;
+    }
+    _selRangeN.value = lo == null ? null : (lo, hi!);
+  }
+
+  void _clearSel() {
+    _selA = _selB = null;
+    _selecting = false;
+    if (_selCellsN >= 0) _syncSelCells(_selCellsN);
+  }
 
   /// 分类速记列点击：有选区=标记选区（拆分覆盖）；
   /// V1.52：无选区=**开一段计时中块**（上一段自动收口·仅今天可用）。
@@ -174,8 +209,9 @@ class _GridDayViewState extends ConsumerState<GridDayView>
       return null;
     }
 
-    final selLo = _selA == null || _selB == null ? null : math.min(_selA!, _selB!);
-    final selHi = selLo == null ? null : math.max(_selA!, _selB!);
+    // F1-4：选区走逐格 ValueNotifier（build 里只做同步，值不变不通知）。
+    GridDayView.debugStateBuilds++;
+    _syncSelCells(n);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,16 +234,17 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                     onPointerDown: (e) {
                       final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
                       if (i < 0 || i >= n) return;
-                      setState(() {
-                        _selecting = true;
-                        _selA = _selB = i;
-                      });
+                      // F1-4：选区更新静默写 ValueNotifier，不 setState（网格不整棵重建）。
+                      _selecting = true;
+                      _selA = _selB = i;
+                      _syncSelCells(n);
                     },
                     onPointerMove: (e) {
                       if (!_selecting) return;
                       final i = _cellIndexAt(e.localPosition, cellW, cellH, gap, cols);
                       if (i < 0 || i >= n || i == _selB) return;
-                      setState(() => _selB = i);
+                      _selB = i;
+                      _syncSelCells(n);
                     },
                     onPointerUp: (e) {
                       if (!_selecting || _selA == null || _selB == null) {
@@ -242,8 +279,8 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                         showTimePickSheet(context, ref, block: hit);
                         return;
                       }
-                      // 保持选区，等右侧分类点选（V1.21 选块即标记）
-                      setState(() {});
+                      // 保持选区，等右侧分类点选（V1.21 选块即标记）；
+                      // F1-4：选区态已在 ValueNotifier 里，无需 setState。
                     },
                     child: SizedBox(
                       height: height,
@@ -258,11 +295,12 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                         ),
                         itemCount: n,
                         itemBuilder: (context, i) {
+                          GridDayView.debugCellBuilds++;
                           final m = _startMin + i * gran;
                           final blk = blockAt(m);
                           final ev = eventAt(m);
                           final isLive = liveS != null && m >= liveS && m < (liveE ?? liveS + 1);
-                          final selected = selLo != null && i >= selLo && i <= selHi!;
+                          final selN = _selCells[i];
                           Color bg;
                           if (isLive) {
                             bg = const Color(0xFFF43F5E);
@@ -293,28 +331,33 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                                       const Color(0xFFF43F5E).withValues(alpha: .4),
                                       _pulse.value)!
                                   : bg;
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 120),
-                                decoration: BoxDecoration(
-                                  color: liveBg,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: selected
-                                      ? Border.all(color: tokens.accent, width: 2)
+                              // F1-4：选中描边走逐格 ValueNotifier——拖动时只有
+                              // 进/出选区的格子重绘，网格 State 不整棵重建。
+                              return ValueListenableBuilder<bool>(
+                                valueListenable: selN,
+                                builder: (context, selected, _) => AnimatedContainer(
+                                  duration: const Duration(milliseconds: 120),
+                                  decoration: BoxDecoration(
+                                    color: liveBg,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: selected
+                                        ? Border.all(color: tokens.accent, width: 2)
+                                        : null,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: showHour && m % 60 == 0
+                                      ? Text(
+                                          '${m ~/ 60}'.padLeft(2, '0'),
+                                          style: TextStyle(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w700,
+                                            color: (blk != null || isLive || ev != null)
+                                                ? Colors.white.withValues(alpha: .9)
+                                                : scheme.onSurfaceVariant,
+                                          ),
+                                        )
                                       : null,
                                 ),
-                                alignment: Alignment.center,
-                                child: showHour && m % 60 == 0
-                                    ? Text(
-                                        '${m ~/ 60}'.padLeft(2, '0'),
-                                        style: TextStyle(
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w700,
-                                          color: (blk != null || isLive || ev != null)
-                                              ? Colors.white.withValues(alpha: .9)
-                                              : scheme.onSurfaceVariant,
-                                        ),
-                                      )
-                                    : null,
                               );
                             },
                           );
@@ -333,11 +376,17 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                 },
               ),
               const SizedBox(height: 6),
-              if (selLo != null)
-                Text(
-                  '已选 ${_fmt(_startMin + selLo * gran)} - ${_fmt(math.min(_startMin + selHi! * gran + gran, 1440))} · ${(selHi - selLo + 1) * gran} 分钟 → 点右侧分类直接标记',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tokens.accent),
-                ),
+              ValueListenableBuilder<(int, int)?>(
+                valueListenable: _selRangeN,
+                builder: (context, range, _) {
+                  if (range == null) return const SizedBox.shrink();
+                  final lo = range.$1, hi = range.$2;
+                  return Text(
+                    '已选 ${_fmt(_startMin + lo * gran)} - ${_fmt(math.min(_startMin + hi * gran + gran, 1440))} · ${(hi - lo + 1) * gran} 分钟 → 点右侧分类直接标记',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tokens.accent),
+                  );
+                },
+              ),
             ],
           ),
         ),

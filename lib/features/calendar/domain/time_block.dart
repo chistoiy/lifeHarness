@@ -39,16 +39,21 @@ class TimeBlock {
   /// V1.52：计时中块——结束时间随当前时刻推进，直到「■ 结束计时」或被后续事件收口。
   bool get isTiming => source == kSrcTiming;
 
-  /// 有效结束分钟：计时中=此刻（不早于起始，封顶 1440），其余=库存值。
+  /// 有效结束分钟：计时中=此刻，其余=库存值。
+  /// C8/B2（冻结）：不再 clamp 1440——此刻早于起始（跨 0 点）⇒ 按 +1440 折算
+  /// 真实时刻（如 23:50 起计、00:10 时 effEnd=1450）；「已 X 分钟」走真实时长。
   int effEnd([DateTime? now]) {
     if (!isTiming) return endMin;
     final n = now ?? DateTime.now();
     final nm = n.hour * 60 + n.minute;
-    return nm.clamp(startMin, 1440);
+    return nm < startMin ? nm + 1440 : nm;
   }
 
-  /// 有效耗时分钟（跨天块由调用方按段计）。
-  int durationMin([DateTime? now]) => (effEnd(now) - startMin).clamp(0, 1440);
+  /// 有效耗时分钟（跨 0 点的计时中块=真实经过时长，可超 1440 上限不裁）。
+  int durationMin([DateTime? now]) {
+    final d = effEnd(now) - startMin;
+    return d < 0 ? 0 : d;
+  }
 
   bool covers(int minute) => minute >= startMin && minute < effEnd();
 

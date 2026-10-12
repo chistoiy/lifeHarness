@@ -3,7 +3,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), url = require('url');
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const FILE = path.resolve('prototype/index.html');
+const FILE = path.resolve('prototype/index-time.html');
 const URLF = url.pathToFileURL(FILE).href;
 const PORT = Number(process.env.T52_PORT || 9553);
 const SHOTS = process.env.T52_SHOTS === '1';
@@ -229,14 +229,14 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
 
   /* T16 · 分钟滚轮 1 分粒度 · 默认精确到当前分钟 */
   const t16 = await ev(`
-    const len=TP_MINS.length,twl=TW_MINS.length;
+    const len=TP_MINS.length;
     openTimePick(19);
     const s=tpMin('tpSh')*60+tpMin('tpSm'),n=nowMin();
     tpSetWheel('tpSm',37);const m=tpMin('tpSm');
     closeSheet('sheetTimePick');
-    return {len:len,twl:twl,diff:Math.abs(s-n),m37:m,cap:document.body.innerHTML.includes('1 分一档')&&!document.body.innerHTML.includes('5 分一档')};`);
-  (t16.len === 60 && t16.twl === 12 && t16.diff <= 1 && t16.m37 === 37 && t16.cap)
-    ? ok('T16 事件弹层 1 分粒度·待办侧保持 5 分档') : bad('T16', JSON.stringify(t16));
+    return {len:len,diff:Math.abs(s-n),m37:m,cap:document.body.innerHTML.includes('1 分一档')&&!document.body.innerHTML.includes('5 分一档')};`);
+  (t16.len === 60 && t16.diff <= 1 && t16.m37 === 37 && t16.cap)
+    ? ok('T16 事件弹层 1 分粒度·默认精确到当前分钟') : bad('T16', JSON.stringify(t16));
 
   /* T17 · 滚轮循环：59 再下一格回到 00 */
   const t17 = await ev(`
@@ -265,7 +265,7 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
       subsDisplay:getComputedStyle(document.querySelector('#tpSubs')).display,
       panelH:panel.offsetHeight,vh:window.innerHeight};
     closeSheet('sheetTimePick');return r`);
-  (t18.rows === 3 && t18.cols === 6 && t18.subsDisplay === "flex" && t18.durGone && t18.hasTag && t18.hasMng && t18.panelH < t18.vh * 0.8)
+  (t18.rows === 3 && t18.cols === 6 && t18.subsDisplay === "flex" && t18.durGone && !t18.hasTag && t18.hasMng && t18.panelH < t18.vh * 0.8)
     ? ok('T18 弹层瘦身·滚轮3行·分类6列·时长钮删除') : bad('T18', JSON.stringify(t18));
 
   /* T19 · 「管理」跳分类管理页 */
@@ -358,7 +358,7 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     const weekTxt=$('#calWeekGrid').textContent;
     const has=(document.querySelectorAll('#calWeekGrid [onclick*="openBlockEdit"]')).length;
     blocks=blocks.filter(b=>b!==x);setDay(19);renderCal();
-    return {inDay:/跨天块/.test(dayTxt),tailLabel:/↩/.test(dayTxt)&&/续昨日/.test(axTxt),weekCells:has>0}`);
+    return {inDay:/跨天块/.test(dayTxt),tailLabel:/续昨日/.test(dayTxt)&&/续昨日/.test(axTxt),weekCells:has>0}`);
   (t26.inDay && t26.tailLabel) ? ok('T26 跨天块次日尾巴可见并标「续昨日」') : bad('T26', JSON.stringify(t26));
 
   /* T27 · 计时中时长走秒级文本刷新（不整页重绘） */
@@ -377,7 +377,7 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     navTo('p-timeStats');
     const out={};
     tsSetMode('d');out.day={clock:!!document.querySelector('#tsBody svg path[fill]'),period:$('#tsPeriod').textContent,cards:[...document.querySelectorAll('#tsBody .card')].length};
-    tsSetMode('w');out.week={area:document.querySelectorAll('#tsBody polyline').length,stack:document.querySelectorAll('#tsBody .flex.items-stretch > div').length,rank:document.querySelectorAll('#tsBody [onclick*="明细列表"]').length};
+    tsSetMode('w');out.week={area:document.querySelectorAll('#tsBody polyline').length,stack:document.querySelectorAll('#tsBody .flex.items-stretch > div').length,rank:document.querySelectorAll('#tsBody [onclick*="tsOpenCat"]').length};
     tsSetMode('y');out.year={monthBars:document.querySelectorAll('#tsBody polyline').length,label:$('#tsPeriod').textContent,heat:document.querySelectorAll('#tsBody .grid > div').length};
     tsSetMode('m');const before=$('#tsPeriod').textContent;tsShift(1);const after=$('#tsPeriod').textContent;
     out.month={label:before,paged:after===before};
@@ -394,8 +394,11 @@ async function shot(name) { if (!SHOTS) return; fs.mkdirSync(SHOTDIR, { recursiv
     const {from,to}=tsPeriod('w',tsAnchor);const A=tsAgg(from,to);
     out.total=Object.values(A.byCat).reduce((a,b)=>a+b,0);
     out.heroHas=out.total>0&&$('#tsBody').textContent.includes('已记录');
+    const row=document.querySelector('#tsBody [onclick*="tsOpenCat"]');
+    if(row)row.click();
+    out.dash=!!document.querySelector('#sheetTsCat.sheet-open');
+    closeSheet('sheetTsCat');
     setPage('p-calendar');
-    out.dash=document.querySelector('#dashTimeDist').textContent.length>10;
     return out;`);
   (t28.day.clock && t28.week.stack >= 7 && t28.week.rank >= 1 && t28.year.monthBars >= 1 && t28.year.heat >= 30
     && t28.month.paged && t28.unrecorded && t28.fold && t28.heroHas && t28.dash)

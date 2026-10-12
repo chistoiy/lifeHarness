@@ -55,6 +55,8 @@ void main() {
         categoryDaoProvider.overrideWithValue(catDao),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calViewModeProvider.overrideWith((ref) => 'axis'),
+        // 批1 C2：切档不再自动改展开态——轴视图旧前提=展开，显式给。
+        monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));

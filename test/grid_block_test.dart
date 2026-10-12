@@ -134,6 +134,8 @@ void main() {
           eventRepositoryProvider.overrideWithValue(repo),
           timeBlockDaoProvider.overrideWithValue(dao),
           categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+          // 批1 C2：块视图旧前提=折叠（默认展开会使格子沉到折叠线下），显式给。
+          monthExpandedProvider.overrideWith((ref) => false),
         ],
         child: const MaterialApp(home: CalendarPage()),
       );

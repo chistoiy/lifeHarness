@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../domain/category.dart';
+import '../domain/category_ops.dart';
 import 'calendar_providers.dart';
 
 /// 分类管理（V1.19.1 · 原型 p-sub-cats/p-sub-catAdd）。
@@ -92,6 +94,17 @@ class CategoryPage extends ConsumerWidget {
                 return Dismissible(
                   key: ValueKey('${sub ? 's' : 'p'}-${c.id}'),
                   direction: DismissDirection.endToStart,
+                  // B6（冻结）：删除前二次确认，列明连带次级数；取消=不删。
+                  confirmDismiss: (_) {
+                    final kids = c.isPrimary
+                        ? cats.where((x) => x.parentId == c.id).length
+                        : 0;
+                    return lhConfirm(
+                        context,
+                        c.isPrimary
+                            ? '删除「${c.name}」将连同 $kids 个次级分类一起删除，其下时间记录归入「其他」。'
+                            : '删除「${c.name}」？其下时间记录归入「其他」。');
+                  },
                   background: Container(
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
@@ -102,7 +115,14 @@ class CategoryPage extends ConsumerWidget {
                     child: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
                   ),
                   onDismissed: (_) async {
+                    // B6（冻结）：删除后其下时间块（含次级的）归入「其他」。
+                    final kids = c.isPrimary
+                        ? cats.where((x) => x.parentId == c.id).toList()
+                        : const <Category>[];
                     await ref.read(categoryDaoProvider).deleteWithChildren(c);
+                    await ref.read(timeBlockDaoProvider).reassignToOther(
+                        catIds: [c.id!, ...kids.map((x) => x.id!)],
+                        catNames: [c.name, ...kids.map((x) => x.name)]);
                     ref.invalidate(categoriesProvider);
                   },
                   child: Padding(
@@ -195,35 +215,17 @@ class CategoryPage extends ConsumerWidget {
     return Color(0xFF000000 | v);
   }
 
-  /// 拖拽重排：按新行序重建 sort，次级的新父级=其上方最近的一级（拖入其他组即换组）。
+  /// 拖拽重排：解析走纯函数 [categoryReorderPlan]（C10：最顶换入第一个一级组，
+  /// 换组显式 setParent，禁 null 表换组），本方法只负责落库。
   Future<void> _reorder(
       WidgetRef ref, List<Category> rows, List<bool> isSub, int oldIndex, int newIndex) async {
     if (oldIndex == newIndex) return;
-    final list = [...rows];
-    final flags = [...isSub];
-    final item = list.removeAt(oldIndex);
-    final flag = flags.removeAt(oldIndex);
-    final target = (newIndex > oldIndex ? newIndex - 1 : newIndex).clamp(0, list.length);
-    list.insert(target, item);
-    flags.insert(target, flag);
-
     final dao = ref.read(categoryDaoProvider);
-    var sortP = 0, sortS = 0;
-    for (var i = 0; i < list.length; i++) {
-      final c = list[i];
-      if (!flags[i]) {
-        sortP++;
-        sortS = 0;
-        await dao.update(c, clearParent: true, sort: sortP);
+    for (final m in categoryReorderPlan(rows, isSub, oldIndex, newIndex)) {
+      if (m.primary) {
+        await dao.update(m.cat, clearParent: true, sort: m.sort);
       } else {
-        // 前邻一级即新父组
-        var j = i - 1;
-        while (j >= 0 && flags[j]) {
-          j--;
-        }
-        final parent = j >= 0 ? list[j].id : null;
-        sortS++;
-        await dao.update(c, parentId: parent, sort: sortS);
+        await dao.update(m.cat, setParent: m.parentId, sort: m.sort);
       }
     }
     ref.invalidate(categoriesProvider);

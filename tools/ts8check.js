@@ -60,7 +60,7 @@ const READ = `
     if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); }
     if (m.method === 'Runtime.exceptionThrown') errs.push(((m.params.exceptionDetails.exception || {}).description || '').slice(0, 160)); });
   await cmd('Runtime.enable'); await cmd('Page.enable');
-  await cmd('Page.navigate', { url: url.pathToFileURL(path.resolve('prototype/index.html')).href });
+  await cmd('Page.navigate', { url: url.pathToFileURL(path.resolve('prototype/index-time.html')).href });
   /* Tailwind CDN 同步脚本会挂住 HTML 解析：轮询到模块函数就绪再断言 */
   const t0 = Date.now(); let r0 = { ok: false };
   while (Date.now() - t0 < 60000) {

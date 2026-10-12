@@ -186,5 +186,13 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
+  /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认）。
+  /// 用户手动切换时由时间页写入；切视图档不改它。
+  Future<void> setCalMonthExpanded(bool on) async {
+    if (on == state.calMonthExpanded) return;
+    state = state.copyWith(calMonthExpanded: on);
+    await _persist();
+  }
+
   Future<void> _persist() => ref.read(settingsRepositoryProvider).save(state);
 }

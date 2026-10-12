@@ -15,13 +15,19 @@ class CategoryDao {
 
   Future<int> insert(Category c) => db.insert(DbSchema.tCategories, c.toRow()..remove('id'));
 
-  Future<int> update(Category c, {int? parentId, bool clearParent = false, int? sort}) =>
+  /// 编辑保存。C10（时间模块批1 · 冻结口径）：**换组一律走显式 `setParent(id)`**
+  /// ——禁用「传 null 当换组」：`parentId==null` 在旧实现里对 `parent_id` 不写库，
+  /// 「拖到最顶换组」因此静默失效（P0-3）。`clearParent` 仅用于一级行归位。
+  Future<int> update(Category c,
+          {int? parentId, bool clearParent = false, int? sort, int? setParent}) =>
       db.update(
           DbSchema.tCategories,
           {
             ...c.toRow(),
             if (clearParent) 'parent_id': null,
-            if (!clearParent && parentId != null) 'parent_id': parentId,
+            if (setParent != null)
+              'parent_id': setParent
+            else if (!clearParent && parentId != null) 'parent_id': parentId,
             'sort': ?sort,
           },
           where: 'id = ?',

@@ -139,6 +139,7 @@ class UserSettings {
     this.journalDefaultTpl = '纯文本',
     this.journalFilter = 'all',
     this.journalIns = false,
+    this.calMonthExpanded = true,
   });
 
   final String themeId;
@@ -224,6 +225,10 @@ class UserSettings {
   /// #27：INS 卡片流布局（false=列表·默认）。
   final bool journalIns;
 
+  /// 时间模块批1（C2/B9）：时间页月历展开态（true=展开·默认；false=收起为周行）。
+  /// 首次进模块默认展开；用户手动切换后写盘（跨会话记住）；切视图档不改它。
+  final bool calMonthExpanded;
+
   /// 昵称展示值（未设置时的回落名，界面各处统一用它，避免各页各写一套默认）。
   String get nickOrFallback => profileNick.isEmpty ? '本地用户' : profileNick;
 
@@ -273,6 +278,7 @@ class UserSettings {
     String? journalDefaultTpl,
     String? journalFilter,
     bool? journalIns,
+    bool? calMonthExpanded,
   }) =>
       UserSettings(
         themeId: themeId ?? this.themeId,
@@ -299,6 +305,7 @@ class UserSettings {
         journalDefaultTpl: journalDefaultTpl ?? this.journalDefaultTpl,
         journalFilter: journalFilter ?? this.journalFilter,
         journalIns: journalIns ?? this.journalIns,
+        calMonthExpanded: calMonthExpanded ?? this.calMonthExpanded,
       );
 
   Map<String, Object> toMap() => {
@@ -326,6 +333,7 @@ class UserSettings {
         'journalDefaultTpl': journalDefaultTpl,
         'journalFilter': journalFilter,
         'journalIns': journalIns,
+        'calMonthExpanded': calMonthExpanded,
       };
 
   factory UserSettings.fromMap(Map<String, Object?> m) => UserSettings(
@@ -374,6 +382,7 @@ class UserSettings {
             ? m['journalFilter'] as String
             : 'all',
         journalIns: m['journalIns'] as bool? ?? false,
+        calMonthExpanded: m['calMonthExpanded'] as bool? ?? true,
       );
 
   /// 校验存储顺序：剔除未知 id、补齐缺失卡片（版本升级新增卡自动排尾部）。

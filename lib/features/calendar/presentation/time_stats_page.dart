@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
+import '../domain/week_align.dart';
 import 'calendar_page.dart' show daysInMonthOf;
 import 'calendar_providers.dart';
 import 'widgets/ts_cat_sheet.dart';
@@ -62,8 +63,8 @@ _TsPeriod _periodFor(String span, DateTime anchor) {
     );
   }
   if (span == 'w') {
-    // 周起点=周日（与时间页月历表头「日一二三四五六」同口径）。
-    final from = DateTime(a.year, a.month, a.day - (a.weekday % 7));
+    // C6（冻结）：周起点=周日，与时间页周视图**同源**读 week_align（不许两处各算一套）。
+    final from = weekStartOf(a);
     final to = DateTime(from.year, from.month, from.day + 6);
     final pf = DateTime(from.year, from.month, from.day - 7);
     return _TsPeriod(

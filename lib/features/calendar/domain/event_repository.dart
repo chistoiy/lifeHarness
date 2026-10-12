@@ -51,6 +51,23 @@ class EventRepository {
     return saved;
   }
 
+  /// C7（时间模块批1 · 冻结口径）：「计时中」唯一源=时间块表 `tm=1`（source='timing'，
+  /// 全库至多一条）。启动/进模块时若事件表仍挂着历史两态流的 `status=1` 行（两表并存），
+  /// **以时间块为准**：把事件侧收口为已完成（照 endActive 记耗时，但不回填时间块——
+  /// 块已在计）。返回是否有清理动作。事件级 `active` 自此只读兼容，无新写入路径（C5 退役）。
+  Future<bool> reconcileStaleActive() async {
+    final tb = _tbDao;
+    if (tb == null) return false;
+    final timing = await tb.activeTiming();
+    if (timing == null) return false;
+    final active = await _dao.activeOne();
+    if (active == null || active.id == null) return false;
+    final now = DateTime.now();
+    final dur = now.difference(active.start).inMinutes.clamp(1, 1 << 30);
+    await _dao.setStatus(active.id!, EventStatus.done, durationMin: dur, endAt: now);
+    return true;
+  }
+
   /// ■ 结束：实际耗时回填（L1 排程→执行→回填 · L4 时间账本）。
   Future<CalEvent?> endActive() async {
     final active = await _dao.activeOne();

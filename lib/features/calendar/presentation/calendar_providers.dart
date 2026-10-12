@@ -68,11 +68,11 @@ final calSelectedProvider = StateProvider<DateTime>((ref) {
 /// 视图模式（V1.19 · 四视图）：axis=时间轴 block=格子时间块 day=小时日板 week=7×24。
 final calViewModeProvider = StateProvider<String>((ref) => 'block');
 
-/// 月历展开/收起（智能折叠：滚动或点内容区收起为周行）。
-/// F5-2（轮5）：初始值随视图档推得——块视图默认折叠（给格子矩阵腾高度），
-/// 其余视图默认展开；切档时由视图切换处重新推导，手动翻切在当档内优先。
-final monthExpandedProvider =
-    StateProvider<bool>((ref) => ref.read(calViewModeProvider) != 'block');
+/// 月历展开/收起（C2/B9 冻结口径：**首次默认展开**；用户手动切换后持久化，
+/// 跨会话记住；与视图档**解耦**——切档不再改写展开态，见 calendar_page 的 _setMonthExpanded）。
+/// 种子读设置键 `lh.cal_month_expanded`（SettingsRepository 四处同步之一）。
+final monthExpandedProvider = StateProvider<bool>(
+    (ref) => ref.read(settingsControllerProvider).calMonthExpanded);
 
 /// 日视图子模式：line=时间轴 / grid=格子·时间块（需求 V1.4）。
 final dayModeProvider = StateProvider<String>((ref) => 'line');
@@ -106,3 +106,27 @@ final blocksInRangeProvider =
     FutureProvider.family<List<TimeBlock>, (DateTime, DateTime)>((ref, r) {
   return ref.watch(timeBlockDaoProvider).listInRange(r.$1, r.$2);
 });
+
+/// V1.46⑤ 周视图格子并排分段：≤3 项按份数等分；>3 项前 3 段并排、
+/// 第 4 个起并入末段（[WeekCellSegment.item]＝该段可点项，末段代表第 4 项）。
+class WeekCellSegment<T> {
+  WeekCellSegment(this.item, [List<T>? rest]) : rest = rest ?? const [];
+  final T item;
+
+  /// 并入本段的第 5 个及以后各项（仅末段且段内 ≥2 项时非空）。
+  final List<T> rest;
+
+  /// 「+N」小徽标文本：本段共含几项（≥2 项才显，单项无徽标）。
+  String get badgeText => rest.isEmpty ? '' : '+${rest.length + 1}';
+}
+
+/// V1.46⑤ 并排分段纯函数（items＝该小时格命中的事件/时间块，顺序即分段顺序）。
+List<WeekCellSegment<T>> weekCellSegments<T>(List<T> items) {
+  if (items.length <= 3) {
+    return [for (final it in items) WeekCellSegment<T>(it)];
+  }
+  return [
+    for (final it in items.take(3)) WeekCellSegment<T>(it),
+    WeekCellSegment<T>(items[3], items.sublist(4)),
+  ];
+}

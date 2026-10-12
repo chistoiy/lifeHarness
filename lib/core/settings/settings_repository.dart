@@ -49,6 +49,10 @@ class SettingsRepository {
   static const _kJournalFilter = 'lh.journal_filter';
   static const _kJournalIns = 'lh.journal_ins';
 
+  /// 时间模块批1（2026-10-13）·C2/B9：时间页月历展开态（true=展开·默认）。
+  /// 首次进模块默认展开；用户手动切换后持久化（跨会话记住）；与视图档解耦。
+  static const _kCalMonthExpanded = 'lh.cal_month_expanded';
+
   /// 同步读取（[SharedPreferences] 已在启动时一次性加载，getter 同步返回）。
   UserSettings load() {
     // V1.58 小工具整模块下架：历史遗留 lh.kit（四项模块开关）读到即清，
@@ -78,7 +82,8 @@ class SettingsRepository {
         _prefs.getString(_kMyLayout) == null &&
         _prefs.getString(_kJournalDefTpl) == null &&
         _prefs.getString(_kJournalFilter) == null &&
-        _prefs.getBool(_kJournalIns) == null) {
+        _prefs.getBool(_kJournalIns) == null &&
+        _prefs.getBool(_kCalMonthExpanded) == null) {
       return UserSettings.defaults;
     }
     return UserSettings.fromMap({
@@ -106,6 +111,7 @@ class SettingsRepository {
       'journalDefaultTpl': ?_prefs.getString(_kJournalDefTpl),
       'journalFilter': ?_prefs.getString(_kJournalFilter),
       'journalIns': ?_prefs.getBool(_kJournalIns),
+      'calMonthExpanded': ?_prefs.getBool(_kCalMonthExpanded),
     });
   }
 
@@ -135,5 +141,6 @@ class SettingsRepository {
     await _prefs.setString(_kJournalDefTpl, m['journalDefaultTpl']! as String);
     await _prefs.setString(_kJournalFilter, m['journalFilter']! as String);
     await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
+    await _prefs.setBool(_kCalMonthExpanded, m['calMonthExpanded']! as bool);
   }
 }

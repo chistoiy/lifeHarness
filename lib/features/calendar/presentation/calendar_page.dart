@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
@@ -11,6 +13,7 @@ import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/linkage/search_mounts.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
+import '../domain/week_align.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import 'calendar_providers.dart';
 import 'widgets/grid_day_view.dart';
@@ -28,6 +31,17 @@ int daysInMonthOf(int y, int m) {
 }
 class CalendarPage extends ConsumerWidget {
   const CalendarPage({super.key});
+
+  /// C7（冻结）一次性收口守卫：每进程只跑一次（避免每次重建都打两条 SELECT）。
+  static bool _reconciled = false;
+
+  /// C2/B9（冻结）：月历展开态统一写入口——改内存态并持久化（跨会话记住）。
+  /// 切视图档**不经过**这里（解耦）；只有用户手动收/展才写盘。
+  static void setMonthExpanded(WidgetRef ref, bool v) {
+    ref.read(monthExpandedProvider.notifier).state = v;
+    unawaited(
+        ref.read(settingsControllerProvider.notifier).setCalMonthExpanded(v));
+  }
 
   static const _wdHeaders = ['日', '一', '二', '三', '四', '五', '六'];
   static const _wds = ['日', '一', '二', '三', '四', '五', '六'];
@@ -58,6 +72,13 @@ class CalendarPage extends ConsumerWidget {
     final now = DateTime.now();
     final isToday = sameDay(selected, now);
 
+    // C7（冻结）：「计时中」唯一源=时间块 tm=1。进模块时若 events 表还挂着
+    // 历史两态流的 status=1 行（两表并存），以时间块为准把事件侧收口为已完成。
+    if (!_reconciled) {
+      _reconciled = true;
+      unawaited(ref.read(eventRepositoryProvider).reconcileStaleActive());
+    }
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -75,7 +96,8 @@ class CalendarPage extends ConsumerWidget {
                       n.metrics.pixels > 24 &&
                       n is ScrollUpdateNotification &&
                       n.dragDetails != null) {
-                    ref.read(monthExpandedProvider.notifier).state = false;
+                    // C2：用户手动收起=写盘（跨会话记住）。
+                    CalendarPage.setMonthExpanded(ref, false);
                   }
                   return false;
                 },
@@ -294,8 +316,7 @@ class _TimeHeader extends ConsumerWidget {
             icon: const Icon(Icons.sync_alt),
             onSelected: (v) {
               ref.read(calViewModeProvider.notifier).state = v;
-              // F5-2（轮5）：切档即按档重推日历展开态（块=折叠，其余=展开）。
-              ref.read(monthExpandedProvider.notifier).state = v != 'block';
+              // C2（冻结）：切档与月历展开态解耦——不再按档重推收/展。
             },
             itemBuilder: (_) => [
               for (final e in const {
@@ -446,12 +467,15 @@ class _MonthPanel extends ConsumerWidget {
                             ? const Color(0xFF6366F1)
                             : null);
                 return InkWell(
+                  // 测试钩子：选中格可点切换展开态（C2），给它稳定 key。
+                  key: isSel ? const ValueKey('month-sel-cell') : null,
                   borderRadius: BorderRadius.circular(10),
                   onTap: () {
                     ref.read(calSelectedProvider.notifier).state = date;
                     if (isSel) {
-                      ref.read(monthExpandedProvider.notifier).state =
-                          !ref.read(monthExpandedProvider);
+                      // C2：用户手动收/展=写盘。
+                      CalendarPage.setMonthExpanded(
+                          ref, !ref.read(monthExpandedProvider));
                     }
                   },
                   child: Container(
@@ -562,7 +586,7 @@ class _WeekStrip extends ConsumerWidget {
           Align(
             alignment: Alignment.centerRight,
             child: GestureDetector(
-              onTap: () => ref.read(monthExpandedProvider.notifier).state = true,
+              onTap: () => CalendarPage.setMonthExpanded(ref, true),
               child: Text('展开 ▾',
                   style: TextStyle(
                       fontSize: 9.5, fontWeight: FontWeight.w800, color: tokens.accent)),
@@ -594,7 +618,7 @@ class _WeekStrip extends ConsumerWidget {
                           child: GestureDetector(
                     onTap: () {
                       if (CalendarPage.sameDay(d, selected)) {
-                        ref.read(monthExpandedProvider.notifier).state = true;
+                        CalendarPage.setMonthExpanded(ref, true);
                       } else {
                         ref.read(calSelectedProvider.notifier).state = d;
                       }
@@ -1166,30 +1190,6 @@ class _DayHoursView extends ConsumerWidget {
   }
 }
 
-/// V1.46⑤ 周视图格子并排分段：≤3 项按份数等分；>3 项前 3 段并排、
-/// 第 4 个起并入末段（[WeekCellSegment.item]＝该段可点项，末段代表第 4 项）。
-class WeekCellSegment<T> {
-  WeekCellSegment(this.item, [List<T>? rest]) : rest = rest ?? const [];
-  final T item;
-
-  /// 并入本段的第 5 个及以后各项（仅末段且段内 ≥2 项时非空）。
-  final List<T> rest;
-
-  /// 「+N」小徽标文本：本段共含几项（≥2 项才显，单项无徽标）。
-  String get badgeText => rest.isEmpty ? '' : '+${rest.length + 1}';
-}
-
-/// V1.46⑤ 并排分段纯函数（items＝该小时格命中的事件/时间块，顺序即分段顺序）。
-List<WeekCellSegment<T>> weekCellSegments<T>(List<T> items) {
-  if (items.length <= 3) {
-    return [for (final it in items) WeekCellSegment<T>(it)];
-  }
-  return [
-    for (final it in items.take(3)) WeekCellSegment<T>(it),
-    WeekCellSegment<T>(items[3], items.sublist(4)),
-  ];
-}
-
 /// 周视图：7×24 网格。V1.28⑧：格子有事件/块=点开详情（→编辑），空格子才开补录。
 /// V1.46⑤：同小时格多个事件/时间块并排分段显示，各段仍可点进自己的详情。
 class _WeekBoard extends ConsumerWidget {
@@ -1209,7 +1209,7 @@ class _WeekBoard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final days = List.generate(7, (i) => DateTime(selected.year, selected.month, selected.day - 3 + i));
+    final days = naturalWeek(selected); // C6（冻结）：自然周（周日起算）
     final blocksByDay = <DateTime, List<TimeBlock>>{};
     final catColors = ref.watch(catColorsByNameProvider);
     String md(DateTime d) => '${d.month}/${d.day}';

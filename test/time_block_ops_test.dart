@@ -29,10 +29,13 @@ void main() {
       expect(b.effEnd(DateTime(2026, 9, 19, 23, 59)), 585);
     });
 
-    test('当前时刻早于起始时钳回起始（不产生负耗时）', () {
+    test('当前时刻早于起始 ⇒ 按跨零点折算 nm+1440（C8），duration 保 0 下限', () {
       final b = blk(600, 600, src: kSrcTiming);
-      expect(b.effEnd(DateTime(2026, 9, 19, 8, 0)), 600);
-      expect(b.durationMin(DateTime(2026, 9, 19, 8, 0)), 0);
+      // 旧 clamp 行为作废：nm < startMin 现在表示「昨日起计时的跨零点读数」，
+      // effEnd = 当前时刻 + 1440（480+1440=1920）。
+      expect(b.effEnd(DateTime(2026, 9, 19, 8, 0)), 480 + 1440);
+      // 「已 X 分钟」走真实经过时长（C8）：1920-600=1320（0 下限仅在异常数据可达）。
+      expect(b.durationMin(DateTime(2026, 9, 19, 8, 0)), 1320);
     });
   });
 

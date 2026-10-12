@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/event_dao.dart';
@@ -12,6 +14,7 @@ import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/calendar/presentation/widgets/time_pick_sheet.dart';
 import 'package:lifeharness/shared/linkage/linkage_events.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -21,14 +24,18 @@ void main() {
   late Database db;
   late EventRepository repo;
   late EventBus bus;
+  // F2-2 后切档持久化走 settingsController ⇒ 每个 pump 都要给真仓（mock prefs）。
+  late SharedPreferences prefs;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     db = await databaseFactoryFfiNoIsolate.openDatabase(inMemoryDatabasePath);
     for (final sql in DbSchema.createStatements) {
       await db.execute(sql);
     }
     bus = EventBus();
     repo = EventRepository(EventDao(db), bus);
+    prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async {
@@ -97,6 +104,7 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
@@ -122,6 +130,7 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
@@ -173,6 +182,7 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
@@ -197,6 +207,7 @@ void main() {
         eventRepositoryProvider.overrideWithValue(repo),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
@@ -228,6 +239,7 @@ void main() {
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
@@ -241,8 +253,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('空格子 → 添加时间段'), findsOneWidget);
 
-    // 中间列=选中日（di=3），10 点格被事件覆盖 → 点它开统一编辑弹层（V1.52）
-    final used = find.byKey(const ValueKey('wk-cell-3-10'));
+    // C6 自然周（周日起算）：选中日列 di = weekday % 7（周一=1…周日=0），不再钉死 3。
+    final di = now.weekday % 7;
+    final used = find.byKey(ValueKey('wk-cell-$di-10'));
     await tester.ensureVisible(used);
     await tester.pumpAndSettle();
     await tester.tap(used);
@@ -254,7 +267,7 @@ void main() {
     // 关详情（点遮罩）后点 4 点空格子 → 才应开补录弹层
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
-    final empty = find.byKey(const ValueKey('wk-cell-3-4'));
+    final empty = find.byKey(ValueKey('wk-cell-$di-4'));
     await tester.ensureVisible(empty);
     await tester.pumpAndSettle();
     await tester.tap(empty);
@@ -271,6 +284,7 @@ void main() {
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
+        settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         monthExpandedProvider.overrideWith((ref) => true),
       ],
       child: const MaterialApp(home: CalendarPage()),
