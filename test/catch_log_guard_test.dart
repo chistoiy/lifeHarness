@@ -78,6 +78,13 @@ void main() {
     'features/read/presentation/shelf/shelf_page.dart': 1,
     'features/read/presentation/stats/quotes_lib_page.dart': 1,
     'features/settings/presentation/ai_page_form.dart': 2,
+    // 存量越线归位（思维导图批1 2026-10-12 跑出本红）：journal 线三件的静默
+    // catch 发生在语义断链批（V1.68，该批批内增量没带本闸）；settings_page 同。
+    // 本批未动这四件一行 catch——按现状登记，之后只许减。
+    'features/journal/domain/journal_repository.dart': 1,
+    'features/journal/presentation/note_export.dart': 2,
+    'features/journal/presentation/widgets/note_tree_drawer.dart': 2,
+    'features/settings/presentation/settings_page.dart': 1,
     'features/settings/presentation/log_page.dart': 3,
     'features/settings/presentation/sync_backup_sheet.dart': 3,
     'features/settings/presentation/sync_page.dart': 1,

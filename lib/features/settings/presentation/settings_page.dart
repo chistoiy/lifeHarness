@@ -278,7 +278,7 @@ class SettingsPage extends ConsumerWidget {
                         size: 18, color: Color(0xFF64748B)),
                     bg: const Color(0xFF94A3B8).withValues(alpha: .14),
                     title: '回收站',
-                    sub: '八类删除内容 · 保留期内可恢复',
+                    sub: '九类删除内容 · 保留期内可恢复',
                     trailing: '${ref.watch(trashCountsProvider).total} 项',
                     divider: hairline,
                     onTap: () => context.push('/settings/trash')),

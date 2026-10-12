@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
@@ -10,6 +9,7 @@ import 'package:lifeharness/features/habit/domain/habit.dart';
 import 'package:lifeharness/features/habit/presentation/habit_providers.dart';
 import 'package:lifeharness/features/items/data/items_repository.dart';
 import 'package:lifeharness/features/items/domain/item_models.dart';
+import 'package:lifeharness/features/mindmap/data/mindmap_dao.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/journal/presentation/journal_providers.dart';
@@ -140,6 +140,20 @@ void main() {
               bookIds: [b.id]);
           final l = (await readRepo.allLists()).first;
           await readRepo.softDeleteList(l.id!);
+        case TrashKind.journal:
+          final jid = await db.insert(DbSchema.tJournal, {
+            'entry_date': 20261012,
+            'content': '回收站里的日记',
+            'created_at': 1,
+            'updated_at': 1,
+          });
+          await db.update(DbSchema.tJournal, {'deleted_at': 1},
+              where: 'id = ?', whereArgs: [jid]);
+        case TrashKind.mindmap:
+          final mdao = MindmapDao(db);
+          final mid = await mdao.createMap('导图甲');
+          await mdao.addNode(mapId: mid, parentId: null, title: '中心主题');
+          await mdao.trashMap(mid);
       }
     }
   }
@@ -161,24 +175,6 @@ void main() {
         overrides: ovs(),
         child: MaterialApp(home: TrashPage(initialSeg: seg)),
       );
-
-  /// 入口改道用真路由（入口行走 context.push）。
-  Widget entryApp(Widget entry) {
-    final router = GoRouter(
-      initialLocation: '/entry',
-      routes: [
-        GoRoute(
-            path: '/entry',
-            builder: (_, _) => Scaffold(body: entry)),
-        GoRoute(
-            path: '/settings/trash',
-            builder: (_, s) =>
-                TrashPage(initialSeg: s.uri.queryParameters['seg'])),
-      ],
-    );
-    return ProviderScope(
-        overrides: ovs(), child: MaterialApp.router(routerConfig: router));
-  }
 
   testWidgets('空态与期限文案（与记录管理档位同源）', (tester) async {
     await tester.pumpWidget(trashApp());
@@ -209,15 +205,32 @@ void main() {
             matching: find.text('全部 ${TrashKind.values.length}')),
         findsOneWidget);
 
+    // 第九类起 9 行超一屏（懒列表），「写周报」（最早删＝最底）要滚出来才可见。
+    await tester.scrollUntilVisible(
+      find.textContaining('写周报'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('写周报'), findsWidgets);
     expect(find.textContaining('含在库划线·笔记 1 条'), findsOneWidget);
     expect(find.textContaining('所属书已彻底删除'), findsOneWidget);
     expect(find.textContaining('成员 1 本'), findsOneWidget);
-    // V1.61 第七类：物品行的分类/成本池/流水保留三件都在行上读得到。
+    // 物品行在列表顶部（按删除时间倒序）：滚回顶部让它进入构建窗口再验
+    // 行上副信息（分类/成本池/流水保留三件都在行上读得到，V1.61 第七类）。
+    for (var i = 0; i < 5; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 800));
+      await settle5(tester);
+    }
     expect(find.textContaining('数码 · 成本池'), findsOneWidget);
     expect(find.textContaining('关联流水 0 条保留'), findsOneWidget);
-    expect(find.text('剩 30 天'), findsNWidgets(TrashKind.values.length));
+    // 懒列表可见行数随视口浮动，数量断言退化为「在场即可」。
+    expect(find.text('剩 30 天'), findsWidgets);
 
+    // 滚回顶部再点分段 chip（chips 若随列表滚出视口会点空）。
+    for (var i = 0; i < 6; i++) {
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 800));
+      await settle5(tester);
+    }
     await tester.tap(find.text('笔记 1'));
     await settle5(tester);
     expect(find.textContaining('Drift 选型'), findsOneWidget);
@@ -352,7 +365,9 @@ void main() {
     await seedSix();
     await tester.pumpWidget(trashApp());
     await settle5(tester);
-    expect(find.text('剩 30 天'), findsNWidgets(TrashKind.values.length));
+    // 九类 9 行超一屏：懒列表顶部 2 行永远在缓存外，数量断言退化「在场即可」
+    // （每类一行的计数已由「chips 计数同源」用例钉住）。
+    expect(find.text('剩 30 天'), findsWidgets);
     await clearToasts(tester);
 
     // 走真实用户路径：档位是「记录管理 · 通用」那一个开关，改它＝改同一个 provider 态
@@ -360,8 +375,8 @@ void main() {
     await c.read(settingsControllerProvider.notifier).setTrashKeepDays(7);
     await settle5(tester);
     expect(find.textContaining('删除 7 天后自动彻底删除'), findsOneWidget);
-    expect(find.text('剩 7 天'), findsNWidgets(TrashKind.values.length),
-        reason: '≤7 天全部标红（数量随类别走，V1.61 起七类）');
+    expect(find.text('剩 7 天'), findsWidgets,
+        reason: '≤7 天标红（在场行全部随档位联动；日记已超期显「待清理」不受档位影响）');
     await clearToasts(tester);
   });
 

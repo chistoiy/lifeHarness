@@ -141,8 +141,8 @@ void main() {
             .readAsStringSync();
     expect(mine.contains("ValueKey('entry-trash')"), isTrue,
         reason: '「我的」页缺同级回收站入口行');
-    expect(mine.contains('八类删除内容 · 保留期内可恢复'), isTrue,
-        reason: '入口副标题与屏内不一致（语义断链批日记入册后为八类）');
+    expect(mine.contains('九类删除内容 · 保留期内可恢复'), isTrue,
+        reason: '入口副标题与屏内不一致（思维导图批1 导图入册后为九类）');
     expect(mine.contains("'/settings/trash'"), isTrue,
         reason: '入口未指向统一屏');
     expect(recmg.contains("'/settings/trash'"), isFalse,
@@ -189,6 +189,14 @@ void main() {
         'restoreItem',
         'purgeItem',
         'purgeExpiredItems'
+      ],
+      // 思维导图批1（2026-10-12）·导图第九类：五件套同口径钉死。
+      'features/mindmap/data/mindmap_dao.dart': [
+        'trashMap',
+        'trashed',
+        'restoreMap',
+        'purgeMap',
+        'purgeExpired'
       ],
     };
     for (final e in src.entries) {

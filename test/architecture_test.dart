@@ -132,14 +132,29 @@ void main() {
       rel.startsWith('features/settings/presentation/ai_');
 
   test('R1 features 不得互相 import（跨模块必须走 shared/linkage）', () {
+    // 2026-10-12 思维导图批1 刀2 变异实锤：旧写法 split('/').first 取到的是
+    // 「features」字面量（文件键与 import 键同段），target != mod 永不成立＝守护空转。
+    // 修为取第二段（模块名）；本刀红＝守护恢复咬合的证据。
+    // 存量越线登记（R1 修好后首次暴露，均早于思维导图批1；登记=允许现状、
+    // 只许减；真还债＝各自改走 shared/linkage，另批做）：
+    const legacyEdges = <String, Set<String>>{
+      'features/dashboard/presentation/widgets/today_schedule_card.dart': {
+        'calendar',
+      },
+      'features/days/presentation/days_providers.dart': {'todo'},
+      'features/journal/presentation/journal_page.dart': {'read'},
+    };
     final violations = <String>[];
     for (final entry in imports.entries) {
-      final mod = entry.key.split('/').first;
-      if (!entry.key.startsWith('features/')) continue;
+      final seg = entry.key.split('/');
+      if (seg.first != 'features' || seg.length < 2) continue;
+      final mod = seg[1];
       for (final imp in entry.value) {
-        if (!imp.startsWith('features/')) continue;
-        final target = imp.split('/').first;
-        if (target != mod) {
+        final iseg = imp.split('/');
+        if (iseg.first != 'features' || iseg.length < 2) continue;
+        final target = iseg[1];
+        if (target != mod &&
+            !(legacyEdges[entry.key]?.contains(target) ?? false)) {
           violations.add('${entry.key} → features/$target');
         }
       }

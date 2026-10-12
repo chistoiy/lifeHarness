@@ -14,6 +14,7 @@ import 'schema/habit.dart' as h;
 import 'schema/items.dart' as m;
 import 'schema/ledger.dart' as l;
 import 'schema/media.dart' as md;
+import 'schema/mindmap.dart' as mm;
 import 'schema/read.dart' as r;
 import 'schema/xray.dart' as x;
 class DbSchema {
@@ -52,9 +53,12 @@ class DbSchema {
   // 推不出来＝工单 §18.1 拍板「加一列上三态」）；纯加列零搬数据，基础 DDL 同段带列。
   // 44：语义断链批（2026-10-12）——migrations[43]（43→44）给 journal_entries 加
   // deleted_at（回收站第八类·软删）；纯加列零搬数据，基础 DDL 同段带列。
+  // 45：思维导图批1（2026-10-12）——migrations[44]（44→45）建 mindmaps/mindmap_nodes
+  // 两表＋复合索引（新模块只建表零搬数据；迁移段与基础 DDL 同源引一份语句表，
+  // 详见 schema/mindmap.dart 段注）。
   // ⚠ 版本常量与 migrations 最高键必须同批同步——6109 预发布漏改本行（仍 43），
   // 真机升级 onUpgrade 不触发 ⇒ 表无 deleted_at ⇒ 日记读写全断（保存失败/列表空）。
-  static const int version = 44;
+  static const int version = 45;
  
 
   
@@ -340,6 +344,8 @@ class DbSchema {
     // 批5 复习三列：与 mig[38] 同一段（基础 DDL 冻结在 v38 形态，理由见 media.dart 段注）。
     ...md.mediaReviewStatements,
     // 批8a media_goals 建表：已在 mediaSchemaStatements 尾部（mig[37]/mig[39] 同段重放，互不撞）。
+    // V1.62 思维导图批1 两新表：迁移段与本处同源一份语句表（schema/mindmap.dart 段注）。
+    ...mm.mindmapSchemaStatements,
   ];
   static const String tTodos = c.tTodos;  // G5: core.dart
   static const String tEvents = c.tEvents;  // G5: core.dart
@@ -414,6 +420,9 @@ class DbSchema {
   static const String tGoalPeriods = g.tGoalPeriods;  // G5: goals.dart
   static const String tDoubanMeta = r.tDoubanMeta;  // G5: read.dart
   static const String tAiCalls = a.tAiCalls;  // G5: ai.dart
+  static const String tMindmaps = mm.tMindmaps;  // G5: mindmap.dart
+  static const String tMindmapNodes = mm.tMindmapNodes;  // G5: mindmap.dart
+  static const List<String> mindmapTables = mm.mindmapTables;  // G5: mindmap.dart
   static const List<String> careTables = e.careTables;  // G5: care.dart
   // 健康十四表整份清单（批6b 备份排除用；表侧唯一登记面，别在各模块手抄表名）。
   static const List<String> healthTables = hd.healthTables;
@@ -461,5 +470,6 @@ class DbSchema {
     ...x.mig,
     ...hd.mig,
     ...md.mig,
+    ...mm.mig,
   };
 }

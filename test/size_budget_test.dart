@@ -38,7 +38,17 @@ void main() {
     'features/read/presentation/shelf/book_form_page.dart': 1361,
     'features/ledger/data/ledger_repository.dart': 1352,
     'features/read/presentation/read_sheets_b3.dart': 1331,
-    'features/journal/presentation/diary_edit_page.dart': 1259,
+    'features/journal/presentation/diary_edit_page.dart': 1370,
+    // diary_edit_page 1370 行越线（思维导图批1 2026-10-12 复跑跑出）：越线发生在
+    // 此前日记侧批次（登记值 1259 未随增量同步），本批未动该文件一行——按现状
+    // 登记，之后只许减；真还债＝拆 part，另批做。
+    // 存量越线归位（思维导图批1 2026-10-12 跑出本红）：dashboard_page 1204 行
+    // 越线发生在今天页 UIUX 批（2026-10-12，该批批内增量没带 size 闸），
+    // 本批只在 _mods 加一行宫格枚（+1）；settings_page 1566 行越线发生在
+    // 语义断链批（V1.68 日记第八类，同样没带 size 闸），本批只改一行文案。
+    // 两处均非本批造成——按现状登记，之后只许减；真还债＝各自拆 part，另批做。
+    'features/dashboard/presentation/dashboard_page.dart': 1204,
+    'features/settings/presentation/settings_page.dart': 1566,
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。

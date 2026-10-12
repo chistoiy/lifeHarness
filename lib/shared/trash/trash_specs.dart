@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../core/database/app_database.dart';
+import '../../core/database/schema.dart';
+
 import '../../features/habit/data/habit_repository.dart';
 import '../../features/habit/presentation/habit_providers.dart';
 import '../../features/journal/data/journal_dao.dart';
@@ -10,6 +13,8 @@ import '../../features/items/data/items_repository.dart';
 import '../../features/items/domain/item_calc.dart' show daysHeld, poolOf;
 import '../../features/items/presentation/items_kit.dart' show itemMoney;
 import '../../features/items/presentation/items_providers.dart';
+import '../../features/mindmap/data/mindmap_dao.dart';
+import '../../features/mindmap/presentation/mindmap_providers.dart';
 import '../../features/read/data/read_repository.dart';
 import '../../features/read/domain/book.dart';
 import '../../features/read/domain/shelf_query.dart' show sessionAggByBook;
@@ -351,7 +356,7 @@ final List<TrashKindSpec> trashKindSpecs = [
       for (final e in await JournalDao(db).trash()) {
         // 副信息＝日期（同日多篇由篇数副行区辨）；标题＝正文预览（篇目无标题列）。
         final preview = e.plainBody.trim();
-        final two = (int v) => v.toString().padLeft(2, '0');
+        String two(int v) => v.toString().padLeft(2, '0');
         final clipped =
             preview.length <= 24 ? preview : '${preview.substring(0, 24)}…';
         out.add(TrashItem(
@@ -375,6 +380,43 @@ final List<TrashKindSpec> trashKindSpecs = [
         ref.read(journalRepositoryProvider).purgeJournal(it.rawId as int),
     refresh: (ref) => ref.invalidate(journalsProvider),
     purgeExpired: (db, keepDays) => JournalDao(db).purgeExpired(keepDays),
+  ),
+
+  // ==================== 导图（思维导图批1 2026-10-12 · 第九类） ====================
+  // 删图＝图行软删，节点行不动（恢复＝只清标记即「带全节点回原位」）；
+  // 彻底删除才级联 DELETE 全部 mindmap_nodes（登记式接口无自动级联、自写，
+  // 先例＝book→quote、journal→分节；trash_guard_test 按 TrashKind 逐类点名）。
+  TrashKindSpec(
+    kind: TrashKind.mindmap,
+    refreshGroup: 'mindmap',
+    signals: [mindmapTickProvider],
+    rows: (db) async {
+      final out = <TrashItem>[];
+      for (final m in await MindmapDao(db).trashed()) {
+        final nodeCount = Sqflite.firstIntValue(await db.rawQuery(
+                'SELECT COUNT(*) FROM ${DbSchema.tMindmapNodes} WHERE map_id = ?',
+                [m.id])) ??
+            0;
+        out.add(TrashItem(
+          kind: TrashKind.mindmap,
+          rawId: m.id!,
+          title: m.title.trim().isEmpty ? '未命名导图' : m.title,
+          deletedAt: trashTimeOf(m.deletedAt),
+          subs: ['$nodeCount 个节点'],
+          cascadeNotes: '连带清 全部节点行 $nodeCount 条（恢复图即整图可回）',
+          src: m,
+        ));
+      }
+      return out;
+    },
+    restore: (ref, it) async =>
+        MindmapDao(AppDatabase.instance.db).restoreMap(it.rawId as int),
+    purge: (ref, it) async {
+      await MindmapDao(AppDatabase.instance.db).purgeMap(it.rawId as int);
+      return 0;
+    },
+    refresh: (ref) => ref.read(mindmapTickProvider.notifier).state++,
+    purgeExpired: (db, keepDays) => MindmapDao(db).purgeExpired(keepDays),
   ),
 ];
 

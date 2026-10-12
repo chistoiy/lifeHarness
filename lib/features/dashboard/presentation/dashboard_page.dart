@@ -1094,7 +1094,7 @@ class _AllModulesCard extends StatelessWidget {
   static const _aiVerifyRoute = '/settings/ai/verify';
 
   /// 非底栏栏目的栈页：进这些一律 push（go 清栈会让它成为栈底，返回键直接退 app）。
-  static const _stackRoutes = {_aiVerifyRoute, '/media/shelf', '/health'};
+  static const _stackRoutes = {_aiVerifyRoute, '/media/shelf', '/health', '/mindmap'};
 
   /// UIUX批（2026-10-12）：宫格 emoji 图标全量迁线性 IconData（原型 D.grid 同批
   /// 去 emoji 改线性 SVG；影音游/健康/AI 三枚此前已线性）。
@@ -1110,6 +1110,7 @@ class _AllModulesCard extends StatelessWidget {
     (Icons.monitor_heart_outlined, '健康', '/health', null),
     (Icons.repeat_outlined, '习惯', '/habits', null),
     (Icons.explore_outlined, '目标', '/goals', null),
+    (Icons.account_tree_outlined, '思维导图', '/mindmap', null),
     (Icons.child_care_outlined, '呵护', '/care', null),
     (Icons.smart_toy_outlined, 'AI 验证', _aiVerifyRoute, null),
     (Icons.settings_outlined, '设置', '/settings', null),

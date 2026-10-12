@@ -5,6 +5,7 @@ import 'package:lifeharness/features/habit/data/habit_repository.dart';
 import 'package:lifeharness/features/habit/domain/habit.dart';
 import 'package:lifeharness/features/items/data/items_repository.dart';
 import 'package:lifeharness/features/items/domain/item_models.dart';
+import 'package:lifeharness/features/mindmap/data/mindmap_dao.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
 import 'package:lifeharness/features/journal/domain/note.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
@@ -115,6 +116,20 @@ void main() {
         final iid = await items.addItem(ItemProfile(
             name: '测试相机', buyDate: '2026-01-01', price: 199));
         await items.softDeleteItem(iid);
+      case TrashKind.journal:
+        final jid = await db.insert(DbSchema.tJournal, {
+          'entry_date': 20261012,
+          'content': '回收站里的日记',
+          'created_at': 1,
+          'updated_at': 1,
+        });
+        await db.update(DbSchema.tJournal, {'deleted_at': 1},
+            where: 'id = ?', whereArgs: [jid]);
+      case TrashKind.mindmap:
+        final mdao = MindmapDao(db);
+        final mid = await mdao.createMap('导图甲');
+        await mdao.addNode(mapId: mid, parentId: null, title: '中心主题');
+        await mdao.trashMap(mid);
     }
     final all = await trash.items();
     return all.firstWhere((e) => e.kind == kind);
@@ -400,6 +415,21 @@ void main() {
           name: '物品过期', buyDate: '2026-01-01', price: 99));
       await items.softDeleteItem(iid);
       await stampDeletedAt(DbSchema.tItemProfiles, iid, 31);
+
+      // 语义断链批·日记第八类＋思维导图批1·导图第九类：纳入党表随类补齐。
+      final jid = await db.insert(DbSchema.tJournal, {
+        'entry_date': 20261012,
+        'content': '过期日记',
+        'created_at': 1,
+        'updated_at': 1,
+      });
+      await stampDeletedAt(DbSchema.tJournal, jid, 31);
+
+      final mdao = MindmapDao(db);
+      final mid = await mdao.createMap('过期导图');
+      await mdao.addNode(mapId: mid, parentId: null, title: '根');
+      await mdao.trashMap(mid);
+      await stampDeletedAt(DbSchema.tMindmaps, mid, 31);
     }
 
     test('过保留期的七表软删行全部清走，未过期的一律不动', () async {
@@ -415,9 +445,13 @@ void main() {
       expect(per['划线书摘'], 1, reason: '该书那条过期划线按自己的档位清');
       expect(per['书单'], 1);
       expect(per['物品'], 1, reason: 'V1.61 第七类：到期清理按注册表逐类跑');
+      expect(per['日记'], 1, reason: '语义断链批 第八类');
+      expect(per['导图'], 1, reason: '思维导图批1 第九类：到期清理级联节点');
       expect((await trash.items()).map((e) => e.title), ['未过期']);
       expect(await db.query(DbSchema.tBookLists), isEmpty);
       expect(await db.query(DbSchema.tHabitEntries), isEmpty);
+      expect(await db.query(DbSchema.tMindmapNodes), isEmpty,
+          reason: '导图到期清理同样级联清节点行');
     });
 
     test('档位＝不清理时一行都不删', () async {

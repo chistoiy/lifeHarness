@@ -21,6 +21,7 @@ import '../../features/settings/presentation/settings_routes.dart';
 import '../../features/read/presentation/read_routes.dart';
 import '../../features/media/presentation/media_routes.dart';
 import '../../features/health/presentation/health_routes.dart';
+import '../../features/mindmap/presentation/mindmap_routes.dart';
 import '../ai/ai_review.dart' show aiRootNavKey;
 
 import '../nav/nav_module.dart';
@@ -139,6 +140,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       ...mediaPageRoutes(),
       ...healthPageRoutes(),
+      // V1.62 思维导图批1（工单 2a：模块不占底栏，宫格直达 push）。
+      ...mindmapPageRoutes(),
       ...settingsPageRoutes(
         dbOverviewBackupSizeReader:
             ref.watch(dbOverviewBackupSizeReaderProvider),

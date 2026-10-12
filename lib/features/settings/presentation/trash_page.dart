@@ -183,7 +183,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('回收站'),
-            Text('八类删除内容 · 保留期内可恢复',
+            Text('九类删除内容 · 保留期内可恢复',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
           ],
         ),
@@ -547,6 +547,14 @@ class _PurgeSheet extends StatelessWidget {
       case TrashKind.journal:
         return Text(t.cascadeNotes ?? '连带清 分节行（恢复可回；图片文件保留）',
             key: ValueKey('tp-journal-note'),
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFF43F5E)));
+      // 思维导图批1（2026-10-12）·导图第九类：彻底删除级联清全部节点行。
+      case TrashKind.mindmap:
+        return Text(t.cascadeNotes ?? '连带清 全部节点行（恢复图即整图可回）',
+            key: ValueKey('tp-mindmap-note'),
             style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,

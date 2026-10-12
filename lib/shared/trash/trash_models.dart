@@ -6,6 +6,7 @@ import 'dart:ui';
 /// 行＝模块标签＋正文＋副信息＋删于时间＋剩余天数（≤7 天标红）；
 /// 恢复＝回原模块原位（不新建条目）；彻底删除走二次确认并逐条列出。
 /// 语义断链批（2026-10-12）：日记为第八类（拍板「进回收站」——最私人数据不再硬删）。
+/// 思维导图批1（2026-10-12）：导图为第九类（删图进回收站；恢复带全节点行）。
 enum TrashKind {
   todo('待办', Color(0xFF818CF8)),
   note('笔记', Color(0xFF38BDF8)),
@@ -14,7 +15,8 @@ enum TrashKind {
   quote('划线书摘', Color(0xFFFB7185)),
   list('书单', Color(0xFF8B5CF6)),
   item('物品', Color(0xFFFB923C)),
-  journal('日记', Color(0xFF60A5FA));
+  journal('日记', Color(0xFF60A5FA)),
+  mindmap('导图', Color(0xFFA78BFA));
 
   const TrashKind(this.label, this.dot);
 
@@ -32,6 +34,7 @@ enum TrashKind {
         TrashKind.list => '已恢复到书单列表',
         TrashKind.item => '已回到物品列表 · 每日计费按删除前状态继续',
         TrashKind.journal => '已恢复到原日期',
+        TrashKind.mindmap => '已恢复到导图列表',
         _ => '已恢复',
       };
 }
