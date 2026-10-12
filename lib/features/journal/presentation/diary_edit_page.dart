@@ -15,6 +15,8 @@ import '../../../shared/weather/weather_visual.dart';
 import '../domain/diary_template.dart';
 import '../domain/journal_entry.dart';
 import 'journal_providers.dart';
+import 'widgets/diary_tpl_create_sheet.dart';
+import 'widgets/mm_card_block.dart';
 import '../../../shared/widgets/image_attach.dart';
 import '../../../shared/widgets/ui_kit.dart' show AppToast;
 
@@ -440,156 +442,18 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
   int _tplListKey = 0;
 
   /// 新建模板弹层（原型 sheetDiaryTplEdit）：名称 + 分节增删。
-  Future<DiaryTemplate?> _openTplCreateSheet() async {
-    final dao = ref.read(diaryTemplateDaoProvider);
-    final nameCtl = TextEditingController();
-    final secTitle = [TextEditingController(), TextEditingController()];
-    final secPh = [TextEditingController(), TextEditingController()];
-    final tokens = context.tokens;
-    var addTick = 0;
-    final created = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (bc) => StatefulBuilder(
-        builder: (bc2, setLocal) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 14, 16,
-              24 + MediaQuery.viewInsetsOf(bc2).bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('新建模板',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 10),
-              TextField(
-                key: const ValueKey('tpl-name'),
-                controller: nameCtl,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
-                    isDense: true, hintText: '模板名称，如：每日三省'),
-              ),
-              const SizedBox(height: 10),
-              Text('分节',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: tokens.accent)),
-              const SizedBox(height: 6),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (var i = 0; i < secTitle.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          key: ValueKey('tpl-sec-$i-$addTick'),
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: secTitle[i],
-                                style: const TextStyle(fontSize: 12.5),
-                                decoration: InputDecoration(
-                                    isDense: true,
-                                    hintText: '分节 ${i + 1} 标题，如：今日高光'),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                if (secTitle.length <= 1) return;
-                                setLocal(() {
-                                  secTitle[i].dispose();
-                                  secPh[i].dispose();
-                                  secTitle.removeAt(i);
-                                  secPh.removeAt(i);
-                                  addTick++;
-                                });
-                              },
-                              icon: const Icon(Icons.close, size: 16),
-                            ),
-                          ],
-                        ),
-                      ),
-                    TextButton(
-                      key: const ValueKey('tpl-add-sec'),
-                      onPressed: () => setLocal(() {
-                        secTitle.add(TextEditingController());
-                        secPh.add(TextEditingController());
-                        addTick++;
-                      }),
-                      child: const Text('＋ 添加分节',
-                          style:
-                              TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                        onPressed: () => Navigator.of(bc2).pop(false),
-                        child: const Text('取消')),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      key: const ValueKey('tpl-save'),
-                      onTap: () async {
-                        final name = nameCtl.text.trim();
-                        final secs = [
-                          for (var i = 0; i < secTitle.length; i++)
-                            if (secTitle[i].text.trim().isNotEmpty)
-                              TemplateSection(
-                                  title: secTitle[i].text.trim(),
-                                  placeholder: secPh[i].text.trim().isEmpty
-                                      ? null
-                                      : secPh[i].text.trim()),
-                        ];
-                        if (name.isEmpty || secs.isEmpty) {
-                          AppToast.show(bc2, '请填写模板名称与至少一个分节',
-                              ms: 1400);
-                          return;
-                        }
-                        final id = await dao
-                            .create(DiaryTemplate(name: name, sections: secs));
-                        if (!bc2.mounted) return;
-                        Navigator.of(bc2).pop(true);
-                        if (bc2.mounted) {
-                          AppToast.show(bc2, '模板已创建 · $name', ms: 1400);
-                        }
-                        // 直接应用新模板
-                        final all = await dao.list();
-                        final created2 = all.firstWhere((t) => t.id == id);
-                        _pickTemplate(created2);
-                      },
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        decoration: BoxDecoration(
-                            gradient: tokens.gradient,
-                            borderRadius: BorderRadius.circular(12)),
-                        child: const Text('保存模板',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 13)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  /// 格面在同目录 `diary_tpl_create_sheet.dart`（思维导图批2 面5 · 本页已登记
+  /// size_budget 1370 且只许减，故弹层抽走、本方法只留三行接线）。
+  Future<void> _openTplCreateSheet() async {
+    await showDiaryTplCreateSheet(
+      context,
+      dao: ref.read(diaryTemplateDaoProvider),
+      onCreated: _pickTemplate,
+      onListChanged: () {
+        _tplListKey++;
+        ref.invalidate(diaryTemplatesProvider);
+      },
     );
-    if (created == true) {
-      _tplListKey++;
-      ref.invalidate(diaryTemplatesProvider);
-    }
-    return null;
   }
 
   /// 轮13 → 语义断链批（2026-10-12）：删除改进回收站（第八类），文案同步。
@@ -860,6 +724,19 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         TextSelection.collapsed(offset: idx + 1));
   }
 
+  /// 连接点② 插导图卡片（批2 面5）：挑图 → 正文插 BlockEmbed（只存 map_id）。
+  Future<void> _insertMmCard() async {
+    final c = _richCtl;
+    if (c == null) return;
+    final mapId = await showMmCardPickSheet(context);
+    if (mapId == null || !mounted) return;
+    final idx =
+        c.selection.baseOffset < 0 ? c.document.length - 1 : c.selection.baseOffset;
+    c.replaceText(idx, 0, mmCardEmbed(mapId),
+        TextSelection.collapsed(offset: idx + 1));
+    c.replaceText(idx + 1, 0, '\n', TextSelection.collapsed(offset: idx + 2));
+  }
+
   /// 概览插入正文：当前光标处逐行插入纯文本。
   void _insertAtCursor(String text) {
     final c = _richCtl;
@@ -1105,6 +982,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                             dim: true),
                         _fmt('diary-quote', '❝', '引用',
                             () => _richToggle(Attribute.blockQuote)),
+                        _fmtIcon('diary-mm-card', Icons.account_tree_outlined,
+                            '导图卡片', _insertMmCard),
                       ],
                     ),
                   ),
@@ -1120,7 +999,10 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                         config: QuillEditorConfig(
                           padding: EdgeInsets.zero,
                           expands: true,
-                          embedBuilders: const [NoteImageEmbedBuilder()],
+                          embedBuilders: const [
+                            NoteImageEmbedBuilder(),
+                            MmCardEmbedBuilder(),
+                          ],
                         ),
                       ),
                     ),

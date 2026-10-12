@@ -170,6 +170,19 @@ Future<(String, List<String>)?> mmCardPreview(int mapId, [Database? db]) async {
   );
 }
 
+/// 导图**根节点总数**（卡片副文案「N 个根节点」用）。
+/// 与 [mmCardPreview] 分开出口的原因：预览按 §4.9 只取前 5 根，
+/// 拿 `roots.length` 当根数会在根超 5 时谎报（显示 5 实为 8）。
+Future<int> mmRootCountOf(int mapId, [Database? db]) async {
+  final d = db ?? AppDatabase.instance.db;
+  final rows = await d.rawQuery(
+    'SELECT COUNT(*) AS c FROM ${DbSchema.tMindmapNodes} '
+    'WHERE map_id = ? AND parent_id IS NULL',
+    [mapId],
+  );
+  return rows.isEmpty ? 0 : (rows.first['c'] as int?) ?? 0;
+}
+
 /// 卡片点击 → 进画布（§4.9：点击卡片 push mm-canvas?id=；测试注入缝同款）。
 Future<void> Function(BuildContext, int mapId)? mmOpenCanvasOverride;
 
@@ -177,4 +190,38 @@ Future<void> mmOpenCanvas(BuildContext context, int mapId) async {
   final override = mmOpenCanvasOverride;
   if (override != null) return override(context, mapId);
   await context.push('/mindmap/canvas?id=$mapId');
+}
+
+/// 可插卡片的在册导图清单（连接点② 挑图弹层读源）：只出在册图，
+/// 回收站里的图不进挑图（插了必然是占位）。按最近更新倒序。
+class MmMapBrief {
+  const MmMapBrief({required this.id, required this.title, this.nodeCount = 0});
+
+  final int id;
+  final String title;
+
+  /// 节点总数（副文案「N 个根节点」用根数，这里给全量计数备用）。
+  final int nodeCount;
+}
+
+Future<List<MmMapBrief>> mmSelectableMaps([Database? db]) async {
+  final d = db ?? AppDatabase.instance.db;
+  final rows = await d.rawQuery('''
+    SELECT m.id AS mid, m.title AS mtitle, COUNT(n.id) AS ncount
+    FROM ${DbSchema.tMindmaps} m
+    LEFT JOIN ${DbSchema.tMindmapNodes} n ON n.map_id = m.id
+    WHERE m.deleted_at IS NULL
+    GROUP BY m.id
+    ORDER BY m.updated_at DESC, m.id DESC
+  ''');
+  return [
+    for (final r in rows)
+      MmMapBrief(
+        id: r['mid'] as int,
+        title: (r['mtitle'] as String? ?? '').trim().isEmpty
+            ? '未命名导图'
+            : r['mtitle'] as String? ?? '',
+        nodeCount: (r['ncount'] as int?) ?? 0,
+      ),
+  ];
 }
