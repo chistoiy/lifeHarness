@@ -3945,8 +3945,8 @@
    "status": "exclusive",
    "files": {
     "index-mindmap.html": {
-     "size": 4982,
-     "hash": "575b5d16"
+     "size": 5677,
+     "hash": "a52ada32"
     }
    }
   },
@@ -3959,8 +3959,8 @@
    "status": "exclusive",
    "files": {
     "index-mindmap.html": {
-     "size": 3958,
-     "hash": "6262c7de"
+     "size": 6575,
+     "hash": "3dc74020"
     }
    }
   },
@@ -3987,8 +3987,8 @@
    "status": "exclusive",
    "files": {
     "index-mindmap.html": {
-     "size": 795,
-     "hash": "21afdb82"
+     "size": 1690,
+     "hash": "e9f0166b"
     }
    }
   },
@@ -4045,6 +4045,146 @@
     "index-mindmap.html": {
      "size": 527,
      "hash": "a4eb1499"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-map",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 2049,
+     "hash": "5d9e6a69"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-confirm",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 685,
+     "hash": "2ae1d7ed"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-card",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1961,
+     "hash": "7822ea2b"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-inboxTo",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 2488,
+     "hash": "4a9f3fb9"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-more",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 705,
+     "hash": "1ad5e714"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-search",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 892,
+     "hash": "a239a309"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-folders",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 976,
+     "hash": "5a926073"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-export",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1974,
+     "hash": "25aae71e"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-style",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1494,
+     "hash": "dd574889"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-layout",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1221,
+     "hash": "f74c9abf"
     }
    }
   }
