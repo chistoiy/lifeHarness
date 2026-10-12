@@ -1,4 +1,7 @@
 
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart' show mapEquals, setEquals;
 import 'package:flutter/material.dart';
 
 import '../domain/mindmap_layout.dart';
@@ -25,6 +28,11 @@ class MmCanvasPainter extends CustomPainter {
     required this.dxs,
     required this.dys,
     required this.style,
+    this.taskIds = const <int>{},
+    this.doneTaskIds = const <int>{},
+    this.imageIds = const <int>{},
+    this.extraWidths = const <int, double>{},
+    this.tagsOf = const <int, List<String>>{},
   });
 
   final List<MindmapNode> nodes;
@@ -39,6 +47,24 @@ class MmCanvasPainter extends CustomPainter {
 
   /// 批3 样式层解析结果（档位 → 令牌实际色，含连线粗细/字号/网点开关）。
   final MmPaintStyle style;
+
+  /// 批5：任务节点 / 已完成任务 / 已挂图节点的 id 集（由画布页按节点字段
+  /// 整出来传进来）——**painter 不回头读节点对象**，与 `nodeTitles` 同款口径，
+  /// 免得同一件事在两层各判一次。
+  final Set<int> taskIds;
+  final Set<int> doneTaskIds;
+  final Set<int> imageIds;
+
+  /// 批5：逐节点三段占位宽与标签表（**与度量同源**，画布页把同一份算好的值
+  /// 传进来；painter 自己再猜一遍宽度＝标题压到 chip 上的经典洞）。
+  final Map<int, double> extraWidths;
+  final Map<int, List<String>> tagsOf;
+
+  /// 勾选框边长（原型 `.mm-task` 15px）。
+  static const double taskBox = 15;
+
+  /// 图片缩略占位边长（原型 `.mm-thumb` 22px）。
+  static const double thumbBox = 22;
 
   Color get bg => style.bg;
   Color get grid => style.grid;
@@ -138,6 +164,14 @@ class MmCanvasPainter extends CustomPainter {
       //（\n 换行、宽度按节点盒封顶），垂直居中于节点盒。
       // 批3 样式层：字号走样式档（基准值来自 MmPaintStyle.fontSize，
       // 与度量 `mmNodeMeasure` 同源——档位改字号时盒宽随之重算）。
+      // **批5**：标题左侧留出三段占位（勾选框/缩略块），右侧留出标签 chip；
+      // 三段的横向排布从左到右＝任务框 → 图片 → 标题 → 标签（原型同款顺序）。
+      final boxW = taskBox * scale.clamp(0.6, 1.4);
+      final thumbW =
+          imageIds.contains(n.id) ? thumbBox * scale.clamp(0.6, 1.4) : 0.0;
+      final leadW = (taskIds.contains(n.id) ? boxW + 3 : 0.0) +
+          (imageIds.contains(n.id) ? thumbW + 3 : 0.0);
+      final tags = tagsOf[n.id] ?? const <String>[];
       final tp = TextPainter(
         text: TextSpan(
           text: nodeTitles[n.id] ?? n.title,
@@ -147,12 +181,82 @@ class MmCanvasPainter extends CustomPainter {
               color: nodeText),
         ),
         textDirection: TextDirection.ltr,
-      )..layout(maxWidth: r.width - 12);
-      tp.paint(
-          canvas,
-          Offset(
-              r.left + 6 + (r.width - 12 - tp.width) / 2,
-              r.center.dy - tp.height / 2));
+      )..layout(maxWidth: math.max(20, r.width - 12 - leadW));
+      // **默认态零视觉变化**（同批3/批4 口径）：**无任何批5 角标**的节点仍走
+      // 批2 的标题水平居中；一旦有勾选框/缩略块/标签，才改为左起顺排
+      // （原型是 flex 行内顺排，居中会让标题压在角标上）。
+      final tpX = leadW == 0 && tags.isEmpty
+          ? r.left + 6 + (r.width - 12 - tp.width) / 2
+          : r.left + 6 + leadW;
+      tp.paint(canvas, Offset(tpX, r.center.dy - tp.height / 2));
+      // 批5 三段角标（在标题之后画，与原型 DOM 顺序一致：先角标后标题）。
+      var markX = r.left + 6;
+      if (taskIds.contains(n.id)) {
+        final done = doneTaskIds.contains(n.id);
+        final rect = RRect.fromRectAndRadius(
+            Rect.fromLTWH(markX, r.center.dy - boxW / 2, boxW, boxW),
+            Radius.circular(boxW * 0.28));
+        canvas.drawRRect(
+            rect,
+            Paint()
+              ..color = done ? style.okColor : Colors.transparent
+              ..style = done ? PaintingStyle.fill : PaintingStyle.stroke
+              ..strokeWidth = 1.6);
+        if (done) {
+          // 勾号：两笔直线（线性、无 emoji 禁令合规）。
+          final p = Path()
+            ..moveTo(markX + boxW * .28, r.center.dy)
+            ..lineTo(markX + boxW * .44, r.center.dy + boxW * .17)
+            ..lineTo(markX + boxW * .74, r.center.dy - boxW * .19);
+          canvas.drawPath(
+              p,
+              Paint()
+                ..color = style.onOkColor
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = math.max(1, boxW * .16)
+                ..strokeCap = StrokeCap.round);
+        }
+        markX += boxW + 3;
+      }
+      if (imageIds.contains(n.id)) {
+        final rect = RRect.fromRectAndRadius(
+            Rect.fromLTWH(markX, r.center.dy - thumbW / 2, thumbW, thumbW),
+            Radius.circular(thumbW * 0.24));
+        canvas.drawRRect(rect, Paint()..color = style.thumbBg);
+        canvas.drawRRect(
+            rect,
+            Paint()
+              ..color = nodeBorder
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = .8);
+        markX += thumbW + 3;
+      }
+      // 标签 chip：跟在标题右侧，超出节点盒就截断（截断仅视觉，数据完整）。
+      if (tags.isNotEmpty) {
+        var tx = r.left + 6 + leadW + tp.width + 4;
+        final th = math.min(14.0 * scale.clamp(.6, 1.4), r.height - 6);
+        for (final t in tags) {
+          final tw = t.length * 6.0 * scale.clamp(.6, 1.4) + 8;
+          if (tx + tw > r.right - 4) break;
+          canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                  Rect.fromLTWH(tx, r.center.dy - th / 2, tw, th),
+                  Radius.circular(th * .34)),
+              Paint()..color = style.tagBg);
+          final chip = TextPainter(
+            text: TextSpan(
+              text: t,
+              style: TextStyle(
+                  fontSize: 9 * scale.clamp(.6, 1.4),
+                  fontWeight: FontWeight.w800,
+                  color: style.tagText),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          chip.paint(canvas, Offset(tx + 4, r.center.dy - chip.height / 2));
+          tx += tw + 3;
+        }
+      }
       // 挂载角标（尼尔森 6：挂载节点有可见角标）。
       if (mountedIds.contains(n.id)) {
         canvas.drawCircle(
@@ -173,7 +277,13 @@ class MmCanvasPainter extends CustomPainter {
       !identical(old.dys, dys) ||
       // 批3 样式层：换档后画布必须重画。MmPaintStyle 是不可变值对象，
       // 逐值 == 即可（漏比＝改样式不重画，与批2 dx/dy 漏比同族）。
-      old.style != style;
+      old.style != style ||
+      // 批5：三段角标漏比＝勾选/挂图/改标签后画布不重画（用户以为没生效）。
+      !setEquals(old.taskIds, taskIds) ||
+      !setEquals(old.doneTaskIds, doneTaskIds) ||
+      !setEquals(old.imageIds, imageIds) ||
+      !mapEquals(old.extraWidths, extraWidths) ||
+      !mapEquals(old.tagsOf, tagsOf);
 }
 
 /// 一条连线的路由点列（[MmEdgeRoutes] 的元素）。

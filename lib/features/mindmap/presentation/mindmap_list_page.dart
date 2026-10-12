@@ -8,6 +8,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../data/mindmap_dao.dart';
 import '../domain/md_parse.dart';
 import '../domain/mindmap_models.dart';
+import 'mindmap_node_sheet.dart' show showMmNodeSheet;
 import 'mindmap_providers.dart';
 import 'mindmap_sheets.dart';
 
@@ -323,7 +324,7 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
           initialTitle: m.title,
         );
         if (r != null) {
-          await _dao.renameMap(m.id!, r.$1);
+          await _dao.renameMap(m.id!, r.title);
           ref.read(mindmapTickProvider.notifier).state++;
           await _reload();
         }

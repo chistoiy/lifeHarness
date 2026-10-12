@@ -4,115 +4,17 @@ import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../data/mindmap_dao.dart';
 import '../domain/mindmap_models.dart';
+import 'mindmap_node_sheet.dart';
 
 /// 思维导图弹层族（批1 · 原型 `sheetMm-*` 对应物）。
 ///
 /// 复用规则（冻结方案 §5.5）：删除确认走 [lhConfirm]（不新造）、弹层用
 /// 系统底部上滑骨架（120~180ms 框架自带）、线性图标、文案不教学。
 /// 空标题拦截（B8）与节点上限提示（B9）在弹层内给一行人话，不静默。
-
-/// 添加/编辑节点弹层（原型 sheetMm-node 双分支）：返回 (标题, 备注)。
-/// 空标题＝禁用保存钮（B8：禁止保存空标题，根节点同上）。
-Future<(String, String)?> showMmNodeSheet(
-  BuildContext context, {
-  String initialTitle = '',
-  String initialNote = '',
-  required String headline,
-}) {
-  final titleCtrl = TextEditingController(text: initialTitle);
-  final noteCtrl = TextEditingController(text: initialNote);
-  return showModalBottomSheet<(String, String)>(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (bc) {
-      final cs = Theme.of(bc).colorScheme;
-      return StatefulBuilder(
-        builder: (bc, setS) {
-          final ok = titleCtrl.text.trim().isNotEmpty;
-          return Padding(
-            padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(bc).bottom),
-            child: SafeArea(
-              child: Padding(
-                key: const ValueKey('mm-node-sheet'),
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(headline,
-                        style: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      key: const ValueKey('mm-node-title'),
-                      controller: titleCtrl,
-                      autofocus: initialTitle.isEmpty,
-                      maxLines: 1,
-                      onChanged: (_) => setS(() {}),
-                      decoration: const InputDecoration(
-                        hintText: '节点标题',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      key: const ValueKey('mm-node-note'),
-                      controller: noteCtrl,
-                      maxLines: 4,
-                      minLines: 2,
-                      decoration: const InputDecoration(
-                        hintText: '备注（画布不显示，编辑时可读回）',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(bc),
-                          child: const Text('取消'),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          key: const ValueKey('mm-node-save'),
-                          onPressed: ok
-                              ? () => Navigator.pop(bc, (
-                                    titleCtrl.text.trim(),
-                                    noteCtrl.text.trim(),
-                                  ))
-                              : null,
-                          style: ok
-                              ? null
-                              : FilledButton.styleFrom(
-                                  disabledForegroundColor:
-                                      cs.onSurface.withValues(alpha: .38)),
-                          child: const Text('保存'),
-                        ),
-                      ],
-                    ),
-                    if (!ok)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text('节点标题不能为空',
-                            key: const ValueKey('mm-node-empty-hint'),
-                            style: TextStyle(
-                                fontSize: 12, color: cs.error)),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+///
+/// **批5**：节点弹层已抽去同目录 `mindmap_node_sheet.dart`（要加标签/任务/图片
+/// 三段且返回值换成 `MmNodeDraft`，留在本件会顶破 `size_budget` 预算线）；
+/// 本件只剩挂载笔记 / 行内菜单 / md 解析预览 / 删除确认 / 文件夹五族。
 
 /// 挂载笔记弹层（原型 sheetMm-bindNote）：搜索＋列表；已挂载行高亮。
 /// 返回值：null＝取消；`-1`＝解绑；其余＝新挂载笔记 id。
@@ -422,7 +324,7 @@ class _MmFolderSheetState extends State<_MmFolderSheet> {
   Future<void> _create() async {
     final r = await showMmNodeSheet(context, headline: '新建文件夹');
     if (r == null) return;
-    await widget.dao.createFolder(r.$1);
+    await widget.dao.createFolder(r.title);
     await _reload();
   }
 
@@ -430,7 +332,7 @@ class _MmFolderSheetState extends State<_MmFolderSheet> {
     final r = await showMmNodeSheet(context,
         headline: '重命名文件夹', initialTitle: f.title);
     if (r == null) return;
-    await widget.dao.renameFolder(f.id!, r.$1);
+    await widget.dao.renameFolder(f.id!, r.title);
     await _reload();
   }
 

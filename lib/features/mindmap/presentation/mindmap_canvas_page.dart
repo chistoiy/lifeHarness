@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data' show Uint8List;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart' show Database;
@@ -14,14 +15,20 @@ import '../domain/mindmap_layout.dart';
 import '../domain/mindmap_layout_preset.dart';
 import '../domain/mindmap_measure.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_node_meta.dart';
 import '../domain/mindmap_style.dart';
 import '../domain/mindmap_undo.dart';
 import '../domain/mindmap_viewport.dart';
 import 'mindmap_export_actions.dart';
 import 'mindmap_layout_sheet.dart';
+import 'mindmap_node_sheet.dart';
 import 'mindmap_painter.dart';
 import 'mindmap_sheets.dart';
 import 'mindmap_style_sheet.dart';
+
+/// 节点操作面（长按菜单 / 读屏语义 / 按钮构件 / **批5 三段接线**）。
+/// part 件＝同库私有可见，见该文件头段注（抽出动机＝画布页体量守 1200 线）。
+part 'mindmap_canvas_ops.dart';
 
 /// 画布主屏（原型 mm-canvas · push 路由 `/mindmap/canvas?id=`）。
 ///
@@ -31,6 +38,20 @@ import 'mindmap_style_sheet.dart';
 /// 手势帧内只更 Transform。**禁用 `InteractiveViewer`**（壳内页禁令·V1.65
 /// 底栏双指共存面）——手势在 [GestureDetector.onTapDown] 之下走
 /// `Listener` 原始指针**自行三分仲裁**（拖节点/拖空白平移/双指捏合，§4.1）。
+/// 节点盒高下限（触点 ≥44 的下沿由节点渲染自己保证，布局只管不重叠）。
+const double _nodeH = 40;
+
+/// 节点盒左右内边距。
+const double _nodePad = 12;
+
+/// 批5：任务勾选框宽（原型 `.mm-task` 15px）。**画布坐标**——命中判定与
+/// painter 占位都吃它；提到顶层是因为 part extension 里也要读（extension
+/// 不可直呼被扩展类型的 static 成员）。
+const double _taskBoxW = 15;
+
+/// B9 单图节点硬上限。
+const int mmMaxNodes = 2000;
+
 enum _MmGestureMode { idle, pending, dragNode, pan, pinch, done }
 class MindmapCanvasPage extends ConsumerStatefulWidget {
   const MindmapCanvasPage({
@@ -114,8 +135,21 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
 
   /// TextPainter 量宽缓存（渲染层七条之三：改文字才重算；批2 多行化＝缓存整 Size）。
   final Map<String, Size> _textSizeCache = {};
-  static const double _nodeH = 40;
-  static const double _nodePad = 12;
+
+
+  /// 批5：节点三段的**逐节点附加宽**（标签 chip ＋ 任务框 ＋ 图片占位）。
+  /// 与 painter 吃同一份节点字段 ⇒ 盒宽与画出来的角标永远一致。
+  double _extraWidthOf(MindmapNode n) {
+    if (!n.isTask && !n.hasImage && n.tags.isEmpty) return 0;
+    return mmNodeExtraWidth(
+      tags: n.tags,
+      isTask: n.isTask,
+      hasImage: n.hasImage,
+      tagWidth: n.tags.isEmpty
+          ? 0
+          : mmTagWidthEstimate(n.tags.first) + 6 * (n.tags.length - 1),
+    );
+  }
 
   /// 批3 样式层：当前图的档位（null＝未设样式，走批2 基线绘制面）。
   /// 每图一套，存 prefs（`lh.mm_styles` 的 mapId 那一格）。
@@ -266,15 +300,18 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     // 批3 样式层：字号档进缓存键（换字号必须重算盒宽——度量与 painter 同源，
     // 否则 lg 档文字会溢出旧盒）。
     final fs = _paintStyle.fontSize;
-    final cached = _textSizeCache['$fs|$title'];
+    // 批5：三段占宽也进缓存键（改标签/任务/图片后盒宽必须重算）。
+    final extra = _extraWidthOf(n);
+    final cached = _textSizeCache['$fs|$extra|$title'];
     if (cached != null) return cached;
     final s = mmNodeMeasure(
       title,
       style: TextStyle(fontSize: fs, fontWeight: FontWeight.w600),
       hPad: _nodePad,
       minH: _nodeH,
+      extraWidth: extra,
     );
-    _textSizeCache['$fs|$title'] = s;
+    _textSizeCache['$fs|$extra|$title'] = s;
     return s;
   }
 
@@ -306,7 +343,15 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     if (_pointers.length == 1) {
       _mode = _MmGestureMode.pending;
       _downGlobal = e.position;
-      final hit = _hitNode(_toCanvas(_localOf(e.position)));
+      final local = _localOf(e.position);
+      // 批5：按下落在勾选框上＝**不排拖拽也不排长按**（原型对 `.mm-task`
+      // 在 pointerdown 就 stopPropagation 同款）。否则一勾就变成拖节点。
+      if (_hitTaskBox(_toCanvas(local)) != null) {
+        _dragNodeId = null;
+        _panStart = _pan;
+        return;
+      }
+      final hit = _hitNode(_toCanvas(local));
       if (hit != null) {
         _dragNodeId = hit.id;
         _dragStartCanvas = _toCanvas(_localOf(e.position));
@@ -474,7 +519,16 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   /// 单击（<4dp）：命中节点＝选中（双击间隔内同节点且已挂笔记＝进笔记）；
   // 命中空白＝取消选中（B5），工具条随选中态显隐。入参＝画布局部坐标。
   void _handleTap(Offset local) {
-    final hit = _hitNode(_toCanvas(local));
+    final canvas = _toCanvas(local);
+    // 批5：**勾选框先判**——它在节点盒最左 15px 内，与节点命中区重叠；
+    // 不先判就会「点勾选框＝选中节点」，勾选永远点不中。
+    final taskNode = _hitTaskBox(canvas);
+    if (taskNode != null) {
+      _longPressTimer?.cancel();
+      _toggleTaskDone(taskNode);
+      return;
+    }
+    final hit = _hitNode(canvas);
     if (hit == null) {
       if (_selectedId != null) setState(() => _selectedId = null);
       return;
@@ -556,82 +610,14 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
 
   // ==================== 节点操作（F1-4~F1-12） ====================
 
-  static const int mmMaxNodes = 2000; // B9 单图节点硬上限
+  Future<void> _addChild(int? parentId) =>
+      _createNode(parentId: parentId, headline: '添加子节点');
 
-  Future<void> _addChild(int? parentId) async {
-    if (_nodes.length >= mmMaxNodes) {
-      _toast('已达节点上限（$mmMaxNodes）');
-      return;
-    }
-    final r = await showMmNodeSheet(context, headline: '添加子节点');
-    if (r == null) return;
-    final n = await _dao.addNode(
-      mapId: widget.mapId,
-      parentId: parentId,
-      title: r.$1,
-      note: r.$2,
-    );
-    setState(() => _nodes = [..._nodes, n]);
-    _undo.push(MmCommands.addSubtree(n, [n]));
-    _relayout();
-    setState(() => _selectedId = n.id);
-  }
+  Future<void> _addSibling(MindmapNode n) =>
+      // 在根节点上加同级＝新增根（C7/F1-6）。
+      _createNode(parentId: n.parentId, headline: '添加同级节点');
 
-  Future<void> _addSibling(MindmapNode n) async {
-    // 在根节点上加同级＝新增根（C7/F1-6）。
-    if (_nodes.length >= mmMaxNodes) {
-      _toast('已达节点上限（$mmMaxNodes）');
-      return;
-    }
-    final r = await showMmNodeSheet(context, headline: '添加同级节点');
-    if (r == null) return;
-    final created = await _dao.addNode(
-      mapId: widget.mapId,
-      parentId: n.parentId,
-      title: r.$1,
-      note: r.$2,
-    );
-    setState(() => _nodes = [..._nodes, created]);
-    _undo.push(MmCommands.addSubtree(created, [created]));
-    _relayout();
-    setState(() => _selectedId = created.id);
-  }
-
-  Future<void> _addRoot() async {
-    if (_nodes.length >= mmMaxNodes) {
-      _toast('已达节点上限（$mmMaxNodes）');
-      return;
-    }
-    final r = await showMmNodeSheet(context, headline: '加根节点');
-    if (r == null) return;
-    final created = await _dao.addNode(
-        mapId: widget.mapId, parentId: null, title: r.$1, note: r.$2);
-    setState(() => _nodes = [..._nodes, created]);
-    _undo.push(MmCommands.addSubtree(created, [created]));
-    _relayout();
-    setState(() => _selectedId = created.id);
-  }
-
-  Future<void> _editNode(MindmapNode n) async {
-    // H2：标题＋备注均可读回并改写（弹层同「添加」骨架，读回现值）。
-    final r = await showMmNodeSheet(
-      context,
-      headline: '编辑节点',
-      initialTitle: n.title,
-      initialNote: n.note,
-    );
-    if (r == null || n.id == null) return;
-    final u = n.copyWith(title: r.$1, note: r.$2, updatedAt: _now());
-    if (u.title != n.title || u.note != n.note) {
-      _undo.push(MmCommands.editNode(n, u));
-    }
-    await _dao.updateNode(u);
-    _textSizeCache.remove(n.title); // 改文字才重算（缓存失效即重算，不是删除缓存用途）
-    setState(() {
-      _nodes[_nodes.indexWhere((x) => x.id == n.id)] = u;
-    });
-    _relayout();
-  }
+  Future<void> _addRoot() => _createNode(parentId: null, headline: '加根节点');
 
   Future<void> _toggleFold(MindmapNode n) async {
     if (n.id == null) return;
@@ -703,48 +689,123 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     _relayout();
   }
 
-  Future<void> _showNodeMenu(MindmapNode n) async {
-    final key = await showMmMenu(context, [
-      (key: 'child', icon: Icons.account_tree_outlined, label: '添加子节点', enabled: true),
-      (key: 'sibling', icon: Icons.linear_scale, label: '添加同级节点', enabled: true),
-      (key: 'edit', icon: Icons.edit_outlined, label: '编辑节点', enabled: true),
-      (
-        key: 'bind',
-        icon: Icons.link_outlined,
-        label: n.noteId == null ? '挂载笔记' : '更换挂载笔记',
-        enabled: true
-      ),
-      (
-        key: 'fold',
-        icon: n.folded ? Icons.unfold_more : Icons.unfold_less,
-        label: n.folded ? '展开子节点' : '折叠子节点',
-        enabled: true
-      ),
-      (
-        key: 'reset',
-        icon: Icons.center_focus_strong_outlined,
-        label: '归位到自动布局',
-        enabled: n.hasOffset || _liveDx.containsKey(n.id) || _liveDy.containsKey(n.id)
-      ),
-      (key: 'del', icon: Icons.delete_outlined, label: '删除节点', enabled: true),
-    ]);
-    if (key == null || !mounted) return;
-    switch (key) {
-      case 'child':
-        await _addChild(n.id);
-      case 'sibling':
-        await _addSibling(n);
-      case 'edit':
-        await _editNode(n);
-      case 'bind':
-        await _bindNote(n);
-      case 'fold':
-        await _toggleFold(n);
-      case 'reset':
-        await _resetOffset(n);
-      case 'del':
-        await _deleteNode(n);
+  // ==================== 批5 F4-9 · 三段接线 ====================
+
+  /// 把弹层草稿落成一行（**加节点与改节点共用这一份**——批4 教训：
+  /// 同一份字段映射写两遍必漏一处，表现为「编辑能存、撤销重做丢字段」）。
+  Future<void> _applyDraftNew(MindmapNode base, MmNodeDraft d) async {
+    final u = base.copyWith(
+      title: d.title,
+      note: d.note,
+      tags: d.tags,
+      isTask: d.isTask,
+      imagePath: d.imagePath,
+      clearImage: d.imagePath == null,
+      updatedAt: _now(),
+    );
+    await _dao.updateNode(u);
+    _textSizeCache.clear(); // 标签/任务/图片都改盒宽 ⇒ 度量缓存整体失效
+    setState(() {
+      final i = _nodes.indexWhere((x) => x.id == u.id);
+      if (i >= 0) _nodes[i] = u;
+    });
+    _relayout();
+  }
+
+  /// 新建节点（加子/加同级/加根三处共用）。
+  Future<void> _createNode(
+      {required int? parentId, required String headline}) async {
+    if (_nodes.length >= mmMaxNodes) {
+      _toast('已达节点上限（$mmMaxNodes）');
+      return;
     }
+    final d = await showMmNodeSheet(context, headline: headline);
+    if (d == null) return;
+    final created = await _dao.addNode(
+      mapId: widget.mapId,
+      parentId: parentId,
+      title: d.title,
+      note: d.note,
+      tags: d.tags,
+      isTask: d.isTask,
+      imagePath: d.imagePath,
+    );
+    setState(() => _nodes = [..._nodes, created]);
+    _undo.push(MmCommands.addSubtree(created, [created]));
+    _textSizeCache.clear();
+    _relayout();
+    setState(() => _selectedId = created.id);
+  }
+
+  /// 编辑节点（H2：标题＋备注读回改写；批5：再加三段）。
+  Future<void> _editNode(MindmapNode n) async {
+    final d = await showMmNodeSheet(
+      context,
+      headline: '编辑节点',
+      initialTitle: n.title,
+      initialNote: n.note,
+      initialTags: n.tags,
+      initialTask: n.isTask,
+      initialImagePath: n.imagePath,
+    );
+    if (d == null || n.id == null) return;
+    final u = n.copyWith(
+      title: d.title,
+      note: d.note,
+      tags: d.tags,
+      isTask: d.isTask,
+      imagePath: d.imagePath,
+      clearImage: d.imagePath == null,
+      updatedAt: _now(),
+    );
+    if (u.title != n.title ||
+        u.note != n.note ||
+        !listEquals(u.tags, n.tags) ||
+        u.isTask != n.isTask ||
+        u.imagePath != n.imagePath) {
+      _undo.push(MmCommands.editNode(n, u));
+    }
+    await _applyDraftNew(n, d);
+  }
+
+  /// 勾选框命中判定（画布局部坐标 → 该点是否落在某节点的勾选框内）。
+  ///
+  /// **独立于 [_hitNode]**：勾选框在节点盒**最左 15px**，与节点命中区重叠；
+  /// 若不先判勾选，点勾选框会先选中节点（原型的 `stopPropagation` 双保险
+  /// 在 DOM 里天然成立，Flutter 侧要自己在这里做等价的事）。
+  MindmapNode? _hitTaskBox(Offset canvas) {
+    final l = _layout;
+    if (l == null) return null;
+    for (final n in _nodes) {
+      if (!n.isTask || n.id == null) continue;
+      final b = l.baseline[n.id];
+      if (b == null) continue;
+      final pos = b + Offset(_dxOf(n), _dyOf(n));
+      final s = l.sizes[n.id] ?? const Size(120, _nodeH);
+      final box = Rect.fromLTWH(pos.dx, pos.dy, _taskBoxW, s.height);
+      if (box.contains(canvas)) return n;
+    }
+    return null;
+  }
+
+  /// 勾选完成/取消（**入撤销栈一步**，原型 `mmPushHistory` 同款语义）。
+  Future<void> _toggleTaskDone(MindmapNode n) async {
+    if (n.id == null) return;
+    final u = n.copyWith(taskDone: !n.taskDone, updatedAt: _now());
+    _undo.push(MmCommands.editNode(n, u,
+        label: u.taskDone ? '完成任务' : '取消完成'));
+    await _dao.updateNode(u);
+    setState(() {
+      _nodes[_nodes.indexWhere((x) => x.id == u.id)] = u;
+    });
+    // 联动待办统计：只发事件不写待办表（导出＝通知，不是替用户建条目）。
+    mmCompleteNodeTask(
+      ref,
+      mapId: widget.mapId,
+      nodeId: n.id!,
+      nodeTitle: _displayTitle(n),
+      done: u.taskDone,
+    );
   }
 
   void _toast(String msg) {
@@ -982,6 +1043,29 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                                   if (n.id != null) n.id!: _dyOf(n),
                               },
                               style: _paintStyle,
+                              // 批5 三段：id 集与占位宽由本层算好传下去
+                              // （painter 不回头判节点字段，两层各判一次必走偏）。
+                              taskIds: {
+                                for (final n in _nodes)
+                                  if (n.id != null && n.isTask) n.id!
+                              },
+                              doneTaskIds: {
+                                for (final n in _nodes)
+                                  if (n.id != null && n.isTask && n.taskDone) n.id!
+                              },
+                              imageIds: {
+                                for (final n in _nodes)
+                                  if (n.id != null && n.hasImage) n.id!
+                              },
+                              extraWidths: {
+                                for (final n in _nodes)
+                                  if (n.id != null) n.id!: _extraWidthOf(n)
+                              },
+                              tagsOf: {
+                                for (final n in _nodes)
+                                  if (n.id != null && n.tags.isNotEmpty)
+                                    n.id!: n.tags
+                              },
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -1086,86 +1170,6 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 读屏语义块（label＝标题＋挂载态；button＝可双击进笔记）。
-  Widget _buildSemantics(BuildContext context, int id) {
-    final l = _layout;
-    if (l == null) return const SizedBox.shrink();
-    final b = l.baseline[id];
-    final n = _byId(id);
-    if (b == null || n == null) return const SizedBox.shrink();
-    final s = l.sizes[id] ?? const Size(120, _nodeH);
-    final pos = (b + Offset(_dxOf(n), _dyOf(n))) * _scale + _pan;
-    final mounted = n.noteId != null;
-    return Positioned(
-      left: pos.dx,
-      top: pos.dy,
-      child: IgnorePointer(
-        child: SizedBox(
-          width: s.width * _scale,
-          height: s.height * _scale,
-          child: Semantics(
-            label: '${_displayTitle(n)}${mounted ? ' · 已挂载笔记' : ''}',
-            button: mounted,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _zoomBtn(BuildContext context, IconData icon, VoidCallback onTap,
-      {String? key}) {
-    final cs = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 40,
-      height: 40, // 触点 ≥44 视觉含 padding
-      child: Material(
-        color: cs.surfaceContainerHighest.withValues(alpha: .9),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          key: key == null ? null : ValueKey(key),
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Icon(icon, size: 20, color: cs.onSurface),
-        ),
-      ),
-    );
-  }
-
-  Widget _toolBtn(
-    BuildContext context, {
-    required ValueKey<String> key,
-    required IconData icon,
-    required String label,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Opacity(
-      opacity: enabled ? 1 : .42,
-      child: Material(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          key: key,
-          borderRadius: BorderRadius.circular(14),
-          onTap: enabled ? onTap : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 18, color: cs.onSurface),
-                const SizedBox(width: 6),
-                Text(label,
-                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

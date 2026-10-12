@@ -5,7 +5,8 @@ import 'package:lifeharness/features/mindmap/presentation/mindmap_export_actions
 /// 批2 F4-5 · 导出弹层行为（工单 §4c.3 ②）。
 /// 轻 widget（单弹层 pump），独立文件防套件互踩。
 void main() {
-  testWidgets('默认态：格式 HTML、正文开关关（§4.10 隐私硬口径）、xmind 置灰',
+  testWidgets(
+      '默认态：格式 HTML、正文开关关（§4.10 隐私硬口径）；批5 起 xmind 解禁',
       (tester) async {
     MmExportChoice? got;
     await tester.pumpWidget(MaterialApp(
@@ -23,17 +24,58 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(tester.widget<SwitchListTile>(find.byKey(const ValueKey('mm-export-body-sw'))).value,
-        isFalse, reason: '正文默认关＝弹层初态（变异刀1 钉点）');
-    // xmind 置灰：OnBackPressed 不触发？直接点它不改变选择
-    await tester.tap(find.byKey(const ValueKey('mm-export-fmt-xmind')));
-    await tester.pump();
+    expect(
+        tester
+            .widget<SwitchListTile>(
+                find.byKey(const ValueKey('mm-export-body-sw')))
+            .value,
+        isFalse,
+        reason: '正文默认关＝弹层初态（变异刀1 钉点）');
+    // 默认仍是 html：不点任何格式时导出即 html。
     await tester.tap(find.byKey(const ValueKey('mm-export-go')));
     await tester.pumpAndSettle();
     expect(got, isNotNull);
-    expect(got!.format, 'html', reason: 'xmind 置灰＝点它不换格式');
+    expect(got!.format, 'html');
     expect(got!.includeBody, isFalse);
     expect(got!.landscape, isFalse);
+  });
+
+  // 批5 F4-9：`.xmind` 从「后续批次置灰」解禁为第五枚可选，且**只出不进**
+  // （弹层里那行说明文案常驻）。它只带结构 ⇒ 两开关对它置灰。
+  testWidgets('批5：点 .xmind 换格式成功，且两开关对它置灰', (tester) async {
+    MmExportChoice? got;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (ctx) {
+        return Center(
+          child: TextButton(
+            onPressed: () async {
+              got = await showMmExportSheet(ctx);
+            },
+            child: const Text('open'),
+          ),
+        );
+      }),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('.xmind（只出不进）'), findsOneWidget,
+        reason: '第五枚可点（解禁）');
+    expect(find.byKey(const ValueKey('mm-export-fmt-xmind-help')), findsOneWidget,
+        reason: '「本应用不提供导入」常驻说明（只出不进口径）');
+
+    await tester.tap(find.byKey(const ValueKey('mm-export-fmt-xmind')));
+    await tester.pumpAndSettle();
+    expect(tester
+            .widget<SwitchListTile>(
+                find.byKey(const ValueKey('mm-export-body-sw')))
+            .onChanged,
+        isNull,
+        reason: '.xmind 不含正文语义 ⇒ 正文开关置灰');
+    await tester.tap(find.byKey(const ValueKey('mm-export-go')));
+    await tester.pumpAndSettle();
+    expect(got!.format, 'xmind');
+    expect(got!.includeBody, isFalse);
   });
 
   testWidgets('选 md＋开正文＋开横向＝选项如实带出', (tester) async {

@@ -5,6 +5,8 @@
 /// 视图态（scale/tx/ty）不持久化（C11，进图 fit 到内容＝有意取舍）。
 library;
 
+import 'mindmap_node_meta.dart' show mmTagsDecode;
+
 /// 一张导图（`mindmaps` 行）。
 class Mindmap {
   const Mindmap({
@@ -104,6 +106,10 @@ class MindmapNode {
     this.folded = false,
     required this.createdAt,
     required this.updatedAt,
+    this.tags = const <String>[],
+    this.isTask = false,
+    this.taskDone = false,
+    this.imagePath,
   });
 
   final int? id;
@@ -137,6 +143,27 @@ class MindmapNode {
   final int createdAt;
   final int updatedAt;
 
+  // ==================== 批5 F4-9 三段（tags / task / image） ====================
+
+  /// 标签（原型 `sheetMm-node` 的「标签」段：逗号分隔输入，节点内出小 chip）。
+  /// **落库存 JSON 数组文本**（`["方法论","复盘"]`）——逗号本身是输入分隔符，
+  /// 直接存分隔串会出现「标签里含逗号」歧义；解析走 `mmTagsDecode`（损坏回落空）。
+  final List<String> tags;
+
+  /// 是否任务节点（原型「设为任务」chip；画布左侧出勾选框）。
+  final bool isTask;
+
+  /// 任务是否已完成。**只在 [isTask] 为真时有意义**——取消任务属性即清本字段
+  /// （原型 `if(!n.task) n.taskDone=false` 同款）。
+  final bool taskDone;
+
+  /// 节点图片落盘路径（走 `shared/widgets/image_attach.dart` 通路；
+  /// 画布只画 22px 缩略占位，真图在编辑弹层内看——理由见工单 §4f.3）。
+  final String? imagePath;
+
+  /// 是否已挂图（null/空串都不算——空串来自外部改库的脏值，不该画出占位）。
+  bool get hasImage => (imagePath ?? '').isNotEmpty;
+
   /// 拖拽是否有过非零偏移（「归位」按钮只在有偏移时显示的依据）。
   bool get hasOffset => dx != 0 || dy != 0;
 
@@ -154,6 +181,10 @@ class MindmapNode {
         folded: (row['folded'] as int? ?? 0) != 0,
         createdAt: row['created_at'] as int? ?? 0,
         updatedAt: row['updated_at'] as int? ?? 0,
+        tags: mmTagsDecode(row['tags'] as String?),
+        isTask: (row['is_task'] as int? ?? 0) != 0,
+        taskDone: (row['task_done'] as int? ?? 0) != 0,
+        imagePath: row['image_path'] as String?,
       );
 
   MindmapNode copyWith({
@@ -167,8 +198,13 @@ class MindmapNode {
     double? dx,
     double? dy,
     bool? folded,
+    List<String>? tags,
+    bool? isTask,
+    bool? taskDone,
+    String? imagePath,
     bool clearParent = false,
     bool clearNote = false,
+    bool clearImage = false,
     int? updatedAt,
   }) =>
       MindmapNode(
@@ -185,5 +221,11 @@ class MindmapNode {
         folded: folded ?? this.folded,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        tags: tags ?? this.tags,
+        isTask: isTask ?? this.isTask,
+        // 取消任务属性即清完成态（原型 `if(!n.task) n.taskDone=false`）：
+        // 不清会留下「非任务却已完成」的脏态，xmind 导出还会照写 progress=100。
+        taskDone: (isTask ?? this.isTask) ? (taskDone ?? this.taskDone) : false,
+        imagePath: clearImage ? null : (imagePath ?? this.imagePath),
       );
 }

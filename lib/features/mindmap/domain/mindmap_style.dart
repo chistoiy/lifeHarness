@@ -237,6 +237,11 @@ class MmPaintStyle {
     required this.lineW,
     required this.fontSize,
     required this.dots,
+    required this.okColor,
+    required this.onOkColor,
+    required this.thumbBg,
+    required this.tagBg,
+    required this.tagText,
   });
 
   /// 未设样式的基线（批2 原样）。
@@ -252,10 +257,22 @@ class MmPaintStyle {
         lineW: 1.2,
         fontSize: 13.5,
         dots: true,
+        // 批5 三段角标色：**全部走 ColorScheme 派生，零 `Color(0x…)` 字面量**
+        // （色值棘轮零增长口径）。任务完成取 `tertiary`（本项目「达成/成功」
+        // 语义色位），勾号取 `onTertiary`；缩略占位与标签底走 surface 派生。
+        okColor: cs.tertiary,
+        onOkColor: cs.onTertiary,
+        thumbBg: cs.surfaceContainerHigh,
+        tagBg: cs.primary.withValues(alpha: .15),
+        tagText: cs.primary,
       );
 
   final Color bg, grid, nodeBg, nodeBorder, nodeText, edge, accent, accentSoft;
   final double lineW;
+
+  /// 批5：任务完成底色 / 勾号色 / 图片占位底 / 标签 chip 底 / 标签字色。
+  /// 不随样式档变化（角标是**语义标识**不是装饰，换文字色档不该改勾选框）。
+  final Color okColor, onOkColor, thumbBg, tagBg, tagText;
 
   /// 节点标题基准字号（painter 与度量同源，painter 再乘缩放）。
   final double fontSize;
@@ -279,6 +296,11 @@ class MmPaintStyle {
       lineW: style.lineW,
       fontSize: style.fontSize,
       dots: mmCanvasDots(style.canvas),
+      okColor: base.okColor,
+      onOkColor: base.onOkColor,
+      thumbBg: base.thumbBg,
+      tagBg: base.tagBg,
+      tagText: base.tagText,
     );
   }
 
@@ -295,11 +317,16 @@ class MmPaintStyle {
       other.accentSoft == accentSoft &&
       other.lineW == lineW &&
       other.fontSize == fontSize &&
-      other.dots == dots;
+      other.dots == dots &&
+      other.okColor == okColor &&
+      other.onOkColor == onOkColor &&
+      other.thumbBg == thumbBg &&
+      other.tagBg == tagBg &&
+      other.tagText == tagText;
 
   @override
   int get hashCode =>
-      Object.hash(bg, grid, nodeBg, nodeBorder, nodeText, edge, accent, accentSoft, lineW, fontSize, dots);
+      Object.hash(bg, grid, nodeBg, nodeBorder, nodeText, edge, accent, accentSoft, lineW, fontSize, dots, okColor, onOkColor, thumbBg, tagBg, tagText);
 }
 
 // ======================== prefs 存取（每图一套） ========================

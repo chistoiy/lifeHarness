@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/database/schema.dart';
+import 'package:lifeharness/core/database/schema/mindmap.dart'
+    show mindmapMig45Statements;
+import 'package:lifeharness/features/mindmap/data/mindmap_dao.dart';
+import 'package:lifeharness/features/mindmap/domain/mindmap_models.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 思维导图批1 · schema 层守护（工单 §4b.3 ①＋§6.2 双写 DDL）。
@@ -203,6 +207,147 @@ void main() {
     // ---- 备份口径：folders 表默认进包（工单 §4c.1）----
     test('mindmap_folders 不在备份排除名单', () {
       expect(kRegenerableExcluded, isNot(contains(DbSchema.tMindmapFolders)));
+    });
+  });
+
+  group('思维导图 v46→v47（批5 F4-9 节点增强数据层）', () {
+    /// 四列在基础 DDL 与 mig[46] 两处都在，且**只在**这两处
+    /// （老口径 v45 语句表里多写一次就会让 44→47 直升撞 duplicate column）。
+    test('S7c 四列在基础 DDL 与 mig[46] 各一次、老口径零出现', () {
+      const four = ['tags', 'is_task', 'task_done', 'image_path'];
+      final base = DbSchema.createStatements.join('\n');
+      final mig46 = (DbSchema.migrations[46] ?? const <String>[]).join('\n');
+      final old45 = mindmapMig45Statements.join('\n');
+      for (final c in four) {
+        expect(base, contains(c), reason: '$c 缺失则新装库无批5 三段');
+        expect(
+            mig46,
+            contains('ALTER TABLE ${DbSchema.tMindmapNodes} ADD COLUMN $c'),
+            reason: '$c 迁移语句缺失则老库升级不触发');
+        expect(old45, isNot(contains(c)),
+            reason: '$c 出现在 v45 老口径里会让 44→47 直升 duplicate column');
+      }
+    });
+
+    test('S7d 真升级 v46 库 → v47：四列在、老行取默认、批5 写入读回走通',
+        () async {
+      const name = 'mmtest_upgrade_v46to47.db';
+      await databaseFactory.deleteDatabase(name);
+      final old = await databaseFactory.openDatabase(name);
+      await old.execute('CREATE TABLE mindmaps ('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'title TEXT NOT NULL, folder_id INTEGER, '
+          'created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, '
+          'deleted_at INTEGER)');
+      await old.execute('CREATE TABLE mindmap_nodes ('
+          'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+          'map_id INTEGER NOT NULL, parent_id INTEGER, note_id INTEGER, '
+          'title TEXT NOT NULL, note TEXT NOT NULL DEFAULT "", '
+          'side TEXT, sort INTEGER NOT NULL DEFAULT 0, '
+          'dx REAL NOT NULL DEFAULT 0, dy REAL NOT NULL DEFAULT 0, '
+          'folded INTEGER NOT NULL DEFAULT 0, '
+          'created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)');
+      await old.insert('mindmaps',
+          {'title': '升级前的图', 'created_at': 1, 'updated_at': 1});
+      await old.insert('mindmap_nodes', {
+        'map_id': 1,
+        'title': '升级前的节点',
+        'created_at': 1,
+        'updated_at': 1,
+      });
+      await old.execute('PRAGMA user_version = 46');
+      await old.close();
+
+      final upgraded = await databaseFactory.openDatabase(name,
+          options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            onUpgrade: (d, from, to) async {
+              for (var v = from; v < to; v++) {
+                for (final sql in DbSchema.migrations[v] ?? const <String>[]) {
+                  await d.execute(sql);
+                }
+              }
+            },
+          ));
+
+      final cols = await upgraded
+          .rawQuery('PRAGMA table_info(${DbSchema.tMindmapNodes})');
+      expect(cols.map((c) => c['name']),
+          containsAll(['tags', 'is_task', 'task_done', 'image_path']));
+
+      final dao = MindmapDao(upgraded);
+      final nodes = await dao.nodesOf(1);
+      expect(nodes.length, 1);
+      expect(nodes.first.title, '升级前的节点');
+      expect(nodes.first.tags, isEmpty);
+      expect(nodes.first.isTask, isFalse);
+      expect(nodes.first.taskDone, isFalse);
+      expect(nodes.first.hasImage, isFalse);
+
+      await dao.updateNode(nodes.first.copyWith(
+        tags: const ['方法论', '复盘'],
+        isTask: true,
+        taskDone: true,
+        imagePath: '/tmp/x.jpg',
+      ));
+      final back = (await dao.nodesOf(1)).first;
+      expect(back.tags, ['方法论', '复盘']);
+      expect(back.isTask, isTrue);
+      expect(back.taskDone, isTrue);
+      expect(back.imagePath, '/tmp/x.jpg');
+      await upgraded.close();
+    });
+
+    test('S7e 撤销重做与复制图路径（insertNodeFull/copyMap）四列不走失',
+        () async {
+      final db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      final dao = MindmapDao(db);
+      final mapId = await dao.createMap('四列图');
+      var src = await dao.addNode(
+        mapId: mapId,
+        title: '带三段的节点',
+        tags: const ['a', 'b'],
+        isTask: true,
+        imagePath: '/tmp/y.jpg',
+      );
+      src = src.copyWith(taskDone: true);
+      await dao.updateNode(src);
+      // 整行删→整行重插＝撤销「删」的恢复侧（四列必须跟着回来）
+      await dao.deleteNodeRows({src.id!});
+      expect(await dao.nodesOf(mapId), isEmpty);
+      await dao.insertNodeFull(src);
+      final restored = (await dao.nodesOf(mapId)).first;
+      expect(restored.tags, ['a', 'b']);
+      expect(restored.taskDone, isTrue);
+      // 复制图也带三段
+      final copyId = await dao.copyMap(mapId);
+      final copied = (await dao.nodesOf(copyId)).first;
+      expect(copied.tags, ['a', 'b'], reason: '复制图必须带标签（漏列即丢三段）');
+      expect(copied.isTask, isTrue);
+      expect(copied.taskDone, isTrue);
+      expect(copied.imagePath, '/tmp/y.jpg');
+      await db.close();
+    });
+
+    test('S7f 取消任务属性即清完成态（原型 if(!n.task) n.taskDone=false）', () {
+      final n = MindmapNode(
+        mapId: 1,
+        title: 'x',
+        isTask: true,
+        taskDone: true,
+        createdAt: 1,
+        updatedAt: 1,
+      );
+      expect(n.copyWith(isTask: false).taskDone, isFalse);
+      expect(n.copyWith(taskDone: false).taskDone, isFalse);
+      expect(n.copyWith(isTask: true, taskDone: true).taskDone, isTrue);
+    });
+
+    test('S7g 备份排除名单不含节点表（四列随包走）', () {
+      expect(kRegenerableExcluded, isNot(contains(DbSchema.tMindmapNodes)));
     });
   });
 }

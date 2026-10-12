@@ -1,11 +1,12 @@
-/// 导出弹层（原型 `sheetMm-export`）与执行体（批2 F4-5）。
+/// 导出弹层（原型 `sheetMm-export`）与执行体（批2 F4-5 ＋ 批5 解禁 `.xmind`）。
 ///
-/// 格式五选原型形态保留：HTML/md/opml/png 可选，`.xmind` 置灰（批5）。
-/// 两开关＝正文（**默认关**，§4.10 隐私硬口径·变异刀1 钉点）＋横向预设
-/// （落法 C，仅 HTML 生效；PNG 时两开关置灰）。
+/// 格式五枚原型形态保留：HTML/md/opml/png 可选，`.xmind` **批5 起解禁**
+///（**只出不进**，不提供导入）。两开关＝正文（**默认关**，§4.10 隐私硬口径·
+/// 变异刀1 钉点）＋横向预设（落法 C，仅 HTML 生效；PNG 与 `.xmind` 时两开关
+/// 处置灰——前者是像素、后者只带结构与批5 三段）。
 ///
-/// 执行通道：md/opml/HTML 写临时文件 → `safSaveAs` 系统另存（零新增原生通道）；
-/// PNG 由画布页离屏绘制快照注入（`pngSnapshot`），本文件不碰画布细节。
+/// 执行通道：md/opml/HTML/xmind 写临时文件 → `safSaveAs` 系统另存（零新增原生
+/// 通道）；PNG 由画布页离屏绘制快照注入（`pngSnapshot`），本文件不碰画布细节。
 library;
 
 import 'dart:io';
@@ -73,9 +74,16 @@ class _MmExportSheetState extends State<_MmExportSheet> {
     ('md', 'Markdown 大纲', Icons.format_list_bulleted),
     ('opml', 'OPML 大纲', Icons.account_tree_outlined),
     ('png', 'PNG 图片', Icons.image_outlined),
+    // 批5 F4-9 解禁：原型第五枚一直是可点的（`.xmind` 只出不进）。
+    ('xmind', '.xmind（只出不进）', Icons.extension_outlined),
   ];
 
+  /// PNG 与 `.xmind` 都**不含「挂载正文」语义**（前者是像素、后者只带结构
+  /// 与批5 三段），两开关对它们置灰——与原型 `mmRenderExportSpec` 的
+  /// `hasBodyOpt` 同款口径。
   bool get _isPng => _fmt == 'png';
+  bool get _isXmind => _fmt == 'xmind';
+  bool get _noBodySemantics => _isPng || _isXmind;
 
   @override
   Widget build(BuildContext context) {
@@ -102,29 +110,29 @@ class _MmExportSheetState extends State<_MmExportSheet> {
                 onTap: () => setState(() => _fmt = key),
               ),
             ListTile(
-              key: const ValueKey('mm-export-fmt-xmind'),
+              key: const ValueKey('mm-export-fmt-xmind-help'),
               dense: true,
               enabled: false,
               leading: Icon(Icons.extension_outlined,
-                  size: 20, color: cs.onSurfaceVariant.withValues(alpha: .4)),
-              title: Text('.xmind（后续批次）',
+                  size: 20, color: cs.onSurfaceVariant.withValues(alpha: .45)),
+              title: Text('.xmind 只出不进：XMind 可打开，本应用不提供导入',
                   style: TextStyle(
-                      fontSize: 13.5,
-                      color: cs.onSurfaceVariant.withValues(alpha: .4))),
+                      fontSize: 11.5,
+                      color: cs.onSurfaceVariant.withValues(alpha: .7))),
             ),
             const Divider(height: 16),
-            // PNG 是画布像素快照，无正文/横向语义 → 两开关置灰
+            // PNG 是画布像素快照，.xmind 只带结构 ⇒ 两开关置灰
             SwitchListTile(
               key: const ValueKey('mm-export-body-sw'),
               dense: true,
-              value: _body && !_isPng,
-              onChanged: _isPng
+              value: _body && !_noBodySemantics,
+              onChanged: _noBodySemantics
                   ? null
                   : (v) => setState(() => _body = v),
               title: const Text('带挂载笔记正文',
                   style: TextStyle(fontSize: 13.5)),
               subtitle: Text(
-                _isPng ? 'PNG 不适用' : '默认只导笔记标题；开启后正文随文件带出',
+                _noBodySemantics ? '该格式不含笔记正文' : '默认只导笔记标题；开启后正文随文件带出',
                 style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
               ),
             ),
@@ -148,7 +156,7 @@ class _MmExportSheetState extends State<_MmExportSheet> {
                 context,
                 MmExportChoice(
                   format: _fmt,
-                  includeBody: _body && !_isPng,
+                  includeBody: _body && !_noBodySemantics,
                   landscape: _landscape && !_isPng,
                 ),
               ),
@@ -202,6 +210,12 @@ Future<void> mmRunExport(
       case 'opml':
         final f = File('$base.opml')
           ..writeAsStringSync(mmExportOpml(mapTitle, rows));
+        savedName = await safSaveAs(f.path);
+      case 'xmind':
+        // 批5 F4-9：**只出不进**——产出 zip 字节落临时文件后走同一条
+        // `safSaveAs`（零新增原生通道，与 md/opml/html 同款）。
+        final f = File('$base.xmind')
+          ..writeAsBytesSync(mmExportXmindBytes(mapTitle: mapTitle, rows: rows));
         savedName = await safSaveAs(f.path);
       case 'html':
         // 挂载快照预取（async 出口 → 先收齐再组装）。

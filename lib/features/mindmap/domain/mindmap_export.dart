@@ -15,7 +15,10 @@
 /// · 横向预设：`landscape` 预设位（落法 C：文件自带横向布局预设）。
 library;
 
+import 'dart:convert' show utf8;
 import 'dart:ui' show Offset, Size;
+
+import 'package:archive/archive.dart' show Archive, ArchiveFile, ZipEncoder;
 
 import 'mindmap_layout.dart' show MmEdgeKind;
 import 'mindmap_models.dart';
@@ -169,6 +172,9 @@ String _htmlEsc(String s) => s
 String _jsonEncode(Object? v) {
   if (v == null) return 'null';
   if (v is bool) return v ? 'true' : 'false';
+  // xmind 的 rootTopic 是已序列化的片段：原样嵌入，不二次解析
+  // （二次 decode/re-encode 会重排字段顺序，让结构断言与实际产出入戏）。
+  if (v is RawJsonFragment) return v.text;
   if (v is num) {
     return v.toDouble() == v.roundToDouble()
         ? v.round().toString()
@@ -304,3 +310,117 @@ render();fit();
 </body>
 </html>
 ''';
+
+// ==================== .xmind（批5 F4-9 · 只出不进） ====================
+
+/// `.xmind` **只出不进**（冻结方案 §2.5 F4-9 ＋ 需求清单四条裁定段）：
+/// 导出为 XMind 能打开的 zip 包，**本项目不提供任何 .xmind 导入入口**。
+///
+/// 三个构成文件（XMind Zen 之后的 JSON 格式，三件缺一 XMind 打不开）：
+/// · `content.json`＝**唯一承载结构的一份**（sheet 数组，根 topic 递归 children）；
+/// · `metadata.json`＝创建者信息（空对象也能开，本处给出最小可信值）；
+/// · `manifest.json`＝文件条目清单（content/metadata 两项 ＋ 各自内联内容）。
+///
+/// 批5 三段在导出侧的映射（工单 §4f.2 ⑧）：
+/// · **标签** → topic 的 `labels: ["a","b"]`（XMind 原生标签字段，不塞进标题）；
+/// · **任务** → `progress: 100`（完成）／`-1`（未完成）。XMind 用 -1 表示无进度，
+///   任务节点用它表示「待办未完成」比 `0` 更贴近 XMind 自身语义；
+/// · **备注** → `notes: {plain: {content: "..."}}`（非空才写）。
+///
+/// **多根口径**（工单 §4f.3 口径三）：XMind 单 sheet 只允许一个根，单根直接作
+/// `rootTopic`；多根则 `rootTopic` 取图名、各根作 `attached` 子级 —— 唯一无损折中。
+List<int> mmExportXmindBytes({
+  required String mapTitle,
+  required List<MindmapNode> rows,
+  String creator = 'lifeHarness',
+  DateTime? now,
+}) {
+  final stamp = (now ?? DateTime.now())
+      .toUtc()
+      .toIso8601String()
+      .replaceAll(':', '-');
+  final children = <int?, List<MindmapNode>>{};
+  for (final n in rows) {
+    children.putIfAbsent(n.parentId, () => []).add(n);
+  }
+  for (final list in children.values) {
+    list.sort((a, b) => a.sort.compareTo(b.sort));
+  }
+
+  /// 子 topic 必须是 **RawJsonFragment**（已序列化的 JSON 对象）——
+  /// 若返回裸 String，`_jsonEncode` 会把它当普通字符串再包一层引号，
+  /// 产出 `"{\"id\":...}"` 这种「字符串里装 JSON」的坏结构，XMind 打不开。
+  /// **这是本段最容易写错的一处**（2026-10-13 首跑实测：子节点全成字符串）。
+  Object topicOf(MindmapNode n) {
+    final kids = children[n.id] ?? const <MindmapNode>[];
+    return RawJsonFragment(_jsonEncode({
+      'id': 't${n.id}',
+      'class': 'topic',
+      'title': n.title,
+      if (n.note.isNotEmpty)
+        'notes': {
+          'plain': {'content': n.note},
+        },
+      if (n.tags.isNotEmpty) 'labels': n.tags,
+      if (n.isTask) 'progress': n.taskDone ? 100 : -1,
+      if (kids.isNotEmpty)
+        'children': {
+          'attached': [for (final c in kids) topicOf(c)],
+        },
+    }));
+  }
+
+  final roots = children[null] ?? const <MindmapNode>[];
+  final Object rootJson = roots.length == 1
+      ? topicOf(roots.first)
+      : RawJsonFragment(_jsonEncode({
+          'id': 'root',
+          'class': 'topic',
+          'title': mapTitle,
+          'children': {
+            'attached': [for (final r in roots) topicOf(r)],
+          },
+        }));
+
+  final content = '[${_jsonEncode({
+        'id': 'sheet1',
+        'class': 'sheet',
+        'title': mapTitle,
+        'rootTopic': rootJson,
+        'theme': {'id': 'colorful', 'importantStyleId': 'mk1'},
+      })}]';
+  final metadata = _jsonEncode({'creator': {'name': creator, 'version': '1.0'}});
+  final manifest = _jsonEncode({
+    'file-type': 'xmind-workbook',
+    'xmind-version': 'zen',
+    'created': stamp,
+    'entries': [
+      {'mediaType': 'application/json', 'fileName': 'content.json'},
+      {'mediaType': 'application/json', 'fileName': 'metadata.json'},
+    ],
+  });
+
+  // `archive` 3.6.1 的 `Archive`/`ZipEncoder.encode`（纯内存）——不碰
+  // `ZipFileEncoder`（那是落盘流，`archive_io.dart` 一路带 dart:io，
+  // 域层保持零 IO 依赖，纯 Dart 测试可直接跑）。
+  final archive = Archive();
+  for (final e in {
+    'content.json': content,
+    'metadata.json': metadata,
+    'manifest.json': manifest,
+  }.entries) {
+    final bytes = utf8.encode(e.value);
+    archive.addFile(ArchiveFile(e.key, bytes.length, bytes));
+  }
+  return ZipEncoder().encode(archive) ?? const <int>[];
+}
+
+/// 把已序列化的 JSON 片段原样嵌进外层（`content.json` 的 `rootTopic`）。
+/// 走「占位后替换」而不是二次 decode/re-encode —— 省一次解析，且保证
+/// 内层字段顺序与 `topicOf` 产出一致（xmind 结构用例断言的是字符串片段）。
+class RawJsonFragment {
+  const RawJsonFragment(this.text);
+  final String text;
+  @override
+  String toString() => text;
+}

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/database/schema.dart';
+import '../../core/providers.dart' show eventBusProvider;
+import '../../features/mindmap/domain/mindmap_node_meta.dart';
+import 'linkage_events.dart';
 
 /// 思维导图 ⇄ 笔记/收集箱 挂载出口（连接点①③④ · 批1 · 仿 search_mounts 惯例）。
 ///
@@ -224,4 +228,46 @@ Future<List<MmMapBrief>> mmSelectableMaps([Database? db]) async {
         nodeCount: (r['ncount'] as int?) ?? 0,
       ),
   ];
+}
+
+// ==================== 批5 F4-9 · 任务属性联动出口 ====================
+
+/// 导图节点勾选任务完成 → **经本出口**发事件（工单 §4f.2 ④，变异刀1 钉点）。
+///
+/// 为什么不直接发 [TaskCompletedEvent]：`todoId` 是待办行 id，塞节点 id 会让
+/// `habit_mounts` 等既有订阅方按 id 反查待办落空（虽不误伤，但载荷语义被污染）。
+/// 故独立 [MmNodeTaskEvent]（带 `source='mindmap'`），由本出口转发到事件总线。
+///
+/// 测试注入 [mmPublishOverride] 断言「事件真的被发布」——不注入时走宿主总线。
+void Function(MmNodeTaskEvent)? mmPublishOverride;
+
+/// 发事件的实际通道（生产＝宿主总线；测试注入 fake）。
+void _publish(WidgetRef ref, MmNodeTaskEvent e) {
+  final override = mmPublishOverride;
+  if (override != null) return override(e);
+  ref.read(eventBusProvider).publish(e);
+}
+
+/// 节点勾选完成/取消完成。`done=true` 即完成。
+///
+/// 事件只读侧有影响（订阅方刷新统计等），**不写任何待办表**——导图节点与待办
+/// 是两个域的平行数据，「联动」= 通知，不是一边落库另一边跟着改
+/// （否则勾一下节点就凭空多出一条待办＝用户看到重复条目）。
+void mmCompleteNodeTask(
+  WidgetRef ref, {
+  required int mapId,
+  required int nodeId,
+  required String nodeTitle,
+  required bool done,
+}) {
+  if (!done) return; // 取消完成不发事件（统计只关心达成）
+  _publish(
+    ref,
+    MmNodeTaskEvent(
+      mapId: mapId,
+      nodeId: nodeId,
+      nodeTitle: nodeTitle,
+      atMs: DateTime.now().millisecondsSinceEpoch,
+    ),
+  );
 }

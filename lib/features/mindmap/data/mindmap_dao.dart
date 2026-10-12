@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/schema.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_node_meta.dart';
 
 /// 思维导图 DAO（批1）。扁平表口径：整图一次 `WHERE map_id=?` 拉平，
 /// 树关系在内存里由 `parentId` 组装（数据层三条：不 JOIN、sort 显式序、复合索引）。
@@ -114,6 +115,7 @@ class MindmapDao {
         'dx': n.dx,
         'dy': n.dy,
         'folded': n.folded ? 1 : 0,
+        ..._metaColumns(n),
         'created_at': t,
         'updated_at': t,
       });
@@ -155,6 +157,9 @@ class MindmapDao {
     required String title,
     String note = '',
     String? side,
+    List<String> tags = const <String>[],
+    bool isTask = false,
+    String? imagePath,
   }) async {
     final sort = Sqflite.firstIntValue(await db.rawQuery(
             'SELECT MAX(sort) FROM $_nodes WHERE map_id = ? AND parent_id IS ?',
@@ -172,6 +177,15 @@ class MindmapDao {
       'dx': 0,
       'dy': 0,
       'folded': 0,
+      ..._metaColumns(MindmapNode(
+        mapId: mapId,
+        title: title,
+        tags: tags,
+        isTask: isTask,
+        imagePath: imagePath,
+        createdAt: t,
+        updatedAt: t,
+      )),
       'created_at': t,
       'updated_at': t,
     });
@@ -179,7 +193,7 @@ class MindmapDao {
     return (await nodeById(id))!;
   }
 
-  /// 通用节点更新（编辑标题备注/折叠/偏移/挂载/换序全走这里）。
+  /// 通用节点更新（编辑标题备注/折叠/偏移/挂载/换序/**批5 三段**全走这里）。
   Future<void> updateNode(MindmapNode n, {int? mapIdForTouch}) =>
       db.update(
         _nodes,
@@ -193,6 +207,7 @@ class MindmapDao {
           'dx': n.dx,
           'dy': n.dy,
           'folded': n.folded ? 1 : 0,
+          ..._metaColumns(n),
           'updated_at': _now(),
         },
         where: 'id = ?',
@@ -251,6 +266,7 @@ class MindmapDao {
         'dx': n.dx,
         'dy': n.dy,
         'folded': n.folded ? 1 : 0,
+        ..._metaColumns(n),
         'created_at': n.createdAt,
         'updated_at': n.updatedAt,
       });
@@ -265,6 +281,18 @@ class MindmapDao {
   }
 
   int _now() => DateTime.now().millisecondsSinceEpoch;
+
+  /// 批5 四列的列映射（`tags`/`is_task`/`task_done`/`image_path`）。
+  ///
+  /// **抽成一份而不是在四处各写一遍**：DAO 里这四列要出现在 addNode / updateNode /
+  /// insertNodeFull / copyMap 四条插入路径——漏一处就是「编辑能存、撤销重做丢字段」
+  /// 这类只在特定路径复现的洞（批2 卡片件踩过同族坑：同一语义两份副本必漏）。
+  static Map<String, Object?> _metaColumns(MindmapNode n) => {
+        'tags': mmTagsEncode(n.tags),
+        'is_task': n.isTask ? 1 : 0,
+        'task_done': n.taskDone ? 1 : 0,
+        'image_path': n.imagePath,
+      };
 
   Future<void> _touchMap(int id, Map<String, Object?>? extra) =>
       db.update(_maps, {...?extra, 'updated_at': _now()},

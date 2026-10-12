@@ -60,9 +60,13 @@ class DbSchema {
   // ＋ mindmaps 加 folder_id 可空列（图归文件夹·删文件夹只置空引用不删图）；
   // 纯建表加列零搬数据；批2 起迁移段与基础 DDL 拆两份（v45 口径不带 folder_id，
   // 防 44→46 直升撞列，详见 schema/mindmap.dart 段注）。
+  // 47：思维导图批5 F4-9（2026-10-13）——migrations[46]（46→47）给 mindmap_nodes
+  // 加四列：tags（标签·JSON 数组文本，损坏回落空列表）/ is_task / task_done /
+  // image_path（图片落盘路径·节点图片走 image_attach 通路）。纯 ALTER 加列零搬
+  // 数据，老图节点四列取默认（无标签·非任务·无图）＝**升级不丢任何既有语义**。
   // ⚠ 版本常量与 migrations 最高键必须同批同步——6109 预发布漏改本行（仍 43），
   // 真机升级 onUpgrade 不触发 ⇒ 表无 deleted_at ⇒ 日记读写全断（保存失败/列表空）。
-  static const int version = 46;
+  static const int version = 47;
  
 
   

@@ -5,10 +5,16 @@
 library;
 
 /// 任务完成 → 可用于今日概览/习惯统计刷新（L 关联待办↔仪表盘）。
+///
+/// **批5 扩口径**：`source` 标注完成动作来自哪个域，默认 `'todo'` ⇒ **既有全部
+/// 构造点（`todo_repository` 唯一发射处）逐值不变，行为零变化**。非待办域的
+/// 「完成」另有自己的事件类（如导图节点的 `MmNodeTaskEvent`），**不塞进本类**——
+/// `todoId` 语义被污染后订阅方无法区分来源（工单 §4f.3 口径二）。
 class TaskCompletedEvent {
-  const TaskCompletedEvent(this.todoId, this.atMs);
+  const TaskCompletedEvent(this.todoId, this.atMs, {this.source = 'todo'});
   final int todoId;
   final int atMs;
+  final String source;
 }
 
 /// 记录写入（收集箱/日记/记账等新增）→ 仪表盘与角标刷新。
