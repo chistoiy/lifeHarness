@@ -50,7 +50,11 @@ class DbSchema {
   // （最后一次**成功**回写原始文件的时间戳；NULL＝从没回写成功过）。三态里
   // 「已回写原文件 / 仅应用内」的唯一依据＝本列（`noteWriteBackGuard` 只弹 toast 不落库时
   // 推不出来＝工单 §18.1 拍板「加一列上三态」）；纯加列零搬数据，基础 DDL 同段带列。
-  static const int version = 43;
+  // 44：语义断链批（2026-10-12）——migrations[43]（43→44）给 journal_entries 加
+  // deleted_at（回收站第八类·软删）；纯加列零搬数据，基础 DDL 同段带列。
+  // ⚠ 版本常量与 migrations 最高键必须同批同步——6109 预发布漏改本行（仍 43），
+  // 真机升级 onUpgrade 不触发 ⇒ 表无 deleted_at ⇒ 日记读写全断（保存失败/列表空）。
+  static const int version = 44;
  
 
   

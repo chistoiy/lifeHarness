@@ -1599,6 +1599,80 @@ void main() {
       expect(loaded.journalFilter, 'todo');
       expect(loaded.journalDefaultTpl, '纯文本'); // 默认值不受影响
     });
+
+    // 6109 预发布实锤：迁移语句与基础 DDL 都加了 deleted_at，唯独
+    // `DbSchema.version` 漏改（仍 43）⇒ 真机升级 onUpgrade 不触发 ⇒ 表无该列，
+    // 日记读写全断（保存失败/列表空）。本组钉两层：键值一致性 + 真升级触发。
+    test('S6 version 常量 = migrations 最高键 + 1（漏改 version＝升级静默失效）', () {
+      final maxKey = DbSchema.migrations.keys
+          .reduce((a, b) => a > b ? a : b); // migrations 空表时 reduce 抛＝更该红
+      expect(DbSchema.version, maxKey + 1,
+          reason: 'migrations 已定义到 $maxKey → ${maxKey + 1}，'
+              '但 version=${DbSchema.version} 没跟上——真机 user_version 已到 '
+              '${maxKey + 1} 以上时该迁移永不执行');
+    });
+
+    test('S7 真升级路径：v43 库（无 deleted_at）经 openDatabase(version:) 升 v44 '
+        '→ 列出现＋老行保留＋带列写读走通', () async {
+      const name = 'jtest_upgrade_v43to44.db';
+      await databaseFactoryFfiNoIsolate.deleteDatabase(name);
+      // 1) 手工搭出 v43 时代库（基础 DDL 含天气四列、无 deleted_at）并钉 user_version=43
+      final old = await databaseFactoryFfiNoIsolate.openDatabase(name);
+      await old.execute('''
+        CREATE TABLE journal_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entry_date INTEGER NOT NULL,
+          mood INTEGER,
+          content TEXT NOT NULL,
+          tags TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          starred INTEGER NOT NULL DEFAULT 0,
+          liked INTEGER NOT NULL DEFAULT 0,
+          view_count INTEGER NOT NULL DEFAULT 0,
+          template_id INTEGER,
+          kind TEXT NOT NULL DEFAULT '',
+          weather_code INTEGER,
+          temp_max REAL,
+          temp_min REAL,
+          weather_manual INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await old.insert('journal_entries',
+          {'entry_date': 1, 'content': '升级前的老篇', 'created_at': 1, 'updated_at': 1});
+      await old.execute('PRAGMA user_version = 43');
+      await old.close();
+      // 2) 按生产 openDatabase 口径重开（version 触发 onUpgrade 逐级迁移）
+      final upgraded = await databaseFactoryFfiNoIsolate.openDatabase(name,
+          options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            onUpgrade: (d, from, to) async {
+              for (var v = from; v < to; v++) {
+                for (final sql in DbSchema.migrations[v] ?? const <String>[]) {
+                  await d.execute(sql);
+                }
+              }
+            },
+          ));
+      // 3) 列出现 + 老行保留
+      final cols = await upgraded.rawQuery('PRAGMA table_info(journal_entries)');
+      expect(cols.map((c) => c['name']), contains('deleted_at'));
+      final oldRows = await upgraded.query('journal_entries');
+      expect(oldRows, hasLength(1));
+      expect(oldRows.first['content'], '升级前的老篇');
+      // 4) 带列写读走通（6109 上炸的就是这两类 SQL）
+      await upgraded.insert('journal_entries', {
+        'entry_date': 2,
+        'content': '升级后新篇',
+        'created_at': 2,
+        'updated_at': 2,
+        'deleted_at': null,
+      });
+      final active = await upgraded
+          .query('journal_entries', where: 'deleted_at IS NULL');
+      expect(active.map((r) => r['content']), contains('升级后新篇'));
+      await upgraded.close();
+    });
   });
 }
 
