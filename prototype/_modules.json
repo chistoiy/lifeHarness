@@ -244,6 +244,23 @@
    "rep": "m-shelf"
   },
   {
+   "id": "mindmap",
+   "name": "思维导图",
+   "file": "index-mindmap.html",
+   "req": "V1.62",
+   "status": "current",
+   "dev": "notStarted",
+   "aliases": [
+    "思维导图",
+    "导图",
+    "脑图",
+    "大纲图",
+    "mindmap"
+   ],
+   "rep": "mm-list",
+   "note": "V1.62 新增·独立模块；入口＝工作台宫格第 15 枚（底栏 5 档已满不占底栏）；首批＝建图+编辑+挂笔记，模板/导出/分享不做；原型先行已交付，实现批未开工"
+  },
+  {
    "id": "sync",
    "name": "同步",
    "file": "index-sync.html",
@@ -3916,6 +3933,118 @@
     "index-journal.html": {
      "size": 2134,
      "hash": "16b6a794"
+    }
+   }
+  },
+  {
+   "id": "mm-list",
+   "kind": "screen",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 4982,
+     "hash": "575b5d16"
+    }
+   }
+  },
+  {
+   "id": "mm-canvas",
+   "kind": "screen",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 3618,
+     "hash": "8996bd85"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-new",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1008,
+     "hash": "098bdafb"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-node",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 795,
+     "hash": "21afdb82"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-bindNote",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1377,
+     "hash": "f6d26e3d"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-fromMd",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1519,
+     "hash": "f08dd969"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-fromInbox",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 1183,
+     "hash": "1c4e9d98"
+    }
+   }
+  },
+  {
+   "id": "sheetMm-rename",
+   "kind": "sheet",
+   "title": "",
+   "home": "index-mindmap.html",
+   "reps": [],
+   "status": "exclusive",
+   "files": {
+    "index-mindmap.html": {
+     "size": 527,
+     "hash": "a4eb1499"
     }
    }
   }
