@@ -84,4 +84,125 @@ void main() {
       expect(kRegenerableExcluded, isNot(contains(DbSchema.tMindmapNodes)));
     });
   });
+
+  group('思维导图 v45→v46（批2 F4-4 文件夹数据层）', () {
+    // ---- S7b：真升级路径 v45→v46（禁只测 onCreate；批2 迁移批必跑）----
+    test('S7b 真升级 v45 库 → v46：folders 表在、mindmaps.folder_id 列在、索引在',
+        () async {
+      const name = 'mmtest_upgrade_v45to46.db';
+      await databaseFactory.deleteDatabase(name);
+      // 1) 手工搭 v45 时代库：mindmaps **不带 folder_id**（v45 口径）＋钉 user_version=45
+      final old = await databaseFactory.openDatabase(name);
+      await old.execute('''
+        CREATE TABLE mindmaps (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        )
+      ''');
+      await old.execute('''
+        CREATE TABLE mindmap_nodes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          map_id INTEGER NOT NULL,
+          parent_id INTEGER,
+          note_id INTEGER,
+          title TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          side TEXT,
+          sort INTEGER NOT NULL DEFAULT 0,
+          dx REAL NOT NULL DEFAULT 0,
+          dy REAL NOT NULL DEFAULT 0,
+          folded INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await old.execute(
+          "INSERT INTO mindmaps (title, created_at, updated_at) VALUES ('老图', 1, 1)");
+      await old.execute('PRAGMA user_version = 45');
+      await old.close();
+      // 2) 按生产口径重开，触发 mig[45]（45→46：建 folders＋ALTER 加列）
+      final upgraded = await databaseFactory.openDatabase(name,
+          options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            onUpgrade: (d, from, to) async {
+              for (var v = from; v < to; v++) {
+                for (final sql in DbSchema.migrations[v] ?? const <String>[]) {
+                  await d.execute(sql);
+                }
+              }
+            },
+          ));
+      // 3) 三表齐全（mindmapTables 含批2 的 mindmap_folders）
+      final tables = await upgraded.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table'");
+      expect(tables.map((r) => r['name'] as String).toSet(),
+          containsAll(DbSchema.mindmapTables));
+      // 4) folder_id 列在且可写（ALTER 真生效；老行值 null）
+      final cols = await upgraded
+          .rawQuery('PRAGMA table_info(${DbSchema.tMindmaps})');
+      expect(cols.map((c) => c['name']), contains('folder_id'));
+      await upgraded.execute(
+          'UPDATE ${DbSchema.tMindmaps} SET folder_id = 7 WHERE title = ?', ['老图']);
+      final row = (await upgraded
+              .query(DbSchema.tMindmaps, where: 'title = ?', whereArgs: ['老图']))
+          .single;
+      expect(row['folder_id'], 7);
+      // 5) folder 索引在
+      final idx = await upgraded.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'index'");
+      expect(idx.map((r) => r['name']), contains('idx_mmaps_folder'));
+      await upgraded.close();
+    });
+
+    // ---- 44→46 直升链：批1 的 v45 口径建表（无 folder_id）后接 mig[45] ALTER 不撞列 ----
+    test('44→46 直升：v45 口径建表 + ALTER folder_id 零撞列（拆两份口径闸）',
+        () async {
+      const name = 'mmtest_upgrade_v44to46.db';
+      await databaseFactory.deleteDatabase(name);
+      final old = await databaseFactory.openDatabase(name);
+      await old.execute('CREATE TABLE journal_entries (id INTEGER PRIMARY KEY)');
+      await old.execute('PRAGMA user_version = 44');
+      await old.close();
+      final upgraded = await databaseFactory.openDatabase(name,
+          options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            onUpgrade: (d, from, to) async {
+              for (var v = from; v < to; v++) {
+                for (final sql in DbSchema.migrations[v] ?? const <String>[]) {
+                  await d.execute(sql);
+                }
+              }
+            },
+          ));
+      // 走完 44→45→46 全链：ALTER 已执行过一次、mindmaps 带 folder_id
+      final cols =
+          await upgraded.rawQuery('PRAGMA table_info(${DbSchema.tMindmaps})');
+      expect(cols.map((c) => c['name']), contains('folder_id'));
+      await upgraded.close();
+    });
+
+    // ---- onCreate 路径（v46 全量口径：mindmaps 自带 folder_id）----
+    test('onCreate 全量 DDL：mindmaps 自带 folder_id＋folders 表在', () async {
+      final db = await databaseFactory.openDatabase(inMemoryDatabasePath);
+      for (final sql in DbSchema.createStatements) {
+        await db.execute(sql);
+      }
+      final cols =
+          await db.rawQuery('PRAGMA table_info(${DbSchema.tMindmaps})');
+      expect(cols.map((c) => c['name']), contains('folder_id'));
+      final tables =
+          await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'");
+      expect(tables.map((r) => r['name']),
+          contains(DbSchema.tMindmapFolders));
+      await db.close();
+    });
+
+    // ---- 备份口径：folders 表默认进包（工单 §4c.1）----
+    test('mindmap_folders 不在备份排除名单', () {
+      expect(kRegenerableExcluded, isNot(contains(DbSchema.tMindmapFolders)));
+    });
+  });
 }

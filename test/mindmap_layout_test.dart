@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/features/mindmap/domain/mindmap_layout.dart';
+import 'package:lifeharness/features/mindmap/domain/mindmap_measure.dart';
 import 'package:lifeharness/features/mindmap/domain/mindmap_models.dart';
 import 'dart:ui';
 
@@ -24,6 +25,7 @@ MindmapNode _n(int id, {int? parent, int sort = 0, bool folded = false,
     );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late TreeLayoutEngine engine;
   setUp(() {
     engine = TreeLayoutEngine();
@@ -128,6 +130,49 @@ void main() {
     expect(fitted.right, lessThanOrEqualTo(300));
     expect(fitted.bottom, lessThanOrEqualTo(240));
     bounds = _bounds(l); // 保持 bounds 被使用（免 lint）
+  });
+
+  // ---- 批2 F4-6 · 节点多行度量（工单 §4c.3 ⑥）----
+  // TextPainter 走 flutter_test 字体底座（本文件 main 已开 binding）。
+  group('F4-6 节点多行度量（mmNodeMeasure）', () {
+    test('单行＝原口径：高不小于 40、宽=文本宽+左右内距', () {
+      final s = mmNodeMeasure('一行');
+      expect(s.height, 40.0);
+      expect(s.width, greaterThan(24.0));
+      expect(s.width, lessThanOrEqualTo(280.0));
+    });
+
+    test('带换行的标题：实测高随行数增大、实测高进布局（禁常量行高钉点）', () {
+      final one = mmNodeMeasure('单行标题');
+      final two = mmNodeMeasure('第一行\n第二行');
+      final three = mmNodeMeasure('一\n二\n三');
+      expect(two.height, greaterThan(one.height));
+      expect(three.height, greaterThan(two.height));
+      // 多行高必须被布局引擎吃进：兄弟行 y 按实测高累加不叠压。
+      final eng = TreeLayoutEngine();
+      eng.measure = (n) => mmNodeMeasure(n.title);
+      final l = eng.layout([
+        MindmapNode(
+            id: 1,
+            mapId: 1,
+            title: '一\n二\n三',
+            createdAt: 1,
+            updatedAt: 1),
+        MindmapNode(id: 2, mapId: 1, title: '单行', createdAt: 2, updatedAt: 2),
+      ]);
+      expect(l.sizes[1]!.height, greaterThan(l.sizes[2]!.height),
+          reason: '多行节点实测高进布局，兄弟行不被叠压');
+    });
+
+    test('超宽文本：宽度封顶 maxWidth（视觉折行，数据完整）', () {
+      final s = mmNodeMeasure('很长的一行没有换行符号' * 20);
+      expect(s.width, 280.0);
+      expect(s.height, greaterThan(40.0), reason: '封顶后折成多行');
+    });
+
+    test('空标题：占位不炸（B8 上游兜底）', () {
+      expect(mmNodeMeasure('').height, 40.0);
+    });
   });
 }
 

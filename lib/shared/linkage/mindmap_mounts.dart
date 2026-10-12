@@ -95,3 +95,86 @@ Future<void> mmRouteInboxToMindmap(List<int> ids, int mapId,
     whereArgs: ids,
   );
 }
+
+// ==================== 批2 出口（F4-3 搜索 / 连接点② 卡片） ====================
+
+/// 全局搜索第三源（F4-3）：跨图搜**已挂载节点**——
+/// 命中＝节点标题或其挂载笔记标题含关键字；返回可跳画布定位的命中行。
+/// 只搜在册图（`deleted_at IS NULL`）；回收站里的图不进搜索。
+class MmSearchHit {
+  const MmSearchHit({
+    required this.nodeId,
+    required this.mapId,
+    required this.mapTitle,
+    required this.nodeTitle,
+    this.noteTitle,
+  });
+
+  final int nodeId;
+  final int mapId;
+  final String mapTitle;
+  final String nodeTitle;
+
+  /// 命中来自挂载笔记标题时给来源标题（null＝命中的是节点自身标题）。
+  final String? noteTitle;
+}
+
+Future<List<MmSearchHit>> mmSearchMountedNodes(String query,
+    [Database? db]) async {
+  final q = query.trim();
+  if (q.isEmpty) return const [];
+  final d = db ?? AppDatabase.instance.db;
+  // 两路合并：节点自身标题命中 ＋ 挂载笔记标题命中（笔记标题实时 join，
+  // 与画布显示口径同源——笔记删了 join 不出行，该节点不因失效标题而谎报）。
+  final like = '%$q%';
+  final rows = await d.rawQuery('''
+    SELECT n.id AS nid, n.title AS ntitle, m.id AS mid, m.title AS mtitle,
+           nb.title AS btitle
+    FROM ${DbSchema.tMindmapNodes} n
+    JOIN ${DbSchema.tMindmaps} m ON m.id = n.map_id AND m.deleted_at IS NULL
+    LEFT JOIN ${DbSchema.tNotes} nb ON nb.id = n.note_id AND nb.deleted_at IS NULL
+    WHERE (n.title LIKE ? OR nb.title LIKE ?)
+    ORDER BY m.updated_at DESC, n.sort ASC
+    LIMIT 50
+  ''', [like, like]);
+  return [
+    for (final r in rows)
+      MmSearchHit(
+        nodeId: r['nid'] as int,
+        mapId: r['mid'] as int,
+        mapTitle: r['mtitle'] as String? ?? '',
+        nodeTitle: r['ntitle'] as String? ?? '',
+        noteTitle: r['btitle'] as String?,
+      ),
+  ];
+}
+
+/// 连接点② 卡片预览数据（批2）：图在册＝(图名, 根节点标题集 ≤5 行)；null＝图已删。
+/// 卡片只存 `map_id` 引用不存快照（§4.9）——预览每次现取，图更新卡片跟着更新。
+Future<(String, List<String>)?> mmCardPreview(int mapId, [Database? db]) async {
+  final d = db ?? AppDatabase.instance.db;
+  final m = await d.query(DbSchema.tMindmaps,
+      columns: ['title'],
+      where: 'id = ? AND deleted_at IS NULL',
+      whereArgs: [mapId]);
+  if (m.isEmpty) return null;
+  final roots = await d.query(DbSchema.tMindmapNodes,
+      columns: ['title'],
+      where: 'map_id = ? AND parent_id IS NULL',
+      whereArgs: [mapId],
+      orderBy: 'sort ASC, id ASC',
+      limit: 5);
+  return (
+    m.first['title'] as String? ?? '',
+    [for (final r in roots) r['title'] as String? ?? ''],
+  );
+}
+
+/// 卡片点击 → 进画布（§4.9：点击卡片 push mm-canvas?id=；测试注入缝同款）。
+Future<void> Function(BuildContext, int mapId)? mmOpenCanvasOverride;
+
+Future<void> mmOpenCanvas(BuildContext context, int mapId) async {
+  final override = mmOpenCanvasOverride;
+  if (override != null) return override(context, mapId);
+  await context.push('/mindmap/canvas?id=$mapId');
+}

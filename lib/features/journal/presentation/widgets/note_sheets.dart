@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/logging/app_log.dart';
 import '../../../../core/providers.dart';
+import '../../../../shared/export/png_encode.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/note.dart';
 import '../journal_providers.dart';
@@ -798,10 +799,8 @@ Future<Uint8List> _noteCardPng(String title, String body) async {
   titlePainter.paint(canvas, Offset(pad, pad));
   bodyPainter
       .paint(canvas, Offset(pad, pad + titlePainter.height + 24));
-  final img = await recorder.endRecording().toImage(_cardW.ceil(), h.ceil());
-  final data = await img.toByteData(format: ui.ImageByteFormat.png);
-  img.dispose();
-  return data!.buffer.asUint8List();
+  // 编码尾段抽 shared（批2）：mindmap 导图 PNG 同用一份（R1 合规共用件）。
+  return encodeOffscreenPng(recorder, _cardW, h);
 }
 
 TextPainter _cardPainter(String text,

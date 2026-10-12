@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +10,12 @@ import '../../../shared/linkage/mindmap_mounts.dart';
 import '../../../core/database/app_database.dart';
 import '../data/mindmap_dao.dart';
 import '../domain/mindmap_layout.dart';
+import '../domain/mindmap_measure.dart';
 import '../domain/mindmap_models.dart';
+import '../domain/mindmap_undo.dart';
 import '../domain/mindmap_viewport.dart';
+import 'mindmap_export_actions.dart';
+import 'mindmap_painter.dart';
 import 'mindmap_sheets.dart';
 
 /// 画布主屏（原型 mm-canvas · push 路由 `/mindmap/canvas?id=`）。
@@ -21,6 +26,7 @@ import 'mindmap_sheets.dart';
 /// 手势帧内只更 Transform。**禁用 `InteractiveViewer`**（壳内页禁令·V1.65
 /// 底栏双指共存面）——手势在 [GestureDetector.onTapDown] 之下走
 /// `Listener` 原始指针**自行三分仲裁**（拖节点/拖空白平移/双指捏合，§4.1）。
+enum _MmGestureMode { idle, pending, dragNode, pan, pinch, done }
 class MindmapCanvasPage extends ConsumerStatefulWidget {
   const MindmapCanvasPage({
     super.key,
@@ -52,6 +58,9 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   List<MindmapNode> _nodes = const [];
   late final TreeLayoutEngine _engine = TreeLayoutEngine()..measure = _measure;
   MmLayoutResult? _layout;
+
+  /// 撤销/重做命令栈（批2 F4-1：增删改移折叠各一步·本图一份，切图即弃）。
+  final MmUndoStack _undo = MmUndoStack();
 
   /// 挂载节点的笔记标题实时映射（C4：显示层取笔记标题；返回画布/改名后刷新）。
   final Map<int, String> _noteTitles = {};
@@ -91,8 +100,8 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   int? _lastTapId;
   DateTime _lastTapAt = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// TextPainter 量宽缓存（渲染层七条之三：改文字才重算）。
-  final Map<String, double> _textWidthCache = {};
+  /// TextPainter 量宽缓存（渲染层七条之三：改文字才重算；批2 多行化＝缓存整 Size）。
+  final Map<String, Size> _textSizeCache = {};
   static const double _nodeH = 40;
   static const double _nodePad = 12;
 
@@ -219,22 +228,11 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
 
   Size _measure(MindmapNode n) {
     final title = _displayTitle(n);
-    final cached = _textWidthCache[title];
-    double w;
-    if (cached != null) {
-      w = cached;
-    } else {
-      final tp = TextPainter(
-        text: TextSpan(
-            text: title,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-      )..layout();
-      w = tp.width;
-      _textWidthCache[title] = w;
-    }
-    return Size(math.min(280.0, w + _nodePad * 2), _nodeH);
+    final cached = _textSizeCache[title];
+    if (cached != null) return cached;
+    final s = mmNodeMeasure(title, hPad: _nodePad, minH: _nodeH);
+    _textSizeCache[title] = s;
+    return s;
   }
 
   // ==================== 手势三分仲裁（§4.1） ====================
@@ -367,8 +365,13 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
       if (n.id == null) continue;
       final dx = _liveDx[n.id!], dy = _liveDy[n.id!];
       if (dx == null && dy == null) continue;
-      updates.add(n.copyWith(
-          dx: dx ?? n.dx, dy: dy ?? n.dy, updatedAt: _now()));
+      final u = n.copyWith(
+          dx: dx ?? n.dx, dy: dy ?? n.dy, updatedAt: _now());
+      // 「移」也是一步（F4-1）：拖拽前 n → 拖拽后 u 各为快照。
+      if (u.dx != n.dx || u.dy != n.dy) {
+        _undo.push(MmCommands.editNode(n, u, label: '移动节点'));
+      }
+      updates.add(u);
     }
     _liveDx.clear();
     _liveDy.clear();
@@ -450,6 +453,62 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     setState(() => _selectedId = hit.id);
   }
 
+  // ==================== 导出（批2 F4-5） ====================
+
+  Future<void> _exportMap() async {
+    await mmRunExport(
+      context,
+      mapTitle: _map?.title ?? '思维导图',
+      rows: _nodes,
+      noteTitleOf: (n) async {
+        if (n.noteId == null) return null;
+        final t = _noteTitles[n.noteId!];
+        return (t == null || t.isEmpty) ? null : t;
+      },
+      noteBodyOf: (n) => mmNoteContentOf(n.noteId!, _mmDb),
+      pngSnapshot: _pngSnapshot,
+    );
+  }
+
+  /// PNG 离屏快照：薄封装（主体在 mmCanvasPngSnapshot·导出即所见）。
+  Future<Uint8List?> _pngSnapshot() => mmCanvasPngSnapshot(
+        nodes: _nodes,
+        layout: _layout,
+        bounds: _contentBounds(),
+        displayTitleOf: _displayTitle,
+        dxOf: _dxOf,
+        dyOf: _dyOf,
+        cs: Theme.of(context).colorScheme,
+      );
+
+  // ==================== 撤销/重做（批2 F4-1） ====================
+
+  Future<void> _undoStep() async {
+    final label = await _undo.undo(_dao);
+    if (label == null || !mounted) return;
+    await _reloadNodes();
+    _toast('已撤销：$label');
+  }
+
+  Future<void> _redoStep() async {
+    final label = await _undo.redo(_dao);
+    if (label == null || !mounted) return;
+    await _reloadNodes();
+  }
+
+  /// undo/redo 落库后重拉整图（快照含新增/删除行，重拉最省心且正确）。
+  Future<void> _reloadNodes() async {
+    final nodes = await _dao.nodesOf(widget.mapId);
+    await _refreshMountedTitlesData(nodes);
+    if (!mounted) return;
+    setState(() {
+      _nodes = nodes;
+      _selectedId = null;
+    });
+    _textSizeCache.clear();
+    _relayout();
+  }
+
   // ==================== 节点操作（F1-4~F1-12） ====================
 
   static const int mmMaxNodes = 2000; // B9 单图节点硬上限
@@ -468,6 +527,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
       note: r.$2,
     );
     setState(() => _nodes = [..._nodes, n]);
+    _undo.push(MmCommands.addSubtree(n, [n]));
     _relayout();
     setState(() => _selectedId = n.id);
   }
@@ -487,6 +547,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
       note: r.$2,
     );
     setState(() => _nodes = [..._nodes, created]);
+    _undo.push(MmCommands.addSubtree(created, [created]));
     _relayout();
     setState(() => _selectedId = created.id);
   }
@@ -501,6 +562,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     final created = await _dao.addNode(
         mapId: widget.mapId, parentId: null, title: r.$1, note: r.$2);
     setState(() => _nodes = [..._nodes, created]);
+    _undo.push(MmCommands.addSubtree(created, [created]));
     _relayout();
     setState(() => _selectedId = created.id);
   }
@@ -515,8 +577,11 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     );
     if (r == null || n.id == null) return;
     final u = n.copyWith(title: r.$1, note: r.$2, updatedAt: _now());
+    if (u.title != n.title || u.note != n.note) {
+      _undo.push(MmCommands.editNode(n, u));
+    }
     await _dao.updateNode(u);
-    _textWidthCache.remove(n.title); // 改文字才重算（缓存失效即重算，不是删除缓存用途）
+    _textSizeCache.remove(n.title); // 改文字才重算（缓存失效即重算，不是删除缓存用途）
     setState(() {
       _nodes[_nodes.indexWhere((x) => x.id == n.id)] = u;
     });
@@ -526,6 +591,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   Future<void> _toggleFold(MindmapNode n) async {
     if (n.id == null) return;
     final u = n.copyWith(folded: !n.folded, updatedAt: _now());
+    _undo.push(MmCommands.editNode(n, u, label: u.folded ? '折叠子级' : '展开子级'));
     await _dao.updateNode(u); // 折叠态持久化（C10）
     setState(() {
       _nodes[_nodes.indexWhere((x) => x.id == n.id)] = u;
@@ -537,6 +603,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   Future<void> _resetOffset(MindmapNode n) async {
     if (n.id == null) return;
     final u = n.copyWith(dx: 0, dy: 0, updatedAt: _now());
+    _undo.push(MmCommands.editNode(n, u, label: '归位节点'));
     await _dao.updateNode(u);
     setState(() {
       _nodes[_nodes.indexWhere((x) => x.id == n.id)] = u;
@@ -553,7 +620,10 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     // 取消＝零副作用（F1-11）：确认前不写任何数据。
     final ok = await mmConfirmDeleteNode(context, ids.length, children);
     if (!ok || !mounted) return;
+    // 撤销快照在删除前取完整后代闭包（undo 整行重插带原 id）。
+    final rows = await _dao.nodesOfIds(ids);
     await _dao.deleteNodeCascade(n.id!);
+    _undo.push(MmCommands.deleteRows(rows, '删除「${_displayTitle(n)}」'));
     setState(() {
       _nodes = _nodes.where((x) => !ids.contains(x.id)).toList();
       if (_selectedId != null && ids.contains(_selectedId)) {
@@ -573,11 +643,15 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
     } else {
       u = n.copyWith(noteId: r, updatedAt: _now());
     }
+    if (u.noteId != n.noteId) {
+      _undo.push(MmCommands.editNode(n, u,
+          label: u.noteId == null ? '解绑笔记' : '挂载笔记'));
+    }
     await _dao.updateNode(u);
     if (u.noteId != null && !_noteTitles.containsKey(u.noteId)) {
       _noteTitles[u.noteId!] = await mmNoteTitleOf(u.noteId!, _mmDb) ?? '';
     }
-    _textWidthCache.remove(n.title);
+    _textSizeCache.remove(n.title);
     setState(() {
       _nodes[_nodes.indexWhere((x) => x.id == n.id)] = u;
     });
@@ -661,6 +735,24 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
         ),
         actions: [
           IconButton(
+            key: const ValueKey('mm-undo-btn'),
+            tooltip: '撤销',
+            onPressed: _undo.canUndo ? _undoStep : null,
+            icon: const Icon(Icons.undo_outlined, size: 21),
+          ),
+          IconButton(
+            key: const ValueKey('mm-redo-btn'),
+            tooltip: '重做',
+            onPressed: _undo.canRedo ? _redoStep : null,
+            icon: const Icon(Icons.redo_outlined, size: 21),
+          ),
+          IconButton(
+            key: const ValueKey('mm-export-btn'),
+            tooltip: '导出',
+            onPressed: _exportMap,
+            icon: const Icon(Icons.ios_share_outlined, size: 21),
+          ),
+          IconButton(
             key: const ValueKey('mm-add-root'),
             tooltip: '加根节点',
             onPressed: _addRoot,
@@ -717,7 +809,7 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
                         child: RepaintBoundary(
                           child: CustomPaint(
                             key: const ValueKey('mm-canvas-paint'),
-                            painter: _MmCanvasPainter(
+                            painter: MmCanvasPainter(
                               nodes: painterNodes,
                               layout: _layout,
                               scale: _scale,
@@ -933,147 +1025,3 @@ class _MindmapCanvasPageState extends ConsumerState<MindmapCanvasPage> {
   }
 }
 
-enum _MmGestureMode { idle, pending, dragNode, pan, pinch, done }
-
-/// 画布绘制器：网点底纹＋连线（批量 drawPath）＋节点（RRect＋TextPainter）。
-/// 只画 [nodes] 里已裁剪过的可见节点（cull 在 build 侧算好）。
-class _MmCanvasPainter extends CustomPainter {
-  _MmCanvasPainter({
-    required this.nodes,
-    required this.layout,
-    required this.scale,
-    required this.pan,
-    required this.selectedId,
-    required this.nodeTitles,
-    required this.mountedIds,
-    required this.dxs,
-    required this.dys,
-    required this.bg,
-    required this.grid,
-    required this.nodeBg,
-    required this.nodeBorder,
-    required this.nodeText,
-    required this.edge,
-    required this.accent,
-    required this.accentSoft,
-  });
-
-  final List<MindmapNode> nodes;
-  final MmLayoutResult? layout;
-  final double scale;
-  final Offset pan;
-  final int? selectedId;
-  final Map<int, String> nodeTitles;
-  final Set<int> mountedIds;
-  final Map<int, double> dxs;
-  final Map<int, double> dys;
-  final Color bg, grid, nodeBg, nodeBorder, nodeText, edge, accent, accentSoft;
-
-  Rect _nodeRect(MindmapNode n) {
-    final l = layout!;
-    final b = l.baseline[n.id!]!;
-    final s = l.sizes[n.id!] ?? const Size(120, 36);
-    final pos = (b + Offset(dxs[n.id!] ?? 0, dys[n.id!] ?? 0)) * scale + pan;
-    return Rect.fromLTWH(pos.dx, pos.dy, s.width * scale, s.height * scale);
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = bg);
-    // 网点底纹（§5.1：--mm-canvas 令牌对应物）。
-    const gap = 22.0;
-    final gp = Paint()..color = grid..strokeWidth = 1.4;
-    final startX = pan.dx % gap;
-    final startY = pan.dy % gap;
-    for (var x = startX; x < size.width; x += gap) {
-      for (var y = startY; y < size.height; y += gap) {
-        canvas.drawCircle(Offset(x, y), 1, gp);
-      }
-    }
-    final l = layout;
-    if (l == null || nodes.isEmpty) return;
-
-    // ── 连线：贝塞尔批量进同一 Path（渲染层七条之五）。
-    // 横向树画法（真机 6113 实锤：旧纵向阶梯公式套横向布局＝斜穿节点＋
-    // 子低于父时折点越界出悬空 V）：从父**侧边**中点水平切线出弧、进子
-    // 侧边中点，两端切线全水平——子在上/下/平任何方位都平滑不穿节点。
-    // 父子连线只在**两端都可见**时画（裁剪口径：视口外节点不进 draw 列表，
-    // 单端可见的边也一并省略——树布局下行相邻，端点成对裁剪足够）。
-    final byId = {for (final n in nodes) n.id!: n};
-    final path = Path();
-    for (final n in nodes) {
-      final p = n.parentId;
-      if (p == null || !byId.containsKey(p)) continue;
-      final a = _nodeRect(byId[p]!);
-      final b = _nodeRect(n);
-      final childLeft = (l.assignedSides[n.id!] ?? 'r') == 'l';
-      final ox = childLeft ? a.left : a.right;
-      final ix = childLeft ? b.right : b.left;
-      final midX = (ox + ix) / 2;
-      path.moveTo(ox, a.center.dy);
-      path.cubicTo(midX, a.center.dy, midX, b.center.dy, ix, b.center.dy);
-    }
-    canvas.drawPath(
-        path, Paint()..color = edge..style = PaintingStyle.stroke..strokeWidth = 1.2);
-
-    // ── 节点。
-    for (final n in nodes) {
-      final r = _nodeRect(n);
-      final sel = n.id == selectedId;
-      final paint = Paint()..color = nodeBg;
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(r.inflate(sel ? 2 : 0),
-              Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble())),
-          paint);
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(
-              r.inflate(sel ? 2 : 0),
-              Radius.circular((10 * scale.clamp(0.6, 1.4)).toDouble())),
-          Paint()
-            ..color = sel ? accent : nodeBorder
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = sel ? 1.6 : 0.8);
-      if (sel) {
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(
-                r.inflate(2), const Radius.circular(10)),
-            Paint()..color = accentSoft);
-      }
-      // 标题（TextPainter 缓存量宽在 build 侧已算好尺寸；此处重排文本本身
-      // 的成本由裁剪兜住——视口外节点不进本循环）。
-      final tp = TextPainter(
-        text: TextSpan(
-          text: nodeTitles[n.id] ?? n.title,
-          style: TextStyle(
-              fontSize: 13.5 * scale.clamp(0.5, 1.6),
-              fontWeight: FontWeight.w600,
-              color: nodeText),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: r.width - 12);
-      tp.paint(
-          canvas,
-          Offset(
-              r.left + 6 + (r.width - 12 - tp.width) / 2,
-              r.center.dy - tp.height / 2));
-      // 挂载角标（尼尔森 6：挂载节点有可见角标）。
-      if (mountedIds.contains(n.id)) {
-        canvas.drawCircle(
-            Offset(r.right - 4, r.top + 4), 3.4, Paint()..color = accent);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_MmCanvasPainter old) =>
-      old.scale != scale ||
-      old.pan != pan ||
-      old.selectedId != selectedId ||
-      !identical(old.layout, layout) ||
-      !identical(old.nodes, nodes) ||
-      // 拖拽偏移走旁路 map（build 侧每次新字面量）——漏比＝拖拽帧不重画。
-      !identical(old.dxs, dxs) ||
-      !identical(old.dys, dys);
-}

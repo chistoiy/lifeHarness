@@ -10,6 +10,7 @@ class Mindmap {
   const Mindmap({
     this.id,
     required this.title,
+    this.folderId,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -17,6 +18,9 @@ class Mindmap {
 
   final int? id;
   final String title;
+
+  /// 归入的文件夹（批2 F4-4；null＝未归入；删文件夹只置空引用不删图）。
+  final int? folderId;
   final int createdAt;
   final int updatedAt;
   final int? deletedAt;
@@ -26,6 +30,7 @@ class Mindmap {
   factory Mindmap.fromRow(Map<String, Object?> row) => Mindmap(
         id: row['id'] as int?,
         title: row['title'] as String? ?? '',
+        folderId: row['folder_id'] as int?,
         createdAt: row['created_at'] as int? ?? 0,
         updatedAt: row['updated_at'] as int? ?? 0,
         deletedAt: row['deleted_at'] as int?,
@@ -34,10 +39,53 @@ class Mindmap {
   Map<String, Object?> toRow() => {
         if (id != null) 'id': id,
         'title': title,
+        'folder_id': folderId,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'deleted_at': deletedAt,
       };
+
+  Mindmap copyWith({
+    int? id,
+    String? title,
+    int? folderId,
+    bool clearFolder = false,
+    int? updatedAt,
+  }) =>
+      Mindmap(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        folderId: clearFolder ? null : (folderId ?? this.folderId),
+        createdAt: createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deletedAt: deletedAt,
+      );
+}
+
+/// 一个文件夹（`mindmap_folders` 行，批2 F4-4）。单层用法 `parentId` 恒 null
+///（列留多层树口，将来扩多级零再迁移）。
+class MindmapFolder {
+  const MindmapFolder({
+    this.id,
+    required this.title,
+    this.parentId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int? id;
+  final String title;
+  final int? parentId;
+  final int createdAt;
+  final int updatedAt;
+
+  factory MindmapFolder.fromRow(Map<String, Object?> row) => MindmapFolder(
+        id: row['id'] as int?,
+        title: row['title'] as String? ?? '',
+        parentId: row['parent_id'] as int?,
+        createdAt: row['created_at'] as int? ?? 0,
+        updatedAt: row['updated_at'] as int? ?? 0,
+      );
 }
 
 /// 一个节点（`mindmap_nodes` 行）。树关系只靠 `parentId`（null＝根）。

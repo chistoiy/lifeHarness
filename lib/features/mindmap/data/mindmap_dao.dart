@@ -226,9 +226,82 @@ class MindmapDao {
     return childCount;
   }
 
+  // ==================== 行级原语（批2 撤销栈/剪贴板专用） ====================
+
+  /// 按 id 集拉节点行（撤销/剪贴板快照取数用；不 touch 图行）。
+  Future<List<MindmapNode>> nodesOfIds(Set<int> ids) async {
+    if (ids.isEmpty) return const [];
+    final rows = await db.query(_nodes,
+        where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+        whereArgs: ids.toList());
+    return rows.map(MindmapNode.fromRow).toList();
+  }
+
+  /// 整行显式 id 插入（撤销「删」的恢复侧与跨图粘贴用；**不**改 id，
+  /// 粘贴生成新 id 走 [addNode]）。不 touch 图行（命令栈统一 touch）。
+  Future<void> insertNodeFull(MindmapNode n) => db.insert(_nodes, {
+        if (n.id != null) 'id': n.id,
+        'map_id': n.mapId,
+        'parent_id': n.parentId,
+        'note_id': n.noteId,
+        'title': n.title,
+        'note': n.note,
+        'side': n.side,
+        'sort': n.sort,
+        'dx': n.dx,
+        'dy': n.dy,
+        'folded': n.folded ? 1 : 0,
+        'created_at': n.createdAt,
+        'updated_at': n.updatedAt,
+      });
+
+  /// 按 id 集纯行删（撤销「加」的逆操作；入参必须是完整后代闭包，
+  /// 调用侧负责先取 [descendantIdsOf]）。不 touch 图行。
+  Future<void> deleteNodeRows(Set<int> ids) async {
+    if (ids.isEmpty) return;
+    await db.delete(_nodes,
+        where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+        whereArgs: ids.toList());
+  }
+
   int _now() => DateTime.now().millisecondsSinceEpoch;
 
   Future<void> _touchMap(int id, Map<String, Object?>? extra) =>
       db.update(_maps, {...?extra, 'updated_at': _now()},
           where: 'id = ?', whereArgs: [id]);
+
+  // ==================== 文件夹（批2 F4-4） ====================
+
+  static const String _folders = DbSchema.tMindmapFolders;
+
+  /// 文件夹列表（单层用法；按创建序）。
+  Future<List<MindmapFolder>> listFolders() async {
+    final rows = await db.query(_folders, orderBy: 'id ASC');
+    return rows.map(MindmapFolder.fromRow).toList();
+  }
+
+  Future<int> createFolder(String title) {
+    final t = _now();
+    return db.insert(_folders, {
+      'title': title,
+      'parent_id': null, // 单层用法；多层树口保留
+      'created_at': t,
+      'updated_at': t,
+    });
+  }
+
+  Future<void> renameFolder(int id, String title) => db.update(
+      _folders, {'title': title, 'updated_at': _now()},
+      where: 'id = ?', whereArgs: [id]);
+
+  /// 归入/移出（folderId null＝移出）。
+  Future<void> setMapFolder(int mapId, int? folderId) =>
+      _touchMap(mapId, {'folder_id': folderId});
+
+  /// 删文件夹：**只置空引用，不删图**（面板 §4c 守护口径；文件夹不进回收站）。
+  Future<void> deleteFolder(int id) async {
+    await db.update(_maps, {'folder_id': null, 'updated_at': _now()},
+        where: 'folder_id = ?', whereArgs: [id]);
+    await db.delete(_folders, where: 'id = ?', whereArgs: [id]);
+  }
 }

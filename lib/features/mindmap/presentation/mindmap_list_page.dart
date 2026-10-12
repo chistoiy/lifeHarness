@@ -28,7 +28,11 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
   late final MindmapDao _dao =
       widget.dao ?? MindmapDao(AppDatabase.instance.db);
   List<(Mindmap, int)> _maps = const [];
+  List<MindmapFolder> _folders = const [];
   bool _loading = true;
+
+  /// 文件夹筛选（批2 F4-4）：null＝全部；-1＝未归类；其余＝文件夹 id。
+  int? _filter;
 
   @override
   void initState() {
@@ -38,12 +42,57 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
 
   Future<void> _reload() async {
     final v = await _dao.listLive();
+    final f = await _dao.listFolders();
     if (!mounted) return;
     setState(() {
       _maps = v;
+      _folders = f;
       _loading = false;
     });
   }
+
+  /// 归入/移出文件夹（行菜单二级选择）。
+  Future<void> _assignFolder(Mindmap m) async {
+    final r = await showModalBottomSheet<int?>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bc) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              key: const ValueKey('mm-assign-none'),
+              dense: true,
+              leading: const Icon(Icons.folder_off_outlined, size: 20),
+              title: const Text('移出文件夹', style: TextStyle(fontSize: 14)),
+              onTap: () => Navigator.pop(bc, -1),
+            ),
+            for (final f in _folders)
+              ListTile(
+                key: ValueKey('mm-assign-${f.id}'),
+                dense: true,
+                leading: const Icon(Icons.folder_outlined, size: 20),
+                title: Text(f.title, style: const TextStyle(fontSize: 14)),
+                trailing: m.folderId == f.id
+                    ? Icon(Icons.check, size: 18, color: cs0(context).primary)
+                    : null,
+                onTap: () => Navigator.pop(bc, f.id),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (r == null || !mounted || m.id == null) return;
+    await _dao.setMapFolder(m.id!, r == -1 ? null : r);
+    ref.read(mindmapTickProvider.notifier).state++;
+    await _reload();
+  }
+
+  ColorScheme cs0(BuildContext c) => Theme.of(c).colorScheme;
 
   Future<void> _newMapFlow() async {
     final r = await _showNewSheet();
@@ -259,11 +308,14 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
   Future<void> _rowMenu(Mindmap m) async {
     final key = await showMmMenu(context, [
       (key: 'rename', icon: Icons.edit_outlined, label: '重命名', enabled: true),
+      (key: 'folder', icon: Icons.folder_outlined, label: '归入文件夹', enabled: true),
       (key: 'copy', icon: Icons.copy_outlined, label: '复制', enabled: true),
       (key: 'del', icon: Icons.delete_outlined, label: '删除导图', enabled: true),
     ]);
     if (key == null || !mounted || m.id == null) return;
     switch (key) {
+      case 'folder':
+        await _assignFolder(m);
       case 'rename':
         final r = await showMmNodeSheet(
           context,
@@ -307,8 +359,30 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // 文件夹筛选（null=全部 / -1=未归类 / 文件夹 id）。
+    final shown = _filter == null
+        ? _maps
+        : _maps
+            .where((e) =>
+                _filter == -1
+                    ? e.$1.folderId == null
+                    : e.$1.folderId == _filter)
+            .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('思维导图')),
+      appBar: AppBar(
+        title: const Text('思维导图'),
+        actions: [
+          IconButton(
+            key: const ValueKey('mm-folders-btn'),
+            tooltip: '文件夹',
+            onPressed: () async {
+              await showMmFolderSheet(context, _dao);
+              await _reload();
+            },
+            icon: const Icon(Icons.folder_outlined, size: 21),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         key: const ValueKey('mm-new-fab'),
         onPressed: _newMapFlow,
@@ -331,31 +405,84 @@ class _MindmapListPageState extends ConsumerState<MindmapListPage> {
                     ],
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 88),
-                  itemCount: _maps.length,
-                  itemBuilder: (context, i) {
-                    final (m, cnt) = _maps[i];
-                    return ListTile(
-                      key: ValueKey('mm-row-${m.id}'),
-                      leading: Icon(Icons.account_tree_outlined,
-                          size: 20, color: cs.onSurfaceVariant),
-                      title: Text(m.title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w600)),
-                      subtitle: Text('$cnt 个节点 · ${_stamp(m.updatedAt)}',
-                          style: TextStyle(
-                              fontSize: 11.5, color: cs.onSurfaceVariant)),
-                      trailing: IconButton(
-                        key: ValueKey('mm-row-more-${m.id}'),
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        onPressed: () => _rowMenu(m),
+              : Column(
+                  children: [
+                    // 文件夹筛选条（有文件夹或已归入才显；空态不占位）。
+                    if (_folders.isNotEmpty ||
+                        _maps.any((e) => e.$1.folderId != null))
+                      SizedBox(
+                        key: const ValueKey('mm-folder-filter'),
+                        height: 44,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          children: [
+                            _filterChip(null, '全部'),
+                            _filterChip(-1, '未归类'),
+                            for (final f in _folders)
+                              _filterChip(f.id!, f.title),
+                          ],
+                        ),
                       ),
-                      onTap: () => context.push('/mindmap/canvas?id=${m.id}'),
-                    );
-                  },
+                    Expanded(
+                      child: shown.isEmpty
+                          ? Center(
+                              child: Text('这个筛选下没有导图',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: cs.onSurfaceVariant)))
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(bottom: 88),
+                              itemCount: shown.length,
+                              itemBuilder: (context, i) {
+                                final (m, cnt) = shown[i];
+                                return ListTile(
+                                  key: ValueKey('mm-row-${m.id}'),
+                                  leading: Icon(Icons.account_tree_outlined,
+                                      size: 20, color: cs.onSurfaceVariant),
+                                  title: Text(m.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600)),
+                                  subtitle: Text(
+                                      '$cnt 个节点 · ${_stamp(m.updatedAt)}',
+                                      style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: cs.onSurfaceVariant)),
+                                  trailing: IconButton(
+                                    key: ValueKey('mm-row-more-${m.id}'),
+                                    icon: const Icon(Icons.more_vert,
+                                        size: 20),
+                                    onPressed: () => _rowMenu(m),
+                                  ),
+                                  onTap: () => context.push(
+                                      '/mindmap/canvas?id=${m.id}'),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
+    );
+  }
+
+  Widget _filterChip(int? value, String label) {
+    final cs = Theme.of(context).colorScheme;
+    final on = _filter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        key: ValueKey('mm-filter-${value ?? 'all'}'),
+        label: Text(label, style: const TextStyle(fontSize: 12)),
+        selected: on,
+        visualDensity: VisualDensity.compact,
+        onSelected: (_) => setState(() => _filter = value),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+        backgroundColor: cs.surfaceContainerHighest.withValues(alpha: .5),
+      ),
     );
   }
 

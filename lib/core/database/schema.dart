@@ -56,9 +56,13 @@ class DbSchema {
   // 45：思维导图批1（2026-10-12）——migrations[44]（44→45）建 mindmaps/mindmap_nodes
   // 两表＋复合索引（新模块只建表零搬数据；迁移段与基础 DDL 同源引一份语句表，
   // 详见 schema/mindmap.dart 段注）。
+  // 46：思维导图批2 F4-4（2026-10-12）——migrations[45]（45→46）建 mindmap_folders
+  // ＋ mindmaps 加 folder_id 可空列（图归文件夹·删文件夹只置空引用不删图）；
+  // 纯建表加列零搬数据；批2 起迁移段与基础 DDL 拆两份（v45 口径不带 folder_id，
+  // 防 44→46 直升撞列，详见 schema/mindmap.dart 段注）。
   // ⚠ 版本常量与 migrations 最高键必须同批同步——6109 预发布漏改本行（仍 43），
   // 真机升级 onUpgrade 不触发 ⇒ 表无 deleted_at ⇒ 日记读写全断（保存失败/列表空）。
-  static const int version = 45;
+  static const int version = 46;
  
 
   
@@ -422,6 +426,7 @@ class DbSchema {
   static const String tAiCalls = a.tAiCalls;  // G5: ai.dart
   static const String tMindmaps = mm.tMindmaps;  // G5: mindmap.dart
   static const String tMindmapNodes = mm.tMindmapNodes;  // G5: mindmap.dart
+  static const String tMindmapFolders = mm.tMindmapFolders;  // G5: mindmap.dart（批2 F4-4）
   static const List<String> mindmapTables = mm.mindmapTables;  // G5: mindmap.dart
   static const List<String> careTables = e.careTables;  // G5: care.dart
   // 健康十四表整份清单（批6b 备份排除用；表侧唯一登记面，别在各模块手抄表名）。

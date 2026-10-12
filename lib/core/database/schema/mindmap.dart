@@ -7,20 +7,71 @@
 // · 拖拽只存相对自动布局基线的偏移 `dx/dy`，不存绝对坐标——换布局类型时
 //   基线重算、偏移仍可叠加，「归位到自动布局」＝清零两列。
 //
-// v44→v45 迁移（mig[44]）与基础 DDL 同源：本模块是纯新建表（零搬数据），
-// 两处引用同一份 [mindmapSchemaStatements]（`IF NOT EXISTS` 保证重放不撞），
-// 与 read.dart/media.dart 的「冻结段拆两份」不同——那两处是给既有表加列才有撞列问题。
+// v44→v45 迁移（mig[44]）与基础 DDL **不同源**（批2 起拆两份，read/media 惯例）：
+// v45 口径的建表语句**不带** folder_id——若同源引用 v46 全量口径，老库 44→46
+// 直升时先建带列表再跑 mig[46] 的 ALTER ⇒ duplicate column 崩。
+// v45→v46（批2 F4-4 图归文件夹）：建 `mindmap_folders` 同级表 ＋
+// `mindmaps.folder_id` 可空列（NULL＝未归入；删文件夹只置空引用不删图）。
+// `parent_id` 留多层树口（现单层用法恒 NULL，将来扩多级零再迁移）。
 
 const String tMindmaps = 'mindmaps';
 const String tMindmapNodes = 'mindmap_nodes';
+const String tMindmapFolders = 'mindmap_folders';
 
 /// 本模块全部表名（备份登记、守护清单都吃这一份）。
-const List<String> mindmapTables = [tMindmaps, tMindmapNodes];
+const List<String> mindmapTables = [tMindmaps, tMindmapNodes, tMindmapFolders];
 
 /// 图行软删（回收站第九类）：`deleted_at` 非空＝在回收站。
 /// 节点行**不软删**——恢复＝只清图行标记，节点天然原样回来（先例＝journal→分节：
 /// journal purge 才连带清分节行，restore 只清 journal.deleted_at）。
+///
+/// 基础 DDL＝**v46 全量口径**（onCreate 走这份）：tMindmaps 自带 folder_id。
 final List<String> mindmapSchemaStatements = [
+  '''
+  CREATE TABLE IF NOT EXISTS $tMindmaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    folder_id INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER
+  )
+  ''',
+  '''
+  CREATE TABLE IF NOT EXISTS $tMindmapNodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    map_id INTEGER NOT NULL,
+    parent_id INTEGER,
+    note_id INTEGER,
+    title TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    side TEXT,
+    sort INTEGER NOT NULL DEFAULT 0,
+    dx REAL NOT NULL DEFAULT 0,
+    dy REAL NOT NULL DEFAULT 0,
+    folded INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )
+  ''',
+  '''
+  CREATE TABLE IF NOT EXISTS $tMindmapFolders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    parent_id INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )
+  ''',
+  // 复合索引（数据层三条之一）：拉整图按 map_id 走一条索引，父查子走前缀即中。
+  'CREATE INDEX IF NOT EXISTS idx_mmnode_map_parent ON $tMindmapNodes(map_id, parent_id)',
+  'CREATE INDEX IF NOT EXISTS idx_mmnode_map ON $tMindmapNodes(map_id)',
+  'CREATE INDEX IF NOT EXISTS idx_mmaps_deleted ON $tMindmaps(deleted_at)',
+  'CREATE INDEX IF NOT EXISTS idx_mmaps_folder ON $tMindmaps(folder_id)',
+];
+
+/// v44→v45 升级口径（mig[44] 专用·**不带** folder_id，理由见文件头段注）。
+final List<String> mindmapMig45Statements = [
   '''
   CREATE TABLE IF NOT EXISTS $tMindmaps (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,14 +98,29 @@ final List<String> mindmapSchemaStatements = [
     updated_at INTEGER NOT NULL
   )
   ''',
-  // 复合索引（数据层三条之一）：拉整图按 map_id 走一条索引，父查子走前缀即中。
   'CREATE INDEX IF NOT EXISTS idx_mmnode_map_parent ON $tMindmapNodes(map_id, parent_id)',
   'CREATE INDEX IF NOT EXISTS idx_mmnode_map ON $tMindmapNodes(map_id)',
   'CREATE INDEX IF NOT EXISTS idx_mmaps_deleted ON $tMindmaps(deleted_at)',
 ];
 
 /// 治理G5：本域承接的版本迁移条目（聚合于 DbSchema.migrations·键互斥）。
-/// 44→45（思维导图批1）：新模块只建表不搬数据。
+/// 键语义＝仓内循环 `for v=from; v<to; migrations[v]` ⇒ 键 v＝「v→v+1 升级语句」。
+/// 44（思维导图批1）：新模块只建表不搬数据（v45 口径）。
+/// 45（思维导图批2 F4-4）：建 mindmap_folders ＋ mindmaps 加 folder_id
+/// （纯建表加列零搬数据；IF NOT EXISTS 保证重放不撞，ALTER 只在本键出现一次）。
 final Map<int, List<String>> mig = {
-  44: [...mindmapSchemaStatements],
+  44: [...mindmapMig45Statements],
+  45: [
+    '''
+    CREATE TABLE IF NOT EXISTS $tMindmapFolders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      parent_id INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+    ''',
+    'ALTER TABLE $tMindmaps ADD COLUMN folder_id INTEGER',
+    'CREATE INDEX IF NOT EXISTS idx_mmaps_folder ON $tMindmaps(folder_id)',
+  ],
 };
