@@ -5,11 +5,13 @@
 闸2 注册表↔代码：status=current 且 dev=delivered 的模块必须有 lib/features/<id>；dropped 不得残留。
 闸3 勿复活：dropped 模块的屏/标识出现在现行 lib/ 或现行原型即红（media 冻结文件豁免）。
 闸4 别名非空：注册表每模块 aliases 非空；每屏登记 home 文件必须真实含该屏。
+闸5 语法闸：现行原型全部内联 <script> 过 node vm.Script（tools/vm_script_check.js）——
+   2026-10-12 emoji 批裸 SVG 事故补死（块级 hash 自证不查 JS 语法）。
 模式：--report 只报不拦（默认读 _modules.json.gateMode）；--strict 红灯 exit 1。
 变异自证：--dir <原型目录> --modules <注册表> 指到探针副本目录跑 strict，塞假屏必须红。
 用法：python tools/protogate.py [--strict|--report] [--dir prototype] [--modules prototype/_modules.json]
 """
-import json, os, re, sys
+import json, os, re, subprocess, sys
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 except Exception:
@@ -89,8 +91,20 @@ for m in reg['modules']:
     if not m.get('aliases'):
         red.append(f"闸4 别名空: 模块 {m['id']}")
 
+# 闸5 语法闸（2026-10-12 事故补死）：每份现行原型的全部内联 <script> 过 node vm.Script。
+# emoji 批实锤＝宫格 SVG 被写成裸标签（token 级语法错），块级 hash 自证（registry/doclint）
+# 不查 JS 语法＝假绿漏过；本闸挂进 protogate 常驻，doclint 每跑必带。
+vmck = subprocess.run(['node', os.path.join(ROOT, 'tools', 'vm_script_check.js'), mdir] + active_files,
+                      capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
+for line in (vmck.stdout or '').splitlines():
+    if line.startswith('RED:'):
+        red.append(line[4:])
+    elif line.strip():
+        print(line)
+if vmck.returncode != 0:
+    red.append(f"闸5 工装异常: vm_script_check exit {vmck.returncode} {(vmck.stderr or '').strip()[:120]}")
+
 # 锚点存在性（§3-4）：docs 里 prototype/x.html#id 深链必须能落地（文件含该 id，或重定向表覆盖，或基 id＋_子段）
-import subprocess
 probe = mdir != 'prototype'
 redoc = [] if probe else subprocess.run(['git', '-c', 'core.quotepath=off', 'ls-files', 'docs'], capture_output=True, text=True, encoding='utf-8').stdout.splitlines()
 redirect_from = {r['from'] for r in reg.get('redirects', [])}

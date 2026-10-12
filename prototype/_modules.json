@@ -8329,6 +8329,10 @@
   {
    "from": "index.html#m-shelf",
    "to": "index-media.html#m-shelf"
+  },
+  {
+   "from": "index.html#mm-list",
+   "to": "index-mindmap.html#mm-list"
   }
  ],
  "frozen": [
