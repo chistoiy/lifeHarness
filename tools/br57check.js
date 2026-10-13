@@ -77,8 +77,8 @@ async function go(q) {
     return{hasGran:/长按选择粒度/.test(t),hasOps:/选区工具条工具/.test(t),n8:/8 项/.test(t),mvBtns:on,onTxt:b4?b4.className:'?'};`);
   (r.hasGran && r.hasOps && r.n8 && r.mvBtns === 16 && /chip-on/.test(r.onTxt)) ? ok('④⑤ 设置两行 · 8 项 · ↑↓钮 · 选字选中', JSON.stringify(r)) : bad('⑤设置行', JSON.stringify(r));
   await shot('br57-set.png');
-  r = await ev(`bpRm(5);var t=document.getElementById('rsGroups').innerText;return{t:/7 项/.test(t),off:/＋ 听当前/.test(t)};`);
-  (r.t && r.off) ? ok('⑤ 移除后 7 项 · 未启用区出现「＋ 听当前」') : bad('⑤ 移除动作', JSON.stringify(r));
+  r = await ev(`bpRm(5);var t=document.getElementById('rsGroups').innerText;return{t:/7 项/.test(t),off:/＋ X-Ray/.test(t)};`);
+  (r.t && r.off) ? ok('⑤ 移除后 7 项 · 未启用区出现「＋ X-Ray」') : bad('⑤ 移除动作', JSON.stringify(r));
 
   /* ② 二选一 → ③ 审阅默认折叠 → 发送 → 结果 */
   await go('br57=choice');

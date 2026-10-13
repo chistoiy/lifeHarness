@@ -30,10 +30,13 @@ for (const m of s.matchAll(/\bon(?:click|input|change|submit|keydown)=\\?["'`]([
 }
 console.log('未定义处理器:', called.size ? [...called].map(x => x[0] + '(' + x[1] + ')').join(' ') : 'NONE');
 
-// 3) getElementById 目标是否存在（字面量）
+// 3) getElementById 目标是否存在（字面量静态 id / 单引号 id / 运行时动态创建 id）
 const miss = new Set();
 for (const m of s.matchAll(/getElementById\(['"]([\w-]+)['"]\)/g)) {
-  if (!new RegExp('id="' + m[1] + '"').test(s) && !decl.has(m[1])) miss.add(m[1]);
+  const name = m[1];
+  const idRe = new RegExp('id=["\']' + name + '["\']');                                   // 静态标记（单双引号）
+  const dynRe = new RegExp("(?:setAttribute\\(\\s*['\"]id['\"]\\s*,\\s*['\"]|\\.id\\s*=\\s*['\"])" + name + "['\"]"); // el.id='x' / setAttribute('id','x')
+  if (!idRe.test(s) && !dynRe.test(s) && !decl.has(name)) miss.add(name);
 }
 console.log('缺失 id 目标:', miss.size ? [...miss].join(' ') : 'NONE');
 

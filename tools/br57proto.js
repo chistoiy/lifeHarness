@@ -35,7 +35,7 @@ function repSlice(startMark, endMark, sub, label) {
 
 /* ================= ④⑤ 设置：默认值 · 行 · 分支 · 管理函数 ================= */
 rep(`brMinSecs:30};`,
-  `brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','听当前','AI 解读','分享']};`,
+  `brMinSecs:30,brSelGran:'选字',brSelOps:['复制','划线','写想法','书摘','查询','X-Ray','AI 解读','分享']};`,
   1, 'A1 BS_SET 默认值');
 
 rep(`不记时长也不记会话']]]];`,
@@ -68,7 +68,6 @@ repSlice(`function brSelActsRender(){const acts=`, `.join('')}`, [
   ` '写想法':['<path d="M4 20l1-4L16 5l3 3L8 19z"/>','brToThink()'],`,
   ` '书摘':['<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h7M8 13h7"/>','brToQuote()'],`,
   ` '查询':['<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>','brDictOpen()'],`,
-  ` '听当前':['<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M17 8a5 5 0 0 1 0 8"/>','brTtsToggle()'],`,
   ` 'AI 解读':['<path d="M12 3v3m0 12v3M3 12h3m12 0h3M6 6l2 2m8 8 2 2m0-12-2 2M8 16l-2 2"/><circle cx="12" cy="12" r="3.2"/>','brAiOpen()'],`,
   ` '分享':['<circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.3 10.8 7.4-3.6M8.3 13.2l7.4 3.6"/>','brShare()']};`,
   `const BR_SEL_ALL=['复制','划线','写想法','书摘','查询','听当前','AI 解读','分享'];`,
