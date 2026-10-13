@@ -913,14 +913,14 @@ tailwind.config = {
         <div class="mt-2 space-y-2 text-xs">
           <div class="flex items-center justify-between"><span>自动备份（每 3 天夜间 · 仅 Wi-Fi）</span><span class="toggle on" onclick="tgl(this)"></span></div>
           <div class="flex items-center justify-between"><span class="text-slate-400">快照保留份数</span><select class="sel"><option>10 份</option><option>5 份</option><option>20 份</option></select></div>
-          <div class="flex gap-2"><button class="mini-btn flex-1 !py-2" onclick="toast('已导出 lifeharness_backup_0919.lhbak（DB快照+附件包·模拟）')">⬇ 导出一键备份</button><button class="mini-btn flex-1 !py-2" onclick="toast('选择 .lhbak 文件恢复（校验后覆盖前自动存当前库·模拟）')">⬆ 从文件恢复</button></div>
+          <div class="flex gap-2"><button class="mini-btn flex-1 !py-2" onclick="openSheet('sheetExport')">⬇ 导出</button><button class="mini-btn flex-1 !py-2" onclick="toast('选择 .lhbak 文件恢复（校验后覆盖前自动存当前库·模拟）')">⬆ 从文件恢复</button></div>
         </div>
       </div>
       <div class="card mt-3">
         <div class="row-title">加密设置</div>
         <div class="mt-2 space-y-2 text-xs">
-          <div class="flex items-center justify-between"><span>备份口令加密（AES-GCM · 云商不可见）</span><span class="toggle on" onclick="tgl(this)"></span></div>
-          <button class="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold" onclick="toast('修改备份口令：旧口令解密→重新加密存量快照（模拟）')">修改备份口令</button>
+          <!-- 备份格式四件套批1（2026-10-13 拍板）：纯明文——包改名 .zip 即可读，凭据不入包；旧口令加密包仍可恢复（structVersion 分支） -->
+          <div class="flex items-center justify-between opacity-55"><span>备份口令加密（AES-GCM · 云商不可见）</span><span class="text-[10px] text-slate-400">产品决策：新包纯明文 · 凭据不入包</span></div>
           <div class="flex items-center justify-between opacity-55"><span>应用锁（PIN / 生物识别）</span><span class="text-[10px] text-slate-400">产品决策：不提供 · 纯本地无找回通道，防数据永久丢失</span></div>
           <div class="flex items-center justify-between text-slate-400"><span>母婴等敏感数据排除同步（模块级）</span><span class="toggle" onclick="tgl(this)"></span></div>
         </div>
@@ -957,6 +957,37 @@ tailwind.config = {
           <div class="-mx-5 mt-2 px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
             <div class="flex-1 text-[12px] font-extrabold" id="sdSum"></div>
             <button class="px-4 py-2.5 rounded-xl bg-brand-500 text-white text-xs font-extrabold" onclick="sdRun()">同步已勾选</button>
+          </div>
+        </div>
+      </div>
+      <!-- 备份格式四件套批1 · S-EXP 导出范围面板（页内弹层·家在本屏）：模块chips×内容开关×格式两档；
+           拍板（2026-10-13）＝方案A可读的包·纯明文·首批只做模块维度·子集包提示口径；瞬时 UI 态不持久化 -->
+      <div id="sheetExport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetExport')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl px-5 pt-1 pb-0 flex flex-col max-h-[88vh]">
+          <div class="grabber"></div>
+          <div class="flex items-center justify-between mt-1">
+            <div class="text-base font-extrabold">导出数据</div>
+            <button class="text-[12px] text-slate-400 font-bold" onclick="closeSheet('sheetExport')">关闭</button>
+          </div>
+          <div class="mt-1 overflow-y-auto no-scrollbar flex-1">
+            <div class="text-[11px] font-bold text-slate-400 mt-2">① 范围</div>
+            <div class="flex flex-wrap gap-1.5 mt-1.5" id="exChips"></div>
+            <div class="text-right text-[10px] text-slate-400 mt-1" id="exSelCnt"></div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">② 内容</div>
+            <div class="mt-1.5 space-y-2 text-xs">
+              <div class="flex items-center justify-between"><span>含图片附件 <span class="text-[10px] text-slate-400" id="exAssetMb"></span></span><span class="toggle on" id="exAssetTgl" onclick="exTglAsset(this)"></span></div>
+              <div class="flex items-center justify-between" id="exMdRow"><span>附可读 Markdown <span class="text-[10px] text-slate-400">笔记 / 书摘 / 导图投影</span></span><span class="toggle" id="exMdTgl" onclick="exTglMd(this)"></span></div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">③ 格式</div>
+            <div class="grid grid-cols-2 gap-2 mt-1.5">
+              <button id="exFmtLhbak" onclick="exSetFmt('lhbak')">.lhbak 可恢复包</button>
+              <button id="exFmtDir" onclick="exSetFmt('dir')">可读目录 md+csv+json</button>
+            </div>
+            <div class="text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4 hidden" id="exScopeWarn">子集包暂不能直接恢复，仅作数据出口</div>
+          </div>
+          <div class="-mx-5 mt-2 px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+            <div class="flex-1 text-[12px] font-extrabold" id="exSum"></div>
+            <button class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-xs font-extrabold disabled:opacity-40" id="exGo" onclick="exGo()">导出</button>
           </div>
         </div>
       </div>
@@ -2383,7 +2414,7 @@ function fldErr(errId,msg,fldId){const e=$('#'+errId);if(e){e.textContent=msg||'
 let undoStack=[];
 function snap(msg){undoStack.push({t:JSON.stringify(blocks),msg:msg});if(undoStack.length>20)undoStack.shift()}
 function undoAct(){const u=undoStack.pop();if(!u){toast('没有可撤销的操作');return}blocks=JSON.parse(u.t);tpEdit=null;closeSheet('sheetTimePick');renderCal();toast('↩ 已撤销：'+u.msg)}
-function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); }
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;} s.classList.add('sheet-open'); s.classList.remove('hidden'); if(id==='sheetSearch'){searchScope=scopeForPage();renderSearchScope();setTimeout(()=>$('#searchInput').focus(),80);} if(id==='sheetTrashKeep')renderTrashKeep(); if(id==='sheetSyncDiff')sdRender(); if(id==='sheetExport')exRender(); }
 /* V1.29轮6：搜索默认范围=出发页面所属模块·可点 chips 改范围 */
 const SEARCH_SCOPES=['全部','日程','待办','日记','笔记','阅读','影音游','收集箱','记账'];
 let searchScope='全部';
@@ -2858,6 +2889,46 @@ function bkDelAsk(){const L=bkPend.map(i=>BK_FILES[i]);if(!L.length)return;
 function bkDelGo(){const n=bkPend.length,mb=bkMB(bkSumB(bkPend.map(i=>BK_FILES[i])));
  BK_FILES=BK_FILES.filter((_,i)=>!bkPend.includes(i));bkPend=[];bkMode=false;bkSel.clear();
  closeSheet('sheetBkDel');bkRender();toast('已彻底删除 '+n+' 个备份文件 · '+mb+' MB 已释放')}
+
+/* ===== 备份格式四件套批1 · S-EXP 导出范围面板（拍板 2026-10-13：方案A可读的包·纯明文·首批只做模块维度） =====
+   exp 为瞬时 UI 态不持久化（工单 §9.4）；modules=[] 即「全部数据」快捷；体积为原型模拟值。 */
+const EX_MODULES=['阅读','日记','健康','记账','呵护','习惯','目标','物品','影音游','X-Ray','思维导图','AI 记录'];
+const EX_MB={'阅读':18.2,'日记':6.4,'健康':3.1,'记账':2.2,'呵护':1.4,'习惯':0.6,'目标':0.4,'物品':0.9,'影音游':1.8,'X-Ray':12.5,'思维导图':0.7,'AI 记录':0.3};
+const EX_NOTEY=['阅读','日记','思维导图'];
+let exp={modules:[],assets:true,md:false,fmt:'lhbak'};
+function exAll(){return exp.modules.length===0;}
+function exMb(){return exAll()?EX_MODULES.reduce((a,m)=>a+EX_MB[m],0):exp.modules.reduce((a,m)=>a+(EX_MB[m]||0),0);}
+function exRender(){
+  const box=$('#exChips');if(!box)return;
+  box.innerHTML='<button class="chip '+(exAll()?'chip-on':'')+'" onclick="exClick(\'__all\')">全部数据</button>'+
+    EX_MODULES.map(m=>'<button class="chip '+(!exAll()&&exp.modules.includes(m)?'chip-on':'')+'" onclick="exClick(\''+m+'\')">'+m+'</button>').join('');
+  $('#exSelCnt').textContent=exAll()?'全部模块':'已选 '+exp.modules.length+' 个模块';
+  const noteOk=exAll()||EX_NOTEY.some(m=>exp.modules.includes(m));
+  $('#exMdRow').classList.toggle('opacity-40',!noteOk);
+  if(!noteOk)exp.md=false;
+  $('#exMdTgl').classList.toggle('on',exp.md);
+  const mb=exMb(),attMb=exp.assets?mb*0.8:0;
+  $('#exAssetMb').textContent='（附件约 '+attMb.toFixed(1)+' MB）';
+  $('#exScopeWarn').classList.toggle('hidden',exAll()||exp.fmt!=='lhbak');
+  const on='py-2 rounded-xl text-[11px] font-bold bg-brand-500 text-white',
+        off='py-2 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300';
+  $('#exFmtLhbak').className=exp.fmt==='lhbak'?on:off;
+  $('#exFmtDir').className=exp.fmt==='dir'?on:off;
+  const hasData=!exAll()&&exp.modules.length>0||exAll();
+  $('#exSum').textContent=hasData?(exAll()?'全部数据':exp.modules.length+' 模块')+' · 约 '+mb.toFixed(1)+' MB':'';
+  const go=$('#exGo');go.disabled=!hasData;
+  go.textContent=hasData?(exAll()?'导出备份':'导出'):'所选范围暂无数据';
+}
+function exClick(m){
+  if(m==='__all')exp.modules=[];
+  else if(exAll())exp.modules=[m];
+  else{const i=exp.modules.indexOf(m);i<0?exp.modules.push(m):exp.modules.splice(i,1);}
+  exRender();
+}
+function exTglAsset(el){el.classList.toggle('on');exp.assets=el.classList.contains('on');exRender();}
+function exTglMd(el){if($('#exMdRow').classList.contains('opacity-40')){toast('所选模块无笔记类数据，Markdown 投影不可用');return;}el.classList.toggle('on');exp.md=el.classList.contains('on');}
+function exSetFmt(f){exp.fmt=f;exRender();}
+function exGo(){const s=$('#exSum').textContent;closeSheet('sheetExport');toast('已开始导出（模拟）· '+s+' · '+exp.fmt.toUpperCase()+' 进度见通知')}
 
 /* V1.27：详情→编辑 复用新建表单（回填标题/类型，可改时间等） */
 function editTaskFromSheet(){const t=D.todos[stIdx];closeSheet('sheetTask');$('#ntSheetTitle').textContent='编辑待办';$('#ntTitle').value=t.t;openAddTask(t.pomo?'pomo':'norm',t.q);toast('编辑模式 · 保存后覆盖原条目（模拟）')}
