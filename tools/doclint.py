@@ -207,6 +207,20 @@ _ag = open("AGENTS.md", encoding="utf-8").read()
 for _s in REQUIRED_SECTIONS:
     if not re.search(r"^##\s*" + re.escape(_s), _ag, re.M):
         g.append("守护十五：AGENTS.md 缺必需小节「%s」（规则折叠丢失）" % _s)
+# 十六) 排期池体量上限（2026-10-13 立：该件曾塞入 92K 历史流水表＝其 93.7%，
+#       而当时无任何闸看它 ⇒ 自 2026-10-02 迁入后涨了三个多月无人拦。
+#       口径＝本件只装「一件一行」的候选索引，详情指向依据文档（handoff）或历史件（archive）；
+#       放宽须人审改下列常量并写理由。）
+BACKLOG_BYTES_MAX = 20480           # 20 KiB（瘦身后实测约 6.2 KB，留 3 倍余量）
+BACKLOG_LINES_MAX = 120
+_bp = "docs/排期池.md"
+_bb = os.path.getsize(_bp)
+_bl = sum(1 for _ in open(_bp, encoding="utf-8"))
+if _bb > BACKLOG_BYTES_MAX:
+    g.append("守护十六：%s %d 字节超上限 %d（本件只该装「一件一行」的候选索引；"
+             "历史流水进 docs/archive/、条详情进 docs/handoff/）" % (_bp, _bb, BACKLOG_BYTES_MAX))
+if _bl > BACKLOG_LINES_MAX:
+    g.append("守护十六：%s %d 行超上限 %d" % (_bp, _bl, BACKLOG_LINES_MAX))
 if g:
     print(f"守护红灯 {len(g)} 处:")
     for x in g:
@@ -243,4 +257,4 @@ try:
         sys.exit(1)
 except FileNotFoundError:
     print("WARN 未找到 node，T13 档③ 闸跳过")
-print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板/体量上限/禁指工具目录/必需小节）")
+print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板/体量上限/禁指工具目录/必需小节/排期池体量）")
