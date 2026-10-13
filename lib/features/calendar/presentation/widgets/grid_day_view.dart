@@ -184,9 +184,11 @@ class _GridDayViewState extends ConsumerState<GridDayView>
       _pulse.value = 1;
     }
 
+    // F6-2：构建一次取时下传，格内不再逐次取时。
+    final frameNow = DateTime.now();
     TimeBlock? blockAt(int minute) {
       for (final b in blocks) {
-        if (b.covers(minute)) return b;
+        if (b.covers(minute, frameNow)) return b;
       }
       return null;
     }

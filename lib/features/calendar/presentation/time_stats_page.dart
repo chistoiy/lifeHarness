@@ -10,6 +10,7 @@ import '../domain/time_block.dart';
 import '../domain/week_align.dart';
 import 'calendar_page.dart' show daysInMonthOf;
 import 'calendar_providers.dart';
+import '../../../core/router/app_router.dart' show timeStatsRouteObserver;
 import 'widgets/async_error_retry.dart';
 import 'widgets/ts_cat_sheet.dart';
 
@@ -173,7 +174,7 @@ const Map<String, String> _kSpanName = {
 /// 「未记录」弧段/兜底灰（与 blockColor 兜底同色，原型 #94A3B8）。
 const Color _kOther = Color(0xFF94A3B8);
 
-class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
+class _TimeStatsPageState extends ConsumerState<TimeStatsPage> with RouteAware {
   String _span = 'w';
 
   /// 锚点默认取时间页当前选中日（V1.52：账本从时间页进入，延续语境）。
@@ -188,6 +189,22 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
 
   Timer? _timer;
 
+  /// F6-3 测试探针：离屏停表断言用（勿在业务代码读）。
+  @visibleForTesting
+  Timer? get debugTicker => _timer;
+
+  /// F6-3：30s 刷新表的启停统一入口——离屏（被新页盖住/ pop）即停表。
+  void _startTicker() {
+    _timer ??= Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _stopTicker() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -195,14 +212,33 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
     _anchor = DateTime(sel.year, sel.month, sel.day);
     _recompute();
     // 计时中块耗时/时钟红线随墙上时钟推进：30s 刷一次，粒度够展示用（V1.52）。
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
+    _startTicker();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // F6-3：路由观察订阅（observer 单例挂 GoRouter.observers）——离屏停表。
+    timeStatsRouteObserver.subscribe(
+        this, ModalRoute.of(context) as ModalRoute<dynamic>);
+  }
+
+  @override
+  void didPush() => _startTicker();
+
+  @override
+  void didPopNext() => _startTicker();
+
+  @override
+  void didPop() => _stopTicker();
+
+  @override
+  void didPushNext() => _stopTicker();
+
+  @override
   void dispose() {
-    _timer?.cancel();
+    timeStatsRouteObserver.unsubscribe(this);
+    _stopTicker();
     super.dispose();
   }
 
@@ -1030,8 +1066,10 @@ class _ClockPainter extends CustomPainter {
 
     // 扇区 = 时间块；<6 分钟的块给最小可视角 1.2°（原型 Math.max(a0+1.2,a1)）。
     final minSweep = 1.2 * math.pi / 180;
+    // F6-2：paint 一帧取时一次下传，循环内不再逐次 effEnd()。
+    final frameNow = DateTime.now();
     for (final b in blocks) {
-      final end = math.min(b.effEnd(), 1440);
+      final end = math.min(b.effEnd(frameNow), 1440);
       if (end <= b.startMin) continue;
       final a0 = ang(b.startMin);
       final a1 = a0 +

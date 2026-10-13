@@ -62,6 +62,11 @@ final dbOverviewBackupSizeReaderProvider =
 
 /// go_router 配置：单一 ShellRoute 承载可配置底部导航。
 
+/// F6-3（时间模块批4）：账本页 30s 刷新 Timer 的离屏停——路由观察者单例；
+/// TimeStatsPage 以 RouteAware 订阅（didPush/didPopNext 启表、didPop/didPushNext 停表）。
+final timeStatsRouteObserver = RouteObserver<ModalRoute<dynamic>>();
+
+
 final appRouterProvider = Provider<GoRouter>((ref) {
 
   // AI 通道弹层（审阅/进度/结果）一律挂这个根栈：分支页的对话框要盖住底栏，
@@ -71,7 +76,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   aiRootNavKey.value = _rootKey;
 
   return GoRouter(
-
+    observers: [timeStatsRouteObserver],
     navigatorKey: _rootKey,
 
     initialLocation: '/',

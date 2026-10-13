@@ -55,7 +55,10 @@ class TimeBlock {
     return d < 0 ? 0 : d;
   }
 
-  bool covers(int minute) => minute >= startMin && minute < effEnd();
+  /// F6-2：[now] 可选下传——视图构建一次取时下传，格内不再各自取时
+  ///（同一帧口径一致，且省逐格 DateTime.now()）。
+  bool covers(int minute, [DateTime? now]) =>
+      minute >= startMin && minute < effEnd(now);
 
   TimeBlock copyWith(
           {int? id,

@@ -126,21 +126,38 @@ class CalendarPage extends ConsumerWidget {
                 child: ScrollPad(
                   // T2-B：时间主屏滚动垫；智能折叠通知照常穿层上抛。
                   id: 'cal',
-                  child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
-                  children: [
-                    _CalendarRegion(selected: selected),
-                    const SizedBox(height: 10),
-                    if (view == 'block') const _BlockToolbar(),
-                    if (view == 'block') const SizedBox(height: 8),
-                    switch (view) {
-                      'axis' => _AxisView(selected: selected),
-                      'block' => GridDayView(day: selected),
-                      'day' => _DayHoursView(selected: selected),
-                      _ => _WeekBoard(selected: selected),
+                  child: Builder(builder: (context) {
+                  // F6-1：主屏 builder 化——周视图 24 小时行铺进本列表，
+                  // 视口内才构建（168 格禁全量）；其余视图仍为单件。
+                  final isWeek =
+                      view != 'axis' && view != 'block' && view != 'day';
+                  final headCount = view == 'block' ? 4 : 2;
+                  final itemCount = isWeek ? headCount + 1 + 24 : headCount + 1;
+                  return ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
+                    itemCount: itemCount,
+                    itemBuilder: (context, i) {
+                      if (i == 0) return _CalendarRegion(selected: selected);
+                      if (i == 1) return const SizedBox(height: 10);
+                      if (view == 'block') {
+                        if (i == 2) return const _BlockToolbar();
+                        if (i == 3) return const SizedBox(height: 8);
+                      }
+                      if (!isWeek) {
+                        return switch (view) {
+                          'axis' => _AxisView(selected: selected),
+                          'block' => GridDayView(day: selected),
+                          _ => _DayHoursView(selected: selected),
+                        };
+                      }
+                      final body = i - headCount; // 0=头件，1..24=小时行
+                      if (body == 0) {
+                        return _WeekBoardHeader(selected: selected);
+                      }
+                      return _WeekRow(selected: selected, hour: body - 1);
                     },
-                  ],
-                ),
+                  );
+                }),
                 ),
               ),
             ),
@@ -723,6 +740,8 @@ class _AxisView extends ConsumerWidget {
       return AsyncErrorRetry(
           onRetry: () => ref.invalidate(dayBlocksProvider(selected)));
     }
+    // F6-2：视图构建一次取时下传——同帧口径一致，循环内不再逐次 effEnd()。
+    final frameNow = DateTime.now();
     final markBlocks = (blocksAsync.valueOrNull ?? const <TimeBlock>[])
         .toList()
       ..sort((a, b) => a.startMin.compareTo(b.startMin));
@@ -866,7 +885,9 @@ class _AxisView extends ConsumerWidget {
           b.isTiming ? rose : blockColor(b, catColors, tokens.accent),
           blockCard(b),
           timeColor: b.isTiming ? rose : null));
-      if (b.effEnd() > cursor) cursor = b.effEnd();
+      if (b.effEnd(frameNow) > cursor) {
+        cursor = b.effEnd(frameNow);
+      }
     }
     if (1440 - cursor >= kGapMinMin) blockRails.add(rail(fmtMin(cursor), scheme.surface, gapRow(cursor, 1440)));
 
@@ -1252,8 +1273,10 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
 
 /// 周视图：7×24 网格。V1.28⑧：格子有块=点开详情（→编辑），空格子才开补录。
 /// V1.46⑤：同小时格多个时间块并排分段显示，各段仍可点进自己的详情。
-class _WeekBoard extends ConsumerWidget {
-  const _WeekBoard({required this.selected});
+/// 周视图头件（说明行＋星期表头）——F6-1 拆分：24 小时行铺进主屏
+/// ListView.builder，本件只承载不随滚动的头部两行。
+class _WeekBoardHeader extends ConsumerWidget {
+  const _WeekBoardHeader({required this.selected});
   final DateTime selected;
 
   @override
@@ -1261,23 +1284,7 @@ class _WeekBoard extends ConsumerWidget {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final days = naturalWeek(selected); // C6（冻结）：自然周（周日起算）
-    // F4-3：任一天取数失败（且无旧值）显错误卡＋重试，别把失败伪装成空周。
-    Object? weekErr;
-    for (final d in days) {
-      final a = ref.watch(dayBlocksProvider(d));
-      if (a.hasError && a.valueOrNull == null) {
-        weekErr = a.error;
-        break;
-      }
-    }
-    if (weekErr != null) {
-      return AsyncErrorRetry(
-          onRetry: () => ref.invalidate(dayBlocksProvider));
-    }
-    final blocksByDay = <DateTime, List<TimeBlock>>{};
-    final catColors = ref.watch(catColorsByNameProvider);
     String md(DateTime d) => '${d.month}/${d.day}';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1301,134 +1308,161 @@ class _WeekBoard extends ConsumerWidget {
               ),
           ],
         ),
-        for (var h = 0; h < 24; h++)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Row(
-              children: [
-                SizedBox(
-                    width: 26,
-                    child: Text('$h',
-                        style: TextStyle(
-                            fontSize: 8,
-                            fontFamily: 'monospace',
-                            color: scheme.onSurfaceVariant))),
-                for (var di = 0; di < days.length; di++)
-                  Expanded(
-                    child: Builder(builder: (context) {
-                      final d = days[di];
-                      final blocks = blocksByDay.putIfAbsent(
-                          d, () => ref.watch(dayBlocksProvider(d)).valueOrNull ?? const []);
-                      final m = h * 60;
-                      // V1.46⑤：同小时格命中的多个时间块并排分段，各段可点进自己详情。
-                      // B10：source=event 块（旧日程并入）同样入格。
-                      final items = <Object>[
-                        ...blocks.where((x) =>
-                            x.startMin < m + 60 &&
-                            x.effEnd() > m),
-                      ];
-                      final segs = weekCellSegments(items);
-                      Color segColor(Object it) =>
-                          blockColor(it as TimeBlock, catColors, tokens.accent);
-                      int segDurMin(Object it) => (it as TimeBlock).durationMin();
-                      String segLabel(Object it) {
-                        final b = it as TimeBlock;
-                        return b.note == null || b.note!.isEmpty ? b.catName : b.note!;
-                      }
-
-                      void openItem(Object? it) {
-                        // V1.52：点已有块=与添加同款编辑弹层；空格子才开添加。
-                        if (it is TimeBlock) {
-                          showTimePickSheet(context, ref, block: it);
-                        } else {
-                          showTimePickSheet(context, ref, day: d, startMin: m);
-                        }
-                      }
-                      return Semantics(button: true, label: '添加时间段', child: InkWell(
-                        key: ValueKey('wk-cell-$di-$h'),
-                        onTap: () =>
-                            openItem(segs.isEmpty ? null : segs.first.item),
-                        child: Container(
-                          height: 17,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: BoxDecoration(
-                              color: scheme.onSurface.withValues(alpha: .06),
-                              borderRadius: BorderRadius.circular(4)),
-                          child: segs.isEmpty
-                              ? null
-                              : Row(
-                                  children: [
-                                    for (var si = 0; si < segs.length; si++)
-                                      Expanded(
-                                        child: Padding(
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal:
-                                                  segs.length > 1 ? .5 : 0),
-                                          child: Semantics(button: true, label: '查看时间段', child: InkWell(
-                                            key: ValueKey('wk-seg-$di-$h-$si'),
-                                            onTap: () =>
-                                                openItem(segs[si].item),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                  color: segColor(
-                                                      segs[si].item),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          4)),
-                                              child: segs[si]
-                                                      .badgeText
-                                                      .isNotEmpty
-                                                  ? Center(
-                                                      child: Text(
-                                                          segs[si].badgeText,
-                                                          style: const TextStyle(
-                                                              fontSize: 7,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w800,
-                                                              color:
-                                                                  Colors
-                                                                      .white,
-                                                              height: 1)))
-                                                  : (segs.length > 1
-                                                      ? null
-                                                      : Padding(
-                                                          padding: const EdgeInsets.symmetric(
-                                                              horizontal: 2),
-                                                          child: ClipRect(
-                                                            child: Text(
-                                                                '${segLabel(segs[si].item)} · ${segDurMin(segs[si].item)}分',
-                                                                maxLines: 1,
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .clip,
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .center,
-                                                                style: const TextStyle(
-                                                                    fontSize:
-                                                                        6.5,
-                                                                    color: Colors
-                                                                        .white,
-                                                                    height:
-                                                                        17 /
-                                                                            6.5)),
-                                                          ),
-                                                        )),
-                                            ),
-                                          )),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                        ),
-                      ));
-                    }),
-                  ),
-              ],
-            ),
-          ),
       ],
+    );
+  }
+}
+
+/// 周视图单小时行（7 格）——F6-1：随主屏 builder 视口内构建；
+/// F4-3 行级守卫：任一天取数失败（无旧值）⇒ 行显错误卡＋重试。
+class _WeekRow extends ConsumerWidget {
+  const _WeekRow({required this.selected, required this.hour});
+  final DateTime selected;
+  final int hour;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final scheme = Theme.of(context).colorScheme;
+    final days = naturalWeek(selected);
+    final h = hour * 60;
+    final blocksByDay = <DateTime, List<TimeBlock>>{};
+    for (final d in days) {
+      final a = ref.watch(dayBlocksProvider(d));
+      if (a.hasError && a.valueOrNull == null) {
+        return AsyncErrorRetry(
+            onRetry: () => ref.invalidate(dayBlocksProvider), compact: true);
+      }
+      blocksByDay[d] = a.valueOrNull ?? const <TimeBlock>[];
+    }
+    final catColors = ref.watch(catColorsByNameProvider);
+    // F6-2：构建一次取时下传，行内不再逐次 effEnd()。
+    final frameNow = DateTime.now();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          SizedBox(
+              width: 26,
+              child: Text('$hour',
+                  style: TextStyle(
+                      fontSize: 8,
+                      fontFamily: 'monospace',
+                      color: scheme.onSurfaceVariant))),
+          for (var di = 0; di < days.length; di++)
+            Expanded(
+              child: Builder(builder: (context) {
+                final d = days[di];
+                final blocks = blocksByDay[d] ?? const <TimeBlock>[];
+                final m = h;
+                // V1.46⑤：同小时格命中的多个时间块并排分段，各段可点进自己详情。
+                // B10：source=event 块（旧日程并入）同样入格。
+                final items = <Object>[
+                  ...blocks.where((x) =>
+                      x.startMin < m + 60 &&
+                      x.effEnd(frameNow) > m),
+                ];
+                final segs = weekCellSegments(items);
+                Color segColor(Object it) =>
+                    blockColor(it as TimeBlock, catColors, tokens.accent);
+                int segDurMin(Object it) => (it as TimeBlock).durationMin();
+                String segLabel(Object it) {
+                  final b = it as TimeBlock;
+                  return b.note == null || b.note!.isEmpty ? b.catName : b.note!;
+                }
+
+                void openItem(Object? it) {
+                  // V1.52：点已有块=与添加同款编辑弹层；空格子才开添加。
+                  if (it is TimeBlock) {
+                    showTimePickSheet(context, ref, block: it);
+                  } else {
+                    showTimePickSheet(context, ref, day: d, startMin: m);
+                  }
+                }
+                return Semantics(button: true, label: '添加时间段', child: InkWell(
+                  key: ValueKey('wk-cell-$di-$hour'),
+                  onTap: () =>
+                      openItem(segs.isEmpty ? null : segs.first.item),
+                  child: Container(
+                    height: 17,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    decoration: BoxDecoration(
+                        color: scheme.onSurface.withValues(alpha: .06),
+                        borderRadius: BorderRadius.circular(4)),
+                    child: segs.isEmpty
+                        ? null
+                        : Row(
+                            children: [
+                              for (var si = 0; si < segs.length; si++)
+                                Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal:
+                                            segs.length > 1 ? .5 : 0),
+                                    child: Semantics(button: true, label: '查看时间段', child: InkWell(
+                                      key: ValueKey('wk-seg-$di-$hour-$si'),
+                                      onTap: () =>
+                                          openItem(segs[si].item),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                            color: segColor(
+                                                segs[si].item),
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    4)),
+                                        child: segs[si]
+                                                .badgeText
+                                                .isNotEmpty
+                                            ? Center(
+                                                child: Text(
+                                                    segs[si].badgeText,
+                                                    style: const TextStyle(
+                                                        fontSize: 7,
+                                                        fontWeight:
+                                                            FontWeight
+                                                                .w800,
+                                                        color:
+                                                            Colors
+                                                                .white,
+                                                        height: 1)))
+                                            : (segs.length > 1
+                                                ? null
+                                                : Padding(
+                                                    padding: const EdgeInsets.symmetric(
+                                                        horizontal: 2),
+                                                    child: ClipRect(
+                                                      child: Text(
+                                                          '${segLabel(segs[si].item)} · ${segDurMin(segs[si].item)}分',
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .clip,
+                                                          textAlign:
+                                                              TextAlign
+                                                                  .center,
+                                                          style: const TextStyle(
+                                                              fontSize:
+                                                                  6.5,
+                                                              color: Colors
+                                                                  .white,
+                                                              height:
+                                                                  17 /
+                                                                      6.5)),
+                                                    ),
+                                                  )),
+                                      ),
+                                    )),
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
+                ));
+              }),
+            ),
+        ],
+      ),
     );
   }
 }
