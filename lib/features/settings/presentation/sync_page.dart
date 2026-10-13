@@ -325,7 +325,7 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   key: const ValueKey('sync-backup-entry'),
                   icon: Icons.inventory_2_outlined,
                   title: '备份导出/导入',
-                  sub: '.lhbak 容器 · 口令加密 · 日志随包',
+                  sub: '.lhbak 可读的包 · 范围导出 · 纯明文',
                   onTap: () => showBackupSheet(context),
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),

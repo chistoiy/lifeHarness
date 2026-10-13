@@ -135,7 +135,7 @@ class SettingsPage extends ConsumerWidget {
                         size: 18, color: Color(0xFF10B981)),
                     bg: const Color(0xFF10B981).withValues(alpha: .12),
                     title: '数据与同步',
-                    sub: 'WebDAV · 备份 · 加密 · 同步历史',
+                    sub: 'WebDAV · 备份 · 同步历史',
                     // 真机反馈轮①：读激活服务真值；措辞用「已配置」不用「已连接」
                     //（本机只知道自己存了端点，连通性＝同步页「测试连接」的口径）。
                     trailing: ref.watch(activeSyncServiceProvider) == null

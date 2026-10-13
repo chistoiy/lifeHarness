@@ -14,6 +14,7 @@ import 'core/backup/backup_files.dart';
 import 'core/backup/backup_service.dart';
 import 'core/backup/db_overview.dart';
 import 'core/backup/lh_bak.dart' show LhBak;
+import 'shared/linkage/backup_projection.dart' show buildNoteProjectionMembers;
 import 'core/database/app_database.dart';
 import 'core/logging/app_log.dart';
 import 'core/logging/error_capture.dart';
@@ -185,7 +186,9 @@ Future<void> main() async {
   //    轮6 ANR 根治：zip 打包/附件收集/加密整体挪进后台 isolate（默认内联是
   //    测试路径），UI isolate 不再被压缩卡死十几秒 → 不再触发 bg ANR 杀进程。
   LhBak.packRunner = Isolate.run;
-  final backupExportDir = p.join(docsPath, 'backup');
+  // V1.66 批2：md 投影钩子组合根装配（core 不碰 features，投影器在
+  // shared/linkage；notes/config 可读成员随 withProjection 开关入包）。
+  BackupService.projectionHook = buildNoteProjectionMembers;  final backupExportDir = p.join(docsPath, 'backup');
   final backup = BackupService(
     exportDir: () => backupExportDir,
     db: () => AppDatabase.instance.open(),

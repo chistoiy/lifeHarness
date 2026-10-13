@@ -143,4 +143,18 @@ class SettingsRepository {
     await _prefs.setBool(_kJournalIns, m['journalIns']! as bool);
     await _prefs.setBool(_kCalMonthExpanded, m['calMonthExpanded']! as bool);
   }
+
+  /// V1.66 批2 · 口径设置整包导出（备份包 `config/settings.json` 的唯一来源）。
+  ///
+  /// 形状 = [UserSettings.toMap]（全口径字段、扁平 JSON 值）。**凭据绝不在此
+  /// 层**：云 token/应用密码存系统加密保险箱，本仓 never 持有——本方法天然
+  /// 去凭据，无需额外剔除逻辑（评估件 §五·4 口径）。
+  Map<String, Object?> exportAll() => load().toMap();
+
+  /// 口径设置整包导入（恢复链 `config/settings.json` 的落点）。
+  ///
+  /// 缺键由 [UserSettings.fromMap] 走 defaults 兜底；未知键忽略（跨版本
+  /// 前向兼容）。不触碰「有用户配置」判据之外的 prefs 键（备份提示串等
+  /// 运行态不入此通道）。
+  Future<void> importAll(Map<String, Object?> m) => save(UserSettings.fromMap(m));
 }

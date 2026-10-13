@@ -154,6 +154,10 @@ class SnapshotService {
       // 批6b：健康的「随本地备份」开关只管本地包，不扩到云端——
       // 同步排除另有 `care.syncExcluded` 那枚，健康侧目前没有同步开关。
       applyHealthExclusion: false,
+      // V1.66 批2：云快照带可读成员（config/settings.json 口径设置＋notes/
+      // md 投影）——换机云恢复是主恢复路径，口径设置必须跟包回来；文本量
+      // 小（快照有复用判定，非每次同步都重建）。
+      withProjection: true,
     );
     final pruned = await pruneSnapshots(keepN: n, protect: res.file.path);
     return SyncSnapshotResult(file: res.file, manifest: res.manifest, pruned: pruned);

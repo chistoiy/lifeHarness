@@ -18,6 +18,7 @@
 ///   （模式照 `LhBak.snapshotFactory`），widget/单测注入 fake。
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -30,6 +31,8 @@ import '../database/schema.dart';
 import '../logging/app_log.dart';
 import '../logging/file_log_sink.dart';
 import '../platform/saf.dart';
+import '../settings/settings_repository.dart';
+import '../../../shared/linkage/export_units.dart';
 import 'lh_bak.dart';
 
 /// 「保存为」系统弹层钩子签名：入参 = 已生成的备份文件路径；
@@ -78,6 +81,7 @@ class RestoreReport {
     required this.skippedLarge,
     required this.autoBackupPath,
     this.restoredAttachmentFiles = 0,
+    this.configRestored = false,
   });
 
   /// 包内恢复的表数。
@@ -97,6 +101,9 @@ class RestoreReport {
 
   /// V1.66 P0-1：附件落盘还原的实际文件数（组在包内才动作；0＝包内无附件组）。
   final int restoredAttachmentFiles;
+
+  /// V1.66 批2：包内 `config/settings.json` 是否已应用（旧 v1 包恒 false）。
+  final bool configRestored;
 }
 
 /// 备份导出/导入恢复服务（目录/库/对话框全注入，可测）。
@@ -170,6 +177,12 @@ class BackupService {
   /// 非 null 时替代 [LhBak.unpack]（仅供测试注入「中途失败」路径）。
   static UnpackImpl? unpackOverride;
 
+  /// md 投影钩子（V1.66 批2·组合根装配）：库连接 + 所选模块集 → 成员名→文本。
+  /// R2：core 不碰 features——投影器在 `shared/linkage/backup_projection.dart`，
+  /// 由 main.dart 注入；null＝不生成 notes 成员（单测默认，行为确定）。
+  static Future<Map<String, String>> Function(Database db,
+      {required Set<String> moduleIds})? projectionHook;
+
   /// 上次「另存到…」成功目标（仅展示用）。
   String? get lastSaveHint => prefs?.getString(kBackupLastSaveHintKey);
 
@@ -193,12 +206,22 @@ class BackupService {
   ///
   /// - [withLogs]：随包 [FileLogSink.dayFiles] 全部落盘日志（含分卷）。
   /// - [withAttachments]：随包 [attachDirs] 清单目录。
-  /// - [passphrase]：非空 = AES-GCM 口令加密档。
+  /// - [passphrase]：非空 = AES-GCM 口令加密档（V1.66 起 UI 出包恒明文，
+  ///   本参数仅为旧链路与测试保留）。
   /// - [excludeTables]/[outDirOverride]：批4 SnapshotService 复用于产同步快照。
   /// - [applyHealthExclusion]：false＝无视健康本地备份开关（同步快照那条腿用，
   ///   见 `SnapshotService.build` 的注释）。
   /// - [nameTag]：非空时改名 `<nameTag>_YYYYMMDD_HHmmss.lhbak`
   ///   （恢复前自动备份 = `auto_before_restore_*`）。
+  /// - [modules]（V1.66 批2）：所选模块 id 清单（[kExportUnits] 的 id）；
+  ///   **空 = 全部数据**（口径与改造前完全一致）。非空 = 子集出口——排除表
+  ///   用活库表名差集法（实表 − 所选单元表并集，面板钉子1），附件只收所选
+  ///   模块映射目录，根目录散件（历史导出物）不收。
+  /// - [withProjection]（V1.66 批2）：true = 包内带可读成员
+  ///   `config/settings.json`（口径设置·零凭据）与 `notes/` md 投影
+  ///   （[withMd] 关＝只无 notes/）。默认 **false**＝恢复前自动备份等
+  ///   回退件不背投影；ExportSheet / 另存到 / 同步快照传 true。
+  /// - [withMd]：仅 [withProjection] 为 true 时有意义（见上）。
   Future<LhBakCreateResult> exportBackup({
     bool withLogs = false,
     bool withAttachments = true,
@@ -207,10 +230,14 @@ class BackupService {
     String? outDirOverride,
     String? nameTag,
     bool applyHealthExclusion = true,
+    List<String> modules = const [],
+    bool withProjection = false,
+    bool withMd = true,
   }) async {
     // L1 日志批：备份导出全程可查（成功=key 带终名与表数；失败=error 带成因）。
     try {
       final out = outDirOverride ?? exportDir();
+      final database = await db();
       List<String> logFiles = const [];
       if (withLogs) {
         final dir = FileLogSink.dirPath;
@@ -225,17 +252,68 @@ class BackupService {
       final healthEx = applyHealthExclusion && _healthExcludedSafe()
           ? DbSchema.healthTables
           : const <String>[];
-      final effExcludes = {...excludeTables, ...healthEx, ...kRegenerableExcluded}
-          .toList()
+      // V1.66 批2 面板钉子1：子集范围＝活库实表差集（注册表漏列只会「多备
+      // 不少备」，绝不误删数据）。
+      final scopeEx = modules.isEmpty
+          ? const <String>[]
+          : await _liveTablesMinus(database, exportTablesForModules(modules));
+      final effExcludes = {
+        ...excludeTables,
+        ...scopeEx,
+        ...healthEx,
+        ...kRegenerableExcluded
+      }.toList()
         ..sort();
+      // 附件腿：子集只收所选模块映射目录；根目录散件（历史导出物）仅全量收。
+      final keepDirs =
+          modules.isEmpty ? null : exportAttachDirsForModules(modules);
+      final List<String> dirs = withAttachments
+          ? (keepDirs == null
+              ? attachDirs
+              : [
+                  for (final d in attachDirs)
+                    if (keepDirs.contains(p.basename(d))) d
+                ])
+          : const [];
+      final rootAttach = withAttachments && modules.isEmpty
+          ? collectRootAttachFiles()
+          : const <String>[];
+      // 可读成员：config 恒入（投影开关开时）；notes/ md 走组合根注入钩子
+      // （R2：core 不碰 features，投影器在 shared/linkage，main 装配）。
+      final extraFiles = <String, String>{};
+      if (withProjection) {
+        if (prefs != null) {
+          try {
+            final settingsJson = const JsonEncoder.withIndent('  ')
+                .convert(SettingsRepository(prefs!).exportAll());
+            extraFiles['config/settings.json'] = settingsJson;
+          } catch (e) {
+            AppLog.add('口径设置序列化失败（包内无 config 成员）：$e',
+                level: LhLevel.warn);
+          }
+        }
+        if (withMd) {
+          final hook = projectionHook;
+          if (hook != null) {
+            try {
+              extraFiles
+                  .addAll(await hook(database, moduleIds: modules.toSet()));
+            } catch (e) {
+              AppLog.add('md 投影生成失败（包内无 notes 成员）：$e',
+                  level: LhLevel.warn);
+            }
+          }
+        }
+      }
       var res = await LhBak.create(
-        db: await db(),
+        db: database,
         outDirPath: out,
-        attachDirs: withAttachments ? attachDirs : const [],
-        attachFiles: withAttachments ? collectRootAttachFiles() : const [],
+        attachDirs: dirs,
+        attachFiles: rootAttach,
         logFiles: logFiles,
         excludeTables: effExcludes,
         passphrase: passphrase,
+        extraFiles: extraFiles,
       );
       if (nameTag != null && nameTag.isNotEmpty) {
         final base = p.basename(res.file.path);
@@ -254,6 +332,8 @@ class BackupService {
       AppLog.addKey(
         '备份导出成功：${p.basename(res.file.path)} · 表 ${res.manifest.tables.length} 张'
         '${effExcludes.isNotEmpty ? ' · 排除 ${effExcludes.length} 张' : ''}'
+        '${modules.isNotEmpty ? ' · 范围 ${modules.join("+")}' : ''}'
+        '${extraFiles.isNotEmpty ? ' · 可读成员 ${extraFiles.length}' : ''}'
         '${passphrase != null ? ' · 口令加密' : ''}',
       );
       return res;
@@ -262,6 +342,17 @@ class BackupService {
       AppLog.addStack(st.toString(), src: '备份');
       rethrow;
     }
+  }
+
+  /// 活库实表 − [keep] ＝ 子集导出的排除清单（`sqlite_%` 内部表不在扫描面）。
+  Future<List<String>> _liveTablesMinus(Database database, Set<String> keep) async {
+    final rows = await database.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%'");
+    return [
+      for (final r in rows)
+        if (!keep.contains(r['name'])) r['name'] as String,
+    ]..sort();
   }
 
   /// [attachRootDirs] 浅扫：仅一层文件、仅白名单扩展名 [kRootAttachExts]。
@@ -406,6 +497,27 @@ class BackupService {
       AppLog.addStack(st.toString(), src: '备份');
       rethrow;
     }
+    // V1.66 批2：口径设置腿——包内 config/settings.json（若在）经
+    // SettingsRepository.importAll 应用。**失败 warn 不炸恢复**（面板钉子4）：
+    // config＝投影非权威，DB 与附件已落定，fail loud 会把好数据堵在门外；
+    // 旧 v1 包无该成员＝静默跳过（null）。prefs 未注入（单测）＝跳过。
+    var configRestored = false;
+    if (prefs != null) {
+      try {
+        final text = await readMemberText(
+            filePath, 'config/settings.json',
+            passphrase: passphrase);
+        if (text != null) {
+          await SettingsRepository(prefs!)
+              .importAll(jsonDecode(text) as Map<String, Object?>);
+          configRestored = true;
+          AppLog.addKey('备份口径设置恢复：config/settings.json 已应用');
+        }
+      } catch (e) {
+        AppLog.add('口径设置恢复失败（DB 已替换，继续返回报告）：$e',
+            level: LhLevel.warn);
+      }
+    }
     return RestoreReport(
       tableCount: manifest.tables.length,
       totalRows:
@@ -414,6 +526,7 @@ class BackupService {
       skippedLarge: manifest.skippedLarge ?? const [],
       autoBackupPath: auto.file.path,
       restoredAttachmentFiles: restoredFiles,
+      configRestored: configRestored,
     );
   }
 

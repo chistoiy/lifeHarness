@@ -64,6 +64,8 @@ class _FakeBackupService extends BackupService {
   String? lastPassphrase;
   bool? lastWithLogs;
   bool? lastWithAttachments;
+  List<String>? lastModules;
+  bool? lastWithProjection;
 
   String? pickedPath;
   String? saveCopyResult;
@@ -91,6 +93,9 @@ class _FakeBackupService extends BackupService {
     String? outDirOverride,
     String? nameTag,
     bool applyHealthExclusion = true,
+    List<String> modules = const [],
+    bool withProjection = false,
+    bool withMd = true,
   }) async {
     exportCalls++;
     if (gate != null) await gate!.future;
@@ -98,6 +103,8 @@ class _FakeBackupService extends BackupService {
     lastPassphrase = passphrase;
     lastWithLogs = withLogs;
     lastWithAttachments = withAttachments;
+    lastModules = List.of(modules);
+    lastWithProjection = withProjection;
     return LhBakCreateResult(
         File('/fake/lifeharness_20260925_101500.lhbak'),
         inspectResult ?? buildManifest());
@@ -197,7 +204,7 @@ void main() {
   });
 
   group('S5 导出', () {
-    testWidgets('半屏含附件/日志勾选 · 口令二次输入 · 导出/另存并列动作钮（R6）',
+    testWidgets('半屏含附件/日志勾选 · 口令入口已下架 · 主钮开范围面板（V1.66 批2）',
         (tester) async {
       await useSurface(tester, const Size(800, 2400));
       await openSheet(tester);
@@ -206,44 +213,48 @@ void main() {
       expect(find.text('导出范围'), findsOneWidget);
       expect(find.text('附件 attachments/'), findsOneWidget);
       expect(find.text('附带日志 logs/'), findsOneWidget);
-      expect(find.text('口令 · 可选（二次输入一致才启用）'), findsOneWidget);
+      // V1.66 批2：口令段整体下架（新包纯明文·纯明文落 UI）。
+      expect(find.text('口令 · 可选（二次输入一致才启用）'), findsNothing);
+      expect(find.byKey(const ValueKey('pass-1')), findsNothing);
+      expect(find.byKey(const ValueKey('pass-2')), findsNothing);
       expect(find.byKey(const ValueKey('btn-export')), findsOneWidget);
       expect(find.text('另存到…'), findsOneWidget);
       expect(find.byKey(const ValueKey('btn-export-save')), findsOneWidget);
-      // R6：目标位置两态选择行已删（点钮即动作）
-      expect(find.text('目标位置'), findsNothing);
 
-      // 勾选参数透传：取消「附带日志」→ withLogs=false
+      // 主钮＝开范围面板（原型 sheetExport），不直接放量导出。
+      await tester.tap(find.byKey(const ValueKey('btn-export')));
+      await settle5(tester);
+      expect(find.text('导出数据'), findsOneWidget);
+      expect(find.byKey(const ValueKey('ex-go')), findsOneWidget);
+      expect(fake.exportCalls, 0);
+      await tester.tap(find.byKey(const ValueKey('ex-close')));
+      await settle5(tester);
+
+      // 日志勾选透传：取消「附带日志」→「另存到…」路径 withLogs=false、恒明文；
+      // 另存层自动弹出（R6 一步到位），fake dialog 取消＝包保留在应用导出目录。
       await tester.tap(find.byKey(const ValueKey('chk-logs')));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
-      await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
+      await pollText(tester, '另存已取消 · 包保留在应用导出目录');
       expect(fake.exportCalls, 1);
       expect(fake.lastWithLogs, isFalse);
       expect(fake.lastWithAttachments, isTrue);
       expect(fake.lastPassphrase, isNull);
-      expect(fake.saveCopyCalls, 0); // 「导出备份」钮不触发改存对话
+      expect(fake.lastWithProjection, isTrue); // 快速全量也带可读成员
+      expect(fake.saveCopyCalls, 1);
       await clearToasts(tester);
     });
 
-    testWidgets('口令不一致拒绝导出 · 一致后 passphrase 透传', (tester) async {
+    testWidgets('另存到…＝快速全量带投影；口令参数恒空（明文落 UI 回归）',
+        (tester) async {
       await useSurface(tester, const Size(800, 2400));
       await openSheet(tester);
-      await tester.enterText(
-          find.byKey(const ValueKey('pass-1')), 'abc123');
-      await tester.enterText(
-          find.byKey(const ValueKey('pass-2')), 'abc124');
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
-      await settle5(tester);
-      expect(find.text('口令两次输入不一致'), findsOneWidget);
-      expect(fake.exportCalls, 0);
-
-      await tester.enterText(
-          find.byKey(const ValueKey('pass-2')), 'abc123');
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
-      await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
+      fake.saveCopyResult = 'saved.lhbak';
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
+      await pollText(tester, '已另存：saved.lhbak');
       expect(fake.exportCalls, 1);
-      expect(fake.lastPassphrase, 'abc123');
+      expect(fake.lastPassphrase, isNull);
+      expect(fake.lastModules, isEmpty); // 未选范围＝全量（modules 空清单）
       await clearToasts(tester);
     });
 
@@ -299,9 +310,9 @@ void main() {
       await useSurface(tester, const Size(800, 2400));
       await openSheet(tester);
 
-      // 导出进行中：显示「正在导出…」。
+      // 导出进行中（快速全量路径＝「另存到…」）：显示「正在导出…」。
       fake.gate = Completer<void>();
-      await tester.tap(find.byKey(const ValueKey('btn-export')));
+      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
       await settle5(tester);
       expect(find.text('正在导出…'), findsOneWidget);
       fake.gate!.complete();
@@ -310,7 +321,7 @@ void main() {
       expect(find.text('正在导出…'), findsNothing);
       await clearToasts(tester);
 
-      // 导入选择＋校验进行中：整屏禁用，但导出钮文案必须仍是「导出备份」
+      // 导入选择＋校验进行中：整屏禁用，但导出主钮文案必须仍是「导出数据…」
       // （真机反馈＝校验 60 万行时误显示「正在导出…」）。
       fake.pickedPath = '/fake/lifeharness_20261004_210019.lhbak';
       fake.gate = Completer<void>();
@@ -319,7 +330,7 @@ void main() {
       expect(fake.pickCalls, 1);
       expect(fake.inspectCalls, 1); // 校验挂起在 gate 上
       expect(find.text('正在导出…'), findsNothing);
-      expect(find.text('导出备份'), findsOneWidget);
+      expect(find.text('导出数据…'), findsOneWidget);
       fake.gate!.complete();
       fake.gate = null;
       await settle5(tester);

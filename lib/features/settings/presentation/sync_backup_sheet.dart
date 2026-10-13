@@ -7,17 +7,20 @@ import '../../../core/logging/app_log.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ui_kit.dart';
+import 'export_sheet.dart';
 
 /// V1.41 Task 10 · S5「备份导出/导入」半屏（原型 index-sync.html s-backup）。
 ///
-/// 口径（R6 真机反馈修正：「另存到…」从两段选择改为并列动作按钮——点即导出并
-/// 弹系统保存框，一步到位；此前只切换模式不弹层，被判定「点击没有反应」）：
-/// - 导出：范围勾选（附件/日志）+ 口令二次输入一致才启用；
-///   「导出备份」= 落应用目录；「另存到…」= 先导出再经 saveCopyToUserLocation
-///   弹系统保存层，取消不追加任何后续调用；成功 toast「已导出：<文件名>」。
+/// 口径（R6 真机反馈修正 + V1.66 批2·需求清单「新包纯明文」）：
+/// - 导出：范围勾选（附件/日志）+「导出数据…」开范围面板 showExportSheet
+///   （export_sheet.dart·模块 chips × 格式两档 × 预估体积，原型 sheetExport）；
+///   「另存到…」= 快速全量导出（带投影成员）再经 saveCopyToUserLocation 弹
+///   系统保存层，取消不追加任何后续调用；成功 toast「已导出：<文件名>」。
+///   **口令入口已下架**（导出恒明文·纯明文落 UI）；导入侧口令分支保留
+///   （旧口令加密包恢复兼容，红线）。
 /// - 导入：pickBackupFile → inspect 校验报告态（含 skippedLarge「N 个超大
 ///   附件未入包」行）→ 勾选「恢复将替换当前数据」二次确认 → 才可调
-///   importBackup（恢复按钮置于确认勾选之后）。
+///   importBackup（恢复按钮置于确认勾选之后）；恢复报告补「口径设置已还原」。
 /// - 文案一律功能标签式，无教学句（UI 规范）。
 Future<void> showBackupSheet(BuildContext context, {String? restorePath}) {
   return showModalBottomSheet<void>(
@@ -46,9 +49,6 @@ class BackupSheet extends ConsumerStatefulWidget {
 class _BackupSheetState extends ConsumerState<BackupSheet> {
   bool _withAttach = true;
   bool _withLogs = true;
-  final TextEditingController _pass1 = TextEditingController();
-  final TextEditingController _pass2 = TextEditingController();
-  String? _passError;
   bool _busy = false;
 
   /// 轮7：「正在导出…」只跟导出动作本身。_busy 是整屏共用（导出/选择/校验/
@@ -80,8 +80,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
 
   @override
   void dispose() {
-    _pass1.dispose();
-    _pass2.dispose();
     _importPass.dispose();
     super.dispose();
   }
@@ -90,23 +88,8 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
     if (mounted) AppToast.show(context, msg);
   }
 
-  String? _exportPassphrase() {
-    final p1 = _pass1.text, p2 = _pass2.text;
-    if (p1.isEmpty && p2.isEmpty) return null;
-    if (p1 != p2) {
-      setState(() => _passError = '口令两次输入不一致');
-      return _invalid;
-    }
-    setState(() => _passError = null);
-    return p1;
-  }
-
-  /// 哨兵：口令校验不通过（空串是合法值，用 null 表达「未通过」会歧义）。
-  static const String _invalid = '\u0000invalid';
-
+  /// 快速全量导出（「另存到…」路径；V1.66 起恒明文＋带投影成员）。
   Future<void> _doExport({bool alsoSave = false}) async {
-    final pass = _exportPassphrase();
-    if (pass == _invalid) return;
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -118,7 +101,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       final res = await svc.exportBackup(
         withLogs: _withLogs,
         withAttachments: _withAttach,
-        passphrase: pass,
+        withProjection: true,
       );
       _toast('已导出：${p.basename(res.file.path)}');
       srcPath = res.file.path;
@@ -215,7 +198,8 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
       final report = await svc.importBackup(
           path,
           passphrase: _importPass.text.isEmpty ? null : _importPass.text);
-      _toast('恢复完成：${report.tableCount} 表 · ${report.totalRows} 行');
+      _toast('恢复完成：${report.tableCount} 表 · ${report.totalRows} 行'
+          '${report.configRestored ? ' · 口径设置已还原（部分项重启后生效）' : ''}');
     } on LhBakException catch (e) {
       _toast('恢复失败：${e.code}');
     } finally {
@@ -238,7 +222,7 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
             const Text('备份导出/导入',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
             const SizedBox(height: 2),
-            Text('.lhbak 容器 · db.sqlite 一致性快照 · 附件 · 日志',
+            Text('可读的包 · db.sqlite 权威 · md 投影 · 口径设置 · 纯明文',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 14),
             // ---- 导出范围 ----
@@ -278,43 +262,19 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
             if (svc.lastSaveHint != null)
               Text('上次另存：${p.basename(svc.lastSaveHint!)}',
                   style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
-            // ---- 口令 ----
-            const SizedBox(height: 10),
-            const Text('口令 · 可选（二次输入一致才启用）',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            TextField(
-              key: const ValueKey('pass-1'),
-              controller: _pass1,
-              obscureText: true,
-              style: const TextStyle(fontSize: 13),
-              decoration: const InputDecoration(labelText: '口令', isDense: true),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              key: const ValueKey('pass-2'),
-              controller: _pass2,
-              obscureText: true,
-              style: const TextStyle(fontSize: 13),
-              decoration:
-                  const InputDecoration(labelText: '确认口令', isDense: true),
-            ),
-            if (_passError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(_passError!,
-                    style: const TextStyle(
-                        fontSize: 11, color: Color(0xFFDC2626))),
-              ),
             const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: FilledButton(
                     key: const ValueKey('btn-export'),
-                    onPressed: _busy ? null : _doExport,
-                    // 轮7：文案只跟导出动作（_exporting），不再被整屏 _busy 误带。
-                    child: Text(_exporting ? '正在导出…' : '导出备份'),
+                    onPressed: _busy
+                        ? null
+                        : () => showExportSheet(context,
+                            withLogs: _withLogs),
+                    // V1.66 批2：主钮开范围面板（原型 sheetExport 口径）；
+                    // _exporting 只属「另存到…」的快速全量路径。
+                    child: Text(_exporting ? '正在导出…' : '导出数据…'),
                   ),
                 ),
                 const SizedBox(width: 8),

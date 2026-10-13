@@ -289,6 +289,10 @@ class LhBak {
   ///   为空则与 T8 明文包行为一致。
   /// - [maxEncryptBytes]：加密档下单个附件超过该字节数则不打包，成员名
   ///   （不含 .enc）记入 manifest.skippedLarge；默认 [kMaxEncryptBytes]。
+  /// - [extraFiles]（V1.66 批2）：包内**恒明文**的额外成员（成员名 → 文本
+  ///   内容），如 `config/settings.json` 与 `notes/*.md` 投影——与 manifest/logs
+  ///   同档（加密档也保持明文，投影与口径设置本就是「可读的包」的题眼）。
+  ///   成员名必须带 `/` 分层且不得与既有成员名冲突。
   static Future<LhBakCreateResult> create({
     required Database db,
     required String outDirPath,
@@ -298,6 +302,7 @@ class LhBak {
     List<String> excludeTables = const [],
     String? passphrase,
     int maxEncryptBytes = kMaxEncryptBytes,
+    Map<String, String> extraFiles = const {},
     DateTime? now,
   }) async {
     final encrypted = passphrase != null;
@@ -342,6 +347,7 @@ class LhBak {
             'maxEncryptBytes': maxEncryptBytes,
             'createdAtIso': ts.toIso8601String(),
             'excludedTables': excluded,
+            'extraFiles': extraFiles,
             'tables': {
               for (final e in tables.entries)
                 e.key: <Object>[e.value.rows, e.value.checksum],
@@ -861,6 +867,8 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
   final maxEncryptBytes = req['maxEncryptBytes'] as int;
   final ts = DateTime.parse(req['createdAtIso'] as String);
   final excluded = (req['excludedTables'] as List).cast<String>();
+  final extraFiles =
+      (req['extraFiles'] as Map?)?.cast<String, String>() ?? const {};
   final tablesRaw = req['tables'] as Map;
   final tables = <String, TableStat>{
     for (final e in tablesRaw.entries)
@@ -922,6 +930,10 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
       memberFiles['logs/${p.basename(logPath)}'] = logPath;
     }
   }
+  // V1.66 批2：可读成员（config/notes）——恒明文、内存文本直写 zip。
+  final extraRaw = <String, Uint8List>{
+    for (final e in extraFiles.entries) e.key: Uint8List.fromList(utf8.encode(e.value)),
+  };
 
   final manifest = LhBakManifest(
     dbVersion: DbSchema.version,
@@ -931,7 +943,7 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
     tables: tables,
     excludedTables: excluded,
     encrypted: encrypted,
-    members: ['manifest.json', ...memberFiles.keys],
+    members: ['manifest.json', ...memberFiles.keys, ...extraRaw.keys],
     kdf: encrypted
         ? {
             'alg': 'PBKDF2-HMAC-SHA256',
@@ -963,10 +975,40 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
         await encoder.addFile(File(e.value), e.key);
       }
     }
+    for (final e in extraRaw.entries) {
+      encoder.addArchiveFile(ArchiveFile(e.key, e.value.length, e.value));
+    }
   } finally {
     await encoder.close();
   }
   return jsonEncode({'outPath': outPath, 'manifest': manifest.toJson()});
+}
+
+/// 读包内单个文本成员（V1.66 批2：config/settings.json 恢复通道；
+/// LhBak 静态库内实现的服务级门面——同库私有件直用）。
+///
+/// - 成员不存在 → null（旧 v1 包无 config/notes＝静默无投影，不是错误）。
+/// - `.enc` 变体（历史加密包若含同名成员）自动解密。
+/// - 本 API 只服务恒明文文本成员；不校验成员是否在 manifest.members
+///   （verify 已先行做过成员清单核对）。
+Future<String?> readMemberText(String filePath, String memberName,
+    {String? passphrase}) async {
+  final zip = LhBak._openZip(filePath);
+  try {
+    final archive = zip.archive;
+    var entry = archive.findFile(memberName);
+    if (entry != null) return utf8.decode(entry.content as List<int>);
+    entry = archive.findFile('$memberName.enc');
+    if (entry == null) return null;
+    // .enc 变体：按加密包口径解密（KDF 参数从 manifest 拿）。
+    final manifest = LhBak._parseManifest(archive);
+    if (!manifest.encrypted) return null;
+    final plain = await LhBak._decryptBlob(
+        entry.content as List<int>, passphrase!, manifest.kdf);
+    return utf8.decode(plain);
+  } finally {
+    zip.close();
+  }
 }
 
 /// 目标目录内不重名的备份文件名：同秒二次导出（如导入恢复的
