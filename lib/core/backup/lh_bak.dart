@@ -26,6 +26,11 @@ import '../database/schema.dart';
 /// 收口批与 pubspec version 同步）。
 const String kAppVersion = '0.1.23';
 
+/// 包结构版本（V1.66 四件套）：1＝V1.41 旧包（无该字段读作 1）；
+/// 2＝本版起（恢复改当前 schema DDL 重建＋列交集拷贝、附件落盘还原、
+/// `.lhbak` 套包排除；notes/config 可读成员随批2续入）。verify 双版本通吃。
+const int kLhBakStructVersion = 2;
+
 /// 口令加密参数（口径钉死于 T9 实施口径）。
 const int kPbkdf2Iterations = 100000;
 const int kMaxEncryptBytes = 64 * 1024 * 1024;
@@ -122,6 +127,7 @@ class LhBakManifest {
     required this.excludedTables,
     required this.encrypted,
     required this.members,
+    this.structVersion = 1,
     this.missingTables = const [],
     this.kdf,
     this.skippedLarge,
@@ -130,6 +136,9 @@ class LhBakManifest {
   int dbVersion;
   String appVersion;
   DateTime createdAt;
+
+  /// 包结构版本（V1.66）：1＝旧包；2＝可读的包链路（见 [kLhBakStructVersion]）。
+  int structVersion;
 
   /// 包内实际含有的表 → 统计（被 excludeTables 排除的表不在此列）。
   Map<String, TableStat> tables;
@@ -159,6 +168,7 @@ class LhBakManifest {
         'dbVersion': dbVersion,
         'appVersion': appVersion,
         'createdAt': createdAt.toIso8601String(),
+        'structVersion': structVersion,
         'tables': {for (final e in tables.entries) e.key: e.value.toJson()},
         'excludedTables': excludedTables,
         'encrypted': encrypted,
@@ -177,8 +187,13 @@ class LhBakManifest {
     final members = json['members'];
     final kdf = json['kdf'];
     final skippedLarge = json['skippedLarge'];
+    // 旧包（V1.41）无 structVersion 字段 → 读作 1。
+    final structVersion = json['structVersion'] ?? 1;
     if (dbVersion is! int || appVersion is! String || createdAt is! String) {
       throw const FormatException('manifest 缺 dbVersion/appVersion/createdAt');
+    }
+    if (structVersion is! int || structVersion < 1) {
+      throw const FormatException('manifest.structVersion 非法');
     }
     if (tables is! Map<String, dynamic> ||
         excluded is! List ||
@@ -196,6 +211,7 @@ class LhBakManifest {
       dbVersion: dbVersion,
       appVersion: appVersion,
       createdAt: DateTime.parse(createdAt),
+      structVersion: structVersion,
       tables: {
         for (final e in tables.entries)
           e.key: TableStat.fromJson(e.value as Map<String, dynamic>)
@@ -407,13 +423,16 @@ class LhBak {
   }
 
   /// 解包恢复到 [targetDb]（整库替换，不做记录级合并，设计稿 §3 口径）：
-  /// 删旧表 → 按快照 sqlite_master 重建 → ATTACH 快照 → 逐表 INSERT → DETACH。
+  /// **V1.66 P0-2 起：删旧表 → 按当前 schema DDL 重建 → 按列交集拷贝 →
+  /// 当前 schema 辅助 DDL → 钉 user_version**（旧口径按包内快照 DDL 重建，
+  /// 退版包恢复后表结构停在旧版、迁移永不触发——根因修复见上文）。
+  /// 快照多出的遗留表按快照 DDL 保数据迁入。
   ///
   /// 加密档需给 [passphrase]（口径同 [verify]）：db.sqlite.enc 先解密写入
   /// 临时文件再 ATTACH，临时目录随本方法结束删除。
   /// 包内缺失（excludeTables 产物）的当前 schema 表按 DDL 建空表，
   /// 列在返回 manifest 的 [LhBakManifest.missingTables]。
-  /// 附件/日志的落盘恢复属导入 UI 任务（T10），此处只恢复 DB。
+  /// 附件落盘还原见 [restoreAttachments]（V1.66 P0-1）。
   static Future<LhBakManifest> unpack({
     required String filePath,
     required Database targetDb,
@@ -440,9 +459,8 @@ class LhBak {
           "WHERE type IN ('index','trigger') AND sql IS NOT NULL ORDER BY name");
       final snapTables = snapDdl.map((r) => r['name'] as String).toSet();
       final targetTables = await _tableNames(targetDb);
-      final schemaDdl = _schemaTableDdl();
-      final missing = schemaDdl.keys.toSet().difference(snapTables).toList()
-        ..sort();
+      final cur = await _currentDdl();
+      final missing = cur.names.difference(snapTables).toList()..sort();
 
       // Task 10 携带修复（T8 遗留）：删旧表→重建→逐表 INSERT 期间表序任意，
       // 未来 schema 引入 FK 表后单事务内会出现外键瞬时违规；defer_foreign_keys
@@ -452,20 +470,43 @@ class LhBak {
         for (final t in targetTables) {
           await txn.execute('DROP TABLE IF EXISTS main."$t"');
         }
+        // V1.66 P0-2：改按**当前 schema 终态 DDL** 重建（含迁移加列后的形态；
+        // 替代旧口径「按包内快照 DDL 重建」）——退版包恢复后新列在、带默认值，
+        // `no such column` 不再悬空。回放序＝临时内存库 sqlite_master 序
+        // （表在前索引在后，含 FTS 虚拟表；影子表/种子不回放）。
+        for (final sql in cur.ordered) {
+          await txn.execute(_qualifyMain(sql));
+        }
+        // 快照多出的遗留表（当前 schema 已退役，如 events）：按快照 DDL 保数据
+        // 迁入（数据不丢，应用层不再读写）。
         for (final r in snapDdl) {
-          await txn.execute(_qualifyMain(r['sql'] as String));
+          if (!cur.names.contains(r['name'] as String)) {
+            await txn.execute(_qualifyMain(r['sql'] as String));
+          }
         }
-        for (final t in missing) {
-          await txn.execute(schemaDdl[t]!);
-        }
+        // 逐表按**列交集**拷贝（旧包缺新列 → 新列落默认值；快照缺表 →
+        // 建空表已由回放覆盖，报告 missingTables）。
         for (final r in snapDdl) {
           final t = r['name'] as String;
-          await txn.execute('INSERT INTO main."$t" SELECT * FROM $snapName."$t"');
+          final cols = await _intersectColumns(txn, snapName, t);
+          if (cols.isEmpty) continue;
+          final colList = cols.map((c) => '"$c"').join(',');
+          await txn.execute(
+              'INSERT INTO main."$t"($colList) SELECT $colList FROM $snapName."$t"');
         }
+        // 快照遗留的辅助 DDL（退役表索引等）best-effort，失败不阻塞恢复
+        // （当前 schema 的索引已在回放序里建好）。
         for (final r in snapAux) {
-          await txn.execute(_qualifyMain(r['sql'] as String));
+          try {
+            await txn.execute(_qualifyMain(r['sql'] as String));
+          } catch (_) {
+            // 遗留辅助 DDL 引用已退役对象等场景：索引非数据面，跳过。
+          }
         }
       });
+      // V1.66 P0-2 收尾：显式把 user_version 钉到当前版本（旧包恢复后
+      // 任何以 user_version 为闸的逻辑不再看到旧版本号）。
+      await targetDb.execute('PRAGMA user_version = ${DbSchema.version}');
       manifest.missingTables = missing;
       return manifest;
     } finally {
@@ -481,6 +522,148 @@ class LhBak {
   }
 
   // ---------- 内部工具 ----------
+
+  /// V1.66 P0-1：把包内 `attachments/` 成员落盘还原（T10 留口的附件腿，
+  /// 与 [unpack] 的 DB 腿配套；由 [BackupService.importBackup] 在 DB 恢复
+  /// 成功后接线）。
+  ///
+  /// - [dirTargets]：`attachments/<目录名>/...` 成员 → 目标根目录（键＝成员
+  ///   首段，生产＝attachDirs 基名→原目录）。**组在包内才清旧目录**：整目录
+  ///   删除重建＝全量替换，陈旧文件不残留；不在映射内的组不动。
+  /// - [rootFilesTarget]：`attachments/<散件>`（记账 lifeharness_ledger.csv
+  ///   等根目录白名单文件）落点目录；null 时散件跳过。散件只覆盖不清理
+  ///   （根目录混有非附件文件，清根＝误删）。
+  /// - 加密包逐成员解密（每 blob 自带 salt|nonce，KDF 参数读 manifest.kdf，
+  ///   白名单/轮数封顶口径同 DB 腿）。
+  /// - 路径安全：成员相对路径含 `..` 段＝恶意包，该成员跳过。
+  ///
+  /// 返回实际落盘文件数。坏包冒泡 [LhBakException]（code 同 [verify]）。
+  static Future<int> restoreAttachments({
+    required String filePath,
+    Map<String, String> dirTargets = const {},
+    String? rootFilesTarget,
+    String? passphrase,
+  }) async {
+    final zip = _openZip(filePath);
+    try {
+      final archive = zip.archive;
+      final manifest = _parseManifest(archive);
+      // 成员清点：目录组 vs 散件组（包内出现过才动作，见各注释）。
+      // 值＝(成员, 组段已剥掉的相对路径)。
+      final dirGroups = <String, List<(ArchiveFile, String)>>{};
+      final loose = <(ArchiveFile, String)>[];
+      for (final entry in archive) {
+        final name = entry.name;
+        if (!name.startsWith('attachments/') || name.endsWith('/')) continue;
+        final rest = name.substring('attachments/'.length);
+        if (rest.isEmpty) continue;
+        final slash = rest.indexOf('/');
+        if (slash < 0) {
+          loose.add((entry, rest));
+        } else {
+          dirGroups.putIfAbsent(rest.substring(0, slash), () => []).add(
+              (entry, rest.substring(slash + 1)));
+        }
+      }
+      var count = 0;
+      for (final e in dirGroups.entries) {
+        final target = dirTargets[e.key];
+        if (target == null) continue;
+        final dir = Directory(target);
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+        dir.createSync(recursive: true);
+        for (final mem in e.value) {
+          count += await _writeAttachmentMember(
+              mem.$1, mem.$2, manifest, passphrase, target);
+        }
+      }
+      if (rootFilesTarget != null && loose.isNotEmpty) {
+        Directory(rootFilesTarget).createSync(recursive: true);
+        for (final mem in loose) {
+          count += await _writeAttachmentMember(
+              mem.$1, mem.$2, manifest, passphrase, rootFilesTarget);
+        }
+      }
+      return count;
+    } finally {
+      zip.close();
+    }
+  }
+
+  /// 单个附件成员落盘（命名/解密/路径安全收口）；返回 0＝跳过，1＝落盘。
+  /// [relPath]＝组段已剥掉的相对路径（目录组）/散件名（散件组）。
+  static Future<int> _writeAttachmentMember(ArchiveFile entry,
+      String relPath, LhBakManifest manifest, String? passphrase,
+      String targetDir) async {
+    final isEnc = relPath.endsWith('.enc');
+    if (manifest.encrypted != isEnc) {
+      return 0; // 加密包内混明文成员 / 明文包内混 .enc＝口径外，跳过
+    }
+    var name = isEnc ? relPath.substring(0, relPath.length - '.enc'.length) : relPath;
+    final segs = name.split('/');
+    if (segs.any((s) => s.isEmpty || s == '.' || s == '..')) {
+      return 0; // 路径穿越防线
+    }
+    final outPath = p.join(targetDir, p.joinAll(segs));
+    Directory(p.dirname(outPath)).createSync(recursive: true);
+    if (manifest.encrypted) {
+      final plain = await _decryptBlob(
+          entry.content as List<int>, passphrase!, manifest.kdf);
+      File(outPath).writeAsBytesSync(plain);
+    } else {
+      final output = OutputFileStream(outPath);
+      try {
+        entry.writeContent(output);
+      } finally {
+        output.closeSync();
+      }
+    }
+    return 1;
+  }
+
+  /// 解密单成员 blob（salt|nonce|密文+tag，KDF 参数读 manifest.kdf）。
+  /// DB 腿（[_materializeDbMember]）与附件腿（[_writeAttachmentMember]）共用。
+  static Future<Uint8List> _decryptBlob(
+      List<int> blob, String passphrase, Map<String, Object>? kdf) async {
+    // Task 10 携带修复：KDF 算法白名单 + 轮数封顶区间，坏 manifest 直接
+    // badManifest 拒绝，绝不拿超界轮数去派生密钥（拒绝服务防线）。
+    // alg 口径 = T9 写入值 'PBKDF2-HMAC-SHA256'（即 PBKDF2-SHA256 全称）。
+    final alg = kdf?['alg'];
+    if (alg != 'PBKDF2-HMAC-SHA256') {
+      throw const LhBakException(
+          LhBakException.codeBadManifest, 'manifest.kdf.alg 非 PBKDF2-HMAC-SHA256');
+    }
+    final iterations = kdf?['iterations'];
+    if (iterations is! int ||
+        iterations < kKdfIterationsMin ||
+        iterations > kKdfIterationsMax) {
+      throw const LhBakException(LhBakException.codeBadManifest,
+          'manifest.kdf.iterations 缺失或超出合法区间 '
+          '[$kKdfIterationsMin, $kKdfIterationsMax]');
+    }
+    if (blob.length < _saltLength + _nonceLength + _tagLength) {
+      throw const LhBakException(
+          LhBakException.codeBadManifest, '加密成员长度非法');
+    }
+    final salt = blob.sublist(0, _saltLength);
+    final nonce = blob.sublist(_saltLength, _saltLength + _nonceLength);
+    final cipherText =
+        blob.sublist(_saltLength + _nonceLength, blob.length - _tagLength);
+    final mac = Uint8List.fromList(blob.sublist(blob.length - _tagLength));
+    final key = await Pbkdf2.hmacSha256(iterations: iterations, bits: 256)
+        .deriveKeyFromPassword(password: passphrase, nonce: salt);
+    final List<int> plain;
+    try {
+      plain = await AesGcm.with256bits().decrypt(
+        SecretBox(cipherText, nonce: nonce, mac: Mac(mac)),
+        secretKey: key,
+      );
+    } on SecretBoxAuthenticationError {
+      throw const LhBakException(LhBakException.codeWrongPassphrase,
+          '口令错误或包被篡改（GCM tag 校验失败）');
+    }
+    return Uint8List.fromList(plain);
+  }
 
   /// zip 解码（结构损坏/文件不可读 → badZip）。返回体持有底层
   /// [InputFileStream]，成员内容惰性读取，用完必须 [zip.close()]。
@@ -538,44 +721,8 @@ class LhBak {
       throw const LhBakException(LhBakException.codeBadManifest,
           '成员缺失：db.sqlite.enc');
     }
-    // Task 10 携带修复：KDF 算法白名单 + 轮数封顶区间，坏 manifest 直接
-    // badManifest 拒绝，绝不拿超界轮数去派生密钥（拒绝服务防线）。
-    // alg 口径 = T9 写入值 'PBKDF2-HMAC-SHA256'（即 PBKDF2-SHA256 全称）。
-    final alg = manifest.kdf?['alg'];
-    if (alg != 'PBKDF2-HMAC-SHA256') {
-      throw const LhBakException(LhBakException.codeBadManifest,
-          'manifest.kdf.alg 非 PBKDF2-HMAC-SHA256');
-    }
-    final iterations = manifest.kdf?['iterations'];
-    if (iterations is! int ||
-        iterations < kKdfIterationsMin ||
-        iterations > kKdfIterationsMax) {
-      throw const LhBakException(LhBakException.codeBadManifest,
-          'manifest.kdf.iterations 缺失或超出合法区间 '
-          '[$kKdfIterationsMin, $kKdfIterationsMax]');
-    }
-    final blob = entry.content as List<int>;
-    if (blob.length < _saltLength + _nonceLength + _tagLength) {
-      throw const LhBakException(
-          LhBakException.codeBadManifest, '加密成员长度非法');
-    }
-    final salt = blob.sublist(0, _saltLength);
-    final nonce = blob.sublist(_saltLength, _saltLength + _nonceLength);
-    final cipherText =
-        blob.sublist(_saltLength + _nonceLength, blob.length - _tagLength);
-    final mac = Uint8List.fromList(blob.sublist(blob.length - _tagLength));
-    final key = await Pbkdf2.hmacSha256(iterations: iterations, bits: 256)
-        .deriveKeyFromPassword(password: passphrase!, nonce: salt);
-    final List<int> plain;
-    try {
-      plain = await AesGcm.with256bits().decrypt(
-        SecretBox(cipherText, nonce: nonce, mac: Mac(mac)),
-        secretKey: key,
-      );
-    } on SecretBoxAuthenticationError {
-      throw const LhBakException(LhBakException.codeWrongPassphrase,
-          '口令错误或包被篡改（GCM tag 校验失败）');
-    }
+    final plain = await _decryptBlob(
+        entry.content as List<int>, passphrase!, manifest.kdf);
     File(outPath).writeAsBytesSync(plain);
   }
 
@@ -599,25 +746,79 @@ class LhBak {
         .toList();
   }
 
-  static final RegExp _createTableRe = RegExp(
-      r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_][A-Za-z0-9_]*)',
-      caseSensitive: false);
+  /// 当前 schema 的**终态** DDL（建表含迁移加列后的形态＋索引/触发器，回放序）。
+  ///
+  /// 为什么不直接解析 `DbSchema.createStatements` 文本：那串混有迁移 ALTER
+  /// 加列（media_notes 复习三列在迁移段、基础 DDL 不带列）与种子 INSERT，
+  /// 文本拆不出终态表形——按它建表再建 idx_mnote_due 必炸 no such column
+  /// （批1 首跑实锤）。终态＝按 createStatements 建一个临时内存库再读
+  /// sqlite_master（ALTER 已物化进建表 sql；影子表/种子不回放），缓存一次。
+  static _CurrentDdl? _currentDdlCache;
 
-  /// 当前 schema 的表名 → 建表语句（来自 DbSchema.createStatements）。
-  static Map<String, String> _schemaTableDdl() {
-    final map = <String, String>{};
-    for (final sql in DbSchema.createStatements) {
-      final m = _createTableRe.firstMatch(sql);
-      if (m != null) map.putIfAbsent(m.group(1)!, () => sql);
+  static Future<_CurrentDdl> _currentDdl() async {
+    final cached = _currentDdlCache;
+    if (cached != null) return cached;
+    final scratch = await snapshotFactory.openDatabase(':memory:',
+        options: OpenDatabaseOptions(
+            version: DbSchema.version,
+            singleInstance: false,
+            onCreate: (d, v) async {
+          for (final sql in DbSchema.createStatements) {
+            await d.execute(sql);
+          }
+        }));
+    try {
+      final rows = await scratch.rawQuery(
+          'SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY rowid');
+      final vnames = rows
+          .where((r) => (r['sql'] as String)
+              .toUpperCase()
+              .startsWith('CREATE VIRTUAL TABLE'))
+          .map((r) => r['name'] as String)
+          .toSet();
+      bool isShadow(String n) => vnames.any((v) => n.startsWith('${v}_'));
+      final tables = <String, String>{};
+      final ordered = <String>[];
+      for (final r in rows) {
+        final type = r['type'] as String;
+        final name = r['name'] as String;
+        final sql = r['sql'] as String;
+        if (name.startsWith('sqlite_')) continue; // sqlite_sequence 等内部表不回放
+        if (type == 'table') {
+          if (isShadow(name)) continue; // FTS 影子表随虚拟表自建，不回放
+          tables[name] = sql;
+          ordered.add(sql);
+        } else {
+          ordered.add(sql); // 索引/触发器按创建序回放
+        }
+      }
+      return _currentDdlCache =
+          _CurrentDdl(tables, ordered, tables.keys.toSet());
+    } finally {
+      await scratch.close();
     }
-    return map;
   }
 
-  static final RegExp _qualifyTargetRe = RegExp(
-      r'^(\s*CREATE\s+(?:TABLE|UNIQUE\s+TABLE|INDEX|UNIQUE\s+INDEX|TRIGGER)\s+)((?:IF\s+NOT\s+EXISTS\s+)?)(\S)',
-      caseSensitive: false);
+  /// main 表与快照表的**列交集**（保持 main 列序）：退版/升版包恢复时
+  /// 只拷双方都有的列，新列落 DDL 默认值、旧列值不丢。
+  static Future<List<String>> _intersectColumns(
+      DatabaseExecutor db, String snapName, String table) async {
+    final mainRows = await db.rawQuery('PRAGMA main.table_info("$table")');
+    final mainCols = mainRows.map((r) => r['name'] as String).toSet();
+    final snapRows =
+        await db.rawQuery('PRAGMA $snapName.table_info("$table")');
+    return snapRows
+        .map((r) => r['name'] as String)
+        .where(mainCols.contains)
+        .toList();
+  }
 
   /// ATTACH 期间未限定名可能命中快照库，DDL 统一补 `main.` 前缀。
+  /// 含 CREATE VIRTUAL TABLE（FTS 终态回放）。
+  static final RegExp _qualifyTargetRe = RegExp(
+      r'^(\s*CREATE\s+(?:(?:VIRTUAL\s+)?(?:UNIQUE\s+)?(?:TABLE|INDEX)|TRIGGER)\s+)((?:IF\s+NOT\s+EXISTS\s+)?)(\S)',
+      caseSensitive: false);
+
   static String _qualifyMain(String ddl) {
     final m = _qualifyTargetRe.firstMatch(ddl);
     if (m == null) return ddl;
@@ -680,6 +881,9 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
   // 附件成员收口（目录递归 / 散文件共用）：加密档统一 .enc 命名与
   // 单文件超限跳过口径。
   void addAttachment(String memberName, File f) {
+    // V1.66 P0-3：按扩展名排除备份包自身——exports/ 落点的 .lhbak（云同步
+    // 快照与本机导出同目录）递归入包＝每导一次套一层；同步快照那条腿同闸。
+    if (p.extension(memberName).toLowerCase() == '.lhbak') return;
     if (!encrypted) {
       memberFiles[memberName] = f.path;
       return;
@@ -723,6 +927,7 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
     dbVersion: DbSchema.version,
     appVersion: kAppVersion,
     createdAt: ts,
+    structVersion: kLhBakStructVersion,
     tables: tables,
     excludedTables: excluded,
     encrypted: encrypted,
@@ -792,6 +997,15 @@ class _OpenedZip {
       // 已关闭则忽略。
     }
   }
+}
+
+/// 当前 schema 终态 DDL（[_CurrentDdl.ordered]＝建库回放序；[names]＝实表名集）。
+class _CurrentDdl {
+  const _CurrentDdl(this.tables, this.ordered, this.names);
+
+  final Map<String, String> tables;
+  final List<String> ordered;
+  final Set<String> names;
 }
 
 /// 一次 create 的加密器：全包共用一个随机 salt（PBKDF2 派生只做一次并缓存），

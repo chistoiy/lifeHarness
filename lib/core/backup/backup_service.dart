@@ -77,6 +77,7 @@ class RestoreReport {
     required this.missingTables,
     required this.skippedLarge,
     required this.autoBackupPath,
+    this.restoredAttachmentFiles = 0,
   });
 
   /// 包内恢复的表数。
@@ -93,6 +94,9 @@ class RestoreReport {
 
   /// 本次恢复前生成的自动备份路径（app 导出目录内）。
   final String? autoBackupPath;
+
+  /// V1.66 P0-1：附件落盘还原的实际文件数（组在包内才动作；0＝包内无附件组）。
+  final int restoredAttachmentFiles;
 }
 
 /// 备份导出/导入恢复服务（目录/库/对话框全注入，可测）。
@@ -378,6 +382,30 @@ class BackupService {
       '${manifest.tables.values.fold<int>(0, (a, t) => a + t.rows)} 行'
       '${manifest.missingTables.isNotEmpty ? ' · 缺表 ${manifest.missingTables.join(",")}' : ""}',
     );
+    // V1.66 P0-1：附件腿——DB 恢复成功后按包内 attachments/ 落盘还原。
+    // 目录组＝attachDirs 基名→原目录（组在包内才清旧目录）；散件＝
+    // attachRootDirs 根目录（只覆盖不清理，根目录混有非附件文件）。
+    // 失败 fail loud：自动备份已先行，用户可回退后重试（评估件 P0 口径）。
+    var restoredFiles = 0;
+    try {
+      restoredFiles = await LhBak.restoreAttachments(
+        filePath: filePath,
+        dirTargets: {
+          for (final d in attachDirs) p.basename(d): d,
+        },
+        rootFilesTarget:
+            attachRootDirs.isEmpty ? null : attachRootDirs.first,
+        passphrase: passphrase,
+      );
+      if (restoredFiles > 0) {
+        AppLog.addKey('备份附件落盘还原：$restoredFiles 个文件');
+      }
+    } catch (e, st) {
+      AppLog.add('附件落盘恢复失败（DB 已替换，可用恢复前自动备份回退）：$e',
+          level: LhLevel.error, src: '备份');
+      AppLog.addStack(st.toString(), src: '备份');
+      rethrow;
+    }
     return RestoreReport(
       tableCount: manifest.tables.length,
       totalRows:
@@ -385,6 +413,7 @@ class BackupService {
       missingTables: manifest.missingTables,
       skippedLarge: manifest.skippedLarge ?? const [],
       autoBackupPath: auto.file.path,
+      restoredAttachmentFiles: restoredFiles,
     );
   }
 
