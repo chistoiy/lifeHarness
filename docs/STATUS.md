@@ -4,7 +4,7 @@
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。治理三轮（2026-10-13）起文档门禁并增守护十一~十五（AGENTS ≤16KiB·交接文档/需求清单体量上限·入仓文档禁指工具本地目录路径·AGENTS 必需小节齐全），口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`（已闭档）。
 
 - **上一批＝** 备份四件套批2（V1.66·ExportSheet＋可读成员·纯 dart 零原生）＝导出范围面板（模块 chips×格式两档 .lhbak/可读目录×预估体积×附件/md 开关·挂备份半屏主钮）＋口令导出入口下架（导入侧旧加密包兼容保留）＋notes/ md 投影与 config/settings.json 入包（SettingsRepository 整包导出/导入·凭据零接触）＋恢复链 config 应用（warn 不炸恢复）＋记账/健康投影器收编＋可读目录档落 exports/；注册表与投影器落 shared/linkage；闸＝analyze 零 issue＋10 波全绿（4 波修复轮）＋三刀各红其位；新增常驻 16 例；工单＝docs/archive/交棒话术-20261013-备份格式四件套批1实现.md §批2 面板
-- **本批＝** 6120 装机回知批（预估口径＋导出位置·含 Kotlin 小改）＝预估与实包同口径（快照 DROP 恒排除表后 VACUUM 收净＋gzip 实测·create 同补 VACUUM 收陈旧页）＋方案A 导出位置（同步页设置行·ExportSheet ④段·主钮直达 safCreateInTree·应用目录原包保留）＋备份列表合并读导出位置（ext 角标·只显档）；闸＝analyze 零 issue＋11 波全绿＋变异刀 1 刀红其位＋kotlin_check 过；新增常驻 5 例；细节＝docs/handoff/交棒话术-20261013-6120装机回知-ExportSheet预估口径与导出位置.md
+- **本批＝** 6120 装机回知批（预估口径＋导出位置·含 Kotlin 小改）＝预估与实包同口径（快照 DROP 恒排除表后 VACUUM 收净＋gzip 实测·create 同补 VACUUM 收陈旧页）＋方案A 导出位置（同步页设置行·ExportSheet ④段·主钮直达 safCreateInTree·应用目录原包保留）＋备份列表合并读导出位置（ext 角标·只显档）；闸＝analyze 零 issue＋11 波全绿＋变异刀 1 刀红其位＋kotlin_check 过；新增常驻 5 例；细节＝docs/archive/交棒话术-20261013-6120装机回知-ExportSheet预估口径与导出位置.md
 
 ## 基线（八项，其余不写）
 
