@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # bootstrap_check.sh —— 换机 / 换工具「首次开机」自检（治理三轮 2026-10-13 立）
-# 依据＝docs/handoff/治理方案-20261013-规则与上下文与记忆治理.md §5.2 / §5.3
+# 依据＝docs/archive/治理方案-20261013-规则与上下文与记忆治理.md §5.2 / §5.3（2026-10-13 收尾归档）
 # 只读自检、不改任何文件；任一红项 exit 1（可接在开工第一步）。
 # 用法：bash tools/bootstrap_check.sh [--python <解释器全路径>]
 set -u

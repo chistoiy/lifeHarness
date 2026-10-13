@@ -170,7 +170,7 @@ cr = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "color_ratchet.
 if cr.returncode != 0:
     g.append("守护十：" + ((cr.stdout or "") + (cr.stderr or "")).strip().replace("\n", " / ")[:300])
 # ---- 治理三轮（2026-10-13）可移植规则系统五条守护 ----
-# 依据＝docs/handoff/治理方案-20261013-规则与上下文与记忆治理.md §6；回灌成句＝
+# 依据＝docs/archive/治理方案-20261013-规则与上下文与记忆治理.md §6；回灌成句＝
 # 「机器只认一份入口（AGENTS.md）；一条规则只在一处定义，其余写指针」。
 # 十一) AGENTS.md 体量（超＝注入截断；放宽须人审改下列常量并在治理件写理由）
 AGENTS_BYTES_MAX = 16384            # 16 KiB（Codex project_doc_max_bytes 默认 32 KiB，留一半余量）
@@ -189,11 +189,9 @@ if _rl > REQ_LINES_MAX:
     g.append("守护十三：docs/需求清单.md %d 行超上限 %d（修订记录应进 archive/需求修订史-*.md）"
              % (_rl, REQ_LINES_MAX))
 # 十四) 入仓文档禁出现 .workbuddy/ 路径（入仓文档指向不入仓路径＝换机即死链）
-#      豁免：行级 EXEMPT_LINE；`shots` 为仓库外截图留底目录（非知识指针）；治理件记录迁移前状态
-FILE_EXEMPT_14 = {
-    "docs/handoff/治理方案-20261013-规则与上下文与记忆治理.md":
-        "本件记录「迁移前状态」、全篇讨论 .workbuddy/；收口归档后进 archive（skip）自动豁免",
-}
+#      豁免：行级 EXEMPT_LINE；`shots` 为仓库外截图留底目录（非知识指针）
+#      （原 治理方案件 文件级豁免已随该件 2026-10-13 收尾归档进 docs/archive/ 而移除——archive 被 skip 自动豁免）
+FILE_EXEMPT_14 = {}
 for _p in targets:
     if _p in FILE_EXEMPT_14:
         continue
