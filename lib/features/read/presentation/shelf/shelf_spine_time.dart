@@ -143,9 +143,11 @@ extension _ShelfSpineTime on _ShelfPageState {
         ref.watch(shelfSessionsProvider).valueOrNull ??
         const <BookSession>[];
     final byId = {for (final b in list) b.id: b};
-    final range =
-        ref.watch(readKvProvider(('read.tlRange', '近半年'))).valueOrNull ??
-        '近半年';
+    // F1-5：read.tlRange 口径统一为英文枚举（month/half/year，原型 BS_SET 口径）；
+    // 兼容旧中文存量值（本月/近半年/全年）→ 映射到同窗口，不再回写。
+    final rangeRaw =
+        ref.watch(readKvProvider(('read.tlRange', 'half'))).valueOrNull ??
+        'half';
     final tlDays =
         int.tryParse(
               ref.watch(readKvProvider(('read.tlDays', '14'))).valueOrNull ??
@@ -153,10 +155,10 @@ extension _ShelfSpineTime on _ShelfPageState {
             ) ??
             14;
     // read.tlRange 窗口过滤 → 按日分组倒序 → 取最近 tlDays 天（原型 DS slice 口径）。
-    final winDays = switch (range) {
-      '本月' => 31,
-      '近半年' => 183,
-      _ => 366,
+    final winDays = switch (rangeRaw) {
+      'month' || '本月' => 31,
+      'half' || '近半年' => 183,
+      _ => 366, // year / 全年 / 未知
     };
     final fromT = DateTime.now().subtract(Duration(days: winDays));
     final events = <_TlEv>[];

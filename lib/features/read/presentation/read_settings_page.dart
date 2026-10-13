@@ -24,6 +24,7 @@ enum _T { chips, bool, ops, nav, go, go2, info, login, cache }
 class _Row {
   const _Row(this.key, this.name, this.t, {
     this.opts = const [],
+    this.pairs = const [],
     this.desc = '',
     this.route = '',
   });
@@ -31,8 +32,17 @@ class _Row {
   final String name;
   final _T t;
   final List<String> opts;
+
+  /// 显示名 ↔ 存储值二元组（原型 chips 的 `[[显示, 存储], …]` 形式；
+  /// `d == s` 者与 [opts] 等价）。用于「存储英文枚举 / 显示中文」的键
+  /// （tlRange）与「存储数字 / 显示 0.75x」（brRate）。
+  final List<(String, String)> pairs;
   final String desc;
   final String route;
+
+  /// 归一后的候选（显示名, 存储值）列表：优先 [pairs]，否则 [opts] 自映射。
+  List<(String, String)> get choices =>
+      pairs.isNotEmpty ? pairs : [for (final o in opts) (o, o)];
 }
 
 class _Sec {
@@ -57,7 +67,10 @@ const _secs = [
   _Sec('内容显示与排序', [
     _Row('newPos', '新增书籍位置', _T.chips, opts: ['开头', '末尾']),
     _Row('yearSort', '今年读完排序', _T.chips, opts: ['升序', '降序']),
-    _Row('tlRange', '时间线范围', _T.chips, opts: ['本月', '近半年', '全年']),
+    // F1-5：tlRange 统一英文枚举口径（原型 RS_SEC 存 month/half/year）——
+    // 存储值走 pairs 第二元，显示仍中文，与 shelf_spine_time 读取端同源。
+    _Row('tlRange', '时间线范围', _T.chips,
+        pairs: [('本月', 'month'), ('近半年', 'half'), ('全年', 'year')]),
     _Row('tlDays', '时间线显示天数', _T.chips, opts: ['7', '14', '30']),
     _Row('longPress', '长按书籍菜单', _T.ops, desc: '勾选并调整顺序'),
   ]),
@@ -115,6 +128,18 @@ const _secs = [
     _Row('brLink', '书籍内外部链接', _T.chips,
         opts: ['禁止', '询问', '允许'],
         desc: '章节内跳转不受限制 · 外链默认询问'),
+    // F1-5：brRate 有声书倍速（原型 RS_SEC brLink 与 brBright 之间）——
+    // 存储数字（0.75~2.0），显示 0.75x；与「有声按倍速折算」开关配合，
+    // 在 startSession 落库时按此倍速写入 speed（有声书才折算）。
+    _Row('brRate', '有声书倍速', _T.chips,
+        pairs: [
+          ('0.75x', '0.75'),
+          ('1.0x', '1'),
+          ('1.25x', '1.25'),
+          ('1.5x', '1.5'),
+          ('2.0x', '2'),
+        ],
+        desc: '仅用于有声书：按此倍速把播放时长折算成阅读时长（配合「有声按倍速折算」开关）'),
     _Row('brBright', '阅读时屏幕常亮', _T.bool,
         desc: '进入阅读器自动生效 · 退出恢复系统策略'),
     // V1.53.2 轮5.2②：退出阅读器时结算，未达门槛不记时长也不记会话。
@@ -190,9 +215,21 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
         context,
         _boolLabel.containsKey(key)
             ? '${value == 'true' ? '已开启 · ' : '已关闭 · '}${_boolLabel[key]}'
-            : '已设置 $value',
+            : '已设置 ${_chipLabel(key, value)}',
       );
     }
+  }
+
+  /// chips 行的存储值 → 显示名（原型 rsChip toast 用显示名；
+  /// pairs 行的存储值是英文枚举/数字，直接塞进 toast 会露内部口径）。
+  String _chipLabel(String key, String value) {
+    for (final r in _secs.expand((s) => s.rows)) {
+      if (r.key != key) continue;
+      for (final (label, store) in r.choices) {
+        if (store == value) return label;
+      }
+    }
+    return value;
   }
 
   String _val(String key, String def) =>
@@ -349,33 +386,33 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final o in r.opts)
+                for (final (label, store) in r.choices)
                   GestureDetector(
-                    key: ValueKey('set-${r.key}-$o'),
-                    onTap: () => _set(r.key, o),
+                    key: ValueKey('set-${r.key}-$store'),
+                    onTap: () => _set(r.key, store),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: _val(r.key, _def(r)) == o
+                        color: _val(r.key, _def(r)) == store
                             ? tokens.accent.withValues(alpha: .12)
                             : cs.surfaceContainerHighest
                                   .withValues(alpha: .4),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: _val(r.key, _def(r)) == o
+                          color: _val(r.key, _def(r)) == store
                               ? tokens.accent
                               : Colors.transparent,
                         ),
                       ),
                       child: Text(
-                        o,
+                        label,
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
-                          color: _val(r.key, _def(r)) == o
+                          color: _val(r.key, _def(r)) == store
                               ? tokens.accent
                               : cs.onSurfaceVariant,
                         ),
@@ -523,7 +560,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     'qtLines' => '3',
     'newPos' => '开头',
     'yearSort' => '升序',
-    'tlRange' => '近半年',
+    // F1-5：tlRange 默认近半年＝英文枚举 'half'（原型 BS_SET 默认 half）。
+    'tlRange' => 'half',
     'tlDays' => '14',
     'timerUI' => '全屏',
     'isbnFill' => '仅填 ISBN',
@@ -536,6 +574,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     'brBright' => 'false',
     // 轮5.2②：短会话门槛默认 30 秒（chip 值以字符串存）。
     'brMinSecs' => '30',
+    // F1-5：有声书倍速默认 1.0x（原型 BS_SET.brRate 默认 1）。
+    'brRate' => '1',
     // V1.53.4④⑤：长按粒度默认选字；工具条名单默认 8 项全开（逗号串）。
     'brSelGran' => '选字',
     'brSelBar' => kBrSelDefaultTools.join(','),

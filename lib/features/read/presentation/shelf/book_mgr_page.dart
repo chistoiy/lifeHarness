@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/nav/nav_module.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/confirm_dialog.dart';
+import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/book.dart';
 import '../../domain/book_dict.dart';
 import '../read_providers.dart';
@@ -88,16 +90,34 @@ class _BookMgrPageState extends ConsumerState<BookMgrPage> {
   }
 
   Future<void> _delete(DictEntry e) async {
-    final n = await ref.read(readRepositoryProvider).dictRefCount(e);
+    final repo = ref.read(readRepositoryProvider);
+    final n = await repo.dictRefCount(e);
     if (!mounted) return;
     if (n > 0) {
       // 原型 bmDel 守卫：被引用不可删，先去书里改掉该维度值。
       readToast(context, '还有 $n 本书在用，请先在这些书里改掉${DictEntry.label(_kind)}');
       return;
     }
-    await ref.read(readRepositoryProvider).dictDelete(e);
+    // F1-2 原型 bmDel：破坏性删除先过 LH-S31 二次确认（取消左 · 玫红右），
+    // 文案照原型「删除{类型}「{值}」？」＋后果说明（「误删可在下方提示条里撤销」）。
+    final label = DictEntry.label(_kind);
+    final ok = await lhConfirm(
+      context,
+      '删除$label「${e.name}」？\n当前没有书引用它，删除不影响任何藏书；误删可在下方提示条里撤销。',
+    );
+    if (!ok) return;
+    await repo.dictDelete(e);
     ref.read(readTickProvider.notifier).state++;
-    if (mounted) readToast(context, '已删除「${e.name}」');
+    if (!mounted) return;
+    // 真改源数组 + 提示条撤销回填（与原型 bmDelCommit 同口径：toast 带撤销回调）。
+    AppToast.showUndo(
+      context,
+      '已删除$label「${e.name}」',
+      onUndo: () async {
+        await repo.dictAdd(_kind, e.name);
+        ref.read(readTickProvider.notifier).state++;
+      },
+    );
   }
 
   /// 行点按（原型 bmFilter 5291）：书架按该维度筛选 + 回书架 + toast。

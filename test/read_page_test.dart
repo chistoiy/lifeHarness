@@ -2339,10 +2339,15 @@ void main() {
           .widget<TextField>(find.byKey(ValueKey(key)))
           .controller!
           .text;
+      // F1-3：出版日期改滚轮触发器（GestureDetector），读数取行内回显 Text。
+      String dateText(String key) => tester
+          .widget<Text>(find.descendant(
+              of: find.byKey(ValueKey(key)), matching: find.byType(Text)))
+          .data!;
       expect(fieldText('bf-title'), '被讨厌的勇气');
       expect(fieldText('bf-author'), '岸见一郎');
       expect(fieldText('bf-publisher'), '中信出版社');
-      expect(fieldText('bf-pubDate'), '2015-06');
+      expect(dateText('bf-pubDate'), '2015-06');
       expect(fieldText('bf-pg'), '288');
     });
 

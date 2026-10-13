@@ -121,6 +121,12 @@ void main() {
       .controller!
       .text;
 
+  /// F1-3：出版日期/购入日期改滚轮触发器（GestureDetector），读数取行内回显 Text。
+  String dateText(WidgetTester tester, String key) => tester
+      .widget<Text>(find.descendant(
+          of: find.byKey(ValueKey(key)), matching: find.byType(Text)))
+      .data!;
+
   testWidgets('① 搜索页：输入→假 fetcher 出 2 行→渲染标题与作者行；未接入源给提示', (tester) async {
     const twoRows =
         '[{"id":"1041482","title":"万历十五年","author_name":"[美] 黄仁宇",'
@@ -188,7 +194,7 @@ void main() {
     expect(fieldText(tester, 'bf-author'), '测试作者');
     // 详情全字段照填（只填空字段：出版日期留列表带来的「2020」不被覆盖）。
     await pumpLookup(tester);
-    expect(fieldText(tester, 'bf-pubDate'), '2020');
+    expect(dateText(tester, 'bf-pubDate'), '2020');
     expect(fieldText(tester, 'bf-translator'), '某译者');
     expect(fieldText(tester, 'bf-publisher'), '测试出版社');
     expect(fieldText(tester, 'bf-series'), '测试丛书');

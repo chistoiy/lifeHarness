@@ -20,17 +20,29 @@ mixin _RepoSessions on _ReadRepoBase {
   /// 开始计时（工作台右上/详情页顶栏）：先结束任何在跑会话，再落新行；
   /// 想读/已读外的状态不变，started_at 为空时补当下。
   /// [at]＝起始位置快照（阅读器进入即知 → 轮5.2② 自动记，不再手填）。
+  ///
+  /// F1-5：有声书会话落 `speed` 快照（read.brRate，默认 1.0），
+  /// 使 `BookSession.billedMinutes` 的倍速折算真触发；`read.speedFold` 关时
+  /// 折算口径由 `BookSession.speedFold` 静态闸拦（见 speedFoldProvider）。
   Future<BookSession> startSession(String bookId, {BrLoc? at}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final old = await runningSession();
     if (old != null) {
       await _close(old, now);
     }
+    // 有声书才记倍速快照（纸质/电子书 speed=null ⇒ 折算恒不触发）。
+    final b0 = await bookById(bookId);
+    double? speed;
+    if (b0 != null && b0.format == Book.kFormatAudio) {
+      final raw = await kv('read.brRate');
+      speed = double.tryParse(raw ?? '') ?? 1.0;
+    }
     final id = await db.insert(
       DbSchema.tBookSessions,
       BookSession(
         bookId: bookId,
         startedAt: now,
+        speed: speed,
         fromPage: at?.page,
         fromPct: at?.pct,
         fromChapter: at?.chapter,
@@ -49,7 +61,17 @@ mixin _RepoSessions on _ReadRepoBase {
         whereArgs: [bookId],
       );
     }
-    return BookSession(id: id, bookId: bookId, startedAt: now);
+    // 返回对象与刚落的行同源（F1-5a）：带上 speed/from_* 快照，
+    // 否则调用方拿到的是「字段被抹掉」的会话，读数与实际落库不一致。
+    return BookSession(
+      id: id,
+      bookId: bookId,
+      startedAt: now,
+      speed: speed,
+      fromPage: at?.page,
+      fromPct: at?.pct,
+      fromChapter: at?.chapter,
+    );
   }
 
   /// 结束计时（胶囊/计时页/退出阅读器共用）：返回已关闭会话供 L4 流水（批2）；

@@ -119,7 +119,14 @@ extension _ShelfViews on _ShelfPageState {
       if (!context.mounted) return;
       context.push(b.local ? '/read/reader/${b.id}' : '/read/book/${b.id}');
     },
-    onLongPress: ui.batch ? null : () => showLongPressSheet(context, ref, b),
+    // B5（阅读模块批1 · 〇B 触觉锚「长按进管理态」）：长按起手＝一记 mediumImpact，
+    // 与影音架 _enterSel 同锚同震；菜单本体不改。
+    onLongPress: ui.batch
+        ? null
+        : () {
+            HapticFeedback.mediumImpact();
+            showLongPressSheet(context, ref, b);
+          },
     child: child,
   );
 

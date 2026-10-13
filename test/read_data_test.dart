@@ -463,6 +463,13 @@ void main() {
           createdAt: t0,
           updatedAt: t0));
       final s = await repo.startSession(b.id);
+      // 确定性去 flake（批1）：Windows `DateTime.now()` 约 15.6ms 一跳，start/end 若落
+      // 同一跳 ⇒ elapsed=0 ⇒ minutes=0 ⇒ _syncTxn 早退**根本不写流水**（非「迟一拍落库」，
+      // 故轮询等不到）⇒ 3-6 随机挂 Bad state: No element。起始回拨 1 分钟使 elapsed 恒 >0
+      //（与 3-5 同法）。
+      await db.update('book_sessions',
+          {'started_at': DateTime.now().millisecondsSinceEpoch - 60000},
+          where: 'id = ?', whereArgs: [s.id]);
       await repo.endSession(b.id);
       // 治理G6 悬案根治：入账流水在高负载下可能迟一拍落库（3-6 曾随机挂
       // Bad state: No element）→ 有界轮询等行出现，超时由原断言判失败。

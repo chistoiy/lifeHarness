@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/image_attach.dart' show pickAndStoreImage;
+import '../../../../shared/widgets/lh_wheel.dart';
 import '../../data/isbn_enrich.dart';
 import '../../data/read_import.dart' show normIsbn;
 import '../../domain/book.dart';
@@ -719,6 +720,75 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
     );
   }
 
+  /// F1-3 日期行（原型 bfTap + bfDateOpen）：点击开滚轮弹层，非文本输入。
+  /// [fmt]＝'ym'（出版日期 · 年-月）/ 'ymd'（购入日期 · 年-月-日）。
+  /// 值实时写回 [c]（DateWheel 弹层的确定/清空回调），文案照原型 hint。
+  Widget _dateTap(
+    TextEditingController c,
+    String keyName, {
+    required String label,
+    required String fmt,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final cur = c.text.trim();
+    return GestureDetector(
+      key: ValueKey(keyName),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openDateWheel(c, label: label, fmt: fmt),
+      child: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              cur.isEmpty
+                  ? (fmt == 'ym' ? '点击选择年月' : '点击选择年月日')
+                  : cur,
+              style: TextStyle(
+                fontSize: 13,
+                color: cur.isEmpty ? cs.onSurfaceVariant : cs.onSurface,
+                fontWeight: cur.isEmpty ? null : FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded,
+                size: 16, color: cs.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 打开日期滚轮弹层（原型 sheetBfDate）：年月/年月日两形态，与既有滚轮同原语。
+  Future<void> _openDateWheel(
+    TextEditingController c, {
+    required String label,
+    required String fmt,
+  }) async {
+    final r = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _DateWheelSheet(
+        title: label,
+        fmt: fmt,
+        initial: c.text.trim(),
+      ),
+    );
+    // 原型 bfDateOk/bfDateClear：确定写值、清空置空、点遮罩/返回＝不改动（null）。
+    if (r == null || !mounted) return;
+    setState(() => c.text = r);
+    if (r.isEmpty) {
+      readToast(context, '已清空$label');
+    } else {
+      readToast(context, '已录入$label：$r');
+    }
+  }
+
+  /// 单选 chips（阅读状态/书籍类型）。[selected] 为单元素集，命中即高亮。
   Widget _chips(
     List<String> items,
     Set<String> selected,
@@ -1193,7 +1263,10 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
             _row('作者', _in(_author, 'bf-author', hint: '输入作者名字')),
             _row('译者', _in(_translator, 'bf-translator', hint: '请输入译者名字')),
             _row('出版社', _in(_publisher, 'bf-publisher', hint: '请输入出版社名称')),
-            _row('出版日期', _in(_pubDate, 'bf-pubDate', hint: '如 2015-06')),
+            _row(
+              '出版日期',
+              _dateTap(_pubDate, 'bf-pubDate', label: '出版日期', fmt: 'ym'),
+            ),
             _row('丛书 / 分类', _in(_series, 'bf-series', hint: '请输入丛书或分类')),
             _row('装帧', _in(_binding, 'bf-binding', hint: '平装 / 精装')),
             // ISBN：行内扫码钮 + 输入 + 补全状态行 + 缓存询问行（原型 bfRender）。
@@ -1348,13 +1421,171 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
           ]),
           _sec('购买信息'),
           _card([
-            _row('购入日期', _in(_feeDate, 'bf-feeDate', hint: '如 2024-05')),
+            _row(
+              '购入日期',
+              _dateTap(_feeDate, 'bf-feeDate', label: '购入日期', fmt: 'ymd'),
+            ),
             _row(
               '购入价格',
               _in(_fee, 'bf-fee', hint: '请输入书籍的价格', kb: TextInputType.number),
             ),
           ]),
         ],
+      ),
+    );
+  }
+}
+
+/// F1-3 日期滚轮弹层（原型 sheetBfDate · bfDateOpen）：
+/// 年 / 月 / 日三柱，[fmt]＝'ym' 藏日柱、'ymd' 全显；标题右侧实时回显当前值；
+/// 清空/确定回写；点遮罩/返回＝pop(null) 不改动。年池 1900~2100、月 01~12、日 01~31。
+class _DateWheelSheet extends StatefulWidget {
+  const _DateWheelSheet({
+    required this.title,
+    required this.fmt,
+    required this.initial,
+  });
+
+  final String title;
+  final String fmt;
+  final String initial;
+
+  @override
+  State<_DateWheelSheet> createState() => _DateWheelSheetState();
+}
+
+class _DateWheelSheetState extends State<_DateWheelSheet> {
+  static final List<String> _years = [
+    for (var y = 1900; y <= 2100; y++) '$y',
+  ];
+  static final List<String> _mons = [
+    for (var m = 1; m <= 12; m++) m.toString().padLeft(2, '0'),
+  ];
+  static final List<String> _days = [
+    for (var d = 1; d <= 31; d++) d.toString().padLeft(2, '0'),
+  ];
+
+  late int _yi;
+  late int _mi;
+  late int _di;
+
+  @override
+  void initState() {
+    super.initState();
+    // 解析现值（原型 bfDateOpen 正则）：YYYY-M(-D) 或 M-D。
+    final s = widget.initial;
+    final dm = RegExp(r'^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?').firstMatch(s);
+    final md = RegExp(r'^(\d{1,2})-(\d{1,2})$').firstMatch(s);
+    final now = DateTime.now();
+    var y = now.year, mo = now.month, d = now.day;
+    if (dm != null) {
+      y = int.parse(dm.group(1)!);
+      mo = int.parse(dm.group(2)!);
+      d = dm.group(3) != null ? int.parse(dm.group(3)!) : 1;
+    } else if (md != null) {
+      mo = int.parse(md.group(1)!);
+      d = int.parse(md.group(2)!);
+    }
+    _yi = (_years.indexOf('$y')).clamp(0, _years.length - 1);
+    _mi = (mo - 1).clamp(0, 11);
+    _di = (d - 1).clamp(0, 30);
+  }
+
+  String get _value {
+    if (widget.fmt == 'ym') return '${_years[_yi]}-${_mons[_mi]}';
+    return '${_years[_yi]}-${_mons[_mi]}-${_days[_di]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final showD = widget.fmt != 'ym';
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  _value,
+                  key: const ValueKey('bf-date-echo'),
+                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 72,
+                  child: LHWheel(
+                    keyPrefix: 'bf-date-y',
+                    labels: _years,
+                    initialIndex: _yi,
+                    onSelect: (i) => setState(() => _yi = i),
+                  ),
+                ),
+                SizedBox(
+                  width: 56,
+                  child: LHWheel(
+                    keyPrefix: 'bf-date-m',
+                    labels: _mons,
+                    initialIndex: _mi,
+                    onSelect: (i) => setState(() => _mi = i),
+                  ),
+                ),
+                if (showD)
+                  SizedBox(
+                    width: 56,
+                    child: LHWheel(
+                      keyPrefix: 'bf-date-d',
+                      labels: _days,
+                      initialIndex: _di,
+                      onSelect: (i) => setState(() => _di = i),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.fmt == 'ym' ? '年 · 月' : '年 · 月 · 日',
+              style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('bf-date-clear'),
+                    onPressed: () => Navigator.of(context).pop(''),
+                    child: const Text('清空'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    key: const ValueKey('bf-date-ok'),
+                    onPressed: () => Navigator.of(context).pop(_value),
+                    child: const Text('确定'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
