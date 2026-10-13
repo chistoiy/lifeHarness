@@ -18,8 +18,8 @@ Flutter + sqflite 个人生活管理 App（Android 优先）。本文件只放�
 
 - 新工单（交棒话术/验收清单/拍板记录）**直接建在 `docs/handoff/`**，勿再放 docs/ 顶层。
 - 批次收口 → 对应工单 `git mv` 入 `docs/archive/` → 在 `docs/INDEX.md` 更新状态一行。archive 只进不出。
-- 验收/取证**截图不再入库**（相关目录已 gitignore，见忽略清单）；截图落仓库外，验收文档只写结论。
-- 状态变化只改 `docs/STATUS.md`；历史时点沉 `docs/交接文档.md` 文末变更日志。
+- 验收/取证**截图不再入库**（已 gitignore）；截图落仓库外，验收文档只写结论。
+- 状态变化只改 `docs/STATUS.md`；未排期/待定 → `docs/排期池.md`（一件一行；与 STATUS「下一站」互斥）；历史时点沉 `docs/交接文档.md` 文末变更日志。
 
 ## 环境事实（本机，Windows + Git Bash）
 
