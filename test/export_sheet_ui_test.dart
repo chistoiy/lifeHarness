@@ -242,6 +242,16 @@ void main() {
     expect(btn.onPressed, isNull);
   });
 
+  testWidgets('轮6 非容器类导出异常同样可见（此前只接 LhBakException）',
+      (tester) async {
+    await pumpSheet(tester);
+    await flush(tester);
+    fake.exportError = StateError('磁盘写入失败');
+    await tester.tap(find.byKey(const ValueKey('ex-go')));
+    expect(await pollText(tester, '导出失败，详情见日志'), isTrue);
+    await clearToasts(tester);
+  });
+
   group('④ 导出位置（V1.66 装机回知批·原型同步）', () {
     Future<void> pumpSheetWith(WidgetTester tester, _FakeBackupService svc) async {
       final prefs = await SharedPreferences.getInstance();

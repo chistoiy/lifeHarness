@@ -49,7 +49,6 @@ class _FakeBackupService extends BackupService {
 
   int exportCalls = 0;
   int importCalls = 0;
-  int saveCopyCalls = 0;
   int inspectCalls = 0;
   int pickCalls = 0;
 
@@ -57,9 +56,8 @@ class _FakeBackupService extends BackupService {
   Object? pickError;
 
   /// 非 null 时 exportBackup / saveCopyToUserLocation 抛出它
-  /// （轮6 缺陷回归：导出与另存异常同样必须可见，不再顺 async 通道蒸发）。
+  /// （轮6 缺陷回归：导出异常必须可见，不再顺 async 通道蒸发）。
   Object? exportError;
-  Object? saveCopyError;
 
   String? lastPassphrase;
   bool? lastWithLogs;
@@ -68,7 +66,6 @@ class _FakeBackupService extends BackupService {
   bool? lastWithProjection;
 
   String? pickedPath;
-  String? saveCopyResult;
   LhBakManifest? inspectResult;
   Object? inspectError;
 
@@ -124,13 +121,6 @@ class _FakeBackupService extends BackupService {
     pickCalls++;
     if (pickError != null) throw pickError!;
     return pickedPath;
-  }
-
-  @override
-  Future<String?> saveCopyToUserLocation(String srcPath) async {
-    saveCopyCalls++;
-    if (saveCopyError != null) throw saveCopyError!;
-    return saveCopyResult;
   }
 
   @override
@@ -218,8 +208,10 @@ void main() {
       expect(find.byKey(const ValueKey('pass-1')), findsNothing);
       expect(find.byKey(const ValueKey('pass-2')), findsNothing);
       expect(find.byKey(const ValueKey('btn-export')), findsOneWidget);
-      expect(find.text('另存到…'), findsOneWidget);
-      expect(find.byKey(const ValueKey('btn-export-save')), findsOneWidget);
+      // V1.66 装机回知批：「另存到…」下架（导出位置直达取代）。
+      expect(find.text('另存到…'), findsNothing);
+      expect(find.byKey(const ValueKey('btn-export-save')), findsNothing);
+      expect(find.text('上次另存：'), findsNothing);
 
       // 主钮＝开范围面板（原型 sheetExport），不直接放量导出。
       await tester.tap(find.byKey(const ValueKey('btn-export')));
@@ -230,96 +222,21 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('ex-close')));
       await settle5(tester);
 
-      // 日志勾选透传：取消「附带日志」→「另存到…」路径 withLogs=false、恒明文；
-      // 另存层自动弹出（R6 一步到位），fake dialog 取消＝包保留在应用导出目录。
+      // 附件/日志勾选只是透传态：重开面板后勾选仍在。
       await tester.tap(find.byKey(const ValueKey('chk-logs')));
       await settle5(tester);
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '另存已取消 · 包保留在应用导出目录');
-      expect(fake.exportCalls, 1);
-      expect(fake.lastWithLogs, isFalse);
-      expect(fake.lastWithAttachments, isTrue);
-      expect(fake.lastPassphrase, isNull);
-      expect(fake.lastWithProjection, isTrue); // 快速全量也带可读成员
-      expect(fake.saveCopyCalls, 1);
-      await clearToasts(tester);
-    });
-
-    testWidgets('另存到…＝快速全量带投影；口令参数恒空（明文落 UI 回归）',
-        (tester) async {
-      await useSurface(tester, const Size(800, 2400));
-      await openSheet(tester);
-      fake.saveCopyResult = 'saved.lhbak';
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '已另存：saved.lhbak');
-      expect(fake.exportCalls, 1);
-      expect(fake.lastPassphrase, isNull);
-      expect(fake.lastModules, isEmpty); // 未选范围＝全量（modules 空清单）
-      await clearToasts(tester);
-    });
-
-    testWidgets('R6 另存到…钮一步到位：点即导出+弹层；取消 → 不触发任何后续调用',
-        (tester) async {
-      await useSurface(tester, const Size(800, 2400));
-      await openSheet(tester);
-
-      fake.saveCopyResult = null; // fake dialog 取消
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
-      expect(find.text('另存已取消 · 包保留在应用导出目录'), findsOneWidget);
-      expect(fake.exportCalls, 1);
-      expect(fake.saveCopyCalls, 1); // 无需再点「导出备份」
-      expect(fake.importCalls, 0); // 取消不触发任何恢复类调用
-      await clearToasts(tester);
-
-      // 另存成功：轮6 起通道返回「选定文件显示名」，直接展示。
-      fake.saveCopyResult = 'saved.lhbak';
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '已另存：saved.lhbak');
-      expect(fake.saveCopyCalls, 2);
-      await clearToasts(tester);
-    });
-
-    testWidgets('轮6 另存层失败必须可见：toast＋包仍在应用导出目录，不静默蒸发',
-        (tester) async {
-      await useSurface(tester, const Size(800, 2400));
-      await openSheet(tester);
-      fake.saveCopyError = PlatformException(
-          code: 'save_failed', message: 'provider 未提供输出流');
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '另存失败，包仍保留在应用导出目录');
-      expect(fake.exportCalls, 1);
-      expect(fake.saveCopyCalls, 1);
-      await clearToasts(tester);
-    });
-
-    testWidgets('轮6 非容器类导出异常同样可见（此前只接 LhBakException）',
-        (tester) async {
-      await useSurface(tester, const Size(800, 2400));
-      await openSheet(tester);
-      fake.exportError = StateError('磁盘写入失败');
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
-      await pollText(tester, '导出失败，详情见日志');
-      // 导出失败 → 绝不再弹另存层。
-      expect(fake.saveCopyCalls, 0);
-      await clearToasts(tester);
-    });
-
-    testWidgets('轮7 「正在导出…」只跟导出动作；导入校验期间钮文案不变',
-        (tester) async {
-      await useSurface(tester, const Size(800, 2400));
-      await openSheet(tester);
-
-      // 导出进行中（快速全量路径＝「另存到…」）：显示「正在导出…」。
-      fake.gate = Completer<void>();
-      await tester.tap(find.byKey(const ValueKey('btn-export-save')));
+      expect(fake.exportCalls, 0); // 勾选不触发导出（导出在面板内放量）
+      await tester.tap(find.byKey(const ValueKey('btn-export')));
       await settle5(tester);
-      expect(find.text('正在导出…'), findsOneWidget);
-      fake.gate!.complete();
-      fake.gate = null;
-      await pollText(tester, '已导出：lifeharness_20260925_101500.lhbak');
-      expect(find.text('正在导出…'), findsNothing);
-      await clearToasts(tester);
+      expect(find.text('导出数据'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('ex-close')));
+      await settle5(tester);
+    });
+
+    testWidgets('轮7 导入校验期间主钮文案恒「导出数据…」不误显导出中',
+        (tester) async {
+      await useSurface(tester, const Size(800, 2400));
+      await openSheet(tester);
 
       // 导入选择＋校验进行中：整屏禁用，但导出主钮文案必须仍是「导出数据…」
       // （真机反馈＝校验 60 万行时误显示「正在导出…」）。

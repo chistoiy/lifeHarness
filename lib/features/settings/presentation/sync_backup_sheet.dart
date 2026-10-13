@@ -11,13 +11,12 @@ import 'export_sheet.dart';
 
 /// V1.41 Task 10 · S5「备份导出/导入」半屏（原型 index-sync.html s-backup）。
 ///
-/// 口径（R6 真机反馈修正 + V1.66 批2·需求清单「新包纯明文」）：
+/// 口径（R6 真机反馈修正 + V1.66 批2/装机回知批·需求清单「新包纯明文」）：
 /// - 导出：范围勾选（附件/日志）+「导出数据…」开范围面板 showExportSheet
-///   （export_sheet.dart·模块 chips × 格式两档 × 预估体积，原型 sheetExport）；
-///   「另存到…」= 快速全量导出（带投影成员）再经 saveCopyToUserLocation 弹
-///   系统保存层，取消不追加任何后续调用；成功 toast「已导出：<文件名>」。
-///   **口令入口已下架**（导出恒明文·纯明文落 UI）；导入侧口令分支保留
-///   （旧口令加密包恢复兼容，红线）。
+///   （export_sheet.dart·模块 chips × 格式两档 × 预估体积 × ④导出位置）；
+///   **「另存到…」已下架**（装机回知批：导出位置持久目录树直达取代，
+///   快速全量路径连同 saveCopyToUserLocation 调用面一并撤）。口令入口已下架
+///   （导出恒明文）；导入侧口令分支保留（旧口令加密包恢复兼容，红线）。
 /// - 导入：pickBackupFile → inspect 校验报告态（含 skippedLarge「N 个超大
 ///   附件未入包」行）→ 勾选「恢复将替换当前数据」二次确认 → 才可调
 ///   importBackup（恢复按钮置于确认勾选之后）；恢复报告补「口径设置已还原」。
@@ -51,10 +50,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
   bool _withLogs = true;
   bool _busy = false;
 
-  /// 轮7：「正在导出…」只跟导出动作本身。_busy 是整屏共用（导出/选择/校验/
-  /// 恢复都置位），此前导入校验期间导出钮也显示「正在导出…」＝误导（真机反馈）。
-  bool _exporting = false;
-
   // 导入侧状态
   final TextEditingController _importPass = TextEditingController();
   String? _pickedPath;
@@ -86,46 +81,6 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
 
   void _toast(String msg) {
     if (mounted) AppToast.show(context, msg);
-  }
-
-  /// 快速全量导出（「另存到…」路径；V1.66 起恒明文＋带投影成员）。
-  Future<void> _doExport({bool alsoSave = false}) async {
-    if (_busy) return;
-    setState(() {
-      _busy = true;
-      _exporting = true;
-    });
-    final svc = ref.read(backupServiceProvider);
-    String? srcPath;
-    try {
-      final res = await svc.exportBackup(
-        withLogs: _withLogs,
-        withAttachments: _withAttach,
-        withProjection: true,
-      );
-      _toast('已导出：${p.basename(res.file.path)}');
-      srcPath = res.file.path;
-    } on LhBakException catch (e) {
-      _toast('导出失败：${e.code}');
-    } catch (e) {
-      // 轮6：非容器类导出异常同样必须可见（此前顺 async 通道蒸发）。
-      _toast('导出失败，详情见日志');
-      AppLog.add('备份导出异常（弹层兜底）：$e', level: LhLevel.error);
-    }
-    if (mounted) setState(() => _exporting = false);
-    if (alsoSave && srcPath != null) {
-      try {
-        final saved = await svc.saveCopyToUserLocation(srcPath);
-        _toast(saved == null
-            ? '另存已取消 · 包保留在应用导出目录'
-            : '已另存：$saved');
-      } catch (e) {
-        // 轮6：系统保存层失败（provider 无输出流等）不再静默。
-        _toast('另存失败，包仍保留在应用导出目录');
-        AppLog.add('备份另存异常：$e', level: LhLevel.error);
-      }
-    }
-    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _doPick() async {
@@ -257,36 +212,18 @@ class _BackupSheetState extends ConsumerState<BackupSheet> {
               onChanged: (v) => setState(() => _withLogs = v ?? true),
               title: const Text('附带日志 logs/', style: TextStyle(fontSize: 13)),
             ),
-            // ---- 上次另存目标（仅展示，R6：目标位置两态行已并入按钮语义）----
-            const SizedBox(height: 6),
-            if (svc.lastSaveHint != null)
-              Text('上次另存：${p.basename(svc.lastSaveHint!)}',
-                  style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+            // V1.66 装机回知批：「另存到…」下架（导出位置直达取代·「上次另存」
+            // 展示行随之撤）——主钮全宽开范围面板，落盘位置由面板④段决定。
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    key: const ValueKey('btn-export'),
-                    onPressed: _busy
-                        ? null
-                        : () => showExportSheet(context,
-                            withLogs: _withLogs),
-                    // V1.66 批2：主钮开范围面板（原型 sheetExport 口径）；
-                    // _exporting 只属「另存到…」的快速全量路径。
-                    child: Text(_exporting ? '正在导出…' : '导出数据…'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    key: const ValueKey('btn-export-save'),
-                    onPressed:
-                        _busy ? null : () => _doExport(alsoSave: true),
-                    child: const Text('另存到…'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('btn-export'),
+                onPressed: _busy
+                    ? null
+                    : () => showExportSheet(context, withLogs: _withLogs),
+                child: const Text('导出数据…'),
+              ),
             ),
             const Divider(height: 28),
             // ---- 导入恢复 ----

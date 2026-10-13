@@ -480,6 +480,8 @@ class BackupService {
 
   /// 把已生成的备份文件经系统「保存为」弹层另存到用户自选位置。
   /// 用户取消 = null（不做任何后续动作）；成功记 prefs 提示串。
+  /// V1.66 装机回知批：UI 侧「另存到…」已下架（导出位置直达取代），当前
+  /// 无调用方——保留 API（SAF 通道完备、随时可复用），勿当死代码误删。
   Future<String?> saveCopyToUserLocation(String srcPath) async {
     final saved = await saveAsDialog(srcPath);
     if (saved != null) {
