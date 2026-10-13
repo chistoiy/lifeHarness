@@ -169,6 +169,44 @@ cr = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "color_ratchet.
                     capture_output=True, text=True, encoding="utf-8", errors="replace")
 if cr.returncode != 0:
     g.append("守护十：" + ((cr.stdout or "") + (cr.stderr or "")).strip().replace("\n", " / ")[:300])
+# ---- 治理三轮（2026-10-13）可移植规则系统五条守护 ----
+# 依据＝docs/handoff/治理方案-20261013-规则与上下文与记忆治理.md §6；回灌成句＝
+# 「机器只认一份入口（AGENTS.md）；一条规则只在一处定义，其余写指针」。
+# 十一) AGENTS.md 体量（超＝注入截断；放宽须人审改下列常量并在治理件写理由）
+AGENTS_BYTES_MAX = 16384            # 16 KiB（Codex project_doc_max_bytes 默认 32 KiB，留一半余量）
+_ab = os.path.getsize("AGENTS.md")
+if _ab > AGENTS_BYTES_MAX:
+    g.append("守护十一：AGENTS.md %d 字节超上限 %d（注入会被截断；须净零改写或归档）"
+             % (_ab, AGENTS_BYTES_MAX))
+# 十二/十三) 热点文档体量上限（二轮治理瘦身目标曾反弹；超上限须归档瘦身，放宽须人审）
+JIAOJIE_BYTES_MAX = 215040          # 210 KiB（当前约 196 KiB，留 append 变更日志余量）
+_jb = os.path.getsize("docs/交接文档.md")
+if _jb > JIAOJIE_BYTES_MAX:
+    g.append("守护十二：docs/交接文档.md %d 字节超上限 %d（须归档瘦身）" % (_jb, JIAOJIE_BYTES_MAX))
+REQ_LINES_MAX = 600                 # 当前 562 行
+_rl = sum(1 for _ in open("docs/需求清单.md", encoding="utf-8"))
+if _rl > REQ_LINES_MAX:
+    g.append("守护十三：docs/需求清单.md %d 行超上限 %d（修订记录应进 archive/需求修订史-*.md）"
+             % (_rl, REQ_LINES_MAX))
+# 十四) 入仓文档禁出现 .workbuddy/ 路径（入仓文档指向不入仓路径＝换机即死链）
+#      豁免：行级 EXEMPT_LINE；`shots` 为仓库外截图留底目录（非知识指针）；治理件记录迁移前状态
+FILE_EXEMPT_14 = {
+    "docs/handoff/治理方案-20261013-规则与上下文与记忆治理.md":
+        "本件记录「迁移前状态」、全篇讨论 .workbuddy/；收口归档后进 archive（skip）自动豁免",
+}
+for _p in targets:
+    if _p in FILE_EXEMPT_14:
+        continue
+    for _n, _line in enumerate(open(_p, encoding="utf-8", errors="replace"), 1):
+        if ".workbuddy/" in _line and "shots" not in _line and not any(e in _line for e in EXEMPT_LINE):
+            g.append("守护十四：入仓文档出现不入仓路径 .workbuddy/（换机读不到）: %s:%d" % (_p, _n))
+# 十五) AGENTS.md 必需锚点小节齐全（防「折叠丢失」——小节被删/合并后静默失效）
+REQUIRED_SECTIONS = ["开工先读", "工单生命周期", "环境事实", "验证门禁", "禁令",
+                     "忽略清单", "会话口令", "会话收尾仪式", "下指令"]
+_ag = open("AGENTS.md", encoding="utf-8").read()
+for _s in REQUIRED_SECTIONS:
+    if not re.search(r"^##\s*" + re.escape(_s), _ag, re.M):
+        g.append("守护十五：AGENTS.md 缺必需小节「%s」（规则折叠丢失）" % _s)
 if g:
     print(f"守护红灯 {len(g)} 处:")
     for x in g:
@@ -205,4 +243,4 @@ try:
         sys.exit(1)
 except FileNotFoundError:
     print("WARN 未找到 node，T13 档③ 闸跳过")
-print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板）")
+print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板/体量上限/禁指工具目录/必需小节）")
