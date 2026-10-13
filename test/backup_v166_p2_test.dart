@@ -7,6 +7,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' show Random;
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -274,6 +275,57 @@ void main() {
       expect(s.trashKeepDays, 30);
       // 缺键走 defaults（noteLatex 缺席 → 默认 false）。
       expect(s.noteLatex, isFalse);
+    });
+  });
+
+  group('批2 · 预估测量器（6120 装机回知·预估37MB实包2.5MB）', () {
+    test('measureIncludedDbBytes＝快照 DROP 恒排除表后压缩实测', () async {
+      final db = await openSchemaDb();
+      // 可再生腿：xray_mention 塞 2MB 级真随机文本（真机口径＝占库 97.3%）。
+      // 必须不可压缩——周期性/重复串会被 gzip 打到近零，剔除断言失效（变异刀实证）。
+      const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+      final rng = Random(20261013);
+      String rnd(int len) =>
+          List.generate(len, (_) => chars[rng.nextInt(chars.length)]).join();
+      for (var i = 0; i < 1000; i++) {
+        await db.insert(DbSchema.tXrayMention, {
+          'entity_id': 1,
+          'book_md5': 'm$i',
+          'ch': i,
+          'para': i,
+          'snippet': rnd(2000),
+        });
+      }
+      // 在包腿：书架 200 行随机标题（≈100KB 文本）。
+      for (var i = 0; i < 200; i++) {
+        await db.insert(DbSchema.tBooks, {
+          'id': 'b$i',
+          'title': rnd(500),
+          'created_at': 0,
+          'updated_at': 0,
+        });
+      }
+      final svc = BackupService(
+          exportDir: () => p.join(temp.path, 'est_out'),
+          db: () async => db);
+      final measured = await svc.measureIncludedDbBytes(db);
+      // 2MB 可再生文本不入包：实测落在书架腿量级（若误含 xray 会 ≥1MB）。
+      expect(measured, greaterThan(10 * 1000));
+      expect(measured, lessThan(500 * 1000));
+      // 预估口径排除集与测量器 DROP 集同源（子集比例分母用）。
+      expect(svc.estimateExcludedTables(), contains(DbSchema.tXrayMention));
+      await db.close();
+    });
+
+    test('treeDisplayName：tree URI 解析人话目录名（去卷前缀·容错）', () {
+      expect(
+          BackupService.treeDisplayName(
+              'content://com.android.externalstorage.documents/'
+              'tree/primary%3ADownload%2FlifeHarness'),
+          'Download/lifeHarness');
+      expect(BackupService.treeDisplayName('content://x/tree/home%3Afiles'),
+          'files');
+      expect(BackupService.treeDisplayName('not-a-uri'), '所选目录');
     });
   });
 }

@@ -355,6 +355,94 @@ class BackupService {
     ]..sort();
   }
 
+  /// 预估口径的恒排除表（与 [measureIncludedDbBytes] 的 DROP 集一致；
+  /// ExportSheet 子集比例的分母也用它，口径同源）。
+  List<String> estimateExcludedTables() => [
+        ...kRegenerableExcluded,
+        if (_healthExcludedSafe()) ...DbSchema.healthTables,
+      ];
+
+  // ---- 导出位置（V1.66 装机回知批：持久 SAF 目录树，null＝默认应用目录）----
+
+  static const _kExportTreeUri = 'lh.export_tree_uri';
+  static const _kExportTreeName = 'lh.export_tree_name';
+
+  /// 已设导出位置（SAF tree URI）；null＝未设，导出落应用目录。
+  String? get exportTreeUri => prefs?.getString(_kExportTreeUri);
+
+  /// 人话目录名（tree URI documentId 去卷前缀，如 `Download/lifeHarness`）。
+  String? get exportTreeName => prefs?.getString(_kExportTreeName);
+
+  /// 设/清导出位置（null＝清，回默认应用目录）。
+  Future<void> setExportTree(String? uri) async {
+    if (uri == null || uri.isEmpty) {
+      await prefs?.remove(_kExportTreeUri);
+      await prefs?.remove(_kExportTreeName);
+      return;
+    }
+    await prefs?.setString(_kExportTreeUri, uri);
+    await prefs?.setString(_kExportTreeName, treeDisplayName(uri));
+  }
+
+  /// tree URI → 人话目录名：`content://…/tree/primary%3ADownload%2Flh` 里取
+  /// documentId（`primary:Download/lh`）去卷前缀。纯字符串解析，不动 IO。
+  static String treeDisplayName(String uri) {
+    final i = uri.indexOf('tree/');
+    if (i < 0) return '所选目录';
+    final id = Uri.decodeComponent(uri.substring(i + 5));
+    final c = id.indexOf(':');
+    return (c >= 0 && c + 1 < id.length) ? id.substring(c + 1) : id;
+  }
+
+  /// V1.66 预估修正（6120 装机回知）：活库文件大头是可再生索引（X-Ray 全书
+  /// 解析产物真机实测占全库 97.3%，打包时快照里恒 DROP），包体再经 zip 压缩
+  /// ——按原文件大小预估会把 2.5MB 实包说成 37MB。这里与实包同口径实测：
+  /// `VACUUM INTO` → DROP 恒排除表 → gzip 压缩实测（gzip≈zip deflate 档）。
+  /// TTL 10 分钟缓存（「约」字口径，同会话内复用）；失败抛错由调用方兜底。
+  static ({int bytes, DateTime at})? _includedDbMeasure;
+  Future<int> measureIncludedDbBytes(Database database) async {
+    final cached = _includedDbMeasure;
+    if (cached != null &&
+        DateTime.now().difference(cached.at) < const Duration(minutes: 10)) {
+      return cached.bytes;
+    }
+    final temp = Directory.systemTemp.createTempSync('lhbak_est_');
+    try {
+      final snapPath = p.join(temp.path, 'db.sqlite');
+      await database
+          .execute("VACUUM INTO '${snapPath.replaceAll("'", "''")}'");
+      final liveRows = await database.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' "
+          "AND name NOT LIKE 'sqlite_%'");
+      final dropSet = estimateExcludedTables().toSet();
+      final snap = await LhBak.snapshotFactory.openDatabase(snapPath);
+      try {
+        var dropped = 0;
+        for (final r in liveRows) {
+          final t = r['name'] as String;
+          if (dropSet.contains(t)) {
+            await snap.execute('DROP TABLE IF EXISTS "$t"');
+            dropped++;
+          }
+        }
+        // 与 LhBak.create 同口径：DROP 后补 VACUUM 收净 freelist 陈旧页，
+        // 预估才反映真实在包内容（DROP 只挂链不缩文件，见 lh_bak 同注）。
+        if (dropped > 0) {
+          await snap.execute('VACUUM');
+        }
+      } finally {
+        await snap.close();
+      }
+      final bytes = gzip.encode(await File(snapPath).readAsBytes()).length;
+      _includedDbMeasure = (bytes: bytes, at: DateTime.now());
+      return bytes;
+    } finally {
+      try {
+        temp.deleteSync(recursive: true);
+      } catch (_) {}
+    }
+  }
+
   /// [attachRootDirs] 浅扫：仅一层文件、仅白名单扩展名 [kRootAttachExts]。
   /// 记账导出 `lifeharness_ledger.csv/.json` 直落 documents 根，不在
   /// attachDirs 子目录通道内（评审 Important 修复：附件取证遗漏）；

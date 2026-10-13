@@ -18,6 +18,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/backup/backup_service.dart';
 import '../../../core/backup/lh_bak.dart' show LhBakException;
 import '../../../core/logging/app_log.dart';
+import '../../../core/platform/saf_tree.dart';
 import '../../../core/providers.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/theme/app_theme.dart';
@@ -83,14 +84,23 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
       }
       var dbBytes = 0;
       try {
-        final dbFile = File(db.path);
-        if (dbFile.existsSync()) dbBytes = dbFile.lengthSync();
-        final wal = File('${db.path}-wal');
-        if (wal.existsSync()) dbBytes += wal.lengthSync();
-      } catch (_) {}
+        // 6120 装机回知修正：DB 腿＝快照剔除恒排除表后 gzip 实测（wal 已并入
+        // 快照），与实包同口径；活库九成七是可再生索引，按原文件预估会把
+        // 2.5MB 实包说成 37MB。测量失败退回原文件粗估。
+        dbBytes = await svc.measureIncludedDbBytes(db);
+      } catch (_) {
+        try {
+          final dbFile = File(db.path);
+          if (dbFile.existsSync()) dbBytes = dbFile.lengthSync();
+          final wal = File('${db.path}-wal');
+          if (wal.existsSync()) dbBytes += wal.lengthSync();
+        } catch (_) {}
+      }
       var empty = false;
       if (!_all) {
         final tables = exportTablesForModules(_modules);
+        // 分母只数实包会装的表（恒排除表不计），比例才不被可再生表稀释。
+        final excluded = svc.estimateExcludedTables().toSet();
         var selected = 0;
         var totalRows = 0;
         final live = await db.rawQuery(
@@ -98,13 +108,14 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
             "AND name NOT LIKE 'sqlite_%'");
         for (final r in live) {
           final t = r['name'] as String;
+          if (excluded.contains(t)) continue;
           final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM "$t"');
           final c = rows.isEmpty ? 0 : (rows.first['c'] as int? ?? 0);
           totalRows += c;
           if (tables.contains(t)) selected += c;
         }
         empty = selected == 0;
-        // 子集 DB 粗估＝库文件 × 行数占比（UI 带「约」，不做逐表字节扫描）。
+        // 子集 DB 粗估＝实测基线 × 行数占比（UI 带「约」，不做逐表字节扫描）。
         dbBytes =
             totalRows == 0 ? 0 : (dbBytes * selected / totalRows).round();
       }
@@ -127,6 +138,14 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
   String get _summaryLabel => _all ? '全部数据' : '${_modules.length} 模块';
 
+  /// 导出位置：系统目录树选择（持久授权），选择后导出直达该目录。
+  Future<void> _pickLoc() async {
+    final uri = await safPickTree();
+    if (uri == null) return; // 取消不动现值
+    await ref.read(backupServiceProvider).setExportTree(uri);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _doExport() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -140,9 +159,25 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
           withProjection: true,
           withMd: _md && _mdAvailable,
         );
-        if (mounted) {
-          AppToast.show(context, '已导出：${p.basename(res.file.path)}');
+        var line = '已导出：${p.basename(res.file.path)}';
+        // 设了导出位置＝导出直达：包拷入持久 SAF 目录树（应用目录原包保留）。
+        final tree = svc.exportTreeUri;
+        if (tree != null) {
+          final w = await safCreateInTree(
+              tree: tree,
+              relPath: '',
+              name: p.basename(res.file.path),
+              text: '',
+              mime: 'application/zip',
+              srcPath: res.file.path);
+          if (w.ok) {
+            line = '已导出：${w.name} · ${svc.exportTreeName}';
+          } else {
+            AppLog.add('导出位置写入失败（包保留在应用目录）：${w.code}',
+                level: LhLevel.warn);
+          }
         }
+        if (mounted) AppToast.show(context, line);
       } else {
         final db = await svc.db();
         final docsRoot = p.dirname(svc.exportDir());
@@ -311,6 +346,42 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                           TextStyle(fontSize: 11.5, color: Color(0xFFB45309))),
                 ),
               ),
+            const SizedBox(height: 14),
+            // ---- ④ 导出位置（V1.66 装机回知批·原型同步）----
+            const Text('导出位置',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            GestureDetector(
+              key: const ValueKey('ex-loc-row'),
+              onTap: _busy ? null : _pickLoc,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        style: const TextStyle(fontSize: 13),
+                        children: [
+                          const TextSpan(text: '导出直达所选目录 '),
+                          TextSpan(
+                            text: ref
+                                    .watch(backupServiceProvider)
+                                    .exportTreeName ??
+                                '默认 · 应用目录',
+                            style: const TextStyle(
+                                fontSize: 10.5, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Text('变更',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: tokens.accent)),
+                ],
+              ),
+            ),
             const SizedBox(height: 14),
             // ---- ④ 底栏 ----
             Row(

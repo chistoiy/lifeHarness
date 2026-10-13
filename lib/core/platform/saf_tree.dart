@@ -21,6 +21,8 @@ class SafDoc {
       required this.uri,
       required this.isDir,
       this.path = '',
+      this.size = 0,
+      this.mtimeMs = 0,
       this.children = const []});
 
   final String name;
@@ -29,6 +31,11 @@ class SafDoc {
 
   /// 人话路径（原生给的 document 尾段，形如 `Download/外来笔记夹`；可空）。
   final String path;
+
+  /// 文件字节与修改时间毫秒（目录恒 0；V1.66 导出位置批新增，备份列表合并读用）。
+  final int size;
+  final int mtimeMs;
+
   final List<SafDoc> children;
 }
 
@@ -38,6 +45,8 @@ SafDoc parseSafDoc(Map<Object?, Object?> raw) => SafDoc(
       uri: (raw['uri'] as String?) ?? '',
       isDir: (raw['dir'] as bool?) ?? false,
       path: (raw['path'] as String?) ?? '',
+      size: (raw['size'] as num?)?.toInt() ?? 0,
+      mtimeMs: (raw['mtime'] as num?)?.toInt() ?? 0,
       children: [
         for (final e in (raw['children'] as List<Object?>? ?? const []))
           if (e is Map) parseSafDoc(e),
@@ -55,10 +64,13 @@ Future<String?> Function() safPickTree = () async {
   return (uri == null || uri.isEmpty) ? null : uri;
 };
 
-/// 列目录树：原生回**所选目录这一个根节点**（children 递归·只收目录与 .md/.markdown）。
-Future<SafDoc> Function(String treeUri) safListTree = (treeUri) async {
-  final raw = await _safChannel
-      .invokeMethod<Map<Object?, Object?>>('listTree', {'uri': treeUri});
+/// 列目录树：原生回**所选目录这一个根节点**（根本身不过滤；children 递归且
+/// 文件按扩展名过滤——缺省＝笔记档 [.md/.markdown]，[exts] 可换（V1.66
+/// 导出位置批：备份列表传 ['.lhbak']）。
+Future<SafDoc> Function(String treeUri, {List<String>? exts}) safListTree =
+    (treeUri, {List<String>? exts}) async {
+  final raw = await _safChannel.invokeMethod<Map<Object?, Object?>>('listTree',
+      {'uri': treeUri, if (exts != null) 'exts': exts});
   if (raw == null) {
     throw PlatformException(code: 'empty', message: '目录读不到');
   }

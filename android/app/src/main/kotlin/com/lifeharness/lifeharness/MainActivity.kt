@@ -286,11 +286,13 @@ class MainActivity : FlutterActivity() {
             return
         }
         val tree = Uri.parse(treeStr)
+        // V1.66 导出位置批：扩展名过滤可参数化（备份列表要读 .lhbak，缺省仍是笔记档）。
+        val exts = call.argument<List<String>>("exts") ?: NOTE_IMPORT_EXT
         try {
             val rootDoc = DocumentsContract.buildDocumentUriUsingTree(
                 tree, DocumentsContract.getTreeDocumentId(tree)
             )
-            result.success(docNode(tree, rootDoc, 0))
+            result.success(docNode(tree, rootDoc, 0, exts))
         } catch (e: Exception) {
             // 授权过期/provider 拒绝：Dart 侧出一行人话提示，不静默。
             result.error("read_failed", e.localizedMessage, null)
@@ -481,10 +483,19 @@ class MainActivity : FlutterActivity() {
         return null
     }
 
-    private fun docNode(tree: Uri, doc: Uri, depth: Int): Map<String, Any> {
+    private fun docNode(
+        tree: Uri, doc: Uri, depth: Int,
+        exts: List<String>
+    ): Map<String, Any> {
         val name = queryName(doc) ?: ""
         val mime = queryString(doc, DocumentsContract.Document.COLUMN_MIME_TYPE) ?: ""
         val isDir = mime == DocumentsContract.Document.MIME_TYPE_DIR
+        var size = 0L
+        var mtime = 0L
+        if (!isDir) {
+            size = try { queryString(doc, DocumentsContract.Document.COLUMN_SIZE)?.toLongOrNull() ?: 0L } catch (_: Exception) { 0L }
+            mtime = try { queryString(doc, DocumentsContract.Document.COLUMN_LAST_MODIFIED)?.toLongOrNull() ?: 0L } catch (_: Exception) { 0L }
+        }
         val children = ArrayList<Map<String, Any>>()
         if (isDir && depth < MAX_TREE_DEPTH) {
             val kids = DocumentsContract.buildChildDocumentsUriUsingTree(
@@ -495,13 +506,17 @@ class MainActivity : FlutterActivity() {
                 arrayOf(
                     DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                     DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                    DocumentsContract.Document.COLUMN_MIME_TYPE
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_SIZE,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED
                 ),
                 null, null, null
             )?.use { c ->
                 val idi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                 val nmi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 val mmi = c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                val szi = runCatching { c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE) }.getOrDefault(-1)
+                val mti = runCatching { c.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_LAST_MODIFIED) }.getOrDefault(-1)
                 while (c.moveToNext()) {
                     if (children.size >= MAX_TREE_CHILDREN) break
                     val childName = c.getString(nmi) ?: continue
@@ -509,13 +524,14 @@ class MainActivity : FlutterActivity() {
                     val childIsDir =
                         c.getString(mmi) == DocumentsContract.Document.MIME_TYPE_DIR
                     if (!childIsDir &&
-                        NOTE_IMPORT_EXT.none { childName.lowercase().endsWith(it) }
+                        exts.none { childName.lowercase().endsWith(it) }
                     ) continue
                     children.add(
                         docNode(
                             tree,
                             DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(idi)),
-                            depth + 1
+                            depth + 1,
+                            exts
                         )
                     )
                 }
@@ -525,6 +541,9 @@ class MainActivity : FlutterActivity() {
             "name" to name,
             "uri" to doc.toString(),
             "dir" to isDir,
+            // 文件档带字节与修改时间（V1.66 导出位置批：备份列表合并读要用）。
+            "size" to size,
+            "mtime" to mtime,
             // documentId 形如 `primary:Download/外来笔记夹`——去掉卷前缀给人看。
             "path" to (try {
                 DocumentsContract.getDocumentId(doc).substringAfter(':', name)

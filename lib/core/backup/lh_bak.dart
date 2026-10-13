@@ -325,6 +325,12 @@ class LhBak {
         for (final t in excluded) {
           await snap.execute('DROP TABLE IF EXISTS "$t"');
         }
+        // V1.66 装机回知批：DROP 只把页挂 freelist、文件字节不缩，被剔表的
+        // 陈旧数据仍留在快照里白占包体（真机 37MB 库实证）——补 VACUUM 收净，
+        // 包体＝真实在包内容（measureIncludedDbBytes 预估与本处同口径镜像）。
+        if (excluded.isNotEmpty) {
+          await snap.execute('VACUUM');
+        }
         for (final t in (await _tableNames(snap))) {
           final rows = await _tableRows(snap, t);
           tables[t] = TableStat(rows: rows.length, checksum: tableChecksum(rows));

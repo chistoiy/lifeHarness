@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/backup/backup_files.dart';
 import '../../../core/logging/app_log.dart';
+import '../../../core/platform/saf_tree.dart';
 import '../../../core/providers.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/ui_kit.dart';
@@ -19,14 +20,42 @@ import 'sync_backup_sheet.dart';
 /// 确认弹式走公共原语 [lhConfirm]——批六已钉「确认版式全仓只一份」，此处不再造第二份。
 
 /// 清单数据源（扫描器由 main 组合根注入，测试注入 fake：真实文件 I/O 不进 widget 测试）。
-final backupFilesProvider = FutureProvider<List<BackupFileEntry>>(
-    (ref) => ref.watch(backupFileScannerProvider).scan());
+/// V1.66 装机回知批：设了「导出位置」则合并读该 SAF 目录树里的 .lhbak
+///（来源角标「导出位置」·只显不可动作——content URI 不进文件删除/恢复链）。
+final backupFilesProvider = FutureProvider<List<BackupFileEntry>>((ref) async {
+  final out = await ref.watch(backupFileScannerProvider).scan();
+  final uri = ref.watch(backupServiceProvider).exportTreeUri;
+  if (uri == null) return out;
+  try {
+    final root = await safListTree(uri, exts: const ['.lhbak']);
+    final known = out.map((e) => e.name).toSet();
+    out.addAll([
+      for (final d in root.children)
+        if (!d.isDir && d.name.isNotEmpty && !known.contains(d.name))
+          BackupFileEntry(
+            path: d.uri,
+            name: d.name,
+            bytes: d.size,
+            mtime: d.mtimeMs > 0
+                ? DateTime.fromMillisecondsSinceEpoch(d.mtimeMs)
+                : DateTime.fromMillisecondsSinceEpoch(0),
+            source: BackupFileSource.ext,
+          ),
+    ]);
+    out.sort((a, b) => b.mtime.compareTo(a.mtime));
+  } catch (e) {
+    AppLog.add('导出位置读取失败（只显应用目录包）：$e', level: LhLevel.warn);
+  }
+  return out;
+});
 
-/// 来源角标配色（原型 BK_SRC：本地导出 sky／云端下载 violet／恢复前自动 amber）。
+/// 来源角标配色（原型 BK_SRC：本地导出 sky／云端下载 violet／恢复前自动 amber／
+/// 导出位置 emerald）。
 const _srcColor = {
   BackupFileSource.local: Color(0xFF0EA5E9),
   BackupFileSource.cloud: Color(0xFF8B5CF6),
   BackupFileSource.auto: Color(0xFFF59E0B),
+  BackupFileSource.ext: Color(0xFF10B981),
 };
 
 class BackupFilesPage extends ConsumerStatefulWidget {
@@ -63,21 +92,27 @@ class _BackupFilesPageState extends ConsumerState<BackupFilesPage> {
 
   void _tapRow(BackupFileEntry e) {
     if (!_selMode) return;
+    // 导出位置档只显：content URI 不进文件删除链，不许进选择集。
+    if (e.source == BackupFileSource.ext) return;
     setState(() => _sel.contains(e.path) ? _sel.remove(e.path) : _sel.add(e.path));
   }
 
   /// 长按进批量（与回收站同一定式：行内两钮收起，头部出「全选／删除 N 项」）。
-  void _longPress(BackupFileEntry e) => setState(() {
-        _selMode = true;
-        _sel
-          ..clear()
-          ..add(e.path);
-      });
+  void _longPress(BackupFileEntry e) {
+    if (e.source == BackupFileSource.ext) return; // 只显档不进批量
+    setState(() {
+      _selMode = true;
+      _sel
+        ..clear()
+        ..add(e.path);
+    });
+  }
 
   void _selAll(List<BackupFileEntry> visible) => setState(() {
-        _sel = _sel.length == visible.length
+        final sel = visible.where((e) => e.source != BackupFileSource.ext).toList();
+        _sel = _sel.length == sel.length
             ? {}
-            : visible.map((e) => e.path).toSet();
+            : sel.map((e) => e.path).toSet();
       });
 
   /// 恢复＝把该包送进 S5 既有校验链（预选路径，跳过系统选择器）。
@@ -289,7 +324,7 @@ class _BackupFilesPageState extends ConsumerState<BackupFilesPage> {
                 ],
               ),
             ),
-            if (!_selMode) ...[
+            if (!_selMode && e.source != BackupFileSource.ext) ...[
               TextButton(
                 key: ValueKey('bk-restore-${e.name}'),
                 onPressed: _busy ? null : () => _restore(e),

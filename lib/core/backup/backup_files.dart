@@ -14,14 +14,16 @@ import 'backup_service.dart' show kAutoBeforeRestoreTag;
 /// 三条红线照工单：只扫 `exports/` 浅层不触 SAF；删除＝物理删**不进回收站**
 /// （回收站是数据记录面，文件面不混）；不动 `snapshot_service` 的保留份数裁剪策略。
 
-/// 来源三档（原型同名角标；配色在 UI 侧，本层只给口径与文案）。
-enum BackupFileSource { local, cloud, auto }
+/// 来源四档（原型同名角标；配色在 UI 侧，本层只给口径与文案）。
+/// V1.66 装机回知批加 `ext`＝导出位置（持久 SAF 目录树里的包；只显不可动作）。
+enum BackupFileSource { local, cloud, auto, ext }
 
 extension BackupFileSourceX on BackupFileSource {
   String get label => switch (this) {
     BackupFileSource.auto => '恢复前自动',
     BackupFileSource.cloud => '云端下载',
     BackupFileSource.local => '本地导出',
+    BackupFileSource.ext => '导出位置',
   };
 }
 

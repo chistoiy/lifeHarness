@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/logging/app_log.dart';
+import '../../../core/platform/saf_tree.dart';
 import '../../../core/providers.dart';
 import '../../../core/sync/diff_service.dart';
 import '../../../core/sync/remote_store.dart';
@@ -93,6 +94,18 @@ class _SyncPageState extends ConsumerState<SyncPage> {
       return;
     }
     await showVerifySheet(context, config: c);
+  }
+
+  /// 导出位置：系统目录树选择（持久授权），导出直达＋备份列表合并读。
+  Future<void> _pickExportLoc() async {
+    final uri = await safPickTree();
+    if (uri == null) return; // 取消不动现值
+    final svc = ref.read(backupServiceProvider);
+    await svc.setExportTree(uri);
+    if (mounted) {
+      setState(() {});
+      AppToast.show(context, '已设导出位置 · ${svc.exportTreeName}');
+    }
   }
 
   Future<void> _openDiff() async {
@@ -319,6 +332,16 @@ class _SyncPageState extends ConsumerState<SyncPage> {
                   // _busy 期间同样禁用：S3 打开即发 compare，防叠层
                   // （评审修复轮1）。
                   onTap: _busy ? null : _openDiff,
+                ),
+                const Divider(height: 1, indent: 14, endIndent: 14),
+                _EntryRow(
+                  key: const ValueKey('sync-export-loc-entry'),
+                  icon: Icons.drive_file_move_outline,
+                  title: '导出位置',
+                  sub: ref.watch(backupServiceProvider).exportTreeName == null
+                      ? '默认 · 应用目录 · 选择后导出直达、备份列表合并显示'
+                      : ref.watch(backupServiceProvider).exportTreeName!,
+                  onTap: _pickExportLoc,
                 ),
                 const Divider(height: 1, indent: 14, endIndent: 14),
                 _EntryRow(

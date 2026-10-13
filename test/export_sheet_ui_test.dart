@@ -14,6 +14,7 @@ import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/backup/lh_bak.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/core/platform/saf_tree.dart';
 import 'package:lifeharness/features/settings/presentation/export_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
@@ -36,8 +37,11 @@ LhBakManifest buildManifest() => LhBakManifest(
     );
 
 class _FakeBackupService extends BackupService {
-  _FakeBackupService(this._db)
-      : super(exportDir: () => '/tmp/fake_export', db: () => _db());
+  _FakeBackupService(this._db, {SharedPreferences? prefs})
+      : super(
+            exportDir: () => '/tmp/fake_export',
+            db: () => _db(),
+            prefs: prefs);
 
   final Future<Database> Function() _db;
 
@@ -222,10 +226,96 @@ void main() {
     // AI 记录模块（ai_calls 无种子）才能命中空态。
     await tester.tap(find.byKey(const ValueKey('ex-chip-ai')));
     await settle5(tester);
-    await flush(tester);
+    // 预估链是真实异步（快照 VACUUM＋gzip 实测，ffi 冷启可能超一秒）：
+    // 有界轮询等空态行出现，不做一次性 flush 假设。
+    for (var i = 0;
+        i < 20 &&
+            find.text('所选范围暂无数据').evaluate().isEmpty;
+        i++) {
+      await tester
+          .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+      await settle5(tester);
+    }
     expect(find.text('所选范围暂无数据'), findsOneWidget);
     final btn = tester.widget<FilledButton>(
         find.byKey(const ValueKey('ex-go')));
     expect(btn.onPressed, isNull);
+  });
+
+  group('④ 导出位置（V1.66 装机回知批·原型同步）', () {
+    Future<void> pumpSheetWith(WidgetTester tester, _FakeBackupService svc) async {
+      final prefs = await SharedPreferences.getInstance();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          backupServiceProvider.overrideWithValue(svc),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ExportSheet())),
+      ));
+      await settle5(tester);
+    }
+
+    String richTexts(WidgetTester tester) => tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((r) => r.text.toPlainText())
+        .join('\n');
+
+    testWidgets('默认态＝「默认 · 应用目录」；选目录后显示人话名并持久化', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = _FakeBackupService(fake._db, prefs: prefs);
+      final oldPick = safPickTree;
+      safPickTree = () async =>
+          'content://com.android.externalstorage.documents/tree/primary%3ADownload%2FlifeHarness';
+      addTearDown(() => safPickTree = oldPick);
+      await pumpSheetWith(tester, svc);
+      await flush(tester);
+      expect(richTexts(tester), contains('默认 · 应用目录'));
+
+      await tester.tap(find.byKey(const ValueKey('ex-loc-row')));
+      await settle5(tester);
+      expect(richTexts(tester), contains('Download/lifeHarness'));
+      expect(svc.exportTreeName, 'Download/lifeHarness');
+      expect(svc.exportTreeUri, contains('tree/primary'));
+    });
+
+    testWidgets('导出直达：设位置后主钮导出 → 包拷入目录树（zip 档·原名）', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final svc = _FakeBackupService(fake._db, prefs: prefs);
+      await svc.setExportTree(
+          'content://com.android.externalstorage.documents/tree/primary%3ADownload%2FlifeHarness');
+      final oldCreate = safCreateInTree;
+      String? gotTree, gotName, gotSrc, gotMime;
+      safCreateInTree = (
+              {required String tree,
+              required String relPath,
+              required String name,
+              required String text,
+              String mime = 'text/markdown',
+              String srcPath = ''}) async {
+        gotTree = tree;
+        gotName = name;
+        gotSrc = srcPath;
+        gotMime = mime;
+        return const MountWriteResult(
+            code: 'ok',
+            name: 'lifeharness_20261013_120000.lhbak',
+            localPath: 'Download/lifeHarness');
+      };
+      addTearDown(() => safCreateInTree = oldCreate);
+      await pumpSheetWith(tester, svc);
+      await flush(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-go')));
+      expect(
+          await pollText(tester,
+              '已导出：lifeharness_20261013_120000.lhbak · Download/lifeHarness'),
+          isTrue);
+      expect(gotTree, contains('tree/primary'));
+      expect(gotName, 'lifeharness_20261013_120000.lhbak');
+      expect(gotSrc, '/fake/lifeharness_20261013_120000.lhbak');
+      expect(gotMime, 'application/zip');
+      await clearToasts(tester);
+    });
   });
 }

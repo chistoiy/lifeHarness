@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/backup/backup_files.dart';
+import 'package:lifeharness/core/backup/backup_service.dart';
 import 'package:lifeharness/core/logging/app_log.dart';
+import 'package:lifeharness/core/platform/saf_tree.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/settings/presentation/backup_files_page.dart';
 import 'package:path/path.dart' as p;
@@ -169,8 +171,18 @@ void main() {
               source: BackupFileSource.auto),
         ];
 
+    /// 屏头/清单页都watch 备份服务（导出位置合并读）——统一给个最小真身
+    /// （prefs 空表＝未设位置；导出位置测试自建带位置的实例）。
+    BackupService _svc() => BackupService(
+        exportDir: () => '/x',
+        db: () async => throw StateError('unused'),
+        prefs: prefs);
+
     Widget app(_FakeScanner sc) => ProviderScope(
-          overrides: [backupFileScannerProvider.overrideWithValue(sc)],
+          overrides: [
+            backupFileScannerProvider.overrideWithValue(sc),
+            backupServiceProvider.overrideWithValue(_svc()),
+          ],
           child: const MaterialApp(home: BackupFilesPage()),
         );
 
@@ -200,8 +212,10 @@ void main() {
     // 不失效就得冷启动才看得见新包。进屏即失效重扫才是对的。
     testWidgets('进屏即重扫：屏外新导出的包不必冷启动就该出现', (tester) async {
       final sc = _FakeScanner([seed().first], prefs);
-      final container = ProviderContainer(
-          overrides: [backupFileScannerProvider.overrideWithValue(sc)]);
+      final container = ProviderContainer(overrides: [
+        backupFileScannerProvider.overrideWithValue(sc),
+        backupServiceProvider.overrideWithValue(_svc()),
+      ]);
       addTearDown(container.dispose);
       await tester.pumpWidget(UncontrolledProviderScope(
           container: container,
@@ -339,6 +353,49 @@ void main() {
               'lib/features/settings/presentation/settings_routes.dart')
           .readAsStringSync();
       expect(rt, contains("path: '/settings/backup-files'"));
+    });
+
+    // V1.66 装机回知批：导出位置＝持久 SAF 目录树，清单合并读（ext 角标）。
+    testWidgets('导出位置档：SAF 树里的包合并入列（只显·无恢复/删除钮）', (tester) async {
+      final svc = _svc();
+      await svc.setExportTree(
+          'content://com.android.externalstorage.documents/tree/primary%3ADownload%2FlifeHarness');
+      final oldList = safListTree;
+      safListTree = (uri, {List<String>? exts}) async {
+        expect(exts, const ['.lhbak'], reason: '列表只收 .lhbak');
+        return const SafDoc(
+            name: 'lifeHarness',
+            uri: 'tree-uri',
+            isDir: true,
+            children: [
+              SafDoc(
+                  name: 'lifeharness_20261013_2216.lhbak',
+                  uri: 'content://doc/1',
+                  isDir: false,
+                  size: 2621440,
+                  mtimeMs: 1791900960000),
+            ]);
+      };
+      addTearDown(() => safListTree = oldList);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          backupFileScannerProvider.overrideWithValue(_FakeScanner(seed(), prefs)),
+          backupServiceProvider.overrideWithValue(svc),
+        ],
+        child: const MaterialApp(home: BackupFilesPage()),
+      ));
+      await settle5(tester);
+      final all = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((r) => r.text.toPlainText())
+          .join('\n');
+      expect(all, contains('导出位置'));
+      expect(all, contains('lifeharness_20261013_2216.lhbak'));
+      // 只显档：恢复/删除钮不出（content URI 不进文件删除/恢复链）。
+      expect(find.byKey(const ValueKey('bk-restore-lifeharness_20261013_2216.lhbak')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('bk-del-lifeharness_20261013_2216.lhbak')),
+          findsNothing);
     });
   });
 }
