@@ -24,6 +24,42 @@ import '../../../core/widgets/wheel_date.dart';
 /// 定位=记录用户在各个时间段做了什么事情：四视图（轴/块/日/周）同一数据不同投影，
 /// 操作逻辑统一 CRUD；顶栏年月日轮式跳转 + 非今天显「今」；添加统一 sheetTimePick。
 /// 当月天数（避开 DateTime(y,m+1,0)：day-0 归一化在 FakeAsync 时区解析下会挂死）。
+
+/// 计时/当前游标玫红（批2 提为文件级常量：轴/日视图与游标共用，色值棘轮净计数不升）。
+const _kTimingRose = Color(0xFFF43F5E);
+
+/// 定时待办紫罗兰（轴/日视图紫行同源色）。
+const _kTodoViolet = Color(0xFF8B5CF6);
+
+/// 定时待办紫行点击（轴/日视图同源 F4-1）：番茄待办先过单活约束再进番茄页；
+/// 普通待办切换完成态（联动 L2）。
+Future<void> schedTodoTap(BuildContext context, WidgetRef ref, Todo t) async {
+  if (t.isPomo && !t.done) {
+    final cur = ref.read(activePomoProvider);
+    if (cur != null && cur.todoId != t.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
+      return;
+    }
+    final s = (cur != null && cur.todoId == t.id)
+        ? cur
+        : PomoSession(
+            todoId: t.id!,
+            title: t.title,
+            mode: t.pomoMode ?? 'up',
+            minutes: t.pomoMin);
+    if (cur == null) ref.read(activePomoProvider.notifier).state = s;
+    if (context.mounted) context.push('/pomo', extra: s);
+    return;
+  }
+  final wasDone = t.done;
+  await ref.read(todoRepositoryProvider).toggleDone(t);
+  ref.invalidate(todosProvider);
+  if (context.mounted && !wasDone) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('✔ 定时待办完成 · 轴视图同步划线（联动 L2）')));
+  }
+}
 int daysInMonthOf(int y, int m) {
   const dm = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (m != 2) return dm[m - 1];
@@ -958,33 +994,7 @@ class _AxisView extends ConsumerWidget {
           violet,
           InkWell(
             borderRadius: BorderRadius.circular(14),
-            onTap: () async {
-              if (t.isPomo && !t.done) {
-                final cur = ref.read(activePomoProvider);
-                if (cur != null && cur.todoId != t.id) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('已有番茄进行中 · 请先结束（单活约束）')));
-                  return;
-                }
-                final s = (cur != null && cur.todoId == t.id)
-                    ? cur
-                    : PomoSession(
-                        todoId: t.id!,
-                        title: t.title,
-                        mode: t.pomoMode ?? 'up',
-                        minutes: t.pomoMin);
-                if (cur == null) ref.read(activePomoProvider.notifier).state = s;
-                if (context.mounted) context.push('/pomo', extra: s);
-                return;
-              }
-              final wasDone = t.done;
-              await ref.read(todoRepositoryProvider).toggleDone(t);
-              ref.invalidate(todosProvider);
-              if (context.mounted && !wasDone) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('✔ 定时待办完成 · 轴视图同步划线（联动 L2）')));
-              }
-            },
+            onTap: () => schedTodoTap(context, ref, t),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
@@ -1065,70 +1075,276 @@ class _AxisView extends ConsumerWidget {
 }
 
 /// 日视图：0-23 小时行（V1.19.2 定义迁移至此——点空行补录 / 点事件管理）。
-class _DayHoursView extends ConsumerWidget {
+/// F4-1（批2 · 原型 index-time.html renderDayHours）：①定时待办紫行按起始小时
+/// 落位（与轴视图同源口径，仅今天）；②当前时间红线游标（当前小时红顶边＋浅红底
+/// ＋「现在」标）；③秒级 HH:MM:SS 时钟（仅今天显示并每秒刷新，非今天不启定时器）。
+class _DayHoursView extends ConsumerStatefulWidget {
   const _DayHoursView({required this.selected, required this.events});
   final DateTime selected;
   final List<CalEvent> events;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DayHoursView> createState() => _DayHoursViewState();
+}
+
+class _DayHoursViewState extends ConsumerState<_DayHoursView> {
+  Timer? _clockTimer;
+  DateTime _now = DateTime.now();
+
+  static bool _isToday(DateTime selected, DateTime now) =>
+      CalendarPage.sameDay(selected, now);
+
+  static String _hm2(int m) =>
+      '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+  static String _hmss(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}:${d.second.toString().padLeft(2, '0')}';
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureClock();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DayHoursView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 同型 widget 复用 State：切日不重建 ⇒ 时钟随「是否今天」启停。
+    _ensureClock();
+  }
+
+  void _ensureClock() {
+    final want = _isToday(widget.selected, DateTime.now());
+    if (want && _clockTimer == null) {
+      _now = DateTime.now();
+      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _now = DateTime.now());
+      });
+    } else if (!want && _clockTimer != null) {
+      _clockTimer?.cancel();
+      _clockTimer = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    final selected = widget.selected;
+    final events = widget.events;
     final blocks =
         ref.watch(dayBlocksProvider(selected)).valueOrNull ?? const <TimeBlock>[];
     final catColors = ref.watch(catColorsByNameProvider);
     final dayEvents = CalendarPage.onDay(events, selected);
-    final now = DateTime.now();
+    final isToday = _isToday(selected, _now);
+    final nowHour = _now.hour;
+    // F4-1① 落位口径同轴视图：归属日=截止日，无截止日=创建日；非 all 才入行。
+    final selDay = DateTime(selected.year, selected.month, selected.day);
+    final schedTodos = (ref.watch(todosProvider).valueOrNull ?? const <Todo>[])
+        .where((t) {
+          if (t.timeMode == null || t.timeMode == 'all' || t.dropped) return false;
+          final base = t.dueAt ?? t.createdAt ?? DateTime.now();
+          return selDay == DateTime(base.year, base.month, base.day);
+        })
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                    '${selected.month}月${selected.day}日${isToday ? ' · 今天' : ''}'
+                    ' · 点空白小时补录 · 点事件卡修改起止/类型',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 10, color: scheme.onSurfaceVariant)),
+              ),
+              // F4-1③ 秒级时钟（仅今天）。
+              if (isToday)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                            shape: BoxShape.circle, color: _kTimingRose)),
+                    const SizedBox(width: 4),
+                    Text(_hmss(_now),
+                        key: const ValueKey('day-clock'),
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w800,
+                            color: _kTimingRose)),
+                  ],
+                ),
+            ],
+          ),
+        ),
         for (var h = 0; h < 24; h++)
-          InkWell(
-            onTap: () => showTimePickSheet(context, ref, day: selected, startMin: h * 60),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 40),
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-              decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: .5)))),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          _buildHourRow(
+              context, ref, h, isToday: isToday, nowHour: nowHour,
+              dayEvents: dayEvents, blocks: blocks, catColors: catColors,
+              tokens: tokens, scheme: scheme, schedTodos: schedTodos),
+      ],
+    );
+  }
+
+  Widget _buildHourRow(
+    BuildContext context,
+    WidgetRef ref,
+    int h, {
+    required bool isToday,
+    required int nowHour,
+    required List<CalEvent> dayEvents,
+    required List<TimeBlock> blocks,
+    required Map<String, Color> catColors,
+    required ThemeTokens tokens,
+    required ColorScheme scheme,
+    required List<Todo> schedTodos,
+  }) {
+    final isNow = isToday && h == nowHour;
+    return InkWell(
+      onTap: () =>
+          showTimePickSheet(context, ref, day: widget.selected, startMin: h * 60),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 40),
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        // F4-1② 当前小时=红顶边＋浅红底（红线游标落位当前小时）。
+        decoration: BoxDecoration(
+            color: isNow ? _kTimingRose.withValues(alpha: .06) : null,
+            border: Border(
+                top: isNow
+                    ? const BorderSide(color: _kTimingRose, width: 2)
+                    : BorderSide.none,
+                bottom: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: .5)))),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+                width: 40,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('$h:00',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontFamily: 'monospace',
+                          color: isNow
+                              ? _kTimingRose
+                              : scheme.onSurfaceVariant)),
+                )),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                      width: 40,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text('$h:00',
-                            style: TextStyle(
-                                fontSize: 10.5,
-                                fontFamily: 'monospace',
-                                color: h == now.hour && CalendarPage.sameDay(selected, now)
-                                    ? const Color(0xFFF43F5E)
-                                    : scheme.onSurfaceVariant)),
-                      )),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final e in dayEvents.where((e) => e.start.hour == h))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: InkWell(
-                              onTap: () => showTimePickSheet(context, ref, event: e),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: e.status == EventStatus.done
-                                      ? const Color(0xFF34D399).withValues(alpha: .8)
-                                      : (e.status == EventStatus.active
-                                          ? const Color(0xFFF43F5E)
-                                          : e.colorOf(tokens.accent)),
-                                  borderRadius: BorderRadius.circular(10),
+                  // F4-1① 定时待办紫行（仅今天，落位起始小时）。
+                  if (isToday)
+                    for (final t in schedTodos
+                        .where((t) => (t.startMin ?? 0) ~/ 60 == h))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: InkWell(
+                          onTap: () => schedTodoTap(context, ref, t),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _kTodoViolet.withValues(alpha: .9),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border(
+                                  left: BorderSide(
+                                      color:
+                                          _kTodoViolet.withValues(alpha: .6),
+                                      width: 4)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                      '${t.timeMode == 'span' ? '${_hm2(t.startMin ?? 0)}-${_hm2(t.endMin ?? 0)}' : _hm2(t.startMin ?? 0)}'
+                                      ' 定时待办 · ${t.title}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white)),
                                 ),
+                                Text(t.quadrant.hint,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white
+                                            .withValues(alpha: .85))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  for (final e in dayEvents.where((e) => e.start.hour == h))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: InkWell(
+                        onTap: () => showTimePickSheet(context, ref, event: e),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: e.status == EventStatus.done
+                                ? const Color(0xFF34D399).withValues(alpha: .8)
+                                : (e.status == EventStatus.active
+                                    ? _kTimingRose
+                                    : e.colorOf(tokens.accent)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${e.start.hour.toString().padLeft(2, '0')}:${e.start.minute.toString().padLeft(2, '0')} '
+                            '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '')}${e.title} ›',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  for (final b in blocks.where(
+                      (b) => b.source != kSrcEvent && b.startMin ~/ 60 == h))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: InkWell(
+                        onTap: () => showTimePickSheet(context, ref, block: b),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: b.isTiming
+                                ? _kTimingRose
+                                : blockColor(b, catColors, tokens.accent)
+                                    .withValues(alpha: .85),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
                                 child: Text(
-                                  '${e.start.hour.toString().padLeft(2, '0')}:${e.start.minute.toString().padLeft(2, '0')} '
-                                  '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '')}${e.title} ›',
+                                  '${b.note == null || b.note!.isEmpty ? b.catName : b.note}'
+                                  '${b.isTiming ? ' ●' : ''}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -1137,55 +1353,37 @@ class _DayHoursView extends ConsumerWidget {
                                       color: Colors.white),
                                 ),
                               ),
-                            ),
+                              Text('${b.durationMin()}分',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white70)),
+                            ],
                           ),
-                        for (final b in blocks.where((b) => b.source != kSrcEvent && b.startMin ~/ 60 == h))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: InkWell(
-                              onTap: () => showTimePickSheet(context, ref, block: b),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: b.isTiming
-                                      ? const Color(0xFFF43F5E)
-                                      : blockColor(b, catColors, tokens.accent)
-                                          .withValues(alpha: .85),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '${b.note == null || b.note!.isEmpty ? b.catName : b.note}'
-                                        '${b.isTiming ? ' ●' : ''}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white),
-                                      ),
-                                    ),
-                                    Text('${b.durationMin()}分',
-                                        style: const TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white70)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
-          ),
-      ],
+            // F4-1② 「现在」标（仅当前小时，右列占位对齐）。
+            SizedBox(
+                width: 44,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('现在',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w800,
+                          color: isNow
+                              ? _kTimingRose
+                              : Colors.transparent)),
+                )),
+          ],
+        ),
+      ),
     );
   }
 }

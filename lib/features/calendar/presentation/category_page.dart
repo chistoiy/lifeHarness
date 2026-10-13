@@ -273,7 +273,7 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
     super.dispose();
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool keep = false}) async {
     final n = _name.text.trim();
     if (n.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入分类名称')));
@@ -302,6 +302,14 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
     }
     ref.invalidate(categoriesProvider);
     if (!mounted) return;
+    // F4-2（批2 · 冻结口径）：「继续添加」保存后留在本页且表单清空，可连续添加；
+    // 「保存修改」（编辑态）不触发继续。清空范围＝名称（原型 caSave(keep) 口径）。
+    if (keep) {
+      _name.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✔ 已保存分类「$n」· 速记列/添加弹层/账本同源生效')));
+      return;
+    }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✔ 已保存分类「$n」· 速记列/添加弹层/账本同源生效')));
@@ -448,15 +456,44 @@ class _CatAddSheetState extends ConsumerState<_CatAddSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: tokens.accent),
-                onPressed: _save,
-                child: Text(widget.existing == null ? '保 存' : '保存修改'),
+            if (widget.existing == null)
+              // F4-2（批2 · 原型 p-sub-catAdd）：添加态双钮——继续添加留存页可连续录；保存后关闭。
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('cat-continue-add'),
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: tokens.accent,
+                          side: BorderSide(color: tokens.accent.withValues(alpha: .5)),
+                          minimumSize: const Size(0, 46)),
+                      onPressed: () => _save(keep: true),
+                      child: const Text('继续添加',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: tokens.accent),
+                      onPressed: _save,
+                      child: const Text('保 存',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: tokens.accent),
+                  onPressed: _save,
+                  child: const Text('保存修改',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                ),
               ),
-            ),
           ],
         ),
       ),
