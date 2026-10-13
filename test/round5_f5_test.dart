@@ -5,9 +5,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/read/data/read_repository.dart';
@@ -106,9 +104,8 @@ void main() {
       final bus = EventBus();
       addTearDown(bus.dispose);
       final container = ProviderContainer(overrides: [
-        eventRepositoryProvider
-            .overrideWithValue(EventRepository(EventDao(db), bus)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         sharedPreferencesProvider.overrideWithValue(prefs),
       ]);

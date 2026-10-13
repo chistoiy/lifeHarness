@@ -17,8 +17,6 @@ export '../../features/todo/presentation/todo_providers.dart' show todosProvider
 export '../../features/todo/domain/todo.dart' show Todo, Quadrant;
 export '../../features/todo/domain/todo_insights.dart' show energyCaption;
 export '../../features/calendar/presentation/calendar_providers.dart' show dayBlocksProvider, monthBlockDaysProvider;
-export '../../features/calendar/presentation/calendar_providers.dart' show eventsProvider;
-export '../../features/calendar/domain/cal_event.dart' show CalEvent, EventStatus;
 export '../../features/calendar/domain/time_block.dart' show TimeBlock;
 export '../../features/calendar/presentation/calendar_providers.dart' show categoriesProvider;
 export '../../features/calendar/domain/category.dart' show Category;
@@ -42,19 +40,6 @@ export '../../features/items/domain/item_calc.dart' show totalDailyCost, fmtY;
 /// 跨模块聚合查询（shared/linkage 唯一聚合层；直查 DB，M1 起服务化）。
 /// 各 provider watch 对应源列表，源变更后自动重算。
 
-/// 今日日程数（start_at 落在今日）。
-final todayEventCountProvider = FutureProvider<int>((ref) async {
-  ref.watch(eventsProvider);
-  final db = AppDatabase.instance.db;
-  final now = DateTime.now();
-  final dayStart = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
-  final dayEnd = dayStart + 86400000;
-  final rows = await db.rawQuery(
-      'SELECT COUNT(*) c FROM events WHERE start_at >= ? AND start_at < ?',
-      [dayStart, dayEnd]);
-  return (rows.first['c'] as int?) ?? 0;
-});
-
 /// 收集箱未整理条数（routed_to 为空；watch 列表源，分流后自动重算）。
 final inboxPendingCountProvider = FutureProvider<int>((ref) async {
   ref.watch(inboxItemsProvider);
@@ -64,17 +49,18 @@ final inboxPendingCountProvider = FutureProvider<int>((ref) async {
   return (rows.first['c'] as int?) ?? 0;
 });
 
-/// 连续记录天数（todos/journal/events 任一有活动的自然日去重计数，骨架近似）。
+/// 连续记录天数（todos/journal/time_blocks 任一有活动的自然日去重计数，骨架近似）。
+/// B10：events 行已并入 time_blocks 并删行退役，活动面改算块表。
 final streakDaysProvider = FutureProvider<int>((ref) async {
   ref.watch(todosProvider);
-  ref.watch(eventsProvider);
+  ref.watch(dayBlocksProvider(DateTime.now()));
   final db = AppDatabase.instance.db;
   final rows = await db.rawQuery('''
     SELECT COUNT(DISTINCT (created_at / 86400000)) c FROM (
       -- V1.61：删进回收站的待办不算「当天有过活动」（在册口径，与物品/笔记同源）
       SELECT created_at FROM todos WHERE deleted_at IS NULL
       UNION ALL SELECT created_at FROM journal_entries
-      UNION ALL SELECT created_at FROM events
+      UNION ALL SELECT created_at FROM time_blocks
     )
   ''');
   return (rows.first['c'] as int?) ?? 0;

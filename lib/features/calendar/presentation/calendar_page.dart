@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import '../../../core/widgets/grad_fab.dart';
 import '../../../shared/linkage/stats_providers.dart';
 // UIUX批（2026-10-12）：搜索钮接全局搜索半屏（守 R1：经 shared/linkage 出口）。
 import '../../../shared/linkage/search_mounts.dart';
+import '../data/legacy_event_merge.dart';
 import '../domain/block_ops.dart';
 import '../domain/time_block.dart';
 import '../domain/week_align.dart';
@@ -85,34 +85,19 @@ class CalendarPage extends ConsumerWidget {
   static bool sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  static List<CalEvent> onDay(List<CalEvent> all, DateTime d) =>
-      all.where((e) => sameDay(e.start, d)).toList();
-
-  /// 某天圆点状态色（进行中红 > 计划主题色 > 完成绿）。
-  static Color? dotColorFor(List<CalEvent> dayEvents, Color accent) {
-    if (dayEvents.any((e) => e.status == EventStatus.active)) {
-      return const Color(0xFFF43F5E);
-    }
-    if (dayEvents.any((e) => e.status == EventStatus.planning)) return accent;
-    if (dayEvents.any((e) => e.status == EventStatus.done)) {
-      return const Color(0xFF34D399);
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(calSelectedProvider);
     final view = ref.watch(calViewModeProvider);
-    final events = ref.watch(eventsProvider).valueOrNull ?? const [];
     final now = DateTime.now();
     final isToday = sameDay(selected, now);
 
-    // C7（冻结）：「计时中」唯一源=时间块 tm=1。进模块时若 events 表还挂着
-    // 历史两态流的 status=1 行（两表并存），以时间块为准把事件侧收口为已完成。
+    // B10（冻结批 · 产品裁决 2026-10-13「搬，旧表不维护了」）：进模块时把旧
+    // events 表一次性并入时间块后删行退役（幂等护栏=表空即空跑）。编辑自此
+    // 一律走时间块；C7 reconcile（旧 active 收口）已并入搬移换算。
     if (!_reconciled) {
       _reconciled = true;
-      unawaited(ref.read(eventRepositoryProvider).reconcileStaleActive());
+      unawaited(LegacyEventMerge.run(ref.read(legacyEventMergeDbProvider)));
     }
 
     return Scaffold(
@@ -143,15 +128,15 @@ class CalendarPage extends ConsumerWidget {
                   child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                   children: [
-                    _CalendarRegion(selected: selected, events: events),
+                    _CalendarRegion(selected: selected),
                     const SizedBox(height: 10),
                     if (view == 'block') const _BlockToolbar(),
                     if (view == 'block') const SizedBox(height: 8),
                     switch (view) {
-                      'axis' => _AxisView(selected: selected, events: events),
+                      'axis' => _AxisView(selected: selected),
                       'block' => GridDayView(day: selected),
-                      'day' => _DayHoursView(selected: selected, events: events),
-                      _ => _WeekBoard(selected: selected, events: events),
+                      'day' => _DayHoursView(selected: selected),
+                      _ => _WeekBoard(selected: selected),
                     },
                   ],
                 ),
@@ -162,7 +147,7 @@ class CalendarPage extends ConsumerWidget {
         ),
       ),
       floatingActionButton: GradFab(
-        tooltip: '添加事件 / 时间块',
+        tooltip: '添加时间块',
         icon: const Icon(Icons.add, color: Colors.white, size: 26),
         onTap: () => showTimePickSheet(context, ref, day: selected),
       ),
@@ -174,9 +159,8 @@ class CalendarPage extends ConsumerWidget {
 /// · 切月/切天（左右滑动）=横向滑入+淡入（原型 mshift 0.3s cubic-bezier(.22,.61,.36,1)）；
 /// · 展开/收起（mexpand/wreveal）=AnimatedSize 高度过渡 + 月历↔周行交叉淡切。
 class _CalendarRegion extends ConsumerStatefulWidget {
-  const _CalendarRegion({required this.selected, required this.events});
+  const _CalendarRegion({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
 
   @override
   ConsumerState<_CalendarRegion> createState() => _CalendarRegionState();
@@ -250,12 +234,10 @@ class _CalendarRegionState extends ConsumerState<_CalendarRegion>
             child: expanded
                 ? KeyedSubtree(
                     key: const ValueKey('region-month'),
-                    child: _MonthPanel(
-                        selected: widget.selected, events: widget.events))
+                    child: _MonthPanel(selected: widget.selected))
                 : KeyedSubtree(
                     key: const ValueKey('region-week'),
-                    child: _WeekStrip(
-                        selected: widget.selected, events: widget.events)),
+                    child: _WeekStrip(selected: widget.selected)),
           ),
         ),
       ),
@@ -419,9 +401,8 @@ class _BlockToolbar extends ConsumerWidget {
 
 /// 展开态：迷你月历（固定 42 格不跳版 · 三色圆点 · 内部上月/下月）。
 class _MonthPanel extends ConsumerWidget {
-  const _MonthPanel({required this.selected, required this.events});
+  const _MonthPanel({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -497,11 +478,9 @@ class _MonthPanel extends ConsumerWidget {
                 final isToday = CalendarPage.sameDay(date, now);
                 final dot = timingDays.contains(day)
                     ? const Color(0xFFF43F5E)
-                    : CalendarPage.dotColorFor(
-                            CalendarPage.onDay(events, date), tokens.accent) ??
-                        (blockDays.contains(day)
-                            ? const Color(0xFF6366F1)
-                            : null);
+                    : (blockDays.contains(day)
+                        ? const Color(0xFF6366F1)
+                        : null);
                 return InkWell(
                   // 测试钩子：选中格可点切换展开态（C2），给它稳定 key。
                   key: isSel ? const ValueKey('month-sel-cell') : null,
@@ -594,9 +573,8 @@ class _MonthPanel extends ConsumerWidget {
 
 /// 收起态：单周行（点当前日展开；左右滑动切天）。
 class _WeekStrip extends ConsumerWidget {
-  const _WeekStrip({required this.selected, required this.events});
+  const _WeekStrip({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -692,14 +670,10 @@ class _WeekStrip extends ConsumerWidget {
                                   ? Colors.white
                                   : (timingDays.contains(d.day)
                                       ? const Color(0xFFF43F5E)
-                                      : (CalendarPage.dotColorFor(
-                                              CalendarPage.onDay(events, d),
-                                              tokens.accent) ??
-                                          (d.month == selected.month &&
-                                                  blockDays.contains(d.day)
-                                              ? const Color(0xFF6366F1)
-                                              : null) ??
-                                          Colors.transparent)),
+                                      : (d.month == selected.month &&
+                                              blockDays.contains(d.day)
+                                          ? const Color(0xFF6366F1)
+                                          : Colors.transparent)),
                             ),
                           ),
                         ],
@@ -719,14 +693,10 @@ class _WeekStrip extends ConsumerWidget {
   }
 }
 
-/// 轴视图：竖向时间轴（进行中脉冲卡 → 计划卡 → 已完成划线卡，全部可点=统一详情）。
+/// 轴视图：竖向时间轴（时间块卡＋定时待办紫行；B10 起 events 已并入块，单源）。
 class _AxisView extends ConsumerWidget {
-  const _AxisView({required this.selected, required this.events});
+  const _AxisView({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
-
-  static String _hm(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
   static String _hm2(int m) =>
       '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
@@ -735,8 +705,6 @@ class _AxisView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
-    final dayEvents = List<CalEvent>.from(CalendarPage.onDay(events, selected))
-      ..sort((a, b) => a.start.compareTo(b.start));
     final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
     // V1.27 C3：定时待办随所选日同步（归属日=截止日，无截止日=创建日）
     final selDay = DateTime(selected.year, selected.month, selected.day);
@@ -745,93 +713,13 @@ class _AxisView extends ConsumerWidget {
       final base = t.dueAt ?? t.createdAt ?? DateTime.now();
       return selDay == DateTime(base.year, base.month, base.day);
     }).toList();
-    // V1.27 C3：轴视图并入手动标记块投影（事件回填块由事件卡表达，不重复列示）
+    // V1.27 C3：轴视图并入手动标记块投影；B10：事件回填块（source=event）同列
+    // ——旧 events 已整体并入块表，不再有「由事件卡表达」的另一份。
     // V1.52：计时中块（source=timing）同列，结束时间随当前时刻推进
     final markBlocks = (ref.watch(dayBlocksProvider(selected)).valueOrNull ??
             const <TimeBlock>[])
-        .where((b) => b.source != kSrcEvent)
         .toList()
       ..sort((a, b) => a.startMin.compareTo(b.startMin));
-    final active =
-        dayEvents.where((e) => e.status == EventStatus.active).toList();
-    final planning =
-        dayEvents.where((e) => e.status == EventStatus.planning).toList();
-    final done = dayEvents.where((e) => e.status == EventStatus.done).toList();
-
-    Widget content(CalEvent e, {required bool isLive, required bool isDone}) {
-      final c = isDone
-          ? const Color(0xFF34D399)
-          : (isLive ? const Color(0xFFF43F5E) : e.colorOf(tokens.accent));
-      return InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => showTimePickSheet(context, ref, event: e),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isLive
-                ? const Color(0xFFF43F5E).withValues(alpha: .06)
-                : scheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: isLive
-                ? Border.all(color: c.withValues(alpha: .6))
-                : Border(left: BorderSide(color: c, width: 4)),
-            boxShadow: isLive ? null : tokens.cardShadow,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(e.title,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          decoration: isDone ? TextDecoration.lineThrough : null,
-                          color: isDone ? Colors.grey : scheme.onSurface,
-                        )),
-                    const SizedBox(height: 2),
-                    Text(
-                      isLive
-                          ? '● 进行中 · 点卡片管理'
-                          : (isDone
-                              ? '✓ 已完成 · 实际 ${e.durationMin ?? '—'} 分钟 · 已回填 L1 · 入账本 L4 · 点卡片仍可修改/删除'
-                              : '${e.allDay ? '全天' : '${(e.end == null ? 0 : e.end!.difference(e.start).inMinutes.clamp(0, 1 << 20))} 分钟'}${e.crossDay ? ' · 跨天' : ''} · 点卡片修改起止/类型'),
-                      style: TextStyle(
-                          fontSize: 10.5,
-                          color: isLive
-                              ? const Color(0xFFF43F5E)
-                              : (isDone
-                                  ? const Color(0xFF10B981)
-                                  : scheme.onSurfaceVariant)),
-                    ),
-                  ],
-                ),
-              ),
-              if (isLive)
-                FilledButton(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final repo = ref.read(eventRepositoryProvider);
-                    final ended = await repo.endActive();
-                    ref.invalidate(eventsProvider);
-                    ref.invalidate(activeEventProvider);
-                    if (ended != null) {
-                      messenger.showSnackBar(SnackBar(
-                          content: Text(
-                              '✔ 耗时 ${ended.durationMin} 分钟 · 回填 L1 · 写入时间账本 L4')));
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFF43F5E)),
-                  child: const Text('■ 结束', style: TextStyle(fontSize: 12)),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-
     // 原型时间轴行：左时间列 + 轴上圆点 + 内容卡（竖线由外层 Stack 绘制）
     Widget rail(String time, Color dot, Widget child, {Color? timeColor}) =>
         Padding(
@@ -971,18 +859,7 @@ class _AxisView extends ConsumerWidget {
     }
     if (1440 - cursor >= kGapMinMin) blockRails.add(rail(fmtMin(cursor), scheme.surface, gapRow(cursor, 1440)));
 
-    final items = <Widget>[
-      for (final e in active)
-        rail(_hm(e.start), rose, content(e, isLive: true, isDone: false),
-            timeColor: rose),
-      for (final e in planning)
-        rail(e.allDay ? '全天' : _hm(e.start),
-            e.colorOf(tokens.accent), content(e, isLive: false, isDone: false)),
-      for (final e in done)
-        rail(_hm(e.start), const Color(0xFF34D399),
-            content(e, isLive: false, isDone: true)),
-      ...blockRails,
-    ];
+    final items = <Widget>[...blockRails];
 
     for (final t in sched) {
       items.add(rail(
@@ -1074,14 +951,13 @@ class _AxisView extends ConsumerWidget {
   }
 }
 
-/// 日视图：0-23 小时行（V1.19.2 定义迁移至此——点空行补录 / 点事件管理）。
+/// 日视图：0-23 小时行（点空行补录 / 点块卡管理）。
 /// F4-1（批2 · 原型 index-time.html renderDayHours）：①定时待办紫行按起始小时
 /// 落位（与轴视图同源口径，仅今天）；②当前时间红线游标（当前小时红顶边＋浅红底
 /// ＋「现在」标）；③秒级 HH:MM:SS 时钟（仅今天显示并每秒刷新，非今天不启定时器）。
 class _DayHoursView extends ConsumerStatefulWidget {
-  const _DayHoursView({required this.selected, required this.events});
+  const _DayHoursView({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
 
   @override
   ConsumerState<_DayHoursView> createState() => _DayHoursViewState();
@@ -1137,11 +1013,9 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final selected = widget.selected;
-    final events = widget.events;
     final blocks =
         ref.watch(dayBlocksProvider(selected)).valueOrNull ?? const <TimeBlock>[];
     final catColors = ref.watch(catColorsByNameProvider);
-    final dayEvents = CalendarPage.onDay(events, selected);
     final isToday = _isToday(selected, _now);
     final nowHour = _now.hour;
     // F4-1① 落位口径同轴视图：归属日=截止日，无截止日=创建日；非 all 才入行。
@@ -1165,7 +1039,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
               Expanded(
                 child: Text(
                     '${selected.month}月${selected.day}日${isToday ? ' · 今天' : ''}'
-                    ' · 点空白小时补录 · 点事件卡修改起止/类型',
+                    ' · 点空白小时补录 · 点块卡修改起止/类型',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1197,7 +1071,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
         for (var h = 0; h < 24; h++)
           _buildHourRow(
               context, ref, h, isToday: isToday, nowHour: nowHour,
-              dayEvents: dayEvents, blocks: blocks, catColors: catColors,
+              blocks: blocks, catColors: catColors,
               tokens: tokens, scheme: scheme, schedTodos: schedTodos),
       ],
     );
@@ -1209,7 +1083,6 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
     int h, {
     required bool isToday,
     required int nowHour,
-    required List<CalEvent> dayEvents,
     required List<TimeBlock> blocks,
     required Map<String, Color> catColors,
     required ThemeTokens tokens,
@@ -1294,37 +1167,9 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
                           ),
                         ),
                       ),
-                  for (final e in dayEvents.where((e) => e.start.hour == h))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: InkWell(
-                        onTap: () => showTimePickSheet(context, ref, event: e),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: e.status == EventStatus.done
-                                ? const Color(0xFF34D399).withValues(alpha: .8)
-                                : (e.status == EventStatus.active
-                                    ? _kTimingRose
-                                    : e.colorOf(tokens.accent)),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${e.start.hour.toString().padLeft(2, '0')}:${e.start.minute.toString().padLeft(2, '0')} '
-                            '${e.status == EventStatus.active ? '● ' : (e.status == EventStatus.done ? '✓ ' : '')}${e.title} ›',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                  for (final b in blocks.where(
-                      (b) => b.source != kSrcEvent && b.startMin ~/ 60 == h))
+                  // B10：旧 events 并入块表后，source=event 块照常在此列展示。
+                  for (final b in blocks
+                      .where((b) => b.startMin ~/ 60 == h))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: InkWell(
@@ -1388,20 +1233,11 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
   }
 }
 
-/// 周视图：7×24 网格。V1.28⑧：格子有事件/块=点开详情（→编辑），空格子才开补录。
-/// V1.46⑤：同小时格多个事件/时间块并排分段显示，各段仍可点进自己的详情。
+/// 周视图：7×24 网格。V1.28⑧：格子有块=点开详情（→编辑），空格子才开补录。
+/// V1.46⑤：同小时格多个时间块并排分段显示，各段仍可点进自己的详情。
 class _WeekBoard extends ConsumerWidget {
-  const _WeekBoard({required this.selected, required this.events});
+  const _WeekBoard({required this.selected});
   final DateTime selected;
-  final List<CalEvent> events;
-
-  /// 事件是否与该小时有交集（V1.52：原按整点采样，非整点起始的事件/块整行隐身）。
-  static bool _coversHour(CalEvent e, int m0) {
-    if (e.allDay) return e.start.hour * 60 == m0;
-    final s = e.start.hour * 60 + e.start.minute;
-    final en = e.end == null ? 1440 : math.max(e.end!.hour * 60 + e.end!.minute, s + 1);
-    return s < m0 + 60 && en > m0;
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1454,40 +1290,25 @@ class _WeekBoard extends ConsumerWidget {
                       final blocks = blocksByDay.putIfAbsent(
                           d, () => ref.watch(dayBlocksProvider(d)).valueOrNull ?? const []);
                       final m = h * 60;
-                      // V1.46⑤：同小时格命中的多个事件/时间块并排分段，各段可点进自己详情。
+                      // V1.46⑤：同小时格命中的多个时间块并排分段，各段可点进自己详情。
+                      // B10：source=event 块（旧日程并入）同样入格。
                       final items = <Object>[
-                        ...CalendarPage.onDay(events, d)
-                            .where((x) => _coversHour(x, m)),
                         ...blocks.where((x) =>
-                            x.source != kSrcEvent &&
                             x.startMin < m + 60 &&
                             x.effEnd() > m),
                       ];
                       final segs = weekCellSegments(items);
-                      Color segColor(Object it) => it is CalEvent
-                          ? (it.status == EventStatus.done
-                              ? const Color(0xFF34D399)
-                              : (it.status == EventStatus.active
-                                  ? const Color(0xFFF43F5E)
-                                  : tokens.accent))
-                          : blockColor(it as TimeBlock, catColors, tokens.accent);
-                      int segDurMin(Object it) => it is TimeBlock
-                          ? it.durationMin()
-                          : (it is CalEvent && it.end != null
-                              ? it.end!.difference(it.start).inMinutes
-                                  .clamp(0, 1440)
-                              : 0);
-                      String segLabel(Object it) => it is CalEvent
-                          ? it.title
-                          : ((it as TimeBlock).note == null ||
-                                  it.note!.isEmpty
-                              ? it.catName
-                              : it.note!);
+                      Color segColor(Object it) =>
+                          blockColor(it as TimeBlock, catColors, tokens.accent);
+                      int segDurMin(Object it) => (it as TimeBlock).durationMin();
+                      String segLabel(Object it) {
+                        final b = it as TimeBlock;
+                        return b.note == null || b.note!.isEmpty ? b.catName : b.note!;
+                      }
+
                       void openItem(Object? it) {
-                        // V1.52：点已有事件/块=与添加同款编辑弹层；空格子才开添加。
-                        if (it is CalEvent) {
-                          showTimePickSheet(context, ref, event: it);
-                        } else if (it is TimeBlock) {
+                        // V1.52：点已有块=与添加同款编辑弹层；空格子才开添加。
+                        if (it is TimeBlock) {
                           showTimePickSheet(context, ref, block: it);
                         } else {
                           showTimePickSheet(context, ref, day: d, startMin: m);

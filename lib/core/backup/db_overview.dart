@@ -166,7 +166,8 @@ String formatBytes(int bytes) {
 const Map<String, ({String label, String module})> dbTableLabels = {
   // —— 待办 / 日程 ——
   'todos': (label: '待办事项', module: '待办'),
-  'events': (label: '日程事件', module: '日程'),
+  // B10（2026-10-13 裁决）：events 数据已一次性并入 time_blocks 并删行退役，本表恒空仅存壳。
+  'events': (label: '日程事件（已并入时间块·退役）', module: '日程'),
   // —— 日记 ——
   'journal_entries': (label: '日记条目', module: '日记'),
   'journal_sections': (label: '日记分节', module: '日记'),
@@ -271,6 +272,11 @@ const Map<String, ({String label, String module})> dbTableLabels = {
   'media_dict': (label: '影音词条', module: '影音游'),
   'media_lists': (label: '影音单', module: '影音游'),
   'media_list_items': (label: '影音单成员', module: '影音游'),
+  'media_goals': (label: '影音目标', module: '影音游'),
+  // —— 思维导图 ——
+  'mindmaps': (label: '思维导图', module: '思维导图'),
+  'mindmap_folders': (label: '导图文件夹', module: '思维导图'),
+  'mindmap_nodes': (label: '导图节点', module: '思维导图'),
   // —— AI ——
   'ai_calls': (label: 'AI 调用记录', module: 'AI'),
   // —— 设置 / 系统 ——

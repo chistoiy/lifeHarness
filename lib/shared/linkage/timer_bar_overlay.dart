@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/calendar/domain/cal_event.dart';
-import '../../features/calendar/presentation/calendar_providers.dart';
+import '../../features/calendar/presentation/calendar_providers.dart' show calendarTickerProvider;
 import '../../features/media/data/media_repo_session.dart';
 import '../../features/media/presentation/media_actions.dart'
     show mediaLiveMinutes, mediaTimerWord, refreshTimeAfterMediaSession;
@@ -15,8 +14,9 @@ import '../../features/read/presentation/read_sheets.dart'
     show readToast, showProgressSheet;
 
 /// 悬浮计时条（需求 V1.11/V1.12 · M0 基础设施）：
-/// 有进行中事项时跨页面常驻顶部，实时耗时 + ■ 结束。
-/// V1.30 批2 追加读书计时长胶囊（read.timerUI=顶部胶囊 / read.floatBar）。
+/// B10（2026-10-13 裁决）起旧 events 表已退役，**进行中事项条随表退役**——
+/// 「计时中」唯一源=时间块（V1.52），轴视图卡内结束；本壳只承载
+/// 读书长胶囊（read.timerUI）与影音计时条（media.floatBar/media.timerUI=capsule）。
 class TimerBarOverlay extends ConsumerWidget {
   const TimerBarOverlay({super.key, required this.child});
 
@@ -24,14 +24,13 @@ class TimerBarOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final active = ref.watch(activeEventProvider).valueOrNull;
     final readOn = ref.watch(readTimerBarVisibleProvider).valueOrNull ?? false;
     // 影音计时条（批3 · media.floatBar/media.timerUI=capsule）：与阅读胶囊并存，互不遮蔽。
     final mediaOn = ref.watch(mediaTimerBarVisibleProvider);
     return Stack(
       children: [
         child,
-        if (active != null || readOn || mediaOn)
+        if (readOn || mediaOn)
           Positioned(
             top: MediaQuery.paddingOf(context).top + 60,
             left: 16,
@@ -39,13 +38,9 @@ class TimerBarOverlay extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (active != null) _TimerBar(event: active),
-                if (readOn) ...[
-                  if (active != null) const SizedBox(height: 8),
-                  const _ReadTimerBar(),
-                ],
+                if (readOn) const _ReadTimerBar(),
                 if (mediaOn) ...[
-                  if (active != null || readOn) const SizedBox(height: 8),
+                  if (readOn) const SizedBox(height: 8),
                   const _MediaTimerBar(),
                 ],
               ],
@@ -252,86 +247,6 @@ class _MediaTimerBar extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TimerBar extends ConsumerWidget {
-  const _TimerBar({required this.event});
-
-  final CalEvent event;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(calendarTickerProvider);
-    final mins = DateTime.now().difference(event.start).inMinutes;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xE60F172A),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x33000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFFB7185),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '${event.title} · 已 $mins 分钟',
-              style: const TextStyle(color: Colors.white, fontSize: 11.5),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          InkWell(
-            borderRadius: BorderRadius.circular(9),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final ended = await ref.read(eventRepositoryProvider).endActive();
-              ref.invalidate(eventsProvider);
-              ref.invalidate(activeEventProvider);
-              if (ended != null) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '✔ 耗时 ${ended.durationMin} 分钟 · 已回填 L1 · 入时间账本 L4',
-                    ),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .15),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: const Text(
-                '■ 结束',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

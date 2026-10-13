@@ -4,12 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/calendar/presentation/widgets/grid_day_view.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'helpers/time_env.dart';
 
 /// F1-4（时间模块批1 · 冻结口径）块视图拖选隔离重绘：
 /// 拖动全档全程，**网格 State 不整棵重建**（State.build 计数不增），
@@ -37,8 +35,6 @@ void main() {
       overrides: [
         timeBlockDaoProvider.overrideWithValue(dao),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
       child: MaterialApp(home: Scaffold(body: GridDayView(day: day))),
     ));

@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -43,8 +42,6 @@ void main() {
       overrides: [
         timeBlockDaoProvider.overrideWithValue(dao),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
     );
     await tester.tap(find.byKey(const ValueKey('open-pick')));
@@ -77,8 +74,6 @@ void main() {
       overrides: [
         timeBlockDaoProvider.overrideWithValue(dao),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
     );
     await tester.tap(find.byKey(const ValueKey('open-pick')));
@@ -110,8 +105,6 @@ void main() {
       overrides: [
         timeBlockDaoProvider.overrideWithValue(dao),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
     );
     await tester.tap(find.byKey(const ValueKey('open-pick')));
@@ -144,8 +137,6 @@ void main() {
       overrides: [
         timeBlockDaoProvider.overrideWithValue(dao),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
     );
     await tester.tap(find.byKey(const ValueKey('open-pick')));

@@ -14,9 +14,6 @@ import 'package:lifeharness/core/ai/ai_vault.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
-import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
@@ -62,8 +59,6 @@ void main() {
         journalRepositoryProvider.overrideWithValue(jrepo),
         todoRepositoryProvider.overrideWithValue(trepo),
         diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
-        eventRepositoryProvider
-            .overrideWithValue(EventRepository(EventDao(db), bus)),
         readRepositoryProvider.overrideWithValue(ReadRepository(db)),
         sharedPreferencesProvider.overrideWithValue(prefs),
         aiPromptPackProvider.overrideWithValue(pack),

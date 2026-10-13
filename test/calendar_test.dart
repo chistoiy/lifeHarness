@@ -4,26 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
-import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/cal_event.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
+import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/calendar/presentation/widgets/time_pick_sheet.dart';
-import 'package:lifeharness/shared/linkage/linkage_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+/// B10（2026-10-13 裁决）批注：原 EventRepository 两态流/冲突组随 events 面退役
+/// 整组删除（规格退役，非回归）——「计时中」唯一源=时间块（V1.52），轴卡内结束；
+/// 旧数据并入守卫见 time_legacy_merge_test.dart。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Database db;
-  late EventRepository repo;
-  late EventBus bus;
+  late TimeBlockDao tbDao;
   // F2-2 后切档持久化走 settingsController ⇒ 每个 pump 都要给真仓（mock prefs）。
   late SharedPreferences prefs;
 
@@ -33,75 +31,24 @@ void main() {
     for (final sql in DbSchema.createStatements) {
       await db.execute(sql);
     }
-    bus = EventBus();
-    repo = EventRepository(EventDao(db), bus);
+    tbDao = TimeBlockDao(db);
     prefs = await SharedPreferences.getInstance();
   });
 
   tearDown(() async {
     await db.close();
-    await bus.dispose();
   });
 
-  group('EventRepository 两态流与冲突', () {
-    test('startNow 建 active 事件并发布 TimeTrackingEvent(started)', () async {
-      final events = <TimeTrackingEvent>[];
-      final sub = bus.on<TimeTrackingEvent>().listen(events.add);
-      final e = await repo.startNow(
-          CalEvent(title: '写周报', start: DateTime.now()));
-      expect(e.status, EventStatus.active);
-      expect(e.end!.difference(e.start).inMinutes, 60);
-      await Future.delayed(Duration.zero);
-      expect(events.single.started, isTrue);
-      await sub.cancel();
-    });
-
-    test('已有进行中时 startNow 抛错（单活约束）', () async {
-      await repo.startNow(CalEvent(title: 'A', start: DateTime.now()));
-      await expectLater(
-          repo.startNow(CalEvent(title: 'B', start: DateTime.now())),
-          throwsStateError);
-    });
-
-    test('endActive 回填实际耗时并转已完成（L1/L4）', () async {
-      // 直接造一条 25 分钟前开始的进行中事件。
-      final dao = EventDao(db);
-      await dao.insert(CalEvent(
-          title: '专注',
-          start: DateTime.now().subtract(const Duration(minutes: 25)),
-          status: EventStatus.active));
-      final ended = await repo.endActive();
-      expect(ended, isNotNull);
-      expect(ended!.durationMin, greaterThanOrEqualTo(25));
-      final list = await repo.listAll();
-      expect(list.single.status, EventStatus.done);
-      expect(list.single.end!.isAfter(list.single.start), isTrue);
-    });
-
-    test('冲突检测：重叠 30 分钟成对报告，跨天/全天不参与', () {
-      final d = DateTime(2026, 9, 19);
-      final conflicts = EventRepository.conflictsOf([
-        CalEvent(title: '评审', start: d.add(const Duration(hours: 10)), end: d.add(const Duration(hours: 11))),
-        CalEvent(title: '午餐', start: d.add(const Duration(hours: 10, minutes: 30)), end: d.add(const Duration(hours: 11, minutes: 30))),
-        CalEvent(title: '全天占位', start: d, allDay: true),
-        CalEvent(title: '无重叠', start: d.add(const Duration(hours: 15)), end: d.add(const Duration(hours: 16))),
-      ]);
-      expect(conflicts, hasLength(1));
-      expect(conflicts.single.overlapMin, 30);
-      expect({conflicts.single.a.title, conflicts.single.b.title}, {'评审', '午餐'});
-    });
-  });
-
-  testWidgets('日程页：月历42格/三色点/视图切换/新建入口', (tester) async {
+  testWidgets('日程页：月历42格/视图切换/块卡可见（B10 后块单源）', (tester) async {
     final now = DateTime.now();
-    await repo.create(CalEvent(
-        title: '产品评审',
-        start: DateTime(now.year, now.month, now.day, 10),
-        end: DateTime(now.year, now.month, now.day, 11)));
+    final day0 = DateTime(now.year, now.month, now.day);
+    await tbDao.markRange(day0, 10 * 60, 11 * 60,
+        catId: 1, catName: '工作', note: '产品评审');
 
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -114,7 +61,7 @@ void main() {
     expect(find.text('${now.month}'), findsWidgets); // 月历含今天
     expect(find.textContaining('全天 0-24'), findsOneWidget); // 默认块视图（V1.19 四视图 · R14-8 后为刻度读数）
 
-    // 视图菜单切轴：事件卡可见。
+    // 视图菜单切轴：块卡可见（标题=note）。
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('☰ 轴 · 时间轴'));
@@ -127,7 +74,8 @@ void main() {
     final now = DateTime.now();
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -179,7 +127,8 @@ void main() {
     final lastDay = DateTime(now.year, now.month + 1, 0).day;
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -198,13 +147,17 @@ void main() {
 
   testWidgets('智能折叠：下滚收起月历为周行 · 点展开 ▾ 回切', (tester) async {
     final now = DateTime.now();
+    final day0 = DateTime(now.year, now.month, now.day);
+    // B10：原 14 条事件种子改块表种子（撑出滚动量的作用不变）。
     for (var i = 0; i < 14; i++) {
-      await repo.create(CalEvent(
-          title: '日程$i', start: DateTime(now.year, now.month, now.day, 8 + (i % 10))));
+      final s = (8 + (i % 10)) * 60;
+      await tbDao.insert(TimeBlock(
+          day: day0, startMin: s, endMin: s + 30, catName: '工作', note: '日程$i'));
     }
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本组用例靶子是展开态行为，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -229,14 +182,13 @@ void main() {
 
   testWidgets('V1.28⑧ 周视图：点已添加格子→详情可编辑 · 空格子才开补录弹层', (tester) async {
     final now = DateTime.now();
-    await repo.create(CalEvent(
-        title: '周视图评审',
-        start: DateTime(now.year, now.month, now.day, 10),
-        end: DateTime(now.year, now.month, now.day, 11)));
+    final day0 = DateTime(now.year, now.month, now.day);
+    await tbDao.markRange(day0, 10 * 60, 11 * 60,
+        catId: 1, catName: '工作', note: '周视图评审');
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
-        timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -260,9 +212,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(used);
     await tester.pumpAndSettle();
-    expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+    expect(find.text('编辑时间块'), findsOneWidget);
     expect(find.text('保存修改'), findsOneWidget);
-    expect(find.text('添加事件 / 时间块'), findsNothing);
+    expect(find.text('添加时间块'), findsNothing);
 
     // 关详情（点遮罩）后点 4 点空格子 → 才应开补录弹层
     await tester.tapAt(const Offset(20, 20));
@@ -272,7 +224,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(empty);
     await tester.pumpAndSettle();
-    expect(find.text('添加事件 / 时间块'), findsOneWidget);
+    expect(find.text('添加时间块'), findsOneWidget);
   });
 
   testWidgets('V1.28⑤ 展开↔收起与切月动画：过渡后布局收敛，月历/周行各自就位',
@@ -280,8 +232,8 @@ void main() {
     final now = DateTime.now();
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
-        timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+        timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         // 轮5 F5-2 后块视图默认折叠：本用例靶子是展开↔收起动画，显式给前提。
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -323,12 +275,11 @@ void main() {
   });
 
   testWidgets('统一添加弹层：预选选中日时段 → 添加落库（补录·四视图同步）', (tester) async {
-    final tbDao = TimeBlockDao(db);
     final preset = DateTime(2026, 3, 17);
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(repo),
         timeBlockDaoProvider.overrideWithValue(tbDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
       ],
       child: MaterialApp(
@@ -345,7 +296,7 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('添加事件 / 时间块'), findsOneWidget);
+    expect(find.text('添加时间块'), findsOneWidget);
     expect(find.textContaining('3/17'), findsWidgets); // 起始轮定位到 3月17日
 
     await tester.tap(find.text('添加'));

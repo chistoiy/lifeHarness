@@ -459,15 +459,11 @@ class _HeroCard extends ConsumerWidget {
     final impPct = pending.isEmpty
         ? null
         : (important * 100 / pending.length).round();
-    // 场安排＝今日日程列表条数（事件 + 手动/计时块，与 TodayScheduleCard 同一函数出数）。
-    final eventsAsync = ref.watch(eventsProvider);
+    // 场安排＝今日日程列表条数（时间块单源 · B10 起 events 并入块表，与 TodayScheduleCard 同一函数出数）。
     final blocksAsync = ref.watch(dayBlocksProvider(day0));
-    final plansLoading = (eventsAsync.isLoading && eventsAsync.valueOrNull == null) ||
-        (blocksAsync.isLoading && blocksAsync.valueOrNull == null);
+    final plansLoading = blocksAsync.isLoading && blocksAsync.valueOrNull == null;
     final plans = mergeTodayPlans(
-      eventsAsync.valueOrNull ?? const <CalEvent>[],
       blocksAsync.valueOrNull ?? const <TimeBlock>[],
-      now: now,
       catColors: const {},
       accent: tokens.accent,
     );

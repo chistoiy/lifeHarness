@@ -10,18 +10,17 @@ import '../../../calendar/presentation/calendar_providers.dart';
 
 /// 今日安排（原型 p-dashboard 的 dashEvents 卡 · R14-14 自 dashboard_page 拆出）。
 ///
-/// 口径与日历轴视图同源：**日程事件 + 手动/计时时间块**（事件回填的块由事件本身
-/// 表达，不重复列示），按开始分钟排序。问候卡上的「N 场安排」直接取这份列表长度，
-/// 保证「数字＝列表条数」这条不变式（原型同款断言）。
+/// 口径与日历轴视图同源：**时间块单源**（B10 起 events 已并入块表退役，
+/// 手动/计时/事件回填块都在块表），按开始分钟排序。问候卡上的「N 场安排」
+/// 直接取这份列表长度，保证「数字＝列表条数」这条不变式（原型同款断言）。
 
-/// 一条今日安排（事件或时间块的统一展示投影）。
+/// 一条今日安排（时间块统一展示投影）。
 class TodayPlan {
   const TodayPlan({
     required this.title,
     required this.startMin,
     this.endMin,
     this.color,
-    this.allDay = false,
     this.timing = false,
   });
 
@@ -29,7 +28,6 @@ class TodayPlan {
   final int startMin;
   final int? endMin;
   final Color? color;
-  final bool allDay;
 
   /// 计时中块（source=timing）：结束时间未定，显示状态而不是时间。
   final bool timing;
@@ -37,34 +35,19 @@ class TodayPlan {
   static String _hm(int m) =>
       '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
 
-  String get timeLabel => allDay
-      ? '全天'
-      : timing
-          ? '计时中'
-          : '${_hm(startMin)}-${endMin == null ? '' : _hm(endMin!)}';
+  String get timeLabel => timing
+      ? '计时中'
+      : '${_hm(startMin)}-${endMin == null ? '' : _hm(endMin!)}';
 }
 
-/// 事件 + 时间块 → 单一今日安排列表（与日历轴视图同源谓词）。
+/// 时间块 → 单一今日安排列表（与日历轴视图同源谓词）。
 List<TodayPlan> mergeTodayPlans(
-  List<CalEvent> events,
   List<TimeBlock> blocks, {
-  required DateTime now,
   required Map<String, Color> catColors,
   required Color accent,
 }) {
-  bool dayOf(DateTime d) =>
-      d.year == now.year && d.month == now.month && d.day == now.day;
   final out = <TodayPlan>[
-    for (final e in events.where((e) => dayOf(e.start)))
-      TodayPlan(
-        title: e.title,
-        startMin: e.start.hour * 60 + e.start.minute,
-        endMin: e.end == null ? null : e.end!.hour * 60 + e.end!.minute,
-        allDay: e.allDay,
-        color: e.colorOf(accent),
-      ),
-    // 事件回填块随事件卡已表达（calendar_page 轴视图同款过滤）。
-    for (final b in blocks.where((b) => b.source != kSrcEvent))
+    for (final b in blocks)
       TodayPlan(
         title: (b.note == null || b.note!.isEmpty) ? b.catName : b.note!,
         startMin: b.startMin,
@@ -86,11 +69,9 @@ class TodayScheduleCard extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     final day0 = DateTime(now.year, now.month, now.day);
-    final events = ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[];
     final blocks =
         ref.watch(dayBlocksProvider(day0)).valueOrNull ?? const <TimeBlock>[];
-    final plans = mergeTodayPlans(events, blocks,
-        now: now,
+    final plans = mergeTodayPlans(blocks,
         catColors: ref.watch(catColorsByNameProvider),
         accent: tokens.accent);
 

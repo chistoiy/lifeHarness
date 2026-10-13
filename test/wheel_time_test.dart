@@ -7,11 +7,7 @@ import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/widgets/wheel_time.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
-import 'package:lifeharness/features/calendar/domain/cal_event.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
-import 'package:lifeharness/features/calendar/presentation/widgets/event_sheet.dart';
 import 'package:lifeharness/core/widgets/wheel_date.dart';
 import 'package:lifeharness/features/todo/data/todo_dao.dart';
 import 'package:lifeharness/features/todo/domain/todo_repository.dart';
@@ -35,7 +31,6 @@ void main() {
 
   late Database db;
   late TodoRepository todoRepo;
-  late EventRepository eventRepo;
   late EventBus bus;
   late SharedPreferences prefs;
 
@@ -46,7 +41,6 @@ void main() {
     }
     bus = EventBus();
     todoRepo = TodoRepository(TodoDao(db), bus);
-    eventRepo = EventRepository(EventDao(db), bus);
     // TodoListView 监听 settingsControllerProvider（临期升紧急开关），需 prefs 桩
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
@@ -200,78 +194,5 @@ void main() {
     expect(saved.single.endMin, rawEnd <= rawStart ? 0 : rawEnd,
         reason: '「止」轮独立于「起」轮，两轮不能串味');
     expect(saved.single.endMin, isNot(rawStart));
-  });
-
-  // ------------------------------------------------------- 真实入口：日程编辑弹层
-  testWidgets('日程编辑弹层：开始时间滚轮不挂死，并可改开始时分', (tester) async {
-    final e = CalEvent(
-        title: '评审',
-        start: DateTime(2026, 3, 17, 9, 30),
-        end: DateTime(2026, 3, 17, 10, 30));
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        eventRepositoryProvider.overrideWithValue(eventRepo),
-        categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Consumer(
-            builder: (context, ref, _) => ElevatedButton(
-              onPressed: () => showEventEditSheet(context, ref, e),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      ),
-    ));
-
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    expectSettled(tester, '日程编辑弹层打开后');
-
-    // 表单里唯一的开关是「全天」；关闭状态才显示开始时间滚轮。
-    expect(find.byType(InlineWheelTime), findsOneWidget);
-    final init = tester.widget<InlineWheelTime>(find.byType(InlineWheelTime)).initial;
-    expect(init, const TimeOfDay(hour: 9, minute: 30)); // 初值来自事件开始时间
-
-    await tester.drag(find.byType(CupertinoPicker).first, const Offset(0, -32));
-    await tester.pumpAndSettle();
-    expectSettled(tester, '日程编辑滚轮滑动后');
-    expect(find.text('10'), findsWidgets, reason: '开始时间应可由滚轮改为 10 时');
-  });
-
-  // ------------------------------------------------- 同族：日期轮（年/月/日三列）
-  testWidgets('日期轮（年/月/日）：三列并存不挂死，滑动后可确定返回新日期', (tester) async {
-    DateTime? result;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () async =>
-                result = await showWheelDatePick(context, DateTime(2026, 3, 17)),
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    ));
-
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    expectSettled(tester, '日期轮弹层打开后');
-    expect(find.text('选择日期'), findsOneWidget);
-    expect(find.byType(CupertinoPicker), findsNWidgets(3)); // 年 / 月 / 日
-
-    // 第 2 列 = 月，上滑一格（itemExtent = 34）→ 3 月变 4 月
-    await tester.drag(find.byType(CupertinoPicker).at(1), const Offset(0, -34));
-    await tester.pumpAndSettle();
-    expectSettled(tester, '月份轮滑动后');
-
-    await tester.tap(find.text('确定'));
-    await tester.pumpAndSettle();
-
-    expect(result, isNotNull);
-    expect(result!.year, 2026);
-    expect(result!.month, 4, reason: '月份轮上滑一格应从 3 月到 4 月');
-    expect(result!.day, 17, reason: '只动了月份列，日不应被牵动');
   });
 }

@@ -4,13 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/week_align.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'helpers/time_env.dart';
 
 /// F2-5/C6（时间模块批1 · 冻结口径）周视图=自然周（周日起算），与账本『w』档同源：
 /// ① 任意锚日的 7 天窗=周日→周六（不再 ±3 滚动窗）；
@@ -77,9 +75,8 @@ void main() {
         calViewModeProvider.overrideWith((ref) => 'week'),
         monthExpandedProvider.overrideWith((ref) => true),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(await eventsDaoOf(db), busForTest())),
       ],
       child: const MaterialApp(home: CalendarPage()),
     ));

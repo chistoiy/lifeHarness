@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
+import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
 import 'package:lifeharness/features/calendar/presentation/widgets/time_pick_sheet.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 时间模块批1 测试环境（自用小件，不入全局 helpers）。
+/// B10（2026-10-13 裁决）：events 面退役，原 eventsDaoOf 摘除——种子数据一律走块表。
 
-/// 事件 DAO 便捷构造（ffi 内存库直用）。
-Future<EventDao> eventsDaoOf(Database db) async => EventDao(db);
+/// 时间块 DAO 便捷构造（ffi 内存库直用）。
+Future<TimeBlockDao> blocksDaoOf(Database db) async => TimeBlockDao(db);
 
 /// 事件总线便捷构造。
 EventBus busForTest() => EventBus();

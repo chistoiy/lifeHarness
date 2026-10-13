@@ -15,9 +15,6 @@ import 'package:lifeharness/features/read/data/read_repository.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
-import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/data/note_dao.dart';
@@ -109,8 +106,6 @@ void main() {
           journalRepositoryProvider.overrideWithValue(jrepo),
           todoRepositoryProvider.overrideWithValue(trepo),
           diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
-          eventRepositoryProvider
-              .overrideWithValue(EventRepository(EventDao(db), bus)),
           sharedPreferencesProvider.overrideWithValue(prefs),
           readRepositoryProvider
               .overrideWithValue(ReadRepository(db)), // 阅读 tab 真实化后需库
@@ -1323,8 +1318,6 @@ void main() {
           journalRepositoryProvider.overrideWithValue(gated),
           todoRepositoryProvider.overrideWithValue(trepo),
           diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
-          eventRepositoryProvider
-              .overrideWithValue(EventRepository(EventDao(db), bus)),
           sharedPreferencesProvider.overrideWithValue(prefs),
           readRepositoryProvider.overrideWithValue(ReadRepository(db)),
         ],
@@ -1388,8 +1381,6 @@ void main() {
           journalRepositoryProvider.overrideWithValue(jrepo),
           todoRepositoryProvider.overrideWithValue(trepo),
           diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
-          eventRepositoryProvider
-              .overrideWithValue(EventRepository(EventDao(db), bus)),
           sharedPreferencesProvider.overrideWithValue(prefs),
           readRepositoryProvider.overrideWithValue(ReadRepository(db)),
           noteDaoProvider.overrideWithValue(NoteDao(db)),

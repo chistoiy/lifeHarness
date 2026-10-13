@@ -16,9 +16,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
-import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/journal/data/diary_template_dao.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
@@ -54,8 +51,6 @@ void main() {
           .overrideWithValue(JournalRepository(JournalDao(db))),
       todoRepositoryProvider.overrideWithValue(TodoRepository(TodoDao(db), bus)),
       diaryTemplateDaoProvider.overrideWithValue(DiaryTemplateDao(db)),
-      eventRepositoryProvider
-          .overrideWithValue(EventRepository(EventDao(db), bus)),
       sharedPreferencesProvider.overrideWithValue(prefs),
       // 阅读段真数据化后工作台要读库（与 journal_test 同款口径）。
       readRepositoryProvider.overrideWithValue(ReadRepository(db)),

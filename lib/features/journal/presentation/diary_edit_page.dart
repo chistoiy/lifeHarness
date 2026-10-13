@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/ai/ai_review.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../calendar/domain/time_block.dart';
+import '../../calendar/presentation/calendar_providers.dart';
 import '../../../shared/linkage/stats_providers.dart';
 import '../../../shared/weather/weather.dart';
 import '../../../shared/weather/weather_visual.dart';
@@ -746,25 +748,28 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
         TextSelection.collapsed(offset: pos + text.length));
   }
 
-  /// 概览明细行（不含标题）。
-  List<String> _summaryLines(List<Todo> todos, List<CalEvent> events) {
+  /// 概览明细行（不含标题）。B10：日程行改读当日时间块（events 已并入退役）。
+  List<String> _summaryLines(List<Todo> todos, List<TimeBlock> blocks) {
     final doneToday = todos.where((t) => t.done && _sameDayNow(t.updatedAt)).length;
     final open = todos.where((t) => !t.done && !t.dropped).length;
-    final todayEvents =
-        events.where((e) => JournalEntry.sameDay(e.start, _day)).toList();
+    final todayBlocks = blocks.toList()
+      ..sort((a, b) => a.startMin.compareTo(b.startMin));
+    String hm(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
     final lines = <String>[
       '✅ 待办：今日完成 $doneToday · 未完成 $open',
-      if (todayEvents.isEmpty)
+      if (todayBlocks.isEmpty)
         '📅 日程：今天没有安排'
       else
-        for (final e in todayEvents.take(3))
-          '📅 ${e.start.hour.toString().padLeft(2, '0')}:${e.start.minute.toString().padLeft(2, '0')} ${e.title}',
+        for (final b in todayBlocks.take(3))
+          '📅 ${hm(b.startMin)} ${b.note == null || b.note!.isEmpty ? b.catName : b.note!}'
+          '${b.isTiming ? ' · 计时中' : ''}',
     ];
     return lines;
   }
 
-  String _summaryText(List<Todo> todos, List<CalEvent> events) =>
-      '【今日概览 · 自动生成】\n${_summaryLines(todos, events).join('\n')}\n';
+  String _summaryText(List<Todo> todos, List<TimeBlock> blocks) =>
+      '【今日概览 · 自动生成】\n${_summaryLines(todos, blocks).join('\n')}\n';
 
   bool _sameDayNow(DateTime? a) =>
       a != null && JournalEntry.sameDay(a, DateTime.now());
@@ -814,10 +819,13 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     _aiReflectBusy = true;
     try {
       final todos = ref.read(todosProvider).valueOrNull ?? const <Todo>[];
-      final events = ref.read(eventsProvider).valueOrNull ?? const <CalEvent>[];
+      final dayBlocks = ref
+              .read(dayBlocksProvider(_day))
+              .valueOrNull ??
+          const <TimeBlock>[];
       final content = [
         body,
-        if (_isToday) ..._summaryLines(todos, events),
+        if (_isToday) ..._summaryLines(todos, dayBlocks),
       ].join('\n');
       final res = await aiRunWithReview(context, ref,
           taskId: 'journal.reflect', vars: {'content': content});
@@ -873,7 +881,9 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final todos = ref.watch(todosProvider).valueOrNull ?? const <Todo>[];
-    final events = ref.watch(eventsProvider).valueOrNull ?? const <CalEvent>[];
+    // B10（2026-10-13 裁决）：events 并入块表退役——今日概览改读当日时间块单源。
+    final dayBlocks = ref.watch(dayBlocksProvider(_day)).valueOrNull ??
+        const <TimeBlock>[];
 
     return PopScope(
       // 修复批（评估件 #3）：退出拦截 flush 尾稿（对齐笔记编辑页批3 同款）。
@@ -935,8 +945,8 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           ),
           Expanded(
             child: _secCtrls.isEmpty
-                ? _freeWriteBody(context, tokens, scheme, todos, events)
-                : _structuredBody(context, tokens, scheme, todos, events),
+                ? _freeWriteBody(context, tokens, scheme, todos, dayBlocks)
+                : _structuredBody(context, tokens, scheme, todos, dayBlocks),
           ),
         ],
       ),
@@ -946,7 +956,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   /// 自由书写：编辑器卡（快捷栏+Quill）占满余下空间，概览/模板行固定在底部。
   Widget _freeWriteBody(BuildContext context, tokens, scheme,
-      List<Todo> todos, List<CalEvent> events) {
+      List<Todo> todos, List<TimeBlock> blocks) {
     return Column(
       children: [
         Expanded(
@@ -1017,7 +1027,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           child: Column(
             children: [
               if (_isToday) ...[
-                _summaryCard(context, tokens, scheme, todos, events),
+                _summaryCard(context, tokens, scheme, todos, blocks),
                 const SizedBox(height: 12),
               ],
               _tplRow(context, tokens, scheme),
@@ -1030,7 +1040,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   /// 结构化模板：分节卡 ListView（分节仍纯文本）。
   Widget _structuredBody(BuildContext context, tokens, scheme,
-      List<Todo> todos, List<CalEvent> events) {
+      List<Todo> todos, List<TimeBlock> blocks) {
     final titles = _secTitles(); // 修复批 #1：带回落统一取，不裸下标
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
@@ -1084,7 +1094,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
           ),
         if (_isToday) ...[
           const SizedBox(height: 12),
-          _summaryCard(context, tokens, scheme, todos, events),
+          _summaryCard(context, tokens, scheme, todos, blocks),
         ],
         const SizedBox(height: 12),
         _tplRow(context, tokens, scheme),
@@ -1094,7 +1104,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
 
   /// 轮12-1：今日概览草稿卡=默认折叠，点标题行展开/收起。
   Widget _summaryCard(BuildContext context, tokens, scheme,
-      List<Todo> todos, List<CalEvent> events) {
+      List<Todo> todos, List<TimeBlock> blocks) {
     return Container(
       decoration: BoxDecoration(
         color: tokens.card,
@@ -1132,7 +1142,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _summaryLines(todos, events).join('\n'),
+                    _summaryLines(todos, blocks).join('\n'),
                     style: TextStyle(
                         fontSize: 11.5,
                         height: 1.7,
@@ -1142,7 +1152,7 @@ class _DiaryEditPageState extends ConsumerState<DiaryEditPage> {
                     children: [
                       TextButton(
                         onPressed: () {
-                          _insertAtCursor(_summaryText(todos, events));
+                          _insertAtCursor(_summaryText(todos, blocks));
                           _richFocus.requestFocus();
                         },
                         child: const Text('插入正文 ↑',

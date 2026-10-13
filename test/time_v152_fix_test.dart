@@ -5,10 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
 import 'package:lifeharness/features/calendar/domain/category.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
@@ -50,9 +48,8 @@ void main() {
     await useSurface(tester, const Size(390, 900));
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(EventDao(db), bus)),
         categoryDaoProvider.overrideWithValue(catDao),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calViewModeProvider.overrideWith((ref) => 'axis'),
         // 批1 C2：切档不再自动改展开态——轴视图旧前提=展开，显式给。
@@ -67,7 +64,7 @@ void main() {
   Future<void> editOf(WidgetTester tester, String subtitle) async {
     await tester.tap(find.textContaining(subtitle).first);
     await tester.pumpAndSettle();
-    expect(find.text('编辑事件 / 时间块'), findsOneWidget,
+    expect(find.text('编辑时间块'), findsOneWidget,
         reason: '未打开统一编辑弹层：$subtitle');
   }
 
@@ -158,7 +155,7 @@ void main() {
       await pumpCal(tester);
       await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
-      expect(find.text('添加事件 / 时间块'), findsOneWidget);
+      expect(find.text('添加时间块'), findsOneWidget);
 
       final pickers = find.byType(CupertinoPicker);
       expect(pickers, findsWidgets);

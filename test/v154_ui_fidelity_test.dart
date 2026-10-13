@@ -16,9 +16,7 @@ import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/dashboard/presentation/dashboard_page.dart';
@@ -69,8 +67,6 @@ void main() {
         todoRepositoryProvider.overrideWithValue(todoRepo),
         journalRepositoryProvider.overrideWithValue(JournalRepository(JournalDao(db))),
         readRepositoryProvider.overrideWithValue(readRepo),
-        eventRepositoryProvider
-            .overrideWithValue(EventRepository(EventDao(db), bus)),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
       ]);
@@ -121,14 +117,12 @@ void main() {
           reason: '今日 2 条、完成 1 条');
     });
 
-    testWidgets('场安排＝今日日程列表条数（事件+手动块，回填块不重复计）',
+    testWidgets('场安排＝今日日程列表条数（B10 块单源：手动/计时/事件并入块全计）',
         (tester) async {
-      await EventDao(db).insert(CalEvent(
-          title: '评审', start: atToday(10), end: atToday(11), catId: null));
       final day0 = DateTime(today.year, today.month, today.day);
       await TimeBlockDao(db).insert(TimeBlock(
           day: day0, startMin: 540, endMin: 585, catName: '工作', note: '晨间规划'));
-      // 事件回填块（source=event）不应再算一场：由事件本身表达。
+      // B10：旧「事件回填块不重复计」不变式随 events 退役作废——块表行即场数。
       await TimeBlockDao(db).insert(TimeBlock(
           day: day0,
           startMin: 600,
@@ -138,7 +132,7 @@ void main() {
           source: kSrcEvent));
       await pumpDash(tester);
       final shown = heroCount(tester, 'hero-plan-count');
-      expect(shown, '2', reason: '1 事件 + 1 手动块');
+      expect(shown, '2', reason: '2 块（含 source=event 的并入块）');
       expect(find.byKey(const ValueKey('plan-row-0')), findsOneWidget);
       expect(find.byKey(const ValueKey('plan-row-1')), findsOneWidget);
       expect(find.byKey(const ValueKey('plan-row-2')), findsNothing);

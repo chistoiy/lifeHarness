@@ -7,9 +7,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/journal/data/journal_dao.dart';
 import 'package:lifeharness/features/journal/domain/journal_repository.dart';
@@ -57,8 +55,6 @@ void main() {
       journalRepositoryProvider
           .overrideWithValue(JournalRepository(JournalDao(db))),
       readRepositoryProvider.overrideWithValue(ReadRepository(db)),
-      eventRepositoryProvider
-          .overrideWithValue(EventRepository(EventDao(db), bus)),
       timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
       categoryDaoProvider.overrideWithValue(CategoryDao(db)),
     ]);

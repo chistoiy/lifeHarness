@@ -6,9 +6,7 @@ import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/todo/domain/todo.dart';
@@ -50,10 +48,8 @@ void main() {
       overrides: [
         calViewModeProvider.overrideWith((ref) => 'day'),
         monthExpandedProvider.overrideWith((ref) => true),
-        eventRepositoryProvider.overrideWithValue(EventRepository(
-            EventDao(db), EventBus(),
-            tbDao: TimeBlockDao(db))),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
         settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
         todosProvider.overrideWith((ref) async => todos),

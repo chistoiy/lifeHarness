@@ -4,12 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
-import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/cal_event.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
+import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,8 +48,7 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
 
     late Database db;
-    late EventRepository repo;
-    late EventBus bus;
+    late TimeBlockDao tbDao;
     // F2-2 后切档持久化走 settingsController ⇒ pump 须给真仓（mock prefs）。
     late SharedPreferences prefs;
 
@@ -62,14 +58,12 @@ void main() {
       for (final sql in DbSchema.createStatements) {
         await db.execute(sql);
       }
-      bus = EventBus();
-      repo = EventRepository(EventDao(db), bus, tbDao: TimeBlockDao(db));
+      tbDao = TimeBlockDao(db);
       prefs = await SharedPreferences.getInstance();
     });
 
     tearDown(() async {
       await db.close();
-      await bus.dispose();
     });
 
     testWidgets('同小时两事件＝两段并排，各点各的开自己的编辑弹层（V1.52 统一弹层）',
@@ -77,20 +71,18 @@ void main() {
       final now = DateTime.now();
       final d0 = DateTime(now.year, now.month, now.day);
       // A 覆盖 10 点整（9:00-10:30）· B 从 10 点起（10:00-10:50）→ 10 点格两段，
-      // start_at 升序保证段序＝A、B。
-      await repo.create(CalEvent(
-          title: '并排A',
-          start: DateTime(d0.year, d0.month, d0.day, 9),
-          end: DateTime(d0.year, d0.month, d0.day, 10, 30)));
-      await repo.create(CalEvent(
-          title: '并排B',
-          start: DateTime(d0.year, d0.month, d0.day, 10),
-          end: DateTime(d0.year, d0.month, d0.day, 10, 50)));
+      // startMin 升序保证段序＝A、B。B10：种子由事件改块表（块单源）。
+      await tbDao.insert(TimeBlock(
+          day: d0, startMin: 9 * 60, endMin: 10 * 60 + 30,
+          catName: '工作', note: '并排A'));
+      await tbDao.insert(TimeBlock(
+          day: d0, startMin: 10 * 60, endMin: 10 * 60 + 50,
+          catName: '学习', note: '并排B'));
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
-          eventRepositoryProvider.overrideWithValue(repo),
-          timeBlockDaoProvider.overrideWithValue(TimeBlockDao(db)),
+          timeBlockDaoProvider.overrideWithValue(tbDao),
+          legacyEventMergeDbProvider.overrideWithValue(db),
           categoryDaoProvider.overrideWithValue(CategoryDao(db)),
           // 批1 C2：本用例切到周视图后月历需展开，显式给（不再随档推导）。
           settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
@@ -115,7 +107,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('wk-seg-$di-10-1')));
       await tester.pumpAndSettle();
-      expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+      expect(find.text('编辑时间块'), findsOneWidget);
       expect(find.textContaining('10:00 → '), findsOneWidget);
       expect(find.text('保存修改'), findsOneWidget);
 

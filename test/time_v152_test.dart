@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_page.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
@@ -43,9 +41,8 @@ void main() {
   Future<void> pumpCal(WidgetTester tester, {String view = 'axis'}) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(EventDao(db), bus)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calViewModeProvider.overrideWith((ref) => view),
         // 批1 C2：切档不再自动改展开态——按旧前提显式给（axis=展开）。
@@ -64,7 +61,7 @@ void main() {
     await tester.tap(find.textContaining('娱乐').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('编辑事件 / 时间块'), findsOneWidget);
+    expect(find.text('编辑时间块'), findsOneWidget);
     expect(find.text('删除'), findsOneWidget);
     expect(find.text('保存修改'), findsOneWidget);
     // V1.52：不再出现旧「取消标记」详情层
@@ -99,7 +96,7 @@ void main() {
     // 若正好跨过分钟边界，`== nowMin()` 会假红（R14 轮 1661 例中 1 例即此）。
     final mOpen = DateTime.now().hour * 60 + DateTime.now().minute;
 
-    expect(find.text('添加事件 / 时间块'), findsOneWidget);
+    expect(find.text('添加时间块'), findsOneWidget);
     expect(find.textContaining('${nowMin() ~/ 60}'.padLeft(2, '0')), findsWidgets);
 
     await tester.tap(find.text('添加'));
@@ -160,9 +157,8 @@ void main() {
     final other = d0.subtract(const Duration(days: 5));
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(EventDao(db), bus)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
+        legacyEventMergeDbProvider.overrideWithValue(db),
         timeBlockDaoProvider.overrideWithValue(tbDao),
         calSelectedProvider.overrideWith((ref) => other),
         // 批1 C2：块视图旧前提=折叠，显式给（不再随档推导）。
@@ -186,7 +182,7 @@ void main() {
 
     await tester.tap(find.textContaining('空闲').first);
     await tester.pumpAndSettle();
-    expect(find.text('添加事件 / 时间块'), findsOneWidget);
+    expect(find.text('添加时间块'), findsOneWidget);
   });
 
   testWidgets('时间页顶栏账本入口存在（V1.52 批4）', (tester) async {

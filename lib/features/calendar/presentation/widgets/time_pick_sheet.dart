@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../domain/block_ops.dart';
-import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
@@ -20,25 +19,25 @@ int daysInMonthOf(int y, int m) {
 
 /// V1.52 统一添加 / 编辑弹层（原型 sheetTimePick）。
 ///
-/// 四视图（轴/块/日/周）点已有事件、时间块、计时块 **都打开本弹层**并预填，
+/// 四视图（轴/块/日/周）点已有时间块、计时块 **都打开本弹层**并预填，
 /// 底部按钮随形态切换：添加=继续添加+添加；编辑=删除+保存修改；
 /// 计时中额外给「■ 结束计时」，已结束额外给「对半拆分 / 与上一个合并 / 与下一个合并」。
 /// 今天：起止默认当前分钟，确认即为「计时中」块；非今天：纯补录，无计时。
+/// B10（2026-10-13 产品裁决）：旧 events 表已并入块表并退役，本弹层不再有事件形态。
 Future<void> showTimePickSheet(BuildContext context, WidgetRef ref,
-    {DateTime? day, int? startMin, TimeBlock? block, CalEvent? event}) {
+    {DateTime? day, int? startMin, TimeBlock? block}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _TimePick(day: day, startMin: startMin, block: block, event: event),
+    builder: (_) => _TimePick(day: day, startMin: startMin, block: block),
   );
 }
 
 class _TimePick extends ConsumerStatefulWidget {
-  const _TimePick({this.day, this.startMin, this.block, this.event});
+  const _TimePick({this.day, this.startMin, this.block});
   final DateTime? day;
   final int? startMin;
   final TimeBlock? block;
-  final CalEvent? event;
 
   @override
   ConsumerState<_TimePick> createState() => _TimePickState();
@@ -53,7 +52,6 @@ class _TimePickState extends ConsumerState<_TimePick> {
   late final DateTime _date;
   late final int _daysInMonth;
   late final TimeBlock? _blk;
-  late final CalEvent? _ev;
   late final int _nowMin; // 打开弹层时的当前分钟（isNow 判定基准，避免跨分钟失效）
 
   // items 跨 rebuild 保持同一 List 实例：CupertinoPicker 每次 build 拿到新
@@ -90,7 +88,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
   ProviderContainer get _container =>
       ProviderScope.containerOf(context, listen: false);
 
-  bool get _editing => _blk != null || _ev != null;
+  bool get _editing => _blk != null;
   bool get _timing => _blk?.isTiming ?? false;
 
   @override
@@ -99,12 +97,8 @@ class _TimePickState extends ConsumerState<_TimePick> {
     final now = DateTime.now();
     _nowMin = now.hour * 60 + now.minute;
     _blk = widget.block;
-    _ev = widget.event;
-    final b = _blk, e = _ev;
-    final d = b?.day ??
-        (e != null ? DateTime(e.start.year, e.start.month, e.start.day) : null) ??
-        widget.day ??
-        now;
+    final b = _blk;
+    final d = b?.day ?? widget.day ?? now;
     _date = DateTime(d.year, d.month, d.day);
     _daysInMonth = daysInMonthOf(_date.year, _date.month);
     _dayItems = List.generate(_daysInMonth, (i) => '${_date.month}/${i + 1}');
@@ -115,15 +109,6 @@ class _TimePickState extends ConsumerState<_TimePick> {
     if (b != null) {
       s0 = b.startMin;
       e0 = b.effEnd(now);
-    } else if (e != null) {
-      s0 = e.start.hour * 60 + e.start.minute;
-      final endAt = e.end;
-      e0 = endAt == null ? s0 + 60 : endAt.hour * 60 + endAt.minute;
-      if (endAt != null) {
-        off0 = DateTime(endAt.year, endAt.month, endAt.day)
-            .difference(DateTime(_date.year, _date.month, _date.day))
-            .inDays;
-      }
     } else if (widget.startMin != null) {
       s0 = widget.startMin!;
       e0 = s0 + 60; // 允许 >1440：统一走下方 off/e 折算（B1/C8），勿先 clamp 丢跨天
@@ -147,10 +132,10 @@ class _TimePickState extends ConsumerState<_TimePick> {
 
     // 分类回填：categoriesProvider 是异步的，initState 时通常还没值——
     // 先记下待回填的 catId/catName，等 build 里拿到 cats 再解析（否则编辑弹层预填不到分类）。
-    _pendingCatId = b?.catId ?? e?.catId;
-    _pendingCatName = b?.catName; // 事件的分类只有 catId，名称不回填
-    _pendingCat = b != null || _pendingCatId != null;
-    _note.text = b?.note ?? e?.title ?? '';
+    _pendingCatId = b?.catId;
+    _pendingCatName = b?.catName;
+    _pendingCat = b != null;
+    _note.text = b?.note ?? '';
   }
 
   int? _pendingCatId;
@@ -182,7 +167,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
 
   bool get _isTodaySel {
     final n = DateTime.now();
-    final d = widget.block?.day ?? widget.event?.start ?? widget.day ?? n;
+    final d = widget.block?.day ?? widget.day ?? n;
     return d.year == n.year && d.month == n.month && d.day == n.day;
   }
 
@@ -389,18 +374,6 @@ class _TimePickState extends ConsumerState<_TimePick> {
             await dao.restoreDay(_sDate, snapA);
             await dao.restoreDay(_eDate, snapB);
           });
-      return;
-    }
-    if (_ev != null) {
-      final e0 = _ev;
-      final st = DateTime(_sDate.year, _sDate.month, _sDate.day, s ~/ 60, s % 60);
-      // B1：结束日=起始日+偏移（DateTime 日溢出自动跨月归一）。
-      final en = DateTime(_eDate.year, _eDate.month, _eDate.day, e ~/ 60, e % 60);
-      final title = _note.text.trim().isEmpty ? e0.title : _note.text.trim();
-      await ref.read(eventRepositoryProvider).update(e0.copyWith(
-          start: st, end: en, title: title, catId: _catIdForName(_pickedCat)));
-      _container.invalidate(eventsProvider);
-      _closeAndToast('✔ 已保存 · 四视图与时间账本同步');
     }
   }
 
@@ -412,13 +385,6 @@ class _TimePickState extends ConsumerState<_TimePick> {
       await dao.remove(_blk.id!);
       _closeAndToast('🗑 已删除 · 四视图与时间账本同步移除',
           undo: () => dao.restoreDay(day, snap));
-      return;
-    }
-    if (_ev != null) {
-      final e0 = _ev;
-      await ref.read(eventRepositoryProvider).remove(e0);
-      _container.invalidate(eventsProvider);
-      _closeAndToast('🗑 已删除该日程');
     }
   }
 
@@ -499,7 +465,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
             Row(
               children: [
                 Expanded(
-                    child: Text(_editing ? '编辑事件 / 时间块' : '添加事件 / 时间块',
+                    child: Text(_editing ? '编辑时间块' : '添加时间块',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
                 // 非弹性子项：加「· 跨天」后缀后文本变长会撑爆 Row（4.8px 溢出），须 Flexible。
                 Flexible(
@@ -699,7 +665,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
               maxLength: 5000,
               maxLines: 2,
               decoration: InputDecoration(
-                  hintText: _ev != null ? '事件名称' : '请输入备注',
+                  hintText: '请输入备注',
                   isDense: true,
                   counterText: '',
                   border: const OutlineInputBorder()),

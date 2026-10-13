@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/cal_event.dart';
 import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
@@ -18,7 +17,8 @@ import 'time_pick_sheet.dart';
 /// G3 **选块即标记**：滑选（含单格）后点右侧分类=直接标记（块即时间，免弹层）；
 ///     V1.52：未选中时点分类=**开一段计时中块**（与 ＋ 添加同一状态机·仅今天可用）；
 /// G4 重复标记=拆分覆盖同步（markRange 事务，原块非交叠段保留）；
-/// G5 点已有块/事件=与添加同款统一编辑弹层（V1.52 起不再走详情层）。
+/// G5 点已有块=与添加同款统一编辑弹层（V1.52 起不再走详情层）。
+/// B10（2026-10-13 裁决）：旧 events 已并入块表退役，格子里只有块一种对象。
 class GridDayView extends ConsumerStatefulWidget {
   const GridDayView({super.key, required this.day});
 
@@ -158,17 +158,9 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     final scheme = Theme.of(context).colorScheme;
     final gran = ref.watch(granularityProvider);
     final blocks = ref.watch(dayBlocksProvider(widget.day)).valueOrNull ?? const [];
-    final events = ref.watch(eventsProvider).valueOrNull ?? const [];
     final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
     final catColors = ref.watch(catColorsByNameProvider);
     final primaryCats = cats.where((c) => c.isPrimary).toList();
-
-    final dayEvents = events
-        .where((e) =>
-            DateTime(e.start.year, e.start.month, e.start.day) ==
-            DateTime(widget.day.year, widget.day.month, widget.day.day))
-        .toList();
-    final live = dayEvents.where((e) => e.status == EventStatus.active).toList();
 
     final n = (_endMin - _startMin) ~/ gran;
     final cols = math.max(6, (math.sqrt(n * 0.82)).round());
@@ -178,14 +170,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     final cellH = (height - gap * (rows - 1)) / rows;
     final showHour = cols <= 12;
 
-    int? liveS, liveE;
-    if (live.isNotEmpty) {
-      final now = DateTime.now();
-      liveS = live.first.start.hour * 60 + live.first.start.minute;
-      liveE = now.hour * 60 + now.minute;
-      if (liveE <= liveS) liveE = liveS + 1;
-    }
-    if (liveS != null || blocks.any((b) => b.isTiming)) {
+    if (blocks.any((b) => b.isTiming)) {
       if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
     } else if (_pulse.isAnimating) {
       _pulse.stop();
@@ -195,16 +180,6 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     TimeBlock? blockAt(int minute) {
       for (final b in blocks) {
         if (b.covers(minute)) return b;
-      }
-      return null;
-    }
-
-    CalEvent? eventAt(int minute) {
-      for (final e in dayEvents) {
-        if (e.allDay || e.end == null) continue;
-        final s = e.start.hour * 60 + e.start.minute;
-        final en = e.end!.hour * 60 + e.end!.minute;
-        if (minute >= s && minute < math.max(en, s + 1)) return e;
       }
       return null;
     }
@@ -255,25 +230,8 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                       final a = math.min(_selA!, _selB!);
                       final b = math.max(_selA!, _selB!);
                       final m = _startMin + a * gran;
-                      // V1.28⑧：进行中事件 end=null 不进 eventAt 覆盖判定，单独按 live 区命中 → 详情
-                      final hitLive = (a == b && liveS != null &&
-                              m >= liveS &&
-                              m < (liveE ?? liveS + 1))
-                          ? live.first
-                          : null;
-                      final hitEv = (a == b) ? eventAt(m) : null;
-                      if (hitLive != null && hitEv == null) {
-                        _clearSel();
-                        showTimePickSheet(context, ref, event: hitLive);
-                        return;
-                      }
-                      if (hitEv != null) {
-                        _clearSel();
-                        showTimePickSheet(context, ref, event: hitEv);
-                        return;
-                      }
                       final hit = (a == b) ? blockAt(m) : null;
-                      if (hit != null && hit.source != kSrcEvent) {
+                      if (hit != null) {
                         _clearSel();
                         // V1.52：点已有块=与添加同款编辑弹层（含删除/拆分/合并/结束计时）
                         showTimePickSheet(context, ref, block: hit);
@@ -298,35 +256,20 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                           GridDayView.debugCellBuilds++;
                           final m = _startMin + i * gran;
                           final blk = blockAt(m);
-                          final ev = eventAt(m);
-                          final isLive = liveS != null && m >= liveS && m < (liveE ?? liveS + 1);
                           final selN = _selCells[i];
                           Color bg;
-                          if (isLive) {
+                          if (blk != null && blk.isTiming) {
                             bg = const Color(0xFFF43F5E);
-                          } else if (blk != null && blk.isTiming) {
-                            bg = const Color(0xFFF43F5E);
-                          } else if (ev != null) {
-                            bg = ev.status == EventStatus.done
-                                ? const Color(0xFF34D399)
-                                : tokens.accent;
                           } else if (blk != null) {
                             bg = blockColor(blk, catColors, tokens.accent);
                           } else {
                             bg = scheme.onSurface.withValues(alpha: .06);
                           }
-                          final label = isLive
-                              ? '●进行中'
-                              : (blk != null && blk.isTiming
-                                  ? '●计时中'
-                                  : (ev != null
-                                      ? (ev.status == EventStatus.done ? '✓完成' : '⚡事件')
-                                      : (blk?.catName ?? '')));
                           final cell = AnimatedBuilder(
                             animation: _pulse,
                             builder: (context, _) {
-                              // 原型 .animate-pulse：进行中块红色脉冲
-                              final liveBg = isLive
+                              // 原型 .animate-pulse：计时中块红色脉冲
+                              final liveBg = blk != null && blk.isTiming
                                   ? Color.lerp(const Color(0xFFF43F5E),
                                       const Color(0xFFF43F5E).withValues(alpha: .4),
                                       _pulse.value)!
@@ -351,7 +294,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                                           style: TextStyle(
                                             fontSize: 8,
                                             fontWeight: FontWeight.w700,
-                                            color: (blk != null || isLive || ev != null)
+                                            color: blk != null
                                                 ? Colors.white.withValues(alpha: .9)
                                                 : scheme.onSurfaceVariant,
                                           ),
@@ -361,13 +304,9 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                               );
                             },
                           );
-                          final tip = isLive
-                              ? '$label ${_fmt(liveS)}-${_fmt(liveE ?? liveS + 1)}'
-                              : (ev != null
-                                  ? '$label ${ev.title} ${_fmt(ev.start.hour * 60 + ev.start.minute)}-${ev.end == null ? '' : _fmt(ev.end!.hour * 60 + ev.end!.minute)}'
-                                  : (blk != null
-                                      ? '${blk.catName} ${_fmt(blk.startMin)}-${_fmt(blk.endMin)}${blk.note == null ? '' : ' · ${blk.note}'}'
-                                      : '空格 ${_fmt(m)}'));
+                          final tip = blk != null
+                              ? '${blk.catName} ${_fmt(blk.startMin)}-${_fmt(blk.endMin)}${blk.note == null ? '' : ' · ${blk.note}'}'
+                              : '空格 ${_fmt(m)}';
                           return Tooltip(message: tip, child: cell);
                         },
                       ),

@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/host/event_bus.dart';
 import 'package:lifeharness/features/calendar/data/category_dao.dart';
-import 'package:lifeharness/features/calendar/data/event_dao.dart';
 import 'package:lifeharness/features/calendar/data/time_block_dao.dart';
-import 'package:lifeharness/features/calendar/domain/event_repository.dart';
 import 'package:lifeharness/features/calendar/domain/time_block.dart';
 import 'package:lifeharness/features/calendar/presentation/calendar_providers.dart';
 import 'package:lifeharness/features/calendar/presentation/time_stats_page.dart';
@@ -42,8 +40,6 @@ void main() {
     await useSurface(tester, const Size(900, 2600)); // 长列表尾卡入树（懒构建）
     await tester.pumpWidget(ProviderScope(
       overrides: [
-        eventRepositoryProvider.overrideWithValue(
-            EventRepository(EventDao(db), bus)),
         categoryDaoProvider.overrideWithValue(CategoryDao(db)),
         timeBlockDaoProvider.overrideWithValue(dao),
       ],

@@ -2,25 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite/sqflite.dart' show Database;
 
 import '../../../core/database/app_database.dart';
 import '../../../core/providers.dart';
 import '../data/category_dao.dart';
-import '../data/event_dao.dart';
 import '../data/time_block_dao.dart';
-import '../domain/cal_event.dart';
 import '../domain/category.dart';
-import '../domain/event_repository.dart';
 import '../domain/time_block.dart';
-
-final eventRepositoryProvider = Provider<EventRepository>((ref) {
-  final db = AppDatabase.instance.db;
-  // tbDao：■结束时把实际耗时区间回填为时间块（L1→L4，格子视图可见）。
-  return EventRepository(EventDao(db), ref.watch(eventBusProvider), tbDao: TimeBlockDao(db));
-});
 
 final timeBlockDaoProvider = Provider<TimeBlockDao>(
     (ref) => TimeBlockDao(AppDatabase.instance.db));
+
+/// B10 搬移服务的 db 供给口（独立 provider＝测试可注入 ffi 内存库，
+/// 不触 AppDatabase 单例；CalendarPage init 经此触发一次性并入）。
+final legacyEventMergeDbProvider = Provider<Database>(
+    (ref) => AppDatabase.instance.db);
 
 /// 两级分类（V1.19.1 · 全局唯一分类源）。
 final categoryDaoProvider =
@@ -41,17 +38,7 @@ final catColorsByNameProvider = Provider<Map<String, Color>>((ref) {
   return m;
 });
 
-/// 全部日程（变更后 invalidate）。
-final eventsProvider = FutureProvider<List<CalEvent>>((ref) {
-  return ref.watch(eventRepositoryProvider).listAll();
-});
-
-/// 当前进行中事项（驱动悬浮计时条与时间轴脉冲卡）。
-final activeEventProvider = FutureProvider<CalEvent?>((ref) {
-  return ref.watch(eventRepositoryProvider).activeEvent();
-});
-
-/// 秒级心跳（进行中耗时/计时条刷新；无进行中事项时页面可不 watch）。
+/// 秒级心跳（计时中块耗时刷新；无计时中块时页面可不 watch）。
 final calendarTickerProvider = StreamProvider<DateTime>((ref) {
   final t = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
   final sub = t.listen((_) {});
