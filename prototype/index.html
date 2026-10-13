@@ -855,7 +855,11 @@ tailwind.config = {
       <button onclick="navTo('p-sub-appearance')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
         <span class="set-ic bg-indigo-50 dark:bg-indigo-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8c-4.5 0-8.2 3.5-8.2 7.9 0 4.3 3.3 7.5 7.4 7.5 1.3 0 2-.8 2-1.7 0-.6-.3-1-.7-1.4-.4-.4-.7-.8-.7-1.4 0-.9.8-1.6 1.8-1.6h1.5c2.5 0 4.4-1.9 4.4-4.3 0-3.3-3.4-5-7.5-5Z"/><circle cx="8.4" cy="10.6" r="1.1"/><circle cx="12" cy="8.2" r="1.1"/><circle cx="15.6" cy="10.6" r="1.1"/></svg></span><div class="flex-1"><b class="text-sm">外观</b><div class="text-[11px] text-slate-400">主题风格 · 深色模式 · 主题色 · 字体大小</div></div><span class="text-slate-300">›</span></button>
 
-            <div class="card mt-4">
+            <!-- 桌面模块：桌面与快捷方式（长按菜单 · 铺到桌面 · 小部件 · 链接直达）· 规格见 docs/handoff/桌面模块-冻结版开发方案-20261013.md -->
+      <button onclick="navTo('p-sub-desktop')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="4.4" y="4.4" width="6.4" height="6.4" rx="1.6"/><rect x="13.2" y="4.4" width="6.4" height="6.4" rx="1.6"/><rect x="4.4" y="13.2" width="6.4" height="6.4" rx="1.6"/><path d="M16.4 13.4v6.2m-3.1-3.1h6.2"/></svg></span><div class="flex-1"><b class="text-sm">桌面与快捷方式</b><div class="text-[11px] text-slate-400">长按菜单 · 铺到桌面 · 小部件 · 链接直达</div></div><span class="text-slate-300">›</span></button>
+
+      <div class="card mt-4">
         <div class="flex items-center justify-between"><div class="row-title">底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
         <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」固定；新增「习惯」栏目可在下方启用</div>
         <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
@@ -1420,6 +1424,37 @@ tailwind.config = {
           <button id="layMinimal" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="setMyLayout('minimal')">极简卷轴</button>
         </div>
         <div class="text-[11px] text-slate-400 mt-2" id="myLayoutHint">顶部为渐变身份卡：连击环＋读数带＋里程碑；下半页分组圆角卡。</div>
+      </div>
+    </section>
+
+    <!-- ===== P12g 二级：桌面与快捷方式（桌面模块 · 长按菜单/铺到桌面/小部件/链接直达；规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md） ===== -->
+    <section id="p-sub-desktop" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between"><div class="row-title">长按图标菜单</div><span class="text-[10px] text-slate-400">已选 <b id="deskMenuCount" class="text-brand-500">4</b>/4</span></div>
+        <div class="text-[11px] text-slate-400 mt-0.5">长按桌面图标弹出的快捷菜单最多 4 个；更多入口请用下方「铺到桌面」</div>
+        <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="deskMenuList"></div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="row-title">铺到桌面</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">把常用动作固定到桌面，数量不限、逐条添加</div>
+        <div class="mt-2" id="deskPinList"></div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="flex items-center justify-between"><div class="row-title">小部件</div><button class="mini-btn" onclick="toast('已调起系统小部件中心（模拟）')">添加到桌面</button></div>
+        <div class="text-[11px] text-slate-400 mt-0.5">桌面常驻读数，点击直达应用内</div>
+        <div class="mt-2 space-y-2 text-xs">
+          <div class="flex items-center justify-between"><span>今日概览读数（2×2）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>快捷记录入口（4×1）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span>隐藏金额同步到小部件</span><span class="toggle on" onclick="tgl(this)"></span></div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-2 leading-5">小部件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小部件金额位显示为 ••••。</div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="row-title">链接直达</div>
+        <div class="text-[11px] text-slate-400 mt-1 leading-5">支持 <b class="font-mono">lh://</b> 链接从浏览器、二维码、NFC 或自动化工具直接打开对应动作，例如 <span class="font-mono text-brand-500">lh://ledger/add</span>、<span class="font-mono text-brand-500">lh://inbox/new</span>。</div>
       </div>
     </section>
 
@@ -2180,7 +2215,7 @@ const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
  'p-records':['记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
- 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','八类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删']};
+ 'p-goals':['目标 OKR','V1.x 完整版预览'],'p-sub-aiVerify':['AI API 验证','端点 · Key · 模型连通性'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-import':['导入读书笔记','跨平台迁移向导（含豆瓣书单/片单）'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-backup':['备份文件','本机导出 · 云端下载 · 恢复前自动'],'p-sub-dbstats':['数据库概览','记录构成 · 可再生数据 · 异常自查'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-timeStats':['时间账本','L4 · 分类时长统计 · 本周/本月'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹'],'p-sub-trash':['回收站','八类删除内容 · 保留期内可恢复'],'p-sub-mediaclean':['图片存储清理','未引用图片扫描 · 勾选清理'],'p-sub-aiPrompts':['提示词管理','按模块调整 · 无需改代码'],'p-sub-aiPromptEdit':['编辑提示词','System / User 模板'],'p-logs':['日志管理','运行日志 · 级别筛选 · 落盘配置'],'p-aiUsage':['AI 使用记录','输入输出留痕 · 按模块筛选 · 可查可删'],'p-sub-desktop':['桌面与快捷方式','长按菜单 · 铺到桌面 · 小部件 · 链接直达']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
 const ICONS={
  'p-dashboard':'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/>',
@@ -2220,6 +2255,14 @@ function navToggle(p,el){const on=el.classList.contains('on');
   else{if(p==='p-dashboard'||p==='p-profile'){toast('「今天」与「我的」为固定栏目，不可关闭');renderNavSet();return;}
     activeTabs=activeTabs.filter(x=>x!==p);}
   renderNav();renderNavSet();toast('导航栏已更新（模拟持久化）');}
+/* 桌面模块：长按菜单 4 枚勾选 与 铺到桌面列表（规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md §2.0/§4.2） */
+const DESK_ACTIONS=[['inbox','速记'],['todo','记待办'],['ledger','记一笔'],['habit','打卡'],['journal','写日记'],['items','记物品'],['today','回今天页']];
+let deskMenuSel=['inbox','todo','ledger','habit'];
+let deskPinDone=['ledger'];
+function renderDeskMenu(){$('#deskMenuList').innerHTML=DESK_ACTIONS.map(function(a){var on=deskMenuSel.indexOf(a[0])>=0;return '<label class="flex items-center gap-1.5 py-2.5 border-b border-slate-100 dark:border-slate-800"><input type="checkbox" class="accent-indigo-500" '+(on?'checked':'')+' onchange="deskMenuToggle(\''+a[0]+'\',this.checked)"> '+a[1]+'</label>';}).join('');$('#deskMenuCount').textContent=deskMenuSel.length;}
+function deskMenuToggle(id,on){if(on){if(deskMenuSel.length>=4){toast('长按菜单最多 4 个，更多入口请「铺到桌面」');renderDeskMenu();return;}deskMenuSel.push(id);}else{if(deskMenuSel.length<=1){toast('至少保留 1 个快捷动作');renderDeskMenu();return;}deskMenuSel=deskMenuSel.filter(function(x){return x!==id;});}renderDeskMenu();toast('长按菜单已更新（模拟持久化）');}
+function renderDeskPin(){$('#deskPinList').innerHTML=DESK_ACTIONS.map(function(a){var done=deskPinDone.indexOf(a[0])>=0;return '<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold">'+a[1]+'</span>'+(done?'<span class="text-[11px] text-slate-400">已铺</span>':'<button class="mini-btn" onclick="deskPin(\''+a[0]+'\')">铺到桌面</button>')+'</div>';}).join('');}
+function deskPin(id){if(deskPinDone.indexOf(id)>=0)return;deskPinDone.push(id);renderDeskPin();toast('已铺到桌面（模拟）');}
 function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);return;}
   $$('.page').forEach(s=>s.classList.remove('active'));
   $('#'+p).classList.add('active'); $('#'+p).scrollTop=0;
@@ -4411,7 +4454,7 @@ window.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.sheet.sheet-op
   if(e.ctrlKey&&e.key==='Enter'&&$('#inboxInput')===document.activeElement) addInbox(); });
 
 /* ================= 启动 ================= */
-migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); darkApply();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); 
+migrateEv152(); renderDash(); initDashOrder(); renderChips(); renderTodos(); renderQuad(); renderCal(); initCalSwipe(); renderCatTree(); initTk(); initTs(); renderInbox();  doSearch(''); tick(); renderGrid(); initGrid(); renderNav(); renderNavSet(); renderFab(); initPW(); initPW2(); renderThemeRow(); renderSideThemes(); darkApply(); renderDeskMenu(); renderDeskPin();  renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderMkt(); 
 auBootRender(); /* V1.53 AI 使用记录：入口卡摘要先出数 */
 aiProvRender(); /* V1.53.1 服务商列表运行时渲染 */
 setInterval(()=>{const e=document.querySelector('#schNow');if(e&&curPage==='p-calendar'){const n=new Date();e.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')}if(pomoRun&&!$('#pomoStage').classList.contains('hidden'))pomoTick();if(timingBlk()&&timerSecsOK()){document.querySelectorAll('.tmDur').forEach(function(el){el.textContent=Math.max(0,nowMin()-(+el.dataset.s))+' 分钟'})}},1000);

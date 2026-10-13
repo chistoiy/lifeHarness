@@ -1306,8 +1306,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 30699,
-          "hash": "8f7529df"
+          "size": 31600,
+          "hash": "7adb456b"
         }
       }
     },
@@ -4187,6 +4187,20 @@
         "index-mindmap.html": {
           "size": 1221,
           "hash": "f74c9abf"
+        }
+      }
+    },
+    {
+      "id": "p-sub-desktop",
+      "kind": "screen",
+      "title": "桌面与快捷方式",
+      "home": "index.html",
+      "reps": [],
+      "status": "shared",
+      "files": {
+        "index.html": {
+          "size": 1944,
+          "hash": "050b6a16"
         }
       }
     }
