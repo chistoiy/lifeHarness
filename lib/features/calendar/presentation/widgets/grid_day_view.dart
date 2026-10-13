@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/category.dart';
 import '../../domain/time_block.dart';
 import '../calendar_providers.dart';
+import 'async_error_retry.dart';
 import 'time_pick_sheet.dart';
 
 /// 块视图·格子时间块（V1.19~V1.21 · 原型 calBlockView）。
@@ -157,7 +158,13 @@ class _GridDayViewState extends ConsumerState<GridDayView>
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final gran = ref.watch(granularityProvider);
-    final blocks = ref.watch(dayBlocksProvider(widget.day)).valueOrNull ?? const [];
+    // F4-3：取数失败显错误卡＋重试（空态另有专属文案，两态不混）。
+    final blocksAsync = ref.watch(dayBlocksProvider(widget.day));
+    if (blocksAsync.hasError && blocksAsync.valueOrNull == null) {
+      return AsyncErrorRetry(
+          onRetry: () => ref.invalidate(dayBlocksProvider(widget.day)));
+    }
+    final blocks = blocksAsync.valueOrNull ?? const [];
     final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
     final catColors = ref.watch(catColorsByNameProvider);
     final primaryCats = cats.where((c) => c.isPrimary).toList();
@@ -350,7 +357,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                     for (final c in primaryCats)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
-                        child: InkWell(
+                        child: Semantics(button: true, label: '速记该分类', child: InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => _railTap(c, gran),
                           child: Container(
@@ -364,7 +371,7 @@ class _GridDayViewState extends ConsumerState<GridDayView>
                                 style: const TextStyle(
                                     fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
                           ),
-                        ),
+                        )),
                       ),
                   ],
                 ),

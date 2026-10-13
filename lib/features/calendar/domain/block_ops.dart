@@ -98,24 +98,6 @@ TimeBlock mergePair(TimeBlock a, TimeBlock b, [DateTime? now]) {
   );
 }
 
-/// 排序后区间之间的空隙（用于轴视图「空闲·点此补录」条）。
-List<List<int>> freeGaps(List<TimeBlock> blocks,
-    {int from = 0, int to = 1440, int minMin = kGapMinMin, DateTime? now}) {
-  final iv = blocks
-      .map((b) => [b.startMin, b.effEnd(now)])
-      .where((r) => r[1] > r[0])
-      .toList()
-    ..sort((a, b) => a[0].compareTo(b[0]));
-  final out = <List<int>>[];
-  var cursor = from;
-  for (final r in iv) {
-    if (r[0] - cursor >= minMin) out.add([cursor, r[0]]);
-    cursor = r[1] > cursor ? r[1] : cursor;
-  }
-  if (to - cursor >= minMin) out.add([cursor, to]);
-  return out;
-}
-
 /// 分类时长聚合（计时中按 [now] 已耗时计入）。
 Map<String, int> minutesByCat(Iterable<TimeBlock> blocks, [DateTime? now]) {
   final m = <String, int>{};

@@ -128,34 +128,6 @@ void main() {
     });
   });
 
-  group('freeGaps · 轴视图空隙', () {
-    test('块之间的空档按最小 15 分钟筛出', () {
-      final gaps = freeGaps([blk(540, 600), blk(700, 760)]);
-      expect(gaps, [
-        [0, 540],
-        [600, 700],
-        [760, 1440]
-      ]);
-    });
-
-    test('小于阈值的缝隙不生成补录条', () {
-      final gaps = freeGaps([blk(540, 600), blk(610, 700)]);
-      expect(gaps.any((g) => g[0] == 600), isFalse);
-    });
-
-    test('无块时整段可点', () {
-      expect(freeGaps([]), [
-        [0, 1440]
-      ]);
-    });
-
-    test('计时中块按已耗时结束空隙', () {
-      final b = blk(600, 600, src: kSrcTiming);
-      final gaps = freeGaps([b], now: DateTime(2026, 9, 19, 10, 30));
-      expect(gaps.last, [630, 1440]);
-    });
-  });
-
   group('聚合与环比', () {
     test('minutesByCat 含计时中已耗时', () {
       final m = minutesByCat(

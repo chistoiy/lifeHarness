@@ -10,6 +10,7 @@ import '../domain/time_block.dart';
 import '../domain/week_align.dart';
 import 'calendar_page.dart' show daysInMonthOf;
 import 'calendar_providers.dart';
+import 'widgets/async_error_retry.dart';
 import 'widgets/ts_cat_sheet.dart';
 
 /// 「时间账本」统计页（需求 V1.52 批4）。
@@ -248,6 +249,21 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
     final curAsync = ref.watch(blocksInRangeProvider((p.from, p.to)));
     final prevAsync = ref.watch(blocksInRangeProvider((p.prevFrom, p.prevTo)));
     final timing = ref.watch(timingBlockProvider).valueOrNull;
+    // F5-3：有计时中块时接秒级心跳，「已 X 分」前台每秒刷新（离屏/无计时自动停）。
+    if (timing != null) {
+      ref.watch(calendarTickerProvider);
+    }
+    // F4-3：账本页同样分「空」与「取数失败」两态——失败显错误卡＋重试。
+    if (curAsync.hasError && curAsync.valueOrNull == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('时间账本')),
+        body: SafeArea(
+          child: AsyncErrorRetry(
+              onRetry: () =>
+                  ref.invalidate(blocksInRangeProvider((p.from, p.to)))),
+        ),
+      );
+    }
 
     final now = DateTime.now();
     final blocks = curAsync.valueOrNull ?? const <TimeBlock>[];
@@ -438,7 +454,7 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
+          Semantics(button: true, label: '展开或折叠', child: InkWell(
             onTap: () => _toggleFold(key),
             borderRadius: BorderRadius.circular(8),
             child: Padding(
@@ -461,7 +477,7 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
                 ],
               ),
             ),
-          ),
+          )),
           if (!folded) body,
         ],
       ),
@@ -850,7 +866,7 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
       // 环比=与上一同期区间比；上期为 0 无可比（deltaPct 返回 null，不显示）。
       final delta = deltaPct(m, pm);
       final color = catColor(name);
-      return InkWell(
+      return Semantics(button: true, label: '查看分类明细', child: InkWell(
         // V1.57 C 批：明细下钻半屏（原型 tsOpenCat；谓词与本页汇总同源）。
         onTap: () => showTsCatSheet(
           context,
@@ -950,7 +966,7 @@ class _TimeStatsPageState extends ConsumerState<TimeStatsPage> {
             ],
           ),
         ),
-      );
+      ));
     }
 
     return Column(

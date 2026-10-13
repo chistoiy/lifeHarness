@@ -39,11 +39,12 @@ final catColorsByNameProvider = Provider<Map<String, Color>>((ref) {
 });
 
 /// 秒级心跳（计时中块耗时刷新；无计时中块时页面可不 watch）。
+/// F5-3 修复：去掉原「自挂 listen 再 onDispose(cancel)」——`Stream.periodic`
+/// 是单订阅流，被自挂后 riverpod 内部订阅必然异常 ⇒ Timer 从未真正启动
+///（裸探针实锤：watch 者每秒零重建）。改为直接返回流，riverpod 负责订阅
+/// 与容器 dispose 时的取消＝无 watch 者/离屏自动停（功耗口径）。
 final calendarTickerProvider = StreamProvider<DateTime>((ref) {
-  final t = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
-  final sub = t.listen((_) {});
-  ref.onDispose(sub.cancel);
-  return t;
+  return Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
 });
 
 /// 选中日期（真实日历）。
@@ -60,9 +61,6 @@ final calViewModeProvider = StateProvider<String>((ref) => 'block');
 /// 种子读设置键 `lh.cal_month_expanded`（SettingsRepository 四处同步之一）。
 final monthExpandedProvider = StateProvider<bool>(
     (ref) => ref.read(settingsControllerProvider).calMonthExpanded);
-
-/// 日视图子模式：line=时间轴 / grid=格子·时间块（需求 V1.4）。
-final dayModeProvider = StateProvider<String>((ref) => 'line');
 
 /// 格子粒度（分钟，1/5/10/15/30/60，默认 15）。
 final granularityProvider = StateProvider<int>((ref) => 15);

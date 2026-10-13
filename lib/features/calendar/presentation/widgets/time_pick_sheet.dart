@@ -445,6 +445,10 @@ class _TimePickState extends ConsumerState<_TimePick> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
+    // F5-3：编辑计时中块时接秒级心跳，「已 X 分钟」每秒刷新（关弹层即停）。
+    if (ref.watch(timingBlockProvider).valueOrNull != null) {
+      ref.watch(calendarTickerProvider);
+    }
     final cats = ref.watch(categoriesProvider).valueOrNull ?? const <Category>[];
     _applyPendingCat(cats); // 分类异步到位后补一次编辑态预填
     final catColors = ref.watch(catColorsByNameProvider);
@@ -567,7 +571,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
                         fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
                 const Spacer(),
                 // C9（冻结）：「标签 ›」假入口已摘除——标签维护下沉到分类管理的默认标签。
-                GestureDetector(
+                Semantics(button: true, label: '关闭', child: GestureDetector(
                   onTap: () {
                     Navigator.of(context).pop();
                     if (context.mounted) context.push('/categories');
@@ -575,7 +579,7 @@ class _TimePickState extends ConsumerState<_TimePick> {
                   child: Text('管理 ›',
                       style: TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w700, color: tokens.accent)),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 6),
@@ -930,7 +934,7 @@ class CatPill extends StatelessWidget {
             ? tokens.accent
             : scheme.onSurface.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(999),
-        child: InkWell(
+        child: Semantics(button: true, label: '选择分类', child: InkWell(
           borderRadius: BorderRadius.circular(999),
           onTap: onTap,
           child: Padding(
@@ -962,7 +966,7 @@ class CatPill extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }

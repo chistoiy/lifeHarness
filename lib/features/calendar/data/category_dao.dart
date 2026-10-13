@@ -38,18 +38,4 @@ class CategoryDao {
       ? db.delete(DbSchema.tCategories,
           where: 'id = ? OR parent_id = ?', whereArgs: [c.id, c.id])
       : db.delete(DbSchema.tCategories, where: 'id = ?', whereArgs: [c.id]);
-
-  /// 次级换父组（长按拖入其他父级）。
-  Future<void> reparent(int categoryId, int newParentId, int sort) => db.update(
-      DbSchema.tCategories, {'parent_id': newParentId, 'sort': sort},
-      where: 'id = ?', whereArgs: [categoryId]);
-
-  /// 一级重排（拖拽排序写回）。
-  Future<void> reorderPrimary(List<int> ids) async {
-    final batch = db.batch();
-    for (var i = 0; i < ids.length; i++) {
-      batch.update(DbSchema.tCategories, {'sort': i + 1}, where: 'id = ?', whereArgs: [ids[i]]);
-    }
-    await batch.commit();
-  }
 }

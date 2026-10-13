@@ -16,6 +16,7 @@ import '../domain/time_block.dart';
 import '../domain/week_align.dart';
 import '../../../shared/widgets/scroll_pad.dart';
 import 'calendar_providers.dart';
+import 'widgets/async_error_retry.dart';
 import 'widgets/grid_day_view.dart';
 import 'widgets/time_pick_sheet.dart';
 import '../../../core/widgets/wheel_date.dart';
@@ -270,7 +271,7 @@ class _TimeHeader extends ConsumerWidget {
       child: Row(
         children: [
           // V1.27 C1：左上只显「月日」（跨年才显年份），点击仍开年月日三列滚轮可改
-          GestureDetector(
+          Semantics(button: true, label: '选择日期', child: GestureDetector(
             onTap: jump,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -300,7 +301,7 @@ class _TimeHeader extends ConsumerWidget {
                 Icon(Icons.expand_more, size: 16, color: scheme.onSurfaceVariant),
               ],
             ),
-          ),
+          )),
           const Spacer(),
           // V1.52：时间账本（L4 分类时长统计）入口
           IconButton(
@@ -481,7 +482,7 @@ class _MonthPanel extends ConsumerWidget {
                     : (blockDays.contains(day)
                         ? const Color(0xFF6366F1)
                         : null);
-                return InkWell(
+                return Semantics(button: true, label: '选择日期', child: InkWell(
                   // 测试钩子：选中格可点切换展开态（C2），给它稳定 key。
                   key: isSel ? const ValueKey('month-sel-cell') : null,
                   borderRadius: BorderRadius.circular(10),
@@ -530,7 +531,7 @@ class _MonthPanel extends ConsumerWidget {
                       ],
                     ),
                   ),
-                );
+                ));
               },
             ),
           ),
@@ -599,12 +600,12 @@ class _WeekStrip extends ConsumerWidget {
         children: [
           Align(
             alignment: Alignment.centerRight,
-            child: GestureDetector(
+            child: Semantics(button: true, label: '展开月历', child: GestureDetector(
               onTap: () => CalendarPage.setMonthExpanded(ref, true),
               child: Text('展开 ▾',
                   style: TextStyle(
                       fontSize: 9.5, fontWeight: FontWeight.w800, color: tokens.accent)),
-            ),
+            )),
           ),
           // V1.27 C2：LayoutBuilder 7 格等宽自适应，小屏不裁切（轴视图周行显示全周）。
           // V1.27 C6：滑动切天=位移累计（与展开态切月同判定，慢滑不漏切）。
@@ -629,7 +630,7 @@ class _WeekStrip extends ConsumerWidget {
                       for (final d in days)
                         SizedBox(
                           width: cellW,
-                          child: GestureDetector(
+                          child: Semantics(button: true, label: '选择日期', child: GestureDetector(
                     onTap: () {
                       if (CalendarPage.sameDay(d, selected)) {
                         CalendarPage.setMonthExpanded(ref, true);
@@ -679,7 +680,7 @@ class _WeekStrip extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ),
+                  )),
                     ),
                     ],
                   );
@@ -716,10 +717,20 @@ class _AxisView extends ConsumerWidget {
     // V1.27 C3：轴视图并入手动标记块投影；B10：事件回填块（source=event）同列
     // ——旧 events 已整体并入块表，不再有「由事件卡表达」的另一份。
     // V1.52：计时中块（source=timing）同列，结束时间随当前时刻推进
-    final markBlocks = (ref.watch(dayBlocksProvider(selected)).valueOrNull ??
-            const <TimeBlock>[])
+    // F4-3：取数失败显错误卡＋重试（空态另有专属文案，两态不混）。
+    final blocksAsync = ref.watch(dayBlocksProvider(selected));
+    if (blocksAsync.hasError && blocksAsync.valueOrNull == null) {
+      return AsyncErrorRetry(
+          onRetry: () => ref.invalidate(dayBlocksProvider(selected)));
+    }
+    final markBlocks = (blocksAsync.valueOrNull ?? const <TimeBlock>[])
         .toList()
       ..sort((a, b) => a.startMin.compareTo(b.startMin));
+    // F5-3：有计时中块时接秒级心跳，「已 X 分钟」前台每秒刷新
+    //（ticker 懒启动：无 watch 者/离屏自动停＝功耗口径）。
+    if (markBlocks.any((b) => b.isTiming)) {
+      ref.watch(calendarTickerProvider);
+    }
     // 原型时间轴行：左时间列 + 轴上圆点 + 内容卡（竖线由外层 Stack 绘制）
     Widget rail(String time, Color dot, Widget child, {Color? timeColor}) =>
         Padding(
@@ -772,7 +783,7 @@ class _AxisView extends ConsumerWidget {
       final col = blockColor(b, catColors, tokens.accent);
       final live = b.isTiming;
       final dur = b.durationMin();
-      return InkWell(
+      return Semantics(button: true, label: '编辑时间块', child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => showTimePickSheet(context, ref, block: b),
         child: Container(
@@ -828,10 +839,10 @@ class _AxisView extends ConsumerWidget {
             ],
           ),
         ),
-      );
+      ));
     }
 
-    Widget gapRow(int a, int e) => InkWell(
+    Widget gapRow(int a, int e) => Semantics(button: true, label: '添加时间段', child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () => showTimePickSheet(context, ref, day: selected, startMin: a),
           child: Container(
@@ -845,7 +856,7 @@ class _AxisView extends ConsumerWidget {
                   style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
             ),
           ),
-        );
+        ));
 
     final blockRails = <Widget>[];
     var cursor = 0;
@@ -869,7 +880,7 @@ class _AxisView extends ConsumerWidget {
                   ? _hm2(t.startMin ?? 0)
                   : '${_hm2(t.startMin ?? 0)}-${_hm2(t.endMin ?? 0)}'),
           violet,
-          InkWell(
+          Semantics(button: true, label: '打开定时待办', child: InkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: () => schedTodoTap(context, ref, t),
             child: Container(
@@ -915,7 +926,7 @@ class _AxisView extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
+          )),
           timeColor: violet));
     }
     // V1.52：空隙补录条已由 blockRails 按实际空档生成（无块时整段 00:00-24:00），
@@ -930,7 +941,7 @@ class _AxisView extends ConsumerWidget {
                 fontSize: 12, fontWeight: FontWeight.w800, color: tokens.accent)),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          InkWell(
+          Semantics(button: true, label: '添加时间段', child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () => showTimePickSheet(context, ref, day: selected, startMin: 9 * 60),
             child: Container(
@@ -943,7 +954,7 @@ class _AxisView extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
             ),
-          )
+          ))
         else
           railContent(items),
       ],
@@ -1013,8 +1024,14 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final selected = widget.selected;
+    // F4-3：取数失败显错误卡＋重试（空态另有专属文案，两态不混）。
+    final blocksAsync = ref.watch(dayBlocksProvider(selected));
+    if (blocksAsync.hasError && blocksAsync.valueOrNull == null) {
+      return AsyncErrorRetry(
+          onRetry: () => ref.invalidate(dayBlocksProvider(selected)));
+    }
     final blocks =
-        ref.watch(dayBlocksProvider(selected)).valueOrNull ?? const <TimeBlock>[];
+        blocksAsync.valueOrNull ?? const <TimeBlock>[];
     final catColors = ref.watch(catColorsByNameProvider);
     final isToday = _isToday(selected, _now);
     final nowHour = _now.hour;
@@ -1090,7 +1107,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
     required List<Todo> schedTodos,
   }) {
     final isNow = isToday && h == nowHour;
-    return InkWell(
+    return Semantics(button: true, label: '添加时间段', child: InkWell(
       onTap: () =>
           showTimePickSheet(context, ref, day: widget.selected, startMin: h * 60),
       child: Container(
@@ -1130,7 +1147,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
                         .where((t) => (t.startMin ?? 0) ~/ 60 == h))
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: InkWell(
+                        child: Semantics(button: true, label: '打开定时待办', child: InkWell(
                           onTap: () => schedTodoTap(context, ref, t),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -1165,14 +1182,14 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
                               ],
                             ),
                           ),
-                        ),
+                        )),
                       ),
                   // B10：旧 events 并入块表后，source=event 块照常在此列展示。
                   for (final b in blocks
                       .where((b) => b.startMin ~/ 60 == h))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: InkWell(
+                      child: Semantics(button: true, label: '编辑时间块', child: InkWell(
                         onTap: () => showTimePickSheet(context, ref, block: b),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1206,7 +1223,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
                             ],
                           ),
                         ),
-                      ),
+                      )),
                     ),
                 ],
               ),
@@ -1229,7 +1246,7 @@ class _DayHoursViewState extends ConsumerState<_DayHoursView> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -1244,6 +1261,19 @@ class _WeekBoard extends ConsumerWidget {
     final tokens = context.tokens;
     final scheme = Theme.of(context).colorScheme;
     final days = naturalWeek(selected); // C6（冻结）：自然周（周日起算）
+    // F4-3：任一天取数失败（且无旧值）显错误卡＋重试，别把失败伪装成空周。
+    Object? weekErr;
+    for (final d in days) {
+      final a = ref.watch(dayBlocksProvider(d));
+      if (a.hasError && a.valueOrNull == null) {
+        weekErr = a.error;
+        break;
+      }
+    }
+    if (weekErr != null) {
+      return AsyncErrorRetry(
+          onRetry: () => ref.invalidate(dayBlocksProvider));
+    }
     final blocksByDay = <DateTime, List<TimeBlock>>{};
     final catColors = ref.watch(catColorsByNameProvider);
     String md(DateTime d) => '${d.month}/${d.day}';
@@ -1314,7 +1344,7 @@ class _WeekBoard extends ConsumerWidget {
                           showTimePickSheet(context, ref, day: d, startMin: m);
                         }
                       }
-                      return InkWell(
+                      return Semantics(button: true, label: '添加时间段', child: InkWell(
                         key: ValueKey('wk-cell-$di-$h'),
                         onTap: () =>
                             openItem(segs.isEmpty ? null : segs.first.item),
@@ -1334,7 +1364,7 @@ class _WeekBoard extends ConsumerWidget {
                                           padding: EdgeInsets.symmetric(
                                               horizontal:
                                                   segs.length > 1 ? .5 : 0),
-                                          child: InkWell(
+                                          child: Semantics(button: true, label: '查看时间段', child: InkWell(
                                             key: ValueKey('wk-seg-$di-$h-$si'),
                                             onTap: () =>
                                                 openItem(segs[si].item),
@@ -1386,13 +1416,13 @@ class _WeekBoard extends ConsumerWidget {
                                                           ),
                                                         )),
                                             ),
-                                          ),
+                                          )),
                                         ),
                                       ),
                                   ],
                                 ),
                         ),
-                      );
+                      ));
                     }),
                   ),
               ],

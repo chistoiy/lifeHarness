@@ -154,11 +154,6 @@ class TimeBlockDao {
     AppLog.addKey('日程撤销回写：日 $dayMs 恢复 ${rows.length} 段');
   }
 
-  /// 速记接龙：上一段"记到此刻"块截止到新时刻。
-  Future<void> updateEnd(int id, int endMin) => db.update(
-      table, {'end_min': endMin, 'updated_at': DateTime.now().millisecondsSinceEpoch},
-      where: 'id = ?', whereArgs: [id]);
-
   /// B6（时间模块批1 · 冻结口径）：分类（含其次级）删除后，其下时间块归入
   /// 「其他」——`cat_id` 置空、`category` 归 [kCatOther]。按 id 与名称双条件命中
   /// （历史行可能只有名称没有 cat_id）。返回改写行数。
