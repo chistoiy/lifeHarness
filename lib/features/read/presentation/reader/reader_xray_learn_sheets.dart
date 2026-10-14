@@ -8,14 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/logging/app_log.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../data/xray/xray_dao.dart';
 import '../../domain/book.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 
 class _Lk {
-  static const accent = Color(0xFF6366F1);
-  static const muted = Color(0xFF94A3B8);
+  /// 强调色（F3-3：brand 收 `accent`）：随主题派生。
+  static Color accent(BuildContext c) => c.tokens.accent;
+
+  /// 次要小字（F3-1/F3-6）：走主题次文本令牌。
+  static Color muted(BuildContext c) => c.tokens.text2;
+
   static const rose = Color(0xFFF43F5E);
 }
 
@@ -76,9 +81,9 @@ Future<void> showXrAddSheet(
                   autofocus: prefill.isEmpty,
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '要加入的词',
-                    hintStyle: TextStyle(fontSize: 12, color: _Lk.muted),
+                    hintStyle: TextStyle(fontSize: 12, color: _Lk.muted(context)),
                   ),
                   onChanged: (_) => setSt(() {}),
                 ),
@@ -96,7 +101,7 @@ Future<void> showXrAddSheet(
                               horizontal: 11, vertical: 5),
                           decoration: BoxDecoration(
                             color: type == t.$1
-                                ? _Lk.accent
+                                ? _Lk.accent(context)
                                 : const Color(0x2994A3B8),
                             borderRadius: BorderRadius.circular(999),
                           ),
@@ -129,7 +134,7 @@ Future<void> showXrAddSheet(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: scopeBook == (k == 'book')
-                                  ? _Lk.accent
+                                  ? _Lk.accent(context)
                                   : const Color(0x2994A3B8),
                               borderRadius: BorderRadius.circular(999),
                             ),
@@ -173,7 +178,7 @@ Future<void> showXrAddSheet(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: _Lk.accent,
+                      color: _Lk.accent(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text('加为词条',
@@ -241,7 +246,7 @@ Future<void> showXrDelSheet(
                                   ? Icons.check_circle_rounded
                                   : Icons.radio_button_unchecked_rounded,
                               size: 16,
-                              color: _Lk.accent),
+                              color: _Lk.accent(context)),
                           const SizedBox(width: 8),
                           Expanded(
                               child: Text(l,
@@ -317,7 +322,7 @@ Future<void> showXrMergePickerSheet(
             Text(
               '「${from.name}」的出场将全部归入所选规范词条（曾用名记入 aliases）',
               style:
-                  const TextStyle(fontSize: 10, color: _Lk.muted, height: 1.5),
+                  TextStyle(fontSize: 10, color: _Lk.muted(context), height: 1.5),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -331,8 +336,8 @@ Future<void> showXrMergePickerSheet(
                       title: Text('${v.name} · ${v.n} 次',
                           style: const TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w700)),
-                      trailing: const Icon(Icons.merge_rounded,
-                          size: 15, color: _Lk.muted),
+                      trailing: Icon(Icons.merge_rounded,
+                          size: 15, color: _Lk.muted(context)),
                       onTap: () async {
                         Navigator.pop(sc);
                         await ref
@@ -385,8 +390,8 @@ Future<void> showXrBakSheet(BuildContext context, WidgetRef ref) async {
                     style: TextStyle(
                         fontSize: 15, fontWeight: FontWeight.w800)),
                 const Spacer(),
-                const Text('数据',
-                    style: TextStyle(fontSize: 9, color: _Lk.muted)),
+                Text('数据',
+                    style: TextStyle(fontSize: 9, color: _Lk.muted(context))),
               ],
             ),
             const SizedBox(height: 10),
@@ -447,10 +452,10 @@ Future<void> showXrBakSheet(BuildContext context, WidgetRef ref) async {
                 color: Theme.of(sc).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 '整包备份已含索引数据 · 单书 .xraybak 供跨设备与分享',
                 style: TextStyle(
-                    fontSize: 10, height: 1.4, color: _Lk.muted),
+                    fontSize: 10, height: 1.4, color: _Lk.muted(context)),
               ),
             ),
           ],
@@ -480,7 +485,7 @@ Widget _bakRow(
                   const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
           const Spacer(),
           Text(sub,
-              style: const TextStyle(fontSize: 10, color: _Lk.muted)),
+              style: TextStyle(fontSize: 10, color: _Lk.muted(ctx))),
         ],
       ),
     ),

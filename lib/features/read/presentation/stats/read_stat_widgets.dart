@@ -159,9 +159,16 @@ class ReadStatBooksTimeCard extends StatelessWidget {
 
 /// 构成环画师（原 _DonutPainter 原名迁出，绘制逻辑逐行不变）。
 class ReadStatDonutPainter extends CustomPainter {
-  ReadStatDonutPainter({required this.fracs, required this.colors});
+  ReadStatDonutPainter({
+    required this.fracs,
+    required this.colors,
+    this.emptyColor = const Color(0xFFE2E8F0),
+  });
   final List<double> fracs;
   final List<Color> colors;
+
+  /// 空态环色（F3-2）：由调用方按主题传入，深色下不再出亮块。
+  final Color emptyColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -175,7 +182,7 @@ class ReadStatDonutPainter extends CustomPainter {
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 12
-          ..color = const Color(0xFFE2E8F0),
+          ..color = emptyColor,
       );
       return;
     }
@@ -198,7 +205,7 @@ class ReadStatDonutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(ReadStatDonutPainter old) =>
-      old.fracs.join() != fracs.join();
+      old.fracs.join() != fracs.join() || old.emptyColor != emptyColor;
 }
 
 /// 原型 `.mini-btn` 对译：小描边胶囊＋11.5 字，配 `Wrap` 用（U11）。

@@ -15,6 +15,9 @@
     "--card-sh": "0 0 16px rgba(168,85,247,.22), inset 0 0 0 1px rgba(34,211,238,.1)",
     "--nav-bg": "rgba(11,15,30,.9)",
     "--nav-bd": "rgba(34,211,238,.25)",
+    "--text1": "#e2e8f0",
+    "--text2": "#a5b4fc",
+    "--ink": "#e2e8f0",
     "--page-img": "repeating-linear-gradient(90deg,rgba(168,85,247,.05) 0 1px,transparent 1px 44px),repeating-linear-gradient(0deg,rgba(34,211,238,.04) 0 1px,transparent 1px 44px)"
   }
 }

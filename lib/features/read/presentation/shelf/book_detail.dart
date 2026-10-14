@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+import '../../../../core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -1198,23 +1200,23 @@ class _BookDetailPageState extends ConsumerState<BookDetailPage> {
               children: [
                 Text(
                   q.kind == BookQuote.kKindMark ? '「${q.body}」' : q.body,
-                  style: TextStyle(
+                  style: kFontBody.apply(TextStyle(
                     fontSize: 12.5,
                     height: 1.55,
                     color: cs.onSurface,
-                  ),
+                  )),
                 ),
                 if (q.thought != null && q.thought!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 5),
                     child: Text(
                       q.thought!,
-                      style: TextStyle(
+                      style: kFontBody.apply(TextStyle(
                         fontSize: 11.5,
                         height: 1.5,
                         fontStyle: FontStyle.italic,
                         color: cs.onSurfaceVariant,
-                      ),
+                      )),
                     ),
                   ),
                 Padding(

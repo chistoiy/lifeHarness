@@ -14,6 +14,9 @@
     "--card-sh": "0 4px 16px rgba(2,132,199,.12)",
     "--nav-bg": "rgba(234,244,251,.9)",
     "--nav-bd": "#d3e6f5",
+    "--text1": "#082f49",
+    "--text2": "#4a6b82",
+    "--ink": "#082f49",
     "--page-img": "radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.22), transparent)"
   },
   "dark": {
@@ -29,6 +32,9 @@
     "--card-sh": "0 4px 16px rgba(0,0,0,.35)",
     "--nav-bg": "rgba(8,32,51,.9)",
     "--nav-bd": "#1c4263",
+    "--text1": "#dcebf7",
+    "--text2": "#8fb2c9",
+    "--ink": "#dcebf7",
     "--page-img": "radial-gradient(700px 180px at 50% -40px, rgba(56,189,248,.15), transparent)"
   }
 }

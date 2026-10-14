@@ -107,6 +107,7 @@ extension _ShelfGoal on _ShelfPageState {
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),

@@ -512,6 +512,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(
@@ -709,6 +710,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                       for (var i = 0; i < entries.length; i++)
                         _pal[i % _pal.length],
                     ],
+                    emptyColor: Theme.of(context).colorScheme.outlineVariant,
                   ),
                 ),
               ),
@@ -747,6 +749,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
+                              fontFeatures: [FontFeature.tabularFigures()],
                             ),
                           ),
                         ],
@@ -885,6 +888,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
+                          fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),
@@ -1080,6 +1084,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),

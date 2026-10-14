@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../../../core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -636,11 +638,11 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
               // read.qtLines<4 才截断（=4 不截 · 原型 4856 条件）。
               maxLines: lines < 4 ? lines : null,
               overflow: lines < 4 ? TextOverflow.ellipsis : TextOverflow.visible,
-              style: TextStyle(
+              style: kFontBody.apply(TextStyle(
                 fontSize: 12.5,
                 height: 1.75,
                 fontWeight: q.thought == null ? FontWeight.w500 : FontWeight.w600,
-              ),
+              )),
             ),
             if (q.imagePaths.isNotEmpty)
               Padding(
@@ -665,7 +667,8 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                 ),
                 child: Text(
                   '想法：${q.thought}',
-                  style: TextStyle(fontSize: 11.5, height: 1.6, color: cs.onSurfaceVariant),
+                  style: kFontBody.apply(TextStyle(
+                      fontSize: 11.5, height: 1.6, color: cs.onSurfaceVariant)),
                 ),
               ),
             // 原型 4859：卡内快捷行 →日记 →待办 →笔记 标星。

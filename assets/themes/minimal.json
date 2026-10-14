@@ -13,7 +13,10 @@
     "--card-r": "20px",
     "--card-sh": "0 1px 3px rgba(15,23,42,.05)",
     "--nav-bg": "rgba(255,255,255,.85)",
-    "--nav-bd": "#e2e8f0"
+    "--nav-bd": "#e2e8f0",
+    "--text1": "#0f172a",
+    "--text2": "#64748b",
+    "--ink": "#0f172a"
   },
   "dark": {
     "--accent": "#6366f1",
@@ -27,6 +30,9 @@
     "--card-r": "20px",
     "--card-sh": "0 1px 3px rgba(0,0,0,.4)",
     "--nav-bg": "rgba(2,6,23,.85)",
-    "--nav-bd": "#1e293b"
+    "--nav-bd": "#1e293b",
+    "--text1": "#e2e8f0",
+    "--text2": "#94a3b8",
+    "--ink": "#e2e8f0"
   }
 }

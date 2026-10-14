@@ -36,6 +36,9 @@ class ThemeTokens {
     required this.cardShadow,
     required this.navBg,
     required this.navBorder,
+    required this.text1,
+    required this.text2,
+    required this.ink,
     this.appFont,
   });
 
@@ -61,6 +64,15 @@ class ThemeTokens {
   final Color navBg;
   final Color navBorder;
 
+  /// 文本主色（原型 `--text1`）：标题与默认正文。
+  final Color text1;
+
+  /// 文本次色（原型 `--text2`）：说明行、次要小字、占位。
+  final Color text2;
+
+  /// 墨色（原型 `--ink`）：卡片正文 / 长文引文（比 text1 更深，用于有底色的卡面）。
+  final Color ink;
+
   /// 可选全局字体族提示（复古/衬线主题用）。骨架阶段仅记录，不强制注入字体文件。
   final String? appFont;
 
@@ -81,6 +93,9 @@ class ThemeTokens {
     cardShadow: [],
     navBg: Color(0xFFFFFFFF),
     navBorder: Color(0xFFE2E8F0),
+    text1: Color(0xFF0F172A),
+    text2: Color(0xFF64748B),
+    ink: Color(0xFF0F172A),
   );
 
   /// hero/按钮用渐变。
@@ -136,6 +151,9 @@ class ThemeTokens {
       cardShadow: shadows('--card-sh'),
       navBg: col('--nav-bg', Colors.white),
       navBorder: col('--nav-bd', const Color(0xFFE2E8F0)),
+      text1: col('--text1', const Color(0xFF0F172A)),
+      text2: col('--text2', const Color(0xFF64748B)),
+      ink: col('--ink', const Color(0xFF0F172A)),
       appFont: str('--app-font', fallback: null),
     );
   }

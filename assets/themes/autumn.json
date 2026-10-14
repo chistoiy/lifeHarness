@@ -14,6 +14,9 @@
     "--card-sh": "0 2px 10px rgba(146,64,14,.12)",
     "--nav-bg": "rgba(247,236,219,.92)",
     "--nav-bd": "#e8d5b3",
+    "--text1": "#451a03",
+    "--text2": "#8a6b4a",
+    "--ink": "#451a03",
     "--app-font": "Georgia,'Songti SC','SimSun',serif"
   },
   "dark": {
@@ -29,6 +32,9 @@
     "--card-sh": "0 2px 10px rgba(0,0,0,.4)",
     "--nav-bg": "rgba(34,23,8,.92)",
     "--nav-bd": "#4f3a1b",
+    "--text1": "#f5e6ce",
+    "--text2": "#c4a98a",
+    "--ink": "#f5e6ce",
     "--app-font": "Georgia,'Songti SC','SimSun',serif"
   }
 }

@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 /// 卡片描边（与 `read_stat_page.dart` 的 `_deco` 同一份，抽出供本件复用）。
 BoxDecoration readStatCardDeco(ColorScheme cs) => BoxDecoration(
   color: cs.surfaceContainerLow,
@@ -9,14 +11,30 @@ BoxDecoration readStatCardDeco(ColorScheme cs) => BoxDecoration(
   border: Border.all(color: cs.outlineVariant.withValues(alpha: .4)),
 );
 
-/// 热力五档色（原型 HS 数组）。
-const kReadStatHeatColors = [
-  Color(0xFFE2E8F0),
-  Color(0xFFC7D2FE),
-  Color(0xFFA5B4FC),
-  Color(0xFF818CF8),
-  Color(0xFF6366F1),
-];
+/// 热力五档色（原型 `--heat0..4` 的 Flutter 对译）：**随主题由 `accent` 派生**（F3-2）。
+///
+/// 亮档＝`#fff` 底按 20/40/65% 混 `accent`（末档纯 `accent`）；暗档＝深底 `#0b1220`
+/// 按 34/56/78% 混 `accent`（末档微提亮）。第 0 档＝中性描边色（亮 `#e2e8f0`／暗
+/// `#1e293b`）——深色下不再出亮块（对应原型 `html.dark{--heat0:#1e293b}`）。
+List<Color> readStatHeatColors(ThemeTokens t, bool isDark) {
+  if (isDark) {
+    const base = Color(0xFF0B1220);
+    return [
+      const Color(0xFF1E293B),
+      Color.lerp(base, t.accent, .34)!,
+      Color.lerp(base, t.accent, .56)!,
+      Color.lerp(base, t.accent, .78)!,
+      Color.lerp(t.accent, Colors.white, .12)!,
+    ];
+  }
+  return [
+    const Color(0xFFE2E8F0),
+    Color.lerp(Colors.white, t.accent, .20)!,
+    Color.lerp(Colors.white, t.accent, .40)!,
+    Color.lerp(Colors.white, t.accent, .65)!,
+    t.accent,
+  ];
+}
 
 /// 阅读热力图卡（原型 p-readstat `.hm`：7 行×周列横向滚 · 点格 toast · 色深随度量）。
 ///
@@ -144,6 +162,10 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
   Widget build(BuildContext context) {
     final w = widget;
     final cs = Theme.of(context).colorScheme;
+    final heat = readStatHeatColors(
+      context.tokens,
+      cs.brightness == Brightness.dark,
+    );
     final first = _first, n = _days;
     var mx = 1;
     for (var i = 0; i < n; i++) {
@@ -253,6 +275,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
                                           n,
                                           mx,
                                           cs,
+                                          heat,
                                         ),
                                     ],
                                   ),
@@ -275,7 +298,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
                 style: TextStyle(fontSize: 9, color: cs.onSurfaceVariant),
               ),
               const SizedBox(width: 4),
-              for (final c in kReadStatHeatColors)
+              for (final c in heat)
                 Padding(
                   padding: const EdgeInsets.only(right: 3),
                   child: Container(
@@ -318,6 +341,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
     int n,
     int mx,
     ColorScheme cs,
+    List<Color> heat,
   ) {
     if (i >= n) return const SizedBox(width: 13, height: 13);
     final d = first.add(Duration(days: i));
@@ -347,7 +371,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(2.5),
-            color: kReadStatHeatColors[lvl].withValues(alpha: inM ? 1 : .34),
+            color: heat[lvl].withValues(alpha: inM ? 1 : .34),
           ),
           child: ck
               ? const Text(

@@ -10,12 +10,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/epub_doc.dart';
 import '../../data/xray/xray_dao.dart';
 import '../../domain/book.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 
 class _Ink {
-  static const accent = Color(0xFF6366F1);
-  static const muted = Color(0xFF94A3B8);
+  /// 强调色（F3-3：brand 收 `accent`）：随主题派生。
+  static Color accent(BuildContext c) => c.tokens.accent;
+
+  /// 次要小字（F3-1/F3-6）：走主题次文本令牌。
+  static Color muted(BuildContext c) => c.tokens.text2;
+
   static const rose = Color(0xFFF43F5E);
 }
 
@@ -77,8 +82,8 @@ Future<void> showXrScopeSheet(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   border: Border.all(
-                      color: on ? _Ink.accent : Theme.of(sc).dividerColor),
-                  color: on ? _Ink.accent.withValues(alpha: .08) : null,
+                      color: on ? _Ink.accent(context) : Theme.of(sc).dividerColor),
+                  color: on ? _Ink.accent(context).withValues(alpha: .08) : null,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -88,7 +93,7 @@ Future<void> showXrScopeSheet(
                           ? Icons.radio_button_checked_rounded
                           : Icons.radio_button_unchecked_rounded,
                       size: 16,
-                      color: on ? _Ink.accent : _Ink.muted,
+                      color: on ? _Ink.accent(context) : _Ink.muted(context),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -98,7 +103,7 @@ Future<void> showXrScopeSheet(
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: on ? _Ink.accent : null)),
+                              color: on ? _Ink.accent(context) : null)),
                     ),
                   ],
                 ),
@@ -120,8 +125,8 @@ Future<void> showXrScopeSheet(
                       const Text('解析范围',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                       const Spacer(),
-                      const Text('全书索引 · X-Ray',
-                          style: TextStyle(fontSize: 9, color: _Ink.muted)),
+                      Text('全书索引 · X-Ray',
+                          style: TextStyle(fontSize: 9, color: _Ink.muted(context))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -133,22 +138,22 @@ Future<void> showXrScopeSheet(
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(
                         children: [
-                          const Text('起',
+                          Text('起',
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: _Ink.muted)),
+                                  color: _Ink.muted(context))),
                           Expanded(child: _chWheel(
                               keyTag: 'xrFrom',
                               count: total,
                               value: from,
                               onChanged: (v) => setSt(() => from = v))),
                           const SizedBox(width: 10),
-                          const Text('止',
+                          Text('止',
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: _Ink.muted)),
+                                  color: _Ink.muted(context))),
                           Expanded(child: _chWheel(
                               keyTag: 'xrTo',
                               count: total,
@@ -166,8 +171,8 @@ Future<void> showXrScopeSheet(
                     ),
                     child: Row(
                       children: [
-                        const Text('预估文本量',
-                            style: TextStyle(fontSize: 11, color: _Ink.muted)),
+                        Text('预估文本量',
+                            style: TextStyle(fontSize: 11, color: _Ink.muted(context))),
                         const Spacer(),
                         Text(fmt(chars()),
                             style: const TextStyle(
@@ -176,9 +181,9 @@ Future<void> showXrScopeSheet(
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('前台轻抽取 · 解析期间书保持可读 · 断点可续',
+                  Text('前台轻抽取 · 解析期间书保持可读 · 断点可续',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 9, color: _Ink.muted)),
+                      style: TextStyle(fontSize: 9, color: _Ink.muted(context))),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -221,7 +226,7 @@ Future<void> showXrScopeSheet(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: _Ink.accent,
+                              color: _Ink.accent(context),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text('开始解析',
@@ -335,7 +340,7 @@ Future<void> showXrFailSheet(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _Ink.accent,
+                    color: _Ink.accent(context),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -371,11 +376,11 @@ Future<void> showXrFailSheet(
                 key: const ValueKey('xrFailClose'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => Navigator.pop(sc),
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text('关闭',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: _Ink.muted)),
+                      style: TextStyle(fontSize: 12, color: _Ink.muted(context))),
                 ),
               ),
             ],

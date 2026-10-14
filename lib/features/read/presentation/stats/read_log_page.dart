@@ -489,6 +489,7 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
                     height: 1.1,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
                 if (unit.isNotEmpty)
@@ -638,6 +639,7 @@ class _LogCardState extends ConsumerState<_LogCard> {
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                     height: 1.2,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(

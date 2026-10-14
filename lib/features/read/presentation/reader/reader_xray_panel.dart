@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/schema/xray.dart' as xs;
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../../data/epub_doc.dart';
 import '../../data/xray/xray_dao.dart';
@@ -38,10 +40,16 @@ const List<(String, String)> kXrTypes = [
 const double _kLowRatio = 0.7;
 
 class _XrStyle {
-  static const accent = Color(0xFF6366F1);
-  static const muted = Color(0xFF94A3B8);
+  /// 强调色（F3-3：brand 收 `accent`）——随主题派生，切 fresh/retro/neumorph 跟随。
+  static Color accent(BuildContext c) => c.tokens.accent;
+
+  /// 次要小字（F3-1/F3-6：走主题次文本令牌，深色下对比达标，不再固定 `#94A3B8`）。
+  static Color muted(BuildContext c) => c.tokens.text2;
+
+  /// X-Ray 角标点色（F3-3：随主题派生）。
+  static Color dot(BuildContext c) => c.tokens.accent;
+
   static const amber = Color(0xFFF59E0B);
-  static const dot = Color(0xFF6366F1);
 }
 
 /// X-Ray 段主体（由上拉面板在 xrTab 时挂载）。
@@ -406,7 +414,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                         fontWeight: FontWeight.w800,
                         color: _scope == s.$1
                             ? const Color(0xFF0F172A)
-                            : _XrStyle.muted,
+                            : _XrStyle.muted(context),
                       ),
                     ),
                   ),
@@ -428,11 +436,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _org ? _XrStyle.accent : null,
+                  color: _org ? _XrStyle.accent(context) : null,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                       color: _org
-                          ? _XrStyle.accent
+                          ? _XrStyle.accent(context)
                           : Theme.of(context).dividerColor),
                 ),
                 child: Text(
@@ -454,11 +462,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _udOn ? _XrStyle.accent : null,
+                  color: _udOn ? _XrStyle.accent(context) : null,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                       color: _udOn
-                          ? _XrStyle.accent
+                          ? _XrStyle.accent(context)
                           : Theme.of(context).dividerColor),
                 ),
                 child: Text(
@@ -525,7 +533,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
-              color: on ? _XrStyle.accent : const Color(0x2994A3B8),
+              color: on ? _XrStyle.accent(context) : Color(0x2994A3B8),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -587,7 +595,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                       key: const ValueKey('xrMissLbl'),
                       textAlign: TextAlign.center,
                       style:
-                          const TextStyle(fontSize: 10, color: _XrStyle.muted)),
+                          TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
                   const SizedBox(height: 10),
                   GestureDetector(
                     key: const ValueKey('xrKwAdd'),
@@ -597,7 +605,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: _XrStyle.accent,
+                        color: _XrStyle.accent(context),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: const Text('＋ 加为词条',
@@ -616,7 +624,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
               child: Text(
                 snap.entities.isEmpty ? '还没有词条 · 点「重新解析」生成全书索引' : '该范围没有词条',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10, color: _XrStyle.muted),
+                style: TextStyle(fontSize: 10, color: _XrStyle.muted(context)),
               ),
             ),
         ],
@@ -639,8 +647,8 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           padding: const EdgeInsets.fromLTRB(2, 10, 2, 4),
           child: Text(
             _lowOpen ? '收起低置信' : '低置信 · ${lo.length} · 展开',
-            style: const TextStyle(
-                fontSize: 10, fontWeight: FontWeight.w900, color: _XrStyle.muted),
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w900, color: _XrStyle.muted(context)),
           ),
         ),
       ));
@@ -672,7 +680,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
       child: Text(
         '${snap.entities.length} 个词条 · 出场锚点全量 · 上下文截断',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 9, color: _XrStyle.muted),
+        style: TextStyle(fontSize: 9, color: _XrStyle.muted(context)),
       ),
     ));
     return ListView(key: const ValueKey('xrList'), children: rows);
@@ -688,22 +696,22 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         children: [
           Expanded(
             child: Text('搜索「$skw」',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: _XrStyle.muted)),
+                    color: _XrStyle.muted(context))),
           ),
           GestureDetector(
             key: const ValueKey('xrKwClr'),
             behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _selKw = null),
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               child: Text('清除',
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: _XrStyle.accent)),
+                      color: _XrStyle.accent(context))),
             ),
           ),
         ],
@@ -735,7 +743,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
         foregroundDecoration: _org && sel
             ? BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _XrStyle.accent, width: 2),
+                border: Border.all(color: _XrStyle.accent(context), width: 2),
               )
             : null,
         child: Column(
@@ -751,7 +759,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: sel ? _XrStyle.accent : const Color(0xFFE2E8F0),
+                        color: sel ? _XrStyle.accent(context) : Color(0xFFE2E8F0),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: sel
@@ -770,7 +778,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 ),
                 const SizedBox(width: 6),
                 Text('${e.n}次',
-                    style: const TextStyle(fontSize: 9, color: _XrStyle.muted)),
+                    style: TextStyle(fontSize: 9, color: _XrStyle.muted(context))),
                 if (e.tocFlag) ...[
                   const SizedBox(width: 4),
                   const _Badge('目录词', outline: true),
@@ -796,7 +804,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                   e.aiDesc!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 9.5, color: _XrStyle.muted, height: 1.4),
+                  style: TextStyle(fontSize: 9.5, color: _XrStyle.muted(context), height: 1.4),
                 ),
               ),
           ],
@@ -841,11 +849,11 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
               key: const ValueKey('xr-back'),
               behavior: HitTestBehavior.opaque,
               onTap: () => setState(() => _curId = null),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.fromLTRB(2, 8, 8, 8),
                 child: Text('‹ 词条列表',
                     style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w900, color: _XrStyle.accent)),
+                        fontSize: 11, fontWeight: FontWeight.w900, color: _XrStyle.accent(context))),
               ),
             ),
             Expanded(
@@ -856,7 +864,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
             ),
             Text('置信 ${(e.score / _confTop).clamp(0.0, 1.0).toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 10, color: _XrStyle.muted)),
+                style: TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
           ],
         ),
         Padding(
@@ -872,7 +880,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
               Text(
                 '${e.n} 次 · 跨 ${e.chs} 章'
                 '${e.aliases.isNotEmpty ? ' · 曾用名 ${e.aliases.join('、')}' : ''}',
-                style: const TextStyle(fontSize: 9, color: _XrStyle.muted),
+                style: TextStyle(fontSize: 9, color: _XrStyle.muted(context)),
               ),
             ],
           ),
@@ -898,10 +906,10 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('书首', style: TextStyle(fontSize: 8, color: _XrStyle.muted)),
+              Text('书首', style: TextStyle(fontSize: 8, color: _XrStyle.muted(context))),
               Text('橙线＝读到第${widget.ci + 1}章',
-                  style: const TextStyle(fontSize: 8, color: _XrStyle.muted)),
-              const Text('书尾', style: TextStyle(fontSize: 8, color: _XrStyle.muted)),
+                  style: TextStyle(fontSize: 8, color: _XrStyle.muted(context))),
+              Text('书尾', style: TextStyle(fontSize: 8, color: _XrStyle.muted(context))),
             ],
           ),
         ),
@@ -909,10 +917,10 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           padding: const EdgeInsets.fromLTRB(2, 14, 2, 6),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text('出场 · 点按跳回阅读位置',
                     style: TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w700, color: _XrStyle.muted)),
+                        fontSize: 10, fontWeight: FontWeight.w700, color: _XrStyle.muted(context))),
               ),
               GestureDetector(
                 key: const ValueKey('xr-cites'),
@@ -928,7 +936,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: showAll ? _XrStyle.accent : cs.surfaceContainerHighest,
+                    color: showAll ? _XrStyle.accent(context) : cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -944,10 +952,10 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
           ),
         ),
         if (vis.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('已读范围内没有出场',
-                style: TextStyle(fontSize: 10, color: _XrStyle.muted)),
+                style: TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
           ),
         for (final m in vis)
           GestureDetector(
@@ -966,8 +974,8 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
                 children: [
                   Text(
                     '${_chTitle(m.ch)} · 段 ${m.para + 1}',
-                    style: const TextStyle(
-                        fontSize: 9, fontWeight: FontWeight.w900, color: _XrStyle.muted),
+                    style: TextStyle(
+                        fontSize: 9, fontWeight: FontWeight.w900, color: _XrStyle.muted(context)),
                   ),
                   const SizedBox(height: 3),
                   Text.rich(_mark(m.snippet ?? e.name, e.name)),
@@ -980,7 +988,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
             key: const ValueKey('xr-spoiler'),
             padding: const EdgeInsets.only(left: 4, top: 2),
             child: Text('剧透保护 · 隐藏未读 $hidden 处引用',
-                style: const TextStyle(fontSize: 9, color: _XrStyle.muted)),
+                style: TextStyle(fontSize: 9, color: _XrStyle.muted(context))),
           ),
         ..._detailLearn(snap, md5, e),
       ],
@@ -993,21 +1001,24 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
   /// 关键词琥珀高亮（原型 xrKwHl 的 <b> 口径）。
   TextSpan _mark(String text, String name) {
     if (!text.contains(name)) {
-      return TextSpan(text: text, style: const TextStyle(fontSize: 11, height: 1.55));
+      return TextSpan(
+          text: text,
+          style: kFontBody.apply(const TextStyle(fontSize: 11, height: 1.55)));
     }
     final parts = text.split(name);
     final children = <InlineSpan>[];
     for (var i = 0; i < parts.length; i++) {
       children.add(TextSpan(
-          text: parts[i], style: const TextStyle(fontSize: 11, height: 1.55)));
+          text: parts[i],
+          style: kFontBody.apply(const TextStyle(fontSize: 11, height: 1.55))));
       if (i != parts.length - 1) {
         children.add(TextSpan(
           text: name,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 11,
               height: 1.55,
               fontWeight: FontWeight.w900,
-              color: _XrStyle.accent),
+              color: _XrStyle.accent(context)),
         ));
       }
     }
@@ -1047,7 +1058,7 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               decoration: BoxDecoration(
-                color: _XrStyle.accent,
+                color: _XrStyle.accent(context),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: const Text('生成全书索引',
@@ -1108,8 +1119,8 @@ class _XrBar extends StatelessWidget {
                 width: large ? 4 : 3,
                 decoration: BoxDecoration(
                   color: mentions[i] > curCh
-                      ? _XrStyle.dot.withValues(alpha: .3)
-                      : _XrStyle.dot,
+                      ? _XrStyle.dot(context).withValues(alpha: .3)
+                      : _XrStyle.dot(context),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1153,7 +1164,7 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = violet
         ? const Color(0xFF7C3AED)
-        : _typeColor[type] ?? const Color(0xFF6366F1);
+        : _typeColor[type] ?? context.tokens.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(

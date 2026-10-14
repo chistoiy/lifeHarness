@@ -7,6 +7,7 @@ import '../../data/epub_doc.dart';
 import '../../domain/book.dart';
 import '../../domain/book_quote.dart';
 import '../../domain/book_toc.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../read_providers.dart';
 import './reader_pager.dart';
 import './reader_xray_panel.dart';
@@ -91,7 +92,11 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
   Timer? _debounce;
   int _searchSeq = 0;
 
-  static const _accent = Color(0xFF6366F1);
+  /// 强调色（F3-3：brand 收 `accent`）：随主题派生，切主题跟随。
+  Color get _accent => context.tokens.accent;
+
+  /// 次要小字（F3-1/F3-6）：走主题次文本令牌，深色下对比达标。
+  Color get _muted => context.tokens.text2;
 
   /// 轮5②：全部分组已折叠？（无分组时按单组「正文」计）
   bool get _allFolded =>
@@ -182,17 +187,17 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.search_rounded, size: 13, color: Color(0xFF94A3B8)),
+                  Icon(Icons.search_rounded, size: 13, color: _muted),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
                       st.xrTab ? '搜词条' : '搜本书',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF94A3B8),
+                        color: _muted,
                       ),
                     ),
                   ),
@@ -230,7 +235,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded, size: 13, color: Color(0xFF94A3B8)),
+                Icon(Icons.search_rounded, size: 13, color: _muted),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
@@ -241,8 +246,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
                       hintText: widget.state.xrTab ? '搜词条' : '搜本书',
-                      hintStyle: const TextStyle(
-                          fontSize: 12, color: Color(0xFF94A3B8)),
+                      hintStyle: TextStyle(
+                          fontSize: 12, color: _muted),
                       border: InputBorder.none,
                     ),
                     onChanged: (v) {
@@ -260,8 +265,8 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                         _hits = const [];
                       });
                     },
-                    child: const Icon(Icons.cancel_rounded,
-                        size: 15, color: Color(0xFF94A3B8)),
+                    child: Icon(Icons.cancel_rounded,
+                        size: 15, color: _muted),
                   ),
               ],
             ),
@@ -272,11 +277,11 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
           key: const ValueKey('xrHdrCancel'),
           behavior: HitTestBehavior.opaque,
           onTap: _searchExit,
-          child: const Padding(
+          child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             child: Text(
               '取消',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _muted),
             ),
           ),
         ),
@@ -322,7 +327,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
-            color: on ? _accent : const Color(0xFF94A3B8),
+            color: on ? _accent : _muted,
           ),
         ),
       ),
@@ -436,7 +441,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
         ),
         child: Row(
           children: [
-            const Text(
+            Text(
               '‹ 回到刚才在读 ·',
               style: TextStyle(
                 fontSize: 11,
@@ -451,7 +456,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                 key: const ValueKey('brDrBackLbl'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                   color: _accent,
@@ -506,10 +511,10 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                             horizontal: 6, vertical: 4),
                         child: Text(
                           _allFolded ? '全部展开' : '全部折叠',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF94A3B8),
+                            color: _muted,
                           ),
                         ),
                       ),
@@ -653,18 +658,18 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                 h.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF94A3B8),
+                  color: _muted,
                 ),
               ),
             ),
             Text(
               '${h.count}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 9,
-                color: Color(0xFFCBD5E1),
+                color: _muted,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
@@ -766,7 +771,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                       children: [
                         Text(
                           '当前读到 · $pct%',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
                             color: _accent,
@@ -790,7 +795,7 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
                                 color: _accent.withValues(alpha: .35),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               '添加书签',
                               style: TextStyle(
                                 fontSize: 9,

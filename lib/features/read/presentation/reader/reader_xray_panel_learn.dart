@@ -11,9 +11,9 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
       key: ValueKey('xrSug-${sug.word}'),
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       decoration: BoxDecoration(
-        color: _XrStyle.accent.withValues(alpha: .07),
+        color: _XrStyle.accent(context).withValues(alpha: .07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _XrStyle.accent.withValues(alpha: .35)),
+        border: Border.all(color: _XrStyle.accent(context).withValues(alpha: .35)),
       ),
       child: Row(
         children: [
@@ -36,11 +36,11 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
               sched.dismissSuggestion(widget.book.id);
               if (mounted) readToast(context, '已采纳进全局词库');
             },
-            child: const Text('采纳',
+            child: Text('采纳',
                 style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
-                    color: _XrStyle.accent)),
+                    color: _XrStyle.accent(context))),
           ),
         ],
       ),
@@ -61,7 +61,7 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
       child: Row(
         children: [
           Text('已选 ${selected.length} 条',
-              style: const TextStyle(fontSize: 10, color: _XrStyle.muted)),
+              style: TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
           const Spacer(),
           TextButton(
             key: const ValueKey('xrOrgExit'),
@@ -74,7 +74,7 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
           ),
           const SizedBox(width: 6),
           _orgAction('xrOrgMerge', '合并', selected.length >= 2,
-              const Color(0xFF6366F1), () async {
+              context.tokens.accent, () async {
             if (selected.length < 2) return;
             final into = selected.first;
             await sched.dao.mergeInto(md5,
@@ -161,11 +161,11 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
                         '已并入「${e.name}」· 出场归属已迁移');
                   }
                 },
-                child: const Text('并入当前词条',
+                child: Text('并入当前词条',
                     style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
-                        color: _XrStyle.accent)),
+                        color: _XrStyle.accent(context))),
               ),
             ],
           ),
@@ -210,8 +210,8 @@ extension _XrPanelLearn on _ReaderXrayPanelState {
         ),
         child: Row(
           children: [
-            const Text('AI 释义 · 二期',
-                style: TextStyle(fontSize: 10, color: _XrStyle.muted)),
+            Text('AI 释义 · 二期',
+                style: TextStyle(fontSize: 10, color: _XrStyle.muted(context))),
             const Spacer(),
             if ((e.aiDesc ?? '').isEmpty)
               const Text('暂未生成',
