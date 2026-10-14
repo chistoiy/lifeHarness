@@ -172,22 +172,37 @@ if cr.returncode != 0:
 # ---- 治理三轮（2026-10-13）可移植规则系统五条守护 ----
 # 依据＝docs/archive/治理方案-20261013-规则与上下文与记忆治理.md §6；回灌成句＝
 # 「机器只认一份入口（AGENTS.md）；一条规则只在一处定义，其余写指针」。
+# ---- 体量闸 ＋ 黄线（2026-10-14「文档体量治理」；口径＝AGENTS.md 同名条文）----
+# ① 黄线＝上限 90%：只警告不红，但收尾须顺手动一次瘦身、或在本批变更日志写明不瘦的理由；
+# ② 棘轮：每次瘦身后把上限下调到「瘦身后实测 ×1.15」，只降不升（本次＝2026-10-14 首次瘦身）。
+# 例外＝AGENTS.md 是「规则型」件（红线＝Codex 注入余量的一半，非堆积）⇒ 不设黄线，
+#        往它里面加内容一律「净零改写」（加一句删等量）。
+y = []                              # 黄灯（只警告，不改 exit code）
+def _gate(label, path, size, maxb, yellow=True):
+    if size > maxb:
+        g.append("%s：%s %d 字节超上限 %d（须归档瘦身；放宽须人审改常量并写理由）"
+                 % (label, path, size, maxb))
+    elif yellow and size > maxb * 0.9:
+        y.append("%s：%s %d 字节已达上限 %d 的 %.0f%%（黄线 90%%）——收尾须顺手动一次瘦身，"
+                 "或在本批变更日志写明不瘦的理由"
+                 % (label, path, size, maxb, 100.0 * size / maxb))
+
 # 十一) AGENTS.md 体量（超＝注入截断；放宽须人审改下列常量并在治理件写理由）
 AGENTS_BYTES_MAX = 16384            # 16 KiB（Codex project_doc_max_bytes 默认 32 KiB，留一半余量）
-_ab = os.path.getsize("AGENTS.md")
-if _ab > AGENTS_BYTES_MAX:
-    g.append("守护十一：AGENTS.md %d 字节超上限 %d（注入会被截断；须净零改写或归档）"
-             % (_ab, AGENTS_BYTES_MAX))
-# 十二/十三) 热点文档体量上限（二轮治理瘦身目标曾反弹；超上限须归档瘦身，放宽须人审）
-JIAOJIE_BYTES_MAX = 215040          # 210 KiB（当前约 196 KiB，留 append 变更日志余量）
-_jb = os.path.getsize("docs/交接文档.md")
-if _jb > JIAOJIE_BYTES_MAX:
-    g.append("守护十二：docs/交接文档.md %d 字节超上限 %d（须归档瘦身）" % (_jb, JIAOJIE_BYTES_MAX))
+_gate("守护十一", "AGENTS.md", os.path.getsize("AGENTS.md"), AGENTS_BYTES_MAX, yellow=False)
+# 十二) 交接文档（2026-10-14 首次瘦身＝正文变更日志改滚动窗口只留近 7 天：203140→149674 字节）
+JIAOJIE_BYTES_MAX = 172032          # 168 KiB（棘轮＝瘦身后 149674 × 1.15 取整；旧上限 210 KiB）
+_gate("守护十二", "docs/交接文档.md", os.path.getsize("docs/交接文档.md"), JIAOJIE_BYTES_MAX)
+# 十三) 需求清单（行数 + 字节双闸；字节闸＝2026-10-14 新增——防「行数没超但巨行把体积顶满」，
+#       该件实测平均 263 字节/行、最长 983 字符，纯行数闸根本看不见体积）
 REQ_LINES_MAX = 600                 # 当前 562 行
-_rl = sum(1 for _ in open("docs/需求清单.md", encoding="utf-8"))
+REQ_BYTES_MAX = 174080              # 170 KiB（棘轮＝2026-10-14 实测 148423 × 1.15 取整）
+_REQ = "docs/需求清单.md"
+_rl = sum(1 for _ in open(_REQ, encoding="utf-8"))
+_gate("守护十三", _REQ, os.path.getsize(_REQ), REQ_BYTES_MAX)
 if _rl > REQ_LINES_MAX:
-    g.append("守护十三：docs/需求清单.md %d 行超上限 %d（修订记录应进 archive/需求修订史-*.md）"
-             % (_rl, REQ_LINES_MAX))
+    g.append("守护十三：%s %d 行超上限 %d（修订记录应进 archive/需求修订史-*.md）"
+             % (_REQ, _rl, REQ_LINES_MAX))
 # 十四) 入仓文档禁出现 .workbuddy/ 路径（入仓文档指向不入仓路径＝换机即死链）
 #      豁免：行级 EXEMPT_LINE；`shots` 为仓库外截图留底目录（非知识指针）
 #      （原 治理方案件 文件级豁免已随该件 2026-10-13 收尾归档进 docs/archive/ 而移除——archive 被 skip 自动豁免）
@@ -214,11 +229,16 @@ BACKLOG_LINES_MAX = 120
 _bp = "docs/排期池.md"
 _bb = os.path.getsize(_bp)
 _bl = sum(1 for _ in open(_bp, encoding="utf-8"))
-if _bb > BACKLOG_BYTES_MAX:
-    g.append("守护十六：%s %d 字节超上限 %d（本件只该装「一件一行」的候选索引；"
-             "历史流水进 docs/archive/、条详情进 docs/handoff/）" % (_bp, _bb, BACKLOG_BYTES_MAX))
+_gate("守护十六", _bp, _bb, BACKLOG_BYTES_MAX)
 if _bl > BACKLOG_LINES_MAX:
-    g.append("守护十六：%s %d 行超上限 %d" % (_bp, _bl, BACKLOG_LINES_MAX))
+    g.append("守护十六：%s %d 行超上限 %d（本件只该装「一件一行」的候选索引；"
+             "历史流水进 docs/archive/、条详情进 docs/handoff/）" % (_bp, _bl, BACKLOG_LINES_MAX))
+# 十七) 开发计划书体量上限（2026-10-14 新增：本件此前**无任何闸**——「不会被提醒的件才是真隐患」，
+#       它 60 KB 且每轮收口都在长（测试口径/流水线细则先写这里），自 2026-09-25 起无人拦。）
+PLAN_BYTES_MAX = 71680              # 70 KiB（棘轮＝2026-10-14 实测 60202 × 1.15 取整）
+_gate("守护十七", "docs/开发计划书.md", os.path.getsize("docs/开发计划书.md"), PLAN_BYTES_MAX)
+for x in y:
+    print("体量黄灯（达上限 90%）: " + x)
 if g:
     print(f"守护红灯 {len(g)} 处:")
     for x in g:
@@ -255,4 +275,4 @@ try:
         sys.exit(1)
 except FileNotFoundError:
     print("WARN 未找到 node，T13 档③ 闸跳过")
-print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板/体量上限/禁指工具目录/必需小节/排期池体量）")
+print("PASS 零死链 + 守护全绿（工单落位/INDEX覆盖/需求清单/交接长行/三件套预算/执行面板/体量上限＋黄线/禁指工具目录/必需小节/排期池体量/计划书体量）")
