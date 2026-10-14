@@ -16,6 +16,7 @@ import 'package:lifeharness/core/database/schema.dart';
 import 'package:lifeharness/core/providers.dart';
 import 'package:lifeharness/core/platform/saf_tree.dart';
 import 'package:lifeharness/features/settings/presentation/export_sheet.dart';
+import 'package:lifeharness/shared/widgets/lh_wheel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -50,7 +51,32 @@ class _FakeBackupService extends BackupService {
   bool? lastWithProjection;
   bool? lastWithMd;
   bool? lastWithAttachments;
+  ({DateTime from, DateTime to})? lastTimeRange;
   Object? exportError;
+
+  /// 与面板同一条 db 通道取句柄（内存库按 singleInstance 全组共享，
+  /// 测试里另开连接会拿到无 schema 的裸库并弄挂后续用例——见 seed()）。
+  Future<Database> handle() => _db();
+
+  /// 往共享内存库塞种子行（幂等：表已存在则补建表；主键已存在则跳过插入——
+  /// 内存库全组共享，用例间重复 seed 同一主键会撞唯一约束）。
+  Future<void> seed(String table, Map<String, Object?> row) async {
+    final d = await handle();
+    final tables = (await d.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        [table]));
+    if (tables.isEmpty) {
+      for (final sql in DbSchema.createStatements) {
+        await d.execute(sql);
+      }
+    }
+    if (row.containsKey('id')) {
+      final hit = await d.query(table,
+          where: 'id=?', whereArgs: [row['id']], limit: 1);
+      if (hit.isNotEmpty) return;
+    }
+    await d.insert(table, row);
+  }
 
   @override
   Future<LhBakCreateResult> exportBackup({
@@ -64,6 +90,7 @@ class _FakeBackupService extends BackupService {
     List<String> modules = const [],
     bool withProjection = false,
     bool withMd = true,
+    ({DateTime from, DateTime to})? timeRange,
   }) async {
     exportCalls++;
     if (exportError != null) throw exportError!;
@@ -71,6 +98,7 @@ class _FakeBackupService extends BackupService {
     lastWithProjection = withProjection;
     lastWithMd = withMd;
     lastWithAttachments = withAttachments;
+    lastTimeRange = timeRange;
     return LhBakCreateResult(
         File('/fake/lifeharness_20261013_120000.lhbak'), buildManifest());
   }
@@ -109,6 +137,9 @@ void main() {
   });
 
   Future<void> pumpSheet(WidgetTester tester) async {
+    // 余量批3 起面板多了「②时间」段，默认 800×600 视口下主钮溢出屏幕
+    // （tap 落在视口外）。按 helpers 惯例加高视口，不缩面板。
+    await useSurface(tester, const Size(800, 2400));
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -195,15 +226,88 @@ void main() {
     expect(find.byKey(const ValueKey('ex-scope-warn')), findsNothing);
   });
 
+  group('② 时间维度（余量批3）', () {
+    testWidgets('默认＝「全部」：timeRange 透传 null，摘要行不带时间字样',
+        (tester) async {
+      await tester.runAsync(() async {
+        // 与 fake 同一份建库口径（带 schema onCreate）：内存库按
+        // singleInstance 全组共享，谁先开谁定型——裸开会留下无表实例
+        // 并连带弄挂后续用例（books 表不存在）。
+        await fake.seed(DbSchema.tBooks,
+            {'id': 'b1', 'title': '书', 'created_at': 0, 'updated_at': 0});
+      });
+      await pumpSheet(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-chip-read')));
+      await settle5(tester);
+      await flush(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-go')));
+      await pollText(tester, '已导出：lifeharness_20261013_120000.lhbak');
+      expect(fake.lastTimeRange, isNull, reason: '全部档不施加时间过滤');
+      await clearToasts(tester);
+    });
+
+    testWidgets('切「近 1 年」：timeRange 透传闭区间，摘要行出现时间字样',
+        (tester) async {
+      await tester.runAsync(() async {
+        await fake.seed(DbSchema.tBooks,
+            {'id': 'b2', 'title': '书', 'created_at': 0, 'updated_at': 0});
+      });
+      await pumpSheet(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-chip-read')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-time-y1')));
+      await settle5(tester);
+      await flush(tester);
+      expect(find.textContaining('近 1 年'), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('ex-go')));
+      await pollText(tester, '已导出：lifeharness_20261013_120000.lhbak');
+      final r = fake.lastTimeRange!;
+      expect(r.from.hour, 0);
+      expect(r.from.minute, 0);
+      expect(r.to.hour, 23);
+      expect(r.to.minute, 59);
+      expect(r.to.second, 59);
+      expect(r.to.millisecond, 999);
+      await clearToasts(tester);
+    });
+
+    testWidgets('选 AI 记录 + 非全部档：出「无时间字段」实话提示行', (tester) async {
+      await pumpSheet(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-chip-ai')));
+      await settle5(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-time-y3')));
+      await settle5(tester);
+      await flush(tester);
+      final note = tester.widget<Text>(
+          find.byKey(const ValueKey('ex-time-note')));
+      expect(note.data, contains('AI 记录'));
+      expect(note.data, contains('不按时间筛选'));
+    });
+
+    testWidgets('自定义档起止滚轮可见（禁两段式弹层），非法区间钮禁用',
+        (tester) async {
+      await pumpSheet(tester);
+      await tester.tap(find.byKey(const ValueKey('ex-time-custom')));
+      await settle5(tester);
+      // 六列滚轮（起止各年月日）就地内嵌——LHWheel 项是懒构建的，
+      // 按 keyPrefix 逐项定位不稳，改按控件计数 + 起止标题断言。
+      expect(find.byType(LHWheel), findsNWidgets(6));
+      expect(find.text('起'), findsOneWidget);
+      expect(find.text('止'), findsOneWidget);
+      // 默认 _from = 今天-365d、_to = 今天 → 合法，钮文案不是拦态。
+      expect(find.text('请选起止时间'), findsNothing);
+      await flush(tester);
+    });
+  });
+
   testWidgets('主钮放量：modules/withProjection/withMd 透传，导出后收面板',
       (tester) async {
-    // 阅读模块先有数据（内存库 singleInstance 跨连接共享）——空态会禁用主钮。
-    // ffi 是真异步 isolate：seed 必须包 runAsync，否则 FakeAsync 里永久挂起
-    // 且堵死共享连接队列（连带后续用例的预估查询全部无响应）。
+    // 阅读模块先有数据——空态会禁用主钮。走 fake 的同一条 db 通道 seed：
+    // 内存库按 singleInstance 全组共享，另开裸连接会拿到无 schema 的库
+    // （谁先开谁定型，用例顺序一变就炸）。ffi 是真异步 isolate：seed 必须包
+    // runAsync，否则 FakeAsync 里永久挂起且堵死共享连接队列。
     await tester.runAsync(() async {
-      final seed =
-          await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
-      await seed.insert(DbSchema.tBooks,
+      await fake.seed(DbSchema.tBooks,
           {'id': 'b1', 'title': '书', 'created_at': 0, 'updated_at': 0});
     });
     await pumpSheet(tester);
@@ -254,6 +358,7 @@ void main() {
 
   group('④ 导出位置（V1.66 装机回知批·原型同步）', () {
     Future<void> pumpSheetWith(WidgetTester tester, _FakeBackupService svc) async {
+      await useSurface(tester, const Size(800, 2400));
       final prefs = await SharedPreferences.getInstance();
       await tester.pumpWidget(ProviderScope(
         overrides: [

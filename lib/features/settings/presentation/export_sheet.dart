@@ -24,6 +24,7 @@ import '../../../core/settings/settings_repository.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/linkage/backup_read_export.dart';
 import '../../../shared/linkage/export_units.dart';
+import '../../../shared/widgets/lh_wheel.dart';
 import '../../../shared/widgets/ui_kit.dart';
 
 /// 打开「导出数据」弹层。[withLogs] 由调用方（备份半屏的日志勾选）透传。
@@ -46,6 +47,10 @@ class ExportSheet extends ConsumerStatefulWidget {
   ConsumerState<ExportSheet> createState() => _ExportSheetState();
 }
 
+/// 面板警示色（全仓既有琥珀 `0xFFB45309`，UI组件规范〇B 同语义色同源：
+/// 散成多枚字面量既撞色值棘轮，也迟早走偏）。
+const Color _amber = Color(0xFFB45309);
+
 class _ExportSheetState extends ConsumerState<ExportSheet> {
   final Set<String> _modules = {}; // 空 = 全部数据
   bool _assets = true;
@@ -53,11 +58,62 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
   String _fmt = 'lhbak';
   bool _busy = false;
 
+  // ---- 余量批3 · 时间维度（产品拍板 2026-10-15 A2 四档）----
+  /// `all` / `y1` / `y3` / `custom`；`all` 不筛也不写 manifest.scope。
+  String _time = 'all';
+  DateTime _from = DateTime.now().subtract(const Duration(days: 365));
+  DateTime _to = DateTime.now();
+
   /// 预估缓存（进弹层算一次；切模块/开关重算——COUNT 全表 sqlite 毫秒级）。
   ({int bytes, bool empty})? _estimate;
 
   bool get _all => _modules.isEmpty;
   bool get _mdAvailable => exportMdAvailable(_modules);
+
+  // ---- 时间维度派生 ----
+
+  /// 解析后的闭区间（起 00:00:00.000 止 23:59:59.999，含端点）。
+  /// **null ≠ 非法**：「全部」档也返回 null（＝不施加任何时间过滤，合法）；
+  /// 自定义档止早于起才是真非法，由 [_timeBlocked] 单独判（两者语义不可混：
+  /// 混了会把默认态的主钮误禁掉）。
+  ({DateTime from, DateTime to})? get _range {
+    if (_time == 'all') return null;
+    final now = DateTime.now();
+    final r = switch (_time) {
+      'y1' => (
+          from: DateTime(now.year - 1, now.month, now.day),
+          to: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
+        ),
+      'y3' => (
+          from: DateTime(now.year - 3, now.month, now.day),
+          to: DateTime(now.year, now.month, now.day, 23, 59, 59, 999),
+        ),
+      _ => null,
+    };
+    if (r != null) return r;
+    if (_timeBlocked) return null;
+    return (
+      from: DateTime(_from.year, _from.month, _from.day),
+      to: DateTime(_to.year, _to.month, _to.day, 23, 59, 59, 999),
+    );
+  }
+
+  /// 自定义档止日期早于起日期＝区间非法（主钮禁用并出琥珀提示）。
+  bool get _timeBlocked => _time == 'custom' && _to.isBefore(_from);
+
+  /// 所选范围里不可按时间筛选的单元（原型 EX_NOTIME 口径：明说而非静默忽略）。
+  List<String> get _unfilterable => _time == 'all'
+      ? const []
+      : exportTimeUnfilterableLabels(_modules);
+
+  String get _timeLabel {
+    if (_time == 'all') return '';
+    if (_time == 'y1') return '近 1 年';
+    if (_time == 'y3') return '近 3 年';
+    String d(DateTime x) =>
+        '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+    return '${d(_from)} ~ ${d(_to)}';
+  }
 
   @override
   void initState() {
@@ -97,7 +153,11 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
         } catch (_) {}
       }
       var empty = false;
-      if (!_all) {
+      final range = _range;
+      final timeTables = range == null
+          ? const <String, ExportTimeFilter>{}
+          : exportTimeFilters(_modules, from: range.from, to: range.to);
+      if (!_all || range != null) {
         final tables = exportTablesForModules(_modules);
         // 分母只数实包会装的表（恒排除表不计），比例才不被可再生表稀释。
         final excluded = svc.estimateExcludedTables().toSet();
@@ -109,8 +169,22 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
         for (final r in live) {
           final t = r['name'] as String;
           if (excluded.contains(t)) continue;
-          final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM "$t"');
-          final c = rows.isEmpty ? 0 : (rows.first['c'] as int? ?? 0);
+          // 余量批3：命中时间谓词的表改走 COUNT(谓词)——行数占比才是真占比。
+          final filt = timeTables[t];
+          var c = 0;
+          if (filt == null) {
+            final rows = await db.rawQuery('SELECT COUNT(*) AS c FROM "$t"');
+            c = rows.isEmpty ? 0 : (rows.first['c'] as int? ?? 0);
+          } else {
+            try {
+              final rows = await db.rawQuery(
+                  'SELECT COUNT(*) AS c FROM "$t" WHERE ${filt.whereSql}',
+                  filt.args);
+              c = rows.isEmpty ? 0 : (rows.first['c'] as int? ?? 0);
+            } catch (_) {
+              c = 0;
+            }
+          }
           totalRows += c;
           if (tables.contains(t)) selected += c;
         }
@@ -138,6 +212,127 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
 
   String get _summaryLabel => _all ? '全部数据' : '${_modules.length} 模块';
 
+  /// 时间段提示行：自定义档起止颠倒时出琥珀警示；否则若范围里有不可筛
+  /// 单元（AI 记录）出灰字明说——**明说而非静默忽略**（原型 EX_NOTIME）。
+  String? get _timeNote {
+    if (_time == 'all') return null;
+    if (_timeBlocked) return '起止时间不合法（止日期须不早于起日期）';
+    if (_unfilterable.isEmpty) return null;
+    return '${_unfilterable.join('、')} 无时间字段，不按时间筛选';
+  }
+
+  /// 自定义区间就地滚轮（红线：时间输入禁两段式弹层）。
+  Widget _customRange() {
+    final now = DateTime.now();
+    final years = List.generate(12, (i) => '${now.year - 10 + i}');
+    final months = List.generate(12, (i) => '${i + 1}'.padLeft(2, '0'));
+    final days = List.generate(31, (i) => '${i + 1}'.padLeft(2, '0'));
+    Widget col(String label, List<String> labels, int value, String prefix,
+            void Function(int) onSel) =>
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 9.5, color: Colors.grey, fontWeight: FontWeight.w700)),
+              SizedBox(
+                height: 96,
+                child: LHWheel(
+                  labels: labels,
+                  initialIndex: value.clamp(0, labels.length - 1),
+                  keyPrefix: prefix,
+                  height: 96,
+                  itemExtent: 26,
+                  onSelect: onSel,
+                ),
+              ),
+            ],
+          ),
+        );
+    return Container(
+      key: const ValueKey('ex-time-custom'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      decoration: BoxDecoration(
+        color: context.tokens.g1,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('起',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w700)),
+                Row(children: [
+                  col('年', years, years.indexOf('${_from.year}'), 'ex-from-y',
+                      (i) => _setFrom(years[i], null, null)),
+                  col('月', months, _from.month - 1, 'ex-from-m',
+                      (i) => _setFrom(null, months[i], null)),
+                  col('日', days, _from.day - 1, 'ex-from-d',
+                      (i) => _setFrom(null, null, days[i])),
+                ]),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 26),
+            child: Text('→',
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('止',
+                    style: TextStyle(
+                        fontSize: 9.5,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w700)),
+                Row(children: [
+                  col('年', years, years.indexOf('${_to.year}'), 'ex-to-y',
+                      (i) => _setTo(years[i], null, null)),
+                  col('月', months, _to.month - 1, 'ex-to-m',
+                      (i) => _setTo(null, months[i], null)),
+                  col('日', days, _to.day - 1, 'ex-to-d',
+                      (i) => _setTo(null, null, days[i])),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _setFrom(String? y, String? m, String? d) {
+    setState(() {
+      _from = DateTime(
+          int.tryParse(y ?? '${_from.year}') ?? _from.year,
+          int.tryParse(m ?? '${_from.month}') ?? _from.month,
+          int.tryParse(d ?? '${_from.day}') ?? _from.day,
+          _from.hour, _from.minute);
+    });
+    _reestimate();
+  }
+
+  void _setTo(String? y, String? m, String? d) {
+    setState(() {
+      _to = DateTime(
+          int.tryParse(y ?? '${_to.year}') ?? _to.year,
+          int.tryParse(m ?? '${_to.month}') ?? _to.month,
+          int.tryParse(d ?? '${_to.day}') ?? _to.day,
+          _to.hour, _to.minute);
+    });
+    _reestimate();
+  }
+
   /// 导出位置：系统目录树选择（持久授权），选择后导出直达该目录。
   Future<void> _pickLoc() async {
     final uri = await safPickTree();
@@ -158,6 +353,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
           modules: _modules.toList(),
           withProjection: true,
           withMd: _md && _mdAvailable,
+          timeRange: _range,
         );
         var line = '已导出：${p.basename(res.file.path)}';
         // 设了导出位置＝导出直达：包拷入持久 SAF 目录树（应用目录原包保留）。
@@ -199,6 +395,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
           settingsMap:
               SettingsRepository(ref.read(sharedPreferencesProvider))
                   .exportAll(),
+          timeRange: _range,
         );
         if (mounted) {
           AppToast.show(context,
@@ -290,7 +487,45 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
             Text(_all ? '全部模块' : '已选 ${_modules.length} 个模块',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
             const SizedBox(height: 12),
-            // ---- ② 内容 ----
+            // ---- ② 时间（余量批3）----
+            const Text('时间',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final t in const [
+                  ('all', '全部'),
+                  ('y1', '近 1 年'),
+                  ('y3', '近 3 年'),
+                  ('custom', '自定义'),
+                ])
+                  _chip(
+                      key: 'ex-time-${t.$1}',
+                      label: t.$2,
+                      on: _time == t.$1,
+                      onTap: () {
+                        setState(() => _time = t.$1);
+                        _reestimate();
+                      }),
+              ],
+            ),
+            if (_time == 'custom') ...[
+              const SizedBox(height: 8),
+              _customRange(),
+            ],
+            if (_timeNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_timeNote!,
+                    key: const ValueKey('ex-time-note'),
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color: _timeBlocked ? _amber : Colors.grey)),
+              ),
+            const SizedBox(height: 12),
+            // ---- ③ 内容 ----
             const Text('内容',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
             SwitchListTile(
@@ -315,7 +550,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                   style: TextStyle(fontSize: 10.5)),
             ),
             const SizedBox(height: 8),
-            // ---- ③ 格式 ----
+            // ---- ④ 格式 ----
             const Text('格式',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
@@ -343,11 +578,11 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                   ),
                   child: const Text('子集包暂不能直接恢复，仅作数据出口',
                       style:
-                          TextStyle(fontSize: 11.5, color: Color(0xFFB45309))),
+                          TextStyle(fontSize: 11.5, color: _amber)),
                 ),
               ),
             const SizedBox(height: 14),
-            // ---- ④ 导出位置（V1.66 装机回知批·原型同步）----
+            // ---- ⑤ 导出位置（V1.66 装机回知批·原型同步）----
             const Text('导出位置',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
@@ -383,7 +618,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            // ---- ④ 底栏 ----
+            // ---- 底栏 ----
             Row(
               children: [
                 Expanded(
@@ -392,7 +627,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                         ? '正在导出…'
                         : empty
                             ? '所选范围暂无数据'
-                            : '$_summaryLabel$_sizeLine',
+                            : '$_summaryLabel${_timeLabel.isEmpty ? '' : ' · $_timeLabel'}$_sizeLine',
                     style: TextStyle(
                         fontSize: 12,
                         color: empty ? Colors.grey : null,
@@ -401,12 +636,14 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
                 ),
                 FilledButton(
                   key: const ValueKey('ex-go'),
-                  onPressed: _busy || empty ? null : _doExport,
+                  onPressed: _busy || empty || _timeBlocked ? null : _doExport,
                   child: Text(_busy
                       ? '正在导出…'
-                      : _all && _fmt == 'lhbak'
-                          ? '导出备份'
-                          : '导出'),
+                      : _timeBlocked
+                          ? '请选起止时间'
+                          : _all && _fmt == 'lhbak'
+                              ? '导出备份'
+                              : '导出'),
                 ),
               ],
             ),

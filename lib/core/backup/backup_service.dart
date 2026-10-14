@@ -233,6 +233,7 @@ class BackupService {
     List<String> modules = const [],
     bool withProjection = false,
     bool withMd = true,
+    ({DateTime from, DateTime to})? timeRange,
   }) async {
     // L1 日志批：备份导出全程可查（成功=key 带终名与表数；失败=error 带成因）。
     try {
@@ -305,6 +306,16 @@ class BackupService {
           }
         }
       }
+      // 余量批3 · 时间维度：按 export_units 的逐表谓词在**快照内**删行。
+      // 全量（timeRange == null）时不生成任何谓词，也不写 scope 段
+      // （与批1/批2 产出的全量包逐字节同口径）。
+      final timeFilters = timeRange == null
+          ? const <String, ExportTimeFilter>{}
+          : exportTimeFilters(
+              modules,
+              from: timeRange.from,
+              to: timeRange.to,
+            );
       var res = await LhBak.create(
         db: database,
         outDirPath: out,
@@ -314,6 +325,21 @@ class BackupService {
         excludeTables: effExcludes,
         passphrase: passphrase,
         extraFiles: extraFiles,
+        rowFilters: {
+          for (final e in timeFilters.entries)
+            e.key: (whereSql: e.value.whereSql, args: e.value.args),
+        },
+        scope: (modules.isEmpty && timeRange == null)
+            ? null
+            : <String, dynamic>{
+                'modules': modules.toList(),
+                if (timeRange != null) ...{
+                  'from': timeRange.from.toIso8601String(),
+                  'to': timeRange.to.toIso8601String(),
+                  'timeFilteredTables': timeFilters.keys.toList()..sort(),
+                },
+                'withAttachments': withAttachments,
+              },
       );
       if (nameTag != null && nameTag.isNotEmpty) {
         final base = p.basename(res.file.path);
@@ -333,6 +359,7 @@ class BackupService {
         '备份导出成功：${p.basename(res.file.path)} · 表 ${res.manifest.tables.length} 张'
         '${effExcludes.isNotEmpty ? ' · 排除 ${effExcludes.length} 张' : ''}'
         '${modules.isNotEmpty ? ' · 范围 ${modules.join("+")}' : ''}'
+        '${timeRange != null ? ' · 时间 ${_fmtDay(timeRange.from)}~${_fmtDay(timeRange.to)}（筛 ${timeFilters.length} 表）' : ''}'
         '${extraFiles.isNotEmpty ? ' · 可读成员 ${extraFiles.length}' : ''}'
         '${passphrase != null ? ' · 口令加密' : ''}',
       );
@@ -343,6 +370,10 @@ class BackupService {
       rethrow;
     }
   }
+
+  /// 日志用日期格式化（`YYYY-MM-DD`，本地时区）。
+  static String _fmtDay(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   /// 活库实表 − [keep] ＝ 子集导出的排除清单（`sqlite_%` 内部表不在扫描面）。
   Future<List<String>> _liveTablesMinus(Database database, Set<String> keep) async {

@@ -1586,8 +1586,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 10191,
-          "hash": "7d8a1f8f"
+          "size": 12272,
+          "hash": "a55fd7aa"
         }
       }
     },
@@ -4185,8 +4185,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 2817,
-          "hash": "56c2bd28"
+          "size": 4898,
+          "hash": "1f6a36c2"
         }
       }
     },

@@ -131,6 +131,7 @@ class LhBakManifest {
     this.missingTables = const [],
     this.kdf,
     this.skippedLarge,
+    this.scope,
   });
 
   int dbVersion;
@@ -164,6 +165,11 @@ class LhBakManifest {
   /// 的表——unpack 会按当前 schema 建空表并在恢复报告中列出。
   List<String> missingTables;
 
+  /// **导出范围自描述**（余量批3 · 评估件 §8.6·5）：本包是全量还是子集。
+  /// 批3 只写不读；批4（部分恢复）据此分流「整库替换 vs 按模块整组替换」。
+  /// null ＝ 老包或全量包（恢复侧按全量处理，向后兼容）。
+  Map<String, dynamic>? scope;
+
   Map<String, dynamic> toJson() => {
         'dbVersion': dbVersion,
         'appVersion': appVersion,
@@ -175,6 +181,7 @@ class LhBakManifest {
         'members': members,
         if (kdf != null) 'kdf': kdf,
         if (skippedLarge != null) 'skippedLarge': skippedLarge,
+        if (scope != null) 'scope': scope,
       };
 
   factory LhBakManifest.fromJson(Map<String, dynamic> json) {
@@ -207,6 +214,11 @@ class LhBakManifest {
     if (skippedLarge != null && skippedLarge is! List) {
       throw const FormatException('manifest.skippedLarge 类型错误');
     }
+    // 余量批3：scope 段可选（老包/全量包无此段 → null＝按全量处理）。
+    final scopeJson = json['scope'];
+    if (scopeJson != null && scopeJson is! Map<String, dynamic>) {
+      throw const FormatException('manifest.scope 类型错误');
+    }
     return LhBakManifest(
       dbVersion: dbVersion,
       appVersion: appVersion,
@@ -222,6 +234,9 @@ class LhBakManifest {
       kdf: kdf == null ? null : Map<String, Object>.from(kdf),
       skippedLarge:
           skippedLarge == null ? null : (skippedLarge as List).cast<String>().toList(),
+      scope: scopeJson == null
+          ? null
+          : Map<String, dynamic>.from(scopeJson as Map),
     );
   }
 }
@@ -304,6 +319,8 @@ class LhBak {
     int maxEncryptBytes = kMaxEncryptBytes,
     Map<String, String> extraFiles = const {},
     DateTime? now,
+    Map<String, dynamic>? scope,
+    Map<String, ({String whereSql, List<Object> args})> rowFilters = const {},
   }) async {
     final encrypted = passphrase != null;
     final ts = now ?? DateTime.now();
@@ -325,10 +342,26 @@ class LhBak {
         for (final t in excluded) {
           await snap.execute('DROP TABLE IF EXISTS "$t"');
         }
+        // 余量批3 · 时间维度：在**快照内**按谓词删行（不碰活库）。
+        // 顺序＝先按父表筛（根表）再筛子表，子表谓词是子查询，删父行后
+        // 子查询自然不再命中，故本实现对表序无要求（声明序即可）。
+        var filteredAny = false;
+        for (final e in rowFilters.entries) {
+          final t = e.key;
+          if (excluded.contains(t)) continue; // 已被排除的表不再筛
+          final exists = await snap.rawQuery(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+              [t]);
+          if (exists.isEmpty) continue; // 老库缺该表 → 跳过，不报错
+          final f = e.value;
+          // 谓词里的 ? 与 args 顺序由 export_units 保证对齐，直接绑定。
+          await snap.rawDelete('DELETE FROM "$t" WHERE ${f.whereSql}', f.args);
+          filteredAny = true;
+        }
         // V1.66 装机回知批：DROP 只把页挂 freelist、文件字节不缩，被剔表的
         // 陈旧数据仍留在快照里白占包体（真机 37MB 库实证）——补 VACUUM 收净，
         // 包体＝真实在包内容（measureIncludedDbBytes 预估与本处同口径镜像）。
-        if (excluded.isNotEmpty) {
+        if (excluded.isNotEmpty || filteredAny) {
           await snap.execute('VACUUM');
         }
         for (final t in (await _tableNames(snap))) {
@@ -354,6 +387,7 @@ class LhBak {
             'createdAtIso': ts.toIso8601String(),
             'excludedTables': excluded,
             'extraFiles': extraFiles,
+            'scope': scope,
             'tables': {
               for (final e in tables.entries)
                 e.key: <Object>[e.value.rows, e.value.checksum],
@@ -875,6 +909,8 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
   final excluded = (req['excludedTables'] as List).cast<String>();
   final extraFiles =
       (req['extraFiles'] as Map?)?.cast<String, String>() ?? const {};
+  // 余量批3：导出范围自描述段（老包/全量包为 null → manifest 不写该键）。
+  final scope = (req['scope'] as Map?)?.cast<String, dynamic>();
   final tablesRaw = req['tables'] as Map;
   final tables = <String, TableStat>{
     for (final e in tablesRaw.entries)
@@ -957,6 +993,7 @@ Future<String> _packInIsolate(Map<String, Object?> req) async {
           }
         : null,
     skippedLarge: skippedLarge.isEmpty ? null : skippedLarge,
+    scope: scope,
   );
 
   // zip 落盘（明文大文件成员走 InputFileStream 流式；密文成员整读

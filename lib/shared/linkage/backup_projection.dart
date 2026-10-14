@@ -22,6 +22,7 @@ import '../../features/journal/domain/journal_entry.dart';
 import '../../features/journal/domain/note.dart';
 import '../../features/journal/presentation/note_export.dart'
     show noteToMarkdown; // Delta→md 单源复用（私有 _deltaToMd 的公开门面）
+import 'export_units.dart' show ExportTimeFilter;
 
 /// md 本地图片语法（与 note_export 同式；那边是私有，此处按同 regex 自持）。
 final RegExp _mdImgRe = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
@@ -106,12 +107,27 @@ String _noteToMd(Map<String, Object?> row, String folderName) {
 /// 生成包内 notes/ 投影成员（成员名 → 文本）。
 ///
 /// - [moduleIds] 空 = 全部数据（四类成员全生成）；非空按模块裁剪。
+/// - 余量批3 · 时间维度：[timeFilters] 非空时逐腿施加与 `.lhbak` 包
+///   **同源同谓词** 的时间 WHERE（否则包内 md 会比 db.sqlite 多出数据，
+///   「导出范围」这条承诺在同一份包内自相矛盾）。不在 map 里的表恒全量。
 /// - 任一腿查询/转换失败降级为跳过该成员并 warn（投影是只读增值件，
 ///   不许它把整个导出炸了——DB 与附件两条权威腿不受影响）。
 Future<Map<String, String>> buildNoteProjectionMembers(
   Database db, {
   required Set<String> moduleIds,
+  Map<String, ExportTimeFilter> timeFilters = const {},
 }) async {
+  Future<List<Map<String, Object?>>> read(String table,
+      {required String where, String? orderBy}) async {
+    final f = timeFilters[table];
+    if (f == null) return db.query(table, where: where, orderBy: orderBy);
+    return db.rawQuery(
+      'SELECT * FROM "$table" WHERE ($where) AND ${f.whereSql}'
+      '${orderBy == null ? '' : ' ORDER BY $orderBy'}',
+      f.args,
+    );
+  }
+
   final all = moduleIds.isEmpty;
   final wantJournal = all || moduleIds.contains('journal');
   final wantRead = all || moduleIds.contains('read');
@@ -121,11 +137,8 @@ Future<Map<String, String>> buildNoteProjectionMembers(
   if (wantJournal) {
     try {
       // 笔记（软删不投影；folder 列＝目录名 TEXT，直接用）。
-      final noteRows = await db.query(
-        DbSchema.tNotes,
-        where: 'deleted_at IS NULL',
-        orderBy: 'updated_at DESC',
-      );
+      final noteRows = await read(DbSchema.tNotes,
+          where: 'deleted_at IS NULL', orderBy: 'updated_at DESC');
       if (noteRows.isNotEmpty) {
         final sb = StringBuffer('# 笔记投影\n\n'
             '> 只读投影 · 恢复以 db.sqlite 为权威 · 共 ${noteRows.length} 篇\n\n');
@@ -139,7 +152,7 @@ Future<Map<String, String>> buildNoteProjectionMembers(
     }
     try {
       // 日记（含分节条目的渲染快照；软删不投影）。
-      final rows = await db.query(DbSchema.tJournal,
+      final rows = await read(DbSchema.tJournal,
           where: 'deleted_at IS NULL', orderBy: 'entry_date DESC, id DESC');
       if (rows.isNotEmpty) {
         final sb = StringBuffer('# 日记投影\n\n'
@@ -160,13 +173,14 @@ Future<Map<String, String>> buildNoteProjectionMembers(
 
   if (wantRead) {
     try {
+      final qf = timeFilters[DbSchema.tBookQuotes];
       final rows = await db.rawQuery('''
         SELECT q.*, b.title AS _book_title
         FROM ${DbSchema.tBookQuotes} q
         LEFT JOIN ${DbSchema.tBooks} b ON b.id = q.book_id
-        WHERE q.deleted_at IS NULL
+        WHERE q.deleted_at IS NULL${qf == null ? '' : ' AND ${qf.whereSql}'}
         ORDER BY b.title ASC, q.created_at ASC
-      ''');
+      ''', qf?.args ?? const []);
       if (rows.isNotEmpty) {
         final sb = StringBuffer('# 书摘投影\n\n'
             '> 只读投影 · 恢复以 db.sqlite 为权威 · 共 ${rows.length} 条\n\n');
@@ -201,10 +215,11 @@ Future<Map<String, String>> buildNoteProjectionMembers(
 
   if (wantMindmap) {
     try {
-      final maps = await db.query(DbSchema.tMindmaps,
+      final maps = await read(DbSchema.tMindmaps,
           where: 'deleted_at IS NULL', orderBy: 'updated_at DESC');
-      final nodes = await db.query(DbSchema.tMindmapNodes,
-          orderBy: 'map_id ASC, sort ASC, id ASC');
+      // 子表随主表走（谓词自带 map_id IN (…主表子查询)）。
+      final nodes = await read(DbSchema.tMindmapNodes,
+          where: '1=1', orderBy: 'map_id ASC, sort ASC, id ASC');
       if (maps.isNotEmpty) {
         final byMap = <int, List<Map<String, Object?>>>{};
         for (final n in nodes) {

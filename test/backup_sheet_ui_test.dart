@@ -93,6 +93,7 @@ class _FakeBackupService extends BackupService {
     List<String> modules = const [],
     bool withProjection = false,
     bool withMd = true,
+    ({DateTime from, DateTime to})? timeRange,
   }) async {
     exportCalls++;
     if (gate != null) await gate!.future;

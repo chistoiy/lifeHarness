@@ -24,7 +24,6 @@ import '../../core/database/schema.dart';
 import '../../core/database/schema/health.dart' as healthschema;
 import '../../core/logging/app_log.dart';
 import '../../features/health/data/health_repository.dart';
-import '../../features/health/domain/health_calc.dart' show dayKey;
 import '../../features/health/domain/health_export.dart'
     show writeHealthExportFile;
 import '../../features/ledger/data/ledger_repository.dart';
@@ -32,6 +31,9 @@ import '../../features/ledger/domain/ledger_export.dart'
     show writeLedgerExportFile;
 import 'backup_projection.dart';
 import 'export_units.dart';
+
+/// 日键本地别名（`export_units.dayKey` 与 health 域同名，避开歧义导入）。
+String exportDayKey(DateTime d) => dayKey(d);
 
 /// 可读目录导出报告（toast 汇总句的唯一文案源；失败必须出声）。
 class ReadableExportReport {
@@ -68,8 +70,21 @@ Future<ReadableExportReport> exportReadableTree({
   List<String> attachDirs = const [],
   Map<String, Object?>? settingsMap,
   DateTime? now,
+  /// 余量批3 · 时间维度：与 `.lhbak` 包**同源同谓词**（可读目录不得
+  /// 比包多出数据，否则「导出范围」这条承诺在两档格式下不一致）。
+  ({DateTime from, DateTime to})? timeRange,
 }) async {
   final ts = now ?? DateTime.now();
+  // 逐表谓词（恒全量表不在其中＝不施加任何 WHERE）。
+  final filters = timeRange == null
+      ? const <String, ExportTimeFilter>{}
+      : exportTimeFilters(moduleIds,
+          from: timeRange.from, to: timeRange.to);
+  Future<List<Map<String, Object?>>> readTable(String t) async {
+    final f = filters[t];
+    if (f == null) return db.query(t);
+    return db.rawQuery('SELECT * FROM "$t" WHERE ${f.whereSql}', f.args);
+  }
   try {
     Directory(outDir).createSync(recursive: true);
   } catch (e) {
@@ -96,7 +111,8 @@ Future<ReadableExportReport> exportReadableTree({
   // 2) notes/ md 投影（与包内同源；md 开关关＝跳过）。
   if (md) {
     try {
-      final members = await buildNoteProjectionMembers(db, moduleIds: moduleIds);
+      final members = await buildNoteProjectionMembers(db,
+          moduleIds: moduleIds, timeFilters: filters);
       for (final e in members.entries) {
         final f = File(p.join(outDir, p.joinAll(e.key.split('/'))));
         await f.create(recursive: true);
@@ -111,6 +127,10 @@ Future<ReadableExportReport> exportReadableTree({
   final all = moduleIds.isEmpty;
   final wantLedger = all || moduleIds.contains('ledger');
   final wantHealth = all || moduleIds.contains('health');
+
+  // 记账/健康投影的时间日界（`YYYY-MM-DD` 文本日闭区间，与包内 TEXT 日列同口径）。
+  final df = timeRange == null ? null : exportDayKey(timeRange.from);
+  final dt = timeRange == null ? null : exportDayKey(timeRange.to);
 
   // 3) 记账投影器（收编：逐账本复用 writeLedgerExportFile，csv+json）。
   // catName/acctName 预取成同步映射（writer 的回调是同步签名）。
@@ -136,8 +156,8 @@ Future<ReadableExportReport> exportReadableTree({
           final r = await writeLedgerExportFile(
             dir: dir,
             fmt: fmt,
-            fetchPage: (offset, limit) =>
-                repo.exportTxnsPage(bk, offset: offset, limit: limit),
+            fetchPage: (offset, limit) => repo.exportTxnsPage(bk,
+                offset: offset, limit: limit, dateFrom: df, dateTo: dt),
             catName: (id) =>
                 id == null ? '其他' : (catName[id] ?? '其他'),
             acctName: (id) => id == null ? '其他' : (acctName[id] ?? '其他'),
@@ -158,7 +178,8 @@ Future<ReadableExportReport> exportReadableTree({
       if (profiles.isNotEmpty) {
         final pid = profiles.first['id']! as int;
         final repo = HealthRepository(db);
-        final rows = await repo.exportRows(pid, '0000-01-01', dayKey(ts));
+        final rows =
+            await repo.exportRows(pid, df ?? '0000-01-01', dt ?? exportDayKey(ts));
         final dir = p.join(outDir, 'health');
         Directory(dir).createSync(recursive: true);
         for (final fmt in const ['csv', 'json']) {
@@ -184,7 +205,7 @@ Future<ReadableExportReport> exportReadableTree({
     if (u.id == 'ledger' || u.id == 'health') continue; // 走专属投影器
     for (final t in u.tables) {
       try {
-        final rows = await db.query(t);
+        final rows = await readTable(t);
         final f = File(p.join(outDir, 'data', u.id, '$t.json'));
         await f.create(recursive: true);
         await f.writeAsString(

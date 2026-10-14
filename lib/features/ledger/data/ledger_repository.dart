@@ -541,12 +541,24 @@ class LedgerRepository {
     int? catId,
     int offset = 0,
     int limit = 200,
+    // 余量批3：日期区间（`YYYY-MM-DD` 闭区间；与 timeRange 同口径）。
+    // 与 month 参数并存时取交集（面板不会同时给，但调用方安全）。
+    String? dateFrom,
+    String? dateTo,
   }) async {
     final where = ['bk = ?'];
     final args = <Object?>[bk];
     if (month != null) {
       where.add('date LIKE ?');
       args.add('$month-%');
+    }
+    if (dateFrom != null) {
+      where.add('date >= ?');
+      args.add(dateFrom);
+    }
+    if (dateTo != null) {
+      where.add('date <= ?');
+      args.add(dateTo);
     }
     if (accountId != null) {
       where.add('(account_id = ? OR to_account_id = ?)');

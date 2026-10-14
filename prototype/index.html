@@ -159,6 +159,8 @@ tailwind.config = {
   .witem{height:26px;line-height:26px;scroll-snap-align:center;text-align:center;font-size:12px;color:#94a3b8;font-weight:600;user-select:none;transition:color .15s}
   .witem.on{font-size:19px;font-weight:800;color:var(--accent)}
   .dark .witem.on{color:var(--accent-l)}
+  /* 时间维度自定义区：.exW3 只作三列等宽布局容器，滚动/吸附由内层 .wheelbox 承担 */
+  .exW3{flex:1;min-width:0}
   .nav-arrow{width:32px;height:32px;border-radius:50%;font-size:18px;color:#94a3b8;line-height:1}
   .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:600}
   .dark .chip{background:#1e293b;color:#94a3b8}
@@ -973,18 +975,44 @@ tailwind.config = {
             <div class="text-[11px] font-bold text-slate-400 mt-2">① 范围</div>
             <div class="flex flex-wrap gap-1.5 mt-1.5" id="exChips"></div>
             <div class="text-right text-[10px] text-slate-400 mt-1" id="exSelCnt"></div>
-            <div class="text-[11px] font-bold text-slate-400 mt-3">② 内容</div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">② 时间</div>
+            <div class="flex flex-wrap gap-1.5 mt-1.5" id="exTimeChips"></div>
+            <div class="mt-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hidden" id="exTimeCustom">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-bold text-slate-400 mb-0.5">起</div>
+                  <div class="flex gap-1">
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">年</div><div id="exFromY"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">月</div><div id="exFromM"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">日</div><div id="exFromD"></div></div>
+                  </div>
+                  <div class="text-center text-[11px] font-extrabold mt-0.5" id="exFromLbl">2025-01-01</div>
+                </div>
+                <div class="text-[11px] font-bold text-slate-300 dark:text-slate-600">→</div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-bold text-slate-400 mb-0.5">止</div>
+                  <div class="flex gap-1">
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">年</div><div id="exToY"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">月</div><div id="exToM"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">日</div><div id="exToD"></div></div>
+                  </div>
+                  <div class="text-center text-[11px] font-extrabold text-brand-500 mt-0.5" id="exToLbl">2026-10-15</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-[10.5px] text-slate-400 mt-1.5 leading-4 hidden" id="exTimeNote"></div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">③ 内容</div>
             <div class="mt-1.5 space-y-2 text-xs">
               <div class="flex items-center justify-between"><span>含图片附件 <span class="text-[10px] text-slate-400" id="exAssetMb"></span></span><span class="toggle on" id="exAssetTgl" onclick="exTglAsset(this)"></span></div>
               <div class="flex items-center justify-between" id="exMdRow"><span>附可读 Markdown <span class="text-[10px] text-slate-400">笔记 / 书摘 / 导图投影</span></span><span class="toggle" id="exMdTgl" onclick="exTglMd(this)"></span></div>
             </div>
-            <div class="text-[11px] font-bold text-slate-400 mt-3">③ 格式</div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">④ 格式</div>
             <div class="grid grid-cols-2 gap-2 mt-1.5">
               <button id="exFmtLhbak" onclick="exSetFmt('lhbak')">.lhbak 可恢复包</button>
               <button id="exFmtDir" onclick="exSetFmt('dir')">可读目录 md+csv+json</button>
             </div>
             <div class="text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4 hidden" id="exScopeWarn">子集包暂不能直接恢复，仅作数据出口</div>
-            <div class="text-[11px] font-bold text-slate-400 mt-3">④ 导出位置</div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">⑤ 导出位置</div>
             <div class="mt-1.5 flex items-center justify-between text-xs" onclick="toast('选择导出位置（系统目录树·模拟）')">
               <span>导出直达所选目录 <span class="text-[10px] text-slate-400" id="exLocName">默认 · 应用目录</span></span>
               <span class="text-[11px] font-bold text-brand-500">变更</span>
@@ -2896,19 +2924,72 @@ function bkDelGo(){const n=bkPend.length,mb=bkMB(bkSumB(bkPend.map(i=>BK_FILES[i
  BK_FILES=BK_FILES.filter((_,i)=>!bkPend.includes(i));bkPend=[];bkMode=false;bkSel.clear();
  closeSheet('sheetBkDel');bkRender();toast('已彻底删除 '+n+' 个备份文件 · '+mb+' MB 已释放')}
 
-/* ===== 备份格式四件套批1 · S-EXP 导出范围面板（拍板 2026-10-13：方案A可读的包·纯明文·首批只做模块维度） =====
-   exp 为瞬时 UI 态不持久化（工单 §9.4）；modules=[] 即「全部数据」快捷；体积为原型模拟值。 */
+/* ===== 备份导出余量批3 · 时间维度（产品拍板 2026-10-15：A2 四档=all/y1/y3/custom·自定义用就地滚轮）
+   exp 仍为瞬时 UI 态不持久化（批2 拍板）；EX_NOTIME＝无时间列单元（AI 记录）恒全量不参与筛选。 ===== */
 const EX_MODULES=['阅读','日记','健康','记账','呵护','习惯','目标','物品','影音游','X-Ray','思维导图','AI 记录'];
 const EX_MB={'阅读':18.2,'日记':6.4,'健康':3.1,'记账':2.2,'呵护':1.4,'习惯':0.6,'目标':0.4,'物品':0.9,'影音游':1.8,'X-Ray':12.5,'思维导图':0.7,'AI 记录':0.3};
 const EX_NOTEY=['阅读','日记','思维导图'];
-let exp={modules:[],assets:true,md:false,fmt:'lhbak'};
+/* 无时间列的单元：时间维度对其不生效（明说而非静默忽略·工单 §1） */
+const EX_NOTIME=['AI 记录'];
+const EX_TIMES=[['all','全部'],['y1','近 1 年'],['y3','近 3 年'],['custom','自定义']];
+/* 体积折算系数（原型模拟值·对应实现侧「按筛选后行数比线性折算」） */
+const EX_TFAC={all:1,y1:0.35,y3:0.6};
+const EX_YEARS=Array.from({length:12},(_,i)=>String(2019+i));
+const EX_MONS=Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
+const EX_DAYS=Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'));
+let exp={modules:[],assets:true,md:false,fmt:'lhbak',time:'all',fromY:2025,fromM:1,fromD:1,toY:2026,toM:10,toD:15};
 function exAll(){return exp.modules.length===0;}
-function exMb(){return exAll()?EX_MODULES.reduce((a,m)=>a+EX_MB[m],0):exp.modules.reduce((a,m)=>a+(EX_MB[m]||0),0);}
+function exTimeFac(){
+  if(exp.time==='custom'){const d=exSpanDays();return d>0?Math.max(0.01,Math.min(1,d/2430)):1;}
+  return EX_TFAC[exp.time]||1;
+}
+function exSpanDays(){
+  const a=Date.UTC(exp.fromY,exp.fromM-1,exp.fromD),b=Date.UTC(exp.toY,exp.toM-1,exp.toD);
+  if(b<a)return 0;
+  const [y,m,d]=[exp.toY,exp.toM,exp.toD],dim=new Date(y,m,0).getDate();
+  if(exp.toD>dim)return 0; /* 止日期不存在的日（如 2 月 30 日）＝未选完整 */
+  return Math.round((b-a)/864e5)+1;
+}
+function exMb(){const base=exAll()?EX_MODULES.reduce((a,m)=>a+EX_MB[m],0):exp.modules.reduce((a,m)=>a+(EX_MB[m]||0),0);
+  return base*exTimeFac();}
+function exTimeLabel(){
+  if(exp.time==='all')return '';
+  if(exp.time==='y1')return '近 1 年';
+  if(exp.time==='y3')return '近 3 年';
+  return exSpanDays()>0?exp.fromY+'-'+String(exp.fromM).padStart(2,'0')+'-'+String(exp.fromD).padStart(2,'0')+' ~ '+exp.toY+'-'+exp.toM+'-'+exp.toD:'自定义';
+}
+function exTimeReg(){
+  if(exp.time!=='custom')return;
+  wReg('exFromY',EX_YEARS,EX_YEARS.indexOf(String(exp.fromY)),exTimeHint);
+  wReg('exFromM',EX_MONS,exp.fromM-1,exTimeHint);
+  wReg('exFromD',EX_DAYS,exp.fromD-1,exTimeHint);
+  wReg('exToY',EX_YEARS,EX_YEARS.indexOf(String(exp.toY)),exTimeHint);
+  wReg('exToM',EX_MONS,exp.toM-1,exTimeHint);
+  wReg('exToD',EX_DAYS,exp.toD-1,exTimeHint);
+}
+function exTimeHint(){
+  exp.fromY=+WHEELS.exFromY.items[WHEELS.exFromY.i];exp.fromM=WHEELS.exFromM.i+1;exp.fromD=WHEELS.exFromD.i+1;
+  exp.toY=+WHEELS.exToY.items[WHEELS.exToY.i];exp.toM=WHEELS.exToM.i+1;exp.toD=WHEELS.exToD.i+1;
+  const f=exp.fromY+'-'+String(exp.fromM).padStart(2,'0')+'-'+String(exp.fromD).padStart(2,'0');
+  $('#exFromLbl').textContent=f;
+  $('#exToLbl').textContent=exp.toY+'-'+String(exp.toM).padStart(2,'0')+'-'+String(exp.toD).padStart(2,'0');
+  exRender();
+}
 function exRender(){
   const box=$('#exChips');if(!box)return;
   box.innerHTML='<button class="chip '+(exAll()?'chip-on':'')+'" onclick="exClick(\'__all\')">全部数据</button>'+
     EX_MODULES.map(m=>'<button class="chip '+(!exAll()&&exp.modules.includes(m)?'chip-on':'')+'" onclick="exClick(\''+m+'\')">'+m+'</button>').join('');
   $('#exSelCnt').textContent=exAll()?'全部模块':'已选 '+exp.modules.length+' 个模块';
+  /* ② 时间 */
+  $('#exTimeChips').innerHTML=EX_TIMES.map(([k,l])=>'<button class="chip '+(exp.time===k?'chip-on':'')+'" onclick="exSetTime(\''+k+'\')">'+l+'</button>').join('');
+  $('#exTimeCustom').classList.toggle('hidden',exp.time!=='custom');
+  if(exp.time==='custom')exTimeReg();
+  const bad=exp.time==='custom'&&exSpanDays()===0;
+  const notime=!exAll()&&exp.time!=='all'&&exp.modules.some(m=>EX_NOTIME.includes(m));
+  const nt=$('#exTimeNote');
+  if(bad){nt.classList.remove('hidden');nt.className='text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4';nt.textContent='起止时间不合法（止日期须不早于起日期，且为真实存在的日）';}
+  else if(notime){nt.classList.remove('hidden');nt.className='text-[10.5px] text-slate-400 mt-1.5 leading-4';nt.textContent=exp.modules.filter(m=>EX_NOTIME.includes(m)).join('、')+' 无时间字段，不按时间筛选';}
+  else{nt.classList.add('hidden');}
   const noteOk=exAll()||EX_NOTEY.some(m=>exp.modules.includes(m));
   $('#exMdRow').classList.toggle('opacity-40',!noteOk);
   if(!noteOk)exp.md=false;
@@ -2921,9 +3002,11 @@ function exRender(){
   $('#exFmtLhbak').className=exp.fmt==='lhbak'?on:off;
   $('#exFmtDir').className=exp.fmt==='dir'?on:off;
   const hasData=!exAll()&&exp.modules.length>0||exAll();
-  $('#exSum').textContent=hasData?(exAll()?'全部数据':exp.modules.length+' 模块')+' · 约 '+mb.toFixed(1)+' MB':'';
-  const go=$('#exGo');go.disabled=!hasData;
-  go.textContent=hasData?(exAll()?'导出备份':'导出'):'所选范围暂无数据';
+  const parts=[];if(hasData)parts.push(exAll()?'全部数据':exp.modules.length+' 模块');
+  const tl=exTimeLabel();if(hasData&&tl)parts.push(tl);
+  $('#exSum').textContent=parts.length?parts.join(' · ')+' · 约 '+mb.toFixed(1)+' MB':'';
+  const go=$('#exGo');go.disabled=!hasData||bad;
+  go.textContent=bad?'请选起止时间':hasData?(exAll()?'导出备份':'导出'):'所选范围暂无数据';
 }
 function exClick(m){
   if(m==='__all')exp.modules=[];
@@ -2931,6 +3014,7 @@ function exClick(m){
   else{const i=exp.modules.indexOf(m);i<0?exp.modules.push(m):exp.modules.splice(i,1);}
   exRender();
 }
+function exSetTime(t){exp.time=t;exRender();}
 function exTglAsset(el){el.classList.toggle('on');exp.assets=el.classList.contains('on');exRender();}
 function exTglMd(el){if($('#exMdRow').classList.contains('opacity-40')){toast('所选模块无笔记类数据，Markdown 投影不可用');return;}el.classList.toggle('on');exp.md=el.classList.contains('on');}
 function exSetFmt(f){exp.fmt=f;exRender();}
