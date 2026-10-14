@@ -10,6 +10,8 @@ import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/habit_mounts.dart';
 import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
+import 'shared/linkage/sys_pill_sync.dart'
+    show drainPillEvents, sysPillAppActiveProvider, sysPillSyncProvider;
 import 'shared/widgets/ui_kit.dart' show AppToast;
 
 /// 应用根 Widget：主题三件套（light/dark/mode）+ go_router。
@@ -34,10 +36,15 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 批B：系统悬浮窗同步器保活（listenManual＝订阅但不重建 UI；
+    // 内部挂秒级 ticker，逐 tick 推内容/收视图/消费 ■结束 事件）。
+    ref.listenManual(sysPillSyncProvider, (_, _) {});
     // 冷启动：首帧后路由与根 Navigator 均已就绪，再消费入队意图。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFrameDone = true;
       _consumeOpen();
+      // 批B：冷启动经 ■结束 意图入队的场景，首帧即探一次悬浮窗事件。
+      drainPillEvents(ref);
     });
   }
 
@@ -49,7 +56,17 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _firstFrameDone) _consumeOpen();
+    if (state == AppLifecycleState.resumed && _firstFrameDone) {
+      _consumeOpen();
+      // 批B：回前台时补消费一次悬浮窗事件（冷启动经 ■结束 意图入队的场景，
+      // 同步器尚未起 tick 也要兜住）。
+      drainPillEvents(ref);
+    }
+    // 批B：app 前台时系统悬浮窗隐藏（免与 app 内胶囊重复），退后台恢复。
+    if (state == AppLifecycleState.resumed || state == AppLifecycleState.paused) {
+      ref.read(sysPillAppActiveProvider.notifier).state =
+          state == AppLifecycleState.resumed;
+    }
   }
 
   Future<void> _consumeOpen() async {

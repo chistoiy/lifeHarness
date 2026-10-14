@@ -4,6 +4,13 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗。
+         SYSTEM_ALERT_WINDOW＝「显示在其他应用上层」特殊访问，运行时经
+         Settings.canDrawOverlays 探问、ACTION_MANAGE_OVERLAY_PERMISSION 引导；
+         FOREGROUND_SERVICE_SPECIAL_USE＝API 34+ specialUse 型前台服务声明
+         （非 Play 分发，subtype property 仅作文档）。 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <!-- V1.41 同步与备份：INTERNET 用于用户自行配置的 WebDAV/S3 同步与
          既有天气查询（open-meteo）/ISBN 书目查询（豆瓣）；除此之外 App
          零网络请求（离线优先 / 隐私红线·终审修复波 Minor-3 如实登记）。 -->
@@ -111,6 +118,18 @@
             </intent-filter>
         </receiver>
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+        <!-- 批B：app 外系统悬浮窗载体（前台 Service＋WindowManager 悬浮视图）。
+             起服务只从 app 前台触发（Dart 侧 sync 口径·规避 Android 14+ 后台
+             起 FGS 限制）；「■ 结束」经意图拉起 MainActivity 入队、Dart 侧
+             takePillEvent 消费（与 lh/intents 同模式）。 -->
+        <service
+            android:name=".TimerPillService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the user's active reading/media timer visible as a system overlay while the app is in the background" />
+        </service>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

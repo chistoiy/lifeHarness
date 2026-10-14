@@ -51,16 +51,17 @@ async function ev(x) {
   const p1 = await ev(`navTo('p-readset');rsSetTab=3;renderReadSet();
     var t=document.getElementById('p-readset').innerText;
     var hasEntry=/胶囊交互样张/.test(t);
+    var hasSysRow=/系统悬浮窗/.test(t)&&/显示在其他应用上层/.test(t);
     openSheet('sheetPillDemo');var d=document.getElementById('sheetPillDemo').innerText;
-    return {entry:hasEntry,open:document.getElementById('sheetPillDemo').classList.contains('sheet-open'),
+    return {entry:hasEntry,sysRow:hasSysRow,open:document.getElementById('sheetPillDemo').classList.contains('sheet-open'),
       forms:/紧凑胶囊（默认）/.test(d)&&/展开（点时间）/.test(d)&&/贴边圆圈/.test(d)&&/两形态严格互斥/.test(d),
       ext:/APP 外系统悬浮窗/.test(d)&&/SYSTEM_ALERT_WINDOW/.test(d),
       permit:/权限引导话术/.test(d)&&/显示在其他应用上层/.test(d)&&/不读取/.test(d),
       c6:/已拍板＝案A 复用记书摘/.test(d)&&/案B（就地输入框）作废/.test(d),
       media:/同构继承/.test(d)&&/C6 仅阅读侧/.test(d),
       kv:/read\\.pillPos/.test(d),noEmoji:(function(){var EM=[/[\\u{1F000}-\\u{1FAFF}]/u,/['\\u{2600}-\\u{27BF}']/u];return !EM.some(function(r){return r.test(d)})})()};`);
-  (p1.entry && p1.open && p1.forms && p1.ext && p1.permit && p1.c6 && p1.media && p1.kv && p1.noEmoji)
-    ? ok('P1 设置入口行在位 · 样张总览（两形态样卡＋app 外示意＋权限话术＋C6 已拍板案A＋影音同构注＋kv 位置记忆）· 零 emoji')
+  (p1.entry && p1.sysRow && p1.open && p1.forms && p1.ext && p1.permit && p1.c6 && p1.media && p1.kv && p1.noEmoji)
+    ? ok('P1 设置入口行＋系统悬浮窗行在位 · 样张总览（两形态样卡＋app 外示意＋权限话术＋C6 已拍板案A＋影音同构注＋kv 位置记忆）· 零 emoji')
     : bad('P1', JSON.stringify(p1));
 
   /* P2 展开胶囊：默认紧凑不显书名 → 点时间才显/隐；时间秒显（m:ss→h:mm:ss 等宽）；两钮不换行；配色＝中性浮层 */

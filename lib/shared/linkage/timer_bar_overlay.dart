@@ -68,6 +68,63 @@ String pillFabFmt(Duration d) {
   return h > 0 ? '$h:${_two(m)}' : '${d.inMinutes}:${_two(d.inSeconds % 60)}';
 }
 
+/// ■结束（批A 胶囊钮与批B 系统悬浮窗事件共用同一结束路径·单源）：
+/// 结束会话 → tick 失效 → toast → autoAsk 记进度弹层。
+/// host＝提示/弹层挂载上下文（批B 走根 Navigator，与 R14 弹层护栏同源；
+/// 批A 传胶囊自身 context，行为逐字节不变）。
+Future<void> endReadPillTimer(
+    BuildContext host, WidgetRef ref, String bookId) async {
+  final repo = ref.read(readRepositoryProvider);
+  final closed = await repo.endSession(bookId);
+  ref.read(readTickProvider.notifier).state++;
+  if (!host.mounted) return;
+  final books = ref.read(booksProvider).valueOrNull ?? const [];
+  final title =
+      books.where((b) => b.id == bookId).firstOrNull?.title ?? '阅读';
+  readToast(
+    host,
+    closed == null
+        ? '《$title》计时已取消'
+        : '《$title》已结束计时 · ${closed.minutes} 分钟',
+  );
+  if (closed != null &&
+      await ref.read(autoAskProvider.future) &&
+      host.mounted) {
+    final nb = await repo.bookById(bookId);
+    if (nb != null && host.mounted) {
+      showProgressSheet(host, ref, nb);
+    }
+  }
+}
+
+/// 影音侧同构结束路径（container 现抓——跨弹层/跨页提交的既定坑口径）。
+Future<void> endMediaPillTimer(
+    BuildContext host, WidgetRef ref, String itemId) async {
+  final c = ProviderScope.containerOf(host, listen: false);
+  final repo = ref.read(mediaRepositoryProvider);
+  final closed = await repo.endSession(itemId);
+  refreshTimeAfterMediaSession(c, [closed?.startedAt, closed?.endedAt]);
+  ref.read(mediaTickProvider.notifier).state++;
+  if (!host.mounted) return;
+  final item = await repo.itemById(itemId);
+  if (!host.mounted) return;
+  final title = item?.title ?? '影音';
+  readToast(
+    host,
+    closed == null
+        ? '《$title》计时已取消'
+        : '《$title》已结束计时 · ${closed.minutes} 分钟',
+  );
+  if (closed != null &&
+      await ref.read(mediaAutoAskProvider.future) &&
+      host.mounted) {
+    final ni = await repo.itemById(itemId);
+    if (ni != null && host.mounted) {
+      showMediaProgressSheet(host, ref, ni, sessionMinutes: closed.minutes);
+    }
+  }
+}
+
 Offset? _parseXY(String raw) {
   final p = raw.split(',');
   if (p.length != 2) return null;
@@ -492,26 +549,7 @@ class _ReadPill extends ConsumerWidget {
             context,
             '■ 结束',
             key: const ValueKey('read-pill-end'),
-            onTap: () async {
-              final repo = ref.read(readRepositoryProvider);
-              final closed = await repo.endSession(s.bookId);
-              ref.read(readTickProvider.notifier).state++;
-              if (!context.mounted) return;
-              readToast(
-                context,
-                closed == null
-                    ? '《$title》计时已取消'
-                    : '《$title》已结束计时 · ${closed.minutes} 分钟',
-              );
-              if (closed != null &&
-                  await ref.read(autoAskProvider.future) &&
-                  context.mounted) {
-                final nb = await repo.bookById(s.bookId);
-                if (nb != null && context.mounted) {
-                  showProgressSheet(context, ref, nb);
-                }
-              }
-            },
+            onTap: () => endReadPillTimer(context, ref, s.bookId),
           ),
         ],
       ),
@@ -601,33 +639,7 @@ class _MediaPill extends ConsumerWidget {
             context,
             '■ 结束',
             key: const ValueKey('media-pill-end'),
-            onTap: () async {
-              // 跨弹层/跨页提交不带发起页 ref 之外的依赖：container 现抓（既定坑口径）。
-              final c = ProviderScope.containerOf(context, listen: false);
-              final repo = ref.read(mediaRepositoryProvider);
-              final closed = await repo.endSession(s.itemId);
-              refreshTimeAfterMediaSession(
-                c,
-                [closed?.startedAt, closed?.endedAt],
-              );
-              ref.read(mediaTickProvider.notifier).state++;
-              if (!context.mounted) return;
-              readToast(
-                context,
-                closed == null
-                    ? '《$title》计时已取消'
-                    : '《$title》已结束计时 · ${closed.minutes} 分钟',
-              );
-              if (closed != null &&
-                  await ref.read(mediaAutoAskProvider.future) &&
-                  context.mounted) {
-                final ni = await repo.itemById(s.itemId);
-                if (ni != null && context.mounted) {
-                  showMediaProgressSheet(context, ref, ni,
-                      sessionMinutes: closed.minutes);
-                }
-              }
-            },
+            onTap: () => endMediaPillTimer(context, ref, s.itemId),
           ),
         ],
       ),

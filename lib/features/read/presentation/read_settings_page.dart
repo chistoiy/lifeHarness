@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/notifications/notification_service.dart';
+import '../../../core/platform/pill_overlay.dart'
+    show kSysPillPermitText, sysPillCanDraw, sysPillRequestPermission;
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
@@ -84,7 +86,11 @@ const _secs = [
     _Row('timerUI', '计时显示', _T.chips,
         opts: ['全屏', '顶部胶囊'],
         desc: '全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时'),
-    _Row('floatBar', '悬浮计时条', _T.bool, desc: '离开本 app 计时也不中断（回到 app 内跨页顶部显示）；系统级悬浮窗暂未实现'),
+    _Row('floatBar', '悬浮计时条', _T.bool, desc: '离开本 app 计时也不中断（回到 app 内跨页顶部显示）；app 外系统悬浮窗见「系统悬浮窗」行'),
+    // 批B（工单 悬浮胶囊增强批 §7）：系统悬浮窗开关——权限引导话术与隐私
+    // 口径 2026-10-14 产品过门冻结（kSysPillPermitText）。
+    _Row('sysPill', '系统悬浮窗', _T.bool,
+        desc: '在桌面和其他 app 上层显示计时胶囊 · 需要「显示在其他应用上层」权限 · 读书与影音计时都覆盖'),
     _Row('speedFold', '有声按倍速折算', _T.bool, desc: '1.5 倍速只记 40 分钟'),
     _Row('autoAsk', '结束计时后问进度', _T.bool, desc: '停止即弹「记进度」'),
     _Row('dailyQ', '每天提醒补记', _T.bool, desc: '晚间未计时时提醒'),
@@ -159,6 +165,7 @@ const _secs = [
 /// bool 键关闭/开启时的 toast 文案（原型 rsFlip 映射）。
 const _boolLabel = {
   'floatBar': '悬浮计时条',
+  'sysPill': '系统悬浮窗',
   'speedFold': '倍速折算',
   'autoAsk': '结束后问进度',
   'dailyQ': '每日补记提醒',
@@ -182,8 +189,77 @@ class ReadSettingsPage extends ConsumerStatefulWidget {
   ConsumerState<ReadSettingsPage> createState() => _ReadSettingsPageState();
 }
 
-class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
+class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage>
+    with WidgetsBindingObserver {
   late int _sec = widget.initialSec.clamp(0, _secs.length - 1);
+
+  /// 批B：权限引导弹层已确认、已跳系统设置页——等 resumed 复探授权结果。
+  bool _sysPillGuidePending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 批B：从系统「显示在其他应用上层」设置页返回时复探授权结果。
+    if (state == AppLifecycleState.resumed && _sysPillGuidePending) {
+      _sysPillGuidePending = false;
+      _sysPillAfterPermit();
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
+  /// 批B：「系统悬浮窗」开——有权限直接开；无权限先出权限引导（话术＝过门
+  /// 冻结原文），「去授权」跳系统设置页，返回后复探：授予→开，拒绝→降级提示。
+  Future<void> _toggleSysPill(bool on) async {
+    if (!on) {
+      await _set('sysPill', 'false');
+      return;
+    }
+    if (await sysPillCanDraw()) {
+      await _set('sysPill', 'true');
+      return;
+    }
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('开启系统悬浮窗'),
+        content: const Text(kSysPillPermitText),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('以后再说'),
+          ),
+          TextButton(
+            key: const ValueKey('sysPill-permit-go'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('去授权'),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
+    _sysPillGuidePending = true;
+    await sysPillRequestPermission();
+  }
+
+  Future<void> _sysPillAfterPermit() async {
+    if (await sysPillCanDraw()) {
+      await _set('sysPill', 'true');
+    } else if (mounted) {
+      readToast(context, '未授权 · 系统悬浮窗降级为仅 app 内胶囊');
+    }
+  }
 
   bool get _dbCookieOn =>
       (ref.read(sharedPreferencesProvider).getString('read.dbCookie') ?? '')
@@ -572,6 +648,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
     // 原型 BS_SET 默认关的两键（其余 bool 键默认开）。
     'simple' => 'false',
     'fullCh' => 'false',
+    // 批B：系统悬浮窗默认关（opt-in·权限引导后才开）。
+    'sysPill' => 'false',
     // 批4 本地阅读器：外链默认询问、常亮默认关（原型 BR_DEF.bright=false）。
     'brLink' => '询问',
     'brBright' => 'false',
@@ -594,7 +672,9 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
             key: ValueKey('set-${r.key}-t'),
             value: on,
             activeThumbColor: tokens.accent,
-            onChanged: (v) => _set(r.key, v ? 'true' : 'false'),
+            // 批B：sysPill 走权限引导流程，其余 bool 行直写。
+            onChanged: (v) =>
+                r.key == 'sysPill' ? _toggleSysPill(v) : _set(r.key, v ? 'true' : 'false'),
           ),
         ];
       case _T.nav:

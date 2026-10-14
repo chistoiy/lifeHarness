@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -31,6 +32,10 @@ class MainActivity : FlutterActivity() {
     private var pendingUri: Uri? = null
     private var pendingName: String? = null
 
+    // 批B：悬浮窗「■ 结束」入队（kind 回显）；Dart 侧 takePillEvent 单次消费
+    // （与打开方式文件同模式——事件经意图拉起 app 前台后落在这里）。
+    private var pendingPillEnd: String? = null
+
     // ---- lh/saf 挂起态（仅内存：进程死亡即失，结果过期被静默忽略）----
     private var safResult: MethodChannel.Result? = null
     private var safSource: String? = null
@@ -46,6 +51,12 @@ class MainActivity : FlutterActivity() {
 
     private fun handle(intent: Intent?) {
         if (intent == null) return
+        // 批B：悬浮窗「■ 结束」意图（点胶囊结束钮/通知结束动作）——入队等
+        // Dart 侧 takePillEvent 消费。
+        if (intent.action == ACTION_PILL_END) {
+            pendingPillEnd = intent.getStringExtra(EXTRA_PILL_KIND) ?: "read"
+            return
+        }
         val uri: Uri? = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data
             Intent.ACTION_SEND ->
@@ -106,6 +117,60 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        // 批B：app 外系统悬浮窗通道（工单 悬浮胶囊增强批-20261014 §7）。
+        // 起服务只从 app 前台触发（Dart 侧 sync 口径）——规避 Android 14+
+        // 后台起 FGS 限制；stopService 不受该限制。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "lh/pill"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "canDrawOverlays" -> result.success(Settings.canDrawOverlays(this))
+                "requestOverlayPermission" -> {
+                    requestOverlayPermission()
+                    result.success(null)
+                }
+                "sync" -> {
+                    val p = TimerPillService.PillPayload(
+                        kind = call.argument<String>("kind") ?: "read",
+                        title = call.argument<String>("title") ?: "",
+                        status = call.argument<String>("status") ?: "",
+                        seconds = call.argument<Int>("seconds") ?: 0,
+                        visible = call.argument<Boolean>("visible") ?: true,
+                    )
+                    startForegroundService(TimerPillService.syncIntent(this, p))
+                    result.success(null)
+                }
+                "stop" -> {
+                    stopService(TimerPillService.stopIntent(this))
+                    result.success(null)
+                }
+                "takePillEvent" -> result.success(takePill())
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /// 批B：跳系统「显示在其他应用上层」授权页（Android 11+ 无弹窗式授权，
+    /// 走系统设置页；授权结果由 Dart 侧在 resumed 后经 canDrawOverlays 复探）。
+    private fun requestOverlayPermission() {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            )
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+            } catch (_: Exception) {
+                // 无设置页可跳：调用方保持关闭态（降级仅 app 内胶囊）。
+            }
+        }
+    }
+
+    /// 批B：悬浮窗「■ 结束」一次性消费（null＝无待处理；与 [takeOpen] 同模式）。
+    private fun takePill(): Map<String, String>? {
+        val kind = pendingPillEnd ?: return null
+        pendingPillEnd = null
+        return mapOf("type" to "end", "kind" to kind)
     }
 
     // ---- lh/saf：SAF「另存为」实现 ----
@@ -576,6 +641,10 @@ class MainActivity : FlutterActivity() {
         private const val MAX_TREE_CHILDREN = 400
         private val NOTE_EXT = listOf(".md", ".markdown", ".txt")
         private val NOTE_IMPORT_EXT = listOf(".md", ".markdown")
+
+        /// 批B：悬浮窗「■ 结束」意图（TimerPillService 与 Dart 侧共用）。
+        const val ACTION_PILL_END = "com.lifeharness.pill.END"
+        const val EXTRA_PILL_KIND = "pillKind"
     }
 
     /// 返回语义（Dart 侧 core/platform/open_intent.dart 同约定）：
