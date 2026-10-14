@@ -54,12 +54,17 @@ class SysPillState {
     required this.title,
     required this.status,
     required this.seconds,
+    this.startedAtMs = 0,
   });
 
   final String kind; // 'read' | 'media'
   final String title;
   final String status; // '阅读中' / mediaTimerWord（观影中/追剧中/…）
   final int seconds;
+
+  /// 会话起点（epoch ms）。服务侧据此**自走秒**（6132 热修：HyperOS 退后台会
+  /// 挂起整进程含 Dart 与 FGS，靠 Dart 每秒推不可靠）；0＝服务退回用 seconds。
+  final int startedAtMs;
 }
 
 /// 悬浮窗一次性事件（■结束）：type='end'；kind 回显当时展示的一侧，
@@ -104,10 +109,21 @@ Future<void> sysPillSync(SysPillState state, bool visible) async {
       'title': state.title,
       'status': state.status,
       'seconds': state.seconds,
+      'startedAt': state.startedAtMs,
       'visible': visible,
     });
   } catch (_) {
     // catch-ok: 原生异常不打断计时主流程（悬浮窗是附加显示，不是会话本体）。
+  }
+}
+
+/// 诊断日志（走原生 logcat tag `lh_pill`，release 也能看——装机排障用；
+/// 无原生/异常静默，绝不回流主流程）。
+Future<void> sysPillLog(String msg) async {
+  try {
+    await _pillChannel.invokeMethod<void>('log', {'msg': msg});
+  } catch (_) {
+    // catch-ok: 诊断不参与功能。
   }
 }
 

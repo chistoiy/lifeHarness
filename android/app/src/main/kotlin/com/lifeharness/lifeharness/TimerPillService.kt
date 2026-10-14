@@ -17,6 +17,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -45,16 +46,32 @@ class TimerPillService : Service() {
     private var payload = PillPayload()
     private var lastSyncAt = 0L
 
-    private val staleHandler = Handler(Looper.getMainLooper())
-    private val staleCheck = object : Runnable {
+    /// 原生自走秒（6132 热修）：秒显由本进程按 session 起点自算，不依赖 Dart
+    /// 每秒推送——HyperOS 退后台会挂起整进程（Dart tick 与 FGS 同冻结），
+    /// 靠 Dart 推秒在真机上会停表。顺带承担僵尸兜底（见下）。
+    private val tickHandler = Handler(Looper.getMainLooper())
+    private val tick = object : Runnable {
         override fun run() {
+            val v = overlayView
+            if (v != null) {
+                val sec = if (payload.startedAtMs > 0) {
+                    ((System.currentTimeMillis() - payload.startedAtMs) / 1000L)
+                        .toInt()
+                } else {
+                    payload.seconds
+                }
+                v.findViewWithTag<TextView>(TAG_TIME)?.text = fmt(sec)
+            }
+            // 僵尸兜底：视图在场且 STALE_MS 无 Dart sync＝dart 侧确已不在
+            // （activity 销毁但进程还活着）——放宽到 30 分钟：正常退后台 Dart
+            // 可能被系统挂起，短窗口会误杀（6129 实测 120s 窗口的误杀风险）。
             if (overlayView != null &&
                 SystemClock.elapsedRealtime() - lastSyncAt > STALE_MS
             ) {
                 stopSelf()
-            } else {
-                staleHandler.postDelayed(this, STALE_CHECK_MS)
+                return
             }
+            tickHandler.postDelayed(this, TICK_MS)
         }
     }
 
@@ -66,6 +83,11 @@ class TimerPillService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_SYNC) payload = readPayload(intent)
+        Log.i(
+            TAG,
+            "onStartCommand action=${intent?.action} visible=${payload.visible} " +
+                "sec=${payload.seconds} startAt=${payload.startedAtMs}",
+        )
         // startForeground 必须先行：startForegroundService 起的服务 5s 内不进前台
         // ＝RemoteServiceException 崩溃；无权限/ROM 拒授也先吃下回调再自停，且包
         // try/catch——失败按无悬浮窗降级，绝不崩 app（6128 实伤：缺 FOREGROUND_SERVICE
@@ -84,8 +106,8 @@ class TimerPillService : Service() {
                 }
                 lastSyncAt = SystemClock.elapsedRealtime()
                 applyOverlay()
-                staleHandler.removeCallbacks(staleCheck)
-                staleHandler.postDelayed(staleCheck, STALE_CHECK_MS)
+                tickHandler.removeCallbacks(tick)
+                tickHandler.postDelayed(tick, TICK_MS)
             }
             else -> stopSelf()
         }
@@ -93,7 +115,7 @@ class TimerPillService : Service() {
     }
 
     override fun onDestroy() {
-        staleHandler.removeCallbacks(staleCheck)
+        tickHandler.removeCallbacks(tick)
         removeOverlay()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
@@ -118,8 +140,10 @@ class TimerPillService : Service() {
         try {
             wm?.addView(v, overlayParams())
             overlayView = v
-        } catch (_: Exception) {
+            Log.i(TAG, "overlay added")
+        } catch (e: Exception) {
             // 个别 ROM 拒绝加窗：服务与通知仍在，视图缺失降级（不停主流程）。
+            Log.w(TAG, "overlay add failed: ${e.javaClass.simpleName} ${e.message}")
         }
     }
 
@@ -128,6 +152,7 @@ class TimerPillService : Service() {
         overlayView = null
         try {
             wm?.removeView(v)
+            Log.i(TAG, "overlay removed")
         } catch (_: Exception) {
             // 已随窗口 detach：重复移除按无害处理。
         }
@@ -302,10 +327,12 @@ class TimerPillService : Service() {
         val title: String = "",
         val status: String = "",
         val seconds: Int = 0,
+        val startedAtMs: Long = 0L,
         val visible: Boolean = true,
     )
 
     companion object {
+        const val TAG = "lh_pill"
         const val CHANNEL_ID = "lh_timer_pill"
         const val ACTION_SYNC = "com.lifeharness.pill.SYNC"
         const val ACTION_STOP = "com.lifeharness.pill.STOP"
@@ -313,20 +340,23 @@ class TimerPillService : Service() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_STATUS = "status"
         const val EXTRA_SECONDS = "seconds"
+        const val EXTRA_STARTED_AT = "startedAt"
         const val EXTRA_VISIBLE = "visible"
         const val TAG_LABEL = "pill-label"
         const val TAG_TIME = "pill-time"
         const val NOTI_ID = 0x9107
         const val REQ_OPEN = 0x9108
         const val REQ_END = 0x9109
-        const val STALE_MS = 120_000L
-        const val STALE_CHECK_MS = 15_000L
+        const val TICK_MS = 1_000L
+        /// 僵尸兜底窗口（放宽：正常退后台 Dart 可能被系统挂起，短窗口会误杀）。
+        const val STALE_MS = 30 * 60 * 1000L
 
         private fun readPayload(intent: Intent): PillPayload = PillPayload(
             kind = intent.getStringExtra(EXTRA_KIND) ?: "read",
             title = intent.getStringExtra(EXTRA_TITLE) ?: "",
             status = intent.getStringExtra(EXTRA_STATUS) ?: "",
             seconds = intent.getIntExtra(EXTRA_SECONDS, 0),
+            startedAtMs = intent.getLongExtra(EXTRA_STARTED_AT, 0L),
             visible = intent.getBooleanExtra(EXTRA_VISIBLE, true),
         )
 
@@ -337,6 +367,7 @@ class TimerPillService : Service() {
                 putExtra(EXTRA_TITLE, p.title)
                 putExtra(EXTRA_STATUS, p.status)
                 putExtra(EXTRA_SECONDS, p.seconds)
+                putExtra(EXTRA_STARTED_AT, p.startedAtMs)
                 putExtra(EXTRA_VISIBLE, p.visible)
             }
 

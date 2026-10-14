@@ -209,6 +209,28 @@ void main() {
           reason: '同步模块只管推状态；消费（WidgetRef 层级）必须挂在组合根');
       expect(src, contains('sysPillMarkStale()'),
           reason: '回前台必须清 sig 备忘强制重推（前台起服务不受 Android 14+ 限制）');
+      // 6132 热修：hidden 同 paused 处理＋生命周期事件当场促重算。
+      expect(src, contains('AppLifecycleState.hidden'),
+          reason: 'HyperOS 事件序列可能只有 hidden（无 paused）＝标志滞留 true');
+      expect(src, contains('ref.invalidate(sysPillSyncProvider)'),
+          reason: '退后台瞬间必须当场重算，不等下一 tick（tick 可能被挂起）');
+    });
+
+    test('同步器以前后台以引擎真值为准＋载荷带会话起点（6132）', () {
+      final src =
+          File('lib/shared/linkage/sys_pill_sync.dart').readAsStringSync();
+      expect(src, contains('WidgetsBinding.instance.lifecycleState'),
+          reason: '事件标志会滞留，binding 真值才是准');
+      expect(src, contains('startedAtMs: '),
+          reason: '载荷不带起点＝服务无法自走秒（退后台停表）');
+      final native = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'TimerPillService.kt',
+      ).readAsStringSync();
+      expect(native, contains('EXTRA_STARTED_AT'),
+          reason: '原生侧必须接起点 extra');
+      expect(native, contains('tickHandler'),
+          reason: '原生自走秒 tick 缺失＝ROM 挂起 Dart 后秒显停表');
     });
 
     test('结束助手本体在 timer_bar_overlay 且被两处胶囊钮调用', () {

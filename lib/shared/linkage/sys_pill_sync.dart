@@ -14,6 +14,7 @@
 /// - 无权限/被撤 → 完全降级（不保活，仅 app 内胶囊）。
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ai/ai_review.dart' show aiRootNavKey;
@@ -44,6 +45,9 @@ final sysPillOnProvider = FutureProvider<bool>((ref) async =>
 /// ②回前台 [sysPillMarkStale] 强制重断言（前台起服务不受 Android 14+ 限制）。
 String? _lastSig;
 bool _serviceOn = false;
+
+/// 诊断用 tick 计数（每 30 tick 打一条 logcat）。
+int _tick = 0;
 
 /// 清空推送签名备忘：下次 tick 必推一次（回前台时由 app.dart 调——
 /// 原生服务可能已被 ROM 停掉而备忘还留着，导致恢复链断裂永不重推）。
@@ -79,7 +83,14 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   ref.watch(calendarTickerProvider); // 秒级心跳（与 app 内胶囊共用流）
   ref.watch(readTickProvider);
   ref.watch(mediaTickProvider);
-  final appActive = ref.watch(sysPillAppActiveProvider);
+  ref.watch(sysPillAppActiveProvider); // 生命周期事件触发即时重算
+  // app 前后台以**引擎真值**为准（provider 只是触发重算的信号）：HyperOS 上
+  // 生命周期事件序列可能只有 hidden（无 paused），事件驱动的标志会滞留 true
+  // →目标恒 none→app 外永不显示（6132 热修）。
+  final life = WidgetsBinding.instance.lifecycleState;
+  final appActive = life == null ||
+      life == AppLifecycleState.resumed ||
+      life == AppLifecycleState.inactive;
 
   final sysPillOn =
       (await ref.watch(readKvProvider(('read.sysPill', 'false')).future)) ==
@@ -87,6 +98,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   if (!sysPillOn) {
     if (_serviceOn) {
       await sysPillStop();
+      await sysPillLog('stop: 功能关');
       _serviceOn = false;
       _lastSig = null;
     }
@@ -99,6 +111,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   if (!sessionOn) {
     if (_serviceOn) {
       await sysPillStop();
+      await sysPillLog('stop: 无会话');
       _serviceOn = false;
       _lastSig = null;
     }
@@ -110,6 +123,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   if (!canDraw) {
     if (_serviceOn) {
       await sysPillStop();
+      await sysPillLog('stop: 无权限');
       _serviceOn = false;
       _lastSig = null;
     }
@@ -124,6 +138,13 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
     mediaRunning: mediaS != null,
   );
   final visible = target != SysPillTarget.none;
+  _tick++;
+  if (_tick % 30 == 1) {
+    await sysPillLog(
+      'tick=$_tick appActive=$appActive life=$life target=$target '
+      'svcOn=$_serviceOn',
+    );
+  }
 
   // 后台不冷起服务（Android 14+ FGS 限制）：不在跑且 app 不在前台 → 等回前台。
   if (!_serviceOn && !appActive) return;
@@ -141,6 +162,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
       title: title,
       status: '阅读中',
       seconds: elapsed.inSeconds,
+      startedAtMs: readS.startedAt,
     );
   } else {
     final item = await ref.watch(mediaItemDetailProvider(mediaS!.itemId).future);
@@ -151,6 +173,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
       title: item?.title ?? '影音',
       status: mediaTimerWord(mediaS.kind),
       seconds: elapsed.inSeconds,
+      startedAtMs: mediaS.startedAt,
     );
   }
 
@@ -161,6 +184,10 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   // 停掉时前台 tick 内合法自愈重启）；隐藏态才按 sig 去重（免每秒空推）。
   if (visible || sig != _lastSig) {
     await sysPillSync(state, visible);
+    await sysPillLog(
+      'push visible=$visible kind=${state.kind} sec=${state.seconds} '
+      'start=${state.startedAtMs}',
+    );
     _serviceOn = true;
     _lastSig = sig;
   }

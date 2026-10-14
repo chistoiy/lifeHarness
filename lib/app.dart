@@ -67,9 +67,16 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       sysPillMarkStale();
     }
     // 批B：app 前台时系统悬浮窗隐藏（免与 app 内胶囊重复），退后台恢复。
-    if (state == AppLifecycleState.resumed || state == AppLifecycleState.paused) {
+    // hidden 同 paused 处理（HyperOS 上事件序列可能只有 hidden·无 paused，
+    // 事件标志滞留在 true＝app 外永不显示·6132 热修）。
+    if (state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       ref.read(sysPillAppActiveProvider.notifier).state =
           state == AppLifecycleState.resumed;
+      // 不等下一 tick：事件当场促重算一次（退后台瞬间推可见态＝前台起服务
+      // 合法；也绕开「退后台后 tick 可能被系统挂起」的窗口）。
+      ref.invalidate(sysPillSyncProvider);
     }
   }
 

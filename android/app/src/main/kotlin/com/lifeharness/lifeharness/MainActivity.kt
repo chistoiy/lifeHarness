@@ -135,6 +135,9 @@ class MainActivity : FlutterActivity() {
                         title = call.argument<String>("title") ?: "",
                         status = call.argument<String>("status") ?: "",
                         seconds = call.argument<Int>("seconds") ?: 0,
+                        // Dart int 过通道可能落成 Int 或 Long，按 Number 取。
+                        startedAtMs = (call.argument<Number>("startedAt"))
+                            ?.toLong() ?: 0L,
                         visible = call.argument<Boolean>("visible") ?: true,
                     )
                     try {
@@ -143,6 +146,15 @@ class MainActivity : FlutterActivity() {
                         // 起服务被权限/ROM 拒绝＝降级为无 app 外悬浮窗，不崩
                         // （6128 实伤：缺 FGS 基础权限时这里 SecurityException 即闪退）。
                     }
+                    result.success(null)
+                }
+                // 6132 热修：Dart 侧诊断日志落 logcat tag lh_pill（release 可见，
+                // 装机排障用；仅打点，不影响功能）。
+                "log" -> {
+                    android.util.Log.i(
+                        TimerPillService.TAG,
+                        "[dart] ${call.argument<String>("msg") ?: ""}",
+                    )
                     result.success(null)
                 }
                 "stop" -> {
