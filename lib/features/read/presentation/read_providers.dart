@@ -140,7 +140,11 @@ final readerOpenProvider = StateProvider<int>((_) => 0);
 /// 顶部长胶囊是否可见：有在跑会话 && 计时形态为顶部胶囊 && read.floatBar 开
 /// && 不在阅读页内（轮5.4 UI 统一）。
 /// （全屏形态下计时走沉浸页，顶栏不再挂胶囊。）
+/// 真机修复（2026-10-14）：直挂 readTick——kv 写入与起/停表都 bump tick，
+/// 本 provider 无条件重算，杜绝「改设置/起表后要重进 app 才显胶囊」的
+/// FutureProvider 失效链断链（测试 read_timer_bar_test 复现同款）。
 final readTimerBarVisibleProvider = FutureProvider<bool>((ref) async {
+  ref.watch(readTickProvider);
   if (ref.watch(readerOpenProvider) > 0) return false;
   final run = await ref.watch(runningSessionProvider.future);
   if (run == null) return false;

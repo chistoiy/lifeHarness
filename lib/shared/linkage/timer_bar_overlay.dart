@@ -13,17 +13,20 @@ import '../../features/read/presentation/read_providers.dart';
 import '../../features/read/presentation/read_sheets.dart'
     show readToast, showProgressSheet;
 
-/// 悬浮条落点（相对壳内容顶）＝安全区 + 60（让过页面自带顶栏）。
-/// 与 [kTimerBarHeight] 一起构成 F2-5 的占位预留口径（原型 `timerBarSpace`：
-/// `.page.active` 加 `paddingTop:60px`，本壳把它折成「条落点 + 条高」）。
-const double kTimerBarTopOffset = 60;
+/// 悬浮条落点（相对壳内容顶）＝安全区 + 8（**贴状态栏下悬浮**）。
+///
+/// 真机口径修正（产品 2026-10-14）：旧值 60＝「让过页面自带顶栏」，条被顶到
+/// 页面标题下方且内容垫掉 104px，观感＝「胶囊占据顶部一块地」。改贴顶悬浮：
+/// 条浮在状态栏正下（叠在页面顶栏区上方），内容只让出条高（F2-5 预留保留）。
+/// 与 [kTimerBarHeight] 一起构成 F2-5 的占位预留口径。
+const double kTimerBarTopOffset = 8;
 
 /// 悬浮条单条内容高（两条并存时另加 [kTimerBarGap] 间距）。
 ///
-/// **44 ＝ 实测渲染高**（`read_f2_nav_test` 现场量：条顶 60 → 条底 104）＝
+/// **44 ＝ 实测渲染高**（`read_f2_nav_test` 现场量）＝
 /// 容器上下各 9 内边距 ＋ 行内最高件（「■ 结束」胶囊：上下各 5 内边距 ＋ 11px 文本）。
-/// 曾按「11.5px 文本 + 上下各 9」记作 38——**少算 6px**，预留 98 < 条底 104，
-/// 首卡仍被压 6px（F2-5 的目标就是「首卡不被压」）。改常量而非改断言。
+/// 曾按「11.5px 文本 + 上下各 9」记作 38——**少算 6px**，预留 < 条底时首卡仍被压。
+/// 改常量而非改断言。
 const double kTimerBarHeight = 44;
 
 /// 悬浮条间距（两条并存时）。
