@@ -286,12 +286,15 @@ void main() {
       final snap = await databaseFactoryFfi.openDatabase(snapPath,
           options: OpenDatabaseOptions(readOnly: true));
       final rows = await snap.query(DbSchema.tHabitEntries);
-      expect(rows.map((r) => r['day']), ['2026-06-01', '2026-07-01'],
-          reason: '区间外的两行被删，区间内的 05-01 留下');
+      // 谓词＝「这行在范围内、该保留」，故包内留下的是**区间内**那一行。
+      // （初版此处反向断言成「区间外的留下」——把实现缺陷写成了期望，
+      //  真机 8137 门才暴露：记账 164 行全在区间内却被删成 0 行。）
+      expect(rows.map((r) => r['day']), ['2026-05-01'],
+          reason: '区间内的 05-01 留下，区间外的 06-01/07-01 被删');
       // 恒全量表在包里照样全量（谓词只施加在被声明的表上）。
       expect((await snap.query(DbSchema.tHabits)).length, 1);
       // manifest 如实登记筛后的行数（verify 双向核对靠它）。
-      expect(res.manifest.tables[DbSchema.tHabitEntries]!.rows, 2);
+      expect(res.manifest.tables[DbSchema.tHabitEntries]!.rows, 1);
       await snap.close();
       await db.close();
     });
@@ -309,6 +312,56 @@ void main() {
         },
       );
       expect(res.file.existsSync(), isTrue);
+      await db.close();
+    });
+
+    test('反向语义守护：删的是谓词补集，命中行必须**留下**', () async {
+      // 真机 8137 门的教训：`DELETE ... WHERE <谓词>` 与 `WHERE NOT (<谓词>)`
+      // 在「全部行都命中」时表现相反（前者删光、后者全留）。单用「区间内/外
+      // 各一行」的样例容易把反向断言写死，故这里显式做两个极端对照。
+      final db = await openSchemaDb();
+      await db.insert(DbSchema.tHabits, {
+        'id': 'h1',
+        'name': '早起',
+        'icon': 'x',
+        'type': 'good',
+        'cycle': 'day',
+        'start_date': '2026-01-01',
+        'created_at': 0,
+        'updated_at': 0,
+      });
+      for (final d in ['2026-05-01', '2026-05-15', '2026-05-31']) {
+        await db.insert(DbSchema.tHabitEntries, {
+          'habit_id': 'h1',
+          'day': d,
+          'origin': 'manual',
+          'created_at': 0,
+          'updated_at': 0,
+        });
+      }
+      final f = exportTimeFilters(const ['habit'],
+          from: DateTime(2026, 5, 1), to: DateTime(2026, 5, 31));
+      final res = await LhBak.create(
+        db: db,
+        outDirPath: temp.path,
+        now: DateTime(2026, 10, 15, 12),
+        rowFilters: {
+          DbSchema.tHabitEntries: (
+            whereSql: f[DbSchema.tHabitEntries]!.whereSql,
+            args: f[DbSchema.tHabitEntries]!.args
+          ),
+        },
+      );
+      final zip = ZipDecoder().decodeBytes(res.file.readAsBytesSync());
+      final snapPath = p.join(temp.path, 'snap2.sqlite');
+      File(snapPath).writeAsBytesSync(
+          zip.findFile('db.sqlite')!.content as List<int>);
+      final snap = await databaseFactoryFfi.openDatabase(snapPath,
+          options: OpenDatabaseOptions(readOnly: true));
+      // 三行全在区间内 → 一个都不能少（反向实现下这里会是 0 行）。
+      expect((await snap.query(DbSchema.tHabitEntries)).length, 3,
+          reason: '全命中的行必须全留下：谓词是保留集，不是删除集');
+      await snap.close();
       await db.close();
     });
   });

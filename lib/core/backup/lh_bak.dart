@@ -342,7 +342,7 @@ class LhBak {
         for (final t in excluded) {
           await snap.execute('DROP TABLE IF EXISTS "$t"');
         }
-        // 余量批3 · 时间维度：在**快照内**按谓词删行（不碰活库）。
+        // 余量批3 · 时间维度：在**快照内**按谓词**删掉未命中行**（不碰活库）。
         // 顺序＝先按父表筛（根表）再筛子表，子表谓词是子查询，删父行后
         // 子查询自然不再命中，故本实现对表序无要求（声明序即可）。
         var filteredAny = false;
@@ -354,8 +354,14 @@ class LhBak {
               [t]);
           if (exists.isEmpty) continue; // 老库缺该表 → 跳过，不报错
           final f = e.value;
+          // **删的是谓词的补集**（`NOT (谓词)`），不是命中集——谓词表达的是
+          // 「这行在范围内、该保留」，直接 `DELETE WHERE 谓词` 会把该留的删光
+          // （真机 8137 门实测：记账 164 行全在近 3 年区间内，包内剩 0 行）。
+          // 三值逻辑下 `NOT NULL` 仍为 NULL，判不出的行一律**保留**，宁可多留
+          // 不可错删（备份宁可冗余也不能少数据）。
           // 谓词里的 ? 与 args 顺序由 export_units 保证对齐，直接绑定。
-          await snap.rawDelete('DELETE FROM "$t" WHERE ${f.whereSql}', f.args);
+          await snap.rawDelete(
+              'DELETE FROM "$t" WHERE NOT (${f.whereSql})', f.args);
           filteredAny = true;
         }
         // V1.66 装机回知批：DROP 只把页挂 freelist、文件字节不缩，被剔表的
