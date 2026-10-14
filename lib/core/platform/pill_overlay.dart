@@ -19,18 +19,23 @@ const MethodChannel _pillChannel = MethodChannel('lh/pill');
 enum SysPillTarget { none, read, media }
 
 /// 悬浮窗可见性决策（纯函数·批B §7 口径 ①②③⑦）：
-/// 功能关 / 权限缺 / app 在前台 / 进了阅读器 → 一律 none（none 时原生收窗，
-/// 服务是否保活由「会话在不在跑」另行决定，不走本函数）。
+/// 功能关 / 权限缺 / **app 在前台**（含在阅读器/计时页里）→ 一律 none
+/// （none 时原生收窗，服务是否保活由「会话在不在跑」另行决定，不走本函数）。
+///
+/// **「进阅读器隐藏」的范围（6131 热修）**：只在 app 前台时成立——app 内已有
+/// 胶囊，系统悬浮窗是重复；但**退出 app 后阅读页仍在导航栈上**，若把
+/// `readerOpen` 当独立条件，回桌面/切别的 app 就永不显示（6129 装机实测：
+/// 在阅读计时页按 HOME 无胶囊）。悬浮窗的用武之地恰在 app 外，故这里只看
+/// app 前后台，不看栈上有什么页。
 SysPillTarget sysPillTarget({
   required bool sysPillOn,
   required bool canDraw,
   required bool appActive,
-  required bool readerOpen,
   required bool readRunning,
   required bool mediaRunning,
 }) {
   if (!sysPillOn || !canDraw) return SysPillTarget.none;
-  if (appActive || readerOpen) return SysPillTarget.none;
+  if (appActive) return SysPillTarget.none;
   if (readRunning) return SysPillTarget.read;
   if (mediaRunning) return SysPillTarget.media;
   return SysPillTarget.none;

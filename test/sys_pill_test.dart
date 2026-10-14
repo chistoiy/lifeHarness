@@ -22,7 +22,6 @@ void main() {
           sysPillOn: false,
           canDraw: true,
           appActive: false,
-          readerOpen: false,
           readRunning: true,
           mediaRunning: false,
         ),
@@ -36,7 +35,6 @@ void main() {
           sysPillOn: true,
           canDraw: false,
           appActive: false,
-          readerOpen: false,
           readRunning: true,
           mediaRunning: true,
         ),
@@ -50,7 +48,6 @@ void main() {
           sysPillOn: true,
           canDraw: true,
           appActive: true,
-          readerOpen: false,
           readRunning: true,
           mediaRunning: false,
         ),
@@ -58,17 +55,18 @@ void main() {
       );
     });
 
-    test('进阅读器 → none（readerOpen 挂起同口径）', () {
+    test('阅读页在栈上但 app 退后台 → 仍 read（6131 热修：阅读器豁免只在 app 内）', () {
+      // 6129 装机实测：在阅读计时页按 HOME，阅读页仍在栈上——若把 readerOpen
+      // 当独立条件，桌面/别的 app 里永不显示（悬浮窗的用武之地恰在 app 外）。
       expect(
         sysPillTarget(
           sysPillOn: true,
           canDraw: true,
           appActive: false,
-          readerOpen: true,
           readRunning: true,
           mediaRunning: false,
         ),
-        SysPillTarget.none,
+        SysPillTarget.read,
       );
     });
 
@@ -78,7 +76,6 @@ void main() {
           sysPillOn: true,
           canDraw: true,
           appActive: false,
-          readerOpen: false,
           readRunning: true,
           mediaRunning: false,
         ),
@@ -92,7 +89,6 @@ void main() {
           sysPillOn: true,
           canDraw: true,
           appActive: false,
-          readerOpen: false,
           readRunning: false,
           mediaRunning: true,
         ),
@@ -106,7 +102,6 @@ void main() {
           sysPillOn: true,
           canDraw: true,
           appActive: false,
-          readerOpen: false,
           readRunning: true,
           mediaRunning: true,
         ),
@@ -120,7 +115,6 @@ void main() {
           sysPillOn: true,
           canDraw: true,
           appActive: false,
-          readerOpen: false,
           readRunning: false,
           mediaRunning: false,
         ),

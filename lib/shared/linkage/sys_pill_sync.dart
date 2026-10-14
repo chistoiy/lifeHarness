@@ -25,8 +25,7 @@ import '../../features/media/presentation/media_actions.dart'
 import '../../features/media/presentation/media_providers.dart'
     show mediaItemDetailProvider, mediaRunningSessionProvider, mediaTickProvider;
 import '../../features/read/presentation/read_providers.dart'
-    show booksProvider, readKvProvider, readTickProvider, readerOpenProvider,
-        runningSessionProvider;
+    show booksProvider, readKvProvider, readTickProvider, runningSessionProvider;
 import 'timer_bar_overlay.dart' show endMediaPillTimer, endReadPillTimer;
 
 /// app 是否在前台（系统悬浮窗在 app 前台时隐藏——免与 app 内胶囊重复；
@@ -117,12 +116,10 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
     return;
   }
 
-  final readerOpen = ref.watch(readerOpenProvider) > 0;
   final target = sysPillTarget(
     sysPillOn: sysPillOn,
     canDraw: canDraw,
     appActive: appActive,
-    readerOpen: readerOpen,
     readRunning: readS != null,
     mediaRunning: mediaS != null,
   );
