@@ -38,10 +38,19 @@ final sysPillOnProvider = FutureProvider<bool>((ref) async =>
     (await ref.watch(readKvProvider(('read.sysPill', 'false')).future)) ==
     'true');
 
-/// 已推送签名（隐藏态不含秒——免去隐藏期间每秒空推）与服务在跑备忘。
-/// 模块级：跨 tick 去重，仅本文件写。
+/// 已推送签名与服务在跑备忘。模块级：跨 tick 去重，仅本文件写。
+/// 注意备忘只用于**省推**，不作为服务存活的权威——原生服务可能被 ROM
+/// （HyperOS 冻结/杀后台 FGS 实锤 6129 装机轮）停掉而 Dart 无从感知，
+/// 恢复靠：①可见态每 tick 都推（服务死则前台合法重启·见下）；
+/// ②回前台 [sysPillMarkStale] 强制重断言（前台起服务不受 Android 14+ 限制）。
 String? _lastSig;
 bool _serviceOn = false;
+
+/// 清空推送签名备忘：下次 tick 必推一次（回前台时由 app.dart 调——
+/// 原生服务可能已被 ROM 停掉而备忘还留着，导致恢复链断裂永不重推）。
+void sysPillMarkStale() {
+  _lastSig = null;
+}
 
 /// 悬浮窗一次性事件消费（■结束）：按在跑会话现算结束哪条（read 优先），
 /// 提示/弹层挂根 Navigator（R14 护栏同源）。异常不回流 tick 循环。
@@ -151,7 +160,9 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   final sig = visible
       ? 'v:${state.kind}:${state.title}:${state.status}:${state.seconds}'
       : 'h:${state.kind}:${state.title}:${state.status}';
-  if (sig != _lastSig) {
+  // 可见态每 tick 都推（悬浮窗秒显刷新＋服务 lastSyncAt 保活＋服务被 ROM
+  // 停掉时前台 tick 内合法自愈重启）；隐藏态才按 sig 去重（免每秒空推）。
+  if (visible || sig != _lastSig) {
     await sysPillSync(state, visible);
     _serviceOn = true;
     _lastSig = sig;

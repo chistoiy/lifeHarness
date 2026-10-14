@@ -11,7 +11,8 @@ import 'shared/linkage/habit_mounts.dart';
 import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
 import 'shared/linkage/sys_pill_sync.dart'
-    show drainPillEvents, sysPillAppActiveProvider, sysPillSyncProvider;
+    show drainPillEvents, sysPillAppActiveProvider, sysPillMarkStale,
+        sysPillSyncProvider;
 import 'shared/widgets/ui_kit.dart' show AppToast;
 
 /// 应用根 Widget：主题三件套（light/dark/mode）+ go_router。
@@ -61,6 +62,9 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       // 批B：回前台时补消费一次悬浮窗事件（冷启动经 ■结束 意图入队的场景，
       // 同步器尚未起 tick 也要兜住）。
       drainPillEvents(ref);
+      // 批B 热修 6130：回前台强制重断言——原生服务可能已被 ROM（HyperOS 冻结/
+      // 杀后台 FGS）停掉而备忘还在，清 sig 后下个 tick 必推（前台起服务合法）。
+      sysPillMarkStale();
     }
     // 批B：app 前台时系统悬浮窗隐藏（免与 app 内胶囊重复），退后台恢复。
     if (state == AppLifecycleState.resumed || state == AppLifecycleState.paused) {

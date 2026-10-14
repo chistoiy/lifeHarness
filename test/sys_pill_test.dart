@@ -203,12 +203,18 @@ void main() {
       expect(src, contains('endReadPillTimer'));
       expect(src, contains('endMediaPillTimer'),
           reason: '结束路径必须与 app 内胶囊钮单源，禁抄第二份');
+      // 6130 热修守护：可见态每 tick 都推＋重断言钩子（ROM 杀服务后自愈）。
+      expect(src, contains('if (visible || sig != _lastSig)'),
+          reason: '可见态被 sig 去重挡住＝服务被 ROM 停掉后永不重推（6129 实伤）');
+      expect(src, contains('void sysPillMarkStale()'));
     });
 
-    test('组合根 app.dart 必须挂 drainPillEvents 消费点', () {
+    test('组合根 app.dart 必须挂 drainPillEvents 消费点与重断言', () {
       final src = File('lib/app.dart').readAsStringSync();
       expect(src, contains('drainPillEvents'),
           reason: '同步模块只管推状态；消费（WidgetRef 层级）必须挂在组合根');
+      expect(src, contains('sysPillMarkStale()'),
+          reason: '回前台必须清 sig 备忘强制重推（前台起服务不受 Android 14+ 限制）');
     });
 
     test('结束助手本体在 timer_bar_overlay 且被两处胶囊钮调用', () {
