@@ -268,6 +268,9 @@ void main() {
     ));
     await beat(tester);
     expect(find.byKey(const ValueKey('media-bar')), findsOneWidget);
+    // 批A 两形态：默认紧凑不显书名，点「时间」展开书名字样后再断言文案。
+    await tester.tap(find.byKey(const ValueKey('media-pill-time')));
+    await beat(tester);
     expect(find.textContaining('《双人成行》 · 游玩中 4 分钟'), findsOneWidget);
     await tester.tap(find.text('■ 结束'));
     await beat(tester);

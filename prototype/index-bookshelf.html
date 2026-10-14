@@ -55,6 +55,9 @@ tailwind.config = {
   input[type=range]{accent-color:#6366f1}
   .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
   .safe-pb{padding-bottom:96px}
+  /* 悬浮胶囊增强批（2026-10-14）：展开胶囊⇄贴边圆圈两态 · 150ms easeOut＝〇B 微动档 */
+  #timerBar,#pillFab{transition:left .15s ease-out,top .15s ease-out,transform .15s ease-out}
+  .pill-nodrag{transition:none!important}
   .blur-bd{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
   /* ---- 组件类 ---- */
   .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:14px 16px;box-shadow:var(--card-sh)}
@@ -418,12 +421,18 @@ tailwind.config = {
 
   <!-- ========== 页面容器 ========== -->
   <main class="h-[calc(100%-148px)] overflow-hidden relative">
-    <!-- 阅读/观影计时悬浮条 -->
-    <div id="timerBar" class="hidden absolute top-2 left-4 right-4 z-40 blur-bd bg-slate-900/90 text-white rounded-2xl px-3.5 py-2.5 flex items-center gap-2 shadow-xl">
-      <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0"></span>
-      <div class="flex-1 min-w-0 text-[11px] leading-4"><b id="timerKind">阅读计时</b> <span id="timerTarget" class="opacity-75"></span></div>
-      <b id="timerSec" class="font-mono text-sm">0:00</b>
-      <button onclick="endTimer()" class="text-[11px] font-extrabold bg-white/15 rounded-lg px-2.5 py-1.5 ml-1">■ 结束</button>
+    <!-- 阅读/观影计时悬浮胶囊（悬浮胶囊增强批 · 产品三轮回知定型 2026-10-14）：两形态且严格互斥——
+         ①展开胶囊＝呼吸点＋时间＋＋笔记＋■结束（默认紧凑不显书名；点时间才显/隐书名）②拖到屏幕边缘折叠成贴边圆圈（只显时长），点圆圈直接展开 -->
+    <div id="timerBar" class="hidden absolute top-2 left-4 z-40 max-w-[calc(100%-24px)] blur-bd bg-white/95 dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 text-slate-800 dark:text-white rounded-2xl px-3 py-2.5 flex items-center gap-1.5 shadow-xl select-none" style="touch-action:none" title="拖动移动位置 · 拖到屏幕边缘折叠成圆圈" onpointerdown="pillDragStart(event)">
+      <span class="w-2 h-2 rounded-full bg-rose-500 dark:bg-rose-400 animate-pulse shrink-0"></span>
+      <span id="timerLabel" class="hidden text-[11px] leading-4 min-w-0 truncate max-w-[150px]"><b id="timerKind">阅读计时</b> <span id="timerTarget" class="opacity-70"></span></span>
+      <b id="timerSec" class="font-mono text-sm px-0.5 whitespace-nowrap cursor-pointer active:opacity-60" title="点时间＝显示/隐藏书名" onclick="pillLabelToggle(event)">0:00</b>
+      <button onclick="pillNoteA()" title="记一条书摘（复用记摘录 · C6 已拍板案A）" class="whitespace-nowrap text-[11px] font-extrabold bg-slate-100 dark:bg-white/15 text-slate-700 dark:text-white rounded-lg px-2.5 py-1.5 shrink-0">＋笔记</button>
+      <button onclick="endTimer()" class="whitespace-nowrap text-[11px] font-extrabold bg-slate-100 dark:bg-white/15 text-slate-700 dark:text-white rounded-lg px-2.5 py-1.5 shrink-0">■ 结束</button>
+    </div>
+    <!-- 贴边圆圈态：只显时长 · 点击直接展开胶囊（产品回知 2026-10-14：两形态 · 点击判定统一在 pointerup） -->
+    <div id="pillFab" class="hidden absolute top-2 left-4 z-40 w-[52px] h-[52px] rounded-full blur-bd bg-white/95 dark:bg-slate-900/90 border border-slate-200/80 dark:border-white/10 shadow-xl items-center justify-center select-none" style="touch-action:none" title="点击展开计时胶囊" onpointerdown="pillFabDragStart(event)">
+      <b id="pillFabSec" class="font-mono text-[11px] text-slate-800 dark:text-white leading-none whitespace-nowrap">0:00</b>
     </div>
 
     <!-- ===== P1 今日仪表盘 ===== -->
@@ -1610,6 +1619,52 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- ===== 悬浮胶囊增强批 · 样张总览（C1~C6 拍板材料 · 2026-10-14 立项 · 工单 docs/handoff/悬浮胶囊增强批-20261014.md） ===== -->
+  <div id="sheetPillDemo" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetPillDemo')">
+    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[82vh] overflow-y-auto no-scrollbar">
+      <div class="grabber"></div>
+      <div class="font-extrabold">悬浮胶囊交互样张（批A · app 内）</div>
+      <div class="text-[10px] text-slate-500 mt-0.5">阅读设置 › 阅读计时 › 计时显示＝顶部胶囊 后开计时，可实机拖动体验；本卡为静态对照</div>
+
+      <!-- 形态样卡（2026-10-14 三轮回知定型 · 亮色档配色） -->
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div class="card !p-2.5">
+          <div class="h-12 rounded-xl flex items-center justify-center"><div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-2xl bg-white border border-slate-200 shadow-sm text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span><b class="font-mono text-slate-800 whitespace-nowrap">12:34</b><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-[9px] whitespace-nowrap">＋笔记</span><span class="bg-slate-100 text-slate-700 rounded px-1.5 py-0.5 text-[9px] whitespace-nowrap">■</span></div></div>
+          <div class="text-[10px] font-bold mt-1.5">紧凑胶囊（默认）</div><div class="text-[9px] text-slate-400">时间＋＋笔记＋■结束</div>
+        </div>
+        <div class="card !p-2.5">
+          <div class="h-12 rounded-xl flex items-center justify-center"><div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-2xl bg-white border border-slate-200 shadow-sm text-[9px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span><span class="text-slate-800 truncate max-w-[70px]">阅读计时 ·《时间折扣》</span><b class="font-mono text-slate-800 whitespace-nowrap">12:34</b></div></div>
+          <div class="text-[10px] font-bold mt-1.5">展开（点时间）</div><div class="text-[9px] text-slate-400">书名截断省略</div>
+        </div>
+        <div class="card !p-2.5">
+          <div class="h-12 rounded-xl flex items-center justify-center"><div class="w-[52px] h-[52px] rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center"><b class="font-mono text-[11px] text-slate-800 leading-none">12:34</b></div></div>
+          <div class="text-[10px] font-bold mt-1.5">贴边圆圈</div><div class="text-[9px] text-slate-400">只显时长 · 点击展开</div>
+        </div>
+      </div>
+      <div class="mt-2 text-[10px] text-slate-500 leading-5"><b>两形态严格互斥</b>：①<b>紧凑胶囊（默认）</b>＝呼吸点＋时间＋＋笔记＋■结束（不显书名，胶囊短）；点「时间」才显示/隐藏书名与「阅读计时」字样，过长截断省略；②拖到屏幕左/右边缘（24px 内）松手 → <b>贴边圆圈</b>，圈里只显时长，<b>点圆圈直接展开回胶囊</b>（位置接住圆圈处并保证整条在屏内），圆圈也可拖动换边/换位、松手吸附最近一边。位置记忆 per 形态存 kv <b class="font-mono">read.pillPos</b>（跨页保持）；动效 150ms easeOut（〇B 微动档）；时间＝<b class="font-mono">m:ss</b>，满 1 小时升 <b class="font-mono">h:mm:ss</b>，等宽数字秒级跳动；「■ 结束」结算口径不变（仍按分钟计）。<b>配色</b>：胶囊与圆圈走<b>中性浮层</b>——亮色档＝白底(<b class="font-mono">bg-white/95</b>)＋浅描边＋阴影＋深字与浅灰按钮，深色档＝深底白字，与页面卡片语言一致（首版纯黑底在亮色页面上过重）。</div>
+
+      <!-- app 外示意（批B 原生） -->
+      <div class="mt-4 text-[12px] font-extrabold text-slate-400 tracking-wide">APP 外系统悬浮窗（批B · 原生）</div>
+      <div class="mt-2 card !p-3">
+        <div class="rounded-xl h-28 relative overflow-hidden" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
+          <div class="absolute inset-x-0 top-2 flex justify-center"><div class="h-1.5 w-16 rounded-full bg-white/40"></div></div>
+          <div class="absolute left-1/2 bottom-3 -translate-x-1/2 flex gap-3">
+            <span class="w-7 h-7 rounded-full bg-emerald-400/80"></span><span class="w-7 h-7 rounded-full bg-amber-400/80"></span><span class="w-7 h-7 rounded-full bg-rose-400/80"></span><span class="w-7 h-7 rounded-full bg-white/60"></span>
+          </div>
+          <div class="absolute top-8 left-3 right-3 blur-bd bg-slate-900/90 text-white rounded-2xl px-3 py-2 flex items-center gap-2 shadow-xl text-[10px]"><span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse shrink-0"></span><span class="flex-1 truncate">阅读计时 ·《时间折扣》</span><b class="font-mono">1:02:11</b><span class="bg-white/15 rounded-lg px-2 py-0.5">■ 结束</span></div>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-2 leading-5">在桌面／微信等其他应用上层常显，内容与 app 内胶囊同构（书名 · 阅读中/影音中 · 时长 · ■ 结束）；进阅读器自动隐藏。载体＝SYSTEM_ALERT_WINDOW 权限＋前台 Service＋悬浮 view（批B 原生批）。</div>
+        <div class="mt-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 p-2.5 text-[10px] leading-5 text-amber-700 dark:text-amber-400"><b>权限引导话术（批B 前置门第 3 条 · 样张）：</b>「悬浮计时条需要在其他应用上层显示，以便你在桌面或别的 App 里继续看到计时。该权限只用于显示计时胶囊，不读取、不上传任何内容。」→「去授权」跳系统「显示在其他应用上层」设置页（Android 11+ 无弹窗式授权）；拒绝后降级为仅 app 内胶囊，功能不受影响。</div>
+      </div>
+
+      <!-- C6 已拍板（2026-10-14 产品）＝案A -->
+      <div class="mt-4 text-[12px] font-extrabold text-slate-400 tracking-wide">C6 「＋笔记」· <span class="text-emerald-600 dark:text-emerald-400">已拍板＝案A 复用记书摘</span></div>
+      <div class="mt-2 card !p-3"><b class="text-[11px]">方案 A · 新建书摘 <span class="text-emerald-600 dark:text-emerald-400">已拍板</span></b><div class="text-[10px] text-slate-500 mt-1 leading-5">＋笔记直开书摘新建页（与「记摘录」同一张，预选在读书），归属书摘库；可写长感想、带页码与章节。案B（就地输入框）作废。</div></div>
+      <div class="mt-2 text-[10px] text-slate-500 leading-5">与「■ 结束」并列不互斥；影音计时条（media.timerUI＝顶部胶囊）同构继承（拖动/折叠/秒显），C6 仅阅读侧。</div>
+      <button onclick="closeSheet('sheetPillDemo')" class="mt-4 w-full py-3 rounded-xl grad text-white text-sm font-bold">知道了</button>
+    </div>
+  </div>
+
   <!-- ===== 书架专版 · 排序 ===== -->
   <div id="sheetShelfSort" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetShelfSort')">
     <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
@@ -2369,7 +2424,11 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
   if(typeof renderHdrActs==='function')renderHdrActs(p);
   /* 轮5.4：阅读器内不挂全局计时条（顶栏已有时长胶囊 · 退出自动结算） */
   /* G16/F1-5：floatBar 生效点——关掉「悬浮计时条」后，计时进行中也不再挂全局悬浮条 */
-  const _tb=$('#timerBar');if(_tb&&typeof timer!=='undefined'&&timer&&(typeof BS_FLOATBAR==='undefined'||BS_FLOATBAR!==false)){const off=p==='p-readtimer'||p==='p-readerPage';_tb.classList.toggle('hidden',off);_tb.classList.toggle('flex',!off);timerBarSpace(!off)}
+  const _tb=$('#timerBar'),_fb=$('#pillFab');
+  if(_tb){const _live=typeof timer!=='undefined'&&timer&&(typeof BS_FLOATBAR==='undefined'||BS_FLOATBAR!==false);
+    const off=_live&&(p==='p-readtimer'||p==='p-readerPage');const vis=_live&&!off;
+    _tb.style.display=vis?'':'none';_fb.style.display=vis?'':'none';timerBarSpace(vis)}
+  else if(_tb){_tb.classList.add('hidden');_tb.classList.remove('flex');timerBarSpace(false)}
   else if(_tb){_tb.classList.add('hidden');_tb.classList.remove('flex');timerBarSpace(false)}
   $('#btnRecSwitch').classList.toggle('hidden',p!=='p-records');
   $('#btnRecSwitch').classList.toggle('flex',p==='p-records');
@@ -3602,14 +3661,83 @@ function timerTap(kind,target){
   if(timer){toast('请先结束「'+timerTarget+'」的计时');return;}
   lastTimerSecs=0;timer=setInterval(tickTimer,500);timerT0=Date.now();timerKind=kind;timerTarget=target;
   $('#timerKind').textContent=KIND_TXT[kind];$('#timerTarget').textContent=target;$('#timerSec').textContent='0:00';
-  const tb=$('#timerBar');tb.classList.remove('hidden');tb.classList.add('flex');timerBarSpace(true);
+  $('#timerLabel').classList.add('hidden');/* 默认紧凑：不显书名（产品口径 2026-10-14） */
+  pillShow('bar');timerBarSpace(true);
   const rb=$('#readTimerBtn');if(rb)rb.textContent='点击结束计时';renderMedia();
   toast('计时开始 · 可离开本页，悬浮计时条常驻');}
-function tickTimer(){if(!timer)return;const s=Math.floor((Date.now()-timerT0)/1000);$('#timerSec').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');const c=$('#rtClock');if(c&&curPage==='p-readtimer')c.textContent=rtFmt(s);}
+function tickTimer(){if(!timer)return;const s=Math.floor((Date.now()-timerT0)/1000);$('#timerSec').textContent=fmtPillSec(s);
+  const fb=$('#pillFabSec');if(fb&&!$('#pillFab').classList.contains('hidden'))fb.textContent=fmtFabSec(s);
+  const c=$('#rtClock');if(c&&curPage==='p-readtimer')c.textContent=rtFmt(s);}
 function timerSecs(){return timer?Math.floor((Date.now()-timerT0)/1000):0;}
-function stopTimerUI(){if(timer){lastTimerSecs=Math.floor((Date.now()-timerT0)/1000);clearInterval(timer);timer=null;}const tb=$('#timerBar');tb.classList.add('hidden');tb.classList.remove('flex');timerBarSpace(false);
+function stopTimerUI(){if(timer){lastTimerSecs=Math.floor((Date.now()-timerT0)/1000);clearInterval(timer);timer=null;}pillShow('none');timerBarSpace(false);
   const rb=$('#readTimerBtn');if(rb)rb.textContent='开始阅读';renderMedia();}
 function endTimer(){openProgress(timerKind,timerTarget,true);}
+/* ---------- 悬浮胶囊增强批 原型（两形态 · 三轮回知定型 · 工单 docs/handoff/悬浮胶囊增强批-20261014.md §5） ----------
+   形态＝展开胶囊（默认紧凑：呼吸点＋时间＋＋笔记＋■结束，点时间才显/隐书名）⇄ 贴边圆圈（只显时长，点圆圈直接展开）。
+   两态严格互斥（pillShow 单一出口）；演示内存态 pillPos/pillDock；真实＝批A 纯 Flutter（kv read.pillPos per 形态）＋批B 原生（app 外）；C6 已拍板＝案A。 */
+let pillPos=null,pillDock=0,_pillDragged=false;
+const PILL_FAB=52;
+function fmtPillSec(s){s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),x=s%60;
+  return h?h+':'+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0'):m+':'+String(x).padStart(2,'0')}
+function fmtFabSec(s){s=Math.max(0,Math.floor(s));if(s<3600)return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  return Math.floor(s/3600)+':'+String(Math.floor(s%3600/60)).padStart(2,'0')}
+function pillClamp(x,y,w,h){return [Math.min(Math.max(4,x),innerWidth-w-4),Math.min(Math.max(4,y),innerHeight-h-4)]}
+/* 两形态互斥唯一出口：任何时刻只许一态可见（实伤修复：曾出现圆圈与胶囊并存；display 残留曾致整条不渲染） */
+function pillShow(which){const tb=$('#timerBar'),f=$('#pillFab');
+  tb.style.display='';f.style.display='';
+  tb.classList.toggle('hidden',which!=='bar');tb.classList.toggle('flex',which==='bar');
+  f.classList.toggle('hidden',which!=='fab');f.classList.toggle('flex',which==='fab')}
+/* 拖到屏幕左/右边缘（24px 内）松手 → 折叠成贴边圆圈（只显时长） */
+function pillFabify(side){const tb=$('#timerBar'),f=$('#pillFab');
+  if(tb.classList.contains('hidden')&&f.classList.contains('hidden'))return;
+  const src=tb.classList.contains('hidden')?f:tb;
+  const y=pillClamp(4,src.getBoundingClientRect().top,PILL_FAB,PILL_FAB)[1];
+  pillDock=side==='l'?-1:1;
+  f.style.left=side==='l'?'4px':'auto';f.style.right=side==='l'?'auto':'4px';f.style.top=y+'px';
+  pillPos={x:side==='l'?4:innerWidth-PILL_FAB-4,y:y};
+  $('#pillFabSec').textContent=fmtFabSec(timerSecs());
+  pillShow('fab');toast('已折叠成圆圈 · 点击展开')}
+/* 点圆圈 → 展开回胶囊：位置接住圆圈处，并保证整条落在视口内（实伤修复：曾整条跑出屏外） */
+function pillFabExpand(){const f=$('#pillFab'),tb=$('#timerBar');if(f.classList.contains('hidden')||_pillDragged)return;
+  const r=f.getBoundingClientRect();pillShow('bar');
+  const w=tb.offsetWidth||tb.getBoundingClientRect().width;
+  let x=r.left;if(x+w>innerWidth-4)x=Math.max(4,innerWidth-w-4);if(x<4)x=4;
+  tb.style.width='';tb.style.left=x+'px';tb.style.right='auto';tb.style.top=Math.max(4,r.top)+'px';
+  pillDock=0;toast('已展开胶囊')}
+function pillDragStart(e){const tb=$('#timerBar');if(e.target.closest('button'))return;e.preventDefault();
+  const r=tb.getBoundingClientRect(),sx=e.clientX,sy=e.clientY,ol=r.left,ot=r.top;let ox=ol,oy=ot,moved=false;
+  tb.classList.add('pill-nodrag');tb.style.width=r.width+'px';tb.style.right='auto';
+  const W=r.width,H=r.height;
+  function mv(ev){const dx=ev.clientX-sx,dy=ev.clientY-sy;if(!moved&&Math.hypot(dx,dy)<4)return;moved=true;_pillDragged=true;
+    [ox,oy]=pillClamp(ol+dx,ot+dy,W,H);tb.style.left=ox+'px';tb.style.top=oy+'px'}
+  function up(){removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+    requestAnimationFrame(()=>{tb.classList.remove('pill-nodrag');if(moved){_pillDragged=true;setTimeout(()=>_pillDragged=false,350)}});
+    if(!moved)return;
+    if(ox<=24)pillFabify('l');else if(innerWidth-(ox+W)<=24)pillFabify('r');
+    else{pillDock=0;pillPos={x:ox,y:oy}}}
+  addEventListener('pointermove',mv);addEventListener('pointerup',up)}
+/* 圆圈拖动：先固化 left 再清 right（实伤修复：曾先清 right 导致圆圈跳边）；点击判定统一在 pointerup */
+function pillFabDragStart(e){e.preventDefault();const f=$('#pillFab');if(f.classList.contains('hidden'))return;
+  const r=f.getBoundingClientRect(),sx=e.clientX,sy=e.clientY;let moved=false;
+  f.classList.add('pill-nodrag');
+  function mv(ev){const dx=ev.clientX-sx,dy=ev.clientY-sy;if(!moved&&Math.hypot(dx,dy)<6)return;
+    if(!moved){moved=true;_pillDragged=true;f.style.left=r.left+'px';f.style.right='auto'}
+    f.style.left=Math.min(Math.max(4,r.left+dx),innerWidth-PILL_FAB-4)+'px';
+    f.style.top=Math.min(Math.max(4,r.top+dy),innerHeight-PILL_FAB-4)+'px'}
+  function up(){removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+    requestAnimationFrame(()=>{f.classList.remove('pill-nodrag');if(moved){_pillDragged=true;setTimeout(()=>_pillDragged=false,350)}});
+    if(!moved){pillFabExpand();return}
+    pillFabify(parseFloat(f.style.left)+PILL_FAB/2<innerWidth/2?'l':'r')}
+  addEventListener('pointermove',mv);addEventListener('pointerup',up)}
+/* 点「时间」＝显示/隐藏书名与「阅读计时」字样（默认紧凑不显） */
+function pillLabelToggle(e){if(e)e.stopPropagation();if(_pillDragged)return;
+  const l=$('#timerLabel');l.classList.toggle('hidden');
+  toast(l.classList.contains('hidden')?'已收起书名 · 点时间再展开':'已展开书名 · 点时间收起')}
+/* C6 已拍板（2026-10-14 产品）＝案A：复用已有记书摘能力，＋笔记直开书摘新建页（预选在读书） */
+function pillNoteA(){const t=timerTarget||'';
+  const b=BS_BOOKS.find(x=>t.indexOf(x.n)>=0)||bsIng()[0]||BS_BOOKS[0];
+  if(!b)return toast('书架还没有书 · 先添加一本');
+  CURBK=b.id;qeOpen(null,b.id);toast('记书摘 · 预选在读书')}
 const PROG_WAYS={read:[['page','页数'],['pos','位置'],['pct','百分比'],['chap','章节']],watch:[['min','时间点'],['pct','百分比'],['epi','集数']]};
 let progMode='read',progWay='page',progFromTimer=false,progTarget='';
 function openProgress(mode,target,fromTimer){progMode=mode;progTarget=target||'';progFromTimer=!!fromTimer;progWay=PROG_WAYS[mode][0][0];
@@ -4507,7 +4635,7 @@ const RS_SEC=[
  ['外观与启动',[['openTab','默认打开','chips',['在读','想读','已读','弃读']],['wallCols','封面墙列数','chips',[3,4,5]],['covFallback','无封面书卡','chips',['A 正文首图','B 书脊色块','C 纯文字卡'],'EPUB 无内嵌封面时的回落档 · 默认 A · 可在书架同屏预览对比'],['imgCols','图片墙列数','chips',[3,4,5]],['qtLines','书摘文本行数','chips',[2,3,4]],['simple','简洁浏览书摘','bool','隐藏时间、位置等辅助信息'],['fullCh','完整显示章节名','bool','过长章节名换行显示']]],
  ['内容显示与排序',[['newPos','新增书籍位置','chips',['开头','末尾']],['yearSort','今年读完排序','chips',['升序','降序']],['tlRange','时间线范围','chips',[['本月','month'],['近半年','half'],['全年','year']]],['tlDays','时间线显示天数','chips',[7,14,30]],['longPress','长按书籍菜单','ops','勾选并调整顺序']]],
  ['书摘创建',[['ocr','识图取文','bool','从相册或截图识别原文'],['rateFmt','默认带页码与章节','bool','新建摘录时自动填当前进度'],['clipAuto','剪贴板自动识别来源','bool','复制后弹出导入提示']]],
- ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
+ ['阅读计时',[['timerUI','计时显示','chips',['全屏','顶部胶囊'],['全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时']],['floatBar','悬浮计时条','bool','切到别的 App 也继续计时'],['pillDemo','胶囊交互样张','nav',"openSheet('sheetPillDemo')",'拖动 / 折叠 / 贴边 / 秒显 / 加笔记 · app 外示意与 C6 两案拍板材料'],['speedFold','有声按倍速折算','bool','1.5 倍速只记 40 分钟'],['autoAsk','结束计时后问进度','bool','停止即弹「记进度」'],['dailyQ','每天提醒补记','bool','晚间未计时时提醒']]],
  ['数据与存储',[['feeTxn','购书费用记入账本','bool','新增或修改费用时同步生成/更新一笔「阅读-购书」支出'],['isbnFill','ISBN 补全','chips',['仅填 ISBN','抓豆瓣数据'],'扫码 / 输入 ISBN 命中后，是否抓取豆瓣书目自动填充书名、作者、出版社、页数、封面与评分'],['dbCookie','豆瓣登录 Cookie','login','在应用内登录豆瓣，登录完成后自动取得 Cookie · 仅存本机 · 频繁抓取可能导致自己的账号受限'],['dbCache','豆瓣数据缓存','cache','抓到的书目按 ISBN 缓存本机，二次命中先问用缓存还是联网重查'],['import','导入其他平台读书笔记','go','微信读书 / Kindle / Notion / Markdown · 授权 / 文件 / 剪贴板 / API'],['bkmgr','书架资料','nav',"bmOpen('src')",'来源 / 分组 / 作者 / 出版社 / 标签'],['stat','阅读统计','nav',"navTo('p-readstat')",'时长 · 热力图 · 目标'],['exportMd','导出全部书摘','go2','Markdown · 按书分组'],['exportJson','导出书架备份','go2','JSON · 可换机导入'],['store','存储位置','info','应用私有目录 · 本地优先'],['sync','服务集成','info','WebDAV / 局域网备份']]],
  ['本地阅读器',[['epub','导入本地 EPUB','nav',"navTo('p-localImport');brImpGo(1)",'添加图书流程内同样有入口 · Android 13+ SAF 单次读取'],['xrwords','X-Ray 中心','nav',"navTo('p-xrwords');renderXrWords();xrcTab('word')",'词条 · AI 精化 · 索引与备份 三段同页 · 养词库开关（关＝纯预置视角）'],['brSync','划线自动存为书摘','bool','阅读器高亮=按所选分类生成一条划线书摘 · 删除高亮同步移除'],['brLink','书籍内外部链接','chips',['禁止','询问','允许'],'章节内跳转不受限制 · 外链默认询问'],['brRate','有声书倍速','chips',[[0.75,'0.75x'],[1,'1.0x'],[1.25,'1.25x'],[1.5,'1.5x'],[2,'2.0x']],'仅用于有声书：按此倍速把播放时长折算成阅读时长（配合「有声按倍速折算」开关）'],['brBright','阅读时屏幕常亮','bool','进入阅读器自动生效 · 退出恢复系统策略'],
    ['brMinSecs','短于该时长的阅读不计入','chips',[5,10,15,30,60,120,300],'秒 · 默认 30 · 退出阅读器时结算，未达门槛不记时长也不记会话'],['brSelGran','长按选择粒度','chips',['选字','选句'],'默认 选字 · 长按命中单字，拖手柄扩选；选句 长按命中整句'],['brSelOps','选区工具条工具','opsSel','勾选并调整顺序 · 移除＝不上工具条']]]];

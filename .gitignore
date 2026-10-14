@@ -88,3 +88,4 @@ tools/**/*_before.html
 tools/**/*.xml
 # 小工具模块已下架（V1.58）：tools/kits 未入库的一次性施工脚本原地留底即可（34 枚已跟踪文件不受影响）
 tools/kits/
+.workbuddy-ai/
