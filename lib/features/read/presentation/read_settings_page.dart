@@ -84,7 +84,7 @@ const _secs = [
     _Row('timerUI', '计时显示', _T.chips,
         opts: ['全屏', '顶部胶囊'],
         desc: '全屏＝整页沉浸（隐藏顶栏与底栏）；顶部胶囊＝不跳页，只在 app 顶部留一行胶囊计时'),
-    _Row('floatBar', '悬浮计时条', _T.bool, desc: '切到别的 App 也继续计时'),
+    _Row('floatBar', '悬浮计时条', _T.bool, desc: '离开本 app 计时也不中断（回到 app 内跨页顶部显示）；系统级悬浮窗暂未实现'),
     _Row('speedFold', '有声按倍速折算', _T.bool, desc: '1.5 倍速只记 40 分钟'),
     _Row('autoAsk', '结束计时后问进度', _T.bool, desc: '停止即弹「记进度」'),
     _Row('dailyQ', '每天提醒补记', _T.bool, desc: '晚间未计时时提醒'),

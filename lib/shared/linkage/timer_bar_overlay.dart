@@ -37,9 +37,10 @@ const double kTimerBarGap = 8;
 /// 「计时中」唯一源=时间块（V1.52），轴视图卡内结束；本壳只承载
 /// 读书长胶囊（read.timerUI）与影音计时条（media.floatBar/media.timerUI=capsule）。
 ///
-/// **F2-5（批2）**：条可见时给壳内容**预留等量顶部空间**，首卡不再被条压住
-/// （原型口径＝给 `.page` 垫 `paddingTop`；壳层无「页内标题」概念，故垫在整页之前，
-/// 页面自带顶栏随之下移，与原型「条在页面内容之上」同构）。
+/// **产品改口（2026-10-14，真机回知两轮）**：胶囊是**纯悬浮**——叠在页面内容
+/// 之上、内容**零让位**（不再给页面垫顶，旧 F2-5「预留等量空间」口径废弃；
+/// 原型 `timerBarSpace` 同步作废）。条浮在状态栏正下（top+8），压住页面标题带
+/// 上沿属设计内（悬浮件本来就在内容 Z 序之上）。
 class TimerBarOverlay extends ConsumerWidget {
   const TimerBarOverlay({super.key, required this.child});
 
@@ -52,19 +53,9 @@ class TimerBarOverlay extends ConsumerWidget {
     final mediaOn = ref.watch(mediaTimerBarVisibleProvider);
     final bars = (readOn ? 1 : 0) + (mediaOn ? 1 : 0);
     final topPad = MediaQuery.paddingOf(context).top;
-    // 预留＝条落点 + 条占位总高；条不在场时为 0（零影响，旧行为不变）。
-    final reserve = bars == 0
-        ? 0.0
-        : topPad +
-            kTimerBarTopOffset +
-            bars * kTimerBarHeight +
-            (bars - 1) * kTimerBarGap;
     return Stack(
       children: [
-        if (reserve == 0)
-          child
-        else
-          Padding(padding: EdgeInsets.only(top: reserve), child: child),
+        child,
         if (bars > 0)
           Positioned(
             top: topPad + kTimerBarTopOffset,

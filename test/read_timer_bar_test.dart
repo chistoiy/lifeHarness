@@ -89,8 +89,8 @@ void main() {
         closeTo(topPad + kTimerBarTopOffset, .01),
         reason: '落点＝安全区+8：贴状态栏下悬浮（真机口径 2026-10-14）');
     expect(tester.getRect(find.byKey(const ValueKey('probe'))).top,
-        closeTo(topPad + kTimerBarTopOffset + kTimerBarHeight, .01),
-        reason: '内容只让出条高（悬浮，不整块占据顶部）');
+        closeTo(0, .01),
+        reason: '纯悬浮：内容零让位（垫位口径已废）');
   });
 
   testWidgets('全屏形态 ⇒ 不显胶囊', (tester) async {

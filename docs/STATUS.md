@@ -3,7 +3,7 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 治理批立·硬闸＝doclint 守护七调 `python tools/status_set.py --check`）：单行 ≤1200 字符·全文 ≤16KB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符；溢出细节留 `docs/handoff/` 工单，历史整段沉 `docs/archive/`。收尾改本文件一律走 `tools/status_set.py`（`--rotate` 轮转→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文（94,528 字节·54 行·表头单行 7,960 字符）逐字节存档＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`。治理三轮（2026-10-13）起文档门禁并增守护十一~十五（AGENTS ≤16KiB·交接文档/需求清单体量上限·入仓文档禁指工具本地目录路径·AGENTS 必需小节齐全），口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`（已闭档）。
 
-- **本批＝** 顶部胶囊热修（6124 装机回知两条实伤）：①显隐失效链断（改设置/起表后要重进 app 才显）＝readTimerBarVisibleProvider 直挂 readTick，kv 写入与起/停表无条件重算；②落点 60→8＝贴状态栏下悬浮、内容只让出条高（F2-5 预留保留）。新增常驻 read_timer_bar_test 3 例（可见性链/贴顶悬浮/重进才显回归钉）；闸＝analyze 10 持平＋read_f2_nav 4 例＋read_timer_bar 3 例全绿；承载件 6125（arm64 分包·base 4125·md5 9e2e33b9…·aapt 四项过·待装机复验）
+- **本批＝** 顶部胶囊热修（6124 回知三实伤全落）：①显隐失效链断＝readTimerBarVisibleProvider 直挂 readTick；②落点 60→8；③**垫位口径废弃**＝纯悬浮零让位（产品两轮回知改口，F2-5 预留与原型 timerBarSpace 作废）。新增 read_timer_bar_test 3 例＋f2_nav 断言随改（共 7 例绿）；系统级悬浮窗（app 外显示）＝未立项新需求待拍板，floatBar desc 文案已澄清。闸＝analyze 10 持平＋doclint 全绿；承载件 6126（arm64·待装机复验）
 - **上一批＝** 阅读模块批3 波3+余项收口（F3-8/9/10＋F3-6＋F3-3/5 余项·批3 全条落地）：热区＝热力格满节距 16²/感想点 24²/顶栏去 compact/色块·圆钮·手柄·文字钮 44²（密排例外两条登记）；准星 1.75；27 处弹层补把手＋年报限高内滚；小字灰收 text2；构成环 accent 派生·选区/划线/外链/loupe 收 accent；等宽补缺。新增 read_touch_target 3 例；闸＝analyze 10 持平＋12 波全绿＋刀3 红其位＋doclint 全绿；size_budget 四件登记值归位；承载 6124 已装机验证 ok（工单归档 archive/交棒话术-20261014-阅读模块批3主题矩阵与UI一致性.md）
 
 ## 基线（八项，其余不写）

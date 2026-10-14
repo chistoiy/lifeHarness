@@ -113,44 +113,32 @@ void main() {
     await drainLogTimer(tester);
   });
 
-  testWidgets('F2-5 单条在跑：壳内容按「落点 + 条高」预留，首卡不再被压住', (tester) async {
+  testWidgets('悬浮条在跑：纯悬浮零让位（产品改口 2026-10-14，F2-5 垫位口径废弃）', (tester) async {
     await repo.addBook(bk('b1', '原子习惯'));
     await repo.startSession('b1');
     await bootShell(tester, readOn: true, mediaOn: false);
     expect(find.byKey(const ValueKey('read-bar')), findsOneWidget,
         reason: '在跑＝胶囊条真渲染');
     final topPad = topPadOf(tester);
-    expect(
-      probeTop(tester),
-      closeTo(topPad + kTimerBarTopOffset + kTimerBarHeight, .01),
-      reason: 'F2-5：条可见时内容下移等量，首卡不被条压住',
-    );
+    expect(probeTop(tester), closeTo(0, .01),
+        reason: '纯悬浮：内容零让位（不垫顶）');
     final barTop = tester.getRect(find.byKey(const ValueKey('read-bar'))).top;
     expect(barTop, closeTo(topPad + kTimerBarTopOffset, .01),
-        reason: '条落点＝安全区 + 60（让过页面自带顶栏）');
-    // 条底不越过内容顶（预留量正好等于条占位）。
-    expect(
-      tester.getRect(find.byKey(const ValueKey('read-bar'))).bottom,
-      lessThanOrEqualTo(probeTop(tester) + .01),
-      reason: '预留量必须 ≥ 条占位，否则首卡仍被压',
-    );
+        reason: '条落点＝安全区 + 8（贴状态栏下悬浮）');
     await drainLogTimer(tester);
   });
 
-  testWidgets('F2-5 两条并存：预留加一档（含条间距）', (tester) async {
-    // 影音条自身的渲染面由 `media_timer_page_test` 覆盖；本例只钉 F2-5 的
-    // 预留契约＝按「在场条数」加档，两条并存时多算一条条高 + 一段间距。
+  testWidgets('两条并存：media 可见位打开不影响阅读条（media 渲染面由 media 侧测试覆盖）', (tester) async {
+    // _MediaTimerBar 需影音在跑会话才出内容（本 harness 未种）＝媒体条本体
+    // shrink；本例只钉「media 可见位并存不破坏阅读条与零让位」。
     await repo.addBook(bk('b1', '原子习惯'));
     await repo.startSession('b1');
     await bootShell(tester, readOn: true, mediaOn: true);
     expect(find.byKey(const ValueKey('read-bar')), findsOneWidget);
     final topPad = topPadOf(tester);
-    expect(
-      probeTop(tester),
-      closeTo(
-          topPad + kTimerBarTopOffset + 2 * kTimerBarHeight + kTimerBarGap, .01),
-      reason: '两条并存＝条高×2 + 间距',
-    );
+    expect(tester.getRect(find.byKey(const ValueKey('read-bar'))).top,
+        closeTo(topPad + kTimerBarTopOffset, .01));
+    expect(probeTop(tester), closeTo(0, .01), reason: '纯悬浮零让位');
     await drainLogTimer(tester);
   });
 
