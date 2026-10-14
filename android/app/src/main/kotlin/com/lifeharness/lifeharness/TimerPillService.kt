@@ -65,14 +65,23 @@ class TimerPillService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SYNC) payload = readPayload(intent)
+        // startForeground 必须先行：startForegroundService 起的服务 5s 内不进前台
+        // ＝RemoteServiceException 崩溃；无权限/ROM 拒授也先吃下回调再自停，且包
+        // try/catch——失败按无悬浮窗降级，绝不崩 app（6128 实伤：缺 FOREGROUND_SERVICE
+        // 基础权限，sync 即 SecurityException 主进程崩）。
+        val fgOk = try {
+            startForeground(NOTI_ID, buildNotification(payload))
+            true
+        } catch (_: Exception) {
+            false
+        }
         when (intent?.action) {
             ACTION_SYNC -> {
-                payload = readPayload(intent)
-                if (!Settings.canDrawOverlays(this)) {
+                if (!fgOk || !Settings.canDrawOverlays(this)) {
                     stopSelf()
                     return START_NOT_STICKY
                 }
-                startForeground(NOTI_ID, buildNotification(payload))
                 lastSyncAt = SystemClock.elapsedRealtime()
                 applyOverlay()
                 staleHandler.removeCallbacks(staleCheck)

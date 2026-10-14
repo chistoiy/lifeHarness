@@ -7,9 +7,12 @@
     <!-- 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗。
          SYSTEM_ALERT_WINDOW＝「显示在其他应用上层」特殊访问，运行时经
          Settings.canDrawOverlays 探问、ACTION_MANAGE_OVERLAY_PERMISSION 引导；
+         FOREGROUND_SERVICE＝FGS 基础权限（API 28+ 起必需，6128 实伤：只声明了
+         子类型权限漏了基础权限，startForeground 即 SecurityException 主进程崩）；
          FOREGROUND_SERVICE_SPECIAL_USE＝API 34+ specialUse 型前台服务声明
          （非 Play 分发，subtype property 仅作文档）。 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <!-- V1.41 同步与备份：INTERNET 用于用户自行配置的 WebDAV/S3 同步与
          既有天气查询（open-meteo）/ISBN 书目查询（豆瓣）；除此之外 App

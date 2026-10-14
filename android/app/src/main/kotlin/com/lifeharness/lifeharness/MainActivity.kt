@@ -137,7 +137,12 @@ class MainActivity : FlutterActivity() {
                         seconds = call.argument<Int>("seconds") ?: 0,
                         visible = call.argument<Boolean>("visible") ?: true,
                     )
-                    startForegroundService(TimerPillService.syncIntent(this, p))
+                    try {
+                        startForegroundService(TimerPillService.syncIntent(this, p))
+                    } catch (_: Exception) {
+                        // 起服务被权限/ROM 拒绝＝降级为无 app 外悬浮窗，不崩
+                        // （6128 实伤：缺 FGS 基础权限时这里 SecurityException 即闪退）。
+                    }
                     result.success(null)
                 }
                 "stop" -> {

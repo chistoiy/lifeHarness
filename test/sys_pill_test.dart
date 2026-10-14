@@ -220,5 +220,17 @@ void main() {
       expect(src, contains('onTap: () => endReadPillTimer(context, ref, s.bookId)'));
       expect(src, contains('onTap: () => endMediaPillTimer(context, ref, s.itemId)'));
     });
+
+    test('Manifest 必须同时声明 FGS 基础权限与 specialUse 子类型（6128 实伤守护）', () {
+      final src =
+          File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      expect(src, contains('android.permission.FOREGROUND_SERVICE"'),
+          reason: 'FGS 基础权限（API 28+）漏声明＝startForeground 即 '
+              'SecurityException 主进程崩，且开关残留导致开 app 即闪退循环');
+      expect(src, contains('android.permission.FOREGROUND_SERVICE_SPECIAL_USE'),
+          reason: 'API 34+ specialUse 子类型权限漏声明＝同族崩溃');
+      expect(src, contains('android:foregroundServiceType="specialUse"'));
+      expect(src, contains('.TimerPillService'));
+    });
   });
 }
