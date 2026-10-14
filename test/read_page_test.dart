@@ -592,6 +592,14 @@ void main() {
       await tester.longPress(find.byKey(const ValueKey('rail-a')));
       await settle(tester);
       expect(find.byKey(const ValueKey('lp-quote')), findsOneWidget);
+      // F3-10 弹层骨架（长按菜单补把手）后内容 +12px，600 高测试视口下尾行
+      // 会落到可视区外——先把尾行滚进可视区再点（真机 ≥640dp 无此问题）。
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('lp-detail')),
+        48,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await settle(tester);
       await tester.tap(find.byKey(const ValueKey('lp-detail')));
       await settle(tester);
       expect(find.byKey(const ValueKey('seg-c')), findsOneWidget);

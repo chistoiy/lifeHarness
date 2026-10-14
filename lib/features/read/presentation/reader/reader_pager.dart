@@ -542,7 +542,7 @@ TextSpan paraSelectionSpan(
   required int b,
   int from = 0,
   int? to,
-  Color selBg = const Color(0x4D6366F1),
+  Color? selBg, // F3-3：调用方传 tokens.accent 派生值（不传＝旧巻0x4D6366F1 兼容）
   List<({int a, int b, Color c})> hlSpans = const [],
 }) {
   final para = paraStyle(p, base, orig: orig, pageBg: pageBg);
@@ -603,7 +603,9 @@ TextSpan paraSelectionSpan(
       kids.add(
         TextSpan(
           text: body.substring(x0, x1),
-          style: seg.style.copyWith(backgroundColor: selBg),
+          style: seg.style.copyWith(
+            backgroundColor: selBg ?? const Color(0x4D6366F1),
+          ),
         ),
       );
     }
@@ -651,10 +653,12 @@ TextSpan paraSpan(
 }
 
 /// ④ 外链（href 带 scheme 或跨章）＝链接色 + 下划线（原 accent 口径）。
-TextStyle linkAccentStyle(TextStyle base) => base.copyWith(
-  color: const Color(0xFF6366F1),
+/// F3-3：[accent] 由调用方传 tokens.accent（不传＝旧固定靛蓝兼容）。
+TextStyle linkAccentStyle(TextStyle base, {Color? accent}) => base.copyWith(
+  color: accent ?? const Color(0xFF6366F1),
   decoration: TextDecoration.underline,
-  decorationColor: const Color(0xFF6366F1).withValues(alpha: .7),
+  decorationColor:
+      (accent ?? const Color(0xFF6366F1)).withValues(alpha: .7),
 );
 
 /// ④ 站内锚点＝正文色 + 下划线（原型 .br-link 只加下划线、颜色继承正文）。
@@ -673,10 +677,10 @@ TextStyle noteRefStyle(TextStyle base) => base.copyWith(
 
 /// ④① 一个链接该用哪种样式（外链/站内锚点/注释引用的判定入口收在模型层
 /// EpubLink.usesLinkColor，UI 只做分派）。
-TextStyle linkStyleFor(TextStyle base, EpubLink l) => l.annotation
+TextStyle linkStyleFor(TextStyle base, EpubLink l, {Color? accent}) => l.annotation
     ? noteRefStyle(base)
     : l.usesLinkColor
-    ? linkAccentStyle(base)
+    ? linkAccentStyle(base, accent: accent)
     : linkAnchorStyle(base);
 
 /// 页内一块＝段下标 ＋ 该段**上屏的字符区间** `[from,to)`（整段＝0..段长）。

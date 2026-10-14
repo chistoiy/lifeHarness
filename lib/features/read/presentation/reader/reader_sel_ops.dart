@@ -510,6 +510,7 @@ extension _ReaderSelOps on _ReaderPageState {
     _clearSel();
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -525,7 +526,10 @@ extension _ReaderSelOps on _ReaderPageState {
               Text(
                 e == null ? '— · 短语' : '${e.$1} · ${e.$2}',
                 key: const ValueKey('brDcPh'),
-                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.tokens.text2, // F3-6 小字对比收令牌
+                ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -580,6 +584,7 @@ extension _ReaderSelOps on _ReaderPageState {
     _clearSel();
     final mode = await showModalBottomSheet<String>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -602,6 +607,7 @@ extension _ReaderSelOps on _ReaderPageState {
         : ('${j != null ? j['insight'] ?? '' : res.requireText()}').trim();
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -924,7 +930,7 @@ class _BrAiChoiceSheet extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(ic, size: 17, color: const Color(0xFF6366F1)),
+              Icon(ic, size: 16, color: context.tokens.accent), // F3-3/F3-9（16 档）
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -935,8 +941,8 @@ class _BrAiChoiceSheet extends StatelessWidget {
                             fontSize: 13, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
                     Text(sub,
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8))),
+                        style: TextStyle(
+                            fontSize: 10, color: context.tokens.text2)),
                   ],
                 ),
               ),

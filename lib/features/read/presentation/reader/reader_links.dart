@@ -38,6 +38,7 @@ extension _ReaderLinks on _ReaderPageState {
     final cs = Theme.of(context).colorScheme;
     final ok = await showModalBottomSheet<bool>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -107,6 +108,7 @@ extension _ReaderLinks on _ReaderPageState {
     final bytes = _doc?.imageBytes(para.imgSrc);
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       backgroundColor: Colors.black,
       isScrollControlled: true,
       builder: (sc) => SafeArea(

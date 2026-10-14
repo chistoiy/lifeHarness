@@ -108,14 +108,19 @@ final _statProvider = FutureProvider.family<StatData, int>((ref, year) async {
 });
 
 class _ReadStatPageState extends ConsumerState<ReadStatPage> {
-  static const _pal = [
-    Color(0xFF6366F1),
-    Color(0xFF2DD4BF),
-    Color(0xFFF59E0B),
-    Color(0xFFFB7185),
-    Color(0xFF8B5CF6),
-    Color(0xFF0EA5E9),
-  ];
+  /// F3-3：构成环分类色由主题 accent 派生（等距色相旋转 6 档；原固定靛蓝系色板退役）。
+  List<Color> _statPal(ThemeTokens t) {
+    final h = HSLColor.fromColor(t.accent);
+    return [
+      for (var i = 0; i < 6; i++)
+        h
+            .withHue((h.hue + i * 40) % 360)
+            .withLightness(
+              (h.lightness + (i.isEven ? 0 : .04)).clamp(0.0, 1.0),
+            )
+            .toColor(),
+    ];
+  }
   late int _year = DateTime.now().year;
   int _month = 0; // 0＝全年
   String _metric = 'min'; // min / q / day
@@ -696,7 +701,10 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          Builder(
+            builder: (context) {
+              final pal = _statPal(context.tokens);
+              return Row(
             children: [
               SizedBox(
                 width: 70,
@@ -708,7 +716,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                     ],
                     colors: [
                       for (var i = 0; i < entries.length; i++)
-                        _pal[i % _pal.length],
+                        pal[i % pal.length],
                     ],
                     emptyColor: Theme.of(context).colorScheme.outlineVariant,
                   ),
@@ -727,7 +735,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                             height: 8,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _pal[i % _pal.length],
+                              color: pal[i % pal.length],
                             ),
                           ),
                           const SizedBox(width: 5),
@@ -758,8 +766,9 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                 ),
               ),
             ],
-          ),
-        ],
+          );
+            }),
+          ],
       ),
     );
   }
@@ -921,6 +930,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
+                    fontFeatures: [FontFeature.tabularFigures()], // F3-5
                   ),
                 ),
                 Text(
@@ -933,12 +943,17 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   child: GestureDetector(
                     key: const ValueKey('rs-fee-book'),
                     onTap: () => context.go('/ledger'),
-                    child: Text(
-                      '看账本',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: tokens.accent,
+                    // F3-8：命中槽高 44。
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '看账本',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: tokens.accent,
+                        ),
                       ),
                     ),
                   ),
@@ -965,6 +980,7 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
+                    fontFeatures: [FontFeature.tabularFigures()], // F3-5
                   ),
                 ),
                 Text(
@@ -1097,7 +1113,11 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
               // 原型 4991：预测补「差 X 本，每周需多读 1 本」后半句。
               '全年折算 ${rate.toStringAsFixed(1)} 本 → '
               '${rate >= gBooks ? '年度目标可达成' : '差 ${(gBooks - rate).toStringAsFixed(1)} 本，每周需多读 1 本'}',
-              style: TextStyle(fontSize: 10.5, color: cs.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 10.5,
+                color: cs.onSurfaceVariant,
+                fontFeatures: const [FontFeature.tabularFigures()], // F3-5
+              ),
             ),
           ),
           Padding(
@@ -1171,16 +1191,23 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      // F3-10：弹层骨架统一——把手＋限高内滚（年报长文在小屏不溢出）。
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (bc) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(bc).size.height * .82,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               Row(
                 children: [
                   Expanded(
@@ -1195,11 +1222,17 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   GestureDetector(
                     key: const ValueKey('yr-close'),
                     onTap: () => Navigator.of(bc).pop(),
-                    child: Text(
-                      '关闭',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
+                    // F3-8：命中槽高 44。
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '关闭',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -1216,6 +1249,8 @@ class _ReadStatPageState extends ConsumerState<ReadStatPage> {
                   ),
                 ),
             ],
+          ),
+            ),
           ),
         ),
       ),

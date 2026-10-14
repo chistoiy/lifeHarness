@@ -777,6 +777,7 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
   }) async {
     final r = await showModalBottomSheet<String>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

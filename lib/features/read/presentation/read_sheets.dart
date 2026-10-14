@@ -147,6 +147,7 @@ class _ReadToastBodyState extends State<_ReadToastBody> {
 Future<T?> _sheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       isScrollControlled: true,
       // 真机验收轮2：限高到状态栏以下（作为 sheet 约束参与布局，长表单不再顶进通知栏）。
       constraints: BoxConstraints(

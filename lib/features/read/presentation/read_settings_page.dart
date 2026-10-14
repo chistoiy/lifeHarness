@@ -268,7 +268,8 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           SizedBox(
-            height: 32,
+            // F3-8：tab 命中槽高 44（胶囊视觉 32 垂直居中不变）。
+            height: 44,
             child: ListView(
               key: const ValueKey('rs-tabs'),
               scrollDirection: Axis.horizontal,
@@ -280,6 +281,7 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
                       key: ValueKey('set-tab-$i'),
                       onTap: () => setState(() => _sec = i),
                       child: Container(
+                        height: 32,
                         alignment: Alignment.center,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(

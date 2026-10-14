@@ -134,6 +134,7 @@ extension _ShelfBatchOps on _ShelfPageState {
     if (!mounted) return;
     final picked = await showModalBottomSheet<String>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

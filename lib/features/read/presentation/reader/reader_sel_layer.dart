@@ -262,16 +262,18 @@ List<Widget> brSelLayer({
 /// R14-6：首尾手柄（原型 brHandlePlace / .br-h：圆钮 15px 中心≈字符盒边，
 /// 茎 2.5×18 外挑 17px；命中区按视觉簇外扩 8px 保证拖动可靠）。
 /// 锚点算不出（段落未渲染/快照缺段）就不画，也不拦事件。
+/// F3-8：命中簇 44×48（原 31 宽；视觉圆钮/茎居中不变）· F3-3：色收 accent（调用方传 tokens）。
   Widget? brHandleWidget(
     bool end,
     Offset? p,
     void Function(Offset g) onDrag, {
     void Function(Offset g)? onDragStart,
     VoidCallback? onDragEnd,
+    Color accent = const Color(0xFF6366F1),
   }) {
     if (p == null) return null;
     final stemUp = !end; // 首端：枝在点上方；尾端：枝在点下方
-    const w = 31.0, h = 48.0, knob = 15.0;
+    const w = 44.0, h = 48.0, knob = 15.0;
     final anchorY = stemUp ? 32.5 : 15.5; // 锚点在命中区内的纵坐标
     final knobTop = anchorY - knob / 2;
     final stemTop = stemUp ? knobTop - 17 : knobTop + knob - 1;
@@ -298,7 +300,7 @@ List<Widget> brSelLayer({
                 width: 2.5,
                 height: 18,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
+                  color: accent,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -310,7 +312,7 @@ List<Widget> brSelLayer({
                 width: knob,
                 height: knob,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
+                  color: accent,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                   boxShadow: const [

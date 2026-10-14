@@ -25,6 +25,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../../../../core/database/schema/xray.dart' as xs;
 import '../../../../core/logging/app_log.dart';
+import '../../../../core/theme/app_theme.dart'; // F3-3：context.tokens（顶栏划线兜底色收 accent）
 import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
 import '../../data/xray/xray_dao.dart' show XrayEntityRow;
@@ -1169,6 +1170,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                               },
                               onDragStart: (g) => _loupeAtEnd(end),
                               onDragEnd: () => _setLoupe(null),
+                              accent: context.tokens.accent, // F3-3：手柄色随主题
                             ),
                       ),
                       // V1.53.2 选区放大镜：拖动手柄期间跟随手指显示。

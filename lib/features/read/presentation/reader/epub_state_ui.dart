@@ -101,6 +101,7 @@ Future<void> brShowCacheSheet(BuildContext context, WidgetRef ref, Book b) async
   if (!context.mounted) return;
   await showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: _sheetShape,
     builder: (sc) => SafeArea(
       child: Padding(
@@ -221,6 +222,7 @@ Future<void> brShowReloadSheet(BuildContext context, WidgetRef ref, Book b) asyn
   if (ep == null) return;
   await showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: _sheetShape,
     builder: (sc) => SafeArea(
       child: Padding(
@@ -304,6 +306,7 @@ Future<void> brShowLostSheet(BuildContext context, WidgetRef ref, Book b) async 
   if (ep == null) return;
   await showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: _sheetShape,
     builder: (sc) => SafeArea(
       child: Padding(
@@ -554,6 +557,7 @@ Future<void> showBrDelSheet(BuildContext context, WidgetRef ref, Book b) async {
   Completer<void>? committed;
   final ok = await showModalBottomSheet<bool>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: _sheetShape,
     builder: (sc) => StatefulBuilder(
       builder: (_, setSel) => SafeArea(

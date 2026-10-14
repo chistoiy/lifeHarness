@@ -32,9 +32,14 @@ extension _ShelfSpineTime on _ShelfPageState {
                         b,
                         pfx: pfx,
                         child: GestureDetector(
-                          child: Container(
-                            width: 30,
+                          // F3-8：命中槽宽 35（书脊视觉 30 居中，邻书间隙 5 归槽内，不互叠）。
+                          child: SizedBox(
+                            width: 35,
                             height: h(b),
+                            child: Center(
+                              child: Container(
+                                width: 30,
+                                height: h(b),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
                               image: _hasCover(b)
@@ -108,10 +113,12 @@ extension _ShelfSpineTime on _ShelfPageState {
                                   ),
                               ],
                             ),
+                            ),
                           ),
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../data/epub_doc.dart';
 
 // 全书检索整页（V1.50 批3 · 事实源 `#p-readerSearch`）。
@@ -83,7 +84,7 @@ class _ReaderSearchPageState extends State<ReaderSearchPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search_rounded, size: 15, color: Color(0xFF94A3B8)),
+                    Icon(Icons.search_rounded, size: 15, color: context.tokens.text2),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
@@ -93,7 +94,7 @@ class _ReaderSearchPageState extends State<ReaderSearchPage> {
                         style: const TextStyle(fontSize: 13.5),
                         decoration: InputDecoration(
                           hintText: '在本书中搜索关键词',
-                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          hintStyle: TextStyle(fontSize: 13, color: context.tokens.text2),
                           border: InputBorder.none,
                         ),
                         onChanged: _run,
@@ -103,7 +104,7 @@ class _ReaderSearchPageState extends State<ReaderSearchPage> {
                       GestureDetector(
                         key: const ValueKey('brSqX'),
                         onTap: () => _run(''),
-                        child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        child: Icon(Icons.close_rounded, size: 14, color: context.tokens.text2),
                       ),
                   ],
                 ),

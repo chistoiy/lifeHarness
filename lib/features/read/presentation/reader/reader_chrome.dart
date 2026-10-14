@@ -87,9 +87,9 @@ extension _ReaderChrome on _ReaderPageState {
                       ),
                     ),
                     // 全书检索入口（双入口之一；另一入口＝抽屉「搜本书」Tab）。
+                    // F3-8：去 compact（默认 48² 热区，紧凑密度会缩到 <44）。
                     IconButton(
                       key: const ValueKey('brBtnSearch'),
-                      visualDensity: VisualDensity.compact,
                       onPressed: _openSearch,
                       icon: Icon(
                         Icons.search_rounded,
@@ -98,10 +98,9 @@ extension _ReaderChrome on _ReaderPageState {
                         semanticLabel: '全书搜索', // R14-10
                       ),
                     ),
-                    // 本书操作弹层入口（原型顶栏 ⋯）。
+                    // 本书操作弹层入口（原型顶栏 ⋯）。F3-8：去 compact＝48² 热区。
                     IconButton(
                       key: const ValueKey('brBtnMore'),
-                      visualDensity: VisualDensity.compact,
                       onPressed: _openMoreSheet,
                       icon: Icon(
                         Icons.more_horiz_rounded,
@@ -150,7 +149,6 @@ extension _ReaderChrome on _ReaderPageState {
                         ),
                         IconButton(
                           key: const ValueKey('brHitClear'),
-                          visualDensity: VisualDensity.compact,
                           // ignore: invalid_use_of_protected_member
                           onPressed: () => setState(() {
                             _hits = const [];
@@ -337,6 +335,7 @@ extension _ReaderChrome on _ReaderPageState {
     from: from,
     to: to,
     hlSpans: hlSpans,
+    selBg: context.tokens.accent.withValues(alpha: .3), // F3-3 收 accent
   );
 
   /// 段渲染：首行缩进（③ 按段判定）+ 链接 span（点击区）+ 命中底色。
@@ -387,7 +386,7 @@ extension _ReaderChrome on _ReaderPageState {
       return base;
     }
 
-    final markBg = const Color(0xFF6366F1).withValues(alpha: .28);
+    final markBg = context.tokens.accent.withValues(alpha: .28);
     // 轮4①：划线底色＝色标 27% 透明（与旧整段 Container 铺底同值，观感连续）。
     // F-13：逐条各一份底色，重叠处按列表下标取靠后的那条（新线盖旧线，仅重叠区）。
     final hlBg = [
@@ -451,7 +450,7 @@ extension _ReaderChrome on _ReaderPageState {
       // 批三刀3：底样式取**当前 run 分段**的样式，链接/命中/划线在其上叠。
       final seg = segAt(cursor);
       var style = inLink > 0
-          ? linkStyleFor(seg, link)
+          ? linkStyleFor(seg, link, accent: context.tokens.accent) // F3-3
           : (inMark > 0 ? seg.copyWith(backgroundColor: markBg) : seg);
       // F-13：重叠时取**下标最大**的活动划线（＝最新那条）；一条都没活动就不叠底。
       for (var k = hlOn.length - 1; k >= 0; k--) {

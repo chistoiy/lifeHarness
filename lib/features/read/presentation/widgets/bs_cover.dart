@@ -40,11 +40,12 @@ const kBsCov = <(Color, Color, Color)>[
 ];
 
 /// 分区徽标底色（原型 bsProgressBadge：已读 emerald/想读 amber/弃读 slate/在读 indigo%）。
-Color bsStateColor(String state) => switch (state) {
+/// F3-3：在读色由调用方传主题 accent（[reading]；不传＝旧固定靛蓝兼容）。
+Color bsStateColor(String state, {Color? reading}) => switch (state) {
   '已读' => const Color(0xFF10B981),
   '想读' => const Color(0xFFF59E0B),
   '弃读' => const Color(0xFF64748B),
-  _ => const Color(0xFF6366F1),
+  _ => reading ?? const Color(0xFF6366F1),
 };
 
 /// 分区徽标文案：在读显百分比，其余显分区名。
@@ -365,7 +366,8 @@ class BsCover extends ConsumerWidget {
         key: ValueKey('cov-badge-${book.id}'),
         onTap: onBadgeTap,
         child: Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(
-          color: bsStateColor(book.state), borderRadius: BorderRadius.circular(999)),
+          color: bsStateColor(book.state,
+              reading: cs?.primary), borderRadius: BorderRadius.circular(999)),
         child: Text(bsBadgeLabel(book), style: TextStyle(fontSize: badgeSize, fontWeight: FontWeight.w800, color: Colors.white))),
       )));
     }
@@ -413,7 +415,7 @@ class BkPctBar extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 color: book.state == '弃读'
-                    ? const Color(0xFF94A3B8)
+                    ? tokens.colorScheme.onSurfaceVariant // F3-6（此处仅 ThemeData 在场）
                     : tokens.colorScheme.primary,
               ),
             ),

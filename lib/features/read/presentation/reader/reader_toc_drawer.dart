@@ -313,21 +313,29 @@ class _ReaderTocDrawerState extends ConsumerState<ReaderTocDrawer> {
     return GestureDetector(
       key: ValueKey(key),
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: on ? const Color(0x1F6366F1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: on ? _accent.withValues(alpha: .35) : Colors.transparent,
-          ),
-        ),
+      child: SizedBox(
+        // F3-8：命中槽高 44（胶囊视觉 32 垂直居中不变）。
+        height: 44,
+        child: Center(
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on ? _accent.withValues(alpha: .12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: on ? _accent.withValues(alpha: .35) : Colors.transparent,
+              ),
+            ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
             color: on ? _accent : _muted,
+          ),
+        ),
           ),
         ),
       ),

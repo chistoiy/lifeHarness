@@ -11,6 +11,8 @@ const kLpDefault = '计时,记摘录,改分区,移书单,删除';
 Future<void> showLongPressSheet(BuildContext context, WidgetRef ref, Book b) {
   return showModalBottomSheet<void>(
     context: context,
+
+    showDragHandle: true, // F3-10 弹层骨架
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),

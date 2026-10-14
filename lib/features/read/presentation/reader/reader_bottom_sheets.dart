@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 /// V1.53.2 轮5.1 · 阅读器弹层（原型 sheetBrProg / sheetBrMore）。
 ///
 /// 口径：轮3 的「底栏内嵌面板」全部升格为正常底部弹层（用户反馈「点击后为什么
@@ -47,6 +49,7 @@ Future<void> showBrProgressSheet(
   required VoidCallback onHome,
 }) => showModalBottomSheet<void>(
   context: context,
+  showDragHandle: true, // F3-10 弹层骨架
   isScrollControlled: true,
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -275,6 +278,7 @@ Future<void> showBrMoreSheet(
   VoidCallback? onXrRefine,
 }) => showModalBottomSheet<void>(
   context: context,
+  showDragHandle: true, // F3-10 弹层骨架
   isScrollControlled: true,
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -377,8 +381,8 @@ Future<void> showBrMoreSheet(
                       ),
                       Text(
                         xrStatus ?? '',
-                        style: const TextStyle(
-                            fontSize: 10, color: Color(0xFF94A3B8)),
+                        style: TextStyle(
+                            fontSize: 10, color: context.tokens.text2),
                       ),
                     ],
                   ),
@@ -394,14 +398,14 @@ Future<void> showBrMoreSheet(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
                   child: Row(
-                    children: const [
-                      Expanded(
+                    children: [
+                      const Expanded(
                         child: Text('X-Ray 词库管理',
                             style: TextStyle(fontSize: 12.5)),
                       ),
                       Text('养词库',
                           style: TextStyle(
-                              fontSize: 10, color: Color(0xFF94A3B8))),
+                              fontSize: 10, color: context.tokens.text2)),
                     ],
                   ),
                 ),
@@ -420,8 +424,8 @@ Future<void> showBrMoreSheet(
                           child: Text('X-Ray 精化',
                               style: TextStyle(fontSize: 12.5))),
                       Text(xrAiStatus ?? 'AI · 未跑',
-                          style: const TextStyle(
-                              fontSize: 10, color: Color(0xFF94A3B8))),
+                          style: TextStyle(
+                              fontSize: 10, color: context.tokens.text2)),
                     ],
                   ),
                 ),

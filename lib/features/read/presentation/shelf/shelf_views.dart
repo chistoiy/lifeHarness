@@ -12,14 +12,21 @@ extension _ShelfViews on _ShelfPageState {
       child: GestureDetector(
         key: ValueKey(key),
         onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(999),
+        // F3-8：命中槽 44²（视觉圆钮 38 居中不变）。
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Icon(ic, size: 17, color: cs.onSurface),
+            ),
           ),
-          child: Icon(ic, size: 17, color: cs.onSurface),
         ),
       ),
     );
@@ -328,14 +335,19 @@ extension _ShelfViews on _ShelfPageState {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
-                color: bsStateColor(b.state).withValues(alpha: .12),
+                color: bsStateColor(b.state,
+                    reading: Theme.of(context).colorScheme.primary)
+                    .withValues(alpha: .12),
               ),
               child: Text(
                 b.state,
                 style: TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w800,
-                  color: bsStateColor(b.state),
+                  color: bsStateColor(
+                    b.state,
+                    reading: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
             ),

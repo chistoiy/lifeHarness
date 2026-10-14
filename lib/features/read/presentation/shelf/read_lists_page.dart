@@ -553,6 +553,7 @@ Future<void> showListShareSheet(
 
   await showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -779,9 +780,9 @@ class ShareLongImage extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             '本地优先的个人生活记录 · 数据只存在我自己的设备上',
-            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 11, color: context.tokens.text2),
           ),
         ],
       ),

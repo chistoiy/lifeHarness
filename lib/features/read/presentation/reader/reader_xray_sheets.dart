@@ -37,6 +37,7 @@ Future<void> showXrScopeSheet(
   final total = doc.chapters.length;
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
         shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sc) {
@@ -289,6 +290,7 @@ Future<void> showXrFailSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sc) {

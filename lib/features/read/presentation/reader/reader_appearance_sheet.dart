@@ -45,6 +45,7 @@ Future<void> showReaderAppearance(
     final exit = _ApExit();
     await showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -757,6 +758,7 @@ Future<int?> showBrAutoPageSheet(
   required int current,
 }) => showModalBottomSheet<int>(
   context: context,
+  showDragHandle: true, // F3-10 弹层骨架
   isScrollControlled: true,
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),

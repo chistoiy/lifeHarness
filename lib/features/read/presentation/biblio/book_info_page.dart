@@ -667,9 +667,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                                           children: [
                                             Text(
                                               '${e.value}',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 7.5,
-                                                color: Color(0xFF94A3B8),
+                                                color: tokens.text2, // F3-6
                                               ),
                                             ),
                                             const SizedBox(height: 1),
@@ -703,23 +703,23 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                             children: [
                               Text(
                                 days.first.key,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 8.5,
-                                  color: Color(0xFF94A3B8),
+                                  color: tokens.text2, // F3-6
                                 ),
                               ),
                               Text(
                                 '每日时长（分钟）',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 8.5,
-                                  color: Color(0xFF94A3B8),
+                                  color: tokens.text2, // F3-6
                                 ),
                               ),
                               Text(
                                 days.last.key,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 8.5,
-                                  color: Color(0xFF94A3B8),
+                                  color: tokens.text2, // F3-6
                                 ),
                               ),
                             ],

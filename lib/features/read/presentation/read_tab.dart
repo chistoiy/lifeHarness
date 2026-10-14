@@ -390,13 +390,13 @@ class ReadWorkbench extends ConsumerWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFF8B5CF6).withValues(alpha: .12),
+                color: context.tokens.accent.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 BsIcons.think,
                 size: 17,
-                color: Color(0xFF8B5CF6),
+                color: context.tokens.accent,
               ),
             ),
             const SizedBox(width: 10),

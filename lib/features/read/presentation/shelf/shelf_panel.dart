@@ -8,6 +8,7 @@ extension _ShelfPanel on _ShelfPageState {
   void _openPanel(BuildContext context, ShelfUI ui) {
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       isScrollControlled: true,
       // ConstrainedBox 包 builder 会破坏 sheet 布局（按钮 hit-test 被 barrier 吸收）；限高走 constraints。
       constraints: BoxConstraints(

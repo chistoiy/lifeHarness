@@ -293,30 +293,37 @@ extension _ApSheetSubs on _ApSheetState {
       const SizedBox(height: 6),
       Wrap(
         key: const ValueKey('brApBgs'),
-        spacing: 8,
-        runSpacing: 8,
+        // F3-8：命中槽 44²、间隙并入槽内（槽内块 32 居中，视觉间隙 12）。
+        spacing: 0,
+        runSpacing: 0,
         children: [
           for (final hex in kBrBgs)
             GestureDetector(
               key: ValueKey('brApBg-$hex'),
               onTap: () => _set(_d.copyWith(theme: 'custom', bg: hex, bgImg: '')),
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: ReaderCfg(bg: hex).bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color:
-                        _d.theme == 'custom' &&
-                            _d.bg == hex &&
-                            _d.bgImg.isEmpty
-                        ? cs.primary
-                        : cs.outlineVariant,
-                    width:
-                        _d.theme == 'custom' && _d.bg == hex && _d.bgImg.isEmpty
-                        ? 2
-                        : 1,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: ReaderCfg(bg: hex).bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color:
+                            _d.theme == 'custom' &&
+                                _d.bg == hex &&
+                                _d.bgImg.isEmpty
+                            ? cs.primary
+                            : cs.outlineVariant,
+                        width:
+                            _d.theme == 'custom' && _d.bg == hex && _d.bgImg.isEmpty
+                            ? 2
+                            : 1,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -333,31 +340,41 @@ extension _ApSheetSubs on _ApSheetState {
         children: [
           Container(
             key: const ValueKey('brApSwBg'),
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: _d.bgColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: cs.outlineVariant),
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _d.bgColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: cs.outlineVariant),
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Container(
             key: const ValueKey('brApSwFg'),
-            width: 36,
-            height: 36,
+            width: 44,
+            height: 44,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _d.bgColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: cs.outlineVariant),
-            ),
-            child: Text(
-              'A',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: _d.textColor,
+            child: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _d.bgColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: cs.outlineVariant),
+              ),
+              child: Text(
+                'A',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: _d.textColor,
+                ),
               ),
             ),
           ),

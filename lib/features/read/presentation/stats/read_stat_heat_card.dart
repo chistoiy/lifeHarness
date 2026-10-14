@@ -83,7 +83,9 @@ class ReadStatHeatCard extends StatefulWidget {
   final void Function(BuildContext context, DateTime day, int dayIndex) onTapDay;
 
   static const double cell = 13, gap = 3, pitch = 16, rulerH = 12;
-  static const double gridH = 7 * cell + 6 * gap;
+  // F3-8：格命中＝满节距 16²（格 13 视觉居中在 16 槽里；44 不可行＝节距 16 密排，
+  // 44 垫层互相吃格，已按密排网格例外登记工单）。gridH 随槽径 7*pitch。
+  static const double gridH = 7 * pitch; // 槽 16² 满铺（视觉格 13 居中·间隙 3 在槽内）
 
   @override
   State<ReadStatHeatCard> createState() => _ReadStatHeatCardState();
@@ -130,8 +132,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
 
   /// 目标列换算成 scrollExtent（[viewW]＝横向可视宽，末尾由 maxScrollExtent 夹取）。
   double _targetFor(double viewW) {
-    final contentW = (_days / 7).ceil() * ReadStatHeatCard.pitch -
-        ReadStatHeatCard.gap;
+    final contentW = (_days / 7).ceil() * ReadStatHeatCard.pitch;
     final f = _focus();
     final raw = f.rightEdge
         ? (f.col + 2) * ReadStatHeatCard.pitch - viewW
@@ -174,7 +175,7 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
     final today = DateTime.now();
     final curMonth = today.year == w.year ? today.month : 0;
     final cols = (n / 7).ceil();
-    final contentW = cols * ReadStatHeatCard.pitch - ReadStatHeatCard.gap;
+    final contentW = cols * ReadStatHeatCard.pitch;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: readStatCardDeco(cs),
@@ -256,29 +257,23 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               for (var c = 0; c < cols; c++)
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                    right:
-                                        c == cols - 1
-                                            ? 0
-                                            : ReadStatHeatCard.gap,
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      for (var r = 0; r < 7; r++)
-                                        _cellAt(
-                                          context,
-                                          first,
-                                          c * 7 + r,
-                                          n,
-                                          mx,
-                                          cs,
-                                          heat,
-                                        ),
-                                    ],
-                                  ),
+                                // F3-8：间隙 3 已并入 16² 命中槽（槽内格 13 居中），
+                                // 列间不再另垫 gap——横向节距恒＝pitch，月份刻度对齐不变。
+                                Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    for (var r = 0; r < 7; r++)
+                                      _cellAt(
+                                        context,
+                                        first,
+                                        c * 7 + r,
+                                        n,
+                                        mx,
+                                        cs,
+                                        heat,
+                                      ),
+                                  ],
                                 ),
                             ],
                           ),
@@ -343,7 +338,12 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
     ColorScheme cs,
     List<Color> heat,
   ) {
-    if (i >= n) return const SizedBox(width: 13, height: 13);
+    if (i >= n) {
+      return const SizedBox(
+        width: ReadStatHeatCard.pitch,
+        height: ReadStatHeatCard.pitch,
+      );
+    }
     final d = first.add(Duration(days: i));
     final m = widget.minutesAt(d);
     // 轮3：日历视图体现打卡（当日分钟数 ≥ 每日目标＝已打卡 √）。
@@ -365,25 +365,32 @@ class _ReadStatHeatCardState extends State<ReadStatHeatCard> {
       child: GestureDetector(
         key: ValueKey('rs-heat-$i'),
         onTap: () => widget.onTapDay(context, d, i),
-        child: Container(
-          width: 13,
-          height: 13,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2.5),
-            color: heat[lvl].withValues(alpha: inM ? 1 : .34),
+        // F3-8：命中槽＝满节距 16²，视觉格 13 居中（间隙 3 归槽内，命中满铺不互叠）。
+        child: SizedBox(
+          width: ReadStatHeatCard.pitch,
+          height: ReadStatHeatCard.pitch,
+          child: Center(
+            child: Container(
+              width: 13,
+              height: 13,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(2.5),
+                color: heat[lvl].withValues(alpha: inM ? 1 : .34),
+              ),
+              child: ck
+                  ? const Text(
+                      '√',
+                      style: TextStyle(
+                        fontSize: 8,
+                        height: 1,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    )
+                  : null,
+            ),
           ),
-          child: ck
-              ? const Text(
-                  '√',
-                  style: TextStyle(
-                    fontSize: 8,
-                    height: 1,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                )
-              : null,
         ),
       ),
     );

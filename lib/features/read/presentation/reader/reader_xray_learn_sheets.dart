@@ -54,6 +54,7 @@ Future<void> showXrAddSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -207,6 +208,7 @@ Future<void> showXrDelSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sc) {
@@ -304,6 +306,7 @@ Future<void> showXrMergePickerSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -373,6 +376,7 @@ Future<void> showXrBakSheet(BuildContext context, WidgetRef ref) async {
   if (!context.mounted) return;
   return showModalBottomSheet<void>(
     context: context,
+    showDragHandle: true, // F3-10 弹层骨架
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (sc) => SafeArea(

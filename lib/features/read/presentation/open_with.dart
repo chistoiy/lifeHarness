@@ -155,6 +155,7 @@ Future<bool?> _brSheet(
 }) =>
     showModalBottomSheet<bool>(
       context: context,
+      showDragHandle: true, // F3-10 弹层骨架
       isScrollControlled: true,
       constraints: BoxConstraints(
         maxHeight:

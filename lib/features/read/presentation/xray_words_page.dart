@@ -42,9 +42,12 @@ import 'reader/reader_xray_refine.dart'
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
 import '../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
+import '../../../core/theme/app_theme.dart';
 
-const _xrMuted = Color(0xFF94A3B8);
-const _xrAccent = Color(0xFF6366F1);
+// F3-3/F3-6：品牌靛蓝与小字灰收主题令牌（其余 _xrRose/_xrViolet/_typeColor 为
+// 词性分类色板＝数据色，保留并登记工单）。
+Color _xrMuted(BuildContext c) => c.tokens.text2;
+Color _xrAccent(BuildContext c) => c.tokens.accent;
 const _xrRose = Color(0xFFF43F5E);
 const _xrViolet = Color(0xFF7C3AED);
 
@@ -291,7 +294,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
           TextButton(
             key: const ValueKey('xrwImpGo'),
             onPressed: () => Navigator.pop(sc, true),
-            child: const Text('导入', style: TextStyle(color: _xrAccent)),
+            child: Text('导入', style: TextStyle(color: _xrAccent(context))),
           ),
         ],
       ),
@@ -355,7 +358,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                     decoration: BoxDecoration(
-                      color: _seg == k ? _xrAccent : const Color(0x2994A3B8),
+                      color: _seg == k ? _xrAccent(context) : const Color(0x2994A3B8),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -640,7 +643,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _budget == v ? _xrAccent : const Color(0x2994A3B8),
+                    color: _budget == v ? _xrAccent(context) : const Color(0x2994A3B8),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text('$v 字',
@@ -663,7 +666,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                      color: _xrAccent, borderRadius: BorderRadius.circular(12)),
+                      color: _xrAccent(context), borderRadius: BorderRadius.circular(12)),
                   child: Text(
                     runner != null &&
                             (runner.stage == XrRefineStage.running ||
@@ -783,7 +786,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 11, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _scope == k ? _xrAccent : const Color(0x2994A3B8),
+                        color: _scope == k ? _xrAccent(context) : const Color(0x2994A3B8),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(l,
@@ -1002,7 +1005,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                                   horizontal: 11, vertical: 5),
                               decoration: BoxDecoration(
                                 color: _type == t.$1
-                                    ? _xrAccent
+                                    ? _xrAccent(context)
                                     : const Color(0x2994A3B8),
                                 borderRadius: BorderRadius.circular(999),
                               ),
@@ -1062,7 +1065,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
               child: Text(
                 _rows.isEmpty ? '还没有养成词 · 阅读中长按选词即可养入' : '该筛选没有养成词',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: _xrMuted),
+                style: TextStyle(fontSize: 11, color: _xrMuted(context)),
               ),
             )
           else
@@ -1090,7 +1093,7 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
                         _badge(
                           r.type == null ? '词' : _typeLabel(r.type!),
                           color:
-                              _typeColor[r.type] ?? _xrAccent,
+                              _typeColor[r.type] ?? _xrAccent(context),
                         ),
                         const SizedBox(width: 4),
                         _badge(

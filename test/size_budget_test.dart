@@ -23,7 +23,8 @@ void main() {
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
     // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
-    'features/read/presentation/shelf/book_detail.dart': 1579,
+    // 1579→1582 阅读模块批3（2026-10-14）：F3-10 书籍操作弹层补把手。
+    'features/read/presentation/shelf/book_detail.dart': 1582,
     'features/habit/presentation/habit_detail_page.dart': 1520,
     'features/habit/presentation/habit_stat_page.dart': 1503,
     // U4 批（2026-10-06）：热力图卡整段抽进同目录件 `read_stat_heat_card.dart`
@@ -32,7 +33,10 @@ void main() {
     // 1210→1219 同批 U11：目标卡三枚按钮换紧凑胶囊＋Wrap（消 RenderFlex overflow），
     // 四宫格由 childAspectRatio 改 mainAxisExtent（390dp 下格子被压到 41px 装不下三行）——
     // 两处都是窄屏真溢出修复，不是新功能。
-    'features/read/presentation/stats/read_stat_page.dart': 1219,
+    // 1219→1259 阅读模块批3（2026-10-14）：F3-8 看账本/年报关闭命中槽高 44
+    // ＋F3-10 年报限高内滚＋F3-3 构成环色板改 accent 派生（_statPal）＋F3-5 等宽读数。
+    // 之后只许减；真还债＝统计页其余卡群拆 part，另批做。
+    'features/read/presentation/stats/read_stat_page.dart': 1259,
     // 1377→1382：交互整改批一 T2-B 给主屏长列表挂 ScrollPad（切栏滚动垫），
     // 净增 5 行接线（注释+包层）；真还债=日历区子视图拆 part，另批做。
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行
@@ -50,7 +54,8 @@ void main() {
     // ——越线发生在 V1.44「先搜后加」及其后各批（登记值未随增量同步），本批未造成；
     // 本批净增 30 行＝F2-12 书名必填就地红字（`_titleErr`＋`FieldError`）＋
     // F2-15 保存防重入门（`_busy` 门＋保存钮置灰）。之后只许减；真还债＝拆 part，另批做。
-    'features/read/presentation/shelf/book_form_page.dart': 1622,
+    // 1622→1623 阅读模块批3（2026-10-14）：F3-10 表单弹层补把手（净增 1）。
+    'features/read/presentation/shelf/book_form_page.dart': 1623,
     'features/ledger/data/ledger_repository.dart': 1352,
     // 1331→1341 本批净增 10（阅读模块批2 · 2026-10-14）：F2-15 保存防重入门
     // （`_busy` 门＋保存钮置灰＋校验未过解门可再存）。之后只许减。
@@ -69,7 +74,8 @@ void main() {
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
     // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。
-    // 此处按默认面登记现状＝1210，之后只许减；真还债＝把取证/装载群再拆一件
+    // 1224→1226 阅读模块批3（2026-10-14）：F3-3 手柄 accent 传参＋app_theme import。
+    // 之后只许减；真还债＝把取证/装载群再拆一件
     // part 扩展（G7c 族口径），另批做。
     // 1210→1216 存量越线归位（U4 批 2026-10-06 跑出本红）：净增 6 行发生在
     // 上一批「阅读时间块实时刷新」（567e84d，reader_page 起停两处挂刷新），
@@ -83,7 +89,7 @@ void main() {
     // （reader_stage / reader_sel_ops / reader_xray_panel），宿主补两条 import
     // （`LoadErrorBanner`／`lhConfirm`）——Dart 同库 part 共享宿主 import 表，
     // 故增量按宿主计。之后只许减。
-    'features/read/presentation/reader/reader_page.dart': 1224,
+    'features/read/presentation/reader/reader_page.dart': 1226,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展

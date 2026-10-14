@@ -235,7 +235,7 @@ extension _ReaderStage on _ReaderPageState {
             ? null
             : BoxDecoration(
                 color: inSel && !partSel
-                    ? const Color(0x4D6366F1)
+                    ? context.tokens.accent.withValues(alpha: .3) // F3-3
                     : (hls.isEmpty
                         ? null
                         : hls.last.c.withValues(alpha: .27)),
@@ -247,17 +247,24 @@ extension _ReaderStage on _ReaderPageState {
                 children: [
                   child,
                   // 原型 br-pulse 橙点：该划线带感想，点按提示去书摘库查看。
+                  // F3-8：命中槽 24²（点 7 视觉右上对齐原位；44 不可行＝会把段后
+                  // 空隙撑大 30px+，密排指示点例外登记工单）。
                   Padding(
                     padding: const EdgeInsets.only(top: 2, right: 2),
                     child: GestureDetector(
                       key: ValueKey('brHlDot-$ci-$pi'),
                       onTap: () => readToast(context, '该划线已在书摘库 · 详情页可查看'),
                       child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF97316),
-                          shape: BoxShape.circle,
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF97316),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
                     ),

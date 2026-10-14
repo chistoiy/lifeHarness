@@ -4,6 +4,8 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 class ReaderLoupe extends StatelessWidget {
   const ReaderLoupe({
     super.key,
@@ -14,7 +16,7 @@ class ReaderLoupe extends StatelessWidget {
     this.diameter = 96,
     this.magnification = 2.0,
     this.gap = 72,
-    this.ringColor = const Color(0xFF6366F1),
+    this.ringColor, // F3-3：不传＝吃主题 accent（原固定靛蓝退役）
   });
 
   /// 抓到的正文快照（null 时不画内容，仅留圈）。
@@ -34,10 +36,13 @@ class ReaderLoupe extends StatelessWidget {
 
   /// 放大镜底部到手指的垂直间距。
   final double gap;
-  final Color ringColor;
+
+  /// F3-3：null＝吃主题 accent（build 内解析）。
+  final Color? ringColor;
 
   @override
   Widget build(BuildContext context) {
+    final ring = ringColor ?? context.tokens.accent;
     // 默认浮在手指正上方；上方空间不足则翻到手指下方。
     final aboveTop = focal.dy - gap - diameter;
     final below = aboveTop < 8;
@@ -57,7 +62,7 @@ class ReaderLoupe extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
-            border: Border.all(color: ringColor, width: 2),
+            border: Border.all(color: ring, width: 2),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x40000000),
@@ -75,7 +80,7 @@ class ReaderLoupe extends StatelessWidget {
                 contentLogicalSize: contentLogicalSize,
                 diameter: diameter,
                 magnification: magnification,
-                crossColor: ringColor,
+                crossColor: ring,
               ),
             ),
           ),
@@ -141,7 +146,7 @@ class _LoupePainter extends CustomPainter {
     // 中心准星：一条短竖线，指准 focal 落点。
     final c = Paint()
       ..color = crossColor
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.75; // F3-9：图标线宽收敛 1.7~1.8 档（原 1.5）
     final cx = size.width / 2;
     canvas.drawLine(
       Offset(cx, size.height / 2 - 9),

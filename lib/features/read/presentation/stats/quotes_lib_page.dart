@@ -470,7 +470,11 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
         children: [
           Text(
             v,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              fontFeatures: [FontFeature.tabularFigures()], // F3-5 等宽读数
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -690,8 +694,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     key: ValueKey('qlq-todo-${q.id}'),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(44, 44), // F3-8 热区
                     ),
                     onPressed: () => _quickAct(q, b, 1),
                     child: const Text('→待办', style: TextStyle(fontSize: 10.5)),
@@ -700,8 +703,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     key: ValueKey('qlq-note-${q.id}'),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(44, 44), // F3-8 热区
                     ),
                     onPressed: () => _quickAct(q, b, 2),
                     child: const Text('→笔记', style: TextStyle(fontSize: 10.5)),
@@ -712,8 +714,7 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                     key: ValueKey('qlq-del-${q.id}'),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(44, 44), // F3-8 热区
                       foregroundColor: const Color(0xFFEF4444),
                     ),
                     onPressed: q.id == null ? null : () => _delQuote(q),
@@ -721,25 +722,31 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
                   ),
                   const Spacer(),
                   if (sel)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
                       child: Icon(
                         Icons.check_circle_rounded,
                         size: 14,
-                        color: Color(0xFF6366F1),
+                        color: context.tokens.accent, // F3-3 收 accent
                       ),
                     ),
                   GestureDetector(
                     key: ValueKey('qlq-star-${q.id}'),
                     onTap: () => _quickAct(q, b, 3),
-                    child: Text(
-                      q.starred ? '取消标星' : '标星',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: q.starred
-                            ? const Color(0xFFF59E0B)
-                            : cs.onSurfaceVariant,
+                    // F3-8：命中槽高 44（文字视觉不变，水平留 8 命中余量）。
+                    child: Container(
+                      height: 44,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        q.starred ? '取消标星' : '标星',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: q.starred
+                              ? const Color(0xFFF59E0B)
+                              : cs.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -857,12 +864,12 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
               ),
             ),
             if (sel)
-              const Padding(
-                padding: EdgeInsets.only(left: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
                 child: Icon(
                   Icons.check_circle_rounded,
                   size: 13,
-                  color: Color(0xFF6366F1),
+                  color: context.tokens.accent, // F3-3 收 accent
                 ),
               ),
             if (q.starred)
