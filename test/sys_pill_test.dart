@@ -233,6 +233,32 @@ void main() {
           reason: '原生自走秒 tick 缺失＝ROM 挂起 Dart 后秒显停表');
     });
 
+    test('悬浮窗显隐改由原生自决＋stop 不以前置备忘为条件（6133 热修）', () {
+      final native = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'TimerPillService.kt',
+      ).readAsStringSync();
+      expect(native, contains('internal object AppVisibility'),
+          reason: 'BACK 退 app 会连 FlutterEngine/Dart 隔离区一起销毁——'
+              '靠 Dart 推的显隐在真机上会永久缺席（真机 BACK 不复现的根因）');
+      expect(native, contains('= !AppVisibility.foreground'),
+          reason: '视图该不该在＝app 在不在前台（原生真值），不看 Dart 推的 visible');
+      final act = File(
+        'android/app/src/main/kotlin/com/lifeharness/lifeharness/'
+        'MainActivity.kt',
+      ).readAsStringSync();
+      expect(act, contains('AppVisibility.registerOnce(application)'),
+          reason: '注册点必须在 onCreate（早于本次 onStart）——晚一步就漏首个计数，'
+              'app 在前台也会被判成后台而多出窗口');
+      final sync =
+          File('lib/shared/linkage/sys_pill_sync.dart').readAsStringSync();
+      expect(sync, contains('Future<void> _stopNative('),
+          reason: 'stop 必须以幂等去重为条件，不能沿用 _serviceOn——冷启动时它是 '
+              'false 而原生服务可能还在跑（BACK 后点悬浮窗「■ 结束」正是这条路径）');
+      expect(sync, contains('_stopSent = false;'),
+          reason: '每次推送后必须允许下一次 stop 再发，否则去重变成永久闭嘴');
+    });
+
     test('结束助手本体在 timer_bar_overlay 且被两处胶囊钮调用', () {
       final src = File('lib/shared/linkage/timer_bar_overlay.dart')
           .readAsStringSync();

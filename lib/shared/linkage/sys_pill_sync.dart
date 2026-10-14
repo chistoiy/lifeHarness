@@ -46,12 +46,31 @@ final sysPillOnProvider = FutureProvider<bool>((ref) async =>
 String? _lastSig;
 bool _serviceOn = false;
 
+/// 本次「无窗口需求」期间是否已向原生发过 stop（去重备忘）。
+///
+/// 为什么不用 `_serviceOn` 当前置（6133 热修）：它只记「本隔离区推成功过」。
+/// BACK 退 app 会把 Dart 隔离区一起带走，之后冷启动（点悬浮窗「■ 结束」拉起
+/// 正是这条路径）时 `_serviceOn=false`，而原生服务可能还在跑——旧的
+/// `if (_serviceOn)` 前置会让 stop 永不发出，通知/服务成为幽灵。
+/// stopService 本身幂等，改成「每次推送后允许再发一次」的去重。
+bool _stopSent = false;
+
 /// 诊断用 tick 计数（每 30 tick 打一条 logcat）。
 int _tick = 0;
 
 /// 清空推送签名备忘：下次 tick 必推一次（回前台时由 app.dart 调——
 /// 原生服务可能已被 ROM 停掉而备忘还留着，导致恢复链断裂永不重推）。
 void sysPillMarkStale() {
+  _lastSig = null;
+}
+
+/// 按需停原生服务（幂等去重）：三条「不该有窗口」分支共用。
+Future<void> _stopNative(String why) async {
+  if (_stopSent) return;
+  _stopSent = true;
+  await sysPillStop();
+  await sysPillLog('stop: $why');
+  _serviceOn = false;
   _lastSig = null;
 }
 
@@ -96,12 +115,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
       (await ref.watch(readKvProvider(('read.sysPill', 'false')).future)) ==
           'true';
   if (!sysPillOn) {
-    if (_serviceOn) {
-      await sysPillStop();
-      await sysPillLog('stop: 功能关');
-      _serviceOn = false;
-      _lastSig = null;
-    }
+    await _stopNative('功能关');
     return;
   }
 
@@ -109,24 +123,14 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
   final mediaS = await ref.watch(mediaRunningSessionProvider.future);
   final sessionOn = readS != null || mediaS != null;
   if (!sessionOn) {
-    if (_serviceOn) {
-      await sysPillStop();
-      await sysPillLog('stop: 无会话');
-      _serviceOn = false;
-      _lastSig = null;
-    }
+    await _stopNative('无会话');
     return;
   }
 
   // 无权限（含被撤）＝完全降级：不保活，仅 app 内胶囊。
   final canDraw = await sysPillCanDraw();
   if (!canDraw) {
-    if (_serviceOn) {
-      await sysPillStop();
-      await sysPillLog('stop: 无权限');
-      _serviceOn = false;
-      _lastSig = null;
-    }
+    await _stopNative('无权限');
     return;
   }
 
@@ -189,6 +193,7 @@ final sysPillSyncProvider = FutureProvider<void>((ref) async {
       'start=${state.startedAtMs}',
     );
     _serviceOn = true;
+    _stopSent = false; // 又在推＝服务该在，允许下一次 stop 再发
     _lastSig = sig;
   }
   // 事件消费不在同步器内：WidgetRef 与 FutureProviderRef 是两套层级

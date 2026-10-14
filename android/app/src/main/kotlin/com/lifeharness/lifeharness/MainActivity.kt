@@ -3,6 +3,7 @@ package com.lifeharness.lifeharness
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -43,6 +44,15 @@ class MainActivity : FlutterActivity() {
     // V1.64 批2：目录/多文件选择器的挂起态（同样仅内存；过期结果静默忽略）
     private var treeResult: MethodChannel.Result? = null
     private var filesResult: MethodChannel.Result? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 6133 热修：系统悬浮窗的显隐由原生自测「本进程有没有已 start 的
+        // Activity」——BACK 退 app 会连 FlutterEngine/Dart 隔离区一起销毁，
+        // 靠 Dart 推的显隐在真机上会永久缺席（详见 TimerPillService 顶部注释）。
+        // 注册点必须在 onCreate（早于本次 onStart），否则首个计数会漏。
+        AppVisibility.registerOnce(application)
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

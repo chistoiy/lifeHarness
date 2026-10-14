@@ -14,10 +14,11 @@ import 'package:lifeharness/features/read/domain/book.dart';
 import 'package:lifeharness/features/read/presentation/read_providers.dart';
 import 'package:lifeharness/shared/linkage/timer_bar_overlay.dart';
 
-/// 悬浮胶囊两形态守护（批A · 悬浮胶囊增强批 2026-10-14 原型过门口径）：
-/// 紧凑胶囊（默认不显书名·点「时间」显/隐）⇄ 贴边圆圈（只显时长·点击直接展开）·
-/// 两态严格互斥 · 位置记忆 per 形态入 kv（read.pillPos / read.pillFabPos）·
-/// 秒显 m:ss→h:mm:ss（圆圈面 h:mm）。
+/// 悬浮胶囊守护（批A · 悬浮胶囊增强批 2026-10-14 原型过门口径）：
+/// 紧凑胶囊（**恒不显书名**·2026-10-14 产品口径去掉展宽形态）⇄ 贴边圆圈
+/// （只显时长·点击直接展开）· 两态严格互斥 · 位置记忆 per 形态入 kv
+/// （read.pillPos / read.pillFabPos）· 秒显 m:ss→h:mm:ss（圆圈面 h:mm）·
+/// 靠右展开不越出屏（贴边夹取口径统一走 _TimerPillState._barW）。
 void main() {
   sqfliteFfiInit();
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,33 +74,22 @@ void main() {
     }
   }
 
-  testWidgets('默认紧凑：不显书名，含时间／＋笔记／■ 结束', (tester) async {
+  testWidgets('恒紧凑：不显书名，含时间／＋笔记／■ 结束（展宽入口已删）', (tester) async {
     await repo.setKv('read.timerUI', '顶部胶囊');
     await repo.startSession('a');
     await boot(tester);
     expect(find.byKey(const ValueKey('read-bar')), findsOneWidget);
     expect(find.textContaining('书A'), findsNothing,
-        reason: '默认紧凑：不显书名（产品口径 2026-10-14）');
+        reason: '恒紧凑：不显书名（产品口径 2026-10-14）');
+    expect(find.textContaining('阅读中'), findsNothing, reason: '无展宽文案');
+    expect(find.byKey(const ValueKey('read-pill-time')), findsNothing,
+        reason: '旧「点时间展宽」入口已整体移除');
     expect(find.byKey(const ValueKey('read-pill-note')), findsOneWidget,
         reason: 'C6 案A：＋笔记入口在位');
     expect(find.byKey(const ValueKey('read-pill-end')), findsOneWidget);
   });
 
-  testWidgets('点「时间」显/隐书名', (tester) async {
-    await repo.setKv('read.timerUI', '顶部胶囊');
-    await repo.startSession('a');
-    await boot(tester);
-    expect(find.textContaining('阅读中'), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('read-pill-time')));
-    await tester.pump();
-    expect(find.textContaining('阅读中'), findsOneWidget,
-        reason: '点时间显示书名字样');
-    await tester.tap(find.byKey(const ValueKey('read-pill-time')));
-    await tester.pump();
-    expect(find.textContaining('阅读中'), findsNothing, reason: '再点收起');
-  });
-
-  testWidgets('拖到屏幕右缘 → 贴边圆圈（两态互斥）；点圆圈直接展开回胶囊', (tester) async {
+  testWidgets('拖到屏幕右缘 → 贴边圆圈（两态互斥）；点圆圈展开后整体不出屏', (tester) async {
     await repo.setKv('read.timerUI', '顶部胶囊');
     await repo.startSession('a');
     await boot(tester);
@@ -116,6 +106,18 @@ void main() {
     expect(find.byKey(const ValueKey('read-bar')), findsOneWidget,
         reason: '点圆圈直接展开（位置接住圆圈处）');
     expect(find.byKey(const ValueKey('read-fab')), findsNothing);
+    // 回归哨兵（2026-10-14 真机）：右缘展开后胶囊不得越出屏右——
+    // 旧夹取写死 `mq.width - 60`，靠右时「＋笔记 / ■ 结束」被裁不可见。
+    final screenW =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final rect = tester.getRect(find.byKey(const ValueKey('read-bar')));
+    expect(rect.right, lessThanOrEqualTo(screenW + 0.5),
+        reason: '展开后右缘不出屏');
+    expect(rect.left, greaterThanOrEqualTo(-0.5), reason: '左缘不出屏');
+    expect(find.byKey(const ValueKey('read-pill-note')), findsOneWidget,
+        reason: '＋笔记可见（未被裁）');
+    expect(find.byKey(const ValueKey('read-pill-end')), findsOneWidget,
+        reason: '■结束可见（未被裁）');
   });
 
   testWidgets('位置记忆：拖后落 kv，重挂后按 kv 恢复同一落点', (tester) async {

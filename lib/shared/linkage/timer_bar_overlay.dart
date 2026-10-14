@@ -6,7 +6,7 @@ import '../../features/calendar/presentation/calendar_providers.dart'
     show calendarTickerProvider;
 import '../../features/media/data/media_repo_session.dart';
 import '../../features/media/presentation/media_actions.dart'
-    show mediaLiveMinutes, mediaTimerWord, refreshTimeAfterMediaSession;
+    show refreshTimeAfterMediaSession;
 import '../../features/media/presentation/media_progress_sheet.dart'
     show showMediaProgressSheet;
 import '../../features/media/presentation/media_providers.dart';
@@ -44,10 +44,12 @@ const double kPillEdgeSnap = 24;
 final readPillFoldedProvider = StateProvider<bool>((_) => false);
 final mediaPillFoldedProvider = StateProvider<bool>((_) => false);
 
-/// 书名显隐（点「时间」切换）＝会话内内存态，**默认紧凑不显书名**（产品口径
-/// 2026-10-14：胶囊短、不易碰边）。
-final readPillLabelOnProvider = StateProvider<bool>((_) => false);
-final mediaPillLabelOnProvider = StateProvider<bool>((_) => false);
+/// 胶囊形态**恒为紧凑**（呼吸点＋时长＋动作钮），不显书名。
+///
+/// 产品口径 2026-10-14（真机反馈）：旧「点时间展宽显《书名》」形态在靠右时
+/// 右半截被屏边裁掉（＋笔记/■结束看不见），且书名属冗余信息——**整条去掉**。
+/// 原 `readPillLabelOnProvider`/`mediaPillLabelOnProvider` 两态开关已删除；
+/// 胶囊宽度自此恒定，贴边夹取口径唯一（见 [_TimerPillState._barW]）。
 
 /// 展开落点覆盖（点圆圈展开时「接住圆圈处」）：内存态，仅到下次拖动/折叠前生效。
 final readPillBarSpotProvider = StateProvider<Offset?>((_) => null);
@@ -237,6 +239,7 @@ Widget _pillBtn(
 
 /// 两形态计时胶囊基座（批A）：紧凑胶囊 ⇄ 贴边圆圈，拖动 / 贴边吸附 /
 /// 位置记忆（kv `prefix.pillPos`·`prefix.pillFabPos`）/ 两态互斥。
+/// 胶囊内容**恒紧凑**（无展宽形态·2026-10-14 产品口径）。
 ///
 /// 折叠态与展开落点覆盖是内存态；位置 kv 直读直写（不经 readKvProvider——
 /// 位置只被手势改变，无需随 tick 重建）。圆圈点击判定统一在 onTap（拖动
@@ -246,7 +249,6 @@ class _TimerPill extends ConsumerStatefulWidget {
     required this.prefix,
     required this.tag,
     required this.foldedProvider,
-    required this.labelOnProvider,
     required this.barSpotProvider,
     required this.baseDy,
     required this.kvGet,
@@ -261,7 +263,6 @@ class _TimerPill extends ConsumerStatefulWidget {
   final String prefix;
   final String tag;
   final StateProvider<bool> foldedProvider;
-  final StateProvider<bool> labelOnProvider;
   final StateProvider<Offset?> barSpotProvider;
 
   /// 与另一条并存时的默认纵向让位（未拖过时生效）。
@@ -317,6 +318,17 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
   double _clampTop(double top, double h, double itemH) =>
       top.clamp(4.0, h - itemH - 4).toDouble();
 
+  /// 胶囊实测宽（首帧 / 拖起时量得）。未量到时用保守估值——**宁大不小**：
+  /// 夹取上界收得更紧，只会偏左，绝不越出屏右把「＋笔记 / ■ 结束」裁掉。
+  ///
+  /// 历史坑（2026-10-14 真机）：build 里曾写死 `mq.width - 60`，而实际胶囊
+  /// 宽 ~215px——靠右拖动/展宽后右半截直接出屏。口径现与 [_dragBar]、
+  /// [_settleBar]、[_unfold] 统一走本函数。
+  static const double _kBarWGuess = 240;
+
+  double _barW(Size mq) =>
+      (_barSize?.width ?? _kBarWGuess).clamp(0.0, mq.width - 8);
+
   void _foldTo(String side, Offset barTopLeft, Size mq) {
     _fabSide = side;
     _fabFrac = null; // 交互后走绝对像素
@@ -339,7 +351,7 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
       kTimerBarHeight,
     ).clamp(kPillFabSize, mq.height - kTimerBarHeight - 4).toDouble();
     ref.read(widget.barSpotProvider.notifier).state = Offset(
-      _fabSide == 'l' ? 4 : mq.width - 236,
+      _fabSide == 'l' ? 4 : mq.width - _barW(mq) - 4,
       top,
     );
     ref.read(widget.foldedProvider.notifier).state = false;
@@ -374,11 +386,11 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
             ? Offset(_barFrac!.dx * mq.width, _barFrac!.dy * mq.height)
             : Offset(16, baseTop));
     _barFrac = null; // 交互后走绝对像素
-    final size = _barSize ?? const Size(200, kTimerBarHeight);
+    final h = _barSize?.height ?? kTimerBarHeight;
     setState(() {
       _barPos = Offset(
-        (cur.dx + delta.dx).clamp(4.0, mq.width - size.width - 4).toDouble(),
-        (cur.dy + delta.dy).clamp(4.0, mq.height - size.height - 4).toDouble(),
+        (cur.dx + delta.dx).clamp(4.0, mq.width - _barW(mq) - 4).toDouble(),
+        (cur.dy + delta.dy).clamp(4.0, mq.height - h - 4).toDouble(),
       );
     });
   }
@@ -386,7 +398,7 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
   void _settleBar(Size mq) {
     final pos = _barPos;
     if (pos == null) return;
-    final bw = _barSize?.width ?? 200;
+    final bw = _barW(mq);
     if (pos.dx <= kPillEdgeSnap) {
       _foldTo('l', pos, mq);
     } else if (mq.width - (pos.dx + bw) <= kPillEdgeSnap) {
@@ -440,14 +452,26 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
     Offset? pos = spot ?? _barPos;
     if (pos == null && _barFrac != null) {
       pos = Offset(
-        (_barFrac!.dx * mq.width).clamp(4.0, mq.width - 60).toDouble(),
+        (_barFrac!.dx * mq.width)
+            .clamp(4.0, mq.width - _barW(mq) - 4)
+            .toDouble(),
         (_barFrac!.dy * mq.height)
             .clamp(4.0, mq.height - kTimerBarHeight - 4)
             .toDouble(),
       );
     }
-    final left = ((pos?.dx ?? 16)).clamp(4.0, mq.width - 60).toDouble();
+    final left =
+        ((pos?.dx ?? 16)).clamp(4.0, mq.width - _barW(mq) - 4).toDouble();
     final top = pos?.dy ?? baseTop + widget.baseDy;
+    if (_barSize == null) {
+      // 首帧量一次实测宽，供贴边夹取用（只补一次，不循环）。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _barSize != null) return;
+        final box = context.findRenderObject() as RenderBox?;
+        final sz = box?.size;
+        if (sz != null && sz.width > 0) setState(() => _barSize = sz);
+      });
+    }
     return Positioned(
       left: left,
       top: top,
@@ -472,7 +496,7 @@ class _TimerPillState extends ConsumerState<_TimerPill> {
   }
 }
 
-/// 读书计时胶囊（批A 两形态 · §3.3 跨页常驻 · 原地结束）。
+/// 读书计时胶囊（批A · §3.3 跨页常驻 · 原地结束；内容恒紧凑）。
 class _ReadPill extends ConsumerWidget {
   const _ReadPill({required this.baseDy});
 
@@ -484,14 +508,9 @@ class _ReadPill extends ConsumerWidget {
     ref.watch(calendarTickerProvider); // 秒级心跳（秒显 C5 与日程条共用流）
     final s = ref.watch(runningSessionProvider).valueOrNull;
     if (s == null) return const SizedBox.shrink();
-    final books = ref.watch(booksProvider).valueOrNull ?? const [];
-    final title =
-        books.where((b) => b.id == s.bookId).firstOrNull?.title ?? '阅读';
     final elapsed = DateTime.now()
         .difference(DateTime.fromMillisecondsSinceEpoch(s.startedAt));
-    final mins = elapsed.inMinutes;
     final cs = Theme.of(context).colorScheme;
-    final labelOn = ref.watch(readPillLabelOnProvider);
     final bar = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: _pillBox(context),
@@ -504,35 +523,17 @@ class _ReadPill extends ConsumerWidget {
             decoration:
                 BoxDecoration(shape: BoxShape.circle, color: cs.primary),
           ),
-          if (labelOn) ...[
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                '《$title》 · 阅读中 $mins 分钟',
-                style: TextStyle(color: cs.onSurface, fontSize: 11.5),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
           const SizedBox(width: 8),
-          // 点「时间」＝显示/隐藏书名字样（默认紧凑不显 · 产品口径 2026-10-14）。
-          InkWell(
-            key: const ValueKey('read-pill-time'),
-            borderRadius: BorderRadius.circular(6),
-            onTap: () => ref.read(readPillLabelOnProvider.notifier).state =
-                !ref.read(readPillLabelOnProvider.notifier).state,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                pillFmtHMS(elapsed),
-                style: TextStyle(
-                  color: cs.onSurface,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+          // 恒紧凑：只显时长（不显书名·2026-10-14 产品口径）。
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              pillFmtHMS(elapsed),
+              style: TextStyle(
+                color: cs.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
@@ -558,7 +559,6 @@ class _ReadPill extends ConsumerWidget {
       prefix: 'read',
       tag: 'read',
       foldedProvider: readPillFoldedProvider,
-      labelOnProvider: readPillLabelOnProvider,
       barSpotProvider: readPillBarSpotProvider,
       baseDy: baseDy,
       kvGet: (k) => ref.read(readRepositoryProvider).kv(k),
@@ -584,13 +584,9 @@ class _MediaPill extends ConsumerWidget {
     ref.watch(calendarTickerProvider); // 秒级心跳（三条共用流）
     final s = ref.watch(mediaRunningSessionProvider).valueOrNull;
     if (s == null) return const SizedBox.shrink();
-    final item = ref.watch(mediaItemDetailProvider(s.itemId)).valueOrNull;
-    final title = item?.title ?? '影音';
     final elapsed = DateTime.now()
         .difference(DateTime.fromMillisecondsSinceEpoch(s.startedAt));
-    final mins = mediaLiveMinutes(s);
     final cs = Theme.of(context).colorScheme;
-    final labelOn = ref.watch(mediaPillLabelOnProvider);
     final bar = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: _pillBox(context),
@@ -603,34 +599,17 @@ class _MediaPill extends ConsumerWidget {
             decoration:
                 BoxDecoration(shape: BoxShape.circle, color: cs.tertiary),
           ),
-          if (labelOn) ...[
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 150),
-              child: Text(
-                '《$title》 · ${mediaTimerWord(s.kind)} $mins 分钟',
-                style: TextStyle(color: cs.onSurface, fontSize: 11.5),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
           const SizedBox(width: 8),
-          InkWell(
-            key: const ValueKey('media-pill-time'),
-            borderRadius: BorderRadius.circular(6),
-            onTap: () => ref.read(mediaPillLabelOnProvider.notifier).state =
-                !ref.read(mediaPillLabelOnProvider.notifier).state,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                pillFmtHMS(elapsed),
-                style: TextStyle(
-                  color: cs.onSurface,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+          // 恒紧凑：只显时长（不显条目标题·2026-10-14 产品口径）。
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              pillFmtHMS(elapsed),
+              style: TextStyle(
+                color: cs.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
@@ -648,7 +627,6 @@ class _MediaPill extends ConsumerWidget {
       prefix: 'media',
       tag: 'media',
       foldedProvider: mediaPillFoldedProvider,
-      labelOnProvider: mediaPillLabelOnProvider,
       barSpotProvider: mediaPillBarSpotProvider,
       baseDy: baseDy,
       kvGet: (k) => ref.read(mediaRepositoryProvider).kv(k),

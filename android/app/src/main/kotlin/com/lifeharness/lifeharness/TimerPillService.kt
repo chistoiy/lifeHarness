@@ -1,5 +1,7 @@
 package com.lifeharness.lifeharness
 
+import android.app.Activity
+import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +13,7 @@ import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -25,6 +28,70 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.Locale
 
+/// app 可见性（进程级真值）：由 [MainActivity] 注册 ActivityLifecycleCallbacks
+/// 维护，[TimerPillService] 读取它以自决悬浮窗显隐。
+///
+/// 为什么不让 Dart 决定（6133 热修 · 真机 BACK 退 app 不复现）：
+/// BACK 结束 MainActivity 时 FlutterActivity 会连 FlutterEngine 一并销毁
+/// （Dart 隔离区随之消失，此后一帧都不会再跑）。退后台那一次 `lh/pill` push
+/// 与 engine teardown 是竞态——赶不上就永远不出现，且此后 Dart 无从再推。
+/// 「本进程有没有已 start 的 Activity」是原生就能测的真值，与 Dart 死活无关。
+internal object AppVisibility {
+
+    /// 已 start 的 Activity 数（0＝app 不在前台）。默认 0：注册发生在
+    /// MainActivity.onCreate，早于本次 onStart，首个计数不会漏。
+    @Volatile
+    var started: Int = 0
+        private set
+
+    /// 显隐变化回调（服务挂；只可能在主线程触发）。
+    @Volatile
+    private var listener: (() -> Unit)? = null
+
+    private var registered = false
+
+    val foreground: Boolean get() = started > 0
+
+    fun setListener(l: (() -> Unit)?) {
+        listener = l
+    }
+
+    /// 进程内只注册一次（Activity 重建会再进 onCreate，重复注册＝重复计数）。
+    fun registerOnce(app: Application) {
+        if (registered) return
+        registered = true
+        app.registerActivityLifecycleCallbacks(
+            object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityStarted(activity: Activity) {
+                    started++
+                    listener?.invoke()
+                }
+
+                override fun onActivityStopped(activity: Activity) {
+                    if (started > 0) started--
+                    listener?.invoke()
+                }
+
+                override fun onActivityCreated(
+                    activity: Activity,
+                    savedInstanceState: Bundle?,
+                ) = Unit
+
+                override fun onActivityResumed(activity: Activity) = Unit
+
+                override fun onActivityPaused(activity: Activity) = Unit
+
+                override fun onActivitySaveInstanceState(
+                    activity: Activity,
+                    outState: Bundle,
+                ) = Unit
+
+                override fun onActivityDestroyed(activity: Activity) = Unit
+            },
+        )
+    }
+}
+
 /// 批B（工单 悬浮胶囊增强批-20261014 §7）：app 外系统悬浮窗载体。
 ///
 /// 形态（照 §5 ⓕ mock）：固定顶部、不拖动、深色中性浮层——呼吸点＋
@@ -34,11 +101,13 @@ import java.util.Locale
 ///
 /// 生命周期由 Dart 侧 `lh/pill` 通道驱动（起服务只发生在 app 前台，规避
 /// Android 14+ 后台起 FGS 限制）：
-/// - sync（visible=true）＝起/更新服务＋加/刷新悬浮视图；
-/// - sync（visible=false）＝服务保活、视图收起（app 前台/进阅读器）；
+/// - sync＝起/更新服务＋按 [AppVisibility] 加/收悬浮视图；
 /// - stop＝停服务（会话结束/功能关闭/权限被撤）。
-/// 保活兜底：视图在场且 120s 无 sync＝dart 侧已死（activity 销毁但进程还在），
-/// 自停防「僵尸悬浮窗」。
+/// **视图显隐＝原生自决**（6133 热修）：app 在不在前台由 [AppVisibility] 自测，
+/// 不看 Dart 推来的 visible——BACK 退 app 会把 Dart 一起带走，靠 Dart 推的窗口
+/// 会永久缺席。Dart 只在「功能开关/有无会话/权限」三条上把关（该推 stop 才停）。
+/// 保活兜底：app 仍在前台却 30 分钟无 sync＝Dart 侧确实卡死，自停防僵尸；
+/// app 已不在前台时**不设窗口**——会话仍在跑，窗口就该一直在。
 class TimerPillService : Service() {
 
     private var wm: WindowManager? = null
@@ -48,10 +117,12 @@ class TimerPillService : Service() {
 
     /// 原生自走秒（6132 热修）：秒显由本进程按 session 起点自算，不依赖 Dart
     /// 每秒推送——HyperOS 退后台会挂起整进程（Dart tick 与 FGS 同冻结），
-    /// 靠 Dart 推秒在真机上会停表。顺带承担僵尸兜底（见下）。
+    /// 靠 Dart 推秒在真机上会停表。顺带自决视图显隐（6133 热修，每秒兜一次，
+    /// 防生命周期回调漏触发）与僵尸兜底（见下）。
     private val tickHandler = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
+            refreshOverlay()
             val v = overlayView
             if (v != null) {
                 val sec = if (payload.startedAtMs > 0) {
@@ -62,10 +133,11 @@ class TimerPillService : Service() {
                 }
                 v.findViewWithTag<TextView>(TAG_TIME)?.text = fmt(sec)
             }
-            // 僵尸兜底：视图在场且 STALE_MS 无 Dart sync＝dart 侧确已不在
-            // （activity 销毁但进程还活着）——放宽到 30 分钟：正常退后台 Dart
-            // 可能被系统挂起，短窗口会误杀（6129 实测 120s 窗口的误杀风险）。
-            if (overlayView != null &&
+            // 僵尸兜底：**app 仍在前台**却 STALE_MS 无 Dart sync ＝ dart 侧确实
+            // 卡死（engine 还在但回调停摆），自停防僵尸窗口。app 已不在前台时
+            // 不设窗口：会话仍在跑，窗口就该一直在——Dart 死活与它无关（终局由
+            // Dart 的 stop／用户点「■ 结束」收）。
+            if (AppVisibility.foreground &&
                 SystemClock.elapsedRealtime() - lastSyncAt > STALE_MS
             ) {
                 stopSelf()
@@ -79,6 +151,8 @@ class TimerPillService : Service() {
         super.onCreate()
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createChannel()
+        // 显隐随 Activity 生死即时应答（秒级 tick 只是兜底）。
+        AppVisibility.setListener { refreshOverlay() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -86,7 +160,8 @@ class TimerPillService : Service() {
         Log.i(
             TAG,
             "onStartCommand action=${intent?.action} visible=${payload.visible} " +
-                "sec=${payload.seconds} startAt=${payload.startedAtMs}",
+                "sec=${payload.seconds} startAt=${payload.startedAtMs} " +
+                "appFg=${AppVisibility.foreground}(${AppVisibility.started})",
         )
         // startForeground 必须先行：startForegroundService 起的服务 5s 内不进前台
         // ＝RemoteServiceException 崩溃；无权限/ROM 拒授也先吃下回调再自停，且包
@@ -105,7 +180,7 @@ class TimerPillService : Service() {
                     return START_NOT_STICKY
                 }
                 lastSyncAt = SystemClock.elapsedRealtime()
-                applyOverlay()
+                refreshOverlay()
                 tickHandler.removeCallbacks(tick)
                 tickHandler.postDelayed(tick, TICK_MS)
             }
@@ -116,6 +191,7 @@ class TimerPillService : Service() {
 
     override fun onDestroy() {
         tickHandler.removeCallbacks(tick)
+        AppVisibility.setListener(null)
         removeOverlay()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
@@ -125,8 +201,18 @@ class TimerPillService : Service() {
 
     // ---- 悬浮视图 ----
 
+    /// 视图该不该在＝**app 在不在前台**（原生真值）。服务只在有会话且功能开
+    /// 且已授权时才被 Dart 拉起，故「不在前台＝该显示」成立；Dart 推来的
+    /// visible 不再参与判断（6133 热修，见类注释）。
+    private fun overlayWanted(): Boolean = !AppVisibility.foreground
+
+    /// 按当前前台状态加/收视图（幂等；生命周期回调与秒级 tick 两处调用）。
+    private fun refreshOverlay() {
+        if (overlayWanted()) applyOverlay() else removeOverlay()
+    }
+
     private fun applyOverlay() {
-        if (!payload.visible) {
+        if (!overlayWanted()) {
             removeOverlay()
             return
         }

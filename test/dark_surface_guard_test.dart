@@ -81,10 +81,10 @@ const _baseline = <String, int>{
     'lib/features/read/presentation/read_tab.dart': 4,
     'lib/features/read/presentation/shelf/book_detail.dart': 4,
     'lib/features/todo/presentation/widgets/pomo_screen.dart': 4,
-    // 6→4 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：登记值 6 是 `_translucent`
-    // 排除规则（`withValues` 半透明叠层不算白底面）加入**之前**的旧数——该文件实态一直是
-    // 4（两条计时胶囊各 1 处白字 + 1 处白读数），本批 F2-5 只动占位/落点，白面未增未减。
-    'lib/shared/linkage/timer_bar_overlay.dart': 4,
+    // 2026-10-14 摘除（悬浮胶囊增强批A 跟进）：条目已是「死登记」——批A 整文件重写时
+    // 两条计时胶囊的字色由 `Colors.white` 改吃 scheme（onSurface/onSurfaceVariant），
+    // 本文件近白底面实测归零；当时那轮门禁没点本闸文件，死项就此挂到现在（本批实跑复现）。
+    // 按闸口径「归零即删项」摘除。此后本文件任何位置都不得再长回白底面。
     'lib/features/calendar/presentation/time_stats_page.dart': 3,
     'lib/features/care/presentation/care_kit.dart': 3,
     'lib/features/days/presentation/days_kit.dart': 3,
