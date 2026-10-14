@@ -15,6 +15,8 @@ import '../../domain/book_quote.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart';
 import '../widgets/bs_cover.dart';
+import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
+import '../../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
 
 /// 书单列表 + 详情（原型 p-booklists / p-booklist · 计划 §4 批4）。
 /// 分享长图 = RepaintBoundary 渲染（验收口径：1080 宽不裁切）；TXT/MD 落文件。
@@ -133,18 +135,11 @@ class BookListsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
+          // F2-7 空态定式（LH-L04）：虚线补录行，不再自绘卡片 Text。
           if (lists.isEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: .4)),
-              ),
-              child: Text('还没有书单',
-                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+            const EmptyDashRow(
+              key: ValueKey('rl-lists-empty'),
+              text: '还没有书单',
             ),
           for (final l in lists) _listCard(context, ref, cs, tokens, l),
         ],
@@ -269,6 +264,13 @@ class BookListsPage extends ConsumerWidget {
                 GestureDetector(
                   key: ValueKey('bl-del-${l.id}'),
                   onTap: () async {
+                    // F2-11（LH-S31）：删书单＝破坏性动作，先过统一二次确认；
+                    // 文案逐字＝原型 blDel。
+                    final ok = await lhConfirm(
+                      context,
+                      '删除书单「${l.name}」？\n书单里的书不受影响，只删这份清单；删除后需手动重建。',
+                    );
+                    if (!ok || !context.mounted) return;
                     await ref
                         .read(readRepositoryProvider)
                         .softDeleteList(l.id!);

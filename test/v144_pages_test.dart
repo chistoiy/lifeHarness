@@ -127,7 +127,7 @@ void main() {
           of: find.byKey(ValueKey(key)), matching: find.byType(Text)))
       .data!;
 
-  testWidgets('① 搜索页：输入→假 fetcher 出 2 行→渲染标题与作者行；未接入源给提示', (tester) async {
+  testWidgets('① 搜索页：输入→假 fetcher 出 2 行→渲染标题与作者行；未接入源点不动（F2-14）', (tester) async {
     const twoRows =
         '[{"id":"1041482","title":"万历十五年","author_name":"[美] 黄仁宇",'
         '"year":"1997","pic":"https://img3.doubanio.com/s1800355.jpg"},'
@@ -142,12 +142,17 @@ void main() {
     await tester.pump();
     // 起手空态。
     expect(find.text('搜书名、作者或 ISBN'), findsOneWidget);
-    // 置灰源点击＝提示不做假结果。
+    // F2-14（LH-K36）：未接入源＝禁用第三态——常开＋置灰＋点不动（onTap 恒 null）
+    // ＋固定小标「· 未接入」，不再弹「该源未接入」提示条。
     await tester.ensureVisible(find.byKey(const ValueKey('bsr-chip-晋江文学城')));
+    final jjChip = tester.widget<GestureDetector>(
+        find.byKey(const ValueKey('bsr-chip-晋江文学城')));
+    expect(jjChip.onTap, isNull, reason: '未接入源点不动（禁用第三态）');
+    expect(find.text('晋江文学城 · 未接入'), findsOneWidget, reason: '固定小标常驻');
     await tester.tap(find.byKey(const ValueKey('bsr-chip-晋江文学城')));
     await tester.pump();
-    expect(find.text('该源未接入 · 本批只支持豆瓣'), findsOneWidget);
-    await clearToasts(tester);
+    expect(find.text('该源未接入 · 本批只支持豆瓣'), findsNothing,
+        reason: '禁用项点不动 ⇒ 不再借道提示条');
 
     await tester.enterText(find.byKey(const ValueKey('bsr-q')), '万历');
     await tester.pump(const Duration(milliseconds: 400)); // 350ms 防抖

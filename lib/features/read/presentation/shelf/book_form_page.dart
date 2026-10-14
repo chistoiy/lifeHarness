@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/image_attach.dart' show pickAndStoreImage;
 import '../../../../shared/widgets/lh_wheel.dart';
+import '../../../../shared/widgets/ui_kit.dart' show FieldError;
 import '../../data/isbn_enrich.dart';
 import '../../data/read_import.dart' show normIsbn;
 import '../../domain/book.dart';
@@ -74,6 +75,11 @@ class BookFormPage extends ConsumerStatefulWidget {
 class _BookFormPageState extends ConsumerState<BookFormPage> {
   Book? _editing; // 编辑态现书（initState 异步回填）
   bool get _isNew => _editing == null;
+
+  // F2-12（LH-K32）：书名必填的就地错误（非空即显示在字段下方，输入即撤）。
+  String? _titleErr;
+  // F2-15：保存防重入门（连点只落一次写）。
+  bool _busy = false;
 
   final _title = TextEditingController();
   final _author = TextEditingController();
@@ -523,11 +529,14 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
   // ---- 保存（语义与 _BookForm._save 一致 · 复用 repo 写路径）----
 
   Future<void> _save() async {
+    if (_busy) return;
     if (_title.text.trim().isEmpty) {
-      readToast(context, '书名必填');
+      // F2-12（LH-K32）：必填校验落字段下方（就地红字·输入即撤），不再弹提示条。
+      setState(() => _titleErr = '书名必填');
       return;
     }
     if (widget.bookId != null && _editing == null) return; // 还没载入完
+    setState(() => _busy = true);
     final b = _editing;
     final now = DateTime.now().millisecondsSinceEpoch;
     final repo = ref.read(readRepositoryProvider);
@@ -1245,7 +1254,8 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
         actions: [
           TextButton(
             key: const ValueKey('bf-save'),
-            onPressed: _save,
+            // F2-15：保存中置灰点不动，连点只落一次写。
+            onPressed: _busy ? null : _save,
             child: Text(
               widget.bookId != null ? '保存' : '添加',
               style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
@@ -1259,7 +1269,27 @@ class _BookFormPageState extends ConsumerState<BookFormPage> {
           _coverBlock(),
           _sec('基础信息'),
           _card([
-            _row('书名（必填）', _in(_title, 'bf-title', hint: '输入书籍名称')),
+            // F2-12（LH-K32）：书名必填错误贴输入框下方（就地红字·输入即撤·不遮不跳），
+            // 与原型 `.fld-err`（位于 bfIn 行下方）同定式。
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _row(
+                  '书名（必填）',
+                  _in(
+                    _title,
+                    'bf-title',
+                    hint: '输入书籍名称',
+                    onChanged: (_) {
+                      if (_titleErr != null) {
+                        setState(() => _titleErr = null);
+                      }
+                    },
+                  ),
+                ),
+                FieldError(_titleErr),
+              ],
+            ),
             _row('作者', _in(_author, 'bf-author', hint: '输入作者名字')),
             _row('译者', _in(_translator, 'bf-translator', hint: '请输入译者名字')),
             _row('出版社', _in(_publisher, 'bf-publisher', hint: '请输入出版社名称')),

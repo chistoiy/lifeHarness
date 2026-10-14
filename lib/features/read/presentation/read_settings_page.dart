@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers.dart' show sharedPreferencesProvider;
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../data/isbn_enrich.dart' show DoubanCookie;
 import './reader/reader_sel_layer.dart' show kBrSelDefaultTools;
 import 'read_providers.dart';
@@ -662,6 +663,14 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
           TextButton(
             key: const ValueKey('set-dbCookie-clear'),
             onPressed: () async {
+              // F2-11（LH-S31）：清除登录态＝破坏性动作，先过统一二次确认
+              // （取消左 · 玫红右），人话句说清后果。
+              final ok = await lhConfirm(
+                context,
+                '清除豆瓣登录 Cookie？\n清除后需要重新登录才能抓取书目；已抓到的书目缓存不受影响。',
+                okLabel: '清除',
+              );
+              if (!ok || !mounted) return;
               final prefs = ref.read(sharedPreferencesProvider);
               await prefs.remove('read.dbCookie');
               await prefs.remove('read.dbCookieAt');
@@ -682,11 +691,27 @@ class _ReadSettingsPageState extends ConsumerState<ReadSettingsPage> {
         // 原型 rsRow cache：按钮即「清除 N 条」，无缓存置灰「无缓存」。
         final n = ref.watch(doubanCacheCountProvider).valueOrNull ?? 0;
         return [
+          // F2-14（LH-K36）：禁用第三态＝常开＋置灰＋点不动＋固定小标。
+          // 按钮文案随有无缓存而变，另给一枚常驻小标把本机缓存状态说明白
+          // （对齐书目源 chip 的「· 未接入」小标），不把状态只压在按钮文案上。
+          Text(
+            n == 0 ? '本机暂无缓存' : '本机 $n 条',
+            key: const ValueKey('set-dbCache-state'),
+            style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(width: 8),
           TextButton(
             key: const ValueKey('set-dbCache-clear'),
             onPressed: n == 0
                 ? null
                 : () async {
+                    // F2-11（LH-S31）：清缓存＝破坏性动作，先过统一二次确认。
+                    final ok = await lhConfirm(
+                      context,
+                      '清除 $n 条豆瓣书目缓存？\n清除后下次抓书目将重新联网查询。',
+                      okLabel: '清除',
+                    );
+                    if (!ok || !mounted) return;
                     final repo = ref.read(readRepositoryProvider);
                     await repo.doubanCacheClear();
                     ref.read(readTickProvider.notifier).state++;

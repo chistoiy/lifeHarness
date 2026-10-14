@@ -249,7 +249,8 @@ void main() {
       await step(t, ms: 200, times: 8);
       expect(find.byKey(const ValueKey('br-imp-err')), findsOne);
       expect(find.textContaining('DRM 加密书籍不支持'), findsWidgets);
-      await t.tap(find.byKey(const ValueKey('br-imp-retry')));
+      // F2-8：坏包失败态改接 LoadErrorBanner（LH-L15），重试钮键随原语＝load-error-retry。
+      await t.tap(find.byKey(const ValueKey('load-error-retry')));
       await step(t);
       expect(find.byKey(const ValueKey('br-imp2')), findsOne);
     });

@@ -28,6 +28,8 @@ class _GoalFormState extends ConsumerState<_GoalForm> {
   bool _remind = true;
   int _remindMin = 21 * 60 + 30;
   bool _loaded = false;
+  // F2-15：保存防重入门（连点只落一次写）。
+  bool _busy = false;
 
   /// 实时预览数据源（今天/本周/本月分钟 · 读完本数）。
   int _today = 0, _week = 0, _monthMin = 0;
@@ -76,6 +78,8 @@ class _GoalFormState extends ConsumerState<_GoalForm> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
+    setState(() => _busy = true);
     final repo = ref.read(readRepositoryProvider);
     await Future.wait([
       repo.setKv('read.goalBooks', '$_books'),
@@ -564,7 +568,8 @@ class _GoalFormState extends ConsumerState<_GoalForm> {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: _save,
+            // F2-15：保存中置灰点不动，连点只落一次写。
+            onPressed: _busy ? null : _save,
             child: const Text('保存目标'),
           ),
           const SizedBox(height: 8),
@@ -612,6 +617,8 @@ class _BooklistFormState extends ConsumerState<_BooklistForm> {
   );
   late final List<String> _sel = [...widget.initialIds];
   final _q = TextEditingController();
+  // F2-15：保存防重入门（连点只落一次写）。
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -636,11 +643,13 @@ class _BooklistFormState extends ConsumerState<_BooklistForm> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
     final nm = _name.text.trim();
     if (nm.isEmpty) {
       readToast(context, '给书单起个名字');
       return;
     }
+    setState(() => _busy = true);
     final repo = ref.read(readRepositoryProvider);
     final all = (ref.read(booksProvider).valueOrNull ?? const <Book>[])
         .where((b) => !b.isDeleted)
@@ -793,7 +802,8 @@ class _BooklistFormState extends ConsumerState<_BooklistForm> {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: _save,
+            // F2-15：保存中置灰点不动，连点只落一次写。
+            onPressed: _busy ? null : _save,
             child: Text(
               widget.editing != null
                   ? '保存选书'

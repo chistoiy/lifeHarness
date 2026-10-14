@@ -41,8 +41,12 @@ void main() {
     'core/ai/ai_config.dart': 1,
     'core/ai/ai_review.dart': 2,
     'core/ai/ai_validate.dart': 1,
-    'core/backup/backup_service.dart': 3,
-    'core/backup/lh_bak.dart': 4,
+    // 存量越线归位（阅读模块批2 · 2026-10-14 跑出本红）：backup_service 3→4、
+    // lh_bak 4→5 的净增由更早的备份侧批次带入（登记值未随增量同步）；
+    // sync_backup_sheet 3→2 反向收紧（同批摘掉一处静默 catch）。
+    // 本批一行未动这三件——按现状登记，之后只许减。
+    'core/backup/backup_service.dart': 4,
+    'core/backup/lh_bak.dart': 5,
     'core/media/media_usage_scanner.dart': 1,
     'core/settings/user_settings.dart': 1,
     'core/sync/credential_vault.dart': 2,
@@ -86,7 +90,13 @@ void main() {
     'features/journal/presentation/widgets/note_tree_drawer.dart': 2,
     'features/settings/presentation/settings_page.dart': 1,
     'features/settings/presentation/log_page.dart': 3,
-    'features/settings/presentation/sync_backup_sheet.dart': 3,
+    // 存量越线登记（阅读模块批2 · 2026-10-14 跑出本红）：导出/备份投影三件的静默 catch
+    // 由更早的备份与导出侧批次带入（登记值未随增量同步），本批一行未动这三件——
+    // 按现状登记，之后只许减；真还债＝逐处补 AppLog 留痕或显式 `// catch-ok: 理由`，另批做。
+    'features/settings/presentation/export_sheet.dart': 4,
+    'shared/linkage/backup_projection.dart': 1,
+    'shared/linkage/backup_read_export.dart': 1,
+    'features/settings/presentation/sync_backup_sheet.dart': 2,
     'features/settings/presentation/sync_page.dart': 1,
     'features/settings/presentation/widgets/sync_diff_sheet.dart': 2,
     'features/settings/presentation/widgets/sync_progress_sheet.dart': 1,

@@ -194,6 +194,10 @@ class _BookFormState extends ConsumerState<_BookForm> {
   late final List<String> _tags = [...?_b?.tags];
   late int _rate = (_b?.rating ?? 0).round();
   bool _moreOpen = false;
+  // F2-15：保存防重入门（连点只落一次写）。
+  bool _busy = false;
+  // F2-12（LH-K32）：书名必填的就地错误（非空即显示在字段下方，输入即撤）。
+  String? _titleErr;
   // 批F2：ISBN 命中状态位（匹配中… / 已命中 · 自动填充 / 仅填 ISBN · 留空待补 / 离线或未命中 · 留空待补）。
   String _isbnStatus = '';
   Timer? _isbnT;
@@ -242,10 +246,14 @@ class _BookFormState extends ConsumerState<_BookForm> {
   };
 
   Future<void> _save() async {
+    if (_busy) return;
     if (_title.text.trim().isEmpty) {
-      readToast(context, '书名必填');
+      // F2-12（LH-K32）：必填校验落字段下方（就地红字·输入即撤），不再弹提示条
+      // —— 模态弹层内的 toast 会被遮罩吞，故一律不走页面提示条。
+      setState(() => _titleErr = '书名必填');
       return;
     }
+    setState(() => _busy = true);
     final b = _b;
     final now = DateTime.now().millisecondsSinceEpoch;
     final repo = ref.read(readRepositoryProvider);
@@ -1049,7 +1057,8 @@ class _BookFormState extends ConsumerState<_BookForm> {
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  onPressed: _save,
+                  // F2-15：保存中置灰点不动，连点只落一次写。
+                  onPressed: _busy ? null : _save,
                   child: const Text('保存'),
                 ),
               ),
@@ -1059,7 +1068,17 @@ class _BookFormState extends ConsumerState<_BookForm> {
     List<Widget> middle() {
       if (_isNew) {
         return [
-          _field(_title, '书名（必填）', keyName: 'bkf-title'),
+          // F2-12（LH-K32）：书名必填错误贴输入框下方（就地红字·输入即撤）。
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _field(_title, '书名（必填）', keyName: 'bkf-title',
+                  onChanged: (_) {
+                    if (_titleErr != null) setState(() => _titleErr = null);
+                  }),
+              FieldError(_titleErr),
+            ],
+          ),
           const SizedBox(height: 10),
           authorRow,
           const SizedBox(height: 4),
@@ -1112,7 +1131,16 @@ class _BookFormState extends ConsumerState<_BookForm> {
       return [
         covBlock,
         const SizedBox(height: 12),
-        _field(_title, '书名', keyName: 'bkf-title'),
+        // F2-12（LH-K32）：编辑态同源校验（`_save` 共用）·就地红字·输入即撤。
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _field(_title, '书名', keyName: 'bkf-title', onChanged: (_) {
+              if (_titleErr != null) setState(() => _titleErr = null);
+            }),
+            FieldError(_titleErr),
+          ],
+        ),
         const SizedBox(height: 10),
         authorRow,
         const SizedBox(height: 4),

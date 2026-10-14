@@ -41,6 +41,7 @@ import 'reader/reader_xray_refine.dart'
         showXrRefineReview;
 import 'read_providers.dart';
 import 'read_sheets.dart' show readToast;
+import '../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
 
 const _xrMuted = Color(0xFF94A3B8);
 const _xrAccent = Color(0xFF6366F1);
@@ -464,8 +465,8 @@ class _XrayWordsPageState extends ConsumerState<XrayWordsPage> {
             if (books.isEmpty)
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 8, 20, 24),
-                child: Text('书架里还没有导入的本地书',
-                    style: TextStyle(fontSize: 11.5, color: _xrMuted)),
+                // F2-7 空态定式（LH-L04）：虚线补录行，不再自绘 Text。
+                child: EmptyDashRow(text: '书架里还没有导入的本地书'),
               ),
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 420),

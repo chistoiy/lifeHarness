@@ -384,6 +384,10 @@ void main() {
       await settle(tester);
       await tester.tap(find.byKey(const ValueKey('bat-del')));
       await settle(tester);
+      // F2-11：批量删除先过 LH-S31 二次确认（取消左 · 玫红右）。
+      expect(find.byKey(const ValueKey('d-confirm-ok')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('d-confirm-ok')));
+      await settle(tester);
       await waitFinder(
           tester, find.text('已移出书架 2 本（笔记与时长保留 30 天可恢复）'));
       final left = (await repo.allBooks());
@@ -1459,7 +1463,7 @@ void main() {
       expect(find.byKey(const ValueKey('seg-c')), findsOneWidget);
     });
 
-    testWidgets('R-23b 计时页收起：在跑时 rtClose toast 回胶囊继续', (tester) async {
+    testWidgets('R-23b 计时页退出收敛（F2-6）：在跑时返回 toast 回胶囊继续', (tester) async {
       await repo.addBook(bk('t2', '胶囊书', Book.kStateReading));
       await tester.pumpWidget(routed(const ShelfPage()));
       await settle(tester);
@@ -1469,11 +1473,14 @@ void main() {
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 60));
       }
+      // F2-6：原「收起」与「返回」两钮同义，已收敛为一枚——不许再出现第二枚退出钮。
+      expect(find.byKey(const ValueKey('rt-collapse')), findsNothing,
+          reason: '双退出已收敛（原型 rtBack）');
       await tester.tap(find.byKey(const ValueKey('rt-toggle')));
       for (var i = 0; i < 4; i++) {
         await tester.pump(const Duration(milliseconds: 60));
       }
-      await tester.tap(find.byKey(const ValueKey('rt-collapse')));
+      await tester.tap(find.byKey(const ValueKey('rt-back')));
       await settle(tester);
       expect(
           find.textContaining('计时未结束 · 回到页面顶部胶囊继续显示'), findsOneWidget);

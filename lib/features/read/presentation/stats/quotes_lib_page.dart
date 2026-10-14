@@ -978,13 +978,11 @@ class _QuotesLibPageState extends ConsumerState<QuotesLibPage> {
           ],
         ),
         if (withImg.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              '还没有带图片的摘录 · 记摘录时点「加图片」',
-              key: const ValueKey('qlim-hint'),
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: EmptyDashRow(
+              key: ValueKey('qlim-hint'),
+              text: '还没有带图片的摘录 · 记摘录时点「加图片」',
             ),
           ),
       ],

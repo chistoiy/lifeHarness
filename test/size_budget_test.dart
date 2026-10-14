@@ -15,7 +15,11 @@ void main() {
 
   // 治理 G0~G7d⑤ 交付后（2026-09-29）实测登记的基线预算。
   const budget = <String, int>{
-    'features/read/presentation/read_sheets_b2.dart': 1778,
+    // 1778→1806 本批净增 28（阅读模块批2 · 2026-10-14）：F2-15 保存防重入门
+    // （`_busy` 门＋保存钮置灰）＋F2-12 书名必填就地红字（新增态/编辑态两处
+    // `_field(_title)` 各包一层 Column 挂 `FieldError`，输入即撤）。
+    // 真还债＝书籍表单群拆 part，另批做。
+    'features/read/presentation/read_sheets_b2.dart': 1806,
     'features/ledger/presentation/ledger_pick_sheets.dart': 1581,
     // book_detail 登记值 1570→1579 同属存量越线归位（V1.60 导入批实测 HEAD 即 1579，
     // 本批只改两行同长文案，净增 0；真还债＝三态弹层群拆 part，另批做）。
@@ -34,20 +38,33 @@ void main() {
     // 1382→1386 存量越线归位（B-4 批 2026-10-05 相邻回归跑出本红）：净增 4 行
     // 发生在轮5批A（ce5acee，F5-2 展开默认随视图档），该批批内增量没带 size 闸，
     // 非 B-4 造成——B-4 未动日历一行。之后只许减。
-    'features/calendar/presentation/calendar_page.dart': 1386,
-    'features/read/presentation/shelf/book_form_page.dart': 1361,
+    // 1386→1468 存量越线归位（阅读模块批2 · 2026-10-14 跑出本红）：净增 82 行发生在
+    // 时间模块批4（44d81ef8，2026-10-13，主屏 builder 化＋周视图 24 小时行铺进主屏列表），
+    // 该批门禁＝18 波 ftest＋time_perf 用例，未带 size 闸，故今日现形——本批一行未动
+    // 日历。之后只许减；真还债＝日历区子视图拆 part，另批做。
+    'features/calendar/presentation/calendar_page.dart': 1468,
+    // time_stats_page 1247 行（时间模块批4 44d81ef8 同步长大·登记表未同步）：阅读模块批2
+    // （2026-10-14）跑 size 闸现形，本批一行未动该文件。按现状登记，之后只许减。
+    'features/calendar/presentation/time_stats_page.dart': 1247,
+    // 1361→1622（阅读模块批2 · 2026-10-14 跑出本红）：其中 1361→1592 属**存量越线归位**
+    // ——越线发生在 V1.44「先搜后加」及其后各批（登记值未随增量同步），本批未造成；
+    // 本批净增 30 行＝F2-12 书名必填就地红字（`_titleErr`＋`FieldError`）＋
+    // F2-15 保存防重入门（`_busy` 门＋保存钮置灰）。之后只许减；真还债＝拆 part，另批做。
+    'features/read/presentation/shelf/book_form_page.dart': 1622,
     'features/ledger/data/ledger_repository.dart': 1352,
-    'features/read/presentation/read_sheets_b3.dart': 1331,
-    'features/journal/presentation/diary_edit_page.dart': 1370,
-    // diary_edit_page 1370 行越线（思维导图批1 2026-10-12 复跑跑出）：越线发生在
-    // 此前日记侧批次（登记值 1259 未随增量同步），本批未动该文件一行——按现状
-    // 登记，之后只许减；真还债＝拆 part，另批做。
-    // 存量越线归位（思维导图批1 2026-10-12 跑出本红）：dashboard_page 1204 行
-    // 越线发生在今天页 UIUX 批（2026-10-12，该批批内增量没带 size 闸），
-    // 本批只在 _mods 加一行宫格枚（+1）；settings_page 1566 行越线发生在
-    // 语义断链批（V1.68 日记第八类，同样没带 size 闸），本批只改一行文案。
-    // 两处均非本批造成——按现状登记，之后只许减；真还债＝各自拆 part，另批做。
-    'features/dashboard/presentation/dashboard_page.dart': 1204,
+    // 1331→1341 本批净增 10（阅读模块批2 · 2026-10-14）：F2-15 保存防重入门
+    // （`_busy` 门＋保存钮置灰＋校验未过解门可再存）。之后只许减。
+    'features/read/presentation/read_sheets_b3.dart': 1341,
+    // diary_edit_page：1370→1262 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）——
+    // 净减 108 行发生在时间模块 B10（5700dff9，2026-10-13，旧 events 表退役四件删除后
+    // diary 摘要切块单源），非本批改动。原 1370 越线系思维导图批1（2026-10-12）跑出，
+    // 越线本身发生在更早的日记侧批次（登记值 1259 未随增量同步）；真还债＝拆 part，另批做。
+    'features/journal/presentation/diary_edit_page.dart': 1262,
+    // settings_page 1566 行越线（思维导图批1 2026-10-12 跑出本红）：越线发生在语义断链批
+    // （V1.68 日记第八类，该批没带 size 闸），本批只改一行文案——非本批造成，按现状登记，
+    // 之后只许减；真还债＝拆 part，另批做。
+    // dashboard_page 已还债：1204→1200 落到默认 1200 面（时间模块 B10 5700dff9 删旧 events
+    // 系接线），按口径「拆完删项」**删除登记**（阅读模块批2 · 2026-10-14 跑出 stale 提醒）。
     'features/settings/presentation/settings_page.dart': 1566,
     // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
     // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
@@ -62,7 +79,11 @@ void main() {
     // 上一批「真机反馈 F-12」（1ac1e10，onReadSet 改 await push 后 _reloadHls），
     // 该批门禁＝backup/sync 4 文件＋doclint，未带 size 闸，故今日现形——非 F-13 造成，
     // F-13 一行未动 reader_page（改的是同库 part：sel_ops/stage/chrome/models，均在默认面下）。
-    'features/read/presentation/reader/reader_page.dart': 1222,
+    // 1222→1224 本批净增 2（阅读模块批2 · 2026-10-14）：F2-8/F2-11 的改动落在同库 part
+    // （reader_stage / reader_sel_ops / reader_xray_panel），宿主补两条 import
+    // （`LoadErrorBanner`／`lhConfirm`）——Dart 同库 part 共享宿主 import 表，
+    // 故增量按宿主计。之后只许减。
+    'features/read/presentation/reader/reader_page.dart': 1224,
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展

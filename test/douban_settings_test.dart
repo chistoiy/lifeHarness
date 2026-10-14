@@ -84,7 +84,7 @@ void main() {
     expect(find.byKey(const ValueKey('set-dbCookie-on')), findsNothing);
   });
 
-  testWidgets('已配置：徽标+重新登录；清除→prefs 与内存态双清、回到未配置',
+  testWidgets('已配置：徽标+重新登录；清除（F2-11 过二次确认）→prefs 与内存态双清、回到未配置',
       (tester) async {
     // 登录页「完成」后的落点即 prefs＋DoubanCookie，这里直接预置等价状态。
     await prefs.setString('read.dbCookie', 'ck=abc; ll="118351"');
@@ -96,7 +96,12 @@ void main() {
     // settings 表零足迹 → buildBackupJson（捞 read.*）永远不会带出 Cookie。
     expect(await repo.kv('read.dbCookie'), isNull);
 
+    // F2-11（LH-S31）：清除登录态＝破坏性动作，先过统一二次确认（点「清除」才真清）。
     await tester.tap(find.byKey(const ValueKey('set-dbCookie-clear')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('d-confirm-ok')), findsOneWidget,
+        reason: '清 Cookie 必须先弹二次确认');
+    await tester.tap(find.byKey(const ValueKey('d-confirm-ok')));
     await settle(tester);
     expect(prefs.getString('read.dbCookie'), isNull);
     expect(DoubanCookie.value, isNull);
@@ -111,7 +116,7 @@ void main() {
     expect(find.text('无缓存'), findsOneWidget);
   });
 
-  testWidgets('有条数显示并可一键清除', (tester) async {
+  testWidgets('有条数显示并可一键清除（F2-11 过二次确认 · F2-14 状态小标）', (tester) async {
     await repo.doubanCachePut(
       '9787108009821',
       const IsbnBookMeta(title: '万历十五年', author: '黄仁宇'),
@@ -119,7 +124,16 @@ void main() {
     await boot(tester);
     expect(find.text('清除 1 条'), findsOneWidget);
 
+    // F2-14（LH-K36）：按钮旁常驻状态小标（禁用第三态＝不把状态只压按钮文案）。
+    expect(find.byKey(const ValueKey('set-dbCache-state')), findsOneWidget);
+    expect(find.text('本机 1 条'), findsOneWidget);
+
+    // F2-11（LH-S31）：清缓存＝破坏性动作，先过统一二次确认。
     await tester.tap(find.text('清除 1 条'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('d-confirm-ok')), findsOneWidget,
+        reason: '清缓存必须先弹二次确认');
+    await tester.tap(find.byKey(const ValueKey('d-confirm-ok')));
     await settle(tester);
     expect(await repo.doubanCacheCount(), 0);
     expect(find.text('无缓存'), findsOneWidget);

@@ -7,30 +7,21 @@ extension _ReaderStage on _ReaderPageState {
 
   Widget _stage((String, Color, Color) th) {
     if (_err != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _err!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFE11D48),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextButton(
-                key: const ValueKey('br-err-back'),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('返回'),
-              ),
-            ],
-          ),
-        ),
+      // F2-8（LH-L15）：取数/装载失败不再自绘红字+「返回」薄壳，接仓库既有失败卡
+      // （人话标题＋原因＋重试＋查看详情）；重试＝清错重跑装载链。
+      return LoadErrorBanner(
+        title: '这本书没能打开',
+        error: _err!,
+        onRetry: () {
+          _clock?.cancel();
+          // ignore: invalid_use_of_protected_member
+          setState(() {
+            _err = null;
+            _doc = null;
+            _slowHint = false;
+          });
+          unawaited(_boot());
+        },
       );
     }
     final doc = _doc;

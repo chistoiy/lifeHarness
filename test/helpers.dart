@@ -45,13 +45,18 @@ Future<bool> pollText(WidgetTester tester, String text,
   return find.text(text).evaluate().isNotEmpty;
 }
 
-/// 等所有 SnackBar 自动消失。fake 时间下**单次大 pump 不会触发 SnackBar 关闭
-/// 定时器**（只有小步循环 pump 才会）；浮层 SnackBar 会挡住底栏命中测试，
+/// 等所有 SnackBar / 阅读模块浮层提示条自动消失。fake 时间下**单次大 pump 不会
+/// 触发提示关闭定时器**（只有小步循环 pump 才会）；浮层会挡住底栏命中测试，
 /// 需在再点底部按钮前清场。
+///
+/// 认两种载体：SnackBar（页面级 messenger）与 `readToast` 的根 Overlay 提示条
+/// （F2-13 起改直挂，锚点键 `read-toast`）——后者是 `Timer` 摘除，
+/// `pumpAndSettle` 推不掉，必须靠本函数的循环 pump 走完驻留窗口。
 Future<void> clearToasts(WidgetTester tester, {int ms = 100}) async {
-  for (var i = 0;
-      i < 40 && find.byType(SnackBar).evaluate().isNotEmpty;
-      i++) {
+  bool anyToast() =>
+      find.byType(SnackBar).evaluate().isNotEmpty ||
+      find.byKey(const ValueKey('read-toast')).evaluate().isNotEmpty;
+  for (var i = 0; i < 40 && anyToast(); i++) {
     await tester.pump(Duration(milliseconds: ms));
   }
   await tester.pumpAndSettle();

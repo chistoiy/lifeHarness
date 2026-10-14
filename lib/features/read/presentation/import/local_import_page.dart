@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
 import '../../../../shared/widgets/ui_kit.dart';
 import '../../data/epub_doc.dart';
 import '../../data/epub_import.dart';
@@ -618,31 +619,20 @@ class _LocalImportPageState extends ConsumerState<LocalImportPage> {
           ),
         ),
         if (_err != null)
-          _card(
+          // F2-8（LH-L15）：坏包/DRM 解析失败不再自绘红字+渐变钮，接仓库既有失败卡
+          // （人话标题＋原因＋重试＋查看详情）；重试＝退回选文件步重选。
+          SizedBox(
             key: const ValueKey('br-imp-err'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _err!,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFE11D48),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _gradBtn(
-                  '返回重选文件',
-                  const ValueKey('br-imp-retry'),
-                  () => setState(() {
-                    _err = null;
-                    _doc = null;
-                    _pick = null;
-                    _step = 2;
-                  }),
-                ),
-              ],
+            height: 232,
+            child: LoadErrorBanner(
+              title: '这个文件没能导入',
+              error: _err!,
+              onRetry: () => setState(() {
+                _err = null;
+                _doc = null;
+                _pick = null;
+                _step = 2;
+              }),
             ),
           ),
       ],

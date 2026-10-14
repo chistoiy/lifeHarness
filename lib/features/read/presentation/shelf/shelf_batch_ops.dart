@@ -104,6 +104,15 @@ extension _ShelfBatchOps on _ShelfPageState {
 
   /// 删除：软删（原型 shBatchDel 4627 的 30 天承诺＝softDeleteBooks）。
   Future<void> _batDel(List<String> ids) async {
+    // F2-11（LH-S31）：批量移出＝破坏性动作，先过统一二次确认（取消左 · 玫红右）；
+    // 文案逐字＝原型 shBatchDel（G4：确认后可在提示条一次性撤销，长期退路＝回收站 30 天）。
+    final ok = await lhConfirm(
+      context,
+      '移出书架 · 共 ${ids.length} 本？\n'
+      '确认后可在提示条里一次性撤销；长期退路＝回收站保留 30 天。',
+      okLabel: '移出书架',
+    );
+    if (!ok) return;
     await ref.read(readRepositoryProvider).softDeleteBooks(ids);
     ref.read(readTickProvider.notifier).state++;
     _exitBatch();

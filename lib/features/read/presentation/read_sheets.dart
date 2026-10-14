@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/image_attach.dart';
+import '../../../shared/widgets/ui_kit.dart' show FieldError;
 import '../data/isbn_enrich.dart';
 import '../domain/book.dart';
 import '../domain/book_dict.dart';
@@ -32,15 +33,116 @@ part 'read_sheets_b4.dart';
 /// 批2（read_sheets_b2.dart）：书籍表单（含更多资料）/ 记进度四方式 /
 /// 计时明细可改（sheetSess）/ 目录粘贴导入（sheetTocImport）。
 
-void readToast(BuildContext context, String msg) =>
+/// 阅读模块 toast 出口（F2-13：**弹层感知**）。
+///
+/// 页面级 `ScaffoldMessenger` 的 SnackBar 挂在 Scaffold 里，而模态弹层在 Navigator
+/// overlay 之上 ⇒ **弹层内触发的提示会被遮罩吞掉**（原型 `#toast` 是单例浮层、恒在最上，
+/// 实现侧须同构）。故本出口改走**根 Overlay 直挂**（`shelf_locate` / `reader_xray`
+/// 同族的 OverlayEntry 定式，见 [kReadToastDuration] 里「为何摘除走 Timer」的口径）。
+/// 退化成 `ScaffoldMessenger.of(context)` 裸调即被弹层吞（`read_f2_toast_test` 钉此）。
+void readToast(BuildContext context, String msg) {
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) {
+    // 极简宿主（裸 pump 组件、无 Overlay）回落页面级 messenger。
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(milliseconds: 1300),
+      ..showSnackBar(SnackBar(content: Text(msg), duration: kReadToastDuration));
+    return;
+  }
+  _ReadToastOverlay.show(overlay, msg);
+}
+
+/// 提示条驻留时长＝**2200ms**，逐字对齐原型 `toast()`（`setTimeout(…, undo ? 4000 : 2200)`）。
+///
+/// 两个坑写在这（本批都实锤过，别照抄旧值）：
+///  · **别抄旧 SnackBar 的 `duration: 1300`**——那条 1300 只是「入场动画结束后的停留」，
+///    实显 ≈1.8s（1300 ＋ 入场 ＋ 退场）；直挂 Overlay 后没有退场动画兜底，
+///    照抄 1300 会让提示**比原行为更早消失**（`xray_refine_ui_test` 断言红）。
+///  · **摘除必须走 `Timer`，不能用 `AnimationController`**——`pumpAndSettle` 只推帧、
+///    不推 Timer：帧驱动的话「`settle()` 完再断言提示条」的既有用例会被一路推过驻留窗口
+///    集体查无（本批实测 `read_page_test` 21 例红）。旧 SnackBar 的退场也是 Timer，
+///    故 Timer 才是与既有用例群同构的写法（`dispose` 里取消，免挂起定时器）。
+const Duration kReadToastDuration = Duration(milliseconds: 2200);
+
+/// F2-13 根 Overlay 提示条：单例（新条顶掉旧条）＋驻留 [kReadToastDuration] 后自移除。
+class _ReadToastOverlay {
+  _ReadToastOverlay._();
+
+  static OverlayEntry? _entry;
+
+  static void show(OverlayState overlay, String msg) {
+    final prev = _entry;
+    _entry = null;
+    // 上一枚可能随宿主树一起被拆（entry 已 unmounted）——那时 remove() 会踩断言。
+    if (prev != null && prev.mounted) prev.remove();
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _ReadToastBody(
+        msg: msg,
+        onDone: () {
+          if (identical(_entry, entry)) _entry = null;
+          if (entry.mounted) entry.remove();
+        },
+      ),
+    );
+    _entry = entry;
+    overlay.insert(entry);
+  }
+}
+
+class _ReadToastBody extends StatefulWidget {
+  const _ReadToastBody({required this.msg, required this.onDone});
+
+  final String msg;
+  final VoidCallback onDone;
+
+  @override
+  State<_ReadToastBody> createState() => _ReadToastBodyState();
+}
+
+class _ReadToastBodyState extends State<_ReadToastBody> {
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer(kReadToastDuration, widget.onDone);
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: MediaQuery.paddingOf(context).bottom + 88,
+      // 提示条不吃点击（原 SnackBar 同口径）。
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            // 测试清场锚点（`helpers.clearToasts` 同认此键）。
+            key: const ValueKey('read-toast'),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: cs.inverseSurface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              widget.msg,
+              style: TextStyle(fontSize: 12, color: cs.onInverseSurface),
+            ),
+          ),
         ),
-      );
+      ),
+    );
+  }
+}
 
 Future<T?> _sheet<T>(BuildContext context, Widget child) =>
     showModalBottomSheet<T>(

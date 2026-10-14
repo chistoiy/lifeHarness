@@ -143,6 +143,11 @@ void main() {
       },
       'features/days/presentation/days_providers.dart': {'todo'},
       'features/journal/presentation/journal_page.dart': {'read'},
+      // 存量越线登记（阅读模块批2 · 2026-10-14 跑出本红）：日记编辑页直取
+      // `features/calendar`（旧 events 表退役后，日记摘要与计时条切「时间块」单源，
+      // 见时间模块 B10 5700dff9 2026-10-13）。该批门禁未带本闸，故今日现形——
+      // 本批一行未动 journal/calendar。真还债＝改走 shared/linkage 聚合服务，另批做。
+      'features/journal/presentation/diary_edit_page.dart': {'calendar'},
     };
     final violations = <String>[];
     for (final entry in imports.entries) {

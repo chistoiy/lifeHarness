@@ -22,6 +22,8 @@ import '../reader/epub_state_ui.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart';
 import '../widgets/bs_cover.dart';
+import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
+import '../../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
 
 part 'shelf_batch_tag.dart';
 part 'shelf_fab.dart';
@@ -508,7 +510,15 @@ class _ShelfPageState extends ConsumerState<ShelfPage> {
                 ),
               ],
               const SizedBox(height: 12),
-              if (list.isEmpty)
+              // F2-7 空态定式（LH-L04）：**真·空书架**＝虚线补录行（点行开添加图书流程），
+              // 与「有书但筛选无果」的清空筛选出口**分文案分出口**（原型 renderShelf 分流）。
+              if (list.isEmpty && all.isEmpty)
+                EmptyDashRow(
+                  key: const ValueKey('sh-empty-books'),
+                  text: '还没有书 · 点这里添加第一本',
+                  onTap: () => showAddBookSheet(context, ref),
+                )
+              else if (list.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 30),

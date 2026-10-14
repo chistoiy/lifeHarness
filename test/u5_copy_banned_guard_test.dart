@@ -121,6 +121,11 @@ void main() {
     },
     '黑话': {
       'features/settings/presentation/settings_page.dart': 3,
+      // 存量越线登记（阅读模块批2 · 2026-10-14 跑出本红）：命中＝布局弹层副标题里的
+      // 「正交」（「结构 × 方向 正交两维」），该句由**思维导图批1**（2026-10-12）写入，
+      // 该批门禁未带本闸，故今日现形——本批一行未动 mindmap。清污＝独立文案批
+      // （同串在原型侧也有，UI 变更须先过原型门），登记值只许减。
+      'features/mindmap/presentation/mindmap_layout_sheet.dart': 1,
     },
     'DropdownButton': {
       'features/calendar/presentation/calendar_page.dart': 1,

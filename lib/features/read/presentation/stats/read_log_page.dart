@@ -8,6 +8,7 @@ import '../read_actions.dart';
 import '../read_providers.dart';
 import '../read_sheets.dart' show readToast;
 import '../widgets/bs_cover.dart' show BsIcons;
+import '../../../../shared/widgets/ui_kit.dart' show EmptyDashRow;
 
 /// 阅读记录页（真机验收轮1e · 原型 p-readlog/renderReadLog）：
 /// 单条时间线卡（日期周几/时间段·止页/分钟渐变条 · 点卡就地展开改日期时长页码/删除）
@@ -389,20 +390,14 @@ class _ReadLogPageState extends ConsumerState<ReadLogPage> {
                   ),
                 ),
                 if (sessions.isEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(top: 14),
-                    padding: const EdgeInsets.symmetric(vertical: 30),
-                    decoration: _cardDeco(context),
-                    child: Center(
-                      child: Text(
-                        all.isEmpty
-                            ? '还没有计时记录 · 点右上 ＋ 补记一次'
-                            : '当前范围没有记录 · 点右上 ＋ 补记一次',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    // F2-7 空态定式（LH-L04）：真·空（全无记录）与筛选无果分文案。
+                    child: EmptyDashRow(
+                      key: const ValueKey('rl-empty'),
+                      text: all.isEmpty
+                          ? '还没有计时记录 · 点右上 ＋ 补记一次'
+                          : '当前范围没有记录 · 点右上 ＋ 补记一次',
                     ),
                   ),
                 for (final m in months) ...[

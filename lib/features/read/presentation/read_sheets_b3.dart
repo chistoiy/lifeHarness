@@ -136,6 +136,8 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   bool _rateFmt = true;
   /// read.clipAuto：读剪贴板时是否按来源模板自动识别书名/页码。
   bool _clipAuto = true;
+  // F2-15：保存防重入门（连点只落一次写）。
+  bool _busy = false;
 
   @override
   void initState() {
@@ -345,9 +347,16 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
+    setState(() => _busy = true);
     final books = ref.read(booksProvider).valueOrNull ?? const <Book>[];
     final r = await _persist(books);
-    if (r == null || !mounted) return;
+    if (r == null) {
+      // 校验未过（_persist 已提示）：解开防重入门，改完可再存。
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
+    if (!mounted) return;
     final (q, b) = r;
     final repo = ref.read(readRepositoryProvider);
     final total = _editing == null
@@ -866,7 +875,8 @@ class _QuoteFormState extends ConsumerState<_QuoteForm> {
               Expanded(
                 child: FilledButton(
                   key: const ValueKey('qef-save'),
-                  onPressed: _save,
+                  // F2-15：保存中置灰点不动，连点只落一次写。
+                  onPressed: _busy ? null : _save,
                   child: const Text('保存'),
                 ),
               ),

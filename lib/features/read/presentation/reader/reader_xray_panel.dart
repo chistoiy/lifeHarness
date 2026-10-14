@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/schema/xray.dart' as xs;
+import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
 import '../../data/epub_doc.dart';
 import '../../data/xray/xray_dao.dart';
 import '../../data/xray/xray_scheduler.dart';
@@ -40,7 +41,6 @@ class _XrStyle {
   static const accent = Color(0xFF6366F1);
   static const muted = Color(0xFF94A3B8);
   static const amber = Color(0xFFF59E0B);
-  static const rose = Color(0xFFF43F5E);
   static const dot = Color(0xFF6366F1);
 }
 
@@ -339,6 +339,13 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
             ),
             const Spacer(),
+            // F2-10：解析中给「暂停 / 取消」两个出口（调度器 pauseBook/cancel 已有能力，
+            // 不另造方法）；暂停＝断点已逐章落库，取消＝不删已产出数据。
+            if (running) ...[
+              _chip('xrPause', '暂停', () => sched.pauseBook(widget.book.id)),
+              const SizedBox(width: 6),
+              _chip('xrCancel', '取消', () => sched.cancel(widget.book.id)),
+            ],
             if (task == null && !running)
               // 有指纹但从未解析：头部直接给生成入口（xrEntry「未解析→范围弹层」口径）。
               _chip('xrGen', '生成全书索引', () => showXrScopeSheet(
@@ -490,24 +497,16 @@ class _ReaderXrayPanelState extends ConsumerState<ReaderXrayPanel> {
   }
 
   Future<void> _confirmReset(XrayScheduler sched, String md5) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (sc) => AlertDialog(
-        title: const Text('重置全书索引'),
-        content: const Text('将清除该书的实体、出场与任务态（你加过/屏蔽过的词保留）。'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(sc, false), child: const Text('取消')),
-          TextButton(
-            onPressed: () => Navigator.pop(sc, true),
-            child: const Text('重置', style: TextStyle(color: _XrStyle.rose)),
-          ),
-        ],
-      ),
+    // F2-11（LH-S31）：重置改走统一确认原语（取消左 · 玫红右），不再自建 AlertDialog；
+    // 文案逐字＝原型 xrReset。
+    final ok = await lhConfirm(
+      context,
+      '重置全书索引？\n将清除该书的实体、出场与任务态（你加过/屏蔽过的词保留）。',
+      okLabel: '重置',
     );
-    if (ok == true && mounted) {
-      await sched.reset(widget.book.id, md5);
-      if (mounted) readToast(context, '已重置 · 实体/出场/任务态已清空');
-    }
+    if (!ok || !mounted) return;
+    await sched.reset(widget.book.id, md5);
+    if (mounted) readToast(context, '已重置 · 实体/出场/任务态已清空');
   }
 
   // ---------- 类型段（xrTypesHtml：空类隐藏） ----------

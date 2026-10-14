@@ -88,6 +88,8 @@ tailwind.config = {
   .mini-btn{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 10px;border-radius:10px}
   .dark .mini-btn{color:var(--accent-l)}
   .link-act{color:var(--accent);font-weight:700}
+  .fld-err{display:none;font-size:10.5px;font-weight:700;color:#f43f5e;padding:3px 0 0 4px}
+  .fld-bad{box-shadow:inset 0 0 0 1.5px #f43f5e}
   .qtag{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
   .quote-line{border-left:3px solid var(--accent);padding-left:10px;font-size:12px;line-height:1.7;color:#475569}
   .dark .quote-line{color:#94a3b8}
@@ -417,7 +419,7 @@ tailwind.config = {
   <!-- ========== 页面容器 ========== -->
   <main class="h-[calc(100%-148px)] overflow-hidden relative">
     <!-- 阅读/观影计时悬浮条 -->
-    <div id="timerBar" class="hidden absolute top-2 left-4 right-4 z-40 blur-bd bg-slate-900/92 text-white rounded-2xl px-3.5 py-2.5 flex items-center gap-2 shadow-xl">
+    <div id="timerBar" class="hidden absolute top-2 left-4 right-4 z-40 blur-bd bg-slate-900/90 text-white rounded-2xl px-3.5 py-2.5 flex items-center gap-2 shadow-xl">
       <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0"></span>
       <div class="flex-1 min-w-0 text-[11px] leading-4"><b id="timerKind">阅读计时</b> <span id="timerTarget" class="opacity-75"></span></div>
       <b id="timerSec" class="font-mono text-sm">0:00</b>
@@ -682,12 +684,12 @@ tailwind.config = {
     </section>
 
     <!-- ===== 书架专版 · 沉浸阅读计时 ===== -->
-    <section id="p-readtimer" class="page px-5 safe-pb no-scrollbar relative overflow-hidden">
+    <section id="p-readtimer" class="page px-5 safe-pb no-scrollbar relative overflow-hidden z-0">
       <div id="rtBg" class="absolute inset-0 -z-10"></div>
       <div class="flex items-center justify-between pt-2">
-        <button onclick="goBack()" title="返回" class="w-9 h-9 rounded-full bg-white/15 border border-white/25 text-white flex items-center justify-center active:scale-95 transition"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+        <button onclick="rtBack()" title="返回" class="w-9 h-9 rounded-full bg-white/15 border border-white/25 text-white flex items-center justify-center active:scale-95 transition"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
         <div class="text-[11px] font-extrabold tracking-wide opacity-80">阅读计时</div>
-        <button onclick="rtClose()" title="收起" class="w-9 h-9 rounded-full bg-white/15 border border-white/25 text-white flex items-center justify-center active:scale-95 transition"><svg class="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+        <span class="w-9 h-9"></span></div>
       <div class="mt-2 flex flex-col items-center text-center">
         <div id="rtCov" class="w-28 h-40 rounded-xl bk-cov shadow-2xl"></div>
         <div id="rtName" class="mt-3 text-[15px] font-extrabold"></div>
@@ -714,13 +716,13 @@ tailwind.config = {
       <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-200 dark:border-slate-800">
         <button class="mini-btn !text-[10px]" onclick="goBack()">取消</button>
         <div class="flex-1 text-center font-extrabold text-[13px]">豆瓣登录</div>
-        <button class="mini-btn !text-[10px]" onclick="dblDone()">完成</button>
+        <button class="mini-btn !text-[10px] opacity-40 pointer-events-none" id="dblDoneBtn" onclick="dblDone()">完成</button>
       </div>
       <div class="mx-3 mt-2 rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[9px] text-slate-400 truncate">accounts.douban.com/passport/login</div>
       <div class="p-5 space-y-3">
         <div class="text-[15px] font-extrabold text-slate-700 dark:text-slate-200">登录豆瓣</div>
         <input class="inp" placeholder="手机号 / 邮箱" id="dblUser">
-        <div class="flex gap-2"><input class="inp flex-1" placeholder="验证码" id="dblCode"><button class="mini-btn self-stretch" onclick="toast('验证码已发送（演示）')">获取验证码</button></div>
+        <div class="flex gap-2"><input class="inp flex-1" placeholder="验证码" id="dblCode"><button class="mini-btn self-stretch" id="dblCodeBtn" onclick="dblSendCode()">获取验证码</button></div>
         <button class="w-full py-2.5 rounded-xl grad text-white text-[12.5px] font-bold" onclick="dblLogin()">登录</button>
         <div class="text-[10px] text-slate-400">演示：任意账号 + 验证码 1234 即登录成功</div>
       </div>
@@ -1206,6 +1208,15 @@ tailwind.config = {
         <button class="br-zone absolute left-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(-1)" aria-label="上一页"></button>
         <button class="br-zone absolute right-0 top-[15%] bottom-[15%] w-[16%] z-10" onclick="brFlip(1)" aria-label="下一页"></button>
         <div id="brZoneC" class="br-zone absolute inset-x-[16%] top-[15%] bottom-[15%] z-[9]" onpointerdown="brZoneLpStart(event)" onpointerup="brLpEnd()" onpointerleave="brLpCancel()" onpointercancel="brLpCancel()" onclick="brTapCenter()"></div>
+        <div id="brFail" class="hidden absolute inset-0 z-[80]" style="background:var(--card)">
+          <div class="max-w-[320px] mx-auto mt-24 card p-5 flex flex-col items-start">
+            <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.6 19.2a1.2 1.2 0 0 0 1 1.8h16.8a1.2 1.2 0 0 0 1-1.8z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg>
+            <b class="mt-2 text-[13.5px] font-extrabold">这本书没打开</b>
+            <div class="mt-1 text-[10.5px] leading-5 text-slate-500">本机数据未受影响 · 这次读取中断</div>
+            <div class="mt-1 text-[9.5px] leading-4 text-slate-400">（演示位：真实原因句取 humanizeError；细节进日志页）</div>
+            <div class="mt-3 flex gap-2"><button class="px-4 py-2 rounded-xl grad text-white text-[11.5px] font-extrabold" onclick="toast('重试中…（演示）')">重试</button><button class="px-4 py-2 rounded-xl card text-[11.5px] font-bold text-slate-500" onclick="toast('跳「我的 · 运行日志」看详情（演示）')">查看详情</button></div>
+          </div>
+        </div>
         <div id="brTop" class="br-bar br-bar-top hidden absolute top-0 inset-x-0 z-[70] px-3 pt-3 pb-2.5">
           <div class="flex items-center gap-2">
             <button class="w-8 h-8 rounded-full flex items-center justify-center" onclick="brBack()" title="返回"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg></button>
@@ -1626,7 +1637,8 @@ tailwind.config = {
       <div class="grabber"></div>
       <div class="flex items-center justify-between"><div class="font-extrabold text-sm">添加新书到书架</div><button class="mini-btn !text-[10px]" onclick="shScanIsbn()">扫 ISBN</button></div>
       <div class="mt-3 space-y-2.5">
-        <input id="nbName" class="inp" placeholder="书名（必填）">
+        <input id="nbName" class="inp" placeholder="书名（必填）" oninput="fldErr('nbNameErr','','nbName')">
+        <div class="fld-err" id="nbNameErr"></div>
         <div class="flex gap-2"><input id="nbAuthor" class="inp flex-1" placeholder="作者"><button class="mini-btn self-stretch flex items-center px-3" onclick="ebPickAuthor('nb')">从列表选</button></div>
         <div class="text-[10px] text-slate-400" id="nbAuthorHint"></div>
         <input id="nbPub" class="inp" placeholder="出版社（可留空，保存后自动登记）">
@@ -4078,7 +4090,9 @@ function renderShelf(){const body=document.getElementById('shBody');if(!body)ret
   if(_rm){const _on=BS_SET.dailyQ!==false&&BS_LOG[262].m===0;
     _rm.classList.toggle('hidden',!_on);_rm.classList.toggle('flex',_on);
     _rm.innerHTML=_on?'<div class="card !py-2.5 !px-3 flex items-center gap-2"><span class="text-brand-500">'+bsi('timer','w-[13px] h-[13px]')+'</span><span class="text-[11px] text-slate-500 dark:text-slate-400 flex-1">今天还没有阅读记录 · 记一笔，热力图不断档</span><button class="mini-btn !text-[10px]" onclick="shQuickTimer()">开始计时</button></div>':'';}
-  let h=list.length?'':'<div class="card text-center text-[11px] text-slate-400 py-8">没有符合条件的书 · <button class="link-act" onclick="shResetFilter()">清空筛选</button></div>';
+  let h=list.length?'':(!BS_BOOKS.length
+    ?'<div class="text-center py-9 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer" onclick="bsrOpen()"><div class="text-[11px] text-slate-400">还没有书 · 点这里添加第一本</div></div>'
+    :'<div class="card text-center text-[11px] text-slate-400 py-8">没有符合条件的书 · <button class="link-act" onclick="shResetFilter()">清空筛选</button></div>');
   if(list.length)h=shView==='wall'?shWall(list,BS_SET.wallCols||3):shView==='wall4'?shWall(list,4):shView==='spine'?shSpine(list):shView==='time'?shTimeline(list):shListRows(list);
   bsBindBtns();
   body.innerHTML=(list.length&&shDim!=='none'?shByDim(list):h)+`<div class="mt-3 text-[10px] text-slate-400 text-center">${list.length} 本 · ${shSt}${shTag?' · #'+shTag:''}${shDimVal?' · '+shDimLabel(shDim)+'：'+shDimVal:''}</div>`;bsCovDemoSync()}
@@ -4193,7 +4207,8 @@ function nbCovColors(){}
 function nbSet(k,v){if(k==='st')nbSt=v;else if(k==='tag')nbTags=nbTags.includes(v)?nbTags.filter(x=>x!==v):[...nbTags,v];else nbCovIdx=v;nbRender()}
 function shIsbn(){const v=document.getElementById('nbIsbn').value.trim();document.getElementById('nbLookup').textContent=v.length>=8?'已命中书目缓存':'匹配中…';
   if(v.length>=8&&!document.getElementById('nbName').value){document.getElementById('nbName').value='被讨厌的勇气';document.getElementById('nbAuthor').value='岸见一郎';document.getElementById('nbPages').value='288';toast('ISBN 命中：已补全书名/作者/页数（本地缓存）')}}
-function shSaveNew(){const n=document.getElementById('nbName').value.trim();if(!n){toast('书名必填');return}
+function fldErr(errId,msg,fldId){const e=document.getElementById(errId);if(e){e.textContent=msg||'';e.style.display=msg?'block':'none'}if(fldId){const f=document.getElementById(fldId);if(f)f.classList.toggle('fld-bad',!!msg)}}
+function shSaveNew(){const n=document.getElementById('nbName').value.trim();if(!n){fldErr('nbNameErr','书名必填','nbName');return}
   const pg=+document.getElementById('nbPages').value||300,rp=Math.min(pg,+document.getElementById('nbRead').value||0);
   BS_BOOKS[BS_SET.newPos==='末尾'?'push':'unshift']({id:'b'+(Date.now()%100000),n,a:document.getElementById('nbAuthor').value.trim()||'佚名',st:nbSt,p:Math.round(rp/pg*100),pg,rp,q:0,tags:nbTags.length?nbTags:['随笔'],c:nbCovIdx,rate:0,isbn:document.getElementById('nbIsbn').value.trim()||'—',img:nbCov,pub:(document.getElementById('nbPub')||{}).value||'—',yr:'—',src:nbSrc||'自购',grp:nbGrp,fmt:nbFmt,pw:nbPw,tr:(document.getElementById('nbTr')||{}).value||'',pubDate:(document.getElementById('nbPubDate')||{}).value||'',series:(document.getElementById('nbSeries')||{}).value||'',intro:(document.getElementById('nbIntro')||{}).value||'',fee:+((document.getElementById('nbFee')||{}).value||0),tot:+((document.getElementById('nbTot')||{}).value||0)||0,pos:+((document.getElementById('nbPos')||{}).value||0)||0,start:nbSt==='在读'?shFmtDate():'',end:'',min:0,times:0,note:document.getElementById('nbNote').value.trim(),fin:''});
   bsRegister(BS_BOOKS[0]);
@@ -4477,7 +4492,7 @@ function renderReadTimer(){const b=bsBook(CURBK);const cov=document.getElementBy
   btn.innerHTML=bsi(on?"stop":"play","w-6 h-6");document.getElementById("rtState").textContent=on?"计时中 · 结束后可直接记进度":(timer?"正在为「"+timerTarget+"」计时":"未开始");
   const s=on?timerSecs():0;document.getElementById("rtClock").textContent=rtFmt(s);
   let st=0;for(let i2=262;i2>=0;i2--){if(BS_LOG[i2].m>0)st++;else break}
-  document.getElementById("rtFoot").innerHTML=`<div class="card !bg-white/12 !border-white/20 text-white"><div class="flex items-center gap-2 text-[11px]"><span class="opacity-75">今日</span><b>${BS_LOG[262].m} / ${BS_GOAL.dayMin} 分钟</b><span class="ml-auto opacity-75">连续 ${st} 天</span></div>
+  document.getElementById("rtFoot").innerHTML=`<div class="card !bg-white/[0.12] !border-white/20 text-white"><div class="flex items-center gap-2 text-[11px]"><span class="opacity-75">今日</span><b>${BS_LOG[262].m} / ${BS_GOAL.dayMin} 分钟</b><span class="ml-auto opacity-75">连续 ${st} 天</span></div>
     <div class="mt-2 h-1.5 rounded-full bg-white/20 overflow-hidden"><span class="block h-full bg-white" style="width:${Math.min(100,BS_LOG[262].m/BS_GOAL.dayMin*100)}%"></span></div></div>
    <div class="flex gap-2"><button class="flex-1 py-2.5 rounded-xl bg-white/15 border border-white/25 text-white text-xs font-bold" onclick="qeOpen(null,CURBK)">记摘录</button>
     <button class="flex-1 py-2.5 rounded-xl bg-white/15 border border-white/25 text-white text-xs font-bold" onclick="rtProgress()">记进度</button>
@@ -4536,15 +4551,19 @@ function rsFlip(k){BS_SET[k]=!BS_SET[k];renderReadSet();
 /* 豆瓣防封批（2026-09-27 改口）· 应用内登录取 Cookie：WebView 里手动登录，
    「完成」时由原生 CookieManager 提取（演示为 dblLogged 标记）。 */
 let dblLogged=false;
-function dblOpen(){dblLogged=false;const u=document.getElementById('dblUser'),c=document.getElementById('dblCode');if(u)u.value='';if(c)c.value='';navTo('p-doubanLogin')}
+function dblOpen(){dblLogged=false;const u=document.getElementById('dblUser'),c=document.getElementById('dblCode');if(u)u.value='';if(c)c.value='';dblSync();navTo('p-doubanLogin')}
+function dblSync(){const b=document.getElementById('dblDoneBtn');if(b){const on=!!dblLogged;b.classList.toggle('opacity-40',!on);b.classList.toggle('pointer-events-none',!on)}}
+let dblCodeT=null;
+function dblSendCode(){const b=document.getElementById('dblCodeBtn');if(!b||b.dataset.cd==='1')return;let n=60;b.dataset.cd='1';b.classList.add('opacity-40','pointer-events-none');b.textContent=n+'s 后重发';toast('验证码已发送（演示）');dblCodeT=setInterval(()=>{n--;if(n<=0){clearInterval(dblCodeT);b.dataset.cd='';b.classList.remove('opacity-40','pointer-events-none');b.textContent='获取验证码'}else{b.textContent=n+'s 后重发'}},1000)}
 function dblLogin(){const u=document.getElementById('dblUser').value.trim(),c=document.getElementById('dblCode').value.trim();
   if(!u){toast('请输入手机号 / 邮箱');return}
   if(c!=='1234'){toast('验证码错误（演示用 1234）');return}
-  dblLogged=true;toast('登录成功 · 请点击「完成」')}
+  dblLogged=true;dblSync();toast('登录成功 · 请点击「完成」')}
 function dblDone(){if(!dblLogged){toast('尚未检测到登录');return}
   BS_SET.dbCookie='ap=1; ck=demo'+(Date.now()%100000);BS_SET.dbCookieStale=false;renderReadSet();goBack();toast('已获取豆瓣登录 Cookie · 仅存本机')}
-function rsCookieClear(k){BS_SET[k]='';renderReadSet();toast('豆瓣 Cookie 已清除')}
+function rsCookieClear(k){if(!confirm('清除豆瓣登录 Cookie？\n清除后需要重新登录才能抓取书目；已抓到的书目缓存不受影响。'))return;BS_SET[k]='';renderReadSet();toast('豆瓣 Cookie 已清除')}
 function rsCacheClear(){const n=Object.keys(BS_DB_CACHE).length;if(!n)return;
+  if(!confirm('清除 '+n+' 条豆瓣书目缓存？\n清除后下次抓书目将重新联网查询。'))return;
   BS_DB_CACHE={};renderReadSet();toast('已清除 '+n+' 条豆瓣缓存')}
 /* ISBN 补全命中链：先问缓存（用户拍板 2026-09-26：不静默采用），再联网。 */
 function dbAsk(f,on,name){const r=document.getElementById(f+'CacheAsk');if(!r)return;
@@ -4861,7 +4880,7 @@ function renderBlDetail(){const L=BS_LISTS.find(x=>x.id===BL_CUR),el=document.ge
     ${L.auto?'':`<button class="text-[10px] text-slate-400 px-1" onclick="event.stopPropagation();blRm('${b.id}')">移出</button>`}</div>`}).join('')
    ||'<div class="card text-[11px] text-slate-400 text-center py-6">书单还是空的 · 点「选书」开始收集</div>'}</div>`}
 function blRm(id){const L=BS_LISTS.find(x=>x.id===BL_CUR);L.ids=L.ids.filter(x=>x!==id);renderBlDetail();renderBooklists();toast('已移出书单（书本身保留）')}
-function blDel(id){const L=BS_LISTS.find(x=>x.id===id);BS_LISTS=BS_LISTS.filter(x=>x.id!==id);renderBooklists();toast('已删除书单「'+(L?L.nm:'')+'」· 书籍不受影响')}
+function blDel(id){const L=BS_LISTS.find(x=>x.id===id);if(!confirm('删除书单「'+(L?L.nm:'')+'」？\n书单里的书不受影响，只删这份清单；删除后需手动重建。'))return;BS_LISTS=BS_LISTS.filter(x=>x.id!==id);renderBooklists();toast('已删除书单「'+(L?L.nm:'')+'」· 书籍不受影响')}
 function blMd(L){const ids=blIds(L);
  return '# '+L.nm+(L.note?'\n\n> '+L.note:'')+'\n\n| # | 书名 | 作者 | 出版社 | 状态 | 评分 | 摘录 |\n|---|---|---|---|---|---|---|\n'+
   ids.map((x,i)=>{const b=bsBook2(x);return b?'| '+(i+1)+' | '+b.n+' | '+b.a+' | '+b.pub+' | '+b.st+' | '+(b.rate||'—')+' | '+b.q+' |':''}).filter(Boolean).join('\n')
@@ -5255,7 +5274,7 @@ rtOpen = function (id) {
   }
   navTo('p-readtimer'); renderReadTimer();
 };
-function rtClose() { if (timer) toast('计时未结束 · 回到页面顶部胶囊继续显示'); goBack() }
+function rtBack() { if (timer) toast('计时未结束 · 回到页面顶部胶囊继续显示'); goBack() }
 const RS_CHIP_OLD = rsChip;
 rsChip = function (k, o) { RS_CHIP_OLD(k, o); if (k !== 'timerUI') return; bsTimerUIsync();
   if (!BS_FULLTIMER && curPage === 'p-readtimer') goBack(); else if (curPage === 'p-readtimer') renderReadTimer() };
@@ -5617,11 +5636,11 @@ function bfReadRow(label, v) {
     <span class="text-[13px] font-bold text-right">${v}</span></div>`;
 }
 
-function bfSet(k, v) { BF.d[k] = v; if (['st', 'fmt', 'rate', 'tags'].includes(k)) renderBf(); }
+function bfSet(k, v) { BF.d[k] = v; if (k === 'n') fldErr('bfNameErr','','bf-in-n'); if (['st', 'fmt', 'rate', 'tags'].includes(k)) renderBf(); }
 function bfIn(k, label, ph, type) {
   return `<div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
     <span class="text-[12.5px] text-slate-500 dark:text-slate-400 shrink-0">${label}</span>
-    <input type="${type || 'text'}" value="${BF.d[k] == null ? '' : BF.d[k]}" oninput="bfSet('${k}',this.value)"
+    <input id="bf-in-${k}" type="${type || 'text'}" value="${BF.d[k] == null ? '' : BF.d[k]}" oninput="bfSet('${k}',this.value)"
       class="flex-1 min-w-0 bg-transparent text-right text-[13px] font-bold outline-none" placeholder="${ph}"></div>`;
 }
 function bfTap(k, label, ph, fn) {
@@ -5673,7 +5692,7 @@ function bfRender() {
   </div>
   <div class="mt-3 text-[12px] font-extrabold text-slate-500">基础信息</div>
   <div class="mt-1 card !py-1 !px-3">
-    ${bfIn('n', '书名（必填）', '输入书籍名称')}${bfIn('a', '作者', '输入作者名字')}${bfIn('tr', '译者', '请输入译者名字')}
+    ${bfIn('n', '书名（必填）', '输入书籍名称')}<div class="fld-err" id="bfNameErr"></div>${bfIn('a', '作者', '输入作者名字')}${bfIn('tr', '译者', '请输入译者名字')}
     ${bfIn('pub', '出版社', '请输入出版社名称')}${bfTap('pubDate', '出版日期', '点击选择年月', "bfDateOpen('pubDate','出版日期','ym')")}
     ${bfIn('series', '丛书 / 分类', '请输入丛书或分类')}${bfIn('binding', '装帧', '平装 / 精装')}
     <div class="flex items-center justify-between gap-3 py-3 border-b border-slate-100 dark:border-slate-800">
@@ -5716,7 +5735,7 @@ function bfScan() { BF.d.isbn = '9787508662560'; bfSet('isbn', BF.d.isbn); toast
 function bfIsbn() { if (!BF.d.isbn) { toast('先填 ISBN（至少 8 位）'); return; } toast('按 ISBN 从书目库取到官方封面（模拟）'); }
 function bfSave() {
   const d = BF.d;
-  if (!String(d.n || '').trim()) { toast('书名必填'); return; }
+  if (!String(d.n || '').trim()) { fldErr('bfNameErr','书名必填','bf-in-n'); return; }
   const pgN = +d.pg || (d.pg === '' ? 300 : +d.pg);
   const today = shFmtDate();
   const patch = { n: d.n, a: d.a || '佚名', tr: d.tr, pub: d.pub || '—', pubDate: d.pubDate, yr: (d.pubDate || '').slice(0, 4),
@@ -6277,7 +6296,7 @@ function brAddHl(tg){if(!brV.sel)return;const p=brQuotePos();const rid='r'+Date.
     try{renderQuotes()}catch(e){}try{renderBookDetail()}catch(e){}}
   else BR_LOCAL_HL.push({id:rid,b:brV.b,cf:p.cf,tg});
   brPersist();brRenderPage();brSelHideUI();brFlash('已划线（'+tg+'）· 同步进本书书摘');toast('高亮即一条划线书摘 · 笔记库可查（联动 L5）')}
-function brDelHl(){if(!brV.sel)return;const s=brV.sel;let n=0;
+function brDelHl(){if(!brV.sel)return;if(!confirm('删除这段划线？\n删除后该条划线书摘同步移除，可在笔记库里重新划线。'))return;const s=brV.sel;let n=0;
   for(let i=BS_QUOTES.length-1;i>=0;i--){const x=BS_QUOTES[i];if(x.b===brV.b&&x.cf&&x.cf.c===s.ci&&x.cf.p0===s.p0&&x.cf.p1===s.p1){BS_QUOTES.splice(i,1);n++}}
   for(let i=BR_LOCAL_HL.length-1;i>=0;i--){const x=BR_LOCAL_HL[i];if(x.b===brV.b&&x.cf.c===s.ci&&x.cf.p0===s.p0&&x.cf.p1===s.p1){BR_LOCAL_HL.splice(i,1);n++}}
   const b=bsBook(brV.b);b.q=bsQ(brV.b).length;brPersist();brRenderPage();brSelHideUI();
@@ -6944,7 +6963,8 @@ function brDcacheRow(b){const e=b.epub;let inner='';
    ?br35=frozen  b1 预载 64% 静态（截图用）
    ?br35=cl      b1 已清缓存·源文件可读（封面蒙层 + 点封面 → 重新载入弹层）
    ?br35=lost    b9 已清缓存·原文件丢失（点封面 → 引导重选 → 导入页选「万历十五年.epub」挂回）
-   ?br35=detail  b1 详情页本地卡（已清可读态 + 缓存行） */
+   ?br35=detail  b1 详情页本地卡（已清可读态 + 缓存行）
+   ?br35=fail    b1 阅读器内加载失败（LH-L15 失败卡：人话+原因+重试+详情） */
 function br35Seed(){
   const b1=bsBook('b1');
   if(b1&&b1.local&&b1.epub&&!b1.epub.st){b1.epub.st='cl';b1.epub.pr=0;b1.epub.cache='8.4 MB';b1.epub.srcOk=1;b1.epub.name='思考快与慢.epub'}
@@ -6958,6 +6978,7 @@ function br35Seed(){
     const k=(location.search.match(/br35=([a-z]+)/)||[])[1];
     if(k==='detail'){br35Seed();CURBK='b1';bdTab='c';renderBookDetail();navTo('p-bookDetail');renderShelf();toast('演示：本地卡 · 已清缓存 · 源文件可读');return}
     if(k==='lost'){br35Seed();setPage('p-bookshelf');renderShelf();shOpen('b9');toast('演示：点封面 → 原文件丢失引导');return}
+    if(k==='fail'){setPage('p-bookshelf');brOpen('b1');const _f=document.getElementById('brFail');if(_f)_f.classList.remove('hidden');toast('演示：阅读器内加载失败 → LH-L15 失败卡');return}
     const b=bsBook('b1');if(!b||!b.local)return;
     if(k==='pre'||k==='frozen'||k==='cl'){
       if(k==='cl'){br35Seed()}
@@ -7342,7 +7363,7 @@ function br35Seed(){
   /* 屏7 失败/中断 · F3 继续与重置 */
   window.xrContinue=function(){XR.status='run';XR.p=61;xrSetBookXr('b1',{st:'run',p:61});renderShelf();toast('增量解析 · 从第 13 章断点续跑');xrRender();setTimeout(function(){xrDoneAll()},600)};
   function xrDoneAll(){XR.status='ready';XR.done=XR.total;XR.p=100;xrSetBookXr('b1',{st:'ready',done:XR.total});renderShelf();xrRender();toast('全书索引完成 · '+XR_ENTS.length+' 个词条')}
-  window.xrReset=function(){closeSheet('sheetXrFail');XR.done=0;XR.p=0;XR.status='none';XR.sel={};XR_ENTS=[];xrSetBookXr('b1',null);renderShelf();xrRender();toast('已重置 · 词条与进度已清空，可重新解析')};
+  window.xrReset=function(){if(!confirm('重置全书索引？\n将清除该书的实体、出场与任务态（你加过/屏蔽过的词保留）。'))return;closeSheet('sheetXrFail');XR.done=0;XR.p=0;XR.status='none';XR.sel={};XR_ENTS=[];xrSetBookXr('b1',null);renderShelf();xrRender();toast('已重置 · 词条与进度已清空，可重新解析')};
   window.xrFailRetry=function(){closeSheet('sheetXrFail');XR.status='run';XR.p=66;xrSetBookXr('b1',{st:'run',p:66});renderShelf();toast('从断点续跑 · 第 13 章起')};
   /* 整理：合并与移除（F8） */
   function xrName(id){var x=XR_ENTS.find(function(v){return v.id===id});return x?x.name:id}

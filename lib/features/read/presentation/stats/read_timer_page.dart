@@ -12,7 +12,7 @@ import '../read_sheets.dart';
 import '../widgets/bs_cover.dart';
 
 /// 沉浸计时页（原型 p-readtimer 931-949 + renderReadTimer 5015-5027）。
-/// 顶栏＝返回 + 「阅读计时」+ 收起（rtClose：计时未结束提示回胶囊继续）；
+/// 顶栏＝返回（唯一退出，F2-6 收敛：计时未结束先提示回胶囊继续）+ 「阅读计时」+ 等宽占位；
 /// 封面小图 + 书名 + 副标题（作者 · 状态 [ · p%]）；大数字恒 HH:MM:SS；
 /// rtFoot＝今日 X/dayMin 分钟进度条 + 连续 N 天 + 记摘录/记进度/书籍详情三钮；
 /// 结束结算 toast 逐字「计时结束 · 本次 N 分钟」，autoAsk 开时弹记进度。
@@ -64,6 +64,15 @@ class _ReadTimerPageState extends ConsumerState<ReadTimerPage> {
       await ref.read(readRepositoryProvider).startSession(b.id);
       ref.read(readTickProvider.notifier).state++;
     }
+  }
+
+  /// F2-6：计时页**唯一**退出（原型 `rtBack`）——原「收起」与「返回」两枚同为 `pop()`
+  /// ＝同义，收敛为一枚：计时未结束先提示「回胶囊继续」，再退。
+  void _rtBack(bool running) {
+    if (running) {
+      readToast(context, '计时未结束 · 回到页面顶部胶囊继续显示');
+    }
+    context.pop();
   }
 
   /// 大数字恒 HH:MM:SS（原型 rtFmt 5013）。
@@ -118,14 +127,15 @@ class _ReadTimerPageState extends ConsumerState<ReadTimerPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // 顶栏：返回 · 「阅读计时」 · 收起（rtClose）
+                  // 顶栏：返回（唯一退出）·「阅读计时」· 等宽占位（标题才真居中）
                   Padding(
                     padding: const EdgeInsets.fromLTRB(6, 2, 10, 0),
                     child: Row(
                       children: [
                         IconButton(
                           key: const ValueKey('rt-back'),
-                          onPressed: () => context.pop(),
+                          tooltip: '返回',
+                          onPressed: () => _rtBack(running != null),
                           icon: const Icon(
                             Icons.arrow_back_rounded,
                             color: Colors.white,
@@ -143,23 +153,8 @@ class _ReadTimerPageState extends ConsumerState<ReadTimerPage> {
                             ),
                           ),
                         ),
-                        IconButton(
-                          key: const ValueKey('rt-collapse'),
-                          tooltip: '收起',
-                          onPressed: () {
-                            if (running != null) {
-                              readToast(
-                                context,
-                                '计时未结束 · 回到页面顶部胶囊继续显示',
-                              );
-                            }
-                            context.pop();
-                          },
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
+                        // 与左侧 IconButton 等宽（Material 默认 48），否则标题偏左。
+                        const SizedBox(width: 48),
                       ],
                     ),
                   ),

@@ -35,7 +35,9 @@ const _baseline = <String, int>{
     // 影音游批2 两枚新面：命中处全是 FAB 图标与卡面图上白字/白图标（渐变与封面之上的前景），
     // 底面一律吃 scheme/色板渐变，随主题与深色自动跟随——与 journal_page 那 7 处同一形态。
     // 登记≠放行：影音架的深色观感仍要走真机门＝复测包 6089 自验清单第 8 条。
-    'lib/features/media/presentation/widgets/media_card.dart': 8,
+    // 8→7 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：影音侧批次把卡面白字
+    // 收掉 1 处（登记值未随增量同步），本批一行未动该文件——按口径调小登记值。
+    'lib/features/media/presentation/widgets/media_card.dart': 7,
     'lib/features/media/presentation/media_shelf_page.dart': 1,
     // 批3 影音沉浸计时页：8 处「白」全是深色渐变底上的半透明白胶囊/钮（白字），
     // 属深色实态；观感门随复测包 6090 真机复验，不合规再摘模糊/改透明度。
@@ -53,7 +55,10 @@ const _baseline = <String, int>{
     'lib/features/health/presentation/health_goals_page.dart': 4,
     'lib/features/ledger/presentation/ledger_page.dart': 13,
     'lib/features/care/presentation/baby_view.dart': 9,
-    'lib/features/read/presentation/stats/read_timer_page.dart': 9,
+    // 9→8 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：本批 F2-6 把顶栏
+    // 同义的第二枚退出钮（「收起」）整枚摘除，连带其 `Icon(color: Colors.white)` 一起走
+    // ——白面真减 1，按口径调小登记值。
+    'lib/features/read/presentation/stats/read_timer_page.dart': 8,
     'lib/features/care/presentation/cycle_view.dart': 8,
     'lib/features/habit/presentation/habits_page.dart': 8,
     // 影音游批2：记录页三态 FAB 收成一枚（该文件近白字面 7→6，登记值按实测收紧）。
@@ -66,14 +71,20 @@ const _baseline = <String, int>{
     'lib/features/habit/presentation/habit_auto_sheets.dart': 5,
     'lib/features/ledger/presentation/ledger_yearly_page.dart': 5,
     'lib/features/read/presentation/shelf/shelf_goal.dart': 5,
-    'lib/features/calendar/presentation/calendar_page.dart': 4,
+    // 4→5 存量上升归位（阅读模块批2 · 2026-10-14 跑出本红）：时间模块批4
+    // （44d81ef8，2026-10-13 主屏 builder 化＋周视图 24 小时行铺进主屏列表）新增 1 处
+    // 近白字面，该批门禁未带本闸；本批一行未动日历——按现状登记，之后只许减。
+    'lib/features/calendar/presentation/calendar_page.dart': 5,
     'lib/features/care/presentation/care_stats_page.dart': 4,
     'lib/features/habit/presentation/habit_stat_page.dart': 4,
     'lib/features/ledger/presentation/ledger_hero_cfg_sheet.dart': 4,
     'lib/features/read/presentation/read_tab.dart': 4,
     'lib/features/read/presentation/shelf/book_detail.dart': 4,
     'lib/features/todo/presentation/widgets/pomo_screen.dart': 4,
-    'lib/shared/linkage/timer_bar_overlay.dart': 6,
+    // 6→4 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：登记值 6 是 `_translucent`
+    // 排除规则（`withValues` 半透明叠层不算白底面）加入**之前**的旧数——该文件实态一直是
+    // 4（两条计时胶囊各 1 处白字 + 1 处白读数），本批 F2-5 只动占位/落点，白面未增未减。
+    'lib/shared/linkage/timer_bar_overlay.dart': 4,
     'lib/features/calendar/presentation/time_stats_page.dart': 3,
     'lib/features/care/presentation/care_kit.dart': 3,
     'lib/features/days/presentation/days_kit.dart': 3,
@@ -88,7 +99,10 @@ const _baseline = <String, int>{
     'lib/features/goals/presentation/goals_kit.dart': 2,
     'lib/features/habit/presentation/habit_aux_sheets.dart': 2,
     'lib/features/habit/presentation/habit_sheets.dart': 2,
-    'lib/features/journal/presentation/diary_edit_page.dart': 2,
+    // 2→1 棘轮收紧（阅读模块批2 · 2026-10-14 跑出「变小」提醒）：净减 1 发生在
+    // 时间模块 B10（5700dff9，2026-10-13 旧 events 表退役后日记摘要切块单源），
+    // 本批一行未动该文件——按口径调小登记值。
+    'lib/features/journal/presentation/diary_edit_page.dart': 1,
     'lib/features/ledger/presentation/ledger_recur_page.dart': 2,
     'lib/features/read/presentation/biblio/isbn_scan_page.dart': 2,
     'lib/features/read/presentation/shelf/shelf_long_press.dart': 2,
@@ -112,6 +126,11 @@ const _baseline = <String, int>{
     'lib/features/habit/presentation/widgets/habit_tile.dart': 1,
     'lib/features/inbox/presentation/inbox_page.dart': 1,
     'lib/features/items/presentation/item_detail_page.dart': 1,
+    // 日记模板创建弹层（日记侧批次新增 · 阅读模块批2 2026-10-14 跑出本红）：
+    // 唯一命中＝「保存模板」钮的**白字**（底面吃 `tokens.gradient` 渐变，随深浅自动跟随）
+    // ——与 media_card / health hero 同形态的前景字，非不透明近白底面缺陷。
+    // 登记≠放行：该弹层的深色观感仍须走真机观感门。本批一行未动该文件。
+    'lib/features/journal/presentation/widgets/diary_tpl_create_sheet.dart': 1,
     'lib/features/journal/presentation/note_edit_focus.dart': 1,
     'lib/features/journal/presentation/note_tab.dart': 1,
     'lib/features/ledger/presentation/ledger_add_page.dart': 1,
@@ -131,7 +150,10 @@ const _baseline = <String, int>{
     'lib/features/read/presentation/stats/quotes_lib_page.dart': 1,
     'lib/features/read/presentation/stats/read_stat_heat_card.dart': 1,
     'lib/features/read/presentation/xray_words_page.dart': 1,
-    'lib/features/settings/presentation/settings_page.dart': 1,
+    // 1→4 存量上升归位（阅读模块批2 · 2026-10-14 跑出本红）：设置页近白字面由更早的
+    // 设置/语义断链侧批次带到 4 处（登记值未随增量同步），本批一行未动该文件——
+    // 按现状登记，之后只许减；真还债＝逐处核底面后改吃 scheme，另批做。
+    'lib/features/settings/presentation/settings_page.dart': 4,
     'lib/features/settings/presentation/trash_page.dart': 1,
     'lib/features/settings/presentation/widgets/sync_verify_sheet.dart': 1,
     'lib/features/todo/presentation/todo_page.dart': 1,

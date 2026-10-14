@@ -383,6 +383,12 @@ void main() {
         await step(t);
         await t.tap(find.byKey(const ValueKey('brDelHl')));
         await step(t, ms: 300);
+        // F2-11（LH-S31）：删划线先过统一二次确认（取消左 · 玫红右）；
+        // 「没有划线可删」时不弹确认（_delHl 直接提示），故按需点确认。
+        if (find.byKey(const ValueKey('d-confirm-ok')).evaluate().isNotEmpty) {
+          await t.tap(find.byKey(const ValueKey('d-confirm-ok')));
+          await step(t, ms: 300);
+        }
       }
 
       // (a) 选区落在 A 那一截 → 只删 A，B 必须在库也在屏。

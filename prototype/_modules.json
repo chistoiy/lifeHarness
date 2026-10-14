@@ -900,8 +900,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 1174,
-          "hash": "f3463912"
+          "size": 1231,
+          "hash": "a3304461"
         }
       }
     },
@@ -1334,8 +1334,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 11469,
-          "hash": "b5b1b92a"
+          "size": 12581,
+          "hash": "0de636d0"
         }
       }
     },
@@ -1418,8 +1418,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 2713,
-          "hash": "0eb28ace"
+          "size": 2374,
+          "hash": "1837f060"
         }
       }
     },
@@ -3169,8 +3169,8 @@
       "status": "exclusive",
       "files": {
         "index-bookshelf.html": {
-          "size": 4492,
-          "hash": "b7eb8a5c"
+          "size": 4585,
+          "hash": "f413573e"
         }
       }
     },

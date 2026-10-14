@@ -13,10 +13,30 @@ import '../../features/read/presentation/read_providers.dart';
 import '../../features/read/presentation/read_sheets.dart'
     show readToast, showProgressSheet;
 
+/// 悬浮条落点（相对壳内容顶）＝安全区 + 60（让过页面自带顶栏）。
+/// 与 [kTimerBarHeight] 一起构成 F2-5 的占位预留口径（原型 `timerBarSpace`：
+/// `.page.active` 加 `paddingTop:60px`，本壳把它折成「条落点 + 条高」）。
+const double kTimerBarTopOffset = 60;
+
+/// 悬浮条单条内容高（两条并存时另加 [kTimerBarGap] 间距）。
+///
+/// **44 ＝ 实测渲染高**（`read_f2_nav_test` 现场量：条顶 60 → 条底 104）＝
+/// 容器上下各 9 内边距 ＋ 行内最高件（「■ 结束」胶囊：上下各 5 内边距 ＋ 11px 文本）。
+/// 曾按「11.5px 文本 + 上下各 9」记作 38——**少算 6px**，预留 98 < 条底 104，
+/// 首卡仍被压 6px（F2-5 的目标就是「首卡不被压」）。改常量而非改断言。
+const double kTimerBarHeight = 44;
+
+/// 悬浮条间距（两条并存时）。
+const double kTimerBarGap = 8;
+
 /// 悬浮计时条（需求 V1.11/V1.12 · M0 基础设施）：
 /// B10（2026-10-13 裁决）起旧 events 表已退役，**进行中事项条随表退役**——
 /// 「计时中」唯一源=时间块（V1.52），轴视图卡内结束；本壳只承载
 /// 读书长胶囊（read.timerUI）与影音计时条（media.floatBar/media.timerUI=capsule）。
+///
+/// **F2-5（批2）**：条可见时给壳内容**预留等量顶部空间**，首卡不再被条压住
+/// （原型口径＝给 `.page` 垫 `paddingTop`；壳层无「页内标题」概念，故垫在整页之前，
+/// 页面自带顶栏随之下移，与原型「条在页面内容之上」同构）。
 class TimerBarOverlay extends ConsumerWidget {
   const TimerBarOverlay({super.key, required this.child});
 
@@ -27,12 +47,24 @@ class TimerBarOverlay extends ConsumerWidget {
     final readOn = ref.watch(readTimerBarVisibleProvider).valueOrNull ?? false;
     // 影音计时条（批3 · media.floatBar/media.timerUI=capsule）：与阅读胶囊并存，互不遮蔽。
     final mediaOn = ref.watch(mediaTimerBarVisibleProvider);
+    final bars = (readOn ? 1 : 0) + (mediaOn ? 1 : 0);
+    final topPad = MediaQuery.paddingOf(context).top;
+    // 预留＝条落点 + 条占位总高；条不在场时为 0（零影响，旧行为不变）。
+    final reserve = bars == 0
+        ? 0.0
+        : topPad +
+            kTimerBarTopOffset +
+            bars * kTimerBarHeight +
+            (bars - 1) * kTimerBarGap;
     return Stack(
       children: [
-        child,
-        if (readOn || mediaOn)
+        if (reserve == 0)
+          child
+        else
+          Padding(padding: EdgeInsets.only(top: reserve), child: child),
+        if (bars > 0)
           Positioned(
-            top: MediaQuery.paddingOf(context).top + 60,
+            top: topPad + kTimerBarTopOffset,
             left: 16,
             right: 16,
             child: Column(
@@ -40,7 +72,7 @@ class TimerBarOverlay extends ConsumerWidget {
               children: [
                 if (readOn) const _ReadTimerBar(),
                 if (mediaOn) ...[
-                  if (readOn) const SizedBox(height: 8),
+                  if (readOn) const SizedBox(height: kTimerBarGap),
                   const _MediaTimerBar(),
                 ],
               ],

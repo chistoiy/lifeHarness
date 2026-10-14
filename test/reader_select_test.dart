@@ -417,6 +417,9 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await step(t);
       await t.tap(find.byKey(const ValueKey('brDelHl')));
       await step(t, ms: 300);
+      // F2-11（LH-S31）：删划线先过统一二次确认（取消左 · 玫红右）。
+      await t.tap(find.byKey(const ValueKey('d-confirm-ok')));
+      await step(t, ms: 300);
       expect(find.textContaining('已删除划线'), findsOne);
       expect(await repo.quotesOf('s3'), isEmpty);
       await clearToasts(t);
@@ -459,6 +462,9 @@ await dragHandle(t, 'brHEnd', 'brpTap-0-3', tail: true);
       await t.tap(find.byKey(const ValueKey('brSelHl')));
       await step(t);
       await t.tap(find.byKey(const ValueKey('brDelHl')));
+      await step(t, ms: 300);
+      // F2-11（LH-S31）：删划线先过统一二次确认（取消左 · 玫红右）。
+      await t.tap(find.byKey(const ValueKey('d-confirm-ok')));
       await step(t, ms: 300);
       expect(await repo.quotesOf('s13'), isEmpty);
       await clearToasts(t);

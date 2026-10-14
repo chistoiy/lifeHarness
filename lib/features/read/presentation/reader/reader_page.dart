@@ -25,6 +25,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/ai/ai_review.dart' show aiRunWithReview;
 import '../../../../core/database/schema/xray.dart' as xs;
 import '../../../../core/logging/app_log.dart';
+import '../../../../shared/widgets/confirm_dialog.dart' show lhConfirm;
+import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
 import '../../data/xray/xray_dao.dart' show XrayEntityRow;
 import '../../data/epub_doc.dart';
 import '../../domain/book.dart';

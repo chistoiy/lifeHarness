@@ -412,20 +412,33 @@ extension _ReaderSelOps on _ReaderPageState {
     final sel = _selController.sel;
     final doc = _doc;
     if (sel == null || doc == null) return;
-    final repo = ref.read(readRepositoryProvider);
-    var n = 0;
-    // 删除互清：删划线＝软删对应书摘行（笔记库同款可撤销语义）。
     // F-15：只删与选区**相交**的那些条（选多大范围删多大，不再整段连坐）。
-    for (final q in _hlQuotes) {
-      if (q.id != null && _cfHitsSel(q.cf!, sel, doc)) {
-        await repo.softDeleteQuote(q.id!);
-        n++;
-      }
+    final hits = _hlQuotes
+        .where((q) => q.id != null && _cfHitsSel(q.cf!, sel, doc))
+        .toList();
+    final localHits = _localHl
+        .where((h) => h.bookId == widget.bookId && _cfHitsSel(h.cf, sel, doc))
+        .toList();
+    final total = hits.length + localHits.length;
+    if (total == 0) {
+      readToast(context, '此处没有划线可删');
+      return;
+    }
+    // F2-11（LH-S31）：删划线＝破坏性动作（对应书摘一并软删），先过统一二次确认；
+    // 文案逐字＝原型 brDelHl。
+    final ok = await lhConfirm(
+      context,
+      '删除这段划线？\n删除后该条划线书摘同步移除，可在笔记库里重新划线。',
+    );
+    if (!ok || !mounted) return;
+    final repo = ref.read(readRepositoryProvider);
+    // 删除互清：删划线＝软删对应书摘行（笔记库同款可撤销语义）。
+    for (final q in hits) {
+      await repo.softDeleteQuote(q.id!);
     }
     final keep = _localHl.where((h) =>
         !(h.bookId == widget.bookId && _cfHitsSel(h.cf, sel, doc))).toList();
     if (keep.length != _localHl.length) {
-      n += _localHl.length - keep.length;
       await repo.setKv('reader.hl', _LocalHl.encodeAll(keep));
     }
     await _reloadHls();
@@ -433,8 +446,7 @@ extension _ReaderSelOps on _ReaderPageState {
     // ignore: invalid_use_of_protected_member
     setState(() => _selController.clear());
     ref.read(readTickProvider.notifier).state++;
-    readToast(context,
-        n > 0 ? '已删除划线 $n 条（书摘同步移除）' : '此处没有划线可删');
+    readToast(context, '已删除划线 $total 条（书摘同步移除）');
   }
 
   void _actCopy() {

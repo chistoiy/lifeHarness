@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/load_error_state.dart' show LoadErrorBanner;
 import '../../data/isbn_enrich.dart';
 import '../shelf/book_form_page.dart';
 import './isbn_scan_page.dart';
-import '../read_sheets.dart' show readToast;
 import '../widgets/bs_cover.dart';
 
 /// V1.44「先搜后加」· 添加图书搜索页（原型 p-biblioSearch · renderBsr）。
@@ -173,16 +173,16 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
                       padding: const EdgeInsets.only(right: 6),
                       child: GestureDetector(
                         key: ValueKey('bsr-chip-$name'),
-                        onTap: () {
-                          if (!ok) {
-                            readToast(context, '该源未接入 · 本批只支持豆瓣');
-                            return;
-                          }
-                          setState(() => _src = name);
-                          if (_q.text.trim().length >= 2) {
-                            _runSearch(_q.text);
-                          }
-                        },
+                        // F2-14（LH-K36）：未接入源＝禁用第三态——常开＋置灰（下方 Opacity）
+                        // ＋固定小标（「· 未接入」）＋点不动（onTap 恒 null），不再弹 toast。
+                        onTap: !ok
+                            ? null
+                            : () {
+                                setState(() => _src = name);
+                                if (_q.text.trim().length >= 2) {
+                                  _runSearch(_q.text);
+                                }
+                              },
                         child: Opacity(
                           opacity: ok ? 1 : .4,
                           child: Container(
@@ -267,15 +267,20 @@ class _BiblioSearchPageState extends ConsumerState<BiblioSearchPage> {
         itemBuilder: (_, i) => _row(cs, tokens, _rows[i]),
       );
     }
-    // 空态三档：熔断受限 / 未起手提示 / 无结果。
-    final String text;
+    // F2-8（LH-L15）：熔断受限不再自绘一行灰字，接失败卡（人话标题＋原因＋重试＋详情）。
     if (DoubanGuard.active()) {
-      text = '豆瓣访问受限 · 稍后再试';
-    } else if (_q.text.trim().isEmpty || _searching) {
-      text = '搜书名、作者或 ISBN';
-    } else {
-      text = '豆瓣未收录此书名 / 条码';
+      return LoadErrorBanner(
+        title: '书目源暂时不可用',
+        error: '豆瓣访问受限 · 稍后再试',
+        onRetry: () {
+          if (_q.text.trim().isNotEmpty) _runSearch(_q.text);
+        },
+      );
     }
+    // 空态两档：未起手提示 / 无结果。
+    final String text = _q.text.trim().isEmpty || _searching
+        ? '搜书名、作者或 ISBN'
+        : '豆瓣未收录此书名 / 条码';
     return Center(
       child: Text(
         text,
