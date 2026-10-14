@@ -254,7 +254,11 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
       key: const ValueKey('ex-time-custom'),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       decoration: BoxDecoration(
-        color: context.tokens.g1,
+        // 中性底，**不用 `g1`**（g1 是主题主色变量，铺满色块＝深浅两态都炸，
+        // 且滚轮选中项本身也是主色 ⇒ 主色底＋主色字＝对比度崩）。原型口径＝
+        // `bg-slate-50 dark:bg-slate-800/50`，对应 `tokens.cardBorder`（深浅自适应）。
+        // 全仓其余 `tokens.g1` 用法都带 alpha（.2/.3）作淡底，此处曾是不透明孤例。
+        color: context.tokens.cardBorder,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
