@@ -37,6 +37,12 @@ class MainActivity : FlutterActivity() {
     // （与打开方式文件同模式——事件经意图拉起 app 前台后落在这里）。
     private var pendingPillEnd: String? = null
 
+    /**
+     * 悬浮窗「＋笔记」待处理动作（6135·与 app 内胶囊按钮对齐）。
+     * 值为会话侧kind（read/media）；null＝无待处理。
+     */
+    private var pendingPillNote: String? = null
+
     // ---- lh/saf 挂起态（仅内存：进程死亡即失，结果过期被静默忽略）----
     private var safResult: MethodChannel.Result? = null
     private var safSource: String? = null
@@ -65,6 +71,12 @@ class MainActivity : FlutterActivity() {
         // Dart 侧 takePillEvent 消费。
         if (intent.action == ACTION_PILL_END) {
             pendingPillEnd = intent.getStringExtra(EXTRA_PILL_KIND) ?: "read"
+            return
+        }
+        // 批B：悬浮窗「＋笔记」意图（6135·app 内胶囊同款双按钮）——同样入队
+        // 等 Dart 侧 takePillEvent 消费后开书摘新建页。
+        if (intent.action == ACTION_PILL_NOTE) {
+            pendingPillNote = intent.getStringExtra(EXTRA_PILL_KIND) ?: "read"
             return
         }
         val uri: Uri? = when (intent.action) {
@@ -193,11 +205,14 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /// 批B：悬浮窗「■ 结束」一次性消费（null＝无待处理；与 [takeOpen] 同模式）。
+    /// 批B：悬浮窗一次性消费（null＝无待处理；与 [takeOpen] 同模式）。
+    /// 6135：end（结束）优先于 note（＋笔记），二者在原生侧互斥入队。
     private fun takePill(): Map<String, String>? {
-        val kind = pendingPillEnd ?: return null
+        val kind = pendingPillEnd ?: pendingPillNote ?: return null
+        val type = if (pendingPillEnd != null) "end" else "note"
         pendingPillEnd = null
-        return mapOf("type" to "end", "kind" to kind)
+        pendingPillNote = null
+        return mapOf("type" to type, "kind" to kind)
     }
 
     // ---- lh/saf：SAF「另存为」实现 ----
@@ -671,6 +686,9 @@ class MainActivity : FlutterActivity() {
 
         /// 批B：悬浮窗「■ 结束」意图（TimerPillService 与 Dart 侧共用）。
         const val ACTION_PILL_END = "com.lifeharness.pill.END"
+
+        /** 悬浮窗「＋笔记」动作（6135·app 内胶囊同款双按钮）。 */
+        const val ACTION_PILL_NOTE = "com.lifeharness.pill.NOTE"
         const val EXTRA_PILL_KIND = "pillKind"
     }
 

@@ -27,6 +27,7 @@ import '../../features/media/presentation/media_providers.dart'
     show mediaItemDetailProvider, mediaRunningSessionProvider, mediaTickProvider;
 import '../../features/read/presentation/read_providers.dart'
     show booksProvider, readKvProvider, readTickProvider, runningSessionProvider;
+import '../../features/read/presentation/read_sheets.dart' show showQuoteEditPage;
 import 'timer_bar_overlay.dart' show endMediaPillTimer, endReadPillTimer;
 
 /// app 是否在前台（系统悬浮窗在 app 前台时隐藏——免与 app 内胶囊重复；
@@ -74,13 +75,27 @@ Future<void> _stopNative(String why) async {
   _lastSig = null;
 }
 
-/// 悬浮窗一次性事件消费（■结束）：按在跑会话现算结束哪条（read 优先），
-/// 提示/弹层挂根 Navigator（R14 护栏同源）。异常不回流 tick 循环。
+/// 悬浮窗一次性事件消费（■结束／＋笔记）：按在跑会话现算作用于哪条（read
+/// 优先），提示/弹层挂根 Navigator（R14 护栏同源）。异常不回流 tick 循环。
+///
+/// 6135：新增 `note` 类型——原生胶囊补上「＋笔记」按钮后与 app 内双按钮对齐，
+/// 直开书摘新建页（预选在跑书，同 app 内 `_ReadPill` 的 `＋笔记`）。
 Future<void> drainPillEvents(WidgetRef ref) async {
   final SysPillEvent? ev = await takePillEvent();
-  if (ev == null || ev.type != 'end') return;
+  if (ev == null) return;
   final navCtx = aiRootNavKey.value?.currentState?.context;
   if (navCtx == null || !navCtx.mounted) return;
+  if (ev.type == 'note') {
+    final readS = ref.read(runningSessionProvider).valueOrNull;
+    if (readS == null) return;
+    try {
+      await showQuoteEditPage(navCtx, ref, bookId: readS.bookId);
+    } catch (_) {
+      // catch-ok：弹层打开失败不崩，计时继续。
+    }
+    return;
+  }
+  if (ev.type != 'end') return;
   try {
     final readS = ref.read(runningSessionProvider).valueOrNull;
     if (readS != null) {
