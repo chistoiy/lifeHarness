@@ -445,46 +445,12 @@ tailwind.config = {
     
 
     <!-- ===== P4 记录（日记/笔记/阅读） ===== -->
-    <section id="p-records" class="page px-5 safe-pb no-scrollbar">
-      <!-- V1.29轮5：四段切换行移除 · 标题即「记录 · X」+ 右上切换钮 -->
-      <!-- 笔记 tab（V1.29轮6：页内搜索移除·走右上全局搜索带范围标签 · 排序三方式 · 视图切换/左滑回收站/文件夹树） -->
-      <div id="recNote" class="mt-1.5">
-        <div id="noteSelTop" class="hidden px-1 pb-1.5 items-center"><b class="text-[17px] font-black tracking-wide">已选择 <span id="noteSelTopN" class="text-brand-500">0</span> 项</b></div>
-        <div class="flex items-center justify-end gap-2 relative">
-          <button id="noteSrcBtn" onclick="nsrcOpen()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 mr-auto" title="按来源筛选"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.2 7.4v5.1l-3.6 1.9V12.4L4 5Z"/></svg></button>
-          <button id="noteSortBtn" onclick="toggleNoteSortMenu(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="排序">↕</button>
-          <div id="noteSortMenu" class="hidden absolute right-0 top-10 z-40 w-40 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
-          <button id="noteFolderBtn" onclick="ntOpenDrawer()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500 nt-ic" title="文件夹"></button>
-          <button id="noteViewBtn" onclick="noteViewToggle()" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500">☰</button>
-          <button id="noteMoreBtn" onclick="noteMoreOpen(event)" class="pw-ic-btn border border-slate-200 dark:border-slate-700 text-slate-500" title="更多"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
-          <div id="noteMoreMenu" class="hidden absolute right-0 top-10 z-40 w-44 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 shadow-xl p-1.5"></div>
-        </div>
-        <div id="noteList" class="mt-3"></div>
-      </div>
-
-      <!-- 阅读 tab -->
-      <div id="recBook" class="hidden mt-4">
+    <section id="p-readhub" class="page px-5 safe-pb no-scrollbar">
+      <!-- 阅读工作台（2026-10-16 甲案：自 p-records 拆出独立成屏 · 原记录页第三 tab） -->
+<div id="recBook" class="mt-4">
         <div id="recHub"></div>
         <div class="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-0.5" id="bookStatusChips"></div>
         <div class="mt-3 space-y-3" id="bookList"></div>
-      </div>
-
-      <!-- 影音游 tab（V1.25 · 与日记/笔记/阅读并列 · 原独立页并入） -->
-      <div id="recMedia" class="hidden mt-4">
-      <div class="grad rounded-3xl p-4 text-white">
-        <div class="text-sm font-extrabold">🎬 影音游 · 观影笔记</div>
-        <div class="text-[11px] opacity-85 mt-0.5 leading-5">与阅读笔记同构：观影计时 · 多方式进度 · 评分短评</div>
-        <div class="mt-2 flex gap-4 text-[11px]"><span>本年观影 <b>86h · 41 部</b></span><span>均速 <b>1.2 倍速</b></span><span>片单 <b>想看 12</b></span></div>
-      </div>
-      <div id="mediaList" class="mt-3 space-y-3"></div>
-      <button onclick="toast('豆瓣片单导入：与书单共用导入向导（已读/在看/想看 + 评分 + 日期）')" class="mt-4 w-full card flex items-center gap-3 text-left active:scale-[.99] transition">
-        <span class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">📥</span>
-        <div class="flex-1"><div class="text-sm font-bold">导入豆瓣片单 / 书单</div><div class="text-[11px] text-slate-400">想看·在看·已看 + 豆瓣评分 + 标记日期 · 自动去重</div></div>
-        <span class="text-slate-300">›</span></button>
-      <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
-        <div class="card opacity-60" onclick="toast('游戏时长自动同步 V1.x')"><b>🎮 游戏</b><div class="text-[10px] text-slate-400 mt-1">存档时长同步 · V1.x</div></div>
-        <div class="card opacity-60" onclick="toast('剧集更新追踪 V1.x')"><b>📺 剧集追更</b><div class="text-[10px] text-slate-400 mt-1">更新提醒 · V1.x</div></div>
-      </div>
       </div>
     </section>
 
@@ -1344,13 +1310,7 @@ tailwind.config = {
   </div>
 
   <!-- V1.29：笔记 tab FAB 三选一（与首页快捷记录菜单同款·替代顶部写笔记按钮） -->
-  <div id="noteFabMenu" class="hidden absolute right-6 bottom-[140px] z-40 w-44 space-y-2 text-xs font-bold">
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('rich')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>添加富文本</button>
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('plain')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>添加纯文本</button>
-    <button class="fab-act flex items-center gap-2" onclick="hideNoteFabMenu();newNote('md')"><svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>添加 MD 文档</button>
-  </div>
-
-  <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
+    <!-- ===== 番茄全屏专注页（V1.21 · 参考图1：圆环大时钟+任务名+⏸↺■） ===== -->
   <div id="pomoStage" class="hidden absolute inset-0 z-[60] flex-col items-center text-white" style="background:linear-gradient(180deg,#41618c 0%,#7d93b5 55%,#d8a9a2 100%)">
     <div class="mt-10 self-start text-3xl opacity-80 ml-6">❝</div>
     <div class="px-10 text-center text-[15px] leading-6 opacity-95" id="pomoQuote"></div>
@@ -1370,138 +1330,16 @@ tailwind.config = {
   <!-- ===== 底部导航 ===== -->
   <!-- V1.29 三轮：文件夹树状侧边栏抽屉（参考 Obsidian：顶部入口·左滑出树·底部操作条）
        2026-10-11 真机反馈轮3：直角满高→Obsidian 悬浮圆角卡（四周留边·圆角 16·卡内底部条） -->
-  <div id="ntMask" class="hidden fixed md:absolute inset-0 z-40 bg-black/40" onclick="ntClose()"></div>
-  <div id="noteTree" class="hidden fixed md:absolute left-2 top-2 bottom-2 z-50 w-[62%] bg-white dark:bg-slate-900 shadow-2xl flex-col rounded-2xl overflow-hidden border border-slate-200/70 dark:border-slate-700/70">
-    <div class="px-4 pt-3 pb-2 flex items-center gap-2"><b class="text-sm flex-1">文件夹</b><button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntHdClose"></button></div>
-    <div class="px-2 pb-2 overflow-y-auto no-scrollbar flex-1" id="ntList"></div>
-    <!-- V1.29轮11-2：底部操作条恢复线性图标钮（重命名/添加文件夹/展开折叠/关闭） -->
-    <div class="border-t border-slate-100 dark:border-slate-800 px-2 py-1.5 flex items-center justify-around">
-      <button class="pw-ic-btn nt-ic" title="重命名选中夹" onclick="ntRename()" id="ntBtEdit"></button>
-      <button class="pw-ic-btn nt-ic" title="添加文件夹" onclick="ntAdd()" id="ntBtAdd"></button>
-      <button class="pw-ic-btn nt-ic" title="导出为本地目录" onclick="nxOpen()" id="ntBtExport"></button>
-      <button class="pw-ic-btn nt-ic" title="全部展开/折叠" onclick="ntExpandAll()" id="ntBtExp"></button>
-      <button class="pw-ic-btn nt-ic" onclick="ntClose()" id="ntBtClose"></button>
-    </div>
-  </div>
-
-  <!-- V1.29轮6：笔记长按批量选择操作条（删除 / 移动到 / 置顶） -->
-  <div id="noteSelBar" class="hidden fixed md:absolute bottom-[86px] left-4 right-4 z-40 card !p-1.5 items-stretch gap-1 text-[10px] font-bold shadow-xl">
-    <button onclick="noteBatchPin()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V3H9v7.76Z"/></svg>
-      <span id="notePinLabel">置顶</span></button>
-    <button onclick="noteBatchMove()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1.5 1.5 0 0 1 1.5-1.5h4L10 7h9A1.5 1.5 0 0 1 20.5 8.5V17A1.5 1.5 0 0 1 19 18.5H4.5A1.5 1.5 0 0 1 3 17V7Z"/><path d="M11 12.5h5m0 0-2-2m2 2-2 2"/></svg>
-      <span>移动到</span></button>
-    <button onclick="noteBatchTrash()" class="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-rose-500 active:bg-slate-100 dark:active:bg-slate-700">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v5m4-5v5"/></svg>
-      <span>删除</span></button>
-    <button onclick="noteExitSel()" class="px-2.5 py-2 rounded-xl text-slate-400 active:bg-slate-100 dark:active:bg-slate-700" title="取消">✕</button>
-  </div>
-  <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->  
+      <!-- V1.29轮6：笔记长按批量选择操作条（删除 / 移动到 / 置顶） -->
+    <!-- V1.29轮13：日记长按批量选择操作条（删除 / 取消·与笔记同款底部简约图标） -->  
 
   <!-- V1.64：笔记本地导入／导出为目录／系统打开（open-with）临时夹与历史列表 · 规格＝docs/handoff/交棒话术-20261004-笔记本地导入导出与系统打开方式.md -->
-  <div id="sheetNoteImport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteImport')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b>导入本地</b><div class="ns-sub">目录按内容哈希判重 · 子文件夹各成带「本地」标的节点</div></div>
-      <div class="mt-2 flex gap-2">
-        <button id="niSegDir" onclick="niKindChg('dir')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
-        <button id="niSegFile" onclick="niKindChg('file')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
-      </div>
-      <div id="niHint" class="text-[11px] text-slate-400 mt-2"></div>
-      <div id="niProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
-      <div class="ns-actions">
-        <button onclick="closeSheet('sheetNoteImport')" class="ns-cancel">取消</button>
-        <button id="niGo" onclick="niDo()" class="ns-go"></button>
-      </div>
-    </div>
-  </div>
-
-  <div id="sheetNoteExport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteExport')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b>导出为本地目录</b><div class="ns-sub">每篇一个 .md · 图片附件随导至同级 _assets/</div></div>
-      <div class="mt-2 flex gap-2">
-        <button id="nxScCur" onclick="nxScChg('cur')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
-        <button id="nxScAll" onclick="nxScChg('all')" class="flex-1 py-2 rounded-xl text-[12px] font-bold"></button>
-      </div>
-      <div id="nxProg" class="hidden text-[11px] text-teal-600 dark:text-teal-400 mt-2"></div>
-      <div class="ns-actions">
-        <button onclick="closeSheet('sheetNoteExport')" class="ns-cancel">取消</button>
-        <button id="nxGo" onclick="nxDo()" class="ns-go">选择目录并导出</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="sheetNoteOpenHist" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteOpenHist')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><div class="flex items-center gap-2"><b class="flex-1">系统打开</b><span id="nohClr" onclick="nohClr()" class="text-[11px] font-bold text-rose-500 px-2 py-1 rounded-lg active:bg-slate-100 dark:active:bg-slate-800">清空</span></div><div class="ns-sub">经系统「打开方式」交给本应用的文件 · 保存可回写原文件</div></div>
-      <div id="nohList" class="mt-1 space-y-2"></div>
-      <button onclick="nohSim()" class="mt-3 w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-[12px] font-bold text-slate-500">演示：系统里打开一个 .md</button>
-    </div>
-  </div>
-
-  <!-- V1.64 批2 · N-1c 挂载移除（拍板 H＝移除只摘挂载，原文件与库内笔记都不动）· 长按本地/导出挂载节点进入 -->
-  <div id="sheetNoteUnmount" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteUnmount')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><div class="flex items-center gap-2"><b id="nuTitle" class="flex-1 truncate">移除挂载</b><span id="nuBadge" class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0"></span></div><div class="ns-sub" id="nuPath"></div></div>
-      <div id="nuList" class="mt-3 space-y-1.5"></div>
-      <div class="ns-actions">
-        <button onclick="closeSheet('sheetNoteUnmount')" class="ns-cancel">取消</button>
-        <button onclick="nuDo()" class="ns-go ns-danger">确认移除</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2026-10-12 批4④：移动到弹层回归本文件（此前只引用了壳里的同名 sheet · openSheet 落在 lhGone 空转＝死引用） -->
-  <div id="sheetNoteMove" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteMove')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b>移动到文件夹</b><div class="ns-sub">已选 <span id="nmCount">0</span> 篇 · 只改归属，不改内容</div></div>
-      <div id="nmList" class="mt-2 max-h-[46vh] overflow-y-auto no-scrollbar"></div>
-      <div class="ns-actions"><button onclick="closeSheet('sheetNoteMove')" class="ns-cancel">取消</button></div>
-    </div>
-  </div>
-
-  <!-- 2026-10-12 批5①：笔记搜索半屏（顶栏放大镜进入）· 标题与正文同时匹配 -->
-  <div id="sheetNoteSearch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteSearch')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b>搜索笔记</b><div class="ns-sub">标题与正文同时匹配 · 点命中行直接进编辑页</div></div>
-      <div class="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-        <input id="nsqIn" oninput="nsqRun()" placeholder="输入关键词" class="flex-1 bg-transparent outline-none text-[13px] font-medium">
-        <button id="nsqClr" onclick="nsqClr()" class="text-[11px] font-bold text-slate-400">清空</button>
-      </div>
-      <div id="nsqList" class="mt-3 max-h-[46vh] overflow-y-auto no-scrollbar"></div>
-      <div id="nsqEmpty" class="py-8 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">输入关键词开始搜索</div>
-    </div>
-  </div>
-
-  <!-- 2026-10-12 批5⑤：来源筛选（兑现「来源标仍可筛」）· 四档来源 -->
-  <div id="sheetNoteSrc" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteSrc')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b>按来源筛选</b><div class="ns-sub">来源标由导入／导出／系统打开自动打上，可随时改</div></div>
-      <div id="nsrcList" class="mt-2"></div>
-    </div>
-  </div>
-
-  <!-- 2026-10-12 批5④：批量删除二次确认（与日记段口径一致·破坏性操作必确认） -->
-  <div id="sheetNoteDelBatch" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetNoteDelBatch')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="ns-hd"><b id="ndbTitle">删除选中的 0 篇笔记？</b><div class="ns-sub">删除后可在回收站保留 30 天，期间可恢复。</div></div>
-      <div class="ns-actions">
-        <button onclick="closeSheet('sheetNoteDelBatch')" class="ns-cancel">取消</button>
-        <button id="ndbOk" onclick="ndbDo()" class="ns-go ns-danger">删除</button>
-      </div>
-    </div>
-  </div>
-
-  <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
+        <!-- V1.64 批2 · N-1c 挂载移除（拍板 H＝移除只摘挂载，原文件与库内笔记都不动）· 长按本地/导出挂载节点进入 -->
+    <!-- 2026-10-12 批4④：移动到弹层回归本文件（此前只引用了壳里的同名 sheet · openSheet 落在 lhGone 空转＝死引用） -->
+    <!-- 2026-10-12 批5①：笔记搜索半屏（顶栏放大镜进入）· 标题与正文同时匹配 -->
+    <!-- 2026-10-12 批5⑤：来源筛选（兑现「来源标仍可筛」）· 四档来源 -->
+    <!-- 2026-10-12 批5④：批量删除二次确认（与日记段口径一致·破坏性操作必确认） -->
+    <nav id="tabNav" class="absolute bottom-0 left-0 right-0 h-[70px] z-30 blur-bd bg-white/85 dark:bg-slate-950/85 border-t border-slate-200/70 dark:border-slate-800/70">
     <div class="flex h-full pb-1.5" id="navBar"></div>
   </nav>
 
@@ -1527,38 +1365,7 @@ tailwind.config = {
   
 
   <!-- ===== 记一条影音游（V1.25.1 · 影音游 tab 专属 FAB） ===== -->
-  <div id="sheetAddMedia" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetAddMedia')">
-    <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
-      <div class="grabber"></div>
-      <div class="font-extrabold">🎬 记一条影音游</div>
-      <input id="mdTitle" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="名称，如：沙丘 2 / 漫长的季节 / 黑神话·悟空">
-      <div class="mt-3 flex gap-2 text-xs items-center">
-        <span class="text-slate-400 shrink-0">类型</span>
-        <button class="tag-chip justify-center md-type on" data-t="电影">电影</button>
-        <button class="tag-chip justify-center md-type" data-t="剧集">剧集</button>
-        <button class="tag-chip justify-center md-type" data-t="综艺">综艺</button>
-        <button class="tag-chip justify-center md-type" data-t="游戏">游戏</button>
-      </div>
-      <div class="mt-2 flex gap-2 text-xs items-center">
-        <span class="text-slate-400 shrink-0">状态</span>
-        <button class="tag-chip justify-center md-st on" data-s="在看">在看</button>
-        <button class="tag-chip justify-center md-st" data-s="想看">想看</button>
-        <button class="tag-chip justify-center md-st" data-s="完成">完成</button>
-      </div>
-      <div class="mt-3 flex gap-3 text-xs items-center">
-        <div class="flex-1"><label class="text-slate-400">评分（豆瓣可选）</label><input id="mdRate" class="sel w-full mt-1 !py-2" placeholder="如 8.6"></div>
-        <div class="flex-1"><label class="text-slate-400">时长/集数</label><input id="mdLen" class="sel w-full mt-1 !py-2" placeholder="124min / 12集"></div>
-      </div>
-      <input id="mdNote" class="mt-3 w-full rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3 text-sm outline-none" placeholder="一句话短评（可选）">
-      <div class="mt-4 flex gap-3">
-        <button onclick="closeSheet('sheetAddMedia')" class="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-sm font-bold">取消</button>
-        <button onclick="addMedia()" class="flex-1 py-3 rounded-xl grad text-white text-sm font-bold">保存 · 可开始计时</button>
-      </div>
-      <div class="mt-2 text-[10px] text-slate-400 text-center">保存后进入影音游列表 · 点「▶ 观影/游戏」接入全局悬浮计时条（与阅读同构）</div>
-    </div>
-  </div>
-
-  <!-- ===== V1.28 日记模板管理（编辑页弹层） ===== -->
+    <!-- ===== V1.28 日记模板管理（编辑页弹层） ===== -->
   
   <!-- ===== V1.28 新建/编辑模板（分节结构） ===== -->
   
@@ -2367,7 +2174,7 @@ const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
 /* ================= 路由与导航 ================= */
 const stack=[]; let curPage='p-dashboard';
 const TITLES={'p-dashboard':['今天','9月19日 周六 · 第55天记录'],'p-todo':['待办','四象限 · 引导式时间管理'],'p-calendar':['时间',''],
- 'p-records':['记录',''],'p-quoteEdit':['新增摘录',''],'p-readlog':['阅读记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
+ 'p-records':['记录',''],'p-readhub':['阅读工作台',''],'p-quoteEdit':['新增摘录',''],'p-readlog':['阅读记录',''],'p-diaryEdit':['写日记','2026-09-19'],'p-records2':['',''],'p-inbox':['收集箱','灵感与碎片的入口'],'p-finance':['记账','9月 · 本地账本'],
  'p-items':['物品价值','每日成本 · 摊薄中'],'p-itemDetail':['物品详情','MacBook Air M3'],'p-days':['重要日子','倒数 · 到期提醒'],'p-health':['健康','喝水 · 睡眠'],'p-billImport':['导入账单','支付宝 / 微信 · 本地解析'],
  'p-goals':['目标 OKR','V1.x 完整版预览'],'p-profile':['我的','本地模式 · 数据在手心里'],'p-bookDetail':['书籍详情','思考，快与慢'],'p-noteEdit':['',''],'p-tools':['小工具合集','本地轻工具 · 可插件拓展'],'p-toolDetail':['小工具','本地计算 · 无需联网'],'p-care':['母婴呵护','生理周期 · 宝宝喂养记录'],'p-habits':['习惯打卡','正向 × 负向 · 周月统计'],'p-pstore':['插件中心','大模块按需安装 · 校验 · 回滚'],'p-billImport2':['',''],'p-sub-data':['数据与同步','本地优先 · 端到端加密'],'p-sub-notify':['提醒通知','四类场景 · 免打扰'],'p-sub-ai':['AI 增强','Opt-in · 逐项授权'],'p-sub-cats':['分类管理','两级分类 · 全局同源引用'],'p-sub-catAdd':['添加分类','一级 / 次级 · 颜色 · 标签'],'p-sub-appearance':['外观','主题风格 · 深色 · 主题色 · 字号'],'p-sub-recmg':['记录管理','笔记版本恢复 · 快照 · 文件夹']};
 /* ================= 底部导航（简约线性图标 · 设置可开关） ================= */
@@ -2443,7 +2250,6 @@ function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);retur
 function navTo(p){/*LH-GOV-G*/if(!document.getElementById(p)){lhGone(p);return;} if(p!==curPage){ stack.push(curPage); setPage(p);} }
 /* V1.27 全局返回语义：有栈逐级回退；栈尽/底栏页 → 先回主页；主页二次返回=退出提醒 */
 function goBack(){
-  if(curPage==='p-records'&&noteSelMode){noteExitSel();return;} /* 轮9：多选态返回=退出多选 */
   if(stack.length){ setPage(stack.pop()); return; }
   if(curPage!=='p-dashboard'){ setPage('p-dashboard'); return; }
   if(dashEditing){ dashToggle(); return; }
@@ -2954,14 +2760,12 @@ function tglTodo(title){const t=D.todos.find(x=>x.t===title);if(!t)return;t.done
 /* V1.29轮5：四段切换行移除 · 段名进入标题「记录 · X」+ 右上切换钮菜单 */
 const REC_TABS={diary:'日记',note:'笔记',book:'阅读',media:'影音游'};
 function switchRecord(k){ hideNoteFabMenu(); hideTodoFabMenu(); hideRecSwitchMenu();
-  /* 日记抽离批 2026-10-12：日记面现居日记专版(index-journal.html) · 本版驻笔记/阅读/影音游 */
+  /* 甲案 2026-10-16：记录四视图归位——日记→日记专版 / 笔记·影音游→壳内 p-records / 阅读→本版 p-readhub；本版 p-records 聚合屏已删 */
   if(k==='diary'){try{toast('「日记」现居「日记专版」· 跳转中');}catch(e){}setTimeout(function(){location.href='index-journal.html#p-diaryHome';},700);return;}
+  if(k==='note'||k==='media'){try{toast('「'+REC_TABS[k]+'」现居壳内「记录」页 · 跳转中');}catch(e){}setTimeout(function(){location.href='index.html#p-records';},700);return;}
+  /* k==='book'：阅读工作台即本屏 */
   recTab=k;
-  if(k!=='note'&&noteSelMode)noteExitSel(); /* 离开笔记段静默退出批量 */
-  [['note','recNote'],['book','recBook'],['media','recMedia']].forEach(([id,w])=>{const el=$('#'+w);if(!el)return;el.classList.toggle('hidden',id!==k);
-    if(id===k){el.classList.remove('rec-anim-in');void el.offsetWidth;el.classList.add('rec-anim-in');}});
-  const t=$('#pageTitle'); if(t&&curPage==='p-records')t.textContent='记录 · '+REC_TABS[k];
-  renderRecSwitch();
+  const t=$('#pageTitle'); if(t&&curPage==='p-readhub')t.textContent='阅读工作台';
 }
 function renderRecSwitch(){const m=$('#recSwitchMenu');if(!m)return;
   m.innerHTML=Object.entries(REC_TABS).map(([k,label])=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===recTab?'':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" ${k===recTab?`style="background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)"`:''} onclick="switchRecord('${k}')">${label}<span class="text-[11px]">${k===recTab?'✓':''}</span></button>`).join('');}
@@ -2971,7 +2775,6 @@ function renderRecords(){
   /* —— 日记：筛选 + 时间线卡片 —— */
   /* V1.29轮7：筛选改为一行内的筛选钮下拉 */
   /* —— 笔记：纯纯写作风列表（V1.29：文件夹 chips+回收站/新建 · 列表/卡片视图 · 左滑🗑） —— */
-  renderNotes();
   const sts=['在读','想读','已读','全部'];
   $('#bookStatusChips').innerHTML=sts.map((s,i)=>`<button class="chip ${i===0?'chip-on':''} whitespace-nowrap" onclick="pickChip(this)">${s}${s==='在读'?' 2':s==='已读'?' 1':''}</button>`).join('');
   $('#bookList').innerHTML=D.books.map(b=>`<div class="card flex gap-3 items-center" onclick="navTo('p-bookDetail')">
@@ -3104,115 +2907,22 @@ function pwPickImg(src){closeSheet('sheetImgSrc');
   if(cur)cur.insertAdjacentHTML('beforeend','<span class="ins-img" style="width:120px;height:80px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;margin:6px 0 0 6px;background:linear-gradient(135deg,#7dd3fc,#818cf8)">🌇</span>');
   toast(src==='camera'?'已拍照插入（真实版=系统相机）':'已从图库插入（真实版=相册选图·本地存储）');}
 function pwImgView(){const l=$('#imgLight');l.classList.remove('hidden');l.classList.add('flex');}
-/* V1.29轮8③：编辑页左右滑动=按当前排序切换上/下一篇（免回列表） */
-function pwSwipe(dir){const list=noteSorted();if(!list.length)return;
-  let i=list.findIndex(n=>n.t===pwNote);if(i<0)i=0;
-  const j=i+dir;
-  if(j<0){toast('已是第一篇');return;}
-  if(j>=list.length){toast('已是最后一篇');return;}
-  pwNote=list[j].t;const t=$('#pwTitle');if(t)t.textContent=pwNote;
-  const body=$('#pwBody');if(body)body.scrollTop=0;
-  toast(`⇄ 已切换 ${j+1}/${list.length} · ${pwNote}`);}
+/* 甲案 2026-10-16：编辑页左右滑动切篇（pwSwipe）随 p-records 笔记视图迁出 · 本版无笔记编辑屏 */
 let noteView='list',noteCols=2,noteFolder='';
 /* V1.29轮6：排序三方式（标题/创建时间/最后修改）+ 长按批量选择（删除/移动到/置顶） */
 /* V1.29轮8④：再点当前排序项=方向翻转（最后修改 ↓⇄↑ / 创建时间 ↓⇄↑ / 标题 A→Z⇄Z→A） */
 let noteSort='upd',noteAsc=false;
-function sortLabel(k){return k==='title'?(noteAsc?'标题 Z→A':'标题 A→Z'):k==='cre'?(noteAsc?'创建时间 ↑':'创建时间 ↓'):(noteAsc?'最后修改 ↑':'最后修改 ↓');}
-function noteSortClick(k){if(noteSort===k){noteAsc=!noteAsc;renderNoteSortMenu();}else{noteSort=k;noteAsc=false;$('#noteSortMenu').classList.add('hidden');}renderNotes();toast('排序：'+sortLabel(k));}
-function nkey(s){if(!s)return '';if(s.startsWith('今天'))return '2026-09-19';return /^\d{4}-/.test(s)?s:'2026-'+s;} /* 轮9s：跨年样本归一化排序 */
-function toggleNoteSortMenu(e){e.stopPropagation();renderNoteSortMenu();$('#noteSortMenu').classList.toggle('hidden');}
-function renderNoteSortMenu(){const m=$('#noteSortMenu');
-  m.innerHTML=['upd','cre','title'].map(k=>`<button class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13px] font-bold ${k===noteSort?'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400':'text-slate-600 dark:text-slate-300'} active:bg-slate-100 dark:active:bg-slate-700" onclick="noteSortClick('${k}')">${sortLabel(k)}<span class="text-[11px]">${k===noteSort?'✓':''}</span></button>`).join('');}
+ /* 轮9s：跨年样本归一化排序 */
 document.addEventListener('pointerdown',e=>{const m=$('#noteSortMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
 let noteSelMode=false,noteSel=new Set();
-function noteViewToggle(){if(noteView==='list'){noteView='card';noteCols=2;}else if(noteCols<3){noteCols++;}else{noteView='list';}
-  $('#noteViewBtn').textContent=noteView==='list'?'☰':(noteCols===2?'▦':'▤');
-  toast(noteView==='list'?'列表视图':`卡片视图 · 每行 ${noteCols} 个`);renderNotes();}
 /* 批5⑤：来源筛选（兑现「来源标仍可筛」）——local 覆盖 local_dir／local_file 两种来源标 */
 let noteSrcFilter='';
 const N_SRC=[['','全部来源'],['local','本地文件'],['export','导出目录'],['open_with','系统打开']];
-function nSrcLabel(v){const f=N_SRC.filter(x=>x[0]===v)[0];return f?f[1]:'全部来源';}
-function nSrcMatch(n){if(!noteSrcFilter)return true;
-  if(noteSrcFilter==='local')return n.src==='local_dir'||n.src==='local_file';
-  return n.src===noteSrcFilter;}
-function syncNoteSrcBtn(){const b=$('#noteSrcBtn');if(!b)return;const on=!!noteSrcFilter;
-  b.title=on?'按来源筛选 · '+nSrcLabel(noteSrcFilter):'按来源筛选';
-  b.style.color=on?'var(--accent)':'';b.style.borderColor=on?'var(--accent)':'';}
-function nsrcOpen(){const L=$('#nsrcList');if(!L)return;
-  L.innerHTML=N_SRC.map(function(x){const on=x[0]===noteSrcFilter;
-    return '<button class="ns-row" onclick="nsrcPick(\''+x[0]+'\')"><span class="flex-1">'+x[1]+'</span><span class="text-[11px] font-bold" style="color:var(--accent)">'+(on?'已选':'')+'</span></button>';}).join('');
-  openSheet('sheetNoteSrc');}
-function nsrcPick(v){noteSrcFilter=v;closeSheet('sheetNoteSrc');renderNotes();toast('来源筛选：'+nSrcLabel(v));}
-function noteSorted(){const list=D.notes.filter(n=>(!noteFolder||n.folder===noteFolder)&&nSrcMatch(n));
-  list.sort((a,b)=>{if(!!b.pin!==!!a.pin)return (b.pin?1:0)-(a.pin?1:0);
-    let r=noteSort==='title'?String(a.t).localeCompare(String(b.t),'en')
-      :nkey(noteSort==='cre'?b.cre:b.time).localeCompare(nkey(noteSort==='cre'?a.cre:a.time));
-    return noteAsc?-r:r;});
-  return list;}
-function renderNotes(){const L=$('#noteList');syncNoteSrcBtn();
-  const list=noteSorted();
-  /* V1.29轮9b：卡片视图=瀑布流错落（CSS columns）·卡片 1 标题 + 最多 4 行正文 + 1 时间行 */
-  const card=noteView==='card';
-  L.className=card?'mt-2 note-masonry':'';
-  L.style.columnCount=card?noteCols:'';
-  /* 批5⑤：来源筛选命中空集时给专用文案（不再是「这个文件夹还没有笔记」） */
-  if(!list.length){L.innerHTML='<div class="py-10 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">'
-    +(noteSrcFilter?'该来源下暂无笔记 · 换个来源试试':'这个文件夹还没有笔记 · 点右下角新建')+'</div>';return;}
-  L.innerHTML=list.map(n=>{const sel=noteSel.has(n.t);
-    const body=card?`<div class="text-xs text-slate-500 mt-1 overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical">${n.txt}</div>`
-      :`<div class="text-xs text-slate-500 mt-1 truncate">${n.txt}</div>`;
-    return `<div class="note-sw min-w-0 ${card?'':'mb-2.5'}"><div class="note-del nt-ic" onclick="event.stopPropagation();noteTrash('${n.t}')">${NT_IC.trash}</div>
-    <div class="note-card card" ${card&&NOTE_PAPER[n.t]?'style="background:'+NOTE_PAPER[n.t].bg+'"':''} onclick="noteTap(this,'${n.t}')" oncontextmenu="event.preventDefault();noteEnterSel('${n.t}')">
-    <div class="flex items-center gap-2.5"><div class="flex-1 min-w-0">
-    <b class="text-sm block truncate">${n.t}</b>
-    ${body}
-    <div class="flex items-center gap-1.5 mt-1.5"><span class="text-[10px] text-slate-400">${n.time}</span>${n.pin?`<span class="inline-flex text-amber-500" style="transform:rotate(45deg);width:13px;height:13px">${NT_IC.pin.replace(/width="15" height="15"/,'width="13" height="13"')}</span>`:''}</div>
-    </div>${noteSelMode?`<span class="nchk ${sel?'on':''} flex-shrink-0">✓</span>`:''}</div></div></div>`;}).join('');
-  /* 批2-①：左滑＝一划即删（与待办同款手感）——跟手位移，松手过阈值直接删除并给一次「撤销」；不再停在「露出删除区再点」的中间态 */
-  $$('#noteList .note-card').forEach(c=>{let sx=0,dx=0;const w=c.parentElement;
-    c.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;c.style.transition='';},{passive:true});
-    c.addEventListener('touchmove',e=>{if(noteSelMode)return;dx=Math.min(0,Math.max(-120,e.touches[0].clientX-sx));if(dx<-6){c.style.transform=`translateX(${dx}px)`;w.classList.add('show-del')}},{passive:true});
-    c.addEventListener('touchend',()=>{if(noteSelMode)return;
-      const bt=c.querySelector('b');const t=bt?bt.textContent:'';
-      if(dx<-72){c.style.transition='transform .16s ease';c.style.transform='translateX(-110%)';setTimeout(()=>noteTrash(t),150);}
-      else{c.style.transition='transform .16s ease';c.style.transform='';w.classList.remove('show-del');}});});}
-function noteTap(el,t){if(el.classList.contains('open')){el.classList.remove('open');el.parentElement.classList.remove('show-del');return;}
-  if(noteSelMode){if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);
-    if(!noteSel.size){noteExitSel();return;}updateNoteSelBar();renderNotes();return;}
-  pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
-function noteEnterSel(t){if(!noteSelMode){noteSelMode=true;noteSel=new Set([t]);if(navigator.vibrate)navigator.vibrate(12);/* 批2-③：长按进管理态＝触觉锚，与影音架同款（原型不可见·实现侧走 HapticFeedback） */}
-  else{if(noteSel.has(t))noteSel.delete(t);else noteSel.add(t);}
-  updateNoteSelBar();renderNotes();}
-function noteAllPinned(){return [...noteSel].every(t=>{const x=D.notes.find(y=>y.t===t);return x&&x.pin;});}
 /* 批6②：进出走 max-height／opacity 补间（槽位恒在），不再切 display（切了就没过渡） */
-function updateNoteSelBar(){const b=$('#noteSelBar');if(!b)return;
-  if(!noteSelMode||!noteSel.size){noteExitSel();return;}
-  b.classList.add('sel-on');
-  const top=$('#noteSelTop');if(top)top.classList.add('sel-on');
-  $('#noteSelTopN').textContent=noteSel.size;
-  $('#notePinLabel').textContent=noteAllPinned()?'取消置顶':'置顶';}
-function noteExitSel(){noteSelMode=false;noteSel.clear();
-  const b=$('#noteSelBar');if(b)b.classList.remove('sel-on');
-  const top=$('#noteSelTop');if(top)top.classList.remove('sel-on');renderNotes();}
-function noteBatchPin(){const n=noteSel.size,un=noteAllPinned();D.notes.forEach(x=>{if(noteSel.has(x.t))x.pin=un?0:1;});noteExitSel();toast(un?`已取消置顶 ${n} 篇`:`已置顶 ${n} 篇`);}
 /* 批5④：批量删除补二次确认（与日记段口径一致：破坏性操作必确认，取消则留在多选态） */
-function noteBatchTrash(){const n=noteSel.size;if(!n)return;
-  $('#ndbTitle').textContent='删除选中的 '+n+' 篇笔记？';openSheet('sheetNoteDelBatch');}
 /* 批5④：确认后真移除（与左滑同款留底＋撤销）；撤销回调沿用本文件 toast(msg,回调) 口径 */
-function ndbDo(){const baks=[];
- for(let i=D.notes.length-1;i>=0;i--){if(noteSel.has(D.notes[i].t))baks.unshift(D.notes.splice(i,1)[0]);}
- const n=baks.length;closeSheet('sheetNoteDelBatch');noteExitSel();renderNotes();
- toast('已移入回收站 '+n+' 篇 · 保留期内可恢复',()=>{D.notes=D.notes.concat(baks);renderNotes();toast('已恢复 '+n+' 篇');});}
 function ntFlat(list,d,out){list=list||NTREE;d=d||0;out=out||[];list.forEach(n=>{out.push({n:n.n,d:d});ntFlat(n.c,d+1,out);});return out;}
-function noteBatchMove(){if(!noteSel.size)return;const c=$('#nmCount');if(c)c.textContent=noteSel.size;
-  $('#nmList').innerHTML=ntFlat().map(f=>`<button class="ns-row" style="padding-left:${14+f.d*16}px" onclick="noteMoveTo('${f.n}')"><span class="nt-ic text-slate-400">${NT_IC.folder}</span><span class="flex-1 truncate">${f.n}</span></button>`).join('');
-  openSheet('sheetNoteMove');}
-function noteMoveTo(f){const n=noteSel.size;D.notes.forEach(x=>{if(noteSel.has(x.t))x.folder=f;});closeSheet('sheetNoteMove');noteExitSel();toast(`已移动 ${n} 篇到「${f}」`);}
 /* 批2-①：左滑一划即删——数据侧真移除并给一次「撤销」后悔药（长时效退路仍在回收站）。本文件 toast(msg,undo) 第二参即回调。 */
-function noteTrash(t){$$('#noteList .note-card.open').forEach(o=>{o.classList.remove('open');o.parentElement.classList.remove('show-del')});
-  const i=D.notes.findIndex(x=>x.t===t);const bak=i>=0?D.notes.splice(i,1)[0]:null;renderNotes();
-  if(!bak){toast('未找到该笔记');return;}
-  toast(`已移入回收站 · ${t}`,()=>{D.notes.splice(Math.min(i,D.notes.length),0,bak);renderNotes();toast(`已恢复「${t}」`);});}
 /* —— V1.29 三轮：多层嵌套文件夹 · 树状侧边栏抽屉（简约线性图标 · 参考 Obsidian） —— */
 const NT_IC={
  all:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
@@ -3232,169 +2942,35 @@ const NT_IC={
 const NTREE=[{n:'方法论',c:[]},{n:'灵感',c:[{n:'工作',c:[]},{n:'速记',c:[]}]},{n:'关联阅读',src:'local',c:[]},{n:'默认',c:[]}];
 let ntOpen={},ntSel='',ntAct='';
 /* V1.29轮6：点选=选中当前目录（抽屉保持打开）·添加文件夹=建在选中目录下 */
-function ntFindPath(name,list,path,key){list=list||NTREE;path=path||[];key=key||'';
-  for(let i=0;i<list.length;i++){const n=list[i],k=key===''?String(i):key+'.'+i;
-    if(n.n===name)return{arr:list,i:i,k:k};
-    const r=ntFindPath(name,n.c||[],path.concat([k]),k);if(r)return r;}
-  return null;}
-function ntAdd(){const target=ntSel;
-  const n=prompt(target?'新建文件夹名称（将创建在「'+target+'」下）':'新建文件夹名称（创建在顶层）');
-  if(!n)return;
-  let arr=NTREE;
-  if(target){const p=ntFindPath(target);if(!p){toast('未找到目标文件夹');return;}arr=p.arr[p.i].c;ntOpen[p.k]=true;}
-  arr.push({n:n,c:[]});renderNt();toast(target?'已在「'+target+'」下新建「'+n+'」':'已新建顶层文件夹「'+n+'」');}
-function ntRename(){toast(ntSel?'重命名「'+ntSel+'」（模拟）':'先点选树中的文件夹，再按此键');}
 let ntSortMode=0;const NT_SORTS=['名称 A→Z','创建时间 ↓','手动（长按拖动 · 拖入另一夹=子级）'];
-function ntSort(){ntSortMode=(ntSortMode+1)%3;toast('排序：'+NT_SORTS[ntSortMode]);}
 let ntAllOpen=false;
-function ntExpandAll(){ntAllOpen=!ntAllOpen;ntOpen={};if(ntAllOpen){NTREE.forEach((n,i)=>{if((n.c||[]).length)ntOpen[i]=true;});}renderNt();toast(ntAllOpen?'全部展开':'全部折叠');}
-function ntToggle(i){ntOpen[i]=!ntOpen[i];ntAct='';renderNt();}
-function ntPick(n,has){const nd=ntNode(n);if(nd&&nd.src==='export'){toast('导出目录为只读挂载 · 保存只落在应用内');return;}ntSel=n;noteFolder=n;ntAct='';if(has)ntOpen[ntKeyOf(n)]=true;renderNotes();renderNt();toast('当前目录「'+n+'」· 新添加将建于其下');}
-function ntKeyOf(name){const p=ntFindPath(name);return p?p.k:'';}
-function ntLong(n){const nd=ntNode(n);
-  /* V1.64 批2 · N-1c：本地导入／导出目录的挂载节点长按＝给「移除挂载」；
-     笔记树手感批 T-E（2026-10-11）：普通手建夹长按＝行内就地动作（不再 toast），再长按同夹收起 */
-  /* 批4③：树内长按进管理态＝触觉锚扩张（原型不可见·实现侧 HapticFeedback.mediumImpact） */
-  if(nd&&(nd.src==='local'||nd.src==='export')){if(navigator.vibrate)navigator.vibrate(12);nuOpen(nd);return;}
-  const p=ntFindPath(n);const k=p?p.k:'';
-  if(navigator.vibrate)navigator.vibrate(12);
-  ntAct=(ntAct===k?'':k);renderNt();}
 /* 笔记树手感批 T-E 样张：行尾就地两枚线性钮（重命名/删除），点别处/收起 */
-function ntActBtns(n){return '<button class="pw-ic-btn nt-ic" id="nt-act-rename" title="重命名" onclick="event.stopPropagation();ntSel=&quot;'+n+'&quot;;ntRename()">'+NT_IC.edit+'</button>'
- +'<button class="pw-ic-btn nt-ic" id="nt-act-del" title="删除文件夹" onclick="event.stopPropagation();ntDel(&quot;'+n+'&quot;)">'+NT_IC.trash+'</button>';}
-function ntDel(n){toast('删除「'+n+'」：内有笔记时提示迁移（模拟）');ntAct='';renderNt();}
-function ntRow(n,d,i){const kids=n.c||[];const has=kids.length>0;
-  return `<div class="nt-row${noteFolder===n.n?' nt-on':''}" style="padding-left:${12+d*18}px" onclick="ntPick('${n.n}',${has})" oncontextmenu="event.preventDefault();ntLong('${n.n}')">
-    <span class="nt-caret" onclick="event.stopPropagation();ntToggle(${typeof i==='number'?i:"'"+i+"'"})">${has?(ntOpen[i]?NT_IC.caretD:NT_IC.caretR):''}</span>
-    <span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">${n.n}${ntBadge(n.src)}</span>${ntAct===i?'<span class="nt-acts">'+ntActBtns(n.n)+'</span>':'<span class="text-[9px] text-slate-400">'+(2+n.n.length)+'</span>'}</div>`
-    +(has&&ntOpen[i]?kids.map((k,ki)=>ntRow(k,d+1,i+'.'+ki)).join(''):'');}
-function renderNt(){$('#ntList').innerHTML=`<div class="nt-row${noteFolder===''?' nt-on':''}" onclick="ntSel='';noteFolder='';ntAct='';renderNotes();renderNt()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.all}</span><span class="flex-1">全部笔记</span><span class="text-[9px] text-slate-400">${D.notes.length}</span></div>`
-  +`<div class="nt-row" onclick="nohOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folder}</span><span class="flex-1 truncate">系统打开${ntBadge('temp')}</span><span class="text-[9px] text-slate-400">${OF.length}</span></div>`
-  +NTREE.map((n,i)=>ntRow(n,0,i)).join('')
-  +`<div class="nt-row" onclick="ntClose();toast('回收站：恢复 / 彻底删除（模拟）')"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.trash}</span><span class="flex-1">回收站</span><span class="text-[9px] text-slate-400">1</span></div>`
-  +`<div class="nt-row" onclick="ntAdd()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.add}</span><span class="flex-1">添加文件夹 · ${ntSel?'在「'+ntSel+'」下':'顶层'}</span></div>`
-  +`<div class="nt-row" onclick="niOpen()"><span class="nt-caret"></span><span class="nt-ic">${NT_IC.folderAdd}</span><span class="flex-1">导入本地 · 目录或文件</span></div>`;}
 let ntSkelT=0;
 const NT_SKEL='<div class="nt-skel"><i style="width:72%"></i><i style="width:56%"></i><i style="width:64%"></i><i style="width:48%"></i><i style="width:60%"></i></div>';
 /* 批6③：侧栏首帧先给空树骨架（树数据冷读时不再白屏），260ms 后落真树 */
-function ntOpenDrawer(){$('#ntList').innerHTML=NT_SKEL;
- $('#noteTree').classList.remove('hidden');$('#noteTree').classList.add('flex');$('#ntMask').classList.remove('hidden');
- clearTimeout(ntSkelT);ntSkelT=setTimeout(function(){renderNt();},260);}
 /* —— V1.64：本地导入／导出为目录／系统打开临时夹与历史（工单 §2 N-1~N-4 · 拍板 A~G＝§4） —— */
 const NT_BADGE={local:['本地','#0d9488'],export:['导出','#d97706'],temp:['临时','#64748b']};
 const OF_ST={written:['已回写原文件','#0d9488'],app:['仅应用内','#e11d48'],moved:['已转正式目录','#64748b']};
 let OF=[{f:'会议纪要.md',p:'/Download/会议纪要.md',ts:'10-08 21:14',st:'written'},
  {f:'灵感速记.md',p:'/Documents/灵感速记.md',ts:'10-09 08:02',st:'app'},
  {f:'读书笔记.md',p:'/Download/读书笔记.md',ts:'10-06 19:30',st:'moved'}];
-function ntBadge(k){const b=NT_BADGE[k];return b?'<span class="ml-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style="color:'+b[1]+';border:1px solid '+b[1]+'">'+b[0]+'</span>':'';}
-function ntNode(name){const p=ntFindPath(name);return p?p.arr[p.i]:null;}
 let niKind='dir';
-function niOpen(){renderNi();openSheet('sheetNoteImport');}
 /* V1.64 批2 · 目录导入＝还原子层级（产品 2026-10-11 定，样张原为单节点）：磁盘每个子夹各成一个带「本地」标的树节点；同名节点复用不重复建 */
 const NI_DEMO={n:'外来笔记夹',p:'/Download/外来笔记夹',t:['外来总览'],c:[
   {n:'会议记录',t:['协议草稿','复盘意见'],c:[]},
   {n:'摘录',t:['任务拆分'],c:[]}]};
-function niMount(node,arr){let hit=null;
-  for(let i=0;i<arr.length;i++){if(arr[i].n===node.n)hit=arr[i];}
-  if(!hit){hit={n:node.n,p:node.p,src:'local',c:[]};arr.push(hit);}
-  const out=[{f:hit.n,t:node.t||[]}];
-  (node.c||[]).forEach(function(k){out.push.apply(out,niMount(k,hit.c));});
-  return out;}
-function niKindChg(k){niKind=k;renderNi();}
-function renderNi(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg-slate-800 text-slate-500';
- $('#niSegDir').textContent='目录';$('#niSegFile').textContent='文件';
- $('#niSegDir').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='dir'?on:off);
- $('#niSegFile').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(niKind==='file'?on:off);
- $('#niHint').textContent=niKind==='dir'?'递归收目录内 .md · 按内容哈希判重 · 子文件夹各成带「本地」角标节点':'多选 .md 文件 · 建于当前目录 · 该目录带「本地」角标';
- $('#niGo').textContent=niKind==='dir'?'选择目录并导入':'选择文件并导入';
- $('#niProg').classList.add('hidden');}
-function niDo(){$('#niProg').classList.remove('hidden');
- $('#niProg').textContent=niKind==='dir'?'扫描目录 · 抽取 .md 中…':'读取所选文件…';
- setTimeout(function(){let add=0,skip=0;
-  const push=(t,f,src)=>{if(D.notes.some(x=>x.t===t)){skip++;return;}add++;D.notes.push({t:t,txt:'（本地导入 · '+src+'）',folder:f,words:320,time:'刚刚',cre:'10-10',pin:0,md:1,src:src});};
-  if(niKind==='dir'){niMount(NI_DEMO,NTREE).forEach(function(g){g.t.forEach(function(t){push(t,g.f,'local_dir');});});ntOpen[ntKeyOf(NI_DEMO.n)]=true;/* 导入后展开挂载根节点＝需求①「导入后展示到文件树上」 */}
-  else{const f=ntSel||'灵感';const nd=ntNode(f);if(nd)nd.src='local';['引文摘抄','译注备忘'].forEach(t=>push(t,f,'local_file'));}
-  closeSheet('sheetNoteImport');renderNt();renderNotes();
-  toast('已导入 '+add+' 条 · 跳过重复 '+skip+' 条');},500);}
 let nxSc='all';
-function nxOpen(){renderNx();openSheet('sheetNoteExport');}
-function nxScChg(s){if(s==='cur'&&!ntSel){toast('先在树中点选文件夹，或改选「全部笔记」');return;}nxSc=s;renderNx();}
-function renderNx(){const on='bg-brand-500 text-white',off='bg-slate-100 dark:bg-slate-800 text-slate-500';
- const dis=!ntSel;
- $('#nxScCur').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(nxSc==='cur'?on:off)+(dis?' opacity-40':'');
- $('#nxScCur').textContent='当前目录'+(ntSel?' · '+ntSel:'');
- $('#nxScAll').className='flex-1 py-2 rounded-xl text-[12px] font-bold '+(nxSc==='all'?on:off);
- $('#nxScAll').textContent='全部笔记';
- $('#nxProg').classList.add('hidden');}
-function nxDo(){$('#nxProg').classList.remove('hidden');$('#nxProg').textContent='写入 .md 与 _assets/ 附件中…';
- setTimeout(function(){const n=nxSc==='all'?D.notes.length:D.notes.filter(x=>x.folder===ntSel).length;
-  if(!ntFindPath('笔记导出'))NTREE.push({n:'笔记导出',p:'/Download/笔记导出',src:'export',c:[]});
-  closeSheet('sheetNoteExport');renderNt();
-  toast('已导出 '+n+' 篇 · md＋附件目录包');},500);}
 /* —— V1.64 批2 · N-1c 挂载移除（工单 §1.2 + 拍板 H＝2026-10-11 产品定「保留在库」）：
  *     移除＝只摘文件树上的挂载节点（连子夹），磁盘原文件不删，已导入成库的笔记全部保留、来源标仍可筛。
  *     固定「系统打开」夹不在可移除之列（批1 已在 DAO 落删除守卫）；单文件导入的挂标不另设移除入口。 —— */
 let nuNode=null,nuKeep=0;
-function nuSub(node,acc){acc=acc||[];acc.push(node.n);(node.c||[]).forEach(function(k){nuSub(k,acc);});return acc;}
-function nuCount(node){let m=0;nuSub(node).forEach(function(nm){m+=D.notes.filter(function(x){return x.folder===nm;}).length;});return m;}
-function nuOpen(nd){nuNode=nd;nuKeep=nuCount(nd);const kids=(nd.c||[]).length;
- $('#nuTitle').textContent='移除挂载 · '+nd.n;
- const b=NT_BADGE[nd.src]||NT_BADGE.local,el=$('#nuBadge');
- el.textContent=b[0];el.setAttribute('style','color:'+b[1]+';border:1px solid '+b[1]);
- $('#nuPath').textContent=(nd.p||'本机的挂载目录')+' · 子夹 '+kids+' 个';
- $('#nuList').innerHTML=['只从文件树摘掉该挂载'+(kids?'及其 '+kids+' 个子夹':''),
-   '手机里的目录与文件不删除',
-   '已导入的 '+nuKeep+' 条笔记保留在库 · 来源标仍可筛']
-   .map(function(s){return '<div class="flex items-start gap-2 text-[12px] leading-5">'
-     +'<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0"></span><span>'+s+'</span></div>';}).join('');
- openSheet('sheetNoteUnmount');}
-function nuDo(){if(!nuNode)return;const nm=nuNode.n,keep=nuKeep;
- const p=ntFindPath(nm);if(p)p.arr.splice(p.i,1);
- nuNode=null;closeSheet('sheetNoteUnmount');renderNt();renderNotes();
- toast('已移除挂载「'+nm+'」 · '+keep+' 条笔记保留在库 · 原文件不动');}
 let nohArmed=false;
-function nohOpen(){nohArmed=false;nohArmTxt();renderNoh();openSheet('sheetNoteOpenHist');}
-function nohArmTxt(){const b=$('#nohClr');if(b)b.textContent=nohArmed?'确认清空？':'清空';}
-function nohClr(){if(!OF.length)return;
- if(!nohArmed){nohArmed=true;nohArmTxt();return;}
- OF=[];nohArmed=false;nohArmTxt();renderNoh();renderNt();toast('已清空 · 已转入的笔记不受影响');}
-function renderNoh(){const L=$('#nohList');if(!L)return;
- if(!OF.length){L.innerHTML='<div class="py-6 text-center text-[11px] text-slate-400 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl">还没有经系统打开的文件</div>';return;}
- L.innerHTML=OF.map(function(o,i){const st=OF_ST[o.st];
-  return '<div class="rounded-xl border border-slate-200/70 dark:border-slate-700/70 px-3 py-2.5" onclick="nohGo('+i+')">'
-   +'<div class="flex items-center gap-2"><span class="text-[13px] font-bold flex-1 truncate">'+o.f+'</span>'
-   +'<span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style="color:'+st[1]+';border:1px solid '+st[1]+'">'+st[0]+'</span></div>'
-   +'<div class="text-[10px] text-slate-400 truncate mt-0.5">'+o.p+' · '+o.ts+'</div>'
-   +(o.st==='moved'?'':'<div class="flex items-center gap-2 mt-1.5"><button onclick="event.stopPropagation();nohMove('+i+')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800">转入正式目录</button>'
-     +(o.st==='app'?'<span class="text-[9px] text-rose-500">原文件不在 · 改动仅存应用内</span>':'')+'</div>')+'</div>';}).join('');}
 function nohGo(i){closeSheet('sheetNoteOpenHist');if(curPage!=='p-records'||recTab!=='note'){navTab('p-records');switchRecord('note');}toast('已打开笔记「'+OF[i].f.replace(/\.md$/,'')+'」');}
-function nohMove(i){const to=ntSel||'方法论';OF[i].st='moved';renderNoh();renderNt();toast('已转入「'+to+'」 · 清除临时标记');}
-function nohSim(){const t='新建笔记'+(OF.length+1)+'.md';OF.unshift({f:t,p:'/Download/'+t,ts:'刚刚',st:'written'});
- renderNoh();renderNt();toast('已导入到「系统打开」 · 进入编辑 · 保存将回写原文件');}
-function ntClose(){clearTimeout(ntSkelT);$('#noteTree').classList.add('hidden');$('#noteTree').classList.remove('flex');$('#ntMask').classList.add('hidden');}
-(function ntIcons(){$('#ntHdClose').innerHTML=NT_IC.close;$('#ntBtEdit').innerHTML=NT_IC.edit;$('#ntBtAdd').innerHTML=NT_IC.folderAdd;$('#ntBtExp').innerHTML=NT_IC.expand;$('#ntBtClose').innerHTML=NT_IC.close;$('#ntBtExport').innerHTML=NT_IC.folderMove;const b=$('#noteFolderBtn');if(b)b.innerHTML=NT_IC.folder;})();
+/* 甲案 2026-10-16：ntIcons（笔记树抽屉图标注入）随 #noteTree 一并删除 */
 /* ===== 2026-10-12 批5：顶栏「更多」收拢导入/导出/打开历史 ＋ 笔记搜索半屏 ===== */
 /* 批5①：记录页·笔记段时顶栏放大镜改投「搜索笔记」半屏（其余页/段维持原全局搜索；实现侧对应 rec-search 钮） */
-function hdrSearchGo(){if(curPage==='p-records'&&recTab==='note'){nsqOpen();return;}openSheet('sheetSearch');}
-function noteMoreOpen(e){if(e)e.stopPropagation();const m=$('#noteMoreMenu');if(!m)return;
-  m.innerHTML=[['niOpen()','导入本地'],['nxOpen()','导出为本地目录'],['nohOpen()','系统打开历史']]
-    .map(x=>'<button class="w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-bold text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-700" onclick="noteMoreHide();'+x[0]+'">'+x[1]+'</button>').join('');
-  m.classList.toggle('hidden');}
-function noteMoreHide(){const m=$('#noteMoreMenu');if(m)m.classList.add('hidden');}
+function hdrSearchGo(){openSheet('sheetSearch');}
 document.addEventListener('pointerdown',e=>{const m=$('#noteMoreMenu');if(m&&!m.classList.contains('hidden')&&!e.target.closest('#recNote'))m.classList.add('hidden')},true);
-function nsqOpen(){const i=$('#nsqIn');if(i)i.value='';nsqRun();openSheet('sheetNoteSearch');
-  setTimeout(function(){const j=$('#nsqIn');if(j)j.focus();},80);}
-function nsqClr(){const i=$('#nsqIn');if(!i)return;i.value='';nsqRun();i.focus();}
-function nsqRun(){const el=$('#nsqIn');const L=$('#nsqList'),E=$('#nsqEmpty');if(!L)return;
-  const k=el?String(el.value).trim().toLowerCase():'';
-  if(!k){L.innerHTML='';E.textContent='输入关键词开始搜索';E.classList.remove('hidden');return;}
-  const hits=D.notes.filter(n=>String(n.t).toLowerCase().indexOf(k)>=0||String(n.txt).toLowerCase().indexOf(k)>=0);
-  E.textContent='没有匹配「'+k+'」的笔记 · 换个词试试';E.classList.toggle('hidden',hits.length>0);
-  L.innerHTML=hits.map(n=>'<button class="ns-row" onclick="nsqGo(\''+n.t+'\')"><span class="nt-ic text-slate-400">'+NT_IC.all+'</span>'
-    +'<span class="flex-1 min-w-0"><span class="block truncate">'+n.t+'</span>'
-    +'<span class="block text-[10px] font-medium text-slate-400 truncate mt-0.5">'+(n.folder||'未归类')+' · '+n.time+' · '+n.txt.slice(0,22)+'</span></span>'
-    +'<span class="text-slate-300">›</span></button>').join('');}
-function nsqGo(t){closeSheet('sheetNoteSearch');pwNote=t;pwLoadNotePaper(t);navTo('p-noteEdit');}
 let noteRestore='replace';
 
 
@@ -5976,7 +5552,7 @@ function bsInit(){shSt=BS_SET.openTab||'全部';shViewIcon();saveProgress=bsSave
   /* G1/U1：整页容器（biRoot / bsrRoot / rlRoot / blDetail）此前不在启动清单内 ⇒ 深链/刷新直开即纯空容器。
      此处补首屏渲染（各函数自带 root 守卫与空数据早退，零副作用）；bfRoot 需 BF 草稿，交由 p-bookForm 的 open 函数渲染，**不可**在此空调 renderBf。 */
   try{renderBookInfo()}catch(e){} try{renderBsr()}catch(e){} try{renderReadLog()}catch(e){} try{renderBlDetail()}catch(e){}
-  const old=switchRecord;window.switchRecord=k=>{old(k);if(k==='book')renderRecHub()}}
+  const old=switchRecord;window.switchRecord=k=>{old(k);if(k==='book'&&curPage==='p-readhub')renderRecHub()}}
 document.addEventListener('click',e=>{const b=e.target.closest('#navBar .navtab');});
 
 renderRecords(); tick(); renderGrid(); renderNav(); renderFab(); renderSideThemes(); renderToc(); renderMedia(); renderBabyToday(); drawGrowth('w'); renderVax(); renderHabits(); renderPstore(); bsInit();
@@ -8017,10 +7593,10 @@ renderPwBar();
 <script>/*LH-GOV-START*/
 /* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
 (function(){
-var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index-time.html","index-time.html"],"p-diaryEdit":["index-journal.html","日记·笔记"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index-sync.html","同步"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index-time.html","index-time.html"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index-journal.html","日记·笔记"],"sheetDiaryTplEdit":["index-journal.html","日记·笔记"],"sheetCatParent":["index-time.html","index-time.html"],"sheetTask":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index-journal.html","日记·笔记"],"sheetDiaryReview":["index-journal.html","日记·笔记"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"p-pstore":["index.html","壳与跨模块"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"]};
+var RED=window.LH_REDIRECTS={"p-dashboard":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"],"p-calendar":["index-time.html","index-time.html"],"p-diaryEdit":["index-journal.html","日记·笔记"],"p-noteEdit":["index.html","壳与跨模块"],"p-sub-recmg":["index.html","壳与跨模块"],"p-inbox":["index.html","壳与跨模块"],"p-finance":["index-ledger.html","记账"],"p-billImport":["index-ledger.html","记账"],"p-items":["index-day_aim__goods.html","目标"],"p-itemDetail":["index-day_aim__goods.html","目标"],"p-days":["index-day_aim__goods.html","目标"],"p-health":["index-health.html","健康"],"p-goals":["index-day_aim__goods.html","目标"],"p-care":["index-maternity_bady.html","呵护(母婴)"],"p-profile":["index.html","壳与跨模块"],"p-habits":["index_habitcheck.html","习惯打卡"],"p-sub-data":["index-sync.html","同步"],"p-sub-notify":["index.html","壳与跨模块"],"p-sub-ai":["index-ai.html","AI 增强"],"p-sub-cats":["index-time.html","index-time.html"],"p-sub-catAdd":["index-time.html","index-time.html"],"p-sub-appearance":["index.html","壳与跨模块"],"sheetSearch":["index.html","壳与跨模块"],"sheetAddTask":["index.html","壳与跨模块"],"sheetTimePick":["index-time.html","index-time.html"],"sheetDatePick":["index.html","壳与跨模块"],"sheetDiaryTpl":["index-journal.html","日记·笔记"],"sheetDiaryTplEdit":["index-journal.html","日记·笔记"],"sheetCatParent":["index-time.html","index-time.html"],"sheetTask":["index.html","壳与跨模块"],"sheetExtra":["index-day_aim__goods.html","目标"],"sheetRecycle":["index-day_aim__goods.html","目标"],"sheetScrap":["index-day_aim__goods.html","目标"],"sheetAddItem":["index-day_aim__goods.html","目标"],"sheetAddDay":["index.html","壳与跨模块"],"sheetSnapshot":["index.html","壳与跨模块"],"sheetImgSrc":["index.html","壳与跨模块"],"sheetDiaryFilter":["index-journal.html","日记·笔记"],"sheetDiaryReview":["index-journal.html","日记·笔记"],"sheetNoteKit":["index.html","壳与跨模块"],"sheetNoteShare":["index.html","壳与跨模块"],"sheetBabyMeasure":["index-maternity_bady.html","呵护(母婴)"],"sheetAddHabit":["index_habitcheck.html","习惯打卡"],"sheetThemeMarket":["index.html","壳与跨模块"],"sheetAddEvent":["index.html","壳与跨模块"],"sheetEventDetail":["index.html","壳与跨模块"],"p-records":["index.html","壳与跨模块"],"p-pstore":["index.html","壳与跨模块"],"sheetNoteMove":["index.html","壳与跨模块"],"sheetPSDetail":["index.html","壳与跨模块"],"sheetPlugin":["index.html","壳与跨模块"]};
 var DROP=window.LH_DROPPED={};
 var SELF=window.LH_SELF={};
-window.LH_LANDING="p-records";
+window.LH_LANDING="p-readhub";
 window.lhGone=function(id){
   if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
   var r=RED[id];

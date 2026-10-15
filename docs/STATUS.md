@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 立·2026-10-14 并入体量治理）：硬闸＝doclint 守护七调 `python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤14KiB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符）；**黄线＝上限 90%，到线即当轮瘦身；上限随瘦身棘轮只降不升**（口径＝`AGENTS.md`「文档体量治理」）。溢出细节留 `docs/handoff/` 工单、历史整段沉 `docs/archive/`；收尾改本文件一律走 `tools/status_set.py`（`--rotate`→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`；治理口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`（已闭档）。
 
-- **本批＝** **高保真体量整改批3（AI 组迁 `index-ai.html`）**＝定家件 §5 Q2 落批：AI 增强及二级屏/弹层 8 屏迁新建专版（壳留入口行＋8 条重定向）；`index.html` 登记屏体量 97,031→88,916（−8.4%）·字符 389,863→345,294（−11.4%）·屏 40→36。专版＝顶栏＋底栏（栏位/图标/渲染逐字迁壳，跨域栏位经 violations 走 RED 回壳）＋深浅色；AI 引擎三簇 JS＋演示数据随迁，壳删屏连带删逻辑；`aiverify_proto.js` 等五件 `F` 常量改指专版。闸＝四枚基础闸＋CDP 6-0（`BASE_DIV_DIFF` 2→0）＋三枚 AI 行为闸 47-0＋doclint 全绿；变异三刀各红其位。细节＝工单§3批3
-- **上一批＝** 高保真体量整改批2（备份/数据组迁 `index-sync.html`）＝**合并式收口**：`index.html` 登记屏体量 142,344→97,031（**−31.8%**·Q2 口径 ≥25% 达标）·字符 454,612→389,863（−14.2%）。专版解冻转 `current`，迁入 10 屏＋5 弹层＋`#imgView`＋四簇 JS；`p-log` 退役、`sheetGridMark` 判 dropped、`sheetImgSrc`/`sheetSnapshot` 留壳；`#shl` 作用域隔离（Tailwind CDN）保专版原 3 屏几何不变。闸＝protojscheck·registry CLEAN·protogate 0 违例·protostructcheck 5-1（存量）·syncproto_check 3→2·doclint 全绿。细节＝工单§3批2
+- **上一批＝** **高保真体量整改批3（AI 组迁 `index-ai.html`）**＝定家件 §5 Q2 落批：AI 增强及二级屏/弹层 8 屏迁新建专版（壳留入口行＋8 条重定向）；`index.html` 登记屏体量 97,031→88,916（−8.4%）·字符 389,863→345,294（−11.4%）·屏 40→36。专版＝顶栏＋底栏（栏位/图标/渲染逐字迁壳，跨域栏位经 violations 走 RED 回壳）＋深浅色；AI 引擎三簇 JS＋演示数据随迁，壳删屏连带删逻辑；`aiverify_proto.js` 等五件 `F` 常量改指专版。闸＝四枚基础闸＋CDP 6-0（`BASE_DIV_DIFF` 2→0）＋三枚 AI 行为闸 47-0＋doclint 全绿；变异三刀各红其位。细节＝工单§3批3
+- **本批＝** **甲案：p-records 定家纠错回壳（用户报障「记录只能到阅读」）**：p-records 家 bookshelf→壳，笔记/影音游＋笔记树/导入/系统打开全套随迁；日记→日记专版、阅读→书架新屏 p-readhub；书架删屏连带删 68 函数＋13 浮层，8 专版 RED 改指壳。壳补 10 函数＋2 弹层＋7 声明修两处潜伏崩（抽屉骨架屏/加载期 TypeError）。闸＝registry CLEAN·protogate 0·CDP 6-0·三 AI 闸 47-0·doclint PASS·端到端三链路复验全绿。性能本批不动（产品拍板）。
 
 ## 基线（八项，其余不写）
 
