@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LifeHarness · 时间模块专版高保真原型 V1.52</title>
-<link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAcFBQYFBAcGBgYIBwcICxILCwoKCxYPEA0SGhYbGhkWGRgcICgiHB4mHhgZIzAkJiorLS4tGyIyNTEsNSgsLSz/2wBDAQcICAsJCxULCxUsHRkdLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCz/wAARCABAAEADASIAAhEBAxEB/8QAGgAAAgMBAQAAAAAAAAAAAAAAAAQBAgMFCP/EAC0QAAEEAAUACgEFAAAAAAAAAAEAAgMRBBIhMUEFExQiMkJRUmFxI4GRocHw/8QAGAEAAwEBAAAAAAAAAAAAAAAAAQIDBAD/xAAcEQACAwADAQAAAAAAAAAAAAAAAQIREgMhYTH/2gAMAwEAAhEDEQA/APRxvNuiyg+JB023SnBqjX1UankoJAoF9Wl0g0Tr6o19VBB9xWZLveUbAa2UNJtZskJdkdvuCOVo3dMcT5lX1+1PmUXv9qc/gUBcACSQAOSlcRMDJTTYAoqmPnyPbGOBmKMNBnaXyCg4aD+1nctPCLxjlbZeLE5YDm72UgCzwVoHtkYHsNtKTELqJmtjRpXJPwlujsWw4+eGN+eI6tPyN/8AfCtBOuzLPkqS9OnIaaHcghbsNgFLyn8R+wmItgqoYv5lnerh8q58axvvO+HFLIKFOkIiZGS1baoreVzixkkTthoOCFOIle0BrGB+xN+iTGMnbp1LdKtZ+oyfpbuUV4RI8yZ5sQcsTASQdqXK6Bhd1nW5crapoXRlxspGV0DXA8HY6rXDyUwZogzMaBHK0RkqMU+PU07+DMh7n6hNR7BJvP4/2TcXhCZFi58SUnc6KTPRLTvSbcDmtVczMKIXHHPknw0gGZ4sbaFZFuD3zt1+087BMcbyqOwtHCTA2nVHOc3Cncj+VZj8M2iH7bbp/sTT5UDAM9qahBMSHEPaxjSIwbJO5K6cYqgqCHqh3WE/Su0mx3CiE//Z">
+<link rel="icon" type="image/jpeg" href="assets/lh_img_45a3aab0.jpg">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -60,37 +60,6 @@ tailwind.config = {
   input[type=range]{accent-color:#6366f1}
   .grad{background:linear-gradient(135deg,var(--g1) 0%,var(--g2) 55%,var(--g3) 100%)}
   .safe-pb{padding-bottom:96px}
-  /* ===== 「我的」页·版式三选（2026-10-12 · 待产品过门；定形并落实现后本段整体摘除）=====
-     版式：body.lay-hero（默认·记录仪表）｜lay-chapters（编辑章节）｜lay-minimal（极简卷轴）。
-     入口＝「设置 › 外观 › 我的页版式」；控制台 setMyLayout('hero'|'chapters'|'minimal')；
-     持久化＝localStorage lh.myLayout；地址带 ?mylayout= 可强制（不写持久化）。
-     hero＝渐变身份卡 .pf-hero（头像嵌连击环＋读数带＋里程碑），隐藏旧顶区 .pf-legacy；下半页常驻圆角卡。
-     chapters＝显 .pf-legacy（身份行＋去卡读数带）；组标题编号化(01..04)＋发丝；卡片去卡连续卷轴；签名页脚。
-     minimal＝显 .pf-legacy；组标题淡小字；卡片去卡去发丝纯间距；极简页脚。
-     全程只做形态覆盖，零业务逻辑改动。 */
-  .pf-hero{display:none}
-  body.lay-hero .pf-hero{display:block}
-  body.lay-hero .pf-legacy{display:none!important}
-  .pf-ro b{font-variant-numeric:tabular-nums}
-
-  /* —— 方向二「编辑章节」—— */
-  body.lay-chapters #p-profile .pf-gt{display:flex;align-items:center;gap:9px;margin:34px 0 3px;font-size:12px;letter-spacing:.06em}
-  body.lay-chapters #p-profile .pf-gt::before{content:attr(data-n);font-variant-numeric:tabular-nums;color:var(--accent);font-weight:800;opacity:.55}
-  body.lay-chapters #p-profile .pf-gt::after{content:'';flex:1;height:1px;background:currentColor;opacity:.13}
-  body.lay-chapters #p-profile>.card{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin-top:0!important}
-  body.lay-chapters #p-profile .pf-legacy .card{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
-  body.lay-chapters #p-profile .pf-legacy b{font-size:21px}
-  body.lay-chapters #p-profile #pfAbout{margin-top:42px!important;text-align:center;letter-spacing:.05em;background:transparent!important;border:0!important;box-shadow:none!important}
-  body.lay-chapters #p-profile #pfAbout>div:first-child{justify-content:center}
-
-  /* —— 方向三「极简卷轴」—— */
-  body.lay-minimal #p-profile .pf-gt{margin:42px 0 4px;font-size:11px;letter-spacing:.05em;opacity:.7}
-  body.lay-minimal #p-profile>.card{background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;margin-top:0!important}
-  body.lay-minimal #p-profile>.card button{border-top:0!important;padding-top:15px;padding-bottom:15px}
-  body.lay-minimal #p-profile .pf-legacy .card{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}
-  body.lay-minimal #p-profile .pf-legacy b{font-size:23px}
-  body.lay-minimal #p-profile #pfAbout{margin-top:46px!important;text-align:center;font-size:10.5px;background:transparent!important;border:0!important;box-shadow:none!important}
-  body.lay-minimal #p-profile #pfAbout>div:first-child{justify-content:center}
   /* 底栏收起态样张（2026-10-11 · 待产品过门，非正式形态；定形并落实现后本段整体摘除）：
      双指张开＝底栏收起·内容通底；双指捏合＝底栏回来。收起后 main 吃回 70px 底栏高、
      页面底留白 9628；底部另给一条「可见线索」防「东西去哪了」。
