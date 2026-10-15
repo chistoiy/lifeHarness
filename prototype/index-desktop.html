@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<!--
+  LifeHarness · 桌面模块专版高保真原型（事实源 index-desktop.html）
+  所有权：模块专属屏（系统桌面模拟 / 长按图标菜单 / 2×2 今日概览小组件 / 4×1 快捷记录小组件 /
+         设置页与桌面关系标注）在本副本内定稿。
+  共享面（我的/设置、p-sub-desktop 设置屏、记录页壳层、导航池、全局弹层风格）唯一写者为 prototype/index.html；
+  本副本对应部分仅作基线参照、不得在副本内定稿；如需改动登记到工单「回灌成句」由收口人回灌 index.html。
+  基线：V1.0 · 2026-10-15 新建。规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md（§2.0 动作表／§4 交互／§5 UI）。
+  产品 2026-10-15 令：桌侧面也进高保真原型（本专版）——覆盖冻结档 §6.5 第 2 条「桌面样张过门」的交付形态，
+  样张四块（长按菜单 4 枚／2×2 今日概览／4×1 快捷记录／设置页与桌面关系标注）在本文件四屏内齐备。
+  屏 id 前缀 dt-（desktop），避免与既有模块撞名；桌面侧 id 不复用 p- 前缀（p- 属壳层主屏命名空间）。
+  桌面侧为系统 UI，本副本用「示意」表达：图标格、菜单弹层、小部件尺寸按 §5.6 冻结视觉规格等比绘制，
+  真实像素以原生实现为准；不表达系统壁纸、状态栏运营商与电量等非本模块内容。
+  禁 emoji 图标（一律线性 SVG stroke 1.8）；禁硬编码主题色（走 :root 令牌）。
+  校验：node tools/dtcheck.js（结构断言）＋ doclint 链（protogate strict / proto_registry / vm_script_check）。
+-->
+<html lang="zh-CN" data-theme="minimal">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LifeHarness · 桌面模块专版高保真原型 V1.0</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: { fontFamily: { sans: ['Inter','Noto Sans SC','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] } } }
+}
+</script>
+<style>
+  /* ================= 设计令牌（沿用全项目 4 套主题 · 与壳 index.html 同源） ================= */
+  :root{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;
+        --page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);
+        --nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0;
+        /* 原生小组件四色档（§5.4 冻结 · 须登记进 values/colors.xml 与 values-night/colors.xml） */
+        --w-bg:#FFFFFF;--w-fg:#0F172A;--w-sub:#64748B;--w-acc:#6366F1;
+        /* 桌面模拟层 */
+        --wall-a:#dbeafe;--wall-b:#e0e7ff;--desk-ic:rgba(255,255,255,.72)}
+  html.dark{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b;
+        --w-bg:#1E293B;--w-fg:#F1F5F9;--w-sub:#94A3B8;--w-acc:#818CF8;
+        --wall-a:#1e293b;--wall-b:#312e81;--desk-ic:rgba(255,255,255,.14)}
+  html[data-theme="fresh"]{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88);
+        --w-acc:#059669;--wall-a:#d1fae5;--wall-b:#ccfbf1;--desk-ic:rgba(255,255,255,.7)}
+  html[data-theme="fresh"].dark{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);
+        --w-acc:#34d399;--wall-a:#0c1a13;--wall-b:#134e4a;--desk-ic:rgba(255,255,255,.12)}
+  html[data-theme="retro"]{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9;
+        --w-acc:#b45309;--wall-a:#fde68a;--wall-b:#fed7aa;--desk-ic:rgba(255,255,255,.66)}
+  html[data-theme="retro"].dark{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722;
+        --w-acc:#d97706;--wall-a:#241a0e;--wall-b:#4a3722;--desk-ic:rgba(255,255,255,.1)}
+  html[data-theme="neumorph"]{--accent:#5b7cfa;--accent-l:#93a7ff;--g1:#7c93f5;--g2:#6272e8;--g3:#5565e0;--page:#e9eef5;--card:#e9eef5;--card-bd:transparent;--card-r:22px;--card-sh:8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff;--nav-bg:#e9eef5;--nav-bd:#d7dfec;
+        --w-acc:#5b7cfa;--wall-a:#dbe4f0;--wall-b:#cfd9ea;--desk-ic:rgba(255,255,255,.6)}
+  html[data-theme="neumorph"].dark{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342;
+        --w-acc:#93a7ff;--wall-a:#232936;--wall-b:#33415c;--desk-ic:rgba(255,255,255,.1)}
+
+  html,body{height:100%;background:#0f172a;font-family:Inter,'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif}
+  *{-webkit-tap-highlight-color:transparent}
+  .side-note{display:none}
+  @media(min-width:900px){.side-note{display:flex;flex-direction:column;gap:7px;margin-right:30px;color:#64748b;font-size:12px;line-height:1.85;width:214px}}
+
+  #phone{position:relative;width:100%;height:100vh;background:var(--page);color:#0f172a;
+         overflow:hidden;display:flex;flex-direction:column}
+  @media(min-width:900px){#phone{width:400px;height:840px;border-radius:44px;border:8px solid #1e293b;box-shadow:0 30px 80px rgba(0,0,0,.55)}}
+  html.dark #phone{color:#e2e8f0}
+
+  .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);
+        box-shadow:var(--card-sh);padding:14px}
+  .row-title{font-size:13px;font-weight:800;letter-spacing:.01em}
+  .page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .page.active{display:block}
+  .safe-pb{padding-bottom:28px}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+
+  .mini-btn{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);
+            padding:5px 10px;border-radius:999px;white-space:nowrap}
+  .mini-btn:active{opacity:.6}
+  .toggle{width:44px;height:26px;border-radius:999px;background:#e2e8f0;position:relative;flex-shrink:0;transition:background .18s;cursor:pointer}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.25);transition:transform .18s}
+  .toggle.on{background:var(--accent)}
+  .toggle.on::after{transform:translateX(18px)}
+  html.dark .toggle{background:#334155}
+
+  /* ---------- 桌面模拟层（示意，非真桌面） ---------- */
+  .desk{position:absolute;inset:0;display:flex;flex-direction:column;
+        background:linear-gradient(160deg,var(--wall-a),var(--wall-b));overflow:hidden}
+  .desk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;padding:6px 14px}
+  .desk-ic{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .desk-ic .tile{width:52px;height:52px;border-radius:13px;background:var(--desk-ic);
+                 box-shadow:0 2px 8px rgba(15,23,42,.10);display:flex;align-items:center;justify-content:center;color:#334155}
+  html.dark .desk-ic .tile{color:#e2e8f0}
+  .desk-ic .lb{font-size:10px;font-weight:600;color:#334155;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  html.dark .desk-ic .lb{color:#e2e8f0}
+  .desk-ic .tile.held{outline:2px solid var(--accent);outline-offset:2px}
+  .desk-dock{margin:auto 12px 12px;padding:10px 8px;border-radius:22px;background:rgba(255,255,255,.34);
+             backdrop-filter:blur(8px);display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+
+  /* 长按菜单弹层（系统样式示意） */
+  .lp-menu{position:absolute;z-index:20;width:196px;border-radius:16px;overflow:hidden;
+           background:var(--w-bg);box-shadow:0 12px 34px rgba(15,23,42,.28)}
+  .lp-menu .row{display:flex;align-items:center;gap:11px;padding:0 14px;height:52px}
+  .lp-menu .row+.row{border-top:1px solid color-mix(in srgb,var(--w-sub) 12%,transparent)}
+  .lp-menu .row:active{background:color-mix(in srgb,var(--w-acc) 8%,transparent)}
+  .lp-menu .row svg{width:20px;height:20px;color:var(--w-fg);flex-shrink:0}
+  .lp-menu .row span{font-size:13px;font-weight:600;color:var(--w-fg)}
+
+  /* ---------- 小组件（§5.6 冻结视觉规格） ---------- */
+  /* 圆角 16dp；描边 1dp 用次文本 10% 透明；系统裁 55px 圆角，预览图直角；内容四周安全区 ≥42px */
+  .wg{background:var(--w-bg);border:1px solid color-mix(in srgb,var(--w-sub) 10%,transparent);
+      border-radius:16px;color:var(--w-fg);position:relative;overflow:hidden}
+  .wg-name{font-size:9px;font-weight:600;color:var(--w-sub);letter-spacing:.02em}
+  .wg-read{font-size:24px;font-weight:800;color:var(--w-fg);line-height:1.1;font-variant-numeric:tabular-nums}
+  .wg-lab{font-size:12px;font-weight:400;color:var(--w-sub);line-height:1.35}
+  .wg-acc{color:var(--w-acc)}
+  .wg-safe{position:absolute;inset:42px;border:1px dashed color-mix(in srgb,var(--w-sub) 34%,transparent);
+           border-radius:9px;pointer-events:none}
+  .wg-safe::after{content:'安全区 ≥42px';position:absolute;top:-8px;left:6px;background:var(--w-bg);
+           padding:0 4px;font-size:8px;color:var(--w-sub)}
+  .wg-mask{position:absolute;inset:0;border-radius:55px;pointer-events:none;
+           border:1px dashed color-mix(in srgb,var(--w-acc) 55%,transparent)}
+  .wg-corner{position:absolute;top:-1px;left:-1px;width:55px;height:55px;pointer-events:none;
+           border-top:1.5px solid var(--w-acc);border-left:1.5px solid var(--w-acc);border-top-left-radius:55px;opacity:.85}
+  .wg-btn{display:flex;align-items:center;justify-content:center;gap:8px;height:100%;
+          background:var(--w-acc);color:#fff;font-size:13px;font-weight:800}
+  .wg-bar{height:6px;border-radius:999px;background:color-mix(in srgb,var(--w-sub) 18%,transparent);overflow:hidden}
+  .wg-bar i{display:block;height:100%;background:var(--w-acc);border-radius:999px}
+
+  /* 标注气泡（关系图用） */
+  .anno{position:absolute;z-index:5;font-size:10px;font-weight:700;line-height:1.4;
+        background:var(--w-acc);color:#fff;padding:3px 7px;border-radius:8px;white-space:nowrap}
+  .anno.ghost{background:var(--w-sub)}
+  .anno-line{position:absolute;z-index:4;border-top:1.5px dashed var(--w-acc);opacity:.7}
+
+  /* 关系连线（SVG 覆盖层） */
+  .relmap{position:relative}
+  .relmap svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+  /* 深浅并排预览 */
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pair .cap{font-size:10px;font-weight:700;color:var(--w-sub);text-align:center;margin-top:5px}
+  /* 深色档强制色（模拟系统深色，不随 html.dark） */
+  .force-dark{--w-bg:#1E293B;--w-fg:#F1F5F9;--w-sub:#94A3B8;--w-acc:#818CF8;background:#1E293B}
+  .force-light{--w-bg:#FFFFFF;--w-fg:#0F172A;--w-sub:#64748B;--w-acc:#6366F1;background:#FFFFFF}
+
+  .kicker{font-size:10px;font-weight:800;color:var(--accent);letter-spacing:.08em}
+  .spec{font-size:10px;line-height:1.75;color:#64748b}
+  html.dark .spec{color:#94a3b8}
+  .spec b{color:var(--accent)}
+  .demo-tag{display:inline-block;font-size:9px;font-weight:800;color:#b45309;background:#fef3c7;
+            padding:2px 6px;border-radius:6px;letter-spacing:.02em}
+  html.dark .demo-tag{color:#fde68a;background:rgba(180,83,9,.28)}
+</style>
+</head>
+<body class="flex items-center justify-center">
+<div class="flex items-center gap-0">
+  <aside class="side-note">
+    <div class="font-extrabold text-slate-700 dark:text-slate-200" style="font-size:13px">桌面模块专版</div>
+    <div>四屏：桌面全貌 / 长按菜单 / 小组件规格 / 设置页与桌面关系</div>
+    <div>规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md §2.0 动作表、§4 交互、§5.6 原生 widget 视觉</div>
+    <div>系统桌面侧用示意表达，真实像素以原生实现为准</div>
+  </aside>
+
+  <div id="phone" class="relative w-full h-screen md:w-[400px] md:h-[840px] md:rounded-[44px] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 shadow-2xl overflow-hidden md:border-8 md:border-slate-800">
+    <div class="h-9 px-6 flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 select-none relative z-30">
+      <span>9:41</span><span class="flex items-center gap-1">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l-2.93-2.93c-.41-.17-.86-.27-1.34-.27-.83 0-1.5.67-1.5 1.5 0 .48.1.92.27 1.34L8.1 20.56A4.94 4.94 0 0 1 7 22c-2.76 0-5-2.24-5-5s2.24-5 5-5V7zm5.64 9.36A7.03 7.03 0 0 0 19 12c0-3.87-3.13-7-7-7v2c2.76 0 5 2.24 5 5 0 1.07-.34 2.06-.92 2.86l1.56 1.5zM12 3C6.95 3 2.55 5.61.03 9.5l1.73 1c2.27-3.19 5.99-5 10.24-5s7.97 1.81 10.24 5v.34c.72-.6 2.17-1.81 3.9-1.81 2.83 0 4.93 2.22 4.93 4.93 0 .7-.14 1.38-.4 2.01l1.73 1c.32-.79.5-1.62.5-2.48C21.5 6.47 18.43 3 14.42 3c-.35 0-.7.03-1.04.08" opacity=".4"/><path d="M12 15c.83 0 1.5-.67 1.5-1.5S12.83 12 12 12s-1.5.67-1.5 1.5S11.17 15 12 15z"/></svg>
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+      </span>
+    </div>
+    <header id="topHead" class="px-5 pb-2 pt-1 flex items-center gap-2 relative z-30">
+      <button id="btnBack" onclick="goBack()" class="hidden w-9 h-9 -ml-2 rounded-full items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" aria-label="返回">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="flex-1 min-w-0">
+        <div id="pageTitle" class="text-xl font-extrabold tracking-tight truncate">桌面</div>
+        <div id="pageSub" class="text-[11px] text-slate-400 -mt-0.5 truncate"></div>
+      </div>
+      <button id="btnDesk" onclick="navTo('dt-desk')" class="w-9 h-9 rounded-full flex items-center justify-center active:bg-slate-200 dark:active:bg-slate-800" title="看桌面示意">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>
+      </button>
+    </header>
+    <main class="h-[calc(100%-78px)] overflow-hidden relative">
+
+<!-- ================= 屏 1 · dt-desk 桌面全貌（示意） =================
+     长按图标 → 菜单 4 枚；桌面常驻 2×2 与 4×1 两枚小组件。动作全部走 §2.0 动作表，
+     四路（长按菜单／铺桌面／小组件点击／外部链接）导航栈逐字一致。 -->
+<section id="dt-desk" class="page active">
+  <div class="desk" id="deskStage">
+    <div class="desk-grid" id="deskGrid"></div>
+
+    <!-- 2×2 今日概览小组件（批 2 · 真实比例示意：占 2 格宽 2 格高） -->
+    <div class="mx-3.5 mb-2">
+      <div class="wg" style="height:158px" onclick="toast('2×2 今日概览 · 点击进 / 今天页')">
+        <div class="wg-corner"></div>
+        <div style="position:absolute;top:12px;left:14px" class="wg-name">LifeHarness · 今日概览</div>
+        <div style="position:absolute;top:36px;left:14px;right:14px" class="flex items-end justify-between">
+          <div><div class="wg-lab">待办</div><div class="wg-read">3</div></div>
+          <div><div class="wg-lab">打卡</div><div class="wg-read">4<span style="font-size:13px;color:var(--w-sub)">/6</span></div></div>
+        </div>
+        <div style="position:absolute;left:14px;right:14px;bottom:16px">
+          <div class="wg-bar"><i style="width:66%"></i></div>
+          <div class="wg-lab" style="margin-top:6px;font-size:10px">还差 2 项就全勤</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4×1 快捷记录小组件（批 2 · 一键进记一笔） -->
+    <div class="mx-3.5 mb-3">
+      <div class="wg" style="height:74px">
+        <div class="wg-corner"></div>
+        <div style="position:absolute;top:9px;left:14px" class="wg-name">LifeHarness · 快捷记录</div>
+        <div style="position:absolute;left:52%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+        <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:52%" onclick="toast('4×1 快捷记录 · 点击走 quick.ledger → /ledger/add')">
+          <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          记一笔
+        </div>
+      </div>
+    </div>
+
+    <div class="desk-dock" id="deskDock"></div>
+
+    <!-- 长按菜单弹层（默认隐藏；点 LifeHarness 图标唤出） -->
+    <div id="lpMenu" class="lp-menu hidden" style="left:22px;top:120px">
+      <div id="lpRows"></div>
+    </div>
+  </div>
+
+  <div class="px-5 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+    <div class="spec"><span class="demo-tag">示意</span> 点 LifeHarness 图标＝长按菜单（系统硬限 4 枚，默认 速记/记待办/记一笔/打卡）。<br>
+      2×2 与 4×1 两枚小部件为批 2 产物，点击均走 §2.0 动作表，四路导航栈一致。</div>
+  </div>
+</section>
+
+<!-- ================= 屏 2 · dt-menu 长按图标菜单（4 枚） =================
+     §4.1：标签≤6 字；点击任一走动作表对应路由，冷启动直达、无中间页；上限 4，第 5 项拦。 -->
+<section id="dt-menu" class="page px-5 safe-pb no-scrollbar">
+  <div class="kicker mt-1">§4.1 长按图标菜单</div>
+  <div class="spec mt-1 mb-2">系统弹出的是系统 UI，下列是等价示意：菜单结构、图标、标签与上限口径与真机一致。</div>
+
+  <div class="card">
+    <div class="flex items-center justify-between"><div class="row-title">菜单实貌（系统样式示意）</div><span class="text-[10px] text-slate-400">已选 <b id="menuCount" class="text-brand-500">4</b>/4</span></div>
+    <div class="relative mt-3" style="height:216px;border-radius:14px;background:var(--wall-a);overflow:hidden">
+      <div class="lp-menu" style="left:14px;top:12px;width:186px">
+        <div id="menuRows"></div>
+      </div>
+      <div class="anno" style="right:10px;top:16px">点任一行</div>
+      <div class="anno ghost" style="right:10px;bottom:14px">上限 4 枚</div>
+      <div class="anno-line" style="left:200px;top:32px;width:26px"></div>
+      <div class="anno-line" style="left:200px;bottom:22px;width:26px"></div>
+    </div>
+    <div class="spec mt-2">点击任一行 → 冷启动直达对应路由、<b>无中间页</b>；Intent 形态＝<span style="font-family:ui-monospace,monospace">ACTION_VIEW ＋ setData(lh://…)</span>。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">动作表（唯一来源 · §2.0）</div>
+    <div class="spec mt-1 mb-2">快捷方式 / 小组件 / URL 三端都只引用这张表，禁止各写一份跳转逻辑。</div>
+    <div id="menuTable"></div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">上限拦截演示（§4.1）</div>
+    <div class="spec mt-1 mb-2">设置页勾到第 5 项时，第 5 项置灰不可点，并出一行提示。</div>
+    <div class="flex flex-wrap gap-1.5" id="limitBox"></div>
+    <div id="limitHint" class="mt-2 text-[11px] leading-5 text-amber-600 dark:text-amber-400 hidden">
+      长按菜单最多 4 个，更多入口请「铺到桌面」。
+    </div>
+  </div>
+</section>
+
+<!-- ================= 屏 3 · dt-widget 小组件规格（2×2 / 4×1） =================
+     §5.6 冻结：尺寸 2×2 与 4×1；内容四周安全区 ≥42px；系统裁 55px 圆角、预览图直角；
+     圆角 16dp、描边 1dp（次文本 10% 透明）；读数 24sp 粗、标签 12sp 常规，固定不随系统放大截断；
+     禁滑动、禁输入、禁动画；必须支持深浅两档。 -->
+<section id="dt-widget" class="page px-5 safe-pb no-scrollbar">
+  <div class="kicker mt-1">§5.6 原生小组件视觉规格</div>
+  <div class="spec mt-1 mb-2">尺寸 2×2 与 4×1（批 2），预留下批 4×2。下列按比例绘制，蓝色虚线＝安全区与系统裁角标注。</div>
+
+  <div class="card">
+    <div class="row-title">2×2 今日概览</div>
+    <div class="spec mt-1 mb-3">展示今日待办数 / 习惯打卡进度；点击进 <span style="font-family:ui-monospace,monospace">/</span> 今天页；无快照显示占位（B6）。</div>
+    <div class="flex gap-3">
+      <div class="flex-1">
+        <div class="wg force-light" style="height:150px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:11px;left:13px" class="wg-name">今日概览</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px" class="flex items-end justify-between">
+            <div><div class="wg-lab">待办</div><div class="wg-read">3</div></div>
+            <div><div class="wg-lab">打卡</div><div class="wg-read">4<span style="font-size:13px;color:var(--w-sub)">/6</span></div></div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:14px">
+            <div class="wg-bar"><i style="width:66%"></i></div>
+            <div class="wg-lab" style="margin-top:5px;font-size:10px">还差 2 项就全勤</div>
+          </div>
+        </div>
+        <div class="cap spec">浅色档 · #FFFFFF / #0F172A / #64748B / #6366F1</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-dark" style="height:150px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:11px;left:13px" class="wg-name">今日概览</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px" class="flex items-end justify-between">
+            <div><div class="wg-lab">待办</div><div class="wg-read">3</div></div>
+            <div><div class="wg-lab">打卡</div><div class="wg-read">4<span style="font-size:13px;color:var(--w-sub)">/6</span></div></div>
+          </div>
+          <div style="position:absolute;left:13px;right:13px;bottom:14px">
+            <div class="wg-bar"><i style="width:66%"></i></div>
+            <div class="wg-lab" style="margin-top:5px;font-size:10px">还差 2 项就全勤</div>
+          </div>
+        </div>
+        <div class="cap spec">深色档 · #1E293B / #F1F5F9 / #94A3B8 / #818CF8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">4×1 快捷记录</div>
+    <div class="spec mt-1 mb-3">一键进「记一笔」，点击走动作表 <span style="font-family:ui-monospace,monospace">quick.ledger</span>。开启「隐藏金额」时金额位显示为 ••••（B7）。</div>
+    <div class="flex gap-3">
+      <div class="flex-1">
+        <div class="wg force-light" style="height:72px">
+          <div class="wg-corner"></div>
+          <div style="position:absolute;top:8px;left:13px" class="wg-name">快捷记录</div>
+          <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+          <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+          </div>
+        </div>
+        <div class="cap spec">浅色档</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-dark" style="height:72px">
+          <div class="wg-corner"></div>
+          <div style="position:absolute;top:8px;left:13px" class="wg-name">快捷记录</div>
+          <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+          <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+          </div>
+        </div>
+        <div class="cap spec">深色档</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">隐藏金额（B7）</div>
+    <div class="spec mt-1 mb-3">2×2 若展示金额位，开关开启时显示 ••••，不泄露金额到桌面。</div>
+    <div class="pair">
+      <div>
+        <div class="wg force-light" style="height:96px;padding:13px">
+          <div class="wg-name">今日概览</div>
+          <div class="wg-read" style="margin-top:8px">¥1,286</div>
+          <div class="wg-lab" style="font-size:10px;margin-top:2px">今日支出</div>
+        </div>
+        <div class="cap spec">隐藏关</div>
+      </div>
+      <div>
+        <div class="wg force-light" style="height:96px;padding:13px">
+          <div class="wg-name">今日概览</div>
+          <div class="wg-read" style="margin-top:8px">••••</div>
+          <div class="wg-lab" style="font-size:10px;margin-top:2px">今日支出</div>
+        </div>
+        <div class="cap spec">隐藏开</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">禁做清单</div>
+    <div class="spec mt-1">禁滑动、禁输入、禁动画；字号固定，不随系统字体放大截断（改用缩略号）。<br>
+      小部件读数来自最近一次同步快照，<b>不是实时</b>；widget 不直读 sqlite。</div>
+  </div>
+</section>
+
+<!-- ================= 屏 4 · dt-map 设置页与桌面关系标注 =================
+     §4.2 设置页三卡 ↔ 桌面三处落点的一一对应；入口在「我的」→「外观与交互」组。 -->
+<section id="dt-map" class="page px-5 safe-pb no-scrollbar">
+  <div class="kicker mt-1">设置页 ↔ 桌面 关系标注</div>
+  <div class="spec mt-1 mb-2">设置页只管偏好与重建，桌面侧只管呈现；两边共用一份偏好，禁两套。</div>
+
+  <div class="card relmap" style="height:326px">
+    <svg aria-hidden="true">
+      <path d="M188 66 C 250 66, 250 66, 300 66" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <path d="M188 152 C 250 152, 250 152, 300 152" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <path d="M188 244 C 250 244, 250 244, 300 244" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <circle cx="188" cy="66" r="3" fill="var(--accent)"/><circle cx="300" cy="66" r="3" fill="var(--accent)"/>
+      <circle cx="188" cy="152" r="3" fill="var(--accent)"/><circle cx="300" cy="152" r="3" fill="var(--accent)"/>
+      <circle cx="188" cy="244" r="3" fill="var(--accent)"/><circle cx="300" cy="244" r="3" fill="var(--accent)"/>
+    </svg>
+
+    <div style="position:absolute;left:14px;top:14px;width:174px">
+      <div class="kicker" style="margin-bottom:6px">App 内 · p-sub-desktop</div>
+      <div class="card" style="padding:10px 12px;border-radius:14px">
+        <div class="flex items-center gap-2"><span class="text-[12px] font-bold">① 长按菜单</span><span class="ml-auto text-[10px] text-slate-400">已选 <b class="text-brand-500">4</b>/4</span></div>
+        <div class="spec mt-1">7 个动作行 · 勾选即重建</div>
+      </div>
+      <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
+        <div class="flex items-center gap-2"><span class="text-[12px] font-bold">② 铺到桌面</span><span class="ml-auto text-[10px] text-slate-400">不限量</span></div>
+        <div class="spec mt-1">每行「铺到桌面」· 已铺显示「已铺」</div>
+      </div>
+      <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
+        <div class="flex items-center gap-2"><span class="text-[12px] font-bold">③ 小组件</span><span class="ml-auto text-[10px] text-slate-400">两开关＋金额</span></div>
+        <div class="spec mt-1">添加到桌面 · 概览 / 快捷记录 · 隐藏金额</div>
+      </div>
+    </div>
+
+    <div style="position:absolute;right:14px;top:14px;width:112px">
+      <div class="kicker" style="margin-bottom:6px;text-align:right">系统桌面</div>
+      <div class="card" style="padding:10px 12px;border-radius:14px">
+        <div class="text-[12px] font-bold">长按图标</div>
+        <div class="spec mt-1">弹 4 枚菜单</div>
+      </div>
+      <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
+        <div class="text-[12px] font-bold">独立图标</div>
+        <div class="spec mt-1">铺一枚即一个图标</div>
+      </div>
+      <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
+        <div class="text-[12px] font-bold">小部件</div>
+        <div class="spec mt-1">2×2 与 4×1</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">四路一致（C15 验收）</div>
+    <div class="spec mt-1">同一动作从长按菜单 / 铺桌面 / 小组件点击 / 外部链接进来，得到的导航栈逐字一致。</div>
+    <div class="mt-2 rounded-xl overflow-hidden" style="border:1px solid var(--card-bd)">
+      <div class="flex items-center justify-between px-3 py-2.5 text-[12px]" style="background:color-mix(in srgb,var(--accent) 6%,transparent)">
+        <b>quick.ledger · 记一笔</b><span class="text-[10px] text-slate-400 font-mono">lh://ledger/add</span>
+      </div>
+      <div class="px-3 py-2.5 spec" style="border-top:1px solid var(--card-bd)">长按菜单 → /ledger/add（冷启动直达，无中间页）</div>
+      <div class="px-3 py-2.5 spec" style="border-top:1px solid var(--card-bd)">铺到桌面 → /ledger/add</div>
+      <div class="px-3 py-2.5 spec" style="border-top:1px solid var(--card-bd)">4×1 小组件点击 → /ledger/add</div>
+      <div class="px-3 py-2.5 spec" style="border-top:1px solid var(--card-bd)">浏览器打开 lh://ledger/add → /ledger/add</div>
+    </div>
+    <div class="spec mt-2">⚠ 禁只 <span style="font-family:ui-monospace,monospace">setAction</span> 不 <span style="font-family:ui-monospace,monospace">setData</span>：Manifest 既有 5 组 content/file 打开方式 filter，只带 action 的 Intent 会误匹配到它们。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">入口位置</div>
+    <div class="spec mt-1">「我的」→「外观与交互」组 → 「桌面与快捷方式」。行卡样式与「底部导航栏自定义」「外观」同款（card＋set-ic），禁新造控件。</div>
+  </div>
+</section>
+
+    </main>
+    <div id="toast" class="hidden absolute left-1/2 -translate-x-1/2 bottom-10 z-[60] bg-slate-900/90 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-xl max-w-[85%] text-center"></div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   动作表（§2.0 · 唯一来源）——快捷方式/小组件/URL 三端都只引用它，禁各写一份跳转逻辑。
+   本专版为示意层：点击不真跳路由，出 toast 说明该走哪条路由与 scheme。
+   ========================================================================== */
+const ACTIONS=[
+  {id:'inbox',   label:'速记',   short:'速记',   route:'/inbox',      scheme:'lh://inbox/new',     icon:'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'},
+  {id:'todo',    label:'记待办', short:'待办',   route:'/todo',       scheme:'lh://todo/new',      icon:'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'},
+  {id:'ledger',  label:'记一笔', short:'记一笔', route:'/ledger/add', scheme:'lh://ledger/add',    icon:'M4 4h16v16H4zM4 9h16M9 4v5'},
+  {id:'habit',   label:'打卡',   short:'打卡',   route:'/habits',     scheme:'lh://habit/check',   icon:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM8.5 12.2l2.4 2.4 4.6-5'},
+  {id:'journal', label:'写日记', short:'日记',   route:'/journal/edit',scheme:'lh://journal/edit',  icon:'M5 4h11l3 3v13H5zM8 9h8M8 13h8M8 17h5'},
+  {id:'items',   label:'记物品', short:'物品',   route:'/items',      scheme:'lh://items/new',     icon:'M3 8l9-5 9 5-9 5-9-5ZM3 8v8l9 5 9-5V8'},
+  {id:'today',   label:'回今天页', short:'今天',  route:'/',           scheme:'lh://today',         icon:'M3 11l9-8 9 8M5 10v10h14V10'}
+];
+const DEFAULT_MENU=['inbox','todo','ledger','habit'];   /* 默认 4 枚（§2.0） */
+const MENU_MAX=4;                                        /* 系统硬限 4（§4.1） */
+let menuSel=DEFAULT_MENU.slice();
+
+/* ---------- 桌面图标（示意） ---------- */
+const DESK_ICONS=[
+  {app:'相机',   d:'M4 8h3l1.5-2h7L17 8h3v11H4zM12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z'},
+  {app:'音乐',   d:'M9 18V6l10-2v12M9 18a2.6 2.6 0 1 1-5 0 2.6 2.6 0 0 1 5 0ZM19 16a2.6 2.6 0 1 1-5 0 2.6 2.6 0 0 1 5 0Z'},
+  {app:'日历',   d:'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4'},
+  {app:'设置',   d:'M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4ZM19.4 13a7.7 7.7 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7.7 7.7 0 0 0-1.7-1L14.9 3h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1L6.4 7.5l-2 3.4L6.4 12a7.7 7.7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.4 1 2-3.4Z'},
+  {app:'LifeHarness', lh:true, d:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3.2 2'},
+  {app:'文件',   d:'M6 3h8l4 4v14H6zM14 3v4h4'},
+  {app:'天气',   d:'M7 17a4.2 4.2 0 0 1 .4-8.4 5.6 5.6 0 0 1 10.6 1.6A3.6 3.6 0 0 1 17.4 17Z'},
+  {app:'地图',   d:'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2ZM9 4v14M15 6v14'}
+];
+const DOCK_ICONS=[
+  {app:'电话',   d:'M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2.2 2A17 17 0 0 1 3 6.2 2 2 0 0 1 5 4Z'},
+  {app:'信息',   d:'M4 5h16v12H9l-5 4z'},
+  {app:'浏览器', d:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3.6 9h16.8M3.6 15h16.8M12 3c-4 4.5-4 13.5 0 18 4-4.5 4-13.5 0-18Z'},
+  {app:'相册',   d:'M4 5h16v14H4zM4 15l4.5-5 4 4 3-3L20 15M9 9.5a1.3 1.3 0 1 1-2.6 0 1.3 1.3 0 0 1 2.6 0Z'}
+];
+const svg=(d,cls)=>'<svg class="'+(cls||'w-7 h-7')+'" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="'+d+'"/></svg>';
+
+function renderDesk(){
+  const g=document.getElementById('deskGrid');
+  g.innerHTML=DESK_ICONS.map(function(it){
+    return '<button class="desk-ic" '+(it.lh?'id="deskLhIcon" onclick="toggleLpMenu()"':'')+'>'+
+      '<span class="tile'+(it.lh?' held':'')+'" '+(it.lh?'id="deskLhTile"':'')+'>'+svg(it.d,'w-7 h-7')+'</span>'+
+      '<span class="lb">'+it.app+'</span></button>';
+  }).join('');
+  const d=document.getElementById('deskDock');
+  d.innerHTML=DOCK_ICONS.map(function(it){
+    return '<button class="desk-ic" onclick="toast(\''+it.app+'（系统应用，示意）\')">'+
+      '<span class="tile" style="width:44px;height:44px;border-radius:12px">'+svg(it.d,'w-6 h-6')+'</span></button>';
+  }).join('');
+}
+function toggleLpMenu(){
+  const m=document.getElementById('lpMenu');
+  m.classList.toggle('hidden');
+  const held=document.getElementById('deskLhIcon');
+  if(held) held.querySelector('.tile').classList.toggle('held',!m.classList.contains('hidden'));
+}
+
+/* ---------- 长按菜单（4 枚 · §4.1） ---------- */
+function actById(id){ for(var i=0;i<ACTIONS.length;i++) if(ACTIONS[i].id===id) return ACTIONS[i]; return null; }
+function menuRowsHTML(){
+  return menuSel.map(function(id){
+    const a=actById(id);
+    return '<div class="row" onclick="fireAction(\''+a.id+'\')">'+svg(a.icon,'')+'<span>'+a.short+'</span></div>';
+  }).join('');
+}
+function renderMenu(){
+  document.getElementById('lpRows').innerHTML=menuRowsHTML();
+  document.getElementById('menuRows').innerHTML=menuRowsHTML();
+  const c=document.getElementById('menuCount'); if(c) c.textContent=menuSel.length;
+}
+function fireAction(id){
+  const a=actById(id);
+  toast(a.label+' · '+a.route+'（'+a.scheme+'）· 冷启动直达无中间页');
+}
+
+/* ---------- 动作表（§2.0 全表，含带参等级 C18） ---------- */
+const GRADE={inbox:'写入类·只预填',todo:'写入类·只预填',journal:'写入类·只预填',
+             ledger:'写入类·只预填',items:'写入类·只预填',habit:'写入类·只预填',today:'导航类·可直接'};
+function renderTable(){
+  const box=document.getElementById('menuTable');
+  box.innerHTML=ACTIONS.map(function(a){
+    const on=menuSel.indexOf(a.id)>=0;
+    return '<div class="flex items-center gap-2 py-2" style="border-top:1px solid var(--card-bd)">'+
+      '<span style="color:var(--accent);display:flex">'+svg(a.icon,'w-4 h-4')+'</span>'+
+      '<b style="font-size:12px">'+a.label+'</b>'+
+      '<span class="text-[10px] text-slate-400 font-mono" style="margin-left:auto">'+a.scheme+'</span>'+
+      '<span class="text-[10px] '+(on?'text-brand-500 font-bold':'text-slate-400')+'">'+(on?'菜单内':'未选')+'</span>'+
+      '<span class="text-[10px] text-slate-400">'+GRADE[a.id]+'</span></div>';
+  }).join('');
+}
+
+/* ---------- 上限拦截演示（§4.1 第 5 项置灰 + 一行提示） ---------- */
+function renderLimit(){
+  const box=document.getElementById('limitBox');
+  const hint=document.getElementById('limitHint');
+  box.innerHTML=ACTIONS.map(function(a){
+    const on=menuSel.indexOf(a.id)>=0;
+    const full=menuSel.length>=MENU_MAX&&!on;
+    return '<button '+(full?'disabled':'onclick="toggleSel(\''+a.id+'\')"')+
+      ' class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold" style="border:1px solid '+(on?'var(--accent)':'var(--card-bd)')+
+      ';color:'+(on?'var(--accent)':'#94a3b8')+';opacity:'+(full&&!on?'.5':'1')+'">'+
+      a.label+(on?' ✓':'')+'</button>';
+  }).join('');
+  hint.classList.toggle('hidden',menuSel.length<MENU_MAX);
+}
+function toggleSel(id){
+  const i=menuSel.indexOf(id);
+  if(i>=0){ menuSel.splice(i,1); }
+  else{
+    if(menuSel.length>=MENU_MAX){ toast('长按菜单最多 4 个，更多入口请「铺到桌面」'); return; }
+    menuSel.push(id);
+  }
+  renderMenu(); renderTable(); renderLimit();
+}
+
+/* ---------- 壳层（setPage / navTo / goBack / toast；与 index.html 同源口径，专版本地实现） ---------- */
+const $=s=>(document).querySelector(s), $$=s=>Array.from((document).querySelectorAll(s));
+let curPage='dt-desk'; const stack=[]; let toastTimer;
+const TITLES={
+  'dt-desk':['桌面','系统桌面示意 · 长按菜单与两枚小部件'],
+  'dt-menu':['长按图标菜单','4 枚 · 动作表为唯一来源'],
+  'dt-widget':['小组件规格','2×2 今日概览 / 4×1 快捷记录'],
+  'dt-map':['设置页与桌面','三卡 ↔ 三处落点']
+};
+function setPage(p){
+  const el=document.getElementById(p); if(!el){toast('屏 '+p+' 未在本专版内');return;}
+  $$('.page').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active'); el.scrollTop=0;
+  const t=TITLES[p]||['桌面','']; $('#pageTitle').textContent=t[0]; $('#pageSub').textContent=t[1];
+  const bb=$('#btnBack'); if(bb){bb.classList.toggle('hidden',!stack.length);bb.classList.toggle('flex',!!stack.length);}
+  curPage=p;
+}
+function navTo(p){ if(p===curPage)return; if(!document.getElementById(p)){toast('屏 '+p+' 未在本专版内');return;} stack.push(curPage); setPage(p); }
+function goBack(){ if(stack.length){ setPage(stack.pop()); return; } setPage('dt-desk'); }
+function toast(msg){
+  const t=$('#toast'); if(!t)return;
+  t.textContent=msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2600);
+}
+
+/* ---------- 启动 ---------- */
+renderDesk(); renderMenu(); renderTable(); renderLimit();
+</script>
+</body>
+</html>

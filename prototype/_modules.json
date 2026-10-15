@@ -272,6 +272,25 @@
         "WebDAV"
       ],
       "rep": null
+    },
+    {
+      "id": "desktop",
+      "name": "桌面与快捷方式",
+      "file": "index-desktop.html",
+      "req": "V1.0",
+      "status": "current",
+      "dev": "notStarted",
+      "aliases": [
+        "桌面",
+        "桌面与快捷方式",
+        "快捷方式",
+        "小组件",
+        "长按菜单",
+        "铺到桌面",
+        "小部件"
+      ],
+      "rep": "dt-desk",
+      "note": "2026-10-15 新建专版（产品令：桌侧面也进高保真原型）。四屏＝桌面全貌 dt-desk／长按菜单 dt-menu／小组件规格 dt-widget／设置页与桌面关系 dt-map；App 内设置屏 p-sub-desktop 家仍在壳 index.html（共享面，不迁）。冻结档＝docs/handoff/桌面模块-冻结版开发方案-20261013.md；闸＝tools/dtcheck.js"
     }
   ],
   "screens": [
@@ -4327,6 +4346,62 @@
         "index.html": {
           "size": 939,
           "hash": "08dff58e"
+        }
+      }
+    },
+    {
+      "id": "dt-desk",
+      "kind": "screen",
+      "title": "桌面全貌（示意）",
+      "home": "index-desktop.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-desktop.html": {
+          "size": 2287,
+          "hash": "85bb87ad"
+        }
+      }
+    },
+    {
+      "id": "dt-menu",
+      "kind": "screen",
+      "title": "长按图标菜单",
+      "home": "index-desktop.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-desktop.html": {
+          "size": 1661,
+          "hash": "06687e5a"
+        }
+      }
+    },
+    {
+      "id": "dt-widget",
+      "kind": "screen",
+      "title": "小组件规格",
+      "home": "index-desktop.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-desktop.html": {
+          "size": 5042,
+          "hash": "b87dfce4"
+        }
+      }
+    },
+    {
+      "id": "dt-map",
+      "kind": "screen",
+      "title": "设置页与桌面关系",
+      "home": "index-desktop.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-desktop.html": {
+          "size": 4236,
+          "hash": "3fafac22"
         }
       }
     }
