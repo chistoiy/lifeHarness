@@ -1,6 +1,6 @@
 {
   "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。 【size/hash 两列的口径与盲区（2026-10-05 实测）】size＝`tools/pslice.js` 取块字符数，随内容变、可信；hash＝登记时写的 md5 前 8 位，但**算法不统一**：255 条里 146 条可用「pslice 块 md5[:8]」复现、122 条 size 相同而 hash 复现不了（登记侧块边界/归一不同）、34 条 size 已随内容漂移、380 处登记的块在文件里已不存在（越权副本删除所致）。`tools/protogate.py` 只校验归属/登记/别名/勿复活。【2026-10-06 已收口】统一口径＝`tools/proto_registry.js`（块＝pslice 口径：外层块**不跳过**内层 id，页内弹层照收；size＝块字符数；hash＝块 md5[:8]），已按此重算全表并剪掉块已不存在的登记（256→243 屏 · 682→305 file 条目 · 全部可复现）；`--check` 已接进 `tools/doclint.py`，改过原型屏后不重算即红灯（篡改一处 hash / 屏改 id 两刀变异各自判红）。改完原型跑：`node tools/proto_registry.js --write`。",
-  "updated": "2026-10-12",
+  "updated": "2026-10-15",
   "gateMode": "strict",
   "cutPolicy": {
     "placeholder": false,
@@ -1292,8 +1292,8 @@
       "status": "shared",
       "files": {
         "index.html": {
-          "size": 31600,
-          "hash": "7adb456b"
+          "size": 32500,
+          "hash": "73501016"
         }
       }
     },
@@ -4271,6 +4271,62 @@
         "index-bookshelf.html": {
           "size": 5406,
           "hash": "9325f5ba"
+        }
+      }
+    },
+    {
+      "id": "p-sub-nfc",
+      "kind": "screen",
+      "title": "NFC 卡片",
+      "home": "index.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index.html": {
+          "size": 1859,
+          "hash": "25bba2f1"
+        }
+      }
+    },
+    {
+      "id": "sheetNfcEdit",
+      "kind": "sheet",
+      "title": "",
+      "home": "index.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index.html": {
+          "size": 1851,
+          "hash": "6ce7fe5e"
+        }
+      }
+    },
+    {
+      "id": "sheetNfcWrite",
+      "kind": "sheet",
+      "title": "",
+      "home": "index.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index.html": {
+          "size": 2310,
+          "hash": "b4ba48b2"
+        }
+      }
+    },
+    {
+      "id": "sheetNfcDel",
+      "kind": "sheet",
+      "title": "",
+      "home": "index.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index.html": {
+          "size": 939,
+          "hash": "08dff58e"
         }
       }
     }
