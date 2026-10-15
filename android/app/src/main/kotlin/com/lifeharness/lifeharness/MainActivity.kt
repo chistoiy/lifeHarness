@@ -3,6 +3,7 @@ package com.lifeharness.lifeharness
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -228,10 +229,11 @@ class MainActivity : FlutterActivity() {
                 }
                 "requestPinShortcut" -> {
                     val scheme = call.argument<String>("scheme")
-                    if (scheme.isNullOrEmpty()) {
+                    val actionId = call.argument<String>("action")
+                    if (scheme.isNullOrEmpty() || actionId.isNullOrEmpty()) {
                         result.success(false)
                     } else {
-                        result.success(requestPin(scheme))
+                        result.success(requestPin(actionId, scheme))
                     }
                 }
                 "isPinSupported" -> {
@@ -785,7 +787,14 @@ class MainActivity : FlutterActivity() {
 
     /** 解析并入队一条 `lh://` 意图（B15：入队不丢弃，等 Dart 首帧后取）。 */
     private fun enqueueLaunch(uri: Uri) {
-        var seg = uri.path.orEmpty().trim()
+        // ⚠ URI 分解口径（V1.67 热修 · 真机伤）：`lh://<ns>/<key>` 里 **`ns` 落在
+        //   authority(host)**，只有 `<key>` 落在 path —— 只取 `uri.path` 会得到 "/add"
+        //   （ns 整个丢掉）⇒ ns 校验必失败 ⇒ 意图被静默丢弃 ⇒ 四路点击全落回首页。
+        //   归一化寻址段＝ host ＋ path（host 空时回落 path，兼容 `lh:/ledger/add`）。
+        //   与 Dart 侧 `desktop_actions.launchSegOf` 同口径（守护 desktop_intent_shape_test）。
+        val host = uri.host.orEmpty()
+        var seg = if (host.isEmpty()) uri.path.orEmpty() else host + uri.path.orEmpty()
+        seg = seg.trim()
         while (seg.startsWith("/")) seg = seg.substring(1)
         if (seg.isEmpty()) return
         val ns = seg.substringBefore('/')
@@ -843,6 +852,7 @@ class MainActivity : FlutterActivity() {
                 ShortcutInfo.Builder(this, "lh_$id")
                     .setShortLabel(label)
                     .setLongLabel(label)
+                    .setIcon(lhIcon(id))
                     .setIntent(launchIntent(sc))
                     .build()
             )
@@ -855,15 +865,21 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /** 铺到桌面（固定快捷方式，不限量）；不支持返回 false（B2 由设置页禁用按钮）。 */
-    private fun requestPin(scheme: String): Boolean = try {
+    /** 铺到桌面（固定快捷方式，不限量）；不支持返回 false（B2 由设置页禁用按钮）。
+     *
+     *  ⚠ 标签必须取**该动作自己**的短标签（[LH_LABELS]，与长按菜单同源）——
+     *  曾写死 `LH_LABELS["today"]`，导致铺「记一笔」的桌面图标也显示「今天」。
+     *  守卫：`desktop_intent_shape_test`（原生源码断言）。
+     */
+    private fun requestPin(actionId: String, scheme: String): Boolean = try {
         val sm = shortcutManager()
         if (sm == null || !sm.isRequestPinShortcutSupported) {
             false
         } else {
             sm.requestPinShortcut(
-                ShortcutInfo.Builder(this, "lh_pin_${System.currentTimeMillis()}")
-                    .setShortLabel(LH_LABELS["today"] ?: "lifeHarness")
+                ShortcutInfo.Builder(this, "lh_pin_${actionId}_${System.currentTimeMillis()}")
+                    .setShortLabel(LH_LABELS[actionId] ?: "lifeHarness")
+                    .setIcon(lhIcon(actionId))
                     .setIntent(launchIntent(scheme))
                     .build(),
                 null,
@@ -891,6 +907,26 @@ class MainActivity : FlutterActivity() {
         "items" to "物品",
         "today" to "今天",
     )
+
+    /**
+     * 快捷方式图标（按动作取；字形取自原型 `ACTIONS[].icon`，见 res/drawable/ic_lh_*.xml）。
+     *
+     * ⚠ 必须逐动作设置：不设 `setIcon` 时系统一律回落到应用图标 ⇒ 长按菜单 4 枚图标全一样
+     * （V1.67 真机报障）。守卫：`desktop_intent_shape_test`（原生源码断言 `LH_ICONS[id]`）。
+     */
+    private val LH_ICONS = mapOf(
+        "inbox" to R.drawable.ic_lh_inbox,
+        "todo" to R.drawable.ic_lh_todo,
+        "ledger" to R.drawable.ic_lh_ledger,
+        "habit" to R.drawable.ic_lh_habit,
+        "journal" to R.drawable.ic_lh_journal,
+        "items" to R.drawable.ic_lh_items,
+        "today" to R.drawable.ic_lh_today,
+    )
+
+    /** 取某动作的快捷方式图标；表外/取不到回落应用图标（不崩）。 */
+    private fun lhIcon(id: String): Icon =
+        Icon.createWithResource(this, LH_ICONS[id] ?: R.mipmap.ic_launcher)
 
     /// 返回语义（Dart 侧 core/platform/open_intent.dart 同约定）：
     /// null ＝ 没有待处理文件；map kind="" ＝ 收到不支持的类型；

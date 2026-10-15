@@ -30,6 +30,7 @@ class DesktopAction {
     required this.scheme,
     required this.grade,
     required this.ns,
+    required this.fullScreen,
   });
 
   /// 动作 id（同时是 `setDynamicShortcuts` / `requestPinShortcut` 的稳定键）。
@@ -52,6 +53,17 @@ class DesktopAction {
 
   /// 所属 ns（取自 [kDesktopNamespaces]，禁散落字面量 · C19）。
   final String ns;
+
+  /// 目标是否为**全屏栈路由**（无底栏，注册在 `<模块>PageRoutes()` 里）。
+  ///
+  /// **消费端的导航语义由此决定**（V1.67 真机伤）：全屏栈路由必须用 `push`
+  /// ——`go` 会把栈底那条壳页一并换掉，页内 `Navigator.pop()` 无处可去 ⇒
+  /// **返回黑屏且退不出去**（真机报障：从快捷方式进日记编辑页后返回黑屏）。
+  /// 壳内路由（注册在 `<模块>ShellRoutes()` 里，等价底栏 tab）用 `go`，栈顶唯一。
+  ///
+  /// 取值不得手写猜：由 `desktop_actions_test` 与**真实路由表**交叉核对
+  /// （`*ShellRoutes()` / `*PageRoutes()` 的 path 集合）。
+  final bool fullScreen;
 }
 
 /// `lh://` 的 ns 常量表（C19/B17）。
@@ -71,6 +83,9 @@ const Set<String> kDesktopNamespaces = <String>{
   'nfc',
 };
 
+/// 自有 scheme（V1.67）。原生侧常量 [`LH_SCHEME`]，禁用第二处字面量。
+const String kLhScheme = 'lh';
+
 /// 未知 path 的兜底路由名（B4）。
 const String kUnknownRouteFallback = 'unknownRouteFallback';
 
@@ -86,6 +101,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://inbox/new',
     grade: LaunchArgGrade.writePrefill,
     ns: 'inbox',
+    fullScreen: false,
   ),
   DesktopAction(
     id: 'todo',
@@ -95,6 +111,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://todo/new',
     grade: LaunchArgGrade.writePrefill,
     ns: 'todo',
+    fullScreen: false,
   ),
   DesktopAction(
     id: 'ledger',
@@ -104,6 +121,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://ledger/add',
     grade: LaunchArgGrade.writePrefill,
     ns: 'ledger',
+    fullScreen: true, // /ledger/add 注册在 ledgerPageRoutes()——全屏栈路由
   ),
   DesktopAction(
     id: 'habit',
@@ -113,6 +131,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://habit/check',
     grade: LaunchArgGrade.writePrefill,
     ns: 'habit',
+    fullScreen: false,
   ),
   DesktopAction(
     id: 'journal',
@@ -122,6 +141,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://journal/edit',
     grade: LaunchArgGrade.writePrefill,
     ns: 'journal',
+    fullScreen: true, // /journal/edit 注册在 journalPageRoutes()——全屏栈路由
   ),
   DesktopAction(
     id: 'items',
@@ -131,6 +151,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://items/new',
     grade: LaunchArgGrade.writePrefill,
     ns: 'items',
+    fullScreen: false,
   ),
   DesktopAction(
     id: 'today',
@@ -140,6 +161,7 @@ const List<DesktopAction> kDesktopActions = <DesktopAction>[
     scheme: 'lh://today',
     grade: LaunchArgGrade.nav,
     ns: 'today',
+    fullScreen: false,
   ),
 ];
 
@@ -192,14 +214,16 @@ Uri desktopLaunchUri(String actionId, {Map<String, String>? args}) {
   return Uri.parse(a.scheme).replace(queryParameters: <String, String>{...args});
 }
 
-/// 解析 `lh://<ns>/<key>[/<arg>…]` 的 **path 段**（如 `ledger/add`）→ 动作 id（C38/C19·L1 解析）。
+/// 解析 `lh://<ns>/<key>[/<arg>…]` 的**归一化寻址段**（如 `ledger/add`）→ 动作 id
+/// （C38/C19·L1 解析）。
+///
+/// ⚠ [path] 传的是**归一化寻址段**（`ledger/add`，不带 scheme/authority），
+/// **不是 `Uri.path`**——两者不是一回事，见 [launchSegOf]。
 ///
 /// 三级判定（B17/B4/B5）：
-/// 1. ns（path 首段）不在 [kDesktopNamespaces] → null（表外 ns 按未知 path 走 `unknownRouteFallback`）；
+/// 1. ns（段首）不在 [kDesktopNamespaces] → null（表外 ns 按未知 path 走 `unknownRouteFallback`）；
 /// 2. `nfc/<cardId>` → 返回 `'nfc:<cardId>'`（**原样透传不解释**，业务含义归 NFC 模块）；
-/// 3. 整段 path 查 [kLaunchPathWhitelist] → 命中给动作 id，未命中给 null。
-///
-/// [path] 传完整 path 段（`ledger/add`），**不带前导斜杠**——与 `Uri.path.trimStart('/')` 等价。
+/// 3. 整段查 [kLaunchPathWhitelist] → 命中给动作 id，未命中给 null。
 String? resolveLaunchPath(String path) {
   var seg = path.trim();
   while (seg.startsWith('/')) {
@@ -216,6 +240,37 @@ String? resolveLaunchPath(String path) {
   return kLaunchPathWhitelist[seg];
 }
 
+/// 从一条 `lh://<ns>/<key>` URI 提取**归一化寻址段**（`ns/key`）。
+///
+/// **本函数是「URI 分解口径」的唯一真源**（V1.67 热修）。按 RFC 3986，`lh://` 之后的
+/// 首段是 **authority（host）**：`ns` 落在 `host`、`key` 落在 `path`。所以
+///
+/// ```dart
+/// Uri.parse('lh://ledger/add').path   // ⇒ '/add'（ns 丢了！）
+/// Uri.parse('lh://ledger/add').host   // ⇒ 'ledger'
+/// launchSegOf(Uri.parse('lh://ledger/add')) // ⇒ 'ledger/add' ✓
+/// ```
+///
+/// **只取 `Uri.path` 是 V1.67 真机伤**：ns 校验必失败 ⇒ 意图被静默丢弃 ⇒ 长按菜单／
+/// 铺桌面／小组件／外部 `lh://` 四路点击全部落回首页。原生 `MainActivity.enqueueLaunch`
+/// 必须按同一口径拼接 `host + path`（守护 `desktop_intent_shape_test`：Dart 侧钉口径、
+/// 原生侧钉实现）。
+String launchSegOf(Uri uri) {
+  final host = uri.host;
+  final raw = host.isEmpty ? uri.path : '$host${uri.path}';
+  var seg = raw.trim();
+  while (seg.startsWith('/')) {
+    seg = seg.substring(1);
+  }
+  return seg;
+}
+
+/// 直接解析一条 `lh://…` URI → 动作 id（[launchSegOf] ＋ [resolveLaunchPath]）。
+///
+/// 非 [`kLhScheme`] / 段空 / 表外 ns / 白名单未命中 → null。
+String? resolveLaunchUri(Uri uri) =>
+    uri.scheme == kLhScheme ? resolveLaunchPath(launchSegOf(uri)) : null;
+
 /// 一条待投递的启动路由（L3 消费单元）。
 class LaunchRoute {
   const LaunchRoute({required this.action, this.args = const <String, String>{}});
@@ -227,6 +282,9 @@ class LaunchRoute {
   final Map<String, String> args;
 
   bool get isNfc => action.startsWith('nfc:');
+
+  /// 目标是否全屏栈路由 ⇒ 消费端必须 `push`（见 [DesktopAction.fullScreen]）。
+  bool get fullScreen => desktopActionOf(action)?.fullScreen ?? false;
 
   /// 目标路由：动作 id 查表；查不到走兜底（B4）。
   String get route {

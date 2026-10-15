@@ -1,5 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lifeharness/core/platform/desktop_actions.dart';
+import 'package:lifeharness/features/dashboard/presentation/dashboard_routes.dart';
+import 'package:lifeharness/features/habit/presentation/habit_routes.dart';
+import 'package:lifeharness/features/inbox/presentation/inbox_routes.dart';
+import 'package:lifeharness/features/items/presentation/items_routes.dart';
+import 'package:lifeharness/features/journal/presentation/journal_routes.dart';
+import 'package:lifeharness/features/ledger/presentation/ledger_routes.dart';
+import 'package:lifeharness/features/todo/presentation/todo_routes.dart';
 
 /// 动作表守护（冻结档 §6.4 · `test/desktop_actions_test.dart`）。
 ///
@@ -97,6 +105,57 @@ void main() {
             isTrue,
             reason: '${a.id} scheme 与 ns 不自洽：${a.scheme} vs ${a.ns}');
       }
+    });
+  });
+
+  group('全屏栈标记 fullScreen（V1.67 真机伤·返回黑屏的取值依据）', () {
+    test('与真实路由表交叉核对：注册在 *PageRoutes() ⇒ fullScreen', () {
+      // 期望值来自**路由表本身**（不是从实现反推）：壳内路由在 *ShellRoutes()、
+      // 全屏栈路由在 *PageRoutes()。标记写错 ⇒ 深链用 go 掉栈底的壳页 ⇒
+      // 页内 pop 无处可去 ⇒ 返回黑屏且退不出去（真机报障·日记编辑页）。
+      final shell = <String>{
+        for (final r in <GoRoute>[
+          ...dashboardShellRoutes(),
+          ...inboxShellRoutes(),
+          ...todoShellRoutes(),
+          ...habitShellRoutes(),
+          ...itemsShellRoutes(),
+          ...journalShellRoutes(),
+          ...ledgerShellRoutes(),
+        ])
+          r.path,
+      };
+      final page = <String>{
+        for (final r in <GoRoute>[
+          ...journalPageRoutes(),
+          ...ledgerPageRoutes(),
+        ])
+          r.path,
+      };
+      for (final a in kDesktopActions) {
+        expect(shell.contains(a.path) || page.contains(a.path), isTrue,
+            reason: '${a.id} 的目标 ${a.path} 在路由表里找不到');
+        expect(a.fullScreen, page.contains(a.path),
+            reason: '${a.id}（${a.path}）fullScreen 必须等于「注册在 *PageRoutes()」');
+        expect(a.fullScreen, isNot(shell.contains(a.path)),
+            reason: '${a.id} 壳内路由不得标全屏');
+      }
+      // 冻结事实：本批只有记一笔与写日记是全屏栈路由（各自 `context.go` / `pop` 语义不同）。
+      expect(
+          kDesktopActions
+              .where((a) => a.fullScreen)
+              .map((a) => a.id)
+              .toSet(),
+          <String>{'ledger', 'journal'});
+    });
+
+    test('LaunchRoute.fullScreen 由动作表派生（未知动作回落 false）', () {
+      for (final a in kDesktopActions) {
+        expect(LaunchRoute(action: a.id).fullScreen, a.fullScreen,
+            reason: '${a.id} 派生值必须与动作表一致');
+      }
+      expect(LaunchRoute(action: 'ghost').fullScreen, isFalse,
+          reason: '未知动作走兜底，不得按全屏 push');
     });
   });
 }

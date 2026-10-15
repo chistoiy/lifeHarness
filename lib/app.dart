@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import 'core/platform/open_intent.dart'
 import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
+import 'shared/linkage/desktop_mounts.dart';
 import 'shared/linkage/habit_mounts.dart';
 import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
@@ -108,7 +111,16 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
         return;
       }
       // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。
-      GoRouter.of(navCtx).go(route.route);
+      final router = GoRouter.of(navCtx);
+      if (route.fullScreen) {
+        // 全屏栈路由（/journal/edit、/ledger/add）：**必须 push**。
+        // `go` 会把栈底那条壳页一并换掉 ⇒ 页内 `Navigator.pop()` 无处可去 ⇒
+        // 返回黑屏且退不出去（V1.67 真机报障：快捷方式进日记编辑页后返回黑屏）。
+        unawaited(router.push(route.route));
+      } else {
+        // 壳内路由（等价点底栏 tab）：`go` 让栈顶唯一、底栏高亮正确。
+        router.go(route.route);
+      }
     } finally {
       _launchConsuming = false;
     }
@@ -143,6 +155,9 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     ref.watch(journalLinkageProvider);
     // 记账批2d §5：周期账单 App 启动到期扫尾（一次性静默生成，无常驻 Timer）。
     ref.watch(ledgerRecurMountProvider);
+    // 桌面批1（C2/B1/F1-2）：首启以默认 4 枚初始化动态快捷方式——不这么做，
+    // 新装用户不打开「设置→桌面与快捷方式」就永远没有长按菜单。
+    ref.watch(desktopShortcutSeedProvider);
     return MaterialApp.router(
       title: 'LifeHarness',
       debugShowCheckedModeBanner: false,
