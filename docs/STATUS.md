@@ -3,8 +3,8 @@
 > 状态变化只改本文件；历史时点沉 `docs/交接文档.md` 文末变更日志。本文不钉具体 HEAD sha（防漂移），看 `git log --oneline -3`。
 > 体量口径（2026-10-08 立·2026-10-14 并入体量治理）：硬闸＝doclint 守护七调 `python tools/status_set.py --check`（单行 ≤1200 字符·全文 ≤14KiB·批次叙事只留「本批／上一批」两级且正文各 ≤400 字符）；**黄线＝上限 90%，到线即当轮瘦身；上限随瘦身棘轮只降不升**（口径＝`AGENTS.md`「文档体量治理」）。溢出细节留 `docs/handoff/` 工单、历史整段沉 `docs/archive/`；收尾改本文件一律走 `tools/status_set.py`（`--rotate`→`--set 本批 --text-file`），禁止在同一行追加历史。瘦身前全文＝`docs/archive/STATUS沉档-20261008-瘦身前全文.md`；治理口径＝`docs/archive/治理方案-20261013-规则与上下文与记忆治理.md`（已闭档）。
 
-- **本批＝** 桌面模块开工＋NFC 卡片立项（产品令）：桌面移出排期池并开工，规格＝`docs/handoff/桌面模块-冻结版开发方案-20261013.md`（已同步 V3 寻址契约·本地 C15–C19/B15–B17＋§前置 A.3·405→498 行），前置门只余「桌面样张过门」；新需求模块 19「NFC 卡片」出冻结方案＝`docs/handoff/NFC卡片模块-冻结版开发方案-20261015.md`（裁决 38·边界 43·四目标 toggle·标签只存编号），硬前置＝桌面 `lh://` 底座。原型 `p-sub-nfc`＋三弹层＋「我的」入口行已补，新闸 `tools/nfc_proto_check.js` 14/14·protogate 违例 0·注册表 CLEAN·doclint 全绿。零 Dart／零 android。
 - **上一批＝** 批3 收口（装机 8138/8139）：真机门 backlog 补走完（自定义档就地滚轮·自定义区间真导 162/164 行·区间外 2 行正确剔除，与上轮「164 行全保留」构成筛多/筛少双向闭环·非法区间出琥珀提示＋主钮禁用）＋配色回归（滚轮容器底误用 `tokens.g1`＝主题主色变量，叠加主色字致对比度崩，已改 `tokens.cardBorder`）。批3 全段收口。
+- **本批＝** 桌面模块批1 落地（`lh://` 底座＋动态快捷方式＋设置页）：三 Dart 件（动作表/首帧后单次消费/原生桥）＋`MainActivity.kt` 两通道与 C15 唯一 Intent 出口＋Manifest `scheme="lh"`＋设置页 `/settings/desktop` 三卡（入口行拆同库 part）。闸全绿：analyze 零读数·KT-OK·新测 51 例·3 刀变异各红·dtcheck 35/0·protogate 0·registry CLEAN·doclint 全绿；回归 2 波既有红（HEAD 基线复现·非本批）。未出包攒批 ≥6137。细节＝`docs/handoff/桌面模块-冻结版开发方案-20261013.md` §6/§7。
 
 ## 基线（八项，其余不写）
 

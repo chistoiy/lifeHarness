@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core/ai/ai_review.dart' show aiRootNavKey;
+import 'core/platform/launch_route.dart'
+    show markLaunchRouteReady, takeLaunchRoute;
 import 'core/platform/open_intent.dart'
     show classifyOpenIntent, kOpenUnsupportedToast, takeOpenFile;
 import 'core/providers.dart';
@@ -32,6 +35,7 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     with WidgetsBindingObserver {
   bool _firstFrameDone = false;
   bool _consuming = false;
+  bool _launchConsuming = false;
 
   @override
   void initState() {
@@ -43,6 +47,10 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     // 冷启动：首帧后路由与根 Navigator 均已就绪，再消费入队意图。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFrameDone = true;
+      // 桌面批1（B15）：`lh://` 冷启动意图**先入队不丢弃**——门禁必须到首帧
+      // 完成后才开，否则这一取就把队列读空、意图永久丢失（判不合格）。
+      markLaunchRouteReady();
+      _consumeLaunchRoute();
       _consumeOpen();
       // 批B：冷启动经 ■结束 意图入队的场景，首帧即探一次悬浮窗事件。
       drainPillEvents(ref);
@@ -58,6 +66,7 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && _firstFrameDone) {
+      _consumeLaunchRoute(); // 桌面批1：热启动（singleTop onNewIntent）同路径消费
       _consumeOpen();
       // 批B：回前台时补消费一次悬浮窗事件（冷启动经 ■结束 意图入队的场景，
       // 同步器尚未起 tick 也要兜住）。
@@ -77,6 +86,31 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
       // 不等下一 tick：事件当场促重算一次（退后台瞬间推可见态＝前台起服务
       // 合法；也绕开「退后台后 tick 可能被系统挂起」的窗口）。
       ref.invalidate(sysPillSyncProvider);
+    }
+  }
+
+  /// 桌面批1 · `lh://` 启动路由消费（L3 单一消费端 · B15/B16）。
+  ///
+  /// **单次消费**：原生侧读到即清空，二次调用拿不到（防重放）。
+  /// **C18**：写入类带参只预填，提交仍须 App 内确认——本方法只负责 `go` 到目标路由，
+  /// 预填由目标页自己读偏好，不在此处拼提交。
+  /// **NFC 透传**：`nfc:<cardId>` 不解释业务，原样投给 NFC 模块（其 cardId 校验归它）。
+  Future<void> _consumeLaunchRoute() async {
+    if (_launchConsuming) return;
+    _launchConsuming = true;
+    try {
+      final route = await takeLaunchRoute();
+      if (route == null) return;
+      final navCtx = aiRootNavKey.value?.currentState?.context;
+      if (navCtx == null || !navCtx.mounted) return;
+      if (route.isNfc) {
+        // NFC 归属 NFC 模块批1；本批只保证不吞不炸（不解释 cardId）。
+        return;
+      }
+      // 目标路由查不到 → 走 unknownRouteFallback（B4），不抛 GoException。
+      GoRouter.of(navCtx).go(route.route);
+    } finally {
+      _launchConsuming = false;
     }
   }
 

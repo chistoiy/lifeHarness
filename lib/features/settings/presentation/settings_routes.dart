@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'ai_usage_page.dart';
 import 'backup_files_page.dart';
 import 'db_overview_page.dart';
+import 'desktop_settings_page.dart';
 import 'log_page.dart';
 import 'media_clean_page.dart';
 import 'notify_settings_page.dart';
@@ -55,6 +56,11 @@ List<GoRoute> settingsPageRoutes(
           GoRoute(
             path: '/settings/appearance',
             builder: (_, _) => const AppearanceSettingsPage(),
+          ),
+        // 桌面模块批1（原型 p-sub-desktop：长按菜单 / 铺到桌面 / 小组件）。
+          GoRoute(
+            path: '/settings/desktop',
+            builder: (_, _) => const DesktopSettingsPage(),
           ),
         // V1.29批A4 记录管理二级页（原型 p-sub-recmg：四段设置归位 + 通用）。
           GoRoute(

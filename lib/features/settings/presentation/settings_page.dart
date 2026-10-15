@@ -20,6 +20,10 @@ import '../../../shared/widgets/scroll_pad.dart';
 import '../../../shared/widgets/ui_kit.dart';
 import 'profile_edit_sheet.dart';
 
+// 桌面模块批1：设置主页「桌面与快捷方式」入口卡拆成同库件（体积预算治理 · 只许减不许增），
+// 私有成员 `_EntryCard`/`_EntryRow` 仍留在宿主，靠 part 共享 import 表与私有作用域。
+part 'settings_page_desktop.dart';
+
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/在册书籍/同步与提醒读数/安装包版本号。
 /// 2026-10-11 批A：行序与卡片分组回到原型（记录管理收回组卡、维护类三行移末段）；
@@ -187,20 +191,8 @@ class SettingsPage extends ConsumerWidget {
               title: '外观与交互',
               index: showIndex ? '03' : null,
               dim: dimLabel),
-          // V1.27 P2：主题风格/深色/主题色/字号 收进「外观」二级页，主页只留一行入口
-          _EntryCard(
-            flat: flat,
-            child: _EntryRow(
-                    key: const ValueKey('entry-appearance'),
-                    iconWidget: const Icon(Icons.palette_outlined,
-                        size: 18, color: Color(0xFF0EA5E9)),
-                    bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
-                    title: '外观',
-                    sub: '主题风格 · 深色模式 · 主题色 · 字体大小',
-                    trailing: '',
-                    last: true,
-                    onTap: () => context.push('/settings/appearance')),
-          ),
+          // 桌面模块批1 入口行（原型 p-profile 第 03 组 · F1-3）→ 同库件。
+          buildDesktopEntryGroup(context, flat: flat),
           const SizedBox(height: 12),
           // 底部导航自定义卡（原型「外观与交互」组内独立卡）
           _Card(

@@ -1,6 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../platform/desktop_actions.dart';
 import 'user_settings.dart';
+
+/// 默认 4 枚（转发动作表，避免本仓出现第二份「默认」定义）。
+List<String> defaultDesktopMenuIds() =>
+    List<String>.from(kDefaultMenuActionIds);
 
 /// 基于 shared_preferences 的设置存取（骨架阶段的存储接口层）。
 class SettingsRepository {
@@ -25,6 +30,16 @@ class SettingsRepository {
   static const _kNoteViewCols = 'lh.note_view_cols';
 
   static const _kWeatherCity = 'lh.weather_city';
+
+  // ===== 桌面模块批1（2026-10-15 · 冻结档 §2.1 F1-6）=====
+  // 三键：长按菜单勾选（逗号分隔动作 id）/ 铺到桌面已铺（同样逗号分隔）/ 小组件两开关＋隐藏金额。
+  // ⚠ **独立于 UserSettings**：桌面偏好不进「口径设置整包导出」（备份口径不含桌面入口，
+  //   换机后按默认 4 枚重建即可），故走独立读写口，**不动既有键**。
+  static const String kDeskMenuKey = 'desktop.menu';
+  static const String kDeskPinnedKey = 'desktop.pinned';
+  static const String kDeskWidgetSummaryKey = 'desktop.widget_summary';
+  static const String kDeskWidgetQuickKey = 'desktop.widget_quick';
+  static const String kDeskHideAmountKey = 'desktop.hide_amount';
 
   /// R14-12·我的页资料（本地模式无账号：昵称/签名只是偏好，不建表、不进业务备份口径）。
   static const _kProfileNick = 'lh.profile_nick';
@@ -157,4 +172,61 @@ class SettingsRepository {
   /// 前向兼容）。不触碰「有用户配置」判据之外的 prefs 键（备份提示串等
   /// 运行态不入此通道）。
   Future<void> importAll(Map<String, Object?> m) => save(UserSettings.fromMap(m));
+
+  // ===== 桌面模块批1（2026-10-15）· 桌面偏好独立读写口 =====
+  //
+  // 为什么不进 [UserSettings]：口径设置整包导出（备份 `config/settings.json`）
+  // 是「业务口径」，桌面入口属设备能力偏好，换机后按默认 4 枚重建即可，
+  // 进备份反而会让旧机布局污染新机。故**独立于 UserSettings，只加 desktop.* 键，
+  // 不动既有键**（冻结档 §6.1）。
+
+  /// 长按菜单勾选的动作 id（最多 [kMenuMax] 枚；空/缺键回落默认 4 枚）。
+  ///
+  /// 读回时做两道护栏：**去重** ＋ **截断到 4**（老版本或外部写入越界都不炸）。
+  List<String> loadDesktopMenu() {
+    final raw = _prefs.getString(kDeskMenuKey);
+    if (raw == null || raw.isEmpty) return defaultDesktopMenuIds();
+    final ids = raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .toList();
+    if (ids.isEmpty) return defaultDesktopMenuIds();
+    return ids.take(kMenuMax).toList();
+  }
+
+  Future<void> saveDesktopMenu(List<String> ids) =>
+      _prefs.setString(kDeskMenuKey, ids.take(kMenuMax).join(','));
+
+  /// 已铺到桌面的动作 id（不限量；与菜单勾选互不影响）。
+  Set<String> loadDesktopPinned() {
+    final raw = _prefs.getString(kDeskPinnedKey);
+    if (raw == null || raw.isEmpty) return <String>{};
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+  }
+
+  Future<void> saveDesktopPinned(Set<String> ids) =>
+      _prefs.setString(kDeskPinnedKey, (ids.toList()..sort()).join(','));
+
+  /// 2×2 今日概览小组件开关（默认开）。
+  bool loadDesktopWidgetSummary() =>
+      _prefs.getBool(kDeskWidgetSummaryKey) ?? true;
+  Future<void> saveDesktopWidgetSummary(bool v) =>
+      _prefs.setBool(kDeskWidgetSummaryKey, v);
+
+  /// 4×1 快捷记录小组件开关（默认开）。
+  bool loadDesktopWidgetQuick() =>
+      _prefs.getBool(kDeskWidgetQuickKey) ?? true;
+  Future<void> saveDesktopWidgetQuick(bool v) =>
+      _prefs.setBool(kDeskWidgetQuickKey, v);
+
+  /// 隐藏金额（B7/C8：开启时小组件金额位显示为 ••••，不泄露到桌面）。默认关。
+  bool loadDesktopHideAmount() => _prefs.getBool(kDeskHideAmountKey) ?? false;
+  Future<void> saveDesktopHideAmount(bool v) =>
+      _prefs.setBool(kDeskHideAmountKey, v);
 }

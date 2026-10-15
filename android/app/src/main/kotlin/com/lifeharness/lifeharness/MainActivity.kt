@@ -1,6 +1,8 @@
 package com.lifeharness.lifeharness
 
 import android.content.Intent
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -51,6 +53,11 @@ class MainActivity : FlutterActivity() {
     private var treeResult: MethodChannel.Result? = null
     private var filesResult: MethodChannel.Result? = null
 
+    // ---- 桌面模块批1（2026-10-15）：`lh://` 启动路由队列 ----
+    // 冷启动意图**先入队不丢弃**（B15）：handle() 在 configureFlutterEngine 之前就跑，
+    // 那时 Dart 还没起来；Dart 侧首帧完成后才 takeLaunchRoute 取一次。
+    private var pendingLaunch: MutableMap<String, Any?>? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 6133 热修：系统悬浮窗的显隐由原生自测「本进程有没有已 start 的
@@ -77,6 +84,14 @@ class MainActivity : FlutterActivity() {
         // 等 Dart 侧 takePillEvent 消费后开书摘新建页。
         if (intent.action == ACTION_PILL_NOTE) {
             pendingPillNote = intent.getStringExtra(EXTRA_PILL_KIND) ?: "read"
+            return
+        }
+        // 桌面模块批1：`lh://` 自有寻址（URL Scheme 与桌面快捷方式/小组件点击走同一分支；
+        // NFC 的 ACTION_NDEF_DISCOVERED 由系统另派发，其 data 仍是 lh:// URI，
+        // 解析口径同源 C36）。**必须在既有 content/file 分支之前判**——
+        // lh:// 不会被那些 filter 匹配，但先判能让未知 lh path 干净落兜底。
+        if (intent.action == Intent.ACTION_VIEW && intent.data?.scheme == LH_SCHEME) {
+            enqueueLaunch(intent.data!!)
             return
         }
         val uri: Uri? = when (intent.action) {
@@ -184,6 +199,50 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "takePillEvent" -> result.success(takePill())
+                else -> result.notImplemented()
+            }
+        }
+        // 桌面模块批1：`lh://` 启动路由单次消费（B15：首帧后 Dart 才取，
+        // 冷启动意图一直留在 pendingLaunch 里不丢）。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "lh/launch"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "takeLaunchRoute" -> result.success(takeLaunch())
+                else -> result.notImplemented()
+            }
+        }
+        // 桌面模块批1：动态快捷方式（长按菜单）＋ 铺到桌面。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "lh/desktop"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "syncShortcuts" -> {
+                    val ids = (call.argument<List<String>>("actions") ?: emptyList())
+                        .filter { LH_LABELS.containsKey(it) }
+                        .distinct()
+                        .take(LH_MENU_MAX)
+                    val schemes = (call.argument<List<String>>("schemes") ?: emptyList())
+                        .take(ids.size)
+                    result.success(syncShortcuts(ids, schemes))
+                }
+                "requestPinShortcut" -> {
+                    val scheme = call.argument<String>("scheme")
+                    if (scheme.isNullOrEmpty()) {
+                        result.success(false)
+                    } else {
+                        result.success(requestPin(scheme))
+                    }
+                }
+                "isPinSupported" -> {
+                    result.success(
+                        try {
+                            shortcutManager()?.isRequestPinShortcutSupported == true
+                        } catch (_: Exception) {
+                            false
+                        }
+                    )
+                }
                 else -> result.notImplemented()
             }
         }
@@ -690,7 +749,148 @@ class MainActivity : FlutterActivity() {
         /** 悬浮窗「＋笔记」动作（6135·app 内胶囊同款双按钮）。 */
         const val ACTION_PILL_NOTE = "com.lifeharness.pill.NOTE"
         const val EXTRA_PILL_KIND = "pillKind"
+
+        // ===== 桌面模块批1（2026-10-15）· 与 Dart 侧 desktop_actions.dart 同源 =====
+        /** 自有 scheme（Manifest 注册的就是它；禁第二处字面量）。 */
+        const val LH_SCHEME = "lh"
+
+        /**
+         * 白名单：`lh://<ns>/<key>` 的 path 段 → 动作 id。
+         * 与 Dart 侧 `kLaunchPathWhitelist` **逐条一致**（守护 desktop_scheme_parse_test /
+         * desktop_ns_registry_test）。一字不多；扩容只允许「加 ns」并回写冻结档（C19）。
+         */
+        private val LH_WHITELIST = mapOf(
+            "inbox/new" to "inbox",
+            "todo/new" to "todo",
+            "journal/edit" to "journal",
+            "ledger/add" to "ledger",
+            "items/new" to "items",
+            "habit/check" to "habit",
+            "today" to "today",
+        )
+
+        /** ns 常量表（C19/B17）；表外 ns 按未知 path 走 unknownRouteFallback。 */
+        private val LH_NS = setOf(
+            "inbox", "todo", "journal", "ledger", "items", "habit", "today", "nfc",
+        )
+
+        /** 长按菜单系统硬限 4（§4.1）；Dart 侧也截断，两边都兜。 */
+        private const val LH_MENU_MAX = 4
     }
+
+    // ===================== 桌面模块批1 · `lh://` 解析与投递 =====================
+    //
+    // 口径与 Dart 侧 `resolveLaunchPath` 逐条一致；**不在原生解释 nfc 业务**
+    // （C36：只解析出 cardId 并原样投过去，格式校验归 NFC 模块 B35）。
+
+    /** 解析并入队一条 `lh://` 意图（B15：入队不丢弃，等 Dart 首帧后取）。 */
+    private fun enqueueLaunch(uri: Uri) {
+        var seg = uri.path.orEmpty().trim()
+        while (seg.startsWith("/")) seg = seg.substring(1)
+        if (seg.isEmpty()) return
+        val ns = seg.substringBefore('/')
+        if (ns !in LH_NS) return // 表外 ns 静默丢弃（B17/C19：不当页面，不回显）
+        val action = if (ns == "nfc") {
+            val cardId = seg.substringAfter('/', "")
+            if (cardId.isEmpty()) return
+            "nfc:$cardId" // 原样透传，不解释
+        } else {
+            LH_WHITELIST[seg] ?: return // 未知 path → 静默（B4 兜底在 Dart 侧）
+        }
+        // 带参（B5：非数字面不参与判定，原样交给 Dart；敏感参数不写日志）
+        val args = HashMap<String, String>()
+        for (k in uri.queryParameterNames) {
+            val v = uri.getQueryParameter(k) ?: continue
+            args[k] = v
+        }
+        pendingLaunch = HashMap<String, Any?>().apply {
+            put("action", action)
+            put("args", args)
+        }
+    }
+
+    /**
+     * 单次消费（B15/B16）：读到即清空，防重放。
+     * 返回 null ＝ 无待处理；Dart 侧门禁未开时**不会调到这里**，队列仍在。
+     */
+    private fun takeLaunch(): Map<String, Any?>? {
+        val r = pendingLaunch
+        pendingLaunch = null
+        return r
+    }
+
+    /**
+     * C15 的 Intent 构造规则（全模块唯一出口，四路共用）：
+     * `ACTION_VIEW` ＋ `setData(lh://…)` ＋ `setClass` ＋ flags。
+     *
+     * ⚠ **禁只 setAction 不 setData**：Manifest 既有 5 组 content/file 打开方式 filter，
+     * 只带 action 的 Intent 会误匹配到它们（这正是当初关掉 embedding 深链的原因）。
+     */
+    private fun launchIntent(scheme: String): Intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse(scheme))
+            .setClass(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+    /** 设置页改动后重建动态快捷方式（长按菜单，最多 [LH_MENU_MAX] 枚）。 */
+    private fun syncShortcuts(actionIds: List<String>, schemes: List<String>): Int {
+        val n = actionIds.size.coerceAtMost(LH_MENU_MAX)
+        val shortcuts = ArrayList<ShortcutInfo>(n)
+        for (i in 0 until n) {
+            val id = actionIds[i]
+            val sc = schemes.getOrNull(i) ?: continue
+            val label = LH_LABELS[id] ?: continue
+            shortcuts.add(
+                ShortcutInfo.Builder(this, "lh_$id")
+                    .setShortLabel(label)
+                    .setLongLabel(label)
+                    .setIntent(launchIntent(sc))
+                    .build()
+            )
+        }
+        return try {
+            shortcutManager()?.setDynamicShortcuts(shortcuts)
+            shortcuts.size
+        } catch (_: Exception) {
+            0 // 设备不支持/ROM 限制：降级为无长按菜单，不崩
+        }
+    }
+
+    /** 铺到桌面（固定快捷方式，不限量）；不支持返回 false（B2 由设置页禁用按钮）。 */
+    private fun requestPin(scheme: String): Boolean = try {
+        val sm = shortcutManager()
+        if (sm == null || !sm.isRequestPinShortcutSupported) {
+            false
+        } else {
+            sm.requestPinShortcut(
+                ShortcutInfo.Builder(this, "lh_pin_${System.currentTimeMillis()}")
+                    .setShortLabel(LH_LABELS["today"] ?: "lifeHarness")
+                    .setIntent(launchIntent(scheme))
+                    .build(),
+                null,
+            )
+            true
+        }
+    } catch (_: Exception) {
+        false
+    }
+
+    /** ShortcutManager 取用统一出口（拿不到就降级，不抛）。 */
+    private fun shortcutManager(): ShortcutManager? = try {
+        getSystemService(ShortcutManager::class.java)
+    } catch (_: Exception) {
+        null
+    }
+
+    /** 长按菜单短标签（≤6 字，与 Dart 侧 shortLabel 同源）。 */
+    private val LH_LABELS = mapOf(
+        "inbox" to "速记",
+        "todo" to "待办",
+        "ledger" to "记一笔",
+        "habit" to "打卡",
+        "journal" to "日记",
+        "items" to "物品",
+        "today" to "今天",
+    )
 
     /// 返回语义（Dart 侧 core/platform/open_intent.dart 同约定）：
     /// null ＝ 没有待处理文件；map kind="" ＝ 收到不支持的类型；
