@@ -5,7 +5,8 @@
  * 每刀跑完按内存原文复原并校验 md5，禁 git checkout（会同文件卷走他批改动）。
  */
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), { spawnSync } = require('child_process');
-const HTML = path.resolve(__dirname, '..', 'prototype', 'index.html');
+/* 2026-10-16 批3：p-sub-aiVerify 迁 index-ai.html，变异靶文件随之改指向 */
+const HTML = path.resolve(__dirname, '..', 'prototype', 'index-ai.html');
 const orig = fs.readFileSync(HTML, 'utf8');
 const md5 = s => crypto.createHash('md5').update(s).digest('hex').slice(0, 8);
 const base = md5(orig);

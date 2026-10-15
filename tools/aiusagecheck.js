@@ -3,7 +3,8 @@
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), url = require('url');
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const FILE = path.resolve('prototype/index.html');
+/* 2026-10-16 批3：p-aiUsage 迁 index-ai.html，被测文件随之改指向 */
+const FILE = path.resolve('prototype/index-ai.html');
 const URLF = url.pathToFileURL(FILE).href;
 const PORT = Number(process.env.AIU_PORT || 9561);
 const SHOTS = process.env.AIU_SHOTS === '1';

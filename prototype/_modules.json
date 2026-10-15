@@ -261,6 +261,24 @@
       "note": "V1.62 新增·独立模块；入口＝工作台宫格第 15 枚（底栏 5 档已满不占底栏）；首批＝建图+编辑+挂笔记，模板/导出/分享不做；原型先行已交付，实现批未开工"
     },
     {
+      "id": "ai",
+      "name": "AI 增强",
+      "file": "index-ai.html",
+      "req": "-",
+      "status": "current",
+      "dev": "notStarted",
+      "aliases": [
+        "AI",
+        "AI 增强",
+        "AI 使用记录",
+        "服务商",
+        "提示词",
+        "验证"
+      ],
+      "rep": "p-sub-ai",
+      "note": "2026-10-16 批3 新建专版（产品 2026-10-16 定家件 §5 Q2「AI 组归 AI 域专版」）。5 屏＝p-sub-ai 增强总页／p-sub-aiVerify API 验证／p-sub-aiPrompts 提示词管理／p-sub-aiPromptEdit 提示词编辑／p-aiUsage 使用记录；3 弹层＝sheetAiUsageCfg／sheetAiPick／sheetAiProv。壳内 p-profile ③「AI 增强」行仍为入口（行不随屏迁走）；闸＝tools/aiverifycheck.js＋aiusagecheck.js＋aiprovcheck.js"
+    },
+    {
       "id": "sync",
       "name": "同步",
       "file": "index-sync.html",
@@ -480,11 +498,11 @@
       "id": "p-aiUsage",
       "kind": "screen",
       "title": "AI 使用记录",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 1065,
           "hash": "134ce3a0"
         }
@@ -1502,11 +1520,11 @@
       "id": "p-sub-ai",
       "kind": "screen",
       "title": "AI 增强",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
-      "status": "shared",
+      "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 4274,
           "hash": "39a5f4a0"
         }
@@ -1516,11 +1534,11 @@
       "id": "p-sub-aiPromptEdit",
       "kind": "screen",
       "title": "编辑提示词",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 1171,
           "hash": "e2e7111c"
         }
@@ -1530,11 +1548,11 @@
       "id": "p-sub-aiPrompts",
       "kind": "screen",
       "title": "提示词管理",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 249,
           "hash": "3251ae01"
         }
@@ -1544,11 +1562,11 @@
       "id": "p-sub-aiVerify",
       "kind": "screen",
       "title": "AI API 验证",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 1754,
           "hash": "97989639"
         }
@@ -1943,11 +1961,11 @@
       "id": "sheetAiPick",
       "kind": "sheet",
       "title": "选择服务商",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 572,
           "hash": "728a9121"
         }
@@ -1957,11 +1975,11 @@
       "id": "sheetAiProv",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 3448,
           "hash": "327992dc"
         }
@@ -1985,11 +2003,11 @@
       "id": "sheetAiUsageCfg",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-ai.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-ai.html": {
           "size": 1789,
           "hash": "2ce7bf81"
         }
@@ -5168,37 +5186,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -6584,7 +6602,7 @@
     {
       "file": "index-media.html",
       "id": "p-sub-ai",
-      "home": "index.html"
+      "home": "index-ai.html"
     },
     {
       "file": "index-media.html",
@@ -6929,7 +6947,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-ai",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -7109,7 +7127,7 @@
     {
       "file": "index-journal.html",
       "id": "p-aiUsage",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -7121,19 +7139,19 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-aiPromptEdit",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "p-sub-aiPrompts",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "p-sub-aiVerify",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -7175,19 +7193,19 @@
     {
       "file": "index-journal.html",
       "id": "sheetAiPick",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetAiProv",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetAiUsageCfg",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -7283,7 +7301,7 @@
     {
       "file": "index-sync.html",
       "id": "p-aiUsage",
-      "home": "index.html",
+      "home": "index-ai.html",
       "exempt": null
     },
     {
@@ -7295,6 +7313,36 @@
     {
       "file": "index-sync.html",
       "id": "p-todo",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-ai.html",
+      "id": "p-dashboard",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-ai.html",
+      "id": "p-todo",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-ai.html",
+      "id": "p-calendar",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-ai.html",
+      "id": "p-records",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-ai.html",
+      "id": "p-profile",
       "home": "index.html",
       "exempt": null
     }
@@ -7822,27 +7870,27 @@
     },
     {
       "from": "index-bookshelf.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index-ledger.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index-health.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index_habitcheck.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index-maternity_bady.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index-day_aim__goods.html#p-sub-ai",
-      "to": "index.html#p-sub-ai"
+      "to": "index-ai.html#p-sub-ai"
     },
     {
       "from": "index-bookshelf.html#p-sub-cats",
@@ -8767,6 +8815,38 @@
     {
       "from": "index.html#sheetLogSettings",
       "to": "index-sync.html#sheetLogSettings"
+    },
+    {
+      "from": "index.html#p-sub-ai",
+      "to": "index-ai.html#p-sub-ai"
+    },
+    {
+      "from": "index.html#p-sub-aiVerify",
+      "to": "index-ai.html#p-sub-aiVerify"
+    },
+    {
+      "from": "index.html#p-sub-aiPrompts",
+      "to": "index-ai.html#p-sub-aiPrompts"
+    },
+    {
+      "from": "index.html#p-sub-aiPromptEdit",
+      "to": "index-ai.html#p-sub-aiPromptEdit"
+    },
+    {
+      "from": "index.html#p-aiUsage",
+      "to": "index-ai.html#p-aiUsage"
+    },
+    {
+      "from": "index.html#sheetAiUsageCfg",
+      "to": "index-ai.html#sheetAiUsageCfg"
+    },
+    {
+      "from": "index.html#sheetAiPick",
+      "to": "index-ai.html#sheetAiPick"
+    },
+    {
+      "from": "index.html#sheetAiProv",
+      "to": "index-ai.html#sheetAiProv"
     }
   ],
   "frozen": [

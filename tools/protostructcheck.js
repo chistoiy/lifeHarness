@@ -22,8 +22,10 @@ async function ev(expr) {
 }
 /* 静态配平基线：index.html 历史上就比闭合多一个 <div（浏览器在 </body> 处自动收口），
    所以这里锁「等于基线值」而不是等于 0——多一个或少一个闭合都立刻红。
-   2026-10-12 实测：抽离前后同为 2（原常量 1 已过期，属既有偏差，非本批引入），故校正为 2。 */
-const BASE_DIV_DIFF = 2, BASE_SECTION_DIFF = 0;
+   2026-10-12 实测：抽离前后同为 2（原常量 1 已过期，属既有偏差，非本批引入），故校正为 2。
+   2026-10-16 高保真体量整改批 3：那 2 个未闭合 <div> 本就在 AI 屏块内（p-sub-ai 屏体里的重复标题行），
+   随 AI 组迁 index-ai.html ⇒ 壳侧校正为 0；专版侧这 2 个未闭合随屏体原样带过去（只搬不改，另记观察）。 */
+const BASE_DIV_DIFF = 0, BASE_SECTION_DIFF = 0;
 const src = fs.readFileSync(F, 'utf8');
 const divDiff = (src.match(/<div[\s>]/g) || []).length - (src.match(/<\/div>/g) || []).length;
 const secDiff = (src.match(/<section[\s>]/g) || []).length - (src.match(/<\/section>/g) || []).length;
@@ -32,9 +34,9 @@ const secDiff = (src.match(/<section[\s>]/g) || []).length - (src.match(/<\/sect
 
 /* 治理批拍板：p-records/p-habits 等代表屏已下架（直达专版），关键页表随之收敛为壳 home 屏
    2026-10-12 时间模块抽离批：p-calendar / p-timeStats 亦下架（家迁 index-time.html），故移出本表
-   2026-10-16 高保真体量整改批 2：p-logs 亦下架（家迁 index-sync.html），故移出本表 */
-const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox',
-  'p-sub-ai', 'p-aiUsage'];
+   2026-10-16 高保真体量整改批 2：p-logs 亦下架（家迁 index-sync.html），故移出本表
+   2026-10-16 高保真体量整改批 3：p-sub-ai / p-aiUsage 亦下架（家迁 index-ai.html），故移出本表 */
+const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox'];
 
 (async () => {
   if (!fs.existsSync(CHROME)) { bad('chrome 存在'); return finish() }
@@ -56,8 +58,9 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox',
     [].forEach.call(all,function(s){if(s.closest('main'))inMain++;});
     return {all:all.length,inMain:inMain,mainW:Math.round((document.querySelector('main')||{getBoundingClientRect:()=>({width:0})}).getBoundingClientRect().width)};`);
   /* 2026-10-12 时间模块抽离批：4 屏（p-calendar/p-timeStats/p-sub-cats/p-sub-catAdd）迁出壳 ⇒ 页段数 23→19，
-     阈值随之下调为 >=15（仍是「壳没被拆空」的护栏） */
-  (r1.all >= 15 && r1.all === r1.inMain && r1.mainW > 380)
+     阈值随之下调为 >=15（仍是「壳没被拆空」的护栏）
+     2026-10-16 批2：备份/数据组 5 屏迁 index-sync ⇒ 19→16；批3：AI 组 5 屏迁 index-ai ⇒ 16→11，阈值随之下调为 >=10 */
+  (r1.all >= 10 && r1.all === r1.inMain && r1.mainW > 380)
     ? ok('① ' + r1.all + ' 个 page 段全部在 main 壳内 · 壳宽 ' + r1.mainW + 'px') : bad('① page 段归属', JSON.stringify(r1));
 
   /* ② 逐页激活量宽：被拆坏的页会塌成 padding 宽（≈40px） */
@@ -72,15 +75,24 @@ const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox',
   (thin.length === 0 && missing.length === 0)
     ? ok('② ' + r2.out.length + ' 个关键页激活后宽度均 >350px', r2.out.join(' ')) : bad('② 页面宽度', '窄=' + thin.join(',') + ' 缺=' + missing.join(','));
 
-  /* ③ 关键节点父子关系没被拆散（服务商列表在卡内、AI 记录页在壳内） */
+  /* ③ 关键节点父子关系没被拆散（服务商列表在弹层内、AI 记录页在壳内）
+     2026-10-16 批 3：AI 组 5 屏 + 3 弹层已迁 index-ai.html ⇒ 本节换被测文件（同一组断言），
+     并补一条专版自身的「page 段全在 main 壳内」。
+     ⚠ 顺带归位：旧断言查的是「#aiProvList 在 .card 内且卡名含『服务商管理』」——该形态早已不存在
+     （服务商列表现行家在 sheetAiPick 的 .sheet-panel，标题「选择服务商」；p-sub-ai 只留 #aiCurRow 单行）。
+     这条自 2026-10-12 起就是存量红，本批按现行形态改正断言并记理由。 */
+  await cmd('Page.navigate', { url: url.pathToFileURL(path.resolve('prototype/index-ai.html')).href }); await wait(2600);
   const r3 = await ev(`var list=document.getElementById('aiProvList');
-    var card=list?list.closest('.card'):null;
+    var pick=list?list.closest('#sheetAiPick'):null;
+    var panel=list?list.closest('.sheet-panel'):null;
     var au=document.getElementById('p-aiUsage');
-    return {listInCard:!!card,cardHasTitle:!!(card&&/服务商管理/.test(card.textContent)),
-      auInMain:!!(au&&au.closest('main')),
+    var all=$$('section.page'),inMain=0;
+    [].forEach.call(all,function(s){if(s.closest('main'))inMain++;});
+    return {listInPick:!!pick,listInPanel:!!panel,
+      auInMain:!!(au&&au.closest('main')),pages:all.length,pagesInMain:inMain,
       usageCardInAiPage:!!(document.getElementById('auK1')&&document.getElementById('auK1').closest('#p-sub-ai'))};`);
-  (r3.listInCard && r3.cardHasTitle && r3.auInMain && r3.usageCardInAiPage)
-    ? ok('③ 服务商卡与 AI 使用记录入口卡层级正确') : bad('③ 层级', JSON.stringify(r3));
+  (r3.listInPick && r3.listInPanel && r3.auInMain && r3.usageCardInAiPage && r3.pages === 5 && r3.pages === r3.pagesInMain)
+    ? ok('③ 专版 index-ai.html 层级正确（服务商列表在 sheetAiPick 面板内 / AI 记录页在壳内 / ' + r3.pages + ' 屏全在 main 壳内）') : bad('③ 层级', JSON.stringify(r3));
 
   /* ④ 零 JS 异常 */
   (errs.length === 0 ? ok : bad)('④ 运行期零 JS 异常', errs.join(' | '));

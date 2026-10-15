@@ -8,7 +8,9 @@
  */
 const fs = require('fs'), path = require('path');
 const ROOT = path.resolve(__dirname, '..');
-const HTML = path.join(ROOT, 'prototype', 'index.html');
+/* 2026-10-16 批3：p-sub-ai / p-sub-aiVerify 已迁 prototype/index-ai.html（AI 域专版）⇒ 补丁靶文件改指向；
+   SNAP 仍是批① 动刀前的 index.html 快照，仅供追溯，勿再 --revert（会覆盖专版）。 */
+const HTML = path.join(ROOT, 'prototype', 'index-ai.html');
 const SNAP = path.join(ROOT, 'tmp', 'index-html.before-aiverify-20261007.html');
 const argv = process.argv.slice(2);
 

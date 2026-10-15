@@ -3,7 +3,8 @@
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http'), url = require('url');
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const URLF = url.pathToFileURL(path.resolve('prototype/index.html')).href;
+/* 2026-10-16 批3：sheetAiProv 迁 index-ai.html，被测文件随之改指向 */
+const URLF = url.pathToFileURL(path.resolve('prototype/index-ai.html')).href;
 const PORT = Number(process.env.AIP_PORT || 9571);
 const SHOTS = process.env.AIP_SHOTS === '1';
 const SHOTDIR = 'prototype/shots/aiprov';
