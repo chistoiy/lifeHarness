@@ -1,5 +1,8 @@
 package com.lifeharness.lifeharness
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
@@ -10,6 +13,7 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -244,6 +248,24 @@ class MainActivity : FlutterActivity() {
                             false
                         }
                     )
+                }
+                // 桌面模块批2（F2-4/§4.2③）：把**指定某一枚**小组件固定到桌面。
+                //
+                // 2026-10-15 产品改口：原先这里是 `addWidget` —— 先弹一个 App 自己拼的
+                // `AlertDialog`（4 项列表）让用户选，再走系统确认。那个框纯系统默认外观、
+                // 与 App 卡片体系完全不搭，且「列表勾选」与「添加」两个语义挤在一起很拧。
+                // 现改为：设置页每张卡自带「添加到桌面」按钮，直接把 provider 传进来，
+                // **App 侧不再有中间选择框**，用户点哪枚就是哪枚。
+                "pinWidget" -> {
+                    pinWidgetById(call.argument<String>("widget"))
+                    result.success(true)
+                }
+                // 2026-10-15 8148 装机实锤：设置页的「今日概览（2×2）」「快捷记录（4×1）」
+                // 原本是**死开关**（只有配置页读写、两枚 Provider 一次没读）。现钉死为
+                // 「是否添加这枚」的总开关，且**关掉要真从桌面消失** —— Dart 侧拨完即调此处。
+                "applyWidgetFlags" -> {
+                    LhWidget.applyEnabledFlags(this)
+                    result.success(true)
                 }
                 else -> result.notImplemented()
             }
@@ -778,6 +800,17 @@ class MainActivity : FlutterActivity() {
 
         /** 长按菜单系统硬限 4（§4.1）；Dart 侧也截断，两边都兜。 */
         private const val LH_MENU_MAX = 4
+
+        /**
+         * `lh://<seg>` 原值（**段取自 [LH_WHITELIST]，禁散落 scheme 字面量** · C19）。
+         *
+         * 批2 起小组件点击/铺桌面的 `PendingIntent` 与既有三路共用同一出口（C15/C9）；
+         * 表外段一律拒（表外 ns 按未知 path 走兜底，不在此拼 URI）。
+         */
+        internal fun lhScheme(seg: String): String {
+            require(LH_WHITELIST.containsKey(seg)) { "表外寻址段禁拼 URI：$seg" }
+            return "$LH_SCHEME://$seg"
+        }
     }
 
     // ===================== 桌面模块批1 · `lh://` 解析与投递 =====================
@@ -834,11 +867,10 @@ class MainActivity : FlutterActivity() {
      *
      * ⚠ **禁只 setAction 不 setData**：Manifest 既有 5 组 content/file 打开方式 filter，
      * 只带 action 的 Intent 会误匹配到它们（这正是当初关掉 embedding 深链的原因）。
+     *
+     * 批2 起小组件 `PendingIntent` 走同一实现（[lhLaunchIntent]），禁第二套（C15/C9）。
      */
-    private fun launchIntent(scheme: String): Intent =
-        Intent(Intent.ACTION_VIEW, Uri.parse(scheme))
-            .setClass(this, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    private fun launchIntent(scheme: String): Intent = lhLaunchIntent(this, scheme)
 
     /** 设置页改动后重建动态快捷方式（长按菜单，最多 [LH_MENU_MAX] 枚）。 */
     private fun syncShortcuts(actionIds: List<String>, schemes: List<String>): Int {
@@ -895,6 +927,42 @@ class MainActivity : FlutterActivity() {
         getSystemService(ShortcutManager::class.java)
     } catch (_: Exception) {
         null
+    }
+
+    // ===================== 桌面模块批2 · 小组件 =====================
+
+    /**
+     * 设置页「添加到桌面」：系统没有公开的「打开小部件中心」入口（冻结档 §4.9 降级矩阵），
+     * 故先用系统对话框选一枚小组件，再走 `requestPinAppWidget` 的系统弹窗。
+     * 不支持时给一行手动添加提示（B2 同口径）。
+     */
+    /**
+     * 按 id 取小组件 provider 类并请求落桌（2026-10-15 产品改口）。
+     *
+     * id 与 Dart 侧 `pinDesktopWidget` 的入参逐字一致（守护测试交叉核对）；
+     * 取不到就静默返回——不猜、不弹兜底框。
+     */
+    private fun pinWidgetById(id: String?) {
+        val cls = when (id) {
+            "overview" -> TodayOverviewWidget::class.java
+            "quick" -> QuickRecordWidget::class.java
+            "todo" -> TodoListWidget::class.java
+            "ledger" -> LedgerOverviewWidget::class.java
+            else -> null
+        } ?: return
+        pinWidget(cls)
+    }
+
+    /** 调起系统「固定到桌面」弹窗；系统不支持时提示手动拖出（B2）。 */
+    private fun pinWidget(cls: Class<*>) {
+        val supported = Build.VERSION.SDK_INT >= 26 &&
+            AppWidgetManager.getInstance(this).isRequestPinAppWidgetSupported
+        if (supported) {
+            AppWidgetManager.getInstance(this)
+                .requestPinAppWidget(ComponentName(this, cls), null, null)
+        } else {
+            Toast.makeText(this, R.string.lh_widget_add_unsupported, Toast.LENGTH_LONG).show()
+        }
     }
 
     /** 长按菜单短标签（≤6 字，与 Dart 侧 shortLabel 同源）。 */
@@ -965,3 +1033,17 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
+/**
+ * C15 唯一出口（文件级）：四路入口（长按菜单／铺桌面／小组件／外部 `lh://`）共用同一
+ * 构造规则 —— `ACTION_VIEW` ＋ `setData(parse(lh://…))` ＋ `setClass(MainActivity)` ＋ flags。
+ *
+ * ⚠ **禁只 setAction 不 setData**：Manifest 既有 5 组 content/file 打开方式 filter，
+ * 只带 action 的 Intent 会误匹配到它们（C13 关掉 embedding 深链正是为了这个）。
+ *
+ * 批2：小组件 `PendingIntent` 也经此处（`LhWidget.clickIntent`），全模块只有这一处实现。
+ */
+internal fun lhLaunchIntent(context: Context, scheme: String): Intent =
+    Intent(Intent.ACTION_VIEW, Uri.parse(scheme))
+        .setClass(context, MainActivity::class.java)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)

@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/platform/desktop_actions.dart';
 import 'package:lifeharness/core/platform/desktop_shortcuts.dart';
+import 'package:lifeharness/core/platform/desktop_widget.dart';
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,23 +10,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// 两条：① 隐藏金额开 → 小组件快照金额位为 `••••`；② 隐藏敏感开 → 呵护读数不写快照。
 ///
-/// 批 1 只落**偏好位 + 快照格式化**；真正写 SharedPreferences 快照的是批 2 的
-/// `AppWidgetProvider`，本测试先把口径钉死（**别等批 2 才发现口径反了**）。
+/// 批 2 起**口径已由实现承接**：金额位格式化＝`desktop_widget.dart` 的
+/// [widgetAmountCell]（唯一真源，原生侧不再判一次）；本测试直接对它断言，
+/// 不再自留一份副本（副本会与实现漂移）。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// 小组件快照的金额位格式化（B7 的唯一口径；批 2 原生侧与 Dart 侧共用）。
-  ///
-  /// [hideAmount] 开 → 一律 `••••`（**不泄露真值、不做部分遮蔽**）。
-  String widgetAmountCell(double? amount, {required bool hideAmount}) {
-    if (hideAmount) return '••••';
-    if (amount == null) return '--';
-    return amount.toStringAsFixed(0);
-  }
-
-  test('隐藏金额关：金额位照实显示', () {
-    expect(widgetAmountCell(1286, hideAmount: false), '1286');
-    expect(widgetAmountCell(null, hideAmount: false), '--');
+  test('隐藏金额关：金额位照实显示（千分位，与原型 ¥1,286 的数值部分同口径）', () {
+    expect(widgetAmountCell(1286, hideAmount: false), '1,286');
+    expect(widgetAmountCell(null, hideAmount: false), kWidgetPlaceholder);
+    expect(widgetAmountCell(0, hideAmount: false), '0');
+    expect(widgetAmountCell(-45.6, hideAmount: false), '-46');
   });
 
   test('隐藏金额开：一律 ••••，不看真值（B7）', () {
@@ -46,7 +41,7 @@ void main() {
     expect(widgetAmountCell(1286, hideAmount: repo.loadDesktopHideAmount()), '••••');
 
     await repo.saveDesktopHideAmount(false);
-    expect(widgetAmountCell(1286, hideAmount: repo.loadDesktopHideAmount()), '1286');
+    expect(widgetAmountCell(1286, hideAmount: repo.loadDesktopHideAmount()), '1,286');
   });
 
   testWidgets('隐藏敏感开：呵护读数不写快照（C8）', (tester) async {

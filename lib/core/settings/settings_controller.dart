@@ -4,12 +4,24 @@ import '../nav/nav_module.dart';
 import '../providers.dart';
 import 'user_settings.dart';
 
+/// 底栏开关结果。
+///
+/// 为什么不是 `bool`：两种拒绝要提示**不同的话**（「最多 5 个」vs「今天/我的至少要留一个」），
+/// 合成一个 false 会让 UI 只能瞎猜。2026-10-15 产品放开锚栏目后新增 [needAnchor]。
+enum NavToggleResult {
+  ok,
+
+  /// 已达 5 个上限。
+  maxReached,
+
+  /// 「今天」「我的」至少要留一个（关完一个锚都不剩）。
+  needAnchor,
+}
+
 /// 设置变更控制器（Riverpod 2 Notifier）。
 ///
 /// 依赖 [settingsRepositoryProvider]（其底层 SharedPreferences 于 main 中 override 注入）。
 class SettingsController extends Notifier<UserSettings> {
-  /// 固定不可移除的底栏项。
-  static const Set<NavModule> _pinned = {NavModule.today, NavModule.settings};
   static const int _maxNav = 5;
 
   @override
@@ -27,20 +39,29 @@ class SettingsController extends Notifier<UserSettings> {
     await _persist();
   }
 
-  /// 切换某栏目是否在底栏：固定项不可关；超出 5 个时拒绝并返回 false。
-  Future<bool> toggleNav(NavModule module) async {
+  /// 切换某栏目是否在底栏。
+  ///
+  /// 两条拒绝（2026-10-15 口径）：
+  /// - 已满 5 个时再开 → [NavToggleResult.maxReached]；
+  /// - 关掉后「今天」「我的」一个都不剩 → [NavToggleResult.needAnchor]。
+  ///
+  /// 锚栏目**不再**是「常开不可点」：可关其一，只要另一个还在。
+  Future<NavToggleResult> toggleNav(NavModule module) async {
     final current = [...state.navIds];
     final present = current.contains(module.id);
-    if (present && _pinned.contains(module)) return false; // 固定项不允许移除
     if (!present) {
-      if (current.length >= _maxNav) return false; // 已达上限
+      if (current.length >= _maxNav) return NavToggleResult.maxReached;
       current.add(module.id);
     } else {
+      final left = current.where((id) => id != module.id);
+      if (!left.any((id) => NavModule.fromId(id).isAnchor)) {
+        return NavToggleResult.needAnchor;
+      }
       current.remove(module.id);
     }
     state = state.copyWith(navIds: current);
     await _persist();
-    return true;
+    return NavToggleResult.ok;
   }
 
   Future<void> resetNav() async {

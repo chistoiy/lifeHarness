@@ -128,6 +128,30 @@ tailwind.config = {
   html.dark .force-light .wg-btn{color:#fff}
   .wg-bar{height:6px;border-radius:999px;background:color-mix(in srgb,var(--w-sub) 18%,transparent);overflow:hidden}
   .wg-bar i{display:block;height:100%;background:var(--w-acc);border-radius:999px}
+  /* 待办 2×2 · 待办行：勾圈（点即闭环）+ 行文本（点进详情）；行间细线，禁彩色块 */
+  .wg-todo{display:flex;align-items:center;gap:7px;height:100%;padding:0 1px}
+  .wg-chk{width:13px;height:13px;border-radius:999px;border:1.5px solid var(--w-sub);
+          flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+  .wg-chk svg{width:9px;height:9px;opacity:0}
+  .wg-chk.on{background:var(--w-acc);border-color:var(--w-acc)}
+  .wg-chk.on svg{opacity:1;color:#fff}
+  .force-dark .wg-chk.on svg,html.dark .wg-chk.on svg{color:#1E293B}
+  html.dark .force-light .wg-chk.on svg{color:#fff}
+  .wg-todo-t{font-size:11px;font-weight:600;color:var(--w-fg);line-height:1.25;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
+  .wg-todo-m{font-size:9px;color:var(--w-sub);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  /* 记账 2×2 · 三行读数（今日支出 / 本月支出 / 本月结余），对齐参考 App 的行式布局 */
+  .wg-amt-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .wg-amt-v{font-size:15px;font-weight:800;color:var(--w-fg);line-height:1.1;font-variant-numeric:tabular-nums}
+
+  /* 批3 · 配置弹窗行（App 内卡片体系：1dp 分隔 + 13sp 正文 + 自绘圆形勾选） */
+  .cfg-row{display:flex;align-items:center;justify-content:space-between;height:44px;
+    border-bottom:1px solid color-mix(in srgb,var(--fg) 8%,transparent);font-size:13px;font-weight:600;color:var(--fg)}
+  .cfg-row:last-child{border-bottom:none}
+  .cfg-row.dk{color:#F1F5F9;border-bottom-color:#1A94A3B8}
+  .cfg-row.dk .wg-chk{border-color:#94A3B8}
+  .cfg-row.dk .wg-chk.on svg{color:#1E293B}
+  .cfg-row .wg-chk{width:19px;height:19px}
 
   /* 标注气泡（关系图用） */
   .anno{position:absolute;z-index:5;font-size:10px;font-weight:700;line-height:1.4;
@@ -208,6 +232,32 @@ tailwind.config = {
       </div>
     </div>
 
+    <!-- 2×2 待办清单小组件（批 3 · 最近 3 条；勾圈点即闭环、行文本点进待办页） -->
+    <div style="margin:0 14px 10px">
+      <div class="wg" style="width:178px;height:152px" onclick="toast('行文本：进待办页')">
+        <div class="wg-corner"></div>
+        <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
+        <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+          <div class="wg-todo" onclick="event.stopPropagation();toast('勾圈：闭环该条待办（写库）· 误触无撤销条')"><span class="wg-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+          <div class="wg-todo" onclick="event.stopPropagation()"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+          <div class="wg-todo" onclick="event.stopPropagation()"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2×2 记账概览小组件（批 3 · 三行读数：今日支出 / 本月支出 / 本月结余） -->
+    <div style="margin:0 14px 10px">
+      <div class="wg" style="width:178px;height:152px" onclick="toast('2×2 记账概览 · 点击进记账页')">
+        <div class="wg-corner"></div>
+        <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 记账</div>
+        <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+          <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">今日支出</span><span class="wg-amt-v">¥1,286</span></div>
+          <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月支出</span><span class="wg-amt-v">¥8,420</span></div>
+          <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月结余</span><span class="wg-amt-v wg-acc">¥3,580</span></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 4×1 快捷记录小组件（批 2 · 左半「记一笔」；右半＝名称＋今日支出读数，名称不再被按钮遮） -->
     <div style="margin:0 14px 12px">
       <div class="wg" style="height:74px">
@@ -272,7 +322,7 @@ tailwind.config = {
     <div class="spec mt-1 mb-2">设置页勾到第 5 项时，第 5 项置灰不可点，并出一行提示。</div>
     <div class="flex flex-wrap gap-1.5" id="limitBox"></div>
     <div id="limitHint" class="mt-2 text-[11px] leading-5 text-amber-600 dark:text-amber-400 hidden">
-      长按菜单最多 4 个，更多入口请「铺到桌面」。
+      长按菜单最多 4 个，更多入口请「铺到桌面」（该块仅在支持的桌面显示）。
     </div>
   </div>
 </section>
@@ -320,6 +370,69 @@ tailwind.config = {
           </div>
         </div>
         <div class="cap spec">深色档 · #1E293B / #F1F5F9 / #94A3B8 / #818CF8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">2×2 待办清单<span class="spec" style="font-weight:400;margin-left:8px">批 3 新增</span></div>
+    <div class="spec mt-1 mb-3">列最近 3 条未完待办。<b>左侧勾圈点即闭环</b>（写 PendingIntent 广播，落库后该行消失、其余上移）；<b>行文本点进待办页</b>。禁滑动、禁输入、禁动画；超 3 条只显「还有 N 条」。</div>
+    <div class="flex gap-3">
+      <div class="flex-1">
+        <div class="wg force-light" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+            <div class="wg-todo" onclick="toast('勾圈：闭环该条待办（写库）')"><span class="wg-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+          </div>
+        </div>
+        <div class="cap spec">浅色档 · 勾圈空心 #64748B，闭环态填 #6366F1</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-dark" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 待办</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">买牛奶和鸡蛋</span></div>
+            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">交房租</span><span class="wg-todo-m">今天</span></div>
+            <div class="wg-todo"><span class="wg-chk"></span><span class="wg-todo-t">体检预约</span><span class="wg-todo-m">明天</span></div>
+          </div>
+        </div>
+        <div class="cap spec">深色档 · 勾圈空心 #94A3B8，闭环态填 #818CF8＋深字</div>
+      </div>
+    </div>
+    <div class="spec mt-2">闭环的<b>误触代价</b>：勾圈点错无撤销条（桌面放不了浮层），需进待办页撤销——故勾圈只给高频短待办，长待办只显文本不显勾圈。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">2×2 记账概览<span class="spec" style="font-weight:400;margin-left:8px">批 3 新增</span></div>
+    <div class="spec mt-1 mb-3">三行读数＝<b>今日支出 / 本月支出 / 本月结余</b>（行式布局，参考记账类小组件的成熟形态；比 4×1 单行金额位信息密度高）。开启「隐藏金额」时三行一律 <b>••••</b>（B7，不泄露量级）。</div>
+    <div class="flex gap-3">
+      <div class="flex-1">
+        <div class="wg force-light" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 记账</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">今日支出</span><span class="wg-amt-v">¥1,286</span></div>
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月支出</span><span class="wg-amt-v">¥8,420</span></div>
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月结余</span><span class="wg-amt-v wg-acc">¥3,580</span></div>
+          </div>
+        </div>
+        <div class="cap spec">浅色档 · 数值 #0F172A，结余行用强调色 #6366F1</div>
+      </div>
+      <div class="flex-1">
+        <div class="wg force-dark" style="height:152px">
+          <div class="wg-corner"></div><div class="wg-safe"></div>
+          <div style="position:absolute;top:13px;left:13px" class="wg-name">LifeHarness · 记账</div>
+          <div style="position:absolute;top:34px;left:13px;right:13px;bottom:14px;display:flex;flex-direction:column;justify-content:space-between">
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">今日支出</span><span class="wg-amt-v">¥1,286</span></div>
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月支出</span><span class="wg-amt-v">¥8,420</span></div>
+            <div class="wg-amt-row"><span class="wg-lab" style="font-size:11px">本月结余</span><span class="wg-amt-v wg-acc">¥3,580</span></div>
+          </div>
+        </div>
+        <div class="cap spec">深色档 · 数值 #F1F5F9，结余行用强调色 #818CF8</div>
       </div>
     </div>
   </div>
@@ -425,6 +538,114 @@ tailwind.config = {
   </div>
 
   <div class="card mt-3">
+    <div class="row-title">配置弹窗（从 App 添加时弹出）<span class="spec" style="font-weight:400;margin-left:8px">批 3 重做</span></div>
+    <div class="spec mt-1 mb-3">改口要点：原实现是<b>系统默认 Material 表单</b>（裸 CheckBox + 立体按钮，产品装机反馈原话「弹窗太丑了」）——现改为<b>套用 App 内卡片体系</b>：描边圆角卡片 ＋ 1dp 分隔的开关行 ＋ 文字按钮，勾选框自绘圆形（与小组件勾圈同款）。<br>
+      四枚开关<b>全列</b>：这些偏好是全局的（与设置页同一份），在这里藏掉几行，用户会以为「本枚不受这设置影响」——实际却受。所见即所得。</div>
+    <div class="pair">
+      <div>
+        <div style="background:var(--bg-2,#F1F5F9);border-radius:14px;padding:16px;border:1px solid color-mix(in srgb,var(--fg) 8%,transparent)">
+          <div style="font-size:15px;font-weight:800;color:var(--fg)">配置：LifeHarness · 今日待办</div>
+          <div style="font-size:11px;color:var(--sub);margin-top:3px">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</div>
+          <div style="background:var(--card);border:1px solid color-mix(in srgb,var(--fg) 10%,transparent);border-radius:14px;margin-top:12px;padding:0 12px">
+            <div class="cfg-row"><span>今日概览读数</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row"><span>快捷记录入口</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row"><span>今日待办清单</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row"><span>记账概览</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row"><span>隐藏金额</span><span class="wg-chk"></span></div>
+          </div>
+          <div style="font-size:10.5px;color:var(--sub);margin-top:10px">设置 › 桌面与快捷方式 › 小组件，改哪边都生效。</div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+            <span style="font-size:12.5px;color:var(--sub);padding:8px 10px">取消</span>
+            <span style="font-size:12.5px;font-weight:800;color:var(--acc);padding:8px 10px">完成</span>
+          </div>
+        </div>
+        <div class="cap spec">浅色档</div>
+      </div>
+      <div>
+        <div style="background:#0F172A;border-radius:14px;padding:16px;border:1px solid #1A94A3B8">
+          <div style="font-size:15px;font-weight:800;color:#F1F5F9">配置：LifeHarness · 记账概览</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:3px">与「设置 › 桌面与快捷方式」共用同一份偏好，改哪边都生效。</div>
+          <div style="background:#1E293B;border:1px solid #1A94A3B8;border-radius:14px;margin-top:12px;padding:0 12px">
+            <div class="cfg-row dk"><span>今日概览读数</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row dk"><span>快捷记录入口</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row dk"><span>今日待办清单</span><span class="wg-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row dk"><span>记账概览</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div class="cfg-row dk"><span>隐藏金额</span><span class="wg-chk on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+          </div>
+          <div style="font-size:10.5px;color:#94A3B8;margin-top:10px">设置 › 桌面与快捷方式 › 小组件，改哪边都生效。</div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+            <span style="font-size:12.5px;color:#94A3B8;padding:8px 10px">取消</span>
+            <span style="font-size:12.5px;font-weight:800;color:#818CF8;padding:8px 10px">完成</span>
+          </div>
+        </div>
+        <div class="cap spec">深色档 · 已关「今日待办清单」「隐藏金额」两枚</div>
+      </div>
+    </div>
+    <div class="spec mt-3">关掉某枚＝<b>真从桌面消失</b>（不是「只不更新」）——否则「关」只是个装饰，又是死开关的另一种形态。保存后立即生效，不必重启。</div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="row-title">App 内「小组件」设置屏<span class="spec" style="font-weight:400;margin-left:8px">批 3 新增预览选择器</span></div>
+    <div class="spec mt-1 mb-3">改口要点：① 三个开关里<b>前两个原先是死开关</b>（偏好只有配置页读写、两枚 Provider 一次没读）——现钉死为<b>「这枚要不要启用」的总开关</b>（关掉真从桌面消失）；② 用户不必再去系统小部件库里翻，<b>在本屏先看样式预览</b>；③ <b>2026-10-15 再改口</b>：右上角那个全局「添加到桌面」按钮与它弹出的 App 自拼选择框（原生 AlertDialog，与卡片体系完全不搭）<b>一并删掉</b>，改为<b>每张卡自带「添加到桌面」</b>——点哪枚就是哪枚。之后弹的「是否添加到主屏幕」是<b>桌面（MIUI）画的系统框</b>，不在本进程内，任何 App 都换不了皮。</div>
+    <div class="wg-force-wrap" style="background:var(--card);border:1px solid color-mix(in srgb,var(--fg) 8%,transparent);border-radius:16px;padding:14px">
+      <div style="display:flex;align-items:center;margin-bottom:4px">
+        <span style="font-size:13.5px;font-weight:800">小组件</span>
+      </div>
+      <div class="wg-lab" style="font-size:11px;margin-bottom:12px">桌面常驻读数，点击直达应用内；点卡片右上角「添加到桌面」放一枚到桌面</div>
+
+      <!-- 预览卡：勾选框 + 等比样式预览，点整卡切换勾选 -->
+      <div class="pair" style="margin-bottom:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <span class="wg-chk on" style="width:15px;height:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+            <span style="font-size:12px;font-weight:600">今日概览（2×2）</span>
+            <span style="margin-left:auto;font-size:11.5px;color:var(--acc);font-weight:600">添加到桌面</span>
+          </div>
+          <div class="wg force-light" style="height:96px">
+            <div class="wg-corner"></div>
+            <div style="position:absolute;top:11px;left:11px" class="wg-name">LifeHarness · 今日概览</div>
+            <div style="position:absolute;top:30px;left:11px;right:11px;display:flex;align-items:flex-end;justify-content:space-between">
+              <div><div class="wg-lab" style="font-size:10px">待办</div><div class="wg-read" style="font-size:19px">3</div></div>
+              <div style="text-align:right"><div class="wg-lab" style="font-size:10px">打卡</div><div class="wg-read" style="font-size:19px">4<span style="font-size:11px;color:var(--w-sub)">/6</span></div></div>
+            </div>
+            <div style="position:absolute;left:11px;right:11px;bottom:11px"><div class="wg-bar"><i style="width:66%"></i></div></div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <span class="wg-chk" style="width:15px;height:15px"></span>
+            <span style="font-size:12px;font-weight:600">快捷记录（4×1）</span>
+            <span style="margin-left:auto;font-size:11.5px;color:var(--acc);font-weight:600">添加到桌面</span>
+          </div>
+          <div class="wg force-light" style="height:48px">
+            <div class="wg-corner"></div>
+            <div class="wg-btn" style="position:absolute;left:0;top:0;bottom:0;width:50%">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记一笔
+            </div>
+            <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:color-mix(in srgb,var(--w-sub) 14%,transparent)"></div>
+            <div style="position:absolute;left:calc(50% + 11px);right:11px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:2px">
+              <div class="wg-name">LifeHarness · 快捷记录</div>
+              <div class="flex items-end justify-between"><span class="wg-lab" style="font-size:9px">今日支出</span><span class="wg-read" style="font-size:14px">¥1,286</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid color-mix(in srgb,var(--fg) 8%,transparent);padding-top:11px">
+        <div style="display:flex;align-items:center;margin-bottom:9px">
+          <span style="font-size:13.5px;font-weight:800">显示内容</span>
+        </div>
+        <div style="display:flex;align-items:center;margin-bottom:9px">
+          <span class="wg-chk on" style="width:15px;height:15px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span style="font-size:12.5px;font-weight:600;margin-left:10px">隐藏金额同步到小组件</span>
+        </div>
+        <div class="spec" style="font-size:11px">小组件读数来自最近一次同步快照，可能略有延迟；开启「隐藏金额」时小组件金额位显示为 ••••。</div>
+      </div>
+    </div>
+    <div class="spec mt-2"><b>两层结构</b>：勾选框＝「是否添加这枚」（总开关，落在 <span style="font-family:ui-monospace,monospace">desktop.widget_*</span>）；「添加到桌面」＝拉起系统小部件选择器完成落桌。<b>预览卡按真实比例缩小绘制</b>（图上 96/48 高 ≈ 152/80 真机值×0.63），不另造比例骗人。</div>
+  </div>
+
+  <div class="card mt-3">
     <div class="row-title">禁做清单</div>
     <div class="spec mt-1">禁滑动、禁输入、禁动画；字号固定，不随系统字体放大截断（改用缩略号）。<br>
       小部件读数来自最近一次同步快照，<b>不是实时</b>；widget 不直读 sqlite。</div>
@@ -455,7 +676,8 @@ tailwind.config = {
       </div>
       <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
         <div class="flex items-center gap-2"><span class="text-[12px] font-bold">② 铺到桌面</span><span class="ml-auto text-[10px] text-slate-400">不限量</span></div>
-        <div class="spec mt-1">每行「铺到桌面」· 已铺显示「已铺」</div>
+        <div class="spec mt-1">每行「铺到桌面」· 已铺显示「已铺」<br>
+          <b>2026-10-16 改口：仅在桌面支持「钉快捷方式」时才画</b> —— MIUI 的 <code>isRequestPinShortcutSupported</code> 为 false，7 项全显示「本机不支持」＝废的还占屏；不支持就整块不画，支持的桌面（原生 Pixel 等）照旧显示。</div>
       </div>
       <div class="card mt-2" style="padding:10px 12px;border-radius:14px">
         <div class="flex items-center gap-2"><span class="text-[12px] font-bold">③ 小组件</span><span class="ml-auto text-[10px] text-slate-400">两开关＋金额</span></div>

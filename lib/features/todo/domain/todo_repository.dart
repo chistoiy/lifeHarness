@@ -41,6 +41,14 @@ class TodoRepository {
     }
   }
 
+  /// **按 id** 标记完成（批3 · 桌面勾圈补写用；手上只有 id、没有整条 Todo）。
+  ///
+  /// 与 [toggleDone] 的区别：后者要 `Todo` 对象（取 `!t.done` 反值 + 撤提醒 + 发事件）。
+  /// 补写场景拿到的 id 可能对应的待办已被 App 内操作完成过 ⇒ 这里**只置 done**，
+  /// 不反值、不重复撤提醒（撤了会误伤用户在 App 内重新勾上的同一条）。已完成的
+  /// 调用是 no-op（`setDone` 幂等）。
+  Future<void> completeById(int id) => _dao.setDone(id, true);
+
   /// 拖拽改象限（AC：<300ms 持久化，直接 await 单条 UPDATE）。
   Future<void> moveQuadrant(Todo t, Quadrant q) => _dao.setQuadrant(t.id!, q);
 

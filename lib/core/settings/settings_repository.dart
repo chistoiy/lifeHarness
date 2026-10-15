@@ -41,6 +41,13 @@ class SettingsRepository {
   static const String kDeskWidgetQuickKey = 'desktop.widget_quick';
   static const String kDeskHideAmountKey = 'desktop.hide_amount';
 
+  /// 批3 · 两枚新2×2 的「是否添加这枚」总开关。
+  static const String kDeskWidgetTodoListKey = 'desktop.widget_todo_list';
+  static const String kDeskWidgetLedgerKey = 'desktop.widget_ledger';
+
+  /// 批3 · 勾圈闭环的补写队列（原生写库失败时暂存，App 启动时排空）。
+  static const String kDeskPendingTogglesKey = 'desktop.widget_pending_toggles';
+
   /// R14-12·我的页资料（本地模式无账号：昵称/签名只是偏好，不建表、不进业务备份口径）。
   static const _kProfileNick = 'lh.profile_nick';
   static const _kProfileBio = 'lh.profile_bio';
@@ -229,4 +236,35 @@ class SettingsRepository {
   bool loadDesktopHideAmount() => _prefs.getBool(kDeskHideAmountKey) ?? false;
   Future<void> saveDesktopHideAmount(bool v) =>
       _prefs.setBool(kDeskHideAmountKey, v);
+
+  /// 2×2 待办清单小组件开关（批3 · 默认开）。
+  bool loadDesktopWidgetTodoList() =>
+      _prefs.getBool(kDeskWidgetTodoListKey) ?? true;
+  Future<void> saveDesktopWidgetTodoList(bool v) =>
+      _prefs.setBool(kDeskWidgetTodoListKey, v);
+
+  /// 2×2 记账概览小组件开关（批3 · 默认开）。
+  bool loadDesktopWidgetLedger() => _prefs.getBool(kDeskWidgetLedgerKey) ?? true;
+  Future<void> saveDesktopWidgetLedger(bool v) =>
+      _prefs.setBool(kDeskWidgetLedgerKey, v);
+
+  // ---- 待办勾圈的补写队列（原生 [TodoActionReceiver] 写库失败时的兜底）----
+  //
+  // 桌面点勾圈是在**原生广播**里直接 UPDATE sqlite 的；若那一刻 App 没起过、
+  // 或库被 sqflite 独占，写入会失败。此时 Receiver 把 id 存进
+  // `desktop.widget_pending_toggles`，等 App 下次启动排空补写 ⇒ 闭环最终一致。
+  // ⚠ 键名与原生 `LhWidget.PREF_PENDING_TOGGLES` 逐字一致（守护测试交叉核对）。
+
+  List<int> loadDesktopPendingToggles() => (_prefs.getString(kDeskPendingTogglesKey) ?? '')
+      .split(',')
+      .map((e) => int.tryParse(e.trim()))
+      .whereType<int>()
+      .where((id) => id > 0)
+      .toSet()
+      .toList();
+
+  Future<void> saveDesktopPendingToggles(List<int> ids) => _prefs.setString(
+        kDeskPendingTogglesKey,
+        ids.isEmpty ? '' : (ids.toSet().toList()..sort()).join(','),
+      );
 }

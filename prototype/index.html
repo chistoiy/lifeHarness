@@ -868,12 +868,19 @@ tailwind.config = {
       <button id="nfcEntry" onclick="navTo('p-sub-nfc')" class="card mt-4 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
         <span class="set-ic bg-sky-50 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="6.6" width="9.4" height="10.8" rx="2.2"/><path d="M16.4 8.8a7.2 7.2 0 0 1 0 6.4"/><path d="M19.4 6.6a11 11 0 0 1 0 10.8"/></svg></span><div class="flex-1"><b class="text-sm">NFC 卡片</b><div class="text-[11px] text-slate-400">贴卡触发动作 · 卡片数据可改</div></div><span class="text-[11px] text-slate-400 mr-1"><b id="nfcEntryCnt">0</b> 张</span><span class="text-slate-300">›</span></button>
 
+      <!-- 2026-10-15 产品改口：11 枚开关铺开要占 6 行，把整页顶下去一大截 ⇒ 整卡默认折叠，
+           点标题行展开（会话内状态，不落偏好）。展开后「今天」「我的」不再固定，可关其一。 -->
       <div class="card mt-4">
-        <div class="flex items-center justify-between"><div class="row-title">底部导航栏自定义</div><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span></div>
-        <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」固定；新增「习惯」栏目可在下方启用</div>
-        <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
-        <div class="mt-2.5 flex gap-2">
-          <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">主页编排直达（或长按卡片）›</button>
+        <button class="w-full flex items-center justify-between text-left" onclick="navSetToggle()">
+          <div class="row-title">底部导航栏自定义</div>
+          <span class="flex items-center gap-1"><span class="text-[10px] text-slate-400">已启用 <b id="navCount" class="text-brand-500">5</b>/5</span><svg id="navSetArrow" class="w-[14px] h-[14px] text-brand-500 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+        <div id="navSetBody" class="hidden">
+          <div class="text-[11px] text-slate-400 mt-0.5">开启的栏目实时出现在底部导航；「今天」「我的」至少要留一个</div>
+          <div class="mt-1 grid grid-cols-2 gap-x-5 text-xs" id="navSetList"></div>
+          <div class="mt-2.5 flex gap-2">
+            <button class="flex-1 py-2 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold" onclick="gotoDashEdit()">主页编排直达（或长按卡片）›</button>
+          </div>
         </div>
       </div>
 
@@ -2394,7 +2401,7 @@ const ICONS={
  'p-care':'<circle cx="12" cy="12" r="9"/><circle cx="9" cy="10.5" r=".9"/><circle cx="15" cy="10.5" r=".9"/><path d="M9 14.5c.9.9 1.9 1.3 3 1.3s2.1-.4 3-1.3"/>',
  'p-habits':'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
 };
-const NAV_MODS=[['p-dashboard','今天','fix'],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-profile','我的','fix']];
+const NAV_MODS=[['p-dashboard','今天',''],['p-todo','待办',''],['p-calendar','时间',''],['p-records','记录',''],['p-habits','习惯',''],['p-inbox','收集箱',''],['p-finance','记账',''],['p-items','物品',''],['p-days','日子',''],['p-health','健康',''],['p-care','母婴',''],['p-goals','目标',''],['p-profile','我的','']];
 let activeTabs=['p-dashboard','p-todo','p-calendar','p-records','p-profile'];
 function navIcon(p){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[p]}</svg>`;}
 /* T11 角标数据源（演示口径＝从在册数据实算，不写死数字）：待办枚＝未完成的逾期条数。
@@ -2405,16 +2412,21 @@ function navBadge(p){if(!NAV_BADGE_SRC[p]||navSeen[p])return 0;return NAV_BADGE_
 function navClear(p){navSeen[p]=1}
 function renderNav(){$('#navBar').innerHTML=activeTabs.map(p=>{const m=NAV_MODS.find(x=>x[0]===p);const bn=navBadge(p);
   return `<button class="navtab flex-1 ${p===curPage?'on':''}" data-p="${p}" onclick="navTab('${p}')">${navIcon(p)}<span>${m[1]}</span>${bn?`<span class="navbadge">${bn>99?'99+':bn}</span>`:''}</button>`}).join('');}
-function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label,fix])=>{const on=activeTabs.includes(p);
-  /* U10：固定栏目出锁定态开关（常开·不可点），非固定项照常可切 */
-  const sw=fix?'<span class="toggle on lock" data-locked="1"></span>':'<span class="toggle '+(on?'on':'')+'" onclick="navToggle(\''+p+'\',this)"></span>';
-  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}${fix?'<span class="text-[8px] text-slate-300 dark:text-slate-600">固定</span>':''}</span>${sw}</div>`}).join('');
+function renderNavSet(){$('#navSetList').innerHTML=NAV_MODS.map(([p,label])=>{const on=activeTabs.includes(p);
+  /* 2026-10-15：锚栏目（今天/我的）不再常开不可点，可关其一 —— 开关值如实反映 activeTabs */
+  return `<div class="flex items-center justify-between py-2.5 border-b border-slate-100 dark:border-slate-800"><span class="flex items-center gap-2 font-semibold setnav">${navIcon(p)}${label}</span><span class="toggle '+(on?'on':'')+'" onclick="navToggle(''+p+'',this)"></span></div>`}).join('');
   $('#navCount').textContent=activeTabs.length;}
+/* 折叠态（会话内，不落偏好）：点标题行展开/收起 */
+let navSetOpen=false;
+function navSetToggle(){navSetOpen=!navSetOpen;
+  $('#navSetBody').classList.toggle('hidden',!navSetOpen);
+  $('#navSetArrow').classList.toggle('rotate-180',navSetOpen);}
 function navToggle(p,el){const on=el.classList.contains('on');
   if(!on){if(activeTabs.length>=5){toast('底部导航最多同时显示 5 个栏目，请先关闭一个');renderNavSet();return;}
     activeTabs.push(p);activeTabs.sort((a,b)=>NAV_MODS.findIndex(m=>m[0]===a)-NAV_MODS.findIndex(m=>m[0]===b));}
-  else{if(p==='p-dashboard'||p==='p-profile'){toast('「今天」与「我的」为固定栏目，不可关闭');renderNavSet();return;}
-    activeTabs=activeTabs.filter(x=>x!==p);}
+  else{const left=activeTabs.filter(x=>x!==p);
+    if(!left.some(x=>x==='p-dashboard'||x==='p-profile')){toast('「今天」和「我的」至少要留一个');renderNavSet();return;}
+    activeTabs=left;}
   renderNav();renderNavSet();toast('导航栏已更新（模拟持久化）');}
 /* 桌面模块：长按菜单 4 枚勾选 与 铺到桌面列表（规格＝docs/handoff/桌面模块-冻结版开发方案-20261013.md §2.0/§4.2） */
 const DESK_ACTIONS=[['inbox','速记'],['todo','记待办'],['ledger','记一笔'],['habit','打卡'],['journal','写日记'],['items','记物品'],['today','回今天页']];

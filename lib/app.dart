@@ -13,6 +13,7 @@ import 'core/providers.dart';
 import 'features/journal/presentation/note_open_with.dart' show noteOpenConsume;
 import 'features/read/presentation/open_with.dart' show handleOpenWithEpub;
 import 'shared/linkage/desktop_mounts.dart';
+import 'shared/linkage/desktop_widget_mounts.dart';
 import 'shared/linkage/habit_mounts.dart';
 import 'shared/linkage/journal_mounts.dart';
 import 'shared/linkage/ledger_mounts.dart';
@@ -158,6 +159,9 @@ class _LifeHarnessAppState extends ConsumerState<LifeHarnessApp>
     // 桌面批1（C2/B1/F1-2）：首启以默认 4 枚初始化动态快捷方式——不这么做，
     // 新装用户不打开「设置→桌面与快捷方式」就永远没有长按菜单。
     ref.watch(desktopShortcutSeedProvider);
+    // 桌面批2（F2-3/C5）：小组件快照同步——App 存活时按需下发（三源变化或
+    // 设置页改动触发），widget 只读快照、永不直读 sqlite。
+    ref.watch(desktopWidgetSyncProvider);
     return MaterialApp.router(
       title: 'LifeHarness',
       debugShowCheckedModeBanner: false,

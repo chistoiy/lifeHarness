@@ -67,6 +67,7 @@ dependencies:
   enough_convert: ^1.6.0
   spreadsheet_decoder: ^2.3.0
   wakelock_plus: ^1.5.2
+  home_widget: ^0.10.0
 
 dev_dependencies:
   flutter_test:

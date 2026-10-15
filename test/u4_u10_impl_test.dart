@@ -221,7 +221,7 @@ void main() {
     });
   });
 
-  group('U10 底栏栏目：固定项＝常开＋不可点', () {
+  group('U10 底栏栏目：锚栏目可关其一（2026-10-15 产品改口）', () {
     Widget grid(UserSettings s) => ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: MaterialApp(
@@ -234,7 +234,7 @@ void main() {
     Switch sw(WidgetTester t, String id) =>
         t.widget<Switch>(find.byKey(ValueKey('nav-sw-$id')));
 
-    testWidgets('今天／我的两枚读成「开」且不可点，非固定项照旧', (tester) async {
+    testWidgets('开关值如实反映偏好；锚栏目也可点（不再常开不可点）', (tester) async {
       await tester.pumpWidget(
         grid(
           const UserSettings(
@@ -246,24 +246,58 @@ void main() {
       );
       await settle(tester);
       for (final id in ['today', 'settings']) {
-        final w = sw(tester, id);
-        expect(w.value, isTrue, reason: '$id 固定项不许画成「关」');
-        expect(w.onChanged, isNull, reason: '$id 固定项不可点');
+        expect(sw(tester, id).value, isFalse,
+            reason: '$id 不在 navIds 里就该如实画成「关」（旧口径是强画成开）');
+        expect(sw(tester, id).onChanged, isNotNull, reason: '$id 不再是不可点');
       }
       expect(sw(tester, 'todo').value, isTrue);
       expect(sw(tester, 'todo').onChanged, isNotNull);
       expect(sw(tester, 'ledger').value, isFalse);
-      expect(find.text('今天（固定）'), findsOneWidget);
-      expect(find.text('我的（固定）'), findsOneWidget);
+      expect(find.text('今天'), findsOneWidget);
+      expect(find.text('我的'), findsOneWidget);
+      expect(find.textContaining('（固定）'), findsNothing,
+          reason: '「（固定）」标签随旧口径一起退役');
     });
 
-    testWidgets('固定项不在 navIds 里也读成开（与壳层实际常驻一致）', (tester) async {
+    testWidgets('导航自定义卡默认折叠（省屏），点标题行展开/收起', (tester) async {
+      // 产品 2026-10-15：11 枚开关铺开要占 6 行，把整页顶下去一大截 ⇒ 默认只留一行摘要。
+      tester.view.physicalSize = const Size(1200, 2800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(
+          home: Scaffold(body: NavCustomizeCard(flat: false)),
+        ),
+      ));
+      await settle(tester);
+
+      // 收起态：网格不在，但摘要行在（不开也能看出当前启用几个）。
+      expect(find.byKey(const ValueKey('nav-sw-today')), findsNothing,
+          reason: '默认折叠：开关网格不许直接铺出来');
+      expect(find.textContaining('已启用'), findsOneWidget);
+      expect(find.textContaining('至少要留一个'), findsNothing,
+          reason: '折叠时连说明行一起收走，才真的省屏');
+
+      await tester.tap(find.byKey(const ValueKey('nav-customize-toggle')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('nav-sw-today')), findsOneWidget);
+      expect(find.byKey(const ValueKey('nav-sw-settings')), findsOneWidget);
+      expect(find.textContaining('至少要留一个'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('nav-customize-toggle')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('nav-sw-today')), findsNothing,
+          reason: '再点应收回');
+    });
+
+    testWidgets('今天/我的 在 navIds 里时读成开（与壳层实际渲染一致）', (tester) async {
       await tester.pumpWidget(
         grid(
           const UserSettings(
             themeId: 'default',
             mode: ThemeModeOption.system,
-            navIds: ['todo', 'calendar', 'journal', 'habit', 'inbox'],
+            navIds: ['today', 'todo', 'calendar', 'journal', 'settings'],
           ),
         ),
       );

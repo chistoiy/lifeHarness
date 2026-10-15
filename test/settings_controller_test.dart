@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifeharness/core/nav/nav_module.dart';
 import 'package:lifeharness/core/providers.dart';
+import 'package:lifeharness/core/settings/settings_controller.dart'
+    show NavToggleResult, settingsControllerProvider;
 import 'package:lifeharness/core/settings/settings_repository.dart';
 import 'package:lifeharness/core/settings/user_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,19 +49,27 @@ void main() {
       expect(reloaded.weatherCity, '杭州|30.29|120.16');
     });
 
-    test('固定项不可关闭；开启第 6 个栏目被拒', () async {
+    test('「今天」「我的」可关其一但不能都关；开启第 6 个栏目被拒', () async {
       await boot();
       final c = container.read(settingsControllerProvider.notifier);
-      expect(await c.toggleNav(NavModule.today), isFalse);
-      expect(await c.toggleNav(NavModule.settings), isFalse);
+      // 默认 5 个：today todo calendar journal settings。
+      // 2026-10-15 产品改口：锚栏目不再「常开不可点」，可关其一。
+      expect(await c.toggleNav(NavModule.today), NavToggleResult.ok);
+      expect(container.read(settingsControllerProvider).navIds,
+          isNot(contains('today')));
+      // 再关掉另一个锚 ⇒ 底栏一个锚都不剩 ⇒ 拒。
+      expect(await c.toggleNav(NavModule.settings), NavToggleResult.needAnchor);
+      expect(container.read(settingsControllerProvider).navIds,
+          contains('settings'), reason: '被拒时不得改动偏好');
+      // 关回来的那个可以再开。
+      expect(await c.toggleNav(NavModule.today), NavToggleResult.ok);
 
-      // 先关一个可选项，再开 inbox → 成功；此时再开 notes 类不在枚举内，测满 5 拒绝：
-      expect(await c.toggleNav(NavModule.journal), isTrue);
-      expect(await c.toggleNav(NavModule.inbox), isTrue);
-      // 当前 5 个：today todo calendar inbox settings，已达上限
-      expect(await c.toggleNav(NavModule.journal), isFalse);
-      expect(
-          container.read(settingsControllerProvider).navIds.length, 5);
+      // 上限：当前 5 个，再开 inbox 被拒。
+      expect(await c.toggleNav(NavModule.inbox), NavToggleResult.maxReached);
+      // 先关一个非锚项，腾出位置后就能开。
+      expect(await c.toggleNav(NavModule.journal), NavToggleResult.ok);
+      expect(await c.toggleNav(NavModule.inbox), NavToggleResult.ok);
+      expect(container.read(settingsControllerProvider).navIds.length, 5);
     });
   });
 }

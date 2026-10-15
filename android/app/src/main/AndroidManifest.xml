@@ -37,11 +37,22 @@
                判定重新被咨询。判据＝tile_back_probe 七条翻绿＋今天页首次返回出提醒条＋
                `U2BACK` 留痕出现。若 false 仍退，则回到 Dart 侧改拦截位置（app 根层），
                不许把这条当已修。 -->
+
+        <!-- ⚠ `taskAffinity` 禁再写回空串（2026-10-15 8147 装机实锤·产品定案修根因）：
+               M0 骨架（`9b726ffa`）随手带过 `android:taskAffinity=""`，它不是任何需求的
+               实现手段，却让本 app 任务**不归属任何 affinity**——从桌面进（图标／长按菜单／
+               小组件 PendingIntent／通知）时系统找不到可归并的任务，**每次都新建一个**：
+               实测 `dumpsys activity recents` 积出三个 lifeharness 任务（#9287/#9286/#9276），
+               且 `A=` 字段全是隐式 `I=`（别的 app 都是 `A=<appId>`），退出后最近任务里
+               出现多张 LifeHarness 卡片。
+               去掉后回归 Android 默认＝包名 `com.lifeharness.lifeharness`，**所有入口归并
+               到同一任务**；`launchMode="singleTop"` 一字未动，桌面批1 的热启动语义不变。
+               治标做法（在点击意图加 `CLEAR_TOP`）已证明不够——无 affinity 可匹配时该标志
+               找不到复用目标，仍会另起任务，故必须改这里。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -142,6 +153,85 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps the user's active reading/media timer visible as a system overlay while the app is in the background" />
         </service>
+        <!-- V1.67 桌面批2（冻结档 §2.2 / §6.2）：两枚入口型小组件。
+             读数只读 SharedPreferences 快照（C5·不直读 sqlite）；updatePeriodMillis=0
+             ⇒ App 存活时按需刷新（§6.3 禁轮询/常驻定时器）。 -->
+        <receiver
+            android:name=".TodayOverviewWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_overview_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_overview_info" />
+        </receiver>
+        <receiver
+            android:name=".QuickRecordWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_quick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_quick_info" />
+        </receiver>
+
+        <!-- 批3 · 2×2 待办清单：行左圈点一下直接闭环（产品令「可以直接点击闭环」）。
+             configure 同指配置页，长按「编辑」的落点也在这里（一份偏好 · 禁两套）。 -->
+        <receiver
+            android:name=".TodoListWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_todo_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_todo_info" />
+        </receiver>
+
+        <!-- 批3 · 2×2 记账概览：今日支出／本月支出／本月结余三行读数。 -->
+        <receiver
+            android:name=".LedgerOverviewWidget"
+            android:exported="true"
+            android:label="@string/lh_widget_ledger_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lh_widget_ledger_info" />
+        </receiver>
+
+        <!-- 批3 · 待办勾圈的闭环执行器（**内部广播，不导出**）。
+             ⚠ `exported=false` 是硬要求：它能被任意 app 用来改我们的待办库。
+             勾圈的 PendingIntent 由本进程发出，同进程投递到未导出 receiver 不受此限。 -->
+        <receiver
+            android:name=".TodoActionReceiver"
+            android:exported="false" />
+
+        <!-- V1.67 桌面批2（F2-4）：拖到桌面时的配置页（可选「显示什么」）。
+             与设置页共用同一份偏好（FlutterSharedPreferences 的 desktop.* 键 · 禁两套）。
+
+             ⚠ 这处 `taskAffinity` 刻意与 MainActivity **不同**（2026-10-15 产品定案）：
+               配置页需要一个不属于主任务的独立栈，否则它会跟主任务一起被收进最近任务卡片里。
+               但也不能写空串——空 affinity 与 MainActivity 那处同病（无 affinity 可归并）；
+               这里给一个**带包名前缀的独立值**，既独立又合法。MainActivity 那边则是
+               **反过来去掉该属性**，让所有桌面入口归并到同一任务。 -->
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity="com.lifeharness.lifeharness.widgetconfig"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

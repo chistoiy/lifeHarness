@@ -10,6 +10,7 @@ import '../../../core/nav/nav_collapse.dart'
     show NavLineCapsule, NavLineGrip;
 import '../../../core/nav/nav_module.dart';
 import '../../../core/providers.dart';
+import '../../../core/settings/settings_controller.dart' show NavToggleResult;
 import '../../../core/settings/user_settings.dart';
 import '../../../core/sync/sync_providers.dart' show activeSyncServiceProvider;
 import '../../../core/theme/app_theme.dart';
@@ -200,54 +201,8 @@ class SettingsPage extends ConsumerWidget {
           buildDesktopEntryGroup(context, flat: flat),
           const SizedBox(height: 12),
           // 底部导航自定义卡（原型「外观与交互」组内独立卡）
-          _Card(
-            flat: flat,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                        child: Text('底部导航栏自定义',
-                            style:
-                                TextStyle(fontSize: 14, fontWeight: FontWeight.w800))),
-                    Text(
-                      '已启用 ${settings.navIds.length}/5',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: tokens.accent,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                const Text('开启的栏目实时出现在底部导航；「今天」「我的」固定',
-                    style: TextStyle(fontSize: 11, color: Colors.grey)),
-                const SizedBox(height: 6),
-                NavToggleGrid(settings: settings),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    // V1.27 P3：编排直达 = 回今天页并进入长按编排模式（与 H1 同一实现）
-                    onPressed: () {
-                      context.go(NavModule.today.path);
-                      Future.delayed(const Duration(milliseconds: 350),
-                          () => ref
-                              .read(eventBusProvider)
-                              .publish(const EnterDashEditEvent()));
-                    },
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: tokens.accent.withValues(alpha: .06),
-                      foregroundColor: tokens.accent,
-                      side: BorderSide(color: tokens.accent.withValues(alpha: .3)),
-                    ),
-                    child: const Text('主页编排直达（或长按卡片）›',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // 2026-10-15 产品改口：11 枚开关铺开太占屏 ⇒ 整卡**默认折叠**，点标题行展开。
+          NavCustomizeCard(flat: flat),
           _GroupLabel(
               title: '系统与维护',
               index: showIndex ? '04' : null,
@@ -1062,7 +1017,99 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-/// 底栏栏目两列开关网格（U10 批转公开：固定项锁定态要能在不设整页依赖的情况下直达取证）。
+/// 「底部导航栏自定义」卡（2026-10-15 产品改口 · 默认折叠）。
+///
+/// 公开（非 `_` 私有）＝与 [NavToggleGrid] 同款理由：**不设整页依赖也能直达取证**
+/// （整张「我的」页要拉十几个 provider，太重，不适合做守护测试的宿主）。
+///
+/// 为什么折叠：11 枚栏目开关铺成两列要占 6 行，把整张设置页顶下去一大截；
+/// 而「改底栏栏目」是低频操作 ⇒ 默认只留一行摘要（标题 ＋ 已启用 N/5 ＋ 箭头），
+/// 点标题行展开。展开态是**会话内本地状态**（不落偏好：收没收起不是设置项，
+/// 与 `nav_collapse.dart` 的底栏收起态同口径）。
+class NavCustomizeCard extends ConsumerStatefulWidget {
+  const NavCustomizeCard({super.key, required this.flat});
+
+  final bool flat;
+
+  @override
+  ConsumerState<NavCustomizeCard> createState() => NavCustomizeCardState();
+}
+
+class NavCustomizeCardState extends ConsumerState<NavCustomizeCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final settings = ref.watch(settingsControllerProvider);
+    return _Card(
+      flat: widget.flat,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 整行可点＝展开/收起。收起态也留「已启用 N/5」，不开也能看出当前有几个。
+          InkWell(
+            key: const ValueKey('nav-customize-toggle'),
+            onTap: () => setState(() => _open = !_open),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  const Expanded(
+                      child: Text('底部导航栏自定义',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w800))),
+                  Text(
+                    '已启用 ${settings.navIds.length}/5',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: tokens.accent,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(_open ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 18, color: tokens.accent),
+                ],
+              ),
+            ),
+          ),
+          if (_open) ...[
+            const Text('开启的栏目实时出现在底部导航；「今天」「我的」至少要留一个',
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 6),
+            NavToggleGrid(settings: settings),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                // V1.27 P3：编排直达 = 回今天页并进入长按编排模式（与 H1 同一实现）
+                onPressed: () {
+                  context.go(NavModule.today.path);
+                  Future.delayed(const Duration(milliseconds: 350),
+                      () => ref
+                          .read(eventBusProvider)
+                          .publish(const EnterDashEditEvent()));
+                },
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: tokens.accent.withValues(alpha: .06),
+                  foregroundColor: tokens.accent,
+                  side: BorderSide(color: tokens.accent.withValues(alpha: .3)),
+                ),
+                child: const Text('主页编排直达（或长按卡片）›',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 底栏栏目两列开关网格（U10 批转公开：不设整页依赖也能直达取证）。
+///
+/// 2026-10-15 产品改口：「今天」「我的」**不再常开不可点** —— 可关其一，
+/// 只要另一个还在（`toggleNav` 返回 `needAnchor` 时提示，开关值如实反映偏好）。
 class NavToggleGrid extends ConsumerWidget {
   const NavToggleGrid({super.key, required this.settings});
 
@@ -1070,7 +1117,6 @@ class NavToggleGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pinned = {NavModule.today.id, NavModule.settings.id};
     return LayoutBuilder(
       builder: (context, c) {
         final w = (c.maxWidth - 12) / 2;
@@ -1085,30 +1131,30 @@ class NavToggleGrid extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        pinned.contains(m.id) ? '${m.label}（固定）' : m.label,
+                        m.label,
                         style: const TextStyle(fontSize: 12.5),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Switch(
                       key: ValueKey('nav-sw-${m.id}'),
-                      // U10：固定栏目出「常开＋不可点」的锁定态——原读 navIds 在
-                      // pinned 时取到 false，画成「关」＝误导（原型同款已改）。
-                      value:
-                          pinned.contains(m.id) ||
-                          settings.navIds.contains(m.id),
-                      onChanged: pinned.contains(m.id)
-                          ? null
-                          : (_) async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              final ok = await ref
-                                  .read(settingsControllerProvider.notifier)
-                                  .toggleNav(m);
-                              if (!ok) {
-                                messenger.showSnackBar(
-                                    const SnackBar(content: Text('底部导航最多 5 个栏目')));
-                              }
-                            },
+                      value: settings.navIds.contains(m.id),
+                      onChanged: (_) async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final r = await ref
+                            .read(settingsControllerProvider.notifier)
+                            .toggleNav(m);
+                        switch (r) {
+                          case NavToggleResult.maxReached:
+                            messenger.showSnackBar(const SnackBar(
+                                content: Text('底部导航最多 5 个栏目')));
+                          case NavToggleResult.needAnchor:
+                            messenger.showSnackBar(const SnackBar(
+                                content: Text('「今天」和「我的」至少要留一个')));
+                          case NavToggleResult.ok:
+                            break;
+                        }
+                      },
                     ),
                   ],
                 ),

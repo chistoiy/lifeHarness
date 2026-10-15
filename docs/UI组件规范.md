@@ -423,3 +423,8 @@
 ## 棘轮基线追加理由（2026-10-12 UIUX 批）
 
 - `todo_add_sheet.dart` 11→12 处＝番茄计时区块标题由「🍅 番茄计时」emoji 迁线性 `Icon(Icons.timer_outlined)`，Icon 色 `Color(0xFFE11D48)` 与该区块标题既有 rose 主题色同值对译（原型同位 `text-rose-500` 同色块），非新色相。人审＝本批产品令「待办页也修改」。
+
+### 原生色值登记（2026-10-15 桌面批2 · 冻结档 §5.4/§5.6）
+
+- `tools/color_ratchet.py` 只扫 `lib/**.dart` 的 `Color(0x`，**不覆盖原生 XML**；原生小组件色档按本条登记留痕。
+- 新增＝`android/app/src/main/res/values/colors.xml` 与 `values-night/colors.xml` 的四色档＋两枚派生透明色（**浅/深各一套，键名相同**）：`lh_wg_bg`/`lh_wg_fg`/`lh_wg_sub`/`lh_wg_acc`（浅 `#FFFFFF`/`#0F172A`/`#64748B`/`#6366F1`；深 `#1E293B`/`#F1F5F9`/`#94A3B8`/`#818CF8`）＋`lh_wg_btn_fg`（深色档强调色偏亮，白字仅 2.98:1 不达 AA ⇒ 换 `#1E293B` 深字）＋`lh_wg_stroke`（次文本 10% 透明）`/lh_wg_track`（18%）。理由：widget 走 `RemoteViews`，**吃不到 Flutter 令牌**，只能落原生色档（C6：只做浅/深两档跟随系统，不跟随 7 主题）。人审＝本批为冻结档 §5.4 明文规定的色档，非自造色相。
