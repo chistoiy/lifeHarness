@@ -54,11 +54,15 @@ else {
   (src.match(/force-dark/g) || []).length >= 2 ? ok('④ 深色档并排预览在位')
     : bad('④ 深色档并排预览缺失');
 
-  /* ⑤ §5.6 尺寸与视觉规格 */
+  /* ⑤ §5.6 尺寸与视觉规格
+     注：42px 安全区 / 55px 裁角是**真机物理像素**，示意图按约 1:3 缩放 → 图上画 12px / 18px，
+     标签仍标真机原值；故这里同时断言「真机原值在标签/注释里」＋「图上用的是缩放值」。 */
   src.indexOf('border-radius:16px') >= 0 ? ok('⑤ 圆角 16dp') : bad('⑤ 圆角 16dp 缺失');
   /color-mix\(in srgb,var\(--w-sub\) 10%/.test(src) ? ok('⑤ 描边 1dp＝次文本 10% 透明') : bad('⑤ 描边规格不符');
-  src.indexOf('inset:42px') >= 0 ? ok('⑤ 安全区 ≥42px') : bad('⑤ 安全区 42px 缺失');
-  src.indexOf('border-radius:55px') >= 0 ? ok('⑤ 系统裁 55px 圆角') : bad('⑤ 55px 裁角缺失');
+  (src.indexOf('inset:12px') >= 0 && src.indexOf('42px') >= 0 ? ok('⑤ 安全区 ≥42px（真机原值＋图上 12px 缩放）')
+    : bad('⑤ 安全区规格缺失或未标真机原值'));
+  (src.indexOf('border-radius:18px') >= 0 && src.indexOf('55px') >= 0 ? ok('⑤ 系统裁 55px 圆角（真机原值＋图上 18px 缩放）')
+    : bad('⑤ 55px 裁角规格缺失或未标真机原值'));
   /\.wg-read\{font-size:24px;font-weight:800/.test(src) ? ok('⑤ 读数 24sp 粗') : bad('⑤ 读数 24sp 规格不符');
   /\.wg-lab\{font-size:12px/.test(src) ? ok('⑤ 标签 12sp 常规') : bad('⑤ 标签 12sp 规格不符');
   /* 尺寸声明：2×2 与 4×1 */

@@ -24,6 +24,11 @@ import 'profile_edit_sheet.dart';
 // 私有成员 `_EntryCard`/`_EntryRow` 仍留在宿主，靠 part 共享 import 表与私有作用域。
 part 'settings_page_desktop.dart';
 
+/// 入口行图标块配色（原型 `.set-ic` 血缘 · 02 组）：外观＝天蓝，桌面＝品牌靛。
+/// 提出常量＝色值棘轮口径（part 件不得新冒硬编码色值；本件计数＝基线 24）。
+const Color _kIcAppearance = Color(0xFF0EA5E9);
+const Color _kIcDesktop = Color(0xFF6366F1);
+
 /// 我的/设置（M0 · 对齐原型 p-profile）。
 /// 真数据：完成任务数/连续记录天/在册书籍/同步与提醒读数/安装包版本号。
 /// 2026-10-11 批A：行序与卡片分组回到原型（记录管理收回组卡、维护类三行移末段）；

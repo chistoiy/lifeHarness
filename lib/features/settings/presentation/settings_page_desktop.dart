@@ -10,8 +10,8 @@ Widget buildDesktopEntryGroup(BuildContext context, {required bool flat}) =>
           _EntryRow(
               key: const ValueKey('entry-appearance'),
               iconWidget: const Icon(Icons.palette_outlined,
-                  size: 18, color: Color(0xFF0EA5E9)),
-              bg: const Color(0xFF0EA5E9).withValues(alpha: .12),
+                  size: 18, color: _kIcAppearance),
+              bg: _kIcAppearance.withValues(alpha: .12),
               title: '外观',
               sub: '主题风格 · 深色模式 · 主题色 · 字体大小',
               trailing: '',
@@ -19,8 +19,8 @@ Widget buildDesktopEntryGroup(BuildContext context, {required bool flat}) =>
           _EntryRow(
               key: const ValueKey('entry-desktop'),
               iconWidget: const Icon(Icons.widgets_outlined,
-                  size: 18, color: Color(0xFF6366F1)),
-              bg: const Color(0xFF6366F1).withValues(alpha: .12),
+                  size: 18, color: _kIcDesktop),
+              bg: _kIcDesktop.withValues(alpha: .12),
               title: '桌面与快捷方式',
               sub: '长按图标菜单 · 铺到桌面 · 小组件',
               trailing: '',
