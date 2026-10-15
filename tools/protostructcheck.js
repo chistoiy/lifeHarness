@@ -31,9 +31,10 @@ const secDiff = (src.match(/<section[\s>]/g) || []).length - (src.match(/<\/sect
 (secDiff === BASE_SECTION_DIFF ? ok : bad)('静态 section 配平 = 基线 ' + BASE_SECTION_DIFF, '实际 ' + secDiff);
 
 /* 治理批拍板：p-records/p-habits 等代表屏已下架（直达专版），关键页表随之收敛为壳 home 屏
-   2026-10-12 时间模块抽离批：p-calendar / p-timeStats 亦下架（家迁 index-time.html），故移出本表 */
+   2026-10-12 时间模块抽离批：p-calendar / p-timeStats 亦下架（家迁 index-time.html），故移出本表
+   2026-10-16 高保真体量整改批 2：p-logs 亦下架（家迁 index-sync.html），故移出本表 */
 const PAGES = ['p-dashboard', 'p-todo', 'p-profile', 'p-inbox',
-  'p-sub-ai', 'p-aiUsage', 'p-logs'];
+  'p-sub-ai', 'p-aiUsage'];
 
 (async () => {
   if (!fs.existsSync(CHROME)) { bad('chrome 存在'); return finish() }

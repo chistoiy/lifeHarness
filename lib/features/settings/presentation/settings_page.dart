@@ -211,7 +211,7 @@ class SettingsPage extends ConsumerWidget {
             flat: flat,
             child: Column(
               children: [
-                // V1.41批1 Task 6：日志查看页入口（原型 index-sync p-log）。
+                // V1.41批1 Task 6：日志查看页入口（原型 index-sync.html p-logs；批2 起家＝该专版，原 p-log 已退役）。
                 _EntryRow(
                     key: const ValueKey('entry-log'),
                     iconWidget: const Icon(Icons.receipt_long_outlined,

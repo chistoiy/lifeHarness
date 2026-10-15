@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 /// 批②b（工单 §13·产品过门 E/F/G）：全屏图片查看件。
 ///
-/// 原型事实源＝`prototype/index.html#imgView`；红线 §3「预览两处同一查看件·禁各造一套」——
+/// 原型事实源＝`prototype/index-sync.html#imgView`（批2 起随 p-sub-mediaclean 迁入该专版）；红线 §3「预览两处同一查看件·禁各造一套」——
 /// 笔记/日记缩略图（[showImageLightbox]）与同步差异行、图片清理行（[showImageViewer]）都走本件。
 /// 形态：黑底·顶栏「i / N」＋±缩放＋关闭·中间可缩放图（真机双指＝[InteractiveViewer]，
 /// 点图 1×⇄2×）·底部人话名（U3）＋技术明细（类型·体积·完整路径）＋左右翻页（到界禁用）。

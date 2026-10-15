@@ -1,6 +1,6 @@
 {
   "_comment": "模块注册表（唯一驱动源）。屏/弹层归属见 screens；闸＝tools/protogate.py。md 由脚本生成进 INDEX，本文件是源，禁止手改产物 md。 【size/hash 两列的口径与盲区（2026-10-05 实测）】size＝`tools/pslice.js` 取块字符数，随内容变、可信；hash＝登记时写的 md5 前 8 位，但**算法不统一**：255 条里 146 条可用「pslice 块 md5[:8]」复现、122 条 size 相同而 hash 复现不了（登记侧块边界/归一不同）、34 条 size 已随内容漂移、380 处登记的块在文件里已不存在（越权副本删除所致）。`tools/protogate.py` 只校验归属/登记/别名/勿复活。【2026-10-06 已收口】统一口径＝`tools/proto_registry.js`（块＝pslice 口径：外层块**不跳过**内层 id，页内弹层照收；size＝块字符数；hash＝块 md5[:8]），已按此重算全表并剪掉块已不存在的登记（256→243 屏 · 682→305 file 条目 · 全部可复现）；`--check` 已接进 `tools/doclint.py`，改过原型屏后不重算即红灯（篡改一处 hash / 屏改 id 两刀变异各自判红）。改完原型跑：`node tools/proto_registry.js --write`。",
-  "updated": "2026-10-15",
+  "updated": "2026-10-16",
   "gateMode": "strict",
   "cutPolicy": {
     "placeholder": false,
@@ -265,7 +265,7 @@
       "name": "同步",
       "file": "index-sync.html",
       "req": "-",
-      "status": "frozen",
+      "status": "current",
       "dev": "notStarted",
       "aliases": [
         "同步",
@@ -1236,11 +1236,11 @@
       "id": "p-logs",
       "kind": "screen",
       "title": "日志管理",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 10205,
           "hash": "1a79b093"
         }
@@ -1600,11 +1600,11 @@
       "id": "p-sub-data",
       "kind": "screen",
       "title": "数据与同步",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "shared",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 12272,
           "hash": "a55fd7aa"
         }
@@ -1614,11 +1614,11 @@
       "id": "p-sub-dbstats",
       "kind": "screen",
       "title": "数据库概览",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 5883,
           "hash": "98703ba0"
         }
@@ -1661,8 +1661,8 @@
       "status": "exclusive",
       "files": {
         "index.html": {
-          "size": 2039,
-          "hash": "eda29667"
+          "size": 2064,
+          "hash": "7c6c6029"
         }
       }
     },
@@ -3127,11 +3127,11 @@
       "id": "sheetLogSettings",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 3901,
           "hash": "0a1255f0"
         }
@@ -3681,11 +3681,11 @@
       "id": "p-sub-backup",
       "kind": "screen",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 1920,
           "hash": "9aeaaf72"
         }
@@ -3695,11 +3695,11 @@
       "id": "sheetBkDel",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 962,
           "hash": "924cac4c"
         }
@@ -3709,11 +3709,11 @@
       "id": "sheetSyncDiff",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 1091,
           "hash": "9fe0e30e"
         }
@@ -3723,11 +3723,11 @@
       "id": "p-sub-mediaclean",
       "kind": "screen",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 1738,
           "hash": "710519c9"
         }
@@ -3737,11 +3737,11 @@
       "id": "sheetMcDel",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 967,
           "hash": "c4bc8a97"
         }
@@ -3772,20 +3772,6 @@
         "index.html": {
           "size": 337,
           "hash": "4eac6fa6"
-        }
-      }
-    },
-    {
-      "id": "sheetGridMark",
-      "kind": "sheet",
-      "title": "",
-      "home": "index.html",
-      "reps": [],
-      "status": "shared",
-      "files": {
-        "index.html": {
-          "size": 1501,
-          "hash": "995bf744"
         }
       }
     },
@@ -4199,11 +4185,11 @@
       "id": "sheetExport",
       "kind": "sheet",
       "title": "",
-      "home": "index.html",
+      "home": "index-sync.html",
       "reps": [],
       "status": "exclusive",
       "files": {
-        "index.html": {
+        "index-sync.html": {
           "size": 4898,
           "hash": "1f6a36c2"
         }
@@ -4402,6 +4388,34 @@
         "index-desktop.html": {
           "size": 4468,
           "hash": "5a7741d5"
+        }
+      }
+    },
+    {
+      "id": "p-sync",
+      "kind": "screen",
+      "title": "数据与同步",
+      "home": "index-sync.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-sync.html": {
+          "size": 6844,
+          "hash": "bd87f4c5"
+        }
+      }
+    },
+    {
+      "id": "p-synchist",
+      "kind": "screen",
+      "title": "同步历史",
+      "home": "index-sync.html",
+      "reps": [],
+      "status": "exclusive",
+      "files": {
+        "index-sync.html": {
+          "size": 119,
+          "hash": "27edff1e"
         }
       }
     }
@@ -5082,37 +5096,37 @@
     {
       "file": "index-bookshelf.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-ledger.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-health.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index_habitcheck.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-maternity_bady.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-day_aim__goods.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
@@ -6336,42 +6350,6 @@
     {
       "file": "index-day_aim__goods.html",
       "id": "sheetAddEvent",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-bookshelf.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-ledger.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-health.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index_habitcheck.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-maternity_bady.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-day_aim__goods.html",
-      "id": "sheetGridMark",
       "home": "index.html",
       "exempt": null
     },
@@ -6626,7 +6604,7 @@
     {
       "file": "index-media.html",
       "id": "p-sub-data",
-      "home": "index.html"
+      "home": "index-sync.html"
     },
     {
       "file": "index-media.html",
@@ -6727,11 +6705,6 @@
       "file": "index-media.html",
       "id": "sheetExtra",
       "home": "index-day_aim__goods.html"
-    },
-    {
-      "file": "index-media.html",
-      "id": "sheetGridMark",
-      "home": "index.html"
     },
     {
       "file": "index-media.html",
@@ -6944,7 +6917,7 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-data",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
@@ -7123,12 +7096,6 @@
     },
     {
       "file": "index-journal.html",
-      "id": "sheetGridMark",
-      "home": "index.html",
-      "exempt": null
-    },
-    {
-      "file": "index-journal.html",
       "id": "sheetEventDetail",
       "home": "index.html",
       "exempt": null
@@ -7148,7 +7115,7 @@
     {
       "file": "index-journal.html",
       "id": "p-logs",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
@@ -7172,19 +7139,19 @@
     {
       "file": "index-journal.html",
       "id": "p-sub-backup",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "p-sub-dbstats",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "p-sub-mediaclean",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
@@ -7226,19 +7193,19 @@
     {
       "file": "index-journal.html",
       "id": "sheetBkDel",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetLogSettings",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
       "file": "index-journal.html",
       "id": "sheetMcDel",
-      "home": "index.html",
+      "home": "index-sync.html",
       "exempt": null
     },
     {
@@ -7305,6 +7272,30 @@
       "file": "index.html",
       "id": "sheetCatParent",
       "home": "index-time.html",
+      "exempt": null
+    },
+    {
+      "file": "index-sync.html",
+      "id": "p-records",
+      "home": "index-bookshelf.html",
+      "exempt": null
+    },
+    {
+      "file": "index-sync.html",
+      "id": "p-aiUsage",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-sync.html",
+      "id": "p-sub-trash",
+      "home": "index.html",
+      "exempt": null
+    },
+    {
+      "file": "index-sync.html",
+      "id": "p-todo",
+      "home": "index.html",
       "exempt": null
     }
   ],
@@ -7783,27 +7774,27 @@
     },
     {
       "from": "index-bookshelf.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index-ledger.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index-health.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index_habitcheck.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index-maternity_bady.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index-day_aim__goods.html#p-sub-data",
-      "to": "index.html#p-sub-data"
+      "to": "index-sync.html#p-sub-data"
     },
     {
       "from": "index-bookshelf.html#p-sub-notify",
@@ -8598,30 +8589,6 @@
       "to": "index.html#sheetAddEvent"
     },
     {
-      "from": "index-bookshelf.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
-      "from": "index-ledger.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
-      "from": "index-health.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
-      "from": "index_habitcheck.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
-      "from": "index-maternity_bady.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
-      "from": "index-day_aim__goods.html#sheetGridMark",
-      "to": "index.html#sheetGridMark"
-    },
-    {
       "from": "index-bookshelf.html#sheetEventDetail",
       "to": "index.html#sheetEventDetail"
     },
@@ -8760,12 +8727,51 @@
     {
       "from": "index.html#sheetCatParent",
       "to": "index-time.html#sheetCatParent"
+    },
+    {
+      "from": "index.html#p-sub-data",
+      "to": "index-sync.html#p-sub-data"
+    },
+    {
+      "from": "index.html#sheetSyncDiff",
+      "to": "index-sync.html#sheetSyncDiff"
+    },
+    {
+      "from": "index.html#sheetExport",
+      "to": "index-sync.html#sheetExport"
+    },
+    {
+      "from": "index.html#p-sub-backup",
+      "to": "index-sync.html#p-sub-backup"
+    },
+    {
+      "from": "index.html#sheetBkDel",
+      "to": "index-sync.html#sheetBkDel"
+    },
+    {
+      "from": "index.html#p-sub-mediaclean",
+      "to": "index-sync.html#p-sub-mediaclean"
+    },
+    {
+      "from": "index.html#sheetMcDel",
+      "to": "index-sync.html#sheetMcDel"
+    },
+    {
+      "from": "index.html#p-sub-dbstats",
+      "to": "index-sync.html#p-sub-dbstats"
+    },
+    {
+      "from": "index.html#p-logs",
+      "to": "index-sync.html#p-logs"
+    },
+    {
+      "from": "index.html#sheetLogSettings",
+      "to": "index-sync.html#sheetLogSettings"
     }
   ],
   "frozen": [
     "v2.html",
-    "index-v2.html",
-    "index-sync.html"
+    "index-v2.html"
   ],
   "deleted": {
     "index.html": [
@@ -8839,6 +8845,15 @@
       {
         "id": "sheetTocImport",
         "inner": []
+      },
+      {
+        "id": "sheetGridMark",
+        "inner": [
+          "markRange",
+          "markCats",
+          "markNote",
+          "markDelBtn"
+        ]
       }
     ],
     "index-bookshelf.html": [

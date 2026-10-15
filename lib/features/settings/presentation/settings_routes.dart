@@ -84,7 +84,7 @@ List<GoRoute> settingsPageRoutes(
             builder: (_, _) => DbOverviewPage(
                 backupSizeReader: dbOverviewBackupSizeReader),
           ),
-        // V1.41批1 Task 6 日志查看页（原型 p-log：120 条窗口/级别过滤/复制全量/
+        // V1.41批1 Task 6 日志查看页（原型 p-logs（批2 起家＝index-sync.html）：120 条窗口/级别过滤/复制全量/
           // 保留天数滚轮；全屏栈页，设置页与将来同步历史均 context.go 跳入）。
           GoRoute(
             path: '/log',

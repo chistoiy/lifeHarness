@@ -12,7 +12,7 @@ import '../../../shared/widgets/ui_kit.dart';
 /// 日志级别过滤档（原型 logLvSet：全部 / 警告+ / 错误）。
 enum _LogFlt { all, warnUp, error }
 
-/// V1.50 批3.6 · 日志页（原型 p-logs，V4 风格 + V5 三点）。
+/// V1.50 批3.6 · 日志页（原型 index-sync.html p-logs（批2 起家＝该专版），V4 风格 + V5 三点）。
 ///
 /// 保真口径：
 /// - 顶栏「日志管理」+ 齿轮 → 底部弹层「筛选与配置」（分段 Tab：筛选 | 配置）；

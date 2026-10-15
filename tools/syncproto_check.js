@@ -2,20 +2,50 @@
 // 断言：逐屏 id 存在 / 钉死文案存在 / provider 切 S3 后表单标签映射含 Access Key·Secret Key /
 //       教学句式 0 命中 / emoji 码点 0 命中 / 处理器与 id 接线完整。
 // 优先 jsdom 真 DOM 断言，jsdom 不可用退化为正则断言。用法：node tools/syncproto_check.js [文件路径]
+//
+// 【2026-10-16 批 2 修订（高保真体量整改 · 合并式收口）——每处都标了依据，勿再当「闸坏了」】
+//   依据＝工单 docs/handoff/交棒话术-20261015-高保真体量整改.md §3 批 2 ＋ 本会话产品六条裁定。
+//   ① 屏表：p-log 退役（被 index.html 侧迁入的 p-logs 取代，Q1 合并式收口）；
+//      新增批 2 迁入 5 屏（p-sub-data / p-sub-backup / p-sub-dbstats / p-logs / p-sub-mediaclean）
+//      ＋迁入 5 弹层（sheetSyncDiff / sheetExport / sheetBkDel / sheetLogSettings / sheetMcDel）。
+//      注：迁入弹层是 index.html 写法（class 在前、id 在后），与专版旧弹层（id 在前）不同 → 分开断言。
+//   ② 外部资源：Q3「作用域隔离」需 Tailwind CDN（专版原有 3 屏靠 preflight:false 保观感）。
+//      故从「零外部资源」改为「只许 Tailwind CDN」；**Google Fonts 明令禁止**——实测引 Inter 会改
+//      本版原有屏的文字折行（p-sync 卡 150→135px、「最近同步」行两行变一行）＝违反铁律⑥ 只搬不改。
+//   ③ 日志文案：8 条原属已退役的 p-log（复制全部（300）/ 窗口·最近 120 条 / data-flt 三 chip /
+//      保留天数滚轮）。活日志屏改为迁入的 p-logs，断言按其真实结构重写（见下）。
+//   ④ emoji：专版自有区仍零命中；迁入区按 index.html 源屏口径（`✓ ⬇ ⬆ ️` 是壳层既有字形，
+//      铁律⑥ 只搬不改 ⇒ 不许在本批就地清）。迁入区逐字同源由注册表 hash 相等自证。
+//   ⑤ `$()` 目标：pfMcCnt 现属「跨文件入口行」——行留在 index.html 的 p-profile（家未迁），
+//      更新方 mcRender() 随 p-sub-mediaclean 迁入本版 ⇒ 本版取不到该节点（代码已 `if(pf)` 守卫，
+//      且静态值「6 个」＝MC_FILES.length，观感无差）。属既定过渡态，白名单豁免并记于此。
 const fs = require('fs');
 const F = process.argv[2] || 'prototype/index-sync.html';
 const s = fs.readFileSync(F, 'utf8').replace(/\r\n/g, '\n');
 let bad = 0;
 const ok = (cond, label) => { console.log((cond ? 'PASS ' : 'FAIL ') + label); if (!cond) bad++; };
 
-/* ---------- 0) 单文件约束：无外部资源 ---------- */
-ok(!/<link[^>]+href="http|<script[^>]+src=/.test(s), '无外部资源引用（link http / script src）');
+/* ---------- 0) 单文件约束：只许 Tailwind CDN（批 2 Q3）；禁 Google Fonts（见头注释 ②） ---------- */
+{
+  const externals = [...s.matchAll(/<link[^>]+href="(https?:[^"]+)"|<script[^>]+src="(https?:[^"]+)"/g)]
+    .map(m => m[1] || m[2]);
+  ok(externals.length === 1 && /^https:\/\/cdn\.tailwindcss\.com\/?$/.test(externals[0]),
+    '外部资源只许 Tailwind CDN' + (externals.length ? '（实际 ' + externals.join(' ') + '）' : ''));
+  ok(!/fonts\.googleapis\.com|fonts\.gstatic\.com/.test(s), '禁 Google Fonts（引它会改原有屏折行）');
+}
 
 /* ---------- 1) 逐屏 id 存在 ---------- */
-const SCREENS = ['p-sync', 'p-log', 'p-synchist'];
+/* 专版自有（原 p-log 已退役，见头注释 ①） */
+const SCREENS = ['p-sync', 'p-synchist'];
+/* 批 2 迁入屏（家＝本专版） */
+const SCREENS_B2 = ['p-sub-data', 'p-sub-backup', 'p-sub-dbstats', 'p-logs', 'p-sub-mediaclean'];
 const SHEETS = ['s-svc-edit', 's-svc-verify', 's-diff', 's-syncprog', 's-backup', 's-throttle'];
+/* 批 2 迁入弹层（index.html 写法：class 在前 id 在后） */
+const SHEETS_B2 = ['sheetSyncDiff', 'sheetExport', 'sheetBkDel', 'sheetLogSettings', 'sheetMcDel'];
 for (const id of SCREENS) ok(new RegExp('<section id="' + id + '" class="page').test(s), '屏 id 存在: ' + id);
+for (const id of SCREENS_B2) ok(new RegExp('<section id="' + id + '" class="page').test(s), '批2 迁入屏 id 存在: ' + id);
 for (const id of SHEETS) ok(new RegExp('<div class="sheet" id="' + id + '"').test(s), '弹层 id 存在: ' + id);
+for (const id of SHEETS_B2) ok(new RegExp('<div id="' + id + '" class="sheet[^"]*"').test(s), '批2 迁入弹层 id 存在: ' + id);
 
 /* ---------- 2) 钉死文案 ---------- */
 const TEXTS = [
@@ -36,15 +66,14 @@ const TEXTS = [
   ['下载', '「仅云端」行下载按钮'],
   ['被限流，等待 8s', '进度行被限流示例态'],
   ['取消', '进度半屏取消钮'],
-  ['复制全部（300）', '日志复制全量按钮'],
-  ['窗口 · 最近 120 条', '日志顶部窗口示意'],
-  ['data-flt="all"', '级别 chip 全部'],
-  ['data-flt="warn"', '级别 chip 警告+'],
-  ['data-flt="error"', '级别 chip 错误'],
-  ['保留天数', '保留天数设置'],
-  [/witem[^>]*>7 天/, '保留天数滚轮档 7'],
-  [/witem on[^>]*>14 天/, '保留天数滚轮默认 14'],
-  [/witem[^>]*>30 天/, '保留天数滚轮档 30'],
+  /* —— 日志屏：批2 起断言活屏 p-logs（迁入件）；原 p-log 的 8 条随屏退役（头注释 ③） —— */
+  ['复制全部', '日志复制全量按钮（p-logs）'],
+  ['窗口 120 条 · 缓冲 300 · 落盘按天 · 单文件 5 MB · 最新在上', '日志顶部窗口示意（p-logs）'],
+  [/id="logLvAll"[\s\S]{0,200}logLvSet\('all'[\s\S]{0,600}logLvSet\('warn'[\s\S]{0,400}logLvSet\('error'/, '级别三档 全部/警告+/错误（p-logs）'],
+  [/data-lv="WARN"/, '日志行级别标 WARN（p-logs）'],
+  [/data-lv="ERROR"/, '日志行级别标 ERROR（p-logs）'],
+  [/落盘日志保留[\s\S]{0,240}id="logKeep"/, '保留天数设置（p-logs）'],
+  [/id="logKeepVal"[^>]*>14 天/, '保留天数默认 14 天（p-logs）'],
   ['仅存本机加密区', '凭据行加密区状态点'],
   [/150ms[\s\S]{0,160}300ms[\s\S]{0,160}800ms/, '节流三档 150/300/800ms'],
   [/seg-btn on[^>]*>300ms/, '节流默认选中 300ms'],
@@ -107,10 +136,16 @@ for (const p of ['你可以', '提示：', '首先']) {
   ok(n === 0, '教学句式「' + p + '」0 命中' + (n ? '（实际 ' + n + '）' : ''));
 }
 
-/* ---------- 5) emoji 码点 0 命中 ---------- */
+/* ---------- 5) emoji 码点 0 命中（只查专版自有区；批2 迁入区按源屏口径，见头注释 ④） ---------- */
 const EM = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/gu;
-const hits = [...new Set(s.match(EM) || [])];
-ok(hits.length === 0, 'emoji 码点 0 命中' + (hits.length ? '：' + hits.join(' ') : ''));
+/* 迁入区＝`<div id="shl">` 到其配平闭合（标记 `</div><!-- /shl -->`）；只对区外做零命中断言 */
+const SHL_START = s.indexOf('<div id="shl">');
+const SHL_END = s.indexOf('<!-- /shl -->');
+const shlOk = SHL_START >= 0 && SHL_END > SHL_START;
+ok(shlOk, '批2 迁入区 #shl 边界可识别');
+const outside = shlOk ? (s.slice(0, SHL_START) + s.slice(SHL_END)) : s;
+const hits = [...new Set(outside.match(EM) || [])];
+ok(hits.length === 0, '专版自有区 emoji 码点 0 命中' + (hits.length ? '：' + hits.join(' ') : ''));
 
 /* ---------- 6) 处理器与 id 接线（ledgercheck 同思路） ---------- */
 const decl = new Set();
@@ -124,11 +159,13 @@ for (const m of s.matchAll(/\bon(?:click|input|change)=\\?["'`]([^"'`]+)/g)) {
   }
 }
 ok(undef.size === 0, '内联处理器函数全部已定义' + (undef.size ? '：缺 ' + [...undef.keys()].join(' ') : ''));
+/* 跨文件入口行白名单（批2）：节点家不在本文件、由入口行的目标屏消费；见头注释 ⑤ */
+const CROSS_FILE = new Set(['pfMcCnt']);
 const miss = new Set();
 for (const m of s.matchAll(/\$\('#([\w-]+)'\)/g)) {
-  if (!new RegExp('id="' + m[1] + '"').test(s)) miss.add(m[1]);
+  if (!new RegExp('id="' + m[1] + '"').test(s) && !CROSS_FILE.has(m[1])) miss.add(m[1]);
 }
-ok(miss.size === 0, '$() 字面量目标 id 全部存在' + (miss.size ? '：缺 ' + [...miss].join(' ') : ''));
+ok(miss.size === 0, '$() 字面量目标 id 全部存在（跨文件白名单 ' + [...CROSS_FILE].join(' ') + '）' + (miss.size ? '：缺 ' + [...miss].join(' ') : ''));
 
 /* ---------- 7) jsdom 增强（可用则跑，不可用退化为以上正则断言） ---------- */
 try {

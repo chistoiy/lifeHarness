@@ -4,6 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LifeHarness · 高保真UI原型 · 数据与同步专版 V1.41</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+/* 批2：迁入屏（index.html 壳）用 Tailwind 工具类，故本版引入同一份 CDN。
+   关键＝关掉 preflight（corePlugins.preflight=false）：本版原有 3 屏是无 Tailwind 手写 CSS 的，
+   preflight 的全局重置会动到它们的观感。迁入屏所需的「重置语义」改由 #shl 作用域内的
+   :where(#shl) 规则补齐（零特异性，不压 Tailwind 工具类）。
+   另：**不引 Inter 字体**。实测引它会改变本版原有屏的文字折行（p-sync 卡 150→135px，
+   「最近同步」行由两行变一行）＝违反「只搬不改」。迁入屏随本版回落链走，与 index.html 的
+   差异仅限「Inter 是否存在」的字形宽度。 */
+tailwind.config = {
+  darkMode: 'class',
+  corePlugins: { preflight: false },
+  theme: { extend: { fontFamily: { sans: ['Inter','Noto Sans SC','Source Han Sans SC','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] },
+    colors: { brand: {50:'#eef2ff',100:'#e0e7ff',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca'},
+      mint:'#2dd4bf', peach:'#fb7185', sun:'#f59e0b' } } }
+}
+</script>
 <style>
   /* ================= 设计令牌（沿用 index-health 视觉语言 · 单文件内联 · 无外部资源） ================= */
   :root{
@@ -197,6 +214,131 @@
   #safMock .d-row{cursor:pointer}
   .hide{display:none!important}
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+/* ===== 批2 迁入屏作用域地基（#shl）· 由 tmp/p2/gen_css.py 生成 · 过渡态，另批拆 ===== */
+/* 变量：index.html 壳令牌整套搬到 #shl 下，与 index-sync 自身 :root 互不干扰 */
+#shl{--accent:#6366f1;--accent-l:#818cf8;--g1:#6366f1;--g2:#8b5cf6;--g3:#d946ef;--page:#f8fafc;--card:#fff;--card-bd:#f1f5f9;--card-r:20px;--card-sh:0 1px 3px rgba(15,23,42,.05);--nav-bg:rgba(255,255,255,.85);--nav-bd:#e2e8f0}
+html.dark #shl{--page:#020617;--card:#0f172a;--card-bd:#1e293b;--nav-bg:rgba(2,6,23,.85);--nav-bd:#1e293b}
+html[data-theme="fresh"] #shl{--accent:#10b981;--accent-l:#34d399;--g1:#34d399;--g2:#22d3ee;--g3:#60a5fa;--page:#f1faf4;--card-bd:#e2f2e9;--card-r:26px;--nav-bg:rgba(255,255,255,.88)}
+html[data-theme="fresh"].dark #shl{--page:#07130e;--card:#0c1a13;--card-bd:#16321f;--nav-bg:rgba(7,19,14,.88);--nav-bd:#16321f}
+html[data-theme="retro"] #shl{--accent:#b45309;--accent-l:#d97706;--g1:#b45309;--g2:#92400e;--g3:#7c2d12;--page:#f4ecdc;--card:#fdf6e9;--card-bd:#e0cfa9;--card-r:12px;--card-sh:3px 3px 0 #e2d3b1;--nav-bg:#f4ecd9;--nav-bd:#e0cfa9}
+html[data-theme="retro"].dark #shl{--page:#171008;--card:#241a0e;--card-bd:#4a3722;--card-sh:3px 3px 0 #0c0702;--nav-bg:#211709;--nav-bd:#4a3722}
+html[data-theme="neumorph"] #shl{--accent:#5b7cfa;--accent-l:#93a7ff;--g1:#7c93f5;--g2:#6272e8;--g3:#5565e0;--page:#e9eef5;--card:#e9eef5;--card-bd:transparent;--card-r:22px;--card-sh:8px 8px 18px #c9d2e3,-8px -8px 18px #ffffff;--nav-bg:#e9eef5;--nav-bd:#d7dfec}
+html[data-theme="neumorph"].dark #shl{--page:#232936;--card:#232936;--card-bd:transparent;--card-sh:8px 8px 18px #161a23,-8px -8px 18px #303748;--nav-bg:#232936;--nav-bd:#2c3342}
+/* Tailwind 关闭 preflight 后的零特异性重置仿真：只作用于 #shl 子树，不压 Tailwind 工具类 */
+:where(#shl) *,:where(#shl) *::before,:where(#shl) *::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}
+:where(#shl) button,:where(#shl) input,:where(#shl) select,:where(#shl) textarea{font:inherit;color:inherit;margin:0}
+:where(#shl) button,:where(#shl) [role="button"]{background-color:transparent;background-image:none;cursor:pointer}
+:where(#shl) h1,:where(#shl) h2,:where(#shl) h3,:where(#shl) h4,:where(#shl) h5,:where(#shl) h6{font-size:inherit;font-weight:inherit}
+:where(#shl) ul,:where(#shl) ol{list-style:none;margin:0;padding:0}
+:where(#shl) a{color:inherit;text-decoration:inherit}
+:where(#shl) img,:where(#shl) svg,:where(#shl) video{display:block;vertical-align:middle}
+:where(#shl) summary::-webkit-details-marker{display:none}
+/* 包裹层不产生盒：子节点直接参与 #wrap 布局 */
+#shl{display:contents}
+/* 中和本版同名遗留类（26 个）：让 index.html 壳样式成为迁入屏唯一来源。
+   用 :where(#shl) 保持 (0,1,0) 特异性 —— 与本版遗留规则同级但更靠后 ⇒ 压过它；
+   与 Tailwind 工具类同级但更靠前（CDN 样式表注入在 <head> 末） ⇒ 让工具类取胜。 */
+:where(#shl) .active{animation:revert;display:revert}
+:where(#shl) .bar{background:revert;border-radius:revert;display:revert;height:revert;overflow:revert}
+:where(#shl) .card{background:revert;border:revert;border-radius:revert;box-shadow:revert;margin-top:revert;padding:revert}
+:where(#shl) .chip{align-items:revert;background:revert;border-radius:revert;color:revert;display:revert;font-size:revert;font-weight:revert;padding:revert}
+:where(#shl) .chk{background:revert;border:revert;border-color:revert;border-radius:revert;border-width:revert;content:revert;cursor:revert;display:revert;flex-shrink:revert;height:revert;left:revert;position:revert;top:revert;transform:revert;width:revert}
+:where(#shl) .dark{background:revert;border-color:revert;color:revert}
+:where(#shl) .grabber{background:revert;border-radius:revert;height:revert;margin:revert;width:revert}
+:where(#shl) .ll{color:revert;flex-shrink:revert;font-weight:revert;width:revert}
+:where(#shl) .lm{color:revert;word-break:revert}
+:where(#shl) .logline{align-self:revert;background:revert;border-bottom:revert;border-radius:revert;color:revert;display:revert;flex-shrink:revert;font-family:revert;font-size:revert;font-weight:revert;gap:revert;line-height:revert;margin-top:revert;padding:revert;width:revert;word-break:revert}
+:where(#shl) .ls{align-self:revert;background:revert;border-radius:revert;color:revert;flex-shrink:revert;font-size:revert;font-weight:revert;margin-top:revert;padding:revert}
+:where(#shl) .lt{color:revert;flex-shrink:revert}
+:where(#shl) .lv-ERROR{background:revert;color:revert}
+:where(#shl) .lv-INFO{color:revert}
+:where(#shl) .lv-WARN{background:revert;color:revert}
+:where(#shl) .mini-btn{background:revert;border-radius:revert;color:revert;font-size:revert;font-weight:revert;padding:revert}
+:where(#shl) .n{color:revert}
+:where(#shl) .off{display:revert}
+:where(#shl) .on{background:revert;border:revert;border-color:revert;border-radius:revert;border-width:revert;color:revert;content:revert;font-size:revert;font-weight:revert;height:revert;inset:revert;left:revert;position:revert;top:revert;transform:revert;width:revert}
+:where(#shl) .open{display:revert}
+:where(#shl) .page{animation:revert;display:revert;inset:revert;overflow-y:revert;padding:revert;position:revert;scrollbar-width:revert}
+:where(#shl) .sheet{align-items:revert;background:revert;display:revert;inset:revert;position:revert;z-index:revert}
+:where(#shl) .sheet-panel{-webkit-overflow-scrolling:revert;animation:revert;background:revert;border-radius:revert;display:revert;max-height:revert;overflow-y:revert;padding:revert;scrollbar-width:revert;width:revert}
+:where(#shl) .sub{color:revert;font-size:revert;margin-top:revert}
+:where(#shl) .toggle{background:revert;border-radius:revert;box-shadow:revert;content:revert;cursor:revert;display:revert;flex-shrink:revert;height:revert;left:revert;position:revert;top:revert;transition:revert;width:revert}
+:where(#shl) .witem{color:revert;font-size:revert;font-weight:revert;height:revert;line-height:revert;scroll-snap-align:revert;text-align:revert;user-select:revert}
+/* 壳样式规则：整套加 #shl 前缀 */
+html[data-theme="retro"] #shl .card{border-width:2px}
+html[data-theme="neumorph"] #shl .card{border-width:0}
+#shl .no-scrollbar::-webkit-scrollbar{display:none}
+#shl .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+#shl .page{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#shl .page.active{display:block;animation:slideIn .22s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+#shl .sheet-open{display:flex!important}
+#shl .sheet-panel{animation:sheetUp .25s cubic-bezier(.2,.8,.2,1)}
+#shl .safe-pb{padding-bottom:96px}
+#shl .card{background:var(--card);border:1px solid var(--card-bd);border-radius:var(--card-r);padding:14px 16px;box-shadow:var(--card-sh)}
+#shl .row-title{font-size:13px;font-weight:800}
+#shl .seg-on{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12)}
+html.dark #shl .seg-on{color:var(--accent-l)}
+#shl .wheelbox{height:78px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#shl .wheelbox::-webkit-scrollbar{display:none}
+#shl .witem{height:26px;line-height:26px;scroll-snap-align:center;text-align:center;font-size:12px;color:#94a3b8;font-weight:600;user-select:none;transition:color .15s}
+#shl .witem.on{font-size:19px;font-weight:800;color:var(--accent)}
+html.dark #shl .witem.on{color:var(--accent-l)}
+#shl .exW3{flex:1;min-width:0}
+#shl .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:600}
+html.dark #shl .chip{background:#1e293b;color:#94a3b8}
+#shl .chip-on{background:var(--accent);color:#fff!important}
+#shl .chk{width:22px;height:22px;border-radius:50%;border:2px solid #cbd5e1;font-size:12px;color:transparent;flex-shrink:0;line-height:1}
+html.dark #shl .chk{border-color:#475569}
+#shl .mini-btn{font-size:11px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 10px;border-radius:10px}
+html.dark #shl .mini-btn{color:var(--accent-l)}
+#shl .grabber{width:36px;height:4px;border-radius:99px;background:#cbd5e1;margin:0 auto 10px}
+#shl .logline{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:1em;line-height:1.7;padding:5px 12px;border-bottom:1px solid color-mix(in srgb,var(--card-bd) 60%,transparent);cursor:pointer}
+#shl .logline.logsel{background:color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:inset 3px 0 0 var(--accent)}
+#shl .numtap{border-bottom:1px dashed rgba(100,116,139,.5)}
+#shl .logline>span{display:inline}
+#shl .logline:last-child{border-bottom:none}
+#shl .logline .lt{color:#94a3b8}
+html.dark #shl .logline .lt{color:#64748b}
+#shl .logline .ll{font-weight:800;color:#0ea5e9}
+#shl .logline.lv-WARN .ll{color:#f59e0b}
+#shl .logline.lv-ERROR .ll{color:#ef4444}
+#shl .logline .ls{font-size:9px;font-weight:800;color:#64748b;background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:5px;padding:1px 5px}
+#shl .logline .lm{color:#0f172a}
+html.dark #shl .logline .lm{color:#e2e8f0}
+#shl .logline.lv-WARN{background:color-mix(in srgb,#f59e0b 5%,transparent)}
+#shl .logline.lv-ERROR{background:color-mix(in srgb,#ef4444 6%,transparent)}
+#shl .logline .lstk{display:block;color:#94a3b8;word-break:break-all}
+#shl .logline .lstk:not(.open){max-height:1.7em;overflow:hidden}
+#shl .logline .lmore{display:inline-block;font-size:9px;font-weight:800;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:5px;padding:0 5px;margin-top:2px;cursor:pointer}
+#shl .hpick{position:relative;display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:5px;border-radius:14px;background:color-mix(in srgb,var(--card-bd) 55%,transparent)}
+#shl .hpick::-webkit-scrollbar{display:none}
+#shl .hsp{flex:0 0 calc(50% - 30px);min-width:10px}
+#shl .hopt{flex:0 0 auto;min-width:52px;text-align:center;padding:9px 10px;border-radius:11px;font-size:13px;font-weight:700;color:#64748b;scroll-snap-align:center;opacity:.72;transition:opacity .15s,box-shadow .15s}
+html.dark #shl .hopt{color:#94a3b8}
+#shl .hopt.hon{background:var(--card);color:var(--accent);box-shadow:0 1px 4px rgba(15,23,42,.12);opacity:1}
+html.dark #shl .hopt.hon{color:var(--accent-l)}
+html.dark #shl .grabber{background:#475569}
+#shl .toggle{width:40px;height:23px;border-radius:99px;background:#cbd5e1;position:relative;transition:.2s;flex-shrink:0;display:inline-block;cursor:pointer}
+#shl .toggle::after{content:'';position:absolute;left:2px;top:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+#shl .toggle.on{background:var(--accent)}
+#shl .toggle.on::after{left:19px}
+html.dark #shl .toggle{background:#475569}
+#shl .toggle.lock{opacity:.45;cursor:default;pointer-events:none}
+#shl .set-ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+#shl .inp{border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;background:#fff;outline:none;font-size:13px;width:100%}
+html.dark #shl .inp{background:#0f172a;border-color:#334155;color:#e2e8f0}
+#shl .sel{border:1px solid #e2e8f0;border-radius:10px;padding:7px 8px;background:#fff;font-size:11px;outline:none}
+html.dark #shl .sel{background:#0f172a;border-color:#334155;color:#e2e8f0}
+#shl .ins-img{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:22px}
+/* 开合契约：index.html 用 hidden + .sheet-open，本版新增 sheet 沿用 */
+#shl .sheet-open{display:flex!important}
+/* 定位适配：index.html 的 #phone＝满视口，本版 #phone 是 375px 模拟框。
+   迁入弹层原写 fixed/md:absolute，在本版会逃出框（且与 #wrap 的 overflow:hidden 错位）；
+   收到 #wrap 内，与本版既有 7 个弹层行为一致。内容/尺寸/配色一字未改。 */
+#shl .sheet{position:absolute}
+#shl #imgView{position:absolute}
 </style>
 </head>
 <body>
@@ -204,7 +346,7 @@
 <div class="side-note">
   <div style="font-size:15px;font-weight:800;color:#cbd5e1">LifeHarness 交互原型 · 数据与同步专版</div>
   <div>· 仅 UI 占位模拟，无真实业务数据</div>
-  <div>· 屏 id：p-sync / p-log / p-synchist</div>
+  <div>· 屏 id：p-sync / p-synchist / p-logs / p-sub-data / p-sub-backup / p-sub-dbstats / p-sub-mediaclean</div>
   <div>· 弹层 id：s-svc-edit / s-svc-verify / s-diff / s-syncprog / s-backup / s-throttle / s-cloudclean</div>
 </div>
 
@@ -228,6 +370,9 @@
       <h1 id="pageTitle">数据与同步</h1>
       <div class="sub" id="pageSub">快照差异同步 · 本机优先</div>
     </div>
+    <button id="btnLogCfg" class="iconbtn" style="display:none" onclick="openSheet('sheetLogSettings')" aria-label="日志筛选与配置" title="日志筛选与配置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+    </button>
     <button id="btnTheme" class="iconbtn" onclick="toggleTheme()" aria-label="主题">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
     </button>
@@ -329,69 +474,408 @@
     </div>
   </section>
 
-  <!-- ================= P3 · p-log 日志查看页 ================= -->
-  <section id="p-log" class="page">
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="chip on" id="chipWin">窗口 · 最近 120 条</span>
-        <span class="chip" id="chipBuf">环形缓冲 300</span>
-        <span class="chip" id="chipFile">落盘 logs/ · 按天 · 单文件封顶 5 MB</span>
-        <span style="flex:1"></span>
-        <button class="mini-btn" id="btnCopyAll" onclick="toast('已复制 300 条全量日志 · 凭据已脱敏')">复制全部（300）</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="chip on" data-flt="all" onclick="filterLog('all',this)">全部</button>
-        <button class="chip" data-flt="warn" onclick="filterLog('warn',this)">警告+</button>
-        <button class="chip" data-flt="error" onclick="filterLog('error',this)">错误</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center" id="srcChips">
-        <button class="chip on" data-src="all" onclick="filterSrc('all',this)">全部来源</button>
-        <button class="chip" data-src="同步" onclick="filterSrc('同步',this)">同步</button>
-        <button class="chip" data-src="备份" onclick="filterSrc('备份',this)">备份</button>
-        <button class="chip" data-src="AI" onclick="filterSrc('AI',this)">AI</button>
-        <button class="chip" data-src="阅读" onclick="filterSrc('阅读',this)">阅读</button>
-        <button class="chip" data-src="记账" onclick="filterSrc('记账',this)">记账</button>
-        <button class="chip" data-src="系统" onclick="filterSrc('系统',this)">系统</button>
-        <input id="logKw" class="inp" style="flex:1;min-width:110px;padding:5px 9px;font-size:11px" placeholder="搜关键词" oninput="applyLogFilter()">
-      </div>
-      <div class="text-[10px] mt-1.5" style="color:var(--faint)" id="logCount">12 条 · 窗口 120</div>
-    </div>
-
-    <div class="card" style="margin-top:10px;padding:4px 12px" id="logBox">
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:58.412</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:59.033</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">PROPFIND Depth:1 /LifeHarness/sync/ → 207 · 412ms · Authorization: 已脱敏</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:29:59.941</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">getUserInfo → 配额 3 GB · 已用 1.2 GB · 缓存 5min</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:30:01.771</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">差异结果：仅本地 2 · 仅云端 2 · 已修改 1 · 一致 42 · 字节数档</span></div>
-      <div class="logline lv-WARN"  data-lv="WARN" data-src="同步"><span class="lt">08:30:04.219</span><span class="ll">WARN</span><span class="ls">同步</span><span class="lm">429 Too Many Requests · Retry-After: 8 · 退避重发 1/3 · 请求工厂重建</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="备份"><span class="lt">08:30:12.660</span><span class="ll">INFO</span><span class="ls">备份</span><span class="lm">put snapshot_20260924_083000.lhbak 完成 · 128.4 MB · StreamedRequest</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:30:38.026</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">MKCOL /LifeHarness/sync/logs/ → 405 · 进程内记忆命中，跳过</span></div>
-      <div class="logline lv-ERROR" data-lv="ERROR" data-src="同步"><span class="lt">08:31:02.144</span><span class="ll">ERR </span><span class="ls">同步</span><span class="lm">S3 GET /?list-type=2 失败 · 缤纷云 连接超时 30s · 已转失败清单</span></div>
-      <div class="logline lv-WARN"  data-lv="WARN" data-src="备份"><span class="lt">08:31:02.871</span><span class="ll">WARN</span><span class="ls">备份</span><span class="lm">台账残留判定：snapshot_20260918_075541.lhbak 仅云端 · 本机已删</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="同步"><span class="lt">08:31:03.007</span><span class="ll">INFO</span><span class="ls">同步</span><span class="lm">同步摘要 · 上传 3 · 下载 2 · 272.2 MB · 结果 成功 · 详情见日志窗口</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="系统"><span class="lt">08:31:03.155</span><span class="ll">INFO</span><span class="ls">系统</span><span class="lm">FileLogSink 刷盘 logs/2026-09-24.log · 保留 14 天</span></div>
-      <div class="logline lv-INFO"  data-lv="INFO" data-src="AI"><span class="lt">08:31:03.418</span><span class="ll">INFO</span><span class="ls">AI</span><span class="lm">AI 调用成功（read.toc）· 13443ms · 入 173/出 4216 tokens</span></div>
-      <div class="logline lv-WARN"  data-lv="WARN" data-src="阅读"><span class="lt">08:31:04.007</span><span class="ll">WARN</span><span class="ls">阅读</span><span class="lm">ISBN 未命中（9787108009821）· 已按书名《万历十五年》在豆瓣匹配补全</span></div>
-    </div>
-
-    <div class="card" style="margin-top:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <b class="row-title" style="font-size:12.5px;font-weight:800">保留天数</b>
-        <span class="kv">落盘日志保留 · 超期按天删除</span>
-      </div>
-      <div class="wheel" style="margin-top:8px" id="wheelKeep">
-        <div class="pad"></div>
-        <div class="witem" onclick="wheelPick(this)">7 天</div>
-        <div class="witem on" onclick="wheelPick(this)">14 天</div>
-        <div class="witem" onclick="wheelPick(this)">30 天</div>
-        <div class="pad"></div>
-      </div>
-    </div>
-  </section>
-
   <!-- ================= P2 · p-synchist 同步历史列表 ================= -->
   <section id="p-synchist" class="page">
     <div class="card" style="padding:2px 15px" id="histList"></div>
   </section>
+
+  <!-- ===== 批2 迁入区（家＝本专版）· 包在 #shl 里以隔离两套 CSS；9 屏来源 index.html ===== -->
+  <div id="shl">
+
+    <section id="p-sub-data" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="row-title">WebDAV 配置</div>
+        <div class="mt-2 space-y-2 text-xs">
+          <div class="flex items-center justify-between"><span class="text-slate-400">预设</span><select class="sel" onchange="toast('已填入'+this.value+'端点（模拟）')"><option>坚果云</option><option>Dropbox</option><option>Nextcloud</option><option>自定义</option></select></div>
+          <input class="inp w-full" value="https://dav.jianguoyun.com/dav/">
+          <div class="grid grid-cols-2 gap-2"><input class="inp" placeholder="账号邮箱"><input class="inp" type="password" value="sk••••••••••" placeholder="应用密码（非登录密码）"></div>
+          <input class="inp w-full" value="/LifeHarness/" placeholder="远程目录">
+          <div class="flex items-center justify-between py-1"><span>仅 Wi-Fi 下自动同步</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <button onclick="toast('✓ 连接成功：PROPFIND /LifeHarness/ 返回 207 · 耗时 412ms（模拟）')" class="w-full py-2.5 rounded-xl bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400 text-xs font-extrabold">测试连接</button>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">本地备份</div>
+        <div class="mt-2 space-y-2 text-xs">
+          <div class="flex items-center justify-between"><span>自动备份（每 3 天夜间 · 仅 Wi-Fi）</span><span class="toggle on" onclick="tgl(this)"></span></div>
+          <div class="flex items-center justify-between"><span class="text-slate-400">快照保留份数</span><select class="sel"><option>10 份</option><option>5 份</option><option>20 份</option></select></div>
+          <div class="flex gap-2"><button class="mini-btn flex-1 !py-2" onclick="openSheet('sheetExport')">⬇ 导出</button><button class="mini-btn flex-1 !py-2" onclick="toast('选择 .lhbak 文件恢复（校验后覆盖前自动存当前库·模拟）')">⬆ 从文件恢复</button></div>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">加密设置</div>
+        <div class="mt-2 space-y-2 text-xs">
+          <!-- 备份格式四件套批1（2026-10-13 拍板）：纯明文——包改名 .zip 即可读，凭据不入包；旧口令加密包仍可恢复（structVersion 分支） -->
+          <div class="flex items-center justify-between opacity-55"><span>备份口令加密（AES-GCM · 云商不可见）</span><span class="text-[10px] text-slate-400">产品决策：新包纯明文 · 凭据不入包</span></div>
+          <div class="flex items-center justify-between opacity-55"><span>应用锁（PIN / 生物识别）</span><span class="text-[10px] text-slate-400">产品决策：不提供 · 纯本地无找回通道，防数据永久丢失</span></div>
+          <div class="flex items-center justify-between text-slate-400"><span>母婴等敏感数据排除同步（模块级）</span><span class="toggle" onclick="tgl(this)"></span></div>
+        </div>
+      </div>
+      <div class="card mt-3">
+        <div class="row-title">同步历史</div>
+        <div class="mt-2 space-y-2 text-xs">
+          <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">今天 08:30 · 2.1 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚前将当前库存为 safety 快照（模拟）')">回滚</button></div>
+          <div class="flex items-center gap-2"><span class="text-mint">↑</span><div class="flex-1">昨天 21:02 · 0.8 MB · 成功</div><button class="mini-btn !text-[10px]" onclick="toast('回滚（模拟）')">回滚</button></div>
+          <div class="flex items-center gap-2 text-slate-400"><span>—</span><div class="flex-1">09-17 · Wi-Fi 外跳过</div></div>
+          <div class="flex items-center gap-2"><span class="text-sun">◈</span><div class="flex-1">09-15 · 全量备份 .lhbak · 含 217 附件</div><button class="mini-btn !text-[10px]" onclick="toast('已验证快照完整性（模拟）')">验证</button></div>
+        </div>
+      </div>
+      <!-- B-1：备份文件管理入口（导入主通道——云下载的包落在应用目录，SAF 逛不到，恢复链路此前断在最后一环） -->
+      <button onclick="navTo('p-sub-backup')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-violet-100 dark:bg-violet-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h3.2l1.6 2h6.2A2.5 2.5 0 0 1 20 9.5v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5Z"/><path d="M9.5 13.5h5M12 11v5"/></svg></span><div class="flex-1"><b class="text-sm">备份文件</b><div class="text-[11px] text-slate-400">本机导出 · 云端下载 · 恢复前自动 · 共 <span id="bkEntryCnt">4</span> 包</div></div><span class="text-slate-300">›</span>
+      </button>
+      <button onclick="navTo('p-sub-dbstats')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-sky-100 dark:bg-sky-500/15 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span><div class="flex-1"><b class="text-sm">数据库概览</b><div class="text-[11px] text-slate-400">记录构成 · 可再生数据 · 异常自查</div></div><span class="text-slate-300">›</span>
+      </button>
+      <!-- 批②b B-2：差异对比入口（S3 半屏的家＝本屏；此前该屏从未有此行，Flutter sync-diff-entry 早已存在） -->
+      <button onclick="openSheet('sheetSyncDiff')" class="card mt-3 w-full flex items-center gap-3 p-3.5 text-left active:bg-slate-50 dark:active:bg-slate-800/60">
+        <span class="set-ic bg-slate-100 dark:bg-slate-800 !flex items-center justify-center"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v13.5M7 4.5 4 7.8M7 4.5l3 3.3"/><path d="M17 19.5V6M17 19.5l-3-3.3M17 19.5 20 16.2"/></svg></span><div class="flex-1"><b class="text-sm">差异对比</b><div class="text-[11px] text-slate-400">本地快照目录 · 云端目录 · 四态差异</div></div><span class="text-[11px] text-slate-400" id="sdEntryCnt">7 项差异</span><span class="text-slate-300">›</span>
+      </button>
+      <!-- 批②b · S3 差异半屏（页内弹层·家在本屏）：四态分组＋一致折叠＋逐条勾选＋吸底合计；
+           图片行本机有文件＝缩略方块可点开全屏预览，「仅云端」＝虚线空框不可点（不做假热区） -->
+      <div id="sheetSyncDiff" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetSyncDiff')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl px-5 pt-1 pb-0 flex flex-col max-h-[88vh]">
+          <div class="grabber"></div>
+          <div class="flex items-center justify-between mt-1"><div class="text-base font-extrabold">差异对比</div>
+            <button class="text-[11.5px] font-bold text-brand-500" onclick="sdScan()">重新扫描</button></div>
+          <div class="text-[11px] text-slate-400 mt-1" id="sdSub"></div>
+          <div class="mt-1 overflow-y-auto no-scrollbar flex-1" id="sdBody"></div>
+          <div class="-mx-5 mt-2 px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+            <div class="flex-1 text-[12px] font-extrabold" id="sdSum"></div>
+            <button class="px-4 py-2.5 rounded-xl bg-brand-500 text-white text-xs font-extrabold" onclick="sdRun()">同步已勾选</button>
+          </div>
+        </div>
+      </div>
+      <!-- 备份格式四件套批1 · S-EXP 导出范围面板（页内弹层·家在本屏）：模块chips×内容开关×格式两档；
+           拍板（2026-10-13）＝方案A可读的包·纯明文·首批只做模块维度·子集包提示口径；瞬时 UI 态不持久化 -->
+      <div id="sheetExport" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetExport')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl px-5 pt-1 pb-0 flex flex-col max-h-[88vh]">
+          <div class="grabber"></div>
+          <div class="flex items-center justify-between mt-1">
+            <div class="text-base font-extrabold">导出数据</div>
+            <button class="text-[12px] text-slate-400 font-bold" onclick="closeSheet('sheetExport')">关闭</button>
+          </div>
+          <div class="mt-1 overflow-y-auto no-scrollbar flex-1">
+            <div class="text-[11px] font-bold text-slate-400 mt-2">① 范围</div>
+            <div class="flex flex-wrap gap-1.5 mt-1.5" id="exChips"></div>
+            <div class="text-right text-[10px] text-slate-400 mt-1" id="exSelCnt"></div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">② 时间</div>
+            <div class="flex flex-wrap gap-1.5 mt-1.5" id="exTimeChips"></div>
+            <div class="mt-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hidden" id="exTimeCustom">
+              <div class="flex items-center gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-bold text-slate-400 mb-0.5">起</div>
+                  <div class="flex gap-1">
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">年</div><div id="exFromY"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">月</div><div id="exFromM"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">日</div><div id="exFromD"></div></div>
+                  </div>
+                  <div class="text-center text-[11px] font-extrabold mt-0.5" id="exFromLbl">2025-01-01</div>
+                </div>
+                <div class="text-[11px] font-bold text-slate-300 dark:text-slate-600">→</div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-bold text-slate-400 mb-0.5">止</div>
+                  <div class="flex gap-1">
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">年</div><div id="exToY"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">月</div><div id="exToM"></div></div>
+                    <div class="exW3"><div class="text-center text-[9px] font-bold text-slate-400 mb-0.5">日</div><div id="exToD"></div></div>
+                  </div>
+                  <div class="text-center text-[11px] font-extrabold text-brand-500 mt-0.5" id="exToLbl">2026-10-15</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-[10.5px] text-slate-400 mt-1.5 leading-4 hidden" id="exTimeNote"></div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">③ 内容</div>
+            <div class="mt-1.5 space-y-2 text-xs">
+              <div class="flex items-center justify-between"><span>含图片附件 <span class="text-[10px] text-slate-400" id="exAssetMb"></span></span><span class="toggle on" id="exAssetTgl" onclick="exTglAsset(this)"></span></div>
+              <div class="flex items-center justify-between" id="exMdRow"><span>附可读 Markdown <span class="text-[10px] text-slate-400">笔记 / 书摘 / 导图投影</span></span><span class="toggle" id="exMdTgl" onclick="exTglMd(this)"></span></div>
+            </div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">④ 格式</div>
+            <div class="grid grid-cols-2 gap-2 mt-1.5">
+              <button id="exFmtLhbak" onclick="exSetFmt('lhbak')">.lhbak 可恢复包</button>
+              <button id="exFmtDir" onclick="exSetFmt('dir')">可读目录 md+csv+json</button>
+            </div>
+            <div class="text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4 hidden" id="exScopeWarn">子集包暂不能直接恢复，仅作数据出口</div>
+            <div class="text-[11px] font-bold text-slate-400 mt-3">⑤ 导出位置</div>
+            <div class="mt-1.5 flex items-center justify-between text-xs" onclick="toast('选择导出位置（系统目录树·模拟）')">
+              <span>导出直达所选目录 <span class="text-[10px] text-slate-400" id="exLocName">默认 · 应用目录</span></span>
+              <span class="text-[11px] font-bold text-brand-500">变更</span>
+            </div>
+          </div>
+          <div class="-mx-5 mt-2 px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+            <div class="flex-1 text-[12px] font-extrabold" id="exSum"></div>
+            <button class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-sky-500 text-white text-xs font-extrabold disabled:opacity-40" id="exGo" onclick="exGo()">导出</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="p-sub-backup" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[11px] text-slate-400"><b class="text-slate-600 dark:text-slate-300" id="bkCnt">4 包</b><span id="bkSum"> · 合计 59.3 MB</span></div>
+        <div class="flex items-center gap-3 text-[11px] font-bold">
+          <button class="text-brand-500 hidden" id="bkAllBtn" onclick="bkSelAll()">全选</button>
+          <button class="text-slate-500" id="bkPickBtn" onclick="bkToggleSel()">选择</button>
+          <button class="text-rose-500 hidden" id="bkDelBtn" onclick="bkAskDelBatch()">删除</button>
+        </div>
+      </div>
+      <div class="mt-2 space-y-2" id="bkList"></div>
+      <button class="mt-3 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold" onclick="toast('系统文件选择器（SAF）· 公共存储里的包从这里进（次通道）')">从其他位置选择</button>
+      <!-- B-1 删除二次确认（页内弹层：家在本屏） -->
+      <div id="sheetBkDel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetBkDel')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+          <div class="grabber"></div>
+          <div class="text-center mt-1"><div class="text-base font-extrabold">彻底删除备份文件</div>
+            <div class="text-[12px] text-slate-400 mt-2 leading-5" id="bkDelSum"></div>
+            <div class="text-[12px] text-amber-600 dark:text-amber-400 mt-1.5 leading-5 hidden" id="bkDelWarn"></div></div>
+          <div class="mt-5 flex gap-2">
+            <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetBkDel')">取消</button>
+            <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold" onclick="bkDelGo()">确认删除</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="p-sub-mediaclean" class="page px-5 safe-pb no-scrollbar">
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[12px] font-extrabold" id="mcSum"></div>
+        <span class="flex items-center gap-3">
+          <button id="mcAllBtn" class="text-[11.5px] font-bold text-brand-500" onclick="mcAll()">全选</button>
+          <button class="text-[11.5px] font-bold text-brand-500" onclick="mcScan()">重新扫描</button>
+        </span>
+      </div>
+      <div class="mt-2 space-y-2" id="mcList"></div>
+      <button id="mcDelBtn" class="mt-3 w-full py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold disabled:opacity-40" onclick="mcAskDel()">清理选中</button>
+      <!-- 删除二次确认（页内弹层·家在本屏）：逐条列出数量与体积·不可恢复 -->
+      <div id="sheetMcDel" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetMcDel')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8">
+          <div class="grabber"></div>
+          <div class="text-center mt-1"><div class="text-base font-extrabold">清理选中图片</div>
+            <div class="text-[12px] text-slate-400 mt-2 leading-5" id="mcDelSum"></div>
+            <div class="text-[12px] text-amber-600 dark:text-amber-400 mt-1.5 leading-5" id="mcDelWarn">本机文件直接删除 · 不进回收站</div></div>
+          <div class="mt-5 flex gap-2">
+            <button class="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-[13px] font-bold" onclick="closeSheet('sheetMcDel')">取消</button>
+            <button class="flex-[2] py-3 rounded-2xl bg-rose-500 text-white text-[13px] font-extrabold" onclick="mcDelGo()">删除</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="p-sub-dbstats" class="page px-5 safe-pb no-scrollbar">
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div class="row-title">数据总览</div>
+          <button class="mini-btn !text-[10px]" onclick="toast('已重新统计（模拟）')">刷新</button>
+        </div>
+        <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 py-2.5"><b class="text-base numtap">60.3万</b><div class="text-[10px] text-slate-400">记录总行数</div></div>
+          <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 py-2.5"><b class="text-base numtap">16 MB</b><div class="text-[10px] text-slate-400">备份包体积</div></div>
+          <div class="rounded-xl bg-amber-50 dark:bg-amber-500/10 py-2.5"><b class="text-base numtap text-amber-600">97%</b><div class="text-[10px] text-slate-400">可再生占比</div></div>
+        </div>
+        <div class="mt-2.5 text-[11px] leading-relaxed text-slate-400">大头是「全书索引」等<b class="text-slate-500 dark:text-slate-300">可再生数据</b>（删了能在阅读器重新解析），已默认不进备份。你亲手记的笔记 / 划线 / 账目 / 进度合计不足 1 MB。</div>
+      </div>
+
+      <div class="card mt-3 border border-amber-200 dark:border-amber-500/25 !bg-amber-50 dark:!bg-amber-500/10">
+        <div class="flex items-start gap-2.5">
+          <svg class="w-[18px] h-[18px] mt-0.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19H3L12 3.5Z"/><path d="M12 10v4m0 2.6v.2"/></svg>
+          <div class="flex-1">
+            <b class="text-sm">垃圾箱里有 18 本书未彻底删除</b>
+            <div class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1">它们的全书索引约占数据库 81%。彻底删除可释放约 47 MB（保留期内仍可恢复；同内容多份只算一处）。</div>
+            <button class="mini-btn !text-[10px] mt-2.5" onclick="navTo('p-sub-trash')">去回收站 ›</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3 !p-0 overflow-hidden">
+        <div class="row-title px-3.5 pt-3.5 pb-1.5">按模块查看</div>
+        <button onclick="navTab('p-records');switchRecord('book')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">阅读</b><div class="text-[11px] text-slate-400 mt-0.5">在册 6 本 · 垃圾箱 18 本 · 划线 17 · 书摘 12</div></div><span class="text-[10px] text-slate-400">全书索引 58.7万 · 可再生</span><span class="text-slate-300">›</span>
+        </button>
+        <button onclick="navTab('p-records')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">记账</b><div class="text-[11px] text-slate-400 mt-0.5">流水 160 笔 · 账户 10 · 分类 74 · 商家 6</div></div><span class="text-slate-300">›</span>
+        </button>
+        <button onclick="navTab('p-records');switchRecord('note')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">笔记</b><div class="text-[11px] text-slate-400 mt-0.5">笔记 31 条 · 快照 8 · 垃圾箱 29</div></div><span class="text-slate-300">›</span>
+        </button>
+        <button onclick="navTab('p-todo')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">待办</b><div class="text-[11px] text-slate-400 mt-0.5">在册 3 条</div></div><span class="text-slate-300">›</span>
+        </button>
+        <button onclick="navTab('p-records');switchRecord('habit')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">习惯 · 呵护 · 目标 · 物品</b><div class="text-[11px] text-slate-400 mt-0.5">习惯 1 · 呵护日志 2 · 目标 0 · 物品 2</div></div><span class="text-slate-300">›</span>
+        </button>
+        <button onclick="navTo('p-aiUsage')" class="w-full flex items-center gap-3 px-3.5 py-3 text-left border-t border-slate-100 dark:border-slate-800 active:bg-slate-50 dark:active:bg-slate-800/60">
+          <div class="flex-1"><b class="text-sm">AI 调用记录</b><div class="text-[11px] text-slate-400 mt-0.5">61 次 · 输入输出留痕</div></div><span class="text-slate-300">›</span>
+        </button>
+      </div>
+
+      <details class="card mt-3">
+        <summary class="flex items-center justify-between cursor-pointer list-none"><span class="row-title">技术明细（逐表行数）</span><span class="text-[10px] text-slate-400">展开 ⌄</span></summary>
+        <div class="mt-3 text-[11px] font-mono text-slate-500 dark:text-slate-400 space-y-1.5">
+          <div class="flex justify-between"><span>xray_mention · 全书索引</span><b class="numtap">586,959</b></div>
+          <div class="flex justify-between"><span>xray_entity · 词条实体</span><b class="numtap">8,107</b></div>
+          <div class="flex justify-between"><span>book_toc_nodes · 目录节点</span><b class="numtap">7,083</b></div>
+          <div class="flex justify-between"><span>xray_userdict · 用户词库</span><b class="numtap">366</b></div>
+          <div class="flex justify-between"><span>ledger_txns · 记账流水</span><b class="numtap">160</b></div>
+          <div class="flex justify-between"><span>time_blocks · 时间块</span><b class="numtap">90</b></div>
+          <div class="flex justify-between"><span>notes · 笔记</span><b class="numtap">31</b></div>
+          <div class="flex justify-between"><span>books · 书籍</span><b class="numtap">24</b></div>
+          <div class="flex justify-between text-slate-400"><span>… 其余 68 张表</span><span>&lt; 各两位数</span></div>
+        </div>
+      </details>
+    </section>
+    <section id="p-logs" class="page px-5 no-scrollbar">
+      <div class="flex items-center gap-2 mt-2 mb-1 text-[10px] text-slate-500 dark:text-slate-400">
+        <span class="truncate">窗口 120 条 · 缓冲 300 · 落盘按天 · 单文件 5 MB · 最新在上</span>
+        <button class="mini-btn ml-auto shrink-0" onclick="copyAllLogs()">复制全部</button>
+      </div>
+
+      <!-- 日志列表（长按一行 = 复制该行） -->
+      <div class="card mt-1 !p-0 overflow-hidden" id="logBoxWrap" style="max-height: calc(100vh - 158px); overflow-y: auto;">
+        <!-- V1.50：时间戳加日期前缀 + 长按复制 -->
+        <!-- V1.53.4 R14-11：倒序（最新在上）· 单栏行内流 · 堆栈行默认折叠 -->
+        <div class="logline lv-WARN" data-lv="WARN" data-src="阅读" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:04.007</span> <span class="ll">WARN</span> <span class="ls">阅读</span> <span class="lm">ISBN 未命中（9787108009821）· 已按书名《万历十五年》在豆瓣匹配补全</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="AI" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:03.418</span> <span class="ll">INFO</span> <span class="ls">AI</span> <span class="lm">AI 调用成功（read.toc）· 13443ms · 入 173/出 4216 tokens</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="系统" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:03.155</span> <span class="ll">INFO</span> <span class="ls">系统</span> <span class="lm">FileLogSink 刷盘 logs/2026-09-24.log · 保留 14 天</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:03.007</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">同步摘要 · 上传 3 · 下载 2 · 272.2 MB · 结果成功 · 详情见日志窗口</span>
+        </div>
+        <div class="logline lv-WARN" data-lv="WARN" data-src="备份" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:02.871</span> <span class="ll">WARN</span> <span class="ls">备份</span> <span class="lm">台账残留判定：snapshot_20260918_075541.lhbak 仅云端 · 本机已删</span>
+        </div>
+        <div class="logline lv-ERROR" data-lv="ERROR" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:31:02.144</span> <span class="ll">ERR </span> <span class="ls">同步</span> <span class="lm">S3 GET /?list-type=2 失败 · 缤纷云 连接超时 30s · 已转失败清单</span>
+        </div>
+        <div class="logline lv-ERROR" data-lv="ERROR" data-src="异常" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:32:10.874</span> <span class="ll">ERR </span> <span class="ls">异常</span>
+          <span class="lm">‼️ FlutterError: 'package:flutter/src/widgets/navigator.dart': Failed assertion: line 4646: no route on initial route '/read/book/1'
+            <span class="lstk" id="logStk1">#0 NavigatorState._routeNamed (navigator.dart:4646) | #1 NavigatorState.pushNamed (navigator.dart:4714) | #2 _ReaderPageState._openMoreSheet (reader_page.dart:579) | #3 showBrMoreSheet (reader_bottom_sheets.dart:292) | #4 RenderBinding.scheduleFrame (binding.dart:1188) | #5 WidgetTester.pumpWidget (widget_tester.dart:612)</span>
+            <span class="lmore" onclick="logStkToggle(this)">展开堆栈</span></span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:30:38.026</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">MKCOL /LifeHarness/sync/logs/ → 405 · 进程内记忆命中，跳过</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="备份" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:30:12.660</span> <span class="ll">INFO</span> <span class="ls">备份</span> <span class="lm">put snapshot_20260924_083000.lhbak 完成 · 128.4 MB · StreamedRequest</span>
+        </div>
+        <div class="logline lv-WARN" data-lv="WARN" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:30:04.219</span> <span class="ll">WARN</span> <span class="ls">同步</span> <span class="lm">429 Too Many Requests · Retry-After: 8 · 退避重发 1/3 · 请求工厂重建</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:30:01.771</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">差异结果：仅本地 2 · 仅云端 2 · 已修改 1 · 一致 42 · 字节数档</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:29:59.941</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">getUserInfo → 配额 3 GB · 已用 1.2 GB · 缓存 5min</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:29:59.033</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">PROPFIND Depth:1 /LifeHarness/sync/ → 207 · 412ms · Authorization: 已脱敏</span>
+        </div>
+        <div class="logline lv-INFO" data-lv="INFO" data-src="同步" oncontextmenu="event.preventDefault();copyLogLine(this)">
+          <span class="lt">09-27 08:29:58.412</span> <span class="ll">INFO</span> <span class="ls">同步</span> <span class="lm">同步任务启动 · 坚果云 WebDAV · HttpGate 间隔 300ms</span>
+        </div>
+      </div>
+
+      <!-- 真机反馈轮4④：勾选多条复制操作条（点行勾选后浮现；与筛选/排序共存） -->
+      <div id="logSelBar" class="hidden fixed md:absolute bottom-24 left-1/2 -translate-x-1/2 z-40 items-center gap-2 rounded-full bg-[#0f172a]/95 text-white px-4 py-2.5 text-xs font-bold shadow-lg">
+        <b id="logSelN">已选 0 条</b>
+        <button class="rounded-full bg-white/15 px-3 py-1 active:bg-white/25" onclick="copySelLogs()">复制已选</button>
+        <button class="rounded-full px-2 py-1 opacity-75 active:opacity-100" onclick="clearLogSel()">取消</button>
+      </div>
+
+      <!-- 筛选配置弹层 -->      <!-- 插件中心屏已随 2026-10-07 产品拍板整簇下架（入口·屏·弹层·JS）；影音游专版里的副本另行裁定 -->
+      <div id="sheetLogSettings" class="sheet hidden fixed md:absolute inset-0 z-50 bg-black/40 items-end" onclick="if(event.target===this)closeSheet('sheetLogSettings')">
+        <div class="sheet-panel w-full bg-white dark:bg-slate-900 rounded-t-3xl p-5 pb-8 max-h-[80vh] overflow-y-auto">
+          <div class="grabber"></div>
+          <div class="font-extrabold">日志筛选与配置</div>
+          
+          <!-- Tab 切换：筛选 | 配置（全局分段控件样式） -->
+          <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold mt-3">
+            <button id="logTabF" class="seg-on flex-1 rounded-lg py-1.5 font-bold" onclick="logTab('filter')">筛选</button>
+            <button id="logTabC" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logTab('config')">配置</button>
+          </div>
+          
+          <!-- 筛选 Tab -->
+          <div id="logFilterTab">
+            <!-- 窗口信息条已上移页面顶部（V4） -->
+            <!-- 级别（全局分段控件样式） -->
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">级别</div>
+              <div class="flex bg-slate-200/70 dark:bg-slate-800 rounded-xl p-1 text-xs font-bold">
+                <button id="logLvAll" class="seg-on flex-1 rounded-lg py-1.5 font-bold" onclick="logLvSet('all','logLvAll')">全部</button>
+                <button id="logLvWarn" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logLvSet('warn','logLvWarn')">警告+</button>
+                <button id="logLvErr" class="flex-1 rounded-lg py-1.5 text-slate-500" onclick="logLvSet('error','logLvErr')">错误</button>
+              </div>
+            </div>
+            
+            <!-- 来源（LH-K03 胶囊选中态 chip-on） -->
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">来源</div>
+              <div class="flex flex-wrap gap-2" id="logSrcRow">
+                <button class="chip chip-on" onclick="filterSrc(this,'all')">全部</button>
+                <button class="chip" onclick="filterSrc(this,'同步')">同步</button>
+                <button class="chip" onclick="filterSrc(this,'备份')">备份</button>
+                <button class="chip" onclick="filterSrc(this,'AI')">AI</button>
+                <button class="chip" onclick="filterSrc(this,'阅读')">阅读</button>
+                <button class="chip" onclick="filterSrc(this,'记账')">记账</button>
+                <button class="chip" onclick="filterSrc(this,'系统')">系统</button>
+              </div>
+            </div>
+            
+            <!-- 关键词 -->
+            <div class="mt-4">
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">关键词</div>
+              <input id="logKwInp" class="inp w-full" placeholder="搜关键词..." oninput="applyKwFilter()">
+            </div>
+          </div>
+          
+          <!-- 配置 Tab（V5：横滑选择器 hpick——左右滑动或点选切换，替代上下滚轮） -->
+          <div id="logConfigTab" class="hidden">
+            <!-- 日志字号（9 档） -->
+            <div class="mt-2">
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">日志字号</div>
+                <b class="text-xs" id="logFontVal" style="color:var(--accent)">11px</b>
+              </div>
+              <div id="logFont" class="hpick"></div>
+              <div class="text-[10px] text-slate-400 mt-1">左右滑动选择 · 立即预览</div>
+            </div>
+
+            <!-- 保留天数 -->
+            <div class="mt-3">
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">落盘日志保留</div>
+                <b class="text-xs" id="logKeepVal" style="color:var(--accent)">14 天</b>
+              </div>
+              <div id="logKeep" class="hpick"></div>
+              <div class="text-[10px] text-slate-400 mt-1">过期日志自动清理（模拟）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  <div id="imgView" class="hidden fixed md:absolute inset-0 z-[70] bg-black flex-col">
+    <div class="flex items-center gap-2 px-4 pt-3 text-white/75 text-[11px] font-extrabold">
+      <span id="ivPos">1 / 1</span><span class="flex-1"></span>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivZoom(-1)" title="缩小"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M6 12h12"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivZoom(1)" title="放大"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></button>
+      <button class="w-8 h-8 flex items-center justify-center" onclick="ivClose()" title="关闭"><svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+    </div>
+    <div class="flex-1 flex items-center justify-center overflow-hidden" onclick="ivClose()">
+      <span id="ivImg" class="ins-img rounded-2xl transition-transform" style="width:78%;aspect-ratio:4/3;transform:scale(1)" onclick="event.stopPropagation();ivZoom(0)"></span>
+    </div>
+    <div class="px-4 pb-6 pt-3">
+      <div class="text-[12.5px] font-bold text-white/90" id="ivName"></div>
+      <div class="text-[11px] text-white/50 mt-1 break-all font-mono" id="ivMeta"></div>
+      <div class="mt-3 flex items-center justify-between">
+        <button id="ivPrev" class="px-3.5 py-2 rounded-xl bg-white/10 text-white text-[11.5px] font-extrabold flex items-center gap-1 disabled:opacity-30" onclick="ivNav(-1)"><svg class="w-[14px] h-[14px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>上一张</button>
+        <button id="ivNext" class="px-3.5 py-2 rounded-xl bg-white/10 text-white text-[11.5px] font-extrabold flex items-center gap-1 disabled:opacity-30" onclick="ivNav(1)">下一张<svg class="w-[14px] h-[14px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /shl -->
 
   <!-- ================= 底栏 ================= -->
   <nav id="tabNav">
@@ -403,7 +887,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
       <span>历史</span>
     </button>
-    <button class="navtab" data-p="p-log" onclick="navTab('p-log')">
+    <button class="navtab" data-p="p-logs" onclick="navTab('p-logs')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M9 9h6M9 13h6"/></svg>
       <span>日志</span>
     </button>
@@ -715,13 +1199,17 @@ var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAl
 
 /* ================= 切屏 ================= */
 var TITLES = {
-  'p-sync':     ['数据与同步','快照差异同步 · 本机优先'],
-  'p-log':      ['日志','环形缓冲 300 · 复制永远全量'],
-  'p-synchist': ['同步历史','每轮摘要 · 点击跳日志']
+  'p-sync':           ['数据与同步','快照差异同步 · 本机优先'],
+  'p-synchist':       ['同步历史','每轮摘要 · 点击跳日志'],
+  'p-logs':           ['日志管理','运行日志 · 级别筛选 · 落盘配置'],
+  'p-sub-data':       ['数据与同步','本地优先 · 端到端加密'],
+  'p-sub-backup':     ['备份文件','本机导出 · 云端下载 · 恢复前自动'],
+  'p-sub-dbstats':    ['数据库概览','记录构成 · 可再生数据 · 异常自查'],
+  'p-sub-mediaclean': ['图片存储清理','未引用图片扫描 · 勾选清理']
 };
 var curPage = 'p-sync';
 var stack = [];
-function setPage(p){
+function setPage(p){/*LH-GOV-G2*/if(!document.getElementById(p)){lhGone(p);return;}
   $$('.page').forEach(function(s){ s.classList.remove('active'); });
   var el = $('#'+p);
   el.classList.add('active'); el.scrollTop = 0;
@@ -730,8 +1218,13 @@ function setPage(p){
   $('#btnBack').classList.toggle('show', stack.length>0);
   curPage = p;
   $$('.navtab').forEach(function(b){ b.classList.toggle('on', b.dataset.p===p); });
+  /* 批2：迁入屏进入即按当前数据重画；日志页显示顶栏配置齿轮并隐藏底栏（照 index.html 口径） */
+  if(p==='p-sub-backup')bkRender();
+  if(p==='p-sub-mediaclean')mcRender();
+  var _lc=$('#btnLogCfg'); if(_lc)_lc.style.display = p==='p-logs' ? '' : 'none';
+  var _tn=$('#tabNav'); if(_tn)_tn.style.display = p==='p-logs' ? 'none' : '';
 }
-function navTo(p){ if(p!==curPage){ stack.push(curPage); setPage(p); } }
+function navTo(p){/*LH-GOV-G*/if(!document.getElementById(p)){lhGone(p);return;} if(p!==curPage){ stack.push(curPage); setPage(p); } }
 function navTab(p){ stack.length = 0; setPage(p); }
 function goBack(){
   if(stack.length){ setPage(stack.pop()); return; }
@@ -740,8 +1233,15 @@ function goBack(){
   if(now-(window._lastBackTs||0)<2000){ window._lastBackTs=0; toast('再按一次已确认 · 退出应用（演示）'); }
   else { window._lastBackTs=now; toast('再按一次返回键退出 LifeHarness'); }
 }
-function openSheet(id){ var s=$('#'+id); s.classList.add('open'); }
-function closeSheet(id){ var s=$('#'+id); s.classList.remove('open'); }
+/* 批2：本版旧弹层走 .open；迁入屏弹层沿用 index.html 契约（去 hidden + .sheet-open） */
+function openSheet(id){ const s=$('#'+id);/*LH-GOV-G3*/ if(!s){lhGone(id);return;}
+  if(s.classList.contains('hidden')){ s.classList.remove('hidden'); s.classList.add('sheet-open'); }
+  else { s.classList.add('open'); }
+  /* 批2：迁入弹层的进屏重画钩子（照 index.html openSheet 口径） */
+  if(id==='sheetSyncDiff')sdRender();
+  if(id==='sheetExport')exRender(); }
+function closeSheet(id){ const s=$('#'+id); if(!s)return;
+  s.classList.remove('open'); s.classList.remove('sheet-open'); s.classList.add('hidden'); }
 var toastTimer;
 function toast(msg){ var t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.style.display='none'; },2400); }
 function tgl(el){ el.classList.toggle('on'); }
@@ -964,36 +1464,9 @@ function renderHist(){
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>')
       + '</span><span class="r-t">' + h.t + ' · ' + h.s + '<div class="r-s">' + h.x + ' · ' + h.rt + '</div></span>' + tag
       + '<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>';
-    d.onclick = function(){ navTo('p-log'); toast('已定位该轮同步日志区间 ' + h.t.replace(/\D+/g,'')); };
+    d.onclick = function(){ navTo('p-logs'); toast('已定位该轮同步日志区间 ' + h.t.replace(/\D+/g,'')); };
     host.appendChild(d);
   });
-}
-
-/* ================= p-log 级别过滤 ================= */
-/* 日志三重过滤：级别 × 来源 × 关键词（真机反馈「增加一个来源，按模块或其他可以
-   快速识别日志来源，或者筛选」）。来源标签由代码路径自动归类，不要求各模块传参。 */
-var logLv='all', logSrc='all';
-function filterLog(lv, btn){
-  logLv = lv;
-  $$('#p-log .card .chip[data-flt]').forEach(function(b){ b.classList.toggle('on', b===btn); });
-  applyLogFilter();
-}
-function filterSrc(s, btn){
-  logSrc = s;
-  $$('#srcChips .chip[data-src]').forEach(function(b){ b.classList.toggle('on', b===btn); });
-  applyLogFilter();
-}
-function applyLogFilter(){
-  var kwEl = $('#logKw'), kw = kwEl ? (kwEl.value||'').trim() : '', n = 0;
-  $$('#logBox .logline').forEach(function(l){
-    var okLv = logLv==='all' || (logLv==='warn' && (l.dataset.lv==='WARN'||l.dataset.lv==='ERROR')) || (logLv==='error' && l.dataset.lv==='ERROR');
-    var okSrc = logSrc==='all' || l.dataset.src===logSrc;
-    var msg = l.querySelector('.lm'), okKw = !kw || (msg && msg.textContent.indexOf(kw)>=0);
-    var show = okLv && okSrc && okKw;
-    l.style.display = show ? '' : 'none';
-    if (show) n++;
-  });
-  var c = $('#logCount'); if (c) c.textContent = n + ' 条 · 窗口 120';
 }
 
 /* ================= s-throttle ================= */
@@ -1022,10 +1495,461 @@ function safConfirm(){
   toast('已导出并另存：' + safDirPath + '/lifeharness_20260924_083512.lhbak');
 }
 
+/* ===== 批2 迁入 JS（家＝本专版）· 来源 index.html · 含 wheel/h 两个小组件引擎副本（过渡态） ===== */
+/* ===== B-1 备份文件管理（导入主通道 · 三档来源角标 · 删除＝物理删不进回收站 · 选择态批量） ===== */
+const BK_SRC={local:{n:'本地导出',c:'#0EA5E9'},cloud:{n:'云端下载',c:'#8B5CF6'},auto:{n:'恢复前自动',c:'#F59E0B'},ext:{n:'导出位置',c:'#10B981'}};
+let BK_FILES=[{n:'lifeharness_20261013_2216.lhbak',b:2621440,ts:'10-13 22:16',s:'ext'},
+ {n:'lifeharness_20261006_0830.lhbak',b:16112543,ts:'10-06 08:30',s:'local'},
+ {n:'lifeharness_20261004_2102.lhbak',b:15874021,ts:'10-04 21:02',s:'cloud'},
+ {n:'auto_before_restore_20261003_1915.lhbak',b:15204887,ts:'10-03 19:15',s:'auto'},
+ {n:'lifeharness_20261001_0730.lhbak',b:14988231,ts:'10-01 07:30',s:'local'}];
+let bkMode=false,bkSel=new Set(),bkPend=[];
+function bkMB(b){return (b/1048576).toFixed(1)}
+function bkSumB(list){return list.reduce((t,x)=>t+x.b,0)}
+function bkRender(){const el=document.getElementById('bkList');if(!el)return;
+ el.innerHTML=!BK_FILES.length?'<div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-400">暂无备份文件</div>'
+  :BK_FILES.map((f,i)=>{const S=BK_SRC[f.s],ck=bkMode&&bkSel.has(i);
+  return `<div class="card !p-3 flex items-center gap-3" id="bk-row-${i}">${bkMode?`<span class="w-5 h-5 rounded-full border-2 shrink-0 ${ck?'border-brand-500 bg-brand-500':'border-slate-300 dark:border-slate-600'}" onclick="bkTap(${i})"></span>`:''}<span class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style="background:${S.c}1a;color:${S.c}"><svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M13.5 3.8V8h4"/></svg></span><div class="flex-1 min-w-0" onclick="${bkMode?'bkTap('+i+')':''}"><div class="text-[13px] font-bold truncate">${f.n}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${bkMB(f.b)} MB · ${f.ts} · <b style="color:${S.c}">${S.n}</b></div></div>${bkMode?'':'<button class="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] font-bold" onclick="bkRestore('+i+')">恢复</button><button class="px-3 py-1.5 rounded-full border border-rose-400 text-rose-500 text-[11px] font-bold" onclick="bkAskDel('+i+')">删除</button>'}</div>`}).join('');
+ const c=document.getElementById('bkCnt');if(c)c.textContent=BK_FILES.length+' 包';
+ const s=document.getElementById('bkSum');if(s)s.textContent=BK_FILES.length?' · 合计 '+bkMB(bkSumB(BK_FILES))+' MB':'';
+ const e=document.getElementById('bkEntryCnt');if(e)e.textContent=BK_FILES.length;
+ const a=document.getElementById('bkAllBtn'),p=document.getElementById('bkPickBtn'),d=document.getElementById('bkDelBtn');
+ if(a)a.classList.toggle('hidden',!bkMode);if(p)p.textContent=bkMode?'取消':'选择';
+ if(d){d.classList.toggle('hidden',!bkMode);d.textContent='删除 '+(bkSel.size||0)+' 项'}}
+function bkToggleSel(){bkMode=!bkMode;bkSel.clear();bkRender()}
+function bkTap(i){if(bkSel.has(i))bkSel.delete(i);else bkSel.add(i);bkRender()}
+function bkSelAll(){bkSel=new Set(bkSel.size===BK_FILES.length?[]:BK_FILES.map((_,i)=>i));bkRender()}
+/* ===== 批②b · S3 差异半屏（B-2）＋图片存储清理屏（B-3）＋两处共用全屏预览（U3 人话化） =====
+   口径来源＝Flutter 现状：sync_diff_sheet.dart（四态分组·一致折叠·逐条勾选·吸底合计·仅云端带「下载」·残留角标）
+   与 media_clean_page.dart＋media_usage_scanner.dart（孤儿行＝内容寻址文件名·只列不自动删·勾选+确认双门槛）。
+   新增面只有两处：本机有文件的图片行＝可点开预览（仅云端＝虚线空框，不做假热区）；清理行主文案改人话（目录标签＋落盘时间），
+   裸哈希与完整路径退到副行/预览底部。 */
+const IMG_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+const SD_DIR = '/LifeHarness/';
+const SD_ROWS = [
+  {p:'note_images/3f9a2cb71e0d4a86b5c0f7d29a1e6b3c4d5f6a7b8c9d0e1f2a3b4c5d6e7f80911.jpg', s:842137, st:'local'},
+  {p:'note_images/9b74c9897bac777ad9b9a447268cc5e1f8d4b0a63ed1c9f2b5a7d8e4c3f10a2b.png', s:1263104, st:'local'},
+  {p:'exports/lifeharness_20261005_0812.lhbak', s:24117248, st:'local'},
+  {p:'book_covers/epub_17-fi.jpg', s:73140, st:'remote'},
+  {p:'note_images/1c68b5639f4a2d70e8b3f5a9c2d4e6f80719b3d5f7a1c3e5d9b7f3a1c9e5d3b7.jpg', s:512300, st:'remote', stale:true},
+  {p:'note_images/7cd3556f025ed8c0ab04e05f8e963b2d1f4a7c0e3b6d9f2a5c8e1b4d7a0c3f69.jpg', s:489211, st:'mod', rs:503880},
+  {p:'share/diary_20261001_long.png', s:1048576, st:'mod', rs:995328},
+  {p:'note_images/2ea1b4d5c07f8e9a1b6d3f0c5a7e9d124b8f6a2c0e4d8b1f7a3c5e9d2b6f0a8c.jpg', s:220045, st:'same'},
+  {p:'book_covers/isbn_9787115427614.jpg', s:98304, st:'same'},
+  {p:'exports/auto_before_restore_20261005_0758.lhbak', s:18874368, st:'same'},
+];
+const MC_ROOTS = {note_images:'笔记插图', book_covers:'书籍封面'};
+const MC_FILES = [
+  {d:'note_images', h:'3f9a2cb71e0d4a86b5c0f7d29a1e6b3c4d5f6a7b8c9d0e1f2a3b4c5d6e7f80911', e:'jpg', s:842137, t:'09-12 14:03'},
+  {d:'note_images', h:'9b74c9897bac777ad9b9a447268cc5e1f8d4b0a63ed1c9f2b5a7d8e4c3f10a2b', e:'png', s:1263104, t:'09-18 21:47'},
+  {d:'note_images', h:'1c68b5639f4a2d70e8b3f5a9c2d4e6f80719b3d5f7a1c3e5d9b7f3a1c9e5d3b7', e:'jpg', s:512300, t:'09-21 08:12'},
+  {d:'book_covers', h:'7cd3556f025ed8c0ab04e05f8e963b2d1f4a7c0e3b6d9f2a5c8e1b4d7a0c3f69', e:'jpg', s:489211, t:'09-24 19:30'},
+  {d:'book_covers', h:'2ea1b4d5c07f8e9a1b6d3f0c5a7e9d124b8f6a2c0e4d8b1f7a3c5e9d2b6f0a8c', e:'jpg', s:220045, t:'10-01 07:55'},
+  {d:'note_images', h:'5a3c8e1b4d7a0c3f69b2d6a9e5c1f8b40d7a3c6e9b2f5a8c1d4e7b0a3f6c95d2', e:'webp', s:96432, t:'10-03 22:08'},
+];
+let MC_TOTAL = 214;
+let sdOff = new Set(), sdSameOpen = false, mcOn = new Set();
+function fmtB(b){ return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB' }
+function extOf(p){ const i = p.lastIndexOf('.'); return i < 0 ? '' : p.slice(i+1).toLowerCase() }
+function isImg(p){ return IMG_EXT.includes(extOf(p)) }
+function sdLocal(r){ return r.st !== 'remote' }              // 「仅云端」＝本机没这个文件
+function sdGroup(k){ return SD_ROWS.filter(r => r.st === k) }
+function sdSel(r){ return !sdOff.has(r.p) }
+function sdToggle(p, on){ on ? sdOff.delete(p) : sdOff.add(p); sdRender() }
+function sdAll(k){ sdGroup(k).forEach(r => sdOff.delete(r.p)); sdRender() }
+function sdScan(){ sdOff.clear(); sdSameOpen = false; sdRender(); toast('已重扫本地快照目录与云端 ' + SD_DIR + '（模拟）') }
+function sdChecked(){ return SD_ROWS.filter(r => r.st !== 'same' && sdSel(r)) }
+// 无参＝同步全部已勾选；带路径＝「仅云端」行内「下载」单条即时传输
+function sdRun(p){
+  const c = typeof p === 'string' ? SD_ROWS.filter(r => r.p === p) : sdChecked();
+  if (!c.length){ toast('请先勾选要同步的文件'); return }
+  const up = c.filter(r => r.st !== 'remote').length, dn = c.filter(r => r.st === 'remote').length;
+  toast('已按勾选传输：上传 ' + up + ' · 下载 ' + dn + '（模拟）');
+  closeSheet('sheetSyncDiff');
+}
+const IV_PAL = ['linear-gradient(135deg,#7dd3fc,#818cf8)', 'linear-gradient(135deg,#fbcfe8,#c4b5fd)', 'linear-gradient(135deg,#bbf7d0,#7dd3fc)', 'linear-gradient(135deg,#fde68a,#fca5a5)', 'linear-gradient(135deg,#a5b4fc,#67e8f9)'];
+function ivGrad(k){ let n = 0; for (const ch of String(k)) n += ch.charCodeAt(0); return IV_PAL[n % IV_PAL.length] }
+const IV_SVG = '<svg class="w-[26%] h-[26%] opacity-70" fill="none" stroke="#fff" stroke-width="1.6" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="5.2" width="16.8" height="13.6" rx="2.4"/><path d="M7 15.2l2.8-3.2 2.4 2.6 2-2.2 2.4 2.8"/><circle cx="9.4" cy="9.2" r="1.3"/></svg>';
+let ivList = [], ivI = 0, ivK = 1;
+function ivSdList(){ return SD_ROWS.filter(r => isImg(r.p) && sdLocal(r)).map(r => ({p:r.p, s:r.s, name:'本机图片', t:''})) }
+function ivMcList(){ return MC_FILES.map(f => ({p:mcPath(f), s:f.s, name:mcHuman(f), t:f.t})) }
+function mcPath(f){ return f.d + '/' + f.h + '.' + f.e }
+function mcHuman(f){ return (MC_ROOTS[f.d] || f.d) + ' · ' + f.t }
+function ivOpen(src, i){
+  ivList = src === 'mc' ? ivMcList() : ivSdList();
+  if (!ivList.length) return;
+  ivI = Math.max(0, Math.min(i, ivList.length - 1)); ivK = 1;
+  const v = $('#imgView'); v.classList.remove('hidden'); v.classList.add('flex'); ivRender();
+}
+function ivRender(){
+  const it = ivList[ivI]; if (!it) return;
+  const img = $('#ivImg');
+  img.style.background = ivGrad(it.p); img.style.transform = 'scale(' + ivK + ')';
+  img.innerHTML = IV_SVG;
+  $('#ivPos').textContent = (ivI + 1) + ' / ' + ivList.length;
+  $('#ivName').textContent = it.name;
+  $('#ivMeta').textContent = extOf(it.p).toUpperCase() + ' · ' + fmtB(it.s) + ' · ' + it.p;
+  $('#ivPrev').disabled = ivI <= 0; $('#ivNext').disabled = ivI >= ivList.length - 1;
+}
+function ivNav(d){ const j = ivI + d; if (j < 0 || j >= ivList.length) return; ivI = j; ivK = 1; ivRender() }
+function ivZoom(d){ ivK = d === 0 ? (ivK > 1 ? 1 : 2) : Math.max(1, Math.min(4, ivK + d)); ivRender() }
+function ivClose(){ const v = $('#imgView'); v.classList.add('hidden'); v.classList.remove('flex') }
+const SD_UP = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 19V5m0 0-5.5 5.5M12 5l5.5 5.5"/></svg>';
+const SD_DN = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M12 5v14m0 0-5.5-5.5M12 19l5.5-5.5"/></svg>';
+const SD_OK = '<svg class="w-[13px] h-[13px]" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round"><path d="M5 12.5 10 17.5 19 7.5"/></svg>';
+function sdSec(key, title, rows, dirIcon, bulk){
+  if (!rows.length) return '';
+  return '<div class="flex items-center gap-1.5 pt-3 pb-1 text-slate-400">' + dirIcon +
+    '<b class="text-[11.5px] font-extrabold">' + title + '</b><b class="text-[11.5px] text-slate-700 dark:text-slate-200">' + rows.length + '</b>' +
+    '<span class="flex-1"></span>' + (bulk ? '<button class="chip" onclick="sdAll(\'' + key + '\')">' + bulk + '</button>' : '') + '</div>';
+}
+function sdTile(r){
+  if (!isImg(r.p)) return '<span class="w-4 flex-shrink-0"></span>';
+  return sdLocal(r)
+    ? '<span class="ins-img w-4 h-4 rounded-[5px] flex-shrink-0 cursor-pointer" style="background:' + ivGrad(r.p) + '" onclick="ivOpen(\'sd\',' + SD_ROWS.filter(x => isImg(x.p) && sdLocal(x)).indexOf(r) + ')"></span>'
+    : '<span class="w-4 h-4 rounded-[5px] flex-shrink-0 border border-dashed border-slate-300 dark:border-slate-600"></span>';
+}
+function sdRowHtml(r, chk){
+  const idx = SD_ROWS.indexOf(r);
+  const sub = r.st === 'mod' ? '<div class="text-[10px] text-slate-400 mt-0.5">两端内容不同 · 本机 ' + fmtB(r.s) + ' / 云端 ' + fmtB(r.rs || r.s) + ' · 冲突本机为准</div>' : '';
+  const stale = r.stale ? '<div class="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-extrabold text-amber-700 dark:text-amber-400 bg-amber-400/15 border border-amber-500/50">残留 · 台账记本机曾上传，本机已无此文件</div>' : '';
+  const get = r.st === 'remote' ? '<button class="mini-btn mt-1.5" onclick="sdRun(\'' + r.p + '\')">下载</button>' : '';
+  const pathCls = isImg(r.p) && sdLocal(r) ? 'text-brand-600 dark:text-brand-400 underline decoration-dotted underline-offset-2' : '';
+  return '<div class="flex items-start gap-2 py-1.5' + (chk === null ? ' opacity-65' : '') + '">' +
+    (chk === null ? '<span class="w-4 flex-shrink-0"></span>' : '<input type="checkbox" class="accent-indigo-500 mt-1 flex-shrink-0" ' + (chk ? 'checked' : '') + ' onchange="sdToggle(\'' + r.p + '\',this.checked)">') +
+    sdTile(r) +
+    '<div class="flex-1 min-w-0">' +
+      '<div class="text-[11px] font-mono font-bold break-all cursor-default ' + pathCls + '"' + (isImg(r.p) && sdLocal(r) ? ' onclick="ivOpen(\'sd\',' + SD_ROWS.filter(x => isImg(x.p) && sdLocal(x)).indexOf(r) + ')"' : '') + '>' + r.p + '</div>' +
+      sub + stale + get +
+    '</div>' +
+    '<div class="text-[10.5px] font-bold text-slate-400 flex-shrink-0 ml-1">' + fmtB(r.s) + (chk === null ? ' · 一致' : '') + '</div></div>';
+}
+function sdRender(){
+  const b = $('#sdBody'); if (!b) return;
+  const same = sdGroup('same');
+  b.innerHTML =
+    sdSec('local', '仅本地', sdGroup('local'), SD_UP, '全选上传') + sdGroup('local').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    sdSec('remote', '仅云端', sdGroup('remote'), SD_DN, '全选下载') + sdGroup('remote').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    sdSec('mod', '已修改', sdGroup('mod'), SD_UP, null) + sdGroup('mod').map(r => sdRowHtml(r, sdSel(r))).join('') +
+    '<div class="flex items-center gap-1.5 pt-3 pb-1 text-slate-400 cursor-pointer" onclick="sdSameOpen=!sdSameOpen;sdRender()">' + SD_OK +
+      '<b class="text-[11.5px] font-extrabold">一致</b><b class="text-[11.5px] text-slate-700 dark:text-slate-200">' + same.length + ' 条</b>' +
+      '<span class="flex-1"></span><span class="text-[10px] text-slate-300">' + (sdSameOpen ? '收起 ▴' : '展开 ▾') + '</span></div>' +
+    (sdSameOpen ? same.map(r => sdRowHtml(r, null)).join('') : '') +
+    (!SD_ROWS.length ? '<div class="py-6 text-center text-xs text-slate-400">两端一致 · 无差异</div>' : '');
+  const c = sdChecked(), up = c.filter(r => r.st !== 'remote').length, dn = c.filter(r => r.st === 'remote').length;
+  $('#sdSum').textContent = '上传 ' + up + ' · 下载 ' + dn + ' · 共 ' + fmtB(c.reduce((a, r) => a + r.s, 0));
+  const e = $('#sdEntryCnt'); if (e) e.textContent = SD_ROWS.filter(r => r.st !== 'same').length + ' 项差异';
+}
+function mcToggle(h, on){ on ? mcOn.add(h) : mcOn.delete(h); mcRender() }
+function mcScan(){ mcOn.clear(); mcRender(); toast('已重扫媒体目录（模拟）') }
+function mcBytes(){ return MC_FILES.filter(f => mcOn.has(f.h)).reduce((a, f) => a + f.s, 0) }
+function mcRowHtml(f, i){
+  const on = mcOn.has(f.h);
+  return '<div class="card !py-2.5 flex items-center gap-3">' +
+    '<input type="checkbox" class="accent-indigo-500 flex-shrink-0" ' + (on ? 'checked' : '') + ' onchange="mcToggle(\'' + f.h + '\',this.checked)">' +
+    '<span class="ins-img w-10 h-10 rounded-xl flex-shrink-0 cursor-pointer" style="background:' + ivGrad(mcPath(f)) + '" onclick="ivOpen(\'mc\',' + i + ')">' + IV_SVG + '</span>' +
+    '<div class="flex-1 min-w-0">' +
+      '<div class="text-[12.5px] font-bold truncate cursor-pointer" onclick="ivOpen(\'mc\',' + i + ')">' + mcHuman(f) + '</div>' +
+      '<div class="text-[11px] text-slate-400 mt-0.5">' + fmtB(f.s) + ' · ' + f.e.toUpperCase() + ' · 编号 ' + f.h.slice(0, 8) + '</div>' +
+    '</div></div>';
+}
+function mcRender(){
+  const b = $('#mcList'); if (!b) return;
+  const n = MC_FILES.length;
+  b.innerHTML = n ? MC_FILES.map(mcRowHtml).join('')
+    : '<div class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 py-6 text-center text-xs text-slate-400">无未引用图片</div>';
+  const s = $('#mcSum'); if (s) s.textContent = n ? ('未引用 ' + n + ' / 共 ' + MC_TOTAL + ' · ' + fmtB(MC_FILES.reduce((a, f) => a + f.s, 0))) : '无未引用图片';
+  const d = $('#mcDelBtn'); if (d) d.textContent = mcOn.size ? ('清理选中（' + mcOn.size + '）') : '清理选中';
+  if (d) d.disabled = !mcOn.size;
+  const a = $('#mcAllBtn'); if (a) { a.textContent = (n && mcOn.size === n) ? '取消全选' : '全选'; a.style.display = n ? '' : 'none' }
+  const pf = $('#pfMcCnt'); if (pf) pf.textContent = n + ' 个';
+}
+function mcAll(){const all=MC_FILES.length&&mcOn.size===MC_FILES.length;mcOn.clear();if(!all)MC_FILES.forEach(function(f){mcOn.add(f.h)});mcRender();}
+function mcAskDel(){
+  if (!mcOn.size){ toast('请先勾选要清理的图片'); return }
+  $('#mcDelSum').textContent = '将删除 ' + mcOn.size + ' 个文件 · ' + fmtB(mcBytes()) + '，不可恢复。';
+  openSheet('sheetMcDel');
+}
+function mcDelGo(){
+  const n = mcOn.size;
+  for (let i = MC_FILES.length - 1; i >= 0; i--) if (mcOn.has(MC_FILES[i].h)) MC_FILES.splice(i, 1);
+  MC_TOTAL = Math.max(0, MC_TOTAL - n);
+  mcOn.clear(); closeSheet('sheetMcDel'); mcRender(); toast('已清理 ' + n + ' 个文件');
+}
+function bkRestore(i){const f=BK_FILES[i];toast('送入恢复校验：'+f.n+' · 口令 → 二次确认 → 整库替换（当前库先存 safety 快照）')}
+function bkAskDel(i){bkPend=[i];bkDelAsk()}
+function bkAskDelBatch(){if(!bkSel.size){toast('先勾选要删除的备份');return}bkPend=[...bkSel].sort((x,y)=>x-y);bkDelAsk()}
+function bkDelAsk(){const L=bkPend.map(i=>BK_FILES[i]);if(!L.length)return;
+ const auto=L.filter(f=>f.s==='auto').length;
+ document.getElementById('bkDelSum').innerHTML='共 '+L.length+' 个文件 · '+bkMB(bkSumB(L))+' MB<br>物理删除 · 不进回收站 · 不可恢复';
+ const w=document.getElementById('bkDelWarn');w.classList.toggle('hidden',!auto);
+ if(auto)w.textContent='其中 '+auto+' 个是恢复前自动备份＝回滚资产，删掉后无法回退到那次恢复前的库';
+ openSheet('sheetBkDel')}
+function bkDelGo(){const n=bkPend.length,mb=bkMB(bkSumB(bkPend.map(i=>BK_FILES[i])));
+ BK_FILES=BK_FILES.filter((_,i)=>!bkPend.includes(i));bkPend=[];bkMode=false;bkSel.clear();
+ closeSheet('sheetBkDel');bkRender();toast('已彻底删除 '+n+' 个备份文件 · '+mb+' MB 已释放')}
+
+/* ===== 备份导出余量批3 · 时间维度（产品拍板 2026-10-15：A2 四档=all/y1/y3/custom·自定义用就地滚轮）
+   exp 仍为瞬时 UI 态不持久化（批2 拍板）；EX_NOTIME＝无时间列单元（AI 记录）恒全量不参与筛选。 ===== */
+const EX_MODULES=['阅读','日记','健康','记账','呵护','习惯','目标','物品','影音游','X-Ray','思维导图','AI 记录'];
+const EX_MB={'阅读':18.2,'日记':6.4,'健康':3.1,'记账':2.2,'呵护':1.4,'习惯':0.6,'目标':0.4,'物品':0.9,'影音游':1.8,'X-Ray':12.5,'思维导图':0.7,'AI 记录':0.3};
+const EX_NOTEY=['阅读','日记','思维导图'];
+/* 无时间列的单元：时间维度对其不生效（明说而非静默忽略·工单 §1） */
+const EX_NOTIME=['AI 记录'];
+const EX_TIMES=[['all','全部'],['y1','近 1 年'],['y3','近 3 年'],['custom','自定义']];
+/* 体积折算系数（原型模拟值·对应实现侧「按筛选后行数比线性折算」） */
+const EX_TFAC={all:1,y1:0.35,y3:0.6};
+const EX_YEARS=Array.from({length:12},(_,i)=>String(2019+i));
+const EX_MONS=Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
+const EX_DAYS=Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'));
+let exp={modules:[],assets:true,md:false,fmt:'lhbak',time:'all',fromY:2025,fromM:1,fromD:1,toY:2026,toM:10,toD:15};
+function exAll(){return exp.modules.length===0;}
+function exTimeFac(){
+  if(exp.time==='custom'){const d=exSpanDays();return d>0?Math.max(0.01,Math.min(1,d/2430)):1;}
+  return EX_TFAC[exp.time]||1;
+}
+function exSpanDays(){
+  const a=Date.UTC(exp.fromY,exp.fromM-1,exp.fromD),b=Date.UTC(exp.toY,exp.toM-1,exp.toD);
+  if(b<a)return 0;
+  const [y,m,d]=[exp.toY,exp.toM,exp.toD],dim=new Date(y,m,0).getDate();
+  if(exp.toD>dim)return 0; /* 止日期不存在的日（如 2 月 30 日）＝未选完整 */
+  return Math.round((b-a)/864e5)+1;
+}
+function exMb(){const base=exAll()?EX_MODULES.reduce((a,m)=>a+EX_MB[m],0):exp.modules.reduce((a,m)=>a+(EX_MB[m]||0),0);
+  return base*exTimeFac();}
+function exTimeLabel(){
+  if(exp.time==='all')return '';
+  if(exp.time==='y1')return '近 1 年';
+  if(exp.time==='y3')return '近 3 年';
+  return exSpanDays()>0?exp.fromY+'-'+String(exp.fromM).padStart(2,'0')+'-'+String(exp.fromD).padStart(2,'0')+' ~ '+exp.toY+'-'+exp.toM+'-'+exp.toD:'自定义';
+}
+function exTimeReg(){
+  if(exp.time!=='custom')return;
+  wReg('exFromY',EX_YEARS,EX_YEARS.indexOf(String(exp.fromY)),exTimeHint);
+  wReg('exFromM',EX_MONS,exp.fromM-1,exTimeHint);
+  wReg('exFromD',EX_DAYS,exp.fromD-1,exTimeHint);
+  wReg('exToY',EX_YEARS,EX_YEARS.indexOf(String(exp.toY)),exTimeHint);
+  wReg('exToM',EX_MONS,exp.toM-1,exTimeHint);
+  wReg('exToD',EX_DAYS,exp.toD-1,exTimeHint);
+}
+function exTimeHint(){
+  exp.fromY=+WHEELS.exFromY.items[WHEELS.exFromY.i];exp.fromM=WHEELS.exFromM.i+1;exp.fromD=WHEELS.exFromD.i+1;
+  exp.toY=+WHEELS.exToY.items[WHEELS.exToY.i];exp.toM=WHEELS.exToM.i+1;exp.toD=WHEELS.exToD.i+1;
+  const f=exp.fromY+'-'+String(exp.fromM).padStart(2,'0')+'-'+String(exp.fromD).padStart(2,'0');
+  $('#exFromLbl').textContent=f;
+  $('#exToLbl').textContent=exp.toY+'-'+String(exp.toM).padStart(2,'0')+'-'+String(exp.toD).padStart(2,'0');
+  exRender();
+}
+function exRender(){
+  const box=$('#exChips');if(!box)return;
+  box.innerHTML='<button class="chip '+(exAll()?'chip-on':'')+'" onclick="exClick(\'__all\')">全部数据</button>'+
+    EX_MODULES.map(m=>'<button class="chip '+(!exAll()&&exp.modules.includes(m)?'chip-on':'')+'" onclick="exClick(\''+m+'\')">'+m+'</button>').join('');
+  $('#exSelCnt').textContent=exAll()?'全部模块':'已选 '+exp.modules.length+' 个模块';
+  /* ② 时间 */
+  $('#exTimeChips').innerHTML=EX_TIMES.map(([k,l])=>'<button class="chip '+(exp.time===k?'chip-on':'')+'" onclick="exSetTime(\''+k+'\')">'+l+'</button>').join('');
+  $('#exTimeCustom').classList.toggle('hidden',exp.time!=='custom');
+  if(exp.time==='custom')exTimeReg();
+  const bad=exp.time==='custom'&&exSpanDays()===0;
+  const notime=!exAll()&&exp.time!=='all'&&exp.modules.some(m=>EX_NOTIME.includes(m));
+  const nt=$('#exTimeNote');
+  if(bad){nt.classList.remove('hidden');nt.className='text-[10.5px] text-amber-600 dark:text-amber-400 mt-1.5 leading-4';nt.textContent='起止时间不合法（止日期须不早于起日期，且为真实存在的日）';}
+  else if(notime){nt.classList.remove('hidden');nt.className='text-[10.5px] text-slate-400 mt-1.5 leading-4';nt.textContent=exp.modules.filter(m=>EX_NOTIME.includes(m)).join('、')+' 无时间字段，不按时间筛选';}
+  else{nt.classList.add('hidden');}
+  const noteOk=exAll()||EX_NOTEY.some(m=>exp.modules.includes(m));
+  $('#exMdRow').classList.toggle('opacity-40',!noteOk);
+  if(!noteOk)exp.md=false;
+  $('#exMdTgl').classList.toggle('on',exp.md);
+  const mb=exMb(),attMb=exp.assets?mb*0.8:0;
+  $('#exAssetMb').textContent='（附件约 '+attMb.toFixed(1)+' MB）';
+  $('#exScopeWarn').classList.toggle('hidden',exAll()||exp.fmt!=='lhbak');
+  const on='py-2 rounded-xl text-[11px] font-bold bg-brand-500 text-white',
+        off='py-2 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300';
+  $('#exFmtLhbak').className=exp.fmt==='lhbak'?on:off;
+  $('#exFmtDir').className=exp.fmt==='dir'?on:off;
+  const hasData=!exAll()&&exp.modules.length>0||exAll();
+  const parts=[];if(hasData)parts.push(exAll()?'全部数据':exp.modules.length+' 模块');
+  const tl=exTimeLabel();if(hasData&&tl)parts.push(tl);
+  $('#exSum').textContent=parts.length?parts.join(' · ')+' · 约 '+mb.toFixed(1)+' MB':'';
+  const go=$('#exGo');go.disabled=!hasData||bad;
+  go.textContent=bad?'请选起止时间':hasData?(exAll()?'导出备份':'导出'):'所选范围暂无数据';
+}
+function exClick(m){
+  if(m==='__all')exp.modules=[];
+  else if(exAll())exp.modules=[m];
+  else{const i=exp.modules.indexOf(m);i<0?exp.modules.push(m):exp.modules.splice(i,1);}
+  exRender();
+}
+function exSetTime(t){exp.time=t;exRender();}
+function exTglAsset(el){el.classList.toggle('on');exp.assets=el.classList.contains('on');exRender();}
+function exTglMd(el){if($('#exMdRow').classList.contains('opacity-40')){toast('所选模块无笔记类数据，Markdown 投影不可用');return;}el.classList.toggle('on');exp.md=el.classList.contains('on');}
+function exSetFmt(f){exp.fmt=f;exRender();}
+function exGo(){const s=$('#exSum').textContent;closeSheet('sheetExport');toast('已开始导出（模拟）· '+s+' · '+exp.fmt.toUpperCase()+' 进度见通知')}
+const WHEELS={};
+const WI_H=26;
+function wReg(id,items,i,onch){WHEELS[id]={items,i:Math.max(0,i||0),onch};renderW(id)}
+function renderW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!el)return;const n=w.items.length;
+  if(!w._bx||!w._bx.isConnected){const rep=Math.max(4,Math.ceil(180/n));let h='<div style="height:26px"></div>';
+    for(let k=0;k<rep*n;k++)h+=`<div class="witem">${w.items[k%n]}</div>`;
+    h+='<div style="height:26px"></div>';el.innerHTML=`<div class="wheelbox">${h}</div>`;
+    const bx=w._bx=el.firstElementChild;w._rep=rep;
+    bx.addEventListener('scroll',()=>{syncW(id);clearTimeout(w._tm);w._tm=setTimeout(()=>commitW(id),130)});
+    let py=null,st=0;
+    bx.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'){py=e.clientY;st=bx.scrollTop;bx.setPointerCapture(e.pointerId);bx.style.scrollSnapType='none'}});
+    const mv=e=>{if(py!==null)bx.scrollTop=st-(e.clientY-py)};
+    const up=e=>{if(py===null)return;py=null;bx.style.scrollSnapType='';
+      const tgt=Math.round(bx.scrollTop/WI_H)*WI_H,t0=bx.scrollTop,d=tgt-t0,t1=performance.now();
+      const step=now=>{const p=Math.min(1,(now-t1)/150);bx.scrollTop=t0+d*(1-Math.pow(1-p,3));if(p<1&&py===null)requestAnimationFrame(step)};
+      requestAnimationFrame(step)};
+    bx.addEventListener('pointermove',mv);bx.addEventListener('pointerup',up);bx.addEventListener('pointercancel',up);}
+  w._bx.scrollTop=(Math.floor(w._rep/2)*n+w.i)*WI_H;syncW(id);if(el.offsetParent===null)posW(id);}
+function posW(id){const w=WHEELS[id];const el=document.getElementById(id);if(!w||!w._bx||!el)return;
+  if(el.offsetParent===null){requestAnimationFrame(()=>posW(id));return}
+  w._bx.scrollTop=(Math.floor(w._rep/2)*w.items.length+w.i)*WI_H;syncW(id)}
+function wAbs(id){const w=WHEELS[id];return Math.max(0,Math.round(w._bx.scrollTop/WI_H))}
+function syncW(id){const w=WHEELS[id];if(!w._bx)return;const c=wAbs(id);w._bx.querySelectorAll('.witem').forEach((d,k)=>d.classList.toggle('on',k===c))}
+function commitW(id){const w=WHEELS[id];const n=w.items.length;const i=((wAbs(id)%n)+n)%n;if(i!==w.i){w.i=i;if(w.onch)w.onch()}}
+/* ================= V1.50 批 3.6 · 日志筛选与配置（V5：横滑选择器 hpick + 分段 seg-on + 胶囊 chip-on） ================= */
+var logLv='all',logSrc='all',logKw='';
+/* 横滑选择器：左右滑动 scroll-snap 吸中 / 点选居中，选中项对齐 seg-on 观感；首尾 hsp 占位使首末项可真正居中 */
+const HPICKS={};
+function hOpts(id){const el=$('#'+id);return el?[...el.querySelectorAll('.hopt')]:[]}
+function hReg(id,items,i,onch){
+  const el=$('#'+id);if(!el)return;HPICKS[id]={items,i:Math.max(0,Math.min(items.length-1,i||0)),onch};
+  el.innerHTML='<div class="hsp"></div>'+items.map((v,k)=>'<div class="hopt'+(k===HPICKS[id].i?' hon':'')+'" data-k="'+k+'">'+v+'</div>').join('')+'<div class="hsp"></div>';
+  el.onclick=e=>{const t=e.target.closest('.hopt');if(t)hGo(id,+t.dataset.k);};
+  el.onscroll=()=>{clearTimeout(HPICKS[id]._tm);HPICKS[id]._tm=setTimeout(()=>hSync(id,true),90);};
+  hPos(id);
+}
+function hPos(id){const w=HPICKS[id],el=$('#'+id);if(!w||!el)return;
+  if(el.offsetParent===null){requestAnimationFrame(()=>hPos(id));return}
+  const os=hOpts(id),c=os[w.i];if(c)el.scrollLeft=c.offsetLeft-(el.clientWidth-c.offsetWidth)/2;hSync(id,false);}
+function hSync(id,fire){const w=HPICKS[id],el=$('#'+id);if(!w||!el)return;
+  if(el.scrollWidth<=el.clientWidth+1)return; /* 不可滚（内容不足）时不重判，保持注册项 */
+  const mid=el.scrollLeft+el.clientWidth/2;let best=w.i,bd=1e9;
+  hOpts(id).forEach((c,k)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=k}});
+  if(best!==w.i){w.i=best;hOpts(id).forEach((c,k)=>c.classList.toggle('hon',k===best));if(fire&&w.onch)w.onch(w.items[best]);}}
+function hGo(id,k){const w=HPICKS[id],el=$('#'+id);const os=hOpts(id),c=os[k];if(!w||!c)return;
+  el.scrollTo({left:c.offsetLeft-(el.clientWidth-c.offsetWidth)/2,behavior:'smooth'});}
+function logTab(tab){
+  var on='seg-on flex-1 rounded-lg py-1.5 font-bold',off='flex-1 rounded-lg py-1.5 text-slate-500';
+  $('#logTabF').className=tab==='filter'?on:off;
+  $('#logTabC').className=tab==='config'?on:off;
+  $('#logFilterTab').classList.toggle('hidden',tab!=='filter');
+  $('#logConfigTab').classList.toggle('hidden',tab!=='config');
+  if(tab==='config'){
+    if(!HPICKS.logFont){
+      hReg('logFont',['10','11','12','13','14','15','16','18','20'],1,function(v){
+        $('#logBoxWrap').style.fontSize=v+'px';$('#logFontVal').textContent=v+'px';});
+      hReg('logKeep',['7 天','14 天','30 天'],1,function(v){
+        $('#logKeepVal').textContent=v;toast('落盘日志保留已设为 '+v+'（模拟）');});
+    }
+    hPos('logFont');hPos('logKeep');
+  }
+}
+function logLvSet(lv,id){
+  logLv=lv;
+  [['logLvAll','all'],['logLvWarn','warn'],['logLvErr','error']].forEach(function(p){
+    var b=$('#'+p[0]),on=p[1]===lv;
+    b.className=(on?'seg-on ':'')+'flex-1 rounded-lg py-1.5'+(on?' font-bold':' text-slate-500');
+  });
+  applyLogFilter();
+}
+function filterSrc(btn,src){
+  logSrc=src;
+  $$('#logSrcRow .chip').forEach(function(b){b.classList.remove('chip-on');});
+  btn.classList.add('chip-on');
+  applyLogFilter();
+}
+function applyKwFilter(){logKw=$('#logKwInp').value.trim();applyLogFilter();}
+function applyLogFilter(){
+  $$('#logBoxWrap .logline').forEach(function(l){
+    var okLv=logLv==='all'||(logLv==='warn'&&/WARN|ERROR/.test(l.dataset.lv))||(logLv==='error'&&l.dataset.lv==='ERROR');
+    var okSrc=logSrc==='all'||l.dataset.src===logSrc;
+    var okKw=!logKw||l.querySelector('.lm').textContent.indexOf(logKw)>=0;
+    l.style.display=(okLv&&okSrc&&okKw)?'':'none';
+  });
+}
+function copyLogLine(line){
+  var text=line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent.trim()+' ['+line.querySelector('.ls').textContent+'] '+line.querySelector('.lm').textContent;
+  navigator.clipboard.writeText(text).then(function(){toast('已复制该行日志');}).catch(function(){toast('复制失败');});
+}
+function logStkToggle(el){
+  var box=el.parentElement.querySelector('.lstk');if(!box)return;
+  var open=box.classList.toggle('open');
+  el.textContent=open?'收起堆栈':'展开堆栈';
+}
+function copyAllLogs(){
+  var t=[];
+  $$('#logBoxWrap .logline').forEach(function(l){t.push(l.textContent.replace(/\s+/g,' ').trim());});
+  navigator.clipboard.writeText(t.join('\n')).then(function(){toast('已复制全量日志 · 凭据已脱敏');}).catch(function(){toast('复制失败');});
+}
+/* 真机反馈轮4④：点行勾选多条复制（长按一行=复制该行·不变）· 与筛选/排序共存 */
+function logSelToggle(l){l.classList.toggle('logsel');logSelUpdate();}
+function logSelUpdate(){
+  var n=$$('#logBoxWrap .logsel').length,bar=$('#logSelBar');
+  if(!bar)return;
+  bar.classList.toggle('hidden',n===0);bar.classList.toggle('flex',n>0);
+  $('#logSelN').textContent='已选 '+n+' 条';
+  var box=$('#logBoxWrap');if(box)box.style.maxHeight=n===0?'':'calc(100vh - 214px)';
+}
+function logLineText(line){
+  return line.querySelector('.lt').textContent+' '+line.querySelector('.ll').textContent.trim()+
+    ' ['+line.querySelector('.ls').textContent+'] '+line.querySelector('.lm').textContent.replace(/\s+/g,' ').trim();
+}
+function copySelLogs(){
+  /* 与筛选共存：只复制当前可见的勾选行（按列表序），隐藏的不混入 */
+  var t=$$('#logBoxWrap .logsel').filter(function(l){return l.offsetParent!==null;}).map(logLineText);
+  if(!t.length){toast('当前视图无勾选行');return;}
+  navigator.clipboard.writeText(t.join('\n')).then(function(){toast('已复制 '+t.length+' 条日志');}).catch(function(){toast('复制失败');});
+}
+function clearLogSel(){$$('#logBoxWrap .logsel').forEach(function(l){l.classList.remove('logsel');});logSelUpdate();}
+(function(){var box=$('#logBoxWrap');if(!box)return;
+  box.addEventListener('click',function(e){
+    if(e.target.closest('button'))return; /* 展开堆栈等按钮不触发勾选 */
+    var l=e.target.closest('.logline');if(l)logSelToggle(l);
+  });
+})();
+/* 跨专版跳转垫片：迁入屏里 navTab('p-records')/navTo('p-todo') 等由 govnav 守卫接管，
+   这里补一个空实现，避免 onclick 后续调用抛 ReferenceError 污染控制台。 */
+function switchRecord(k){ /* 记录页不在本专版 · 由重定向表带路 */ }
+
 /* ================= 初始化 ================= */
 renderSvcCard(); renderSvcForm(); renderVerify(); renderHist(); computeDiff();
 
-/* ================= 走查深链（#page=p-log&sheet=s-diff&prov=s3&edit=s3&vprov=s3&vst=cred） ================= */
+/* 批2 注：原此处的「走查深链」IIFE 已下移至 LH-GOV 兜底块之后（见文件末）——
+   它调用的 setPage/openSheet 已被 govnav 插入守卫，而守卫回调 lhGone 定义在 LH-GOV 块里；
+   留在本处＝守卫在深链参数不合法时抛 `lhGone is not defined`（改前是 `null.classList` TypeError，
+   同类不抛不过），下移后守卫能真正生效（toast＋重定向）。零视觉/交互差异。 */
+</script>
+<script>/*LH-GOV-START*/
+/* 屏单一归属·navTo 兜底与深链重定向（治理批 2026-10-03）。本块由 tools/govnav.js 生成，禁手改。 */
+(function(){
+var RED=window.LH_REDIRECTS={"p-records":["index-bookshelf.html","阅读·书架"],"p-aiUsage":["index.html","壳与跨模块"],"p-sub-trash":["index.html","壳与跨模块"],"p-todo":["index.html","壳与跨模块"]};
+var DROP=window.LH_DROPPED={};
+var SELF=window.LH_SELF={};
+window.LH_LANDING="p-sync";
+window.lhGone=function(id){
+  if(SELF[id]){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」已更名 · 正在前往');}catch(e){}if(typeof navTab==='function'){navTab(SELF[id]);location.replace('#'+SELF[id]);}else{location.replace('#'+SELF[id]);}return;}
+  var r=RED[id];
+  if(r){try{toast('「'+((typeof TITLES!=='undefined'&&TITLES[id]&&TITLES[id][0])||id)+'」现居「'+r[1]+'」· 跳转中');}catch(e){}setTimeout(function(){location.href=r[0]+'#'+(r[2]||id);},700);return;}
+  if(DROP[id]){try{toast('该功能已下架 · 演示已移除');}catch(e){}return;}
+  console.warn('[lh-gov] 目标不在本版:',id);
+};
+function boot(){var h='';try{h=decodeURIComponent((location.hash||'').slice(1));}catch(e){}
+  if(!h){var L=window.LH_LANDING;if(L&&!document.querySelector('.page.active')&&typeof navTab==='function')navTab(L);return;}
+  if(!h)return;var el=document.getElementById(h);
+  if(el){if(el.classList.contains('page')&&!el.classList.contains('active')&&typeof navTab==='function')navTab(h);return;}
+  if(SELF[h]){location.replace('#'+SELF[h]);return;}
+  var r=RED[h];if(r)location.replace(r[0]+'#'+(r[2]||h));}
+window.lhBoot=function(){try{boot();}catch(e){window.__lhBootErr=String(e&&e.stack||e);}};
+window.lhBoot();
+window.addEventListener('load',function(){window.lhBoot();});
+})();
+/*LH-GOV-END*/</script>
+<script>
+/* ================= 走查深链（#page=p-logs&sheet=s-diff&prov=s3&edit=s3&vprov=s3&vst=cred） =================
+   批2：本块**必须**排在 LH-GOV 兜底块之后——它调用的 setPage/openSheet 带 govnav 守卫，
+   守卫回调 lhGone 由 LH-GOV 块定义；排在前面会在参数不合法时抛 `lhGone is not defined`。 */
 (function(){
   var h = location.hash.replace(/^#/,''); if(!h) return;
   var q = {}; h.split('&').forEach(function(kv){ var p = kv.split('='); q[p[0]] = p[1]; });
