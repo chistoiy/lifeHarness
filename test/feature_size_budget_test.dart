@@ -31,7 +31,11 @@ void main() {
     // header 治理注释＋_StatCards 扩展包裹两行＋根库 part 指令＋1 处 setState
     // ignore＝机械开销净 +11 行（无功能代码增减）。刀3 续拆后实测续登；read 三件
     // size_budget 登记项拆完删项后本表只许减。
-    'read': 49002,
+    // 48984→49020（高保真批6c·2026-10-16·整单收口批·工单 §3 批6c 规定动作）：
+    // 三刀拆 part 的机械开销合计＝三个新 part 件 header/治理注释＋两枚扩展包裹＋
+    // 根库 part 指令＋10 处 setState ignore，净 +36 行（无功能代码增减）。
+    // read 三件 size_budget 登记项已删（登记清零）·此后只许减。
+    'read': 49020,
     'ledger': 18045,
     'media': 13573,
     'health': 12862,

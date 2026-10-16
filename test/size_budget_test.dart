@@ -59,25 +59,11 @@ void main() {
     // 三态弹层群关联面（_localEpubStrip/_cacheRow）＋书摘卡群（_noQuotes/_quoteCard/
     // _qMeta）落同库扩展 _BookDetailCards，showBrLocalInfo 整组迁入同库 part
     // book_detail_cards.dart，主文件 1582→1019 还默认面。
-    // 归属澄清（V1.60 导入批 2026-10-04 跑出本红）：reader_page 越线发生在
-    // 真机轮4 批A⑥（eb44611，1175→1212，暂停计时那刀），该批批内增量没带 size 闸，
-    // 非 V1.60 造成——V1.60 反而净减 2 行（预载拦截摘除，1212→1210）。
-    // 1224→1226 阅读模块批3（2026-10-14）：F3-3 手柄 accent 传参＋app_theme import。
-    // 之后只许减；真还债＝把取证/装载群再拆一件
-    // part 扩展（G7c 族口径），另批做。
-    // 1210→1216 存量越线归位（U4 批 2026-10-06 跑出本红）：净增 6 行发生在
-    // 上一批「阅读时间块实时刷新」（567e84d，reader_page 起停两处挂刷新），
-    // 该批按门禁瘦身三条只跑面板清单、未带 size 闸，故今日现形——非 U4 造成，
-    // U4 一行未动 reader_page。之后只许减。
-    // 1216→1222 存量越线归位（F-13 批 2026-10-07 跑出本红）：净增 6 行发生在
-    // 上一批「真机反馈 F-12」（1ac1e10，onReadSet 改 await push 后 _reloadHls），
-    // 该批门禁＝backup/sync 4 文件＋doclint，未带 size 闸，故今日现形——非 F-13 造成，
-    // F-13 一行未动 reader_page（改的是同库 part：sel_ops/stage/chrome/models，均在默认面下）。
-    // 1222→1224 本批净增 2（阅读模块批2 · 2026-10-14）：F2-8/F2-11 的改动落在同库 part
-    // （reader_stage / reader_sel_ops / reader_xray_panel），宿主补两条 import
-    // （`LoadErrorBanner`／`lhConfirm`）——Dart 同库 part 共享宿主 import 表，
-    // 故增量按宿主计。之后只许减。
-    'features/read/presentation/reader/reader_page.dart': 1226,
+    // 高保真批6c（2026-10-16·整单收口批）三刀拆 part 归还 read 剩余登记项：
+    // 刀1 read_sheets_b3 1341→442（书摘表单群 _QuoteForm/_ColWheel 整组＋_deco 迁同库 part
+    // read_sheets_b3_quote.dart）；刀2 read_stat_page 1259→453（统计卡群落同库扩展 _StatCards
+    // ·part read_stat_page_cards.dart）；刀3 reader_page 1226→1047（装载/取证/定位群落同库
+    // 扩展 _ReaderBoot·part reader_page_boot.dart）。三件按「拆完删项」删除还默认面，read 登记清零。
     // 批三刀2 登记的 epub_doc 体积债已归还（刀3 开工前置）：抽取器整段拆成同库件
     // `part 'epub_extract.dart';`（G7d⑤ 族口径，私有成员不放宽），主文件回落到默认面以下。
     // R3-2 批登记的 reader_page 体积债已归还（批三刀4）：分页群七件拆进同库扩展
